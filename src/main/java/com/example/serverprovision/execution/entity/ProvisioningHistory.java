@@ -65,6 +65,19 @@ public class ProvisioningHistory extends BaseTimeEntity {
         return stepCode != null ? stepCode.getPhaseType() : null;
     }
 
+    /**
+     * 자원 결손 대기의 시한 만료로 실패 전환된 기록의 statusMeta(E2-1-b) — 사유(어느 축이 왜 막혔는지)와
+     * 시한은 나중에 파생할 수 없으므로 사건 시점에 적는다. 값은 ASCII 코드 요약이라 이스케이프가 필요 없다.
+     */
+    public static String holdTtlMeta(String wireSummary, java.time.Duration ttl) {
+        return "{\"origin\":\"hold-ttl\",\"ttl\":\"" + ttl + "\",\"shortage\":\"" + wireSummary + "\"}";
+    }
+
+    /** 이 행이 자원 결손 시한 만료의 기록인가(E2-1-b) — 재시도 차단 판정이 이 사실을 읽는다. */
+    public boolean isHoldTtlOrigin() {
+        return statusMeta != null && statusMeta.contains("\"origin\":\"hold-ttl\"");
+    }
+
     /** 이 행이 운영자 액션의 기록인가(ES-2 D-5) — 화면의 '운영자 전환' 구분이 이 판정을 파생한다. */
     public boolean isOperatorOrigin() {
         return statusMeta != null && statusMeta.contains("\"origin\":\"operator\"");

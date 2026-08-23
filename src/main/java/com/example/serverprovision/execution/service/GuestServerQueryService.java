@@ -3,6 +3,9 @@ package com.example.serverprovision.execution.service;
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
+import com.example.serverprovision.execution.engine.AxisResolution;
+import com.example.serverprovision.execution.engine.HoldTtlPolicy;
+import com.example.serverprovision.execution.engine.FirmwareResolutionProvider;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.HostNicBinding;
@@ -54,6 +57,9 @@ public class GuestServerQueryService {
     private final HostNicBindingRepository nicRepository;
     private final ProvisioningProgressRepository progressRepository;
     private final ProvisioningHistoryRepository provisioningHistoryRepository;
+    private final FirmwareResolutionProvider firmwareResolutionProvider;   // E2-1-b — 조회 시 해석 1회
+    private final HoldTtlPolicy holdTtlPolicy;
+    private final RetryPolicy retryPolicy;   // 재시도 가능 판정 — 화면 · 가드 공용 SSOT
     private final ObjectMapper objectMapper;
 
     /** "접촉 중" 판정 임계 — 게스트 폴링 주기(30초) 3회 이내(E1-2, DEC-32 표시 규칙). */
@@ -336,8 +342,8 @@ public class GuestServerQueryService {
                 // 버튼 노출 4종 전부 서버 가드와 같은 도메인 메서드 SSOT (UI 차단 조건 = 서버 가드 조건)
                 progress.isStartableWith(server.getDecommissionedAt()),
                 progress.isManualFailable(server.getDecommissionedAt()),
-                progress.isRetryable(),
-                progress.isRetryBlocked());
+                retryPolicy.isRetryable(progress, steps),
+                retryPolicy.isBlocked(progress, steps));
 
         List<GuestServerDetailResponse.Step> stepResponses = steps.stream()
                 .map(s -> new GuestServerDetailResponse.Step(
@@ -363,8 +369,35 @@ public class GuestServerQueryService {
                 inventory,
                 nicResponses,
                 progressResponse,
+                firmwarePlanOf(server, progress),
                 stepResponses
         );
+    }
+
+    /**
+     * 펌웨어 판정 카드(E2-1-b) — 해석을 부수효과 없이 한 번 돌려 화면에 싣는다. 저장된 값이 아니라
+     * 조회 시점의 재계산이므로 자원이 되살아나면 새로고침만으로 카드가 바뀐다. 대기 중이면 시한까지
+     * 남은 시간을 함께 준다(기점 = 대기 진입이 찍은 lastTransitionAt).
+     */
+    private GuestServerDetailResponse.FirmwarePlan firmwarePlanOf(GuestServer server, ProvisioningProgress progress) {
+        return firmwareResolutionProvider.resolveFor(server.getId())
+                .map(resolution -> new GuestServerDetailResponse.FirmwarePlan(
+                        resolution.grade(),
+                        axisOf(resolution.bios(), "BIOS"),
+                        axisOf(resolution.bmc(), "BMC"),
+                        progress != null && progress.isHolding(),
+                        holdRemainingMinutes(progress)))
+                .orElse(null);
+    }
+
+    private static GuestServerDetailResponse.FirmwarePlan.Axis axisOf(AxisResolution axis, String label) {
+        return new GuestServerDetailResponse.FirmwarePlan.Axis(
+                axis.isSelected(), axis.display(), axis.message(label));
+    }
+
+    private long holdRemainingMinutes(ProvisioningProgress progress) {
+        return (progress == null || !progress.isHolding()) ? 0L
+                : holdTtlPolicy.remainingMinutes(progress.getLastTransitionAt(), LocalDateTime.now());
     }
 
     /**

@@ -52,6 +52,11 @@ class GuestServerQueryServiceTest {
     @Mock HostNicBindingRepository nicRepository;
     @Mock ProvisioningProgressRepository progressRepository;
     @Mock ProvisioningHistoryRepository provisioningHistoryRepository;
+    // E2-1-b — 상세 조회가 펌웨어 해석을 한 번 돌린다. 이 파일의 시나리오는 펌웨어 단계와 무관하므로
+    // "해당 없음"(empty)을 돌려주는 mock 으로 두고, 판정 자체는 FirmwareResolverTest 가 검증한다.
+    @Mock com.example.serverprovision.execution.engine.FirmwareResolutionProvider firmwareResolutionProvider;
+    @Mock com.example.serverprovision.execution.engine.HoldTtlPolicy holdTtlPolicy;
+    @Mock RetryPolicy retryPolicy;
 
     @InjectMocks GuestServerQueryService service;
 
@@ -133,6 +138,8 @@ class GuestServerQueryServiceTest {
         given(progressRepository.findByGuestServer_Id(activeId)).willReturn(Optional.empty());
         given(provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(activeId)).willReturn(List.of());
 
+        given(firmwareResolutionProvider.resolveFor(org.mockito.ArgumentMatchers.any()))
+                .willReturn(java.util.Optional.empty());
         GuestServerDetailResponse.Contact contact = service.findDetail(activeId).contact();
         assertThat(contact.active()).isTrue();
         assertThat(contact.secondsSince() + contact.remainingSeconds()).isEqualTo(90L);
@@ -161,6 +168,8 @@ class GuestServerQueryServiceTest {
         given(progressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress(s, ProvisioningPhase.OS_INSTALLING)));
         given(provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(id)).willReturn(List.of(step));
 
+        given(firmwareResolutionProvider.resolveFor(org.mockito.ArgumentMatchers.any()))
+                .willReturn(java.util.Optional.empty());
         GuestServerDetailResponse res = service.findDetail(id);
 
         assertThat(res.name()).isEqualTo("web-01");
@@ -193,6 +202,8 @@ class GuestServerQueryServiceTest {
         given(progressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(failed));
         given(provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(id)).willReturn(List.of(guestFailRow));
 
+        given(firmwareResolutionProvider.resolveFor(org.mockito.ArgumentMatchers.any()))
+                .willReturn(java.util.Optional.empty());
         GuestServerDetailResponse res = service.findDetail(id);
 
         assertThat(res.progress().failedStepCode())
@@ -218,6 +229,8 @@ class GuestServerQueryServiceTest {
         given(progressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(failed));
         given(provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(id)).willReturn(List.of(operatorRow));
 
+        given(firmwareResolutionProvider.resolveFor(org.mockito.ArgumentMatchers.any()))
+                .willReturn(java.util.Optional.empty());
         GuestServerDetailResponse res = service.findDetail(id);
 
         assertThat(res.progress().failedStepCode()).isNull();   // '운영자 전환' 배지 경로
@@ -234,6 +247,8 @@ class GuestServerQueryServiceTest {
         given(progressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress(s, ProvisioningPhase.OS_INSTALLING)));
         given(provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(id)).willReturn(List.of());
 
+        given(firmwareResolutionProvider.resolveFor(org.mockito.ArgumentMatchers.any()))
+                .willReturn(java.util.Optional.empty());
         assertThat(service.findDetail(id).status()).isEqualTo(GuestServerStatus.DECOMMISSIONED);
     }
 

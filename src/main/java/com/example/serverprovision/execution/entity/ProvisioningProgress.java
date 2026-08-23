@@ -145,6 +145,35 @@ public class ProvisioningProgress extends BaseTimeEntity {
     }
 
     /**
+     * 자원 결손 대기 진입(E2-1-b, 토론 D1 · D4) — <b>AWAITING_BOOT 에서만</b> 허용한다. 이미 step 을
+     * 열어 작업 중(STEP_RUNNING)인 게스트가 결손을 만나는 것은 대기가 아니라 실패이므로(D1 사다리),
+     * 그 전이를 표현 불가로 막는 것이 이 가드의 목적이다. 시한(TTL)의 기점은 여기서 찍는
+     * {@code lastTransitionAt} 이다 — HOLD 중에는 다른 전이가 없어 기점이 흔들리지 않는다.
+     */
+    public void holdForShortage(LocalDateTime now) {
+        if (motion != ProvisioningMotion.AWAITING_BOOT) {
+            throw new IllegalStateException(
+                    "부팅 대기 상태에서만 결손 대기로 들어갈 수 있습니다. motion=" + motion + ", id=" + id);
+        }
+        this.motion = ProvisioningMotion.HOLD;
+        this.lastTransitionAt = now;
+    }
+
+    /** 결손 해소(E2-1-b) — 재료가 돌아온 폴링에서 대기를 풀고 부팅 대기로 되돌린다. */
+    public void resumeFromHold(LocalDateTime now) {
+        if (motion != ProvisioningMotion.HOLD) {
+            throw new IllegalStateException("결손 대기 상태가 아닙니다. motion=" + motion + ", id=" + id);
+        }
+        this.motion = ProvisioningMotion.AWAITING_BOOT;
+        this.lastTransitionAt = now;
+    }
+
+    /** 결손 대기 중인가 — 게이트의 전이 판정과 화면 표시가 함께 쓰는 SSOT. */
+    public boolean isHolding() {
+        return motion == ProvisioningMotion.HOLD;
+    }
+
+    /**
      * 실패 신호 기록(DEC-4). 종단과 상호배타 — 두 신호가 공존하는 무효 상태를 표현 불가로 만든다.
      * 실패 지점은 별도 컬럼이 아니라 커서가 답한다(ES-2 D3 — positionAt 이 "커서 = 마지막으로 연 step" 을 보장).
      */
@@ -191,7 +220,7 @@ public class ProvisioningProgress extends BaseTimeEntity {
     /**
      * 운영자 재시도(E1-2, DEC-4) — 실패 신호 해제. 전진 전용 가드 체계의 <b>유일한 명시 예외</b>다
      * (자동 재시도는 없다 — 운영자 액션만). 커서는 실패 지점 step 을 그대로 가리키므로 다음 /boot 폴링이
-     * 그 phase 의 스크립트를 재발급한다. 가능 판정은 {@link #isRetryable}/{@link #isRetryBlocked} SSOT.
+     * 그 phase 의 스크립트를 재발급한다. 가능 판정은 {@code RetryPolicy} 가 원장 사실과 함께 내린다.
      */
     public void clearFailed(LocalDateTime now) {
         if (!isFailed()) {
@@ -203,18 +232,15 @@ public class ProvisioningProgress extends BaseTimeEntity {
     }
 
     /**
-     * 펌웨어 flash 실패의 재시도 차단(DEC-4 — 원인 미상 재-flash 는 벽돌 리스크).
-     * UI disabled + tooltip 과 서버 409 가드가 이 메서드 하나를 공유한다(SSOT).
-     * 실패 지점 = 커서(ES-2 D-5)이므로 실패 상태 여부와 함께 판정한다.
+     * 실패 지점이 펌웨어 갱신 step 인가(커서 = 실패 지점, ES-2 D-5) — <b>사실</b>만 답한다.
+     *
+     * <p>재시도 차단 <b>정책</b>은 여기 두지 않는다. 같은 펌웨어 step 의 실패라도 굽다가 실패한 것과
+     * 자원이 없어 시한이 지난 것(E2-1-b)은 위험이 다르고, 그 구분에 필요한 사실은 원장에 있어 엔티티가
+     * 볼 수 없기 때문이다. 판정은 {@code RetryPolicy} 한 지점이 하고 화면 · 가드가 함께 호출한다.</p>
      */
-    public boolean isRetryBlocked() {
+    public boolean isFirmwarePhaseFailure() {
         return isFailed() && (currentStep == ProvisioningPhaseStep.BIOS_UPDATING
                 || currentStep == ProvisioningPhaseStep.BMC_UPDATING);
-    }
-
-    /** 재시도 버튼 노출 판정 — 실패 상태이면서 차단 대상이 아닐 때. */
-    public boolean isRetryable() {
-        return isFailed() && !isRetryBlocked();
     }
 
     public boolean isStarted() {

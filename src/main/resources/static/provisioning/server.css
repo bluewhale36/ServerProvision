@@ -524,3 +524,41 @@
        세로에서는 내용 높이를 그대로 쓰게 되돌린다. */
     .n-group-top > * { flex: 0 0 auto; }
 }
+
+/* E2-1-b — 펌웨어 갱신 계획 카드. 진행 표 아래에 붙는 부속이라 카드 테두리를 새로 두지 않고
+   여백과 구분선으로만 구획한다. 선택된 축과 결손 축을 색으로 가르되 배지는 쓰지 않는다 —
+   판정은 상태 표시가 아니라 서술이기 때문이다. */
+.n-firmware-plan {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--n-border);
+}
+.n-firmware-axes {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.n-firmware-axes li {
+    font-size: 13px;
+    padding-left: 14px;
+    position: relative;
+}
+.n-firmware-axes li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--n-text-muted);
+}
+.n-firmware-axes li.is-selected::before { background: var(--n-green); }
+.n-firmware-hold {
+    margin: 12px 0 0;
+    font-size: 12.5px;
+    color: var(--n-text-sec);
+}

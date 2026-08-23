@@ -46,6 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = ExecutionRestController.class)
 @Import({ BootService.class, BootScriptDispatcher.class, PhaseExecutorRegistry.class,
+        com.example.serverprovision.execution.engine.PhaseEntryGate.class,
+        com.example.serverprovision.execution.engine.HoldTtlPolicy.class,
         ExecutionRestControllerBootFlowTest.FakeDiagnoseExecutor.class })
 class ExecutionRestControllerBootFlowTest {
 
@@ -66,6 +68,8 @@ class ExecutionRestControllerBootFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean GuestServerRegistrationService registrationService;
+    // E2-1-b — 진입 게이트가 쓰는 협력자. 진단 흐름은 판정 대상이 아니라 기본 mock 으로 충분하다.
+    @MockitoBean com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder provisioningHistoryRecorder;
     @MockitoBean ProvisioningProgressRepository progressRepository;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 

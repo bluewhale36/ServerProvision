@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.dto.response;
 
 import com.example.serverprovision.execution.enums.DiscoveryStage;
+import com.example.serverprovision.execution.engine.ReadinessGrade;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
 import com.example.serverprovision.execution.enums.IpSource;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
@@ -37,6 +38,8 @@ public record GuestServerDetailResponse(
         Inventory inventory,
         List<Nic> nics,
         Progress progress,
+        /** 펌웨어 갱신 phase 를 보유한 게스트만 — 매 조회 재계산(E2-1-b). */
+        FirmwarePlan firmwarePlan,
         List<Step> steps
 ) {
 
@@ -103,6 +106,25 @@ public record GuestServerDetailResponse(
             boolean retryable,
             boolean retryBlocked
     ) {
+    }
+
+    /**
+     * 펌웨어 갱신 phase 의 해석 · 준비도(E2-1-b) — 매 조회 시 다시 계산한 값이라 저장 필드가 아니다.
+     * 게스트가 그 phase 를 보유하지 않으면 null 이고 화면은 카드 자체를 그리지 않는다.
+     *
+     * @param holding              자원 결손으로 대기 중인가
+     * @param holdRemainingMinutes 대기 시한까지 남은 분 (대기 중일 때만 의미)
+     */
+    public record FirmwarePlan(
+            ReadinessGrade grade,
+            Axis bios,
+            Axis bmc,
+            boolean holding,
+            long holdRemainingMinutes
+    ) {
+        /** 축 하나의 표시값 — 선택됐으면 버전, 아니면 사유 문구(사유 enum 이 문구를 보유한다). */
+        public record Axis(boolean selected, String display, String message) {
+        }
     }
 
     /** 세부 단계 체크포인트 1개 (provisioning_history, append-only). phase 는 step 에서 도출(U1 §D7). */

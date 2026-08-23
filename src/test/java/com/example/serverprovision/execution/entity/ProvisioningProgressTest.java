@@ -243,19 +243,62 @@ class ProvisioningProgressTest {
     }
 
     @Test
-    @DisplayName("isRetryBlocked — 실패 상태 + 커서가 펌웨어 flash step 일 때만 차단 (벽돌 리스크 SSOT, D-5)")
-    void retryBlocked_onlyFirmwareSteps() {
+    @DisplayName("isFirmwarePhaseFailure — 실패 지점이 펌웨어 step 인가라는 사실만 답한다(차단 정책은 RetryPolicy 소관)")
+    void firmwarePhaseFailure_isFactOnly() {
         assertThat(ProvisioningProgress.builder()
                 .currentStep(ProvisioningPhaseStep.BIOS_UPDATING).lastTransitionAt(T0)
-                .startedAt(T0).failedAt(T0).build().isRetryBlocked()).isTrue();
+                .startedAt(T0).failedAt(T0).build().isFirmwarePhaseFailure()).isTrue();
         assertThat(ProvisioningProgress.builder()
                 .currentStep(ProvisioningPhaseStep.BMC_UPDATING).lastTransitionAt(T0)
-                .startedAt(T0).failedAt(T0).build().isRetryBlocked()).isTrue();
-        assertThat(diag().startedAt(T0).failedAt(T0).build().isRetryBlocked()).isFalse();   // 비펌웨어 step
-        // 실패 아닌 상태에서는 커서가 펌웨어 step 이어도 차단 아님 — 판정에 isFailed 가 결합됐다(D-5).
+                .startedAt(T0).failedAt(T0).build().isFirmwarePhaseFailure()).isTrue();
+        assertThat(diag().startedAt(T0).failedAt(T0).build().isFirmwarePhaseFailure()).isFalse();   // 비펌웨어 step
+        // 실패가 아니면 지점이 펌웨어여도 사실이 성립하지 않는다.
         assertThat(ProvisioningProgress.builder()
                 .currentStep(ProvisioningPhaseStep.BIOS_UPDATING).lastTransitionAt(T0)
-                .startedAt(T0).build().isRetryBlocked()).isFalse();
+                .startedAt(T0).build().isFirmwarePhaseFailure()).isFalse();
+    }
+
+    // ==== E2-1-b — 자원 결손 대기 전이 =========================================
+
+    @Test
+    @DisplayName("holdForShortage — 부팅 대기에서만 대기 진입 + 시한 기점(lastTransitionAt) 갱신")
+    void hold_fromAwaitingBoot() {
+        ProvisioningProgress p = started();
+        p.holdForShortage(T1);
+        assertThat(p.isHolding()).isTrue();
+        assertThat(p.getMotion()).isEqualTo(ProvisioningMotion.HOLD);
+        assertThat(p.getLastTransitionAt()).isEqualTo(T1);
+    }
+
+    @Test
+    @DisplayName("holdForShortage — 작업 중(STEP_RUNNING)에서는 거부 : 착수 후 결손은 대기가 아니라 실패(D1)")
+    void hold_fromStepRunning_rejected() {
+        ProvisioningProgress p = started();
+        p.positionAt(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING, T1);   // 작업 착수
+        assertThatThrownBy(() -> p.holdForShortage(T1)).isInstanceOf(IllegalStateException.class);
+        assertThat(p.getMotion()).isEqualTo(ProvisioningMotion.STEP_RUNNING);
+    }
+
+    @Test
+    @DisplayName("resumeFromHold — 대기 해소 → 부팅 대기 복귀 / 대기 중이 아니면 거부")
+    void resume_fromHold() {
+        ProvisioningProgress p = started();
+        p.holdForShortage(T1);
+        p.resumeFromHold(T1.plusMinutes(1));
+        assertThat(p.isHolding()).isFalse();
+        assertThat(p.getMotion()).isEqualTo(ProvisioningMotion.AWAITING_BOOT);
+        assertThatThrownBy(() -> p.resumeFromHold(T1)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("대기 중 실패 전환 — motion 은 NULL 로(실행 창 밖 불변식), 커서는 막힌 지점 유지")
+    void hold_thenFail_clearsMotion() {
+        ProvisioningProgress p = started();
+        p.holdForShortage(T1);
+        p.markFailed(T1.plusMinutes(2));
+        assertThat(p.getMotion()).isNull();
+        assertThat(p.isHolding()).isFalse();
+        assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);
     }
 
     // ==== currentPhase 파생 (ES-2 D3 — 정보 손실 없음) ==========================

@@ -25,7 +25,8 @@ public class BootScriptDispatcher {
      * 등록(멱등)이 끝난 게스트에 대한 응답 스크립트. (매트릭스 1행 "미등록 → 등록" 은 호출 전에
      * {@code GuestServerRegistrationService} 가 이미 수행 — 여기 도달 시점엔 항상 등록돼 있다.)
      */
-    public String dispatch(GuestServer server, ProvisioningProgress progress, String rebootQuery) {
+    public String dispatch(GuestServer server, ProvisioningProgress progress,
+                           PhaseReadiness readiness, String rebootQuery) {
         if (server.getDecommissionedAt() != null) {                       // 2행
             return IpxeScripts.decommissioned(rebootQuery);
         }
@@ -43,11 +44,16 @@ public class BootScriptDispatcher {
         if (!progress.isStarted()) {                                      // 5행 — 개시 게이트(DEC-26)
             return IpxeScripts.waitingForStart(rebootQuery);
         }
+        if (progress.isHolding()) {                                       // 6행 — 자원 결손 대기(E2-1-b)
+            // 진입 게이트가 이미 대기로 들여보낸 상태다. 여기서는 그 사실을 게스트에게 알리기만 한다 —
+            // 재료가 돌아오면 다음 폴링에서 게이트가 대기를 풀고 이 행을 지나친다.
+            return IpxeScripts.shortageHold(readiness.wire(), rebootQuery);
+        }
         // 커서의 phase 파생이 곧 부팅 목표(ES-2 D-1) — 커서가 항상 "도달했거나 향하는 목표 step" 을
         // 가리키므로(등록 seed 부터 DIAGNOSTIC_BOOTING), 옛 bootTargetPhase 의 BOOTSTRAPPING 특례가
         // 필요 없어졌다(E1-0b 스모크가 발견했던 영구 HOLD 문제의 원인 자체가 소멸).
         ProvisioningPhase target = progress.currentPhase();
-        return phaseExecutorRegistry.find(target)                         // 6행 HOLD / 7행 위임
+        return phaseExecutorRegistry.find(target)                         // 7행 HOLD / 8행 위임
                 .map(executor -> executor.bootScript(server, progress, rebootQuery))
                 .orElseGet(() -> IpxeScripts.hold(target, rebootQuery));
     }

@@ -91,6 +91,7 @@ class GuestServerControllerStartFlowTest {
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.DIAGNOSE_LINUX, T, startedAt, null, null, null, startable,
                         false, false, false),
+                null,   // E2-1-b firmwarePlan — 이 흐름과 무관
                 List.of());
     }
 

@@ -40,6 +40,7 @@ class GuestServerCommandServiceTest {
     @Mock GuestServerRepository guestServerRepository;
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
     @Mock com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder provisioningHistoryRecorder;   // ES-2 D-5 — 수동 전환 원장 표식
+    @Mock RetryPolicy retryPolicy;   // E2-1-b CP5 F-1 — 재시도 차단 판정(원장 사실 포함)은 정책이 든다
     @Mock ApplicationEventPublisher eventPublisher;   // S7 — 실시간 스트림 신호 발행 검증
     @InjectMocks GuestServerCommandService service;
 
@@ -232,6 +233,7 @@ class GuestServerCommandServiceTest {
                 .build();
         given(guestServerRepository.existsById(id)).willReturn(true);
         given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+        given(retryPolicy.isBlocked(progress)).willReturn(true);   // 굽다가 난 실패 — 정책이 차단으로 판정
 
         assertThatThrownBy(() -> service.retry(id))
                 .isInstanceOf(ProvisioningRetryRejectedException.class);
