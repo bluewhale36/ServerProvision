@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1.5 Plan — Redfish 제어 기반 · 전원 제어</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  [data-error="1"] { color:var(--red); font-weight:700; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 (localStorage) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid (보조) ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:160px; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : 4-actor 시간 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); }
+  .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1.5 — Redfish 제어 기반 · 전원 제어 <span class="v2-badge">E2-3 착수 게이트</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1.5 (feature)</span>
+    <span><strong>상위</strong> E 단계 — 프로비저닝 실행 엔진</span>
+    <span><strong>scope</strong> Redfish 클라이언트 기반 + 전원 제어 + 게스트 상세 전원 카드</span>
+    <span><strong>브랜치</strong> <code>feat/E1.5_redfish-power-control</code> (from <code>origin/dev</code>)</span>
+    <span><strong>토론</strong> <code>discussion/26-08-20_08-45-51_E1.5-redfish-power-control_discussion.md</code> — P1~P6 종결</span>
+    <span><strong>생성</strong> 2026-08-20 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 / 부산물</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">지금은 등록된 게스트 서버의 전원을 시스템에서 켜거나 끌 방법이 없다. 서버에는 본체 전원과 별개로 살아 있는 관리 칩이 있고, 그 칩에 표준 규격으로 명령을 보내는 방식이 Redfish 다. 그런데 앱 안에는 Redfish 로 실제 요청을 보내는 코드가 아직 하나도 없다. 이번 슬라이스는 그 통로를 만들고, 첫 용도로 전원 제어를 붙인다. 화면에서는 게스트 서버 상세에 '전원 제어' 카드가 생겨 지금 전원이 켜져 있는지 확인하고 켜기 · 강제 끄기 · 재시작을 누를 수 있다. 관리 칩을 찾지 못한 게스트는 버튼 대신 이유 문구만 보여 준다. 실제 장비 실측에서 <b>명령은 성공했다고 답하는데 전원은 켜지지 않는</b> 경우가 확인됐기 때문에, 켤 때만은 실제로 켜졌는지 확인하고 안 켜졌으면 한 번 더 다른 방식으로 시도한다.</p>
+
+        <h4>현재 코드 · 데이터</h4>
+        <ul>
+          <li>앱에 실 Redfish HTTP 호출이 <b>0</b> 이다 — <code>BmcPasswordService</code> 는 적용 계획을 산출해 로그와 화면에 표기할 뿐 장비를 부르지 않는다. 전역 <code>RestClient</code> 빈은 comps.xml 추출용 기본 설정이라 자가서명 TLS 를 다루지 못한다.</li>
+          <li><code>GuestServerDetail</code> 에 <code>bmcIp</code> · <code>bmcMac</code> · <code>boardSerial</code> 이 이미 있다. bmcIp · bmcMac 은 E1-2 의 in-band 수집 결과이며, QEMU 처럼 관리 칩이 없는 환경은 null 로 남는 것이 정상 동작(정상 degrade)이다. 자격증명 저장소는 없다.</li>
+        </ul>
+
+        <div class="callout"><b>구현 계약 = E0-4 실측 1~4 호</b> (문서 조사값이 아니라 실장비 측정값) :
+          <ul>
+            <li>인증은 Basic 우선. 세션은 유효 30 초 · 동시 상한 10 이라 Task 추적 같은 단기 용도로만 병용한다.</li>
+            <li>Reset 허용값은 5 종 — <code>ForceOff</code> · <code>ForceRestart</code> · <code>GracefulShutdown</code> · <code>On</code> · <code>PowerCycle</code>. <code>GracefulRestart</code> 는 없다.</li>
+            <li><b>On 실패 모드 실측</b> — "명령 성공 · 전원 불변" 이 재현됐다. 그래서 PowerState 폴링 + PowerCycle 폴백이 필요하다.</li>
+            <li>Reset 응답이 Task 경로를 반환한다(전달 성공과 실행 성공 · 실패를 나눠 판독).</li>
+            <li>412 응답 시 fresh ETag 로 1 회 재시도. 전송 구간은 자가서명 TLS.</li>
+          </ul>
+        </div>
+
+        <h4>토론 종결 (P1~P6) · 소비처</h4>
+        <ul>
+          <li>자격증명은 전역 표준 계정을 쓴다(username 은 무조건 <code>admin</code>) + 공장 기본 폴백(비밀번호 = 메인보드 시리얼 11 자 — 실측 · 예외 없음). 위치는 <code>global/redfish</code>. BootSourceOverride 는 후속(E1.5-2, K1 실측 게이트). 제어 불가는 예외가 아니라 결과 타입. 알림은 추후 별도 기능이며(BackgroundJob 은 용도가 아니다) 이번에는 로그 + 결과 반환까지. UC-2 수동 제어 화면은 이번에 포함한다.</li>
+          <li>소비처 — <b>E2-3</b>(펌웨어 flash 전 ForceOff · 후 On — 이 슬라이스가 <b>착수 게이트</b>) · <b>E3</b>(설정 적용 후 ForceRestart) · <b>MA6</b>(같은 클라이언트 기반 재사용) · <b>UC-2</b>(수동 제어 화면).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>Redfish 클라이언트 기반</b> — <code>global/redfish</code> 에 Basic 인증 · 자가서명 TLS · 타임아웃 · 오류 분류 · Task 판독을 담당하는 저수준 클라이언트를 둔다.</li>
+          <li><b>전원 제어 서비스</b> — Reset 5 종 발행 · PowerState 조회 · <b>켜짐 검증 폴링 + PowerCycle 폴백</b>(집행 소비처가 부르는 동기 메서드).</li>
+          <li><b>자격증명 resolve</b> — 표준 계정 우선 → 401 이면 공장 기본(메인보드 시리얼 11 자)으로 폴백.</li>
+          <li><b>결과 타입</b> — 제어 불가 · 발행됨 · 검증됨 · 실패 네 가지를 값으로 돌려준다.</li>
+          <li><b>게스트 상세 '전원 제어' 카드</b> — 상태 조회 · 버튼 · bmcIp 가 null 이면 버튼 없이 사유 문구로 UI 1 차 차단.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>BMC · BIOS 펌웨어 flash 집행 — E2-2 · E2-3</li>
+            <li>BIOS 설정 PATCH — E3 / Attribute Registry 화면 — MA6</li>
+            <li>BootSourceOverride — E1.5-2 (K1 실측 후)</li>
+            <li>게스트별 자격증명 엔티티 — E3-0</li>
+            <li>프로비저닝 알림 채널 — 별도 기능 예정. 이번에는 서버 로그 + 화면 즉시 응답까지</li>
+            <li>엔진(phase) 배선 — 소비처 슬라이스의 몫</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 게스트 상세 '전원 제어' 카드</summary>
+      <div class="body">
+        <p style="margin-top:0;">위 세그먼트로 <b>게스트 상태</b>(관리 칩 검출 여부 · 현재 전원)와 <b>BMC 응답 모드</b>를 바꾼 뒤 카드의 버튼을 눌러 보면, 그때 오간 Redfish 요청이 타임라인으로 찍히고 서버가 내리는 판정(<code>PowerControlResult.kind</code>)이 배지로 뜬다. <b>판정 스크립트는 <code>RedfishPowerService</code> 의 판정 순서를 그대로 재현한다 — 실 HTTP 왕복과 폴링 간격(5 초 × 12 회 = 60 초)은 데모에서 압축했다.</b> 화면의 실제 [켜기] 는 <b>단발 발행(SENT) + [상태 조회]</b> 다(§3 — 60 초 폴링을 화면에 얹지 않는다). 이 데모의 [켜기] 는 집행 소비처가 쓰는 검증 경로(<code>powerOnAndVerify</code>)의 판정을, [강제 끄기] · [재시작] · [정상 종료] 는 파괴적 액션의 confirm 확인을 보여 준다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">게스트 상태 :</span>
+            <button class="seg" data-guest="A" onclick="demoSetGuest('A')">ⓐ 검출 · 전원 On</button>
+            <button class="seg" data-guest="B" onclick="demoSetGuest('B')">ⓑ 검출 · 전원 Off</button>
+            <button class="seg" data-guest="C" onclick="demoSetGuest('C')">ⓒ BMC 미검출</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">BMC 응답 모드 :</span>
+            <button class="seg" data-mode="OK" onclick="demoSetMode('OK')">정상</button>
+            <button class="seg" data-mode="RETRY" onclick="demoSetMode('RETRY')">On 무반응 → 폴백 성공</button>
+            <button class="seg" data-mode="FAIL" onclick="demoSetMode('FAIL')">On 무반응 → 폴백 실패</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="demo-guest-row">
+              <strong>게스트</strong><span class="label" id="demo-guest-label"></span>
+              <span style="font-size:11px;color:var(--text-muted);">PowerState</span>
+              <span class="badge off" id="demo-power-badge">미조회</span>
+            </div>
+            <div id="demo-card"></div>
+          </div>
+
+          <div id="demo-confirm"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">게스트 상태와 응답 모드를 바꾼 뒤 버튼을 눌러 보세요.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 kind 판정 = 서버 판정 = 같은 순서(<code>bmcIp</code> 확인 → Reset 발행 → Task 판독 → PowerState 폴링 → PowerCycle 폴백). confirm 모달을 띄울지 여부도 같은 소스인 <code>RedfishResetType.destructive()</code> 를 본다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>메서드</th><th>URL</th><th>무엇</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET (XHR)</td><td><code>/provisioning/server/{id}/power</code></td><td>PowerState 조회. 페이지 로드와 분리한 lazy 호출</td><td>200 JSON</td></tr>
+            <tr><td>POST (XHR)</td><td><code>/provisioning/server/{id}/power/reset</code></td><td>body <code>{"resetType":"ON"|"FORCE_OFF"|"FORCE_RESTART"}</code> — 단발 발행 + Task 판독 + 직후 PowerState 1 회</td><td>200 JSON / 400 / 404</td></tr>
+            <tr><td>(Java API)</td><td><code>RedfishPowerService.powerOnAndVerify(...)</code></td><td>집행 소비처(E2-3)용 동기 메서드. 폴링 + 폴백 포함 — HTTP 엔드포인트가 아니다</td><td>결과 타입</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>화면 경로는 60 초 폴링을 하지 않는다.</b> XHR 요청을 1 분 붙잡으면 화면이 멈추기 때문이다. 화면은 발행 결과를 즉시 받고 사용자가 [상태 조회] 로 이어서 확인한다. 폴링 + 폴백은 집행 경로(<code>powerOnAndVerify</code>) 몫이다.</div>
+
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">GuestServerPowerRestController</div><div class="actor a3">RedfishPowerService</div><div class="actor a4">BMC (Redfish)</div>
+          <div class="step a1">게스트 상세 진입</div><div class="step a2">bmcIp 유무로 카드 분기 (BMC 무조회)</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">[상태 조회] XHR GET</div><div class="step a2">위임</div><div class="step a3">자격증명 resolve → 조회</div><div class="step a4">GET Systems/Self → PowerState</div>
+          <div class="step a1">배지 갱신</div><div class="step a2">결과를 그대로 JSON 직렬화</div><div class="step a3">PowerControlResult</div><div class="step a4"></div>
+          <div class="step a1">[켜기] · [강제 끄기] XHR POST</div><div class="step a2">resetType 검증 (400) · 게스트 조회 (404)</div><div class="step a3">Reset 발행 → Task 판독 → PowerState 1 회</div><div class="step a4">Reset → Task 경로 반환</div>
+          <div class="step a1">kind 배지 + message 표기</div><div class="step a2"></div><div class="step a3">(집행 경로) 폴링 → PowerCycle 폴백</div><div class="step a4">PowerCycle</div>
+        </div>
+        <p>ForceOff · ForceRestart 는 파괴적 액션이라 <code>ConfirmModal.bindFormSubmit</code> 관례 대신 페이지 스크립트의 confirm 모달로 한 번 더 확인받는다(폼 제출이 아니라 XHR 이기 때문이다). 404 는 게스트가 없을 때, 400 은 지원하지 않는 resetType 일 때다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>타입</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>RedfishResetType</code> <span class="chip new">신규</span></td><td>실측 5 종 enum — <code>ON("On")</code> · <code>FORCE_OFF("ForceOff")</code> · <code>FORCE_RESTART("ForceRestart")</code> · <code>GRACEFUL_SHUTDOWN("GracefulShutdown")</code> · <code>POWER_CYCLE("PowerCycle")</code>. wire 값을 보유하고 <code>destructive()</code> 로 <b>ON 외 전부</b>(ForceOff · ForceRestart · GracefulShutdown · PowerCycle)를 true 로 돌려준다(화면 confirm 의 재료).</td></tr>
+            <tr><td><code>RedfishEndpoint</code> <span class="chip new">신규</span></td><td>record — <code>ip</code> · <code>username</code> · <code>password</code>. 클라이언트 호출 단위이며 <code>basicAuthHeader()</code> 를 제공한다.</td></tr>
+            <tr><td><code>BmcCredentialsResolver</code> <span class="chip new">신규</span></td><td>표준 계정(설정 <code>provision.bmc.username</code> 기본 <code>admin</code> · <code>provision.bmc.password</code>)을 먼저 쓰고 <b>401 이면 공장 기본으로 폴백</b>(비밀번호 = <code>boardSerial</code> 11 자). 표준 비밀번호가 없으면 폴백만 시도하고, 시리얼도 없으면 제어 불가 판정의 재료가 된다.</td></tr>
+            <tr><td><code>RedfishClient</code> <span class="chip new">신규</span></td><td>저수준 — JSON GET · POST · Basic 인증 · <b>전용 <code>RestClient</code></b>(자가서명 신뢰 + connect 3 초 / read 10 초, comps 용 전역 빈과 분리) · 오류 분류(<code>RedfishError</code> : CONNECT_FAILED · AUTH_FAILED · PRECONDITION_FAILED · PROTOCOL) · Task 경로 GET 판독.</td></tr>
+            <tr><td><code>RedfishPowerService</code> <span class="chip new">신규</span></td><td><code>powerState(guest)</code> 조회 / <code>reset(guest, type)</code> 발행 + Task 판독 + 직후 상태 1 회 / <code>powerOnAndVerify(guest)</code> On 발행 → PowerState 폴링(5 초 간격 · 총 60 초) → 불변이면 PowerCycle 1 회 폴백 → 재폴링 → 검증됨 또는 실패. 실패는 서버 로그(WARN)로 남긴다.</td></tr>
+            <tr><td><code>PowerControlResult</code> <span class="chip new">신규</span></td><td>record — <code>kind{UNSUPPORTED, SENT, VERIFIED, FAILED}</code> · <code>powerState</code>(nullable — <code>RedfishPowerState</code> enum <code>ON · OFF · POWERING_ON · POWERING_OFF · UNKNOWN</code>, wire 값 보유. 원시 String 금지) · <code>message</code>(사용자 문구. 문구의 SSOT 는 서버 — U4-1-3 관례). 예외가 아니라 값이며 컨트롤러가 그대로 JSON 으로 직렬화한다.</td></tr>
+            <tr><td>화면 <span class="chip mod">수정</span></td><td><code>server-detail.html</code> 에 '전원 제어' 카드 — bmcIp 가 null 이면 문구만, 있으면 상태 배지(lazy)와 버튼 [상태 조회] [켜기] [강제 끄기(confirm)] [재시작(confirm)] [정상 종료(confirm)] — PowerCycle 은 화면 미노출(API 전용 폴백, OQ1). 페이지 스크립트 <code>server-power.js</code> 를 새로 둔다.</td></tr>
+          </tbody>
+        </table>
+
+        <pre><code>enum RedfishResetType { ON("On"), FORCE_OFF("ForceOff"), FORCE_RESTART("ForceRestart"),
+                       GRACEFUL_SHUTDOWN("GracefulShutdown"), POWER_CYCLE("PowerCycle") }
+    · wire()        : Redfish 가 받는 문자열
+    · destructive() : ON 외 전부 true (FORCE_OFF · FORCE_RESTART · GRACEFUL_SHUTDOWN · POWER_CYCLE) → 화면 confirm 필요
+
+powerOnAndVerify(guest)
+    Reset(ON) → Task 판독 → PowerState 폴링(5s × 12)
+              → 불변이면 Reset(POWER_CYCLE) 1 회 → 재폴링
+              → VERIFIED | FAILED (로그 WARN)</code></pre>
+
+        <div class="callout"><b>UI 진리표</b> —
+          <ul>
+            <li>bmcIp null → 버튼 없음 + 사유 문구 (UI 1 차 차단)</li>
+            <li>bmcIp 있음 → 버튼 활성, PowerState 미조회 상태의 배지는 "미조회"</li>
+            <li>ForceOff · ForceRestart → confirm 모달을 거쳐야 발행</li>
+            <li>XHR 결과 kind 별 배지 색 — VERIFIED 초록 · SENT 회색 · FAILED 붉음 (+ message 표기)</li>
+          </ul>
+        </div>
+        <p>엔티티 · Repository · DDL 변경이 없다(Step 6 · 7 · 9 는 N/A). 저수준 예외는 클라이언트 안에서 분류돼 결과 타입으로 흡수되므로 컨트롤러에 try/catch 를 두지 않는다(§7).</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>전원 제어 카드 뷰 · <code>GuestServerPowerRestController</code> · 요청 · 응답 DTO · 서비스 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td><b>N/A</b> — 엔티티 · Repository 변경 0 (읽는 필드는 이미 있다)</td><td><span class="chip cp3">CP3</span></td><td>스킵 보고</td></tr>
+            <tr><td>8~9</td><td>클라이언트 · resolver · 전원 서비스 본체 (Step 9 스키마 확인은 <b>N/A</b> — DDL 변경 0)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 + <b>모조 Redfish 하네스</b>(항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>사용자 단독 E2E — <b>실 게스트 서버 + 실 BMC</b></td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출).</div>
+        <p><b>Step 10 의 하네스</b> — <code>scripts/mock-redfish/</code> 에 자가서명 TLS 로 <code>/redfish/v1/Systems/Self</code> · <code>Actions/ComputerSystem.Reset</code> · Task 를 흉내내는 소형 서버를 둔다. 정상 · On 실패 모드 · 401 후 폴백 세 가지를 재현한다. 화면이 있는 슬라이스이므로 브라우저 검증이 본령이고 하네스는 BMC 역할만 맡는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>요지</th></tr></thead>
+          <tbody>
+            <tr><td><code>BmcCredentialsResolverTest</code></td><td>표준 계정 / 401 후 폴백(시리얼 11 자) / 표준 비밀번호 미설정이면 폴백만 / 시리얼도 없으면 비어 있음</td></tr>
+            <tr><td><code>RedfishPowerServiceTest</code></td><td>mocked <code>RedfishClient</code> — bmcIp null → UNSUPPORTED / Reset 발행 + Task ok → SENT / powerOnAndVerify 는 폴링 성공 → VERIFIED · 불변이면 PowerCycle 폴백 → VERIFIED · 폴백도 실패 → FAILED / 연결 불가 → FAILED (message 확인)</td></tr>
+            <tr><td><code>RedfishClientTest</code></td><td><code>MockRestServiceServer</code> 로 실 HTTP 계층 — Basic 헤더 · Content-Type · Task GET 판독 · 401 / 412 / 연결 오류 분류</td></tr>
+            <tr><td><code>GuestServerPowerRestControllerTest</code> (@WebMvcTest)</td><td>GET power 200(kind · powerState) / POST reset 200(SENT — FAILED 도 200, 결과 타입이므로) / 404 게스트 없음 / 400 잘못된 resetType / bmcIp null 이면 200 UNSUPPORTED</td></tr>
+            <tr><td>뷰 테스트</td><td>상세에 전원 카드가 렌더되는지 · bmcIp null 문구 · confirm 모달 마커</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">신규 404 · 409 가 없다. 게스트 404 는 기존 경로를 재사용하고 나머지 실패는 전부 결과 타입으로 돌려주므로 <b>4xx 를 최소로 두는 것이 이 설계의 의도</b>다. 500 이 될 만한 통신 실패는 FAILED 로 흡수되며, 그 흡수 자체를 <code>RedfishPowerServiceTest</code> 의 '연결 불가 → FAILED' 가 검증한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <div class="callout success"><b>신규 공개 예외 0.</b> 저수준 <code>RedfishError</code> 분류(CONNECT_FAILED · AUTH_FAILED · PRECONDITION_FAILED · PROTOCOL)는 <code>RedfishClient</code> 내부에 머물고, 밖으로는 <code>PowerControlResult</code> 값이 나간다. 전원 제어 실패는 일상적으로 일어나는 사건이므로 예외 계층을 늘리지 않는다.</div>
+        <p>재사용하는 것은 둘이다 — 게스트를 못 찾은 경우의 기존 404 경로, 그리고 잘못된 <code>resetType</code> 을 400 으로 만드는 요청 바인딩 · 검증 경로다. 둘 다 이미 있는 advice 매핑을 그대로 탄다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 결정 / 부산물 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 / 부산물 / 열린 질문</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택</th><th>탈락</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>위치 · 클라이언트</td><td><code>global/redfish</code> + 전용 RestClient 빌더</td><td>execution 내부 · 전역 빈 재사용</td></tr>
+            <tr><td>D2</td><td>자격증명</td><td>설정 표준 계정(admin 고정) + 401 시 시리얼 폴백</td><td>게스트별 엔티티(E3-0) · fail-fast</td></tr>
+            <tr><td>D3</td><td>실패 표현</td><td>결과 타입 <code>PowerControlResult</code></td><td>예외 계층</td></tr>
+            <tr><td>D4</td><td>검증 폴링</td><td>집행용 동기 <code>powerOnAndVerify</code>(5 초 × 60 초 · PowerCycle 1 회). 화면은 단발</td><td>화면도 폴링(60 초 블로킹) · 비동기 Job</td></tr>
+            <tr><td>D5</td><td>Reset 허용값</td><td>실측 5 종 enum 고정</td><td>ActionInfo 런타임 조회</td></tr>
+            <tr><td>D6</td><td>알림</td><td>로그 + 결과 반환까지</td><td>BackgroundJob · 신규 알림 채널</td></tr>
+            <tr><td>D7</td><td>BootSourceOverride</td><td>E1.5-2 후속 (K1 게이트)</td><td>이번 합류</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><b>D1</b> — MA6(management)도 소비처이므로 execution 안에 두면 의존 방향이 어긋난다. 또한 자가서명을 신뢰하는 TLS 설정을 comps 추출용 클라이언트에 섞지 않는다.</li>
+          <li><b>D2</b> — 사용자 확정 P1 : username 은 무조건 admin 이고 신품 비밀번호는 시리얼 11 자다(예외 없음 · 수집 정보에 포함). 미설정 fail-fast 는 부적절하다 — BMC 기능은 부가 기능이라 앱 부팅을 막을 이유가 없다.</li>
+          <li><b>D3</b> — 전원 제어 실패는 일상 사건이고(P4), 소비처(엔진 · 화면)가 결과를 각자 다형으로 받는다.</li>
+          <li><b>D4</b> — 실측 실패 모드("명령 성공 · 전원 불변")의 유일한 대응이 폴링 + 폴백인데, 그 60 초를 화면 XHR 에 얹으면 UX 가 죽는다. 화면은 단발 발행 + [상태 조회] 로 나눈다.</li>
+          <li><b>D5</b> — 계약은 실측이다(4 호까지 5 종이 일관). ActionInfo 런타임 조회는 장비가 다변화되는 시점의 일이다. <code>POWER_CYCLE</code> 은 화면에 노출하지 않는 API 전용 폴백이지만 실측 허용값이므로 상수는 보존한다(OQ1 확정 — GracefulShutdown 은 화면 4 종에 포함).</li>
+          <li><b>D6</b> — 사용자 확정 P5 : BackgroundJob 은 이 용도가 아니고, 프로비저닝 알림은 별도 기능으로 예정돼 있다.</li>
+          <li><b>D7</b> — Once / Continuous 구분과 <code>Systems/Self/SD</code> 경유가 아직 미실측(K1)이다. 실물 없이 계약을 짜지 않는다.</li>
+        </ul>
+
+        <h4>열린 질문 (CP1 결정 — 권장안 굵게)</h4>
+        <ul>
+          <li><b>OQ1</b> <span class="chip mod">확정 2026-08-20</span> 화면 버튼 = <b>On · ForceOff · ForceRestart · GracefulShutdown 4 종</b>. <b>PowerCycle 만 Java API 전용</b>(폴백용 — 화면 미노출).</li>
+          <li><b>OQ2</b> <span class="chip mod">확정 2026-08-20</span> <code>provision.bmc.username</code>(기본 admin) · <code>provision.bmc.password</code> = <b>사내 공장 표준 세팅 비밀번호를 넣어 둔다</b>(환경변수 <code>BMC_PASSWORD</code>). 401 실패 시 M/B 시리얼 11자로 폴백 — 사용자 확인과 설계 동일.</li>
+        </ul>
+
+        <h4>부산물 · 주의</h4>
+        <ul>
+          <li><code>server-detail.html</code> 은 U4-1 브랜치(PR #40)에서도 수정한다. 병합 시 카드 추가 위치에서 사소한 충돌이 날 수 있다.</li>
+          <li><code>BmcPasswordService</code>(현재 계획 산출 전용)를 실제 호출로 전환하는 일은 이 슬라이스 밖이다 — E3-0 계열로 넘긴다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="E1.5-verify-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 green (기존 테스트 회귀 0)</span></label></li>
+        </ul>
+        <h4>기능 — 정상 흐름 (A)</h4>
+        <ul class="check-list" data-storage="E1.5-verify-a">
+          <li><label><input type="checkbox" data-key="a1"> <span><b>A1</b> bmcIp 있는 게스트 상세에서 [상태 조회] → 배지에 현재 PowerState</span></label></li>
+          <li><label><input type="checkbox" data-key="a2"> <span><b>A2</b> [켜기] → SENT → [상태 조회] 결과 On</span></label></li>
+          <li><label><input type="checkbox" data-key="a3"> <span><b>A3</b> [강제 끄기] → confirm 모달 → Off</span></label></li>
+          <li><label><input type="checkbox" data-key="a4"> <span><b>A4</b> 하네스를 On 실패 모드로 두고 <code>powerOnAndVerify</code> → PowerCycle 폴백 → VERIFIED (하네스 로그로 대조)</span></label></li>
+        </ul>
+        <h4>기능 — 비정상 조작 (B)</h4>
+        <ul class="check-list" data-storage="E1.5-verify-b">
+          <li><label><input type="checkbox" data-key="b1"> <span><b>B1</b> bmcIp null 게스트 : 카드에 문구만 · 버튼 없음 → direct POST reset → 200 UNSUPPORTED</span></label></li>
+          <li><label><input type="checkbox" data-key="b2"> <span><b>B2</b> 잘못된 resetType → 400</span></label></li>
+          <li><label><input type="checkbox" data-key="b3"> <span><b>B3</b> 없는 게스트 → 404</span></label></li>
+          <li><label><input type="checkbox" data-key="b4"> <span><b>B4</b> 하네스가 401 → 폴백 자격증명으로 재시도 (하네스 로그에서 admin + 시리얼 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="b5"> <span><b>B5</b> 하네스 다운 → FAILED (message) · 화면 붉은 배지</span></label></li>
+        </ul>
+        <h4>막는 방식 · 회귀 (C)</h4>
+        <ul class="check-list" data-storage="E1.5-verify-c">
+          <li><label><input type="checkbox" data-key="c1"> <span><b>C1</b> confirm 모달 문구가 무엇을 하는지 알려 주는가</span></label></li>
+          <li><label><input type="checkbox" data-key="c2"> <span><b>C2</b> 결과 배지 3 색(VERIFIED · SENT · FAILED)이 의도대로 구분되는가</span></label></li>
+          <li><label><input type="checkbox" data-key="c3"> <span><b>C3</b> 페이지 로드 시 BMC 를 조회하지 않는가 (네트워크 탭으로 확인)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/redfish/</code> — <code>RedfishResetType</code> · <code>RedfishEndpoint</code> · <code>BmcCredentialsResolver</code> · <code>RedfishClient</code> · <code>RedfishClientConfig</code> · <code>RedfishPowerService</code> · <code>PowerControlResult</code></td><td>클라이언트 기반 + 전원 제어 (7)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/controller/GuestServerPowerRestController</code></td><td>XHR 2 엔드포인트</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>static/provisioning/server-power.js</code></td><td>전원 카드 스크립트 (조회 · confirm · 결과 표기)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>scripts/mock-redfish/</code></td><td>CP5 모조 BMC 하네스</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>테스트 5 종 (§6)</td><td>단위 3 + 컨트롤러 1 + 뷰 1</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>server-detail.html</code> · 상세 응답 DTO · <code>application.properties</code></td><td>전원 카드 추가 · bmcIp 노출 여부 확인 · 설정 키 (OQ2)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BmcPasswordService</code> · <code>RestClientConfig</code> · 엔티티 전부</td><td>변경 0 — 계획 산출은 그대로, comps 용 전역 빈은 건드리지 않는다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E1.5-next">
+          <li><label><input type="checkbox" data-key="m1"> <span>CP1 승인 → CP2~CP4 무중단 구현 → CP4 중간 승인 → 테스트 → CP5(하네스 + 브라우저) → CP6 → CP7(실 BMC)</span></label></li>
+          <li><label><input type="checkbox" data-key="m2"> <span><b>E1.5-2</b> BootSourceOverride — K1 실측을 게이트로 후속 진행</span></label></li>
+          <li><label><input type="checkbox" data-key="m3"> <span><b>E2-3</b> 착수 게이트 해제 — flash 전 ForceOff · 후 On 을 이 서비스로 배선</span></label></li>
+          <li><label><input type="checkbox" data-key="m4"> <span><b>E3</b> 설정 적용 후 ForceRestart · <b>MA6</b> 같은 클라이언트 기반 재사용</span></label></li>
+          <li><label><input type="checkbox" data-key="m5"> <span>프로비저닝 알림 기능(별도) — 이번 슬라이스가 로그로만 남기는 실패를 받아 갈 자리</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 전원 제어 데모 — RedfishPowerService 판정 순서를 그대로 재현
+  //  (실 HTTP 왕복과 폴링 간격 5s × 12 는 데모에서 압축)
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_GUESTS = {
+    A: { name: 'srv-01 · bmcIp 192.168.10.21', bmcIp: true },
+    B: { name: 'srv-02 · bmcIp 192.168.10.22', bmcIp: true },
+    C: { name: 'srv-03 (QEMU) · bmcIp null', bmcIp: false }
+  };
+  const DEMO_POWER_INIT = { A: 'On', B: 'Off', C: null };
+  let DEMO_POWER = Object.assign({}, DEMO_POWER_INIT);
+  // RedfishResetType.destructive() 의 재현 — 화면 confirm 필요 여부의 단일 소스
+  const DEMO_DESTRUCTIVE = { ON: false, FORCE_OFF: true, FORCE_RESTART: true, GRACEFUL_SHUTDOWN: true };
+  const DEMO_WIRE = { ON: 'On', FORCE_OFF: 'ForceOff', FORCE_RESTART: 'ForceRestart', GRACEFUL_SHUTDOWN: 'GracefulShutdown' };
+  const DEMO_LABEL = { STATE: '상태 조회', ON: '켜기', FORCE_OFF: '강제 끄기', FORCE_RESTART: '재시작', GRACEFUL_SHUTDOWN: '정상 종료' };
+
+  let demoGuest = 'B', demoMode = 'OK', demoPending = null;
+  let demoLog = [], demoKind = null, demoMsg = null, demoMsgError = false, demoProbed = false;
+
+  // ⬇ 서버 판정과 1:1 : bmcIp → 발행 → Task → (검증 액션이면) 폴링 → PowerCycle 폴백 → VERIFIED | FAILED
+  function demoControl(action) {
+    const g = DEMO_GUESTS[demoGuest], L = [];
+    if (!g.bmcIp) {
+      L.push('bmcIp == null → Redfish 엔드포인트를 만들 수 없음 (발행 0)');
+      return { kind: 'UNSUPPORTED', log: L,
+        message: 'BMC 미검출 — 원격 전원 제어를 쓸 수 없습니다. (진단 수집이 BMC 를 찾지 못했습니다)' };
+    }
+    L.push('자격증명 resolve : admin / 표준 비밀번호 → 401 이면 보드 시리얼 11 자로 재시도');
+    if (action === 'STATE') {
+      L.push('GET  /redfish/v1/Systems/Self → 200  PowerState = "' + DEMO_POWER[demoGuest] + '"');
+      return { kind: 'SENT', log: L, message: '현재 전원 상태 : ' + DEMO_POWER[demoGuest] };
+    }
+    L.push('POST /redfish/v1/Systems/Self/Actions/ComputerSystem.Reset  {"ResetType":"' + DEMO_WIRE[action] + '"} → 202 Task');
+    L.push('GET  &lt;Task 경로&gt; → TaskState = Completed  (전달 성공)');
+    if (action !== 'ON') {                       // 화면 경로 : 단발 발행 + 직후 상태 1 회
+      if (action === 'FORCE_OFF' || action === 'GRACEFUL_SHUTDOWN') DEMO_POWER[demoGuest] = 'Off';
+      L.push('GET  PowerState (직후 1 회) → "' + DEMO_POWER[demoGuest] + '"');
+      return { kind: 'SENT', log: L, message: '명령이 전달되었습니다. [상태 조회] 로 결과를 확인하세요.' };
+    }
+    if (demoMode === 'OK' || DEMO_POWER[demoGuest] === 'On') {   // 검증 액션 : powerOnAndVerify
+      DEMO_POWER[demoGuest] = 'On';
+      L.push('폴링 1/12 (t+5s) → PowerState = "On"  ✔ 켜짐 확인');
+      return { kind: 'VERIFIED', log: L, message: '전원이 켜졌습니다. (Reset(On) → 폴링 확인)' };
+    }
+    L.push('폴링 12/12 (t+60s) → PowerState = "Off" 불변 — 실측 실패 모드 : 명령 성공 · 전원 불변');
+    L.push('POST Reset {"ResetType":"PowerCycle"} → 202  (폴백 1 회)');
+    if (demoMode === 'RETRY') {
+      DEMO_POWER[demoGuest] = 'On';
+      L.push('재폴링 2/12 (t+70s) → PowerState = "On"  ✔ 폴백으로 켜짐');
+      return { kind: 'VERIFIED', log: L, message: 'PowerCycle 폴백으로 전원이 켜졌습니다.' };
+    }
+    L.push('<span data-error="1">재폴링 12/12 (t+120s) → PowerState = "Off" 불변 — 폴백도 실패</span>');
+    return { kind: 'FAILED', log: L,
+      message: '전원을 켜지 못했습니다. 수동 개입이 필요합니다 — 서버 로그(WARN)에 기록됩니다. (알림 채널은 추후 별도 기능)' };
+  }
+
+  function demoSetGuest(g) { demoGuest = g; DEMO_POWER = Object.assign({}, DEMO_POWER_INIT); demoPending = null; demoLog = []; demoKind = null; demoMsg = null; demoProbed = false; demoRender(); }
+  function demoSetMode(m) { demoMode = m; DEMO_POWER = Object.assign({}, DEMO_POWER_INIT); demoPending = null; demoLog = []; demoKind = null; demoMsg = null; demoRender(); } // 모드 전환 시 전원 상태 초기화 — 직전 실행의 On 이 남아 실패 모드가 단락되는 것을 막는다
+  function demoCancel() { demoPending = null; demoMsg = '취소했습니다 — 발행하지 않았습니다.'; demoMsgError = false; demoRender(); }
+  function demoClick(action, blocked) {
+    if (blocked) { demoMsg = '확인 모달이 열려 있어 다른 버튼은 잠깁니다.'; demoMsgError = true; demoRender(); return; }
+    if (DEMO_DESTRUCTIVE[action]) { demoPending = action; demoRender(); return; }   // destructive() → confirm
+    demoRun(action);
+  }
+  function demoRun(action) {
+    demoPending = null;
+    const r = demoControl(action);
+    demoLog = r.log; demoKind = r.kind; demoMsg = r.message; demoMsgError = (r.kind === 'FAILED' || r.kind === 'UNSUPPORTED');
+    demoProbed = true;
+    demoRender();
+  }
+  function demoBtn(action, label, blocked, tip, extra) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    const st = extra ? (' style="' + extra + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + st + dis +
+      ' onclick="demoClick(\'' + action + '\',' + blocked + ')">' + label + '</button></span>';
+  }
+  function demoRender() {
+    const g = DEMO_GUESTS[demoGuest], power = DEMO_POWER[demoGuest];
+    document.querySelectorAll('.ux-toolbar .seg[data-guest]').forEach(s => s.classList.toggle('active', s.dataset.guest === demoGuest));
+    document.querySelectorAll('.ux-toolbar .seg[data-mode]').forEach(s => s.classList.toggle('active', s.dataset.mode === demoMode));
+
+    document.getElementById('demo-guest-label').textContent = g.name;
+    const pb = document.getElementById('demo-power-badge');
+    if (!g.bmcIp) { pb.textContent = '—'; pb.className = 'badge off'; }
+    else if (!demoProbed) { pb.textContent = '미조회'; pb.className = 'badge off'; }
+    else { pb.textContent = power; pb.className = 'badge ' + (power === 'On' ? 'on' : 'off'); }
+    document.getElementById('demo-guest-row').classList.toggle('muted', !g.bmcIp);
+
+    const kb = { VERIFIED: ['VERIFIED', 'on'], SENT: ['SENT', 'off'], FAILED: ['FAILED', 'del'], UNSUPPORTED: ['UNSUPPORTED', 'off'] };
+    const kind = demoKind ? '<span class="badge ' + kb[demoKind][1] + '">' + kb[demoKind][0] + '</span>'
+                          : '<span class="badge off">미실행</span>';
+    const card = document.getElementById('demo-card');
+    if (!g.bmcIp) {
+      card.innerHTML = '<div class="ux-row muted"><span class="label">BMC 미검출 — 원격 전원 제어를 쓸 수 없습니다 ' +
+        '(진단 수집이 BMC 를 찾지 못했습니다).</span>' + kind + '</div>';
+    } else {
+      const lock = demoPending !== null, tip = '확인 모달이 열려 있습니다. 먼저 확인하거나 취소하세요.';
+      card.innerHTML = '<div class="ux-row"><span class="label">전원 제어</span>' + kind +
+        demoBtn('STATE', '상태 조회', lock, tip) +
+        demoBtn('ON', '켜기', lock, tip) +
+        demoBtn('FORCE_OFF', '강제 끄기', lock, tip, 'border-color:var(--red);color:var(--red)') +
+        demoBtn('FORCE_RESTART', '재시작', lock, tip, 'border-color:var(--orange);color:var(--orange)') +
+        demoBtn('GRACEFUL_SHUTDOWN', '정상 종료', lock, tip, 'border-color:var(--orange);color:var(--orange)') + '</div>';
+    }
+
+    const cf = document.getElementById('demo-confirm');
+    cf.innerHTML = demoPending
+      ? '<div class="callout danger"><b>확인이 필요합니다</b> — ' + DEMO_LABEL[demoPending] +
+        '(<code>' + DEMO_WIRE[demoPending] + '</code>) 는 실행 중인 작업을 끊을 수 있습니다. 계속할까요?<div style="margin-top:8px;">' +
+        '<button class="n-demo-btn" style="border-color:var(--red);color:var(--red)" onclick="demoRun(\'' + demoPending + '\')">확인 — 발행</button> ' +
+        '<button class="n-demo-btn" onclick="demoCancel()">취소</button></div></div>'
+      : '';
+
+    const head = 'control(guest, action) → kind = ' +
+      (demoKind ? '<span class="' + (demoKind === 'FAILED' || demoKind === 'UNSUPPORTED' ? 't' : 'f') + '">' + demoKind + '</span>' : '—') +
+      '\nRedfishResetType.destructive() → confirm 모달 : ' +
+      (demoPending ? '<span class="t">true</span>' : '<span class="f">해당 없음</span>') + '\n';
+    document.getElementById('demo-caps').innerHTML = head +
+      (demoLog.length ? '\n' + demoLog.map(l => '  ' + l).join('\n') : '\n  (아직 발행한 명령이 없습니다)');
+
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message' + (demoMsg ? (demoMsgError ? ' error' : ' success') : '');
+    msg.textContent = demoMsg || '게스트 상태와 응답 모드를 바꾼 뒤 버튼을 눌러 보세요.';
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
