@@ -542,6 +542,27 @@
                               th:text="#{provisioning.firmware.plan.expired}">대기 시한이 지났습니다.</span>
                     </p>
                 </div>
+                <div th:if="${server.firmwareFlash != null}" class="n-firmware-plan">
+                    <div class="n-label strong" th:text="#{provisioning.firmware.flash.title}">펌웨어 집행</div>
+                    <div class="n-section-hint" th:text="#{provisioning.firmware.flash.hint}">축마다 따로 굽고 따로 확인합니다.</div>
+                    <!-- 축마다 한 줄 — 한 축이 실패해도 다른 축이 어떻게 됐는지가 그대로 읽힌다(E2-2 D-2). -->
+                    <ul class="n-firmware-axes">
+                        <li th:each="axis : ${server.firmwareFlash.axes}"
+                            th:classappend="${axis.state.name() == 'SUCCEEDED'} ? 'is-selected'
+                                          : (${axis.state.name() == 'RUNNING'} ? 'is-running'
+                                          : (${axis.state.name() == 'FAILED'} ? 'is-failed' : ''))">
+                            <span th:text="${axis.label}">BIOS</span>
+                            <span th:if="${axis.targetVersion != null}" th:text="${axis.targetVersion}">F29</span>
+                            <span class="n-firmware-state" th:text="${axis.state.label}">굽는 중</span>
+                            <span th:if="${axis.detail != null}" class="n-firmware-detail" th:text="${axis.detail}"></span>
+                        </li>
+                    </ul>
+                    <p th:if="${server.firmwareFlash.running and server.firmwareFlash.remainingMinutes > 0}"
+                       class="n-firmware-hold"
+                       th:text="|#{provisioning.firmware.flash.remaining} ${server.firmwareFlash.remainingMinutes}분|">남은 시간 12분</p>
+                    <p th:if="${server.firmwareFlash.poweredOff}" class="n-firmware-hold"
+                       th:text="#{provisioning.firmware.flash.powered-off}">이 서버는 지금 꺼져 있습니다.</p>
+                </div>
 
                 <!-- 개시 액션 (DEC-26) — 노출 판정(startable)은 서버 가드와 같은 도메인 메서드에서 온 값 (SSOT).
                      회수·개시됨 상태에서는 렌더되지 않으므로 서버 409 가드는 direct POST 전용 안전망이다. -->

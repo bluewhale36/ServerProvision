@@ -1,10 +1,10 @@
 package com.example.serverprovision.execution.controller;
 
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
-import com.example.serverprovision.execution.engine.BootScriptDispatcher;
-import com.example.serverprovision.execution.engine.BootService;
-import com.example.serverprovision.execution.engine.PhaseExecutorRegistry;
-import com.example.serverprovision.execution.engine.ProvisioningPhaseExecutor;
+import com.example.serverprovision.execution.engine.boot.BootScriptDispatcher;
+import com.example.serverprovision.execution.engine.boot.BootService;
+import com.example.serverprovision.execution.engine.phase.PhaseExecutorRegistry;
+import com.example.serverprovision.execution.engine.phase.ProvisioningPhaseExecutor;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
@@ -46,8 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = ExecutionRestController.class)
 @Import({ BootService.class, BootScriptDispatcher.class, PhaseExecutorRegistry.class,
-        com.example.serverprovision.execution.engine.PhaseEntryGate.class,
-        com.example.serverprovision.execution.engine.HoldTtlPolicy.class,
+        com.example.serverprovision.execution.engine.boot.PhaseEntryGate.class,
+        com.example.serverprovision.execution.engine.phase.HoldTtlPolicy.class,
         ExecutionRestControllerBootFlowTest.FakeDiagnoseExecutor.class })
 class ExecutionRestControllerBootFlowTest {
 

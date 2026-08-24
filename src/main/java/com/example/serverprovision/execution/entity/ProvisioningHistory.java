@@ -78,6 +78,81 @@ public class ProvisioningHistory extends BaseTimeEntity {
         return statusMeta != null && statusMeta.contains("\"origin\":\"hold-ttl\"");
     }
 
+    /**
+     * 굽기를 시작하며 여는 행의 statusMeta(E2-2 D-4) — <b>무엇을 어느 Task 로 굽는지</b>를 사건 시점에 적는다.
+     *
+     * <p>적어 두는 이유가 셋이다. ① 굽는 동안 운영자가 자원을 바꿔도 확인 기준이 흔들리지 않는다.
+     * ② 워커가 다음 주기에 이 게스트를 다시 집을 때 <b>어디까지 갔는지를 원장에서 복원</b>한다 —
+     * 워커가 메모리에 상태를 들고 있으면 재기동에 취약하다. ③ 나중에 "이 서버에 무엇을 구웠나" 를
+     * 되짚을 유일한 근거다. 값은 버전 문자열과 서버 생성 경로뿐이라 이스케이프가 필요 없다.</p>
+     */
+    public static String flashTargetMeta(String targetVersion, Long firmwareId, String taskPath) {
+        return "{\"origin\":\"flash\",\"target\":\"" + targetVersion + "\",\"firmwareId\":" + firmwareId
+                + ",\"task\":\"" + (taskPath == null ? "" : taskPath) + "\"}";
+    }
+
+    /**
+     * 축 종결 · 실패 행의 statusMeta(E2-2). 사유 어휘를 나누는 것은 <b>운영자가 할 일이 다르기</b>
+     * 때문이다 — 파일을 볼지, 장비 상태를 볼지, 네트워크를 볼지, 주소가 어긋난 원인을 급히 찾을지가
+     * 사유마다 갈린다. 뭉치면 원장을 읽고도 어디부터 봐야 할지 알 수 없다.
+     */
+    public static String flashOutcomeMeta(String reason, String detail) {
+        return "{\"origin\":\"" + reason + "\",\"detail\":\"" + (detail == null ? "" : detail) + "\"}";
+    }
+
+    /**
+     * 굽기 행을 결과로 닫는다(E2-2) — <b>무엇을 구웠는지는 지우지 않는다.</b>
+     *
+     * <p>{@link #close}는 statusMeta 를 통째로 갈아 끼운다. 그 계약을 그대로 쓰면 열림 시점에 적어 둔
+     * 목표 · 자원 id · Task 경로가 닫는 순간 사라지고, 그러면 재부팅 뒤 <b>무엇과 대조해야 하는지를
+     * 잃는다</b> — 반영 확인이 대조 대상 없이 통과해 버린다(CP5 F-1 실측). 굽기는 "무엇을 했는가" 와
+     * "어떻게 끝났는가" 가 <b>둘 다 사건 사실</b>이라 한쪽이 다른 쪽을 덮으면 안 된다.</p>
+     */
+    public boolean closeFlash(ProvisioningStatus result, String reason, String detail, LocalDateTime at) {
+        String target = flashTargetVersion();
+        String task = flashTaskPath();
+        String preserved = target == null
+                ? flashOutcomeMeta(reason, detail)
+                : "{\"origin\":\"" + reason + "\",\"detail\":\"" + (detail == null ? "" : detail)
+                        + "\",\"target\":\"" + target + "\",\"task\":\"" + (task == null ? "" : task) + "\"}";
+        return close(result, preserved, at);
+    }
+
+    /** 이 행이 굽기 시작 기록이면 그 Task 경로 — 없으면 null(워커가 상태를 복원할 때 읽는다). */
+    public String flashTaskPath() {
+        return extractMeta("task");
+    }
+
+    /** 이 행이 굽기 시작 기록이면 그 목표 버전 — 반영 확인이 이 값과 대조한다(D-4). */
+    public String flashTargetVersion() {
+        return extractMeta("target");
+    }
+
+    /** 이 행의 사유 코드 — 화면이 무엇 때문에 멈췄는지 가릴 때 읽는다(E2-2). */
+    public String flashFailureReason() {
+        return extractMeta("origin");
+    }
+
+    /** 사람이 읽을 상세 — 사유만으로는 부족한 맥락(목표 버전 · 확인값 등). */
+    public String flashDetail() {
+        return extractMeta("detail");
+    }
+
+    /** statusMeta 의 문자열 필드 하나. 원장 메타는 서버가 조립한 평문 JSON 이라 얕은 판독으로 충분하다. */
+    private String extractMeta(String field) {
+        if (statusMeta == null) {
+            return null;
+        }
+        String key = "\"" + field + "\":\"";
+        int start = statusMeta.indexOf(key);
+        if (start < 0) {
+            return null;
+        }
+        start += key.length();
+        int end = statusMeta.indexOf('"', start);
+        return end < 0 ? null : statusMeta.substring(start, end);
+    }
+
     /** 이 행이 운영자 액션의 기록인가(ES-2 D-5) — 화면의 '운영자 전환' 구분이 이 판정을 파생한다. */
     public boolean isOperatorOrigin() {
         return statusMeta != null && statusMeta.contains("\"origin\":\"operator\"");
@@ -103,7 +178,18 @@ public class ProvisioningHistory extends BaseTimeEntity {
 
     /** 게스트 실행 step 의 열림 팩토리(E1-0b, DEC-3) — 시작 보고 시점에 RUNNING 으로 생성된다. */
     public static ProvisioningHistory openRunning(GuestServer guestServer, ProvisioningPhaseStep stepCode, LocalDateTime at) {
+        return openRunning(guestServer, stepCode, at, null);
+    }
+
+    /**
+     * 여는 시점에 이미 알고 있는 사실을 함께 싣는 변형(E2-2) — 무엇을 어느 Task 로 굽는지가 그렇다.
+     * 나중에 채우려면 열림과 기록 사이에 그 사실이 없는 창이 생기고, 그 사이에 워커가 재기동되면
+     * 진행 중인 굽기를 원장에서 복원하지 못한다.
+     */
+    public static ProvisioningHistory openRunning(GuestServer guestServer, ProvisioningPhaseStep stepCode,
+                                                  LocalDateTime at, String statusMeta) {
         return ProvisioningHistory.builder()
+                .statusMeta(statusMeta)
                 .id(org.hibernate.id.uuid.UuidVersion7Strategy.INSTANCE.generateUuid(null))
                 .guestServer(guestServer)
                 .stepCode(stepCode)

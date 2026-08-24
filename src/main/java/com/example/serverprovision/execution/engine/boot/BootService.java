@@ -1,0 +1,44 @@
+package com.example.serverprovision.execution.engine.boot;
+
+import com.example.serverprovision.execution.engine.phase.PhaseReadiness;
+import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
+import com.example.serverprovision.execution.entity.GuestServer;
+import com.example.serverprovision.execution.entity.ProvisioningProgress;
+import com.example.serverprovision.execution.event.GuestServerChangedEvent;
+import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
+import com.example.serverprovision.execution.service.GuestServerRegistrationService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * {@code /boot} 진입 orchestration(E1-0b) — 멱등 등록(+토큰 lazy 발급) 후 dispatch 판정까지를
+ * 한 트랜잭션으로 잇는다. 컨트롤러가 repository 를 만지지 않게 하는 경계(레이어 규약)이자,
+ * 등록과 판정 사이의 상태가 반드시 같은 스냅샷이 되게 하는 지점이다.
+ */
+@Service
+@RequiredArgsConstructor
+public class BootService {
+
+    private final GuestServerRegistrationService registrationService;
+    private final ProvisioningProgressRepository provisioningProgressRepository;
+    private final PhaseEntryGate phaseEntryGate;
+    private final BootScriptDispatcher bootScriptDispatcher;
+    private final ApplicationEventPublisher eventPublisher;
+
+    @Transactional
+    public String boot(BootIPXEInfoRequest request, String rebootQuery) {
+        GuestServer server = registrationService.initialRegistry(request);
+        server.touchSeen(java.time.LocalDateTime.now());   // 접촉 관찰 로그(E1-2, DEC-32) — 판정 입력 아님
+        ProvisioningProgress progress = provisioningProgressRepository.findByGuestServer_Id(server.getId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "provisioning_progress 1:1 불변 위반 — 등록 seed 누락. guestServerId=" + server.getId()));
+        // 진입 판정 + 결손 사다리 집행(E2-1-b). 상태를 바꾸는 쪽은 게이트, 그 상태를 스크립트로
+        // 표현하는 쪽은 dispatcher — 같은 트랜잭션 안이라 판정 · 전이 · 응답이 한 스냅샷이다.
+        PhaseReadiness readiness = phaseEntryGate.evaluate(server, progress, java.time.LocalDateTime.now());
+        // 실시간 스트림 신호(S7) — 등록·접촉 변화. AFTER_COMMIT 리스너가 커밋 확정 후에만 내보낸다.
+        eventPublisher.publishEvent(new GuestServerChangedEvent(server.getId()));
+        return bootScriptDispatcher.dispatch(server, progress, readiness, rebootQuery == null ? "" : rebootQuery);
+    }
+}

@@ -3,9 +3,13 @@ package com.example.serverprovision.execution.service;
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
-import com.example.serverprovision.execution.engine.AxisResolution;
-import com.example.serverprovision.execution.engine.HoldTtlPolicy;
-import com.example.serverprovision.execution.engine.FirmwareResolutionProvider;
+import com.example.serverprovision.execution.engine.firmware.FlashTimeoutPolicy;
+import com.example.serverprovision.execution.engine.firmware.AxisFlashState;
+import com.example.serverprovision.execution.engine.firmware.FirmwareAxis;
+import com.example.serverprovision.execution.engine.firmware.FlashLedger;
+import com.example.serverprovision.execution.engine.firmware.AxisResolution;
+import com.example.serverprovision.execution.engine.phase.HoldTtlPolicy;
+import com.example.serverprovision.execution.engine.firmware.FirmwareResolutionProvider;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.HostNicBinding;
@@ -37,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -60,6 +65,7 @@ public class GuestServerQueryService {
     private final FirmwareResolutionProvider firmwareResolutionProvider;   // E2-1-b — 조회 시 해석 1회
     private final HoldTtlPolicy holdTtlPolicy;
     private final RetryPolicy retryPolicy;   // 재시도 가능 판정 — 화면 · 가드 공용 SSOT
+    private final FlashTimeoutPolicy flashTimeoutPolicy;   // E2-2 — 화면의 잔여 시한과 워커가 같은 값을 본다
     private final ObjectMapper objectMapper;
 
     /** "접촉 중" 판정 임계 — 게스트 폴링 주기(30초) 3회 이내(E1-2, DEC-32 표시 규칙). */
@@ -370,8 +376,66 @@ public class GuestServerQueryService {
                 nicResponses,
                 progressResponse,
                 firmwarePlanOf(server, progress),
+                firmwareFlashOf(progress, steps),
                 stepResponses
         );
+    }
+
+    /**
+     * 펌웨어 집행 진행 카드(E2-2) — 집행에 착수한 게스트만. 계획 카드가 "무엇을 구울 것인가" 를
+     * 말한다면 이것은 "지금 어디까지 갔는가" 를 말하며, <b>축마다 한 줄</b>이라 한 축이 실패했을 때
+     * 다른 축이 어떻게 됐는지가 바로 읽힌다.
+     */
+    private GuestServerDetailResponse.FirmwareFlash firmwareFlashOf(
+            ProvisioningProgress progress, List<ProvisioningHistory> steps) {
+        if (progress == null) {
+            return null;
+        }
+        List<ProvisioningHistory> flashRows = steps.stream()
+                .filter(row -> FirmwareAxis.of(row.getStepCode()) != null)
+                .toList();
+        if (flashRows.isEmpty()) {
+            return null;   // 아직 집행에 착수하지 않았다 — 계획 카드만 보인다.
+        }
+        List<GuestServerDetailResponse.AxisFlash> axes = Arrays.stream(FirmwareAxis.values())
+                .map(axis -> axisFlashOf(axis, flashRows))
+                .toList();
+        boolean running = !progress.isFailed() && !progress.isCompleted();
+        // 전원을 켠 뒤의 실패(복귀 시한 만료)만 켜져 있다 — 그 밖의 실패는 굽다 멈춘 것이라 꺼진 채다(D-10).
+        boolean poweredOff = progress.isFailed() && flashRows.stream()
+                .noneMatch(row -> FlashLedger.RETURN_TIMEOUT.equals(row.flashFailureReason()));
+        return new GuestServerDetailResponse.FirmwareFlash(running, axes,
+                running ? flashRemainingMinutes(progress) : 0L, poweredOff);
+    }
+
+    /**
+     * 한 축의 진행 — 그 축의 마지막 원장 행이 곧 상태다(D-4, 저장된 진행 상태를 따로 두지 않는다).
+     *
+     * <p>단 <b>phase 수준 사건</b>(복귀 시한 만료 · 신원 불일치 · BMC 도달 불가)의 행은 제외한다.
+     * 그 기록은 "실패 지점 = 커서" 규약에 따라 커서 step 자리에 남을 뿐 그 축의 결과가 아니라서,
+     * 함께 세면 이미 성공한 축이 실패로 뒤집혀 보인다(CP5 F-2).</p>
+     */
+    private GuestServerDetailResponse.AxisFlash axisFlashOf(FirmwareAxis axis, List<ProvisioningHistory> flashRows) {
+        ProvisioningHistory last = flashRows.stream()
+                .filter(row -> row.getStepCode() == axis.getStep())
+                .filter(row -> !FlashLedger.isPhaseLevel(row.flashFailureReason()))
+                .reduce((first, second) -> second)
+                .orElse(null);
+        if (last == null) {
+            return new GuestServerDetailResponse.AxisFlash(axis.label(), AxisFlashState.PENDING, null, null);
+        }
+        return new GuestServerDetailResponse.AxisFlash(axis.label(), AxisFlashState.of(last.getStatus()),
+                last.flashTargetVersion(), last.flashDetail());
+    }
+
+    /** 지금 걸려 있는 시한의 잔여 분 — 굽는 중이면 그 축의 시한, 복귀를 기다리면 복귀 시한. */
+    private long flashRemainingMinutes(ProvisioningProgress progress) {
+        FirmwareAxis axis = FirmwareAxis.of(progress.getCurrentStep());
+        if (axis == null) {
+            return 0L;
+        }
+        return flashTimeoutPolicy.remainingMinutes(progress.getLastTransitionAt(),
+                flashTimeoutPolicy.limitFor(axis), LocalDateTime.now());
     }
 
     /**

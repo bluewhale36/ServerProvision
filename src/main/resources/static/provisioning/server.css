@@ -563,6 +563,22 @@
     color: var(--n-text-sec);
 }
 
+/* E2-2 — 펌웨어 집행 진행. 계획 카드와 같은 골격을 쓰되 축마다 상태 배지가 붙는다 —
+   집행은 서술이 아니라 상태라서, 한 축이 실패했을 때 다른 축이 어떻게 됐는지가 한눈에 읽혀야 한다. */
+.n-firmware-axes li.is-running::before { background: var(--n-blue); }
+.n-firmware-axes li.is-failed::before { background: var(--n-red); }
+.n-firmware-state {
+    margin-left: 6px;
+    font-size: 11.5px;
+    color: var(--n-text-muted);
+}
+.n-firmware-detail {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--n-text-muted);
+}
+
 /* ---- E1.5 : 전원 제어 카드 ------------------------------------------------ */
 .n-power-status {
     display: flex;

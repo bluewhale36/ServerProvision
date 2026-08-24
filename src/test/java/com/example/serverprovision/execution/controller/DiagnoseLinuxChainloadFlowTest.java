@@ -3,10 +3,10 @@ package com.example.serverprovision.execution.controller;
 import com.example.serverprovision.execution.config.PxeAssetsConfig;
 import com.example.serverprovision.execution.config.PxeAssetsProperties;
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
-import com.example.serverprovision.execution.engine.BootScriptDispatcher;
-import com.example.serverprovision.execution.engine.BootService;
-import com.example.serverprovision.execution.engine.DiagnoseLinuxExecutor;
-import com.example.serverprovision.execution.engine.PhaseExecutorRegistry;
+import com.example.serverprovision.execution.engine.boot.BootScriptDispatcher;
+import com.example.serverprovision.execution.engine.boot.BootService;
+import com.example.serverprovision.execution.engine.diagnose.DiagnoseLinuxExecutor;
+import com.example.serverprovision.execution.engine.phase.PhaseExecutorRegistry;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
@@ -52,12 +52,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = ExecutionRestController.class)
 @Import({
-        com.example.serverprovision.execution.engine.PhaseEntryGate.class,
-        com.example.serverprovision.execution.engine.HoldTtlPolicy.class,
-        com.example.serverprovision.execution.engine.FirmwareUpdatingExecutor.class, BootService.class, BootScriptDispatcher.class, PhaseExecutorRegistry.class,
+        com.example.serverprovision.execution.engine.boot.PhaseEntryGate.class,
+        com.example.serverprovision.execution.engine.phase.HoldTtlPolicy.class,
+        com.example.serverprovision.execution.engine.firmware.FirmwareUpdatingExecutor.class, BootService.class, BootScriptDispatcher.class, PhaseExecutorRegistry.class,
         DiagnoseLinuxExecutor.class, PxeAssetsProperties.class, PxeAssetsConfig.class,
-        com.example.serverprovision.execution.engine.DiagnosticReportParser.class,
-        com.example.serverprovision.execution.engine.PhaseCursorAdvancer.class })   // ES-1 — DiagnoseLinuxExecutor 협력자
+        com.example.serverprovision.execution.engine.diagnose.DiagnosticReportParser.class,
+        com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer.class })   // ES-1 — DiagnoseLinuxExecutor 협력자
 class DiagnoseLinuxChainloadFlowTest {
 
     private static final String TOKEN = "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d";
@@ -87,8 +87,8 @@ class DiagnoseLinuxChainloadFlowTest {
     @MockitoBean ProvisioningProgressRepository progressRepository;
     @MockitoBean com.example.serverprovision.execution.repository.GuestServerDetailRepository detailRepository;   // E1-2 소비 협력자
     @MockitoBean com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder provisioningHistoryRecorder;               // E1-2 소비 협력자
-    @MockitoBean com.example.serverprovision.execution.engine.OwnedPhasesProvider ownedPhasesProvider;           // ES-1 — PhaseCursorAdvancer 공급자
-    @MockitoBean com.example.serverprovision.execution.engine.FirmwareResolutionProvider firmwareResolutionProvider;   // E2-1-b — 진입 판정 공급자
+    @MockitoBean com.example.serverprovision.execution.engine.phase.OwnedPhasesProvider ownedPhasesProvider;           // ES-1 — PhaseCursorAdvancer 공급자
+    @MockitoBean com.example.serverprovision.execution.engine.firmware.FirmwareResolutionProvider firmwareResolutionProvider;   // E2-1-b — 진입 판정 공급자
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private GuestServer server() {
@@ -159,9 +159,9 @@ class DiagnoseLinuxChainloadFlowTest {
     @DisplayName("E2-1-b 준비됨 — 펌웨어 phase 진입 게스트가 집행 대기 스크립트를 받는다(해석 요약 동반)")
     void firmwarePhase_ready_awaitsFlashEngine() throws Exception {
         given(firmwareResolutionProvider.resolveFor(org.mockito.ArgumentMatchers.any()))
-                .willReturn(java.util.Optional.of(new com.example.serverprovision.execution.engine.FirmwareResolution(
-                        com.example.serverprovision.execution.engine.AxisResolution.selected(1L, "F27"),
-                        com.example.serverprovision.execution.engine.AxisResolution.selected(2L, "13.06.26"))));
+                .willReturn(java.util.Optional.of(new com.example.serverprovision.execution.engine.firmware.FirmwareResolution(
+                        com.example.serverprovision.execution.engine.firmware.AxisResolution.selected(1L, "F27", "/tmp/fw/F27.img"),
+                        com.example.serverprovision.execution.engine.firmware.AxisResolution.selected(2L, "13.06.26", "/tmp/fw/13.06.26.img"))));
 
         boot(startedFirmwareProgress())
                 .andExpect(status().isOk())
@@ -173,10 +173,10 @@ class DiagnoseLinuxChainloadFlowTest {
     @DisplayName("E2-1-b 차단 — 무결성이 깨진 재료면 결손 대기 스크립트 + 대기 상태 전이")
     void firmwarePhase_blocked_holdsWithReason() throws Exception {
         given(firmwareResolutionProvider.resolveFor(org.mockito.ArgumentMatchers.any()))
-                .willReturn(java.util.Optional.of(new com.example.serverprovision.execution.engine.FirmwareResolution(
-                        com.example.serverprovision.execution.engine.AxisResolution.of(
-                                com.example.serverprovision.execution.engine.FirmwareAxisReason.SIGNATURE_INVALID),
-                        com.example.serverprovision.execution.engine.AxisResolution.selected(2L, "13.06.26"))));
+                .willReturn(java.util.Optional.of(new com.example.serverprovision.execution.engine.firmware.FirmwareResolution(
+                        com.example.serverprovision.execution.engine.firmware.AxisResolution.of(
+                                com.example.serverprovision.execution.engine.firmware.FirmwareAxisReason.SIGNATURE_INVALID),
+                        com.example.serverprovision.execution.engine.firmware.AxisResolution.selected(2L, "13.06.26", "/tmp/fw/13.06.26.img"))));
         ProvisioningProgress progress = startedFirmwareProgress();
 
         boot(progress)
@@ -190,10 +190,10 @@ class DiagnoseLinuxChainloadFlowTest {
     @DisplayName("E2-1-b 건너뜀 — 한 축 결손(DEGRADED)은 대기가 아니라 진행")
     void firmwarePhase_degraded_proceeds() throws Exception {
         given(firmwareResolutionProvider.resolveFor(org.mockito.ArgumentMatchers.any()))
-                .willReturn(java.util.Optional.of(new com.example.serverprovision.execution.engine.FirmwareResolution(
-                        com.example.serverprovision.execution.engine.AxisResolution.selected(1L, "F27"),
-                        com.example.serverprovision.execution.engine.AxisResolution.of(
-                                com.example.serverprovision.execution.engine.FirmwareAxisReason.NO_CANDIDATE))));
+                .willReturn(java.util.Optional.of(new com.example.serverprovision.execution.engine.firmware.FirmwareResolution(
+                        com.example.serverprovision.execution.engine.firmware.AxisResolution.selected(1L, "F27", "/tmp/fw/F27.img"),
+                        com.example.serverprovision.execution.engine.firmware.AxisResolution.of(
+                                com.example.serverprovision.execution.engine.firmware.FirmwareAxisReason.NO_CANDIDATE))));
         ProvisioningProgress progress = startedFirmwareProgress();
 
         boot(progress)

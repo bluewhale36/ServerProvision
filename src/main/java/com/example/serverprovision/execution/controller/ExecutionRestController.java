@@ -1,8 +1,8 @@
 package com.example.serverprovision.execution.controller;
 
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
-import com.example.serverprovision.execution.engine.BootService;
-import com.example.serverprovision.execution.engine.IpxeScripts;
+import com.example.serverprovision.execution.engine.boot.BootService;
+import com.example.serverprovision.execution.engine.boot.IpxeScripts;
 import com.example.serverprovision.global.exception.ExceptionLogPolicy;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
