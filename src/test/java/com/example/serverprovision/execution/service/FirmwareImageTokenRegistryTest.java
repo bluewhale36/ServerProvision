@@ -24,7 +24,15 @@ class FirmwareImageTokenRegistryTest {
         UUID token = registry.issue(GUEST, FirmwareAxis.BIOS, Path.of("/opt/fw/image.RBU"));
 
         assertThat(registry.resolve(token)).contains(Path.of("/opt/fw/image.RBU"));
-        assertThat(registry.urlFor(token)).isEqualTo("http://server:7798/api/pxe/v1/firmware/" + token);
+        assertThat(registry.urlFor(token))
+                .isEqualTo("http://server:7798/api/pxe/v1/firmware/" + token + "/image.RBU");   // 파일명 = AMI 형식 판별(2026-08-25 실기)
+    }
+
+    @Test
+    @DisplayName("미발급 · 회수된 토큰의 URL 요청은 집행 흐름 버그다 — 임의 파일명으로 흡수하지 않는다")
+    void urlFor_unknownToken_throws() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> registry.urlFor(UUID.randomUUID()))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

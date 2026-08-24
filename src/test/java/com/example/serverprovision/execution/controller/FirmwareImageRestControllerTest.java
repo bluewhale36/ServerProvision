@@ -46,7 +46,7 @@ class FirmwareImageRestControllerTest {
         UUID token = UUID.randomUUID();
         given(tokenRegistry.resolve(token)).willReturn(Optional.of(image));
 
-        mvc.perform(get("/api/pxe/v1/firmware/{token}", token))
+        mvc.perform(get("/api/pxe/v1/firmware/{token}/image.RBU", token))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("application/octet-stream"))
                 .andExpect(content().string("FIRMWARE-BYTES"));
@@ -57,7 +57,7 @@ class FirmwareImageRestControllerTest {
     void download_forgedTokenIsNotFound() throws Exception {
         given(tokenRegistry.resolve(any())).willReturn(Optional.empty());
 
-        mvc.perform(get("/api/pxe/v1/firmware/{token}", UUID.randomUUID()))
+        mvc.perform(get("/api/pxe/v1/firmware/{token}/image.RBU", UUID.randomUUID()))
                 .andExpect(status().isNotFound());
     }
 
@@ -67,7 +67,7 @@ class FirmwareImageRestControllerTest {
         UUID token = UUID.randomUUID();
         given(tokenRegistry.resolve(token)).willReturn(Optional.empty());
 
-        mvc.perform(get("/api/pxe/v1/firmware/{token}", token))
+        mvc.perform(get("/api/pxe/v1/firmware/{token}/image.RBU", token))
                 .andExpect(status().isNotFound());
     }
 
@@ -77,14 +77,14 @@ class FirmwareImageRestControllerTest {
         UUID token = UUID.randomUUID();
         given(tokenRegistry.resolve(token)).willReturn(Optional.of(tempDir.resolve("gone.RBU")));
 
-        mvc.perform(get("/api/pxe/v1/firmware/{token}", token))
+        mvc.perform(get("/api/pxe/v1/firmware/{token}/image.RBU", token))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     @DisplayName("400 — 토큰 자리가 UUID 가 아니면 경로 자체가 성립하지 않는다")
     void download_malformedTokenIsBadRequest() throws Exception {
-        mvc.perform(get("/api/pxe/v1/firmware/{token}", "not-a-uuid"))
+        mvc.perform(get("/api/pxe/v1/firmware/{token}/image.RBU", "not-a-uuid"))
                 .andExpect(status().is4xxClientError());
     }
 }

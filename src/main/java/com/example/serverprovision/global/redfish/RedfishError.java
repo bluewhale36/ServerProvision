@@ -18,6 +18,8 @@ public enum RedfishError {
     AUTH_FAILED("모든 자격증명이 거부되었습니다 — 표준 비밀번호와 보드 시리얼(공장 기본)을 확인하세요."),
     /** 412 — ETag 선행 조건 불일치(fresh ETag 재시도 신호 — 이번 슬라이스의 전원 경로에는 없음). */
     PRECONDITION_FAILED("BMC 가 선행 조건(ETag)을 거절했습니다 — 다시 시도하세요."),
+    /** 404 — 리소스 부재. AMI TaskMonitor 는 작업 종결 후 소멸하므로(실측) 일시 도달 불가와 갈라야 한다. */
+    NOT_FOUND("BMC 에 해당 리소스가 없습니다."),
     /** 그 외 프로토콜 오류 — 4xx/5xx · 본문 해석 불가. */
     PROTOCOL("BMC 가 요청을 거절했거나 응답을 해석하지 못했습니다.");
 
