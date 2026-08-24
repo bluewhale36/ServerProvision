@@ -9,6 +9,7 @@ import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
+import com.example.serverprovision.execution.exception.DisruptiveActionRejectedException;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.exception.ProvisioningMarkFailedRejectedException;
 import com.example.serverprovision.execution.exception.ProvisioningRetryRejectedException;
@@ -66,11 +67,15 @@ public class GuestServerCommandService {
 
     /**
      * 서버 회수 — decommissioned_at 기록(멱등). 운영 상태는 이 마커에서 도출(§D4).
+     * 펌웨어를 굽는 중에는 거절한다(R13 후속) — 가드는 뷰 차단과 같은 SSOT.
      */
     @Transactional
     public void decommission(UUID id) {
         GuestServer server = guestServerRepository.findById(id)
                 .orElseThrow(() -> new GuestServerNotFoundException(id));
+        provisioningProgressRepository.findByGuestServer_Id(id)
+                .filter(ProvisioningProgress::isDisruptionBlocked)
+                .ifPresent(p -> { throw new DisruptiveActionRejectedException(id); });
         server.decommission(LocalDateTime.now());
         publishChanged(id);
     }

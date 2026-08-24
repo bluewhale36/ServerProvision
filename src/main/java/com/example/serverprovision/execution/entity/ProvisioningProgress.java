@@ -228,9 +228,10 @@ public class ProvisioningProgress extends BaseTimeEntity {
         markFailed(now);
     }
 
-    /** 수동 실패 전환 가능 판정 — 뷰 버튼 노출과 서비스 409 가드의 단일 SSOT. (= 운영 상태 PROVISIONING) */
+    /** 수동 실패 전환 가능 판정 — 뷰 버튼 노출과 서비스 409 가드의 단일 SSOT. 굽는 중엔 불가(R13 후속). */
     public boolean isManualFailable(LocalDateTime decommissionedAt) {
-        return decommissionedAt == null && isStarted() && !isFailed() && !isCompleted();
+        return decommissionedAt == null && isStarted() && !isFailed() && !isCompleted()
+                && !isDisruptionBlocked();
     }
 
     /**
@@ -255,8 +256,20 @@ public class ProvisioningProgress extends BaseTimeEntity {
      * 볼 수 없기 때문이다. 판정은 {@code RetryPolicy} 한 지점이 하고 화면 · 가드가 함께 호출한다.</p>
      */
     public boolean isFirmwarePhaseFailure() {
-        return isFailed() && (currentStep == ProvisioningPhaseStep.BIOS_UPDATING
-                || currentStep == ProvisioningPhaseStep.BMC_UPDATING);
+        return isFailed() && isFirmwareStep();
+    }
+
+    /**
+     * 펌웨어를 굽는 창인가 — 이 동안의 중단성 조작(전원 제어 · 수동 실패 전환 · 회수)은 벽돌 위험이라
+     * 전부 막는다(2026-08-25). UI 차단과 서버 가드가 함께 쓰는 SSOT. 결손 대기(HOLD)는 굽기 전이라 제외.
+     */
+    public boolean isDisruptionBlocked() {
+        return isStarted() && !isFailed() && !isCompleted() && !isHolding() && isFirmwareStep();
+    }
+
+    private boolean isFirmwareStep() {
+        return currentStep == ProvisioningPhaseStep.BIOS_UPDATING
+                || currentStep == ProvisioningPhaseStep.BMC_UPDATING;
     }
 
     public boolean isStarted() {

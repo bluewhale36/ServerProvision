@@ -30,7 +30,6 @@ public class FlashLedger {
     public static final String IDENTITY_MISMATCH = "bmc-identity-mismatch";
     public static final String BMC_UNREACHABLE = "bmc-unreachable";
     public static final String RESOLVE_SKIPPED = "resolve-skipped";
-    public static final String ALREADY_CURRENT = "already-current";
 
     /**
      * 축이 아니라 <b>phase 수준에서 일어난 사건</b>의 사유들. 기록은 "실패 지점 = 커서" 규약(ES-2 D-5)에
@@ -58,12 +57,6 @@ public class FlashLedger {
     public void skipAxis(GuestServer server, FirmwareAxis axis, String why, LocalDateTime now) {
         recorder.recordInstant(server, axis.getStep(), ProvisioningStatus.SKIPPED,
                 ProvisioningHistory.flashOutcomeMeta(RESOLVE_SKIPPED, why), now);
-    }
-
-    /** 굽지 않아도 되는 축 — 이미 목표 버전이라 성공으로 닫는다(D-7 멱등). */
-    public void alreadyCurrent(GuestServer server, FirmwareAxis axis, String version, LocalDateTime now) {
-        recorder.recordInstant(server, axis.getStep(), ProvisioningStatus.SUCCEEDED,
-                ProvisioningHistory.flashOutcomeMeta(ALREADY_CURRENT, "이미 " + version + " 입니다"), now);
     }
 
     /**

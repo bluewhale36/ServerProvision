@@ -147,6 +147,27 @@ class ProvisioningProgressTest {
         assertThat(notStartedFailed.isStartableWith(null)).isFalse();
     }
 
+    @Test
+    @DisplayName("isDisruptionBlocked — 펌웨어를 굽는 창에만 참: 진단 · 대기(HOLD) · 실패 · 미개시는 거짓")
+    void disruptionBlocked_onlyDuringFirmwareFlash() {
+        ProvisioningProgress flashing = started();
+        flashing.advanceToEntry(ProvisioningPhaseStep.BIOS_UPDATING, T1);
+        flashing.positionAt(ProvisioningPhaseStep.BIOS_UPDATING, T1);
+        assertThat(flashing.isDisruptionBlocked()).isTrue();
+        assertThat(flashing.isManualFailable(null)).isFalse();   // 굽는 중엔 수동 실패도 불가
+
+        ProvisioningProgress holding = started();
+        holding.advanceToEntry(ProvisioningPhaseStep.BIOS_UPDATING, T1);
+        holding.holdForShortage(T1);   // 결손 대기는 굽기 전 — 차단 없음
+        assertThat(holding.isDisruptionBlocked()).isFalse();
+
+        assertThat(started().isDisruptionBlocked()).isFalse();   // 진단 커서
+        assertThat(seed().isDisruptionBlocked()).isFalse();      // 미개시
+
+        flashing.markFailed(T1);   // 실패로 닫히면 창이 끝난다
+        assertThat(flashing.isDisruptionBlocked()).isFalse();
+    }
+
     // ==== advanceToEntry — phase 경계 pre-position (ES-2 D-1 ⓑ) ================
 
     @Test

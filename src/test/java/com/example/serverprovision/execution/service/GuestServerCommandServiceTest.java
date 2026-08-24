@@ -89,11 +89,29 @@ class GuestServerCommandServiceTest {
         UUID id = UUID.randomUUID();
         GuestServer s = server(id);
         given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.empty());
 
         service.decommission(id);
 
         assertThat(s.getDecommissionedAt()).isNotNull();
         verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
+    }
+
+    @Test
+    @DisplayName("decommission — 펌웨어를 굽는 중이면 DisruptiveActionRejectedException(409, R13 후속)")
+    void decommission_duringFlash_rejected() {
+        UUID id = UUID.randomUUID();
+        GuestServer s = server(id);
+        ProvisioningProgress flashing = seedProgress();
+        flashing.start(LocalDateTime.now());
+        flashing.advanceToEntry(ProvisioningPhaseStep.BIOS_UPDATING, LocalDateTime.now());
+        flashing.positionAt(ProvisioningPhaseStep.BIOS_UPDATING, LocalDateTime.now());
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(flashing));
+
+        assertThatThrownBy(() -> service.decommission(id))
+                .isInstanceOf(com.example.serverprovision.execution.exception.DisruptiveActionRejectedException.class);
+        assertThat(s.getDecommissionedAt()).isNull();
     }
 
     @Test
@@ -103,6 +121,7 @@ class GuestServerCommandServiceTest {
         LocalDateTime first = LocalDateTime.now().minusDays(1);
         GuestServer s = GuestServer.builder().id(id).systemUUID(UUID.randomUUID()).decommissionedAt(first).build();
         given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.empty());
 
         service.decommission(id);
 
