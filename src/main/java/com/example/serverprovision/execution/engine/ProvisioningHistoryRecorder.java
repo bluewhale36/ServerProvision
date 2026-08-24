@@ -36,4 +36,11 @@ public class ProvisioningHistoryRecorder {
     public ProvisioningHistory openRunning(GuestServer server, ProvisioningPhaseStep stepCode, LocalDateTime at) {
         return provisioningHistoryRepository.save(ProvisioningHistory.openRunning(server, stepCode, at));
     }
+
+    /** 여는 시점에 아는 사실을 함께 싣는 변형(E2-2) — 굽기는 무엇을 어느 Task 로 하는지가 그때 정해진다. */
+    public ProvisioningHistory openRunning(GuestServer server, ProvisioningPhaseStep stepCode,
+                                           LocalDateTime at, String statusMeta) {
+        return provisioningHistoryRepository.save(
+                ProvisioningHistory.openRunning(server, stepCode, at, statusMeta));
+    }
 }

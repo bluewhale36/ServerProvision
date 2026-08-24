@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.engine;
 
+import com.example.serverprovision.execution.engine.diagnose.DiagnosticReportParser;
 import com.example.serverprovision.execution.vo.HardwareSpec;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

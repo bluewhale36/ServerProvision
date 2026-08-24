@@ -3,7 +3,7 @@ package com.example.serverprovision.execution.controller;
 import com.example.serverprovision.execution.dto.response.AgentCheckinResponse;
 import com.example.serverprovision.execution.dto.response.StepCloseResponse;
 import com.example.serverprovision.execution.dto.response.StepOpenResponse;
-import com.example.serverprovision.execution.engine.AgentReportService;
+import com.example.serverprovision.execution.engine.diagnose.AgentReportService;
 import com.example.serverprovision.execution.enums.AgentDirective;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;

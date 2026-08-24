@@ -103,6 +103,7 @@ class GuestServerControllerTest {
                         ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now(),
                         null, null, null, null, true, false, false, false),   // E1-0a 미개시 + E1-2 액션 플래그 (ES-2: phaseMeta 소멸 · seed phase 파생)
                 null,   // E2-1-b firmwarePlan — 펌웨어 단계 미보유 fixture
+                null,   // E2-2 firmwareFlash — 집행 미착수 fixture
                 List.of());
     }
 
@@ -119,7 +120,8 @@ class GuestServerControllerTest {
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.BOOTSTRAPPING, LocalDateTime.now(), null,
                         null, null, null, true, false, false, false),
-                null,
+                null,   // E2-1-b firmwarePlan
+                null,   // E2-2 firmwareFlash
                 List.of());
     }
 

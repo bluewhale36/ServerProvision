@@ -1,7 +1,8 @@
 package com.example.serverprovision.execution.dto.response;
 
+import com.example.serverprovision.execution.engine.firmware.AxisFlashState;
 import com.example.serverprovision.execution.enums.DiscoveryStage;
-import com.example.serverprovision.execution.engine.ReadinessGrade;
+import com.example.serverprovision.execution.engine.phase.ReadinessGrade;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
 import com.example.serverprovision.execution.enums.IpSource;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
@@ -40,6 +41,8 @@ public record GuestServerDetailResponse(
         Progress progress,
         /** 펌웨어 갱신 phase 를 보유한 게스트만 — 매 조회 재계산(E2-1-b). */
         FirmwarePlan firmwarePlan,
+        /** 집행에 착수한 뒤에만 — 계획이 "무엇을" 이라면 이것은 "어디까지" 다(E2-2). */
+        FirmwareFlash firmwareFlash,
         List<Step> steps
 ) {
 
@@ -71,6 +74,40 @@ public record GuestServerDetailResponse(
             SoftwareSpec softwareSpec,
             IpAddressVO bmcIp,
             MacAddressVO bmcMac
+    ) {
+    }
+
+    /**
+     * 펌웨어 집행 진행 (E2-2) — 굽는 동안 운영자가 보는 것. 계획({@code FirmwarePlan})이 "무엇을 구울
+     * 것인가" 라면 이것은 "지금 어디까지 갔는가" 다.
+     *
+     * <p>축마다 한 줄인 것이 이 화면의 요점이다 — 두 축은 한 전원 사이클을 공유하지만 각자 따로
+     * 성패하므로, 한 축이 실패했을 때 다른 축이 어떻게 됐는지를 운영자가 바로 읽을 수 있어야 한다.</p>
+     *
+     * @param running          집행이 진행 중인가
+     * @param axes             축별 진행 — 순서는 집행 순서와 같다
+     * @param remainingMinutes 지금 걸려 있는 시한의 잔여 분 (없으면 0)
+     * @param poweredOff       집행이 멈춘 채 전원이 꺼져 있는가 — 실패했을 때 운영자가 알아야 한다(D-10)
+     */
+    public record FirmwareFlash(
+            boolean running,
+            java.util.List<AxisFlash> axes,
+            long remainingMinutes,
+            boolean poweredOff
+    ) {
+    }
+
+    /**
+     * 한 축의 집행 진행. {@code state} 는 라벨을 자기가 드는 enum 이라 화면이 상태를 보고 문구를
+     * 다시 고르지 않는다.
+     *
+     * @param detail 그 상태가 된 까닭 — 건너뛴 사유나 실패 사유. 정상 진행이면 null
+     */
+    public record AxisFlash(
+            String label,
+            AxisFlashState state,
+            String targetVersion,
+            String detail
     ) {
     }
 

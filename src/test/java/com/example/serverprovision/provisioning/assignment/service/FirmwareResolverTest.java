@@ -1,9 +1,9 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
-import com.example.serverprovision.execution.engine.AxisResolution;
-import com.example.serverprovision.execution.engine.FirmwareAxisReason;
-import com.example.serverprovision.execution.engine.FirmwareResolution;
-import com.example.serverprovision.execution.engine.ReadinessGrade;
+import com.example.serverprovision.execution.engine.firmware.AxisResolution;
+import com.example.serverprovision.execution.engine.firmware.FirmwareAxisReason;
+import com.example.serverprovision.execution.engine.firmware.FirmwareResolution;
+import com.example.serverprovision.execution.engine.phase.ReadinessGrade;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.exception.MarkerMissingException;

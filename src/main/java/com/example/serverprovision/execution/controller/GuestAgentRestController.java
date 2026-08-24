@@ -5,7 +5,7 @@ import com.example.serverprovision.execution.dto.request.StepOpenRequest;
 import com.example.serverprovision.execution.dto.response.AgentCheckinResponse;
 import com.example.serverprovision.execution.dto.response.StepCloseResponse;
 import com.example.serverprovision.execution.dto.response.StepOpenResponse;
-import com.example.serverprovision.execution.engine.AgentReportService;
+import com.example.serverprovision.execution.engine.diagnose.AgentReportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

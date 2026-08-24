@@ -54,8 +54,8 @@ class GuestServerQueryServiceTest {
     @Mock ProvisioningHistoryRepository provisioningHistoryRepository;
     // E2-1-b — 상세 조회가 펌웨어 해석을 한 번 돌린다. 이 파일의 시나리오는 펌웨어 단계와 무관하므로
     // "해당 없음"(empty)을 돌려주는 mock 으로 두고, 판정 자체는 FirmwareResolverTest 가 검증한다.
-    @Mock com.example.serverprovision.execution.engine.FirmwareResolutionProvider firmwareResolutionProvider;
-    @Mock com.example.serverprovision.execution.engine.HoldTtlPolicy holdTtlPolicy;
+    @Mock com.example.serverprovision.execution.engine.firmware.FirmwareResolutionProvider firmwareResolutionProvider;
+    @Mock com.example.serverprovision.execution.engine.phase.HoldTtlPolicy holdTtlPolicy;
     @Mock RetryPolicy retryPolicy;
 
     @InjectMocks GuestServerQueryService service;

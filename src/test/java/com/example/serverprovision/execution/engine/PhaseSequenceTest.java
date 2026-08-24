@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.engine;
 
+import com.example.serverprovision.execution.engine.phase.PhaseSequence;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

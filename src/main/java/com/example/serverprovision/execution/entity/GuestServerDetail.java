@@ -110,6 +110,19 @@ public class GuestServerDetail extends BaseTimeEntity {
      * <p>상세 행 자체가 없는 서버(등록 직후)는 여기 도달할 수 없으므로 <b>호출부가 부재를 흡수</b>한다
      * — 엔진은 {@code Optional.map(...).orElse(false)}, 조회 서비스는 맵 조회의 null 검사다.</p>
      */
+    /**
+     * BMC 주소 갱신(E2-2 D-11) — 진단이 적은 값에 이은 <b>두 번째 작성자</b>다.
+     *
+     * <p>BMC 는 펌웨어를 구운 뒤 스스로 재기동하며 사라졌다 돌아오고, DHCP 에 고정 예약이 없어 그때
+     * 다른 주소를 받을 수 있다. 집행이 lease 에서 같은 MAC 의 현재 주소를 찾아내면 여기로 갱신한다 —
+     * 그러지 않으면 다음 집행도 옛 주소를 두드린다.</p>
+     */
+    public void updateBmcIp(com.example.serverprovision.execution.vo.IpAddressVO bmcIp) {
+        if (bmcIp != null) {
+            this.bmcIp = bmcIp;
+        }
+    }
+
     public boolean isDiagnosticEnriched() {
         return discoveryStage.isSpecAvailable();
     }

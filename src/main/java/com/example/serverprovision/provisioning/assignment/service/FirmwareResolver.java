@@ -1,8 +1,8 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
-import com.example.serverprovision.execution.engine.AxisResolution;
-import com.example.serverprovision.execution.engine.FirmwareAxisReason;
-import com.example.serverprovision.execution.engine.FirmwareResolution;
+import com.example.serverprovision.execution.engine.firmware.AxisResolution;
+import com.example.serverprovision.execution.engine.firmware.FirmwareAxisReason;
+import com.example.serverprovision.execution.engine.firmware.FirmwareResolution;
 import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.exception.MarkerMissingException;
@@ -82,7 +82,8 @@ public class FirmwareResolver {
             return AxisResolution.of(FirmwareAxisReason.DISABLED);
         }
         Path treeRoot = Path.of(catalog.treeRootOf(firmware));
-        if (!Files.isDirectory(treeRoot) || !Files.exists(treeRoot.resolve(catalog.entrypointOf(firmware)))) {
+        Path imageFile = treeRoot.resolve(catalog.entrypointOf(firmware));
+        if (!Files.isDirectory(treeRoot) || !Files.exists(imageFile)) {
             return AxisResolution.of(FirmwareAxisReason.FILE_MISSING);
         }
         try {
@@ -92,7 +93,9 @@ public class FirmwareResolver {
         } catch (MarkerMissingException e) {
             return AxisResolution.of(FirmwareAxisReason.MARKER_MISSING);
         }
-        return AxisResolution.selected(catalog.idOf(firmware), catalog.versionOf(firmware));
+        // 굽을 파일의 경로를 여기서 함께 싣는다 — 존재를 방금 확인했고, 집행(E2-2)이 이 경로를 HTTP 로
+        // 내주어 BMC 가 당겨 가기 때문이다. 소비 시점에 다시 조회하면 그 사이 자원이 움직일 수 있다.
+        return AxisResolution.selected(catalog.idOf(firmware), catalog.versionOf(firmware), imageFile.toString());
     }
 
     // ---- 자원 종류별 접근 (BIOS · BMC 는 컬럼명만 다르고 판정은 같다) --------------------

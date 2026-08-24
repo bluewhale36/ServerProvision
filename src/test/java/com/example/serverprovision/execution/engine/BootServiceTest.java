@@ -1,7 +1,9 @@
 package com.example.serverprovision.execution.engine;
 
+import com.example.serverprovision.execution.engine.boot.BootScriptDispatcher;
+import com.example.serverprovision.execution.engine.boot.BootService;
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
-import com.example.serverprovision.execution.engine.PhaseReadiness;
+import com.example.serverprovision.execution.engine.phase.PhaseReadiness;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
@@ -38,7 +40,7 @@ class BootServiceTest {
     @Mock GuestServerRegistrationService registrationService;
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
     @Mock BootScriptDispatcher bootScriptDispatcher;
-    @Mock com.example.serverprovision.execution.engine.PhaseEntryGate phaseEntryGate;   // E2-1-b — dispatch 직전 진입 판정
+    @Mock com.example.serverprovision.execution.engine.boot.PhaseEntryGate phaseEntryGate;   // E2-1-b — dispatch 직전 진입 판정
     @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks BootService service;
 

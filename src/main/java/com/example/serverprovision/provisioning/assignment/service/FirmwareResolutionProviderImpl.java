@@ -1,7 +1,7 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
-import com.example.serverprovision.execution.engine.FirmwareResolution;
-import com.example.serverprovision.execution.engine.FirmwareResolutionProvider;
+import com.example.serverprovision.execution.engine.firmware.FirmwareResolution;
+import com.example.serverprovision.execution.engine.firmware.FirmwareResolutionProvider;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;

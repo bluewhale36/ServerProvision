@@ -1,7 +1,7 @@
 package com.example.serverprovision.provisioning.assignment;
 
-import com.example.serverprovision.execution.engine.PhaseCursorAdvancer;
-import com.example.serverprovision.execution.engine.PhaseSequence;
+import com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer;
+import com.example.serverprovision.execution.engine.phase.PhaseSequence;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.provisioning.assignment.mapper.SettingProcessPhaseMapper;

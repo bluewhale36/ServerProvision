@@ -36,11 +36,15 @@ public class RedfishPowerService {
     private final Duration pollInterval;
     private final Duration pollTimeout;
 
+    private final BmcCredentialsFallback credentialsFallback;
+
     public RedfishPowerService(RedfishClient redfishClient, BmcCredentialsResolver credentialsResolver,
+                               BmcCredentialsFallback credentialsFallback,
                                @Value("${provision.bmc.power-poll-interval-ms:5000}") long pollIntervalMs,
                                @Value("${provision.bmc.power-poll-timeout-ms:60000}") long pollTimeoutMs) {
         this.redfishClient = redfishClient;
         this.credentialsResolver = credentialsResolver;
+        this.credentialsFallback = credentialsFallback;
         this.pollInterval = Duration.ofMillis(pollIntervalMs);
         this.pollTimeout = Duration.ofMillis(pollTimeoutMs);
     }
@@ -96,26 +100,18 @@ public class RedfishPowerService {
         if (target == null || !target.bmcDetected()) {
             return PowerControlResult.unsupported();
         }
-        List<BmcCredentials> candidates = credentialsResolver.candidates(target.boardSerial());
-        if (candidates.isEmpty()) {
+        if (credentialsResolver.candidates(target.boardSerial()).isEmpty()) {
             return PowerControlResult.failed(null,
                     "BMC 자격증명이 없습니다 — 표준 비밀번호(provision.bmc.password)가 비어 있고 보드 시리얼도 수집되지 않았습니다.");
         }
-        RedfishRequestException last = null;
-        for (BmcCredentials credentials : candidates) {
-            try {
-                return attempt.run(credentials);
-            } catch (RedfishRequestException e) {
-                last = e;
-                if (e.getError() != RedfishError.AUTH_FAILED) {
-                    break; // 401 만 다음 자격증명으로 — 연결 불가 · 프로토콜 오류는 자격증명과 무관하다.
-                }
-                log.info("[redfish] {} — {} 자격증명 거부(401) → 다음 후보로", target.bmcIp(), credentials.source());
-            }
+        try {
+            // 후보 순회와 401 폴백 규칙은 펌웨어 집행(E2-2)과 공유한다 — 규칙이 갈라지면 한쪽만 고쳐지는 사고가 난다.
+            return credentialsFallback.attempt(target, attempt::run);
+        } catch (RedfishRequestException e) {
+            log.warn("[redfish] {} — 전원 제어 실패: {}", target.bmcIp(), e.getMessage());
+            // 사용자 문구는 RedfishError 상수가 보유(SSOT) — 상수가 늘어도 여기는 안 자란다.
+            return PowerControlResult.failed(null, e.getError().getUserMessage());
         }
-        log.warn("[redfish] {} — 전원 제어 실패: {}", target.bmcIp(), last == null ? "원인 미상" : last.getMessage());
-        // 사용자 문구는 RedfishError 상수가 보유(SSOT) — 상수가 늘어도 여기는 안 자란다.
-        return PowerControlResult.failed(null, last == null ? "전원 제어에 실패했습니다." : last.getError().getUserMessage());
     }
 
     private void issueReset(RedfishTarget target, BmcCredentials credentials, RedfishResetType type) {
