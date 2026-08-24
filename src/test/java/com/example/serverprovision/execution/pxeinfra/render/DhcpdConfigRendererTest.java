@@ -33,7 +33,11 @@ class DhcpdConfigRendererTest {
                   class "pxeclients" {
                     match if substring(option vendor-class-identifier, 0, 9) = "PXEClient";
                     next-server 10.0.2.2;
-                    filename "ipxe.efi";
+                    if exists user-class and option user-class = "iPXE" {
+                      filename "boot.ipxe";
+                    } else {
+                      filename "ipxe.efi";
+                    }
                   }
                 }
                 """);
@@ -56,7 +60,11 @@ class DhcpdConfigRendererTest {
                   class "pxeclients" {
                     match if substring(option vendor-class-identifier, 0, 9) = "PXEClient";
                     next-server 10.0.2.2;
-                    filename "ipxe.efi";
+                    if exists user-class and option user-class = "iPXE" {
+                      filename "boot.ipxe";
+                    } else {
+                      filename "ipxe.efi";
+                    }
                   }
                 }
                 """);
@@ -80,7 +88,11 @@ class DhcpdConfigRendererTest {
                   class "pxeclients" {
                     match if substring(option vendor-class-identifier, 0, 9) = "PXEClient";
                     next-server 10.0.2.2;
-                    filename "ipxe.efi";
+                    if exists user-class and option user-class = "iPXE" {
+                      filename "boot.ipxe";
+                    } else {
+                      filename "ipxe.efi";
+                    }
                   }
                 }
                 """);
@@ -103,7 +115,11 @@ class DhcpdConfigRendererTest {
                   class "pxeclients" {
                     match if substring(option vendor-class-identifier, 0, 9) = "PXEClient";
                     next-server 10.0.2.2;
-                    filename "ipxe.efi";
+                    if exists user-class and option user-class = "iPXE" {
+                      filename "boot.ipxe";
+                    } else {
+                      filename "ipxe.efi";
+                    }
                   }
                 }
                 """);
