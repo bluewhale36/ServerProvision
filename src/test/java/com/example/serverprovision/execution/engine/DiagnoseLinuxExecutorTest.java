@@ -150,6 +150,24 @@ class DiagnoseLinuxExecutorTest {
     }
 
     @Test
+    @DisplayName("수집 소비(R13) — 미개시면 완주 판정 유보: 적재는 하되 커서 INFORMATION_PERSISTING 에 멈춤(수집 완료 대기)")
+    void onStepClosed_notStarted_defersCompletion() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var detail = realDetail(g);
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(detail));
+        ProvisioningProgress p = ProvisioningProgress.builder()
+                .currentStep(ProvisioningPhaseStep.INFORMATION_COLLECTING).lastTransitionAt(T).build();   // 미개시
+
+        executor.onStepClosed(g, p, closedCollecting(g, REPORT));
+
+        assertThat(detail.getDiscoveryStage())
+                .isEqualTo(com.example.serverprovision.execution.enums.DiscoveryStage.DIAGNOSTIC_ENRICHED);   // 적재는 정상
+        assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.INFORMATION_PERSISTING);   // 유보 표식
+        assertThat(p.isCompleted()).isFalse();   // 종단 아님 — 개시 시점의 소급 판정 대상
+    }
+
+    @Test
     @DisplayName("수집 소비 — 할당 게스트(ownedPhases={FIRMWARE_UPDATING}) → 인벤토리 적재 + 커서 전진(FIRMWARE_UPDATING), 종단 아님 (ES-1)")
     void onStepClosed_assignedGuest_advancesCursor() {
         GuestServer g = server(new GuestToken(TOKEN));

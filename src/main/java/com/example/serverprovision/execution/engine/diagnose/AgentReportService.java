@@ -108,7 +108,8 @@ public class AgentReportService {
         // 에이전트의 재전송(이미 종결된 행의 중복 close)은 완주 상태에서도 허용해야 지시를 잃지 않는다
         // (멱등 계약). 그 외 비진행 상태(미개시·실패·회수)는 기존대로 step 조회 이전에 거절.
         GuestServerStatus status = GuestServerStatus.derive(progress, server.getDecommissionedAt());
-        if (status != GuestServerStatus.PROVISIONING && status != GuestServerStatus.PROVISIONED) {
+        if (status != GuestServerStatus.PROVISIONING && status != GuestServerStatus.PROVISIONED
+                && !inUnstartedDiagnosticWindow(status, progress)) {
             throw AgentReportRejectedException.notProvisioning(server.getId());
         }
 
@@ -200,9 +201,22 @@ public class AgentReportService {
      * 그것을 우회하는 direct POST(하네스 · 외부 변조)의 안전망이다.
      */
     private void requireProvisioning(GuestServer server, ProvisioningProgress progress) {
-        if (GuestServerStatus.derive(progress, server.getDecommissionedAt()) != GuestServerStatus.PROVISIONING) {
+        GuestServerStatus status = GuestServerStatus.derive(progress, server.getDecommissionedAt());
+        if (status != GuestServerStatus.PROVISIONING
+                && !inUnstartedDiagnosticWindow(status, progress)) {
             throw AgentReportRejectedException.notProvisioning(server.getId());
         }
+    }
+
+    /**
+     * 미개시 진단 창(R13) — 등록 즉시 진단 phase 가 자동 진행되므로, 미개시(REGISTERED)라도 커서가
+     * 진단 phase 면 에이전트 보고를 수리한다. 진단 밖 phase 의 미개시 보고는 여전히 비정상(도메인
+     * 가드가 미개시 커서를 진단 밖으로 못 옮기므로 direct POST · 변조 신호)이라 기존대로 거절된다.
+     * checkin · openStep 의 게이트와 closeStep 의 인라인 게이트가 같은 판정을 공유한다.
+     */
+    private boolean inUnstartedDiagnosticWindow(GuestServerStatus status, ProvisioningProgress progress) {
+        return status == GuestServerStatus.REGISTERED
+                && progress.currentPhase() == ProvisioningPhase.DIAGNOSE_LINUX;
     }
 
     private GuestServer requireByToken(String presented) {

@@ -566,10 +566,11 @@
 
                 <!-- 개시 액션 (DEC-26) — 노출 판정(startable)은 서버 가드와 같은 도메인 메서드에서 온 값 (SSOT).
                      회수·개시됨 상태에서는 렌더되지 않으므로 서버 409 가드는 direct POST 전용 안전망이다. -->
-                <!-- E1-2 (UC-3) — 게스트가 연결 중인데 미개시면 개시 유도: "서로 기다리는" 착각 차단 -->
+                <!-- E1-2 (UC-3) → R13 — 진단(수집)은 자동 진행이므로 개시 안내는 "수집 이후 단계" 로 한정.
+                     국면(수집 중/완료) 분기 없이 두 국면 모두 참인 문구를 쓴다. -->
                 <div th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active}"
                      class="n-section-hint" style="margin-top: 16px;">
-                    게스트가 연결되어 있습니다 — <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.
+                    하드웨어 수집은 자동으로 진행됩니다. 수집이 끝난 뒤 다음 단계는 <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.
                 </div>
                 <form th:if="${server.progress != null and server.progress.startable}"
                       th:action="@{/provisioning/server/{id}/start(id=${server.id})}" method="post"

@@ -445,7 +445,8 @@ CREATE TABLE `provisioning_progress` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `UKabugod4qmmfhus85w2qshlcqk` (`guest_server_id`),
   CONSTRAINT `FKepf2lome6my2r7km8ojb0ogos` FOREIGN KEY (`guest_server_id`) REFERENCES `guest_server` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `chk_progress_motion_window` CHECK (`motion` is null and (`started_at` is null or `failed_at` is not null or `completed_at` is not null) or `motion` is not null and `started_at` is not null and `failed_at` is null and `completed_at` is null)
+  CONSTRAINT `chk_progress_motion_window` CHECK (`motion` is null or `failed_at` is null and `completed_at` is null),
+  CONSTRAINT `chk_progress_completed_after_start` CHECK (`completed_at` is null or `started_at` is not null)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `purge_log` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,

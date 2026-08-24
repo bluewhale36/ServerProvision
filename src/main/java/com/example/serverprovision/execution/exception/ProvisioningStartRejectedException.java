@@ -7,7 +7,7 @@ import java.util.UUID;
 /**
  * 개시할 수 없는 서버에 대한 개시 요청(E1-0a, DEC-26). 정상 흐름은 UI 가 버튼을 숨겨 차단하므로
  * direct POST · stale 화면에서만 도달하는 안전망이다. (advice 가 base {@link ConflictException} 으로 409 매핑)
- * 사유 2종은 메시지로 구분한다 — 사유별 클래스 분리는 소비 분기가 생기는 시점에(현재는 표시만).
+ * 사유 3종은 메시지로 구분한다 — 사유별 클래스 분리는 소비 분기가 생기는 시점에(현재는 표시만).
  */
 public class ProvisioningStartRejectedException extends ConflictException {
 
@@ -21,5 +21,10 @@ public class ProvisioningStartRejectedException extends ConflictException {
 
     public static ProvisioningStartRejectedException decommissioned(UUID id) {
         return new ProvisioningStartRejectedException("회수된 서버는 프로비저닝을 개시할 수 없습니다. id=" + id);
+    }
+
+    /** R13 — 미개시 진단 창의 게스트 실패 보고로 생기는 "미개시 실패" 상태. 회복 경로는 재시도다. */
+    public static ProvisioningStartRejectedException failed(UUID id) {
+        return new ProvisioningStartRejectedException("실패 상태의 서버는 개시할 수 없습니다 — 재시도로 회복하세요. id=" + id);
     }
 }

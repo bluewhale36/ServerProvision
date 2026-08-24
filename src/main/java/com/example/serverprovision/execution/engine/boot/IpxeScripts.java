@@ -28,11 +28,6 @@ public final class IpxeScripts {
                 """.formatted(reason, RETRY_SECONDS, rebootQuery);
     }
 
-    /** 미개시(개시 게이트, DEC-26) — dispatch 5행. */
-    public static String waitingForStart(String rebootQuery) {
-        return waitAndChain("waiting for provisioning start (operator gate)...", rebootQuery);
-    }
-
     /** 회수된 서버 — dispatch 2행. */
     public static String decommissioned(String rebootQuery) {
         return waitAndChain("decommissioned server. not a provisioning target.", rebootQuery);
