@@ -31,7 +31,8 @@ class DiagnosticReportParserTest {
                 "02:00.0 Ethernet controller: Intel Corporation Ethernet Controller X710 for 10GbE SFP+",
                 "03:00.0 Ethernet controller: Intel Corporation Ethernet Controller 10G X550T",
                 "04:00.0 Fibre Channel: QLogic Corp. QLE2692 16Gb FC Adapter",
-                "05:00.0 3D controller: NVIDIA Corporation GA100 [A100]"],
+                "05:00.0 3D controller: NVIDIA Corporation GA100 [A100]",
+                "84:00.0 Serial Attached SCSI controller: Broadcom / LSI SAS3008 PCI-Express Fusion-MPT SAS-3 (rev 02)"],
               "bmc": {"ip": "192.168.0.201", "mac": "b4:2e:99:aa:bb:cc"} }
             """;
 
@@ -56,11 +57,47 @@ class DiagnosticReportParserTest {
     }
 
     @Test
-    @DisplayName("PCIe 종류 분류 — RAID / 10G SFP+ / 10G UTP / FC 16Gb / GPU (사용자 확정 축)")
+    @DisplayName("PCIe 종류 분류 — RAID / 10G SFP+ / 10G UTP / FC 16Gb / GPU + SAS HBA→RAID (사용자 확정 축)")
     void pcie_kindClassification() {
         var kinds = parser.parse(FULL).hardwareSpec().pcieDevices()
                 .stream().map(HardwareSpec.PcieDevice::kind).toList();
-        assertThat(kinds).containsExactly("RAID", "LAN_10G_SFP", "LAN_10G_UTP", "FC_16G", "GPU");
+        assertThat(kinds).containsExactly("RAID", "LAN_10G_SFP", "LAN_10G_UTP", "FC_16G", "GPU", "RAID");
+    }
+
+    @Test
+    @DisplayName("PCIe 클래스 필터 — uncore·브리지·온보드 인프라·BMC VGA 는 적재 제외 (MS74-HB0 실측: 130행 중 실질 7행)")
+    void pcie_noiseClassesFiltered() {
+        var parsed = parser.parse("""
+                { "pcieRaw": [
+                    "00:00.0 System peripheral: Intel Corporation Ice Lake Memory Map/VT-d",
+                    "00:1f.0 ISA bridge: Intel Corporation Granite Rapids Chipset LPC Controller",
+                    "34:00.0 PCI bridge: ASPEED Technology, Inc. AST1150 PCI-to-PCI Bridge (rev 06)",
+                    "35:00.0 VGA compatible controller: ASPEED Technology, Inc. ASPEED Graphics Family (rev 52)",
+                    "36:00.0 USB controller: Renesas Electronics Corp. uPD720201 USB 3.0 Host Controller (rev 03)",
+                    "ac:00.0 SATA controller: ASMedia Technology Inc. ASM1166 Serial ATA Controller (rev 02)",
+                    "fe:0d.0 Performance counters: Intel Corporation Device 344f",
+                    "01:00.0 Co-processor: Intel Corporation 402xx Series QAT (rev 20)",
+                    "ff:00.0 Host bridge: Intel Corporation Ice Lake IEH",
+                    "ae:00.0 Ethernet controller: Intel Corporation I210 Gigabit Network Connection (rev 03)",
+                    "84:00.0 Serial Attached SCSI controller: Broadcom / LSI SAS3008 PCI-Express Fusion-MPT SAS-3 (rev 02)"] }
+                """);
+        assertThat(parsed.hardwareSpec().pcieDevices())
+                .extracting(HardwareSpec.PcieDevice::model)
+                .containsExactly(
+                        "Intel Corporation I210 Gigabit Network Connection (rev 03)",
+                        "Broadcom / LSI SAS3008 PCI-Express Fusion-MPT SAS-3 (rev 02)");
+    }
+
+    @Test
+    @DisplayName("PCIe 형식 불명 행 — 클래스를 알 수 없으면 버리지 않고 ETC + 원문 유지 (관용)")
+    void pcie_unstructuredLineKeptAsEtc() {
+        var parsed = parser.parse("{ \"pcieRaw\": [\"malformed-single-token\"] }");
+        assertThat(parsed.hardwareSpec().pcieDevices())
+                .singleElement()
+                .satisfies(d -> {
+                    assertThat(d.kind()).isEqualTo("ETC");
+                    assertThat(d.model()).isEqualTo("malformed-single-token");
+                });
     }
 
     @Test
