@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * E2-2 — Redfish 흐름 구현. 실측(E0-4-2) 응답 모양을 그대로 넣어 판독을 고정한다.
@@ -96,8 +98,21 @@ class RedfishSimpleUpdateProviderTest {
         given(updateService.task(any(), any())).willReturn(JSON.readTree("{\"TaskState\":\"Completed\"}"));
         assertThat(provider.pollTask(TARGET, "/x")).isEqualTo(FlashTaskState.COMPLETED);
 
-        given(updateService.task(any(), any())).willReturn(JSON.readTree("{\"TaskState\":\"Exception\"}"));
+        // 실패 증거 있는 Exception(실측 — 즉시 거부 사례): TaskStatus Warning + FirmwareUpdateFailed
+        given(updateService.task(any(), any())).willReturn(JSON.readTree(
+                "{\"TaskState\":\"Exception\",\"TaskStatus\":\"Warning\","
+                        + "\"Messages\":[{\"MessageId\":\"UpdateService.1.0.FirmwareUpdateFailed\"}]}"));
         assertThat(provider.pollTask(TARGET, "/x")).isEqualTo(FlashTaskState.FAILED);
+    }
+
+    @Test
+    @DisplayName("Task 판독 — 증거 없는 Exception(TaskStatus OK · 실패 메시지 없음)은 추적 단절이다: 축을 닫고 검증에 맡긴다(2026-08-25 실기 — 성공한 BMC flash 를 실패로 오판)")
+    void pollTask_exceptionWithoutEvidence_isTrackingLossNotFailure() {
+        given(updateService.task(any(), any())).willReturn(JSON.readTree(
+                "{\"TaskState\":\"Exception\",\"TaskStatus\":\"OK\","
+                        + "\"Messages\":[{\"MessageId\":\"UpdateService.1.0.StartFirmwareUpdate\"}]}"));
+
+        assertThat(provider.pollTask(TARGET, "/x")).isEqualTo(FlashTaskState.COMPLETED);
     }
 
     @Test
@@ -107,6 +122,29 @@ class RedfishSimpleUpdateProviderTest {
                 .given(updateService).task(any(), any());
 
         assertThat(provider.pollTask(TARGET, "/x")).isEqualTo(FlashTaskState.UNREACHABLE);
+    }
+
+    @Test
+    @DisplayName("Task 판독 — TaskMonitor 소멸(404)이면 같은 번호의 Tasks/N 이 최종 상태를 답한다(2026-08-25 실기 결함)")
+    void pollTask_monitorGone_fallsBackToTaskResource() {
+        String monitorPath = "/redfish/v1/TaskService/TaskMonitors/2";
+        String taskResourcePath = "/redfish/v1/TaskService/Tasks/2";
+        willThrow(new RedfishRequestException(RedfishError.NOT_FOUND, "리소스 부재(404)", null))
+                .given(updateService).task(TARGET, monitorPath);
+        given(updateService.task(TARGET, taskResourcePath))
+                .willReturn(JSON.readTree("{\"TaskState\":\"Exception\",\"TaskStatus\":\"Warning\"}"));
+
+        assertThat(provider.pollTask(TARGET, monitorPath)).isEqualTo(FlashTaskState.FAILED);
+    }
+
+    @Test
+    @DisplayName("Task 판독 — TaskMonitor 소멸 후 Tasks/N 판독까지 실패하면 도달 불가로 남긴다(시한이 덮는다)")
+    void pollTask_monitorGone_taskResourceAlsoFails_unreachable() {
+        willThrow(new RedfishRequestException(RedfishError.NOT_FOUND, "리소스 부재(404)", null))
+                .given(updateService).task(any(), any());
+
+        assertThat(provider.pollTask(TARGET, "/redfish/v1/TaskService/TaskMonitors/2"))
+                .isEqualTo(FlashTaskState.UNREACHABLE);
     }
 
     @Test
@@ -125,5 +163,15 @@ class RedfishSimpleUpdateProviderTest {
                 "{\"Id\":\"BIOS2\",\"Updateable\":true}"));
 
         assertThat(provider.readVersion(TARGET, FirmwareAxis.BIOS)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("버전 판독 — BMC 축은 Managers/Self.FirmwareVersion 을 읽는다(13.06.27 부터 인벤토리가 빈 껍데기 — 2026-08-25 실기)")
+    void readVersion_bmcReadsManagerFirmwareVersion() {
+        given(updateService.manager(any())).willReturn(JSON.readTree(
+                "{\"Id\":\"Self\",\"FirmwareVersion\":\"13.06.27\"}"));
+
+        assertThat(provider.readVersion(TARGET, FirmwareAxis.BMC)).contains("13.06.27");
+        verify(updateService, never()).firmwareInventory(any(), any());
     }
 }

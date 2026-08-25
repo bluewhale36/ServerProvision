@@ -141,7 +141,9 @@ public record GuestServerDetailResponse(
             boolean startable,
             boolean markFailable,
             boolean retryable,
-            boolean retryBlocked
+            boolean retryBlocked,
+            /** 펌웨어를 굽는 창 — 중단성 조작(전원 · 회수 등) 버튼 차단 플래그(서버 가드와 SSOT, R13 후속). */
+            boolean disruptionBlocked
     ) {
     }
 

@@ -97,6 +97,29 @@ class GuestServerPowerRestControllerTest {
     }
 
     @Test
+    @DisplayName("POST /power/reset — 펌웨어를 굽는 중이면 409, 전원 서비스 미호출(R13 후속 direct POST 안전망)")
+    void reset_duringFlash_rejected409() throws Exception {
+        GuestServerDetailResponse base = detail("192.168.10.21", "GB-001");
+        GuestServerDetailResponse flashing = new GuestServerDetailResponse(
+                base.id(), base.name(), base.modelName(), base.serialNumber(), base.systemUuid(), base.memo(),
+                base.status(), base.decommissionedAt(), base.createdAt(), base.updatedAt(),
+                base.contact(), base.inventory(), base.nics(),
+                new GuestServerDetailResponse.Progress(
+                        com.example.serverprovision.execution.enums.ProvisioningPhase.FIRMWARE_UPDATING,
+                        LocalDateTime.now(), LocalDateTime.now(), null, null, null,
+                        false, false, false, false, true),   // disruptionBlocked
+                base.firmwarePlan(), base.firmwareFlash(), base.steps());
+        given(queryService.findDetail(ID)).willReturn(flashing);
+
+        mvc.perform(post("/provisioning/server/{id}/power/reset", ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .content("{\"resetType\": \"FORCE_OFF\"}"))
+                .andExpect(status().isConflict());
+        verify(powerService, never()).reset(any(), any());
+    }
+
+    @Test
     @DisplayName("POST — PowerCycle 은 400(폴백 전용, OQ1) · resetType 누락 400 — 서비스 미호출")
     void reset_rejectsPowerCycleAndMissing() throws Exception {
         mvc.perform(post("/provisioning/server/{id}/power/reset", ID)

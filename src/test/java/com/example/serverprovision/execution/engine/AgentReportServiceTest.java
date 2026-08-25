@@ -38,6 +38,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -141,15 +142,26 @@ class AgentReportServiceTest {
     }
 
     @Test
-    @DisplayName("가드 — 미개시 서버 체크인 → AgentReportRejected(409): 게이트 우회 direct POST 거절, 전이 없음")
-    void checkin_notStarted_rejected() {
+    @DisplayName("R13 미개시 진단 창 — 미개시 + 진단 커서 체크인은 수리(자동 수집 진행): COLLECT 지시")
+    void checkin_notStarted_diagnosticWindow_accepted() {
         GuestServer g = stubGuest();
         ProvisioningProgress p = progress(g, false, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
+        given(guestServerDetailRepository.findByServerIdWithBoardModel(g.getId())).willReturn(Optional.empty());
+
+        assertThat(service.checkin(TOKEN).directive()).isEqualTo(AgentDirective.COLLECT);
+    }
+
+    @Test
+    @DisplayName("가드 — 미개시 + 진단 밖 커서 체크인 → AgentReportRejected(409): 도메인 가드가 막는 표현 불가 상태의 direct 재현")
+    void checkin_notStarted_beyondDiagnostic_rejected() {
+        GuestServer g = stubGuest();
+        ProvisioningProgress p = progress(g, false, ProvisioningPhaseStep.BIOS_UPDATING);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
 
         assertThatThrownBy(() -> service.checkin(TOKEN))
                 .isInstanceOf(AgentReportRejectedException.class);
-        assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);   // 커서 불변
+        assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.BIOS_UPDATING);   // 커서 불변
     }
 
     @Test
@@ -222,13 +234,28 @@ class AgentReportServiceTest {
     }
 
     @Test
-    @DisplayName("가드 — 미개시 서버 openStep → AgentReportRejected(409): 원장 유령 step 방지")
-    void openStep_notStarted_rejected() {
+    @DisplayName("R13 미개시 진단 창 — 미개시 + 진단 커서 openStep 수리: 원장 open + 커서 이동")
+    void openStep_notStarted_diagnosticWindow_accepted() {
+        GuestServer g = stubGuest();
+        ProvisioningProgress p = progress(g, false, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
+        ProvisioningHistory opened = ProvisioningHistory.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
+        given(provisioningHistoryRecorder.openRunning(eq(g), eq(ProvisioningPhaseStep.INFORMATION_COLLECTING), any()))
+                .willReturn(opened);
+
+        service.openStep(TOKEN, ProvisioningPhaseStep.INFORMATION_COLLECTING);
+
+        assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.INFORMATION_COLLECTING);   // 미개시 진단 창의 커서 이동
+    }
+
+    @Test
+    @DisplayName("가드 — 미개시 + 진단 밖 커서 openStep → AgentReportRejected(409): 원장 유령 step 방지")
+    void openStep_notStarted_beyondDiagnostic_rejected() {
         GuestServer g = stubGuest();
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId()))
-                .willReturn(Optional.of(progress(g, false, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING)));
+                .willReturn(Optional.of(progress(g, false, ProvisioningPhaseStep.BIOS_UPDATING)));
 
-        assertThatThrownBy(() -> service.openStep(TOKEN, ProvisioningPhaseStep.INFORMATION_COLLECTING))
+        assertThatThrownBy(() -> service.openStep(TOKEN, ProvisioningPhaseStep.BIOS_UPDATING))
                 .isInstanceOf(AgentReportRejectedException.class);
         verify(provisioningHistoryRecorder, never()).openRunning(any(), any(), any());   // 원장 미오염
     }
@@ -407,7 +434,7 @@ class AgentReportServiceTest {
     void rejectedCheckin_publishesNothing() {
         GuestServer g = stubGuest();
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId()))
-                .willReturn(Optional.of(progress(g, false, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING)));
+                .willReturn(Optional.of(progress(g, false, ProvisioningPhaseStep.BIOS_UPDATING)));
 
         assertThatThrownBy(() -> service.checkin(TOKEN))
                 .isInstanceOf(AgentReportRejectedException.class);

@@ -96,6 +96,9 @@ public class RedfishClient {
         if (e instanceof HttpClientErrorException client && client.getStatusCode().value() == 412) {
             return new RedfishRequestException(RedfishError.PRECONDITION_FAILED, what + " — ETag 선행 조건 불일치(412)", e);
         }
+        if (e instanceof HttpClientErrorException.NotFound) {
+            return new RedfishRequestException(RedfishError.NOT_FOUND, what + " — 리소스 부재(404)", e);
+        }
         if (e instanceof HttpClientErrorException || e instanceof HttpServerErrorException) {
             return new RedfishRequestException(RedfishError.PROTOCOL, what + " — BMC 가 요청을 거절했습니다", e);
         }

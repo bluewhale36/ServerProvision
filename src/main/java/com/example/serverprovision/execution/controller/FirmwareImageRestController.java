@@ -31,9 +31,13 @@ public class FirmwareImageRestController {
 
     private final FirmwareImageTokenRegistry tokenRegistry;
 
-    /** 토큰이 가리키는 펌웨어 파일. 64 MB 급이라 전송 중 연결이 끊길 수 있고, 그때는 BMC 가 다시 당긴다. */
-    @GetMapping("/{token}")
-    public ResponseEntity<Resource> download(@PathVariable("token") UUID token) {
+    /**
+     * 토큰이 가리키는 펌웨어 파일. fileName 세그먼트는 BMC 의 형식 판별용일 뿐 읽지 않는다 — 인증은
+     * 토큰이 전부다. 64 MB 급이라 전송이 끊기면 BMC 가 다시 당긴다.
+     */
+    @GetMapping("/{token}/{fileName}")
+    public ResponseEntity<Resource> download(@PathVariable("token") UUID token,
+                                             @PathVariable("fileName") String fileName) {
         return tokenRegistry.resolve(token)
                 .filter(java.nio.file.Files::isRegularFile)
                 .<ResponseEntity<Resource>>map(path -> ResponseEntity.ok()

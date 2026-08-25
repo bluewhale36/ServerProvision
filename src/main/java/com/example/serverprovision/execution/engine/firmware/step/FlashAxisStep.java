@@ -54,11 +54,8 @@ public class FlashAxisStep implements FlashStep {
         if (!identityGuard.confirm(context, axis)) {
             return;
         }
-        Optional<String> current = context.provider().readVersion(context.target(), axis);
-        if (current.isPresent() && sameVersion(current.get(), decided.display())) {
-            ledger.alreadyCurrent(context.server(), axis, decided.display(), context.now());
-            return;
-        }
+        // 버전이 같아도 굽는다(2026-08-25 사용자 결정) — 커스텀 이미지(로고 변경본 등)는 버전이 같아도
+        // 내용이 다르므로, 버전 비교 스킵은 할당된 자원을 조용히 무시하는 결함이었다.
         UUID token = tokenRegistry.issue(context.server().getId(), axis, Path.of(decided.imagePath()));
         Optional<String> taskPath = context.provider()
                 .startFlash(context.target(), axis, tokenRegistry.urlFor(token));

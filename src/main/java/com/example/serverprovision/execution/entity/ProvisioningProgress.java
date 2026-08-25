@@ -22,8 +22,10 @@ import java.util.UUID;
  * phase 축으로 유지된다: 커서의 phase 는 게스트 open 으로 절대 바뀌지 않는다. 이 의미론 덕에 실패 시
  * "커서 = 실패 지점" 이 성립해 옛 {@code failed_step_code} 컬럼이 제거됐다(D3).</p>
  *
- * <p>{@code motion} 은 진행 국면 안의 운동 양태(D4) — 실행 창 밖(미개시 · 실패 · 종단)에서는 NULL 을
- * 강제해 3 timestamp 신호와의 이중 권위를 표현 불가로 만든다(도메인 메서드 + 수동 DDL CHECK 이중 방어).</p>
+ * <p>{@code motion} 은 진행 국면 안의 운동 양태(D4 → R13 개정) — 실행 창 밖(실패 · 종단)에서는 NULL 을
+ * 강제해 3 timestamp 신호와의 이중 권위를 표현 불가로 만든다(도메인 메서드 + 수동 DDL CHECK 이중 방어).
+ * 미개시는 R13 부터 실행 창에 포함된다 — 등록 즉시 진단 phase 가 자동 진행되므로 개시 전에도 진단 창의
+ * motion 이 산다.</p>
  *
  * <p>E1-0a(DEC-4 · 25 · 26) : 개시 · 실패 · 종단은 명시 신호 컬럼이며 전이는 아래 도메인 메서드로만
  * 일어난다 — invariant(phase 역행 금지 · 실패↔종단 상호배타 · motion 실행 창 결합)가 이 클래스 밖으로
@@ -59,7 +61,8 @@ public class ProvisioningProgress extends BaseTimeEntity {
     @Column(name = "last_transition_at", nullable = false)
     private LocalDateTime lastTransitionAt;
 
-    /** 프로비저닝 개시 시각(DEC-26 명시 개시 버튼). null = 미개시 — 게스트는 대기 스크립트만 받는다(E1-0b 소비). */
+    /** 프로비저닝 개시 시각(DEC-26 명시 개시 버튼 → R13 의미 이동). null = 미개시 — 진단(수집)까지는
+     *  자동 진행되고, 진단 이후 phase 의 착수(완주 판정 · 전진)만 이 신호가 연다. */
     @Column(name = "started_at")
     private LocalDateTime startedAt;
 
@@ -96,9 +99,11 @@ public class ProvisioningProgress extends BaseTimeEntity {
     /**
      * 개시 가능 판정 — 상세 뷰의 버튼 노출 플래그와 서비스의 409 가드가 함께 호출하는 단일 SSOT
      * (UI 차단 조건 = 서버 가드 조건, CLAUDE.md 불가침). 회수 시각은 GuestServer 소유라 인자로 받는다.
+     * <p>R13 — 미개시 진단 창에서 게스트 FAILED 보고로 "미개시 실패" 상태가 생길 수 있다. 그 게스트의
+     * 회복 경로는 재시도(clearFailed)이지 개시가 아니므로 실패 중엔 버튼을 숨긴다.</p>
      */
     public boolean isStartableWith(LocalDateTime decommissionedAt) {
-        return decommissionedAt == null && !isStarted();
+        return decommissionedAt == null && !isStarted() && !isFailed();
     }
 
     /**
@@ -106,10 +111,12 @@ public class ProvisioningProgress extends BaseTimeEntity {
      * 앞 · 뒤 무관하게 그 step 으로 옮긴다(같은 step 은 무이동과 동치). 재부팅 후 phase 첫 step 부터
      * 재수행하는 정상 복구 흐름을 관용하기 위함이다. 다른 phase 의 step 은 서비스 게이트가 409 로
      * 거절하므로(AgentReportService), 여기 도달한 phase 불일치는 내부 버그다.
+     * <p>R13 — 진단 phase 는 개시 전에도 커서가 움직인다(등록 즉시 자동 수집). 개시 게이트는 진단
+     * 이후 phase 의 착수만 막으므로, 미개시 커서 이동은 진단 phase 안에서만 허용한다.</p>
      */
     public void positionAt(ProvisioningPhaseStep reported, LocalDateTime now) {
-        if (!isStarted()) {
-            throw new IllegalStateException("개시 전에는 커서를 옮길 수 없습니다. id=" + id);
+        if (!isStarted() && (reported == null || reported.getPhaseType() != ProvisioningPhase.DIAGNOSE_LINUX)) {
+            throw new IllegalStateException("개시 전에는 진단 phase 밖으로 커서를 옮길 수 없습니다. id=" + id);
         }
         if (isFailed() || isCompleted()) {
             throw new IllegalStateException("실패·종단된 프로비저닝은 커서를 옮길 수 없습니다. id=" + id);
@@ -189,8 +196,17 @@ public class ProvisioningProgress extends BaseTimeEntity {
         this.lastTransitionAt = now;
     }
 
-    /** 종단 신호 기록(DEC-25). 실패와 상호배타. */
+    /**
+     * 종단 신호 기록(DEC-25). 실패와 상호배타.
+     * <p>R13 — 개시 전 종단은 표현 불가로 막는다. 미개시 게스트의 수집 완주는 종단이 아니라 "수집 완료
+     * 대기"(커서 INFORMATION_PERSISTING 유보)이고, 완주 판정은 개시 시점에 소급 집행된다. 종단에는
+     * 해제 경로가 없으므로(재시도는 실패 전용) 이 가드가 없으면 등록만 한 게스트가 자동 수집 몇 분 만에
+     * 회복 불가 상태로 굳는다.</p>
+     */
     public void markCompleted(LocalDateTime now) {
+        if (!isStarted()) {
+            throw new IllegalStateException("개시 전에는 종단할 수 없습니다(수집 완주는 개시 대기로 유보). id=" + id);
+        }
         if (isFailed()) {
             throw new IllegalStateException("실패 상태의 프로비저닝을 종단 처리할 수 없습니다. id=" + id);
         }
@@ -212,9 +228,10 @@ public class ProvisioningProgress extends BaseTimeEntity {
         markFailed(now);
     }
 
-    /** 수동 실패 전환 가능 판정 — 뷰 버튼 노출과 서비스 409 가드의 단일 SSOT. (= 운영 상태 PROVISIONING) */
+    /** 수동 실패 전환 가능 판정 — 뷰 버튼 노출과 서비스 409 가드의 단일 SSOT. 굽는 중엔 불가(R13 후속). */
     public boolean isManualFailable(LocalDateTime decommissionedAt) {
-        return decommissionedAt == null && isStarted() && !isFailed() && !isCompleted();
+        return decommissionedAt == null && isStarted() && !isFailed() && !isCompleted()
+                && !isDisruptionBlocked();
     }
 
     /**
@@ -239,8 +256,20 @@ public class ProvisioningProgress extends BaseTimeEntity {
      * 볼 수 없기 때문이다. 판정은 {@code RetryPolicy} 한 지점이 하고 화면 · 가드가 함께 호출한다.</p>
      */
     public boolean isFirmwarePhaseFailure() {
-        return isFailed() && (currentStep == ProvisioningPhaseStep.BIOS_UPDATING
-                || currentStep == ProvisioningPhaseStep.BMC_UPDATING);
+        return isFailed() && isFirmwareStep();
+    }
+
+    /**
+     * 펌웨어를 굽는 창인가 — 이 동안의 중단성 조작(전원 제어 · 수동 실패 전환 · 회수)은 벽돌 위험이라
+     * 전부 막는다(2026-08-25). UI 차단과 서버 가드가 함께 쓰는 SSOT. 결손 대기(HOLD)는 굽기 전이라 제외.
+     */
+    public boolean isDisruptionBlocked() {
+        return isStarted() && !isFailed() && !isCompleted() && !isHolding() && isFirmwareStep();
+    }
+
+    private boolean isFirmwareStep() {
+        return currentStep == ProvisioningPhaseStep.BIOS_UPDATING
+                || currentStep == ProvisioningPhaseStep.BMC_UPDATING;
     }
 
     public boolean isStarted() {

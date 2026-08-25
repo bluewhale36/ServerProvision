@@ -90,7 +90,7 @@ class GuestServerControllerStartFlowTest {
                 null, null, List.of(),
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.DIAGNOSE_LINUX, T, startedAt, null, null, null, startable,
-                        false, false, false),
+                        false, false, false, false),
                 null,   // E2-1-b firmwarePlan — 이 흐름과 무관
                 null,   // E2-2 firmwareFlash — 집행 미착수 fixture
                 List.of());

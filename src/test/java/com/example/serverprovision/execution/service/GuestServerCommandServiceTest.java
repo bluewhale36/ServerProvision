@@ -26,6 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -41,6 +42,7 @@ class GuestServerCommandServiceTest {
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
     @Mock com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder provisioningHistoryRecorder;   // ES-2 D-5 — 수동 전환 원장 표식
     @Mock RetryPolicy retryPolicy;   // E2-1-b CP5 F-1 — 재시도 차단 판정(원장 사실 포함)은 정책이 든다
+    @Mock com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer phaseCursorAdvancer;   // R13 — 개시 시 소급 완주 판정
     @Mock ApplicationEventPublisher eventPublisher;   // S7 — 실시간 스트림 신호 발행 검증
     @InjectMocks GuestServerCommandService service;
 
@@ -87,11 +89,29 @@ class GuestServerCommandServiceTest {
         UUID id = UUID.randomUUID();
         GuestServer s = server(id);
         given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.empty());
 
         service.decommission(id);
 
         assertThat(s.getDecommissionedAt()).isNotNull();
         verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
+    }
+
+    @Test
+    @DisplayName("decommission — 펌웨어를 굽는 중이면 DisruptiveActionRejectedException(409, R13 후속)")
+    void decommission_duringFlash_rejected() {
+        UUID id = UUID.randomUUID();
+        GuestServer s = server(id);
+        ProvisioningProgress flashing = seedProgress();
+        flashing.start(LocalDateTime.now());
+        flashing.advanceToEntry(ProvisioningPhaseStep.BIOS_UPDATING, LocalDateTime.now());
+        flashing.positionAt(ProvisioningPhaseStep.BIOS_UPDATING, LocalDateTime.now());
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(flashing));
+
+        assertThatThrownBy(() -> service.decommission(id))
+                .isInstanceOf(com.example.serverprovision.execution.exception.DisruptiveActionRejectedException.class);
+        assertThat(s.getDecommissionedAt()).isNull();
     }
 
     @Test
@@ -101,6 +121,7 @@ class GuestServerCommandServiceTest {
         LocalDateTime first = LocalDateTime.now().minusDays(1);
         GuestServer s = GuestServer.builder().id(id).systemUUID(UUID.randomUUID()).decommissionedAt(first).build();
         given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.empty());
 
         service.decommission(id);
 
@@ -131,7 +152,41 @@ class GuestServerCommandServiceTest {
         service.startProvisioning(id);
 
         assertThat(progress.isStarted()).isTrue();
+        // 수집 완주 표식(INFORMATION_PERSISTING)이 아니면 소급 완주 판정은 없다(R13)
+        verify(phaseCursorAdvancer, never()).advanceOrComplete(any(), any(), any());
         verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
+    }
+
+    @Test
+    @DisplayName("startProvisioning(R13) — 수집 완주 대기(커서 INFORMATION_PERSISTING)면 유보된 완주 판정을 소급 집행")
+    void start_afterCollectionDone_advancesRetroactively() {
+        UUID id = UUID.randomUUID();
+        ProvisioningProgress progress = ProvisioningProgress.builder()
+                .currentStep(ProvisioningPhaseStep.INFORMATION_PERSISTING)   // 미개시 수집 완주 유보 상태
+                .lastTransitionAt(LocalDateTime.now())
+                .build();
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(server(id)));
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+
+        service.startProvisioning(id);
+
+        assertThat(progress.isStarted()).isTrue();
+        verify(phaseCursorAdvancer).advanceOrComplete(eq(progress), eq(id), any());
+    }
+
+    @Test
+    @DisplayName("startProvisioning(R13) — 실패 상태(미개시 진단 실패) → ProvisioningStartRejectedException(재시도 안내)")
+    void start_failed_rejected() {
+        UUID id = UUID.randomUUID();
+        ProvisioningProgress progress = seedProgress();
+        progress.markFailed(LocalDateTime.now());   // 미개시 진단 창의 게스트 FAILED 보고 재현
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(server(id)));
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+
+        assertThatThrownBy(() -> service.startProvisioning(id))
+                .isInstanceOf(ProvisioningStartRejectedException.class)
+                .hasMessageContaining("재시도");
+        verify(phaseCursorAdvancer, never()).advanceOrComplete(any(), any(), any());
     }
 
     @Test

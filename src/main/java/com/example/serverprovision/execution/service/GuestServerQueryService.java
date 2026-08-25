@@ -349,7 +349,8 @@ public class GuestServerQueryService {
                 progress.isStartableWith(server.getDecommissionedAt()),
                 progress.isManualFailable(server.getDecommissionedAt()),
                 retryPolicy.isRetryable(progress, steps),
-                retryPolicy.isBlocked(progress, steps));
+                retryPolicy.isBlocked(progress, steps),
+                progress.isDisruptionBlocked());
 
         List<GuestServerDetailResponse.Step> stepResponses = steps.stream()
                 .map(s -> new GuestServerDetailResponse.Step(

@@ -43,10 +43,10 @@ public class BootScriptDispatcher {
                     && progress.currentPhase().ordinal() >= ProvisioningPhase.OS_INSTALLING.ordinal();
             return osInstalled ? IpxeScripts.completedExit() : IpxeScripts.awaitingIntake(rebootQuery);
         }
-        if (!progress.isStarted()) {                                      // 5행 — 개시 게이트(DEC-26)
-            return IpxeScripts.waitingForStart(rebootQuery);
-        }
-        if (progress.isHolding()) {                                       // 6행 — 자원 결손 대기(E2-1-b)
+        // 옛 5행(미개시 → 개시 대기 스크립트)은 R13 으로 소멸 — 진단 phase 는 개시 없이 자동 진행하고,
+        // 미개시 커서는 도메인 가드(positionAt · advanceToEntry)에 의해 진단 phase 를 벗어날 수 없으므로
+        // 아래 위임이 곧 자동 진행이다. 개시 대기는 게스트가 진단 리눅스 안에서 WAIT 지시로 상주한다.
+        if (progress.isHolding()) {                                       // 5행 — 자원 결손 대기(E2-1-b)
             // 진입 게이트가 이미 대기로 들여보낸 상태다. 여기서는 그 사실을 게스트에게 알리기만 한다 —
             // 재료가 돌아오면 다음 폴링에서 게이트가 대기를 풀고 이 행을 지나친다.
             return IpxeScripts.shortageHold(readiness.wire(), rebootQuery);

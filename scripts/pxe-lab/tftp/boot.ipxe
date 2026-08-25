@@ -4,4 +4,6 @@
 # ${uuid}/${net0/mac}/${net0/ip} 는 iPXE 내장 변수, ${manufacturer}/${product} 는 SMBIOS 값
 # (랩에서는 run-guest.sh 의 -smbios 주입값 = 카탈로그 보드 재현).
 dhcp
-chain http://10.0.2.2:@PORT@/api/pxe/v1/boot?systemUUID=${uuid}&macAddress=${net0/mac}&ipAddress=${net0/ip}&vendor=${manufacturer}&boardModel=${product}
+# 실기 보정(2026-08-24): 멀티 NIC 보드에서 net0 은 케이블 없는 NIC 일 수 있다 — 스코프 없는
+# ${mac}/${ip} 는 DHCP 에 성공한 NIC 기준으로 확장된다(qemu 단일 NIC 에서는 동등).
+chain http://10.0.2.2:@PORT@/api/pxe/v1/boot?systemUUID=${uuid}&macAddress=${mac}&ipAddress=${ip}&vendor=${manufacturer}&boardModel=${product}

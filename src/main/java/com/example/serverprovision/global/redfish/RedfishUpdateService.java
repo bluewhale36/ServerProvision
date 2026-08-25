@@ -27,6 +27,7 @@ public class RedfishUpdateService {
     static final String SIMPLE_UPDATE_PATH = "/redfish/v1/UpdateService/Actions/SimpleUpdate";
     static final String INVENTORY_PATH_PREFIX = "/redfish/v1/UpdateService/FirmwareInventory/";
     static final String CHASSIS_PATH = "/redfish/v1/Chassis/Self";
+    static final String MANAGER_PATH = "/redfish/v1/Managers/Self";
     private static final String TRANSFER_PROTOCOL = "HTTP";
 
     private final RedfishClient redfishClient;
@@ -53,6 +54,11 @@ public class RedfishUpdateService {
     public JsonNode firmwareInventory(RedfishTarget target, String member) {
         return credentialsFallback.attempt(target,
                 c -> redfishClient.getJson(target.bmcIp(), c, INVENTORY_PATH_PREFIX + member));
+    }
+
+    /** Manager 리소스 전문 — BMC 자기 버전은 표준 {@code FirmwareVersion} 필드가 든다(2026-08-25 실측). */
+    public JsonNode manager(RedfishTarget target) {
+        return credentialsFallback.attempt(target, c -> redfishClient.getJson(target.bmcIp(), c, MANAGER_PATH));
     }
 
     /**

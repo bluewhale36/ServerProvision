@@ -75,10 +75,17 @@ public class FirmwareImageTokenRegistry {
     }
 
     /**
-     * BMC 가 당겨 갈 절대 URL. 게스트 자산과 같은 원천({@code pxe.server.base-url})을 쓴다 —
-     * BMC 도 게스트와 같은 망에서 이 서버를 보므로 주소가 갈릴 이유가 없다.
+     * BMC 가 당겨 갈 절대 URL — 끝에 실제 파일명을 붙인다. AMI BMC 는 URI 의 확장자로 이미지 형식을
+     * 판별해, 없으면 다운로드 없이 Task 를 실패로 닫는다(2026-08-25 실기). 인증 · 조회는 토큰만 쓴다.
      */
     public String urlFor(UUID token) {
-        return baseUrl + "/api/pxe/v1/firmware/" + token;
+        Path path = issued.get(token);
+        if (path == null) {
+            // 미발급 · 회수된 토큰의 URL 요청 = 집행 흐름 버그 — 임의 파일명 흡수는 BMC 형식 오판(silent)이 된다.
+            throw new IllegalStateException("발급되지 않았거나 회수된 토큰의 URL 요청. token=" + token);
+        }
+        String encoded = java.net.URLEncoder.encode(path.getFileName().toString(),
+                java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+        return baseUrl + "/api/pxe/v1/firmware/" + token + "/" + encoded;
     }
 }

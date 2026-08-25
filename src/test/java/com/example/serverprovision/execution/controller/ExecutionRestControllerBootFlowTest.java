@@ -137,11 +137,12 @@ class ExecutionRestControllerBootFlowTest {
     }
 
     @Test
-    @DisplayName("5행 — 미개시: 개시 게이트 대기 (DEC-26)")
-    void row5_notStarted() throws Exception {
+    @DisplayName("R13 — 미개시 + 진단 커서: 개시 게이트 없이 진단 실행기로 위임(자동 진행)")
+    void row5_notStarted_autoProceedsToDiagnostic() throws Exception {
         boot(server(null), progress().build())
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("waiting for provisioning start")));
+                .andExpect(content().string(not(containsString("waiting for provisioning start"))))
+                .andExpect(content().string(containsString("FAKE-DIAGNOSE-CHAINLOAD")));
     }
 
     @Test

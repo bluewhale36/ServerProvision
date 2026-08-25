@@ -6,6 +6,7 @@ import com.example.serverprovision.execution.engine.firmware.FirmwareUpdateProvi
 import com.example.serverprovision.execution.engine.firmware.FlashTaskState;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
+import com.example.serverprovision.global.redfish.RedfishError;
 import com.example.serverprovision.global.redfish.RedfishRequestException;
 import com.example.serverprovision.global.redfish.RedfishTarget;
 import com.example.serverprovision.global.redfish.RedfishUpdateService;
@@ -77,28 +78,67 @@ public class RedfishSimpleUpdateProvider implements FirmwareUpdateProvider {
         }
     }
 
+    /** SimpleUpdate 202 Location 의 경로 형태(AMI) — 작업이 종결되면 소멸(404)한다. */
+    private static final String TASK_MONITOR_SEGMENT = "/TaskMonitors/";
+    private static final String TASK_SEGMENT = "/Tasks/";
+
     @Override
     public FlashTaskState pollTask(RedfishTarget target, String taskPath) {
         try {
-            JsonNode task = updateService.task(target, taskPath);
-            String state = task.path("TaskState").asString("");
-            return switch (state) {
-                case "Completed" -> FlashTaskState.COMPLETED;
-                case "Exception", "Killed", "Cancelled" -> FlashTaskState.FAILED;
-                // New · Running · Starting 등 진행 계열은 전부 아직 굽는 중이다.
-                default -> FlashTaskState.RUNNING;
-            };
+            return stateOf(updateService.task(target, taskPath));
         } catch (RedfishRequestException e) {
+            // TaskMonitor 소멸(404) 후의 최종 상태는 같은 번호의 Tasks/N 이 든다 — 재기동 관용으로
+            // 흡수하면 즉시 실패도 시한까지 헛폴링한다(2026-08-25 실기).
+            if (e.getError() == RedfishError.NOT_FOUND && taskPath.contains(TASK_MONITOR_SEGMENT)) {
+                try {
+                    return stateOf(updateService.task(target,
+                            taskPath.replace(TASK_MONITOR_SEGMENT, TASK_SEGMENT)));
+                } catch (RedfishRequestException second) {
+                    log.warn("[flash] {} — TaskMonitor 소멸 후 Task 최종 상태 판독 실패 : {}",
+                            target.bmcIp(), second.getMessage());
+                    return FlashTaskState.UNREACHABLE;
+                }
+            }
             // BMC 가 굽기를 마친 직후 스스로 재기동하는 구간이다 — 즉시 실패로 보면 정상 완료를 뒤집는다.
             return FlashTaskState.UNREACHABLE;
         }
     }
 
+    private FlashTaskState stateOf(JsonNode task) {
+        String state = task.path("TaskState").asString("");
+        return switch (state) {
+            case "Completed" -> FlashTaskState.COMPLETED;
+            // Exception 은 이중적이다(2026-08-25 실기) — 실패 증거(TaskStatus Warning/Critical ·
+            // FirmwareUpdateFailed 메시지)가 있으면 실패, 없으면 BMC flash 중 재기동으로 추적이 끊긴
+            // 잔재다(실제로는 굽힘). 후자는 축을 닫고 최종 성패를 VerifyFlashStep 의 버전 대조에 맡긴다.
+            case "Exception" -> hasFailureEvidence(task) ? FlashTaskState.FAILED : FlashTaskState.COMPLETED;
+            case "Killed", "Cancelled" -> FlashTaskState.FAILED;
+            // New · Running · Starting 등 진행 계열은 전부 아직 굽는 중이다.
+            default -> FlashTaskState.RUNNING;
+        };
+    }
+
+    private boolean hasFailureEvidence(JsonNode task) {
+        String status = task.path("TaskStatus").asString("");
+        if (!status.isEmpty() && !"OK".equals(status)) {
+            return true;
+        }
+        for (JsonNode message : task.path("Messages")) {
+            if (message.path("MessageId").asString("").contains("FirmwareUpdateFailed")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public Optional<String> readVersion(RedfishTarget target, FirmwareAxis axis) {
         try {
-            String version = updateService.firmwareInventory(target, axis.getInventoryMember())
-                    .path("Version").asString("");
+            String version = switch (axis.getVersionSource()) {
+                case FIRMWARE_INVENTORY -> updateService.firmwareInventory(target, axis.getInventoryMember())
+                        .path("Version").asString("");
+                case MANAGER -> updateService.manager(target).path("FirmwareVersion").asString("");
+            };
             return version.isBlank() ? Optional.empty() : Optional.of(version);
         } catch (RedfishRequestException e) {
             return Optional.empty();

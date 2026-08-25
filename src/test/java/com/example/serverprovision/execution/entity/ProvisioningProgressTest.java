@@ -107,10 +107,16 @@ class ProvisioningProgressTest {
     }
 
     @Test
-    @DisplayName("positionAt — 개시 전 · 실패 · 종단 상태에서는 거부")
+    @DisplayName("positionAt(R13) — 미개시 진단 창은 허용, 미개시 + 진단 밖 · 실패 · 종단은 거부")
     void position_outsideExecutionWindow_rejected() {
+        // R13 — 등록 즉시 진단이 자동 진행되므로 미개시 진단 phase 안 커서 이동은 정상이다.
         ProvisioningProgress notStarted = seed();
-        assertThatThrownBy(() -> notStarted.positionAt(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING, T1))
+        notStarted.positionAt(ProvisioningPhaseStep.INFORMATION_COLLECTING, T1);
+        assertThat(notStarted.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.INFORMATION_COLLECTING);
+        assertThat(notStarted.getMotion()).isEqualTo(ProvisioningMotion.STEP_RUNNING);
+
+        // 미개시 커서가 진단 밖으로 나가는 것은 여전히 표현 불가(개시 게이트의 도메인쪽 절반).
+        assertThatThrownBy(() -> seed().positionAt(ProvisioningPhaseStep.BIOS_UPDATING, T1))
                 .isInstanceOf(IllegalStateException.class);
 
         ProvisioningProgress failed = started();
@@ -122,6 +128,44 @@ class ProvisioningProgressTest {
         completed.markCompleted(T1);
         assertThatThrownBy(() -> completed.positionAt(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING, T1))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("markCompleted(R13) — 개시 전 종단은 표현 불가 (수집 완주는 개시 대기로 유보)")
+    void markCompleted_beforeStart_rejected() {
+        ProvisioningProgress notStarted = seed();
+        notStarted.positionAt(ProvisioningPhaseStep.INFORMATION_PERSISTING, T1);
+        assertThatThrownBy(() -> notStarted.markCompleted(T1))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("isStartableWith(R13) — 실패 상태는 개시 불가 (회복 경로는 재시도)")
+    void startable_failed_rejected() {
+        ProvisioningProgress notStartedFailed = seed();
+        notStartedFailed.markFailed(T1);   // 미개시 진단 창의 게스트 FAILED 보고로 생기는 상태
+        assertThat(notStartedFailed.isStartableWith(null)).isFalse();
+    }
+
+    @Test
+    @DisplayName("isDisruptionBlocked — 펌웨어를 굽는 창에만 참: 진단 · 대기(HOLD) · 실패 · 미개시는 거짓")
+    void disruptionBlocked_onlyDuringFirmwareFlash() {
+        ProvisioningProgress flashing = started();
+        flashing.advanceToEntry(ProvisioningPhaseStep.BIOS_UPDATING, T1);
+        flashing.positionAt(ProvisioningPhaseStep.BIOS_UPDATING, T1);
+        assertThat(flashing.isDisruptionBlocked()).isTrue();
+        assertThat(flashing.isManualFailable(null)).isFalse();   // 굽는 중엔 수동 실패도 불가
+
+        ProvisioningProgress holding = started();
+        holding.advanceToEntry(ProvisioningPhaseStep.BIOS_UPDATING, T1);
+        holding.holdForShortage(T1);   // 결손 대기는 굽기 전 — 차단 없음
+        assertThat(holding.isDisruptionBlocked()).isFalse();
+
+        assertThat(started().isDisruptionBlocked()).isFalse();   // 진단 커서
+        assertThat(seed().isDisruptionBlocked()).isFalse();      // 미개시
+
+        flashing.markFailed(T1);   // 실패로 닫히면 창이 끝난다
+        assertThat(flashing.isDisruptionBlocked()).isFalse();
     }
 
     // ==== advanceToEntry — phase 경계 pre-position (ES-2 D-1 ⓑ) ================

@@ -25,6 +25,12 @@ import java.util.Set;
  * <p><b>PCIe 종류 분류</b>: lspci 원문 라인에서 슬롯·클래스·모델을 뽑고 모델명 규칙으로
  * RAID/LAN/10G(UTP·SFP+)/FC(16·32Gb)/GPU 를 분류한다. 미분류는 ETC + 원문 유지(수집 유실 없음) —
  * 사내 사용 카드 실측(T3 체크리스트)으로 규칙을 보강한다.</p>
+ *
+ * <p><b>PCIe 클래스 필터</b>: lspci 는 장착 카드가 아니라 PCI 트리 전체를 나열한다 — Xeon 은 uncore
+ * (메시·메모리 컨트롤러·RAS)가 전부 PCI 장치로 노출돼 실측(MS74-HB0, 2026-08-24) 130행 중 실질
+ * 장치는 7행뿐이었다. 확장 카드 성격의 클래스만 적재하고 나머지(uncore·브리지·온보드 인프라)는
+ * 버린다 — 원문은 원장(statusMeta)이 append-only 보존하므로 유실이 아니며, 규칙 보강 후 재수집으로
+ * 소급 가능하다. BMC 통합 그래픽(ASPEED)은 모든 서버 보드에 상존하는 관리 장치라 함께 제외한다.</p>
  */
 @Component
 public class DiagnosticReportParser {
@@ -175,6 +181,15 @@ public class DiagnosticReportParser {
         return List.copyOf(devices);
     }
 
+    /**
+     * 인벤토리 가치가 있는 확장 카드 클래스(소문자 부분일치) — 스토리지(RAID·SAS·NVMe)와
+     * 네트워크(Ethernet·FC)와 GPU 계열만. 여기 없는 클래스(System peripheral · Host/PCI bridge ·
+     * Performance counters · USB · SATA · SMBus 등)는 적재하지 않는다.
+     */
+    private static final List<String> CARD_CLASSES = List.of(
+            "raid", "serial attached scsi", "fibre channel", "ethernet", "network controller",
+            "non-volatile memory", "mass storage", "vga", "3d controller", "display");
+
     /** lspci 원문 1행: {@code "01:00.0 RAID bus controller: Broadcom / LSI MegaRAID ... (rev 02)"} */
     private HardwareSpec.PcieDevice classifyPcie(String raw) {
         if (raw == null || raw.isBlank()) {
@@ -188,6 +203,14 @@ public class DiagnosticReportParser {
         String slot = raw.substring(0, firstSpace).trim();
         String className = raw.substring(firstSpace + 1, classSep).trim();
         String descriptor = raw.substring(classSep + 2).trim();
+        String cls = className.toLowerCase(Locale.ROOT);
+        if (CARD_CLASSES.stream().noneMatch(cls::contains)) {
+            return null;   // uncore·브리지·온보드 인프라 — 적재 제외(원문은 원장 보존)
+        }
+        boolean displayClass = cls.contains("vga") || cls.contains("3d controller") || cls.contains("display");
+        if (displayClass && descriptor.toLowerCase(Locale.ROOT).contains("aspeed")) {
+            return null;   // BMC 통합 그래픽 — 서버 보드 상존 관리 장치라 장착물이 아니다
+        }
         return new HardwareSpec.PcieDevice(slot, kindOf(className, descriptor),
                 vendorOf(descriptor), descriptor);
     }
@@ -195,7 +218,9 @@ public class DiagnosticReportParser {
     private String kindOf(String className, String descriptor) {
         String cls = className.toLowerCase(Locale.ROOT);
         String desc = descriptor.toLowerCase(Locale.ROOT);
-        if (cls.contains("raid") || desc.contains("megaraid")) {
+        // SAS HBA(Serial Attached SCSI)도 RAID 로 묶는다 — 사내 RAID 카드(CRA3338 = SAS3008, no cache)가
+        // lspci 에서 이 클래스로 잡힌다(MS74-HB0 실측).
+        if (cls.contains("raid") || cls.contains("serial attached scsi") || desc.contains("megaraid")) {
             return "RAID";
         }
         if (cls.contains("fibre channel")) {

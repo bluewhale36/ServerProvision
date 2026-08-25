@@ -158,11 +158,19 @@
                         <span class="n-badge n-badge-gray" id="powerStateBadge">미조회</span>
                         <span class="n-hint" id="powerMessage"></span>
                     </div>
-                    <div class="n-power-actions">
+                    <!-- 펌웨어를 굽는 중에는 상태 조회 외 전원 조작 전부 차단(R13 후속) — 서버 가드와 같은 SSOT 플래그 -->
+                    <div class="n-power-actions"
+                         th:with="flashing=${server.progress != null and server.progress.disruptionBlocked}">
                         <button type="button" class="n-btn n-btn-sm" id="powerRefreshBtn">상태 조회</button>
-                        <button type="button" class="n-btn n-btn-sm" data-power-reset="ON">켜기</button>
-                        <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-power-reset="FORCE_OFF">강제 끄기</button>
-                        <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-power-reset="FORCE_RESTART">재시작</button>
+                        <button type="button" class="n-btn n-btn-sm" data-power-reset="ON"
+                                th:disabled="${flashing}"
+                                th:title="${flashing} ? '펌웨어를 굽는 중에는 사용할 수 없습니다.' : null">켜기</button>
+                        <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-power-reset="FORCE_OFF"
+                                th:disabled="${flashing}"
+                                th:title="${flashing} ? '펌웨어를 굽는 중에는 사용할 수 없습니다.' : null">강제 끄기</button>
+                        <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-power-reset="FORCE_RESTART"
+                                th:disabled="${flashing}"
+                                th:title="${flashing} ? '펌웨어를 굽는 중에는 사용할 수 없습니다.' : null">재시작</button>
                         <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-power-reset="GRACEFUL_SHUTDOWN">정상 종료</button>
                     </div>
                     <div class="n-hint">켜기를 포함한 모든 명령은 전달까지만 확인합니다 — 결과는 [상태 조회] 로 확인하세요.</div>
@@ -566,10 +574,11 @@
 
                 <!-- 개시 액션 (DEC-26) — 노출 판정(startable)은 서버 가드와 같은 도메인 메서드에서 온 값 (SSOT).
                      회수·개시됨 상태에서는 렌더되지 않으므로 서버 409 가드는 direct POST 전용 안전망이다. -->
-                <!-- E1-2 (UC-3) — 게스트가 연결 중인데 미개시면 개시 유도: "서로 기다리는" 착각 차단 -->
+                <!-- E1-2 (UC-3) → R13 — 진단(수집)은 자동 진행이므로 개시 안내는 "수집 이후 단계" 로 한정.
+                     국면(수집 중/완료) 분기 없이 두 국면 모두 참인 문구를 쓴다. -->
                 <div th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active}"
                      class="n-section-hint" style="margin-top: 16px;">
-                    게스트가 연결되어 있습니다 — <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.
+                    하드웨어 수집은 자동으로 진행됩니다. 수집이 끝난 뒤 다음 단계는 <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.
                 </div>
                 <form th:if="${server.progress != null and server.progress.startable}"
                       th:action="@{/provisioning/server/{id}/start(id=${server.id})}" method="post"
@@ -635,8 +644,12 @@
                         (<span th:text="${#temporals.format(server.decommissionedAt, 'yyyy-MM-dd HH:mm:ss')}">—</span>)</p>
                 </div>
                 <form th:unless="${server.decommissionedAt != null}"
-                      th:action="@{/provisioning/server/{id}/decommission(id=${server.id})}" method="post">
-                    <button type="submit" class="n-btn n-btn-danger">이 서버 회수</button>
+                      th:action="@{/provisioning/server/{id}/decommission(id=${server.id})}" method="post"
+                      th:with="flashing=${server.progress != null and server.progress.disruptionBlocked}">
+                    <!-- 펌웨어를 굽는 중의 회수는 벽돌 위험(R13 후속) — 서버 가드와 같은 SSOT 플래그 -->
+                    <button type="submit" class="n-btn n-btn-danger"
+                            th:disabled="${flashing}"
+                            th:title="${flashing} ? '펌웨어를 굽는 중에는 사용할 수 없습니다.' : null">이 서버 회수</button>
                 </form>
             </div>
         </div>

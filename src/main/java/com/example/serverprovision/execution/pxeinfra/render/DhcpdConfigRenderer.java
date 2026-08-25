@@ -28,6 +28,9 @@ public class DhcpdConfigRenderer {
      */
     static final String BOOT_FILENAME = "ipxe.efi";
 
+    /** iPXE 2단 진입 스크립트(tftp) — /api/pxe/v1/boot 로 체인하는 1단 스크립트 파일명. */
+    static final String IPXE_SCRIPT_FILENAME = "boot.ipxe";
+
     /** desired 를 dhcpd 조각으로 렌더한다(순수 함수). */
     public String render(PxeNetworkConfig config) {
         StringBuilder sb = new StringBuilder();
@@ -54,7 +57,14 @@ public class DhcpdConfigRenderer {
         sb.append("  class \"pxeclients\" {\n");
         sb.append("    match if substring(option vendor-class-identifier, 0, 9) = \"PXEClient\";\n");
         sb.append("    next-server ").append(config.getBootServerIp().value()).append(";\n");
-        sb.append("    filename \"").append(BOOT_FILENAME).append("\";\n");
+        // 실기 보정(2026-08-24 통합 테스트): 원본 ipxe.efi 는 재DHCP 시 같은 파일을 받으면 무한
+        // 체인 루프다. iPXE(user-class)에게는 1단 스크립트(boot.ipxe, tftp)를 주어 /api/pxe/v1/boot
+        // 로 넘어가게 분기한다 — 사무실 실측 구성(2026-06)과 동일 관용구.
+        sb.append("    if exists user-class and option user-class = \"iPXE\" {\n");
+        sb.append("      filename \"").append(IPXE_SCRIPT_FILENAME).append("\";\n");
+        sb.append("    } else {\n");
+        sb.append("      filename \"").append(BOOT_FILENAME).append("\";\n");
+        sb.append("    }\n");
         sb.append("  }\n");
         sb.append("}\n");
         return sb.toString();

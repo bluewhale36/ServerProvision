@@ -79,14 +79,15 @@ progress().startedAt(T).currentStep(ProvisioningPhaseStep.OS_SETTING).completedA
     }
 
     @Test
-    @DisplayName("5행 미개시 — 개시 게이트 대기 + 원본 쿼리로 chain 재진입")
-    void notStarted_waits() {
+    @DisplayName("R13 — 미개시 + 진단 커서: 개시 게이트 없이 진단 실행기로 위임(자동 진행)")
+    void notStarted_diagnosticCursor_autoProceeds() {
+        // 옛 5행(waiting for provisioning start)이 사라지고, 미개시 게스트가 곧바로 진단 실행기의
+        // 스크립트를 받는 것이 자동 진행의 증거다.
         String script = dispatcher.dispatch(server(null),
 progress().build(), PhaseReadiness.ready(), Q);
         assertThat(script)
-                .contains("waiting for provisioning start")
-                .contains("sleep 30")
-                .contains("chain /api/pxe/v1/boot?" + Q);
+                .doesNotContain("waiting for provisioning start")
+                .contains("FAKE q=" + Q);
     }
 
     @Test

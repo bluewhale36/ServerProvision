@@ -1,12 +1,15 @@
 package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.request.UpdateGuestServerRequest;
+import com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
+import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
+import com.example.serverprovision.execution.exception.DisruptiveActionRejectedException;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.exception.ProvisioningMarkFailedRejectedException;
 import com.example.serverprovision.execution.exception.ProvisioningRetryRejectedException;
@@ -34,6 +37,7 @@ public class GuestServerCommandService {
     private final ProvisioningProgressRepository provisioningProgressRepository;
     private final ProvisioningHistoryRecorder provisioningHistoryRecorder;
     private final RetryPolicy retryPolicy;   // 재시도 차단 판정 — 화면 노출과 같은 지점
+    private final PhaseCursorAdvancer phaseCursorAdvancer;   // R13 — 개시 시 유보된 완주 판정의 소급 집행
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
@@ -63,19 +67,30 @@ public class GuestServerCommandService {
 
     /**
      * 서버 회수 — decommissioned_at 기록(멱등). 운영 상태는 이 마커에서 도출(§D4).
+     * 펌웨어를 굽는 중에는 거절한다(R13 후속) — 가드는 뷰 차단과 같은 SSOT.
      */
     @Transactional
     public void decommission(UUID id) {
         GuestServer server = guestServerRepository.findById(id)
                 .orElseThrow(() -> new GuestServerNotFoundException(id));
+        provisioningProgressRepository.findByGuestServer_Id(id)
+                .filter(ProvisioningProgress::isDisruptionBlocked)
+                .ifPresent(p -> { throw new DisruptiveActionRejectedException(id); });
         server.decommission(LocalDateTime.now());
         publishChanged(id);
     }
 
     /**
-     * 프로비저닝 개시(E1-0a, DEC-26) — startedAt 기록. 게스트 동작(대기 해제)은 E1-0b 의 dispatch 가 소비한다.
+     * 프로비저닝 개시(E1-0a, DEC-26 → R13 의미 이동) — startedAt 기록. 게스트 동작(대기 해제)은
+     * E1-0b 의 dispatch 와 에이전트 지시 판정이 소비한다.
      * 가드 판정은 뷰의 버튼 노출과 같은 SSOT({@link ProvisioningProgress#isStartableWith})를 쓰고,
-     * 거절 사유(회수/재개시)는 메시지 구분용으로만 다시 본다.
+     * 거절 사유(회수/실패/재개시)는 메시지 구분용으로만 다시 본다.
+     *
+     * <p>R13 — 진단(수집)은 개시 없이 자동 진행되고 완주 판정은 유보된다. 개시 시점에 커서가
+     * 수집 완주 표식({@code INFORMATION_PERSISTING} — close 소비가 세운 서버 판정 instant)이면
+     * 유보된 판정을 여기서 소급 집행한다: 할당 보유 phase 로 전진하거나(무할당이면) 종단.
+     * 게스트는 진단 리눅스 안에서 WAIT 루프로 상주하므로 다음 체크인의 지시 재계산이 이 결과를
+     * REBOOT 로 나른다.</p>
      */
     @Transactional
     public void startProvisioning(UUID id) {
@@ -87,12 +102,25 @@ public class GuestServerCommandService {
                         "provisioning_progress 1:1 불변 위반 — 등록 seed 누락. guestServerId=" + id));
 
         if (!progress.isStartableWith(server.getDecommissionedAt())) {
-            throw server.getDecommissionedAt() != null
-                    ? ProvisioningStartRejectedException.decommissioned(id)
-                    : ProvisioningStartRejectedException.alreadyStarted(id);
+            throw rejectionOf(server, progress, id);
         }
-        progress.start(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        progress.start(now);
+        if (progress.getCurrentStep() == ProvisioningPhaseStep.INFORMATION_PERSISTING) {
+            phaseCursorAdvancer.advanceOrComplete(progress, id, now);
+        }
         publishChanged(id);
+    }
+
+    /** 개시 거절 사유 구분 — 판정은 이미 isStartableWith 가 끝냈고 여기는 메시지 선택만. */
+    private ProvisioningStartRejectedException rejectionOf(GuestServer server, ProvisioningProgress progress, UUID id) {
+        if (server.getDecommissionedAt() != null) {
+            return ProvisioningStartRejectedException.decommissioned(id);
+        }
+        if (progress.isFailed()) {
+            return ProvisioningStartRejectedException.failed(id);
+        }
+        return ProvisioningStartRejectedException.alreadyStarted(id);
     }
 
     /**

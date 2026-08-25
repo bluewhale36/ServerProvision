@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+import com.example.serverprovision.execution.exception.DisruptiveActionRejectedException;
 import com.example.serverprovision.provisioning.dto.request.PowerResetRequest;
 
 /**
@@ -39,12 +40,20 @@ public class GuestServerPowerRestController {
 
     @PostMapping("/reset")
     public ResponseEntity<PowerControlResult> reset(@PathVariable UUID id, @Valid @RequestBody PowerResetRequest request) {
-        return ResponseEntity.ok(redfishPowerService.reset(targetOf(id), request.resetType()));
+        GuestServerDetailResponse server = guestServerQueryService.findDetail(id);
+        // 펌웨어를 굽는 중의 전원 조작은 벽돌 위험(R13 후속) — UI 가 버튼을 막으므로 direct POST 안전망.
+        if (server.progress() != null && server.progress().disruptionBlocked()) {
+            throw new DisruptiveActionRejectedException(id);
+        }
+        return ResponseEntity.ok(redfishPowerService.reset(targetOf(server), request.resetType()));
     }
 
     /** 도메인 VO(IpAddressVO) → 인프라 경계 값 — 조회는 404 안전망(GuestServerNotFoundException)을 그대로 탄다. */
     private RedfishTarget targetOf(UUID id) {
-        GuestServerDetailResponse server = guestServerQueryService.findDetail(id);
+        return targetOf(guestServerQueryService.findDetail(id));
+    }
+
+    private RedfishTarget targetOf(GuestServerDetailResponse server) {
         GuestServerDetailResponse.Inventory inventory = server.inventory();
         if (inventory == null) {
             return new RedfishTarget(null, null);

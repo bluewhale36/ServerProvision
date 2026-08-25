@@ -156,15 +156,16 @@ class FlashStepExecutionTest {
     }
 
     @Test
-    @DisplayName("굽기 — 이미 목표 버전이면 굽지 않고 성공으로 닫는다(굽는 행위 자체가 위험이다)")
-    void flash_alreadyCurrentSkipsBurn() {
+    @DisplayName("굽기 — 버전이 같아도 굽는다(2026-08-25 결정: 커스텀 이미지는 버전이 같아도 내용이 다르다)")
+    void flash_burnsEvenWhenVersionMatches() {
         given(provider.readVersion(any(), eq(FirmwareAxis.BIOS))).willReturn(Optional.of("F29"));
+        given(provider.startFlash(any(), eq(FirmwareAxis.BIOS), any()))
+                .willReturn(Optional.of("/redfish/v1/TaskService/Tasks/2"));
 
         new FlashAxisStep(guard, tokenRegistry, ledger)
                 .execute(context(flashing(FirmwareAxis.BIOS), List.of(), ready()));
 
-        verify(provider, never()).startFlash(any(), any(), any());
-        assertThat(metaOf(ProvisioningStatus.SUCCEEDED)).contains(FlashLedger.ALREADY_CURRENT);
+        verify(provider).startFlash(any(), eq(FirmwareAxis.BIOS), any());
     }
 
     @Test

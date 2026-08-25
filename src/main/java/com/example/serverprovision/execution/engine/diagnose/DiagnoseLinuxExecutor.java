@@ -124,9 +124,16 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
         // 커서 전진 · 종단(DEC-25 · ES-1) — 활성 할당의 보유 phase(ownedPhases)를 실공급자로 읽어,
         // 진단 다음 소유 phase 가 있으면 커서를 전진(advanceTo), 없으면(무할당) 종단(markCompleted)한다.
         // 규칙은 PhaseCursorAdvancer 1곳에 있어 후속 phase 실행기가 늘어도 복제되지 않는다(DES-1).
-        phaseCursorAdvancer.advanceOrComplete(progress, server.getId(), now);
-        log.info("진단 phase 완주 — 커서 전진 · 종단 판정 : guestServerId={}, cursor={}, completed={}",
-                server.getId(), progress.getCurrentStep(), progress.isCompleted());
+        // R13 — 미개시면 완주 판정을 유보한다: 커서가 INFORMATION_PERSISTING 에 멈춘 것이 "수집 완료 ·
+        // 개시 대기" 상태이며, 판정은 개시 시점에 소급 집행된다(GuestServerCommandService.startProvisioning).
+        // 여기서 판정해버리면 무할당 게스트가 등록 몇 분 만에 종단(해제 경로 없음)으로 굳는다.
+        if (progress.isStarted()) {
+            phaseCursorAdvancer.advanceOrComplete(progress, server.getId(), now);
+            log.info("진단 phase 완주 — 커서 전진 · 종단 판정 : guestServerId={}, cursor={}, completed={}",
+                    server.getId(), progress.getCurrentStep(), progress.isCompleted());
+        } else {
+            log.info("진단 phase 완주(미개시) — 완주 판정 유보, 수집 완료 대기 : guestServerId={}", server.getId());
+        }
     }
 
     private String toJson(Object value) {
