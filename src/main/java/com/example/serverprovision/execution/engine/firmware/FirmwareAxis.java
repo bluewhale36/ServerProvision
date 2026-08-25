@@ -27,8 +27,16 @@ import java.util.function.Function;
 @Getter
 public enum FirmwareAxis {
 
-    BIOS(ProvisioningPhaseStep.BIOS_UPDATING, "BIOS", "BIOS", Duration.ofMinutes(15), FirmwareResolution::bios),
-    BMC(ProvisioningPhaseStep.BMC_UPDATING, "BMC", "BMC", Duration.ofMinutes(30), FirmwareResolution::bmc);
+    BIOS(ProvisioningPhaseStep.BIOS_UPDATING, "BIOS", VersionSource.FIRMWARE_INVENTORY, "BIOS",
+            Duration.ofMinutes(15), FirmwareResolution::bios),
+    BMC(ProvisioningPhaseStep.BMC_UPDATING, "BMC", VersionSource.MANAGER, "BMC",
+            Duration.ofMinutes(30), FirmwareResolution::bmc);
+
+    /**
+     * 반영 확인이 버전을 읽는 원천. BMC 는 13.06.27 부터 {@code FirmwareInventory/BMC} 가 빈 껍데기라
+     * (2026-08-25 실기 — Version 포함 전 필드 부재) 표준 {@code Managers/Self.FirmwareVersion} 을 읽는다.
+     */
+    public enum VersionSource { FIRMWARE_INVENTORY, MANAGER }
 
     /** 이 축의 원장 step — 축마다 자기 행을 갖는 것이 축별 독립 성패(D-2)의 실체다. */
     private final ProvisioningPhaseStep step;
@@ -36,7 +44,10 @@ public enum FirmwareAxis {
     /** SimpleUpdate 의 {@code UpdateComponent} 파라미터 값(E0-4-2 실측 허용값). */
     private final String updateComponent;
 
-    /** {@code FirmwareInventory} 멤버 이름 — 반영 확인이 읽는 자리(E0-4-2 실측). */
+    /** 반영 확인의 버전 원천 — 축이 데이터로 들어 소비처가 축 이름으로 분기하지 않는다. */
+    private final VersionSource versionSource;
+
+    /** {@code FirmwareInventory} 멤버 이름 — {@code FIRMWARE_INVENTORY} 원천일 때 읽는 자리(E0-4-2 실측). */
     private final String inventoryMember;
 
     /** 집행 시한 기본값. 설정이 있으면 {@link FlashTimeoutPolicy} 가 덮는다. */

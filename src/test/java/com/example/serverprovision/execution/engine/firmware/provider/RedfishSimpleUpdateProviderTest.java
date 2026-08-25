@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * E2-2 — Redfish 흐름 구현. 실측(E0-4-2) 응답 모양을 그대로 넣어 판독을 고정한다.
@@ -161,5 +163,15 @@ class RedfishSimpleUpdateProviderTest {
                 "{\"Id\":\"BIOS2\",\"Updateable\":true}"));
 
         assertThat(provider.readVersion(TARGET, FirmwareAxis.BIOS)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("버전 판독 — BMC 축은 Managers/Self.FirmwareVersion 을 읽는다(13.06.27 부터 인벤토리가 빈 껍데기 — 2026-08-25 실기)")
+    void readVersion_bmcReadsManagerFirmwareVersion() {
+        given(updateService.manager(any())).willReturn(JSON.readTree(
+                "{\"Id\":\"Self\",\"FirmwareVersion\":\"13.06.27\"}"));
+
+        assertThat(provider.readVersion(TARGET, FirmwareAxis.BMC)).contains("13.06.27");
+        verify(updateService, never()).firmwareInventory(any(), any());
     }
 }

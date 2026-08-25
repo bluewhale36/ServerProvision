@@ -134,8 +134,11 @@ public class RedfishSimpleUpdateProvider implements FirmwareUpdateProvider {
     @Override
     public Optional<String> readVersion(RedfishTarget target, FirmwareAxis axis) {
         try {
-            String version = updateService.firmwareInventory(target, axis.getInventoryMember())
-                    .path("Version").asString("");
+            String version = switch (axis.getVersionSource()) {
+                case FIRMWARE_INVENTORY -> updateService.firmwareInventory(target, axis.getInventoryMember())
+                        .path("Version").asString("");
+                case MANAGER -> updateService.manager(target).path("FirmwareVersion").asString("");
+            };
             return version.isBlank() ? Optional.empty() : Optional.of(version);
         } catch (RedfishRequestException e) {
             return Optional.empty();
