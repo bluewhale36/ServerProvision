@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1.6 Report — BMC 계정 표준화 완료 보고</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.del{background:var(--red-bg);color:var(--red);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .chip.dep{background:var(--yellow-bg);color:var(--yellow);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:6px 0 0; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .state-flow { font-family:var(--mono); font-size:12.5px; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:10px 14px; margin:10px 0; overflow-x:auto; }
+  .hidden { display:none !important; }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1.6 &mdash; BMC 계정 표준화 완료 보고 <span class="v2-badge">CP6 보고</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1.6 (BMC 계정 표준화)</span>
+    <span><strong>브랜치</strong> <code>feat/E1.6_bmc-account-standardization</code></span>
+    <span><strong>plan</strong> <code>plan/26-08-25_09-29-43_E1.6_plan.html</code></span>
+    <span><strong>테스트</strong> 2,447 green (신규 32 · 회귀 0)</span>
+    <span><strong>CP5</strong> 생략 (사용자 지시)</span>
+    <span><strong>DDL</strong> 0</span>
+    <span><strong>작성</strong> 2026-08-25 11:05 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">&sect;0 이 보고서의 구성</a></li>
+      <li><a href="#s1">&sect;1 유래</a></li>
+      <li><a href="#s2">&sect;2 설계 요약</a></li>
+      <li><a href="#s3">&sect;3 구현 기록</a></li>
+      <li><a href="#s4" class="preview">&sect;4 선제 발견 · 해소한 결함 2건</a></li>
+      <li><a href="#s5">&sect;5 테스트 (Step 8)</a></li>
+      <li><a href="#s6" class="preview">&sect;6 수행하지 못한 것</a></li>
+      <li><a href="#s7">&sect;7 Critical Files</a></li>
+      <li><a href="#s8">&sect;8 남은 일</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 &hellip;" id="filter">
+
+    <details class="section" id="s0" open>
+      <summary>&sect;0. 이 보고서의 구성 &mdash; CP5 절이 &ldquo;생략 기록&rdquo; 으로 대체된다</summary>
+      <div class="body">
+        <p>통상의 report 는 CP5 샌드박스 검증의 계획 · 수행 기록 · 스크린샷 증거가 본문의 중심이다. <b>이번 슬라이스의 CP5 는 사용자 지시로 생략됐다</b> &mdash; 2026-08-25, <span class="mono">&ldquo;CP5 는 생략. 어차피 실기 테스트 하면서 잡힌 버그를 고치게 될 예정.&rdquo;</span> E 단계는 CP7 을 실기 일괄 검증으로 모으는 방침(2026-08-20 확정)이라, 이 지시는 그 방침과 정합한다.</p>
+        <p>그래서 이 보고서의 중심은 셋으로 옮겨진다.</p>
+        <ol>
+          <li><b>구현 기록</b> &mdash; 무엇을 만들었고 plan 대비 어디가 달라졌는가(&sect;3).</li>
+          <li><b>구현 중 선제 발견 · 해소한 결함 2건과 그 실증</b> &mdash; CP5 를 건너뛰었음에도 실기 전에 잡아낸 것(&sect;4).</li>
+          <li><b>실기(CP7)로 미뤄진 검증 항목의 명시</b> &mdash; 무엇을 아직 확인하지 못했는지(&sect;6).</li>
+        </ol>
+        <div class="callout warn"><b>&sect;6 이 이 보고서의 핵심이다.</b> 검증을 건너뛴 슬라이스의 보고는 &ldquo;못 한 것&rdquo; 을 사유와 함께 적어야 성립한다. 감추면 다음 사람이 검증된 것과 검증되지 않은 것을 구분하지 못한다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s1">
+      <summary>&sect;1. 유래</summary>
+      <div class="body">
+        <p>이 슬라이스는 R13 실기(2026-08-24~25 · MS74-HB0 신품)에서 관측된 <b>폴백 노이즈</b>에서 나왔다. 신품 BMC 는 공장 기본 자격(<code>admin</code> + 보드 시리얼 11자)만 유효하다. 그래서 모든 Redfish 호출이 표준 계정으로 먼저 시도되어 401 을 받고, 그다음 공장 기본 자격으로 폴백하는 왕복을 반복했다 &mdash; 30초 폴링마다 로그가 1줄씩 쌓이고 왕복은 2배가 됐다. 사용자 결정은 <b>BMC IP 를 확인한 뒤 자격증명을 변경할 것</b>이었다. 그 결정을 슬라이스로 옮긴 것이 E1.6 이며, plan 은 <code>plan/26-08-25_09-29-43_E1.6_plan.html</code>(CP1 · 2026-08-25 승인)이다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>&sect;2. 설계 요약 &mdash; plan 의 결정 8건</summary>
+      <div class="body">
+        <table>
+          <tr><th>결정</th><th>채택</th></tr>
+          <tr><td><b>D-1</b> 트리거</td><td>진단 수집 커밋 직후 자동(이벤트 · AFTER_COMMIT · <code>@Async</code>)</td></tr>
+          <tr><td><b>D-2</b> 사다리</td><td>5행 진리표 · 판정 = &ldquo;어느 자격으로 열렸는가&rdquo; · 무상태 멱등</td></tr>
+          <tr><td><b>D-3</b> 캐시</td><td><code>BmcCredentialsMemory</code> 인메모리 · 키 = 보드 시리얼</td></tr>
+          <tr><td><b>D-4</b> 원장</td><td><code>IPMI_SETTING</code> 재사용(DEC-11 개정 · DDL 0)</td></tr>
+          <tr><td><b>D-5</b> 신원</td><td>이중 증명(시리얼 인증 + PATCH 직전 Chassis 대조)</td></tr>
+          <tr><td><b>D-6</b> 관용</td><td><code>PasswordChangeRequired</code> 미실측 &rarr; 로그 흡수 · T3 적립</td></tr>
+          <tr><td><b>D-7</b> 배치</td><td>global 계약 / execution 오케스트레이션 분리</td></tr>
+          <tr><td><b>D-8</b> 동시성</td><td>락 없음 &mdash; If-Match 경합이 4행으로 수렴</td></tr>
+        </table>
+
+        <h4>사다리가 폴백 · 캐시를 우회하는 이유</h4>
+        <p>사다리는 기존 폴백 경로와 캐시를 우회하고 <b>표준 자격과 공장 기본 자격 두 가지를 각각 명시적으로 시도</b>한다. 캐시 재정렬이 적용된 상태에서는 &ldquo;첫 GET 이 200 이면 이미 표준이다&rdquo; 라는 판정이 오판이 되기 때문이다. 이 모순은 CP1 검수 과정에서 <b>전사 에이전트가 데모를 구현하다 발견</b>했고, 그 결과 D-2 의 판정 축이 시도 순서가 아니라 &ldquo;어느 자격으로 열렸는가&rdquo; 로 고정됐다.</p>
+
+        <h4>신원 위험의 역전</h4>
+        <p>계정 비밀번호 변경은 되돌리기 어려운 조작이라 대상 장비를 잘못 짚는 것이 가장 큰 위험이다. 그런데 그 위험은 직관과 반대로 움직인다 &mdash; <b>진단이 BMC 주소를 수집한 직후가 그 주소의 드리프트 확률이 가장 낮은 시점</b>이다. 그래서 트리거를 수집 커밋 직후에 두고(D-1), 그 위에 이중 증명(D-5 &mdash; 시리얼 인증 + PATCH 직전 Chassis 대조)을 얹었다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>&sect;3. 구현 기록</summary>
+      <div class="body">
+        <h4>신규 6파일</h4>
+        <ul>
+          <li><span class="chip new">신규</span> <code>global/redfish/RedfishAccountService</code> &mdash; 계정 컬렉션 GET(자격 탐침 겸용) · <code>UserName</code> 매칭 &rarr; fresh ETag &rarr; If-Match PATCH. 계정 URI 를 하드코딩하지 않는 이유는 숫자 id 가 벤더 · 펌웨어마다 다르기 때문이다.</li>
+          <li><span class="chip new">신규</span> <code>global/redfish/RedfishResource</code> &mdash; GET 본문 + ETag 한 벌(record).</li>
+          <li><span class="chip new">신규</span> <code>global/redfish/BmcCredentialsMemory</code> &mdash; 보드 시리얼 &rarr; 마지막 성공 source. 인메모리이므로 재기동 시 손실되지만, 손실 비용은 첫 401 한 번이다.</li>
+          <li><span class="chip new">신규</span> <code>execution/event/BmcEndpointDiscoveredEvent</code> &mdash; 진단의 BMC IP 적재를 알리는 방아쇠(record).</li>
+          <li><span class="chip new">신규</span> <code>execution/service/BmcAccountStandardizationService</code> &mdash; 사다리 본체.</li>
+          <li><span class="chip new">신규</span> <code>execution/service/BmcAccountStandardizationLauncher</code> &mdash; <code>@Async</code> + <code>@TransactionalEventListener</code>(AFTER_COMMIT · fallbackExecution) 진입점. 본체와 분리한 이유는 <code>@Async</code> 가 proxy 를 경유할 때만 동작하기 때문이다(<code>IsoVerificationLauncher</code> 선례).</li>
+        </ul>
+        <div class="callout warn"><b>plan 대비 편차 1건</b> : <code>BmcAccountStandardizationService</code> 는 <b><code>@Transactional</code> 을 열지 않는다.</b> Redfish 왕복(수 초 &times; 최대 6회)이 DB 커넥션을 점유할 이유가 없고, 유일한 쓰기(원장 instant 행)는 repository 기본 트랜잭션으로 충분하다. CP4 게이트에서 보고 · 승인됐다.</div>
+
+        <h4>수정 7파일</h4>
+        <ul>
+          <li><span class="chip mod">수정</span> <code>global/redfish/RedfishClient</code> &mdash; <code>getForResource</code>(ETag 채집) · <code>patchJson</code>(If-Match) 프리미티브 2건 추가. 종전 <code>getJson</code> 은 헤더를 버렸다.</li>
+          <li><span class="chip mod">수정</span> <code>global/redfish/RedfishClientConfig</code> &mdash; <b>아래 결함 2건의 해소로 전면 교체</b>(&sect;4).</li>
+          <li><span class="chip mod">수정</span> <code>global/redfish/BmcCredentialsResolver</code> &mdash; <code>standardCandidate()</code> · <code>factoryCandidate()</code> 분리(기존 <code>candidates</code> 는 그 합성). 사다리가 순서가 아닌 정체로 판정하는 재료다.</li>
+          <li><span class="chip mod">수정</span> <code>global/redfish/BmcCredentialsFallback</code> &mdash; 성공 시 기억 + 시도 전 재정렬 배선.</li>
+          <li><span class="chip mod">수정</span> <code>global/redfish/BmcCredentials</code> &mdash; record 의 자동 <code>toString</code> 이 비밀번호를 노출하는 잠재 결함이 있어 마스킹 오버라이드를 넣었다.</li>
+          <li><span class="chip mod">수정</span> <code>execution/engine/diagnose/DiagnoseLinuxExecutor</code> &mdash; <code>bmcIp</code> 적재 시 이벤트 발행(4줄).</li>
+          <li><span class="chip mod">수정</span> <code>execution/enums/ProvisioningPhaseStep</code> &mdash; <code>IPMI_SETTING</code> Javadoc 개정(E1.6 이 첫 소비자이며 원 용도가 재개되면 공존한다).</li>
+        </ul>
+
+        <h4>하네스 확장 &mdash; <code>scripts/mock-redfish/mock-redfish.py</code></h4>
+        <p>AccountService 트리(컬렉션 · 계정별 GET + ETag · If-Match PATCH 204/412)를 붙이고, 그 위에 <b>비밀번호의 상태화</b>를 얹었다 &mdash; 유효 비밀번호가 정적 집합이 아니라 상태이고 PATCH 가 실제로 그 값을 갈아끼운다(<code>/__passwords</code> 로 신품 · 제3 비밀번호를 재연한다). 또한 <code>admin</code> 을 두 번째 계정(<code>Accounts/1</code> = <code>anonymous</code>)으로 배치해 <code>UserName</code> 매칭 로직이 하네스에서 실검증되게 했다.</p>
+
+        <div class="callout success"><b>DDL 0 · 화면 변경 0 · 신규 엔드포인트 0 · 엔티티 무변경</b> &mdash; plan 대로다.</div>
+      </div>
+    </details>
+
+    <details class="section preview" id="s4">
+      <summary>&sect;4. 구현 중 선제 발견 · 해소한 결함 2건</summary>
+      <div class="body">
+        <p>CP5 를 생략했음에도 <b>실기에 나가기 전에</b> 두 건의 결함을 잡았다. 둘 다 <code>RedfishClientConfig</code> 에 있었고, 그래서 이 파일이 전면 교체됐다.</p>
+
+        <h4>F-1. <code>HttpURLConnection</code> 은 PATCH 메서드를 지원하지 않는다</h4>
+        <p><code>RedfishClientConfig</code> 의 requestFactory 는 <code>SimpleClientHttpRequestFactory</code>(JDK <code>HttpURLConnection</code> 기반)였다. 이 위에서 <code>patchJson</code> 은 <b>어떤 입력에서도</b> <code>ProtocolException: Invalid HTTP method: PATCH</code> 로 실패한다. 즉 계정 비밀번호 변경이 <b>첫 실기에서 무조건 실패할 코드</b>였다.</p>
+        <p>잡힌 경위가 중요하다. 단위 테스트는 <code>MockRestServiceServer</code> 를 쓰므로 실 커넥션을 열지 않고, 따라서 <b>전부 green 이었다</b>. 이 결함은 테스트가 아니라 requestFactory 를 눈으로 확인하다 발견했다 &mdash; E2-2 의 F-1(&ldquo;테스트 green 이 실증이 아니다&rdquo;)과 같은 계열의 교훈이다.</p>
+        <div class="split-grid">
+          <div class="split-card before"><h4>이전</h4><p><code>SimpleClientHttpRequestFactory</code><br><span class="mono">JDK HttpURLConnection 기반</span><br><br><b>PATCH 불가</b> &mdash; 어떤 입력에서도 <code>ProtocolException</code></p></div>
+          <div class="split-card after"><h4>이후</h4><p><code>JdkClientHttpRequestFactory</code><br><span class="mono">java.net.http.HttpClient 기반</span><br><br><b>PATCH 지원</b></p></div>
+        </div>
+
+        <h4>F-2. JDK 는 평범한 <code>X509TrustManager</code> 를 감싸며 호스트명 검증을 되살린다</h4>
+        <p>F-1 을 해소한 뒤 자가서명 스모크를 돌리자 <code>SSLHandshakeException: No subject alternative names present</code> 가 났다. 스택이 원인을 정확히 보여줬다 &mdash; <code>java.net.http.HttpClient</code> 는 <code>X509ExtendedTrustManager</code> 가 아닌 TrustManager 를 <code>AbstractTrustManagerWrapper</code> 로 감싸고, 그 래퍼가 <code>checkAdditionalTrust</code> 에서 호스트명 검증(IP SAN 대조)을 추가로 수행한다.</p>
+        <div class="callout danger"><b>빈 <code>SSLParameters</code>(endpoint identification 미지정)로는 우회되지 않는다</b> &mdash; 1차 시도가 실패하며 이를 실증했다. 해소는 no-op <code>X509ExtendedTrustManager</code> 를 직접 구현하는 것이다. 래핑 자체가 일어나지 않으므로 검증 주체가 no-op 이 된다.</div>
+
+        <h4>스모크 실증 (2026-08-25 · mock-redfish 자가서명 · <code>127.0.0.1:18443</code>)</h4>
+        <p>교체된 구성과 동일한 클라이언트로 세 반응을 확인했다.</p>
+        <table>
+          <tr><th>순서</th><th>조작</th><th>결과</th></tr>
+          <tr><td>1</td><td>계정 GET</td><td><b>200</b> + ETag <code>W/"1000"</code> 채집</td></tr>
+          <tr><td>2</td><td>If-Match PATCH</td><td><b>204</b> &mdash; mock 상태의 유효 비밀번호가 <code>new-standard</code> 로 실제 교체됨을 <code>__state</code> 로 확인</td></tr>
+          <tr><td>3</td><td>낡은 ETag 재사용 PATCH</td><td><b>412</b></td></tr>
+        </table>
+        <p>실측 계약(E0-4-1)의 세 반응이 전부 재현됐다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>&sect;5. 테스트 (Step 8)</summary>
+      <div class="body">
+        <p>전체 <b>2,447 tests green</b>(354 클래스 · 회귀 0). 기점 2,415 에 이번 슬라이스 신규 32 건이 더해진 수다.</p>
+        <table>
+          <tr><th>테스트</th><th>건수</th><th>확인하는 것</th></tr>
+          <tr><td><code>BmcAccountStandardizationServiceTest</code></td><td>11</td><td>사다리 전 갈래(0~4행 · 신원 2종 · 412 경합 · 시리얼 없음 · 방어)</td></tr>
+          <tr><td><code>BmcCredentialsMemoryTest</code></td><td>5</td><td>기억 · 재정렬 · 게스트 단위 격리 · 자기 갱신</td></tr>
+          <tr><td><code>RedfishAccountServiceTest</code></td><td>4</td><td><code>UserName</code> 매칭 · fresh ETag PATCH · NOT_FOUND · 401/412 분류</td></tr>
+          <tr><td><code>BmcCredentialsFallbackTest</code></td><td>2</td><td>성공 기억 &rarr; 다음 순회 재정렬 · 연결 실패는 무기억</td></tr>
+          <tr><td><code>BmcAccountStandardizationLauncherTest</code></td><td>3</td><td>위임 · 예외 삼킴 · 배선 애노테이션 고정</td></tr>
+          <tr><td><code>RedfishClientTest</code> 확장</td><td>3</td><td><code>getForResource</code> ETag · <code>patchJson</code> If-Match · 412 분류</td></tr>
+          <tr><td><code>DiagnoseLinuxExecutorTest</code> 확장</td><td>2</td><td><code>bmcIp</code> 있으면 이벤트 발행 · 없으면 미발행</td></tr>
+          <tr><td><code>BmcCredentialsResolverTest</code> 확장</td><td>2</td><td>종류별 접근자 · <code>toString</code> 비밀번호 마스킹</td></tr>
+        </table>
+        <p>사다리 테스트의 검증 축은 <b>&ldquo;원장에 무엇이 남는가&rdquo;</b> 다 &mdash; SUCCEEDED meta 에 비밀번호 · 시리얼이 없음을 문자열로 검증한다(D-2 불가침). launcher 의 애노테이션 검증을 리플렉션으로 고정한 이유는, phase 오기입(AFTER_COMMIT 이 아닌 값)이 <b>컴파일도 단위 실행도 통과해 버리는</b> 종류의 실수이기 때문이다.</p>
+        <div class="callout"><b>통합 테스트 4범주</b> : 각 엔드포인트의 성공 2xx · 400 · 404 · 409 를 HTTP 계층에서 검증하는 규율은 이번 슬라이스에 <b>적용 대상이 없다</b> &mdash; 신규 엔드포인트가 0 이다.</div>
+      </div>
+    </details>
+
+    <details class="section preview" id="s6" open>
+      <summary>&sect;6. 수행하지 못한 것</summary>
+      <div class="body">
+        <div class="callout warn"><b>CP5 샌드박스 검증 생략</b> &mdash; 사용자 지시(2026-08-25)에 따른 것이며, E 단계 CP7 실기 일괄 방침과 정합한다. 이에 따라 아래 다섯 항목이 실기로 미뤄졌다.</div>
+        <ol>
+          <li><b>사다리 2행(최초 전환)의 실 BMC 완주</b> &mdash; <b>공장 기본 상태의 신품이 있어야</b> 실증된다. 표준화가 이미 끝난 장비로는 1행(no-op)만 실증된다.</li>
+          <li><b><code>PasswordChangeRequired</code>(C5 미실측) 관측</b> &mdash; 신품 첫 접속을 403 류로 막는지 확인해야 한다. 막는다면 사다리 4행으로 흡수되고, 관측 후에 갈래를 정련한다(T3 적립).</li>
+          <li><b>캐시 재정렬의 실 폴링 로그 감소 관측</b> &mdash; 신품에서 401 폴백 줄이 실제로 사라지는가.</li>
+          <li><b><code>IPMI_SETTING</code> 원장 행의 화면 표기</b> &mdash; 커서가 다음 phase 로 전진한 <b>뒤에</b> 비동기로 append 되는 모양이라, 세부 단계 이력 표의 정렬이 어색할 수 있다(plan &sect;8-4). 화면 확인이 CP5 생략으로 미실시다.</li>
+          <li><b>실 AMI 펌웨어의 계정 컬렉션 모양</b> &mdash; <code>admin</code> 의 실제 위치 · Accounts 멤버 수. <code>UserName</code> 매칭이라 위치와 무관하게 동작하나, 실측 대조는 미실시다.</li>
+        </ol>
+        <div class="callout danger"><b>스모크는 CP5 가 아니다.</b> &sect;4 의 스모크는 결함 2건의 해소를 실증한 개발 중 기술 검증이지, 항목 식별자 체계를 갖춘 CP5 검증이 아니다. 착시를 만들지 않기 위해 구분해 적는다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>&sect;7. Critical Files</summary>
+      <div class="body">
+        <h4>신규 <span class="chip new">6</span></h4>
+        <table>
+          <tr><th>경로</th><th>요지</th></tr>
+          <tr><td><code>global/redfish/RedfishAccountService</code></td><td>계정 컬렉션 GET · <code>UserName</code> 매칭 · If-Match PATCH</td></tr>
+          <tr><td><code>global/redfish/RedfishResource</code></td><td>GET 본문 + ETag 한 벌(record)</td></tr>
+          <tr><td><code>global/redfish/BmcCredentialsMemory</code></td><td>보드 시리얼 &rarr; 마지막 성공 source(인메모리)</td></tr>
+          <tr><td><code>execution/event/BmcEndpointDiscoveredEvent</code></td><td>BMC IP 적재 방아쇠(record)</td></tr>
+          <tr><td><code>execution/service/BmcAccountStandardizationService</code></td><td>사다리 본체</td></tr>
+          <tr><td><code>execution/service/BmcAccountStandardizationLauncher</code></td><td><code>@Async</code> + AFTER_COMMIT 진입점</td></tr>
+        </table>
+
+        <h4>수정 <span class="chip mod">7</span></h4>
+        <table>
+          <tr><th>경로</th><th>요지</th></tr>
+          <tr><td><code>global/redfish/RedfishClient</code></td><td><code>getForResource</code> · <code>patchJson</code> 프리미티브 2건 추가</td></tr>
+          <tr><td><code>global/redfish/RedfishClientConfig</code></td><td>결함 2건 해소로 전면 교체</td></tr>
+          <tr><td><code>global/redfish/BmcCredentialsResolver</code></td><td><code>standardCandidate()</code> · <code>factoryCandidate()</code> 분리</td></tr>
+          <tr><td><code>global/redfish/BmcCredentialsFallback</code></td><td>성공 시 기억 + 시도 전 재정렬 배선</td></tr>
+          <tr><td><code>global/redfish/BmcCredentials</code></td><td><code>toString</code> 비밀번호 마스킹 오버라이드</td></tr>
+          <tr><td><code>execution/engine/diagnose/DiagnoseLinuxExecutor</code></td><td><code>bmcIp</code> 적재 시 이벤트 발행</td></tr>
+          <tr><td><code>execution/enums/ProvisioningPhaseStep</code></td><td><code>IPMI_SETTING</code> Javadoc 개정</td></tr>
+        </table>
+
+        <h4>하네스 <span class="chip mod">1</span></h4>
+        <table>
+          <tr><th>경로</th><th>요지</th></tr>
+          <tr><td><code>scripts/mock-redfish/mock-redfish.py</code></td><td>AccountService 트리 + 비밀번호의 상태화</td></tr>
+        </table>
+
+        <h4>테스트 <span class="chip new">5</span> <span class="chip mod">3</span></h4>
+        <table>
+          <tr><th>테스트</th><th>구분</th><th>건수</th></tr>
+          <tr><td><code>BmcAccountStandardizationServiceTest</code></td><td><span class="chip new">신규</span></td><td>11</td></tr>
+          <tr><td><code>BmcCredentialsMemoryTest</code></td><td><span class="chip new">신규</span></td><td>5</td></tr>
+          <tr><td><code>RedfishAccountServiceTest</code></td><td><span class="chip new">신규</span></td><td>4</td></tr>
+          <tr><td><code>BmcCredentialsFallbackTest</code></td><td><span class="chip new">신규</span></td><td>2</td></tr>
+          <tr><td><code>BmcAccountStandardizationLauncherTest</code></td><td><span class="chip new">신규</span></td><td>3</td></tr>
+          <tr><td><code>RedfishClientTest</code></td><td><span class="chip mod">확장</span></td><td>3</td></tr>
+          <tr><td><code>DiagnoseLinuxExecutorTest</code></td><td><span class="chip mod">확장</span></td><td>2</td></tr>
+          <tr><td><code>BmcCredentialsResolverTest</code></td><td><span class="chip mod">확장</span></td><td>2</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s8">
+      <summary>&sect;8. 남은 일</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="e16-report-remaining">
+          <li><label><input type="checkbox" data-key="cp7"><span><b>CP7</b> &mdash; E 단계 일괄 실기. 위 &sect;6 의 5항목이 실기 검증 목록의 입력이 된다</span></label></li>
+          <li><label><input type="checkbox" data-key="commit"><span><b>커밋 · push · PR</b> &mdash; 사용자 지시 대기</span></label></li>
+          <li><label><input type="checkbox" data-key="vault"><span><b>vault 논의 후속</b> &mdash; 비밀 공급 방식(systemd <code>EnvironmentFile</code> &rarr; <code>LoadCredential</code>)은 OPS 계열 결정으로 분리(2026-08-25 사용자 확인 &ldquo;현행대로&rdquo;). <code>provision.marker.secret</code> 평문 default 의 fail-fast 전환은 S 계열 후보</span></label></li>
+          <li><label><input type="checkbox" data-key="lockout"><span><b>lockout 정련</b> &mdash; 제3 비밀번호 게스트를 방치할 때 &ldquo;FAILED 게스트는 폴링 후보에서 제외&rdquo;(실기 관측 시)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>
