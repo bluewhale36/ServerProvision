@@ -30,6 +30,8 @@ public class BootScriptDispatcher {
     public String dispatch(GuestServer server, ProvisioningProgress progress,
                            PhaseReadiness readiness, String rebootQuery) {
         if (server.getDecommissionedAt() != null) {                       // 2행
+            // U6 이후 정상 경로에서 도달 불가 — 등록 멱등이 활성 행만 돌려주므로 회수 행이 dispatch 에
+            // 들어올 일이 없다(같은 UUID 새 부팅 = 신규 등록). 비정상 경로 안전망으로만 남긴다.
             return IpxeScripts.decommissioned(rebootQuery);
         }
         if (progress.isFailed()) {                                        // 3행 — 실패 지점 = 커서(ES-2 D-5)

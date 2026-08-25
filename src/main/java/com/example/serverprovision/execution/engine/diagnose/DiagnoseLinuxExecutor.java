@@ -102,14 +102,16 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
                         "guest_server_detail 1:1 불변 위반 — 등록 seed 누락. guestServerId=" + server.getId()));
         LocalDateTime now = LocalDateTime.now();
 
-        // 보드 시리얼 실중복(타 서버 보유) 관용 흡수 — UNIQUE 를 커밋 시점 500 으로 맞으면 close 트랜잭션
-        // 전체가 롤백되어 에이전트가 재시도 실패 루프에 갇힌다(T1 하네스 실측). 시리얼만 적재 생략하고
-        // (원문은 원장 statusMeta 보존) 나머지는 정상 적재 — 중복은 같은 보드의 재등장(OPEN-2 류) 신호라
-        // WARN 으로 운영자에게 남긴다.
+        // 보드 시리얼 실중복(활성 타 서버 보유) 관용 흡수 — 활성 한정(U6 D-2): 회수 행이 쥔 시리얼은
+        // 중복으로 치지 않는다. 재시도 게스트는 같은 장비라 같은 시리얼을 다시 보고하며, 이를 생략하면
+        // E2-2 신원 확인 · E1.6 공장 기본 자격이 무력화된다(DB UNIQUE 는 U6 DDL 이 내렸다). 활성 중복은
+        // 시리얼만 적재 생략하고(원문은 원장 statusMeta 보존) 나머지는 정상 적재 — 같은 보드의
+        // 재등장(OPEN-2 류) 신호라 WARN 으로 운영자에게 남긴다.
         String boardSerial = parsed.boardSerial();
         java.util.List<String> absorbed = new java.util.ArrayList<>(parsed.placeholderFiltered());
         if (boardSerial != null
-                && guestServerDetailRepository.existsByBoardSerialAndGuestServer_IdNot(boardSerial, server.getId())) {
+                && guestServerDetailRepository.
+				existsByBoardSerialAndGuestServer_IdNotAndGuestServer_DecommissionedAtIsNull(boardSerial, server.getId())) {
             log.warn("보드 시리얼 중복 — 타 서버가 이미 보유. 시리얼 적재 생략(원문은 원장 보존) : "
                     + "serial={}, guestServerId={}", boardSerial, server.getId());
             absorbed.add("boardSerial(duplicate)=" + boardSerial);

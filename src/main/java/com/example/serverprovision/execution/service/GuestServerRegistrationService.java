@@ -63,11 +63,17 @@ public class GuestServerRegistrationService {
 
         // 재부팅 멱등성 — PXE 클라이언트는 매 부팅마다 /boot 를 호출하므로 중복 등록을 사전 차단한다.
         // 기존 등록분은 토큰만 lazy 발급(E1-0b — U1 시절 행 보정)하고 그대로 반환해 dispatch 입력이 된다.
-        var existing = guestServerRepository.findBySystemUUID(systemUUID);
+        // 멱등 바인딩은 활성 행 한정(U6 D-3) — 회수 행만 남은 UUID 의 새 부팅은 "회수 후 재시도" 로
+        // 신규 등록을 타고, R13(등록 즉시 진단 자동)이 곧바로 무인 수집을 돌린다.
+        var existing = guestServerRepository.findBySystemUUIDAndDecommissionedAtIsNull(systemUUID);
         if (existing.isPresent()) {
             existing.get().issueTokenIfAbsent();
             log.info("이미 등록된 서버 재부팅 — 등록 생략 : systemUUID={}", systemUUID);
             return existing.get();
+        }
+        if (guestServerRepository.existsBySystemUUID(systemUUID)) {
+            log.info("회수 후 재시도 — 회수 이력이 있는 systemUUID 의 새 부팅, 신규 등록으로 진행 : systemUUID={}",
+                    systemUUID);
         }
 
         Vendor vendor = Vendor.findByIpxeName(req.vendor());

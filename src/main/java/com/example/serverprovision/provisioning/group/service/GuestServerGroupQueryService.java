@@ -190,10 +190,10 @@ public class GuestServerGroupQueryService {
         return List.copyOf(candidates);
     }
 
-    /** 어느 그룹에도 속하지 않은 서버 id — 고르기 후보의 모집단. */
+    /** 어느 그룹에도 속하지 않은 서버 id — 고르기 후보의 모집단. 회수 서버는 후보가 아니다(U6 D-4). */
     private List<UUID> ungroupedServerIds() {
         Set<UUID> grouped = new HashSet<>(memberRepository.findAllGroupedServerIds());
-        return guestServerQueryService.findAll().stream()
+        return guestServerQueryService.findActive().stream()
                 .map(GuestServerSummaryResponse::id)
                 .filter(id -> !grouped.contains(id))
                 .toList();

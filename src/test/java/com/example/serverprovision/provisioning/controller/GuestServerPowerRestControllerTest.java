@@ -53,7 +53,7 @@ class GuestServerPowerRestControllerTest {
 
     private static GuestServerDetailResponse detail(String bmcIp, String boardSerial) {
         return new GuestServerDetailResponse(
-                ID, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "memo",
+                ID, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "464331aabbcc", null, "memo",
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
                 null,
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", boardSerial,
@@ -101,7 +101,7 @@ class GuestServerPowerRestControllerTest {
     void reset_duringFlash_rejected409() throws Exception {
         GuestServerDetailResponse base = detail("192.168.10.21", "GB-001");
         GuestServerDetailResponse flashing = new GuestServerDetailResponse(
-                base.id(), base.name(), base.modelName(), base.serialNumber(), base.systemUuid(), base.memo(),
+                base.id(), base.name(), base.modelName(), base.serialNumber(), base.systemUuid(), base.systemUuidSuffix(), "펌웨어를 굽는 중에는 사용할 수 없습니다.", base.memo(),
                 base.status(), base.decommissionedAt(), base.createdAt(), base.updatedAt(),
                 base.contact(), base.inventory(), base.nics(),
                 new GuestServerDetailResponse.Progress(
@@ -142,5 +142,26 @@ class GuestServerPowerRestControllerTest {
         given(queryService.findDetail(ID)).willThrow(new GuestServerNotFoundException(ID));
         mvc.perform(get("/provisioning/server/{id}/power", ID).accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("U6 — 회수된 서버의 전원 조작은 409 (사유 SSOT = GuestServer.powerControlBlockReason)")
+    void reset_decommissioned_rejected409() throws Exception {
+        GuestServerDetailResponse base = detail("192.168.10.21", "GB-001");
+        GuestServerDetailResponse decommissioned = new GuestServerDetailResponse(
+                base.id(), base.name(), base.modelName(), base.serialNumber(), base.systemUuid(), base.systemUuidSuffix(),
+                "회수된 서버는 전원을 조작할 수 없습니다.", base.memo(),
+                base.status(), base.decommissionedAt(), base.createdAt(), base.updatedAt(),
+                base.contact(), base.inventory(), base.nics(), base.progress(),
+                base.firmwarePlan(), base.firmwareFlash(), base.steps());
+        org.mockito.BDDMockito.given(queryService.findDetail(ID)).willReturn(decommissioned);
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/provisioning/server/{id}/power/reset", ID)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"resetType\":\"ON\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isConflict())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("회수된 서버는 전원을 조작할 수 없습니다")));
     }
 }

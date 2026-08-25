@@ -36,6 +36,15 @@ public interface GuestServerRepository extends JpaRepository<GuestServer, UUID> 
     /** 재부팅 재진입 — 기존 등록 서버 조회 (E1-0b: 토큰 lazy 발급 + dispatch 입력). */
     Optional<GuestServer> findBySystemUUID(UUID systemUUID);
 
+    /**
+     * 재부팅 멱등의 활성 한정(U6 D-3) — 회수 행은 멱등 바인딩에서 제외한다. 활성 행이 없고 회수
+     * 이력만 있으면 신규 등록으로 흘러 "회수 후 재시도" 가 된다.
+     */
+    Optional<GuestServer> findBySystemUUIDAndDecommissionedAtIsNull(UUID systemUUID);
+
+    /** 목록 조회의 활성 한정(U6 D-4) — 회수 행은 '회수된 서버 보기' 를 켰을 때만 전체 조회로 노출한다. */
+    List<GuestServer> findAllByDecommissionedAtIsNullOrderByCreatedAtDesc();
+
     /** 에이전트 API 인증 — 토큰으로 게스트 식별 (불일치 = 404, 사칭 차단. E1-0b). */
     Optional<GuestServer> findByGuestToken(GuestToken guestToken);
 }

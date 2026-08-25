@@ -37,6 +37,14 @@
         <h1 class="n-page-title">게스트 서버</h1>
         <div class="n-header-actions">
             <span class="n-hint">iPXE 부팅으로 등록된 물리 서버를 등록 시각과 하드웨어 스펙으로 묶어 보여줍니다.</span>
+            <!-- U6 D-4 — 회수 행은 기본 숨김. 토글은 자원 휴지통 모드(S5-4)와 같은 전역 스크립트가
+                 URL 의 다른 파라미터(phase · pending)를 보존한 채 이 키만 바꾼다. -->
+            <label class="n-checkbox">
+                <input type="checkbox"
+                       th:checked="${includeDecommissioned}"
+                       data-include-deleted-toggle="includeDecommissioned">
+                회수된 서버 보기
+            </label>
         </div>
     </div>
 
@@ -45,15 +53,15 @@
         <span class="n-filter-label">진행 단계</span>
         <!--/* Thymeleaf 는 null 파라미터를 빈 값(?phase=)으로 렌더한다. URL 이 곧 상태 저장소이므로
                (DEC-E · DEC-H) 지저분한 빈 파라미터가 남지 않게 완성된 URL 을 골라 쓴다. */-->
+        <!--/* 상태 링크(phase · pending · includeDecommissioned)는 컨트롤러가 완성해 넘긴다(U6 CP5 D-2 —
+               GuestServerController.listUrl 이 조립 SSOT). 파라미터가 늘어도 여기 분기가 곱해지지 않는다.
+               chipUrls 는 EnumMap — 반드시 .get(p) 로 읽는다. 대괄호 표기(chipUrls[p])는 SpEL Indexer 가
+               키 타입을 java.lang.Enum 으로 읽어 변환에 실패해 페이지가 500 이 된다(CP5 실측). */-->
         <a class="n-chip-link" th:classappend="${phaseFilter == null} ? ' is-active'"
-           th:href="${pendingOpen}
-                      ? @{/provisioning/server(pending='open')}
-                      : @{/provisioning/server}">전체</a>
+           th:href="@{${allChipUrl}}">전체</a>
         <a th:each="p : ${phases}" class="n-chip-link"
            th:classappend="${phaseFilter != null and phaseFilter.name() == p.name()} ? ' is-active'"
-           th:href="${pendingOpen}
-                      ? @{/provisioning/server(phase=${p.name()}, pending='open')}
-                      : @{/provisioning/server(phase=${p.name()})}"
+           th:href="@{${chipUrls.get(p)}}"
            th:text="${p.description}">진단 리눅스</a>
     </div>
 
@@ -84,11 +92,7 @@
         </div>
 
         <div class="n-accordion"
-             th:with="pendingHref=${phaseFilter == null}
-                        ? (${pendingOpen} ? @{/provisioning/server}
-                                          : @{/provisioning/server(pending='open')})
-                        : (${pendingOpen} ? @{/provisioning/server(phase=${phaseFilter.name()})}
-                                          : @{/provisioning/server(phase=${phaseFilter.name()}, pending='open')})">
+             th:with="pendingHref=@{${pendingToggleUrl}}">
 
             <div th:if="${!list.pending.registeredOnly.isEmpty()}"
                  class="n-accordion-item" th:classappend="${pendingOpen} ? ' is-open'">
@@ -179,6 +183,7 @@
 
 <!-- S7 — SSE 구독 + 신호-재조회 부분 교체 -->
 <script th:src="@{/provisioning/server-stream.js}"></script>
+<script th:src="@{/global/include-deleted-toggle.js}"></script>
 
 </body>
 </html>

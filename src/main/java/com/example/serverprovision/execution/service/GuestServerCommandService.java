@@ -11,11 +11,13 @@ import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.exception.DisruptiveActionRejectedException;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
+import com.example.serverprovision.execution.exception.GuestServerNotDecommissionedException;
 import com.example.serverprovision.execution.exception.ProvisioningMarkFailedRejectedException;
 import com.example.serverprovision.execution.exception.ProvisioningRetryRejectedException;
 import com.example.serverprovision.execution.exception.ProvisioningStartRejectedException;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
+import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -78,6 +80,27 @@ public class GuestServerCommandService {
                 .ifPresent(p -> { throw new DisruptiveActionRejectedException(id); });
         server.decommission(LocalDateTime.now());
         publishChanged(id);
+    }
+
+    /**
+     * 회수 서버 영구 삭제(U6 D-5) — 자식 행 정리는 DB 의 ON DELETE CASCADE(6개 FK 실측) 소관이다.
+     * 가드 SSOT: 노출 판정과 같은 {@code GuestServer.purgeBlockReason}(비회수 = 409) +
+     * {@code systemUUIDSuffix} 대조(불일치 = 400, {@code TypedNameMismatchException} 재사용 —
+     * "확인 입력이 기대값과 불일치" 계약이 같다). 정상 흐름은 UI 가 막으므로 direct POST 안전망.
+     */
+    @Transactional
+    public void purge(UUID id, String typedSuffix) {
+        GuestServer server = guestServerRepository.findById(id)
+                .orElseThrow(() -> new GuestServerNotFoundException(id));
+        if (server.purgeBlockReason() != null) {
+            throw new GuestServerNotDecommissionedException(id);
+        }
+        String expected = server.systemUUIDSuffix();
+        if (typedSuffix == null || !expected.equalsIgnoreCase(typedSuffix.trim())) {
+            throw new TypedNameMismatchException(expected, typedSuffix);
+        }
+        guestServerRepository.delete(server);
+        publishChanged(id);   // SSE 는 fetch 재적재 방식이라 삭제 통지로도 유효하다
     }
 
     /**

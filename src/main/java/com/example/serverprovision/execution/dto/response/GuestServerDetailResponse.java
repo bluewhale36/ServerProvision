@@ -30,6 +30,10 @@ public record GuestServerDetailResponse(
         String modelName,
         String serialNumber,
         UUID systemUuid,
+        /** 영구 삭제 확인 입력의 기대값(U6 D-5) — SSOT 는 {@code GuestServer.systemUUIDSuffix}. */
+        String systemUuidSuffix,
+        /** 전원 조작 차단 사유(U6) — null 이면 가능. SSOT 는 {@code GuestServer.powerControlBlockReason}. */
+        String powerBlockReason,
         String memo,
         GuestServerStatus status,
         LocalDateTime decommissionedAt,

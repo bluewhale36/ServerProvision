@@ -31,4 +31,12 @@ public interface GuestServerDetailRepository extends JpaRepository<GuestServerDe
      * 나머지 인벤토리는 정상 적재한다 — T1 하네스 실측 결함(2026-07-19) 대응.
      */
     boolean existsByBoardSerialAndGuestServer_IdNot(String boardSerial, UUID serverId);
+
+    /**
+     * 위 검사의 활성 한정(U6 D-2) — 회수 행이 쥔 시리얼은 중복으로 치지 않는다. 재시도 게스트는
+     * 물리적으로 같은 장비라 같은 시리얼을 다시 보고하며, 그 적재가 막히면 E2-2 신원 확인과
+     * E1.6 공장 기본 자격이 함께 무력화된다. DB UNIQUE 는 U6 DDL 이 내렸다.
+     */
+    boolean existsByBoardSerialAndGuestServer_IdNotAndGuestServer_DecommissionedAtIsNull(
+            String boardSerial, UUID serverId);
 }

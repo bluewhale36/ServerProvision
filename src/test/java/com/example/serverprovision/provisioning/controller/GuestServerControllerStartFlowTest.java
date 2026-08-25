@@ -85,7 +85,7 @@ class GuestServerControllerStartFlowTest {
             UUID id, GuestServerStatus status, LocalDateTime decommissionedAt,
             LocalDateTime startedAt, boolean startable) {
         return new GuestServerDetailResponse(
-                id, "web-01", null, null, UUID.randomUUID(), null,
+                id, "web-01", null, null, UUID.randomUUID(), "464331aabbcc", null, null,
                 status, decommissionedAt, T, T,
                 null, null, List.of(),
                 new GuestServerDetailResponse.Progress(

@@ -294,4 +294,86 @@ class GuestServerCommandServiceTest {
                 .isInstanceOf(ProvisioningRetryRejectedException.class);
         verify(eventPublisher, never()).publishEvent(any());
     }
+
+    // ==== U6 — 회수 서버 영구 삭제(purge) =====================================
+
+    private GuestServer decommissioned(UUID id, UUID systemUUID) {
+        GuestServer g = GuestServer.builder().id(id).systemUUID(systemUUID).build();
+        g.decommission(LocalDateTime.now());
+        return g;
+    }
+
+    @Test
+    @DisplayName("purge — 회수 + suffix 일치(대소문자 관대)면 삭제하고 변경 신호를 발행한다")
+    void purge_decommissionedAndMatched_deletes() {
+        UUID id = UUID.randomUUID();
+        UUID systemUUID = UUID.fromString("4c4c4544-0037-5a10-8054-b7c04f464331");
+        GuestServer g = decommissioned(id, systemUUID);
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(g));
+
+        service.purge(id, " B7C04F464331 ");   // 대문자 + 여백 — 관대 대조
+
+        verify(guestServerRepository).delete(g);
+        verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
+    }
+
+    @Test
+    @DisplayName("purge — 회수되지 않은 서버는 409 (UI 가 섹션을 안 내므로 direct POST 안전망)")
+    void purge_notDecommissioned_conflict() {
+        UUID id = UUID.randomUUID();
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(server(id)));
+
+        assertThatThrownBy(() -> service.purge(id, "whatever"))
+                .isInstanceOf(com.example.serverprovision.execution.exception.GuestServerNotDecommissionedException.class);
+        verify(guestServerRepository, never()).delete(any(GuestServer.class));
+    }
+
+    @Test
+    @DisplayName("purge — suffix 불일치는 400 (TypedNameMismatchException 재사용 — 확인 입력 계약)")
+    void purge_suffixMismatch_badRequest() {
+        UUID id = UUID.randomUUID();
+        UUID systemUUID = UUID.fromString("4c4c4544-0037-5a10-8054-b7c04f464331");
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(decommissioned(id, systemUUID)));
+
+        assertThatThrownBy(() -> service.purge(id, "wrong-suffix"))
+                .isInstanceOf(com.example.serverprovision.global.exception.TypedNameMismatchException.class);
+        verify(guestServerRepository, never()).delete(any(GuestServer.class));
+    }
+
+    @Test
+    @DisplayName("purge — 없는 서버는 404")
+    void purge_missing_notFound() {
+        UUID id = UUID.randomUUID();
+        given(guestServerRepository.findById(id)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.purge(id, "x"))
+                .isInstanceOf(GuestServerNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("도메인 SSOT — purgeBlockReason(비회수만 사유) · systemUUIDSuffix(마지막 '-' 다음 값)")
+    void purgeDomainMethods() {
+        UUID systemUUID = UUID.fromString("4c4c4544-0037-5a10-8054-b7c04f464331");
+        GuestServer active = GuestServer.builder().id(UUID.randomUUID()).systemUUID(systemUUID).build();
+
+        assertThat(active.purgeBlockReason()).isNotNull();
+        assertThat(active.systemUUIDSuffix()).isEqualTo("b7c04f464331");
+
+        active.decommission(LocalDateTime.now());
+        assertThat(active.purgeBlockReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("도메인 SSOT — powerControlBlockReason: 회수 > 굽는 중 > 가능(null)")
+    void powerControlBlockReason() {
+        GuestServer g = GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID()).build();
+        ProvisioningProgress quiet = org.mockito.Mockito.mock(ProvisioningProgress.class);
+        ProvisioningProgress flashing = org.mockito.Mockito.mock(ProvisioningProgress.class);
+        given(flashing.isDisruptionBlocked()).willReturn(true);
+
+        assertThat(g.powerControlBlockReason(quiet)).isNull();
+        assertThat(g.powerControlBlockReason(flashing)).contains("굽는 중");
+        g.decommission(LocalDateTime.now());
+        assertThat(g.powerControlBlockReason(flashing)).contains("회수된 서버");   // 회수가 우선
+    }
 }
