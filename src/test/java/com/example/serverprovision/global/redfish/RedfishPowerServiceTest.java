@@ -38,7 +38,7 @@ class RedfishPowerServiceTest {
     @BeforeEach
     void setUp() {
         var resolver = new BmcCredentialsResolver("admin", "standard-pw");
-        service = new RedfishPowerService(client, resolver, new BmcCredentialsFallback(resolver), 0, 50);
+        service = new RedfishPowerService(client, resolver, new BmcCredentialsFallback(resolver, new BmcCredentialsMemory()), 0, 50);
     }
 
     private static tools.jackson.databind.JsonNode system(String powerState) {
@@ -53,7 +53,7 @@ class RedfishPowerServiceTest {
         verify(client, never()).getJson(anyString(), any(), anyString());
 
         var bareResolver = new BmcCredentialsResolver("admin", "");
-        RedfishPowerService bare = new RedfishPowerService(client, bareResolver, new BmcCredentialsFallback(bareResolver), 0, 50);
+        RedfishPowerService bare = new RedfishPowerService(client, bareResolver, new BmcCredentialsFallback(bareResolver, new BmcCredentialsMemory()), 0, 50);
         PowerControlResult result = bare.powerState(new RedfishTarget("192.168.10.21", null));
         assertThat(result.kind()).isEqualTo(PowerControlResult.Kind.FAILED);
         assertThat(result.message()).contains("자격증명");

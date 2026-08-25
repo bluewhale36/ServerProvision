@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * BMC 자격증명 후보 산출 (E1.5 D2, 사용자 확정 P1 · OQ2) — username 은 무조건 {@code admin}(기본값),
@@ -30,12 +31,24 @@ public class BmcCredentialsResolver {
     /** 시도 순서대로의 후보 — 표준 계정(설정돼 있을 때) → 공장 기본(시리얼이 있을 때). */
     public List<BmcCredentials> candidates(String boardSerial) {
         List<BmcCredentials> candidates = new ArrayList<>(2);
-        if (standardPassword != null && !standardPassword.isBlank()) {
-            candidates.add(new BmcCredentials(username, standardPassword, "표준 계정"));
-        }
-        if (boardSerial != null && !boardSerial.isBlank()) {
-            candidates.add(new BmcCredentials(username, boardSerial, "공장 기본(보드 시리얼)"));
-        }
+        standardCandidate().ifPresent(candidates::add);
+        factoryCandidate(boardSerial).ifPresent(candidates::add);
         return candidates;
+    }
+
+    /** 표준 계정 한 벌 — 계정 표준화 사다리(E1.6 D-2)가 "어느 자격으로 열렸는가" 를 정체로 판정하는 재료. */
+    public Optional<BmcCredentials> standardCandidate() {
+        if (standardPassword == null || standardPassword.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(new BmcCredentials(username, standardPassword, "표준 계정"));
+    }
+
+    /** 공장 기본 한 벌 — 비밀번호 = 그 보드의 시리얼이라, 인증 성공 자체가 신원의 1차 증명이 된다(D-5). */
+    public Optional<BmcCredentials> factoryCandidate(String boardSerial) {
+        if (boardSerial == null || boardSerial.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(new BmcCredentials(username, boardSerial, "공장 기본(보드 시리얼)"));
     }
 }

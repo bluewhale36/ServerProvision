@@ -14,8 +14,14 @@ E2-2 가 더한 모드 — 집행 경로의 실측 시나리오:
   bmc-rebooting  : 모든 조회가 연결 거부처럼 실패 (BMC 자기 재기동 5~10분 구간)
   wrong-device   : Chassis 가 다른 보드 시리얼을 답한다 (주소가 남의 장비로 바뀐 경우)
 
+E1.6 이 더한 것 — 계정 표준화 경로의 실측 재현:
+  AccountService 트리(Accounts 컬렉션 · 계정별 GET + ETag · If-Match PATCH 204/412).
+  유효 비밀번호가 정적이 아니라 상태다 — PATCH 가 실제로 admin 비밀번호를 갈아끼운다.
+  신품 = /__passwords {"valid": ["<보드시리얼>"]} · 제3 비밀번호 = {"valid": ["someone-else"]}.
+
 모드 전환(무인증, 하네스 전용): POST /__mode {"mode": "..."} · 상태 초기화: POST /__reset-state
 버전 조작(무인증): POST /__inventory {"BIOS": "F29", "BMC": "13.06.27"}
+비밀번호 조작(무인증): POST /__passwords {"valid": ["QG260700082"]}
 기동:  python3 mock-redfish.py <port>   (기본 8443 — 443 은 비특권 바인딩 불가 환경 대비)
 인증서: 같은 디렉토리에 cert.pem/key.pem 없으면 자동 생성(openssl 필요).
 """
@@ -41,8 +47,10 @@ STATE = {
     'pulled': [],                                      # 실제로 당겨 간 ImageURI (토큰 URL 동작 확인용)
     'pullErrors': [],
     'taskSeq': 1,
+    'passwords': ['standard-pw', 'QG260700082'],   # 지금 유효한 admin 비밀번호 — PATCH 가 갈아끼운다
+    'accountEtag': 1000,                           # fresh ETag 강제(E0-4-1) — PATCH 마다 증가
+    'accountPatches': [],                          # If-Match · Password 요청 원문 (검증용)
 }
-USERS = {'standard-pw', 'QG260700082'}  # auth-fallback 모드에서는 standard-pw 거절
 
 def ensure_cert():
     if os.path.exists(CERT) and os.path.exists(KEY):
@@ -76,7 +84,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return False
         if STATE['mode'] == 'auth-fallback' and pw == 'standard-pw':
             return False  # 표준 계정 거절 → 클라이언트가 공장 기본(시리얼)으로 폴백해야 한다
-        return pw in USERS
+        return pw in STATE['passwords']
 
     def do_GET(self):
         if self.path == '/__state':
@@ -91,6 +99,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if self.path == '/redfish/v1/Systems/Self':
             self._json(200, {'PowerState': STATE['power']})
+        elif self.path == '/redfish/v1/AccountService/Accounts':
+            self._json(200, {'Members': [
+                {'@odata.id': '/redfish/v1/AccountService/Accounts/1'},
+                {'@odata.id': '/redfish/v1/AccountService/Accounts/2'},
+            ]})
+        elif self.path == '/redfish/v1/AccountService/Accounts/1':
+            # admin 이 아닌 선행 계정 — 클라이언트가 id 하드코딩 없이 UserName 매칭으로 찾는지 검증한다.
+            self._json(200, {'Id': '1', 'UserName': 'anonymous', 'Enabled': False},
+                       headers={'ETag': 'W/"%d"' % STATE['accountEtag']})
+        elif self.path == '/redfish/v1/AccountService/Accounts/2':
+            self._json(200, {'Id': '2', 'UserName': 'admin', 'Enabled': True},
+                       headers={'ETag': 'W/"%d"' % STATE['accountEtag']})
         elif self.path.startswith('/redfish/v1/TaskService/Tasks/'):
             self._json(200, {'TaskState': self._task_state(), '@odata.id': self.path})
         elif self.path == '/redfish/v1/Chassis/Self':
@@ -132,6 +152,32 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return 'Exception'
         return 'Completed'
 
+    def do_PATCH(self):
+        length = int(self.headers.get('Content-Length') or 0)
+        body = json.loads(self.rfile.read(length) or b'{}')
+        if STATE['mode'] == 'bmc-rebooting':
+            self.close_connection = True
+            return
+        if not self._authed():
+            self._json(401, {'error': 'unauthorized'})
+            return
+        if self.path == '/redfish/v1/AccountService/Accounts/2':
+            # 실측 계약(E0-4-1): fresh ETag 의 If-Match 필수 — 없거나 낡았으면 412.
+            expected = 'W/"%d"' % STATE['accountEtag']
+            if self.headers.get('If-Match') != expected:
+                self._json(412, {'error': 'precondition failed'})
+                return
+            STATE['accountPatches'].append({'ifMatch': self.headers.get('If-Match'), 'body': body})
+            new_password = body.get('Password')
+            if new_password:
+                STATE['passwords'] = [new_password]   # 교체 — 이전 비밀번호(공장 기본 포함)는 그 자리에서 죽는다
+            STATE['accountEtag'] += 1
+            self.send_response(204)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
+        self._json(404, {'error': self.path})
+
     def do_POST(self):
         length = int(self.headers.get('Content-Length') or 0)
         body = json.loads(self.rfile.read(length) or b'{}')
@@ -142,11 +188,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path == '/__reset-state':
             STATE.update({'power': 'Off', 'mode': 'normal', 'requests': [],
                           'inventory': {'BIOS': 'F27', 'BMC': '13.06.26'}, 'flash': [],
-                          'pulled': [], 'pullErrors': [], 'taskSeq': 1})
+                          'pulled': [], 'pullErrors': [], 'taskSeq': 1,
+                          'passwords': ['standard-pw', 'QG260700082'], 'accountEtag': 1000,
+                          'accountPatches': []})
             self._json(200, STATE)
             return
         if self.path == '/__inventory':
             STATE['inventory'].update(body)
+            self._json(200, STATE)
+            return
+        if self.path == '/__passwords':
+            STATE['passwords'] = list(body.get('valid', []))
             self._json(200, STATE)
             return
         if STATE['mode'] == 'bmc-rebooting':

@@ -30,4 +30,24 @@ class BmcCredentialsResolverTest {
         assertThat(resolver.candidates(null)).isEmpty();
         assertThat(resolver.candidates("  ")).isEmpty();
     }
+
+    @Test
+    @DisplayName("종류별 접근자 — 사다리(E1.6 D-2)가 순서 아닌 정체로 판정하는 재료")
+    void typedCandidates() {
+        BmcCredentialsResolver resolver = new BmcCredentialsResolver("admin", "standard-pw");
+
+        org.assertj.core.api.Assertions.assertThat(resolver.standardCandidate())
+                .hasValueSatisfying(c -> org.assertj.core.api.Assertions.assertThat(c.source()).isEqualTo("표준 계정"));
+        org.assertj.core.api.Assertions.assertThat(resolver.factoryCandidate("SERIAL123"))
+                .hasValueSatisfying(c -> org.assertj.core.api.Assertions.assertThat(c.password()).isEqualTo("SERIAL123"));
+        org.assertj.core.api.Assertions.assertThat(resolver.factoryCandidate(null)).isEmpty();
+        org.assertj.core.api.Assertions.assertThat(new BmcCredentialsResolver("admin", "").standardCandidate()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("toString — 비밀번호는 마스킹된다 (로그 · 디버그 어디에도 평문 0)")
+    void toStringMasksPassword() {
+        org.assertj.core.api.Assertions.assertThat(new BmcCredentials("admin", "secret-pw", "표준 계정").toString())
+                .doesNotContain("secret-pw").contains("password=*");
+    }
 }
