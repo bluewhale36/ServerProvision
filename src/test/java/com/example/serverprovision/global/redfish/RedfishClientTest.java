@@ -99,4 +99,48 @@ class RedfishClientTest {
                         e -> assertThat(e.getError()).isEqualTo(RedfishError.PROTOCOL));
         server.verify();
     }
+
+    @Test
+    @DisplayName("getForResource — 본문과 ETag 헤더를 한 벌로 돌려준다 (PATCH 의 If-Match 재료)")
+    void getForResource_capturesEtag() {
+        org.springframework.http.HttpHeaders withEtag = new org.springframework.http.HttpHeaders();
+        withEtag.setETag("W/\"1000\"");
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/AccountService/Accounts/2"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"UserName\":\"admin\"}", MediaType.APPLICATION_JSON).headers(withEtag));
+
+        RedfishResource resource = client.getForResource("10.0.0.9", CREDS, "/redfish/v1/AccountService/Accounts/2");
+
+        assertThat(resource.body().path("UserName").asString()).isEqualTo("admin");
+        assertThat(resource.etag()).isEqualTo("W/\"1000\"");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("patchJson — If-Match 헤더 · JSON 바디로 PATCH, 204 를 소화한다")
+    void patchJson_sendsIfMatch() {
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/AccountService/Accounts/2"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andExpect(header(HttpHeaders.IF_MATCH, "W/\"1000\""))
+                .andExpect(header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE))
+                .andRespond(withStatus(HttpStatus.NO_CONTENT));
+
+        client.patchJson("10.0.0.9", CREDS, "/redfish/v1/AccountService/Accounts/2", "W/\"1000\"",
+                Map.of("Password", "new-standard"));
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("patchJson — 412 는 PRECONDITION_FAILED 로 분류된다 (낡은 ETag · 동시 경합)")
+    void patchJson_staleEtag_classified() {
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/AccountService/Accounts/2"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andRespond(withStatus(HttpStatus.PRECONDITION_FAILED));
+
+        assertThatThrownBy(() -> client.patchJson("10.0.0.9", CREDS,
+                "/redfish/v1/AccountService/Accounts/2", "W/\"999\"", Map.of("Password", "x")))
+                .isInstanceOf(RedfishRequestException.class)
+                .extracting(e -> ((RedfishRequestException) e).getError())
+                .isEqualTo(RedfishError.PRECONDITION_FAILED);
+    }
 }

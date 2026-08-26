@@ -49,6 +49,43 @@ public class RedfishClient {
         }
     }
 
+    /** GET → 본문 + ETag 헤더 — 후속 PATCH 의 If-Match 재료(fresh 필수 · 재사용 시 412, E0-4-1 실측). */
+    public RedfishResource getForResource(String bmcIp, BmcCredentials credentials, String path) {
+        try {
+            ResponseEntity<String> response = restClient.get()
+                    .uri(url(bmcIp, path))
+                    .headers(headers -> headers.setBasicAuth(credentials.username(), credentials.password()))
+                    .retrieve()
+                    .toEntity(String.class);
+            String body = response.getBody();
+            return new RedfishResource(
+                    objectMapper.readTree(body == null ? "{}" : body),
+                    response.getHeaders().getETag());
+        } catch (Exception e) {
+            throw classify(e, "GET " + path);
+        }
+    }
+
+    /** PATCH(JSON) + If-Match — 계정 비밀번호 변경 등 쓰기 계약(E0-4-1: fresh ETag → 204). */
+    public void patchJson(String bmcIp, BmcCredentials credentials, String path, String etag, Map<String, ?> body) {
+        try {
+            restClient.patch()
+                    .uri(url(bmcIp, path))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> {
+                        headers.setBasicAuth(credentials.username(), credentials.password());
+                        if (etag != null) {
+                            headers.setIfMatch(etag);
+                        }
+                    })
+                    .body(objectMapper.writeValueAsString(body))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            throw classify(e, "PATCH " + path);
+        }
+    }
+
     /**
      * POST(JSON) → Task 경로. 실측(E0-4)의 SimpleUpdate · Reset 은 202 와 함께 Task 리소스를 준다 —
      * {@code Location} 헤더 또는 본문 {@code @odata.id} 에서 읽고, 어느 쪽에도 없으면 empty(2xx 면 전달 자체는 성공).

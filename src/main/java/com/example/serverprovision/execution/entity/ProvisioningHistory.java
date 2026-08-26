@@ -118,6 +118,19 @@ public class ProvisioningHistory extends BaseTimeEntity {
         return close(result, preserved, at);
     }
 
+    /**
+     * 열린(RUNNING) 행의 statusMeta 를 갱신한다(E3-1 D-5) — 설정 적용은 열림 뒤에 아는 사실(재부팅 시각 ·
+     * pending 관찰)을 같은 행에 덧써야 다음 주기가 원장에서 상태를 복원한다. 닫힌 행은 사건 기록이라 손대지 않는다.
+     * 조립 · 판독은 호출자(SettingLedger)가 JSON 으로 한다 — 목표가 맵이라 문자열 조립이 맞지 않는다.
+     */
+    public boolean updateRunningMeta(String statusMeta) {
+        if (this.status != ProvisioningStatus.RUNNING) {
+            return false;
+        }
+        this.statusMeta = statusMeta;
+        return true;
+    }
+
     /** 이 행이 굽기 시작 기록이면 그 Task 경로 — 없으면 null(워커가 상태를 복원할 때 읽는다). */
     public String flashTaskPath() {
         return extractMeta("task");

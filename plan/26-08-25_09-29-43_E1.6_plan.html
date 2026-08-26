@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E1.6 Plan — BMC 계정 표준화</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .muted { color:var(--text-muted); }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:0; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : 3-actor 시간 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── .pkg-tree : 패키지 배치 도식 ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E1.6 — BMC 계정 표준화 <span class="v2-badge">E 단계</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E1.6 (feature)</span>
+    <span><strong>브랜치</strong> <code>feat/E1.6_bmc-account-standardization</code> (origin/dev 59cabd0 기점)</span>
+    <span><strong>scope</strong> 진단이 BMC IP 를 수집한 직후 공장 기본 자격으로 접속해 비밀번호를 사내 표준으로 바꾸고, 성공한 자격을 기억해 401 폴백 노이즈를 없앤다</span>
+    <span><strong>생성</strong> 2026-08-25 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 배경 · 문제</a></li>
+      <li><a href="#s2">§2 실측 근거</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 설계 결정 (D-1 ~ D-8)</a></li>
+      <li><a href="#s4">§4 스코프 제외</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트 계획 (Step 8)</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 위험 · 미해결</a></li>
+      <li><a href="#s9">§9 CP5 검증 계획 + Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 배경 · 문제 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경 · 문제 — 30초마다 한 줄씩 쌓이는 401</summary>
+      <div class="body">
+        <h4>쉬운 말 요약</h4>
+        <p style="margin-top:0;">새 서버를 랙에 꽂고 전원을 켜면 진단 리눅스가 올라와 하드웨어 정보를 보고하고, 그 보고 안에 서버 관리용 통신 장치(BMC)의 주소가 들어 있다.
+        지금은 그 주소를 받아 적어 두기만 하고, 이후 원격 제어는 비밀번호를 두 개 차례로 넣어 보는 방식으로 이뤄진다 — 사내 표준 비밀번호를 먼저 넣고, 거부당하면 공장에서 나온 그대로의 비밀번호(그 보드의 시리얼 번호)를 넣는다.
+        신품 장비는 앞의 것에서 항상 거부당하므로, 30초마다 도는 펌웨어 집행 워커가 30초마다 "거부당했다" 는 로그를 한 줄씩 쌓는다.
+        이번 슬라이스는 진단이 BMC 주소를 알아낸 바로 그 순간에 앱이 스스로 접속해 비밀번호를 사내 표준으로 바꾸고, 한 번 성공한 비밀번호를 기억해 다음부터는 그것을 먼저 넣게 한다.
+        운영자가 눌러야 하는 버튼은 없고, 화면도 새로 만들지 않는다 — 서버 상세의 세부 단계 이력에 줄 하나가 늘어날 뿐이다.
+        표준화가 실패해도 프로비저닝은 그대로 진행된다.</p>
+
+        <h4>유래 — R13 실기 캠페인에서 관측된 사실</h4>
+        <p>이 슬라이스는 R13 실기 캠페인(2026-08-24 ~ 25, MS74-HB0 신품 보드)에서 관측된 사실에서 출발한다.
+        신품 BMC 는 공장 기본 자격증명(계정 <code>admin</code>, 비밀번호 = 보드 시리얼 11자)만 유효하다.
+        그런데 앱의 모든 Redfish 호출은 후보를 "사내 표준 계정 → 공장 기본" 순서로 시도하므로(<code>BmcCredentialsResolver</code>), 신품 장비에서는 매 호출이 표준 계정 401 을 먼저 맞고 폴백으로 넘어간다.
+        펌웨어 집행 워커가 30초마다 폴링하므로 30초마다 로그 한 줄("표준 계정 자격증명 거부(401)")이 쌓이고 Redfish 왕복도 두 배가 된다.</p>
+
+        <div class="callout warn"><b>핵심 진단</b> — 노이즈는 로그 가독성만의 문제가 아니다. 폴링 주기마다 쓸모없는 401 왕복이 한 번씩 더 발생하고, 그 401 이 계정 lockout 정책과 만나면 실제 위험이 된다(§8).</div>
+
+        <h4>사용자 결정과 두 축</h4>
+        <p>사용자 결정(2026-08-25): <b>BMC IP 확인 후 자격증명을 변경할 것.</b> 이 슬라이스는 그 결정의 설계 · 구현이며 축은 둘이다.</p>
+        <ol>
+          <li><b>계정 표준화(본 기능)</b> — 진단이 BMC IP 를 수집한 뒤 Redfish AccountService 로 비밀번호를 사내 표준으로 교체한다.</li>
+          <li><b>성공 자격 캐시(단기 처방 겸 보완)</b> — 성공한 자격증명을 기억해 다음 호출부터 그것을 먼저 시도한다. 표준화 이전 장비와 혼재된 환경에서도 노이즈가 사라진다.</li>
+        </ol>
+      </div>
+    </details>
+
+    <!-- ===== §2 실측 근거 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 실측 근거 — 설계가 기대는 사실</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래는 E0-4 실측(원장 = Notion E0-4 계열, 2026-08-18 ~ 08-20)에서 이미 확보된 계약이다. 이 슬라이스는 새 프로토콜을 발명하지 않고 실측된 왕복을 그대로 코드로 옮긴다.</p>
+
+        <h4>계정 변경 왕복 (E0-4-1 "번외 : 자격증명 변경", 204 실증)</h4>
+        <table>
+          <thead><tr><th>순서</th><th>요청</th><th>응답 · 채집</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td><code>GET /redfish/v1/AccountService/Accounts</code></td><td>200 — 계정 목록</td></tr>
+            <tr><td>②</td><td><code>GET /redfish/v1/AccountService/Accounts/{ID}</code></td><td>200 — 응답 헤더에서 ETag 채집</td></tr>
+            <tr><td>③</td><td><code>PATCH /redfish/v1/AccountService/Accounts/{ID}</code><br><span class="muted">헤더 <code>If-Match: &lt;fresh ETag&gt;</code> · 바디 <code>{"Password": "변경할_비밀번호"}</code></span></td><td>204</td></tr>
+          </tbody>
+        </table>
+
+        <ul>
+          <li><b>ETag 는 fresh 여야 한다</b> — 재사용하면 412 다(MAAS 선례 + 실측). <code>RedfishClient.classify</code> 에 412 = <code>PRECONDITION_FAILED</code> 분류가 이미 있다.</li>
+          <li><b>공장 기본 자격</b> = <code>admin</code> + 보드 시리얼 11자(실측 · 예외 없음 — 신품이 여기 걸린다).</li>
+          <li><b>계정 정책</b>(E0-4-5) — Min/MaxPasswordLength 6/20, lockout 정책 존재, <code>POST Accounts</code>(계정 신설) 표면 실재.</li>
+        </ul>
+
+        <div class="callout warn"><b>미실측 1건 (C5)</b> — 신품 첫 접속 시 <code>PasswordChangeRequired</code> 강제 여부는 확인하지 못했다. 실측 장비가 이미 사내 비밀번호로 전환된 상태여서 그 경로를 밟을 수 없었다. D-6 관용 설계의 이유가 이것이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침 : §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 표준화 사다리 라이브 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 시뮬레이터의 판정 로직은 <b>§3 D-2 의 사다리 진리표와 같은 바디</b>다(드리프트 0). BMC 의 상태와 앱 설정을 바꾸면 "지금 이벤트가 오면 어떤 왕복이 일어나고 원장에 무엇이 남는지" 가 즉시 다시 계산되고, 버튼을 누르면 그 판정이 실제로 커밋되어 원장 · 캐시 · 로그가 쌓인다.</p>
+        <p>이 슬라이스에는 <b>사용자가 누르는 버튼이 없다</b> — 표준화는 진단 커밋 직후 서버가 스스로 1회 시도한다. 그래서 데모의 버튼은 UI 액션이 아니라 <b>서버가 스스로 하는 일</b>(이벤트 1회 · 워커 폴링 1주기 · 앱 재기동)을 손으로 돌려보는 장치다. 처음 보는 사람은 <b>원클릭 시나리오</b> 여섯 개를 순서대로 눌러 보면 된다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">원클릭 시나리오 :</span>
+            <button class="seg" data-preset="1" onclick="demoPreset(1)">① 신품 입고</button>
+            <button class="seg" data-preset="2" onclick="demoPreset(2)">② 이미 표준</button>
+            <button class="seg" data-preset="3" onclick="demoPreset(3)">③ 전임자가 바꾼 비밀번호</button>
+            <button class="seg" data-preset="4" onclick="demoPreset(4)">④ BMC 가 잠깐 죽어 있음</button>
+            <button class="seg" data-preset="5" onclick="demoPreset(5)">⑤ 표준 비밀번호 미설정</button>
+            <button class="seg" data-preset="6" onclick="demoPreset(6)">⑥ 재기동 직후 혼재 환경</button>
+          </div>
+          <div class="ux-message" id="demo-banner"></div>
+
+          <div class="ux-toolbar" style="margin-top:14px;">
+            <span class="group-label">BMC 상태 :</span>
+            <button class="seg" data-bmc="NEW" onclick="demoSetBmc('NEW')">신품</button>
+            <button class="seg" data-bmc="STANDARD" onclick="demoSetBmc('STANDARD')">이미 표준화됨</button>
+            <button class="seg" data-bmc="THIRD" onclick="demoSetBmc('THIRD')">제3 비밀번호</button>
+            <button class="seg" data-bmc="DOWN" onclick="demoSetBmc('DOWN')">전원 · 망 불통</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">앱 설정 :</span>
+            <button class="seg" data-std="on" onclick="demoSetStd(true)">표준 비밀번호 설정됨</button>
+            <button class="seg" data-std="off" onclick="demoSetStd(false)">비어 있음</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">서버가 하는 일 :</span>
+            <span class="tip" data-tip="진단 수집이 커밋되면 BmcEndpointDiscoveredEvent 가 발행되고 리스너가 사다리를 1회 시도합니다."><button class="n-demo-btn" onclick="demoRun()">진단 수집 완료 → 이벤트 1회</button></span>
+            <span class="tip" data-tip="펌웨어 집행 워커의 30초 주기 1회. 이 주기에 401 폴백 로그가 몇 줄 나는지가 이 슬라이스의 측정 대상입니다."><button class="n-demo-btn" onclick="demoPollOnce()">워커 폴링 1주기</button></span>
+            <span class="tip" data-tip="BmcCredentialsMemory 는 인메모리라 앱을 다시 띄우면 비워집니다(D-3 비채택 1)."><button class="n-demo-btn" onclick="demoReboot()">앱 재기동</button></span>
+            <span class="tip" data-tip="모든 상태 · 원장 · 캐시 · 로그를 처음으로 되돌립니다."><button class="n-demo-btn" onclick="demoReset()">초기화</button></span>
+          </div>
+
+          <div style="margin-top:14px;">
+            <div class="ux-row" id="demo-guest">
+              <strong>게스트</strong><span class="label">진단 완료 · BMC IP 수집됨 · 보드 시리얼 확보</span>
+              <span class="badge on" id="demo-bmc-badge"></span>
+            </div>
+          </div>
+
+          <h4 id="demo-ladder-label"></h4>
+          <div id="demo-ladder"></div>
+
+          <h4>원장 — <code>provisioning_history</code> (instant)</h4>
+          <div id="demo-ledger"></div>
+
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-caps" id="demo-log"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 사다리 판정 = 서버의 사다리 판정 = §3 D-2 진리표 한 벌. 데모에서 원장에 아무것도 남지 않는 행(0 · 1 · 4행)은 서버에서도 남지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 설계 결정 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 설계 결정 (D-1 ~ D-8)</summary>
+      <div class="body">
+
+        <h4>D-1. 트리거 = 진단 수집 커밋 직후 자동 (전용 이벤트 · AFTER_COMMIT · 비동기)</h4>
+        <p><b>채택</b> — <code>DiagnoseLinuxExecutor.onStepClosed</code> 가 BMC IP 를 적재(<code>GuestServerDetail.enrich</code>)하고 트랜잭션이 커밋되면, 전용 이벤트 <code>BmcEndpointDiscoveredEvent</code> 를 <code>@TransactionalEventListener(AFTER_COMMIT)</code> + <code>@Async</code> 리스너가 받아 표준화를 1회 시도한다. bmcIp 가 보고에 없으면 발행하지 않는다.</p>
+
+        <div class="seq">
+          <div class="actor a1">진단 close 트랜잭션<br>DiagnoseLinuxExecutor</div>
+          <div class="actor a2">리스너(별도 스레드)<br>…StandardizationLauncher</div>
+          <div class="actor a3">사다리 ↔ BMC<br>…StandardizationService</div>
+
+          <div class="step a1"><code>detail.enrich(… bmcIp …)</code></div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"><code>INFORMATION_PERSISTING</code> 기록 · 커서 전진</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1">커밋 → <code>BmcEndpointDiscoveredEvent</code> 발행<br><span class="muted">(bmcIp 없으면 발행 안 함)</span></div>
+          <div class="step a2"><code>AFTER_COMMIT</code> 수신</div>
+          <div class="step a3"></div>
+
+          <div class="step a1">게스트 응답 반환 — 기다리지 않는다</div>
+          <div class="step a2"><code>@Async</code> 로 위임</div>
+          <div class="step a3">사다리 1회 시도</div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3">표준 401 → 공장 기본 200 → 신원 대조 → ETag → PATCH → 반영 확인</div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3"><code>IPMI_SETTING</code> 원장 기록 · 캐시 갱신</div>
+        </div>
+
+        <p>근거를 셋으로 푼다.</p>
+        <ol>
+          <li>R13 이후 진단은 등록 즉시 무인으로 돈다. 계정 표준화가 운영자 액션이면 "등록만 하면 준비 끝" 이라는 자동화 결이 여기서 끊긴다.</li>
+          <li><b>신원 위험의 역전</b> — 되돌리기 어려운 조작을 무인으로 하는 것이 걱정되지만, 실제 위험(주소 드리프트로 남의 BMC 를 만지는 사고)은 시간이 지날수록 커진다. 수집 직후는 BMC IP 와 보드 시리얼이 같은 진단 보고서에서 방금 나온 순간이라 드리프트 확률이 최소다. 운영자 버튼은 며칠 뒤 눌릴 수 있고 그 사이 DHCP 재배정이 일어날 수 있다 — 자동이 오히려 안전한 쪽이다.</li>
+          <li>실패의 하방이 얕다 — 표준화가 안 되어도 폴백 체계가 기능을 지탱한다(fail-soft). 무인 시도가 실패해서 잃는 것은 로그 한 줄뿐이다.</li>
+        </ol>
+
+        <p><b>비채택 1 — 운영자 액션(서버 상세 버튼)</b> : 신품 N 대 도입 시 N 회 클릭 노동이 들고, "아직 안 한 게스트" 를 화면이 알려줘야 하므로 상태 추적(컬럼 또는 집계)이 따라온다. 위 2의 드리프트 위험도 더 크다.<br>
+        <b>비채택 2 — 워커 sweep(<code>FirmwareFlashWorker</code> 방식)</b> : "미표준화 게스트" 선별에 상태 컬럼(DDL)이 필요하거나, 매 주기 전 게스트에 Redfish GET 을 던져야 한다. 30초 GET 폭탄과 DDL 모두 이 기능의 크기에 비해 과하다.</p>
+
+        <p><b>재시도 정책</b> — 이벤트당 1회 시도. 일시 실패(연결 불가 등)는 다음 진단 재실행(재부팅 · 재등록) 때 자연 재시도된다. 그 사이 노이즈는 D-3 캐시가 억제한다. 전용 재시도 큐를 두지 않는 이유는, 실패의 대부분이 사람이 개입해야 풀리는 종류(제3 비밀번호)거나 다음 부팅에 자연 회복되는 종류(일시 불통)라 큐가 해결하는 구간이 얇기 때문이다.</p>
+
+        <p><b>비동기 배선의 함정 회피</b> — <code>@Async</code> 는 Spring proxy 경유 호출에서만 동작하므로(<code>IsoVerificationLauncher</code> 선례 · E2-2 의 <code>FirmwareFlashCycle</code> 분리 선례), 리스너 진입점(<code>BmcAccountStandardizationLauncher</code>)과 트랜잭션 본체(<code>BmcAccountStandardizationService</code>)를 별도 빈으로 분리한다.</p>
+
+        <h4>D-2. 표준화 사다리 — idempotent 절차</h4>
+        <table>
+          <thead><tr><th>#</th><th>관측</th><th>판정</th><th>원장</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>표준 비밀번호 미설정(env)</td><td>시도 생략</td><td>없음(로그 1줄)</td></tr>
+            <tr><td>1</td><td>표준 자격 GET 200</td><td>이미 표준 — no-op</td><td>없음</td></tr>
+            <tr><td>2</td><td>표준 401 → 공장 기본 GET 200</td><td>신원 대조 → ETag → PATCH → 반영 확인</td><td><span class="chip add">SUCCEEDED</span></td></tr>
+            <tr><td>3</td><td>표준 401 → 공장 기본 401</td><td>알 수 없는 자격 — 운영자 개입 필요</td><td><span class="chip del">FAILED</span></td></tr>
+            <tr><td>4</td><td>연결 불가 · 412 · 그 외</td><td>일시 상태 — 다음 진단 기회</td><td>없음(로그)</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>판정 기준은 시도 순서가 아니라 "어느 자격으로 열렸는가" 다.</b> D-3 캐시는 일반 호출의 후보 순서를 재정렬하므로, 순서에 기댄 판정("첫 GET 200 = 이미 표준")은 캐시가 공장 기본을 앞세운 순간 오판이 된다. 그래서 사다리는 폴백 · 캐시를 우회해 두 자격을 명시적으로 직접 시도한다 — 사다리의 목적 자체가 "어떤 자격이 유효한가" 의 판별이므로 순회 규칙에 맡기지 않는다. 표준 자격으로 열리면 1행, 공장 기본으로 열리면 2행이다. 위 🎬 데모의 판정도 같은 기준을 쓴다.</p>
+
+        <p><b>1행이 이 사다리를 idempotent 로 만든다</b> — 진단이 재실행될 때마다 이벤트가 다시 오지만, 이미 표준화된 게스트는 GET 한 번으로 조용히 끝난다. 그래서 "표준화 완료" 상태를 DB 에 저장할 필요가 없다(무상태 판정). 성공 원장 행도 남기지 않는다 — 매 진단마다 성공 행이 쌓이면 이력이 노이즈가 된다. 최초 전환(2행)만 기록한다.</p>
+
+        <p><b>2행 절차</b> — ① 신원 대조(D-5) ② <code>Accounts</code> 목록에서 admin 계정 URI 확인 ③ 그 계정 GET 으로 fresh ETag 채집 ④ <code>PATCH</code> + <code>If-Match</code> + 새 비밀번호 → 204 ⑤ <b>반영 확인 — 표준 자격으로 GET 1회</b>. ⑤는 E2-2 F-1 교훈의 적용이다: 반영 확인은 "바꿨다는 응답" 이 아니라 "새 자격으로 실제로 열린다" 가 유일한 증거다. ⑤ 실패 시 FAILED 를 기록해, 비밀번호가 어중간한 상태일 수 있음을 운영자에게 알린다.</p>
+
+        <p><b>3행과 4행의 구분 기준은 자연 회복 가능성이다.</b> 둘 다 401 인 상태는 사람이 비밀번호를 알아내 개입해야만 풀리므로 원장 FAILED 로 화면에 노출한다. 연결 불가는 BMC 재기동 · 망 문제처럼 시간이 풀어주는 상태라 로그만 남긴다. 412(ETag 경합)도 4행이다 — 동시 사다리 두 개가 겹친 경우 한쪽이 밀리는 정상 경합이며, 다음 기회에 1행(no-op)으로 수렴한다.</p>
+
+        <p>FAILED 원장 행은 <code>ProvisioningProgress</code> 의 실패 신호(<code>failedAt</code>)를 건드리지 않는다 — BMC 계정은 부가 기능이라 프로비저닝 진행을 막을 이유가 없다(<code>BmcCredentialsResolver</code> 가 fail-fast 를 두지 않는 것과 같은 철학).</p>
+
+        <div class="callout danger"><b>불가침</b> — 비밀번호 값은 로그 · 원장 <code>statusMeta</code> · 예외 메시지 어디에도 싣지 않는다. env <code>provision.bmc.password</code> 주입 계약을 그대로 유지한다.</div>
+
+        <h4>D-3. 성공 자격 캐시 = global/redfish 인메모리, 키 = 보드 시리얼</h4>
+        <p><b>채택</b> — <code>BmcCredentialsMemory</code>(신규 컴포넌트, <code>ConcurrentHashMap&lt;String, String&gt;</code> — boardSerial → 성공한 후보 source). <code>BmcCredentialsFallback.attempt</code> 가 성공 시 기억하고, 시도 전에 후보 목록을 재정렬(기억된 source 를 앞으로)한다. 전원 제어 · 펌웨어 집행 등 폴백을 지나는 일반 호출이 자동 수혜를 본다(계정 표준화 사다리는 자격의 판별이 목적이라 캐시를 우회한다 — D-2).</p>
+
+        <p><b>키를 boardSerial 로 하는 이유</b> — BMC IP 는 DHCP 재배정으로 바뀔 수 있지만 보드 시리얼은 그 장비의 안정 식별자다. <code>RedfishTarget</code> 이 이미 boardSerial 을 담고 있어 global 층에서 도메인 id 없이 키를 얻는다. boardSerial 이 null 인 호출(진단 전)은 캐시를 적용하지 않는다 — 그 경우 후보가 표준뿐이라 노이즈도 없다.</p>
+
+        <p><b>비채택 1 — DB 영속(<code>GuestServerDetail</code> 컬럼)</b> : DDL 이 필요한데, 재기동 후 잃는 것이 "첫 호출 1회의 401" 뿐이라 영속의 가치가 낮다. 실 DB ALTER 대기 행렬(ES-2 · E2-1-a)에 하나 더 얹을 이유가 안 된다.<br>
+        <b>비채택 2 — <code>BmcCredentialsResolver</code> 에 캐시 내장</b> : resolver 는 "설정에서 후보를 산출한다" 는 무상태 단일 책임을 유지한다. 기억과 재정렬은 순회 규칙의 소관이므로 fallback 쪽이 자연스럽다.<br>
+        <b>비채택 3 — 캐시 없이 표준화만</b> : 표준화 실패 · 미완 게스트가 남는 동안 30초 401 이 지속된다. 사용자 브리핑이 캐시를 "단기 처방 겸 보완" 으로 명시 요구한 이유가 이것이다.</p>
+
+        <p><b>자기 갱신 성질</b> — 표준화 성공의 반영 확인(⑤)이 표준 자격으로 성공하므로, 그 순간 캐시가 "공장 기본" → "표준" 으로 스스로 갱신된다. 별도 무효화 코드가 없다.</p>
+
+        <h4>D-4. 원장 기록 = 기존 <code>IPMI_SETTING</code> step 재사용 (DEC-11 개정)</h4>
+        <p><b>채택</b> — 표준화의 최초 전환 성공(SUCCEEDED)과 운영자 개입 필요 실패(FAILED)를 <code>ProvisioningHistoryRecorder.recordInstant</code> 로 <code>IPMI_SETTING</code>(DIAGNOSE_LINUX phase) instant 행에 남긴다. <code>statusMeta</code> 에 계정명 · 판정 사유를 싣는다(비밀번호 금지).</p>
+
+        <p>배경을 푼다. <code>setup_step.step_code</code> 는 MySQL ENUM 컬럼이다. Java enum 에 새 상수를 추가하면 <code>MODIFY COLUMN</code> DDL 이 강제된다 — E1-1 이 정확히 이 함정("Data truncated" 500)을 기록했다.
+        한편 <code>ProvisioningPhaseStep.IPMI_SETTING</code> 은 "ipmitool 로 커스텀 정보를 저장하는 단계" 로 예약됐다가 DEC-11(2026-07-12)로 보류된 상수다 — 소비자가 없어 실 원장에 이 step 행이 존재하지 않는다.
+        BMC 계정 표준화는 의미상 "진단 중 BMC(IPMI) 측 설정 작업" 이므로 이 상수의 첫 실소비자로 정합하고, 기존 ENUM 값에 이미 있으므로 DDL 0 이 유지된다. Javadoc 은 개정한다(DEC-11 보류 문구 → E1.6 이 첫 소비자, 원 용도 재개 시 공존).</p>
+
+        <p><b>비채택 1 — 새 상수(<code>BMC_ACCOUNT_STANDARDIZING</code> 류)</b> : DDL 이 강제된다(샌드박스 + 실 DB, ALTER 권한 계정 필요). 이름 정합성의 이득이 실 DB ALTER 대기 행렬 추가 + 25자 컬럼 한계 압박보다 작다.<br>
+        <b>비채택 2 — 로그만</b> : 3행(운영자 개입 필요)이 화면에 닿지 않는다. 서버 상세의 세부 단계 이력 표는 step 이름과 상태 배지를 그대로 출력하므로, <code>IPMI_SETTING</code> 행은 화면 변경 0 으로 자동 노출된다.</p>
+
+        <h4>D-5. 신원 확인 — 이중 증명 (PATCH 직전)</h4>
+        <p>이 조작이 두려운 이유는 하나다 — BMC 주소는 진단이 한 번 읽은 스냅샷이고, 갱신 경로가 없으며, DHCP 고정 예약도 없다. 그 주소에 지금 다른 게스트의 BMC 가 앉아 있으면 남의 장비 비밀번호를 바꾸게 된다.</p>
+        <ul>
+          <li><b>증명 1(내재)</b> — 공장 기본 비밀번호가 곧 그 보드의 시리얼이다. 우리가 이 게스트의 시리얼로 인증에 성공했다는 사실 자체가 "응답한 BMC 는 그 보드에 붙어 있다" 는 증명이다. PATCH 는 이 인증 성공(2행) 뒤에만 진행된다.</li>
+          <li><b>증명 2(명시)</b> — 그래도 PATCH 직전 <code>Chassis/Self</code> 의 Oem 보드 시리얼(<code>GBTChassisOemProperty."Board Serial Number"</code> — E2-2 D-11 이 확정한 원천)을 GET 한 번으로 대조한다. 불일치면 즉시 중단하고 FAILED 를 기록한다.</li>
+        </ul>
+        <p>"되돌릴 수 없는 조작 직전에는 보드 시리얼로 신원을 확인한다" 는 원칙(E2-2 D-11)의 일관 적용이며 비용은 GET 한 번이다.</p>
+        <p><b>증명 1이 있는데 2가 필요한가에 대한 자기 반박</b> — 시리얼 인증만으로 충분해 보이지만, 원칙에 예외를 만들면 다음 사람이 "여기는 왜 안 하지" 를 고민하게 된다. 비용이 GET 한 번으로 싸므로 일관성을 산다.</p>
+
+        <h4>D-6. 미실측 관용 — <code>PasswordChangeRequired</code> (C5)</h4>
+        <p>Redfish 표준에는 신품 첫 접속 시 비밀번호 변경을 강제하는 <code>PasswordChangeRequired</code> 메커니즘이 있다(강제 시 대부분의 GET 이 403). 이 보드의 강제 여부는 미실측이다(C5 — 실측 장비가 이미 전환된 상태였다).
+        설계는 이렇게 관용한다: 403 등 미지 응답은 사다리 4행(일시 상태 · 로그)으로 흡수하고, 실기에서 관측되면 그때 사다리에 403 갈래를 정련한다. T3 체크리스트에 실측 항목으로 적립한다.
+        미리 403 처리 분기를 만들지 않는 이유는, 계약을 모르는 채 짠 분기는 추측 코드이고 이 프로젝트는 실측 스키마를 따르기 때문이다(E2-R 교훈).</p>
+
+        <h4>D-7. 배치 — global 계약 / execution 오케스트레이션</h4>
+        <p>E2-2 CP4 검수("engine 패키지가 어질러져 호출 흐름이 안 보인다")의 교훈을 적용해, 신규 파일의 자리를 계열로 명확히 한다.</p>
+        <div class="pkg-tree">com.example.serverprovision/
+├── global/redfish/                              (도메인 무관 Redfish 계약)
+│   ├── RedfishAccountService.java               (신규) 목록 GET · 계정 GET(ETag) · 비밀번호 PATCH(If-Match)
+│   ├── BmcCredentialsMemory.java                (신규) boardSerial → 성공한 후보 source
+│   ├── RedfishClient.java                       (수정) ETag 동반 GET · If-Match PATCH 프리미티브 2개
+│   └── BmcCredentialsFallback.java              (수정) 기억 · 재정렬 배선
+└── execution/
+    ├── event/BmcEndpointDiscoveredEvent.java    (신규) record — serverId
+    ├── engine/diagnose/DiagnoseLinuxExecutor.java (수정) bmcIp 적재 시 이벤트 발행
+    ├── service/BmcAccountStandardizationService.java  (신규) 사다리 본체 · @Transactional · 원장
+    ├── service/BmcAccountStandardizationLauncher.java (신규) @Async @TransactionalEventListener
+    └── enums/ProvisioningPhaseStep.java         (수정) IPMI_SETTING Javadoc 개정</div>
+        <p><code>RedfishAccountService</code> 는 <code>RedfishPowerService</code> · <code>RedfishUpdateService</code> 와 같은 결이다. 이를 위해 <code>RedfishClient</code> 에 프리미티브 둘을 추가한다 — ETag 를 함께 돌려주는 GET(현 <code>getJson</code> 은 헤더를 버린다)과 If-Match PATCH.
+        표준화 서비스 둘은 BMC 부속 서비스(<code>BmcAddressRediscovery</code> · <code>FirmwareImageTokenRegistry</code>)와 같은 자리에 둔다.
+        하네스도 함께 넓힌다 — <code>scripts/mock-redfish/mock-redfish.py</code> 에 AccountService 트리와 모드 4종(신품 = 시리얼만 유효 / 표준화 완료 = 표준만 유효 / 제3 비밀번호 = 둘 다 401 / ETag 재사용 412)을 추가한다.</p>
+
+        <h4>D-8. 동시성 · 멱등 (락을 두지 않는 근거)</h4>
+        <p>같은 게스트의 진단 보고가 겹치면 이벤트가 두 번 발행되어 사다리 두 개가 동시에 돌 수 있다. 사다리는 idempotent(1행)이고, PATCH 는 If-Match 라 경합 시 한쪽이 412 로 밀린다 — 밀린 쪽은 4행으로 흡수되고 다음 기회에 1행으로 수렴한다. 이 수렴 구조가 있으므로 분산 락 · <code>synchronized</code> 를 두지 않는다(과설계).</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 스코프 제외 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 스코프 제외 (비 목표 + 행선지)</summary>
+      <div class="body">
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>운영 계정 신설</b>(<code>POST Accounts</code>) — <code>admin</code> 유지가 현 표준이다. 필요해지면 별도 슬라이스.</li>
+            <li><b>lockout 정책 대응</b> — 연속 401 로 계정이 잠기는 시나리오. 캐시가 401 횟수 자체를 줄이므로 우선순위가 낮다. 실기 관측 시 승격한다.</li>
+            <li><b>표준화 현황의 화면 상세화</b>(집행 현황 카드 등) — E2-4(집행 현황 상세화) 소관. 이 슬라이스는 기존 세부 단계 이력 표 자동 노출까지만이다.</li>
+            <li><b>DHCP 고정 예약</b>(주소 드리프트의 근본 해결) — pxeinfra(E1-I 계열) 소관.</li>
+            <li><b>Redfish 세션 인증 전환</b> — Basic 우선 결론(E1.5)을 유지한다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html</td><td><span class="chip cp1">CP1</span></td><td>본 문서 — 승인 게이트</td></tr>
+            <tr><td>2</td><td>Thymeleaf 뷰</td><td><span class="chip cp2">CP2</span></td><td>N/A — 화면 변경 0</td></tr>
+            <tr><td>3~5</td><td>Controller · DTO · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>Service 만 — 신규 엔드포인트 0</td></tr>
+            <tr><td>6~7</td><td>Repository · Entity</td><td><span class="chip cp3">CP3</span></td><td>N/A — 무변경</td></tr>
+            <tr><td>8~9</td><td>Service 본체 · 스키마 확인</td><td><span class="chip cp4">CP4</span></td><td>본체 수행 / 스키마 N/A — DDL 0(<code>IPMI_SETTING</code> 은 기존 ENUM 값)</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 + 전체 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>검증</td><td><span class="chip cp5">CP5</span></td><td>하네스(E 단계 예외) — mock-redfish 왕복 + 화면 이력 확인</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>수행 — 승인 게이트</td></tr>
+            <tr><td>12</td><td>E2E</td><td><span class="chip cp7">CP7</span></td><td>E 단계 일괄 실기 방침(유보)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 계획 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 테스트 계획 (Step 8)</summary>
+      <div class="body">
+        <h4>단위 — 사다리 5갈래 각 1</h4>
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>이미 표준(1행)</td><td>no-op · 원장 무기록</td></tr>
+            <tr><td>2</td><td>공장 기본 → PATCH → 반영 확인 성공(2행)</td><td>원장 SUCCEEDED</td></tr>
+            <tr><td>3</td><td>반영 확인 실패</td><td>원장 FAILED</td></tr>
+            <tr><td>4</td><td>둘 다 401(3행)</td><td>원장 FAILED · 운영자 개입 문구</td></tr>
+            <tr><td>5</td><td>연결 불가(4행)</td><td>로그만 · 원장 무기록</td></tr>
+          </tbody>
+        </table>
+
+        <h4>단위 — 가드 · 부속</h4>
+        <ul>
+          <li>신원 대조 불일치 → 중단 + FAILED</li>
+          <li>표준 비밀번호 미설정 → 시도 생략(0행)</li>
+          <li><code>BmcCredentialsMemory</code> — 기억 · 재정렬 · null 시리얼 미적용</li>
+          <li><code>BmcCredentialsFallback</code> — 성공 시 기억, 캐시된 소스 우선 시도</li>
+          <li><code>RedfishAccountService</code> — ETag 채집 → If-Match PATCH 흐름, 412 분류</li>
+          <li><code>DiagnoseLinuxExecutor</code> — bmcIp 있는 보고 → 이벤트 발행 / 없는 보고 → 미발행</li>
+        </ul>
+
+        <h4>통합</h4>
+        <p>신규 HTTP 엔드포인트가 0 이므로 <code>@WebMvcTest</code> 사용자 액션 통합 테스트는 대상이 없다(테스트 규율의 적용 범위를 여기 명시해 둔다 — 성공 2xx · 400 · 404 · 409 를 검증할 엔드포인트가 이 슬라이스에 존재하지 않는다).
+        대신 <b>이벤트 → 리스너 → 사다리 배선</b>을 스프링 컨텍스트 통합 테스트 1건으로 확인한다. 이 배선이야말로 단위 테스트로는 드러나지 않는 자리다 — <code>@Async</code> 가 proxy 를 타는지, <code>AFTER_COMMIT</code> 가 실제로 커밋 뒤에 도는지는 컨텍스트가 떠야 보인다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 0 건</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 슬라이스는 예외를 늘리지 않는다. 사다리는 Redfish 실패를 <b>예외로 전파하지 않고 판정 행으로 흡수</b>하며(D-2), 신규 엔드포인트가 0 이라 advice 가 HTTP 응답으로 변환할 지점도 없다. 기존 계약을 그대로 재사용한다.</p>
+        <table>
+          <thead><tr><th>예외 · 분류값</th><th>구분</th><th>사다리에서의 쓰임</th></tr></thead>
+          <tbody>
+            <tr><td><code>RedfishRequestException</code></td><td><span class="chip keep">재사용</span></td><td>Redfish 실패의 단일 통로</td></tr>
+            <tr><td><code>RedfishError.AUTH_FAILED</code></td><td><span class="chip keep">재사용</span></td><td>401 — 폴백 순회의 유일한 계속 조건이자 2 · 3행의 갈림</td></tr>
+            <tr><td><code>RedfishError.CONNECT_FAILED</code></td><td><span class="chip keep">재사용</span></td><td>4행(일시 상태 — 로그만)</td></tr>
+            <tr><td><code>RedfishError.PRECONDITION_FAILED</code></td><td><span class="chip keep">재사용</span></td><td>412 ETag 경합 → 4행으로 흡수</td></tr>
+            <tr><td>신규 예외</td><td><span class="chip keep">0 건</span></td><td>—</td></tr>
+          </tbody>
+        </table>
+        <p>새 예외 클래스를 만들면 그 예외를 트리거하는 통합 시나리오를 함께 요구하는 규율이 있는데(CLAUDE.md 테스트 규율), 여기서는 애초에 예외를 늘리지 않으므로 그 요구가 발생하지 않는다. 대신 §6 의 사다리 5갈래가 예외 대신 <b>판정 결과</b>를 전수 검증한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 위험 · 미해결 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 위험 · 미해결</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>항목</th><th>성격</th><th>처리</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>C5 미실측 — <code>PasswordChangeRequired</code></td><td>계약 공백</td><td>D-6 관용 · T3 적립</td></tr>
+            <tr><td>2</td><td>2행(최초 전환) 실증에 신품 장비 필요</td><td>검증 한계</td><td>CP7 일괄 실기</td></tr>
+            <tr><td>3</td><td>제3 비밀번호 게스트의 lockout</td><td>운영 위험</td><td>실기 관측 시 후속 정련</td></tr>
+            <tr><td>4</td><td>원장 행이 커서 전진 뒤 append 되는 모양</td><td>표시 확인</td><td>CP2 착수 시 확인</td></tr>
+          </tbody>
+        </table>
+        <p><b>2</b> — 실기 검증은 E 단계 방침대로 CP7 에서 일괄한다. 2행을 실증하려면 아직 공장 기본 상태인 신품이 있어야 한다. 표준화가 이미 끝난 장비로는 1행(no-op)만 실증되므로, 그 한계를 report 에 명시한다.</p>
+        <p><b>3</b> — 제3 비밀번호 게스트가 방치되면 30초 폴링이 계속 401 을 두 번씩 만든다. 캐시는 성공만 기억하므로 이 경우엔 무력하다. 실기에서 잠금이 관측되면 "FAILED 게스트는 폴링 후보에서 제외" 를 후속 정련으로 올린다(§4 스코프 제외의 lockout 항목과 연결된다). 데모의 시나리오 ③ 에서 폴링을 반복해 보면 이 누적을 눈으로 확인할 수 있다.</p>
+        <p><b>4</b> — 원장 <code>IPMI_SETTING</code> 행은 커서가 이미 다음 phase 로 전진(또는 종단)한 뒤에 비동기로 append 될 수 있다 — <code>DiagnoseLinuxExecutor</code> 가 커밋 시점에 커서를 옮기고 표준화는 그 커밋 뒤에 돌기 때문이다. <code>ProvisioningHistoryRecorder.recordInstant</code> 는 append-only 라 커서를 건드리지 않아 진행 역행은 없지만, 세부 단계 이력 표의 정렬 기준에 따라 행 순서가 어색하게 보일 수 있다 — CP2 착수 시 화면 정렬을 확인한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 CP5 검증 계획 + Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. CP5 검증 계획 (하네스) + Verification</summary>
+      <div class="body">
+        <p style="margin-top:0;">화면이 없는 슬라이스이므로 E 단계 예외를 적용해 브라우저 대신 <code>mock-redfish</code> 하네스로 검증하고, 결과가 닿는 <b>서버 상세의 세부 단계 이력</b>만 화면으로 확인한다. 항목 식별자는 CP5 진입 시 확정하되 골격은 다음과 같다.</p>
+        <table>
+          <thead><tr><th>계열</th><th>확인 대상</th><th>모드 · 조작</th></tr></thead>
+          <tbody>
+            <tr><td>A (정상)</td><td>표준화 완주 · 원장 노출 · 노이즈 소멸</td><td>신품 모드 → 사다리 완주(mock 의 비밀번호가 실제로 바뀌었는지 mock 상태로 검증) → 이력에 <code>IPMI_SETTING</code> · SUCCEEDED 행 → 이후 폴링 로그에 401 폴백 부재</td></tr>
+            <tr><td>B (비정상)</td><td>실패 경로의 처리</td><td>제3 비밀번호 모드 → FAILED 행 + 진행 비차단 / BMC 불통 → 원장 무기록 · 재시도 대기 / ETag 재사용 412 → 4행 흡수</td></tr>
+            <tr><td>C (막는 방식)</td><td>비밀번호 비노출</td><td>로그 · 원장 어디에도 평문이 없음을 전수 grep</td></tr>
+          </tbody>
+        </table>
+
+        <h4>Verification 체크리스트</h4>
+        <ul class="check-list" data-storage="E1.6-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (기존 테스트 회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="ladder"> <span>사다리 5갈래 단위 테스트 green</span></label></li>
+          <li><label><input type="checkbox" data-key="wiring"> <span>이벤트 → 리스너 → 사다리 배선 컨텍스트 테스트 green</span></label></li>
+          <li><label><input type="checkbox" data-key="mock"> <span>mock-redfish 모드 4종 왕복 (A · B 계열)</span></label></li>
+          <li><label><input type="checkbox" data-key="history"> <span>서버 상세 세부 단계 이력에 <code>IPMI_SETTING</code> 행 노출 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="secret"> <span>비밀번호 평문 노출 0 전수 grep (C 계열)</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span>DDL 0 확인 — <code>ddl-auto=validate</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>실기 검증 (CP7 — E 단계 일괄)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/redfish/RedfishAccountService.java</code></td><td>Accounts 목록 GET · 계정 GET(ETag 채집) · 비밀번호 PATCH(If-Match)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/redfish/BmcCredentialsMemory.java</code></td><td>boardSerial → 성공한 후보 source (<code>ConcurrentHashMap</code>)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/event/BmcEndpointDiscoveredEvent.java</code></td><td>record — serverId</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/service/BmcAccountStandardizationService.java</code></td><td>사다리 본체 · <code>@Transactional</code> · 원장 기록</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/service/BmcAccountStandardizationLauncher.java</code></td><td><code>@Async</code> <code>@TransactionalEventListener</code> 진입점 — self-invocation 함정 회피용 별도 빈</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/redfish/RedfishClient.java</code></td><td>프리미티브 2개 추가 — ETag 동반 GET · If-Match PATCH</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/redfish/BmcCredentialsFallback.java</code></td><td>성공 기억 · 후보 재정렬 배선</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/diagnose/DiagnoseLinuxExecutor.java</code></td><td>bmcIp 적재 시 이벤트 발행 (1줄 수준)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/enums/ProvisioningPhaseStep.java</code></td><td><code>IPMI_SETTING</code> Javadoc 개정 (DEC-11 보류 → E1.6 첫 소비자)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/mock-redfish/mock-redfish.py</code></td><td>AccountService 트리 + 모드 4종</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>global/redfish/BmcCredentialsResolver.java</code></td><td>변경 0 — "설정에서 후보를 산출한다" 는 무상태 단일 책임 유지 (D-3 비채택 2)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>execution/entity/GuestServerDetail.java</code></td><td>변경 0 — 캐시를 DB 에 영속하지 않는다 (D-3 비채택 1)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>execution/entity/ProvisioningProgress.java</code></td><td>변경 0 — <code>failedAt</code> 을 건드리지 않는다 (D-2)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>ddl/</code></td><td>DDL 0 — <code>IPMI_SETTING</code> 은 기존 ENUM 값 (D-4)</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">경로는 <code>src/main/java/com/example/serverprovision/</code> 기준이며, <code>scripts/</code> 와 <code>ddl/</code> 만 저장소 루트 기준이다. 신규 5 · 수정 5 · 유지 4.</p>
+        <div class="callout success"><b>경로 확인 완료(세션 검수)</b> — <code>execution/event/</code> 패키지(<code>GuestServerChangedEvent</code> 실재) · <code>execution/service/BmcAddressRediscovery.java</code> · <code>scripts/mock-redfish/mock-redfish.py</code> 모두 실제 트리에서 확인했다. 수정 · 유지 대상(<code>RedfishClient</code> · <code>BmcCredentialsFallback</code> · <code>BmcCredentialsResolver</code> · <code>DiagnoseLinuxExecutor</code> · <code>ProvisioningPhaseStep</code>)도 실파일로 확인됐다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>CP7 일괄 실기</b> — E 단계 방침대로 구현을 모아 사용자 실기 연결 테스트에서 결정한다. 신품 장비가 확보되어야 2행(최초 전환)이 실증된다.</li>
+          <li><b>T3 체크리스트 적립</b> — <code>PasswordChangeRequired</code>(C5) 강제 여부 실측. 관측되면 사다리에 403 갈래를 정련한다(D-6).</li>
+          <li><b>lockout 정련</b> — 실기에서 계정 잠금이 관측되면 "FAILED 게스트는 폴링 후보에서 제외" 를 후속 슬라이스로 승격한다(§4 · §8).</li>
+          <li><b>표준화 현황의 화면 상세화</b> — E2-4(집행 현황 상세화)가 받는다. 이 슬라이스는 세부 단계 이력 자동 노출까지다.</li>
+          <li><b>주소 드리프트의 근본 해결</b> — DHCP 고정 예약은 pxeinfra(E1-I 계열) 소관이다. 그때까지 D-5 이중 증명이 안전망이다.</li>
+          <li><b>운영 계정 신설</b>(<code>POST Accounts</code>) — 표면은 실재하나(E0-4-5) 현 표준이 <code>admin</code> 유지이므로 필요해지는 시점에 별도 슬라이스로 연다.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  /* ─────────────────────────────────────────────────────────────
+     ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+     ───────────────────────────────────────────────────────────── */
+  document.querySelectorAll('nav.toc a').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) !== '#') return;
+      e.preventDefault();
+      var target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  /* ② 전부 펴기 / 접기 */
+  document.getElementById('btn-expand').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = true; });
+  });
+  document.getElementById('btn-collapse').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = false; });
+  });
+  /* ③ filter 입력 → 매칭 섹션만 표시 */
+  document.getElementById('filter').addEventListener('input', function (e) {
+    var q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(function (d) {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().indexOf(q) !== -1) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  /* ④ check-list localStorage 동기화 */
+  document.querySelectorAll('ul.check-list').forEach(function (ul) {
+    var key = ul.dataset.storage;
+    var stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', function () {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  /* ─────────────────────────────────────────────────────────────
+     🎬 표준화 사다리 시뮬레이터
+     ⚠ demoJudge() 는 §3 D-2 사다리 진리표와 같은 판정이어야 한다(드리프트 0).
+       0행 시도 생략 / 1행 no-op / 2행 최초 전환 / 3행 운영자 개입 / 4행 일시 상태.
+     ⚠ demoRender() 는 파일 끝에서 1회 호출.
+     ───────────────────────────────────────────────────────────── */
+  var DEMO_STD = '표준 계정';
+  var DEMO_FACTORY = '공장 기본(보드 시리얼)';
+  var DEMO_CIRCLE = ['①', '②', '③', '④', '⑤', '⑥'];
+  var DEMO_BMC_LABEL = {
+    NEW: '신품 — 공장 기본만 유효', STANDARD: '이미 표준화됨',
+    THIRD: '제3 비밀번호 — 둘 다 거부', DOWN: '전원 · 망 불통'
+  };
+  var DEMO_BMC_BADGE = { NEW: 'dep', STANDARD: 'on', THIRD: 'del', DOWN: 'off' };
+  var DEMO_ROW_LABEL = {
+    0: '0행 — 표준 비밀번호 미설정 → 시도 생략',
+    1: '1행 — 이미 표준 → no-op',
+    2: '2행 — 표준 401 → 공장 기본 200 → PATCH → 반영 확인',
+    3: '3행 — 둘 다 401 → 운영자 개입 필요',
+    4: '4행 — 연결 불가 · 412 · 그 외 → 다음 기회'
+  };
+  var DEMO_PRESETS = {
+    1: { title: '신품 입고', bmc: 'NEW', std: true, run: ['event', 'poll'],
+         banner: '공장 기본만 유효한 신품이다. 이벤트 1회로 사다리가 완주해 원장에 SUCCEEDED 가 남고, 캐시가 표준 계정으로 스스로 갱신된다. 이어 돌린 폴링 1주기의 401 폴백 로그는 0줄이다 — 이 슬라이스가 없애려는 노이즈가 사라진 자리다.' },
+    2: { title: '이미 표준', bmc: 'STANDARD', std: true, run: ['event'],
+         banner: '첫 GET 이 200 이라 사다리는 1행 no-op 으로 끝난다. 원장 패널이 비어 있는 것이 정상이다 — 진단이 재실행될 때마다 성공 행을 쌓으면 이력이 노이즈가 되기 때문에 최초 전환만 기록한다.' },
+    3: { title: '전임자가 바꾼 비밀번호', bmc: 'THIRD', std: true, run: ['event', 'poll'],
+         banner: '표준도 공장 기본도 401 이다. 원장에 FAILED 가 남지만 ProvisioningProgress.failedAt 은 건드리지 않아 프로비저닝은 계속 간다. 이어 돌린 폴링 1주기는 401 을 두 줄 쌓는다 — §8 이 적어 둔 lockout 위험의 모습이다(폴링을 더 눌러 보라).' },
+    4: { title: 'BMC 가 잠깐 죽어 있음', bmc: 'DOWN', std: true, run: ['event'],
+         banner: '연결 불가는 4행이다. 원장에 남기지 않고 로그만 남는다 — 시간이 풀어주는 상태이므로 다음 진단 재실행(재부팅 · 재등록) 때 자연 재시도된다.' },
+    5: { title: '표준 비밀번호 미설정', bmc: 'NEW', std: false, run: ['event'],
+         banner: '0행이다. provision.bmc.password 가 비어 있으면 Redfish 왕복 없이 시도 자체를 생략하고 로그 1줄만 남긴다.' },
+    6: { title: '재기동 직후 혼재 환경', bmc: 'NEW', std: true, run: ['poll', 'poll', 'poll'],
+         banner: '앱이 막 떠서 캐시가 비었고 게스트는 아직 표준화되지 않았다. 폴링 3주기를 돌리면 첫 주기만 401 이 한 줄 나고 이후는 조용하다 — BmcCredentialsMemory 가 성공한 후보를 앞으로 올렸기 때문이다.' }
+  };
+
+  var demo = null;
+  function demoInit() {
+    demo = { bmc: 'NEW', std: true, cache: null, ledger: [], log: [], cycles: 0, lastCycleLines: null, preset: null, last: null, msg: null };
+  }
+  demoInit();
+
+  /* 후보 산출 = BmcCredentialsResolver.candidates + BmcCredentialsMemory 재정렬 */
+  function demoCandidates() {
+    var list = [];
+    if (demo.std) list.push(DEMO_STD);
+    list.push(DEMO_FACTORY);
+    if (demo.cache && list.indexOf(demo.cache) > 0) {
+      return [demo.cache].concat(list.filter(function (c) { return c !== demo.cache; }));
+    }
+    return list;
+  }
+  /* 어느 후보로 열리는가 — 순서와 무관한 사실(BMC 측 상태) */
+  function demoOpener() {
+    if (demo.bmc === 'DOWN') return 'CONNECT';
+    if (demo.bmc === 'NEW') return DEMO_FACTORY;
+    if (demo.bmc === 'STANDARD') return demo.std ? DEMO_STD : null;
+    return null;   /* THIRD — 둘 다 거부 */
+  }
+  function demoStep(n, http, who, code, kind) {
+    return { no: n, http: http, who: who, code: code, kind: kind };
+  }
+
+  /* 순수 판정 — 부수효과 0. "지금 이벤트가 오면 무엇이 일어나는가" */
+  function demoJudge() {
+    var j = { row: 0, steps: [], ledger: null, cacheAfter: demo.cache, bmcAfter: demo.bmc, log: [], note: '' };
+    if (!demo.std) {
+      j.row = 0;
+      j.note = '표준 비밀번호(provision.bmc.password)가 비어 있어 Redfish 왕복 없이 시도를 생략한다. 원장 기록 없음 — 로그 1줄.';
+      j.log = ['[bmc-std] 표준 비밀번호 미설정 — 계정 표준화 생략'];
+      return j;
+    }
+    var cands = demoCandidates();
+    var opener = demoOpener();
+    if (opener === 'CONNECT') {
+      j.row = 4;
+      j.steps.push(demoStep(1, 'GET /redfish/v1/AccountService/Accounts', cands[0], '연결 불가', 'dep'));
+      j.note = '일시 상태다. 원장에 남기지 않고 로그만 남긴다 — 다음 진단 재실행 때 자연 재시도된다. 412(ETag 경합)와 그 밖의 미지 응답(403 포함, D-6)도 같은 행으로 흡수된다.';
+      j.log = ['[bmc-std] BMC 에 연결하지 못했습니다 — 다음 진단 기회로 미룸'];
+      return j;
+    }
+    var n = 1;
+    for (var i = 0; i < cands.length; i++) {
+      if (cands[i] === opener) {
+        j.steps.push(demoStep(n++, 'GET /redfish/v1/AccountService/Accounts', cands[i], '200', 'on'));
+        break;
+      }
+      j.steps.push(demoStep(n++, 'GET /redfish/v1/AccountService/Accounts', cands[i], '401', 'del'));
+    }
+    if (opener === null) {
+      j.row = 3;
+      j.note = '표준도 공장 기본도 열리지 않았다. 사람이 비밀번호를 알아내 개입해야만 풀리는 상태라 원장 FAILED 로 화면에 노출한다. 프로비저닝 진행은 막지 않는다(failedAt 미변경).';
+      j.ledger = { status: 'FAILED', meta: 'account=admin · 알 수 없는 자격 — 운영자 개입 필요' };
+      j.log = ['[bmc-std] 표준 · 공장 기본 모두 401 — 운영자 개입 필요(원장 FAILED)'];
+      return j;
+    }
+    if (opener === DEMO_STD) {
+      j.row = 1;
+      j.cacheAfter = DEMO_STD;
+      j.note = '첫 GET 이 열렸다 = 이미 사내 표준이다. 사다리는 여기서 끝나고 원장에도 남기지 않는다. 이 한 행이 사다리를 idempotent 로 만들어 "표준화 완료" 상태를 DB 에 저장할 필요를 없앤다.';
+      j.log = ['[bmc-std] 이미 표준 계정 — no-op'];
+      return j;
+    }
+    j.row = 2;
+    j.steps.push(demoStep(n++, 'GET /redfish/v1/Chassis/Self', '보드 시리얼 대조 (D-5 증명 2)', '200 · 일치', 'on'));
+    j.steps.push(demoStep(n++, 'GET /redfish/v1/AccountService/Accounts/{ID}', 'fresh ETag 채집', '200', 'on'));
+    j.steps.push(demoStep(n++, 'PATCH /redfish/v1/AccountService/Accounts/{ID}', 'If-Match + Password (값은 어디에도 안 싣는다)', '204', 'on'));
+    j.steps.push(demoStep(n++, 'GET /redfish/v1/AccountService/Accounts', DEMO_STD + '으로 반영 확인', '200', 'on'));
+    j.cacheAfter = DEMO_STD;
+    j.bmcAfter = 'STANDARD';
+    j.ledger = { status: 'SUCCEEDED', meta: 'account=admin · 최초 전환(공장 기본 → 표준)' };
+    j.note = '마지막 왕복인 반영 확인(§3 D-2 의 ⑤)이 표준 자격으로 열리는 것이 유일한 증거다. 이 성공이 곧 캐시를 공장 기본 → 표준으로 스스로 갱신한다(별도 무효화 코드 없음).';
+    j.log = ['[bmc-std] 표준화 성공 — 원장 IPMI_SETTING / SUCCEEDED'];
+    return j;
+  }
+
+  /* ── 커밋 액션 ── */
+  function demoRun() {                       /* 진단 수집 완료 → 이벤트 1회 */
+    var j = demoJudge();
+    j.log.forEach(function (l) { demo.log.push(l); });
+    if (j.ledger) demo.ledger.push(j.ledger);
+    demo.cache = j.cacheAfter;
+    demo.bmc = j.bmcAfter;
+    demo.last = j;
+    if (j.row === 2) demo.msg = { cls: 'success', text: '✓ 표준화 완주 — 원장 IPMI_SETTING / SUCCEEDED 1행. 다시 눌러 보라, 이번엔 1행 no-op 으로 끝난다(멱등).' };
+    else if (j.row === 3) demo.msg = { cls: 'error', text: '✗ 알 수 없는 자격 — 원장 FAILED. 프로비저닝 진행은 그대로다.' };
+    else if (j.row === 1) demo.msg = { cls: 'success', text: '✓ 이미 표준 — GET 1회로 끝. 원장에 아무것도 남기지 않는다.' };
+    else demo.msg = { cls: '', text: '· ' + DEMO_ROW_LABEL[j.row] + ' — 원장 기록 없이 로그만.' };
+    demoRender();
+  }
+  function demoPollOnce() {                  /* 펌웨어 집행 워커의 30초 주기 1회 */
+    demo.cycles++;
+    var cands = demoCandidates();
+    var opener = demoOpener();
+    var lines = 0, i;
+    if (opener === 'CONNECT') {
+      demo.log.push('주기 #' + demo.cycles + ' : [redfish] &lt;bmcIp&gt; — BMC 에 연결하지 못했습니다');
+      lines = 1;
+    } else if (opener === null) {
+      for (i = 0; i < cands.length; i++) {
+        demo.log.push('주기 #' + demo.cycles + ' : [redfish] &lt;bmcIp&gt; — ' + cands[i] + ' 자격증명 거부(401) → 다음 후보로');
+        lines++;
+      }
+    } else {
+      for (i = 0; i < cands.length; i++) {
+        if (cands[i] === opener) break;
+        demo.log.push('주기 #' + demo.cycles + ' : [redfish] &lt;bmcIp&gt; — ' + cands[i] + ' 자격증명 거부(401) → 다음 후보로');
+        lines++;
+      }
+      if (lines === 0) demo.log.push('주기 #' + demo.cycles + ' : (401 폴백 로그 없음 — 첫 후보로 열렸다)');
+      demo.cache = opener;                   /* 성공한 자격만 기억한다 */
+    }
+    demo.lastCycleLines = lines;
+    demo.msg = lines === 0
+      ? { cls: 'success', text: '✓ 폴링 1주기 — 401 폴백 로그 0줄. 캐시가 성공한 후보를 앞으로 올린 결과다.' }
+      : { cls: 'error', text: '✗ 폴링 1주기 — 401 폴백 로그 ' + lines + '줄. 30초마다 이만큼 쌓인다.' };
+    demoRender();
+  }
+  function demoReboot() {                    /* 앱 재기동 — 인메모리 캐시 소멸 */
+    demo.cache = null;
+    demo.last = null;
+    demo.lastCycleLines = null;
+    demo.log.push('[boot] 앱 재기동 — BmcCredentialsMemory(인메모리) 비움');
+    demo.msg = { cls: '', text: '· 캐시가 비워졌다. 잃은 것은 "첫 호출 1회의 401" 뿐이라 DB 영속을 두지 않았다(D-3 비채택 1).' };
+    demoRender();
+  }
+  function demoReset() { demoInit(); demoRender(); }
+
+  /* ── 조작 ── */
+  function demoSetBmc(s) { demo.bmc = s; demo.last = null; demo.msg = null; demo.preset = null; demoRender(); }
+  function demoSetStd(v) { demo.std = v; demo.last = null; demo.msg = null; demo.preset = null; demoRender(); }
+  function demoPreset(k) {
+    var p = DEMO_PRESETS[k];
+    demoInit();
+    demo.bmc = p.bmc; demo.std = p.std;
+    p.run.forEach(function (a) { if (a === 'event') demoRun(); else demoPollOnce(); });
+    demo.preset = k;
+    demoRender();
+    document.getElementById('demo-banner').innerHTML =
+      '<b>시나리오 ' + k + ' — ' + p.title + '</b><br>' + p.banner;
+  }
+
+  /* ── 렌더 ── */
+  function demoRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-bmc]').forEach(function (s) {
+      s.classList.toggle('active', s.dataset.bmc === demo.bmc);
+    });
+    document.querySelectorAll('.ux-toolbar .seg[data-std]').forEach(function (s) {
+      s.classList.toggle('active', (s.dataset.std === 'on') === demo.std);
+    });
+    document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(function (s) {
+      s.classList.toggle('active', Number(s.dataset.preset) === demo.preset);
+    });
+
+    var badge = document.getElementById('demo-bmc-badge');
+    badge.textContent = DEMO_BMC_LABEL[demo.bmc];
+    badge.className = 'badge ' + DEMO_BMC_BADGE[demo.bmc];
+
+    var live = demoJudge();
+    var shown = demo.last || live;
+    document.getElementById('demo-ladder-label').textContent =
+      demo.last ? '직전 실행 — ' + DEMO_ROW_LABEL[shown.row] : '지금 이벤트가 오면 — ' + DEMO_ROW_LABEL[shown.row];
+
+    var html = '';
+    if (shown.steps.length === 0) {
+      html = '<div class="ux-row muted"><span class="label">Redfish 왕복 없음 — ' +
+        (shown.row === 0 ? '설정이 비어 시도 자체를 생략한다' : '판정에 왕복이 필요 없다') +
+        '</span><span class="badge off">0 회</span></div>';
+    } else {
+      shown.steps.forEach(function (s) {
+        html += '<div class="ux-row"><strong>' + DEMO_CIRCLE[s.no - 1] + '</strong>' +
+          '<span class="label"><code>' + s.http + '</code> · ' + s.who + '</span>' +
+          '<span class="badge ' + s.kind + '">' + s.code + '</span></div>';
+      });
+    }
+    document.getElementById('demo-ladder').innerHTML = html;
+
+    var led = '';
+    if (demo.ledger.length === 0) {
+      led = '<div class="ux-row muted"><span class="label">기록 없음 — 최초 전환(2행)과 운영자 개입 필요(3행)만 남긴다</span><span class="badge off">0 행</span></div>';
+    } else {
+      demo.ledger.forEach(function (e) {
+        led += '<div class="ux-row"><code>IPMI_SETTING</code><span class="label">' + e.meta + '</span>' +
+          '<span class="badge ' + (e.status === 'SUCCEEDED' ? 'on' : 'del') + '">' + e.status + '</span></div>';
+      });
+    }
+    document.getElementById('demo-ledger').innerHTML = led;
+
+    var cands = demoCandidates();
+    var cycleTxt = demo.lastCycleLines === null
+      ? '(아직 폴링 안 함)'
+      : (demo.lastCycleLines === 0
+        ? '<span class="f">0 줄</span>'
+        : '<span class="t">' + demo.lastCycleLines + ' 줄</span>');
+    document.getElementById('demo-caps').innerHTML =
+      '후보 순서(Resolver + Memory) = [' + cands.join(', ') + ']\n' +
+      '직전 실행                    = ' + (demo.last ? DEMO_ROW_LABEL[demo.last.row] : '(아직 실행 안 함)') + '\n' +
+      '지금 실행하면                = ' + DEMO_ROW_LABEL[live.row] + '\n' +
+      '원장(IPMI_SETTING)           = ' + (demo.ledger.length === 0 ? '기록 없음' : demo.ledger.map(function (e) { return e.status; }).join(', ')) + '\n' +
+      'BmcCredentialsMemory         = ' + (demo.cache ? '보드 시리얼 → ' + demo.cache : '(비어 있음)') + '\n' +
+      '직전 폴링 주기의 401 폴백    = ' + cycleTxt + '   (표준화 전 신품 = 매 주기 1 줄)\n' +
+      '비밀번호 평문 노출           = <span class="f">0 회</span>  (로그 · statusMeta · 예외 메시지)';
+
+    var tail = demo.log.slice(-8).map(function (l) {
+      return l.replace('자격증명 거부(401)', '<span class="t">자격증명 거부(401)</span>')
+              .replace('(401 폴백 로그 없음 — 첫 후보로 열렸다)', '<span class="f">(401 폴백 로그 없음 — 첫 후보로 열렸다)</span>');
+    });
+    document.getElementById('demo-log').innerHTML =
+      '── 로그 (최근 8줄) ──\n' + (tail.length ? tail.join('\n') : '(아직 없음)');
+
+    var msg = document.getElementById('demo-message');
+    msg.className = 'ux-message' + (demo.msg && demo.msg.cls ? ' ' + demo.msg.cls : '');
+    msg.innerHTML = (demo.msg ? '<b>' + demo.msg.text + '</b><br>' : '') + shown.note;
+
+    var banner = document.getElementById('demo-banner');
+    if (!demo.preset) {
+      banner.innerHTML = '<b>시작하기</b><br>위의 원클릭 시나리오를 순서대로 눌러 보라. 각 시나리오는 토글을 세팅하고 서버 동작을 자동으로 돌린 뒤 무엇을 보아야 하는지 여기에 적는다. 직접 조작하려면 아래 토글을 바꾸고 [진단 수집 완료 → 이벤트 1회] 를 누르면 된다.';
+    }
+  }
+  demoRender();   /* ⚠ 불가침 : 파일 끝에서 1회 호출 */
+</script>
+</body>
+</html>

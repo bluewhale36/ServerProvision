@@ -9,6 +9,8 @@
 #   MOCK_UUID=... ./diagnose-cycle.sh             # 기존 서버 재사용
 #   FAIL_STEP=1 ./diagnose-cycle.sh               # 실패 보고 변형 (markFailed → 운영자 재시도 확인)
 #   PLACEHOLDER=1 ./diagnose-cycle.sh             # placeholder 시리얼 변형 (필터 → boardSerial null 적재)
+#   MOCK_SERIAL=QG260700082 MOCK_BMC_IP=127.0.0.1 MOCK_BMC_MAC=00:1f:c6:e2:1b:01 ./diagnose-cycle.sh
+#                                                 # BMC 검출 변형 (E1.5+) — 수집 JSON 에 bmc {ip, mac} 동봉, 시리얼은 모의 BMC 와 맞춘다
 #
 # 전제: 서버 기동 + 카탈로그에 보드(기본 MS03-CE0) 등록 + 대상 서버가 "개시" 되어 있어야 한다.
 #       미개시·회수·종단 서버의 에이전트 보고(체크인·step)는 서버 가드가 409 로 거절한다(HF) —
@@ -75,10 +77,14 @@ if [ "${FAIL_STEP:-0}" = "1" ]; then
   step "5. 종료 보고(FAILED) — markFailed 실트리거 → 상세 페이지 [재시도] 버튼 확인"
   RESULT='{"status":"FAILED","statusMeta":"{\"reason\":\"mock failure\"}"}'
 else
-  if [ "${PLACEHOLDER:-0}" = "1" ]; then SERIAL="To Be Filled By O.E.M."; else SERIAL="JG4P6400027"; fi
+  if [ "${PLACEHOLDER:-0}" = "1" ]; then SERIAL="To Be Filled By O.E.M."; else SERIAL="${MOCK_SERIAL:-JG4P6400027}"; fi
+  BMC_JSON=""
+  if [ -n "${MOCK_BMC_IP:-}" ]; then
+    BMC_JSON=",\\\"bmc\\\":{\\\"ip\\\":\\\"${MOCK_BMC_IP}\\\",\\\"mac\\\":\\\"${MOCK_BMC_MAC:-00:1f:c6:e2:1b:01}\\\"}"
+  fi
   step "5. 종료 보고(SUCCEEDED + 수집 JSON) — 관용 파싱·적재·ENRICHED·완주 판정 (E1-2)"
   # 수집 JSON(사용자 확정 스펙 견본)을 statusMeta 문자열 값으로 이스케이프해 싣는다 — agent.sh 와 동일 계약
-  INNER="{\\\"boardSerial\\\":\\\"${SERIAL}\\\",\\\"biosVersion\\\":\\\"F13\\\",\\\"cpuSockets\\\":[{\\\"slot\\\":\\\"CPU1\\\",\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"},{\\\"slot\\\":\\\"CPU2\\\",\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"}],\\\"memoryModules\\\":[{\\\"slot\\\":\\\"DIMM_A1\\\",\\\"manufacturer\\\":\\\"Samsung\\\",\\\"size\\\":\\\"32 GB\\\"}],\\\"disks\\\":[{\\\"device\\\":\\\"nvme0n1\\\",\\\"size\\\":\\\"1.9T\\\",\\\"rota\\\":\\\"0\\\",\\\"tran\\\":\\\"nvme\\\"}],\\\"pcieRaw\\\":[\\\"01:00.0 RAID bus controller: Broadcom / LSI MegaRAID 9560-8i\\\"]}"
+  INNER="{\\\"boardSerial\\\":\\\"${SERIAL}\\\",\\\"biosVersion\\\":\\\"F13\\\",\\\"cpuSockets\\\":[{\\\"slot\\\":\\\"CPU1\\\",\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"},{\\\"slot\\\":\\\"CPU2\\\",\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"}],\\\"memoryModules\\\":[{\\\"slot\\\":\\\"DIMM_A1\\\",\\\"manufacturer\\\":\\\"Samsung\\\",\\\"size\\\":\\\"32 GB\\\"}],\\\"disks\\\":[{\\\"device\\\":\\\"nvme0n1\\\",\\\"size\\\":\\\"1.9T\\\",\\\"rota\\\":\\\"0\\\",\\\"tran\\\":\\\"nvme\\\"}],\\\"pcieRaw\\\":[\\\"01:00.0 RAID bus controller: Broadcom / LSI MegaRAID 9560-8i\\\"]${BMC_JSON}}"
   RESULT="{\"status\":\"SUCCEEDED\",\"statusMeta\":\"${INNER}\"}"
 fi
 CLOSE=$(curl -sS -X POST "${BASE_URL}/api/pxe/v1/agent/steps/${STEP_ID}/close" \

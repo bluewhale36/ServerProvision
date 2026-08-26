@@ -11,20 +11,11 @@ package com.example.serverprovision.execution.engine.firmware.step;
  *
  * <p>{@link #matches} 는 외부 호출 없이 {@link FlashContext} 만 보고 답해야 한다. 그래야 "어느 행이
  * 이기는가" 를 수행 없이 시험할 수 있다.</p>
+ *
+ * <p>행 순서(order)는 §5 진리표의 행 번호이고 그 순서 자체가 설계다 — Task 폴링이 가장 위인 이유는 한 축의
+ * Task 가 떠 있는데 다음 축을 동시에 걸지 않기 위함이고, 준비도 판정을 착수 전 조건과 묶은 이유는 집행 도중
+ * 자원이 무너져도 굽는 중인 Task 를 계속 보기 위함이다. 공통 SPI 는 {@code WorkerStep}(E3-1 에서 추출).</p>
  */
-public interface FlashStep {
+public interface FlashStep extends com.example.serverprovision.execution.engine.worker.WorkerStep<FlashContext> {
 
-    /**
-     * 우선순위 — 작을수록 먼저 묻는다. 값이 곧 §5 진리표의 행 번호이고, 그 순서 자체가 설계다.
-     * Task 폴링이 가장 위인 이유는 한 축의 Task 가 떠 있는데 다음 축을 동시에 걸지 않기 위함이고,
-     * 준비도 판정을 착수 전 조건과 묶은 이유는 집행 도중 자원이 무너져도 굽는 중인 Task 를 계속
-     * 보기 위함이다.
-     */
-    int order();
-
-    /** 이번 주기에 이 행이 맞는가. 순수 판정이어야 한다. */
-    boolean matches(FlashContext context);
-
-    /** 맞으면 수행한다. 상태 전이와 원장 기록은 호출자의 트랜잭션 안에서 일어난다. */
-    void execute(FlashContext context);
 }

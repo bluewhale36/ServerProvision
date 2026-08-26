@@ -12,9 +12,11 @@ import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
+import com.example.serverprovision.execution.event.BmcEndpointDiscoveredEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -52,6 +54,7 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
     private final ProvisioningHistoryRecorder provisioningHistoryRecorder;
     private final ObjectMapper objectMapper;
     private final PhaseCursorAdvancer phaseCursorAdvancer;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public ProvisioningPhase phase() {
@@ -115,6 +118,10 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
 
         detail.enrich(boardSerial, toJson(parsed.hardwareSpec()), toJson(parsed.softwareSpec()),
                 parsed.bmcIp(), parsed.bmcMac());
+        if (parsed.bmcIp() != null) {
+            // 커밋 확정 후 계정 표준화가 소비한다(E1.6 D-1) — 롤백된 수집으로 BMC 를 만지지 않는다.
+            eventPublisher.publishEvent(new BmcEndpointDiscoveredEvent(server.getId()));
+        }
         provisioningHistoryRecorder.recordInstant(server, ProvisioningPhaseStep.INFORMATION_PERSISTING,
                 ProvisioningStatus.SUCCEEDED, persistingMeta(absorbed), now);
         // 서버 판정 instant step 도 커서가 따라간다(ES-2 D-1 — 같은 phase 안 이동). 종단 시 커서가

@@ -37,6 +37,7 @@ class DiagnoseLinuxExecutorTest {
     private com.example.serverprovision.execution.repository.GuestServerDetailRepository detailRepository;
     private ProvisioningHistoryRecorder recorder;
     private OwnedPhasesProvider ownedPhasesProvider;
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @BeforeEach
     void setUp() {
@@ -51,11 +52,12 @@ class DiagnoseLinuxExecutorTest {
         ownedPhasesProvider = org.mockito.Mockito.mock(OwnedPhasesProvider.class);
         org.mockito.BDDMockito.given(ownedPhasesProvider.ownedPhasesOf(org.mockito.ArgumentMatchers.any()))
                 .willReturn(java.util.Set.of());
+        eventPublisher = org.mockito.Mockito.mock(org.springframework.context.ApplicationEventPublisher.class);
         executor = new DiagnoseLinuxExecutor(
                 new PxeAssetsProperties(assetsRoot.toString(), "http://10.0.2.2:7777/"),
                 new DiagnosticReportParser(mapper),
                 detailRepository, recorder, mapper,
-                new PhaseCursorAdvancer(ownedPhasesProvider));
+                new PhaseCursorAdvancer(ownedPhasesProvider), eventPublisher);
     }
 
     private GuestServer server(GuestToken token) {
@@ -244,5 +246,36 @@ class DiagnoseLinuxExecutorTest {
         executor.onStepClosed(g, progress(), step);
 
         org.mockito.Mockito.verifyNoInteractions(detailRepository, recorder);
+    }
+
+    @Test
+    @DisplayName("수집 소비 — BMC IP 가 있으면 커밋 후 소비용 이벤트를 발행한다 (E1.6 D-1)")
+    void onStepClosed_bmcIp_publishesEvent() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(realDetail(g)));
+        String withBmc = """
+                { "boardSerial": "JG4P6400027", "bmc": {"ip": "10.0.0.9", "mac": "aa:bb:cc:dd:ee:ff"} }
+                """;
+
+        executor.onStepClosed(g, progress(), closedCollecting(g, withBmc));
+
+        org.mockito.ArgumentCaptor<Object> event = org.mockito.ArgumentCaptor.forClass(Object.class);
+        org.mockito.Mockito.verify(eventPublisher).publishEvent(event.capture());
+        org.assertj.core.api.Assertions.assertThat(event.getValue())
+                .isEqualTo(new com.example.serverprovision.execution.event.BmcEndpointDiscoveredEvent(g.getId()));
+    }
+
+    @Test
+    @DisplayName("수집 소비 — BMC IP 가 없으면 이벤트를 발행하지 않는다 (표준화 방아쇠 없음)")
+    void onStepClosed_noBmcIp_noEvent() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(realDetail(g)));
+
+        executor.onStepClosed(g, progress(), closedCollecting(g, REPORT));
+
+        org.mockito.Mockito.verify(eventPublisher, org.mockito.Mockito.never())
+                .publishEvent(org.mockito.ArgumentMatchers.any(Object.class));
     }
 }

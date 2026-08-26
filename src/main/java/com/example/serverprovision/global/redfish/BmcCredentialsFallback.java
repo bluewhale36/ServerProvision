@@ -20,25 +20,30 @@ import java.util.function.Function;
 public class BmcCredentialsFallback {
 
     private final BmcCredentialsResolver credentialsResolver;
+    private final BmcCredentialsMemory credentialsMemory;
 
     /**
      * 후보를 순서대로 시도한다.
      *
-     * @throws RedfishRequestException 후보가 없거나(AUTH_FAILED) 모든 후보가 실패했을 때 — 마지막 실패를 그대로 던진다
+     * @throws BmcRequestException 후보가 없거나(AUTH_FAILED) 모든 후보가 실패했을 때 — 마지막 실패를 그대로 던진다.
+     *         Redfish 와 AMI 웹 API 가 같은 사다리를 지난다(E3-2 D-4 — 판정은 {@link BmcRequestException#authFailure()} 하나).
      */
     public <T> T attempt(RedfishTarget target, Function<BmcCredentials, T> call) {
-        List<BmcCredentials> candidates = credentialsResolver.candidates(target.boardSerial());
+        List<BmcCredentials> candidates = credentialsMemory.preferredOrder(
+                target.boardSerial(), credentialsResolver.candidates(target.boardSerial()));
         if (candidates.isEmpty()) {
             throw new RedfishRequestException(RedfishError.AUTH_FAILED,
                     "BMC 자격증명이 없습니다 — 표준 비밀번호가 비어 있고 보드 시리얼도 수집되지 않았습니다.", null);
         }
-        RedfishRequestException last = null;
+        BmcRequestException last = null;
         for (BmcCredentials credentials : candidates) {
             try {
-                return call.apply(credentials);
-            } catch (RedfishRequestException e) {
+                T result = call.apply(credentials);
+                credentialsMemory.remember(target.boardSerial(), credentials.source());
+                return result;
+            } catch (BmcRequestException e) {
                 last = e;
-                if (e.getError() != RedfishError.AUTH_FAILED) {
+                if (!e.authFailure()) {
                     break;
                 }
                 // 무엇을 하다 거부됐는지가 로그만으로 보여야 한다(2026-08-25) — 예외 메시지에 "GET /경로" 가 담겨 있다.
