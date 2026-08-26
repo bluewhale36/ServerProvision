@@ -6,8 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 4행 — 목표는 있는데 BMC 가 없다(미검출 또는 지원 흐름 없음). E2-2 는 이 경우 보류하지만 설정 적용은
- * BMC 없이 불가한 것이 확정 사실이고 보류하면 시한 없이 멈춘다 — 운영자가 알아야 할 실패다(D-12).
+ * 5행 — 창 안인데 BMC 가 없다(미검출 또는 지원 흐름 없음). E2-2 는 이 경우 보류하지만 설정 적용은 BMC 없이
+ * 불가한 것이 확정 사실이고 보류하면 시한 없이 멈춘다 — 운영자가 알아야 할 실패다(E3-1 D-12). 축 무관 — BIOS 목표가
+ * 비어 있어도 BMC 표준은 BMC 를 요구한다(E3-2).
  */
 @Slf4j
 @Component
@@ -18,12 +19,12 @@ public class FailNoBmcStep implements SettingStep {
 
     @Override
     public int order() {
-        return 4;
+        return 5;
     }
 
     @Override
     public boolean matches(SettingContext context) {
-        return context.target() != null && !context.target().isEmpty() && !context.bmcDetected();
+        return context.target() != null && !context.bmcDetected();
     }
 
     @Override

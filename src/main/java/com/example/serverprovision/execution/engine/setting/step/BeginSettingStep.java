@@ -2,6 +2,7 @@ package com.example.serverprovision.execution.engine.setting.step;
 
 import com.example.serverprovision.execution.engine.firmware.BmcIdentity;
 import com.example.serverprovision.execution.engine.firmware.FlashTimeoutPolicy;
+import com.example.serverprovision.execution.engine.setting.SettingAxis;
 import com.example.serverprovision.execution.engine.setting.SettingLedger;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
@@ -22,7 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 5행 — 착수(E3-1 D-4): ① 신원 대조 → ② 원장 열기(되돌리기 어려운 조작보다 먼저) → ③ 목표 전체를 PATCH
+ * 6행 — BIOS 착수(E3-1 D-4): ① 신원 대조 → ② 원장 열기(되돌리기 어려운 조작보다 먼저) → ③ 목표 전체를 PATCH
  * (현재값과 같아도 다시 쓴다 — 생략 판단 없음) → ④ pending 관찰(실패 판정 아님) → ⑤ 재부팅 → rebootAt.
  * 열린 행이 rebootAt 없이 남아 있으면(직전 주기가 재부팅 뒤에 죽음) 그 행을 이어 ①③④⑤ 를 다시 한다.
  */
@@ -39,12 +40,13 @@ public class BeginSettingStep implements SettingStep {
 
     @Override
     public int order() {
-        return 5;
+        return 6;
     }
 
     @Override
     public boolean matches(SettingContext context) {
-        return context.target() != null && !context.target().isEmpty() && context.bmcDetected();
+        return context.axis() == SettingAxis.BIOS && context.target() != null && !context.target().isEmpty()
+                && context.bmcDetected();
     }
 
     @Override

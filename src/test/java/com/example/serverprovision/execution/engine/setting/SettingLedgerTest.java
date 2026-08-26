@@ -121,4 +121,30 @@ class SettingLedgerTest {
         assertThat(meta.getValue()).contains("\"origin\":\"BMC_REQUIRED\"").contains("\"detail\":\"BMC 없음\"");
         assertThat(progress.isFailed()).isTrue();
     }
+
+    // ---- E3-2 — BMC 축 행 --------------------------------------------------------
+
+    @Test
+    @DisplayName("BMC 열기 — axis=BMC · 빈 items 로 열리고, 항목 결과가 누적되며, 닫혀도 items 는 남는다")
+    void bmcRowAccumulatesItemsAndKeepsThemOnClose() {
+        ProvisioningHistory row = ledger.openBmc(server, T);
+        assertThat(row.getStepCode()).isEqualTo(ProvisioningPhaseStep.BMC_SETTING);
+        assertThat(row.getStatusMeta()).contains("\"axis\":\"BMC\"").contains("\"items\":{}");
+
+        ledger.markItem(row, BmcSettingItem.DATE_TIME, BmcItemOutcome.applied());
+        ledger.markItem(row, BmcSettingItem.FAN_PROFILE, BmcItemOutcome.skipped("NO_FAN_PROFILE"));
+        ledger.markItem(row, BmcSettingItem.NETWORK_BOND, BmcItemOutcome.reconnectPending());
+        ledger.markBondAt(row, T.plusSeconds(5));
+
+        assertThat(ledger.itemsOf(row)).containsExactly(
+                Map.entry("DATE_TIME", "APPLIED"), Map.entry("FAN_PROFILE", "SKIPPED:NO_FAN_PROFILE"),
+                Map.entry("NETWORK_BOND", "RECONNECT_PENDING:Bond 적용 뒤 재접속 대기"));
+        assertThat(ledger.bondAtOf(row)).isEqualTo(T.plusSeconds(5));
+        assertThat(ledger.summaryOf(row)).isEqualTo("1개 적용 · FAN_PROFILE 건너뜀(NO_FAN_PROFILE)");
+
+        ledger.close(row, ProvisioningStatus.SUCCEEDED, SettingLedger.APPLIED, ledger.summaryOf(row), T.plusMinutes(1));
+        assertThat(ledger.itemsOf(row)).hasSize(3);
+        assertThat(ledger.bondAtOf(row)).isEqualTo(T.plusSeconds(5));
+        assertThat(row.getStatusMeta()).contains("\"origin\":\"APPLIED\"");
+    }
 }

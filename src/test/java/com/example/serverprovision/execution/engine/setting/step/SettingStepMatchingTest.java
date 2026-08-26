@@ -5,6 +5,8 @@ import com.example.serverprovision.execution.engine.firmware.FirmwareAxis;
 import com.example.serverprovision.execution.engine.firmware.FirmwareUpdateProvider;
 import com.example.serverprovision.execution.engine.firmware.FlashTaskState;
 import com.example.serverprovision.execution.engine.setting.BiosSettingTarget;
+import com.example.serverprovision.execution.engine.setting.BmcSettingTarget;
+import com.example.serverprovision.execution.engine.setting.BmcStandardSettings;
 import com.example.serverprovision.execution.engine.setting.SettingLedger;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
@@ -41,10 +43,12 @@ class SettingStepMatchingTest {
 
     private final SettingLedger ledger = new SettingLedger(null, JSON);
     private final SettingStepRegistry registry = new SettingStepRegistry(List.of(
+            new BeginBmcSettingStep(null, null, null, null, null, null),
             new BeginSettingStep(null, null, null, null, null),
             new FailNoBmcStep(null),
             new SkipNoTargetStep(null, null),
             new SkipOutOfSettingWindowStep(),
+            new ReconnectReadbackStep(ledger, null, null, null, null, null),
             new ReturnReadbackStep(ledger, null, null, null, null)));
 
     @Test
@@ -66,39 +70,73 @@ class SettingStepMatchingTest {
     }
 
     @Test
-    @DisplayName("2행 — 활성 할당이 없거나 BIOS 설정 단계가 없으면 창 밖이다")
+    @DisplayName("2행 — BMC 축에 bondAt 행이 있으면 재접속 readback 이 새 착수보다 앞선다")
+    void bondedRowIsCollectedFirst() {
+        ProvisioningProgress progress = bmcAxis();
+        ProvisioningHistory row = openBmcRow(null);
+        ledger.markBondAt(row, T);
+
+        assertThat(matched(context(progress, detail(), List.of(row), target())))
+                .isInstanceOf(ReconnectReadbackStep.class);
+    }
+
+    @Test
+    @DisplayName("2행 아님 — bondAt 없는 BMC 열린 행은 재개 착수다(7행)")
+    void openBmcRowWithoutBondResumesBegin() {
+        assertThat(matched(context(bmcAxis(), detail(), List.of(openBmcRow(null)), target())))
+                .isInstanceOf(BeginBmcSettingStep.class);
+    }
+
+    @Test
+    @DisplayName("3행 — 활성 할당이 없거나 BIOS 설정 단계가 없으면 창 밖이다(두 축 모두)")
     void noTargetIsOutOfWindow() {
         assertThat(matched(context(started(), detail(), List.of(), null)))
+                .isInstanceOf(SkipOutOfSettingWindowStep.class);
+        assertThat(matched(context(bmcAxis(), detail(), List.of(), null)))
                 .isInstanceOf(SkipOutOfSettingWindowStep.class);
     }
 
     @Test
-    @DisplayName("3행 — 보드 일치 템플릿이 없으면 BMC 가 없어도 실패가 아니라 건너뜀이다")
+    @DisplayName("4행 — 보드 일치 BIOS 템플릿이 없으면 BMC 가 없어도 실패가 아니라 건너뜀이다(5행보다 위)")
     void emptyTargetSkipsEvenWithoutBmc() {
         assertThat(matched(context(started(), detailWithoutBmc(), List.of(), new BiosSettingTarget(Map.of()))))
                 .isInstanceOf(SkipNoTargetStep.class);
     }
 
     @Test
-    @DisplayName("4행 — 목표는 있는데 BMC 주소가 없으면 실패로 눕힌다(D-12)")
+    @DisplayName("5행 — 목표는 있는데 BMC 주소가 없으면 실패로 눕힌다(D-12)")
     void targetWithoutBmcAddressFails() {
         assertThat(matched(context(started(), detailWithoutBmc(), List.of(), target())))
                 .isInstanceOf(FailNoBmcStep.class);
     }
 
     @Test
-    @DisplayName("4행 — BMC 주소는 있어도 다룰 흐름(provider)이 없으면 같은 실패다")
+    @DisplayName("5행 — BMC 주소는 있어도 다룰 흐름(provider)이 없으면 같은 실패다")
     void targetWithoutProviderFails() {
-        SettingContext ctx = new SettingContext(server(), started(), detail(), List.of(), target(), null, T);
+        SettingContext ctx = new SettingContext(server(), started(), detail(), List.of(), target(), bmcTarget(), null, T);
 
         assertThat(matched(ctx)).isInstanceOf(FailNoBmcStep.class);
     }
 
     @Test
-    @DisplayName("5행 — 목표가 있고 BMC 를 다룰 수 있으면 착수한다")
+    @DisplayName("6행 — BIOS 축에서 목표가 있고 BMC 를 다룰 수 있으면 BIOS 착수한다")
     void readyBegins() {
         assertThat(matched(context(started(), detail(), List.of(), target())))
                 .isInstanceOf(BeginSettingStep.class);
+    }
+
+    @Test
+    @DisplayName("5행 — BMC 축에서 BMC 가 없으면 BIOS 목표가 비어 있어도 실패다(표준은 BMC 를 요구한다)")
+    void bmcAxisWithoutBmcFails() {
+        assertThat(matched(context(bmcAxis(), detailWithoutBmc(), List.of(), new BiosSettingTarget(Map.of()))))
+                .isInstanceOf(FailNoBmcStep.class);
+    }
+
+    @Test
+    @DisplayName("7행 — BMC 축에서 창 안이고 BMC 가 있으면 BIOS 목표가 비어 있어도 BMC 착수한다")
+    void bmcAxisBegins() {
+        assertThat(matched(context(bmcAxis(), detail(), List.of(), new BiosSettingTarget(Map.of()))))
+                .isInstanceOf(BeginBmcSettingStep.class);
     }
 
     @Test
@@ -118,7 +156,7 @@ class SettingStepMatchingTest {
 
     private SettingContext context(ProvisioningProgress progress, GuestServerDetail detail,
                                    List<ProvisioningHistory> history, BiosSettingTarget target) {
-        return new SettingContext(server(), progress, detail, history, target, provider(), T);
+        return new SettingContext(server(), progress, detail, history, target, bmcTarget(), provider(), T);
     }
 
     private static GuestServer server() {
@@ -139,6 +177,27 @@ class SettingStepMatchingTest {
 
     private static BiosSettingTarget target() {
         return new BiosSettingTarget(Map.of("BootMode", "UEFI"));
+    }
+
+    private static BmcSettingTarget bmcTarget() {
+        return new BmcSettingTarget(new BmcStandardSettings("Asia/Seoul", false, "pool.ntp.org", "time.nist.gov", false, 0,
+                new BmcStandardSettings.Bond(true, "active-backup", "eth1", true)), "MS03-CE0", null);
+    }
+
+    /** BMC 축 — BIOS 축을 마치고 같은 phase 안에서 옮겨진 커서. */
+    private static ProvisioningProgress bmcAxis() {
+        ProvisioningProgress p = started();
+        p.positionAt(ProvisioningPhaseStep.BMC_SETTING, T);
+        return p;
+    }
+
+    private ProvisioningHistory openBmcRow(LocalDateTime bondAt) {
+        ProvisioningHistory row = ProvisioningHistory.openRunning(server(), ProvisioningPhaseStep.BMC_SETTING, T,
+                "{\"origin\":\"setting\",\"axis\":\"BMC\",\"items\":{}}");
+        if (bondAt != null) {
+            ledger.markBondAt(row, bondAt);
+        }
+        return row;
     }
 
     /** 운동 양태는 전이 메서드로만 세운다 — 빌더로 무효 상태를 만들지 않는다. */

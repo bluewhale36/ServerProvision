@@ -2,7 +2,8 @@ package com.example.serverprovision.execution.engine.setting.step;
 
 import com.example.serverprovision.execution.engine.firmware.BmcIdentity;
 import com.example.serverprovision.execution.engine.firmware.FlashTimeoutPolicy;
-import com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer;
+import com.example.serverprovision.execution.engine.setting.SettingAxis;
+import com.example.serverprovision.execution.engine.setting.SettingCursor;
 import com.example.serverprovision.execution.engine.setting.SettingLedger;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
@@ -33,7 +34,7 @@ public class ReturnReadbackStep implements SettingStep {
     private final BmcIdentityProbe identityProbe;
     private final RedfishBiosService biosService;
     private final FlashTimeoutPolicy timeoutPolicy;
-    private final PhaseCursorAdvancer cursorAdvancer;
+    private final SettingCursor settingCursor;
 
     @Override
     public int order() {
@@ -42,7 +43,8 @@ public class ReturnReadbackStep implements SettingStep {
 
     @Override
     public boolean matches(SettingContext context) {
-        return context.runningRow().map(row -> ledger.rebootAtOf(row) != null).orElse(false);
+        return context.axis() == SettingAxis.BIOS
+                && context.runningRow().map(row -> ledger.rebootAtOf(row) != null).orElse(false);
     }
 
     @Override
@@ -85,8 +87,8 @@ public class ReturnReadbackStep implements SettingStep {
         if (mismatched.isEmpty()) {
             ledger.close(row, ProvisioningStatus.SUCCEEDED, SettingLedger.APPLIED,
                     expected.size() + "개 속성 반영 확인", context.now());
-            cursorAdvancer.advanceOrComplete(context.progress(), context.server().getId(), context.now());
-            log.info("[setting] {} — BIOS 설정 {}개 반영 확인, 커서 전진", context.server().getId(), expected.size());
+            settingCursor.afterAxis(SettingAxis.BIOS, context.progress(), context.server().getId(), context.now());
+            log.info("[setting] {} — BIOS 설정 {}개 반영 확인, 다음 축으로", context.server().getId(), expected.size());
             return;
         }
         fail(context, row, SettingLedger.READBACK_MISMATCH, "반영되지 않은 속성: " + String.join(", ", mismatched));

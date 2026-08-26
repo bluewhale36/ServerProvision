@@ -33,11 +33,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 /**
- * E3-1 D-2 — 한 주기의 재료 조립. 판정 로직은 행이 갖고, 여기는 저장소에서 읽은 것을 컨텍스트에 담아
+ * E3-1 D-2 · E3-2 D-2 — 한 주기의 재료 조립(두 축의 목표). 판정 로직은 행이 갖고, 여기는 저장소에서 읽은 것을 컨텍스트에 담아
  * registry 의 첫 행에 넘기는 일만 한다. provider 는 게스트를 지원하는 첫 흐름이다.
  */
 @ExtendWith(MockitoExtension.class)
-class BiosSettingCycleTest {
+class FirmwareSettingCycleTest {
 
     private static final LocalDateTime T = LocalDateTime.of(2026, 8, 25, 12, 0);
 
@@ -45,6 +45,7 @@ class BiosSettingCycleTest {
     @Mock ProvisioningHistoryRepository historyRepository;
     @Mock GuestServerDetailRepository detailRepository;
     @Mock BiosSettingResolutionProvider resolutionProvider;
+    @Mock BmcSettingTargetResolver bmcTargetResolver;
     @Mock FirmwareUpdateProvider unsupported;
     @Mock FirmwareUpdateProvider supported;
     @Mock SettingStepRegistry stepRegistry;
@@ -72,6 +73,8 @@ class BiosSettingCycleTest {
         given(detailRepository.findByServerIdWithBoardModel(server.getId())).willReturn(Optional.of(detail));
         given(historyRepository.findAllByServerIdOrderByStartedAt(server.getId())).willReturn(List.of(row));
         given(resolutionProvider.resolveFor(server.getId())).willReturn(Optional.of(target));
+        BmcSettingTarget bmcTarget = new BmcSettingTarget(null, "MS03-CE0", null);
+        given(bmcTargetResolver.resolve(detail)).willReturn(bmcTarget);
         given(unsupported.supports(server, detail)).willReturn(false);
         given(supported.supports(server, detail)).willReturn(true);
         given(stepRegistry.firstMatching(any())).willReturn(Optional.of(step));
@@ -86,6 +89,7 @@ class BiosSettingCycleTest {
         assertThat(context.detail()).isSameAs(detail);
         assertThat(context.history()).containsExactly(row);
         assertThat(context.target()).isEqualTo(target);
+        assertThat(context.bmcTarget()).isSameAs(bmcTarget);
         assertThat(context.provider()).isSameAs(supported);
         assertThat(context.now()).isEqualTo(T);
     }
@@ -112,9 +116,9 @@ class BiosSettingCycleTest {
         assertThat(captor.getValue().bmcDetected()).isFalse();
     }
 
-    private BiosSettingCycle cycle() {
-        return new BiosSettingCycle(progressRepository, historyRepository, detailRepository, resolutionProvider,
-                List.of(unsupported, supported), stepRegistry);
+    private FirmwareSettingCycle cycle() {
+        return new FirmwareSettingCycle(progressRepository, historyRepository, detailRepository, resolutionProvider,
+                bmcTargetResolver, List.of(unsupported, supported), stepRegistry);
     }
 
     private static ProvisioningProgress progress(GuestServer server) {

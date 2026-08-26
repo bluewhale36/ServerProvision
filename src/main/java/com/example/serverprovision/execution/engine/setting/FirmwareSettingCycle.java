@@ -18,17 +18,19 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 설정 적용 한 주기(E3-1 D-2) — 워커와 별도 빈인 이유는 {@code @Transactional} 이 proxy 경유에서만 열리기
- * 때문이다(E2-2 {@code FirmwareFlashCycle} 과 같은 분리). 재료를 모아 registry 에 묻고 처음 맞는 행을 실행한다.
+ * 펌웨어 설정 한 주기(E3-1 D-2 · E3-2 D-2) — 워커와 별도 빈인 이유는 {@code @Transactional} 이 proxy 경유에서만
+ * 열리기 때문이다(E2-2 {@code FirmwareFlashCycle} 과 같은 분리). 두 축(BIOS · BMC)의 재료를 모아 registry 에 묻고
+ * 처음 맞는 행을 실행한다 — 어느 축인지는 커서 step 이 말한다.
  */
 @Component
 @RequiredArgsConstructor
-public class BiosSettingCycle {
+public class FirmwareSettingCycle {
 
     private final ProvisioningProgressRepository progressRepository;
     private final ProvisioningHistoryRepository historyRepository;
     private final GuestServerDetailRepository detailRepository;
     private final BiosSettingResolutionProvider resolutionProvider;
+    private final BmcSettingTargetResolver bmcTargetResolver;
     private final List<FirmwareUpdateProvider> providers;
     private final SettingStepRegistry stepRegistry;
 
@@ -46,9 +48,10 @@ public class BiosSettingCycle {
         GuestServerDetail detail = detailRepository.findByServerIdWithBoardModel(guestServerId).orElse(null);
         List<ProvisioningHistory> history = historyRepository.findAllByServerIdOrderByStartedAt(guestServerId);
         BiosSettingTarget target = resolutionProvider.resolveFor(guestServerId).orElse(null);
+        BmcSettingTarget bmcTarget = bmcTargetResolver.resolve(detail);
         FirmwareUpdateProvider provider = providers.stream()
                 .filter(candidate -> candidate.supports(progress.getGuestServer(), detail))
                 .findFirst().orElse(null);
-        return new SettingContext(progress.getGuestServer(), progress, detail, history, target, provider, now);
+        return new SettingContext(progress.getGuestServer(), progress, detail, history, target, bmcTarget, provider, now);
     }
 }

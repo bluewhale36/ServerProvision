@@ -6,6 +6,9 @@ import com.example.serverprovision.execution.engine.firmware.FirmwareUpdateProvi
 import com.example.serverprovision.execution.engine.firmware.FlashTimeoutPolicy;
 import com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer;
 import com.example.serverprovision.execution.engine.setting.BiosSettingTarget;
+import com.example.serverprovision.execution.engine.setting.BmcSettingTarget;
+import com.example.serverprovision.execution.engine.setting.BmcStandardSettings;
+import com.example.serverprovision.execution.engine.setting.SettingCursor;
 import com.example.serverprovision.execution.engine.setting.SettingLedger;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
@@ -80,6 +83,7 @@ class SettingStepExecutionTest {
     private SettingLedger ledger;
     private FlashTimeoutPolicy timeoutPolicy;
     private BmcIdentityProbe probe;
+    private SettingCursor settingCursor;
     /** recorder 가 연 행 — 실물 엔티티를 돌려주도록 answer 를 걸고 여기서 붙잡는다. */
     private final AtomicReference<ProvisioningHistory> opened = new AtomicReference<>();
 
@@ -88,6 +92,7 @@ class SettingStepExecutionTest {
         ledger = new SettingLedger(recorder, JSON);
         timeoutPolicy = new FlashTimeoutPolicy(new MockEnvironment());
         probe = new BmcIdentityProbe(rediscovery);
+        settingCursor = new SettingCursor(cursorAdvancer);
         given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.MATCHED);
         given(recorder.openRunning(any(), any(), any(), any())).willAnswer(inv -> {
             ProvisioningHistory row = ProvisioningHistory.openRunning(
@@ -105,7 +110,7 @@ class SettingStepExecutionTest {
     }
 
     private ReturnReadbackStep readback() {
-        return new ReturnReadbackStep(ledger, probe, biosService, timeoutPolicy, cursorAdvancer);
+        return new ReturnReadbackStep(ledger, probe, biosService, timeoutPolicy, settingCursor);
     }
 
     // ---- 5행 착수 ------------------------------------------------------------
@@ -240,7 +245,7 @@ class SettingStepExecutionTest {
         GuestServerDetail detail = detail();
         ProvisioningProgress progress = started();
 
-        begin().execute(new SettingContext(server(), progress, detail, List.of(), target(), provider, T));
+        begin().execute(new SettingContext(server(), progress, detail, List.of(), target(), bmcTarget(), provider, T));
 
         assertThat(detail.getBmcIp()).isEqualTo(IpAddressVO.of("10.10.0.77"));
         verify(biosService, never()).patchPending(any(), any());
@@ -302,7 +307,7 @@ class SettingStepExecutionTest {
     }
 
     @Test
-    @DisplayName("readback — 원장의 목표가 전부 반영됐으면 applied 로 닫고(목표 보존) 커서를 전진한다")
+    @DisplayName("readback — 원장의 목표가 전부 반영됐으면 applied 로 닫고(목표 보존) 같은 phase 의 BMC 축으로 옮긴다")
     void readback_allMatchAdvances() {
         GuestServer server = returned();
         ProvisioningHistory row = openRow(server, T);
@@ -315,7 +320,9 @@ class SettingStepExecutionTest {
         assertThat(row.getStatusMeta()).contains(SettingLedger.APPLIED);
         assertThat(ledger.targetOf(row)).containsExactlyInAnyOrderEntriesOf(TARGET);
         assertThat(ledger.rebootAtOf(row)).isEqualTo(T);
-        verify(cursorAdvancer).advanceOrComplete(eq(progress), eq(server.getId()), any());
+        // E3-2 D-2 — BIOS 축의 끝은 phase 완주가 아니라 BMC 축이다(표준은 항상).
+        assertThat(progress.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.BMC_SETTING);
+        verify(cursorAdvancer, never()).advanceOrComplete(any(), any(), any());
         assertThat(progress.isFailed()).isFalse();
     }
 
@@ -399,16 +406,17 @@ class SettingStepExecutionTest {
     // ---- 3행 · 4행 ------------------------------------------------------------
 
     @Test
-    @DisplayName("목표 없음 — 건너뜀을 단발로 적고 커서를 전진한다")
+    @DisplayName("목표 없음 — 건너뜀을 단발로 적고 BMC 축으로 옮긴다(BIOS 목표가 없어도 BMC 표준은 밟는다)")
     void skipNoTarget_recordsInstantAndAdvances() {
         GuestServer server = server();
         ProvisioningProgress progress = started();
 
-        new SkipNoTargetStep(ledger, cursorAdvancer)
+        new SkipNoTargetStep(ledger, settingCursor)
                 .execute(context(server, progress, List.of(), new BiosSettingTarget(Map.of()), T));
 
         assertThat(metaOf(ProvisioningStatus.SKIPPED)).contains(SettingLedger.NO_TARGET);
-        verify(cursorAdvancer).advanceOrComplete(eq(progress), eq(server.getId()), any());
+        assertThat(progress.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.BMC_SETTING);
+        verify(cursorAdvancer, never()).advanceOrComplete(any(), any(), any());
         assertThat(progress.isFailed()).isFalse();
     }
 
@@ -418,7 +426,7 @@ class SettingStepExecutionTest {
         GuestServer server = server();
         ProvisioningHistory row = openRow(server, null);
 
-        new SkipNoTargetStep(ledger, cursorAdvancer)
+        new SkipNoTargetStep(ledger, settingCursor)
                 .execute(context(server, started(), List.of(row), new BiosSettingTarget(Map.of()), T));
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SKIPPED);
@@ -433,7 +441,7 @@ class SettingStepExecutionTest {
         ProvisioningProgress progress = started();
 
         new FailNoBmcStep(ledger).execute(new SettingContext(server(), progress,
-                GuestServerDetail.builder().boardSerial(SERIAL).build(), List.of(), target(), provider, T));
+                GuestServerDetail.builder().boardSerial(SERIAL).build(), List.of(), target(), bmcTarget(), provider, T));
 
         assertThat(progress.isFailed()).isTrue();
         assertThat(metaOf(ProvisioningStatus.FAILED)).contains(SettingLedger.BMC_REQUIRED);
@@ -449,7 +457,7 @@ class SettingStepExecutionTest {
 
     private SettingContext context(GuestServer server, ProvisioningProgress progress,
                                    List<ProvisioningHistory> history, BiosSettingTarget target, LocalDateTime now) {
-        return new SettingContext(server, progress, detail(), history, target, provider, now);
+        return new SettingContext(server, progress, detail(), history, target, bmcTarget(), provider, now);
     }
 
     private static GuestServer server() {
@@ -473,6 +481,11 @@ class SettingStepExecutionTest {
 
     private static BiosSettingTarget target() {
         return new BiosSettingTarget(TARGET);
+    }
+
+    private static BmcSettingTarget bmcTarget() {
+        return new BmcSettingTarget(new BmcStandardSettings("Asia/Seoul", false, "pool.ntp.org", "time.nist.gov", false, 0,
+                new BmcStandardSettings.Bond(true, "active-backup", "eth1", true)), "MS03-CE0", null);
     }
 
     private static ProvisioningProgress started() {
