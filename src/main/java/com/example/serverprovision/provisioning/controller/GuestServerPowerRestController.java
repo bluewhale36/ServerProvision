@@ -41,9 +41,10 @@ public class GuestServerPowerRestController {
     @PostMapping("/reset")
     public ResponseEntity<PowerControlResult> reset(@PathVariable UUID id, @Valid @RequestBody PowerResetRequest request) {
         GuestServerDetailResponse server = guestServerQueryService.findDetail(id);
-        // 펌웨어를 굽는 중의 전원 조작은 벽돌 위험(R13 후속) — UI 가 버튼을 막으므로 direct POST 안전망.
-        if (server.progress() != null && server.progress().disruptionBlocked()) {
-            throw new DisruptiveActionRejectedException(id);
+        // 회수됨(U6) · 펌웨어를 굽는 중(R13 후속)의 전원 조작 거절 — UI 가 버튼을 막으므로 direct POST 안전망.
+        // 사유는 GuestServer.powerControlBlockReason 하나에서 온다(뷰의 tooltip 과 같은 SSOT).
+        if (server.powerBlockReason() != null) {
+            throw new DisruptiveActionRejectedException(id, server.powerBlockReason());
         }
         return ResponseEntity.ok(redfishPowerService.reset(targetOf(server), request.resetType()));
     }

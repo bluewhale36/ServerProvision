@@ -78,7 +78,7 @@ class GuestServerGroupQueryServiceTest {
     private void givenGroup(GuestServerGroup group, List<GuestServerSummaryResponse> memberRows) {
         when(groupRepository.findByIdWithMembers(group.getId())).thenReturn(Optional.of(group));
         when(guestServerQueryService.findSummaries(any())).thenReturn(memberRows);
-        when(guestServerQueryService.findAll()).thenReturn(List.of());
+        when(guestServerQueryService.findActive()).thenReturn(List.of());
         when(memberRepository.findAllGroupedServerIds()).thenReturn(List.of());
     }
 
@@ -140,7 +140,7 @@ class GuestServerGroupQueryServiceTest {
         GuestServerGroup group = groupWithMembers(7L, "8월 2차", List.of(member));
         when(groupRepository.findByIdWithMembers(7L)).thenReturn(Optional.of(group));
         when(guestServerQueryService.findSummaries(any())).thenReturn(List.of(row(member, "spec-A")));
-        when(guestServerQueryService.findAll())
+        when(guestServerQueryService.findActive())
                 .thenReturn(List.of(row(member, "spec-A"), row(free, "spec-A"), row(otherGroups, "spec-B")));
         when(memberRepository.findAllGroupedServerIds()).thenReturn(List.of(member, otherGroups));
 

@@ -43,7 +43,9 @@ public class GuestServerDetail extends BaseTimeEntity {
     @JoinColumn(name = "board_model_id", nullable = false)
     private BoardModel boardModel;
 
-    @Column(name = "board_serial", length = 128, unique = true)
+    /** 하드웨어 보고 보드 시리얼. DB UNIQUE 없음(U6) — 회수 행이 쥔 시리얼을 재시도 행이 다시
+     * 적재해야 하기 때문이다. 활성끼리의 중복은 앱 가드(활성 한정 existsBy)가 WARN 흡수한다. */
+    @Column(name = "board_serial", length = 128)
     private String boardSerial;
 
     @Enumerated(EnumType.STRING)

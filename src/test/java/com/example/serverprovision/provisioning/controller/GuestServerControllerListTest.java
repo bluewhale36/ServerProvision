@@ -81,7 +81,7 @@ class GuestServerControllerListTest {
     @Test
     @DisplayName("그룹이 렌더되고 스펙 요약과 대수가 화면에 나온다")
     void rendersSpecGroups() throws Exception {
-        given(queryService.findGrouped(any())).willReturn(
+        given(queryService.findGrouped(any(), org.mockito.ArgumentMatchers.anyBoolean())).willReturn(
                 listWith(null, List.of(bucket(new RegistrationAge(RegistrationAge.Unit.SECOND, 30L), "MS03-CE0 · 6338 ×2", 2))));
 
         mvc.perform(get("/provisioning/server"))
@@ -108,7 +108,7 @@ class GuestServerControllerListTest {
     @DisplayName("그룹 배지는 전체 이름을 툴팁으로 남긴다 — 열 폭에 잘려도 hover 로 구분된다")
     void groupBadgeCarriesFullNameInTooltip() throws Exception {
         GuestServerSummaryResponse server = row("srv-01");
-        given(queryService.findGrouped(any())).willReturn(listWith(null, List.of(
+        given(queryService.findGrouped(any(), org.mockito.ArgumentMatchers.anyBoolean())).willReturn(listWith(null, List.of(
                 new GuestServerListResponse.TimeGroup(
                         new RegistrationAge(RegistrationAge.Unit.SECOND, 30L),
                         List.of(new GuestServerListResponse.SpecGroup(
@@ -133,7 +133,7 @@ class GuestServerControllerListTest {
     @Test
     @DisplayName("'등록 진행 중' 은 접힌 채로 나오고, 머리만으로 각 묶음의 뜻과 대수가 읽힌다")
     void pendingIsCollapsedByDefault() throws Exception {
-        given(queryService.findGrouped(any())).willReturn(
+        given(queryService.findGrouped(any(), org.mockito.ArgumentMatchers.anyBoolean())).willReturn(
                 listWith(new GuestServerListResponse.PendingRegistrations(
                         List.of(row("srv-a")), List.of(row("srv-b"))), List.of()));
 
@@ -152,7 +152,7 @@ class GuestServerControllerListTest {
     @Test
     @DisplayName("?pending=open 이면 펼쳐져 두 묶음의 안내와 표가 나온다")
     void pendingOpensByQueryParameter() throws Exception {
-        given(queryService.findGrouped(any())).willReturn(
+        given(queryService.findGrouped(any(), org.mockito.ArgumentMatchers.anyBoolean())).willReturn(
                 listWith(new GuestServerListResponse.PendingRegistrations(
                         List.of(row("srv-a")), List.of(row("srv-b"))), List.of()));
 
@@ -166,7 +166,7 @@ class GuestServerControllerListTest {
     @Test
     @DisplayName("?phase= 는 조회 서비스에 그대로 전달되고 선택 상태가 화면에 남는다")
     void phaseFilterIsBoundAndKept() throws Exception {
-        given(queryService.findGrouped(eq(ProvisioningPhase.DIAGNOSE_LINUX))).willReturn(
+        given(queryService.findGrouped(eq(ProvisioningPhase.DIAGNOSE_LINUX), org.mockito.ArgumentMatchers.anyBoolean())).willReturn(
                 listWith(null, List.of(bucket(new RegistrationAge(RegistrationAge.Unit.SECOND, 30L), "MS03-CE0", 1))));
 
         mvc.perform(get("/provisioning/server").param("phase", "DIAGNOSE_LINUX"))
@@ -178,7 +178,7 @@ class GuestServerControllerListTest {
     @Test
     @DisplayName("필터 결과가 0건이면 되돌리는 길을 안내한다")
     void emptyFilterResultGuidesBack() throws Exception {
-        given(queryService.findGrouped(any())).willReturn(listWith(null, List.of()));
+        given(queryService.findGrouped(any(), org.mockito.ArgumentMatchers.anyBoolean())).willReturn(listWith(null, List.of()));
 
         mvc.perform(get("/provisioning/server").param("phase", "OS_INSTALLING"))
                 .andExpect(status().isOk())
@@ -196,7 +196,7 @@ class GuestServerControllerListTest {
     @Test
     @DisplayName("SSE 재조회 경로(X-Requested-With)로 들어와도 같은 화면을 돌려준다 — 필터가 URL 에 있어 보존된다")
     void sseRefetchKeepsFilteredView() throws Exception {
-        given(queryService.findGrouped(eq(ProvisioningPhase.DIAGNOSE_LINUX))).willReturn(
+        given(queryService.findGrouped(eq(ProvisioningPhase.DIAGNOSE_LINUX), org.mockito.ArgumentMatchers.anyBoolean())).willReturn(
                 listWith(null, List.of(bucket(new RegistrationAge(RegistrationAge.Unit.SECOND, 30L), "MS03-CE0", 1))));
 
         mvc.perform(get("/provisioning/server")
@@ -205,5 +205,49 @@ class GuestServerControllerListTest {
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("phaseFilter", ProvisioningPhase.DIAGNOSE_LINUX))
                 .andExpect(content().string(containsString("data-live=\"server-list\"")));
+    }
+
+    @Test
+    @DisplayName("U6 D-4 — includeDecommissioned=true 가 조회 서비스까지 전달된다 (토글 배선)")
+    void list_includeDecommissioned_passedThrough() throws Exception {
+        org.mockito.BDDMockito.given(queryService.findGrouped(
+                        org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.eq(true)))
+                .willReturn(new com.example.serverprovision.execution.dto.response.GuestServerListResponse(
+                        null, java.util.List.of()));
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/provisioning/server").param("includeDecommissioned", "true"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+
+        org.mockito.Mockito.verify(queryService).findGrouped(
+                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.eq(true));
+    }
+
+    @Test
+    @DisplayName("U6 CP5 D-2 — 목록 URL 조립 SSOT: 상태 파라미터가 빈 값 없이 조합된다")
+    void listUrl_assemblesStateWithoutBlanks() {
+        org.assertj.core.api.Assertions.assertThat(GuestServerController.listUrl(null, false, false))
+                .isEqualTo("/provisioning/server");
+        org.assertj.core.api.Assertions.assertThat(GuestServerController.listUrl(null, true, true))
+                .isEqualTo("/provisioning/server?pending=open&includeDecommissioned=true");
+        org.assertj.core.api.Assertions.assertThat(
+                        GuestServerController.listUrl(ProvisioningPhase.DIAGNOSE_LINUX, false, true))
+                .isEqualTo("/provisioning/server?phase=DIAGNOSE_LINUX&includeDecommissioned=true");
+    }
+
+    @Test
+    @DisplayName("U6 CP5 D-2 — 토글을 켠 채 '등록 진행 중' 을 펼쳐도 링크가 includeDecommissioned 를 보존한다")
+    void pendingAccordionLink_preservesToggle() throws Exception {
+        // 아코디언은 '등록 진행 중' 서버가 있어야 렌더된다 — 그 링크가 토글을 보존하는지가 관심사.
+        org.mockito.BDDMockito.given(queryService.findGrouped(
+                        org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.eq(true)))
+                .willReturn(listWith(new GuestServerListResponse.PendingRegistrations(
+                        List.of(row("srv-a")), List.of(row("srv-b"))), List.of()));
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/provisioning/server").param("includeDecommissioned", "true"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("?pending=open&amp;includeDecommissioned=true")));
     }
 }

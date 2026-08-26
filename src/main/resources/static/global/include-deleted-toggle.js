@@ -13,14 +13,18 @@
  *          th:checked="${includeDeleted}"
  *          data-include-deleted-toggle>
  *   <script th:src="@{/global/include-deleted-toggle.js}"></script>
+ *
+ * U6 — 쿼리 키 파라미터화 : 속성값이 있으면 그 키를 토글한다(없으면 종전대로 includeDeleted).
+ *   <input ... data-include-deleted-toggle="includeDecommissioned">  → 게스트 서버의 '회수된 서버 보기'
  */
 (function () {
     'use strict';
 
-    function buildNextUrl(checked) {
+    function buildNextUrl(checked, key) {
+        const k = key || 'includeDeleted';
         const params = new URLSearchParams(window.location.search);
-        if (checked) params.set('includeDeleted', 'true');
-        else params.delete('includeDeleted');
+        if (checked) params.set(k, 'true');
+        else params.delete(k);
         const q = params.toString();
         return window.location.pathname + (q ? '?' + q : '');
     }
@@ -31,7 +35,7 @@
         );
         checkboxes.forEach(cb => {
             cb.addEventListener('change', () => {
-                window.location.href = buildNextUrl(cb.checked);
+                window.location.href = buildNextUrl(cb.checked, cb.getAttribute('data-include-deleted-toggle'));
             });
         });
     }

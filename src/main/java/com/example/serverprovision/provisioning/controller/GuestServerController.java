@@ -23,6 +23,7 @@ import com.example.serverprovision.provisioning.group.dto.response.GroupBadgeRes
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
+import com.example.serverprovision.execution.dto.request.PurgeGuestServerRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +40,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -85,16 +89,47 @@ public class GuestServerController {
     @GetMapping
     public String list(@RequestParam(value = "phase", required = false) ProvisioningPhase phase,
                        @RequestParam(value = "pending", required = false) String pending,
+                       @RequestParam(value = "includeDecommissioned", required = false,
+                               defaultValue = "false") boolean includeDecommissioned,
                        Model model) {
-        GuestServerListResponse list = guestServerQueryService.findGrouped(phase);
+        GuestServerListResponse list = guestServerQueryService.findGrouped(phase, includeDecommissioned);
         model.addAttribute("list", list);
         model.addAttribute("phaseFilter", phase);
         model.addAttribute("phases", ProvisioningPhase.values());
-        model.addAttribute("pendingOpen", "open".equals(pending));
+        boolean pendingOpen = "open".equals(pending);
+        model.addAttribute("pendingOpen", pendingOpen);
+        model.addAttribute("includeDecommissioned", includeDecommissioned);
+        // 목록 상태 링크는 여기서 완성해 넘긴다(U6 CP5 D-2) — 상태 파라미터가 늘 때마다 뷰의 분기가
+        // 곱해지던 것(phase × pending × includeDecommissioned)을 조립 한 곳으로 모은다.
+        model.addAttribute("allChipUrl", listUrl(null, pendingOpen, includeDecommissioned));
+        Map<ProvisioningPhase, String> chipUrls = new EnumMap<>(ProvisioningPhase.class);
+        for (ProvisioningPhase p : ProvisioningPhase.values()) {
+            chipUrls.put(p, listUrl(p, pendingOpen, includeDecommissioned));
+        }
+        model.addAttribute("chipUrls", chipUrls);
+        model.addAttribute("pendingToggleUrl", listUrl(phase, !pendingOpen, includeDecommissioned));
         // U3-4 — 소속 그룹 배지. 목록 조회는 execution 이고 그룹은 provisioning 이라 요약 응답에 실을 수 없다(DEC-C).
         // 이 컨트롤러가 이미 provisioning 이므로 두 서비스를 각각 부른 뒤 모델 단계에서 합성한다 — SPI 역전 불요.
         model.addAttribute("groupBadges", groupQueryService.findBadges(visibleServerIds(list)));
         return "provisioning/server-list";
+    }
+
+    /**
+     * 목록 URL 조립 SSOT — 상태(phase · pending · includeDecommissioned)에서 완성 URL 을 만든다. 빈 파라미터를
+     * 남기지 않는다(URL 이 곧 상태 저장소, DEC-E). {@code OSControllerSupport.redirectToList} 와 같은 결.
+     */
+    static String listUrl(ProvisioningPhase phase, boolean pendingOpen, boolean includeDecommissioned) {
+        List<String> params = new ArrayList<>(3);
+        if (phase != null) {
+            params.add("phase=" + phase.name());
+        }
+        if (pendingOpen) {
+            params.add("pending=open");
+        }
+        if (includeDecommissioned) {
+            params.add("includeDecommissioned=true");
+        }
+        return "/provisioning/server" + (params.isEmpty() ? "" : "?" + String.join("&", params));
     }
 
     /** 화면에 실제로 그려지는 서버들 — 그룹 배지는 이들만 있으면 된다. */
@@ -149,6 +184,18 @@ public class GuestServerController {
     public String decommission(@PathVariable("id") UUID id) {
         guestServerCommandService.decommission(id);
         return "redirect:/provisioning/server/" + id;
+    }
+
+    /**
+     * 회수 서버 영구 삭제(U6 D-5) — 성공하면 목록으로 보낸다(보던 상세가 사라지는 액션 — 화면 JS 가
+     * {@code AsyncSubmitResult} 로 이 도착지를 따라간다). 검증 · 상태 거절은 advice 가 모달로 수렴
+     * (BindingResult 없음 — 재렌더할 화면이 없다, new-form.md 판정).
+     */
+    @PostMapping("/{id}/purge")
+    public String purge(@PathVariable("id") UUID id,
+                        @Valid @ModelAttribute PurgeGuestServerRequest request) {
+        guestServerCommandService.purge(id, request.typedSuffix());
+        return "redirect:/provisioning/server";
     }
 
     /**

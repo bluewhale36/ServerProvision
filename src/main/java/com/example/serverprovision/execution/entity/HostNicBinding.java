@@ -35,7 +35,9 @@ public class HostNicBinding extends BaseTimeEntity {
     private GuestServer guestServer;
 
     @Convert(converter = MacAddressConverter.class)
-    @Column(name = "host_mac", nullable = false, unique = true, length = 17)
+    /** DB UNIQUE 없음(U6) — 회수 행의 바인딩이 쥔 MAC 으로 재시도 행이 다시 등록돼야 한다. 활성끼리의
+     * 중복은 systemUUID 활성 한정 UNIQUE(같은 MAC = 같은 장비 = 같은 UUID)가 상위 불변식으로 막는다. */
+    @Column(name = "host_mac", nullable = false, length = 17)
     private MacAddressVO macAddress;
 
     @Convert(converter = IpAddressConverter.class)

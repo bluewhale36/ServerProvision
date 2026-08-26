@@ -64,7 +64,7 @@ class GuestServerQueryServiceGroupingTest {
 
     @BeforeEach
     void wireRepositories() {
-        when(guestServerRepository.findAllByOrderByCreatedAtDesc()).thenReturn(servers);
+        when(guestServerRepository.findAllByDecommissionedAtIsNullOrderByCreatedAtDesc()).thenReturn(servers);
         when(detailRepository.findAllByServerIdInWithBoardModel(any())).thenReturn(details);
         when(nicRepository.findPrimaryByServerIdIn(any())).thenReturn(List.of());
         when(progressRepository.findAllByGuestServer_IdIn(any())).thenReturn(progresses);
@@ -108,7 +108,7 @@ class GuestServerQueryServiceGroupingTest {
         given("MS03-CE0", SPEC_2S, 70, ProvisioningPhase.DIAGNOSE_LINUX);
         given("MS03-CE0", SPEC_1S, 75, ProvisioningPhase.DIAGNOSE_LINUX);
 
-        GuestServerListResponse result = service.findGrouped(null);
+        GuestServerListResponse result = service.findGrouped(null, false);
 
         assertThat(result.timeGroups()).hasSize(1);
         GuestServerListResponse.TimeGroup bucket = result.timeGroups().getFirst();
@@ -123,7 +123,7 @@ class GuestServerQueryServiceGroupingTest {
         given("MS03-CE0", SPEC_2S, 65, ProvisioningPhase.DIAGNOSE_LINUX);            // 1분 전
         given("MS03-CE0", SPEC_2S, 3L * 24 * 3600, ProvisioningPhase.DIAGNOSE_LINUX); // 그 이전
 
-        GuestServerListResponse result = service.findGrouped(null);
+        GuestServerListResponse result = service.findGrouped(null, false);
 
         // 눈금이 동적이라 상수로 비교하지 않는다 — 최근 것이 먼저, 3일 전은 일 단위 묶음이 된다
         assertThat(result.timeGroups()).hasSize(2);
@@ -136,7 +136,7 @@ class GuestServerQueryServiceGroupingTest {
     void pendingIsNullWhenNobodyIsPending() {
         given("MS03-CE0", SPEC_2S, 65, ProvisioningPhase.DIAGNOSE_LINUX);
 
-        assertThat(service.findGrouped(null).pending()).isNull();
+        assertThat(service.findGrouped(null, false).pending()).isNull();
     }
 
     @Test
@@ -145,13 +145,13 @@ class GuestServerQueryServiceGroupingTest {
         given(null, null, 65, ProvisioningPhase.BOOTSTRAPPING);
         given(null, null, 70, ProvisioningPhase.DIAGNOSE_LINUX);
 
-        GuestServerListResponse.PendingRegistrations pending = service.findGrouped(null).pending();
+        GuestServerListResponse.PendingRegistrations pending = service.findGrouped(null, false).pending();
 
         assertThat(pending).isNotNull();
         assertThat(pending.registeredOnly()).hasSize(1);
         assertThat(pending.collecting()).hasSize(1);
         assertThat(pending.total()).isEqualTo(2);
-        assertThat(service.findGrouped(null).timeGroups()).isEmpty();
+        assertThat(service.findGrouped(null, false).timeGroups()).isEmpty();
     }
 
     @Test
@@ -161,7 +161,7 @@ class GuestServerQueryServiceGroupingTest {
         given("MS03-CE0", SPEC_2S, 70, ProvisioningPhase.FIRMWARE_UPDATING);
         given("MS03-CE0", SPEC_2S, 75, null);
 
-        GuestServerListResponse result = service.findGrouped(ProvisioningPhase.DIAGNOSE_LINUX);
+        GuestServerListResponse result = service.findGrouped(ProvisioningPhase.DIAGNOSE_LINUX, false);
 
         assertThat(result.timeGroups()).hasSize(1);
         assertThat(result.timeGroups().getFirst().serverCount()).isEqualTo(1);
@@ -173,7 +173,7 @@ class GuestServerQueryServiceGroupingTest {
         given("MS03-CE0", SPEC_2S, 65, ProvisioningPhase.DIAGNOSE_LINUX);   // 1분 전
         given("MS03-CE0", SPEC_2S, 130, ProvisioningPhase.DIAGNOSE_LINUX);  // 2분 전
 
-        GuestServerListResponse result = service.findGrouped(null);
+        GuestServerListResponse result = service.findGrouped(null, false);
 
         assertThat(result.timeGroups()).hasSize(2);
         assertThat(result.timeGroups().get(0).bucket().amount()).isEqualTo(1L);  // 최근이 먼저
@@ -185,6 +185,19 @@ class GuestServerQueryServiceGroupingTest {
     void emptyWhenNothingMatches() {
         given("MS03-CE0", SPEC_2S, 65, ProvisioningPhase.DIAGNOSE_LINUX);
 
-        assertThat(service.findGrouped(ProvisioningPhase.OS_INSTALLING).isEmpty()).isTrue();
+        assertThat(service.findGrouped(ProvisioningPhase.OS_INSTALLING, false).isEmpty()).isTrue();
+    }
+
+    @Test
+    @DisplayName("U6 D-4 — '회수된 서버 보기' 를 켜면 전체 조회 경로를 탄다(회수 행 포함)")
+    void includeDecommissioned_readsAll() {
+        org.mockito.Mockito.when(guestServerRepository.findAllByOrderByCreatedAtDesc())
+                .thenReturn(java.util.List.of());
+
+        service.findGrouped(null, true);
+
+        org.mockito.Mockito.verify(guestServerRepository).findAllByOrderByCreatedAtDesc();
+        org.mockito.Mockito.verify(guestServerRepository,
+                org.mockito.Mockito.never()).findAllByDecommissionedAtIsNullOrderByCreatedAtDesc();
     }
 }

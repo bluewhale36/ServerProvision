@@ -14,4 +14,9 @@ public class DisruptiveActionRejectedException extends ConflictException {
     public DisruptiveActionRejectedException(UUID id) {
         super("펌웨어를 굽는 중에는 이 조작을 할 수 없습니다 — 집행이 끝난 뒤 다시 시도하십시오. id=" + id);
     }
+
+    /** 사유가 SSOT 에서 오는 변형(U6) — 전원 조작은 {@code GuestServer.powerControlBlockReason} 의 문구를 그대로 싣는다. */
+    public DisruptiveActionRejectedException(UUID id, String reason) {
+        super(reason + " id=" + id);
+    }
 }

@@ -27,7 +27,12 @@ public class GuestServer extends BaseTimeEntity {
     @Id
     private UUID id;
 
-    @Column(name = "system_uuid", nullable = false, unique = true)
+    /**
+     * SMBIOS systemUUID — 등록 정체성. 단순 UNIQUE 가 아니라 <b>활성 한정 UNIQUE</b> 다(U6):
+     * DB 의 PERSISTENT generated column({@code active_system_uuid}, JPA 미매핑)이 활성 행만
+     * 유일을 강제하고, 회수 행은 같은 UUID 로 얼마든 쌓인다 — "회수 후 재시도" 등록의 전제.
+     */
+    @Column(name = "system_uuid", nullable = false)
     private UUID systemUUID;
 
     /** 운영자가 부여하는 식별 이름. 시스템 내 유일(미지정 가능 → nullable + UNIQUE 는 다중 null 허용). */
@@ -74,6 +79,42 @@ public class GuestServer extends BaseTimeEntity {
         this.modelName = modelName;
         this.serialNumber = serialNumber;
         this.memo = memo;
+    }
+
+    /**
+     * 전원 조작 차단 사유 SSOT (U6 CP6 검수 — R13 후속의 "굽는 중" 차단과 통합) — 할 수 있으면 {@code null}.
+     * 상세 화면의 전원 버튼 disabled + tooltip 과 {@code GuestServerPowerRestController} 의 reset 가드가
+     * 이 한 메서드를 함께 부른다. 회수를 먼저 본다({@code GuestServerStatus.derive} 가 회수를 최우선 상태로
+     * 두는 정렬과 같다). 상태 조회(읽기)는 막지 않는다.
+     */
+    public String powerControlBlockReason(ProvisioningProgress progress) {
+        if (decommissionedAt != null) {
+            return "회수된 서버는 전원을 조작할 수 없습니다.";
+        }
+        if (progress != null && progress.isDisruptionBlocked()) {
+            return "펌웨어를 굽는 중에는 사용할 수 없습니다.";
+        }
+        return null;
+    }
+
+    /**
+     * 영구 삭제 차단 사유 SSOT (U6 D-5) — 지울 수 있으면 {@code null}. 상세 화면의 삭제 섹션
+     * 노출 판정과 {@code GuestServerCommandService.purge} 가드가 이 한 메서드를 함께 부른다.
+     */
+    public String purgeBlockReason() {
+        if (decommissionedAt == null) {
+            return "회수된 서버만 영구 삭제할 수 있습니다.";
+        }
+        return null;
+    }
+
+    /**
+     * 삭제 확인 입력의 기대값 — systemUUID 의 마지막 {@code -} 다음 세그먼트(U6 사용자 확정).
+     * 화면 안내와 서버 가드가 같은 값을 쓴다. 형식이 다른 장비 대응은 MVP 이후.
+     */
+    public String systemUUIDSuffix() {
+        String raw = systemUUID.toString();
+        return raw.substring(raw.lastIndexOf('-') + 1);
     }
 
     /**

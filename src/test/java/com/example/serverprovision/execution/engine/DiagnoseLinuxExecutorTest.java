@@ -213,7 +213,7 @@ class DiagnoseLinuxExecutorTest {
         org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
                 .willReturn(java.util.Optional.of(detail));
         org.mockito.BDDMockito.given(detailRepository
-                .existsByBoardSerialAndGuestServer_IdNot("JG4P6400027", g.getId())).willReturn(true);
+                .existsByBoardSerialAndGuestServer_IdNotAndGuestServer_DecommissionedAtIsNull("JG4P6400027", g.getId())).willReturn(true);
         ProvisioningProgress p = progress();
 
         executor.onStepClosed(g, p, closedCollecting(g, REPORT));

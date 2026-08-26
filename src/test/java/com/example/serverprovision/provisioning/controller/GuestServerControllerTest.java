@@ -93,7 +93,7 @@ class GuestServerControllerTest {
 
     private GuestServerDetailResponse detail(UUID id) {
         return new GuestServerDetailResponse(
-                id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "memo",
+                id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "464331aabbcc", null, "memo",
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
                 null,   // E1-2 — 접촉 관찰 없음 fixture
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
@@ -110,7 +110,7 @@ class GuestServerControllerTest {
     /** E1.5 — BMC 가 검출된 상세 fixture(전원 카드가 버튼을 그리는 조건). */
     private GuestServerDetailResponse detailWithBmc(UUID id) {
         return new GuestServerDetailResponse(
-                id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "memo",
+                id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "464331aabbcc", null, "memo",
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
                 null,
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "QG260700082",
@@ -131,7 +131,7 @@ class GuestServerControllerTest {
     @DisplayName("GET /provisioning/server — 목록 200 + list 뷰")
     void list_returns200() throws Exception {
         // U3-3 — 목록은 평면 리스트가 아니라 그룹 응답을 받는다. 그룹 렌더 자체는 전용 테스트가 덮는다.
-        given(queryService.findGrouped(null)).willReturn(
+        given(queryService.findGrouped(null, false)).willReturn(
                 new com.example.serverprovision.execution.dto.response.GuestServerListResponse(null, List.of()));
 
         mvc.perform(get("/provisioning/server"))

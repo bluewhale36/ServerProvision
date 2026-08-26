@@ -73,6 +73,7 @@ public class GuestServerQueryService {
 
     @Transactional(readOnly = true)
     public List<GuestServerSummaryResponse> findAll() {
+        // 회수 행 포함 전체 — 그룹 구성 갈림 판정처럼 회수 멤버의 스펙 키도 필요한 소비처가 쓴다(U6 D-4).
         return assembleSummaries(guestServerRepository.findAllByOrderByCreatedAtDesc());
     }
 
@@ -124,8 +125,18 @@ public class GuestServerQueryService {
      * @param phaseFilter null 이면 전체. 값이 있으면 그 phase 인 서버만 남긴다(진행 정보가 없으면 제외)
      */
     @Transactional(readOnly = true)
-    public GuestServerListResponse findGrouped(ProvisioningPhase phaseFilter) {
-        return assembleGroups(guestServerRepository.findAllByOrderByCreatedAtDesc(), phaseFilter);
+    public GuestServerListResponse findGrouped(ProvisioningPhase phaseFilter, boolean includeDecommissioned) {
+        // 기본은 활성만(U6 D-4) — 회수 행은 '회수된 서버 보기' 를 켰을 때만 노출한다(자원 휴지통 모드 선례).
+        List<GuestServer> servers = includeDecommissioned
+                ? guestServerRepository.findAllByOrderByCreatedAtDesc()
+                : guestServerRepository.findAllByDecommissionedAtIsNullOrderByCreatedAtDesc();
+        return assembleGroups(servers, phaseFilter);
+    }
+
+    /** 활성 서버 요약(U6 D-4) — 그룹 '서버 넣기' 후보처럼 회수 서버가 나오면 안 되는 소비처가 쓴다. */
+    @Transactional(readOnly = true)
+    public List<GuestServerSummaryResponse> findActive() {
+        return assembleSummaries(guestServerRepository.findAllByDecommissionedAtIsNullOrderByCreatedAtDesc());
     }
 
     /**
@@ -367,6 +378,8 @@ public class GuestServerQueryService {
                 server.getModelName(),
                 server.getSerialNumber(),
                 server.getSystemUUID(),
+                server.systemUUIDSuffix(),
+                server.powerControlBlockReason(progress),
                 server.getMemo(),
                 deriveStatus(server, progress),                    // 도출
                 server.getDecommissionedAt(),
