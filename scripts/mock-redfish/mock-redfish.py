@@ -19,6 +19,19 @@ E1.6 이 더한 것 — 계정 표준화 경로의 실측 재현:
   유효 비밀번호가 정적이 아니라 상태다 — PATCH 가 실제로 admin 비밀번호를 갈아끼운다.
   신품 = /__passwords {"valid": ["<보드시리얼>"]} · 제3 비밀번호 = {"valid": ["someone-else"]}.
 
+E3-1 이 더한 것 — BIOS 설정 적용 경로의 실측 재현(E0-4-3):
+  GET  Systems/Self/Bios       : Attributes 전체 + ETag
+  PATCH Systems/Self/Bios/SD   : If-Match 필수(* 허용) → pending 생성 · 204
+  GET  Systems/Self/Bios/SD    : pending 없으면 404 (실측 거동)
+  Reset ForceRestart           : pending 을 Attributes 에 적용하고 pending 을 비운다(재부팅 = POST 재연)
+  모드  patch-412-once : 첫 PATCH 를 If-Match:* 여도 412 로 거절(두 번째부터 수락 — fresh ETag 폴백 검증)
+        no-pending     : PATCH 204 지만 pending 을 만들지 않는다(무변경 PATCH 거동 미실측 재연)
+        readback-drift : 재부팅 시 pending 중 한 속성을 반영하지 않는다(readback 불일치 재연)
+        patch-reject   : PATCH Bios/SD 를 400 으로 거절한다(속성 거절 — PATCH_REJECTED 재연)
+        reset-fail     : ComputerSystem.Reset 을 500 으로 거절한다(재부팅 명령 실패 → 행이 rebootAt 없이 남아 다음 주기 재개)
+  Reset On 도 pending 을 적용한다 — 꺼진 장비를 켜는 것도 POST 를 지난다.
+  BIOS 값 조작(무인증): POST /__bios {"SETUP004_BootupNumLockState": "On"}
+
 모드 전환(무인증, 하네스 전용): POST /__mode {"mode": "..."} · 상태 초기화: POST /__reset-state
 버전 조작(무인증): POST /__inventory {"BIOS": "F29", "BMC": "13.06.27"}
 비밀번호 조작(무인증): POST /__passwords {"valid": ["QG260700082"]}
@@ -50,6 +63,12 @@ STATE = {
     'passwords': ['standard-pw', 'QG260700082'],   # 지금 유효한 admin 비밀번호 — PATCH 가 갈아끼운다
     'accountEtag': 1000,                           # fresh ETag 강제(E0-4-1) — PATCH 마다 증가
     'accountPatches': [],                          # If-Match · Password 요청 원문 (검증용)
+    'bios': {'SETUP004_BootupNumLockState': 'On', 'BirchStream0058_SpeedStepPstates': 'Enable',
+             'BirchStream0059_TurboMode': 'Enable', 'BirchStream0063_PackageCState': 'Auto'},
+    'biosEtag': 5000,
+    'biosPending': None,                           # PATCH 가 만든 pending (None = 비어 있음 → GET 404)
+    'biosPatches': [],                             # If-Match · Attributes 요청 원문
+    'patch412Served': False,                       # patch-412-once 모드의 1회 소비 표식
 }
 
 def ensure_cert():
@@ -99,6 +118,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if self.path == '/redfish/v1/Systems/Self':
             self._json(200, {'PowerState': STATE['power']})
+        elif self.path == '/redfish/v1/Systems/Self/Bios':
+            self._json(200, {'Id': 'Bios', 'AttributeRegistry': 'BiosAttributeRegistry',
+                             'Attributes': dict(STATE['bios'])},
+                       headers={'ETag': 'W/"%d"' % STATE['biosEtag']})
+        elif self.path == '/redfish/v1/Systems/Self/Bios/SD':
+            # 실측: pending 이 비어 있으면 404, PATCH 는 수락.
+            if STATE['biosPending'] is None:
+                self._json(404, {'error': 'no pending settings'})
+            else:
+                self._json(200, {'Id': 'SD', 'Name': 'Future BIOS Settings',
+                                 'Attributes': dict(STATE['biosPending'])},
+                           headers={'ETag': 'W/"%d"' % STATE['biosEtag']})
         elif self.path == '/redfish/v1/AccountService/Accounts':
             self._json(200, {'Members': [
                 {'@odata.id': '/redfish/v1/AccountService/Accounts/1'},
@@ -145,6 +176,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             STATE['pullErrors'].append('%s : %s' % (image_uri, e))
             return None
 
+    def _apply_pending(self):
+        pending = STATE['biosPending'] or {}
+        for k, v in pending.items():
+            if STATE['mode'] == 'readback-drift' and k == sorted(pending)[0]:
+                continue   # 첫 속성 하나를 일부러 반영하지 않는다
+            STATE['bios'][k] = v
+        STATE['biosPending'] = None
+        STATE['biosEtag'] += 1
+
     def _task_state(self):
         if STATE['mode'] == 'flash-slow':
             return 'Running'
@@ -160,6 +200,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if not self._authed():
             self._json(401, {'error': 'unauthorized'})
+            return
+        if self.path == '/redfish/v1/Systems/Self/Bios/SD':
+            if_match = self.headers.get('If-Match')
+            if STATE['mode'] == 'patch-412-once' and not STATE['patch412Served']:
+                STATE['patch412Served'] = True
+                self._json(412, {'error': 'precondition failed'})
+                return
+            if if_match not in ('*', 'W/"%d"' % STATE['biosEtag']):
+                self._json(412, {'error': 'precondition failed'})
+                return
+            if STATE['mode'] == 'patch-reject':
+                self._json(400, {'error': 'attribute rejected (mock mode patch-reject)'})
+                return
+            attrs = body.get('Attributes') or {}
+            STATE['biosPatches'].append({'ifMatch': if_match, 'attributes': attrs})
+            if STATE['mode'] != 'no-pending':
+                STATE['biosPending'] = dict(STATE['biosPending'] or {}, **attrs)
+            STATE['biosEtag'] += 1
+            self.send_response(204)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
             return
         if self.path == '/redfish/v1/AccountService/Accounts/2':
             # 실측 계약(E0-4-1): fresh ETag 의 If-Match 필수 — 없거나 낡았으면 412.
@@ -190,11 +251,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
                           'inventory': {'BIOS': 'F27', 'BMC': '13.06.26'}, 'flash': [],
                           'pulled': [], 'pullErrors': [], 'taskSeq': 1,
                           'passwords': ['standard-pw', 'QG260700082'], 'accountEtag': 1000,
-                          'accountPatches': []})
+                          'accountPatches': [],
+                          'bios': {'SETUP004_BootupNumLockState': 'On', 'BirchStream0058_SpeedStepPstates': 'Enable',
+                                   'BirchStream0059_TurboMode': 'Enable', 'BirchStream0063_PackageCState': 'Auto'},
+                          'biosEtag': 5000, 'biosPending': None, 'biosPatches': [], 'patch412Served': False})
             self._json(200, STATE)
             return
         if self.path == '/__inventory':
             STATE['inventory'].update(body)
+            self._json(200, STATE)
+            return
+        if self.path == '/__bios':
+            STATE['bios'].update(body)
+            STATE['biosEtag'] += 1
             self._json(200, STATE)
             return
         if self.path == '/__passwords':
@@ -223,14 +292,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if self.path == '/redfish/v1/Systems/Self/Actions/ComputerSystem.Reset':
             reset = body.get('ResetType')
+            if STATE['mode'] == 'reset-fail':
+                self._json(500, {'error': 'reset failed (mock mode reset-fail)'})
+                return
             STATE['requests'].append(reset)
             if reset in ('ForceOff', 'GracefulShutdown'):
                 STATE['power'] = 'Off'
             elif reset == 'On':
                 if STATE['mode'] != 'on-noop':
                     STATE['power'] = 'On'      # on-noop: 202 만 주고 전원 불변(실측 실패 모드)
+                    self._apply_pending()      # 꺼진 장비를 켜는 것도 POST 를 지난다 — pending 반영(E3-1)
             elif reset in ('PowerCycle', 'ForceRestart'):
                 STATE['power'] = 'On'
+                self._apply_pending()   # 재부팅 = POST 재연: pending 을 현재값에 반영하고 비운다
             else:
                 self._json(400, {'error': 'unknown ResetType ' + str(reset)})
                 return

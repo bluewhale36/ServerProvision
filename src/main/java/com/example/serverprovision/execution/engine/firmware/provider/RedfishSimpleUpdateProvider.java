@@ -63,7 +63,8 @@ public class RedfishSimpleUpdateProvider implements FirmwareUpdateProvider {
                     ? BmcIdentity.MATCHED
                     : BmcIdentity.MISMATCHED;
         } catch (RedfishRequestException e) {
-            log.info("[flash] {} — 신원 확인 응답 없음 : {}", target.bmcIp(), e.getMessage());
+            // 태그가 [flash] 가 아닌 이유: 신원 판정은 E3-1 부터 설정 phase 도 지나는 공유 자리다(CP5 F-2).
+            log.info("[bmc] {} — 신원 확인 응답 없음 : {}", target.bmcIp(), e.getMessage());
             return BmcIdentity.UNREACHABLE;
         }
     }

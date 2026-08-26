@@ -19,6 +19,7 @@ import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.service.BmcAddressRediscovery;
+import com.example.serverprovision.execution.service.BmcIdentityProbe;
 import com.example.serverprovision.execution.service.FirmwareImageTokenRegistry;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.execution.vo.MacAddressVO;
@@ -76,7 +77,8 @@ class FlashStepExecutionTest {
     void setUp() {
         ledger = new FlashLedger(recorder);
         timeoutPolicy = new FlashTimeoutPolicy(new MockEnvironment());
-        guard = new BmcIdentityGuard(rediscovery, timeoutPolicy, ledger);
+        // E3-1 — 판정 · 주소 재발견은 Probe 로 옮겨졌다. mock 재발견을 실물 Probe 로 감싸면 행동은 종전과 같다.
+        guard = new BmcIdentityGuard(new BmcIdentityProbe(rediscovery), timeoutPolicy, ledger);
         given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.MATCHED);
         given(tokenRegistry.issue(any(), any(), any())).willReturn(UUID.randomUUID());
         given(tokenRegistry.urlFor(any())).willReturn("http://server/api/pxe/v1/firmware/tok");

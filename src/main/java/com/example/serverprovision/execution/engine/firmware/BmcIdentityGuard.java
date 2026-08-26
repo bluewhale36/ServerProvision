@@ -1,14 +1,12 @@
 package com.example.serverprovision.execution.engine.firmware;
 
 import com.example.serverprovision.execution.engine.firmware.step.FlashContext;
-import com.example.serverprovision.execution.service.BmcAddressRediscovery;
-import com.example.serverprovision.execution.vo.IpAddressVO;
+import com.example.serverprovision.execution.service.BmcIdentityProbe;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.Optional;
 
 /**
  * 신원 확인 관문(E2-2 D-11) — <b>되돌릴 수 없는 조작을 내기 직전</b>(전원 끄기 · 굽기 · 전원 켜기)과
@@ -26,7 +24,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class BmcIdentityGuard {
 
-    private final BmcAddressRediscovery addressRediscovery;
+    private final BmcIdentityProbe identityProbe;
     private final FlashTimeoutPolicy timeoutPolicy;
     private final FlashLedger ledger;
 
@@ -37,7 +35,9 @@ public class BmcIdentityGuard {
      * @param axis 시한을 재는 기준 축 — 없으면 복귀 시한을 쓴다
      */
     public boolean confirm(FlashContext ctx, FirmwareAxis axis) {
-        BmcIdentity identity = ctx.provider().verifyIdentity(ctx.target(), ctx.detail().getBoardSerial());
+        // 판정과 주소 재발견은 phase 무관 Probe(E3-1 에서 추출)가, 원장 기록은 여기가 맡는다.
+        BmcIdentity identity = identityProbe.probe(ctx.provider(), ctx.target(),
+                ctx.detail().getBoardSerial(), ctx.detail(), "flash");
         if (identity == BmcIdentity.MATCHED) {
             return true;
         }
@@ -45,16 +45,6 @@ public class BmcIdentityGuard {
             log.error("[flash] {} — 신원 불일치, 집행 중단(남의 장비일 수 있다)", ctx.server().getId());
             ledger.failAtCursor(ctx.server(), ctx.progress(), FlashLedger.IDENTITY_MISMATCH,
                     "응답한 장비의 보드 시리얼이 이 서버와 다릅니다", ctx.now());
-            return false;
-        }
-        // 도달 불가 — 주소가 바뀌었을 수 있다. 같은 MAC 의 현재 주소를 찾아 갱신하고 다음 주기에 다시 본다.
-        Optional<IpAddressVO> found = addressRediscovery.currentAddressOf(ctx.detail().getBmcMac());
-        if (found.isPresent() && !found.get().equals(ctx.detail().getBmcIp())) {
-            // VO 의 toString 이 그대로 새면 로그가 읽히지 않는다 — 값만 싣는다.
-            log.info("[flash] {} — BMC 주소 갱신 {} → {}", ctx.server().getId(),
-                    ctx.detail().getBmcIp() == null ? "(없음)" : ctx.detail().getBmcIp().value(),
-                    found.get().value());
-            ctx.detail().updateBmcIp(found.get());
             return false;
         }
         Duration limit = axis == null ? timeoutPolicy.returnLimit() : timeoutPolicy.limitFor(axis);

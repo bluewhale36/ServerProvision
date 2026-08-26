@@ -73,6 +73,11 @@ public final class IpxeScripts {
         return waitAndChain("firmware flash applied. verifying inventory...", rebootQuery);
     }
 
+    /** BIOS 설정 적용 중(E3-1) — PATCH · 재부팅 · readback 은 워커가 BMC 로 하고, 게스트는 돌아온 것만 알리면 된다. */
+    public static String awaitingBiosSetting(String rebootQuery) {
+        return waitAndChain("applying bios settings via bmc. waiting...", rebootQuery);
+    }
+
     /** 미구현 phase HOLD(silent 통과 금지, DEC-6) — dispatch 6행. */
     public static String hold(ProvisioningPhase phase, String rebootQuery) {
         return waitAndChain("phase " + phase + " not implemented yet (HOLD).", rebootQuery);
