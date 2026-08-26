@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E3-2 Plan — BMC 설정 적용</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section .body > p:first-child { margin-top:0; }
+  details.section .body > .callout:first-child { margin-top:0; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .muted { color:var(--text-muted); }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid / diff / state-flow ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 라이브 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:180px; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .ux-row .ux-toolbar { margin-bottom:0; }
+  .ux-row .ux-toolbar .seg { padding:3px 9px; font-size:11px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  /* 카탈로그 밖 강조는 새 class 대신 속성 셀렉터로 (명세 §2 관례 · E3-1 선례) */
+  [data-error="1"] { color:var(--red); font-weight:700; }
+  [data-ok="1"] { color:var(--green); font-weight:700; }
+  [data-skip="1"] { color:var(--yellow); font-weight:700; }
+  tr[data-hit="1"] > td { background:var(--blue-bg); font-weight:600; }
+  tr[data-reach="0"] > td { color:var(--text-muted); }
+
+  /* ── .seq : N-actor 시간 흐름 ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── pkg-tree / card-grid ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E3-2 — BMC 설정 적용 <span class="v2-badge">FIRMWARE_SETTING · BMC_SETTING</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E3-2 (feature)</span>
+    <span><strong>브랜치</strong> <code>feat/E3_firmware-setting</code> — E3-1 커밋 <code>52ec979</code> · <code>0df5168</code> 위</span>
+    <span><strong>scope</strong> 사내 표준 BMC 세팅 4종(DateTime · Cold Redundant · Fan Profile · Network Bond)을 AMI 웹 API 로 써 넣고 항목마다 되읽어 확인한다 — 재부팅 없음</span>
+    <span><strong>착수 브리핑</strong> <code>discussion/26-08-25_17-31-13_E3-2-bmc-setting-web-api_briefing.md</code></span>
+    <span><strong>실측 원장</strong> Notion <code>E0-3 : BMC 내부 API 경로 확인 작업</code></span>
+    <span><strong>레시피 앵커</strong> <code>discussion/26-08-20_17-45-50_bmc-redfish-fieldwork-5-N-recipe.md</code></span>
+    <span><strong>작성</strong> 2026-08-26 KST</span>
+    <span><strong>CP1</strong> 승인(2026-08-26) → CP2 진행</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 배경 · 유래</a></li>
+      <li><a href="#s2">§2 실측 계약 — 항목 4종</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 설계 결정 D-1 ~ D-13 · 진리표 v2</a></li>
+      <li><a href="#s4">§4 스코프 제외 (행선지)</a></li>
+      <li><a href="#s5">§5 12 단계 · CP 매핑</a></li>
+      <li><a href="#s6">§6 테스트 계획</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 CP5 계획 골격</a></li>
+      <li><a href="#s9">§9 위험 · 미해결</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 Verification · 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 배경 · 유래 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경 · 유래 — 지금 이 슬라이스인 이유</summary>
+      <div class="body">
+        <div class="callout warn"><b>개정 이력</b> (파일 경로는 Notion 임베드 · 후속 report 참조를 지키려 고정한다)
+          <ul>
+            <li><b>개정 1 (2026-08-26 KST · CP1 승인 반영)</b> — 승인으로 확정된 넷을 반영했다. ① <b>D-1 은 (C) 채택 확정</b>이고, 정의서가 항목을 고르는 (A) 계열은 <b>BMC 세팅 정의서 CRUD = U2-7</b> 로 MVP 출시 이후에 둔다(§4 행선지 갱신). ② <b>표준값 확정</b> — Cold Redundant 는 <code>set_cold_redundant_enable: 0</code> · <code>master_psu: 0</code>, Fan Profile 은 보드별 고정이며 자원 파일은 <b>4 보드</b>다(사용자가 <code>discussion/e0-3-fanprofile/</code> 에 BMC 웹 UI 업로드 파일 4종을 두었다 — 파일명 · 보드 대응은 CP2 에서 확인해 §10 에 반영). ③ <b>Bond</b> 는 설정값 자체가 보드 공통이나 <b>인터페이스 이름 <code>eth1</code> 이 모든 보드에서 같은지는 미확인</b>이라 재실측 항목으로 남긴다(§9 에 적립). <code>bond.enable</code> 기본값 <code>true</code> 는 유지한다. ④ <b>D-6 의 항목 SKIPPED 확정</b>. <span class="chip mod">개정 1</span></li>
+          </ul>
+        </div>
+
+        <p>E3-1 이 끝나면 커서는 <code>BIOS_SETTING</code> 에서 phase 를 종결하거나 다음 phase 로 간다. <code>BMC_SETTING</code> 은 enum 에 자리만 있고 아무도 밟지 않는다. E3-2 는 그 자리를 채운다 — 같은 <code>FIRMWARE_SETTING</code> phase 의 두 번째 step 으로 사내 표준 BMC 세팅 4종을 AMI 웹 API 로 써 넣고, 항목마다 되읽어 확인한다. BIOS 와 달리 <b>재부팅은 없다</b>.</p>
+
+        <h4>정본이 바뀌었다</h4>
+        <p>Notion E3-2 페이지(2026-08-25 재편)는 "<code>BASIC_SETTING</code> payload 에 BMC 설정 출처가 없으니 계약 신설부터" 라고 적었고, 계약 대안 셋(항목별 Redfish PATCH · 프로세스 등록 재생 · 골든 복원)을 사전 기록했다. 그 뒤 앵커 세션의 실측(2026-08-25)이 <b>사내 표준 BMC 세팅의 정본은 Redfish 가 아니라 AMI 웹 API 4종</b>임을 확정했다(E0-3 이 원장 · 브리핑 §1). 5호의 N1~N3(Redfish NTP · eth0 · syslog)는 사용자 확정 없이 상정된 후보였고 폐기됐다.</p>
+        <p>따라서 이 plan 의 출발점은 "정의서가 무엇을 고를 것인가" 가 아니라 <b>"이미 정해진 표준 4종을 어떻게 안전하게 써 넣고 확인할 것인가"</b> 다. D-1 이 이 해석을 결정으로 굳힌다.</p>
+
+        <h4>실측이 준 계약 <span class="muted mono">(브리핑 §2 · HAR 대조 2026-08-26 세션 확인)</span></h4>
+        <ul>
+          <li><b>인증</b> — <code>POST /api/session</code>(form <code>username</code> · <code>password</code>) → 응답 JSON 의 <code>CSRFToken</code>. 이후 모든 요청에 <code>X-CSRFTOKEN</code> + <code>X-Requested-With: XMLHttpRequest</code> + 세션 쿠키. 쓰기는 <code>Content-Type: application/json</code>.</li>
+          <li><b>성공</b> = <b>200 + 요청 바디의 에코</b>(4종 모두 — HAR 에서 request == response 확인). <code>cc</code> · <code>ok</code> 필드는 없다(<code>ok:0</code> 은 로그인 · 로그아웃 응답에만 나온다).</li>
+          <li><b>실패 두 모양</b> — 인증 <code>{"cc":7,"error":"Invalid Authentication"}</code>(HTTP 상태와 무관하게 바디로 판독) / 데이터 <code>{"error":"Invalid Data","code":1010}</code>.</li>
+          <li><b>세션 TTL</b> 약 10분(유휴 추정). 코드는 TTL 에 기대지 않고 <code>cc:7</code> 을 받은 그 자리에서 재로그인 1회 재시도한다. 끝에 <code>DELETE /api/session</code>(→ <code>{"ok":0}</code>, 실패해도 무해).</li>
+          <li><b>Bond</b> — PUT 200 뒤 UI 가 로그아웃하고 14초 뒤 <b>같은 주소로 재로그인 200</b>. 주소 변경도 단절도 관찰되지 않았다(<code>auto_configuration</code> · <code>active-backup</code> 이라 IP 가 유지된다). 정식 왕복(W4)은 콘솔 미확보로 미실측이다.</li>
+        </ul>
+
+        <div class="callout success"><b>추가 준비 불요</b> — ES-3 같은 선행 정비가 필요하지 않다. E3-1 이 세운 워커 골격(<code>WorkerStep</code> · <code>WorkerStepRegistry</code> · <code>SettingLedger</code> · <code>BmcIdentityProbe</code>)과 E1.6 의 자격증명 폴백을 그대로 쓴다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 실측 계약 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 실측 계약 — 항목 4종 (원장 = E0-3 · HAR)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>항목</th><th>쓰기</th><th>readback</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>DateTime</td><td><code>PUT /api/settings/date-time</code> — <b>21 필드</b> 바디</td><td>같은 URL <code>GET</code> → <code>timezone</code> · <code>ntp_auto_date</code> · <code>primary_ntp</code> · <code>secondary_ntp</code> 대조</td></tr>
+            <tr><td>2</td><td>Cold Redundant</td><td><code>POST /api/cold_redundant-status</code> — <code>{"master_psu":0,"set_cold_redundant_enable":N}</code></td><td>같은 URL <code>GET</code> → <code>get_cold_redundant_enable</code> · <code>master_psu</code></td></tr>
+            <tr><td>3</td><td>Fan Profile</td><td><code>POST /api/settings/fanprofile</code> — 보드별 단일행 JSON(약 2 KB)</td><td><code>GET …/fanprofile/mode</code> → <code>strMode</code></td></tr>
+            <tr><td>4</td><td>Network Bond</td><td><code>PUT /api/settings/network-bond</code> — 5 필드</td><td>재접속 후 같은 URL <code>GET</code> → 5 필드 대조</td></tr>
+          </tbody>
+        </table>
+
+        <p>DateTime 만 쓰기 바디와 읽기 바디의 모양이 다르다. <code>GET</code> 은 8 필드를 주지만 <code>PUT</code> 은 21 필드를 요구하는데, 나머지 13 개(<code>ptp_*</code> · <code>timezone_record</code>)는 화면의 UI 가 덧붙여 보내는 것들이다. 그래서 코드가 그 13 개까지 직접 조립해야 한다. HAR 정본의 바디는 다음과 같고, 값만 표준으로 치환한다.</p>
+        <pre><code>{"ptp_auto_date":0, "ntp_auto_date":0, "timestamp":&lt;서버 현재 epoch 초&gt;, "id":1,
+ "primary_ntp":"pool.ntp.org", "secondary_ntp":"time.nist.gov",
+ "localized_timestamp":&lt;GET 값 에코&gt;, "utc_minutes":540,
+ "timezone":"Asia/Seoul", "timezone_record":"Asia/Seoul,GMT+09:00",
+ "ptp_interface":null, "ptp_preset":0, "ptp_transport":0, "ptp_ipmode":1, "ptp_unicastip":"",
+ "ptp_delaymech":0, "ptp_inlatency":null, "ptp_outlatency":null, "ptp_priority1":null,
+ "ptp_maxmasters":null, "ptp_panicmode":0, "ptp_logdelayint":null}</code></pre>
+        <p><code>ntp_auto_date</code> 가 <code>0</code> 이면 NTP 동기화를 쓰지 않는다는 뜻이고, 그 경우 <code>timestamp</code> 가 곧 BMC 시각이 된다. 그래서 코드는 프로비저닝 서버의 현재 시각을 실어 보낸다. readback 에서 <code>timestamp</code> 를 대조 대상에서 빼는 이유도 같다 — 쓴 직후에도 이미 흐르는 값이라 같을 수가 없다.</p>
+
+        <h4>한 주기가 오가는 모양</h4>
+        <div class="seq">
+          <div class="actor a1">FirmwareSettingWorker</div><div class="actor a2">AmiWebClient</div><div class="actor a3">BMC (AMI 웹 API)</div>
+          <div class="step a1">신원 대조 <span class="muted mono">Redfish Chassis</span></div><div class="step a2"></div><div class="step a3">보드 시리얼 응답</div>
+          <div class="step a1">원장 <code>openBmc</code> <span class="muted mono">첫 쓰기 전</span></div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">로그인 요청</div><div class="step a2"><code>POST /api/session</code></div><div class="step a3"><code>CSRFToken</code> + 쿠키</div>
+          <div class="step a1"><code>DATE_TIME</code> write · verify</div><div class="step a2">헤더 3종 부착 · 응답 판독</div><div class="step a3">200 에코 / <code>cc</code> / <code>error</code></div>
+          <div class="step a1"><code>COLD_REDUNDANT</code></div><div class="step a2"></div><div class="step a3">200 에코</div>
+          <div class="step a1"><code>FAN_PROFILE</code> <span class="muted mono">자원 없으면 건너뜀</span></div><div class="step a2"></div><div class="step a3">200 에코</div>
+          <div class="step a1"><code>NETWORK_BOND</code> <span class="muted mono">마지막 · disruptive</span></div><div class="step a2"></div><div class="step a3">200 에코 → 즉시 GET</div>
+          <div class="step a1">원장 닫기 · 커서</div><div class="step a2"><code>DELETE /api/session</code></div><div class="step a3"><code>{"ok":0}</code></div>
+        </div>
+
+        <h4>Fan Profile 자원 — 세 출처 바이트 대조</h4>
+        <p>보드별 JSON 3종(MS03-CE0 · MS74-HB0 · MS04-CE0)은 앵커 산출로 확보돼 있고(<code>discussion/e0-3-fanprofile/</code>), 세션이 세 출처(HAR 의 실전송 바디 · 앵커 파일 · Notion E0-3 의 기계 추출)를 바이트 단위로 대조해 <b>전부 일치</b>함을 확인했다(탭 · NBSP 0). 구조는 <code>strVersion</code> · <code>arrProfile[2]</code> · <code>strMode</code> 이고, MS74-HB0 은 curl 로 200 을 실증했으며 나머지 둘은 구조 동일 · 실기 전송 미검증이다. <span class="chip mod">개정 1</span> CP1 승인 시점에 사용자가 같은 디렉토리에 BMC 웹 UI 업로드 파일 <b>4종</b>을 두어 자원은 4 보드가 된다 — 파일명과 보드 대응은 CP2 에서 확인해 §10 에 반영한다.</p>
+
+        <h4>표준 목표값 — CP1 승인으로 확정 <span class="chip mod">개정 1</span></h4>
+        <table>
+          <thead><tr><th>항목</th><th>값</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td>DateTime</td><td>NTP 미사용(<code>ntp_auto_date 0</code>) · <code>Asia/Seoul</code> · 서버 현재 시각 · NTP 서버 문자열은 기본값 유지</td><td><span class="chip keep">확정</span> 레시피 사용자 기재</td></tr>
+            <tr><td>Cold Redundant</td><td><code>set_cold_redundant_enable 0</code> · <code>master_psu 0</code></td><td><span class="chip keep">확정</span> <span class="chip mod">개정 1</span></td></tr>
+            <tr><td>Fan Profile</td><td><code>strMode</code> = <code>FAN_PROFILE</code> · 본문은 보드별 고정 · 자원 파일 4 보드</td><td><span class="chip keep">확정</span> <span class="chip mod">개정 1</span></td></tr>
+            <tr><td>Network Bond</td><td>E0-3 바디(<code>active-backup</code> · auto)는 보드 공통 확정 · <b>인터페이스 이름 <code>eth1</code> 은 재실측</b></td><td><span class="chip keep">확정</span> + <span class="chip force">재실측 1</span> <span class="chip mod">개정 1</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout success"><b>사용자 확인 대상 넷 — CP1 승인으로 전부 확정</b> <span class="chip mod">개정 1</span>
+          <ol>
+            <li><b>D-1 의 계약 해석</b> — "시스템 표준(설정 + 자원 파일)" 으로 계약의 자리를 옮기는 (C) 안 <b>채택 확정</b>. 정의서가 항목을 고르는 (A) 계열은 <b>U2-7</b>(BMC 세팅 정의서 CRUD)로 MVP 출시 이후에 둔다.</li>
+            <li><b>Cold Redundant 값</b> — <code>set_cold_redundant_enable: 0</code> · <code>master_psu: 0</code> <b>확정</b>(설정 기본값 <code>false</code> 유지).</li>
+            <li><b>Network Bond</b> — 설정값 자체는 <b>보드 공통 확정</b>. 다만 인터페이스 이름 <code>eth1</code> 이 모든 보드에서 같은지는 <b>미확인이라 재실측 항목</b>으로 남긴다(§9 ⑦). <code>bond.enable</code> 기본값 <code>true</code> 유지.</li>
+            <li><b>Fan Profile 이 없는 보드의 처리</b> — 그 항목만 <code>SKIPPED</code> 로 두고 step 은 계속하는 D-6 안 <b>확정</b>.</li>
+          </ol></div>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>BMC 세팅 항목을 정의서에서 고르게 하는 것(opt-in) — <b>U2-7</b>(MVP 출시 이후). <span class="chip mod">개정 1</span></li>
+            <li>프로파일 · 표준값을 관리 화면에서 편집하는 것 — MA6 후보.</li>
+            <li>표준 4종 밖 항목(Syslog · SNMP · 계정 등) — 표준이 확정되면 상수 추가.</li>
+            <li>집행 현황 카드 · 화면 — E2-4.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — BMC 설정 한 주기 (라이브 데모)</summary>
+      <div class="body">
+        <p>이 슬라이스에도 <b>사용자가 누르는 버튼은 없다</b> — 워커가 스스로 세션을 열고 항목 4종을 차례로 써 넣는다. 그래서 아래 버튼은 차단 사유가 아니라 <b>서버가 대신 돌리는 일</b>을 라벨로 달았다(마우스를 올리면 무엇을 대신 돌리는지 뜬다). 조작면에서 감지 보드 · BIOS 목표 · BMC 응답 모드 · 표준값을 바꾸면 표시면의 <b>웹 API 왕복 · 원장 <code>items</code> · 진리표 점등 · 커서</b>가 함께 갱신된다. 판정 JS 는 <b>§3 의 진리표 v2(행 1 · 1b · 2 · 3 · 4 · 5 · 6)와 D-3 의 항목 순서 · D-5 · D-6 · D-8 · D-9 를 그대로 옮긴 것</b>이다(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <h4>원클릭 시나리오 — 여섯 장면</h4>
+          <div class="ux-toolbar">
+            <span class="group-label">프리셋 :</span>
+            <span class="tip" data-tip="BIOS 축을 닫고 BMC_SETTING 으로 옮긴 뒤 항목 4종을 순서대로 써 넣고 되읽어 SUCCEEDED 로 닫는다"><button class="n-demo-btn" onclick="demoPreset('p1')">① 정상 4 항목 완주</button></span>
+            <span class="tip" data-tip="첫 쓰기가 cc:7 로 거절되면 AmiWebClient 안에서 재로그인 1회 후 그 호출만 재시도한다"><button class="n-demo-btn" onclick="demoPreset('p2')">② 세션 만료 1회</button></span>
+            <span class="tip" data-tip="MS73-HB1 은 Fan Profile 자원이 없다 — 그 항목만 SKIPPED 로 두고 나머지 3 을 적용해 SUCCEEDED"><button class="n-demo-btn" onclick="demoPreset('p3')">③ 프로파일 없는 보드</button></span>
+            <span class="tip" data-tip="Fan Profile 이 code 1010 으로 거절되면 그 자리에서 FAILED(WRITE_REJECTED) — 뒤의 Bond 는 수행하지 않는다"><button class="n-demo-btn" onclick="demoPreset('p4')">④ Fan Profile 거절</button></span>
+            <span class="tip" data-tip="Bond 쓰기 뒤 즉시 readback 이 실패하면 bondAt 을 적고 RUNNING 으로 남긴다 — 다음 주기가 재접속해 거둔다"><button class="n-demo-btn" onclick="demoPreset('p5')">⑤ Bond 뒤 단절</button></span>
+            <span class="tip" data-tip="신원이 어긋나면 웹 세션을 열지도 않는다 — 로그인 왕복 0 · IDENTITY_MISMATCH"><button class="n-demo-btn" onclick="demoPreset('p6')">⑥ 남의 장비</button></span>
+          </div>
+          <div class="ux-message" id="demo-banner"></div>
+
+          <h4>조작면 ① — 감지 보드 · BIOS 목표 <span class="muted mono">(보드는 Fan Profile 자원의 유무를, BIOS 목표는 진리표 행 1 · 3 을 가른다)</span></h4>
+          <div class="ux-toolbar" id="demo-board"><span class="group-label">감지 보드 :</span></div>
+          <div class="ux-toolbar" id="demo-biostarget"><span class="group-label">BIOS 목표 :</span></div>
+
+          <h4>조작면 ② — BMC 응답 모드</h4>
+          <div class="ux-toolbar" id="demo-mode"><span class="group-label">응답 모드 :</span></div>
+
+          <h4>조작면 ③ — 표준값 <span class="muted mono">(provision.bmc.standard.*)</span></h4>
+          <div id="demo-standard"></div>
+
+          <h4>조작면 ④ — 서버가 하는 일</h4>
+          <div class="ux-toolbar">
+            <span class="group-label">서버가 하는 일 :</span>
+            <span class="tip" data-tip="FirmwareSettingWorker 의 sweep 한 주기 — 진리표에서 위부터 처음 맞는 행 하나를 실행한다"><button class="n-demo-btn" onclick="demoAct('tick')">워커 1 주기</button></span>
+            <span class="tip" data-tip="Bond 뒤 끊긴 링크가 돌아온다(실측은 14초 뒤 같은 주소로 재로그인 200). 그 다음 주기가 행 1b 로 거둔다"><button class="n-demo-btn" onclick="demoAct('wait20')">20초 경과</button></span>
+            <span class="tip" data-tip="Bond 뒤 경과를 25 분으로 밀어 재접속 시한(returnLimit 20m)을 넘긴다"><button class="n-demo-btn" onclick="demoAct('expire')">시한 경과</button></span>
+            <span class="tip" data-tip="조작면 토글은 그대로 두고 진행 상태(원장 · 왕복 · 커서)만 처음으로 되돌린다"><button class="n-demo-btn" onclick="demoAct('reset')">초기화</button></span>
+          </div>
+
+          <h4>표시면 ① — 웹 API 왕복</h4>
+          <div class="ux-caps" id="demo-http"></div>
+
+          <h4>표시면 ② — 원장(<code>provisioning_history</code>) · 커서</h4>
+          <div id="demo-ledger"></div>
+
+          <h4>표시면 ③ — 진리표 v2 점등</h4>
+          <table id="demo-truth">
+            <thead><tr><th>#</th><th>축</th><th>관측</th></tr></thead>
+            <tbody>
+              <tr id="tr-1"><td>1</td><td>BIOS</td><td>RUNNING 행에 <code>rebootAt</code> — readback → APPLIED → <code>afterAxis(BIOS)</code> 로 BMC_SETTING 으로</td></tr>
+              <tr id="tr-1b"><td>1b</td><td>BMC</td><td>RUNNING 행에 <code>bondAt</code> — 신원 → 재로그인 → Bond GET 대조 / 시한 초과면 <code>BMC_UNREACHABLE</code></td></tr>
+              <tr id="tr-2" data-reach="0"><td>2</td><td>둘</td><td>목표 null(활성 할당 · BASIC_SETTING 없음) — 창 밖 <span class="muted">· 이 데모의 조작면 밖(E3-1 데모에서 재현)</span></td></tr>
+              <tr id="tr-3"><td>3</td><td>BIOS</td><td>BIOS 목표 비어 있음 — SKIPPED(NO_TARGET) → <code>afterAxis(BIOS)</code> <span class="muted">· 꼬리는 행 1 과 같은 호출이다</span></td></tr>
+              <tr id="tr-4" data-reach="0"><td>4</td><td>둘</td><td>BMC 없음 — FAILED(BMC_REQUIRED) <span class="muted">· 축 무관</span></td></tr>
+              <tr id="tr-5" data-reach="0"><td>5</td><td>BIOS</td><td>BIOS 축 착수 — E3-1 그대로</td></tr>
+              <tr id="tr-6"><td>6</td><td>BMC</td><td>BMC 축 착수 · 재개(<code>bondAt</code> 없는 RUNNING 행) — 항목 4종 write · verify</td></tr>
+            </tbody>
+          </table>
+
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 행 판정은 §3 진리표 v2 와 같은 순서 · 같은 조건이고, 착수 경로는 행 6 의 절차 ①~⑨ 를, 항목 순서는 <code>BmcSettingItem</code> 의 <code>DATE_TIME → COLD_REDUNDANT → FAN_PROFILE → NETWORK_BOND</code> 를 그대로 따른다. 서버 구현(<code>FirmwareSettingCycle</code> + 행별 step 빈)이 이 판정의 정본이 된다.</div>
+        <div class="callout warn"><b>데모가 재현하지 않는 것 셋</b> — ① 행 1 의 BIOS readback 자체는 E3-1 의 판정이라 이 데모에서는 성공으로 고정했다. 여기서 보이는 것은 그 <b>꼬리</b>인 <code>afterAxis(BIOS)</code> 가 종단 대신 BMC_SETTING 으로 옮기는 부분이다(행 3 의 꼬리도 같은 호출이며, <b>BIOS 목표 토글</b>로 그 경로를 직접 볼 수 있다). ② 행 2 · 4 · 5 는 활성 할당 · BMC 검출을 바꿔야 하는데 이 데모의 조작면에는 그 토글이 없다(E3-1 데모가 그 자리다). ③ readback 불일치(<code>READBACK_MISMATCH</code>)는 여섯 응답 모드에 해당 자리가 없어 재현되지 않는다 — §8 의 B3 이 그 검증을 맡는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 설계 결정 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 설계 결정 D-1 ~ D-13 · 진리표 v2</summary>
+      <div class="body">
+
+        <h4>D-1. 소비 입력 = 시스템 표준(설정 + 자원 파일). 정의서 계약은 넓히지 않는다 <span class="chip mod">개정 1</span></h4>
+        <p>세 갈래를 비교했다.</p>
+        <div class="card-grid">
+          <div class="card v-red"><h4>(A) 정의서 payload 확장</h4>
+            <p class="muted"><b>탈락</b></p>
+            <ul>
+              <li><code>BasicSettingRequest</code> 에 BMC 항목 선택 · 값을 더한다.</li>
+              <li>4종은 사내 <b>표준</b>이라 정의서마다 같은 값이 복제돼 drift 의 원천이 된다.</li>
+              <li>폼(U2) · 스냅샷 동결(U3-1 D-C) · Layer A 검증까지 churn 이 크다.</li>
+              <li>정의서마다 다르게 할 요구가 아직 없다 — 갈라지는 시점이 아니다.</li>
+            </ul>
+          </div>
+          <div class="card v-orange"><h4>(B) 관리 자원 신설</h4>
+            <p class="muted"><b>탈락</b></p>
+            <ul>
+              <li>BMC 세팅 프로필 CRUD · 보드별 파일 업로드.</li>
+              <li>화면 · lifecycle · 마커가 따라붙는 MA 급 슬라이스다.</li>
+              <li>E3-2 는 집행 능력을 만드는 자리다. 이 후보는 MA6 으로 보낸다.</li>
+            </ul>
+          </div>
+          <div class="card v-green"><h4>(C) 채택 — 설정 + 자원 파일</h4>
+            <p class="muted"><b>채택</b></p>
+            <ul>
+              <li><code>provision.bmc.standard.*</code> 설정 + 보드별 Fan Profile 자원 파일.</li>
+              <li>정의서 관점의 계약: <b><code>BASIC_SETTING</code> 프로세스를 가진 정의서는 <code>FIRMWARE_SETTING</code> phase 를 보유하고, 그 phase 는 <code>BIOS_SETTING</code> 다음에 <code>BMC_SETTING</code> 을 반드시 밟는다</b>.</li>
+              <li>표준이므로 항목 opt-out 이 없다.</li>
+            </ul>
+          </div>
+        </div>
+        <p><b>적대적 검토</b> — Notion 의 "payload 계약 신설" 과 어긋나지 않는가. 그 문장은 BMC 설정을 정의서의 선택 사항으로 봤을 때의 전제였고, 정본이 "사내 표준 4종" 으로 확정되면서 계약의 자리가 정의서에서 시스템 설정으로 옮겨진다.</p>
+        <div class="callout success"><b>확정</b> <span class="chip mod">개정 1</span> — CP1 승인으로 <b>(C) 채택이 확정</b>됐다. 계약의 자리는 정의서가 아니라 시스템 설정이다. 정의서가 항목을 고르는 (A) 계열은 폐기가 아니라 이연이며, 후속 슬라이스 이름과 시점이 함께 정해졌다 — <b>U2-7 (BMC 세팅 정의서 CRUD) · MVP 출시 이후</b>.</div>
+        <p><b>잔존 비대칭</b> — BMC 표준은 <code>BASIC_SETTING</code> 을 가진 정의서에만 적용된다(<code>biosSettingTemplateIds</code> 가 <code>NotEmpty</code> 라 BIOS 템플릿 선택과 묶여 있기 때문이다). BMC 만 원하는 정의서가 필요해지는 시점에 (A) 의 얇은 판(항목 opt-in)으로 승격한다 — 그 자리가 <b>U2-7</b> 이다. <span class="chip mod">개정 1</span></p>
+
+        <h4>D-2. 실행 형태 = 같은 phase 의 두 번째 step · <code>SettingAxis</code> 승격 <span class="muted">(E3-1 D-10 이행)</span></h4>
+        <ul>
+          <li><code>SettingAxis { BIOS(BIOS_SETTING), BMC(BMC_SETTING) }</code> — 순서 · step · <code>next()</code> 를 든다. 축이 둘이 되는 시점이라 지금 만든다.</li>
+          <li><code>SettingCursor.afterAxis(axis, progress, guestId, now)</code> — 다음 축이 있으면 <code>progress.positionAt(next.step)</code>(같은 phase 안 이동 · motion <code>STEP_RUNNING</code>), 없으면 <code>PhaseCursorAdvancer.advanceOrComplete</code>.</li>
+          <li>E3-1 의 행 1(APPLIED) · 행 3(NO_TARGET)이 <code>advanceOrComplete</code> 대신 이것을 부른다 — <b>BIOS 목표가 없어도 BMC 표준은 적용한다</b>.</li>
+          <li>워커 하나가 두 step 을 sweep 한다. <code>BiosSettingWorker</code> → <code>FirmwareSettingWorker</code>, <code>BiosSettingCycle</code> → <code>FirmwareSettingCycle</code> 로 개명한다(둘 다 이 브랜치 안의 미병합 코드다 — 이름이 축을 하나만 가리키면 거짓이 된다). 진리표는 하나(아래 v2)이고, <code>SettingContext</code> 에 <code>axis()</code>(커서 step 에서 파생) · <code>bmcTarget()</code> 을 더한다.</li>
+        </ul>
+        <div class="state-flow">BIOS_SETTING ──afterAxis(BIOS)──▶ BMC_SETTING ──afterAxis(BMC)──▶ advanceOrComplete (전진 / 종단)</div>
+        <p><b>탈락 대안</b> — step 별로 워커 · 사이클 · registry 를 따로 두고 맵으로 라우팅한다. 워커 껍데기가 셋째로 복붙되고(flash · bios · bmc) 행 판정이 두 표로 갈라진다. E2-2 가 두 축을 한 진리표로 다룬 선례를 따른다.</p>
+
+        <h4>D-3. 항목 = <code>BmcSettingItem</code> enum, 상수별 메서드</h4>
+        <p><code>DATE_TIME(1) · COLD_REDUNDANT(2) · FAN_PROFILE(3) · NETWORK_BOND(4)</code>. 상수가 드는 것은 넷이다 — 순서, <code>write(session, target, now)</code>(바디 조립 + 요청), <code>verify(session, target)</code>(readback 대조), <code>disruptive()</code>(Bond 만 <code>true</code> — 마지막에 두고 재접속을 기다린다). 소비처(행 6)는 <code>values()</code> 를 순회할 뿐 항목 이름으로 분기하지 않는다(E2-2 의 <code>FirmwareAxis</code> 와 같은 결이다).</p>
+        <p>Notion 이 적어 둔 "프로세스 등록 · 재생 모델" 은 이 enum 이 코드로 고정한 형태다. 그 모델이 안고 있던 쟁점 둘은 이렇게 풀린다 — ① 자격증명은 항목에 저장되지 않고 실행 시 <code>BmcCredentials</code> 로 주입된다 ② 펌웨어 갱신으로 계약이 깨지면 readback 이 <b>항목 이름과 함께</b> 실패로 드러낸다. 관리자가 URL · 바디를 직접 등록하는 DB 등록형은 항목이 늘거나 보드별 편차가 생기는 시점의 MA6 후보다.</p>
+
+        <h4>D-4. 웹 API 클라이언트 = <code>global/bmcweb/</code> 신설, 폴백은 공통 상위 예외로 공유</h4>
+        <ul>
+          <li><code>AmiWebClient</code>(빈) — <code>login(bmcIp, credentials) → AmiWebSession</code>(CSRF 토큰 · 쿠키 · 발급 시각), <code>get/put/post(session, path, body) → JsonNode</code>, <code>logout(session)</code>(best-effort). 헤더 3종을 부착한다.</li>
+          <li><b>응답 판독</b> — HTTP 가 200 이 아니면 <code>PROTOCOL</code> / 바디에 <code>cc</code> 가 있으면 7 일 때 <code>AUTH</code>, 그 밖은 <code>PROTOCOL</code> / <code>error</code> + <code>code</code> 면 <code>DATA(code)</code> / 그 밖은 성공.</li>
+          <li><code>RestClient</code> 는 <code>redfishRestClient</code> 빈을 재사용한다(같은 BMC · 같은 자가서명 완화 — 이름은 유래를 남긴다).</li>
+          <li><code>AmiWebRequestException(kind AUTH · DATA · PROTOCOL · CONNECT, message, code)</code> — 내부 전용이다(advice 미매핑 · 컨트롤러까지 새지 않음, <code>RedfishRequestException</code> 과 같은 자리).</li>
+        </ul>
+        <p><b>자격증명 폴백 공유</b> — <code>BmcCredentialsFallback.attempt</code> 는 지금 <code>RedfishRequestException</code> 을 잡아 <code>AUTH_FAILED</code> 일 때만 다음 후보로 간다. 두 클라이언트가 이 사다리를 공유하도록 <code>global/redfish/BmcRequestException</code>(추상 상위 · <code>boolean authFailure()</code>)를 두고 <code>RedfishRequestException</code> 과 <code>AmiWebRequestException</code> 이 상속한다. 폴백은 상위를 잡고 <code>authFailure()</code> 로 판정하므로 <b>분기 추가가 0</b> 이고, E1.5 쪽 코드 변경은 <code>extends</code> 한 줄이다.</p>
+        <div class="split-grid">
+          <div class="split-card before"><h4>탈락 — 이름이 거짓이 되는 길</h4><pre><code>웹 로그인 실패에도
+  throw new RedfishRequestException(AUTH_FAILED)
+
+→ Redfish 를 부른 적이 없는데
+  Redfish 예외가 난다</code></pre></div>
+          <div class="split-card after"><h4>채택 — 공통 상위 + authFailure()</h4><pre><code>BmcRequestException (abstract)
+   ├─ RedfishRequestException
+   └─ AmiWebRequestException
+
+BmcCredentialsFallback
+  catch (BmcRequestException e)
+    if (e.authFailure()) 다음 후보</code></pre></div>
+        </div>
+        <p>또 하나의 탈락 대안은 폴백 루프를 클라이언트마다 복제하는 것인데, 중복 금지 원칙에 정면으로 어긋난다. E1.6 의 <code>BmcCredentialsMemory</code> 는 이 구조에서 그대로 수혜를 받는다 — 성공한 자격이 캐시된다.</p>
+
+        <h4>D-5. 세션 생애 = 한 주기 한 세션, 만료는 <code>cc:7</code> 로만 안다</h4>
+        <p>행 6 의 한 주기는 로그인 → 항목 순서대로 write + verify → 로그아웃이다. 도중에 <code>cc:7</code> 을 받으면 <b>재로그인 1회 후 그 호출을 재시도</b>한다. 이 재시도는 <code>AmiWebClient</code> 안에서 일어나므로 항목 코드는 세션이 끊겼다는 사실을 모른다. TTL(약 10분)에 기대지 않는 이유는 그것이 유휴 추정값이고, 시각으로 세션 수명을 예측하면 추정이 틀린 순간 조용히 실패하기 때문이다. 로그아웃 실패는 무해하므로 로그만 남긴다.</p>
+
+        <h4>D-6. Fan Profile 부재 = 항목 SKIPPED, step 은 계속 <span class="chip mod">개정 1</span></h4>
+        <p>보드 모델명으로 <code>classpath:bmc/fanprofile/&lt;modelName&gt;.json</code> 을 찾는다. 없으면 그 항목만 <code>SKIPPED(NO_FAN_PROFILE)</code> 로 meta 에 적고 다음 항목으로 넘어간다. step 은 나머지 항목이 전부 반영되면 <code>SUCCEEDED</code> 이고, detail 에 무엇을 건너뛰었는지 명시한다.</p>
+        <p><b>탈락 대안은 <code>FAILED</code></b> — 표준이 정의되지 않은 보드는 위반이 아니라 미정의이고, 카탈로그 7 보드 중 프로파일이 확보된 것은 4 뿐이라 나머지가 전부 눕는다. 운영자 인지는 원장 detail 과 WARN 로그가 맡는다.</p>
+        <p>자원 배치는 <b>저장소 classpath</b> 로 한다(git 추적 · 테스트가 4 파일 파싱을 검증 · 보드 추가 = 커밋). <code>redfish_materials</code> 식의 외부 디렉토리를 쓰지 않는 이유는 이 파일이 실행 중 생성되는 산출물이 아니라 표준 데이터이기 때문이다 — SSOT 를 저장소에 두는 편이 맞다. 운영자가 교체하고 싶다는 요구가 생기면 그때 외부 override 를 연다(미리 분리 금지).</p>
+        <div class="callout success"><b>확정</b> <span class="chip mod">개정 1</span> — CP1 승인으로 <b>항목 SKIPPED 안이 확정</b>됐다. 프로파일이 없는 보드는 실패로 세우지 않고 그 항목만 건너뛰며, step 은 나머지 항목으로 계속한다.</div>
+
+        <h4>D-7. 신원 확인 = 착수 직전 · 재접속 readback 직전 <span class="muted">(E3-1 D-6 · E2-2 D-11 과 동일)</span></h4>
+        <p><code>BmcIdentityProbe</code>(Redfish Chassis 의 보드 시리얼)를 웹 세션을 열기 <b>전에</b> 지난다. <code>MISMATCHED</code> 면 세션도 열지 않는다 — 남의 장비에 로그인 시도조차 남기지 않기 위해서다. <code>UNREACHABLE</code> 은 시한 안에서 대기하고, 주소 재발견은 Probe 가 한다. Bond 뒤의 재접속 readback(행 1b)도 같은 순서를 지난다.</p>
+
+        <h4>D-8. Bond = 마지막 · 즉시 readback 시도 · 실패면 <code>bondAt</code> 기록 후 다음 주기</h4>
+        <p>Bond 쓰기가 200 을 받으면 곧바로 GET 을 시도한다(HAR 실측에서 단절이 관찰되지 않았기 때문이다). 연결이 실패하면 원장 meta 에 <code>bondAt</code> 을 적고 행을 <code>RUNNING</code> 으로 남긴다. 그러면 진리표의 행 1b 가 매 주기 신원 → 재로그인 → GET 을 다시 하고, <code>returnLimit</code>(20분)을 넘기면 <code>BMC_UNREACHABLE</code> 로 닫는다.</p>
+        <p>시한은 E2 의 복귀 시한을 그대로 재사용한다 — <b>별도 키를 만들지 않는다</b>. 값이 둘로 갈라지면 어느 쪽이 진짜인지 모르게 되고, 지금은 두 상황("재부팅 후 게스트가 안 돌아온다" 와 "Bond 뒤 BMC 가 안 돌아온다")의 허용 대기가 다를 이유가 없다. 주소가 바뀌는 경우는 Probe 의 재발견이 받는다(실측상 바뀌지 않는다).</p>
+
+        <h4>D-9. 원장 = BMC_SETTING RUNNING 행 1개, 항목별 결과를 meta 에 누적</h4>
+        <p><code>SettingLedger.openBmc(server, now)</code> 가 meta <code>{origin:"setting", axis:"BMC", items:{}}</code> 로 행을 연다 — <b>첫 쓰기 전에</b> 연다(E3-1 D-4 와 같은 이유다. 되돌리기 어려운 조작을 하기 전에 그 사실이 기록에 남아 있어야 크래시가 나도 무슨 일이 있었는지 알 수 있다). 항목마다 <code>items.&lt;NAME&gt;</code> 에 결과를 적고 <code>updateRunningMeta</code> 로 누적한다.</p>
+        <table>
+          <thead><tr><th>닫는 조건</th><th>상태 · 사유</th><th>detail 에 담기는 것</th></tr></thead>
+          <tbody>
+            <tr><td>전부 <code>APPLIED</code> 또는 <code>SKIPPED</code></td><td><code>SUCCEEDED</code> · <code>APPLIED</code></td><td>"3개 적용 · FAN_PROFILE 건너뜀(프로파일 없음)"</td></tr>
+            <tr><td>어느 항목이 <code>REJECTED</code></td><td><code>FAILED</code> · <span class="chip new">WRITE_REJECTED</span></td><td>항목명 + <code>code</code> · <code>error</code>. 뒤 항목은 미수행으로 남는다</td></tr>
+            <tr><td>어느 항목이 <code>MISMATCH</code></td><td><code>FAILED</code> · <code>READBACK_MISMATCH</code> <span class="chip keep">재사용</span></td><td>항목명 + 어긋난 필드</td></tr>
+            <tr><td>자격증명 후보 소진</td><td><code>FAILED</code> · <span class="chip new">AUTH_REJECTED</span></td><td><code>BmcCredentialsFallback</code> 소진 사실</td></tr>
+            <tr><td>도달 불가 · 시한 초과</td><td><code>FAILED</code> · <code>BMC_UNREACHABLE</code> <span class="chip keep">재사용</span></td><td>Bond 적용 후 경과 분</td></tr>
+          </tbody>
+        </table>
+        <p>사유 어휘는 신규 2 개(<code>WRITE_REJECTED</code> · <code>AUTH_REJECTED</code>)가 늘어 10종이 된다. <b>크래시 재개</b> — <code>bondAt</code> 이 없는 <code>RUNNING</code> 행은 행 6 이 이어받아 신원 대조부터 다시 하고, <code>items</code> 가 이미 <code>APPLIED</code> 인 항목도 <b>다시 쓴다</b>. 4종이 모두 멱등한 PUT/POST 라 다시 써도 해가 없고, "이미 됐다" 는 생략 판단을 넣는 순간 BMC 가 옛값을 보여주는 미실측 상황에서 설정을 안 하고 성공으로 닫히는 경로가 생기기 때문이다(E3-1 개정 1 과 같은 원칙).</p>
+
+        <h4>D-10. 시각 · 대조 규칙</h4>
+        <table>
+          <thead><tr><th>항목</th><th>쓸 때</th><th>되읽어 볼 때</th></tr></thead>
+          <tbody>
+            <tr><td>DateTime</td><td><code>timestamp</code> = 서버 <code>Instant.now()</code> epoch 초 · <code>localized_timestamp</code> = GET 값 에코</td><td><code>timezone</code> · <code>ntp_auto_date</code> · <code>primary_ntp</code> · <code>secondary_ntp</code> <span class="muted">(<code>timestamp</code> 제외)</span></td></tr>
+            <tr><td>Cold Redundant</td><td><code>master_psu</code> · <code>set_cold_redundant_enable</code></td><td><code>get_cold_redundant_enable</code> · <code>master_psu</code></td></tr>
+            <tr><td>Fan Profile</td><td>보드별 자원 파일 그대로</td><td><code>/mode</code> 의 <code>strMode</code></td></tr>
+            <tr><td>Network Bond</td><td>5 필드</td><td>같은 5 필드</td></tr>
+          </tbody>
+        </table>
+        <p><code>localized_timestamp</code> 를 GET 값 그대로 되보내는 것은 HAR 의 관례를 따른 것이다. 이 필드가 무엇을 결정하는지 실측으로 확인되지 않았으므로 임의로 계산해 넣지 않는다.</p>
+
+        <h4>D-11. 표준값 = <code>BmcStandardSettings</code> <span class="chip mod">개정 1</span> <span class="muted mono">@ConfigurationProperties("provision.bmc.standard")</span></h4>
+        <pre><code>provision.bmc.standard.timezone                = Asia/Seoul
+provision.bmc.standard.ntp-auto                = false
+provision.bmc.standard.primary-ntp             = pool.ntp.org
+provision.bmc.standard.secondary-ntp           = time.nist.gov
+provision.bmc.standard.cold-redundant-enable   = ${BMC_COLD_REDUNDANT_ENABLE:false}   # 확정 — set_cold_redundant_enable 0
+provision.bmc.standard.master-psu              = 0
+provision.bmc.standard.bond.enable             = ${BMC_BOND_ENABLE:true}              # 확정 — 기본 true 유지
+provision.bmc.standard.bond.mode               = active-backup
+provision.bmc.standard.bond.ifc                = eth1                                  # 보드 공통 기본 · 이름은 재실측
+provision.bmc.standard.bond.auto-configuration = true</code></pre>
+        <p><code>utc_minutes</code>(540)와 <code>timezone_record</code>(<code>Asia/Seoul,GMT+09:00</code>)는 <code>ZoneId</code> 에서 파생한다 — 키를 늘리지 않는다. 같은 사실을 두 자리에 적으면 어긋날 수 있기 때문이다. <code>bond.enable</code> 이 <code>false</code> 면 <code>NETWORK_BOND</code> 항목은 <code>SKIPPED(BOND_DISABLED)</code> 가 된다 — 기본값은 <code>true</code> 로 확정됐고, 끌 수 있는 자리는 안전판으로 남긴다. <span class="chip mod">개정 1</span> <code>bond.ifc</code> 는 <b>보드 공통 기본값 <code>eth1</code></b> 로 두되, 인터페이스 이름이 모든 보드에서 같은지가 아직 확인되지 않았다 — <b>재실측 후 보드별 편차가 드러나면 보드별 키로 승격</b>한다(지금 보드별로 쪼개면 편차가 없을 때 키만 늘어난다).</p>
+
+        <h4>D-12. 범위 밖 · 변경 0</h4>
+        <p>화면 0(E2-4 소관) · DDL 0(step 상수가 이미 실재한다) · 공개 예외 0(<code>AmiWebRequestException</code> 은 내부 전용) · <code>BootScriptDispatcher</code> · <code>PhaseEntryGate</code> · <code>PhaseCursorAdvancer</code> 무변경(<code>FirmwareSettingExecutor.bootScript</code> 는 step 과 무관하게 대기한다).</p>
+
+        <h4>D-13. 모의 BMC = <code>mock-redfish.py</code> 에 AMI 웹 API 경로 추가</h4>
+        <p>경로는 <code>/api/session</code>(POST form → CSRFToken · 쿠키 / DELETE) · <code>date-time</code>(GET 8 필드 · PUT 에코) · <code>cold_redundant-status</code>(GET/POST) · <code>fanprofile</code>(POST 에코 · <code>/mode</code>) · <code>network-bond</code>(GET/PUT). 인증은 쿠키와 <code>X-CSRFTOKEN</code> 을 대조해 불일치면 <code>{"cc":7,…}</code> 을 준다.</p>
+        <table>
+          <thead><tr><th>모드</th><th>재현하는 것</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>web-session-expire-once</code></td><td>첫 쓰기에 <code>cc:7</code> 을 한 번만 준다</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>fanprofile-reject</code></td><td>Fan Profile POST 에 <code>code 1010</code></td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>bond-drop</code></td><td>Bond PUT 뒤 N초 동안 연결 거부</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>web-auth-reject</code></td><td>로그인을 전부 거부</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>wrong-device</code> · <code>bmc-rebooting</code></td><td>신원 불일치 · 도달 불가</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+
+        <h4>진리표 v2 — FIRMWARE_SETTING 워커 <span class="muted">(위에서 처음 맞는 행)</span></h4>
+        <table>
+          <thead><tr><th>#</th><th>축 · 조건</th><th>하는 일</th><th>클래스</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>BIOS — RUNNING 행에 <code>rebootAt</code></td><td>(E3-1) readback → APPLIED → <b><code>afterAxis(BIOS)</code> = BMC_SETTING 으로</b></td><td><code>ReturnReadbackStep</code> <span class="chip mod">수정</span></td></tr>
+            <tr><td>1b</td><td>BMC — RUNNING 행에 <code>bondAt</code></td><td>신원 → 재로그인 → Bond GET 대조 → APPLIED 닫고 <code>afterAxis(BMC)</code> / 시한 초과면 <code>BMC_UNREACHABLE</code></td><td><code>ReconnectReadbackStep</code> <span class="chip new">신규</span></td></tr>
+            <tr><td>2</td><td>둘 — 목표 null(활성 할당 · BASIC_SETTING 없음)</td><td>없음(실행 창 밖)</td><td><code>SkipOutOfSettingWindowStep</code> <span class="chip keep">유지</span></td></tr>
+            <tr><td>3</td><td>BIOS — BIOS 목표 비어 있음</td><td>SKIPPED NO_TARGET → <b><code>afterAxis(BIOS)</code></b></td><td><code>SkipNoTargetStep</code> <span class="chip mod">수정</span></td></tr>
+            <tr><td>4</td><td>둘 — BMC 없음</td><td>FAILED BMC_REQUIRED</td><td><code>FailNoBmcStep</code> <span class="chip keep">축 무관</span></td></tr>
+            <tr><td>5</td><td>BIOS — 착수</td><td>(E3-1 그대로)</td><td><code>BeginSettingStep</code> <span class="chip keep">유지</span></td></tr>
+            <tr><td>6</td><td>BMC — 착수 · 재개(<code>bondAt</code> 없는 RUNNING 행)</td><td>신원 → 원장 열기/이어받기 → 로그인 → 항목 순서대로 write · verify(meta 누적) → Bond 즉시 readback 성공이면 close APPLIED + <code>afterAxis(BMC)</code>, 실패면 <code>bondAt</code> 기록 후 RUNNING 유지 → 로그아웃</td><td><code>BeginBmcSettingStep</code> <span class="chip new">신규</span></td></tr>
+          </tbody>
+        </table>
+        <p>행 1b 가 1 다음인 이유는 <b>이미 써 넣은 Bond 의 결과를 거두는 일이 새 착수보다 앞서기 때문</b>이다. 행 4 가 축 무관인 이유는 BMC 없이는 두 축 모두 성립하지 않기 때문이다(E3-1 D-12). 행 매칭에 <code>axis</code> 가 들어가는 것이 E3-1 진리표와의 차이다.</p>
+        <h4>행 6 의 착수 절차</h4>
+        <ol>
+          <li>신원 대조</li>
+          <li>원장 열기(첫 쓰기 전) 또는 이어받기</li>
+          <li>로그인(폴백 · 캐시)</li>
+          <li><code>DATE_TIME</code> write → GET 대조</li>
+          <li><code>COLD_REDUNDANT</code> write → GET 대조</li>
+          <li><code>FAN_PROFILE</code>(프로파일 없으면 SKIPPED)</li>
+          <li><code>NETWORK_BOND</code> write → 즉시 GET(실패면 <code>bondAt</code>)</li>
+          <li>로그아웃</li>
+          <li>닫기 · 커서</li>
+        </ol>
+        <p>어느 항목이 <code>REJECTED</code> 또는 <code>MISMATCH</code> 면 그 자리에서 <code>FAILED</code> 로 닫고 뒤 항목은 수행하지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 스코프 제외 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 스코프 제외 (행선지)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>제외</th><th>행선지</th></tr></thead>
+          <tbody>
+            <tr><td>BMC 세팅 항목의 정의서 선택(opt-in)</td><td><b>U2-7</b> — BMC 세팅 정의서 CRUD · MVP 출시 이후 <span class="chip mod">개정 1</span></td></tr>
+            <tr><td>관리 화면에서 프로파일 · 표준값 편집</td><td>MA6</td></tr>
+            <tr><td>Syslog · SNMP · 계정 등 4종 밖 항목</td><td>표준이 확정되면 <code>BmcSettingItem</code> 에 상수 추가</td></tr>
+            <tr><td>집행 현황 카드</td><td>E2-4</td></tr>
+            <tr><td>Bond 실기 왕복(W4) · 지속성(W5)</td><td>CP7 실기</td></tr>
+            <tr><td>웹 세션 상한 · TTL 정확값</td><td>실기</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §5 12 단계 · CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 · CP 매핑</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>이 슬라이스에서</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2 · 3 · 4</td><td><span class="chip keep">N/A</span> 뷰 0 · 컨트롤러 0 · 신규 엔드포인트 0 — 워커가 부르는 실행 경로뿐이다</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td><code>AmiWebClient</code> · <code>BmcSettingItem</code> · <code>SettingCursor.afterAxis</code> 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td><span class="chip keep">N/A</span> 신규 Repository 없음</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>7</td><td><code>SettingAxis</code> · <code>BmcSettingItem</code> · <code>BmcItemOutcome</code> enum + <code>BmcSettingTarget</code> · <code>BmcStandardSettings</code> record</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8 · 9</td><td>행별 step 빈 본체 · 클라이언트 본체 — <b>DDL 0</b>(step 상수 실재)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>모의 게스트 하네스 + 모의 BMC + 게스트 서버 상세 페이지 확인</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 — E 단계 일괄</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계마다 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+        <div class="callout warn">화면이 없는 슬라이스라 CP5 는 브라우저 조작 대신 <b>모의 게스트 하네스 실행 + 게스트 서버 상세 페이지 확인</b>으로 수행한다(CLAUDE.md 의 E 단계 예외). CP7 은 E 단계 일괄 실기 연결 테스트에서 함께 본다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 계획 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 테스트 계획</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>대상</th><th>고정하는 것</th></tr></thead>
+          <tbody>
+            <tr><td>행 매칭 v2</td><td>축을 포함한 7 행 · 행 1b 가 행 6 보다 앞선다 · 행 3 이 <code>afterAxis</code> 를 부른다 · 행 4 는 축 무관</td></tr>
+            <tr><td><code>SettingCursor.afterAxis</code></td><td>BIOS → <code>positionAt(BMC_SETTING)</code> / BMC → <code>advanceOrComplete</code></td></tr>
+            <tr><td><code>BeginBmcSettingStep</code></td><td>항목 순서 · Bond 가 마지막 · 프로파일 없음 SKIPPED · REJECTED 에서 중단 · MISMATCH · 자격증명 소진 · 신원 불일치 시 세션 0 · Bond 즉시 readback 실패 → <code>bondAt</code> · 재개 시 재쓰기</td></tr>
+            <tr><td><code>ReconnectReadbackStep</code></td><td>재접속 성공 · 시한 초과</td></tr>
+            <tr><td><code>AmiWebClient</code></td><td>로그인 파싱 · 헤더 3종 · <code>cc:7</code> → AUTH → 재로그인 1회 · <code>1010</code> → DATA · 200 에코 성공 · 로그아웃 best-effort</td></tr>
+            <tr><td><code>BmcSettingItem</code></td><td>DateTime 21 필드 · <code>timestamp</code> 가 현재 시각 · Fan Profile 자원 로드 · readback 술어</td></tr>
+            <tr><td><code>BmcStandardSettings</code></td><td>바인딩 · 파생(<code>utc_minutes</code> 540 · <code>timezone_record</code>)</td></tr>
+            <tr><td><code>BmcCredentialsFallback</code></td><td><code>AmiWebRequestException(AUTH)</code> 도 다음 후보로 넘어간다</td></tr>
+            <tr><td><code>SettingLedger</code></td><td>BMC meta 누적 · close 가 <code>items</code> 를 덮지 않는다</td></tr>
+            <tr><td>자원 파일 4종</td><td>파싱 성공 · <code>strMode</code> 검증</td></tr>
+            <tr><td><code>EngineComponentNameUniquenessTest</code></td><td>그대로 방벽 — 개명한 워커 · 사이클 이름의 충돌을 잡는다</td></tr>
+          </tbody>
+        </table>
+        <p><b>통합 테스트는 규율 대상이 없다</b> — 신규 엔드포인트가 0 이라 HTTP 계층에서 검증할 사용자 액션이 생기지 않는다. 대신 그 자리를 CP5 의 하네스 검증(§8)이 맡는다. <code>SettingLedger</code> 의 close 가 <code>items</code> 를 덮지 않는지 확인하는 항목은 E2-2 의 F-1(원장 close 가 meta 를 덮은 결함)에서 배운 것이다 — 열림 시점에 적은 사실에 기대는 판정은 닫힌 뒤에도 남는지 반드시 확인한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>자리</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>BmcRequestException</code></td><td><code>global/redfish/</code> — 추상 상위 · <code>boolean authFailure()</code></td><td><span class="chip new">신규</span> 내부</td></tr>
+            <tr><td><code>AmiWebRequestException</code></td><td><code>global/bmcweb/</code> — kind AUTH · DATA · PROTOCOL · CONNECT</td><td><span class="chip new">신규</span> 내부</td></tr>
+            <tr><td><code>RedfishRequestException</code></td><td>상위를 <code>extends</code> 하도록 한 줄 수정</td><td><span class="chip mod">수정</span></td></tr>
+          </tbody>
+        </table>
+        <p><b>신규 공개 예외는 0</b> 이다. 두 신규 예외 모두 advice 에 매핑하지 않으며 컨트롤러까지 새지 않는다 — 워커가 잡아 원장 사유로 번역하는 것이 종착점이다. 그래도 <code>.claude/domain-conventions/new-exception.md</code> 관문은 CP2 착수 시 연다. 규약을 몰라서가 아니라 빠뜨려서 사고가 났기 때문에 두는 관문이라, 내부 예외라는 이유로 건너뛰지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 CP5 계획 골격 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. CP5 계획 골격 (하네스 + 상세 페이지)</summary>
+      <div class="body">
+        <h4>정상 흐름</h4>
+        <table>
+          <thead><tr><th>#</th><th>확인하려는 것</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>BIOS 축이 끝난 뒤 BMC 로 이어진다 — 커서 <code>positionAt</code> · motion</td></tr>
+            <tr><td>A2</td><td>4 항목의 순서와 바디 — DateTime 21 필드 · <code>timestamp</code> 가 현재 시각 · 세션 헤더 3종</td></tr>
+            <tr><td>A3</td><td>항목별 readback 과 원장 meta 의 <code>items</code></td></tr>
+            <tr><td>A4</td><td>완주 → 종단 · 로그아웃 호출</td></tr>
+            <tr><td>A5</td><td>프로파일 없는 보드 → <code>FAN_PROFILE</code> SKIPPED · 나머지 적용 · SUCCEEDED</td></tr>
+            <tr><td>A6</td><td>BIOS 가 NO_TARGET 이어도 BMC 는 진행한다</td></tr>
+          </tbody>
+        </table>
+        <h4>비정상 조작 · 막는 방식</h4>
+        <table>
+          <thead><tr><th>#</th><th>확인하려는 것</th></tr></thead>
+          <tbody>
+            <tr><td>B1</td><td>세션 만료 1회 → 재로그인 · 이어서 성공</td></tr>
+            <tr><td>B2</td><td><code>1010</code> 거절 → <code>WRITE_REJECTED</code> · Bond 미수행</td></tr>
+            <tr><td>B3</td><td>readback 불일치 → <code>READBACK_MISMATCH</code>(항목명 포함)</td></tr>
+            <tr><td>B4</td><td>신원 불일치 → 로그인 0 · <code>IDENTITY_MISMATCH</code></td></tr>
+            <tr><td>B5</td><td>자격증명 전부 거부 → <code>AUTH_REJECTED</code></td></tr>
+            <tr><td>B6</td><td>Bond 뒤 단절 → <code>bondAt</code> → 재접속 → APPLIED</td></tr>
+            <tr><td>B7</td><td>재접속 시한 → <code>BMC_UNREACHABLE</code></td></tr>
+            <tr><td>B8</td><td>재개 — 중간 실패 뒤 재시도하면 이미 적용된 항목도 다시 쓴다</td></tr>
+            <tr><td>B9</td><td><code>bond.enable=false</code> → <code>BOND_DISABLED</code> SKIPPED</td></tr>
+            <tr><td>C1 · C2</td><td>게스트 서버 상세 화면 — 작업 중인 행 · 완료/실패 행</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 위험 · 미해결 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. 위험 · 미해결</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>미해결</th><th>지금 어떻게 다루는가</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td><span class="diff-del">Cold Redundant · Bond 표준값 미확정</span> → CP1 승인으로 확정</td><td>Cold Redundant <code>0</code> · <code>master_psu 0</code> · Bond 설정값 보드 공통 <span class="chip mod">개정 1</span></td></tr>
+            <tr><td>②</td><td>MS03-CE0 · MS04-CE0 프로파일 실기 전송 미검증</td><td>구조는 MS74-HB0 과 동일하고 바이트 대조를 마쳤다 · 실기는 CP7</td></tr>
+            <tr><td>③</td><td>Bond 정식 왕복 미실측 — 단절 · 주소 변경 가능성</td><td>행 1b 가 재접속을 거두고 주소 변경은 Probe 의 재발견이 받는다</td></tr>
+            <tr><td>④</td><td><code>POST /api/settings/settingsItem</code>(UI 부수 호출) 필요 여부 미상</td><td>코드는 부르지 않는다 · 실기에서 readback 이 통과하면 불필요로 확정</td></tr>
+            <tr><td>⑤</td><td>웹 세션 동시 상한 미측</td><td>주기마다 로그아웃해 슬롯을 반납한다</td></tr>
+            <tr><td>⑥</td><td><code>redfishRestClient</code> 빈 이름이 두 프로토콜을 가리킨다</td><td>이 슬라이스에서 개명하지 않는다 — CH 후보</td></tr>
+            <tr><td>⑦</td><td><code>eth1</code> 인터페이스명이 모든 보드에서 같은지 미확인 <span class="chip mod">개정 1</span></td><td><b>재실측 항목 · T3 적립.</b> 지금은 <code>bond.ifc</code> 공통 기본값 하나로 두고, 편차가 드러나면 보드별 키로 승격한다(D-11)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <div class="pkg-tree">com.example.serverprovision/
+├── global/
+│   ├── redfish/
+│   │   ├── BmcRequestException.java          (신규 · 추상 상위 · authFailure())
+│   │   └── RedfishRequestException.java      (수정 · extends 한 줄)
+│   └── bmcweb/                               (신규 패키지)
+│       ├── AmiWebClient.java
+│       ├── AmiWebSession.java
+│       └── AmiWebRequestException.java
+└── execution/engine/setting/
+    ├── SettingAxis.java                      (신규 · BIOS · BMC)
+    ├── SettingCursor.java                    (신규 · afterAxis)
+    ├── BmcStandardSettings.java              (신규 · @ConfigurationProperties)
+    ├── BmcSettingTarget.java                 (신규)
+    ├── BmcSettingItem.java                   (신규 · 상수별 메서드)
+    ├── BmcItemOutcome.java                   (신규)
+    ├── FanProfileResources.java              (신규 · classpath 로드 · 4 보드)
+    ├── SettingContext.java                   (수정 · axis() · bmcTarget())
+    ├── FirmwareSettingCycle.java             (개명 · 구 BiosSettingCycle)
+    ├── FirmwareSettingWorker.java            (개명 · 구 BiosSettingWorker · 두 step sweep)
+    └── step/
+        ├── BeginBmcSettingStep.java          (신규 · 행 6)
+        ├── ReconnectReadbackStep.java        (신규 · 행 1b)
+        ├── ReturnReadbackStep.java           (수정 · afterAxis)
+        ├── SkipNoTargetStep.java             (수정 · afterAxis)
+        └── FailNoBmcStep.java                (축 무관 확인)</div>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>src/main/resources/bmc/fanprofile/&lt;modelName&gt;.json</code> — <b>4 보드</b></td><td>보드별 Fan Profile 자원 · git 추적. 파일명 · 보드 대응은 <code>discussion/e0-3-fanprofile/</code> 의 업로드 파일 4종을 CP2 에서 확인해 확정 <span class="chip mod">개정 1</span></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>src/main/resources/application.properties</code></td><td><code>provision.bmc.standard.*</code> 표준값 절</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingLedger</code></td><td>BMC meta(<code>items</code> · <code>bondAt</code>) · 사유 어휘 2 종 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BmcCredentialsFallback</code></td><td>상위 예외를 잡고 <code>authFailure()</code> 로 판정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/mock-redfish/mock-redfish.py</code></td><td>AMI 웹 API 경로 + 모드 4 종</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BeginSettingStep</code> · <code>PhaseCursorAdvancer</code> · <code>BootScriptDispatcher</code> · <code>FirmwareSettingExecutor</code> · <code>BmcIdentityProbe</code> · <code>RedfishClientConfig</code></td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 Verification · 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. Verification · 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E3-2-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="regress"> <span>E3-1 시점의 테스트 2,509 green 유지</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span>신규 테스트 추가 후 <code>./gradlew test</code> 전체 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>CP5 하네스 검증 — A1~A6 · B1~B9 · C1~C2</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>CP7 실기 일괄 — 무해 왕복(DateTime timezone 변경 · 원복 / Fan Profile <code>default</code> ↔ <code>FAN_PROFILE</code>)</span></label></li>
+        </ul>
+        <h4>다음</h4>
+        <ol>
+          <li><b>E2-4</b> — 집행 현황 카드(BIOS · BMC 행 상세).</li>
+          <li><b>MA6</b> — 프로파일 · 표준값 관리 화면 · 레지스트리 조회.</li>
+          <li><b>U 단계</b> — BMC 항목 opt-in (필요해지는 시점에).</li>
+          <li><b>E4</b> — OS 설치.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 BMC 설정 한 주기 데모
+  //  판정은 §3 진리표 v2(행 1 · 1b · 2 · 3 · 4 · 5 · 6)와 행 6 절차 ①~⑨ 를 그대로 옮긴 것이다.
+  //  항목 순서 = BmcSettingItem 의 DATE_TIME → COLD_REDUNDANT → FAN_PROFILE → NETWORK_BOND (D-3).
+  //  D-5  세션 만료는 cc:7 로만 안다 — 받은 자리에서 재로그인 1회 후 그 호출만 재시도.
+  //  D-6  Fan Profile 자원이 없으면 그 항목만 SKIPPED, step 은 계속.
+  //  D-8  Bond 즉시 readback 실패 → bondAt 기록 후 RUNNING 유지 → 다음 주기(행 1b)가 거둔다.
+  //  D-9  REJECTED / MISMATCH 면 그 자리에서 닫고 뒤 항목은 미수행으로 남는다.
+  //  서버 구현(FirmwareSettingCycle + 행별 step 빈)이 이 판정의 정본이 되어야 한다 (드리프트 0).
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_BOARDS = [['MS03-CE0', 1932], ['MS74-HB0', 1979], ['MS04-CE0', 1954], ['MS73-HB1', 0]];
+  const DEMO_MODES = [
+    ['OK', '정상'], ['SESSION_EXPIRE', '세션 만료 1회'], ['FANPROFILE_REJECT', 'Fan Profile 거절'],
+    ['BOND_DROP', 'Bond 뒤 단절'], ['OTHER_BOARD', '남의 장비'], ['AUTH_REJECT', '자격증명 전부 거부']
+  ];
+  const DEMO_ITEMS = ['DATE_TIME', 'COLD_REDUNDANT', 'FAN_PROFILE', 'NETWORK_BOND'];
+  const DEMO_LIMIT = 20;                 // returnLimit 20m — E2 복귀 시한 재사용 (D-8)
+  const DEMO_EPOCH = 1787645850;         // HAR 실측 바디의 timestamp 값을 "서버 현재 epoch 초" 자리에 쓴다
+  const DEMO_SERIAL = 'QG260700082';        // 진단이 기록해 둔 보드 시리얼 (mock-redfish.py BOARD_SERIAL)
+  const DEMO_SERIAL_OTHER = 'QG260700131';  // 지금 응답하는 다른 장비의 시리얼 (mock-redfish.py OTHER_SERIAL)
+  const DEMO_DEFAULTS = { board: 'MS74-HB0', mode: 'OK', cold: 0, bondEnable: true, biosTarget: true };
+
+  function demoInit(keep) {
+    const k = keep || DEMO_DEFAULTS;
+    return {
+      board: k.board, mode: k.mode, cold: k.cold, bondEnable: k.bondEnable, biosTarget: k.biosTarget,
+      axis: 'BIOS',
+      // BIOS 목표가 있으면 E3-1 이 재부팅까지 지시해 둔 자리(행 1)에서 시작하고,
+      // 없으면 원장 행 자체가 열리지 않은 자리(행 3)에서 시작한다 — 진리표 v2 의 전제를 그대로 따른다.
+      ledger: k.biosTarget
+        ? [{ step: 'BIOS_SETTING', status: 'RUNNING', meta: { rebootAt: '12:04:31', items: null, bondAt: null, reason: null, detail: null } }]
+        : [],
+      http: [], bondLinkDown: false, sec: 0, min: 0,
+      terminal: false, advanced: false, sessionUsed: false,
+      loginCount: 0, reloginCount: 0, writeCount: 0, lastRow: null,
+      banner: '', msg: null
+    };
+  }
+  let demo = demoInit();
+
+  // ── 순수 헬퍼 ───────────────────────────────────────────────
+  function demoFanBytes() { const b = DEMO_BOARDS.find(x => x[0] === demo.board); return b ? b[1] : 0; }
+  function demoRunning() { return demo.ledger.find(r => r.status === 'RUNNING') || null; }
+  function demoPad(n) { return String(n).padStart(2, '0'); }
+  function demoClock(offsetSec) {
+    const t = 12 * 3600 + 4 * 60 + 31 + (offsetSec || 0);
+    return demoPad(Math.floor(t / 3600)) + ':' + demoPad(Math.floor((t % 3600) / 60)) + ':' + demoPad(t % 60);
+  }
+  function demoLog(line) { demo.http.push(line); }
+  function demoSay(kind, text) { demo.msg = { kind: kind, text: text }; }
+
+  // ── 진리표 v2 — 부수효과 0 의 "지금 워커가 돌면" 판정 ─────────
+  function demoEvaluate() {
+    const run = demoRunning();
+    // 행 1 — BIOS 축 · RUNNING 행에 rebootAt
+    if (demo.axis === 'BIOS' && run && run.step === 'BIOS_SETTING' && run.meta.rebootAt) {
+      return { row: '1', head: '행 1 — BIOS readback 일치 → APPLIED → afterAxis(BIOS) 가 종단 대신 BMC_SETTING 으로 옮긴다', kind: 'ok' };
+    }
+    // 행 1b — BMC 축 · RUNNING 행에 bondAt
+    if (demo.axis === 'BMC' && run && run.meta.bondAt) {
+      if (demo.mode === 'OTHER_BOARD') {
+        return { row: '1b', head: '행 1b — 재접속 readback 직전 신원 대조 실패 (D-7)', kind: 'fail', reason: 'IDENTITY_MISMATCH', detail: '기록 시리얼 ' + DEMO_SERIAL + ' ≠ 응답 시리얼 ' + DEMO_SERIAL_OTHER };
+      }
+      if (demo.bondLinkDown) {
+        return demo.min > DEMO_LIMIT
+          ? { row: '1b', head: '행 1b — 재접속 시한(' + DEMO_LIMIT + 'm) 초과', kind: 'fail', reason: 'BMC_UNREACHABLE', detail: 'Bond 적용 후 ' + demo.min + '분간 재접속 실패' }
+          : { row: '1b', head: '행 1b — Bond 뒤 재접속 실패 · 시한 안이라 RUNNING 유지 (경과 ' + demo.sec + '초)', kind: 'hold' };
+      }
+      return { row: '1b', head: '행 1b — 재접속 성공 · Bond 5 필드 대조 → APPLIED 로 닫고 afterAxis(BMC)', kind: 'ok' };
+    }
+    if (demo.terminal) {
+      return { row: '—', head: 'BMC_SETTING step 종결 — sweep 대상이 아니다(미실패 · 미종단 조건). [초기화] 로 다시 본다', kind: 'hold' };
+    }
+    // 행 2 · 4 · 5 는 이 데모의 조작면 밖이다 (활성 할당 · BMC 검출 토글 없음)
+    // 행 3 — BIOS 축 · 목표 비어 있음 (보드 일치 템플릿 0)
+    if (demo.axis === 'BIOS' && !demo.biosTarget) {
+      return { row: '3', head: '행 3 — 감지 보드 일치 템플릿 0 · SKIPPED(NO_TARGET) → afterAxis(BIOS) 로 BMC_SETTING 으로', kind: 'skip', reason: 'NO_TARGET' };
+    }
+    if (demo.axis === 'BMC') {
+      return { row: '6', head: '행 6 — BMC 축 착수 (① 신원 → ② 원장 열기 → ③ 로그인 → ④~⑦ 항목 4종 → ⑧ 로그아웃 → ⑨ 닫기 · 커서)', kind: 'start' };
+    }
+    return { row: '5', head: '행 5 — BIOS 축 착수 (E3-1 그대로 · 이 데모는 행 1 상태에서 시작한다)', kind: 'start' };
+  }
+
+  // ── 원장 조작 ───────────────────────────────────────────────
+  function demoOpenBmc() {
+    demo.ledger.unshift({ step: 'BMC_SETTING', status: 'RUNNING', meta: { rebootAt: null, items: {}, bondAt: null, reason: null, detail: null } });
+  }
+  function demoInstantBmc(status, reason, detail) {   // 원장을 열기 전(① 단계)의 즉시 종결
+    demo.ledger.unshift({ step: 'BMC_SETTING', status: status, meta: { rebootAt: null, items: {}, bondAt: null, reason: reason, detail: detail } });
+    demo.terminal = true;
+  }
+  function demoCloseBmc(status, reason, detail) {     // RUNNING 행을 결과로 닫되 items · bondAt 은 보존 (D-9)
+    const run = demoRunning();
+    if (run) { run.status = status; run.meta.reason = reason; run.meta.detail = detail; }
+    demo.terminal = true;
+  }
+  function demoAppliedSummary(items) {
+    const applied = DEMO_ITEMS.filter(k => items[k] === 'APPLIED').length;
+    const skipped = DEMO_ITEMS.filter(k => (items[k] || '').indexOf('SKIPPED') === 0)
+      .map(k => k + ' 건너뜀(' + (items[k].split(':')[1] === 'NO_FAN_PROFILE' ? '프로파일 없음' : '설정으로 꺼 둠') + ')');
+    return applied + '개 적용' + (skipped.length ? ' · ' + skipped.join(' · ') : '');
+  }
+
+  // ── 행 1 — BIOS 축의 꼬리. 이 슬라이스가 바꾸는 것은 afterAxis 한 줄이다 ──
+  function demoBiosHandoff() {
+    const run = demoRunning();
+    run.status = 'SUCCEEDED'; run.meta.reason = 'APPLIED';
+    demo.axis = 'BMC';
+    demo.http = [];
+    demoLog('  ▸   BIOS_SETTING readback 일치 → SUCCEEDED(APPLIED)        ← E3-1 의 판정 (이 데모는 성공으로 고정)');
+    demoLog('  ▸   SettingCursor.afterAxis(BIOS) → next() = BMC          → progress.positionAt(BMC_SETTING) · motion STEP_RUNNING');
+    demoSay('', '<b>같은 phase 안에서 step 만 옮겼다</b> — <code>advanceOrComplete</code> 를 부르지 않았으므로 phase 는 아직 <code>FIRMWARE_SETTING</code> 이다. 이제 [워커 1 주기] 를 한 번 더 누르면 행 6 이 BMC 축을 착수한다.');
+    return true;
+  }
+
+  // ── 행 3 — BIOS 목표가 비었을 때. 꼬리는 행 1 과 같은 afterAxis(BIOS) 다 ──
+  function demoSkipNoTarget() {
+    demo.ledger.unshift({ step: 'BIOS_SETTING', status: 'SKIPPED', meta: { rebootAt: null, items: null, bondAt: null, reason: 'NO_TARGET', detail: '활성 스냅샷의 BIOS 템플릿이 전부 다른 보드 것이다' } });
+    demo.axis = 'BMC';
+    demo.http = [];
+    demoLog('  ▸   감지 보드 일치 템플릿 0 → SKIPPED(NO_TARGET)          ← 실패가 아니라 "이 보드에 적용할 BIOS 설정이 없다"');
+    demoLog('  ▸   SettingCursor.afterAxis(BIOS) → next() = BMC          → progress.positionAt(BMC_SETTING) · motion STEP_RUNNING');
+    demoSay('', 'BIOS 목표가 비어도 <b>phase 를 종결하지 않는다</b> — E3-1 은 여기서 <code>advanceOrComplete</code> 를 불렀지만, E3-2 는 <code>afterAxis(BIOS)</code> 를 부르므로 BMC 표준은 그대로 적용된다(D-2). [워커 1 주기] 를 한 번 더 누르면 행 6 이 BMC 축을 착수한다.');
+    return true;
+  }
+
+  // ── 행 6 — BMC 축 착수 · 재개 ──────────────────────────────
+  function demoBmcStart() {
+    demo.http = [];
+    const fan = demoFanBytes();
+    // ① 신원 대조 (D-7) — 웹 세션을 열기 전에 지난다
+    const serial = (demo.mode === 'OTHER_BOARD') ? DEMO_SERIAL_OTHER : DEMO_SERIAL;
+    demoLog('GET    /redfish/v1/Chassis/Self                          → 200  보드 시리얼 = ' + serial + '  (기록 ' + DEMO_SERIAL + ' · BmcIdentityProbe)');
+    if (demo.mode === 'OTHER_BOARD') {
+      demoInstantBmc('FAILED', 'IDENTITY_MISMATCH', '기록 시리얼 ' + DEMO_SERIAL + ' ≠ 응답 시리얼 ' + DEMO_SERIAL_OTHER);
+      demoSay('error', '신원이 어긋났다 — 웹 세션을 <b>열지도 않고</b> FAILED(IDENTITY_MISMATCH) 로 닫는다. 로그인 왕복 0 이라는 것이 이 결정의 요점이다(D-7).');
+      return true;
+    }
+    // ② 원장 열기 — 첫 쓰기보다 먼저 (D-9)
+    demoOpenBmc();
+    demoLog('  ▸   SettingLedger.openBmc  meta = {origin:"setting", axis:"BMC", items:{}}   ← 첫 쓰기보다 먼저');
+    const run = demoRunning(), items = run.meta.items;
+    // ③ 로그인 — BmcCredentialsFallback 사다리 · E1.6 캐시
+    if (demo.mode === 'AUTH_REJECT') {
+      demoLog('POST   /api/session  (자격 후보 1)                       → <span data-error="1">{"cc":7,"error":"Invalid Authentication"}</span>');
+      demoLog('POST   /api/session  (자격 후보 2)                       → <span data-error="1">{"cc":7,"error":"Invalid Authentication"}</span>');
+      demoLog('POST   /api/session  (자격 후보 3)                       → <span data-error="1">{"cc":7,"error":"Invalid Authentication"}</span>   후보 소진');
+      demoCloseBmc('FAILED', 'AUTH_REJECTED', 'BmcCredentialsFallback 후보 소진 — AmiWebRequestException(AUTH)');
+      demoSay('error', '자격증명 사다리를 끝까지 내려갔는데 전부 <code>cc:7</code> 이다 — FAILED(AUTH_REJECTED). 원장 행은 <b>로그인 전에 이미 열려 있어서</b> 무엇을 시도했는지가 남는다(D-9).');
+      return true;
+    }
+    demoLog('POST   /api/session                                      → 200  {ok:0, CSRFToken:"e6f1…"}   이후 X-CSRFTOKEN · X-Requested-With · 세션 쿠키');
+    demo.loginCount++;
+    // ④ DATE_TIME
+    if (demo.mode === 'SESSION_EXPIRE' && !demo.sessionUsed) {
+      demo.sessionUsed = true;
+      demoLog('PUT    /api/settings/date-time  (21 필드)                 → <span data-error="1">{"cc":7,"error":"Invalid Authentication"}</span>   ← 세션이 끊겼다');
+      demoLog('POST   /api/session   (AmiWebClient 안에서 재로그인 1회)  → 200  {ok:0, CSRFToken:"b31a…"}');
+      demo.loginCount++; demo.reloginCount++;
+    }
+    demoLog('PUT    /api/settings/date-time  (21 필드, timestamp=' + DEMO_EPOCH + ') → <span data-ok="1">200</span>  에코');
+    demoLog('GET    /api/settings/date-time                           → 200  timezone="Asia/Seoul" · ntp_auto_date=0 · primary_ntp · secondary_ntp 일치');
+    items.DATE_TIME = 'APPLIED'; demo.writeCount++;
+    // ⑤ COLD_REDUNDANT
+    demoLog('POST   /api/cold_redundant-status  {"master_psu":0,"set_cold_redundant_enable":' + demo.cold + '} → <span data-ok="1">200</span>  에코');
+    demoLog('GET    /api/cold_redundant-status                        → 200  get_cold_redundant_enable=' + demo.cold + ' · master_psu=0 일치');
+    items.COLD_REDUNDANT = 'APPLIED'; demo.writeCount++;
+    // ⑥ FAN_PROFILE
+    if (!fan) {
+      items.FAN_PROFILE = 'SKIPPED:NO_FAN_PROFILE';
+      demoLog('  ▸   classpath:bmc/fanprofile/' + demo.board + '.json 없음                 → <span data-skip="1">항목만 SKIPPED(NO_FAN_PROFILE)</span> · step 은 계속 (D-6)');
+    } else if (demo.mode === 'FANPROFILE_REJECT') {
+      demoLog('POST   /api/settings/fanprofile  (strMode="FAN_PROFILE", ' + fan + ' 바이트) → <span data-error="1">{"error":"Invalid Data","code":1010}</span>');
+      items.FAN_PROFILE = 'REJECTED:code 1010 Invalid Data';
+      demoLog('DELETE /api/session                                      → 200  {"ok":0}   (best-effort)');
+      demoCloseBmc('FAILED', 'WRITE_REJECTED', 'FAN_PROFILE — code 1010 Invalid Data');
+      demoSay('error', 'Fan Profile 이 데이터 거절을 받았다 — 그 자리에서 FAILED(WRITE_REJECTED) 로 닫고 <b>뒤의 NETWORK_BOND 는 수행하지 않는다</b>(D-9). 원장의 <code>items</code> 를 보면 어디까지 갔는지가 그대로 남아 있다.');
+      return true;
+    } else {
+      demoLog('POST   /api/settings/fanprofile  (strMode="FAN_PROFILE", ' + fan + ' 바이트) → <span data-ok="1">200</span>  에코');
+      demoLog('GET    /api/settings/fanprofile/mode                     → 200  {strMode:"FAN_PROFILE"}');
+      items.FAN_PROFILE = 'APPLIED'; demo.writeCount++;
+    }
+    // ⑦ NETWORK_BOND — disruptive() = true 라 마지막이다 (D-3)
+    if (!demo.bondEnable) {
+      items.NETWORK_BOND = 'SKIPPED:BOND_DISABLED';
+      demoLog('  ▸   provision.bmc.standard.bond.enable = false             → <span data-skip="1">항목만 SKIPPED(BOND_DISABLED)</span> (D-11)');
+    } else {
+      demoLog('PUT    /api/settings/network-bond  {"id":1,"bond_enable":1,"bond_mode":"active-backup","bond_ifc":"eth1","auto_configuration_enable":1} → <span data-ok="1">200</span>  에코');
+      demo.writeCount++;
+      if (demo.mode === 'BOND_DROP') {
+        demo.bondLinkDown = true; demo.sec = 0;
+        run.meta.bondAt = demoClock(0);
+        demoLog('GET    /api/settings/network-bond                        → <span data-error="1">연결 거부</span>   즉시 readback 실패 → meta.bondAt = ' + run.meta.bondAt + ' (D-8)');
+        demoSay('', 'Bond 를 쓴 직후 링크가 끊겼다. 실패로 닫지 않고 <code>bondAt</code> 만 적어 <b>RUNNING 으로 남긴다</b> — 로그아웃도 못 한다. [20초 경과] 로 링크를 되살린 뒤 [워커 1 주기] 를 누르면 행 1b 가 거둔다. [시한 경과] 를 누르면 ' + DEMO_LIMIT + '분을 넘겨 BMC_UNREACHABLE 이 된다.');
+        return true;
+      }
+      demoLog('GET    /api/settings/network-bond                        → 200  5 필드 일치   (실측상 단절 없음)');
+      items.NETWORK_BOND = 'APPLIED';
+    }
+    // ⑧ 로그아웃 · ⑨ 닫기
+    demoLog('DELETE /api/session                                      → 200  {"ok":0}   (실패해도 무해 · 로그만)');
+    const summary = demoAppliedSummary(items);
+    demoCloseBmc('SUCCEEDED', 'APPLIED', summary);
+    demo.advanced = true;
+    demoSay('success', '항목 4종을 순서대로 지났다 — SUCCEEDED(APPLIED) · detail "' + summary + '". <b>재부팅은 한 번도 없었다</b>. <code>afterAxis(BMC)</code> 에는 다음 축이 없으므로 <code>advanceOrComplete</code> 가 phase 를 전진시키거나 종단한다.');
+    return true;
+  }
+
+  // ── 행 1b — Bond 뒤 재접속 readback ────────────────────────
+  function demoReconnect(ev) {
+    const run = demoRunning();
+    demo.http = [];
+    if (ev.reason === 'IDENTITY_MISMATCH') {
+      demoLog('GET    /redfish/v1/Chassis/Self                          → 200  보드 시리얼 = ' + DEMO_SERIAL_OTHER + '  (기록 ' + DEMO_SERIAL + ')');
+      demoCloseBmc('FAILED', 'IDENTITY_MISMATCH', ev.detail);
+      demoSay('error', '재접속해서 결과를 거두려는 순간 상대가 다른 장비다 — 재로그인도 readback 도 하지 않고 닫는다. 착수 직전과 <b>같은 순서</b>다(D-7).');
+      return true;
+    }
+    if (demo.bondLinkDown) {
+      demoLog('GET    /redfish/v1/Chassis/Self                          → <span data-error="1">무응답</span>   BmcAddressRediscovery 재발견 시도');
+      if (ev.kind === 'fail') {
+        demoCloseBmc('FAILED', 'BMC_UNREACHABLE', ev.detail);
+        demoSay('error', ev.head + ' — <code>returnLimit</code> 은 E2 의 복귀 시한을 그대로 재사용한다(D-8). 별도 키를 만들지 않는다.');
+        return true;
+      }
+      demoSay('error', ev.head + ' — 아직 시한 안이라 원장 행은 RUNNING 그대로 두고 다음 주기에 다시 시도한다.');
+      return false;
+    }
+    demoLog('GET    /redfish/v1/Chassis/Self                          → 200  보드 시리얼 = ' + DEMO_SERIAL + '   재접속 readback 직전에도 신원부터 (D-7)');
+    demoLog('POST   /api/session                                      → 200  {ok:0, CSRFToken:"c4d2…"}   재로그인 (한 주기 한 세션 · D-5)');
+    demo.loginCount++;
+    demoLog('GET    /api/settings/network-bond                        → 200  5 필드 일치');
+    run.meta.items.NETWORK_BOND = 'APPLIED';
+    demoLog('DELETE /api/session                                      → 200  {"ok":0}');
+    const summary = demoAppliedSummary(run.meta.items);
+    demoCloseBmc('SUCCEEDED', 'APPLIED', summary);
+    demo.advanced = true;
+    demoSay('success', '끊겼던 Bond 의 결과를 다음 주기가 거뒀다 — SUCCEEDED(APPLIED). 이 경로가 행 1 · 1b 를 착수(행 6)보다 <b>위</b>에 두는 이유다. 이미 써 넣은 것을 거두는 일이 새로 시작하는 일보다 앞선다.');
+    return true;
+  }
+
+  // ── 한 주기 ────────────────────────────────────────────────
+  function demoTick() {
+    const ev = demoEvaluate();
+    if (ev.row !== '—') demo.lastRow = ev.row;   // 종결 뒤에도 "무엇이 이겼는지" 를 표시면에 남긴다
+    if (ev.row === '1') return demoBiosHandoff();
+    if (ev.row === '1b') return demoReconnect(ev);
+    if (ev.row === '3') return demoSkipNoTarget();
+    if (ev.row === '6') return demoBmcStart();
+    demoSay('', ev.head);
+    return false;
+  }
+  function demoWait20() {
+    if (!demo.bondLinkDown) return false;
+    demo.sec = 20; demo.bondLinkDown = false;
+    demoSay('', '링크가 돌아왔다(실측은 Bond PUT 뒤 14초에 같은 주소로 재로그인 200). [워커 1 주기] 를 누르면 행 1b 가 신원 → 재로그인 → Bond GET 순으로 거둔다.');
+    return true;
+  }
+  function demoExpire() {
+    if (!demo.bondLinkDown) return false;
+    demo.min = 25;
+    demoSay('', 'Bond 뒤 경과를 25 분으로 밀었다 — 재접속 시한 ' + DEMO_LIMIT + '분을 넘겼다. [워커 1 주기] 로 판정한다.');
+    return true;
+  }
+
+  // ── 조작면 ─────────────────────────────────────────────────
+  function demoTouch() {   // 진행 상태만 되돌리고 토글 값은 유지한다
+    demo = demoInit({ board: demo.board, mode: demo.mode, cold: demo.cold, bondEnable: demo.bondEnable, biosTarget: demo.biosTarget });
+  }
+  function demoSetBoard(b) { demo.board = b; demoTouch(); demoRender(); }
+  function demoSetBiosTarget(v) { demo.biosTarget = v; demoTouch(); demoRender(); }
+  function demoSetCold(v) { demo.cold = v; demoTouch(); demoRender(); }
+  function demoSetBond(v) { demo.bondEnable = v; demoTouch(); demoRender(); }
+  // 응답 모드만은 진행 중에 바꿔도 되돌리지 않는다 — BMC 가 도중에 다른 장비로 바뀌는 것은 실제로 일어나는 일이고,
+  // 행 1b 의 신원 대조(D-7)는 그 자리에서만 보인다.
+  function demoSetMode(m) { demo.mode = m; demo.banner = ''; demo.msg = null; demoRender(); }
+  function demoAct(name) {
+    if (name === 'tick') demoTick();
+    else if (name === 'wait20') { if (!demoWait20()) demoSay('error', '지금은 기다릴 단절이 없다 — [BMC 응답 모드] 를 <code>Bond 뒤 단절</code> 로 두고 착수해야 이 버튼이 의미를 갖는다.'); }
+    else if (name === 'expire') { if (!demoExpire()) demoSay('error', '지금은 넘길 시한이 없다 — <code>bondAt</code> 이 찍힌 RUNNING 행이 있을 때만 재접속 시한이 흐른다.'); }
+    else if (name === 'reset') demoTouch();
+    demoRender();
+  }
+
+  // ── 원클릭 시나리오 (토글 세팅 + 자동 진행 + 안내 배너) ──────
+  const DEMO_PRESETS = {
+    p1: {
+      setup: function () { demo.board = 'MS74-HB0'; demo.mode = 'OK'; demo.bondEnable = true; }, run: ['tick', 'tick'],
+      banner: '<b>① 정상 4 항목 완주</b> — 첫 주기가 BIOS 축을 닫으면서 <code>afterAxis(BIOS)</code> 로 커서를 <b>같은 phase 안의</b> BMC_SETTING 으로 옮깁니다(D-2). 두 번째 주기가 신원을 대조하고, 첫 쓰기 <b>전에</b> 원장을 열고, 세션 하나로 DATE_TIME → COLD_REDUNDANT → FAN_PROFILE → NETWORK_BOND 를 순서대로 쓰고 항목마다 되읽습니다. 재부팅은 한 번도 없습니다 — BIOS 와 다른 점이 여기입니다. <b>BIOS 목표</b> 토글을 <code>없음</code> 으로 두면 같은 자리에서 행 3(SKIPPED NO_TARGET → <code>afterAxis(BIOS)</code>) 경로도 볼 수 있습니다 — BIOS 목표가 없어도 BMC 표준은 그대로 적용됩니다.'
+    },
+    p2: {
+      setup: function () { demo.mode = 'SESSION_EXPIRE'; }, run: ['tick', 'tick'],
+      banner: '<b>② 세션 만료 1회</b> — 첫 쓰기가 <code>{"cc":7,"error":"Invalid Authentication"}</code> 로 거절됩니다. HTTP 상태가 아니라 <b>바디</b>로 판독하는 것이 요점입니다(D-4). <code>AmiWebClient</code> 안에서 재로그인 1회 후 그 호출만 다시 보내고, 항목 코드는 세션이 끊겼다는 사실조차 모릅니다(D-5). 세션 TTL 을 시각으로 예측하지 않는 이유는 추정이 틀린 순간 조용히 실패하기 때문입니다.'
+    },
+    p3: {
+      setup: function () { demo.board = 'MS73-HB1'; }, run: ['tick', 'tick'],
+      banner: '<b>③ 프로파일 없는 보드</b> — MS73-HB1 은 <code>classpath:bmc/fanprofile/</code> 에 자원이 없습니다. 그 <b>항목만</b> SKIPPED(NO_FAN_PROFILE) 로 적고 나머지 3 을 적용해 SUCCEEDED 로 닫습니다(D-6). 실패로 세우지 않는 이유는 표준이 정의되지 않은 보드가 위반이 아니라 미정의이기 때문입니다 — 카탈로그 7 보드 중 프로파일은 4 뿐이라 FAILED 로 두면 나머지가 전부 눕습니다.'
+    },
+    p4: {
+      setup: function () { demo.mode = 'FANPROFILE_REJECT'; }, run: ['tick', 'tick'],
+      banner: '<b>④ Fan Profile 거절</b> — <code>{"error":"Invalid Data","code":1010}</code> 를 받으면 그 자리에서 FAILED(<code>WRITE_REJECTED</code>) 로 닫고 <b>뒤의 NETWORK_BOND 는 수행하지 않습니다</b>(D-9). 원장 <code>items</code> 를 보세요 — 앞의 둘은 APPLIED, Fan Profile 은 REJECTED, Bond 는 <code>—</code>(미수행) 로 어디까지 갔는지가 그대로 남습니다.'
+    },
+    p5: {
+      setup: function () { demo.mode = 'BOND_DROP'; }, run: ['tick', 'tick', 'wait20', 'tick'],
+      banner: '<b>⑤ Bond 뒤 단절</b> — Bond 쓰기는 200 인데 즉시 readback 이 연결 거부를 받습니다. 실패로 닫지 않고 <code>bondAt</code> 을 적어 RUNNING 으로 남긴 뒤(D-8), 링크가 돌아온 다음 주기에 <b>행 1b</b> 가 신원 → 재로그인 → Bond GET 순으로 거둬 APPLIED 로 닫습니다. 행 1b 가 착수(행 6)보다 위에 있는 이유가 이 장면입니다.'
+    },
+    p6: {
+      setup: function () { demo.mode = 'OTHER_BOARD'; }, run: ['tick', 'tick'],
+      banner: '<b>⑥ 남의 장비</b> — 착수 직전 신원 대조에서 보드 시리얼이 어긋납니다. <b>웹 세션을 열지도 않습니다</b> — 왕복 로그에 <code>POST /api/session</code> 이 한 줄도 없는 것을 확인하세요(D-7). 되돌리기 어려운 조작을 하기 전에 상대가 누구인지부터 확인한다는 원칙이 E2-2 · E3-1 과 같습니다.'
+    }
+  };
+  function demoPreset(id) {
+    demo = demoInit();
+    const p = DEMO_PRESETS[id];
+    p.setup();
+    p.run.forEach(function (a) {
+      if (a === 'tick') demoTick();
+      else if (a === 'wait20') demoWait20();
+      else if (a === 'expire') demoExpire();
+    });
+    demo.banner = p.banner;
+    demoRender();
+  }
+
+  // ── 렌더 ────────────────────────────────────────────────────
+  function demoSeg(label, active, handler) {
+    return '<button class="seg' + (active ? ' active' : '') + '" onclick="' + handler + '">' + label + '</button>';
+  }
+  function demoItemText(v) {
+    if (!v) return '<span class="muted">—</span>';
+    if (v === 'APPLIED') return '<span data-ok="1">APPLIED</span>';
+    const head = v.split(':')[0], tail = v.slice(head.length + 1);
+    if (head === 'SKIPPED') return '<span data-skip="1">SKIPPED</span>(' + tail + ')';
+    return '<span data-error="1">' + head + '</span>(' + tail + ')';
+  }
+  function demoRender() {
+    const ev = demoEvaluate(), run = demoRunning(), fan = demoFanBytes();
+
+    // 조작면 ① — 감지 보드
+    document.getElementById('demo-board').innerHTML = '<span class="group-label">감지 보드 :</span>'
+      + DEMO_BOARDS.map(function (b) {
+        return demoSeg(b[0] + (b[1] ? '' : ' (프로파일 없음)'), demo.board === b[0], 'demoSetBoard(\'' + b[0] + '\')');
+      }).join('');
+
+    // 조작면 ① — BIOS 목표 (행 1 · 3 을 가른다)
+    document.getElementById('demo-biostarget').innerHTML = '<span class="group-label">BIOS 목표 :</span>'
+      + demoSeg('있음', demo.biosTarget, 'demoSetBiosTarget(true)')
+      + demoSeg('없음 (보드 일치 템플릿 0)', !demo.biosTarget, 'demoSetBiosTarget(false)');
+
+    // 조작면 ② — BMC 응답 모드
+    document.getElementById('demo-mode').innerHTML = '<span class="group-label">응답 모드 :</span>'
+      + DEMO_MODES.map(function (m) {
+        return demoSeg(m[1], demo.mode === m[0], 'demoSetMode(\'' + m[0] + '\')');
+      }).join('');
+
+    // 조작면 ③ — 표준값
+    document.getElementById('demo-standard').innerHTML =
+      '<div class="ux-row"><span class="label"><code>cold-redundant-enable</code> <span class="muted mono">→ set_cold_redundant_enable</span></span>'
+      + '<span class="badge ' + (demo.cold ? 'on' : 'off') + '">' + demo.cold + '</span>'
+      + '<span class="ux-toolbar">' + demoSeg('0', demo.cold === 0, 'demoSetCold(0)') + demoSeg('1', demo.cold === 1, 'demoSetCold(1)') + '</span></div>'
+      + '<div class="ux-row"><span class="label"><code>bond.enable</code> <span class="muted mono">→ 끄면 NETWORK_BOND 는 SKIPPED(BOND_DISABLED)</span></span>'
+      + '<span class="badge ' + (demo.bondEnable ? 'on' : 'off') + '">' + (demo.bondEnable ? 'true' : 'false') + '</span>'
+      + '<span class="ux-toolbar">' + demoSeg('켜기', demo.bondEnable, 'demoSetBond(true)') + demoSeg('끄기', !demo.bondEnable, 'demoSetBond(false)') + '</span></div>';
+
+    // 표시면 ① — 웹 API 왕복
+    document.getElementById('demo-http').innerHTML = demo.http.length
+      ? demo.http.join('\n')
+      : '아직 왕복이 없다 — [워커 1 주기] 를 누르거나 위 프리셋을 고른다.';
+
+    // 표시면 ② — 원장 · 커서
+    const BADGE = { RUNNING: 'dep', SUCCEEDED: 'on', FAILED: 'del', SKIPPED: 'off' };
+    let ledgerHtml = demo.ledger.map(function (r) {
+      const m = r.meta;
+      let body;
+      if (r.step === 'BIOS_SETTING') {
+        body = '<span class="mono">meta · rebootAt ' + (m.rebootAt || '—') + ' · reason ' + (m.reason || '—') + '</span>';
+      } else {
+        const its = DEMO_ITEMS.map(function (k) { return k + ' ' + demoItemText(m.items ? m.items[k] : null); }).join(' · ');
+        body = '<span class="mono">meta · axis "BMC" · bondAt ' + (m.bondAt || '—') + ' · reason ' + (m.reason || '—') + '</span><br><span class="mono">items · ' + its + '</span>';
+      }
+      return '<div class="ux-row"><strong>' + r.step + '</strong><span class="label">' + body
+        + (m.detail ? '<br><span class="muted">' + m.detail + '</span>' : '') + '</span>'
+        + '<span class="badge ' + BADGE[r.status] + '">' + r.status + '</span></div>';
+    }).join('');
+    const cursor = demo.advanced
+      ? '<div class="ux-row"><strong>커서</strong><span class="label"><code>afterAxis(BMC)</code> — 다음 축이 없다 → <code>advanceOrComplete</code> : 다음 소유 phase 로 전진(없으면 종단)</span><span class="badge on">전진 / 종단</span></div>'
+      : '<div class="ux-row"><strong>커서</strong><span class="label">phase <code>FIRMWARE_SETTING</code> · step <code>' + (demo.axis === 'BIOS' ? 'BIOS_SETTING' : 'BMC_SETTING') + '</code> · axis ' + demo.axis + '</span><span class="badge ' + (demo.terminal ? 'del' : 'off') + '">' + (demo.terminal ? '멈춤' : '진행 중') + '</span></div>';
+    document.getElementById('demo-ledger').innerHTML = ledgerHtml + cursor;
+
+    // 표시면 ③ — 진리표 점등 (종결 뒤에는 마지막으로 이긴 행을 남겨 둔다)
+    const hit = (ev.row === '—' && demo.lastRow) ? demo.lastRow : ev.row;
+    ['1', '1b', '2', '3', '4', '5', '6'].forEach(function (id) {
+      const tr = document.getElementById('tr-' + id);
+      if (tr) tr.setAttribute('data-hit', hit === id ? '1' : '0');
+    });
+
+    // 계측
+    const doneItems = (run && run.meta.items) || (demo.ledger[0] && demo.ledger[0].meta.items) || {};
+    const appliedCount = DEMO_ITEMS.filter(function (k) { return doneItems[k] === 'APPLIED'; }).length;
+    document.getElementById('demo-caps').innerHTML =
+      '감지 보드                    = ' + demo.board + '   (Fan Profile 자원 ' + (fan ? fan + ' 바이트 · classpath:bmc/fanprofile/' + demo.board + '.json' : '<span class="t">없음</span>') + ')\n'
+      + '표준값                       = timezone=Asia/Seoul · ntp_auto_date=0 · cold_redundant_enable=' + demo.cold + ' · master_psu=0 · bond.enable=' + demo.bondEnable + '\n'
+      + 'BIOS 축 진입                 = ' + (demo.biosTarget ? '목표 있음 → 행 1 (readback → APPLIED)' : '목표 없음 → 행 3 (SKIPPED NO_TARGET)') + '   둘 다 꼬리는 afterAxis(BIOS)\n'
+      + '항목 순서 (BmcSettingItem)   = DATE_TIME → COLD_REDUNDANT → FAN_PROFILE → NETWORK_BOND   (disruptive() = NETWORK_BOND 만 true → 마지막)\n'
+      + '웹 세션 로그인 / 재로그인    = ' + demo.loginCount + ' / ' + demo.reloginCount + '   (한 주기 한 세션 · cc:7 을 받은 자리에서만 재로그인 1회 — D-5)\n'
+      + '쓰기 발행 / APPLIED          = ' + demo.writeCount + ' / ' + appliedCount + '   ← 재부팅 발행 0 (BMC 설정은 전원 사이클을 만들지 않는다)\n'
+      + '커서                         = phase FIRMWARE_SETTING · step ' + (demo.axis === 'BIOS' ? 'BIOS_SETTING' : 'BMC_SETTING') + ' · axis ' + demo.axis + '\n'
+      + '지금 워커가 돌면             = ' + (ev.kind === 'fail' ? '<span class="t">' : (ev.kind === 'ok' ? '<span class="f">' : '<span>')) + ev.head + '</span>';
+
+    // 배너 · 메시지
+    document.getElementById('demo-banner').innerHTML = demo.banner
+      || '위 프리셋 여섯 개가 각각 한 장면으로 데려다 줍니다. 직접 조작하려면 아래 토글을 바꾼 뒤 <b>[워커 1 주기]</b> 를 누르세요 — 첫 주기는 BIOS 축을 닫고(목표가 있으면 행 1 · 없으면 행 3) 커서를 BMC_SETTING 으로 옮기고, 두 번째 주기부터 BMC 축이 돕니다. 감지 보드 · BIOS 목표 · 표준값을 건드리면 진행 상태(원장 · 왕복 · 커서)는 처음으로 되돌아갑니다. 다만 <b>BMC 응답 모드</b>만은 진행 중에 바꿔도 되돌아가지 않습니다 — <code>bondAt</code> 이 찍힌 뒤 <code>남의 장비</code> 로 바꾸면 행 1b 의 신원 대조(D-7)를 볼 수 있습니다.';
+    const msg = document.getElementById('demo-message');
+    const m = demo.msg || { kind: '', text: ev.head };
+    msg.className = 'ux-message' + (m.kind ? ' ' + m.kind : '');
+    msg.innerHTML = m.text;
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
