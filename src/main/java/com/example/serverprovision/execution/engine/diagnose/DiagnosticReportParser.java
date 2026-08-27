@@ -233,11 +233,16 @@ public class DiagnosticReportParser {
             return "ETC";
         }
         if (cls.contains("ethernet") || cls.contains("network")) {
+            // 매체 표기(10GBASE-T · SFP)가 모델명보다 우선한다 — X710 은 SFP+ 와 10GBASE-T 변형이
+            // 모두 있어 모델명만으로 못 가른다(MS74-HB0 실측: d4 축 온보드 10G UTP 가 SFP 로 오분류).
+            if (desc.contains("10gbase-t") || desc.contains("x550") || desc.contains("x540")) {
+                return "LAN_10G_UTP";
+            }
             if (desc.contains("sfp") || desc.contains("x710") || desc.contains("82599")
                     || desc.contains("xxv710") || desc.contains("connectx")) {
                 return "LAN_10G_SFP";
             }
-            if (desc.contains("10g") || desc.contains("x550") || desc.contains("x540")) {
+            if (desc.contains("10g")) {
                 return "LAN_10G_UTP";
             }
             return "LAN";
