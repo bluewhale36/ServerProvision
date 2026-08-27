@@ -5,6 +5,7 @@
 > **주 목적**: E3-2(BMC 설정)의 실행 계약을 세우기 위한 실측 — **사내 표준 BMC 세팅의 각 항목을 어떤 API 로 쓸 수 있는가**(Redfish 또는 AMI 웹 API)와 **쓰기 왕복이 실제로 도는가**.
 > **연결**: 1호(자격증명 PATCH 204 실증 — E3-0 재료) · 3호(Syslog 의 Redfish `NetworkProtocol` 부재 확정 · H4 재캡처 이월 · SessionTimeout 30초) · 4호(§8 — 펌웨어 트랙은 Redfish 최종 확정) · `docs/T3-checklist.md`.
 > **장비 현행 상태**: MS04-CE0 · BIOS F29 · BMC 13.06.27 · 보드 시리얼 QG260700082.
+> **정정(2026-08-25)**: §1 후보 표와 §5 N1~N3 은 사용자 확정(O1) 전에 세션이 상정한 것이었고, 그 확정 없이 레시피로 굳힌 오류다. **사내 표준 BMC 세팅의 정본 = Notion `E0-3 : BMC 내부 API 경로 확인 작업`**(AMI 웹 API 쓰기 4종 — DateTime · Cold Redundant · Fan Profile · Network Bond, 요청 바디 · 응답 채집 완료). N1~N3 은 폐기하고 §5 를 E0-3 기준 W 계열로 대체했다. Redfish 쓰기 왕복(NTP · eth0)은 표준 항목이 아니므로 하지 않는다.
 
 ---
 
@@ -12,19 +13,18 @@
 
 E3(펌웨어 설정) 로드맵에서 **E3-1(BIOS 설정)은 3호 G 계열이 전 왕복(PATCH → pending → Reset 적용 → 원복)을 실증**했고 검증 룰 원천(속성 레지스트리 273개)까지 확보됐다. 반면 **E3-2(BMC 설정)는 쓰기 실측이 사실상 0** 이다 — 있는 것은 1호의 자격증명 PATCH(fresh ETag + `If-Match`, 204) 한 건과, 3호의 부정 실측(Syslog 항목이 Redfish `NetworkProtocol` 에 없음 — AMI 웹 API 계약일 가능성) 뿐이다. BIOS 처럼 pending(SD) 경유인지 직접 PATCH 즉시 적용인지도 미확인이다. 이 격차를 메우는 것이 5호다.
 
-## 1. 선행 입력 — 사내 표준 BMC 세팅 항목 (O1, 사용자 확정 필요)
+## 1. 선행 입력 — 사내 표준 BMC 세팅 항목 (정본 = Notion E0-3, 2026-08-25 정정)
 
-실측 범위는 "실무가 실제로 세팅하는 항목"이 정한다. 아래 후보 표를 실측 전에 확정할 것 — 행 추가 · 삭제 자유:
-
-| 항목 후보 | 사내 세팅 여부 | 비고 |
+| 항목 | 경로(AMI 웹 API) | 비고 |
 |---|---|---|
-| 관리자 비밀번호 변경 | (확인) | 1호 기실증 — 재실측 불요 |
-| BMC 네트워크 (Static IP · 게이트웨이 · VLAN) | (확인) | 접속 상실 위험 — N 계열 유의 |
-| NTP · 시간대 | (확인) | |
-| 원격 Syslog 전송 | (확인) | Redfish 부재 확정 — AMI 웹 API 후보 |
-| SNMP · 알림(SMTP) | (확인) | |
-| 추가 계정 · 역할 | (확인) | |
-| 기타 (팬 정책 · KVM · 가상미디어 정책 등) | (확인) | |
+| 로그인 · CSRF | `POST /api/session` → `CSRFToken` → 이후 `X-CSRFTOKEN` 헤더 필수 | 공통 |
+| DateTime(NTP · 시간대) | `PUT /api/settings/date-time` | 바디 채집 완료 |
+| Cold Redundant | `POST /api/cold_redundant-status` | 바디 채집 완료 |
+| Fan Profile | `POST /api/settings/fanprofile` | 보드별 JSON 채집 완료(MS03-CE0 · MS74-HB0 · MS04-CE0) |
+| Network Bond | `PUT /api/settings/network-bond` | 응답 후 세션 삭제 — 접속 상실 위험 |
+| ID indicator | `POST /api/actions/chassis-led` | 조작(설정 아님) |
+
+전부 AMI 웹 API 다. 종전 후보 표에 있던 관리자 비밀번호(E1.6 소관) · SNMP/SMTP · 추가 계정 · syslog 는 표준 항목이 아니다.
 
 ## 2. 안전 수칙
 
@@ -46,20 +46,22 @@ E3(펌웨어 설정) 로드맵에서 **E3-1(BIOS 설정)은 3호 G 계열이 전
 - **M5**: **Oem 트리 탐색** — `Managers/Self` 응답의 Oem 링크를 따라가며 Syslog · 알림류 설정이 Redfish Oem 확장에 있는지 최종 확인(표준 트리 부재 ≠ Redfish 전체 부재).
 - **M6**: **AMI 웹 API 채집(H4 재캡처 흡수)** — 브라우저 개발자도구 HAR 켜고 BMC 웹 UI 의 설정 화면(Settings > Log Settings 류 — Syslog 원격 전송, 그리고 §1 에서 확정된 항목 중 Redfish 표면이 없는 것들)을 **실제로 저장까지 조작** → 요청 · 응답(`/api/settings/...`) 채집. 3호 H4 는 SEL 조회 화면(`/api/logs/event`)을 잘못 캡처했으므로, 이번엔 "설정을 저장하는 순간"의 요청이 잡혀야 한다.
 
-## 5. Part N [S] — 쓰기 왕복 실증 (가역 항목만)
+## 5. Part W [S] — E0-3 쓰기 4종의 브라우저 밖 재연 (2026-08-25 정정 — 종전 N1~N3 폐기)
 
-- **N1**: NTP 설정 왕복 — `PATCH NetworkProtocol` (또는 M1 에서 확인된 경로)로 NTP 서버 주소 변경 → readback → 원복. `If-Match` 요건 · 즉시 적용 여부(BMC 재시작 필요?) 기록.
-- **N2**: 무해 네트워크 속성 왕복 — hostname(또는 DNS 서버) 변경 → readback → 원복. IP · VLAN 은 물리 콘솔 확보 시에만 별도 수행(N2-x 로 기록).
-- **N3**: Syslog(또는 §1 확정 항목 중 AMI 웹 API 소관 1개) 왕복 — M6 에서 채집한 계약으로 curl 재연(브라우저 밖에서 같은 요청이 성립하는가 — 인증 방식 포함) → 원복.
-- **N4**: 계정 신설 · 삭제 왕복 — `POST Accounts` 로 시험 계정 생성 → 로그인 확인 → 삭제. (사내 세팅에 계정 추가가 없으면 생략.)
-- **N5**: **지속성 확인** — N1~N3 중 1개 항목을 설정한 채 BMC 재시작(가능하면) 후 값 유지 확인. 여유가 되면 **펌웨어 업데이트와의 상호작용**(BMC SimpleUpdate 의 `PreserveConfiguration` 이 이 설정들을 실제로 보존하는가)도 — 단 이는 X 급 실집행을 동반하므로 선택 항목.
+레시피 = `discussion/26-08-20_17-45-50_bmc-redfish-fieldwork-5-N-recipe.md`(정정판). 항목 계약은 E0-3 이 정본이라 재채집하지 않고, **코드가 같은 요청을 보낼 수 있는가**만 실증한다.
 
-## 6. 판정이 만드는 것 (E3-2 설계 입력)
+- **W1**: DateTime 왕복 — 한 필드만 바꿔 PUT → readback → 원복.
+- **W2**: Cold Redundant 왕복 — enable 1 → 0.
+- **W3**: Fan Profile 왕복 — `strMode` FAN_PROFILE ↔ default(보드별 JSON 파일).
+- **W4**: Network Bond — 세션 삭제 거동 확인, 재로그인 후 readback · 원복. **마지막 · 물리 콘솔 확보 시에만.**
+- **W5**: 지속성(선택) — 재시작 후 유지, `PreserveConfiguration` 보존 여부.
 
-- M1 의 pending 유무 → E3-2 의 쓰기 모델(BIOS 식 pending 적용 vs 즉시 PATCH).
-- M6 · N3 → Syslog 류가 AMI 웹 API 소관으로 확정되면 E3-2 는 **이중 클라이언트**(Redfish + AMI 웹 API)가 되고, 그 인증 · 세션 계약이 설계에 합류.
-- §1 표 × M/N 결과 → "항목별 API 경로 매트릭스"가 E3-2 plan 의 §계약 표가 된다.
+## 6. 판정이 만드는 것 (E3-2 설계 입력, 2026-08-25 정정)
+
+- E3-2 의 항목별 계약 = **E0-3 의 웹 API 4종**(Redfish 아님). M 계열의 Redfish 쓰기 모델 판정(pending 유무)은 BMC 설정에는 적용되지 않는다.
+- W1~W4 → 웹 API 클라이언트의 세션 · CSRF · TTL · Bond 후 재로그인 계약이 E3-2 plan 의 §계약 표가 된다.
+- 판정 항목 ⓐ~ⓔ 는 레시피 §6.
 
 ## 7. 채증 규율
 
-항목 식별자(M1~M6 · N1~N5)와 1:1 — R 계열은 응답 JSON 원문, S 계열은 전 · 후 · 원복 3점 값 + 요청 원문, M6 은 HAR + 저장 직전 화면. 원장은 Notion, 완료 기록은 `docs/T3-checklist.md`.
+항목 식별자(M1~M6 · W1~W5)와 1:1 — R 계열은 응답 JSON 원문, S 계열은 전 · 후 · 원복 3점 값 + 요청 원문, M6 은 HAR + 저장 직전 화면. 원장은 Notion, 완료 기록은 `docs/T3-checklist.md`.
