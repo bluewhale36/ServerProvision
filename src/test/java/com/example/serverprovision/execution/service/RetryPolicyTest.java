@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.service;
 
+import com.example.serverprovision.execution.engine.firmware.FlashLedger;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
@@ -97,5 +98,19 @@ class RetryPolicyTest {
         assertThat(retryPolicy.isBlocked(running)).isFalse();
 
         org.mockito.Mockito.verifyNoInteractions(provisioningHistoryRepository);
+    }
+
+    @Test
+    @DisplayName("복귀 시한 만료 → 차단하지 않는다 : 모든 축을 다 구운 뒤의 실패라 재시도가 굽기를 다시 열지 않는다(2026-08-27 실기)")
+    void returnTimeout_isRetryable() {
+        ProvisioningProgress progress = failedAt(ProvisioningPhaseStep.BMC_UPDATING);
+        List<ProvisioningHistory> history = List.of(
+                ProvisioningHistory.instant(server, ProvisioningPhaseStep.BMC_UPDATING, ProvisioningStatus.SUCCEEDED,
+                        ProvisioningHistory.flashTargetMeta("13.06.27", 3L, "/redfish/v1/TaskService/TaskMonitors/3"), T.minusMinutes(20)),
+                failureRow(ProvisioningPhaseStep.BMC_UPDATING,
+                        ProvisioningHistory.flashOutcomeMeta(FlashLedger.RETURN_TIMEOUT, "전원을 넣은 뒤 시한 안에 돌아오지 않았습니다")));
+
+        assertThat(retryPolicy.isBlocked(progress, history)).isFalse();
+        assertThat(retryPolicy.isRetryable(progress, history)).isTrue();
     }
 }

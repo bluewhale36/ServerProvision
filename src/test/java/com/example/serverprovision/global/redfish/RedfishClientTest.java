@@ -143,4 +143,27 @@ class RedfishClientTest {
                 .extracting(e -> ((RedfishRequestException) e).getError())
                 .isEqualTo(RedfishError.PRECONDITION_FAILED);
     }
+
+    @Test
+    @DisplayName("오류 분류 — 4xx 거절은 상태코드와 Redfish 오류 메시지를 함께 싣는다(2026-08-27 실기: 400 값 불허를 로그로 못 봤다)")
+    void classify_rejection_carriesStatusAndRedfishMessage() {
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/Systems/Self/Bios/SD"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body("""
+                        {"error":{"@Message.ExtendedInfo":[{"MessageId":"Base.1.12.PropertyValueNotInList",
+                         "Message":"The value 'Disabled' for the property Whitley0000 is not in the list of acceptable values."}],
+                         "code":"Base.1.12.PropertyValueNotInList","message":"generic"}}"""));
+        server.expect(requestTo("https://10.0.0.9/plain")).andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE).body("not json"));
+
+        assertThatThrownBy(() -> client.patchJson("10.0.0.9", CREDS, "/redfish/v1/Systems/Self/Bios/SD", "*",
+                Map.of("Attributes", Map.of("Whitley0000", "Disabled"))))
+                .isInstanceOfSatisfying(RedfishRequestException.class, e -> {
+                    assertThat(e.getError()).isEqualTo(RedfishError.PROTOCOL);
+                    assertThat(e.getMessage()).contains("400", "Whitley0000", "not in the list");
+                });
+        assertThatThrownBy(() -> client.getJson("10.0.0.9", CREDS, "/plain"))
+                .hasMessageContaining("503")
+                .hasMessageNotContaining("not json");
+        server.verify();
+    }
 }

@@ -91,18 +91,62 @@ public class RedfishSimpleUpdateProvider implements FirmwareUpdateProvider {
             // TaskMonitor 소멸(404) 후의 최종 상태는 같은 번호의 Tasks/N 이 든다 — 재기동 관용으로
             // 흡수하면 즉시 실패도 시한까지 헛폴링한다(2026-08-25 실기).
             if (e.getError() == RedfishError.NOT_FOUND && taskPath.contains(TASK_MONITOR_SEGMENT)) {
-                try {
-                    return stateOf(updateService.task(target,
-                            taskPath.replace(TASK_MONITOR_SEGMENT, TASK_SEGMENT)));
-                } catch (RedfishRequestException second) {
-                    log.warn("[flash] {} — TaskMonitor 소멸 후 Task 최종 상태 판독 실패 : {}",
-                            target.bmcIp(), second.getMessage());
-                    return FlashTaskState.UNREACHABLE;
-                }
+                return finalStateAfterMonitorGone(target, taskPath);
             }
             // BMC 가 굽기를 마친 직후 스스로 재기동하는 구간이다 — 즉시 실패로 보면 정상 완료를 뒤집는다.
             return FlashTaskState.UNREACHABLE;
         }
+    }
+
+    private static final String TASK_COLLECTION_PATH = "/redfish/v1/TaskService/Tasks";
+    private static final java.util.regex.Pattern TRAILING_NUMBER = java.util.regex.Pattern.compile("/(\\d+)$");
+
+    /**
+     * TaskMonitor 소멸 후의 최종 상태. 같은 번호의 Tasks/N 을 먼저 보고, 그것도 없으면 컬렉션의 최신 Task 를
+     * 읽는다 — TaskMonitor 채번은 전원 Reset 도 소비하므로 Task Id 와 어긋날 수 있다(2026-08-27 실기:
+     * Monitor 12 · Task 11). 최신 Task 가 UpdateService 것일 때만 판정에 쓴다.
+     */
+    private FlashTaskState finalStateAfterMonitorGone(RedfishTarget target, String monitorPath) {
+        try {
+            return stateOf(updateService.task(target, monitorPath.replace(TASK_MONITOR_SEGMENT, TASK_SEGMENT)));
+        } catch (RedfishRequestException sameNumber) {
+            if (sameNumber.getError() != RedfishError.NOT_FOUND) {
+                log.warn("[flash] {} — TaskMonitor 소멸 후 Task 최종 상태 판독 실패 : {}", target.bmcIp(), sameNumber.getMessage());
+                return FlashTaskState.UNREACHABLE;
+            }
+        }
+        try {
+            Optional<String> latest = latestMemberPath(updateService.task(target, TASK_COLLECTION_PATH));
+            if (latest.isEmpty()) {
+                return FlashTaskState.UNREACHABLE;
+            }
+            JsonNode task = updateService.task(target, latest.get());
+            if (!task.path("Name").asString("").contains("Update")) {
+                log.warn("[flash] {} — 최신 Task 가 펌웨어 갱신이 아니다 : {}", target.bmcIp(), latest.get());
+                return FlashTaskState.UNREACHABLE;
+            }
+            log.info("[flash] {} — Task 번호 어긋남, 컬렉션 최신 Task 로 판정 : monitor={}, task={}",
+                    target.bmcIp(), monitorPath, latest.get());
+            return stateOf(task);
+        } catch (RedfishRequestException e) {
+            log.warn("[flash] {} — Task 컬렉션 판독 실패 : {}", target.bmcIp(), e.getMessage());
+            return FlashTaskState.UNREACHABLE;
+        }
+    }
+
+    /** {@code Members[].@odata.id} 중 끝 번호가 가장 큰 경로. */
+    private static Optional<String> latestMemberPath(JsonNode collection) {
+        String best = null;
+        long bestNo = -1;
+        for (JsonNode member : collection.path("Members")) {
+            String path = member.path("@odata.id").asString("");
+            java.util.regex.Matcher m = TRAILING_NUMBER.matcher(path);
+            if (m.find() && Long.parseLong(m.group(1)) > bestNo) {
+                bestNo = Long.parseLong(m.group(1));
+                best = path;
+            }
+        }
+        return Optional.ofNullable(best);
     }
 
     private FlashTaskState stateOf(JsonNode task) {

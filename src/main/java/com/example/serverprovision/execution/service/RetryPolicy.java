@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.service;
 
+import com.example.serverprovision.execution.engine.firmware.FlashLedger;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
@@ -37,8 +38,9 @@ public class RetryPolicy {
     }
 
     public boolean isBlocked(ProvisioningProgress progress, List<ProvisioningHistory> history) {
-        // 착수하지 않은 실패(자원 결손 시한 만료)는 벽돌 리스크가 없다 — 자원을 되살리면 다시 시도해도 된다.
-        return blockCandidate(progress) && !isShortageTimeout(progress, history);
+        // 굽지 않은 실패(자원 결손 시한 만료)와 다 구운 뒤의 실패(복귀 시한 만료)는 벽돌 리스크가 없다 —
+        // 후자는 모든 축이 닫힌 뒤라 재시도가 굽기를 다시 열지 않고 전원 · 반영 확인만 잇는다(2026-08-27 실기).
+        return blockCandidate(progress) && !isRetrySafeFailure(progress, history);
     }
 
     public boolean isRetryable(ProvisioningProgress progress, List<ProvisioningHistory> history) {
@@ -50,11 +52,12 @@ public class RetryPolicy {
         return progress != null && progress.isFailed() && progress.isFirmwarePhaseFailure();
     }
 
-    /** 그 실패가 결손 대기의 시한 만료였는가 — 사건 시점에 원장이 적어 둔 사실을 읽는다. */
-    private boolean isShortageTimeout(ProvisioningProgress progress, List<ProvisioningHistory> history) {
+    /** 그 실패가 결손 대기 시한 만료 또는 복귀 시한 만료였는가 — 사건 시점에 원장이 적어 둔 사실을 읽는다. */
+    private boolean isRetrySafeFailure(ProvisioningProgress progress, List<ProvisioningHistory> history) {
         return history.stream()
                 .filter(row -> row.getStatus() == ProvisioningStatus.FAILED)
                 .filter(row -> progress.getFailedAt().equals(row.getFinishedAt()))
-                .anyMatch(ProvisioningHistory::isHoldTtlOrigin);
+                .anyMatch(row -> row.isHoldTtlOrigin()
+                        || FlashLedger.RETURN_TIMEOUT.equals(row.flashFailureReason()));
     }
 }
