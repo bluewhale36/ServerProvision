@@ -44,7 +44,10 @@ public class FirmwareImageTokenRegistry {
         if (previous != null) {
             issued.remove(previous);   // 재시도로 다시 구울 때 옛 URL 이 살아 있지 않게
         }
-        log.info("[flash] {} — {} 이미지 토큰 발급", guestServerId, axis.label());
+        // 토큰 값 · 파일명을 함께 남긴다 — 사후에 접근 로그(URL 의 token/파일명 세그먼트)와 대조해
+        // "그때 무엇이 서빙됐는가" 를 로그만으로 추적하기 위함(2026-08-25). 토큰은 회수되면 죽는 일회용이다.
+        log.info("[flash] {} — {} 이미지 토큰 발급 : token={}, file={}",
+                guestServerId, axis.label(), token, imagePath.getFileName());
         return token;
     }
 
