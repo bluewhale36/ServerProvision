@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * U1 D12 — iPXE 보고 모델명 정규화. Gigabyte 는 {@code -000} 접미사만 보수적으로 제거, 그 외 제조사는 항등(미관측 규약 추측 금지).
+ * U1 D12 — iPXE 보고 모델명 정규화. Gigabyte 는 {@code -숫자열} 보고 접미(-000 · -00 실측)만 보수적으로 제거, 그 외 제조사는 항등(미관측 규약 추측 금지).
  */
 class VendorTest {
 
@@ -15,6 +15,8 @@ class VendorTest {
     void gigabyte_stripsSuffix() {
         assertThat(Vendor.GIGABYTE.canonicalizeReportedModel("MS03-CE0-000")).isEqualTo("MS03-CE0");
         assertThat(Vendor.GIGABYTE.canonicalizeReportedModel("MS73-HB1-000")).isEqualTo("MS73-HB1");
+        // 접미 자릿수는 보드마다 다르다 — MD72-HB3 는 -00 을 보고했다(2026-08-27 실기, 3자리 고정이 놓친 결함)
+        assertThat(Vendor.GIGABYTE.canonicalizeReportedModel("MD72-HB3-00")).isEqualTo("MD72-HB3");
     }
 
     @Test

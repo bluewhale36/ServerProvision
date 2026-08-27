@@ -22,13 +22,15 @@ public enum Vendor {
 	GIGABYTE("Gigabyte", "Giga Computing") {
 		@Override
 		public String canonicalizeReportedModel(String reportedModel) {
-			return stripSuffix(reportedModel, GIGABYTE_REPORT_SUFFIX);
+			// 보고 접미는 "-숫자열" — 실측 -000(MS03·MS73·MS74) · -00(MD72-HB3, 2026-08-27). 3자리 고정이 MD72 를 놓쳤다.
+			return reportedModel == null ? null
+					: GIGABYTE_REPORT_SUFFIX.matcher(reportedModel.trim()).replaceFirst("");
 		}
 	},
 	ASUS("Asus", "Asus"),
 	FUJITSU("Fujitsu", "FUJITSU");
 
-	private static final String GIGABYTE_REPORT_SUFFIX = "-000";
+	private static final java.util.regex.Pattern GIGABYTE_REPORT_SUFFIX = java.util.regex.Pattern.compile("-\\d+$");
 
 	private final String displayName;
 	private final String ipxeName;
@@ -51,16 +53,5 @@ public enum Vendor {
 	 */
 	public String canonicalizeReportedModel(String reportedModel) {
 		return reportedModel == null ? null : reportedModel.trim();
-	}
-
-	/** 끝에 {@code suffix} 가 있으면 제거(trim 후). 없으면 trim 만. */
-	protected static String stripSuffix(String reportedModel, String suffix) {
-		if (reportedModel == null) {
-			return null;
-		}
-		String trimmed = reportedModel.trim();
-		return trimmed.endsWith(suffix)
-				? trimmed.substring(0, trimmed.length() - suffix.length())
-				: trimmed;
 	}
 }
