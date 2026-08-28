@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -46,6 +47,21 @@ class GuestServerStreamControllerTest {
         assertThat(result.getResponse().getContentType()).startsWith("text/event-stream");
         assertThat(streamService.subscriberCount()).isEqualTo(before + 1);
         // 구독 직후 comment 1프레임 — 연결 수립을 즉시 확정
+        assertThat(result.getResponse().getContentAsString()).contains(":connected");
+    }
+
+    @Test
+    @DisplayName("S7-1 — 응답 헤더가 전달 조건을 선언한다: X-Accel-Buffering: no · Cache-Control: no-cache")
+    void stream_declaresProxyDeliveryHeaders() throws Exception {
+        // nginx 가 HTTP/1.0 업스트림의 identity 본문을 4 KB 까지 헤더째 붙들던 실기 결함(2026-08-27)의 회귀 가드.
+        // 헤더는 첫 프레임(:connected) 전에 확정돼야 하므로 같은 응답에서 프레임과 함께 확인한다.
+        MvcResult result = mvc.perform(get("/provisioning/server/stream"))
+                .andExpect(request().asyncStarted())
+                .andExpect(status().isOk())
+                .andExpect(header().string(GuestServerStreamController.NGINX_BUFFERING_HEADER, "no"))
+                .andExpect(header().string("Cache-Control", "no-cache"))
+                .andReturn();
+
         assertThat(result.getResponse().getContentAsString()).contains(":connected");
     }
 

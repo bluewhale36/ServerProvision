@@ -253,6 +253,8 @@ sudo firewall-cmd --permanent --add-service=https && sudo firewall-cmd --reload
 
 SERVER_FORWARD_HEADERS_STRATEGY 는 프록시 뒤에서 앱이 만드는 리다이렉트가 https 로 나가게 한다. 이 애플리케이션의 폼 흐름이 전부 제출 후 리다이렉트 패턴이라 생략하면 안 된다. 브라우저는 자체서명 인증서라 최초 접속 시 경고를 한 번 낸다. 스테이징에서는 경고를 무시하고 진행하면 되고, 없애려면 spv.crt 를 접속 기기의 신뢰 저장소에 등록한다.
 
+실시간 스트림과 응답 버퍼링에 대해 한 가지를 알아 둔다. 게스트 서버 목록과 상세 화면은 `/provisioning/server/stream` 을 SSE(Server-Sent Events)로 구독한다. nginx 는 업스트림에 HTTP/1.0 으로 요청하므로 Tomcat 은 chunked 없이 응답하고, nginx 의 `proxy_buffering` 기본값(on)은 그런 본문을 4 KB 버퍼가 찰 때까지 응답 헤더째 붙든다. 스트림 프레임은 몇 십 바이트라 수 시간이 걸리고, 그동안 heartbeat 가 `proxy_read_timeout` 을 계속 리셋해 타임아웃도 나지 않는다. 2026-08-27 통합 테스트에서 목록 화면이 갱신되지 않던 원인이 이것이다(S7-1). 위 설정에 스트림 경로의 `location` 분기가 없는 이유는 **애플리케이션이 그 응답에 `X-Accel-Buffering: no` 를 직접 선언**하기 때문이다 — nginx 는 이 헤더를 받은 응답만 버퍼링하지 않는다. 그러므로 이 설정에 `proxy_ignore_headers X-Accel-Buffering` 을 넣으면 안 되고, nginx 가 아닌 프록시로 바꾸면 그 프록시의 버퍼링 규약을 다시 확인해야 한다. 재현과 검증은 `scripts/proxy-lab/` 로 한다. 실측 2026-08-28.
+
 마지막으로 11절에서 임시로 열었던 HTTP 직접 노출을 회수해 창구를 443 하나로 만든다.
 
 ```bash
