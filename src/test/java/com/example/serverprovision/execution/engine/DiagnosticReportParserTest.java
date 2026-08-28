@@ -32,7 +32,8 @@ class DiagnosticReportParserTest {
                 "03:00.0 Ethernet controller: Intel Corporation Ethernet Controller 10G X550T",
                 "04:00.0 Fibre Channel: QLogic Corp. QLE2692 16Gb FC Adapter",
                 "05:00.0 3D controller: NVIDIA Corporation GA100 [A100]",
-                "84:00.0 Serial Attached SCSI controller: Broadcom / LSI SAS3008 PCI-Express Fusion-MPT SAS-3 (rev 02)"],
+                "84:00.0 Serial Attached SCSI controller: Broadcom / LSI SAS3008 PCI-Express Fusion-MPT SAS-3 (rev 02)",
+                "d4:00.0 Ethernet controller: Intel Corporation Ethernet Controller X710 for 10GBASE-T (rev 02)"],
               "bmc": {"ip": "192.168.0.201", "mac": "b4:2e:99:aa:bb:cc"} }
             """;
 
@@ -57,11 +58,12 @@ class DiagnosticReportParserTest {
     }
 
     @Test
-    @DisplayName("PCIe 종류 분류 — RAID / 10G SFP+ / 10G UTP / FC 16Gb / GPU + SAS HBA→RAID (사용자 확정 축)")
+    @DisplayName("PCIe 종류 분류 — 매체 표기 우선: X710 SFP+ 와 X710 10GBASE-T 를 가른다(MS74-HB0 실측)")
     void pcie_kindClassification() {
         var kinds = parser.parse(FULL).hardwareSpec().pcieDevices()
                 .stream().map(HardwareSpec.PcieDevice::kind).toList();
-        assertThat(kinds).containsExactly("RAID", "LAN_10G_SFP", "LAN_10G_UTP", "FC_16G", "GPU", "RAID");
+        assertThat(kinds).containsExactly(
+                "RAID", "LAN_10G_SFP", "LAN_10G_UTP", "FC_16G", "GPU", "RAID", "LAN_10G_UTP");
     }
 
     @Test
