@@ -19,7 +19,6 @@ import com.example.serverprovision.provisioning.domain.vo.BiosAttributeName;
 import com.example.serverprovision.provisioning.domain.vo.BiosAttributeValue;
 import com.example.serverprovision.provisioning.exception.InvalidBiosValueException;
 import com.example.serverprovision.provisioning.exception.UnknownBiosAttributeException;
-import com.example.serverprovision.provisioning.service.BiosSetupLoader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +37,7 @@ public class BiosSettingTemplateCommandService {
 
     private final BiosSettingTemplateRepository repository;
     private final BoardModelRepository boardModelRepository;
-    private final BiosSetupLoader loader;
+    private final BiosRegistryResolver registryResolver;
     private final BiosSettingTemplateUsageChecker usageChecker;
 
     public BiosSettingTemplateSummaryResponse create(BiosSettingTemplateCreateRequest request) {
@@ -48,8 +47,8 @@ public class BiosSettingTemplateCommandService {
         // 보드는 management 실데이터(FK) — soft-delete 보드로는 생성 불가(404).
         BoardModel board = boardModelRepository.findByIdAndIsDeletedFalse(request.boardModelId())
                 .orElseThrow(() -> new BoardModelNotFoundException(request.boardModelId()));
-        // registry 로 전건 재검증 — 카탈로그 미보유 보드는 로더가 BiosBoardNotFoundException(404, UI 차단의 안전망).
-        BiosSetupMenu menu = loader.load(board.getModelName());
+        // 해석된 레지스트리(채집본 우선)로 전건 재검증 — 카탈로그 미보유 보드는 BiosBoardNotFoundException(404, UI 차단의 안전망).
+        BiosSetupMenu menu = registryResolver.resolve(board).menu();
         BiosSettingValues values = validateAndCoerce(menu, request.attributes());
 
         BiosSettingTemplate saved = repository.save(BiosSettingTemplate.builder()
@@ -69,7 +68,7 @@ public class BiosSettingTemplateCommandService {
         if (repository.existsByNameAndIdNot(name, id)) {
             throw new DuplicateBiosSettingTemplateNameException(name);
         }
-        BiosSetupMenu menu = loader.load(template.getBoardModel().getModelName());
+        BiosSetupMenu menu = registryResolver.resolve(template.getBoardModel()).menu();
         BiosSettingValues values = validateAndCoerce(menu, request.attributes());
 
         template.update(name, request.description(), values);

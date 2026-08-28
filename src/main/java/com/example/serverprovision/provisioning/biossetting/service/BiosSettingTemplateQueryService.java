@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.biossetting.service;
 
+import com.example.serverprovision.provisioning.biossetting.enums.BiosStaleKind;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -11,7 +12,6 @@ import com.example.serverprovision.provisioning.biossetting.dto.response.BiosSet
 import com.example.serverprovision.provisioning.biossetting.entity.BiosSettingTemplate;
 import com.example.serverprovision.provisioning.biossetting.exception.BiosSettingTemplateNotFoundException;
 import com.example.serverprovision.provisioning.biossetting.repository.BiosSettingTemplateRepository;
-import com.example.serverprovision.provisioning.config.BiosResourceProperties;
 import com.example.serverprovision.provisioning.domain.BiosAttribute;
 import com.example.serverprovision.provisioning.domain.BiosSetupMenu;
 import com.example.serverprovision.provisioning.domain.enums.BiosAttributeType;
@@ -21,7 +21,8 @@ import com.example.serverprovision.provisioning.domain.vo.BiosEnumOption;
 import com.example.serverprovision.provisioning.dto.response.BiosSetupPageResponse;
 import com.example.serverprovision.provisioning.exception.BiosBoardNotFoundException;
 import com.example.serverprovision.provisioning.service.BiosRedfishPayloadAssembler;
-import com.example.serverprovision.provisioning.service.BiosSetupLoader;
+import com.example.serverprovision.provisioning.biossetting.vo.BiosStaleValue;
+import com.example.serverprovision.provisioning.biossetting.vo.ResolvedBiosRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -49,8 +50,7 @@ public class BiosSettingTemplateQueryService {
     private final BiosSettingTemplateRepository repository;
     private final BiosSettingTemplateUsageChecker usageChecker;
     private final BoardModelRepository boardModelRepository;
-    private final BiosResourceProperties biosResourceProperties;
-    private final BiosSetupLoader loader;
+    private final BiosRegistryResolver registryResolver;
     private final BiosRedfishPayloadAssembler assembler;
     private final ObjectMapper objectMapper;
 
@@ -71,7 +71,7 @@ public class BiosSettingTemplateQueryService {
                         board.getId(),
                         board.getModelName(),
                         board.getVendor().name(),
-                        biosResourceProperties.findBoard(board.getModelName()).isPresent()))
+                        registryResolver.available(board)))
                 .toList();
     }
 
@@ -82,7 +82,7 @@ public class BiosSettingTemplateQueryService {
     public BiosSetupPageResponse editorView(Long boardModelId) {
         BoardModel board = boardModelRepository.findByIdAndIsDeletedFalse(boardModelId)
                 .orElseThrow(() -> new BoardModelNotFoundException(boardModelId));
-        return editorView(board.getModelName(), Map.of());
+        return editorView(board, Map.of());
     }
 
     /** 수정 편집기 뷰모델 — 생성과 동일 화면에 저장값 overlay(위젯 선택값만, diff 기준선 불변)를 주입. */
@@ -90,7 +90,7 @@ public class BiosSettingTemplateQueryService {
         BiosSettingTemplate template = findTemplate(id);
         // 카탈로그 미보유 보드는 상세의 catalogMissing 판정이 수정 버튼을 disabled 하므로(UI 1차 차단),
         // 이 로더 호출의 404 는 direct GET 안전망으로만 발동한다.
-        BiosSetupPageResponse bios = editorView(template.getBoardModel().getModelName(), toFormValues(template));
+        BiosSetupPageResponse bios = editorView(template.getBoardModel(), toFormValues(template));
         return new BiosSettingTemplateEditViewResponse(
                 template.getId(), template.getName(), template.getDescription(),
                 template.getBoardModel().getId(), template.getBoardModel().getModelName(), bios);
@@ -102,7 +102,15 @@ public class BiosSettingTemplateQueryService {
      */
     public BiosSettingTemplateDetailResponse findDetail(Long id) {
         BiosSettingTemplate template = findTemplate(id);
-        BiosSetupMenu menu = loadCatalogOrNull(template.getBoardModel().getModelName());
+        ResolvedBiosRegistry resolved = resolveOrNull(template.getBoardModel());
+        BiosSetupMenu menu = resolved == null ? null : resolved.menu();
+
+        // 어긋난 저장값은 도메인 판정 하나(staleAgainst)가 가른다 — 할당 차단 · 집행 전 검증과 같은 규칙.
+        List<BiosStaleValue> staleValues = menu == null
+                ? List.of()
+                : template.staleAgainst(menu.registry());
+        Map<BiosAttributeName, BiosStaleValue> staleByName = new LinkedHashMap<>();
+        staleValues.forEach(v -> staleByName.put(v.name(), v));
 
         List<BiosSettingTemplateDetailResponse.StaleEntry> stale = new ArrayList<>();
         // MenuPath → entries (첫 등장 순서 보존).
@@ -112,9 +120,15 @@ public class BiosSettingTemplateQueryService {
         for (Map.Entry<BiosAttributeName, BiosAttributeValue> e : template.getValues().entries().entrySet()) {
             String raw = String.valueOf(e.getValue().jsonValue());
             BiosAttribute attr = menu == null ? null : menu.registry().get(e.getKey());
-            if (attr == null) {
-                // 카탈로그 미보유(전건) 또는 BIOS 개정으로 사라진 속성(개별) — 경고 행으로 분리, raw 노출.
-                stale.add(new BiosSettingTemplateDetailResponse.StaleEntry(e.getKey().value(), raw));
+            BiosStaleValue staleValue = staleByName.get(e.getKey());
+            if (attr == null || staleValue != null) {
+                // 카탈로그 미보유(전건) · 사라진 속성 · 허용값 밖 — 경고 행으로 분리, raw 와 허용 목록 노출.
+                stale.add(staleValue == null
+                        ? new BiosSettingTemplateDetailResponse.StaleEntry(e.getKey().value(), raw,
+                                BiosStaleKind.MISSING_ATTRIBUTE.name(),
+                                List.of(), e.getKey().value() + " — 레지스트리 없음(카탈로그 미보유)")
+                        : new BiosSettingTemplateDetailResponse.StaleEntry(e.getKey().value(), raw,
+                                staleValue.kind().name(), staleValue.allowed(), staleValue.message()));
                 continue;
             }
             groups.computeIfAbsent(groupPath(attr), k -> new ArrayList<>())
@@ -136,6 +150,8 @@ public class BiosSettingTemplateQueryService {
                 usageChecker.isInUse(template.getId()),
                 template.getCreatedAt(), template.getUpdatedAt(),
                 menu == null,
+                resolved == null ? null : resolved.label(),
+                resolved != null && resolved.source().isSnapshot(),
                 groups.entrySet().stream()
                         .map(g -> new BiosSettingTemplateDetailResponse.Group(g.getKey(), List.copyOf(g.getValue())))
                         .toList(),
@@ -149,17 +165,19 @@ public class BiosSettingTemplateQueryService {
         return repository.findById(id).orElseThrow(() -> new BiosSettingTemplateNotFoundException(id));
     }
 
-    private BiosSetupPageResponse editorView(String catalogKey, Map<BiosAttributeName, String> storedValues) {
+    private BiosSetupPageResponse editorView(BoardModel board, Map<BiosAttributeName, String> storedValues) {
+        ResolvedBiosRegistry resolved = registryResolver.resolve(board);
         return BiosSetupPageResponse.of(
-                loader.load(catalogKey),
+                resolved.menu(),
                 attr -> attr.type().templatable(),
-                storedValues);
+                storedValues,
+                resolved.label());
     }
 
-    // 보드의 카탈로그(파일)가 미등록인 경우만 degraded(null) — 리소스 파일 파손은 기존 방침대로 500 전파.
-    private BiosSetupMenu loadCatalogOrNull(String catalogKey) {
+    // 보드의 카탈로그(자료 항목)가 미등록인 경우만 degraded(null) — 리소스 파일 파손은 기존 방침대로 500 전파.
+    private ResolvedBiosRegistry resolveOrNull(BoardModel board) {
         try {
-            return loader.load(catalogKey);
+            return registryResolver.resolve(board);
         } catch (BiosBoardNotFoundException e) {
             return null;
         }

@@ -75,6 +75,9 @@
 			<span class="bios-brand-name">Aptio Setup Utility</span>
 			<!-- 벤더 하드코딩 제거 — FK 전환으로 보드 벤더가 데이터가 되었으므로 서버가 주는 보드 표기만 렌더 -->
 			<span class="bios-brand-sub" th:text="${editTemplate != null ? editTemplate.boardModelName : bios.boardKey}">MS74-HB0</span>
+			<!-- 레지스트리 출처(E3-3 R3) — 편집기가 어느 정본으로 선택지 · 검증을 만드는지 -->
+			<span th:if="${bios.registryLabel != null}" class="n-badge n-badge-gray"
+			      th:text="'레지스트리 ' + ${bios.registryLabel}">레지스트리 파일 · 버전 미상</span>
 		</div>
 		<nav class="bios-tabs">
 			<button type="button" class="bios-tab"

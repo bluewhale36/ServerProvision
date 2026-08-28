@@ -46,6 +46,12 @@ E3-2 가 더한 것 — AMI 웹 API(사내 표준 BMC 세팅 4종)의 실측 재
         web-readback-drift      : date-time PUT 을 200 에코하되 저장하지 않는다(되읽기 불일치 재연)
   /__mode 바디의 dropSeconds 로 bond-drop 의 단절 길이를 바꾼다(기본 20).
 
+E3-3 이 더한 것 — BIOS 속성 레지스트리 채집 체인의 실측 재현(2026-08-27, MD72-HB3 F44):
+  GET Registries/BiosAttributeRegistry       : {"Location":[{"Uri": ".../BiosAttributeRegistry.json"}]}
+  GET Registries/BiosAttributeRegistry.json  : 레지스트리 전문 — MOCK_REGISTRY_FILE 이 가리키는 파일(실기 채집본 권장),
+                                               없으면 STATE['bios'] 키로 만든 최소 레지스트리(허용값 = 현재값 + 'Auto')
+  모드  registry-missing : Registries/* 를 404 로 — 채집 불가(unavailable) 경로 재연(PATCH 는 종전대로 진행돼야 한다)
+
 모드 전환(무인증, 하네스 전용): POST /__mode {"mode": "..."} · 상태 초기화: POST /__reset-state
 버전 조작(무인증): POST /__inventory {"BIOS": "F29", "BMC": "13.06.27"}
 비밀번호 조작(무인증): POST /__passwords {"valid": ["QG260700082"]}
@@ -108,6 +114,19 @@ def web_initial():
 
 STATE['web'] = web_initial()
 
+REGISTRY_FILE = os.environ.get('MOCK_REGISTRY_FILE')
+
+def registry_document():
+    """레지스트리 전문 — 파일이 있으면 그 원문, 없으면 현재 BIOS 값에서 만든 최소본."""
+    if REGISTRY_FILE and os.path.exists(REGISTRY_FILE):
+        with open(REGISTRY_FILE, 'rb') as f:
+            return f.read()
+    attrs = [{'AttributeName': k, 'Type': 'Enumeration', 'DisplayName': k, 'ReadOnly': False, 'ResetRequired': False,
+              'DefaultValue': v, 'Value': [{'ValueName': v, 'ValueDisplayName': v}, {'ValueName': 'Auto', 'ValueDisplayName': 'Auto'}]}
+             for k, v in STATE['bios'].items()]
+    return json.dumps({'Id': 'BiosAttributeRegistry', 'RegistryVersion': '0.1.0', 'OwningEntity': 'GBT',
+                       'RegistryEntries': {'Attributes': attrs, 'Dependencies': []}}).encode('utf-8')
+
 def ensure_cert():
     if os.path.exists(CERT) and os.path.exists(KEY):
         return
@@ -117,6 +136,13 @@ def ensure_cert():
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         sys.stderr.write('[mock-redfish] ' + (fmt % args) + '\n')
+
+    def _raw(self, code, payload, content_type='application/json'):
+        self.send_response(code)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
 
     def _json(self, code, obj, headers=None):
         body = json.dumps(obj).encode()
@@ -196,6 +222,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 'Model': 'MS04-CE0-000', 'Manufacturer': 'Giga Computing',
                 'Oem': {'GBTChassisOemProperty': {'Board Serial Number': serial}},
             })
+        elif self.path == '/redfish/v1/Registries/BiosAttributeRegistry':
+            if STATE['mode'] == 'registry-missing':
+                self._json(404, {'error': 'registry unavailable (mock mode registry-missing)'})
+            else:
+                self._json(200, {'Id': 'BiosAttributeRegistry', 'Registry': 'BiosAttributeRegistry',
+                                 'Location': [{'Language': 'en', 'Uri': '/redfish/v1/Registries/BiosAttributeRegistry.json'}]})
+        elif self.path == '/redfish/v1/Registries/BiosAttributeRegistry.json':
+            if STATE['mode'] == 'registry-missing':
+                self._json(404, {'error': 'registry unavailable (mock mode registry-missing)'})
+            else:
+                STATE['registryServed'] = STATE.get('registryServed', 0) + 1
+                self._raw(200, registry_document())
         elif self.path.startswith('/redfish/v1/UpdateService/FirmwareInventory/'):
             member = self.path.rsplit('/', 1)[-1]
             version = STATE['inventory'].get(member)

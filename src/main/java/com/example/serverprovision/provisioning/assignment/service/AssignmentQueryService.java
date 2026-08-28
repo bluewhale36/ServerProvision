@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
+import com.example.serverprovision.provisioning.biossetting.service.BiosTemplateStaleInspector;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
@@ -50,6 +51,7 @@ public class AssignmentQueryService {
     private final GuestServerRepository guestServerRepository;
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final BoardModelRepository boardModelRepository;
+    private final BiosTemplateStaleInspector staleInspector;
 
     /**
      * 정의서 선택지에 <b>이 서버에 붙일 수 있는가</b>를 덧댄다 (U3-5-a).
@@ -68,7 +70,8 @@ public class AssignmentQueryService {
         GuestServerDetail detail = guestServerDetailRepository.findByServerIdWithBoardModel(guestId).orElse(null);
 
         List<DefinitionOptionResponse> options = assignable.stream().map(summary -> {
-            AssignmentEligibility eligibility = new AssignmentEligibility(server, detail, requiredBoardOf(summary));
+            AssignmentEligibility eligibility = new AssignmentEligibility(server, detail, requiredBoardOf(summary),
+                    staleInspector.reasonFor(summary.id(), detail != null ? detail.getBoardModel().getId() : null));
             AssignmentBlock block = AssignmentBlockKind.evaluate(eligibility);
             return new DefinitionOptionResponse(
                     summary,
@@ -116,7 +119,7 @@ public class AssignmentQueryService {
             RequiredBoardModel required = requiredBoardOf(summary);
             List<MemberOutcomeResponse> outcomes = members.stream()
                     .map(member -> classify(member, serverById.get(member.id()),
-                            detailByServerId.get(member.id()), alreadyAssigned, required))
+                            detailByServerId.get(member.id()), alreadyAssigned, required, summary.id()))
                     .toList();
             return new GroupApplyPreviewResponse(summary, outcomes);
         }).toList();
@@ -190,7 +193,8 @@ public class AssignmentQueryService {
                                            GuestServer server,
                                            GuestServerDetail detail,
                                            Set<UUID> alreadyAssigned,
-                                           RequiredBoardModel required) {
+                                           RequiredBoardModel required,
+                                           Long definitionId) {
         if (alreadyAssigned.contains(member.id())) {
             return new MemberOutcomeResponse(member, MemberApplyOutcome.ALREADY_ASSIGNED,
                     "이미 세팅 정의서가 할당되어 있습니다.");
@@ -200,7 +204,8 @@ public class AssignmentQueryService {
                     "이 서버를 찾을 수 없습니다 — 목록을 만든 뒤 삭제된 것으로 보입니다.");
         }
         AssignmentBlock block = AssignmentBlockKind.evaluate(
-                new AssignmentEligibility(server, detail, required));
+                new AssignmentEligibility(server, detail, required,
+                        staleInspector.reasonFor(definitionId, detail != null ? detail.getBoardModel().getId() : null)));
         return block == null
                 ? new MemberOutcomeResponse(member, MemberApplyOutcome.WILL_ASSIGN, null)
                 : new MemberOutcomeResponse(member, MemberApplyOutcome.BLOCKED, block.reason());

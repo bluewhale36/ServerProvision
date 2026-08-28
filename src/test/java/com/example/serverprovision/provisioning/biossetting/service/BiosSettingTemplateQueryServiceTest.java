@@ -54,6 +54,8 @@ class BiosSettingTemplateQueryServiceTest {
     @Mock com.example.serverprovision.provisioning.biossetting.BiosSettingTemplateUsageChecker usageChecker;
     @Mock BoardModelRepository boardModelRepository;
     @Mock BiosSetupLoader loader;
+    @Mock com.example.serverprovision.provisioning.biossetting.repository.BiosRegistrySnapshotRepository snapshotRepository;
+    @Mock com.example.serverprovision.management.bios.repository.BiosRepository biosRepository;
 
     private BiosSettingTemplateQueryService service;
 
@@ -65,8 +67,11 @@ class BiosSettingTemplateQueryServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 해석기는 실 인스턴스 — 스냅샷 · BIOS 자원 mock 이 비어 있으므로 파일(loader) 폴백으로 종전 시나리오를 그대로 지난다.
+        org.mockito.Mockito.lenient().when(loader.registryFileExists(BOARD)).thenReturn(true);
         service = new BiosSettingTemplateQueryService(
-                repository, usageChecker, boardModelRepository, properties, loader,
+                repository, usageChecker, boardModelRepository,
+                new BiosRegistryResolver(snapshotRepository, biosRepository, properties, loader),
                 new BiosRedfishPayloadAssembler(), JsonMapper.builder().build());
     }
 

@@ -66,7 +66,7 @@ class BiosSettingTemplateControllerTest {
     @DisplayName("GET /new/{boardModelId} — 편집기 200 + bios/boardModelId (FK 전환)")
     void editor_returns200() throws Exception {
         given(queryService.editorView(2L)).willReturn(
-                new BiosSetupPageResponse("MS74-HB0", List.of(), List.of(), List.of()));
+                new BiosSetupPageResponse("MS74-HB0", List.of(), List.of(), List.of(), null));
 
         mvc.perform(get("/provisioning/bios-setting/new/{boardModelId}", 2L))
                 .andExpect(status().isOk())
@@ -89,6 +89,7 @@ class BiosSettingTemplateControllerTest {
         return new BiosSettingTemplateDetailResponse(
                 id, "Rocky9 표준", "설명", 6L, "MS73-HB1", false, LocalDateTime.now(), LocalDateTime.now(),
                 catalogMissing,
+                null, false,
                 catalogMissing ? List.of() : List.of(new BiosSettingTemplateDetailResponse.Group(
                         "./Advanced/Trusted Computing",
                         List.of(new BiosSettingTemplateDetailResponse.Entry(
@@ -117,7 +118,7 @@ class BiosSettingTemplateControllerTest {
     void editForm_returns200() throws Exception {
         given(queryService.editorViewFor(1L)).willReturn(new BiosSettingTemplateEditViewResponse(
                 1L, "Rocky9 표준", "설명", 6L, "MS73-HB1",
-                new BiosSetupPageResponse("MS73-HB1", List.of(), List.of(), List.of())));
+                new BiosSetupPageResponse("MS73-HB1", List.of(), List.of(), List.of(), null)));
 
         mvc.perform(get("/provisioning/bios-setting/{id}/edit", 1L))
                 .andExpect(status().isOk())
@@ -135,5 +136,31 @@ class BiosSettingTemplateControllerTest {
                 .andExpect(status().isNotFound());
         mvc.perform(get("/provisioning/bios-setting/{id}/edit", 99L).accept(MediaType.TEXT_HTML))
                 .andExpect(status().isNotFound());
+    }
+
+    // ---- E3-3 — 출처 배지 · 드리프트 경고 행 ---------------------------------------
+
+    @Test
+    @DisplayName("GET /{id} — 채집본 배지와 값 불허 경고 행(허용 목록)이 렌더된다")
+    void detail_rendersRegistryBadgeAndStaleRow() throws Exception {
+        BiosSettingTemplateDetailResponse base = detail(1L, false);
+        BiosSettingTemplateDetailResponse withStale = new BiosSettingTemplateDetailResponse(
+                base.id(), base.name(), base.description(), base.boardModelId(), base.boardModelName(), base.inUse(),
+                base.createdAt(), base.updatedAt(), false,
+                "F44 · 2026-08-27 채집 · 192.168.1.130", true,
+                base.groups(),
+                List.of(new BiosSettingTemplateDetailResponse.StaleEntry("Whitley0000", "Disabled", "VALUE_NOT_ALLOWED",
+                        List.of("Disable", "Enable"), "Whitley0000 = Disabled — 허용 {Disable, Enable}")),
+                base.redfish());
+        given(queryService.findDetail(1L)).willReturn(withStale);
+
+        mvc.perform(get("/provisioning/bios-setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("레지스트리 F44 · 2026-08-27 채집 · 192.168.1.130")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("허용 {Disable, Enable}")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                        .string(org.hamcrest.Matchers.containsString("레지스트리와 어긋난 저장 속성")));
     }
 }

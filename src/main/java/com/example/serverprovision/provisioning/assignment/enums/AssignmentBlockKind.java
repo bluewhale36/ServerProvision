@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.assignment.enums;
 
+import com.example.serverprovision.provisioning.assignment.exception.BiosTemplateStaleException;
 import com.example.serverprovision.provisioning.assignment.exception.DefinitionHardwareMismatchException;
 import com.example.serverprovision.provisioning.assignment.exception.ServerNotAssignableException;
 import com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibility;
@@ -57,6 +58,21 @@ public enum AssignmentBlockKind {
         @Override
         public boolean hardwareIncompatible() {
             return true;
+        }
+    },
+    /** 정의서의 BIOS 템플릿 값이 서버 보드의 레지스트리와 어긋난다(E3-3) — 그대로 집행하면 PATCH 가 거절된다. */
+    TEMPLATE_STALE {
+        @Override
+        public String reasonFor(AssignmentEligibility context) {
+            return context.templateStaleReason();
+        }
+        @Override
+        public RuntimeException toException(UUID guestServerId, String reason) {
+            return new BiosTemplateStaleException(guestServerId, reason);
+        }
+        @Override
+        public boolean hardwareIncompatible() {
+            return false;
         }
     };
 

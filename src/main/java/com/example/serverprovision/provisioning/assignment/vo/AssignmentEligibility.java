@@ -19,12 +19,19 @@ import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
  * @param server        회수 여부의 출처
  * @param detail        서버가 실제로 가진 하드웨어. 아직 수집 전이면 {@code null}
  * @param requiredBoard 정의서가 요구하는 메인보드. 요구하지 않으면(AUTO 또는 해당 단계 없음) {@code null}
+ * @param templateStaleReason 정의서의 BIOS 템플릿이 서버 보드 레지스트리와 어긋날 때의 문구(E3-3) — 정합이면 {@code null}
  */
 public record AssignmentEligibility(
         GuestServer server,
         GuestServerDetail detail,
-        RequiredBoardModel requiredBoard
+        RequiredBoardModel requiredBoard,
+        String templateStaleReason
 ) {
+
+    /** 레지스트리 대조가 없는 호출자(그룹 분류 등 U3-5-b 이전 시그니처)용. */
+    public AssignmentEligibility(GuestServer server, GuestServerDetail detail, RequiredBoardModel requiredBoard) {
+        this(server, detail, requiredBoard, null);
+    }
 
     /** 서버가 보고한 메인보드 id — 수집 전이면 {@code null}. */
     public Long serverBoardModelId() {

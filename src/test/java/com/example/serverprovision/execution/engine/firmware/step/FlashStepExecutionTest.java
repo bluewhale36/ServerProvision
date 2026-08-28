@@ -64,6 +64,7 @@ class FlashStepExecutionTest {
 
     @Mock ProvisioningHistoryRecorder recorder;
     @Mock FirmwareUpdateProvider provider;
+    @Mock com.example.serverprovision.execution.engine.setting.BiosRegistryCapturePort registryPort;
     @Mock RedfishPowerService powerService;
     @Mock BmcAddressRediscovery rediscovery;
     @Mock FirmwareImageTokenRegistry tokenRegistry;
@@ -293,7 +294,7 @@ class FlashStepExecutionTest {
         given(provider.readVersion(any(), eq(FirmwareAxis.BMC))).willReturn(Optional.of("13.06.27"));
         ProvisioningProgress progress = flashing(FirmwareAxis.BMC);
 
-        new VerifyFlashStep(guard, cursorAdvancer, ledger)
+        new VerifyFlashStep(guard, cursorAdvancer, ledger, registryPort)
                 .execute(context(progress, closedWithTargets(), ready()));
 
         verify(cursorAdvancer).advanceOrComplete(eq(progress), any(), any());
@@ -305,7 +306,7 @@ class FlashStepExecutionTest {
         given(provider.readVersion(any(), eq(FirmwareAxis.BIOS))).willReturn(Optional.of("F27"));
         ProvisioningProgress progress = flashing(FirmwareAxis.BMC);
 
-        new VerifyFlashStep(guard, cursorAdvancer, ledger)
+        new VerifyFlashStep(guard, cursorAdvancer, ledger, registryPort)
                 .execute(context(progress, closedWithTargets(), ready()));
 
         verify(cursorAdvancer, never()).advanceOrComplete(any(), any(), any());
@@ -318,7 +319,7 @@ class FlashStepExecutionTest {
     void verify_identityMismatchReadsNothing() {
         given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.MISMATCHED);
 
-        new VerifyFlashStep(guard, cursorAdvancer, ledger)
+        new VerifyFlashStep(guard, cursorAdvancer, ledger, registryPort)
                 .execute(context(flashing(FirmwareAxis.BMC), closedWithTargets(), ready()));
 
         verify(provider, never()).readVersion(any(), any());
@@ -389,5 +390,34 @@ class FlashStepExecutionTest {
         return ProvisioningHistory.instant(server(), axis.getStep(), ProvisioningStatus.SUCCEEDED,
                 ProvisioningHistory.flashTargetMeta(target, 1L, "/redfish/v1/TaskService/Tasks/2"),
                 T.plusMinutes(1));
+    }
+
+    // ---- E3-3 — 반영 확인 직후 레지스트리 적립 ------------------------------------
+
+    @Test
+    @DisplayName("확인 — BIOS 축을 구운 게스트는 반영 확인 뒤 그 버전의 레지스트리를 적립한다(대조 없음)")
+    void verify_capturesRegistryAfterBiosFlash() {
+        given(provider.readVersion(any(), eq(FirmwareAxis.BIOS))).willReturn(Optional.of("F29"));
+        given(provider.readVersion(any(), eq(FirmwareAxis.BMC))).willReturn(Optional.of("13.06.27"));
+
+        new VerifyFlashStep(guard, cursorAdvancer, ledger, registryPort)
+                .execute(context(flashing(FirmwareAxis.BMC), closedWithTargets(), ready()));
+
+        verify(registryPort).captureIfAbsent(any(), any());
+    }
+
+    @Test
+    @DisplayName("확인 — 신원 불일치 · 반영 불일치에서는 적립하지 않는다(남의 장비 · 미확정 버전을 정본으로 두지 않는다)")
+    void verify_noCaptureOnMismatch() {
+        given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.MISMATCHED);
+        new VerifyFlashStep(guard, cursorAdvancer, ledger, registryPort)
+                .execute(context(flashing(FirmwareAxis.BMC), closedWithTargets(), ready()));
+
+        given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.MATCHED);
+        given(provider.readVersion(any(), eq(FirmwareAxis.BIOS))).willReturn(Optional.of("F27"));
+        new VerifyFlashStep(guard, cursorAdvancer, ledger, registryPort)
+                .execute(context(flashing(FirmwareAxis.BMC), closedWithTargets(), ready()));
+
+        verify(registryPort, never()).captureIfAbsent(any(), any());
     }
 }

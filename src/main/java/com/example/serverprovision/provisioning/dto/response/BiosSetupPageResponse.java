@@ -15,7 +15,8 @@ public record BiosSetupPageResponse(
 		String boardKey,
 		List<BiosMenuTabResponse> menuBar,
 		List<BiosPageResponse> pages,
-		List<DependencyView> dependencies
+		List<DependencyView> dependencies,
+		String registryLabel
 ) {
 
 	/** 클라이언트 의존성 엔진이 소비하는 평면 뷰. */
@@ -31,7 +32,7 @@ public record BiosSetupPageResponse(
 	 * </ul>
 	 */
 	public static BiosSetupPageResponse of(BiosSetupMenu menu, Predicate<BiosAttribute> include,
-	                                       Map<BiosAttributeName, String> storedValues) {
+	                                       Map<BiosAttributeName, String> storedValues, String registryLabel) {
 		List<BiosMenuTabResponse> tabs = menu.menuBar().stream()
 				.map(p -> new BiosMenuTabResponse(p.pageId().hex(), p.title()))
 				.toList();
@@ -45,6 +46,6 @@ public record BiosSetupPageResponse(
 						d.toAttribute().value(),
 						d.toProperty().name()))
 				.toList();
-		return new BiosSetupPageResponse(menu.boardKey(), tabs, pages, deps);
+		return new BiosSetupPageResponse(menu.boardKey(), tabs, pages, deps, registryLabel);
 	}
 }

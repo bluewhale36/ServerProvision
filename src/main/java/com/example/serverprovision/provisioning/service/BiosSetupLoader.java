@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.service;
 
+import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayInputStream;
 import com.example.serverprovision.provisioning.config.BiosResourceProperties;
 import com.example.serverprovision.provisioning.domain.BiosSetupMenu;
 import com.example.serverprovision.provisioning.exception.BiosBoardNotFoundException;
@@ -42,6 +44,38 @@ public class BiosSetupLoader {
 		BiosResourceProperties.Board board = properties.findBoard(boardKey)
 				.orElseThrow(() -> new BiosBoardNotFoundException(boardKey));
 		return cache.computeIfAbsent(boardKey, k -> parse(board));
+	}
+
+	/**
+	 * 채집한 레지스트리(E3-3)로 로드 — JSON 은 스냅샷에서, 메뉴 골격(XML)은 자료 파일에서 결합한다. 같은 파서를
+	 * 지나므로 파일 로드와 같은 모양의 {@link BiosSetupMenu} 가 나온다. 캐시 키에 스냅샷 id 를 넣어 버전마다 1회 파싱.
+	 * XML 이 없는 보드(자료 미등록)는 스냅샷이 있어도 트리를 만들 수 없어 종전대로 404 다.
+	 */
+	public BiosSetupMenu load(String boardKey, Long snapshotId, String registryJson) {
+		BiosResourceProperties.Board board = properties.findBoard(boardKey)
+				.orElseThrow(() -> new BiosBoardNotFoundException(boardKey));
+		return cache.computeIfAbsent(boardKey + "#" + snapshotId, k -> parseWithRegistry(board, registryJson));
+	}
+
+	/** 자료 파일의 레지스트리 JSON 이 실제로 있는가 — 채집본 없는 보드의 편집 가능 판정 재료(E3-3 Q3). */
+	public boolean registryFileExists(String boardKey) {
+		return properties.findBoard(boardKey)
+				.map(board -> openResource(board.registry()).exists())
+				.orElse(false);
+	}
+
+	private BiosSetupMenu parseWithRegistry(BiosResourceProperties.Board board, String registryJson) {
+		try {
+			ParsedRegistry registry = registryParser.parse(
+					new ByteArrayInputStream(registryJson.getBytes(StandardCharsets.UTF_8)));
+			try (InputStream xml = openResource(board.setupData()).getInputStream()) {
+				return setupDataParser.parse(xml, registry, board.key());
+			}
+		} catch (BiosResourceLoadException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new BiosResourceLoadException("BIOS 리소스 로드 실패(채집 레지스트리): board=" + board.key(), e);
+		}
 	}
 
 	private BiosSetupMenu parse(BiosResourceProperties.Board board) {

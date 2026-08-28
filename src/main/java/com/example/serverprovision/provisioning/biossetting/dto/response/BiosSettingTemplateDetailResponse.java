@@ -21,6 +21,8 @@ public record BiosSettingTemplateDetailResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         boolean catalogMissing,
+        String registryLabel,
+        boolean registryFromSnapshot,
         List<Group> groups,
         List<StaleEntry> stale,
         RedfishPreview redfish
@@ -46,8 +48,11 @@ public record BiosSettingTemplateDetailResponse(
     ) {
     }
 
-    /** registry 에 없어진 저장 속성(BIOS 카탈로그 개정) — 경고 표시용. 재저장 시 자연 탈락. */
-    public record StaleEntry(String attributeName, String storedRaw) {
+    /**
+     * 레지스트리와 어긋난 저장 속성(E3-3 R4) — 속성 부재(BIOS 개정 · 카탈로그 미보유) 또는 값 불허(표기 변경).
+     * {@code message} 는 {@code BiosStaleKind} 가 만든 문장 — 할당 차단 tooltip · 원장과 같은 문장이다.
+     */
+    public record StaleEntry(String attributeName, String storedRaw, String kind, List<String> allowed, String message) {
     }
 
     /** 실행 시 전송될 Redfish 계획 — 저장 flat 의 무변환 투영(조회 시점 조립, 저장 안 함). */

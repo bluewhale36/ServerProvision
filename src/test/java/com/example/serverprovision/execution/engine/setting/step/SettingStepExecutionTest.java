@@ -75,6 +75,7 @@ class SettingStepExecutionTest {
 
     @Mock ProvisioningHistoryRecorder recorder;
     @Mock FirmwareUpdateProvider provider;
+    @Mock com.example.serverprovision.execution.engine.setting.BiosRegistryCapturePort registryPort;
     @Mock BmcAddressRediscovery rediscovery;
     @Mock RedfishBiosService biosService;
     @Mock RedfishPowerService powerService;
@@ -103,10 +104,13 @@ class SettingStepExecutionTest {
         given(biosService.pending(any())).willReturn(Optional.of(attributes(TARGET)));
         given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "On"));
         given(powerService.reset(any(), any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "sent"));
+        // 레지스트리 채집 불가 = 판정 없음 — 종전 시나리오(PATCH → BMC 판정)를 그대로 지난다(E3-3 Q2).
+        given(registryPort.captureAndCheck(any(), any(), any()))
+                .willReturn(com.example.serverprovision.execution.engine.setting.RegistryCheck.unavailable());
     }
 
     private BeginSettingStep begin() {
-        return new BeginSettingStep(ledger, probe, biosService, powerService, timeoutPolicy);
+        return new BeginSettingStep(ledger, probe, biosService, powerService, timeoutPolicy, registryPort);
     }
 
     private ReturnReadbackStep readback() {
@@ -514,5 +518,40 @@ class SettingStepExecutionTest {
 
     private static RedfishResource resource(Map<String, Object> values) {
         return new RedfishResource(attributes(values), "W/\"1\"");
+    }
+
+    // ---- E3-3 — 집행 전 레지스트리 대조 ------------------------------------------
+
+    @Test
+    @DisplayName("착수 — 채집한 레지스트리 허용값 밖이면 PATCH 없이 VALUE_NOT_IN_REGISTRY 로 닫는다(2026-08-27 실기: BMC 400 을 기다리지 않는다)")
+    void begin_registryViolationClosesWithoutPatch() {
+        given(registryPort.captureAndCheck(any(), any(), any())).willReturn(
+                new com.example.serverprovision.execution.engine.setting.RegistryCheck(true, "F44", true,
+                        List.of("Whitley0000 = Disabled — 허용 {Disable, Enable}")));
+        ProvisioningProgress progress = started();
+
+        begin().execute(context(server(), progress, List.of(), target(), T));
+
+        ProvisioningHistory row = opened.get();
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
+        assertThat(row.getStatusMeta()).contains(SettingLedger.VALUE_NOT_IN_REGISTRY).contains("F44").contains("Whitley0000");
+        assertThat(ledger.targetOf(row)).containsExactlyInAnyOrderEntriesOf(TARGET);
+        assertThat(progress.isFailed()).isTrue();
+        verify(biosService, never()).patchPending(any(), any());
+        verify(powerService, never()).reset(any(), any());
+    }
+
+    @Test
+    @DisplayName("착수 — 대조가 정합이면 종전대로 PATCH · pending · 재부팅으로 간다")
+    void begin_registryOkProceedsToPatch() {
+        given(registryPort.captureAndCheck(any(), any(), any())).willReturn(
+                new com.example.serverprovision.execution.engine.setting.RegistryCheck(true, "F44", false, List.of()));
+        ProvisioningProgress progress = started();
+
+        begin().execute(context(server(), progress, List.of(), target(), T));
+
+        verify(biosService).patchPending(any(), any());
+        verify(powerService).reset(any(), any());
+        assertThat(progress.isFailed()).isFalse();
     }
 }

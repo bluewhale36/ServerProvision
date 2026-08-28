@@ -28,6 +28,8 @@ public class SettingLedger {
     public static final String NO_TARGET = "NO_TARGET";
     public static final String BMC_REQUIRED = "BMC_REQUIRED";
     public static final String PATCH_REJECTED = "PATCH_REJECTED";
+    /** 채집한 레지스트리의 허용값 밖 목표 — PATCH 전에 닫는다(E3-3 R6). 운영자가 할 일 = 템플릿 정정. */
+    public static final String VALUE_NOT_IN_REGISTRY = "VALUE_NOT_IN_REGISTRY";
     public static final String READBACK_MISMATCH = "READBACK_MISMATCH";
     public static final String RETURN_TIMEOUT = "RETURN_TIMEOUT";
     public static final String IDENTITY_MISMATCH = "IDENTITY_MISMATCH";
