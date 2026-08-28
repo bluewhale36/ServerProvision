@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bios.service;
 
+import com.example.serverprovision.management.bios.BoardBiosCatalog;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
@@ -81,9 +82,7 @@ public class BiosService {
 	 * 화면의 최신 태그 = 실행이 고를 대상이 구조로 일치한다. 없으면 null(후보 0 — 태그 미표시).
 	 */
 	private static Long latestOf(List<BoardBIOS> rankOrdered) {
-		return rankOrdered.stream()
-				.filter(b -> !b.isDeleted() && b.isEnabled())
-				.findFirst()
+		return BoardBiosCatalog.latestEnabled(rankOrdered)
 				.map(BoardBIOS::getId)
 				.orElse(null);
 	}

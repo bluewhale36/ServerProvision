@@ -3,6 +3,8 @@ package com.example.serverprovision.execution.engine.setting.step;
 import com.example.serverprovision.execution.engine.firmware.BmcIdentity;
 import com.example.serverprovision.execution.engine.firmware.FlashTimeoutPolicy;
 import com.example.serverprovision.execution.engine.setting.SettingAxis;
+import com.example.serverprovision.execution.engine.setting.BiosRegistryCapturePort;
+import com.example.serverprovision.execution.engine.setting.RegistryCheck;
 import com.example.serverprovision.execution.engine.setting.SettingLedger;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
@@ -37,6 +39,7 @@ public class BeginSettingStep implements SettingStep {
     private final RedfishBiosService biosService;
     private final RedfishPowerService powerService;
     private final FlashTimeoutPolicy timeoutPolicy;
+    private final BiosRegistryCapturePort registryPort;
 
     @Override
     public int order() {
@@ -70,6 +73,16 @@ public class BeginSettingStep implements SettingStep {
 
         ProvisioningHistory row = resumed.orElseGet(() -> ledger.open(context.server(), context.target(), context.now()));
         Map<String, Object> attributes = context.target().attributes();
+        // 실제 BIOS 버전의 레지스트리로 먼저 대조한다(E3-3 R6) — 불허면 PATCH 없이 도메인 언어로 닫는다. 채집 불가는
+        // 판정 없음이지 정합이 아니므로 종전 경로(PATCH → BMC 400 사유)로 간다(Q2).
+        RegistryCheck check = registryPort.captureAndCheck(context.server().getId(), target, attributes);
+        if (check.hasViolations()) {
+            String detail = "BIOS " + check.biosVersion() + " 레지스트리 허용값 밖 : " + String.join(" / ", check.violations());
+            ledger.close(row, ProvisioningStatus.FAILED, SettingLedger.VALUE_NOT_IN_REGISTRY, detail, context.now());
+            context.progress().markFailed(context.now());
+            log.warn("[setting] {} — 레지스트리 대조 실패, PATCH 생략 : {}", context.server().getId(), detail);
+            return;
+        }
         try {
             biosService.patchPending(target, attributes);
         } catch (RedfishRequestException e) {

@@ -205,15 +205,27 @@
 	});
 
 	/* ───────── 변경분 diff ───────── */
+	/* E3-3 CP5 F-1 — 같은 속성이 여러 페이지에 위젯으로 놓이는 경우(SetupData 의 중복 배치, 23 속성)를 다룬다.
+	   ① 빈 값(저장값이 새 레지스트리 선택지에 없어 비어 보이는 select)은 "선택 안 함" 이지 값이 아니므로 싣지 않는다.
+	   ② 중복 위젯 중 사용자가 만진 것(data-stored 와 다른 값)이 다른 페이지의 안 만진 것보다 우선한다 —
+	      뒤에 오는 위젯이 앞의 선택을 덮어쓰지 않는다. */
 	function collectChanged() {
-		const changed = {};
+		const picked = {};
 		document.querySelectorAll('[data-attr]').forEach(ctrl => {
 			if (ctrl.disabled) return; // readonly / hidden / grayout 제외
 			const row = ctrl.closest('.bios-row');
 			if (row && (row.classList.contains('is-hidden') || row.classList.contains('is-grayout'))) return;
 			const cur = String(ctrl.value);
-			const def = ctrl.dataset.default != null ? String(ctrl.dataset.default) : '';
-			if (cur !== def) changed[ctrl.dataset.attr] = cur;
+			if (cur === '') return;
+			const stored = ctrl.dataset.stored != null ? String(ctrl.dataset.stored) : null;
+			const touched = stored == null || cur !== stored;
+			const prev = picked[ctrl.dataset.attr];
+			if (prev && prev.touched && !touched) return;
+			picked[ctrl.dataset.attr] = { cur, touched, def: ctrl.dataset.default != null ? String(ctrl.dataset.default) : '' };
+		});
+		const changed = {};
+		Object.keys(picked).forEach(attr => {
+			if (picked[attr].cur !== picked[attr].def) changed[attr] = picked[attr].cur;
 		});
 		return changed;
 	}

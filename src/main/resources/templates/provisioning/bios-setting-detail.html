@@ -42,6 +42,10 @@
             <a th:href="@{/provisioning/bios-setting}" class="n-back-link">← 목록으로</a>
             <h1 class="n-page-title n-page-title-stacked" th:text="${template.name}">템플릿 명칭</h1>
             <span class="n-badge n-badge-blue" th:text="${template.boardModelName}">MS74-HB0</span>
+            <!-- 레지스트리 출처(E3-3 R3) — 채집본이면 초록, 자료 파일이면 회색(어느 BIOS 버전의 것인지 모른다는 신호) -->
+            <span th:if="${template.registryLabel != null}" class="n-badge"
+                  th:classappend="${template.registryFromSnapshot} ? 'n-badge-green' : 'n-badge-gray'"
+                  th:text="'레지스트리 ' + ${template.registryLabel}">레지스트리 파일 · 버전 미상</span>
         </div>
         <div class="n-header-actions">
             <!-- 수정 UI 차단 판정 = template.catalogMissing — 서버 editorViewFor 의 카탈로그 로드
@@ -132,16 +136,20 @@
 
     <!-- stale — 카탈로그에 없는 저장 속성 (경고) -->
     <div class="n-detail-section" th:if="${!#lists.isEmpty(template.stale)}">
-        <div class="n-section-title">카탈로그에 없는 저장 속성</div>
+        <div class="n-section-title">레지스트리와 어긋난 저장 속성</div>
         <div class="n-card">
             <div class="n-card-body">
                 <p class="bsd-stale-note">
-                    현재 보드 카탈로그에 존재하지 않는 저장 속성입니다(BIOS 개정) — 편집기에서 재저장하면 탈락합니다.</p>
+                    현재 레지스트리에 없는 속성이거나 허용값 밖의 저장값입니다 — 이대로 할당하면 집행이 거절되므로
+                    편집기에서 다시 선택해 저장하십시오.</p>
                 <ul class="bsd-rows">
                     <li class="bsd-row bsd-row-stale" th:each="staleEntry : ${template.stale}">
                         <code class="bsd-attr-name" th:text="${staleEntry.attributeName}">AttributeName</code>
                         <span class="bsd-values">
                             <span class="bsd-value-stored" th:text="${staleEntry.storedRaw}">raw 값</span>
+                            <span class="n-muted" th:if="${!#lists.isEmpty(staleEntry.allowed)}"
+                                  th:text="'허용 {' + ${#strings.listJoin(staleEntry.allowed, ', ')} + '}'">허용 {…}</span>
+                            <span class="n-muted" th:if="${#lists.isEmpty(staleEntry.allowed)}">레지스트리에 없는 속성</span>
                         </span>
                     </li>
                 </ul>

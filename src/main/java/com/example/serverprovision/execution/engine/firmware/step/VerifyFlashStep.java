@@ -4,6 +4,7 @@ import com.example.serverprovision.execution.engine.firmware.BmcIdentityGuard;
 import com.example.serverprovision.execution.engine.firmware.FirmwareAxis;
 import com.example.serverprovision.execution.engine.firmware.FlashLedger;
 import com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer;
+import com.example.serverprovision.execution.engine.setting.BiosRegistryCapturePort;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class VerifyFlashStep implements FlashStep {
     private final BmcIdentityGuard identityGuard;
     private final PhaseCursorAdvancer phaseCursorAdvancer;
     private final FlashLedger ledger;
+    private final BiosRegistryCapturePort registryPort;
 
     @Override
     public int order() {
@@ -62,6 +64,11 @@ public class VerifyFlashStep implements FlashStep {
             }
         }
         log.info("[flash] {} — 반영 확인 완료", context.server().getId());
+        // 방금 확인한 BIOS 버전의 레지스트리가 지금 BMC 에 있다 — 이 순간에 적립해 두면 편집기가 굽기 목표 버전의
+        // 정본을 보게 된다(E3-3 D-2). 채집 실패는 종결을 막지 않는다.
+        if (expectedVersionOf(context, FirmwareAxis.BIOS) != null) {
+            registryPort.captureIfAbsent(context.server().getId(), context.target());
+        }
         // 전진 · 종단 판정은 진단 완주와 같은 지점을 쓴다 — 소유 phase 를 읽어 다음으로 가거나 종단한다(ES-1).
         phaseCursorAdvancer.advanceOrComplete(context.progress(), context.server().getId(), context.now());
     }

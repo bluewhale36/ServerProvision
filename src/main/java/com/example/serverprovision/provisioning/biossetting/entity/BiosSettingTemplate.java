@@ -4,6 +4,12 @@ import com.example.serverprovision.global.entity.BaseTimeEntity;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.provisioning.biossetting.vo.BiosSettingValues;
 import com.example.serverprovision.provisioning.biossetting.vo.BiosSettingValuesConverter;
+import com.example.serverprovision.provisioning.biossetting.vo.BiosStaleValue;
+import com.example.serverprovision.provisioning.domain.BiosAttribute;
+import com.example.serverprovision.provisioning.domain.vo.BiosAttributeName;
+
+import java.util.List;
+import java.util.Map;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -67,6 +73,15 @@ public class BiosSettingTemplate extends BaseTimeEntity {
         this.description = description;
         this.boardModel = boardModel;
         this.values = values;
+    }
+
+    /**
+     * 저장값이 주어진 레지스트리와 어긋나는 것들(E3-3 R4) — 속성 부재 · 값 불허. 상세 경고 행 · 할당 차단
+     * ({@code AssignmentBlockKind.TEMPLATE_STALE}) · 집행 전 검증이 전부 이 메서드 하나를 부른다. 값 규칙은
+     * {@link BiosAttributeType#validate} 에 위임해 편집기 저장 검증과 같은 판정을 쓴다.
+     */
+    public List<BiosStaleValue> staleAgainst(Map<BiosAttributeName, BiosAttribute> registry) {
+        return values.staleAgainst(registry);
     }
 
     /** 수정 — boardKey 는 불변(유효 도메인), values 는 전체 교체 의미론. */

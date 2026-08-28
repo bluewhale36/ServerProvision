@@ -1,6 +1,8 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
+import com.example.serverprovision.provisioning.biossetting.service.BiosTemplateStaleInspector;
 import com.example.serverprovision.execution.entity.GuestServer;
+import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
@@ -73,6 +75,7 @@ public class AssignmentCommandService {
     // U3-5-a — 하드웨어 대조 입력. detail 은 서버가 보고한 하드웨어, boardModel 은 사유 문구의 보드명.
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final BoardModelRepository boardModelRepository;
+    private final BiosTemplateStaleInspector staleInspector;
 
     @Transactional
     public AssignmentResponse assign(UUID guestId, Long definitionId) {
@@ -141,10 +144,12 @@ public class AssignmentCommandService {
      * 여기까지 오는 것은 direct POST · 동시 조작 · stale 제출뿐이다.</p>
      */
     private void assertAssignableTo(GuestServer guest, SettingDefinition definition) {
+        GuestServerDetail detail = guestServerDetailRepository.findByServerIdWithBoardModel(guest.getId()).orElse(null);
         AssignmentEligibility eligibility = new AssignmentEligibility(
                 guest,
-                guestServerDetailRepository.findByServerIdWithBoardModel(guest.getId()).orElse(null),
-                requiredBoardOf(definition));
+                detail,
+                requiredBoardOf(definition),
+                staleInspector.reasonFor(definition.getId(), detail != null ? detail.getBoardModel().getId() : null));
         AssignmentBlock block = AssignmentBlockKind.evaluate(eligibility);
         if (block != null) {
             throw block.toException(guest.getId());

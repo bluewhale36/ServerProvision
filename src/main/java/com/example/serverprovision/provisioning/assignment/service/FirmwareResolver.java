@@ -7,6 +7,7 @@ import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.exception.MarkerMissingException;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
+import com.example.serverprovision.management.bios.BoardBiosCatalog;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
@@ -139,7 +140,7 @@ public class FirmwareResolver {
 
     private Catalog<BoardBIOS> biosCatalog() {
         return new Catalog<>(
-                boardId -> firstEnabled(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(boardId)),
+                boardId -> BoardBiosCatalog.latestEnabled(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(boardId)),
                 (id, boardId) -> biosRepository.findByIdAndBoardModel_Id(id, boardId).filter(b -> !b.isDeleted()),
                 BoardBIOS::getId, BoardBIOS::getVersion,
                 BoardBIOS::getTreeRootPath, BoardBIOS::getEntrypointRelativePath);
