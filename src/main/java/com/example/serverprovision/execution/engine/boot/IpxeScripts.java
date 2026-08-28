@@ -19,10 +19,16 @@ public final class IpxeScripts {
     private IpxeScripts() {
     }
 
+    /**
+     * 대기 계열 공통 골격. 신원 줄(HF10)은 게스트 콘솔에서 "이 화면이 어느 서버인가" 를 바로 읽기 위한 것 —
+     * 실패 화면 앞에 선 운영자가 관리 화면과 대조할 열쇠가 없던 2026-08-27 실기가 계기. 변수는 iPXE 가
+     * 확장하며, 스코프 없는 {@code ${ip}}/{@code ${mac}} 는 DHCP 에 성공한 NIC 기준이다(boot.ipxe 와 동일).
+     */
     private static String waitAndChain(String reason, String rebootQuery) {
         return """
                 #!ipxe
                 echo [provision] %s
+                echo [provision] this server: ip=${ip} mac=${mac} uuid=${uuid}
                 sleep %d
                 chain /api/pxe/v1/boot?%s
                 """.formatted(reason, RETRY_SECONDS, rebootQuery);

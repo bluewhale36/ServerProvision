@@ -177,7 +177,8 @@ class ExecutionRestControllerBootFlowTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/plain"))
                 .andExpect(content().string(containsString("server error. retrying")))
-                .andExpect(content().string(not(containsString("{"))));
+                // JSON 미노출 — 중괄호 자체가 아니라 JSON 본문의 시작(`{"`)을 본다: iPXE 변수 `${ip}` 도 중괄호를 쓴다(HF10)
+                .andExpect(content().string(not(containsString("{\""))));
     }
 
     @Test

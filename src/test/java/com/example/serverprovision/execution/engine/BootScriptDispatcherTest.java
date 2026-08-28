@@ -56,7 +56,9 @@ progress().startedAt(T).failedAt(T).currentStep(ProvisioningPhaseStep.OS_INSTALL
         // 실패 + 종단은 표현 불가(상호배타) — 실패 vs 미개시: 실패가 이긴다. 실패 지점 = 커서(ES-2 D-5).
         assertThat(dispatcher.dispatch(server(null),
 progress().failedAt(T).currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build(), PhaseReadiness.ready(), Q))
-                .contains("FAILED at BIOS_UPDATING");
+                .contains("FAILED at BIOS_UPDATING")
+                // HF10 — 실패 화면 앞의 운영자가 어느 서버인지 읽을 신원 줄(iPXE 변수는 게스트가 확장)
+                .contains("this server: ip=${ip} mac=${mac} uuid=${uuid}");
     }
 
     @Test
