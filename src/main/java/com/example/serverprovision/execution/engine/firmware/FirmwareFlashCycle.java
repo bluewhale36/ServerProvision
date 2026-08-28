@@ -8,7 +8,9 @@ import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
+import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ public class FirmwareFlashCycle {
     private final FirmwareResolutionProvider resolutionProvider;
     private final List<FirmwareUpdateProvider> providers;
     private final FlashStepRegistry stepRegistry;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void advance(UUID guestServerId, LocalDateTime now) {
@@ -46,7 +49,12 @@ public class FirmwareFlashCycle {
             return;
         }
         FlashContext context = contextOf(progress, guestServerId, now);
-        stepRegistry.firstMatching(context).ifPresent(step -> step.execute(context));
+        stepRegistry.firstMatching(context).ifPresent(step -> {
+            step.execute(context);
+            // 집행 전이가 화면(SSE)에 닿게 한다 — step 들은 자체 발행이 없어 상세가 집행 중 멈춰 보였다
+            // (2026-08-25 실기). AFTER_COMMIT 리스너 경유라 롤백 시엔 신호도 사라진다.
+            eventPublisher.publishEvent(new GuestServerChangedEvent(guestServerId));
+        });
     }
 
     private FlashContext contextOf(ProvisioningProgress progress, UUID guestServerId, LocalDateTime now) {

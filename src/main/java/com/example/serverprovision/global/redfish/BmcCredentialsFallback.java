@@ -46,8 +46,8 @@ public class BmcCredentialsFallback {
                 if (!e.authFailure()) {
                     break;
                 }
-                // 무엇을 하다 거부됐는지가 로그만으로 보여야 한다(2026-08-25) — 예외 메시지에 "GET /경로" 가 담겨 있다.
-                log.info("[redfish] {} — {} 자격증명 거부(401) → 다음 후보로 : {}",
+                // 무엇을 하다 거부됐는지가 로그만으로 보여야 한다(2026-08-25) — 예외 메시지에 "GET /경로 — 거부 사유" 가 담긴다.
+                log.info("[redfish] {} — {} 시도 실패 → 다음 후보로 : {}",
                         target.bmcIp(), credentials.source(), e.getMessage());
             }
         }

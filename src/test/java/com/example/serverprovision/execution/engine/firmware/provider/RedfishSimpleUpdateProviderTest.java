@@ -148,6 +148,20 @@ class RedfishSimpleUpdateProviderTest {
     }
 
     @Test
+    @DisplayName("Task 판독 — Monitor 번호 ≠ Task Id 면 컬렉션의 최신 UpdateService Task 로 판정(2026-08-27 실기: Monitor 12 · Task 11)")
+    void pollTask_monitorNumberMismatch_fallsBackToLatestCollectionTask() {
+        String monitor = "/redfish/v1/TaskService/TaskMonitors/12";
+        willThrow(new RedfishRequestException(RedfishError.NOT_FOUND, "404", null)).given(updateService).task(TARGET, monitor);
+        willThrow(new RedfishRequestException(RedfishError.NOT_FOUND, "404", null)).given(updateService).task(TARGET, "/redfish/v1/TaskService/Tasks/12");
+        given(updateService.task(TARGET, "/redfish/v1/TaskService/Tasks")).willReturn(JSON.readTree(
+                "{\"Members\":[{\"@odata.id\":\"/redfish/v1/TaskService/Tasks/9\"},{\"@odata.id\":\"/redfish/v1/TaskService/Tasks/11\"},{\"@odata.id\":\"/redfish/v1/TaskService/Tasks/10\"}]}"));
+        given(updateService.task(TARGET, "/redfish/v1/TaskService/Tasks/11")).willReturn(JSON.readTree(
+                "{\"Name\":\"Update Service Task\",\"TaskState\":\"Completed\",\"TaskStatus\":\"OK\"}"));
+
+        assertThat(provider.pollTask(TARGET, monitor)).isEqualTo(FlashTaskState.COMPLETED);
+    }
+
+    @Test
     @DisplayName("버전 판독 — 인벤토리 멤버의 Version 을 읽는다(실측 응답 모양)")
     void readVersion_readsInventory() {
         given(updateService.firmwareInventory(any(), any())).willReturn(JSON.readTree(

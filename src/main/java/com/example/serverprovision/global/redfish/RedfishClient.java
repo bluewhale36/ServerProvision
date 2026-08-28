@@ -6,7 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
@@ -136,9 +136,43 @@ public class RedfishClient {
         if (e instanceof HttpClientErrorException.NotFound) {
             return new RedfishRequestException(RedfishError.NOT_FOUND, what + " — 리소스 부재(404)", e);
         }
-        if (e instanceof HttpClientErrorException || e instanceof HttpServerErrorException) {
-            return new RedfishRequestException(RedfishError.PROTOCOL, what + " — BMC 가 요청을 거절했습니다", e);
+        if (e instanceof HttpStatusCodeException http) {
+            return new RedfishRequestException(RedfishError.PROTOCOL,
+                    what + " — BMC 가 요청을 거절했습니다(" + http.getStatusCode().value() + rejectionReason(http) + ")", e);
         }
         return new RedfishRequestException(RedfishError.PROTOCOL, what + " — 응답을 해석하지 못했습니다", e);
+    }
+
+    private static final int REASON_MAX_LENGTH = 300;
+
+    /**
+     * 거절 본문의 Redfish 표준 오류 메시지({@code error.@Message.ExtendedInfo[].Message}, 없으면 {@code error.message}).
+     * 상태코드만으론 원인을 못 본다 — 2026-08-27 실기에서 400 의 "값이 허용 목록에 없음" 을 curl 로 다시 캐야 했다.
+     */
+    private String rejectionReason(HttpStatusCodeException http) {
+        String body = http.getResponseBodyAsString();
+        if (body == null || body.isBlank()) {
+            return "";
+        }
+        try {
+            JsonNode error = objectMapper.readTree(body).path("error");
+            StringBuilder reason = new StringBuilder();
+            for (JsonNode info : error.path("@Message.ExtendedInfo")) {
+                String message = info.path("Message").asString("");
+                if (!message.isBlank()) {
+                    reason.append(reason.isEmpty() ? "" : " / ").append(message);
+                }
+            }
+            if (reason.isEmpty()) {
+                reason.append(error.path("message").asString(""));
+            }
+            if (reason.isEmpty()) {
+                return "";
+            }
+            String text = reason.length() > REASON_MAX_LENGTH ? reason.substring(0, REASON_MAX_LENGTH) + "…" : reason.toString();
+            return " · " + text;
+        } catch (RuntimeException notJson) {
+            return "";
+        }
     }
 }

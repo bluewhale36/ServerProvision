@@ -66,10 +66,20 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 		}
 	}
 
-	/** 상시 폴링 GET(알림 센터의 {@code /jobs}·{@code /jobs/{id}} 새로고침). dismiss(POST)·기타는 대상 아님. */
+	/**
+	 * 상시 폴링 — 알림 센터의 {@code /jobs} 새로고침(GET)과 게스트의 30초 주기 재진입
+	 * ({@code GET /api/pxe/v1/boot} · {@code POST /api/pxe/v1/agent/checkin}). 완주 뒤 회수 전 게스트가
+	 * 이 두 경로로 계속 묻기 때문에 성공 라인을 INFO 로 두면 로그를 밀어낸다(2026-08-27 실기).
+	 */
 	private static boolean isPollingRequest(HttpServletRequest request) {
-		return "GET".equals(request.getMethod()) && request.getRequestURI().startsWith("/jobs");
+		String uri = request.getRequestURI();
+		String method = request.getMethod();
+		return ("GET".equals(method) && (uri.startsWith("/jobs") || uri.equals(PXE_BOOT_PATH)))
+				|| ("POST".equals(method) && uri.equals(AGENT_CHECKIN_PATH));
 	}
+
+	private static final String PXE_BOOT_PATH = "/api/pxe/v1/boot";
+	private static final String AGENT_CHECKIN_PATH = "/api/pxe/v1/agent/checkin";
 
 	/** 확장자로 판정하는 정적 리소스(css/js/폰트/이미지 등). 경로 prefix 규약과 독립 — 실 위치가 여러 곳이다. */
 	private static final Set<String> STATIC_EXTENSIONS = Set.of(
@@ -107,6 +117,8 @@ public class RequestCorrelationFilter extends OncePerRequestFilter {
 		Object[] args = {request.getMethod(), path(request), status, elapsedMs(startNanos)};
 		if (status >= 500) {
 			log.warn(fmt, args);
+		} else if (status < 400 && isPollingRequest(request)) {
+			log.debug(fmt, args);   // 성공한 폴링은 DEBUG — 실패(4xx)는 진단 대상이라 INFO 유지
 		} else {
 			log.info(fmt, args);
 		}
