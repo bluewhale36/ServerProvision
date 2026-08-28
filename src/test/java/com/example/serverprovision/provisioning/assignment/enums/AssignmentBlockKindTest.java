@@ -136,4 +136,32 @@ class AssignmentBlockKindTest {
             assertThat(kind.name()).isNotBlank();
         }
     }
+
+    // ---- E3-3 — BIOS 템플릿 드리프트 --------------------------------------------
+
+    @Test
+    @DisplayName("TEMPLATE_STALE — 사유가 있으면 옵션을 잠그고 409 예외로 매핑된다, 보드 요구가 없어도 성립")
+    void templateStale_blocksWithOwnException() {
+        String reason = "BIOS 템플릿 'MD72-HB3 공장 표준 세팅' 의 값이 보드 레지스트리(F44 · 2026-08-27 채집 · 192.168.1.130)와 어긋납니다 — Whitley0000 = Disabled — 허용 {Disable, Enable}";
+
+        AssignmentBlock block = AssignmentBlockKind.evaluate(
+                new com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibility(server(false), null, null, reason));
+
+        assertThat(block).isNotNull();
+        assertThat(block.kind()).isEqualTo(AssignmentBlockKind.TEMPLATE_STALE);
+        assertThat(block.reason()).isEqualTo(reason);
+        assertThat(block.kind().hardwareIncompatible()).isFalse();
+        assertThat(block.toException(GUEST))
+                .isInstanceOf(com.example.serverprovision.provisioning.assignment.exception.BiosTemplateStaleException.class)
+                .hasMessage(reason);
+    }
+
+    @Test
+    @DisplayName("TEMPLATE_STALE — 회수가 먼저다(회수된 서버엔 템플릿이 맞든 아니든 손댈 수 없다)")
+    void decommissioned_winsOverTemplateStale() {
+        AssignmentBlock block = AssignmentBlockKind.evaluate(
+                new com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibility(server(true), null, null, "stale"));
+
+        assertThat(block.kind()).isEqualTo(AssignmentBlockKind.DECOMMISSIONED);
+    }
 }

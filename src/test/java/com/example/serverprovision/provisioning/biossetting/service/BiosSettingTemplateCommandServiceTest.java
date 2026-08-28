@@ -20,7 +20,6 @@ import com.example.serverprovision.provisioning.domain.vo.IntegerBounds;
 import com.example.serverprovision.provisioning.domain.vo.PasswordLength;
 import com.example.serverprovision.provisioning.exception.InvalidBiosValueException;
 import com.example.serverprovision.provisioning.exception.UnknownBiosAttributeException;
-import com.example.serverprovision.provisioning.service.BiosSetupLoader;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,7 +47,7 @@ class BiosSettingTemplateCommandServiceTest {
     @Mock BiosSettingTemplateRepository repository;
     @Mock com.example.serverprovision.provisioning.biossetting.BiosSettingTemplateUsageChecker usageChecker;
     @Mock BoardModelRepository boardModelRepository;
-    @Mock BiosSetupLoader loader;
+    @Mock BiosRegistryResolver registryResolver;   // E3-3 — 로더 대신 해석기(파일 폴백 모양으로 stub)
     @InjectMocks BiosSettingTemplateCommandService service;
 
     private static final String BOARD = "MS74-HB0";
@@ -88,6 +87,11 @@ class BiosSettingTemplateCommandServiceTest {
                 List.of(new BiosEnumOption("v1", "v1")), null, null);
     }
 
+    private static com.example.serverprovision.provisioning.biossetting.vo.ResolvedBiosRegistry resolvedMenu(BiosAttribute... attrs) {
+        return new com.example.serverprovision.provisioning.biossetting.vo.ResolvedBiosRegistry(
+                menu(attrs), com.example.serverprovision.provisioning.biossetting.enums.BiosRegistrySource.FILE, null, null, null, null);
+    }
+
     private static BiosSetupMenu menu(BiosAttribute... attrs) {
         Map<BiosAttributeName, BiosAttribute> registry = new java.util.LinkedHashMap<>();
         for (BiosAttribute a : attrs) registry.put(a.name(), a);
@@ -104,7 +108,7 @@ class BiosSettingTemplateCommandServiceTest {
         given(repository.existsByName("Rocky9 표준")).willReturn(false);
         BoardModel board = boardMock();
         given(boardModelRepository.findByIdAndIsDeletedFalse(BOARD_ID)).willReturn(java.util.Optional.of(board));
-        given(loader.load(BOARD)).willReturn(menu(enumAttr("E1"), intAttr("I1"), readOnlyAttr("RO1")));
+        given(registryResolver.resolve(org.mockito.ArgumentMatchers.any())).willReturn(resolvedMenu(enumAttr("E1"), intAttr("I1"), readOnlyAttr("RO1")));
         given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
         BiosSettingTemplateSummaryResponse response = service.create(request(Map.of(
@@ -136,7 +140,7 @@ class BiosSettingTemplateCommandServiceTest {
         given(repository.existsByName(any())).willReturn(false);
         BoardModel board = boardMock();
         given(boardModelRepository.findByIdAndIsDeletedFalse(BOARD_ID)).willReturn(java.util.Optional.of(board));
-        given(loader.load(BOARD)).willReturn(menu(enumAttr("E1")));
+        given(registryResolver.resolve(org.mockito.ArgumentMatchers.any())).willReturn(resolvedMenu(enumAttr("E1")));
 
         assertThatThrownBy(() -> service.create(request(Map.of("GHOST", "x"))))
                 .isInstanceOf(UnknownBiosAttributeException.class);
@@ -148,7 +152,7 @@ class BiosSettingTemplateCommandServiceTest {
         given(repository.existsByName(any())).willReturn(false);
         BoardModel board = boardMock();
         given(boardModelRepository.findByIdAndIsDeletedFalse(BOARD_ID)).willReturn(java.util.Optional.of(board));
-        given(loader.load(BOARD)).willReturn(menu(enumAttr("E1")));
+        given(registryResolver.resolve(org.mockito.ArgumentMatchers.any())).willReturn(resolvedMenu(enumAttr("E1")));
 
         assertThatThrownBy(() -> service.create(request(Map.of("E1", "허용되지 않은 값"))))
                 .isInstanceOf(InvalidBiosValueException.class);
@@ -160,7 +164,7 @@ class BiosSettingTemplateCommandServiceTest {
         given(repository.existsByName(any())).willReturn(false);
         BoardModel board = boardMock();
         given(boardModelRepository.findByIdAndIsDeletedFalse(BOARD_ID)).willReturn(java.util.Optional.of(board));
-        given(loader.load(BOARD)).willReturn(menu(passwordAttr("PW1")));
+        given(registryResolver.resolve(org.mockito.ArgumentMatchers.any())).willReturn(resolvedMenu(passwordAttr("PW1")));
 
         assertThatThrownBy(() -> service.create(request(Map.of("PW1", "secret1234"))))
                 .isInstanceOf(InvalidBiosValueException.class)
@@ -173,7 +177,7 @@ class BiosSettingTemplateCommandServiceTest {
         given(repository.existsByName(any())).willReturn(false);
         BoardModel board = boardMock();
         given(boardModelRepository.findByIdAndIsDeletedFalse(BOARD_ID)).willReturn(java.util.Optional.of(board));
-        given(loader.load(BOARD)).willReturn(menu(readOnlyAttr("RO1")));
+        given(registryResolver.resolve(org.mockito.ArgumentMatchers.any())).willReturn(resolvedMenu(readOnlyAttr("RO1")));
 
         // readOnly 만 담긴 요청 — 스킵 후 잔여 0건.
         assertThatThrownBy(() -> service.create(request(Map.of("RO1", "v1"))))
@@ -209,7 +213,7 @@ class BiosSettingTemplateCommandServiceTest {
         BiosSettingTemplate template = savedTemplate();
         given(repository.findById(1L)).willReturn(java.util.Optional.of(template));
         given(repository.existsByNameAndIdNot("Rocky9 표준 v2", 1L)).willReturn(false);
-        given(loader.load(BOARD)).willReturn(menu(enumAttr("E1"), intAttr("I1")));
+        given(registryResolver.resolve(org.mockito.ArgumentMatchers.any())).willReturn(resolvedMenu(enumAttr("E1"), intAttr("I1")));
 
         service.update(1L, new BiosSettingTemplateUpdateRequest(
                 "Rocky9 표준 v2", "개정", Map.of("I1", "500")));

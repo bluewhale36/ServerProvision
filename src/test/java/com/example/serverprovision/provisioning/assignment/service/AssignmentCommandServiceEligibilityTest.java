@@ -54,6 +54,8 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class AssignmentCommandServiceEligibilityTest {
 
+    @Mock com.example.serverprovision.provisioning.biossetting.service.BiosTemplateStaleInspector staleInspector;   // E3-3 — 기본 mock = 정합(null)
+
     @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @Mock SettingDefinitionRepository definitionRepository;
     @Mock GuestServerRepository guestServerRepository;

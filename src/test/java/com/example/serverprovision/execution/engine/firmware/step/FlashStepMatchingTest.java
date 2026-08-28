@@ -39,7 +39,7 @@ class FlashStepMatchingTest {
             new BeginFlashStep(null, null),
             new FlashAxisStep(null, null, null),
             new PowerOnStep(null, null, null, null),
-            new VerifyFlashStep(null, null, null)));
+            new VerifyFlashStep(null, null, null, null)));
 
     @Test
     @DisplayName("1행 — 실패한 게스트는 집지 않는다(펌웨어 실패에 자동 재시도는 없다)")

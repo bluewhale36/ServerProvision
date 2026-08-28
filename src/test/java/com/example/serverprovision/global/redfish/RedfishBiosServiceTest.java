@@ -148,4 +148,34 @@ class RedfishBiosServiceTest {
                 .isInstanceOf(RedfishRequestException.class)
                 .extracting("error").isEqualTo(RedfishError.CONNECT_FAILED);
     }
+
+    @Test
+    @DisplayName("registry — Bios.AttributeRegistry → Registries/{id} → Location[0].Uri 체인으로 전문을 받는다(경로 하드코딩 0, E3-3)")
+    void registry_followsDiscoveryChain() {
+        given(client.getForResource(anyString(), any(), eq(RedfishBiosService.BIOS_PATH))).willReturn(
+                new RedfishResource(JSON.readTree("{\"AttributeRegistry\":\"BiosAttributeRegistry\"}"), "W/\"1\""));
+        given(client.getJson(anyString(), any(), eq("/redfish/v1/Registries/BiosAttributeRegistry"))).willReturn(
+                JSON.readTree("{\"Location\":[{\"Uri\":\"/redfish/v1/Registries/BiosAttributeRegistry.json\"}]}"));
+        given(client.getJson(anyString(), any(), eq("/redfish/v1/Registries/BiosAttributeRegistry.json"))).willReturn(
+                JSON.readTree("{\"RegistryEntries\":{\"Attributes\":[]}}"));
+
+        RedfishRegistry registry = service.registry(TARGET);
+
+        assertThat(registry.registryId()).isEqualTo("BiosAttributeRegistry");
+        assertThat(registry.uri()).isEqualTo("/redfish/v1/Registries/BiosAttributeRegistry.json");
+        assertThat(registry.rawJson()).contains("RegistryEntries");
+    }
+
+    @Test
+    @DisplayName("registry — Location 이 없으면 PROTOCOL 로 올린다(호출자가 채집 불가로 다룬다)")
+    void registry_missingLocationIsProtocolError() {
+        given(client.getForResource(anyString(), any(), eq(RedfishBiosService.BIOS_PATH))).willReturn(
+                new RedfishResource(JSON.readTree("{\"AttributeRegistry\":\"BiosAttributeRegistry\"}"), "W/\"1\""));
+        given(client.getJson(anyString(), any(), eq("/redfish/v1/Registries/BiosAttributeRegistry"))).willReturn(
+                JSON.readTree("{\"Location\":[]}"));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.registry(TARGET))
+                .isInstanceOfSatisfying(RedfishRequestException.class,
+                        e -> assertThat(e.getError()).isEqualTo(RedfishError.PROTOCOL));
+    }
 }

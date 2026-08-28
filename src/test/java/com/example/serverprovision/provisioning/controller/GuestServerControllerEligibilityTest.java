@@ -125,4 +125,22 @@ class GuestServerControllerEligibilityTest {
                         .content("{\"definitionId\":5}"))
                 .andExpect(status().isConflict());
     }
+
+    // ==== 409 — BIOS 템플릿 드리프트(E3-3 신규 예외 시나리오) ==========================
+
+    @Test
+    @DisplayName("POST /assignment — 레지스트리와 어긋난 템플릿의 정의서를 직접 실어 보내면 409 + 어긋난 속성을 알린다")
+    void assign_templateStale_returns409() throws Exception {
+        UUID id = UUID.randomUUID();
+        String reason = "BIOS 템플릿 'MD72-HB3 공장 표준 세팅' 의 값이 보드 레지스트리(F44 · 2026-08-27 채집 · 192.168.1.130)와 어긋납니다 — Whitley0000 = Disabled — 허용 {Disable, Enable}";
+        given(assignmentCommandService.assign(eq(id), eq(DEF_ID)))
+                .willThrow(new com.example.serverprovision.provisioning.assignment.exception.BiosTemplateStaleException(id, reason));
+
+        mvc.perform(post("/provisioning/server/{id}/assignment", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .content("{\"definitionId\":5}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(reason));
+    }
 }

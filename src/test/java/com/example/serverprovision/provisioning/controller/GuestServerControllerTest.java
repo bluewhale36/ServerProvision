@@ -311,4 +311,31 @@ class GuestServerControllerTest {
                 .andExpect(content().string(containsString("BMC 미검출 — 원격 전원 제어를 쓸 수 없습니다")))
                 .andExpect(content().string(not(containsString("data-power-reset="))));
     }
+
+    /**
+     * E3-3 CP5 F-2 — 선택 가능한 정의서가 0 이어도 상세는 중립 문구와 함께 picker 를 여는 버튼을 그린다.
+     * 잠긴 사유는 정의서마다 다르고(보드 불일치 · 레지스트리 드리프트) picker 의 잠김 행이 정확한 문장을
+     * 들고 있으므로, 상세가 "모두 다른 메인보드를 요구" 라고 단정하면 거짓이 된다.
+     */
+    @Test
+    @DisplayName("GET /provisioning/server/{id} — 선택 가능 정의서 0 이어도 중립 문구 + 여는 버튼 (E3-3 F-2)")
+    void detail_noSelectable_stillOpensPickerWithNeutralCopy() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detail(id));
+        given(settingQueryService.findAssignable()).willReturn(List.of(
+                new SettingSummaryResponse(1L, "md72-standard",
+                        List.of(SettingProcessType.BASIC_SETTING), false, true, false, LocalDateTime.now())));
+        given(assignmentQueryService.assignmentForm(any(UUID.class), anyList()))
+                .willAnswer(invocation -> new AssignmentFormResponse(null,
+                        invocation.<java.util.List<SettingSummaryResponse>>getArgument(1).stream()
+                                .map(summary -> new DefinitionOptionResponse(summary,
+                                        "BIOS 템플릿 'T' 의 값이 보드 레지스트리(F44)와 어긋납니다 — Whitley0000", false))
+                                .toList()));
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"openAssignPicker\"")))
+                .andExpect(content().string(containsString("정의서마다 잠긴 사유를 목록에서 확인하십시오")))
+                .andExpect(content().string(not(containsString("모두 다른 메인보드를 요구합니다"))));
+    }
 }
