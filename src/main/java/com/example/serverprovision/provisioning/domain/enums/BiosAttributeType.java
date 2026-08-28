@@ -93,6 +93,28 @@ public enum BiosAttributeType {
 		public BiosAttributeValue coerce(BiosAttribute attr, String raw) {
 			return BiosAttributeValue.ofBoolean(Boolean.parseBoolean(raw.trim()));
 		}
+	},
+
+	/**
+	 * 자유 문자열. 실재 속성은 MD72-HB3 의 {@code MAPIDS}(AMI 내부 매핑 ID 목록) 하나뿐이라(2026-08-27)
+	 * 사용자 세팅 대상이 아니다 — 로드는 통과시키되 PASSWORD 처럼 템플릿에서 배제한다. 사용자 입력용
+	 * String 속성이 나오면 text 위젯과 함께 templatable 로 승격한다.
+	 */
+	STRING("String", "text") {
+		@Override
+		public boolean templatable() {
+			return false;
+		}
+
+		@Override
+		public void validate(BiosAttribute attr, String raw) {
+			// 레지스트리가 길이 제약(Min/MaxLength)을 주지 않는다 — 제약이 실측되면 여기서 검사한다.
+		}
+
+		@Override
+		public BiosAttributeValue coerce(BiosAttribute attr, String raw) {
+			return BiosAttributeValue.ofString(raw);
+		}
 	};
 
 	private final String registryName;
