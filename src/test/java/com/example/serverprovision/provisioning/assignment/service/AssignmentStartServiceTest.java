@@ -49,25 +49,30 @@ class AssignmentStartServiceTest {
     }
 
     @Test
-    @DisplayName("활성 스냅샷 없어도 개시는 허용(markConsumed no-op)")
-    void start_withoutActiveAssignment_noop() {
+    @DisplayName("미할당 개시 → 409 거절 · 개시 자체가 일어나지 않는다(U3-6 — 즉시 종단 함정 차단)")
+    void start_withoutActiveAssignment_rejected() {
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST))
                 .willReturn(Optional.empty());
 
-        service.startProvisioning(GUEST);
+        assertThatThrownBy(() -> service.startProvisioning(GUEST))
+                .isInstanceOf(com.example.serverprovision.execution.exception.ProvisioningStartRejectedException.class)
+                .hasMessageContaining("할당되지 않은");
 
-        verify(guestServerCommandService).startProvisioning(GUEST);
+        verify(guestServerCommandService, never()).startProvisioning(any());
     }
 
     @Test
     @DisplayName("개시 가드 거절 시 소비 경로에 도달하지 않는다(한 트랜잭션 원자성)")
     void start_guardRejects_beforeConsume() {
+        SettingAssignmentSnapshot assignment = org.mockito.Mockito.mock(SettingAssignmentSnapshot.class);
+        given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST))
+                .willReturn(Optional.of(assignment));
         willThrow(new GuestServerNotFoundException(GUEST))
                 .given(guestServerCommandService).startProvisioning(GUEST);
 
         assertThatThrownBy(() -> service.startProvisioning(GUEST))
                 .isInstanceOf(GuestServerNotFoundException.class);
 
-        verify(assignmentRepository, never()).findByGuestServer_IdAndSupersededAtIsNull(any());
+        verify(assignment, never()).markConsumed(any());
     }
 }
