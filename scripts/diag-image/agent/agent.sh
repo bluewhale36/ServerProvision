@@ -154,12 +154,52 @@ do_collect() {
     handle_directive "$(printf '%s' "$CLOSE_RESP" | get_json_field directive)"
 }
 
+b64() { # 개행 있는 원문을 statusMeta JSON 문자열 값으로 안전 운반(E3.5-1 봉투 계약 — RaidInventoryParser 와 SSOT)
+    base64 | tr -d '\n'
+}
+
+do_raid_inventory() { # RAID_INVENTORY(E3.5-1) — 칩 판별 → 계열 CLI 원문 채집 → base64 봉투 보고
+    echo "[agent] RAID_INVENTORY - collecting card/disk/volume inventory..."
+    LSPCI=$(lspci -nn -vv -d 1000: 2>/dev/null)
+    LSPCI_B64=$(printf '%s' "$LSPCI" | b64)
+    if printf '%s' "$LSPCI" | grep -q "1000:005d"; then
+        # MegaRAID 계열 — storcli64 우선, storcli(alias) 폴백 (사전 조사 §2 · 사용자 확인)
+        TOOL=""
+        command -v storcli64 >/dev/null 2>&1 && TOOL=storcli64
+        [ -z "$TOOL" ] && command -v storcli >/dev/null 2>&1 && TOOL=storcli
+        if [ -z "$TOOL" ]; then
+            report_step RAID_INVENTORY_COLLECTING FAILED \
+                "{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64/storcli not found\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
+            return 0
+        fi
+        PD=$("$TOOL" /c0/eall/sall show all J 2>&1); VD=$("$TOOL" /c0/vall show all J 2>&1); C0=$("$TOOL" /c0 show all J 2>&1)
+        META="{\"tool\":\"$TOOL\",\"lspci_b64\":\"$LSPCI_B64\",\"pd_b64\":\"$(printf '%s' "$PD" | b64)\",\"vd_b64\":\"$(printf '%s' "$VD" | b64)\",\"c0_b64\":\"$(printf '%s' "$C0" | b64)\"}"
+    elif printf '%s' "$LSPCI" | grep -q "1000:0097"; then
+        # Fusion-MPT IR 계열 — sas3ircu
+        if ! command -v sas3ircu >/dev/null 2>&1; then
+            report_step RAID_INVENTORY_COLLECTING FAILED \
+                "{\"reason\":\"TOOL_MISSING\",\"detail\":\"sas3ircu not found\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
+            return 0
+        fi
+        DISPLAY_OUT=$(sas3ircu 0 display 2>&1)
+        META="{\"tool\":\"sas3ircu\",\"lspci_b64\":\"$LSPCI_B64\",\"display_b64\":\"$(printf '%s' "$DISPLAY_OUT" | b64)\"}"
+    else
+        report_step RAID_INVENTORY_COLLECTING FAILED \
+            "{\"reason\":\"TOOL_MISSING\",\"detail\":\"no supported raid chip (1000:0097/1000:005d)\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
+        return 0
+    fi
+    CLOSE_RESP=$(report_step RAID_INVENTORY_COLLECTING SUCCEEDED "$META") || return 0
+    echo "[agent] raid inventory reported ($(printf '%s' "$META" | wc -c | tr -d ' ') bytes)"
+    handle_directive "$(printf '%s' "$CLOSE_RESP" | get_json_field directive)"
+}
+
 handle_directive() { # close/checkin 응답의 지시 처리 — REBOOT 는 즉시 실행
     case "${1:-}" in
         REBOOT)
             echo "[agent] REBOOT - leaving diagnose linux, back to iPXE polling"
             sync; sleep 1; reboot ;;
         COLLECT) do_collect ;;
+        RAID_INVENTORY) do_raid_inventory ;;
         *) : ;;   # WAIT / 빈 응답 — 폴링 지속
     esac
 }

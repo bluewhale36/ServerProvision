@@ -97,7 +97,7 @@ class GuestServerControllerTest {
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
                 null,   // E1-2 — 접촉 관찰 없음 fixture
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
-                        DiscoveryStage.IPXE_REGISTERED, null, null, null, null),
+                        DiscoveryStage.IPXE_REGISTERED, null, null, null, null, null),
                 List.of(),
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now(),
@@ -115,7 +115,7 @@ class GuestServerControllerTest {
                 null,
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "QG260700082",
                         DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null,
-                        IpAddressVO.of("192.168.10.21"), null),
+                        IpAddressVO.of("192.168.10.21"), null, null),
                 List.of(),
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.BOOTSTRAPPING, LocalDateTime.now(), null,

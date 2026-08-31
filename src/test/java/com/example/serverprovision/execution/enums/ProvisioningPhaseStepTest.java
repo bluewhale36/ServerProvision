@@ -31,7 +31,7 @@ class ProvisioningPhaseStepTest {
         assertThat(ProvisioningPhaseStep.entryOf(ProvisioningPhase.FIRMWARE_UPDATING))
                 .isEqualTo(ProvisioningPhaseStep.BIOS_UPDATING);
         assertThat(ProvisioningPhaseStep.entryOf(ProvisioningPhase.RAID_CONFIGURATION))
-                .isEqualTo(ProvisioningPhaseStep.RAID_CONFIGURATION);
+                .isEqualTo(ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING);
     }
 
     @Test

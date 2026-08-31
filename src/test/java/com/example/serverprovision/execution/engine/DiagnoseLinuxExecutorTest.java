@@ -70,6 +70,24 @@ class DiagnoseLinuxExecutorTest {
                 .currentStep(ProvisioningPhaseStep.INFORMATION_COLLECTING).lastTransitionAt(T).startedAt(T).build();
     }
 
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("directiveFor(E3.5-1 이사) — 미수집 COLLECT · 수집됨 WAIT (접수 서비스 규칙 무변경 증인)")
+    void directiveFor_movedRule() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.empty());
+        org.assertj.core.api.Assertions.assertThat(executor.directiveFor(g, progress()))
+                .isEqualTo(com.example.serverprovision.execution.enums.AgentDirective.COLLECT);
+
+        com.example.serverprovision.execution.entity.GuestServerDetail enriched =
+                org.mockito.Mockito.mock(com.example.serverprovision.execution.entity.GuestServerDetail.class);
+        org.mockito.BDDMockito.given(enriched.isDiagnosticEnriched()).willReturn(true);
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(enriched));
+        org.assertj.core.api.Assertions.assertThat(executor.directiveFor(g, progress()))
+                .isEqualTo(com.example.serverprovision.execution.enums.AgentDirective.WAIT);
+    }
+
     @Test
     @DisplayName("체인로드 스크립트 — 자산 절대 URL · 커널 인자 계약 · EFI initrd= · 실패 폴백 전부 포함")
     void bootScript_containsFullContract() {

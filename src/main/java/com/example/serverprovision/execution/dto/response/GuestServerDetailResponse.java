@@ -77,7 +77,9 @@ public record GuestServerDetailResponse(
             HardwareSpec hardwareSpec,
             SoftwareSpec softwareSpec,
             IpAddressVO bmcIp,
-            MacAddressVO bmcMac
+            MacAddressVO bmcMac,
+            /** RAID 카드 뒤 인벤토리(E3.5-1) — RAID 구성 phase 진입 전엔 null. 관용 파싱 결과. */
+            com.example.serverprovision.execution.engine.raid.RaidInventory raidInventory
     ) {
     }
 

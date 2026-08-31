@@ -335,7 +335,9 @@ public class GuestServerQueryService {
                 parseTolerant(detail.getHardwareSpec(), HardwareSpec.class),
                 parseTolerant(detail.getSoftwareSpec(), SoftwareSpec.class),
                 detail.getBmcIp(),
-                detail.getBmcMac());
+                detail.getBmcMac(),
+                parseTolerant(detail.getRaidInventoryJson(),
+                        com.example.serverprovision.execution.engine.raid.RaidInventory.class));
 
         List<GuestServerDetailResponse.Nic> nicResponses = nics.stream()
                 .map(n -> new GuestServerDetailResponse.Nic(

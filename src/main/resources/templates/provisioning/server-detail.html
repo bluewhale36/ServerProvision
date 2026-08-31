@@ -296,6 +296,73 @@
         </div>
     </div>
 
+    <!-- RAID 인벤토리 (읽기 전용, E3.5-1) — lsblk 가 못 보는 카드 뒤를 계열 CLI 보고로 세운다 -->
+    <div class="n-detail-section" data-live="raid-inventory">
+        <div class="n-section-title">RAID 인벤토리</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <th:block th:if="${server.inventory != null and server.inventory.raidInventory != null}"
+                          th:with="raid=${server.inventory.raidInventory}">
+                    <table class="n-detail-table">
+                        <tbody>
+                        <tr>
+                            <th>감지 카드</th>
+                            <td>
+                                <span th:if="${raid.card != null}">
+                                    <span th:text="${raid.card.model != null} ? ${raid.card.model} : '모델 미상'">AVAGO MegaRAID SAS 9361-8i</span>
+                                    <code class="n-mono" th:if="${raid.card.pciSubsystemId != null}"
+                                          th:text="'[' + ${raid.card.pciSubsystemId} + ']'">[1000:9361]</code>
+                                    <span class="n-badge n-badge-gray" th:text="${raid.card.chipFamily}">MEGARAID</span>
+                                    <span class="n-muted" th:if="${raid.card.firmware != null}"
+                                          th:text="'FW ' + ${raid.card.firmware}">FW 4.680.00-8577</span>
+                                </span>
+                                <span th:unless="${raid.card != null}" class="n-muted">카드 미감지</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <table th:if="${not #lists.isEmpty(raid.disks)}" class="n-table" style="margin-top: 16px;">
+                        <thead>
+                        <tr><th colspan="6">물리 디스크</th></tr>
+                        <tr><th>슬롯</th><th>종류</th><th>전송</th><th>용량</th><th>상태</th><th>소속</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="d : ${raid.disks}">
+                            <td><code class="n-mono" th:text="${d.slot}">252:0</code></td>
+                            <td th:text="${d.type != null} ? ${d.type} : '—'">SSD</td>
+                            <td th:text="${d.transport != null} ? ${d.transport} : '—'">SATA</td>
+                            <td th:text="${d.size != null} ? ${d.size} : '—'">446.625 GB</td>
+                            <td th:text="${d.state != null} ? ${d.state} : '—'">Onln</td>
+                            <td th:text="${d.volumeRef != null} ? ${d.volumeRef} : '미소속'">DG0</td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <table th:if="${not #lists.isEmpty(raid.volumes)}" class="n-table" style="margin-top: 16px;">
+                        <thead>
+                        <tr><th colspan="5">기존 볼륨</th></tr>
+                        <tr><th>ID</th><th>레벨</th><th>용량</th><th>상태</th><th>이름</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="v : ${raid.volumes}">
+                            <td><code class="n-mono" th:text="${v.id}">VD0</code></td>
+                            <td th:text="${v.level != null} ? ${v.level} : '—'">RAID1</td>
+                            <td th:text="${v.size != null} ? ${v.size} : '—'">446.625 GB</td>
+                            <td th:text="${v.state != null} ? ${v.state} : '—'">Optl</td>
+                            <td th:text="${v.name != null and !#strings.isEmpty(v.name)} ? ${v.name} : '(빈 값)'">(빈 값)</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <p th:if="${#lists.isEmpty(raid.volumes)}" class="n-muted" style="margin-top: 12px;">기존 볼륨이 없습니다.</p>
+                </th:block>
+
+                <p th:unless="${server.inventory != null and server.inventory.raidInventory != null}" class="n-detail-empty">
+                    RAID 인벤토리가 아직 없습니다 — RAID 구성 단계에 진입하면 수집됩니다.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- 호스트 NIC (읽기 전용) -->
     <div class="n-detail-section" data-live="nics">
         <div class="n-section-title">호스트 NIC</div>

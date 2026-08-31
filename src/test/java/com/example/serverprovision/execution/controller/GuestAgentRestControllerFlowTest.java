@@ -48,6 +48,17 @@ class GuestAgentRestControllerFlowTest {
     // ==== 성공 2xx ====================================================
 
     @Test
+    @DisplayName("POST /agent/checkin — 새 지시 값 RAID_INVENTORY 직렬화 (E3.5-1)")
+    void checkin_carriesRaidInventoryDirective() throws Exception {
+        given(agentReportService.checkin(TOKEN))
+                .willReturn(new AgentCheckinResponse(AgentDirective.RAID_INVENTORY, "guest-01"));
+
+        mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.directive").value("RAID_INVENTORY"));
+    }
+
+    @Test
     @DisplayName("POST /agent/checkin — 200 + 지시 골격(WAIT) + 배너용 서버명(E1-1, DEC-33)")
     void checkin_returnsDirective() throws Exception {
         given(agentReportService.checkin(TOKEN))

@@ -1,5 +1,7 @@
 package com.example.serverprovision.execution.engine.diagnose;
 
+import com.example.serverprovision.execution.engine.boot.DiagnoseLinuxChainload;
+
 import com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer;
 import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
 import com.example.serverprovision.execution.engine.phase.ProvisioningPhaseExecutor;
@@ -67,20 +69,22 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
             // 등록 트랜잭션(issueTokenIfAbsent)이 항상 선행하므로 도달 불가 — 데이터 손상은 500 이 정직하다.
             throw new IllegalStateException("게스트 토큰 부재 — 등록 invariant 위반. guestServerId=" + server.getId());
         }
-        String base = properties.getBaseUrl();
-        String assets = base + "/api/pxe/v1/assets";
-        return """
-                #!ipxe
-                echo [provision] chainloading diagnose linux...
-                kernel %s/vmlinuz-lts ip=dhcp modules=loop,squashfs console=tty0 console=ttyS0,115200 alpine_repo=%s/repo/main modloop=%s/modloop-lts apkovl=%s/diag.apkovl.tar.gz provision_token=%s provision_base=%s initrd=initramfs-lts || goto failed
-                initrd %s/initramfs-lts || goto failed
-                boot || goto failed
-                :failed
-                echo [provision] chainload failed. retrying...
-                sleep 30
-                chain /api/pxe/v1/boot?%s
-                """.formatted(assets, assets, assets, assets,
-                server.getGuestToken().value(), base, assets, rebootQuery);
+        // 체인로드 본문은 공용 빌더 소유(E3.5-1) — RAID 구성 phase 가 두 번째 사용처가 되며 추출됐다.
+        return DiagnoseLinuxChainload.script(properties.getBaseUrl(), server.getGuestToken().value(), rebootQuery);
+    }
+
+    /**
+     * 진단 phase 의 지시 규칙(E3.5-1 D-2 이사) — 접수 서비스의 진단 전용 분기(②미수집 → COLLECT ·
+     * ③WAIT)를 그대로 옮긴 것으로 동작 무변경. 종단 · 실행기 미등록 phase 의 REBOOT 는 공통(접수 서비스)이다.
+     */
+    @Override
+    public com.example.serverprovision.execution.enums.AgentDirective directiveFor(
+            GuestServer server, ProvisioningProgress progress) {
+        boolean enriched = guestServerDetailRepository.findByServerIdWithBoardModel(server.getId())
+                .map(GuestServerDetail::isDiagnosticEnriched)
+                .orElse(false);
+        return enriched ? com.example.serverprovision.execution.enums.AgentDirective.WAIT
+                : com.example.serverprovision.execution.enums.AgentDirective.COLLECT;
     }
 
     @Override

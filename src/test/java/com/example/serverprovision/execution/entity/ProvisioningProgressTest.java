@@ -352,7 +352,7 @@ class ProvisioningProgressTest {
     void currentPhase_derivation() {
         assertThat(seed().currentPhase()).isEqualTo(ProvisioningPhase.DIAGNOSE_LINUX);
         ProvisioningProgress p = started();
-        p.advanceToEntry(ProvisioningPhaseStep.RAID_CONFIGURATION, T1);
+        p.advanceToEntry(ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING, T1);
         assertThat(p.currentPhase()).isEqualTo(ProvisioningPhase.RAID_CONFIGURATION);
     }
 }

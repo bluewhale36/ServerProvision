@@ -50,8 +50,16 @@ public enum ProvisioningPhaseStep {
     BIOS_SETTING(ProvisioningPhase.FIRMWARE_SETTING),
     BMC_SETTING(ProvisioningPhase.FIRMWARE_SETTING),
 
-    /** RAID 카드로 디스크 묶음 규칙을 집행 — BMC_SETTING 다음 · OS_INSTALLING 전(U4-1-1 v2). */
-    RAID_CONFIGURATION(ProvisioningPhase.RAID_CONFIGURATION),
+    /**
+     * RAID 카드 · 물리 디스크 · 기존 볼륨 인벤토리 수집(E3.5-1) — phase 진입 step. 에이전트가 계열 CLI
+     * 원문을 보고하고 서버가 파싱 · 카드 대조 · 적재한다. U4-1-1 v2 의 단일 {@code RAID_CONFIGURATION}
+     * step 을 셋으로 분할하며 교체(0-3 결정 D-10 — 적재 행 0 확인 후 상수 제거, DDL 동반).
+     */
+    RAID_INVENTORY_COLLECTING(ProvisioningPhase.RAID_CONFIGURATION),
+    /** 계획(볼륨 생성 명령)의 집행 — E3.5-3 이 소비자. */
+    RAID_APPLYING(ProvisioningPhase.RAID_CONFIGURATION),
+    /** 집행 결과를 계획과 대조 — E3.5-3 이 소비자. */
+    RAID_VERIFYING(ProvisioningPhase.RAID_CONFIGURATION),
 
     OS_INSTALLING(ProvisioningPhase.OS_INSTALLING),
 

@@ -58,7 +58,7 @@ class GuestServerPowerRestControllerTest {
                 null,
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", boardSerial,
                         DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null,
-                        bmcIp == null ? null : IpAddressVO.of(bmcIp), null),
+                        bmcIp == null ? null : IpAddressVO.of(bmcIp), null, null),
                 List.of(), null, null, null, List.of());
     }
 
