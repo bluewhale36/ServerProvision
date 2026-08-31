@@ -59,7 +59,7 @@ class GroupAssignmentServiceTest {
     private static com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse srv(UUID id) {
         return new com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse(
                 id, "srv-" + id.toString().substring(0, 4), UUID.randomUUID(), null, "MS03-CE0",
-                null, null, null, java.time.LocalDateTime.now(), null, false, null, null, null);
+                null, null, null, java.time.LocalDateTime.now(), null, false, null, false, null, null);
     }
 
     /** 붙는 멤버만 담은 미리보기 — 고를 때 빠진 멤버는 없다. */

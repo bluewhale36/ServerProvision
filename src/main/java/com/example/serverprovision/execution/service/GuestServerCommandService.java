@@ -41,6 +41,7 @@ public class GuestServerCommandService {
     private final RetryPolicy retryPolicy;   // 재시도 차단 판정 — 화면 노출과 같은 지점
     private final PhaseCursorAdvancer phaseCursorAdvancer;   // R13 — 개시 시 유보된 완주 판정의 소급 집행
     private final ApplicationEventPublisher eventPublisher;
+    private final com.example.serverprovision.execution.engine.WorkerObservations workerObservations;   // E2-4 O-3
 
     @Transactional(readOnly = true)
     public boolean isNameTakenByOther(UUID id, String name) {
@@ -78,6 +79,8 @@ public class GuestServerCommandService {
         provisioningProgressRepository.findByGuestServer_Id(id)
                 .filter(ProvisioningProgress::isDisruptionBlocked)
                 .ifPresent(p -> { throw new DisruptiveActionRejectedException(id); });
+        // 회수 직전 인메모리 관측 파괴(E2-4 O-3 확정) — 재투입 화면이 지난 집행의 관측으로 거짓을 말하지 않게.
+        workerObservations.clear(id);
         server.decommission(LocalDateTime.now());
         publishChanged(id);
     }

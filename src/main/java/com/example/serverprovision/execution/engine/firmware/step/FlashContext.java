@@ -71,11 +71,17 @@ public record FlashContext(
                         Comparator.nullsFirst(Comparator.naturalOrder())));
     }
 
-    /** 그 축의 종결 행 — 성공 · 건너뜀 · 실패 어느 것이든 "이 축은 처리됐다" 는 뜻이다. */
+    /**
+     * 그 축의 종결 행 — 성공 · 건너뜀 · 실패 어느 것이든 "이 축은 처리됐다" 는 뜻이다.
+     * phase 수준 사건 행(복귀 시한 · 전원 사건 등, E2-4)은 축의 결과가 아니므로 제외한다 —
+     * 빼지 않으면 전원 차단 행이 첫 축을 "처리됨" 으로 둔갑시켜 굽기를 건너뛴다.
+     */
     public Optional<ProvisioningHistory> closedRowOf(FirmwareAxis axis) {
         return history.stream()
                 .filter(row -> row.getStepCode() == axis.getStep())
                 .filter(row -> row.getStatus() != ProvisioningStatus.RUNNING)
+                .filter(row -> !com.example.serverprovision.execution.engine.firmware.FlashLedger
+                        .isPhaseLevel(row.flashFailureReason()))
                 .max(Comparator.comparing(ProvisioningHistory::getFinishedAt,
                         Comparator.nullsFirst(Comparator.naturalOrder())));
     }

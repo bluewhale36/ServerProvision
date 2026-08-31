@@ -52,7 +52,7 @@ class GuestServerGroupQueryServiceTest {
     private static GuestServerSummaryResponse row(UUID id, String specKey) {
         return new GuestServerSummaryResponse(
                 id, "srv", UUID.randomUUID(), null, "MS03-CE0", null, null, null,
-                LocalDateTime.now(), null, false, null,
+                LocalDateTime.now(), null, false, null,false, 
                 specKey == null ? null : new SpecGroupKey(specKey),
                 specKey == null ? null : "라벨-" + specKey);
     }

@@ -79,7 +79,7 @@ class GuestServerGroupControllerTest {
     private static GuestServerSummaryResponse row(UUID id, String name) {
         return new GuestServerSummaryResponse(
                 id, name, UUID.randomUUID(), null, "MS03-CE0", null, null, null,
-                LocalDateTime.now(), null, false, null,
+                LocalDateTime.now(), null, false, null,false, 
                 new SpecGroupKey("spec-A"), "MS03-CE0 · 6338 ×2");
     }
 
@@ -150,7 +150,7 @@ class GuestServerGroupControllerTest {
         GuestServerSummaryResponse retired = new GuestServerSummaryResponse(
                 decommissioned, "srv-07", UUID.randomUUID(), null, "MS03-CE0",
                 GuestServerStatus.DECOMMISSIONED, null, null,
-                LocalDateTime.now(), null, false, null, new SpecGroupKey("spec-A"), "MS03-CE0 · 6338 ×2");
+                LocalDateTime.now(), null, false, null,false,  new SpecGroupKey("spec-A"), "MS03-CE0 · 6338 ×2");
 
         // ① 생성 폼의 씨앗 후보
         given(queryService.findSeedCandidates(any()))

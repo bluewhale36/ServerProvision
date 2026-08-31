@@ -87,7 +87,14 @@ public class ProvisioningHistory extends BaseTimeEntity {
      * 되짚을 유일한 근거다. 값은 버전 문자열과 서버 생성 경로뿐이라 이스케이프가 필요 없다.</p>
      */
     public static String flashTargetMeta(String targetVersion, Long firmwareId, String taskPath) {
-        return "{\"origin\":\"flash\",\"target\":\"" + targetVersion + "\",\"firmwareId\":" + firmwareId
+        return flashTargetMeta(null, targetVersion, firmwareId, taskPath);
+    }
+
+    /** 자원 이름을 함께 싣는 변형(E2-4 R7) — 표시용이며, 대조 재료(target)는 버전 그대로 둔다. */
+    public static String flashTargetMeta(String resourceName, String targetVersion, Long firmwareId, String taskPath) {
+        return "{\"origin\":\"flash\""
+                + (resourceName == null ? "" : ",\"name\":\"" + resourceName + "\"")
+                + ",\"target\":\"" + targetVersion + "\",\"firmwareId\":" + firmwareId
                 + ",\"task\":\"" + (taskPath == null ? "" : taskPath) + "\"}";
     }
 
@@ -111,9 +118,11 @@ public class ProvisioningHistory extends BaseTimeEntity {
     public boolean closeFlash(ProvisioningStatus result, String reason, String detail, LocalDateTime at) {
         String target = flashTargetVersion();
         String task = flashTaskPath();
+        String name = flashResourceName();
         String preserved = target == null
                 ? flashOutcomeMeta(reason, detail)
                 : "{\"origin\":\"" + reason + "\",\"detail\":\"" + (detail == null ? "" : detail)
+                        + (name == null ? "" : "\",\"name\":\"" + name)
                         + "\",\"target\":\"" + target + "\",\"task\":\"" + (task == null ? "" : task) + "\"}";
         return close(result, preserved, at);
     }
@@ -144,6 +153,28 @@ public class ProvisioningHistory extends BaseTimeEntity {
     /** 이 행의 사유 코드 — 화면이 무엇 때문에 멈췄는지 가릴 때 읽는다(E2-2). */
     public String flashFailureReason() {
         return extractMeta("origin");
+    }
+
+    /** 이 행이 굽기 기록이면 그 자원 이름(E2-4 R7) — 없으면 null(구 행 호환 · 화면은 버전만 표기). */
+    public String flashResourceName() {
+        return extractMeta("name");
+    }
+
+    /**
+     * 화면용 사유 한 줄(E2-4 R5) — detail(사람 문구) 우선, 없으면 origin 코드. flash · setting 계열이
+     * 같은 두 키를 쓰므로 판독 하나로 통일된다. 시작 마커(flash · setting)와 운영자 마커는 사유가 아니라 제외.
+     */
+    public String displayNote() {
+        String detail = extractMeta("detail");
+        if (detail != null && !detail.isBlank()) {
+            return detail;
+        }
+        String origin = extractMeta("origin");
+        if (origin == null || origin.isBlank()
+                || "flash".equals(origin) || "setting".equals(origin) || "operator".equals(origin)) {
+            return null;
+        }
+        return origin;
     }
 
     /** 사람이 읽을 상세 — 사유만으로는 부족한 맥락(목표 버전 · 확인값 등). */

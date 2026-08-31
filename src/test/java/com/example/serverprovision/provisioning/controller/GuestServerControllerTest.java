@@ -87,7 +87,7 @@ class GuestServerControllerTest {
                 id, "web-01", UUID.randomUUID(), Vendor.GIGABYTE, "MS73-HB1-000",
                 GuestServerStatus.REGISTERED, ProvisioningPhase.BOOTSTRAPPING,
                 IpAddressVO.of("10.20.3.11"), LocalDateTime.now(),
-                null, false, null,   // E1-2·S7 — 접촉 관찰(lastSeenAt·contactActive·remaining) 기본 fixture
+                null, false, null,false,    // E1-2·S7 — 접촉 관찰(lastSeenAt·contactActive·remaining) 기본 fixture
                 null, null);         // U3-4 — 스펙 미수집 서버는 그룹 키·라벨이 없다
     }
 
@@ -103,7 +103,7 @@ class GuestServerControllerTest {
                         ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now(),
                         null, null, null, null, true, false, false, false, false),   // E1-0a 미개시 + E1-2 액션 플래그 (ES-2: phaseMeta 소멸 · seed phase 파생)
                 null,   // E2-1-b firmwarePlan — 펌웨어 단계 미보유 fixture
-                null,   // E2-2 firmwareFlash — 집행 미착수 fixture
+                null,null,    // E2-2 firmwareFlash — 집행 미착수 fixture
                 List.of());
     }
 
@@ -121,7 +121,7 @@ class GuestServerControllerTest {
                         ProvisioningPhase.BOOTSTRAPPING, LocalDateTime.now(), null,
                         null, null, null, true, false, false, false, false),
                 null,   // E2-1-b firmwarePlan
-                null,   // E2-2 firmwareFlash
+                null,null,    // E2-2 firmwareFlash
                 List.of());
     }
 

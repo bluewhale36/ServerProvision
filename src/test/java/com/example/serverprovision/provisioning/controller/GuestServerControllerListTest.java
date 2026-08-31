@@ -60,7 +60,7 @@ class GuestServerControllerListTest {
         return new GuestServerSummaryResponse(
                 UUID.randomUUID(), name, UUID.randomUUID(), null, "MS03-CE0",
                 GuestServerStatus.PROVISIONING, ProvisioningPhase.DIAGNOSE_LINUX,
-                null, LocalDateTime.now(), null, false, null,
+                null, LocalDateTime.now(), null, false, null,false, 
                 new SpecGroupKey("k-fixture"), "MS03-CE0 · 6338 ×2");   // U3-4 — 그룹 화면의 혼재 판정 입력
     }
 

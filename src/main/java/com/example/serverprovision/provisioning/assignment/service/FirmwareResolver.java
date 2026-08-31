@@ -96,7 +96,8 @@ public class FirmwareResolver {
         }
         // 굽을 파일의 경로를 여기서 함께 싣는다 — 존재를 방금 확인했고, 집행(E2-2)이 이 경로를 HTTP 로
         // 내주어 BMC 가 당겨 가기 때문이다. 소비 시점에 다시 조회하면 그 사이 자원이 움직일 수 있다.
-        return AxisResolution.selected(catalog.idOf(firmware), catalog.versionOf(firmware), imageFile.toString());
+        return AxisResolution.selected(catalog.idOf(firmware), catalog.nameOf(firmware),
+                catalog.versionOf(firmware), imageFile.toString());
     }
 
     // ---- 자원 종류별 접근 (BIOS · BMC 는 컬럼명만 다르고 판정은 같다) --------------------
@@ -109,9 +110,14 @@ public class FirmwareResolver {
             Function<Long, Optional<T>> latest,
             java.util.function.BiFunction<Long, Long, Optional<T>> byIdAndBoard,
             Function<T, Long> id,
+            Function<T, String> name,
             Function<T, String> version,
             Function<T, String> treeRoot,
             Function<T, String> entrypoint) {
+
+        String nameOf(T firmware) {
+            return name.apply(firmware);
+        }
 
         Optional<T> latestOf(Long boardModelId) {
             return latest.apply(boardModelId);
@@ -142,7 +148,7 @@ public class FirmwareResolver {
         return new Catalog<>(
                 boardId -> BoardBiosCatalog.latestEnabled(biosRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(boardId)),
                 (id, boardId) -> biosRepository.findByIdAndBoardModel_Id(id, boardId).filter(b -> !b.isDeleted()),
-                BoardBIOS::getId, BoardBIOS::getVersion,
+                BoardBIOS::getId, BoardBIOS::getName, BoardBIOS::getVersion,
                 BoardBIOS::getTreeRootPath, BoardBIOS::getEntrypointRelativePath);
     }
 
@@ -150,7 +156,7 @@ public class FirmwareResolver {
         return new Catalog<>(
                 boardId -> firstEnabled(bmcRepository.findAllByBoardModel_IdAndIsDeletedFalseOrderByVersionRankAsc(boardId)),
                 (id, boardId) -> bmcRepository.findByIdAndBoardModel_Id(id, boardId).filter(b -> !b.isDeleted()),
-                BoardBMC::getId, BoardBMC::getVersion,
+                BoardBMC::getId, BoardBMC::getName, BoardBMC::getVersion,
                 BoardBMC::getTreeRootPath, BoardBMC::getEntrypointRelativePath);
     }
 

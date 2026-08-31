@@ -41,6 +41,7 @@ public class FirmwareFlashCycle {
     private final List<FirmwareUpdateProvider> providers;
     private final FlashStepRegistry stepRegistry;
     private final ApplicationEventPublisher eventPublisher;
+    private final com.example.serverprovision.execution.engine.WorkerObservations observations;
 
     @Transactional
     public void advance(UUID guestServerId, LocalDateTime now) {
@@ -48,6 +49,8 @@ public class FirmwareFlashCycle {
         if (progress == null) {
             return;
         }
+        // 하트비트(E2-4 Q2) — 워커가 이 게스트를 확인했다는 사실. 관측 내용이 있는 step(Poll)이 덧쓴다.
+        observations.note(guestServerId, "집행 상태 점검", now);
         FlashContext context = contextOf(progress, guestServerId, now);
         stepRegistry.firstMatching(context).ifPresent(step -> {
             step.execute(context);

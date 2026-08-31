@@ -73,6 +73,7 @@ class FlashStepExecutionTest {
 
     private FlashLedger ledger;
     private FlashTimeoutPolicy timeoutPolicy;
+    private final com.example.serverprovision.execution.engine.WorkerObservations observations = new com.example.serverprovision.execution.engine.WorkerObservations();
     private BmcIdentityGuard guard;
 
     @BeforeEach
@@ -84,6 +85,7 @@ class FlashStepExecutionTest {
         given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.MATCHED);
         given(tokenRegistry.issue(any(), any(), any())).willReturn(UUID.randomUUID());
         given(tokenRegistry.urlFor(any())).willReturn("http://server/api/pxe/v1/firmware/tok");
+        given(powerService.reset(any(), any())).willReturn(PowerControlResult.sent(RedfishPowerState.OFF, "차단"));
     }
 
     // ---- 4행 착수 ------------------------------------------------------------
@@ -94,7 +96,7 @@ class FlashStepExecutionTest {
         ProvisioningProgress progress = started();
         FlashContext ctx = context(progress, List.of(), ready());
 
-        new BeginFlashStep(guard, powerService).execute(ctx);
+        new BeginFlashStep(guard, powerService, ledger).execute(ctx);
 
         assertThat(progress.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.BIOS_UPDATING);
         verify(powerService).reset(any(), eq(RedfishResetType.FORCE_OFF));
@@ -106,7 +108,7 @@ class FlashStepExecutionTest {
         given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.MISMATCHED);
         ProvisioningProgress progress = started();
 
-        new BeginFlashStep(guard, powerService).execute(context(progress, List.of(), ready()));
+        new BeginFlashStep(guard, powerService, ledger).execute(context(progress, List.of(), ready()));
 
         verify(powerService, never()).reset(any(), any());
         assertThat(progress.isFailed()).isTrue();
@@ -121,7 +123,7 @@ class FlashStepExecutionTest {
         GuestServerDetail detail = detail();
 
         FlashContext ctx = new FlashContext(server(), started(), detail, List.of(), ready(), provider, T);
-        new BeginFlashStep(guard, powerService).execute(ctx);
+        new BeginFlashStep(guard, powerService, ledger).execute(ctx);
 
         assertThat(detail.getBmcIp()).isEqualTo(IpAddressVO.of("10.10.0.77"));
         verify(powerService, never()).reset(any(), any());
@@ -135,7 +137,7 @@ class FlashStepExecutionTest {
         ProvisioningProgress progress = started();
 
         FlashContext ctx = context(progress, List.of(), ready());
-        new BeginFlashStep(guard, powerService).execute(
+        new BeginFlashStep(guard, powerService, ledger).execute(
                 new FlashContext(ctx.server(), progress, ctx.detail(), List.of(), ready(), provider, T.plusHours(1)));
 
         assertThat(progress.isFailed()).isTrue();
@@ -210,7 +212,7 @@ class FlashStepExecutionTest {
         ProvisioningHistory row = openFlashRow(FirmwareAxis.BIOS);
         given(provider.pollTask(any(), any())).willReturn(FlashTaskState.COMPLETED);
 
-        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry).execute(context(progress, List.of(row), ready()));
+        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations).execute(context(progress, List.of(row), ready()));
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
         assertThat(progress.isFailed()).isFalse();
@@ -227,7 +229,7 @@ class FlashStepExecutionTest {
         ProvisioningHistory row = openFlashRow(FirmwareAxis.BIOS);
         given(provider.pollTask(any(), any())).willReturn(FlashTaskState.FAILED);
 
-        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry).execute(context(progress, List.of(row), ready()));
+        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations).execute(context(progress, List.of(row), ready()));
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
         assertThat(row.getStatusMeta()).contains(FlashLedger.FLASH_EXCEPTION);
@@ -241,7 +243,7 @@ class FlashStepExecutionTest {
         ProvisioningHistory row = openFlashRow(FirmwareAxis.BIOS);
         given(provider.pollTask(any(), any())).willReturn(FlashTaskState.UNREACHABLE);
 
-        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry).execute(context(progress, List.of(row), ready()));
+        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations).execute(context(progress, List.of(row), ready()));
 
         assertThat(row.getFinishedAt()).isNull();
         assertThat(progress.isFailed()).isFalse();
@@ -256,7 +258,7 @@ class FlashStepExecutionTest {
 
         FlashContext late = new FlashContext(server(), progress, detail(), List.of(row), ready(), provider,
                 T.plusMinutes(16));   // BIOS 기본 시한 15분
-        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry).execute(late);
+        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations).execute(late);
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
         assertThat(row.getStatusMeta()).contains(FlashLedger.BMC_UNREACHABLE);
@@ -452,5 +454,98 @@ class FlashStepExecutionTest {
 
         assertThat(progress.isFailed()).isFalse();
         verify(powerService).powerOnAndVerify(any(), any());
+    }
+
+    // ---- E2-4 — 전원 사건 기록 · 축 오염 방지 ----------------------------------
+
+    @Test
+    @DisplayName("착수 — 전원 차단 사건이 원장에 남는다(SUCCEEDED · power-off · 결과 메시지)")
+    void begin_recordsPowerOffEvent() {
+        new BeginFlashStep(guard, powerService, ledger).execute(context(started(), List.of(), ready()));
+
+        ArgumentCaptor<String> meta = ArgumentCaptor.forClass(String.class);
+        verify(recorder).recordInstant(any(), eq(ProvisioningPhaseStep.BIOS_UPDATING),
+                eq(ProvisioningStatus.SUCCEEDED), meta.capture(), any());
+        assertThat(meta.getValue()).contains("\"origin\":\"power-off\"").contains("차단");
+    }
+
+    @Test
+    @DisplayName("전원 — 투입이 검증되면 무장 결과를 detail 로 남기고, FAILED 면 사건 행이 없다")
+    void powerOn_recordsEventOnlyWhenVerified() {
+        given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.OFF, "Off"));
+        given(powerService.powerOnAndVerify(any(), any())).willReturn(
+                PowerControlResult.verified("다음 부팅 PXE 강제 : 반영 확인 · 전원이 켜졌습니다"));
+
+        new PowerOnStep(guard, powerService, timeoutPolicy, ledger)
+                .execute(context(flashing(FirmwareAxis.BMC), closedBoth(), ready()));
+
+        ArgumentCaptor<String> meta = ArgumentCaptor.forClass(String.class);
+        verify(recorder).recordInstant(any(), eq(ProvisioningPhaseStep.BMC_UPDATING),
+                eq(ProvisioningStatus.SUCCEEDED), meta.capture(), any());
+        assertThat(meta.getValue()).contains("\"origin\":\"power-on\"").contains("반영 확인");
+
+        // FAILED — 전원이 움직이지 않았으니 사건이 없다(D-4).
+        org.mockito.Mockito.reset(recorder);
+        given(powerService.powerOnAndVerify(any(), any())).willReturn(
+                PowerControlResult.failed(RedfishPowerState.OFF, "수동 개입 필요"));
+        new PowerOnStep(guard, powerService, timeoutPolicy, ledger)
+                .execute(context(flashing(FirmwareAxis.BMC), closedBoth(), ready()));
+        verify(recorder, never()).recordInstant(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("오염 방지(F-A) — 전원 사건 행은 축 처리 판정에 끼지 않고, 복귀 기점은 그 행 시각이 된다")
+    void powerRowsDoNotPolluteAxisJudgement() {
+        ProvisioningHistory powerOffOnly = ProvisioningHistory.instant(server(), FirmwareAxis.BIOS.getStep(),
+                ProvisioningStatus.SUCCEEDED,
+                ProvisioningHistory.flashOutcomeMeta(FlashLedger.POWER_OFF, "차단"), T);
+        FlashContext beforeFlash = new FlashContext(server(), flashing(FirmwareAxis.BIOS), detail(),
+                List.of(powerOffOnly), ready(), provider, T);
+        // 차단 행만 있는 BIOS 축은 여전히 "손 안 댄 축" 이다 — 아니면 굽기를 통째로 건너뛴다.
+        assertThat(beforeFlash.nextUntouchedAxis()).contains(FirmwareAxis.BIOS);
+
+        ProvisioningHistory powerOn = ProvisioningHistory.instant(server(), FirmwareAxis.BMC.getStep(),
+                ProvisioningStatus.SUCCEEDED,
+                ProvisioningHistory.flashOutcomeMeta(FlashLedger.POWER_ON, "투입"), T.plusMinutes(9));
+        java.util.List<ProvisioningHistory> all = new java.util.ArrayList<>(closedBoth());
+        all.add(powerOn);
+        FlashContext afterPowerOn = new FlashContext(server(), flashing(FirmwareAxis.BMC), detail(),
+                all, ready(), provider, T.plusMinutes(10));
+        assertThat(afterPowerOn.nextUntouchedAxis()).isEmpty();                       // 실 종결 행이 판정
+        assertThat(afterPowerOn.closedRowOf(FirmwareAxis.BMC))                        // 축 결과 = 목표 행
+                .hasValueSatisfying(row -> assertThat(row.flashTargetVersion()).isNotNull());
+        assertThat(afterPowerOn.returnWaitSince()).isEqualTo(T.plusMinutes(9));       // 기점 = 투입 사건
+    }
+
+    // ---- E2-4 CP5 F-2 — 신원 확인이 커서 이동보다 먼저다(livelock 재발 방지) --------
+
+    @Test
+    @DisplayName("축 착수 — 신원이 확인되지 않으면 커서도 전이 시각도 움직이지 않는다(시한이 되감기지 않는다)")
+    void axis_identityFailureKeepsCursorAndClock() {
+        given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.UNREACHABLE);
+        given(rediscovery.currentAddressOf(any())).willReturn(Optional.empty());
+        ProvisioningProgress progress = flashing(FirmwareAxis.BIOS);
+        FlashContext ctx = new FlashContext(server(), progress, detail(),
+                List.of(closed(FirmwareAxis.BIOS, "F29")), ready(), provider, T.plusMinutes(3));
+
+        new FlashAxisStep(guard, tokenRegistry, ledger).execute(ctx);
+
+        assertThat(progress.getCurrentStep()).isEqualTo(FirmwareAxis.BIOS.getStep());   // BMC 로 전진 안 함
+        assertThat(progress.getLastTransitionAt()).isEqualTo(T);                        // 시한 기점 불변
+        assertThat(progress.isFailed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("축 착수 — 건너뜀 경로는 신원 없이도 커서를 전진시키고 SKIPPED 를 남긴다(종전 동작 유지)")
+    void axis_skipPathStillAdvancesCursor() {
+        ProvisioningProgress progress = flashing(FirmwareAxis.BIOS);
+        FlashContext ctx = new FlashContext(server(), progress, detail(),
+                List.of(closed(FirmwareAxis.BIOS, "F29")), null, provider, T.plusMinutes(3));   // 해석 없음 → skip
+
+        new FlashAxisStep(guard, tokenRegistry, ledger).execute(ctx);
+
+        assertThat(progress.getCurrentStep()).isEqualTo(FirmwareAxis.BMC.getStep());
+        verify(recorder).recordInstant(any(), eq(FirmwareAxis.BMC.getStep()),
+                eq(ProvisioningStatus.SKIPPED), any(), any());
     }
 }

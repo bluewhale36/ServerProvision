@@ -79,7 +79,13 @@
              rollover 재조회 예약 입력 (침묵 전이는 발행 이벤트가 없는 변화) -->
         <span th:if="${server.contactActive}" class="n-badge n-badge-teal"
               th:data-contact-remaining="${server.contactRemainingSeconds}">연결 중</span>
-        <span th:if="${!server.contactActive and server.lastSeenAt != null}" class="n-badge n-badge-gray"
+        <!-- E2-4 Q6 — 굽는 창의 침묵(전원 차단)은 '끊어짐' 이 아니라 설계다(decisions 8). -->
+        <span th:if="${!server.contactActive and server.lastSeenAt != null and server.disruptionBlocked}"
+              class="n-badge n-badge-blue"
+              th:title="|#{provisioning.contact.flashing} — 마지막 접촉 ${#temporals.format(server.lastSeenAt, 'yyyy-MM-dd HH:mm:ss')}|"
+              th:text="#{provisioning.contact.flashing.short}">집행 중</span>
+        <span th:if="${!server.contactActive and server.lastSeenAt != null and !server.disruptionBlocked}"
+              class="n-badge n-badge-gray"
               th:title="${#temporals.format(server.lastSeenAt, 'yyyy-MM-dd HH:mm:ss')}">끊어짐</span>
         <span th:if="${server.lastSeenAt == null}" class="n-muted">—</span>
     </td>

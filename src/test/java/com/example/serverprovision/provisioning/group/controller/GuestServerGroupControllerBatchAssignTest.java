@@ -88,7 +88,7 @@ class GuestServerGroupControllerBatchAssignTest {
 
     private static GuestServerSummaryResponse server(UUID id, String name, String board) {
         return new GuestServerSummaryResponse(id, name, UUID.randomUUID(), null, board,
-                null, null, null, LocalDateTime.now(), null, false, null, null, null);
+                null, null, null, LocalDateTime.now(), null, false, null,false,  null, null);
     }
 
     private static GroupDetailResponse group(List<GroupMemberResponse> members) {

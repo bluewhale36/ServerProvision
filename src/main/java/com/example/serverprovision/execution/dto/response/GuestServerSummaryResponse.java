@@ -36,6 +36,8 @@ public record GuestServerSummaryResponse(
         LocalDateTime lastSeenAt,
         boolean contactActive,
         Long contactRemainingSeconds,
+        /** 펌웨어를 굽는 창(E2-4 Q6) — 연결 배지가 '집행 중 · 전원 꺼짐' 으로 바꿔 말할 조건 재료. */
+        boolean disruptionBlocked,
         SpecGroupKey specGroupKey,
         String specLabel
 ) {

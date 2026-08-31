@@ -47,6 +47,8 @@ public record GuestServerDetailResponse(
         FirmwarePlan firmwarePlan,
         /** 집행에 착수한 뒤에만 — 계획이 "무엇을" 이라면 이것은 "어디까지" 다(E2-2). */
         FirmwareFlash firmwareFlash,
+        /** 설정 phase 의 집행 현황(E2-4 R1) — 설정 축 원장 행이 생긴 뒤에만. */
+        FirmwareSetting firmwareSetting,
         List<Step> steps
 ) {
 
@@ -96,8 +98,38 @@ public record GuestServerDetailResponse(
     public record FirmwareFlash(
             boolean running,
             java.util.List<AxisFlash> axes,
-            long remainingMinutes,
+            /** 구간 문구(E2-4 §3 진리표) — 축 상태 너머 "지금 어디쯤인가". null 이면 표시 생략. */
+            String stageText,
+            /** 구간 잔여 분 — 시한이 걸린 구간(굽는 중 · 복귀 대기)만. null 이면 표시 생략. */
+            Long stageRemainingMinutes,
+            /** 워커 하트비트(E2-4 Q2) — "HH:mm:ss 확인 — …". 인메모리 최신값이라 재기동 직후엔 null. */
+            String lastObservation,
             boolean poweredOff
+    ) {
+    }
+
+    /**
+     * 설정 phase 의 집행 현황(E2-4 R1) — 원장 meta(pendingSeen · rebootAt · items · bondAt)의 화면 투영.
+     * 설정 축 원장 행이 하나도 없으면 record 자체가 null(카드 미표시).
+     */
+    public record FirmwareSetting(
+            java.util.List<AxisSetting> axes,
+            /** 침묵 대기의 사유(E2-4 R6) — BMC 호출 없이 DB 사실로만 파생. null 이면 표시 생략. */
+            String waitingReason
+    ) {
+    }
+
+    /** 설정 축 한 줄 — 상태 어휘는 펌웨어 집행과 같은 {@link AxisFlashState}(라벨 보유 enum). */
+    public record AxisSetting(
+            String label,
+            AxisFlashState state,
+            /** 세부 국면(PATCH 중 · 재부팅 — 복귀 대기 · readback 대기 · Bond 재접속 대기 …). null 이면 생략. */
+            String stageText,
+            Long stageRemainingMinutes,
+            /** BMC 축의 항목 진행("2/4 적용") — BIOS 축은 null. */
+            String itemsProgress,
+            /** 사유 · 요약(원장 detail 우선) — 정상 진행이면 null. */
+            String note
     ) {
     }
 
@@ -176,7 +208,9 @@ public record GuestServerDetailResponse(
             ProvisioningPhaseStep step,
             ProvisioningStatus status,
             LocalDateTime startedAt,
-            LocalDateTime finishedAt
+            LocalDateTime finishedAt,
+            /** 사유 · 요약(E2-4 R5) — meta 의 detail 우선, 없으면 origin 코드. meta 없으면 null. */
+            String note
     ) {
     }
 }
