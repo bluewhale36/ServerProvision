@@ -19,7 +19,6 @@ public class RedfishBiosService {
     static final String BIOS_PATH = "/redfish/v1/Systems/Self/Bios";
     static final String REGISTRIES_PATH = "/redfish/v1/Registries/";
     static final String PENDING_PATH = "/redfish/v1/Systems/Self/Bios/SD";
-    static final String IF_MATCH_ANY = "*";
 
     private final RedfishClient redfishClient;
     private final BmcCredentialsFallback credentialsFallback;
@@ -30,26 +29,16 @@ public class RedfishBiosService {
     }
 
     /**
-     * 목표 속성을 pending 에 쓴다 — 먼저 {@code If-Match: *}, 412 면 fresh ETag 로 한 번 더(MAAS 선례 · 실측).
-     * 그래도 거절되면 예외를 그대로 올린다 — 호출자가 PATCH_REJECTED 로 닫는다.
+     * 목표 속성을 pending 에 쓴다 — If-Match 사다리({@code *} → 412 시 fresh ETag)는
+     * {@link RedfishClient#patchJsonRefreshingEtag} 로 올라갔다(E2.5 에서 두 번째 사용처 발생).
+     * 사다리 밖 거절은 그대로 올라온다 — 호출자가 PATCH_REJECTED 로 닫는다.
      */
     public void patchPending(RedfishTarget target, Map<String, Object> attributes) {
         Map<String, Object> body = Map.of("Attributes", attributes);
-        try {
-            credentialsFallback.attempt(target, c -> {
-                redfishClient.patchJson(target.bmcIp(), c, PENDING_PATH, IF_MATCH_ANY, body);
-                return null;
-            });
-        } catch (RedfishRequestException first) {
-            if (first.getError() != RedfishError.PRECONDITION_FAILED) {
-                throw first;
-            }
-            String etag = bios(target).etag();
-            credentialsFallback.attempt(target, c -> {
-                redfishClient.patchJson(target.bmcIp(), c, PENDING_PATH, etag, body);
-                return null;
-            });
-        }
+        credentialsFallback.attempt(target, c -> {
+            redfishClient.patchJsonRefreshingEtag(target.bmcIp(), c, PENDING_PATH, BIOS_PATH, body);
+            return null;
+        });
     }
 
     /**

@@ -20,6 +20,7 @@ import com.example.serverprovision.execution.service.BmcAddressRediscovery;
 import com.example.serverprovision.execution.service.BmcIdentityProbe;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.execution.vo.MacAddressVO;
+import com.example.serverprovision.global.redfish.NextBoot;
 import com.example.serverprovision.global.redfish.PowerControlResult;
 import com.example.serverprovision.global.redfish.RedfishBiosService;
 import com.example.serverprovision.global.redfish.RedfishError;
@@ -103,7 +104,7 @@ class SettingStepExecutionTest {
         });
         given(biosService.pending(any())).willReturn(Optional.of(attributes(TARGET)));
         given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "On"));
-        given(powerService.reset(any(), any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "sent"));
+        given(powerService.reset(any(), any(), any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "sent"));
         // 레지스트리 채집 불가 = 판정 없음 — 종전 시나리오(PATCH → BMC 판정)를 그대로 지난다(E3-3 Q2).
         given(registryPort.captureAndCheck(any(), any(), any()))
                 .willReturn(com.example.serverprovision.execution.engine.setting.RegistryCheck.unavailable());
@@ -129,7 +130,7 @@ class SettingStepExecutionTest {
         InOrder order = inOrder(recorder, biosService, powerService);
         order.verify(recorder).openRunning(any(), eq(ProvisioningPhaseStep.BIOS_SETTING), eq(T), any());
         order.verify(biosService).patchPending(any(), eq(TARGET));
-        order.verify(powerService).reset(any(), eq(RedfishResetType.FORCE_RESTART));
+        order.verify(powerService).reset(any(), eq(RedfishResetType.FORCE_RESTART), any());
 
         ProvisioningHistory row = opened.get();
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
@@ -146,7 +147,7 @@ class SettingStepExecutionTest {
 
         begin().execute(context(server(), started(), List.of(), target(), T));
 
-        verify(powerService).reset(any(), eq(RedfishResetType.ON));
+        verify(powerService).reset(any(), eq(RedfishResetType.ON), any());
     }
 
     @Test
@@ -163,7 +164,7 @@ class SettingStepExecutionTest {
         assertThat(row.getStatusMeta()).contains(SettingLedger.PATCH_REJECTED).contains("400 Bad Request");
         assertThat(ledger.targetOf(row)).containsExactlyInAnyOrderEntriesOf(TARGET);
         assertThat(progress.isFailed()).isTrue();
-        verify(powerService, never()).reset(any(), any());
+        verify(powerService, never()).reset(any(), any(), any());
         verify(biosService, never()).pending(any());
     }
 
@@ -179,14 +180,14 @@ class SettingStepExecutionTest {
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
         assertThat(row.getStatusMeta()).contains("\"pendingSeen\":false");
         assertThat(ledger.rebootAtOf(row)).isEqualTo(T);
-        verify(powerService).reset(any(), any());
+        verify(powerService).reset(any(), any(), any());
         assertThat(progress.isFailed()).isFalse();
     }
 
     @Test
     @DisplayName("착수 — 재부팅 명령이 실패하면 행을 rebootAt 없이 남겨 다음 주기가 이어받게 한다")
     void begin_resetFailedLeavesRowResumable() {
-        given(powerService.reset(any(), any()))
+        given(powerService.reset(any(), any(), any()))
                 .willReturn(PowerControlResult.failed(RedfishPowerState.UNKNOWN, "연결 불가"));
         ProvisioningProgress progress = started();
 
@@ -538,7 +539,7 @@ class SettingStepExecutionTest {
         assertThat(ledger.targetOf(row)).containsExactlyInAnyOrderEntriesOf(TARGET);
         assertThat(progress.isFailed()).isTrue();
         verify(biosService, never()).patchPending(any(), any());
-        verify(powerService, never()).reset(any(), any());
+        verify(powerService, never()).reset(any(), any(), any());
     }
 
     @Test
@@ -551,7 +552,17 @@ class SettingStepExecutionTest {
         begin().execute(context(server(), progress, List.of(), target(), T));
 
         verify(biosService).patchPending(any(), any());
-        verify(powerService).reset(any(), any());
+        verify(powerService).reset(any(), any(), any());
         assertThat(progress.isFailed()).isFalse();
+    }
+
+    // ---- E2.5 — 재부팅 무장 ---------------------------------------------------
+
+    @Test
+    @DisplayName("착수 — 재부팅은 다음 부팅 PXE 무장 인자로 나간다(E2.5 D-6)")
+    void begin_armsPxeOnce() {
+        begin().execute(context(server(), started(), List.of(), target(), T));
+
+        verify(powerService).reset(any(), any(), eq(NextBoot.PXE_ONCE));
     }
 }

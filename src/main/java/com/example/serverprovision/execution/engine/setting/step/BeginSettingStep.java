@@ -9,6 +9,7 @@ import com.example.serverprovision.execution.engine.setting.SettingLedger;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.service.BmcIdentityProbe;
+import com.example.serverprovision.global.redfish.NextBoot;
 import com.example.serverprovision.global.redfish.PowerControlResult;
 import com.example.serverprovision.global.redfish.RedfishBiosService;
 import com.example.serverprovision.global.redfish.RedfishPowerService;
@@ -98,14 +99,15 @@ public class BeginSettingStep implements SettingStep {
 
         RedfishResetType reset = powerService.powerState(target).powerState() == RedfishPowerState.OFF
                 ? RedfishResetType.ON : RedfishResetType.FORCE_RESTART;
-        PowerControlResult result = powerService.reset(target, reset);
+        // 재부팅 직전 다음 부팅을 PXE 로 무장한다(E2.5) — OS 가 남은 디스크로 이탈하면 readback 이 오지 않는다.
+        PowerControlResult result = powerService.reset(target, reset, NextBoot.PXE_ONCE);
         if (result.kind() == PowerControlResult.Kind.FAILED) {
             log.info("[setting] {} — 재부팅 명령 실패, 다음 주기 재시도 : {}", context.server().getId(), result.message());
             return;   // 행은 rebootAt 없이 남는다 — 다음 주기가 이 행을 이어 다시 한다
         }
         ledger.markRebooted(row, context.now());
-        log.info("[setting] {} — BIOS 설정 {}개 PATCH(pending {}), {} 발행", context.server().getId(),
-                attributes.size(), pendingSeen ? "확인" : "미확인", reset.name());
+        log.info("[setting] {} — BIOS 설정 {}개 PATCH(pending {}), {} 발행 : {}", context.server().getId(),
+                attributes.size(), pendingSeen ? "확인" : "미확인", reset.name(), result.message());
     }
 
     private static boolean covers(JsonNode pending, Map<String, Object> attributes) {

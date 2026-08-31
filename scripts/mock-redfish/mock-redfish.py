@@ -75,6 +75,11 @@ CERT, KEY = os.path.join(HERE, 'cert.pem'), os.path.join(HERE, 'key.pem')
 BOARD_SERIAL = 'QG260700082'
 OTHER_SERIAL = 'QG260700131'   # wrong-device 모드가 답하는 남의 장비 시리얼
 
+def boot_initial():
+    # E0-4-1 실측 초기값 — Mode 는 Legacy 가 현재값이었다(E2.5 가 UEFI 를 명시하는 근거).
+    return {'BootSourceOverrideEnabled': 'Disabled', 'BootSourceOverrideTarget': 'None',
+            'BootSourceOverrideMode': 'Legacy'}
+
 STATE = {
     'power': 'Off', 'mode': 'normal', 'requests': [],
     'inventory': {'BIOS': 'F27', 'BMC': '13.06.26'},   # 굽기 전 현재 버전
@@ -90,7 +95,9 @@ STATE = {
     'biosEtag': 5000,
     'biosPending': None,                           # PATCH 가 만든 pending (None = 비어 있음 → GET 404)
     'biosPatches': [],                             # If-Match · Attributes 요청 원문
-    'patch412Served': False,                       # patch-412-once 모드의 1회 소비 표식
+    'patch412Served': False,
+                          'boot': boot_initial(), 'systemEtag': 7000, 'bootPatches': [],
+                          'bootPending': None, 'bootPatch412Served': False, 'bootedVia': [],                       # patch-412-once 모드의 1회 소비 표식
     'web': None,                                   # AMI 웹 API 상태(E3-2) — web_initial() 로 채운다
 }
 
@@ -172,6 +179,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """단절 구간 판정 — bmc-rebooting 모드이거나 Bond 재구성(bond-drop) 창 안이면 어느 경로든 연결을 주지 않는다."""
         return STATE['mode'] == 'bmc-rebooting' or time.time() < STATE['web']['bondDropUntil']
 
+    def _consume_boot_override(self):
+        """POST 재연(E2.5) — pending 무장을 먼저 적용하고, Once 를 소진하며 어디로 부팅했는지 기록한다."""
+        if STATE['bootPending']:
+            STATE['boot'].update(STATE['bootPending'])
+            STATE['bootPending'] = None
+        armed = STATE['boot'].get('BootSourceOverrideEnabled') in ('Once', 'Continuous') \
+            and STATE['boot'].get('BootSourceOverrideTarget') == 'Pxe'
+        STATE['bootedVia'].append('Pxe' if armed else 'BootOrder')
+        if STATE['boot'].get('BootSourceOverrideEnabled') == 'Once':
+            STATE['boot']['BootSourceOverrideEnabled'] = 'Disabled'
+            STATE['boot']['BootSourceOverrideTarget'] = 'None'
+
     def do_GET(self):
         if self.path == '/__state':
             self._json(200, STATE)
@@ -187,7 +206,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._json(401, {'error': 'unauthorized'})
             return
         if self.path == '/redfish/v1/Systems/Self':
-            self._json(200, {'PowerState': STATE['power']})
+            boot = dict(STATE['boot'])
+            boot.update({
+                'BootSourceOverrideEnabled@Redfish.AllowableValues': ['Disabled', 'Once', 'Continuous'],
+                'BootSourceOverrideTarget@Redfish.AllowableValues': ['None', 'Pxe', 'Hdd', 'BiosSetup'],
+                'BootSourceOverrideMode@Redfish.AllowableValues': ['Legacy', 'UEFI']})
+            self._json(200, {'PowerState': STATE['power'], 'Boot': boot},
+                       headers={'ETag': 'W/"%d"' % STATE['systemEtag']})
+        elif self.path == '/redfish/v1/Managers/Self':
+            # BMC 자기 버전의 표준 자리(2026-08-25 실측 · abfd28d) — 없으면 VerifyFlashStep 의 BMC 축이
+            # "읽지 못함" 으로 실패한다(E2.5 CP5 F-1 발견).
+            self._json(200, {'FirmwareVersion': STATE['inventory']['BMC']})
         elif self.path == '/redfish/v1/Systems/Self/Bios':
             self._json(200, {'Id': 'Bios', 'AttributeRegistry': 'BiosAttributeRegistry',
                              'Attributes': dict(STATE['bios'])},
@@ -396,6 +425,31 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not self._authed():
             self._json(401, {'error': 'unauthorized'})
             return
+        if self.path == '/redfish/v1/Systems/Self':
+            # E2.5 — boot override PATCH. If-Match 사다리(* / fresh ETag)와 모드별 거동을 재연한다.
+            if_match = self.headers.get('If-Match')
+            if STATE['mode'] == 'boot-override-412-once' and not STATE['bootPatch412Served']:
+                STATE['bootPatch412Served'] = True
+                self._json(412, {'error': 'precondition failed'})
+                return
+            if if_match not in ('*', 'W/"%d"' % STATE['systemEtag']):
+                self._json(412, {'error': 'precondition failed'})
+                return
+            if STATE['mode'] == 'boot-override-reject':
+                self._json(400, {'error': {'@Message.ExtendedInfo': [
+                    {'Message': 'boot override rejected (mock mode boot-override-reject)'}]}})
+                return
+            boot = body.get('Boot') or {}
+            STATE['bootPatches'].append({'ifMatch': if_match, 'boot': boot})
+            if STATE['mode'] == 'boot-override-pending':
+                STATE['bootPending'] = dict(STATE['bootPending'] or {}, **boot)   # Systems/Self 표시 불변(SD 경유 재연)
+            else:
+                STATE['boot'].update(boot)
+            STATE['systemEtag'] += 1
+            self.send_response(204)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
         if self.path == '/redfish/v1/Systems/Self/Bios/SD':
             if_match = self.headers.get('If-Match')
             if STATE['mode'] == 'patch-412-once' and not STATE['patch412Served']:
@@ -455,6 +509,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                           'bios': {'SETUP004_BootupNumLockState': 'On', 'BirchStream0058_SpeedStepPstates': 'Enable',
                                    'BirchStream0059_TurboMode': 'Enable', 'BirchStream0063_PackageCState': 'Auto'},
                           'biosEtag': 5000, 'biosPending': None, 'biosPatches': [], 'patch412Served': False,
+                          'boot': boot_initial(), 'systemEtag': 7000, 'bootPatches': [],
+                          'bootPending': None, 'bootPatch412Served': False, 'bootedVia': [],
                           'web': web_initial()})
             self._json(200, STATE)
             return
@@ -506,9 +562,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if STATE['mode'] != 'on-noop':
                     STATE['power'] = 'On'      # on-noop: 202 만 주고 전원 불변(실측 실패 모드)
                     self._apply_pending()      # 꺼진 장비를 켜는 것도 POST 를 지난다 — pending 반영(E3-1)
+                    self._consume_boot_override()
             elif reset in ('PowerCycle', 'ForceRestart'):
                 STATE['power'] = 'On'
                 self._apply_pending()   # 재부팅 = POST 재연: pending 을 현재값에 반영하고 비운다
+                self._consume_boot_override()
             else:
                 self._json(400, {'error': 'unknown ResetType ' + str(reset)})
                 return

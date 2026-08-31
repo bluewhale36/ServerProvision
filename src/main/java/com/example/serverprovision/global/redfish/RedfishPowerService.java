@@ -22,6 +22,9 @@ import java.util.Optional;
  * </ul>
  * 자격증명은 {@link BmcCredentialsResolver} 후보를 순서대로 쓰고 401 에서만 다음 후보로 넘어간다(P1).
  * 모든 실패는 {@link PowerControlResult} 로 흡수된다 — 밖으로 던지는 예외가 없다(P4).
+ *
+ * <p>전원을 움직이는 호출은 발행 직전에 다음 부팅 의도({@link NextBoot})를 무장할 수 있다(E2.5) —
+ * 무장 → 발행 순서가 서비스 안에 고정되어 호출자가 빠뜨릴 수 없다(D-1).</p>
  */
 @Service
 public class RedfishPowerService {
@@ -57,13 +60,19 @@ public class RedfishPowerService {
         });
     }
 
-    /** 단발 발행 — Reset POST + Task 1 회 판독 + 직후 상태 1 회. 화면은 [상태 조회] 로 결과를 잇는다. */
+    /** 단발 발행 — Reset POST + Task 1 회 판독 + 직후 상태 1 회. 화면 경로 — 무장 없음(문구도 그대로, E2.5 D-6 · D-9). */
     public PowerControlResult reset(RedfishTarget target, RedfishResetType type) {
+        return reset(target, type, NextBoot.AS_CONFIGURED);
+    }
+
+    /** 단발 발행 + 다음 부팅 의도(E2.5) — 엔진의 재부팅 경로({@code BeginSettingStep})가 {@link NextBoot#PXE_ONCE} 로 부른다. */
+    public PowerControlResult reset(RedfishTarget target, RedfishResetType type, NextBoot nextBoot) {
         return guarded(target, credentials -> {
+            BootOverrideOutcome outcome = arm(nextBoot, target, credentials);
             issueReset(target, credentials, type);
             RedfishPowerState after = readPowerStateQuietly(target, credentials);
-            return PowerControlResult.sent(after,
-                    type.getDisplayName() + "(" + type.getWireValue() + ") 명령이 전달되었습니다 — [상태 조회] 로 결과를 확인하세요.");
+            return PowerControlResult.sent(after, outcome.prefix()
+                    + type.getDisplayName() + "(" + type.getWireValue() + ") 명령이 전달되었습니다 — [상태 조회] 로 결과를 확인하세요.");
         });
     }
 
@@ -71,17 +80,20 @@ public class RedfishPowerService {
      * 켜짐 검증 — On 발행 → 폴링 → 불변이면 PowerCycle 1 회 폴백 → 재폴링. 집행 소비처 전용(블로킹 최대
      * 약 2 × 폴링 타임아웃). 실측 실패 모드가 이 경로의 존재 이유다.
      */
-    public PowerControlResult powerOnAndVerify(RedfishTarget target) {
+    public PowerControlResult powerOnAndVerify(RedfishTarget target, NextBoot nextBoot) {
         return guarded(target, credentials -> {
+            BootOverrideOutcome first = arm(nextBoot, target, credentials);
             issueReset(target, credentials, RedfishResetType.ON);
             if (pollUntilOn(target, credentials)) {
-                return PowerControlResult.verified("전원이 켜졌습니다 (Reset(On) → PowerState 폴링 확인).");
+                return PowerControlResult.verified(first.prefix() + "전원이 켜졌습니다 (Reset(On) → PowerState 폴링 확인).");
             }
             log.warn("[redfish] {} — On 발행 후 {}초 동안 전원 불변(실측 실패 모드) → PowerCycle 폴백",
                     target.bmcIp(), pollTimeout.toSeconds());
+            // Once 는 POST 1회에 소진된다 — 첫 On 이 POST 를 지났는지 알 수 없으므로 폴백 직전 다시 무장한다(E2.5 D-5).
+            BootOverrideOutcome second = arm(nextBoot, target, credentials);
             issueReset(target, credentials, RedfishResetType.POWER_CYCLE);
             if (pollUntilOn(target, credentials)) {
-                return PowerControlResult.verified("PowerCycle 폴백으로 전원이 켜졌습니다.");
+                return PowerControlResult.verified(second.prefix() + "PowerCycle 폴백으로 전원이 켜졌습니다.");
             }
             log.warn("[redfish] {} — PowerCycle 폴백 후에도 전원 불변 — 수동 개입 필요", target.bmcIp());
             return PowerControlResult.failed(RedfishPowerState.OFF,
@@ -93,6 +105,17 @@ public class RedfishPowerService {
 
     private interface Attempt {
         PowerControlResult run(BmcCredentials credentials);
+    }
+
+    /** 무장(E2.5) — 전원 발행 직전 1회. 관찰 결과의 로그는 여기서, 메시지 접두는 호출자가 잇는다(D-4 · D-9). */
+    private BootOverrideOutcome arm(NextBoot nextBoot, RedfishTarget target, BmcCredentials credentials) {
+        BootOverrideOutcome outcome = nextBoot.arm(redfishClient, target.bmcIp(), credentials);
+        if (outcome.status() == BootOverrideOutcome.Status.REJECTED) {
+            log.warn("[redfish] {} — 다음 부팅 PXE 강제 거절(전원 명령은 계속) : {}", target.bmcIp(), outcome.detail());
+        } else if (outcome.status() == BootOverrideOutcome.Status.UNCONFIRMED) {
+            log.info("[redfish] {} — 다음 부팅 PXE 강제 미확인(pending 경유 가능)", target.bmcIp());
+        }
+        return outcome;
     }
 
     /** 공통 가드 — BMC 미검출 · 자격증명 부재 · 401 폴백 · 저수준 실패의 결과화. */

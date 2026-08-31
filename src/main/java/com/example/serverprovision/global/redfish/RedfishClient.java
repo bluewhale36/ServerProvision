@@ -87,6 +87,24 @@ public class RedfishClient {
     }
 
     /**
+     * PATCH 의 If-Match 사다리 — {@code *} 를 먼저 쓰고 <b>412 일 때만</b> {@code etagSourcePath} 의 fresh ETag 로
+     * 한 번 더(E0-4 실측 · MAAS 선례). E3-1 {@code RedfishBiosService} 의 사다리를 두 번째 사용처(E2.5 boot override)가
+     * 생겨 여기로 끌어올렸다. 412 밖의 거절과 두 번째 412 는 그대로 올린다 — 무한 재시도 없음.
+     */
+    public void patchJsonRefreshingEtag(String bmcIp, BmcCredentials credentials, String patchPath,
+                                        String etagSourcePath, Map<String, ?> body) {
+        try {
+            patchJson(bmcIp, credentials, patchPath, "*", body);
+        } catch (RedfishRequestException first) {
+            if (first.getError() != RedfishError.PRECONDITION_FAILED) {
+                throw first;
+            }
+            String etag = getForResource(bmcIp, credentials, etagSourcePath).etag();
+            patchJson(bmcIp, credentials, patchPath, etag, body);
+        }
+    }
+
+    /**
      * POST(JSON) → Task 경로. 실측(E0-4)의 SimpleUpdate · Reset 은 202 와 함께 Task 리소스를 준다 —
      * {@code Location} 헤더 또는 본문 {@code @odata.id} 에서 읽고, 어느 쪽에도 없으면 empty(2xx 면 전달 자체는 성공).
      */

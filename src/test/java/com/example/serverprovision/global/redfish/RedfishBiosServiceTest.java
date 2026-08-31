@@ -57,53 +57,23 @@ class RedfishBiosServiceTest {
     }
 
     @Test
-    @DisplayName("patchPending — If-Match:* 로 한 번에 받아들여지면 GET 을 하지 않는다")
-    void patchPending_ifMatchAnyFirst() {
+    @DisplayName("patchPending — If-Match 사다리 메서드에 PENDING_PATH · BIOS_PATH(ETag 원천)로 위임한다(E2.5 공유)")
+    void patchPending_delegatesToEtagLadder() {
         service.patchPending(TARGET, ATTRIBUTES);
 
-        verify(client).patchJson(eq(TARGET.bmcIp()), any(), eq(RedfishBiosService.PENDING_PATH), eq("*"), eq(BODY));
-        verify(client, never()).getForResource(anyString(), any(), anyString());
-    }
-
-    @Test
-    @DisplayName("patchPending — 412 면 fresh ETag 를 받아 한 번 더 쓴다")
-    void patchPending_412FallsBackToFreshEtag() {
-        willThrow(new RedfishRequestException(RedfishError.PRECONDITION_FAILED, "412", null))
-                .given(client).patchJson(anyString(), any(), anyString(), eq("*"), any());
-        given(client.getForResource(anyString(), any(), eq(RedfishBiosService.BIOS_PATH)))
-                .willReturn(new RedfishResource(JSON.readTree("{}"), "W/\"fresh\""));
-
-        service.patchPending(TARGET, ATTRIBUTES);
-
-        verify(client).patchJson(anyString(), any(), eq(RedfishBiosService.PENDING_PATH), eq("W/\"fresh\""), eq(BODY));
-        verify(client, times(2)).patchJson(anyString(), any(), anyString(), anyString(), any());
+        verify(client).patchJsonRefreshingEtag(eq(TARGET.bmcIp()), any(),
+                eq(RedfishBiosService.PENDING_PATH), eq(RedfishBiosService.BIOS_PATH), eq(BODY));
     }
 
     @Test
     @DisplayName("patchPending — 412 가 아닌 거절은 재시도 없이 그대로 올린다(호출자가 PATCH_REJECTED 로 닫는다)")
     void patchPending_otherErrorPropagatesWithoutRetry() {
         willThrow(new RedfishRequestException(RedfishError.PROTOCOL, "400 Bad Request", null))
-                .given(client).patchJson(anyString(), any(), anyString(), anyString(), any());
+                .given(client).patchJsonRefreshingEtag(anyString(), any(), anyString(), anyString(), any());
 
         assertThatThrownBy(() -> service.patchPending(TARGET, ATTRIBUTES))
                 .isInstanceOf(RedfishRequestException.class)
                 .hasMessage("400 Bad Request");
-        verify(client, times(1)).patchJson(anyString(), any(), anyString(), anyString(), any());
-        verify(client, never()).getForResource(anyString(), any(), anyString());
-    }
-
-    @Test
-    @DisplayName("patchPending — fresh ETag 로도 412 면 두 번째 예외를 올린다(무한 재시도 없음)")
-    void patchPending_412TwicePropagates() {
-        willThrow(new RedfishRequestException(RedfishError.PRECONDITION_FAILED, "412", null))
-                .given(client).patchJson(anyString(), any(), anyString(), anyString(), any());
-        given(client.getForResource(anyString(), any(), anyString()))
-                .willReturn(new RedfishResource(JSON.readTree("{}"), "W/\"fresh\""));
-
-        assertThatThrownBy(() -> service.patchPending(TARGET, ATTRIBUTES))
-                .isInstanceOf(RedfishRequestException.class)
-                .extracting("error").isEqualTo(RedfishError.PRECONDITION_FAILED);
-        verify(client, times(2)).patchJson(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test
@@ -117,7 +87,7 @@ class RedfishBiosServiceTest {
                 throw new RedfishRequestException(RedfishError.AUTH_FAILED, "401", null);
             }
             return null;
-        }).given(client).patchJson(anyString(), any(), anyString(), anyString(), any());
+        }).given(client).patchJsonRefreshingEtag(anyString(), any(), anyString(), anyString(), any());
 
         service.patchPending(TARGET, ATTRIBUTES);
 
