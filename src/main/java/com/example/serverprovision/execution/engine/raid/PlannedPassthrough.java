@@ -6,6 +6,8 @@ package com.example.serverprovision.execution.engine.raid;
 public record PlannedPassthrough(
         String slot,
         long usableBytes,
-        PlannedVolumeRole role
+        PlannedVolumeRole role,
+        /** 정의서 규칙 순번(1-based) — {@code raid_volume.rule_no} 기록의 원천(E3.5-3). */
+        int ruleNo
 ) {
 }

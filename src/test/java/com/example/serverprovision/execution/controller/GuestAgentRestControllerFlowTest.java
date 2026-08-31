@@ -17,6 +17,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.example.serverprovision.execution.engine.raid.RaidApplyPayload;
+import com.example.serverprovision.execution.engine.raid.RaidChipFamily;
+import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
@@ -216,5 +219,61 @@ class GuestAgentRestControllerFlowTest {
     void missingTokenHeader_returns400() throws Exception {
         mvc.perform(post("/api/pxe/v1/agent/checkin"))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ==== E3.5-3 — 집행 payload · 칩 힌트 · 검증 지시 직렬화 (진리표 V12) ====
+
+    @Test
+    @DisplayName("POST /agent/checkin — RAID_APPLY payload 와 칩 힌트 직렬화 (E3.5-3 결정 1 · 검수 반영)")
+    void checkin_carriesRaidApplyPayloadAndChipHint() throws Exception {
+        RaidApplyPayload payload = new RaidApplyPayload(true,
+                java.util.List.of(new RaidApplyPayload.VolumeSpec("spvR1V1", RaidLevel.RAID1,
+                        java.util.List.of("252:0", "252:1"))),
+                java.util.List.of("252:4"));
+        given(agentReportService.checkin(TOKEN)).willReturn(new AgentCheckinResponse(
+                AgentDirective.RAID_APPLY, "guest-01", payload, RaidChipFamily.agentChipHint()));
+
+        mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.directive").value("RAID_APPLY"))
+                .andExpect(jsonPath("$.raidApply.deleteExisting").value(true))
+                .andExpect(jsonPath("$.raidApply.volumes[0].name").value("spvR1V1"))
+                .andExpect(jsonPath("$.raidApply.volumes[0].level").value("RAID1"))
+                .andExpect(jsonPath("$.raidApply.volumes[0].slots[1]").value("252:1"))
+                .andExpect(jsonPath("$.raidApply.jbod[0]").value("252:4"))
+                .andExpect(jsonPath("$.raidChips").value("1000:0097=MPT_IR 1000:005d=MEGARAID"));
+    }
+
+    @Test
+    @DisplayName("POST /agent/steps/{id}/close — RAID_VERIFY 지시 직렬화 · payload 없는 지시는 필드가 비어 있다")
+    void close_carriesRaidVerifyDirective() throws Exception {
+        UUID stepId = UUID.randomUUID();
+        given(agentReportService.closeStep(eq(TOKEN), eq(stepId), any(), any()))
+                .willReturn(new StepCloseResponse(AgentDirective.RAID_VERIFY, null,
+                        RaidChipFamily.agentChipHint()));
+
+        mvc.perform(post("/api/pxe/v1/agent/steps/{id}/close", stepId)
+                        .header("X-Guest-Token", TOKEN)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"SUCCEEDED\",\"statusMeta\":null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.directive").value("RAID_VERIFY"))
+                .andExpect(jsonPath("$.raidChips").exists());
+    }
+
+    @Test
+    @DisplayName("POST /agent/steps — RAID_APPLYING · RAID_VERIFYING(E3.5-3 실배선 step) 역직렬화 + 201")
+    void openStep_raidApplySteps_return201() throws Exception {
+        for (String step : java.util.List.of("RAID_APPLYING", "RAID_VERIFYING")) {
+            UUID stepId = UUID.randomUUID();
+            given(agentReportService.openStep(eq(TOKEN), any())).willReturn(new StepOpenResponse(stepId));
+
+            mvc.perform(post("/api/pxe/v1/agent/steps")
+                            .header("X-Guest-Token", TOKEN)
+                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                            .content("{\"stepCode\":\"" + step + "\"}"))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.stepId").value(stepId.toString()));
+        }
     }
 }

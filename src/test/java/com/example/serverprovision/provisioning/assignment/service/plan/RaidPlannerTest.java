@@ -197,7 +197,7 @@ class RaidPlannerTest {
                             auto(), DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
 
             assertThat(plan.volumes()).extracting(PlannedVolume::name)
-                    .containsExactly("spv-r1-v1", "spv-r1-v2");
+                    .containsExactly("spvR1V1", "spvR1V2");
             assertThat(plan.volumes().get(0).memberSlots()).containsExactly("s:0", "s:1");
             assertThat(plan.volumes().get(1).memberSlots()).containsExactly("s:2", "s:3");
         }
@@ -267,7 +267,7 @@ class RaidPlannerTest {
 
             assertThat(plan.volumes()).hasSize(1);
             PlannedVolume volume = plan.volumes().get(0);
-            assertThat(volume.name()).isEqualTo("spv-r1-v1");
+            assertThat(volume.name()).isEqualTo("spvR1V1");
             assertThat(volume.level()).isEqualTo(level);
             assertThat(volume.usableBytes()).isEqualTo(usableFactor * PER_100GIB);
         }
@@ -324,7 +324,7 @@ class RaidPlannerTest {
                             tb(4), DiskCountMode.AT_LEAST, 3, DiskGroupRole.DATA));
 
             assertThat(plan.volumes()).extracting(PlannedVolume::name)
-                    .containsExactly("spv-r1-v1", "spv-r2-v1");
+                    .containsExactly("spvR1V1", "spvR2V1");
             assertThat(plan.unassigned()).isEmpty();
         }
 
@@ -343,7 +343,7 @@ class RaidPlannerTest {
                             auto(), DiskCountMode.AT_LEAST, 3, DiskGroupRole.BY_PRIORITY));
 
             assertThat(plan.volumes()).extracting(PlannedVolume::name)
-                    .containsExactly("spv-r1-v1", "spv-r2-v1", "spv-r2-v2");
+                    .containsExactly("spvR1V1", "spvR2V1", "spvR2V2");
             assertThat(plan.volumes().get(0).memberSlots()).containsExactly("s:0", "s:1");
             assertThat(plan.volumes().get(1).memberSlots()).containsExactly("m:0", "m:1", "m:2");
             assertThat(plan.volumes().get(2).memberSlots()).containsExactly("h:0", "h:1", "h:2");
@@ -365,7 +365,7 @@ class RaidPlannerTest {
 
             assertThat(plan.ruleOutcomes().get(0).matchedDisks()).isZero();
             assertThat(plan.volumes()).singleElement()
-                    .satisfies(v -> assertThat(v.name()).isEqualTo("spv-r2-v1"));
+                    .satisfies(v -> assertThat(v.name()).isEqualTo("spvR2V1"));
         }
     }
 
@@ -444,7 +444,7 @@ class RaidPlannerTest {
             assertThat(outcome).isInstanceOf(RaidPlanRejection.class);
             RaidPlanRejection rejection = (RaidPlanRejection) outcome;
             assertThat(rejection.code()).isEqualTo(RaidPlanRejection.MEMBER_COUNT);
-            assertThat(rejection.detail()).contains("spv-r1-v1").contains("정확히 2대");
+            assertThat(rejection.detail()).contains("spvR1V1").contains("정확히 2대");
         }
 
         @Test
@@ -683,7 +683,7 @@ class RaidPlannerTest {
             assertThat(plan.deleteExistingFirst()).isTrue();   // 실측 카드에 VD 2가 남아 있다
             assertThat(plan.volumes()).hasSize(2);
             PlannedVolume os = plan.volumes().get(0);
-            assertThat(os.name()).isEqualTo("spv-r1-v1");
+            assertThat(os.name()).isEqualTo("spvR1V1");
             assertThat(os.memberSlots()).containsExactly("252:0", "252:1");
             assertThat(os.role()).isEqualTo(PlannedVolumeRole.OS);
             PlannedVolume data = plan.volumes().get(1);
@@ -718,7 +718,7 @@ class RaidPlannerTest {
 
             assertThat(plan.deleteExistingFirst()).isTrue();   // IR 볼륨 323 이 남아 있다
             assertThat(plan.volumes()).singleElement().satisfies(v -> {
-                assertThat(v.name()).isEqualTo("spv-r1-v1");
+                assertThat(v.name()).isEqualTo("spvR1V1");
                 assertThat(v.level()).isEqualTo(RaidLevel.RAID1);
                 assertThat(v.memberSlots()).hasSize(2);
                 assertThat(v.role()).isEqualTo(PlannedVolumeRole.OS);

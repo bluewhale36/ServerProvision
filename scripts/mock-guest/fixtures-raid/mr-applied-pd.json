@@ -1,0 +1,684 @@
+{
+"Controllers":[
+{
+	"Command Status" : {
+		"CLI Version" : "007.2508.0000.0000 Feb 27, 2023",
+		"Operating system" : "Linux 6.12.0-211.16.1.el10_2.0.1.x86_64",
+		"Controller" : 0,
+		"Status" : "Success",
+		"Description" : "Show Drive Information Succeeded."
+	},
+	"Response Data" : {
+		"Drive /c0/e252/s0" : [
+			{
+				"EID:Slt" : "252:0",
+				"DID" : 6,
+				"State" : "Onln",
+				"DG" : 0,
+				"Size" : "446.625 GB",
+				"Intf" : "SATA",
+				"Med" : "SSD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "SAMSUNG MZ7L3480HCHQ-00B7C",
+				"Sp" : "U",
+				"Type" : "-"
+			}
+		],
+		"Drive /c0/e252/s0 - Detailed Information" : {
+			"Drive /c0/e252/s0 State" : {
+				"Shield Counter" : 0,
+				"Media Error Count" : 0,
+				"Other Error Count" : 0,
+				"Drive Temperature" : " 34C (93.20 F)",
+				"Predictive Failure Count" : 0,
+				"S.M.A.R.T alert flagged by drive" : "No"
+			},
+			"Drive /c0/e252/s0 Device attributes" : {
+				"SN" : "S6KLNN0YC41275      ",
+				"Manufacturer Id" : "ATA     ",
+				"Model Number" : "SAMSUNG MZ7L3480HCHQ-00B7C",
+				"NAND Vendor" : "NA",
+				"WWN" : "5002538FA5C3017A",
+				"Firmware Revision" : "JXTC604Q",
+				"Raw size" : "447.130 GB [0x37e436b0 Sectors]",
+				"Coerced size" : "446.625 GB [0x37d40000 Sectors]",
+				"Non Coerced size" : "446.630 GB [0x37d436b0 Sectors]",
+				"Device Speed" : "6.0Gb/s",
+				"Link Speed" : "6.0Gb/s",
+				"NCQ setting" : "Enabled",
+				"Write Cache" : "N/A",
+				"Logical Sector Size" : "512B",
+				"Physical Sector Size" : "4 KB",
+				"Connector Name" : "Port 0 - 3 x1"
+			},
+			"Drive /c0/e252/s0 Policies/Settings" : {
+				"Drive position" : "DriveGroup:0, Span:0, Row:0",
+				"Enclosure position" : "1",
+				"Connected Port Number" : "0(path0) ",
+				"Sequence Number" : 2,
+				"Commissioned Spare" : "No",
+				"Emergency Spare" : "No",
+				"Last Predictive Failure Event Sequence Number" : 0,
+				"Successful diagnostics completion on" : "N/A",
+				"FDE Type" : "None",
+				"SED Capable" : "No",
+				"SED Enabled" : "No",
+				"Secured" : "No",
+				"Cryptographic Erase Capable" : "Yes",
+				"Sanitize Support" : "Not supported",
+				"Locked" : "No",
+				"Needs EKM Attention" : "No",
+				"PI Eligible" : "No",
+				"Drive is formatted for PI" : "No",
+				"PI type" : "No PI",
+				"Number of bytes of user data in LBA" : "0 KB",
+				"Certified" : "No",
+				"Wide Port Capable" : "No",
+				"Multipath" : "No",
+				"Port Information" : [
+					{
+						"Port" : 0,
+						"Status" : "Active",
+						"Linkspeed" : "6.0Gb/s",
+						"SAS address" : "0x4433221100000000"
+					}
+				]
+			},
+			"Inquiry Data" : "40 00 ff 3f 37 c8 10 00 00 00 00 00 3f 00 00 00 00 00 00 00 36 53 4c 4b 4e 4e 59 30 34 43 32 31 35 37 20 20 20 20 20 20 00 00 00 00 00 00 58 4a 43 54 30 36 51 34 41 53 53 4d 4e 55 20 47 5a 4d 4c 37 34 33 30 38 43 48 51 48 30 2d 42 30 43 37 20 20 20 20 20 20 20 20 20 20 20 20 20 20 10 80 01 40 00 2f 00 40 00 02 00 02 07 00 ff 3f 10 00 3f 00 10 fc fb 00 10 bd ff ff ff 0f 00 00 07 00 "
+		},
+		"Drive /c0/e252/s1" : [
+			{
+				"EID:Slt" : "252:1",
+				"DID" : 7,
+				"State" : "Onln",
+				"DG" : 0,
+				"Size" : "446.625 GB",
+				"Intf" : "SATA",
+				"Med" : "SSD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "SAMSUNG MZ7L3480HCHQ-00B7C",
+				"Sp" : "U",
+				"Type" : "-"
+			}
+		],
+		"Drive /c0/e252/s1 - Detailed Information" : {
+			"Drive /c0/e252/s1 State" : {
+				"Shield Counter" : 0,
+				"Media Error Count" : 0,
+				"Other Error Count" : 0,
+				"Drive Temperature" : " 35C (95.00 F)",
+				"Predictive Failure Count" : 0,
+				"S.M.A.R.T alert flagged by drive" : "No"
+			},
+			"Drive /c0/e252/s1 Device attributes" : {
+				"SN" : "S6KLNN0YC41279      ",
+				"Manufacturer Id" : "ATA     ",
+				"Model Number" : "SAMSUNG MZ7L3480HCHQ-00B7C",
+				"NAND Vendor" : "NA",
+				"WWN" : "5002538FA5C3017E",
+				"Firmware Revision" : "JXTC604Q",
+				"Raw size" : "447.130 GB [0x37e436b0 Sectors]",
+				"Coerced size" : "446.625 GB [0x37d40000 Sectors]",
+				"Non Coerced size" : "446.630 GB [0x37d436b0 Sectors]",
+				"Device Speed" : "6.0Gb/s",
+				"Link Speed" : "6.0Gb/s",
+				"NCQ setting" : "Enabled",
+				"Write Cache" : "N/A",
+				"Logical Sector Size" : "512B",
+				"Physical Sector Size" : "4 KB",
+				"Connector Name" : "Port 0 - 3 x1"
+			},
+			"Drive /c0/e252/s1 Policies/Settings" : {
+				"Drive position" : "DriveGroup:0, Span:0, Row:1",
+				"Enclosure position" : "0",
+				"Connected Port Number" : "1(path0) ",
+				"Sequence Number" : 2,
+				"Commissioned Spare" : "No",
+				"Emergency Spare" : "No",
+				"Last Predictive Failure Event Sequence Number" : 0,
+				"Successful diagnostics completion on" : "N/A",
+				"FDE Type" : "None",
+				"SED Capable" : "No",
+				"SED Enabled" : "No",
+				"Secured" : "No",
+				"Cryptographic Erase Capable" : "Yes",
+				"Sanitize Support" : "Not supported",
+				"Locked" : "No",
+				"Needs EKM Attention" : "No",
+				"PI Eligible" : "No",
+				"Drive is formatted for PI" : "No",
+				"PI type" : "No PI",
+				"Number of bytes of user data in LBA" : "0 KB",
+				"Certified" : "No",
+				"Wide Port Capable" : "No",
+				"Multipath" : "No",
+				"Port Information" : [
+					{
+						"Port" : 0,
+						"Status" : "Active",
+						"Linkspeed" : "6.0Gb/s",
+						"SAS address" : "0x4433221101000000"
+					}
+				]
+			},
+			"Inquiry Data" : "40 00 ff 3f 37 c8 10 00 00 00 00 00 3f 00 00 00 00 00 00 00 36 53 4c 4b 4e 4e 59 30 34 43 32 31 39 37 20 20 20 20 20 20 00 00 00 00 00 00 58 4a 43 54 30 36 51 34 41 53 53 4d 4e 55 20 47 5a 4d 4c 37 34 33 30 38 43 48 51 48 30 2d 42 30 43 37 20 20 20 20 20 20 20 20 20 20 20 20 20 20 10 80 01 40 00 2f 00 40 00 02 00 02 07 00 ff 3f 10 00 3f 00 10 fc fb 00 10 bd ff ff ff 0f 00 00 07 00 "
+		},
+		"Drive /c0/e252/s2" : [
+			{
+				"EID:Slt" : "252:2",
+				"DID" : 22,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			}
+		],
+		"Drive /c0/e252/s2 - Detailed Information" : {
+			"Drive /c0/e252/s2 State" : {
+				"Shield Counter" : 0,
+				"Media Error Count" : 0,
+				"Other Error Count" : 0,
+				"Drive Temperature" : " 33C (91.40 F)",
+				"Predictive Failure Count" : 0,
+				"S.M.A.R.T alert flagged by drive" : "No"
+			},
+			"Drive /c0/e252/s2 Device attributes" : {
+				"SN" : "        V31DJUDM",
+				"Manufacturer Id" : "HGST    ",
+				"Model Number" : "HUS726T4TAL5204 ",
+				"NAND Vendor" : "NA",
+				"WWN" : "5000CCA0D14F2C63",
+				"Firmware Revision" : "C9U0",
+				"Firmware Release Number" : "N/A",
+				"Raw size" : "3.638 TB [0x1d1c0beb0 Sectors]",
+				"Coerced size" : "3.637 TB [0x1d1b00000 Sectors]",
+				"Non Coerced size" : "3.637 TB [0x1d1b0beb0 Sectors]",
+				"Device Speed" : "12.0Gb/s",
+				"Link Speed" : "12.0Gb/s",
+				"Write Cache" : "N/A",
+				"Logical Sector Size" : "512B",
+				"Physical Sector Size" : "4 KB",
+				"Connector Name" : "Port 0 - 3 x1"
+			},
+			"Drive /c0/e252/s2 Policies/Settings" : {
+				"Drive position" : "DriveGroup:1, Span:0, Row:5",
+				"Enclosure position" : "0",
+				"Connected Port Number" : "2(path0) ",
+				"Sequence Number" : 2,
+				"Commissioned Spare" : "No",
+				"Emergency Spare" : "No",
+				"Last Predictive Failure Event Sequence Number" : 0,
+				"Successful diagnostics completion on" : "N/A",
+				"FDE Type" : "None",
+				"SED Capable" : "No",
+				"SED Enabled" : "No",
+				"Secured" : "No",
+				"Cryptographic Erase Capable" : "No",
+				"Sanitize Support" : "Not supported",
+				"Locked" : "No",
+				"Needs EKM Attention" : "No",
+				"PI Eligible" : "No",
+				"Drive is formatted for PI" : "No",
+				"PI type" : "No PI",
+				"Number of bytes of user data in LBA" : "0 KB",
+				"Certified" : "No",
+				"Wide Port Capable" : "No",
+				"Multipath" : "No",
+				"Port Information" : [
+					{
+						"Port" : 0,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x5000cca0d14f2c61"
+					},
+					{
+						"Port" : 1,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x0"
+					}
+				]
+			},
+			"Inquiry Data" : "00 00 06 12 9f 01 10 02 48 47 53 54 20 20 20 20 48 55 53 37 32 36 54 34 54 41 4c 35 32 30 34 20 43 39 55 30 56 33 31 44 4a 55 44 4d 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 43 6f 70 79 72 69 67 68 74 20 28 43 29 20 48 47 53 54 2c 20 61 20 57 65 73 74 65 72 6e 20 44 69 "
+		},
+		"Drive /c0/e252/s3" : [
+			{
+				"EID:Slt" : "252:3",
+				"DID" : 21,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			}
+		],
+		"Drive /c0/e252/s3 - Detailed Information" : {
+			"Drive /c0/e252/s3 State" : {
+				"Shield Counter" : 0,
+				"Media Error Count" : 0,
+				"Other Error Count" : 0,
+				"Drive Temperature" : " 34C (93.20 F)",
+				"Predictive Failure Count" : 0,
+				"S.M.A.R.T alert flagged by drive" : "No"
+			},
+			"Drive /c0/e252/s3 Device attributes" : {
+				"SN" : "        V31DJJNM",
+				"Manufacturer Id" : "HGST    ",
+				"Model Number" : "HUS726T4TAL5204 ",
+				"NAND Vendor" : "NA",
+				"WWN" : "5000CCA0D14F2827",
+				"Firmware Revision" : "C9U0",
+				"Firmware Release Number" : "N/A",
+				"Raw size" : "3.638 TB [0x1d1c0beb0 Sectors]",
+				"Coerced size" : "3.637 TB [0x1d1b00000 Sectors]",
+				"Non Coerced size" : "3.637 TB [0x1d1b0beb0 Sectors]",
+				"Device Speed" : "12.0Gb/s",
+				"Link Speed" : "12.0Gb/s",
+				"Write Cache" : "N/A",
+				"Logical Sector Size" : "512B",
+				"Physical Sector Size" : "4 KB",
+				"Connector Name" : "Port 0 - 3 x1"
+			},
+			"Drive /c0/e252/s3 Policies/Settings" : {
+				"Drive position" : "DriveGroup:1, Span:0, Row:4",
+				"Enclosure position" : "0",
+				"Connected Port Number" : "3(path0) ",
+				"Sequence Number" : 2,
+				"Commissioned Spare" : "No",
+				"Emergency Spare" : "No",
+				"Last Predictive Failure Event Sequence Number" : 0,
+				"Successful diagnostics completion on" : "N/A",
+				"FDE Type" : "None",
+				"SED Capable" : "No",
+				"SED Enabled" : "No",
+				"Secured" : "No",
+				"Cryptographic Erase Capable" : "No",
+				"Sanitize Support" : "Not supported",
+				"Locked" : "No",
+				"Needs EKM Attention" : "No",
+				"PI Eligible" : "No",
+				"Drive is formatted for PI" : "No",
+				"PI type" : "No PI",
+				"Number of bytes of user data in LBA" : "0 KB",
+				"Certified" : "No",
+				"Wide Port Capable" : "No",
+				"Multipath" : "No",
+				"Port Information" : [
+					{
+						"Port" : 0,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x5000cca0d14f2825"
+					},
+					{
+						"Port" : 1,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x0"
+					}
+				]
+			},
+			"Inquiry Data" : "00 00 06 12 9f 01 10 02 48 47 53 54 20 20 20 20 48 55 53 37 32 36 54 34 54 41 4c 35 32 30 34 20 43 39 55 30 56 33 31 44 4a 4a 4e 4d 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 43 6f 70 79 72 69 67 68 74 20 28 43 29 20 48 47 53 54 2c 20 61 20 57 65 73 74 65 72 6e 20 44 69 "
+		},
+		"Drive /c0/e252/s4" : [
+			{
+				"EID:Slt" : "252:4",
+				"DID" : 20,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			}
+		],
+		"Drive /c0/e252/s4 - Detailed Information" : {
+			"Drive /c0/e252/s4 State" : {
+				"Shield Counter" : 0,
+				"Media Error Count" : 0,
+				"Other Error Count" : 0,
+				"Drive Temperature" : " 31C (87.80 F)",
+				"Predictive Failure Count" : 0,
+				"S.M.A.R.T alert flagged by drive" : "No"
+			},
+			"Drive /c0/e252/s4 Device attributes" : {
+				"SN" : "        V31DJ6ZM",
+				"Manufacturer Id" : "HGST    ",
+				"Model Number" : "HUS726T4TAL5204 ",
+				"NAND Vendor" : "NA",
+				"WWN" : "5000CCA0D14F2377",
+				"Firmware Revision" : "C9U0",
+				"Firmware Release Number" : "N/A",
+				"Raw size" : "3.638 TB [0x1d1c0beb0 Sectors]",
+				"Coerced size" : "3.637 TB [0x1d1b00000 Sectors]",
+				"Non Coerced size" : "3.637 TB [0x1d1b0beb0 Sectors]",
+				"Device Speed" : "12.0Gb/s",
+				"Link Speed" : "12.0Gb/s",
+				"Write Cache" : "N/A",
+				"Logical Sector Size" : "512B",
+				"Physical Sector Size" : "4 KB",
+				"Connector Name" : "Port 4 - 7 x1"
+			},
+			"Drive /c0/e252/s4 Policies/Settings" : {
+				"Drive position" : "DriveGroup:1, Span:0, Row:3",
+				"Enclosure position" : "0",
+				"Connected Port Number" : "4(path0) ",
+				"Sequence Number" : 2,
+				"Commissioned Spare" : "No",
+				"Emergency Spare" : "No",
+				"Last Predictive Failure Event Sequence Number" : 0,
+				"Successful diagnostics completion on" : "N/A",
+				"FDE Type" : "None",
+				"SED Capable" : "No",
+				"SED Enabled" : "No",
+				"Secured" : "No",
+				"Cryptographic Erase Capable" : "No",
+				"Sanitize Support" : "Not supported",
+				"Locked" : "No",
+				"Needs EKM Attention" : "No",
+				"PI Eligible" : "No",
+				"Drive is formatted for PI" : "No",
+				"PI type" : "No PI",
+				"Number of bytes of user data in LBA" : "0 KB",
+				"Certified" : "No",
+				"Wide Port Capable" : "No",
+				"Multipath" : "No",
+				"Port Information" : [
+					{
+						"Port" : 0,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x5000cca0d14f2375"
+					},
+					{
+						"Port" : 1,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x0"
+					}
+				]
+			},
+			"Inquiry Data" : "00 00 06 12 9f 01 10 02 48 47 53 54 20 20 20 20 48 55 53 37 32 36 54 34 54 41 4c 35 32 30 34 20 43 39 55 30 56 33 31 44 4a 36 5a 4d 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 43 6f 70 79 72 69 67 68 74 20 28 43 29 20 48 47 53 54 2c 20 61 20 57 65 73 74 65 72 6e 20 44 69 "
+		},
+		"Drive /c0/e252/s5" : [
+			{
+				"EID:Slt" : "252:5",
+				"DID" : 18,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			}
+		],
+		"Drive /c0/e252/s5 - Detailed Information" : {
+			"Drive /c0/e252/s5 State" : {
+				"Shield Counter" : 0,
+				"Media Error Count" : 0,
+				"Other Error Count" : 0,
+				"Drive Temperature" : " 31C (87.80 F)",
+				"Predictive Failure Count" : 0,
+				"S.M.A.R.T alert flagged by drive" : "No"
+			},
+			"Drive /c0/e252/s5 Device attributes" : {
+				"SN" : "        VB0J6MHF",
+				"Manufacturer Id" : "HGST    ",
+				"Model Number" : "HUS726T4TAL5204 ",
+				"NAND Vendor" : "NA",
+				"WWN" : "5000CCA0C91D7B4B",
+				"Firmware Revision" : "C9U0",
+				"Firmware Release Number" : "N/A",
+				"Raw size" : "3.638 TB [0x1d1c0beb0 Sectors]",
+				"Coerced size" : "3.637 TB [0x1d1b00000 Sectors]",
+				"Non Coerced size" : "3.637 TB [0x1d1b0beb0 Sectors]",
+				"Device Speed" : "12.0Gb/s",
+				"Link Speed" : "12.0Gb/s",
+				"Write Cache" : "N/A",
+				"Logical Sector Size" : "512B",
+				"Physical Sector Size" : "4 KB",
+				"Connector Name" : "Port 4 - 7 x1"
+			},
+			"Drive /c0/e252/s5 Policies/Settings" : {
+				"Drive position" : "DriveGroup:1, Span:0, Row:1",
+				"Enclosure position" : "0",
+				"Connected Port Number" : "5(path0) ",
+				"Sequence Number" : 2,
+				"Commissioned Spare" : "No",
+				"Emergency Spare" : "No",
+				"Last Predictive Failure Event Sequence Number" : 0,
+				"Successful diagnostics completion on" : "N/A",
+				"FDE Type" : "None",
+				"SED Capable" : "No",
+				"SED Enabled" : "No",
+				"Secured" : "No",
+				"Cryptographic Erase Capable" : "No",
+				"Sanitize Support" : "Not supported",
+				"Locked" : "No",
+				"Needs EKM Attention" : "No",
+				"PI Eligible" : "No",
+				"Drive is formatted for PI" : "No",
+				"PI type" : "No PI",
+				"Number of bytes of user data in LBA" : "0 KB",
+				"Certified" : "No",
+				"Wide Port Capable" : "No",
+				"Multipath" : "No",
+				"Port Information" : [
+					{
+						"Port" : 0,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x5000cca0c91d7b49"
+					},
+					{
+						"Port" : 1,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x0"
+					}
+				]
+			},
+			"Inquiry Data" : "00 00 06 12 9f 01 10 02 48 47 53 54 20 20 20 20 48 55 53 37 32 36 54 34 54 41 4c 35 32 30 34 20 43 39 55 30 56 42 30 4a 36 4d 48 46 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 43 6f 70 79 72 69 67 68 74 20 28 43 29 20 48 47 53 54 2c 20 61 20 57 65 73 74 65 72 6e 20 44 69 "
+		},
+		"Drive /c0/e252/s6" : [
+			{
+				"EID:Slt" : "252:6",
+				"DID" : 19,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			}
+		],
+		"Drive /c0/e252/s6 - Detailed Information" : {
+			"Drive /c0/e252/s6 State" : {
+				"Shield Counter" : 0,
+				"Media Error Count" : 0,
+				"Other Error Count" : 0,
+				"Drive Temperature" : " 32C (89.60 F)",
+				"Predictive Failure Count" : 0,
+				"S.M.A.R.T alert flagged by drive" : "No"
+			},
+			"Drive /c0/e252/s6 Device attributes" : {
+				"SN" : "        V31DKKZM",
+				"Manufacturer Id" : "HGST    ",
+				"Model Number" : "HUS726T4TAL5204 ",
+				"NAND Vendor" : "NA",
+				"WWN" : "5000CCA0D14F37CF",
+				"Firmware Revision" : "C9U0",
+				"Firmware Release Number" : "N/A",
+				"Raw size" : "3.638 TB [0x1d1c0beb0 Sectors]",
+				"Coerced size" : "3.637 TB [0x1d1b00000 Sectors]",
+				"Non Coerced size" : "3.637 TB [0x1d1b0beb0 Sectors]",
+				"Device Speed" : "12.0Gb/s",
+				"Link Speed" : "12.0Gb/s",
+				"Write Cache" : "N/A",
+				"Logical Sector Size" : "512B",
+				"Physical Sector Size" : "4 KB",
+				"Connector Name" : "Port 4 - 7 x1"
+			},
+			"Drive /c0/e252/s6 Policies/Settings" : {
+				"Drive position" : "DriveGroup:1, Span:0, Row:2",
+				"Enclosure position" : "0",
+				"Connected Port Number" : "6(path0) ",
+				"Sequence Number" : 2,
+				"Commissioned Spare" : "No",
+				"Emergency Spare" : "No",
+				"Last Predictive Failure Event Sequence Number" : 0,
+				"Successful diagnostics completion on" : "N/A",
+				"FDE Type" : "None",
+				"SED Capable" : "No",
+				"SED Enabled" : "No",
+				"Secured" : "No",
+				"Cryptographic Erase Capable" : "No",
+				"Sanitize Support" : "Not supported",
+				"Locked" : "No",
+				"Needs EKM Attention" : "No",
+				"PI Eligible" : "No",
+				"Drive is formatted for PI" : "No",
+				"PI type" : "No PI",
+				"Number of bytes of user data in LBA" : "0 KB",
+				"Certified" : "No",
+				"Wide Port Capable" : "No",
+				"Multipath" : "No",
+				"Port Information" : [
+					{
+						"Port" : 0,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x5000cca0d14f37cd"
+					},
+					{
+						"Port" : 1,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x0"
+					}
+				]
+			},
+			"Inquiry Data" : "00 00 06 12 9f 01 10 02 48 47 53 54 20 20 20 20 48 55 53 37 32 36 54 34 54 41 4c 35 32 30 34 20 43 39 55 30 56 33 31 44 4b 4b 5a 4d 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 43 6f 70 79 72 69 67 68 74 20 28 43 29 20 48 47 53 54 2c 20 61 20 57 65 73 74 65 72 6e 20 44 69 "
+		},
+		"Drive /c0/e252/s7" : [
+			{
+				"EID:Slt" : "252:7",
+				"DID" : 17,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			}
+		],
+		"Drive /c0/e252/s7 - Detailed Information" : {
+			"Drive /c0/e252/s7 State" : {
+				"Shield Counter" : 0,
+				"Media Error Count" : 0,
+				"Other Error Count" : 0,
+				"Drive Temperature" : " 33C (91.40 F)",
+				"Predictive Failure Count" : 0,
+				"S.M.A.R.T alert flagged by drive" : "No"
+			},
+			"Drive /c0/e252/s7 Device attributes" : {
+				"SN" : "        V31DLWXM",
+				"Manufacturer Id" : "HGST    ",
+				"Model Number" : "HUS726T4TAL5204 ",
+				"NAND Vendor" : "NA",
+				"WWN" : "5000CCA0D14F4BA3",
+				"Firmware Revision" : "C9U0",
+				"Firmware Release Number" : "N/A",
+				"Raw size" : "3.638 TB [0x1d1c0beb0 Sectors]",
+				"Coerced size" : "3.637 TB [0x1d1b00000 Sectors]",
+				"Non Coerced size" : "3.637 TB [0x1d1b0beb0 Sectors]",
+				"Device Speed" : "12.0Gb/s",
+				"Link Speed" : "12.0Gb/s",
+				"Write Cache" : "N/A",
+				"Logical Sector Size" : "512B",
+				"Physical Sector Size" : "4 KB",
+				"Connector Name" : "Port 4 - 7 x1"
+			},
+			"Drive /c0/e252/s7 Policies/Settings" : {
+				"Drive position" : "DriveGroup:1, Span:0, Row:0",
+				"Enclosure position" : "0",
+				"Connected Port Number" : "7(path0) ",
+				"Sequence Number" : 2,
+				"Commissioned Spare" : "No",
+				"Emergency Spare" : "No",
+				"Last Predictive Failure Event Sequence Number" : 0,
+				"Successful diagnostics completion on" : "N/A",
+				"FDE Type" : "None",
+				"SED Capable" : "No",
+				"SED Enabled" : "No",
+				"Secured" : "No",
+				"Cryptographic Erase Capable" : "No",
+				"Sanitize Support" : "Not supported",
+				"Locked" : "No",
+				"Needs EKM Attention" : "No",
+				"PI Eligible" : "No",
+				"Drive is formatted for PI" : "No",
+				"PI type" : "No PI",
+				"Number of bytes of user data in LBA" : "0 KB",
+				"Certified" : "No",
+				"Wide Port Capable" : "No",
+				"Multipath" : "No",
+				"Port Information" : [
+					{
+						"Port" : 0,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x5000cca0d14f4ba1"
+					},
+					{
+						"Port" : 1,
+						"Status" : "Active",
+						"Linkspeed" : "12.0Gb/s",
+						"SAS address" : "0x0"
+					}
+				]
+			},
+			"Inquiry Data" : "00 00 06 12 9f 01 10 02 48 47 53 54 20 20 20 20 48 55 53 37 32 36 54 34 54 41 4c 35 32 30 34 20 43 39 55 30 56 33 31 44 4c 57 58 4d 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 43 6f 70 79 72 69 67 68 74 20 28 43 29 20 48 47 53 54 2c 20 61 20 57 65 73 74 65 72 6e 20 44 69 "
+		}
+	}
+}
+]
+}
+

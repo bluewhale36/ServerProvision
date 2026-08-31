@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E3.5-3 Report — RAID 집행 · 검증 완료 보고</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.del{background:var(--red-bg);color:var(--red);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+  .chip.dep{background:var(--yellow-bg);color:var(--yellow);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:6px 0 0; }
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .state-flow { font-family:var(--mono); font-size:12.5px; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:10px 14px; margin:10px 0; overflow-x:auto; }
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .hidden { display:none !important; }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E3.5-3 &mdash; RAID 집행 · 검증 완료 보고 <span class="v2-badge">CP6 보고</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E3.5-3 (RAID 집행 · 검증)</span>
+    <span><strong>브랜치</strong> <code>feat/E3.5-3_raid-apply</code></span>
+    <span><strong>plan</strong> <code>plan/26-08-31_16-32-36_E3.5-3_plan.html</code></span>
+    <span><strong>테스트</strong> 2,742 green (신규 34 · 회귀 0)</span>
+    <span><strong>CP5 수단</strong> mock-guest 하네스 (E 단계 예외 &mdash; 브라우저 아님)</span>
+    <span><strong>스크린샷</strong> 0 장 (증거 = API 응답 · DB 원장 원문)</span>
+    <span><strong>DDL</strong> <code>raid_volume</code> 1 표 (실 DB 는 CP7 일괄)</span>
+    <span><strong>작성</strong> 2026-08-31 19:17 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0" class="preview">&sect;0 이 보고서의 특수성</a></li>
+      <li><a href="#s1">&sect;1 배경 · 진단</a></li>
+      <li><a href="#s2">&sect;2 구현</a></li>
+      <li><a href="#s3">&sect;3 강제 장치 (테스트)</a></li>
+      <li><a href="#s4" class="preview">&sect;4 CP5 검증 계획</a></li>
+      <li><a href="#s5" class="preview">&sect;5 CP5 수행 기록</a></li>
+      <li><a href="#s6" class="preview">&sect;6 미수행 항목과 사유</a></li>
+      <li><a href="#s7">&sect;7 발견한 것</a></li>
+      <li><a href="#s8">&sect;8 Critical Files</a></li>
+      <li><a href="#s9">&sect;9 남은 일</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 &hellip;" id="filter">
+
+    <details class="section preview" id="s0" open>
+      <summary>&sect;0. 이 보고서의 특수성 &mdash; CP5 를 브라우저가 아니라 모의 게스트 하네스로 수행했다</summary>
+      <div class="body">
+        <p>통상의 report 는 CP5 샌드박스 <b>브라우저</b> 검증의 계획 · 수행 기록 · 스크린샷 증거가 본문의 중심이다. 이번 슬라이스는 <b>E 단계 예외</b>에 해당한다 &mdash; 실행 엔진(E*) 슬라이스는 게스트가 화면 없이 HTTP 로만 서버와 상호작용하므로, CP5 의 샌드박스 검증을 브라우저 대신 <b>모의 게스트 하네스</b>(<code>scripts/mock-guest/</code>) 실행으로 수행한다는 것이 프로젝트 규약에 명시된 예외다.</p>
+        <p>이번 슬라이스가 그 예외에 정확히 들어맞는 이유는, 여기서 새로 만들어진 것이 <b>화면이 아니라 게스트와 서버가 주고받는 지시 · 보고의 왕복</b>이기 때문이다. 서버는 집행 지시(<code>RAID_APPLY</code>)와 검증 지시(<code>RAID_VERIFY</code>)를 내리고, 게스트 에이전트는 그것을 계열 CLI 명령으로 번역해 실행한 뒤 결과를 보고한다. 이 왕복에는 사람이 클릭할 화면이 없다.</p>
+        <p>그래서 이 보고서의 증거 구조는 다음과 같이 달라진다.</p>
+        <ul>
+          <li><b>검증 수단</b> &mdash; 브라우저 조작이 아니라 모의 게스트 하네스가 게스트의 HTTP 행동(체크인 &rarr; 지시 수신 &rarr; step close 보고)을 재연한 것이다.</li>
+          <li><b>증거</b> &mdash; <b>스크린샷 0 장</b>. 항목마다 붙는 것은 <b>서버가 실제로 돌려준 API 응답 원문</b>과 <b>그 결과로 DB 에 남은 원장 · 표의 행</b>이다(&sect;5).</li>
+          <li><b>항목 식별자 체계는 유지</b> &mdash; 정상 <code>A1</code> · <code>A2</code>, 비정상 <code>B1</code>~<code>B4</code>, 막는 방식 <code>C1</code> 의 7 항목을 먼저 계획하고(&sect;4) 같은 식별자로 수행을 대조한다(&sect;5).</li>
+          <li><b>실물은 이관</b> &mdash; 실제 RAID 카드에 <code>storcli64</code> · <code>sas3ircu</code> 가 명령을 내리는 층은 <b>확인하지 않았다</b>. 하네스는 CLI 를 흉내 낸 보고를 올릴 뿐이다. <b>CP7 실기 일괄</b>로 넘긴다(&sect;6).</li>
+        </ul>
+        <div class="callout warn"><b>CP7 실기의 전제 조건이 하나 붙어 있다.</b> 이번 슬라이스는 외부 기존 볼륨이 남아 있으면 집행하지 않고 보류한다(&sect;2 판정 ③). 따라서 실기에서 집행 경로를 타려면 <b>기존 볼륨을 사용자가 수동으로 먼저 삭제</b>해야 한다 &mdash; CP1 검수에서 확정된 사항이다. &ldquo;기존 구성 : 보존 / 파괴&rdquo; 선택 축이 도입되는 E3.5-4 이후에는 이 수동 절차가 사라진다.</div>
+        <div class="callout warn"><b>&sect;6 이 이 보고서의 핵심이다.</b> 검증 수단이 브라우저가 아닌 슬라이스의 보고는 &ldquo;그래서 무엇이 확인되지 않은 채 남았는가&rdquo; 를 사유와 함께 적어야 성립한다. 감추면 다음 사람이 검증된 층과 검증되지 않은 층을 구분하지 못한다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s1">
+      <summary>&sect;1. 배경 · 진단</summary>
+      <div class="body">
+        <h4>이 슬라이스의 자리 &mdash; 계획을 세우는 머리에 손을 붙인다</h4>
+        <p>바로 앞 슬라이스 E3.5-2 까지의 상태는 <b>계획을 산출해 화면에 미리보기로 보여주는 데까지</b>였다. 카드에 꽂힌 디스크로 어떤 볼륨을 만들지는 정해졌지만 카드에는 아무것도 쓰이지 않았고, 게스트는 <code>WAIT</code> 지시를 받으며 대기하고 있었다. <b>E3.5-3 은 그 계획을 실제로 카드에 새기는 손</b>이다.</p>
+        <p>구조는 0-3 토론에서 확정된 <b>하이브리드(결정 D-1)</b> 를 따른다 &mdash; 머리(무엇을 만들지 정하는 계획과, 만들어진 것이 계획과 같은지 판정하는 검증)는 <b>서버</b>가 갖고, 손(실제 CLI 명령 실행)은 <b>게스트 에이전트</b>가 갖는다. 서버는 카드 계열에 무관한 <b>중립 명령</b>을 내려보내고, 에이전트가 그것을 자기 카드 계열의 CLI 문법으로 번역한다. 계열이 늘어도 서버의 판정 로직은 그대로다.</p>
+
+        <h4>CP1 검수에서 개정 2 건이 확정됐다</h4>
+        <p>plan 검수에서 사용자가 두 가지를 바로잡았다.</p>
+        <p><b>첫째, 볼륨 이름의 형식이다.</b> E3.5-2 가 만든 이름은 <code>spv-r1-v1</code> 처럼 하이픈을 포함했는데, RAID 카드 중에는 볼륨 이름에 하이픈을 받지 않는 것이 있다. 집행 단계에 와서야 카드가 이름을 거절하면 계획 전체가 무의미해지므로, 영숫자만 쓰는 형식으로 미리 바꿨다.</p>
+        <div class="split-grid">
+          <div class="split-card before"><h4>E3.5-2 원안</h4><p><code>spv-r1-v1</code><br><br>하이픈 포함 &mdash; 계획을 화면에 보여주기만 할 때는 문제가 없다.<br><br>집행 단계에서 <b>하이픈 미지원 카드가 이름을 거절</b>할 수 있다</p></div>
+          <div class="split-card after"><h4>CP1 개정</h4><p><code>spvR1V1</code> = <code>spvR{규칙번호}V{순번}</code><br><br>영숫자만 &mdash; 카드 계열을 가리지 않는다.<br><br>이미 병합된 E3.5-2 의 이름 생성부와 <b>테스트 어서션 12 곳</b>을 함께 갱신했다</p></div>
+        </div>
+        <p><b>둘째, CP7 실기의 진입 조건이다.</b> 이번 슬라이스는 카드에 우리가 만들지 않은 볼륨이 남아 있으면 집행하지 않고 보류한다. 실기 장비에는 기존 볼륨이 남아 있으므로, 실기에서 집행 경로를 확인하려면 <b>기존 볼륨을 사용자가 수동으로 삭제한 뒤 시작</b>하기로 확정했다. 보존 · 파괴를 사용자가 고르는 축은 E3.5-4 의 몫이다.</p>
+
+        <h4>CP4 검수에서 설계 개선 1 건이 반영됐다</h4>
+        <p>main 구현을 검수하던 사용자가 <b>칩 판별 로직이 두 곳에 하드코딩돼 있다</b>는 점을 지적했다. 서버의 인벤토리 파서도 <code>1000:0097</code> 같은 PCI 식별자를 자체 패턴으로 들고 있었고, 게스트 에이전트 스크립트도 같은 식별자를 자기 안에 적어 두고 있었다. 새 칩이 추가되면 두 곳을 함께 고쳐야 하고, 한 곳을 빠뜨리면 서버와 에이전트의 판정이 어긋난다.</p>
+        <p>이 지적으로 <b>결정 6(칩 판별 SSOT)</b> 이 신설됐다. 구현은 &sect;2 의 R8 이다.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s2">
+      <summary>&sect;2. 구현</summary>
+      <div class="body">
+        <h4>집행 한 바퀴가 실제로 어떻게 도는가</h4>
+        <p>게스트는 30 초마다 서버에 체크인하고, 서버는 그때마다 &ldquo;지금 무엇을 하라&rdquo; 를 한 마디로 돌려준다. 집행이 성립한 게스트가 도는 한 바퀴는 다음과 같다.</p>
+        <div class="seq">
+          <div class="actor a1">게스트 에이전트</div><div class="actor a2">서버 &mdash; 지시 판정</div><div class="actor a3">원장 · 기록</div>
+
+          <div class="step a1">체크인(30 초 주기)</div>
+          <div class="step a2">인벤토리 적재됨 · 외부 볼륨 없음 · 계획 성립 &rarr; <code>RAID_APPLY</code></div>
+          <div class="step a3"><code>RAID_APPLYING</code> PENDING 행에 <b>계획 JSON 동결</b></div>
+
+          <div class="step a1">응답에 실려 온 중립 명령을 계열 CLI 로 번역해 실행</div>
+          <div class="step a2">(응답 완료 &mdash; 게스트가 일하는 동안 서버는 관여하지 않는다)</div>
+          <div class="step a3">&mdash;</div>
+
+          <div class="step a1"><code>RAID_APPLYING</code> SUCCEEDED close &mdash; 실행 로그 원문 동봉</div>
+          <div class="step a2">close 응답에서 지시를 다시 계산 &rarr; <code>RAID_VERIFY</code></div>
+          <div class="step a3">성공 행이 로그 원문을 보존</div>
+
+          <div class="step a1">인벤토리 수집과 <b>똑같은 채집</b>을 다시 수행</div>
+          <div class="step a2">(대기)</div>
+          <div class="step a3">&mdash;</div>
+
+          <div class="step a1"><code>RAID_VERIFYING</code> SUCCEEDED close &mdash; 재채집 원문 동봉</div>
+          <div class="step a2">동결 계획과 <b>4 축 대조</b>(수 · 레벨 · 멤버 집합 · 이름)</div>
+          <div class="step a3">일치 &rarr; <code>raid_volume</code> 기록 · 인벤토리 재적재 · 커서 전진</div>
+
+          <div class="step a1"><code>REBOOT</code> 수신 &rarr; 재부팅</div>
+          <div class="step a2">phase 완주 &rarr; <code>REBOOT</code></div>
+          <div class="step a3">진행률 완료 수 +1</div>
+        </div>
+        <p>여기서 눈여겨볼 것은 <b>서버가 매 요청마다 상태를 처음부터 다시 판정한다</b>는 점이다. 게스트가 다음에 무엇을 할지를 서버가 기억해 두고 순서대로 꺼내 주는 것이 아니라, 원장에 남은 사실을 보고 그때그때 결론을 낸다. 그래서 응답이 유실돼 게스트가 같은 체크인을 다시 보내도 같은 지시가 나온다.</p>
+
+        <h4>지시 판정 5 가지 (R3)</h4>
+        <p>RAID 구성 단계에 커서가 온 게스트가 체크인하면 <code>RaidConfigurationExecutor.directiveFor</code> 가 다음 순서로 판정한다.</p>
+        <table>
+          <tr><th>순서</th><th>상황</th><th>지시</th><th>원장</th></tr>
+          <tr><td>①</td><td>인벤토리가 아직 적재되지 않았다</td><td><code>RAID_INVENTORY</code></td><td>&mdash; (E3.5-1 현행 유지)</td></tr>
+          <tr><td>②</td><td>집행이 성공 close 됐고 검증이 아직 커서를 전진시키지 못했다</td><td><code>RAID_VERIFY</code></td><td>&mdash;</td></tr>
+          <tr><td>③</td><td><b>외부</b> 볼륨이 남아 있고 보존 · 파괴 축이 아직 없다</td><td><code>WAIT</code></td><td>PENDING <code>POLICY_UNDECIDED</code></td></tr>
+          <tr><td>④</td><td>계획 산출이 거절됐다</td><td><code>WAIT</code></td><td>PENDING <code>PLAN_REJECTED</code></td></tr>
+          <tr><td>⑤</td><td>계획이 성립했다</td><td><code>RAID_APPLY</code></td><td>PENDING <code>PLANNED</code> (계획 동결)</td></tr>
+        </table>
+        <p>③ 의 <b>&ldquo;외부&rdquo;</b> 라는 한정이 중요하다. 카드에 볼륨이 남아 있어도 그 이름이 <code>spvR</code> 로 시작하면 우리가 앞서 만든 것이므로, 재구성 대상이지 남의 데이터가 아니다. 그래서 잔여 판별을 거쳐 <b>우리 것이 아닌 볼륨</b>이 있을 때만 보류한다. 이 구분이 없으면 재집행이 영원히 보류에 걸린다.</p>
+        <p>③ 과 ④ 는 실패가 아니라 <b>보류</b>다. 원장에 PENDING 으로 남고 진행률에 실패 낙인을 찍지 않는다. 사용자가 정의서를 고치거나(④) 축이 도입되면(③) 저절로 풀리는 상태이기 때문이다. 보류는 30 초마다 같은 판정을 받으므로, 같은 사유가 이미 최신 행이면 다시 쌓지 않는다.</p>
+        <p>계획이 성립했지만 <b>묶을 볼륨이 하나도 없는 경우</b>(RAID 규칙이 없는 정의서)는 집행할 것도 검증할 것도 없으므로 phase 를 완주 처리하고 전진한다.</p>
+
+        <h4>계획을 왜 &ldquo;동결&rdquo; 하는가 (R2)</h4>
+        <p>검증은 &ldquo;실물이 계획과 같은가&rdquo; 를 보는 일이므로 대조 기준이 되는 계획 한 벌이 집행 시점에 고정돼 있어야 한다. 계획은 조회할 때마다 다시 산출되는 파생물이라(E3.5-2), 검증 시점에 다시 산출하면 그 사이 정의서가 바뀌었을 때 엉뚱한 기준과 대조하게 된다. 그래서 집행 지시 직전에 계획 JSON 을 원장에 <b>동결</b>한다.</p>
+        <p>동결을 어디에 둘지는 두 안이 있었고, <b>PENDING 단발 행</b>을 채택했다.</p>
+        <div class="split-grid">
+          <div class="split-card before"><h4>기각 &mdash; RUNNING 행에 동봉</h4><p>집행 중 행의 <code>statusMeta</code> 에 계획을 싣는 안.<br><br><b>원장 close 가 메타를 결과로 덮는다</b> &mdash; 게스트가 집행 결과를 보고하는 순간 계획이 사라진다.<br><br>E2-2 에서 실측으로 겪은 결함 계열이다</p></div>
+          <div class="split-card after"><h4>채택 &mdash; PENDING 단발 행</h4><p>집행 행과 별개의 PENDING 행에 <code>{"reason":"PLANNED","plan":&hellip;}</code> 로 싣는다.<br><br>close 가 덮을 대상이 아니므로 <b>집행이 끝난 뒤에도 남는다</b>.<br><br>검증과 payload 파생이 같은 행을 읽는다</p></div>
+        </div>
+        <p>같은 계획을 두 번 동결하지 않도록, 최신 행이 이미 동결(PENDING <code>PLANNED</code>)이거나 집행 중(RUNNING)이면 다시 쌓지 않는다. 응답이 유실돼 게스트가 체크인을 되풀이해도 원장이 부풀지 않는다.</p>
+
+        <h4>검증이 대조하는 4 축 (R4)</h4>
+        <p><code>RaidResultVerifier</code> 는 의존성이 0 인 순수 static 이다. 재채집한 원문을 <b>인벤토리 수집과 같은 파서</b>(<code>RaidInventoryParser</code>)로 해석한 뒤, 동결 계획과 네 축을 대조한다 &mdash; 볼륨 <b>수</b> · <b>레벨</b> · <b>멤버 슬롯 집합</b> · <b>이름</b>. 이름을 내지 않는 계열(IR)이 있으므로, 이름이 비어 있으면 레벨과 멤버 집합으로 폴백해 짝을 찾는다.</p>
+        <div class="state-flow">일치 ──▶ raid_volume replace 기록 + 인벤토리 재적재(화면 = 실물) + 커서 전진
+불일치 ──▶ RESULT_MISMATCH 실패 (기록 없음)</div>
+        <p>일치했을 때 <b>인벤토리를 재적재</b>하는 이유는 화면 때문이다. 적재된 인벤토리는 집행 전의 실물이므로, 갱신하지 않으면 화면이 이미 사라진 구성을 계속 보여준다. 검증에 쓴 재채집 원문이 곧 집행 후 실물이므로 그것으로 덮는다.</p>
+
+        <h4>칩 판별의 단일 출처 (R8 &mdash; CP4 검수 반영)</h4>
+        <p>PCI 식별자와 카드 계열의 대응을 <code>RaidChipFamily</code> 의 <b>상수별 메서드</b>(<code>chipPciIds()</code>) 하나로 모았다. 서버의 파서는 <code>fromLspci()</code> 로 이 목록을 쓰고, 게스트 에이전트는 <code>agentChipHint()</code> 가 만들어 지시에 동봉해 준 맵으로만 판별한다.</p>
+        <div class="state-flow">agentChipHint() ──▶ "1000:0097=MPT_IR 1000:005d=MEGARAID" ──▶ 지시 응답의 raidChips ──▶ agent.sh</div>
+        <p>결과로 <b>agent.sh 안에 칩 식별자 리터럴이 하나도 남지 않는다</b>. 새 칩이 추가되면 서버 enum 한 곳만 고치면 되고, 스크립트는 손대지 않는다. 파서가 들고 있던 자체 패턴도 제거해 판별이 이중화돼 있던 것을 해소했다.</p>
+        <div class="callout warn"><b>기각한 대안</b> : &ldquo;정의서에 지정된 카드 계열을 확정해서 동봉한다&rdquo; 는 안. 이렇게 하면 에이전트가 실물을 보지 않고 서버가 시킨 계열로 동작하므로, <b>실물이 다른 카드일 때 그 불일치를 영영 잡지 못한다</b>. 후보 맵을 주고 실물로 판별하게 하는 지금 방식은 카드 불일치 탐지를 유지한다.</div>
+
+        <h4>구현 항목</h4>
+        <table>
+          <tr><th>항목</th><th>내용</th></tr>
+          <tr><td><span class="chip new">R1</span></td><td>지시 payload &mdash; <code>AgentDirective</code> 에 <code>RAID_APPLY</code> · <code>RAID_VERIFY</code> 추가, 응답 record 2 종(<code>AgentCheckinResponse</code> · <code>StepCloseResponse</code>)에 <code>raidApply</code> · <code>raidChips</code> 확장. <b>보조 생성자</b>를 둬 기존 호출부에 파급이 없다. <code>RaidApplyPayload</code> 가 agent.sh 계약의 SSOT 이며, <b>볼륨 이름은 서버가 만들어 나르고 어댑터는 소비만</b> 한다</td></tr>
+          <tr><td><span class="chip new">R2</span></td><td>계획 동결 &mdash; <code>RaidLedger.freezePlanned</code>. PENDING 단발 행 + 재동결 억제 + 보류 행 중복 억제</td></tr>
+          <tr><td><span class="chip mod">R3</span></td><td>상태기계 &mdash; <code>RaidConfigurationExecutor.directiveFor</code> 5 판정 + 빈 계획의 phase 완주</td></tr>
+          <tr><td><span class="chip new">R4</span></td><td>검증 &mdash; <code>RaidResultVerifier</code>(의존 0) 4 축 대조 + 소비 훅 <code>consumeVerificationReport</code></td></tr>
+          <tr><td><span class="chip mod">R5</span></td><td>원장 &mdash; 사유 5 종 추가(<code>PLANNED</code> · <code>POLICY_UNDECIDED</code> · <code>PLAN_REJECTED</code> · <code>CREATE_REJECTED</code> · <code>RESULT_MISMATCH</code>) · <code>failInstant</code> 의 stepCode 파라미터화</td></tr>
+          <tr><td><span class="chip new">R6</span></td><td><code>RaidVolume</code> 엔티티 + <code>RaidVolumeRepository</code> + <code>ddl/E3.5-3_raid_volume.sql</code>(<code>schema.sql</code> 동기 · 실 DB 는 CP7 일괄)</td></tr>
+          <tr><td><span class="chip mod">R7</span></td><td>agent.sh &mdash; 채집부를 <code>collect_raid_report</code> 로 공용 추출(인벤토리와 검증이 같은 채집), <code>do_raid_apply</code> 계열 어댑터(<code>storcli64</code> · <code>sas3ircu</code>), 실행 로그 원문 base64 운반과 첫 실패 명령 보존, <code>handle_directive</code> 2 인자화로 payload 운반</td></tr>
+          <tr><td><span class="chip mod">R8</span></td><td>칩 판별 SSOT &mdash; <code>RaidChipFamily.chipPciIds()</code> · <code>agentChipHint()</code> · <code>fromLspci()</code></td></tr>
+        </table>
+
+        <h4>계획 개정의 파급</h4>
+        <p>볼륨 이름 형식 개정(&sect;1)과 기록에 필요한 규칙 번호 때문에, 이미 병합된 E3.5-2 의 산출물을 함께 고쳤다. <code>PlannedVolume</code> 과 <code>PlannedPassthrough</code> 에 <code>ruleNo</code> 를 더했고(<code>raid_volume</code> 기록의 원천), <code>RaidPlanner</code> 의 이름 생성부와 상세 화면 템플릿, 그리고 이름을 검사하던 테스트를 갱신했다.</p>
+
+        <h4>CP5 하네스 자산</h4>
+        <p>모의 게스트 하네스에 <code>raid-apply-cycle.sh</code> 를 추가했다. 정상(<code>ok</code>) · CLI 실패(<code>clifail</code>) · 검증 불일치(<code>mismatch</code>) 세 모드로 게스트의 행동을 갈라 재연한다. 기존 <code>raid-inventory-cycle.sh</code> 에는 볼륨이 하나도 없는 카드를 재연하는 <code>mrclean</code> 모드를 더했고, 그에 필요한 채집 원문 픽스처 3 개를 합성했다.</p>
+
+        <h4>불가침 원칙 점검</h4>
+        <ul>
+          <li><b>Primitive Obsession</b> &mdash; 집행 payload 의 레벨은 <code>RaidLevel</code> enum, 기록된 볼륨의 역할은 <code>PlannedVolumeRole</code> enum, 칩 계열은 <code>RaidChipFamily</code> enum 이다. 원장 사유는 <code>RaidLedger</code> 의 명명 상수로 고정돼 있어 문자열이 호출부에 흩어지지 않는다.</li>
+          <li><b>조건분기 legacy 확장 금지</b> &mdash; 칩 식별자를 <code>RaidChipFamily</code> 의 상수별 메서드로 두었으므로, 칩이 늘어도 파서와 에이전트에 분기가 늘지 않고 상수의 목록 한 줄이 는다(R8). 집행 payload 를 지시에 싣는 통로도 <code>ProvisioningPhaseExecutor</code> 의 default 메서드로 두어, 그 지시를 내는 실행기만 재정의하고 나머지 phase 실행기는 손대지 않는다.</li>
+          <li><b>레이어 경계</b> &mdash; 게스트로 나가는 것은 응답 record(<code>AgentCheckinResponse</code> · <code>StepCloseResponse</code>)이며 엔티티가 아니다. 집행 payload 는 계획 모델에서 필요한 것만 추린 별도 record(<code>RaidApplyPayload</code>)로, 미배정 디스크나 규칙 소비 내역 같은 판정 부산물은 게스트에게 내려가지 않는다.</li>
+          <li><b>네이밍</b> &mdash; 신규 클래스는 도메인 의미를 직접 드러내는 명칭이다(<code>RaidApplyPayload</code> · <code>RaidResultVerifier</code> · <code>RaidVolume</code> · <code>RaidVolumeRepository</code>). Controller · Request 접미사 규약은 이번 슬라이스에 대상이 없다 &mdash; <b>컨트롤러 변경 0 · 신규 URL 0</b> 이고, 지시와 payload 는 기존 체크인 · step close 응답에 실려 나간다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>&sect;3. 강제 장치 (테스트)</summary>
+      <div class="body">
+        <p>전체 <b>2,742 tests green · 실패 0</b>. 직전 기점은 E3.5-2 까지의 <b>2,708</b> 이며, 이번 슬라이스 신규 <b>34 건</b>이 더해진 수다. 기존 테스트에서 <b>회귀 0</b>.</p>
+        <table>
+          <tr><th>파일</th><th>건수</th><th>확인하는 것</th></tr>
+          <tr><td><code>RaidConfigurationExecutorTest</code> <span class="chip mod">수정</span></td><td>14</td><td>V-계열 &mdash; 지시 상태기계 9 + 검증 보고 소비 5</td></tr>
+          <tr><td><code>RaidResultVerifierTest</code> <span class="chip new">신규</span></td><td>7</td><td>4 축 대조 · 이름 폴백 · 불일치 사유 문구</td></tr>
+          <tr><td><code>RaidLedgerTest</code> <span class="chip new">신규</span></td><td>6</td><td>동결 · 재동결 억제 · 보류 중복 억제 · 최신 동결 조회</td></tr>
+          <tr><td><code>RaidApplyPayloadTest</code> <span class="chip new">신규</span></td><td>4</td><td>계획에서 집행분만 추리는 파생 · 빈 목록 방어</td></tr>
+          <tr><td><code>GuestAgentRestControllerFlowTest</code> <span class="chip mod">수정</span></td><td>3</td><td>통합 &mdash; payload 직렬화 · 칩 힌트 동봉 · step 직렬화</td></tr>
+          <tr><td><b>합계</b></td><td><b>34</b></td><td></td></tr>
+        </table>
+
+        <h4>기존 테스트 수정 &mdash; 시그니처 5 곳 · 이름 12 곳 · 문구 1 곳</h4>
+        <p><code>failInstant</code> 에 stepCode 파라미터가 생기면서 실행기 테스트의 호출 <b>5 곳</b>을 고쳤고, 볼륨 이름 형식 개정(&sect;1)으로 이름을 검사하던 어서션 <b>12 곳</b>을 갱신했다. 지시 문구를 확인하던 곳 <b>1 건</b>도 함께 맞췄다. 셋 다 로직 변경이 아니라 계약이 바뀐 자리를 따라간 것이다.</p>
+
+        <div class="callout"><b>통합 테스트의 범주</b> &mdash; 이번 슬라이스의 통합 테스트 3 건은 게스트 에이전트 엔드포인트의 <b>성공 응답</b> 계층을 본다(지시 payload 가 응답 JSON 으로 제대로 나가는가 · 칩 힌트가 동봉되는가 · step 이 직렬화되는가). 신규 컨트롤러와 신규 URL 이 0 이라 400 · 404 의 새 표면이 없고, <b>409 는 진단 창 게스트의 집행 step 개시 거절</b>로 CP5 의 B4 가 실제 HTTP 응답까지 확인했다(&sect;5).</div>
+      </div>
+    </details>
+
+    <details class="section preview" id="s4">
+      <summary>&sect;4. CP5 검증 계획 (항목 식별자)</summary>
+      <div class="body">
+        <p>수행 전에 항목을 계획하고 식별자를 붙였다. 아래가 그 목록이며, &sect;5 의 수행 기록이 같은 식별자로 1:1 대응한다.</p>
+        <p><b>검증 수단은 브라우저 조작이 아니라 모의 게스트 하네스</b>다(&sect;0 &mdash; E 단계 예외). 환경은 E3.5 계열이 쓰던 <code>e35</code> 샌드박스를 재사용했고(애플리케이션 7838 · 데이터베이스 3357), 이번 구현이 실린 새 jar 로 재기동한 뒤 수행했다.</p>
+        <table>
+          <tr><th>id</th><th>항목</th><th>결과</th></tr>
+          <tr><td>A1</td><td>정상 완주 &mdash; 집행 지시 &rarr; 집행 &rarr; 검증 &rarr; 기록 · 전진</td><td><span class="chip add">PASS</span></td></tr>
+          <tr><td>A2</td><td>재적재 &mdash; 인벤토리가 집행 후 실물로 갱신</td><td><span class="chip add">PASS</span></td></tr>
+          <tr><td><b>B1</b></td><td><b>외부 볼륨 보류 &mdash; 대기 + 보류 원장 1 행(중복 억제)</b></td><td><span class="chip add">PASS</span></td></tr>
+          <tr><td><b>B2</b></td><td><b>CLI 실패 &mdash; 실패 명령과 로그 원문 보존 + 실패 전환</b></td><td><span class="chip add">PASS</span></td></tr>
+          <tr><td><b>B3</b></td><td><b>검증 불일치 &mdash; 기록 없이 실패</b></td><td><span class="chip add">PASS</span></td></tr>
+          <tr><td>B4</td><td>게이트 &mdash; 진단 창 게스트의 집행 step 개시</td><td><span class="chip add">PASS</span></td></tr>
+          <tr><td><b>C1</b></td><td><b>재시도 멱등 &mdash; 실패 뒤 재동결 · 재집행 완주</b></td><td><span class="chip add">PASS</span></td></tr>
+        </table>
+
+        <h4>정상 흐름 A &mdash; 항목별 확인 대상</h4>
+        <ul>
+          <li><b>A1 정상 완주</b> &mdash; 볼륨이 하나도 없는 카드를 가진 새 게스트에, RAID1 · SSD · 480 GB · 정확히 2 대를 요구하는 시드 정의서를 붙인다. 체크인 응답에 집행 payload 가 실려 나가는가, 집행 성공 close 가 검증 지시를 받는가, 검증 통과가 <code>raid_volume</code> 기록과 phase 종단으로 이어지는가. <b>한 바퀴 전체가 끊기지 않고 도는지</b>를 보는 항목이다.</li>
+          <li><b>A2 재적재</b> &mdash; 검증을 통과한 뒤 게스트에 적재된 인벤토리가 <b>집행 후 실물</b>로 갱신되는가. 갱신되지 않으면 화면이 이미 사라진 구성을 계속 보여주게 되므로, 화면과 실물이 어긋나지 않는지를 데이터 층에서 확인한다.</li>
+        </ul>
+
+        <h4>비정상 조작 B &mdash; 항목별 확인 대상</h4>
+        <ul>
+          <li><b>B1 외부 볼륨 보류</b> &mdash; 우리가 만들지 않은 볼륨이 남아 있는 실측 인벤토리를 가진 게스트로 <b>두 번 체크인</b>한다. 두 번 다 대기 지시를 받는가, 그리고 보류 원장이 <b>정확히 한 행</b>만 남는가. 30 초 주기 체크인에서 같은 사유가 무한히 쌓이지 않아야 한다.</li>
+          <li><b>B2 CLI 실패</b> &mdash; 하네스의 <code>clifail</code> 모드로 게스트가 CLI 실행에 실패했다고 보고하게 한다. 실패 사유와 <b>어느 명령에서 실패했는지</b>, 그리고 <b>실행 로그 원문</b>이 원장에 보존되는가. 진행률이 실패로 전환되는가.</li>
+          <li><b>B3 검증 불일치</b> &mdash; 하네스의 <code>mismatch</code> 모드로 집행 전 원문을 그대로 재채집 결과인 양 보고하게 한다. 대조가 어긋난 사실을 사유로 남기고 실패하는가, 그리고 <b>실물이 계획과 다르므로 아무것도 기록하지 않는가</b>. 검증이 통과 도장이 아니라 실제 대조임을 보는 항목이다.</li>
+          <li><b>B4 게이트</b> &mdash; 아직 진단 단계에 있는 게스트가 집행 step 을 열려고 하면 거절되는가. 단계 순서를 건너뛴 요청이다.</li>
+        </ul>
+
+        <h4>막는 방식 · 경계 C &mdash; 항목별 확인 대상</h4>
+        <ul>
+          <li><b>C1 재시도 멱등</b> &mdash; B2 로 집행에 실패한 바로 그 게스트를 <b>재시도</b>시킨다. 실패한 채로 굳지 않고 <b>새 계획이 다시 동결</b>되어 재집행이 완주하는가. 실패가 되돌릴 수 없는 종착점이 되면 운영자는 게스트를 버리고 처음부터 다시 등록해야 하므로, 실패에서 빠져나오는 길이 실제로 열려 있는지 보는 항목이다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="section preview" id="s5">
+      <summary>&sect;5. CP5 수행 기록 (증거 = API 응답 · DB 원문 &mdash; 7/7 PASS)</summary>
+      <div class="body">
+        <p>계획한 7 항목을 <b>전부 수행</b>했고 <b>7 건 모두 PASS</b> 다. 아래는 항목마다 <b>조작 · 기대 · 실제 · 판정</b> 네 단으로 풀고, 실제 란에는 <b>서버가 돌려준 응답 원문</b>과 <b>데이터베이스에 남은 행</b>을 그대로 싣는다.</p>
+
+        <h4>항목별 사용 게스트</h4>
+        <table>
+          <tr><th>항목</th><th>게스트</th><th>비고</th></tr>
+          <tr><td>A1 · A2</td><td><code>01a05750-d60c&hellip;</code></td><td>볼륨 0 인 카드로 새로 세운 게스트</td></tr>
+          <tr><td>B1</td><td><code>01a05607-4407&hellip;</code></td><td>기존 게스트 &mdash; 외부 볼륨 2 개가 남은 실측 인벤토리</td></tr>
+          <tr><td>B2 · C1</td><td><code>01a05751-3347&hellip;</code></td><td>같은 게스트로 실패 후 재시도까지 이어 확인</td></tr>
+          <tr><td>B3</td><td><code>01a05751-42dc&hellip;</code></td><td>검증 불일치 전용</td></tr>
+          <tr><td>B4</td><td><code>01a0561a-b672&hellip;</code></td><td>진단 창에 있는 게스트</td></tr>
+        </table>
+
+        <h4>A1 &mdash; 집행 한 바퀴의 정상 완주</h4>
+        <p><b>조작</b> : 볼륨이 하나도 없는 카드(<code>mrclean</code>)를 가진 새 게스트를 세우고, RAID1 · SSD · 480 GB · 정확히 2 대를 요구하는 시드 정의서를 할당한 뒤 하네스의 <code>ok</code> 모드로 한 바퀴를 돌렸다.<br>
+           <b>기대</b> : 체크인 응답이 집행 지시와 payload 를 싣고, 집행 성공 close 가 검증 지시를 받고, 검증 통과 close 가 재부팅 지시를 받는다. 그 사이 원장에 동결 &rarr; 집행 &rarr; 검증이 순서대로 쌓이고 <code>raid_volume</code> 한 행이 남는다.</p>
+        <p><b>실제</b> &mdash; 체크인 응답 :</p>
+<pre>{"directive":"RAID_APPLY","raidApply":{"deleteExisting":false,"volumes":[{"name":"spvR1V1","level":"RAID1","slots":["252:0","252:1"]}],"jbod":[]},"raidChips":"1000:0097=MPT_IR 1000:005d=MEGARAID"}</pre>
+        <p>집행 step 을 성공 close 하자 응답이 <code>RAID_VERIFY</code> 로 바뀌었고, 검증 step 을 성공 close 하자 <b><code>REBOOT</code></b> 이 돌아왔다. 원장에는 네 행이 순서대로 쌓였다.</p>
+<pre>RAID_INVENTORY_COLLECTING   SUCCEEDED
+RAID_APPLYING               PENDING     {"reason":"PLANNED","plan":{ … }}     ← 계획 동결
+RAID_APPLYING               SUCCEEDED   {"log_b64":"…"}                       ← 게스트 집행 로그 원문
+RAID_VERIFYING              SUCCEEDED</pre>
+        <p><code>raid_volume</code> 에 남은 행과 진행률 :</p>
+<pre>name      raid_level  member_slots         usable_bytes    volume_role  rule_no  state
+spvR1V1   RAID1       ["252:0","252:1"]    479559942144    OS           1        Optl
+
+progress : completed 1 · failed 0</pre>
+        <p><b>판정</b> : <span class="chip add">PASS</span> &mdash; 지시 · 집행 · 검증 · 기록 · 전진이 끊긴 데 없이 이어졌다. 볼륨 이름이 CP1 개정 형식(<code>spvR1V1</code>)으로 나갔고, 그 이름이 payload · 원장 · 기록 표 셋에서 같은 값으로 관통한다. 역할이 <code>OS</code> 로 기록된 것은 E4 의 OS 설치가 설치 대상 볼륨을 찾는 축이 실제로 채워졌다는 뜻이다.</p>
+
+        <h4>A2 &mdash; 검증 통과 후 인벤토리 재적재</h4>
+        <p><b>조작</b> : A1 이 완주한 게스트의 적재 인벤토리를 조회해, 집행으로 새로 생긴 볼륨 이름이 그 안에 들어 있는지 확인했다.<br>
+           <b>기대</b> : 집행 전 인벤토리에는 볼륨이 0 개였으므로, 갱신되지 않았다면 새 이름이 나올 수 없다.<br>
+           <b>실제</b> :</p>
+<pre>raid_inventory_json LIKE '%spvR1V1%'  →  1 건 (1,462 B)</pre>
+        <p><b>판정</b> : <span class="chip add">PASS</span> &mdash; 검증에 쓴 재채집 원문이 그대로 적재본을 덮었다. 화면이 읽는 인벤토리가 집행 후 실물과 같아졌으므로, 사용자가 상세 화면에서 사라진 구성을 보게 되는 어긋남이 생기지 않는다.</p>
+
+        <h4>B1 &mdash; 외부 볼륨이 남아 있으면 집행하지 않는다</h4>
+        <p><b>조작</b> : 우리가 만들지 않은 볼륨 2 개가 남아 있는 실측 인벤토리를 가진 기존 게스트로 <b>두 번 연속 체크인</b>했다.<br>
+           <b>기대</b> : 두 번 다 대기 지시를 받고, 보류 원장은 중복 억제로 한 행만 남는다.<br>
+           <b>실제</b> : 응답은 두 번 다 <code>WAIT</code> 였고, 집행 step 의 PENDING 행은 <b>정확히 1 개</b>였다.</p>
+<pre>{"reason":"POLICY_UNDECIDED","detail":"외부 기존 볼륨 2개 — \"기존 구성 : 보존 / 파괴\" 축 도입(E3.5-4) 전에는 집행하지 않습니다"}</pre>
+        <p><b>판정</b> : <span class="chip add">PASS</span> &mdash; 남의 데이터를 임의로 지우지 않는 방어가 실제로 작동한다. 그리고 <b>막는 방식</b>이 두 가지 면에서 온당하다 &mdash; 첫째, 실패가 아니라 보류(PENDING)라서 진행률에 실패 낙인이 찍히지 않는다. 둘째, 사유 문구가 &ldquo;왜 멈췄고 무엇이 도입되면 풀리는지&rdquo; 를 그대로 말해 준다. 30 초마다 같은 판정을 받아도 원장이 부풀지 않는 것까지 두 번째 체크인으로 확인했다.</p>
+
+        <h4>B2 &mdash; 게스트가 CLI 실행에 실패했을 때</h4>
+        <p><b>조작</b> : 하네스 <code>clifail</code> 모드 &mdash; 집행 지시를 받은 게스트가 볼륨 생성 명령에서 실패했다고 보고한다.<br>
+           <b>기대</b> : 실패 사유 · 실패한 명령 · 실행 로그 원문이 원장에 남고, 진행률이 실패로 전환된다. 커서는 실패한 지점에 머무른다.<br>
+           <b>실제</b> &mdash; 실패 close 의 응답과 원장 행 :</p>
+<pre>close 응답 : {"directive":"REBOOT", …}
+
+원장 RAID_APPLYING  FAILED
+{"reason":"CREATE_REJECTED","detail":"storcli64 add vd rc=255","log_b64":…}
+
+progress : failed_at 1 · 커서 RAID_APPLYING (실패 지점)</pre>
+        <p><b>판정</b> : <span class="chip add">PASS</span> &mdash; 실패가 조용히 삼켜지지 않는다. 사유 코드만이 아니라 <b>어느 명령이 몇 번 코드로 실패했는지</b>와 실행 로그 원문이 함께 남으므로, 운영자가 카드에 직접 붙지 않고도 원인을 좁힐 수 있다. 커서가 실패 지점에 머무는 것은 C1 의 재시도가 그 자리에서 다시 출발할 수 있게 하는 전제다.</p>
+
+        <h4>B3 &mdash; 만들어진 것이 계획과 다를 때</h4>
+        <p><b>조작</b> : 하네스 <code>mismatch</code> 모드 &mdash; 검증 지시를 받은 게스트가 <b>집행 전 원문</b>(기존 볼륨 2 개가 그대로 있는 상태)을 재채집 결과인 양 보고한다.<br>
+           <b>기대</b> : 재채집 보고 자체는 정상 close 지만, 서버가 동결 계획과 대조해 어긋남을 잡아내고 실패로 남긴다. 실물이 계획과 다르므로 기록은 남기지 않는다.<br>
+           <b>실제</b> :</p>
+<pre>RAID_VERIFYING  SUCCEEDED    ← 재채집 보고 자체의 close
+RAID_VERIFYING  FAILED       {"reason":"RESULT_MISMATCH","detail":"볼륨 수 불일치 — 계획 1개 · 실물 2개"}
+
+progress : failed 1        raid_volume : 0 행</pre>
+        <p><b>판정</b> : <span class="chip add">PASS</span> &mdash; 검증이 형식적인 통과 도장이 아니라 실제 대조임이 드러난다. 특히 <b>보고의 성공과 판정의 성공이 분리</b>돼 있다 &mdash; 게스트는 시킨 일(재채집)을 정상 수행했으므로 그 close 는 성공이고, 그 내용을 대조한 서버의 판정이 별도 행으로 실패를 남긴다. 두 사실이 한 행에 뭉개지지 않는다. 어긋난 상태를 &ldquo;구성됨&rdquo; 으로 기록하지 않는 것도 의도대로다.</p>
+
+        <h4>B4 &mdash; 단계를 건너뛴 요청</h4>
+        <p><b>조작</b> : 아직 진단 단계에 있는 게스트로 집행 step(<code>RAID_APPLYING</code>)을 열려고 시도했다.<br>
+           <b>기대</b> : 현재 단계가 아닌 step 은 개시할 수 없다.<br>
+           <b>실제</b> : <b>HTTP 409</b>.<br>
+           <b>판정</b> : <span class="chip add">PASS</span> &mdash; 단계 게이트가 지시 판정과 별개로 서버 쪽에서 한 번 더 막는다. 게스트가 오래된 지시를 들고 뒤늦게 오거나 순서가 뒤엉킨 요청을 보내도, 집행 원장이 엉뚱한 단계에 열리지 않는다.</p>
+
+        <h4>C1 &mdash; 실패한 게스트의 재시도</h4>
+        <p><b>조작</b> : B2 로 집행에 실패한 바로 그 게스트를 재시도시키고, 하네스로 다시 한 바퀴를 돌렸다.<br>
+           <b>기대</b> : 실패 상태에서 빠져나와 <b>새 계획이 다시 동결</b>되고, 재집행과 검증이 완주해 기록이 남는다.<br>
+           <b>실제</b> : 재시도 요청이 302 로 처리된 뒤 원장이 다음처럼 이어졌다.</p>
+<pre>RAID_APPLYING   PENDING     (PLANNED)      ← 최초 동결
+RAID_APPLYING   FAILED      (CREATE_REJECTED)
+RAID_APPLYING   PENDING     (PLANNED)      ← 재동결
+RAID_APPLYING   SUCCEEDED
+
+raid_volume : spvR1V1 · 역할 OS        progress : completed 1 · failed 0</pre>
+        <p><b>판정</b> : <span class="chip add">PASS</span> &mdash; 실패가 되돌릴 수 없는 종착점이 아니다. 주목할 점은 재시도가 <b>낡은 동결본을 재사용하지 않고 계획을 다시 동결</b>한다는 것이다. 실패와 재시도 사이에 사용자가 정의서를 고쳤을 수 있으므로, 다시 세운 계획으로 집행해야 검증의 대조 기준이 실제 집행 내용과 같아진다. 원장에는 네 행이 모두 남아 &ldquo;한 번 실패하고 다시 해서 성공했다&rdquo; 는 경위가 사라지지 않는다.</p>
+      </div>
+    </details>
+
+    <details class="section preview" id="s6" open>
+      <summary>&sect;6. 미수행 항목과 사유</summary>
+      <div class="body">
+        <div class="callout warn"><b>계획한 7 항목(A1 · A2 · B1~B4 · C1)은 미수행 0 이다.</b> 다만 검증 수단이 브라우저도 실물 카드도 아니었기 때문에, 아래 <b>세 가지가 확인되지 않은 채 남는다</b>. 조용히 빠뜨리지 않고 사유와 함께 적는다.</div>
+        <table>
+          <tr><th>남은 것</th><th>사유와 이관처</th></tr>
+          <tr><td><b>실카드 집행</b><br><code>storcli64</code> · <code>sas3ircu</code> 실실행 · agent.sh 어댑터 실동작 · IR 계열 완주</td><td>하네스는 <b>CLI 를 흉내 낸 보고를 올릴 뿐</b>이며 실제로 카드에 명령을 내리지 않는다. 따라서 어댑터가 만든 명령 문자열이 실제 CLI 문법으로 유효한지, IR 계열이 한 바퀴를 완주하는지는 <b>이번 검증이 보증하지 않는다</b>. <b>CP7 실기 일괄</b>로 이관한다 &mdash; 그때 <b>기존 볼륨을 수동으로 먼저 삭제</b>해야 집행 경로로 들어간다(CP1 확정 · &sect;0).</td></tr>
+          <tr><td><b>브라우저 화면 확인</b></td><td>이번 슬라이스는 <b>화면 신설이 0</b> 이다 &mdash; 기록된 볼륨을 보여주는 표는 E3.5-4 의 몫이다. 화면과 관련된 유일한 변화인 인벤토리 재적재는 A2 가 데이터 층에서 확인했다. E 단계 예외 관례를 따른다.</td></tr>
+          <tr><td><b><code>PLAN_REJECTED</code> 보류의 하네스 재현</b><br>(판정 ④)</td><td>계획이 거절되게 하려면 칩 계열 한계에 걸리는 인벤토리를 별도로 시드해야 하는데, 그 시드가 이번 하네스 자산에 없다. <b>생략했고</b>, 대신 실행기 단위 테스트의 해당 케이스가 판정 ④ 의 지시 · 원장 동작을 덮는다. 전 구간 왕복으로는 확인되지 않은 채 남는다.</td></tr>
+        </table>
+        <div class="callout danger"><b>하네스 검증은 실기 검증을 대체하지 않는다.</b> 이번에 확인된 것은 <b>서버의 판정과 원장 · 기록</b>, 그리고 <b>게스트와 주고받는 계약의 모양</b>까지다. 카드가 실제로 명령을 받아 볼륨을 만드는 층은 확인되지 않았다. 두 가지를 같은 것으로 읽으면 다음 사람이 CLI 어댑터를 검증된 것으로 착각한다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>&sect;7. 발견한 것</summary>
+      <div class="body">
+        <h4>자가 결함 1 건 &mdash; 테스트 작성 중 스텁 구성이 깨졌다</h4>
+        <p>테스트를 쓰는 도중 Mockito 의 <code>UnfinishedStubbing</code> 오류가 <b>8 건</b> 났다. 원인은 <code>@Spy</code> 로 둔 <code>ObjectMapper</code> 를 <b><code>given(...)</code> 을 구성하는 도중에 호출</b>한 것이었다 &mdash; 스텁을 세우는 중간에 spy 의 실제 메서드가 실행되면서 Mockito 가 앞선 스텁을 완성하지 못했다. 직렬화 호출을 스텁 구성 밖으로 빼내 해소했다.</p>
+        <div class="callout"><b>main 코드 결함은 0 이다.</b> 이 건은 테스트 코드 작성 과정에서 생겨 그 자리에서 해소된 것이므로 구현에 남은 것이 없다. 감추지 않고 적는 이유는, 같은 함정이 spy 를 쓰는 다음 테스트에서 되풀이될 수 있기 때문이다.</div>
+
+        <h4>검수가 잡은 것 &mdash; 사용자 지적 3 건이 설계에 반영됐다</h4>
+        <p>이번 슬라이스에서 실제로 설계를 바꾼 지적은 모두 <b>구현 전 또는 구현 검수 시점</b>에 나왔다.</p>
+        <table>
+          <tr><th>시점</th><th>지적</th><th>반영</th></tr>
+          <tr><td><span class="chip cp1">CP1</span></td><td>볼륨 이름에 하이픈이 들어가면 받지 않는 카드가 있다</td><td><code>spvR{규칙번호}V{순번}</code> 형식으로 개정 &mdash; 이미 병합된 E3.5-2 코드와 테스트 12 곳을 함께 갱신(&sect;1)</td></tr>
+          <tr><td><span class="chip cp1">CP1</span></td><td>실기에서 기존 볼륨을 어떻게 할 것인가</td><td>CP7 실기는 <b>사용자 수동 삭제</b> 후 진행으로 확정 &mdash; 보존 · 파괴 축은 E3.5-4</td></tr>
+          <tr><td><span class="chip cp4">CP4</span></td><td>칩 식별자가 서버 파서와 에이전트 스크립트 두 곳에 하드코딩돼 있다</td><td>결정 6 신설 &mdash; <code>RaidChipFamily</code> 한 곳으로 통합하고 에이전트는 동봉 맵으로만 판별(&sect;2 R8)</td></tr>
+        </table>
+        <p>세 건 모두 코드가 굳기 전에 잡혔다. 특히 세 번째는 <b>지금 고치지 않았다면 새 칩이 추가되는 시점에야 어긋남이 드러났을 종류</b>다 &mdash; 서버는 새 칩을 알고 에이전트는 모르는 상태가 되어, 인벤토리는 수집되는데 집행만 조용히 실패하는 형태로 나타났을 것이다.</p>
+
+        <h4>관찰 1 &mdash; &ldquo;RAID 없음&rdquo; 규칙 경로는 왕복으로 확인되지 않았다</h4>
+        <p>CP5 에 쓴 시드 정의서는 규칙이 하나뿐이라, 집행 payload 의 <code>jbod</code> 항목이 <b>빈 배열</b>로 나갔다. 즉 RAID 로 묶지 않고 단독 디스크로 두는 경로는 이번 왕복에서 실제 값이 실려 나가는 것을 보지 못했다. 이 경로는 단위 테스트(레벨 축 · payload 파생)로만 검증돼 있다.</p>
+        <div class="callout warn"><b>CP7 실기 시나리오에 &ldquo;RAID 없음&rdquo; 규칙을 포함할 것을 권고한다.</b> 단독 디스크 지정은 에이전트 쪽에서 계열마다 처리가 갈리는 지점이라(MegaRAID 는 별도 명령이 필요하고 IR 은 볼륨에 속하지 않은 디스크가 곧 단독 노출이다), 실기에서 값이 실린 채로 한 번은 통과시켜 보는 것이 좋다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s8">
+      <summary>&sect;8. Critical Files</summary>
+      <div class="body">
+        <p>변경 규모는 <b>수정 20 파일(+850 / &minus;86)</b> · <b>신규 13 파일</b>이다.</p>
+
+        <h4>신규 main <span class="chip new">5</span></h4>
+        <table>
+          <tr><th>경로</th><th>요지</th></tr>
+          <tr><td><code>execution/engine/raid/RaidApplyPayload</code></td><td>집행 중립 명령 payload &mdash; agent.sh 계약의 SSOT. 계획에서 집행분만 추린다</td></tr>
+          <tr><td><code>execution/engine/raid/RaidResultVerifier</code></td><td>동결 계획 대 재채집 4 축 대조(의존 0 · 순수 static) · 이름 폴백</td></tr>
+          <tr><td><code>execution/entity/RaidVolume</code></td><td>검증을 통과한 실물의 기록 &mdash; &ldquo;지금 카드에 있는 것&rdquo;</td></tr>
+          <tr><td><code>execution/repository/RaidVolumeRepository</code></td><td>게스트 단위 replace 기록</td></tr>
+          <tr><td><code>ddl/E3.5-3_raid_volume.sql</code></td><td><code>raid_volume</code> 표 정의(<code>schema.sql</code> 동기 · 실 DB 는 CP7 일괄)</td></tr>
+        </table>
+
+        <h4>수정 main <span class="chip mod">12</span></h4>
+        <table>
+          <tr><th>경로</th><th>요지</th></tr>
+          <tr><td><code>execution/engine/raid/RaidConfigurationExecutor</code></td><td>지시 상태기계 5 판정 · 검증 보고 소비 · <code>raid_volume</code> replace 기록</td></tr>
+          <tr><td><code>execution/engine/raid/RaidLedger</code></td><td>사유 5 종 · 계획 동결 · 보류 기록 · <code>failInstant</code> stepCode 파라미터화</td></tr>
+          <tr><td><code>execution/engine/raid/RaidChipFamily</code></td><td>칩 판별 SSOT &mdash; <code>chipPciIds()</code> · <code>agentChipHint()</code> · <code>fromLspci()</code></td></tr>
+          <tr><td><code>execution/engine/raid/RaidInventoryParser</code></td><td>자체 칩 패턴 제거 &mdash; 판별을 <code>RaidChipFamily</code> 로 위임</td></tr>
+          <tr><td><code>execution/enums/AgentDirective</code></td><td><code>RAID_APPLY</code> · <code>RAID_VERIFY</code> 추가</td></tr>
+          <tr><td><code>execution/dto/response/AgentCheckinResponse</code></td><td><code>raidApply</code> · <code>raidChips</code> 확장 + 보조 생성자</td></tr>
+          <tr><td><code>execution/dto/response/StepCloseResponse</code></td><td>동일 확장 &mdash; close 응답도 다음 지시와 payload 를 나른다</td></tr>
+          <tr><td><code>execution/engine/phase/ProvisioningPhaseExecutor</code></td><td><code>raidApplyPayloadFor</code> default 메서드 &mdash; 해당 실행기만 재정의</td></tr>
+          <tr><td><code>execution/engine/diagnose/AgentReportService</code></td><td>payload 를 실은 응답 조립</td></tr>
+          <tr><td><code>execution/repository/ProvisioningHistoryRepository</code></td><td>step 별 최신 행 조회 &mdash; 지시 판정과 중복 억제가 함께 쓴다</td></tr>
+          <tr><td><code>scripts/diag-image/agent/agent.sh</code></td><td>채집부 공용 추출 · 집행 어댑터 · 로그 원문 운반 · payload 전달</td></tr>
+          <tr><td><code>ddl/schema.sql</code></td><td><code>raid_volume</code> 동기</td></tr>
+        </table>
+
+        <h4>계획 개정 파급 <span class="chip mod">5</span></h4>
+        <table>
+          <tr><th>경로</th><th>요지</th></tr>
+          <tr><td><code>execution/engine/raid/PlannedVolume</code></td><td><code>ruleNo</code> 추가 &mdash; 기록의 원천</td></tr>
+          <tr><td><code>execution/engine/raid/PlannedPassthrough</code></td><td><code>ruleNo</code> 추가</td></tr>
+          <tr><td><code>provisioning/assignment/service/plan/RaidPlanner</code></td><td>볼륨 이름 생성 형식 개정</td></tr>
+          <tr><td><code>templates/provisioning/server-detail.html</code></td><td>개정된 이름 표기</td></tr>
+          <tr><td><code>provisioning/.../plan/RaidPlannerTest</code></td><td>이름 어서션 갱신</td></tr>
+        </table>
+
+        <h4>테스트 <span class="chip new">신규 3</span> <span class="chip mod">수정 2</span></h4>
+        <table>
+          <tr><th>파일</th><th>구분</th><th>건수</th></tr>
+          <tr><td><code>execution/engine/raid/RaidResultVerifierTest</code></td><td><span class="chip new">신규</span></td><td>7</td></tr>
+          <tr><td><code>execution/engine/raid/RaidLedgerTest</code></td><td><span class="chip new">신규</span></td><td>6</td></tr>
+          <tr><td><code>execution/engine/raid/RaidApplyPayloadTest</code></td><td><span class="chip new">신규</span></td><td>4</td></tr>
+          <tr><td><code>execution/engine/raid/RaidConfigurationExecutorTest</code></td><td><span class="chip mod">수정</span></td><td>14 (V-계열)</td></tr>
+          <tr><td><code>execution/controller/GuestAgentRestControllerFlowTest</code></td><td><span class="chip mod">수정</span></td><td>3 (통합)</td></tr>
+        </table>
+
+        <h4>CP5 하네스 자산 <span class="chip new">신규 4</span> <span class="chip mod">수정 1</span></h4>
+        <table>
+          <tr><th>경로</th><th>요지</th></tr>
+          <tr><td><code>scripts/mock-guest/raid-apply-cycle.sh</code></td><td><span class="chip new">신규</span> &mdash; <code>ok</code> · <code>clifail</code> · <code>mismatch</code> 세 모드</td></tr>
+          <tr><td><code>scripts/mock-guest/raid-inventory-cycle.sh</code></td><td><span class="chip mod">수정</span> &mdash; 볼륨 0 카드 재연 <code>mrclean</code> 모드</td></tr>
+          <tr><td><code>scripts/mock-guest/fixtures-raid/</code> 3 파일</td><td><span class="chip new">신규</span> &mdash; <code>mr-applied-pd</code> · <code>mr-applied-vd</code> · <code>mr-novol-vd</code></td></tr>
+        </table>
+
+        <div class="callout"><b>컨트롤러 변경 0 · 신규 URL 0</b> &mdash; 지시와 payload 는 기존 게스트 에이전트 엔드포인트의 응답에 실려 나간다. <b>실 DB 적용 0</b> &mdash; <code>raid_volume</code> 은 CP7 일괄 합류다.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s9">
+      <summary>&sect;9. 남은 일</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="e353-report-remaining">
+          <li><label><input type="checkbox" data-key="commit"><span><b>커밋 · push · PR</b>(&rarr; <code>dev</code>) &mdash; 사용자 지시 대기</span></label></li>
+          <li><label><input type="checkbox" data-key="notion"><span><b>Notion E3.5-3 단계 페이지</b> &mdash; plan · report 탭 임베드</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"><span><b>실 DB DDL</b> &mdash; <code>raid_volume</code> 표 적용(CP7 일괄 합류)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"><span><b>CP7 &mdash; E 단계 일괄 실기</b>. 이번 슬라이스가 실기에 넘기는 것은 넷이다 : 실카드 2 종의 집행 완주(&sect;6) · <b>기존 볼륨 수동 삭제 후 진입</b> · <code>sas3ircu</code> 계열의 이름 한계 확인 · &ldquo;RAID 없음&rdquo; 규칙 시나리오(&sect;7 관찰)</span></label></li>
+          <li><label><input type="checkbox" data-key="e354"><span><b>다음 슬라이스 E3.5-4</b> &mdash; E4 로 넘기는 인계 화면 · &ldquo;기존 구성 보존 · 파괴&rdquo; 선택 축 · 사각 규칙의 저장 시점 정적 차단. MVP 9/15 창의 잔여다</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

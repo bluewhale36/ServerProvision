@@ -67,7 +67,9 @@ public class AgentReportService {
         ProvisioningProgress progress = requireProgress(server);
         requireProvisioning(server, progress);
         publishChanged(server);
-        return new AgentCheckinResponse(directiveFor(server, progress), server.getName());
+        AgentDirective directive = directiveFor(server, progress);
+        return new AgentCheckinResponse(directive, server.getName(),
+                raidApplyFor(directive, server, progress), raidChipsFor(directive));
     }
 
     /**
@@ -123,7 +125,7 @@ public class AgentReportService {
                 throw AgentReportRejectedException.notProvisioning(server.getId());
             }
             publishChanged(server);   // 접촉(lastSeenAt)은 이 no-op 경로에서도 갱신됐다
-            return new StepCloseResponse(directiveFor(server, progress));   // no-op + REBOOT 재계산
+            return new StepCloseResponse(directiveFor(server, progress));   // no-op + REBOOT 재계산(payload 불요)
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -149,7 +151,8 @@ public class AgentReportService {
                     .ifPresent(executor -> executor.onStepClosed(server, progress, step));
         }
         publishChanged(server);
-        return new StepCloseResponse(directiveFor(server, progress));
+        AgentDirective directive = directiveFor(server, progress);
+        return new StepCloseResponse(directive, raidApplyFor(directive, server, progress), raidChipsFor(directive));
     }
 
     /**
@@ -173,6 +176,33 @@ public class AgentReportService {
      * 서버 주도 phase 실행기는 override 없이 같은 답을 낸다. 재수신(응답 유실 재체크인)은 무해 —
      * 소비 훅의 적재가 최신값 덮기라 멱등이다.
      */
+    /**
+     * RAID_APPLY 지시의 payload 동봉(E3.5-3 결정 1) — 그 지시를 낸 커서 phase 실행기에게만 묻는다.
+     * 다른 지시는 payload 가 없다(null 직렬화 생략은 응답 record 몫).
+     */
+    private com.example.serverprovision.execution.engine.raid.RaidApplyPayload raidApplyFor(
+            AgentDirective directive, GuestServer server, ProvisioningProgress progress) {
+        if (directive != AgentDirective.RAID_APPLY) {
+            return null;
+        }
+        return phaseExecutorRegistry.find(progress.currentPhase())
+                .map(executor -> executor.raidApplyPayloadFor(server, progress))
+                .orElse(null);
+    }
+
+    /**
+     * RAID 지시의 칩 판별 힌트(E3.5-3 CP4 검수 반영) — 칩 id 의 SSOT 는 서버(RaidChipFamily)이고
+     * 에이전트는 받은 맵으로만 판별한다. 실물 기준 판별이라 지정 카드와 다른 계열이 꽂혀 있어도
+     * 채집은 성공하고, 불일치는 서버 대조(CARD_MISMATCH)가 정직하게 잡는다.
+     */
+    private String raidChipsFor(AgentDirective directive) {
+        if (directive == AgentDirective.RAID_INVENTORY || directive == AgentDirective.RAID_APPLY
+                || directive == AgentDirective.RAID_VERIFY) {
+            return com.example.serverprovision.execution.engine.raid.RaidChipFamily.agentChipHint();
+        }
+        return null;
+    }
+
     private AgentDirective directiveFor(GuestServer server, ProvisioningProgress progress) {
         if (progress.isCompleted() || progress.isFailed()) {
             return AgentDirective.REBOOT;

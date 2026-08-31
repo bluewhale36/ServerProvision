@@ -89,7 +89,7 @@ public final class RaidPlanner {
                     volumeCount++;
                     long perDisk = group.stream().mapToLong(c -> c.bytes).min().orElse(0L);
                     long usable = rule.raidLevel().usableDisks(group.size()) * perDisk;
-                    entries.add(Entry.volume("spv-r" + ruleNo + "-v" + volumeSeq,
+                    entries.add(Entry.volume("spvR" + ruleNo + "V" + volumeSeq,
                             rule.raidLevel(), rule, ruleNo, group, usable, entries.size()));
                 } else {
                     for (Candidate c : group) {
@@ -155,11 +155,11 @@ public final class RaidPlanner {
 
         List<PlannedVolume> plannedVolumes = volumes.stream()
                 .map(e -> new PlannedVolume(e.name, e.level,
-                        e.members.stream().map(c -> c.slot).toList(), e.usableBytes, e.plannedRole))
+                        e.members.stream().map(c -> c.slot).toList(), e.usableBytes, e.plannedRole, e.ruleNo))
                 .toList();
         List<PlannedPassthrough> passthroughs = entries.stream()
                 .filter(e -> !e.volume)
-                .map(e -> new PlannedPassthrough(e.members.get(0).slot, e.usableBytes, e.plannedRole))
+                .map(e -> new PlannedPassthrough(e.members.get(0).slot, e.usableBytes, e.plannedRole, e.ruleNo))
                 .toList();
         return new RaidPlan(deleteExistingFirst, plannedVolumes, passthroughs,
                 unassigned, ruleOutcomes, osAbsenceReason);
