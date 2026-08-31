@@ -12,4 +12,10 @@ import java.util.UUID;
 public interface RaidConfigurationResolutionProvider {
 
     Optional<RaidConfigurationTarget> resolveFor(UUID guestServerId);
+
+    /**
+     * 활성 할당의 규칙으로 계획을 산출한다(E3.5-2) — empty = 창 밖(resolveFor 와 같은 의미).
+     * 계획은 저장하지 않는 파생물이라 호출 때마다 재산출된다(plan 결정 3).
+     */
+    Optional<RaidPlanOutcome> planFor(UUID guestServerId, RaidInventory inventory, RaidExistingConfigPolicy policy);
 }

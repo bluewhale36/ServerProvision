@@ -1,6 +1,10 @@
 package com.example.serverprovision.provisioning.assignment.service;
 
 import com.example.serverprovision.execution.engine.raid.RaidConfigurationResolutionProvider;
+import com.example.serverprovision.execution.engine.raid.RaidExistingConfigPolicy;
+import com.example.serverprovision.execution.engine.raid.RaidInventory;
+import com.example.serverprovision.execution.engine.raid.RaidPlanOutcome;
+import com.example.serverprovision.provisioning.assignment.service.plan.RaidPlanner;
 import com.example.serverprovision.execution.engine.raid.RaidConfigurationTarget;
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.management.raidcard.repository.RaidCardRepository;
@@ -28,15 +32,16 @@ public class RaidConfigurationResolutionProviderImpl implements RaidConfiguratio
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<RaidPlanOutcome> planFor(UUID guestServerId, RaidInventory inventory,
+                                             RaidExistingConfigPolicy policy) {
+        return activeRaidRequest(guestServerId)
+                .map(raid -> RaidPlanner.plan(raid.getDiskGroups(), raid.getVolumePriorities(), inventory, policy));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<RaidConfigurationTarget> resolveFor(UUID guestServerId) {
-        Optional<RaidConfigurationRequest> raid = assignmentRepository
-                .findByGuestServer_IdAndSupersededAtIsNull(guestServerId)
-                .flatMap(snapshot -> snapshot.getProcesses().stream()
-                        .map(AssignedProcessSnapshot::getPayload)
-                        .map(payload -> payload.request())
-                        .filter(RaidConfigurationRequest.class::isInstance)
-                        .map(RaidConfigurationRequest.class::cast)
-                        .findFirst());
+        Optional<RaidConfigurationRequest> raid = activeRaidRequest(guestServerId);
         if (raid.isEmpty()) {
             return Optional.empty();   // 활성 할당이 없거나 정의서에 RAID 구성 단계가 없다 — 창 밖
         }
@@ -50,5 +55,17 @@ public class RaidConfigurationResolutionProviderImpl implements RaidConfiguratio
                 card.map(RaidCard::getPciSubsystemId)
                         .map(id -> id == null ? null : id.toDisplay()).orElse(null),
                 card.map(RaidCard::getModelName).orElse("(사라진 카드 #" + raidCardId + ")")));
+    }
+
+    /** 활성 스냅샷의 RAID 구성 payload — resolveFor · planFor 가 같은 창 판정을 공유한다. */
+    private Optional<RaidConfigurationRequest> activeRaidRequest(UUID guestServerId) {
+        return assignmentRepository
+                .findByGuestServer_IdAndSupersededAtIsNull(guestServerId)
+                .flatMap(snapshot -> snapshot.getProcesses().stream()
+                        .map(AssignedProcessSnapshot::getPayload)
+                        .map(payload -> payload.request())
+                        .filter(RaidConfigurationRequest.class::isInstance)
+                        .map(RaidConfigurationRequest.class::cast)
+                        .findFirst());
     }
 }

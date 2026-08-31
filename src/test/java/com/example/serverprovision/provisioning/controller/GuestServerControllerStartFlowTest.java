@@ -93,6 +93,7 @@ class GuestServerControllerStartFlowTest {
                         false, false, false, false),
                 null,   // E2-1-b firmwarePlan — 이 흐름과 무관
                 null,   // E2-2 firmwareFlash — 집행 미착수 fixture
+                null,   // E3.5-2 raidPlan — 계획 창 밖 fixture
                 List.of());
     }
 
