@@ -4,7 +4,7 @@
 # 원문은 fixtures-raid/ 의 2026-08-31 실측본 — agent.sh 의 base64 봉투 계약(RaidInventoryParser SSOT) 그대로.
 #
 # 사용:
-#   ./raid-inventory-cycle.sh <BASE_URL> <GUEST_TOKEN> [mr|cra|mismatch|toolmissing]
+#   ./raid-inventory-cycle.sh <BASE_URL> <GUEST_TOKEN> [mr|mrclean|cra|mismatch|toolmissing]
 #     mr          9361-8i 실측(기본) — storcli JSON 3종
 #     cra         CRA3338 실측 — sas3ircu display
 #     mismatch    lspci 는 CRA(1458:3008), 카드 지정이 9361 이면 CARD_MISMATCH 재현과 동일 효과
@@ -36,9 +36,11 @@ STEP_ID=$(printf '%s' "$OPEN" | field stepId)
 esc() { python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])'; }
 
 case "$MODE" in
-    mr)
+    mr|mrclean)
+        # mrclean(E3.5-3) — 기존 볼륨이 없는 상태 보고: 정상 완주(A1)의 시작점(외부 볼륨 보류를 피한다)
+        VD="$FIX/mr-vd-all.json"; [ "$MODE" = "mrclean" ] && VD="$FIX/mr-novol-vd.json"
         LSPCI=$(cat "$FIX/mr-lspci-nnvv.txt" | b64)
-        META="{\"tool\":\"storcli64\",\"lspci_b64\":\"$LSPCI\",\"pd_b64\":\"$(b64 < "$FIX/mr-pd-all.json")\",\"vd_b64\":\"$(b64 < "$FIX/mr-vd-all.json")\",\"c0_b64\":\"$(b64 < "$FIX/mr-c0-show-all.json")\"}"
+        META="{\"tool\":\"storcli64\",\"lspci_b64\":\"$LSPCI\",\"pd_b64\":\"$(b64 < "$FIX/mr-pd-all.json")\",\"vd_b64\":\"$(b64 < "$VD")\",\"c0_b64\":\"$(b64 < "$FIX/mr-c0-show-all.json")\"}"
         STATUS=SUCCEEDED ;;
     cra|mismatch)
         LSPCI=$(cat "$FIX/cra-lspci-nnvv.txt" | b64)

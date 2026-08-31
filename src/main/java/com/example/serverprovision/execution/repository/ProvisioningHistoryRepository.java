@@ -1,5 +1,8 @@
 package com.example.serverprovision.execution.repository;
 
+import java.util.Optional;
+import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
+
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,4 +20,8 @@ public interface ProvisioningHistoryRepository extends JpaRepository<Provisionin
      */
     @Query("select s from ProvisioningHistory s where s.guestServer.id = :serverId order by s.startedAt asc nulls last")
     List<ProvisioningHistory> findAllByServerIdOrderByStartedAt(@Param("serverId") UUID serverId);
+
+    /** E3.5-3 — step 별 최신 행(동결 계획 조회 · 보류 사유 중복 억제의 판정 입력). */
+    Optional<ProvisioningHistory> findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(
+            UUID guestServerId, ProvisioningPhaseStep stepCode);
 }

@@ -27,8 +27,6 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class RaidInventoryParser {
 
-    private static final Pattern CHIP_IR = Pattern.compile("\\[1000:0097]");
-    private static final Pattern CHIP_MEGARAID = Pattern.compile("\\[1000:005d]");
     private static final Pattern SUBSYSTEM = Pattern.compile(
             "Subsystem:[^\\[\\n]*\\[([0-9a-fA-F]{1,4}):([0-9a-fA-F]{1,4})]");
 
@@ -63,13 +61,9 @@ public class RaidInventoryParser {
     }
 
     private RaidChipFamily familyOf(String lspci) {
-        if (CHIP_MEGARAID.matcher(lspci).find()) {
-            return RaidChipFamily.MEGARAID;
-        }
-        if (CHIP_IR.matcher(lspci).find()) {
-            return RaidChipFamily.MPT_IR;
-        }
-        throw new ReportUnparsableException("지원 칩(1000:0097 · 1000:005d)이 lspci 에 없습니다", null);
+        // 칩 id 의 SSOT 는 RaidChipFamily.chipPciIds — 에이전트 동봉 힌트와 같은 집합 · 같은 순서로 판별한다.
+        return RaidChipFamily.fromLspci(lspci).orElseThrow(() ->
+                new ReportUnparsableException("지원 칩(" + RaidChipFamily.agentChipHint() + ")이 lspci 에 없습니다", null));
     }
 
     private String subsystemOf(String lspci) {

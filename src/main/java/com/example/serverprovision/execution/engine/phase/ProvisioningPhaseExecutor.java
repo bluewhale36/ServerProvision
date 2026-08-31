@@ -54,4 +54,13 @@ public interface ProvisioningPhaseExecutor {
     default AgentDirective directiveFor(GuestServer server, ProvisioningProgress progress) {
         return AgentDirective.REBOOT;
     }
+
+    /**
+     * {@code RAID_APPLY} 지시에 동봉할 집행 payload(E3.5-3) — 그 지시를 내는 실행기만 override 한다.
+     * 기본 null(payload 없는 지시).
+     */
+    default com.example.serverprovision.execution.engine.raid.RaidApplyPayload raidApplyPayloadFor(
+            GuestServer server, ProvisioningProgress progress) {
+        return null;
+    }
 }
