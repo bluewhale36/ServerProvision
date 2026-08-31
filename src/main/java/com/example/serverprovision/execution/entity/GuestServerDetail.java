@@ -73,6 +73,15 @@ public class GuestServerDetail extends BaseTimeEntity {
     @Column(name = "bmc_mac", length = 17)
     private com.example.serverprovision.execution.vo.MacAddressVO bmcMac;
 
+    /**
+     * RAID 인벤토리(E3.5-1) — 카드 뒤 물리 디스크 · 기존 볼륨은 lsblk(hardwareSpec)가 못 보므로
+     * 계열 CLI 보고를 별도 컬럼으로 적재한다({@code RaidInventory} JSON). RAID 구성 phase 진입 시
+     * 채워지며 그 전엔 null. hardwareSpec 에 합치지 않는 이유: 갱신 주기가 다르다(진단 = 등록 시 ·
+     * RAID = phase 진입 시, plan D-2).
+     */
+    @Column(name = "raid_inventory_json", columnDefinition = "longtext")
+    private String raidInventoryJson;
+
     @Version
     private Long version;
 
@@ -127,5 +136,12 @@ public class GuestServerDetail extends BaseTimeEntity {
 
     public boolean isDiagnosticEnriched() {
         return discoveryStage.isSpecAvailable();
+    }
+
+    /** RAID 인벤토리 적재(E3.5-1) — 재수집 보고는 최신값으로 덮는다(멱등). */
+    public void enrichRaidInventory(String raidInventoryJson) {
+        if (raidInventoryJson != null) {
+            this.raidInventoryJson = raidInventoryJson;
+        }
     }
 }

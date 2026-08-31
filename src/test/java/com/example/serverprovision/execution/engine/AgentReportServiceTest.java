@@ -83,12 +83,24 @@ class AgentReportServiceTest {
         return g;
     }
 
+    /**
+     * 진단 지시 규칙(COLLECT/WAIT)은 E3.5-1 다형화(D-2)로 {@code DiagnoseLinuxExecutor.directiveFor} 에
+     * 있다 — 지시 판정을 검증하는 테스트는 registry 가 실제 진단 실행기를 돌려주게 배선한다
+     * (directiveFor 는 detail 저장소만 쓰므로 나머지 협력자는 null). 미배선(empty)은 REBOOT 기본값 경로다.
+     */
+    private void stubDiagnoseExecutor() {
+        given(phaseExecutorRegistry.find(com.example.serverprovision.execution.enums.ProvisioningPhase.DIAGNOSE_LINUX))
+                .willReturn(Optional.of(new com.example.serverprovision.execution.engine.diagnose.DiagnoseLinuxExecutor(
+                        null, null, guestServerDetailRepository, null, null, null, null)));
+    }
+
     // ==== checkin — 지시 판정 (ES-2: 체크인은 커서를 움직이지 않는다) ====
 
     @Test
     @DisplayName("첫 체크인(개시 + seed 커서) → COLLECT 지시(미수집) — 옛 BOOTSTRAPPING 전이 특례 소멸(ES-2)")
     void checkin_first_collects() {
         GuestServer g = stubGuest();
+        stubDiagnoseExecutor();
         ProvisioningProgress p = progress(g, true, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
 
@@ -103,6 +115,7 @@ class AgentReportServiceTest {
     @DisplayName("체크인 — 이미 수집됨(DIAGNOSTIC_ENRICHED) → WAIT (COLLECT 재지시 없음)")
     void checkin_enriched_waits() {
         GuestServer g = stubGuest();
+        stubDiagnoseExecutor();
         ProvisioningProgress p = progress(g, true, ProvisioningPhaseStep.INFORMATION_COLLECTING);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
         GuestServerDetail enriched = org.mockito.Mockito.mock(GuestServerDetail.class);
@@ -145,6 +158,7 @@ class AgentReportServiceTest {
     @DisplayName("R13 미개시 진단 창 — 미개시 + 진단 커서 체크인은 수리(자동 수집 진행): COLLECT 지시")
     void checkin_notStarted_diagnosticWindow_accepted() {
         GuestServer g = stubGuest();
+        stubDiagnoseExecutor();
         ProvisioningProgress p = progress(g, false, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
         given(guestServerDetailRepository.findByServerIdWithBoardModel(g.getId())).willReturn(Optional.empty());

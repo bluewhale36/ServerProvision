@@ -122,6 +122,23 @@ do_apkovl() {
     else
         say "  주의: 서명 공개키가 없다(repo 단계 미수행) — apk 설치가 UNTRUSTED 로 실패할 수 있다 (V5)"
     fi
+    # RAID 계열 CLI 동봉(E3.5-1, D-11) — 바이너리는 git 에 두지 않고(용량 · 배포 파일) 빌드 시 주입한다.
+    # RAID_TOOLS_DIR 에 storcli64 · sas3ircu 를 두면 가방에 실린다. 미지정이면 도구 없이 조립되고,
+    # 게스트는 TOOL_MISSING 으로 정직하게 실패한다(agent.sh 계약). 라이선스 파일 동봉은 불요(2026-08-31 확정).
+    if [ -n "${RAID_TOOLS_DIR:-}" ]; then
+        mkdir -p "$staging/usr/local/sbin"
+        for tool in storcli64 sas3ircu; do
+            if [ -f "$RAID_TOOLS_DIR/$tool" ]; then
+                cp "$RAID_TOOLS_DIR/$tool" "$staging/usr/local/sbin/$tool"
+                chmod +x "$staging/usr/local/sbin/$tool"
+                say "  raid tool 동봉: $tool"
+            else
+                say "  주의: $RAID_TOOLS_DIR/$tool 없음 — 해당 계열은 TOOL_MISSING 으로 보고된다"
+            fi
+        done
+    else
+        say "  주의: RAID_TOOLS_DIR 미지정 — RAID CLI 없이 조립(게스트는 TOOL_MISSING 보고)"
+    fi
     # 루트 기준 상대경로 tar (Alpine lbu 형식)
     (cd "$staging" && tar -czf "$OUT/diag.apkovl.tar.gz" ./*)
     rm -rf "$staging"

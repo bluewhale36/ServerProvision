@@ -3,6 +3,7 @@ package com.example.serverprovision.execution.engine.phase;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
+import com.example.serverprovision.execution.enums.AgentDirective;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 
 /**
@@ -41,5 +42,16 @@ public interface ProvisioningPhaseExecutor {
      */
     default PhaseReadiness readiness(GuestServer server, ProvisioningProgress progress) {
         return PhaseReadiness.ready();
+    }
+
+    /**
+     * 이 phase 커서의 게스트가 진단 리눅스에서 체크인 · 보고했을 때 내릴 지시(E3.5-1, D-2 다형화).
+     * 기본값 REBOOT — 서버가 BMC 로 일하는 phase(펌웨어 갱신 · 설정)에서는 게스트가 진단 리눅스에
+     * 있을 이유가 없으므로 떠나라는 답이다. 게스트가 그 안에서 일해야 하는 phase(진단 · RAID 구성)만
+     * override 한다. 판정 진입점은 {@code AgentReportService} 하나이며 종단(REBOOT) · 실행기 미등록
+     * phase(REBOOT) 는 그쪽 공통 규칙이다.
+     */
+    default AgentDirective directiveFor(GuestServer server, ProvisioningProgress progress) {
+        return AgentDirective.REBOOT;
     }
 }
