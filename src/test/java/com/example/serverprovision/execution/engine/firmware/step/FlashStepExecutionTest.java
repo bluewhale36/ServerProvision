@@ -23,6 +23,7 @@ import com.example.serverprovision.execution.service.BmcIdentityProbe;
 import com.example.serverprovision.execution.service.FirmwareImageTokenRegistry;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.execution.vo.MacAddressVO;
+import com.example.serverprovision.global.redfish.NextBoot;
 import com.example.serverprovision.global.redfish.PowerControlResult;
 import com.example.serverprovision.global.redfish.RedfishPowerService;
 import com.example.serverprovision.global.redfish.RedfishPowerState;
@@ -271,7 +272,7 @@ class FlashStepExecutionTest {
         new PowerOnStep(guard, powerService, timeoutPolicy, ledger)
                 .execute(context(flashing(FirmwareAxis.BMC), closedBoth(), ready()));
 
-        verify(powerService, never()).powerOnAndVerify(any());
+        verify(powerService, never()).powerOnAndVerify(any(), any());
     }
 
     @Test
@@ -419,5 +420,37 @@ class FlashStepExecutionTest {
                 .execute(context(flashing(FirmwareAxis.BMC), closedWithTargets(), ready()));
 
         verify(registryPort, never()).captureIfAbsent(any(), any());
+    }
+
+    // ---- E2.5 — 전원 투입 무장 · 재시도 기점 ------------------------------------
+
+    @Test
+    @DisplayName("전원 — 꺼져 있으면 다음 부팅을 PXE 로 무장한 켜기를 낸다(E2.5 D-6)")
+    void powerOn_armsPxeOnce() {
+        given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.OFF, "Off"));
+        given(powerService.powerOnAndVerify(any(), any())).willReturn(PowerControlResult.verified("켜짐"));
+
+        new PowerOnStep(guard, powerService, timeoutPolicy, ledger)
+                .execute(context(flashing(FirmwareAxis.BMC), closedBoth(), ready()));
+
+        verify(powerService).powerOnAndVerify(any(), eq(NextBoot.PXE_ONCE));
+    }
+
+    @Test
+    @DisplayName("전원 — 재시도 뒤에는 복귀 대기가 재시도 시각부터 다시 열린다(E2.5 D-7 returnWaitSince)")
+    void powerOn_retryReopensReturnWindow() {
+        ProvisioningProgress progress = flashing(FirmwareAxis.BMC);
+        progress.markFailed(T.plusMinutes(25));
+        progress.clearFailed(T.plusMinutes(25));   // 운영자 재시도 — lastTransitionAt 이 새 기점이 된다
+        given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.OFF, "Off"));
+        given(powerService.powerOnAndVerify(any(), any())).willReturn(PowerControlResult.verified("켜짐"));
+
+        FlashContext late = new FlashContext(server(), progress, detail(), closedBoth(), ready(), provider,
+                T.plusMinutes(30));   // 축 종료(T+1) 뒤 29분 — 종전 기점(축 종료)이면 즉시 만료였다
+
+        new PowerOnStep(guard, powerService, timeoutPolicy, ledger).execute(late);
+
+        assertThat(progress.isFailed()).isFalse();
+        verify(powerService).powerOnAndVerify(any(), any());
     }
 }

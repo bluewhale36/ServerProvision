@@ -166,4 +166,64 @@ class RedfishClientTest {
                 .hasMessageNotContaining("not json");
         server.verify();
     }
+
+    @Test
+    @DisplayName("patchJsonRefreshingEtag — If-Match:* 로 한 번에 받아들여지면 GET 이 없다(E2.5 사다리)")
+    void etagLadder_starAccepted() {
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/Systems/Self"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andExpect(header(HttpHeaders.IF_MATCH, "*"))
+                .andRespond(withStatus(HttpStatus.NO_CONTENT));
+
+        client.patchJsonRefreshingEtag("10.0.0.9", CREDS, "/redfish/v1/Systems/Self",
+                "/redfish/v1/Systems/Self", Map.of("Boot", Map.of("BootSourceOverrideEnabled", "Once")));
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("patchJsonRefreshingEtag — 412 면 ETag 원천을 GET 해 fresh ETag 로 한 번 더 쓴다")
+    void etagLadder_412RefreshesEtag() {
+        HttpHeaders etag = new HttpHeaders();
+        etag.setETag("W/\"fresh\"");
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/Systems/Self"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andExpect(header(HttpHeaders.IF_MATCH, "*"))
+                .andRespond(withStatus(HttpStatus.PRECONDITION_FAILED));
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/Systems/Self"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON).headers(etag));
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/Systems/Self"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andExpect(header(HttpHeaders.IF_MATCH, "W/\"fresh\""))
+                .andRespond(withStatus(HttpStatus.NO_CONTENT));
+
+        client.patchJsonRefreshingEtag("10.0.0.9", CREDS, "/redfish/v1/Systems/Self",
+                "/redfish/v1/Systems/Self", Map.of("Boot", Map.of("BootSourceOverrideEnabled", "Once")));
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("patchJsonRefreshingEtag — fresh ETag 로도 412 면 두 번째 예외를 올리고, 412 밖 거절은 재시도 없이 그대로")
+    void etagLadder_propagation() {
+        HttpHeaders etag = new HttpHeaders();
+        etag.setETag("W/\"fresh\"");
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/Systems/Self"))
+                .andExpect(method(HttpMethod.PATCH)).andRespond(withStatus(HttpStatus.PRECONDITION_FAILED));
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/Systems/Self"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON).headers(etag));
+        server.expect(requestTo("https://10.0.0.9/redfish/v1/Systems/Self"))
+                .andExpect(method(HttpMethod.PATCH)).andRespond(withStatus(HttpStatus.PRECONDITION_FAILED));
+        server.expect(requestTo("https://10.0.0.9/x"))
+                .andExpect(method(HttpMethod.PATCH)).andRespond(withStatus(HttpStatus.BAD_REQUEST));
+
+        assertThatThrownBy(() -> client.patchJsonRefreshingEtag("10.0.0.9", CREDS,
+                "/redfish/v1/Systems/Self", "/redfish/v1/Systems/Self", Map.of()))
+                .isInstanceOfSatisfying(RedfishRequestException.class,
+                        e -> assertThat(e.getError()).isEqualTo(RedfishError.PRECONDITION_FAILED));
+        assertThatThrownBy(() -> client.patchJsonRefreshingEtag("10.0.0.9", CREDS, "/x", "/x", Map.of()))
+                .isInstanceOfSatisfying(RedfishRequestException.class,
+                        e -> assertThat(e.getError()).isEqualTo(RedfishError.PROTOCOL));
+        server.verify();
+    }
 }

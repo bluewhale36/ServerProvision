@@ -90,8 +90,21 @@ public record FlashContext(
         return Optional.empty();
     }
 
-    /** 마지막 축이 닫힌 시각 — 복귀 시한의 기점이다. */
-    public LocalDateTime lastAxisClosedAt() {
+    /**
+     * 복귀 대기의 기점(E2.5 D-7) — 마지막 축 종료와 마지막 전이 중 늦은 쪽. 운영자 재시도({@code clearFailed})가
+     * {@code lastTransitionAt} 을 갱신하므로, 실패 뒤 늦게 재시도해도 대기 창이 재시도 시각부터 다시 열린다.
+     */
+    public LocalDateTime returnWaitSince() {
+        LocalDateTime axisClosed = lastAxisClosedAt();
+        LocalDateTime transition = progress.getLastTransitionAt();
+        if (axisClosed == null || (transition != null && transition.isAfter(axisClosed))) {
+            return transition;
+        }
+        return axisClosed;
+    }
+
+    /** 마지막 축이 닫힌 시각 — 복귀 기점의 원장 쪽 재료. */
+    private LocalDateTime lastAxisClosedAt() {
         return history.stream()
                 .filter(row -> FirmwareAxis.of(row.getStepCode()) != null)
                 .map(ProvisioningHistory::getFinishedAt)
@@ -102,7 +115,7 @@ public record FlashContext(
 
     /** 전원을 켠 뒤 게스트가 돌아왔는가 — 그 접촉이 곧 "POST 를 지났다" 는 신호다. */
     public boolean guestReturned() {
-        LocalDateTime since = lastAxisClosedAt();
+        LocalDateTime since = returnWaitSince();
         return server.getLastSeenAt() != null && since != null && server.getLastSeenAt().isAfter(since);
     }
 }

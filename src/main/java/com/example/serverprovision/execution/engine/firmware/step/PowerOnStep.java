@@ -4,6 +4,8 @@ import com.example.serverprovision.execution.engine.firmware.BmcIdentityGuard;
 import com.example.serverprovision.execution.engine.firmware.FirmwareAxis;
 import com.example.serverprovision.execution.engine.firmware.FlashLedger;
 import com.example.serverprovision.execution.engine.firmware.FlashTimeoutPolicy;
+import com.example.serverprovision.global.redfish.NextBoot;
+import com.example.serverprovision.global.redfish.PowerControlResult;
 import com.example.serverprovision.global.redfish.RedfishPowerService;
 import com.example.serverprovision.global.redfish.RedfishPowerState;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +45,7 @@ public class PowerOnStep implements FlashStep {
 
     @Override
     public void execute(FlashContext context) {
-        if (timeoutPolicy.isExpired(context.lastAxisClosedAt(), timeoutPolicy.returnLimit(), context.now())) {
+        if (timeoutPolicy.isExpired(context.returnWaitSince(), timeoutPolicy.returnLimit(), context.now())) {
             ledger.failAtCursor(context.server(), context.progress(), FlashLedger.RETURN_TIMEOUT,
                     "전원을 넣은 뒤 시한 안에 돌아오지 않았습니다", context.now());
             return;
@@ -54,7 +56,8 @@ public class PowerOnStep implements FlashStep {
         if (powerService.powerState(context.target()).powerState() == RedfishPowerState.ON) {
             return;   // 이미 켜져 있다 — 돌아오기를 기다릴 뿐이다.
         }
-        powerService.powerOnAndVerify(context.target());
-        log.info("[flash] {} — 굽기 완료, 전원 투입", context.server().getId());
+        // 전원 투입 직전 다음 부팅을 PXE 로 무장한다(E2.5) — 부트 순서가 디스크 1순위여도 게스트가 돌아온다.
+        PowerControlResult result = powerService.powerOnAndVerify(context.target(), NextBoot.PXE_ONCE);
+        log.info("[flash] {} — 굽기 완료, 전원 투입 : {}", context.server().getId(), result.message());
     }
 }
