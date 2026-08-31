@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E2-4 Plan — 집행 현황 상세화</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section .body > p:first-child { margin-top:0; }
+  details.section .body > .callout:first-child { margin-top:0; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .muted { color:var(--text-muted); }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid / diff / state-flow ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 라이브 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:124px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:200px; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:260px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  /* 카탈로그 밖 강조는 새 class 대신 속성 셀렉터로 (E2.5 · E3-2 선례) */
+  [data-error="1"] { color:var(--red); font-weight:700; }
+  [data-ok="1"] { color:var(--green); font-weight:700; }
+  [data-skip="1"] { color:var(--yellow); font-weight:700; }
+
+  /* ── .seq : 4-actor 시간 흐름 ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); }
+  .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  /* ── card-grid ── */
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E2-4 — 집행 현황 상세화 <span class="v2-badge">표시 · 기록</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E2-4 집행 현황 상세화</span>
+    <span><strong>브랜치</strong> <code>feat/E2-4_execution-status-detail</code> <span class="muted">(PR #56 병합 고지 후 <code>origin/dev</code> 에서 생성 예정 — 토론 Q8)</span></span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/3c6ef0e868f98171ab89f09aede74ac2">E2-4</a></span>
+    <span><strong>토론 아카이브</strong> <code>discussion/26-08-31_13-18-08_E2-4-execution-status-detail_discussion.md</code> <span class="muted">(Q1 ~ Q8 확정)</span></span>
+    <span><strong>scope</strong> 집행 한 사이클을 화면만 보고 따라갈 수 있게 — 판정 · 전이 로직은 바꾸지 않는다</span>
+    <span><strong>작성</strong> 2026-08-31 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 완료 <span class="muted">(2026-08-31 KST · O-1 닫힘 · O-3 확정 반영본)</span></span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p>집행 한 사이클은 펌웨어를 굽고 · 전원을 내렸다 넣고 · 게스트가 돌아오기를 기다리고 · 반영을 확인한 뒤 · 설정을 적용하는 순서로 흐른다. 이 슬라이스는 그 흐름을 <b>화면만 보고 따라갈 수 있게</b> 만든다. 판정과 전이 로직은 바꾸지 않는다 — 기록을 더하고, 이미 원장과 진행 상태에 들어 있는 사실을 화면으로 꺼낸다.</p>
+        <p class="muted">아래는 토론 아카이브 §2 의 실태 대조를 압축해 전재한 것이다. 전문은 아카이브가 정본이다.</p>
+
+        <h4>이미 해소된 것 · 다른 단계로 간 것</h4>
+        <ul>
+          <li><b>기해소 2</b> — 상세 화면의 rail 은 U3-5-a 가 이미 세웠고, flash 시작 시점의 실시간 갱신은 <code>FirmwareFlashCycle</code> 이벤트가 담당한다.</li>
+          <li><b>이관 1</b> — 목록 화면의 SSE 배선은 S7-1 소관이다. 이 슬라이스는 목록에 <b>표시할 값</b>만 응답에 싣는다.</li>
+        </ul>
+
+        <h4>남아 있는 화면 공백 다섯</h4>
+        <ul>
+          <li><b>설정 phase 는 카드가 없다</b> — 원장 meta 에 들어 있는 <code>pendingSeen</code> · <code>rebootAt</code> · <code>items</code> · <code>bondAt</code> 가 화면에 나오지 않는다.</li>
+          <li><b>Task 관측이 버려진다</b> — 워커가 굽는 동안 읽어 온 관측을 화면이 받지 못한다.</li>
+          <li><b>축이 전부 닫힌 뒤 화면은 "완료" 에 머문다</b> — 그 뒤로 전원 투입 · 복귀 대기 · 반영 확인이 이어지는데 표시가 따라가지 않는다.</li>
+          <li><b>세부 단계 이력에 사유가 없다</b> — 무슨 일이 있었는지가 행에 남지 않는다.</li>
+          <li><b><code>BeginSettingStep</code> 의 신원 대기는 침묵이다</b> — 워커가 기다리는 중인지, 멈춘 것인지 화면으로 구분할 수 없다.</li>
+        </ul>
+
+        <div class="callout danger"><b>표시 결함 1</b> — <code>GuestServerQueryService.flashRemainingMinutes</code> 가 복귀 대기 구간에도 축 시한(<code>limitFor(axis)</code>)과 <code>progress.lastTransitionAt</code> 을 쓴다. 굽는 중의 기점도 원장 행의 <code>startedAt</code>(엔진 <code>PollFlashTaskStep</code> 의 판정 기점)과 어긋난다. <b>표시와 판정이 다른 시계를 본다</b> — 남은 분이 화면과 엔진에서 서로 다른 값이 된다.</div>
+
+        <h4>재해석 — 재시도는 이미 게스트를 다시 세운다</h4>
+        <p>운영자 재시도는 이미 전원 사이클과 PXE 무장으로 게스트를 다시 세운다(Q3 승인). 그러므로 이 슬라이스에서 재시도에 새 동작을 붙일 이유가 없고, <b>남은 것은 그 사실을 화면이 말하게 하는 가시화</b>뿐이다.</p>
+
+        <h4>원장 실태 — 두 계열의 표기가 갈라져 있다</h4>
+        <table>
+          <thead><tr><th>계열</th><th><code>origin</code> 표기</th><th>meta 키</th></tr></thead>
+          <tbody>
+            <tr><td>flash</td><td>소문자-하이픈 <span class="muted">(<code>flash-completed</code> 등)</span></td><td><code>origin</code> · <code>detail</code> · <code>target</code> · <code>firmwareId</code> · <code>task</code></td></tr>
+            <tr><td>setting</td><td>대문자 <span class="muted">(<code>APPLIED</code> 등)</span></td><td><code>origin</code> · <code>axis</code> · <code>target</code> · <code>pendingSeen</code> · <code>rebootAt</code> · <code>items</code> · <code>bondAt</code> · <code>detail</code></td></tr>
+          </tbody>
+        </table>
+        <p>두 계열은 표기 관례가 다르지만 화면은 한 자리(세부 단계 이력)에서 함께 읽힌다. 그래서 <b>표시용 판독을 하나로 통일</b>해야 한다 — §4 의 <code>ProvisioningHistory.displayNote()</code> 가 그 자리다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>R1</b> <span class="muted">(Q1)</span> — <b>설정 phase 현황 카드 신설</b>. 축 2행(<code>BIOS_SETTING</code> · <code>BMC_SETTING</code>), 행마다 상태와 사유 + 부속 정보. BIOS 는 pending 관찰 · 재부팅 시각 · 복귀 대기, BMC 는 항목 진행("N/4 적용") · Bond 재접속 대기.</li>
+          <li><b>R2</b> <span class="muted">(Q2)</span> — <b>워커 하트비트</b>. 마지막 관측(문구 · 시각)을 <b>인메모리로만</b> 들고 카드에 "HH:MM:SS 확인 — 굽는 중" 으로 표시한다. 저장 0 · 재기동 소실 무해.</li>
+          <li><b>R3</b> <span class="muted">(⑵-b)</span> — <b>구간 문구 파생</b>(굽는 중 → 전원 투입 · 복귀 대기 N분 → 복귀 — 반영 확인 대기 → 다음 단계 전진)과 <b>남은 분 계산 정정</b>(기점 · 시한을 엔진 판정과 같은 식으로).</li>
+          <li><b>R4</b> <span class="muted">(Q4 ①)</span> — <b>전원 사건의 원장 instant 행</b>. 차단(<code>power-off</code>) · 투입(<code>power-on</code>, 무장 outcome 을 <code>detail</code> 에) 각 1행. E3 재부팅은 기존 행 meta 에 무장 요약(<code>arm</code>) 키를 더한다(행 증가 0). <code>FlashLedger.isPhaseLevel</code> 에 두 사유를 등록해 축 상태 오염을 막는다.</li>
+          <li><b>R5</b> <span class="muted">(E3-3 CP5 O-3)</span> — <b>세부 단계 이력에 사유 표시</b>. <code>Step</code> 응답에 <code>note</code> 필드를 더한다(meta 의 <code>detail</code> 우선, 없으면 <code>origin</code> 코드).</li>
+          <li><b>R6</b> <span class="muted">(E3-3 CP5 O-1)</span> — <b>대기 사유 파생 표시</b>. BMC 호출 없이 DB 사실만으로 만든다(커서 · 시한 잔여 · 보드 시리얼 부재 힌트). 엔진의 침묵 대기에도 로그 1줄을 더한다.</li>
+          <li><b>R7</b> <span class="muted">(decisions 2)</span> — <b><code>자원이름 (버전)</code> 표기</b>. <code>AxisResolution</code> 에 <code>resourceName</code> 을 더하고 원장 meta 에 <code>name</code> 키를 더한다. <b>버전 비교 재료(<code>flashTargetVersion</code>)는 버전 그대로 유지</b>(회귀 함정 — §8 D-7).</li>
+          <li><b>R8</b> <span class="muted">(Q6 · decisions 8)</span> — <b>'집행 중 · 전원 꺼짐'</b>. 상세 화면의 접촉 배지와 목록 행에 표시한다(요약 응답에 <code>disruptionBlocked</code> 추가).</li>
+          <li><b>R9</b> <span class="muted">(Q3 · Q5 · ⑴)</span> — <b>안내 문구 보강</b>. 재시도 버튼 안내에 전원 사이클을 명시(펌웨어 단계 한정) · BMC 라벨 보강 · 정의서 미리보기 rail 안내 문구.</li>
+          <li><b>R10</b> — <b>실시간성</b>. 신설 카드와 표는 기존 <code>data-live</code> 교체 체계에 합류한다(S7 규약 — 폼은 마킹하지 않는다).</li>
+        </ol>
+
+        <div class="callout warn"><b>비 목표</b> (어디로 가는지 함께) :
+          <ul>
+            <li>판정 · 전이 · step 매칭 로직 변경 — <b>기록과 로그 추가만 허용</b>한다(Notion 페이지의 비목표 ② 를 이 문면으로 개정 · CP1 승인 후 반영 — D-10).</li>
+            <li>SSE 목록 배선 — <b>S7-1</b>. <code>FlashPercentage</code> 대체 원천 재탐색 — <b>불필요</b>(다시 찾지 않는다 · 2026-08-31 확정 — O-1). 원장 스키마 · DDL 변경 · 운영자 알림 채널 — <b>P5 계열 별도 기능</b>.</li>
+            <li>상세 화면 rail 자체 개편 — <b>U3-5-a 기구현을 그대로 둔다</b>.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 집행 한 사이클을 손으로 전진시켜 본다</summary>
+      <div class="body">
+        <p>이 슬라이스는 새 사용자 액션을 만들지 않는다 — <b>워커가 도는 동안 화면이 무엇을 말하는가</b>가 전부다. 그래서 아래 조작면 ① 의 버튼은 "사용자가 누르는 것" 이 아니라 <b>서버가 한 사이클에서 차례로 하는 일</b>이고, 지금 차례가 아닌 버튼은 <code>disabled</code> + tooltip 으로 왜 눌리지 않는지 말한다. 버튼을 누르면 오른쪽 표시면의 <b>집행 카드 · 설정 카드 · 세부 단계 이력 표 · 목록 행 · 대기 사유 배너</b>가 실제로 바뀌고, 이력 표는 <b>행이 늘어난다</b>.</p>
+        <p>판정 JS 는 <b>§3 의 구간 진리표 6행 · 설정 축 세부 국면 · <code>displayNote</code> 파생 규칙 · <code>isPhaseLevel</code> 필터 · 목록 배지 조건식</b>을 그대로 옮긴 것이다(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <h4>원클릭 시나리오 — 여섯 장면</h4>
+          <div class="ux-toolbar">
+            <span class="group-label">프리셋 :</span>
+            <span class="tip" data-tip="한 사이클을 끝까지 돌린다 — 구간 문구가 어떤 순서로 바뀌는지 「구간 문구 전이 기록」 에 남는다"><button class="n-demo-btn" onclick="demoPreset('s1')">① 정상 완주</button></span>
+            <span class="tip" data-tip="무장이 거절돼 게스트가 돌아오지 않는다 — 이력의 「전원 투입」 행이 왜 못 돌아왔는지 말한다"><button class="n-demo-btn" onclick="demoPreset('s2')">② 무장 거절 → RETURN_TIMEOUT</button></span>
+            <span class="tip" data-tip="② 에 이어 운영자가 재시도한다 — 전원 차단 · 투입 두 행이 더해지고 안내 문구에 전원 사이클이 명시된다"><button class="n-demo-btn" onclick="demoPreset('s3')">③ 재시도 — 행 2개 · 안내</button></span>
+            <span class="tip" data-tip="보드 시리얼이 없어 BMC 신원 대조가 성립하지 않는다 — 침묵 대신 대기 사유 배너가 뜬다"><button class="n-demo-btn" onclick="demoPreset('s4')">④ 신원 대기 침묵</button></span>
+            <span class="tip" data-tip="BMC 설정 항목 적용 중 Bond 가 끊긴다 — 설정 카드가 재접속 대기를 표시한다"><button class="n-demo-btn" onclick="demoPreset('s5')">⑤ Bond 단절</button></span>
+            <span class="tip" data-tip="굽는 창에 들어가면 목록의 「끊어짐」 이 「집행 중 · 전원 꺼짐」 으로 바뀐다"><button class="n-demo-btn" onclick="demoPreset('s6')">⑥ 목록 배지 전환</button></span>
+          </div>
+          <div class="ux-message" id="demo-banner"></div>
+
+          <h4>조작면 ① — 사이클 전진 <span class="muted mono">(지금 차례만 눌린다 · 나머지는 tooltip 이 사유를 말한다)</span></h4>
+          <div class="ux-toolbar" id="demo-actions"></div>
+
+          <h4>조작면 ② — 실패 주입 <span class="muted mono">(바꾸면 진행 상태가 처음으로 돌아간다)</span></h4>
+          <div class="ux-toolbar">
+            <span class="group-label">② 실패 주입 :</span>
+            <button class="seg" data-k="fail" data-v="NONE" onclick="demoSet('fail','NONE')">없음</button>
+            <button class="seg" data-k="fail" data-v="ARM_REJECT" onclick="demoSet('fail','ARM_REJECT')">무장 거절</button>
+            <button class="seg" data-k="fail" data-v="TASK_EXCEPTION" onclick="demoSet('fail','TASK_EXCEPTION')">Task 예외</button>
+            <button class="seg" data-k="fail" data-v="READBACK_MISMATCH" onclick="demoSet('fail','READBACK_MISMATCH')">readback 불일치</button>
+            <button class="seg" data-k="fail" data-v="IDENTITY_WAIT" onclick="demoSet('fail','IDENTITY_WAIT')">신원 대기(시리얼 없음)</button>
+            <button class="seg" data-k="fail" data-v="BOND_LOST" onclick="demoSet('fail','BOND_LOST')">Bond 단절</button>
+          </div>
+
+          <h4>조작면 ③ · ④ · ⑤ — 운영자 재시도 · 시간 경과 · 초기화</h4>
+          <div class="ux-toolbar" id="demo-ops"></div>
+          <div id="demo-confirm"></div>
+
+          <h4>표시면 ① — 펌웨어 집행 카드 <span class="muted mono">(구간 문구 · 남은 분 · 하트비트)</span></h4>
+          <div id="demo-flash"></div>
+
+          <h4>표시면 ② — 설정 카드 <span class="muted mono">(신설 · R1)</span></h4>
+          <div id="demo-setting"></div>
+
+          <h4>표시면 ⑤ — 대기 사유 배너 <span class="muted mono">(R6 · BMC 무호출 파생)</span></h4>
+          <div class="ux-message" id="demo-wait"></div>
+
+          <h4>표시면 ③ — 세부 단계 이력 <span class="muted mono">(사유 열 = displayNote() · 전원 사건 행 포함)</span></h4>
+          <div id="demo-history"></div>
+
+          <h4>표시면 ④ — 목록 행 <span class="muted mono">(D-8 조건식)</span></h4>
+          <div id="demo-list"></div>
+
+          <h4>구간 문구 전이 기록 <span class="muted mono">(진리표에서 지나온 행)</span></h4>
+          <div class="ux-caps" id="demo-stagelog"></div>
+
+          <h4>계측 <span class="muted mono">(조회가 파생하는 값 그대로)</span></h4>
+          <div class="ux-caps" id="demo-caps"></div>
+
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 구간 판정은 §3 진리표 6행과 같은 순서 · 같은 조건이고, 남은 분의 기점은 "굽는 중 = 그 행 <code>startedAt</code> · 복귀 대기 = <code>returnWaitSince()</code>" 로 엔진과 같은 식이며(D-3), 사유 열은 <code>detail</code> 우선 · <code>origin</code> 폴백 · meta 없음이면 생략(D-5), 목록 배지는 <code>disruptionBlocked ∧ !contactActive</code>(D-8) 한 줄이다. 서버 구현이 이 판정의 정본이 된다.</div>
+
+        <div class="callout warn"><b>데모가 가정한 것 · 지어내지 않은 것</b> :
+          <ul>
+            <li>시한 값은 데모 가정이다 — 축 시한 30분 · 복귀 시한 20분(<code>provision.execution.return-timeout</code> 기본값) · 기준 시각 14:00:00. 실제 값은 설정에서 온다.</li>
+            <li>자원 이름 · 버전, 하트비트 문구, 재시도 안내 문장은 <b>예시 · 초안</b>이다. 관측 문구의 실제 원천은 <code>FlashTaskState.getUserDetail()</code> 이고, 안내 문장은 <code>messages.properties</code> 키로 등록한다(§4).</li>
+            <li>실패 사유 코드는 이 슬라이스가 바꾸지 않는다. <code>RETURN_TIMEOUT</code> 만 실제 코드이고, Task 예외 쪽은 "집행 실패" 라는 표시 문구로 두었다 — 진리표 6행은 <b>기존 실패 표시를 유지</b>하는 것이 규칙이다.</li>
+            <li>굽기가 열린 상태의 행은 <code>origin</code> 없이 두었다(닫힐 때 <code>flash-completed</code> 가 붙는다). 그래서 사유 열이 <b>세 갈래</b> — 문장(detail) · 코드(origin) · 생략(meta 없음) — 모두 화면에 나온다.</li>
+            <li><b>축 사이 간극 — 전사 검수가 드러낸 틈을 규칙으로 확정했다</b> : 축 하나만 닫히고 다음 축이 아직 열리지 않은 사이는 초안 진리표의 1 · 2행 어디에도 없었다. 1b행("다음 축 착수 대기(다음 워커 주기)")으로 확정해 §3 표와 데모에 반영했다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름 — 기록 흐름 · 표시 흐름 · 진리표</summary>
+      <div class="body">
+        <p><b>신규 HTTP 엔드포인트는 0</b> 이다. 상세 · 목록의 기존 서버 렌더링과 S7 의 SSE 재조회를 그대로 쓴다. 바뀌는 것은 <b>응답 조립(DTO 필드)</b>과 <b>템플릿</b>, 그리고 <b>엔진이 원장에 기록하는 지점</b> 셋뿐이다.</p>
+
+        <h4>기록 흐름 <span class="muted mono">(엔진 · R4)</span></h4>
+        <table>
+          <thead><tr><th>자리</th><th>기록</th><th>행 증가</th></tr></thead>
+          <tbody>
+            <tr><td><code>BeginFlashStep</code></td><td>ForceOff 뒤 <code>ledger.instantPower(POWER_OFF)</code></td><td>+1 <span class="muted">(instant)</span></td></tr>
+            <tr><td><code>PowerOnStep</code></td><td><code>powerOnAndVerify</code> 결과가 FAILED 가 아니면 <code>instantPower(POWER_ON, result.message())</code></td><td>+1 <span class="muted">(instant)</span></td></tr>
+            <tr><td><code>BeginSettingStep</code></td><td><code>markRebooted(row, at, result.message())</code> — 기존 행 meta 에 <code>arm</code> 키</td><td>0</td></tr>
+          </tbody>
+        </table>
+
+        <h4>표시 흐름 <span class="muted mono">(조회)</span></h4>
+        <p><code>GuestServerQueryService</code> 가 원장 · 진행 상태 · (인메모리) <code>WorkerObservations</code> 를 모아 <code>FirmwareFlash</code>(+ 구간 · 마지막 관측) · <code>FirmwareSetting</code>(신설) · <code>Step</code>(+ <code>note</code>) · 대기 사유를 파생한다. <b>이 경로에서 BMC 를 부르지 않는다</b> — 열람마다 왕복이 생기고 BMC 재기동 창에서 오류가 나기 때문이다(D-6).</p>
+
+        <div class="seq">
+          <div class="actor a1">워커 (step)</div><div class="actor a2">원장 (ledger)</div><div class="actor a3">조회 서비스</div><div class="actor a4">화면</div>
+          <div class="step a1"><code>BeginFlashStep</code> — ForceOff</div><div class="step a2"><code>instantPower(POWER_OFF)</code> 1행</div><div class="step a3">요약 <code>disruptionBlocked</code></div><div class="step a4">목록 "집행 중 · 전원 꺼짐" · 이력에 차단 행</div>
+          <div class="step a1"><code>PollFlashTaskStep</code> — Task 관측</div><div class="step a2">행 변화 없음</div><div class="step a3"><code>WorkerObservations.latestOf</code></div><div class="step a4">하트비트 "HH:MM:SS 확인 — 굽는 중"</div>
+          <div class="step a1"><code>PowerOnStep</code> — 전원 투입</div><div class="step a2"><code>instantPower(POWER_ON, message)</code> 1행</div><div class="step a3">구간 진리표 3행 · <code>returnWaitSince()</code></div><div class="step a4">"전원 투입 — 게스트 복귀 대기(잔여 N분)"</div>
+          <div class="step a1"><code>BeginSettingStep</code> — PATCH · 재부팅</div><div class="step a2"><code>markRebooted(row, at, arm)</code> <span class="muted">(행 증가 0)</span></div><div class="step a3"><code>settingOf</code> — <code>pendingSeen</code> · <code>rebootAt</code></div><div class="step a4">설정 카드 "재부팅 — 복귀 대기"</div>
+          <div class="step a1"><code>BeginSettingStep</code> — 신원 확인 대기 <span class="muted">(로그 1줄)</span></div><div class="step a2">열린 행 없음</div><div class="step a3"><code>waitingReason</code> 파생 <span class="muted">(BMC 무호출)</span></div><div class="step a4">대기 사유 배너</div>
+        </div>
+
+        <h4>구간 진리표 — 펌웨어 집행 카드 <span class="muted mono">(판정 재료는 전부 원장 · 진행 상태)</span></h4>
+        <table>
+          <thead><tr><th>#</th><th>사실</th><th>구간 표시</th><th>남은 분</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>어느 축 RUNNING 행 열림</td><td>"{축} 굽는 중"</td><td><code>limitFor(axis)</code> · 기점 = 그 행 <code>startedAt</code></td></tr>
+            <tr><td>1b</td><td>어느 축도 RUNNING 아님 ∧ 안 닫힌 축 존재</td><td>"다음 축 착수 대기(다음 워커 주기)"</td><td>—</td></tr>
+            <tr><td>2</td><td>축 전부 닫힘 ∧ 미복귀 ∧ <code>power-on</code> 행 없음</td><td>"전원 투입 대기(다음 워커 주기)"</td><td>—</td></tr>
+            <tr><td>3</td><td>축 전부 닫힘 ∧ 미복귀 ∧ <code>power-on</code> 행 있음</td><td>"전원 투입 — 게스트 복귀 대기"</td><td><code>returnLimit</code> · 기점 = <code>max(마지막 축 · 사건 행 종료, lastTransitionAt)</code></td></tr>
+            <tr><td>4</td><td>복귀(접촉 &gt; 기점) ∧ phase 미전진</td><td>"게스트 복귀 — 반영 확인 대기"</td><td>—</td></tr>
+            <tr><td>5</td><td>phase 전진(커서가 <code>FIRMWARE_UPDATING</code> 밖)</td><td>"반영 확인 완료 — {다음 phase} 로 전진" <span class="muted">(카드는 완료 요약으로 유지)</span></td><td>—</td></tr>
+            <tr><td>6</td><td>진행 상태 실패</td><td>기존 실패 표시 유지 <span class="muted">(+ 이력의 사유 행이 원인을 말한다)</span></td><td>—</td></tr>
+          </tbody>
+        </table>
+        <p>3행의 기점 식은 엔진의 <code>returnWaitSince</code> 와 같다 — <b>표시와 판정이 같은 시계를 보게</b> 하는 것이 §1 표시 결함의 해소다(D-3).</p>
+        <div class="state-flow">굽는 중 ──▶ 전원 투입 대기 ──▶ 전원 투입 · 복귀 대기 ──▶ 게스트 복귀 · 반영 확인 대기 ──▶ 다음 phase 로 전진
+                                                       └──(시한 경과)──▶ 실패 표시 (이력의 사유 행이 원인)</div>
+
+        <h4>남은 분 계산 — 무엇이 바뀌는가</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 현행 flashRemainingMinutes</h4>
+<pre><code>굽는 중   : limitFor(axis) - (now - lastTransitionAt)
+복귀 대기 : limitFor(axis) - (now - lastTransitionAt)
+
+<span class="diff-del">기점 · 시한이 엔진 판정과 다르다</span></code></pre></div>
+          <div class="split-card after"><h4>AFTER — 구간별 기점 · 시한</h4>
+<pre><code>굽는 중   : limitFor(axis) - (now - 행 startedAt)
+복귀 대기 : returnLimit    - (now - returnWaitSince())
+
+<span class="diff-add">엔진 판정과 같은 식 (D-3)</span></code></pre></div>
+        </div>
+
+        <h4>설정 카드의 축 세부 국면</h4>
+        <table>
+          <thead><tr><th>축</th><th>사실</th><th>표시</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="3"><code>BIOS_SETTING</code></td><td>RUNNING ∧ <code>rebootAt</code> 없음</td><td>"PATCH 중"</td></tr>
+            <tr><td><code>rebootAt</code> 있음 ∧ 미복귀</td><td>"재부팅 — 복귀 대기(잔여 N분)" <span class="muted">· 기점 <code>rebootAt</code></span></td></tr>
+            <tr><td>복귀</td><td>"값 확인(readback) 대기"</td></tr>
+            <tr><td rowspan="2"><code>BMC_SETTING</code></td><td><code>items</code> 진행</td><td>"N/4 적용"</td></tr>
+            <tr><td><code>bondAt</code> 있음</td><td>"Bond 재구성 — 재접속 대기(잔여 N분)"</td></tr>
+          </tbody>
+        </table>
+
+        <h4>대기 사유 <span class="muted mono">(R6 · DB 사실만으로)</span></h4>
+        <p>커서가 설정 축에 있는데 <b>열린 행이 없고 시한도 만료되지 않았으면</b> "BMC 신원 확인 대기(HH:MM 까지)" 를 만든다. 여기에 <code>boardSerial == null</code> 이면 "보드 시리얼이 없어 신원 대조가 성립하지 않습니다 — 진단 재수집이 필요합니다" 를 잇는다.</p>
+
+        <h4>사유(note) 파생 규칙 <span class="muted mono">(R5)</span></h4>
+        <p>meta JSON 의 <code>detail</code> 이 비어 있지 않으면 그것을, 아니면 <code>origin</code> 코드를 쓴다. meta 자체가 없는 행(부트스트랩 행 등)은 <code>null</code> 이라 표시를 생략한다. 이 판독은 조회 서비스가 아니라 <code>ProvisioningHistory.displayNote()</code> 가 든다(D-5).</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) — 엔티티 필드 · DDL 무변경</summary>
+      <div class="body">
+        <h4>신규</h4>
+        <table>
+          <thead><tr><th>객체</th><th>종류</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>execution/engine/WorkerObservations</code></td><td><code>@Component</code></td><td>워커의 마지막 관측을 인메모리로 보관 — <code>ConcurrentHashMap&lt;UUID, Observation&gt;</code> · <b>FIFO</b> 로 관리(상한을 넘으면 오래된 것부터 축출) · 회수 처리 직전 파괴</td></tr>
+            <tr><td><code>GuestServerDetailResponse.FirmwareSetting</code></td><td>record</td><td>설정 카드 — <code>List&lt;AxisSetting&gt; axes</code> · <code>String waitingReason</code></td></tr>
+            <tr><td><code>AxisSetting</code></td><td>record</td><td>설정 축 1행 <span class="muted">(상태 어휘는 기존 <code>AxisFlashState</code> 재사용 — 라벨 보유 enum)</span></td></tr>
+            <tr><td><code>FirmwareFlash</code> 확장 필드</td><td>record 필드</td><td><code>stageText</code> · <code>stageRemainingMinutes</code> · <code>lastObservation</code></td></tr>
+            <tr><td><code>Step</code> 확장 필드</td><td>record 필드</td><td><code>note</code></td></tr>
+            <tr><td><code>ProvisioningHistory.displayNote()</code></td><td>도메인 메서드</td><td>meta 의 <code>detail</code> 우선 · <code>origin</code> 폴백 <span class="muted">(기존 <code>flashDetail()</code> 판독 관례와 같은 자리)</span></td></tr>
+            <tr><td><code>FlashLedger</code> 사유 2 + <code>instantPower</code></td><td>상수 · 메서드</td><td><code>POWER_OFF = "power-off"</code> · <code>POWER_ON = "power-on"</code> · <code>PHASE_LEVEL_REASONS</code> 등록</td></tr>
+            <tr><td><code>SettingLedger.markRebooted(row, at, armSummary)</code></td><td>오버로드</td><td>meta <code>arm</code> 키 <span class="muted">(기존 2-arg 는 위임)</span></td></tr>
+            <tr><td><code>AxisResolution.resourceName</code></td><td>필드</td><td>SELECTED 만 · <code>FirmwareResolver</code> 가 <code>catalog.nameOf</code> 로 채움</td></tr>
+            <tr><td><code>GuestServerSummaryResponse.disruptionBlocked</code></td><td>필드</td><td>목록 배지 판정 재료</td></tr>
+          </tbody>
+        </table>
+
+<pre><code>@Component
+public class WorkerObservations {
+    private final ConcurrentHashMap&lt;UUID, Observation&gt; latest = new ConcurrentHashMap&lt;&gt;();
+    public record Observation(String note, LocalDateTime at) {}
+    public void note(UUID guestId, String text, LocalDateTime at) { … }
+    public Observation latestOf(UUID guestId) { … }
+    public void clear(UUID guestId) { … }          // 회수 처리 직전 — 인메모리 로그 파괴 (확정 · O-3)
+    // 보관은 FIFO — 상한을 넘으면 가장 오래된 관측부터 버린다 (게스트가 늘어도 맵이 무한히 자라지 않는다)
+}
+
+record AxisSetting(String label, AxisFlashState state, String note,
+                   String stageText, Long remainingMinutes, String itemsProgress) {}</code></pre>
+
+        <p>쓰는 곳은 둘이다 — <code>PollFlashTaskStep</code> 이 관측 내용(<code>FlashTaskState.getUserDetail()</code>)을 적고, <code>FirmwareFlashCycle</code> · <code>FirmwareSettingCycle</code> 이 step 실행 시각을 기본값("워커 확인")으로 적는다. <b>인메모리 전용</b>이라(Q2) 재기동하면 비고, 그래도 다음 주기에 다시 채워지므로 무해하다. 보관은 <b>FIFO</b> 라 게스트가 늘어도 맵이 무한히 자라지 않고, <b>회수 처리 직전에 그 게스트의 인메모리 로그를 파괴</b>한다 — 회수한 서버를 다시 넣었을 때 지난 집행의 관측이 남아 있으면 화면이 거짓을 말하기 때문이다(O-3 확정).</p>
+
+        <p><code>AxisResolution.message()</code> 는 "BIOS &lt;이름&gt; (&lt;버전&gt;) 적용 예정" 이 되고, <code>FlashLedger.openFlash</code> 의 meta 에 <code>name</code> 키가 붙는다. <b>버전 비교 재료인 <code>flashTargetVersion</code> 은 버전 문자열 그대로 둔다</b> — 여기에 표시 문자열을 넣으면 반영 확인이 전부 불일치로 깨진다(D-7).</p>
+
+        <h4>수정</h4>
+        <table>
+          <thead><tr><th>대상</th><th>바뀌는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerQueryService</code></td><td><code>settingOf</code> 조립 · 구간 진리표 · <code>flashRemainingMinutes</code> 정정 · <code>note</code> · <code>waitingReason</code> · 요약 <code>disruptionBlocked</code> · <code>WorkerObservations</code> 소비</td></tr>
+            <tr><td><code>BeginFlashStep</code> · <code>PowerOnStep</code></td><td>기록 1줄씩 <span class="muted">(<code>instantPower</code>)</span></td></tr>
+            <tr><td><code>BeginSettingStep</code></td><td><code>arm</code> 키 · 침묵 대기 로그 1줄</td></tr>
+            <tr><td><code>PollFlashTaskStep</code> · 두 Cycle</td><td>하트비트 기록</td></tr>
+            <tr><td><code>server-detail.html</code></td><td>설정 카드 · 구간 · 하트비트 · 이력 <code>note</code> 열 · BMC 라벨 · 재시도 안내 · 대기 배너 <span class="muted">(카드 영역을 <code>data-live</code> 에 합류)</span></td></tr>
+            <tr><td><code>server-rows.html</code> + <code>server-list.html</code></td><td>연결 배지 분기</td></tr>
+            <tr><td>할당 폼 미리보기 문구</td><td>rail 안내 문구 <span class="muted">(R9)</span></td></tr>
+            <tr><td><code>messages.properties</code></td><td>신규 키 — <code>new-user-copy.md</code> 관문 준수(합니다체 · 상태 배지 명사형 · 문장형 문구 키 등록)</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout success"><b>유지(변경 0)</b> — 엔티티 필드 · DDL · 모든 step 의 <code>matches</code> 와 판정 · <code>PlannedPhaseRailResponse</code> · SSE 배선. 이 슬라이스가 더하는 것은 <b>도메인 메서드 하나</b>(<code>displayNote()</code>)와 <b>응답 필드</b>, 그리고 <b>원장 기록 지점</b>뿐이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <p>단일 슬라이스로 간다(Q7). CP2 ~ CP4 의 경계 보고는 <b>표시 계열 → 기록 계열</b> 순이다 — 화면이 먼저 서면 기록을 어디에 남겨야 하는지가 눈으로 확인된다.</p>
+        <table>
+          <thead><tr><th>Step</th><th>내용</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>이 plan</td><td><span class="chip cp1">CP1</span></td><td><b>승인</b></td></tr>
+            <tr><td>2 ~ 4</td><td>템플릿(설정 카드 · 구간 · <code>note</code> 열 · 라벨 · 목록 배지 · 안내 문구) · DTO 확장</td><td><span class="chip cp2">CP2</span></td><td>보고 <span class="muted">(표시 계열)</span></td></tr>
+            <tr><td>5</td><td>조립 시그니처 <span class="muted">(<code>settingOf</code> · 구간 · <code>WorkerObservations</code>)</span></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6 · 7</td><td>Repository <b>N/A</b> · 엔티티는 <code>displayNote()</code> 메서드만 <span class="muted">(필드 · DDL 무변경)</span></td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8</td><td>본체 + 기록 지점(<code>instantPower</code> · <code>arm</code> · 하트비트) + 빌드 · 기존 테스트 회귀 0</td><td><span class="chip cp4">CP4</span></td><td><b>중간 승인</b></td></tr>
+            <tr><td>8 잔여</td><td>단위 테스트(§6) green</td><td><span class="chip cp4">CP4</span></td><td>무중단</td></tr>
+            <tr><td>9</td><td>스키마 — <b>N/A</b></td><td>—</td><td>—</td></tr>
+            <tr><td>10</td><td>CP5 — 하네스 + <b>브라우저</b> <span class="muted">(화면 슬라이스)</span></td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td><b>승인</b></td></tr>
+            <tr><td>12</td><td>실기 — E 단계 일괄</td><td><span class="chip cp7">CP7</span></td><td><b>승인</b></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(테스트 코드를 제외한 main 구현 + 빌드 통과, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <p>신규 HTTP 엔드포인트가 0 이므로 사용자 액션 통합 테스트의 네 범주(성공 2xx · 400 · 404 · 409)를 새로 쓸 자리가 없다. <b>기존 컨트롤러 테스트가 무변경으로 통과하는 것</b>이 이 슬라이스의 회귀 검증이다 — 응답에 필드가 늘고 템플릿이 바뀌어도 상태코드와 기존 필드가 그대로임을 그 테스트가 증명한다. 아래는 단위 테스트다.</p>
+        <table>
+          <thead><tr><th>파일</th><th>케이스</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerQueryService</code> 계열 <span class="chip mod">확장</span></td><td>구간 진리표 6행 각 1 · <code>flashRemainingMinutes</code> 기점 정정(굽는 중 = 행 <code>startedAt</code> · 복귀 대기 = <code>returnWaitSince</code> 동식) · <code>note</code> 파생(<code>detail</code> 우선 · <code>origin</code> 폴백 · meta 없음 <code>null</code>) · <code>settingOf</code>(BIOS 3국면 · BMC <code>items</code> · <code>bond</code>) · <code>waitingReason</code>(시리얼 <code>null</code> 힌트) · 요약 <code>disruptionBlocked</code></td></tr>
+            <tr><td><code>FlashLedgerTest</code> <span class="chip mod">확장</span></td><td><code>instantPower</code> 행 모양 · <code>isPhaseLevel</code> 에 <code>power-off</code> · <code>power-on</code> 포함</td></tr>
+            <tr><td><code>FlashStepExecutionTest</code> <span class="chip mod">확장</span></td><td><code>BeginFlashStep</code> 차단 행 · <code>PowerOnStep</code> 투입 행(FAILED 결과면 기록 없음) · <b><code>power-on</code> 행이 <code>axisFlashOf</code> · <code>nextUntouchedAxis</code> · <code>VerifyFlashStep</code> 대조를 오염시키지 않음</b></td></tr>
+            <tr><td><code>SettingLedgerTest</code> · <code>SettingStepExecutionTest</code> <span class="chip mod">확장</span></td><td><code>markRebooted</code> 의 <code>arm</code> 키 보존 · close 뒤 잔존(E2-2 F-1 의 결) · 침묵 대기 로그 경로</td></tr>
+            <tr><td><code>WorkerObservationsTest</code> <span class="chip new">신규</span></td><td><code>note</code> / <code>latestOf</code> · <code>clear</code> · <b>FIFO 축출</b>(상한 초과 시 가장 오래된 것부터) · <b>회수 처리 직전 파괴</b>(O-3 확정)</td></tr>
+            <tr><td><code>AxisResolutionTest</code> 계열 <span class="chip mod">확장</span></td><td><code>resourceName</code> · <code>message</code> 표기 · <b><code>flashTargetVersion</code> 은 버전 그대로</b>(<code>VerifyFlashStep.sameVersion</code> 회귀)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 없음</summary>
+      <div class="body">
+        <p>새 예외도, 새 HTTP 매핑도 없다. 이 슬라이스가 다루는 실패는 전부 <b>이미 진행 상태와 원장이 표현하고 있는 것</b>이며, 이번에 하는 일은 그것을 화면 문구로 꺼내는 것이다.</p>
+        <div class="callout success"><b>관문</b> — 새 예외 클래스를 만들지 않으므로 <code>.claude/domain-conventions/new-exception.md</code> 를 여는 조건에 해당하지 않는다. 다만 <b>신규 문구가 있으므로 <code>new-user-copy.md</code> 관문은 대상</b>이다 — 합니다체 · 상태 배지는 명사형 · 문장형 문구는 <code>MessageSource</code> 키로 등록한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 설계 결정 D-1 ~ D-10 · Open Questions</summary>
+      <div class="body">
+
+        <h4>D-1. 설정 카드 = 별도 record · 템플릿 조각</h4>
+        <div class="card-grid">
+          <div class="card v-green"><h4>(A) 채택 — 나란한 두 카드</h4>
+            <p class="muted"><b>채택</b></p>
+            <ul>
+              <li>펌웨어 집행 카드와 설정 카드를 별도 record · 별도 템플릿 조각으로 두고 화면에 나란히 놓는다.</li>
+              <li>공유하는 것은 상태 어휘(<code>AxisFlashState</code>)와 스타일(class)뿐이다.</li>
+            </ul>
+          </div>
+          <div class="card v-red"><h4>(B) 단일 추상 카드</h4>
+            <p class="muted"><b>탈락</b></p>
+            <ul>
+              <li>두 phase 를 한 추상 카드가 덮는다.</li>
+              <li>내용이 다르다 — 축 · Task · 전원 vs PATCH · pending · items · bond. 추상이 도메인을 가로지르며 의미를 잃는다(over-abstraction 금지).</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>D-2. 하트비트 = 혼합 기록</h4>
+        <p>채택 — Cycle 이 주기 시각을 적고, <code>PollFlashTaskStep</code> 이 관측 내용을 덧쓴다. 탈락 (a) <b>모든 step 에 주입</b> : 침습이 과하다. 탈락 (b) <b>Cycle 만</b> : 시각은 갱신되는데 내용이 없다. Q2 확정대로 <b>저장은 하지 않는다</b>.</p>
+
+        <h4>D-3. 구간 파생의 기점 = 엔진과 같은 식</h4>
+        <p>채택 — 조회 서비스가 최소 <code>FlashContext</code>(resolution · provider <code>null</code>)를 만들어 <code>returnWaitSince()</code> · <code>guestReturned()</code> 를 재사용한다. 표시와 판정이 <b>같은 시계</b>를 보는 것이 SSOT(Single Source of Truth — 단일 진실 출처)다. 탈락 — <b>계산 복제</b> : §1 의 표시 결함이 바로 그 복제에서 나왔다.</p>
+
+        <h4>D-4. 전원 사건 기록</h4>
+        <p>flash 는 instant 2행(차단 · 투입)이고, 투입 행의 <code>detail</code> 에 <code>PowerControlResult.message</code>(무장 outcome 포함)를 담는다. setting 재부팅은 <b>기존 행의 <code>arm</code> 키</b>로 적어 행을 늘리지 않는다 — 이미 열린 행이 있는데 별도 행을 내면 같은 사건이 두 자리로 갈라진다. 두 사유를 <code>isPhaseLevel</code> 에 등록해 <b>축 상태 · 대조가 오염되지 않게</b> 한다. 투입이 FAILED 결과(연결 불가 — 전원이 움직이지 않음)면 <b>기록하지 않는다</b> — 사건이 없었기 때문이다.</p>
+
+        <h4>D-5. note = detail 우선 · origin 폴백</h4>
+        <p>문구 매핑 테이블을 새로 만들지 않는다 — <code>detail</code> 에 사람이 읽는 문구가 들어가는 것이 원장 규약이고, 코드가 그대로 노출되는 것은 폴백뿐이다(기술 코드 표기 허용). 판독은 <code>ProvisioningHistory.displayNote()</code> 도메인 메서드가 든다(기존 <code>flashDetail</code> 판독 관례 자리) — 조회 서비스에 JSON 파싱을 중복시키지 않는다.</p>
+
+        <h4>D-6. 대기 사유 = BMC 무호출 파생</h4>
+        <p>조회가 BMC 를 부르면 열람마다 왕복이 생기고 재기동 창에서 오류가 난다(Q2 ③ 탈락과 같은 사유). 커서 · 열린 행 부재 · <code>lastTransitionAt</code> · <code>returnLimit</code> · <code>boardSerial == null</code> 이라는 <b>DB 사실만으로</b> 문구를 만든다.</p>
+
+        <h4>D-7. 자원이름 표기의 회귀 함정</h4>
+        <div class="callout danger"><code>VerifyFlashStep.sameVersion</code> 이 원장의 <code>flashTargetVersion</code> 을 비교 재료로 쓴다. 표시 문자열(<code>자원이름 (버전)</code>)을 거기에 넣으면 <b>반영 확인이 전부 불일치로 깨진다</b>. 그래서 이름은 별도 필드(<code>resourceName</code> · meta <code>name</code>)로 나르고 <b>버전 재료는 불변</b>으로 둔다. 테스트로 고정한다(§6).</div>
+
+        <h4>D-8. 목록 표기 조건</h4>
+        <p><code>disruptionBlocked ∧ !contactActive</code> 일 때만 '집행 중 · 전원 꺼짐' 이다. 연결 중이면 기존 배지를 그대로 쓴다 — 굽는 중에도 접촉이 있으면 <b>사실대로</b> 보여야 한다. 상세 화면의 접촉 배지도 같은 조건식을 쓴다(요약 · 상세 모두 진행 상태의 같은 메서드 값 — 판정 SSOT 하나).</p>
+
+        <h4>D-9. 재시도 안내</h4>
+        <p><code>retryable ∧ isFirmwarePhaseFailure</code> 일 때 기존 안내 문장에 전원 사이클 문장을 <b>잇는다</b>(Q3 의 가시화). 억제 가드는 넣지 않는다(Q3 ② 탈락) — 재시도가 이미 하고 있는 일을 말해 주는 것이 이 요구의 전부다.</p>
+
+        <h4>D-10. 비목표 개정</h4>
+        <p>Notion 페이지의 비목표 ② 를 "판정 · 전이 로직 변경 없음(기록 · 로그 추가는 허용)" 으로 개정한다 — CP1 승인 후 notion-sync 로 반영한다.</p>
+
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>처리</th></tr></thead>
+          <tbody>
+            <tr><td>O-1</td><td><code>FlashPercentage</code> 대체 원천(진행률)</td><td><b>닫힘 — 불필요</b> <span class="muted">(2026-08-31 확정)</span>. 진행률 원천을 다시 찾지 않는다. 굽는 동안의 화면은 하트비트(마지막 관측 문구 · 시각)가 맡는다</td></tr>
+            <tr><td>O-2</td><td>이력 표 행 증가의 상한(장수 게스트)</td><td>현 단계 무대응 — 페이지네이션은 필요해질 때(미리 분리 금지)</td></tr>
+            <tr><td>O-3</td><td>회수 · 재투입 시 <code>WorkerObservations</code> 잔존</td><td><b>확정</b> <span class="muted">(2026-08-31)</span> — 보관은 <b>FIFO</b> 구조로 두고, <b>회수 처리 직전에 <code>clear(guestId)</code> 로 인메모리 로그를 파괴</b>한다. 호출 자리(회수 처리 커맨드)의 실제 파일은 CP2 착수 시 확인해 채운다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification — CP5 (브라우저 + 하네스)</summary>
+      <div class="body">
+        <p>화면이 있는 슬라이스이므로 <b>브라우저 검증을 실제로 수행</b>한다(E 단계 예외의 "관리자 화면이 딸린 슬라이스" 조항). 사이클 구동은 하네스가 맡는다. 샌드박스는 E2.5 레시피를 재사용한다 — 모의 BMC(<code>mock-redfish</code>) + <code>diagnose-cycle</code> · 시한 압축. 항목마다 스크린샷을 1:1 로 남긴다.</p>
+        <table>
+          <thead><tr><th>ID</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>정상 사이클 — 집행 카드의 구간 문구 6단 전이</td></tr>
+            <tr><td>A2</td><td>설정 카드 — BIOS 3국면 + BMC 항목 진행(<code>items</code>)</td></tr>
+            <tr><td>A3</td><td>세부 단계 이력에 전원 차단 · 투입 행 + 사유 열</td></tr>
+            <tr><td>A4</td><td>하트비트 갱신(30초)</td></tr>
+            <tr><td>A5</td><td><code>자원이름 (버전)</code> — 계획 화면과 집행 카드 양쪽</td></tr>
+            <tr><td>A6</td><td>목록 '집행 중 · 전원 꺼짐' ↔ '연결 중' 전환</td></tr>
+            <tr><td>B1</td><td>무장 거절 → 투입 행 <code>detail</code> 로 원인 판독 <span class="muted">(RETURN_TIMEOUT 사후 분석)</span></td></tr>
+            <tr><td>B2</td><td>readback 불일치 · <code>WRITE_REJECTED</code> 사유 표시</td></tr>
+            <tr><td>B3</td><td>신원 침묵 대기 배너 <span class="muted">(보드 시리얼 <code>null</code> 게스트)</span></td></tr>
+            <tr><td>B4</td><td>Bond 단절 — 재접속 대기</td></tr>
+            <tr><td>B5</td><td>재시도 — 안내 문구 + 새 전원 행 2개</td></tr>
+            <tr><td>C1</td><td>SSE 재조회로 신설 카드가 실시간 교체(<code>data-live</code>)</td></tr>
+            <tr><td>C2</td><td>수정 폼 입력 보존 <span class="muted">(폼 미마킹 확인)</span></td></tr>
+            <tr><td>C3</td><td>반영 확인 회귀 — 이름 표기 뒤에도 flash 반영 확인이 성공(D-7)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/WorkerObservations.java</code></td><td>인메모리 관측 보관</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>WorkerObservationsTest</code></td><td>테스트</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerQueryService</code></td><td>구간 · 남은 분 · <code>settingOf</code> · <code>note</code> · <code>waitingReason</code> · 요약</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerDetailResponse</code> · <code>GuestServerSummaryResponse</code></td><td>응답 필드 확장</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>ProvisioningHistory</code></td><td><code>displayNote()</code> <span class="muted">(메서드만 — 필드 변경 0)</span></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>FlashLedger</code> · <code>SettingLedger</code></td><td><code>instantPower</code> · 사유 2 · <code>markRebooted</code> 오버로드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>AxisResolution</code> · <code>FirmwareResolver</code></td><td><code>resourceName</code> · <code>message</code> 표기</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>BeginFlashStep</code> · <code>PowerOnStep</code> · <code>BeginSettingStep</code> · <code>PollFlashTaskStep</code></td><td>기록 지점 · 로그 1줄</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>FirmwareFlashCycle</code> · <code>FirmwareSettingCycle</code></td><td>하트비트</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>server-detail.html</code> · <code>server-rows.html</code> · <code>server-list.html</code></td><td>카드 · 이력 열 · 배지 · 안내 · 할당 폼 미리보기 문구</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>회수 처리 커맨드 <span class="muted">(파일 확정 필요 — 본 문서 작성 시 미확인)</span></td><td><code>WorkerObservations.clear</code> 호출 <span class="muted">(O-3 확정)</span></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td>신규 문구 키</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>테스트 6+ 파일</td><td>§6</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>엔티티 필드 · DDL · step <code>matches</code> · <code>PlannedPhaseRailResponse</code> · SSE 배선 · <code>RetryPolicy</code></td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">신규 2(본체 1 · 테스트 1) · 수정 18(본체 · 템플릿 · 문구 — 표에서 묶어 센 행 포함) + 테스트 6+ · 유지 6. 회수 처리 커맨드 1건은 <b>파일 경로 미확인</b>이라 집계에는 넣되 경로는 CP2 착수 시 확정한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E2-4-milestone">
+          <li><label><input type="checkbox" data-key="branch"> <span>PR #56 병합 고지 → <code>feat/E2-4_execution-status-detail</code> 생성(<code>origin/dev</code>) → plan 커밋</span></label></li>
+          <li><label><input type="checkbox" data-key="cp"> <span>CP1 승인 → CP2(표시) · CP3(기록 착수) 경계 보고 → CP4 중간 승인 → 테스트 → CP5(브라우저 + 하네스) → CP6</span></label></li>
+          <li><label><input type="checkbox" data-key="notion"> <span>Notion 비목표 ② 개정(D-10) — CP1 승인 후</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7 실기 일괄 합류 — decisions 3 확인 항목 <span class="muted">(<code>FlashPercentage</code> 관찰은 불필요로 닫혔다 — O-1)</span></span></label></li>
+          <li><label><input type="checkbox" data-key="diagram"> <span>통신 다이어그램 갱신 적립 <span class="muted">(E1-2 이후 미이행 — 기존 적립 유지)</span></span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 E2-4 라이브 데모
+  //  판정은 §3 의 구간 진리표 6행 · 설정 축 세부 국면 · displayNote 파생 · isPhaseLevel 필터 ·
+  //  목록 배지 조건식(D-8)을 그대로 옮긴 것이며, 서버 구현이 정본이 된다.
+  //  시한 값(축 30분 · 복귀 20분)과 기준 시각(14:00:00)은 데모 가정이다.
+  // ─────────────────────────────────────────────────────────────
+  const AXIS_LIMIT = 30;      // 데모 가정 — 실제는 limitFor(axis)
+  const RETURN_LIMIT = 20;    // 복귀 시한 (provision.execution.return-timeout 기본값)
+  const T0 = 14 * 3600;       // 데모 기준 시각 14:00:00
+
+  function p2(n) { return (n < 10 ? '0' : '') + n; }
+  function hms(min) { const s = T0 + Math.round(min * 60);
+    return p2(Math.floor(s / 3600) % 24) + ':' + p2(Math.floor(s / 60) % 60) + ':' + p2(s % 60); }
+  function hm(min) { const s = T0 + Math.round(min * 60);
+    return p2(Math.floor(s / 3600) % 24) + ':' + p2(Math.floor(s / 60) % 60); }
+
+  const MICRO = [
+    { k:'begin',         s:'①', label:'집행 착수 — 전원 차단' },
+    { k:'biosOpen',      s:'②', label:'BIOS 굽기 — 착수' },
+    { k:'biosClose',     s:'②', label:'BIOS 굽기 — 종료' },
+    { k:'bmcOpen',       s:'③', label:'BMC 굽기 — 착수' },
+    { k:'bmcClose',      s:'③', label:'BMC 굽기 — 종료' },
+    { k:'powerOn',       s:'④', label:'전원 투입' },
+    { k:'guestReturn',   s:'⑤', label:'게스트 복귀' },
+    { k:'verify',        s:'⑥', label:'반영 확인 — 다음 phase 전진' },
+    { k:'biosPatch',     s:'⑦', label:'BIOS 설정 — PATCH' },
+    { k:'biosReboot',    s:'⑦', label:'BIOS 설정 — 재부팅' },
+    { k:'settingReturn', s:'⑧', label:'복귀 — readback 대기' },
+    { k:'readback',      s:'⑧', label:'readback 확인' },
+    { k:'bmcItem',       s:'⑨', label:'BMC 설정 항목 적용' },
+    { k:'end',           s:'⑩', label:'종단' }
+  ];
+  const MICRO_TIP = {
+    begin:'BeginFlashStep 이 ForceOff 로 전원을 내리고 원장에 instantPower(POWER_OFF) 한 행을 남긴다 (R4)',
+    biosOpen:'축 하나를 열어 굽기를 시작한다 — 원장 행이 RUNNING 으로 열리고 카드는 진리표 1행이 된다',
+    biosClose:'Task 가 끝나 축 행이 닫힌다 — origin 은 flash-completed',
+    bmcOpen:'다음 축(BMC)을 연다',
+    bmcClose:'두 축이 모두 닫힌다 — 카드는 진리표 2행(전원 투입 대기)이 된다',
+    powerOn:'PowerOnStep 이 전원을 넣고 무장 결과(PowerControlResult.message)를 detail 에 담아 instantPower(POWER_ON) 을 남긴다',
+    guestReturn:'게스트가 PXE 로 돌아와 접촉이 살아난다 — 카드는 진리표 4행',
+    verify:'반영 확인이 끝나 커서가 다음 phase 로 전진한다 — 카드는 진리표 5행',
+    biosPatch:'BeginSettingStep 이 pending PATCH 를 넣는다 — 설정 카드가 「PATCH 중」',
+    biosReboot:'재부팅을 지시하고 기존 행 meta 에 rebootAt 과 무장 요약(arm)을 적는다 — 행은 늘지 않는다 (D-4)',
+    settingReturn:'게스트가 돌아와 값 확인(readback) 차례가 된다',
+    readback:'되읽은 값을 대조해 행을 닫는다 — 결과 origin(APPLIED / WRITE_REJECTED)이 사유 열에 뜬다',
+    bmcItem:'BMC 설정 항목을 하나 적용한다 — 원장 meta 의 items 가 오르고 카드는 N/4 로 센다',
+    end:'phase 가 종단한다'
+  };
+  function idx(k) { for (let i = 0; i < MICRO.length; i++) if (MICRO[i].k === k) return i; return -1; }
+
+  const demo = { fail:'NONE', banner:'' };
+
+  function demoInit() {
+    demo.i = 0; demo.clock = 0; demo.rows = []; demo.cursor = 'FIRMWARE_UPDATING';
+    demo.powered = false; demo.contact = true; demo.disruption = false;
+    demo.returnedAt = null; demo.settingReturnedAt = null;
+    demo.lastTransitionAt = 0; demo.failed = null; demo.failKind = null; demo.confirm = false;
+    demo.obs = null; demo.stageLog = []; demo.msg = ''; demo.msgKind = '';
+    demo.hasSerial = (demo.fail !== 'IDENTITY_WAIT');
+    demo.rows.push({ at:0, title:'부트스트랩 행', axis:null, state:'SUCCEEDED', startedAt:0, endedAt:0, meta:null });
+    stageTrack();
+  }
+
+  // ── 원장 판독 (조회가 쓰는 것과 같은 규칙) ──
+  function isPhaseLevel(origin) { return origin === 'power-off' || origin === 'power-on'; }
+  function openRow(axis) {
+    for (let i = demo.rows.length - 1; i >= 0; i--) {
+      const r = demo.rows[i];
+      if (r.axis === axis && r.state === 'RUNNING') return r;
+    }
+    return null;
+  }
+  function lastAxisRow(axis) {
+    for (let i = demo.rows.length - 1; i >= 0; i--) if (demo.rows[i].axis === axis) return demo.rows[i];
+    return null;
+  }
+  function axisFlashOf(axis) {                       // 전원 사건 행은 건너뛴다 (R4 · D-4)
+    for (let i = demo.rows.length - 1; i >= 0; i--) {
+      const r = demo.rows[i];
+      if (r.meta && isPhaseLevel(r.meta.origin)) continue;
+      if (r.axis === axis) return r.state;
+    }
+    return 'UNTOUCHED';
+  }
+  function nextUntouchedAxis() {
+    const rest = ['BIOS', 'BMC'].filter(a => axisFlashOf(a) === 'UNTOUCHED');
+    return rest.length ? rest[0] : null;
+  }
+  function runningFlashRow() { return openRow('BIOS') || openRow('BMC'); }
+  function allFlashClosed() {
+    return ['BIOS', 'BMC'].every(a => { const r = lastAxisRow(a); return !!r && r.state !== 'RUNNING'; });
+  }
+  function hasPowerOn() { return demo.rows.some(r => r.meta && r.meta.origin === 'power-on'); }
+  function powerRowCount() { return demo.rows.filter(r => r.meta && isPhaseLevel(r.meta.origin)).length; }
+  function lastClosedAt() {
+    let t = 0;
+    demo.rows.forEach(r => { if (r.state !== 'RUNNING' && r.endedAt !== null) t = Math.max(t, r.endedAt); });
+    return t;
+  }
+  function returnWaitSince() { return Math.max(lastClosedAt(), demo.lastTransitionAt); }
+  function displayNote(r) {                          // D-5 : detail 우선 · origin 폴백 · meta 없음 null
+    if (!r.meta) return null;
+    if (r.meta.detail) return r.meta.detail;
+    return r.meta.origin || null;
+  }
+  function stateLabel(s) {
+    return s === 'RUNNING' ? '진행 중' : s === 'SUCCEEDED' ? '완료' : s === 'FAILED' ? '실패' : '미착수';
+  }
+  function badgeOf(s) {
+    return s === 'RUNNING' ? 'dep' : s === 'SUCCEEDED' ? 'on' : s === 'FAILED' ? 'del' : 'off';
+  }
+  function chipOf(s) {
+    const c = s === 'RUNNING' ? 'opt' : s === 'SUCCEEDED' ? 'add' : s === 'FAILED' ? 'del' : 'keep';
+    return '<span class="chip ' + c + '">' + stateLabel(s) + '</span>';
+  }
+
+  // ── 순수 판정 ①  구간 진리표 (§3 · 6행) ──
+  function stageOf() {
+    if (demo.failed) return { t:'기존 실패 표시 유지 — 이력의 사유 행이 원인을 말한다', m:null, row:6 };
+    const run = runningFlashRow();
+    if (run) return { t: run.axis + ' 굽는 중', m: AXIS_LIMIT - (demo.clock - run.startedAt), row:1,
+                      base:'기점 = 원장 행 startedAt ' + run.startedAt + 'm · 시한 limitFor(' + run.axis + ')' };
+    const closed = allFlashClosed();
+    if (closed && demo.returnedAt === null && !hasPowerOn()) return { t:'전원 투입 대기(다음 워커 주기)', m:null, row:2 };
+    if (closed && demo.returnedAt === null && hasPowerOn())
+      return { t:'전원 투입 — 게스트 복귀 대기', m: RETURN_LIMIT - (demo.clock - returnWaitSince()), row:3,
+               base:'기점 = max(마지막 축 · 사건 행 종료 ' + lastClosedAt() + 'm, lastTransitionAt ' + demo.lastTransitionAt + 'm)' };
+    if (demo.returnedAt !== null && demo.cursor === 'FIRMWARE_UPDATING')
+      return { t:'게스트 복귀 — 반영 확인 대기', m:null, row:4 };
+    if (demo.cursor !== 'FIRMWARE_UPDATING')
+      return { t:'반영 확인 완료 — ' + (demo.cursor === 'SETTING' ? '설정 phase 로 전진' : '종단'), m:null, row:5 };
+    // 축 사이 간극 = 진리표 1b(다음 축 착수 대기) · 착수 전 = row 0
+    const gap = lastAxisRow('BIOS') || lastAxisRow('BMC');
+    return { t: gap ? '다음 축 착수 대기(다음 워커 주기)' : '집행 전', m:null, row: gap ? '1b' : 0 };
+  }
+
+  // ── 순수 판정 ②  설정 축 세부 국면 (§3) ──
+  function settingAxes() {
+    const out = [];
+    const b = lastAxisRow('BIOS_SETTING');
+    if (!b) out.push({ label:'BIOS_SETTING', state:'UNTOUCHED', stage:'착수 전', sub:'' });
+    else if (b.state === 'RUNNING') {
+      if (b.meta.rebootAt === null)
+        out.push({ label:'BIOS_SETTING', state:'RUNNING', stage:'PATCH 중',
+                   sub:'pending 관찰 ' + (b.meta.pendingSeen ? '있음' : '없음') });
+      else if (demo.settingReturnedAt === null)
+        out.push({ label:'BIOS_SETTING', state:'RUNNING',
+                   stage:'재부팅 — 복귀 대기(잔여 ' + Math.max(0, RETURN_LIMIT - (demo.clock - b.meta.rebootAt)) + '분)',
+                   sub:'기점 rebootAt ' + hm(b.meta.rebootAt) + ' · arm=' + (b.meta.arm || '—') });
+      else
+        out.push({ label:'BIOS_SETTING', state:'RUNNING', stage:'값 확인(readback) 대기',
+                   sub:'pending 관찰 있음 · rebootAt ' + hm(b.meta.rebootAt) });
+    } else out.push({ label:'BIOS_SETTING', state:b.state, stage:(b.meta.origin || '—'), sub:'' });
+
+    const m = lastAxisRow('BMC_SETTING');
+    if (!m) out.push({ label:'BMC_SETTING', state:'UNTOUCHED', stage:'착수 전', sub:'' });
+    else if (m.state === 'RUNNING') {
+      if (m.meta.bondAt !== null)
+        out.push({ label:'BMC_SETTING', state:'RUNNING',
+                   stage:'Bond 재구성 — 재접속 대기(잔여 ' + Math.max(0, RETURN_LIMIT - (demo.clock - m.meta.bondAt)) + '분)',
+                   sub:'기점 bondAt ' + hm(m.meta.bondAt) + ' · ' + m.meta.items + '/4 적용' });
+      else out.push({ label:'BMC_SETTING', state:'RUNNING', stage:m.meta.items + '/4 적용', sub:'' });
+    } else out.push({ label:'BMC_SETTING', state:m.state, stage:(m.meta.origin || '—'), sub:'' });
+    return out;
+  }
+
+  // ── 순수 판정 ③  대기 사유 (R6 · D-6 · BMC 무호출) ──
+  function waitingReason() {
+    if (demo.cursor !== 'SETTING' || demo.failed) return null;
+    if (openRow('BIOS_SETTING') || openRow('BMC_SETTING')) return null;
+    const until = demo.lastTransitionAt + RETURN_LIMIT;
+    if (demo.clock >= until) return null;
+    let s = 'BMC 신원 확인 대기(' + hm(until) + ' 까지)';
+    if (!demo.hasSerial) s += ' — 보드 시리얼이 없어 신원 대조가 성립하지 않습니다. 진단 재수집이 필요합니다.';
+    return s;
+  }
+
+  // ── 순수 판정 ④  목록 배지 (D-8) ──
+  function listBadge() {
+    if (demo.disruption && !demo.contact) return { text:'집행 중 · 전원 꺼짐', cls:'dep', before:'끊어짐' };
+    if (demo.contact) return { text:'연결 중', cls:'on', before:'연결 중' };
+    return { text:'끊어짐', cls:'off', before:'끊어짐' };
+  }
+
+  // ── 커밋 : 한 사건 ──
+  function tickObs() { demo.obs = { note: runningFlashRow() ? '굽는 중' : '워커 확인', at: demo.clock }; }
+
+  function ev(k) {
+    const c = demo.clock;
+    if (k === 'begin') {
+      demo.rows.push({ at:c, title:'전원 차단 (집행 착수)', axis:null, state:'SUCCEEDED', startedAt:c, endedAt:c,
+                       meta:{ origin:'power-off', detail:null } });
+      demo.disruption = true; demo.contact = false; demo.powered = false;
+      demo.msg = ''; demo.msgKind = ''; tickObs(); demo.i++;
+    } else if (k === 'biosOpen' || k === 'bmcOpen') {
+      const axis = (k === 'biosOpen') ? 'BIOS' : 'BMC';
+      const name = (axis === 'BIOS') ? 'BIOS 표준 이미지 (F44)' : 'BMC 표준 이미지 (13.06.27)';
+      demo.rows.push({ at:c, title:axis + ' 펌웨어 굽기', axis:axis, state:'RUNNING', startedAt:c, endedAt:null,
+                       meta:{ origin:null, detail:null, name:name, target:axis } });
+      tickObs(); demo.i++;
+    } else if (k === 'biosClose' || k === 'bmcClose') {
+      const axis = (k === 'biosClose') ? 'BIOS' : 'BMC';
+      const r = openRow(axis);
+      if (r) {
+        r.endedAt = c;
+        if (demo.fail === 'TASK_EXCEPTION' && axis === 'BIOS') {
+          r.state = 'FAILED';
+          r.meta.detail = 'Task 예외 — 굽기가 끝나지 않았습니다';
+          demo.failed = '집행 실패'; demo.failKind = 'flash';
+          demo.msg = '집행이 실패했습니다 — 세부 단계 이력의 사유 열이 원인을 말합니다.'; demo.msgKind = 'error';
+        } else { r.state = 'SUCCEEDED'; r.meta.origin = 'flash-completed'; }
+      }
+      tickObs(); demo.i++;
+    } else if (k === 'powerOn') {
+      const armOk = (demo.fail !== 'ARM_REJECT');
+      demo.rows.push({ at:c, title:'전원 투입', axis:null, state:'SUCCEEDED', startedAt:c, endedAt:c,
+        meta:{ origin:'power-on',
+               detail: armOk ? '다음 부팅 PXE 강제 : 반영 확인 — 전원을 켰습니다'
+                             : '다음 부팅 PXE 강제 : 거절 — 부트 순서대로 부팅될 수 있음' } });
+      demo.powered = true; tickObs(); demo.i++;
+    } else if (k === 'guestReturn') {
+      demo.returnedAt = c; demo.contact = true; demo.disruption = false; tickObs(); demo.i++;
+    } else if (k === 'verify') {
+      demo.cursor = 'SETTING'; demo.lastTransitionAt = c; tickObs(); demo.i++;
+    } else if (k === 'biosPatch') {
+      demo.rows.push({ at:c, title:'BIOS 설정 적용', axis:'BIOS_SETTING', state:'RUNNING', startedAt:c, endedAt:null,
+                       meta:{ origin:null, detail:null, target:'BIOS', pendingSeen:true, rebootAt:null, arm:null } });
+      tickObs(); demo.i++;
+    } else if (k === 'biosReboot') {
+      const r = openRow('BIOS_SETTING');
+      if (r) {
+        r.meta.rebootAt = c;
+        r.meta.arm = (demo.fail === 'ARM_REJECT') ? '다음 부팅 PXE 강제 : 거절' : '다음 부팅 PXE 강제 : 반영 확인';
+      }
+      demo.contact = false; demo.settingReturnedAt = null; tickObs(); demo.i++;
+    } else if (k === 'settingReturn') {
+      demo.settingReturnedAt = c; demo.contact = true; tickObs(); demo.i++;
+    } else if (k === 'readback') {
+      const r = openRow('BIOS_SETTING');
+      if (r) {
+        r.endedAt = c;
+        if (demo.fail === 'READBACK_MISMATCH') {
+          r.state = 'FAILED'; r.meta.origin = 'WRITE_REJECTED';
+          demo.failed = '설정 실패'; demo.failKind = 'setting';
+          demo.msg = '값 확인에서 불일치가 나왔습니다 — 이력의 사유 열에 WRITE_REJECTED 가 남습니다.'; demo.msgKind = 'error';
+        } else { r.state = 'SUCCEEDED'; r.meta.origin = 'APPLIED'; }
+      }
+      tickObs(); demo.i++;
+    } else if (k === 'bmcItem') {
+      let r = openRow('BMC_SETTING');
+      if (!r) {
+        demo.rows.push({ at:c, title:'BMC 설정 적용', axis:'BMC_SETTING', state:'RUNNING', startedAt:c, endedAt:null,
+                         meta:{ origin:null, detail:null, target:'BMC', items:0, bondAt:null } });
+        r = openRow('BMC_SETTING');
+      }
+      if (r.meta.bondAt !== null) { r.meta.bondAt = null; }
+      else {
+        r.meta.items = r.meta.items + 1;
+        if (demo.fail === 'BOND_LOST' && r.meta.items === 2) r.meta.bondAt = c;
+        if (r.meta.items >= 4) { r.state = 'SUCCEEDED'; r.endedAt = c; r.meta.origin = 'APPLIED'; demo.i++; }
+      }
+      tickObs();
+    } else if (k === 'end') {
+      demo.cursor = 'END'; demo.lastTransitionAt = c; tickObs(); demo.i++;
+    }
+  }
+
+  function checkTimeout() {
+    if (demo.failed || demo.cursor !== 'FIRMWARE_UPDATING') return;
+    if (!hasPowerOn() || demo.returnedAt !== null || !allFlashClosed()) return;
+    if (demo.clock - returnWaitSince() >= RETURN_LIMIT) {
+      demo.failed = 'RETURN_TIMEOUT'; demo.failKind = 'return';
+      demo.msg = '복귀 시한이 지나 실패로 전환됐습니다 — 이력의 「전원 투입」 행이 왜 돌아오지 못했는지 말합니다.';
+      demo.msgKind = 'error';
+    }
+  }
+
+  function retryText() {
+    const base = '이 서버의 실패 상태를 지우고 집행을 다시 시도합니다.';
+    if (demo.failKind === 'setting') return base + ' <span class="muted">(설정 단계라 전원 사이클 문장이 붙지 않는다 — D-9 의 조건)</span>';
+    return base + ' 재시도하면 <b>서버 전원을 껐다 켜고 다음 부팅을 PXE 로 무장</b>해 게스트를 다시 세웁니다. <span class="muted">(문구 초안 — messages.properties 키로 등록 · R9 · D-9)</span>';
+  }
+
+  function retryGo() {
+    const c = demo.clock;
+    demo.confirm = false;
+    if (demo.failKind === 'setting') {
+      demo.i = idx('biosPatch');
+      demo.msg = '설정 단계 실패의 재시도입니다 — 안내에 전원 사이클 문장이 붙지 않습니다(펌웨어 단계 한정 · D-9).';
+      demo.msgKind = '';
+    } else {
+      const armOk = (demo.fail !== 'ARM_REJECT');
+      demo.rows.push({ at:c, title:'전원 차단 (재시도)', axis:null, state:'SUCCEEDED', startedAt:c, endedAt:c,
+                       meta:{ origin:'power-off', detail:null } });
+      demo.rows.push({ at:c, title:'전원 투입 (재시도)', axis:null, state:'SUCCEEDED', startedAt:c, endedAt:c,
+        meta:{ origin:'power-on',
+               detail: armOk ? '다음 부팅 PXE 강제 : 반영 확인 — 전원을 켰습니다'
+                             : '다음 부팅 PXE 강제 : 거절 — 부트 순서대로 부팅될 수 있음' } });
+      demo.powered = true; demo.disruption = true; demo.contact = false; demo.returnedAt = null;
+      demo.i = (demo.failKind === 'flash') ? idx('biosOpen') : idx('guestReturn');
+      demo.msg = '재시도했습니다 — 이력에 전원 차단 · 투입 두 행이 더해지고, 복귀 시한의 기점이 재시도 시각으로 옮겨집니다.';
+      demo.msgKind = '';
+    }
+    demo.failed = null; demo.failKind = null; demo.lastTransitionAt = c;
+  }
+
+  function stageTrack() {
+    const s = stageOf();
+    const last = demo.stageLog.length ? demo.stageLog[demo.stageLog.length - 1] : null;
+    if (!last || last.t !== s.t) demo.stageLog.push({ t:s.t, row:s.row, at:demo.clock });
+  }
+
+  function demoAct(a) {
+    if (a.indexOf('go:') === 0) ev(a.slice(3));
+    else if (a === 'plus5') { demo.clock += 5; tickObs(); checkTimeout(); }
+    else if (a === 'timeout') {
+      const waiting = (!demo.failed && demo.cursor === 'FIRMWARE_UPDATING' && hasPowerOn() && demo.returnedAt === null && allFlashClosed());
+      demo.clock = waiting ? (returnWaitSince() + RETURN_LIMIT) : (demo.clock + RETURN_LIMIT);
+      tickObs(); checkTimeout();
+    }
+    else if (a === 'retry') { demo.confirm = true; }
+    else if (a === 'retry-go') retryGo();
+    else if (a === 'retry-cancel') { demo.confirm = false; }
+    else if (a === 'reset') { demoInit(); demo.banner = ''; }
+    stageTrack(); demoRender();
+  }
+
+  function demoSet(k, v) { demo[k] = v; demoInit(); demo.banner = ''; demoRender(); }
+
+  // ── 원클릭 시나리오 여섯 ──
+  const FLASH_RUN = ['begin', 'biosOpen', '+5', 'biosClose', 'bmcOpen', '+5', 'bmcClose', 'powerOn'];
+  const SCENARIO = {
+    s1: { fail:'NONE',
+          run: FLASH_RUN.concat(['guestReturn', 'verify', 'biosPatch', 'biosReboot', 'settingReturn', 'readback',
+                                 'bmcItem', 'bmcItem', 'bmcItem', 'bmcItem', 'end']),
+          banner:'<b>① 정상 완주</b> — 한 사이클을 끝까지 돌렸다. 아래 <b>구간 문구 전이 기록</b>이 진리표 1행 → 2행 → 3행 → 4행 → 5행을 차례로 지나온 자취다. 지금까지는 축이 닫힌 뒤 화면이 「완료」 에 머물렀고, 설정 phase 에는 카드 자체가 없었다. 이력 표에 <b>전원 차단 · 투입 행</b>이 섞여 있는데도 축 상태가 오염되지 않는 것(계측의 axisFlashOf)이 isPhaseLevel 등록의 몫이다.' },
+    s2: { fail:'ARM_REJECT', run: FLASH_RUN.concat(['timeout']),
+          banner:'<b>② 무장 거절 → RETURN_TIMEOUT</b> — 전원은 켰는데 다음 부팅 무장이 거절돼 게스트가 디스크의 OS 로 갔다. 20분을 기다리다 실패로 전환된다. 화면에서 원인을 읽을 수 있는 자리는 <b>이력의 「전원 투입」 행</b>뿐이다 — 사유 열에 무장 거절이 적혀 있다(Q4 가 이 행을 남기자고 한 이유).' },
+    s3: { fail:'ARM_REJECT', run: FLASH_RUN.concat(['timeout', 'retry!']),
+          banner:'<b>③ 재시도 — 행 2개 · 안내 문구</b> — 운영자가 재시도했다. 재시도는 이미 전원 사이클과 PXE 무장으로 게스트를 다시 세우므로(Q3), 이력에 <b>전원 차단 · 투입 두 행</b>이 더해지고 안내 문구가 그 사실을 말한다. 복귀 시한의 기점도 재시도 시각으로 옮겨진다(계측의 returnWaitSince). 실패 주입을 「없음」 으로 바꾸면 이어서 정상 복귀를 볼 수 있다(주입을 바꾸면 진행이 초기화된다).' },
+    s4: { fail:'IDENTITY_WAIT', run: FLASH_RUN.concat(['guestReturn', 'verify']),
+          banner:'<b>④ 신원 대기 침묵</b> — 커서는 설정 phase 에 있는데 열린 행이 없다. 지금까지 이 상태는 화면에서 <b>아무 말도 하지 않았다</b>. 대기 사유 배너가 언제까지 기다리는지와, 보드 시리얼이 없어 신원 대조가 성립하지 않는다는 사실을 함께 말한다. 조작면 ① 의 ⑦ 버튼에 마우스를 올리면 워커가 왜 못 나아가는지가 뜬다. 이 판정에 BMC 왕복은 0 이다(D-6).' },
+    s5: { fail:'BOND_LOST',
+          run: FLASH_RUN.concat(['guestReturn', 'verify', 'biosPatch', 'biosReboot', 'settingReturn', 'readback',
+                                 'bmcItem', 'bmcItem', '+5']),
+          banner:'<b>⑤ Bond 단절</b> — BMC 설정 항목을 둘 적용한 뒤 Bond 재구성으로 접속이 끊겼다. 설정 카드가 <b>「Bond 재구성 — 재접속 대기」</b> 와 잔여 분을 표시하고, 원장 meta 의 items 는 2/4 로 남아 있다. 여기서 ⑨ 버튼은 「Bond 재접속 확인」 으로 바뀐다 — 눌러 보면 나머지 항목이 이어진다.' },
+    s6: { fail:'NONE', run:['begin'],
+          banner:'<b>⑥ 목록 배지 전환</b> — 굽는 창에 들어가자 목록 행이 「끊어짐」 에서 <b>「집행 중 · 전원 꺼짐」</b> 으로 바뀌었다. 조건은 <code>disruptionBlocked ∧ !contactActive</code> 한 줄이고(D-8), 연결 중이면 기존 배지를 그대로 쓴다 — 굽는 중에도 접촉이 있으면 사실대로 보여야 하기 때문이다. ⑤ 게스트 복귀까지 진행해 배지가 되돌아오는 것도 확인할 수 있다.' }
+  };
+  function demoPreset(id) {
+    const sc = SCENARIO[id];
+    demo.fail = sc.fail; demoInit();
+    sc.run.forEach(step => {
+      if (step === '+5') { demo.clock += 5; tickObs(); }
+      else if (step === 'timeout') {
+        demo.clock = returnWaitSince() + RETURN_LIMIT; tickObs(); checkTimeout();
+      }
+      else if (step === 'retry!') { demo.confirm = true; retryGo(); }
+      else ev(step);
+      stageTrack();
+    });
+    demo.banner = sc.banner;
+    demoRender();
+  }
+
+  // ── 렌더 ──
+  function demoBtn(action, label, blocked, tip) {
+    return '<span class="tip" data-tip="' + tip + '"><button class="n-demo-btn"' + (blocked ? ' disabled' : '') +
+      ' onclick="demoAct(\'' + action + '\')">' + label + '</button></span>';
+  }
+  function microLabel(m) {
+    if (m.k !== 'bmcItem') return m.label;
+    const r = openRow('BMC_SETTING');
+    if (r && r.meta.bondAt !== null) return 'Bond 재접속 확인';
+    const n = r ? r.meta.items : 0;
+    return 'BMC 설정 항목 적용 (' + Math.min(n + 1, 4) + '/4)';
+  }
+  function microBlock(k) {
+    if (k === 'guestReturn' && demo.fail === 'ARM_REJECT')
+      return '무장이 거절돼 게스트가 디스크의 OS 로 부팅했다 — 돌아오지 않는다. 「복귀 시한 경과」 로 넘겨 RETURN_TIMEOUT 을 본다';
+    if (k === 'biosPatch' && demo.fail === 'IDENTITY_WAIT')
+      return 'BeginSettingStep 이 BMC 신원 확인을 통과하지 못해 설정을 시작하지 못한다 — 화면은 대기 사유 배너로 그 침묵을 설명한다';
+    return '';
+  }
+
+  function demoRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-k]').forEach(s =>
+      s.classList.toggle('active', demo[s.dataset.k] === s.dataset.v));
+
+    // 조작면 ① — 사이클 전진
+    const nx = MICRO[demo.i];
+    const acts = MICRO.map((m, i) => {
+      let blocked = true, tip = '';
+      if (demo.failed) tip = '실패 상태다 — 「운영자 재시도」 를 먼저 누른다';
+      else if (demo.confirm) tip = '재시도 확인 중이다 — 확인 창을 먼저 닫는다';
+      else if (i < demo.i) tip = '이미 지난 사건이다';
+      else if (i > demo.i) tip = '아직 차례가 아니다 — 지금은 「' + (nx ? nx.s + ' ' + microLabel(nx) : '종단') + '」 차례';
+      else {
+        const g = microBlock(m.k);
+        if (g) tip = g; else { blocked = false; tip = MICRO_TIP[m.k]; }
+      }
+      return demoBtn('go:' + m.k, m.s + ' ' + microLabel(m), blocked, tip);
+    });
+    document.getElementById('demo-actions').innerHTML = '<span class="group-label">① 사이클 전진 :</span>' + acts.join('');
+
+    // 조작면 ③ · ④ · ⑤
+    document.getElementById('demo-ops').innerHTML = '<span class="group-label">③ ~ ⑤ :</span>'
+      + demoBtn('retry', '운영자 재시도', !demo.failed || demo.confirm,
+          demo.failed ? '실패 상태를 지우고 다시 시도한다 — 확인 문구가 먼저 뜬다'
+                      : '실패 상태에서만 누를 수 있다 — 실패 주입으로 실패를 만들어 보라')
+      + demoBtn('plus5', '+5분 경과', false, '워커가 5분 더 돈다 — 하트비트 시각과 남은 분이 갱신된다')
+      + demoBtn('timeout', '복귀 시한 경과', false, '복귀 대기의 남은 분을 0 으로 만든다 — 대기 중이면 RETURN_TIMEOUT 으로 전환된다')
+      + demoBtn('reset', '초기화', false, '실패 주입 토글은 그대로 두고 진행 상태만 처음으로 되돌린다');
+
+    document.getElementById('demo-confirm').innerHTML = demo.confirm
+      ? '<div class="callout danger"><b>재시도하시겠습니까?</b><br>' + retryText() + '<div style="margin-top:8px;">'
+        + demoBtn('retry-go', '재시도 진행', false, '전원 사이클 · 무장 뒤 집행을 다시 세운다')
+        + demoBtn('retry-cancel', '취소', false, '실패 상태를 그대로 둔다') + '</div></div>'
+      : '';
+
+    // 표시면 ① — 펌웨어 집행 카드
+    const st = stageOf();
+    let fh = '';
+    ['BIOS', 'BMC'].forEach(a => {
+      const r = lastAxisRow(a), s = axisFlashOf(a);
+      const name = (r && r.meta && r.meta.name) ? r.meta.name : '—';
+      const note = r ? (displayNote(r) || '사유 없음') : '계획 대기';
+      fh += '<div class="ux-row"><strong>' + a + '</strong><span class="label">' + name +
+            ' <span class="muted">· ' + note + '</span></span><span class="badge ' + badgeOf(s) + '">' + stateLabel(s) + '</span></div>';
+    });
+    fh += '<div class="ux-row"><strong>구간</strong><span class="label">' + st.t +
+          (st.m !== null ? ' <span class="muted">· 남은 ' + Math.max(0, st.m) + '분</span>' : '') +
+          '</span><span class="badge ' + (st.row === 6 ? 'del' : st.row === 0 ? 'off' : 'dep') + '">진리표 ' + st.row + '행</span></div>';
+    fh += '<div class="ux-row"><strong>하트비트</strong><span class="label">' +
+          (demo.obs ? hms(demo.obs.at) + ' 확인 — ' + demo.obs.note
+                    : '관측 없음 <span class="muted">(인메모리라 재기동 직후엔 비어 있다 — 다음 주기에 채워진다)</span>') +
+          '</span><span class="badge ' + (demo.obs ? 'on' : 'off') + '">' + (demo.obs ? '갱신됨' : '없음') + '</span></div>';
+    document.getElementById('demo-flash').innerHTML = fh;
+
+    // 표시면 ② — 설정 카드
+    const sa = settingAxes();
+    document.getElementById('demo-setting').innerHTML = sa.map(x =>
+      '<div class="ux-row"><strong>' + x.label + '</strong><span class="label">' + x.stage +
+      (x.sub ? ' <span class="muted">· ' + x.sub + '</span>' : '') +
+      '</span><span class="badge ' + badgeOf(x.state) + '">' + stateLabel(x.state) + '</span></div>').join('');
+
+    // 표시면 ⑤ — 대기 사유
+    const wr = waitingReason();
+    const w = document.getElementById('demo-wait');
+    w.className = 'ux-message';
+    w.innerHTML = wr ? wr : '<span class="muted">지금은 파생할 대기 사유가 없다 — 열린 행이 있거나 커서가 설정 phase 밖이다.</span>';
+
+    // 표시면 ③ — 세부 단계 이력
+    let hh = '<table><thead><tr><th>시각</th><th>단계</th><th>상태</th><th>사유 (note)</th></tr></thead><tbody>';
+    demo.rows.forEach(r => {
+      const n = displayNote(r);
+      const cell = !n ? '<span class="muted">—</span>'
+                      : (r.meta && r.meta.detail) ? n : '<code>' + n + '</code>';
+      hh += '<tr><td>' + hms(r.at) + '</td><td>' + r.title +
+            ((r.meta && r.meta.name) ? ' <span class="muted">' + r.meta.name + '</span>' : '') +
+            '</td><td>' + chipOf(r.state) + '</td><td>' + cell + '</td></tr>';
+    });
+    hh += '</tbody></table>';
+    document.getElementById('demo-history').innerHTML = hh;
+
+    // 표시면 ④ — 목록 행
+    const lb = listBadge();
+    document.getElementById('demo-list').innerHTML =
+      '<div class="ux-row"><strong>목록</strong><span class="label">게스트 서버 1 대' +
+      (lb.before !== lb.text ? ' <span class="muted">· E2-4 전에는 「' + lb.before + '」 로만 보였다</span>' : '') +
+      '</span><span class="badge ' + lb.cls + '">' + lb.text + '</span></div>';
+
+    // 구간 문구 전이 기록
+    document.getElementById('demo-stagelog').innerHTML =
+      demo.stageLog.map(x => hms(x.at) + '   [진리표 ' + x.row + '행]   ' + x.t).join('\n');
+
+    // 계측
+    const L = [];
+    L.push('FirmwareFlash.stageText             = "' + st.t + '"   (진리표 ' + st.row + '행)');
+    L.push('FirmwareFlash.stageRemainingMinutes = ' + (st.m === null ? 'null' : Math.max(0, st.m)) +
+           (st.base ? '   ' + st.base : ''));
+    L.push('FirmwareFlash.lastObservation       = ' + (demo.obs
+             ? '"' + hms(demo.obs.at) + ' 확인 — ' + demo.obs.note + '"'
+             : 'null   (인메모리 · 재기동 시 소실 — Q2 · 회수 처리 직전 파괴 — O-3)'));
+    L.push('FirmwareSetting.axes[0]             = BIOS_SETTING · ' + sa[0].stage + (sa[0].sub ? '   (' + sa[0].sub + ')' : ''));
+    L.push('FirmwareSetting.axes[1]             = BMC_SETTING · ' + sa[1].stage + (sa[1].sub ? '   (' + sa[1].sub + ')' : ''));
+    L.push('FirmwareSetting.waitingReason       = ' + (wr ? '"' + wr + '"' : 'null'));
+    L.push('axisFlashOf(BIOS) / axisFlashOf(BMC)= ' + axisFlashOf('BIOS') + ' / ' + axisFlashOf('BMC') +
+           '   · nextUntouchedAxis() = ' + (nextUntouchedAxis() || 'null'));
+    L.push('isPhaseLevel(power-off · power-on)  = <span class="f">true</span> → 위 대조에서 전원 사건 행 ' + powerRowCount() + ' 개를 건너뛴다 (R4 · D-4)');
+    L.push('displayNote 파생                     = detail 우선 · origin 폴백 · meta 없음 null   (이력 사유 열의 세 갈래)');
+    L.push('disruptionBlocked / contactActive   = ' + demo.disruption + ' / ' + demo.contact +
+           '  → 목록 배지 "' + lb.text + '"   (D-8)');
+    L.push('커서 / 진행 상태 실패                 = ' + (demo.cursor === 'FIRMWARE_UPDATING' ? 'FIRMWARE_UPDATING' : demo.cursor === 'SETTING' ? '설정 phase' : '종단') +
+           ' / ' + (demo.failed ? '<span class="t">' + demo.failed + '</span>' : '없음') + '   [시계 ' + demo.clock + 'm]');
+    L.push('조회 중 BMC 왕복                     = <span class="f">0</span>   (D-6 — 대기 사유도 DB 사실만으로 판정)');
+    L.push('기록 규칙                            = 투입 결과가 FAILED(연결 불가)면 행을 남기지 않는다 (D-4)');
+    document.getElementById('demo-caps').innerHTML = L.join('\n');
+
+    // 메시지 · 배너
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message' + (demo.msgKind ? ' ' + demo.msgKind : '');
+    msg.innerHTML = demo.msg || '조작면 ① 의 눌리는 버튼을 차례로 눌러 한 사이클을 전진시켜 보라. 차단된 버튼에 마우스를 올리면 사유가 뜬다.';
+    const ban = document.getElementById('demo-banner');
+    ban.className = 'ux-message';
+    ban.innerHTML = demo.banner || '프리셋 여섯이 이 슬라이스의 장면 전부다. 누르면 실패 주입이 세팅되고 사이클이 그 장면까지 자동으로 진행된다.';
+  }
+
+  demoInit();
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
