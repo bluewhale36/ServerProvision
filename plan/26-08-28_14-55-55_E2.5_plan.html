@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E2.5 Plan — 다음 부팅 네트워크 부팅 강제</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section .body > p:first-child { margin-top:0; }
+  details.section .body > .callout:first-child { margin-top:0; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .muted { color:var(--text-muted); }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid / diff / state-flow ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 라이브 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:132px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:200px; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  /* 카탈로그 밖 강조는 새 class 대신 속성 셀렉터로 (E3-1 · E3-2 선례) */
+  [data-error="1"] { color:var(--red); font-weight:700; }
+  [data-ok="1"] { color:var(--green); font-weight:700; }
+  [data-skip="1"] { color:var(--yellow); font-weight:700; }
+
+  /* ── .seq : 5-actor 시간 흐름 (레인 5 = 무채색 기본) ── */
+  .seq { display:grid; grid-template-columns:repeat(5,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+5) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); }
+  .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  /* ── pkg-tree / card-grid ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E2.5 — 다음 부팅 네트워크 부팅 강제 <span class="v2-badge">최상위 단계</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E2.5 (feature · E1.5 와 같은 층)</span>
+    <span><strong>브랜치</strong> <code>feat/E2.5_network-boot-override</code> <span class="muted">(origin/dev f572221 위 · 2026-08-28 생성)</span></span>
+    <span><strong>scope</strong> 전원 명령 직전 Redfish 로 "다음 한 번은 PXE" 무장 · 화면 · 원장 · DDL 변경 0</span>
+    <span><strong>실측 원장</strong> Notion <code>E0-4-1 : checklist 1</code> (2026-08-18 · <code>Systems/Self</code> 응답 전문)</span>
+    <span><strong>적립</strong> <code>docs/T3-checklist.md</code> 강화 확장 절</span>
+    <span><strong>작성</strong> 2026-08-28 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단) — 왜 지금 이 슬라이스인가</summary>
+      <div class="body">
+        <p>엔진이 게스트의 전원을 넣거나 재부팅하기 <b>직전에 Redfish 로 "다음 한 번은 PXE" 를 무장</b>(<code>BootSourceOverride</code> · <code>Once</code> · <code>Pxe</code> · <code>UEFI</code>)해, 디스크에 OS 가 남은 서버도 부트 순서와 무관하게 프로비저닝 서버로 돌아오게 한다. 화면 · 원장 · DDL 변경은 없다.</p>
+
+        <h4>사건 — 2026-08-27 실기 통합 테스트</h4>
+        <p>OS 가 남아 있던 서버 <b>아이티인포 (하)</b>(MD72-HB3)가 BMC flash 를 마치고 <code>PowerOnStep</code> 이 전원을 넣자 디스크의 OS 로 부팅했다. 서버는 게스트가 PXE 로 돌아오기를 20분(<code>provision.execution.return-timeout</code>) 기다리다 <code>RETURN_TIMEOUT</code> 으로 실패했고, 첫 PXE DHCP 요청은 전원 투입 <b>35분 뒤</b> 운영자가 F12 로 network boot 를 골라 수동 재시작한 시점에야 들어왔다. 실측 부트 순서는 <code>FBO101='Hard Disk'</code> 가 1순위였다.</p>
+
+        <h4>왜 지금까지 드러나지 않았나</h4>
+        <p>빈 서버는 디스크 부팅이 실패해 부트 순서의 다음 항목(네트워크)으로 떨어지므로 "상시 PXE 우선" 처럼 보였다. 2026-08-19 4호 실측(J1)에서 "OS 설치 서버는 boot priority 가 OS 1순위" 가 관찰돼 K1 로 신설됐고, E1.5 토론 R-3 은 K1 미실측을 이유로 후속 분리(P3)했다. 08-27 이 그 후속의 착수 사유가 됐다. U6 회수 서버 재투입처럼 OS 가 남은 서버는 앞으로 늘어난다.</p>
+
+        <div class="callout warn"><b>수동 PXE 우선 설정으로는 막지 못한다</b> — 3호 실측(2026-08-19)이 펌웨어 flash 가 BIOS 설정을 기본값으로 초기화함을 실증했다. 랙킹 때 PXE 를 1순위로 잡아 두어도 E2 의 flash 한 번에 무효가 된다. <b>재부팅 직전에 Redfish 로 강제하는 길만 남는다.</b></div>
+
+        <h4>엔진이 게스트 전원을 움직이는 자리 <span class="muted mono">(현행 코드 실측 · 2026-08-28)</span></h4>
+        <table>
+          <thead><tr><th>자리</th><th>호출</th><th>다음에 부팅하는가</th></tr></thead>
+          <tbody>
+            <tr><td>E2 <code>BeginFlashStep</code> <span class="muted">(4행)</span></td><td><code>RedfishPowerService.reset(FORCE_OFF)</code></td><td>아니오 — 꺼진 채 굽는다</td></tr>
+            <tr><td><b>E2 <code>PowerOnStep</code></b> <span class="muted">(6 · 7행)</span></td><td><code>powerState</code> 로 이미 켜졌으면 생략 · 아니면 <code>powerOnAndVerify</code></td><td><b>예</b> — 복귀 시한 20분 대기</td></tr>
+            <tr><td><b>E3 <code>BeginSettingStep</code></b> <span class="muted">(6행)</span></td><td>pending PATCH 뒤 <code>reset(OFF 면 ON · 아니면 FORCE_RESTART)</code></td><td><b>예</b> — <code>rebootAt</code> 뒤 readback 대기</td></tr>
+            <tr><td>E1 진단 완료 <code>AgentDirective.REBOOT</code></td><td>게스트가 스스로 재부팅(Redfish 아님)</td><td>예 — 단 다음 phase 가 곧 끄거나(E2) 재시작(E3)한다</td></tr>
+            <tr><td>화면 E1.5 <code>GuestServerPowerRestController</code></td><td>운영자 단발 <code>reset</code></td><td>운영자 의도에 따름</td></tr>
+          </tbody>
+        </table>
+        <p>굵은 두 행이 이 슬라이스의 자리다. 둘 다 <code>RedfishPowerService</code> 를 부르므로 <b>무장 한 번을 서비스 안에 두면 두 자리가 함께 고쳐진다</b>(Notion 페이지 ① 의 "구현 자리" 와 일치).</p>
+
+        <h4>실측이 준 계약 <span class="muted mono">(E0-4-1 · GET /redfish/v1/Systems/Self 전문 · 2026-08-18 · MS04-CE0 · BMC 13.06.27)</span></h4>
+        <ul>
+          <li><code>Boot.BootSourceOverrideEnabled = "Disabled"</code>, 허용값 <code>Disabled · Once · Continuous</code>.</li>
+          <li><code>Boot.BootSourceOverrideTarget = "None"</code>, 허용값에 <code>Pxe</code> 실재(그 외 <code>Hdd · Usb · BiosSetup · UefiShell · UefiHttp</code> …).</li>
+          <li><code>Boot.BootSourceOverrideMode = "Legacy"</code>, 허용값 <code>Legacy · UEFI</code>. <b>현재값이 Legacy</b> 인데 이 플랫폼의 부트 옵션은 전부 UEFI(<code>FBO201_BootOption1 = "UEFI Hard Disk"</code> … <code>FBO204_BootOption4 = "UEFI Network"</code>)이고 우리 PXE 사슬은 <code>ipxe.efi</code> 다 — Mode 를 함께 보내지 않으면 Legacy PXE 를 찾다 부트 순서로 폴스루할 수 있다(D-2 의 근거).</li>
+          <li><code>Systems/Self</code> 에 <code>@Redfish.Settings.SettingsObject = /redfish/v1/Systems/Self/SD</code> 가 있다 — ComputerSystem 에도 pending 객체가 존재한다(3호에서 "ComputerSystem(Boot 등) pending" 으로 확인). <b>PATCH 를 <code>Systems/Self</code> 에 직접 넣을 때 즉시 반영되는지, SD 를 거쳐 다음 리셋에 적용되는지는 미실측</b>(K1-d).</li>
+          <li><code>If-Match</code> 요구 여부 미실측. 선례 — <code>Accounts/{id}</code> 는 fresh ETag 필수(없으면 412) · <code>Bios/SD</code> 는 <code>*</code> 수락.</li>
+          <li>Reset 은 202 + Task 경로를 준다(기존 <code>RedfishPowerService.issueReset</code> 이 판독).</li>
+        </ul>
+
+        <h4>미실측으로 남는 것 <span class="muted mono">(T3 · CP7 실기에서 닫는다)</span></h4>
+        <p>K1-b(<code>Once</code> + <code>Pxe</code> PATCH 수락과 실제 PXE 진입 · Once 소진) · K1-d(직접 vs SD · <code>If-Match</code>) · Mode UEFI 명시의 필요 여부 · BMC flash(<code>PreserveConfiguration</code>) 뒤 boot flag 잔존 여부. 이 plan 은 <b>표준(DMTF) 계약으로 구현하고 실기 결과가 코드의 관찰 로그로 드러나게</b> 설계한다(D-4 readback) — 실측 없이 규칙을 굳히지 않되, 실측을 기다리느라 배선을 미루지도 않는다(사용자 결정 · 08-27).</p>
+
+        <h4>동반 발견 — E2 복귀 대기의 재시도 기점 <span class="muted mono">(코드 읽기 중 발견 · D-7)</span></h4>
+        <p><code>PowerOnStep</code> 은 복귀 시한의 기점을 <code>FlashContext.lastAxisClosedAt()</code>(원장의 마지막 축 행 종료 시각)으로 잡는다. 운영자가 <code>RETURN_TIMEOUT</code> 뒤 재시도(<code>ProvisioningProgress.clearFailed</code> — 08-27 <code>RetryPolicy</code> 정정으로 허용)하면 <code>lastTransitionAt</code> 만 갱신되고 원장 시각은 그대로라, <b>실패 뒤 20분이 더 지나 재시도하면 다음 주기에 즉시 다시 <code>RETURN_TIMEOUT</code></b> 이 된다. 08-27 실기는 운영자가 F12 로 먼저 돌려보낸 뒤 재시도해 <code>VerifyFlashStep</code> 이 매칭됐으므로 드러나지 않았다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>R1</b> — E2 <code>PowerOnStep</code> 의 전원 투입과 E3 <code>BeginSettingStep</code> 의 재부팅 직전에 <code>PATCH /redfish/v1/Systems/Self</code> <code>{"Boot":{"BootSourceOverrideEnabled":"Once","BootSourceOverrideTarget":"Pxe","BootSourceOverrideMode":"UEFI"}}</code> 를 한 번 발행한다.</li>
+          <li><b>R2</b> — 무장은 전원 명령과 같은 자격증명 사다리(<code>BmcCredentialsFallback</code>) · 같은 결과화(<code>PowerControlResult</code>) 안에서 일어난다. 호출자가 순서를 빠뜨릴 수 없다.</li>
+          <li><b>R3</b> — PATCH 가 리소스 단위로 거절돼도(4xx · 412 재시도 실패 · 404) 전원 명령은 계속한다(best effort). 연결 불가 · 자격증명 거부는 종전대로 FAILED 결과다(다음 호출도 같은 이유로 실패하므로).</li>
+          <li><b>R4</b> — PATCH 뒤 <code>Systems/Self</code> 를 되읽어 반영 여부를 관찰하고(실패 판정 아님) 결과 메시지 · 로그에 남긴다 — 실기(CP7)가 K1-d 를 로그로 답하게.</li>
+          <li><b>R5</b> — 화면(E1.5 운영자 전원 제어)의 동작은 바뀌지 않는다(PATCH 0건).</li>
+          <li><b>R6</b> — 원장 사유 · 컬럼 · DDL · 설정 키를 늘리지 않는다.</li>
+          <li><b>R7</b> — (동반) E2 복귀 대기 기점을 "마지막 축 종료와 마지막 전이 중 늦은 시각" 으로 정정한다(D-7).</li>
+          <li><b>R8</b> — 모의 BMC(<code>scripts/mock-redfish/mock-redfish.py</code>)가 Boot 객체 · PATCH · Once 소진 · 거절 모드를 재연해 CP5 하네스가 전 경로를 돈다.</li>
+        </ol>
+
+        <div class="callout warn"><b>비 목표</b> (어디로 가는지 함께) :
+          <ul>
+            <li>영구 부트 순서 변경(<code>FBO*</code> 속성) — BIOS 세팅 템플릿(U2 · E3-1) 소관.</li>
+            <li>UC-4 원격 복구 화면 · 화면 재시작 버튼의 "PXE 로" 옵션 — <b>O-2</b>(U 후속).</li>
+            <li>진단 완료 <code>REBOOT</code> 지시(게스트 자가 재부팅) 직전 무장 — 지금은 불필요(D-6). E4 OS 설치 진입이 생길 때 그 phase 가 자기 진입 재부팅 직전에 무장한다.</li>
+            <li>재시도 뒤 디스크 OS 안에 켜져 있는 서버의 강제 재시작 — D-7 비채택(표식 필요) · <b>E2-4</b> 와 함께.</li>
+            <li>원장 표기(무장 결과를 상세 화면에) — <b>E2-4</b> 집행 현황 상세화.</li>
+            <li><code>Continuous</code> 모드 · 해제(<code>Disabled</code>) PATCH — 쓰지 않는다(Once 는 POST 1회에 소진).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 다음 부팅이 어디로 가는가 (라이브 데모)</summary>
+      <div class="body">
+        <p>이 슬라이스에는 <b>사용자가 누르는 버튼이 없다</b> — 워커가 전원을 움직이기 직전에 스스로 무장한다. 그래서 아래 버튼은 차단 사유가 아니라 <b>서버가 대신 돌리는 일</b>을 라벨로 달았다(마우스를 올리면 무엇을 대신 돌리는지 뜬다). 조작면에서 <b>게스트 디스크 · 부트 순서 · BMC 의 PATCH 응답 · 무장 정책 · 진입 자리</b>를 바꾸면 표시면의 <b>Redfish 왕복 · Boot 객체 · 게스트 부팅처 · 엔진 판정 · 결과 메시지</b>가 함께 갱신된다. 판정 JS 는 <b>§3 진리표와 D-3 · D-4 · D-5 · D-7 을 그대로 옮긴 것</b>이다(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <h4>원클릭 시나리오 — 여섯 장면</h4>
+          <div class="ux-toolbar">
+            <span class="group-label">프리셋 :</span>
+            <span class="tip" data-tip="무장이 없던 08-27 을 그대로 재연한다 — 왕복 로그에 PATCH 가 한 줄도 없다"><button class="n-demo-btn" onclick="demoPreset('s1')">① 08-27 재연 (E2.5 전)</button></span>
+            <span class="tip" data-tip="같은 조건에 무장 한 번을 넣는다 — APPLIED 뒤 게스트가 PXE 로 돌아온다"><button class="n-demo-btn" onclick="demoPreset('s2')">② 무장 APPLIED</button></span>
+            <span class="tip" data-tip="PATCH 는 204 인데 표시가 안 바뀌는 SD pending 경유 — UNCONFIRMED 로 관찰하고 리셋 때 적용된다"><button class="n-demo-btn" onclick="demoPreset('s3')">③ pending 경유 (K1-d)</button></span>
+            <span class="tip" data-tip="PATCH 400 거절 — 전원은 그대로 켜고(best effort) OS 잔존 서버는 ① 과 같은 결말이 된다"><button class="n-demo-btn" onclick="demoPreset('s4')">④ 무장 거절 400</button></span>
+            <span class="tip" data-tip="E3 BeginSettingStep 의 ForceRestart 앞에도 같은 무장이 붙는다 — 복귀 뒤 readback"><button class="n-demo-btn" onclick="demoPreset('s5')">⑤ E3 재부팅</button></span>
+            <span class="tip" data-tip="실패 뒤 25분이 지나 재시도했을 때 복귀 시한의 기점이 어디인가 — 무장 정책 토글에 따라 결과가 갈린다"><button class="n-demo-btn" onclick="demoPreset('s6')">⑥ 재시도 기점 (D-7)</button></span>
+          </div>
+          <div class="ux-message" id="demo-banner"></div>
+
+          <h4>조작면 ① · ② — 게스트 디스크 · 부트 순서 <span class="muted mono">(둘이 함께 "무장이 없을 때 어디로 가는가" 를 가른다)</span></h4>
+          <div class="ux-toolbar">
+            <span class="group-label">① 게스트 디스크 :</span>
+            <button class="seg" data-k="disk" data-v="OS" onclick="demoSet('disk','OS')">OS 잔존</button>
+            <button class="seg" data-k="disk" data-v="EMPTY" onclick="demoSet('disk','EMPTY')">빈 디스크</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">② 부트 순서 1순위 :</span>
+            <button class="seg" data-k="order" data-v="HDD" onclick="demoSet('order','HDD')">UEFI Hard Disk</button>
+            <button class="seg" data-k="order" data-v="NET" onclick="demoSet('order','NET')">UEFI Network</button>
+          </div>
+
+          <h4>조작면 ③ — BMC 의 PATCH 응답</h4>
+          <div class="ux-toolbar">
+            <span class="group-label">③ BMC 응답 :</span>
+            <button class="seg" data-k="bmc" data-v="OK" onclick="demoSet('bmc','OK')">정상 반영</button>
+            <button class="seg" data-k="bmc" data-v="PENDING" onclick="demoSet('bmc','PENDING')">pending 경유</button>
+            <button class="seg" data-k="bmc" data-v="ETAG" onclick="demoSet('bmc','ETAG')">412 → fresh ETag</button>
+            <button class="seg" data-k="bmc" data-v="REJECT" onclick="demoSet('bmc','REJECT')">거절 400</button>
+            <button class="seg" data-k="bmc" data-v="UNREACH" onclick="demoSet('bmc','UNREACH')">연결 불가</button>
+          </div>
+
+          <h4>조작면 ④ · ⑤ — 무장 정책 · 진입 자리</h4>
+          <div class="ux-toolbar">
+            <span class="group-label">④ 무장 정책 :</span>
+            <button class="seg" data-k="policy" data-v="BEFORE" onclick="demoSet('policy','BEFORE')">E2.5 전 (AS_CONFIGURED)</button>
+            <button class="seg" data-k="policy" data-v="AFTER" onclick="demoSet('policy','AFTER')">E2.5 후 (PXE_ONCE)</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">⑤ 진입 자리 :</span>
+            <button class="seg" data-k="site" data-v="E2" onclick="demoSet('site','E2')">E2 PowerOnStep</button>
+            <button class="seg" data-k="site" data-v="E3" onclick="demoSet('site','E3')">E3 BeginSettingStep</button>
+            <button class="seg" data-k="site" data-v="SCREEN" onclick="demoSet('site','SCREEN')">화면 재시작</button>
+          </div>
+
+          <h4>조작면 ⑥ — 서버가 하는 일</h4>
+          <div class="ux-toolbar" id="demo-actions"><span class="group-label">⑥ 서버가 하는 일 :</span></div>
+
+          <h4>표시면 ① — Redfish 왕복 <span class="muted mono">(GET → PATCH → readback → POST Reset)</span></h4>
+          <div class="ux-caps" id="demo-http"></div>
+
+          <h4>표시면 ② · ③ — BMC 의 Boot 객체 · 게스트가 부팅한 곳</h4>
+          <div id="demo-state"></div>
+
+          <h4>표시면 ④ — 엔진 판정</h4>
+          <div class="ux-caps" id="demo-caps"></div>
+
+          <h4>표시면 ⑤ — <code>PowerControlResult</code> 메시지 <span class="muted mono">(무장 요약 접두 — D-9)</span></h4>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 무장 판정은 §3 진리표 6행과 같은 순서 · 같은 조건이고, 부팅처 판정은 "무장 ∧ Once 미소진이면 PXE · 아니면 부트 순서 1순위" 한 줄이며, 복귀 시한의 기점은 <code>FlashContext.returnWaitSince() = max(lastAxisClosedAt, lastTransitionAt)</code>(D-7) 그대로다. 서버 구현(<code>NextBoot.PXE_ONCE.arm</code> + <code>RedfishPowerService</code>)이 이 판정의 정본이 된다.</div>
+        <div class="callout warn"><b>데모가 재현하지 않는 것 셋</b> — ① 자격증명 사다리의 401 폴백은 조작면에 자리가 없다(§9 B4 가 그 검증을 맡는다). ② PowerCycle 폴백 직전 재무장(D-5)은 "On 성공 응답 · 전원 불변" 이라는 별도 실패 모드가 필요해 조작면 밖에 두었다 — §3 스윔레인 6행과 D-5 가 그 자리다. ③ 게스트가 PXE 로 돌아온 뒤의 <code>VerifyFlashStep</code> · <code>ReturnReadbackStep</code> 내부 판정은 E2-2 · E3-1 소관이라 진입 사실까지만 표시한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름 — Redfish 왕복 · 스윔레인 · 진리표</summary>
+      <div class="body">
+        <p>새 HTTP 엔드포인트는 없다. 늘어나는 것은 프로비저닝 서버가 <b>BMC 에게 거는 Redfish 호출 두 개</b>(PATCH 와 readback GET)뿐이고, 전부 <code>RedfishClient</code> 경유 · Basic 인증 · 자격증명 사다리 위에서 일어난다.</p>
+
+        <table>
+          <thead><tr><th>순서</th><th>호출</th><th>뜻</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>GET /redfish/v1/Systems/Self</code></td><td>현재 <code>PowerState</code> <span class="muted">(기존)</span></td></tr>
+            <tr><td>2</td><td><code>PATCH /redfish/v1/Systems/Self</code> · <code>If-Match: *</code> · 바디 <code>{"Boot":{… Once · Pxe · UEFI}}</code></td><td>무장</td></tr>
+            <tr><td>2'</td><td>(412 면) <code>GET /redfish/v1/Systems/Self</code> → ETag → <code>PATCH … If-Match: &lt;etag&gt;</code></td><td>fresh ETag 재시도 1회</td></tr>
+            <tr><td>3</td><td><code>GET /redfish/v1/Systems/Self</code></td><td>readback — <code>Boot.BootSourceOverrideEnabled == Once ∧ Target == Pxe</code> 면 APPLIED, 아니면 UNCONFIRMED</td></tr>
+            <tr><td>4</td><td><code>POST /redfish/v1/Systems/Self/Actions/ComputerSystem.Reset</code> <code>{"ResetType": On / ForceRestart / PowerCycle}</code></td><td>전원 <span class="muted">(기존)</span></td></tr>
+          </tbody>
+        </table>
+
+        <h4>한 주기가 오가는 모양</h4>
+        <div class="seq">
+          <div class="actor a1">워커 (Flash · Setting)</div><div class="actor a2">RedfishPowerService</div><div class="actor a3">BMC (Redfish)</div><div class="actor a4">게스트 BIOS (POST)</div><div class="actor">/api/pxe/v1/boot</div>
+          <div class="step a1">step <code>PowerOnStep</code> · <code>BeginSettingStep</code> → <code>powerOnAndVerify(target, NextBoot.PXE_ONCE)</code> · <code>reset(target, type, NextBoot.PXE_ONCE)</code></div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div><div class="step"></div>
+          <div class="step a1"></div><div class="step a2"><code>guarded</code> 안 : <code>NextBoot.PXE_ONCE.arm(client, bmcIp, credentials)</code></div><div class="step a3">PATCH 수락 · readback 응답 → <code>BootOverrideOutcome</code></div><div class="step a4"></div><div class="step"></div>
+          <div class="step a1"></div><div class="step a2"><code>issueReset(...)</code></div><div class="step a3">202 + Task 경로</div><div class="step a4"></div><div class="step"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">boot flag 제공 → POST 에서 소진(<code>Disabled</code>)</div><div class="step a4">flag 를 읽어 <b>이번 한 번</b> UEFI PXE → <code>ipxe.efi</code></div><div class="step">체크인 → <code>lastSeenAt</code> 갱신</div>
+          <div class="step a1">다음 주기 — E2 는 <code>guestReturned()</code> 참 → <code>VerifyFlashStep</code> · E3 는 <code>ReturnReadbackStep</code></div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div><div class="step"></div>
+          <div class="step a1"></div><div class="step a2">(폴백) On 뒤 60초 불변 → <b>재무장</b> → PowerCycle → 폴링 (D-5)</div><div class="step a3">PATCH 재발행 · PowerCycle</div><div class="step a4"></div><div class="step"></div>
+        </div>
+
+        <h4>진리표 — 무장 outcome 과 전원 명령 <span class="muted mono">(RedfishPowerService 안 · NextBoot.PXE_ONCE 일 때)</span></h4>
+        <table>
+          <thead><tr><th>#</th><th>PATCH 결과</th><th>readback</th><th>outcome</th><th>전원 명령</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>2xx</td><td>Once ∧ Pxe</td><td>APPLIED</td><td>발행</td></tr>
+            <tr><td>2</td><td>2xx</td><td>불일치 <span class="muted">(SD pending 가능)</span></td><td>UNCONFIRMED</td><td>발행</td></tr>
+            <tr><td>3</td><td>412 → fresh ETag 재시도 2xx</td><td>1 · 2 와 같음</td><td>APPLIED / UNCONFIRMED</td><td>발행</td></tr>
+            <tr><td>4</td><td>412 재시도도 412 · 400 · 404 · 405 등 리소스 단위 거절</td><td>—</td><td>REJECTED(사유)</td><td>발행 <span class="muted">(best effort · WARN)</span></td></tr>
+            <tr><td>5</td><td>연결 불가</td><td>—</td><td>—</td><td>미발행 · 결과 FAILED <span class="muted">(기존 규칙)</span></td></tr>
+            <tr><td>6</td><td>401</td><td>—</td><td>—</td><td>다음 자격증명 후보 <span class="muted">(기존 사다리)</span> · 소진 시 FAILED</td></tr>
+          </tbody>
+        </table>
+        <p><code>NextBoot.AS_CONFIGURED</code> 는 1 ~ 6 을 건너뛰고 곧장 전원 명령이다(화면 경로).</p>
+
+        <div class="callout"><b>엔진 진리표 변경 없음</b> — E2-2 §5 · E3-1 D-4 의 행은 그대로다. 바뀌는 것은 6행(E2) · 6행(E3)이 부르는 서비스 메서드의 인자와, E2 6 · 7행의 시한 기점(D-7)뿐이다.</div>
+
+        <p class="muted">이 흐름을 이렇게 정한 이유 — 무장의 자리 · 의도 표현 · PATCH 경로 · best effort 경계 · 무장 시점 · 적용 범위 · 재시도 기점 — 은 <a href="#s8" onclick="document.getElementById('s8').open=true">§8 의 설계 결정 D-1 ~ D-10</a> 에 전문이 있다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) — 엔티티 무변경</summary>
+      <div class="body">
+        <h4>신규</h4>
+        <table>
+          <thead><tr><th>객체</th><th>종류</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>global/redfish/NextBoot</code></td><td>enum <span class="muted">(상수별 메서드)</span></td><td>다음 부팅의 <b>의도</b>. <code>AS_CONFIGURED</code> · <code>PXE_ONCE</code></td></tr>
+            <tr><td><code>global/redfish/BootOverrideOutcome</code></td><td>record</td><td>무장 <b>결과</b>. <code>Status status</code> · <code>String detail</code> · <code>summary()</code></td></tr>
+            <tr><td><code>RedfishError.resourceSpecific()</code></td><td>상수 속성 <span class="muted">(boolean)</span></td><td>best effort 의 <b>경계</b>. 리소스 단위 거절인가</td></tr>
+            <tr><td><code>RedfishClient.patchJsonRefreshingEtag(...)</code></td><td>메서드</td><td><code>If-Match</code> 사다리(<code>*</code> → 412 → fresh ETag 1회)</td></tr>
+            <tr><td><code>FlashContext.returnWaitSince()</code></td><td>메서드</td><td>복귀 대기의 <b>기점</b> = <code>max(lastAxisClosedAt(), progress.getLastTransitionAt())</code></td></tr>
+          </tbody>
+        </table>
+
+        <p><code>NextBoot</code> 의 상수는 wire 값 · 경로 · readback 규칙을 스스로 든다 — E3-2 의 <code>BmcSettingItem</code> 과 같은 결이다(상수가 write · verify 를 함께 든다). 그래서 "다음 부팅을 어떻게 표현하는가" 가 한 자리에 모이고, 호출자는 의도만 고른다.</p>
+        <pre><code>public enum NextBoot {
+    AS_CONFIGURED {                       // 무장하지 않는다 — 화면 경로 · 기존 2-arg reset
+        public BootOverrideOutcome arm(RedfishClient client, String bmcIp, BmcCredentials credentials) {
+            return BootOverrideOutcome.none();
+        }
+    },
+    PXE_ONCE {                            // 다음 한 번만 UEFI PXE
+        public BootOverrideOutcome arm(RedfishClient client, String bmcIp, BmcCredentials credentials) {
+            // Boot{ BootSourceOverrideEnabled=Once, BootSourceOverrideTarget=Pxe, BootSourceOverrideMode=UEFI }
+            // → client.patchJsonRefreshingEtag(...) → Systems/Self 되읽기 → APPLIED / UNCONFIRMED
+        }
+    };
+    public abstract BootOverrideOutcome arm(RedfishClient client, String bmcIp, BmcCredentials credentials);
+}</code></pre>
+
+        <p><code>BootOverrideOutcome.Status</code> 는 <code>NONE · APPLIED · UNCONFIRMED · REJECTED</code> 넷이고, <code>summary()</code> 가 결과 메시지의 접두를 만든다 — <span class="mono">"다음 부팅 PXE 강제 : 반영 확인"</span> / <span class="mono">"미확인 — pending 경유 가능"</span> / <span class="mono">"거절(…) — 부트 순서대로 부팅될 수 있음"</span>. <code>NONE</code> 은 접두가 없다.</p>
+
+        <p><code>RedfishError.resourceSpecific()</code> 는 <code>PRECONDITION_FAILED · NOT_FOUND · PROTOCOL</code> = <code>true</code>(그 리소스만의 거절이라 다음 호출은 성립할 수 있다), <code>CONNECT_FAILED · AUTH_FAILED</code> = <code>false</code>(다음 호출도 같은 이유로 실패한다)이다. best effort 의 경계를 switch 가 아니라 상수가 든다.</p>
+
+        <p><code>patchJsonRefreshingEtag(String bmcIp, BmcCredentials credentials, String patchPath, String etagSourcePath, Map&lt;String, ?&gt; body)</code> 의 사다리 자체는 E3-1 의 <code>RedfishBiosService.patchPending</code> 에 이미 있던 것이다. 두 번째 사용처가 생기는 지금이 추출 시점이므로 <code>RedfishClient</code> 로 끌어올리고(중복 금지), <code>RedfishBiosService.patchPending</code> 은 이 메서드를 부르도록 바꾼다 — 동작은 같고 ETag 원천만 다르다(Bios 는 <code>Bios</code>, 시스템은 <code>Systems/Self</code>).</p>
+
+        <h4>수정</h4>
+        <table>
+          <thead><tr><th>대상</th><th>바뀌는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>RedfishPowerService</code></td><td><code>powerOnAndVerify(RedfishTarget, NextBoot)</code> 시그니처 교체 <span class="muted">(호출자 1)</span> · <code>reset(RedfishTarget, RedfishResetType, NextBoot)</code> 신설 · 기존 2-arg <code>reset</code> 은 <code>AS_CONFIGURED</code> 위임(화면 경로 무변경). <code>guarded</code> 안에서 <code>nextBoot.arm(...)</code> → outcome → <code>issueReset</code>; <code>RedfishRequestException</code> 중 <code>resourceSpecific()</code> 인 것은 REJECTED 로 흡수(WARN) · 아닌 것은 그대로 던져 기존 FAILED 결과화. PowerCycle 폴백 직전 재무장. 결과 메시지에 <code>outcome.summary()</code> 접두. 상수 <code>SYSTEM_PATH</code> 는 그대로 공유</td></tr>
+            <tr><td><code>PowerOnStep</code></td><td><code>powerOnAndVerify(context.target(), NextBoot.PXE_ONCE)</code> · 시한 기점 <code>context.returnWaitSince()</code> · 결과 메시지를 INFO 로그에</td></tr>
+            <tr><td><code>BeginSettingStep</code></td><td><code>powerService.reset(target, reset, NextBoot.PXE_ONCE)</code> · 로그 한 줄에 결과 메시지</td></tr>
+            <tr><td><code>RedfishBiosService.patchPending</code></td><td>사다리를 <code>RedfishClient</code> 로 위임</td></tr>
+            <tr><td><code>scripts/mock-redfish/mock-redfish.py</code></td><td>Boot 객체 · ETag · PATCH · Once 소진 · 거절 모드 재연 <span class="muted">(아래)</span></td></tr>
+            <tr><td><code>docs/T3-checklist.md</code></td><td>BootSourceOverride 항목에 E2.5 배선 사실 + 남은 실측 4건(K1-b · K1-d · Mode · flash 뒤 잔존) · <code>BootSourceOverrideMode = Legacy</code> 관찰 기재</td></tr>
+          </tbody>
+        </table>
+
+        <p>모의 BMC(R8)는 <code>GET Systems/Self</code> 에 <code>Boot</code> 객체(Enabled · Target · Mode + AllowableValues)와 ETag 헤더(<code>systemEtag</code>)를 싣고, <code>PATCH Systems/Self</code>(<code>If-Match</code> <code>*</code> 또는 fresh ETag)가 <code>bootPatches</code> 를 기록하며 <code>STATE['boot']</code> 를 갱신한다. Reset(On · ForceRestart · PowerCycle)이 Once 를 소진(<code>Enabled → Disabled</code>)하고 <code>bootedVia</code>(<code>Pxe</code> / <code>BootOrder</code>)를 기록한다. 모드는 넷 — <code>boot-override-reject</code>(400) · <code>boot-override-412-once</code> · <code>boot-override-pending</code>(PATCH 204 이나 <code>Systems/Self</code> 표시 불변 · <code>Systems/Self/SD</code> 에 반영 · 리셋 때 적용) · <code>disk-os</code>(무장 없이 리셋되면 <code>bootedVia = BootOrder</code> — 하네스는 이 값을 보고 <code>/boot</code> 를 부르지 않는다 = OS 잔존 서버 재연).</p>
+
+        <div class="callout success"><b>유지(변경 0)</b> — <code>PowerControlResult</code>(필드 추가 없음 — D-9) · <code>FlashLedger</code> · <code>SettingLedger</code>(사유 추가 없음 — D-10) · <code>GuestServerPowerRestController</code> · <code>RedfishTarget</code> · <code>BmcCredentialsFallback</code> · 엔티티 · DDL · <code>application.properties</code>(설정 키 없음).</div>
+
+        <p><b>VO · Enum</b> — 신규는 <code>NextBoot</code>(enum)와 <code>BootOverrideOutcome.Status</code>(enum) 둘이다. 무명 boolean 인자도, 문자열로 넘기는 모드도 없으므로 Primitive Obsession(원시 타입으로 도메인 의미를 표현하는 것) 위반이 없다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>내용</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>이 plan</td><td><span class="chip cp1">CP1</span></td><td><b>승인</b></td></tr>
+            <tr><td>2 · 3 · 4</td><td>뷰 · Controller · DTO — <b>N/A</b> <span class="muted">(화면 · 엔드포인트 변경 없음)</span></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td>시그니처 : <code>NextBoot</code> · <code>BootOverrideOutcome</code> · <code>RedfishError.resourceSpecific</code> · <code>RedfishClient.patchJsonRefreshingEtag</code> · <code>RedfishPowerService</code> 오버로드 · <code>FlashContext.returnWaitSince</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6 · 7</td><td>Repository · Entity — <b>N/A</b></td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8</td><td>본체(<code>NextBoot.PXE_ONCE.arm</code> · 사다리 · <code>guarded</code> 무장 · step 인자 · Bios 위임) + 빌드 · 기존 테스트 회귀 0</td><td><span class="chip cp4">CP4</span></td><td><b>중간 승인</b></td></tr>
+            <tr><td>8 잔여</td><td>단위 테스트(§6) 전부 green</td><td><span class="chip cp4">CP4</span></td><td>무중단</td></tr>
+            <tr><td>9</td><td>스키마 — <b>N/A</b></td><td>—</td><td>—</td></tr>
+            <tr><td>10</td><td>하네스 검증(§9) — 모의 BMC 확장 + mock-guest</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td><b>승인</b></td></tr>
+            <tr><td>12</td><td>실기 — E 단계 일괄(2026-08-20 합의) · T3 K1 잔여 4건</td><td><span class="chip cp7">CP7</span></td><td><b>승인</b> (일괄)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(테스트 코드를 제외한 main 구현 + 빌드 통과, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <p>신규 HTTP 엔드포인트가 없으므로 사용자 액션 통합 테스트의 4 범주(성공 2xx · 400 · 404 · 409)는 새로 쓸 자리가 없다. 대신 <b>기존 <code>GuestServerPowerRestController</code> 테스트의 무변경 통과</b>가 곧 회귀 검증이다 — 화면 경로가 2-arg <code>reset</code> 을 그대로 쓰고 PATCH 를 0건 발행한다는 것(R5 · D-6)이 그 테스트로 증명된다. 500 계열에 해당하는 것은 무장 중 <code>CONNECT_FAILED</code> 이며, 서비스가 <code>PowerControlResult</code> 로 흡수해 밖으로 던지지 않으므로(§7) 서비스 단위 테스트가 그 자리를 맡는다.</p>
+        <table>
+          <thead><tr><th>파일</th><th>케이스</th></tr></thead>
+          <tbody>
+            <tr><td><code>NextBootTest</code> <span class="chip new">신규</span></td><td><code>PXE_ONCE</code> 바디 wire 값 3(Once · Pxe · UEFI) · 경로 <code>Systems/Self</code> · readback 일치 → APPLIED · 불일치 → UNCONFIRMED · <code>AS_CONFIGURED</code> 는 호출 0 · NONE</td></tr>
+            <tr><td><code>RedfishClientTest</code> <span class="chip mod">추가</span></td><td>사다리 : <code>*</code> 204 / 412 → GET ETag → <code>If-Match: &lt;etag&gt;</code> 204 / 412 두 번 → <code>PRECONDITION_FAILED</code> / GET 자체 실패 전파</td></tr>
+            <tr><td><code>RedfishPowerServiceTest</code> <span class="chip mod">추가</span></td><td>무장 → Reset 순서(<code>InOrder</code>) · REJECTED(400) 뒤에도 Reset 발행 + 메시지 접두 · UNCONFIRMED 접두 · 무장 중 CONNECT → FAILED · Reset 미발행 · 무장 중 401 → 다음 후보로 폴백 뒤 성공 · PowerCycle 폴백 직전 재무장(PATCH 2회) · <code>AS_CONFIGURED</code> → PATCH 0</td></tr>
+            <tr><td><code>RedfishBiosServiceTest</code> <span class="chip mod">조정</span></td><td><code>patchPending</code> 이 사다리 메서드에 위임(412 케이스는 <code>RedfishClientTest</code> 로 이동)</td></tr>
+            <tr><td><code>FlashStepExecutionTest</code> <span class="chip mod">추가</span></td><td><code>returnWaitSince</code> : 정상 흐름 = 축 종료 시각 · 재시도 뒤 = <code>lastTransitionAt</code> · <code>PowerOnStep</code> 이 재시도 25분 뒤에도 즉시 만료하지 않음 · <code>powerOnAndVerify(target, PXE_ONCE)</code> 호출 검증</td></tr>
+            <tr><td><code>SettingStepExecutionTest</code> <span class="chip mod">조정</span></td><td><code>BeginSettingStep</code> 이 <code>reset(target, type, PXE_ONCE)</code> 호출(기존 <code>reset(any(), any())</code> 검증을 3-arg 로)</td></tr>
+            <tr><td><code>RedfishErrorTest</code> <span class="chip new">신규</span></td><td><code>resourceSpecific()</code> 진리 5값 <span class="muted">(작음)</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 없음</summary>
+      <div class="body">
+        <p><code>RedfishRequestException</code>(기존)만 쓴다. <code>RedfishError.resourceSpecific()</code> 가 best effort 의 경계를 <b>상수 속성</b>으로 들고, 서비스는 종전대로 예외를 <code>PowerControlResult</code> 로 흡수한다(P4 — 밖으로 던지는 예외가 없다). 새 예외가 없으므로 advice 매핑도, HTTP 상태코드 표도 늘지 않는다.</p>
+        <div class="callout success"><b>관문 대상 없음</b> — 새 예외 클래스를 만들지 않으므로 <code>.claude/domain-conventions/new-exception.md</code> 를 여는 조건에 해당하지 않는다. 분기를 늘리지 않고 <code>resourceSpecific()</code> 라는 상수 속성으로 흡수 여부를 표현한 것이, 조건분기 legacy 확장 금지 원칙에 대한 이 슬라이스의 답이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 설계 결정 D-1 ~ D-10 · Open Questions</summary>
+      <div class="body">
+
+        <h4>D-1. 무장의 자리 = <code>RedfishPowerService</code> 안</h4>
+        <div class="card-grid">
+          <div class="card v-green"><h4>(A) 채택 — 서비스 안</h4>
+            <p class="muted"><b>채택</b></p>
+            <ul>
+              <li>전원 메서드가 <code>NextBoot</code> 인자를 받아 서비스 안에서 <b>무장 → 전원</b> 순서를 고정한다.</li>
+              <li>무장과 전원은 같은 자격증명 · 같은 결과화 · 정해진 순서(무장이 먼저)가 생명이다.</li>
+              <li>호출자(step)가 순서를 빠뜨릴 수 없고, E4 처럼 세 번째 호출자가 생겨도 인자 하나로 합류한다.</li>
+            </ul>
+          </div>
+          <div class="card v-red"><h4>(B) 별도 BootService</h4>
+            <p class="muted"><b>탈락</b></p>
+            <ul>
+              <li><code>RedfishBootService.overrideNextBoot(target)</code> 를 두고 두 step 이 각자 전원 직전에 부른다.</li>
+              <li>"무장 → 결과 판독 → WARN → 전원" 시퀀스가 두 곳에 복붙된다.</li>
+              <li>새 호출자가 무장을 잊어도 컴파일은 통과한다 — 빠뜨림이 조용히 지나간다.</li>
+            </ul>
+          </div>
+          <div class="card v-orange"><h4>(C) 엔진 협력자</h4>
+            <p class="muted"><b>탈락</b></p>
+            <ul>
+              <li><code>execution.engine</code> 의 "돌아오게 하는 재부팅" 컴포넌트가 서비스를 감싼다.</li>
+              <li>호출자 둘을 위해 한 겹을 더 얹고, 화면 경로와 진입점이 갈라진다.</li>
+              <li>갈라질 시점이 아니다.</li>
+            </ul>
+          </div>
+        </div>
+        <p><b>적대적 검토</b> — <code>RedfishPowerService</code> 가 Boot 객체를 알게 되면 이름과 어긋나지 않는가. Boot 도 같은 ComputerSystem 리소스(<code>SYSTEM_PATH</code>)의 속성이고, Javadoc 을 "전원 · 다음 부팅 제어" 로 고친다. 이름 교체(<code>RedfishSystemService</code>)는 참조 12곳 churn 이라 하지 않는다.</p>
+
+        <h4>D-2. 의도 표현 = <code>NextBoot</code> enum(상수별 <code>arm</code>) · Mode 는 UEFI 상수</h4>
+        <p>채택 — <code>AS_CONFIGURED</code> · <code>PXE_ONCE</code> 두 상수. wire 바디 · 경로 · readback 판정을 상수가 든다(E3-2 <code>BmcSettingItem</code> 선례). boolean 인자 · 문자열 모드 · 메서드 4벌(<code>resetViaPxe</code> …)은 탈락이다 — 무명 boolean 금지이고, 메서드를 늘리면 조합이 폭발한다.</p>
+        <p><b>Mode 를 명시해 UEFI 로 보낸다.</b> 실측 현재값이 <code>Legacy</code> 인데 플랫폼 부트 옵션과 PXE 사슬(<code>ipxe.efi</code>)은 전부 UEFI 다. Mode 없이 Target 만 바꾸면 Legacy PXE 를 찾다 폴스루할 수 있다. 설정 키로 빼지 않는다(추측 설정 금지 — 실기에서 Legacy 가 필요한 보드가 나오면 그때).</p>
+        <p><code>Continuous</code> 는 쓰지 않는다 — 소진되지 않아 프로비저닝 완주 뒤(OS 설치 후 <code>completedExit</code>) 매 부팅 PXE 를 타게 되고, 해제 PATCH 라는 책임이 새로 생긴다. Once 는 POST 1회에 BIOS 가 지운다.</p>
+
+        <h4>D-3. PATCH 경로 = <code>Systems/Self</code> 직접 + <code>If-Match</code> 사다리 · 사다리는 <code>RedfishClient</code> 로 공유</h4>
+        <p>채택 — DMTF 표준은 ComputerSystem 자체 PATCH 다. <code>Systems/Self/SD</code>(pending) 경유가 실체더라도 "다음 리셋에 적용" 이고 우리는 곧 리셋하므로 결과가 같다. 직접 PATCH 가 405 · 400 으로 거절되는 펌웨어면 그때 SD 로 갈라진다(CP7 · K1-d).</p>
+        <p><code>If-Match</code> 는 <code>Accounts</code> 가 fresh 필수 · <code>Bios/SD</code> 가 <code>*</code> 수락으로 갈리는데 <code>Systems/Self</code> 는 미실측이라 사다리로 둘 다 받는다. 사다리는 E3-1 <code>RedfishBiosService.patchPending</code> 에 이미 있으므로 두 번째 사용처가 곧 추출 시점이다(중복 금지) — <code>RedfishClient.patchJsonRefreshingEtag(patchPath, etagSourcePath, body)</code> 로 올리고 Bios 는 위임한다.</p>
+        <p>탈락 — <b>SD 우선</b> : 표준을 버리고 실측 없는 추정을 고르는 것. 탈락 — <b>사다리 없이 <code>*</code> 만</b> : 412 가 나면 무장이 통째로 REJECTED 로 떨어진다.</p>
+
+        <h4>D-4. 거절은 best effort(전원은 계속) + readback 관찰을 결과 · 로그에</h4>
+        <p>채택 — 리소스 단위 거절(<code>RedfishError.resourceSpecific()</code> = <code>true</code>)은 <code>BootOverrideOutcome.REJECTED</code> 로 흡수하고 전원 명령을 낸다. 빈 서버는 무장 없이도 돌아오고(디스크 부팅 실패 → 폴스루), OS 잔존 서버는 종전 안전망(복귀 시한 → <code>RETURN_TIMEOUT</code> · 재시도 가능)이 받는다. readback 은 실패 판정이 아니라 관찰이며(E3-1 pending 관찰과 같은 규율), APPLIED / UNCONFIRMED 를 결과 메시지에 접두해 실기 로그가 K1-d 를 답하게 한다.</p>
+        <p>탈락 (a) <b>거절 = 실패 전환</b>(새 사유 <code>BOOT_OVERRIDE_REJECTED</code>) : override 를 못 받는 펌웨어에서 빈 서버까지 막아, 지금 돌던 흐름을 퇴행시킨다. 탈락 (b) <b>조용히 무시</b> : 왜 안 돌아왔는지 사후 판독이 불가능하다(08-27 처럼 35분 뒤에야 안다).</p>
+        <p>연결 불가 · 자격증명 소진은 best effort 대상이 아니다 — 다음 Reset 도 같은 이유로 실패한다. 종전 <code>guarded</code> 규칙대로 FAILED 결과다(E2 는 다음 주기 재시도 · E3 는 행이 <code>rebootAt</code> 없이 남아 다음 주기).</p>
+
+        <h4>D-5. 무장 시점 = 전원을 움직이는 호출마다 직전 1회(폴백 포함)</h4>
+        <p>채택 — <code>powerOnAndVerify</code> 의 On 직전과 PowerCycle 폴백 직전 각각. Once 는 POST 1회에 소진되는데, "On 성공 응답 · 전원 불변"(실측 실패 모드) 뒤 폴백 때 flag 가 남아 있는지 없는지는 알 수 없다(POST 를 지났는데 폴링이 놓쳤을 수도 있다). 재무장은 멱등(Once 덮어쓰기)이라 GET 1 + PATCH 1 의 비용뿐이다.</p>
+        <p>탈락 — <b>한 번만</b> : 폴백 경로에 부트 순서로 새는 구멍이 남는다.</p>
+
+        <h4>D-6. 적용 범위 = 엔진 두 자리. 화면 · 진단 REBOOT 지시 · FORCE_OFF 는 제외</h4>
+        <p><code>PowerOnStep</code>(E2) · <code>BeginSettingStep</code>(E3)만 <code>PXE_ONCE</code> 다. 화면 <code>reset</code> 2-arg 는 <code>AS_CONFIGURED</code> — 운영자 재시작의 의도는 다양하고(OS 설치 완료 서버를 OS 로 재시작하는 것 포함) 그 선택은 O-2(화면 옵션)로 넘긴다. <code>BeginFlashStep</code> 의 FORCE_OFF 는 부팅이 없다.</p>
+        <p>진단 완료 <code>AgentDirective.REBOOT</code>(게스트 자가 재부팅) 직전 무장은 하지 않는다 — 다음이 E2 면 <code>BeginFlashStep</code> 이 곧 끄고, E3 면 <code>BeginSettingStep</code> 이 무장 뒤 재시작하며, 종단이면 부트 순서대로가 맞다. E4(OS 설치) 진입이 게스트 재부팅으로 시작하게 되면 그 phase 가 자기 직전에 무장한다(§11).</p>
+
+        <h4>D-7. (동반) E2 복귀 대기 기점 = <code>returnWaitSince()</code>; 재시도 뒤 강제 재시작은 비채택</h4>
+        <p>채택 — <code>FlashContext.returnWaitSince() = max(lastAxisClosedAt, progress.lastTransitionAt)</code>. <code>clearFailed</code> 가 <code>lastTransitionAt = now</code> 로 놓으므로 재시도 시각이 새 기점이 된다. 정상 흐름에선 <code>positionAt</code>(축 착수)이 축 종료보다 앞서므로 값이 바뀌지 않는다. <code>guestReturned()</code> 도 같은 기점을 쓴다 — 재시도 전에 돌아온 게스트는 30초 폴링이 <code>lastSeenAt</code> 을 곧 갱신해 다음 주기에 <code>VerifyFlashStep</code> 으로 간다. 1줄급 변경이고, 이 슬라이스의 CP5 시나리오(⑥ 재시도)가 의미를 가지려면 필요하다.</p>
+        <p>비채택(별도 · E2-4 와 함께) — 재시도 뒤 <code>PowerState = On</code> 인 서버(디스크 OS 안)를 무장 + ForceRestart 하는 안. <code>PowerOnStep</code> 은 "이미 켜짐 = POST 중" 으로 멱등 판단하는 설계라(컬럼 0), 재시작을 <b>한 번만</b> 내리려면 "이번 재시도에서 이미 재시작했다" 는 표식(원장 행 또는 컬럼)이 필요하다. 표식 없이 넣으면 30초마다 재시작하는 루프가 된다. 원장 표기 확장은 E2-4 소관이므로 거기서 함께 정한다. 그동안 운영자는 F12 로 돌려보낸 뒤 재시도한다(08-27 방식).</p>
+
+        <h4>D-8. 실기 미실측 4건은 코드가 답하게 설계한다 <span class="muted mono">(T3 · CP7)</span></h4>
+        <p>K1-b(수락 · PXE 진입 · Once 소진) · K1-d(직접 vs SD · <code>If-Match</code>) · Mode 명시 필요 여부 · BMC flash 뒤 flag 잔존 — 결과 메시지의 outcome(APPLIED / UNCONFIRMED / REJECTED + 사유)과 <code>[flash]</code> · <code>[setting]</code> 로그 한 줄이 실기에서 그대로 증거가 된다. 실측 결과에 따라 갈라질 코드는 상수 하나(경로) · enum 상수 하나(Mode)다.</p>
+
+        <h4>D-9. <code>PowerControlResult</code> 필드 추가 없음</h4>
+        <p>outcome 은 message 접두로만 싣는다. 필드를 더하면 화면 JSON 에 화면이 쓰지 않는 필드가 노출된다. 서비스가 REJECTED · UNCONFIRMED 를 스스로 WARN / INFO 로 남기므로 step 은 message 만 INFO 로 잇는다.</p>
+
+        <h4>D-10. 원장 · 설정 무변경</h4>
+        <p>새 사유 없음(REJECTED 는 실패가 아니다 — D-4) · 컬럼 없음 · 설정 키 없음(Mode 는 상수 — D-2). 원장에 무장 사실을 남기는 일은 E2-4 의 표기 확장에서 한다.</p>
+
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>처리</th></tr></thead>
+          <tbody>
+            <tr><td>O-1</td><td>K1-b · K1-d · Mode · flash 뒤 잔존 — 실기 결과</td><td>CP7 실기 일괄 · T3 항목 갱신 · 결과에 따라 상수 1곳 조정</td></tr>
+            <tr><td>O-2</td><td>화면 재시작에 "PXE 로" 옵션</td><td>U 후속(UC-2 · UC-4 화면) — E2.5 는 2-arg 유지</td></tr>
+            <tr><td>O-3</td><td>재시도 뒤 디스크 OS 안에 켜진 서버 강제 재시작</td><td>E2-4 원장 표기 확장과 함께(D-7 비채택)</td></tr>
+            <tr><td>O-4</td><td>E4 진입 재부팅(진단 REBOOT 지시) 직전 무장</td><td>E4 plan(D-6)</td></tr>
+            <tr><td>O-5</td><td>통신 다이어그램 규약 E1-2 이후 미이행</td><td>별도 DOC · CH 적립(E3-1 에서 적립한 것과 같은 항목)</td></tr>
+            <tr><td>O-6</td><td>BMC flash <code>PreserveConfiguration={"BMC":true}</code> 가 boot flag 를 보존하는가</td><td>무장은 flash 가 끝난 뒤(<code>PowerOnStep</code>) 하므로 영향 없음 — 다만 실기에서 flag 가 BMC 재기동에 지워지는 펌웨어면 D-5 의 "직전 1회" 가 더 중요해진다. O-1 과 함께 관찰</td></tr>
+          </tbody>
+        </table>
+
+        <h4>주의</h4>
+        <ul>
+          <li><code>RedfishClientConfig</code> 의 JDK <code>HttpClient</code> 는 PATCH 를 지원한다(E1.6 교체) — <code>patchJsonRefreshingEtag</code> 는 그 위에 얹힌다.</li>
+          <li><code>RedfishPowerServiceTest</code> 의 <code>powerOnAndVerify</code> 기존 케이스는 시그니처 변경으로 전부 <code>AS_CONFIGURED</code> / <code>PXE_ONCE</code> 를 명시해야 한다(컴파일 회귀 — CP4 의 "기존 테스트 회귀 0" 에 포함).</li>
+          <li>모의 BMC 의 <code>disk-os</code> 모드는 서버 코드가 아니라 하네스의 관찰 신호다 — 하네스 스크립트가 <code>bootedVia</code> 를 읽어 <code>/boot</code> 호출 여부를 정한다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification — CP5 하네스 (E 단계 예외 규율)</summary>
+      <div class="body">
+        <p>샌드박스는 E3-2 의 CP5 레시피를 그대로 쓴다 — Docker MariaDB 3307 + 로컬 dump + DDL 재적용 · bootRun jar 복사본 · <code>BMC_PORT=8463</code> · <code>BMC_PASSWORD=standard-pw</code> · <code>provision.execution.return-timeout=2m</code> · 워커 10s. 여기에 모의 BMC(R8 확장)와 <code>scripts/mock-guest/diagnose-cycle.sh</code> 를 얹는다. 스크린샷은 게스트 서버 상세 페이지 + 모의 BMC <code>/__state</code>(<code>boot</code> · <code>bootPatches</code> · <code>requests</code> · <code>bootedVia</code>) + 서버 로그 셋을 항목마다 남긴다.</p>
+        <table>
+          <thead><tr><th>ID</th><th>항목</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>E2 정상 : OS 잔존(<code>disk-os</code>) + 정상 BMC → <code>PowerOnStep</code></td><td>PATCH 1(Once · Pxe · UEFI · <code>If-Match: *</code>) → readback APPLIED → On → <code>bootedVia = Pxe</code> → 하네스 <code>/boot</code> → 반영 확인 → E3 전진</td></tr>
+            <tr><td>A2</td><td>E3 BIOS 재부팅 : 같은 게스트 → <code>BeginSettingStep</code></td><td>PATCH → ForceRestart → PXE 복귀 → readback APPLIED · 원장 <code>rebootAt</code></td></tr>
+            <tr><td>A3</td><td>412 사다리(<code>boot-override-412-once</code>)</td><td>PATCH <code>*</code> 412 → GET → PATCH <code>If-Match: W/"…"</code> 204 → APPLIED</td></tr>
+            <tr><td>A4</td><td>pending 경유(<code>boot-override-pending</code>)</td><td>PATCH 204 · readback 불일치 → 메시지 "미확인" · 리셋 때 적용 → PXE 복귀</td></tr>
+            <tr><td>A5</td><td>화면 재시작(운영자 버튼 · 진단 대기 중 게스트)</td><td><code>bootPatches</code> 0 건 · Reset 만</td></tr>
+            <tr><td>B1</td><td>거절(<code>boot-override-reject</code> + <code>disk-os</code>)</td><td>WARN "거절 — 부트 순서대로" · On 발행 · <code>bootedVia = BootOrder</code> · 하네스 미복귀 → 2분 뒤 <code>RETURN_TIMEOUT</code></td></tr>
+            <tr><td>B2</td><td>무장 중 연결 불가(<code>bmc-rebooting</code> 창)</td><td>결과 FAILED · Reset 0 · 다음 주기 재시도 · 창이 열리면 A1 로 합류</td></tr>
+            <tr><td>B3</td><td>B1 뒤 재시도(D-7) : 실패 후 3분 지나 재시도</td><td>즉시 재실패 없음 — 재시도 시각부터 2분 대기(로그의 남은 분)</td></tr>
+            <tr><td>B4</td><td>무장 중 401(표준 비밀번호 거부 <code>auth-fallback</code>)</td><td>공장 기본(시리얼)으로 폴백 뒤 PATCH · Reset 모두 그 후보로</td></tr>
+            <tr><td>C1</td><td>복귀 뒤 Once 소진</td><td>모의 <code>boot.BootSourceOverrideEnabled = Disabled</code> — 다음 리셋은 부트 순서</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/redfish/NextBoot.java</code></td><td>의도 enum · 상수별 <code>arm</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/redfish/BootOverrideOutcome.java</code></td><td>결과 record + <code>Status</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>NextBootTest</code> · <code>RedfishErrorTest</code></td><td>테스트</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RedfishPowerService</code></td><td>무장 → 전원 순서 · 오버로드 · 메시지 접두 · 폴백 재무장</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RedfishClient</code></td><td><code>patchJsonRefreshingEtag</code> 사다리</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RedfishError</code></td><td><code>resourceSpecific()</code> 상수 속성</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RedfishBiosService</code></td><td>사다리 위임</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>FlashContext</code></td><td><code>returnWaitSince()</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>PowerOnStep</code> · <code>BeginSettingStep</code></td><td><code>NextBoot.PXE_ONCE</code> 인자 · 기점 · 로그</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/mock-redfish/mock-redfish.py</code></td><td>Boot 객체 · PATCH · Once 소진 · 모드 4</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>docs/T3-checklist.md</code></td><td>BootSourceOverride 항목 갱신</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RedfishPowerServiceTest</code> · <code>RedfishClientTest</code> · <code>RedfishBiosServiceTest</code> · <code>FlashStepExecutionTest</code> · <code>SettingStepExecutionTest</code></td><td>테스트 조정 · 추가</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>PowerControlResult</code> · <code>GuestServerPowerRestController</code> · <code>FlashLedger</code> · <code>SettingLedger</code> · 엔티티 · DDL · <code>application.properties</code></td><td>변경 0 (D-9 · D-10 · R5 · R6)</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">신규 4(본체 2 · 테스트 2) · 수정 13(본체 8 · 스크립트 1 · 문서 1 · 테스트 5 — 표에서 묶어 센 행 포함) · 유지 7. 파일 경로는 저장소 실측으로 확인했다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E2.5-milestone">
+          <li><label><input type="checkbox" data-key="cp4"> <span>CP4 → 테스트 → CP5 하네스 → CP6 report → 커밋 · push · PR(→ <code>dev</code>)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7 실기 일괄(E1.6 · E3-1 · E3-2 · E2.5) : T3 K1-b · K1-d · Mode · flash 뒤 잔존 — 로그의 outcome 으로 판정, 결과를 <code>docs/T3-checklist.md</code> 완료 기록에</span></label></li>
+          <li><label><input type="checkbox" data-key="e24"> <span>E2-4 집행 현황 상세화 — 무장 결과의 원장 표기 · 재시도 뒤 강제 재시작(O-3)</span></label></li>
+          <li><label><input type="checkbox" data-key="e4"> <span>E4 plan — 진입 재부팅 직전 무장(O-4)</span></label></li>
+          <li><label><input type="checkbox" data-key="screen"> <span>화면 "PXE 로 재시작" 옵션(O-2)</span></label></li>
+          <li><label><input type="checkbox" data-key="diagram"> <span>통신 다이어그램 갱신 적립(O-5)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 E2.5 라이브 데모
+  //  판정은 §3 진리표(무장 outcome) · D-3(사다리) · D-4(best effort) · D-5(재무장) · D-7(기점) 을
+  //  그대로 옮긴 것이며, 서버 구현(NextBoot.PXE_ONCE.arm + RedfishPowerService)이 정본이다.
+  // ─────────────────────────────────────────────────────────────
+  const TIMEOUT_MIN = 20;   // provision.execution.return-timeout
+  const ARMED = { en:'Once', tg:'Pxe', md:'UEFI' };
+
+  const demo = {
+    disk:'OS', order:'HDD', bmc:'OK', policy:'AFTER', site:'E2',
+    clock:0, axisClosedAt:0, transitionAt:0,
+    boot:{ en:'Disabled', tg:'None', md:'Legacy' },   // 실측 초기값 — Mode 가 Legacy 다
+    sd:null, patches:0, log:[], outcome:null,
+    powered:false, bootedVia:null, bootWhy:'', returned:false,
+    waiting:false, failed:null, msg:'', msgKind:'', banner:''
+  };
+
+  function demoResetProgress() {
+    demo.clock = 0; demo.axisClosedAt = 0; demo.transitionAt = 0;
+    demo.boot = { en:'Disabled', tg:'None', md:'Legacy' };
+    demo.sd = null; demo.patches = 0; demo.log = []; demo.outcome = null;
+    demo.powered = false; demo.bootedVia = null; demo.bootWhy = ''; demo.returned = false;
+    demo.waiting = false; demo.failed = null; demo.msg = ''; demo.msgKind = '';
+  }
+
+  // ── 순수 판정 ①  무장 outcome (§3 진리표 · D-3 · D-4) ──
+  function demoArm() {
+    if (demo.site === 'SCREEN')
+      return { st:'NONE', lines:['  NextBoot.AS_CONFIGURED — 화면 경로(2-arg reset)라 PATCH 를 발행하지 않는다 (R5 · D-6)'], patch:0, fatal:false };
+    if (demo.policy === 'BEFORE')
+      return { st:'NONE', lines:['  (E2.5 전 — 무장 개념이 없다. PATCH 발행 0)'], patch:0, fatal:false };
+    const body = '{"Boot":{"BootSourceOverrideEnabled":"Once","BootSourceOverrideTarget":"Pxe","BootSourceOverrideMode":"UEFI"}}';
+    if (demo.bmc === 'OK') return { st:'APPLIED', patch:1, fatal:false, lines:[
+      '  PATCH /redfish/v1/Systems/Self   If-Match: *              204',
+      '        ' + body,
+      '  GET   /redfish/v1/Systems/Self   (readback)               200   Boot.Enabled="Once" · Target="Pxe"  → <span class="f">APPLIED</span>' ]};
+    if (demo.bmc === 'ETAG') return { st:'APPLIED', patch:2, fatal:false, lines:[
+      '  PATCH /redfish/v1/Systems/Self   If-Match: *              412   PreconditionFailed',
+      '  GET   /redfish/v1/Systems/Self                            200   ETag: W/"16626ac1"',
+      '  PATCH /redfish/v1/Systems/Self   If-Match: W/"16626ac1"   204   (fresh ETag 재시도 1회 — D-3)',
+      '  GET   /redfish/v1/Systems/Self   (readback)               200   Boot.Enabled="Once" · Target="Pxe"  → <span class="f">APPLIED</span>' ]};
+    if (demo.bmc === 'PENDING') return { st:'UNCONFIRMED', patch:1, fatal:false, lines:[
+      '  PATCH /redfish/v1/Systems/Self   If-Match: *              204',
+      '  GET   /redfish/v1/Systems/Self   (readback)               200   Boot.Enabled="Disabled" · Target="None"  → <span data-skip="1">UNCONFIRMED</span>',
+      '        (@Redfish.Settings.SettingsObject = /redfish/v1/Systems/Self/SD 에 대기 — 다음 리셋에 적용된다. K1-d)' ]};
+    if (demo.bmc === 'REJECT') return { st:'REJECTED', patch:1, fatal:false, lines:[
+      '  PATCH /redfish/v1/Systems/Self   If-Match: *              400   Base.1.0.PropertyValueNotInList  → <span class="t">REJECTED</span>',
+      '  WARN  RedfishError.PROTOCOL.resourceSpecific() = true → 흡수하고 전원 명령은 계속한다 (best effort · D-4)' ]};
+    return { st:'FATAL', patch:0, fatal:true, lines:[
+      '  PATCH /redfish/v1/Systems/Self                            <span class="t">connect timeout</span>  → RedfishRequestException(CONNECT_FAILED)',
+      '  <span class="t">resourceSpecific() = false</span> → 흡수하지 않는다. Reset 미발행 · PowerControlResult FAILED (D-4)' ]};
+  }
+
+  // ── 순수 판정 ②  게스트 부팅처 ──
+  function demoBootVia(b) {
+    if (b.en === 'Once' && b.tg === 'Pxe') return { via:'Pxe', why:'boot override 무장 · Once 미소진' };
+    if (demo.order === 'NET') return { via:'Pxe', why:'부트 순서 1순위 = UEFI Network' };
+    if (demo.disk === 'OS') return { via:'BootOrder', why:'부트 순서 1순위 = UEFI Hard Disk · 디스크에 OS 잔존' };
+    return { via:'Pxe', why:'UEFI Hard Disk 부팅 실패(빈 디스크) → 다음 항목 UEFI Network 로 폴스루' };
+  }
+
+  // ── 순수 판정 ③  복귀 대기 기점 (D-7) ──
+  function demoWaitSince() {
+    return demo.policy === 'AFTER' ? Math.max(demo.axisClosedAt, demo.transitionAt) : demo.axisClosedAt;
+  }
+  function demoResetType() { return demo.site === 'E2' ? 'On' : 'ForceRestart'; }
+  function demoNextBoot() { return (demo.policy === 'AFTER' && demo.site !== 'SCREEN') ? 'PXE_ONCE' : 'AS_CONFIGURED'; }
+  function demoHead() {
+    return demo.site === 'E2' ? '[E2 PowerOnStep]'
+         : demo.site === 'E3' ? '[E3 BeginSettingStep]'
+         : '[화면 · GuestServerPowerRestController]';
+  }
+
+  // ── 커밋 : 워커 1 주기 (상태가 실제로 변했으면 true) ──
+  function demoTick() {
+    const L = [];
+    // 이미 켜져 있는 서버 — PowerOnStep 은 전원 명령을 내지 않는다(멱등). D-7 비채택의 자리.
+    if (demo.powered && demo.bootedVia === 'BootOrder' && !demo.returned) {
+      L.push(demoHead() + '  powerState()');
+      L.push('  GET   /redfish/v1/Systems/Self                            200   PowerState="On"');
+      L.push('  → 이미 켜짐(POST 중으로 본다) → 무장 · Reset 모두 생략. 강제 재시작은 표식이 필요해 E2-4 로 (D-7 비채택)');
+      demo.log = L;
+      demo.waiting = (demo.site === 'E2' && !demo.failed);
+      demoCheckTimeout();
+      return true;
+    }
+    const arm = demoArm();
+    L.push(demoHead() + '  → RedfishPowerService.' + (demo.site === 'E2'
+      ? 'powerOnAndVerify(target, NextBoot.' + demoNextBoot() + ')'
+      : 'reset(target, ' + demoResetType() + ', NextBoot.' + demoNextBoot() + ')'));
+    L.push('  GET   /redfish/v1/Systems/Self                            200   PowerState="Off"');
+    arm.lines.forEach(x => L.push(x));
+    demo.patches += arm.patch;
+    demo.outcome = arm;
+
+    if (arm.fatal) {
+      L.push('  POST  …ComputerSystem.Reset                               <span class="t">미발행</span>');
+      demo.log = L;
+      demo.msg = 'BMC 에 연결하지 못했습니다 — 주소 · 네트워크 · BMC 상태를 확인하세요. (PowerControlResult FAILED · 다음 주기 재시도)';
+      demo.msgKind = 'error';
+      return true;
+    }
+    if (arm.st === 'APPLIED') demo.boot = Object.assign({}, ARMED);
+    if (arm.st === 'UNCONFIRMED') demo.sd = Object.assign({}, ARMED);
+
+    L.push('  POST  …/Actions/ComputerSystem.Reset  {"ResetType":"' + demoResetType() + '"}   202   Task /redfish/v1/TaskService/Tasks/7');
+    if (demo.sd) { demo.boot = demo.sd; demo.sd = null; L.push('        (SD 의 pending 값이 리셋 시점에 적용된다 — BMC 내부)'); }
+
+    demo.powered = true; demo.bootedVia = null; demo.returned = false; demo.failed = null;
+    demo.waiting = (demo.site !== 'SCREEN');
+    demo.log = L;
+    const pre = { APPLIED:'다음 부팅 PXE 강제 : 반영 확인 — ',
+                  UNCONFIRMED:'다음 부팅 PXE 강제 : 미확인 — pending 경유 가능 — ',
+                  REJECTED:'다음 부팅 PXE 강제 : 거절(PROTOCOL) — 부트 순서대로 부팅될 수 있음 — ',
+                  NONE:'' }[arm.st];
+    demo.msg = pre + (demo.site === 'E2' ? '전원을 켰습니다.' : '재시작을 지시했습니다.');
+    demo.msgKind = (arm.st === 'APPLIED') ? 'success' : '';
+    return true;
+  }
+
+  // ── 커밋 : 게스트 POST 통과 ──
+  function demoGuest() {
+    if (!demo.powered || demo.bootedVia) return false;
+    const b = demo.boot, r = demoBootVia(b);
+    const L = demo.log.slice();
+    L.push('');
+    L.push('[게스트 POST]  BIOS 가 Boot 객체를 읽는다 — Enabled="' + b.en + '" · Target="' + b.tg + '" · Mode="' + b.md + '"');
+    if (b.en === 'Once') { demo.boot = { en:'Disabled', tg:'None', md:b.md }; }
+    if (r.via === 'Pxe') {
+      L.push('  → <span class="f">UEFI PXE</span> 부팅 · ipxe.efi → GET /api/pxe/v1/boot   (' + r.why + ')');
+      if (b.en === 'Once') L.push('  → boot flag 소진 : BootSourceOverrideEnabled = "Disabled" (Once 는 POST 1회에 BIOS 가 지운다)');
+      demo.returned = true; demo.waiting = false; demo.failed = null;
+    } else {
+      L.push('  → <span class="t">디스크의 OS</span> 로 부팅 (' + r.why + ')');
+      L.push('  → /api/pxe/v1/boot 호출 없음 — 프로비저닝 서버는 게스트를 보지 못한다');
+    }
+    demo.bootedVia = r.via; demo.bootWhy = r.why; demo.log = L;
+    return true;
+  }
+
+  function demoCheckTimeout() {
+    if (demo.site !== 'E2' || !demo.waiting) return false;
+    if (demo.clock - demoWaitSince() >= TIMEOUT_MIN) {
+      demo.failed = 'RETURN_TIMEOUT'; demo.waiting = false;
+      demo.log = demo.log.concat(['', '[워커 판정]  경과 ' + (demo.clock - demoWaitSince()) + 'm ≥ 시한 ' + TIMEOUT_MIN + 'm → ProvisioningProgress.markFailed(<span class="t">RETURN_TIMEOUT</span>)']);
+      return true;
+    }
+    return false;
+  }
+  function demoAdvance(min) { demo.clock += min; demoCheckTimeout(); return true; }
+
+  function demoRetry() {
+    if (!demo.failed) return false;
+    demo.failed = null;
+    demo.transitionAt = demo.clock;   // ProvisioningProgress.clearFailed → lastTransitionAt = now
+    demo.waiting = (demo.site === 'E2');
+    demo.log = demo.log.concat(['',
+      '[운영자 재시도]  ProvisioningProgress.clearFailed()  → lastTransitionAt = ' + demo.clock + 'm',
+      '                 (원장의 마지막 축 종료 시각 ' + demo.axisClosedAt + 'm 은 그대로다 — 어느 쪽을 기점으로 읽는가가 D-7)']);
+    return true;
+  }
+
+  function demoAct(a) {
+    if (a === 'tick') demoTick();
+    else if (a === 'guest') demoGuest();
+    else if (a === 'wait') demoAdvance(20);
+    else if (a === 'retry') demoRetry();
+    else if (a === 'reset') { demoResetProgress(); demo.banner = ''; }
+    demoRender();
+  }
+
+  function demoSet(k, v) { demo[k] = v; demoResetProgress(); demo.banner = ''; demoRender(); }
+
+  // ── 원클릭 시나리오 여섯 ──
+  const SCENARIO = {
+    s1: { set:{ disk:'OS', order:'HDD', bmc:'OK', policy:'BEFORE', site:'E2' }, run:['tick','guest','wait'],
+          banner:'<b>① 08-27 실기 재연</b> — 무장이 없던 시절이다. OS 가 남은 서버를 켰더니 부트 순서 1순위(UEFI Hard Disk)를 따라 디스크의 OS 가 올라왔고, 프로비저닝 서버는 게스트를 보지 못한 채 20분을 기다리다 RETURN_TIMEOUT 으로 실패했다. <b>왕복 로그에 PATCH 가 한 줄도 없다</b>는 점을 보라.' },
+    s2: { set:{ disk:'OS', order:'HDD', bmc:'OK', policy:'AFTER', site:'E2' }, run:['tick','guest'],
+          banner:'<b>② 무장 APPLIED</b> — 같은 조건에 전원 명령 직전 PATCH 한 번이 들어간다. readback 이 Once · Pxe 로 일치해 APPLIED 이고, 게스트는 부트 순서와 무관하게 PXE 로 돌아와 다음 주기가 VerifyFlashStep(반영 확인)으로 넘어간다. <b>디스크에 OS 가 그대로 있어도 결말이 갈린다</b>는 것이 이 슬라이스다.' },
+    s3: { set:{ disk:'OS', order:'HDD', bmc:'PENDING', policy:'AFTER', site:'E2' }, run:['tick','guest'],
+          banner:'<b>③ pending 경유 (K1-d 관찰)</b> — PATCH 는 204 인데 Systems/Self 표시가 바뀌지 않는다. 판정은 UNCONFIRMED 이고 <b>실패가 아니다</b>. SD 의 값이 리셋 시점에 적용돼 결국 PXE 로 돌아온다. 실기의 펌웨어가 어느 쪽인지는 이 결과 메시지가 답한다(D-4 · D-8).' },
+    s4: { set:{ disk:'OS', order:'HDD', bmc:'REJECT', policy:'AFTER', site:'E2' }, run:['tick','guest','wait'],
+          banner:'<b>④ 무장 거절 400 — best effort 의 한계</b> — PATCH 가 거절돼도 전원은 켠다(D-4). 다만 OS 가 남은 서버는 ① 과 같은 결말이 된다. 무장이 안 되면 <b>종전 안전망(복귀 시한 · 재시도)이 받는다</b>는 것이 이 안의 전제다 — 빈 디스크 토글로 바꿔 보면 거절돼도 폴스루로 돌아오는 것을 볼 수 있다.' },
+    s5: { set:{ disk:'OS', order:'HDD', bmc:'OK', policy:'AFTER', site:'E3' }, run:['tick','guest'],
+          banner:'<b>⑤ E3 BeginSettingStep</b> — BIOS 설정을 pending 으로 넣고 재시작하는 자리도 같은 무장을 탄다. ForceRestart 앞에 PATCH 가 붙고, 게스트가 PXE 로 돌아오면 ReturnReadbackStep 이 설정 반영을 되읽는다. <b>서비스 안에 무장을 둔 덕에 두 자리가 인자 하나로 합류한다</b>(D-1).' },
+    s6: { set:{ disk:'OS', order:'HDD', bmc:'REJECT', site:'E2' }, run:['tick','guest','wait','wait5','retry','tick'],
+          banner:'<b>⑥ 재시도 기점 (D-7)</b> — 무장이 거절돼 디스크로 부팅한 뒤 20분 만료, 다시 5분이 지나 운영자가 재시도했다. 지금 <b>무장 정책 토글</b>이 <code>E2.5 전</code> 이면 기점이 축 종료에 묶여 있어 <b>즉시 다시 RETURN_TIMEOUT</b>, <code>E2.5 후</code> 면 기점이 재시도 시각으로 옮겨 <b>다시 20분</b>이 주어진다. 토글을 바꿔 이 버튼을 한 번 더 눌러 비교해 보라.' }
+  };
+
+  function demoPreset(id) {
+    const sc = SCENARIO[id];
+    demoResetProgress();
+    Object.keys(sc.set).forEach(k => { demo[k] = sc.set[k]; });
+    sc.run.forEach(step => {
+      if (step === 'tick') demoTick();
+      else if (step === 'guest') demoGuest();
+      else if (step === 'wait') demoAdvance(20);
+      else if (step === 'wait5') demoAdvance(5);
+      else if (step === 'retry') demoRetry();
+    });
+    demo.banner = sc.banner;
+    demoRender();
+  }
+
+  // ── 렌더 ──
+  function demoBtn(action, label, blocked, tip) {
+    return '<span class="tip" data-tip="' + tip + '"><button class="n-demo-btn"' + (blocked ? ' disabled' : '') +
+      ' onclick="demoAct(\'' + action + '\')">' + label + '</button></span>';
+  }
+
+  function demoRender() {
+    // 조작면 세그먼트 활성화
+    document.querySelectorAll('.ux-toolbar .seg[data-k]').forEach(s => {
+      s.classList.toggle('active', demo[s.dataset.k] === s.dataset.v);
+    });
+
+    // 조작면 ⑥ — 서버가 하는 일
+    const acts = document.getElementById('demo-actions');
+    acts.innerHTML = '<span class="group-label">⑥ 서버가 하는 일 :</span>'
+      + demoBtn('tick', '워커 1 주기', false, '진입 자리의 step 을 한 번 돌린다 — 무장(PATCH · readback) 뒤 전원 명령을 발행한다')
+      + demoBtn('guest', '게스트 POST 통과', !demo.powered || !!demo.bootedVia,
+          (!demo.powered ? '아직 전원 명령이 나가지 않았다 — 먼저 [워커 1 주기] 를 누른다'
+                         : (demo.bootedVia ? '이번 부팅은 이미 끝났다 — [워커 1 주기] 로 다시 전원을 움직인다'
+                                           : 'BIOS 가 Boot 객체를 읽어 이번 부팅의 목적지를 정한다')))
+      + demoBtn('wait', '20분 경과', false, '워커가 20분 동안 복귀를 기다린다 — 시한을 넘기면 RETURN_TIMEOUT')
+      + demoBtn('retry', '운영자 재시도', !demo.failed,
+          (demo.failed ? 'ProvisioningProgress.clearFailed() — lastTransitionAt 을 지금으로 놓는다'
+                       : 'RETURN_TIMEOUT 으로 실패한 상태에서만 누를 수 있다'))
+      + demoBtn('reset', '초기화', false, '조작면 토글은 그대로 두고 진행 상태(왕복 · Boot 객체 · 시계)만 처음으로 되돌린다');
+
+    // 표시면 ① — Redfish 왕복
+    const pre = demo.log.length === 0;
+    let http;
+    if (pre) {
+      const arm = demoArm();
+      http = ['(미리보기 — 아래 [워커 1 주기] 를 누르면 이 왕복이 실제로 발행된다)',
+              demoHead() + '  → NextBoot.' + demoNextBoot(),
+              '  GET   /redfish/v1/Systems/Self                            200   PowerState="Off"']
+             .concat(arm.lines)
+             .concat(arm.fatal ? ['  POST  …ComputerSystem.Reset                               미발행']
+                               : ['  POST  …/Actions/ComputerSystem.Reset  {"ResetType":"' + demoResetType() + '"}   202']);
+    } else http = demo.log;
+    document.getElementById('demo-http').innerHTML = http.join('\n');
+
+    // 표시면 ② · ③ — Boot 객체 · 게스트 부팅처
+    const b = demo.boot, armed = (b.en === 'Once' && b.tg === 'Pxe');
+    let rows = '<div class="ux-row"><strong>BMC Boot</strong><span class="label">'
+      + 'BootSourceOverrideEnabled=<code>"' + b.en + '"</code> · Target=<code>"' + b.tg + '"</code> · Mode=<code>"' + b.md + '"</code>'
+      + (demo.sd ? ' <span class="muted">· SD pending : Once · Pxe · UEFI</span>' : '')
+      + '</span><span class="badge ' + (armed ? 'on' : 'off') + '">' + (armed ? '무장됨' : '무장 없음') + '</span></div>';
+    let gb, gl;
+    if (!demo.powered) { gb = '<span class="badge off">전원 명령 없음</span>'; gl = '아직 부팅하지 않았다'; }
+    else if (!demo.bootedVia) { gb = '<span class="badge dep">POST 진행 중</span>'; gl = '[게스트 POST 통과] 를 누르면 BIOS 가 목적지를 정한다'; }
+    else if (demo.bootedVia === 'Pxe') { gb = '<span class="badge on">PXE → /api/pxe/v1/boot</span>'; gl = demo.bootWhy; }
+    else { gb = '<span class="badge del">디스크의 OS — 복귀 없음</span>'; gl = demo.bootWhy; }
+    rows += '<div class="ux-row"><strong>게스트</strong><span class="label">' + gl + '</span>' + gb + '</div>';
+    document.getElementById('demo-state').innerHTML = rows;
+
+    // 표시면 ④ — 엔진 판정
+    const st = demo.outcome ? demo.outcome.st : (pre ? demoArm().st : 'NONE');
+    const sum = { APPLIED:'"다음 부팅 PXE 강제 : 반영 확인"', UNCONFIRMED:'"미확인 — pending 경유 가능"',
+                  REJECTED:'"거절(PROTOCOL) — 부트 순서대로 부팅될 수 있음"', NONE:'(접두 없음)', FATAL:'—' }[st];
+    // 미리보기에서는 "이번 주기에 무장이 성립하면" 을 반영해 목적지를 예측한다 (커밋 뒤에는 실제 Boot 객체를 읽는다)
+    const predBoot = pre ? ((st === 'APPLIED' || st === 'UNCONFIRMED') ? ARMED : b) : (demo.sd ? ARMED : b);
+    const via = demo.bootedVia ? demo.bootedVia : demoBootVia(predBoot).via + ' (예상)';
+    const since = demoWaitSince();
+    let wait;
+    if (demo.failed) wait = '<span class="t">RETURN_TIMEOUT</span> — 경과 ' + (demo.clock - since) + 'm ≥ 20m';
+    else if (demo.returned) wait = '<span class="f">복귀함</span> — 대기 종료';
+    else if (demo.waiting) wait = '경과 ' + (demo.clock - since) + 'm / 20m · 남은 ' + Math.max(0, TIMEOUT_MIN - (demo.clock - since)) + 'm';
+    else wait = '대기 없음';
+    let next;
+    if (demo.site === 'SCREEN') next = '운영자 단발 — 엔진 대기 없음';
+    else if (demo.returned) next = demo.site === 'E2' ? 'guestReturned() true → VerifyFlashStep (반영 확인)' : '복귀 확인 → ReturnReadbackStep (설정 되읽기)';
+    else if (demo.failed) next = '운영자 재시도 대기 (clearFailed)';
+    else next = '복귀 대기';
+    document.getElementById('demo-caps').innerHTML =
+      'NextBoot                       = ' + demoNextBoot() + '   (진입 자리 ' + demoHead() + ' · 정책 ' + (demo.policy === 'AFTER' ? 'E2.5 후' : 'E2.5 전') + ')\n' +
+      'BootOverrideOutcome            = ' + st + '  ' + sum + '\n' +
+      'BMC Boot (현재)                = Enabled="' + b.en + '" · Target="' + b.tg + '" · Mode="' + b.md + '"\n' +
+      '게스트 부팅처                  = ' + via + '\n' +
+      'FlashContext.returnWaitSince() = ' + (demo.policy === 'AFTER'
+          ? 'max(축 종료 ' + demo.axisClosedAt + 'm, 전이 ' + demo.transitionAt + 'm) = ' + since + 'm   (D-7 적용)'
+          : '축 종료 ' + demo.axisClosedAt + 'm = ' + since + 'm   (D-7 이전 — 전이를 읽지 않는다)') + '\n' +
+      '복귀 대기                      = ' + wait + '   [시계 ' + demo.clock + 'm]\n' +
+      '다음 워커 주기                 = ' + next + '\n' +
+      '무장 PATCH 발행 누계           = ' + demo.patches + '   (화면 경로에서는 언제나 0 — R5)';
+
+    // 표시면 ⑤ · 배너
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message' + (demo.msgKind ? ' ' + demo.msgKind : '');
+    msg.innerHTML = demo.msg || '아직 전원 명령을 내지 않았다. 프리셋을 누르거나 [워커 1 주기] 로 시작한다.';
+    const ban = document.getElementById('demo-banner');
+    ban.className = 'ux-message';
+    ban.innerHTML = demo.banner || '위 프리셋 여섯이 이 슬라이스의 장면 전부다. 프리셋을 누르면 조작면이 세팅되고 서버 동작이 자동으로 진행된다.';
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
