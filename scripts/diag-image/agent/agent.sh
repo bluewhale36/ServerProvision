@@ -162,9 +162,20 @@ detect_raid_family() { # $1=서버 동봉 칩 맵("1000:0097=MPT_IR 1000:005d=ME
     IDS=$(lspci -nn -d 1000: 2>/dev/null)
     FAMILY=""
     for pair in $1; do
-        if printf '%s' "$IDS" | grep -q "${pair%%=*}"; then FAMILY=${pair#*=}; return 0; fi
+        if printf '%s' "$IDS" | grep -q "${pair%%=*}"; then FAMILY=${pair#*=}; ensure_raid_driver; return 0; fi
     done
     return 1
+}
+
+# 커널 드라이버 보장 — hwdrivers 가 modloop 마운트 전에 돌아 RAID 드라이버가 미로드일 수 있다
+# (실기 2026-09-01: storcli "Controller 0 not found"). 이 시점엔 modloop 가 있으므로 관용 로드한다.
+ensure_raid_driver() {
+    case "$FAMILY" in
+    MEGARAID) modprobe megaraid_sas 2>/dev/null || true ;;
+    MPT_IR)   modprobe mpt3sas 2>/dev/null || true ;;
+    esac
+    command -v mdev >/dev/null 2>&1 && mdev -s 2>/dev/null
+    sleep 1
 }
 
 collect_raid_report() { # $1=stepCode $2=응답 바디(raidChips 힌트 운반) — 계열 CLI 원문 채집 → base64 봉투 보고
@@ -252,7 +263,7 @@ do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
             LV=$(printf '%s' "$LEVEL" | tr 'A-Z' 'a-z')   # RAID1 → raid1
             EXTRA=""
             [ "$LEVEL" = "RAID10" ] && EXTRA="pdperarray=2"
-            run_cli "$TOOL" /c0 add vd type="$LV" drives="$SLOTS" name="$NAME" $EXTRA || { OK=0; break; }
+            run_cli "$TOOL" /c0 add vd type="$LV" name="$NAME" drives="$SLOTS" $EXTRA || { OK=0; break; }
         done
         if [ "$OK" = 1 ] && [ -n "$JBOD" ]; then
             for slot in $JBOD; do
@@ -288,8 +299,8 @@ do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
     fi
 }
 
-run_cli_yes() { # sas3ircu 대화형 확인(YES) 자동 응답판 run_cli
-    OUT=$(printf 'YES\n' | "$@" 2>&1); RC=$?
+run_cli_yes() { # sas3ircu 이중 확인 자동 응답 — 진행? YES · 중단(abort)? NO (실기 2026-09-01: 둘째 질문은 반대로 묻는다)
+    OUT=$(printf 'YES\nNO\n' | "$@" 2>&1); RC=$?
     LOG="$LOG\$ $*\n$OUT\n"
     [ "$RC" -ne 0 ] && FAILED_CMD="$*"
     return $RC

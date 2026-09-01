@@ -45,7 +45,8 @@
         <div>
             <h1 class="n-page-title"
                 th:text="${server.name != null} ? ${server.name} : '(이름 미지정)'">srv-01</h1>
-            <code class="n-mono" th:text="${server.systemUuid}">uuid</code>
+            <!-- SMBIOS UUID = id 미노출 체제의 실질 식별자 — 눈에 들어오게 칩으로 강조(실기 2026-09-01 검수) -->
+            <span class="n-uuid-chip"><span class="n-uuid-chip-label">SMBIOS UUID</span><code class="n-mono" th:text="${server.systemUuid}">uuid</code></span>
             <span th:if="${server.status != null}" th:switch="${server.status.name()}" style="margin-left: 10px;">
                 <span th:case="'REGISTERED'"     class="n-badge n-badge-blue"  th:text="${server.status.description}">등록됨</span>
                 <span th:case="'PROVISIONING'"   class="n-badge n-badge-green" th:text="${server.status.description}">프로비저닝 중</span>
@@ -383,7 +384,7 @@
                             <span class="n-badge n-badge-gray" th:text="${b.rejectionCode}">EXISTING_CONFIG</span>
                             <span class="n-muted" th:text="${b.rejectionDetail}">사유</span></p>
                         <th:block th:if="${b.rejectionCode == null}">
-                            <p th:if="${b.deleteExistingFirst}" class="n-muted">선행 명령 — 기존 볼륨 전부 삭제(파괴 정책)</p>
+                            <p th:if="${b.deleteExistingFirst}" class="n-muted">선행 명령 — 카드의 기존 볼륨 전부 삭제 후 재구성</p>
                             <p th:if="${b.osAbsenceReason != null}" class="n-muted" th:text="${b.osAbsenceReason}">OS 지정 없음 사유</p>
                             <table th:if="${not #lists.isEmpty(b.volumes)}" class="n-table">
                                 <thead>

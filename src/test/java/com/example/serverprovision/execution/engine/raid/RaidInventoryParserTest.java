@@ -71,6 +71,33 @@ class RaidInventoryParserTest {
     }
 
     @Test
+    @DisplayName("IR 실측(09-01) — sas3ircu 생성 볼륨은 Volume Name 을 노출한다(이름 매칭 재료)")
+    void ir_namedVolume_fromSas3ircuCreate() {
+        String display = """
+                IR volume 1
+                  Volume ID                               : 322
+                  Volume Name                             : spvR2V1
+                  Status of volume                        : Okay (OKY)
+                  Volume wwid                             : 0ee91009863a2fb7
+                  RAID level                              : RAID1
+                  Size (in MB)                            : 3814697
+                  Physical hard disks                     :
+                  PHY[0] Enclosure#/Slot#                 : 1:2
+                  PHY[1] Enclosure#/Slot#                 : 1:3
+                """;
+        String envelope = "{\"tool\":\"sas3ircu\",\"lspci_b64\":\"" + b64(fixture("cra-lspci-nnvv.txt"))
+                + "\",\"display_b64\":\"" + b64(display) + "\"}";
+
+        RaidInventory inv = parser.parse(envelope);
+
+        assertThat(inv.volumes()).singleElement().satisfies(v -> {
+            assertThat(v.name()).isEqualTo("spvR2V1");
+            assertThat(v.isProvisionOwned()).isTrue();
+            assertThat(v.wwn()).isEqualTo("0ee91009863a2fb7");
+        });
+    }
+
+    @Test
     @DisplayName("IR 실측 — 카드(1458:3008) · 디스크 2(볼륨 소속 파생) · IR RAID1 볼륨 1 정규화")
     void ir_realFixture() {
         String envelope = "{\"tool\":\"sas3ircu\",\"lspci_b64\":\"" + b64(fixture("cra-lspci-nnvv.txt"))
@@ -87,7 +114,7 @@ class RaidInventoryParserTest {
             assertThat(v.id()).isEqualTo("323");
             assertThat(v.level()).isEqualTo("RAID1");
             assertThat(v.memberSlots()).containsExactly("1:0", "1:1");
-            assertThat(v.name()).isNull();   // display 는 이름을 내지 않는다(실측)
+            assertThat(v.name()).isNull();   // 구 경로 생성 볼륨은 Volume Name 행 미노출(08-31 실측) — 관용 null
             assertThat(v.wwn()).isEqualTo("0097bf86d7e97988");   // W11 — Volume wwid(E3.5-4)
         });
         assertThat(inv.disks()).hasSize(2);
@@ -95,7 +122,7 @@ class RaidInventoryParserTest {
         assertThat(d0.slot()).isEqualTo("1:0");
         assertThat(d0.type()).isEqualTo("HDD");
         assertThat(d0.transport()).isEqualTo("SAS");
-        assertThat(d0.size()).isEqualTo("3815447 MB");
+        assertThat(d0.size()).isEqualTo("3.639 TB");   // 3815447 MB 2진 환산 — 사람 단위 정규화(실기 2026-09-01 검수)
         assertThat(d0.volumeRef()).isEqualTo("323");
         assertThat(d0.serial()).isEqualTo("WQB0YS0C0000K5049W9A");
     }
