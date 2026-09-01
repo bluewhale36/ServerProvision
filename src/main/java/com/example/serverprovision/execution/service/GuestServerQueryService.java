@@ -37,6 +37,11 @@ import com.example.serverprovision.execution.repository.ProvisioningHistoryRepos
 import com.example.serverprovision.execution.vo.HardwareSpec;
 import com.example.serverprovision.execution.vo.SpecGroupKey;
 import com.example.serverprovision.execution.vo.SoftwareSpec;
+import com.example.serverprovision.execution.engine.WorkerObservations;
+import com.example.serverprovision.execution.engine.firmware.step.FlashContext;
+import com.example.serverprovision.execution.engine.setting.SettingAxis;
+import com.example.serverprovision.execution.engine.setting.SettingLedger;
+import com.example.serverprovision.execution.engine.setting.BmcSettingItem;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +49,8 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -76,7 +83,11 @@ public class GuestServerQueryService {
     private final HoldTtlPolicy holdTtlPolicy;
     private final RetryPolicy retryPolicy;   // 재시도 가능 판정 — 화면 · 가드 공용 SSOT
     private final FlashTimeoutPolicy flashTimeoutPolicy;   // E2-2 — 화면의 잔여 시한과 워커가 같은 값을 본다
+    private final SettingLedger settingLedger;             // E2-4 — 설정 원장 meta 판독(작성과 같은 SSOT)
+    private final WorkerObservations workerObservations;   // E2-4 Q2 — 하트비트(인메모리 최신 관측)
     private final ObjectMapper objectMapper;
+
+    private static final DateTimeFormatter OBSERVATION_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     /** "접촉 중" 판정 임계 — 게스트 폴링 주기(30초) 3회 이내(E1-2, DEC-32 표시 규칙). */
     private static final long CONTACT_ACTIVE_SECONDS = 90;
@@ -326,6 +337,8 @@ public class GuestServerQueryService {
                 server.getLastSeenAt(),
                 isContactActive(server.getLastSeenAt()),
                 contactRemainingSeconds(server.getLastSeenAt()),
+                progress != null && progress.isDisruptionBlocked(),   // E2-4 Q6 — 목록 연결 배지 재료
+
                 specAvailable ? SpecGroupKey.of(boardModelName, spec) : null,   // U3-4 — 그룹 화면의 혼재 판정 입력
                 specAvailable ? specLabelOf(boardModelName, spec) : null
         );
@@ -385,7 +398,8 @@ public class GuestServerQueryService {
                         s.getStepCode(),
                         s.getStatus(),
                         s.getStartedAt(),
-                        s.getFinishedAt()))
+                        s.getFinishedAt(),
+                        s.displayNote()))                          // E2-4 R5 — detail 우선 · origin 폴백
                 .toList();
 
         return new GuestServerDetailResponse(
@@ -406,7 +420,8 @@ public class GuestServerQueryService {
                 nicResponses,
                 progressResponse,
                 firmwarePlanOf(server, progress),
-                firmwareFlashOf(progress, steps),
+                firmwareFlashOf(server, detail, progress, steps),
+                firmwareSettingOf(server, detail, progress, steps),
                 raidPlan,
                 raidVolumes,
                 stepResponses
@@ -512,12 +527,12 @@ public class GuestServerQueryService {
     }
 
     /**
-     * 펌웨어 집행 진행 카드(E2-2) — 집행에 착수한 게스트만. 계획 카드가 "무엇을 구울 것인가" 를
-     * 말한다면 이것은 "지금 어디까지 갔는가" 를 말하며, <b>축마다 한 줄</b>이라 한 축이 실패했을 때
-     * 다른 축이 어떻게 됐는지가 바로 읽힌다.
+     * 펌웨어 집행 진행 카드(E2-2 · E2-4) — 집행에 착수한 게스트만. 축별 진행에 더해 구간 문구(§3 진리표)와
+     * 워커 하트비트를 싣는다. <b>축마다 한 줄</b>이라 한 축이 실패했을 때 다른 축이 어떻게 됐는지가 바로 읽힌다.
      */
     private GuestServerDetailResponse.FirmwareFlash firmwareFlashOf(
-            ProvisioningProgress progress, List<ProvisioningHistory> steps) {
+            GuestServer server, GuestServerDetail detail, ProvisioningProgress progress,
+            List<ProvisioningHistory> steps) {
         if (progress == null) {
             return null;
         }
@@ -525,7 +540,9 @@ public class GuestServerQueryService {
                 .filter(row -> FirmwareAxis.of(row.getStepCode()) != null)
                 .toList();
         if (flashRows.isEmpty()) {
-            return null;   // 아직 집행에 착수하지 않았다 — 계획 카드만 보인다.
+            // 원장 행 0 이어도 커서가 펌웨어 축이면 카드를 그린다(CP5 F-2) — 아니면 신원 확인이 막힌
+            // 게스트가 카드 · 하트비트 · 사유 없이 통째로 어두워진다. 설정 phase 의 침묵 배너와 동형.
+            return flashWaitingCard(server, detail, progress);
         }
         List<GuestServerDetailResponse.AxisFlash> axes = Arrays.stream(FirmwareAxis.values())
                 .map(axis -> axisFlashOf(axis, flashRows))
@@ -534,14 +551,97 @@ public class GuestServerQueryService {
         // 전원을 켠 뒤의 실패(복귀 시한 만료)만 켜져 있다 — 그 밖의 실패는 굽다 멈춘 것이라 꺼진 채다(D-10).
         boolean poweredOff = progress.isFailed() && flashRows.stream()
                 .noneMatch(row -> FlashLedger.RETURN_TIMEOUT.equals(row.flashFailureReason()));
+        StageView stage = flashStageOf(server, progress, steps, flashRows);
         return new GuestServerDetailResponse.FirmwareFlash(running, axes,
-                running ? flashRemainingMinutes(progress) : 0L, poweredOff);
+                stage.text(), stage.remainingMinutes(), observationTextOf(server.getId()), poweredOff);
+    }
+
+    /** 구간 표시 한 벌 — 문구와 잔여 분(시한 있는 구간만). */
+    private record StageView(String text, Long remainingMinutes) {
+    }
+
+    /** 착수 전 침묵(CP5 F-2) — 축 전부 대기 + 침묵 사유를 구간 문구 자리에 싣는다. */
+    private GuestServerDetailResponse.FirmwareFlash flashWaitingCard(
+            GuestServer server, GuestServerDetail detail, ProvisioningProgress progress) {
+        FirmwareAxis cursorAxis = FirmwareAxis.of(progress.getCurrentStep());
+        if (cursorAxis == null || !progress.isStarted() || progress.isFailed() || progress.isCompleted()) {
+            return null;   // 펌웨어 phase 밖 — 종전대로 카드 없음.
+        }
+        List<GuestServerDetailResponse.AxisFlash> axes = Arrays.stream(FirmwareAxis.values())
+                .map(a -> new GuestServerDetailResponse.AxisFlash(a.label(), AxisFlashState.PENDING, null, null))
+                .toList();
+        String waiting = identityWaitingReason(detail, progress.getLastTransitionAt(),
+                flashTimeoutPolicy.limitFor(cursorAxis));
+        return new GuestServerDetailResponse.FirmwareFlash(true, axes, waiting, null,
+                observationTextOf(server.getId()), false);
+    }
+
+    /**
+     * 침묵 대기 사유 한 줄(E2-4 R6 · CP5 F-2) — flash · setting 두 phase 가 같은 문구 SSOT 를 쓴다.
+     * BMC 를 부르지 않고 DB 사실(기점 · 시한 · 보드 시리얼 유무)로만 만든다(D-6).
+     */
+    private String identityWaitingReason(GuestServerDetail detail, LocalDateTime since, java.time.Duration limit) {
+        long remain = flashTimeoutPolicy.remainingMinutes(since, limit, LocalDateTime.now());
+        StringBuilder reason = new StringBuilder("축 착수 대기 — 다음 워커 주기가 BMC 신원을 확인합니다"
+                + "(응답이 없으면 잔여 " + remain + "분 뒤 실패로 전환됩니다).");
+        if (detail == null || detail.getBoardSerial() == null) {
+            reason.append(" 보드 시리얼이 없어 신원 대조가 성립하지 않습니다 — 진단 재수집이 필요합니다.");
+        }
+        return reason.toString();
+    }
+
+    /**
+     * 집행 구간 파생(E2-4 §3 진리표) — 판정 재료는 전부 원장 · progress 이고, 복귀 대기의 기점 · 시한은
+     * 엔진({@code FlashContext.returnWaitSince} · {@code PowerOnStep})과 같은 식이다(D-3 — 표시와 판정이 같은 시계).
+     */
+    private StageView flashStageOf(GuestServer server, ProvisioningProgress progress,
+                                   List<ProvisioningHistory> steps, List<ProvisioningHistory> flashRows) {
+        LocalDateTime now = LocalDateTime.now();
+        if (progress.isFailed()) {
+            return new StageView(null, null);   // 6행 — 기존 실패 표시(배지 · 사유 행)가 맡는다.
+        }
+        FirmwareAxis cursorAxis = FirmwareAxis.of(progress.getCurrentStep());
+        if (cursorAxis == null) {
+            // "단계로" 로 끝맺는 이유 — phase 표시명의 받침 유무에 따라 조사가 갈리는 문제를 피한다(CP5 드리프트).
+            return new StageView("반영 확인 완료 — " + (progress.isCompleted() ? "종단"
+                    : progress.currentPhase() != null ? progress.currentPhase().getDescription() + " 단계로 전진"
+                    : "다음 단계로 전진"), null);   // 5행
+        }
+        Optional<ProvisioningHistory> openRow = flashRows.stream()
+                .filter(r -> r.getStatus() == ProvisioningStatus.RUNNING && r.getFinishedAt() == null)
+                .reduce((a, b) -> b);
+        if (openRow.isPresent()) {                 // 1행 — 기점은 엔진(PollFlashTaskStep)과 같은 행 startedAt
+            FirmwareAxis axis = FirmwareAxis.of(openRow.get().getStepCode());
+            return new StageView(axis.label() + " 굽는 중", flashTimeoutPolicy.remainingMinutes(
+                    openRow.get().getStartedAt(), flashTimeoutPolicy.limitFor(axis), now));
+        }
+        FlashContext context = new FlashContext(server, progress, null, steps, null, null, now);
+        if (context.nextUntouchedAxis().isPresent()) {
+            return new StageView("다음 축 착수 대기(다음 워커 주기)", null);   // 1b행 — 축 사이 간극
+        }
+        if (!context.guestReturned()) {
+            boolean powerOnIssued = flashRows.stream()
+                    .anyMatch(r -> FlashLedger.POWER_ON.equals(r.flashFailureReason()));
+            if (!powerOnIssued) {
+                return new StageView("전원 투입 대기(다음 워커 주기)", null);   // 2행
+            }
+            return new StageView("전원 투입 — 게스트 복귀 대기", flashTimeoutPolicy.remainingMinutes(
+                    context.returnWaitSince(), flashTimeoutPolicy.returnLimit(), now));   // 3행
+        }
+        return new StageView("게스트 복귀 — 반영 확인 대기(다음 워커 주기)", null);   // 4행
+    }
+
+    /** 워커 하트비트 문자열(E2-4 Q2) — "HH:mm:ss 확인 — …". 재기동 직후엔 null(다음 주기가 채운다). */
+    private String observationTextOf(UUID serverId) {
+        return workerObservations.latestOf(serverId)
+                .map(o -> o.at().format(OBSERVATION_TIME) + " 확인 — " + o.note())
+                .orElse(null);
     }
 
     /**
      * 한 축의 진행 — 그 축의 마지막 원장 행이 곧 상태다(D-4, 저장된 진행 상태를 따로 두지 않는다).
      *
-     * <p>단 <b>phase 수준 사건</b>(복귀 시한 만료 · 신원 불일치 · BMC 도달 불가)의 행은 제외한다.
+     * <p>단 <b>phase 수준 사건</b>(복귀 시한 만료 · 신원 불일치 · BMC 도달 불가 · 전원 사건)의 행은 제외한다.
      * 그 기록은 "실패 지점 = 커서" 규약에 따라 커서 step 자리에 남을 뿐 그 축의 결과가 아니라서,
      * 함께 세면 이미 성공한 축이 실패로 뒤집혀 보인다(CP5 F-2).</p>
      */
@@ -554,18 +654,96 @@ public class GuestServerQueryService {
         if (last == null) {
             return new GuestServerDetailResponse.AxisFlash(axis.label(), AxisFlashState.PENDING, null, null);
         }
+        String version = last.flashTargetVersion();
+        String name = last.flashResourceName();
+        String display = (name == null || version == null) ? version : name + " (" + version + ")";   // E2-4 R7
         return new GuestServerDetailResponse.AxisFlash(axis.label(), AxisFlashState.of(last.getStatus()),
-                last.flashTargetVersion(), last.flashDetail());
+                display, last.flashDetail());
     }
 
-    /** 지금 걸려 있는 시한의 잔여 분 — 굽는 중이면 그 축의 시한, 복귀를 기다리면 복귀 시한. */
-    private long flashRemainingMinutes(ProvisioningProgress progress) {
-        FirmwareAxis axis = FirmwareAxis.of(progress.getCurrentStep());
-        if (axis == null) {
-            return 0L;
+    /**
+     * 설정 phase 의 집행 현황(E2-4 R1) — 설정 축 원장 행이 있거나 커서가 설정 축일 때만.
+     * 재료는 원장 meta(작성과 같은 {@code SettingLedger} 판독)와 접촉 시각뿐 — BMC 호출 0(D-6).
+     */
+    private GuestServerDetailResponse.FirmwareSetting firmwareSettingOf(
+            GuestServer server, GuestServerDetail detail, ProvisioningProgress progress,
+            List<ProvisioningHistory> steps) {
+        if (progress == null) {
+            return null;
         }
-        return flashTimeoutPolicy.remainingMinutes(progress.getLastTransitionAt(),
-                flashTimeoutPolicy.limitFor(axis), LocalDateTime.now());
+        List<ProvisioningHistory> settingRows = steps.stream()
+                .filter(row -> SettingAxis.of(row.getStepCode()).isPresent())
+                .toList();
+        SettingAxis cursorAxis = SettingAxis.of(progress.getCurrentStep()).orElse(null);
+        if (settingRows.isEmpty() && cursorAxis == null) {
+            return null;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        List<GuestServerDetailResponse.AxisSetting> axes = Arrays.stream(SettingAxis.values())
+                .map(axis -> axisSettingOf(axis, settingRows, server.getLastSeenAt(), now))
+                .toList();
+        return new GuestServerDetailResponse.FirmwareSetting(axes,
+                settingWaitingReason(detail, progress, settingRows, cursorAxis, now));
+    }
+
+    /** 설정 축 한 줄 — RUNNING 행의 세부 국면(PATCH · 재부팅 복귀 · readback · Bond 재접속)은 meta 가 말한다. */
+    private GuestServerDetailResponse.AxisSetting axisSettingOf(SettingAxis axis, List<ProvisioningHistory> rows,
+                                                                LocalDateTime lastSeenAt, LocalDateTime now) {
+        ProvisioningHistory last = rows.stream()
+                .filter(r -> r.getStepCode() == axis.getStep())
+                .reduce((first, second) -> second)
+                .orElse(null);
+        if (last == null) {
+            return new GuestServerDetailResponse.AxisSetting(axis.name(), AxisFlashState.PENDING,
+                    null, null, null, null);
+        }
+        AxisFlashState state = AxisFlashState.of(last.getStatus());
+        String stage = null;
+        Long remain = null;
+        String itemsProgress = null;
+        if (state == AxisFlashState.RUNNING) {
+            if (axis == SettingAxis.BIOS) {
+                LocalDateTime rebootAt = settingLedger.rebootAtOf(last);
+                if (rebootAt == null) {
+                    stage = "설정 값 쓰는 중(PATCH)";
+                } else if (lastSeenAt != null && lastSeenAt.isAfter(rebootAt)) {
+                    stage = "게스트 복귀 — 값 확인(readback) 대기(다음 워커 주기)";
+                } else {
+                    stage = "재부팅 — 게스트 복귀 대기";
+                    remain = flashTimeoutPolicy.remainingMinutes(rebootAt, flashTimeoutPolicy.returnLimit(), now);
+                }
+            } else {
+                LocalDateTime bondAt = settingLedger.bondAtOf(last);
+                if (bondAt != null) {
+                    stage = "Bond 재구성 — BMC 재접속 대기";
+                    remain = flashTimeoutPolicy.remainingMinutes(bondAt, flashTimeoutPolicy.returnLimit(), now);
+                } else {
+                    long applied = settingLedger.itemsOf(last).values().stream()
+                            .filter(v -> v.startsWith(SettingLedger.APPLIED)).count();
+                    itemsProgress = applied + "/" + BmcSettingItem.values().length + " 적용";
+                    stage = "표준 항목 적용 중";
+                }
+            }
+        }
+        return new GuestServerDetailResponse.AxisSetting(axis.name(), state, stage, remain,
+                itemsProgress, last.displayNote());
+    }
+
+    /**
+     * 침묵 대기의 사유(E2-4 R6 · E3-3 O-1) — 커서가 설정 축인데 열린 행이 없으면 워커가 BMC 신원 확인을
+     * 반복 중이다. BMC 를 부르지 않고 DB 사실(커서 · 시한 · 보드 시리얼 유무)로만 문구를 만든다(D-6).
+     */
+    private String settingWaitingReason(GuestServerDetail detail, ProvisioningProgress progress,
+                                        List<ProvisioningHistory> rows, SettingAxis cursorAxis, LocalDateTime now) {
+        if (cursorAxis == null || progress.isFailed() || progress.isCompleted()) {
+            return null;
+        }
+        boolean open = rows.stream().anyMatch(r -> r.getStepCode() == cursorAxis.getStep()
+                && r.getStatus() == ProvisioningStatus.RUNNING && r.getFinishedAt() == null);
+        if (open) {
+            return null;
+        }
+        return identityWaitingReason(detail, progress.getLastTransitionAt(), flashTimeoutPolicy.returnLimit());
     }
 
     /**

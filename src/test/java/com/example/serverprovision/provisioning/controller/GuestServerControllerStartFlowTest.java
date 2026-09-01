@@ -11,6 +11,7 @@ import com.example.serverprovision.provisioning.setting.dto.response.SettingSumm
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentFormResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.AssignmentPlanResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.DefinitionOptionResponse;
+import com.example.serverprovision.provisioning.assignment.enums.AssignmentState;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentCommandService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentStartService;
@@ -93,6 +94,7 @@ class GuestServerControllerStartFlowTest {
                         false, false, false, false),
                 null,   // E2-1-b firmwarePlan — 이 흐름과 무관
                 null,   // E2-2 firmwareFlash — 집행 미착수 fixture
+                null,   // E2-4 firmwareSetting — 집행 미착수 fixture
                 null,   // E3.5-2 raidPlan — 계획 창 밖 fixture
                 List.of(),   // E3.5-4 raidVolumes — 검증 통과 전 fixture
                 List.of());
@@ -100,6 +102,12 @@ class GuestServerControllerStartFlowTest {
 
     private String startActionUrl(UUID id) {
         return "/provisioning/server/" + id + "/start";
+    }
+
+    /** U3-6 — 활성 할당이 있는 계획(개시 버튼이 열리는 조건의 다른 반쪽). */
+    private static AssignmentPlanResponse assignedPlan() {
+        return new AssignmentPlanResponse(true, "web-standard", AssignmentState.ACTIVE_UNCONSUMED,
+                null, null, List.of(ProvisioningPhase.DIAGNOSE_LINUX));
     }
 
     // ==== 성공 ========================================================
@@ -153,9 +161,10 @@ class GuestServerControllerStartFlowTest {
     // ==== 상세 렌더 3분기 — UI 1차 차단(startable SSOT) ================
 
     @Test
-    @DisplayName("상세 렌더 — 미개시 서버: 개시 버튼 폼 노출 + '개시 전' 표시")
+    @DisplayName("상세 렌더 — 미개시 + 할당된 서버: 개시 버튼 폼 노출 + '개시 전' 표시 (U3-6 — 할당이 조건의 반쪽)")
     void detail_notStarted_showsStartButton() throws Exception {
         UUID id = UUID.randomUUID();
+        given(assignmentQueryService.plannedPhasesOf(id)).willReturn(assignedPlan());
         given(queryService.findDetail(id)).willReturn(
                 detail(id, GuestServerStatus.REGISTERED, null, null, true));
 
@@ -188,5 +197,31 @@ class GuestServerControllerStartFlowTest {
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString(startActionUrl(id)))));
+    }
+
+    // ==== U3-6 — 미할당 개시 차단(즉시 종단 함정) ======================
+
+    @Test
+    @DisplayName("POST /{id}/start — 정의서 미할당(direct POST) → 409 (U3-6 안전망)")
+    void start_unassigned_returns409() throws Exception {
+        UUID id = UUID.randomUUID();
+        willThrow(ProvisioningStartRejectedException.unassigned(id))
+                .given(assignmentStartService).startProvisioning(id);
+
+        mvc.perform(post("/provisioning/server/{id}/start", id).accept(MediaType.TEXT_HTML))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("상세 렌더 — 미개시 + 미할당: 개시 폼 비노출 · 버튼 잠금 안내 (U3-6 UI 1차 차단)")
+    void detail_startableUnassigned_locksButton() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(
+                detail(id, GuestServerStatus.REGISTERED, null, null, true));   // 기본 스텁 = 미할당 계획
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString(startActionUrl(id)))))
+                .andExpect(content().string(containsString("할당한 뒤 개시할 수 있습니다")));
     }
 }

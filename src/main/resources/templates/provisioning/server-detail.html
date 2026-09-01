@@ -59,8 +59,12 @@
                 <span th:if="${server.contact.active}" class="n-badge n-badge-teal"
                       th:data-contact-remaining="${server.contact.remainingSeconds}"
                       th:text="'연결 중 · ' + ${server.contact.secondsSince} + '초 전'">연결 중</span>
+                <!-- E2-4 Q6 — 굽는 창의 침묵(전원 차단)은 고장이 아니라 설계다(decisions 8). -->
+                <span th:if="${!server.contact.active and server.progress != null and server.progress.disruptionBlocked}"
+                      class="n-badge n-badge-blue" th:text="#{provisioning.contact.flashing}">집행 중 · 전원 꺼짐</span>
                 <!-- Thymeleaf 3.1+ 는 T() 타입 참조를 금지 — 분 하한(최소 1분)은 SpEL 삼항으로 계산 -->
-                <span th:unless="${server.contact.active}" class="n-badge n-badge-gray"
+                <span th:if="${!server.contact.active and !(server.progress != null and server.progress.disruptionBlocked)}"
+                      class="n-badge n-badge-gray"
                       th:text="'끊어짐 · ' + ${server.contact.secondsSince < 120 ? 1 : server.contact.secondsSince / 60} + '분 전'">끊어짐</span>
             </span>
         </div>
@@ -206,7 +210,7 @@
                         <td th:text="${server.inventory.softwareSpec != null and server.inventory.softwareSpec.biosVersion != null} ? ${server.inventory.softwareSpec.biosVersion} : '— (진단 단계에서 수집)'">—</td>
                     </tr>
                     <tr>
-                        <th>BMC 신원</th>
+                        <th>BMC 신원 <span class="n-muted">(관리망 주소 — 호스트 IP 아님)</span></th>
                         <td>
                             <span th:if="${server.inventory.bmcIp != null or server.inventory.bmcMac != null}">
                                 <code class="n-mono" th:text="${server.inventory.bmcIp != null} ? ${server.inventory.bmcIp.value} : '—'">192.168.0.201</code>
@@ -492,7 +496,7 @@
 
     <!-- 호스트 NIC (읽기 전용) -->
     <div class="n-detail-section" data-live="nics">
-        <div class="n-section-title">호스트 NIC</div>
+        <div class="n-section-title">호스트 NIC (호스트 IP)</div>
         <div class="n-card">
             <div class="n-card-body">
                 <table th:if="${not #lists.isEmpty(server.nics)}" class="n-table">
@@ -533,7 +537,7 @@
          입력을 함께 소실시킨다(U3-1 commit 107bbd0 재발 방지). 할당·재할당·개시는 모두 리로드라 SSE-only 변화 없음. -->
     <div class="n-detail-section">
         <div class="n-section-title">세팅 정의서 할당</div>
-        <div class="n-section-hint">할당하면 정의서 내용을 스냅샷으로 복사해 이 서버가 밟을 프로비저닝 단계(phase)를 확정합니다. 할당 없이도 진단 리눅스까지는 진행됩니다.</div>
+        <div class="n-section-hint">할당하면 정의서 내용을 스냅샷으로 복사해 이 서버가 밟을 프로비저닝 단계(phase)를 확정합니다. 할당 없이도 진단 리눅스까지는 진행됩니다. 이미 지난 phase(예: 완료된 진단)는 다시 돌지 않습니다 — 지금 진행 위치 이후의 단계부터 밟습니다.</div>
         <div class="n-card">
             <div class="n-card-body">
 
@@ -764,26 +768,65 @@
                             <span th:if="${axis.detail != null}" class="n-firmware-detail" th:text="${axis.detail}"></span>
                         </li>
                     </ul>
-                    <p th:if="${server.firmwareFlash.running and server.firmwareFlash.remainingMinutes > 0}"
-                       class="n-firmware-hold"
-                       th:text="|#{provisioning.firmware.flash.remaining} ${server.firmwareFlash.remainingMinutes}분|">남은 시간 12분</p>
+                    <!-- E2-4 R3 — 구간 문구(§3 진리표) · 잔여 분 · 워커 하트비트. 기점 · 시한은 엔진과 같은 식(D-3). -->
+                    <p th:if="${server.firmwareFlash.stageText != null}" class="n-firmware-hold">
+                        <span th:text="${server.firmwareFlash.stageText}">전원 투입 — 게스트 복귀 대기</span>
+                        <span th:if="${server.firmwareFlash.stageRemainingMinutes != null and server.firmwareFlash.stageRemainingMinutes > 0}"
+                              th:text="|(잔여 ${server.firmwareFlash.stageRemainingMinutes}분)|">(잔여 12분)</span>
+                    </p>
+                    <p th:if="${server.firmwareFlash.lastObservation != null}" class="n-section-hint"
+                       th:text="${server.firmwareFlash.lastObservation}">13:05:30 확인 — 굽는 중</p>
                     <p th:if="${server.firmwareFlash.poweredOff}" class="n-firmware-hold"
                        th:text="#{provisioning.firmware.flash.powered-off}">이 서버는 지금 꺼져 있습니다.</p>
+                </div>
+                <!-- E2-4 R1 — 설정 phase 집행 현황. 원장 meta(pendingSeen · rebootAt · items · bondAt)의 투영 — BMC 호출 0(D-6). -->
+                <div th:if="${server.firmwareSetting != null}" class="n-firmware-plan">
+                    <div class="n-label strong" th:text="#{provisioning.firmware.setting.title}">펌웨어 설정 적용</div>
+                    <div class="n-section-hint" th:text="#{provisioning.firmware.setting.hint}">BIOS · BMC 표준 설정을 축마다 따로 적용하고 따로 확인합니다.</div>
+                    <ul class="n-firmware-axes">
+                        <li th:each="axis : ${server.firmwareSetting.axes}"
+                            th:classappend="${axis.state.name() == 'SUCCEEDED'} ? 'is-selected'
+                                          : (${axis.state.name() == 'RUNNING'} ? 'is-running'
+                                          : (${axis.state.name() == 'FAILED'} ? 'is-failed' : ''))">
+                            <span th:text="${axis.label}">BIOS</span>
+                            <!-- RUNNING 라벨만 설정 문맥으로 바꾼다(CP5 드리프트 — 굽는 것이 없는 단계에 "굽는 중" 은 오독) -->
+                            <span class="n-firmware-state"
+                                  th:text="${axis.state.name() == 'RUNNING'} ? '적용 중' : ${axis.state.label}">적용 중</span>
+                            <span th:if="${axis.itemsProgress != null}" th:text="${axis.itemsProgress}">2/4 적용</span>
+                            <span th:if="${axis.stageText != null}" class="n-firmware-detail">
+                                <span th:text="${axis.stageText}">재부팅 — 게스트 복귀 대기</span>
+                                <span th:if="${axis.stageRemainingMinutes != null and axis.stageRemainingMinutes > 0}"
+                                      th:text="|(잔여 ${axis.stageRemainingMinutes}분)|">(잔여 12분)</span>
+                            </span>
+                            <span th:if="${axis.note != null}" class="n-firmware-detail" th:text="${axis.note}"></span>
+                        </li>
+                    </ul>
+                    <p th:if="${server.firmwareSetting.waitingReason != null}" class="n-firmware-hold"
+                       th:text="${server.firmwareSetting.waitingReason}">축 착수 대기 — 다음 워커 주기가 BMC 신원을 확인합니다.</p>
                 </div>
 
                 <!-- 개시 액션 (DEC-26) — 노출 판정(startable)은 서버 가드와 같은 도메인 메서드에서 온 값 (SSOT).
                      회수·개시됨 상태에서는 렌더되지 않으므로 서버 409 가드는 direct POST 전용 안전망이다. -->
                 <!-- E1-2 (UC-3) → R13 — 진단(수집)은 자동 진행이므로 개시 안내는 "수집 이후 단계" 로 한정.
                      국면(수집 중/완료) 분기 없이 두 국면 모두 참인 문구를 쓴다. -->
+                <!-- U3-6 — 미할당 개시는 즉시 종단 함정이라 UI 가 1차 차단한다(disabled + tooltip).
+                     판정 재료 = phaseRail.assigned(활성 스냅샷 조회 — 서버 가드 AssignmentStartService 와 같은 사실). -->
                 <div th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active}"
                      class="n-section-hint" style="margin-top: 16px;">
-                    하드웨어 수집은 자동으로 진행됩니다. 수집이 끝난 뒤 다음 단계는 <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.
+                    <span th:if="${phaseRail.assigned}">하드웨어 수집은 자동으로 진행됩니다. 수집이 끝난 뒤 다음 단계는 <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.</span>
+                    <span th:unless="${phaseRail.assigned}">하드웨어 수집은 자동으로 진행되며, 수집이 끝나면 이 자리에서 멈춰 기다립니다. 다음 단계로 가려면 <strong>세팅 정의서를 할당</strong>한 뒤 [프로비저닝 개시] 를 누르십시오.</span>
                 </div>
-                <form th:if="${server.progress != null and server.progress.startable}"
+                <form th:if="${server.progress != null and server.progress.startable and phaseRail.assigned}"
                       th:action="@{/provisioning/server/{id}/start(id=${server.id})}" method="post"
                       style="margin-top: 16px;">
                     <button type="submit" class="n-btn n-btn-primary">프로비저닝 개시</button>
                 </form>
+                <div th:if="${server.progress != null and server.progress.startable and !phaseRail.assigned}"
+                     style="margin-top: 16px;">
+                    <button type="button" class="n-btn n-btn-secondary" disabled
+                            title="세팅 정의서가 할당되지 않았습니다 — 정의서를 할당한 뒤 개시할 수 있습니다.">프로비저닝 개시</button>
+                    <span class="n-muted" style="font-size: 12px; margin-left: 8px;">세팅 정의서를 할당한 뒤 개시할 수 있습니다.</span>
+                </div>
 
                 <!-- E1-2 (DEC-4) — 운영자 액션 2종. 노출·차단 판정은 전부 도메인 메서드 SSOT 값:
                      markFailable(수동 실패 전환 — 무보고 침묵 대응) / retryable · retryBlocked(재시도) -->
@@ -800,8 +843,12 @@
                     </form>
                     <button th:if="${server.progress.retryBlocked}" type="button" class="n-btn n-btn-secondary" disabled
                             th:title="#{provisioning.retry.blocked.tooltip}">재시도 (차단됨)</button>
+                    <!-- E2-4 Q3 — 펌웨어 단계 재시도의 전원 사이클은 의도다. 미리 알린다. -->
                     <span class="n-muted" style="font-size: 12px; margin-left: 8px;"
-                          th:text="${server.progress.retryBlocked} ? '펌웨어 실패는 원인 확인 전 재시도할 수 없습니다.' : '실패 신호를 해제하고 같은 단계부터 재개합니다.'"></span>
+                          th:text="${server.progress.retryBlocked} ? '펌웨어 실패는 원인 확인 전 재시도할 수 없습니다.'
+                                 : (${server.progress.failedStepCode != null and server.progress.failedStepCode.phaseType.name() == 'FIRMWARE_UPDATING'}
+                                    ? '실패 신호를 해제하고 같은 단계부터 재개합니다. 펌웨어 단계의 재시도는 전원을 껐다 켠 뒤 PXE 로 다시 세웁니다.'
+                                    : '실패 신호를 해제하고 같은 단계부터 재개합니다.')"></span>
                 </div>
 
                 <!-- 세부 단계 이력 (append-only) — 프로비저닝 엔진(Stage 4)이 적재. 현재는 비어 있음. -->
@@ -811,6 +858,7 @@
                         <th>Phase</th>
                         <th>Step</th>
                         <th>상태</th>
+                        <th>사유</th>
                         <th>시작</th>
                         <th>종료</th>
                     </tr>
@@ -822,6 +870,10 @@
                         <td>
                             <span class="n-badge n-badge-gray" th:text="${step.status != null} ? ${step.status.description} : '—'">작업 대기</span>
                         </td>
+                        <!-- E2-4 R5 — 사유는 원장 meta 의 detail 우선(사람 문구) · origin 코드 폴백. 없으면 생략. -->
+                        <td class="n-muted" style="font-size: 12px; max-width: 320px;"
+                            th:text="${step.note != null} ? ${step.note} : '—'"
+                            th:title="${step.note}">—</td>
                         <td th:text="${step.startedAt != null} ? ${#temporals.format(step.startedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
                         <td th:text="${step.finishedAt != null} ? ${#temporals.format(step.finishedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
                     </tr>

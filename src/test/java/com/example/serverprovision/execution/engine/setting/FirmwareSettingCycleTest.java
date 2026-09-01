@@ -118,7 +118,9 @@ class FirmwareSettingCycleTest {
 
     private FirmwareSettingCycle cycle() {
         return new FirmwareSettingCycle(progressRepository, historyRepository, detailRepository, resolutionProvider,
-                bmcTargetResolver, List.of(unsupported, supported), stepRegistry);
+                bmcTargetResolver, List.of(unsupported, supported), stepRegistry,
+                mock(org.springframework.context.ApplicationEventPublisher.class),
+                new com.example.serverprovision.execution.engine.WorkerObservations());
     }
 
     private static ProvisioningProgress progress(GuestServer server) {

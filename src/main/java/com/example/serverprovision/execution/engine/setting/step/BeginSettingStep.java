@@ -68,7 +68,11 @@ public class BeginSettingStep implements SettingStep {
             if (timeoutPolicy.isExpired(context.progress().getLastTransitionAt(), timeoutPolicy.returnLimit(),
                     context.now())) {
                 fail(context, resumed, SettingLedger.BMC_UNREACHABLE, "BMC 에 닿지 못했고 새 주소도 찾지 못했습니다");
+                return;
             }
+            // 침묵 대기의 흔적(E2-4 R6) — 원장 행 없이 기다리는 구간이 로그에도 안 남아 20분이 통째로 어두웠다.
+            log.debug("[setting] {} — BMC 신원 확인 대기(응답 없음) — 복귀 시한까지 다음 주기 재시도",
+                    context.server().getId());
             return;
         }
 
@@ -105,7 +109,7 @@ public class BeginSettingStep implements SettingStep {
             log.info("[setting] {} — 재부팅 명령 실패, 다음 주기 재시도 : {}", context.server().getId(), result.message());
             return;   // 행은 rebootAt 없이 남는다 — 다음 주기가 이 행을 이어 다시 한다
         }
-        ledger.markRebooted(row, context.now());
+        ledger.markRebooted(row, context.now(), result.message());   // 무장 결과를 같은 행 meta 가 든다(E2-4 Q4)
         log.info("[setting] {} — BIOS 설정 {}개 PATCH(pending {}), {} 발행 : {}", context.server().getId(),
                 attributes.size(), pendingSeen ? "확인" : "미확인", reset.name(), result.message());
     }

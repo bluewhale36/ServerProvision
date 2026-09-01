@@ -26,7 +26,7 @@ class GroupPickerResponseTest {
 
     private static GuestServerSummaryResponse server(String name) {
         return new GuestServerSummaryResponse(UUID.randomUUID(), name, UUID.randomUUID(), null, "MS03-CE0",
-                null, null, null, LocalDateTime.now(), null, false, null, null, null);
+                null, null, null, LocalDateTime.now(), null, false, null,false,  null, null);
     }
 
     private static SettingSummaryResponse summary(long id, String name) {

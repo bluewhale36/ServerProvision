@@ -2,6 +2,8 @@ package com.example.serverprovision.execution.engine.firmware.step;
 
 import com.example.serverprovision.execution.engine.firmware.BmcIdentityGuard;
 import com.example.serverprovision.execution.engine.firmware.FirmwareAxis;
+import com.example.serverprovision.execution.engine.firmware.FlashLedger;
+import com.example.serverprovision.global.redfish.PowerControlResult;
 import com.example.serverprovision.global.redfish.RedfishResetType;
 import com.example.serverprovision.global.redfish.RedfishPowerService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class BeginFlashStep implements FlashStep {
 
     private final BmcIdentityGuard identityGuard;
     private final RedfishPowerService powerService;
+    private final FlashLedger ledger;
 
     @Override
     public int order() {
@@ -42,7 +45,13 @@ public class BeginFlashStep implements FlashStep {
             return;
         }
         context.progress().positionAt(first.getStep(), context.now());
-        powerService.reset(context.target(), RedfishResetType.FORCE_OFF);
+        PowerControlResult off = powerService.reset(context.target(), RedfishResetType.FORCE_OFF);
+        if (off.kind() == PowerControlResult.Kind.SENT) {
+            // 되돌릴 수 없는 일회 사건의 감사 기록(E2-4 Q4). detail 은 엔진 문구다 — 화면 경로의
+            // "[상태 조회] …" 안내가 원장에 남으면 운영자가 누른 것처럼 읽힌다(CP5 F-7).
+            ledger.instantPower(context.server(), first.getStep(), FlashLedger.POWER_OFF,
+                    "전원 차단(ForceOff) — 굽는 동안 꺼진 채 유지됩니다", context.now());
+        }
         log.info("[flash] {} — 집행 착수, 전원 차단", context.server().getId());
     }
 }

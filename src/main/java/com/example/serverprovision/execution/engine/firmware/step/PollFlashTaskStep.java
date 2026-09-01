@@ -28,6 +28,7 @@ public class PollFlashTaskStep implements FlashStep {
     private final FlashTimeoutPolicy timeoutPolicy;
     private final FlashLedger ledger;
     private final com.example.serverprovision.execution.service.FirmwareImageTokenRegistry tokenRegistry;
+    private final com.example.serverprovision.execution.engine.WorkerObservations observations;
 
     @Override
     public int order() {
@@ -45,6 +46,8 @@ public class PollFlashTaskStep implements FlashStep {
         ProvisioningHistory row = context.openRowOf(axis).orElseThrow();
 
         FlashTaskState state = context.provider().pollTask(context.target(), row.flashTaskPath());
+        // 관측값은 저장하지 않는다(E2-4 Q2) — 마지막 관측만 인메모리에 남겨 화면이 "돌고 있음" 을 안다.
+        observations.note(context.server().getId(), "BMC Task 확인 — " + state.getUserDetail(), context.now());
         if (state.isTerminal()) {
             // 굽기가 끝났으니 파일을 더 열어 둘 이유가 없다(CP5 F-3).
             tokenRegistry.revoke(context.server().getId(), axis);

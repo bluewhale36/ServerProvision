@@ -116,8 +116,16 @@ public class SettingLedger {
 
     /** 재부팅을 걸었다 — 이 시각 이후의 게스트 접촉이 복귀 신호다. */
     public void markRebooted(ProvisioningHistory row, LocalDateTime at) {
+        markRebooted(row, at, null);
+    }
+
+    /** 무장 요약을 함께 남기는 변형(E2-4 Q4) — 별도 행 대신 이미 열린 행의 meta 가 사건을 든다. */
+    public void markRebooted(ProvisioningHistory row, LocalDateTime at, String armSummary) {
         Map<String, Object> meta = read(row);
         meta.put("rebootAt", at.toString());
+        if (armSummary != null && !armSummary.isBlank()) {
+            meta.put("arm", armSummary);
+        }
         row.updateRunningMeta(write(meta));
     }
 

@@ -43,17 +43,20 @@ public class FlashAxisStep implements FlashStep {
     @Override
     public void execute(FlashContext context) {
         FirmwareAxis axis = context.nextUntouchedAxis().orElseThrow();
-        context.progress().positionAt(axis.getStep(), context.now());
 
         AxisResolution decided = context.resolutionOf(axis);
         if (decided == null || !decided.isSelected()) {
+            context.progress().positionAt(axis.getStep(), context.now());
             String why = decided == null ? "구울 펌웨어가 정해지지 않았습니다" : decided.message(axis.label());
             ledger.skipAxis(context.server(), axis, why, context.now());
             return;
         }
+        // 신원 확인이 커서 이동보다 먼저다(E2-4 CP5 F-2) — positionAt 이 lastTransitionAt 을 갱신하는데,
+        // 신원 대기의 시한이 바로 그 시각을 기점으로 삼아 매 주기 자기 시한을 되감는 livelock 이 있었다.
         if (!identityGuard.confirm(context, axis)) {
-            return;
+            return;   // 커서 · 전이 시각 불변 — 시한이 흘러 만료되면 가드가 실패로 전환한다.
         }
+        context.progress().positionAt(axis.getStep(), context.now());
         // 버전이 같아도 굽는다(2026-08-25 사용자 결정) — 커스텀 이미지(로고 변경본 등)는 버전이 같아도
         // 내용이 다르므로, 버전 비교 스킵은 할당된 자원을 조용히 무시하는 결함이었다.
         UUID token = tokenRegistry.issue(context.server().getId(), axis, Path.of(decided.imagePath()));

@@ -44,6 +44,7 @@ class GuestServerCommandServiceTest {
     @Mock RetryPolicy retryPolicy;   // E2-1-b CP5 F-1 — 재시도 차단 판정(원장 사실 포함)은 정책이 든다
     @Mock com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer phaseCursorAdvancer;   // R13 — 개시 시 소급 완주 판정
     @Mock ApplicationEventPublisher eventPublisher;   // S7 — 실시간 스트림 신호 발행 검증
+    @Mock com.example.serverprovision.execution.engine.WorkerObservations workerObservations;   // E2-4 O-3 — 회수 직전 파괴
     @InjectMocks GuestServerCommandService service;
 
     private GuestServer server(UUID id) {

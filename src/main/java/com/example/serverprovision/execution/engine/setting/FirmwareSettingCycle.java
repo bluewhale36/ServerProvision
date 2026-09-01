@@ -33,6 +33,8 @@ public class FirmwareSettingCycle {
     private final BmcSettingTargetResolver bmcTargetResolver;
     private final List<FirmwareUpdateProvider> providers;
     private final SettingStepRegistry stepRegistry;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final com.example.serverprovision.execution.engine.WorkerObservations observations;
 
     @Transactional
     public void advance(UUID guestServerId, LocalDateTime now) {
@@ -40,8 +42,15 @@ public class FirmwareSettingCycle {
         if (progress == null) {
             return;
         }
+        // 하트비트(E2-4 Q2) — 워커가 이 게스트를 확인했다는 사실.
+        observations.note(guestServerId, "설정 상태 점검", now);
         SettingContext context = contextOf(progress, guestServerId, now);
-        stepRegistry.firstMatching(context).ifPresent(step -> step.execute(context));
+        stepRegistry.firstMatching(context).ifPresent(step -> {
+            step.execute(context);
+            // 설정 전이도 화면(SSE)에 닿게 한다 — FirmwareFlashCycle 과 같은 결(E2-4 R10). AFTER_COMMIT 리스너 경유.
+            eventPublisher.publishEvent(
+                    new com.example.serverprovision.execution.event.GuestServerChangedEvent(guestServerId));
+        });
     }
 
     private SettingContext contextOf(ProvisioningProgress progress, UUID guestServerId, LocalDateTime now) {

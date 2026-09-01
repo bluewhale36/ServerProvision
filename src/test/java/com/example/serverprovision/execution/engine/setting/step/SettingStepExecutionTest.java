@@ -565,4 +565,14 @@ class SettingStepExecutionTest {
 
         verify(powerService).reset(any(), any(), eq(NextBoot.PXE_ONCE));
     }
+
+    @Test
+    @DisplayName("착수 — 무장 결과가 열린 행의 arm 키로 남는다(E2-4 Q4 — 별도 행 없이 meta 가 사건을 든다)")
+    void begin_recordsArmSummaryInMeta() {
+        begin().execute(context(server(), started(), List.of(), target(), T));
+
+        ProvisioningHistory row = opened.get();
+        assertThat(row.getStatusMeta()).contains("\"arm\"").contains("sent");
+        assertThat(ledger.rebootAtOf(row)).isEqualTo(T);
+    }
 }

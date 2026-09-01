@@ -71,7 +71,7 @@ class AssignmentQueryServiceStandardBannerTest {
 
     private static GuestServerSummaryResponse summary(UUID id, String name, String boardName) {
         return new GuestServerSummaryResponse(id, name, UUID.randomUUID(), null, boardName,
-                null, null, null, LocalDateTime.now(), null, false, null, null, null);
+                null, null, null, LocalDateTime.now(), null, false, null,false,  null, null);
     }
 
     private static GuestServer entity(UUID id, boolean decommissioned) {

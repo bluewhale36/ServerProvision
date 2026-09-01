@@ -34,9 +34,9 @@ class FlashStepMatchingTest {
 
     private final FlashStepRegistry registry = new FlashStepRegistry(List.of(
             new SkipOutOfWindowStep(),
-            new PollFlashTaskStep(null, null, null),
+            new PollFlashTaskStep(null, null, null, null),
             new SkipUnreadyStep(),
-            new BeginFlashStep(null, null),
+            new BeginFlashStep(null, null, null),
             new FlashAxisStep(null, null, null),
             new PowerOnStep(null, null, null, null),
             new VerifyFlashStep(null, null, null, null)));

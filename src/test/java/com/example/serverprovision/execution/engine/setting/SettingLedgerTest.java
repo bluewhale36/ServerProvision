@@ -147,4 +147,17 @@ class SettingLedgerTest {
         assertThat(ledger.bondAtOf(row)).isEqualTo(T.plusSeconds(5));
         assertThat(row.getStatusMeta()).contains("\"origin\":\"APPLIED\"");
     }
+
+    @Test
+    @DisplayName("markRebooted(arm) — 무장 요약이 meta 에 남고 목표와 함께 닫힘을 살아남는다(E2-4 Q4)")
+    void markRebootedWithArmSurvivesClose() {
+        ProvisioningHistory row = ledger.open(server, new BiosSettingTarget(TARGET), T);
+
+        ledger.markRebooted(row, T.plusMinutes(1), "다음 부팅 PXE 강제 : 반영 확인 · 재시작(ForceRestart)");
+        ledger.close(row, ProvisioningStatus.SUCCEEDED, SettingLedger.APPLIED, "1개 적용", T.plusMinutes(9));
+
+        assertThat(row.getStatusMeta()).contains("\"arm\"").contains("반영 확인");
+        assertThat(ledger.rebootAtOf(row)).isEqualTo(T.plusMinutes(1));
+        assertThat(ledger.targetOf(row)).isEqualTo(TARGET);
+    }
 }
