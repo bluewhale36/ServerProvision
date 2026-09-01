@@ -615,15 +615,24 @@
                      회수·개시됨 상태에서는 렌더되지 않으므로 서버 409 가드는 direct POST 전용 안전망이다. -->
                 <!-- E1-2 (UC-3) → R13 — 진단(수집)은 자동 진행이므로 개시 안내는 "수집 이후 단계" 로 한정.
                      국면(수집 중/완료) 분기 없이 두 국면 모두 참인 문구를 쓴다. -->
+                <!-- U3-6 — 미할당 개시는 즉시 종단 함정이라 UI 가 1차 차단한다(disabled + tooltip).
+                     판정 재료 = phaseRail.assigned(활성 스냅샷 조회 — 서버 가드 AssignmentStartService 와 같은 사실). -->
                 <div th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active}"
                      class="n-section-hint" style="margin-top: 16px;">
-                    하드웨어 수집은 자동으로 진행됩니다. 수집이 끝난 뒤 다음 단계는 <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.
+                    <span th:if="${phaseRail.assigned}">하드웨어 수집은 자동으로 진행됩니다. 수집이 끝난 뒤 다음 단계는 <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.</span>
+                    <span th:unless="${phaseRail.assigned}">하드웨어 수집은 자동으로 진행되며, 수집이 끝나면 이 자리에서 멈춰 기다립니다. 다음 단계로 가려면 <strong>세팅 정의서를 할당</strong>한 뒤 [프로비저닝 개시] 를 누르십시오.</span>
                 </div>
-                <form th:if="${server.progress != null and server.progress.startable}"
+                <form th:if="${server.progress != null and server.progress.startable and phaseRail.assigned}"
                       th:action="@{/provisioning/server/{id}/start(id=${server.id})}" method="post"
                       style="margin-top: 16px;">
                     <button type="submit" class="n-btn n-btn-primary">프로비저닝 개시</button>
                 </form>
+                <div th:if="${server.progress != null and server.progress.startable and !phaseRail.assigned}"
+                     style="margin-top: 16px;">
+                    <button type="button" class="n-btn n-btn-secondary" disabled
+                            title="세팅 정의서가 할당되지 않았습니다 — 정의서를 할당한 뒤 개시할 수 있습니다.">프로비저닝 개시</button>
+                    <span class="n-muted" style="font-size: 12px; margin-left: 8px;">세팅 정의서를 할당한 뒤 개시할 수 있습니다.</span>
+                </div>
 
                 <!-- E1-2 (DEC-4) — 운영자 액션 2종. 노출·차단 판정은 전부 도메인 메서드 SSOT 값:
                      markFailable(수동 실패 전환 — 무보고 침묵 대응) / retryable · retryBlocked(재시도) -->
