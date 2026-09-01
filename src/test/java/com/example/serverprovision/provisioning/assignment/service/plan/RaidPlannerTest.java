@@ -206,7 +206,7 @@ class RaidPlannerTest {
     // ── 개수 축 — EXACT(엄격 일치) · AT_LEAST × 그룹 크기 전수 ───────────────
 
     @Nested
-    @DisplayName("개수 축 — 그룹 크기별 소비 여부 전수 (결정 6 엄격 일치)")
+    @DisplayName("개수 축 — 그룹 크기별 소비 여부 전수 (배수 분할 · 실기 2026-09-01 개정)")
     class CountAxis {
 
         private RaidPlan planWithPool(int poolSize, DiskCountMode mode, int count) {
@@ -219,8 +219,8 @@ class RaidPlannerTest {
         }
 
         @ParameterizedTest(name = "EXACT 2 × 그룹 {0}대 → 볼륨 {1} · 미배정 {2}")
-        @CsvSource({"1, 0, 1", "2, 1, 0", "3, 0, 3", "4, 0, 4", "6, 0, 6"})
-        void exact_consumesOnlyWhenGroupSizeEqualsN(int poolSize, int volumes, int unassigned) {
+        @CsvSource({"1, 0, 1", "2, 1, 0", "3, 0, 3", "4, 2, 0", "6, 3, 0"})
+        void exact_consumesWhenGroupSizeIsMultipleOfN(int poolSize, int volumes, int unassigned) {
             RaidPlan plan = planWithPool(poolSize, DiskCountMode.EXACT, 2);
             assertThat(plan.volumes()).hasSize(volumes);
             assertThat(plan.unassigned()).hasSize(unassigned);
@@ -238,14 +238,23 @@ class RaidPlannerTest {
         }
 
         @Test
-        @DisplayName("T2 — 6대 · EXACT 2 단독 규칙은 미소비(6 ≠ 2) · 소비 0 표시 · 사유가 남는다")
-        void exactSix_strictMismatch_leavesReasonAndZeroConsumption() {
+        @DisplayName("T2 — 6대 · EXACT 2 는 2개씩 3볼륨으로 분할 소비한다(배수 분할)")
+        void exactSix_multipleOfN_splitsIntoThreeVolumes() {
             RaidPlan plan = planWithPool(6, DiskCountMode.EXACT, 2);
+            assertThat(plan.volumes()).hasSize(3);
+            assertThat(plan.volumes()).allSatisfy(v -> assertThat(v.memberSlots()).hasSize(2));
+            assertThat(plan.volumes().get(2).name()).isEqualTo("spvR1V3");
+            assertThat(plan.ruleOutcomes().get(0).consumedDisks()).isEqualTo(6);
+        }
+
+        @Test
+        @DisplayName("T2b — 5대 · EXACT 2 는 배수가 아니라 미소비 · 사유에 배수 아님이 남는다")
+        void exactFive_notMultiple_leavesReasonAndZeroConsumption() {
+            RaidPlan plan = planWithPool(5, DiskCountMode.EXACT, 2);
             assertThat(plan.volumes()).isEmpty();
             assertThat(plan.ruleOutcomes().get(0).consumedNothing()).isTrue();
-            assertThat(plan.ruleOutcomes().get(0).matchedDisks()).isEqualTo(6);
             assertThat(plan.unassigned()).allSatisfy(u ->
-                    assertThat(u.reason()).contains("2개 조건에 6대라 미소비"));
+                    assertThat(u.reason()).contains("2개 조건에 5대(배수 아님)라 미소비"));
         }
     }
 

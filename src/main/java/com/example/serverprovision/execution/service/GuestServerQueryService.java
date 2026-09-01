@@ -359,8 +359,8 @@ public class GuestServerQueryService {
                 parseTolerant(detail.getSoftwareSpec(), SoftwareSpec.class),
                 detail.getBmcIp(),
                 detail.getBmcMac(),
-                parseTolerant(detail.getRaidInventoryJson(),
-                        com.example.serverprovision.execution.engine.raid.RaidInventory.class));
+                displayNormalized(parseTolerant(detail.getRaidInventoryJson(),
+                        com.example.serverprovision.execution.engine.raid.RaidInventory.class)));
 
         GuestServerDetailResponse.RaidPlanPreview raidPlan = raidPlanPreviewOf(server.getId(),
                 inventory == null ? null : inventory.raidInventory());
@@ -426,6 +426,34 @@ public class GuestServerQueryService {
                 raidVolumes,
                 stepResponses
         );
+    }
+
+    /**
+     * 저장본 소급 표시 정규화 — 파서의 사람 단위 개정(humanFromMb) 이전에 저장된 인벤토리는 "NNN MB"
+     * 원값이라 화면에 그대로 샌다(실기 2026-09-01 검수). 표시 직전에 같은 규칙으로 치환한다 — 매칭
+     * 파싱(RaidReportedSize)은 두 형식을 모두 읽으므로 계획 미리보기에도 안전하다.
+     */
+    private com.example.serverprovision.execution.engine.raid.RaidInventory displayNormalized(
+            com.example.serverprovision.execution.engine.raid.RaidInventory inventory) {
+        if (inventory == null) {
+            return null;
+        }
+        return new com.example.serverprovision.execution.engine.raid.RaidInventory(
+                inventory.card(),
+                inventory.disks().stream().map(d -> new com.example.serverprovision.execution.engine.raid.RaidPhysicalDisk(
+                        d.slot(), d.type(), d.transport(), normalizeMb(d.size()), d.state(),
+                        d.model(), d.serial(), d.volumeRef())).toList(),
+                inventory.volumes().stream().map(v -> new com.example.serverprovision.execution.engine.raid.RaidExistingVolume(
+                        v.id(), v.level(), normalizeMb(v.size()), v.state(), v.name(),
+                        v.memberSlots(), v.wwn())).toList());
+    }
+
+    private String normalizeMb(String size) {
+        if (size == null || !size.endsWith(" MB")) {
+            return size;
+        }
+        return com.example.serverprovision.execution.engine.raid.RaidInventoryParser
+                .humanFromMb(size.substring(0, size.length() - 3).trim());
     }
 
     /**
@@ -514,16 +542,21 @@ public class GuestServerQueryService {
     }
 
     /** 유효 용량의 십진 표시(정의서 표기와 같은 결) — 479.6 GB · 4 TB. */
+    // 최대 소수 둘째 자리(실기 2026-09-01 검수 — 1.92TB 가 1.9TB 로 뭉개졌다) · 뒤 0 은 다듬는다(2.00 → 2 · 1.90 → 1.9)
     private String formatDecimalBytes(long bytes) {
         double tb = bytes / 1_000_000_000_000.0;
         if (tb >= 1.0) {
-            return stripTrailingZero(String.format("%.1f", tb)) + " TB";
+            return stripTrailingZero(String.format("%.2f", tb)) + " TB";
         }
-        return stripTrailingZero(String.format("%.1f", bytes / 1_000_000_000.0)) + " GB";
+        return stripTrailingZero(String.format("%.2f", bytes / 1_000_000_000.0)) + " GB";
     }
 
     private String stripTrailingZero(String value) {
-        return value.endsWith(".0") ? value.substring(0, value.length() - 2) : value;
+        if (!value.contains(".")) {
+            return value;
+        }
+        value = value.replaceAll("0+$", "");
+        return value.endsWith(".") ? value.substring(0, value.length() - 1) : value;
     }
 
     /**

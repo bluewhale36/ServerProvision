@@ -5,6 +5,8 @@ import com.example.serverprovision.execution.dto.response.GuestServerSummaryResp
 import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
 import com.example.serverprovision.execution.engine.WorkerObservations;
 import com.example.serverprovision.execution.engine.firmware.FirmwareResolutionProvider;
+import com.example.serverprovision.execution.engine.raid.RaidConfigurationResolutionProvider;
+import com.example.serverprovision.execution.repository.RaidVolumeRepository;
 import com.example.serverprovision.execution.engine.firmware.FlashLedger;
 import com.example.serverprovision.execution.engine.firmware.FlashTimeoutPolicy;
 import com.example.serverprovision.execution.engine.phase.HoldTtlPolicy;
@@ -55,6 +57,8 @@ class GuestServerQueryServiceExecutionViewTest {
     @Mock ProvisioningProgressRepository progressRepository;
     @Mock ProvisioningHistoryRepository historyRepository;
     @Mock FirmwareResolutionProvider firmwareResolutionProvider;
+    @Mock RaidConfigurationResolutionProvider raidConfigurationResolutionProvider;
+    @Mock RaidVolumeRepository raidVolumeRepository;
     @Mock HoldTtlPolicy holdTtlPolicy;
     @Mock RetryPolicy retryPolicy;
     @Mock ProvisioningHistoryRecorder recorder;
@@ -72,7 +76,8 @@ class GuestServerQueryServiceExecutionViewTest {
         settingLedger = new SettingLedger(recorder, new ObjectMapper());
         given(recorder.openRunning(any(), any(), any(), any())).willAnswer(inv -> ProvisioningHistory.openRunning(
                 inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)));
-        service = new GuestServerQueryService(guestServerRepository, detailRepository, nicRepository,
+        service = new GuestServerQueryService(guestServerRepository, raidConfigurationResolutionProvider,
+                raidVolumeRepository, detailRepository, nicRepository,
                 progressRepository, historyRepository, firmwareResolutionProvider, holdTtlPolicy, retryPolicy,
                 new FlashTimeoutPolicy(new MockEnvironment()), settingLedger, observations, new ObjectMapper());
         given(guestServerRepository.findById(server.getId())).willReturn(Optional.of(server));

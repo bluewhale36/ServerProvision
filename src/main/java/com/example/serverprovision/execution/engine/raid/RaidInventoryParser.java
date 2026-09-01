@@ -154,9 +154,10 @@ public class RaidInventoryParser {
                 members.add(phy.group(1));
             }
             String sizeMb = lineValue(block, "Size (in MB)");
+            // 실기 2026-09-01: display 가 Volume Name 을 노출한다(사전 조사의 "이름 미노출" 전제 반증) — 이름 매칭의 재료
             volumes.add(new RaidExistingVolume(lineValue(block, "Volume ID"),
-                    lineValue(block, "RAID level"), sizeMb == null ? null : sizeMb + " MB",
-                    lineValue(block, "Status of volume"), null, members,
+                    lineValue(block, "RAID level"), humanFromMb(sizeMb),
+                    lineValue(block, "Status of volume"), lineValue(block, "Volume Name"), members,
                     lineValue(block, "Volume wwid")));
         }
 
@@ -170,7 +171,7 @@ public class RaidInventoryParser {
             String type = driveType == null ? null
                     : driveType.toUpperCase(Locale.ROOT).endsWith("SSD") ? "SSD" : "HDD";
             String sizePair = lineValue(block, "Size (in MB)/(in sectors)");
-            String size = sizePair == null ? null : sizePair.split("/")[0] + " MB";
+            String size = sizePair == null ? null : humanFromMb(sizePair.split("/")[0].trim());
             String volumeRef = volumes.stream()
                     .filter(v -> v.memberSlots().contains(slot))
                     .map(RaidExistingVolume::id).findFirst().orElse(null);
@@ -206,5 +207,20 @@ public class RaidInventoryParser {
 
     private String trim(String value) {
         return value == null ? null : value.trim();
+    }
+
+    /** IR 의 MB 원값을 사람 단위로 — MegaRAID 표기(2진 환산 · GB/TB 라벨)와 통일해 화면 · 매칭 파싱이 한 형식을 본다(실기 2026-09-01 검수). */
+    public static String humanFromMb(String mbText) {
+        if (mbText == null || !mbText.matches("\\d+")) {
+            return mbText == null ? null : mbText + " MB";
+        }
+        long mb = Long.parseLong(mbText);
+        if (mb >= 1024L * 1024) {
+            return String.format(java.util.Locale.ROOT, "%.3f TB", mb / 1048576.0);
+        }
+        if (mb >= 1024) {
+            return String.format(java.util.Locale.ROOT, "%.3f GB", mb / 1024.0);
+        }
+        return mb + " MB";
     }
 }

@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.assignment.service.plan;
 
+import com.example.serverprovision.provisioning.setting.enums.DiskCountMode;
 import com.example.serverprovision.execution.engine.raid.PlannedPassthrough;
 import com.example.serverprovision.execution.engine.raid.PlannedVolume;
 import com.example.serverprovision.execution.engine.raid.PlannedVolumeRole;
@@ -32,9 +33,9 @@ import java.util.OptionalLong;
  * {@code VolumePriorityRules} · {@code OsVolumeTargets})가 사는 provisioning 쪽에 두고, 산출물(계획)만
  * execution 소유 중립 모델로 낸다({@code BiosSettingTarget} 방향 원칙 — plan 결정 1).
  *
- * <p>소비 규칙(결정 6, CP1 검수 확정): 어떤 규칙도 같은 스펙 그룹을 부분 소비하지 않는다 —
- * {@code EXACT n} 은 그룹 크기가 정확히 n 일 때만, {@code AT_LEAST n} 은 n 이상일 때 그룹 전체를 소비하고,
- * 소비하지 못한 그룹은 온전히 후행 규칙으로 흐른다.</p>
+ * <p>소비 규칙(결정 6 · 실기 2026-09-01 배수 분할 개정): 어떤 규칙도 같은 스펙 그룹을 부분 소비하지 않는다 —
+ * {@code EXACT n} 은 그룹 크기가 n 의 배수일 때 n 개씩 나눠 볼륨 여러 개로 소비하고(6대 · EXACT 3 → 3+3 두 볼륨),
+ * {@code AT_LEAST n} 은 n 이상일 때 그룹 전체를 한 볼륨으로 소비한다. 소비하지 못한 그룹은 온전히 후행 규칙으로 흐른다.</p>
  */
 public final class RaidPlanner {
 
@@ -79,23 +80,30 @@ public final class RaidPlanner {
             int volumeSeq = 0;
             for (List<Candidate> group : groupByClass(rule, matched)) {
                 boolean selected = switch (rule.count().mode()) {
-                    case EXACT -> group.size() == rule.count().value();   // 엄격 일치(결정 6)
+                    // 배수 분할(실기 2026-09-01) — n 의 배수면 n 개씩 나눠 소비, 아니면 미소비 · 후행 흘림
+                    case EXACT -> group.size() % rule.count().value() == 0;
                     case AT_LEAST -> group.size() >= rule.count().value();
                 };
                 if (!selected) {
                     for (Candidate c : group) {
                         c.lastMissReason = "규칙 " + ruleNo + " · " + rule.count().toDisplay()
-                                + " 조건에 " + group.size() + "대라 미소비";
+                                + " 조건에 " + group.size() + "대(배수 아님)라 미소비";
                     }
                     continue;
                 }
                 if (rule.buildsRaid()) {
-                    volumeSeq++;
-                    volumeCount++;
-                    long perDisk = group.stream().mapToLong(c -> c.bytes).min().orElse(0L);
-                    long usable = rule.raidLevel().usableDisks(group.size()) * perDisk;
-                    entries.add(Entry.volume("spvR" + ruleNo + "V" + volumeSeq,
-                            rule.raidLevel(), rule, ruleNo, group, usable, entries.size()));
+                    // EXACT 는 n 개씩 슬라이스해 볼륨 여러 개, AT_LEAST 는 그룹 전체가 한 볼륨
+                    int sliceSize = rule.count().mode() == DiskCountMode.EXACT
+                            ? rule.count().value() : group.size();
+                    for (int from = 0; from < group.size(); from += sliceSize) {
+                        List<Candidate> slice = group.subList(from, from + sliceSize);
+                        volumeSeq++;
+                        volumeCount++;
+                        long perDisk = slice.stream().mapToLong(c -> c.bytes).min().orElse(0L);
+                        long usable = rule.raidLevel().usableDisks(slice.size()) * perDisk;
+                        entries.add(Entry.volume("spvR" + ruleNo + "V" + volumeSeq,
+                                rule.raidLevel(), rule, ruleNo, slice, usable, entries.size()));
+                    }
                 } else {
                     for (Candidate c : group) {
                         entries.add(Entry.passthrough(rule, ruleNo, c, entries.size()));

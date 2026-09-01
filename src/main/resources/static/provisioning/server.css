@@ -594,3 +594,26 @@
 }
 /* 실패 메시지 — 문구는 서버가 주고 색만 화면 몫 */
 #powerMessage.is-danger { color: var(--n-red); }
+
+/* SMBIOS UUID 강조 칩 — id 미노출 체제의 실질 식별자를 헤더에서 바로 집게 한다(실기 2026-09-01 검수) */
+.n-uuid-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    padding: 4px 10px;
+    border: 1px solid var(--n-border);
+    border-radius: 6px;
+    background: var(--n-bg);
+}
+.n-uuid-chip-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--n-text-sec);
+}
+.n-uuid-chip .n-mono {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--n-text);
+}
