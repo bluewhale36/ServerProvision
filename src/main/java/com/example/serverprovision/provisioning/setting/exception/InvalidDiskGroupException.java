@@ -49,6 +49,12 @@ public class InvalidDiskGroupException extends FieldBoundBadRequestException {
         return new InvalidDiskGroupException(ruleNo + "번 묶음: " + diskType + " 에는 " + transport + " 전송 방식이 없습니다.");
     }
 
+    /** 선행 묶음에 완전히 포섭되어 영원히 도달할 수 없는 후행 묶음(E3.5-4 규칙 8 — E3.5-2 결정 7 이행). */
+    public static InvalidDiskGroupException unreachableRule(int ruleNo, int coveringRuleNo) {
+        return new InvalidDiskGroupException(ruleNo + "번 묶음은 " + coveringRuleNo
+                + "번 묶음에 가려 도달할 수 없습니다 — 순서를 바꾸거나 조건을 좁히십시오.");
+    }
+
     /** OS 영역으로 고정한 묶음이 둘 이상 — OS 유일성(E7)은 규칙 하나가 고정하고 우선순위가 그 안에서 고른다(U4-1-2 규칙 7). */
     public static InvalidDiskGroupException multipleOsRules(int ruleNo, int firstOsRuleNo) {
         return new InvalidDiskGroupException(ruleNo + "번 묶음: " + firstOsRuleNo

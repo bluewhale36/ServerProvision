@@ -92,7 +92,10 @@ class GuestServerControllerStartFlowTest {
                         ProvisioningPhase.DIAGNOSE_LINUX, T, startedAt, null, null, null, startable,
                         false, false, false, false),
                 null,   // E2-1-b firmwarePlan — 이 흐름과 무관
-                null,null,    // E2-2 firmwareFlash — 집행 미착수 fixture
+                null,   // E2-2 firmwareFlash — 집행 미착수 fixture
+                null,   // E2-4 firmwareSetting — 집행 미착수 fixture
+                null,   // E3.5-2 raidPlan — 계획 창 밖 fixture
+                List.of(),   // E3.5-4 raidVolumes — 검증 통과 전 fixture
                 List.of());
     }
 

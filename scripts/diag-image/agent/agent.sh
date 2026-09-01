@@ -151,15 +151,159 @@ do_collect() {
     REPORT=$(build_report_json)
     CLOSE_RESP=$(report_step INFORMATION_COLLECTING SUCCEEDED "$REPORT") || return 0
     echo "[agent] inventory reported ($(printf '%s' "$REPORT" | wc -c | tr -d ' ') bytes)"
-    handle_directive "$(printf '%s' "$CLOSE_RESP" | get_json_field directive)"
+    handle_directive "$(printf '%s' "$CLOSE_RESP" | get_json_field directive)" "$CLOSE_RESP"
 }
 
-handle_directive() { # close/checkin 응답의 지시 처리 — REBOOT 는 즉시 실행
+b64() { # 개행 있는 원문을 statusMeta JSON 문자열 값으로 안전 운반(E3.5-1 봉투 계약 — RaidInventoryParser 와 SSOT)
+    base64 | tr -d '\n'
+}
+
+detect_raid_family() { # $1=서버 동봉 칩 맵("1000:0097=MPT_IR 1000:005d=MEGARAID") — id 의 SSOT 는 서버(RaidChipFamily)
+    IDS=$(lspci -nn -d 1000: 2>/dev/null)
+    FAMILY=""
+    for pair in $1; do
+        if printf '%s' "$IDS" | grep -q "${pair%%=*}"; then FAMILY=${pair#*=}; return 0; fi
+    done
+    return 1
+}
+
+collect_raid_report() { # $1=stepCode $2=응답 바디(raidChips 힌트 운반) — 계열 CLI 원문 채집 → base64 봉투 보고
+    echo "[agent] $1 - collecting card/disk/volume state..."
+    LSPCI=$(lspci -nn -vv -d 1000: 2>/dev/null)
+    LSPCI_B64=$(printf '%s' "$LSPCI" | b64)
+    CHIPS=$(printf '%s' "$2" | get_json_field raidChips)
+    detect_raid_family "$CHIPS" || {
+        report_step "$1" FAILED \
+            "{\"reason\":\"TOOL_MISSING\",\"detail\":\"no supported raid chip (server hint: $CHIPS)\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
+        return 0
+    }
+    case "$FAMILY" in
+    MEGARAID)
+        # storcli64 우선, storcli(alias) 폴백 (사전 조사 §2 · 사용자 확인)
+        TOOL=""
+        command -v storcli64 >/dev/null 2>&1 && TOOL=storcli64
+        [ -z "$TOOL" ] && command -v storcli >/dev/null 2>&1 && TOOL=storcli
+        if [ -z "$TOOL" ]; then
+            report_step "$1" FAILED \
+                "{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64/storcli not found\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
+            return 0
+        fi
+        PD=$("$TOOL" /c0/eall/sall show all J 2>&1); VD=$("$TOOL" /c0/vall show all J 2>&1); C0=$("$TOOL" /c0 show all J 2>&1)
+        META="{\"tool\":\"$TOOL\",\"lspci_b64\":\"$LSPCI_B64\",\"pd_b64\":\"$(printf '%s' "$PD" | b64)\",\"vd_b64\":\"$(printf '%s' "$VD" | b64)\",\"c0_b64\":\"$(printf '%s' "$C0" | b64)\"}"
+        ;;
+    MPT_IR)
+        if ! command -v sas3ircu >/dev/null 2>&1; then
+            report_step "$1" FAILED \
+                "{\"reason\":\"TOOL_MISSING\",\"detail\":\"sas3ircu not found\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
+            return 0
+        fi
+        DISPLAY_OUT=$(sas3ircu 0 display 2>&1)
+        META="{\"tool\":\"sas3ircu\",\"lspci_b64\":\"$LSPCI_B64\",\"display_b64\":\"$(printf '%s' "$DISPLAY_OUT" | b64)\"}"
+        ;;
+    *)
+        report_step "$1" FAILED \
+            "{\"reason\":\"TOOL_MISSING\",\"detail\":\"unknown family $FAMILY (agent adapter missing)\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
+        return 0
+        ;;
+    esac
+    CLOSE_RESP=$(report_step "$1" SUCCEEDED "$META") || return 0
+    echo "[agent] $1 reported ($(printf '%s' "$META" | wc -c | tr -d ' ') bytes)"
+    handle_directive "$(printf '%s' "$CLOSE_RESP" | get_json_field directive)" "$CLOSE_RESP"
+}
+
+do_raid_inventory() { collect_raid_report RAID_INVENTORY_COLLECTING "$1"; }
+do_raid_verify() { collect_raid_report RAID_VERIFYING "$1"; }   # 재채집 = 같은 원문 · step 만 다름(결정 4)
+
+# ── RAID 집행(E3.5-3) — payload(중립 명령)를 계열 어댑터가 CLI 로 번역 ──────────
+# payload 계약(RaidApplyPayload 직렬화 — compact · record 선언 순 고정이 파싱의 전제):
+#   {"deleteExisting":bool,"volumes":[{"name":"spvR1V1","level":"RAID1","slots":["252:0","252:1"]},..],"jbod":["252:4",..]}
+do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
+    BODY=$1
+    echo "[agent] RAID_APPLY - translating neutral plan to family CLI..."
+    DEL=$(printf '%s' "$BODY" | grep -o '"deleteExisting":true' | head -1)
+    VOL_LINES=$(printf '%s' "$BODY" | tr '{' '\n' | sed -n 's/.*"name":"\([^"]*\)","level":"\([^"]*\)","slots":\[\([^]]*\)\].*/\1|\2|\3/p')
+    JBOD=$(printf '%s' "$BODY" | sed -n 's/.*"jbod":\[\([^]]*\)\].*/\1/p' | tr -d '"' | tr ',' ' ')
+
+    CHIPS=$(printf '%s' "$BODY" | get_json_field raidChips)
+    detect_raid_family "$CHIPS" || {
+        report_step RAID_APPLYING FAILED "{\"reason\":\"TOOL_MISSING\",\"detail\":\"no supported raid chip (server hint: $CHIPS)\"}" >/dev/null
+        return 0
+    }
+    LOG=""
+    FAILED_CMD=""
+    run_cli() { # 실행 + 로그 축적 — 첫 실패에서 멈추고 원문을 남긴다(조용히 삼키지 않는다)
+        OUT=$("$@" 2>&1); RC=$?
+        LOG="$LOG\$ $*\n$OUT\n"
+        [ "$RC" -ne 0 ] && FAILED_CMD="$*"
+        return $RC
+    }
+    if [ "$FAMILY" = "MEGARAID" ]; then
+        TOOL=""; command -v storcli64 >/dev/null 2>&1 && TOOL=storcli64
+        [ -z "$TOOL" ] && command -v storcli >/dev/null 2>&1 && TOOL=storcli
+        if [ -z "$TOOL" ]; then
+            report_step RAID_APPLYING FAILED "{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64/storcli not found\"}" >/dev/null
+            return 0
+        fi
+        if [ -n "$DEL" ]; then run_cli "$TOOL" /c0/vall del force || true; fi
+        OK=1
+        for line in $VOL_LINES; do
+            NAME=${line%%|*}; rest=${line#*|}; LEVEL=${rest%%|*}
+            SLOTS=$(printf '%s' "${rest#*|}" | tr -d '"' | tr -d ' ')
+            LV=$(printf '%s' "$LEVEL" | tr 'A-Z' 'a-z')   # RAID1 → raid1
+            EXTRA=""
+            [ "$LEVEL" = "RAID10" ] && EXTRA="pdperarray=2"
+            run_cli "$TOOL" /c0 add vd type="$LV" drives="$SLOTS" name="$NAME" $EXTRA || { OK=0; break; }
+        done
+        if [ "$OK" = 1 ] && [ -n "$JBOD" ]; then
+            for slot in $JBOD; do
+                E=${slot%%:*}; S=${slot#*:}
+                run_cli "$TOOL" "/c0/e$E/s$S" set jbod || { OK=0; break; }
+            done
+        fi
+    elif [ "$FAMILY" = "MPT_IR" ]; then
+        if ! command -v sas3ircu >/dev/null 2>&1; then
+            report_step RAID_APPLYING FAILED "{\"reason\":\"TOOL_MISSING\",\"detail\":\"sas3ircu not found\"}" >/dev/null
+            return 0
+        fi
+        if [ -n "$DEL" ]; then run_cli_yes sas3ircu 0 delete || true; fi
+        OK=1
+        for line in $VOL_LINES; do
+            NAME=${line%%|*}; rest=${line#*|}; LEVEL=${rest%%|*}
+            SLOTS=$(printf '%s' "${rest#*|}" | tr -d '"' | tr ',' ' ')
+            run_cli_yes sas3ircu 0 create "$LEVEL" MAX $SLOTS "$NAME" || { OK=0; break; }
+        done
+        # IR 은 볼륨 미소속 디스크가 곧 단독 노출 — jbod 명령 불요(0-3 조사 §2)
+    else
+        report_step RAID_APPLYING FAILED "{\"reason\":\"TOOL_MISSING\",\"detail\":\"unknown family $FAMILY (agent adapter missing)\"}" >/dev/null
+        return 0
+    fi
+    LOG_B64=$(printf '%b' "$LOG" | b64)
+    if [ "$OK" = 1 ]; then
+        CLOSE_RESP=$(report_step RAID_APPLYING SUCCEEDED "{\"log_b64\":\"$LOG_B64\"}") || return 0
+        echo "[agent] raid apply done"
+        handle_directive "$(printf '%s' "$CLOSE_RESP" | get_json_field directive)" "$CLOSE_RESP"
+    else
+        report_step RAID_APPLYING FAILED "{\"reason\":\"CREATE_REJECTED\",\"detail\":\"$(esc "$FAILED_CMD")\",\"log_b64\":\"$LOG_B64\"}" >/dev/null
+        echo "[agent] raid apply FAILED ($FAILED_CMD)"
+    fi
+}
+
+run_cli_yes() { # sas3ircu 대화형 확인(YES) 자동 응답판 run_cli
+    OUT=$(printf 'YES\n' | "$@" 2>&1); RC=$?
+    LOG="$LOG\$ $*\n$OUT\n"
+    [ "$RC" -ne 0 ] && FAILED_CMD="$*"
+    return $RC
+}
+
+handle_directive() { # $1=지시 $2=응답 바디(RAID_APPLY payload 운반) — REBOOT 는 즉시 실행
     case "${1:-}" in
         REBOOT)
             echo "[agent] REBOOT - leaving diagnose linux, back to iPXE polling"
             sync; sleep 1; reboot ;;
         COLLECT) do_collect ;;
+        RAID_INVENTORY) do_raid_inventory "${2:-}" ;;
+        RAID_APPLY) do_raid_apply "${2:-}" ;;
+        RAID_VERIFY) do_raid_verify "${2:-}" ;;
         *) : ;;   # WAIT / 빈 응답 — 폴링 지속
     esac
 }
@@ -201,9 +345,9 @@ BANNER
 
 # 4. 지시 폴링 루프 (E1-2) — 첫 체크인 응답의 지시부터 처리한 뒤 30초 주기 재체크인.
 #    완주(REBOOT)는 close 응답이 운반하므로(게이트 정합) 이 루프는 수집 전 대기·과도 상태를 돈다.
-handle_directive "$(printf '%s' "$CHECKIN_RESPONSE" | get_json_field directive)"
+handle_directive "$(printf '%s' "$CHECKIN_RESPONSE" | get_json_field directive)" "$CHECKIN_RESPONSE"
 while :; do
     sleep "$POLL_SECONDS"
     RESP=$(post /checkin)
-    handle_directive "$(printf '%s' "$RESP" | get_json_field directive)"
+    handle_directive "$(printf '%s' "$RESP" | get_json_field directive)" "$RESP"
 done

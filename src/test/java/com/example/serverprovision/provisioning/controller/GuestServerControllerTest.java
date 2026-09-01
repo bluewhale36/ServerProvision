@@ -97,13 +97,16 @@ class GuestServerControllerTest {
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
                 null,   // E1-2 — 접촉 관찰 없음 fixture
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
-                        DiscoveryStage.IPXE_REGISTERED, null, null, null, null),
+                        DiscoveryStage.IPXE_REGISTERED, null, null, null, null, null),
                 List.of(),
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now(),
                         null, null, null, null, true, false, false, false, false),   // E1-0a 미개시 + E1-2 액션 플래그 (ES-2: phaseMeta 소멸 · seed phase 파생)
                 null,   // E2-1-b firmwarePlan — 펌웨어 단계 미보유 fixture
-                null,null,    // E2-2 firmwareFlash — 집행 미착수 fixture
+                null,   // E2-2 firmwareFlash — 집행 미착수 fixture
+                null,   // E2-4 firmwareSetting — 집행 미착수 fixture
+                null,   // E3.5-2 raidPlan — 계획 창 밖 fixture
+                List.of(),   // E3.5-4 raidVolumes — 검증 통과 전 fixture
                 List.of());
     }
 
@@ -115,13 +118,16 @@ class GuestServerControllerTest {
                 null,
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "QG260700082",
                         DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null,
-                        IpAddressVO.of("192.168.10.21"), null),
+                        IpAddressVO.of("192.168.10.21"), null, null),
                 List.of(),
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.BOOTSTRAPPING, LocalDateTime.now(), null,
                         null, null, null, true, false, false, false, false),
                 null,   // E2-1-b firmwarePlan
-                null,null,    // E2-2 firmwareFlash
+                null,   // E2-2 firmwareFlash
+                null,   // E2-4 firmwareSetting
+                null,   // E3.5-2 raidPlan
+                List.of(),   // E3.5-4 raidVolumes
                 List.of());
     }
 

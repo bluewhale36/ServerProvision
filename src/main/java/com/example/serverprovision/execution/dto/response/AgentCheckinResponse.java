@@ -1,5 +1,7 @@
 package com.example.serverprovision.execution.dto.response;
 
+import com.example.serverprovision.execution.engine.raid.RaidApplyPayload;
+
 import com.example.serverprovision.execution.enums.AgentDirective;
 
 /**
@@ -9,5 +11,11 @@ import com.example.serverprovision.execution.enums.AgentDirective;
  *                   커널 인자가 아니라 JSON 으로 운반하는 이유: 이름의 공백 · 비 ASCII 가 cmdline
  *                   파싱을 깨는 표면을 만들지 않기 위해(E1-1 plan Q3).
  */
-public record AgentCheckinResponse(AgentDirective directive, String serverName) {
+public record AgentCheckinResponse(AgentDirective directive, String serverName,
+                                   RaidApplyPayload raidApply, String raidChips) {
+
+    /** payload 없는 지시(E3.5-3 이전 호출부 호환). */
+    public AgentCheckinResponse(AgentDirective directive, String serverName) {
+        this(directive, serverName, null, null);
+    }
 }

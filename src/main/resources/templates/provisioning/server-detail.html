@@ -300,6 +300,200 @@
         </div>
     </div>
 
+    <!-- RAID 인벤토리 (읽기 전용, E3.5-1) — lsblk 가 못 보는 카드 뒤를 계열 CLI 보고로 세운다 -->
+    <div class="n-detail-section" data-live="raid-inventory">
+        <div class="n-section-title">RAID 인벤토리</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <th:block th:if="${server.inventory != null and server.inventory.raidInventory != null}"
+                          th:with="raid=${server.inventory.raidInventory}">
+                    <table class="n-detail-table">
+                        <tbody>
+                        <tr>
+                            <th>감지 카드</th>
+                            <td>
+                                <span th:if="${raid.card != null}">
+                                    <span th:text="${raid.card.model != null} ? ${raid.card.model} : '모델 미상'">AVAGO MegaRAID SAS 9361-8i</span>
+                                    <code class="n-mono" th:if="${raid.card.pciSubsystemId != null}"
+                                          th:text="'[' + ${raid.card.pciSubsystemId} + ']'">[1000:9361]</code>
+                                    <span class="n-badge n-badge-gray" th:text="${raid.card.chipFamily}">MEGARAID</span>
+                                    <span class="n-muted" th:if="${raid.card.firmware != null}"
+                                          th:text="'FW ' + ${raid.card.firmware}">FW 4.680.00-8577</span>
+                                </span>
+                                <span th:unless="${raid.card != null}" class="n-muted">카드 미감지</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <table th:if="${not #lists.isEmpty(raid.disks)}" class="n-table" style="margin-top: 16px;">
+                        <thead>
+                        <tr><th colspan="6">물리 디스크</th></tr>
+                        <tr><th>슬롯</th><th>종류</th><th>전송</th><th>용량</th><th>상태</th><th>소속</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="d : ${raid.disks}">
+                            <td><code class="n-mono" th:text="${d.slot}">252:0</code></td>
+                            <td th:text="${d.type != null} ? ${d.type} : '—'">SSD</td>
+                            <td th:text="${d.transport != null} ? ${d.transport} : '—'">SATA</td>
+                            <td th:text="${d.size != null} ? ${d.size} : '—'">446.625 GB</td>
+                            <td th:text="${d.state != null} ? ${d.state} : '—'">Onln</td>
+                            <td th:text="${d.volumeRef != null} ? ${d.volumeRef} : '미소속'">DG0</td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <table th:if="${not #lists.isEmpty(raid.volumes)}" class="n-table" style="margin-top: 16px;">
+                        <thead>
+                        <tr><th colspan="5">기존 볼륨</th></tr>
+                        <tr><th>ID</th><th>레벨</th><th>용량</th><th>상태</th><th>이름</th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="v : ${raid.volumes}">
+                            <td><code class="n-mono" th:text="${v.id}">VD0</code></td>
+                            <td th:text="${v.level != null} ? ${v.level} : '—'">RAID1</td>
+                            <td th:text="${v.size != null} ? ${v.size} : '—'">446.625 GB</td>
+                            <td th:text="${v.state != null} ? ${v.state} : '—'">Optl</td>
+                            <td th:text="${v.name != null and !#strings.isEmpty(v.name)} ? ${v.name} : '(빈 값)'">(빈 값)</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <p th:if="${#lists.isEmpty(raid.volumes)}" class="n-muted" style="margin-top: 12px;">기존 볼륨이 없습니다.</p>
+                </th:block>
+
+                <p th:unless="${server.inventory != null and server.inventory.raidInventory != null}" class="n-detail-empty">
+                    RAID 인벤토리가 아직 없습니다 — RAID 구성 단계에 진입하면 수집됩니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- RAID 구성 계획 (E3.5-2) — 저장 없는 미리보기, 조회 때마다 RaidPlanner 가 재산출 -->
+    <div class="n-detail-section" data-live="raid-plan">
+        <div class="n-section-title">RAID 구성 계획</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <th:block th:if="${server.raidPlan != null}" th:with="rp=${server.raidPlan}">
+                    <p th:if="${rp.policyUndecided}" class="n-muted">
+                        기존 볼륨이 남아 있고 "기존 구성 : 보존 / 파괴" 선택 축은 아직 정의서에 없어(E3.5-4 예정)
+                        두 갈래를 나란히 보입니다.</p>
+                    <div th:each="b, it : ${rp.branches}" th:style="${it.index > 0} ? 'margin-top: 20px;' : ''">
+                        <div th:if="${rp.policyUndecided}" style="font-weight: 600; margin-bottom: 8px;"
+                             th:text="${b.label}">파괴 시</div>
+                        <p th:if="${b.rejectionCode != null}">
+                            <span class="n-badge n-badge-gray" th:text="${b.rejectionCode}">EXISTING_CONFIG</span>
+                            <span class="n-muted" th:text="${b.rejectionDetail}">사유</span></p>
+                        <th:block th:if="${b.rejectionCode == null}">
+                            <p th:if="${b.deleteExistingFirst}" class="n-muted">선행 명령 — 기존 볼륨 전부 삭제(파괴 정책)</p>
+                            <p th:if="${b.osAbsenceReason != null}" class="n-muted" th:text="${b.osAbsenceReason}">OS 지정 없음 사유</p>
+                            <table th:if="${not #lists.isEmpty(b.volumes)}" class="n-table">
+                                <thead>
+                                <tr><th colspan="5">계획 볼륨</th></tr>
+                                <tr><th>이름</th><th>레벨</th><th>멤버 슬롯</th><th>유효 용량</th><th>역할</th></tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="v : ${b.volumes}">
+                                    <td><code class="n-mono" th:text="${v.name}">spvR1V1</code></td>
+                                    <td th:text="${v.level}">RAID1</td>
+                                    <td><code class="n-mono" th:text="${v.members}">252:0 · 252:1</code></td>
+                                    <td th:text="${v.capacity}">479.6 GB</td>
+                                    <td>
+                                        <span th:if="${v.role.name() == 'OS'}" class="n-badge n-badge-green"
+                                              th:text="${v.role.displayName}">OS 영역</span>
+                                        <span th:unless="${v.role.name() == 'OS'}" th:text="${v.role.displayName}">Data 영역</span>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                            <table th:if="${not #lists.isEmpty(b.passthroughs)}" class="n-table" style="margin-top: 12px;">
+                                <thead>
+                                <tr><th colspan="3">단독 디스크 보장 (RAID 없음)</th></tr>
+                                <tr><th>슬롯</th><th>용량</th><th>역할</th></tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="p : ${b.passthroughs}">
+                                    <td><code class="n-mono" th:text="${p.slot}">252:4</code></td>
+                                    <td th:text="${p.capacity}">479.6 GB</td>
+                                    <td>
+                                        <span th:if="${p.role.name() == 'OS'}" class="n-badge n-badge-green"
+                                              th:text="${p.role.displayName}">OS 영역</span>
+                                        <span th:unless="${p.role.name() == 'OS'}" th:text="${p.role.displayName}">Data 영역</span>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                            <p th:if="${#lists.isEmpty(b.volumes) and #lists.isEmpty(b.passthroughs)}" class="n-muted">
+                                만들 볼륨이 없습니다 — 묶음 규칙이 없거나 어느 규칙도 디스크를 소비하지 못했습니다.</p>
+                            <table th:if="${not #lists.isEmpty(b.ruleOutcomes)}" class="n-table" style="margin-top: 12px;">
+                                <thead>
+                                <tr><th colspan="5">규칙 소비</th></tr>
+                                <tr><th>#</th><th>규칙</th><th>매칭</th><th>소비</th><th>볼륨</th></tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="r : ${b.ruleOutcomes}">
+                                    <td th:text="${r.ruleNo}">1</td>
+                                    <td th:text="${r.label}">RAID1 · SSD · SATA · 480 GB · 2개</td>
+                                    <td th:text="${r.matchedDisks} + '대'">2대</td>
+                                    <td>
+                                        <span th:if="${r.consumedNothing}" class="n-badge n-badge-gray">소비 0</span>
+                                        <span th:unless="${r.consumedNothing}" th:text="${r.consumedDisks} + '대'">2대</span>
+                                    </td>
+                                    <td th:text="${r.volumeCount} + '개'">1개</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                            <table th:if="${not #lists.isEmpty(b.unassigned)}" class="n-table" style="margin-top: 12px;">
+                                <thead>
+                                <tr><th colspan="3">미배정 디스크 (그대로 둠)</th></tr>
+                                <tr><th>슬롯</th><th>용량</th><th>사유</th></tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="u : ${b.unassigned}">
+                                    <td><code class="n-mono" th:text="${u.slot}">252:7</code></td>
+                                    <td th:text="${u.size != null} ? ${u.size} : '—'">446.625 GB</td>
+                                    <td class="n-muted" th:text="${u.reason}">어느 규칙의 조건에도 맞지 않습니다</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </th:block>
+                    </div>
+                </th:block>
+                <p th:unless="${server.raidPlan != null}" class="n-detail-empty">
+                    계획이 아직 없습니다 — RAID 인벤토리가 수집되고 정의서에 RAID 구성 단계가 있으면 조회 때마다 산출됩니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- RAID 구성 실물 (E3.5-4) — 검증을 통과해 raid_volume 에 기록된 현재 실물. 계획(무저장 파생)과 구분된다 -->
+    <div class="n-detail-section" data-live="raid-volumes">
+        <div class="n-section-title">RAID 구성 실물</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <table th:if="${not #lists.isEmpty(server.raidVolumes)}" class="n-table">
+                    <thead>
+                    <tr><th>이름</th><th>레벨</th><th>멤버 슬롯</th><th>유효 용량</th><th>역할</th><th>상태</th><th>WWN</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="v : ${server.raidVolumes}">
+                        <td><code class="n-mono" th:text="${v.name}">spvR1V1</code></td>
+                        <td th:text="${v.level}">RAID1</td>
+                        <td><code class="n-mono" th:text="${v.members}">252:0 · 252:1</code></td>
+                        <td th:text="${v.capacity}">479.6 GB</td>
+                        <td>
+                            <span th:if="${v.role.name() == 'OS'}" class="n-badge n-badge-green"
+                                  th:text="${v.role.displayName}">OS 영역</span>
+                            <span th:unless="${v.role.name() == 'OS'}" th:text="${v.role.displayName}">Data 영역</span>
+                        </td>
+                        <td th:text="${v.state != null} ? ${v.state} : '—'">Optl</td>
+                        <td><code class="n-mono" th:text="${v.wwn != null} ? ${v.wwn} : '—'">600605b0…</code></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p th:if="${#lists.isEmpty(server.raidVolumes)}" class="n-detail-empty">
+                    검증을 통과한 RAID 구성이 아직 없습니다 — 집행과 검증이 끝나면 여기에 기록됩니다.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- 호스트 NIC (읽기 전용) -->
     <div class="n-detail-section" data-live="nics">
         <div class="n-section-title">호스트 NIC (호스트 IP)</div>

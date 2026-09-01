@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E3.5-1 Plan — RAID 인벤토리</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : N-actor 흐름 ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3) — 데스크톱 무변경 ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E3.5-1 — RAID 인벤토리 <span class="v2-badge">E3.5 · 1/4</span></h1>
+  <p style="margin:0 0 8px; font-size:13px; color:var(--text-muted);">RAID phase 의 첫 실물 — 게스트가 카드 뒤를 보고하고, 서버가 해석해 화면에 세운다</p>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E3.5-1 (feature)</span>
+    <span><strong>상위</strong> E3.5 (RAID 구성)</span>
+    <span><strong>브랜치</strong> <code>feat/E3.5-1_raid-inventory</code></span>
+    <span><strong>scope</strong> RAID phase 첫 실행기 + 카드 뒤 인벤토리 수집 · 적재 · 표시</span>
+    <span><strong>작성</strong> 2026-08-31 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;"><code>ProvisioningPhase.RAID_CONFIGURATION</code> 은 U4-1-1 v2 가 신설했지만 실행기가 없다. 그래서 이 phase 에 커서가 놓인 게스트는 dispatch 의 6행 HOLD 로 떨어져 "not implemented yet" iPXE 대기 스크립트를 받는다. 게스트 주도 집행의 기반은 이미 다 있으므로, 이 슬라이스가 채워야 할 것은 <b>실행기 하나와 그 실행기가 내리는 지시가 게스트에게 닿는 경로</b> 둘이다.</p>
+
+        <h4>진입 전 자산 점검</h4>
+        <table>
+          <thead><tr><th>자산</th><th>현재 상태</th><th>이번 관계</th></tr></thead>
+          <tbody>
+            <tr><td><code>ProvisioningPhase.RAID_CONFIGURATION</code></td><td>실행기 없음 → dispatch 6행 HOLD</td><td>실행기 등록으로 해소</td></tr>
+            <tr><td><code>agent.sh</code> · <code>GuestAgentRestController</code> · <code>AgentReportService</code></td><td>체크인 · step open/close · 지시 루프 완비 (<code>/api/pxe/v1/agent/*</code>, <code>X-Guest-Token</code>)</td><td>그대로 재사용 · 지시 값 하나만 추가</td></tr>
+            <tr><td><code>ProvisioningPhaseExecutor</code> SPI · <code>PhaseCursorAdvancer</code></td><td>빈 등록 = HOLD → 위임 · 전진 · 종단 판정의 단일 출처</td><td>위임 지점에 <code>directiveFor</code> 기본 메서드 추가</td></tr>
+            <tr><td><code>AgentReportService.directiveFor</code></td><td>진단 phase 상수에 묶임 — <code>커서.ordinal() &gt; DIAGNOSE_LINUX → REBOOT</code></td><td>다형 위임으로 정정 (D-2)</td></tr>
+            <tr><td><code>HardwareSpec.DiskInfo</code></td><td><code>lsblk -d</code> 가시 장치뿐 — MegaRAID 는 VD 만, IR 은 볼륨 멤버를 감춘다 (Javadoc 의 OPEN-1)</td><td>카드 뒤 물리 디스크는 새 수집 경로로</td></tr>
+            <tr><td><code>RaidConfigurationRequest</code></td><td><code>AssignedProcessSnapshot.payload</code> 로 동결 — <code>raidCardId</code> · <code>diskGroups</code> · <code>volumePriorities</code></td><td>이번엔 카드 지정만 SPI 로 읽음</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout danger"><b>핵심 진단 — 실행기만 등록해서는 루프가 풀리지 않는다.</b><br>
+          RAID phase 커서를 가진 게스트가 진단 리눅스로 부팅해 체크인하면, 현행 판정은 "커서가 진단 phase 를 넘어섰다" 는 이유 하나로 <code>REBOOT</code> 를 돌려준다. 게스트는 다시 부팅하고 다시 체크인해 다시 <code>REBOOT</code> 를 받는다 — 부팅 · 체크인 · 재부팅이 끝나지 않는다. 0-3 결정 <b>D-2</b> 가 이 정정(지시 판정의 실행기 다형화)을 확정했고, 이번 슬라이스의 R1 이 그 이행이다.</div>
+
+        <h4>08-31 실측으로 확정된 사실</h4>
+        <table>
+          <thead><tr><th>축</th><th>GIGABYTE CRA3338</th><th>AVAGO MegaRAID 9361-8i</th></tr></thead>
+          <tbody>
+            <tr><td>칩 Vendor:Device</td><td><code>1000:0097</code></td><td><code>1000:005d</code></td></tr>
+            <tr><td>카드 Subsystem</td><td><code>1458:3008</code></td><td><code>1000:9361</code></td></tr>
+            <tr><td>CLI</td><td><code>sas3ircu</code> 04.00</td><td><code>storcli64</code> 007.2508 (<code>/usr/bin/storcli</code> 는 alias — 사용자 확인)</td></tr>
+            <tr><td>실물 구성</td><td>SAS HDD 4TB ×2 → IR RAID1 볼륨 1</td><td>SSD SATA ×2 + HDD SAS ×6 → VD 2</td></tr>
+          </tbody>
+        </table>
+        <p>분별은 두 값을 나눠 쓴다 — <b>Vendor:Device 로 칩 계열</b>(제어 계열 · 드라이버 · CLI)을, <b>Subsystem 으로 카드 상품</b>(MA7 자원 <code>RaidCard.pciSubsystemId</code> 대조)을 정한다. 9361 서버 실측에서 <code>lsblk</code> 에는 VD 2개(<code>MR9361-8i</code>)만 보였고 물리 8대는 <code>storcli</code> 로만 보였다 — 카드 뒤가 지금 보이지 않는다는 진단의 실물 근거다. BMC Redfish 경로는 두 실서버 모두 <code>Members@odata.count: 0</code> 으로 사전 조사에서 종결됐다. 실물 원문 20파일은 호스트 <code>~/e35-fieldwork/</code> 에 있고, CP2 에서 저장소 픽스처로 옮긴다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>R1 지시 다형화 (D-2)</b> — <code>ProvisioningPhaseExecutor.directiveFor(server, progress)</code> 기본 메서드를 신설한다(기본값 <code>REBOOT</code>). <code>AgentReportService</code> 에는 셋만 남는다: 종단이면 <code>REBOOT</code> · 커서 phase 실행기가 있으면 위임 · 미등록 phase 면 <code>REBOOT</code>. <code>DiagnoseLinuxExecutor</code> 가 현행 규칙(미수집이면 <code>COLLECT</code> · 그 외 <code>WAIT</code>)을 override 로 옮겨받는다 — <b>동작은 바뀌지 않으며 기존 테스트가 그 증인</b>이다.</li>
+          <li><b>R2 <code>RaidConfigurationExecutor</code> 신설</b> — <code>phase()</code> 는 <code>RAID_CONFIGURATION</code>, <code>bootScript</code> 는 진단 Alpine 체인로드(R3 공용 빌더), <code>directiveFor</code> 는 이 phase 의 인벤토리 성공 행이 원장에 없으면 신규 지시 <code>RAID_INVENTORY</code> · 있으면 <code>WAIT</code>, <code>onStepClosed</code> 는 인벤토리 보고 소비(R5 · R6).</li>
+          <li><b>R3 부팅 스크립트 공용화</b> — <code>DiagnoseLinuxExecutor</code> 안의 체인로드 text block 을 공용 빌더(예: <code>execution.engine.boot.DiagnoseLinuxBootScript</code> static 팩토리 — 토큰 · base URL 인자)로 추출해 두 실행기가 함께 쓴다. "갈라지는 시점에 분리" 의 그 시점이 지금이다.</li>
+          <li><b>R4 에이전트 인벤토리 수집</b> — <code>agent.sh</code> 가 <code>RAID_INVENTORY</code> 지시를 처리한다. <code>lspci -n</code> 으로 칩을 판별(<code>1000:0097</code> → <code>sas3ircu</code> / <code>1000:005d</code> → <code>storcli64</code> 우선 · <code>storcli</code>(alias) 폴백 탐색)하고 원문을 채집해(<code>storcli</code>: <code>/c0 show all J</code> · <code>/c0/eall/sall show all J</code> · <code>/c0/vall show all J</code> / <code>sas3ircu</code>: <code>0 display</code>) <code>RAID_INVENTORY_COLLECTING</code> step 의 statusMeta 로 통째 보고한다 — 진단 수집과 같은 "원문 보고 · 서버 파싱" 계약이다. 도구가 없거나 실행이 실패하면 <code>FAILED</code> + 사유 문자열. 두 바이너리는 <code>build-assets.sh</code> 의 apkovl 에 동봉한다(D-11 — 실행 여부는 CP5 실측).</li>
+          <li><b>R5 서버 파서</b> — <code>RaidInventoryParser</code>(신설 패키지 <code>execution.engine.raid</code>)가 <code>storcli</code> JSON(tools.jackson)과 <code>sas3ircu</code> 텍스트를 정규화 Value Object 로 옮긴다. 관용 원칙 — 모르는 필드는 무시하고, 해석 불가한 항목은 적재를 생략하며, 원문은 원장에 보존한다. 파서 픽스처는 <b>실측 원문</b>이다(CP2 에서 <code>src/test/resources/</code> 배치).</li>
+          <li><b>R6 카드 대조 + 적재 + 화면</b> — 소비 훅이 ① 파싱 ② 활성 할당의 RAID payload 를 SPI 로 읽어(R7) <code>raidCardId</code> 카드의 <code>pciSubsystemId</code> 와 감지 Subsystem 을 대조 — 불일치면 원장 <code>FAILED</code> <code>CARD_MISMATCH</code> + <code>markFailed</code>, 카드 미지정(null)이면 대조 생략 ③ 정합이면 인벤토리 JSON 적재 ④ 게스트 상세에 "RAID 인벤토리" 섹션(카드 한 줄 + 물리 디스크 표 + 기존 볼륨 표) 렌더. 카드를 지정했는데 <code>lspci</code> 에 없으면 <code>CARD_NOT_DETECTED</code>, 도구 실패는 <code>TOOL_MISSING</code> — 사유 코드는 E3 <code>SettingLedger</code> 관례를 따른 <code>RaidLedger</code> 최소본으로 표현한다.</li>
+          <li><b>R7 SPI</b> — <code>RaidConfigurationResolutionProvider</code> 를 execution 이 선언하고 provisioning 이 구현한다(<code>BiosSettingResolutionProviderImpl</code> 과 같은 자리). 활성 스냅샷에서 <code>RaidConfigurationTarget</code> 을 <code>Optional</code> 로 공급한다. 규칙 목록까지 넘기는 확장은 E3.5-2 다.</li>
+          <li><b>R8 step 3분할 DDL (D-10)</b> — <code>ProvisioningPhaseStep</code> 의 <code>RAID_CONFIGURATION</code> 을 <code>RAID_INVENTORY_COLLECTING</code> · <code>RAID_APPLYING</code> · <code>RAID_VERIFYING</code> 으로 교체한다(§8 D-1). DDL 은 ENUM 값 3 추가 + <code>RAID_CONFIGURATION</code> 제거(적재 행 0 확인 후)이며, 대상은 U4-1-1 DDL 이 만든 step ENUM 컬럼이다.</li>
+        </ol>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>계획 산출(매칭) — <b>E3.5-2</b>. 볼륨 생성 · 멱등 · <code>raid_volume</code> 표 — <b>E3.5-3</b>. E4 인계 · 정의서 "기존 구성" 축 — <b>E3.5-4</b>.</li>
+            <li><b>인벤토리 성공 후 phase 전진 없음</b> — 계획 단계가 아직 없으므로 게스트는 <code>WAIT</code> 로 명시 대기한다. HOLD 보다 한 걸음 나아간 상태이며, 화면이 그 사실을 보인다.</li>
+            <li>IR 볼륨 이름 규약(영숫자 제약) 결정 — <b>E3.5-3</b> plan. 이 슬라이스는 이름을 원문 그대로 보여줄 뿐이다.</li>
+            <li>Redfish — 사전 조사에서 종결.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — RAID phase 한 바퀴 · 인벤토리까지</summary>
+      <div class="body">
+        <p style="margin-top:0;">왼쪽은 <b>게스트 · 에이전트</b>, 오른쪽은 <b>프로비저닝 서버</b> 다. 서버 구성 프리셋과 정의서의 카드 지정을 바꿔 가며 <b>부팅 → 체크인 → 인벤토리 보고</b> 를 눌러 보면, 서버가 어떤 지시를 내리고 무엇을 근거로 적재하거나 거절하는지가 그대로 드러난다. <b>처음이라면 아래 원클릭 시나리오 5 개를 순서대로 눌러 보는 편이 빠르다</b> — 세팅과 안내 배너가 함께 붙는다. 툴바를 바꾸면 진행 중인 한 바퀴는 초기화된다.</p>
+        <p>판정 JS 는 서버 도메인 규칙과 1:1 이다 — <code>demoDirective()</code> 가 <code>AgentReportService.directiveFor</code> 의 위임을, <code>demoConsume()</code> 이 <code>RaidConfigurationExecutor.onStepClosed</code> 의 카드 대조를 같은 순서로 재현한다. 버튼의 disabled 사유(마우스를 올리면 tooltip)도 같은 판정에서 나온다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">서버 구성 :</span>
+            <button class="seg" data-preset="P9361" onclick="demoSet('preset','P9361')">9361 서버</button>
+            <button class="seg" data-preset="PCRA" onclick="demoSet('preset','PCRA')">CRA 서버</button>
+            <button class="seg" data-preset="PNONE" onclick="demoSet('preset','PNONE')">카드 없음</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">정의서 카드 지정 :</span>
+            <button class="seg" data-target="T9361" onclick="demoSet('target','T9361')">9361-8i</button>
+            <button class="seg" data-target="TCRA" onclick="demoSet('target','TCRA')">CRA3338</button>
+            <button class="seg" data-target="TNONE" onclick="demoSet('target','TNONE')">미지정</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">에이전트 CLI 도구 :</span>
+            <button class="seg" data-tool="OK" onclick="demoSet('tool','OK')">정상</button>
+            <button class="seg" data-tool="FAIL" onclick="demoSet('tool','FAIL')">실행 실패</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">지시 판정 :</span>
+            <button class="seg" data-rule="NEW" onclick="demoSet('rule','NEW')">현행 — 실행기 다형</button>
+            <button class="seg" data-rule="LEGACY" onclick="demoSet('rule','LEGACY')">정정 전 규칙</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">원클릭 시나리오 :</span>
+            <button class="n-demo-btn" onclick="demoScenario('sc1')">① 정합 수집</button>
+            <button class="n-demo-btn" onclick="demoScenario('sc2')">② 카드 불일치</button>
+            <button class="n-demo-btn" onclick="demoScenario('sc3')">③ 카드 미지정</button>
+            <button class="n-demo-btn" onclick="demoScenario('sc4')">④ 정정 전 REBOOT 루프</button>
+            <button class="n-demo-btn" onclick="demoScenario('sc5')">⑤ 도구 실패</button>
+          </div>
+          <div class="ux-toolbar" style="margin-top:10px;">
+            <span class="group-label">게스트 조작 :</span>
+            <span id="demo-actions"></span>
+          </div>
+
+          <div class="ux-message" id="demo-banner">시나리오 버튼을 누르거나, 위 툴바로 상황을 만든 뒤 <b>부팅</b> 부터 눌러보세요.</div>
+
+          <div class="card-grid">
+            <div class="card v-blue">
+              <h4>게스트 · 에이전트 콘솔</h4>
+              <div class="ux-caps" id="demo-console"></div>
+            </div>
+            <div class="card v-green">
+              <h4>프로비저닝 서버</h4>
+              <div id="demo-ledger"></div>
+              <div class="ux-caps" id="demo-judge"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h4>게스트 서버 상세 — RAID 인벤토리</h4>
+            <div id="demo-detail"></div>
+          </div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 지시 판정 = <code>RaidConfigurationExecutor.directiveFor</code>, 데모의 대조 판정 = <code>onStepClosed</code> 의 Subsystem 비교. 화면 버튼의 disabled 사유와 서버가 내리는 사유 코드가 같은 함수에서 나온다.</div>
+        <p><code>CARD_NOT_DETECTED</code> 는 시나리오에 없으니 직접 만들어 보면 된다 — 서버 구성을 <b>카드 없음</b> 으로, 정의서 카드 지정을 <b>9361-8i</b> 로 두고 한 바퀴 돌리면 그 사유가 나온다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/checkin</code> · <code>/steps</code> · <code>/steps/{id}/close</code></td><td>URL 무변경 — 응답 <code>directive</code> 에 새 값 <code>RAID_INVENTORY</code> 가 실릴 수 있다</td></tr>
+            <tr><td>GET</td><td><code>/api/pxe/v1/boot</code></td><td>RAID phase 커서면 진단 체인로드 스크립트(공용 빌더)를 낸다</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/{id}</code></td><td>상세에 "RAID 인벤토리" 섹션 추가</td></tr>
+          </tbody>
+        </table>
+
+        <h4>한 바퀴의 시간 흐름</h4>
+        <div class="seq">
+          <div class="actor a1">게스트 · 에이전트</div><div class="actor a2">서버 · Agent API</div><div class="actor a3">실행기 · 파서 · 적재</div>
+
+          <div class="step a1"><code>GET /api/pxe/v1/boot</code></div>
+          <div class="step a2">커서 phase 조회 · dispatch</div>
+          <div class="step a3"><code>RaidConfigurationExecutor.bootScript</code> → 공용 빌더</div>
+
+          <div class="step a1">진단 Alpine 부팅 · <code>agent.sh</code> 기동</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"><code>POST /agent/checkin</code></div>
+          <div class="step a2"><code>AgentReportService</code> 게이트</div>
+          <div class="step a3"><code>directiveFor</code> → <code>RAID_INVENTORY</code></div>
+
+          <div class="step a1"><code>lspci -n</code> 칩 판별 → <code>storcli</code> · <code>sas3ircu</code> 채집</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"><code>POST /agent/steps</code></div>
+          <div class="step a2">커서 phase 검사 · 원장 open</div>
+          <div class="step a3"></div>
+
+          <div class="step a1"><code>POST /agent/steps/{id}/close</code> · statusMeta = 원문</div>
+          <div class="step a2">소비 위임</div>
+          <div class="step a3"><code>RaidInventoryParser</code> → SPI 카드 대조 → 적재 또는 FAILED</div>
+
+          <div class="step a1">응답 <code>WAIT</code> 로 명시 대기</div>
+          <div class="step a2">close 응답</div>
+          <div class="step a3">상세 화면 갱신 (S7 스트림이 그대로 밀어준다)</div>
+        </div>
+        <p>지시는 <b>값 하나</b>만 오간다. 계획을 줄 단위로 내려보내는 GET 엔드포인트는 이번에 만들지 않는다(§8 D-3) — 그 payload 가 필요한 첫 실물은 E3.5-2 의 계획 전달이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>신규 enum 값</h4>
+        <table>
+          <thead><tr><th>대상</th><th>값</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>AgentDirective</code></td><td><span class="chip add">+1</span> <code>RAID_INVENTORY</code></td><td>에이전트가 인벤토리를 채집해 보고하라는 지시</td></tr>
+            <tr><td><code>ProvisioningPhaseStep</code></td><td><span class="chip add">+3</span> <code>RAID_INVENTORY_COLLECTING</code> · <code>RAID_APPLYING</code> · <code>RAID_VERIFYING</code><br><span class="chip del">−1</span> <code>RAID_CONFIGURATION</code></td><td>§8 D-1 — 교체. 이번 슬라이스가 실제로 쓰는 것은 첫 값 하나</td></tr>
+          </tbody>
+        </table>
+
+        <h4>정규화 Value Object (<code>execution.engine.raid</code>)</h4>
+        <table>
+          <thead><tr><th>타입</th><th>필드</th><th>원문 출처</th></tr></thead>
+          <tbody>
+            <tr><td><code>DetectedRaidCard</code></td><td><code>chipFamily</code> · <code>pciSubsystemId</code> · <code>model</code> · <code>firmware</code></td><td><code>lspci -n</code> + CLI 의 카드 절</td></tr>
+            <tr><td><code>RaidPhysicalDisk</code></td><td><code>slot</code> · <code>type</code> · <code>transport</code> · <code>capacityBytes</code> · <code>state</code> · <code>model</code> · <code>serial</code></td><td><code>storcli /c0/eall/sall show all J</code> · <code>sas3ircu 0 display</code></td></tr>
+            <tr><td><code>RaidExistingVolume</code></td><td><code>id</code> · <code>level</code> · <code>sizeBytes</code> · <code>name</code> · <code>memberSlots</code></td><td><code>storcli /c0/vall show all J</code> · <code>sas3ircu 0 display</code></td></tr>
+            <tr><td><code>RaidChipFamily</code> (enum)</td><td><code>MPT_IR</code> · <code>MEGARAID</code></td><td>Vendor:Device 판별 결과</td></tr>
+          </tbody>
+        </table>
+        <p><code>slot</code> 은 계열마다 표기가 다르다 — MegaRAID 는 <code>EID:Slt</code>, IR 은 <code>Encl:Bay</code> 다. 값은 원문 표기를 유지하고, 계열은 <code>chipFamily</code> 가 들고 있으므로 화면과 후속 매칭이 어느 표기인지 알 수 있다.</p>
+
+        <h4>SPI — <code>RaidConfigurationResolutionProvider</code></h4>
+        <p>execution 이 인터페이스를 선언하고 provisioning 이 구현한다. 활성 스냅샷에서 <code>Optional&lt;RaidConfigurationTarget&gt;</code> 을 공급하며, 메서드 시그니처는 <code>BiosSettingResolutionProvider</code> 의 형태를 따라 CP2 에서 확정한다.</p>
+        <table>
+          <thead><tr><th><code>RaidConfigurationTarget</code> 필드</th><th>의미</th></tr></thead>
+          <tbody>
+            <tr><td><code>raidCardId</code></td><td>정의서가 지정한 MA7 <code>RaidCard</code> 소프트참조</td></tr>
+            <tr><td><code>cardSubsystemId</code></td><td>대조 기준값 — <code>RaidCard.pciSubsystemId</code></td></tr>
+            <tr><td><code>cardModelName</code></td><td>화면 표기용 카드 이름</td></tr>
+          </tbody>
+        </table>
+
+        <h4>적재 위치 (§8 D-2)</h4>
+        <div class="state-flow">원문(statusMeta)  ──파싱──▶  정규화 VO  ──직렬화──▶  guest_server_detail.raid_inventory_json
+                                                        │
+                                                        └─▶ GuestServerDetail.enrichRaidInventory(...)</div>
+        <p>컬럼은 <code>longtext</code> · null 허용이다. 엔티티 신설은 없다 — <code>raid_volume</code> 전용 표는 E3.5-3 소관이다. 원문 자체는 원장(statusMeta)에 그대로 남으므로, 파서가 놓친 필드가 나중에 필요해져도 재해석할 근거가 사라지지 않는다.</p>
+
+        <div class="pkg-tree">com.example.serverprovision.execution.engine/
+├── boot/
+│   └── DiagnoseLinuxBootScript.java     (신규 — R3 공용 빌더 · 이름 예시)
+└── raid/                                (신규 패키지)
+    ├── RaidConfigurationExecutor.java   (phase · bootScript · directiveFor · onStepClosed)
+    ├── RaidInventoryParser.java         (storcli JSON · sas3ircu 텍스트 → VO)
+    ├── RaidLedger.java                  (사유 코드 최소본)
+    ├── RaidConfigurationResolutionProvider.java   (SPI 선언)
+    └── vo/  DetectedRaidCard · RaidPhysicalDisk · RaidExistingVolume · RaidChipFamily</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td>뷰 — 상세 "RAID 인벤토리" 섹션 fragment</td><td><span class="chip cp2">CP2</span></td><td rowspan="4">보고 (무중단)</td></tr>
+            <tr><td>3</td><td>Controller <span class="chip keep">무변경</span> — 응답에 지시 값만 실린다</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>4</td><td>DTO — <code>AgentCheckinResponse</code> · <code>StepCloseResponse</code> <span class="chip keep">무변경</span>(enum 값만 추가)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td>Service 시그니처 — SPI · 파서 · 실행기</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6</td><td>Repository <span class="chip keep">무변경</span></td><td><span class="chip cp3">CP3</span></td><td rowspan="2">보고 (무중단)</td></tr>
+            <tr><td>7</td><td>Entity — <code>GuestServerDetail</code> 필드 1</td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8</td><td>Service 본체 (테스트 코드 제외)</td><td><span class="chip cp4">CP4</span></td><td rowspan="2">중간 승인 — main 코드 검수</td></tr>
+            <tr><td>9</td><td>스키마 — DDL 2문 (step ENUM 교체 · detail 컬럼)</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>CP5 검증 — <b>E 단계 예외</b>: 하네스 + 상세 화면 브라우저</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>E 단계 일괄 실기 — 다른 E 슬라이스와 함께</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계마다 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하고, 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 테스트</h4>
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>RaidInventoryParser</code></td><td>storcli 원문 3종 파싱 / <code>sas3ircu 0 display</code> 파싱 / 손상 · 미지 필드 관용(적재 생략)</td><td>3</td></tr>
+            <tr><td><code>RaidConfigurationExecutor.directiveFor</code></td><td>원장에 성공 행 없음 → <code>RAID_INVENTORY</code> / 있음 → <code>WAIT</code></td><td>2</td></tr>
+            <tr><td><code>DiagnoseLinuxExecutor.directiveFor</code></td><td>규칙 이사 검증 — 미수집 → <code>COLLECT</code> / 그 외 → <code>WAIT</code></td><td>2</td></tr>
+            <tr><td>공용 부팅 빌더</td><td>토큰 · base URL 이 체인로드 스크립트에 반영된다</td><td>1</td></tr>
+          </tbody>
+        </table>
+
+        <h4>사용자 액션 통합 테스트 (<code>@WebMvcTest</code> + <code>MockMvc</code>)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>RAID 커서 게스트의 checkin 이 <code>RAID_INVENTORY</code> 를 받는다 / 인벤토리 close(성공) 후 <code>WAIT</code> / 진단 게스트 동작 무변경(회귀)</td><td>3</td></tr>
+            <tr><td>2xx + 원장 FAILED</td><td><code>CARD_MISMATCH</code> 경로 — close 소비가 FAILED 원장 행 + <code>markFailed</code> 를 남긴다</td><td>1</td></tr>
+            <tr><td>409</td><td>커서 phase 밖 step open — 기존 게이트 회귀</td><td>1</td></tr>
+            <tr><td>404</td><td>해당 없음 — 신규 <code>NotFoundException</code> 하위가 0 이고 기존 조회 경로는 무변경</td><td>0</td></tr>
+            <tr><td>400</td><td>해당 없음 — 신규 요청 필드가 없어(Step 4 DTO 무변경) 바인딩 실패 케이스가 늘지 않는다</td><td>0</td></tr>
+            <tr><td>500</td><td>해당 없음 — 수집 실패는 예외가 아니라 원장 사유 코드로 흡수된다(§7)</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <p>위 수는 이 계획이 열거한 시나리오 줄 수이며, 실제 테스트 메서드 수는 픽스처 조합에 따라 이보다 늘 수 있다. 신규 예외 클래스가 없으므로 "새 예외마다 트리거 시나리오 추가" 규율에 해당하는 항목은 없고, 대신 <b>새 사유 코드 4개가 각각 어디서 나는지</b>를 단위(파서 · 대조) 또는 CP5(§9 B1~B3)에서 실증한다.</p>
+        <p>하네스 <code>scripts/mock-guest/raid-inventory-cycle.sh</code> 가 실측 픽스처 원문을 statusMeta 로 보고하는 한 바퀴를 재연한다. 이것은 CP5 의 수단이지 Step 8 테스트 규율을 대체하지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <div class="callout success"><b>신규 예외 0.</b> 수집 실패는 프로그램 예외가 아니라 <b>게스트가 보고한 결과</b>다 — 전부 <code>RaidLedger</code> 사유 코드와 <code>markFailed</code> 로 표현한다(E3 <code>SettingLedger</code> 관례). HTTP 응답은 close 를 정상 수신했으므로 2xx 이며, 실패 사실은 원장과 화면에 남는다.</div>
+        <table>
+          <thead><tr><th>사유 코드</th><th>발생 지점</th><th>화면</th></tr></thead>
+          <tbody>
+            <tr><td><code>CARD_MISMATCH</code></td><td>감지 Subsystem ≠ 정의서 지정 카드</td><td>실패 사유 + 재개 안내</td></tr>
+            <tr><td><code>CARD_NOT_DETECTED</code></td><td>카드를 지정했으나 <code>lspci</code> 에 없음</td><td>실패 사유 + 재개 안내</td></tr>
+            <tr><td><code>TOOL_MISSING</code></td><td>에이전트가 CLI 를 찾지 못하거나 실행 실패</td><td>실패 사유 + 재개 안내</td></tr>
+            <tr><td><code>REPORT_UNPARSABLE</code></td><td>파서가 원문을 해석하지 못함 (원문은 원장 보존)</td><td>실패 사유 + 재개 안내</td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>재사용 예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>커서 phase 밖 step open 게이트 — 클래스명은 CP2 착수 시 실측 확정</td><td>409</td><td><span class="chip keep">재사용 · 무변경</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>결정 (채택 · 탈락)</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택</th><th>탈락</th></tr></thead>
+          <tbody>
+            <tr><td>D-1</td><td>step 상수</td><td><code>RAID_CONFIGURATION</code> → 3 상수로 <b>교체</b></td><td>유지 + 3 추가 · <code>RAID_CONFIGURATION</code> 을 APPLYING 의미로 재사용</td></tr>
+            <tr><td>D-2</td><td>인벤토리 적재 위치</td><td><code>guest_server_detail.raid_inventory_json</code></td><td>원장 statusMeta 만 · <code>hardware_spec</code> JSON 에 합침</td></tr>
+            <tr><td>D-3</td><td>지시 payload</td><td>이번엔 값만 (<code>RAID_INVENTORY</code>)</td><td>계획 전달용 GET 엔드포인트를 지금 미리 신설</td></tr>
+            <tr><td>D-4</td><td>파서 위치</td><td>서버 <code>RaidInventoryParser</code> — 원문 보고 · 서버 파싱</td><td>에이전트가 정규화 JSON 을 조립해 보고</td></tr>
+            <tr><td>D-5</td><td>원장 기록 주체</td><td>에이전트가 open/close(진단과 동일) + 서버 소비 훅이 판정 기록</td><td>서버 워커가 별도로 기록</td></tr>
+          </tbody>
+        </table>
+        <p><b>D-1</b> — 커서 pre-position(<code>PhaseCursorAdvancer</code> 의 phase 진입 step)이 첫 step 을 가리키므로 진입 step 은 <code>RAID_INVENTORY_COLLECTING</code> 이어야 한다. <code>RAID_CONFIGURATION</code> 상수를 남기면 "phase 이름과 같은 유령 step" 이 화면과 원장에 계속 보인다. 실 DB 와 샌드박스 모두 이 step 의 적재 행이 0 이라(그 phase 에 도달한 게스트가 없고 DDL 로 값만 존재) 교체가 안전하며, DDL 은 값 추가 후 제거 순서로 적는다.</p>
+        <p><b>D-2</b> — 상세 화면과 후속 슬라이스(계획 산출이 최신 인벤토리를 입력으로 받는다)가 조회할 자리가 필요하다. 원장 statusMeta 는 원문 보존용이지 조회 모델이 아니다. <code>hardware_spec</code> 에 합치면 갱신 주기가 얽힌다 — 진단 수집은 등록 시점, RAID 인벤토리는 phase 진입 시점이다.</p>
+        <p><b>D-3</b> — "미리 분리 금지" 를 그대로 적용했다. payload 가 필요한 첫 실물은 E3.5-2 의 계획 전달이므로 그때 만든다. <b>D-4</b> — 진단 수집과 같은 관례이고, 파서를 서버에 두면 실측 원문 픽스처로 단위 테스트가 된다. <b>D-5</b> — 게이트(커서 phase 검사) · 멱등(중복 close 는 no-op) · S7 신호가 전부 기존 경로에 이미 있다.</p>
+
+        <h4>주의</h4>
+        <div class="callout warn">에이전트가 채집한 원문(수십 KB)이 statusMeta 문자열 컬럼에 실린다. 진단 수집과 같은 계약이므로 새 설계는 필요 없지만, <b>크기 상한은 CP5 에서 실측 확인</b>한다. <code>provision.execution</code> 계열 신규 설정은 없다.</div>
+
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>처리</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>apkovl 에 넣을 바이너리의 라이선스 파일 동봉 여부 (Broadcom EULA)</td><td><b>불요로 확정</b> — CP1 승인 시 사용자 지시(2026-08-31). CP5 실측 통과 후 apkovl 을 갱신 산출해 CP7 실기가 같은 이미지를 재확인한다(사용자 지시)</td></tr>
+            <tr><td>Q2</td><td>두 바이너리가 Alpine(musl)에서 실행되는가</td><td>CP5 실측 후 판정 — 불가 시 <code>gcompat</code> → 배포판 변경 순으로 에스컬레이션 (D-11)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <p style="margin-top:0;">CP5 는 E 단계 예외를 적용한다 — 게스트 쪽은 하네스로, 관리자 화면(상세의 RAID 인벤토리 섹션)은 브라우저로 검증한다. 항목 <b>10</b> 개, 스크린샷은 식별자와 1:1. 수행은 Opus 하위 에이전트가 하고 결함은 <b>고치지 않고 보고만</b> 한다.</p>
+        <table>
+          <thead><tr><th>식별자</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>9361 픽스처 원문을 하네스로 보고</td><td>상세에 카드 1줄 · 물리 디스크 8 · 기존 볼륨 2</td></tr>
+            <tr><td>A2</td><td>CRA 픽스처 원문을 하네스로 보고</td><td>디스크 2 · IR 볼륨 1</td></tr>
+            <tr><td>A3</td><td>카드 미지정 정의서로 수집</td><td>대조 생략 · 정상 적재</td></tr>
+            <tr><td>A4</td><td>진단 게스트로 한 바퀴 (회귀)</td><td><code>COLLECT</code> → 보고 → <code>REBOOT</code> 무변경</td></tr>
+            <tr><td>B1</td><td>9361 픽스처 + CRA3338 지정</td><td>원장 <code>FAILED</code> <code>CARD_MISMATCH</code> · 상세 실패 표시 · '실패 지점부터 다시 하기' 로 재수집</td></tr>
+            <tr><td>B2</td><td>도구 실패 statusMeta 보고</td><td><code>TOOL_MISSING</code></td></tr>
+            <tr><td>B3</td><td>손상 원문 보고</td><td><code>REPORT_UNPARSABLE</code> · 원문은 원장에 보존</td></tr>
+            <tr><td>B4</td><td>커서 phase 밖 step open 시도</td><td>409 — 기존 게이트가 그대로 막는다</td></tr>
+            <tr><td>C1</td><td>상세 섹션 안내 문구 3종 (수집 전 · 실패 · 정합)</td><td>사용자가 왜 이 상태인지, 다음에 무엇을 할지 안다</td></tr>
+            <tr><td>C2</td><td>진단 Alpine 에서 두 바이너리 실행 (qemu pxe-lab)</td><td>D-11 판정 근거 확보 — 불가 시 Q2 경로로</td></tr>
+          </tbody>
+        </table>
+        <h4>빌드 · 회귀</h4>
+        <ul class="check-list" data-storage="E3.5-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="regress"> <span>진단 흐름 기존 테스트 green — 지시 규칙 이사가 동작을 바꾸지 않았음의 증인</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span>DDL 2문 적용 + <code>SHOW CREATE TABLE</code> 확인 (step ENUM 적재 행 0 선확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 항목 10 개 수행 + 스크린샷 1:1</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="9"><span class="chip mod">수정 9</span></td><td><code>ProvisioningPhaseExecutor</code></td><td><code>directiveFor</code> 기본 메서드 추가 (기본값 <code>REBOOT</code>)</td></tr>
+            <tr><td><code>AgentReportService</code></td><td>지시 판정을 커서 phase 실행기로 위임</td></tr>
+            <tr><td><code>DiagnoseLinuxExecutor</code></td><td>현행 규칙을 override 로 이사 · <code>bootScript</code> 를 공용 빌더 호출로</td></tr>
+            <tr><td><code>AgentDirective</code></td><td>값 <code>RAID_INVENTORY</code> 추가</td></tr>
+            <tr><td><code>ProvisioningPhaseStep</code></td><td>값 3 추가 · 1 제거</td></tr>
+            <tr><td><code>GuestServerDetail</code></td><td>필드 1 + <code>enrichRaidInventory</code></td></tr>
+            <tr><td><code>scripts/.../agent.sh</code></td><td><code>RAID_INVENTORY</code> 지시 처리 · 칩 판별 · 원문 채집</td></tr>
+            <tr><td><code>build-assets.sh</code></td><td>apkovl 에 <code>storcli</code> · <code>sas3ircu</code> 동봉</td></tr>
+            <tr><td><code>server-detail.html</code></td><td>"RAID 인벤토리" 섹션</td></tr>
+
+            <tr><td rowspan="7"><span class="chip new">신규</span></td><td><code>execution/engine/raid/RaidConfigurationExecutor</code></td><td>phase · bootScript · directiveFor · onStepClosed</td></tr>
+            <tr><td><code>execution/engine/raid/RaidInventoryParser</code> · <code>RaidLedger</code></td><td>원문 해석 · 사유 코드</td></tr>
+            <tr><td>VO 4 — <code>DetectedRaidCard</code> · <code>RaidPhysicalDisk</code> · <code>RaidExistingVolume</code> · <code>RaidChipFamily</code></td><td>정규화 모델</td></tr>
+            <tr><td>SPI 2 — <code>RaidConfigurationResolutionProvider</code> · <code>RaidConfigurationTarget</code> + provisioning 구현체 1</td><td>정의서의 카드 지정 공급</td></tr>
+            <tr><td><code>execution/engine/boot/DiagnoseLinuxBootScript</code> <span class="chip opt">이름 예시</span></td><td>R3 공용 부팅 빌더</td></tr>
+            <tr><td><code>ddl/E3.5-1_raid_inventory.sql</code></td><td>2문 — step ENUM 교체 · detail 컬럼</td></tr>
+            <tr><td><code>scripts/mock-guest/raid-inventory-cycle.sh</code> + 테스트 픽스처(실측 원문)</td><td>CP5 하네스 · 파서 단위 테스트 입력</td></tr>
+
+            <tr><td rowspan="4"><span class="chip keep">유지 4</span></td><td><code>PhaseCursorAdvancer</code></td><td>전진 · 종단 SSOT — 이번엔 전진하지 않으므로 손대지 않는다</td></tr>
+            <tr><td><code>BootScriptDispatcher</code></td><td>실행기 등록만으로 6행 HOLD 가 풀린다</td></tr>
+            <tr><td><code>GuestAgentRestController</code></td><td>URL · 계약 무변경</td></tr>
+            <tr><td><code>DiagnosticReportParser</code></td><td>진단 수집 경로는 그대로 — RAID 는 별도 파서</td></tr>
+          </tbody>
+        </table>
+        <p>Java 신규 클래스는 10 (실행기 1 · 파서 1 · 원장 1 · VO 4 · SPI 2 + 구현체 1 은 provisioning 쪽 1) 이고, 여기에 공용 부팅 빌더 1 과 코드 아닌 자산 3(DDL · 하네스 · 픽스처)이 붙는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E3.5-1-milestone">
+          <li><label><input type="checkbox" data-key="m1"> <span>CP1 승인 → CP2~CP4 무중단 구현 → <b>CP4 중간 승인</b>(테스트 제외 main + 빌드 통과)</span></label></li>
+          <li><label><input type="checkbox" data-key="m2"> <span>테스트 작성 · 전체 green → CP5 (하네스 + 상세 화면 브라우저 + Alpine 실행 실측)</span></label></li>
+          <li><label><input type="checkbox" data-key="m3"> <span>CP6 report → PR (→ <code>dev</code>)</span></label></li>
+          <li><label><input type="checkbox" data-key="m4"> <span>CP7 = E 단계 일괄 실기 — 다른 E 슬라이스와 함께 결정</span></label></li>
+          <li><label><input type="checkbox" data-key="m5"> <span>후속 <b>E3.5-2</b> 계획 산출 — 지시 payload · 계획 전달 GET</span></label></li>
+          <li><label><input type="checkbox" data-key="m6"> <span>후속 <b>E3.5-3</b> 집행 — 볼륨 생성 · 멱등 · <code>raid_volume</code> 표 · IR 이름 규약 결정</span></label></li>
+          <li><label><input type="checkbox" data-key="m7"> <span>후속 <b>E3.5-4</b> — E4 인계 · 정의서 "기존 구성" 축</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) !== '#') return;
+      e.preventDefault();
+      var target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = true; });
+  });
+  document.getElementById('btn-collapse').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = false; });
+  });
+  document.getElementById('filter').addEventListener('input', function (e) {
+    var q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(function (d) {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().indexOf(q) !== -1) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(function (ul) {
+    var key = ul.dataset.storage;
+    var stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', function () {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 RAID phase 한 바퀴 시뮬레이터
+  //  판정 = 서버 도메인 규칙 1:1
+  //    demoDirective()  = AgentReportService.directiveFor → 커서 phase 실행기 위임
+  //    demoConsume()    = RaidConfigurationExecutor.onStepClosed 의 카드 대조
+  // ─────────────────────────────────────────────────────────────
+  var PRESETS = {
+    P9361: {
+      label: '9361 서버',
+      card: { chip: '1000:005d', subsystem: '1000:9361', family: 'MEGARAID', model: 'AVAGO MegaRAID SAS 9361-8i', fw: 'storcli 007.2508' },
+      cli: 'storcli',
+      cmds: ['storcli /c0 show all J', 'storcli /c0/eall/sall show all J', 'storcli /c0/vall show all J'],
+      disks: [
+        { slot: '252:0', type: 'SSD · SATA', cap: '446.625 GB (표기 480GB)', dg: 'DG0' },
+        { slot: '252:1', type: 'SSD · SATA', cap: '446.625 GB (표기 480GB)', dg: 'DG0' },
+        { slot: '252:2', type: 'HDD · SAS', cap: '3.637 TB (표기 4TB)', dg: 'DG1' },
+        { slot: '252:3', type: 'HDD · SAS', cap: '3.637 TB (표기 4TB)', dg: 'DG1' },
+        { slot: '252:4', type: 'HDD · SAS', cap: '3.637 TB (표기 4TB)', dg: 'DG1' },
+        { slot: '252:5', type: 'HDD · SAS', cap: '3.637 TB (표기 4TB)', dg: 'DG1' },
+        { slot: '252:6', type: 'HDD · SAS', cap: '3.637 TB (표기 4TB)', dg: 'DG1' },
+        { slot: '252:7', type: 'HDD · SAS', cap: '3.637 TB (표기 4TB)', dg: 'DG1' }
+      ],
+      vols: [
+        { id: 'VD0', level: 'RAID1', size: '446.625 GB', name: '(빈 값)', members: '252:0 · 252:1' },
+        { id: 'VD1', level: 'RAID5', size: '18.19 TB', name: '(빈 값)', members: '252:2 ~ 252:7' }
+      ]
+    },
+    PCRA: {
+      label: 'CRA 서버',
+      card: { chip: '1000:0097', subsystem: '1458:3008', family: 'MPT_IR', model: 'GIGABYTE CRA3338', fw: 'FW 15.00.00.00' },
+      cli: 'sas3ircu',
+      cmds: ['sas3ircu 0 display'],
+      disks: [
+        { slot: '1:0', type: 'HDD · SAS', cap: '4 TB (표기)', dg: 'IR 볼륨 323' },
+        { slot: '1:1', type: 'HDD · SAS', cap: '4 TB (표기)', dg: 'IR 볼륨 323' }
+      ],
+      vols: [{ id: '323', level: 'RAID1', size: '4 TB', name: '(원문 그대로)', members: '1:0 · 1:1' }]
+    },
+    PNONE: { label: '카드 없음 서버', card: null, cli: null, cmds: [], disks: [], vols: [] }
+  };
+  var TARGETS = {
+    T9361: { label: '9361-8i', sub: '1000:9361', model: 'AVAGO MegaRAID SAS 9361-8i' },
+    TCRA: { label: 'CRA3338', sub: '1458:3008', model: 'GIGABYTE CRA3338' },
+    TNONE: { label: '미지정', sub: null, model: null }
+  };
+  var REASON_COPY = {
+    CARD_MISMATCH: '정의서가 지정한 카드와 실제로 꽂힌 카드가 다릅니다.',
+    CARD_NOT_DETECTED: '정의서가 지정한 카드를 이 서버에서 찾지 못했습니다.',
+    TOOL_MISSING: '진단 환경에 RAID 제어 도구가 없어 수집하지 못했습니다.',
+    REPORT_UNPARSABLE: '보고된 원문을 해석하지 못했습니다.'
+  };
+
+  var demo = { preset: 'P9361', target: 'T9361', tool: 'OK', rule: 'NEW' };
+  var demoPlay = 0;
+
+  function demoReset() {
+    demo.booted = false; demo.directive = null; demo.ledger = [];
+    demo.stored = null; demo.console = []; demo.loops = 0; demo.failed = false;
+    demo.banner = null; demo.bannerKind = '';
+  }
+  function demoStored(s) {
+    return s.ledger.some(function (r) { return r.step === 'RAID_INVENTORY_COLLECTING' && r.status === 'SUCCESS'; });
+  }
+  // ── 서버 규칙 ① 지시 판정 ──
+  function demoDirective(s) {
+    if (s.rule === 'LEGACY') return 'REBOOT';            // 커서.ordinal() > DIAGNOSE_LINUX → REBOOT
+    return demoStored(s) ? 'WAIT' : 'RAID_INVENTORY';    // RaidConfigurationExecutor.directiveFor
+  }
+  // ── 서버 규칙 ② 보고 소비 (카드 대조) ──
+  function demoConsume(s) {
+    if (s.tool === 'FAIL') return { status: 'FAILED', code: 'TOOL_MISSING' };
+    var det = PRESETS[s.preset].card, tgt = TARGETS[s.target];
+    if (tgt.sub && !det) return { status: 'FAILED', code: 'CARD_NOT_DETECTED' };
+    if (tgt.sub && det.subsystem !== tgt.sub) return { status: 'FAILED', code: 'CARD_MISMATCH' };
+    return { status: 'SUCCESS', code: null };
+  }
+  // ── UI 1차 차단 (버튼 disabled 사유) ──
+  function demoBlocks(s) {
+    return {
+      boot: s.booted ? '이미 부팅해 에이전트가 떠 있습니다. 다음은 체크인입니다.' : null,
+      checkin: s.failed ? '진행이 FAILED 로 멈췄습니다. 화면의 ‘실패 지점부터 다시 하기’ 가 재개 경로입니다(툴바를 바꾸면 초기화).'
+        : (!s.booted ? '게스트가 아직 부팅하지 않았습니다. 부팅부터 눌러주세요.' : null),
+      report: s.directive === 'RAID_INVENTORY' ? null
+        : (s.rule === 'LEGACY' ? '정정 전 규칙은 커서가 진단 phase 를 넘어서면 무조건 REBOOT 를 내립니다 — 보고할 기회 자체가 없습니다.'
+          : (demoStored(s) ? '이 phase 의 인벤토리 성공 행이 이미 있어 서버가 WAIT 를 내립니다. 계획 · 집행은 E3.5-2 · E3.5-3 입니다.'
+            : '서버가 아직 RAID_INVENTORY 를 내리지 않았습니다. 체크인부터 진행하세요.'))
+    };
+  }
+
+  function demoLog(l) { demo.console.push(l); }
+
+  function demoStep(kind) {
+    var P = PRESETS[demo.preset];
+    if (kind === 'boot') {
+      demoLog('iPXE   GET /api/pxe/v1/boot        커서 phase = RAID_CONFIGURATION');
+      demoLog('   ←   chain 진단 Alpine           DiagnoseLinuxBootScript (공용 빌더 · R3)');
+      demoLog('       vmlinuz-lts + initramfs + apkovl  →  agent.sh 기동');
+      demo.booted = true; demo.directive = null;
+      return;
+    }
+    if (kind === 'checkin') {
+      demoLog('POST /api/pxe/v1/agent/checkin     X-Guest-Token: ****');
+      var d = demoDirective(demo);
+      demo.directive = d;
+      demoLog('   ←   directive: ' + d);
+      if (d === 'REBOOT') {
+        demo.loops++;
+        demoLog('       reboot -f   … 다시 부팅으로 (' + demo.loops + '회째)');
+        demo.booted = false;
+      } else if (d === 'WAIT') {
+        demoLog('       대기 — 계획 단계(E3.5-2)가 아직 없다');
+      }
+      return;
+    }
+    if (kind === 'report') {
+      if (demo.directive !== 'RAID_INVENTORY') return;
+      demoLog('lspci -n   →  ' + (P.card ? P.card.chip + '   ' + P.card.family + ' 계열 → ' + P.cli : 'RAID · SAS 칩 없음'));
+      if (demo.tool === 'FAIL') {
+        demoLog('   ' + (P.cli || 'storcli') + ': not found      storcli64 도 없음');
+        demoLog('POST /agent/steps                 RAID_INVENTORY_COLLECTING');
+        demoLog('POST /agent/steps/{id}/close      status=FAILED  reason=TOOL_MISSING');
+      } else {
+        P.cmds.forEach(function (c) { demoLog('   ' + c); });
+        if (!P.card) demoLog('   (수집할 카드 없음 — 빈 인벤토리를 보고한다)');
+        demoLog('POST /agent/steps                 RAID_INVENTORY_COLLECTING');
+        demoLog('POST /agent/steps/{id}/close      statusMeta = 원문 ' + P.cmds.length + '건');
+      }
+      var res = demoConsume(demo);
+      demo.ledger.push({ step: 'RAID_INVENTORY_COLLECTING', status: res.status, code: res.code });
+      if (res.status === 'SUCCESS') {
+        demo.stored = demo.preset; demo.directive = 'WAIT';
+        demoLog('   ←   directive: WAIT              인벤토리 적재 완료');
+      } else {
+        demo.failed = true; demo.directive = null;
+        demoLog('   ←   원장 FAILED  reason=' + res.code + '   ·   markFailed');
+      }
+    }
+  }
+
+  function demoAct(kind) { demoPlay++; demo.banner = null; demo.bannerKind = ''; demoStep(kind); demoRender(); }
+  function demoSet(group, value) { demoPlay++; demo[group] = value; demoReset(); demoRender(); }
+
+  var DEMO_SCENARIOS = {
+    sc1: {
+      set: { preset: 'P9361', target: 'T9361', tool: 'OK', rule: 'NEW' }, steps: ['boot', 'checkin', 'report'],
+      intro: '<b>① 정합 수집</b> — 9361 서버에 9361-8i 를 지정한 정의서. 감지 Subsystem 과 지정값이 같으므로 대조를 통과한다.',
+      outro: '<b>① 완료</b> — 카드 1줄 · 물리 디스크 8 · 기존 볼륨 2 가 적재되고 게스트는 <code>WAIT</code> 로 명시 대기한다. 전진하지 않는 것이 이 슬라이스의 비목표대로다.', kind: 'success'
+    },
+    sc2: {
+      set: { preset: 'P9361', target: 'TCRA', tool: 'OK', rule: 'NEW' }, steps: ['boot', 'checkin', 'report'],
+      intro: '<b>② 카드 불일치</b> — 9361 서버인데 정의서는 CRA3338 을 지정했다. 수집 자체는 되지만 대조에서 걸린다.',
+      outro: '<b>② 완료</b> — 원장 <code>FAILED</code> <code>CARD_MISMATCH</code> + <code>markFailed</code>. 적재는 없고 화면이 사유와 재개 경로를 안내한다(§9 B1 · C1).', kind: 'error'
+    },
+    sc3: {
+      set: { preset: 'PCRA', target: 'TNONE', tool: 'OK', rule: 'NEW' }, steps: ['boot', 'checkin', 'report'],
+      intro: '<b>③ 카드 미지정</b> — CRA 서버 · 정의서가 카드를 지정하지 않았다. 대조할 기준값이 없으므로 대조를 건너뛴다.',
+      outro: '<b>③ 완료</b> — 대조 생략 후 그대로 적재. <code>sas3ircu 0 display</code> 한 건으로 디스크 2 · IR 볼륨 1 이 올라온다.', kind: 'success'
+    },
+    sc4: {
+      set: { preset: 'P9361', target: 'T9361', tool: 'OK', rule: 'LEGACY' }, steps: ['boot', 'checkin', 'boot', 'checkin', 'boot', 'checkin'],
+      intro: '<b>④ 정정 전 REBOOT 루프</b> — R1 을 하지 않았을 때의 동작. 커서가 진단 phase 를 넘어섰다는 이유만으로 <code>REBOOT</code> 가 나간다.',
+      outro: '<b>④ 완료</b> — 부팅 · 체크인 · 재부팅이 3회 반복됐고 인벤토리 보고 버튼은 끝까지 열리지 않는다. 실행기를 등록해도 이 규칙이 남으면 게스트는 영원히 돌아온다 — R1 이 필요한 이유다.', kind: 'error'
+    },
+    sc5: {
+      set: { preset: 'P9361', target: 'T9361', tool: 'FAIL', rule: 'NEW' }, steps: ['boot', 'checkin', 'report'],
+      intro: '<b>⑤ 도구 실패</b> — apkovl 에 동봉한 <code>storcli</code> 가 실행되지 않는 상황(Q2 가 현실이 된 경우).',
+      outro: '<b>⑤ 완료</b> — 에이전트가 <code>FAILED</code> + 사유를 보고하고 서버는 <code>TOOL_MISSING</code> 을 원장에 남긴다. 예외를 던지지 않는다(§7).', kind: 'error'
+    }
+  };
+  function demoScenario(key) {
+    var sc = DEMO_SCENARIOS[key];
+    var id = ++demoPlay;
+    demoReset();
+    Object.keys(sc.set).forEach(function (k) { demo[k] = sc.set[k]; });
+    demo.banner = sc.intro; demo.bannerKind = '';
+    demoRender();
+    sc.steps.forEach(function (st, i) {
+      setTimeout(function () {
+        if (id !== demoPlay) return;
+        demoStep(st);
+        if (i === sc.steps.length - 1) { demo.banner = sc.outro; demo.bannerKind = sc.kind || ''; }
+        demoRender();
+      }, 620 * (i + 1));
+    });
+  }
+
+  function demoBtn(action, label, tip) {
+    var dis = tip ? ' disabled' : '';
+    var t = tip ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis +
+      ' onclick="demoAct(\'' + action + '\')">' + label + '</button></span> ';
+  }
+  function T(v) { return '<span class="t">' + v + '</span>'; }
+  function F(v) { return '<span class="f">' + v + '</span>'; }
+
+  function demoJudgeText() {
+    var P = PRESETS[demo.preset], G = TARGETS[demo.target], stored = demoStored(demo);
+    var out = 'AgentReportService.directiveFor(server, progress)\n';
+    if (demo.rule === 'LEGACY') {
+      out += '  cursor.ordinal() > DIAGNOSE_LINUX.ordinal() = ' + T('true') + '  →  REBOOT   (정정 전)\n';
+      out += '  ※ 실행기 등록 여부와 무관하게 여기서 끝난다\n';
+    } else {
+      out += '  progress.terminal   = ' + F('false') + '\n';
+      out += '  cursor.phase        = RAID_CONFIGURATION\n';
+      out += '  executor            = RaidConfigurationExecutor   (다형 위임)\n';
+      out += '  ledger.hasSuccess   = ' + (stored ? T('true') : F('false')) + '  →  ' + (stored ? 'WAIT' : 'RAID_INVENTORY') + '\n';
+    }
+    out += '\nRaidConfigurationExecutor.onStepClosed(report)\n';
+    if (demo.ledger.length === 0) {
+      out += '  (아직 인벤토리 보고 전)\n';
+      return out;
+    }
+    out += '  tool.ok             = ' + (demo.tool === 'OK' ? F('true') : T('false')) + '\n';
+    out += '  detected.subsystem  = ' + (P.card ? P.card.subsystem : T('없음')) + '\n';
+    out += '  target.cardSubsystemId = ' + (G.sub ? G.sub : '없음 → 대조 생략') + '\n';
+    var last = demo.ledger[demo.ledger.length - 1];
+    if (last.status === 'SUCCESS') out += '  verdict             = ' + F('SUCCESS') + '  →  적재 · directive=WAIT\n';
+    else out += '  verdict             = ' + T('FAILED  ' + last.code) + '  →  markFailed\n';
+    return out;
+  }
+
+  function demoDetailHtml() {
+    if (demo.failed) {
+      var last = demo.ledger[demo.ledger.length - 1];
+      return '<div class="ux-row"><span class="label"><b>수집 실패</b> — ' + REASON_COPY[last.code] + '</span>' +
+        '<span class="badge del">' + last.code + '</span></div>' +
+        '<div class="ux-row muted"><span class="label">화면은 사유와 함께 ‘실패 지점부터 다시 하기’ 를 안내한다 — 원문은 원장에 남아 재해석할 수 있다.</span></div>';
+    }
+    if (!demo.stored) {
+      return '<div class="ux-row muted"><span class="label">아직 수집 전 — RAID phase 에 진입한 게스트가 인벤토리를 보고하면 이 자리에 표시된다.</span></div>';
+    }
+    var P = PRESETS[demo.stored];
+    var html = '';
+    if (P.card) {
+      html += '<div class="ux-row"><span class="label"><b>' + P.card.model + '</b> · Subsystem <code>' + P.card.subsystem +
+        '</code> · 칩 <code>' + P.card.chip + '</code> · ' + P.card.fw + '</span><span class="badge on">' + P.card.family + '</span></div>';
+    } else {
+      html += '<div class="ux-row muted"><span class="label">감지된 RAID 카드 없음 — 빈 인벤토리를 적재했다.</span><span class="badge off">없음</span></div>';
+    }
+    if (P.disks.length) {
+      html += '<table><thead><tr><th>슬롯</th><th>타입</th><th>용량</th><th>소속</th></tr></thead><tbody>';
+      P.disks.forEach(function (d) {
+        html += '<tr><td><code>' + d.slot + '</code></td><td>' + d.type + '</td><td>' + d.cap + '</td><td>' + d.dg + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      html += '<table><thead><tr><th>기존 볼륨</th><th>레벨</th><th>크기</th><th>구성원</th></tr></thead><tbody>';
+      P.vols.forEach(function (v) {
+        html += '<tr><td><code>' + v.id + '</code> ' + v.name + '</td><td>' + v.level + '</td><td>' + v.size + '</td><td>' + v.members + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      html += '<p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">슬롯 표기는 08-31 실측 원문 그대로다 — MegaRAID 는 <code>EID:Slt</code>(252:0 …), IR 은 <code>Encl:Bay</code>(1:0 …).</p>';
+    }
+    return html;
+  }
+
+  function demoRender() {
+    document.querySelectorAll('.ux-toolbar .seg').forEach(function (b) {
+      ['preset', 'target', 'tool', 'rule'].forEach(function (g) {
+        if (b.dataset[g] !== undefined) b.classList.toggle('active', demo[g] === b.dataset[g]);
+      });
+    });
+
+    var bl = demoBlocks(demo);
+    document.getElementById('demo-actions').innerHTML =
+      demoBtn('boot', '부팅', bl.boot) + demoBtn('checkin', '체크인', bl.checkin) + demoBtn('report', '인벤토리 보고', bl.report);
+
+    var c = demo.console, shown = c.slice(-16);
+    var head = c.length > 16 ? ('… 앞 ' + (c.length - 16) + ' 줄 생략\n') : '';
+    document.getElementById('demo-console').textContent = head + (shown.length ? shown.join('\n') : '(아직 조작 없음 — 부팅부터 눌러보세요)');
+
+    var lg = demo.ledger.length
+      ? demo.ledger.map(function (r) {
+        return '<div class="ux-row"><span class="label"><code>' + r.step + '</code></span>' +
+          (r.status === 'SUCCESS' ? '<span class="badge on">SUCCESS</span>'
+            : '<span class="badge del">FAILED · ' + r.code + '</span>') + '</div>';
+      }).join('')
+      : '<div class="ux-row muted"><span class="label">원장 행 없음 — 아직 step 이 열리지 않았다.</span></div>';
+    if (demo.rule === 'LEGACY' && demo.loops > 0) {
+      lg += '<div class="ux-row"><span class="label">재부팅 왕복</span><span class="badge del">' + demo.loops + '회</span></div>';
+    }
+    document.getElementById('demo-ledger').innerHTML = lg;
+    document.getElementById('demo-judge').innerHTML = demoJudgeText();
+    document.getElementById('demo-detail').innerHTML = demoDetailHtml();
+
+    var banner = document.getElementById('demo-banner');
+    banner.className = 'ux-message' + (demo.bannerKind ? ' ' + demo.bannerKind : '');
+    banner.innerHTML = demo.banner ||
+      '시나리오 버튼을 누르거나, 위 툴바로 상황을 만든 뒤 <b>부팅</b> 부터 눌러보세요. 차단된 버튼에 마우스를 올리면 사유가 뜹니다.';
+  }
+
+  demoReset();
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

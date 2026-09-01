@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.dto.response;
 
 import com.example.serverprovision.execution.engine.firmware.AxisFlashState;
+import com.example.serverprovision.execution.engine.raid.PlannedVolumeRole;
 import com.example.serverprovision.execution.enums.DiscoveryStage;
 import com.example.serverprovision.execution.engine.phase.ReadinessGrade;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
@@ -49,6 +50,10 @@ public record GuestServerDetailResponse(
         FirmwareFlash firmwareFlash,
         /** 설정 phase 의 집행 현황(E2-4 R1) — 설정 축 원장 행이 생긴 뒤에만. */
         FirmwareSetting firmwareSetting,
+        /** RAID 구성 계획 미리보기(E3.5-2) — 저장 없이 조회 때마다 재산출. 창 밖(할당 · 단계 없음)이면 null. */
+        RaidPlanPreview raidPlan,
+        /** 검증 통과 실물(E3.5-4 — raid_volume). 통과 전이면 빈 목록. */
+        List<RaidVolumeView> raidVolumes,
         List<Step> steps
 ) {
 
@@ -79,8 +84,57 @@ public record GuestServerDetailResponse(
             HardwareSpec hardwareSpec,
             SoftwareSpec softwareSpec,
             IpAddressVO bmcIp,
-            MacAddressVO bmcMac
+            MacAddressVO bmcMac,
+            /** RAID 카드 뒤 인벤토리(E3.5-1) — RAID 구성 phase 진입 전엔 null. 관용 파싱 결과. */
+            com.example.serverprovision.execution.engine.raid.RaidInventory raidInventory
     ) {
+    }
+
+    /**
+     * RAID 구성 계획 미리보기(E3.5-2). 기존 볼륨이 있으면 "보존 / 파괴" 축이 정의서에 생기기 전까지
+     * (E3.5-4) 파괴 · 보존 두 갈래를 병기한다({@code policyUndecided}) — 잠정 기본값을 만들지 않는다.
+     */
+    public record RaidPlanPreview(
+            boolean policyUndecided,
+            List<RaidPlanBranch> branches
+    ) {
+    }
+
+    /** 계획 한 갈래 — {@code rejectionCode} 가 null 이면 계획, 아니면 거절이다. */
+    public record RaidPlanBranch(
+            String label,
+            String rejectionCode,
+            String rejectionDetail,
+            boolean deleteExistingFirst,
+            List<PlannedVolumeView> volumes,
+            List<PlannedPassthroughView> passthroughs,
+            List<UnassignedDiskView> unassigned,
+            List<RuleOutcomeView> ruleOutcomes,
+            String osAbsenceReason
+    ) {
+    }
+
+    /** 계획 볼륨 한 줄 — 유효 용량은 십진 표시 문자열로 서버가 채운다(화면 계산 0). */
+    public record PlannedVolumeView(String name, String level, String members, String capacity, PlannedVolumeRole role) {
+    }
+
+    public record PlannedPassthroughView(String slot, String capacity, PlannedVolumeRole role) {
+    }
+
+    public record UnassignedDiskView(String slot, String size, String reason) {
+    }
+
+    /** 규칙 소비 한 줄 — {@code consumedNothing} 이 사각 규칙 의심 표시(결정 7 런타임 가시화)다. */
+    public record RuleOutcomeView(int ruleNo, String label, int matchedDisks, int consumedDisks,
+                                  int volumeCount, boolean consumedNothing) {
+    }
+
+    /**
+     * 검증 통과 실물 한 줄(E3.5-4 — raid_volume). 계획 표와 같은 관례로 표시 문자열은 서버가 채운다.
+     * {@code wwn} 은 OS 설치 인계의 조회 키 — Linux kickstart 직결 · Windows 는 WinPE 단계 해석.
+     */
+    public record RaidVolumeView(String name, String level, String members, String capacity,
+                                 PlannedVolumeRole role, String state, String wwn) {
     }
 
     /**

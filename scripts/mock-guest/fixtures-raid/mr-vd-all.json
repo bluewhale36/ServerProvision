@@ -1,0 +1,212 @@
+{
+"Controllers":[
+{
+	"Command Status" : {
+		"CLI Version" : "007.2508.0000.0000 Feb 27, 2023",
+		"Operating system" : "Linux 6.12.0-211.16.1.el10_2.0.1.x86_64",
+		"Controller" : 0,
+		"Status" : "Success",
+		"Description" : "None"
+	},
+	"Response Data" : {
+		"/c0/v0" : [
+			{
+				"DG/VD" : "0/0",
+				"TYPE" : "RAID1",
+				"State" : "Optl",
+				"Access" : "RW",
+				"Consist" : "No",
+				"Cache" : "RWTD",
+				"Cac" : "-",
+				"sCC" : "ON",
+				"Size" : "446.625 GB",
+				"Name" : ""
+			}
+		],
+		"PDs for VD 0" : [
+			{
+				"EID:Slt" : "252:0",
+				"DID" : 6,
+				"State" : "Onln",
+				"DG" : 0,
+				"Size" : "446.625 GB",
+				"Intf" : "SATA",
+				"Med" : "SSD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "SAMSUNG MZ7L3480HCHQ-00B7C",
+				"Sp" : "U",
+				"Type" : "-"
+			},
+			{
+				"EID:Slt" : "252:1",
+				"DID" : 7,
+				"State" : "Onln",
+				"DG" : 0,
+				"Size" : "446.625 GB",
+				"Intf" : "SATA",
+				"Med" : "SSD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "SAMSUNG MZ7L3480HCHQ-00B7C",
+				"Sp" : "U",
+				"Type" : "-"
+			}
+		],
+		"VD0 Properties" : {
+			"Strip Size" : "256 KB",
+			"Number of Blocks" : 936640512,
+			"VD has Emulated PD" : "Yes",
+			"Span Depth" : 1,
+			"Number of Drives Per Span" : 2,
+			"Write Cache(initial setting)" : "WriteThrough",
+			"Disk Cache Policy" : "Disk's Default",
+			"Encryption" : "None",
+			"Data Protection" : "Disabled",
+			"Active Operations" : "None",
+			"Exposed to OS" : "Yes",
+			"OS Drive Name" : "/dev/sdb",
+			"Creation Date" : "31-08-2026",
+			"Creation Time" : "09:38:01 AM",
+			"Emulation type" : "default",
+			"Cachebypass size" : "Cachebypass-64k",
+			"Cachebypass Mode" : "Cachebypass Intelligent",
+			"Is LD Ready for OS Requests" : "Yes",
+			"SCSI NAA Id" : "600605b00d18aa1e322807f9084a72aa",
+			"Unmap Enabled" : "N/A"
+		},
+		"/c0/v1" : [
+			{
+				"DG/VD" : "1/1",
+				"TYPE" : "RAID5",
+				"State" : "Optl",
+				"Access" : "RW",
+				"Consist" : "No",
+				"Cache" : "RWTD",
+				"Cac" : "-",
+				"sCC" : "ON",
+				"Size" : "18.190 TB",
+				"Name" : ""
+			}
+		],
+		"PDs for VD 1" : [
+			{
+				"EID:Slt" : "252:7",
+				"DID" : 17,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			},
+			{
+				"EID:Slt" : "252:5",
+				"DID" : 18,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			},
+			{
+				"EID:Slt" : "252:6",
+				"DID" : 19,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			},
+			{
+				"EID:Slt" : "252:4",
+				"DID" : 20,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			},
+			{
+				"EID:Slt" : "252:3",
+				"DID" : 21,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			},
+			{
+				"EID:Slt" : "252:2",
+				"DID" : 22,
+				"State" : "Onln",
+				"DG" : 1,
+				"Size" : "3.637 TB",
+				"Intf" : "SAS",
+				"Med" : "HDD",
+				"SED" : "N",
+				"PI" : "N",
+				"SeSz" : "512B",
+				"Model" : "HUS726T4TAL5204 ",
+				"Sp" : "U",
+				"Type" : "-"
+			}
+		],
+		"VD1 Properties" : {
+			"Strip Size" : "256 KB",
+			"Number of Blocks" : 39064698880,
+			"VD has Emulated PD" : "Yes",
+			"Span Depth" : 1,
+			"Number of Drives Per Span" : 6,
+			"Write Cache(initial setting)" : "WriteThrough",
+			"Disk Cache Policy" : "Enabled",
+			"Encryption" : "None",
+			"Data Protection" : "Disabled",
+			"Active Operations" : "None",
+			"Exposed to OS" : "Yes",
+			"OS Drive Name" : "/dev/sda",
+			"Creation Date" : "31-08-2026",
+			"Creation Time" : "09:38:12 AM",
+			"Emulation type" : "default",
+			"Cachebypass size" : "Cachebypass-64k",
+			"Cachebypass Mode" : "Cachebypass Intelligent",
+			"Is LD Ready for OS Requests" : "Yes",
+			"SCSI NAA Id" : "600605b00d18aa1e3228080408e5d7ee",
+			"Unmap Enabled" : "N/A"
+		}
+	}
+}
+]
+}
+

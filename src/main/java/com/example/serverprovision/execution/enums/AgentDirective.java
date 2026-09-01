@@ -17,5 +17,23 @@ public enum AgentDirective {
      * 완주 서버의 체크인은 보고 게이트(PROVISIONING 한정)가 거절하므로 이 지시는 <b>close 응답</b>이
      * 운반한다(같은 트랜잭션에서 완주가 판정된 직후 — 로드맵 "checkin/close 응답의 directive").
      */
-    REBOOT
+    REBOOT,
+
+    /**
+     * RAID 카드 인벤토리를 수집하라(E3.5-1) — RAID 구성 phase 커서에서 아직 인벤토리가 적재되지 않았을 때.
+     * 에이전트는 lspci 로 칩 계열을 판별해 계열 CLI 원문을 {@code RAID_INVENTORY_COLLECTING} step 으로 보고한다.
+     */
+    RAID_INVENTORY,
+
+    /**
+     * 동봉한 계획을 집행하라(E3.5-3) — 응답의 {@code raidApply} payload 가 중립 명령을 나른다.
+     * 에이전트는 계열 어댑터로 번역해 실행하고 {@code RAID_APPLYING} step 으로 로그 원문을 보고한다.
+     */
+    RAID_APPLY,
+
+    /**
+     * 집행 결과를 재채집해 보고하라(E3.5-3) — 인벤토리 채집과 같은 원문을 {@code RAID_VERIFYING}
+     * step 으로 보고하면 서버가 동결 계획과 대조한다(결정 4).
+     */
+    RAID_VERIFY
 }

@@ -1,5 +1,13 @@
 package com.example.serverprovision.execution.service;
 
+import com.example.serverprovision.execution.engine.raid.RaidConfigurationResolutionProvider;
+import com.example.serverprovision.execution.engine.raid.RaidExistingConfigPolicy;
+import com.example.serverprovision.execution.engine.raid.RaidInventory;
+import com.example.serverprovision.execution.engine.raid.RaidPlan;
+import com.example.serverprovision.execution.engine.raid.RaidPlanOutcome;
+import com.example.serverprovision.execution.engine.raid.RaidPlanRejection;
+import java.util.Optional;
+
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
@@ -65,6 +73,8 @@ import java.util.stream.Collectors;
 public class GuestServerQueryService {
 
     private final GuestServerRepository guestServerRepository;
+    private final RaidConfigurationResolutionProvider raidConfigurationResolutionProvider;
+    private final com.example.serverprovision.execution.repository.RaidVolumeRepository raidVolumeRepository;
     private final GuestServerDetailRepository detailRepository;
     private final HostNicBindingRepository nicRepository;
     private final ProvisioningProgressRepository progressRepository;
@@ -348,7 +358,13 @@ public class GuestServerQueryService {
                 parseTolerant(detail.getHardwareSpec(), HardwareSpec.class),
                 parseTolerant(detail.getSoftwareSpec(), SoftwareSpec.class),
                 detail.getBmcIp(),
-                detail.getBmcMac());
+                detail.getBmcMac(),
+                parseTolerant(detail.getRaidInventoryJson(),
+                        com.example.serverprovision.execution.engine.raid.RaidInventory.class));
+
+        GuestServerDetailResponse.RaidPlanPreview raidPlan = raidPlanPreviewOf(server.getId(),
+                inventory == null ? null : inventory.raidInventory());
+        List<GuestServerDetailResponse.RaidVolumeView> raidVolumes = raidVolumeViewsOf(server.getId());
 
         List<GuestServerDetailResponse.Nic> nicResponses = nics.stream()
                 .map(n -> new GuestServerDetailResponse.Nic(
@@ -406,8 +422,108 @@ public class GuestServerQueryService {
                 firmwarePlanOf(server, progress),
                 firmwareFlashOf(server, detail, progress, steps),
                 firmwareSettingOf(server, detail, progress, steps),
+                raidPlan,
+                raidVolumes,
                 stepResponses
         );
+    }
+
+    /**
+     * RAID 구성 계획 미리보기(E3.5-2) — 저장 없이 조회 때마다 재산출한다(SSOT = RaidPlanner, drift 0).
+     * 기존 볼륨이 있으면 "보존 / 파괴" 축이 정의서에 생기기 전까지(E3.5-4) 두 갈래를 병기한다.
+     */
+    private GuestServerDetailResponse.RaidPlanPreview raidPlanPreviewOf(UUID serverId, RaidInventory raidInventory) {
+        if (raidInventory == null) {
+            return null;
+        }
+        // 3분기(E3.5-4 결정 3 · Q2): 축 명시 = 그 정책 단일 / 축 null + 외부 볼륨 = 두 갈래 병기 /
+        // 축 null + 잔여·무볼륨 = 정책 무관 단일. 분기 기준은 실행 판정과 같은 외부 볼륨(isProvisionOwned)이다.
+        Optional<RaidExistingConfigPolicy> declared = raidConfigurationResolutionProvider.policyOf(serverId);
+        if (declared.isPresent()) {
+            String label = declared.get() == RaidExistingConfigPolicy.PRESERVE ? "보존 정책" : "파괴 정책";
+            return raidConfigurationResolutionProvider
+                    .planFor(serverId, raidInventory, declared.get())
+                    .map(outcome -> new GuestServerDetailResponse.RaidPlanPreview(false,
+                            List.of(branchOf(label, outcome))))
+                    .orElse(null);
+        }
+        boolean hasForeign = raidInventory.volumes().stream()
+                .anyMatch(v -> !v.isProvisionOwned());
+        if (!hasForeign) {
+            return raidConfigurationResolutionProvider
+                    .planFor(serverId, raidInventory, RaidExistingConfigPolicy.DESTROY)
+                    .map(outcome -> new GuestServerDetailResponse.RaidPlanPreview(false,
+                            List.of(branchOf("정책 무관", outcome))))
+                    .orElse(null);
+        }
+        Optional<RaidPlanOutcome> destroy = raidConfigurationResolutionProvider
+                .planFor(serverId, raidInventory, RaidExistingConfigPolicy.DESTROY);
+        Optional<RaidPlanOutcome> preserve = raidConfigurationResolutionProvider
+                .planFor(serverId, raidInventory, RaidExistingConfigPolicy.PRESERVE);
+        if (destroy.isEmpty() || preserve.isEmpty()) {
+            return null;   // 창 밖 — 활성 할당이 없거나 정의서에 RAID 구성 단계가 없다
+        }
+        return new GuestServerDetailResponse.RaidPlanPreview(true,
+                List.of(branchOf("파괴 시", destroy.get()), branchOf("보존 시", preserve.get())));
+    }
+
+    /** 검증 통과 실물(E3.5-4) — 계획(파생 · 무저장)과 달리 raid_volume 표에 기록된 현재 실물이다. */
+    private List<GuestServerDetailResponse.RaidVolumeView> raidVolumeViewsOf(UUID serverId) {
+        return raidVolumeRepository.findAllByGuestServer_Id(serverId).stream()
+                .map(v -> new GuestServerDetailResponse.RaidVolumeView(
+                        v.getName(),
+                        v.getRaidLevel() == null ? "RAID 없음" : v.getRaidLevel().getDisplayName(),
+                        memberSlotsDisplay(v.getMemberSlotsJson()),
+                        formatDecimalBytes(v.getUsableBytes()),
+                        v.getVolumeRole(),
+                        v.getState(),
+                        v.getWwn()))
+                .toList();
+    }
+
+    private String memberSlotsDisplay(String memberSlotsJson) {
+        if (memberSlotsJson == null) {
+            return "";
+        }
+        try {
+            return String.join(" · ", objectMapper.readValue(memberSlotsJson, String[].class));
+        } catch (RuntimeException e) {
+            return memberSlotsJson;   // 손상 관용 — 원문 그대로
+        }
+    }
+
+    private GuestServerDetailResponse.RaidPlanBranch branchOf(String label, RaidPlanOutcome outcome) {
+        if (outcome instanceof RaidPlanRejection rejection) {
+            return new GuestServerDetailResponse.RaidPlanBranch(label, rejection.code(), rejection.detail(),
+                    false, List.of(), List.of(), List.of(), List.of(), null);
+        }
+        RaidPlan plan = (RaidPlan) outcome;
+        return new GuestServerDetailResponse.RaidPlanBranch(label, null, null,
+                plan.deleteExistingFirst(),
+                plan.volumes().stream().map(v -> new GuestServerDetailResponse.PlannedVolumeView(
+                        v.name(), v.level().getDisplayName(), String.join(" · ", v.memberSlots()),
+                        formatDecimalBytes(v.usableBytes()), v.role())).toList(),
+                plan.passthroughs().stream().map(p -> new GuestServerDetailResponse.PlannedPassthroughView(
+                        p.slot(), formatDecimalBytes(p.usableBytes()), p.role())).toList(),
+                plan.unassigned().stream().map(u -> new GuestServerDetailResponse.UnassignedDiskView(
+                        u.slot(), u.size(), u.reason())).toList(),
+                plan.ruleOutcomes().stream().map(r -> new GuestServerDetailResponse.RuleOutcomeView(
+                        r.ruleNo(), r.ruleLabel(), r.matchedDisks(), r.consumedDisks(), r.volumeCount(),
+                        r.consumedNothing())).toList(),
+                plan.osAbsenceReason());
+    }
+
+    /** 유효 용량의 십진 표시(정의서 표기와 같은 결) — 479.6 GB · 4 TB. */
+    private String formatDecimalBytes(long bytes) {
+        double tb = bytes / 1_000_000_000_000.0;
+        if (tb >= 1.0) {
+            return stripTrailingZero(String.format("%.1f", tb)) + " TB";
+        }
+        return stripTrailingZero(String.format("%.1f", bytes / 1_000_000_000.0)) + " GB";
+    }
+
+    private String stripTrailingZero(String value) {
+        return value.endsWith(".0") ? value.substring(0, value.length() - 2) : value;
     }
 
     /**

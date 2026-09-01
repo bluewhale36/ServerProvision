@@ -686,10 +686,72 @@
          *  카드 선택됨      → 못 만드는 레벨 disabled(blockReasons) · 개수 하한 = minimumDisks(hasCache)
          *  RAID 묶음 존재   → '선택 안 함' disabled · 그 레벨을 못 만드는 카드 옵션 disabled
          */
+        function selectedExistingPolicy() {
+            const checked = document.querySelector('input[name="rcExistingPolicyRadio"]:checked');
+            return checked ? checked.value : null;
+        }
+
+        // E3.5-4 — 축 라디오 잠금. 판정 재료는 서버 @AssertTrue(existingPolicyPresentWhenRequired)와 같다
+        // (RAID 를 구성하는 묶음 유무). 잠글 때 선택을 지우지는 않는다 — 값이 있어도 서버가 허용한다.
+        function applyExistingPolicyLock(required) {
+            document.querySelectorAll('input[name="rcExistingPolicyRadio"]')
+                .forEach(radio => { radio.disabled = !required; });
+            const lockHint = document.getElementById('rcExistingPolicyHint');
+            if (lockHint) lockHint.hidden = required;
+            applyDestroyWarning();
+        }
+
+        // 파괴 선택은 디스크 데이터 소실로 이어진다 — 선택 즉시 상시 경고(CP6 검수 반영).
+        // 잠금 · pre-fill 경로는 applyExistingPolicyLock 이, 직접 클릭은 change 리스너가 부른다.
+        function applyDestroyWarning() {
+            const destroyWarning = document.getElementById('rcDestroyWarning');
+            if (!destroyWarning) return;
+            const anyRadio = document.querySelector('input[name="rcExistingPolicyRadio"]');
+            destroyWarning.hidden = !anyRadio || anyRadio.disabled || selectedExistingPolicy() !== 'DESTROY';
+        }
+
+        // E3.5-4 규칙 8 미러 — DiskGroupRules.covers 와 같은 진리표(드리프트 0). 엄격 일치 수용집합:
+        // EXACT n = {n} · AT_LEAST m = {m, m+1, …}. 겹침(후행 흘림)은 막지 않고 완전 포섭만 알린다.
+        function coversRule(prior, later) {
+            if (prior.diskType !== 'AUTO' && prior.diskType !== later.diskType) return false;
+            if (prior.transport !== 'AUTO' && prior.transport !== later.transport) return false;
+            if (prior.capacity.mode === 'SPECIFIED') {
+                if (later.capacity.mode !== 'SPECIFIED'
+                    || prior.capacity.size !== later.capacity.size
+                    || prior.capacity.unit !== later.capacity.unit) return false;
+            }
+            if (prior.count.mode === 'AT_LEAST') return prior.count.value <= later.count.value;
+            return later.count.mode === 'EXACT' && prior.count.value === later.count.value;
+        }
+
+        function applyUnreachableFindings() {
+            const findingsHint = document.getElementById('rcUnreachableHint');
+            if (!findingsHint) return;
+            const rows = diskGroupRows();
+            const groups = buildDiskGroups();
+            // 문구는 첫 발견 쌍만(서버 unreachableRule 의 400 문장과 같은 모양) · 행 색상은 피포섭 행 전부(CP6 검수 반영).
+            let message = null;
+            const unreachable = new Set();
+            for (let j = 1; j < groups.length; j++) {
+                for (let i = 0; i < j; i++) {
+                    if (coversRule(groups[i], groups[j])) {
+                        unreachable.add(j);
+                        if (!message) message = (j + 1) + '번 묶음은 ' + (i + 1) + '번 묶음에 가려 도달할 수 없습니다 — 순서를 바꾸거나 조건을 좁히십시오.';
+                        break;
+                    }
+                }
+            }
+            rows.forEach((row, idx) => row.classList.toggle('is-unreachable', unreachable.has(idx)));
+            findingsHint.hidden = !message;
+            findingsHint.textContent = message || '';
+        }
+
         function applyDiskGroupConstraints() {
             if (!rcRaidCard) return;
             const card = selectedRaidCard();
             const raidRows = diskGroupRows().filter(rowBuildsRaid);
+            applyExistingPolicyLock(raidRows.length > 0);   // E3.5-4 축 잠금(UI 1차 차단)
+            applyUnreachableFindings();                     // E3.5-4 규칙 8 미러
 
             // 1) 카드 select 의 옵션 잠금
             Array.from(rcRaidCard.options).forEach(opt => {
@@ -967,6 +1029,8 @@
         const rcAddDiskGroup = document.getElementById('rcAddDiskGroup');
         if (rcAddDiskGroup) rcAddDiskGroup.addEventListener('click', () => addDiskGroupRow());
         if (rcRaidCard) rcRaidCard.addEventListener('change', applyDiskGroupConstraints);
+        document.querySelectorAll('input[name="rcExistingPolicyRadio"]')
+            .forEach(radio => radio.addEventListener('change', applyDestroyWarning));
 
         /* ---- root 비밀번호 (기존 유지 UX) ---- */
 
@@ -1417,7 +1481,8 @@
                     type: 'RAID_CONFIGURATION',
                     raidCardId: rcRaidCard ? intOrNull(rcRaidCard.value) : null,   // 소프트참조(null = 전제 없음)
                     diskGroups: buildDiskGroups(),
-                    volumePriorities: buildVolumePriorities()                        // U4-1-2 — 빈 배열도 명시적 값(열거 순서)
+                    volumePriorities: buildVolumePriorities(),                       // U4-1-2 — 빈 배열도 명시적 값(열거 순서)
+                    existingConfigPolicy: selectedExistingPolicy()                   // E3.5-4 D-7 — 미선택 null(구 저장본 호환)
                 };
             },
             OS_INSTALLATION: function () {
@@ -1783,6 +1848,14 @@
                     proc.volumePriorities.forEach(row => addPriorityRow(row));
                 }
                 if (rcPriorityPrefillWarning) rcPriorityPrefillWarning.hidden = !legacy;
+                // E3.5-4 — 축 복원. 구 저장본(null)은 값을 임의로 채우지 않고 경고만(D-7 기본값 없는 필수 선택).
+                if (proc.existingConfigPolicy) {
+                    const policyRadio = document.querySelector('input[name="rcExistingPolicyRadio"][value="' + proc.existingConfigPolicy + '"]');
+                    if (policyRadio) policyRadio.checked = true;
+                } else if ((proc.diskGroups || []).some(g => g.raidLevel)) {
+                    const policyWarn = document.getElementById('rcExistingPolicyPrefillWarning');
+                    if (policyWarn) policyWarn.hidden = false;
+                }
                 applyDiskGroupConstraints();
             },
             OS_INSTALLATION: function (proc) {

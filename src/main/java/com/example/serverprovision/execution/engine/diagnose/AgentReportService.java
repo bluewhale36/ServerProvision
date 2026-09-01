@@ -67,7 +67,9 @@ public class AgentReportService {
         ProvisioningProgress progress = requireProgress(server);
         requireProvisioning(server, progress);
         publishChanged(server);
-        return new AgentCheckinResponse(directiveFor(server, progress), server.getName());
+        AgentDirective directive = directiveFor(server, progress);
+        return new AgentCheckinResponse(directive, server.getName(),
+                raidApplyFor(directive, server, progress), raidChipsFor(directive));
     }
 
     /**
@@ -123,7 +125,7 @@ public class AgentReportService {
                 throw AgentReportRejectedException.notProvisioning(server.getId());
             }
             publishChanged(server);   // 접촉(lastSeenAt)은 이 no-op 경로에서도 갱신됐다
-            return new StepCloseResponse(directiveFor(server, progress));   // no-op + REBOOT 재계산
+            return new StepCloseResponse(directiveFor(server, progress));   // no-op + REBOOT 재계산(payload 불요)
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -149,7 +151,8 @@ public class AgentReportService {
                     .ifPresent(executor -> executor.onStepClosed(server, progress, step));
         }
         publishChanged(server);
-        return new StepCloseResponse(directiveFor(server, progress));
+        AgentDirective directive = directiveFor(server, progress);
+        return new StepCloseResponse(directive, raidApplyFor(directive, server, progress), raidChipsFor(directive));
     }
 
     /**
@@ -162,36 +165,51 @@ public class AgentReportService {
     }
 
     /**
-     * 지시 판정 단일 지점(E1-2 · ES-1) — 우선순위 규약:
-     * ① 진단 작업이 이 게스트에게 끝남 → REBOOT. "끝남" = 종단(isCompleted) <b>또는 커서가 진단 이후로
-     *    전진</b>(ES-1). 두 경우 모두 게스트는 진단 리눅스를 떠나 iPXE 폴링으로 돌아가야 한다 —
-     *    종단은 dispatch 4행이, 전진은 소유 phase 스크립트(미구현이면 명시 HOLD)가 받는다.
-     * ② 커서 진단 + 미수집(IPXE_REGISTERED) → COLLECT
-     * ③ 그 외(진단 진행 중 · 수집 완료 대기) → WAIT.
-     * ①의 "진단 이후 전진" 은 새 분기가 아니라 REBOOT 조건의 확장이다(ordinal 비교라 BOOTSTRAPPING 오검출
-     * 없음 · PhaseSequence 의 ordinal 축과 정합). COLLECT 재수신(응답 유실 재체크인)은 무해 —
+     * 지시 판정 진입점(E1-2 · ES-1 → E3.5-1 다형화, 0-3 결정 D-2) — 공통 규칙 둘만 갖고 내용은
+     * 커서 phase 실행기의 {@code directiveFor} 에 위임한다:
+     * ① 종단(isCompleted) · 실패(isFailed) → REBOOT. 종단 커서는 마지막 수행 step 에 멈춰 있어(ES-2)
+     *    실행기에게 물으면 그 phase 의 평시 답이 나오고, 실패 게스트에게 작업을 재지시하면 다음 보고가
+     *    게이트(409)에 막혀 지시만 낭비된다 — 실패 화면(iPXE 대기 + HF10 신원 줄)으로 보내는 것이 정직하다.
+     *    둘 다 phase 무관 공통 판정이라 여기 남는다(옛 ordinal 비교가 실패 경로에 REBOOT 를 주던 동작의 보존).
+     * ② 실행기 미등록 phase(HOLD) → REBOOT. 게스트가 진단 리눅스에 남을 이유가 없다.
+     * 옛 "커서가 진단 이후로 전진 → REBOOT" 상수 비교는 인터페이스 기본값(REBOOT)으로 일반화됐다 —
+     * 서버 주도 phase 실행기는 override 없이 같은 답을 낸다. 재수신(응답 유실 재체크인)은 무해 —
      * 소비 훅의 적재가 최신값 덮기라 멱등이다.
      */
-    private AgentDirective directiveFor(GuestServer server, ProvisioningProgress progress) {
-        if (progress.isCompleted()
-                || progress.currentPhase().ordinal() > ProvisioningPhase.DIAGNOSE_LINUX.ordinal()) {
-            return AgentDirective.REBOOT;
+    /**
+     * RAID_APPLY 지시의 payload 동봉(E3.5-3 결정 1) — 그 지시를 낸 커서 phase 실행기에게만 묻는다.
+     * 다른 지시는 payload 가 없다(null 직렬화 생략은 응답 record 몫).
+     */
+    private com.example.serverprovision.execution.engine.raid.RaidApplyPayload raidApplyFor(
+            AgentDirective directive, GuestServer server, ProvisioningProgress progress) {
+        if (directive != AgentDirective.RAID_APPLY) {
+            return null;
         }
-        if (progress.currentPhase() == ProvisioningPhase.DIAGNOSE_LINUX && !isEnriched(server)) {
-            return AgentDirective.COLLECT;
-        }
-        return AgentDirective.WAIT;
+        return phaseExecutorRegistry.find(progress.currentPhase())
+                .map(executor -> executor.raidApplyPayloadFor(server, progress))
+                .orElse(null);
     }
 
     /**
-     * 스펙을 이미 수집했는가 — 판정은 {@link GuestServerDetail#isDiagnosticEnriched()} 가 갖는다(U3-3 DEC-A).
-     * 여기서 다시 판정하지 않는 이유는 목록 화면 · 후속 그룹 할당 가드와 같은 근거를 써야 하기 때문이다.
-     * 상세 행 자체가 없는 서버는 이 호출부가 흡수한다.
+     * RAID 지시의 칩 판별 힌트(E3.5-3 CP4 검수 반영) — 칩 id 의 SSOT 는 서버(RaidChipFamily)이고
+     * 에이전트는 받은 맵으로만 판별한다. 실물 기준 판별이라 지정 카드와 다른 계열이 꽂혀 있어도
+     * 채집은 성공하고, 불일치는 서버 대조(CARD_MISMATCH)가 정직하게 잡는다.
      */
-    private boolean isEnriched(GuestServer server) {
-        return guestServerDetailRepository.findByServerIdWithBoardModel(server.getId())
-                .map(GuestServerDetail::isDiagnosticEnriched)
-                .orElse(false);
+    private String raidChipsFor(AgentDirective directive) {
+        if (directive == AgentDirective.RAID_INVENTORY || directive == AgentDirective.RAID_APPLY
+                || directive == AgentDirective.RAID_VERIFY) {
+            return com.example.serverprovision.execution.engine.raid.RaidChipFamily.agentChipHint();
+        }
+        return null;
+    }
+
+    private AgentDirective directiveFor(GuestServer server, ProvisioningProgress progress) {
+        if (progress.isCompleted() || progress.isFailed()) {
+            return AgentDirective.REBOOT;
+        }
+        return phaseExecutorRegistry.find(progress.currentPhase())
+                .map(executor -> executor.directiveFor(server, progress))
+                .orElse(AgentDirective.REBOOT);
     }
 
     /**
