@@ -58,7 +58,9 @@ class SettingControllerDiskGroupViewTest {
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private static RaidConfigurationRequest raid(Long raidCardId, List<DiskGroupRuleRequest> groups) {
-        return new RaidConfigurationRequest(raidCardId, groups, VolumePriorityRuleRequest.defaults());
+        // E3.5-4 — 축 명시 픽스처. 구 저장본(축 null · "미지정" 표기) 검증은 legacy 케이스가 3-인자 생성자로 따로 만든다.
+        return new RaidConfigurationRequest(raidCardId, groups, VolumePriorityRuleRequest.defaults(),
+                com.example.serverprovision.provisioning.setting.enums.ExistingRaidConfigPolicy.DESTROY);
     }
 
     /** 순서 검증용 — BIOS 설정 · RAID 구성 · OS 설치를 함께 가진 정의서(RHEL 은 비밀번호 제거 검증 겸용). */

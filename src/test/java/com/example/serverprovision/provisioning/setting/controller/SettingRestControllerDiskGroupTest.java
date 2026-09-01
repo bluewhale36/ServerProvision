@@ -61,7 +61,7 @@ class SettingRestControllerDiskGroupTest {
     /** RAID 구성 단계(flat) — raidCardId · diskGroups 만 갈아 끼운다(우선순위는 기본 1 행 고정 — U4-1-2 로 필수가 됐다). */
     private static String raid(String raidCardId, String diskGroups) {
         return """
-                {"type": "RAID_CONFIGURATION", "raidCardId": %s, "diskGroups": [%s], "volumePriorities": %s}
+                {"type": "RAID_CONFIGURATION", "raidCardId": %s, "diskGroups": [%s], "volumePriorities": %s, "existingConfigPolicy": "DESTROY"}
                 """.formatted(raidCardId, diskGroups, PRIORITY_ROWS);
     }
 
@@ -229,7 +229,7 @@ class SettingRestControllerDiskGroupTest {
     /** RAID 구성 단계 — 우선순위 행까지 갈아 끼우는 변형. */
     private static String raidWithPriorities(String raidCardId, String diskGroups, String priorities) {
         return """
-                {"type": "RAID_CONFIGURATION", "raidCardId": %s, "diskGroups": [%s], "volumePriorities": %s}
+                {"type": "RAID_CONFIGURATION", "raidCardId": %s, "diskGroups": [%s], "volumePriorities": %s, "existingConfigPolicy": "DESTROY"}
                 """.formatted(raidCardId, diskGroups, priorities);
     }
 
@@ -386,5 +386,35 @@ class SettingRestControllerDiskGroupTest {
         org.mockito.BDDMockito.willReturn(new SettingSaveResponse(14L, "디스크 세팅")).given(commandService).create(any());
         String legacy = "{\"mountPoint\": \"/\", \"fileSystem\": \"XFS\", \"diskName\": \"sda\", \"size\": 0, \"sizeUnit\": \"GB\", \"isGrow\": true}";
         send(body(rhelWith(legacy))).andExpect(status().isCreated());
+    }
+
+    // ==== E3.5-4 — 기존 구성 처리 축 · 사각 규칙(규칙 8) ====
+
+    @Test
+    @DisplayName("W1 — RAID 묶음이 있는데 축 미선택 → 400 fieldErrors[existingPolicyPresentWhenRequired]")
+    void post_withoutExistingPolicy_returns400() throws Exception {
+        String noPolicy = """
+                {"type": "RAID_CONFIGURATION", "raidCardId": 7, "diskGroups": [%s], "volumePriorities": %s}
+                """.formatted(ruleWithRole("DATA"), PRIORITY_ROWS);
+        send(body(noPolicy))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processList[0].existingPolicyPresentWhenRequired')].message")
+                        .value(org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.containsString("기존 구성 처리를 선택해야 합니다"))));
+    }
+
+    @Test
+    @DisplayName("W4 통합 — Service 가 던진 unreachableRule(규칙 8)이 400 fieldErrors[diskGroups] 로 매핑된다")
+    void post_unreachableRule_returns400() throws Exception {
+        // 이 클래스 관례: DiskGroupRules 는 Service 안에서 돌므로 판정 자체는 DiskGroupRulesTest(단위)가
+        // 검증하고, 여기서는 그 예외의 HTTP 매핑만 본다(카드 못 만드는 레벨 400 과 같은 패턴).
+        org.mockito.BDDMockito.given(commandService.create(any())).willThrow(
+                com.example.serverprovision.provisioning.setting.exception.InvalidDiskGroupException
+                        .unreachableRule(2, 1));
+        send(body(raid("7", ruleWithRole("DATA"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'diskGroups')].message")
+                        .value(org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.containsString("2번 묶음은 1번 묶음에 가려 도달할 수 없습니다"))));
     }
 }

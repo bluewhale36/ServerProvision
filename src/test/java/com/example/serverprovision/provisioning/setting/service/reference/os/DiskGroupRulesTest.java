@@ -195,4 +195,72 @@ class DiskGroupRulesTest {
         assertThatCode(() -> DiskGroupRules.validate(List.of(osA, data, none), AVAGO_9361)).doesNotThrowAnyException();
         assertThatCode(() -> DiskGroupRules.validate(List.of(data, none), AVAGO_9361)).doesNotThrowAnyException();
     }
+
+    // ==== 규칙 8(E3.5-4) — 사각 규칙: 선행에 완전 포섭된 후행은 도달 불가 =========================
+
+    private static DiskGroupRuleRequest r8(DiskTypeRequirement type, DiskTransportRequirement transport,
+                                           DiskCapacityRequirement capacity, DiskCountMode mode, int count) {
+        return new DiskGroupRuleRequest(RaidLevel.RAID1, type, transport, capacity,
+                new DiskCountRequirement(mode, count), DiskGroupRole.BY_PRIORITY);
+    }
+
+    private static final DiskCapacityRequirement CAP_AUTO =
+            new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null);
+    private static final DiskCapacityRequirement CAP_480 =
+            new DiskCapacityRequirement(CapacityRequirementMode.SPECIFIED, 480L, DiskCapacityUnit.GB);
+    private static final DiskCapacityRequirement CAP_960 =
+            new DiskCapacityRequirement(CapacityRequirementMode.SPECIFIED, 960L, DiskCapacityUnit.GB);
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("W4 — 개수 수용집합 포섭 3형(엄격 일치 기준): AT_LEAST⊇AT_LEAST · AT_LEAST⊇EXACT · EXACT=EXACT")
+    void covers_countAcceptanceForms() {
+        var atLeast2 = r8(DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO, CAP_AUTO, DiskCountMode.AT_LEAST, 2);
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(atLeast2,
+                r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_AUTO, DiskCountMode.AT_LEAST, 3))).isTrue();
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(atLeast2,
+                r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_AUTO, DiskCountMode.EXACT, 3))).isTrue();
+        var exact2 = r8(DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO, CAP_AUTO, DiskCountMode.EXACT, 2);
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(exact2,
+                r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_AUTO, DiskCountMode.EXACT, 2))).isTrue();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("W4 — 축 포섭: 선행 AUTO 는 덮고, 구체값은 동일해야만 덮는다(용량은 동일 지정만)")
+    void covers_axisContainment() {
+        var specific = r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_480, DiskCountMode.AT_LEAST, 2);
+        // 종류가 다르면 비포섭
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(specific,
+                r8(DiskTypeRequirement.HDD, DiskTransportRequirement.SATA, CAP_480, DiskCountMode.AT_LEAST, 3))).isFalse();
+        // 선행이 용량 지정이면 후행 AUTO 용량은 비포섭(후행이 더 넓다)
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(specific,
+                r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_AUTO, DiskCountMode.AT_LEAST, 3))).isFalse();
+        // 지정 용량이 다르면 비포섭
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(specific,
+                r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_960, DiskCountMode.AT_LEAST, 3))).isFalse();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("W5 — 후행 흘림의 근거는 막지 않는다: EXACT 2 뒤 AT_LEAST 3 · 넓은 규칙이 뒤에 오는 역순")
+    void covers_doesNotBlockFallThrough() {
+        var exact2 = r8(DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO, CAP_AUTO, DiskCountMode.EXACT, 2);
+        var atLeast3 = r8(DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO, CAP_AUTO, DiskCountMode.AT_LEAST, 3);
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(exact2, atLeast3)).isFalse();   // T17 구성
+        // 넓은 규칙이 뒤: 선행(좁음)이 후행(넓음)을 못 덮는다 — 순서를 바꾸면 도달 가능하므로 정당
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(
+                r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_AUTO, DiskCountMode.AT_LEAST, 3),
+                r8(DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO, CAP_AUTO, DiskCountMode.AT_LEAST, 2))).isFalse();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("W4 통합 — validate 가 포섭된 후행을 unreachableRule 로 거절한다(레벨이 달라도)")
+    void validate_rejectsUnreachableRule() {
+        var covering = new DiskGroupRuleRequest(RaidLevel.RAID5, DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO,
+                CAP_AUTO, new DiskCountRequirement(DiskCountMode.AT_LEAST, 3), DiskGroupRole.BY_PRIORITY);
+        var covered = new DiskGroupRuleRequest(RaidLevel.RAID6, DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO,
+                CAP_AUTO, new DiskCountRequirement(DiskCountMode.AT_LEAST, 4), DiskGroupRole.BY_PRIORITY);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        DiskGroupRules.validate(List.of(covering, covered), AVAGO_9361))
+                .isInstanceOf(com.example.serverprovision.provisioning.setting.exception.InvalidDiskGroupException.class)
+                .hasMessageContaining("2번 묶음은 1번 묶음에 가려 도달할 수 없습니다");
+    }
 }

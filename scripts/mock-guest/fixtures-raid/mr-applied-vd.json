@@ -30,7 +30,11 @@
      {
       "EID:Slt": "252:1"
      }
-    ]
+    ],
+    "VD0 Properties": {
+     "Strip Size": "256 KB",
+     "SCSI NAA Id": "600605b00d18aa1e322807f9084a72aa"
+    }
    }
   }
  ]

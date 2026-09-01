@@ -214,7 +214,7 @@ class RaidConfigurationExecutorTest {
         }
 
         private RaidExistingVolume volumeNamed(String name) {
-            return new RaidExistingVolume("VD0", "RAID1", "446.625 GB", "Optl", name, List.of("252:0", "252:1"));
+            return new RaidExistingVolume("VD0", "RAID1", "446.625 GB", "Optl", name, List.of("252:0", "252:1"), null);
         }
 
         private RaidPlan planOf() {
@@ -326,6 +326,48 @@ class RaidConfigurationExecutorTest {
         }
 
         @Test
+        @DisplayName("W7 — 명시 보존 + 외부 볼륨 = EXISTING_CONFIG 실패 승격(보류 아님 · D-7)")
+        void declaredPreserve_withForeign_failsPromoted() {
+            stubStored(inventoryWith(volumeNamed("legacy-vd")));
+            given(resolutionProvider.policyOf(GUEST_ID))
+                    .willReturn(Optional.of(RaidExistingConfigPolicy.PRESERVE));
+            given(resolutionProvider.planFor(eq(GUEST_ID), any(), eq(RaidExistingConfigPolicy.PRESERVE)))
+                    .willReturn(Optional.of(new RaidPlanRejection(RaidPlanRejection.EXISTING_CONFIG, "외부 1개")));
+            ProvisioningProgress progress = progress();
+
+            assertThat(executor.directiveFor(guest(), progress)).isEqualTo(AgentDirective.REBOOT);
+            verify(raidLedger).failInstant(any(), eq(progress), eq(ProvisioningPhaseStep.RAID_APPLYING),
+                    eq(RaidLedger.EXISTING_CONFIG), contains("외부"), any());
+            verify(raidLedger, never()).holdInstant(any(), any(), anyString(), anyString(), any());
+        }
+
+        @Test
+        @DisplayName("W7 — 명시 파괴 + 외부 볼륨 = 보류 없이 집행(동결 + RAID_APPLY)")
+        void declaredDestroy_withForeign_applies() {
+            stubStored(inventoryWith(volumeNamed("legacy-vd")));
+            given(resolutionProvider.policyOf(GUEST_ID))
+                    .willReturn(Optional.of(RaidExistingConfigPolicy.DESTROY));
+            given(resolutionProvider.planFor(eq(GUEST_ID), any(), eq(RaidExistingConfigPolicy.DESTROY)))
+                    .willReturn(Optional.of(planOf()));
+
+            assertThat(executor.directiveFor(guest(), progress())).isEqualTo(AgentDirective.RAID_APPLY);
+            verify(raidLedger, never()).holdInstant(any(), any(), anyString(), anyString(), any());
+        }
+
+        @Test
+        @DisplayName("W7 — 명시 보존 + spvR 잔여만 = 집행(planner 가 통과시킨다 · Q1)")
+        void declaredPreserve_withResidueOnly_applies() {
+            stubStored(inventoryWith(volumeNamed("spvR1V1")));
+            given(resolutionProvider.policyOf(GUEST_ID))
+                    .willReturn(Optional.of(RaidExistingConfigPolicy.PRESERVE));
+            given(resolutionProvider.planFor(eq(GUEST_ID), any(), eq(RaidExistingConfigPolicy.PRESERVE)))
+                    .willReturn(Optional.of(planOf()));
+
+            assertThat(executor.directiveFor(guest(), progress())).isEqualTo(AgentDirective.RAID_APPLY);
+            verify(raidLedger).freezePlanned(any(), anyString(), any());
+        }
+
+        @Test
         @DisplayName("빈 계획(묶음 0 정의서) — 집행할 것이 없어 phase 완주 전진 + REBOOT")
         void emptyPlan_advancesPhase() {
             stubStored(inventoryWith());
@@ -375,7 +417,7 @@ class RaidConfigurationExecutorTest {
             return new RaidInventory(new DetectedRaidCard(RaidChipFamily.MEGARAID, "1000:9361", "9361-8i", "fw"),
                     List.of(),
                     List.of(new RaidExistingVolume("VD0", "RAID1", "446.625 GB", "Optl", "spvR1V1",
-                            List.of("252:0", "252:1"))));
+                            List.of("252:0", "252:1"), "600605b00d18aa1e322807f9084a72aa")));
         }
 
         @Test

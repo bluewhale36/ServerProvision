@@ -13,10 +13,20 @@ public record RaidExistingVolume(
         String size,
         String state,
         String name,
-        List<String> memberSlots
+        List<String> memberSlots,
+        /** 볼륨 WWN — MegaRAID {@code SCSI NAA Id} · IR {@code Volume wwid}. 미노출은 null(E3.5-4 증보). */
+        String wwn
 ) {
 
     public RaidExistingVolume {
         memberSlots = memberSlots == null ? List.of() : List.copyOf(memberSlots);
+    }
+
+    /**
+     * 우리 이름 규약({@code spvR} 접두)의 볼륨인가 — 잔여 판별의 SSOT(E3.5-4 Q1 · Q2 확정).
+     * planner(보존 거절 범위) · 실행기(보류 판정) · 미리보기(갈래 분기)가 이 한 곳을 공유한다.
+     */
+    public boolean isProvisionOwned() {
+        return name != null && name.trim().startsWith("spvR");
     }
 }

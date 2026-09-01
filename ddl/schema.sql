@@ -539,6 +539,7 @@ CREATE TABLE `raid_volume` (
   `volume_role` enum('OS','DATA','NONE') NOT NULL COMMENT 'E4 OS 설치가 OS 영역 볼륨을 찾는 축',
   `rule_no` int(11) NOT NULL COMMENT '정의서 규칙 순번(1-based)',
   `state` varchar(64) DEFAULT NULL COMMENT '재채집 상태 원문 — 동기화 대기 없음(D-9)',
+  `wwn` varchar(64) DEFAULT NULL COMMENT '볼륨 WWN — MegaRAID SCSI NAA Id · IR Volume wwid, 미노출 NULL',
   `created_at` datetime(6) NOT NULL,
   `updated_at` datetime(6) NOT NULL,
   PRIMARY KEY (`id`),

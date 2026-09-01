@@ -40,6 +40,8 @@ public class RaidLedger {
     public static final String CREATE_REJECTED = "CREATE_REJECTED";
     /** 재채집 결과가 동결 계획과 다르다(E3.5-3 결정 4). */
     public static final String RESULT_MISMATCH = "RESULT_MISMATCH";
+    /** 명시한 보존 정책과 외부 기존 볼륨의 모순(E3.5-4 결정 3 · D-7) — 보류가 아니라 실패. */
+    public static final String EXISTING_CONFIG = "EXISTING_CONFIG";
 
     private final ProvisioningHistoryRecorder recorder;
     private final ProvisioningHistoryRepository historyRepository;

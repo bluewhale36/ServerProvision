@@ -22,7 +22,7 @@ class RaidResultVerifierTest {
     }
 
     private static RaidExistingVolume observed(String name, String level, String... slots) {
-        return new RaidExistingVolume("VD0", level, "446.625 GB", "Optl", name, List.of(slots));
+        return new RaidExistingVolume("VD0", level, "446.625 GB", "Optl", name, List.of(slots), null);
     }
 
     private static RaidInventory inv(RaidExistingVolume... volumes) {

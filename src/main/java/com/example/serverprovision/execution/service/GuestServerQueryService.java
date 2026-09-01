@@ -67,6 +67,7 @@ public class GuestServerQueryService {
 
     private final GuestServerRepository guestServerRepository;
     private final RaidConfigurationResolutionProvider raidConfigurationResolutionProvider;
+    private final com.example.serverprovision.execution.repository.RaidVolumeRepository raidVolumeRepository;
     private final GuestServerDetailRepository detailRepository;
     private final HostNicBindingRepository nicRepository;
     private final ProvisioningProgressRepository progressRepository;
@@ -350,6 +351,7 @@ public class GuestServerQueryService {
 
         GuestServerDetailResponse.RaidPlanPreview raidPlan = raidPlanPreviewOf(server.getId(),
                 inventory == null ? null : inventory.raidInventory());
+        List<GuestServerDetailResponse.RaidVolumeView> raidVolumes = raidVolumeViewsOf(server.getId());
 
         List<GuestServerDetailResponse.Nic> nicResponses = nics.stream()
                 .map(n -> new GuestServerDetailResponse.Nic(
@@ -406,6 +408,7 @@ public class GuestServerQueryService {
                 firmwarePlanOf(server, progress),
                 firmwareFlashOf(progress, steps),
                 raidPlan,
+                raidVolumes,
                 stepResponses
         );
     }
@@ -418,7 +421,20 @@ public class GuestServerQueryService {
         if (raidInventory == null) {
             return null;
         }
-        if (raidInventory.volumes().isEmpty()) {
+        // 3분기(E3.5-4 결정 3 · Q2): 축 명시 = 그 정책 단일 / 축 null + 외부 볼륨 = 두 갈래 병기 /
+        // 축 null + 잔여·무볼륨 = 정책 무관 단일. 분기 기준은 실행 판정과 같은 외부 볼륨(isProvisionOwned)이다.
+        Optional<RaidExistingConfigPolicy> declared = raidConfigurationResolutionProvider.policyOf(serverId);
+        if (declared.isPresent()) {
+            String label = declared.get() == RaidExistingConfigPolicy.PRESERVE ? "보존 정책" : "파괴 정책";
+            return raidConfigurationResolutionProvider
+                    .planFor(serverId, raidInventory, declared.get())
+                    .map(outcome -> new GuestServerDetailResponse.RaidPlanPreview(false,
+                            List.of(branchOf(label, outcome))))
+                    .orElse(null);
+        }
+        boolean hasForeign = raidInventory.volumes().stream()
+                .anyMatch(v -> !v.isProvisionOwned());
+        if (!hasForeign) {
             return raidConfigurationResolutionProvider
                     .planFor(serverId, raidInventory, RaidExistingConfigPolicy.DESTROY)
                     .map(outcome -> new GuestServerDetailResponse.RaidPlanPreview(false,
@@ -434,6 +450,31 @@ public class GuestServerQueryService {
         }
         return new GuestServerDetailResponse.RaidPlanPreview(true,
                 List.of(branchOf("파괴 시", destroy.get()), branchOf("보존 시", preserve.get())));
+    }
+
+    /** 검증 통과 실물(E3.5-4) — 계획(파생 · 무저장)과 달리 raid_volume 표에 기록된 현재 실물이다. */
+    private List<GuestServerDetailResponse.RaidVolumeView> raidVolumeViewsOf(UUID serverId) {
+        return raidVolumeRepository.findAllByGuestServer_Id(serverId).stream()
+                .map(v -> new GuestServerDetailResponse.RaidVolumeView(
+                        v.getName(),
+                        v.getRaidLevel() == null ? "RAID 없음" : v.getRaidLevel().getDisplayName(),
+                        memberSlotsDisplay(v.getMemberSlotsJson()),
+                        formatDecimalBytes(v.getUsableBytes()),
+                        v.getVolumeRole(),
+                        v.getState(),
+                        v.getWwn()))
+                .toList();
+    }
+
+    private String memberSlotsDisplay(String memberSlotsJson) {
+        if (memberSlotsJson == null) {
+            return "";
+        }
+        try {
+            return String.join(" · ", objectMapper.readValue(memberSlotsJson, String[].class));
+        } catch (RuntimeException e) {
+            return memberSlotsJson;   // 손상 관용 — 원문 그대로
+        }
     }
 
     private GuestServerDetailResponse.RaidPlanBranch branchOf(String label, RaidPlanOutcome outcome) {

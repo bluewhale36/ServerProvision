@@ -50,6 +50,8 @@ public record GuestServerDetailResponse(
         FirmwareFlash firmwareFlash,
         /** RAID 구성 계획 미리보기(E3.5-2) — 저장 없이 조회 때마다 재산출. 창 밖(할당 · 단계 없음)이면 null. */
         RaidPlanPreview raidPlan,
+        /** 검증 통과 실물(E3.5-4 — raid_volume). 통과 전이면 빈 목록. */
+        List<RaidVolumeView> raidVolumes,
         List<Step> steps
 ) {
 
@@ -123,6 +125,14 @@ public record GuestServerDetailResponse(
     /** 규칙 소비 한 줄 — {@code consumedNothing} 이 사각 규칙 의심 표시(결정 7 런타임 가시화)다. */
     public record RuleOutcomeView(int ruleNo, String label, int matchedDisks, int consumedDisks,
                                   int volumeCount, boolean consumedNothing) {
+    }
+
+    /**
+     * 검증 통과 실물 한 줄(E3.5-4 — raid_volume). 계획 표와 같은 관례로 표시 문자열은 서버가 채운다.
+     * {@code wwn} 은 OS 설치 인계의 조회 키 — Linux kickstart 직결 · Windows 는 WinPE 단계 해석.
+     */
+    public record RaidVolumeView(String name, String level, String members, String capacity,
+                                 PlannedVolumeRole role, String state, String wwn) {
     }
 
     /**

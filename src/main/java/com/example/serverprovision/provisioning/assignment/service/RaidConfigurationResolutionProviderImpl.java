@@ -57,7 +57,18 @@ public class RaidConfigurationResolutionProviderImpl implements RaidConfiguratio
                 card.map(RaidCard::getModelName).orElse("(사라진 카드 #" + raidCardId + ")")));
     }
 
-    /** 활성 스냅샷의 RAID 구성 payload — resolveFor · planFor 가 같은 창 판정을 공유한다. */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<RaidExistingConfigPolicy> policyOf(UUID guestServerId) {
+        return activeRaidRequest(guestServerId)
+                .map(RaidConfigurationRequest::getExistingConfigPolicy)
+                .map(policy -> switch (policy) {   // U 어휘 → 실행 어휘 1:1 번역(plan 결정 1)
+                    case PRESERVE -> RaidExistingConfigPolicy.PRESERVE;
+                    case DESTROY -> RaidExistingConfigPolicy.DESTROY;
+                });
+    }
+
+    /** 활성 스냅샷의 RAID 구성 payload — resolveFor · planFor · policyOf 가 같은 창 판정을 공유한다. */
     private Optional<RaidConfigurationRequest> activeRaidRequest(UUID guestServerId) {
         return assignmentRepository
                 .findByGuestServer_IdAndSupersededAtIsNull(guestServerId)

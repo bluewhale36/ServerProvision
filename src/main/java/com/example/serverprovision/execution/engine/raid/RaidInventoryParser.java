@@ -120,8 +120,10 @@ public class RaidInventoryParser {
                 for (JsonNode pd : data.path("PDs for VD " + vdNo)) {
                     members.add(text(pd, "EID:Slt"));
                 }
+                // WWN 은 "VD{N} Properties" 블록의 SCSI NAAB Id 가 아니라 "SCSI NAA Id" 다(2026-08-31 실측)
+                String wwn = text(data.path("VD" + vdNo + " Properties"), "SCSI NAA Id");
                 volumes.add(new RaidExistingVolume("VD" + vdNo, text(row, "TYPE"), text(row, "Size"),
-                        text(row, "State"), text(row, "Name"), members));
+                        text(row, "State"), text(row, "Name"), members, wwn));
             }
         }
         return new RaidInventory(
@@ -154,7 +156,8 @@ public class RaidInventoryParser {
             String sizeMb = lineValue(block, "Size (in MB)");
             volumes.add(new RaidExistingVolume(lineValue(block, "Volume ID"),
                     lineValue(block, "RAID level"), sizeMb == null ? null : sizeMb + " MB",
-                    lineValue(block, "Status of volume"), null, members));
+                    lineValue(block, "Status of volume"), null, members,
+                    lineValue(block, "Volume wwid")));
         }
 
         List<RaidPhysicalDisk> disks = new ArrayList<>();

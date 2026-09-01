@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.setting.dto.request;
 
 import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
+import com.example.serverprovision.provisioning.setting.enums.ExistingRaidConfigPolicy;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -48,15 +49,30 @@ public class RaidConfigurationRequest extends AbstractProcessRequest {
     @Valid
     private final List<VolumePriorityRuleRequest> volumePriorities;
 
+    /**
+     * 기존 구성 처리 축(E3.5-4, 결정 D-7) — 기본값 없는 필수 선택. {@code null} 은 이 축이 없던 구 저장본의
+     * 관용 값이다(volumePriorities 의 "구 저장본" 관례와 동일): 화면은 "미지정" 으로 표기하고 실행은 종전과
+     * 같은 보류를 유지하며, 편집 저장 시에는 {@link #isExistingPolicyPresentWhenRequired} 가 선택을 요구한다.
+     */
+    private final ExistingRaidConfigPolicy existingConfigPolicy;
+
     @JsonCreator
     public RaidConfigurationRequest(
-            @JsonProperty("raidCardId")       Long raidCardId,
-            @JsonProperty("diskGroups")       List<DiskGroupRuleRequest> diskGroups,
-            @JsonProperty("volumePriorities") List<VolumePriorityRuleRequest> volumePriorities
+            @JsonProperty("raidCardId")           Long raidCardId,
+            @JsonProperty("diskGroups")           List<DiskGroupRuleRequest> diskGroups,
+            @JsonProperty("volumePriorities")     List<VolumePriorityRuleRequest> volumePriorities,
+            @JsonProperty("existingConfigPolicy") ExistingRaidConfigPolicy existingConfigPolicy
     ) {
-        this.raidCardId       = raidCardId;
-        this.diskGroups       = diskGroups != null ? List.copyOf(diskGroups) : List.of();
-        this.volumePriorities = volumePriorities != null ? List.copyOf(volumePriorities) : null;
+        this.raidCardId           = raidCardId;
+        this.diskGroups           = diskGroups != null ? List.copyOf(diskGroups) : List.of();
+        this.volumePriorities     = volumePriorities != null ? List.copyOf(volumePriorities) : null;
+        this.existingConfigPolicy = existingConfigPolicy;
+    }
+
+    /** 축이 없던 구 형태(E3.5-4 이전 호출부 호환) — 구 저장본과 같은 null 관용. */
+    public RaidConfigurationRequest(Long raidCardId, List<DiskGroupRuleRequest> diskGroups,
+                                    List<VolumePriorityRuleRequest> volumePriorities) {
+        this(raidCardId, diskGroups, volumePriorities, null);
     }
 
     @Override
@@ -79,6 +95,17 @@ public class RaidConfigurationRequest extends AbstractProcessRequest {
     @AssertTrue(message = "RAID 를 구성하는 묶음이 있으므로 RAID 카드를 지정해야 합니다.")
     public boolean isRaidCardPresentWhenRequired() {
         return !requiresRaidCard() || raidCardId != null;
+    }
+
+    /**
+     * RAID 묶음이 있으면 기존 구성 처리를 골라야 한다(E3.5-4 · D-7 필수 선택) — 판정 재료는 카드 요구
+     * ({@link #requiresRaidCard})와 같다. 폼의 라디오 잠금과 서버 가드가 이 판정을 공유한다(UI 1차 차단).
+     * 오류 경로는 {@code processList[i].existingPolicyPresentWhenRequired}.
+     */
+    @JsonIgnore
+    @AssertTrue(message = "RAID 를 구성하는 묶음이 있으므로 기존 구성 처리를 선택해야 합니다.")
+    public boolean isExistingPolicyPresentWhenRequired() {
+        return !requiresRaidCard() || existingConfigPolicy != null;
     }
 
     /**

@@ -459,6 +459,37 @@
         </div>
     </div>
 
+    <!-- RAID 구성 실물 (E3.5-4) — 검증을 통과해 raid_volume 에 기록된 현재 실물. 계획(무저장 파생)과 구분된다 -->
+    <div class="n-detail-section" data-live="raid-volumes">
+        <div class="n-section-title">RAID 구성 실물</div>
+        <div class="n-card">
+            <div class="n-card-body">
+                <table th:if="${not #lists.isEmpty(server.raidVolumes)}" class="n-table">
+                    <thead>
+                    <tr><th>이름</th><th>레벨</th><th>멤버 슬롯</th><th>유효 용량</th><th>역할</th><th>상태</th><th>WWN</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="v : ${server.raidVolumes}">
+                        <td><code class="n-mono" th:text="${v.name}">spvR1V1</code></td>
+                        <td th:text="${v.level}">RAID1</td>
+                        <td><code class="n-mono" th:text="${v.members}">252:0 · 252:1</code></td>
+                        <td th:text="${v.capacity}">479.6 GB</td>
+                        <td>
+                            <span th:if="${v.role.name() == 'OS'}" class="n-badge n-badge-green"
+                                  th:text="${v.role.displayName}">OS 영역</span>
+                            <span th:unless="${v.role.name() == 'OS'}" th:text="${v.role.displayName}">Data 영역</span>
+                        </td>
+                        <td th:text="${v.state != null} ? ${v.state} : '—'">Optl</td>
+                        <td><code class="n-mono" th:text="${v.wwn != null} ? ${v.wwn} : '—'">600605b0…</code></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p th:if="${#lists.isEmpty(server.raidVolumes)}" class="n-detail-empty">
+                    검증을 통과한 RAID 구성이 아직 없습니다 — 집행과 검증이 끝나면 여기에 기록됩니다.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- 호스트 NIC (읽기 전용) -->
     <div class="n-detail-section" data-live="nics">
         <div class="n-section-title">호스트 NIC</div>

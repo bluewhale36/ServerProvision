@@ -376,7 +376,7 @@ class RaidPlannerTest {
     class ExistingPolicy {
 
         private final List<RaidExistingVolume> existing = List.of(
-                new RaidExistingVolume("VD0", "RAID1", "3.637 TB", "Optl", "", List.of("h:0", "h:1")));
+                new RaidExistingVolume("VD0", "RAID1", "3.637 TB", "Optl", "", List.of("h:0", "h:1"), null));
 
         @Test
         @DisplayName("T9 — 보존 + 기존 볼륨 존재 = EXISTING_CONFIG 거절")
@@ -405,6 +405,23 @@ class RaidPlannerTest {
                     RaidExistingConfigPolicy.DESTROY));
 
             assertThat(plan.deleteExistingFirst()).isTrue();
+            assertThat(plan.volumes()).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("W13 — 보존 + spvR 잔여만 = 계획 성립 + 선행 삭제(외부 기준 정밀화, E3.5-4 Q1)")
+        void preserve_withOurResidueOnly_plansWithDeleteFirst() {
+            List<RaidExistingVolume> residue = List.of(new RaidExistingVolume(
+                    "VD0", "RAID1", "3.637 TB", "Optl", "spvR1V1", List.of("h:0", "h:1"), null));
+            RaidPlan plan = planOf(RaidPlanner.plan(
+                    List.of(rule(RaidLevel.RAID1, DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO,
+                            auto(), DiskCountMode.EXACT, 2, DiskGroupRole.DATA)),
+                    VolumePriorityRuleRequest.defaults(),
+                    inv(RaidChipFamily.MEGARAID,
+                            List.of(disk("h:0", "HDD", "SAS", S4T), disk("h:1", "HDD", "SAS", S4T)), residue),
+                    RaidExistingConfigPolicy.PRESERVE));
+
+            assertThat(plan.deleteExistingFirst()).isTrue();   // 잔여는 정책 불문 재구성 대상
             assertThat(plan.volumes()).hasSize(1);
         }
 
