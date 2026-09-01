@@ -36,9 +36,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
 
-    /** 우리가 만든 볼륨의 이름 접두(E3.5-3 CP1 개정 — 하이픈 미지원 카드 대비 영숫자만). */
-    private static final String OUR_NAME_PREFIX = "spvR";
-
     private final PxeAssetsProperties properties;
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final RaidInventoryParser inventoryParser;
@@ -84,21 +81,32 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
             return AgentDirective.WAIT;                                              // 저장본 손상 — 관용 대기
         }
         LocalDateTime now = LocalDateTime.now();
-        long foreign = inventory.volumes().stream().filter(v -> !isOurs(v)).count();
-        if (foreign > 0) {
-            // ③ 외부 볼륨 — 파괴를 임의 선택할 수 없다(결정 3 · D-7). spvR* 잔여는 재구성 대상이라 제외.
-            raidLedger.holdInstant(server, ProvisioningPhaseStep.RAID_APPLYING, RaidLedger.POLICY_UNDECIDED,
-                    "외부 기존 볼륨 " + foreign + "개 — \"기존 구성 : 보존 / 파괴\" 축 도입(E3.5-4) 전에는 집행하지 않습니다", now);
-            return AgentDirective.WAIT;
+        Optional<RaidExistingConfigPolicy> declared = resolutionProvider.policyOf(server.getId());
+        if (declared.isEmpty()) {
+            // ③ 축 미지정(구 저장본) — 외부 볼륨이 있으면 파괴를 임의 선택할 수 없다(결정 3 · D-7).
+            //    spvR* 잔여는 재구성 대상이라 제외(판별 SSOT = RaidExistingVolume.isProvisionOwned).
+            long foreign = inventory.volumes().stream().filter(v -> !v.isProvisionOwned()).count();
+            if (foreign > 0) {
+                raidLedger.holdInstant(server, ProvisioningPhaseStep.RAID_APPLYING, RaidLedger.POLICY_UNDECIDED,
+                        "외부 기존 볼륨 " + foreign + "개 — 정의서의 \"기존 구성 처리\" 를 선택하기 전에는 집행하지 않습니다", now);
+                return AgentDirective.WAIT;
+            }
         }
         Optional<RaidPlanOutcome> outcome = resolutionProvider.planFor(
-                server.getId(), inventory, RaidExistingConfigPolicy.DESTROY);
+                server.getId(), inventory, declared.orElse(RaidExistingConfigPolicy.DESTROY));
         if (outcome.isEmpty()) {
             log.warn("RAID phase 커서인데 계획 창 밖(활성 할당 · RAID 단계 부재) : guestServerId={}", server.getId());
             return AgentDirective.WAIT;
         }
         if (outcome.get() instanceof RaidPlanRejection rejection) {
-            // ④ 거절 — 정의서 수정으로 풀리는 보류(실패 낙인 없음).
+            if (RaidPlanRejection.EXISTING_CONFIG.equals(rejection.code())) {
+                // 명시한 보존과 실물의 모순은 보류가 아니라 정직한 실패다(E3.5-4 결정 3 · D-7 원문).
+                // 거절 코드가 늘면 승격 여부를 코드별로 정해야 하는 자리 — 조용히 보류로 흘리지 말 것.
+                raidLedger.failInstant(server, progress, ProvisioningPhaseStep.RAID_APPLYING,
+                        RaidLedger.EXISTING_CONFIG, rejection.detail(), now);
+                return AgentDirective.REBOOT;
+            }
+            // ④ 그 외 거절 — 정의서 수정으로 풀리는 보류(실패 낙인 없음).
             raidLedger.holdInstant(server, ProvisioningPhaseStep.RAID_APPLYING, RaidLedger.PLAN_REJECTED,
                     rejection.code() + " — " + rejection.detail(), now);
             return AgentDirective.WAIT;
@@ -196,17 +204,20 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
         raidVolumeRepository.deleteByGuestServer_Id(server.getId());
         List<RaidVolume> rows = new java.util.ArrayList<>();
         for (PlannedVolume volume : frozen.volumes()) {
-            String state = observed.volumes().stream()
+            Optional<RaidExistingVolume> matched = observed.volumes().stream()
                     .filter(v -> volume.name().equalsIgnoreCase(v.name() == null ? "" : v.name().trim()))
-                    .map(RaidExistingVolume::state).findFirst().orElse(null);
+                    .findFirst();
             rows.add(RaidVolume.of(server, volume.name(), volume.level(),
                     objectMapper.writeValueAsString(volume.memberSlots()), volume.usableBytes(),
-                    volume.role(), volume.ruleNo(), state));
+                    volume.role(), volume.ruleNo(),
+                    matched.map(RaidExistingVolume::state).orElse(null),
+                    matched.map(RaidExistingVolume::wwn).orElse(null)));   // E4 인계 키(E3.5-4 증보)
         }
         for (PlannedPassthrough passthrough : frozen.passthroughs()) {
             rows.add(RaidVolume.of(server, passthrough.slot(), null,
                     objectMapper.writeValueAsString(List.of(passthrough.slot())), passthrough.usableBytes(),
-                    passthrough.role(), passthrough.ruleNo(), null));
+                    passthrough.role(), passthrough.ruleNo(), null,
+                    null));   // 단독 디스크 WWN 은 원천이 다르다 — CP7 실측 후 확장(plan 리스크)
         }
         raidVolumeRepository.saveAll(rows);
     }
@@ -226,10 +237,6 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
             log.warn("저장 인벤토리 해석 불가 — 대기 : guestServerId={}", server.getId(), e);
             return null;
         }
-    }
-
-    private boolean isOurs(RaidExistingVolume volume) {
-        return volume.name() != null && volume.name().trim().startsWith(OUR_NAME_PREFIX);
     }
 
     private GuestServerDetail requireDetail(GuestServer server) {

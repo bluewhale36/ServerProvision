@@ -64,6 +64,7 @@ class RaidInventoryParserTest {
         assertThat(vd0.level()).isEqualTo("RAID1");
         assertThat(vd0.memberSlots()).containsExactlyInAnyOrder("252:0", "252:1");
         assertThat(vd0.name()).isEmpty();   // 실측 — 기존 볼륨은 이름이 빈 값(이름 규약 볼륨과 구분됨)
+        assertThat(vd0.wwn()).isEqualTo("600605b00d18aa1e322807f9084a72aa");   // W11 — VD Properties 의 SCSI NAA Id(E3.5-4)
         RaidExistingVolume vd1 = inv.volumes().stream().filter(v -> v.id().equals("VD1")).findFirst().orElseThrow();
         assertThat(vd1.level()).isEqualTo("RAID5");
         assertThat(vd1.memberSlots()).hasSize(6);
@@ -87,6 +88,7 @@ class RaidInventoryParserTest {
             assertThat(v.level()).isEqualTo("RAID1");
             assertThat(v.memberSlots()).containsExactly("1:0", "1:1");
             assertThat(v.name()).isNull();   // display 는 이름을 내지 않는다(실측)
+            assertThat(v.wwn()).isEqualTo("0097bf86d7e97988");   // W11 — Volume wwid(E3.5-4)
         });
         assertThat(inv.disks()).hasSize(2);
         RaidPhysicalDisk d0 = inv.disks().get(0);

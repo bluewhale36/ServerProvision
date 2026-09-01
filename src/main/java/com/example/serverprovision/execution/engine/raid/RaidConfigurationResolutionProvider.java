@@ -18,4 +18,10 @@ public interface RaidConfigurationResolutionProvider {
      * 계획은 저장하지 않는 파생물이라 호출 때마다 재산출된다(plan 결정 3).
      */
     Optional<RaidPlanOutcome> planFor(UUID guestServerId, RaidInventory inventory, RaidExistingConfigPolicy policy);
+
+    /**
+     * 정의서가 명시한 기존 구성 처리 축(E3.5-4 결정 D-7) — empty = 창 밖이거나 구 저장본(축 미지정).
+     * 실행기는 present 면 그 정책으로 집행하고, empty 면 종전 보류 규칙을 유지한다.
+     */
+    Optional<RaidExistingConfigPolicy> policyOf(UUID guestServerId);
 }

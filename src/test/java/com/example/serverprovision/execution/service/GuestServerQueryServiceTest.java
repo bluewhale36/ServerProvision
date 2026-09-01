@@ -38,6 +38,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -55,8 +57,12 @@ class GuestServerQueryServiceTest {
     // E2-1-b — 상세 조회가 펌웨어 해석을 한 번 돌린다. 이 파일의 시나리오는 펌웨어 단계와 무관하므로
     // "해당 없음"(empty)을 돌려주는 mock 으로 두고, 판정 자체는 FirmwareResolverTest 가 검증한다.
     @Mock com.example.serverprovision.execution.engine.firmware.FirmwareResolutionProvider firmwareResolutionProvider;
+    @Mock com.example.serverprovision.execution.engine.raid.RaidConfigurationResolutionProvider raidConfigurationResolutionProvider;
+    @Mock com.example.serverprovision.execution.repository.RaidVolumeRepository raidVolumeRepository;
     @Mock com.example.serverprovision.execution.engine.phase.HoldTtlPolicy holdTtlPolicy;
     @Mock RetryPolicy retryPolicy;
+
+    @org.mockito.Spy tools.jackson.databind.ObjectMapper objectMapper = new tools.jackson.databind.ObjectMapper();
 
     @InjectMocks GuestServerQueryService service;
 
@@ -259,5 +265,105 @@ class GuestServerQueryServiceTest {
         given(guestServerRepository.findById(id)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.findDetail(id)).isInstanceOf(GuestServerNotFoundException.class);
+    }
+
+    // ==== E3.5-4 — 미리보기 3분기(W8) · 실물 표(W9 · W12) ====
+
+    private com.example.serverprovision.execution.engine.raid.RaidInventory raidInv(
+            com.example.serverprovision.execution.engine.raid.RaidExistingVolume... volumes) {
+        return new com.example.serverprovision.execution.engine.raid.RaidInventory(null,
+                java.util.List.of(), java.util.List.of(volumes));
+    }
+
+    private com.example.serverprovision.execution.engine.raid.RaidExistingVolume vol(String name) {
+        return new com.example.serverprovision.execution.engine.raid.RaidExistingVolume(
+                "VD0", "RAID1", "446.625 GB", "Optl", name, java.util.List.of("252:0", "252:1"), null);
+    }
+
+    private UUID stubDetailWithRaidInventory(com.example.serverprovision.execution.engine.raid.RaidInventory inv) {
+        UUID id = UUID.randomUUID();
+        GuestServer s = server(id, "web-01", null);
+        GuestServerDetail d = detail(s);
+        d.enrichRaidInventory(objectMapper.writeValueAsString(inv));
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
+        given(detailRepository.findByServerIdWithBoardModel(id)).willReturn(Optional.of(d));
+        return id;
+    }
+
+    @Test
+    @DisplayName("W8 — 축 명시(보존)면 그 정책 단일 갈래")
+    void preview_declaredPolicy_singleBranch() {
+        UUID id = stubDetailWithRaidInventory(raidInv(vol("legacy")));
+        given(raidConfigurationResolutionProvider.policyOf(id)).willReturn(Optional.of(
+                com.example.serverprovision.execution.engine.raid.RaidExistingConfigPolicy.PRESERVE));
+        given(raidConfigurationResolutionProvider.planFor(eq(id), any(), eq(
+                com.example.serverprovision.execution.engine.raid.RaidExistingConfigPolicy.PRESERVE)))
+                .willReturn(Optional.of(new com.example.serverprovision.execution.engine.raid.RaidPlanRejection(
+                        com.example.serverprovision.execution.engine.raid.RaidPlanRejection.EXISTING_CONFIG, "외부 1개")));
+
+        var response = service.findDetail(id);
+
+        assertThat(response.raidPlan().policyUndecided()).isFalse();
+        assertThat(response.raidPlan().branches()).singleElement()
+                .satisfies(b -> assertThat(b.rejectionCode()).isEqualTo("EXISTING_CONFIG"));
+    }
+
+    @Test
+    @DisplayName("W8 — 축 null + 외부 볼륨 = 두 갈래 병기(현행 유지)")
+    void preview_legacyWithForeign_twoBranches() {
+        UUID id = stubDetailWithRaidInventory(raidInv(vol("legacy")));
+        given(raidConfigurationResolutionProvider.policyOf(id)).willReturn(Optional.empty());
+        given(raidConfigurationResolutionProvider.planFor(eq(id), any(), any()))
+                .willReturn(Optional.of(new com.example.serverprovision.execution.engine.raid.RaidPlan(
+                        true, java.util.List.of(), java.util.List.of(), java.util.List.of(), java.util.List.of(), null)));
+
+        var response = service.findDetail(id);
+
+        assertThat(response.raidPlan().policyUndecided()).isTrue();
+        assertThat(response.raidPlan().branches()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("W8 — 축 null + spvR 잔여만 = 정책 무관 단일(Q2 통일 — 비대칭 해소)")
+    void preview_legacyWithResidueOnly_singleBranch() {
+        UUID id = stubDetailWithRaidInventory(raidInv(vol("spvR1V1")));
+        given(raidConfigurationResolutionProvider.policyOf(id)).willReturn(Optional.empty());
+        given(raidConfigurationResolutionProvider.planFor(eq(id), any(), eq(
+                com.example.serverprovision.execution.engine.raid.RaidExistingConfigPolicy.DESTROY)))
+                .willReturn(Optional.of(new com.example.serverprovision.execution.engine.raid.RaidPlan(
+                        true, java.util.List.of(), java.util.List.of(), java.util.List.of(), java.util.List.of(), null)));
+
+        var response = service.findDetail(id);
+
+        assertThat(response.raidPlan().policyUndecided()).isFalse();
+        assertThat(response.raidPlan().branches()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("W9 · W12 — 실물 표 뷰모델: raid_volume 2행(볼륨 + 단독 디스크) · WWN · OS 배지 재료")
+    void findDetail_mapsRaidVolumes() {
+        UUID id = UUID.randomUUID();
+        GuestServer s = server(id, "web-01", null);
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(s));
+        given(raidVolumeRepository.findAllByGuestServer_Id(id)).willReturn(java.util.List.of(
+                com.example.serverprovision.execution.entity.RaidVolume.of(s, "spvR1V1",
+                        com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID1,
+                        "[\"252:0\",\"252:1\"]", 479_559_942_144L,
+                        com.example.serverprovision.execution.engine.raid.PlannedVolumeRole.OS, 1,
+                        "Optl", "600605b00d18aa1e322807f9084a72aa"),
+                com.example.serverprovision.execution.entity.RaidVolume.of(s, "252:4", null,
+                        "[\"252:4\"]", 480_000_000_000L,
+                        com.example.serverprovision.execution.engine.raid.PlannedVolumeRole.DATA, 2, null, null)));
+
+        var response = service.findDetail(id);
+
+        assertThat(response.raidVolumes()).hasSize(2);
+        var os = response.raidVolumes().get(0);
+        assertThat(os.name()).isEqualTo("spvR1V1");
+        assertThat(os.level()).isEqualTo("RAID1");
+        assertThat(os.members()).isEqualTo("252:0 · 252:1");
+        assertThat(os.role()).isEqualTo(com.example.serverprovision.execution.engine.raid.PlannedVolumeRole.OS);
+        assertThat(os.wwn()).isEqualTo("600605b00d18aa1e322807f9084a72aa");
+        assertThat(response.raidVolumes().get(1).level()).isEqualTo("RAID 없음");
     }
 }

@@ -59,7 +59,7 @@ class GuestServerPowerRestControllerTest {
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", boardSerial,
                         DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null,
                         bmcIp == null ? null : IpAddressVO.of(bmcIp), null, null),
-                List.of(), null, null, null, null, List.of());
+                List.of(), null, null, null, null, List.of(), List.of());
     }
 
     @Test
@@ -108,7 +108,7 @@ class GuestServerPowerRestControllerTest {
                         com.example.serverprovision.execution.enums.ProvisioningPhase.FIRMWARE_UPDATING,
                         LocalDateTime.now(), LocalDateTime.now(), null, null, null,
                         false, false, false, false, true),   // disruptionBlocked
-                base.firmwarePlan(), base.firmwareFlash(), base.raidPlan(), base.steps());
+                base.firmwarePlan(), base.firmwareFlash(), base.raidPlan(), base.raidVolumes(), base.steps());
         given(queryService.findDetail(ID)).willReturn(flashing);
 
         mvc.perform(post("/provisioning/server/{id}/power/reset", ID)
@@ -153,7 +153,7 @@ class GuestServerPowerRestControllerTest {
                 "회수된 서버는 전원을 조작할 수 없습니다.", base.memo(),
                 base.status(), base.decommissionedAt(), base.createdAt(), base.updatedAt(),
                 base.contact(), base.inventory(), base.nics(), base.progress(),
-                base.firmwarePlan(), base.firmwareFlash(), base.raidPlan(), base.steps());
+                base.firmwarePlan(), base.firmwareFlash(), base.raidPlan(), base.raidVolumes(), base.steps());
         org.mockito.BDDMockito.given(queryService.findDetail(ID)).willReturn(decommissioned);
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders

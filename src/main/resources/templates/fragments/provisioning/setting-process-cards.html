@@ -139,6 +139,14 @@
                                 </th:block>
                             </td>
                         </tr>
+                        <!-- 기존 구성 처리(E3.5-4 · D-7). null = 축이 없던 구 저장본 — volumePriorities 의 관례와 동일하게 표기한다. -->
+                        <tr>
+                            <th>기존 구성 처리</th>
+                            <td th:switch="${process.existingConfigPolicy != null}">
+                                <span th:case="true" th:text="${process.existingConfigPolicy.displayName}">기존 구성 파괴</span>
+                                <span th:case="false" class="n-muted">미지정 (구 저장본 — 편집해 저장하면 선택이 필요합니다)</span>
+                            </td>
+                        </tr>
                         </tbody>
                     </table>
 

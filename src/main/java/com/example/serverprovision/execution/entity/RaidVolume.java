@@ -67,9 +67,17 @@ public class RaidVolume extends BaseTimeEntity {
     @Column(length = 64)
     private String state;
 
+    /**
+     * 볼륨 WWN(E3.5-4 증보) — OS 가 보는 디스크의 세계 유일 식별자. Linux kickstart 는 직결
+     * ({@code ignoredisk --only-use=wwn}), Windows autounattend 는 DiskID 정수만 받으므로 이 값은
+     * WinPE 단계의 조회 키다. 미노출(단독 디스크 등)은 null 관용.
+     */
+    @Column(length = 64)
+    private String wwn;
+
     public static RaidVolume of(GuestServer guestServer, String name, RaidLevel raidLevel,
                                 String memberSlotsJson, long usableBytes, PlannedVolumeRole volumeRole,
-                                int ruleNo, String state) {
+                                int ruleNo, String state, String wwn) {
         return RaidVolume.builder()
                 .id(org.hibernate.id.uuid.UuidVersion7Strategy.INSTANCE.generateUuid(null))
                 .guestServer(guestServer)
@@ -80,6 +88,7 @@ public class RaidVolume extends BaseTimeEntity {
                 .volumeRole(volumeRole)
                 .ruleNo(ruleNo)
                 .state(state)
+                .wwn(wwn)
                 .build();
     }
 }

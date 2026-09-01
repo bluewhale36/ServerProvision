@@ -45,12 +45,17 @@ public final class RaidPlanner {
                                        List<VolumePriorityRuleRequest> priorities,
                                        RaidInventory inventory,
                                        RaidExistingConfigPolicy policy) {
-        if (policy == RaidExistingConfigPolicy.PRESERVE && !inventory.volumes().isEmpty()) {
+        long foreignVolumes = inventory.volumes().stream()
+                .filter(v -> !v.isProvisionOwned()).count();
+        if (policy == RaidExistingConfigPolicy.PRESERVE && foreignVolumes > 0) {
+            // 보존의 대상은 외부 구성(이전 데이터)이다 — 우리 잔여(spvR*)는 재구성 대상이라 거절 사유가
+            // 아니다(E3.5-4 Q1 확정 · 판별 SSOT = RaidExistingVolume.isProvisionOwned).
             return new RaidPlanRejection(RaidPlanRejection.EXISTING_CONFIG,
-                    "카드에 기존 볼륨 " + inventory.volumes().size()
+                    "카드에 외부 기존 볼륨 " + foreignVolumes
                             + "개가 남아 있습니다 — 보존 정책에서는 새 구성을 계획할 수 없습니다.");
         }
-        boolean deleteExistingFirst = policy == RaidExistingConfigPolicy.DESTROY && !inventory.volumes().isEmpty();
+        // 볼륨이 남아 있으면 정책 불문 선행 삭제 — 보존으로 여기 도달했다면 남은 것은 우리 잔여뿐이다.
+        boolean deleteExistingFirst = !inventory.volumes().isEmpty();
 
         List<UnassignedDisk> unassigned = new ArrayList<>();
         List<Candidate> pool = new ArrayList<>();

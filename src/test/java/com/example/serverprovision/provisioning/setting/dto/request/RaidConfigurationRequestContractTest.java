@@ -142,7 +142,31 @@ class RaidConfigurationRequestContractTest {
     void roleAndPrioritiesRequired() {
         assertThat(violatedPaths(rc(1L, List.of(withRole(raid1(), null))))).contains("diskGroups[0].role");
         assertThat(violatedPaths(new RaidConfigurationRequest(1L, List.of(raid1()), null))).contains("volumePriorities");
-        assertThat(violatedPaths(new RaidConfigurationRequest(1L, List.of(raid1()), List.of()))).isEmpty();
+        // E3.5-4 — RAID 묶음이 있으면 기존 구성 처리 축이 필수가 됐다(D-7). 빈 우선순위의 통과 검증은 축을 채워 유지한다.
+        assertThat(violatedPaths(new RaidConfigurationRequest(1L, List.of(raid1()), List.of(),
+                com.example.serverprovision.provisioning.setting.enums.ExistingRaidConfigPolicy.DESTROY))).isEmpty();
+        assertThat(violatedPaths(new RaidConfigurationRequest(1L, List.of(raid1()), List.of())))
+                .contains("existingPolicyPresentWhenRequired");   // 축 null + RAID 묶음 = 위반(W1 의 계약층)
+    }
+
+    @Test
+    @DisplayName("W2 — RAID 묶음이 없으면 축 미선택도 통과(축이 무의미) · RAID 없음 묶음만 있어도 동일")
+    void policyNotRequiredWithoutRaidGroups() {
+        assertThat(violatedPaths(new RaidConfigurationRequest(null, List.of(), List.of()))).isEmpty();
+        var noRaid = withRole(new DiskGroupRuleRequest(null, DiskTypeRequirement.SSD, DiskTransportRequirement.SATA,
+                new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                new DiskCountRequirement(DiskCountMode.AT_LEAST, 1), DiskGroupRole.DATA), DiskGroupRole.DATA);
+        assertThat(violatedPaths(new RaidConfigurationRequest(null, List.of(noRaid), List.of()))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("W3 — 축 키가 없는 구 payload 역직렬화 = null 관용(구 저장본 호환)")
+    void legacyPayloadWithoutPolicy_deserializesToNull() {
+        var mapper = new tools.jackson.databind.ObjectMapper();
+        RaidConfigurationRequest request = mapper.readValue(
+                "{\"type\":\"RAID_CONFIGURATION\",\"raidCardId\":7,\"diskGroups\":[],\"volumePriorities\":[]}",
+                RaidConfigurationRequest.class);
+        assertThat(request.getExistingConfigPolicy()).isNull();
     }
 
     @Test

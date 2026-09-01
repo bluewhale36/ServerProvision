@@ -1,7 +1,9 @@
 package com.example.serverprovision.provisioning.setting.service.reference.os;
 
+import com.example.serverprovision.provisioning.setting.enums.DiskCountMode;
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.provisioning.setting.dto.request.DiskCountRequirement;
 import com.example.serverprovision.provisioning.setting.dto.request.DiskGroupRuleRequest;
 import com.example.serverprovision.provisioning.setting.enums.DiskTransportRequirement;
 import com.example.serverprovision.provisioning.setting.enums.DiskTypeRequirement;
@@ -60,7 +62,45 @@ public final class DiskGroupRules {
             if (sameAs != null) {
                 throw InvalidDiskGroupException.duplicateRule(ruleNo, sameAs);
             }
+            // 규칙 8(E3.5-4) — 선행에 완전 포섭된 후행은 영원히 도달 불가(사각 규칙). 겹침 자체는 동작
+            // 원리(후행 흘림)라 막지 않고, 수용집합까지 덮일 때만 거절한다. 폼은 같은 진리표를 미러한다.
+            for (int prior = 0; prior < i; prior++) {
+                if (covers(rules.get(prior), rule)) {
+                    throw InvalidDiskGroupException.unreachableRule(ruleNo, prior + 1);
+                }
+            }
         }
+    }
+
+    /**
+     * 선행 i 가 후행 j 를 완전 포섭하는가 — 종류 · 전송 · 용량 축이 전부 i ⊇ j 이고 개수 수용집합까지
+     * 덮이면 j 가 볼 그룹은 항상 i 가 먼저 흡수한다. 엄격 일치(E3.5-2 결정 6) 기준:
+     * {@code EXACT n} 수용 = {n} · {@code AT_LEAST m} 수용 = {m, m+1, …}.
+     */
+    static boolean covers(DiskGroupRuleRequest prior, DiskGroupRuleRequest later) {
+        if (prior.diskType() != DiskTypeRequirement.AUTO && prior.diskType() != later.diskType()) {
+            return false;
+        }
+        if (prior.transport() != DiskTransportRequirement.AUTO && prior.transport() != later.transport()) {
+            return false;
+        }
+        if (!prior.capacity().isAuto()) {
+            boolean sameSpecified = !later.capacity().isAuto()
+                    && java.util.Objects.equals(prior.capacity().size(), later.capacity().size())
+                    && prior.capacity().unit() == later.capacity().unit();
+            if (!sameSpecified) {
+                return false;
+            }
+        }
+        return countCovers(prior.count(), later.count());
+    }
+
+    /** 개수 수용집합의 포섭 — AT_LEAST m ⊇ AT_LEAST n(m ≤ n) · AT_LEAST m ⊇ EXACT n(m ≤ n) · EXACT n = EXACT n. */
+    private static boolean countCovers(DiskCountRequirement prior, DiskCountRequirement later) {
+        if (prior.mode() == DiskCountMode.AT_LEAST) {
+            return prior.value() <= later.value();
+        }
+        return later.mode() == DiskCountMode.EXACT && prior.value() == later.value();
     }
 
     private static void validateRaidRule(int ruleNo, RaidLevel level, int count, RaidCard card) {

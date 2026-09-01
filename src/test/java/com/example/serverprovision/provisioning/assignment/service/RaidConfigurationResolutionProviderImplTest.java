@@ -39,8 +39,13 @@ class RaidConfigurationResolutionProviderImplTest {
     @InjectMocks RaidConfigurationResolutionProviderImpl provider;
 
     private void stubSnapshotWithRaid(Long raidCardId) {
+        stubSnapshotWithRaid(raidCardId, null);
+    }
+
+    private void stubSnapshotWithRaid(Long raidCardId,
+            com.example.serverprovision.provisioning.setting.enums.ExistingRaidConfigPolicy policy) {
         RaidConfigurationRequest raid = new RaidConfigurationRequest(
-                raidCardId, List.of(), VolumePriorityRuleRequest.defaults());
+                raidCardId, List.of(), VolumePriorityRuleRequest.defaults(), policy);
         AssignedProcessSnapshot process = mock(AssignedProcessSnapshot.class);
         given(process.getPayload()).willReturn(new ProcessPayload(raid));
         SettingAssignmentSnapshot snapshot = mock(SettingAssignmentSnapshot.class);
@@ -96,5 +101,30 @@ class RaidConfigurationResolutionProviderImplTest {
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST_ID))
                 .willReturn(Optional.empty());
         assertThat(provider.resolveFor(GUEST_ID)).isEmpty();
+    }
+
+    // ==== E3.5-4 W6 — 기존 구성 처리 축의 번역(policyOf) ====
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("W6 — 축 명시(PRESERVE · DESTROY)는 실행 enum 으로 1:1 번역된다")
+    void policyOf_translatesDeclaredAxis() {
+        stubSnapshotWithRaid(7L, com.example.serverprovision.provisioning.setting.enums.ExistingRaidConfigPolicy.PRESERVE);
+        org.assertj.core.api.Assertions.assertThat(provider.policyOf(GUEST_ID))
+                .contains(com.example.serverprovision.execution.engine.raid.RaidExistingConfigPolicy.PRESERVE);
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("W6 — 구 저장본(축 null)은 empty — 실행은 종전 보류 규칙을 유지한다")
+    void policyOf_legacyPayload_isEmpty() {
+        stubSnapshotWithRaid(7L, null);
+        org.assertj.core.api.Assertions.assertThat(provider.policyOf(GUEST_ID)).isEmpty();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("W6 — 창 밖(활성 할당 없음)도 empty")
+    void policyOf_outOfWindow_isEmpty() {
+        org.mockito.BDDMockito.given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST_ID))
+                .willReturn(java.util.Optional.empty());
+        org.assertj.core.api.Assertions.assertThat(provider.policyOf(GUEST_ID)).isEmpty();
     }
 }
