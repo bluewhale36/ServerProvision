@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * 디스크 묶음 규칙의 개수 축 — 정확히 n 개({@code EXACT}) 또는 n 개 이상({@code AT_LEAST}) (U4-1-1).
+ * 디스크 묶음 규칙의 개수 축 — 개 · 개씩 · 개 이상({@link DiskCountMode}, U4-1-1 → E3.5-7-a 3값).
  *
  * <p>값은 <b>묶음 하나에 들어가는 디스크 수</b>다 — RAID 규칙과 RAID 없음 규칙에서 같은 뜻이다(U4-1-1 D12).
  * 하한 1 은 여기서, 레벨별 최소 디스크 수(RAID1 은 2 등)는 카드의 캐시 유무가 관여하므로
@@ -31,7 +31,7 @@ public record DiskCountRequirement(
         this(mode, value != null ? value : 0);
     }
 
-    /** 화면 표기 — {@code 2개} 또는 {@code 3개 이상}. */
+    /** 화면 표기 — {@code 2개} · {@code 2개씩} · {@code 3개 이상}. */
     public String toDisplay() {
         return mode == null ? String.valueOf(value) : value + mode.getSuffix();
     }

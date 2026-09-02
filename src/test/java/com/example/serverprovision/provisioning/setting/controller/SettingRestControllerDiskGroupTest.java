@@ -208,6 +208,33 @@ class SettingRestControllerDiskGroupTest {
     }
 
     @Test
+    @DisplayName("POST — 개수 모드 EACH(개씩, E3.5-7-a) → 201, 계약의 count 가 mode=EACH 로 실리고 표기는 '2개씩'")
+    void create_withEachCountMode_returns201() throws Exception {
+        given(commandService.create(any())).willReturn(new SettingSaveResponse(12L, "디스크 세팅"));
+
+        send(body(raid("1", RAID1_RULE.replace("\"EXACT\"", "\"EACH\"")))).andExpect(status().isCreated());
+
+        ArgumentCaptor<SettingSaveRequest> captor = ArgumentCaptor.forClass(SettingSaveRequest.class);
+        verify(commandService).create(captor.capture());
+        RaidConfigurationRequest install = (RaidConfigurationRequest) captor.getValue().processList().get(0);
+        assertThat(install.getDiskGroups().get(0).count().mode())
+                .isEqualTo(com.example.serverprovision.provisioning.setting.enums.DiskCountMode.EACH);
+        assertThat(install.getDiskGroups().get(0).count().toDisplay()).isEqualTo("2개씩");
+    }
+
+    @Test
+    @DisplayName("POST — 개수 mode 누락 → @NotNull 400 fieldErrors[processList[0].diskGroups[0].count.mode] · 모르는 토큰(ONCE) → 역직렬화 400")
+    void create_countModeMissingOrUnknown_returns400() throws Exception {
+        send(body(raid("1", RAID1_RULE.replace("\"mode\": \"EXACT\", ", ""))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processList[0].diskGroups[0].count.mode')].message")
+                        .value(org.hamcrest.Matchers.hasItem("개수 선택 방식은 필수 값입니다.")));
+        verify(commandService, never()).create(any());
+
+        send(body(raid("1", RAID1_RULE.replace("\"EXACT\"", "\"ONCE\"")))).andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("POST — 잘못된 enum 값(transport=USB) → 역직렬화 실패 400")
     void create_badEnum_returns400() throws Exception {
         send(body(raid("1", RAID1_RULE.replace("\"SATA\"", "\"USB\"")))).andExpect(status().isBadRequest());

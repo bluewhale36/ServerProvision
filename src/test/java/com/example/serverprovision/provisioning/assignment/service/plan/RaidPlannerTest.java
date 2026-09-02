@@ -199,7 +199,7 @@ class RaidPlannerTest {
                     mega(disk("s:0", "SSD", "SATA", S480), disk("s:1", "SSD", "SATA", S480),
                             disk("s:2", "SSD", "SATA", S960), disk("s:3", "SSD", "SATA", S960)),
                     rule(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
-                            auto(), DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
+                            auto(), DiskCountMode.EACH, 2, DiskGroupRole.DATA));
 
             assertThat(plan.volumes()).extracting(PlannedVolume::name)
                     .containsExactly("spvR1V1", "spvR1V2");
@@ -208,10 +208,10 @@ class RaidPlannerTest {
         }
     }
 
-    // ── 개수 축 — EXACT(엄격 일치) · AT_LEAST × 그룹 크기 전수 ───────────────
+    // ── 개수 축 — 개(EXACT) · 개씩(EACH) · 개 이상(AT_LEAST) × 그룹 크기 전수(E3.5-7-a D2) ───────
 
     @Nested
-    @DisplayName("개수 축 — 그룹 크기별 소비 여부 전수 (배수 분할 · 실기 2026-09-01 개정)")
+    @DisplayName("개수 축 — 그룹 크기별 소비 여부 전수 (개 · 개씩 · 개 이상 — E3.5-7-a)")
     class CountAxis {
 
         private RaidPlan planWithPool(int poolSize, DiskCountMode mode, int count) {
@@ -223,10 +223,10 @@ class RaidPlannerTest {
                     DiskTransportRequirement.AUTO, auto(), mode, count, DiskGroupRole.DATA));
         }
 
-        @ParameterizedTest(name = "EXACT 2 × 그룹 {0}대 → 볼륨 {1} · 미배정 {2}")
+        @ParameterizedTest(name = "EACH 2 × 그룹 {0}대 → 볼륨 {1} · 미배정 {2}")
         @CsvSource({"1, 0, 1", "2, 1, 0", "3, 0, 3", "4, 2, 0", "6, 3, 0"})
-        void exact_consumesWhenGroupSizeIsMultipleOfN(int poolSize, int volumes, int unassigned) {
-            RaidPlan plan = planWithPool(poolSize, DiskCountMode.EXACT, 2);
+        void each_consumesWhenGroupSizeIsMultipleOfN(int poolSize, int volumes, int unassigned) {
+            RaidPlan plan = planWithPool(poolSize, DiskCountMode.EACH, 2);
             assertThat(plan.volumes()).hasSize(volumes);
             assertThat(plan.unassigned()).hasSize(unassigned);
             assertThat(plan.ruleOutcomes().get(0).consumedDisks()).isEqualTo(volumes * 2);
@@ -243,9 +243,9 @@ class RaidPlannerTest {
         }
 
         @Test
-        @DisplayName("T2 — 6대 · EXACT 2 는 2개씩 3볼륨으로 분할 소비한다(배수 분할)")
-        void exactSix_multipleOfN_splitsIntoThreeVolumes() {
-            RaidPlan plan = planWithPool(6, DiskCountMode.EXACT, 2);
+        @DisplayName("T2 — 6대 · EACH 2(개씩) 는 2개씩 3볼륨으로 분할 소비한다(배수 분할 — 2026-09-01 뜻의 이관)")
+        void eachSix_multipleOfN_splitsIntoThreeVolumes() {
+            RaidPlan plan = planWithPool(6, DiskCountMode.EACH, 2);
             assertThat(plan.volumes()).hasSize(3);
             assertThat(plan.volumes()).allSatisfy(v -> assertThat(v.memberSlots()).hasSize(2));
             assertThat(plan.volumes().get(2).name()).isEqualTo("spvR1V3");
@@ -263,7 +263,7 @@ class RaidPlannerTest {
                     null, VdDriveCache.OFF, VdBackgroundInit.OFF, VdInitialization.FULL);
             RaidPlan plan = plan(mega(disks), new DiskGroupRuleRequest(RaidLevel.RAID1,
                     DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO, auto(),
-                    new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.DATA, vd));
+                    new DiskCountRequirement(DiskCountMode.EACH, 2), DiskGroupRole.DATA, vd));
 
             assertThat(plan.volumes()).hasSize(2);
             assertThat(plan.volumes()).allSatisfy(v -> {
@@ -303,13 +303,121 @@ class RaidPlannerTest {
         }
 
         @Test
-        @DisplayName("T2b — 5대 · EXACT 2 는 배수가 아니라 미소비 · 사유에 배수 아님이 남는다")
-        void exactFive_notMultiple_leavesReasonAndZeroConsumption() {
-            RaidPlan plan = planWithPool(5, DiskCountMode.EXACT, 2);
+        @DisplayName("T2b — 5대 · EACH 2(개씩) 는 배수가 아니라 미소비 · 사유에 배수 아님이 남는다")
+        void eachFive_notMultiple_leavesReasonAndZeroConsumption() {
+            RaidPlan plan = planWithPool(5, DiskCountMode.EACH, 2);
             assertThat(plan.volumes()).isEmpty();
             assertThat(plan.ruleOutcomes().get(0).consumedNothing()).isTrue();
             assertThat(plan.unassigned()).allSatisfy(u ->
-                    assertThat(u.reason()).contains("2개 조건에 5대(배수 아님)라 미소비"));
+                    assertThat(u.reason()).contains("2개씩 조건에 5대(배수 아님)라 미소비"));
+        }
+    }
+
+    // ── 개(EXACT) — 첫 그룹 · 슬롯 순 n 장 · 부분 소비(E3.5-7-a D2) ──────────────────────
+
+    @Nested
+    @DisplayName("개(EXACT) — 크기 ≥ n 인 첫 그룹에서 슬롯 순 n 장 한 묶음만 · 나머지는 후행으로(E3.5-7-a)")
+    class ExactFirstBundle {
+
+        private RaidPlan planWithPool(int poolSize, DiskGroupRuleRequest... rules) {
+            RaidPhysicalDisk[] disks = new RaidPhysicalDisk[poolSize];
+            for (int i = 0; i < poolSize; i++) {
+                disks[i] = disk("p:" + i, "SSD", "SATA", S480);
+            }
+            return plan(mega(disks), rules);
+        }
+
+        private DiskGroupRuleRequest ssd(RaidLevel level, DiskCountMode mode, int count, DiskGroupRole role) {
+            return rule(level, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO, auto(), mode, count, role);
+        }
+
+        @ParameterizedTest(name = "EXACT 2 × 그룹 {0}대 → 볼륨 {1} · 미배정 {2}")
+        @CsvSource({"1, 0, 1", "2, 1, 0", "3, 1, 1", "4, 1, 2", "6, 1, 4"})
+        void exact_takesOneBundleFromFirstGroup(int poolSize, int volumes, int unassigned) {
+            RaidPlan plan = planWithPool(poolSize, ssd(RaidLevel.RAID1, DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
+            assertThat(plan.volumes()).hasSize(volumes);
+            assertThat(plan.unassigned()).hasSize(unassigned);
+            assertThat(plan.ruleOutcomes().get(0).consumedDisks()).isEqualTo(volumes * 2);
+            if (volumes == 1) {
+                assertThat(plan.volumes().get(0).name()).isEqualTo("spvR1V1");
+                assertThat(plan.volumes().get(0).memberSlots()).containsExactly("p:0", "p:1");
+            }
+        }
+
+        @Test
+        @DisplayName("1대 · EXACT 2 → 미소비 · 사유 '2장에 못 미침'")
+        void exact_belowN_leavesReason() {
+            RaidPlan plan = planWithPool(1, ssd(RaidLevel.RAID1, DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
+            assertThat(plan.ruleOutcomes().get(0).consumedNothing()).isTrue();
+            assertThat(plan.unassigned()).singleElement()
+                    .satisfies(u -> assertThat(u.reason()).contains("2개 조건에 1대(2장에 못 미침)라 미소비"));
+        }
+
+        @Test
+        @DisplayName("남은 디스크의 사유 — 후행이 없으면 '한 묶음만 가져갑니다' 가 미배정 사유로 남는다")
+        void exact_leftoverCarriesReason() {
+            RaidPlan plan = planWithPool(4, ssd(RaidLevel.RAID1, DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
+            assertThat(plan.unassigned()).hasSize(2).allSatisfy(u ->
+                    assertThat(u.reason()).contains("규칙 1 · 2개는 한 묶음만 가져갑니다"));
+        }
+
+        @Test
+        @DisplayName("두 스펙 그룹(480 × 2 · 960 × 2) · EXACT 2 → 첫 그룹만 소비, 둘째 그룹은 '이미 소비' 사유로 후행에 남는다")
+        void exact_touchesFirstGroupOnly() {
+            RaidPlan plan = plan(
+                    mega(disk("s:0", "SSD", "SATA", S480), disk("s:1", "SSD", "SATA", S480),
+                            disk("m:0", "SSD", "SATA", S960), disk("m:1", "SSD", "SATA", S960)),
+                    ssd(RaidLevel.RAID1, DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
+            assertThat(plan.volumes()).singleElement()
+                    .satisfies(v -> assertThat(v.memberSlots()).containsExactly("s:0", "s:1"));
+            assertThat(plan.unassigned()).extracting(u -> u.slot()).containsExactly("m:0", "m:1");
+            assertThat(plan.unassigned()).allSatisfy(u -> assertThat(u.reason()).contains("이미 소비"));
+        }
+
+        @Test
+        @DisplayName("RAID 없음 · EXACT 1 → 첫 1장만 패스스루(사용자 제기 (a) — '개씩' 1 은 전부)")
+        void raidNone_exactOne_firstDiskOnly() {
+            RaidPlan once = planWithPool(4, ssd(null, DiskCountMode.EXACT, 1, DiskGroupRole.NONE));
+            assertThat(once.passthroughs()).extracting(p -> p.slot()).containsExactly("p:0");
+            assertThat(once.unassigned()).hasSize(3);
+
+            RaidPlan each = planWithPool(4, ssd(null, DiskCountMode.EACH, 1, DiskGroupRole.NONE));
+            assertThat(each.passthroughs()).hasSize(4);
+        }
+
+        @Test
+        @DisplayName("사례 (c) — 같은 SSD 6장 · [RAID1 개 2 (OS), RAID5 개 이상 3] → RAID1(2) + RAID5(4) · OS 는 RAID1")
+        void caseC_osRaid1_thenRaid5Remainder() {
+            RaidPlan plan = planWithPool(6,
+                    ssd(RaidLevel.RAID1, DiskCountMode.EXACT, 2, DiskGroupRole.OS),
+                    ssd(RaidLevel.RAID5, DiskCountMode.AT_LEAST, 3, DiskGroupRole.BY_PRIORITY));
+            assertThat(plan.volumes()).extracting(PlannedVolume::name).containsExactly("spvR1V1", "spvR2V1");
+            assertThat(plan.volumes().get(0).memberSlots()).containsExactly("p:0", "p:1");
+            assertThat(plan.volumes().get(0).role()).isEqualTo(PlannedVolumeRole.OS);
+            assertThat(plan.volumes().get(1).memberSlots()).containsExactly("p:2", "p:3", "p:4", "p:5");
+            assertThat(plan.volumes().get(1).role()).isEqualTo(PlannedVolumeRole.DATA);
+            assertThat(plan.unassigned()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("사례 (b) — SSD 4장 · [RAID1 개 2, RAID5 개 이상 3] 은 RAID1 + 2장 미배정(3장 미만), 순서를 뒤집으면 RAID5(4)")
+        void caseB_orderDecides() {
+            RaidPlan asGiven = planWithPool(4,
+                    ssd(RaidLevel.RAID1, DiskCountMode.EXACT, 2, DiskGroupRole.BY_PRIORITY),
+                    ssd(RaidLevel.RAID5, DiskCountMode.AT_LEAST, 3, DiskGroupRole.BY_PRIORITY));
+            assertThat(asGiven.volumes()).singleElement()
+                    .satisfies(v -> assertThat(v.level()).isEqualTo(RaidLevel.RAID1));
+            assertThat(asGiven.unassigned()).hasSize(2).allSatisfy(u ->
+                    assertThat(u.reason()).contains("3개 이상 조건에 2대(3장 미만)라 미소비"));
+
+            RaidPlan reversed = planWithPool(4,
+                    ssd(RaidLevel.RAID5, DiskCountMode.AT_LEAST, 3, DiskGroupRole.BY_PRIORITY),
+                    ssd(RaidLevel.RAID1, DiskCountMode.EXACT, 2, DiskGroupRole.BY_PRIORITY));
+            assertThat(reversed.volumes()).singleElement().satisfies(v -> {
+                assertThat(v.level()).isEqualTo(RaidLevel.RAID5);
+                assertThat(v.memberSlots()).hasSize(4);
+            });
+            assertThat(reversed.unassigned()).isEmpty();
         }
     }
 
@@ -337,8 +445,8 @@ class RaidPlannerTest {
         }
 
         @Test
-        @DisplayName("T15 — RAID 없음 · EXACT 2 는 그룹 2대일 때만 패스스루로 선택한다(U4-1-1 D12)")
-        void raidNone_appliesCountAxisStrictly() {
+        @DisplayName("T15 — RAID 없음 · EXACT 2(개) 는 첫 그룹에서 슬롯 순 2장만 패스스루 — 3대면 2장 + 1장 미배정(E3.5-7-a D2)")
+        void raidNone_exactTakesFirstBundleOnly() {
             RaidPlan matched = plan(
                     mega(disk("p:0", "SSD", "SATA", S480), disk("p:1", "SSD", "SATA", S480)),
                     rule(null, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
@@ -346,13 +454,14 @@ class RaidPlannerTest {
             assertThat(matched.volumes()).isEmpty();
             assertThat(matched.passthroughs()).hasSize(2);
 
-            RaidPlan missed = plan(
+            RaidPlan partial = plan(
                     mega(disk("p:0", "SSD", "SATA", S480), disk("p:1", "SSD", "SATA", S480),
                             disk("p:2", "SSD", "SATA", S480)),
                     rule(null, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
                             auto(), DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
-            assertThat(missed.passthroughs()).isEmpty();
-            assertThat(missed.unassigned()).hasSize(3);
+            assertThat(partial.passthroughs()).extracting(p -> p.slot()).containsExactly("p:0", "p:1");
+            assertThat(partial.unassigned()).singleElement()
+                    .satisfies(u -> assertThat(u.reason()).contains("한 묶음만"));
         }
 
         @Test
@@ -533,7 +642,7 @@ class RaidPlannerTest {
         void ir_threeVolumes_rejected() {
             RaidPlanOutcome outcome = RaidPlanner.plan(
                     List.of(rule(RaidLevel.RAID1, DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO,
-                            auto(), DiskCountMode.EXACT, 2, DiskGroupRole.DATA)),
+                            auto(), DiskCountMode.EACH, 2, DiskGroupRole.DATA)),
                     VolumePriorityRuleRequest.defaults(),
                     inv(RaidChipFamily.MPT_IR, List.of(
                             disk("1:0", "SSD", "SATA", S480), disk("1:1", "SSD", "SATA", S480),
@@ -560,7 +669,7 @@ class RaidPlannerTest {
                             disk("1:2", "SSD", "SATA", S960), disk("1:3", "SSD", "SATA", S960),
                             disk("1:4", "HDD", "SAS", S4T), disk("1:5", "HDD", "SAS", S4T)),
                     rule(RaidLevel.RAID1, DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO,
-                            auto(), DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
+                            auto(), DiskCountMode.EACH, 2, DiskGroupRole.DATA));
             assertThat(threeVolumes.volumes()).hasSize(3);
         }
 
@@ -591,7 +700,7 @@ class RaidPlannerTest {
                     mega(disk("s:0", "SSD", "SATA", S480), disk("s:1", "SSD", "SATA", S480),
                             disk("s:2", "SSD", "SATA", S960), disk("s:3", "SSD", "SATA", S960)),
                     rule(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
-                            auto(), DiskCountMode.EXACT, 2, DiskGroupRole.OS));
+                            auto(), DiskCountMode.EACH, 2, DiskGroupRole.OS));
 
             assertThat(plan.volumes()).extracting(PlannedVolume::role)
                     .containsExactly(PlannedVolumeRole.OS, PlannedVolumeRole.DATA);
@@ -620,7 +729,7 @@ class RaidPlannerTest {
                     mega(disk("t:0", "SSD", "SATA", S480), disk("t:1", "SSD", "SATA", S480),
                             disk("n:0", "SSD", "NVME", S480), disk("n:1", "SSD", "NVME", S480)),
                     rule(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
-                            auto(), DiskCountMode.EXACT, 2, DiskGroupRole.BY_PRIORITY));
+                            auto(), DiskCountMode.EACH, 2, DiskGroupRole.BY_PRIORITY));
 
             PlannedVolume os = plan.volumes().stream()
                     .filter(v -> v.role() == PlannedVolumeRole.OS).findFirst().orElseThrow();
@@ -634,7 +743,7 @@ class RaidPlannerTest {
                     DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CapacityOrder.LARGER_FIRST));
             RaidPlan plan = planOf(RaidPlanner.plan(
                     List.of(rule(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
-                            auto(), DiskCountMode.EXACT, 2, DiskGroupRole.BY_PRIORITY)),
+                            auto(), DiskCountMode.EACH, 2, DiskGroupRole.BY_PRIORITY)),
                     largerFirst,
                     mega(disk("s:0", "SSD", "SATA", S480), disk("s:1", "SSD", "SATA", S480),
                             disk("m:0", "SSD", "SATA", S960), disk("m:1", "SSD", "SATA", S960)),

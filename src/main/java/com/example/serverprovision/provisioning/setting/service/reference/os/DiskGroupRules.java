@@ -88,9 +88,8 @@ public final class DiskGroupRules {
     }
 
     /**
-     * 선행 i 가 후행 j 를 완전 포섭하는가 — 종류 · 전송 · 용량 축이 전부 i ⊇ j 이고 개수 수용집합까지
-     * 덮이면 j 가 볼 그룹은 항상 i 가 먼저 흡수한다. 엄격 일치(E3.5-2 결정 6) 기준:
-     * {@code EXACT n} 수용 = {n} · {@code AT_LEAST m} 수용 = {m, m+1, …}.
+     * 선행 i 가 후행 j 를 완전 포섭하는가 — 종류 · 전송 · 용량 축이 전부 i ⊇ j 이고 개수 축까지
+     * {@link #countCovers} 로 덮이면 j 가 볼 그룹은 항상 i 가 먼저 흡수한다.
      */
     static boolean covers(DiskGroupRuleRequest prior, DiskGroupRuleRequest later) {
         if (prior.diskType() != DiskTypeRequirement.AUTO && prior.diskType() != later.diskType()) {
@@ -110,12 +109,18 @@ public final class DiskGroupRules {
         return countCovers(prior.count(), later.count());
     }
 
-    /** 개수 수용집합의 포섭 — AT_LEAST m ⊇ AT_LEAST n(m ≤ n) · AT_LEAST m ⊇ EXACT n(m ≤ n) · EXACT n = EXACT n. */
+    /**
+     * 개수 축의 포섭 3×3(E3.5-7-a D3 — 폼 {@code coversRule} 이 같은 표를 미러한다).
+     * '개' 는 한 묶음만 가져가 남기므로 어떤 후행도 포섭하지 않는다. '개씩' 은 크기 % n == 0 인 그룹만
+     * 통째로 가져가므로 같은 n 의 '개씩' 만 항상 선점한다(배수가 아닌 그룹은 후행에 남는다).
+     * '개 이상' 은 크기 ≥ n 인 그룹을 전부 가져가므로 n ≤ m 인 모든 후행을 덮는다.
+     */
     private static boolean countCovers(DiskCountRequirement prior, DiskCountRequirement later) {
-        if (prior.mode() == DiskCountMode.AT_LEAST) {
-            return prior.value() <= later.value();
-        }
-        return later.mode() == DiskCountMode.EXACT && prior.value() == later.value();
+        return switch (prior.mode()) {
+            case EXACT -> false;
+            case EACH -> later.mode() == DiskCountMode.EACH && prior.value() == later.value();
+            case AT_LEAST -> prior.value() <= later.value();
+        };
     }
 
     private static void validateRaidRule(int ruleNo, RaidLevel level, int count, RaidCard card) {

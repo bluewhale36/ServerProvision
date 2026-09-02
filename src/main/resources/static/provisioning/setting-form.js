@@ -518,7 +518,8 @@
             const cap = row.querySelector('.dgCapacityMode').value === 'SPECIFIED'
                 ? (row.querySelector('.dgCapacitySize').value || '?') + ' ' + row.querySelector('.dgCapacityUnit').value
                 : '자동 탐지';
-            const cnt = (row.querySelector('.dgCount').value || '?') + (row.querySelector('.dgCountMode').value === 'AT_LEAST' ? '개 이상' : '개');
+            // 모드 표기(개 · 개씩 · 개 이상)는 select 옵션 텍스트 = 서버 DiskCountMode.suffix 그대로(E3.5-7-a)
+            const cnt = (row.querySelector('.dgCount').value || '?') + selectedOption(row.querySelector('.dgCountMode')).textContent;
             return [levelSel.value ? selectedOption(levelSel).textContent : 'RAID 없음',
                 selectedOption(row.querySelector('.dgType')).textContent,
                 selectedOption(row.querySelector('.dgTransport')).textContent, cap, cnt].join(' · ');
@@ -711,8 +712,9 @@
             destroyWarning.hidden = !anyRadio || anyRadio.disabled || selectedExistingPolicy() !== 'DESTROY';
         }
 
-        // E3.5-4 규칙 8 미러 — DiskGroupRules.covers 와 같은 진리표(드리프트 0). 엄격 일치 수용집합:
-        // EXACT n = {n} · AT_LEAST m = {m, m+1, …}. 겹침(후행 흘림)은 막지 않고 완전 포섭만 알린다.
+        // E3.5-4 규칙 8 미러 — DiskGroupRules.covers · countCovers 와 같은 진리표(드리프트 0). 개수 축 3×3(E3.5-7-a D3):
+        // '개'(EXACT) 는 한 묶음만 가져가 남기므로 어떤 후행도 포섭하지 않는다 · '개씩'(EACH) 은 같은 n 의 '개씩' 만 ·
+        // '개 이상'(AT_LEAST) 은 n ≤ m 인 모든 후행. 겹침(후행 흘림)은 막지 않고 완전 포섭만 알린다.
         function coversRule(prior, later) {
             if (prior.diskType !== 'AUTO' && prior.diskType !== later.diskType) return false;
             if (prior.transport !== 'AUTO' && prior.transport !== later.transport) return false;
@@ -721,20 +723,27 @@
                     || prior.capacity.size !== later.capacity.size
                     || prior.capacity.unit !== later.capacity.unit) return false;
             }
-            if (prior.count.mode === 'AT_LEAST') return prior.count.value <= later.count.value;
-            return later.count.mode === 'EXACT' && prior.count.value === later.count.value;
+            switch (prior.count.mode) {
+                case 'EXACT': return false;
+                case 'EACH': return later.count.mode === 'EACH' && prior.count.value === later.count.value;
+                default: return prior.count.value <= later.count.value;   // AT_LEAST
+            }
         }
 
-        function applyUnreachableFindings() {
-            const findingsHint = document.getElementById('rcUnreachableHint');
-            if (!findingsHint) return;
+        /**
+         * 규칙 8 판정 — {unreachable: Set<행 index>, message}. 문구는 첫 발견 쌍만(서버 unreachableRule 의 400 문장과
+         * 같은 모양) · 색상은 피포섭 행 전부(CP6 검수). 다섯 축이 완전히 같은 쌍은 규칙 4(중복)의 몫이라 여기서 뺀다 —
+         * 서버 validate 도 같은 순서(중복 → 규칙 8)로 보므로 화면이 말하는 이유와 서버가 거절하는 이유가 같아진다(CP5 F-3).
+         */
+        function unreachableDiskGroupFindings() {
             const rows = diskGroupRows();
             const groups = buildDiskGroups();
-            // 문구는 첫 발견 쌍만(서버 unreachableRule 의 400 문장과 같은 모양) · 행 색상은 피포섭 행 전부(CP6 검수 반영).
+            const identities = rows.map(diskGroupIdentity);
             let message = null;
             const unreachable = new Set();
             for (let j = 1; j < groups.length; j++) {
                 for (let i = 0; i < j; i++) {
+                    if (identities[i] === identities[j]) continue;
                     if (coversRule(groups[i], groups[j])) {
                         unreachable.add(j);
                         if (!message) message = (j + 1) + '번 묶음은 ' + (i + 1) + '번 묶음에 가려 도달할 수 없습니다 — 순서를 바꾸거나 조건을 좁히십시오.';
@@ -742,9 +751,16 @@
                     }
                 }
             }
-            rows.forEach((row, idx) => row.classList.toggle('is-unreachable', unreachable.has(idx)));
-            findingsHint.hidden = !message;
-            findingsHint.textContent = message || '';
+            return {unreachable: unreachable, message: message};
+        }
+
+        function applyUnreachableFindings() {
+            const findingsHint = document.getElementById('rcUnreachableHint');
+            if (!findingsHint) return;
+            const found = unreachableDiskGroupFindings();
+            diskGroupRows().forEach((row, idx) => row.classList.toggle('is-unreachable', found.unreachable.has(idx)));
+            findingsHint.hidden = !found.message;
+            findingsHint.textContent = found.message || '';
         }
 
         function applyDiskGroupConstraints() {
@@ -775,8 +791,9 @@
                 setOptionState(opt, reason);
             });
 
-            // 2) 각 행 — 레벨 옵션 · 개수 하한 · 용량 입력 표시
-            diskGroupRows().forEach(row => {
+            // 2) 각 행 — 순위 · 레벨 옵션 · 개수 하한 · 용량 입력 표시
+            diskGroupRows().forEach((row, i) => {
+                row.querySelector('.dgRank').textContent = String(i + 1); // 순위 열(E3.5-7-a) — 행 순서 = 적용 순서의 명시
                 const levelSel = row.querySelector('.dgLevel');
                 Array.from(levelSel.options).forEach(opt => {
                     if (!opt.value) { setOptionState(opt, null); return; }
@@ -893,7 +910,10 @@
             ['.dgLevel', '.dgCapacityMode', '.dgCount', '.dgCountMode', '.dgType', '.dgTransport', '.dgCapacitySize', '.dgCapacityUnit', '.dgRole']
                 .forEach(sel => row.querySelector(sel).addEventListener('change', applyDiskGroupConstraints));
             row.querySelector('.dgCount').addEventListener('input', applyDiskGroupConstraints);
-            row.querySelector('.dgLevel').addEventListener('change', () => defaultCountForNoRaid(row));
+            // 사용자가 개수 · 모드를 직접 만지면 자동값 표식을 지운다 — 이후 레벨 변경이 그 값을 되돌리지 않는다
+            row.querySelector('.dgCount').addEventListener('input', () => delete row.dataset.countDefaulted);
+            row.querySelector('.dgCountMode').addEventListener('change', () => delete row.dataset.countDefaulted);
+            row.querySelector('.dgLevel').addEventListener('change', () => { defaultCountForNoRaid(row); applyDiskGroupConstraints(); });
             bindDiskGroupDrag(row);
             bindRowRemove(row);
             row.querySelector('[data-row-remove]').addEventListener('click', () => setTimeout(applyDiskGroupConstraints, 0));
@@ -992,11 +1012,22 @@
         }
 
         function defaultCountForNoRaid(row) {
-            if (rowBuildsRaid(row)) return;
             const countInput = row.querySelector('.dgCount');
+            const modeSel = row.querySelector('.dgCountMode');
+            if (rowBuildsRaid(row)) {
+                // 신규 행은 레벨이 'RAID 없음' 으로 시작해 자동값(1 · 개 이상)을 받는다. 레벨을 RAID 로 바꾸는 순간 그 자동값을
+                // 물려주면 기본이 '개 이상' 이 된다(CP5 F-1) — 사용자가 손대지 않은 자동값이면 첫 옵션 '개' + 빈 개수로 되돌린다(D1).
+                if (row.dataset.countDefaulted === 'noraid') {
+                    countInput.value = '';
+                    modeSel.selectedIndex = 0;
+                    delete row.dataset.countDefaulted;
+                }
+                return;
+            }
             if (countInput.value.trim() !== '') return;
             countInput.value = '1';
-            row.querySelector('.dgCountMode').value = 'AT_LEAST';
+            modeSel.value = 'AT_LEAST';
+            row.dataset.countDefaulted = 'noraid';
         }
 
         /* 행 순서 — 맨 앞 ☰ 핸들을 끌어 옮긴다. 묶음 번호(N번)와 중복 판정이 순서를 따르므로 놓은 뒤
@@ -1773,6 +1804,13 @@
                     const container = form.querySelector('[data-error-field="diskGroups"]');
                     const first = duplicates[0];
                     if (container) paintFieldError(container, first.no + '번 묶음이 ' + first.sameAsNo + '번 묶음과 같은 규칙입니다 — 축 하나를 바꾸거나 줄을 지우세요.');
+                    ok = false;
+                }
+                // 규칙 8 — 도달 불가 행이 있으면 제출하지 않는다(UI 1차 차단 · CP5 F-5). 문구는 서버 unreachableRule 의 400 문장과 같다.
+                const unreachable = unreachableDiskGroupFindings();
+                if (unreachable.message) {
+                    const container = form.querySelector('[data-error-field="diskGroups"]');
+                    if (container) paintFieldError(container, unreachable.message);
                     ok = false;
                 }
                 // 역할 · 우선순위(U4-1-2) — 진리표가 잠그지만 pre-fill · 경합으로 남을 수 있는 상태의 안전망. 문구는 서버와 같다.

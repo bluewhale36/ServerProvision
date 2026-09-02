@@ -283,16 +283,51 @@ class DiskGroupRulesTest {
             new DiskCapacityRequirement(CapacityRequirementMode.SPECIFIED, 960L, DiskCapacityUnit.GB);
 
     @org.junit.jupiter.api.Test
-    @org.junit.jupiter.api.DisplayName("W4 — 개수 수용집합 포섭 3형(엄격 일치 기준): AT_LEAST⊇AT_LEAST · AT_LEAST⊇EXACT · EXACT=EXACT")
+    @org.junit.jupiter.api.DisplayName("W4 — 개수 축 포섭 3×3(E3.5-7-a D3): 개 는 포섭 없음 · 개씩 은 같은 n 의 개씩만 · 개 이상 은 n ≤ m 전부")
     void covers_countAcceptanceForms() {
-        var atLeast2 = r8(DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO, CAP_AUTO, DiskCountMode.AT_LEAST, 2);
-        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(atLeast2,
-                r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_AUTO, DiskCountMode.AT_LEAST, 3))).isTrue();
-        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(atLeast2,
-                r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_AUTO, DiskCountMode.EXACT, 3))).isTrue();
         var exact2 = r8(DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO, CAP_AUTO, DiskCountMode.EXACT, 2);
-        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(exact2,
-                r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_AUTO, DiskCountMode.EXACT, 2))).isTrue();
+        var each2 = r8(DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO, CAP_AUTO, DiskCountMode.EACH, 2);
+        var atLeast2 = r8(DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO, CAP_AUTO, DiskCountMode.AT_LEAST, 2);
+        // 선행 '개' — 한 묶음만 가져가 남기므로 후행 셋 모두 비포섭(같은 값이어도 2번이 다음 2장을 가져간다)
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(exact2, later(DiskCountMode.EXACT, 2))).isFalse();
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(exact2, later(DiskCountMode.EACH, 2))).isFalse();
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(exact2, later(DiskCountMode.AT_LEAST, 2))).isFalse();
+        // 선행 '개씩' — 같은 n 의 '개씩' 만(배수 아닌 그룹은 후행 개 · 개 이상에 남는다)
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(each2, later(DiskCountMode.EACH, 2))).isTrue();
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(each2, later(DiskCountMode.EACH, 4))).isFalse();
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(each2, later(DiskCountMode.EXACT, 2))).isFalse();
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(each2, later(DiskCountMode.AT_LEAST, 2))).isFalse();
+        // 선행 '개 이상' — n ≤ m 인 모든 후행(현행 공식 그대로)
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(atLeast2, later(DiskCountMode.AT_LEAST, 3))).isTrue();
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(atLeast2, later(DiskCountMode.EXACT, 3))).isTrue();
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(atLeast2, later(DiskCountMode.EACH, 2))).isTrue();
+        org.assertj.core.api.Assertions.assertThat(DiskGroupRules.covers(atLeast2, later(DiskCountMode.EXACT, 1))).isFalse();
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("W4 통관(E3.5-7-a) — [개씩 2 → 개씩 2] · [개 이상 2 → 개 3] 은 거절, [개 2 → 개 2] · [개 2 → 개 이상 3] 은 통과")
+    void validate_countModePairs() {
+        var prior = new java.util.HashMap<DiskCountMode, DiskGroupRuleRequest>();
+        for (DiskCountMode m : DiskCountMode.values()) {
+            prior.put(m, r8(DiskTypeRequirement.AUTO, DiskTransportRequirement.AUTO, CAP_AUTO, m, 2));
+        }
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        DiskGroupRules.validate(List.of(prior.get(DiskCountMode.EACH), later(DiskCountMode.EACH, 2)), AVAGO_9361))
+                .hasMessageContaining("2번 묶음은 1번 묶음에 가려 도달할 수 없습니다");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        DiskGroupRules.validate(List.of(prior.get(DiskCountMode.AT_LEAST), later(DiskCountMode.EXACT, 3)), AVAGO_9361))
+                .hasMessageContaining("2번 묶음은 1번 묶음에 가려 도달할 수 없습니다");
+        org.assertj.core.api.Assertions.assertThatCode(() ->
+                        DiskGroupRules.validate(List.of(prior.get(DiskCountMode.EXACT), later(DiskCountMode.EXACT, 2)), AVAGO_9361))
+                .doesNotThrowAnyException();
+        org.assertj.core.api.Assertions.assertThatCode(() ->
+                        DiskGroupRules.validate(List.of(prior.get(DiskCountMode.EXACT), later(DiskCountMode.AT_LEAST, 3)), AVAGO_9361))
+                .doesNotThrowAnyException();
+    }
+
+    /** 3×3 후행 — 축은 선행 AUTO 안에 드는 구체값(SSD · SATA · 용량 AUTO)으로 고정해 개수 축만 본다. */
+    private static DiskGroupRuleRequest later(DiskCountMode mode, int value) {
+        return r8(DiskTypeRequirement.SSD, DiskTransportRequirement.SATA, CAP_AUTO, mode, value);
     }
 
     @org.junit.jupiter.api.Test
