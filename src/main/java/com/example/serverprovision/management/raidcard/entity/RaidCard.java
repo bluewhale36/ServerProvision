@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.entity;
 
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -53,6 +54,11 @@ public class RaidCard extends LifecycleEntity implements Markable {
 	@Column(name = "cache_capacity_gb", nullable = false)
 	private CacheCapacity cacheCapacity;
 
+	/** 제어 계열(E3.5-6) — VD 파라미터 지원 판정({@code RaidChipFamily.supportsVdParameters})의 SSOT 입력. */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "chip_family", nullable = false, length = 16)
+	private RaidChipFamily chipFamily;
+
 	@Column(name = "description", length = 1024)
 	private String description;
 
@@ -80,10 +86,12 @@ public class RaidCard extends LifecycleEntity implements Markable {
 	// ---- 도메인 메서드 -------------------------------------------------
 
 	public void update(String modelName, SupportedRaidLevels supportedRaidLevels,
-					   CacheCapacity cacheCapacity, String description, PciSubsystemId pciSubsystemId) {
+					   CacheCapacity cacheCapacity, RaidChipFamily chipFamily,
+					   String description, PciSubsystemId pciSubsystemId) {
 		this.modelName = modelName;
 		this.supportedRaidLevels = supportedRaidLevels;
 		this.cacheCapacity = cacheCapacity;
+		this.chipFamily = chipFamily;
 		this.description = description;
 		this.pciSubsystemId = pciSubsystemId;
 	}

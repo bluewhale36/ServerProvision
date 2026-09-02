@@ -1,5 +1,7 @@
 package com.example.serverprovision.execution.engine.raid;
 
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
+
 /**
  * 게스트에서 감지한 RAID 카드(E3.5-1) — 에이전트가 보고한 lspci · CLI 원문에서 서버 파서가 세운다.
  *

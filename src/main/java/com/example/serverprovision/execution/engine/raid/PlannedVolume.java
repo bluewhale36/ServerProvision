@@ -16,10 +16,17 @@ public record PlannedVolume(
         long usableBytes,
         PlannedVolumeRole role,
         /** 정의서 규칙 순번(1-based) — {@code raid_volume.rule_no} 기록의 원천(E3.5-3). */
-        int ruleNo
+        int ruleNo,
+        /** VD 파라미터(E3.5-6) — 서버(VdParameters)가 storcli 형태로 조립한 add vd 인라인 옵션(8축 기본값 포함 항상 명시). 축이 없는 계열(IR)은 null. */
+        String createOpts,
+        /** 생성 후 per-VD {@code set} 인자 목록(bgi= · accesspolicy= …) — 축이 없는 계열은 빈 목록. */
+        List<String> setOps,
+        /** 초기화 방식("none"|"fast"|"full") — HII 기본은 none(초기화 생략). 축이 없는 계열은 null. */
+        String init
 ) {
 
     public PlannedVolume {
         memberSlots = memberSlots == null ? List.of() : List.copyOf(memberSlots);
+        setOps = setOps == null ? List.of() : List.copyOf(setOps);
     }
 }

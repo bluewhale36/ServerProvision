@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.controller;
 
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.management.common.web.ControllerValidationSupport;
 import com.example.serverprovision.management.raidcard.dto.request.RaidCardCreateRequest;
 import com.example.serverprovision.management.raidcard.dto.request.RaidCardUpdateRequest;
@@ -66,9 +67,10 @@ public class RaidCardMetadataController {
 			Model model
 	) {
 		model.addAttribute("raidCardForm",
-				new RaidCardCreateRequest(vendor, "", List.of(), 0, "", ""));
+				new RaidCardCreateRequest(vendor, "", null, List.of(), 0, "", ""));
 		model.addAttribute("vendorOptions", List.of(RaidCardVendor.values()));
 		model.addAttribute("levelOptions", List.of(RaidLevel.values()));
+		model.addAttribute("chipFamilyOptions", List.of(RaidChipFamily.values()));
 		return "management/raidcard/new";
 	}
 
@@ -97,6 +99,7 @@ public class RaidCardMetadataController {
 		model.addAttribute(
 				"raidCardForm", new RaidCardUpdateRequest(
 						card.modelName(),
+						card.chipFamily(),
 						card.supportedRaidLevels(),
 						card.cacheCapacityGb(),
 						RaidCardControllerSupport.nullToEmpty(card.pciSubsystemIdDisplay()),
@@ -127,5 +130,6 @@ public class RaidCardMetadataController {
 		model.addAttribute("raidCardId", id);
 		model.addAttribute("vendorLabel", card.vendor().getDisplayName());
 		model.addAttribute("levelOptions", List.of(RaidLevel.values()));
+		model.addAttribute("chipFamilyOptions", List.of(RaidChipFamily.values()));
 	}
 }

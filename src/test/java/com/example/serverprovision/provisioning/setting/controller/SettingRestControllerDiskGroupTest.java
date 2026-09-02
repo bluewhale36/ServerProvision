@@ -97,6 +97,30 @@ class SettingRestControllerDiskGroupTest {
     }
 
     @Test
+    @DisplayName("POST — 묶음에 vdParameters(E3.5-6) 동봉 → 201, 계약에 8축 값이 실려 조립 재료가 된다")
+    void create_withVdParameters_returns201_andCarriesAxes() throws Exception {
+        given(commandService.create(any())).willReturn(new SettingSaveResponse(11L, "디스크 세팅"));
+        String ruleWithVd = """
+                {"raidLevel": "RAID1", "diskType": "SSD", "transport": "SATA",
+                 "capacity": {"mode": "AUTO"}, "count": {"mode": "EXACT", "value": 2}, "role": "BY_PRIORITY",
+                 "vdParameters": {"writePolicy": "WRITE_BACK", "driveCache": "OFF",
+                                  "backgroundInit": "OFF", "initialization": "FULL"}}
+                """;
+
+        send(body(raid("1", ruleWithVd))).andExpect(status().isCreated());
+
+        ArgumentCaptor<SettingSaveRequest> captor = ArgumentCaptor.forClass(SettingSaveRequest.class);
+        verify(commandService).create(captor.capture());
+        RaidConfigurationRequest install = (RaidConfigurationRequest) captor.getValue().processList().get(0);
+        var vd = install.getDiskGroups().get(0).vdParameters();
+        assertThat(vd).isNotNull();
+        assertThat(vd.createOpts()).isEqualTo("wb ra direct strip=256 pdcache=off");   // 비운 3축은 HII 기본값
+        assertThat(vd.setOps()).containsExactly("bgi=off", "accesspolicy=rw");
+        assertThat(vd.initToken()).isEqualTo("full");
+        assertThat(install.getDiskGroups().get(0).hasVdParameters()).isTrue();
+    }
+
+    @Test
     @DisplayName("POST — RAID 없음 묶음만 · 카드 null → 201 (카드는 RAID 를 구성할 때만 요구)")
     void create_noRaidRuleWithoutCard_returns201() throws Exception {
         given(commandService.create(any())).willReturn(new SettingSaveResponse(9L, "디스크 세팅"));

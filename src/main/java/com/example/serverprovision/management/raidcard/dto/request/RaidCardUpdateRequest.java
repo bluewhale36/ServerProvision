@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.dto.request;
 
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -19,6 +20,9 @@ public record RaidCardUpdateRequest(
 		@NotBlank(message = "모델명을 입력하세요.")
 		@Size(max = 128, message = "모델명은 128자 이하로 입력해주세요.")
 		String modelName,
+
+		@NotNull(message = "칩 계열을 선택하세요.")
+		RaidChipFamily chipFamily,
 
 		@NotEmpty(message = "지원 RAID 레벨을 1개 이상 선택하세요.")
 		List<RaidLevel> supportedRaidLevels,

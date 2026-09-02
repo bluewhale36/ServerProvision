@@ -566,7 +566,62 @@
                     </select>
                 </td>
                 <td class="n-td-center">
+                    <!-- VD 파라미터 서브 행 토글(E3.5-6) — 기본값과 다른 축 수 배지는 JS 가 채운다. MegaRAID 카드에서만 활성 -->
+                    <!-- 잠금 사유는 래퍼 span 의 data-tooltip 으로 — 비활성 버튼은 hover 를 받지 못한다(n-tooltip 관례 · 맨 오른쪽 열이라 right 정렬) -->
+                    <span class="n-tooltip dgVdToggleWrap" data-tooltip-align="right"><button type="button" class="n-btn n-btn-ghost n-btn-sm dgVdToggle" aria-label="VD 파라미터">⚙<span class="dgVdBadge" hidden></span></button></span>
                     <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-row-remove>삭제</button>
+                </td>
+            </tr>
+        </template>
+
+        <!-- E3.5-6 — 묶음 행의 VD 파라미터 서브 행(접이식 · 기본 접힘). 8축 = HII CONFIGURE VIRTUAL DRIVE
+             PARAMETERS 순서. selected = 각 enum 의 DEFAULT(9361-8i HII 기본 선택) — 고르지 않은 축도 그 값으로 명시 전송된다.
+             MegaRAID 카드에서만 노출. -->
+        <template id="tplVdParamsRow">
+            <tr class="dgVdRow" hidden>
+                <td colspan="8">
+                    <div class="n-vd-grid">
+                        <label>Strip Size
+                            <select class="n-select vdStripSize">
+                                <option th:each="v : ${vdStripSizes}" th:value="${v.name()}" th:selected="${v.isDefault()}" th:text="${v.displayName} + (${v.isDefault()} ? ' (기본값)' : '')"></option>
+                            </select>
+                        </label>
+                        <label>Read Policy
+                            <select class="n-select vdReadPolicy">
+                                <option th:each="v : ${vdReadPolicies}" th:value="${v.name()}" th:selected="${v.isDefault()}" th:text="${v.displayName} + (${v.isDefault()} ? ' (기본값)' : '')"></option>
+                            </select>
+                        </label>
+                        <label>Write Policy
+                            <select class="n-select vdWritePolicy">
+                                <option th:each="v : ${vdWritePolicies}" th:value="${v.name()}" th:selected="${v.isDefault()}" th:text="${v.displayName} + (${v.isDefault()} ? ' (기본값)' : '')"></option>
+                            </select>
+                        </label>
+                        <label>I/O Policy
+                            <select class="n-select vdIoPolicy">
+                                <option th:each="v : ${vdIoPolicies}" th:value="${v.name()}" th:selected="${v.isDefault()}" th:text="${v.displayName} + (${v.isDefault()} ? ' (기본값)' : '')"></option>
+                            </select>
+                        </label>
+                        <label>Access Policy
+                            <select class="n-select vdAccessPolicy">
+                                <option th:each="v : ${vdAccessPolicies}" th:value="${v.name()}" th:selected="${v.isDefault()}" th:text="${v.displayName} + (${v.isDefault()} ? ' (기본값)' : '')"></option>
+                            </select>
+                        </label>
+                        <label class="vdDriveCacheLabel">Drive Cache
+                            <select class="n-select vdDriveCache" data-error-field="">
+                                <option th:each="v : ${vdDriveCaches}" th:value="${v.name()}" th:selected="${v.isDefault()}" th:text="${v.displayName} + (${v.isDefault()} ? ' (기본값)' : '')"></option>
+                            </select>
+                        </label>
+                        <label>Disable BGI
+                            <select class="n-select vdBackgroundInit">
+                                <option th:each="v : ${vdBackgroundInits}" th:value="${v.name()}" th:selected="${v.isDefault()}" th:text="${v.displayName} + (${v.isDefault()} ? ' (기본값)' : '')"></option>
+                            </select>
+                        </label>
+                        <label>Initialization
+                            <select class="n-select vdInitialization">
+                                <option th:each="v : ${vdInitializations}" th:value="${v.name()}" th:selected="${v.isDefault()}" th:text="${v.displayName} + (${v.isDefault()} ? ' (기본값)' : '')"></option>
+                            </select>
+                        </label>
+                    </div>
                 </td>
             </tr>
         </template>

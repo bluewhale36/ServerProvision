@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.dto.response;
 
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
@@ -26,6 +27,7 @@ public record RaidCardResponse(
 		String modelName,
 		List<RaidLevel> supportedRaidLevels,
 		String supportedRaidLevelsDisplay,
+		RaidChipFamily chipFamily,
 		int cacheCapacityGb,
 		String cacheCapacityDisplay,
 		boolean hasCache,
@@ -44,6 +46,7 @@ public record RaidCardResponse(
 				entity.getModelName(),
 				List.copyOf(entity.getSupportedRaidLevels().asSet()),
 				entity.getSupportedRaidLevels().toDisplay(),
+				entity.getChipFamily(),
 				entity.getCacheCapacity().gigabytes(),
 				entity.getCacheCapacity().toDisplay(),
 				entity.hasCache(),

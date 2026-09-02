@@ -232,7 +232,9 @@ do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
     BODY=$1
     echo "[agent] RAID_APPLY - translating neutral plan to family CLI..."
     DEL=$(printf '%s' "$BODY" | grep -o '"deleteExisting":true' | head -1)
-    VOL_LINES=$(printf '%s' "$BODY" | tr '{' '\n' | sed -n 's/.*"name":"\([^"]*\)","level":"\([^"]*\)","slots":\[\([^]]*\)\].*/\1|\2|\3/p')
+    # E3.5-6 — createOpts(add vd 인라인) · setOps(생성 후 set 인자) · init 를 파이프에 동봉. 어휘는 서버가
+    # 조립해 오고(생성체는 서버) 에이전트는 전달 · 실행만 한다 — 항목이 늘어도 이 스크립트는 불변.
+    VOL_LINES=$(printf '%s' "$BODY" | tr '{' '\n' | sed -n 's/.*"name":"\([^"]*\)","level":"\([^"]*\)","slots":\[\([^]]*\)\],"createOpts":\(null\|"[^"]*"\),"setOps":\[\([^]]*\)\],"init":\(null\|"[^"]*"\).*/\1|\2|\3|\4|\5|\6/p')
     JBOD=$(printf '%s' "$BODY" | sed -n 's/.*"jbod":\[\([^]]*\)\].*/\1/p' | tr -d '"' | tr ',' ' ')
 
     CHIPS=$(printf '%s' "$BODY" | get_json_field raidChips)
@@ -257,14 +259,38 @@ do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
         fi
         if [ -n "$DEL" ]; then run_cli "$TOOL" /c0/vall del force || true; fi
         OK=1
-        for line in $VOL_LINES; do
-            NAME=${line%%|*}; rest=${line#*|}; LEVEL=${rest%%|*}
-            SLOTS=$(printf '%s' "${rest#*|}" | tr -d '"' | tr -d ' ')
+        VDIDX=0   # del force 후 생성이라 VD 번호 = 생성 순서(실측 spvR1V1=VD0)
+        # for 순회는 createOpts 의 공백에 워드 분리로 깨진다(CP5 H1 실측) — 행 단위 read 로 돈다.
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            NAME=${line%%|*}; rest=${line#*|}; LEVEL=${rest%%|*}; rest=${rest#*|}
+            SLOTS=$(printf '%s' "${rest%%|*}" | tr -d '"' | tr -d ' '); rest=${rest#*|}
+            CREATE=${rest%%|*}; rest=${rest#*|}
+            SETOPS=$(printf '%s' "${rest%%|*}" | tr -d '"' | tr ',' ' '); INIT=${rest#*|}
+            [ "$CREATE" = "null" ] && CREATE="" || CREATE=$(printf '%s' "$CREATE" | tr -d '"')
+            [ "$INIT" = "null" ] && INIT="" || INIT=$(printf '%s' "$INIT" | tr -d '"')
             LV=$(printf '%s' "$LEVEL" | tr 'A-Z' 'a-z')   # RAID1 → raid1
             EXTRA=""
             [ "$LEVEL" = "RAID10" ] && EXTRA="pdperarray=2"
-            run_cli "$TOOL" /c0 add vd type="$LV" name="$NAME" drives="$SLOTS" $EXTRA || { OK=0; break; }
-        done
+            run_cli "$TOOL" /c0 add vd type="$LV" name="$NAME" drives="$SLOTS" $CREATE $EXTRA || { OK=0; break; }
+            for op in $SETOPS; do
+                run_cli "$TOOL" "/c0/v$VDIDX" set "$op" || { OK=0; break; }
+            done
+            [ "$OK" = 0 ] && break
+            # 초기화 — none = 생략(HII 기본) · fast/full = force 실행. 서버가 항상 채워 보낸다(E3.5-6 기본값 = HII 기본);
+            # 빈 값은 닿지 않는 방어 경로(fast). OS/FS 감지 거부(ErrCd 255)와 storcli 의 Failure-exit 0 때문에 force + 출력 검사(실기 2026-09-01).
+            if [ "$INIT" != "none" ]; then
+                INIT_KW=""; [ "$INIT" = "full" ] && INIT_KW="full"
+                INIT_OUT=$("$TOOL" "/c0/v$VDIDX" start init $INIT_KW force 2>&1)
+                LOG="$LOG\$ $TOOL /c0/v$VDIDX start init $INIT_KW force\n$INIT_OUT\n"
+                if printf '%s' "$INIT_OUT" | grep -qE 'Failed|Failure'; then
+                    FAILED_CMD="$TOOL /c0/v$VDIDX start init $INIT_KW force"; OK=0; break
+                fi
+            fi
+            VDIDX=$((VDIDX + 1))
+        done <<VDEOF
+$VOL_LINES
+VDEOF
         if [ "$OK" = 1 ] && [ -n "$JBOD" ]; then
             for slot in $JBOD; do
                 E=${slot%%:*}; S=${slot#*:}
@@ -278,11 +304,14 @@ do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
         fi
         if [ -n "$DEL" ]; then run_cli_yes sas3ircu 0 delete || true; fi
         OK=1
-        for line in $VOL_LINES; do
-            NAME=${line%%|*}; rest=${line#*|}; LEVEL=${rest%%|*}
-            SLOTS=$(printf '%s' "${rest#*|}" | tr -d '"' | tr ',' ' ')
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            NAME=${line%%|*}; rest=${line#*|}; LEVEL=${rest%%|*}; rest=${rest#*|}
+            SLOTS=$(printf '%s' "${rest%%|*}" | tr -d '"' | tr ',' ' ')
             run_cli_yes sas3ircu 0 create "$LEVEL" MAX $SLOTS "$NAME" || { OK=0; break; }
-        done
+        done <<VDEOF
+$VOL_LINES
+VDEOF
         # IR 은 볼륨 미소속 디스크가 곧 단독 노출 — jbod 명령 불요(0-3 조사 §2)
     else
         report_step RAID_APPLYING FAILED "{\"reason\":\"TOOL_MISSING\",\"detail\":\"unknown family $FAMILY (agent adapter missing)\"}" >/dev/null

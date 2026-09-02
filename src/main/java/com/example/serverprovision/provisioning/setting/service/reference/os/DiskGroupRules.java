@@ -50,6 +50,21 @@ public final class DiskGroupRules {
             } else if (rule.count().value() < 1) {
                 throw InvalidDiskGroupException.singleDiskCountBelowOne(ruleNo);
             }
+            // 규칙 9(E3.5-6) — VD 파라미터는 지원 계열(MegaRAID) · RAID 구성 묶음에서만. UI 는 서브 행
+            // 잠금으로 먼저 막고, 이 가드는 direct POST 방어다(supportsVdParameters SSOT 공유).
+            if (rule.hasVdParameters()) {
+                if (!rule.buildsRaid()) {
+                    throw InvalidDiskGroupException.vdParametersOnNonRaid(ruleNo);
+                }
+                if (card != null && !card.getChipFamily().supportsVdParameters()) {
+                    throw InvalidDiskGroupException.vdParametersNotSupported(ruleNo, card.getChipFamily().getDisplayName());
+                }
+                // SSD 볼륨의 Drive Cache 는 카드가 Unchanged 고정(CP6 검수) — 종류가 SSD 로 명시된 묶음에서 Unchanged 밖의
+                // 값을 막는다. 자동 탐지 묶음은 실물이 갈리므로 여기서 막지 않고 집행의 storcli 출력 검사에 맡긴다.
+                if (rule.diskType() == DiskTypeRequirement.SSD && rule.vdParameters().overridesDriveCache()) {
+                    throw InvalidDiskGroupException.driveCacheOnSsd(ruleNo);
+                }
+            }
             if (!rule.capacity().isAuto() && (rule.capacity().size() == null || rule.capacity().size() < 1)) {
                 throw InvalidDiskGroupException.invalidCapacity(ruleNo);
             }

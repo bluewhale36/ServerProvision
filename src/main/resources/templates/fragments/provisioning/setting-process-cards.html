@@ -167,7 +167,8 @@
                             </tr>
                             </thead>
                             <tbody>
-                            <tr th:each="rule, it : ${process.diskGroups}">
+                            <th:block th:each="rule, it : ${process.diskGroups}">
+                            <tr>
                                 <td class="n-table-muted" th:text="${it.count}">1</td>
                                 <td>
                                     <span th:if="${rule.buildsRaid()}" class="n-badge n-badge-blue" th:text="${rule.raidLevel.displayName}">RAID1</span>
@@ -193,6 +194,12 @@
                                     <span th:if="${rule.role != null and rule.role.name() != 'OS'}" th:text="${rule.role.displayName}">우선순위에 따름</span>
                                 </td>
                             </tr>
+                            <!--/* E3.5-6 — VD 파라미터 부기(8축 전부 — 기본값 포함해 집행에 실리는 값 그대로). 축이 없는 규칙(IR 카드 · 구 저장본)은 행을 내지 않는다 — 파서 주석이라 렌더에 남지 않는다 */-->
+                            <tr th:if="${rule.vdParameters != null}">
+                                <td></td>
+                                <td colspan="6" class="n-muted" th:text="'VD 파라미터 — ' + ${rule.vdParameters.toDisplay()}">VD 파라미터</td>
+                            </tr>
+                            </th:block>
                             </tbody>
                         </table>
                     </div>

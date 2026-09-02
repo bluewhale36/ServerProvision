@@ -661,7 +661,8 @@
             return rcRaidCard && rcRaidCard.value ? (RAID_CARD_BY_ID[rcRaidCard.value] || null) : null;
         }
         function diskGroupRows() {
-            return rcDiskGroupTbody ? Array.from(rcDiskGroupTbody.querySelectorAll('tr')) : [];
+            // E3.5-6 — VD 파라미터 서브 행(tr.dgVdRow)은 규칙 행이 아니다: 규칙 번호 · 조립 · 포섭 판정에서 제외
+            return rcDiskGroupTbody ? Array.from(rcDiskGroupTbody.querySelectorAll('tr:not(.dgVdRow)')) : [];
         }
         /** 행이 RAID 를 구성하는가 — 레벨 값이 있으면 (OSInstallationRequest.requiresRaidCard 의 행 단위). */
         function rowBuildsRaid(row) {
@@ -752,6 +753,9 @@
             const raidRows = diskGroupRows().filter(rowBuildsRaid);
             applyExistingPolicyLock(raidRows.length > 0);   // E3.5-4 축 잠금(UI 1차 차단)
             applyUnreachableFindings();                     // E3.5-4 규칙 8 미러
+            // E3.5-6 — VD 파라미터 잠금 진리표: 지원 계열(supportsVdParameters) × RAID 구성 행에서만
+            const vdSupported = !!(card && card.supportsVdParameters);
+            diskGroupRows().forEach(row => applyVdParamsLock(row, vdSupported));
 
             // 1) 카드 select 의 옵션 잠금
             Array.from(rcRaidCard.options).forEach(opt => {
@@ -894,7 +898,97 @@
             bindRowRemove(row);
             row.querySelector('[data-row-remove]').addEventListener('click', () => setTimeout(applyDiskGroupConstraints, 0));
             rcDiskGroupTbody.appendChild(row);
+            attachVdParamsRow(row, d.vdParameters);   // E3.5-6 — 서브 행은 본 행 바로 뒤
             applyDiskGroupConstraints();
+        }
+
+        /* ── E3.5-6 VD 파라미터 서브 행 ─────────────────────────────────────
+           본 행 바로 뒤 tr.dgVdRow(기본 접힘). 축마다 값이 항상 있다 — 템플릿의 selected 옵션이 서버 enum 의
+           DEFAULT(9361-8i HII 기본값)이고, 고르지 않은 축도 그 값으로 명시 전송된다(2026-09-02 미지정 폐지).
+           값 잠금(Q1 판정): 지원 밖(카드 미지원 · RAID 없음)이면 화면 값은 보존하고 전송에서만 제외한다 —
+           서버 가드(규칙 9)는 direct POST 방어. */
+        const VD_AXES = ['vdStripSize', 'vdReadPolicy', 'vdWritePolicy', 'vdIoPolicy',
+                         'vdAccessPolicy', 'vdDriveCache', 'vdBackgroundInit', 'vdInitialization'];
+        const VD_FIELDS = ['stripSize', 'readPolicy', 'writePolicy', 'ioPolicy',
+                           'accessPolicy', 'driveCache', 'backgroundInit', 'initialization'];
+
+        function attachVdParamsRow(row, saved) {
+            const vdRow = cloneTemplateRow('tplVdParamsRow');
+            if (!vdRow) return;
+            row._vdRow = vdRow;
+            row.parentNode.insertBefore(vdRow, row.nextSibling);
+            VD_AXES.forEach((cls, i) => {
+                const sel = vdRow.querySelector('.' + cls);
+                // 저장값이 있으면 복원, 없으면 템플릿의 selected(HII 기본값)가 그대로 선다. 선택지에 없는 값은 기본값으로 둔다.
+                const v = saved && saved[VD_FIELDS[i]];
+                if (v && sel.querySelector('option[value="' + v + '"]')) sel.value = v;
+                sel.addEventListener('change', applyDiskGroupConstraints);
+            });
+            const toggle = row.querySelector('.dgVdToggle');
+            toggle.addEventListener('click', () => { vdRow.hidden = !vdRow.hidden; });
+            row.querySelector('[data-row-remove]').addEventListener('click', () => vdRow.remove());
+        }
+
+        /** 드래그 뒤 서브 행을 제 본 행 뒤로 재정렬 — RowDrag 는 본 행만 옮긴다. */
+        function reattachVdRows() {
+            diskGroupRows().forEach(row => {
+                if (row._vdRow && row.nextSibling !== row._vdRow) {
+                    row.parentNode.insertBefore(row._vdRow, row.nextSibling);
+                }
+            });
+        }
+
+        /** 템플릿의 selected 옵션 = 서버 enum 의 DEFAULT(HII 기본값) — 배지 · SSD 잠금 되돌림의 기준. */
+        function vdDefaultOf(sel) {
+            const opt = Array.from(sel.options).find(o => o.defaultSelected);
+            return opt ? opt.value : '';
+        }
+
+        /** 기본값과 다른 축 수 — ⚙ 배지의 숫자. 0 이면 8축 전부 HII 기본값으로 전송된다. */
+        function vdChangedCount(row) {
+            if (!row._vdRow) return 0;
+            return VD_AXES.filter(cls => {
+                const sel = row._vdRow.querySelector('.' + cls);
+                return sel && sel.value !== vdDefaultOf(sel);
+            }).length;
+        }
+
+        /** 행의 VD 파라미터 전송값 — 지원 계열 × RAID 구성 행이면 8축 전부(기본값 포함) 명시, 잠금이면 null(축 없음). */
+        function vdParametersOf(row, cardSupports) {
+            if (!cardSupports || !rowBuildsRaid(row) || !row._vdRow) return null;
+            const out = {};
+            VD_AXES.forEach((cls, i) => { out[VD_FIELDS[i]] = row._vdRow.querySelector('.' + cls).value; });
+            return out;
+        }
+
+        function applyVdParamsLock(row, cardSupports) {
+            const toggle = row.querySelector('.dgVdToggle');
+            if (!toggle) return;
+            const usable = cardSupports && rowBuildsRaid(row);
+            toggle.disabled = !usable;
+            // 잠금 사유는 래퍼의 data-tooltip(프로젝트 tooltip) — 네이티브 title 을 쓰지 않는다(CP6 검수)
+            const wrap = toggle.closest('.dgVdToggleWrap');
+            if (wrap) {
+                if (usable) delete wrap.dataset.tooltip;
+                else wrap.dataset.tooltip = rowBuildsRaid(row)
+                    ? '이 카드 계열은 VD 파라미터를 지원하지 않습니다'
+                    : 'RAID 를 구성하지 않는 묶음에는 지정할 수 없습니다';
+            }
+            if (!usable && row._vdRow) row._vdRow.hidden = true;   // 값은 보존 — 전송만 제외(Q1)
+            // Drive Cache — SSD 묶음은 카드가 Unchanged 고정(CP6 검수): 기본값(Unchanged)으로 되돌리고 잠근다(서버 규칙 9 와 같은 판정)
+            if (row._vdRow) {
+                const dc = row._vdRow.querySelector('.vdDriveCache');
+                const ssd = row.querySelector('.dgType').value === 'SSD';
+                dc.disabled = ssd;
+                if (ssd) dc.value = vdDefaultOf(dc);
+                dc.title = ssd ? 'SSD 볼륨의 Drive Cache 는 카드가 Unchanged 로 고정합니다' : '';
+            }
+            const badge = row.querySelector('.dgVdBadge');
+            if (badge) {
+                const n = vdChangedCount(row);
+                badge.hidden = !(usable && n > 0);
+                badge.textContent = n;
+            }
         }
 
         function defaultCountForNoRaid(row) {
@@ -909,7 +1003,7 @@
            진리표를 다시 적용한다. 드래그 자체의 구현은 공용 모듈(global/row-drag.js)이 갖는다 — 펌웨어
            버전 목록(E2-1-a)과 같은 조작감을 쓰기 위해 E2-1-a 에서 끌어올렸다. */
         function bindDiskGroupDrag(row) {
-            bindRowDrag(row, rcDiskGroupTbody, applyDiskGroupConstraints);
+            bindRowDrag(row, rcDiskGroupTbody, () => { reattachVdRows(); applyDiskGroupConstraints(); });
         }
         /** 표 공용 행 드래그 — 묶음 표(U4-1-1)와 우선순위 표(U4-1-2)가 같은 공용 모듈을 쓴다. */
         function bindRowDrag(row, tbody, onDrop) {
@@ -920,6 +1014,8 @@
         }
 
         function buildDiskGroups() {
+            const card = selectedRaidCard();
+            const vdSupported = !!(card && card.supportsVdParameters);
             return diskGroupRows().map(row => {
                 const capMode = row.querySelector('.dgCapacityMode').value;
                 return {
@@ -930,7 +1026,8 @@
                         ? {mode: 'SPECIFIED', size: intOrNull(row.querySelector('.dgCapacitySize').value), unit: row.querySelector('.dgCapacityUnit').value}
                         : {mode: 'AUTO', size: null, unit: null},
                     count: {mode: row.querySelector('.dgCountMode').value, value: intOrNull(row.querySelector('.dgCount').value)},
-                    role: row.querySelector('.dgRole').value
+                    role: row.querySelector('.dgRole').value,
+                    vdParameters: vdParametersOf(row, vdSupported)   // E3.5-6 — 지원 계열 × RAID 행은 8축 명시, 잠금이면 null
                 };
             });
         }

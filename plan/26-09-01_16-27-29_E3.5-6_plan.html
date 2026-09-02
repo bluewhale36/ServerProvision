@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E3.5-6 Plan — VD 파라미터 축 (묶음 행별 지정)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split / diff / state-flow ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 라이브 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 16px; align-items:center; }
+  .ux-row .label { flex:1; }
+  .ux-row select { font-size:12px; padding:3px 6px; border:1px solid var(--border); border-radius:5px; background:var(--card); color:var(--text); font-family:inherit; max-width:100%; }
+  .ux-row select:disabled { background:rgba(0,0,0,0.05); color:var(--text-muted); }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── seq / pkg-tree / card-grid ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    .ux-row.child { grid-template-columns:1fr; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E3.5-6 — VD 파라미터 축 (묶음 행별 지정) <span class="v2-badge">E3.5 RAID 구성 계열</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E3.5-6 (feature)</span>
+    <span><strong>상위</strong> E3.5 RAID 구성 실행 계열</span>
+    <span><strong>scope</strong> HII "CONFIGURE VIRTUAL DRIVE PARAMETERS" 8축을 정의서 묶음 행마다 지정해 집행에 전달</span>
+    <span><strong>생성</strong> 2026-09-01 16:27 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">2026-09-01 RAID 구성 계열의 CP7 실기 직후 사용자가 제기한 요구에서 출발한다. 처음 지목된 것은 MegaRAID 9361-8i 의 HII 설정 화면 "CONFIGURE VIRTUAL DRIVE PARAMETERS" 중 실무에서 실제로 조정하는 네 항목이었다 — Write Policy, Drive Cache(하드디스크 문맥), Disable Background Initialization, Default Initialization. 이후 <b>사용자 지시로 scope 가 확장</b>되어, 이 화면에서 <b>지정 가능한 항목 전체 8종</b>을 다룬다. 현재 정의서에는 이 축들을 지정할 자리가 전혀 없어, 집행은 카드 기본값과 코드에 고정된 초기화 정책으로만 볼륨을 만든다.</p>
+
+        <h4>지금 갖춰진 것과 비어 있는 것</h4>
+        <table>
+          <thead><tr><th>영역</th><th>현재</th><th>결손</th></tr></thead>
+          <tbody>
+            <tr><td>정의서 (디스크 묶음 규칙)</td><td>묶음 규칙 행 단위로 RAID 레벨 · 디스크 선택 축을 지정</td><td>VD 파라미터 지정 자리 없음</td></tr>
+            <tr><td>계획 (<code>RaidPlanner</code>)</td><td>규칙 → <code>PlannedVolume</code> 매칭</td><td>규칙의 파라미터를 실어 나를 필드 없음</td></tr>
+            <tr><td>집행 payload</td><td><code>RaidApplyPayload.VolumeSpec</code> 이 이름 · 레벨 · 슬롯 전달</td><td>정책 · 초기화 전달 수단 없음</td></tr>
+            <tr><td>게스트 <code>agent.sh</code></td><td><code>add vd</code> 로 생성 후 <code>vall</code> 일괄 fast init force</td><td>볼륨별 정책 · 볼륨별 초기화 없음</td></tr>
+            <tr><td><code>RaidCard</code> 자원</td><td>vendor · modelName · supportedRaidLevels · cacheCapacity · pciSubsystemId</td><td>칩 계열을 알 수 없음 (<code>pciSubsystemId</code> 는 실물 2건 다 미채움)</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>핵심 진단</b> — 이 축들은 MegaRAID 계열에만 대응 개념이 있고 MPT IR 계열에는 없다. 그런데 정의서 화면도 서버 검증도 <b>선택된 RAID 카드가 어느 계열인지 알 방법이 없다</b>. 계열을 모른 채 축을 열면 IR 카드에서 "지정했는데 조용히 무시" 되는 상태가 되므로, 값 모델보다 계열 식별이 선결 과제다.</div>
+
+        <p>초기화 정책의 현행값도 함께 확인해 둔다. 지금 집행은 <code>start init force</code>(fast) 를 볼륨 전체에 일괄 적용하며, 이는 2026-09-01 사용자 지시로 확정하고 실기에서 실증한 동작이다. 이번 슬라이스는 이 동작을 없애는 것이 아니라 <b>축으로 승격</b>해, 지정이 없으면 그대로 유지되게 한다.</p>
+
+        <h4>storcli 매핑 8항목 (실측 · 조사)</h4>
+        <table>
+          <thead><tr><th>항목</th><th>생성 시 (add vd 인라인)</th><th>생성 후</th></tr></thead>
+          <tbody>
+            <tr><td>Write Policy</td><td><code>wt</code> | <code>wb</code> | <code>awb</code></td><td><code>set wrcache=</code></td></tr>
+            <tr><td>Read Policy</td><td><code>ra</code> | <code>nora</code></td><td><code>set rdcache=</code></td></tr>
+            <tr><td>I/O Policy</td><td><code>direct</code> | <code>cached</code></td><td><code>set iopolicy=</code></td></tr>
+            <tr><td>Strip Size</td><td><code>Strip=64</code> (KB — 8/16/32/64/128/256/512/1024)</td><td><b>불가</b> — 생성 시에만</td></tr>
+            <tr><td>Access Policy</td><td>인라인 없음</td><td><code>set accesspolicy=rw|ro|blocked</code></td></tr>
+            <tr><td>Drive Cache</td><td><code>pdcache=on|off</code></td><td><code>set pdcache=</code></td></tr>
+            <tr><td>Disable BGI</td><td>인라인 없음</td><td><code>/c0/vX set bgi=on|off</code></td></tr>
+            <tr><td>Default Init</td><td>없음</td><td><code>start init [full] force</code></td></tr>
+          </tbody>
+        </table>
+        <p>인자 위치 규칙이 하나 붙는다 — <code>name=</code> 과 <code>Size=</code> 는 <code>drives=</code> 앞에, 정책 옵션은 <code>drives=</code> 뒤에 온다. <code>pdperarray</code> 를 실측했을 때와 같은 계열의 규칙이며, 이번 축들도 같은 자리를 따른다. 카드가 CacheVault 나 배터리 백업을 갖추지 않은 상태에서 <code>wb</code> 를 주면 카드가 스스로 <code>wt</code> 로 강등하고, <code>awb</code> 는 강등 없이 강제되어 정전 시 데이터 위험을 안는다. 이 동작은 카드의 것이므로 코드가 아니라 화면 도움말로 다룬다. 인자 위치는 문서 기반이라 CP7 실기에서 재확인한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>8축 지정</b> — Strip Size · Read Policy · Write Policy · I/O Policy · Access Policy · Drive Cache · Background Initialization · Default Initialization 을 정의서에서 고르고 집행까지 전달한다. <span class="chip add">scope 확장</span> 최초 요구는 4항목이었고, 사용자 지시로 HII 화면의 지정 가능 항목 전체로 넓혔다.</li>
+          <li><b>배치는 묶음 규칙 행마다</b> — 디스크 묶음 규칙 각 행이 자기 파라미터를 갖는다(사용자 확정). 카드 수준 공통값이나 2단 상속은 두지 않는다.</li>
+          <li><b>기본은 HII 기본값</b> <span class="chip add">2026-09-02 개정</span> — 고르지 않은 축은 9361-8i HII 화면의 기본 선택(Strip 256KB · Read Ahead · Write Back · Direct · Read Write · Drive Cache Unchanged · Disable BGI No · Default Initialization No)으로 채워져 <b>항상 명시 전송</b>된다. 최초 안(미지정 = 옵션 미전달 = 카드 펌웨어 기본에 맡김)은 CP6 검수에서 폐지했다 — 정의서가 값을 확정한다.</li>
+          <li><b>사내 표준값은 코드에 싣지 않는다</b> — 표준 세팅 값이 비공개이므로 기본값 · 상수 · 프리셋 어디에도 넣지 않고, 표준 적용은 운영자가 정의서에서 명시 선택하는 방식으로 흡수한다. 각 enum 의 <code>DEFAULT</code> 는 공개된 HII 기본 선택이라 이 제약에 걸리지 않는다.</li>
+          <li><b>계열 연동</b> — MegaRAID 계열 카드에서만 축을 노출한다. IR 계열 카드를 고르면 화면이 먼저 막고(서브 행 숨김 · 값 잠금), 화면을 우회한 요청은 서버가 400 으로 거절한다.</li>
+          <li><b>어휘 조립은 서버가</b> — 서버가 storcli 형태로 조립해 payload 에 담고 게스트 에이전트는 전달 · 실행만 한다. 항목이 더 늘어도 에이전트는 바뀌지 않는다.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><code>RaidResultVerifier</code> 의 4축 대조에 VD 파라미터 검증을 <b>추가하지 않는다</b> — 설정 실패는 집행 단계의 storcli 출력 검사(<code>Failed|Failure</code>)가 잡는다.</li>
+            <li><b>Emulation Type</b>(펌웨어 의존 · 512e) · <b>Spares</b>(VD 파라미터가 아니라 구성 요소 — 디스크 소비에 영향) · <b>CacheCade</b>(<code>Cbsize</code> · <code>Cbmode</code> — 미사용 기능)는 제외한다. "지정 가능한 값 전부" 의 기준은 HII CONFIGURE VIRTUAL DRIVE PARAMETERS 의 8항목이다.</li>
+            <li>IR 계열 기능 추가 없음. 사내 표준값의 어떤 형태의 내장도 없음.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (§2 직후 · 불가침) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">정의서의 묶음 규칙 행 하나를 그대로 옮겨 놓은 시뮬레이터입니다. <b>⚙ 토글로 서브 행을 펼쳐 8축을 고르면</b>, 서버가 조립할 payload 3필드(<code>createOpts</code> · <code>setOps</code> · <code>init</code>)와 게스트 에이전트가 실행할 <b>storcli 명령 시퀀스</b>가 즉시 바뀝니다. 위쪽 <b>RAID 카드</b> 를 IR 계열로 바꾸면 서브 행이 잠기고, 잠금을 우회한 direct POST 가 어떻게 거절되는지도 눌러 볼 수 있습니다. 조립 판정 JS 는 서버 enum 의 <code>cliToken</code> 과 <code>agent.sh</code> 매핑을 그대로 옮긴 것입니다(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <span id="demo-presets"></span>
+          </div>
+
+          <div class="ux-row">
+            <strong>RAID 카드 자원</strong>
+            <span class="label">정의서가 참조하는 카드</span>
+            <select id="demo-card" onchange="demoCard(this.value)">
+              <option value="MEGARAID">LSI 9361-8i — chipFamily = MEGARAID</option>
+              <option value="MPT_IR">CRA3338 — chipFamily = MPT_IR</option>
+            </select>
+          </div>
+
+          <div class="ux-row" id="demo-rule-row"></div>
+          <div class="ux-row child" id="demo-sub-row"></div>
+
+          <div class="ux-caps" id="demo-caps"></div>
+
+          <div class="card-grid">
+            <div class="card v-blue">
+              <h4>서버 — RaidApplyPayload.VolumeSpec</h4>
+              <div class="ux-caps" id="demo-payload" style="margin-top:0;"></div>
+              <p style="font-size:11.5px;color:var(--text-muted);margin:8px 0 0;">8축을 항목별 필드로 늘어놓지 않고 서버가 storcli 형태로 조립한다. 8축이 항상 채워지므로(고르지 않은 축 = HII 기본값) MegaRAID 볼륨의 <code>createOpts</code> 는 늘 5토큰 · <code>setOps</code> 는 늘 2인자다. 축이 없는 계열(IR)만 <code>null</code> · 빈 목록.</p>
+            </div>
+            <div class="card v-green">
+              <h4>게스트 agent.sh — storcli 명령 시퀀스</h4>
+              <div class="ux-caps" id="demo-cmds" style="margin-top:0;"></div>
+              <p style="font-size:11.5px;color:var(--text-muted);margin:8px 0 0;">VOL_LINES : <span id="demo-volline" class="mono"></span></p>
+            </div>
+          </div>
+
+          <div class="ux-toolbar" style="margin-top:4px;">
+            <span class="group-label">저장 경로 :</span>
+            <span id="demo-actions"></span>
+          </div>
+          <div class="ux-message" id="demo-message">시나리오 버튼을 누르거나 서브 행의 select 를 직접 바꿔 보세요. payload 와 명령 시퀀스가 실시간으로 갱신됩니다.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 서브 행 노출 여부(화면) 와 400 거절(서버) 은 같은 판정 <code>RaidChipFamily.supportsVdParameters()</code> 를 본다. 데모의 <code>supportsVdParameters()</code> 는 그 method-per-constant 를 1:1 로 옮긴 것이고, 조립 함수 둘(<code>buildCreateOpts</code> · <code>buildSetOps</code>)은 D4 의 서버 조립 규칙과 같은 진리표를 쓴다. 슬롯 표기(<code>252:0</code>)와 볼륨 이름은 예시이며 실제 값은 계획 단계가 정한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 슬라이스는 <b>새 URL 을 만들지 않는다</b>. 기존 정의서 작성 · 저장 경로와 RAID 카드 자원 등록 · 수정 경로에 필드가 늘어날 뿐이다.</p>
+        <table>
+          <thead><tr><th>Method</th><th>대상</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td>정의서 작성 · 수정 화면</td><td>폼 메타 <code>RAID_CARD_BY_ID</code> 에 <code>chipFamily</code> 동봉</td><td>200</td></tr>
+            <tr><td>POST</td><td>정의서 저장</td><td>규칙 행에 <code>vdParameters</code> 동봉</td><td>302 / 400</td></tr>
+            <tr><td>GET · POST</td><td>RAID 카드 등록 · 수정</td><td><code>chipFamily</code> select 값 저장</td><td>200 / 302 / 400</td></tr>
+            <tr><td>—</td><td>게스트 집행 (<code>RaidApplyPayload</code>)</td><td><code>VolumeSpec</code> 에 3필드 동봉</td><td>기존 집행 경로 무변경</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:12.5px;color:var(--text-muted);">URL 문자열은 브리프에 명시가 없어 적지 않는다 — 경로 자체가 무변경이며 CP2 착수 시 실측으로 확정한다.</p>
+
+        <h4>흐름 (지정 → 저장 → 계획 → 집행)</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저 (정의서 폼)</div><div class="actor a2">서버 (provisioning · execution)</div><div class="actor a3">게스트 agent.sh</div>
+          <div class="step a1">묶음 행의 ⚙ 토글 → 서브 행 8축 select</div><div class="step a2">폼 메타의 <code>chipFamily</code> 로 노출 · 잠금 판정</div><div class="step a3"></div>
+          <div class="step a1">저장 POST (<code>vdParameters</code> 동봉)</div><div class="step a2"><code>@Valid</code> → <code>DiskGroupRules</code> IR 가드</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>RaidPlanner</code> : 규칙 → <code>PlannedVolume</code> 복사</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>createOpts</code> · <code>setOps</code> · <code>init</code> 조립</div><div class="step a3">VOL_LINES 파싱 (빈 값 허용)</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>add vd … $CREATEOPTS</code> · <code>set</code> 반복 · per-VD init</div>
+          <div class="step a1"></div><div class="step a2">출력 검사 (<code>Failed|Failure</code>)</div><div class="step a3">storcli 출력 보고</div>
+        </div>
+
+        <h4>D2. 폼 배치 — 행별 접이식 서브 행</h4>
+        <p><b>채택</b> — 각 묶음 행 아래에 접이식 "VD 파라미터" 서브 행을 두고 기본은 접어 둔다. 8축 select 는 <b>2열 grid</b> 로 배치하되 순서는 HII 화면 항목 순서를 따른다 — Strip · Read · Write · I/O · Access · Drive Cache · BGI · Init. 행에는 토글(⚙)과 함께 <b>기본값과 다른 축 수 요약 배지</b>(예: "2" — 0 이면 숨김)를 붙여, 접혀 있어도 이 행이 무언가를 지정했는지가 보이게 한다. 대부분의 행이 미지정으로 남는 실무와 맞는 배치다.</p>
+        <table>
+          <thead><tr><th>탈락 대안</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td>열 4개 추가</td><td>현행 8열에 더하면 과밀</td></tr>
+            <tr><td>모달</td><td>인라인 편집 관례와 이질 · 조작 마찰</td></tr>
+            <tr><td>카드 수준 공통 + 행 재정의 2단</td><td>사용자가 행 수준 단일로 확정</td></tr>
+          </tbody>
+        </table>
+
+        <h4>객체 간 이동 (D4 계약)</h4>
+        <div class="pkg-tree">DiskGroupRuleRequest.vdParameters        (정의서 폼 → 저장 payload)
+        └─ VdParameters(8 enum 필드 · 비운 축은 생성자가 DEFAULT 로 채움)
+             │  record 자체가 null = 축 없음 (IR 카드 · 구 저장본 — MegaRAID 구 저장본은 planner 가 DEFAULTS 로 본다)
+             ▼
+RaidPlanner  ─ 규칙에서 복사(매칭 로직 무변경) ─▶  PlannedVolume.vdParameters
+             ▼
+RaidConfigurationExecutor  ─ enum cliToken 조립 ─▶  RaidApplyPayload.VolumeSpec
+        ├─ createOpts  "wb ra direct strip=256 pdcache=default"   (MegaRAID 는 항상 5토큰 · IR 은 null)
+        ├─ setOps      ["bgi=on","accesspolicy=rw"]           (MegaRAID 는 항상 2인자 · IR 은 빈 목록)
+        └─ init        "none"|"fast"|"full"                   (HII 기본 none · IR 은 null)
+             ▼
+agent.sh  VOL_LINES = NAME|LEVEL|SLOTS|CREATEOPTS|SETOPS|INIT   (빈 값 허용 · SETOPS 는 공백 구분)</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>D1. 값 모델 — enum 8종, 기본은 HII 기본값 <span class="chip add">2026-09-02 개정</span></h4>
+        <div class="callout warn"><b>개정(CP6 검수 · 사용자 지시)</b> — 최초 안은 각 enum 에 <code>UNSPECIFIED</code>(옵션 미전달 = 카드 기본값)를 두는 것이었다. 검수에서 "UNSPECIFIED 를 없애고 BIOS 에서 기본 선택된 값이 기본값으로 들어가게" 지시가 내려 <b>각 enum 이 <code>DEFAULT</code> 상수(HII 기본 선택)를 갖고, 비운 축은 <code>VdParameters</code> 생성자가 그 값으로 채운다.</b> Default Initialization 의 기본은 HII 그대로 <b>No</b> 로 확정했다(세션 질의에 사용자 답 — 소거가 필요한 정의서는 Fast 를 고른다). 아래 표 · 데모는 개정판이다.</div>
+        <p style="margin-top:0;">여덟 축을 <code>provisioning.setting.enums</code> 에 enum 으로 신설한다. 문자열로 실어 나르지 않는다(Primitive Obsession 금지). 사용자 지시가 "지정 가능한 값은 다 정의" 였으므로 8종 전부를 정의한다. 표의 순서는 폼(D2)과 같은 HII 화면 순서다.</p>
+        <table>
+          <thead><tr><th>enum</th><th>값</th><th>cliToken</th><th>조립 위치</th></tr></thead>
+          <tbody>
+            <tr><td><code>VdStripSize</code></td><td>KB_8 · KB_16 · KB_32 · KB_64 · KB_128 · <b>KB_256</b> · KB_512 · KB_1024</td><td><code>strip=8</code> … <code>strip=1024</code></td><td><code>createOpts</code> (생성 시에만)</td></tr>
+            <tr><td><code>VdReadPolicy</code></td><td><b>READ_AHEAD</b> · NO_READ_AHEAD</td><td><code>ra</code> · <code>nora</code></td><td><code>createOpts</code></td></tr>
+            <tr><td><code>VdWritePolicy</code></td><td>WRITE_THROUGH · <b>WRITE_BACK</b> · ALWAYS_WRITE_BACK</td><td><code>wt</code> · <code>wb</code> · <code>awb</code></td><td><code>createOpts</code></td></tr>
+            <tr><td><code>VdIoPolicy</code></td><td><b>DIRECT</b> · CACHED</td><td><code>direct</code> · <code>cached</code></td><td><code>createOpts</code></td></tr>
+            <tr><td><code>VdAccessPolicy</code></td><td><b>READ_WRITE</b> · READ_ONLY · BLOCKED</td><td><code>accesspolicy=rw|ro|blocked</code></td><td><code>setOps</code></td></tr>
+            <tr><td><code>VdDriveCache</code></td><td><b>UNCHANGED</b> · ON · OFF</td><td><code>pdcache=default|on|off</code></td><td><code>createOpts</code></td></tr>
+            <tr><td><code>VdBackgroundInit</code></td><td><b>ON</b> · OFF</td><td><code>bgi=on|off</code></td><td><code>setOps</code></td></tr>
+            <tr><td><code>VdInitialization</code></td><td><b>NONE</b> · FAST · FULL</td><td><code>none</code> · <code>fast</code> · <code>full</code></td><td><code>init</code></td></tr>
+          </tbody>
+        </table>
+        <p>굵은 값이 각 enum 의 <code>DEFAULT</code> 다. 화면 항목 이름은 "Disable BGI" 지만 축은 ON / OFF 대칭으로 두고 표기만 HII 어휘(Yes = BGI 끔 / No = BGI 켬)를 따른다. 초기화 축은 HII "Default Initialization" 과 1:1 — <b>NONE</b>(No, 기본)은 init 을 생략해 디스크의 기존 데이터가 남고, <b>FAST</b> 는 <code>start init force</code>(2026-09-01 실기의 소거 방식), <b>FULL</b> 은 <code>start init full force</code> 를 낸다. 사내 표준값은 여전히 코드에 없다 — HII 기본은 공개 사양이고, 표준이 그와 다른 축은 운영자가 정의서에서 고른다.</p>
+        <div class="callout warn"><b>Strip Size 의 지원 집합</b> — 카드마다 지원하는 값이 다르다(9361-8i 는 64KB~1MB 계열). 이번에는 <b>전 값을 노출</b>하고, 카드가 지원하지 않는 값은 집행 단계의 storcli 오류 검사가 잡게 둔다. 지원 집합 질의는 아래 확장성 쟁점 ②의 확장 경로로 미룬다.</div>
+        <table>
+          <thead><tr><th>탈락 대안</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td>"STANDARD" 선택지 (사내값 상수)</td><td>비공개 제약 위반</td></tr>
+            <tr><td>mode 래퍼 record (<code>BoardModelSelectionRequest</code> 류)</td><td>단순 열거에 과추상</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><b>확장성 쟁점</b> (사용자 제기 — CP1 토론 반영) : enum 이 다른 카드로의 확장을 막지 않는가? 세 가지로 답한다.
+          <ol style="margin:6px 0 0;">
+            <li>이 축들은 MegaRAID 고유가 아니라 <b>RAID 컨트롤러 일반 개념</b>이다(Adaptec arcconf · HPE ssacli · Dell PERC 모두 보유). 그래서 enum 값은 CLI 문자열이 아니라 <b>중립 개념으로 명명</b>했고(<code>WRITE_BACK</code> 이지 <code>"wb"</code> 가 아니다), CLI 어휘 변환은 카드 계열별 집행 계층(D4)에 둔다. 새 카드를 붙이는 일은 <code>RaidChipFamily</code> 상수 + 어휘 매핑 + agent 어댑터 추가이며, <b>어댑터는 어차피 필요하므로 enum 이 병목이 아니다</b>.</li>
+            <li>진짜 확장 지점은 <b>카드마다 값 집합이 다른 경우</b>다(예: AWB 가 없는 카드, Strip Size 지원 폭이 다른 카드). 그 시점에 <code>supportsVdParameters()</code> 를 "지원 값 집합" 질의(<code>supportedWritePolicies()</code> 류 method-per-constant)로 넓혀 흡수한다. 지금 미리 만들지 않는 이유는 "미리 분리 금지" 원칙 — 현재 지원 계열이 MEGARAID 하나라 boolean 으로 충분하다.</li>
+            <li>탈락 대안 : <b>자유 key-value 문자열 맵</b>. 확장성은 최대지만 Primitive Obsession 금지(불가침) 위반이고, 폼이 자유 입력이 되어 오타를 막지 못하며 검증도 불가능하다. "정해진 선택지에서 확정적으로 고른다" 는 실무와도 맞지 않는다.</li>
+          </ol>
+        </div>
+
+        <h4>D3. 카드 계열 SSOT — <code>RaidCard.chipFamily</code> 신설</h4>
+        <p><b>채택</b> — <code>RaidCard</code> 에 <code>chipFamily</code>(enum 컬럼 · NOT NULL)를 신설한다. 등록 · 수정 폼에 select 로 노출하고 값은 <code>RaidChipFamily</code>(MEGARAID · MPT_IR)를 쓴다. 스키마 변경은 DDL 1문이며, 기존 자원 2건은 같은 DDL 의 UPDATE 로 실측값을 부여한다(9361-8i = MEGARAID · CRA3338 = MPT_IR). 판정은 <code>RaidChipFamily.supportsVdParameters()</code> 를 method-per-constant 로 두어 MEGARAID 만 true 를 돌려준다.</p>
+        <div class="state-flow">폼 메타 RAID_CARD_BY_ID.chipFamily ─▶ JS 진리표 ─▶ IR 이면 서브 행 숨김 + 값 잠금   (UI 1차 차단)
+                                    └────────────────▶ DiskGroupRules 검증 ─▶ IR + 지정값 = 400  (서버 안전망)
+                        같은 판정 : RaidChipFamily.supportsVdParameters()</div>
+        <p>두 층이 같은 메서드를 본다는 점이 이 결정의 핵심이다 — 화면이 막는 조건과 서버가 던지는 조건이 갈라지면 그 순간 드리프트다. <code>RaidChipFamily</code> 는 <code>execution.engine.raid</code> 소속이고 provisioning 이 execution 을 참조하는 것은 허용 방향이다(<code>OwnedPhasesProvider</code> 선례). 역방향 참조는 만들지 않는다.</p>
+        <table>
+          <thead><tr><th>탈락 대안</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td><code>pciSubsystemId</code> 로 계열 도출</td><td>실물 카드 2건 다 미채움(실기에서 "Subsystem 미확보" 경고) — 채움은 E3.5-5 소관</td></tr>
+            <tr><td><code>supportedRaidLevels</code> 간접 추정</td><td>도메인 의미 왜곡 · 부정확</td></tr>
+            <tr><td>계열 연동 생략 (전 카드 노출 + IR 집행 무시)</td><td>"지정했는데 조용히 무시" 는 UX 원칙(모순은 UI 1차 차단) 위반</td></tr>
+          </tbody>
+        </table>
+
+        <h4>D4. 계약 — <code>VdParameters</code> record 하나로 운반, payload 는 3필드 조립</h4>
+        <p><code>DiskGroupRuleRequest</code> 에 <code>@Valid VdParameters vdParameters</code> 를 추가한다. <code>VdParameters</code> 는 여덟 enum 을 담는 record 이며 비운 필드는 생성자가 <code>DEFAULT</code> 로 채운다(개정). <b>record 자체가 null 인 구 저장본은 "축 없음" 으로 읽고, MegaRAID 볼륨이면 <code>RaidPlanner</code> 가 <code>VdParameters.DEFAULTS</code> 로 조립한다</b> — 마이그레이션이 없다.</p>
+        <div class="callout warn"><b>중복 판정에는 넣지 않는다</b> — <code>DiskGroupRules.identity</code> 에 <code>vdParameters</code> 를 포함하지 않는다. 다섯 축이 같으면 파라미터가 달라도 같은 디스크 집합을 겹쳐 잡는 것이며, 이는 role 을 identity 에서 뺀 것과 같은 사유다.</div>
+        <p>계획 단계는 매칭 로직을 건드리지 않는다 — <code>RaidPlanner</code> 는 지원 계열이면 규칙의 <code>vdParameters</code>(없으면 <code>DEFAULTS</code>)를 조립해 <code>PlannedVolume</code> 에 싣고, 축 없는 계열은 비워 둔다. 집행 payload 에서는 8축을 항목별 필드로 늘어놓지 않고 <b>서버가 storcli 형태로 조립해 3필드로 동봉</b>한다.</p>
+        <table>
+          <thead><tr><th>필드</th><th>내용</th><th>비어 있을 때</th></tr></thead>
+          <tbody>
+            <tr><td><code>createOpts</code></td><td><code>add vd</code> 뒤에 그대로 붙는 인라인 옵션 문자열 — 예 <code>"wb ra direct strip=256 pdcache=default"</code>. MegaRAID 는 항상 5토큰</td><td><code>null</code> = 축 없는 계열(IR)</td></tr>
+            <tr><td><code>setOps</code></td><td>생성 후 per-VD <code>set</code> 명령 인자 목록 — 예 <code>["bgi=on","accesspolicy=rw"]</code>. MegaRAID 는 항상 2인자</td><td>빈 목록 = 축 없는 계열(IR)</td></tr>
+            <tr><td><code>init</code></td><td><code>"none"</code> | <code>"fast"</code> | <code>"full"</code></td><td><code>null</code> = 축 없는 계열(IR) · MegaRAID 기본은 <code>"none"</code></td></tr>
+          </tbody>
+        </table>
+        <p>어휘의 SSOT 는 서버 enum 의 <code>cliToken</code> 이며, 이는 E3.5-3 이 세운 "생성체는 서버" 원칙의 연장이다. <b>에이전트는 전달 · 실행만 하므로 파라미터 항목이 이후 더 늘어도 에이전트는 바뀌지 않는다</b> — 확장성 쟁점의 실천이다.</p>
+        <div class="callout"><b>초안 개정 사유</b> — 항목별 4필드(초안)를 3필드 조립 전달로 바꾼 이유는 둘이다. ① 축이 8개가 되면서 파이프 계약이 11필드로 비대해진다. ② 새 항목이 생길 때마다 에이전트의 <code>sed</code> 와 분기가 함께 자라는 구조가 되는데, 이는 조건분기 legacy 확장에 해당한다. 조립 문자열이 불투명해지는 대가는, PLANNED 동결 시 <code>statusMeta</code> 에 같은 형태가 저장되어 원장으로 추적 가능하다는 점으로 상쇄한다.</div>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 현행 agent.sh</h4><pre><code>VOL_LINES = NAME|LEVEL|SLOTS
+
+add vd type=raidN name=… drives=…
+storcli /c0/vall start init force   <span class="diff-del">일괄</span></code></pre></div>
+          <div class="split-card after"><h4>AFTER — 조립 문자열 전달 · 볼륨별 실행</h4><pre><code>VOL_LINES = NAME|LEVEL|SLOTS<span class="diff-add">|CREATEOPTS|SETOPS|INIT</span>
+
+add vd … drives=… <span class="diff-add">$CREATEOPTS</span>
+<span class="diff-add">for op in $SETOPS: /c0/v$IDX set $op</span>
+<span class="diff-add">storcli /c0/v$IDX start init [full] force</span></code></pre></div>
+        </div>
+        <p>MEGARAID 분기에서 생성 루프의 인덱스가 곧 VD 번호가 된다 — 기존 구성을 <code>del force</code> 로 지운 뒤 만들기 때문에 0부터 순서대로 붙으며, 실측(<code>spvR1V1</code> = VD0)과 정합했다. 초기화는 <code>vall</code> 일괄에서 per-VD 로 재편한다 — <code>none</code>(HII 기본)은 생략, <code>fast</code>/<code>full</code> 은 force 로 실행하고 <code>Failure</code> 출력 검사는 그대로 둔다. IR 분기는 파라미터를 무시한다 — 서버 가드 때문에 도달할 수 없는 경로이며 이중 안전으로 남긴다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td><code>setting-new.html</code> 서브 행(8축 2열 grid) · <code>setting-process-cards.html</code> 상세 표기 · RAID 카드 등록 · 수정 폼 select</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3</td><td>폼 메타 조립부에 <code>chipFamily</code> 동봉 (컨트롤러 경로 무변경)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>4</td><td><code>VdParameters</code> record(8필드) · <code>DiskGroupRuleRequest</code> 필드 · RAID 카드 Request 의 <code>chipFamily</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td>검증 진입점 시그니처 (<code>DiskGroupRules</code> IR 가드)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td>Repository — <b>N/A</b> (새 조회 없음, 기존 저장소 그대로)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>7</td><td>enum 8종 · <code>RaidChipFamily.supportsVdParameters()</code> · <code>RaidCard.chipFamily</code></td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>조립(<code>createOpts</code> · <code>setOps</code> · <code>init</code>) · IR 가드 본체 + <code>ddl/E3.5-6_raidcard_chip_family.sql</code>(ALTER + UPDATE 2건) · <code>validate</code> 확인</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>브라우저(접이식 UI · 카드 계열 연동 · 400) + 하네스(add vd 옵션 문자열 · set 반복 · per-VD init 조립)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>E 단계 실기 일괄</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <h4>사용자 액션 통합 테스트 (HTTP 계층)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>① <code>vdParameters</code> 빈 객체 저장 → 8축 HII 기본값으로 채워져 3필드 조립 ② 8축 전부 지정 저장 → 3필드 조립 동봉 ③ 구 저장본(<code>vdParameters</code> null) 로드 → 축 없음 · MegaRAID 계획은 DEFAULTS ④ RAID 카드 등록 · 수정에 <code>chipFamily</code> 저장 ⑤ IR 카드 + <code>vdParameters</code> null 저장 → 통과</td><td>5</td></tr>
+            <tr><td>400</td><td>⑥ IR 카드 + <code>vdParameters</code> 동봉 direct POST → <code>InvalidDiskGroupException</code> ⑦ SSD 묶음 + Drive Cache Unchanged 밖 → 같은 예외(규칙 9 확장)</td><td>2</td></tr>
+            <tr><td>404</td><td>해당 없음 — 새 조회 경로를 만들지 않는다(정의서 · 카드 경로 무변경)</td><td>0</td></tr>
+            <tr><td>409</td><td>해당 없음 — <code>DiskGroupRules.identity</code> 에 파라미터를 넣지 않으므로 중복 축이 늘지 않는다</td><td>0</td></tr>
+            <tr><td>500</td><td>해당 없음 — 조립은 enum → 상수 문자열이라 실패 경로가 없다</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:12.5px;color:var(--text-muted);">폼 바인딩 수준의 400(잘못된 enum 토큰 · <code>chipFamily</code> 필수값 누락)은 브리프에 명시가 없어 시나리오로 세지 않는다 — 기존 폼 검증 규약을 따르며 CP2 착수 시 실측으로 확정한다.</p>
+
+        <h4>단위 · 뷰 테스트</h4>
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>enum 8종</td><td>값 → cliToken 매핑 · DEFAULT = HII 기본 선택 · isDefault 유일</td><td>1</td></tr>
+            <tr><td><code>VdParameters</code></td><td>비운 필드 → DEFAULT 채움 · DEFAULTS 동치</td><td>1</td></tr>
+            <tr><td><code>RaidChipFamily</code></td><td><code>supportsVdParameters()</code> 2값</td><td>1</td></tr>
+            <tr><td><code>RaidPlanner</code></td><td>규칙 → <code>PlannedVolume</code> 통과 (매칭 무변경)</td><td>1</td></tr>
+            <tr><td><code>createOpts</code> 조립</td><td>항상 5토큰 · 순서 고정 · 고른 값이 기본값 자리를 대체</td><td>1</td></tr>
+            <tr><td><code>setOps</code> · <code>init</code> 조립</td><td>bgi · accesspolicy 항상 2인자 / init 3값 · 비우면 none</td><td>1</td></tr>
+            <tr><td>뷰</td><td>MEGARAID 서브 행 8축 렌더 · 배지 수치 / IR 미노출 · 잠금</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <p><b>합계 15</b> — 통합 7(성공 5 + 400 2) + 단위 6 + 뷰 2. 신규 정적 팩토리를 트리거하는 통합 시나리오는 ⑥ · ⑦ 둘이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>InvalidDiskGroupException</code> — 정적 팩토리 1개 추가</td><td>400</td><td><span class="chip mod">재사용 + 확장</span></td></tr>
+          </tbody>
+        </table>
+        <p><b>신규 예외 클래스는 0 이다.</b> IR 계열 카드에 VD 파라미터 지정값이 실려 오는 경우는 기존 <code>InvalidDiskGroupException</code> 에 정적 팩토리를 하나 더해 표현한다 — <code>unreachableRule</code> 을 더했던 선례와 같은 방식이다. 팩토리 이름과 메시지 문구는 브리프에 명시가 없어 CP2 착수 시 확정한다. 이 팩토리를 실제로 발생시키는 통합 시나리오는 §6 의 ⑥ · ⑦ 이며, 정상 화면 흐름에서는 서브 행이 잠겨 도달하지 않는다(예외는 화면을 우회한 요청 전용).</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>결정 요약</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>탈락 대안</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>enum 8종 · 기본 HII 기본값 (§4 · 09-02 개정)</td><td>"STANDARD" 선택지 · mode 래퍼 record · 자유 key-value 맵 · <s>UNSPECIFIED = 옵션 미전달</s>(최초 채택안 → CP6 검수에서 폐지)</td></tr>
+            <tr><td>D2</td><td>행별 접이식 서브 행 · 8축 2열 grid (§3)</td><td>열 4개 추가 · 모달 · 카드 공통 2단</td></tr>
+            <tr><td>D3</td><td><code>RaidCard.chipFamily</code> 신설 (§4)</td><td><code>pciSubsystemId</code> 도출 · RAID 레벨 추정 · 계열 연동 생략</td></tr>
+            <tr><td>D4</td><td><code>VdParameters</code> record 운반 · payload 3필드 조립 (§4)</td><td>항목별 필드 나열(초안) — 파이프 11필드 비대 · agent 분기 증식</td></tr>
+            <tr><td>D5</td><td>비목표 3건 (§2)</td><td>—</td></tr>
+          </tbody>
+        </table>
+
+        <h4>리스크</h4>
+        <ul>
+          <li><b>FULL init 의 소요 시간</b> — 수 시간이 걸린다. <code>start</code> 는 즉시 반환하므로 초기화가 끝나기 전에 후속 phase(OS 설치)와 경합할 수 있다. E4 진입 시 재검토 대상으로 적립한다.</li>
+          <li><b>인자 위치</b> — 정책 옵션이 <code>drives=</code> 뒤라는 규칙은 문서 기반이다. CP7 실기 1회로 확정한다.</li>
+          <li><b>WB 강등</b> — 배터리 백업이 없으면 카드가 스스로 WT 로 낮춘다. 카드 동작이므로 코드가 아니라 안내 문구(도움말)로만 다룬다.</li>
+          <li><b>VD 번호 = 생성 순서 전제</b> — <code>del force</code> 로 비운 카드에서의 실측(<code>spvR1V1</code> = VD0)과 정합했다. 결과 검증은 이름 매칭이라 이 전제와 무관하다.</li>
+        </ul>
+
+        <h4>잔존 책임 · 경계</h4>
+        <ul>
+          <li><code>pciSubsystemId</code> 채움은 이 슬라이스가 하지 않는다 — E3.5-5 소관.</li>
+          <li><code>chipFamily</code> 컬럼의 실 DB 적용(ALTER + UPDATE 2건)은 Step 9 에서 <code>ddl/</code> 산출 후 적용하고 <code>SHOW CREATE TABLE</code> 로 확인한다.</li>
+          <li>초기화 명령이 <code>vall</code> 일괄에서 per-VD 로 재편되므로, 볼륨이 여럿인 구성에서 출력 검사 지점도 볼륨 수만큼 늘어난다.</li>
+          <li>카드가 지원하지 않는 Strip Size 값은 화면이 막지 않는다 — 집행의 storcli 오류 검사로 드러난다.</li>
+        </ul>
+
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>IR 카드 선택 시 "값 잠금" 은 이미 고른 값을 <b>보존</b>하는가 <b>기본값으로 되돌리는가</b> — 브리프에 명시가 없다</td><td><b>판정(세션 · CP1)</b>: 화면 값은 보존하고 <b>전송에서만 제외</b>(<code>vdParameters</code> = null · 축 없음) — E3.5-4 축 잠금 선례("잠글 때 선택을 지우지 않는다")를 따르고, 카드를 MegaRAID 로 되돌리면 고른 값이 살아난다. 서버 가드는 direct POST 만 막는다</td></tr>
+            <tr><td>Q2</td><td><code>InvalidDiskGroupException</code> 새 정적 팩토리의 이름 · 문구</td><td>CP2 착수 시 기존 팩토리 어휘에 맞춰 확정</td></tr>
+            <tr><td>Q3</td><td><code>VdParameters</code> record 를 어느 패키지에 둘 것인가 (enum 8종은 <code>provisioning.setting.enums</code> 로 확정)</td><td>요청 DTO 와 같은 계열에 두되 CP2 에서 실측 확정</td></tr>
+            <tr><td>Q4</td><td>Strip 인자 표기 — 매핑 표는 <code>Strip=64</code>, 조립 예시는 <code>strip=256</code></td><td>storcli 인자는 대소문자를 가리지 않는 것으로 알려져 있으나 CP7 실기에서 1회 확인</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="E3.5-6-verify-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (신규 15 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span><code>ddl-auto=validate</code> 통과 + <code>SHOW CREATE TABLE</code> 로 <code>chip_family</code> 확인</span></label></li>
+        </ul>
+        <h4>기능 (CP5 항목 초안 — 9항목)</h4>
+        <ul class="check-list" data-storage="E3.5-6-verify-func">
+          <li><label><input type="checkbox" data-key="a1"> <span>A1 — 묶음 행 ⚙ 토글로 서브 행이 펴지고 접힌다</span></label></li>
+          <li><label><input type="checkbox" data-key="a2"> <span>A2 — 8축이 2열 grid 에 HII 순서(Strip · Read · Write · I/O · Access · Drive Cache · BGI · Init)로 놓인다</span></label></li>
+          <li><label><input type="checkbox" data-key="a3"> <span>A3 — 축을 고르면 요약 배지가 "VD n" 으로 갱신되고, 저장 후 재진입 시 pre-fill 된다</span></label></li>
+          <li><label><input type="checkbox" data-key="a4"> <span>A4 — 정의서 상세 카드에 지정값이 표기된다</span></label></li>
+          <li><label><input type="checkbox" data-key="b1"> <span>B1 — IR 계열 카드 선택 시 서브 행이 숨고 값이 잠긴다</span></label></li>
+          <li><label><input type="checkbox" data-key="b2"> <span>B2 — 잠금을 우회한 direct POST 가 400 으로 거절된다</span></label></li>
+          <li><label><input type="checkbox" data-key="c1"> <span>C1 — 하네스에서 <code>createOpts</code> 문자열이 <code>drives=</code> 뒤에 그대로 붙는다</span></label></li>
+          <li><label><input type="checkbox" data-key="c2"> <span>C2 — 하네스에서 <code>setOps</code> 각 인자가 <code>/c0/vX set …</code> 로 하나씩 실행된다</span></label></li>
+          <li><label><input type="checkbox" data-key="c3"> <span>C3 — 초기화가 볼륨마다 실행되고 none(기본)은 생략 · fast/full 은 force 로 실행된다</span></label></li>
+        </ul>
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="E3.5-6-verify-reg">
+          <li><label><input type="checkbox" data-key="r1"> <span>구 저장본(<code>vdParameters</code> 없음) 정의서가 그대로 열리고 저장된다</span></label></li>
+          <li><label><input type="checkbox" data-key="r2"> <span>중복 판정(<code>identity</code>)이 파라미터와 무관하게 종전대로 동작한다</span></label></li>
+          <li><label><input type="checkbox" data-key="r3"> <span>기본값 구성의 집행이 8축 명시(createOpts 5토큰 · setOps 2인자 · init none)로 나간다 (출력 검사 유지)</span></label></li>
+          <li><label><input type="checkbox" data-key="r4"> <span><code>RaidResultVerifier</code> 의 4축 대조가 무변경이다</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/setting/enums/VdStripSize.java</code></td><td>9값 + cliToken</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/setting/enums/VdReadPolicy.java</code></td><td>3값 + cliToken</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/setting/enums/VdWritePolicy.java</code></td><td>4값 + cliToken</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/setting/enums/VdIoPolicy.java</code></td><td>3값 + cliToken</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/setting/enums/VdAccessPolicy.java</code></td><td>4값 + cliToken</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/setting/enums/VdDriveCache.java</code></td><td>3값 + cliToken</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/setting/enums/VdBackgroundInit.java</code></td><td>3값 + cliToken</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/setting/enums/VdInitialization.java</code></td><td>4값 + cliToken</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>VdParameters</code> record (위치 CP2 확정)</td><td>8 enum 필드 · null 관용</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ddl/E3.5-6_raidcard_chip_family.sql</code></td><td>ALTER 1문 + UPDATE 2건</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/dto/request/DiskGroupRuleRequest.java</code></td><td><code>@Valid VdParameters</code> 필드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/service/reference/os/DiskGroupRules.java</code></td><td>IR 가드 (identity 는 무변경)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/exception/InvalidDiskGroupException.java</code></td><td>정적 팩토리 1개</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/raidcard/entity/RaidCard.java</code></td><td><code>chipFamily</code> 컬럼 (NOT NULL)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>RAID 카드 등록 · 수정 폼 + Request</td><td><code>chipFamily</code> select</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/raid/RaidChipFamily.java</code></td><td><code>supportsVdParameters()</code> method-per-constant</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/assignment/service/plan/RaidPlanner.java</code></td><td>규칙 → 볼륨 복사</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/raid/PlannedVolume.java</code></td><td><code>vdParameters</code> 필드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/raid/RaidApplyPayload.java</code></td><td><code>VolumeSpec</code> 3필드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/raid/RaidConfigurationExecutor.java</code></td><td>payload 조립 (<code>createOpts</code> · <code>setOps</code> · <code>init</code>)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/diag-image/agent/agent.sh</code></td><td>VOL_LINES 확장 · 옵션 전달 · set 반복 · per-VD init</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/setting-new.html</code> · <code>static/provisioning/setting-form.js</code></td><td>서브 행 8축 2열 · 진리표 · pre-fill</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/fragments/provisioning/setting-process-cards.html</code></td><td>상세 표기</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>execution/engine/raid/RaidResultVerifier.java</code></td><td>변경 0 — 4축 대조에 파라미터 검증을 넣지 않는다 (D5)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>DiskGroupRules.identity</code></td><td>변경 0 — 중복 판정 축 불변 (D4)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>정의서 저장본 마이그레이션</td><td>변경 0 — null 관용으로 흡수</td></tr>
+          </tbody>
+        </table>
+        <p><b>신규 10 · 수정 13 · 유지 3</b> — 신규 파일은 enum 8 + record 1 + DDL 1 이고, 수정은 정의서 계약 3 · 자원 3 · 계획 2 · 집행 3 · 화면 2 로 갈린다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>E3.5-5</b> — <code>pciSubsystemId</code> 채움. 이번 슬라이스가 <code>chipFamily</code> 를 사람이 고르는 값으로 둔 이유(실물 2건 미채움)를 해소하는 자리다.</li>
+          <li><b>CP7 실기 일괄</b> — 인자 위치(정책 옵션이 <code>drives=</code> 뒤), Strip 인자 표기, WB 강등 동작, per-VD init 조립을 실기 1회로 확정한다.</li>
+          <li><b>E4 진입 시</b> — FULL init 이 끝나기 전에 OS 설치가 시작되는 경합을 재검토한다(본 슬라이스에서는 적립만).</li>
+          <li>제외한 Emulation Type · Spares · CacheCade 는 별도 요구가 생길 때 다룬다. Spares 는 디스크 소비에 영향을 주므로 VD 파라미터가 아니라 구성 요소 쪽에서 다뤄야 한다.</li>
+          <li>카드별 <b>지원 값 집합 질의</b>(<code>supportedWritePolicies()</code> 류)는 두 번째 MegaRAID 계열 카드나 다른 계열 카드가 들어올 때 연다 — 확장성 쟁점 ②의 경로다.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 라이브 데모 — 진리표 SSOT (서버 enum 의 cliToken + D4 조립 규칙 + agent.sh 매핑)
+  //  2026-09-02 개정: UNSPECIFIED 폐지 — VD_DEFAULTS(각 enum 의 DEFAULT)가 기본이고 8축이 항상 명시된다.
+  //  VD_AXES 순서 = 폼(D2)의 HII 화면 순서. 조립 순서는 CREATE_ORDER / SET_ORDER 가 따로 정한다.
+  // ─────────────────────────────────────────────────────────────
+  const VD_AXES = [
+    { key:'stripSize', label:'Strip Size', enumName:'VdStripSize', values:[
+      { v:'KB_8', t:'strip=8', ko:'8 KB' }, { v:'KB_16', t:'strip=16', ko:'16 KB' },
+      { v:'KB_32', t:'strip=32', ko:'32 KB' }, { v:'KB_64', t:'strip=64', ko:'64 KB' },
+      { v:'KB_128', t:'strip=128', ko:'128 KB' }, { v:'KB_256', t:'strip=256', ko:'256 KB' },
+      { v:'KB_512', t:'strip=512', ko:'512 KB' }, { v:'KB_1024', t:'strip=1024', ko:'1024 KB' } ] },
+    { key:'readPolicy', label:'Read Policy', enumName:'VdReadPolicy', values:[
+      { v:'READ_AHEAD', t:'ra', ko:'Read Ahead' },
+      { v:'NO_READ_AHEAD', t:'nora', ko:'No Read Ahead' } ] },
+    { key:'writePolicy', label:'Write Policy', enumName:'VdWritePolicy', values:[
+      { v:'WRITE_THROUGH', t:'wt', ko:'Write Through' },
+      { v:'WRITE_BACK', t:'wb', ko:'Write Back' },
+      { v:'ALWAYS_WRITE_BACK', t:'awb', ko:'Always Write Back' } ] },
+    { key:'ioPolicy', label:'I/O Policy', enumName:'VdIoPolicy', values:[
+      { v:'DIRECT', t:'direct', ko:'Direct' },
+      { v:'CACHED', t:'cached', ko:'Cached' } ] },
+    { key:'accessPolicy', label:'Access Policy', enumName:'VdAccessPolicy', values:[
+      { v:'READ_WRITE', t:'accesspolicy=rw', ko:'Read Write' },
+      { v:'READ_ONLY', t:'accesspolicy=ro', ko:'Read Only' },
+      { v:'BLOCKED', t:'accesspolicy=blocked', ko:'Blocked' } ] },
+    { key:'driveCache', label:'Drive Cache', enumName:'VdDriveCache', values:[
+      { v:'UNCHANGED', t:'pdcache=default', ko:'Unchanged' },
+      { v:'ON', t:'pdcache=on', ko:'Enable' },
+      { v:'OFF', t:'pdcache=off', ko:'Disable' } ] },
+    { key:'backgroundInit', label:'Background Init', enumName:'VdBackgroundInit', values:[
+      { v:'ON', t:'bgi=on', ko:'No (BGI 켬)' },
+      { v:'OFF', t:'bgi=off', ko:'Yes (BGI 끔)' } ] },
+    { key:'initialization', label:'Default Init', enumName:'VdInitialization', values:[
+      { v:'NONE', t:'none', ko:'No (초기화 안 함)' },
+      { v:'FAST', t:'fast', ko:'Fast' },
+      { v:'FULL', t:'full', ko:'Full' } ] }
+  ];
+  // 각 enum 의 DEFAULT(9361-8i HII 기본 선택) — 폼의 selected · 배지(기본값과 다른 축 수)의 기준
+  const VD_DEFAULTS = { stripSize:'KB_256', readPolicy:'READ_AHEAD', writePolicy:'WRITE_BACK', ioPolicy:'DIRECT',
+                        accessPolicy:'READ_WRITE', driveCache:'UNCHANGED', backgroundInit:'ON', initialization:'NONE' };
+  // D4 조립 규칙 — createOpts 는 add vd 인라인, setOps 는 생성 후 set 인자, init 은 별도 필드
+  const CREATE_ORDER = ['writePolicy', 'readPolicy', 'ioPolicy', 'stripSize', 'driveCache'];
+  const SET_ORDER = ['backgroundInit', 'accessPolicy'];
+  const DEMO_CARDS = { MEGARAID:'LSI 9361-8i', MPT_IR:'CRA3338' };
+
+  // ⚠ RaidChipFamily.supportsVdParameters() 의 JS 재현 — UI 잠금과 서버 400 가드가 함께 부른다
+  function supportsVdParameters(family) { return family === 'MEGARAID'; }
+
+  const demo = { card:'MEGARAID', open:false, axes:{} };
+  VD_AXES.forEach(a => demo.axes[a.key] = VD_DEFAULTS[a.key]);
+
+  function axisDef(key) { return VD_AXES.find(a => a.key === key); }
+  function tokenOf(key) { return axisDef(key).values.find(x => x.v === demo.axes[key]).t; }
+  function changedKeys() { return VD_AXES.filter(a => demo.axes[a.key] !== VD_DEFAULTS[a.key]).map(a => a.key); }
+  // 가드는 값이 아니라 축의 존재를 본다 — 축 없는 계열에 vdParameters 가 실려 오면 400 (direct POST 전용 경로)
+  function serverGuardBlocked() { return !supportsVdParameters(demo.card); }
+
+  // 서버 조립 3필드 — 계열이 지원하지 않으면 전 축이 빠진다
+  function buildCreateOpts() {
+    if (!supportsVdParameters(demo.card)) return null;
+    return CREATE_ORDER.map(k => tokenOf(k)).join(' ');   // 8축 항상 명시 — 5토큰 고정
+  }
+  function buildSetOps() {
+    if (!supportsVdParameters(demo.card)) return [];
+    return SET_ORDER.map(k => tokenOf(k));   // 2인자 고정
+  }
+  function buildInit() { return supportsVdParameters(demo.card) ? tokenOf('initialization') : null; }
+
+  function buildCommands() {
+    const L = [];
+    L.push('# ① 기존 구성 제거 — 현행 흐름 (이 슬라이스 무변경)');
+    if (!supportsVdParameters(demo.card)) {
+      L.push('# ② IR 분기 — 계열별 생성 명령 (번역 계층 소관 · 무변경)');
+      L.push('#    VD 파라미터 옵션 0 — agent 는 파라미터를 무시한다');
+      L.push('#    (서버 가드로 도달 불가 · 이중 안전)');
+      return L;
+    }
+    const co = buildCreateOpts(), so = buildSetOps(), init = buildInit();
+    L.push('# ② 볼륨 생성 — $CREATEOPTS 는 drives= 뒤에 그대로');
+    L.push('storcli /c0 add vd type=raid1 name=spvR1V1 drives=252:0,252:1 ' + co);
+    L.push('# ③ 생성 후 per-VD set — $SETOPS 각 인자');
+    so.forEach(op => L.push('storcli /c0/v0 set ' + op));
+    L.push('# ④ 초기화 — per-VD');
+    if (init === 'none') L.push('#    none (HII 기본) — init 명령 없음, 디스크의 기존 데이터가 남는다');
+    else if (init === 'full') L.push('storcli /c0/v0 start init full force');
+    else L.push('storcli /c0/v0 start init force   # fast — 2026-09-01 실기의 소거 방식');
+    return L;
+  }
+  function buildPayload() {
+    const co = buildCreateOpts(), so = buildSetOps(), init = buildInit();
+    const q = v => v === null ? 'null' : '"' + v + '"';
+    return '"volumes": [{\n'
+      + '  "name": "spvR1V1",\n  "raidLevel": "RAID1",\n  "slots": ["252:0","252:1"],\n'
+      + '  "createOpts": ' + q(co) + ',\n'
+      + '  "setOps": [' + so.map(x => '"' + x + '"').join(',') + '],\n'
+      + '  "init": ' + q(init) + '\n}]';
+  }
+  function buildVolLine() {
+    const co = buildCreateOpts(), so = buildSetOps(), init = buildInit();
+    return 'spvR1V1|RAID1|252:0,252:1|' + (co || '') + '|' + so.join(' ') + '|' + (init || '');
+  }
+
+  function demoBtn(action, label, blocked, tip, extra) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    const st = extra ? (' style="' + extra + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + st + dis +
+      ' onclick="demoAct(\'' + action + '\')">' + label + '</button></span> ';
+  }
+  function say(cls, html) {
+    const m = document.getElementById('demo-message');
+    m.className = 'ux-message' + (cls ? ' ' + cls : '');
+    m.innerHTML = html;
+  }
+
+  function demoCard(v) {
+    demo.card = v; if (!supportsVdParameters(v)) demo.open = false;
+    demoRender();
+    say('', supportsVdParameters(v)
+      ? 'MEGARAID 계열 — VD 파라미터 서브 행을 열 수 있습니다.'
+      : 'MPT_IR 계열 — 서브 행이 잠겼습니다. 고른 값은 화면에 보존되지만 전송에서는 vdParameters 가 null(축 없음)이 되고, 잠금을 우회한 direct POST 만 400 에 도달합니다.');
+  }
+  function demoAxis(key, v) { demo.axes[key] = v; demoRender(); }
+  function demoToggle() { demo.open = !demo.open; demoRender(); }
+  function demoAct(action) {
+    const n = changedKeys().length;
+    if (action === 'toggle') { demoToggle(); return; }
+    if (action === 'save') {
+      if (!supportsVdParameters(demo.card))
+        say('success', '✓ 저장됨 — IR 계열이라 <code>vdParameters</code> 는 <b>null(축 없음)</b> 로 전송됩니다. 화면이 먼저 막으므로 서버 가드는 발동하지 않습니다.');
+      else if (n === 0)
+        say('success', '✓ 저장됨 — 기본값과 다른 축 0. 8축이 전부 HII 기본값으로 <b>명시</b> 저장 · 전송됩니다(createOpts 5토큰 · setOps 2인자 · init none).');
+      else
+        say('success', '✓ 저장됨 — 기본값과 다른 축 ' + n + '. 나머지 축도 기본값으로 함께 명시 저장되며 중복 판정(identity)에는 포함되지 않습니다.');
+      return;
+    }
+    if (action === 'direct') {
+      if (serverGuardBlocked())
+        say('error', '✗ 400 — <code>InvalidDiskGroupException.vdParametersNotSupported</code>. IR 계열 카드에 <code>vdParameters</code> 가 실려 왔습니다(값이 전부 기본값이어도 축 자체가 없는 계열). 정상 화면에서는 잠금 때문에 도달하지 않는 경로입니다.');
+      else
+        say('success', '✓ 통과 — 가드는 <b>축 없는 계열에 vdParameters 동봉</b> 에서만 발동합니다. 지금은 MEGARAID 계열이라 거절 대상이 아닙니다.');
+      return;
+    }
+  }
+
+  function presetAxes(over) {
+    const o = {};
+    VD_AXES.forEach(a => o[a.key] = VD_DEFAULTS[a.key]);
+    Object.keys(over || {}).forEach(k => o[k] = over[k]);
+    return o;
+  }
+  const DEMO_PRESETS = [
+    { t:'전부 기본값 (HII)', card:'MEGARAID', open:true, axes:presetAxes({}),
+      msg:'기본 상태입니다. 고르지 않아도 8축이 HII 기본값으로 <b>명시</b>됩니다 — <code>add vd</code> 뒤에 <code>wb ra direct strip=256 pdcache=default</code>, 생성 후 <code>set bgi=on</code> · <code>set accesspolicy=rw</code>, 초기화는 <b>없음</b>(Default Initialization: No). 소거가 필요하면 Init 을 Fast 로 고릅니다.' },
+    { t:'WT + NoRA + Cached + Strip 64', card:'MEGARAID', open:true,
+      axes:presetAxes({ writePolicy:'WRITE_THROUGH', readPolicy:'NO_READ_AHEAD', ioPolicy:'CACHED', stripSize:'KB_64' }),
+      msg:'네 축이 기본값 자리를 대체해 <code>drives=</code> <b>뒤</b>에 <code>wt nora cached strip=64 pdcache=default</code> 한 문자열로 인라인됩니다(배지 4). Strip 은 생성 시에만 지정할 수 있어 <code>setOps</code> 로는 갈 수 없습니다. 배터리 백업이 없으면 카드가 스스로 <code>wt</code> 로 강등합니다(카드 동작 · 도움말로 안내).' },
+    { t:'HDD 캐시 끔 + BGI 끔', card:'MEGARAID', open:true,
+      axes:presetAxes({ driveCache:'OFF', backgroundInit:'OFF' }),
+      msg:'두 축이 서로 다른 자리로 갈립니다 — Drive Cache 는 인라인 <code>pdcache=off</code> 로, BGI 는 인라인이 없어 <b>생성 후</b> <code>set bgi=off</code> 로 나갑니다. 대상 VD 번호는 생성 순서(0부터)입니다.' },
+    { t:'읽기 전용 + FULL init', card:'MEGARAID', open:true,
+      axes:presetAxes({ accessPolicy:'READ_ONLY', initialization:'FULL' }),
+      msg:'Access Policy 는 <code>setOps</code> 로 <code>set accesspolicy=ro</code> 가 되고, 초기화는 <code>start init full force</code> 로 바뀝니다. FULL 은 수 시간이 걸리고 <code>start</code> 는 즉시 반환하므로 후속 phase 와의 경합은 E4 진입 시 재검토합니다.' },
+    { t:'FAST init (소거)', card:'MEGARAID', open:true,
+      axes:presetAxes({ initialization:'FAST' }),
+      msg:'초기화가 <code>start init force</code> 로 나갑니다 — 2026-09-01 실기에서 기존 OS/FS 를 지운 방식입니다(OS/FS 감지 거부를 force 로 통과). 기본(No)은 init 을 내지 않아 데이터가 남습니다.' },
+    { t:'IR 카드 선택', card:'MPT_IR', open:false,
+      axes:presetAxes({ writePolicy:'WRITE_BACK', driveCache:'OFF' }),
+      msg:'IR 계열이라 서브 행이 <b>잠겼습니다</b>. <code>createOpts</code> 는 <code>null</code> · <code>setOps</code> 는 빈 목록이 되고, 잠금을 우회한 요청만 서버 가드에 닿습니다 — 아래 <b>direct POST (잠금 우회)</b> 를 눌러 400 을 확인하세요.' }
+  ];
+  function demoPreset(i) {
+    const p = DEMO_PRESETS[i];
+    demo.card = p.card; demo.open = p.open;
+    VD_AXES.forEach(a => demo.axes[a.key] = p.axes[a.key]);
+    demoRender();
+    say('', '<b>시나리오 ' + (i + 1) + ' · ' + p.t + '</b> — ' + p.msg);
+  }
+
+  function demoRender() {
+    const ok = supportsVdParameters(demo.card), spec = changedKeys(), n = spec.length;
+    document.getElementById('demo-card').value = demo.card;
+
+    document.getElementById('demo-presets').innerHTML =
+      DEMO_PRESETS.map((p, i) => '<button class="seg" onclick="demoPreset(' + i + ')">' + (i + 1) + '. ' + p.t + '</button>').join(' ');
+
+    const badge = (ok && n > 0) ? '<span class="badge on">' + n + '</span>'
+                : ok ? '<span class="badge off">VD 기본값</span>'
+                : '<span class="badge del">계열 미지원</span>';
+    document.getElementById('demo-rule-row').innerHTML =
+      '<strong>규칙 #1</strong><span class="label">RAID1 · 디스크 2 · 볼륨명 spvR1V1 <span style="color:var(--text-muted);font-size:11.5px;">(슬롯 표기는 예시)</span></span>'
+      + badge
+      + demoBtn('toggle', (demo.open ? '⚙ VD 파라미터 접기' : '⚙ VD 파라미터'), !ok,
+                'IR 계열 카드(' + DEMO_CARDS[demo.card] + ')는 VD 파라미터에 대응 개념이 없습니다. MegaRAID 계열 카드를 선택하세요.');
+
+    const sub = document.getElementById('demo-sub-row');
+    sub.classList.toggle('hidden', !(ok && demo.open));
+    sub.innerHTML = VD_AXES.map(a =>
+      '<span style="font-size:12px;"><span style="color:var(--text-muted);">' + a.label + '</span> '
+      + '<select onchange="demoAxis(\'' + a.key + '\',this.value)">'
+      + a.values.map(v => '<option value="' + v.v + '"' + (demo.axes[a.key] === v.v ? ' selected' : '') + '>' + v.ko + (VD_DEFAULTS[a.key] === v.v ? ' (기본값)' : '') + '</option>').join('')
+      + '</select></span>').join('');
+
+    const T = '<span class="t">true</span>', F = '<span class="f">false</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'card.chipFamily                        = ' + demo.card + '  (' + DEMO_CARDS[demo.card] + ')\n' +
+      'chipFamily.supportsVdParameters()      = ' + (ok ? '<span class="f">true</span>' : F) + '   → 서브 행 ' + (ok ? '노출' : '숨김 · 값 잠금') + '\n' +
+      '기본값과 다른 축 (changed)              = ' + n + ' / 8' + (n ? '  [' + spec.join(', ') + ']' : '') + '\n' +
+      '서버 가드 (축 없는 계열 + 동봉)          = ' + (serverGuardBlocked() ? T + '  → 400 InvalidDiskGroupException' : F + '  → 통과');
+
+    document.getElementById('demo-payload').textContent = buildPayload();
+    document.getElementById('demo-cmds').textContent = buildCommands().join('\n');
+    document.getElementById('demo-volline').textContent = buildVolLine();
+
+    document.getElementById('demo-actions').innerHTML =
+      demoBtn('save', '정의서 저장', false, '')
+      + demoBtn('direct', 'direct POST (잠금 우회)', false, '', 'border-color:var(--red);color:var(--red)');
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
