@@ -511,6 +511,7 @@ CREATE TABLE `raid_card` (
   `model_name` varchar(128) NOT NULL,
   `supported_raid_levels` varchar(64) NOT NULL COMMENT 'RaidLevel CSV (예: RAID0,RAID1) — SupportedRaidLevelsConverter 왕복',
   `cache_capacity_gb` int(11) NOT NULL COMMENT '온보드 캐시 용량(GB), 0 = 없음 — RAID0 최소 디스크 판정 입력 (CP6 개정)',
+  `chip_family` varchar(16) NOT NULL COMMENT '제어 계열(RaidChipFamily) — VD 파라미터 지원 판정 입력(E3.5-6)',
   `description` varchar(1024) DEFAULT NULL,
   `pci_subsystem_vendor_id` int(11) DEFAULT NULL,
   `pci_subsystem_device_id` int(11) DEFAULT NULL,

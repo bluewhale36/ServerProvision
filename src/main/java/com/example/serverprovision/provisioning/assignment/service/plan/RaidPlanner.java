@@ -4,7 +4,7 @@ import com.example.serverprovision.provisioning.setting.enums.DiskCountMode;
 import com.example.serverprovision.execution.engine.raid.PlannedPassthrough;
 import com.example.serverprovision.execution.engine.raid.PlannedVolume;
 import com.example.serverprovision.execution.engine.raid.PlannedVolumeRole;
-import com.example.serverprovision.execution.engine.raid.RaidChipFamily;
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.execution.engine.raid.RaidExistingConfigPolicy;
 import com.example.serverprovision.execution.engine.raid.RaidInventory;
 import com.example.serverprovision.execution.engine.raid.RaidPhysicalDisk;
@@ -14,6 +14,7 @@ import com.example.serverprovision.execution.engine.raid.RaidPlanRejection;
 import com.example.serverprovision.execution.engine.raid.RaidRuleOutcome;
 import com.example.serverprovision.execution.engine.raid.UnassignedDisk;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.provisioning.setting.dto.request.VdParameters;
 import com.example.serverprovision.provisioning.setting.dto.request.DiskGroupRuleRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest;
 import com.example.serverprovision.provisioning.setting.enums.CapacityOrder;
@@ -40,6 +41,17 @@ import java.util.OptionalLong;
 public final class RaidPlanner {
 
     private RaidPlanner() {
+    }
+
+    /**
+     * 볼륨에 실을 VD 파라미터(E3.5-6) — 지원 계열(MegaRAID)은 규칙이 축을 실어 오지 않았어도(E3.5-6 이전 저장본)
+     * HII 기본값 {@link VdParameters#DEFAULTS} 로 항상 명시 조립한다. 그 밖의 계열은 축 자체가 없어 null.
+     */
+    private static VdParameters vdParametersOf(DiskGroupRuleRequest rule, RaidChipFamily family) {
+        if (family == null || !family.supportsVdParameters()) {
+            return null;
+        }
+        return rule.vdParameters() == null ? VdParameters.DEFAULTS : rule.vdParameters();
     }
 
     public static RaidPlanOutcome plan(List<DiskGroupRuleRequest> rules,
@@ -167,8 +179,15 @@ public final class RaidPlanner {
         }
 
         List<PlannedVolume> plannedVolumes = volumes.stream()
-                .map(e -> new PlannedVolume(e.name, e.level,
-                        e.members.stream().map(c -> c.slot).toList(), e.usableBytes, e.plannedRole, e.ruleNo))
+                .map(e -> {
+                    // VD 파라미터(E3.5-6) — 조립 SSOT 는 VdParameters(폼 데모 JS 와 같은 진리표)
+                    VdParameters vd = vdParametersOf(e.rule, family);
+                    return new PlannedVolume(e.name, e.level,
+                            e.members.stream().map(c -> c.slot).toList(), e.usableBytes, e.plannedRole, e.ruleNo,
+                            vd == null ? null : vd.createOpts(),
+                            vd == null ? java.util.List.of() : vd.setOps(),
+                            vd == null ? null : vd.initToken());
+                })
                 .toList();
         List<PlannedPassthrough> passthroughs = entries.stream()
                 .filter(e -> !e.volume)

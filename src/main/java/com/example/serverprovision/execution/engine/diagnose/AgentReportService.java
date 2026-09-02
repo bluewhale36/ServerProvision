@@ -198,7 +198,7 @@ public class AgentReportService {
     private String raidChipsFor(AgentDirective directive) {
         if (directive == AgentDirective.RAID_INVENTORY || directive == AgentDirective.RAID_APPLY
                 || directive == AgentDirective.RAID_VERIFY) {
-            return com.example.serverprovision.execution.engine.raid.RaidChipFamily.agentChipHint();
+            return com.example.serverprovision.management.raidcard.enums.RaidChipFamily.agentChipHint();
         }
         return null;
     }

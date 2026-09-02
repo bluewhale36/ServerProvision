@@ -426,6 +426,7 @@ class JpaSettingQueryServiceTest {
                 .id(id).vendor(com.example.serverprovision.management.raidcard.enums.RaidCardVendor.GIGABYTE).modelName(model)
                 .supportedRaidLevels(com.example.serverprovision.management.raidcard.vo.SupportedRaidLevels.of(levels))
                 .cacheCapacity(com.example.serverprovision.management.raidcard.vo.CacheCapacity.ofGigabytes(cacheGb))
+                .chipFamily(com.example.serverprovision.management.raidcard.enums.RaidChipFamily.MEGARAID)   // E3.5-6 — 옵션 응답이 계열을 읽는다
                 .ownEnabled(enabled).ownDeprecated(deprecated).isDeleted(false)
                 .build();
         card.recomputeEffective();

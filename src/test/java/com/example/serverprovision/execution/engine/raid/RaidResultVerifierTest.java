@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RaidResultVerifierTest {
 
     private static PlannedVolume planned(String name, RaidLevel level, String... slots) {
-        return new PlannedVolume(name, level, List.of(slots), 1L, PlannedVolumeRole.DATA, 1);
+        return new PlannedVolume(name, level, List.of(slots), 1L, PlannedVolumeRole.DATA, 1, null, List.of(), null);
     }
 
     private static RaidPlan frozen(PlannedVolume... volumes) {

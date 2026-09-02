@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.controller;
 
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.raidcard.dto.response.RaidCardResponse;
@@ -56,6 +57,7 @@ class RaidCardMetadataControllerTest {
 		return new RaidCardResponse(
 				3L, RaidCardVendor.GIGABYTE, "CRA3338",
 				List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0 · RAID1",
+				RaidChipFamily.MPT_IR,
 				0, "없음", false, pciDisplay, "desc",
 				true, false, false, LifecycleStage.ACTIVE);
 	}
@@ -107,7 +109,7 @@ class RaidCardMetadataControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(model().attribute("raidCardForm",
 						new com.example.serverprovision.management.raidcard.dto.request.RaidCardCreateRequest(
-								RaidCardVendor.GIGABYTE, "", List.of(), 0, "", "")));
+								RaidCardVendor.GIGABYTE, "", null, List.of(), 0, "", "")));
 	}
 
 	@Test
@@ -129,6 +131,7 @@ class RaidCardMetadataControllerTest {
 		mvc.perform(post("/management/raidcard")
 						.param("vendor", "GIGABYTE")
 						.param("modelName", "CRA3338")
+						.param("chipFamily", "MPT_IR")
 						.param("supportedRaidLevels", "RAID0", "RAID1")
 						.param("cacheCapacityGb", "0")
 						.param("pciSubsystemId", "1458:0011")
@@ -143,6 +146,7 @@ class RaidCardMetadataControllerTest {
 	void update_success_returns302() throws Exception {
 		mvc.perform(post("/management/raidcard/3/edit")
 						.param("modelName", "CRA3338")
+						.param("chipFamily", "MPT_IR")
 						.param("supportedRaidLevels", "RAID0", "RAID1", "RAID5")
 						.param("cacheCapacityGb", "2")
 						.param("pciSubsystemId", "")
@@ -159,6 +163,7 @@ class RaidCardMetadataControllerTest {
 		mvc.perform(post("/management/raidcard")
 						.param("vendor", "GIGABYTE")
 						.param("modelName", "CRA3338")
+						.param("chipFamily", "MPT_IR")
 						.param("cacheCapacityGb", "0")
 						.param("description", "desc"))
 				.andExpect(status().isBadRequest())
@@ -176,6 +181,7 @@ class RaidCardMetadataControllerTest {
 		mvc.perform(post("/management/raidcard")
 						.param("vendor", "GIGABYTE")
 						.param("modelName", "CRA3338")
+						.param("chipFamily", "MPT_IR")
 						.param("supportedRaidLevels", "RAID0"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("cacheCapacityGb"))
@@ -189,6 +195,7 @@ class RaidCardMetadataControllerTest {
 		mvc.perform(post("/management/raidcard")
 						.param("vendor", "GIGABYTE")
 						.param("modelName", "CRA3338")
+						.param("chipFamily", "MPT_IR")
 						.param("supportedRaidLevels", "RAID0")
 						.param("cacheCapacityGb", "0")
 						.param("pciSubsystemId", "zzzz"))
@@ -203,6 +210,7 @@ class RaidCardMetadataControllerTest {
 
 		mvc.perform(post("/management/raidcard/3/edit")
 						.param("modelName", "")
+						.param("chipFamily", "MPT_IR")
 						.param("supportedRaidLevels", "RAID0")
 						.param("cacheCapacityGb", "0"))
 				.andExpect(status().isOk())
@@ -235,6 +243,7 @@ class RaidCardMetadataControllerTest {
 		mvc.perform(post("/management/raidcard")
 						.param("vendor", "GIGABYTE")
 						.param("modelName", "CRA3338")
+						.param("chipFamily", "MPT_IR")
 						.param("supportedRaidLevels", "RAID0")
 						.param("cacheCapacityGb", "0"))
 				.andExpect(status().isConflict());
@@ -249,6 +258,7 @@ class RaidCardMetadataControllerTest {
 		mvc.perform(post("/management/raidcard")
 						.param("vendor", "GIGABYTE")
 						.param("modelName", "CRA3338")
+						.param("chipFamily", "MPT_IR")
 						.param("supportedRaidLevels", "RAID0")
 						.param("cacheCapacityGb", "0")
 						.accept("application/json"))

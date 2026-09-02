@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.service;
 
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
@@ -60,6 +61,7 @@ public class RaidCardMetadataService {
 	private static final String ATTR_MODEL_NAME = "modelName";
 	private static final String ATTR_LEVELS = "supportedRaidLevels";
 	private static final String ATTR_CACHE_GB = "cacheCapacityGb";
+	private static final String ATTR_CHIP_FAMILY = "chipFamily";
 	private static final String ATTR_PCI = "pciSubsystemId";
 	private static final String ATTR_DESCRIPTION = "description";
 
@@ -109,6 +111,7 @@ public class RaidCardMetadataService {
 				request.vendor(), request.modelName(),
 				SupportedRaidLevels.of(request.supportedRaidLevels()),
 				CacheCapacity.ofGigabytes(request.cacheCapacityGb()),
+				request.chipFamily(),
 				parsePci(request.pciSubsystemId()), request.description());
 	}
 
@@ -125,6 +128,7 @@ public class RaidCardMetadataService {
 				request.modelName(),
 				SupportedRaidLevels.of(request.supportedRaidLevels()),
 				CacheCapacity.ofGigabytes(request.cacheCapacityGb()),
+				request.chipFamily(),
 				request.description(),
 				parsePci(request.pciSubsystemId())
 		);
@@ -154,6 +158,7 @@ public class RaidCardMetadataService {
 		String pci = attrs.get(ATTR_PCI);
 		return persistNewCard(vendor, modelName, levels,
 				CacheCapacity.ofGigabytes(Integer.parseInt(attrs.get(ATTR_CACHE_GB))),
+				RaidChipFamily.valueOf(attrs.get(ATTR_CHIP_FAMILY)),
 				(pci == null || pci.isBlank()) ? null : PciSubsystemId.parse(pci),
 				attrs.get(ATTR_DESCRIPTION));
 	}
@@ -194,6 +199,7 @@ public class RaidCardMetadataService {
 								ATTR_LEVELS, request.supportedRaidLevels().stream()
 										.map(Enum::name).collect(Collectors.joining(",")),
 								ATTR_CACHE_GB, String.valueOf(request.cacheCapacityGb()),
+								ATTR_CHIP_FAMILY, request.chipFamily().name(),
 								ATTR_PCI, request.pciSubsystemId() != null ? request.pciSubsystemId() : "",
 								ATTR_DESCRIPTION, request.description() != null ? request.description() : ""
 						)
@@ -236,13 +242,15 @@ public class RaidCardMetadataService {
 	 * 위한 것이고 실제 동시성을 막는 것은 DB 불변식이라는 D7 의 두 층 설계가 여기서 완성된다.</p>
 	 */
 	private Long persistNewCard(RaidCardVendor vendor, String modelName, SupportedRaidLevels levels,
-								CacheCapacity cacheCapacity, PciSubsystemId pciSubsystemId, String description) {
+								CacheCapacity cacheCapacity, RaidChipFamily chipFamily,
+								PciSubsystemId pciSubsystemId, String description) {
 		try {
 			RaidCard saved = raidCardRepository.saveAndFlush(RaidCard.builder()
 																	 .vendor(vendor)
 																	 .modelName(modelName)
 																	 .supportedRaidLevels(levels)
 																	 .cacheCapacity(cacheCapacity)
+																	 .chipFamily(chipFamily)
 																	 .pciSubsystemId(pciSubsystemId)
 																	 .description(description)
 																	 .build());

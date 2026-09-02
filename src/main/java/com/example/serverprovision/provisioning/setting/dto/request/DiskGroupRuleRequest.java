@@ -44,7 +44,15 @@ public record DiskGroupRuleRequest(
          * 넣지 않는다 — 다섯 축이 같으면 같은 디스크 집합을 두 규칙이 겹쳐 잡는 것이라 역할이 달라도 중복이다.
          */
         @NotNull(message = "역할은 필수 값입니다.")
-        DiskGroupRole role
+        DiskGroupRole role,
+
+        /**
+         * VD 파라미터 8축(E3.5-6) — MegaRAID 전용. 축마다 값이 항상 있고(비운 축은 HII 기본값으로 채워진다)
+         * {@code null} 은 "이 묶음에 축이 없다"(IR 카드 · RAID 없음 · 구 저장본 — 구 저장본은 계획이 기본값으로 본다).
+         * 중복 판정({@code DiskGroupRules.identity})에는 넣지 않는다 — {@code role} 불포함과 같은 사유.
+         */
+        @Valid
+        VdParameters vdParameters
 ) {
 
     @JsonCreator
@@ -53,15 +61,30 @@ public record DiskGroupRuleRequest(
             @JsonProperty("diskType")  DiskTypeRequirement diskType,
             @JsonProperty("transport") DiskTransportRequirement transport,
             @JsonProperty("capacity")  DiskCapacityRequirement capacity,
-            @JsonProperty("count")     DiskCountRequirement count,
-            @JsonProperty("role")      DiskGroupRole role
+            @JsonProperty("count")        DiskCountRequirement count,
+            @JsonProperty("role")         DiskGroupRole role,
+            @JsonProperty("vdParameters") VdParameters vdParameters
     ) {
-        this.raidLevel = raidLevel;
-        this.diskType  = diskType;
-        this.transport = transport;
-        this.capacity  = capacity;
-        this.count     = count;
-        this.role      = role;
+        this.raidLevel    = raidLevel;
+        this.diskType     = diskType;
+        this.transport    = transport;
+        this.capacity     = capacity;
+        this.count        = count;
+        this.role         = role;
+        this.vdParameters = vdParameters;
+    }
+
+    /** 6-인자 호환 생성자 — VD 파라미터 축 없음(구 저장본 · 기존 테스트 픽스처와 동형). */
+    public DiskGroupRuleRequest(RaidLevel raidLevel, DiskTypeRequirement diskType,
+                                DiskTransportRequirement transport, DiskCapacityRequirement capacity,
+                                DiskCountRequirement count, DiskGroupRole role) {
+        this(raidLevel, diskType, transport, capacity, count, role, null);
+    }
+
+    /** VD 파라미터 축을 실어 왔는가 — 지원 계열 · RAID 구성 가드(DiskGroupRules 9 번)의 판정 재료. */
+    @JsonIgnore
+    public boolean hasVdParameters() {
+        return vdParameters != null;
     }
 
     /** 이 묶음이 RAID 를 구성하는가 — RAID 카드 요구(E6)와 레벨 판정의 출발점. */

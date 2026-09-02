@@ -20,11 +20,17 @@ public record RaidApplyPayload(
         jbod = jbod == null ? List.of() : List.copyOf(jbod);
     }
 
-    /** 볼륨 생성 중립 명령 1개 — {@code spvR{규칙번호}V{순번}} 이름(하이픈 미지원 카드 대비 영숫자만). */
-    public record VolumeSpec(String name, RaidLevel level, List<String> slots) {
+    /**
+     * 볼륨 생성 중립 명령 1개 — {@code spvR{규칙번호}V{순번}} 이름(하이픈 미지원 카드 대비 영숫자만).
+     * VD 파라미터(E3.5-6)는 서버가 storcli 형태로 조립해 동봉한다 — 필드 선언 순서가 직렬화 순서이고
+     * agent.sh 의 파이프 파싱({@code NAME|LEVEL|SLOTS|CREATEOPTS|SETOPS|INIT})이 이 순서에 묶인다.
+     */
+    public record VolumeSpec(String name, RaidLevel level, List<String> slots,
+                             String createOpts, List<String> setOps, String init) {
 
         public VolumeSpec {
             slots = slots == null ? List.of() : List.copyOf(slots);
+            setOps = setOps == null ? List.of() : List.copyOf(setOps);
         }
     }
 
@@ -33,7 +39,8 @@ public record RaidApplyPayload(
         return new RaidApplyPayload(
                 plan.deleteExistingFirst(),
                 plan.volumes().stream()
-                        .map(v -> new VolumeSpec(v.name(), v.level(), v.memberSlots()))
+                        .map(v -> new VolumeSpec(v.name(), v.level(), v.memberSlots(),
+                                v.createOpts(), v.setOps(), v.init()))
                         .toList(),
                 plan.passthroughs().stream().map(PlannedPassthrough::slot).toList());
     }

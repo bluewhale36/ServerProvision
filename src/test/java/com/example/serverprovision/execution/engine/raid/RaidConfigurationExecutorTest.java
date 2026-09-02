@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.engine.raid;
 
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.execution.config.PxeAssetsProperties;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
@@ -220,7 +221,7 @@ class RaidConfigurationExecutorTest {
         private RaidPlan planOf() {
             return new RaidPlan(true,
                     List.of(new PlannedVolume("spvR1V1", RAID1, List.of("252:0", "252:1"),
-                            479L, PlannedVolumeRole.OS, 1)),
+                            479L, PlannedVolumeRole.OS, 1, null, List.of(), null)),
                     List.of(), List.of(), List.of(), null);
         }
 
@@ -403,7 +404,7 @@ class RaidConfigurationExecutorTest {
         private RaidPlan frozenPlan() {
             return new RaidPlan(true,
                     List.of(new PlannedVolume("spvR1V1", RAID1, List.of("252:0", "252:1"),
-                            479L, PlannedVolumeRole.OS, 1)),
+                            479L, PlannedVolumeRole.OS, 1, null, List.of(), null)),
                     List.of(new PlannedPassthrough("252:4", 480L, PlannedVolumeRole.DATA, 2)),
                     List.of(), List.of(), null);
         }

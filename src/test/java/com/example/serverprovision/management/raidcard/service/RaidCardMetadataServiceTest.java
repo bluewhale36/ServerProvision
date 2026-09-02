@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.service;
 
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
 import com.example.serverprovision.management.common.nudge.NudgeResourceType;
@@ -72,7 +73,7 @@ class RaidCardMetadataServiceTest {
 
 	private static RaidCardCreateRequest createRequest(String pci) {
 		return new RaidCardCreateRequest(
-				RaidCardVendor.GIGABYTE, "CRA3338",
+				RaidCardVendor.GIGABYTE, "CRA3338", RaidChipFamily.MPT_IR,
 				List.of(RaidLevel.RAID0, RaidLevel.RAID1), 0, pci, "desc");
 	}
 
@@ -203,7 +204,7 @@ class RaidCardMetadataServiceTest {
 
 		assertThatThrownBy(() -> raidCardService.completePendingCardFromNudge(session(Map.of(
 				"vendor", "GIGABYTE", "modelName", "CRA3338",
-				"supportedRaidLevels", "RAID0", "cacheCapacityGb", "0",
+				"supportedRaidLevels", "RAID0", "cacheCapacityGb", "0", "chipFamily", "MPT_IR",
 				"pciSubsystemId", "", "description", ""))))
 				.isInstanceOf(DuplicateRaidCardException.class);
 	}
@@ -217,9 +218,10 @@ class RaidCardMetadataServiceTest {
 		given(raidCardRepository.findByIdAndIsDeletedFalse(7L)).willReturn(OptionalOf(card));
 
 		raidCardService.update(7L, new RaidCardUpdateRequest(
-				"CRA3338", List.of(RaidLevel.RAID0, RaidLevel.RAID1, RaidLevel.RAID5), 2, "", "updated"));
+				"CRA3338", RaidChipFamily.MPT_IR, List.of(RaidLevel.RAID0, RaidLevel.RAID1, RaidLevel.RAID5), 2, "", "updated"));
 
 		assertThat(card.getSupportedRaidLevels().supports(RaidLevel.RAID5)).isTrue();
+		assertThat(card.getChipFamily()).isEqualTo(RaidChipFamily.MPT_IR);   // E3.5-6 — 계열 반영
 		assertThat(card.getCacheCapacity()).isEqualTo(CacheCapacity.ofGigabytes(2));
 		assertThat(card.hasCache()).isTrue();
 		assertThat(card.getPciSubsystemId()).isNull();
@@ -236,7 +238,7 @@ class RaidCardMetadataServiceTest {
 				RaidCardVendor.GIGABYTE, "CRA4448")).willReturn(true);
 
 		assertThatThrownBy(() -> raidCardService.update(7L, new RaidCardUpdateRequest(
-				"CRA4448", List.of(RaidLevel.RAID0), 0, "", "")))
+				"CRA4448", RaidChipFamily.MPT_IR, List.of(RaidLevel.RAID0), 0, "", "")))
 				.isInstanceOf(DuplicateRaidCardException.class);
 		assertThat(card.getModelName()).isEqualTo("CRA3338");   // 갱신 미수행
 	}
@@ -259,7 +261,7 @@ class RaidCardMetadataServiceTest {
 
 		Long id = raidCardService.completePendingCardFromNudge(session(Map.of(
 				"vendor", "GIGABYTE", "modelName", "CRA3338",
-				"supportedRaidLevels", "RAID0,RAID1", "cacheCapacityGb", "2",
+				"supportedRaidLevels", "RAID0,RAID1", "cacheCapacityGb", "2", "chipFamily", "MPT_IR",
 				"pciSubsystemId", "1458:0011", "description", "d")));
 
 		assertThat(id).isEqualTo(50L);
@@ -273,7 +275,7 @@ class RaidCardMetadataServiceTest {
 
 		assertThatThrownBy(() -> raidCardService.completePendingCardFromNudge(session(Map.of(
 				"vendor", "GIGABYTE", "modelName", "CRA3338",
-				"supportedRaidLevels", "RAID0", "cacheCapacityGb", "0",
+				"supportedRaidLevels", "RAID0", "cacheCapacityGb", "0", "chipFamily", "MPT_IR",
 				"pciSubsystemId", "", "description", ""))))
 				.isInstanceOf(DuplicateRaidCardException.class);
 	}

@@ -18,7 +18,7 @@ import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import com.example.serverprovision.execution.engine.raid.RaidApplyPayload;
-import com.example.serverprovision.execution.engine.raid.RaidChipFamily;
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -228,7 +228,7 @@ class GuestAgentRestControllerFlowTest {
     void checkin_carriesRaidApplyPayloadAndChipHint() throws Exception {
         RaidApplyPayload payload = new RaidApplyPayload(true,
                 java.util.List.of(new RaidApplyPayload.VolumeSpec("spvR1V1", RaidLevel.RAID1,
-                        java.util.List.of("252:0", "252:1"))),
+                        java.util.List.of("252:0", "252:1"), null, java.util.List.of(), null)),
                 java.util.List.of("252:4"));
         given(agentReportService.checkin(TOKEN)).willReturn(new AgentCheckinResponse(
                 AgentDirective.RAID_APPLY, "guest-01", payload, RaidChipFamily.agentChipHint()));

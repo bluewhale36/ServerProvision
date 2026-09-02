@@ -29,7 +29,10 @@ public record SettingRaidCardOptionResponse(
         Map<RaidLevel, String> blockReasons,
         boolean deprecated,
         String deprecatedAtDisplay,
-        String description
+        String description,
+        /** 제어 계열(E3.5-6) — VD 파라미터 서브 행 잠금의 폼 재료(서버 가드와 같은 supportsVdParameters). */
+        String chipFamily,
+        boolean supportsVdParameters
 ) {
 
     public static SettingRaidCardOptionResponse of(RaidCard card, String deprecatedAtDisplay) {
@@ -51,6 +54,8 @@ public record SettingRaidCardOptionResponse(
                 Map.copyOf(blockReasons),
                 card.isDeprecated(),
                 deprecatedAtDisplay,
-                card.getDescription());
+                card.getDescription(),
+                card.getChipFamily().name(),
+                card.getChipFamily().supportsVdParameters());
     }
 }

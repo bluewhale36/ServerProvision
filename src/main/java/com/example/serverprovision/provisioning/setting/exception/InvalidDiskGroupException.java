@@ -18,6 +18,24 @@ public class InvalidDiskGroupException extends FieldBoundBadRequestException {
         super(message, "diskGroups");
     }
 
+    /** VD 파라미터를 지원하지 않는 카드 계열(E3.5-6 규칙 9) — UI 잠금과 같은 supportsVdParameters 판정. */
+    public static InvalidDiskGroupException vdParametersNotSupported(int ruleNo, String familyDisplay) {
+        return new InvalidDiskGroupException(ruleNo + "번 묶음: " + familyDisplay
+                + " 계열 카드는 VD 파라미터를 지원하지 않습니다 — 이 묶음에서는 지정할 수 없습니다.");
+    }
+
+    /** SSD 묶음의 Drive Cache 지정(E3.5-6 규칙 9) — SSD 볼륨은 카드가 Unchanged 로 고정한다. */
+    public static InvalidDiskGroupException driveCacheOnSsd(int ruleNo) {
+        return new InvalidDiskGroupException(ruleNo
+                + "번 묶음: SSD 로 구성하는 볼륨의 Drive Cache 는 카드가 Unchanged 로 고정합니다 — Unchanged 로 두십시오.");
+    }
+
+    /** RAID 를 구성하지 않는 묶음의 VD 파라미터 지정(E3.5-6 규칙 9) — 볼륨이 없어 적용할 대상이 없다. */
+    public static InvalidDiskGroupException vdParametersOnNonRaid(int ruleNo) {
+        return new InvalidDiskGroupException(ruleNo
+                + "번 묶음: RAID 를 구성하지 않는 묶음에는 VD 파라미터를 지정할 수 없습니다.");
+    }
+
     /** 카드가 만들 수 없는 RAID 레벨 — 사유 문구는 {@code SupportedRaidLevels.blockReasonFor} 그대로. */
     public static InvalidDiskGroupException unsupportedLevel(int ruleNo, String blockReason) {
         return new InvalidDiskGroupException(ruleNo + "번 묶음: " + blockReason);

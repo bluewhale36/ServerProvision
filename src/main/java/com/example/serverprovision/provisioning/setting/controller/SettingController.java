@@ -1,5 +1,13 @@
 package com.example.serverprovision.provisioning.setting.controller;
 
+import com.example.serverprovision.provisioning.setting.enums.VdAccessPolicy;
+import com.example.serverprovision.provisioning.setting.enums.VdBackgroundInit;
+import com.example.serverprovision.provisioning.setting.enums.VdDriveCache;
+import com.example.serverprovision.provisioning.setting.enums.VdInitialization;
+import com.example.serverprovision.provisioning.setting.enums.VdIoPolicy;
+import com.example.serverprovision.provisioning.setting.enums.VdReadPolicy;
+import com.example.serverprovision.provisioning.setting.enums.VdStripSize;
+import com.example.serverprovision.provisioning.setting.enums.VdWritePolicy;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.LinuxInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest;
@@ -107,6 +115,15 @@ public class SettingController {
         // U4-1-2 — 역할 · 우선순위 선택지. 기본 우선순위 행은 파라미터가 없어 endpoint 대신 페이지에 한 번 싣는다(D6) —
         // 폼 첫 채움과 '기본 행으로 되돌리기' 가 같은 값을 읽는다. SSOT = VolumePriorityRuleRequest.defaults().
         model.addAttribute("diskGroupRoles", List.of(DiskGroupRole.values()));
+        // E3.5-6 — VD 파라미터 8축 선택지(HII 항목 순서). 값 어휘의 SSOT 는 각 enum(cliToken).
+        model.addAttribute("vdStripSizes", List.of(VdStripSize.values()));
+        model.addAttribute("vdReadPolicies", List.of(VdReadPolicy.values()));
+        model.addAttribute("vdWritePolicies", List.of(VdWritePolicy.values()));
+        model.addAttribute("vdIoPolicies", List.of(VdIoPolicy.values()));
+        model.addAttribute("vdAccessPolicies", List.of(VdAccessPolicy.values()));
+        model.addAttribute("vdDriveCaches", List.of(VdDriveCache.values()));
+        model.addAttribute("vdBackgroundInits", List.of(VdBackgroundInit.values()));
+        model.addAttribute("vdInitializations", List.of(VdInitialization.values()));
         model.addAttribute("capacityOrders", List.of(CapacityOrder.values()));
         model.addAttribute("defaultVolumePrioritiesJson", objectMapper.writeValueAsString(VolumePriorityRuleRequest.defaults()));
         // U4-1-3 — OS 설치 카드의 대상 볼륨 안내 문구(네 분기 + 용량 줄)는 서버가 SSOT — 폼 JS 는 템플릿만 받아 채운다(CP5 F-1).

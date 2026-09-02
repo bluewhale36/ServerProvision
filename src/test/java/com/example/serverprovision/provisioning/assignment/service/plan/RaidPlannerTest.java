@@ -1,9 +1,14 @@
 package com.example.serverprovision.provisioning.assignment.service.plan;
 
+import com.example.serverprovision.provisioning.setting.enums.VdBackgroundInit;
+import com.example.serverprovision.provisioning.setting.enums.VdDriveCache;
+import com.example.serverprovision.provisioning.setting.enums.VdInitialization;
+import com.example.serverprovision.provisioning.setting.enums.VdWritePolicy;
+import com.example.serverprovision.provisioning.setting.dto.request.VdParameters;
 import com.example.serverprovision.execution.engine.raid.DetectedRaidCard;
 import com.example.serverprovision.execution.engine.raid.PlannedVolume;
 import com.example.serverprovision.execution.engine.raid.PlannedVolumeRole;
-import com.example.serverprovision.execution.engine.raid.RaidChipFamily;
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.execution.engine.raid.RaidExistingConfigPolicy;
 import com.example.serverprovision.execution.engine.raid.RaidExistingVolume;
 import com.example.serverprovision.execution.engine.raid.RaidInventory;
@@ -245,6 +250,56 @@ class RaidPlannerTest {
             assertThat(plan.volumes()).allSatisfy(v -> assertThat(v.memberSlots()).hasSize(2));
             assertThat(plan.volumes().get(2).name()).isEqualTo("spvR1V3");
             assertThat(plan.ruleOutcomes().get(0).consumedDisks()).isEqualTo(6);
+        }
+
+        @Test
+        @DisplayName("E3.5-6 — 규칙의 VD 파라미터는 배수 분할된 모든 볼륨에 같은 조립값으로 실린다")
+        void vdParameters_propagateToEverySplitVolume() {
+            RaidPhysicalDisk[] disks = new RaidPhysicalDisk[4];
+            for (int i = 0; i < 4; i++) {
+                disks[i] = disk("p:" + i, "SSD", "SATA", S480);
+            }
+            VdParameters vd = new VdParameters(VdWritePolicy.WRITE_BACK, null, null, null,
+                    null, VdDriveCache.OFF, VdBackgroundInit.OFF, VdInitialization.FULL);
+            RaidPlan plan = plan(mega(disks), new DiskGroupRuleRequest(RaidLevel.RAID1,
+                    DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO, auto(),
+                    new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.DATA, vd));
+
+            assertThat(plan.volumes()).hasSize(2);
+            assertThat(plan.volumes()).allSatisfy(v -> {
+                assertThat(v.createOpts()).isEqualTo("wb ra direct strip=256 pdcache=off");
+                assertThat(v.setOps()).containsExactly("bgi=off", "accesspolicy=rw");
+                assertThat(v.init()).isEqualTo("full");
+            });
+        }
+
+        @Test
+        @DisplayName("E3.5-6 — VD 파라미터 축이 없는 규칙(구 저장본)도 MegaRAID 볼륨은 HII 기본값 8축으로 명시 조립된다")
+        void vdParameters_absent_assemblesHiiDefaults() {
+            RaidPlan plan = plan(mega(disk("p:0", "SSD", "SATA", S480), disk("p:1", "SSD", "SATA", S480)),
+                    new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO, auto(),
+                            new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.DATA));
+
+            assertThat(plan.volumes()).singleElement().satisfies(v -> {
+                assertThat(v.createOpts()).isEqualTo("wb ra direct strip=256 pdcache=default");
+                assertThat(v.setOps()).containsExactly("bgi=on", "accesspolicy=rw");
+                assertThat(v.init()).isEqualTo("none");
+            });
+        }
+
+        @Test
+        @DisplayName("E3.5-6 — 축이 없는 계열(MPT_IR)의 볼륨은 규칙이 축을 실어 왔어도 조립 3필드가 비어 있다(sas3ircu 는 쓰지 않는다)")
+        void vdParameters_irFamily_carriesNothing() {
+            VdParameters vd = new VdParameters(VdWritePolicy.WRITE_BACK, null, null, null, null, null, null, VdInitialization.FULL);
+            RaidPlan plan = plan(inv(RaidChipFamily.MPT_IR, List.of(disk("p:0", "SSD", "SATA", S480), disk("p:1", "SSD", "SATA", S480)), List.of()),
+                    new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO, auto(),
+                            new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.DATA, vd));
+
+            assertThat(plan.volumes()).singleElement().satisfies(v -> {
+                assertThat(v.createOpts()).isNull();
+                assertThat(v.setOps()).isEmpty();
+                assertThat(v.init()).isNull();
+            });
         }
 
         @Test

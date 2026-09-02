@@ -1,5 +1,8 @@
 package com.example.serverprovision.provisioning.setting.service.reference.os;
 
+import com.example.serverprovision.provisioning.setting.dto.request.VdParameters;
+import com.example.serverprovision.provisioning.setting.enums.VdWritePolicy;
+import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
@@ -35,14 +38,82 @@ class DiskGroupRulesTest {
     private static final RaidCard AVAGO_9361 = card(List.of(RaidLevel.values()), 2);
 
     private static RaidCard card(List<RaidLevel> levels, int cacheGb) {
+        // 계열은 캐시 유무로 실측 정합(CRA3338=MPT_IR 캐시 0 · 9361-8i=MEGARAID 캐시 2GB) — 규칙 9 재료
         RaidCard card = RaidCard.builder()
                 .id(1L).vendor(RaidCardVendor.GIGABYTE).modelName("card")
                 .supportedRaidLevels(SupportedRaidLevels.of(levels))
                 .cacheCapacity(CacheCapacity.ofGigabytes(cacheGb))
+                .chipFamily(cacheGb > 0 ? RaidChipFamily.MEGARAID : RaidChipFamily.MPT_IR)
                 .ownEnabled(true).ownDeprecated(false).isDeleted(false)
                 .build();
         card.recomputeEffective();
         return card;
+    }
+
+    /** E3.5-6 규칙 9 — VD 파라미터 축을 실은 픽스처(Write Back 만 고르고 나머지는 HII 기본값으로 채워진다). */
+    private static VdParameters vdSpecified() {
+        return new VdParameters(VdWritePolicy.WRITE_BACK, null, null, null, null, null, null, null);
+    }
+
+    @org.junit.jupiter.api.Nested
+    @org.junit.jupiter.api.DisplayName("규칙 9 — VD 파라미터는 지원 계열(MegaRAID) · RAID 구성 묶음에서만(E3.5-6)")
+    class Rule9VdParameters {
+
+        @org.junit.jupiter.api.Test
+        @org.junit.jupiter.api.DisplayName("MegaRAID 카드 + RAID1 묶음의 지정값 → 통과")
+        void megaraid_raidRule_passes() {
+            DiskGroupRuleRequest r = new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD,
+                    DiskTransportRequirement.SATA, new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                    new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.BY_PRIORITY, vdSpecified());
+            org.assertj.core.api.Assertions.assertThatCode(() -> DiskGroupRules.validate(List.of(r), AVAGO_9361))
+                    .doesNotThrowAnyException();
+        }
+
+        @org.junit.jupiter.api.Test
+        @org.junit.jupiter.api.DisplayName("MPT_IR 카드 + 지정값 → 400 (계열 미지원 — UI 잠금과 같은 supportsVdParameters)")
+        void mptIr_specified_rejected() {
+            DiskGroupRuleRequest r = new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD,
+                    DiskTransportRequirement.SATA, new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                    new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.BY_PRIORITY, vdSpecified());
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> DiskGroupRules.validate(List.of(r), CRA3338))
+                    .isInstanceOf(InvalidDiskGroupException.class)
+                    .hasMessageContaining("MPT IR")
+                    .hasMessageContaining("지원하지 않습니다");
+        }
+
+        @org.junit.jupiter.api.Test
+        @org.junit.jupiter.api.DisplayName("SSD 묶음 + Drive Cache 를 Unchanged 밖(Disable)으로 → 400 (카드가 Unchanged 고정 — CP6 검수)")
+        void ssd_driveCacheSpecified_rejected() {
+            VdParameters dc = new VdParameters(null, null, null, null, null,
+                    com.example.serverprovision.provisioning.setting.enums.VdDriveCache.OFF, null, null);
+            DiskGroupRuleRequest r = new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD,
+                    DiskTransportRequirement.SATA, new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                    new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.BY_PRIORITY, dc);
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> DiskGroupRules.validate(List.of(r), AVAGO_9361))
+                    .isInstanceOf(InvalidDiskGroupException.class)
+                    .hasMessageContaining("Drive Cache");
+        }
+
+        @org.junit.jupiter.api.Test
+        @org.junit.jupiter.api.DisplayName("SSD 묶음 + Drive Cache Unchanged(기본값) → 통과 (폼 잠금이 두는 값과 같다)")
+        void ssd_driveCacheUnchanged_passes() {
+            DiskGroupRuleRequest r = new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD,
+                    DiskTransportRequirement.SATA, new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                    new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.BY_PRIORITY, VdParameters.DEFAULTS);
+            org.assertj.core.api.Assertions.assertThatCode(() -> DiskGroupRules.validate(List.of(r), AVAGO_9361))
+                    .doesNotThrowAnyException();
+        }
+
+        @org.junit.jupiter.api.Test
+        @org.junit.jupiter.api.DisplayName("RAID 없음 묶음 + 지정값 → 400 (적용할 볼륨이 없다)")
+        void nonRaid_specified_rejected() {
+            DiskGroupRuleRequest r = new DiskGroupRuleRequest(null, DiskTypeRequirement.SSD,
+                    DiskTransportRequirement.SATA, new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                    new DiskCountRequirement(DiskCountMode.AT_LEAST, 1), DiskGroupRole.DATA, vdSpecified());
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> DiskGroupRules.validate(List.of(r), AVAGO_9361))
+                    .isInstanceOf(InvalidDiskGroupException.class)
+                    .hasMessageContaining("RAID 를 구성하지 않는 묶음");
+        }
     }
 
     private static DiskGroupRuleRequest rule(RaidLevel level, int count) {

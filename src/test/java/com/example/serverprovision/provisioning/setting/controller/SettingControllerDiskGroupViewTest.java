@@ -143,7 +143,7 @@ class SettingControllerDiskGroupViewTest {
                 List.of(new SettingRaidCardOptionResponse(1L, "CRA3338", "GIGABYTE CRA3338", false, "없음",
                         List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0 · RAID1",
                         Map.of(RaidLevel.RAID5, "RAID5 를 만들 수 없는 카드입니다 — 지원하는 RAID 레벨은 RAID0 · RAID1 입니다."),
-                        false, null, null)))));
+                        false, null, null, "MPT_IR", false)))));
 
         mvc.perform(get("/provisioning/setting/new"))
                 .andExpect(status().isOk())
@@ -155,7 +155,12 @@ class SettingControllerDiskGroupViewTest {
                 // RAID0 은 캐시 없는 카드 2 · 캐시 카드 1 — RaidLevel.minimumDisks 가 옵션 data-* 로 내려간다.
                 .andExpect(content().string(containsString("data-min-disks=\"2\"")))
                 .andExpect(content().string(containsString("data-min-disks-cached=\"1\"")))
-                .andExpect(content().string(containsString("tplDiskGroupRow")));
+                .andExpect(content().string(containsString("tplDiskGroupRow")))
+                // E3.5-6 — VD 파라미터 서브 행 템플릿 · 8축 select · 메타의 supportsVdParameters 렌더
+                .andExpect(content().string(containsString("tplVdParamsRow")))
+                .andExpect(content().string(containsString("vdWritePolicy")))
+                .andExpect(content().string(containsString("Write Back (기본값)")))
+                .andExpect(content().string(containsString("supportsVdParameters")));
     }
 
     @Test
