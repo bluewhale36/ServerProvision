@@ -114,6 +114,48 @@ class SettingControllerDiskGroupViewTest {
     }
 
     @Test
+    @DisplayName("GET /{id} — E3.5-7-a: 순위 배지 · 적용 순서 안내 · '3개씩'(EACH) 표기 렌더")
+    void detail_rendersRankAndEachMode() throws Exception {
+        List<DiskGroupRuleRequest> rules = List.of(
+                new DiskGroupRuleRequest(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.SATA,
+                        new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                        new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.OS),
+                new DiskGroupRuleRequest(RaidLevel.RAID5, DiskTypeRequirement.SSD, DiskTransportRequirement.SATA,
+                        new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                        new DiskCountRequirement(DiskCountMode.EACH, 3), DiskGroupRole.BY_PRIORITY));
+        given(queryService.findDetail(1L)).willReturn(detail(raid(7L, rules), Map.of(7L, "GIGABYTE CRA3338")));
+
+        mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<th>순위</th>")))
+                .andExpect(content().string(containsString("class=\"n-rank\">1</span>")))
+                .andExpect(content().string(containsString("class=\"n-rank\">2</span>")))
+                .andExpect(content().string(containsString("위 규칙부터 순서대로 디스크를 가져가고")))
+                .andExpect(content().string(containsString(">2개<")))
+                .andExpect(content().string(containsString(">3개씩<")));
+    }
+
+    @Test
+    @DisplayName("GET /new — E3.5-7-a: 개수 모드 select 3옵션(개 · 개씩 · 개 이상, 첫 옵션 '개') · 순위 열 · 적용 순서 안내 · 행 템플릿 순위 배지")
+    void form_rendersCountModesAndRankColumn() throws Exception {
+        String html = mvc.perform(get("/provisioning/setting/new"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        int exact = html.indexOf("<option value=\"EXACT\">개</option>");
+        int each = html.indexOf("<option value=\"EACH\">개씩</option>");
+        int atLeast = html.indexOf("<option value=\"AT_LEAST\">개 이상</option>");
+        org.assertj.core.api.Assertions.assertThat(exact).isPositive();
+        org.assertj.core.api.Assertions.assertThat(each).isGreaterThan(exact);        // 선언 순서 = select 순서 · 첫 옵션 = 기본 '개'
+        org.assertj.core.api.Assertions.assertThat(atLeast).isGreaterThan(each);
+        org.assertj.core.api.Assertions.assertThat(html)
+                .contains("<th>순위</th>")
+                .contains("n-rank dgRank")
+                .contains("위 규칙부터 순서대로 디스크를 가져가고, 남은 디스크는 아래 규칙으로 흐릅니다.")
+                .contains("행 순서 = 적용 순서");
+    }
+
+    @Test
     @DisplayName("GET /{id} — 참조하던 카드가 사라졌으면 #id 폴백이 아니라 '(사라진 카드 #7)' 을 그린다 (소프트참조)")
     void detail_rendersGoneCardExplicitly() throws Exception {
         given(queryService.findDetail(1L)).willReturn(detail(raid(7L, twoRules()), Map.of()));

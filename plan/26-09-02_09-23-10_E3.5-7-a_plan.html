@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E3.5-7-a Plan — 묶음 규칙 개수 모드 분리 · 적용 순서 가시화</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq 스윔레인 (§3 데이터 흐름) ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── .pkg-tree / card-grid ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E3.5-7-a — 묶음 규칙 개수 모드 분리(개 · 개씩 · 개 이상) · 적용 순서 가시화 <span class="v2-badge">E3.5 RAID 구성</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E3.5-7-a (feature)</span>
+    <span><strong>상위</strong> E3.5 RAID 구성 실행 계열</span>
+    <span><strong>scope</strong> 개수 모드 3분할 + 묶음 규칙 적용 순서 가시화</span>
+    <span><strong>생성</strong> 2026-09-02 09:23 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 요약 · 개정 동기</a></li>
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 계약 · 데이터 이동 · 화면</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 · 부산물 · 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 요약 · 개정 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 요약 · 개정 동기 (2026-09-01 배수 분할 → 개수 모드 3분할)</summary>
+      <div class="body">
+        <ul>
+          <li>2026-09-01 배수 분할 개정으로 <code>EXACT n</code> 이 "그룹 크기가 n 의 배수면 n 개씩 전부" 를 뜻하게 되자, 09-02 에 세 가지 뜻이 충돌한다는 제기가 들어왔다. 규칙마다 뜻을 고를 수 있게 개수 모드를 <b>개 · 개씩 · 개 이상</b> 셋으로 나눈다. 신규 행의 기본값은 <b>'개'</b> 다(사용자 결정).</li>
+          <li>묶음 규칙 표에 <b>순위 열</b>(배지 숫자)과 <b>적용 순서 안내</b>를 두어 "위 규칙이 먼저 가져가고 남은 디스크가 아래로 흐른다" 를 화면에서 읽게 한다.</li>
+          <li>규칙 8(포섭 · 도달 불가) 진리표를 세 모드로 개정하고, 폼 JavaScript 미러도 같은 표를 쓴다.</li>
+          <li>2026-09-01 실기 정의서(HDD 6대 · RAID5 <code>EXACT 3</code> → 3+3)의 저장본은 치환 SQL 로 '개씩' 으로 보존한다.</li>
+          <li>게스트 서버별 볼륨 계획 수정은 E3.5-7-b, 진단 리눅스의 디스크 · 볼륨 수집은 E3.5-5 가 맡는다 — 여기서 하지 않는다.</li>
+        </ul>
+        <div class="callout"><b>한 줄로</b> — 개수 축의 값(n)은 그대로 두고 <b>그 값을 어떻게 소비할지(모드)</b>를 규칙마다 고르게 만든 뒤, 규칙이 순서대로 흐른다는 사실을 화면에 드러낸다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">현행은 2026-09-01 커밋 <code>22b9045</code>(PR #63)로 들어간 배수 분할 개정이다. 이 개정의 계기는 09-01 실기였다 — HDD 6대를 RAID5 3+3 두 볼륨으로 만들려면 같은 조건의 규칙을 두 줄 써야 했는데, 그 두 줄이 규칙 8(선행이 후행을 완전 포섭하면 후행은 도달 불가)에 걸려 저장 자체가 거절됐다. 그래서 한 줄이 배수만큼 나눠 담도록 <code>EXACT</code> 의 뜻을 바꿨다.</p>
+
+        <h4>현행 소비 규칙 — <code>RaidPlanner.plan</code></h4>
+        <table>
+          <thead><tr><th>모드</th><th>그룹 선택 조건</th><th>소비 범위</th><th>볼륨 수</th></tr></thead>
+          <tbody>
+            <tr><td><code>EXACT n</code></td><td>크기 % n == 0</td><td>그룹 전체</td><td>크기 / n</td></tr>
+            <tr><td><code>AT_LEAST n</code></td><td>크기 ≥ n</td><td>그룹 전체</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <p>공통 원칙은 "어떤 규칙도 같은 스펙 그룹을 부분 소비하지 않는다"(E3.5-2 결정 6)였다. 선택되면 그룹을 통째로 가져가고, 선택되지 않으면 한 장도 건드리지 않은 채 그대로 후행 규칙으로 흘린다.</p>
+
+        <h4>현행 규칙 8 포섭 — <code>DiskGroupRules.countCovers</code></h4>
+        <table>
+          <thead><tr><th>선행 \ 후행</th><th>EXACT m</th><th>AT_LEAST m</th></tr></thead>
+          <tbody>
+            <tr><td><code>EXACT n</code></td><td>n == m</td><td>✗</td></tr>
+            <tr><td><code>AT_LEAST n</code></td><td>n ≤ m</td><td>n ≤ m</td></tr>
+          </tbody>
+        </table>
+
+        <h4>2026-09-02 제기 3건과 세션 판정</h4>
+        <table>
+          <thead><tr><th>#</th><th>제기한 조합</th><th>현행 결과</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>(a)</td><td>RAID0 · SSD · SATA · AUTO · <code>EXACT 1</code></td><td>한 장짜리 RAID0 볼륨이 장수만큼</td><td>예측대로</td></tr>
+            <tr><td>(b)</td><td><code>[RAID1 EXACT 2]</code> → <code>[RAID5 AT_LEAST 3]</code> · SSD 4장</td><td>규칙 1 이 4장을 전부 소비, 규칙 2 는 빈손</td><td>순서 문제</td></tr>
+            <tr><td>(c)</td><td>SSD 6장 · OS 는 RAID1 2장 · 나머지는 RAID5</td><td>표현 불가</td><td>모드 필요</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>(a) 의 근거</b> — 크기를 1 로 나눈 나머지는 항상 0 이므로 매칭된 SSD SATA 가 전부 선택되고, 배수 분할이 1장씩 잘라 담는다. 큰 RAID0 하나가 아니라 디스크 한 장짜리 RAID0 볼륨이 장수만큼 생긴다. 코드대로의 동작이다.</p>
+        <p><b>(b) 의 근거</b> — 규칙 1 이 4장을 RAID1 두 볼륨으로 전부 가져가므로 규칙 2 는 볼 디스크가 없다. 여기서 소비 방식을 "처음 한 묶음만" 으로 바꿔도 이 예시는 RAID5 가 되지 않는다. 규칙 1 이 2장을 가져가면 남는 2장은 <code>AT_LEAST 3</code> 에 미달해 미배정으로 남기 때문이다. 사용자가 원한 "4장이면 RAID5 · 2장이면 RAID1" 은 <b>규칙 순서를 뒤집으면 지금 코드로 이미 나온다</b> — <code>AT_LEAST 3</code> 이 4장 전체를 한 볼륨으로 먹고, 규칙 8 도 <code>AT_LEAST 3</code> 이 <code>EXACT 2</code> 를 포섭하지 않아(3 ≤ 2 가 거짓) 저장을 막지 않는다. 즉 이것은 모드 문제가 아니라 <b>순서 문제</b>이며, 그래서 적용 순서 가시화가 같은 슬라이스로 들어온다.</p>
+        <p><b>(c) 의 근거</b> — 같은 스펙 SSD 6장에서 OS 용 RAID1 2장을 떼고 나머지 4장을 RAID5 로 묶는 조합은 현행으로 표현할 수 없다. <code>EXACT 2</code> 는 6이 2의 배수라 여섯 장을 전부 삼키고, 장수가 홀수면 반대로 한 장도 가져가지 않아 전부 후행 RAID5 로 흐른다. "첫 묶음 한 번만" 을 뜻하는 모드가 있어야 풀린다.</p>
+
+        <div class="callout warn"><b>진단 요약</b> — 제기 셋 중 (a)·(b) 는 코드대로의 동작이고 (c) 만 표현 불가다. 그러나 (a)·(b) 가 예측대로라는 사실이 사용자에게 보이지 않았다는 점이 함께 드러났다 — 한 줄의 뜻이 하나뿐이라 고를 수 없었고(모드), 위 규칙이 먼저 가져간다는 사실이 화면에 없었다(순서). 이 슬라이스는 그 둘을 함께 처리한다.</div>
+        <p><b>2026-09-02 사용자 결정</b> — 체크박스 대안 대신 모드 세 값으로 가고, 신규 행 기본은 '개' 로 한다. 게스트 서버별 볼륨 계획 수정(E3.5-7-b)은 후행 슬라이스로 미룬다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>개수 모드 3값</b> — 개(<code>EXACT</code>) · 개씩(<code>EACH</code>) · 개 이상(<code>AT_LEAST</code>) 을 규칙마다 고른다.</li>
+          <li><b>신규 행 기본 '개'</b> — 폼에서 규칙 행을 추가하면 모드 select 의 첫 옵션이자 기본값이 '개' 다.</li>
+          <li><b>적용 순서(우선순위) 가시화</b> — 묶음 규칙 표에 순위 열과 상시 안내를 둔다.</li>
+          <li><b>규칙 8 포섭 진리표 개정과 폼 미러 정합</b> — 서버 <code>DiskGroupRules.countCovers</code> 와 폼 <code>coversRule</code> 이 같은 3×3 표를 쓴다.</li>
+          <li><b>저장본 처리</b> — 09-01 의 배수 뜻으로 저장된 규칙이 개정 후에도 같은 결과를 내도록 치환한다.</li>
+          <li><b>테스트</b> — 단위 · 통합 · 뷰 세 층을 모두 채운다(§6).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>게스트 서버별 RAID 볼륨 계획 수정 → <b>E3.5-7-b</b></li>
+            <li>진단 리눅스의 디스크 · 기존 볼륨 수집 → <b>E3.5-5</b></li>
+            <li>매칭 축(종류 · 전송 · 용량) 변경 없음</li>
+            <li>가상 디스크 파라미터(E3.5-6) 변경 없음</li>
+            <li>RAID 카드 자원 · 인벤토리 파서 · <code>agent.sh</code> 변경 없음</li>
+            <li>볼륨 우선순위 표(U4-1-2) 변경 없음</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 개수 모드 · 규칙 순서 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">왼쪽에서 <b>묶음 규칙</b>(레벨 · 개수 · 모드)을 바꾸고 <b>순서</b>를 ▲▼ 로 옮기면, 오른쪽에서 ① 규칙 8 포섭 판정(도달 불가 · 400) ② 계획 결과(규칙별 소비 · 볼륨 목록 · 미배정) ③ 한 줄 해설이 즉시 갱신됩니다. 아래 <b>시나리오 버튼</b> 여섯 개는 §1 의 제기와 §4 의 결정을 그대로 재현한 세팅입니다.</p>
+        <p>판정 로직은 <b>§4 의 D2(소비 진리표) · D3(포섭 3×3)를 코드로 그대로 옮긴 미러</b>이며, 서버 구현(<code>RaidPlanner.plan</code> · <code>DiskGroupRules.countCovers</code>)과 같은 판정이어야 합니다(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="seg" data-scn="0" onclick="rcScenario(0)">① 예시 (b)</button>
+            <button class="seg" data-scn="1" onclick="rcScenario(1)">② 순서 뒤집기</button>
+            <button class="seg" data-scn="2" onclick="rcScenario(2)">③ 사례 (c)</button>
+            <button class="seg" data-scn="3" onclick="rcScenario(3)">④ 09-01 실기</button>
+            <button class="seg" data-scn="4" onclick="rcScenario(4)">⑤ RAID0 1장</button>
+            <button class="seg" data-scn="5" onclick="rcScenario(5)">⑥ 포섭 400</button>
+          </div>
+          <div class="ux-message" id="rc-banner"></div>
+
+          <div class="split-grid" style="margin-top:12px;">
+            <div>
+              <h4 style="margin-top:0;">디스크 묶음 규칙 (위에서부터 순서대로 적용)</h4>
+              <table style="margin-top:4px;">
+                <thead><tr><th>순위</th><th>RAID 레벨</th><th>개수</th><th>모드</th><th>순서</th></tr></thead>
+                <tbody id="rc-rules"></tbody>
+              </table>
+              <div style="margin:6px 0 12px;" id="rc-rule-actions"></div>
+
+              <h4>인벤토리 — 같은 스펙 SSD (SATA · 용량 동일)</h4>
+              <div class="ux-row">
+                <span class="label">장수</span>
+                <input type="range" id="rc-disks" min="1" max="8" step="1" value="4" oninput="rcSetDisks(this.value)" style="flex:2;">
+                <span class="badge on" id="rc-disks-badge">4장</span>
+              </div>
+              <div class="ux-caps" id="rc-slots"></div>
+            </div>
+
+            <div>
+              <h4 style="margin-top:0;">① 규칙 8 — 포섭 · 도달 불가 판정</h4>
+              <div class="ux-caps" id="rc-cover"></div>
+
+              <h4>② 계획 결과</h4>
+              <div id="rc-plan"></div>
+
+              <h4>③ 한 줄 해설</h4>
+              <div class="ux-message" id="rc-note"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 포섭 판정 <code>demoBlocks()</code> 는 서버 <code>DiskGroupRules.countCovers</code> 및 폼 <code>coversRule</code> 과 같은 3×3 표(§4 D3)를, 데모의 소비 판정 <code>demoPlan()</code> 은 <code>RaidPlanner.plan</code> 과 같은 진리표(§4 D2)를 쓴다. 세 곳이 같은 표를 본다는 것이 이 슬라이스의 정합 조건이다.</div>
+        <div class="callout warn"><b>데모의 범위</b> — 이 데모는 <b>개수 모드와 규칙 순서</b>만 다룬다. 매칭 축(종류 · 전송 · 용량)은 전부 AUTO 로 고정해 스펙 그룹이 하나뿐이고, RAID 카드 계열 한계(멤버 수 · 최대 볼륨 수) 검사는 재현하지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 계약 · 데이터 이동 · 화면 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 계약 · 데이터 이동 · 화면 표면</summary>
+      <div class="body">
+        <h4>URL</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td>세팅 정의서 저장 경로 <span class="chip keep">무변경</span></td><td>RAID 구성 payload 저장 — <code>count.mode</code> 어휘가 셋으로</td><td>201 / 400</td></tr>
+            <tr><td>GET</td><td>세팅 정의서 폼 · 상세 <span class="chip keep">무변경</span></td><td>묶음 표 렌더 — 순위 열 · 모드 select 3옵션 추가</td><td>200</td></tr>
+          </tbody>
+        </table>
+        <p>신규 URL 은 없다. 경로 문자열은 기존 컨트롤러 그대로이며, CP2 착수 시 실측해 확정한다.</p>
+
+        <h4>요청 계약 — 필드 모양 불변, 값 어휘 +1</h4>
+        <pre><code>"count": { "mode": "EXACT" | "EACH" | "AT_LEAST", "value": n }
+             ▲ EACH 추가(개씩)                 ▲ 무변경</code></pre>
+        <p>응답 · 할당 스냅샷 · <code>RaidApplyPayload</code> 는 모양과 어휘 모두 무변경이다. 달라지는 것은 같은 입력에서 <code>RaidPlanner</code> 가 뽑아내는 <b>계획 결과</b>뿐이다.</p>
+
+        <h4>객체 이동</h4>
+        <div class="pkg-tree">[폼]  setting-form.js
+   └─ 모드 select · 순위 배지 · coversRule 미러
+        │  POST
+        ▼
+[검증] DiskGroupRuleRequest.count (DiskCountRequirement)
+   └─ DiskGroupRules.validate → countCovers → InvalidDiskGroupException.unreachableRule (400)
+        │  저장
+        ▼
+[저장] setting_process.payload_json
+        │  할당 시 deep-freeze
+        ▼
+[스냅샷] assigned_process_snapshot.payload_json
+        │  계획
+        ▼
+[계획] RaidPlanner.plan → PlannedVolume / PlannedPassthrough / RaidRuleOutcome
+        │  집행
+        ▼
+[집행] RaidApplyPayload (무변경)</div>
+
+        <h4>흐름 — 폼 · 검증 · 계획</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저 (폼 JS)</div><div class="actor a2">서버 검증</div><div class="actor a3">계획기</div>
+          <div class="step a1">행 추가 → 모드 기본 '개'</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">드래그 · 삭제 → 순위 배지 재번호</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"><code>coversRule</code> 미러 → 도달 불가 행 색상 + 안내</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">POST <code>count:{mode,value}</code></div><div class="step a2"><code>DiskGroupRules.validate</code> → <code>countCovers</code></div><div class="step a3"></div>
+          <div class="step a1">400 문장 표시</div><div class="step a2">포섭이면 <code>unreachableRule</code></div><div class="step a3"></div>
+          <div class="step a1">201 저장</div><div class="step a2">payload 저장 · 할당 시 스냅샷</div><div class="step a3"></div>
+          <div class="step a1">서버 상세 계획 미리보기</div><div class="step a2"><code>ruleOutcomes</code> 조립</div><div class="step a3">모드별 소비 → 볼륨 · 미배정</div>
+        </div>
+
+        <h4>화면 표면 — 폼</h4>
+        <p>묶음 규칙 표의 열 구성은 다음과 같이 된다. 대괄호가 한 열이며 <b>순위</b>가 신설, <b>개수</b> 열 안의 모드 select 가 2값에서 3값으로 늘어난다.</p>
+        <pre><code>[☰][순위][RAID 레벨][종류][전송][용량][개수 = 값 + 모드(개 · 개씩 · 개 이상)][역할][⚙ · 삭제]</code></pre>
+        <p>RAID 없음 행은 현행대로 개수를 비우면 <code>1 · 개 이상</code> 이 자동으로 채워진다(<code>defaultCountForNoRaid</code>) — 이 동작은 바꾸지 않는다(§8 D6). 요약문(<code>diskGroupSummary</code>, 서버의 <code>OsVolumeTargets.summarize</code> 와 동형)에는 모드 접미사가 그대로 반영된다.</p>
+
+        <h4>화면 표면 — 상세 카드</h4>
+        <p>세팅 정의서 상세의 묶음 표는 '#' 헤더가 '순위' 로 바뀌고, 개수 표기가 <code>2개씩</code> 처럼 접미사를 달고 나온다. 서버 상세의 RAID 계획 미리보기(<code>ruleOutcomes</code>)는 <code>DiskCountRequirement.toDisplay()</code> 를 쓰므로 표기는 자동 반영되며, 미소비 사유 문구만 §4 D2 의 것으로 바뀐다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) — 대안 비교와 결정 D1~D5</summary>
+      <div class="body">
+        <h4>설계 대안 — 형태</h4>
+        <div class="card-grid">
+          <div class="card v-red"><h4>A. 체크박스</h4>
+            <p style="font-size:12px;margin:0 0 6px;">EXACT 행에 "가능한 모든 묶음에 적용" 체크박스(사용자 초안)</p>
+            <ul><li>탈락</li></ul></div>
+          <div class="card v-green"><h4>B. 모드 3값</h4>
+            <p style="font-size:12px;margin:0 0 6px;"><code>DiskCountMode</code> 에 값을 하나 더한다</p>
+            <ul><li><b>채택</b></li></ul></div>
+          <div class="card v-red"><h4>C. 순서만</h4>
+            <p style="font-size:12px;margin:0 0 6px;">코드 변경 없이 규칙 순서 안내로만 해결</p>
+            <ul><li>탈락</li></ul></div>
+        </div>
+        <p><b>A 탈락 사유</b> — 체크박스는 '개 이상' 과 조합하면 뜻이 없어 무효 조합이 생기고, 그것을 막는 UI 잠금이 한 줄 더 붙는다. 저장소 규칙(무명 boolean 인자 금지 · 도메인 다형)에도 어긋난다. 무엇보다 판정이 (모드, 플래그) 2차원으로 갈라져 계획 소비 · 규칙 8 · 표시 세 곳이 전부 두 배로 늘어난다.</p>
+        <p><b>B 채택 사유</b> — 필드가 하나라 무효 조합이 0 이다. 계획 소비 · 규칙 8 · 표시 세 곳이 이미 모드 하나로 분기하고 있으므로 값 추가만으로 함께 늘어난다. Java 의 switch 식이 enum 전수 처리를 요구하므로, 세 곳 중 한 곳이라도 새 값을 빠뜨리면 컴파일이 실패한다 — 누락이 런타임이 아니라 빌드에서 잡힌다.</p>
+        <p><b>C 탈락 사유</b> — 사례 (c)(6장에서 OS 2장만 떼고 나머지를 RAID5 로)는 순서를 어떻게 바꿔도 표현되지 않는다.</p>
+
+        <h4>설계 대안 — 명명 · '개' 의 뜻 · 순위 가시화</h4>
+        <table>
+          <thead><tr><th>갈래</th><th>채택</th><th>탈락 대안</th><th>탈락 사유(요약)</th></tr></thead>
+          <tbody>
+            <tr><td>명명</td><td>B1 — <code>EXACT</code>='개' 유지 + <code>EACH</code>='개씩' 신설 + 치환 SQL</td><td>B2 — <code>EXACT</code>='개씩' 유지 + <code>ONCE</code>='개' 신설</td><td>이름 왜곡이 영구히 남는다</td></tr>
+            <tr><td>'개' 의 선택 조건</td><td>크기 ≥ n 이면 첫 그룹에서 슬롯 순 n 장</td><td>크기 == n 엄격(09-01 이전 뜻)</td><td>사례 (c) 를 못 풀고 옛 문제가 재발</td></tr>
+            <tr><td>순위 가시화</td><td>순위 열(배지) + 상시 안내 + 도움말</td><td>안내문만 / 순위 숫자 입력란</td><td>요구 미달 / 이중 SSOT</td></tr>
+          </tbody>
+        </table>
+        <p><b>B1 대 B2</b> — B2 는 마이그레이션이 0 이라는 이점이 있다. 그러나 "EXACT" 라는 이름이 '개씩' 을 뜻하는 왜곡이 코드에 영구히 남고, 새 기본값 '개' 가 <code>EXACT</code> 가 아닌 상수가 되어 읽는 사람마다 되묻게 된다. 이름과 뜻을 맞추는 쪽(B1)을 택하고, 그 대가인 저장본 치환은 SQL 한 벌(§4 D5)로 갚는다.</p>
+        <p><b>'개' 의 선택 조건</b> — 09-01 이전의 엄격 일치(크기 == n)로 되돌리면 사례 (c) 를 여전히 못 풀고, "6대인데 <code>EXACT 3</code> 이 한 장도 안 가져간다" 는 09-01 문제가 그대로 재발한다. 그래서 '개' 는 크기가 n 이상이면 첫 그룹에서 슬롯 순으로 n 장만 떼어 간다.</p>
+        <p><b>순위 가시화</b> — 같은 화면의 볼륨 우선순위 표가 이미 순위 배지 패턴을 쓰고 있다(CP6 검수로 도입). 같은 패턴을 묶음 규칙 표에 쓰면 두 표의 읽는 법이 하나가 된다. 순위를 숫자로 직접 입력받는 안은 드래그 순서와 숫자가 각자 진실을 주장하는 이중 SSOT 가 되어 드리프트를 부르므로 택하지 않는다.</p>
+
+        <h4>D1. <code>DiskCountMode</code> — 값 셋</h4>
+        <table>
+          <thead><tr><th>상수</th><th>접미사</th><th>뜻</th></tr></thead>
+          <tbody>
+            <tr><td><code>EXACT</code></td><td>개</td><td>발견 순 첫 그룹에서 슬롯 순 n 장 한 묶음. 나머지는 후행으로</td></tr>
+            <tr><td><code>EACH</code> <span class="chip new">신규</span></td><td>개씩</td><td>그룹 크기가 n 의 배수면 n 개씩 전부(현행 <code>EXACT</code>)</td></tr>
+            <tr><td><code>AT_LEAST</code></td><td>개 이상</td><td>크기 ≥ n 이면 그룹 전체를 한 볼륨으로(현행 유지)</td></tr>
+          </tbody>
+        </table>
+        <p>선언 순서가 곧 폼 select 의 옵션 순서이고, 첫 옵션인 '개' 가 신규 행의 기본값이 된다. <code>DiskCountRequirement.toDisplay()</code> 는 값 + 접미사 조합("2개씩")으로 그대로 확장된다.</p>
+
+        <h4>D2. 계획 소비 진리표 — <code>RaidPlanner</code></h4>
+        <table>
+          <thead><tr><th>모드</th><th>그룹 선택</th><th>소비</th><th>볼륨 수</th><th>pool 제거</th></tr></thead>
+          <tbody>
+            <tr><td><code>EXACT n</code></td><td>크기 ≥ n · 첫 그룹만</td><td>슬롯 순 n 장</td><td>1</td><td>슬라이스만</td></tr>
+            <tr><td><code>EACH n</code></td><td>크기 % n == 0</td><td>그룹 전체</td><td>크기 / n</td><td>그룹</td></tr>
+            <tr><td><code>AT_LEAST n</code></td><td>크기 ≥ n</td><td>그룹 전체</td><td>1</td><td>그룹</td></tr>
+          </tbody>
+        </table>
+        <p><b>원칙 개정</b> — <span class="diff-del">어떤 규칙도 그룹을 부분 소비하지 않는다</span> → <span class="diff-add">'개' 만 부분 소비하며, 남은 디스크는 같은 스펙 그룹으로 후행에 흐른다</span>. 구현상으로는 현행의 <code>pool.removeAll(group)</code> 을 <code>EXACT</code> 에서만 슬라이스 제거로 바꾸는 것이다. <code>EXACT</code> 가 한 묶음을 소비한 뒤 다른 스펙 그룹은 건드리지 않으며, 그 그룹의 사유는 "규칙 r 은 한 묶음만 — 이미 소비" 로 남는다.</p>
+        <p><b>미소비 사유 문구</b> — 현행 문장 골격("규칙 N · &lt;조건&gt; 조건에 K대(…)라 미소비")은 그대로 두고 <b>괄호 안만 모드별로</b> 갈린다 — <code>EXACT</code> · <code>AT_LEAST</code> 는 "n 장 미만"(조건이 같으므로 표현도 하나), <code>EACH</code> 는 "배수 아님", 그리고 <code>EXACT</code> 가 이미 한 묶음을 소비한 뒤 남은 다른 그룹은 "한 묶음 소비 완료" 다. RAID 없음(패스스루) 규칙도 같은 표를 따른다 — <code>EXACT 1</code> 이면 첫 1장만 패스스루, <code>EACH 1</code> 과 <code>AT_LEAST 1</code> 이면 전부다. <code>RaidRuleOutcome</code> 의 모양은 바꾸지 않는다. 볼륨 이름 규칙 <code>spvR{r}V{k}</code> 도 그대로이며, <code>EXACT</code> 는 볼륨이 하나뿐이라 항상 <code>V1</code> 이다.</p>
+
+        <h4>D3. 규칙 8 포섭 진리표 — <code>DiskGroupRules.countCovers</code> · 폼 <code>coversRule</code></h4>
+        <table>
+          <thead><tr><th>선행 \ 후행</th><th>EXACT m</th><th>EACH m</th><th>AT_LEAST m</th></tr></thead>
+          <tbody>
+            <tr><td><code>EXACT n</code></td><td>✗</td><td>✗</td><td>✗</td></tr>
+            <tr><td><code>EACH n</code></td><td>✗</td><td>n == m</td><td>✗</td></tr>
+            <tr><td><code>AT_LEAST n</code></td><td>n ≤ m</td><td>n ≤ m</td><td>n ≤ m</td></tr>
+          </tbody>
+        </table>
+        <p><b>'개' 행이 전부 ✗ 인 이유</b> — '개' 는 한 묶음만 가져가고 나머지를 남기므로, 후행이 볼 디스크가 원리적으로 남는다. 어떤 후행도 완전히 가려지지 않는다.</p>
+        <p><b>'개씩' 이 같은 n 의 '개씩' 만 덮는 이유</b> — '개씩' 은 크기가 n 의 배수인 그룹만 통째로 가져간다. 배수가 아닌 그룹은 손대지 않고 후행에 넘기므로, 후행이 '개' 나 '개 이상' 이면 그 그룹에서 살아난다. 반면 같은 n 의 '개씩' 은 선행이 가져가는 그룹 집합과 후행이 요구하는 그룹 집합이 정확히 같아 항상 선점된다.</p>
+        <p><b>'개 이상' 행이 현행 공식 그대로인 이유</b> — '개 이상' 은 크기 ≥ n 인 그룹을 전부 가져간다. 후행이 요구하는 크기(m 이상 또는 정확히 m, 단 m ≥ n)는 모두 그 안에 들어가므로 세 모드 모두를 덮는다. 축 포섭(종류 · 전송 · 용량) 판정은 바꾸지 않는다.</p>
+        <div class="callout">서버가 포섭을 발견하면 던지는 문장은 폼 미러의 안내와 같은 모양이다 — <b>"N번 묶음은 M번 묶음에 가려 도달할 수 없습니다 — 순서를 바꾸거나 조건을 좁히십시오."</b></div>
+
+        <h4>D4. 순위 가시화</h4>
+        <ul>
+          <li><b>순위 열</b> — 묶음 표(<code>#rcDiskGroupTable</code>)의 핸들 열 다음에 배지 숫자 열을 넣는다. 볼륨 우선순위 표(<code>#rcPriorityTable</code>)의 순위 열과 그 재번호 JavaScript(행 추가 · 삭제 · 드래그) 패턴을 재사용한다. 열 폭 재배분(합계 100 유지)은 CP2 에서 실측해 정한다.</li>
+          <li><b>상시 안내</b> — 제목 "디스크 묶음 규칙" 아래에 <code>n-hint</code> 한 줄을 항상 띄운다: "위 규칙부터 순서대로 디스크를 가져가고, 남은 디스크는 아래 규칙으로 흐릅니다. 어느 규칙에도 맞지 않는 디스크는 미배정으로 남습니다." 도달 불가 안내(<code>rcUnreachableHint</code>)는 그 아래에 지금처럼 조건부로 뜬다.</li>
+          <li><b>도움말</b> — 개 · 개씩 · 개 이상의 뜻을 한 줄씩 적고 "행 순서 = 적용 순서" 를 덧붙인다.</li>
+          <li><b>상세 카드</b> — <code>setting-process-cards.html</code> 의 묶음 표에서 '#' 헤더를 '순위' 로 바꾸고 개수 표기를 "2개씩" 형태로 낸다.</li>
+        </ul>
+
+        <h4>D5. 저장본 처리</h4>
+        <p>B1 을 택했으므로 09-01 의 뜻(배수)으로 저장된 <code>EXACT</code> 규칙은 개정 후 동작이 달라진다. 이를 막기 위해 <code>ddl/E3.5-7-a_count_mode_each.sql</code> 로 <code>setting_process.payload_json</code> 과 <code>assigned_process_snapshot.payload_json</code> 의 <code>"mode":"EXACT"</code> 를 <code>"mode":"EACH"</code> 로 치환한다(UPDATE 2문). 치환 대상은 RAID 구성 payload 로 한정하며, 용량 축의 <code>capacity.mode</code> 는 <code>AUTO</code>/<code>SPECIFIED</code> 어휘라 값이 겹치지 않는다. 실행 전 <code>SELECT COUNT</code> 로 대상 건수를 확인하고, 실기 VM 데이터베이스의 대상 건수는 CP2 에서 실측한다. 적용 시점은 배포와 동시다(스테이징 VM · 샌드박스). 실기 VM 실측(09-02)으로 대상은 <code>setting_process</code> 6행(정의서 6건 · EXACT 규칙 10개) · <code>assigned_process_snapshot</code> 9행이다.</p>
+        <div class="state-flow">저장본 "mode":"EXACT" (09-01 배수 뜻)
+   └─ 치환 SQL ──▶ "mode":"EACH" (같은 결과 3+3 보존)
+신규 입력 기본값 ──▶ "mode":"EXACT" (새 뜻 = 개 · 첫 묶음 한 번)</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>이 슬라이스의 산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td>폼 뷰 — 순위 열 · 모드 select 3옵션 · 상시 안내 · 도움말 · 상세 카드</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3</td><td>Controller — <span class="chip keep">무변경</span>(경로 · 시그니처 그대로)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>4</td><td>DTO — <code>DiskCountRequirement</code> 표시 확장(계약 모양 불변)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td>Service 시그니처 — <span class="chip keep">무변경</span></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td>Repository — <b>N/A</b>(조회 규칙 변화 없음)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>7</td><td>Entity — <b>N/A</b>. Enum <code>DiskCountMode</code> 에 <code>EACH</code> 추가가 이 단계에 해당</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8</td><td><code>RaidPlanner</code> 소비 · <code>DiskGroupRules.countCovers</code> · 폼 미러 구현</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>9</td><td>스키마 변경 0 — 대신 치환 SQL 산출 · 샌드박스 적용 · 결과 대조(D5)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 · 뷰 테스트 작성 + 전체 테스트 통과</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 + mock-guest 하네스(§9 A/B/C/R)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 E2E — 사용자 단독, E 단계 일괄</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(테스트 코드를 제외한 main 구현 + 빌드 통과, 경계마다 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오 (통합 · 단위 두 레이어)</summary>
+      <div class="body">
+        <h4>통합 — <code>@WebMvcTest</code> + <code>MockMvc</code></h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td><code>EACH</code> 를 담은 정의서 저장</td><td>201 · 계약에 <code>mode=EACH</code></td></tr>
+            <tr><td>성공 2xx</td><td>규칙 8 — <code>[EXACT 2 → EXACT 2]</code></td><td>201 (포섭 아님)</td></tr>
+            <tr><td>성공 2xx</td><td>규칙 8 — <code>[EXACT 2 → AT_LEAST 3]</code></td><td>201 (선행이 '개')</td></tr>
+            <tr><td>400</td><td>모드 누락</td><td>400 · 필드 메시지</td></tr>
+            <tr><td>400</td><td>어휘 밖 모드 토큰</td><td>400 · 필드 메시지</td></tr>
+            <tr><td>400</td><td>규칙 8 — <code>[EACH 2 → EACH 2]</code></td><td>400 · <code>unreachableRule</code></td></tr>
+            <tr><td>400</td><td>규칙 8 — <code>[AT_LEAST 2 → EXACT 3]</code></td><td>400 · <code>unreachableRule</code></td></tr>
+            <tr><td>404</td><td>해당 없음 — 경로 변경 0</td><td>수 0</td></tr>
+            <tr><td>409</td><td>해당 없음 — 중복 축 변경 0</td><td>수 0</td></tr>
+            <tr><td>500</td><td>해당 없음 — 신규 예외 0, 해석 실패는 400 으로 수렴</td><td>수 0</td></tr>
+          </tbody>
+        </table>
+        <p>통합 범주 합계는 <b>7</b>(성공 3 · 400 4) 이며, 위 표가 그 시나리오 전부다. 404 · 409 · 500 은 이 슬라이스에서 트리거되는 경로가 없어 수를 0 으로 남긴다 — 빈 칸이 아니라 "해당 없음" 이 판정 결과다.</p>
+
+        <h4>뷰 렌더 검증</h4>
+        <ul>
+          <li>개수 모드 select 가 세 옵션(개 · 개씩 · 개 이상)으로 렌더되고 첫 옵션이 선택돼 있다</li>
+          <li>묶음 표에 순위 열 헤더와 적용 순서 안내문이 렌더된다</li>
+          <li>상세 카드가 개수를 "2개씩" 으로 표기한다</li>
+        </ul>
+
+        <h4>단위 — <code>RaidPlannerTest</code>(개수 축 Nested 개정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>입력</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>EXACT 2</code> · 6대</td><td>볼륨 1개(2장) + 4장 후행으로 흐름</td></tr>
+            <tr><td>2</td><td><code>EXACT 2</code> · 1대</td><td>미소비 — 사유 "2장 미만(1대)"</td></tr>
+            <tr><td>3</td><td><code>EXACT</code> · 두 스펙 그룹</td><td>첫 그룹만 소비, 다른 그룹은 손대지 않음</td></tr>
+            <tr><td>4</td><td><code>EACH 2</code> · 6대</td><td>볼륨 3개(현행 T2 이관)</td></tr>
+            <tr><td>5</td><td><code>EACH 2</code> · 5대</td><td>미소비 — 사유 "배수 아님(5대)"</td></tr>
+            <tr><td>6</td><td><code>AT_LEAST</code></td><td>현행 동작 무변경 회귀</td></tr>
+            <tr><td>7</td><td>RAID 없음 · <code>EXACT 1</code></td><td>첫 1장만 패스스루</td></tr>
+            <tr><td>8</td><td>사례 (c) — SSD 6장</td><td>RAID1(2장) + RAID5(4장)</td></tr>
+            <tr><td>9</td><td>사례 (b) — 두 순서 각각</td><td>원 순서는 RAID1 + 미배정, 뒤집으면 RAID5 4장</td></tr>
+          </tbody>
+        </table>
+        <p>규칙 층에서는 <code>DiskGroupRulesTest</code> 의 W4 케이스가 <code>countCovers</code> 3×3 전수 <b>9</b> 칸을 덮는다 — §4 D3 표의 칸이 그대로 테스트 목록이 된다. 표시 층에서는 <code>DiskCountRequirement.toDisplay()</code> 가 세 값에 대해 "2개" · "2개씩" · "2개 이상" 을 내는지 확인한다. 마이그레이션은 샌드박스에 09-01 형 payload 를 넣고 치환 SQL 을 적용한 뒤 계획이 3+3 으로 동일한지 대조한다(CP5 C1).</p>
+        <div class="callout"><b>합계</b> — 통합 7 · 뷰 3 · 단위 9 · 규칙 9 · 표시 1 <b>= 29</b> (표의 행을 그대로 센 값 — 브리프의 어림 34 를 실측으로 정정).</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>트리거</th></tr></thead>
+          <tbody>
+            <tr><td><code>InvalidDiskGroupException.unreachableRule</code></td><td>400</td><td><span class="chip keep">재사용</span></td><td>규칙 8 포섭 — <code>[EACH 2 → EACH 2]</code> · <code>[AT_LEAST 2 → EXACT 3]</code></td></tr>
+            <tr><td>요청 바인딩 · 검증 실패</td><td>400</td><td><span class="chip keep">재사용</span></td><td>모드 누락 · 어휘 밖 모드 토큰</td></tr>
+          </tbody>
+        </table>
+        <p><b>신규 예외는 0 건이다.</b> 개수 모드가 셋으로 늘어도 거절 사유의 종류가 늘지 않기 때문이다 — 포섭 판정은 표의 칸이 늘 뿐 예외는 같은 것을 쓰고, 값 어휘 확장은 기존 요청 바인딩 검증이 그대로 받는다. 어휘 밖 토큰이 400 으로 매핑되는 경로의 세부(역직렬화 단계인지 검증 단계인지)는 CP2 착수 시 실측해 확정한다.</p>
+        <div class="callout success">신규 예외가 없으므로 "새 예외마다 통합 시나리오 필수" 규율의 신규 대상도 없다. 대신 <b>기존 <code>unreachableRule</code> 의 트리거 조합이 D3 개정으로 달라졌으므로</b>, §6 의 규칙 8 통합 4건이 새 진리표의 참 · 거짓 양쪽을 모두 친다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 결정 · 부산물 · 주의 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 사항 · 예상 부산물 · 주의</summary>
+      <div class="body">
+        <h4>결정 표 (채택 · 탈락)</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정 (채택)</th><th>탈락 대안</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td><code>DiskCountMode</code> 3값 · 기본 '개'</td><td>체크박스 · 순서만</td></tr>
+            <tr><td>D2</td><td>'개' = 크기 ≥ n · 첫 그룹 · 슬롯 순 n 장 · 부분 소비 허용</td><td>크기 == n 엄격</td></tr>
+            <tr><td>D3</td><td>포섭 3×3 — '개' 는 포섭 없음 · '개씩' 은 같은 n 만 · '개 이상' 은 n ≤ m</td><td>현행 2×2 유지</td></tr>
+            <tr><td>D4</td><td>순위 열 + 상시 안내 + 도움말</td><td>안내문만 · 순위 숫자 입력</td></tr>
+            <tr><td>D5</td><td>B1 명명(<code>EXACT</code>=개 · <code>EACH</code>=개씩) + 치환 SQL</td><td>B2(<code>ONCE</code> 추가 · 마이그레이션 0)</td></tr>
+            <tr><td>D6</td><td>RAID 없음 행 기본 <code>1 · 개 이상</code> 유지</td><td>'개' 로 통일</td></tr>
+          </tbody>
+        </table>
+
+        <h4>Open Questions (CP1 결정 요청)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>'개' 가 여러 스펙 그룹에 매칭될 때 "첫 그룹" 의 기준</td><td>인벤토리 슬롯 순 — 브리프에 다른 기준이 없다</td></tr>
+            <tr><td>Q2</td><td>치환 SQL 의 적용 범위</td><td><code>setting_process</code> 에 더해 <code>assigned_process_snapshot</code> 도 포함(할당됐으나 미집행인 서버의 뜻 보존). 실기 VM(192.168.24.128) 실측(09-02): <code>setting_process</code> 6행(정의서 6건 · EXACT 규칙 10개) · <code>assigned_process_snapshot</code> 9행 — 전부 RAID_CONFIGURATION payload</td></tr>
+            <tr><td>Q3</td><td>RAID 없음 행의 기본 모드</td><td>현행 <code>1 · 개 이상</code> 유지 — '개' 로 바꾸면 단독 디스크가 첫 1장만 잡혀 회귀한다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>부산물 · 주의</h4>
+        <ul>
+          <li><b>브랜치 스택</b> — <code>feat/E3.5-7-a_count-mode</code> 는 E3.5-6 브랜치 위에 쌓는다. 두 슬라이스가 같은 파일을 만지기 때문이다(<code>DiskGroupRuleRequest</code> · <code>RaidPlanner</code> · <code>DiskGroupRules</code> · <code>setting-form.js</code>). E3.5-6 의 커밋 뒤에서 분기한다.</li>
+          <li><b>동반 수정</b> — 서버 상세의 RAID 계획 미리보기는 <code>toDisplay()</code> 를 쓰므로 표기가 자동으로 따라오지만, 미소비 사유 문구는 D2 의 것으로 바꿔야 한다. 이 문구는 화면에 그대로 노출되므로 검증 항목(§9)에 넣는다.</li>
+          <li><b>임시 비대칭</b> — 저장본 치환은 배포와 동시에 한 번 적용하는 일회성 조치다. 적용 전후로 같은 정의서가 다른 계획을 낼 수 있는 창이 생기므로, 적용 시점을 배포와 붙여 그 창을 닫는다.</li>
+          <li><b>CLAUDE.md 수정</b> — 없다. 네이밍 · 레이어 경계 · 테스트 규율 어느 것도 이 슬라이스가 어기지 않는다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트 (빌드 · 기능 · 회귀)</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="E3.5-7-a-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과(회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="sql"> <span>치환 SQL 대상 건수 <code>SELECT COUNT</code> 확인 후 적용</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 검증 A · B · C 항목 수행 + 항목별 스크린샷 (CP5)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>실기 E2E — E 단계 일괄 (CP7, 사용자 단독)</span></label></li>
+        </ul>
+
+        <h4>기능 — 정상 흐름 (A)</h4>
+        <table>
+          <thead><tr><th>#</th><th>확인할 것</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>신규 행의 기본 모드가 '개' 이고, 순위 배지가 1 · 2 · 3 으로 붙으며 드래그 후 재번호된다</td></tr>
+            <tr><td>A2</td><td>'개씩' 을 골라 저장하면 상세 카드가 "3개씩" 으로 표기한다</td></tr>
+            <tr><td>A3</td><td>적용 순서 안내가 조건 없이 상시 노출된다</td></tr>
+            <tr><td>A4</td><td>mock-guest 하네스로 사례 (c) 인벤토리(같은 스펙 SSD 6장)를 올리면 서버 상세 계획 미리보기가 RAID1(2장) + RAID5(4장)를 낸다</td></tr>
+            <tr><td>A5</td><td>사례 (b) 의 순서를 뒤집으면 RAID5 가 4장을 한 볼륨으로 가져간다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>기능 — 비정상 조작 (B)</h4>
+        <table>
+          <thead><tr><th>#</th><th>확인할 것</th></tr></thead>
+          <tbody>
+            <tr><td>B1</td><td><code>[EACH 2 → EACH 2]</code> 입력 시 폼에서 행 색상이 바뀌고, 저장하면 400 이다</td></tr>
+            <tr><td>B2</td><td><code>[EXACT 2 → EXACT 2]</code> 는 색상 변화가 없고 저장이 201 이다</td></tr>
+            <tr><td>B3</td><td>폼을 우회한 직접 POST 로 어휘 밖 모드 토큰을 보내면 400 이다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>막는 방식 · 마이그레이션 (C)</h4>
+        <table>
+          <thead><tr><th>#</th><th>확인할 것</th></tr></thead>
+          <tbody>
+            <tr><td>C1</td><td>치환 SQL 적용 전후로 09-01 형 정의서의 계획이 동일하다(3+3)</td></tr>
+            <tr><td>C2</td><td>잠금 · 안내 문구가 막힌 이유와 다음 행동을 함께 안내한다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>회귀 (R)</h4>
+        <table>
+          <thead><tr><th>#</th><th>변화가 없어야 하는 것</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>E3.5-6 의 가상 디스크 파라미터 서브 행</td></tr>
+            <tr><td>R2</td><td>볼륨 우선순위 표(U4-1-2)</td></tr>
+            <tr><td>R3</td><td><code>RaidResultVerifier</code></td></tr>
+          </tbody>
+        </table>
+        <p>검증 항목은 A 5 · B 3 · C 2 · R 3 으로 <b>13 건</b>이며, 항목마다 스크린샷을 1:1 로 남긴다. E3.5 계열의 관례대로 화면이 있는 항목은 브라우저로, 계획 결과를 확인하는 A4 · A5 는 mock-guest 하네스와 서버 상세 화면을 함께 쓴다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (신규 1 · 수정 14 · 유지 6)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>ddl/E3.5-7-a_count_mode_each.sql</code></td><td>저장본 치환 UPDATE 2문(D5)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/enums/DiskCountMode.java</code></td><td><code>EACH</code> 상수 추가 · 선언 순서 = select 순서</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/dto/request/DiskCountRequirement.java</code></td><td><code>toDisplay()</code> 3값 확장</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/assignment/service/plan/RaidPlanner.java</code></td><td>모드별 소비 · pool 제거 · 미소비 사유 · 원칙 Javadoc</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>setting/service/reference/os/DiskGroupRules.java</code></td><td><code>countCovers</code> 3×3 개정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/provisioning/setting-form.js</code></td><td><code>coversRule</code> 미러 · 요약문 · 순위 재번호 · 기본값</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/setting-new.html</code></td><td>순위 열 · 상시 안내 · 도움말 · 모드 select</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>fragments/provisioning/setting-process-cards.html</code></td><td>'#' → '순위' · 개수 표기</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RaidPlannerTest</code></td><td>개수 축 Nested 개정 · 사례 (b)(c)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>DiskGroupRulesTest</code></td><td>W4 — <code>countCovers</code> 전수 9칸</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RaidConfigurationRequestContractTest</code></td><td>계약 <code>mode=EACH</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>ProcessPayloadConverterTest</code></td><td>payload 왕복</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingControllerDiskGroupViewTest</code></td><td>뷰 3건</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RaidConfigurationReferenceInspectorTest</code></td><td>참조 점검 회귀</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OsVolumeTargetsTest</code></td><td>요약문 표기</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>RaidRuleOutcome</code></td><td>모양 무변경(D2 명시)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>RaidApplyPayload</code> · 할당 스냅샷 · 응답 DTO</td><td>계약 무변경</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>가상 디스크 파라미터(E3.5-6)</td><td>변경 0 — 회귀 R1</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>볼륨 우선순위 표(U4-1-2)</td><td>변경 0 — 회귀 R2</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>RaidResultVerifier</code></td><td>변경 0 — 회귀 R3</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>인벤토리 파서 · <code>scripts/diag-image/agent/agent.sh</code></td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+        <p>수정 14 건 중 main 소스는 7 건, 테스트는 7 건이다. 신규 파일은 치환 SQL 한 벌뿐이며 신규 Java 클래스는 없다 — 값이 하나 늘 뿐 타입이 늘지 않는다는 것이 D1 을 택한 이유의 실물 확인이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤 · 절차</summary>
+      <div class="body">
+        <ol>
+          <li><b>E3.5-7-b — 게스트 서버별 볼륨 계획 수정.</b> 정의서 단위가 아니라 개별 서버의 계획을 손보는 화면이다. 이 슬라이스가 만든 모드 어휘를 그대로 쓴다.</li>
+          <li><b>E3.5-5 — 진단 리눅스의 디스크 · 기존 볼륨 수집.</b> 계획의 입력인 인벤토리를 실제로 채우는 슬라이스다.</li>
+        </ol>
+        <h4>절차</h4>
+        <ul>
+          <li>CP1 승인 → 브랜치 <code>feat/E3.5-7-a_count-mode</code> 를 E3.5-6 커밋 뒤에서 분기(스택)</li>
+          <li>CP2~CP4 무중단 진행 → CP4 중간 승인(테스트 제외 main 구현 + 빌드 통과)</li>
+          <li>승인 후 테스트 작성 → CP5(브라우저 + mock-guest 하네스) → CP6 report 제출</li>
+          <li>CP7 은 E 단계 관례대로 실기 연결 시험에서 일괄 판정</li>
+          <li>Notion 페이지는 E3.5-7-a 진행 중 · E3.5-7-b 시작 전으로 이미 갱신돼 있다</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) !== '#') return;
+      e.preventDefault();
+      var target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = true; });
+  });
+  document.getElementById('btn-collapse').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = false; });
+  });
+  document.getElementById('filter').addEventListener('input', function (e) {
+    var q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(function (d) {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().indexOf(q) !== -1) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(function (ul) {
+    var key = ul.dataset.storage;
+    var stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', function () {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 E3.5-7-a 데모 — 개수 모드 · 규칙 순서
+  //  ⚠ 판정은 §4 의 두 표를 코드로 그대로 옮긴 미러다(드리프트 0).
+  //     demoBlocks() = D3 포섭 3×3 = DiskGroupRules.countCovers / 폼 coversRule
+  //     demoPlan()   = D2 소비 진리표 = RaidPlanner.plan
+  //  ⚠ 데모는 매칭 축(종류 · 전송 · 용량)을 전부 AUTO 로 고정한다 → 스펙 그룹이 하나뿐이라
+  //     "남은 pool 전부" 가 곧 "첫 그룹" 이다. 카드 계열 한계 검사는 재현하지 않는다.
+  //  ⚠ demoRender() 는 파일 끝에서 1회 호출.
+  // ─────────────────────────────────────────────────────────────
+  var RC_LEVELS = {
+    NONE:   { label: 'RAID 없음', min: 1, raid: false, even: false },
+    RAID0:  { label: 'RAID0',  min: 1, raid: true,  even: false },
+    RAID1:  { label: 'RAID1',  min: 2, raid: true,  even: false },
+    RAID5:  { label: 'RAID5',  min: 3, raid: true,  even: false },
+    RAID6:  { label: 'RAID6',  min: 4, raid: true,  even: false },
+    RAID10: { label: 'RAID10', min: 4, raid: true,  even: true  }
+  };
+  var RC_LEVEL_KEYS = ['NONE', 'RAID0', 'RAID1', 'RAID5', 'RAID6', 'RAID10'];
+  var RC_MODES = { EXACT: '개', EACH: '개씩', AT_LEAST: '개 이상' };
+  var RC_MODE_KEYS = ['EXACT', 'EACH', 'AT_LEAST'];
+
+  var RC_SCENARIOS = [
+    { name: '① 사용자 예시 (b)', disks: 4,
+      rules: [{ level: 'RAID1', value: 2, mode: 'EXACT' }, { level: 'RAID5', value: 3, mode: 'AT_LEAST' }],
+      banner: '모드를 나눈 뒤에도 <b>이 순서로는 RAID5 가 나오지 않습니다</b> — 규칙 1 이 먼저 2장을 가져가고, 남은 2장은 3장 미만이라 미배정입니다. 이것은 모드 문제가 아니라 순서 문제입니다.' },
+    { name: '② 순서 뒤집기', disks: 4,
+      rules: [{ level: 'RAID5', value: 3, mode: 'AT_LEAST' }, { level: 'RAID1', value: 2, mode: 'EXACT' }],
+      banner: '순서를 뒤집으면 <b>4장이면 RAID5 · 2장이면 RAID1</b> 이 그대로 표현됩니다. 슬라이더를 2 로 내려 보십시오 — RAID5 가 미소비로 흘러 RAID1 이 받습니다.' },
+    { name: '③ 사례 (c)', disks: 6,
+      rules: [{ level: 'RAID1', value: 2, mode: 'EXACT' }, { level: 'RAID5', value: 3, mode: 'AT_LEAST' }],
+      banner: '현행(배수)으로는 표현할 수 없던 조합입니다 — <b>\'개\' 가 첫 2장만 가져가고</b> 남은 4장이 후행 RAID5 로 흐릅니다.' },
+    { name: '④ 09-01 실기', disks: 6,
+      rules: [{ level: 'RAID5', value: 3, mode: 'EACH' }],
+      banner: '2026-09-01 실기 정의서입니다(실기는 HDD 6대 · 데모 인벤토리는 스펙 하나라 SSD 로 표기 · 종류는 판정에 무관) — <b>\'개씩\' 이 6장을 3+3 두 볼륨으로</b> 나눕니다. 모드를 \'개\' 로 바꾸면 볼륨 1개 + 3장 미배정이 되며, 이것이 저장본 치환(EXACT → EACH)이 필요한 이유입니다.' },
+    { name: '⑤ RAID0 1장', disks: 4,
+      rules: [{ level: 'RAID0', value: 1, mode: 'EXACT' }],
+      banner: '사용자 제기 (a) 입니다 — <b>\'개\' 1 은 한 장짜리 볼륨 하나</b>, 모드를 \'개씩\' 으로 바꾸면 장수만큼 볼륨이 생깁니다.' },
+    { name: '⑥ 포섭 400', disks: 4,
+      rules: [{ level: 'RAID1', value: 2, mode: 'EACH' }, { level: 'RAID1', value: 2, mode: 'EACH' }],
+      banner: '두 규칙이 같은 <b>\'개씩 2\'</b> 라 2번이 도달 불가로 400 입니다. 두 모드를 <b>\'개\'</b> 로 바꾸면 2번이 남은 2장을 받아 RAID1 두 볼륨이 됩니다 — \'개\' 는 어떤 후행도 포섭하지 않습니다.' }
+  ];
+
+  var rcState = {
+    scenario: 0,
+    disks: RC_SCENARIOS[0].disks,
+    banner: RC_SCENARIOS[0].banner,
+    rules: RC_SCENARIOS[0].rules.map(function (r) { return { level: r.level, value: r.value, mode: r.mode }; })
+  };
+
+  // ── D3 포섭 3×3 (선행이 후행을 완전 포섭하는가) — DiskGroupRules.countCovers 미러 ──
+  //    '개'      : 한 묶음만 가져가고 남기므로 어떤 후행도 포섭하지 않는다
+  //    '개씩'    : 크기 % n == 0 인 그룹만 통째로 가져가므로 같은 n 의 '개씩' 만 항상 선점한다
+  //    '개 이상' : 크기 ≥ n 그룹을 전부 가져가므로 m ≥ n 인 후행 셋을 모두 덮는다
+  function rcCountCovers(prior, later) {
+    if (prior.mode === 'EXACT') return false;
+    if (prior.mode === 'EACH') return later.mode === 'EACH' && prior.value === later.value;
+    return prior.value <= later.value;
+  }
+
+  // 규칙 8 차단 판정 — 서버 검증과 폼 미러가 같은 판정을 낸다.
+  // 문구는 첫 발견 쌍만(서버 400 문장과 같은 모양) · 색상은 피포섭 행 전부.
+  function demoBlocks(rules) {
+    var blocked = {}, message = null, pairs = [];
+    for (var j = 1; j < rules.length; j++) {
+      for (var i = 0; i < j; i++) {
+        var covered = rcCountCovers(rules[i], rules[j]);
+        pairs.push({ prior: i + 1, later: j + 1, covered: covered });
+        if (covered) {
+          blocked[j] = true;
+          if (!message) {
+            message = (j + 1) + '번 묶음은 ' + (i + 1) + '번 묶음에 가려 도달할 수 없습니다 — 순서를 바꾸거나 조건을 좁히십시오.';
+          }
+          break;
+        }
+      }
+    }
+    return { blocked: blocked, message: message, pairs: pairs };
+  }
+
+  // ── D2 소비 진리표 — RaidPlanner.plan 미러 ──
+  function demoPlan(rules, diskCount) {
+    var pool = [];
+    for (var s = 0; s < diskCount; s++) pool.push('252:' + s);
+    var outcomes = [], entries = [];
+    rules.forEach(function (rule, idx) {
+      var no = idx + 1;
+      var spec = RC_LEVELS[rule.level];
+      var matched = pool.length;          // 그룹이 하나뿐이므로 매칭 = 남은 pool 전부
+      var consumed = 0, volumes = 0, reason = null;
+      if (rule.value < spec.min || (spec.even && rule.value % 2 !== 0)) {
+        reason = spec.label + ' 최소 미달 — ' + spec.min + '장 이상' + (spec.even ? ' 짝수' : '') + ' 필요';
+      } else if (matched === 0) {
+        reason = '매칭된 디스크 없음 — 앞 규칙이 모두 가져갔습니다';
+      } else {
+        var selected = rule.mode === 'EXACT' ? matched >= rule.value
+                     : rule.mode === 'EACH'  ? matched % rule.value === 0
+                     :                         matched >= rule.value;
+        if (!selected) {
+          reason = rule.mode === 'EXACT' ? rule.value + '장에 못 미침(' + matched + '대)'
+                 : rule.mode === 'EACH'  ? '배수 아님(' + matched + '대)'
+                 :                         rule.value + '장 미만(' + matched + '대)';
+        } else {
+          var take = rule.mode === 'EXACT' ? rule.value : matched;   // '개' 만 부분 소비
+          var slice = pool.slice(0, take);
+          var sliceSize = rule.mode === 'EACH' ? rule.value : take;  // '개씩' 만 나눠 담는다
+          if (spec.raid) {
+            for (var from = 0; from < slice.length; from += sliceSize) {
+              volumes++;
+              entries.push({ kind: 'volume', name: 'spvR' + no + 'V' + volumes,
+                             level: spec.label, members: slice.slice(from, from + sliceSize) });
+            }
+          } else {
+            slice.forEach(function (m) {
+              entries.push({ kind: 'pass', name: '패스스루', level: spec.label, members: [m] });
+            });
+          }
+          consumed = slice.length;
+          pool = pool.slice(take);
+        }
+      }
+      outcomes.push({ no: no, rule: rule, matched: matched, consumed: consumed, volumes: volumes, reason: reason });
+    });
+    return { outcomes: outcomes, entries: entries, unassigned: pool };
+  }
+
+  // ── 조작 핸들러 ──
+  function rcTouch() { rcState.scenario = -1; rcState.banner = '직접 편집 중입니다 — 시나리오 버튼을 누르면 준비된 세팅으로 돌아갑니다.'; }
+  function rcSetLevel(i, v) { rcState.rules[i].level = v; rcTouch(); demoRender(); }
+  function rcSetMode(i, v) { rcState.rules[i].mode = v; rcTouch(); demoRender(); }
+  function rcSetValue(i, v) {
+    var n = parseInt(v, 10);
+    if (isNaN(n) || n < 1) n = 1;
+    if (n > 6) n = 6;
+    rcState.rules[i].value = n; rcTouch(); demoRender();
+  }
+  function rcSetDisks(v) { rcState.disks = parseInt(v, 10); rcTouch(); demoRender(); }
+  function rcMove(i, dir) {
+    var j = i + dir;
+    if (j < 0 || j >= rcState.rules.length) return;
+    var tmp = rcState.rules[i];
+    rcState.rules[i] = rcState.rules[j];
+    rcState.rules[j] = tmp;
+    rcTouch(); demoRender();
+  }
+  function rcRemove(i) {
+    if (rcState.rules.length <= 1) return;
+    rcState.rules.splice(i, 1); rcTouch(); demoRender();
+  }
+  function rcAdd() {
+    if (rcState.rules.length >= 3) return;
+    rcState.rules.push({ level: 'RAID1', value: 2, mode: 'EXACT' });   // 신규 행 기본 모드 = '개'
+    rcTouch(); demoRender();
+  }
+  function rcScenario(k) {
+    var s = RC_SCENARIOS[k];
+    rcState.scenario = k;
+    rcState.disks = s.disks;
+    rcState.banner = s.banner;
+    rcState.rules = s.rules.map(function (r) { return { level: r.level, value: r.value, mode: r.mode }; });
+    demoRender();
+  }
+
+  // ── 렌더 ──
+  function rcSelect(handler, i, keys, labelOf, current) {
+    var html = '<select onchange="' + handler + '(' + i + ',this.value)" style="font-size:12px;padding:3px 4px;">';
+    keys.forEach(function (k) {
+      html += '<option value="' + k + '"' + (k === current ? ' selected' : '') + '>' + labelOf(k) + '</option>';
+    });
+    return html + '</select>';
+  }
+  function rcMoveBtn(i, dir, label, disabled, tip) {
+    var t = disabled ? ' data-tip="' + tip + '"' : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn" style="padding:2px 8px;"' + (disabled ? ' disabled' : '') +
+      ' onclick="rcMove(' + i + ',' + dir + ')">' + label + '</button></span> ';
+  }
+  function demoRender() {
+    var rules = rcState.rules;
+    var block = demoBlocks(rules);
+    var plan = demoPlan(rules, rcState.disks);
+
+    document.querySelectorAll('.ux-toolbar .seg[data-scn]').forEach(function (b) {
+      b.classList.toggle('active', parseInt(b.dataset.scn, 10) === rcState.scenario);
+    });
+    var banner = document.getElementById('rc-banner');
+    banner.className = 'ux-message' + (block.message ? ' error' : '');
+    banner.innerHTML = rcState.banner;
+
+    // 규칙 표
+    var rowsHtml = '';
+    rules.forEach(function (r, i) {
+      var isBlocked = !!block.blocked[i];
+      rowsHtml += '<tr' + (isBlocked ? ' style="background:var(--red-bg);"' : '') + '>'
+        + '<td><span class="chip ' + (isBlocked ? 'del' : 'opt') + '">' + (i + 1) + '</span>'
+        + (isBlocked ? ' <span class="chip del">도달 불가</span>' : '') + '</td>'
+        + '<td>' + rcSelect('rcSetLevel', i, RC_LEVEL_KEYS, function (k) { return RC_LEVELS[k].label; }, r.level) + '</td>'
+        + '<td><input type="number" min="1" max="6" value="' + r.value + '" onchange="rcSetValue(' + i + ',this.value)" style="width:58px;font-size:12px;padding:3px 4px;"></td>'
+        + '<td>' + rcSelect('rcSetMode', i, RC_MODE_KEYS, function (k) { return RC_MODES[k]; }, r.mode) + '</td>'
+        + '<td>'
+        + rcMoveBtn(i, -1, '▲', i === 0, '첫 규칙입니다 — 더 올릴 곳이 없습니다.')
+        + rcMoveBtn(i, 1, '▼', i === rules.length - 1, '마지막 규칙입니다 — 더 내릴 곳이 없습니다.')
+        + '<span class="tip"' + (rules.length <= 1 ? ' data-tip="규칙은 최소 한 줄이 필요합니다."' : '')
+        + '><button class="n-demo-btn" style="padding:2px 8px;border-color:var(--red);color:var(--red);"'
+        + (rules.length <= 1 ? ' disabled' : '') + ' onclick="rcRemove(' + i + ')">✕</button></span>'
+        + '</td></tr>';
+    });
+    document.getElementById('rc-rules').innerHTML = rowsHtml;
+    document.getElementById('rc-rule-actions').innerHTML =
+      '<span class="tip"' + (rules.length >= 3 ? ' data-tip="이 데모는 규칙 세 줄까지만 다룹니다."' : '')
+      + '><button class="n-demo-btn"' + (rules.length >= 3 ? ' disabled' : '') + ' onclick="rcAdd()">+ 규칙 행 추가 (기본 모드 \'개\')</button></span>';
+
+    // 인벤토리
+    var slider = document.getElementById('rc-disks');
+    if (slider.value !== String(rcState.disks)) slider.value = rcState.disks;
+    document.getElementById('rc-disks-badge').textContent = rcState.disks + '장';
+    var slots = [];
+    for (var s = 0; s < rcState.disks; s++) slots.push('252:' + s);
+    document.getElementById('rc-slots').textContent = 'SSD · SATA · 동일 용량 (한 스펙 그룹)\n' + slots.join('  ');
+
+    // ① 규칙 8 판정
+    var capsHtml = '';
+    if (block.pairs.length === 0) {
+      capsHtml = '규칙이 한 줄뿐 — 포섭 판정 대상 없음\n결과 : 저장 허용';
+    } else {
+      block.pairs.forEach(function (p) {
+        capsHtml += p.prior + '번 ⊇ ' + p.later + '번 ?  '
+          + (p.covered ? '<span class="t">true</span> → ' + p.later + '번 도달 불가'
+                       : '<span class="f">false</span> → 도달 가능') + '\n';
+      });
+      capsHtml += block.message
+        ? '\n서버 400 : ' + block.message
+        : '\n결과 : 저장 허용 (400 없음)';
+    }
+    document.getElementById('rc-cover').innerHTML = capsHtml;
+
+    // ② 계획 결과
+    var planHtml = '';
+    if (block.message) {
+      planHtml += '<div class="callout danger" style="margin-top:0;">이 조합은 저장 단계에서 400 으로 거절되므로 실제로는 계획에 이르지 못합니다. 아래는 규칙이 통과했다고 가정한 참고 값입니다.</div>';
+    }
+    planHtml += '<table><thead><tr><th>규칙</th><th>매칭</th><th>소비</th><th>볼륨</th><th>미소비 사유</th></tr></thead><tbody>';
+    plan.outcomes.forEach(function (o) {
+      planHtml += '<tr><td>' + o.no + '. ' + RC_LEVELS[o.rule.level].label + ' ' + o.rule.value + RC_MODES[o.rule.mode] + '</td>'
+        + '<td>' + o.matched + '</td><td>' + o.consumed + '</td><td>' + o.volumes + '</td>'
+        + '<td>' + (o.reason ? o.reason : '—') + '</td></tr>';
+    });
+    planHtml += '</tbody></table>';
+    if (plan.entries.length > 0) {
+      planHtml += '<table><thead><tr><th>이름</th><th>레벨</th><th>멤버 슬롯</th></tr></thead><tbody>';
+      plan.entries.forEach(function (e) {
+        planHtml += '<tr><td><code>' + e.name + '</code></td><td>' + e.level + '</td><td>' + e.members.join(', ') + '</td></tr>';
+      });
+      planHtml += '</tbody></table>';
+    } else {
+      planHtml += '<div class="callout warn">계획된 볼륨이 없습니다 — 어떤 규칙도 디스크를 가져가지 못했습니다.</div>';
+    }
+    planHtml += '<div class="callout' + (plan.unassigned.length > 0 ? ' warn' : ' success') + '"><b>미배정</b> : '
+      + (plan.unassigned.length > 0 ? plan.unassigned.join(', ') + ' (' + plan.unassigned.length + '장)' : '없음') + '</div>';
+    document.getElementById('rc-plan').innerHTML = planHtml;
+
+    // ③ 한 줄 해설
+    var volCount = plan.entries.filter(function (e) { return e.kind === 'volume'; }).length;
+    var passCount = plan.entries.filter(function (e) { return e.kind === 'pass'; }).length;
+    var note = document.getElementById('rc-note');
+    note.className = 'ux-message' + (block.message ? ' error' : (plan.unassigned.length > 0 ? '' : ' success'));
+    note.textContent = 'SSD ' + rcState.disks + '장 → 볼륨 ' + volCount + '개 · 패스스루 ' + passCount + '장 · 미배정 '
+      + plan.unassigned.length + '장.'
+      + (block.message ? ' 다만 규칙 8 포섭 때문에 이 조합은 저장 단계에서 400 으로 거절됩니다.' : '');
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
