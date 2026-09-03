@@ -57,4 +57,7 @@ U4-1 은 정의서가 **RAID 구성과 디스크 역할을 적는 것**까지만
 - [ ] **재PXE 실측 K1** (E4-1-a-3): Windows Setup 의 재부팅이 부트 순서(네트워크 우선 · 디스크 우선)에 따라 재PXE 로 돌아오는지 — 돌아오면 `exit` 폴스루로 로컬 디스크 부팅이 이어지는지(재진입 n/5 콘솔 문구 · 카드 재진입 수 대조), 돌아오지 않으면 시한 판정이 일어나지 않는 공백(D-8)을 운영자 수동 실패 전환으로 닫는 절차 확인.
 - [ ] **토큰 번들 wimboot 체인 실기** (E4-1-a-3): 실 iPXE 가 `kernel …/windows/{token}/wimboot` + `initrd` 4(winpeshl.ini · install.bat · autounattend.xml · boot.wim 542 MB) 를 HTTP 로 받아 WinPE 로 부팅하는지 · boot.wim 전송 중단 시 Range 재수신 여부.
 - [ ] **렌더본으로 무인 설치 완주** (E4-1-a-3): 앱이 렌더한 autounattend.xml(언어 = 이미지 태그 · ComputerName `SPV-<UUID 8>` · Base64 비밀번호 · 제품 키)과 install.bat(UNC · 계정)로 실측 3호와 같은 무인 완주 · 첫 로그온 · `hostname` = ComputerName.
+- [ ] **$OEM$ 페이로드 · SetupComplete 실기** (E4-1-a-4): 앱이 조립한 `sources/$OEM$`(드라이버 트리 · SetupComplete.cmd · spv-report.ps1)를 Setup 이 복사하고, 첫 로그온 전에 SetupComplete.cmd 가 pnputil 루프를 실제로 실행하는지(`C:\SPV\setupcomplete.log` · 문제 장치 92 → 0 재현) · 제품 키 종류(GVLK)에서 건너뛰지 않는지.
+- [ ] **첫 로그온 완료 보고 도달** (E4-1-a-4): FirstLogonCommands Order 2 의 `spv-report.ps1` 이 네트워크 대기 뒤 `POST /api/pxe/v1/agent/windows/complete` 로 200 을 받고(`C:\SPV\spv-report.log`), 카드가 완료(ComputerName · 드라이버 n · 문제 장치 n)로 바뀌며 토큰 URL 이 404 가 되는지 · 종단 뒤 재부팅이 로컬 디스크로 이어지는지(exit).
+- [ ] **재PXE 없는 게스트의 스윕** (E4-1-a-4): 디스크 우선 부트 순서에서 보고가 오지 않을 때 서빙 + 60분 + 유예 30분 뒤 스윕이 INSTALL_TIMEOUT 으로 닫는지(운영자 수동 전환 없이).
 - [ ] **wimboot 서명 · Secure Boot** (E4-1-a-3 · E4-1-a-5): 2011 CA 서명 wimboot 를 실보드 펌웨어가 Secure Boot 켠 상태에서 받는지(2026-06 CA 전환 뒤 거부 가능 — 런북 §14-4).

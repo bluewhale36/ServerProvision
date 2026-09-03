@@ -98,7 +98,7 @@ public class SystemAssetDashboardService {
                 .toList();
         return new SystemAssetAreaGroupResponse(
                 area.areaKey().name(), area.displayName(), area.availability().name(),
-                rows, ok, slots.size(), area.supportsSeal(), context);
+                rows, ok, slots.size(), area.supportsSeal(), context, area.actionBlockReason().orElse(null));
     }
 
     private SystemAssetSlotResponse toRow(SystemAssetSlot slot, AssetSlotStatus status) {

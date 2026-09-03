@@ -163,4 +163,48 @@ class WindowsInstallLedgerTest {
         assertThat(ledger.isWindowsInstallRow(row)).isTrue();
         assertThat(ledger.abortRunning(row, WindowsInstallLedger.OPERATOR, "다시", NOW.plusMinutes(4))).isFalse();
     }
+
+    @Test
+    @DisplayName("closeSucceeded(E4-1-a-4) — SUCCEEDED 로 닫되 서빙 meta 보존 + 완료 meta · 판독기 6종 왕복 · 로그 꼬리는 있을 때만")
+    void closeSucceeded_keepsServingMeta() {
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, NOW);
+        ledger.bumpReentry(row, NOW.plusMinutes(5));
+
+        boolean closed = ledger.closeSucceeded(row, new WindowsInstallLedger.Completion("SPV-14174000", "Windows Server 2025 10.0.26100",
+                47, 2, java.util.List.of("A", "B"), "tail"), NOW.plusMinutes(12));
+
+        assertThat(closed).isTrue();
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
+        assertThat(row.getFinishedAt()).isEqualTo(NOW.plusMinutes(12));
+        assertThat(ledger.servedAtOf(row)).isEqualTo(NOW);
+        assertThat(ledger.reentriesOf(row)).isEqualTo(1);
+        assertThat(ledger.imageOf(row)).isEqualTo(IMAGE.value());
+        assertThat(ledger.isCompletedRow(row)).isTrue();
+        assertThat(ledger.reasonOf(row)).isEqualTo(WindowsInstallLedger.COMPLETED);
+        assertThat(ledger.completedAtOf(row)).isEqualTo(NOW.plusMinutes(12));
+        assertThat(ledger.computerNameOf(row)).isEqualTo("SPV-14174000");
+        assertThat(ledger.osVersionOf(row)).isEqualTo("Windows Server 2025 10.0.26100");
+        assertThat(ledger.driversAddedOf(row)).isEqualTo(47);
+        assertThat(ledger.problemDeviceCountOf(row)).isEqualTo(2);
+        assertThat(ledger.problemDevicesOf(row)).containsExactly("A", "B");
+        assertThat(row.getStatusMeta()).contains("\"setupCompleteLogTail\":\"tail\"");
+        assertThat(row.displayNote()).isEqualTo("설치 완료 · 드라이버 47 · 문제 장치 2");
+    }
+
+    @Test
+    @DisplayName("closeSucceeded — 이미 닫힌 행은 false · 실패로 닫힌 행은 완료 행이 아니다 · 로그 꼬리 없으면 키 생략")
+    void closeSucceeded_alreadyClosedAndNotCompleted() {
+        ProvisioningHistory failed = ledger.openServed(guest, IMAGE, NOW);
+        ledger.abortRunning(failed, WindowsInstallLedger.OPERATOR, "운영자", NOW.plusMinutes(1));
+        WindowsInstallLedger.Completion c = new WindowsInstallLedger.Completion("SPV-1", null, 0, 0, null, " ");
+
+        assertThat(ledger.closeSucceeded(failed, c, NOW.plusMinutes(2))).isFalse();
+        assertThat(ledger.isCompletedRow(failed)).isFalse();
+
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, NOW);
+        assertThat(ledger.closeSucceeded(row, c, NOW.plusMinutes(3))).isTrue();
+        assertThat(row.getStatusMeta()).doesNotContain("setupCompleteLogTail");
+        assertThat(ledger.problemDevicesOf(row)).isEmpty();
+        assertThat(ledger.osVersionOf(row)).isNull();
+    }
 }

@@ -151,7 +151,8 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
         String autounattend = AutounattendRenderer.render(new AutounattendRenderer.AutounattendValues(
                 image.language(), productKey, image.name().value(),
                 AutounattendRenderer.computerNameFor(server.getSystemUUID()),
-                properties.effectiveTimeZone(), target.administratorPassword()));
+                properties.effectiveTimeZone(), target.administratorPassword(),
+                tokenRegistry.baseUrl(), server.issueTokenIfAbsent().value()));   // E4-1-a-4 — 첫 로그온 완료 보고 인자
         String installBat = InstallBatRenderer.render(properties.shareUnc(), properties.shareUser(), properties.sharePassword());
         return new WindowsInstallBundle(assets.wimboot(), assets.bootWim(),
                 WindowsInstallTemplates.WINPESHL_INI, installBat, autounattend);

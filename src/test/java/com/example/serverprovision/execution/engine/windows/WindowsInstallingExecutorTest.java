@@ -60,7 +60,7 @@ class WindowsInstallingExecutorTest {
     private final WindowsInstallProperties properties = new WindowsInstallProperties("/srv/pxe/win2025",
             "\\\\10.0.0.7\\win2025", "deploy", "s3cret-9x", null,
             new WindowsInstallProperties.ProductKeys("KEY11-STAND-ARD00-XXXXX-YYYYY", null));
-    private final WindowsInstallTimeoutPolicy timeoutPolicy = new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5);
+    private final WindowsInstallTimeoutPolicy timeoutPolicy = new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5, Duration.ofMinutes(30));
     private final WindowsInstallTokenRegistry tokenRegistry = new WindowsInstallTokenRegistry("http://10.0.0.7:8080");
     private WindowsInstallingExecutor executor;
 
@@ -71,7 +71,9 @@ class WindowsInstallingExecutorTest {
         executor = new WindowsInstallingExecutor(resolver, properties, source, ledger, timeoutPolicy, tokenRegistry);
         lenient().when(source.assets()).thenReturn(new WindowsInstallAssets(
                 Path.of("/srv/pxe/win2025/wimboot"), true, Path.of("/srv/pxe/win2025/sources/boot.wim"), true,
-                Path.of("/srv/pxe/win2025/sources/setup.exe"), true));
+                Path.of("/srv/pxe/win2025/sources/setup.exe"), true,
+                Path.of("/srv/pxe/win2025/sources/$OEM$/$$/Setup/Scripts/SetupComplete.cmd"), true,
+                Path.of("/srv/pxe/win2025/sources/$OEM$/$1/SPV/spv-report.ps1"), true));
     }
 
     private static WindowsImage image() {

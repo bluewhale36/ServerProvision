@@ -90,7 +90,7 @@ class GuestServerControllerWindowsInstallViewTest {
                                                                  int reentries, Long remaining, String failedReason,
                                                                  boolean holding, long holdRemaining) {
         return new GuestServerDetailResponse.WindowsInstall(IMAGE, DISPLAY, grade, notes, servedAt, reentries, 5,
-                remaining, failedReason, holding, holdRemaining);
+                remaining, failedReason, holding, holdRemaining, null, null, null, 0, 0, List.of(), false, null);
     }
 
     @Test
@@ -114,7 +114,7 @@ class GuestServerControllerWindowsInstallViewTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("설치 중")))
                 .andExpect(content().string(containsString("서빙 2026-09-03 13:05:09 · 재진입 2/5 · 잔여 42분")))
-                .andExpect(content().string(containsString("E4-1-a-4 에서 종결")))
+                .andExpect(content().string(containsString("첫 로그온 스크립트가 완료를 보고합니다")))
                 .andExpect(content().string(not(containsString("설치 시한이 지났습니다"))))
                 .andExpect(content().string(not(containsString("다음 부팅에서 설치를 시작할 수 있습니다"))));   // CP5 O-2 — 서빙 뒤 시제
     }
@@ -126,7 +126,7 @@ class GuestServerControllerWindowsInstallViewTest {
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("설치 시한이 지났습니다")))
-                .andExpect(content().string(containsString("운영자가 실패 전환하십시오")));
+                .andExpect(content().string(containsString("유예가 지나면 자동으로 실패 처리됩니다")));
     }
 
     @Test
@@ -170,5 +170,43 @@ class GuestServerControllerWindowsInstallViewTest {
                 .andExpect(content().string(containsString("실패 · OPERATOR")))
                 .andExpect(content().string(containsString("운영자가 수동으로 실패 전환했습니다")))
                 .andExpect(content().string(not(containsString("다음 부팅에서 설치를 시작할 수 있습니다"))));
+    }
+
+    private static GuestServerDetailResponse.WindowsInstall completedCard(int problems, List<String> devices,
+                                                                          boolean terminal, ProvisioningPhase next) {
+        return new GuestServerDetailResponse.WindowsInstall(IMAGE, DISPLAY, ReadinessGrade.READY, List.of(),
+                LocalDateTime.of(2026, 9, 3, 13, 5, 9), 1, 5, null, null, false, 0,
+                LocalDateTime.of(2026, 9, 3, 13, 21, 40), "SPV-14174000", "Windows Server 2025 10.0.26100",
+                47, problems, devices, terminal, next);
+    }
+
+    @Test
+    @DisplayName("완료 · 종단(E4-1-a-4) — 완료 시각 · ComputerName · 드라이버 47 · 문제 장치 0 · '문제 장치 없음' · 종단 안내 · 설치 중 문구 없음")
+    void completedTerminal() throws Exception {
+        UUID id = detailWith(completedCard(0, List.of(), true, null));
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("완료 2026-09-03 13:21:40 · ComputerName SPV-14174000 · 드라이버 47 · 문제 장치 0")))
+                .andExpect(content().string(containsString("문제 장치 없음")))
+                .andExpect(content().string(containsString("프로비저닝이 종단됐고")))
+                .andExpect(content().string(not(containsString("다음 부팅에서 설치를 시작할 수 있습니다"))))   // CP5 F-2 — 종단 뒤 시제
+                .andExpect(content().string(not(containsString("설치 중"))))
+                .andExpect(content().string(not(containsString("첫 로그온 스크립트가 완료를 보고합니다"))))
+                .andExpect(content().string(not(containsString("문제 장치 목록 ("))));   // details 미렌더(템플릿 주석의 문구는 제외)
+    }
+
+    @Test
+    @DisplayName("완료 · 다음 단계 — '다음 단계로 넘어갔습니다 — 테스트' · 문제 장치 목록(접힘) 2건 + 안내")
+    void completedNextPhaseWithProblems() throws Exception {
+        UUID id = detailWith(completedCard(2, List.of("Unknown device (ACPI\\INT34C6)", "PCI Simple Communications Controller"),
+                false, ProvisioningPhase.TESTING));
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("다음 단계로 넘어갔습니다 — 테스트")))
+                .andExpect(content().string(containsString("문제 장치 목록 (2)")))
+                .andExpect(content().string(containsString("Unknown device (ACPI\\INT34C6)")))
+                .andExpect(content().string(containsString("페이로드를 다시 조립하면")))
+                .andExpect(content().string(not(containsString("문제 장치 없음"))))
+                .andExpect(content().string(not(containsString("프로비저닝이 종단됐고"))));
     }
 }

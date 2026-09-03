@@ -15,6 +15,7 @@ import java.util.List;
  * @param totalCount   이 영역의 전체 슬롯 수
  * @param supportsSeal 봉인 지원 여부 — false 면 뷰가 봉인 버튼 자체를 렌더하지 않는다(UI 1차 차단, 서버 가드와 동일 SSOT)
  * @param context      영역 헤더 관측 chip(서비스 상태·활성 임대 건수 등, 슬롯 아님). 파일 봉인 영역은 빈 목록.
+ * @param actionBlockReason 영역 전용 액션 버튼의 disabled 사유(tooltip). null 이면 가능하거나 액션이 없다 — 서버 409 가드와 같은 판정(E4-1-a-4)
  */
 public record SystemAssetAreaGroupResponse(
         String areaKey,
@@ -24,6 +25,7 @@ public record SystemAssetAreaGroupResponse(
         int okCount,
         int totalCount,
         boolean supportsSeal,
-        List<AssetContextItemResponse> context
+        List<AssetContextItemResponse> context,
+        String actionBlockReason
 ) {
 }

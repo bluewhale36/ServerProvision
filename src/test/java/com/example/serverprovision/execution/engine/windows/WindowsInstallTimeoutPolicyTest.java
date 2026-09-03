@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class WindowsInstallTimeoutPolicyTest {
 
     private static final LocalDateTime SERVED = LocalDateTime.of(2026, 9, 3, 10, 0);
-    private final WindowsInstallTimeoutPolicy policy = new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5);
+    private final WindowsInstallTimeoutPolicy policy = new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5, Duration.ofMinutes(30));
 
     @Test
     @DisplayName("만료 — 서빙 + 60분을 지나야 만료, 정확히 60분은 아직")
@@ -30,5 +30,16 @@ class WindowsInstallTimeoutPolicyTest {
         assertThat(policy.remainingMinutes(null, SERVED)).isZero();
         assertThat(policy.maxReentries()).isEqualTo(5);
         assertThat(policy.installTimeout()).isEqualTo(Duration.ofMinutes(60));
+    }
+
+    @Test
+    @DisplayName("isSweepDue(E4-1-a-4) — 서빙 + 시한 + 유예(90분) 경계: 89분 false · 91분 true · served null false · sweepGrace 30분")
+    void sweepDue_boundary() {
+        assertThat(policy.sweepGrace()).isEqualTo(Duration.ofMinutes(30));
+        assertThat(policy.isSweepDue(SERVED, SERVED.plusMinutes(89))).isFalse();
+        assertThat(policy.isSweepDue(SERVED, SERVED.plusMinutes(90))).isFalse();
+        assertThat(policy.isSweepDue(SERVED, SERVED.plusMinutes(91))).isTrue();
+        assertThat(policy.isSweepDue(null, SERVED)).isFalse();
+        assertThat(policy.isExpired(SERVED, SERVED.plusMinutes(61))).isTrue();   // 실행기의 시한 판정은 유예를 모른다
     }
 }

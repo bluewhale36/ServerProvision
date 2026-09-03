@@ -828,7 +828,7 @@
                 </div>
 
                 <!-- E4-1-a-3 — Windows 설치. 준비도는 조회 시점 재판정(실행기와 같은 진리표 — 게이트 · 콘솔 · 카드가 한 판정),
-                     진행은 원장 RUNNING 행(서빙 시각 · 재진입)의 투영. 완료 보고는 E4-1-a-4 소관이라 설치가 끝나도 '설치 중' 으로 남는다. -->
+                     진행은 원장 행의 투영: RUNNING(서빙 시각 · 재진입) → E4-1-a-4 완료 보고로 SUCCEEDED(완료 시각 · ComputerName · 드라이버 · 문제 장치). -->
                 <div th:if="${server.windowsInstall != null}" class="n-firmware-plan" th:with="wi=${server.windowsInstall}">
                     <div class="n-label strong" th:text="#{provisioning.windows.install.title}">Windows 설치</div>
                     <div class="n-section-hint" th:text="#{provisioning.windows.install.hint}">정의서가 고른 설치 이미지를 이 서버에 무인 설치합니다.</div>
@@ -843,14 +843,20 @@
                         <li th:if="${wi.readinessGrade != null}"
                             th:classappend="${wi.readinessGrade.name() == 'READY'} ? 'is-selected' : 'is-failed'">
                             <span th:text="#{provisioning.windows.install.readiness}">준비도</span>
-                            <!-- 서빙 뒤 · 실패 뒤에는 "다음 부팅에서 시작" 이 시제에 맞지 않는다(CP5 O-2) -->
+                            <!-- 서빙 뒤 · 완료 뒤 · 실패 뒤에는 "다음 부팅에서 시작" 이 시제에 맞지 않는다(E4-1-a-3 CP5 O-2 · E4-1-a-4 CP5 F-2) -->
                             <span th:if="${wi.readinessGrade.name() == 'READY'}"
-                                  th:text="${wi.served() or wi.failedReason != null} ? #{provisioning.windows.install.readiness.ready.short} : #{provisioning.windows.install.readiness.ready}">문제 없음</span>
+                                  th:text="${wi.served() or wi.completed() or wi.failedReason != null} ? #{provisioning.windows.install.readiness.ready.short} : #{provisioning.windows.install.readiness.ready}">문제 없음</span>
                             <span th:unless="${wi.readinessGrade.name() == 'READY'}" class="n-firmware-detail"
                                   th:text="${#strings.listJoin(wi.readinessNotes, ' · ')}">install.wim 없음</span>
                         </li>
-                        <li th:classappend="${wi.failedReason != null} ? 'is-failed' : (${wi.served()} ? 'is-running' : '')">
+                        <li th:classappend="${wi.failedReason != null} ? 'is-failed' : (${wi.completed()} ? 'is-selected' : (${wi.served()} ? 'is-running' : ''))">
                             <span th:text="#{provisioning.windows.install.progress}">진행</span>
+                            <!-- E4-1-a-4 — 완료 보고로 닫힌 행: 완료 시각 · ComputerName · 드라이버 · 문제 장치 -->
+                            <th:block th:if="${wi.completed()}">
+                                <span class="n-firmware-state" th:text="#{provisioning.windows.install.progress.completed}">완료</span>
+                                <span class="n-firmware-detail"
+                                      th:text="|#{provisioning.windows.install.progress.completed.at} ${#temporals.format(wi.completedAt, 'yyyy-MM-dd HH:mm:ss')} · #{provisioning.windows.install.progress.completed.computer} ${wi.computerName} · #{provisioning.windows.install.progress.completed.drivers} ${wi.driversAdded} · #{provisioning.windows.install.progress.completed.problems} ${wi.problemDeviceCount}|">완료 2026-09-03 · ComputerName SPV-14174000 · 드라이버 47 · 문제 장치 0</span>
+                            </th:block>
                             <th:block th:if="${wi.failedReason != null}">
                                 <span class="n-firmware-state" th:text="|#{provisioning.windows.install.progress.failed} · ${wi.failedReason}|">실패 · REPXE_LOOP</span>
                                 <span class="n-firmware-detail"
@@ -858,19 +864,35 @@
                                               : (${wi.failedReason == 'REPXE_LOOP'} ? #{provisioning.windows.install.progress.failed.loop}
                                               : #{provisioning.windows.install.progress.failed.operator})">원인을 확인한 뒤 재시도하십시오.</span>
                             </th:block>
-                            <th:block th:if="${wi.failedReason == null and wi.served()}">
+                            <th:block th:if="${wi.served()}">
                                 <span class="n-firmware-state" th:text="#{provisioning.windows.install.progress.running}">설치 중</span>
                                 <span class="n-firmware-detail"
                                       th:text="|#{provisioning.windows.install.progress.served} ${#temporals.format(wi.servedAt, 'yyyy-MM-dd HH:mm:ss')} · #{provisioning.windows.install.progress.reentries} ${wi.reentries}/${wi.maxReentries} · #{provisioning.windows.install.progress.remaining} ${wi.remainingMinutes}분|">서빙 · 재진입 0/5 · 잔여 60분</span>
                             </th:block>
-                            <span th:if="${wi.failedReason == null and !wi.served()}" class="n-firmware-detail"
+                            <span th:if="${wi.failedReason == null and !wi.served() and !wi.completed()}" class="n-firmware-detail"
                                   th:text="#{provisioning.windows.install.progress.before}">서빙 전</span>
                         </li>
                     </ul>
-                    <p th:if="${wi.failedReason == null and wi.served() and wi.remainingMinutes != null and wi.remainingMinutes == 0}"
+                    <p th:if="${wi.served() and wi.remainingMinutes != null and wi.remainingMinutes == 0}"
                        class="n-firmware-hold" th:text="#{provisioning.windows.install.progress.expired}">설치 시한이 지났습니다.</p>
-                    <p th:if="${wi.failedReason == null and wi.served()}" class="n-section-hint"
-                       th:text="#{provisioning.windows.install.completion}">완료 보고는 아직 받지 않습니다.</p>
+                    <p th:if="${wi.served()}" class="n-section-hint"
+                       th:text="#{provisioning.windows.install.completion}">설치가 끝나면 첫 로그온 스크립트가 완료를 보고합니다.</p>
+                    <!-- E4-1-a-4 — 완료 뒤: 종단 / 다음 단계 안내 + 문제 장치 목록(접힘) -->
+                    <th:block th:if="${wi.completed()}">
+                        <p class="n-section-hint" th:if="${wi.provisioningCompleted}"
+                           th:text="#{provisioning.windows.install.progress.completed.terminal}">프로비저닝이 종단됐습니다.</p>
+                        <p class="n-section-hint" th:if="${!wi.provisioningCompleted and wi.nextPhase != null}"
+                           th:text="|#{provisioning.windows.install.progress.completed.next} — ${wi.nextPhase.description}|">다음 단계로 넘어갔습니다</p>
+                        <p class="n-section-hint" th:if="${wi.problemDeviceCount == 0}"
+                           th:text="#{provisioning.windows.install.progress.completed.problems.none}">문제 장치 없음</p>
+                        <details th:if="${wi.problemDeviceCount > 0}" class="n-firmware-detail">
+                            <summary th:text="|#{provisioning.windows.install.progress.completed.problems.list} (${wi.problemDeviceCount})|">문제 장치 목록 (2)</summary>
+                            <p class="n-section-hint" th:text="#{provisioning.windows.install.progress.completed.problems.hint}">드라이버가 잡히지 않은 장치입니다.</p>
+                            <ul>
+                                <li th:each="d : ${wi.problemDevices}" th:text="${d}">PCI Simple Communications Controller</li>
+                            </ul>
+                        </details>
+                    </th:block>
                     <p th:if="${wi.holding}" class="n-firmware-hold">
                         <span th:if="${wi.holdRemainingMinutes > 0}">
                             <span th:text="#{provisioning.windows.install.holding}">자원이 갖춰지기를 기다리는 중입니다.</span>

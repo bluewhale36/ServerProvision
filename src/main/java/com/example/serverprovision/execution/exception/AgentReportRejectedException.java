@@ -37,4 +37,13 @@ public class AgentReportRejectedException extends ConflictException {
                 "현재 진행 phase 밖의 step 보고는 받을 수 없습니다. guestServerId=" + guestServerId
                         + ", 보고 step=" + reportedStep + ", 커서=" + cursorStep);
     }
+
+    /**
+     * 열린 step 행이 없는데 종결 보고가 왔다(E4-1-a-4) — Windows 완료 보고는 행 식별자 없이 "지금 열린 서빙 행" 을 닫으므로,
+     * 서빙 전 · 실패로 이미 닫힌 뒤 · 재시도 직후의 보고는 닫을 행이 없다. 진짜 게스트는 서빙 뒤에만 보고하므로 direct POST · 지연 보고다.
+     */
+    public static AgentReportRejectedException noOpenStep(UUID guestServerId, Object step) {
+        return new AgentReportRejectedException(
+                "열린 " + step + " 행이 없어 종결 보고를 받을 수 없습니다(서빙 전 · 이미 닫힘). guestServerId=" + guestServerId);
+    }
 }

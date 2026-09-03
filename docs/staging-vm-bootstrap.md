@@ -288,8 +288,12 @@ IntelliJ 는 VM 에 설치하지 않는다. 맥의 JetBrains Gateway(또는 Inte
 sudo lvcreate -y -L 10G -n lv_pxe vg_data && sudo mkfs.xfs -L pxe /dev/vg_data/lv_pxe
 sudo mkdir -p /srv/pxe && echo "/dev/mapper/vg_data-lv_pxe /srv/pxe xfs defaults,nofail 0 0" | sudo tee -a /etc/fstab && sudo mount -a
 sudo mkdir -p /srv/pxe/win2025/sources /srv/pxe/spvout && sudo chown -R spvadmin:spvadmin /srv/pxe/win2025
+# E4-1-a-4 — 설치 후 페이로드($OEM$)는 앱이 조립한다. 이 디렉토리 하나만 앱 계정(provisioning)에 쓰기 권한을 준다.
+sudo mkdir -p '/srv/pxe/win2025/sources/$OEM$' && sudo chown provisioning:spvadmin '/srv/pxe/win2025/sources/$OEM$' && sudo chmod 2775 '/srv/pxe/win2025/sources/$OEM$'
 ```
 ISO(앱의 OS 자원으로 업로드된 파일)를 루프 마운트해 `boot.wim`(`sources/boot.wim` · Windows Setup = index 2) · `sources/` 전체 · 루트 `setup.exe` 를 `/srv/pxe/win2025/` 로 복사한다. 6 GB 급이라 서버 안에서 복사한다(맥에서 재전송하지 않는다). 새 Windows 버전은 같은 절차를 새 디렉토리에 반복한다.
+
+**`sources/$OEM$`(E4-1-a-4)** — Windows Setup 은 설치 소스의 `sources\$OEM$` 를 자동으로 설치 대상에 복사한다(`$$` → `%WINDIR%`, `$1` → 시스템 드라이브 루트). 앱은 대시보드 Windows 설치 소스 영역의 [드라이버 페이로드 조립] 액션으로 활성 DRIVER 자원(트리에 `*.inf`)을 `$1\SPV\Drivers\<id>_<슬러그>` 로, 설치 후 스크립트 둘을 `$$\Setup\Scripts\SetupComplete.cmd`(pnputil 로 드라이버 설치 · 문제 장치 로그) · `$1\SPV\spv-report.ps1`(첫 로그온 완료 보고)로 쓴다. 쓰기 권한은 위 한 디렉토리에만 있고 `install.wim` 등 나머지는 그대로 `spvadmin` 소유다. 배포 뒤 · 드라이버 자원을 바꾼 뒤에는 대시보드에서 조립을 한 번 누른다(chip "드라이버 페이로드" 가 미조립 · 갱신 필요를 알린다). 조립은 `$OEM$` 안의 `$$` · `$1` · 매니페스트를 항목 단위 rename 으로 바꿔 끼우므로 반쪽 트리가 노출되지는 않지만, Windows Setup 이 `$OEM$` 를 복사하는 순간과 겹치면 어느 판본이 실릴지는 정해지지 않는다 — **설치 중(카드 '설치 중')인 게스트가 있을 때는 조립을 미룬다**(E4-1-a-4 CP5 O-8). OEM 제품 키로 설치하면 Setup 이 SetupComplete.cmd 를 건너뛴다(GVLK · 소매 키는 실행) — 그 경우 드라이버 설치 · 완료 보고가 일어나지 않으므로 제품 키 종류를 확인한다.
 
 ### 2. Samba (읽기 전용 설치 소스 · 쓰기 결과 공유)
 ```

@@ -17,13 +17,11 @@ import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.exception.AgentReportRejectedException;
-import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.exception.ProvisioningHistoryNotFoundException;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
-import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
-import com.example.serverprovision.execution.vo.GuestToken;
+import com.example.serverprovision.execution.service.GuestTokenAuthenticator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -47,7 +45,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AgentReportService {
 
-    private final GuestServerRepository guestServerRepository;
+    private final GuestTokenAuthenticator guestTokenAuthenticator;   // E4-1-a-4 D-5 — 완료 보고 창구와 공유
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final ProvisioningProgressRepository provisioningProgressRepository;
     private final ProvisioningHistoryRepository provisioningHistoryRepository;
@@ -239,15 +237,7 @@ public class AgentReportService {
     }
 
     private GuestServer requireByToken(String presented) {
-        if (presented == null || presented.isBlank()) {
-            throw GuestServerNotFoundException.byToken();
-        }
-        GuestServer server = guestServerRepository.findByGuestToken(new GuestToken(presented))
-                .orElseThrow(GuestServerNotFoundException::byToken);
-        // 접촉 관찰 로그(DEC-32). 게이트 거절(409) 시엔 롤백으로 함께 사라지지만, 그런 게스트도
-        // /boot 폴링은 계속 하므로(BootService 가 별도 트랜잭션에서 갱신) 관찰 공백은 없다.
-        server.touchSeen(LocalDateTime.now());
-        return server;
+        return guestTokenAuthenticator.requireByToken(presented);   // 404 · touchSeen(DEC-32)은 인증기 소관
     }
 
     private ProvisioningProgress requireProgress(GuestServer server) {

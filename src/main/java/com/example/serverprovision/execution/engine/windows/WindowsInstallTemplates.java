@@ -3,7 +3,7 @@ package com.example.serverprovision.execution.engine.windows;
 /**
  * 실측 1~3호가 실기에서 성공시킨 파일 셋의 원문(E4-1-a-3 §1-8) — 구조는 바꾸지 않고 {@code __KEY__} 자리만 채운다.
  * 배치는 내장 명령만 쓴다(Setup PE 에는 where · findstr · curl 이 없다) · 전부 ASCII(코드페이지 949 가 UTF-8 을 깨뜨린다).
- * FirstLogonCommands 는 표식 파일 하나만 — 그 자리를 완료 보고 명령으로 바꾸는 것은 E4-1-a-4 다.
+ * FirstLogonCommands 는 표식 파일(1) + 완료 보고 스크립트 실행(2 — E4-1-a-4, 스크립트 본체는 $OEM$ 로 설치된 OS 에 들어간다).
  */
 public final class WindowsInstallTemplates {
 
@@ -156,6 +156,11 @@ public final class WindowsInstallTemplates {
                       <Order>1</Order>
                       <CommandLine>cmd /c echo %DATE% %TIME% ServerProvision &gt; C:\\spv-firstlogon.txt</CommandLine>
                       <Description>ServerProvision first logon marker</Description>
+                    </SynchronousCommand>
+                    <SynchronousCommand wcm:action="add" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+                      <Order>2</Order>
+                      <CommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\\SPV\\spv-report.ps1 -BaseUrl "__REPORT_BASE_URL__" -Token "__GUEST_TOKEN__"</CommandLine>
+                      <Description>ServerProvision completion report</Description>
                     </SynchronousCommand>
                   </FirstLogonCommands>
                 </component>

@@ -95,4 +95,15 @@ public final class FakeWim {
         }
         return count;
     }
+
+    /** E4-1-a-4 — 조립 액션이 만드는 설치 후 스크립트 둘(내용은 존재 판정에만 쓰인다). */
+    public static void writeOemScripts(java.nio.file.Path root) throws java.io.IOException {
+        java.nio.file.Path oem = root.resolve("sources").resolve("$OEM$");
+        java.nio.file.Path cmd = oem.resolve("$$").resolve("Setup").resolve("Scripts").resolve("SetupComplete.cmd");
+        java.nio.file.Path ps1 = oem.resolve("$1").resolve("SPV").resolve("spv-report.ps1");
+        java.nio.file.Files.createDirectories(cmd.getParent());
+        java.nio.file.Files.createDirectories(ps1.getParent());
+        java.nio.file.Files.writeString(cmd, "@echo off\r\n");
+        java.nio.file.Files.writeString(ps1, "param($BaseUrl,$Token)\n");
+    }
 }

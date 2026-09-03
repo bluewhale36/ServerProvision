@@ -17,6 +17,7 @@ import com.example.serverprovision.execution.engine.windows.WindowsInstallTimeou
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
+import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
@@ -83,7 +84,7 @@ class GuestServerQueryServiceWindowsInstallTest {
                 raidVolumeRepository, detailRepository, nicRepository, progressRepository, historyRepository,
                 firmwareResolutionProvider, holdTtlPolicy, retryPolicy, new FlashTimeoutPolicy(new MockEnvironment()),
                 new SettingLedger(recorder, new ObjectMapper()), new WorkerObservations(), new ObjectMapper(),
-                resolver, ledger, new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5));
+                resolver, ledger, new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5, Duration.ofMinutes(30)));
         given(guestServerRepository.findById(server.getId())).willReturn(Optional.of(server));
         given(detailRepository.findByServerIdWithBoardModel(server.getId())).willReturn(Optional.empty());
         given(nicRepository.findAllByServerIdOrderByPrimary(server.getId())).willReturn(List.of());
@@ -226,5 +227,50 @@ class GuestServerQueryServiceWindowsInstallTest {
         var staleCard = cardWith(failedProgress, List.of(stale));
         assertThat(staleCard.served()).isFalse();
         assertThat(staleCard.failedReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("완료 행(E4-1-a-4) — served false · completed true · 완료 시각 · ComputerName · OS · 드라이버 · 문제 장치 목록 · 종단이면 provisioningCompleted · 잔여 null")
+    void completedRow_cardShowsCompletion() {
+        given(resolver.resolve(server.getId())).willReturn(Optional.of(resolved(PhaseReadiness.ready())));
+        ProvisioningProgress progress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
+        progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now);
+        ProvisioningHistory row = ledger.openServed(server, STANDARD, now.minusMinutes(30));
+        ledger.closeSucceeded(row, new WindowsInstallLedger.Completion("SPV-14174000", "Windows Server 2025 10.0.26100",
+                47, 2, List.of("Unknown device (ACPI\\INT34C6)", "PCI Simple Communications Controller"), null), now.minusMinutes(2));
+        progress.markCompleted(now.minusMinutes(2));
+
+        var card = cardWith(progress, List.of(row));
+
+        assertThat(card.served()).isFalse();
+        assertThat(card.completed()).isTrue();
+        assertThat(card.servedAt()).isEqualTo(now.minusMinutes(30));
+        assertThat(card.completedAt()).isEqualTo(now.minusMinutes(2));
+        assertThat(card.computerName()).isEqualTo("SPV-14174000");
+        assertThat(card.osVersion()).isEqualTo("Windows Server 2025 10.0.26100");
+        assertThat(card.driversAdded()).isEqualTo(47);
+        assertThat(card.problemDeviceCount()).isEqualTo(2);
+        assertThat(card.problemDevices()).hasSize(2);
+        assertThat(card.remainingMinutes()).isNull();
+        assertThat(card.failedReason()).isNull();
+        assertThat(card.provisioningCompleted()).isTrue();
+        assertThat(card.nextPhase()).isNull();
+    }
+
+    @Test
+    @DisplayName("완료 뒤 다음 소유 phase 로 전진한 게스트 — provisioningCompleted false · nextPhase = 커서 phase")
+    void completedRow_nextPhase() {
+        given(resolver.resolve(server.getId())).willReturn(Optional.of(resolved(PhaseReadiness.ready())));
+        ProvisioningProgress progress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
+        progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now);
+        ProvisioningHistory row = ledger.openServed(server, STANDARD, now.minusMinutes(30));
+        ledger.closeSucceeded(row, new WindowsInstallLedger.Completion("SPV-1", null, 0, 0, List.of(), null), now.minusMinutes(2));
+        progress.advanceToEntry(ProvisioningPhaseStep.entryOf(ProvisioningPhase.TESTING), now.minusMinutes(2));
+
+        var card = cardWith(progress, List.of(row));
+
+        assertThat(card.completed()).isTrue();
+        assertThat(card.provisioningCompleted()).isFalse();
+        assertThat(card.nextPhase()).isEqualTo(ProvisioningPhase.TESTING);
     }
 }
