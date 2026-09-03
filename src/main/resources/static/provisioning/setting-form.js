@@ -13,7 +13,7 @@
  * 전송 JSON 계약 (dto/request 의 @JsonProperty 와 일치해야 한다) :
  *   {name, processList:[{type, ...}]}
  *   type: BASIC_UPDATE | BASIC_SETTING | OS_INSTALLATION | OS_SETTING
- *   OS 항목의 2단 판별자 osFamily: RHEL_BASED | DEBIAN_BASED
+ *   OS 항목의 2단 판별자 osFamily: RHEL_BASED | DEBIAN_BASED | WINDOWS (E4-1-a-2)
  *   BASIC_UPDATE selector : boardModel {mode: AUTO|SPECIFIED, boardModelId}
  *                           + bios/bmc {mode: LATEST|SPECIFIED, firmwareId}
  *                           (SSOT: 보드 AUTO ⇒ BIOS/BMC 는 LATEST 만 — UI 가 고정+disabled 로 1차 차단)
@@ -224,6 +224,13 @@
         const oiRootKeepWrap = document.getElementById('oiRootKeepWrap');
         const oiRootKeep = document.getElementById('oiRootKeep');
         const oiRootPassword = document.getElementById('oiRootPassword');
+        // E4-1-a-2 — Windows 계열 블록(설치 이미지 · Administrator 비밀번호). 선택 OS 의 data-os-family 가 WINDOWS 일 때 열린다.
+        const oiWindowsBlock = document.getElementById('oiWindowsBlock');
+        const oiWindowsImage = document.getElementById('oiWindowsImage');
+        const oiWindowsImagePrefillWarning = document.getElementById('oiWindowsImagePrefillWarning');
+        const oiWinAdminPassword = document.getElementById('oiWinAdminPassword');
+        const oiWinAdminKeepWrap = document.getElementById('oiWinAdminKeepWrap');
+        const oiWinAdminKeep = document.getElementById('oiWinAdminKeep');
         // U4-1-1 v2 — RAID 구성 단계 카드(RAID 카드 + 디스크 묶음 규칙). 독립 단계라 OS 선택과 무관하게 동작한다.
         const rcRaidCard = document.getElementById('rcRaidCard');
         const rcRaidCardHint = document.getElementById('rcRaidCardHint');
@@ -249,7 +256,26 @@
             const osId = oiOsSelect ? oiOsSelect.value : '';
             if (oiDetailFields) oiDetailFields.hidden = !osId;
             filterIsoOptions(osId);
+            syncWindowsBlock();
             syncOsSelectionLock();
+        }
+
+        /** 선택된 설치 OS 의 계열(옵션 data-os-family) — 미선택이면 ''. 판별자와 Windows 블록 노출의 단일 출처. */
+        function installOsFamily() {
+            const opt = oiOsSelect ? selectedOption(oiOsSelect) : null;
+            return opt && oiOsSelect.value ? (opt.dataset.osFamily || '') : '';
+        }
+
+        /** Windows 블록 노출 — 계열이 바뀌면 이전 입력을 비워 다른 계열 payload 에 섞이지 않게 한다. */
+        function syncWindowsBlock() {
+            if (!oiWindowsBlock) return;
+            const windows = installOsFamily() === 'WINDOWS';
+            oiWindowsBlock.hidden = !windows;
+            if (!windows) {
+                if (oiWindowsImage) oiWindowsImage.value = '';
+                if (oiWinAdminPassword) oiWinAdminPassword.value = '';
+                if (oiWindowsImagePrefillWarning) oiWindowsImagePrefillWarning.hidden = true;
+            }
         }
 
         const oiIsoSelect = document.getElementById('oiIsoSelect');
@@ -1180,6 +1206,33 @@
 
         if (oiRootKeep) oiRootKeep.addEventListener('change', syncRootKeepState);
 
+        /* ---- Administrator 비밀번호 (E4-1-a-2 · root 비밀번호와 같은 기존 유지 관용구) ---- */
+
+        function syncWinAdminKeepState() {
+            if (!oiWinAdminKeep || !oiWinAdminPassword) return;
+            const keeping = !oiWinAdminKeepWrap.hidden && oiWinAdminKeep.checked;
+            oiWinAdminPassword.disabled = keeping;
+            if (keeping) oiWinAdminPassword.value = '';
+            oiWinAdminPassword.placeholder = keeping ? '기존 비밀번호 유지 중' : '예: S3rver!2025';
+        }
+
+        /** 수정 pre-fill — 저장본에 비밀번호가 있음을 표시하고 유지 체크를 켠다(값은 서버가 이미 제거해 보낸다). */
+        function markWinAdminHasExisting() {
+            if (!oiWinAdminKeepWrap) return;
+            oiWinAdminKeepWrap.hidden = false;
+            oiWinAdminKeep.checked = true;
+            syncWinAdminKeepState();
+        }
+
+        if (oiWinAdminKeep) oiWinAdminKeep.addEventListener('change', syncWinAdminKeepState);
+
+        function buildWinAdminPassword() {
+            const keeping = oiWinAdminKeepWrap && !oiWinAdminKeepWrap.hidden && oiWinAdminKeep.checked;
+            if (keeping) return {password: null, keepExistingPassword: true};
+            const value = oiWinAdminPassword ? oiWinAdminPassword.value : '';
+            return {password: value || null, keepExistingPassword: false};
+        }
+
         /* ---- 일반 사용자 행 ---- */
 
         function addUserRow(data, hasExistingPassword) {
@@ -1614,12 +1667,19 @@
                 };
             },
             OS_INSTALLATION: function () {
-                // R11 식별 전용 — osFamily 판별자를 보내지 않는다(부재 = PlannedOSInstallationRequest 해석, D-R1).
-                return {
+                // E4-1-a-2 — 판별자 = 선택 OS 의 계열(data-os-family). Windows 만 설치 이미지 · Administrator 비밀번호를 싣는다.
+                const family = installOsFamily();
+                const payload = {
                     type: 'OS_INSTALLATION',
+                    osFamily: family || null,
                     osMetadataId: intOrNull(oiOsSelect.value),
                     isoId: oiIsoSelect ? intOrNull(oiIsoSelect.value) : null
                 };
+                if (family === 'WINDOWS') {
+                    payload.imageName = oiWindowsImage && oiWindowsImage.value ? oiWindowsImage.value : null;
+                    payload.administratorPassword = buildWinAdminPassword();
+                }
+                return payload;
             },
             OS_SETTING: function () {
                 const opt = selectedOption(osOsSelect);
@@ -1755,6 +1815,21 @@
                     const select = card ? card.querySelector('[data-error-field="isoId"]') : null;
                     if (select) paintFieldError(select, '설치 ISO 를 선택해야 합니다.');
                     ok = false;
+                }
+                // E4-1-a-2 — Windows 필수 둘(설치 이미지 · Administrator 비밀번호)의 1차 차단. 서버 Layer A 와 같은 문장.
+                if (proc.type === 'OS_INSTALLATION' && proc.osFamily === 'WINDOWS') {
+                    const card = cardOf(stepTypeByIndex[i]);
+                    if (proc.imageName == null) {
+                        const select = card ? card.querySelector('[data-error-field="imageName"]') : null;
+                        if (select) paintFieldError(select, '설치 이미지를 선택해야 합니다.');
+                        ok = false;
+                    }
+                    const pw = proc.administratorPassword;
+                    if (!pw || (!pw.keepExistingPassword && !pw.password)) {
+                        const group = card ? card.querySelector('[data-error-field="administratorPassword"]') : null;
+                        if (group) paintFieldError(group, 'Administrator 비밀번호를 입력해야 합니다.');
+                        ok = false;
+                    }
                 }
                 if (proc.type === 'BASIC_SETTING'
                     && (!proc.biosSettingTemplateIds || proc.biosSettingTemplateIds.length === 0)) {
@@ -2002,6 +2077,23 @@
                 if (proc.isoId != null && oiIsoSelect) {
                     oiIsoSelect.value = String(proc.isoId); // 소실 시 매칭 실패 → placeholder 유지
                     commitDeprecatedSelection(oiIsoSelect);
+                }
+                // E4-1-a-2 — Windows 계열: 설치 이미지(소스에 없으면 경고) · 비밀번호(서버가 값을 제거하고 keepExistingPassword=true 로 보낸다).
+                if (proc.osFamily === 'WINDOWS') {
+                    syncWindowsBlock();
+                    if (oiWindowsImage && proc.imageName != null) {
+                        oiWindowsImage.value = proc.imageName;
+                        const matched = oiWindowsImage.value === proc.imageName;
+                        if (!matched) oiWindowsImage.value = ''; // 소스에 없는 이미지 — 빈 칸이 아니라 placeholder 로(CP5 O-2)
+                        if (oiWindowsImagePrefillWarning) {
+                            oiWindowsImagePrefillWarning.hidden = matched;
+                            if (!matched) {
+                                oiWindowsImagePrefillWarning.textContent =
+                                    '저장된 설치 이미지가 현재 설치 소스에 없습니다: ' + proc.imageName + '. 다시 선택하십시오.';
+                            }
+                        }
+                    }
+                    if (proc.administratorPassword && proc.administratorPassword.keepExistingPassword) markWinAdminHasExisting();
                 }
                 commitDeprecatedSelection(oiOsSelect); // 기존 사용분 deprecated 뱃지 (modal 없음)
             },

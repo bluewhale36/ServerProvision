@@ -1,6 +1,8 @@
 package com.example.serverprovision.provisioning.setting.service;
 
-import com.example.serverprovision.provisioning.setting.service.reference.os.PlannedInstallTargetPolicy;
+import com.example.serverprovision.provisioning.setting.service.reference.os.OsInstallTargetPolicy;
+import com.example.serverprovision.execution.wininstall.catalog.InstallSourceSnapshot;
+import com.example.serverprovision.execution.wininstall.catalog.WindowsImageCatalog;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
@@ -65,6 +67,7 @@ class JpaSettingQueryServiceTest {
     @Mock com.example.serverprovision.provisioning.biossetting.repository.BiosSettingTemplateRepository biosSettingTemplateRepository;
     @Mock com.example.serverprovision.management.raidcard.repository.RaidCardRepository raidCardRepository;
     @Mock com.example.serverprovision.management.os.repository.ISORepository isoRepository;
+    @Mock WindowsImageCatalog windowsImageCatalog;
     @InjectMocks JpaSettingQueryService service;
 
     /** 저장 순서를 선언 순의 역(BASIC_SETTING → BASIC_UPDATE)으로 구성 — 재조립이 정렬함을 검증한다. */
@@ -344,8 +347,10 @@ class JpaSettingQueryServiceTest {
     }
 
     @Test
-    @DisplayName("findOSOptions — Windows 계열 포함(식별 전용 기록 대상) + 리눅스 차단 사유(R11 D-R8)")
+    @DisplayName("findOSOptions — Windows 계열은 WINDOWS 판별자로 실리고 소스 미준비면 차단 사유, 리눅스는 계열 차단 사유 (E4-1-a-2 D-4)")
     void findOSOptions_includesWindowsAndMarksLinuxBlocked() {
+        // 설치 소스 미준비(파일 없음) — Windows 옵션은 실리되 SOURCE_BLOCK_REASON 으로 disabled 된다.
+        given(windowsImageCatalog.snapshot()).willReturn(InstallSourceSnapshot.missing());
         OSMetadata rocky = Mockito.mock(OSMetadata.class);
         given(rocky.getId()).willReturn(1L);
         given(rocky.getOsName()).willReturn(OSName.ROCKY_LINUX);
@@ -396,17 +401,17 @@ class JpaSettingQueryServiceTest {
 
         List<SettingOSOptionGroupResponse> groups = service.findOSOptions();
 
-        // R11 — 리눅스는 실리되 차단 사유(disabled 표시)가 붙고, Windows 는 setting 판별자 없이(osFamily null) 실린다.
+        // 리눅스는 실리되 계열 차단 사유가 붙고, Windows 는 WINDOWS 판별자 + 소스 미준비 사유로 실린다(E4-1-a-2).
         assertThat(groups).hasSize(2);
         assertThat(groups.get(0).osLabel()).isEqualTo("Rocky Linux");
         var rockyOption = groups.get(0).osList().get(0);
         assertThat(rockyOption.osName()).isEqualTo("ROCKY_LINUX");
         assertThat(rockyOption.osFamily()).isEqualTo(OSFamily.RHEL_BASED);
-        assertThat(rockyOption.plannedBlockReason()).isEqualTo(PlannedInstallTargetPolicy.LINUX_BLOCK_REASON);
+        assertThat(rockyOption.installBlockReason()).isEqualTo(OsInstallTargetPolicy.LINUX_BLOCK_REASON);
         assertThat(groups.get(1).osLabel()).isEqualTo("Windows Server");
         var windowsOption = groups.get(1).osList().get(0);
-        assertThat(windowsOption.osFamily()).isNull();
-        assertThat(windowsOption.plannedBlockReason()).isNull();
+        assertThat(windowsOption.osFamily()).isEqualTo(OSFamily.WINDOWS);
+        assertThat(windowsOption.installBlockReason()).isEqualTo(OsInstallTargetPolicy.SOURCE_BLOCK_REASON);
         assertThat(windowsOption.isoList()).singleElement().extracting(i -> i.name()).isEqualTo("win2025.iso");
         // ISO 선택지 — 파일명 표시(U2-4) + 환경/그룹은 ISO 제공 스코프.
         var isoOption = groups.get(0).osList().get(0).isoList().get(0);
@@ -487,5 +492,102 @@ class JpaSettingQueryServiceTest {
         // 사라진(soft-delete) 카드 → 맵에 없음 = 템플릿이 "(사라진 카드 #7)" 로 그린다
         given(raidCardRepository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.empty());
         assertThat(service.findDetail(1L).references().raidCards()).doesNotContainKey(7L);
+    }
+
+    // ==== E4-1-a-2 — Windows 설치 이미지 선택지 · 소스 준비 시 Windows 허용 · 상세 대조 배지 =============================
+
+    private static final com.example.serverprovision.execution.wininstall.vo.WindowsImageName STANDARD_IMAGE_NAME =
+            new com.example.serverprovision.execution.wininstall.vo.WindowsImageName("Windows Server 2025 SERVERSTANDARD");
+
+    private static InstallSourceSnapshot readySnapshot() {
+        return InstallSourceSnapshot.present(List.of(new com.example.serverprovision.execution.wininstall.catalog.WindowsImage(
+                2, STANDARD_IMAGE_NAME, "Windows Server 2025 Standard (데스크톱 환경)", "ServerStandard", "Server", "ko-KR", "10.0.26100.1742")),
+                1L, java.time.Instant.now());
+    }
+
+    private static OSMetadata windowsOsWithUsableIso() {
+        OSMetadata windows = Mockito.mock(OSMetadata.class);
+        given(windows.getId()).willReturn(2L);
+        given(windows.getOsName()).willReturn(OSName.WINDOWS_SERVER);
+        given(windows.getOsVersion()).willReturn("2025");
+        given(windows.isEnabled()).willReturn(true);
+        given(windows.isDeprecated()).willReturn(false);
+        var winIso = Mockito.mock(com.example.serverprovision.management.os.entity.ISO.class);
+        Mockito.lenient().when(winIso.getId()).thenReturn(60L);
+        Mockito.lenient().when(winIso.isDeleted()).thenReturn(false);
+        Mockito.lenient().when(winIso.isEnabled()).thenReturn(true);
+        Mockito.lenient().when(winIso.isDeprecated()).thenReturn(false);
+        Mockito.lenient().when(winIso.getIsoPath()).thenReturn("/isos/win2025.iso");
+        Mockito.lenient().when(winIso.getProvidedEnvironments()).thenReturn(List.of());
+        Mockito.lenient().when(winIso.getProvidedPackageGroups()).thenReturn(List.of());
+        given(windows.getIsos()).willReturn(List.of(winIso));
+        return windows;
+    }
+
+    @Test
+    @DisplayName("findOSOptions — 설치 소스가 준비되면 Windows 옵션은 차단 사유 없이(installBlockReason null) 실린다")
+    void findOSOptions_readySource_allowsWindows() {
+        given(windowsImageCatalog.snapshot()).willReturn(readySnapshot());
+        OSMetadata windows = windowsOsWithUsableIso(); // 스텁 안에서 스텁하지 않는다(UnfinishedStubbing)
+        given(osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()).willReturn(List.of(windows));
+
+        var groups = service.findOSOptions();
+
+        var option = groups.get(0).osList().get(0);
+        assertThat(option.osFamily()).isEqualTo(OSFamily.WINDOWS);
+        assertThat(option.installBlockReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("findWindowsImageOptions — 카탈로그 이미지 그대로(이름 · 표시명 · 설치 형태 · 에디션 · index), 미준비면 빈 목록")
+    void findWindowsImageOptions_mapsCatalog() {
+        given(windowsImageCatalog.snapshot()).willReturn(readySnapshot());
+        var options = service.findWindowsImageOptions();
+        assertThat(options).singleElement().satisfies(o -> {
+            assertThat(o.name()).isEqualTo("Windows Server 2025 SERVERSTANDARD");
+            assertThat(o.displayName()).isEqualTo("Windows Server 2025 Standard (데스크톱 환경)");
+            assertThat(o.installationType()).isEqualTo("Server");
+            assertThat(o.editionId()).isEqualTo("ServerStandard");
+            assertThat(o.index()).isEqualTo(2);
+        });
+
+        given(windowsImageCatalog.snapshot()).willReturn(InstallSourceSnapshot.missing());
+        assertThat(service.findWindowsImageOptions()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findDetail — Windows 단계의 references.windowsImages 에 표시명 + 대조 배지(일치 · 소스 미준비 · 소스에 없음), 이미지 없는 구 저장본은 항목 없음")
+    void findDetail_windowsImagePresence() {
+        given(referenceInspectors.inspectorFor(org.mockito.ArgumentMatchers.any())).willReturn(inspector);
+        given(inspector.describeDeprecatedReferences(org.mockito.ArgumentMatchers.any())).willReturn(List.of());
+        given(assignmentUsageInspector.countReferencing(org.mockito.ArgumentMatchers.any())).willReturn(0L);
+        var windows = new com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest(2L, 60L,
+                STANDARD_IMAGE_NAME, new com.example.serverprovision.provisioning.setting.dto.request.WindowsAdministratorPasswordRequest("S3rver!2025", false));
+        given(repository.findById(1L)).willReturn(Optional.of(SettingDefinition.builder().name("윈도우 세팅")
+                .processes(List.of(new SettingProcess(new ProcessPayload(windows)))).build()));
+
+        given(windowsImageCatalog.snapshot()).willReturn(readySnapshot());
+        var matched = service.findDetail(1L).references().windowsImages().get("Windows Server 2025 SERVERSTANDARD");
+        assertThat(matched.displayName()).isEqualTo("Windows Server 2025 Standard (데스크톱 환경)");
+        assertThat(matched.presence()).isEqualTo(com.example.serverprovision.provisioning.setting.enums.WindowsImagePresence.MATCHED);
+
+        given(windowsImageCatalog.snapshot()).willReturn(InstallSourceSnapshot.missing());
+        var notReady = service.findDetail(1L).references().windowsImages().get("Windows Server 2025 SERVERSTANDARD");
+        assertThat(notReady.presence()).isEqualTo(com.example.serverprovision.provisioning.setting.enums.WindowsImagePresence.SOURCE_NOT_READY);
+        assertThat(notReady.displayName()).isEqualTo("Windows Server 2025 SERVERSTANDARD"); // 소스에 없으면 이름 그대로
+
+        var datacenter = new com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest(2L, 60L,
+                new com.example.serverprovision.execution.wininstall.vo.WindowsImageName("Windows Server 2025 SERVERDATACENTER"),
+                new com.example.serverprovision.provisioning.setting.dto.request.WindowsAdministratorPasswordRequest("S3rver!2025", false));
+        given(repository.findById(2L)).willReturn(Optional.of(SettingDefinition.builder().name("DC 세팅")
+                .processes(List.of(new SettingProcess(new ProcessPayload(datacenter)))).build()));
+        given(windowsImageCatalog.snapshot()).willReturn(readySnapshot());
+        assertThat(service.findDetail(2L).references().windowsImages().get("Windows Server 2025 SERVERDATACENTER").presence())
+                .isEqualTo(com.example.serverprovision.provisioning.setting.enums.WindowsImagePresence.NOT_IN_SOURCE);
+
+        var legacy = new com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest(2L, 60L, null, null);
+        given(repository.findById(3L)).willReturn(Optional.of(SettingDefinition.builder().name("구 저장본")
+                .processes(List.of(new SettingProcess(new ProcessPayload(legacy)))).build()));
+        assertThat(service.findDetail(3L).references().windowsImages()).isEmpty();
     }
 }

@@ -90,7 +90,7 @@ class SettingControllerDiskGroupViewTest {
         return new SettingDetailResponse(1L, "디스크 세팅", false, true, false, 0L,
                 List.copyOf(processes), List.of(), List.of(),
                 new ReferenceNamesResponse(Map.of(), Map.of(), Map.of(), Map.of(1L, "Rocky Linux 9.4"), Map.of(), Map.of(),
-                        Map.of(), Map.of(), raidCards),
+                        Map.of(), Map.of(), raidCards, Map.of()),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 

@@ -33,7 +33,7 @@
         <div class="n-card n-process-card" th:each="process : ${setting.processList}">
             <div class="n-process-card-head">
                 <span class="n-badge n-badge-blue" th:text="${process.processType().displayName}">단계명</span>
-                <!-- 계열 배지 — 식별 전용(R11, osFamily null)은 계열이 없으므로 건너뛴다(null 역참조 방지, CP5 D2) -->
+                <!-- 계열 배지 — OS 단계만. null 가드는 방어용(E4-1-a-2 이후 판별자 없는 저장본은 해석 단계에서 거절된다) -->
                 <span th:if="${(process.processType().name() == 'OS_INSTALLATION' or process.processType().name() == 'OS_SETTING') and process.osFamily() != null}"
                       class="n-badge n-badge-gray" th:text="${process.osFamily().displayName}">계열</span>
                 <!-- deprecated 자원 사용 단계 — 타입은 정의서당 1개라 매칭 usage 도 최대 1개, 툴팁에 자원명 목록 -->
@@ -236,28 +236,12 @@
 
                 <!-- ==================== OS_INSTALLATION ==================== -->
                 <th:block th:case="'OS_INSTALLATION'">
-                    <!-- R11 식별 전용(설치 예정 기록) — 계열 판별자(osFamily)가 없는 저장본은 상세 getter
-                         자체가 없으므로 아래 상세 카드와 분기한다(SpEL 예외 방지). -->
-                    <th:block th:if="${process.osFamily() == null}">
-                        <table class="n-detail-table">
-                            <tbody>
-                            <tr>
-                                <th>대상 OS</th>
-                                <td><code class="n-mono" th:text="${setting.references.osNames.get(process.osMetadataId)} ?: ('#' + ${process.osMetadataId})">Windows Server 2025</code></td>
-                            </tr>
-                            <tr>
-                                <th>설치 ISO</th>
-                                <td><code class="n-mono" th:text="${setting.references.isos.get(process.isoId)} ?: ('#' + ${process.isoId})">win2025.iso</code></td>
-                            </tr>
-                            <tr>
-                                <th>기록 성격</th>
-                                <td><span class="n-badge n-badge-blue">설치 예정 기록</span>
-                                    <span class="n-muted">설치 자동화는 추후 지원 예정입니다.</span></td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </th:block>
-                    <th:block th:unless="${process.osFamily() == null}">
+                    <!-- 계열별 상세 — Windows 는 리눅스 공통 표(타임존 · root · 파티션)를 갖지 않으므로 계열 switch 가 먼저 갈린다(E4-1-a-2).
+                         판별자 없는 저장본은 해석기가 거절하므로 osFamily() 는 여기서 null 이 아니다(R11 식별 전용 분기 퇴역). -->
+                    <th:block th:switch="${process.osFamily().name()}">
+                    <th:block th:case="'WINDOWS'"
+                              th:insert="~{fragments/provisioning/setting/os-installation/detail-windows :: body(inst=${process})}"></th:block>
+                    <th:block th:case="*">
                     <table class="n-detail-table">
                         <tbody>
                         <tr>
@@ -361,6 +345,7 @@
                                   th:insert="~{fragments/provisioning/setting/os-installation/detail-rhel :: body(inst=${process})}"></th:block>
                         <th:block th:case="'DEBIAN_BASED'"
                                   th:insert="~{fragments/provisioning/setting/os-installation/detail-debian :: body(inst=${process})}"></th:block>
+                    </th:block>
                     </th:block>
                     </th:block>
                 </th:block>

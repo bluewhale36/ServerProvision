@@ -260,4 +260,69 @@ class JpaSettingCommandServiceTest {
         assertThatThrownBy(() -> service.deprecate(99L)).isInstanceOf(SettingNotFoundException.class);
         assertThatThrownBy(() -> service.undeprecate(99L)).isInstanceOf(SettingNotFoundException.class);
     }
+
+    // ==== E4-1-a-2 D-11 — 수정 저장의 비밀값 병합(withSecretsRetainedFrom) =============================
+
+    private static com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest windows(String password, boolean keep) {
+        return new com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest(2L, 60L,
+                new com.example.serverprovision.execution.wininstall.vo.WindowsImageName("Windows Server 2025 SERVERSTANDARD"),
+                new com.example.serverprovision.provisioning.setting.dto.request.WindowsAdministratorPasswordRequest(password, keep));
+    }
+
+    private static SettingDefinition definitionWith(com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest... processes) {
+        return SettingDefinition.builder()
+                .name("윈도우 세팅")
+                .processes(java.util.Arrays.stream(processes)
+                        .map(p -> new com.example.serverprovision.provisioning.setting.entity.SettingProcess(
+                                new com.example.serverprovision.provisioning.setting.vo.ProcessPayload(p)))
+                        .toList())
+                .build();
+    }
+
+    private static com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest storedWindows(SettingDefinition definition) {
+        return (com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest)
+                definition.getProcesses().get(0).getPayload().request();
+    }
+
+    @Test
+    @DisplayName("update — 기존 유지(keepExistingPassword) 면 같은 단계 저장본의 Administrator 비밀번호를 이어받는다(keep 해제)")
+    void update_windowsKeepExistingPassword_mergesFromStoredPayload() {
+        given(referenceInspectors.inspectorFor(any())).willReturn(inspector);
+        SettingDefinition existing = definitionWith(windows("Old!2025", false));
+        given(repository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(existing));
+        given(repository.existsByNameAndIdNotAndIsDeletedFalse("윈도우 세팅", 1L)).willReturn(false);
+
+        service.update(1L, new SettingSaveRequest("윈도우 세팅", List.of(windows(null, true))));
+
+        assertThat(storedWindows(existing).getAdministratorPassword().getPassword()).isEqualTo("Old!2025");
+        assertThat(storedWindows(existing).getAdministratorPassword().isKeepExistingPassword()).isFalse();
+    }
+
+    @Test
+    @DisplayName("update — 새 비밀번호를 보내면 그대로 교체된다(병합 없음)")
+    void update_windowsNewPassword_replaces() {
+        given(referenceInspectors.inspectorFor(any())).willReturn(inspector);
+        SettingDefinition existing = definitionWith(windows("Old!2025", false));
+        given(repository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(existing));
+        given(repository.existsByNameAndIdNotAndIsDeletedFalse("윈도우 세팅", 1L)).willReturn(false);
+
+        service.update(1L, new SettingSaveRequest("윈도우 세팅", List.of(windows("New!2025", false))));
+
+        assertThat(storedWindows(existing).getAdministratorPassword().getPassword()).isEqualTo("New!2025");
+    }
+
+    @Test
+    @DisplayName("update — 유지할 저장값이 없는데(단계 신설 · 구 저장본) 유지 플래그 → 400 RetainedPasswordUnavailableException, 저장본 무변")
+    void update_windowsKeepWithoutExisting_throws400() {
+        given(referenceInspectors.inspectorFor(any())).willReturn(inspector);
+        SettingDefinition existing = definitionWith(new BasicSettingRequest(List.of()));
+        given(repository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(existing));
+        given(repository.existsByNameAndIdNotAndIsDeletedFalse("윈도우 세팅", 1L)).willReturn(false);
+
+        assertThatThrownBy(() -> service.update(1L, new SettingSaveRequest("윈도우 세팅", List.of(windows(null, true)))))
+                .isInstanceOf(com.example.serverprovision.provisioning.setting.exception.RetainedPasswordUnavailableException.class);
+        // 병합은 clear 전에 하므로 거절 시 기존 단계가 그대로 남는다.
+        assertThat(existing.getProcesses()).hasSize(1);
+        assertThat(existing.getProcesses().get(0).getProcessType()).isEqualTo(SettingProcessType.BASIC_SETTING);
+    }
 }

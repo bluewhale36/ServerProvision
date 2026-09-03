@@ -419,9 +419,8 @@
                         </details>
 
                         <!-- ==================== OS_INSTALLATION ==================== -->
-                        <!-- R11 표적 축소 — 설치 예정 기록(식별 전용). 상세 설치 입력(타임존 · 파티션 ·
-                             사용자 · 계열 전용 블록)은 실행(E4) 이연으로 화면에서 걷혔다. 서버 계약과
-                             계열 fragment 는 보존 — E4 부활 시 재노출로 복귀한다(R11 plan D-R1 · D-R5). -->
+                        <!-- E4-1-a-2 — Windows Server 설치 단계. OS · ISO(식별) + 설치 이미지 · Administrator 비밀번호(Windows 블록).
+                             리눅스 상세 입력(타임존 · 파티션 · 사용자)은 R11 이 걷었고 계약 · fragment 만 보존 중(E4-L 부활 시 재노출). -->
                         <details class="n-accordion-item n-step-card" data-process-card="OS_INSTALLATION" hidden>
                             <summary class="n-accordion-head">
                                 <span class="n-accordion-chevron"></span>
@@ -429,23 +428,23 @@
                                 <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
                             </summary>
                             <div class="n-accordion-body">
-                                <!-- D-R7 안내 — 축소 사유와 시점을 먼저 알린다 -->
+                                <!-- 안내 — 정의서가 고르는 것과 운영 설정에서 오는 것을 먼저 가른다(E4-1-a-2 D-11 · Q7) -->
                                 <div class="n-step-guide">
-                                    <div class="n-step-guide-title">이 단계는 설치할 OS 의 예정 기록만 담습니다</div>
-                                    <div>지금은 기록만 저장됩니다. Windows Server 설치 자동화가 추후 지원되면 이 기록을 사용하며, 상세 설치 설정도 그때 열립니다.</div>
+                                    <div class="n-step-guide-title">Windows Server 설치 단계입니다</div>
+                                    <div>설치할 OS · ISO · 설치 이미지(에디션)를 고르고 Administrator 비밀번호를 입력합니다. 시간대 · 제품 키 · 설치 소스 공유 정보는 정의서가 아니라 운영 설정에서 옵니다(시스템 자산 대시보드 → Windows 설치 소스).</div>
                                 </div>
                                 <div class="n-form-group">
                                     <label class="n-label strong" for="oiOsSelect">설치할 OS</label>
                                     <select id="oiOsSelect" class="n-select" data-error-field="osMetadataId">
                                         <option value="">OS 를 선택하십시오</option>
                                         <optgroup th:each="group : ${osOptions}" th:label="${group.osLabel}">
-                                            <!-- 선택 가능 여부의 SSOT = 서버 정책(plannedBlockReason) — disabled + 사유(title)로 1차 차단(D-R8) -->
+                                            <!-- 선택 가능 여부의 SSOT = 서버 정책(installBlockReason = OsInstallTargetPolicy) — disabled + 사유(title)로 1차 차단 -->
                                             <option th:each="os : ${group.osList}"
                                                     th:value="${os.osMetadataId}"
-                                                    th:text="${os.osName} + ' ' + ${os.version} + (${os.plannedBlockReason != null} ? ' — 선택 불가' : '')"
-                                                    th:disabled="${os.plannedBlockReason != null}"
-                                                    th:title="${os.plannedBlockReason}"
-                                                    th:classappend="${os.plannedBlockReason != null} ? 'unavailable'"
+                                                    th:text="${os.osName} + ' ' + ${os.version} + (${os.installBlockReason != null} ? ' — 선택 불가' : '')"
+                                                    th:disabled="${os.installBlockReason != null}"
+                                                    th:title="${os.installBlockReason}"
+                                                    th:classappend="${os.installBlockReason != null} ? 'unavailable'"
                                                     th:data-os-family="${os.osFamily != null ? os.osFamily.name() : ''}"
                                                     th:data-os-name="${os.osName}"
                                                     th:data-os-version="${os.version}"
@@ -473,6 +472,32 @@
                                             </th:block>
                                             </th:block>
                                         </select>
+                                    </div>
+                                    <!-- Windows 블록(E4-1-a-2) — 선택 OS 의 data-os-family 가 WINDOWS 일 때만 JS 가 연다.
+                                         이미지 목록은 설치 소스(install.wim)에서 채집한 것이라 타이핑이 없다. 소스 미준비면 Windows 옵션 자체가 disabled 다. -->
+                                    <div id="oiWindowsBlock" hidden>
+                                        <div class="n-form-group" data-error-field="imageName">
+                                            <label class="n-label strong" for="oiWindowsImage">설치 이미지 (에디션)</label>
+                                            <select id="oiWindowsImage" class="n-select">
+                                                <option value="" data-placeholder>설치 이미지를 선택하십시오</option>
+                                                <option th:each="img : ${windowsImageOptions}"
+                                                        th:value="${img.name}"
+                                                        th:text="${img.displayName} + ' — ' + ${img.installationType}"
+                                                        th:data-edition-id="${img.editionId}"
+                                                        th:data-index="${img.index}"></option>
+                                            </select>
+                                            <div class="n-hint">이미지 목록은 설치 소스의 install.wim 에서 읽습니다.</div>
+                                            <div class="n-hint is-danger" id="oiWindowsImagePrefillWarning" hidden></div>
+                                        </div>
+                                        <div class="n-form-group" data-error-field="administratorPassword">
+                                            <label class="n-label strong" for="oiWinAdminPassword">Administrator 비밀번호</label>
+                                            <input type="password" id="oiWinAdminPassword" class="n-input" autocomplete="new-password"
+                                                   maxlength="127" placeholder="예: S3rver!2025">
+                                            <label class="n-checkbox n-keep-password" id="oiWinAdminKeepWrap" hidden>
+                                                <input type="checkbox" id="oiWinAdminKeep"> 기존 비밀번호 유지
+                                            </label>
+                                            <div class="n-hint">Windows 의 비밀번호 정책(길이 · 복잡도)을 만족해야 설치가 완료됩니다. 영문 대소문자 · 숫자 · 특수문자 조합을 권장합니다.</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

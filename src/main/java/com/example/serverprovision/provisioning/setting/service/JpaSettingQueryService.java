@@ -2,7 +2,12 @@ package com.example.serverprovision.provisioning.setting.service;
 
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
-import com.example.serverprovision.provisioning.setting.service.reference.os.PlannedInstallTargetPolicy;
+import com.example.serverprovision.provisioning.setting.service.reference.os.OsInstallTargetPolicy;
+import com.example.serverprovision.execution.wininstall.catalog.InstallSourceSnapshot;
+import com.example.serverprovision.execution.wininstall.catalog.WindowsImageCatalog;
+import com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest;
+import com.example.serverprovision.provisioning.setting.dto.response.WindowsImageOptionResponse;
+import com.example.serverprovision.provisioning.setting.enums.WindowsImagePresence;
 import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
@@ -81,16 +86,17 @@ public class JpaSettingQueryService implements SettingQueryService {
     private final BiosSettingTemplateRepository biosSettingTemplateRepository;
     // U4-1-1 — RAID 카드 선택지 · 상세의 카드명 해석. setting → management.raidcard 단방향(boards 선례).
     private final RaidCardRepository raidCardRepository;
+    // E4-1-a-2 — Windows 설치 이미지 선택지 · 옵션 차단 판정 · 상세의 소스 대조. setting → execution.wininstall 단방향(RaidPlanner 선례).
+    private final WindowsImageCatalog windowsImageCatalog;
 
     /**
-     * management OSFamily → setting OSFamily 선언적 매핑(2단 판별자 축).
-     * 맵에 없는 계열(WINDOWS_BASED)은 setting 판별자 없이 옵션에 실린다(osFamily = null) —
-     * 식별 전용 기록(R11)의 대상이며, setting 쪽 WINDOWS 판별자가 실체화되면(plan v2 §0)
-     * 이 맵에 한 항목을 더한다. 계열별 선택 가능 여부는 {@code PlannedInstallTargetPolicy} 가 판정.
+     * management OSFamily → setting OSFamily 선언적 매핑(2단 판별자 축). WINDOWS 는 E4-1-a-2 에서 실체화됐다.
+     * 계열별 선택 가능 여부는 {@code OsInstallTargetPolicy} 가 판정한다.
      */
     private static final Map<com.example.serverprovision.management.os.enums.OSFamily, OSFamily> FAMILY_MAPPING = Map.of(
             com.example.serverprovision.management.os.enums.OSFamily.RHEL_BASED, OSFamily.RHEL_BASED,
-            com.example.serverprovision.management.os.enums.OSFamily.DEBIAN_BASED, OSFamily.DEBIAN_BASED);
+            com.example.serverprovision.management.os.enums.OSFamily.DEBIAN_BASED, OSFamily.DEBIAN_BASED,
+            com.example.serverprovision.management.os.enums.OSFamily.WINDOWS_BASED, OSFamily.WINDOWS);
 
     /** deprecatedAt(Instant) 의 화면 표기 — 프로젝트 표기 관례(KST yyyy-MM-dd HH:mm)를 따른다. */
     private static final DateTimeFormatter DEPRECATED_AT_FORMAT =
@@ -302,6 +308,7 @@ public class JpaSettingQueryService implements SettingQueryService {
         Map<Long, String> templates = new LinkedHashMap<>();
         Map<Long, String> isos = new LinkedHashMap<>();
         Map<Long, String> raidCards = new LinkedHashMap<>();
+        Map<String, ReferenceNamesResponse.WindowsImageReference> windowsImages = new LinkedHashMap<>();
         for (AbstractProcessRequest process : processList) {
             if (process instanceof BasicSettingRequest basicSetting) {
                 biosSettingTemplateRepository.findAllById(basicSetting.getBiosSettingTemplateIds())
@@ -335,6 +342,14 @@ public class JpaSettingQueryService implements SettingQueryService {
                     osPackageGroupRepository.findAllById(rhel.getPackageGroupIds())
                             .forEach(g -> packageGroups.put(g.getId(), g.getDisplayName()));
                 }
+                if (install instanceof WindowsInstallationRequest windows && windows.getImageName() != null) {
+                    // 조회 시점 대조(E4-1-a-2 D-10) — 운영 절차가 소스를 바꿔도 정의서는 모르므로 여기서 드러낸다.
+                    InstallSourceSnapshot snapshot = windowsImageCatalog.snapshot();
+                    windowsImages.put(windows.getImageName().value(), new ReferenceNamesResponse.WindowsImageReference(
+                            snapshot.find(windows.getImageName()).map(image -> image.displayName())
+                                    .orElse(windows.getImageName().value()),
+                            WindowsImagePresence.judge(snapshot, windows.getImageName())));
+                }
             } else if (process instanceof RaidConfigurationRequest raid && raid.getRaidCardId() != null) {
                 // 소프트참조(U4-1-1) — 삭제된 카드는 맵에 넣지 않아 템플릿이 "(사라진 카드 #id)" 로 그린다.
                 raidCardRepository.findByIdAndIsDeletedFalse(raid.getRaidCardId())
@@ -348,7 +363,16 @@ public class JpaSettingQueryService implements SettingQueryService {
         return new ReferenceNamesResponse(
                 Map.copyOf(boards), Map.copyOf(biosVersions), Map.copyOf(bmcVersions),
                 Map.copyOf(osNames), Map.copyOf(environments), Map.copyOf(packageGroups),
-                Map.copyOf(templates), Map.copyOf(isos), Map.copyOf(raidCards));
+                Map.copyOf(templates), Map.copyOf(isos), Map.copyOf(raidCards), Map.copyOf(windowsImages));
+    }
+
+    /** 설치 소스의 이미지 목록 그대로(E4-1-a-2) — 준비되지 않았으면 빈 목록(옵션 차단은 installBlockReason 이 맡는다). */
+    @Override
+    public List<WindowsImageOptionResponse> findWindowsImageOptions() {
+        return windowsImageCatalog.snapshot().images().stream()
+                .map(image -> new WindowsImageOptionResponse(image.name().value(), image.displayName(),
+                        image.installationType(), image.editionId(), image.index()))
+                .toList();
     }
 
     /**
@@ -467,12 +491,13 @@ public class JpaSettingQueryService implements SettingQueryService {
     }
 
     private SettingOSOptionResponse toOSOption(OSMetadata os) {
+        // 차단 사유의 SSOT = OsInstallTargetPolicy — 계열 검사기(서버 가드)와 같은 판정(E4-1-a-2 D-4).
         return new SettingOSOptionResponse(
                 os.getId(),
                 os.getOsName().name(),
                 os.getOsVersion(),
                 FAMILY_MAPPING.get(os.getOsName().getFamily()),
-                PlannedInstallTargetPolicy.blockReason(os.getOsName()),
+                OsInstallTargetPolicy.blockReason(os.getOsName(), windowsImageCatalog.snapshot().ready()),
                 os.isDeprecated(),
                 deprecatedAtDisplay(os),
                 os.getDescription(),

@@ -9,9 +9,6 @@ import com.example.serverprovision.provisioning.setting.enums.VdReadPolicy;
 import com.example.serverprovision.provisioning.setting.enums.VdStripSize;
 import com.example.serverprovision.provisioning.setting.enums.VdWritePolicy;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
-import com.example.serverprovision.provisioning.setting.dto.request.LinuxInstallationRequest;
-import com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest;
-import com.example.serverprovision.provisioning.setting.dto.request.UserRequest;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest;
@@ -97,6 +94,8 @@ public class SettingController {
                 .filter(SettingProcessType::isPaletteExposed).toList());
         model.addAttribute("boardOptions", settingQueryService.findBoardOptions());
         model.addAttribute("osOptions", settingQueryService.findOSOptions());
+        // E4-1-a-2 — Windows 설치 이미지 선택지(설치 소스 채집). 소스 미준비면 빈 목록 + Windows 옵션은 installBlockReason 으로 차단.
+        model.addAttribute("windowsImageOptions", settingQueryService.findWindowsImageOptions());
         model.addAttribute("biosTemplateOptions", settingQueryService.findBiosTemplateOptions());
         model.addAttribute("timezoneOptions", settingQueryService.findTimezoneOptions());
         model.addAttribute("fileSystems", List.of(FileSystem.values()));
@@ -136,23 +135,13 @@ public class SettingController {
      * (기존-유지 플래그로 대체). 직렬화 실패는 우리 데이터의 버그이므로 삼키지 않고 전파한다.
      */
     private String buildInitialJson(SettingDetailResponse setting) {
+        // 비밀값 제거는 단계 타입의 다형 훅(withoutSecrets) — 컨트롤러는 타입을 고르지 않는다(E4-1-a-2 D-11).
         List<AbstractProcessRequest> patched = setting.processList().stream()
-                .map(this::withoutPasswords)
+                .map(AbstractProcessRequest::withoutSecrets)
                 .toList();
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("name", setting.name());
         payload.put("processList", patched);
         return objectMapper.writeValueAsString(payload);
-    }
-
-    private AbstractProcessRequest withoutPasswords(AbstractProcessRequest process) {
-        if (!(process instanceof LinuxInstallationRequest linux)) return process;
-        List<UserRequest> patchedUsers = linux.getUsers() == null
-                ? null
-                : linux.getUsers().stream()
-                        .map(u -> new UserRequest(u.getUsername(), null, u.getIsSudoer(), false, true))
-                        .toList();
-        // root 비밀번호 패치는 소유 계층(RHEL)의 withPatchedPasswords 가 스스로 수행한다.
-        return linux.withPatchedPasswords(patchedUsers);
     }
 }

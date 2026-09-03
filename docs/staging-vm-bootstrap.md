@@ -279,6 +279,75 @@ git config --global user.email "<이메일>"
 
 IntelliJ 는 VM 에 설치하지 않는다. 맥의 JetBrains Gateway(또는 IntelliJ 의 Remote Development 메뉴)로 ssh 접속하면 VM 에는 headless 백엔드만 자동 배치되고 IDE 화면은 맥에서 뜬다. GUI 패키지가 전혀 필요 없다. 단 두 가지 전제가 있다. JetBrains 원격 개발은 IntelliJ IDEA Ultimate 계열에서 지원되며 Community 는 지원되지 않는다. 그리고 백엔드가 VM 에서 인덱싱과 빌드를 수행하므로 VM 메모리를 4 GB 이상 잡아야 쾌적하다. 전제가 안 맞으면 코드는 맥에서 편집하고 git push 와 pull 로 VM 에 반영하는 것으로 충분하다. 스테이징의 본분은 실행 환경 리허설이지 편집 환경이 아니다.
 
-## 14. 이 런북의 자리
+## 14. Windows Server 2025 무인 설치 운영 기반 (E4-1-a-1 · 2026-09-02 실측 1호에서 확정)
+
+앱은 SMB 를 서빙하지 않는다. Windows Setup 이 `install.wim` 을 파일 경로로 읽어야 하므로 설치 소스는 Samba 읽기 전용 공유로 내고, 앱은 공유의 UNC · 계정 정보를 설정으로 받아 WinPE 배치(`install.bat`)를 렌더할 때만 쓴다(토론 1호 Q6 · Q9 결정). 실측 1호(스테이징 VM 192.168.1.10)의 구성이 원안이다.
+
+### 1. 설치 소스 영역
+```
+sudo lvcreate -y -L 10G -n lv_pxe vg_data && sudo mkfs.xfs -L pxe /dev/vg_data/lv_pxe
+sudo mkdir -p /srv/pxe && echo "/dev/mapper/vg_data-lv_pxe /srv/pxe xfs defaults,nofail 0 0" | sudo tee -a /etc/fstab && sudo mount -a
+sudo mkdir -p /srv/pxe/win2025/sources /srv/pxe/spvout && sudo chown -R spvadmin:spvadmin /srv/pxe/win2025
+```
+ISO(앱의 OS 자원으로 업로드된 파일)를 루프 마운트해 `boot.wim`(`sources/boot.wim` · Windows Setup = index 2) · `sources/` 전체 · 루트 `setup.exe` 를 `/srv/pxe/win2025/` 로 복사한다. 6 GB 급이라 서버 안에서 복사한다(맥에서 재전송하지 않는다). 새 Windows 버전은 같은 절차를 새 디렉토리에 반복한다.
+
+### 2. Samba (읽기 전용 설치 소스 · 쓰기 결과 공유)
+```
+sudo dnf install -y samba samba-common-tools
+sudo useradd -M -s /sbin/nologin deploy && sudo smbpasswd -a deploy
+sudo setsebool -P samba_export_all_ro 1 samba_export_all_rw 1
+sudo firewall-cmd --permanent --add-service=samba && sudo firewall-cmd --reload
+sudo systemctl enable --now smb
+```
+`/etc/samba/smb.conf`(원본은 `.orig` 로 백업):
+```
+[global]
+   server min protocol = SMB3
+   server signing = mandatory
+   map to guest = never
+   restrict anonymous = 2
+[win2025]
+   path = /srv/pxe/win2025
+   read only = yes
+   guest ok = no
+   valid users = deploy
+[spvout]
+   path = /srv/pxe/spvout
+   read only = no
+   guest ok = no
+   valid users = deploy
+   create mask = 0660
+   directory mask = 0770
+```
+Windows Server 2025 의 SMB 클라이언트는 서명을 요구하고 guest 를 거부한다 — 옛 `guest only` 레시피는 실패한다. `restrict anonymous = 2` 가 없으면 익명 세션이 공유 목록을 본다(실측). `deploy` 비밀번호는 게스트에 서빙되는 배치 파일에 평문으로 실리므로 격리망 전제이며 문서 · 원장에 적지 않는다(VM 의 `/root/win2025-secrets.txt` 처럼 root 전용 파일에만).
+
+### 3. 정적 HTTP (앱 자산 서빙과 분리 · 실측용)
+앱 통합(E4-1-a-3) 전까지는 python `http.server` 로 `/srv/pxe` 를 8088 에 낸다: systemd 유닛 `win2025-static.service`(User=spvadmin · WorkingDirectory=/srv/pxe · `ExecStart=/usr/bin/python3 -m http.server 8088 --bind 0.0.0.0`). 방화벽 `--add-port=8088/tcp`. 통합 뒤에는 앱의 토큰 자산 서빙(`/api/pxe/v1/...`)이 이 역할을 맡고 유닛은 내린다.
+
+### 4. wimboot 자산
+`wimboot` 는 ipxe.org 의 **서명 릴리스만** 쓴다(직접 빌드본은 Secure Boot 에서 거부). 실측 판 v2.9.0(74.3 KB · Authenticode "Microsoft Corporation UEFI CA 2011" · SHA-256 `5f067ccdc4d084d5bf77b6c853bd0f8402dfc2b4cd1b103d358993ae97fae8e3`). 2026-06 의 2011 CA 만료 뒤 2023 CA 만 신뢰하는 펌웨어에서는 거부될 수 있어 Secure Boot 트랙(E4-1-a-5)에서 다시 본다. 앱 통합 뒤에는 진단 이미지처럼 앱 자산으로 등록 · 버전 관리한다.
+
+### 5. 실측 모드 전환 (앱 통합 전 임시)
+`/usr/local/sbin/win2025-fieldwork.sh on|off|status` — `on` 은 앱 정지(게스트가 올라오면 앱이 등록하고 R13 자동 진단이 돌기 때문) · tftp `boot.ipxe` 를 `chain http://<서버>:8088/win2025/win.ipxe` 로 교체 · smb/static 기동, `off` 는 원복. 실기망으로 옮길 때는 `nmcli con mod enp2s0 ipv4.method manual ipv4.addresses 192.168.1.10/24` 후 `systemctl start dhcpd`(dhcpd 조각은 1.0/24 · next-server 1.10). 앱이 `win.ipxe` 를 내게 되면(E4-1-a-3) 이 스크립트는 폐기한다.
+
+### 6. 검증
+- 로컬: `smbclient //127.0.0.1/win2025 -U deploy -m SMB3 -c ls` 성공 · `smbclient -N //127.0.0.1/win2025 -c ls` 는 `NT_STATUS_ACCESS_DENIED`.
+- 맥(같은 망): `smbutil view //deploy@<서버>` 로 `win2025` · `spvout` 목록 · `curl -sI http://<서버>:8088/win2025/boot.wim` 의 `Content-Length` = boot.wim 크기.
+- WinPE: `net use N: \\<서버>\win2025 /user:deploy` 는 부팅 직후 수십 초 오류 53 → `wpeutil WaitForNetwork` + Workstation 재시작 + 재시도로 통과(실측 3호: 네트워크 후 62초).
+
+### 7. 앱 환경변수 (E4-1-a-2)
+앱은 설치 소스를 만들지 않고 경로와 공유 접속 정보만 안다. `/etc/serverprovision/env`(0600)에 아래 키를 넣고 재기동한다. 값은 이 문서에 적지 않는다.
+
+| 환경변수 | 뜻 | 미설정 시 |
+|---|---|---|
+| `WINDOWS_INSTALL_SOURCE_ROOT` | §1 의 소스 루트(`/srv/pxe/win2025`) | 정의서의 Windows 옵션 차단 · 대시보드 "서빙 비활성" |
+| `WINDOWS_INSTALL_SHARE_UNC` | WinPE 가 붙는 UNC(`\\<서버>\win2025`) | 대시보드 "미설정"(E4-1-a-3 준비도가 실행 차단) |
+| `WINDOWS_INSTALL_SHARE_USER` · `WINDOWS_INSTALL_SHARE_PASSWORD` | §2 의 `deploy` 계정 | 같음 |
+| `WINDOWS_TIME_ZONE` | 응답 파일 시간대(tzutil 표기) | 기본 `Korea Standard Time` |
+| `WINDOWS_PRODUCT_KEY_SERVERSTANDARD` · `WINDOWS_PRODUCT_KEY_SERVERDATACENTER` | 에디션별 제품 키(GVLK 는 Microsoft Learn 의 KMS 클라이언트 키 표) | 대시보드 "미설정" |
+
+Administrator 비밀번호는 환경변수가 아니라 정의서의 필수 입력이다(E4-1-a-2 CP1 정정). 앱이 읽는 것은 `<루트>/sources/install.wim` 의 헤더와 XML 뿐이라 대시보드 `/system/asset` 의 "Windows 설치 소스" 영역에서 이미지 목록(4종 · 빌드 · 언어)이 보이면 §1 배치가 맞은 것이다. 검증용 가짜 소스는 `scripts/wininstall-fixture/make-fake-source.py` 로 만든다.
+
+## 15. 이 런북의 자리
 
 여기서 실측으로 검증된 절차와 값이 OPS-4 의 정식 자산(설치 스크립트, 유닛 파일, 운영 런북)으로 승격된다. 실서버 이행 시 이 문서와의 차이는 1절의 표가 기준이다. 절차를 수행하며 발견한 어긋남(환경 키, 권한, 경로)은 이 문서를 직접 고쳐 최신으로 유지한다.

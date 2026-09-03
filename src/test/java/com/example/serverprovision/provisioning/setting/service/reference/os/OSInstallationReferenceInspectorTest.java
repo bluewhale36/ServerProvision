@@ -12,8 +12,9 @@ import com.example.serverprovision.provisioning.setting.dto.request.UbuntuInstal
 import com.example.serverprovision.provisioning.setting.enums.FileSystem;
 import com.example.serverprovision.provisioning.setting.enums.SizeUnit;
 import com.example.serverprovision.provisioning.setting.exception.DisabledResourceReferenceException;
-import com.example.serverprovision.provisioning.setting.dto.request.PlannedOSInstallationRequest;
-import com.example.serverprovision.provisioning.setting.exception.UnsupportedPlannedInstallTargetException;
+import com.example.serverprovision.provisioning.setting.dto.request.WindowsAdministratorPasswordRequest;
+import com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest;
+import com.example.serverprovision.execution.wininstall.vo.WindowsImageName;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +44,7 @@ class OSInstallationReferenceInspectorTest {
     @Mock OSMetadataRepository osMetadataRepository;
     @Mock com.example.serverprovision.management.os.repository.ISORepository isoRepository;
     @Mock RHELInstallationFamilyInspector rhelFamily;
+    @Mock WindowsInstallationFamilyInspector windowsFamily;
 
     private OSInstallationReferenceInspector inspector;
 
@@ -167,39 +169,30 @@ class OSInstallationReferenceInspectorTest {
                 .containsExactly("Rocky Linux 9.4");
     }
 
-    // ==== R11 — 식별 전용(설치 예정 기록) ================================
+    // ==== E4-1-a-2 — WINDOWS 계열은 2단 맵으로 위임(식별 전용 분기 퇴역) ================================
 
-    @Test
-    @DisplayName("식별 전용 + Windows 계열 → 통과, 계열 검사기 미위임 (R11 D-R1 · D-R8)")
-    void planned_windowsTarget_passes() {
-        inspector = build();
-        OSMetadata windows = Mockito.mock(OSMetadata.class);
-        Mockito.lenient().when(windows.isEnabled()).thenReturn(true);
-        Mockito.lenient().when(windows.getOsName()).thenReturn(OSName.WINDOWS_SERVER);
-        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(windows));
-        stubUsableIso(100L, 1L);
-
-        assertThatCode(() -> inspector.validateReferences(new PlannedOSInstallationRequest(1L, 100L), CTX))
-                .doesNotThrowAnyException();
-        verify(rhelFamily, Mockito.never()).validateReferences(any());
+    private static WindowsInstallationRequest windows(Long osMetadataId) {
+        return new WindowsInstallationRequest(osMetadataId, 100L,
+                new WindowsImageName("Windows Server 2025 SERVERSTANDARD"),
+                new WindowsAdministratorPasswordRequest("S3rver!2025", false));
     }
 
     @Test
-    @DisplayName("식별 전용 + 리눅스 계열 → 400 계열 가드(osMetadataId) — direct POST 안전망 (R11 D-R8)")
-    void planned_linuxTarget_blocked() {
-        inspector = build();
-        OSMetadata rocky = Mockito.mock(OSMetadata.class);
-        Mockito.lenient().when(rocky.isEnabled()).thenReturn(true);
-        Mockito.lenient().when(rocky.getOsName()).thenReturn(OSName.ROCKY_LINUX);
-        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(rocky));
+    @DisplayName("WINDOWS 계열 → 공통(OS · ISO) 검증 후 Windows 계열 검사기에 위임, RHEL 검사기 미호출")
+    void windows_delegatesToWindowsFamilyInspector() {
+        given(rhelFamily.family()).willReturn(com.example.serverprovision.provisioning.setting.enums.OSFamily.RHEL_BASED);
+        given(windowsFamily.family()).willReturn(com.example.serverprovision.provisioning.setting.enums.OSFamily.WINDOWS);
+        inspector = new OSInstallationReferenceInspector(
+                new OsMetadataReferenceChecker(osMetadataRepository), isoRepository, List.of(rhelFamily, windowsFamily));
+        OSMetadata windowsOs = Mockito.mock(OSMetadata.class);
+        Mockito.lenient().when(windowsOs.isEnabled()).thenReturn(true);
+        Mockito.lenient().when(windowsOs.getOsName()).thenReturn(OSName.WINDOWS_SERVER);
+        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(windowsOs));
         stubUsableIso(100L, 1L);
 
-        assertThatThrownBy(() -> inspector.validateReferences(new PlannedOSInstallationRequest(1L, 100L), CTX))
-                .isInstanceOfSatisfying(UnsupportedPlannedInstallTargetException.class, e -> {
-                    // 사유 문장 = 정책 SSOT 그대로(UI tooltip 과 동일 문장 — 같은 상황 같은 문장)
-                    assertThat(e.getMessage()).isEqualTo(PlannedInstallTargetPolicy.LINUX_BLOCK_REASON);
-                    assertThat(e.fieldName()).isEqualTo("osMetadataId");
-                });
+        WindowsInstallationRequest request = windows(1L);
+        assertThatCode(() -> inspector.validateReferences(request, CTX)).doesNotThrowAnyException();
+        verify(windowsFamily).validateReferences(request);
         verify(rhelFamily, Mockito.never()).validateReferences(any());
     }
 }

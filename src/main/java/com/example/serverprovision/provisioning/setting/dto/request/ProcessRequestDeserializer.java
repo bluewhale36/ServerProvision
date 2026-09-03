@@ -21,9 +21,9 @@ import java.util.Map;
  * {@code @JacksonComponent} 라서 애플리케이션·{@code @WebMvcTest} 슬라이스 양쪽에 자동 등록된다.</p>
  *
  * <p><b>판별자 등록 지점 (SSOT)</b> : 새 단계 타입·OS 계열 추가 시 아래 맵에 한 항목을 더한다
- * (구 {@code @JsonSubTypes} 한 줄과 같은 확장 비용). 예약된 {@code WINDOWS} 계열은
- * {@code WindowsInstallationRequest} 가 실체화될 때 {@code OS_SUBTYPES} 에 등록한다 —
- * 등록 전 전송은 아래 가드가 400 으로 거절한다.</p>
+ * (구 {@code @JsonSubTypes} 한 줄과 같은 확장 비용). {@code WINDOWS} 는 E4-1-a-2 에서
+ * {@code WindowsInstallationRequest} 로 등록됐다. R11 의 식별 전용 등록({@code osFamily} 부재 →
+ * {@code PlannedOSInstallationRequest})은 같은 슬라이스에서 퇴역했다 — 판별자 부재는 다른 OS 타입과 같은 400 이다.</p>
  */
 @JacksonComponent
 public class ProcessRequestDeserializer extends ValueDeserializer<AbstractProcessRequest> {
@@ -33,17 +33,11 @@ public class ProcessRequestDeserializer extends ValueDeserializer<AbstractProces
             SettingProcessType.BASIC_SETTING, BasicSettingRequest.class,
             SettingProcessType.RAID_CONFIGURATION, RaidConfigurationRequest.class);
 
-    /**
-     * 식별 전용(설치 예정 기록) 등록 테이블 — {@code osFamily} 판별자가 없거나 null 인 요청의 목적지
-     * (R11 D-R1). 여기 없는 타입의 판별자 부재는 기존대로 400 이다.
-     */
-    private static final Map<SettingProcessType, Class<? extends AbstractProcessRequest>> IDENTIFICATION_SUBTYPES = Map.of(
-            SettingProcessType.OS_INSTALLATION, PlannedOSInstallationRequest.class);
-
     private static final Map<SettingProcessType, Map<OSFamily, Class<? extends AbstractProcessRequest>>> OS_SUBTYPES = Map.of(
             SettingProcessType.OS_INSTALLATION, Map.of(
                     OSFamily.RHEL_BASED, RHELInstallationRequest.class,
-                    OSFamily.DEBIAN_BASED, UbuntuInstallationRequest.class),
+                    OSFamily.DEBIAN_BASED, UbuntuInstallationRequest.class,
+                    OSFamily.WINDOWS, WindowsInstallationRequest.class),
             SettingProcessType.OS_SETTING, Map.of(
                     OSFamily.RHEL_BASED, RHELOSSettingRequest.class));
 
@@ -67,15 +61,6 @@ public class ProcessRequestDeserializer extends ValueDeserializer<AbstractProces
             // enum 상수는 늘었는데 등록이 누락된 경우 — silent 500 대신 명시적 입력 불일치로 드러낸다.
             return ctxt.reportInputMismatch(AbstractProcessRequest.class,
                     "단계 타입 '%s' 의 하위 타입 등록이 없습니다.", type);
-        }
-        JsonNode familyNode = node.get("osFamily");
-        if (familyNode == null || familyNode.isNull()) {
-            Class<? extends AbstractProcessRequest> identification = IDENTIFICATION_SUBTYPES.get(type);
-            if (identification != null) {
-                return identification;
-            }
-            return ctxt.reportInputMismatch(AbstractProcessRequest.class,
-                    "프로비저닝 단계에 판별자 '%s' 가 없습니다.", "osFamily");
         }
         OSFamily family = readDiscriminator(ctxt, node, "osFamily", OSFamily.class);
         Class<? extends AbstractProcessRequest> target = familyMap.get(family);
