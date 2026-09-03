@@ -6,9 +6,11 @@ import com.example.serverprovision.management.raidcard.dto.request.RaidCardCreat
 import com.example.serverprovision.management.raidcard.dto.request.RaidCardUpdateRequest;
 import com.example.serverprovision.management.raidcard.dto.response.RaidCardCreateResponse;
 import com.example.serverprovision.management.raidcard.dto.response.RaidCardResponse;
+import com.example.serverprovision.management.raidcard.dto.response.RaidCardVendorGroupResponse;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import com.example.serverprovision.management.raidcard.service.RaidCardMetadataService;
+import com.example.serverprovision.management.raidcard.service.RaidCardObservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +40,7 @@ import java.util.List;
 public class RaidCardMetadataController {
 
 	private final RaidCardMetadataService raidCardService;
+	private final RaidCardObservationService observationService;
 
 	// ==== 목록 ========================================================
 
@@ -48,7 +51,10 @@ public class RaidCardMetadataController {
 			@RequestParam(name = "selectKey", required = false) String selectKey,
 			Model model
 	) {
-		model.addAttribute("raidCardGroups", raidCardService.findAllGrouped(includeDeleted));
+		List<RaidCardVendorGroupResponse> groups = raidCardService.findAllGrouped(includeDeleted);
+		model.addAttribute("raidCardGroups", groups);
+		// E3.5-5-b — 카드별 관측 요약(파생 · 비삭제 카드만). 배지 · 버튼 · tooltip 이 이 판정 하나를 본다.
+		model.addAttribute("observationByCard", observationService.summariesByCard(groups));
 		model.addAttribute("includeDeleted", includeDeleted);
 		model.addAttribute("selectId", selectId);
 		model.addAttribute("selectKey", selectKey);
@@ -122,6 +128,18 @@ public class RaidCardMetadataController {
 			return "management/raidcard/edit";
 		}
 		raidCardService.update(id, request);
+		return RaidCardControllerSupport.redirectToListWithSelect(id);
+	}
+
+	// ==== 관측값으로 확정 (E3.5-5-b) ====================================
+
+	/**
+	 * 미확인 카드의 Subsystem 을 게스트 관측값으로 채운다. BindingResult 없는 상태 변경 폼 — 전역 가로채기가
+	 * 보내고 거절(409)은 안내 모달로 수렴한다. 화면이 같은 판정으로 버튼을 숨기거나 잠그므로 409 는 direct POST 몫이다.
+	 */
+	@PostMapping("/{id}/confirm-observed")
+	public String confirmObserved(@PathVariable Long id) {
+		observationService.confirmObserved(id);
 		return RaidCardControllerSupport.redirectToListWithSelect(id);
 	}
 

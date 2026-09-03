@@ -199,7 +199,7 @@ class GuestServerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Subsystem 이 확정되지 않아 대조할 수 없습니다")))
                 .andExpect(content().string(containsString("class=\"n-alert n-alert-warning\"")))            // CP5 F-3 · O-1 — 주의 배너
-                .andExpect(content().string(containsString("href=\"/management/raidcard/7/edit\"")));
+                .andExpect(content().string(containsString("href=\"/management/raidcard?selectId=7\"")));
 
         UUID id3 = UUID.randomUUID();
         given(queryService.findDetail(id3)).willReturn(detailWithCardCheck(id3, check(

@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E3.5-5-b Plan — RAID 카드 관측 채움(확인형)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); text-decoration:none; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 라이브 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .ux-wrap select { font-family:var(--mono); font-size:11.5px; padding:3px 6px; border:1px solid var(--border); border-radius:5px; background:var(--card); color:var(--text); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq (5 레인) ── */
+  .seq { display:grid; grid-template-columns:repeat(5,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+5) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); }
+  .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  /* ── 기타 ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E3.5-5-b — RAID 카드 관측 채움(확인형) <span class="v2-badge">확인형</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E3.5-5-b (feature)</span>
+    <span><strong>브랜치</strong> <code>feat/E3.5-5-b_raid-card-observation</code> (origin/dev 167afc0 기저)</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/3cfef0e868f98145861ed5a9b51a0131">E3.5-5-b</a> · 우산 <a href="https://app.notion.com/p/3ceef0e868f98140991fdaa70fb99544">E3.5-5</a></span>
+    <span><strong>토론</strong> <code>discussion/26-09-02_17-45-22_E3.5-5-diag-raid-precheck_discussion.md</code> (Q3)</span>
+    <span><strong>선행</strong> E3.5-5-a (PR #66 병합)</span>
+    <span><strong>생성</strong> 2026-09-03 KST</span>
+    <span><strong>CP1</strong> 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 요약</a></li>
+      <li><a href="#s1">§1 배경 · 진단</a></li>
+      <li><a href="#s2">§2 요구사항 · 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 라이브 데모</a></li>
+      <li><a href="#s3">§3 설계 대안 비교</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 데이터 흐름</a></li>
+      <li><a href="#s6">§6 URL · 시그니처</a></li>
+      <li><a href="#s7">§7 엔티티 · 스키마 · 예외</a></li>
+      <li><a href="#s8">§8 UI 명세</a></li>
+      <li><a href="#s9">§9 테스트 계획</a></li>
+      <li><a href="#s10">§10 CP5 검증 계획</a></li>
+      <li><a href="#s11">§11 Critical Files · 남은 일</a></li>
+      <li><a href="#s12">§12 12 단계 · CP 매핑</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 요약 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 요약</summary>
+      <div class="body">
+        <ul>
+          <li>RAID 카드 자원의 PCI Subsystem ID 가 비어 있으면(미확인) 집행의 카드 대조와 게스트 상세의 예고가 모두 "대조 불가" 로 끝납니다(E3.5-5-a 의 <code>UNVERIFIABLE</code>). 이 슬라이스는 <b>게스트가 관측한 값을 카드 화면에 보여 주고, 운영자가 [관측값으로 확정] 을 눌러 채우는</b> 확인형 경로를 만듭니다.</li>
+          <li>관측은 <b>저장하지 않고 파생합니다</b> — "이 카드를 지정한 활성 할당의 게스트들" 이 저장해 둔 RAID 인벤토리(<code>guest_server_detail.raid_inventory_json</code>, E3.5-5-a 가 진단 시점부터 채웁니다)에서 감지 카드를 읽습니다. DDL 0 · 엔진 훅 0.</li>
+          <li>관측이 하나로 모이면 확정 버튼이 열리고, 서로 다르거나 이미 확정값과 다르면 배지가 그 사실을 보이고 버튼을 잠급니다(UI 1차 차단 · 서버 가드 같은 판정 <code>RaidCardObservationStatus</code>).</li>
+          <li>대조(<code>CARD_MISMATCH</code>)와 예고는 종전대로 확정값만 봅니다. 확정은 <code>pciSubsystemId</code> 채움 한 가지입니다 — <b><code>RaidCard</code> 는 마커 없는 메타 자원이라 재서명이 없습니다</b>(토론 실태 5 의 정정).</li>
+          <li>이유: 09-01 실기에서 카드 자원에 Subsystem 이 없어 카드 대조가 전 사이클 생략됐고, 값은 게스트가 이미 보고하고 있었습니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §1 배경 · 진단 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경 · 진단 (실측 2026-09-03 · dev 167afc0)</summary>
+      <div class="body">
+        <h4>출발점</h4>
+        <p>토론 §1 의 공백 ② 입니다 — <code>raid_card</code> 에 PCI Subsystem 이 미등록이면 <code>cardMatches</code> 가 생략되고 WARN 만 남습니다. E3.5-5-a 가 진단 시점 채집 · 예고를 만들었으므로 지금은 게스트 상세가 "카드 자원 {0} 에 Subsystem 이 확정되지 않아 대조할 수 없습니다" 를 띄우고 수정 폼 링크만 줍니다 — 운영자가 값을 손으로 옮겨 적어야 합니다.</p>
+
+        <h4>실태 (코드 실측 — 번호는 본문에서 인용합니다)</h4>
+        <ol>
+          <li><b><code>RaidCard</code> 는 메타 자원</b> — <code>getManifestHash()</code> · <code>getMarkerSignature()</code> 가 null, <code>reissueMarker</code> 는 no-op 입니다(<code>BoardModel</code> 부류).</li>
+          <li><code>PciSubsystemId</code> 는 <code>@Embeddable record(vendorId, deviceId)</code> 입니다 — <code>parse()</code> 가 표기 차이를 흡수하고 <code>toDisplay()</code> 가 <code>1458:0011</code> 정규형을 냅니다. 미확인 = 임베디드 전체 null.</li>
+          <li>지정 카드의 해석은 <code>RaidConfigurationResolutionProviderImpl.activeRaidRequest</code> 입니다 — <code>SettingAssignmentSnapshotRepository.findByGuestServer_IdAndSupersededAtIsNull</code> 의 RAID 구성 payload(<code>RaidConfigurationRequest.getRaidCardId</code>). 활성 = <code>supersededAt IS NULL</code>(소비된 스냅샷도 재할당 전까지 활성).</li>
+          <li>역방향 조회(카드 → 지정한 게스트들)는 없습니다. <code>findBySupersededAtIsNull()</code>(processes fetch join)이 전체 활성 스냅샷을 줍니다.</li>
+          <li>게스트의 관측 카드는 <code>GuestServerDetail.raidInventoryJson</code> → <code>RaidInventory.card().pciSubsystemId()</code>(소문자 정규형, <code>DetectedRaidCard</code>) 입니다. 진단 시점(E3.5-5-a) · RAID phase 모두 같은 컬럼에 최신 관측을 씁니다. 관측 시각은 따로 없습니다(<code>detail.updatedAt</code> 은 다른 갱신에도 움직입니다).</li>
+          <li>카드 대조 SSOT(Single Source of Truth — 단일 진실 출처) <code>RaidCardMatch.judge</code> 는 <code>target.pciSubsystemId</code>(자원 확정값)만 봅니다 — 관측값을 대조에 쓰지 않는 Q3 결정과 이미 일치합니다.</li>
+          <li>카드 화면은 Miller 3열 <code>management/raidcard/list.html</code> 이고, C3 상세 표에 "PCI Subsystem ID" 행(값 또는 <code>n-badge-gray</code> 미확인)이 있습니다. 상태 전이 폼은 <code>BindingResult</code> 없는 POST → 전역 가로채기입니다(<code>new-form.md</code>: 마커 없음). 컨트롤러는 3분할입니다(메타 · lifecycle · nudge).</li>
+          <li>게스트 상세 <code>UNVERIFIABLE</code> 배너 링크는 수정 폼(<code>/management/raidcard/{id}/edit</code>)으로 갑니다.</li>
+          <li>주 흐름(R13 자동 진단 · 7-b 토론 Q1')은 PXE 등록 → <b>미할당 상태에서 자동 진단</b>(인벤토리 적재) → 정의서 할당 → 계획 확인 → 개시 입니다. 즉 인벤토리가 적재되는 순간에는 할당이 없습니다.</li>
+          <li>관리 → 프로비저닝 방향 의존은 SPI(Service Provider Interface — 소비 측이 선언하고 공급 측이 구현하는 확장점) 역전으로 풉니다. 선례는 <code>RaidConfigurationResolutionProvider</code>(execution 선언 · provisioning 구현) · <code>BiosRegistryCapturePort</code> 이고, provisioning.assignment 가 execution.repository 를 읽는 선례도 다수입니다(<code>AssignmentQueryService</code> 등).</li>
+        </ol>
+
+        <div class="callout warn"><b>토론 실태 5 의 정정</b> — "Subsystem 은 마커 manifest(<code>ATTR_PCI</code>)에 포함되므로 갱신은 재서명" 은 오인입니다. <code>ATTR_PCI</code> 는 <code>RaidCardMetadataService</code> 의 <b>nudge payload 속성 키</b>입니다. 따라서 이 슬라이스의 확정은 <code>pciSubsystemId</code> 채움뿐이고 마커 경로는 없습니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 · 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) · 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>카드 화면(C3)에 관측을 표시합니다 — 값 · 관측한 서버 목록(게스트 상세 링크) · 상태 배지.</li>
+          <li>[관측값으로 확정] 을 둡니다 — 관측이 하나로 모이고 미확정일 때만 열리며, 확정하면 <code>pciSubsystemId</code> 를 채웁니다.</li>
+          <li>관측이 상충하거나 확정값과 다르면 배지로 그 사실을 보이고 버튼을 잠급니다(tooltip 사유).</li>
+          <li>서버 가드는 같은 판정을 씁니다 — direct POST 는 409 입니다.</li>
+          <li>게스트 상세의 <code>UNVERIFIABLE</code> 링크를 카드 화면(<code>selectId</code>)으로 돌립니다.</li>
+          <li>테스트는 단위 · 통합 두 레이어로 씁니다(§9).</li>
+          <li>CP5 는 브라우저 검증으로 합니다(mock-guest 진단 + 관리 화면).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>자동 채움 — 토론 Q3 에서 탈락했습니다.</li>
+            <li>관측 이력 표 · 관측 시각.</li>
+            <li>확정값 교체 — 확정값이 있으면 수정 폼이 유일한 경로이며 관측으로 덮어쓰지 않습니다.</li>
+            <li>카드 대조 · 예고 로직 변경 — 확정값만 보는 종전 판정 그대로입니다.</li>
+            <li>할당 모달 미리보기 · BMC.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 라이브 데모 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 관측 채움 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">왼쪽에서 <b>카드 자원 X 의 확정값</b>과 <b>게스트 세 대의 할당 · 저장 인벤토리</b>를 바꾸면, 오른쪽에서 ① 카드 화면 C3 미리보기(PCI Subsystem 행 · 관측 배지 · 관측 목록 · 버튼 상태) ② 게스트 세 대의 상세 예고 ③ 판정 근거 ④ 해설이 함께 갱신됩니다. <b>[관측값으로 확정]</b> 을 누르면 상태가 실제로 바뀌어 확정값 select 가 관측값으로 옮겨 가고 배지 · 예고가 다시 계산됩니다. <b>시나리오 버튼 여섯 개</b>는 각각 세팅과 안내 배너를 함께 띄웁니다.</p>
+        <p>관측 상태 판정은 <b>§4 D2 진리표를 그대로 옮긴 미러</b>이고(서버 <code>RaidCardObservationStatus.of</code> 와 같은 표), 예고 판정은 <b><code>RaidCardMatch.judge</code> 미러</b>입니다 — 드리프트 0.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="seg" data-scn="0" onclick="dmScenario(0)">① 관측 없음</button>
+            <button class="seg" data-scn="1" onclick="dmScenario(1)">② 한 대 관측 → 확정</button>
+            <button class="seg" data-scn="2" onclick="dmScenario(2)">③ 두 대 일치</button>
+            <button class="seg" data-scn="3" onclick="dmScenario(3)">④ 두 대 상충</button>
+            <button class="seg" data-scn="4" onclick="dmScenario(4)">⑤ 확정 뒤 다른 값</button>
+            <button class="seg" data-scn="5" onclick="dmScenario(5)">⑥ 재할당 이탈</button>
+          </div>
+          <div class="ux-message" id="dm-banner"></div>
+
+          <div class="split-grid" style="margin-top:12px;">
+            <div>
+              <h4 style="margin-top:0;">조작</h4>
+              <div class="ux-row">
+                <span class="label">카드 자원 X — 확정값 <code>pciSubsystemId</code></span>
+                <select id="dm-confirmed" onchange="dmSetConfirmed(this.value)">
+                  <option value="">미확인 (null)</option>
+                  <option value="1000:9361">1000:9361</option>
+                  <option value="1000:00ce">1000:00ce</option>
+                </select>
+              </div>
+              <div id="dm-guest-controls"></div>
+              <div class="ux-row">
+                <span class="label">동작</span>
+                <span id="dm-actions"></span>
+              </div>
+              <div class="ux-caps" id="dm-caps"></div>
+            </div>
+
+            <div>
+              <h4 style="margin-top:0;">표시 — 카드 화면 C3 미리보기</h4>
+              <div class="card v-blue" id="dm-card"></div>
+              <h4>게스트 상세 예고 (<code>RaidCardMatch.judge</code>)</h4>
+              <div id="dm-guests"></div>
+            </div>
+          </div>
+
+          <h4>관측 상태 진리표 — 지금 어느 칸인가</h4>
+          <table style="margin-top:4px;">
+            <thead><tr><th style="width:8em;">distinct</th><th>확정 없음</th><th>확정 있음</th></tr></thead>
+            <tbody id="dm-truth"></tbody>
+          </table>
+
+          <div class="ux-message" id="dm-msg"></div>
+          <div class="ux-message" id="dm-note"></div>
+        </div>
+
+        <h4>시나리오 여섯 개가 보여 주는 것</h4>
+        <table>
+          <thead><tr><th>#</th><th>세팅</th><th>확인할 것</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>G1~G3 할당 없음</td><td>"관측 없음" 안내 · 버튼 숨김 · 예고 <code>NOT_APPLICABLE</code></td></tr>
+            <tr><td>②</td><td>G1 이 X 지정 · 9361 감지</td><td>배지 "관측 1000:9361 (서버 1대)" · 버튼 활성 → 클릭하면 확정값이 채워지고 예고가 <code>MATCH</code> 로 바뀜</td></tr>
+            <tr><td>③</td><td>G1 · G2 모두 9361</td><td>"서버 2대" · 여전히 확정 가능</td></tr>
+            <tr><td>④</td><td>G1 9361 · G2 00ce</td><td>"관측이 서로 다릅니다" · 버튼 잠김 + tooltip · 예고는 둘 다 <code>UNVERIFIABLE</code></td></tr>
+            <tr><td>⑤</td><td>확정 9361 · G2 만 00ce</td><td>"확정값과 다릅니다" · 버튼 없음 · G2 예고 <code>MISMATCH</code></td></tr>
+            <tr><td>⑥</td><td>② 에서 G1 을 Y 로 재할당</td><td>관측이 사라지고(<code>NONE</code>) 확정값은 남음</td></tr>
+          </tbody>
+        </table>
+        <p>④ 와 ⑤ 는 둘 다 빨간 배지지만 원인이 다릅니다 — ④ 는 <b>관측끼리</b> 어긋난 것이고 ⑤ 는 <b>관측과 확정값이</b> 어긋난 것입니다. 그래서 ④ 는 버튼을 보이되 잠그고(확정할 값이 특정되지 않음), ⑤ 는 버튼을 아예 그리지 않습니다(확정은 미확정일 때만).</p>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 배지 · 버튼 · tooltip · 409 문장은 모두 <code>dmStatus()</code> 하나를 부르고, 그 함수는 서버 <code>RaidCardObservationStatus.of(confirmed, observations)</code> 와 같은 표(§4 D2)입니다. 뷰의 disabled 판정과 서비스의 409 판정이 갈라질 자리가 없습니다.</div>
+        <div class="callout warn">데모 고정값 둘 — ① "다른 카드 Y" 는 Subsystem 미확정 카드로 고정합니다(이 데모가 조작하는 확정값은 카드 X 하나뿐입니다). ② 게스트 상세는 인벤토리가 적재된 서버에만 예고 줄을 그립니다(E3.5-5-a) — 데모도 같게, 인벤토리 없음이면 "예고 없음" 으로 표시하고 판정 근거 줄에만 원시 판정(<code>judge</code>)을 적습니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 설계 대안 비교 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 설계 대안 비교 — 관측을 어디에 두는가</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>안</th><th>저장</th><th>기록 시점</th><th>DDL</th><th>복수 관측</th></tr></thead>
+          <tbody>
+            <tr><td>A 관측 3컬럼 (가안)</td><td><code>raid_card</code> 최신 1건</td><td>인벤토리 적재 훅 + 할당 훅</td><td>3~4 컬럼</td><td>표현 못 함(플래그 필요)</td></tr>
+            <tr><td>B 관측 테이블</td><td>게스트당 1행</td><td>같은 훅 2</td><td>테이블 1</td><td>표현함</td></tr>
+            <tr><td><b>C 파생 (채택)</b></td><td>없음</td><td>없음(조회 시 계산)</td><td>0</td><td>표현함</td></tr>
+          </tbody>
+        </table>
+        <p><b>A(토론 가안) 탈락</b> — 실태 9 의 주 흐름에서 인벤토리 적재 시점에는 할당이 없어 <b>적재 훅이 걸리지 않습니다</b>. 할당 시점 훅을 하나 더 두어야 하고, 최신 1건은 상충을 표현하지 못해 충돌 플래그와 해제 규칙이 따라붙으며, 재할당 뒤 옛 관측이 남습니다(stale). 마커 재서명 전제도 실태 1 로 사라졌습니다.</p>
+        <p><b>B 탈락</b> — 훅 문제는 A 와 같고 엔티티 · 리포지토리 · DDL 이 늘어납니다.</p>
+        <p><b>C 채택</b> — "이 카드를 지정한 활성 할당의 게스트" 가 이미 관측을 들고 있으므로(실태 3 · 5) 읽기만 하면 됩니다. 항상 현재 할당과 정합하고, 상충은 distinct 값이 둘 이상이면 그 자체로 드러납니다. 비용은 목록 렌더 시 활성 스냅샷 1 쿼리 + 게스트 detail 1 쿼리 + 인벤토리 JSON 파싱 N(활성 할당 수에 비례, 수십~수백)이며 CP5 에서 로그 타이밍으로 측정합니다. 관측은 재할당(superseded)으로 사라지지만 소비된 스냅샷은 남으므로 프로비저닝 완료 뒤에도 보이고, 게스트 상세의 인벤토리는 그대로입니다.</p>
+
+        <h4>확정의 범위 — 미확정일 때만(채택) vs 확정값 교체 허용(탈락)</h4>
+        <p>잘못 지정된 게스트의 관측이 올바른 확정값을 덮어쓸 수 있습니다(Q3 의 오염 우려). 확정값이 있으면 화면은 일치 · 불일치 배지만 보이고, 정정은 수정 폼(의도적 행위)으로 한정합니다.</p>
+
+        <h4>판정 SSOT — 도메인 enum 하나(채택) vs 뷰 · 서비스 각자 판정(탈락)</h4>
+        <p><code>RaidCardObservationStatus.of(confirmed, observations)</code> 하나를 뷰모델(배지 · 버튼 · tooltip)과 서비스 가드(409)가 함께 호출합니다 — 선례는 <code>childEnableBlockReason()</code> 입니다.</p>
+
+        <h4>의존 방향 — SPI 역전(채택) vs 관리 서비스가 provisioning 리포지토리 직접 주입(탈락)</h4>
+        <p>management.raidcard 가 인터페이스를 선언하고 provisioning.assignment 가 구현합니다(실태 10 선례). 직접 주입은 management → provisioning 방향 의존을 만들어 계층을 거꾸로 세웁니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>D1 — SPI <code>RaidCardObservationProvider</code> (management.raidcard.service)</h4>
+        <pre><code>Map&lt;Long, List&lt;RaidCardObservation&gt;&gt; observationsByCard(Set&lt;Long&gt; raidCardIds);
+
+record RaidCardObservation(UUID guestServerId, String guestLabel, String pciSubsystemId)   // management.raidcard.vo</code></pre>
+        <p>구현은 <code>RaidCardObservationProviderImpl</code>(provisioning.assignment.service)입니다. <code>findBySupersededAtIsNull()</code> 로 활성 스냅샷을 받아 RAID 구성 payload 의 <code>raidCardId</code> 가 대상이면 게스트를 모으고, <code>GuestServerDetailRepository.findAllByServerIdInWithBoardModel</code> 로 상세를 읽어 <code>raidInventoryJson</code> 을 <code>ObjectMapper</code> 로 <code>RaidInventory</code> 관용 파싱합니다(실패 · card null · subsystem null 은 건너뜁니다). 결과는 카드별로 묶습니다. <code>guestLabel</code> 은 <code>GuestServer.name</code> → <code>serialNumber</code> → id 앞 8자 순으로 고릅니다.</p>
+
+        <h4>D2 — 판정 SSOT <code>RaidCardObservationStatus</code> (management.raidcard.enums · method-per-constant)</h4>
+        <p>입력은 확정값(<code>PciSubsystemId</code> 또는 null)과 관측 목록이며, distinct 는 관측값의 집합 크기입니다.</p>
+        <table>
+          <thead><tr><th>distinct</th><th>확정 없음</th><th>확정 있음</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td><code>NONE</code></td><td><code>NONE</code></td></tr>
+            <tr><td>1</td><td><code>AGREED_UNCONFIRMED</code></td><td>같으면 <code>MATCHES_CONFIRMED</code> / 다르면 <code>DIFFERS_FROM_CONFIRMED</code></td></tr>
+            <tr><td>2+</td><td><code>CONFLICTING</code></td><td><code>CONFLICTING</code></td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>상수</th><th><code>confirmable()</code></th><th><code>showsButton()</code></th><th><code>badgeClass()</code></th></tr></thead>
+          <tbody>
+            <tr><td><code>NONE</code></td><td>false</td><td>false</td><td>없음</td></tr>
+            <tr><td><code>AGREED_UNCONFIRMED</code></td><td><b>true</b></td><td>true</td><td><code>n-badge-blue</code></td></tr>
+            <tr><td><code>MATCHES_CONFIRMED</code></td><td>false</td><td>false</td><td><code>n-badge-green</code></td></tr>
+            <tr><td><code>DIFFERS_FROM_CONFIRMED</code></td><td>false</td><td>false</td><td><code>n-badge-red</code></td></tr>
+            <tr><td><code>CONFLICTING</code></td><td>false</td><td>true (disabled + tooltip)</td><td><code>n-badge-red</code></td></tr>
+          </tbody>
+        </table>
+        <p><code>blockReason()</code> 은 <code>NONE</code> "이 카드를 지정한 서버의 관측이 없습니다." · <code>CONFLICTING</code> "관측이 서로 다릅니다 — 정의서의 카드 지정을 확인한 뒤 확정하십시오." · <code>MATCHES_CONFIRMED</code> · <code>DIFFERS_FROM_CONFIRMED</code> "이미 확정된 카드입니다 — 정정은 수정에서 하십시오." · <code>AGREED_UNCONFIRMED</code> null 입니다. 이 문구는 tooltip 과 409 모달이 같은 문장을 씁니다(S16 "같은 상황엔 같은 문장").</p>
+
+        <h4>D3 — 뷰모델 <code>RaidCardObservationSummaryResponse</code></h4>
+        <p>필드는 <code>status</code> · <code>agreedValue</code> · <code>distinctValues</code> · <code>observations</code> · <code>blockReason</code> · <code>confirmable</code> · <code>showsButton</code> 입니다. <code>RaidCardObservationService.summariesByCard(List&lt;RaidCardResponse&gt;)</code> 가 비삭제 카드 id 집합으로 provider 를 한 번 부르고 카드별 요약을 만듭니다. <code>RaidCardResponse</code> 는 건드리지 않습니다 — U4 폼과 테스트 다수가 15인자 생성자에 결합돼 있습니다.</p>
+
+        <h4>D4 — 확정 <code>RaidCardObservationService.confirmObserved(Long id)</code> <span class="chip opt">@Transactional</span></h4>
+        <pre><code>RaidCardGuards.requireActiveCard(id)                       // 404
+  → provider.observationsByCard({id})                      // 관측 파생
+  → RaidCardObservationStatus.of(confirmed, observations)
+  → !status.confirmable()
+        ? throw new RaidCardObservationConfirmRejectedException(status.blockReason())   // 409
+        : raidCard.confirmObservedPciSubsystemId(PciSubsystemId.parse(agreed))</code></pre>
+        <p><code>RaidCardObservationConfirmRejectedException</code> 은 <code>ConflictException</code> 을 상속하므로 advice 등록이 따로 필요 없습니다(<code>new-exception.md</code> 표). 도메인 메서드 <code>confirmObservedPciSubsystemId</code> 는 확정값이 이미 있으면 <code>IllegalRaidCardStateException</code> 을 던지는 안전망입니다.</p>
+
+        <h4>D5 — 컨트롤러 · 화면</h4>
+        <p><code>RaidCardMetadataController.list</code> 가 <code>observationByCard</code>(<code>Map&lt;Long, RaidCardObservationSummaryResponse&gt;</code>)를 모델에 더합니다. <code>POST /management/raidcard/{id}/confirm-observed</code> 는 확정 뒤 <code>redirectToListWithSelect(id)</code> 로 돌아옵니다. <code>BindingResult</code> 가 없으므로 폼 마커도 없고, 전역 가로채기가 처리하며 409 는 안내 모달로 뜹니다.</p>
+        <p>C3 의 "PCI Subsystem ID" 행 아래에 관측 블록을 둡니다 — 상태 문구(<code>#{management.raid-card.observation.&lt;status&gt;}</code>, 인자는 값과 서버 수) · 관측 목록(값별로 "1000:9361 — G1 · G2", 게스트명은 <code>/provisioning/server/{id}</code> 링크) · 버튼(<code>n-btn n-btn-sm n-btn-primary</code> "관측값으로 확정", <code>CONFLICTING</code> 이면 <code>disabled</code> + <code>title</code>=blockReason). 미확인 배지 tooltip 문구는 "수정에서 직접 입력하거나, 이 카드를 지정한 서버가 진단되면 관측값으로 확정합니다." 로 개정합니다.</p>
+
+        <h4>D6 — 게스트 상세 예고 링크</h4>
+        <p><code>UNVERIFIABLE</code> 배너 링크를 <code>@{/management/raidcard(selectId=${cc.raidCardId})}</code> "카드 자원에서 확정" 으로 바꿉니다. 문구 <code>execution.raid-card-check.unverifiable</code> 의 끝은 "카드 자원 화면에서 관측값으로 확정하면 대조합니다." 가 됩니다.</p>
+
+        <h4>D7 — 문구 키 (<code>messages.properties</code> · <code>new-user-copy.md</code> 관문)</h4>
+        <table>
+          <thead><tr><th>키</th><th>문구</th></tr></thead>
+          <tbody>
+            <tr><td><code>management.raid-card.observation.none</code></td><td>이 카드를 지정한 서버의 진단 결과가 아직 없습니다.</td></tr>
+            <tr><td><code>…observation.agreed</code></td><td>관측 {0} — 서버 {1}대. 확정하면 대조에 쓰입니다.</td></tr>
+            <tr><td><code>…observation.matches</code></td><td>관측이 확정값과 일치합니다 ({0} · 서버 {1}대).</td></tr>
+            <tr><td><code>…observation.differs</code></td><td>관측 {0} 이 확정값 {1} 과 다릅니다 — 정의서의 카드 지정이 틀렸거나 확정값이 틀렸습니다. 수정에서 정정하십시오.</td></tr>
+            <tr><td><code>…observation.conflicting</code></td><td>관측이 서로 다릅니다 ({0}) — 정의서의 카드 지정을 확인하십시오.</td></tr>
+            <tr><td><code>…action.confirm-observed</code></td><td>관측값으로 확정</td></tr>
+          </tbody>
+        </table>
+        <p>동사 "확정" 은 glossary 미등재 신규입니다 — 이 슬라이스에서 등재를 제안합니다(뜻: 관측 · 후보 값을 자원의 정본으로 채택하는 것).</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 데이터 흐름 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 데이터 흐름</summary>
+      <div class="body">
+        <div class="seq">
+          <div class="actor a1">운영자</div>
+          <div class="actor a2">카드 화면</div>
+          <div class="actor a3">RaidCardObservationService</div>
+          <div class="actor a4">Provider (provisioning)</div>
+          <div class="actor">게스트 상세</div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+          <div class="step">① G1 자동 진단 → <code>raid_inventory_json</code> 적재 (할당 없음)</div>
+
+          <div class="step a1">② G1 에 카드 X 지정 정의서 P 할당</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+          <div class="step"></div>
+
+          <div class="step a1">③ 카드 목록 열기</div>
+          <div class="step a2"><code>list</code> → <code>summariesByCard</code></div>
+          <div class="step a3">비삭제 카드 id 집합으로 provider 1 회 호출</div>
+          <div class="step a4">활성 스냅샷 → X 지정 <code>{G1}</code> → 인벤토리 파싱 → <code>1000:9361</code></div>
+          <div class="step"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2">배지 · 관측 목록 · 버튼 렌더</div>
+          <div class="step a3"><code>AGREED_UNCONFIRMED</code> · <code>confirmable()=true</code></div>
+          <div class="step a4"></div>
+          <div class="step"></div>
+
+          <div class="step a1">④ [관측값으로 확정] 클릭</div>
+          <div class="step a2"><code>POST …/{id}/confirm-observed</code></div>
+          <div class="step a3"><code>confirmObserved</code> → <code>X.pciSubsystemId = 1000:9361</code></div>
+          <div class="step a4">확정 직전 관측 재조회</div>
+          <div class="step"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2">302 <code>selectId</code> → 배지 "관측 일치"</div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+          <div class="step"></div>
+
+          <div class="step a1">⑤ G1 상세 열기</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+          <div class="step"><code>RaidCardMatch.judge</code> → <code>MATCH</code> 예고</div>
+
+          <div class="step a1">분기 — direct POST</div>
+          <div class="step a2">화면을 거치지 않음</div>
+          <div class="step a3"><code>CONFLICTING</code> → 409 <code>RaidCardObservationConfirmRejectedException</code></div>
+          <div class="step a4">같은 관측 파생</div>
+          <div class="step"></div>
+        </div>
+        <p>③ 의 provider 호출은 카드마다가 아니라 <b>목록 전체에 한 번</b>입니다. ④ 는 확정 직전에 관측을 다시 읽습니다 — 화면을 연 뒤 다른 운영자가 재할당했을 수 있고, 그때 판정이 바뀌면 같은 가드가 409 로 막습니다. 분기 행의 409 모달 문장은 tooltip 문장과 같습니다(D2 <code>blockReason()</code>).</p>
+      </div>
+    </details>
+
+    <!-- ===== §6 URL · 시그니처 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. URL · 컨트롤러 · 서비스 시그니처</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>메서드</th><th>URL</th><th>처리</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/management/raidcard</code></td><td><code>list</code> + <code>observationByCard</code></td><td>목록 뷰</td></tr>
+            <tr><td>POST</td><td><code>/management/raidcard/{id}/confirm-observed</code></td><td><code>confirmObserved</code></td><td>302 <code>selectId</code> / 409 / 404</td></tr>
+          </tbody>
+        </table>
+        <pre><code>// management.raidcard.service
+RaidCardObservationService
+  Map&lt;Long, RaidCardObservationSummaryResponse&gt; summariesByCard(List&lt;RaidCardResponse&gt; cards);
+  void confirmObserved(Long id);                       // @Transactional
+
+RaidCardObservationProvider                            // SPI (management 선언)
+  Map&lt;Long, List&lt;RaidCardObservation&gt;&gt; observationsByCard(Set&lt;Long&gt; raidCardIds);</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §7 엔티티 · 스키마 · 예외 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 엔티티 · 스키마 · 예외 계층</summary>
+      <div class="body">
+        <p>엔티티 변경은 도메인 메서드 하나뿐입니다 — <code>RaidCard.confirmObservedPciSubsystemId(PciSubsystemId)</code>. 컬럼은 바뀌지 않습니다.</p>
+        <div class="callout success"><b>DDL 없음 — Step 9 는 N/A</b> 입니다. 실 DB 에 적용할 항목이 없습니다.</div>
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>트리거</th></tr></thead>
+          <tbody>
+            <tr><td><code>RaidCardObservationConfirmRejectedException</code></td><td>409</td><td><span class="chip new">신규</span></td><td><code>confirmable()</code> 이 아닌 상태에서 확정 요청 (<code>NONE</code> · <code>CONFLICTING</code> · <code>MATCHES_CONFIRMED</code> · <code>DIFFERS_FROM_CONFIRMED</code>)</td></tr>
+            <tr><td><code>IllegalRaidCardStateException</code></td><td>409</td><td><span class="chip keep">재사용</span></td><td>도메인 메서드 안전망 — 확정값이 이미 있는데 채우려 할 때</td></tr>
+            <tr><td><code>RaidCardGuards.requireActiveCard</code> 의 404 계열</td><td>404</td><td><span class="chip keep">재사용</span></td><td>없는 id · 삭제된 카드에 확정 POST</td></tr>
+          </tbody>
+        </table>
+        <p>신규 예외는 <code>ConflictException</code> 을 상속하므로 advice 를 새로 등록하지 않습니다. 발생 시나리오 통합 테스트를 함께 씁니다(<code>new-exception.md</code> §4 · §9).</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 UI 명세 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. UI 명세</summary>
+      <div class="body">
+        <p>C3 상세 표의 "PCI Subsystem ID" 행 값 옆에 관측 블록을 둡니다(<code>div.n-hint</code> 또는 상태별 <code>n-alert</code>).</p>
+        <table>
+          <thead><tr><th>상태</th><th>블록</th><th>버튼</th></tr></thead>
+          <tbody>
+            <tr><td><code>NONE</code></td><td><code>n-hint</code> 한 줄</td><td>없음</td></tr>
+            <tr><td><code>AGREED_UNCONFIRMED</code></td><td><code>n-badge n-badge-blue</code> + 관측 목록</td><td>활성</td></tr>
+            <tr><td><code>MATCHES_CONFIRMED</code></td><td><code>n-badge-green</code></td><td>없음</td></tr>
+            <tr><td><code>DIFFERS_FROM_CONFIRMED</code></td><td><code>n-alert n-alert-danger</code> + 관측 목록</td><td>없음</td></tr>
+            <tr><td><code>CONFLICTING</code></td><td><code>n-alert n-alert-danger</code> + 값별 목록</td><td><code>disabled</code> + <code>title</code></td></tr>
+          </tbody>
+        </table>
+        <p>기존 CSS 만 씁니다(<code>n-badge-*</code> · <code>n-alert-*</code> · <code>n-btn-sm</code>) — 인라인 스타일은 금지입니다. 삭제된 카드에는 관측 블록을 그리지 않습니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 테스트 계획 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. 테스트 계획 (두 레이어)</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td><code>RaidCardObservationStatusTest</code></td><td>진리표 3×2 전수 + <code>confirmable()</code> · <code>blockReason()</code> · <code>showsButton()</code></td></tr>
+            <tr><td><code>RaidCardObservationServiceTest</code></td><td>confirm happy(값 채움) · <code>NONE</code> 409 · <code>CONFLICTING</code> 409 · <code>MATCHES</code> 409 · <code>DIFFERS</code> 409 · 404 · 요약 구성(카드 2 · 관측 혼합)</td></tr>
+            <tr><td><code>RaidCardObservationProviderImplTest</code></td><td>활성 스냅샷만 · RAID 없는 정의서 제외 · 카드 미지정 제외 · 인벤토리 없음 · 카드 미감지 · JSON 손상 관용 · 라벨 폴백 3단</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (<code>@WebMvcTest</code> + <code>MockMvc</code>)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>성공 302</td><td><code>RaidCardObservationControllerTest</code> — POST confirm, <code>Location</code> 에 <code>selectId</code></td></tr>
+            <tr><td>409</td><td>확정 불가 상태에서 POST — 바디 메시지가 <code>blockReason()</code> 과 같은 문장</td></tr>
+            <tr><td>404</td><td>없는 id · 삭제된 카드에 POST</td></tr>
+            <tr><td>렌더</td><td>목록 5 상태 — 문구 · 배지 클래스 · 버튼 유무 · <code>disabled</code>+<code>title</code> · 게스트 링크 <code>href</code> · 삭제 카드 미렌더</td></tr>
+            <tr><td>렌더</td><td><code>GuestServerControllerTest</code> — <code>UNVERIFIABLE</code> 링크 <code>href</code> · 라벨 1건</td></tr>
+          </tbody>
+        </table>
+        <p>새 예외 1 개에는 그것을 발생시키는 통합 시나리오가 붙습니다(<code>new-exception.md</code> §4). <code>FormSubmissionConventionTest</code> 는 영향이 없습니다 — <code>BindingResult</code> 없는 핸들러이기 때문입니다.</p>
+        <div class="callout warn">이 슬라이스의 POST 는 본문 없는 상태 전이라 <b>400(필드 검증) 범주와 500 범주에 해당하는 시나리오가 없습니다</b>. 거절은 전부 409 · 404 로 나뉩니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §10 CP5 검증 계획 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. CP5 검증 계획 (브라우저 + mock-guest)</summary>
+      <div class="body">
+        <p>새 포트로 샌드박스 <code>sbx-e355b</code> 를 세웁니다 — DB 3389 / 앱 7878. 시드는 카드 X(9361 · Subsystem 미확인) · 카드 Y · 정의서 P(X 지정 · RAID 구성) · 정의서 Q(Y 지정) · 게스트 G1 · G2(등록만)입니다.</p>
+        <table>
+          <thead><tr><th>#</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>카드 X 화면 열기</td><td>미확인 배지 + "관측 없음" 안내 · 버튼 없음</td></tr>
+            <tr><td>A2</td><td>G1 진단 (<code>diagnose-cycle.sh RAID_MODE=mr</code>, 미할당)</td><td>카드 화면 변화 없음</td></tr>
+            <tr><td>A3</td><td>G1 에 P 할당</td><td>관측 "1000:9361 — 서버 1대(G1 링크)" + 버튼 활성</td></tr>
+            <tr><td>A4</td><td>확정 클릭</td><td>값 채워짐 · 배지 "관측 일치" · 버튼 사라짐 · 수정 폼 값 확인</td></tr>
+            <tr><td>A5</td><td>G1 상세 열기</td><td>예고 <code>MATCH</code></td></tr>
+            <tr><td>A6</td><td>G2 진단(<code>RAID_MODE=mismatch</code>) + P 할당</td><td>카드 화면 "확정값과 다릅니다" danger · G2 상세 <code>MISMATCH</code></td></tr>
+            <tr><td>A7</td><td>G1 을 Q 로 재할당</td><td>X 화면 관측에서 G1 이탈</td></tr>
+            <tr><td>B1</td><td>관측 없는 카드 Y 에 direct POST confirm</td><td>409 모달(문구 = <code>NONE</code> blockReason)</td></tr>
+            <tr><td>B2</td><td>X 확정 전 G1 9361 · G2 00ce 상충</td><td>버튼 disabled + tooltip · direct POST → 409</td></tr>
+            <tr><td>B3</td><td>확정된 X 에 direct POST</td><td>409</td></tr>
+            <tr><td>B4</td><td>삭제된 카드에 POST</td><td>404</td></tr>
+            <tr><td>B5</td><td>없는 id 로 POST</td><td>404</td></tr>
+            <tr><td>C1</td><td>버튼 숨김 · 잠금 확인</td><td>disabled 사유가 tooltip 으로 보임</td></tr>
+            <tr><td>C2</td><td>409 모달과 tooltip 대조</td><td>같은 문장</td></tr>
+            <tr><td>C3</td><td>G1 상세 <code>UNVERIFIABLE</code> 링크</td><td>카드 화면(<code>selectId</code>)으로 열림</td></tr>
+            <tr><td>C4</td><td>목록 렌더 타이밍 로그</td><td>활성 할당 N 대비 기록</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 Critical Files · 남은 일 · 리스크 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. Critical Files · 리스크 · 남은 일</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/raidcard/service/RaidCardObservationProvider.java</code></td><td>SPI 선언</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/raidcard/service/RaidCardObservationService.java</code></td><td>요약 · 확정</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/raidcard/vo/RaidCardObservation.java</code></td><td>관측 record</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/raidcard/enums/RaidCardObservationStatus.java</code></td><td>판정 SSOT</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/raidcard/dto/response/RaidCardObservationSummaryResponse.java</code></td><td>뷰모델</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/raidcard/exception/RaidCardObservationConfirmRejectedException.java</code></td><td>409</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/assignment/service/RaidCardObservationProviderImpl.java</code></td><td>SPI 구현</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>테스트 4 — <code>RaidCardObservationStatusTest</code> · <code>RaidCardObservationServiceTest</code> · <code>RaidCardObservationProviderImplTest</code> · <code>RaidCardObservationControllerTest</code></td><td>§9</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RaidCard.java</code></td><td>도메인 메서드 1</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RaidCardMetadataController.java</code></td><td>list 모델 · POST</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/management/raidcard/list.html</code></td><td>관측 블록</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/server-detail.html</code></td><td>링크</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td>D7 문구</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>docs/glossary.tsv</code></td><td>"확정" 등재</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerControllerTest</code></td><td>링크 · 라벨</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>RaidCardResponse</code></td><td>변경 0 — 15인자 생성자에 U4 폼 · 테스트 다수가 결합</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>RaidCardMatch.judge</code> · 예고 로직</td><td>변경 0 — 확정값만 보는 판정 그대로</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>raid_card</code> 스키마</td><td>변경 0 — DDL 없음</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>FormSubmissionConventionTest</code></td><td>변경 0 — <code>BindingResult</code> 없는 핸들러</td></tr>
+          </tbody>
+        </table>
+        <p>합계는 신규 11(주 7 · 테스트 4) · 수정 7 · 유지 4 입니다.</p>
+
+        <h4>리스크</h4>
+        <ol>
+          <li>목록 렌더 비용이 활성 할당 수에 비례합니다 — CP5 C4 로 측정하고, 초과하면 카드 선택 시 지연 조회(XHR)로 이관합니다.</li>
+          <li>잘못 지정된 게스트 한 대의 관측을 그대로 확정할 수 있습니다 — 확인형의 본질이며, 배지에 서버명을 보여 운영자가 판단하게 합니다.</li>
+          <li>관측 시각이 없습니다 — 가안의 <code>observed_at</code> 은 파생 모델에 자리가 없고 <code>detail.updatedAt</code> 은 신뢰할 수 없습니다.</li>
+        </ol>
+
+        <h4>남은 일 (이 슬라이스 밖) · 다음 마일스톤</h4>
+        <ul class="check-list" data-storage="E3.5-5-b-next">
+          <li><label><input type="checkbox" data-key="next-7b"> <span>E3.5-7-b 집행 전 확인 게이트 CP1 재개 — 5-b 뒤</span></label></li>
+          <li><label><input type="checkbox" data-key="next-cp7"> <span>CP7 은 E 단계 실기 일괄</span></label></li>
+          <li><label><input type="checkbox" data-key="next-diagram"> <span>다이어그램 규약은 N/A — 게스트 ↔ 서버 상호작용 변화가 없음</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §12 12 단계 · CP 매핑 ===== -->
+    <details class="section" id="s12">
+      <summary>§12. 수직 슬라이스 12 단계 · CP 매핑 · Verification</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>목록 뷰 관측 블록 · <code>RaidCardMetadataController</code> · <code>RaidCardObservationSummaryResponse</code> · 서비스 · SPI 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td>Repository — 신규 리포지토리 없음. Provider 가 쓰는 조회는 §4 D1 의 기존 두 메서드(<code>findBySupersededAtIsNull</code> · <code>findAllByServerIdInWithBoardModel</code>)입니다</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>7</td><td>Entity — <code>RaidCard.confirmObservedPciSubsystemId</code> · Enum <code>RaidCardObservationStatus</code> · VO <code>RaidCardObservation</code></td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8</td><td>Service 본체 (테스트 코드 제외, 빌드 통과)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>9</td><td><b>N/A</b> — DDL 없음(§7)</td><td><span class="chip cp4">CP4</span></td><td>—</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green (§9)</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (§10 · A7 · B5 · C4 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — E 단계 실기 일괄</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷입니다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받습니다.</div>
+        <ul class="check-list" data-storage="E3.5-5-b-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 브라우저 검증 (CP5, 항목별 스크린샷)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>실기 E2E (CP7, E 단계 일괄)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 관측 채움 데모
+  //  · dmObservations() = RaidCardObservationProviderImpl 미러 (§4 D1)
+  //  · dmStatus()       = 서버 RaidCardObservationStatus.of 와 같은 표 — 드리프트 0 (§4 D2)
+  //  · dmJudge()        = 서버 RaidCardMatch.judge 와 같은 표 (E3.5-5-a D4)
+  // ─────────────────────────────────────────────────────────────
+  const DM_INV = { '9361':'1000:9361', '00ce':'1000:00ce' };      // 저장 인벤토리 → 관측 Subsystem
+  const DM_ASSIGN = { X:'카드 X 지정', Y:'다른 카드 Y 지정', none:'할당 없음' };
+  const DM_INVLABEL = { none:'인벤토리 없음', '9361':'감지 1000:9361', '00ce':'감지 1000:00ce', nocard:'카드 미감지' };
+
+  const dm = {
+    confirmed: '',                                                 // 카드 X 의 pciSubsystemId ('' = null = 미확인)
+    guests: [ { id:'G1', assign:'none', inv:'none' },
+              { id:'G2', assign:'none', inv:'none' },
+              { id:'G3', assign:'none', inv:'none' } ],
+    banner: '① 관측 없음 — 세 대 모두 카드 X 를 지정하지 않았습니다. 카드 화면은 안내 한 줄만 두고 버튼을 그리지 않습니다.',
+    msg: '', msgCls: ''
+  };
+
+  // ── 판정 (서버 미러) ────────────────────────────────────────
+  function dmObservations() {          // "이 카드를 지정한 활성 할당의 게스트" 만 · 인벤토리 없음 · 카드 미감지는 건너뜀
+    return dm.guests.filter(g => g.assign === 'X' && DM_INV[g.inv])
+                    .map(g => ({ guest: g.id, value: DM_INV[g.inv] }));
+  }
+  function dmDistinct(obs) { return [...new Set(obs.map(o => o.value))]; }
+  function dmStatus() {                // === RaidCardObservationStatus.of(confirmed, observations)
+    const d = dmDistinct(dmObservations());
+    if (d.length === 0) return 'NONE';
+    if (d.length >= 2)  return 'CONFLICTING';
+    if (!dm.confirmed)  return 'AGREED_UNCONFIRMED';
+    return d[0] === dm.confirmed ? 'MATCHES_CONFIRMED' : 'DIFFERS_FROM_CONFIRMED';
+  }
+  const DM_META = {                    // === 각 상수의 confirmable() · showsButton() · badgeClass() · blockReason()
+    NONE:                   { confirmable:false, showsButton:false, badgeClass:null,           badge:'off',
+                              blockReason:'이 카드를 지정한 서버의 관측이 없습니다.' },
+    AGREED_UNCONFIRMED:     { confirmable:true,  showsButton:true,  badgeClass:'n-badge-blue', badge:'dep',
+                              blockReason:null },
+    MATCHES_CONFIRMED:      { confirmable:false, showsButton:false, badgeClass:'n-badge-green', badge:'on',
+                              blockReason:'이미 확정된 카드입니다 — 정정은 수정에서 하십시오.' },
+    DIFFERS_FROM_CONFIRMED: { confirmable:false, showsButton:false, badgeClass:'n-badge-red',  badge:'del',
+                              blockReason:'이미 확정된 카드입니다 — 정정은 수정에서 하십시오.' },
+    CONFLICTING:            { confirmable:false, showsButton:true,  badgeClass:'n-badge-red',  badge:'del',
+                              blockReason:'관측이 서로 다릅니다 — 정의서의 카드 지정을 확인한 뒤 확정하십시오.' }
+  };
+  function dmConfirmedOf(card) { return card === 'X' ? dm.confirmed : ''; }   // 카드 Y 는 Subsystem 미확정 고정
+  function dmDetected(g) { return DM_INV[g.inv] || null; }                    // 인벤토리 없음 · 카드 미감지 = null
+  function dmJudge(g) {                // === RaidCardMatch.judge(target, inventory)
+    if (g.assign === 'none') return 'NOT_APPLICABLE';
+    const conf = dmConfirmedOf(g.assign);
+    if (!conf) return 'UNVERIFIABLE';
+    const obs = dmDetected(g);
+    if (!obs) return 'NOT_DETECTED';
+    return obs === conf ? 'MATCH' : 'MISMATCH';
+  }
+  const DM_VERDICT_BADGE = { MATCH:'on', MISMATCH:'del', NOT_DETECTED:'del', UNVERIFIABLE:'dep', NOT_APPLICABLE:'off' };
+
+  // ── 문구 (§4 D7 messages.properties 그대로) ─────────────────
+  function dmStatusText(status, obs, d) {
+    const n = obs.length;
+    if (status === 'NONE') return '이 카드를 지정한 서버의 진단 결과가 아직 없습니다.';
+    if (status === 'AGREED_UNCONFIRMED') return '관측 ' + d[0] + ' — 서버 ' + n + '대. 확정하면 대조에 쓰입니다.';
+    if (status === 'MATCHES_CONFIRMED') return '관측이 확정값과 일치합니다 (' + d[0] + ' · 서버 ' + n + '대).';
+    if (status === 'DIFFERS_FROM_CONFIRMED')
+      return '관측 ' + d[0] + ' 이 확정값 ' + dm.confirmed + ' 과 다릅니다 — 정의서의 카드 지정이 틀렸거나 확정값이 틀렸습니다. 수정에서 정정하십시오.';
+    return '관측이 서로 다릅니다 (' + d.join(' · ') + ') — 정의서의 카드 지정을 확인하십시오.';
+  }
+  const DM_NOTE = {
+    NONE: '이 카드를 지정한 활성 할당이 없으므로 관측이 없습니다. 확정 버튼은 그리지 않습니다.',
+    AGREED_UNCONFIRMED: '관측이 하나로 모였고 자원은 아직 미확인입니다 — 확정 버튼이 열리는 유일한 상태입니다(<code>confirmable()</code>).',
+    MATCHES_CONFIRMED: '이미 확정된 값과 관측이 같습니다. 확정은 미확정일 때만 하므로 버튼을 그리지 않습니다.',
+    DIFFERS_FROM_CONFIRMED: '확정값과 관측이 다릅니다 — 정의서의 카드 지정이 틀렸거나 확정값이 틀렸습니다. 정정은 수정 폼이 유일한 경로입니다(관측으로 덮어쓰지 않습니다).',
+    CONFLICTING: '관측이 서로 달라 확정할 값이 특정되지 않습니다 — 버튼은 보이되 잠급니다(UI 1차 차단). direct POST 도 같은 판정으로 409 입니다.'
+  };
+
+  // ── 조작 ────────────────────────────────────────────────────
+  function dmSetConfirmed(v) { dm.confirmed = v; dm.msg = ''; dmRender(); }
+  function dmSetAssign(i, v) { dm.guests[i].assign = v; dm.msg = ''; dmRender(); }
+  function dmSetInv(i, v)    { dm.guests[i].inv = v;    dm.msg = ''; dmRender(); }
+  function dmConfirm(direct) {
+    const st = dmStatus(), meta = DM_META[st], d = dmDistinct(dmObservations());
+    if (!meta.confirmable) {
+      dm.msgCls = 'error';
+      dm.msg = (direct ? 'direct POST → ' : '') + '409 — ' + meta.blockReason
+             + (direct ? ' (모달 문장 = tooltip 문장, 같은 <code>blockReason()</code>)' : '');
+      dmRender(); return;
+    }
+    dm.confirmed = d[0];
+    dm.msgCls = 'success';
+    dm.msg = '✓ 확정 — <code>RaidCard.confirmObservedPciSubsystemId(' + d[0] + ')</code> → 302 <code>selectId</code> 로 복귀. 확정값 select 가 관측값으로 옮겨 갔습니다.';
+    dmRender();
+  }
+  function dmReset() {
+    dm.confirmed = '';
+    dm.guests.forEach(g => { g.assign = 'none'; g.inv = 'none'; });
+    dm.banner = '초기화 — 확정값 미확인 · 세 대 모두 할당 없음으로 되돌렸습니다.';
+    dm.msg = ''; dm.msgCls = '';
+    document.querySelectorAll('.ux-toolbar .seg[data-scn]').forEach(s => s.classList.remove('active'));
+    dmRender();
+  }
+  const DM_SCN = [
+    { banner:'① 관측 없음 — 세 대 모두 카드 X 를 지정하지 않았습니다. 카드 화면은 안내 한 줄만 두고 버튼을 그리지 않으며, 예고는 <code>NOT_APPLICABLE</code> 입니다.',
+      confirmed:'', guests:[['none','none'],['none','none'],['none','none']] },
+    { banner:'② 한 대 관측 → 확정 — G1 이 카드 X 를 지정하고 1000:9361 을 감지했습니다. <b>[관측값으로 확정] 을 눌러 보십시오</b> — 확정값이 채워지고 배지가 "관측 일치" 로, G1 예고가 <code>MATCH</code> 로 바뀝니다.',
+      confirmed:'', guests:[['X','9361'],['none','none'],['none','none']] },
+    { banner:'③ 두 대 일치 — G1 · G2 가 같은 값을 관측했습니다. distinct 는 여전히 1 이므로 확정할 수 있고, 목록에 서버가 둘 붙습니다.',
+      confirmed:'', guests:[['X','9361'],['X','9361'],['none','none']] },
+    { banner:'④ 두 대 상충 — G1 은 9361, G2 는 00ce 를 관측했습니다. 확정할 값이 특정되지 않아 버튼을 잠급니다. 확정값이 없으므로 예고는 둘 다 <code>UNVERIFIABLE</code> 입니다.',
+      confirmed:'', guests:[['X','9361'],['X','00ce'],['none','none']] },
+    { banner:'⑤ 확정 뒤 다른 값 관측 — 카드 X 는 1000:9361 로 확정돼 있는데 G2 가 00ce 를 관측했습니다. 배지는 위험으로 바뀌고 버튼은 아예 그리지 않으며, G2 예고는 <code>MISMATCH</code> 입니다.',
+      confirmed:'1000:9361', guests:[['none','none'],['X','00ce'],['none','none']] },
+    { banner:'⑥ 재할당으로 관측 이탈 — ② 에서 확정을 마친 뒤 G1 을 카드 Y 정의서로 재할당한 상태입니다. 관측은 사라지지만(<code>NONE</code>) 확정값은 남습니다.',
+      confirmed:'1000:9361', guests:[['Y','9361'],['none','none'],['none','none']] }
+  ];
+  function dmScenario(n) {
+    const s = DM_SCN[n];
+    dm.confirmed = s.confirmed;
+    dm.guests.forEach((g, i) => { g.assign = s.guests[i][0]; g.inv = s.guests[i][1]; });
+    dm.banner = s.banner; dm.msg = ''; dm.msgCls = '';
+    document.querySelectorAll('.ux-toolbar .seg[data-scn]').forEach(x => x.classList.toggle('active', x.dataset.scn === String(n)));
+    dmRender();
+  }
+
+  // ── 렌더 ────────────────────────────────────────────────────
+  function dmOpt(list, cur) {
+    return list.map(o => '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>').join('');
+  }
+  function dmRenderControls() {
+    document.getElementById('dm-confirmed').value = dm.confirmed;
+    document.getElementById('dm-guest-controls').innerHTML = dm.guests.map((g, i) =>
+      '<div class="ux-row"><span class="label"><b>' + g.id + '</b></span>' +
+      '<select onchange="dmSetAssign(' + i + ',this.value)">' +
+        dmOpt([['X','카드 X 지정'],['Y','다른 카드 Y 지정 (Y 는 미확정)'],['none','할당 없음']], g.assign) + '</select>' +
+      '<select onchange="dmSetInv(' + i + ',this.value)">' +
+        dmOpt([['none','인벤토리 없음'],['9361','감지 1000:9361'],['00ce','감지 1000:00ce'],['nocard','카드 미감지']], g.inv) + '</select>' +
+      '</div>').join('');
+
+    const st = dmStatus(), meta = DM_META[st];
+    let btns = '';
+    if (meta.showsButton) {
+      btns = meta.confirmable
+        ? '<span class="tip"><button class="n-demo-btn" onclick="dmConfirm(false)">관측값으로 확정</button></span> '
+        : '<span class="tip" data-tip="' + meta.blockReason + '"><button class="n-demo-btn" disabled>관측값으로 확정</button></span> ';
+    } else {   // showsButton() = false → 화면은 버튼 자체를 그리지 않는다
+      btns = '<span class="tip" data-tip="이 상태에서는 버튼을 그리지 않습니다 — ' + meta.blockReason + '"><span class="chip keep">확정 버튼 없음</span></span> ';
+    }
+    btns += '<span class="tip" data-tip="화면을 거치지 않는 direct POST 입니다. 서버 가드가 같은 판정으로 막습니다."><button class="n-demo-btn" onclick="dmConfirm(true)" style="border-color:var(--orange);color:var(--orange)">direct POST</button></span> ';
+    btns += '<span class="tip" data-tip="확정값 미확인 · 세 대 모두 할당 없음으로 되돌립니다."><button class="n-demo-btn" onclick="dmReset()">초기화</button></span>';
+    document.getElementById('dm-actions').innerHTML = btns;
+  }
+  function dmRenderCard() {
+    const obs = dmObservations(), d = dmDistinct(obs), st = dmStatus(), meta = DM_META[st];
+    const value = dm.confirmed
+      ? '<code>' + dm.confirmed + '</code>'
+      : '<span class="badge off">미확인</span>';
+    let block = '<div class="ux-row"><span class="label">PCI Subsystem ID</span>' + value + '</div>';
+    block += '<div class="ux-row"><span class="label">' + dmStatusText(st, obs, d) + '</span>' +
+             (meta.badgeClass ? '<span class="badge ' + meta.badge + '">' + meta.badgeClass + '</span>' : '') + '</div>';
+    if (obs.length) {
+      const lines = d.map(v => '<div>' + v + ' — ' +
+        obs.filter(o => o.value === v)
+           .map(o => '<span class="tip" data-tip="게스트 상세 /provisioning/server/{id} 로 가는 링크입니다"><u>' + o.guest + '</u></span>')
+           .join(' · ') + '</div>').join('');
+      block += '<div class="ux-row"><span class="label mono">' + lines + '</span></div>';
+    }
+    document.getElementById('dm-card').innerHTML = '<h4>카드 X — C3 상세</h4>' + block;
+  }
+  function dmRenderGuests() {
+    document.getElementById('dm-guests').innerHTML = dm.guests.map(g => {
+      // 실제 화면과 같게 — 인벤토리가 없으면 계획 카드가 그려지지 않으므로 예고 줄도 없다(E3.5-5-a raidPlanPreviewOf)
+      const v = dmJudge(g);
+      const shown = g.inv === 'none'
+        ? '<span class="badge off">예고 없음(인벤토리 미적재)</span>'
+        : '<span class="badge ' + DM_VERDICT_BADGE[v] + '">' + v + '</span>';
+      return '<div class="ux-row"><span class="label"><b>' + g.id + '</b> · ' + DM_ASSIGN[g.assign] + ' · ' + DM_INVLABEL[g.inv] + '</span>' +
+             shown + '</div>';
+    }).join('') +
+    '<p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;"><code>UNVERIFIABLE</code> 문구는 이 슬라이스에서 "카드 자원 화면에서 관측값으로 확정하면 대조합니다." 로 끝나고, 링크는 카드 화면(<code>selectId</code>)으로 갑니다(§4 D6).</p>';
+  }
+  function dmRenderCaps() {
+    const obs = dmObservations(), d = dmDistinct(obs), st = dmStatus(), meta = DM_META[st];
+    const tf = v => v ? '<span class="f">true</span>' : '<span class="t">false</span>';
+    const list = obs.length ? obs.map(o => o.guest + ' → ' + o.value).join(', ') : '(비어 있음)';
+    document.getElementById('dm-caps').innerHTML =
+      'observationsByCard({X})   = [' + list + ']\n' +
+      '                            ← 활성 스냅샷 supersededAt IS NULL · 인벤토리 파싱\n' +
+      'distinct                  = ' + d.length + (d.length ? '  [' + d.join(', ') + ']' : '') + '\n' +
+      'raidCard.pciSubsystemId   = ' + (dm.confirmed ? dm.confirmed : 'null (미확인)') + '\n' +
+      'RaidCardObservationStatus = ' + st + '\n' +
+      '  confirmable()           = ' + tf(meta.confirmable) + '\n' +
+      '  showsButton()           = ' + tf(meta.showsButton) + '\n' +
+      '  badgeClass()            = ' + (meta.badgeClass || '없음') + '\n' +
+      '  blockReason()           = ' + (meta.blockReason || 'null') + '\n' +
+      'judge  ' + dm.guests.map(g => g.id + '=' + dmJudge(g)).join('  ');
+  }
+  const DM_TRUTH = [
+    { d:'0',  a:[{p:'',t:'NONE'}],               b:[{p:'',t:'NONE'}] },
+    { d:'1',  a:[{p:'',t:'AGREED_UNCONFIRMED'}], b:[{p:'같으면 ',t:'MATCHES_CONFIRMED'},{p:'다르면 ',t:'DIFFERS_FROM_CONFIRMED'}] },
+    { d:'2+', a:[{p:'',t:'CONFLICTING'}],        b:[{p:'',t:'CONFLICTING'}] }
+  ];
+  function dmRenderTruth() {
+    const st = dmStatus(), n = dmDistinct(dmObservations()).length;
+    const rowIdx = n === 0 ? 0 : (n === 1 ? 1 : 2), colIdx = dm.confirmed ? 1 : 0;
+    const cell = (list, on) => list.map(x => x.p + (on && x.t === st ? '<b><code>' + x.t + '</code></b> ◀ 지금' : '<code>' + x.t + '</code>')).join(' / ');
+    document.getElementById('dm-truth').innerHTML = DM_TRUTH.map((r, i) =>
+      '<tr><td>' + r.d + '</td><td>' + cell(r.a, i === rowIdx && colIdx === 0) + '</td><td>' + cell(r.b, i === rowIdx && colIdx === 1) + '</td></tr>').join('');
+  }
+  function dmRender() {
+    dmRenderControls(); dmRenderCard(); dmRenderGuests(); dmRenderCaps(); dmRenderTruth();
+    document.getElementById('dm-banner').innerHTML = dm.banner;
+    const msg = document.getElementById('dm-msg');
+    msg.className = 'ux-message' + (dm.msg ? ' ' + dm.msgCls : '');
+    msg.innerHTML = dm.msg || '버튼을 눌러 보십시오. 잠긴 버튼에 마우스를 올리면 차단 사유가 tooltip 으로 뜨고, 그 문장은 direct POST 의 409 문장과 같습니다.';
+    document.getElementById('dm-note').innerHTML = '<b>해설</b> — ' + DM_NOTE[dmStatus()];
+  }
+  dmScenario(0);   // ⚠ 불가침 : 초기 세팅 → 파일 끝에서 dmRender() 를 1회 호출한다
+</script>
+</body>
+</html>

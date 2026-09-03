@@ -27,6 +27,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 세팅 정의서를 게스트 서버에 할당한 <b>스냅샷</b>(할당 시점 즉시 · 행 단위 복사, DEC-16·17).
@@ -133,6 +134,19 @@ public class SettingAssignmentSnapshot extends BaseTimeEntity {
         return state() == AssignmentState.ACTIVE_CONSUMED
                 ? "이미 개시되어 재할당할 수 없습니다(회수 후 재등록 필요)"
                 : null;
+    }
+
+    /**
+     * 스냅샷 안의 특정 단계 요청(E3.5-5-b) — RAID 구성 목표 공급 · 카드 관측 공급이 같은 탐색을 쓴다(복붙 금지).
+     * 정의서에 그 단계가 없으면 empty.
+     */
+    public <T> Optional<T> processRequestOf(Class<T> requestType) {
+        return processes.stream()
+                .map(AssignedProcessSnapshot::getPayload)
+                .map(payload -> payload.request())
+                .filter(requestType::isInstance)
+                .map(requestType::cast)
+                .findFirst();
     }
 
     public boolean isActive() {
