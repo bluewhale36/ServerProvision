@@ -7,6 +7,7 @@ import com.example.serverprovision.execution.asset.spi.ObservationSeverity;
 import com.example.serverprovision.execution.asset.spi.SystemAssetArea;
 import com.example.serverprovision.execution.asset.spi.SystemAssetAreaKey;
 import com.example.serverprovision.execution.asset.spi.SystemAssetSlot;
+import com.example.serverprovision.execution.wininstall.WindowsInstallSource;
 import com.example.serverprovision.execution.wininstall.catalog.InstallSourceCondition;
 import com.example.serverprovision.execution.wininstall.catalog.InstallSourceSnapshot;
 import com.example.serverprovision.execution.wininstall.catalog.WindowsImageCatalog;
@@ -24,7 +25,7 @@ import java.util.List;
 
 /**
  * 시스템 자산 대시보드의 "Windows 설치 소스" 영역(Service Provider Interface — 도메인이 구현해 끼우는 확장점).
- * dhcpd 영역처럼 파일 봉인이 아닌 관측 영역이다 — 파일 3종의 존재, install.wim 의 이미지 목록, 전역 운영 설정의
+ * dhcpd 영역처럼 파일 봉인이 아닌 관측 영역이다 — 파일 4종의 존재, install.wim 의 이미지 목록, wimboot 해시, 전역 운영 설정의
  * 설정됨 · 미설정을 보인다(토론 1호 Q7). 비밀값(공유 비밀번호 · 제품 키)은 어떤 형태로도 화면에 내지 않는다.
  */
 @Component
@@ -34,8 +35,11 @@ public class WindowsInstallSourceArea implements SystemAssetArea {
     private static final String SET = "설정됨";
     private static final String UNSET = "미설정";
 
+    private static final int SHA_PREFIX = 12;
+
     private final WindowsInstallProperties properties;
     private final WindowsImageCatalog catalog;
+    private final WindowsInstallSource source;
 
     @Override
     public SystemAssetAreaKey areaKey() {
@@ -87,7 +91,7 @@ public class WindowsInstallSourceArea implements SystemAssetArea {
         return false;
     }
 
-    /** 영역 헤더 chip — 구성일 때만. 값이 나가는 것은 이미지 요약 · 공유 UNC · 시간대뿐이다. */
+    /** 영역 헤더 chip — 구성일 때만. 값이 나가는 것은 이미지 요약 · wimboot 해시 앞자리 · 공유 UNC · 시간대뿐이다. */
     @Override
     public List<AssetContextItem> context() {
         if (availability() != AreaAvailability.CONFIGURED) {
@@ -99,6 +103,10 @@ public class WindowsInstallSourceArea implements SystemAssetArea {
                 ? new AssetContextItem("설치 이미지", snapshot.images().size() + "종 · 빌드 "
                         + snapshot.build().orElse("?") + " · " + snapshot.language().orElse("?"), ObservationSeverity.INFO)
                 : new AssetContextItem("설치 이미지", "없음", ObservationSeverity.WARN));
+        // wimboot 해시 앞 12자 — 런북 §14-4 의 서명 릴리스 해시와 눈으로 대조한다(E4-1-a-3 D-5 · Authenticode 검증은 비목표).
+        items.add(source.wimbootSha256()
+                .map(sha -> new AssetContextItem("wimboot SHA-256", sha.substring(0, SHA_PREFIX), ObservationSeverity.INFO))
+                .orElseGet(() -> new AssetContextItem("wimboot", "없음", ObservationSeverity.WARN)));
         items.add(isSet(properties.shareUnc())
                 ? new AssetContextItem("공유 UNC", properties.shareUnc().trim(), ObservationSeverity.INFO)
                 : new AssetContextItem("공유 UNC", UNSET, ObservationSeverity.WARN));

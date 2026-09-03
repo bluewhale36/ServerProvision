@@ -71,3 +71,6 @@ Redfish	약어	BMC 표준 관리 API
 설치 소스	도메인	운영 절차가 Samba 공유 루트에 배치한 Windows 설치 추출물(sources/install.wim · boot.wim · setup.exe). 앱은 경로만 알고 install.wim 의 XML 을 읽는다	설치 미디어 · 소스 디렉토리	execution/wininstall/catalog/WindowsImageCatalog, InstallSourceSnapshot	E4-1-a-2 등재
 기존 비밀번호 유지	문구	수정 폼에서 저장된 비밀번호를 그대로 두는 체크박스 라벨. 서버는 저장본에서 값을 병합한다(Windows Administrator · RHEL root · 사용자 공통 어휘)	비밀번호 유지 · 기존 유지	WindowsAdministratorPasswordRequest.keepExistingPassword, RootPasswordRequest	E4-1-a-2 등재
 확정	액션	게스트가 관측한 값을 자원의 정본으로 채택하는 것(관측값으로 확정). 미확인 자원에만 허용하고, 확정값의 정정은 수정에서 한다	채움 · 채택 · 반영(관측 문맥)	RaidCardObservationService.confirmObserved, RaidCardObservationStatus	E3.5-5-b 등재
+재진입	도메인	Windows 설치 중 Setup 의 재부팅이 부트 순서 때문에 다시 PXE 로 돌아와 /boot 를 부르는 것(재PXE). 서버는 exit 로 로컬 디스크 부팅으로 돌려보내고 횟수를 센다. 화면 라벨 "재진입 n/상한"	재PXE · 재부팅 루프	execution/engine/windows/WindowsInstallingExecutor, WindowsInstallLedger	E4-1-a-3 등재
+설치 번들	도메인	한 게스트의 Windows 설치에 서빙되는 파일 다섯(wimboot · boot.wim · winpeshl.ini · install.bat · autounattend.xml)을 가리키는 일회용 토큰 URL 묶음. 재서빙 · 실패 전환 시 회수된다	토큰 번들 · 부팅 번들	execution/engine/windows/WindowsInstallBundle, WindowsInstallTokenRegistry	E4-1-a-3 등재
+설치 시한	도메인	설치 번들을 서빙한 시각부터 재진입이 허용되는 시간(기본 60분). 지난 뒤의 재진입은 INSTALL_TIMEOUT 실패. 재진입 상한(기본 5회)과 함께 두 눈금	시한 · 타임아웃	execution/engine/windows/WindowsInstallTimeoutPolicy	E4-1-a-3 등재

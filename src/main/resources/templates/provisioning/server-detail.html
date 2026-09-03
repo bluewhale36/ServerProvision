@@ -827,6 +827,59 @@
                        th:text="${server.firmwareSetting.waitingReason}">축 착수 대기 — 다음 워커 주기가 BMC 신원을 확인합니다.</p>
                 </div>
 
+                <!-- E4-1-a-3 — Windows 설치. 준비도는 조회 시점 재판정(실행기와 같은 진리표 — 게이트 · 콘솔 · 카드가 한 판정),
+                     진행은 원장 RUNNING 행(서빙 시각 · 재진입)의 투영. 완료 보고는 E4-1-a-4 소관이라 설치가 끝나도 '설치 중' 으로 남는다. -->
+                <div th:if="${server.windowsInstall != null}" class="n-firmware-plan" th:with="wi=${server.windowsInstall}">
+                    <div class="n-label strong" th:text="#{provisioning.windows.install.title}">Windows 설치</div>
+                    <div class="n-section-hint" th:text="#{provisioning.windows.install.hint}">정의서가 고른 설치 이미지를 이 서버에 무인 설치합니다.</div>
+                    <ul class="n-firmware-axes">
+                        <li th:classappend="${wi.imageName != null} ? 'is-selected' : 'is-blocked-or-skipped'">
+                            <span th:text="#{provisioning.windows.install.image}">대상 이미지</span>
+                            <span th:if="${wi.imageName != null}"
+                                  th:text="${wi.imageDisplayName != null} ? |${wi.imageDisplayName} (${wi.imageName})| : ${wi.imageName}">Windows Server 2025 SERVERSTANDARD</span>
+                            <span th:unless="${wi.imageName != null}" class="n-firmware-detail"
+                                  th:text="#{provisioning.windows.install.image.none}">미지정</span>
+                        </li>
+                        <li th:if="${wi.readinessGrade != null}"
+                            th:classappend="${wi.readinessGrade.name() == 'READY'} ? 'is-selected' : 'is-failed'">
+                            <span th:text="#{provisioning.windows.install.readiness}">준비도</span>
+                            <!-- 서빙 뒤 · 실패 뒤에는 "다음 부팅에서 시작" 이 시제에 맞지 않는다(CP5 O-2) -->
+                            <span th:if="${wi.readinessGrade.name() == 'READY'}"
+                                  th:text="${wi.served() or wi.failedReason != null} ? #{provisioning.windows.install.readiness.ready.short} : #{provisioning.windows.install.readiness.ready}">문제 없음</span>
+                            <span th:unless="${wi.readinessGrade.name() == 'READY'}" class="n-firmware-detail"
+                                  th:text="${#strings.listJoin(wi.readinessNotes, ' · ')}">install.wim 없음</span>
+                        </li>
+                        <li th:classappend="${wi.failedReason != null} ? 'is-failed' : (${wi.served()} ? 'is-running' : '')">
+                            <span th:text="#{provisioning.windows.install.progress}">진행</span>
+                            <th:block th:if="${wi.failedReason != null}">
+                                <span class="n-firmware-state" th:text="|#{provisioning.windows.install.progress.failed} · ${wi.failedReason}|">실패 · REPXE_LOOP</span>
+                                <span class="n-firmware-detail"
+                                      th:text="${wi.failedReason == 'INSTALL_TIMEOUT'} ? #{provisioning.windows.install.progress.failed.timeout}
+                                              : (${wi.failedReason == 'REPXE_LOOP'} ? #{provisioning.windows.install.progress.failed.loop}
+                                              : #{provisioning.windows.install.progress.failed.operator})">원인을 확인한 뒤 재시도하십시오.</span>
+                            </th:block>
+                            <th:block th:if="${wi.failedReason == null and wi.served()}">
+                                <span class="n-firmware-state" th:text="#{provisioning.windows.install.progress.running}">설치 중</span>
+                                <span class="n-firmware-detail"
+                                      th:text="|#{provisioning.windows.install.progress.served} ${#temporals.format(wi.servedAt, 'yyyy-MM-dd HH:mm:ss')} · #{provisioning.windows.install.progress.reentries} ${wi.reentries}/${wi.maxReentries} · #{provisioning.windows.install.progress.remaining} ${wi.remainingMinutes}분|">서빙 · 재진입 0/5 · 잔여 60분</span>
+                            </th:block>
+                            <span th:if="${wi.failedReason == null and !wi.served()}" class="n-firmware-detail"
+                                  th:text="#{provisioning.windows.install.progress.before}">서빙 전</span>
+                        </li>
+                    </ul>
+                    <p th:if="${wi.failedReason == null and wi.served() and wi.remainingMinutes != null and wi.remainingMinutes == 0}"
+                       class="n-firmware-hold" th:text="#{provisioning.windows.install.progress.expired}">설치 시한이 지났습니다.</p>
+                    <p th:if="${wi.failedReason == null and wi.served()}" class="n-section-hint"
+                       th:text="#{provisioning.windows.install.completion}">완료 보고는 아직 받지 않습니다.</p>
+                    <p th:if="${wi.holding}" class="n-firmware-hold">
+                        <span th:if="${wi.holdRemainingMinutes > 0}">
+                            <span th:text="#{provisioning.windows.install.holding}">자원이 갖춰지기를 기다리는 중입니다.</span>
+                            <span th:text="|#{provisioning.firmware.plan.remaining} ${wi.holdRemainingMinutes}분|">대기 잔여 120분</span>
+                        </span>
+                        <span th:unless="${wi.holdRemainingMinutes > 0}" th:text="#{provisioning.firmware.plan.expired}">대기 시한이 지났습니다.</span>
+                    </p>
+                </div>
+
                 <!-- 개시 액션 (DEC-26) — 노출 판정(startable)은 서버 가드와 같은 도메인 메서드에서 온 값 (SSOT).
                      회수·개시됨 상태에서는 렌더되지 않으므로 서버 409 가드는 direct POST 전용 안전망이다. -->
                 <!-- E1-2 (UC-3) → R13 — 진단(수집)은 자동 진행이므로 개시 안내는 "수집 이후 단계" 로 한정.

@@ -62,7 +62,8 @@ class BootServiceTest {
                 .willReturn(PhaseReadiness.ready());
         given(bootScriptDispatcher.dispatch(org.mockito.ArgumentMatchers.eq(server),
                 org.mockito.ArgumentMatchers.eq(progress), org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.eq(""))).willReturn("#!ipxe\nsleep 30");
+                org.mockito.ArgumentMatchers.eq(""))).willReturn(
+                com.example.serverprovision.execution.engine.boot.BootDispatch.plain("#!ipxe\nsleep 30"));
 
         String script = service.boot(REQUEST, null);
 
@@ -82,5 +83,26 @@ class BootServiceTest {
         assertThatThrownBy(() -> service.boot(REQUEST, null))
                 .isInstanceOf(IllegalStateException.class);
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("E4-1-a-3 D-1 — 위임된 실행기에만 같은 트랜잭션에서 onBootScriptServed 훅을 건다")
+    void boot_callsHookOnlyForDelegatedExecutor() {
+        UUID id = UUID.randomUUID();
+        GuestServer server = GuestServer.builder().id(id).systemUUID(UUID.randomUUID()).build();
+        ProvisioningProgress progress = ProvisioningProgress.builder()
+                .currentStep(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.OS_INSTALLING)
+                .lastTransitionAt(LocalDateTime.now()).build();
+        var executor = org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.phase.ProvisioningPhaseExecutor.class);
+        given(registrationService.initialRegistry(REQUEST)).willReturn(server);
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+        given(phaseEntryGate.evaluate(any(), any(), any())).willReturn(PhaseReadiness.ready());
+        given(bootScriptDispatcher.dispatch(any(), any(), any(), any())).willReturn(
+                com.example.serverprovision.execution.engine.boot.BootDispatch.delegated("#!ipxe\nkernel wimboot", executor));
+
+        String script = service.boot(REQUEST, "systemUUID=x");
+
+        assertThat(script).isEqualTo("#!ipxe\nkernel wimboot");
+        verify(executor).onBootScriptServed(org.mockito.ArgumentMatchers.eq(server), org.mockito.ArgumentMatchers.eq(progress), any());
     }
 }

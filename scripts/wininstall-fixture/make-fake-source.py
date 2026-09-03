@@ -2,7 +2,7 @@
 """가짜 Windows 설치 소스 루트 생성 — 샌드박스(CP5) · 수동 확인용.
 
 앱은 <루트>/sources/install.wim 의 WIM 헤더(208 B)와 XML 자원만 읽으므로, 실제 4.8 GB 파일 대신 헤더 + XML 만 있는
-가짜 WIM 으로 폼 · 대시보드 · 검사기를 그대로 검증할 수 있다. boot.wim · setup.exe 는 존재만 보므로 빈 파일로 둔다.
+가짜 WIM 으로 폼 · 대시보드 · 검사기를 그대로 검증할 수 있다. boot.wim · setup.exe · wimboot 는 존재만 보므로 빈 파일로 둔다.
 
 사용: python3 make-fake-source.py <대상 루트> [xml 파일 = 같은 디렉토리의 install.wim.xml]
 예 : python3 scripts/wininstall-fixture/make-fake-source.py /tmp/spv-win2025
@@ -43,6 +43,7 @@ def main() -> None:
     (sources / "install.wim").write_bytes(build_fake_wim(xml_text))
     (sources / "boot.wim").write_bytes(b"FAKE-BOOT-WIM\n")
     (sources / "setup.exe").write_bytes(b"MZ")
+    (root / "wimboot").write_bytes(b"FAKE-WIMBOOT\n")   # E4-1-a-3 — 소스 루트의 부트로더(존재 · 해시 chip 만 본다)
     print(f"가짜 설치 소스 생성: {root}  (install.wim {len(build_fake_wim(xml_text))} B · 이미지 {xml_text.count('<IMAGE INDEX=')}종)")
 
 

@@ -6,10 +6,12 @@ import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.enums.AgentDirective;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 
+import java.time.LocalDateTime;
+
 /**
  * phase 실행기 SPI(E1-0b, DEC-6) — phase 판별자를 가진 Spring 빈을 {@link PhaseExecutorRegistry} 가
- * 기동 시 수집한다. 신규 phase 지원 = 분기 추가가 아니라 <b>빈 등록</b>(dispatch 매트릭스 6행 HOLD →
- * 7행 위임 자동 전환) — 조건분기 확장 금지의 이행.
+ * 기동 시 수집한다. 신규 phase 지원 = 분기 추가가 아니라 <b>빈 등록</b>(dispatch 매트릭스 7행 HOLD →
+ * 8행 위임 자동 전환) — 조건분기 확장 금지의 이행.
  */
 public interface ProvisioningPhaseExecutor {
 
@@ -42,6 +44,21 @@ public interface ProvisioningPhaseExecutor {
      */
     default PhaseReadiness readiness(GuestServer server, ProvisioningProgress progress) {
         return PhaseReadiness.ready();
+    }
+
+    /**
+     * dispatcher 가 이 실행기의 {@link #bootScript} 를 내주기로 한 직후, 같은 트랜잭션에서 호출된다(E4-1-a-3 D-1).
+     * 게스트가 보고할 수 없는 phase(WinPE)는 "스크립트를 내준 사실" 이 착수 신호라, 그 기록이 여기 실린다.
+     * default no-op — 착수를 게스트 보고로 받는 phase 는 구현하지 않는다.
+     */
+    default void onBootScriptServed(GuestServer server, ProvisioningProgress progress, LocalDateTime now) {
+    }
+
+    /**
+     * 운영자가 이 phase 의 게스트를 수동 실패 전환한 직후, 같은 트랜잭션에서 호출된다(E4-1-a-3 CP5 F-1). 게스트가
+     * 보고할 수 없는 phase 는 열린 원장 행과 발급 토큰을 서버가 닫아야 한다 — 그 뒷정리가 여기 실린다. default no-op.
+     */
+    default void onOperatorFailed(GuestServer server, ProvisioningProgress progress, LocalDateTime now) {
     }
 
     /**
