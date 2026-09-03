@@ -319,25 +319,29 @@
                                         <span class="n-label-with-help">
                                             <label class="n-label strong">디스크 묶음 규칙</label>
                                             <span class="n-tooltip n-help-mark" tabindex="0" role="img" aria-label="도움말"
-                                                  data-tooltip="묶음 하나 = {RAID 레벨, 종류, 전송, 용량, 개수}. 조건에 맞는 조합 전부에 적용됩니다(같은 스펙 4장 + RAID1 2개 → 볼륨 2개). 레벨을 ‘RAID 없음’ 으로 두면 그 묶음의 디스크를 RAID 로 묶지 않고 그대로 씁니다. 묶음을 하나도 두지 않으면 설치기가 자동 선택합니다. 행 순서는 맨 앞 ☰ 핸들을 끌어 바꿉니다.">?</span>
+                                                  data-tooltip="묶음 하나 = {RAID 레벨, 종류, 전송, 용량, 개수}. 개수의 ‘개’ 는 조건에 맞는 첫 그룹에서 슬롯 순 n 장을 한 묶음만 가져가고(남은 디스크는 아래 규칙으로), ‘개씩’ 은 그룹 크기가 n 의 배수일 때 n 개씩 전부(같은 스펙 4장 + RAID1 2개씩 → 볼륨 2개), ‘개 이상’ 은 n 장 이상이면 그룹 전체를 한 볼륨으로 씁니다. 레벨을 ‘RAID 없음’ 으로 두면 그 묶음의 디스크를 RAID 로 묶지 않고 그대로 씁니다. 묶음을 하나도 두지 않으면 설치기가 자동 선택합니다. 행 순서 = 적용 순서이며 맨 앞 ☰ 핸들을 끌어 바꿉니다.">?</span>
                                         </span>
                                     </div>
+                                    <!-- 적용 순서 안내(E3.5-7-a D4) — 상시 노출. 순위 열과 함께 "위 규칙이 먼저 가져간다" 를 화면에서 읽게 한다 -->
+                                    <div class="n-hint">위 규칙부터 순서대로 디스크를 가져가고, 남은 디스크는 아래 규칙으로 흐릅니다. 어느 규칙에도 맞지 않는 디스크는 미배정으로 남습니다.</div>
                                     <!-- 도달 불가 안내(CP6 검수 반영 — 제목 아래로 이동) + 해당 행 색상은 is-unreachable 클래스가 담당 -->
                                     <div class="n-hint is-danger" id="rcUnreachableHint" hidden></div>
                                     <table class="table table-sm table-bordered n-tbl-list" id="rcDiskGroupTable">
                                         <colgroup>
                                             <col class="n-col-4"><!-- 순서 핸들(드래그) -->
-                                            <col class="n-col-14"><!-- RAID 레벨 -->
-                                            <col class="n-col-12"><!-- 종류 -->
-                                            <col class="n-col-12"><!-- 전송 -->
+                                            <col class="n-col-8"><!-- 순위(E3.5-7-a) — 행 순서 = 적용 순서. 우선순위 표와 같은 배지, JS 가 다시 매긴다 -->
+                                            <col class="n-col-12"><!-- RAID 레벨 -->
+                                            <col class="n-col-10"><!-- 종류 -->
+                                            <col class="n-col-10"><!-- 전송 -->
                                             <col class="n-col-18"><!-- 용량: 방식 / (지정 시 아래 줄) 값 + 단위 -->
-                                            <col class="n-col-18"><!-- 개수: 값 + 방식 -->
-                                            <col class="n-col-14"><!-- 역할(U4-1-2) -->
+                                            <col class="n-col-18"><!-- 개수: 값 + 방식(개 · 개씩 · 개 이상) -->
+                                            <col class="n-col-12"><!-- 역할(U4-1-2) -->
                                             <col class="n-col-8"><!-- 삭제 -->
                                         </colgroup>
                                         <thead>
                                         <tr>
                                             <th></th>
+                                            <th>순위</th>
                                             <th>RAID 레벨</th>
                                             <th>종류</th>
                                             <th>전송</th>
@@ -539,6 +543,7 @@
                 <td class="n-td-center">
                     <span class="dgHandle" title="끌어서 순서 변경" aria-label="끌어서 순서 변경">☰</span>
                 </td>
+                <td class="n-td-center"><span class="n-rank dgRank">1</span></td>
                 <td>
                     <select class="n-select dgLevel">
                         <option value="">RAID 없음</option>
@@ -604,7 +609,7 @@
              MegaRAID 카드에서만 노출. -->
         <template id="tplVdParamsRow">
             <tr class="dgVdRow" hidden>
-                <td colspan="8">
+                <td colspan="9">
                     <div class="n-vd-grid">
                         <label>Strip Size
                             <select class="n-select vdStripSize">

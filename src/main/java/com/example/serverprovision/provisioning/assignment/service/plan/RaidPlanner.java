@@ -34,9 +34,10 @@ import java.util.OptionalLong;
  * {@code VolumePriorityRules} · {@code OsVolumeTargets})가 사는 provisioning 쪽에 두고, 산출물(계획)만
  * execution 소유 중립 모델로 낸다({@code BiosSettingTarget} 방향 원칙 — plan 결정 1).
  *
- * <p>소비 규칙(결정 6 · 실기 2026-09-01 배수 분할 개정): 어떤 규칙도 같은 스펙 그룹을 부분 소비하지 않는다 —
- * {@code EXACT n} 은 그룹 크기가 n 의 배수일 때 n 개씩 나눠 볼륨 여러 개로 소비하고(6대 · EXACT 3 → 3+3 두 볼륨),
- * {@code AT_LEAST n} 은 n 이상일 때 그룹 전체를 한 볼륨으로 소비한다. 소비하지 못한 그룹은 온전히 후행 규칙으로 흐른다.</p>
+ * <p>소비 규칙(결정 6 → E3.5-7-a D2 개정): '개'({@code EXACT n})만 그룹을 부분 소비한다 — 발견 순 첫 그룹에서
+ * 슬롯 순 n 장을 한 묶음으로 가져가고 남은 디스크는 같은 스펙 그룹으로 후행에 흐른다. '개씩'({@code EACH n})은
+ * 그룹 크기가 n 의 배수일 때 n 개씩 나눠 볼륨 여러 개로(6대 · 3개씩 → 3+3), '개 이상'({@code AT_LEAST n})은 크기 ≥ n 일 때
+ * 그룹 전체를 한 볼륨으로 소비한다. 소비하지 못한 그룹은 온전히 후행 규칙으로 흐른다.</p>
  */
 public final class RaidPlanner {
 
@@ -90,25 +91,18 @@ public final class RaidPlanner {
             int consumed = 0;
             int volumeCount = 0;
             int volumeSeq = 0;
+            boolean bundleTaken = false;   // '개' 는 첫 묶음 한 번만 — 그 뒤 그룹은 건드리지 않는다
             for (List<Candidate> group : groupByClass(rule, matched)) {
-                boolean selected = switch (rule.count().mode()) {
-                    // 배수 분할(실기 2026-09-01) — n 의 배수면 n 개씩 나눠 소비, 아니면 미소비 · 후행 흘림
-                    case EXACT -> group.size() % rule.count().value() == 0;
-                    case AT_LEAST -> group.size() >= rule.count().value();
-                };
-                if (!selected) {
-                    for (Candidate c : group) {
-                        c.lastMissReason = "규칙 " + ruleNo + " · " + rule.count().toDisplay()
-                                + " 조건에 " + group.size() + "대(배수 아님)라 미소비";
-                    }
-                    continue;
+                List<Candidate> taken = select(rule, ruleNo, group, bundleTaken);
+                if (taken.isEmpty()) {
+                    continue;   // 미소비 사유는 select 가 그룹에 남겼다 — 그룹은 온전히 후행으로
                 }
                 if (rule.buildsRaid()) {
-                    // EXACT 는 n 개씩 슬라이스해 볼륨 여러 개, AT_LEAST 는 그룹 전체가 한 볼륨
-                    int sliceSize = rule.count().mode() == DiskCountMode.EXACT
-                            ? rule.count().value() : group.size();
-                    for (int from = 0; from < group.size(); from += sliceSize) {
-                        List<Candidate> slice = group.subList(from, from + sliceSize);
+                    // '개씩' 은 n 개씩 슬라이스해 볼륨 여러 개, '개' · '개 이상' 은 가져간 디스크가 한 볼륨
+                    int sliceSize = rule.count().mode() == DiskCountMode.EACH
+                            ? rule.count().value() : taken.size();
+                    for (int from = 0; from < taken.size(); from += sliceSize) {
+                        List<Candidate> slice = taken.subList(from, from + sliceSize);
                         volumeSeq++;
                         volumeCount++;
                         long perDisk = slice.stream().mapToLong(c -> c.bytes).min().orElse(0L);
@@ -117,12 +111,13 @@ public final class RaidPlanner {
                                 rule.raidLevel(), rule, ruleNo, slice, usable, entries.size()));
                     }
                 } else {
-                    for (Candidate c : group) {
+                    for (Candidate c : taken) {
                         entries.add(Entry.passthrough(rule, ruleNo, c, entries.size()));
                     }
                 }
-                consumed += group.size();
-                pool.removeAll(group);
+                consumed += taken.size();
+                pool.removeAll(taken);
+                bundleTaken = true;
             }
             ruleOutcomes.add(new RaidRuleOutcome(ruleNo, OsVolumeTargets.summarize(rule),
                     matched.size(), consumed, volumeCount));
@@ -195,6 +190,39 @@ public final class RaidPlanner {
                 .toList();
         return new RaidPlan(deleteExistingFirst, plannedVolumes, passthroughs,
                 unassigned, ruleOutcomes, osAbsenceReason);
+    }
+
+    /**
+     * 개수 축의 소비 진리표(E3.5-7-a D2) — 그룹에서 가져갈 디스크(빈 목록 = 미소비 · 사유를 그룹에 기록).
+     * '개' 는 크기 ≥ n 인 첫 그룹에서 슬롯 순 n 장만(부분 소비 · 한 규칙에 한 번), '개씩' 은 크기 % n == 0 인
+     * 그룹 전체, '개 이상' 은 크기 ≥ n 인 그룹 전체. RAID 없음 규칙도 같은 표를 따른다('개' 1 → 첫 1장만 패스스루).
+     */
+    private static List<Candidate> select(DiskGroupRuleRequest rule, int ruleNo,
+                                          List<Candidate> group, boolean bundleTaken) {
+        int n = rule.count().value();
+        int size = group.size();
+        String prefix = "규칙 " + ruleNo + " · " + rule.count().toDisplay();
+        String miss = switch (rule.count().mode()) {
+            // 조사: EXACT 표기는 항상 "n개" 로 끝나므로(모음) '는' — 다른 모드는 이 문구를 내지 않는다(CP5 F-4)
+            case EXACT -> bundleTaken ? prefix + "는 한 묶음만 가져갑니다 — 이미 소비"
+                    : size >= n ? null : prefix + " 조건에 " + size + "대(" + n + "장에 못 미침)라 미소비";
+            case EACH -> size % n == 0 ? null : prefix + " 조건에 " + size + "대(배수 아님)라 미소비";
+            case AT_LEAST -> size >= n ? null : prefix + " 조건에 " + size + "대(" + n + "장 미만)라 미소비";
+        };
+        if (miss != null) {
+            for (Candidate c : group) {
+                c.lastMissReason = miss;
+            }
+            return List.of();
+        }
+        if (rule.count().mode() != DiskCountMode.EXACT) {
+            return group;
+        }
+        // '개' 는 첫 n 장만 — 남은 디스크는 후행으로 흐르되, 끝까지 미배정이면 이 사유가 화면에 남는다
+        for (Candidate c : group.subList(n, size)) {
+            c.lastMissReason = prefix + "는 한 묶음만 가져갑니다 — 남은 디스크는 다음 규칙으로";
+        }
+        return group.subList(0, n);
     }
 
     private static boolean axisMatch(DiskGroupRuleRequest rule, Candidate c) {

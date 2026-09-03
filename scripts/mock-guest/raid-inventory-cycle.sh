@@ -4,8 +4,10 @@
 # 원문은 fixtures-raid/ 의 2026-08-31 실측본 — agent.sh 의 base64 봉투 계약(RaidInventoryParser SSOT) 그대로.
 #
 # 사용:
-#   ./raid-inventory-cycle.sh <BASE_URL> <GUEST_TOKEN> [mr|mrclean|cra|mismatch|toolmissing]
+#   ./raid-inventory-cycle.sh <BASE_URL> <GUEST_TOKEN> [mr|mrclean|ssd6|cra|mismatch|toolmissing]
 #     mr          9361-8i 실측(기본) — storcli JSON 3종
+#     mrclean     9361-8i 실측 + 기존 볼륨 없음(E3.5-3 정상 완주 시작점)
+#     ssd6        9361-8i 파생(E3.5-7-a 사례 (c)) — 같은 스펙 SSD 6장(252:0~5) + HDD 2장 · 기존 볼륨 없음
 #     cra         CRA3338 실측 — sas3ircu display
 #     mismatch    lspci 는 CRA(1458:3008), 카드 지정이 9361 이면 CARD_MISMATCH 재현과 동일 효과
 #     toolmissing 도구 부재 FAILED 보고 (에이전트 TOOL_MISSING 경로)
@@ -36,11 +38,13 @@ STEP_ID=$(printf '%s' "$OPEN" | field stepId)
 esc() { python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])'; }
 
 case "$MODE" in
-    mr|mrclean)
+    mr|mrclean|ssd6)
         # mrclean(E3.5-3) — 기존 볼륨이 없는 상태 보고: 정상 완주(A1)의 시작점(외부 볼륨 보류를 피한다)
-        VD="$FIX/mr-vd-all.json"; [ "$MODE" = "mrclean" ] && VD="$FIX/mr-novol-vd.json"
+        # ssd6(E3.5-7-a) — 실측 pd 의 252:2~5 를 252:0 과 같은 SSD 로 바꾼 파생본: '개' 의 부분 소비(사례 (c))를 재연한다
+        VD="$FIX/mr-vd-all.json"; [ "$MODE" != "mr" ] && VD="$FIX/mr-novol-vd.json"
+        PD="$FIX/mr-pd-all.json"; [ "$MODE" = "ssd6" ] && PD="$FIX/mr-ssd6-pd.json"
         LSPCI=$(cat "$FIX/mr-lspci-nnvv.txt" | b64)
-        META="{\"tool\":\"storcli64\",\"lspci_b64\":\"$LSPCI\",\"pd_b64\":\"$(b64 < "$FIX/mr-pd-all.json")\",\"vd_b64\":\"$(b64 < "$VD")\",\"c0_b64\":\"$(b64 < "$FIX/mr-c0-show-all.json")\"}"
+        META="{\"tool\":\"storcli64\",\"lspci_b64\":\"$LSPCI\",\"pd_b64\":\"$(b64 < "$PD")\",\"vd_b64\":\"$(b64 < "$VD")\",\"c0_b64\":\"$(b64 < "$FIX/mr-c0-show-all.json")\"}"
         STATUS=SUCCEEDED ;;
     cra|mismatch)
         LSPCI=$(cat "$FIX/cra-lspci-nnvv.txt" | b64)

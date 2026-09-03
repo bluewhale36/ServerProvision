@@ -125,6 +125,7 @@ class RaidConfigurationRequestContractTest {
         assertThat(noRaidNvme().capacity().toDisplay()).isEqualTo("자동 탐지");
         assertThat(raid1().count().toDisplay()).isEqualTo("2개");
         assertThat(new DiskCountRequirement(DiskCountMode.AT_LEAST, 3).toDisplay()).isEqualTo("3개 이상");
+        assertThat(new DiskCountRequirement(DiskCountMode.EACH, 2).toDisplay()).isEqualTo("2개씩");   // E3.5-7-a
     }
 
     // ==== U4-1-2 — 역할 · 볼륨 우선순위 ==========================================================
