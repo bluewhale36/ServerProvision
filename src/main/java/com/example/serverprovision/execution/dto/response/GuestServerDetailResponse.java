@@ -50,6 +50,8 @@ public record GuestServerDetailResponse(
         FirmwareFlash firmwareFlash,
         /** 설정 phase 의 집행 현황(E2-4 R1) — 설정 축 원장 행이 생긴 뒤에만. */
         FirmwareSetting firmwareSetting,
+        /** Windows 설치 카드(E4-1-a-3) — 활성 할당에 OS 설치 단계가 있거나 OS_INSTALLING 원장 행이 있을 때만. */
+        WindowsInstall windowsInstall,
         /** RAID 구성 계획 미리보기(E3.5-2) — 저장 없이 조회 때마다 재산출. 창 밖(할당 · 단계 없음)이면 null. */
         RaidPlanPreview raidPlan,
         /** 검증 통과 실물(E3.5-4 — raid_volume). 통과 전이면 빈 목록. */
@@ -266,6 +268,28 @@ public record GuestServerDetailResponse(
     ) {
         /** 축 하나의 표시값 — 선택됐으면 버전, 아니면 사유 문구(사유 enum 이 문구를 보유한다). */
         public record Axis(boolean selected, String display, String message) {
+        }
+    }
+
+    /**
+     * Windows 설치 카드(E4-1-a-3 R5) — 준비도는 조회 시점 재계산, 진행은 원장 RUNNING 행의 투영이다.
+     * {@code remainingMinutes} 는 서빙 뒤에만(null 이면 표시 생략), {@code failedReason} 은 이 원장이 적은 실패 행이 최신일 때만.
+     */
+    public record WindowsInstall(
+            String imageName,
+            String imageDisplayName,
+            ReadinessGrade readinessGrade,
+            List<String> readinessNotes,
+            LocalDateTime servedAt,
+            int reentries,
+            int maxReentries,
+            Long remainingMinutes,
+            String failedReason,
+            boolean holding,
+            long holdRemainingMinutes
+    ) {
+        public boolean served() {
+            return servedAt != null;
         }
     }
 

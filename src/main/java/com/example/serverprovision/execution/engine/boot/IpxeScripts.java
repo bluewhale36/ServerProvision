@@ -84,9 +84,27 @@ public final class IpxeScripts {
         return waitAndChain("applying bios settings via bmc. waiting...", rebootQuery);
     }
 
-    /** 미구현 phase HOLD(silent 통과 금지, DEC-6) — dispatch 6행. */
+    /** 미구현 phase HOLD(silent 통과 금지, DEC-6) — dispatch 7행. */
     public static String hold(ProvisioningPhase phase, String rebootQuery) {
         return waitAndChain("phase " + phase + " not implemented yet (HOLD).", rebootQuery);
+    }
+
+    /**
+     * Windows 설치 중 재진입(E4-1-a-3 D-2) — Setup 이 스스로 한 재부팅이 네트워크 우선 펌웨어에서 재PXE 로 돌아온 것.
+     * {@code exit} 로 iPXE 를 끝내 부트 순서의 다음(로컬 디스크)으로 넘긴다. 신원 · 재진입 n/max 를 콘솔에 남긴다.
+     */
+    public static String localBootFallthrough(int reentry, int maxReentries) {
+        return """
+                #!ipxe
+                echo [provision] windows setup in progress (reentry %d/%d). booting local disk...
+                echo [provision] this server: ip=${ip} mac=${mac} uuid=${uuid}
+                exit
+                """.formatted(reentry, maxReentries);
+    }
+
+    /** Windows 설치 실패 전환 직후의 안내(E4-1-a-3) — 다음 폴링부터는 dispatch 3행(failed)이 받는다. */
+    public static String windowsInstallFailed(String reason, String rebootQuery) {
+        return waitAndChain("windows install FAILED (" + reason + "). waiting for operator...", rebootQuery);
     }
 
     /** 종단 — iPXE 종료 → 부트 순서 폴스루(로컬 디스크). 실효성은 T2 검증 유보 — dispatch 4행. */

@@ -36,6 +36,11 @@ class BootScriptDispatcherTest {
     private final BootScriptDispatcher dispatcher =
             new BootScriptDispatcher(new PhaseExecutorRegistry(List.of(diagnoseExecutor)));
 
+    /** 판정 결과의 스크립트만 — 위임 사실(delegated)은 별도 테스트가 본다(E4-1-a-3). */
+    private String dispatch(GuestServer server, ProvisioningProgress progress, PhaseReadiness readiness, String q) {
+        return dispatcher.dispatch(server, progress, readiness, q).script();
+    }
+
     private GuestServer server(LocalDateTime decommissionedAt) {
         return GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID())
                 .decommissionedAt(decommissionedAt).build();
@@ -50,11 +55,11 @@ class BootScriptDispatcherTest {
     @DisplayName("우선순위 — 회수 > 실패 > 종단 > 미개시 (복합 상태에서 상위 행이 이긴다)")
     void priorityOrder() {
         // 회수 + 실패 → 회수가 이긴다 (derive 진리표와 동일 정렬)
-        assertThat(dispatcher.dispatch(server(T),
+        assertThat(dispatch(server(T),
 progress().startedAt(T).failedAt(T).currentStep(ProvisioningPhaseStep.OS_INSTALLING).build(), PhaseReadiness.ready(), Q))
                 .contains("decommissioned server");
         // 실패 + 종단은 표현 불가(상호배타) — 실패 vs 미개시: 실패가 이긴다. 실패 지점 = 커서(ES-2 D-5).
-        assertThat(dispatcher.dispatch(server(null),
+        assertThat(dispatch(server(null),
 progress().failedAt(T).currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build(), PhaseReadiness.ready(), Q))
                 .contains("FAILED at BIOS_UPDATING")
                 // HF10 — 실패 화면 앞의 운영자가 어느 서버인지 읽을 신원 줄(iPXE 변수는 게스트가 확장)
@@ -64,7 +69,7 @@ progress().failedAt(T).currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build(),
     @Test
     @DisplayName("4행 이분(E1-2) — 완주 + OS 설치 전(진단만 완주) → 입고 검수 대기 (exit 금지)")
     void completed_beforeOsInstall_awaitsIntake() {
-        String script = dispatcher.dispatch(server(null),
+        String script = dispatch(server(null),
 progress().startedAt(T).currentStep(ProvisioningPhaseStep.INFORMATION_PERSISTING).completedAt(T).build(), PhaseReadiness.ready(), Q);
         assertThat(script)
                 .contains("awaiting assignment")
@@ -75,7 +80,7 @@ progress().startedAt(T).currentStep(ProvisioningPhaseStep.INFORMATION_PERSISTING
     @Test
     @DisplayName("4행 이분(E1-2) — 완주 + OS 설치 이후 커서 → exit (로컬 부팅 폴스루)")
     void completed_afterOsInstall_exitsWithoutChain() {
-        String script = dispatcher.dispatch(server(null),
+        String script = dispatch(server(null),
 progress().startedAt(T).currentStep(ProvisioningPhaseStep.OS_SETTING).completedAt(T).build(), PhaseReadiness.ready(), Q);
         assertThat(script).contains("exit").doesNotContain("chain");
     }
@@ -85,7 +90,7 @@ progress().startedAt(T).currentStep(ProvisioningPhaseStep.OS_SETTING).completedA
     void notStarted_diagnosticCursor_autoProceeds() {
         // 옛 5행(waiting for provisioning start)이 사라지고, 미개시 게스트가 곧바로 진단 실행기의
         // 스크립트를 받는 것이 자동 진행의 증거다.
-        String script = dispatcher.dispatch(server(null),
+        String script = dispatch(server(null),
 progress().build(), PhaseReadiness.ready(), Q);
         assertThat(script)
                 .doesNotContain("waiting for provisioning start")
@@ -99,7 +104,7 @@ progress().build(), PhaseReadiness.ready(), Q);
         holding.start(T);             // 개시 = 부팅 대기
         holding.holdForShortage(T);   // 게이트가 하는 일을 같은 통로로 재현
 
-        String script = dispatcher.dispatch(server(null), holding,
+        String script = dispatch(server(null), holding,
                 PhaseReadiness.of(ReadinessGrade.BLOCKED, List.of("BIOS — 무결성 표식이 없습니다"),
                         "BIOS=MARKER_MISSING"), Q);
 
@@ -116,14 +121,14 @@ progress().build(), PhaseReadiness.ready(), Q);
         holdingThenFailed.holdForShortage(T);
         holdingThenFailed.markFailed(T);
 
-        assertThat(dispatcher.dispatch(server(null), holdingThenFailed, PhaseReadiness.ready(), Q))
+        assertThat(dispatch(server(null), holdingThenFailed, PhaseReadiness.ready(), Q))
                 .contains("FAILED at BIOS_UPDATING");
     }
 
     @Test
     @DisplayName("6행 HOLD — 실행기 미등록 phase 는 명시 대기 (silent 통과 금지)")
     void unregisteredPhase_holds() {
-        String script = dispatcher.dispatch(server(null),
+        String script = dispatch(server(null),
 progress().startedAt(T).currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build(), PhaseReadiness.ready(), Q);   // pre-position 커서
         assertThat(script).contains("FIRMWARE_UPDATING not implemented yet (HOLD)");
     }
@@ -131,7 +136,7 @@ progress().startedAt(T).currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build()
     @Test
     @DisplayName("7행 위임 — 등록된 실행기의 bootScript 로 (쿼리 관통). seed 커서의 phase 파생이 곧 부팅 목표(ES-2)")
     void registeredPhase_delegates() {
-        String script = dispatcher.dispatch(server(null),
+        String script = dispatch(server(null),
 progress().startedAt(T).build(), PhaseReadiness.ready(), Q);
         assertThat(script).contains("FAKE q=" + Q);
     }
@@ -141,7 +146,25 @@ progress().startedAt(T).build(), PhaseReadiness.ready(), Q);
     void seedCursor_withoutExecutor_holdsOnDiagnose() {
         BootScriptDispatcher empty = new BootScriptDispatcher(new PhaseExecutorRegistry(List.of()));
         String script = empty.dispatch(server(null),
-progress().startedAt(T).build(), PhaseReadiness.ready(), Q);
+progress().startedAt(T).build(), PhaseReadiness.ready(), Q).script();
         assertThat(script).contains("DIAGNOSE_LINUX not implemented yet (HOLD)");
+    }
+
+    @Test
+    @DisplayName("E4-1-a-3 D-1 — 8행 위임에서만 delegated 가 채워진다 (착수 훅의 수신자)")
+    void delegated_onlyOnExecutorRow() {
+        var delegated = dispatcher.dispatch(server(null), progress().startedAt(T).build(), PhaseReadiness.ready(), Q);
+        assertThat(delegated.delegated()).contains(diagnoseExecutor);
+
+        var hold = dispatcher.dispatch(server(null),
+                progress().startedAt(T).currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build(), PhaseReadiness.ready(), Q);
+        assertThat(hold.delegated()).isEmpty();   // 7행 HOLD
+        var failed = dispatcher.dispatch(server(null),
+                progress().failedAt(T).currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build(), PhaseReadiness.ready(), Q);
+        assertThat(failed.delegated()).isEmpty();  // 3행
+        ProvisioningProgress holding = progress().currentStep(ProvisioningPhaseStep.OS_INSTALLING).build();
+        holding.start(T);
+        holding.holdForShortage(T);
+        assertThat(dispatcher.dispatch(server(null), holding, PhaseReadiness.ready(), Q).delegated()).isEmpty();   // 5행
     }
 }

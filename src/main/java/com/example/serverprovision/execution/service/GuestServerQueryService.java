@@ -42,6 +42,10 @@ import com.example.serverprovision.execution.engine.firmware.step.FlashContext;
 import com.example.serverprovision.execution.engine.setting.SettingAxis;
 import com.example.serverprovision.execution.engine.setting.SettingLedger;
 import com.example.serverprovision.execution.engine.setting.BmcSettingItem;
+import com.example.serverprovision.execution.engine.windows.WindowsInstallLedger;
+import com.example.serverprovision.execution.engine.windows.WindowsInstallReadinessResolver;
+import com.example.serverprovision.execution.engine.windows.WindowsInstallTimeoutPolicy;
+import com.example.serverprovision.execution.wininstall.catalog.WindowsImage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -86,6 +90,9 @@ public class GuestServerQueryService {
     private final SettingLedger settingLedger;             // E2-4 — 설정 원장 meta 판독(작성과 같은 SSOT)
     private final WorkerObservations workerObservations;   // E2-4 Q2 — 하트비트(인메모리 최신 관측)
     private final ObjectMapper objectMapper;
+    private final WindowsInstallReadinessResolver windowsInstallReadinessResolver;   // E4-1-a-3 — 카드 준비도(실행기와 같은 조립)
+    private final WindowsInstallLedger windowsInstallLedger;                         // E4-1-a-3 — 서빙 · 재진입 · 실패 사유 판독
+    private final WindowsInstallTimeoutPolicy windowsInstallTimeoutPolicy;           // E4-1-a-3 — 잔여 분 · 상한(화면 = 실행기 값)
 
     private static final DateTimeFormatter OBSERVATION_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -422,6 +429,7 @@ public class GuestServerQueryService {
                 firmwarePlanOf(server, progress),
                 firmwareFlashOf(server, detail, progress, steps),
                 firmwareSettingOf(server, detail, progress, steps),
+                windowsInstallOf(server, progress, steps),
                 raidPlan,
                 raidVolumes,
                 stepResponses
@@ -807,6 +815,43 @@ public class GuestServerQueryService {
                         progress != null && progress.isHolding(),
                         holdRemainingMinutes(progress)))
                 .orElse(null);
+    }
+
+    /**
+     * Windows 설치 카드(E4-1-a-3 R5) — 준비도는 실행기와 같은 조립({@link WindowsInstallReadinessResolver})으로 재계산하고,
+     * 진행(서빙 시각 · 재진입 · 잔여 분 · 실패 사유)은 상세가 이미 로드한 원장 목록에서 읽는다(추가 쿼리 0).
+     * 활성 할당에 OS 설치 단계가 없고 OS_INSTALLING 행도 없으면 null — 화면은 카드를 그리지 않는다.
+     */
+    private GuestServerDetailResponse.WindowsInstall windowsInstallOf(GuestServer server, ProvisioningProgress progress,
+                                                                      List<ProvisioningHistory> steps) {
+        Optional<WindowsInstallReadinessResolver.Resolved> resolved = windowsInstallReadinessResolver.resolve(server.getId());
+        Optional<ProvisioningHistory> latest = steps.stream()
+                .filter(s -> s.getStepCode() == ProvisioningPhaseStep.OS_INSTALLING)
+                .filter(windowsInstallLedger::isWindowsInstallRow)
+                .reduce((first, second) -> second);
+        if (resolved.isEmpty() && latest.isEmpty()) {
+            return null;
+        }
+        boolean failed = progress != null && progress.isFailed();
+        Optional<ProvisioningHistory> running = failed ? Optional.empty()   // 실패 전환 뒤 남은 열린 행(구 데이터)은 진행이 아니다
+                : latest.filter(h -> h.getStatus() == ProvisioningStatus.RUNNING);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime servedAt = running.map(windowsInstallLedger::servedAtOf).orElse(null);
+        boolean failedHere = failed && latest.filter(h -> h.getStatus() == ProvisioningStatus.FAILED).isPresent();
+        boolean holding = progress != null && progress.isHolding() && progress.currentPhase() == ProvisioningPhase.OS_INSTALLING;
+        return new GuestServerDetailResponse.WindowsInstall(
+                resolved.map(r -> r.target().imageName()).map(name -> name == null ? null : name.value())
+                        .orElseGet(() -> latest.map(windowsInstallLedger::imageOf).orElse(null)),
+                resolved.flatMap(WindowsInstallReadinessResolver.Resolved::image).map(WindowsImage::displayName).orElse(null),
+                resolved.map(r -> r.readiness().grade()).orElse(null),
+                resolved.map(r -> r.readiness().notes()).orElse(List.of()),
+                servedAt,
+                running.map(windowsInstallLedger::reentriesOf).orElse(0),
+                windowsInstallTimeoutPolicy.maxReentries(),
+                servedAt == null ? null : windowsInstallTimeoutPolicy.remainingMinutes(servedAt, now),
+                failedHere ? latest.map(windowsInstallLedger::reasonOf).orElse(null) : null,
+                holding,
+                holding ? holdRemainingMinutes(progress) : 0L);
     }
 
     private static GuestServerDetailResponse.FirmwarePlan.Axis axisOf(AxisResolution axis, String label) {

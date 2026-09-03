@@ -105,6 +105,7 @@ class GuestServerControllerTest {
                 null,   // E2-1-b firmwarePlan — 펌웨어 단계 미보유 fixture
                 null,   // E2-2 firmwareFlash — 집행 미착수 fixture
                 null,   // E2-4 firmwareSetting — 집행 미착수 fixture
+                null,   // E4-1-a-3 windowsInstall — 창 밖 fixture
                 null,   // E3.5-2 raidPlan — 계획 창 밖 fixture
                 List.of(),   // E3.5-4 raidVolumes — 검증 통과 전 fixture
                 List.of());
@@ -126,6 +127,7 @@ class GuestServerControllerTest {
                 null,   // E2-1-b firmwarePlan
                 null,   // E2-2 firmwareFlash
                 null,   // E2-4 firmwareSetting
+                null,   // E4-1-a-3 windowsInstall — 창 밖 fixture
                 null,   // E3.5-2 raidPlan
                 List.of(),   // E3.5-4 raidVolumes
                 List.of());
@@ -145,7 +147,7 @@ class GuestServerControllerTest {
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now(),
                         null, null, null, null, true, false, false, false, false),
-                null, null, null,
+                null, null, null, null,   // firmwarePlan · firmwareFlash · firmwareSetting · windowsInstall(E4-1-a-3)
                 new GuestServerDetailResponse.RaidPlanPreview(false, List.of(branch), cardCheck),
                 List.of(),
                 List.of());

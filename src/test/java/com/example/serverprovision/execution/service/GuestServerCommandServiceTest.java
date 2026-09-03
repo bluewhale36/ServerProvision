@@ -45,6 +45,7 @@ class GuestServerCommandServiceTest {
     @Mock com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer phaseCursorAdvancer;   // R13 — 개시 시 소급 완주 판정
     @Mock ApplicationEventPublisher eventPublisher;   // S7 — 실시간 스트림 신호 발행 검증
     @Mock com.example.serverprovision.execution.engine.WorkerObservations workerObservations;   // E2-4 O-3 — 회수 직전 파괴
+    @Mock com.example.serverprovision.execution.engine.phase.PhaseExecutorRegistry phaseExecutorRegistry;   // E4-1-a-3 — 수동 실패 뒷정리 훅
     @InjectMocks GuestServerCommandService service;
 
     private GuestServer server(UUID id) {
@@ -376,5 +377,27 @@ class GuestServerCommandServiceTest {
         assertThat(g.powerControlBlockReason(flashing)).contains("굽는 중");
         g.decommission(LocalDateTime.now());
         assertThat(g.powerControlBlockReason(flashing)).contains("회수된 서버");   // 회수가 우선
+    }
+
+    @Test
+    @DisplayName("markFailedManually — 커서 phase 의 실행기에 onOperatorFailed 훅(E4-1-a-3 CP5 F-1) · 미등록 phase 는 조용히 지나간다")
+    void markFailedManually_callsPhaseHook() {
+        UUID id = UUID.randomUUID();
+        GuestServer server = GuestServer.builder().id(id).systemUUID(UUID.randomUUID()).build();
+        ProvisioningProgress progress = ProvisioningProgress.builder().id(UUID.randomUUID()).guestServer(server)
+                .currentStep(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.OS_INSTALLING)
+                .lastTransitionAt(LocalDateTime.now()).build();
+        progress.start(LocalDateTime.now());
+        var executor = org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.phase.ProvisioningPhaseExecutor.class);
+        given(guestServerRepository.existsById(id)).willReturn(true);
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+        given(phaseExecutorRegistry.find(com.example.serverprovision.execution.enums.ProvisioningPhase.OS_INSTALLING))
+                .willReturn(Optional.of(executor));
+
+        service.markFailedManually(id);
+
+        assertThat(progress.isFailed()).isTrue();
+        org.mockito.Mockito.verify(executor).onOperatorFailed(org.mockito.ArgumentMatchers.eq(server),
+                org.mockito.ArgumentMatchers.eq(progress), org.mockito.ArgumentMatchers.any());
     }
 }

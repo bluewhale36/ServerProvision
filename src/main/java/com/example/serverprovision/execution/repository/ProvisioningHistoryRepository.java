@@ -24,4 +24,8 @@ public interface ProvisioningHistoryRepository extends JpaRepository<Provisionin
     /** E3.5-3 — step 별 최신 행(동결 계획 조회 · 보류 사유 중복 억제의 판정 입력). */
     Optional<ProvisioningHistory> findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(
             UUID guestServerId, ProvisioningPhaseStep stepCode);
+
+    /** step 의 가장 최근 <b>특정 상태</b> 행 — "지금 열려 있는 RUNNING 행" 처럼 뒤에 다른 상태 행이 쌓여도 가려지지 않는다(E4-1-a-3 CP5 F-1). */
+    Optional<ProvisioningHistory> findFirstByGuestServer_IdAndStepCodeAndStatusOrderByCreatedAtDesc(
+            UUID guestServerId, ProvisioningPhaseStep stepCode, com.example.serverprovision.execution.enums.ProvisioningStatus status);
 }

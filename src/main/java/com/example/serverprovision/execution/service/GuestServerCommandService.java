@@ -42,6 +42,7 @@ public class GuestServerCommandService {
     private final PhaseCursorAdvancer phaseCursorAdvancer;   // R13 — 개시 시 유보된 완주 판정의 소급 집행
     private final ApplicationEventPublisher eventPublisher;
     private final com.example.serverprovision.execution.engine.WorkerObservations workerObservations;   // E2-4 O-3
+    private final com.example.serverprovision.execution.engine.phase.PhaseExecutorRegistry phaseExecutorRegistry;   // E4-1-a-3 — 수동 실패의 phase 뒷정리 훅
 
     @Transactional(readOnly = true)
     public boolean isNameTakenByOther(UUID id, String name) {
@@ -166,6 +167,9 @@ public class GuestServerCommandService {
         // 쓰므로 상세 응답의 파생 판독(failedAt = finishedAt 짝)이 이 행을 정확히 집는다.
         provisioningHistoryRecorder.recordInstant(server, progress.getCurrentStep(),
                 ProvisioningStatus.FAILED, ProvisioningHistory.OPERATOR_ORIGIN_META, now);
+        // phase 뒷정리(E4-1-a-3 CP5 F-1) — 게스트가 보고하지 않는 phase 는 열린 원장 행 · 토큰을 실행기가 닫는다(분기 대신 훅).
+        phaseExecutorRegistry.find(progress.currentPhase())
+                .ifPresent(executor -> executor.onOperatorFailed(server, progress, now));
         publishChanged(id);
     }
 

@@ -29,16 +29,20 @@ public class BootService {
 
     @Transactional
     public String boot(BootIPXEInfoRequest request, String rebootQuery) {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
         GuestServer server = registrationService.initialRegistry(request);
-        server.touchSeen(java.time.LocalDateTime.now());   // 접촉 관찰 로그(E1-2, DEC-32) — 판정 입력 아님
+        server.touchSeen(now);   // 접촉 관찰 로그(E1-2, DEC-32) — 판정 입력 아님
         ProvisioningProgress progress = provisioningProgressRepository.findByGuestServer_Id(server.getId())
                 .orElseThrow(() -> new IllegalStateException(
                         "provisioning_progress 1:1 불변 위반 — 등록 seed 누락. guestServerId=" + server.getId()));
         // 진입 판정 + 결손 사다리 집행(E2-1-b). 상태를 바꾸는 쪽은 게이트, 그 상태를 스크립트로
         // 표현하는 쪽은 dispatcher — 같은 트랜잭션 안이라 판정 · 전이 · 응답이 한 스냅샷이다.
-        PhaseReadiness readiness = phaseEntryGate.evaluate(server, progress, java.time.LocalDateTime.now());
+        PhaseReadiness readiness = phaseEntryGate.evaluate(server, progress, now);
         // 실시간 스트림 신호(S7) — 등록·접촉 변화. AFTER_COMMIT 리스너가 커밋 확정 후에만 내보낸다.
         eventPublisher.publishEvent(new GuestServerChangedEvent(server.getId()));
-        return bootScriptDispatcher.dispatch(server, progress, readiness, rebootQuery == null ? "" : rebootQuery);
+        BootDispatch dispatch = bootScriptDispatcher.dispatch(server, progress, readiness, rebootQuery == null ? "" : rebootQuery);
+        // 착수 훅(E4-1-a-3 D-1) — 위임된 실행기만 받는다. 게스트가 보고할 수 없는 phase 는 "내준 사실" 이 착수 신호다.
+        dispatch.delegated().ifPresent(executor -> executor.onBootScriptServed(server, progress, now));
+        return dispatch.script();
     }
 }
