@@ -131,6 +131,95 @@ class GuestServerControllerTest {
                 List.of());
     }
 
+    /** E3.5-5-a — 계획 카드에 카드 대조 예고를 그리기 위한 fixture(계획 갈래는 빈 볼륨). */
+    private GuestServerDetailResponse detailWithCardCheck(UUID id, GuestServerDetailResponse.RaidCardCheck cardCheck) {
+        var branch = new GuestServerDetailResponse.RaidPlanBranch("정책 무관", null, null, false,
+                List.of(), List.of(), List.of(), List.of(), null);
+        return new GuestServerDetailResponse(
+                id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "464331aabbcc", null, "memo",
+                GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
+                null,
+                new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
+                        DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null, null, null, null),
+                List.of(),
+                new GuestServerDetailResponse.Progress(
+                        ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now(),
+                        null, null, null, null, true, false, false, false, false),
+                null, null, null,
+                new GuestServerDetailResponse.RaidPlanPreview(false, List.of(branch), cardCheck),
+                List.of(),
+                List.of());
+    }
+
+    private static GuestServerDetailResponse.RaidCardCheck check(
+            com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict verdict, String specified, String observed) {
+        return new GuestServerDetailResponse.RaidCardCheck(verdict, 7L, "MegaRAID SAS 9361-8i", specified, observed);
+    }
+
+    // ==== E3.5-5-a — 카드 대조 예고 렌더(문구 키 execution.raid-card-check.*) ====
+
+    @Test
+    @DisplayName("E3.5-5-a — MISMATCH · NOT_DETECTED 는 붉은 예고에 지정 · 감지 Subsystem 과 집행 실패 코드를 적는다")
+    void detail_rendersMismatchAndNotDetected() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detailWithCardCheck(id, check(
+                com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.MISMATCH, "1000:9361", "1458:3008")));
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("CARD_MISMATCH 로 실패합니다")))
+                .andExpect(content().string(containsString("1458:3008")))
+                .andExpect(content().string(containsString("class=\"n-alert n-alert-danger\"")))   // CP5 O-1 — 위험은 채워진 배너
+                .andExpect(content().string(containsString("카드 자원의 Subsystem 을 정정하십시오")))
+                .andExpect(content().string(containsString("href=\"/management/raidcard?selectId=7\"")));   // CP5 F-3 — 다음 행동의 자리로
+
+        UUID id2 = UUID.randomUUID();
+        given(queryService.findDetail(id2)).willReturn(detailWithCardCheck(id2, check(
+                com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.NOT_DETECTED, "1000:9361", null)));
+        mvc.perform(get("/provisioning/server/{id}", id2))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("CARD_NOT_DETECTED 로 실패합니다")));
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — MATCH 는 일치 문구, UNVERIFIABLE 은 '확정되지 않아 대조할 수 없습니다', NOT_APPLICABLE 은 줄 자체가 없다")
+    void detail_rendersMatchUnverifiableAndHidesNotApplicable() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detailWithCardCheck(id, check(
+                com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.MATCH, "1000:9361", "1000:9361")));
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("지정 카드와 감지 카드가 일치합니다 (1000:9361)")));
+
+        UUID id2 = UUID.randomUUID();
+        given(queryService.findDetail(id2)).willReturn(detailWithCardCheck(id2, check(
+                com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.UNVERIFIABLE, null, "1000:9361")));
+        mvc.perform(get("/provisioning/server/{id}", id2))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Subsystem 이 확정되지 않아 대조할 수 없습니다")))
+                .andExpect(content().string(containsString("class=\"n-alert n-alert-warning\"")))            // CP5 F-3 · O-1 — 주의 배너
+                .andExpect(content().string(containsString("href=\"/management/raidcard/7/edit\"")));
+
+        UUID id3 = UUID.randomUUID();
+        given(queryService.findDetail(id3)).willReturn(detailWithCardCheck(id3, check(
+                com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.NOT_APPLICABLE, null, "1000:9361")));
+        mvc.perform(get("/provisioning/server/{id}", id3))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("대조할 수 없습니다"))))   // 키 이름은 템플릿 주석에 남으므로 문구로 판정
+                .andExpect(content().string(not(containsString("로 실패합니다"))))
+                .andExpect(content().string(not(containsString("일치합니다"))));
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — 인벤토리 없는 서버의 빈 문구는 '진단 수집에서 감지되면 채워진다 · 카드 없는 서버는 비어 있는 것이 정상' 을 말한다")
+    void detail_rendersRaidInventoryEmptyCopy() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detail(id));
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("카드가 없는 서버는 비어 있는 것이 정상입니다")))
+                .andExpect(content().string(not(containsString("RAID 구성 단계에 진입하면 수집됩니다"))));   // 디스크 표 헤더는 hardwareSpec 이 있는 픽스처에서만 그려진다(CP5 A1 로 확인)
+    }
+
     // ==== 성공 2xx ====================================================
 
     @Test

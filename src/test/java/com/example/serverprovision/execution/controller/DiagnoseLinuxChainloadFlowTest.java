@@ -87,6 +87,7 @@ class DiagnoseLinuxChainloadFlowTest {
     @MockitoBean ProvisioningProgressRepository progressRepository;
     @MockitoBean com.example.serverprovision.execution.repository.GuestServerDetailRepository detailRepository;   // E1-2 소비 협력자
     @MockitoBean com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder provisioningHistoryRecorder;               // E1-2 소비 협력자
+    @MockitoBean com.example.serverprovision.execution.engine.raid.RaidInventoryParser raidInventoryParser;                          // E3.5-5-a — 진단 시점 RAID 봉투 소비 협력자
     @MockitoBean com.example.serverprovision.execution.engine.phase.OwnedPhasesProvider ownedPhasesProvider;           // ES-1 — PhaseCursorAdvancer 공급자
     @MockitoBean com.example.serverprovision.execution.engine.firmware.FirmwareResolutionProvider firmwareResolutionProvider;   // E2-1-b — 진입 판정 공급자
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;

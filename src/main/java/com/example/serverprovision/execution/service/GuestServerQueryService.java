@@ -464,6 +464,8 @@ public class GuestServerQueryService {
         if (raidInventory == null) {
             return null;
         }
+        // 카드 대조 예고(E3.5-5-a D5) — 집행 대조와 같은 순수 판정. 진단 시점 인벤토리가 있으면 개시 전에 보인다.
+        GuestServerDetailResponse.RaidCardCheck cardCheck = cardCheckOf(serverId, raidInventory);
         // 3분기(E3.5-4 결정 3 · Q2): 축 명시 = 그 정책 단일 / 축 null + 외부 볼륨 = 두 갈래 병기 /
         // 축 null + 잔여·무볼륨 = 정책 무관 단일. 분기 기준은 실행 판정과 같은 외부 볼륨(isProvisionOwned)이다.
         Optional<RaidExistingConfigPolicy> declared = raidConfigurationResolutionProvider.policyOf(serverId);
@@ -472,7 +474,7 @@ public class GuestServerQueryService {
             return raidConfigurationResolutionProvider
                     .planFor(serverId, raidInventory, declared.get())
                     .map(outcome -> new GuestServerDetailResponse.RaidPlanPreview(false,
-                            List.of(branchOf(label, outcome))))
+                            List.of(branchOf(label, outcome)), cardCheck))
                     .orElse(null);
         }
         boolean hasForeign = raidInventory.volumes().stream()
@@ -481,7 +483,7 @@ public class GuestServerQueryService {
             return raidConfigurationResolutionProvider
                     .planFor(serverId, raidInventory, RaidExistingConfigPolicy.DESTROY)
                     .map(outcome -> new GuestServerDetailResponse.RaidPlanPreview(false,
-                            List.of(branchOf("정책 무관", outcome))))
+                            List.of(branchOf("정책 무관", outcome)), cardCheck))
                     .orElse(null);
         }
         Optional<RaidPlanOutcome> destroy = raidConfigurationResolutionProvider
@@ -492,7 +494,19 @@ public class GuestServerQueryService {
             return null;   // 창 밖 — 활성 할당이 없거나 정의서에 RAID 구성 단계가 없다
         }
         return new GuestServerDetailResponse.RaidPlanPreview(true,
-                List.of(branchOf("파괴 시", destroy.get()), branchOf("보존 시", preserve.get())));
+                List.of(branchOf("파괴 시", destroy.get()), branchOf("보존 시", preserve.get())), cardCheck);
+    }
+
+    /** 지정 카드(활성 할당) × 관측 카드(저장 인벤토리) — 판정 SSOT 는 RaidCardMatch.judge(집행과 공유). */
+    private GuestServerDetailResponse.RaidCardCheck cardCheckOf(UUID serverId, RaidInventory raidInventory) {
+        com.example.serverprovision.execution.engine.raid.RaidConfigurationTarget target =
+                raidConfigurationResolutionProvider.resolveFor(serverId).orElse(null);
+        return new GuestServerDetailResponse.RaidCardCheck(
+                com.example.serverprovision.execution.engine.raid.RaidCardMatch.judge(target, raidInventory),
+                target == null ? null : target.raidCardId(),
+                target == null ? null : target.cardModelName(),
+                target == null ? null : target.pciSubsystemId(),
+                raidInventory.card() == null ? null : raidInventory.card().pciSubsystemId());
     }
 
     /** 검증 통과 실물(E3.5-4) — 계획(파생 · 무저장)과 달리 raid_volume 표에 기록된 현재 실물이다. */

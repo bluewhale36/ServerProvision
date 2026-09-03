@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E3.5-5-a Plan — 진단 시점 RAID 채집 · 적재 · 카드 불일치 예고</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq 스윔레인 ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* ── .pkg-tree / card-grid ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E3.5-5-a — 진단 시점 RAID 채집 · 적재 · 카드 불일치 예고 <span class="v2-badge">E3.5 RAID 구성</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E3.5-5-a (feature)</span>
+    <span><strong>브랜치</strong> <code>feat/E3.5-5-a_diag-raid-capture</code> (origin/dev 8ee80fb 기저)</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/3ceef0e868f98140991fdaa70fb99544">E3.5-5 단계 페이지</a> 하위 5-a</span>
+    <span><strong>토론</strong> <code>discussion/26-09-02_17-45-22_E3.5-5-diag-raid-precheck_discussion.md</code></span>
+    <span><strong>생성</strong> 2026-09-02 17:47:29 KST</span>
+    <span><strong>CP1</strong> 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 요약</a></li>
+      <li><a href="#s1">§1 배경 · 진단</a></li>
+      <li><a href="#s2">§2 요구사항 · 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 설계 대안 비교</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 화면</a></li>
+      <li><a href="#s6">§6 계약 · 이동</a></li>
+      <li><a href="#s7">§7 테스트 계획</a></li>
+      <li><a href="#s8">§8 CP5 검증 항목</a></li>
+      <li><a href="#s9">§9 Critical Files</a></li>
+      <li><a href="#s10">§10 결정 표</a></li>
+      <li><a href="#s11">§11 열린 질문 · 절차</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 요약 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 요약</summary>
+      <div class="body">
+        <ul>
+          <li>최초 진단(<code>INFORMATION_COLLECTING</code>)에서 에이전트가 RAID 카드 뒤 물리 디스크 · 기존 볼륨을 계열 CLI 로 채집해 <b>진단 보고 JSON 의 <code>raid</code> 하위 봉투</b>로 보냅니다. 봉투 · 파서 · 저장 컬럼은 RAID phase 의 것과 같습니다(<code>RaidInventoryParser</code> · <code>raid_inventory_json</code>).</li>
+          <li>서버는 COLLECT 지시 응답에도 칩 판별 힌트(<code>raidChips</code>)를 실어 에이전트가 계열을 판별하게 합니다. 채집 실패는 관용합니다 — 적재를 생략하고 원장에 기록하되 진단 자체는 성공으로 유지합니다.</li>
+          <li>게스트 상세는 RAID 구성 단계 전에 RAID 인벤토리와(할당이 있으면) 계획 미리보기를 보이고, <b>지정 카드 대 관측 카드 대조 예고</b> 한 줄을 더합니다. 상태 변경은 없습니다 — 집행 대조 <code>cardMatches</code> 의 판정을 순수 함수로 분리해 공유합니다.</li>
+          <li>디스크 표 · 빈 상태 문구의 "RAID 단계에 진입해야 수집" 비대칭을 걷어냅니다. 하네스에 RAID 봉투 옵션을 더하고 apkovl 을 재포장합니다.</li>
+          <li>이유: 2026-09-01 실기에서 RAID 단계 전에는 카드 뒤 디스크가 비어 보였고, 계획 · 카드 불일치를 집행 시점에야 알았습니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §1 배경 · 진단 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경 · 진단</summary>
+      <div class="body">
+        <h4>출발점 — 2026-09-01 RAID 실기(CP7)에서 드러난 두 공백</h4>
+        <ol>
+          <li>최초 진단의 디스크 수집이 lsblk 가시분이라 <b>RAID 카드 뒤 물리 디스크가 비어 나옵니다</b>(원장 <code>disks: []</code>).</li>
+          <li>raid_card 자원에 PCI Subsystem 이 등록돼 있지 않아 <b>집행의 카드 대조(<code>CARD_MISMATCH</code>)가 전 사이클에서 생략</b>됐습니다.</li>
+        </ol>
+        <p>E3.5-7-b(집행 전 확인 게이트)는 plan 만 산출한 채 보류하고 이 단계를 선행합니다(사용자 지시).</p>
+
+        <h4>실태 (2026-09-02 코드 실측 — dev 8ee80fb)</h4>
+        <ol>
+          <li>진단 수집 보고는 JSON 한 벌입니다(<code>build_report_json</code> → <code>DiagnosticReportParser</code> → <code>HardwareSpec</code>). PCIe 행 분류로 RAID 카드의 존재 · 모델은 이미 알지만, lspci 를 <code>-nn</code> 없이 돌려 PCI id 는 없습니다.</li>
+          <li>카드 뒤 디스크 채집은 RAID phase 의 step 에서만 일어납니다 — <code>collect_raid_report</code> 봉투(<code>tool · lspci_b64 · pd_b64 · vd_b64 · c0_b64 | display_b64</code>) → <code>RaidInventoryParser</code> → <code>guest_server_detail.raid_inventory_json</code>. 상세의 RAID 인벤토리 · 계획 카드는 JSON 이 있으면 phase 와 무관하게 렌더합니다.</li>
+          <li><code>raidChips</code> 힌트는 RAID 지시 응답에만 실립니다(<code>AgentReportService.raidChipsFor</code>).</li>
+          <li>카드 대조는 RAID phase 의 인벤토리 소비에서, 자원에 Subsystem 이 있을 때만 합니다(<code>cardMatches</code> — null 이면 대조 생략 후 WARN).</li>
+          <li>자원 Subsystem 은 관리 폼으로만 들어가며 HMAC 서명 마커 manifest(<code>ATTR_PCI</code>)에 포함됩니다. 갱신은 관리 서비스를 경유한 재서명입니다.</li>
+          <li>도구(<code>storcli64</code> · <code>sas3ircu</code>)는 apkovl 에 동봉돼 있고 <code>ensure_raid_driver</code> 가 관용적으로 로드합니다. <code>agent.sh</code> 변경은 apkovl 재포장을 부릅니다(<code>KEYS_DIR</code> 함정).</li>
+          <li>하네스 <code>diagnose-cycle.sh</code> 는 수집 JSON 을 문자열로 이스케이프합니다 — RAID 봉투를 같은 방식으로 덧붙일 수 있습니다.</li>
+        </ol>
+
+        <h4>토론 결정(§3)과 이 슬라이스의 관계</h4>
+        <table>
+          <thead><tr><th>Q</th><th>결정 요지</th><th>이 슬라이스</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>진단 보고 <code>raid</code> 하위 봉투 + COLLECT <code>raidChips</code></td><td>입력</td></tr>
+            <tr><td>Q2</td><td>같은 <code>raid_inventory_json</code> 에 최신 관측 저장</td><td>입력</td></tr>
+            <tr><td>Q3</td><td>카드 관측 채움 — 확인형(관측 3컬럼 · 확정 버튼)</td><td>E3.5-5-b</td></tr>
+            <tr><td>Q4</td><td>채집 실패는 관용</td><td>입력</td></tr>
+            <tr><td>Q5</td><td>개시 전 불일치 예고 한 줄</td><td>입력</td></tr>
+            <tr><td>Q6</td><td>할당 모달 미리보기 = 비목표</td><td>비목표</td></tr>
+            <tr><td>Q7</td><td>BMC System Inventory = 비목표 유지</td><td>비목표</td></tr>
+            <tr><td>Q8</td><td>2 분할(5-a 채집 · 적재 · 예고 / 5-b 관측 채움)</td><td>이 문서 = 5-a</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>핵심 진단</b> — 채집 능력은 이미 다 있습니다(봉투 조립 · 파서 · 컬럼 · 화면). 없는 것은 <b>그 능력을 진단 시점에 부르는 통로</b>와, 관측을 지정과 맞대 보는 <b>한 줄의 예고</b>뿐입니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 · 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) · 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>에이전트가 최초 진단(COLLECT) 보고에 RAID 봉투를 동봉합니다. 계열 판별은 서버가 응답에 실어 준 힌트로 하며, 지원 칩이 없으면 봉투를 생략합니다.</li>
+          <li>COLLECT 응답에 <code>raidChips</code> 를 싣습니다 — 지금 RAID 지시에만 실리는 힌트를 같은 값 그대로 넓힙니다.</li>
+          <li>서버가 봉투를 <code>RaidInventoryParser</code> 로 정규화해 <code>raid_inventory_json</code> 에 적재합니다. 실패는 관용하고 사유를 원장 absorbed 에 남기되 진단은 성공으로 유지합니다.</li>
+          <li>게스트 상세에 지정 카드 대 관측 카드 대조 예고를 답니다. 판정은 순수 함수 하나를 집행과 화면이 함께 씁니다.</li>
+          <li>디스크 표 헤더와 RAID 인벤토리 빈 상태 문구를 개정해 "RAID 단계에 진입해야 수집" 이라는 비대칭을 걷어냅니다.</li>
+          <li>모의 게스트 하네스에 RAID 봉투 옵션을 더해, 화면 밖에서 오가는 이 슬라이스의 동작을 재연할 수 있게 합니다.</li>
+          <li>에이전트 스크립트가 바뀌므로 apkovl 을 재포장합니다(CP5 이후 · 실기 확인은 CP7 일괄).</li>
+          <li>단위 · 통합 두 레이어 테스트를 씁니다(§7).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>카드 관측 채움 — <b>E3.5-5-b</b> 로 갑니다(관측 3컬럼 · 확정 버튼 · 재서명).</li>
+            <li>집행 로직 변경, 그리고 카드 대조의 실패 승격 위치 변경 — RAID phase 에 그대로 둡니다.</li>
+            <li>할당 모달 미리보기 — 상세 카드로 충족합니다.</li>
+            <li>BMC System Inventory 합류 — 워밍업 실측이 선행입니다.</li>
+            <li>fast init 등 집행 옵션.</li>
+            <li><code>HardwareSpec.DiskInfo</code>(lsblk) 확장 — 그대로 두고 RAID 인벤토리와 병기합니다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 진단 채집 · 적재 · 예고 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">왼쪽에서 <b>게스트 실물 · 정의서 · 카드 자원 Subsystem 확정 여부</b>를 바꾸고 <b>체크인 · 수집 보고 · 정의서 할당</b>을 눌러 보면, 오른쪽에서 ① 응답 지시와 힌트 ② 보고 JSON 요약 ③ 적재 결과가 갱신되고, 아래에서 ④ 게스트 상세 카드 미리보기(인벤토리 표 · 계획 요약 · 카드 대조 예고 한 줄) ⑤ 해설이 함께 바뀝니다. <b>시나리오 버튼 여섯 개</b>는 §4 의 결정을 그대로 재현한 세팅입니다.</p>
+        <p>대조 판정은 <b>§4 D4 의 진리표를 코드로 그대로 옮긴 미러</b>이며, 서버 <code>RaidCardMatch.judge</code> 와 같은 표여야 합니다(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="seg" data-scn="0" onclick="drScenario(0)">① 카드 없음</button>
+            <button class="seg" data-scn="1" onclick="drScenario(1)">② 9361 · 정의서 없음</button>
+            <button class="seg" data-scn="2" onclick="drScenario(2)">③ 지정 · 미확정</button>
+            <button class="seg" data-scn="3" onclick="drScenario(3)">④ 확정 · 일치</button>
+            <button class="seg" data-scn="4" onclick="drScenario(4)">⑤ 확정 · 불일치</button>
+            <button class="seg" data-scn="5" onclick="drScenario(5)">⑥ 도구 없음</button>
+          </div>
+          <div class="ux-message" id="dr-banner"></div>
+
+          <div class="split-grid" style="margin-top:12px;">
+            <div>
+              <h4 style="margin-top:0;">조작</h4>
+              <div class="ux-toolbar" style="margin-top:4px;">
+                <span class="group-label">게스트 실물 :</span>
+                <button class="seg" data-hw="mr9361" onclick="drSetHw('mr9361')">9361 · SSD2+HDD6</button>
+                <button class="seg" data-hw="cra" onclick="drSetHw('cra')">CRA · HDD2</button>
+                <button class="seg" data-hw="none" onclick="drSetHw('none')">카드 없음</button>
+                <button class="seg" data-hw="notool" onclick="drSetHw('notool')">도구 없음</button>
+              </div>
+              <div class="ux-toolbar">
+                <span class="group-label">정의서 :</span>
+                <button class="seg" data-set="none" onclick="drSetSetting('none')">없음</button>
+                <button class="seg" data-set="card9361" onclick="drSetSetting('card9361')">카드 9361</button>
+                <button class="seg" data-set="cardcra" onclick="drSetSetting('cardcra')">카드 CRA</button>
+                <button class="seg" data-set="nocard" onclick="drSetSetting('nocard')">카드 미지정</button>
+              </div>
+              <div class="ux-toolbar">
+                <span class="group-label">자원 Subsystem :</span>
+                <button class="seg" data-conf="0" onclick="drSetConfirmed(false)">미확정</button>
+                <button class="seg" data-conf="1" onclick="drSetConfirmed(true)">확정</button>
+              </div>
+              <div class="ux-row">
+                <span class="label">게스트 동작</span>
+                <span id="dr-actions-guest"></span>
+              </div>
+              <div class="ux-row">
+                <span class="label">운영자 동작</span>
+                <span id="dr-actions-op"></span>
+              </div>
+              <div class="ux-row">
+                <span class="label">되돌리기</span>
+                <span id="dr-actions-reset"></span>
+              </div>
+              <div class="ux-caps" id="dr-caps"></div>
+            </div>
+
+            <div>
+              <h4 style="margin-top:0;">표시</h4>
+              <div class="ux-row">
+                <span class="label">응답 지시</span>
+                <span class="badge off" id="dr-directive">—</span>
+              </div>
+              <div class="ux-row">
+                <span class="label" style="flex:none;">힌트</span>
+                <code id="dr-chips" style="flex:1; overflow-wrap:anywhere;">—</code>
+              </div>
+              <h4>보고 JSON 요약</h4>
+              <pre id="dr-report" style="margin-top:4px;"></pre>
+              <h4>적재 결과</h4>
+              <div class="ux-message" id="dr-load" style="margin-top:4px;"></div>
+            </div>
+          </div>
+
+          <h4>게스트 상세 미리보기 (개시 전)</h4>
+          <div class="card v-blue" id="dr-card"></div>
+
+          <h4>대조 판정 진리표 — 지금 어느 행인가</h4>
+          <table style="margin-top:4px;">
+            <thead><tr><th style="width:12em;">지정 카드</th><th style="width:10em;">자원 Subsystem</th><th style="width:11em;">관측 카드</th><th>판정</th></tr></thead>
+            <tbody id="dr-truth"></tbody>
+          </table>
+          <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;"><code>NOT_DETECTED</code> 는 인벤토리는 적재됐는데 카드 식별이 비어 있는 행입니다. 데모의 네 실물 프리셋에서는 재현되지 않지만 서버 판정에는 그대로 있습니다(§4 D4 3행).</p>
+
+          <div class="ux-message" id="dr-note"></div>
+        </div>
+
+        <h4>시나리오 여섯 개가 보여 주는 것</h4>
+        <table>
+          <thead><tr><th>#</th><th>세팅</th><th>확인할 것</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>카드 없음</td><td>봉투 생략 · 종전과 같은 진단 · "카드가 없는 것이 정상" 문구</td></tr>
+            <tr><td>②</td><td>9361 · 정의서 없음</td><td>인벤토리 카드가 채워지고 계획은 "할당 없음"</td></tr>
+            <tr><td>③</td><td>9361 + 카드 9361 지정 · Subsystem 미확정</td><td>계획은 산출 · 예고는 "대조 불가"(E3.5-5-b 가 메울 공백)</td></tr>
+            <tr><td>④</td><td>③ 에서 자원 Subsystem 확정</td><td>예고 "일치 1000:9361"</td></tr>
+            <tr><td>⑤</td><td>CRA 꽂힘 + 9361 지정 · 확정</td><td>예고 "불일치 — 집행 시 CARD_MISMATCH 로 실패합니다"</td></tr>
+            <tr><td>⑥</td><td>도구 없음</td><td>봉투 reason <code>TOOL_MISSING</code> · 진단 성공 · absorbed 기록 · 인벤토리 없음</td></tr>
+          </tbody>
+        </table>
+        <p>③ 과 ④ 는 실물도 정의서도 같고 <b>카드 자원에 Subsystem 이 확정됐는지</b>만 다릅니다. 같은 서버가 확정 전에는 "대조 불가", 확정 뒤에는 "일치" 로 읽히는 것이 이 슬라이스와 후행 E3.5-5-b 의 경계를 그대로 보여 줍니다.</p>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 예고 문구 · 판정 캡션 · 진리표 하이라이트는 모두 <code>drJudge()</code> 하나를 부르고, 그 함수는 서버 <code>RaidCardMatch.judge</code> 와 같은 표(§4 D4)입니다. 집행이 <code>CARD_MISMATCH</code> 로 실패시키는 판정과 화면이 예고하는 판정이 갈라질 자리가 없습니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 설계 대안 비교 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 설계 대안 비교</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>쟁점</th><th>채택</th><th>탈락</th></tr></thead>
+          <tbody>
+            <tr><td>채집 보고 방식</td><td>진단 보고 JSON 의 <code>raid</code> 하위 봉투</td><td>진단 phase 새 step</td></tr>
+            <tr><td>봉투 생성</td><td>에이전트 조립 함수 분리 후 공유</td><td>복붙 두 벌</td></tr>
+            <tr><td>대조 판정</td><td>순수 <code>RaidCardMatch.judge</code> 공유</td><td>화면 전용 복제</td></tr>
+            <tr><td>저장 자리</td><td>같은 <code>raid_inventory_json</code> · 최신 관측</td><td>별도 컬럼</td></tr>
+            <tr><td>채집 실패</td><td>관용 흡수</td><td>진단 실패 승격</td></tr>
+          </tbody>
+        </table>
+
+        <h4>채집 보고 방식 — 진단 보고 JSON 의 <code>raid</code> 하위 봉투</h4>
+        <p>토론 Q1 의 결정을 그대로 따릅니다. 채택안은 이미 있는 진단 보고 JSON 에 <code>raid</code> 키 하나를 더하는 것입니다. 탈락안은 진단 phase 에 새 step 을 두는 것이었는데, RAID phase 소속 step 상수는 phase 이탈 가드에 걸리고 새 상수를 만들면 DDL 의 enum 을 바꿔야 합니다. 봉투 · 파서 · 저장 컬럼을 그대로 재사용하는 편이 변경 면적이 작습니다 — 새로 만드는 것은 보고를 나르는 <b>필드 하나</b>뿐입니다.</p>
+
+        <h4>봉투 생성의 단일화 — 에이전트</h4>
+        <p>에이전트의 <code>collect_raid_report</code> 는 RAID step 용이라 봉투 조립과 <code>report_step</code> 호출을 함께 합니다. 여기서 <b>봉투 문자열 조립만</b> <code>raid_envelope_json</code> 함수로 분리합니다. COLLECT 경로는 그 문자열을 진단 보고의 <code>"raid":</code> 필드에 넣고, RAID step 은 종전대로 <code>report_step</code> 을 이어 갑니다. 조립 코드를 복사해 두 벌로 두는 안은 탈락입니다 — 채집 명령이 바뀔 때 한쪽만 고쳐질 자리가 생깁니다.</p>
+
+        <h4>카드 대조 판정의 SSOT</h4>
+        <p>현재 <code>cardMatches</code> 는 판정과 원장 실패 기록을 한 몸으로 합니다. 화면은 실패를 기록하면 안 되므로 그대로는 못 씁니다. 그래서 <b>순수 판정 <code>RaidCardMatch.judge(target, inventory)</code></b> 를 떼어내고, 집행은 그 판정을 받아 실패를 기록하며 화면은 같은 판정으로 한 줄을 표시합니다. 화면 전용으로 판정을 복제하는 안은 탈락입니다 — 지금은 같아도 대조 규칙이 자라면 갈라집니다.</p>
+
+        <h4>저장 자리</h4>
+        <p>토론 Q2 의 결정대로 같은 <code>raid_inventory_json</code> 컬럼에 최신 관측을 씁니다. 진단에서 한 번, RAID phase 에서 다시 한 번 채집되면 나중 것이 앞의 것을 덮습니다. 원문은 각 단계의 원장 <code>statusMeta</code> 가 보존하므로 이력이 사라지지 않습니다. 별도 컬럼을 두는 안은 우선순위 규칙과 이중 화면을 부릅니다.</p>
+
+        <h4>실패 처리 — 관용</h4>
+        <p>토론 Q4 의 결정대로 채집 실패가 진단을 실패시키지 않습니다. 카드가 없는 서버가 정상 다수이기 때문입니다. 에이전트는 지원 칩이 없으면 <code>raid</code> 키를 생략하고, 도구가 없거나 드라이버 로드에 실패하면 <code>{"reason":"TOOL_MISSING", …}</code> 형태의 reason 봉투를 보냅니다(RAID step 과 같은 어휘). 서버는 reason 봉투와 해석 불가를 모두 적재 생략 + WARN + 원장 absorbed 기록으로 흡수합니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>D1 — 진단 보고 계약 확장</h4>
+        <pre><code>{ …기존 필드…,
+  "raid": {"tool":"storcli64","lspci_b64":…,"pd_b64":…,"vd_b64":…,"c0_b64":…}
+        | {"tool":"sas3ircu","lspci_b64":…,"display_b64":…}
+        | {"reason":"TOOL_MISSING","detail":…,"lspci_b64":…} }</code></pre>
+        <p><code>raid</code> 키가 없으면 지원 칩이 없다는 뜻이며 정상입니다. 첫 두 모양은 계열 CLI 원문을 base64 로 담은 정상 봉투이고, 셋째는 채집에 실패했을 때의 reason 봉투로 RAID step 이 이미 쓰는 어휘와 같습니다.</p>
+        <p><code>DiagnosticReportParser.Parsed</code> 에 <code>String raidEnvelope</code>(원문 JSON 문자열 또는 null)를 더합니다. 파서는 내용을 해석하지 않고 통과시킵니다 — 관용 원칙이며, 해석은 <code>RaidInventoryParser</code> 의 몫입니다. 진단 파서가 RAID 문법까지 알게 되면 채집 명령이 바뀔 때마다 두 곳을 고쳐야 합니다.</p>
+
+        <h4>D2 — 적재 (<code>DiagnoseLinuxExecutor.onStepClosed</code>)</h4>
+        <table>
+          <thead><tr><th>봉투 상태</th><th>처리</th><th>원장</th></tr></thead>
+          <tbody>
+            <tr><td>정상 (reason 없음)</td><td><code>RaidInventoryParser.parse</code> → <code>detail.enrichRaidInventory(json)</code></td><td>기록 없음</td></tr>
+            <tr><td>reason 봉투</td><td>적재 생략 · WARN</td><td>absorbed <code>raid(&lt;reason&gt;)=&lt;detail&gt;</code></td></tr>
+            <tr><td>해석 불가 (<code>ReportUnparsableException</code>)</td><td>적재 생략 · WARN</td><td>absorbed <code>raid(unparsable)=&lt;message&gt;</code></td></tr>
+            <tr><td>키 없음</td><td>아무 것도 하지 않음</td><td>기록 없음</td></tr>
+          </tbody>
+        </table>
+        <p>카드 대조도, 실패 승격도 하지 않습니다 — 진단은 집행의 전제가 아닙니다. 대조를 진단으로 옮기면 그 판정이 진단의 성패를 좌우하게 되는데, 이 슬라이스가 원한 것은 <b>미리 알려 주는 것</b>이지 미리 막는 것이 아닙니다. absorbed 기록은 <code>persistingMeta</code> 의 <code>filtered</code> 목록에 실립니다(기존 구조 재사용).</p>
+
+        <h4>D3 — 힌트</h4>
+        <p><code>AgentReportService.raidChipsFor</code> 가 COLLECT 에도 <code>RaidChipFamily.agentChipHint()</code> 를 붙입니다. 값은 지금 RAID 지시가 쓰는 것과 같은 <code>1000:0097=MPT_IR 1000:005d=MEGARAID</code> 입니다. 에이전트 <code>do_collect</code> 는 응답 바디를 받아 <code>detect_raid_family "$CHIPS"</code> 를 돌리고, 성공하면 <code>ensure_raid_driver</code> 뒤 봉투를 조립하며 실패하면 생략합니다.</p>
+        <p>칩 id 의 정본은 서버(<code>RaidChipFamily</code>)에 있고 에이전트는 그것을 받아 쓰기만 합니다. 그래서 지원 칩이 늘어도 apkovl 을 다시 굽지 않아도 되며, 이것이 에이전트가 스스로 판별하는 안을 버린 이유입니다.</p>
+
+        <h4>D4 — 카드 대조 판정 SSOT <code>RaidCardMatch</code></h4>
+        <p><code>execution/engine/raid</code> 의 순수 static 유틸입니다. <code>judge(RaidConfigurationTarget target, RaidInventory inventory)</code> 가 <code>RaidCardMatchVerdict</code> 를 돌려줍니다.</p>
+        <table>
+          <thead><tr><th>지정 카드</th><th>자원 Subsystem</th><th>관측 카드</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>없음 (할당 없음 · 카드 미지정)</td><td>—</td><td>—</td><td><code>NOT_APPLICABLE</code></td></tr>
+            <tr><td>있음</td><td><code>null</code></td><td>—</td><td><code>UNVERIFIABLE</code></td></tr>
+            <tr><td>있음</td><td>있음</td><td>없음 (card null · Subsystem null)</td><td><code>NOT_DETECTED</code></td></tr>
+            <tr><td>있음</td><td>있음</td><td>다름</td><td><code>MISMATCH</code></td></tr>
+            <tr><td>있음</td><td>있음</td><td>같음 (대소문자 무시)</td><td><code>MATCH</code></td></tr>
+          </tbody>
+        </table>
+        <p>집행의 <code>cardMatches</code> 는 이 판정을 받아 <code>NOT_DETECTED</code> 는 <code>CARD_NOT_DETECTED</code> 실패로, <code>MISMATCH</code> 는 <code>CARD_MISMATCH</code> 실패로 옮기고, <code>UNVERIFIABLE</code> 은 WARN 뒤 통과시킵니다. 종전과 같은 동작이며 문구도 그대로입니다. 화면은 같은 판정을 한 줄로 표시합니다.</p>
+
+        <h4>D5 — 화면 계약</h4>
+        <p><code>GuestServerDetailResponse.raidCardCheck</code> 를 record 로 둡니다(필드 = verdict · 지정 카드명 · 지정 Subsystem · 관측 Subsystem · 문구). <code>GuestServerQueryService</code> 가 <code>resolveFor</code> 와 저장 인벤토리로 채우며, 인벤토리가 없으면 null 입니다.</p>
+        <table>
+          <thead><tr><th>판정</th><th>문구 (<code>execution.raid-card-check.*</code>)</th></tr></thead>
+          <tbody>
+            <tr><td><code>MATCH</code></td><td>지정 카드와 감지 카드가 일치합니다(1000:9361)</td></tr>
+            <tr><td><code>MISMATCH</code></td><td>지정 {카드}({sub}) ≠ 감지 {sub} — 집행 시 CARD_MISMATCH 로 실패합니다. 정의서의 카드를 확인하십시오</td></tr>
+            <tr><td><code>NOT_DETECTED</code></td><td>지정 카드를 감지하지 못했습니다 — 집행 시 CARD_NOT_DETECTED 로 실패합니다</td></tr>
+            <tr><td><code>UNVERIFIABLE</code></td><td>카드 자원에 Subsystem 이 확정되지 않아 대조할 수 없습니다(E3.5-5-b 관측 채움)</td></tr>
+          </tbody>
+        </table>
+        <p>위치는 "RAID 구성 계획" 카드 상단입니다. 함께 디스크 표 헤더를 <b>"디스크 (OS 가시 장치 — RAID 카드 뒤 물리 디스크는 아래 RAID 인벤토리)"</b> 로 바꾸고, RAID 인벤토리 빈 상태 문구를 <b>"RAID 인벤토리가 아직 없습니다 — 진단 수집에서 RAID 카드가 감지되면 채워집니다(카드가 없는 서버는 비어 있는 것이 정상)"</b> 로 바꿉니다.</p>
+
+        <h4>D6 — 하네스 · 이미지</h4>
+        <p><code>diagnose-cycle.sh</code> 에 <code>RAID_MODE=mr|mrclean|ssd6|cra|toolmissing</code> 환경변수를 둡니다. 값이 있으면 <code>fixtures-raid/</code> 픽스처로 봉투를 조립해 INNER 에 <code>"raid":</code> 로 이스케이프해 동봉합니다. 조립 함수는 <code>raid-inventory-cycle.sh</code> 의 것을 공용 스크립트 <code>raid-envelope.sh</code> 로 뽑아 둘이 공유합니다 — 복붙하지 않습니다. 하네스 쪽 봉투와 에이전트 쪽 봉투가 갈라지면 검증이 실제 동작을 대변하지 못하므로, 이 공유는 편의가 아니라 검증의 전제입니다.</p>
+        <p>apkovl 재포장은 <code>build-assets.sh apkovl</code> 이며 <code>KEYS_DIR</code> 복사가 선행돼야 합니다 — 토론이 "함정" 으로 적어 둔 지점입니다. CP5 뒤에 굽고, 실기 확인은 E 단계 관례대로 다른 슬라이스와 함께 일괄로 합니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 화면 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 화면</summary>
+      <div class="body">
+        <p>새 화면은 없습니다. 게스트 상세 한 곳에 D5 의 세 가지를 얹습니다 — 예고 한 줄 · 디스크 표 헤더 · RAID 인벤토리 빈 문구. 셋 다 개시 전에 보이며, RAID 구성 단계에 들어가기를 기다리지 않습니다.</p>
+        <div class="pkg-tree">게스트 상세 (개시 전)
+├── 하드웨어
+│   └── 디스크 (OS 가시 장치 — RAID 카드 뒤 물리 디스크는 아래 RAID 인벤토리)   ← 헤더 개정
+├── RAID 인벤토리
+│   └── (없을 때) RAID 인벤토리가 아직 없습니다 — 진단 수집에서 …                ← 빈 문구 개정
+└── RAID 구성 계획
+    ├── [카드 대조 예고 한 줄]                                                  ← 신규
+    └── 계획 미리보기 (기존)</div>
+        <p>문구는 <code>messages.properties</code> 한 곳에서 나옵니다. 판정이 늘면 키도 같이 늘어나므로 문구가 템플릿 안에 흩어져 판정과 어긋나는 일이 없습니다.</p>
+        <p>예고는 표시 전용이라 버튼도 상태 변경도 없습니다. 그래서 이 슬라이스에는 UI 1차 차단이 필요한 액션이 없고, 서버 가드가 새로 생기지도 않습니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §6 계약 · 이동 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 계약 · 이동</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>구간</th><th>무엇이 오가는가</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>에이전트 → 서버</td><td>COLLECT <code>statusMeta</code> 의 <code>raid</code> 봉투 (D1)</td><td><span class="chip add">추가</span></td></tr>
+            <tr><td>서버 → 에이전트</td><td>COLLECT 응답의 <code>raidChips</code></td><td><span class="chip add">추가</span></td></tr>
+            <tr><td>적재</td><td><code>raid_inventory_json</code> (기존 컬럼)</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>화면</td><td>인벤토리 카드 · 계획 미리보기(기존) + 예고(신규)</td><td><span class="chip mod">수정</span></td></tr>
+          </tbody>
+        </table>
+        <p>URL 은 바뀌지 않습니다. 봉투는 진단 step 을 닫는 보고의 <code>statusMeta</code> 에 실려 오고, 원문은 그 원장 행이 그대로 보존합니다 — 적재된 <code>raid_inventory_json</code> 은 정규화된 조회 모델일 뿐이라 원문이 필요하면 원장을 봅니다. RAID phase 의 재채집도 종전대로 같은 컬럼을 덮어씁니다.</p>
+        <div class="seq">
+          <div class="actor a1">게스트 에이전트</div><div class="actor a2">Provisioning Server</div><div class="actor a3">운영자(브라우저)</div>
+          <div class="step a1">PXE 부팅 → 체크인</div><div class="step a2">COLLECT + <code>raidChips</code> 응답</div><div class="step a3"></div>
+          <div class="step a1"><code>detect_raid_family</code> → <code>ensure_raid_driver</code></div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">계열 CLI 채집 → <code>raid_envelope_json</code></div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">보고 — <code>"raid":</code> 동봉</div><div class="step a2"><code>DiagnosticReportParser</code> 가 <code>raidEnvelope</code> 통과</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">정상 = <code>RaidInventoryParser.parse</code> → <code>enrichRaidInventory</code></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">실패 = 적재 생략 · WARN · absorbed</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>resolveFor</code> + 인벤토리 → <code>raidCardCheck</code></div><div class="step a3">GET 상세 — 인벤토리 · 계획 · 예고</div>
+          <div class="step a1">RAID phase 재채집</div><div class="step a2">같은 컬럼 덮어쓰기</div><div class="step a3">갱신된 계획 확인</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §7 테스트 계획 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 테스트 계획 (Step 8 · 두 레이어)</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>테스트</th><th>보는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>DiagnosticReportParserTest</code></td><td>raid 노드 통과 · 없으면 null · reason 봉투도 통과</td></tr>
+            <tr><td><code>DiagnoseLinuxExecutorTest</code></td><td>정상 봉투 적재 · reason 봉투 absorbed 후 미적재 · 해석 불가 absorbed · 봉투 없음은 종전 그대로</td></tr>
+            <tr><td><code>AgentReportServiceTest</code></td><td>COLLECT 응답의 <code>raidChips</code> · 다른 지시는 불변</td></tr>
+            <tr><td><code>RaidCardMatchTest</code></td><td>진리표 5 행</td></tr>
+            <tr><td><code>RaidConfigurationExecutorTest</code></td><td><code>cardMatches</code> 가 <code>judge</code> 에 위임한 뒤에도 3 경로 결과가 불변 (회귀)</td></tr>
+            <tr><td><code>GuestServerQueryService*Test</code></td><td><code>raidCardCheck</code> 5 상태 · 인벤토리 없으면 null</td></tr>
+          </tbody>
+        </table>
+
+        <h4>통합 · 하네스</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>상세 렌더 — 예고 문구 4 종(<code>MATCH</code> · <code>MISMATCH</code> · <code>NOT_DETECTED</code> · <code>UNVERIFIABLE</code>)</td><td>4</td></tr>
+            <tr><td>성공 2xx</td><td>디스크 표 개정 헤더 · RAID 인벤토리 빈 문구</td><td>2</td></tr>
+          </tbody>
+        </table>
+        <p>예고가 없어야 하는 두 경우(지정 카드 없음 · 인벤토리 없음)는 렌더 결과에 그 줄이 <b>나타나지 않는 것</b>으로 확인합니다. 하네스는 <code>RAID_MODE=mr</code> 로 진단 사이클을 돌려 상세에 인벤토리 카드가 뜨는 것까지 봅니다. 합계는 단위 약 18 · 통합 6 입니다.</p>
+        <p><code>RaidConfigurationExecutorTest</code> 의 회귀 항목을 굳이 두는 이유는, 이 슬라이스가 <code>cardMatches</code> 의 몸통을 판정과 기록으로 가르기 때문입니다. 가른 뒤에도 세 경로의 결과가 같아야 하며, 같은지 말해 주는 것은 기존 테스트뿐입니다.</p>
+        <div class="callout">신규 예외는 없습니다 — 실패를 예외로 올리지 않고 관용 흡수하기 때문입니다. 그래서 "새 예외마다 통합 시나리오" 규율에 걸리는 항목이 없고, 대신 흡수 경로를 단위 테스트가 직접 봅니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 CP5 검증 항목 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. CP5 검증 항목 (모의 게스트 하네스 + 브라우저)</summary>
+      <div class="body">
+        <p>항목은 넷으로 나눕니다 — 정상 흐름 <b>A</b>, 일부러 어긋나게 하는 조작 <b>B</b>, 막는 방식과 안내를 읽는 <b>C</b>, 건드리지 않았음을 확인하는 회귀 <b>R</b>. 항목마다 스크린샷 또는 하네스 출력을 남겨 CP6 report 의 본문으로 씁니다.</p>
+        <table>
+          <thead><tr><th>#</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td><code>RAID_MODE=mr</code> 진단</td><td>개시 전 상세에 RAID 인벤토리(디스크 8 · 볼륨) · 계획 카드 "할당 없음"</td></tr>
+            <tr><td>A2</td><td>정의서(카드 9361 지정) 할당</td><td>개시 전에 계획 미리보기 산출</td></tr>
+            <tr><td>A3</td><td>자원 Subsystem 미확정 → <code>1000:9361</code> 입력 → <code>1458:3008</code> 입력</td><td>예고가 "대조 불가" → "일치" → "불일치" 로 바뀜</td></tr>
+            <tr><td>A4</td><td>개시 → RAID phase 재채집(<code>ssd6</code>)</td><td>인벤토리가 덮어써지고 계획이 갱신됨 (기존 흐름)</td></tr>
+            <tr><td>A5</td><td>COLLECT 응답 확인 (curl)</td><td><code>raidChips</code> 가 실림</td></tr>
+            <tr><td>B1</td><td><code>RAID_MODE=toolmissing</code></td><td>진단 성공 · 원장 <code>INFORMATION_PERSISTING</code> filtered 에 <code>raid(TOOL_MISSING)</code> · 인벤토리 없음</td></tr>
+            <tr><td>B2</td><td>손상 봉투(base64 아님)</td><td>진단 성공 · absorbed 기록</td></tr>
+            <tr><td>B3</td><td><code>RAID_MODE</code> 없음</td><td>종전 그대로 (회귀)</td></tr>
+            <tr><td>C1</td><td>예고 · 빈 문구 읽기</td><td>이유와 다음 행동이 안내되는가</td></tr>
+            <tr><td>C2</td><td>카드 없는 서버의 화면</td><td>"정상" 으로 읽히는가</td></tr>
+            <tr><td>R1</td><td>RAID phase 카드 대조 3 경로</td><td><code>CARD_MISMATCH</code> · <code>CARD_NOT_DETECTED</code> · 생략 WARN 무변경</td></tr>
+            <tr><td>R2</td><td>E1-2 수집 필드 · BMC 검출</td><td>무변경</td></tr>
+            <tr><td>R3</td><td>E3.5-7-a 계획 표</td><td>무변경</td></tr>
+          </tbody>
+        </table>
+        <p>브라우저는 A1~A4 · C1 · C2 · R3 을, 하네스는 A5 · B1~B3 · R1 · R2 를 맡습니다. 샌드박스는 동시 세션과 겹치지 않는 새 포트로 띄웁니다. 검증 중 결함을 발견하면 그 자리에서 고치고 다시 확인하며, 무엇을 발견해 어떻게 처리했는지를 report 에 남깁니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 Critical Files ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Critical Files</summary>
+      <div class="body">
+        <p>신규는 셋뿐입니다 — 순수 판정 클래스 둘과 하네스 공용 스크립트 하나. 나머지는 이미 있는 경로에 필드 · 분기 · 문구를 얹는 수정이며, 엔티티와 스키마는 건드리지 않습니다.</p>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/diag-image/agent/agent.sh</code></td><td>봉투 조립 분리 · <code>do_collect</code> 동봉</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/mock-guest/diagnose-cycle.sh</code></td><td><code>RAID_MODE</code> 옵션</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/mock-guest/raid-inventory-cycle.sh</code></td><td>공용 조립 함수 사용</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>scripts/mock-guest/raid-envelope.sh</code></td><td>봉투 조립 공용</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/diagnose/DiagnosticReportParser.java</code></td><td><code>raidEnvelope</code> 통과</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/diagnose/DiagnoseLinuxExecutor.java</code></td><td>적재 · absorbed</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/diagnose/AgentReportService.java</code></td><td>COLLECT 힌트</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/raid/RaidCardMatch.java</code></td><td>순수 판정</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/raid/RaidCardMatchVerdict.java</code></td><td>판정 5 상수</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/raid/RaidConfigurationExecutor.java</code></td><td><code>cardMatches</code> 가 위임</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/service/GuestServerQueryService.java</code></td><td><code>raidCardCheck</code> 채움</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/dto/response/GuestServerDetailResponse.java</code></td><td>record 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/server-detail.html</code></td><td>예고 · 헤더 · 빈 문구</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td><code>execution.raid-card-check.*</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>테스트 7 파일</td><td>§7</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 결정 표 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. 결정 표</summary>
+      <div class="body">
+        <p>§3 의 비교와 §4 의 모델을 한 줄씩으로 줄인 표입니다. 탈락 사유의 서술은 §3 에 있습니다.</p>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>탈락</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>진단 보고 <code>raid</code> 하위 봉투 · 파서 통과</td><td>새 step</td></tr>
+            <tr><td>D2</td><td>같은 컬럼 적재 · 실패 관용 · absorbed 기록</td><td>진단 실패 승격</td></tr>
+            <tr><td>D3</td><td>COLLECT 응답 <code>raidChips</code></td><td>에이전트 자체 판별</td></tr>
+            <tr><td>D4</td><td><code>RaidCardMatch.judge</code> 순수 SSOT — 집행 · 화면 공유</td><td>화면 전용 복제</td></tr>
+            <tr><td>D5</td><td>예고 한 줄 · 헤더 · 빈 문구</td><td>예고 없음</td></tr>
+            <tr><td>D6</td><td>봉투 조립 공용 스크립트 · apkovl 재포장</td><td>복붙</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 열린 질문 · 절차 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 열린 질문 · 절차</summary>
+      <div class="body">
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>처리</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>진단 시점의 <code>ensure_raid_driver</code>(modprobe)가 진단 리눅스 부팅 직후 modloop 마운트 전에 돌 가능성</td><td>CP7 실기 확인 항목으로 두고 <code>docs/T3-checklist.md</code> 에 적립합니다. 실패해도 관용 경로로 흡수됩니다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>12 단계 · 체크포인트</h4>
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>뷰 · Controller · DTO · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>Repository · Entity (+ VO/Enum) — 이 슬라이스는 스키마 변경 없음</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>Service 본체 · 스키마 확인 (테스트 제외 · 빌드 통과)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 + 전체 green</td><td><span class="chip cp4">CP4</span></td><td>무중단</td></tr>
+            <tr><td>10</td><td>하네스 + 브라우저 검증 (§8)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 E2E</td><td><span class="chip cp7">CP7</span></td><td>E3.5-7-a · 7-b 와 일괄</td></tr>
+          </tbody>
+        </table>
+        <p>승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷입니다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). 브랜치는 <code>origin/dev</code> 8ee80fb 를 기저로 <code>feat/E3.5-5-a_diag-raid-capture</code> 를 파며, E3.5-7-a 가 건드린 파일과 겹치지 않습니다. apkovl 재포장은 CP5 뒤에 하고, 후행 슬라이스 E3.5-5-b(카드 관측 채움)는 이 슬라이스 다음에 CP1 부터 시작합니다.</p>
+
+        <h4>Verification 체크리스트</h4>
+        <ul class="check-list" data-storage="E3.5-5-a-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="harness"> <span>하네스 <code>RAID_MODE=mr</code> · <code>toolmissing</code> 관찰 (CP5)</span></label></li>
+          <li><label><input type="checkbox" data-key="browser"> <span>게스트 상세 예고 · 헤더 · 빈 문구 브라우저 확인 (CP5)</span></label></li>
+          <li><label><input type="checkbox" data-key="apkovl"> <span>apkovl 재포장 (CP5 이후)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>실기 E2E — E3.5-7-a · 7-b 와 일괄 (CP7)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) !== '#') return;
+      e.preventDefault();
+      var target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = true; });
+  });
+  document.getElementById('btn-collapse').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = false; });
+  });
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', function (e) {
+    var q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(function (d) {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().indexOf(q) !== -1) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(function (ul) {
+    var key = ul.dataset.storage;
+    var stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', function () {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) {}
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 진단 채집 · 적재 · 예고 라이브 데모
+  //  대조 판정은 서버 RaidCardMatch.judge 와 같은 표 — 드리프트 0
+  // ─────────────────────────────────────────────────────────────
+  var DR_CHIPS = '1000:0097=MPT_IR 1000:005d=MEGARAID';
+
+  // 게스트 실물 프리셋 — 데모용 고정 픽스처
+  var DR_HW = {
+    mr9361: {
+      label: 'MegaRAID 9361-8i · SSD 2 + HDD 6',
+      envelope: 'ok', tool: 'storcli64', family: 'MEGARAID', chip: '1000:005d',
+      lsblk: 0, pcie: 'RAID bus controller : LSI MegaRAID SAS-3 3108',
+      card: { pciSubsystemId: '1000:9361', model: 'MegaRAID SAS 9361-8i' },
+      disks: [
+        { slot: '252:0', type: 'SSD', transport: 'SATA', size: '960GB' },
+        { slot: '252:1', type: 'SSD', transport: 'SATA', size: '960GB' },
+        { slot: '252:2', type: 'HDD', transport: 'SAS', size: '4TB' },
+        { slot: '252:3', type: 'HDD', transport: 'SAS', size: '4TB' },
+        { slot: '252:4', type: 'HDD', transport: 'SAS', size: '4TB' },
+        { slot: '252:5', type: 'HDD', transport: 'SAS', size: '4TB' },
+        { slot: '252:6', type: 'HDD', transport: 'SAS', size: '4TB' },
+        { slot: '252:7', type: 'HDD', transport: 'SAS', size: '4TB' }
+      ],
+      volumes: []
+    },
+    cra: {
+      label: 'CRA3338 IR · HDD 2',
+      envelope: 'ok', tool: 'sas3ircu', family: 'MPT_IR', chip: '1000:0097',
+      lsblk: 0, pcie: 'Serial Attached SCSI controller : CRA3338 IR',
+      card: { pciSubsystemId: '1458:3008', model: 'CRA3338 IR' },
+      disks: [
+        { slot: '1:0', type: 'HDD', transport: 'SAS', size: '2TB' },
+        { slot: '1:1', type: 'HDD', transport: 'SAS', size: '2TB' }
+      ],
+      volumes: [{ id: '0', level: 'RAID1', size: '1.8TB', state: 'Okay', members: '1:0 · 1:1' }]
+    },
+    none: {
+      label: '카드 없음',
+      envelope: 'omit', tool: null, family: null, chip: null,
+      lsblk: 2, pcie: '(RAID 행 없음)',
+      card: null, disks: [], volumes: []
+    },
+    notool: {
+      label: '카드 있음 · 도구 없음',
+      envelope: 'reason', reason: 'TOOL_MISSING', detail: 'storcli64 · sas3ircu 모두 없음',
+      tool: null, family: 'MEGARAID', chip: '1000:005d',
+      lsblk: 0, pcie: 'RAID bus controller : LSI MegaRAID SAS-3 3108',
+      card: null, disks: [], volumes: []
+    }
+  };
+
+  // 정의서 프리셋 — raidCardId 가 null 이면 카드 미지정
+  var DR_SETTING = {
+    none:     { label: '없음', raidCardId: null, cardModelName: null, subsystem: null, assignable: false },
+    card9361: { label: '카드 9361 지정', raidCardId: 7, cardModelName: 'MegaRAID SAS 9361-8i', subsystem: '1000:9361', assignable: true },
+    cardcra:  { label: '카드 CRA 지정', raidCardId: 9, cardModelName: 'CRA3338 IR', subsystem: '1458:3008', assignable: true },
+    nocard:   { label: '카드 미지정', raidCardId: null, cardModelName: null, subsystem: null, assignable: true }
+  };
+
+  var DR_INIT_NOTE = '왼쪽 프리셋을 고르고 [체크인] → [수집 보고] 순으로 눌러보십시오. 시나리오 버튼 여섯 개는 준비된 세팅을 한 번에 재현합니다.';
+
+  var dr = {
+    hw: 'mr9361', setting: 'none', confirmed: false,
+    assigned: false, checkedIn: false, reported: false,
+    scenario: -1,
+    banner: '시나리오 버튼을 누르면 세팅과 안내가 함께 바뀝니다.',
+    note: DR_INIT_NOTE, noteKind: ''
+  };
+
+  // 지정 카드 — 할당이 없으면 target 자체가 없다(D4 1행)
+  function drTarget() {
+    if (!dr.assigned) return null;
+    var s = DR_SETTING[dr.setting];
+    return {
+      raidCardId: s.raidCardId,
+      cardModelName: s.cardModelName,
+      // 자원 Subsystem 은 관리 화면에서 확정돼야 값이 있다 — 미확정이면 null (E3.5-5-b 가 관측으로 채운다)
+      pciSubsystemId: (s.raidCardId !== null && dr.confirmed) ? s.subsystem : null
+    };
+  }
+
+  // 적재된 인벤토리 — 정상 봉투를 보고했을 때만 존재한다(D2)
+  function drInventory() {
+    if (!dr.reported) return null;
+    var hw = DR_HW[dr.hw];
+    if (hw.envelope !== 'ok') return null;
+    return { card: hw.card, disks: hw.disks, volumes: hw.volumes };
+  }
+
+  // ── D4 진리표 — 서버 RaidCardMatch.judge 와 같은 표 (드리프트 0) ──
+  //   지정 카드 없음(할당 없음 · 카드 미지정)          → NOT_APPLICABLE
+  //   지정 있음 · 자원 Subsystem null                 → UNVERIFIABLE
+  //   지정 있음 · 관측 카드 없음(card · Subsystem null) → NOT_DETECTED
+  //   지정 있음 · 다름                                → MISMATCH
+  //   지정 있음 · 같음(대소문자 무시)                   → MATCH
+  function drJudge(target, inventory) {
+    if (target === null || target.raidCardId === null) return 'NOT_APPLICABLE';
+    if (target.pciSubsystemId === null) return 'UNVERIFIABLE';
+    if (inventory === null || inventory.card === null || inventory.card.pciSubsystemId === null) return 'NOT_DETECTED';
+    if (target.pciSubsystemId.toLowerCase() !== inventory.card.pciSubsystemId.toLowerCase()) return 'MISMATCH';
+    return 'MATCH';
+  }
+
+  // 화면 계약(D5) — 인벤토리가 없으면 raidCardCheck 는 null 이라 예고 줄 자체가 없다
+  function drCardCheck() {
+    var inv = drInventory();
+    if (inv === null) return null;
+    return drJudge(drTarget(), inv);
+  }
+
+  // 예고 문구 — MessageSource 키 execution.raid-card-check.* 와 같은 문장 (D5)
+  function drVerdictText(v) {
+    var t = drTarget(), inv = drInventory();
+    if (v === 'MATCH') return '지정 카드와 감지 카드가 일치합니다(' + inv.card.pciSubsystemId + ')';
+    if (v === 'MISMATCH') return '지정 ' + t.cardModelName + '(' + t.pciSubsystemId + ') ≠ 감지 ' + inv.card.pciSubsystemId
+      + ' — 집행 시 CARD_MISMATCH 로 실패합니다. 정의서의 카드를 확인하십시오';
+    if (v === 'NOT_DETECTED') return '지정 카드를 감지하지 못했습니다 — 집행 시 CARD_NOT_DETECTED 로 실패합니다';
+    if (v === 'UNVERIFIABLE') return '카드 자원에 Subsystem 이 확정되지 않아 대조할 수 없습니다(E3.5-5-b 관측 채움)';
+    return '';
+  }
+
+  // 계획 미리보기 — 데모용 고정 규칙(SSD 2 개 RAID1 = OS · HDD 3 개 이상 RAID5)으로 문자열만 만든다
+  function drPlanText() {
+    var inv = drInventory();
+    if (!dr.assigned) return '할당 없음 — 정의서를 할당하면 계획이 산출됩니다';
+    if (inv === null) return 'RAID 인벤토리가 없어 계획을 산출할 수 없습니다';
+    var ssd = inv.disks.filter(function (d) { return d.type === 'SSD'; });
+    var hdd = inv.disks.filter(function (d) { return d.type === 'HDD'; });
+    var parts = [];
+    if (ssd.length >= 2) parts.push('RAID1 (' + ssd[0].slot + ' · ' + ssd[1].slot + ') — OS');
+    if (hdd.length >= 3) parts.push('RAID5 (' + hdd[0].slot + '~' + hdd[hdd.length - 1].slot + ') — 데이터');
+    return parts.length ? parts.join(' + ')
+      : '산출된 묶음 없음 — 데모 고정 규칙(SSD 2 개 · HDD 3 개 이상)에 맞는 디스크가 없습니다';
+  }
+
+  function drTouch() { dr.scenario = -1; dr.banner = '직접 조작 중입니다 — 시나리오 버튼을 누르면 준비된 세팅으로 돌아갑니다.'; }
+
+  function drSetHw(v) {
+    drTouch();
+    dr.hw = v; dr.checkedIn = false; dr.reported = false;
+    dr.note = '다른 서버로 바꿨습니다 — 체크인부터 다시 합니다.'; dr.noteKind = '';
+    drRender();
+  }
+  function drSetSetting(v) {
+    drTouch();
+    dr.setting = v; dr.assigned = false;
+    dr.note = '정의서를 바꿨습니다 — [정의서 할당] 을 눌러야 계획과 예고가 붙습니다.'; dr.noteKind = '';
+    drRender();
+  }
+  function drSetConfirmed(v) {
+    drTouch();
+    dr.confirmed = v;
+    dr.note = v ? '카드 자원에 Subsystem 을 확정했습니다 — 이제 대조가 성립합니다.'
+                : '카드 자원의 Subsystem 을 지웠습니다 — 대조할 정본이 없습니다.';
+    dr.noteKind = '';
+    drRender();
+  }
+
+  // 체크인 — 서버 AgentReportService 의 데모 대역 (D3)
+  function drCheckIn() {
+    dr.checkedIn = true;
+    dr.note = 'COLLECT 지시와 함께 raidChips 힌트를 내려보냈습니다. 에이전트는 이 맵으로 계열을 판별합니다.';
+    dr.noteKind = '';
+    drRender();
+  }
+
+  // 수집 보고 — 에이전트 do_collect + 서버 DiagnoseLinuxExecutor.onStepClosed 의 데모 대역 (D1 · D2)
+  function drReport() {
+    var hw = DR_HW[dr.hw];
+    dr.reported = true;
+    if (hw.envelope === 'omit') {
+      dr.note = '지원 칩이 lspci 에 없어 에이전트가 raid 키를 생략했습니다 — 서버는 아무 것도 하지 않고 진단은 종전과 같습니다.';
+      dr.noteKind = '';
+    } else if (hw.envelope === 'reason') {
+      dr.note = '계열은 판별했지만 도구가 없어 reason 봉투를 보냈습니다 — 적재를 생략하고 원장 absorbed 에만 남습니다. 진단은 성공입니다.';
+      dr.noteKind = '';
+    } else {
+      dr.note = hw.tool + ' 원문을 봉투로 실어 보고했고, 서버가 RaidInventoryParser 로 정규화해 raid_inventory_json 에 적재했습니다.';
+      dr.noteKind = 'success';
+    }
+    drRender();
+  }
+
+  function drAssign() {
+    drTouch();
+    dr.assigned = true;
+    dr.note = '정의서를 할당했습니다 — 개시 전에도 계획 미리보기와 카드 대조 예고가 산출됩니다.';
+    dr.noteKind = '';
+    drRender();
+  }
+
+  function drReset(keepBanner) {
+    dr.hw = 'mr9361'; dr.setting = 'none'; dr.confirmed = false;
+    dr.assigned = false; dr.checkedIn = false; dr.reported = false;
+    dr.note = DR_INIT_NOTE; dr.noteKind = '';
+    if (!keepBanner) { dr.scenario = -1; dr.banner = '시나리오 버튼을 누르면 세팅과 안내가 함께 바뀝니다.'; }
+    drRender();
+  }
+
+  // ── 원클릭 시나리오 여섯 개 (세팅 + 안내 배너) ──
+  var DR_SCENARIOS = [
+    {
+      banner: '카드가 없는 서버입니다 — 지원 칩이 없으면 봉투를 생략하고, 진단은 종전과 한 글자도 다르지 않습니다. 화면은 "카드가 없는 것이 정상" 으로 읽혀야 합니다.',
+      run: function () { dr.hw = 'none'; dr.setting = 'none'; drCheckIn(); drReport(); }
+    },
+    {
+      banner: '카드는 있고 정의서는 아직 없습니다 — 진단만으로 카드 뒤 디스크 8 개가 인벤토리에 채워지고, 계획 칸은 "할당 없음" 으로 남습니다.',
+      run: function () { dr.hw = 'mr9361'; dr.setting = 'none'; drCheckIn(); drReport(); }
+    },
+    {
+      banner: '정의서가 9361 을 지정했지만 카드 자원에 Subsystem 이 확정되지 않았습니다 — 계획은 산출되고 예고는 "대조 불가" 입니다. 이 공백을 메우는 것이 E3.5-5-b 입니다.',
+      run: function () { dr.hw = 'mr9361'; dr.setting = 'card9361'; dr.confirmed = false; drCheckIn(); drReport(); dr.assigned = true; }
+    },
+    {
+      banner: '자원 Subsystem 을 확정하면 대조가 성립합니다 — 지정과 관측이 같아 "일치" 로 표시되고, 집행은 이 판정을 그대로 받습니다.',
+      run: function () { dr.hw = 'mr9361'; dr.setting = 'card9361'; dr.confirmed = true; drCheckIn(); drReport(); dr.assigned = true; }
+    },
+    {
+      banner: '실물은 CRA 인데 정의서는 9361 을 지정했습니다 — 개시 전에 "불일치" 를 알려 줍니다. 이 예고가 없으면 집행 시점의 CARD_MISMATCH 로 처음 알게 됩니다.',
+      run: function () { dr.hw = 'cra'; dr.setting = 'card9361'; dr.confirmed = true; drCheckIn(); drReport(); dr.assigned = true; }
+    },
+    {
+      banner: '계열은 판별했지만 채집 도구가 없습니다 — reason 봉투를 관용 흡수해 진단은 성공하고, 사유만 원장 absorbed 에 남습니다.',
+      run: function () { dr.hw = 'notool'; dr.setting = 'none'; drCheckIn(); drReport(); }
+    }
+  ];
+
+  function drScenario(k) {
+    drReset(true);
+    dr.scenario = k;
+    dr.banner = DR_SCENARIOS[k].banner;
+    DR_SCENARIOS[k].run();
+    dr.banner = DR_SCENARIOS[k].banner;
+    drRender();
+  }
+
+  function drBtn(fn, label, blocked, tip, extra) {
+    var dis = blocked ? ' disabled' : '';
+    var t = (blocked && tip) ? (' data-tip="' + tip + '"') : '';
+    var st = extra ? (' style="' + extra + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + st + dis + ' onclick="' + fn + '">' + label + '</button></span>';
+  }
+
+  function drEsc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  var DR_TRUTH_ROWS = [
+    { v: 'NOT_APPLICABLE', c: ['없음 (할당 없음 · 카드 미지정)', '—', '—'] },
+    { v: 'UNVERIFIABLE', c: ['있음', 'null', '—'] },
+    { v: 'NOT_DETECTED', c: ['있음', '있음', '없음'] },
+    { v: 'MISMATCH', c: ['있음', '있음', '다름'] },
+    { v: 'MATCH', c: ['있음', '있음', '같음'] }
+  ];
+
+  function drRender() {
+    var hw = DR_HW[dr.hw], st = DR_SETTING[dr.setting];
+
+    // 세그먼트 활성 표시
+    document.querySelectorAll('.ux-toolbar .seg[data-hw]').forEach(function (b) { b.classList.toggle('active', b.dataset.hw === dr.hw); });
+    document.querySelectorAll('.ux-toolbar .seg[data-set]').forEach(function (b) { b.classList.toggle('active', b.dataset.set === dr.setting); });
+    document.querySelectorAll('.ux-toolbar .seg[data-conf]').forEach(function (b) { b.classList.toggle('active', (b.dataset.conf === '1') === dr.confirmed); });
+    document.querySelectorAll('.ux-toolbar .seg[data-scn]').forEach(function (b) { b.classList.toggle('active', parseInt(b.dataset.scn, 10) === dr.scenario); });
+
+    // 조작 버튼 — 차단 사유는 tooltip 으로 (UI 1차 차단과 같은 방식)
+    document.getElementById('dr-actions-guest').innerHTML =
+      drBtn('drCheckIn()', '체크인(COLLECT)', false, '') + ' ' +
+      drBtn('drReport()', '수집 보고', !dr.checkedIn, '먼저 체크인해 COLLECT 지시와 raidChips 힌트를 받아야 합니다 — 에이전트는 그 힌트로 계열을 판별합니다.');
+    document.getElementById('dr-actions-op').innerHTML =
+      drBtn('drAssign()', '정의서 할당', !st.assignable || dr.assigned,
+        !st.assignable ? '정의서 프리셋이 "없음" 입니다 — 위에서 정의서를 고르십시오.' : '이미 할당했습니다 — 프리셋을 바꾸거나 [초기화] 를 누르십시오.');
+    document.getElementById('dr-actions-reset').innerHTML =
+      drBtn('drReset(false)', '초기화', false, '', 'border-color:var(--red);color:var(--red)');
+
+    // ① 응답 지시와 힌트
+    var db = document.getElementById('dr-directive');
+    db.textContent = dr.checkedIn ? 'COLLECT' : '—';
+    db.className = 'badge ' + (dr.checkedIn ? 'on' : 'off');
+    document.getElementById('dr-chips').textContent = dr.checkedIn ? 'raidChips = "' + DR_CHIPS + '"' : '—';
+
+    // ② 보고 JSON 요약
+    var rep;
+    if (!dr.reported) {
+      rep = '(아직 보고 전)';
+    } else {
+      var raidLine;
+      if (hw.envelope === 'omit') raidLine = '  "raid"  : (키 없음 — 지원 칩 없음 · 정상)';
+      else if (hw.envelope === 'reason') raidLine = '  "raid"  : {"reason":"' + hw.reason + '","detail":"' + hw.detail + '","lspci_b64":…}';
+      else raidLine = '  "raid"  : {"tool":"' + hw.tool + '","lspci_b64":…,' + (hw.tool === 'storcli64' ? '"pd_b64":…,"vd_b64":…,"c0_b64":…' : '"display_b64":…') + '}';
+      rep = '{\n' +
+        '  "cpu"   : Intel Xeon Silver 4310 x2\n' +
+        '  "mem"   : 128GB\n' +
+        '  "disks" : ' + hw.lsblk + ' 개 (lsblk 가시분)\n' +
+        '  "pcie"  : ' + hw.pcie + '\n' +
+        raidLine + '\n}';
+    }
+    document.getElementById('dr-report').textContent = rep;
+
+    // ③ 적재 결과
+    var load = document.getElementById('dr-load'), inv = drInventory();
+    if (!dr.reported) {
+      load.textContent = '(아직 적재 전)'; load.className = 'ux-message';
+    } else if (hw.envelope === 'omit') {
+      load.textContent = '봉투 없음 — 적재도 원장 기록도 없습니다. 진단은 종전과 같습니다.'; load.className = 'ux-message';
+    } else if (hw.envelope === 'reason') {
+      load.textContent = '적재 생략 · WARN · absorbed : raid(' + hw.reason + ')=' + hw.detail; load.className = 'ux-message error';
+    } else {
+      load.textContent = 'raid_inventory_json 적재 — card=' + inv.card.pciSubsystemId
+        + ' · disks=' + inv.disks.length + ' · volumes=' + inv.volumes.length;
+      load.className = 'ux-message success';
+    }
+
+    // ④ 게스트 상세 카드 미리보기
+    var v = drCardCheck();
+    var head = '<h4>게스트 상세 — RAID 인벤토리 · RAID 구성 계획</h4>';
+    var invHtml;
+    if (inv === null) {
+      invHtml = '<p style="margin:0 0 8px;color:var(--text-muted);font-size:12px;">RAID 인벤토리가 아직 없습니다 — 진단 수집에서 RAID 카드가 감지되면 채워집니다(카드가 없는 서버는 비어 있는 것이 정상)</p>';
+    } else {
+      invHtml = '<table style="margin:0 0 8px;background:var(--card);border-radius:6px;">'
+        + '<thead><tr><th>슬롯</th><th>종류</th><th>전송</th><th>용량</th></tr></thead><tbody>'
+        + inv.disks.map(function (d) {
+            return '<tr><td><code>' + d.slot + '</code></td><td>' + d.type + '</td><td>' + d.transport + '</td><td>' + d.size + '</td></tr>';
+          }).join('')
+        + '</tbody></table>'
+        + '<p style="margin:0 0 8px;font-size:12px;color:var(--text-muted);">기존 볼륨 : '
+        + (inv.volumes.length === 0 ? '없음'
+            : inv.volumes.map(function (x) { return x.level + ' ' + x.size + ' (' + x.members + ')'; }).join(' · ')) + '</p>';
+    }
+    var notice = '';
+    if (v === null) {
+      notice = '<div class="ux-message" style="margin:0 0 8px;">카드 대조 예고 : 표시 없음 — 인벤토리가 없으면 raidCardCheck 는 null 입니다</div>';
+    } else if (v === 'NOT_APPLICABLE') {
+      notice = '<div class="ux-message" style="margin:0 0 8px;">카드 대조 예고 : 표시 없음 — 지정 카드가 없습니다(해당 없음)</div>';
+    } else {
+      var kind = (v === 'MATCH') ? ' success' : (v === 'UNVERIFIABLE') ? '' : ' error';
+      notice = '<div class="ux-message' + kind + '" style="margin:0 0 8px;">' + drEsc(drVerdictText(v)) + '</div>';
+    }
+    document.getElementById('dr-card').innerHTML = head + invHtml + notice
+      + '<p style="margin:0;font-size:12px;"><b>RAID 구성 계획</b> — <span class="mono">' + drEsc(drPlanText()) + '</span></p>';
+
+    // ⑤ 진리표 하이라이트 — 지금 어느 행인가
+    var cur = (v === null) ? 'NOT_APPLICABLE' : v;
+    document.getElementById('dr-truth').innerHTML = DR_TRUTH_ROWS.map(function (r) {
+      var on = (v !== null && r.v === v);
+      var style = on ? ' style="background:var(--yellow-bg);"' : '';
+      return '<tr' + style + '><td>' + r.c[0] + '</td><td>' + r.c[1] + '</td><td>' + r.c[2] + '</td>'
+        + '<td><code>' + r.v + '</code>' + (on ? ' ←' : '') + '</td></tr>';
+    }).join('');
+
+    // 판정 캡션 — 서버가 보는 값 그대로
+    var t = drTarget();
+    var mark = function (s) {
+      if (s === 'MATCH') return '<span class="f">' + s + '</span>';
+      if (s === 'MISMATCH' || s === 'NOT_DETECTED') return '<span class="t">' + s + '</span>';
+      return s;
+    };
+    document.getElementById('dr-caps').innerHTML =
+      'target.raidCardId        = ' + (t === null || t.raidCardId === null ? 'null (지정 없음)' : t.raidCardId + ' (' + drEsc(t.cardModelName) + ')') + '\n' +
+      'target.pciSubsystemId    = ' + (t === null || t.pciSubsystemId === null ? 'null (자원 Subsystem 미확정)' : '"' + t.pciSubsystemId + '"') + '\n' +
+      'inventory.card           = ' + (inv === null || inv.card === null ? 'null (인벤토리 없음)' : '"' + inv.card.pciSubsystemId + '" ' + drEsc(inv.card.model)) + '\n' +
+      'RaidCardMatch.judge(...) = ' + (v === null ? 'null (예고 줄 없음)' : mark(v));
+
+    // 배너 · 해설
+    document.getElementById('dr-banner').textContent = dr.banner;
+    var note = document.getElementById('dr-note');
+    note.textContent = dr.note;
+    note.className = 'ux-message' + (dr.noteKind ? ' ' + dr.noteKind : '');
+  }
+
+  drRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

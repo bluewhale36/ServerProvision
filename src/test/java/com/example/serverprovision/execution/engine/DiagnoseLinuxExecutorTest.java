@@ -57,7 +57,9 @@ class DiagnoseLinuxExecutorTest {
                 new PxeAssetsProperties(assetsRoot.toString(), "http://10.0.2.2:7777/"),
                 new DiagnosticReportParser(mapper),
                 detailRepository, recorder, mapper,
-                new PhaseCursorAdvancer(ownedPhasesProvider), eventPublisher);
+                new PhaseCursorAdvancer(ownedPhasesProvider), eventPublisher,
+                // E3.5-5-a — 진단 시점 RAID 봉투도 실물 파서로 정규화한다(RAID phase 와 같은 파서)
+                new com.example.serverprovision.execution.engine.raid.RaidInventoryParser(mapper));
     }
 
     private GuestServer server(GuestToken token) {
@@ -240,6 +242,99 @@ class DiagnoseLinuxExecutorTest {
         assertThat(detail.getDiscoveryStage())
                 .isEqualTo(com.example.serverprovision.execution.enums.DiscoveryStage.DIAGNOSTIC_ENRICHED);
         assertThat(p.isCompleted()).isTrue();                               // 나머지 파이프라인은 정상 진행
+    }
+
+    // ── E3.5-5-a — 진단 시점 RAID 봉투 소비(D2): 같은 파서 · 같은 컬럼, 실패는 관용 + 원장 filtered ──
+
+    private static String fixture(String name) {
+        try (var in = DiagnoseLinuxExecutorTest.class.getResourceAsStream("/raid/" + name)) {
+            return new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException | NullPointerException e) {
+            throw new java.io.UncheckedIOException(new java.io.IOException("픽스처 없음: " + name, e));
+        }
+    }
+
+    private static String b64(String raw) {
+        return java.util.Base64.getEncoder().encodeToString(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private static String withRaid(String raidJson) {
+        String body = REPORT.trim();
+        return body.substring(0, body.length() - 1) + ", \"raid\": " + raidJson + " }";
+    }
+
+    private String persistingMetaOf(GuestServer g) {
+        var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(recorder).recordInstant(
+                org.mockito.ArgumentMatchers.eq(g),
+                org.mockito.ArgumentMatchers.eq(com.example.serverprovision.execution.enums.ProvisioningPhaseStep.INFORMATION_PERSISTING),
+                org.mockito.ArgumentMatchers.eq(com.example.serverprovision.execution.enums.ProvisioningStatus.SUCCEEDED),
+                captor.capture(), org.mockito.ArgumentMatchers.any());
+        return captor.getValue();
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — 정상 RAID 봉투(IR 실측)는 RAID phase 와 같은 파서로 정규화해 raid_inventory_json 에 적재된다")
+    void onStepClosed_raidEnvelope_enrichesRaidInventory() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var detail = realDetail(g);
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(detail));
+        String envelope = "{\"tool\":\"sas3ircu\",\"lspci_b64\":\"" + b64(fixture("cra-lspci-nnvv.txt"))
+                + "\",\"display_b64\":\"" + b64(fixture("cra-display.txt")) + "\"}";
+
+        executor.onStepClosed(g, progress(), closedCollecting(g, withRaid(envelope)));
+
+        assertThat(detail.getRaidInventoryJson()).contains("1458:3008").contains("MPT_IR");
+        assertThat(detail.getBoardSerial()).isEqualTo("JG4P6400027");          // 하드웨어 적재는 종전 그대로
+        assertThat(persistingMetaOf(g)).doesNotContain("raid(");
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — reason 봉투(TOOL_MISSING)는 적재 생략 + 원장 filtered 에 사유, 진단은 성공 유지(관용)")
+    void onStepClosed_raidReasonEnvelope_absorbed() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var detail = realDetail(g);
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(detail));
+        ProvisioningProgress p = progress();
+
+        executor.onStepClosed(g, p, closedCollecting(g,
+                withRaid("{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64/storcli not found\",\"lspci_b64\":\"YQ==\"}")));
+
+        assertThat(detail.getRaidInventoryJson()).isNull();
+        assertThat(detail.getDiscoveryStage())
+                .isEqualTo(com.example.serverprovision.execution.enums.DiscoveryStage.DIAGNOSTIC_ENRICHED);
+        assertThat(persistingMetaOf(g)).contains("raid(TOOL_MISSING)=storcli64/storcli not found");
+        assertThat(p.isCompleted()).isTrue();   // 진단 완주 판정은 봉투와 무관
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — 해석 불가 봉투(lspci_b64 없음)는 적재 생략 + filtered 에 unparsable, 진단은 성공 유지")
+    void onStepClosed_raidUnparsableEnvelope_absorbed() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var detail = realDetail(g);
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(detail));
+
+        executor.onStepClosed(g, progress(), closedCollecting(g, withRaid("{\"tool\":\"storcli64\"}")));
+
+        assertThat(detail.getRaidInventoryJson()).isNull();
+        assertThat(persistingMetaOf(g)).contains("raid(unparsable)=");
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — raid 키가 없는 보고(카드 없는 서버)는 종전과 같다 — 적재 · filtered 흔적 없음")
+    void onStepClosed_noRaidKey_unchanged() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var detail = realDetail(g);
+        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
+                .willReturn(java.util.Optional.of(detail));
+
+        executor.onStepClosed(g, progress(), closedCollecting(g, REPORT));
+
+        assertThat(detail.getRaidInventoryJson()).isNull();
+        assertThat(persistingMetaOf(g)).doesNotContain("raid(");
     }
 
     @Test

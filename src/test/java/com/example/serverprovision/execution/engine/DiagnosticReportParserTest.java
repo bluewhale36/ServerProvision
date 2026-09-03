@@ -37,6 +37,35 @@ class DiagnosticReportParserTest {
               "bmc": {"ip": "192.168.0.201", "mac": "b4:2e:99:aa:bb:cc"} }
             """;
 
+    // ── E3.5-5-a — 진단 시점 RAID 봉투는 해석하지 않고 통과한다(해석은 RaidInventoryParser) ──
+
+    private static String withRaid(String report, String raidJson) {
+        String body = report.trim();
+        return body.substring(0, body.length() - 1) + ", \"raid\": " + raidJson + " }";
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — raid 객체가 있으면 원문 JSON 그대로 raidEnvelope 로 통과한다(해석 없음)")
+    void raidEnvelope_passesThroughVerbatim() {
+        var parsed = parser.parse(withRaid(FULL, "{\"tool\":\"storcli64\",\"lspci_b64\":\"YWJj\",\"pd_b64\":\"e30=\"}"));
+
+        assertThat(parsed.raidEnvelope()).contains("\"tool\":\"storcli64\"").contains("\"pd_b64\":\"e30=\"");
+        assertThat(parsed.boardSerial()).isEqualTo("JG4P6400027");   // 나머지 축은 종전 그대로
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — raid 키가 없으면(지원 칩 없음 = 정상) raidEnvelope 는 null")
+    void raidEnvelope_absent_isNull() {
+        assertThat(parser.parse(FULL).raidEnvelope()).isNull();
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — raid 가 객체가 아니면(문자열 · 배열) 관용으로 null — 다른 축 적재를 막지 않는다")
+    void raidEnvelope_nonObject_isNull() {
+        assertThat(parser.parse(withRaid(FULL, "\"garbage\"")).raidEnvelope()).isNull();
+        assertThat(parser.parse(withRaid(FULL, "[1,2]")).hardwareSpec().disks()).hasSize(2);
+    }
+
     @Test
     @DisplayName("정상 전체 보고 — 슬롯 단위 인벤토리 + BMC 신원 구조화")
     void full_parsesEverything() {

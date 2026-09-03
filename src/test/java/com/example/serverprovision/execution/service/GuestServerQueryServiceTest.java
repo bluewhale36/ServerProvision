@@ -339,6 +339,62 @@ class GuestServerQueryServiceTest {
         assertThat(response.raidPlan().branches()).hasSize(1);
     }
 
+    // ── E3.5-5-a — 카드 대조 예고(D5): 판정 SSOT 는 RaidCardMatch.judge, 조회는 재료를 채운다 ──
+
+    private com.example.serverprovision.execution.engine.raid.RaidInventory raidInvWithCard(String subsystem) {
+        return new com.example.serverprovision.execution.engine.raid.RaidInventory(
+                new com.example.serverprovision.execution.engine.raid.DetectedRaidCard(
+                        com.example.serverprovision.management.raidcard.enums.RaidChipFamily.MEGARAID, subsystem, "9361-8i", "fw"),
+                java.util.List.of(), java.util.List.of());
+    }
+
+    private void stubPlanForAny(UUID id) {
+        given(raidConfigurationResolutionProvider.policyOf(id)).willReturn(Optional.empty());
+        given(raidConfigurationResolutionProvider.planFor(eq(id), any(), any()))
+                .willReturn(Optional.of(new com.example.serverprovision.execution.engine.raid.RaidPlan(
+                        false, java.util.List.of(), java.util.List.of(), java.util.List.of(), java.util.List.of(), null)));
+    }
+
+    private GuestServerDetailResponse.RaidCardCheck cardCheckOf(
+            com.example.serverprovision.execution.engine.raid.RaidInventory inv,
+            Optional<com.example.serverprovision.execution.engine.raid.RaidConfigurationTarget> target) {
+        UUID id = stubDetailWithRaidInventory(inv);
+        stubPlanForAny(id);
+        given(raidConfigurationResolutionProvider.resolveFor(id)).willReturn(target);
+        return service.findDetail(id).raidPlan().cardCheck();
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — 할당 없음 → NOT_APPLICABLE(화면은 줄을 그리지 않는다)")
+    void cardCheck_noAssignment_notApplicable() {
+        var cc = cardCheckOf(raidInvWithCard("1000:9361"), Optional.empty());
+        assertThat(cc.verdict()).isEqualTo(com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.NOT_APPLICABLE);
+        assertThat(cc.observedSubsystem()).isEqualTo("1000:9361");
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — 지정 카드의 자원 Subsystem 미확정 → UNVERIFIABLE + 카드명")
+    void cardCheck_unverifiable() {
+        var cc = cardCheckOf(raidInvWithCard("1000:9361"), Optional.of(
+                new com.example.serverprovision.execution.engine.raid.RaidConfigurationTarget(7L, null, "MegaRAID SAS 9361-8i")));
+        assertThat(cc.verdict()).isEqualTo(com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.UNVERIFIABLE);
+        assertThat(cc.cardModelName()).isEqualTo("MegaRAID SAS 9361-8i");
+        assertThat(cc.raidCardId()).isEqualTo(7L);   // CP5 F-3 — 카드 자원 링크 재료
+        assertThat(cc.specifiedSubsystem()).isNull();
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a — 확정 Subsystem 일치 → MATCH / 다름 → MISMATCH / 카드 미감지 → NOT_DETECTED")
+    void cardCheck_matchMismatchNotDetected() {
+        var target = Optional.of(new com.example.serverprovision.execution.engine.raid.RaidConfigurationTarget(7L, "1000:9361", "9361-8i"));
+        assertThat(cardCheckOf(raidInvWithCard("1000:9361"), target).verdict())
+                .isEqualTo(com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.MATCH);
+        assertThat(cardCheckOf(raidInvWithCard("1458:3008"), target).verdict())
+                .isEqualTo(com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.MISMATCH);
+        assertThat(cardCheckOf(raidInv(), target).verdict())
+                .isEqualTo(com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.NOT_DETECTED);
+    }
+
     @Test
     @DisplayName("W9 · W12 — 실물 표 뷰모델: raid_volume 2행(볼륨 + 단독 디스크) · WWN · OS 배지 재료")
     void findDetail_mapsRaidVolumes() {

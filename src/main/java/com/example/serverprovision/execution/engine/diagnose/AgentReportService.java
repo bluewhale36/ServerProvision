@@ -194,10 +194,11 @@ public class AgentReportService {
      * RAID 지시의 칩 판별 힌트(E3.5-3 CP4 검수 반영) — 칩 id 의 SSOT 는 서버(RaidChipFamily)이고
      * 에이전트는 받은 맵으로만 판별한다. 실물 기준 판별이라 지정 카드와 다른 계열이 꽂혀 있어도
      * 채집은 성공하고, 불일치는 서버 대조(CARD_MISMATCH)가 정직하게 잡는다.
+     * E3.5-5-a — 진단 수집(COLLECT)에도 싣는다: 최초 진단이 카드 뒤 디스크까지 채집하려면 같은 판별이 필요하다.
      */
     private String raidChipsFor(AgentDirective directive) {
-        if (directive == AgentDirective.RAID_INVENTORY || directive == AgentDirective.RAID_APPLY
-                || directive == AgentDirective.RAID_VERIFY) {
+        if (directive == AgentDirective.COLLECT || directive == AgentDirective.RAID_INVENTORY
+                || directive == AgentDirective.RAID_APPLY || directive == AgentDirective.RAID_VERIFY) {
             return com.example.serverprovision.management.raidcard.enums.RaidChipFamily.agentChipHint();
         }
         return null;
