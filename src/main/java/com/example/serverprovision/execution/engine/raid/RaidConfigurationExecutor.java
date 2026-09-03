@@ -246,27 +246,33 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
     }
 
     /** 정의서 지정 카드와 감지 카드의 Subsystem 대조 — 불일치 · 미감지는 원장 사유로 남기고 false. */
+    /**
+     * 카드 대조(E3.5-1) — 판정은 {@link RaidCardMatch#judge}(화면의 개시 전 예고와 같은 진리표 · E3.5-5-a D4)가 내고,
+     * 여기서는 그 판정에 원장 기록만 얹는다. 호출부가 카드를 지정한 할당에서만 부르므로 NOT_APPLICABLE 은 오지 않는다.
+     */
     private boolean cardMatches(GuestServer server, ProvisioningProgress progress,
                                 RaidConfigurationTarget target, RaidInventory inventory, LocalDateTime now) {
-        if (target.pciSubsystemId() == null) {
-            // 소프트참조 카드가 사라졌거나 카드에 Subsystem 이 미등록 — 대조할 정본이 없으니 막지 않는다
-            log.warn("RAID 카드 대조 생략 — 지정 카드의 Subsystem 미확보 : guestServerId={}, raidCardId={}",
-                    server.getId(), target.raidCardId());
-            return true;
-        }
-        if (inventory.card() == null || inventory.card().pciSubsystemId() == null) {
-            raidLedger.failInstant(server, progress, ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING,
-                    RaidLedger.CARD_NOT_DETECTED,
-                    "지정 카드 " + target.cardModelName() + "(" + target.pciSubsystemId() + ") 를 감지하지 못했습니다", now);
-            return false;
-        }
-        if (!target.pciSubsystemId().equalsIgnoreCase(inventory.card().pciSubsystemId())) {
-            raidLedger.failInstant(server, progress, ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING,
-                    RaidLedger.CARD_MISMATCH,
-                    "지정 " + target.cardModelName() + "(" + target.pciSubsystemId() + ") ≠ 감지 "
-                            + inventory.card().pciSubsystemId(), now);
-            return false;
-        }
-        return true;
+        return switch (RaidCardMatch.judge(target, inventory)) {
+            case UNVERIFIABLE -> {
+                // 소프트참조 카드가 사라졌거나 카드에 Subsystem 이 미등록 — 대조할 정본이 없으니 막지 않는다
+                log.warn("RAID 카드 대조 생략 — 지정 카드의 Subsystem 미확보 : guestServerId={}, raidCardId={}",
+                        server.getId(), target.raidCardId());
+                yield true;
+            }
+            case NOT_DETECTED -> {
+                raidLedger.failInstant(server, progress, ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING,
+                        RaidLedger.CARD_NOT_DETECTED,
+                        "지정 카드 " + target.cardModelName() + "(" + target.pciSubsystemId() + ") 를 감지하지 못했습니다", now);
+                yield false;
+            }
+            case MISMATCH -> {
+                raidLedger.failInstant(server, progress, ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING,
+                        RaidLedger.CARD_MISMATCH,
+                        "지정 " + target.cardModelName() + "(" + target.pciSubsystemId() + ") ≠ 감지 "
+                                + inventory.card().pciSubsystemId(), now);
+                yield false;
+            }
+            case MATCH, NOT_APPLICABLE -> true;
+        };
     }
 }

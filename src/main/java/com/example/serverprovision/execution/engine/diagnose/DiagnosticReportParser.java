@@ -47,13 +47,19 @@ public class DiagnosticReportParser {
     }
 
     /** 파싱 결과 묶음 — 전부 nullable(관용). {@code placeholderFiltered} 는 관찰용(원장 기록에 실림). */
+    /**
+     * @param raidEnvelope 진단 시점 RAID 봉투(E3.5-5-a D1) — 보고 JSON 의 {@code raid} 객체를 원문 그대로 나른다.
+     *                     해석은 {@code RaidInventoryParser} 의 몫이라 여기서는 통과만 한다. 키가 없으면 null
+     *                     (지원 칩 없음 = 정상).
+     */
     public record Parsed(
             String boardSerial,
             HardwareSpec hardwareSpec,
             SoftwareSpec softwareSpec,
             IpAddressVO bmcIp,
             MacAddressVO bmcMac,
-            List<String> placeholderFiltered
+            List<String> placeholderFiltered,
+            String raidEnvelope
     ) {
     }
 
@@ -90,8 +96,11 @@ public class DiagnosticReportParser {
             bmcMac = tolerant(() -> MacAddressVO.of(text(bmc, "mac")));
         }
 
+        JsonNode raid = root.path("raid");
+        String raidEnvelope = raid.isObject() ? raid.toString() : null;
+
         return new Parsed(boardSerial, hardware,
-                new SoftwareSpec(biosVersion, null), bmcIp, bmcMac, List.copyOf(filtered));
+                new SoftwareSpec(biosVersion, null), bmcIp, bmcMac, List.copyOf(filtered), raidEnvelope);
     }
 
     /** statusMeta 가 JSON 이 아니어서 어떤 필드도 해석할 수 없음 — 승급 없이 원장만 남기는 경로의 신호. */

@@ -37,25 +37,10 @@ STEP_ID=$(printf '%s' "$OPEN" | field stepId)
 
 esc() { python3 -c 'import json,sys; print(json.dumps(sys.stdin.read())[1:-1])'; }
 
-case "$MODE" in
-    mr|mrclean|ssd6)
-        # mrclean(E3.5-3) — 기존 볼륨이 없는 상태 보고: 정상 완주(A1)의 시작점(외부 볼륨 보류를 피한다)
-        # ssd6(E3.5-7-a) — 실측 pd 의 252:2~5 를 252:0 과 같은 SSD 로 바꾼 파생본: '개' 의 부분 소비(사례 (c))를 재연한다
-        VD="$FIX/mr-vd-all.json"; [ "$MODE" != "mr" ] && VD="$FIX/mr-novol-vd.json"
-        PD="$FIX/mr-pd-all.json"; [ "$MODE" = "ssd6" ] && PD="$FIX/mr-ssd6-pd.json"
-        LSPCI=$(cat "$FIX/mr-lspci-nnvv.txt" | b64)
-        META="{\"tool\":\"storcli64\",\"lspci_b64\":\"$LSPCI\",\"pd_b64\":\"$(b64 < "$PD")\",\"vd_b64\":\"$(b64 < "$VD")\",\"c0_b64\":\"$(b64 < "$FIX/mr-c0-show-all.json")\"}"
-        STATUS=SUCCEEDED ;;
-    cra|mismatch)
-        LSPCI=$(cat "$FIX/cra-lspci-nnvv.txt" | b64)
-        META="{\"tool\":\"sas3ircu\",\"lspci_b64\":\"$LSPCI\",\"display_b64\":\"$(b64 < "$FIX/cra-display.txt")\"}"
-        STATUS=SUCCEEDED ;;
-    toolmissing)
-        LSPCI=$(cat "$FIX/mr-lspci-nnvv.txt" | b64)
-        META="{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64/storcli not found\",\"lspci_b64\":\"$LSPCI\"}"
-        STATUS=FAILED ;;
-    *) echo "알 수 없는 모드: $MODE" >&2; exit 2 ;;
-esac
+# 봉투 조립은 공용 raid-envelope.sh(E3.5-5-a) — 진단 보고의 "raid" 하위 봉투와 같은 조립을 쓴다.
+#   mrclean(E3.5-3) = 기존 볼륨 없음(정상 완주의 시작점) · ssd6(E3.5-7-a) = 같은 SSD 6장 파생본(사례 (c))
+META=$(sh "$HERE/raid-envelope.sh" "$MODE")
+STATUS=SUCCEEDED; [ "$MODE" = "toolmissing" ] && STATUS=FAILED
 
 echo "→ close ($STATUS, $MODE)"
 BODY="{\"status\":\"$STATUS\",\"statusMeta\":\"$(printf '%s' "$META" | esc)\"}"

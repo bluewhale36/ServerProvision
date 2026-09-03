@@ -96,7 +96,20 @@ public record GuestServerDetailResponse(
      */
     public record RaidPlanPreview(
             boolean policyUndecided,
-            List<RaidPlanBranch> branches
+            List<RaidPlanBranch> branches,
+            /** 지정 카드 vs 관측 카드 대조 예고(E3.5-5-a D5) — 판정은 집행과 같은 RaidCardMatch.judge. NOT_APPLICABLE 이면 화면은 줄을 그리지 않는다. */
+            RaidCardCheck cardCheck
+    ) {
+    }
+
+    /** 카드 대조 예고 한 줄의 재료 — 문구 조립은 템플릿의 MessageSource 키가 맡는다(execution.raid-card-check.*). */
+    public record RaidCardCheck(
+            com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict verdict,
+            /** 지정 카드 자원 id — 화면이 카드 자원(Subsystem 입력 · 확인)으로 가는 링크를 그린다(CP5 F-3). */
+            Long raidCardId,
+            String cardModelName,
+            String specifiedSubsystem,
+            String observedSubsystem
     ) {
     }
 

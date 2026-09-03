@@ -170,11 +170,34 @@ public class ProvisioningHistory extends BaseTimeEntity {
             return detail;
         }
         String origin = extractMeta("origin");
-        if (origin == null || origin.isBlank()
-                || "flash".equals(origin) || "setting".equals(origin) || "operator".equals(origin)) {
+        if (origin != null && !origin.isBlank()
+                && !"flash".equals(origin) && !"setting".equals(origin) && !"operator".equals(origin)) {
+            return origin;
+        }
+        return absorbedNote();
+    }
+
+    /**
+     * 관용 흡수 목록(E3.5-5-a CP5 F-1) — 진단 소비가 적재를 생략한 축(placeholder 필터 · 시리얼 중복 ·
+     * raid(TOOL_MISSING) 등)은 INFORMATION_PERSISTING 행의 {@code filtered} 배열에 남는다. 사유 detail · origin 이
+     * 없을 때의 폴백으로 한 줄에 잇는다 — 운영자가 DB 를 열지 않아도 "왜 비었는지" 를 이력 표에서 본다.
+     */
+    private String absorbedNote() {
+        tools.jackson.databind.JsonNode root = metaRoot();
+        if (root == null) {
             return null;
         }
-        return origin;
+        tools.jackson.databind.JsonNode filtered = root.path("filtered");
+        if (!filtered.isArray() || filtered.isEmpty()) {
+            return null;
+        }
+        java.util.List<String> items = new java.util.ArrayList<>();
+        filtered.forEach(n -> {
+            if (n.isValueNode()) {
+                items.add(n.asString());
+            }
+        });
+        return items.isEmpty() ? null : String.join(" · ", items);
     }
 
     /** 사람이 읽을 상세 — 사유만으로는 부족한 맥락(목표 버전 · 확인값 등). */
@@ -182,19 +205,32 @@ public class ProvisioningHistory extends BaseTimeEntity {
         return extractMeta("detail");
     }
 
-    /** statusMeta 의 문자열 필드 하나. 원장 메타는 서버가 조립한 평문 JSON 이라 얕은 판독으로 충분하다. */
+    private static final tools.jackson.databind.ObjectMapper META_READER = new tools.jackson.databind.ObjectMapper();
+
+    /**
+     * statusMeta 의 <b>최상위</b> 문자열 필드 하나. 옛 얕은 문자열 탐색은 게스트 원문 보고(INFORMATION_COLLECTING)에
+     * 중첩된 {@code raid.detail} 을 그 행의 사유로 주워 왔다(E3.5-5-a CP5 F-2) — 원장 사유는 서버가 조립한 최상위 키뿐이므로
+     * JSON 으로 읽어 최상위만 본다. 평문 · 손상 메타는 판독할 것이 없어 null.
+     */
     private String extractMeta(String field) {
-        if (statusMeta == null) {
+        tools.jackson.databind.JsonNode root = metaRoot();
+        if (root == null) {
             return null;
         }
-        String key = "\"" + field + "\":\"";
-        int start = statusMeta.indexOf(key);
-        if (start < 0) {
+        tools.jackson.databind.JsonNode v = root.path(field);
+        return v.isValueNode() && !v.isNull() ? v.asString() : null;
+    }
+
+    private tools.jackson.databind.JsonNode metaRoot() {
+        if (statusMeta == null || statusMeta.isBlank()) {
             return null;
         }
-        start += key.length();
-        int end = statusMeta.indexOf('"', start);
-        return end < 0 ? null : statusMeta.substring(start, end);
+        try {
+            tools.jackson.databind.JsonNode node = META_READER.readTree(statusMeta);
+            return node != null && node.isObject() ? node : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /** 이 행이 운영자 액션의 기록인가(ES-2 D-5) — 화면의 '운영자 전환' 구분이 이 판정을 파생한다. */

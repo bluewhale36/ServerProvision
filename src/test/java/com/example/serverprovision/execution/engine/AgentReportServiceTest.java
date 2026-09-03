@@ -91,7 +91,7 @@ class AgentReportServiceTest {
     private void stubDiagnoseExecutor() {
         given(phaseExecutorRegistry.find(com.example.serverprovision.execution.enums.ProvisioningPhase.DIAGNOSE_LINUX))
                 .willReturn(Optional.of(new com.example.serverprovision.execution.engine.diagnose.DiagnoseLinuxExecutor(
-                        null, null, guestServerDetailRepository, null, null, null, null)));
+                        null, null, guestServerDetailRepository, null, null, null, null, null)));
     }
 
     // ==== checkin — 지시 판정 (ES-2: 체크인은 커서를 움직이지 않는다) ====
@@ -109,6 +109,9 @@ class AgentReportServiceTest {
         // seed 커서가 이미 진단 phase + detail 미수집(기본 empty) → 수집 지시 (E1-2 지시 판정)
         assertThat(res.directive()).isEqualTo(AgentDirective.COLLECT);
         assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);   // 체크인 무전이
+        // E3.5-5-a — 최초 진단이 카드 뒤 디스크까지 채집하도록 COLLECT 에도 칩 판별 힌트가 실린다
+        assertThat(res.raidChips()).isEqualTo(
+                com.example.serverprovision.management.raidcard.enums.RaidChipFamily.agentChipHint());
     }
 
     @Test
@@ -124,7 +127,9 @@ class AgentReportServiceTest {
         given(guestServerDetailRepository.findByServerIdWithBoardModel(g.getId()))
                 .willReturn(Optional.of(enriched));
 
-        assertThat(service.checkin(TOKEN).directive()).isEqualTo(AgentDirective.WAIT);
+        var res = service.checkin(TOKEN);
+        assertThat(res.directive()).isEqualTo(AgentDirective.WAIT);
+        assertThat(res.raidChips()).isNull();   // E3.5-5-a — 힌트는 채집 지시(COLLECT · RAID 3종)에만
     }
 
     @Test

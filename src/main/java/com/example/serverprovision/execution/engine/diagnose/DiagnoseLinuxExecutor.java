@@ -15,6 +15,8 @@ import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.event.BmcEndpointDiscoveredEvent;
+import com.example.serverprovision.execution.engine.raid.RaidInventory;
+import com.example.serverprovision.execution.engine.raid.RaidInventoryParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -57,6 +59,7 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
     private final ObjectMapper objectMapper;
     private final PhaseCursorAdvancer phaseCursorAdvancer;
     private final ApplicationEventPublisher eventPublisher;
+    private final RaidInventoryParser raidInventoryParser;
 
     @Override
     public ProvisioningPhase phase() {
@@ -124,6 +127,7 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
 
         detail.enrich(boardSerial, toJson(parsed.hardwareSpec()), toJson(parsed.softwareSpec()),
                 parsed.bmcIp(), parsed.bmcMac());
+        consumeRaidEnvelope(server, detail, parsed.raidEnvelope(), absorbed);
         if (parsed.bmcIp() != null) {
             // 커밋 확정 후 계정 표준화가 소비한다(E1.6 D-1) — 롤백된 수집으로 BMC 를 만지지 않는다.
             eventPublisher.publishEvent(new BmcEndpointDiscoveredEvent(server.getId()));
@@ -161,6 +165,37 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
     }
 
     /** INFORMATION_PERSISTING 원장 statusMeta — 무엇이 걸러졌는지(placeholder·중복)의 관찰 기록. */
+    /**
+     * 진단 시점 RAID 봉투 소비(E3.5-5-a D2) — RAID phase 와 같은 파서로 정규화해 같은 컬럼에 적재한다.
+     * 실패(도구 부재 reason 봉투 · 해석 불가)는 관용이다: 적재만 생략하고 사유를 원장 filtered 에 남긴다.
+     * 카드가 없는 서버가 정상 다수이고 집행 전제는 RAID phase 가 다시 보므로, 진단 성공 여부와 무관하다.
+     */
+    private void consumeRaidEnvelope(GuestServer server, GuestServerDetail detail, String envelope,
+                                     java.util.List<String> absorbed) {
+        if (envelope == null) {
+            return;
+        }
+        try {
+            java.util.Map<?, ?> fields = objectMapper.readValue(envelope, java.util.Map.class);
+            Object reason = fields.get("reason");
+            if (reason != null) {
+                absorbed.add("raid(" + reason + ")=" + fields.get("detail"));
+                log.warn("진단 시점 RAID 채집 실패 보고 — 적재 생략(원문은 원장 보존) : guestServerId={}, reason={}",
+                        server.getId(), reason);
+                return;
+            }
+            RaidInventory inventory = raidInventoryParser.parse(envelope);
+            detail.enrichRaidInventory(objectMapper.writeValueAsString(inventory));
+            log.info("진단 시점 RAID 인벤토리 적재 : guestServerId={}, card={}, disks={}, volumes={}",
+                    server.getId(), inventory.card() == null ? null : inventory.card().pciSubsystemId(),
+                    inventory.disks().size(), inventory.volumes().size());
+        } catch (RuntimeException e) {
+            // 해석 불가(RaidInventoryParser.ReportUnparsableException · 봉투 JSON 손상) — 관용 원칙 그대로
+            absorbed.add("raid(unparsable)=" + e.getMessage());
+            log.warn("진단 시점 RAID 봉투 해석 불가 — 적재 생략(원문은 원장 보존) : guestServerId={}", server.getId(), e);
+        }
+    }
+
     private String persistingMeta(java.util.List<String> absorbed) {
         try {
             return objectMapper.writeValueAsString(java.util.Map.of("filtered", absorbed));

@@ -104,7 +104,7 @@ collect_bmc_json() { # {"ip":..,"mac":..} — BMC 미검출(QEMU·모듈 실패)
     printf '{"ip":"%s","mac":"%s"}' "$(esc "$ip")" "$(esc "$mac")"
 }
 
-build_report_json() { # 수집 결과 전체 JSON (statusMeta) — 누락 축은 필드 생략(서버 관용 파서가 흡수)
+build_report_json() { # $1=RAID 봉투(선택 · E3.5-5-a) — 수집 결과 전체 JSON (statusMeta). 누락 축은 필드 생략(서버 관용 파서가 흡수)
     serial=$(dmidecode -s baseboard-serial-number 2>/dev/null | head -1)
     bios=$(dmidecode -s bios-version 2>/dev/null | head -1)
     cpu_sockets=$(collect_cpu_sockets_json)
@@ -119,6 +119,7 @@ build_report_json() { # 수집 결과 전체 JSON (statusMeta) — 누락 축은
     [ -n "$cpu_sockets" ] && [ "$cpu_sockets" != "[]" ] && json="$json\"cpuSockets\":$cpu_sockets,"
     json="$json\"memoryModules\":${mem:-[]},\"disks\":${disks:-[]},\"pcieRaw\":${pcie:-[]}"
     [ -n "$bmc" ]    && json="$json,\"bmc\":$bmc"
+    [ -n "${1:-}" ]  && json="$json,\"raid\":$1"   # 카드 뒤 디스크 · 볼륨 봉투(RAID step 과 같은 계약) — 지원 칩 없음이면 키 생략
     json="$json}"
     printf '%s' "$json"
 }
@@ -146,9 +147,10 @@ report_step() { # $1=stepCode $2=status $3=statusMeta(JSON or null) → close �
     return 1
 }
 
-do_collect() {
+do_collect() { # $1=응답 바디(raidChips 힌트 — E3.5-5-a: 최초 진단도 카드 뒤 디스크까지 채집한다)
     echo "[agent] COLLECT - gathering hardware inventory..."
-    REPORT=$(build_report_json)
+    RAID_ENV=$(raid_envelope_json "${1:-}") || RAID_ENV=""   # 지원 칩 없음 = 봉투 생략(정상). 도구 부재는 reason 봉투로 실어 서버가 관용 흡수
+    REPORT=$(build_report_json "$RAID_ENV")
     CLOSE_RESP=$(report_step INFORMATION_COLLECTING SUCCEEDED "$REPORT") || return 0
     echo "[agent] inventory reported ($(printf '%s' "$REPORT" | wc -c | tr -d ' ') bytes)"
     handle_directive "$(printf '%s' "$CLOSE_RESP" | get_json_field directive)" "$CLOSE_RESP"
@@ -178,16 +180,17 @@ ensure_raid_driver() {
     sleep 1
 }
 
-collect_raid_report() { # $1=stepCode $2=응답 바디(raidChips 힌트 운반) — 계열 CLI 원문 채집 → base64 봉투 보고
-    echo "[agent] $1 - collecting card/disk/volume state..."
+# RAID 봉투 조립(E3.5-1 계약 · E3.5-5-a 에서 COLLECT 와 RAID step 이 공유) — $1=응답 바디(raidChips 힌트)
+#   stdout = 봉투 JSON. 정상 = tool + 원문 base64 / 도구 부재 · 미지 계열 = reason TOOL_MISSING 봉투(return 0)
+#   지원 칩 없음 = "no supported raid chip" reason 봉투를 내고 return 1 — COLLECT 는 생략(정상), RAID step 은 실패 보고
+raid_envelope_json() {
     LSPCI=$(lspci -nn -vv -d 1000: 2>/dev/null)
     LSPCI_B64=$(printf '%s' "$LSPCI" | b64)
-    CHIPS=$(printf '%s' "$2" | get_json_field raidChips)
-    detect_raid_family "$CHIPS" || {
-        report_step "$1" FAILED \
-            "{\"reason\":\"TOOL_MISSING\",\"detail\":\"no supported raid chip (server hint: $CHIPS)\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
-        return 0
-    }
+    CHIPS=$(printf '%s' "$1" | get_json_field raidChips)
+    if ! detect_raid_family "$CHIPS"; then
+        printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"no supported raid chip (server hint: $CHIPS)\",\"lspci_b64\":\"$LSPCI_B64\"}"
+        return 1
+    fi
     case "$FAMILY" in
     MEGARAID)
         # storcli64 우선, storcli(alias) 폴백 (사전 조사 §2 · 사용자 확인)
@@ -195,27 +198,37 @@ collect_raid_report() { # $1=stepCode $2=응답 바디(raidChips 힌트 운반) 
         command -v storcli64 >/dev/null 2>&1 && TOOL=storcli64
         [ -z "$TOOL" ] && command -v storcli >/dev/null 2>&1 && TOOL=storcli
         if [ -z "$TOOL" ]; then
-            report_step "$1" FAILED \
-                "{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64/storcli not found\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
+            printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64/storcli not found\",\"lspci_b64\":\"$LSPCI_B64\"}"
             return 0
         fi
         PD=$("$TOOL" /c0/eall/sall show all J 2>&1); VD=$("$TOOL" /c0/vall show all J 2>&1); C0=$("$TOOL" /c0 show all J 2>&1)
-        META="{\"tool\":\"$TOOL\",\"lspci_b64\":\"$LSPCI_B64\",\"pd_b64\":\"$(printf '%s' "$PD" | b64)\",\"vd_b64\":\"$(printf '%s' "$VD" | b64)\",\"c0_b64\":\"$(printf '%s' "$C0" | b64)\"}"
+        printf '%s' "{\"tool\":\"$TOOL\",\"lspci_b64\":\"$LSPCI_B64\",\"pd_b64\":\"$(printf '%s' "$PD" | b64)\",\"vd_b64\":\"$(printf '%s' "$VD" | b64)\",\"c0_b64\":\"$(printf '%s' "$C0" | b64)\"}"
         ;;
     MPT_IR)
         if ! command -v sas3ircu >/dev/null 2>&1; then
-            report_step "$1" FAILED \
-                "{\"reason\":\"TOOL_MISSING\",\"detail\":\"sas3ircu not found\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
+            printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"sas3ircu not found\",\"lspci_b64\":\"$LSPCI_B64\"}"
             return 0
         fi
         DISPLAY_OUT=$(sas3ircu 0 display 2>&1)
-        META="{\"tool\":\"sas3ircu\",\"lspci_b64\":\"$LSPCI_B64\",\"display_b64\":\"$(printf '%s' "$DISPLAY_OUT" | b64)\"}"
+        printf '%s' "{\"tool\":\"sas3ircu\",\"lspci_b64\":\"$LSPCI_B64\",\"display_b64\":\"$(printf '%s' "$DISPLAY_OUT" | b64)\"}"
         ;;
     *)
-        report_step "$1" FAILED \
-            "{\"reason\":\"TOOL_MISSING\",\"detail\":\"unknown family $FAMILY (agent adapter missing)\",\"lspci_b64\":\"$LSPCI_B64\"}" >/dev/null
-        return 0
+        printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"unknown family $FAMILY (agent adapter missing)\",\"lspci_b64\":\"$LSPCI_B64\"}"
         ;;
+    esac
+    return 0
+}
+
+collect_raid_report() { # $1=stepCode $2=응답 바디(raidChips 힌트 운반) — 계열 CLI 원문 채집 → base64 봉투 보고
+    echo "[agent] $1 - collecting card/disk/volume state..."
+    META=$(raid_envelope_json "$2") || {
+        report_step "$1" FAILED "$META" >/dev/null   # 지원 칩 없음 — RAID step 은 집행 전제라 실패 보고(종전 동작)
+        return 0
+    }
+    case "$META" in
+    *'"reason":"TOOL_MISSING"'*)
+        report_step "$1" FAILED "$META" >/dev/null
+        return 0 ;;
     esac
     CLOSE_RESP=$(report_step "$1" SUCCEEDED "$META") || return 0
     echo "[agent] $1 reported ($(printf '%s' "$META" | wc -c | tr -d ' ') bytes)"
@@ -340,7 +353,7 @@ handle_directive() { # $1=지시 $2=응답 바디(RAID_APPLY payload 운반) —
         REBOOT)
             echo "[agent] REBOOT - leaving diagnose linux, back to iPXE polling"
             sync; sleep 1; reboot ;;
-        COLLECT) do_collect ;;
+        COLLECT) do_collect "${2:-}" ;;
         RAID_INVENTORY) do_raid_inventory "${2:-}" ;;
         RAID_APPLY) do_raid_apply "${2:-}" ;;
         RAID_VERIFY) do_raid_verify "${2:-}" ;;

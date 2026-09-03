@@ -48,6 +48,33 @@ class ProvisioningHistoryMetaTest {
     }
 
     @Test
+    @DisplayName("E3.5-5-a F-2 — 게스트 원문 보고에 중첩된 raid.detail 은 사유가 아니다(최상위 키만 판독)")
+    void displayNote_ignoresNestedKeysInRawReport() {
+        String rawReport = "{\"boardSerial\":\"X\",\"disks\":[],\"raid\":{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64 not found\"}}";
+        ProvisioningHistory collecting = ProvisioningHistory.openRunning(server(), ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
+        collecting.close(ProvisioningStatus.SUCCEEDED, rawReport, T);
+        assertThat(collecting.displayNote()).isNull();
+
+        ProvisioningHistory plain = ProvisioningHistory.instant(server(), ProvisioningPhaseStep.INFORMATION_COLLECTING,
+                ProvisioningStatus.SUCCEEDED, "not-json \"detail\":\"x\"", T);
+        assertThat(plain.displayNote()).isNull();
+    }
+
+    @Test
+    @DisplayName("E3.5-5-a F-1 — 사유가 없으면 관용 흡수 목록(filtered)을 한 줄로 잇는다 · 빈 목록은 null")
+    void displayNote_fallsBackToAbsorbedList() {
+        ProvisioningHistory absorbed = ProvisioningHistory.instant(server(), ProvisioningPhaseStep.INFORMATION_PERSISTING,
+                ProvisioningStatus.SUCCEEDED,
+                "{\"filtered\":[\"raid(TOOL_MISSING)=storcli64/storcli not found\",\"boardSerial(duplicate)=ABC\"]}", T);
+        assertThat(absorbed.displayNote())
+                .isEqualTo("raid(TOOL_MISSING)=storcli64/storcli not found · boardSerial(duplicate)=ABC");
+
+        ProvisioningHistory clean = ProvisioningHistory.instant(server(), ProvisioningPhaseStep.INFORMATION_PERSISTING,
+                ProvisioningStatus.SUCCEEDED, "{\"filtered\":[]}", T);
+        assertThat(clean.displayNote()).isNull();
+    }
+
+    @Test
     @DisplayName("flashTargetMeta(name) — 이름은 name 키로만 실리고 target 은 버전 그대로다(R7 회귀 함정)")
     void nameDoesNotPolluteTarget() {
         ProvisioningHistory row = ProvisioningHistory.openRunning(server(), ProvisioningPhaseStep.BIOS_UPDATING,

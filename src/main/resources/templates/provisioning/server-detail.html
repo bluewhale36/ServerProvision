@@ -263,10 +263,10 @@
                         </tbody>
                     </table>
 
-                    <!-- 디스크 — SSD/HDD + 전송(SAS/SATA/NVMe). RAID 카드 뒤 물리 디스크는 OS 불가시(OPEN-1 확장 예정) -->
+                    <!-- 디스크 — SSD/HDD + 전송(SAS/SATA/NVMe), lsblk 가시분. RAID 카드 뒤 물리 디스크는 진단 시점 RAID 채집(E3.5-5-a)이 아래 RAID 인벤토리 카드에 세운다 -->
                     <table th:if="${not #lists.isEmpty(server.inventory.hardwareSpec.disks)}" class="n-table" style="margin-top: 16px;">
                         <thead>
-                        <tr><th colspan="4">디스크 (OS 가시분 — RAID 카드 뒤 물리 디스크는 별도)</th></tr>
+                        <tr><th colspan="4">디스크 (OS 가시 장치 — RAID 카드 뒤 물리 디스크는 아래 RAID 인벤토리)</th></tr>
                         <tr><th>장치</th><th>종류</th><th>전송</th><th>용량</th></tr>
                         </thead>
                         <tbody>
@@ -362,8 +362,8 @@
                     <p th:if="${#lists.isEmpty(raid.volumes)}" class="n-muted" style="margin-top: 12px;">기존 볼륨이 없습니다.</p>
                 </th:block>
 
-                <p th:unless="${server.inventory != null and server.inventory.raidInventory != null}" class="n-detail-empty">
-                    RAID 인벤토리가 아직 없습니다 — RAID 구성 단계에 진입하면 수집됩니다.</p>
+                <p th:unless="${server.inventory != null and server.inventory.raidInventory != null}" class="n-detail-empty"
+                   th:text="#{execution.raid-inventory.empty}">RAID 인벤토리가 아직 없습니다.</p>
             </div>
         </div>
     </div>
@@ -374,6 +374,27 @@
         <div class="n-card">
             <div class="n-card-body">
                 <th:block th:if="${server.raidPlan != null}" th:with="rp=${server.raidPlan}">
+                    <!-- 카드 대조 예고(E3.5-5-a D5) — 집행 대조(RaidCardMatch.judge)와 같은 판정을 개시 전에 보인다.
+                         할당이 없거나 카드 미지정(NOT_APPLICABLE)이면 줄 자체가 없다. 문구는 MessageSource 키(execution.raid-card-check.*) -->
+                    <th:block th:if="${rp.cardCheck != null}" th:with="cc=${rp.cardCheck}">
+                        <!-- 세 등급이 세 시각으로(CP5 F-3 · O-1): 일치 = 안내(회색 n-hint) · 대조 불가 = 주의 배너(n-alert-warning) ·
+                             불일치 · 미감지 = 위험 배너(n-alert-danger) — 전역 배너 클래스라 무게 순서가 뒤집히지 않는다.
+                             다음 행동의 자리(카드 자원)로 가는 링크를 함께 둔다 — 안내한 행동을 운영자가 찾아 헤매지 않게. -->
+                        <div th:if="${cc.verdict.name() == 'MATCH'}" class="n-hint"
+                             th:text="#{execution.raid-card-check.match(${cc.cardModelName}, ${cc.specifiedSubsystem}, ${cc.observedSubsystem})}">일치</div>
+                        <div th:if="${cc.verdict.name() == 'MISMATCH'}" class="n-alert n-alert-danger">
+                            <span th:text="#{execution.raid-card-check.mismatch(${cc.cardModelName}, ${cc.specifiedSubsystem}, ${cc.observedSubsystem})}">불일치</span>
+                            <a th:if="${cc.raidCardId != null}" th:href="@{/management/raidcard(selectId=${cc.raidCardId})}" style="margin-left: 8px;">카드 자원 열기</a>
+                        </div>
+                        <div th:if="${cc.verdict.name() == 'NOT_DETECTED'}" class="n-alert n-alert-danger">
+                            <span th:text="#{execution.raid-card-check.not-detected(${cc.cardModelName}, ${cc.specifiedSubsystem}, ${cc.observedSubsystem})}">미감지</span>
+                            <a th:if="${cc.raidCardId != null}" th:href="@{/management/raidcard(selectId=${cc.raidCardId})}" style="margin-left: 8px;">카드 자원 열기</a>
+                        </div>
+                        <div th:if="${cc.verdict.name() == 'UNVERIFIABLE'}" class="n-alert n-alert-warning">
+                            <span th:text="#{execution.raid-card-check.unverifiable(${cc.cardModelName}, ${cc.specifiedSubsystem}, ${cc.observedSubsystem})}">대조 불가</span>
+                            <a th:if="${cc.raidCardId != null}" th:href="@{/management/raidcard/{id}/edit(id=${cc.raidCardId})}" style="margin-left: 8px;">카드 자원에 Subsystem 입력</a>
+                        </div>
+                    </th:block>
                     <p th:if="${rp.policyUndecided}" class="n-muted">
                         기존 볼륨이 남아 있고 "기존 구성 : 보존 / 파괴" 선택 축은 아직 정의서에 없어(E3.5-4 예정)
                         두 갈래를 나란히 보입니다.</p>
