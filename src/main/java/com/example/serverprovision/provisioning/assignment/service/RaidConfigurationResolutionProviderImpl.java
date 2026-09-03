@@ -8,7 +8,6 @@ import com.example.serverprovision.provisioning.assignment.service.plan.RaidPlan
 import com.example.serverprovision.execution.engine.raid.RaidConfigurationTarget;
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.management.raidcard.repository.RaidCardRepository;
-import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest;
 import lombok.RequiredArgsConstructor;
@@ -72,11 +71,6 @@ public class RaidConfigurationResolutionProviderImpl implements RaidConfiguratio
     private Optional<RaidConfigurationRequest> activeRaidRequest(UUID guestServerId) {
         return assignmentRepository
                 .findByGuestServer_IdAndSupersededAtIsNull(guestServerId)
-                .flatMap(snapshot -> snapshot.getProcesses().stream()
-                        .map(AssignedProcessSnapshot::getPayload)
-                        .map(payload -> payload.request())
-                        .filter(RaidConfigurationRequest.class::isInstance)
-                        .map(RaidConfigurationRequest.class::cast)
-                        .findFirst());
+                .flatMap(snapshot -> snapshot.processRequestOf(RaidConfigurationRequest.class));
     }
 }

@@ -5,6 +5,7 @@ import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
+import com.example.serverprovision.management.raidcard.exception.IllegalRaidCardStateException;
 import com.example.serverprovision.management.raidcard.vo.CacheCapacity;
 import com.example.serverprovision.management.raidcard.vo.CacheCapacityConverter;
 import com.example.serverprovision.management.raidcard.vo.PciSubsystemId;
@@ -94,6 +95,20 @@ public class RaidCard extends LifecycleEntity implements Markable {
 		this.chipFamily = chipFamily;
 		this.description = description;
 		this.pciSubsystemId = pciSubsystemId;
+	}
+
+	/**
+	 * 관측값으로 확정(E3.5-5-b D4) — 미확인 카드에만 허용한다. 확정값이 있으면 관측으로 덮어쓰지 않는다(정정은 수정 폼).
+	 * 화면 · 서비스가 같은 판정({@code RaidCardObservationStatus})으로 먼저 거르므로 여기는 안전망이다.
+	 */
+	public void confirmObservedPciSubsystemId(PciSubsystemId observed) {
+		if (observed == null) {
+			throw new IllegalArgumentException("확정할 관측값이 없습니다.");
+		}
+		if (this.pciSubsystemId != null) {
+			throw new IllegalRaidCardStateException("이미 확정된 카드입니다 — 정정은 수정에서 하십시오. id=" + id);
+		}
+		this.pciSubsystemId = observed;
 	}
 
 	/** 캐시 보유 여부 — {@code RaidLevel.minimumDisks(cardHasCache)} 판정의 입력 (U4-1-1 계약). */

@@ -142,10 +142,46 @@
                             <td>
                                 <span th:if="${card.pciSubsystemIdDisplay != null}"
                                       th:text="${card.pciSubsystemIdDisplay}">1458:0011</span>
-                                <!-- 미확인 = 실물 관측(정밀 등록) 전 — 수정 폼에서 직접 입력할 수도 있다. -->
+                                <!-- 미확인 = 게스트 관측으로 확정하기 전 — 수정 폼에서 직접 입력할 수도 있다(E3.5-5-b). -->
                                 <span th:if="${card.pciSubsystemIdDisplay == null}"
                                       class="n-badge n-badge-gray"
-                                      title="아직 확인되지 않았습니다. 수정에서 직접 입력하거나 추후 정밀 등록으로 채워집니다.">미확인</span>
+                                      th:title="#{management.raid-card.observation.unconfirmed-hint}">미확인</span>
+
+                                <!-- E3.5-5-b 관측 블록 — 판정 · 배지 · 버튼 · tooltip 은 RaidCardObservationStatus 하나를 본다.
+                                     삭제된 카드는 요약 자체가 없다(observationByCard 에 키 없음). -->
+                                <th:block th:with="obs=${observationByCard != null ? observationByCard[card.id] : null}">
+                                    <div th:if="${obs != null}" th:data-observation-status="${obs.status.name()}">
+                                        <div th:if="${obs.status.name() == 'NONE'}" class="n-hint"
+                                             th:text="#{management.raid-card.observation.none}">관측 없음</div>
+                                        <div th:if="${obs.status.name() == 'AGREED_UNCONFIRMED'}" class="n-hint">
+                                            <span class="n-badge" th:classappend="${obs.badgeClass}"
+                                                  th:text="'관측 ' + ${obs.agreedValue}">관측 1000:9361</span>
+                                            <span th:text="#{management.raid-card.observation.agreed(${obs.agreedValue}, ${obs.guestCount})}"></span>
+                                        </div>
+                                        <div th:if="${obs.status.name() == 'MATCHES_CONFIRMED'}" class="n-hint">
+                                            <span class="n-badge" th:classappend="${obs.badgeClass}"
+                                                  th:text="#{management.raid-card.observation.matches(${obs.agreedValue}, ${obs.guestCount})}">관측 일치</span>
+                                        </div>
+                                        <div th:if="${obs.status.name() == 'DIFFERS_FROM_CONFIRMED'}" class="n-alert n-alert-danger"
+                                             th:text="#{management.raid-card.observation.differs(${obs.agreedValue}, ${card.pciSubsystemIdDisplay})}">확정값과 다름</div>
+                                        <div th:if="${obs.status.name() == 'CONFLICTING'}" class="n-alert n-alert-danger"
+                                             th:text="#{management.raid-card.observation.conflicting(${#strings.listJoin(obs.distinctValues, ' · ')})}">관측 상충</div>
+                                        <div th:each="v : ${obs.values}" class="n-hint">
+                                            <code th:text="${v.value}">1000:9361</code> —
+                                            <th:block th:each="g, st : ${v.guests}">
+                                                <a th:href="@{/provisioning/server/{id}(id=${g.guestServerId})}" th:text="${g.guestLabel}">G1</a><th:block th:unless="${st.last}"> · </th:block>
+                                            </th:block>
+                                        </div>
+                                        <form th:if="${obs.showsButton}"
+                                              th:action="@{/management/raidcard/{id}/confirm-observed(id=${card.id})}"
+                                              method="post">
+                                            <button type="submit" class="n-btn n-btn-sm n-btn-primary"
+                                                    th:disabled="${!obs.confirmable}"
+                                                    th:title="${obs.blockReason}"
+                                                    th:text="#{action.confirm-observed}">관측값으로 확정</button>
+                                        </form>
+                                    </div>
+                                </th:block>
                             </td>
                         </tr>
                         <tr>

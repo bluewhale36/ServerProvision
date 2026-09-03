@@ -4,12 +4,10 @@ import com.example.serverprovision.execution.engine.raid.RaidConfigurationTarget
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.management.raidcard.repository.RaidCardRepository;
 import com.example.serverprovision.management.raidcard.vo.PciSubsystemId;
-import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
 import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest;
-import com.example.serverprovision.provisioning.setting.vo.ProcessPayload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,10 +44,9 @@ class RaidConfigurationResolutionProviderImplTest {
             com.example.serverprovision.provisioning.setting.enums.ExistingRaidConfigPolicy policy) {
         RaidConfigurationRequest raid = new RaidConfigurationRequest(
                 raidCardId, List.of(), VolumePriorityRuleRequest.defaults(), policy);
-        AssignedProcessSnapshot process = mock(AssignedProcessSnapshot.class);
-        given(process.getPayload()).willReturn(new ProcessPayload(raid));
+        // E3.5-5-b — 단계 탐색은 SettingAssignmentSnapshot.processRequestOf 가 SSOT(관측 provider 와 공유)
         SettingAssignmentSnapshot snapshot = mock(SettingAssignmentSnapshot.class);
-        given(snapshot.getProcesses()).willReturn(List.of(process));
+        given(snapshot.processRequestOf(RaidConfigurationRequest.class)).willReturn(Optional.of(raid));
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST_ID))
                 .willReturn(Optional.of(snapshot));
     }
