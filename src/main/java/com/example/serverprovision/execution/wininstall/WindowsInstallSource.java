@@ -33,8 +33,11 @@ public class WindowsInstallSource {
         Path wimboot = InstallSourceSlot.WIMBOOT.resolve(root);
         Path bootWim = InstallSourceSlot.BOOT_WIM.resolve(root);
         Path setupExe = InstallSourceSlot.SETUP_EXE.resolve(root);
+        Path setupComplete = InstallSourceSlot.OEM_SETUPCOMPLETE.resolve(root);
+        Path report = InstallSourceSlot.OEM_REPORT.resolve(root);
         return new WindowsInstallAssets(wimboot, Files.isRegularFile(wimboot),
-                bootWim, Files.isRegularFile(bootWim), setupExe, Files.isRegularFile(setupExe));
+                bootWim, Files.isRegularFile(bootWim), setupExe, Files.isRegularFile(setupExe),
+                setupComplete, Files.isRegularFile(setupComplete), report, Files.isRegularFile(report));
     }
 
     /** wimboot 의 SHA-256(16진) — 런북 §14-4 의 서명 릴리스 해시와 눈으로 대조하는 chip 재료. 없거나 못 읽으면 empty. */

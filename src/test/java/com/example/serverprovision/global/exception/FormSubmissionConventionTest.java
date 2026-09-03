@@ -102,11 +102,16 @@ class FormSubmissionConventionTest {
 	 * ① 정의서 고르기 모달(일괄 할당과 표준 지정이 한 폼을 모드로 나눠 쓴다) ② 표준 해제
 	 * ③ 안내 배너의 표준 적용. 목록은 파일명이 아니라 <b>폼 하나마다 한 줄</b>이며, 아래에서 하나씩
 	 * 덜어내므로 셋 중 하나가 표기를 잃으면 덜어낼 것이 모자라 수가 어긋난다.</p>
+	 *
+	 * <p>{@code system/asset/dashboard.html} — Windows 설치 소스 영역의 [드라이버 페이로드 조립](E4-1-a-4). 조립 결과
+	 * (n종 · 크기 · 제외 k)를 flash 로 알리는데 같은 사정으로 flash 가 fetch 안에서 소비됐다(CP5 F-3 실측 · 적립 결함의
+	 * 4번째 지점). 같은 화면의 [봉인] 은 가로채기 그대로다.</p>
 	 */
 	private static final List<String> NATIVE_FOR_FLASH = List.of(
 			"provisioning/server-group-detail.html",
 			"provisioning/server-group-detail.html",
-			"provisioning/server-group-detail.html");
+			"provisioning/server-group-detail.html",
+			"system/asset/dashboard.html");
 
 	/**
 	 * 핵심 가드다. 실패 시 뷰를 다시 렌더하는 핸들러는 {@code BindingResult} 를 받는다 — 그것이 재렌더의

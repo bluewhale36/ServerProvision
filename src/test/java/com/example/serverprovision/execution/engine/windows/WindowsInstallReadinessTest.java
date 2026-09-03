@@ -43,7 +43,13 @@ class WindowsInstallReadinessTest {
     }
 
     static WindowsInstallAssets assets(boolean wimboot, boolean bootWim, boolean setup) {
-        return new WindowsInstallAssets(Path.of("wimboot"), wimboot, Path.of("boot.wim"), bootWim, Path.of("setup.exe"), setup);
+        return assets(wimboot, bootWim, setup, true);
+    }
+
+    /** E4-1-a-4 — 설치 후 스크립트 둘의 존재를 하나의 플래그로(둘 다 있음 / 둘 다 없음). */
+    static WindowsInstallAssets assets(boolean wimboot, boolean bootWim, boolean setup, boolean oemScripts) {
+        return new WindowsInstallAssets(Path.of("wimboot"), wimboot, Path.of("boot.wim"), bootWim, Path.of("setup.exe"), setup,
+                Path.of("$OEM$/$$/Setup/Scripts/SetupComplete.cmd"), oemScripts, Path.of("$OEM$/$1/SPV/spv-report.ps1"), oemScripts);
     }
 
     static Optional<WindowsInstallTarget> windows() {
@@ -156,5 +162,27 @@ class WindowsInstallReadinessTest {
                 source(), props("/srv/pxe/win2025", "", "", "", "KEY-STD", null), assets(true, false, true));
         assertThat(r.wire()).isEqualTo("administrator password missing; boot.wim missing; share credentials missing; product key missing for ServerDatacenter");
         assertThat(r.notes()).hasSize(4);
+    }
+
+    @Test
+    @DisplayName("12행(E4-1-a-4) — 설치 후 스크립트 둘 중 하나라도 없으면 BLOCKED · 사유가 대시보드 조립 버튼을 지목 · wire 'oem scripts not assembled'")
+    void oemScriptsMissing_blocked() {
+        PhaseReadiness r = WindowsInstallReadiness.judge(windows(), source(), props(), assets(true, true, true, false));
+
+        assertThat(r.isBlocked()).isTrue();
+        assertThat(r.wire()).isEqualTo("oem scripts not assembled");
+        assertThat(r.notes()).singleElement().asString().contains("설치 후 스크립트 미조립").contains("[드라이버 페이로드 조립]");
+        WindowsInstallAssets half = new WindowsInstallAssets(Path.of("wimboot"), true, Path.of("boot.wim"), true, Path.of("setup.exe"), true,
+                Path.of("SetupComplete.cmd"), true, Path.of("spv-report.ps1"), false);
+        assertThat(WindowsInstallReadiness.judge(windows(), source(), props(), half).wire()).isEqualTo("oem scripts not assembled");
+    }
+
+    @Test
+    @DisplayName("12행은 소스 미설정이면 따로 나오지 않는다(소스 사유 하나로 충분) · 스크립트가 있으면 READY 그대로")
+    void oemScripts_notDoubledWhenUnconfigured() {
+        PhaseReadiness unconfigured = WindowsInstallReadiness.judge(windows(), source(),
+                props("", "\\\\h\\s", "deploy", "pw", "KEY", null), WindowsInstallAssets.none());
+        assertThat(unconfigured.wire()).isEqualTo("install source not configured");
+        assertThat(WindowsInstallReadiness.judge(windows(), source(), props(), assets(true, true, true, true)).isBlocked()).isFalse();
     }
 }

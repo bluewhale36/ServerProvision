@@ -272,8 +272,9 @@ public record GuestServerDetailResponse(
     }
 
     /**
-     * Windows 설치 카드(E4-1-a-3 R5) — 준비도는 조회 시점 재계산, 진행은 원장 RUNNING 행의 투영이다.
-     * {@code remainingMinutes} 는 서빙 뒤에만(null 이면 표시 생략), {@code failedReason} 은 이 원장이 적은 실패 행이 최신일 때만.
+     * Windows 설치 카드(E4-1-a-3 R5 · E4-1-a-4 R6) — 준비도는 조회 시점 재계산, 진행은 원장 행의 투영이다.
+     * {@code remainingMinutes} 는 설치 중에만(null 이면 표시 생략), {@code failedReason} 은 이 원장이 적은 실패 행이 최신일 때만,
+     * {@code completedAt} 이하 완료 필드는 완료 보고로 닫힌 행이 최신일 때만. {@code nextPhase} 는 완료 뒤 커서가 넘어간 소유 phase(종단이면 null).
      */
     public record WindowsInstall(
             String imageName,
@@ -286,10 +287,23 @@ public record GuestServerDetailResponse(
             Long remainingMinutes,
             String failedReason,
             boolean holding,
-            long holdRemainingMinutes
+            long holdRemainingMinutes,
+            LocalDateTime completedAt,
+            String computerName,
+            String osVersion,
+            int driversAdded,
+            int problemDeviceCount,
+            List<String> problemDevices,
+            boolean provisioningCompleted,
+            ProvisioningPhase nextPhase
     ) {
+        /** 설치 중(열린 서빙 행) — 완료 · 실패 뒤에는 false. */
         public boolean served() {
-            return servedAt != null;
+            return servedAt != null && completedAt == null && failedReason == null;
+        }
+
+        public boolean completed() {
+            return completedAt != null;
         }
     }
 

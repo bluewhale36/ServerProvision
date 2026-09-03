@@ -43,6 +43,15 @@ public interface SystemAssetArea {
      */
     AssetSlotStatus inspect(SystemAssetSlot slot);
 
+    /**
+     * 영역 전용 액션(대시보드 헤더의 버튼 — 예: Windows 설치 소스의 [드라이버 페이로드 조립])을 지금 시작할 수 없는 사유.
+     * 액션의 URL · 라벨은 영역별로 뷰가 그리되(DHCPD 임대 링크 선례), 버튼 disabled 와 서버 409 가드는 이 한 판정을 공유한다
+     * (UI 1차 차단 · 서버 안전망 · 단일 SSOT). 액션이 없는 영역은 기본 empty.
+     */
+    default java.util.Optional<String> actionBlockReason() {
+        return java.util.Optional.empty();
+    }
+
     /** 봉인 지원 여부. 파일 봉인 기반 영역만 true. UI 봉인 버튼 노출과 서버 가드가 이 플래그를 공유한다(SSOT). */
     default boolean supportsSeal() {
         return true;

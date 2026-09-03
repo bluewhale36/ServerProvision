@@ -67,6 +67,10 @@ public final class WindowsInstallReadiness {
             if (!assets.wimbootPresent()) {
                 add(notes, wire, "wimboot 없음 — 소스 루트에 배치하세요", "wimboot missing");
             }
+            // 12행(E4-1-a-4) — 스크립트가 없으면 설치는 끝나도 완료 보고가 오지 않는다. 드라이버 갱신 필요는 차단이 아니다(chip 경고).
+            if (!assets.oemScriptsPresent()) {
+                add(notes, wire, "설치 후 스크립트 미조립 — " + DASHBOARD + "에서 [드라이버 페이로드 조립]", "oem scripts not assembled");
+            }
         }
 
         if (!props.shareConfigured()) {

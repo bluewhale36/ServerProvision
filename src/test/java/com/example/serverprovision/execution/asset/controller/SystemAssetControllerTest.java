@@ -211,10 +211,10 @@ class SystemAssetControllerTest {
     private static SystemAssetOverviewResponse overview() {
         SystemAssetAreaGroupResponse diagnostic = new SystemAssetAreaGroupResponse(
                 "DIAGNOSTIC", "진단 리눅스 부팅 자산", "CONFIGURED",
-                List.of(row("VMLINUZ", "커널 (vmlinuz-lts)", "vmlinuz-lts")), 1, 1, true, List.of());
+                List.of(row("VMLINUZ", "커널 (vmlinuz-lts)", "vmlinuz-lts")), 1, 1, true, List.of(), null);
         SystemAssetAreaGroupResponse tftp = new SystemAssetAreaGroupResponse(
                 "TFTP", "TFTP 부팅 인프라 자산", "CONFIGURED",
-                List.of(row("IPXE_EFI", "iPXE 부트 (ipxe.efi)", "ipxe.efi")), 1, 1, true, List.of());
+                List.of(row("IPXE_EFI", "iPXE 부트 (ipxe.efi)", "ipxe.efi")), 1, 1, true, List.of(), null);
         return new SystemAssetOverviewResponse(List.of(diagnostic, tftp), 2, 2);
     }
 
@@ -222,5 +222,39 @@ class SystemAssetControllerTest {
         return new SystemAssetSlotResponse(
                 key, label, "netboot 아티팩트", filename, "단일 파일",
                 true, false, "13.0 MB", null, "원본 유지", "n-badge-green", "패키지 업데이트 시");
+    }
+
+    // ── E4-1-a-4 — Windows 설치 소스 영역의 [드라이버 페이로드 조립] 버튼 ──────────────────────
+
+    private static SystemAssetAreaGroupResponse windowsArea(String actionBlockReason) {
+        return new SystemAssetAreaGroupResponse("WINDOWS_INSTALL", "Windows 설치 소스 (Samba 공유)", "CONFIGURED",
+                List.of(row("BOOT_WIM", "WinPE 부팅 이미지 (boot.wim)", "sources/boot.wim")), 1, 1, false,
+                List.of(new com.example.serverprovision.execution.asset.dto.response.AssetContextItemResponse(
+                        "드라이버 페이로드", "미조립 · 제외 1", "n-badge-orange")), actionBlockReason);
+    }
+
+    @Test
+    @DisplayName("GET /system/asset — Windows 영역만 조립 버튼(전용 경로) · 차단 사유 없으면 활성 · chip '드라이버 페이로드' 렌더 · 봉인 버튼 없음")
+    void dashboard_windowsArea_assembleButton() throws Exception {
+        given(dashboardService.loadOverview()).willReturn(new SystemAssetOverviewResponse(List.of(windowsArea(null)), 1, 1));
+
+        mvc.perform(get("/system/asset"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/system/windows-install/oem-sync")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("드라이버 페이로드 조립")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("드라이버 페이로드 미조립 · 제외 1")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/system/asset/WINDOWS_INSTALL/seal"))));
+    }
+
+    @Test
+    @DisplayName("GET /system/asset — 차단 사유가 있으면 조립 버튼 disabled + 사유 tooltip(서버 409 가드와 같은 판정)")
+    void dashboard_windowsArea_assembleBlocked() throws Exception {
+        given(dashboardService.loadOverview()).willReturn(new SystemAssetOverviewResponse(
+                List.of(windowsArea("sources/$OEM$ 에 쓰기 권한이 없습니다 — 런북 §14-1")), 1, 1));
+
+        mvc.perform(get("/system/asset"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("쓰기 권한이 없습니다 — 런북 §14-1")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesRegex("(?s).*<button[^>]*disabled[^>]*>드라이버 페이로드 조립</button>.*")));
     }
 }

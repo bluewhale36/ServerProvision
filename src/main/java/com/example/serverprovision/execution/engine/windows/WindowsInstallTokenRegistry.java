@@ -52,6 +52,11 @@ public class WindowsInstallTokenRegistry {
         }
     }
 
+    /** 앱 base URL(pxe.server.base-url, 끝 슬래시 제거) — 완료 보고 스크립트의 인자로도 쓰인다(E4-1-a-4). */
+    public String baseUrl() {
+        return baseUrl;
+    }
+
     /** 이 토큰 번들의 URL 접두 — iPXE 스크립트가 파일명을 뒤에 붙인다. */
     public String bundleUrl(UUID token) {
         if (!issued.containsKey(token)) {

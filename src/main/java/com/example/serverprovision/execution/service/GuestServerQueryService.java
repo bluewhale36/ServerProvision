@@ -835,10 +835,15 @@ public class GuestServerQueryService {
         boolean failed = progress != null && progress.isFailed();
         Optional<ProvisioningHistory> running = failed ? Optional.empty()   // 실패 전환 뒤 남은 열린 행(구 데이터)은 진행이 아니다
                 : latest.filter(h -> h.getStatus() == ProvisioningStatus.RUNNING);
+        Optional<ProvisioningHistory> completed = failed ? Optional.empty()  // E4-1-a-4 — 완료 보고로 닫힌 행
+                : latest.filter(windowsInstallLedger::isCompletedRow);
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime servedAt = running.map(windowsInstallLedger::servedAtOf).orElse(null);
+        LocalDateTime servedAt = running.or(() -> completed).map(windowsInstallLedger::servedAtOf).orElse(null);
         boolean failedHere = failed && latest.filter(h -> h.getStatus() == ProvisioningStatus.FAILED).isPresent();
         boolean holding = progress != null && progress.isHolding() && progress.currentPhase() == ProvisioningPhase.OS_INSTALLING;
+        boolean provisioningCompleted = progress != null && progress.isCompleted();
+        ProvisioningPhase nextPhase = completed.isPresent() && !provisioningCompleted && progress != null
+                && progress.currentPhase() != ProvisioningPhase.OS_INSTALLING ? progress.currentPhase() : null;
         return new GuestServerDetailResponse.WindowsInstall(
                 resolved.map(r -> r.target().imageName()).map(name -> name == null ? null : name.value())
                         .orElseGet(() -> latest.map(windowsInstallLedger::imageOf).orElse(null)),
@@ -846,12 +851,20 @@ public class GuestServerQueryService {
                 resolved.map(r -> r.readiness().grade()).orElse(null),
                 resolved.map(r -> r.readiness().notes()).orElse(List.of()),
                 servedAt,
-                running.map(windowsInstallLedger::reentriesOf).orElse(0),
+                running.or(() -> completed).map(windowsInstallLedger::reentriesOf).orElse(0),
                 windowsInstallTimeoutPolicy.maxReentries(),
-                servedAt == null ? null : windowsInstallTimeoutPolicy.remainingMinutes(servedAt, now),
+                running.isEmpty() ? null : windowsInstallTimeoutPolicy.remainingMinutes(servedAt, now),
                 failedHere ? latest.map(windowsInstallLedger::reasonOf).orElse(null) : null,
                 holding,
-                holding ? holdRemainingMinutes(progress) : 0L);
+                holding ? holdRemainingMinutes(progress) : 0L,
+                completed.map(windowsInstallLedger::completedAtOf).orElse(null),
+                completed.map(windowsInstallLedger::computerNameOf).orElse(null),
+                completed.map(windowsInstallLedger::osVersionOf).orElse(null),
+                completed.map(windowsInstallLedger::driversAddedOf).orElse(0),
+                completed.map(windowsInstallLedger::problemDeviceCountOf).orElse(0),
+                completed.map(windowsInstallLedger::problemDevicesOf).orElse(List.of()),
+                completed.isPresent() && provisioningCompleted,
+                nextPhase);
     }
 
     private static GuestServerDetailResponse.FirmwarePlan.Axis axisOf(AxisResolution axis, String label) {

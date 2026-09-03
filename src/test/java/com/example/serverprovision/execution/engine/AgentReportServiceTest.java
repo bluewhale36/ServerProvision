@@ -54,7 +54,7 @@ class AgentReportServiceTest {
     private static final String TOKEN = "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d";
     private static final LocalDateTime T = LocalDateTime.of(2026, 7, 18, 12, 0);
 
-    @Mock GuestServerRepository guestServerRepository;
+    @Mock com.example.serverprovision.execution.service.GuestTokenAuthenticator guestTokenAuthenticator;   // E4-1-a-4 D-5 — 토큰 인증 추출
     @Mock GuestServerDetailRepository guestServerDetailRepository;   // E1-2 — 지시 판정(미수집 여부) 입력
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
     @Mock ProvisioningHistoryRepository provisioningHistoryRepository;
@@ -79,7 +79,7 @@ class AgentReportServiceTest {
     private GuestServer stubGuest() {
         UUID id = UUID.randomUUID();
         GuestServer g = guest(id);
-        given(guestServerRepository.findByGuestToken(new GuestToken(TOKEN))).willReturn(Optional.of(g));
+        given(guestTokenAuthenticator.requireByToken(TOKEN)).willReturn(g);
         return g;
     }
 
@@ -189,7 +189,7 @@ class AgentReportServiceTest {
         UUID id = UUID.randomUUID();
         GuestServer decom = GuestServer.builder().id(id).systemUUID(UUID.randomUUID())
                 .decommissionedAt(T).build();
-        given(guestServerRepository.findByGuestToken(new GuestToken(TOKEN))).willReturn(Optional.of(decom));
+        given(guestTokenAuthenticator.requireByToken(TOKEN)).willReturn(decom);
         given(provisioningProgressRepository.findByGuestServer_Id(id))
                 .willReturn(Optional.of(progress(decom, true, ProvisioningPhaseStep.INFORMATION_COLLECTING)));
 
@@ -200,7 +200,7 @@ class AgentReportServiceTest {
     @Test
     @DisplayName("토큰 불일치·공백 → GuestServerNotFound(404) — 존재 비노출")
     void checkin_badToken_throws404() {
-        given(guestServerRepository.findByGuestToken(any())).willReturn(Optional.empty());
+        given(guestTokenAuthenticator.requireByToken(any())).willThrow(GuestServerNotFoundException.byToken());
         assertThatThrownBy(() -> service.checkin("deadbeef"))
                 .isInstanceOf(GuestServerNotFoundException.class);
         assertThatThrownBy(() -> service.checkin("  "))
@@ -392,7 +392,7 @@ class AgentReportServiceTest {
         UUID id = UUID.randomUUID();
         GuestServer decom = GuestServer.builder().id(id).systemUUID(UUID.randomUUID())
                 .decommissionedAt(T).build();
-        given(guestServerRepository.findByGuestToken(new GuestToken(TOKEN))).willReturn(Optional.of(decom));
+        given(guestTokenAuthenticator.requireByToken(TOKEN)).willReturn(decom);
         given(provisioningProgressRepository.findByGuestServer_Id(id))
                 .willReturn(Optional.of(progress(decom, true, ProvisioningPhaseStep.INFORMATION_COLLECTING)));
 

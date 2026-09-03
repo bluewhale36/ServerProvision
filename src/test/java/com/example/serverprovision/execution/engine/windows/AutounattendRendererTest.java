@@ -12,7 +12,7 @@ class AutounattendRendererTest {
 
     private static AutounattendRenderer.AutounattendValues values(String imageName, String password) {
         return new AutounattendRenderer.AutounattendValues("ko-KR", "TVRH6-WHNXV-R9WG3-9XRFY-MY832", imageName,
-                "SPV-14174000", "Korea Standard Time", password);
+                "SPV-14174000", "Korea Standard Time", password, "http://10.0.0.7:8080", "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d");
     }
 
     @Test
@@ -50,11 +50,14 @@ class AutounattendRendererTest {
     }
 
     @Test
-    @DisplayName("구조 — FirstLogonCommands 는 표식 파일 명령 하나뿐(완료 보고 · $OEM$ 은 E4-1-a-4)")
-    void render_keepsFirstLogonMarkerOnly() {
+    @DisplayName("구조 — FirstLogonCommands 는 표식 파일(1) + 완료 보고 스크립트 실행(2, E4-1-a-4) — base URL · 토큰이 인자로 실린다")
+    void render_firstLogonMarkerAndReport() {
         String xml = AutounattendRenderer.render(values("Windows Server 2025 SERVERSTANDARD", "P@ssw0rd!"));
-        assertThat(xml.split("<SynchronousCommand", -1)).hasSize(2);
-        assertThat(xml).contains("spv-firstlogon.txt").doesNotContain("after-devices").doesNotContain("SetupComplete");
+        assertThat(xml.split("<SynchronousCommand", -1)).hasSize(3);
+        assertThat(xml).contains("spv-firstlogon.txt")
+                .contains("-File C:\\SPV\\spv-report.ps1 -BaseUrl \"http://10.0.0.7:8080\" -Token \"a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d\"")
+                .doesNotContain("__REPORT_BASE_URL__").doesNotContain("__GUEST_TOKEN__")
+                .doesNotContain("SetupComplete");   // 스크립트 본체는 $OEM$ 로 간다 — 응답 파일에는 실행 명령만
     }
 
     @Test

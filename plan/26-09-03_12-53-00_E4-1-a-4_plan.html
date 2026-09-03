@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-1-a-4 Plan — $OEM$ 페이로드 조립 · 완료 보고 · phase 종결 · 게스트 상세</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list (localStorage) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq : 4-actor 스윔레인 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); }
+  .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); }
+  .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  /* ── pkg-tree / card-grid ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+  .card pre { margin:0; background:rgba(255,255,255,0.55); }
+
+  /* ── 반응형 (명세 §3) — 데스크톱 무변경 ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E4-1-a-4 — $OEM$ 페이로드 조립 · 완료 보고 · phase 종결 · 게스트 상세 <span class="v2-badge">E4-1-a-4</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E4-1-a-4 (feature)</span>
+    <span><strong>계열</strong> E — 프로비저닝 실행 엔진</span>
+    <span><strong>상위</strong> E4-1-a (Windows Server 2025 무인 설치)</span>
+    <span><strong>scope</strong> Subprogram(DRIVER) → $OEM$ 조립 · 첫 로그온 완료 보고 · 시한 스윕 · 카드</span>
+    <span><strong>작성</strong> 2026-09-03 KST · 앵커 세션</span>
+    <span><strong>입력</strong> 토론 1호 D4 · D9(층 A · C) · Q2 · Q5 · Q10 · 실측 2 · 3호($OEM$ · SetupComplete · 드라이버 92 → 0) · E4-1-a-3 인계 4건</span>
+    <span><strong>브랜치</strong> <code>feat/E4-1-a-4_windows-oem-completion</code> (origin/dev 688f423)</span>
+    <span><strong>CP1</strong> 승인(2026-09-03) — OQ-1~3 권고안 채택 · OS 구분은 후속 슬라이스</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 한눈 요약</a></li>
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 한눈 요약 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 한눈 요약</summary>
+      <div class="body">
+        <p style="margin-top:0;">E4-1-a-3 은 게스트에게 Windows 설치 스크립트를 내주는 데까지 갔고 거기서 멈췄다.
+        설치에 성공한 게스트도 원장의 RUNNING 행에 그대로 서 있고, 드라이버는 아무도 넣어 주지 않으며, 다 쓴 토큰은 회수되지 않는다.
+        이 슬라이스는 그 뒤를 잇는다 — <b>설치 이후에 일어나야 할 일 넷</b>을 채운다.</p>
+        <div class="callout">
+          <ul>
+            <li><b>앱이 <code>sources/$OEM$</code> 을 조립한다</b> — <code>Subprogram</code>(DRIVER) 자원의 디렉토리 트리를 복사하고, 첫 로그온 스크립트 둘과 매니페스트를 함께 쓴다</li>
+            <li><b>첫 로그온 스크립트가 앱에 완료를 보고한다</b> — 게스트 토큰을 들고 전용 엔드포인트로 결과(문제 장치 수 · 설치된 드라이버 수 · 컴퓨터 이름)를 올린다</li>
+            <li><b>완료가 원장 행을 닫고 토큰을 회수하고 커서를 종단시킨다</b> — 서빙 시점에 적어 둔 메타는 지우지 않고 완료 메타를 덧댄다</li>
+            <li><b>재PXE 가 없는 게스트도 닫힌다</b> — 시한과 유예를 넘긴 설치 중 게스트를 스윕 워커가 실패로 전환한다</li>
+          </ul>
+        </div>
+        <div class="callout warn"><b>변경 범위</b> — 엔티티 · Repository · DDL 은 건드리지 않는다.
+        원장은 기존 <code>ProvisioningHistory</code> 를 그대로 쓰고, 새 <code>ProvisioningPhaseStep</code> 도 만들지 않는다.
+        추가되는 것은 설정 키 둘과 자바 클래스 열하나다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래는 이 슬라이스가 손대는 자리 주변에서 지금 실제로 무슨 일이 벌어지는지를
+        코드와 실측 기록에서 확인한 것이다.</p>
+
+        <h4>1-1. E4-1-a-3 이 남긴 공백 넷</h4>
+        <p>앞 슬라이스는 자기 경계를 명시하고 멈췄다. 그 경계가 그대로 이 슬라이스의 착수 지점이다.</p>
+        <table>
+          <thead><tr><th>#</th><th>공백</th><th>지금 남는 결과</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>완료 보고를 받는 경로가 없다</td><td>설치에 성공한 게스트도 카드가 "설치 중" 으로 남는다</td></tr>
+            <tr><td>②</td><td>토큰은 재서빙 · 실패 때만 회수된다</td><td>완료한 게스트의 토큰이 계속 살아 있다</td></tr>
+            <tr><td>③</td><td>RUNNING 행을 닫는 쪽이 서빙 메타를 보존해야 한다는 제약이 인계됐다</td><td>지키지 않으면 이미지 · 서빙 시각 · 재진입 수가 close 때 사라진다</td></tr>
+            <tr><td>④</td><td>부트 순서가 디스크 우선이면 재PXE 가 없다</td><td>시한 판정이 영원히 일어나지 않는다 (앞 슬라이스 D-8 이 적어 둔 공백)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>1-2. 실측 2 · 3호가 고정한 계약 — 구조를 바꾸지 않는다</h4>
+        <p>드라이버를 어디에 두면 Windows Setup 이 알아서 집어 가는지는 실기에서 이미 확인됐다.
+        <code>sources\$OEM$\$1\SPV\Drivers\&lt;묶음&gt;</code> 아래 INF(Setup Information File — 장치 드라이버 설치 정보 파일) 세트를 두고,
+        <code>$$\Setup\Scripts\SetupComplete.cmd</code> 가 묶음 폴더를 돌며
+        <code>pnputil /add-driver "&lt;폴더&gt;\*.inf" /subdirs /install</code> 을 부른다.
+        로그는 <code>C:\SPV\setupcomplete.log</code> 에 쌓이고, 끝에서 <code>pnputil /enum-devices /problem</code> 으로 남은 문제 장치를 센다.
+        이 절차로 <b>문제 장치가 92 개에서 0 개로</b> 떨어졌고 드라이버 47 개가 설치됐다.</p>
+        <p>주의할 조건이 둘 있다. <code>SetupComplete.cmd</code> 는 <b>OEM 제품 키로 설치할 때만 건너뛰어진다</b> —
+        볼륨 라이선스 키(GVLK)로 설치하는 우리 경로에서는 실행된다.
+        그리고 설치된 Windows Server 2025 에는 <code>curl.exe</code> 와 PowerShell 이 내장돼 있다.
+        WinPE 에는 없었던 그 둘이 설치 후에는 있으므로, 완료 보고를 게스트가 직접 보낼 수 있다.</p>
+
+        <h4>1-3. 드라이버는 이미 자원으로 등록돼 있다</h4>
+        <p>드라이버는 <code>Subprogram</code> 자원이다. <code>kind</code> 가 <code>DRIVER</code> 또는 <code>UTILITY</code> 이고,
+        <code>boardModel</code> 이 <code>null</code> 이면 보드 무관 공용이다.
+        파일은 단일 파일이 아니라 <code>treeRootPath</code> 아래 디렉토리 트리이고,
+        <code>manifestHash</code> · <code>fileCount</code> · <code>totalBytes</code> 로 내용이 요약돼 있으며 own/effective 라이프사이클을 탄다.
+        조회는 <code>findAllByKindAndIsDeletedFalse</code> · <code>findByKindAndCommonScope</code> · <code>findByKindAndBoardId</code> 가 이미 있다.</p>
+        <div class="callout warn"><b>OS 구분 속성이 없다</b> — <code>Subprogram</code> 에는 "이 드라이버가 Windows 용인가" 를 적는 자리가 없다.
+        Windows 드라이버인지는 <b>트리 안에 <code>*.inf</code> 가 있는가</b> 로만 알 수 있다(토론 Q10).
+        이 사실이 §8 D-2 의 대상 선정과 제외 목록 설계를 좌우한다.</div>
+
+        <h4>1-4. 보고 창구는 있는데 완료를 여기로 받을 수 없다</h4>
+        <p>게스트 에이전트의 보고 창구는 <code>GuestAgentRestController</code> 의 셋이다 —
+        <code>/api/pxe/v1/agent/checkin</code> · <code>/agent/steps</code> · <code>/agent/steps/{id}/close</code>.
+        모두 <code>X-Guest-Token</code> 헤더로 신원을 확인하고, 처리는 <code>AgentReportService</code>(<code>engine.diagnose</code> 패키지)가 한다.
+        토큰으로 게스트를 찾는 <code>requireByToken</code> 은 그 클래스의 private 메서드이고,
+        게이트는 <code>GuestServerStatus.derive</code> 가 <code>PROVISIONING</code> 인지를 본다.
+        close 는 <code>onStepClosed</code> 훅과 <code>directiveFor</code> 를 부른다.</p>
+        <p>완료를 <code>close</code> 로 받으려면 게스트가 <code>stepId</code> 를 알아야 한다.
+        그런데 Windows 설치의 서빙 행은 <b>렌더가 끝난 뒤 훅에서</b> 열린다 — 렌더본에 그 id 를 담을 방법이 없다.
+        이것이 §8 D-4 에서 전용 엔드포인트를 고르는 이유다.</p>
+
+        <h4>1-5. 종결 규칙은 이미 서 있다</h4>
+        <p>커서 전진과 종단은 <code>PhaseCursorAdvancer.advanceOrComplete</code> 하나가 맡는다 —
+        다음 소유 phase 가 있으면 그 앞에 pre-position 하고, 없으면 <code>markCompleted</code> 로 닫는다.
+        종단에 이른 게스트는 dispatch 4행이 받아 <code>completedExit</code>(<code>exit</code> 한 줄)를 돌려준다.
+        <code>OwnedPhases</code> 는 <code>TESTING</code> 을 소유하지 않으므로, OS 설치만 담은 Windows 정의서에서는
+        <b>완료가 곧 종단</b>이다. 이 슬라이스는 규칙을 새로 만들지 않고 이 메서드를 부르기만 한다.</p>
+
+        <h4>1-6. 대시보드와 스케줄에는 따라 쓸 관용구가 있다</h4>
+        <table>
+          <thead><tr><th>관용구</th><th>선례</th><th>이번 쓰임</th></tr></thead>
+          <tbody>
+            <tr><td>영역별 액션 링크</td><td><code>dashboard.html</code> 의 <code>th:if="${area.areaKey == 'DHCPD'}"</code></td><td>Windows 영역에만 [드라이버 페이로드 조립] 버튼</td></tr>
+            <tr><td>영역 액션 엔드포인트</td><td><code>SystemAssetController</code> 의 <code>/{area}/seal</code> · <code>/recheck</code></td><td>전용 컨트롤러의 <code>oem-sync</code>(의미가 달라 재사용하지 않는다 — §8 D-6)</td></tr>
+            <tr><td>주기 워커</td><td><code>BiosUploadIntentService</code> · <code>AssignmentReaper</code> 의 <code>@Scheduled(fixedDelayString = "${키:기본}")</code></td><td>시한 스윕 워커</td></tr>
+            <tr><td>스케줄 활성화</td><td><code>AsyncConfig</code> 의 <code>@EnableScheduling</code></td><td>추가 설정 없이 그대로 동작</td></tr>
+          </tbody>
+        </table>
+
+        <h4>1-7. 운영 계정 경계 — 지금은 앱이 못 쓴다</h4>
+        <p>런북 §14-1 은 <code>/srv/pxe/win2025</code> 를 <code>spvadmin</code> 소유로 둔다.
+        추출 절차가 그 계정으로 도는 디렉토리이기 때문이다.
+        앱은 <code>provisioning</code> 계정으로 도는데, 이 슬라이스에서 앱이 <code>sources/$OEM$</code> 을 직접 쓰게 되므로
+        <b>그 디렉토리에 한해</b> 쓰기 권한이 필요하다. 소스 전체를 열지 않는다(§8 D-9).</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <p style="margin-top:0;">토론 1호의 D4 · D9(층 A · 층 C) · Q2 · Q5 · Q10 확정과 실측 2 · 3호의 계약,
+        E4-1-a-3 이 인계한 제약 넷을 합쳐 일곱 줄로 고정한다.</p>
+        <table>
+          <thead><tr><th>#</th><th>요구</th><th>판정 · 기록 지점</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>앱이 <code>sources/$OEM$</code> 을 조립한다 — 드라이버 트리(<code>$1\SPV\Drivers\&lt;자원&gt;</code>) + 스크립트 둘(<code>$$\Setup\Scripts\SetupComplete.cmd</code> · <code>$1\SPV\spv-report.ps1</code>) + 매니페스트</td><td><code>WindowsOemPayloadAssembler.sync</code></td></tr>
+            <tr><td>R2</td><td>조립 상태를 관측한다 — 대시보드 슬롯 둘(스크립트) + chip "드라이버 페이로드"(최신 n종 / 갱신 필요 / 미조립 · 제외 k) · 준비도 12행(스크립트 미조립이면 BLOCKED)</td><td><code>WindowsOemManifest.compare</code> · <code>WindowsInstallReadiness</code></td></tr>
+            <tr><td>R3</td><td>첫 로그온 스크립트가 앱에 완료를 보고한다 — <code>POST /api/pxe/v1/agent/windows/complete</code>(<code>X-Guest-Token</code> · JSON 은 computerName · osVersion · driversAdded · problemDeviceCount · problemDevices[] · setupCompleteLogTail)</td><td><code>WindowsInstallCompletionService.complete</code></td></tr>
+            <tr><td>R4</td><td>완료는 열린 서빙 행을 SUCCEEDED 로 닫되 서빙 메타를 보존하고 완료 메타를 덧댄다 — 토큰 회수 · 커서 전진/종단 · 중복 보고는 200 무동작</td><td><code>WindowsInstallCompletionService</code> + <code>PhaseCursorAdvancer</code></td></tr>
+            <tr><td>R5</td><td>재PXE 가 없는 게스트의 시한도 닫힌다 — 서빙 시각 + 시한 + 유예를 지난 <code>STEP_RUNNING</code> 게스트를 <code>INSTALL_TIMEOUT</code> 으로 실패 전환하고 토큰을 회수한다</td><td><code>WindowsInstallTimeoutSweeper.sweep</code></td></tr>
+            <tr><td>R6</td><td>카드가 완료 상태를 보인다 — 완료 시각 · ComputerName · 드라이버 n · 문제 장치 n(목록) · 종단 또는 다음 phase</td><td><code>GuestServerQueryService.windowsInstallOf</code></td></tr>
+            <tr><td>R7</td><td>게스트 접점 검증은 하네스 <code>windows-install-cycle.sh</code> 의 <code>complete</code> 모드로 하고, 대시보드 조립 버튼과 상세 카드는 브라우저로 본다</td><td>CP5</td></tr>
+          </tbody>
+        </table>
+        <p><b>R2 와 R4 는 성격이 다르다.</b> 드라이버가 낡은 것(STALE)은 설치를 막지 않는다 — 옛 드라이버로도 설치는 되기 때문에 chip 경고로 알리는 데서 그친다.
+        반면 스크립트 둘이 아예 없으면 완료 보고 자체가 불가능하므로 준비도가 막는다.
+        <b>차단은 "그것이 없으면 절차가 성립하지 않는 것" 에만 건다</b>는 기준을 그대로 따른다.</p>
+
+        <div class="callout warn"><b>비 목표</b> — 이 슬라이스에서 다루지 않고 어디로 가는지 :
+          <ul>
+            <li>자원 등록 시 INF 존재 경고(관리 폼) — 등록 화면 소관이라 <b>S 계열로 적립</b>한다. 여기서는 조립 시점의 제외 목록으로만 드러낸다</li>
+            <li><code>spvout</code> 같은 별도 쓰기 공유 — 완료 보고가 HTTP 로 오므로 필요 없다</li>
+            <li>보드별 <code>$OEM$</code> 분기 — 토론 Q2 가 공용 하나로 확정했다</li>
+            <li>드라이버 서명 검증 — 운영 절차가 담보한다</li>
+            <li>BurnInTest 등 <code>TESTING</code> phase → <b>E5-W</b></li>
+            <li>Secure Boot · 리눅스 설치</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모 (조립 → 서빙 → 완료 보고 → 종결 · 스윕)</summary>
+      <div class="body">
+        <p style="margin-top:0;">드라이버 자원 셋을 켜고 끄고, 버전을 바꾸고, 시계를 옮겨 가며
+        <b>조립 상태 · 준비도 · 완료 판정 · 스윕 판정</b>이 어떻게 갈라지는지 직접 눌러 본다.
+        판정 함수 넷(<code>oemState</code> · <code>readinessRow12</code> · <code>complete</code> · <code>sweep</code>)은
+        §4 의 <code>WindowsOemManifest.compare</code> · <code>WindowsInstallReadiness</code> ·
+        <code>WindowsInstallCompletionService.complete</code> · <code>WindowsInstallTimeoutSweeper.sweep</code> 을 그대로 옮긴 것이다.
+        처음이라면 아래 <b>시나리오</b> 버튼을 순서대로 누르는 편이 빠르다 — 상태를 세팅하고 다음에 무엇을 눌러야 하는지 안내한다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">드라이버 자원 :</span>
+            <button class="seg" data-toggle="chipset" onclick="demoToggle('chipset')">chipset (INF 46)</button>
+            <button class="seg" data-toggle="qat" onclick="demoToggle('qat')">qat (INF 3)</button>
+            <button class="seg" data-toggle="lan" onclick="demoToggle('lan')">lan-tool (INF 0)</button>
+            <button class="seg" data-toggle="chipsetV2" onclick="demoToggle('chipsetV2')">chipset 을 v2 로 교체</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">부트 순서 :</span>
+            <button class="seg" data-seg="bootOrder" data-value="NETWORK" onclick="demoSet('bootOrder','NETWORK')">네트워크 우선</button>
+            <button class="seg" data-seg="bootOrder" data-value="DISK" onclick="demoSet('bootOrder','DISK')">디스크 우선 (재PXE 없음)</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">시계 (경과 분) :</span>
+            <input type="range" id="demo-clock" min="0" max="150" step="1" value="0" oninput="demoClock(this.value)" style="flex:1; max-width:280px;">
+            <span class="mono" id="demo-clock-label">T+0분</span>
+            <span class="mono" style="color:var(--text-muted);">설치 시한 60분 · 스윕 유예 30분 · 주기 5분</span>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">완료 보고 값 :</span>
+            <span class="mono" style="color:var(--text-muted);">문제 장치 수</span>
+            <input type="range" id="demo-problem" min="0" max="5" step="1" value="0" oninput="demoProblem(this.value)" style="max-width:150px;">
+            <span class="mono" id="demo-problem-label">0 개</span>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">액션 :</span>
+            <span id="demo-actions"></span>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="n-demo-btn" onclick="demoScenario(1)">① 조립 → 완료</button>
+            <button class="n-demo-btn" onclick="demoScenario(2)">② 미조립 대기</button>
+            <button class="n-demo-btn" onclick="demoScenario(3)">③ 자원 교체</button>
+            <button class="n-demo-btn" onclick="demoScenario(4)">④ 완료 뒤 재PXE</button>
+            <button class="n-demo-btn" onclick="demoScenario(5)">⑤ 무응답 · 스윕</button>
+            <button class="n-demo-btn" onclick="demoScenario(6)">⑥ 중복 보고</button>
+          </div>
+
+          <div class="callout" id="demo-guide">시나리오 버튼을 누르면 상태를 세팅하고 다음 조작을 안내합니다. 자유 조작도 됩니다 — 세그먼트를 바꾸면 판정이 즉시 갱신됩니다.</div>
+
+          <div class="ux-caps" id="demo-caps"></div>
+
+          <div class="card-grid">
+            <div class="card v-blue"><h4>대시보드 — Windows 설치 소스 영역</h4><pre id="demo-dashboard"></pre></div>
+            <div class="card v-purple"><h4>원장 최신 행 (meta)</h4><pre id="demo-ledger"></pre></div>
+          </div>
+
+          <h4>게스트 상세 — "Windows 설치" 카드 (미리보기)</h4>
+          <div id="demo-detail"></div>
+
+          <div class="ux-message" id="demo-message">아직 아무 것도 하지 않았습니다. <code>드라이버 페이로드 조립</code> 부터 눌러보세요.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 대시보드 chip 의 상태 · 준비도 12행이 세우는 대기 사유 · 조립 결과 flash 는
+        <code>WindowsOemManifest.compare</code> 한 판정을 본다. 완료가 원장 · 토큰 · 커서를 어떻게 움직이는지는
+        <code>WindowsInstallCompletionService.complete</code> 한 곳에만 있고, 스윕은 같은 원장 판독기를 쓴다.
+        데모의 판정 함수 넷은 그 네 바디의 JS 재현이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>URL 표</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>이 슬라이스에서 바뀌는 것</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/windows/complete</code></td><td><span class="chip new">신규</span> <code>X-Guest-Token</code> + JSON 완료 보고 → 원장 행 close · 토큰 회수 · 커서 전진/종단. 404 위조 토큰 · 409 미진행 또는 커서 phase 불일치 또는 열린 행 없음 · 200 중복 보고(무동작) · 400 JSON 검증 위반</td></tr>
+            <tr><td>POST</td><td><code>/system/windows-install/oem-sync</code></td><td><span class="chip new">신규</span> 대시보드 버튼 → <code>$OEM$</code> 조립. PRG(Post/Redirect/Get) 로 돌아오며 flash 는 "n종 조립 · 제외 k · m MB". 소스 미설정 또는 쓰기 불가면 409</td></tr>
+            <tr><td>GET</td><td><code>/system/asset</code></td><td>Windows 영역 슬롯이 넷에서 여섯으로(<code>SetupComplete.cmd</code> · <code>spv-report.ps1</code>) · "드라이버 페이로드" chip · 영역 조건부 조립 버튼</td></tr>
+            <tr><td>GET</td><td><code>/api/pxe/v1/boot</code></td><td>계약 변경 없음. 준비도에 12행이 붙고, 렌더되는 <code>FirstLogonCommands</code> 에 인자 둘이 늘어난다</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/{id}</code></td><td>"Windows 설치" 카드가 완료 상태(시각 · 이름 · 드라이버 · 문제 장치 · 종단)를 보인다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>스윔레인 — 조립부터 종결까지 한 사이클</h4>
+        <div class="seq">
+          <div class="actor a1">게스트 Windows (첫 로그온)</div>
+          <div class="actor a2">접수 — RestController · GuestTokenAuthenticator</div>
+          <div class="actor a3">CompletionService · Ledger · TokenRegistry · Advancer</div>
+          <div class="actor a4">운영자 · 대시보드 · 조립기</div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+          <div class="step a4">① 대시보드에서 [드라이버 페이로드 조립] → <code>WindowsOemPayloadAssembler.sync</code>(자원 트리 복사 · 스크립트 2 · 매니페스트)</div>
+
+          <div class="step a1">② WinPE 부팅 → <code>setup.exe /unattend</code></div>
+          <div class="step a2">(E4-1-a-3) <code>/boot</code> 가 wimboot 체인을 낸다</div>
+          <div class="step a3">렌더에 <code>__REPORT_BASE_URL__</code> · <code>__GUEST_TOKEN__</code> 치환</div>
+          <div class="step a4">chip 이 "최신 n종" 을 보인다</div>
+
+          <div class="step a1">③ Setup 이 <code>$OEM$</code> 를 디스크로 복사 → <code>SetupComplete.cmd</code> 가 <code>pnputil</code> 폴더 루프</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+
+          <div class="step a1">④ 첫 로그온 <code>spv-report.ps1</code> → <code>POST …/agent/windows/complete</code>(재시도 20 × 15초)</div>
+          <div class="step a2"><code>WindowsInstallReportRestController</code> → <code>@Valid</code> → <code>GuestTokenAuthenticator</code> 로 토큰 → 게스트</div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+
+          <div class="step a1">⑤ 200 을 받으면 종료</div>
+          <div class="step a2">서비스로 위임</div>
+          <div class="step a3">게이트 → <code>latestRunning</code> close(SUCCEEDED · 서빙 meta + 완료 meta) · <code>revoke</code> · <code>advanceOrComplete</code> · 이벤트</div>
+          <div class="step a4">상세 카드가 완료를 보인다</div>
+
+          <div class="step a1">⑥ 이후 재부팅에서 재PXE 하면 <code>/boot</code></div>
+          <div class="step a2">dispatch 4행(종단) → <code>completedExit()</code></div>
+          <div class="step a3">(실행기 미호출 — 재진입 카운트도 오르지 않는다)</div>
+          <div class="step a4"></div>
+        </div>
+
+        <h4>스윕 워커 레인 (주기 5분 · 다른 시간축)</h4>
+        <p>위 사이클의 ④ 가 영영 오지 않는 게스트를 닫는 별도 통로다. 게스트도 접수도 관여하지 않는다.</p>
+        <div class="seq">
+          <div class="actor a1">게스트 (무응답)</div>
+          <div class="actor a2">접수</div>
+          <div class="actor a3">WindowsInstallTimeoutSweeper</div>
+          <div class="actor a4">운영자</div>
+
+          <div class="step a1">디스크 우선 부트라 재PXE 가 없다 — 설치가 실패해도 아무 신호가 없다</div>
+          <div class="step a2">(관여 없음)</div>
+          <div class="step a3">5분마다 <code>sweep</code> — 커서 <code>OS_INSTALLING</code> · <code>STEP_RUNNING</code> 게스트를 훑는다</div>
+          <div class="step a4"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3">서빙 + 시한 60분 + 유예 30분 &lt; now → <code>failRunning(INSTALL_TIMEOUT)</code> + 토큰 회수</div>
+          <div class="step a4">카드가 실패 사유를 보이고 재시도로 회복한다</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>4-1. 신규 · 수정 클래스 지도</h4>
+        <div class="pkg-tree">com.example.serverprovision.execution/
+├── engine/windows/
+│   ├── WindowsOemPayloadAssembler.java        (신규) sync — 트리 복사 · 스크립트 기록 · 매니페스트
+│   ├── WindowsOemManifest.java                (신규) record + compare(current) → OemPayloadState
+│   ├── OemPayloadState.java                   (신규) enum NOT_ASSEMBLED · CURRENT · STALE
+│   ├── WindowsOemTemplates.java               (신규) SETUPCOMPLETE_CMD · SPV_REPORT_PS1
+│   ├── WindowsInstallCompletionReport.java    (신규) 요청 record (@Valid)
+│   ├── WindowsInstallCompletionService.java   (신규) 닫기 · 회수 · 전진/종단 · 멱등
+│   ├── WindowsInstallTimeoutSweeper.java      (신규) @Scheduled 주기 스윕
+│   ├── WindowsInstallLedger.java              (수정) closeSucceeded + 완료 메타 판독
+│   ├── WindowsInstallTimeoutPolicy.java       (수정) 유예 · 스윕 주기
+│   ├── WindowsInstallReadiness.java           (수정) 12행
+│   ├── WindowsInstallAssets.java              (수정) 스크립트 2 존재 여부
+│   ├── WindowsInstallTemplates.java           (수정) FirstLogonCommands Order 2
+│   ├── AutounattendRenderer.java              (수정) 치환 값 2
+│   └── WindowsInstallingExecutor.java         (수정) 렌더 인자 전달
+├── service/GuestTokenAuthenticator.java       (신규) 토큰 → GuestServer · touchSeen (두 창구 공유)
+├── controller/WindowsInstallReportRestController.java  (신규) 완료 보고 접수
+├── asset/controller/WindowsOemPayloadController.java   (신규) 대시보드 조립 액션
+├── asset/exception/WindowsOemAssemblyRejectedException.java (신규) 409
+└── wininstall/spi/InstallSourceSlot.java      (수정) OEM_SETUPCOMPLETE · OEM_REPORT</div>
+        <p><code>GuestTokenAuthenticator</code> 는 새 규칙을 만드는 것이 아니라
+        <code>AgentReportService.requireByToken</code> 의 본문을 그대로 끌어내 두 창구가 함께 쓰게 하는 것이다.
+        토큰으로 게스트를 찾고 마지막 관측 시각을 갱신하는 판정이 두 벌로 갈라지면,
+        한쪽만 고쳐지는 날이 반드시 온다.</p>
+
+        <h4>4-2. 준비도 — 12행이 하나 는다</h4>
+        <table>
+          <thead><tr><th>행</th><th>조건</th><th>판정 · 사유</th></tr></thead>
+          <tbody>
+            <tr><td>1~11</td><td>E4-1-a-3 이 확정한 정의서 · 소스 · 자산 · 공유 · 제품 키 판정</td><td>변경 없음</td></tr>
+            <tr><td><b>12</b></td><td><code>$OEM$</code> 의 스크립트 둘이 없다</td><td>BLOCKED — 화면 "설치 후 스크립트 미조립 — 대시보드 Windows 설치 소스 영역에서 [드라이버 페이로드 조립]" / wire <code>oem scripts not assembled</code></td></tr>
+          </tbody>
+        </table>
+        <p>드라이버가 STALE 이거나 제외된 자원이 있는 것은 <b>차단하지 않는다</b> — chip 경고로만 알린다.
+        낡은 드라이버로도 설치는 진행되고, 제외된 자원은 애초에 Windows 드라이버가 아닐 가능성이 크기 때문이다.
+        판정은 저장하지 않고 매 폴링 재계산하므로, 조립을 마치면 다음 폴링이 저절로 대기를 푼다.</p>
+
+        <h4>4-3. 조립 알고리즘 — <code>WindowsOemPayloadAssembler.sync</code></h4>
+        <pre><code>0. 소스 루트가 설정돼 있고 쓸 수 있는가       → 아니면 WindowsOemAssemblyRejectedException (409)
+1. 대상 = Subprogram(kind=DRIVER) · 미삭제 · effective 활성 · 보드 무관 전부
+2. 각 자원의 트리를 재귀로 훑어 *.inf 가 하나도 없으면 excluded(INF_MISSING) 로 빼고 로그만 남긴다
+3. 임시 디렉토리 $OEM$.tmp-&lt;ts&gt; 를 만들고 여기에 전부 쓴다
+   ├ $1\SPV\Drivers\&lt;id&gt;_&lt;ascii 슬러그(name)&gt;\…   자원 트리 복사
+   ├ $$\Setup\Scripts\SetupComplete.cmd            앱 내장 템플릿
+   ├ $1\SPV\spv-report.ps1                          앱 내장 템플릿
+   └ $1\SPV\spv-oem-manifest.json                   매니페스트
+4. 기존 $OEM$ 과 rename 으로 스왑한다               중간 상태 노출 0 · 실패하면 옛 페이로드가 그대로 남는다
+5. flash "n종 조립 · 제외 k · m MB"</code></pre>
+        <p>폴더명에 자원 id 를 앞세우는 이유는 이름이 겹치거나 한글 · 공백을 포함할 수 있어서다 —
+        <code>pnputil</code> 이 인자로 받는 경로이므로 ASCII 로 눌러 둔다.
+        임시 디렉토리 후 rename 스왑은 조립 도중 Setup 이 소스를 읽더라도 반쯤 만들어진 트리를 보지 않게 한다.</p>
+        <p>조립은 동기 PRG 다. 실측 규모가 수십 MB 에서 1 GB 사이이고 로컬 디스크 복사라 몇 초에서 수십 초로 끝난다고 보지만,
+        1 GB 급 LAN 드라이버가 들어오면 달라질 수 있어 비동기 job 전환은 실측 뒤 판단한다(§8 주의).</p>
+
+        <h4>4-4. 완료 서비스 — <code>WindowsInstallCompletionService.complete</code></h4>
+        <pre><code>인증   GuestTokenAuthenticator.require(token)      → 없으면 404
+진행   progress 조회
+게이트 GuestServerStatus.derive == PROVISIONING
+       && 커서 phase == OS_INSTALLING                → 아니면 409
+
+열린 행 있음   ledger.closeSucceeded(row, meta)      SUCCEEDED · 서빙 meta 보존 + 완료 meta
+              tokenRegistry.revoke(guestId)
+              phaseCursorAdvancer.advanceOrComplete(...)
+              이벤트 발행
+              → 200 {closed:true, provisioningCompleted:bool, nextPhase}
+
+열린 행 없음 + latestOf 가 SUCCEEDED(완료 meta 보유)  → 200 {closed:false}   멱등 · 무동작
+그 밖                                                → 409</code></pre>
+        <p>멱등을 <b>토큰 회수 여부로 판단하지 않는</b> 것이 요점이다. 완료 직후 토큰이 죽으므로,
+        재시도로 두 번째 요청이 오면 인증에서 404 가 날 수 있다.
+        그래서 <code>spv-report.ps1</code> 은 200 과 409 둘 다를 종료 신호로 삼고,
+        서버는 원장의 마지막 행이 완료 메타를 가진 SUCCEEDED 인지로 "이미 처리됨" 을 판단한다.</p>
+
+        <h4>4-5. 스윕 — <code>WindowsInstallTimeoutSweeper.sweep</code></h4>
+        <pre><code>대상  progress 중 currentStep == OS_INSTALLING · motion == STEP_RUNNING · !failed · !completed
+판정  ledger.latestRunning(guestId) 의 served + installTimeout + grace &lt; now
+처리  ledger.failRunning(server, progress, row, INSTALL_TIMEOUT, "재진입 · 보고 없음 — 스윕(유예 30분)", now)
+      tokenRegistry.revoke(guestId)
+주기  provision.windows-install.sweep-interval  (기본 5m)
+유예  provision.windows-install.sweep-grace     (기본 30m)</code></pre>
+        <p>유예를 두는 이유는 재PXE 가 있는 게스트와 겹치지 않기 위해서다.
+        시한 60분은 이미 <code>WindowsInstallingExecutor</code> 가 재진입 때 보는 눈금이므로,
+        스윕이 같은 60분에 달려들면 어느 쪽이 먼저 닫았는지가 실행 순서에 좌우된다.
+        30분을 더 기다리면 <b>재PXE 가 있는 게스트는 실행기가 닫고, 없는 게스트만 스윕이 닫는다</b>.
+        워커 하트비트는 두지 않는다 — 로그로 충분하고, 상태를 하나 더 만들면 그것을 관측할 화면이 또 필요해진다.</p>
+
+        <h4>4-6. 원장 메타 — SUCCEEDED 행에 무엇이 남는가</h4>
+        <table>
+          <thead><tr><th>구분</th><th>키</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>서빙(보존)</td><td><code>origin</code> · <code>image</code> · <code>served</code> · <code>reentries</code></td><td>E4-1-a-3 이 연 행의 값 — close 가 덮지 않는다</td></tr>
+            <tr><td>완료(추가)</td><td><code>completedAt</code> · <code>computerName</code> · <code>osVersion</code> · <code>driversAdded</code> · <code>problemDeviceCount</code> · <code>problemDevices[]</code></td><td>게스트 보고에서 온 값</td></tr>
+            <tr><td>사유</td><td><code>reason</code> = <code>COMPLETED</code></td><td>표시 문구는 "설치 완료 · 문제 장치 n · 드라이버 n"</td></tr>
+            <tr><td>넣지 않는 것</td><td>토큰 · 비밀번호 · 렌더본 전문</td><td>원장은 운영자가 읽는 자리다 — 비밀값을 두지 않는다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-7. <code>spv-report.ps1</code> 요지</h4>
+        <pre><code>Start-Transcript C:\SPV\spv-report.log
+네트워크 대기      Test-NetConnection &lt;base 호스트&gt; — 20회 × 15초
+문제 장치          pnputil /enum-devices /problem 파싱 (Instance ID · Device Description · 최대 50개)
+드라이버 수        setupcomplete.log 에서 add-driver 성공 건수
+전송               Invoke-RestMethod -Method Post `
+                     -Headers @{"X-Guest-Token"=$Token} `
+                     -ContentType application/json -Body (ConvertTo-Json $payload)
+재시도             20회 × 15초 · 200 또는 409 를 받으면 종료
+파일 전체 ASCII</code></pre>
+        <p>게스트별 값 둘(<code>-BaseUrl</code> · <code>-Token</code>)은 스크립트 안에 박지 않고
+        <code>autounattend.xml</code> 의 <code>FirstLogonCommands</code> 인자로 넘긴다.
+        스크립트는 모든 게스트가 같은 파일을 쓰고, 다른 것은 인자뿐이다.</p>
+        <pre><code>&lt;!-- FirstLogonCommands Order 2 (렌더 시점에 값이 채워진다) --&gt;
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\SPV\spv-report.ps1
+  -BaseUrl "__REPORT_BASE_URL__" -Token "__GUEST_TOKEN__"</code></pre>
+
+        <h4>4-8. 설정 키 둘 — DDL 은 0</h4>
+        <pre><code>provision.windows-install.sweep-interval=${WINDOWS_INSTALL_SWEEP_INTERVAL:5m}
+provision.windows-install.sweep-grace=${WINDOWS_INSTALL_SWEEP_GRACE:30m}</code></pre>
+        <p>둘 다 <code>Duration</code> 으로 읽는다. 엔티티 · 컬럼 · 새 step 코드는 만들지 않으므로 스키마 변경은 없다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인 — plan 검수</td></tr>
+            <tr><td>2~5</td><td>대시보드 버튼 · 상세 카드 · 두 컨트롤러 · 요청 record · 조립기 · 완료 서비스 · 스윕의 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고 (무중단)</td></tr>
+            <tr><td>6~7</td><td><b>N/A</b> — 엔티티 · Repository · DDL 무변경. 원장은 기존 <code>ProvisioningHistory</code> 를 쓰고 새 step 코드도 만들지 않는다</td><td><span class="chip cp3">CP3</span></td><td>사유와 함께 보고</td></tr>
+            <tr><td>8~9</td><td>조립기 · 매니페스트 · 완료 서비스 · 스윕 · 토큰 인증기 본체 + 렌더 · 카드 배선. 스키마 확인은 <code>ddl-auto=validate</code> 통과로 갈음</td><td><span class="chip cp4">CP4</span></td><td><b>중간 승인</b> — 테스트 제외 main 구현 + 빌드 통과</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>CP5 검증 — 하네스 <code>windows-install-cycle.sh complete</code>(게스트 접점) + 대시보드 · 상세 브라우저(관리자 화면). 항목별 스크린샷</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 E2E — E 계열 일괄(E4-1-a-2 · -3 과 함께)</td><td><span class="chip cp7">CP7</span></td><td>승인 (사용자 단독)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 —
+        ① CP1 승인 → CP4 게이트 지점(main 구현, 경계마다 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출).
+        CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오 (계획값 — CP4 잔여에서 대조)</summary>
+      <div class="body">
+        <p style="margin-top:0;">단위는 판정 분기마다 성공 하나와 실패 하나를 기본으로 두고,
+        통합은 완료 보고 엔드포인트의 네 응답 범주를 HTTP 계층에서 실제 상태코드로 확인한다.
+        신규 예외 하나에는 그것을 실제로 일으키는 시나리오를 반드시 붙인다.</p>
+        <table>
+          <thead><tr><th>구분</th><th>클래스 · 대상</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td><code>WindowsOemPayloadAssemblerTest</code> — 조립 · 제외 · 스왑 · 쓰기 불가 · 매니페스트</td><td>6</td></tr>
+            <tr><td>단위</td><td><code>WindowsOemManifestTest</code> — <code>compare</code> 세 상태</td><td>4</td></tr>
+            <tr><td>단위</td><td><code>WindowsInstallCompletionServiceTest</code> — 닫기 · 메타 보존 · 회수 · 전진/종단 · 멱등 · 409 세 종</td><td>8</td></tr>
+            <tr><td>단위</td><td><code>WindowsInstallTimeoutSweeperTest</code> — 유예 전/후 · 완료 및 실패 게스트 제외</td><td>4</td></tr>
+            <tr><td>단위</td><td><code>WindowsInstallReadinessTest</code> — 12행 추가</td><td>2</td></tr>
+            <tr><td>단위</td><td><code>AutounattendRendererTest</code> — 인자 둘 치환</td><td>1</td></tr>
+            <tr><td>단위</td><td><code>WindowsInstallLedgerTest</code> — <code>closeSucceeded</code> 와 메타 보존</td><td>2</td></tr>
+            <tr><td>단위</td><td><code>GuestTokenAuthenticatorTest</code> — 정상 · 위조</td><td>2</td></tr>
+            <tr><td>단위</td><td><code>WindowsInstallSourceAreaTest</code> — 슬롯 6 · chip 세 상태</td><td>3</td></tr>
+            <tr><td>단위</td><td>상세 카드 조립 — <code>GuestServerQueryService</code></td><td>2</td></tr>
+            <tr><td>통합</td><td><code>WindowsInstallReportRestControllerTest</code> — 200 · 200 무동작 · 400 · 404 · 409 둘</td><td>6</td></tr>
+            <tr><td>통합</td><td><code>WindowsOemPayloadControllerTest</code> — PRG · 409</td><td>2</td></tr>
+            <tr><td>통합</td><td>뷰 — 상세 카드 완료 표시 · 대시보드 버튼 및 chip</td><td>3</td></tr>
+            <tr><td colspan="2"><b>합계</b></td><td><b>약 45</b></td></tr>
+          </tbody>
+        </table>
+        <p><code>AgentReportService</code> 에서 토큰 인증을 뽑아내는 리팩토링은 동작을 바꾸지 않으므로
+        기존 <code>AgentReportServiceTest</code> 와 <code>GuestAgentRestControllerTest</code> 가 그대로 green 인 것으로 확인한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>WindowsOemAssemblyRejectedException</code></td><td>409</td><td><span class="chip new">신규</span> 소스 미설정 · 쓰기 불가</td></tr>
+            <tr><td><code>AgentReportRejectedException</code></td><td>409</td><td><span class="chip keep">재사용</span> 미진행 · 커서 phase 불일치 · 열린 행 없음</td></tr>
+            <tr><td><code>GuestServerNotFoundException.byToken</code></td><td>404</td><td><span class="chip keep">재사용</span> 위조 · 회수된 토큰</td></tr>
+            <tr><td>(예외 아님)</td><td>—</td><td>설치 시한 초과는 원장 사유 <code>INSTALL_TIMEOUT</code> 으로 남긴다</td></tr>
+          </tbody>
+        </table>
+        <p>신규 예외 하나에만 새 클래스를 만드는 이유는 이것이 <b>운영자의 화면 조작</b>에서 나는 유일한 거절이기 때문이다.
+        UI 는 소스가 설정되지 않았거나 쓸 수 없으면 조립 버튼을 <code>disabled</code> 로 두고 tooltip 으로 사유를 알리므로,
+        이 예외는 direct POST 같은 비정상 경로에서만 발동하는 안전망이다 — UI 차단 조건과 서버 가드는 같은 판정을 부른다.</p>
+        <p>실패는 예외로 올리지 않는다. 시한 초과는 운영자가 화면에서 재시도 버튼과 함께 읽어야 하는 <b>상태</b>이지 스택 트레이스가 아니다.
+        <code>RaidLedger</code> · <code>SettingLedger</code> 가 세운 관례를 그대로 따른다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>D-1 조립은 대시보드의 명시 액션으로 한다</h4>
+        <p><b>채택</b> — 운영자가 대시보드에서 누르는 동기 액션(PRG)으로 조립하고, 결과는 매니페스트로 관측한다.</p>
+        <p><b>대안 ①</b> 서빙할 때 자동 조립 — <span class="chip del">탈락</span> <code>/boot</code> 트랜잭션 안에서 수백 MB 를 복사하게 되고,
+        게스트가 그동안 기다린다. 게다가 조립 실패가 곧 서빙 실패가 되어 원인이 뒤엉킨다.<br>
+        <b>대안 ②</b> 자원이 바뀔 때 이벤트로 자동 조립 — <span class="chip del">탈락</span> management 가 execution 을 깨우는 결합이 생긴다.
+        이 결합을 만들지 말지는 이 슬라이스가 판단할 문제가 아니다.<br>
+        <b>대안 ③</b> 운영 절차가 손으로 복사 — <span class="chip del">탈락</span> 토론 D9 의 층 C "앱이 조립한다" 를 정면으로 어긴다.</p>
+
+        <h4>D-2 대상은 활성 DRIVER 전부, INF 없는 것은 제외 목록으로</h4>
+        <p><b>채택</b> — <code>kind = DRIVER</code> · 미삭제 · effective 활성 · 보드 무관 전부를 넣는다(토론 Q2 가 공용 하나로 확정).
+        트리에 <code>*.inf</code> 가 없으면 조립에서 빼고 제외 목록에 이유와 함께 적는다.</p>
+        <p>§1-3 에서 봤듯 <code>Subprogram</code> 에는 OS 구분이 없다.
+        그래서 "Windows 드라이버인가" 를 판별할 유일한 근거가 INF 의 존재다.
+        조립을 실패시키지 않고 제외로 다루는 이유는, INF 없는 DRIVER 가 등록돼 있다는 사실이
+        <b>조립을 막을 만한 오류가 아니라 등록 화면에서 고칠 일</b>이기 때문이다.
+        등록 시점의 경고는 비목표로 두고 S 계열에 적립한다.</p>
+        <p><b>후속(CP1 검수 · 2026-09-03)</b> — <code>Subprogram</code> 에 대상 OS 계열 속성을 더하면 이 판별은
+        "kind DRIVER ∧ Windows 계열" 로 명시적이 되고 INF 검사는 등록 경고로 내려가며, UTILITY 도 같은 페이로드에 실을 수
+        있다(TESTING 의 BurnInTest 자리). 사용자 결정 "구분은 나중에 넣는다" — 속성 도입은 별도 관리 슬라이스로 두고 이 슬라이스는
+        INF 판별을 잠정 규칙으로 쓴다. 속성이 생기면 <code>WindowsOemPayloadAssembler</code> 의 선택 술어 한 줄만 바뀌고
+        페이로드 배치(<code>Drivers/&lt;id&gt;_&lt;슬러그&gt;</code>)는 그대로다.</p>
+
+        <h4>D-3 스크립트 둘은 앱 내장 템플릿, 게스트별 값은 인자로</h4>
+        <p><b>채택</b> — <code>SetupComplete.cmd</code> 와 <code>spv-report.ps1</code> 은 앱이 가진 템플릿을 그대로 쓰고,
+        base URL 과 토큰은 <code>FirstLogonCommands</code> 인자로 넘긴다.</p>
+        <p><b>대안 ①</b> 토큰 번들의 여섯 번째 파일로 서빙 — <span class="chip del">탈락</span>
+        WinPE 가 받은 파일은 설치된 OS 로 넘어가지 않는다. 첫 로그온 시점에는 그 파일이 없다.<br>
+        <b>대안 ②</b> <code>cmd</code> + <code>curl</code> 로 보고 — <span class="chip del">탈락</span>
+        배치에서 JSON 을 조립하면 따옴표 이스케이프가 취약하다. PowerShell 이 내장이므로 <code>ConvertTo-Json</code> 을 쓰는 편이 안전하다.</p>
+
+        <h4>D-4 완료 보고는 전용 엔드포인트로 받는다</h4>
+        <p><b>채택</b> — <code>POST /api/pxe/v1/agent/windows/complete</code> 를 새로 연다.</p>
+        <p><b>대안 ①</b> 기존 <code>steps/{id}/close</code> 재사용 — <span class="chip del">탈락</span>
+        게스트가 <code>stepId</code> 를 모른다. 서빙 행은 렌더가 끝난 뒤 훅에서 열리므로 렌더본에 담을 수 없다(§1-4).<br>
+        <b>대안 ②</b> Windows 설치용 step 코드를 새로 만든다 — <span class="chip del">탈락</span>
+        enum 이 늘고 기존 이력 판독에 영향이 간다. 완료 보고 하나 때문에 원장 어휘를 늘릴 이유가 없다.</p>
+
+        <h4>D-5 토큰 인증을 <code>GuestTokenAuthenticator</code> 로 뽑는다</h4>
+        <p><b>채택</b> — 두 창구(에이전트 보고 · Windows 완료 보고)가 같은 인증기를 공유한다.
+        <code>AgentReportService.requireByToken</code> 을 복붙하지 않는다.</p>
+        <p>추출은 동작을 바꾸지 않는다. 기존 테스트가 그대로 green 인 것이 그 증명이다.</p>
+
+        <h4>D-6 관측은 슬롯 · chip · 영역 조건부 버튼 + 전용 컨트롤러</h4>
+        <p><b>채택</b> — 대시보드에 스크립트 슬롯 둘과 "드라이버 페이로드" chip 을 더하고,
+        조립 버튼은 <code>DHCPD</code> 링크와 같은 영역 조건부 방식으로 붙인다. 액션은 전용 컨트롤러가 받는다.</p>
+        <p><b>대안 ①</b> 자산 영역 SPI 에 액션을 일반화 — <span class="chip del">탈락</span>
+        액션이 하나뿐인데 확장점을 만드는 것은 과추상이다. 두 번째 액션이 생기는 시점에 분리한다.<br>
+        <b>대안 ②</b> 기존 <code>seal</code> 을 재사용 — <span class="chip del">탈락</span>
+        봉인은 "지금 상태를 정본으로 굳힌다" 는 뜻이다. 파일을 새로 만드는 조립에 그 이름을 쓰면 의미가 왜곡된다.</p>
+
+        <h4>D-7 시한 스윕 워커를 신설한다</h4>
+        <p><b>채택</b> — 5분 주기 · 유예 30분. E4-1-a-3 이 D-8 로 남긴 공백을 여기서 닫는다.</p>
+        <p><b>대안 ①</b> 상세를 조회할 때 판정 — <span class="chip del">탈락</span> 아무도 화면을 열지 않으면 영원히 안 닫힌다.
+        관측이 상태 전이의 조건이 되면 "보지 않으면 일어나지 않는" 시스템이 된다.<br>
+        <b>대안 ②</b> 두지 않는다 — <span class="chip del">탈락</span> 디스크 우선 부트 환경에서 설치 실패가 영구히 "설치 중" 으로 남는다.</p>
+
+        <h4>D-8 완료는 닫고 · 회수하고 · 종단시킨다</h4>
+        <p><b>채택</b> — 서빙 행을 SUCCEEDED 로 닫으면서 서빙 메타를 보존하고,
+        토큰을 회수하고, <code>advanceOrComplete</code> 로 커서를 옮긴다.
+        Windows 정의서는 OS 설치만 담으므로 다음 소유 phase 가 없어 종단으로 닫히고, 이후 <code>/boot</code> 는 dispatch 4행의 <code>exit</code> 를 받는다.</p>
+
+        <h4>D-9 운영 설계 — 소스 전체가 아니라 <code>$OEM$</code> 만 연다</h4>
+        <p><b>채택</b> — 런북 §14-1 에 <code>sources/$OEM$</code> 에 대한 <code>provisioning</code> 계정 쓰기 권한을 명시하고,
+        Setup 이 <code>$OEM$</code> 를 자동으로 복사한다는 것과 OEM 제품 키로 설치하면 <code>SetupComplete</code> 가 생략된다는 것을 함께 적는다.
+        나머지 소스는 <code>spvadmin</code> 소유 그대로 둔다.</p>
+
+        <h4>주의 · 잔존 책임</h4>
+        <div class="callout warn">
+          <ul>
+            <li>조립 소요 시간 — 1 GB 급 LAN 드라이버가 들어오면 동기 PRG 가 버거울 수 있다. 실측 뒤 비동기 job 전환을 판단한다</li>
+            <li><code>AgentReportService</code> 손질은 <b>추출만</b> 한다. 동작을 바꾸지 않고 기존 테스트가 green 인 것을 확인한다</li>
+            <li>완료 보고가 종단시킨 게스트의 다음 <code>/boot</code> 는 dispatch 4행의 <code>exit</code> 다 — 재진입이 아니므로 카운트가 오르지 않는다</li>
+            <li>토큰은 설치된 OS 의 <code>Panther</code> 에 남은 <code>unattend.xml</code> 안에 있다. 게스트 자신의 자격이고 Base64 비밀번호와 같은 층의 노출이다</li>
+            <li>스윕이 실패시킨 뒤 늦게 도착한 완료 보고는 409 다(이미 실패 상태). 회복은 운영자 재시도 후 재설치다</li>
+            <li><code>$OEM$</code> 스왑 도중 Setup 이 옛 트리를 읽고 있으면 그 핸들은 유지된다 — rename 의 원자성에 기댄다</li>
+            <li>실기 항목(<code>SetupComplete</code> 실제 실행 · 보고 도달)은 <code>docs/T3-checklist.md</code> 에 적립하고 CP7 일괄에서 확인한다</li>
+          </ul>
+        </div>
+
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고 · 결정</th></tr></thead>
+          <tbody>
+            <tr><td>OQ-1</td><td>스윕 유예를 얼마로 둘 것인가</td><td><b>30분 권고.</b> 실측 3호가 PXE 부터 첫 로그온까지 11.5분이었고 시한이 이미 60분이다. 대형 드라이버가 들어와도 90분이면 여유가 있고, 환경변수로 덮을 수 있다 <span class="chip keep">채택 · 09-03</span></td></tr>
+            <tr><td>OQ-2</td><td>문제 장치 목록의 상한</td><td><b>50개 권고.</b> 실측에서 최대가 92개였으므로 전부 담으면 원장이 커진다. 개수는 그대로 세고 목록만 자른다 <span class="chip keep">채택 · 09-03</span></td></tr>
+            <tr><td>OQ-3</td><td>INF 없는 DRIVER 를 어떻게 다룰 것인가</td><td><b>제외 + chip 경고 권고.</b> 조립 실패로 처리하면 등록 실수 하나가 전체 조립을 막는다. 대안은 조립 실패 <span class="chip keep">채택 · 09-03</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트 (CP5 항목 계획 — A 7 · B 9 · C 4 = 20)</summary>
+      <div class="body">
+        <h4>빌드 · 회귀</h4>
+        <ul class="check-list" data-storage="E4-1-a-4-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 green — 특히 <code>AgentReportServiceTest</code> · <code>GuestAgentRestControllerTest</code> · <code>WindowsInstallReadinessTest</code> 회귀</span></label></li>
+          <li><label><input type="checkbox" data-key="schema"> <span><code>ddl-auto=validate</code> 통과 (DDL 변경 0 확인)</span></label></li>
+        </ul>
+
+        <h4>A — 정상 흐름 (하네스 + 브라우저)</h4>
+        <ul class="check-list" data-storage="E4-1-a-4-verify-a">
+          <li><label><input type="checkbox" data-key="a1"> <span><b>A1</b> [드라이버 페이로드 조립] → <code>sources/$OEM$</code> 트리 확인(<code>Drivers/&lt;id&gt;_&lt;슬러그&gt;</code> · <code>SetupComplete.cmd</code> · <code>spv-report.ps1</code> · 매니페스트) · flash 문구 · chip "최신 n종" · 슬롯 6 존재</span></label></li>
+          <li><label><input type="checkbox" data-key="a2"> <span><b>A2</b> 서빙 렌더의 <code>autounattend.xml</code> <code>FirstLogonCommands</code> 에 보고 명령이 들어가고 base URL 이 맞다(토큰은 마스킹 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="a3"> <span><b>A3</b> 하네스 <code>complete</code> 모드(문제 장치 2) → 200 <code>closed:true</code> · 원장 SUCCEEDED(서빙 메타 + 완료 메타 둘 다) · 토큰 파일 5개 404 · 커서 완료 · 다음 <code>/boot</code> 가 <code>exit</code></span></label></li>
+          <li><label><input type="checkbox" data-key="a4"> <span><b>A4</b> 상세 카드가 완료 시각 · ComputerName · 드라이버 n · 문제 장치 2와 그 목록을 보인다</span></label></li>
+          <li><label><input type="checkbox" data-key="a5"> <span><b>A5</b> 자원 버전 교체 → chip 이 "갱신 필요" 로 바뀌지만 서빙은 계속된다(차단 아님) → 재조립 → "최신"</span></label></li>
+          <li><label><input type="checkbox" data-key="a6"> <span><b>A6</b> 스윕 — 서빙 시각을 95분 전으로 조작 → 5분 안에(또는 주기를 1분으로 재기동) <code>INSTALL_TIMEOUT</code> · 토큰 404 · 카드 실패</span></label></li>
+          <li><label><input type="checkbox" data-key="a7"> <span><b>A7</b> 대시보드에 슬롯 6개와 제외 목록 chip(INF 없는 DRIVER)이 보인다</span></label></li>
+        </ul>
+
+        <h4>B — 비정상 조작 · 경계</h4>
+        <ul class="check-list" data-storage="E4-1-a-4-verify-b">
+          <li><label><input type="checkbox" data-key="b1"> <span><b>B1</b> 위조 토큰으로 완료 보고 → 404</span></label></li>
+          <li><label><input type="checkbox" data-key="b2"> <span><b>B2</b> 미개시 · 실패 · 회수 게스트의 완료 보고 → 409</span></label></li>
+          <li><label><input type="checkbox" data-key="b3"> <span><b>B3</b> 커서가 다른 phase(RAID)인 게스트의 완료 보고 → 409</span></label></li>
+          <li><label><input type="checkbox" data-key="b4"> <span><b>B4</b> 같은 보고를 두 번 → 두 번째는 200 무동작이고 원장 행은 하나뿐</span></label></li>
+          <li><label><input type="checkbox" data-key="b5"> <span><b>B5</b> JSON 검증 위반(<code>problemDevices</code> 51개 · <code>computerName</code> 16자) → 400</span></label></li>
+          <li><label><input type="checkbox" data-key="b6"> <span><b>B6</b> 스크립트 미조립 상태로 서빙 시도 → 준비도 12행이 BLOCKED · 사유 표시 → 조립 후 개입 없이 자동 재개</span></label></li>
+          <li><label><input type="checkbox" data-key="b7"> <span><b>B7</b> <code>$OEM$</code> 쓰기 권한 제거 → 조립 409 · 버튼 tooltip 이 사유를 알린다</span></label></li>
+          <li><label><input type="checkbox" data-key="b8"> <span><b>B8</b> INF 없는 DRIVER 가 있어도 조립은 성공하고 그 자원만 제외 목록에 남는다</span></label></li>
+          <li><label><input type="checkbox" data-key="b9"> <span><b>B9</b> 완료한 게스트가 재PXE → dispatch 4행의 <code>exit</code> · 재진입 카운트는 0 그대로</span></label></li>
+        </ul>
+
+        <h4>C — 막는 방식과 안내 (UX)</h4>
+        <ul class="check-list" data-storage="E4-1-a-4-verify-c">
+          <li><label><input type="checkbox" data-key="c1"> <span><b>C1</b> 준비도 사유가 대시보드의 조립 버튼을 정확히 지목하는가</span></label></li>
+          <li><label><input type="checkbox" data-key="c2"> <span><b>C2</b> 조립 flash 가 몇 종을 넣었고 몇을 제외했으며 크기가 얼마인지 알리는가</span></label></li>
+          <li><label><input type="checkbox" data-key="c3"> <span><b>C3</b> 카드의 완료 정보가 읽기 쉬운가 — 문제 장치 목록이 접혀 있고 펼칠 수 있는가</span></label></li>
+          <li><label><input type="checkbox" data-key="c4"> <span><b>C4</b> 비밀값 부재 — 원장 · 카드 · 대시보드 · 로그 전수 검색에서 토큰과 비밀번호가 나오지 않는다</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (신규 11 · 수정 16 · 유지 5)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/windows/WindowsOemPayloadAssembler.java</code></td><td>조립기 — 트리 복사 · 스크립트 · 매니페스트 · rename 스왑</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/windows/WindowsOemManifest.java</code></td><td>record + <code>compare(current)</code> → <code>OemPayloadState</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/windows/OemPayloadState.java</code></td><td>enum — NOT_ASSEMBLED · CURRENT · STALE</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/windows/WindowsOemTemplates.java</code></td><td><code>SETUPCOMPLETE_CMD</code> · <code>SPV_REPORT_PS1</code> 원문</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/windows/WindowsInstallCompletionReport.java</code></td><td>요청 record — <code>@Valid</code> 상한 6종</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/windows/WindowsInstallCompletionService.java</code></td><td>닫기 · 회수 · 전진/종단 · 멱등</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/windows/WindowsInstallTimeoutSweeper.java</code></td><td><code>@Scheduled</code> 주기 스윕</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/service/GuestTokenAuthenticator.java</code></td><td>토큰 → <code>GuestServer</code> · <code>touchSeen</code> (두 창구 공유)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/controller/WindowsInstallReportRestController.java</code></td><td>완료 보고 접수</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/asset/controller/WindowsOemPayloadController.java</code></td><td>대시보드 조립 액션 (PRG)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/asset/exception/WindowsOemAssemblyRejectedException.java</code></td><td>409 — 소스 미설정 · 쓰기 불가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/diagnose/AgentReportService.java</code></td><td><code>requireByToken</code> 추출 (동작 무변경)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/wininstall/spi/InstallSourceSlot.java</code> · <code>WindowsInstallSourceArea.java</code></td><td>슬롯 <code>OEM_SETUPCOMPLETE</code> · <code>OEM_REPORT</code> + 드라이버 페이로드 chip</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/windows/WindowsInstallAssets.java</code></td><td>스크립트 둘의 존재 여부</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/windows/WindowsInstallReadiness.java</code></td><td>12행 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/windows/WindowsInstallTemplates.java</code> · <code>AutounattendRenderer.java</code></td><td><code>FirstLogonCommands</code> Order 2 + 치환 값 둘</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/windows/WindowsInstallingExecutor.java</code></td><td>렌더 인자 전달</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/windows/WindowsInstallLedger.java</code></td><td><code>closeSucceeded(row, meta)</code> + 완료 메타 판독 4종</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/windows/WindowsInstallTimeoutPolicy.java</code></td><td>유예 30분 · 스윕 주기 5분</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/dto/response/GuestServerDetailResponse.java</code></td><td><code>WindowsInstall</code> 에 완료 필드 6</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/service/GuestServerQueryService.java</code></td><td><code>windowsInstallOf</code> 조립</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/.../server-detail.html</code> · <code>messages.properties</code></td><td>완료 표시 + 문구</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/system/asset/dashboard.html</code></td><td>영역 조건부 조립 버튼</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>application.properties</code></td><td>설정 키 둘</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/mock-guest/windows-install-cycle.sh</code></td><td><code>complete</code> 모드 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/wininstall-fixture/</code></td><td>가짜 DRIVER 트리 3종(INF 있는 것 둘 · 없는 것 하나)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>런북 §14-1 · <code>docs/T3-checklist.md</code></td><td><code>$OEM$</code> 쓰기 권한 · 실기 확인 항목</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>PhaseCursorAdvancer</code> · <code>OwnedPhases</code></td><td>종결 규칙을 부르기만 한다 — 변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>PhaseEntryGate</code> · <code>HoldTtlPolicy</code></td><td>준비도 사다리를 그대로 탄다</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BootScriptDispatcher</code> · <code>BootDispatch</code></td><td>4행 <code>completedExit</code> 가 이미 있다</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>RaidLedger</code> · <code>SettingLedger</code></td><td>원장 관용구의 선례 — 변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>Subprogram</code> 도메인 전체</td><td>읽기만 한다 — 엔티티 · Repository · DDL 무변경</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E4-1-a-4-next">
+          <li><label><input type="checkbox" data-key="m1"> <span><b>E4-1-a-5</b> 실측 2호 — <code>SetupComplete</code> 실기 실행과 보고 도달 확인 · 다중 디스크 · Secure Boot</span></label></li>
+          <li><label><input type="checkbox" data-key="m2"> <span><b>E4-1-a-6</b> 디스크 선택 — 실측 2호 결과를 받아 <code>DiskID 0</code> 고정을 푼다</span></label></li>
+          <li><label><input type="checkbox" data-key="m3"> <span><b>E5-W</b> BurnInTest — <code>TESTING</code> phase. 이 슬라이스에서 완료 = 종단인 전제가 여기서 바뀐다</span></label></li>
+          <li><label><input type="checkbox" data-key="m4"> <span><b>CP7 실기 일괄</b> — E4-1-a-2 · -3 · -4 를 묶어 실기에서 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="m5"> <span><b>배포 항목</b> — 환경변수 키 둘 · <code>sources/$OEM$</code> 쓰기 권한 · 배포 후 대시보드에서 조립 1회</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부 펴기 · 접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — 판정 넷은 서버 메서드의 JS 재현 (드리프트 0)
+  //    oemState(assets, manifest)        = WindowsOemManifest.compare
+  //    readinessRow12(oemState)          = WindowsInstallReadiness 의 12행
+  //    complete(ledger, report)          = WindowsInstallCompletionService.complete
+  //    sweep(ledger, now, timeout, grace)= WindowsInstallTimeoutSweeper.sweep
+  // ─────────────────────────────────────────────────────────────
+  const DEMO = {
+    chipset: true, qat: true, lan: true,   // 자원 활성 토글
+    chipsetV2: false,                       // chipset 을 v2 로 교체
+    bootOrder: 'NETWORK',                   // NETWORK | DISK
+    elapsed: 0, problem: 0,
+    timeoutMin: 60, graceMin: 30, sweepMin: 5
+  };
+  const BASE = 'http://10.0.0.7:8080';
+  const IMAGE = 'Windows Server 2025 SERVERDATACENTER';
+  const COMPUTER = 'SPV-4A7C19E2';
+
+  // 매니페스트 = 마지막 조립의 스냅샷. null 이면 미조립.
+  let MANIFEST = null;
+  // 원장 = 이 게스트의 Windows 설치 행
+  const LEDGER = { running: false, completed: false, failed: null,
+    servedAt: null, reentries: 0, token: null, meta: null, rows: [] };
+  let LAST = { kind: null, note: '' };
+
+  // ── 자원 스냅샷 (관리 화면이 가진 현재 값) ──────────────────
+  function assets() {
+    return [
+      { id: 11, name: 'chipset',  version: DEMO.chipsetV2 ? 'v2' : 'v1', inf: 46, active: DEMO.chipset },
+      { id: 12, name: 'qat',      version: 'v1',                          inf: 3,  active: DEMO.qat },
+      { id: 13, name: 'lan-tool', version: 'v1',                          inf: 0,  active: DEMO.lan }
+    ];
+  }
+  function eligible(list) { return list.filter(a => a.active && a.inf > 0); }
+  function excludedOf(list) {
+    return list.filter(a => a.active && a.inf === 0).map(a => ({ id: a.id, name: a.name, reason: 'INF_MISSING' }));
+  }
+
+  // ⬇ WindowsOemManifest.compare 의 JS 재현
+  function oemState(list, manifest) {
+    if (!manifest) return { state: 'NOT_ASSEMBLED', changes: [], excluded: [] };
+    const cur = eligible(list), old = manifest.entries, changes = [];
+    cur.forEach(c => {
+      const o = old.find(x => x.id === c.id);
+      if (!o) changes.push('추가 ' + c.name + ' ' + c.version);
+      else if (o.version !== c.version) changes.push('버전 ' + c.name + ' ' + o.version + ' → ' + c.version);
+    });
+    old.forEach(o => { if (!cur.find(c => c.id === o.id)) changes.push('제거 ' + o.name); });
+    return { state: changes.length ? 'STALE' : 'CURRENT', changes: changes, excluded: manifest.excluded };
+  }
+  // ⬇ WindowsInstallReadiness 12행의 JS 재현
+  function readinessRow12(st) {
+    return st.state === 'NOT_ASSEMBLED'
+      ? { blocked: true, note: '설치 후 스크립트 미조립 — 대시보드 Windows 설치 소스 영역에서 [드라이버 페이로드 조립]',
+          wire: 'oem scripts not assembled' }
+      : { blocked: false, note: '', wire: 'ok' };
+  }
+  // ⬇ WindowsInstallCompletionService.complete 의 JS 재현
+  function complete(ledger) {
+    if (ledger.completed) return { kind: 'NOOP' };
+    if (!ledger.running) return { kind: 'REJECT', status: 409 };
+    return { kind: 'CLOSE', revoke: true, advance: 'COMPLETED' };
+  }
+  // ⬇ WindowsInstallTimeoutSweeper.sweep 의 JS 재현
+  function sweep(ledger, now, timeout, grace) {
+    if (!ledger.running || ledger.completed || ledger.failed) return null;
+    if (ledger.servedAt === null) return null;
+    return (ledger.servedAt + timeout + grace < now) ? { reason: 'INSTALL_TIMEOUT' } : null;
+  }
+
+  // ── 보조 ────────────────────────────────────────────────────
+  function newToken() {
+    const h = () => Math.floor(Math.random() * 65536).toString(16).padStart(4, '0');
+    return h() + h() + '-' + h() + '-' + h() + '-' + h() + '-' + h() + h() + h();
+  }
+  function slug(a) { return a.id + '_' + a.name; }
+  function sizeMb(list) { return eligible(list).reduce((s, a) => s + a.inf * 4 + 12, 0); }
+  function say(cls, html) { const m = document.getElementById('demo-message'); m.className = 'ux-message ' + cls; m.innerHTML = html; }
+  function guide(cls, html) { const g = document.getElementById('demo-guide'); g.className = 'callout ' + cls; g.innerHTML = html; }
+  function resetAll() {
+    MANIFEST = null;
+    LEDGER.running = false; LEDGER.completed = false; LEDGER.failed = null;
+    LEDGER.servedAt = null; LEDGER.reentries = 0; LEDGER.token = null; LEDGER.meta = null; LEDGER.rows = [];
+    LAST = { kind: null, note: '' };
+  }
+
+  // ── 액션 ────────────────────────────────────────────────────
+  function actAssemble() {
+    const list = assets(), keep = eligible(list), ex = excludedOf(list);
+    MANIFEST = {
+      entries: keep.map(a => ({ id: a.id, name: a.name, version: a.version, inf: a.inf })),
+      excluded: ex, scriptsHash: 'a3f19c04', assembledAt: DEMO.elapsed
+    };
+    LAST = { kind: 'ASSEMBLE', note: '' };
+    say('success', '<b>' + keep.length + '종 조립 · 제외 ' + ex.length + ' · ' + sizeMb(list) + ' MB</b> — ' +
+      '임시 디렉토리에 전부 쓴 뒤 <code>rename</code> 으로 스왑했습니다. 스크립트 둘과 매니페스트도 함께 들어갔습니다.' +
+      (ex.length ? ' 제외된 자원은 트리에 <code>*.inf</code> 가 없습니다(' + ex.map(e => e.name).join(', ') + ').' : ''));
+    demoRender();
+  }
+  function actBoot() {
+    const st = oemState(assets(), MANIFEST), r = readinessRow12(st);
+    if (r.blocked) {
+      LAST = { kind: 'BLOCKED', note: r.wire };
+      say('error', '준비도 <b>BLOCKED</b> — ' + r.note + '. 게이트가 대기(TTL)로 세웁니다. ' +
+        '게스트 콘솔에는 wire 사유 <code>' + r.wire + '</code> 가 나갑니다.');
+      demoRender(); return;
+    }
+    LEDGER.running = true; LEDGER.servedAt = DEMO.elapsed; LEDGER.token = newToken();
+    LEDGER.rows.unshift({ status: 'RUNNING',
+      text: '{"origin":"windows-install","image":"' + IMAGE + '","served":"T+' + DEMO.elapsed + '분","reentries":0}' });
+    LAST = { kind: 'SERVE', note: '' };
+    say('success', 'wimboot 체인을 내주고 원장 RUNNING 행을 열었습니다(E4-1-a-3 의 훅). ' +
+      '렌더된 <code>FirstLogonCommands</code> 에 <code>-BaseUrl "' + BASE + '"</code> 와 <code>-Token "&lt;token&gt;"</code> 이 들어갑니다.');
+    demoRender();
+  }
+  function actReport() {
+    const d = complete(LEDGER);
+    if (d.kind === 'NOOP') {
+      LAST = { kind: 'NOOP', note: '' };
+      say('success', '<b>200 · 무동작</b> — 원장의 마지막 행이 이미 완료 메타를 가진 SUCCEEDED 라 아무 것도 하지 않았습니다. ' +
+        '행은 여전히 하나입니다. 재시도가 두 번 도착해도 안전합니다.');
+    } else if (d.kind === 'REJECT') {
+      LAST = { kind: 'REJECT', note: '' };
+      say('error', '<b>409</b> — 열린 서빙 행이 없습니다' + (LEDGER.failed ? '(이미 실패 상태)' : '') +
+        '. 늦게 도착한 보고는 여기로 떨어지며, 회복은 운영자 재시도 후 재설치입니다.');
+    } else {
+      LEDGER.running = false; LEDGER.completed = true; LEDGER.token = null;
+      LEDGER.meta = { completedAt: 'T+' + DEMO.elapsed + '분', computerName: COMPUTER,
+        driversAdded: MANIFEST ? MANIFEST.entries.reduce((s, e) => s + e.inf, 0) : 0, problem: DEMO.problem };
+      LEDGER.rows[0] = { status: 'SUCCEEDED',
+        text: '{"origin":"windows-install","image":"' + IMAGE + '","served":"T+' + LEDGER.servedAt + '분","reentries":' + LEDGER.reentries +
+          ',\n "completedAt":"T+' + DEMO.elapsed + '분","computerName":"' + COMPUTER + '","driversAdded":' + LEDGER.meta.driversAdded +
+          ',\n "problemDeviceCount":' + DEMO.problem + ',"reason":"COMPLETED"}' };
+      LAST = { kind: 'COMPLETE', note: '' };
+      say('success', '<b>200 · closed</b> — 서빙 메타(<code>image</code> · <code>served</code> · <code>reentries</code>)를 그대로 두고 ' +
+        '완료 메타를 덧댔습니다. 토큰을 회수했고, 다음 소유 phase 가 없어 <code>advanceOrComplete</code> 가 종단으로 닫았습니다.');
+    }
+    demoRender();
+  }
+  function actRepxe() {
+    if (LEDGER.completed) {
+      LAST = { kind: 'EXIT4', note: '' };
+      say('success', 'dispatch <b>4행</b>(종단)이 받아 <code>completedExit()</code> 를 돌려줬습니다 — <code>exit</code> 한 줄입니다. ' +
+        '실행기가 호출되지 않으므로 재진입 카운트도 오르지 않습니다.');
+    } else if (LEDGER.running) {
+      LEDGER.reentries += 1;
+      LEDGER.rows[0].text = '{"origin":"windows-install","image":"' + IMAGE + '","served":"T+' + LEDGER.servedAt +
+        '분","reentries":' + LEDGER.reentries + '}';
+      LAST = { kind: 'EXIT8', note: '' };
+      say('success', '설치 중 재진입 — E4-1-a-3 의 8행이 <code>exit</code> 로 돌려보내고 재진입을 ' + LEDGER.reentries + ' 로 올렸습니다.');
+    }
+    demoRender();
+  }
+  function actTick() {
+    DEMO.elapsed = Math.min(150, DEMO.elapsed + DEMO.sweepMin);
+    const d = sweep(LEDGER, DEMO.elapsed, DEMO.timeoutMin, DEMO.graceMin);
+    if (d) {
+      LEDGER.running = false; LEDGER.failed = d.reason; LEDGER.token = null;
+      LEDGER.rows.unshift({ status: 'FAILED', text: '{"reason":"' + d.reason + '","detail":"재진입 · 보고 없음 — 스윕(유예 30분)"}' });
+      LAST = { kind: 'SWEPT', note: d.reason };
+      say('error', '<b>' + d.reason + '</b> — 서빙 후 시한 60분과 유예 30분을 지나 스윕이 실패로 전환했습니다. 토큰도 회수했습니다.');
+    } else {
+      LAST = { kind: 'TICK', note: '' };
+      say('success', '스윕이 돌았지만 대상이 없습니다 (T+' + DEMO.elapsed + '분).' +
+        (LEDGER.running ? ' 서빙 후 ' + (DEMO.elapsed - LEDGER.servedAt) + '분 — 아직 90분에 못 미칩니다.' : ''));
+    }
+    demoRender();
+  }
+  function demoAction(id) {
+    if (id === 'assemble') actAssemble();
+    else if (id === 'boot') actBoot();
+    else if (id === 'report') actReport();
+    else if (id === 'repxe') actRepxe();
+    else if (id === 'tick') actTick();
+  }
+  function demoBtn(id, label, blocked, tip) {
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + (blocked ? ' disabled' : '') +
+      ' onclick="demoAction(\'' + id + '\')">' + label + '</button></span> ';
+  }
+
+  // ── 상태 조작 ───────────────────────────────────────────────
+  function demoSet(key, value) { DEMO[key] = value; demoRender(); }
+  function demoToggle(key) { DEMO[key] = !DEMO[key]; demoRender(); }
+  function demoClock(v) { DEMO.elapsed = parseInt(v, 10); demoRender(); }
+  function demoProblem(v) { DEMO.problem = parseInt(v, 10); demoRender(); }
+
+  // ── 원클릭 시나리오 6 ──────────────────────────────────────
+  function demoScenario(n) {
+    resetAll();
+    DEMO.chipset = true; DEMO.qat = true; DEMO.lan = true; DEMO.chipsetV2 = false;
+    DEMO.bootOrder = 'NETWORK'; DEMO.elapsed = 0; DEMO.problem = 0;
+    if (n === 1) {
+      actAssemble(); actBoot(); DEMO.elapsed = 12; actReport();
+      guide('success', '<b>① 조립 → 완료</b> — 조립하고 서빙하고 T+12분에 완료를 보고했습니다(문제 장치 0). ' +
+        '원장 카드에서 서빙 메타가 살아 있는 채로 완료 메타가 덧대진 것을, 상세 카드에서 종단을 확인하세요. ' +
+        '이어서 <b>「재PXE」</b> 를 누르면 4행 <code>exit</code> 가 나옵니다.');
+    } else if (n === 2) {
+      actBoot();
+      guide('warn', '<b>② 미조립 대기</b> — 조립하지 않은 채 서빙을 시도했습니다. 준비도 12행이 BLOCKED 로 막고 사유가 조립 버튼을 지목합니다. ' +
+        '이제 <b>「드라이버 페이로드 조립」</b> → <b>「/boot 폴링(서빙)」</b> 순으로 누르면 운영자 개입 없이 재개됩니다.');
+    } else if (n === 3) {
+      actAssemble(); actBoot(); DEMO.chipsetV2 = true;
+      guide('warn', '<b>③ 자원 교체</b> — <code>chipset</code> 을 v2 로 바꿨습니다. chip 이 "갱신 필요" 로 바뀌지만 ' +
+        '서빙은 그대로 계속됩니다(경고이지 차단이 아닙니다). <b>「드라이버 페이로드 조립」</b> 을 다시 누르면 "최신" 으로 돌아옵니다.');
+    } else if (n === 4) {
+      actAssemble(); actBoot(); DEMO.elapsed = 12; actReport(); actRepxe();
+      guide('success', '<b>④ 완료 뒤 재PXE</b> — 완료한 게스트가 다시 PXE 로 들어왔습니다. dispatch 4행이 <code>exit</code> 를 돌려주고 ' +
+        '실행기는 호출되지 않아 재진입 카운트가 0 그대로입니다.');
+    } else if (n === 5) {
+      DEMO.bootOrder = 'DISK'; actAssemble(); actBoot();
+      DEMO.elapsed = 95; actTick();
+      guide('danger', '<b>⑤ 무응답 · 스윕</b> — 부트 순서가 디스크 우선이라 재PXE 가 없고 완료 보고도 오지 않았습니다. ' +
+        'T+95분에서 스윕이 돌아 <code>INSTALL_TIMEOUT</code> 으로 닫았습니다(시한 60분 + 유예 30분). ' +
+        '이 자리가 E4-1-a-3 이 D-8 로 남긴 공백입니다.');
+    } else if (n === 6) {
+      actAssemble(); actBoot(); DEMO.elapsed = 12; actReport(); actReport();
+      guide('success', '<b>⑥ 중복 보고</b> — 같은 보고를 두 번 보냈습니다. 두 번째는 200 무동작이고 원장 행은 하나뿐입니다. ' +
+        '멱등을 토큰이 아니라 <b>원장 마지막 행</b>으로 판단하기 때문에, 토큰이 이미 회수된 뒤의 재시도도 안전합니다.');
+    }
+    demoRender();
+  }
+
+  // ── 렌더 ────────────────────────────────────────────────────
+  function demoRender() {
+    const list = assets(), st = oemState(list, MANIFEST), r = readinessRow12(st);
+    document.querySelectorAll('.ux-toolbar .seg[data-seg]').forEach(b =>
+      b.classList.toggle('active', DEMO[b.dataset.seg] === b.dataset.value));
+    document.querySelectorAll('.ux-toolbar .seg[data-toggle]').forEach(b =>
+      b.classList.toggle('active', !!DEMO[b.dataset.toggle]));
+    document.getElementById('demo-clock').value = DEMO.elapsed;
+    document.getElementById('demo-clock-label').textContent = 'T+' + DEMO.elapsed + '분';
+    document.getElementById('demo-problem').value = DEMO.problem;
+    document.getElementById('demo-problem-label').textContent = DEMO.problem + ' 개';
+
+    // 액션 버튼 (차단 사유는 .tip tooltip)
+    const served = LEDGER.servedAt !== null;
+    document.getElementById('demo-actions').innerHTML =
+      demoBtn('assemble', '드라이버 페이로드 조립', false, '') +
+      demoBtn('boot', '/boot 폴링(서빙)', LEDGER.running || LEDGER.completed || !!LEDGER.failed,
+        LEDGER.failed ? '실패 상태입니다 — 운영자 재시도로 되돌려야 합니다.'
+          : LEDGER.completed ? '이미 완료했습니다. 재진입은 「재PXE」 입니다.' : '이미 서빙했습니다(STEP_RUNNING).') +
+      demoBtn('report', '첫 로그온 완료 보고', !served,
+        '아직 서빙 전이라 게스트에게 토큰이 없습니다 — 「/boot 폴링(서빙)」 을 먼저 누르세요.') +
+      demoBtn('repxe', '재PXE', !served || !!LEDGER.failed,
+        LEDGER.failed ? '실패 상태입니다 — dispatch 3행이 받습니다.' : '아직 서빙 전입니다.') +
+      demoBtn('tick', '스윕 tick (5분)', false, '');
+
+    // 판정 패널
+    const tf = v => v ? '<span class="t">BLOCKED</span>' : '<span class="f">통과</span>';
+    let caps = 'assets(활성 · INF)              = ' +
+      list.map(a => a.name + (a.active ? '(' + a.inf + ')' : '(off)')).join(' · ') + '\n';
+    caps += 'WindowsOemManifest.compare      → ' +
+      (st.state === 'CURRENT' ? '<span class="f">CURRENT</span>'
+        : st.state === 'STALE' ? '<span class="t">STALE</span>' : '<span class="t">NOT_ASSEMBLED</span>') + '\n';
+    st.changes.forEach((c, i) => { caps += '  changes[' + i + ']                    = ' + c + '\n'; });
+    st.excluded.forEach((e, i) => { caps += '  excluded[' + i + ']                   = ' + e.name + ' (' + e.reason + ')\n'; });
+    caps += 'WindowsInstallReadiness 12행    → ' + tf(r.blocked) + (r.blocked ? '  wire="' + r.wire + '"' : '') + '\n';
+    caps += 'progress.motion                 = ' + (LEDGER.running ? 'STEP_RUNNING'
+      : LEDGER.completed ? 'COMPLETED' : LEDGER.failed ? 'FAILED(' + LEDGER.failed + ')' : 'AWAITING_BOOT') + '\n';
+    caps += 'CompletionService.complete      → ' + (LAST.kind === 'COMPLETE' ? 'CLOSE(SUCCEEDED) + REVOKE + ADVANCE→COMPLETED'
+      : LAST.kind === 'NOOP' ? 'NOOP (200)' : LAST.kind === 'REJECT' ? 'REJECT (409)' : '(호출 없음)') + '\n';
+    caps += 'TimeoutSweeper.sweep            → ' + (LAST.kind === 'SWEPT' ? 'INSTALL_TIMEOUT + REVOKE'
+      : LEDGER.running ? '(유예 전 — 서빙 후 ' + (DEMO.elapsed - LEDGER.servedAt) + '분 / 90분)' : '(대상 없음)');
+    document.getElementById('demo-caps').innerHTML = caps;
+
+    // 렌더 카드 ① 대시보드
+    const chip = st.state === 'CURRENT' ? '최신 ' + MANIFEST.entries.length + '종'
+      : st.state === 'STALE' ? '갱신 필요 (' + st.changes.length + '건)' : '미조립';
+    let dash = '슬롯 1  boot.wim            존재\n' +
+      '슬롯 2  install.wim         존재\n' +
+      '슬롯 3  setup.exe           존재\n' +
+      '슬롯 4  wimboot             존재\n' +
+      '슬롯 5  SetupComplete.cmd   ' + (MANIFEST ? '존재' : '없음') + '\n' +
+      '슬롯 6  spv-report.ps1      ' + (MANIFEST ? '존재' : '없음') + '\n' +
+      'chip    드라이버 페이로드    ' + chip + '\n';
+    if (MANIFEST) {
+      dash += '\n$OEM$/$1/SPV/Drivers/\n' + MANIFEST.entries.map(e => '  ' + e.id + '_' + e.name + '  (INF ' + e.inf + ' · ' + e.version + ')').join('\n');
+      if (MANIFEST.excluded.length) dash += '\n제외  ' + MANIFEST.excluded.map(e => e.name + ' (' + e.reason + ')').join(', ');
+    }
+    document.getElementById('demo-dashboard').textContent = dash;
+
+    // 렌더 카드 ② 원장
+    document.getElementById('demo-ledger').textContent = LEDGER.rows.length
+      ? LEDGER.rows[0].status + '\n' + LEDGER.rows[0].text + '\n\n(원장 행 수 ' + LEDGER.rows.length + ')'
+      : '(아직 행이 없습니다 — 서빙이 행을 엽니다)';
+
+    // 렌더 카드 ③ 상세
+    const rows = [];
+    rows.push(uxRow('대상 이미지', IMAGE, ['on', 'Windows']));
+    rows.push(uxRow('드라이버 페이로드', st.state === 'NOT_ASSEMBLED' ? r.note
+      : st.state === 'STALE' ? '갱신 필요 — ' + st.changes.join(' · ') : '최신 ' + MANIFEST.entries.length + '종',
+      st.state === 'CURRENT' ? ['on', '최신'] : st.state === 'STALE' ? ['dep', '갱신 필요'] : ['off', '미조립']));
+    if (LEDGER.completed) {
+      rows.push(uxRow('진행', '설치 완료 ' + LEDGER.meta.completedAt + ' · ' + LEDGER.meta.computerName +
+        ' · 드라이버 ' + LEDGER.meta.driversAdded + ' · 문제 장치 ' + LEDGER.meta.problem, ['on', '완료']));
+      rows.push(uxRow('종결', '다음 소유 phase 없음 → 프로비저닝 종단', ['on', 'COMPLETED']));
+    } else if (LEDGER.failed) {
+      rows.push(uxRow('진행', '실패 — ' + LEDGER.failed + ' · 운영자 재시도로 회복', ['del', '실패']));
+    } else if (LEDGER.running) {
+      rows.push(uxRow('진행', '서빙 T+' + LEDGER.servedAt + '분 · 재진입 ' + LEDGER.reentries +
+        ' · 완료 보고 대기', ['on', '설치 중']));
+    } else if (r.blocked) {
+      rows.push(uxRow('진행', '자원 결손 대기 — ' + r.note, ['dep', '대기']));
+    } else {
+      rows.push(uxRow('진행', '서빙 전 (다음 폴링을 기다립니다)', ['off', '대기']));
+    }
+    rows.push(uxRow('부트 순서', DEMO.bootOrder === 'NETWORK' ? '네트워크 우선 — 재부팅마다 재PXE 가 일어난다'
+      : '디스크 우선 — 재PXE 가 없어 스윕만이 닫을 수 있다',
+      DEMO.bootOrder === 'NETWORK' ? ['on', 'NETWORK'] : ['dep', 'DISK']));
+    document.getElementById('demo-detail').innerHTML = rows.join('');
+  }
+  function uxRow(name, value, badge) {
+    return '<div class="ux-row' + (badge[0] === 'off' ? ' muted' : '') + '"><strong>' + name +
+      '</strong><span class="label">' + value + '</span><span class="badge ' + badge[0] + '">' + badge[1] + '</span></div>';
+  }
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

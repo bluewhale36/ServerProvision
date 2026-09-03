@@ -20,6 +20,8 @@ public final class AutounattendRenderer {
      * @param productKey            에디션의 제품 키 — 준비도가 존재를 보장한 뒤에만 여기 도달한다
      * @param imageName             install.wim 의 /IMAGE/NAME
      * @param administratorPassword 평문 — 여기서 두 번 인코딩한다(AdministratorPassword · AutoLogon)
+     * @param reportBaseUrl         완료 보고 스크립트가 부를 앱 base URL(E4-1-a-4) — FirstLogonCommands 인자
+     * @param guestToken            게스트 토큰 값 — 보고의 X-Guest-Token. 렌더본에만 실리고 로그 · toString 에는 나오지 않는다
      */
     public record AutounattendValues(
             String language,
@@ -27,12 +29,15 @@ public final class AutounattendRenderer {
             String imageName,
             String computerName,
             String timeZone,
-            String administratorPassword
+            String administratorPassword,
+            String reportBaseUrl,
+            String guestToken
     ) {
         @Override
         public String toString() {
             return "AutounattendValues[language=" + language + ", imageName=" + imageName
-                    + ", computerName=" + computerName + ", timeZone=" + timeZone + ", productKey=****, password=****]";
+                    + ", computerName=" + computerName + ", timeZone=" + timeZone + ", reportBaseUrl=" + reportBaseUrl
+                    + ", productKey=****, password=****, guestToken=****]";
         }
     }
 
@@ -44,6 +49,8 @@ public final class AutounattendRenderer {
                 .replace("__IMAGE_NAME__", escape(v.imageName()))
                 .replace("__COMPUTER_NAME__", escape(v.computerName()))
                 .replace("__TIME_ZONE__", escape(v.timeZone()))
+                .replace("__REPORT_BASE_URL__", escape(v.reportBaseUrl()))
+                .replace("__GUEST_TOKEN__", escape(v.guestToken()))
                 .replace("__ADMIN_PASSWORD_B64__",
                         UnattendPassword.encode(v.administratorPassword(), UnattendPassword.ADMINISTRATOR_NODE))
                 .replace("__AUTOLOGON_PASSWORD_B64__",
