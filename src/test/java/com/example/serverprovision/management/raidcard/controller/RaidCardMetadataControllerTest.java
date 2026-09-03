@@ -11,6 +11,7 @@ import com.example.serverprovision.management.raidcard.exception.DuplicateRaidCa
 import com.example.serverprovision.management.raidcard.exception.RaidCardNotFoundException;
 import com.example.serverprovision.management.raidcard.exception.RaidCardNudgeRequiredException;
 import com.example.serverprovision.management.raidcard.service.RaidCardMetadataService;
+import com.example.serverprovision.management.raidcard.service.RaidCardObservationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,7 @@ class RaidCardMetadataControllerTest {
 	@Autowired MockMvc mvc;
 
 	@MockitoBean RaidCardMetadataService raidCardService;
+	@MockitoBean RaidCardObservationService observationService;   // E3.5-5-b — 컨트롤러 의존 추가분(관측 시나리오는 전용 테스트)
 	@MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
 	private static RaidCardResponse activeCard(String pciDisplay) {
