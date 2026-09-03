@@ -17,9 +17,9 @@ import com.example.serverprovision.provisioning.setting.service.SettingQueryServ
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import com.example.serverprovision.provisioning.setting.dto.request.PlannedOSInstallationRequest;
-import com.example.serverprovision.provisioning.setting.service.reference.os.PlannedInstallTargetPolicy;
-import com.example.serverprovision.provisioning.setting.exception.UnsupportedPlannedInstallTargetException;
+import com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest;
+import com.example.serverprovision.provisioning.setting.service.reference.os.OsInstallTargetPolicy;
+import com.example.serverprovision.provisioning.setting.exception.UnsupportedOsInstallTargetException;
 import com.example.serverprovision.management.os.exception.OSMetadataNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -483,14 +483,42 @@ class SettingRestControllerSaveFlowTest {
                 .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST_BODY"));
     }
 
+    private static final String WINDOWS_PROCESS = """
+            {"type": "OS_INSTALLATION", "osFamily": "WINDOWS", "osMetadataId": 2, "isoId": 60,
+             "imageName": "Windows Server 2025 SERVERSTANDARD",
+             "administratorPassword": {"password": "S3rver!2025", "keepExistingPassword": false}}
+            """;
+
     @Test
-    @DisplayName("POST — 미등록 예약 판별자 WINDOWS → 400 (v2 §0: 등록 전 전송은 400, 500 으로 새지 않음)")
-    void create_reservedWindowsFamily_returns400() throws Exception {
+    @DisplayName("POST — WINDOWS 판별자 → 201 + WindowsInstallationRequest 해석(설치 이미지 · 비밀번호 값 보존) (E4-1-a-2)")
+    void create_windows_returns201() throws Exception {
+        given(commandService.create(any())).willReturn(saved(11L));
+
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body(WINDOWS_PROCESS)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(11));
+
+        ArgumentCaptor<SettingSaveRequest> captor = ArgumentCaptor.forClass(SettingSaveRequest.class);
+        verify(commandService).create(captor.capture());
+        assertThat(captor.getValue().processList().get(0)).isInstanceOfSatisfying(WindowsInstallationRequest.class, w -> {
+            assertThat(w.getImageName().value()).isEqualTo("Windows Server 2025 SERVERSTANDARD");
+            assertThat(w.getAdministratorPassword().getPassword()).isEqualTo("S3rver!2025");
+            assertThat(w.getAdministratorPassword().isKeepExistingPassword()).isFalse();
+        });
+    }
+
+    @Test
+    @DisplayName("POST — WINDOWS 필수 누락(ISO · 설치 이미지 · 비밀번호) → 400 + fieldErrors (Layer A)")
+    void create_windowsMissingRequired_returns400() throws Exception {
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
                         .content(body("{\"type\": \"OS_INSTALLATION\", \"osFamily\": \"WINDOWS\", \"osMetadataId\": 1}")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST_BODY"));
+                .andExpect(jsonPath("$.fieldErrors[?(@.field =~ /.*imageName/)]").exists())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field =~ /.*administratorPassword/)]").exists())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field =~ /.*isoId/)]").exists());
     }
 
     // ==== 404 ========================================================
@@ -507,34 +535,26 @@ class SettingRestControllerSaveFlowTest {
                 .andExpect(jsonPath("$.message").exists());
     }
 
-    // ==== R11 — 식별 전용(설치 예정 기록) 계약 ==========================
+    // ==== E4-1-a-2 — R11 식별 전용 퇴역: 판별자 부재는 다른 OS 타입과 같은 400 ==========================
 
     @Test
-    @DisplayName("POST — osFamily 부재 → 201 + PlannedOSInstallationRequest 해석 (R11 D-R1)")
-    void create_plannedIdentificationOnly_returns201() throws Exception {
-        given(commandService.create(any())).willReturn(saved(7L));
-
+    @DisplayName("POST — osFamily 부재(구 식별 전용 형식) → 400 MALFORMED_REQUEST_BODY (E4-1-a-2 D-3: 식별 전용 퇴역)")
+    void create_withoutFamily_returns400() throws Exception {
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
                         .content(body("{\"type\": \"OS_INSTALLATION\", \"osMetadataId\": 1, \"isoId\": 100}")))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(7));
-
-        ArgumentCaptor<SettingSaveRequest> captor = ArgumentCaptor.forClass(SettingSaveRequest.class);
-        verify(commandService).create(captor.capture());
-        assertThat(captor.getValue().processList().get(0)).isInstanceOf(PlannedOSInstallationRequest.class);
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST_BODY"));
     }
 
     @Test
-    @DisplayName("POST — osFamily: null 명시도 식별 전용으로 해석 (직렬화 왕복 일관 — 수정 폼 재저장 경로)")
-    void create_plannedExplicitNullFamily_returns201() throws Exception {
-        given(commandService.create(any())).willReturn(saved(8L));
-
+    @DisplayName("POST — osFamily: null 명시도 400 (저장본 치환 SQL 이 배포 전에 선행해야 하는 이유)")
+    void create_explicitNullFamily_returns400() throws Exception {
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
                         .content(body("{\"type\": \"OS_INSTALLATION\", \"osFamily\": null, \"osMetadataId\": 1, \"isoId\": 100}")))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(8));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST_BODY"));
     }
 
     @Test
@@ -547,36 +567,84 @@ class SettingRestControllerSaveFlowTest {
     }
 
     @Test
-    @DisplayName("POST — 식별 전용의 필수 식별 누락 → 400 + fieldErrors (베이스 @NotNull 그대로)")
-    void create_plannedMissingIds_returns400() throws Exception {
+    @DisplayName("POST — 타입만 있는 OS 설치 단계 → 400 (판별자 부재 — 필드 검증 이전에 해석 단계에서 거절)")
+    void create_typeOnly_returns400() throws Exception {
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
                         .content(body("{\"type\": \"OS_INSTALLATION\"}")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors").isNotEmpty());
+                .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST_BODY"));
     }
 
     @Test
-    @DisplayName("POST — 리눅스 계열 식별 전용 → 400 + fieldErrors[osMetadataId] (신규 예외 시나리오, R11 D-R8)")
-    void create_plannedLinuxTarget_returns400() throws Exception {
+    @DisplayName("POST — 리눅스 OS 에 WINDOWS 판별자 위조 → 400 + fieldErrors[osMetadataId] (OsInstallTargetPolicy 가드)")
+    void create_windowsOnLinuxTarget_returns400() throws Exception {
         given(commandService.create(any())).willThrow(
-                new UnsupportedPlannedInstallTargetException(PlannedInstallTargetPolicy.LINUX_BLOCK_REASON));
+                new UnsupportedOsInstallTargetException(OsInstallTargetPolicy.LINUX_BLOCK_REASON));
 
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
-                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osMetadataId\": 3, \"isoId\": 100}")))
+                        .content(body(WINDOWS_PROCESS)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osMetadataId')]").exists());
     }
 
     @Test
-    @DisplayName("POST — 식별 전용의 미실존 OS 참조 → 404 (기존 NotFound 계열 실제 트리거)")
-    void create_plannedUnknownOs_returns404() throws Exception {
+    @DisplayName("POST — Windows 설치 단계의 미실존 OS 참조 → 404 (기존 NotFound 계열 실제 트리거)")
+    void create_windowsUnknownOs_returns404() throws Exception {
         given(commandService.create(any())).willThrow(new OSMetadataNotFoundException(9L));
 
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
-                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osMetadataId\": 9, \"isoId\": 100}")))
+                        .content(body(WINDOWS_PROCESS)))
                 .andExpect(status().isNotFound());
+    }
+
+    // ==== E4-1-a-2 — Windows 신규 예외 2종 + Layer A(비밀번호) ==========================
+
+    @Test
+    @DisplayName("POST — 소스에 없는 설치 이미지(검사기 거절) → 400 + fieldErrors[imageName]")
+    void create_windowsImageNotInSource_returns400() throws Exception {
+        given(commandService.create(any())).willThrow(
+                com.example.serverprovision.provisioning.setting.exception.InvalidWindowsImageSelectionException.notInSource(
+                        new com.example.serverprovision.execution.wininstall.vo.WindowsImageName("Windows Server 2025 SERVERSTANDARD")));
+
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body(WINDOWS_PROCESS)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'imageName')]").exists());
+    }
+
+    @Test
+    @DisplayName("PUT — 유지할 기존 비밀번호가 없는데 유지 플래그 → 400 + fieldErrors[administratorPassword]")
+    void update_windowsRetainedPasswordUnavailable_returns400() throws Exception {
+        given(commandService.update(eq(1L), any())).willThrow(
+                new com.example.serverprovision.provisioning.setting.exception.RetainedPasswordUnavailableException());
+
+        mvc.perform(put("/provisioning/setting/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body("""
+                                {"type": "OS_INSTALLATION", "osFamily": "WINDOWS", "osMetadataId": 2, "isoId": 60,
+                                 "imageName": "Windows Server 2025 SERVERSTANDARD",
+                                 "administratorPassword": {"password": null, "keepExistingPassword": true}}
+                                """)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'administratorPassword')]").exists());
+    }
+
+    @Test
+    @DisplayName("POST — 비밀번호 빈 값 + 유지 아님 → 400 Layer A(administratorPassword) · 서비스 미도달")
+    void create_windowsBlankPassword_returns400() throws Exception {
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body("""
+                                {"type": "OS_INSTALLATION", "osFamily": "WINDOWS", "osMetadataId": 2, "isoId": 60,
+                                 "imageName": "Windows Server 2025 SERVERSTANDARD",
+                                 "administratorPassword": {"password": "", "keepExistingPassword": false}}
+                                """)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field =~ /.*administratorPassword.*/)]").exists());
+        verify(commandService, org.mockito.Mockito.never()).create(any());
     }
 }

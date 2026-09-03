@@ -49,4 +49,20 @@ public abstract class AbstractProcessRequest {
     public BoardModelSelectionRequest requiredBoardModel() {
         return null;
     }
+
+    /**
+     * 수정 폼 pre-fill 용 사본 — 비밀번호 같은 비밀값을 빼고 "기존 유지" 플래그로 대체한다(E4-1-a-2 D-11).
+     * 비밀값이 없는 단계 타입은 기본 {@code this}. 컨트롤러가 instanceof 로 타입을 고르지 않게 하는 다형 관용구.
+     */
+    public AbstractProcessRequest withoutSecrets() {
+        return this;
+    }
+
+    /**
+     * 수정 저장 병합 — "기존 유지" 플래그가 켜진 비밀값을 같은 단계 타입의 저장본({@code existing}, 없으면 null)에서
+     * 이어받는다. 비밀값이 없는 단계 타입은 기본 {@code this}.
+     */
+    public AbstractProcessRequest withSecretsRetainedFrom(AbstractProcessRequest existing) {
+        return this;
+    }
 }

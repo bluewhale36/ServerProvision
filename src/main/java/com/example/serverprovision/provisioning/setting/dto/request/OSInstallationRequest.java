@@ -13,9 +13,8 @@ import lombok.Getter;
  * <p><b>Windows-safe 얇은 베이스 (U2-1 plan v2 D9)</b> : 레거시는 timezone·partitions·rootPassword·users 를
  * 이 층에 hoist 했으나, 그것은 리눅스 설치의 표현이다. 모든 OS 설치의 진짜 공통은
  * "어떤 OS 를 설치하는가"({@link #osMetadataId}) 뿐이므로 그것만 남기고, 리눅스 공통 필드는
- * {@link LinuxInstallationRequest} 중간층으로 내렸다. 추후 Windows 대응 시
- * {@code WindowsInstallationRequest} 가 이 베이스만 상속하고 해석기 맵에 {@code WINDOWS}
- * 한 항목을 등록하면 된다 — 등록 전까지 {@code WINDOWS} 전송은 advice 가 400 으로 응답한다.</p>
+ * {@link LinuxInstallationRequest} 중간층으로 내렸다. {@link WindowsInstallationRequest} 는 이 베이스만 상속하며
+ * 해석기 맵에 {@code WINDOWS} 한 항목으로 등록됐다(E4-1-a-2).</p>
  */
 @Getter
 public abstract class OSInstallationRequest extends AbstractProcessRequest {

@@ -18,6 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
+import java.util.stream.Collectors;
+import java.util.Map;
 
 /**
  * guest 세팅 정의서 쓰기 — JPA 구현 (U2-3, InMemory 스텁 대체).
@@ -64,12 +67,19 @@ public class JpaSettingCommandService implements SettingCommandService {
         }
         validateReferences(request.processList());
 
+        // E4-1-a-2 D-11 — "기존 유지" 비밀값은 clear 전에 저장본에서 이어받는다(다형 훅 · 타입 분기 없음).
+        Map<SettingProcessType, AbstractProcessRequest> existing = definition.getProcesses().stream()
+                .collect(Collectors.toMap(SettingProcess::getProcessType, p -> p.getPayload().request()));
+        List<AbstractProcessRequest> merged = request.processList().stream()
+                .map(p -> p.withSecretsRetainedFrom(existing.get(p.processType())))
+                .toList();
+
         // D4 전체 교체 — Hibernate 는 같은 flush 에서 INSERT 를 DELETE 보다 먼저 내보내므로,
         // 같은 process_type 을 재사용하는 교체가 UNIQUE(definition, type) 와 충돌한다.
         // clear 를 먼저 flush 해 orphanRemoval DELETE 를 선반영한 뒤 새 행을 장착한다.
         definition.changeNameAndClearProcesses(name);
         repository.flush();
-        definition.attachProcesses(toProcesses(request));
+        definition.attachProcesses(toProcesses(merged));
         return new SettingSaveResponse(definition.getId(), definition.getName());
     }
 
@@ -134,7 +144,11 @@ public class JpaSettingCommandService implements SettingCommandService {
     }
 
     private List<SettingProcess> toProcesses(SettingSaveRequest request) {
-        return request.processList().stream()
+        return toProcesses(request.processList());
+    }
+
+    private List<SettingProcess> toProcesses(List<AbstractProcessRequest> processList) {
+        return processList.stream()
                 .map(p -> new SettingProcess(new ProcessPayload(p)))
                 .toList();
     }

@@ -9,6 +9,7 @@ import com.example.serverprovision.provisioning.setting.dto.response.SettingOSOp
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingRaidCardOptionGroupResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.TimezoneRegionResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.WindowsImageOptionResponse;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
 
 import java.util.List;
@@ -73,6 +74,12 @@ public interface SettingQueryService {
 
     /** 타임존 선택지 — IANA 대륙별 도시 목록(JVM tzdb, 계열 무관 공통). */
     List<TimezoneRegionResponse> findTimezoneOptions();
+
+    /**
+     * Windows 설치 이미지 선택지(E4-1-a-2) — 설치 소스의 install.wim 에서 채집한 목록. 소스가 준비되지 않으면
+     * 빈 목록이며, 그때는 {@code SettingOSOptionResponse.installBlockReason} 이 Windows 옵션 자체를 막는다.
+     */
+    List<WindowsImageOptionResponse> findWindowsImageOptions();
 
     /** OS 설치 단계 폼의 RAID 카드 선택지 — 제조사 그룹, disabled 배제 · deprecated 포함 (U4-1-1). */
     List<SettingRaidCardOptionGroupResponse> findRaidCardOptions();

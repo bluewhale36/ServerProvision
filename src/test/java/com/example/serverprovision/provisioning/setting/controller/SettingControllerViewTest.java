@@ -119,7 +119,7 @@ class SettingControllerViewTest {
                 new com.example.serverprovision.provisioning.setting.dto.response.ReferenceNamesResponse(
                         java.util.Map.of(1L, "MS03-CE0"), java.util.Map.of(), java.util.Map.of(),
                         java.util.Map.of(1L, "Rocky Linux"), java.util.Map.of(), java.util.Map.of(),
-                        java.util.Map.of(9L, "성능 우선"), java.util.Map.of(), java.util.Map.of()),
+                        java.util.Map.of(9L, "성능 우선"), java.util.Map.of(), java.util.Map.of(), java.util.Map.of()),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 

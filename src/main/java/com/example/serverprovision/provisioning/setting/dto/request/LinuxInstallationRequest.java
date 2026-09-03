@@ -60,6 +60,17 @@ public abstract class LinuxInstallationRequest extends OSInstallationRequest {
      */
     public abstract LinuxInstallationRequest withPatchedPasswords(List<UserRequest> patchedUsers);
 
+    /** 사용자 비밀번호 제거 후 계열별 root 패치로 위임 — 컨트롤러가 갖던 로직을 소유 계층으로(E4-1-a-2 D-11). */
+    @Override
+    public LinuxInstallationRequest withoutSecrets() {
+        List<UserRequest> patchedUsers = users == null
+                ? null
+                : users.stream()
+                        .map(u -> new UserRequest(u.getUsername(), null, u.getIsSudoer(), false, true))
+                        .toList();
+        return withPatchedPasswords(patchedUsers);
+    }
+
     /** grow 아닌 파티션 크기의 합(바이트) — OS 영역 볼륨 하한과 대조한다(U4-1-3 D7). 판정 재료라 payload 에 싣지 않는다. */
     @JsonIgnore
     public long fixedPartitionBytes() {

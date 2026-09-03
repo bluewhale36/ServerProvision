@@ -7,20 +7,19 @@ import java.util.List;
 /**
  * OS 설치/후처리 단계 폼의 OS 선택지. ({@code GET /provisioning/setting/new} Model)
  *
- * <p>{@code osFamily} 는 2단 판별자 문자열(RHEL_BASED/DEBIAN_BASED) — 폼 JS 가 계열별 fragment 전환과
- * 전송 JSON 의 판별자 구성에 사용한다. U2-1 은 스텁 더미, 실데이터 연결은 U2-2(D5).
- * Windows 계열은 setting 판별자가 없으므로 {@code osFamily} = null (식별 전용 기록의 대상, R11).</p>
+ * <p>{@code osFamily} 는 2단 판별자 문자열(RHEL_BASED/DEBIAN_BASED/WINDOWS) — 폼 JS 가 계열별 블록 전환과
+ * 전송 JSON 의 판별자 구성에 사용한다. Windows 는 E4-1-a-2 에서 실체화됐다.</p>
  *
- * <p>{@code plannedBlockReason} 은 설치 예정 기록의 대상 정책 판정(R11 D-R8) — null 이면 선택 가능,
- * 문장이 실리면 UI 가 그 옵션을 disabled + 이 사유로 표시한다. 값의 SSOT 는
- * {@code PlannedInstallTargetPolicy}(서버 가드와 동일 판정).</p>
+ * <p>{@code installBlockReason} 은 설치 대상 정책 판정 — null 이면 선택 가능, 문장이 실리면 UI 가 그 옵션을
+ * disabled + 이 사유로 표시한다(리눅스 계열 · Windows 설치 소스 미준비). 값의 SSOT 는
+ * {@code OsInstallTargetPolicy}(서버 가드와 동일 판정).</p>
  */
 public record SettingOSOptionResponse(
         Long osMetadataId,
         String osName,
         String version,
         OSFamily osFamily,
-        String plannedBlockReason,
+        String installBlockReason,
         boolean deprecated,
         String deprecatedAtDisplay,
         String description,
