@@ -281,14 +281,33 @@ public class ProvisioningHistory extends BaseTimeEntity {
     /**
      * 종료 보고(닫힘) — append-only 원장에서 허용되는 유일한 행 갱신(RUNNING → 종결 1회).
      * 이미 종결된 행이면 아무것도 바꾸지 않고 {@code false} — 중복 종료 보고 no-op 멱등의 실체.
+     * meta 는 {@link #storableMeta} 로 정규화한다 — {@code status_meta} 컬럼의 {@code CHECK (json_valid(...))} 때문에
+     * JSON 이 아닌 원문(잘린 전송 · 셸 출력 혼입)은 그대로 넣으면 커밋이 깨져 원문도 남지 않았다(HF11 CP5 F-1).
      */
     public boolean close(ProvisioningStatus result, String statusMeta, LocalDateTime at) {
         if (this.finishedAt != null) {
             return false;
         }
         this.status = result;
-        this.statusMeta = statusMeta;
+        this.statusMeta = storableMeta(statusMeta);
         this.finishedAt = at;
         return true;
+    }
+
+    /**
+     * 원장에 넣을 수 있는 형태로 — 공백뿐이면 null(메타 없음 · {@code json_valid('')} 는 0 이라 빈 문자열도 CHECK 에 걸린다),
+     * 유효한 JSON 이면 그대로, 아니면 JSON 문자열로 감싼다(원문 보존 · CHECK 통과).
+     * 감싼 값은 객체가 아니므로 판독기({@link #displayNote} 등)와 진단 파서는 "해석 불가" 로 다룬다 — 관용 원칙 그대로다.
+     */
+    static String storableMeta(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            META_READER.readTree(raw);
+            return raw;
+        } catch (RuntimeException notJson) {
+            return META_READER.writeValueAsString(raw);
+        }
     }
 }

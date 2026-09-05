@@ -112,4 +112,27 @@ class ProvisioningHistoryMetaTest {
         assertThat(row.flashResourceName()).isNull();
         assertThat(row.flashTargetVersion()).isEqualTo("13.06.27");
     }
+
+    @Test
+    @DisplayName("close(HF11 CP5 F-1) — JSON 이 아닌 statusMeta 는 JSON 문자열로 감싸 저장(원문 보존 · status_meta CHECK 통과) · 유효 JSON 은 그대로")
+    void close_wrapsNonJsonMeta() {
+        GuestServer g = GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID()).build();
+        LocalDateTime at = LocalDateTime.of(2026, 9, 5, 19, 0);
+        ProvisioningHistory raw = ProvisioningHistory.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, at);
+        assertThat(raw.close(ProvisioningStatus.SUCCEEDED, "not json \"quoted\"", at.plusSeconds(1))).isTrue();
+        assertThat(raw.getStatusMeta()).isEqualTo("\"not json \\\"quoted\\\"\"");
+        assertThat(raw.displayNote()).isNull();
+
+        ProvisioningHistory ok = ProvisioningHistory.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, at);
+        ok.close(ProvisioningStatus.SUCCEEDED, "{\"detail\":\"fine\"}", at.plusSeconds(1));
+        assertThat(ok.getStatusMeta()).isEqualTo("{\"detail\":\"fine\"}");
+        assertThat(ok.displayNote()).isEqualTo("fine");
+
+        ProvisioningHistory arr = ProvisioningHistory.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, at);
+        arr.close(ProvisioningStatus.SUCCEEDED, "[1,2,3]", at.plusSeconds(1));
+        assertThat(arr.getStatusMeta()).isEqualTo("[1,2,3]");   // 유효 JSON(객체 아님)은 그대로 — 파서가 해석 불가로 다룬다
+        assertThat(ProvisioningHistory.storableMeta(null)).isNull();
+        assertThat(ProvisioningHistory.storableMeta("")).isNull();      // R-O1 — 빈 본문도 CHECK 에 걸리므로 '메타 없음' 으로
+        assertThat(ProvisioningHistory.storableMeta("   ")).isNull();
+    }
 }
