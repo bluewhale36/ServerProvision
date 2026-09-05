@@ -100,6 +100,7 @@ public class SettingDefinition extends BaseTimeEntity {
     public void changeNameAndClearProcesses(String name) {
         this.name = name;
         this.processes.clear();
+        touch();   // HF12 — 이름이 그대로면 자식 교체만으로는 updated_at 이 움직이지 않는다
     }
 
     /** 수정 2/2 — 새 단계 행 장착. */
