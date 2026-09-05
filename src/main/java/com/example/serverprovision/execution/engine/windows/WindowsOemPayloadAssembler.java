@@ -35,7 +35,9 @@ import java.util.stream.Stream;
  * OS 구분이 없기 때문이며(CP1 후속 — 속성이 생기면 {@link #candidates} 의 술어 한 줄만 바뀐다), INF 없는 DRIVER 는
  * 조립을 막지 않고 제외 목록에 남긴다(OQ-3).
  *
- * <p>{@link #blockReason} 이 대시보드 버튼의 disabled 사유와 {@link #sync} 의 409 가드를 함께 결정한다(SSOT).</p>
+ * <p>{@link #blockReason} 이 대시보드 버튼의 disabled 사유와 {@link #sync} 의 409 가드를 함께 결정한다(SSOT). 검사 대상은
+ * {@code $OEM$} 디렉토리와 그 안의 기존 항목({@code $$} · {@code $1})의 쓰기 가능 — 후자는 실기 2호에서 손조립본의 소유권이
+ * 스왑을 막아 500 으로 샌 지점이다(HF11-3).</p>
  */
 @Slf4j
 @Component
@@ -92,6 +94,15 @@ public class WindowsOemPayloadAssembler {
         if (!Files.isWritable(oem)) {
             return Optional.of("sources/$OEM$ 에 쓰기 권한이 없습니다 — 런북 §14-1 ($OEM$ 쓰기 권한)");
         }
+        // HF11-3 — 기존 항목(손조립 `$$` · `$1`)이 다른 계정 소유면 스왑의 디렉토리 이동이 거부된다(디렉토리 이동은 그 디렉토리
+        // 자체의 쓰기 권한을 요구). 실기 2호에서 500 으로 샌 지점 — 여기서 잡아 409 · tooltip 으로 조치를 말한다.
+        for (String name : SWAP_ENTRIES) {
+            Path existing = oem.resolve(name);
+            if (Files.isDirectory(existing) && !Files.isWritable(existing)) {
+                return Optional.of("sources/$OEM$ 안의 기존 항목(" + name + ")에 쓰기 권한이 없습니다 — 런북 §14-1 "
+                        + "(chown -R provisioning:spvadmin)");
+            }
+        }
         return Optional.empty();
     }
 
@@ -122,6 +133,7 @@ public class WindowsOemPayloadAssembler {
         Candidates c = candidates();
         try {
             Files.createDirectories(target);
+            sweepLeftovers(target);                              // HF11-3 — 이전 실패 · 비정상 종료가 남긴 .tmp-* · .old-*
             Files.createDirectories(tmp.resolve(DRIVERS_SUBDIR));
             List<WindowsOemManifest.Entry> entries = new ArrayList<>();
             for (Subprogram s : c.eligible()) {
@@ -289,10 +301,23 @@ public class WindowsOemPayloadAssembler {
                     log.error("[oem] 스왑 되돌리기 실패 : {} ({})", current, rollback.getMessage());
                 }
             }
+            deleteQuietly(old);                               // HF11-3 — 실패가 빈 .old-<ts> 를 남기지 않게
             throw e;
         }
         deleteQuietly(old);
         deleteQuietly(tmp);
+    }
+
+    /** {@code $OEM$} 바로 아래의 {@code .tmp-*} · {@code .old-*} 잔존물 제거(HF11-3) — 조립 시작 시 1회. Setup 은 이 항목을 보지 않는다. */
+    static void sweepLeftovers(Path target) throws IOException {
+        try (Stream<Path> list = Files.list(target)) {
+            list.filter(Files::isDirectory)
+                    .filter(p -> {
+                        String n = p.getFileName().toString();
+                        return n.startsWith(".tmp-") || n.startsWith(".old-");
+                    })
+                    .forEach(WindowsOemPayloadAssembler::deleteQuietly);
+        }
     }
 
     private static void deleteQuietly(Path dir) {
