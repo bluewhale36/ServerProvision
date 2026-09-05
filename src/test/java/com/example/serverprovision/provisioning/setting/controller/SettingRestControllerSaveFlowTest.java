@@ -634,6 +634,23 @@ class SettingRestControllerSaveFlowTest {
     }
 
     @Test
+    @DisplayName("PUT — 리눅스 root 유지인데 저장본에 값이 없음 → 400 + fieldErrors[rootPassword] (HF12 · 새 생성자 시나리오)")
+    void update_linuxRetainedPasswordUnavailable_returns400() throws Exception {
+        given(commandService.update(eq(1L), any())).willThrow(
+                new com.example.serverprovision.provisioning.setting.exception.RetainedPasswordUnavailableException("rootPassword", "root"));
+
+        mvc.perform(put("/provisioning/setting/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osFamily\": \"RHEL_BASED\","
+                                + LINUX_COMMON.replace("\"rootPassword\": {\"password\": \"pw\", \"isPasswordEncrypted\": false, \"keepExistingPassword\": false}",
+                                                       "\"rootPassword\": {\"password\": null, \"isPasswordEncrypted\": false, \"keepExistingPassword\": true}")
+                                + ", \"environmentId\": 1, \"packageGroupIds\": [1], \"isKDumpEnabled\": false, \"allowSshRoot\": null}")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'rootPassword')].message").value(
+                        org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("root"))));
+    }
+
+    @Test
     @DisplayName("POST — 비밀번호 빈 값 + 유지 아님 → 400 Layer A(administratorPassword) · 서비스 미도달")
     void create_windowsBlankPassword_returns400() throws Exception {
         mvc.perform(post("/provisioning/setting")

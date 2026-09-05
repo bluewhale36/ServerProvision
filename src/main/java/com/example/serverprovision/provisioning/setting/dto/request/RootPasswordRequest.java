@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.setting.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.Pattern;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
@@ -38,5 +39,16 @@ public class RootPasswordRequest {
     @JsonProperty("isPasswordEncrypted")
     public boolean isPasswordEncrypted() {
         return isPasswordEncrypted;
+    }
+
+    /** 저장본에 값이 실려 있는가 — 수정 저장 병합의 "유지할 것이 있는가" 판정(HF12). */
+    @JsonIgnore
+    public boolean hasPassword() {
+        return password != null && !password.isBlank();
+    }
+
+    /** 저장본의 값을 이어받은 사본(keep 해제 · 암호화 여부도 저장본 것). */
+    public RootPasswordRequest retaining(RootPasswordRequest previous) {
+        return new RootPasswordRequest(previous.password, previous.isPasswordEncrypted, false);
     }
 }

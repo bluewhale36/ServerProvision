@@ -73,12 +73,10 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
     }
 
     @Override
-    public RHELInstallationRequest withPatchedPasswords(List<UserRequest> patchedUsers) {
-        // root 비밀번호 패치는 소유 계층인 여기서 — 값 제거 + 기존 유지 플래그.
-        RootPasswordRequest patchedRoot = rootPassword == null
-                ? null : new RootPasswordRequest(null, false, true);
+    public RHELInstallationRequest withPatchedPasswords(PasswordPatch patch) {
+        // root 비밀번호는 소유 계층인 여기서 patch 에 맡긴다(제거 · 보존 공용).
         return new RHELInstallationRequest(
-                osMetadataId, isoId, timezone, partitions, patchedRoot, patchedUsers,
+                osMetadataId, isoId, timezone, partitions, patch.root(rootPassword), patchUsers(patch),
                 environmentId, packageGroupIds, isKDumpEnabled, allowSshRoot);
     }
 }
