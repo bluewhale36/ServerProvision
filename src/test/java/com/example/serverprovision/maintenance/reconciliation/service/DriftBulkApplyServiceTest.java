@@ -21,10 +21,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,11 +57,11 @@ class DriftBulkApplyServiceTest {
 	@InjectMocks DriftBulkApplyService service;
 
 	/**
-	 * 상대 기준시각 — 고정 시각을 쓰면 보관(snooze) 창이 실제 달력에서 만료되는 순간부터
-	 * 영구 실패하는 시한폭탄이 된다(2026-08-12 고정 + 7일 창이 08-19 에 실제로 발화했던 선례).
-	 * 대상 서비스가 만료 판정에 실 시계를 쓰므로, 기준시각도 실행 시점 기준이어야 창이 항상 미래다.
+	 * 고정 기준시각(HF13) — 서비스가 같은 고정 Clock 을 보므로 보관(snooze) 창이 실제 달력과 무관하다.
+	 * 종전에는 실 시계 상대값으로 시한폭탄(2026-08-12 고정 + 7일 창이 08-19 발화)을 피했지만 결정적이지 않았다.
 	 */
-	private static final Instant NOW = Instant.now();
+	private static final Instant NOW = Instant.parse("2026-09-05T10:00:00Z");
+	@Spy Clock clock = Clock.fixed(NOW, ZoneId.of("Asia/Seoul"));
 
 	private DriftReport report;
 

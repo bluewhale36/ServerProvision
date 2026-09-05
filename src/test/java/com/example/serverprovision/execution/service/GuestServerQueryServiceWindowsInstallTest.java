@@ -84,7 +84,8 @@ class GuestServerQueryServiceWindowsInstallTest {
                 raidVolumeRepository, detailRepository, nicRepository, progressRepository, historyRepository,
                 firmwareResolutionProvider, holdTtlPolicy, retryPolicy, new FlashTimeoutPolicy(new MockEnvironment()),
                 new SettingLedger(recorder, new ObjectMapper()), new WorkerObservations(), new ObjectMapper(),
-                resolver, ledger, new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5, Duration.ofMinutes(30)));
+                resolver, ledger, new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5, Duration.ofMinutes(30)),
+                java.time.Clock.systemDefaultZone());
         given(guestServerRepository.findById(server.getId())).willReturn(Optional.of(server));
         given(detailRepository.findByServerIdWithBoardModel(server.getId())).willReturn(Optional.empty());
         given(nicRepository.findAllByServerIdOrderByPrimary(server.getId())).willReturn(List.of());
