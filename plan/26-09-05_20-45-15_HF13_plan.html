@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF13 Plan — 시각 의존 테스트 Clock 주입</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  p:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .split-card pre { background:var(--card); border:1px solid var(--border-soft); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar input[type="range"] { flex:1 1 200px; min-width:160px; max-width:340px; accent-color:var(--blue); cursor:pointer; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq / .pkg-tree / card-grid ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF13 — 시각 의존 테스트 Clock 주입 (DriftBulkApplyService · GuestServerQueryService) <span class="v2-badge">HF13</span></h1>
+  <div class="meta">
+    <span><strong>인벤토리</strong> HF13</span>
+    <span><strong>계열</strong> HF (hotfix)</span>
+    <span><strong>브랜치</strong> <code>fix/HF13_clock-injection</code> (origin/dev 8f3357c · 단기 워크트리 <code>ServerProvision-HF13</code>)</span>
+    <span><strong>진행</strong> 사용자 지시 "HF12, 13 진행. 완료 후 고지"(2026-09-05) — 무중단</span>
+    <span><strong>작성</strong> 2026-09-05 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 한눈 요약</a></li>
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 대안 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 시각이 흘러드는 경로</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트 배선</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 / 잔존 / OQ</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 한눈 요약 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 한눈 요약</summary>
+      <div class="body">
+        <p>현재 시각에 기대는 테스트 두 건을 결정적으로 만든다. 대상 서비스 둘에
+        <code>java.time.Clock</code> 을 주입하고 — 기본 빈은 시스템 시계다 — 테스트는 고정 Clock 을 넣는다.
+        운영에서 읽히는 시각은 지금과 같고, 달라지는 것은 <b>그 시각을 어디서 받아 오는가</b> 하나다.</p>
+        <p>전역 시각 추상화는 하지 않는다. 지금 흔들리는 지점이 둘이므로 그 둘만 고친다. 스키마 변경은
+        없고(DDL 0), 설정 파일도 화면도 건드리지 않는다.</p>
+        <div class="callout"><b>대상 둘</b> —
+        ① <code>DriftBulkApplyService</code> 의 보관(snooze) 만료 판정
+        ② <code>GuestServerQueryService</code> 의 시간 묶음 · 잔여 시한 · 접촉 판정.
+        두 서비스 모두 <code>@RequiredArgsConstructor</code> 생성자 주입이라 필드 하나를 더하면 스프링이 빈을 넣어 준다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 (진단) ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>① 보관 만료 판정 — 한 번 발화했고, 임시로 막아 둔 상태다</h4>
+        <p><code>DriftBulkApplyService.openTargets</code> 는 <code>Instant.now()</code> 를 읽어
+        <code>Drift.isListed(now)</code> 에 넘긴다. 이 도메인 메서드는 드리프트가 열려 있거나 보관 기한이
+        지났을 때 목록에 남긴다고 판정하므로, <b>기준 시각이 판정을 가른다</b>.</p>
+        <p>테스트는 2026-08-12 고정 시각에 7일 보관 창을 세워 두고 있었다. 8월 19일에 실제 달력이 그 창을
+        넘어서면서 창이 과거가 되었고, 그때부터 테스트가 영구히 실패했다. 시한폭탄이라 부르는 형태다.
+        임시 조치(커밋 <code>6f5e775</code>)로 기준을 <code>Instant.now()</code> 상대 시각으로 바꾸어
+        지금은 통과한다.</p>
+        <p>그러나 <b>테스트와 서비스가 서로 다른 순간의 실 시계를 읽는 구조는 그대로다</b>. 픽스처가
+        기준을 잡은 순간과 서비스가 <code>Instant.now()</code> 를 부르는 순간이 다르므로 창 경계 근처에서는
+        여전히 흔들릴 수 있고, 무엇보다 "언제 돌려도 같은 결과" 라는 테스트의 성질이 없다.</p>
+
+        <h4>② 시간 묶음 — 전체 실행에서만 간헐로 깨진다</h4>
+        <p><code>GuestServerQueryServiceGroupingTest</code> 는 픽스처 서버의 등록 시각을
+        <code>LocalDateTime.now().minusSeconds(n)</code> 으로 만든다. 서비스는 목록을 조립할 때 자기
+        <code>LocalDateTime.now()</code> 를 읽어 경과 시간을 계산하고, 그 경과를 내림 눈금으로 묶는다.
+        두 <code>now</code> 사이에 눈금 경계가 끼면 같은 묶음에 들어가야 할 서버가 다른 묶음으로 떨어져
+        단언이 깨진다.</p>
+        <p>단독 실행은 픽스처 생성과 조회 사이가 거의 붙어 있어 잘 통과한다. 전체 실행에서는 그 사이가
+        벌어지므로 <b>간헐 실패</b>가 된다. 재현이 어렵고, 실패했을 때 코드가 아니라 실행 시점을 의심하게
+        만든다는 점이 이 결함의 실질적 비용이다.</p>
+
+        <h4>③ 지금 저장소의 상태</h4>
+        <ul>
+          <li><code>java.time.Clock</code> 을 쓰는 코드가 <b>본 소스에도 테스트에도 없다</b>. Clock 빈도 없다.</li>
+          <li><code>global/config</code> 에는 <code>AsyncConfig</code> · <code>RestClientConfig</code> 둘이 있다.</li>
+          <li><code>GuestServerQueryService</code> 안의 <code>LocalDateTime.now()</code> 호출은 <b>9 곳</b>이다.</li>
+          <li>눈금 규칙 자체는 값 객체 <code>RegistrationAge</code> 가 소유하고 기준 시각을 인자로 받으므로, 이번 변경의 대상이 아니다.</li>
+        </ul>
+        <div class="callout danger"><b>핵심 진단</b> — 두 결함의 원인은 같다.
+        <b>한 판정에 시계가 둘</b>이라는 것이다. 픽스처가 하나를 읽고 서비스가 다른 하나를 읽으니, 둘 사이의
+        간격이 판정 경계를 넘는 순간 결과가 바뀐다. 경계값을 넉넉히 잡는 것으로는 확률만 낮아진다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 대안 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 대안 비교 + 비목표</summary>
+      <div class="body">
+        <h4>요구사항</h4>
+        <ol>
+          <li>두 서비스가 시각을 <b>주입된 <code>Clock</code> 한 곳에서만</b> 읽는다.</li>
+          <li>운영 동작은 변하지 않는다 — 기본 빈이 시스템 시계이므로 실제로 읽히는 값이 지금과 같다.</li>
+          <li>테스트는 고정 Clock 을 넣어 <b>언제 돌려도 같은 결과</b>를 낸다.</li>
+          <li><code>DriftBulkApplyServiceTest</code> 의 기준 시각을 <b>고정 상수로 되돌린다</b>. 서비스가 같은 고정 시계를 보므로 더는 시한폭탄이 아니다.</li>
+          <li>스키마 · 설정 · 화면 변경 0.</li>
+        </ol>
+
+        <h4>대안 비교</h4>
+        <table>
+          <thead><tr><th>안</th><th>요지</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>① Clock 주입</td>
+              <td>두 서비스에 <code>Clock</code> 을 생성자 주입하고 테스트는 고정 Clock 을 넣는다.</td>
+              <td><span class="chip new">채택</span> 자바 표준 · 결정적 · 다른 코드 무변경.</td>
+            </tr>
+            <tr>
+              <td>② 정적 mock</td>
+              <td>테스트에서 <code>LocalDateTime.now</code> 를 정적으로 mocking 한다.</td>
+              <td><span class="chip del">탈락</span> 정적 mock 은 스레드 · 범위에 취약하고, 프로덕션 시그니처는 그대로라 근본 정정이 아니다.</td>
+            </tr>
+            <tr>
+              <td>③ 경계값 여유 확대</td>
+              <td>단언 경계를 초에서 분으로 넓혀 흔들릴 여지를 줄인다.</td>
+              <td><span class="chip del">탈락</span> 실패 확률만 낮추고 결정적이지 않다. 8월 19일 선례가 "경계 조정으로는 안 된다" 를 이미 보였다.</td>
+            </tr>
+            <tr>
+              <td>④ 전역 TimeProvider</td>
+              <td>시각 조회를 전용 추상 타입으로 감싸 전 코드를 일괄 치환한다.</td>
+              <td><span class="chip keep">비목표</span> 지금 필요한 지점이 둘이다. "갈라지는 시점에 분리" 원칙에 어긋난다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>전역 시각 추상화(대안 ④) — 세 번째 지점이 생기는 시점에 다시 판단한다.</li>
+            <li>두 서비스 <b>바깥</b>의 <code>LocalDateTime.now()</code> · <code>Instant.now()</code> 호출 — 이번에는 손대지 않는다(§8 잔존).</li>
+            <li>시간대 정책 변경 — 기본 빈은 시스템 기본 시간대를 그대로 쓴다.</li>
+            <li>눈금 규칙 자체의 변경 — <code>RegistrationAge</code> 는 유지한다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (§2 직후 · 불가침) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모 (픽스처와 조회 사이의 지연을 직접 움직여 본다)</summary>
+      <div class="body">
+        <p>간헐 실패가 어떻게 생기는지는 말로 설명하는 것보다 <b>지연을 직접 밀어 보는</b> 편이 빠르다.
+        아래 슬라이더는 <b>픽스처가 등록 시각을 만든 순간과 서비스가 조회 시각을 읽는 순간 사이의 지연</b>이다.
+        단독 실행이면 이 값이 거의 0 이고, 전체 실행이면 앞선 테스트들이 소비한 시간만큼 벌어진다.</p>
+        <p>왼쪽 카드는 <b>종전 — 두 실 시계</b>, 오른쪽 카드는 <b>정정 후 — 고정 Clock 하나</b>다. 두 카드는
+        같은 픽스처를 받는다. 슬라이더를 밀면 <b>왼쪽에서만</b> 묶음이 갈라지는 구간이 나타나고, 오른쪽은
+        어떤 지연에서도 한 묶음 그대로다. 갈라지는 구간과 다시 붙는 구간이 번갈아 오는 것이 이 결함을
+        "가끔 실패" 로 만든다.</p>
+        <p>처음이라면 <b>시나리오</b> 버튼을 ① → ② → ③ 순서로 누르는 편이 빠르다 — 지연을 세팅하고, 무엇을
+        보아야 하는지 배너가 지시한다. 자유 조작도 된다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">픽스처 → 조회 지연 :</span>
+            <input type="range" id="demo-delay" min="0" max="15000" step="100" value="0" oninput="demoSlide(this.value)">
+            <span class="mono" id="demo-delay-label">0 ms</span>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="n-demo-btn" onclick="demoPreset(1)">① 지연 0 (단독 실행)</button>
+            <button class="n-demo-btn" onclick="demoPreset(2)">② 경계 직전</button>
+            <button class="n-demo-btn" onclick="demoPreset(3)">③ 경계 넘김 (전체 실행)</button>
+            <button class="n-demo-btn" onclick="demoPreset(0)">처음부터</button>
+          </div>
+
+          <div class="callout" id="demo-guide">시나리오 버튼을 누르면 지연을 세팅하고 무엇을 볼지 안내합니다. 슬라이더를 직접 밀어도 됩니다.</div>
+
+          <div class="ux-row">
+            <span class="label">픽스처 — <b>서버 A</b> <span class="mono">now().minusSeconds(5)</span> ·
+            <b>서버 B</b> <span class="mono">now().minusSeconds(8)</span>
+            (단언 : 두 서버가 <b>한 시간 묶음</b>)</span>
+          </div>
+
+          <div class="card-grid">
+            <div class="card v-red"><h4>종전 — 두 실 시계</h4><div id="demo-before"></div></div>
+            <div class="card v-green"><h4>정정 후 — 고정 Clock 하나</h4><div id="demo-after"></div></div>
+          </div>
+
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">아직 아무 것도 하지 않았습니다. 시나리오 ③ 을 누르면 두 카드가 갈라지는 지점이 바로 보입니다.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 묶음 판정은
+        <code>RegistrationAge.of(registeredAt, now)</code> 의 사다리(1분 미만 10초 · 1시간 미만 1분 ·
+        24시간 미만 1시간 · 7일 미만 1일 · 그 뒤 1주, 전부 내림)와 표시 문구
+        <code>getDescription()</code> 을 그대로 옮긴 것이다. 경과 초는 서비스와 같이
+        <code>Duration.between(...).getSeconds()</code> 로 <b>내림</b>하므로, 1초를 넘기지 못한 지연은
+        결과를 바꾸지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 시각이 흘러드는 경로 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 시각이 흘러드는 경로 (URL 변경 0)</summary>
+      <div class="body">
+        <p>이 슬라이스는 엔드포인트도 화면도 만들지 않는다. URL 표 대신 <b>시각이 어디서 들어와 어디서
+        판정에 쓰이는지</b>를 적는다.</p>
+
+        <div class="seq">
+          <div class="actor a1">공급 (컨텍스트 · 테스트)</div><div class="actor a2">조회 서비스</div><div class="actor a3">도메인 판정</div>
+          <div class="step a1"><code>ClockConfig.clock()</code> 빈 등록</div><div class="step a2">생성자로 <code>Clock</code> 수령</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>clock.instant()</code> · <code>LocalDateTime.now(clock)</code></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">기준 시각을 인자로 전달</div><div class="step a3"><code>Drift.isListed(now)</code> · <code>RegistrationAge.of(registeredAt, now)</code></div>
+          <div class="step a1">테스트는 고정 Clock 을 주입</div><div class="step a2">몇 번을 불러도 같은 값</div><div class="step a3">같은 만료 판정 · 같은 묶음</div>
+        </div>
+
+        <h4>바뀌는 코드의 모양</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 실 시계를 그 자리에서</h4><pre><code>// DriftBulkApplyService
+<span class="diff-del">Instant now = Instant.now();</span>
+
+// GuestServerQueryService (9 곳)
+<span class="diff-del">LocalDateTime now = LocalDateTime.now();</span></code></pre></div>
+          <div class="split-card after"><h4>AFTER — 주입된 Clock 하나</h4><pre><code>private final Clock clock;   // 생성자 주입
+
+// DriftBulkApplyService
+<span class="diff-add">Instant now = clock.instant();</span>
+
+// GuestServerQueryService (9 곳)
+<span class="diff-add">LocalDateTime now = LocalDateTime.now(clock);</span></code></pre></div>
+        </div>
+        <p>호출부의 모양이 거의 그대로라는 점이 이 안의 장점이다. 판정 로직 · 시그니처 · 반환 타입이 하나도
+        바뀌지 않으므로, 회귀가 생길 수 있는 자리가 "시각을 어디서 읽는가" 한 줄로 좁혀진다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) — 엔티티 · Enum · DDL 변경 0</summary>
+      <div class="body">
+        <p>엔티티도 값 객체도 새로 만들지 않는다. 판정 규칙은 이미 도메인이 소유하고 있고 기준 시각을
+        <b>인자로 받는다</b> — 그래서 이번 변경이 서비스 층에서 끝난다.</p>
+
+        <h4>내림 눈금 사다리 — <code>RegistrationAge</code> (변경 없음)</h4>
+        <div class="state-flow">경과 &lt; 1분    →  10초 눈금   floor(경과/10)*10 초   ("방금" · "10초 전" · "50초 전")
+경과 &lt; 1시간  →  1분 눈금    floor(경과/60) 분
+경과 &lt; 24시간 →  1시간 눈금  floor(경과/3600) 시간
+경과 &lt; 7일    →  1일 눈금    floor(경과/86400) 일
+그 이상        →  1주 눈금    floor(경과/604800) 주</div>
+        <p>눈금이 경과에 따라 성기어지는 이유는 운영자가 구분해야 하는 폭이 시간대마다 다르기 때문이고,
+        그 판단은 값 객체가 가진다. 이번 슬라이스가 바꾸는 것은 그 <code>now</code> 인자를 <b>누가 만들어
+        넘기는가</b>일 뿐이다.</p>
+
+        <h4>Clock 주입 지점 (구현 목록)</h4>
+        <table>
+          <thead><tr><th>대상</th><th>지금</th><th>바뀐 뒤</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="chip new">신규</span> <code>global/config/ClockConfig</code></td>
+              <td>없음 (저장소에 Clock 빈 0)</td>
+              <td><code>@Bean Clock clock() { return Clock.systemDefaultZone(); }</code></td>
+            </tr>
+            <tr>
+              <td><span class="chip mod">수정</span> <code>DriftBulkApplyService</code></td>
+              <td><code>Instant.now()</code> 1 곳 — 보관 만료 판정</td>
+              <td><code>private final Clock clock</code> + <code>clock.instant()</code></td>
+            </tr>
+            <tr>
+              <td><span class="chip mod">수정</span> <code>GuestServerQueryService</code></td>
+              <td><code>LocalDateTime.now()</code> 9 곳</td>
+              <td><code>private final Clock clock</code> + <code>LocalDateTime.now(clock)</code> 9 곳</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>9 곳을 <b>전부</b> 바꾸는 이유는, 한 클래스 안에 시각 소스를 둘 두지 않기 위해서다. 그룹 눈금 ·
+        펌웨어 굽기 잔여 시한 · 설정 축 · Windows 설치 서빙 · HOLD 잔여 분 · 접촉 활성 판정이 모두 같은
+        응답에 실려 나가는데, 그중 일부만 고정 Clock 을 본다면 한 화면 안에서 기준이 어긋나는 새 결함을
+        만든다. 다른 클래스는 건드리지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>무중단 지시 — 완료 후 고지</td></tr>
+            <tr><td>2~5</td><td>N/A — 뷰 · Controller · DTO 없음. Service 시그니처는 생성자 필드 1 추가</td><td><span class="chip cp2">CP2</span></td><td>보고 생략</td></tr>
+            <tr><td>6~7</td><td>N/A — Repository · Entity 변경 0</td><td><span class="chip cp3">CP3</span></td><td>보고 생략</td></tr>
+            <tr><td>8~9</td><td><code>ClockConfig</code> 신설 + 서비스 2 수정. Step 9 는 N/A (DDL 0)</td><td><span class="chip cp4">CP4</span></td><td>빌드 통과 확인</td></tr>
+            <tr><td>8 잔여</td><td>테스트 5 클래스 배선 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>무중단</td></tr>
+            <tr><td>10</td><td>화면 없는 슬라이스 — 반복 실행 + 빈 기동 확인으로 대체 (§9)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>보고</td></tr>
+            <tr><td>12</td><td>사용자 확인</td><td><span class="chip cp7">CP7</span></td><td>완료 고지</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">이번 묶음은 사용자 지시 "HF12, 13 진행. 완료 후 고지"(2026-09-05)에 따라
+        <b>무중단</b>으로 진행하고 완료 시점에 한 번 고지한다. 통상의 승인 게이트 넷(CP1 · CP4 · CP6 · CP7)은
+        그 지시가 대체한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 배선 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 테스트 배선 — 고정 Clock 을 어떻게 넣는가</summary>
+      <div class="body">
+        <p>고정 시각은 <code>Clock.fixed(Instant.parse("2026-09-05T10:00:00Z"), ZoneId.of("Asia/Seoul"))</code>
+        하나를 쓴다. 넣는 방법은 테스트가 서비스를 어떻게 만들고 있는가에 따라 둘로 갈린다.</p>
+        <table>
+          <thead><tr><th>테스트</th><th>현재 배선</th><th>이번 조치</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>DriftBulkApplyServiceTest</code></td>
+              <td><code>@InjectMocks</code></td>
+              <td><code>@Spy</code> 고정 Clock 추가. 기준 시각 <code>NOW</code> 를 <b>고정 상수로 되돌림</b></td>
+            </tr>
+            <tr>
+              <td><code>GuestServerQueryServiceGroupingTest</code></td>
+              <td><code>@InjectMocks</code></td>
+              <td><code>@Spy</code> 고정 Clock 추가. 픽스처를 <code>LocalDateTime.now(CLOCK).minusSeconds(n)</code> 으로</td>
+            </tr>
+            <tr>
+              <td><code>GuestServerQueryServiceTest</code></td>
+              <td><code>@InjectMocks</code></td>
+              <td><code>@Spy</code> 고정 Clock 추가</td>
+            </tr>
+            <tr>
+              <td><code>GuestServerQueryServiceWindowsInstallTest</code></td>
+              <td>수동 <code>new GuestServerQueryService(...)</code></td>
+              <td>생성자 인자에 고정 Clock 추가</td>
+            </tr>
+            <tr>
+              <td><code>GuestServerQueryServiceExecutionViewTest</code></td>
+              <td>수동 <code>new GuestServerQueryService(...)</code></td>
+              <td>생성자 인자에 고정 Clock 추가</td>
+            </tr>
+          </tbody>
+        </table>
+        <h4>왜 <code>@Mock</code> 이 아니라 <code>@Spy</code> 인가</h4>
+        <p><code>@Mock</code> 은 아무것도 하지 않는 껍데기를 만든다 — <code>instant()</code> 가 기본값을
+        돌려주므로 판정이 성립하지 않는다. 필요한 것은 <b>실제로 동작하는 고정 Clock</b> 이고, 그것을
+        <code>@InjectMocks</code> 의 생성자 주입 후보에 올리려면 <code>@Spy</code> 로 실물을 감싸야 한다.
+        Mockito 5 의 inline mock maker 가 이를 처리한다.</p>
+        <p>같은 패턴이 이미 <code>GuestServerQueryServiceGroupingTest</code> 안에 있다 —
+        <code>ObjectMapper</code> 를 <code>@Spy</code> 실물로 얹어 주입 후보로 쓰고 있다. 새 관례를 들이는
+        것이 아니라 그 자리에 하나를 더 놓는 것이다.</p>
+        <div class="callout success"><code>DriftBulkApplyServiceTest</code> 의 기준 시각을 고정 상수로
+        되돌릴 수 있는 이유는 하나다 — <b>서비스가 같은 고정 시계를 보기 때문</b>이다. 임시 조치가 상대
+        시각을 쓸 수밖에 없었던 것은 서비스가 실 시계를 읽고 있어서였고, 그 전제가 사라진다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 변경 0</summary>
+      <div class="body">
+        <p>신규 예외 없음, 기존 예외의 매핑 변경 없음. 이 슬라이스는 판정의 <b>입력</b>을 바꿀 뿐 판정의
+        결과 종류를 늘리지 않는다. <code>DriftReportNotFoundException</code> ·
+        <code>DriftResolutionNotAllowedException</code> · <code>GuestServerNotFoundException</code> 은
+        <span class="chip keep">유지</span> 이며, 발생 조건과 HTTP 매핑이 지금과 같다.</p>
+        <p>"새 예외 클래스를 추가하면 그 예외를 발생시키는 시나리오 테스트를 함께 추가한다" 는 규율은 추가가
+        0 이므로 해당 사항이 없다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 결정 / 잔존 / OQ ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 사항 / 잔존 책임 / Open Questions</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>D-1</td>
+              <td><code>global/config/ClockConfig</code> 에 <code>@Bean Clock clock()</code> 을 두고 <code>Clock.systemDefaultZone()</code> 을 돌려준다.</td>
+              <td>운영 동작이 변하지 않는다 — 같은 시스템 시계를 한 겹 거쳐 읽을 뿐이다. 공용 인프라이므로 <code>global/config</code> 가 자리다.</td>
+            </tr>
+            <tr>
+              <td>D-2</td>
+              <td>두 서비스에 <code>private final Clock clock</code> 을 더한다. <code>DriftBulkApplyService</code> 는 <code>clock.instant()</code>, <code>GuestServerQueryService</code> 는 9 곳 전부 <code>LocalDateTime.now(clock)</code>.</td>
+              <td>한 클래스 안에 시각 소스를 둘 두지 않는다. 다른 클래스는 건드리지 않는다.</td>
+            </tr>
+            <tr>
+              <td>D-3</td>
+              <td>테스트는 고정 Clock <code>2026-09-05T10:00:00Z</code> · <code>Asia/Seoul</code> 하나를 공유한다. <code>@InjectMocks</code> 셋은 <code>@Spy</code>, 수동 생성 둘은 인자 추가.</td>
+              <td>배선 방식이 다른 것은 테스트가 서비스를 만드는 방식이 다르기 때문이고, 넣는 값은 같다.</td>
+            </tr>
+            <tr>
+              <td>D-4</td>
+              <td>검증은 전체 테스트 3회 연속 green + 두 테스트 클래스 20회 반복 green. 여기에 빈 기동 1회와 화면 1컷을 더한다.</td>
+              <td>결정성은 <b>반복해서 통과하는 것</b>으로만 보일 수 있다. 화면이 없는 슬라이스라 브라우저 검증을 이것으로 대체한다(§9).</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>잔존 책임</h4>
+        <p>두 서비스 <b>바깥</b>의 <code>LocalDateTime.now()</code> · <code>Instant.now()</code> 호출은
+        그대로 둔다. 지금 그 지점들이 테스트를 흔들고 있지 않기 때문이다. 흔들리는 지점이 새로 나타나면
+        같은 방식으로 그 클래스에 Clock 을 하나 더 주입한다 — 그때도 전역 치환으로 가지 않는다.</p>
+
+        <h4>주의</h4>
+        <ul>
+          <li>고정 Clock 은 <b>흐르지 않는다</b>. 시간의 경과 자체를 검증하는 테스트가 생기면 <code>Clock.offset</code> 으로 진행시킨다.</li>
+          <li>기본 빈이 <code>systemDefaultZone()</code> 이므로 시간대는 지금과 같다 — 이 슬라이스에서 시간대 정책을 정하지 않는다.</li>
+        </ul>
+
+        <h4>Open Questions</h4>
+        <p>없음. 결정 D-1~D-4 가 범위를 닫는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification — CP5 대체 항목 (T1 · T2 · T3)</summary>
+      <div class="body">
+        <p>화면이 없으므로 브라우저 검증을 다음 셋으로 대체한다. 앞의 둘은 <b>결정성</b>을, 마지막 하나는
+        <b>실제 컨텍스트에 빈이 뜨는지</b>를 본다.</p>
+        <ul>
+          <li><b>T1</b> — <code>./gradlew test</code> 전체 <b>3회 연속</b> green. 한 번의 green 은 그날 운이 좋았을 뿐일 수 있다.</li>
+          <li><b>T2</b> — <code>DriftBulkApplyServiceTest</code> · <code>GuestServerQueryServiceGroupingTest</code> 두 클래스 <b>20회 반복</b> green. 간헐 실패는 반복에서만 드러난다.</li>
+          <li><b>T3</b> — 샌드박스 기동 1회로 <code>ClockConfig</code> 빈이 실제 컨텍스트에 뜨는지 확인하고, 게스트 목록의 경과 시간 표기가 시스템 시계대로 나오는지 1컷 채증. 주입이 운영 표시를 바꾸지 않았음을 눈으로 확인하는 항목이다.</li>
+        </ul>
+        <ul class="check-list" data-storage="HF13-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="t1"> <span>T1 — 전체 테스트 3회 연속 green</span></label></li>
+          <li><label><input type="checkbox" data-key="t2"> <span>T2 — 두 테스트 클래스 20회 반복 green</span></label></li>
+          <li><label><input type="checkbox" data-key="t3"> <span>T3 — 샌드박스 기동 + 게스트 목록 경과 시간 1컷</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="notify"> <span>HF12 · HF13 완료 고지</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/config/ClockConfig.java</code></td><td><code>Clock</code> 빈 1 개 — 시스템 기본 시간대</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>maintenance/reconciliation/service/DriftBulkApplyService.java</code></td><td>필드 1 추가 · <code>Instant.now()</code> → <code>clock.instant()</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/service/GuestServerQueryService.java</code></td><td>필드 1 추가 · <code>LocalDateTime.now()</code> 9 곳 → <code>now(clock)</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>DriftBulkApplyServiceTest.java</code></td><td><code>@Spy</code> Clock + <code>NOW</code> 고정 상수 복귀</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerQueryServiceGroupingTest.java</code></td><td><code>@Spy</code> Clock + 픽스처를 <code>now(CLOCK)</code> 기준으로</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerQueryServiceTest.java</code></td><td><code>@Spy</code> Clock</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerQueryServiceWindowsInstallTest.java</code></td><td>생성자 인자 1 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerQueryServiceExecutionViewTest.java</code></td><td>생성자 인자 1 추가</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>execution/vo/RegistrationAge.java</code></td><td>기준 시각을 인자로 받으므로 변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>maintenance/reconciliation/entity/Drift.java</code></td><td><code>isListed(Instant)</code> 그대로 — 변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li>시각 의존으로 흔들리는 지점이 새로 발견되면 그 클래스에 같은 방식으로 Clock 을 하나 더 주입한다. 전역 추상화는 그때도 하지 않고, 필요가 실제로 갈라질 때 다시 판단한다.</li>
+          <li>HF12 와 HF13 이 끝나면 사용자에게 한 번에 고지한다 — 지시가 "완료 후 고지" 였다.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 인터랙티브 데모 — 시각 슬라이더
+  //  판정 = RegistrationAge.of / getDescription 의 JS 재현 (드리프트 0).
+  //  경과 초는 Duration.between(...).getSeconds() 와 같이 내림한다.
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_UNITS = {
+    SECOND: { step: 10, seconds: 1, suffix: '초' },
+    MINUTE: { step: 60, seconds: 60, suffix: '분' },
+    HOUR:   { step: 3600, seconds: 3600, suffix: '시간' },
+    DAY:    { step: 86400, seconds: 86400, suffix: '일' },
+    WEEK:   { step: 604800, seconds: 604800, suffix: '주' }
+  };
+  // RegistrationAge.floored — 경과를 그 눈금의 폭으로 내림해 단위 개수로
+  function demoFloored(unitName, elapsedSeconds) {
+    const u = DEMO_UNITS[unitName];
+    const steps = Math.floor(elapsedSeconds / u.step);
+    return { unit: unitName, amount: steps * u.step / u.seconds };
+  }
+  // RegistrationAge.of — 미래 시각은 0 으로 흡수, 사다리 순서 그대로
+  function demoRegistrationAge(elapsedSeconds) {
+    let elapsed = elapsedSeconds;
+    if (elapsed < 0) elapsed = 0;
+    if (elapsed < 60) return demoFloored('SECOND', elapsed);
+    if (elapsed < 3600) return demoFloored('MINUTE', elapsed);
+    if (elapsed < 86400) return demoFloored('HOUR', elapsed);
+    if (elapsed < 604800) return demoFloored('DAY', elapsed);
+    return demoFloored('WEEK', elapsed);
+  }
+  // RegistrationAge.getDescription
+  function demoDescription(age) {
+    if (age.unit === 'SECOND' && age.amount === 0) return '방금';
+    return age.amount + DEMO_UNITS[age.unit].suffix + ' 전';
+  }
+
+  const DEMO_FIXTURE = [{ name: '서버 A', secondsAgo: 5 }, { name: '서버 B', secondsAgo: 8 }];
+  let demoDelayMs = 0;
+  let demoGuide = '시나리오 버튼을 누르면 지연을 세팅하고 무엇을 볼지 안내합니다. 슬라이더를 직접 밀어도 됩니다.';
+  let demoNote = '아직 아무 것도 하지 않았습니다. 시나리오 ③ 을 누르면 두 카드가 갈라지는 지점이 바로 보입니다.';
+  let demoNoteKind = '';
+
+  const DEMO_PRESETS = {
+    0: { delay: 0,
+         guide: '처음 상태로 되돌렸습니다. ① 부터 눌러 보세요.',
+         note: '아직 아무 것도 하지 않았습니다. 시나리오 ③ 을 누르면 두 카드가 갈라지는 지점이 바로 보입니다.', kind: '' },
+    1: { delay: 0,
+         guide: '① 지연 0 — 픽스처와 조회가 사실상 같은 순간입니다. 단독 실행이 이 모양입니다. 두 카드가 똑같아 차이가 보이지 않습니다. 다음은 ② 를 누르세요.',
+         note: '두 방식 모두 한 묶음입니다. 이 상태만 보면 결함이 없어 보이는 것이 이 결함의 성질입니다.', kind: 'success' },
+    2: { delay: 1900,
+         guide: '② 경계 직전 — 1 초가 흘렀습니다. 서버 B 의 경과가 9 초라 10 초 눈금까지 1 초 남았습니다. 아직 통과합니다. 다음은 ③ 을 누르세요.',
+         note: '아직 한 묶음입니다. 다만 서버 B 가 눈금 경계에서 1 초 거리입니다 — 다음 1 초가 결과를 바꿉니다.', kind: 'success' },
+    3: { delay: 2600,
+         guide: '③ 경계 넘김 — 2 초가 흘러 서버 B 의 경과가 10 초를 넘었습니다. 전체 실행에서 앞선 테스트들이 시간을 소비하면 이 지점에 닿습니다.',
+         note: '종전은 묶음이 둘로 갈라져 단언이 깨집니다. 고정 Clock 은 지연과 무관하게 한 묶음 그대로입니다.', kind: 'error' }
+  };
+
+  function demoSlide(v) {
+    demoDelayMs = Number(v);
+    demoGuide = '슬라이더를 직접 움직였습니다. 지연이 1 초를 넘길 때마다 왼쪽 카드의 경과가 1 초씩 늘어납니다. '
+      + '갈라지는 구간과 다시 붙는 구간이 번갈아 나타나는 것이 이 결함이 간헐인 이유입니다.';
+    const r = demoEvaluate();
+    demoNoteKind = r.before.groups === 1 ? 'success' : 'error';
+    demoNote = r.before.groups === 1
+      ? '지금은 두 방식이 같은 결과입니다 — 지연이 눈금 경계를 넘지 않았습니다. 계속 밀면 다시 갈라지는 구간이 나옵니다.'
+      : '왼쪽이 갈라졌습니다 — 같은 코드가 실행 시점 때문에 다른 결과를 냅니다.';
+    demoRender();
+  }
+  function demoPreset(n) {
+    const p = DEMO_PRESETS[n];
+    demoDelayMs = p.delay; demoGuide = p.guide; demoNote = p.note; demoNoteKind = p.kind;
+    demoRender();
+  }
+
+  // 종전 = 픽스처 시계 + 지연을 지난 조회 시계 / 정정 후 = 같은 고정 Clock
+  function demoEvaluate() {
+    const drift = Math.floor(demoDelayMs / 1000);
+    const build = extra => {
+      const rows = DEMO_FIXTURE.map(s => {
+        const elapsed = s.secondsAgo + extra;
+        const age = demoRegistrationAge(elapsed);
+        return { name: s.name, secondsAgo: s.secondsAgo, elapsed: elapsed, label: demoDescription(age) };
+      });
+      const labels = [];
+      rows.forEach(r => { if (!labels.includes(r.label)) labels.push(r.label); });
+      return { rows: rows, labels: labels, groups: labels.length };
+    };
+    return { drift: drift, before: build(drift), after: build(0) };
+  }
+
+  function demoCard(result) {
+    return result.rows.map(r => {
+      const cls = result.labels.indexOf(r.label) === 0 ? 'on' : 'del';
+      return '<div class="ux-row"><span class="label"><b>' + r.name + '</b> — 경과 <span class="mono">'
+        + r.elapsed + '초</span></span><span class="badge ' + cls + '">' + r.label + '</span></div>';
+    }).join('') +
+      '<div class="ux-row"><span class="label">시간 묶음 <span class="mono">' + result.groups
+      + '</span> 개 — <code>hasSize(1)</code></span><span class="badge '
+      + (result.groups === 1 ? 'on">통과' : 'del">실패') + '</span></div>';
+  }
+
+  function demoRender() {
+    const r = demoEvaluate();
+    document.getElementById('demo-delay').value = demoDelayMs;
+    document.getElementById('demo-delay-label').textContent = demoDelayMs + ' ms';
+    document.getElementById('demo-guide').textContent = demoGuide;
+    document.getElementById('demo-before').innerHTML = demoCard(r.before);
+    document.getElementById('demo-after').innerHTML = demoCard(r.after);
+
+    const verdict = ok => ok ? '<span class="f">한 묶음 → 통과</span>' : '<span class="t">두 묶음 → 실패</span>';
+    const line = (tag, res) => res.rows.map(x =>
+      '  ' + tag + ' ' + x.name + ' : ' + x.secondsAgo + ' + ' + (tag === '[종전]' ? r.drift : 0)
+      + ' = ' + x.elapsed + '초  →  "' + x.label + '"').join('\n');
+    document.getElementById('demo-caps').innerHTML =
+      'Duration.between(createdAt, now).getSeconds()   // 지연 ' + demoDelayMs + ' ms → 온전한 ' + r.drift + '초\n' +
+      line('[종전]', r.before) + '\n' +
+      '  [종전] assertThat(timeGroups).hasSize(1)  →  ' + verdict(r.before.groups === 1) + '\n' +
+      line('[고정]', r.after) + '\n' +
+      '  [고정] assertThat(timeGroups).hasSize(1)  →  ' + verdict(r.after.groups === 1);
+
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message' + (demoNoteKind ? ' ' + demoNoteKind : '');
+    msg.textContent = demoNote;
+  }
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

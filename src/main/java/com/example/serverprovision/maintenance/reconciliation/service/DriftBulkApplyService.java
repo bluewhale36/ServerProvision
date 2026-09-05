@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +40,7 @@ public class DriftBulkApplyService {
 	private final PathReconciliationService reconciliationService;
 	private final DriftRepository driftRepository;
 	private final DriftReportRepository driftReportRepository;
+	private final Clock clock;   // HF13 — 보관 만료 판정의 시각 소스(테스트는 고정 Clock)
 
 	/**
 	 * 후보 A — 그 회차가 관측한 문제 중 지금 해결할 수 있는 것.
@@ -65,7 +67,7 @@ public class DriftBulkApplyService {
 	 */
 	@Transactional(readOnly = true)
 	public List<Long> openTargets() {
-		Instant now = Instant.now();
+		Instant now = clock.instant();
 		return driftRepository.findByStatusNot(DriftStatus.RESOLVED).stream()
 				.filter(drift -> drift.isListed(now))
 				.filter(Drift::bulkResolvable)

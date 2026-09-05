@@ -28,8 +28,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -69,6 +71,7 @@ class GuestServerQueryServiceTest {
 
     @org.mockito.Spy tools.jackson.databind.ObjectMapper objectMapper = new tools.jackson.databind.ObjectMapper();
 
+    @Spy Clock clock = Clock.systemDefaultZone();   // HF13 — 이 클래스의 픽스처는 실 시계 상대값이라 시스템 시계 유지
     @InjectMocks GuestServerQueryService service;
 
     private GuestServer server(UUID id, String name, LocalDateTime decommissionedAt) {

@@ -51,6 +51,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -93,6 +94,7 @@ public class GuestServerQueryService {
     private final WindowsInstallReadinessResolver windowsInstallReadinessResolver;   // E4-1-a-3 — 카드 준비도(실행기와 같은 조립)
     private final WindowsInstallLedger windowsInstallLedger;                         // E4-1-a-3 — 서빙 · 재진입 · 실패 사유 판독
     private final WindowsInstallTimeoutPolicy windowsInstallTimeoutPolicy;           // E4-1-a-3 — 잔여 분 · 상한(화면 = 실행기 값)
+    private final Clock clock;   // HF13 — 이 클래스의 모든 "지금" 은 이 시계 하나(그룹 눈금 · 잔여 분 · 접촉 판정)
 
     private static final DateTimeFormatter OBSERVATION_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -197,7 +199,7 @@ public class GuestServerQueryService {
         Map<UUID, ProvisioningProgress> progressByServer = progressRepository.findAllByGuestServer_IdIn(ids).stream()
                 .collect(Collectors.toMap(p -> p.getGuestServer().getId(), Function.identity(), (a, b) -> a));
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         List<GuestServer> visible = servers.stream()
                 .filter(s -> matchesPhase(progressByServer.get(s.getId()), phaseFilter))
                 .toList();
@@ -636,7 +638,7 @@ public class GuestServerQueryService {
      * BMC 를 부르지 않고 DB 사실(기점 · 시한 · 보드 시리얼 유무)로만 만든다(D-6).
      */
     private String identityWaitingReason(GuestServerDetail detail, LocalDateTime since, java.time.Duration limit) {
-        long remain = flashTimeoutPolicy.remainingMinutes(since, limit, LocalDateTime.now());
+        long remain = flashTimeoutPolicy.remainingMinutes(since, limit, LocalDateTime.now(clock));
         StringBuilder reason = new StringBuilder("축 착수 대기 — 다음 워커 주기가 BMC 신원을 확인합니다"
                 + "(응답이 없으면 잔여 " + remain + "분 뒤 실패로 전환됩니다).");
         if (detail == null || detail.getBoardSerial() == null) {
@@ -651,7 +653,7 @@ public class GuestServerQueryService {
      */
     private StageView flashStageOf(GuestServer server, ProvisioningProgress progress,
                                    List<ProvisioningHistory> steps, List<ProvisioningHistory> flashRows) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         if (progress.isFailed()) {
             return new StageView(null, null);   // 6행 — 기존 실패 표시(배지 · 사유 행)가 맡는다.
         }
@@ -733,7 +735,7 @@ public class GuestServerQueryService {
         if (settingRows.isEmpty() && cursorAxis == null) {
             return null;
         }
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         List<GuestServerDetailResponse.AxisSetting> axes = Arrays.stream(SettingAxis.values())
                 .map(axis -> axisSettingOf(axis, settingRows, server.getLastSeenAt(), now))
                 .toList();
@@ -837,7 +839,7 @@ public class GuestServerQueryService {
                 : latest.filter(h -> h.getStatus() == ProvisioningStatus.RUNNING);
         Optional<ProvisioningHistory> completed = failed ? Optional.empty()  // E4-1-a-4 — 완료 보고로 닫힌 행
                 : latest.filter(windowsInstallLedger::isCompletedRow);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime servedAt = running.or(() -> completed).map(windowsInstallLedger::servedAtOf).orElse(null);
         boolean failedHere = failed && latest.filter(h -> h.getStatus() == ProvisioningStatus.FAILED).isPresent();
         boolean holding = progress != null && progress.isHolding() && progress.currentPhase() == ProvisioningPhase.OS_INSTALLING;
@@ -874,7 +876,7 @@ public class GuestServerQueryService {
 
     private long holdRemainingMinutes(ProvisioningProgress progress) {
         return (progress == null || !progress.isHolding()) ? 0L
-                : holdTtlPolicy.remainingMinutes(progress.getLastTransitionAt(), LocalDateTime.now());
+                : holdTtlPolicy.remainingMinutes(progress.getLastTransitionAt(), LocalDateTime.now(clock));
     }
 
     /**
@@ -901,7 +903,7 @@ public class GuestServerQueryService {
         if (lastSeenAt == null) {
             return null;
         }
-        long seconds = Math.max(0, Duration.between(lastSeenAt, LocalDateTime.now()).getSeconds());
+        long seconds = Math.max(0, Duration.between(lastSeenAt, LocalDateTime.now(clock)).getSeconds());
         boolean active = seconds <= CONTACT_ACTIVE_SECONDS;
         return new GuestServerDetailResponse.Contact(
                 lastSeenAt, seconds, active, active ? CONTACT_ACTIVE_SECONDS - seconds : 0);
@@ -909,7 +911,7 @@ public class GuestServerQueryService {
 
     private boolean isContactActive(LocalDateTime lastSeenAt) {
         return lastSeenAt != null
-                && Duration.between(lastSeenAt, LocalDateTime.now()).getSeconds() <= CONTACT_ACTIVE_SECONDS;
+                && Duration.between(lastSeenAt, LocalDateTime.now(clock)).getSeconds() <= CONTACT_ACTIVE_SECONDS;
     }
 
     /**
@@ -920,7 +922,7 @@ public class GuestServerQueryService {
         if (!isContactActive(lastSeenAt)) {
             return null;
         }
-        long seconds = Math.max(0, Duration.between(lastSeenAt, LocalDateTime.now()).getSeconds());
+        long seconds = Math.max(0, Duration.between(lastSeenAt, LocalDateTime.now(clock)).getSeconds());
         return CONTACT_ACTIVE_SECONDS - seconds;
     }
 

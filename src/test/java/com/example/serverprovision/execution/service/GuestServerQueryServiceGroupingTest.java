@@ -19,12 +19,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -49,6 +53,10 @@ class GuestServerQueryServiceGroupingTest {
     @Mock private ProvisioningProgressRepository progressRepository;
     @Mock private ProvisioningHistoryRepository provisioningHistoryRepository;
     @org.mockito.Spy private ObjectMapper objectMapper = new ObjectMapper();
+
+    /** HF13 — 픽스처의 등록 시각과 서비스의 "지금" 이 같은 고정 시계를 본다(눈금 경계 사이에 실 시계가 끼지 않는다). */
+    private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-09-05T10:00:00Z"), ZoneId.of("Asia/Seoul"));
+    @Spy private Clock clock = CLOCK;
 
     @InjectMocks private GuestServerQueryService service;
 
@@ -78,7 +86,7 @@ class GuestServerQueryServiceGroupingTest {
         UUID id = UUID.randomUUID();
         GuestServer server = mock(GuestServer.class);
         when(server.getId()).thenReturn(id);
-        when(server.getCreatedAt()).thenReturn(LocalDateTime.now().minusSeconds(secondsAgo));
+        when(server.getCreatedAt()).thenReturn(LocalDateTime.now(CLOCK).minusSeconds(secondsAgo));
         servers.add(server);
 
         if (hardwareSpec != null) {

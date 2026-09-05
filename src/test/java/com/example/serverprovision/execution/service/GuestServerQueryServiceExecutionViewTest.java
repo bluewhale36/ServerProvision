@@ -82,7 +82,8 @@ class GuestServerQueryServiceExecutionViewTest {
                 new FlashTimeoutPolicy(new MockEnvironment()), settingLedger, observations, new ObjectMapper(),
                 org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.windows.WindowsInstallReadinessResolver.class),   // E4-1-a-3 — 창 밖(empty)
                 new com.example.serverprovision.execution.engine.windows.WindowsInstallLedger(recorder, historyRepository, new ObjectMapper()),
-                new com.example.serverprovision.execution.engine.windows.WindowsInstallTimeoutPolicy(java.time.Duration.ofMinutes(60), 5, java.time.Duration.ofMinutes(30)));
+                new com.example.serverprovision.execution.engine.windows.WindowsInstallTimeoutPolicy(java.time.Duration.ofMinutes(60), 5, java.time.Duration.ofMinutes(30)),
+                java.time.Clock.systemDefaultZone());
         given(guestServerRepository.findById(server.getId())).willReturn(Optional.of(server));
         given(detailRepository.findByServerIdWithBoardModel(server.getId())).willReturn(Optional.empty());
         given(nicRepository.findAllByServerIdOrderByPrimary(server.getId())).willReturn(List.of());
