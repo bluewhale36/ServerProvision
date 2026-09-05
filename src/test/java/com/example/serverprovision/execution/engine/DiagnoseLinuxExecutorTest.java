@@ -72,22 +72,31 @@ class DiagnoseLinuxExecutorTest {
                 .currentStep(ProvisioningPhaseStep.INFORMATION_COLLECTING).lastTransitionAt(T).startedAt(T).build();
     }
 
-    @org.junit.jupiter.api.Test
-    @org.junit.jupiter.api.DisplayName("directiveFor(E3.5-1 이사) — 미수집 COLLECT · 수집됨 WAIT (접수 서비스 규칙 무변경 증인)")
-    void directiveFor_movedRule() {
-        GuestServer g = server(new GuestToken(TOKEN));
-        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
-                .willReturn(java.util.Optional.empty());
-        org.assertj.core.api.Assertions.assertThat(executor.directiveFor(g, progress()))
-                .isEqualTo(com.example.serverprovision.execution.enums.AgentDirective.COLLECT);
+    private ProvisioningProgress progressAt(ProvisioningPhaseStep step, boolean started) {
+        ProvisioningProgress.ProvisioningProgressBuilder b = ProvisioningProgress.builder()
+                .currentStep(step).lastTransitionAt(T);
+        return (started ? b.startedAt(T) : b).build();
+    }
 
-        com.example.serverprovision.execution.entity.GuestServerDetail enriched =
-                org.mockito.Mockito.mock(com.example.serverprovision.execution.entity.GuestServerDetail.class);
-        org.mockito.BDDMockito.given(enriched.isDiagnosticEnriched()).willReturn(true);
-        org.mockito.BDDMockito.given(detailRepository.findByServerIdWithBoardModel(g.getId()))
-                .willReturn(java.util.Optional.of(enriched));
-        org.assertj.core.api.Assertions.assertThat(executor.directiveFor(g, progress()))
-                .isEqualTo(com.example.serverprovision.execution.enums.AgentDirective.WAIT);
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("directiveFor(HF11-2) — 커서 기준: INFORMATION_PERSISTING 만 WAIT, 나머지(seed · 재진입 · 해석 불가)는 COLLECT — enriched 여부 무관")
+    void directiveFor_cursorRule() {
+        GuestServer g = server(new GuestToken(TOKEN));
+        var COLLECT = com.example.serverprovision.execution.enums.AgentDirective.COLLECT;
+        var WAIT = com.example.serverprovision.execution.enums.AgentDirective.WAIT;
+
+        // 첫 등록(seed 커서) → COLLECT
+        org.assertj.core.api.Assertions.assertThat(executor.directiveFor(g, progressAt(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING, false))).isEqualTo(COLLECT);
+        // 이 세션에서 수집을 마침 → WAIT(루프 종료)
+        org.assertj.core.api.Assertions.assertThat(executor.directiveFor(g, progressAt(ProvisioningPhaseStep.INFORMATION_PERSISTING, false))).isEqualTo(WAIT);
+        // 재진입: agent 가 DIAGNOSTIC_BOOTING 을 다시 열어 커서 회귀 — 이미 enriched 라도 다시 수집(실기 2호 F-R13)
+        org.assertj.core.api.Assertions.assertThat(executor.directiveFor(g, progressAt(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING, false))).isEqualTo(COLLECT);
+        // 재진입 뒤 개시된 게스트도 같은 답 — 수집 close 가 onStepClosed 에서 전진시킨다
+        org.assertj.core.api.Assertions.assertThat(executor.directiveFor(g, progressAt(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING, true))).isEqualTo(COLLECT);
+        // 수집 보고 해석 불가(적재 생략 · 커서 INFORMATION_COLLECTING) → COLLECT 재지시(기존 관용)
+        org.assertj.core.api.Assertions.assertThat(executor.directiveFor(g, progressAt(ProvisioningPhaseStep.INFORMATION_COLLECTING, false))).isEqualTo(COLLECT);
+        // detail 은 더 읽지 않는다
+        org.mockito.Mockito.verify(detailRepository, org.mockito.Mockito.never()).findByServerIdWithBoardModel(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

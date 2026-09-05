@@ -7,7 +7,8 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 /**
- * Windows 설치 완료 보고(E4-1-a-4 R3) — 첫 로그온의 {@code spv-report.ps1} 이 보내는 JSON. 문제 장치는 개수는 그대로
+ * Windows 설치 완료 보고(E4-1-a-4 R3) — 첫 로그온의 {@code spv-report.ps1} 이 보내는 JSON. {@code driversAdded} 의 뜻은
+ * "SetupComplete 가 게시한 드라이버 패키지({@code oemNN.inf}) 고유 개수"(HF11-1 — 언어 무관 산출). 문제 장치는 개수는 그대로
  * 세고 목록만 50 으로 자른다(OQ-2). 로그 꼬리는 4 KB — 드라이버가 0 으로 끝난 이유를 원장에서 읽기 위한 것이다.
  */
 public record WindowsInstallCompletionRequest(

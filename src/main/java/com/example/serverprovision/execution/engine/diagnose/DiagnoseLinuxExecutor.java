@@ -77,16 +77,18 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
     }
 
     /**
-     * 진단 phase 의 지시 규칙(E3.5-1 D-2 이사) — 접수 서비스의 진단 전용 분기(②미수집 → COLLECT ·
-     * ③WAIT)를 그대로 옮긴 것으로 동작 무변경. 종단 · 실행기 미등록 phase 의 REBOOT 는 공통(접수 서비스)이다.
+     * 진단 phase 의 지시 규칙(E3.5-1 D-2 이사 → HF11-2 개정) — 판정 기준은 <b>커서</b>다: 이 세션에서 수집을 마쳤으면
+     * (커서 INFORMATION_PERSISTING) WAIT, 아니면 COLLECT. 재부팅으로 다시 들어온 게스트는 agent 가 DIAGNOSTIC_BOOTING 을
+     * 다시 열어 커서가 되돌아가므로 이미 수집된(enriched) 게스트도 다시 수집한다(적재는 최신값 덮기라 멱등) — 실기 2호에서
+     * RAID 볼륨을 지운 뒤 재부팅했는데 enriched 만 보던 옛 규칙이 WAIT 를 내 인벤토리가 갱신되지 않고, 개시해도 소급 전진
+     * 조건(커서 = INFORMATION_PERSISTING)이 거짓이라 진단 phase 에 갇혔다. 수집 보고 해석 불가(커서 INFORMATION_COLLECTING)는
+     * 종전처럼 COLLECT 재지시. 종단 · 실행기 미등록 phase 의 REBOOT 는 공통(접수 서비스)이다.
      */
     @Override
     public com.example.serverprovision.execution.enums.AgentDirective directiveFor(
             GuestServer server, ProvisioningProgress progress) {
-        boolean enriched = guestServerDetailRepository.findByServerIdWithBoardModel(server.getId())
-                .map(GuestServerDetail::isDiagnosticEnriched)
-                .orElse(false);
-        return enriched ? com.example.serverprovision.execution.enums.AgentDirective.WAIT
+        return progress.getCurrentStep() == ProvisioningPhaseStep.INFORMATION_PERSISTING
+                ? com.example.serverprovision.execution.enums.AgentDirective.WAIT
                 : com.example.serverprovision.execution.enums.AgentDirective.COLLECT;
     }
 

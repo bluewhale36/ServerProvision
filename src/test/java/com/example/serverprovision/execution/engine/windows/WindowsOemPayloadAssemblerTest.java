@@ -202,4 +202,46 @@ class WindowsOemPayloadAssemblerTest {
         assertThat(WindowsOemPayloadAssembler.hasInf(dir)).isTrue();
         assertThat(WindowsOemPayloadAssembler.hasInf(tree("none", false))).isFalse();
     }
+
+    // ── HF11-3 — 기존 항목 소유권 · 잔존 정리 ──────────────────────────────────
+
+    @Test
+    @DisplayName("HF11-3 blockReason — $OEM$ 안의 기존 $$ · $1 이 쓰기 불가면 사유(항목 이름 · chown 안내) · sync 409 · 정상은 empty")
+    void blockReason_existingChildNotWritable() throws IOException {
+        Path dollar1 = oem.resolve("$1");
+        Files.createDirectories(oem.resolve("$$")); Files.createDirectories(dollar1);
+        assertThat(assembler.blockReason()).isEmpty();
+        dollar1.toFile().setWritable(false, false);
+        try {
+            assertThat(assembler.blockReason()).hasValueSatisfying(r -> assertThat(r).contains("기존 항목($1)").contains("chown -R provisioning:spvadmin"));
+            lenient().when(subprogramRepository.findAllByKindAndIsDeletedFalse(SubprogramKind.DRIVER)).thenReturn(List.of());
+            assertThatThrownBy(() -> assembler.sync()).isInstanceOf(WindowsOemAssemblyRejectedException.class).hasMessageContaining("기존 항목");
+        } finally {
+            dollar1.toFile().setWritable(true, false);
+        }
+        assertThat(assembler.blockReason()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("HF11-3 sync — 이전 실패가 남긴 .tmp-* · .old-* 를 조립 시작 시 치운다 · 매니페스트 등 다른 항목은 건드리지 않는다")
+    void sync_sweepsLeftovers() throws IOException {
+        Files.createDirectories(oem.resolve(".tmp-20260904-000000").resolve("$1"));
+        Files.createDirectories(oem.resolve(".old-20260904-080637"));
+        Files.createDirectories(oem.resolve("keep-me"));
+        given(subprogramRepository.findAllByKindAndIsDeletedFalse(SubprogramKind.DRIVER)).willReturn(List.of(
+                driver(1, "chipset", tree("chipset", true), "h1", true)));
+
+        assembler.sync();
+
+        assertThat(names(oem)).containsExactly("$$", "$1", "keep-me", WindowsOemManifest.FILE_NAME);
+    }
+
+    @Test
+    @DisplayName("HF11-3 sweepLeftovers — 잔존만 지우고 정규 항목은 남긴다")
+    void sweepLeftovers_only() throws IOException {
+        Files.createDirectories(oem.resolve(".old-x")); Files.createDirectories(oem.resolve(".tmp-y")); Files.createDirectories(oem.resolve("$$"));
+        Files.writeString(oem.resolve(WindowsOemManifest.FILE_NAME), "{}");
+        WindowsOemPayloadAssembler.sweepLeftovers(oem);
+        assertThat(names(oem)).containsExactly("$$", WindowsOemManifest.FILE_NAME);
+    }
 }

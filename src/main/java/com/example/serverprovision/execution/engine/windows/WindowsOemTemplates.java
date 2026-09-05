@@ -51,8 +51,9 @@ public final class WindowsOemTemplates {
 
     /**
      * {@code $1\SPV\spv-report.ps1} — 첫 로그온(Administrator 자동 로그온)에서 FirstLogonCommands 가 base URL · 토큰을 인자로
-     * 실행한다. SetupComplete 로그와 pnputil 문제 장치를 읽어 완료 보고 JSON 을 한 번 보낸다(네트워크 대기 · 전송 각 20 × 15 초).
-     * 404 · 409 · 400 은 재시도해도 답이 바뀌지 않는 응답이라 즉시 멈춘다.
+     * 실행한다. 완료 보고 JSON 을 한 번 보낸다(네트워크 대기 · 전송 각 20 × 15 초). 404 · 409 · 400 은 재시도해도 답이 바뀌지
+     * 않는 응답이라 즉시 멈춘다. <b>산출은 표시 언어와 무관해야 한다(HF11-1)</b> — pnputil 의 문장은 로캘별이라 파싱하지 않고,
+     * 드라이버 수는 SetupComplete 로그의 게시 이름 {@code oemNN.inf} 고유 개수, 문제 장치는 {@code Get-PnpDevice} 의 Status(enum)로 센다.
      */
     public static final String SPV_REPORT_PS1 = """
             param(
@@ -60,7 +61,7 @@ public final class WindowsOemTemplates {
               [Parameter(Mandatory=$true)][string]$Token
             )
             # ServerProvision E4-1-a-4 - first-logon completion report (FirstLogonCommands, runs as Administrator).
-            # Reads C:\\SPV\\setupcomplete.log + pnputil problem devices, then POSTs one JSON to the provisioning server.
+            # Counts published drivers from C:\\SPV\\setupcomplete.log and lists non-OK PnP devices, then POSTs one JSON to the provisioning server.
             # ASCII only. Retries: network wait 20 x 15 s, POST 20 x 15 s. Terminal answers (400/404/409) stop the loop.
             $ErrorActionPreference = 'Continue'
             $spv = Join-Path $env:SystemDrive 'SPV'
@@ -77,29 +78,32 @@ public final class WindowsOemTemplates {
                 Start-Sleep -Seconds 15
               }
 
+              # HF11-1: pnputil prints localized text (e.g. Korean on ko-KR), so never parse its words.
+              # driversAdded = distinct published names "oemNN.inf" in the SetupComplete log (language-neutral, fieldwork #2: 47).
               $driversAdded = 0
               $logTail = ''
               $logPath = Join-Path $spv 'setupcomplete.log'
               if (Test-Path $logPath) {
                 $lines = @(Get-Content $logPath)
-                foreach ($m in ($lines | Select-String -Pattern 'Added driver packages:\\s+(\\d+)')) {
-                  $driversAdded += [int]$m.Matches[0].Groups[1].Value
+                $published = New-Object System.Collections.Generic.HashSet[string]
+                foreach ($m in ($lines | Select-String -Pattern '(?i)\\boem\\d+\\.inf\\b' -AllMatches)) {
+                  foreach ($g in $m.Matches) { [void]$published.Add($g.Value.ToLowerInvariant()) }
                 }
+                $driversAdded = $published.Count
                 $logTail = (($lines | Select-Object -Last 60) -join "`n")
                 if ($logTail.Length -gt 4000) { $logTail = $logTail.Substring($logTail.Length - 4000) }
               }
 
+              # Problem devices = present PnP devices whose Status is not OK (enum, language-neutral) - the pnputil problem listing is not parsed any more.
               $problems = New-Object System.Collections.Generic.List[string]
-              $instance = $null
-              foreach ($line in @(& pnputil.exe /enum-devices /problem 2>$null)) {
-                if ($line -match '^\\s*Instance ID:\\s*(.+)$') { $instance = $Matches[1].Trim() }
-                elseif ($line -match '^\\s*Device Description:\\s*(.+)$') {
-                  $desc = $Matches[1].Trim()
-                  $item = if ($instance) { '{0} ({1})' -f $desc, $instance } else { $desc }
+              try {
+                foreach ($d in @(Get-PnpDevice -PresentOnly -ErrorAction Stop | Where-Object { $_.Status -ne 'OK' })) {
+                  $item = '{0} ({1})' -f $d.FriendlyName, $d.InstanceId
                   if ($item.Length -gt 200) { $item = $item.Substring(0, 200) }
                   $problems.Add($item)
-                  $instance = $null
                 }
+              } catch {
+                Write-Output ("Get-PnpDevice unavailable: {0}" -f $_.Exception.Message)
               }
 
               $os = Get-CimInstance Win32_OperatingSystem

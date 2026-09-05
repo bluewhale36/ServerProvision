@@ -2,6 +2,7 @@
 # 모의 게스트 하네스 — E1-0b 프로토콜 + E1-2 수집 사이클 (CP5 E 단계 예외 자산)
 # 게스트의 전체 프로토콜 시퀀스를 curl 로 재연한다:
 #   부팅(/boot 스크립트 수신·토큰 추출) → 체크인(지시 수신) → COLLECT: 수집 보고(관용 파싱·적재·완주)
+#   REENTRY=1 (HF11-2): 체크인 전에 DIAGNOSTIC_BOOTING 을 열고 닫아 재부팅 재진입을 재연 — 수집 완료 게스트도 COLLECT 를 받아야 한다
 #   → close 응답의 REBOOT 확인 → 재부팅 재연(/boot = 입고 검수 대기) → 멱등·사칭 확인
 #
 # 사용:
@@ -58,12 +59,24 @@ if [ -z "$TOKEN" ]; then
   printf "토큰 입력: "; read -r TOKEN
 fi
 
+# HF11-2 — REENTRY=1: 실기 agent 가 부팅마다 하는 DIAGNOSTIC_BOOTING 열기 · 닫기를 재연한다(커서가 이 step 으로 돌아온다).
+# 수집을 이미 마친 게스트에 이 모드로 다시 돌리면 체크인이 COLLECT(재수집)여야 하고, 수집 close 뒤 체크인은 WAIT 로 돌아온다.
+if [ "${REENTRY:-0}" = "1" ]; then
+  step "2b. 재진입 — DIAGNOSTIC_BOOTING 열기 · 닫기(실기 agent 부팅 동작 재연)"
+  BOPEN=$(curl -sS -X POST "${BASE_URL}/api/pxe/v1/agent/steps" -H "X-Guest-Token: ${TOKEN}" \
+       -H "Content-Type: application/json" -d '{"stepCode":"DIAGNOSTIC_BOOTING"}')
+  BID=$(echo "$BOPEN" | sed -n 's/.*"stepId"[": ]*\([0-9a-f-]*\)".*/\1/p')
+  curl -sS -o /dev/null -w "close DIAGNOSTIC_BOOTING → HTTP %{http_code}\n" -X POST "${BASE_URL}/api/pxe/v1/agent/steps/${BID}/close" \
+       -H "X-Guest-Token: ${TOKEN}" -H "Content-Type: application/json" -d '{"status":"SUCCEEDED"}'
+fi
+
 step "3. 체크인 — 첫 체크인 = DIAGNOSE_LINUX 전이 + 지시 수신 (COLLECT 기대)"
 CHECKIN=$(curl -sS -X POST "${BASE_URL}/api/pxe/v1/agent/checkin" -H "X-Guest-Token: ${TOKEN}")
 echo "$CHECKIN"
 case "$CHECKIN" in
-  *'"directive":"COLLECT"'*) echo "→ OK: COLLECT 지시 (커서 진단 + 미수집)";;
-  *) echo "→ 주의: COLLECT 아님 — 이미 수집(ENRICHED)됐거나 상태를 확인할 것";;
+  *'"directive":"COLLECT"'*) echo "→ OK: COLLECT 지시 (커서가 INFORMATION_PERSISTING 이 아님 — 첫 등록 · 재진입 · 해석 불가)";;
+  *'"directive":"WAIT"'*) echo "→ WAIT: 이 세션에서 수집을 마친 상태(커서 INFORMATION_PERSISTING). 재수집을 재연하려면 REENTRY=1 로 다시 실행";;
+  *) echo "→ 주의: 기대 밖 지시 — 상태를 확인할 것";;
 esac
 
 step "4. step 시작 보고 — RUNNING 원장 열림"

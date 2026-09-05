@@ -290,7 +290,12 @@ sudo mkdir -p /srv/pxe && echo "/dev/mapper/vg_data-lv_pxe /srv/pxe xfs defaults
 sudo mkdir -p /srv/pxe/win2025/sources /srv/pxe/spvout && sudo chown -R spvadmin:spvadmin /srv/pxe/win2025
 # E4-1-a-4 — 설치 후 페이로드($OEM$)는 앱이 조립한다. 이 디렉토리 하나만 앱 계정(provisioning)에 쓰기 권한을 준다.
 sudo mkdir -p '/srv/pxe/win2025/sources/$OEM$' && sudo chown provisioning:spvadmin '/srv/pxe/win2025/sources/$OEM$' && sudo chmod 2775 '/srv/pxe/win2025/sources/$OEM$'
+# 서비스 유닛이 ProtectSystem=strict 라 POSIX 권한만으로는 부족하다 — drop-in 으로 쓰기 경로를 연다(2026-09-04 실기 2호 준비에서 확인).
+sudo mkdir -p /etc/systemd/system/serverprovision.service.d
+printf '[Service]\nReadWritePaths=/srv/pxe/win2025/sources\n' | sudo tee /etc/systemd/system/serverprovision.service.d/win2025-oem.conf
+sudo systemctl daemon-reload && sudo systemctl restart serverprovision
 ```
+`ReadWritePaths` 는 마운트의 읽기 전용만 푼다 — `sources/` 안의 나머지 파일은 spvadmin 소유 644 라 앱 계정은 여전히 못 쓴다. 대시보드 조립 버튼이 disabled 면 tooltip 이 원인(미설정 · 디렉토리 없음 · 쓰기 불가)을 말한다. **`$OEM$` 안에 손으로 둔 `$$` · `$1` 이 이미 있으면 `sudo chown -R provisioning:spvadmin '/srv/pxe/win2025/sources/$OEM$'` 까지 해야 한다** — 조립은 그 디렉토리들을 옮겨 치우는데, 디렉토리 이동은 그 디렉토리 자체의 쓰기 권한을 요구해 spvadmin 소유면 AccessDenied 로 500 이 난다(2026-09-04 실측). 앱이 만든 페이로드는 이후 앱 소유라 다시 겪지 않는다.
 ISO(앱의 OS 자원으로 업로드된 파일)를 루프 마운트해 `boot.wim`(`sources/boot.wim` · Windows Setup = index 2) · `sources/` 전체 · 루트 `setup.exe` 를 `/srv/pxe/win2025/` 로 복사한다. 6 GB 급이라 서버 안에서 복사한다(맥에서 재전송하지 않는다). 새 Windows 버전은 같은 절차를 새 디렉토리에 반복한다.
 
 **`sources/$OEM$`(E4-1-a-4)** — Windows Setup 은 설치 소스의 `sources\$OEM$` 를 자동으로 설치 대상에 복사한다(`$$` → `%WINDIR%`, `$1` → 시스템 드라이브 루트). 앱은 대시보드 Windows 설치 소스 영역의 [드라이버 페이로드 조립] 액션으로 활성 DRIVER 자원(트리에 `*.inf`)을 `$1\SPV\Drivers\<id>_<슬러그>` 로, 설치 후 스크립트 둘을 `$$\Setup\Scripts\SetupComplete.cmd`(pnputil 로 드라이버 설치 · 문제 장치 로그) · `$1\SPV\spv-report.ps1`(첫 로그온 완료 보고)로 쓴다. 쓰기 권한은 위 한 디렉토리에만 있고 `install.wim` 등 나머지는 그대로 `spvadmin` 소유다. 배포 뒤 · 드라이버 자원을 바꾼 뒤에는 대시보드에서 조립을 한 번 누른다(chip "드라이버 페이로드" 가 미조립 · 갱신 필요를 알린다). 조립은 `$OEM$` 안의 `$$` · `$1` · 매니페스트를 항목 단위 rename 으로 바꿔 끼우므로 반쪽 트리가 노출되지는 않지만, Windows Setup 이 `$OEM$` 를 복사하는 순간과 겹치면 어느 판본이 실릴지는 정해지지 않는다 — **설치 중(카드 '설치 중')인 게스트가 있을 때는 조립을 미룬다**(E4-1-a-4 CP5 O-8). OEM 제품 키로 설치하면 Setup 이 SetupComplete.cmd 를 건너뛴다(GVLK · 소매 키는 실행) — 그 경우 드라이버 설치 · 완료 보고가 일어나지 않으므로 제품 키 종류를 확인한다.
@@ -345,7 +350,7 @@ Windows Server 2025 의 SMB 클라이언트는 서명을 요구하고 guest 를 
 | 환경변수 | 뜻 | 미설정 시 |
 |---|---|---|
 | `WINDOWS_INSTALL_SOURCE_ROOT` | §1 의 소스 루트(`/srv/pxe/win2025`) | 정의서의 Windows 옵션 차단 · 대시보드 "서빙 비활성" |
-| `WINDOWS_INSTALL_SHARE_UNC` | WinPE 가 붙는 UNC(`\\<서버>\win2025`) | 대시보드 "미설정"(E4-1-a-3 준비도가 실행 차단) |
+| `WINDOWS_INSTALL_SHARE_UNC` | WinPE 가 붙는 UNC(`\\<서버>\win2025`) — **작은따옴표로 감싼다**: systemd `EnvironmentFile` 은 따옴표 없는 값과 큰따옴표 값에서 백슬래시를 이스케이프로 먹어 `\\192.168.1.10\win2025` 가 `\192.168.1.10win2025` 로 들어간다(2026-09-04 실측). `WINDOWS_INSTALL_SHARE_UNC='\\192.168.1.10\win2025'` | 대시보드 "미설정"(E4-1-a-3 준비도가 실행 차단) |
 | `WINDOWS_INSTALL_SHARE_USER` · `WINDOWS_INSTALL_SHARE_PASSWORD` | §2 의 `deploy` 계정 | 같음 |
 | `WINDOWS_INSTALL_TIMEOUT` | 서빙 시각부터의 설치 시한(E4-1-a-3 D-2) — 지난 뒤의 재진입은 실패 | 기본 `60m` |
 | `WINDOWS_INSTALL_MAX_REENTRIES` | 설치 중 재진입(재PXE) 상한 — 넘으면 실패(루프 방지) | 기본 `5` |

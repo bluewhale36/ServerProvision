@@ -186,7 +186,7 @@ class GuestServerControllerWindowsInstallViewTest {
         UUID id = detailWith(completedCard(0, List.of(), true, null));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("완료 2026-09-03 13:21:40 · ComputerName SPV-14174000 · 드라이버 47 · 문제 장치 0")))
+                .andExpect(content().string(containsString("완료 2026-09-03 13:21:40 · ComputerName SPV-14174000 · 드라이버(게시 패키지) 47 · 문제 장치 0")))   // HF11-1 — 라벨 뜻 정의
                 .andExpect(content().string(containsString("문제 장치 없음")))
                 .andExpect(content().string(containsString("프로비저닝이 종단됐고")))
                 .andExpect(content().string(not(containsString("다음 부팅에서 설치를 시작할 수 있습니다"))))   // CP5 F-2 — 종단 뒤 시제

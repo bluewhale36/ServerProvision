@@ -115,17 +115,13 @@ class AgentReportServiceTest {
     }
 
     @Test
-    @DisplayName("체크인 — 이미 수집됨(DIAGNOSTIC_ENRICHED) → WAIT (COLLECT 재지시 없음)")
+    @DisplayName("체크인 — 이 세션에서 수집을 마침(커서 INFORMATION_PERSISTING) → WAIT (COLLECT 재지시 없음 · HF11-2 커서 규칙)")
     void checkin_enriched_waits() {
         GuestServer g = stubGuest();
         stubDiagnoseExecutor();
-        ProvisioningProgress p = progress(g, true, ProvisioningPhaseStep.INFORMATION_COLLECTING);
+        ProvisioningProgress p = progress(g, true, ProvisioningPhaseStep.INFORMATION_PERSISTING);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
-        GuestServerDetail enriched = org.mockito.Mockito.mock(GuestServerDetail.class);
         // U3-3 DEC-A — 판정은 엔티티의 isDiagnosticEnriched() 가 갖는다(엔진 · 목록 · 그룹 가드가 공유).
-        given(enriched.isDiagnosticEnriched()).willReturn(true);
-        given(guestServerDetailRepository.findByServerIdWithBoardModel(g.getId()))
-                .willReturn(Optional.of(enriched));
 
         var res = service.checkin(TOKEN);
         assertThat(res.directive()).isEqualTo(AgentDirective.WAIT);
@@ -166,7 +162,6 @@ class AgentReportServiceTest {
         stubDiagnoseExecutor();
         ProvisioningProgress p = progress(g, false, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
-        given(guestServerDetailRepository.findByServerIdWithBoardModel(g.getId())).willReturn(Optional.empty());
 
         assertThat(service.checkin(TOKEN).directive()).isEqualTo(AgentDirective.COLLECT);
     }
