@@ -325,4 +325,60 @@ class JpaSettingCommandServiceTest {
         assertThat(existing.getProcesses()).hasSize(1);
         assertThat(existing.getProcesses().get(0).getProcessType()).isEqualTo(SettingProcessType.BASIC_SETTING);
     }
+
+    // ==== HF12 — 리눅스 비밀번호 유지 병합 · updated_at touch =============================
+
+    private static com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest rhel(String rootPassword, boolean rootKeep,
+                                                                                                             String userPassword, boolean userKeep) {
+        return new com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest(1L, 10L, null, null,
+                new com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest(rootPassword, false, rootKeep),
+                List.of(new com.example.serverprovision.provisioning.setting.dto.request.UserRequest("ops", userPassword, true, false, userKeep)),
+                1L, List.of(), false, null);
+    }
+
+    private static com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest storedRhel(SettingDefinition definition) {
+        return (com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest)
+                definition.getProcesses().get(0).getPayload().request();
+    }
+
+    @Test
+    @DisplayName("update — 리눅스 root · 사용자 유지 플래그는 같은 단계 저장본에서 값을 이어받는다(HF12 결함 B) · 저장본에 값이 없으면 400")
+    void update_linuxKeepExistingPassword_mergesFromStoredPayload() {
+        given(referenceInspectors.inspectorFor(any())).willReturn(inspector);
+        SettingDefinition existing = definitionWith(rhel("R00t!", false, "Op5!", false));
+        given(repository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(existing));
+        given(repository.existsByNameAndIdNotAndIsDeletedFalse("윈도우 세팅", 1L)).willReturn(false);
+
+        service.update(1L, new SettingSaveRequest("윈도우 세팅", List.of(rhel(null, true, null, true))));
+
+        assertThat(storedRhel(existing).getRootPassword().getPassword()).isEqualTo("R00t!");
+        assertThat(storedRhel(existing).getRootPassword().isKeepExistingPassword()).isFalse();
+        assertThat(storedRhel(existing).getUsers().get(0).getPassword()).isEqualTo("Op5!");
+        assertThat(storedRhel(existing).getUsers().get(0).isKeepExistingPassword()).isFalse();
+
+        // 구 저장본(root 값 없음)에 root 유지 → 400 · 병합은 clear 전이라 저장본 무변.
+        SettingDefinition legacy = definitionWith(rhel(null, true, "Op5!", false));
+        given(repository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(legacy));
+        given(repository.existsByNameAndIdNotAndIsDeletedFalse("윈도우 세팅", 2L)).willReturn(false);
+        assertThatThrownBy(() -> service.update(2L, new SettingSaveRequest("윈도우 세팅", List.of(rhel(null, true, null, true)))))
+                .isInstanceOf(com.example.serverprovision.provisioning.setting.exception.RetainedPasswordUnavailableException.class)
+                .satisfies(e -> assertThat(((com.example.serverprovision.provisioning.setting.exception.RetainedPasswordUnavailableException) e).fieldName())
+                        .isEqualTo("rootPassword"));
+        assertThat(storedRhel(legacy).getUsers().get(0).getPassword()).isEqualTo("Op5!");
+    }
+
+    @Test
+    @DisplayName("update — 이름이 그대로여도 정의서 자신이 dirty 가 된다(touch · HF12 결함 A): 갱신 전 null 이던 updatedAt 이 채워진다")
+    void update_sameName_touchesDefinition() {
+        given(referenceInspectors.inspectorFor(any())).willReturn(inspector);
+        SettingDefinition existing = definitionWith(new BasicSettingRequest(List.of()));
+        assertThat(existing.getUpdatedAt()).isNull();   // 감사 리스너 밖(단위) — 생성 직후는 비어 있다
+        given(repository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(existing));
+        given(repository.existsByNameAndIdNotAndIsDeletedFalse("윈도우 세팅", 1L)).willReturn(false);
+
+        service.update(1L, new SettingSaveRequest("윈도우 세팅", List.of(new BasicSettingRequest(List.of()))));
+
+        assertThat(existing.getName()).isEqualTo("윈도우 세팅");
+        assertThat(existing.getUpdatedAt()).isNotNull();   // 자식 교체만으로 멈추던 updated_at 이 부모 dirty 로 움직인다
+    }
 }

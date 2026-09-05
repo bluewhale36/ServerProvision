@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF12 Plan — 정의서 저장 결함 2건</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar .seg:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq / .pkg-tree / card-grid ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF12 — 정의서 저장 결함 2건 (updated_at 정지 · 리눅스 비밀번호 유지 미병합) <span class="v2-badge">HF12</span></h1>
+  <div class="meta">
+    <span><strong>인벤토리</strong> HF12</span>
+    <span><strong>계열</strong> HF (hotfix)</span>
+    <span><strong>브랜치</strong> <code>fix/HF12_setting-save-defects</code> (origin/dev 8f3357c)</span>
+    <span><strong>진행</strong> 사용자 지시 "HF12, 13 진행. 완료 후 고지"(2026-09-05) — CP1~CP6 무중단 · 승인 게이트는 완료 고지 시 일괄</span>
+    <span><strong>작성</strong> 2026-09-05 KST · 앵커</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 한눈 요약</a></li>
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 설계 대안 · 결정</a></li>
+      <li><a href="#s9">§9 Verification · CP5 계획</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 한눈 요약 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 한눈 요약</summary>
+      <div class="body">
+        <p>정의서 수정 저장의 결함 둘을 한 브랜치에서 닫는다. 두 결함은 서로 다른 자리에 있지만
+        <b>같은 저장 트랜잭션 안에서 일어난다</b>는 공통점이 있어 재현도 검증도 한 화면 · 한 요청으로 닫힌다.</p>
+        <div class="callout">
+          <ul>
+            <li><b>A — 이름을 바꾸지 않으면 수정일시가 멈춘다.</b> 단계만 고쳐 저장해도
+            <code>setting_definition.updated_at</code> 이 생성 시각 그대로다. E4-1-a-2 CP5 의 O-4 로 적립돼 있었고,
+            2026-09-04 실기에서 정의서 10 을 09:25 KST 에 수정했는데 <code>updated_at</code> 은 07:49 였다</li>
+            <li><b>B — 리눅스 비밀번호 "기존 유지" 가 병합되지 않는다.</b> RHEL · Ubuntu 설치 단계에서 유지를 켜고 저장하면
+            root · 사용자 비밀번호가 <b>빈 값으로 저장</b>된다. E4-1-a-2 가 병합 훅을 Windows 축에만 구현했기 때문이다</li>
+          </ul>
+        </div>
+        <div class="callout warn"><b>범위</b> — 스키마 변경 0 · 운영 설정 변경 0 · 프론트엔드 변경 0 · 신규 예외 클래스 0
+        (기존 예외에 생성자 하나를 더한다). 바뀌는 것은 엔티티의 감사 시각 유발 한 줄과, 리눅스 요청 계층의 비밀값 병합 훅이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 (진단) ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p>아래는 관찰된 증상에서 출발해 "어떤 코드가 그렇게 답하도록 되어 있는가" 까지 내려간 내용이다.
+        두 결함 모두 <code>JpaSettingCommandService.update</code> 한 메서드를 지나간다.</p>
+
+        <h4>1-1. A — 이름이 그대로면 부모 행의 UPDATE 가 없다</h4>
+        <p>정의서 수정은 <b>전체 교체 의미론</b>(U2-3 D4)이다. <code>update</code> 는
+        <code>SettingDefinition.changeNameAndClearProcesses(name)</code> 로 이름을 갱신하면서 기존 단계 행을 떼어내고,
+        <code>repository.flush()</code> 로 그 삭제를 먼저 반영한 뒤 <code>attachProcesses</code> 로 새 단계 행을 장착한다.
+        같은 flush 안에서 Hibernate 가 INSERT 를 DELETE 보다 먼저 내보내 <code>UNIQUE(definition, type)</code> 와 충돌하는 것을
+        피하려고 둔 순서다.</p>
+        <p>여기서 정의서 엔티티 <b>자신의 컬럼 중 바뀔 수 있는 것은 <code>name</code> 하나</b>다.
+        단계만 고치면 부모 행에는 바꿀 값이 없어 Hibernate 가 부모의 UPDATE 문을 만들지 않고,
+        움직이는 것은 자식 <code>SettingProcess</code> 행의 DELETE 와 INSERT 뿐이다.</p>
+        <p>수정 시각은 <code>BaseTimeEntity</code> 의 <code>@LastModifiedDate</code> 가 채운다. 이 필드는
+        <code>AuditingEntityListener</code> 가 <code>@PreUpdate</code> 콜백에서 채우는데, <b>부모의 UPDATE 가 없으면 그 콜백 자체가 돌지 않는다.</b>
+        그래서 <code>updated_at</code> 이 생성 시각에 멈춘다. 단계 컬렉션이 부모의 dirty 로 잡히지 않는 것은
+        이 연관이 단방향 <code>@OneToMany</code> + <code>@JoinColumn</code> 이기 때문이다 — 자식의 외래키 열을 자식 쪽에서 쓰므로
+        부모 행은 건드릴 이유가 없다.</p>
+        <p>사용자가 이 값을 보는 자리는 정의서 상세 화면의 "수정일시" 다. 목록에서 최근 수정 순으로 감을 잡는 운영자에게는
+        <b>고친 사실 자체가 화면에서 사라지는</b> 셈이다.</p>
+
+        <h4>1-2. B — 리눅스에는 병합 훅이 없다</h4>
+        <p>E4-1-a-2 의 D-11 은 비밀값 처리를 <code>AbstractProcessRequest</code> 의 다형 훅 <b>둘</b>로 정리했다.
+        하나는 수정 폼 pre-fill 용 <code>withoutSecrets()</code> — 저장본의 값을 화면으로 내보내지 않고 "기존 유지" 플래그로 대체한다.
+        다른 하나는 수정 저장 병합용 <code>withSecretsRetainedFrom(existing)</code> — 유지 플래그가 켜진 항목의 값을
+        같은 단계 타입의 저장본에서 이어받는다. 둘 다 기본 구현은 <code>this</code> 라, 비밀값이 없는 단계 타입은 아무것도 하지 않는다.</p>
+        <p>리눅스 중간층 <code>LinuxInstallationRequest</code> 는 이 중 <b>앞의 하나만</b> 구현했다.
+        사용자 목록의 비밀번호를 지우고 계열별 <code>withPatchedPasswords(users)</code> 로 사본을 재조립하며,
+        RHEL 은 그 안에서 자신의 root 비밀번호도 <code>new RootPasswordRequest(null, false, true)</code> 로 함께 지운다.
+        병합 훅은 override 하지 않았으므로 기본 <code>this</code> 가 그대로 돌아온다.</p>
+        <p>프론트엔드는 유지 체크가 켜진 항목을 <code>{password: null, keepExistingPassword: true}</code> 로 보낸다 —
+        root 와 사용자 모두 같다. 서버가 병합하지 않으므로 <b>그 값이 그대로 새 저장본이 된다</b>.
+        이 정의서로 설치가 돌면 Kickstart 의 <code>rootpw</code> 와 autoinstall 의 사용자 항목에 빈 비밀번호가 들어간다.</p>
+        <p>같은 자리의 Windows 축은 이미 짝이 맞다. <code>WindowsInstallationRequest.withSecretsRetainedFrom</code> 이
+        저장본에서 값을 복사하고, 복사할 값이 없으면 <code>RetainedPasswordUnavailableException</code> 으로 400 을 낸다
+        (필드 <code>administratorPassword</code> 직결). <b>리눅스에 없는 것이 이 짝이다.</b></p>
+
+        <h4>1-3. 접근 규칙과 순서 — 여기서는 문제가 없다</h4>
+        <p>RHEL 계열 검사기 <code>RHELInstallationFamilyInspector</code> 는 "root 비밀번호도 사용자도 없으면 설치 후 접근 불가" 를
+        막는다. 그런데 이 판정은 <code>rootPassword == null</code>, 즉 <b>객체의 부재</b>만 본다. 유지 플래그가 켜진 요청은
+        객체가 있으므로 그대로 통과한다. 검증(<code>validateReferences</code>)이 병합보다 먼저 도는 것도 사실이지만,
+        판정에 비밀번호 <b>값</b>이 관여하지 않으므로 순서 때문에 생기는 문제는 없다.
+        즉 B 를 고치기 위해 검사기나 호출 순서를 손댈 이유가 없다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>정의서 수정 저장이 성공하면 <b>이름을 바꾸었는지와 무관하게</b> <code>updated_at</code> 이 저장 시각으로 이동한다.</li>
+          <li>실제 저장 값은 감사 리스너가 정한다 — 도메인 코드가 시각을 직접 확정하지 않는다.</li>
+          <li>리눅스 설치 단계의 "기존 비밀번호 유지" 는 저장본에서 값을 복사해 새 저장본에 싣고, 유지 플래그는 해제한다.</li>
+          <li>유지할 값이 저장본에 없으면 조용히 비우지 않고 <b>400 으로 거절</b>하며, 사유가 해당 필드에 직결된다.</li>
+          <li>Ubuntu 는 root 개념이 없으므로 사용자 축만 병합한다. Windows 축의 현행 동작은 회귀 없이 그대로다.</li>
+          <li>계열이 늘어도 병합 규칙을 <code>instanceof</code> 사다리로 늘리지 않는다 — 중간층의 다형 훅 하나로 흡수한다.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>비밀번호 평문 저장</b> — 정의서 payload 가 비밀번호를 평문으로 담는 구조 자체는 이 슬라이스에서 바꾸지 않는다(Notion HF12 ②).</li>
+            <li><b>정의서 이력화</b> — 무엇이 언제 어떻게 바뀌었는지의 변경 이력은 별개 주제다. 여기서는 마지막 수정 시각 한 값만 바로잡는다.</li>
+            <li><b>생성(POST) 경로의 유지 플래그</b> — 병합 대상이 없는 생성 요청에 유지 플래그를 직접 실어 보내는 경로는 손대지 않는다(§8-3 잔존 참조).</li>
+            <li><b>화면 변경</b> — 폼 · 상세 화면의 마크업과 스크립트는 건드리지 않는다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모 (저장본 · 요청을 바꿔 병합과 수정일시를 확인)</summary>
+      <div class="body">
+        <p>왼쪽의 <b>저장본</b>(수정 전 DB 에 있는 정의서)과 오른쪽의 <b>요청</b>(폼이 만들어 보내는 payload)을 직접 바꾼 뒤
+        [저장] 을 누르면, 그 조합에서 서버가 무엇을 저장하고 무엇으로 응답하는지가 나온다.
+        판정 함수는 §4 의 RETAIN 규칙과 <code>touch()</code> 규칙을 그대로 옮긴 것이다.</p>
+        <p>처음이라면 <b>시나리오</b> 버튼을 차례로 누르는 편이 빠르다 — 상태를 세팅하고 무엇을 눌러야 하는지 배너가 안내한다.
+        <b>종전 · 정정</b> 토글을 바꾸면 같은 조합이 지금 코드에서 어떻게 처리되는지가 나란히 확인된다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="n-demo-btn" onclick="demoScenario(1)">① 이름 그대로 파티션만 수정</button>
+            <button class="n-demo-btn" onclick="demoScenario(2)">② RHEL root 유지</button>
+            <button class="n-demo-btn" onclick="demoScenario(3)">③ 사용자 1명 유지 · 1명 새 값</button>
+            <button class="n-demo-btn" onclick="demoScenario(4)">④ 직접 PUT — 유지할 root 값 없음</button>
+            <button class="n-demo-btn" onclick="demoScenario(5)">⑤ Ubuntu 사용자 유지</button>
+            <button class="n-demo-btn" onclick="demoScenario(0)">처음부터</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">코드 :</span>
+            <button class="seg" data-seg="mode" data-value="legacy" onclick="demoSet('mode','legacy')">종전 (현행)</button>
+            <button class="seg" data-seg="mode" data-value="fixed" onclick="demoSet('mode','fixed')">정정 (HF12)</button>
+            <span class="group-label">요청 경로 :</span>
+            <button class="seg" data-seg="path" data-value="form" onclick="demoSet('path','form')">화면 폼</button>
+            <button class="seg" data-seg="path" data-value="put" onclick="demoSet('path','put')">직접 PUT</button>
+          </div>
+
+          <div class="callout" id="demo-guide">시나리오 버튼을 누르면 상태를 세팅하고 다음 조작을 안내합니다. 자유 조작도 됩니다.</div>
+
+          <div class="card-grid">
+            <div class="card v-blue">
+              <h4>저장본 (previous)</h4>
+              <div class="ux-toolbar">
+                <span class="group-label">계열 :</span>
+                <button class="seg" data-seg="family" data-value="RHEL" onclick="demoSet('family','RHEL')">RHEL</button>
+                <button class="seg" data-seg="family" data-value="UBUNTU" onclick="demoSet('family','UBUNTU')">Ubuntu</button>
+              </div>
+              <div class="ux-toolbar">
+                <span class="group-label">root 저장값 :</span>
+                <button class="seg" data-seg="prevRoot" data-value="yes" onclick="demoSet('prevRoot','yes')">있음</button>
+                <button class="seg" data-seg="prevRoot" data-value="no" onclick="demoSet('prevRoot','no')">없음</button>
+              </div>
+              <div class="ux-toolbar">
+                <span class="group-label">alice 저장값 :</span>
+                <button class="seg" data-seg="prevAlice" data-value="yes" onclick="demoSet('prevAlice','yes')">있음</button>
+                <button class="seg" data-seg="prevAlice" data-value="no" onclick="demoSet('prevAlice','no')">없음</button>
+              </div>
+              <div class="ux-toolbar">
+                <span class="group-label">bob 저장값 :</span>
+                <button class="seg" data-seg="prevBob" data-value="yes" onclick="demoSet('prevBob','yes')">있음</button>
+                <button class="seg" data-seg="prevBob" data-value="no" onclick="demoSet('prevBob','no')">없음</button>
+              </div>
+              <div class="ux-row"><span class="label" id="demo-prev-summary"></span></div>
+            </div>
+
+            <div class="card v-orange">
+              <h4>요청 (request)</h4>
+              <div class="ux-toolbar">
+                <span class="group-label">정의서 이름 :</span>
+                <button class="seg" data-seg="reqName" data-value="same" onclick="demoSet('reqName','same')">그대로</button>
+                <button class="seg" data-seg="reqName" data-value="changed" onclick="demoSet('reqName','changed')">변경</button>
+              </div>
+              <div class="ux-toolbar">
+                <span class="group-label">파티션 :</span>
+                <button class="seg" data-seg="reqPart" data-value="100" onclick="demoSet('reqPart','100')">100GB</button>
+                <button class="seg" data-seg="reqPart" data-value="200" onclick="demoSet('reqPart','200')">200GB</button>
+              </div>
+              <div class="ux-toolbar" id="demo-req-root-bar">
+                <span class="group-label">root :</span>
+                <span id="demo-req-root-segs"></span>
+              </div>
+              <div class="ux-toolbar">
+                <span class="group-label">alice :</span>
+                <span id="demo-req-alice-segs"></span>
+              </div>
+              <div class="ux-toolbar">
+                <span class="group-label">bob :</span>
+                <span id="demo-req-bob-segs"></span>
+              </div>
+              <div class="ux-row">
+                <span class="label" id="demo-req-summary"></span>
+                <button class="n-demo-btn" onclick="demoSave()">저장</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="demo-result"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">시나리오 ① 부터 눌러 보십시오. [저장] 을 누르면 결과가 아래에 나옵니다.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 병합 판정은 §4-2 의 RETAIN 규칙
+        (사용자 = 같은 <code>username</code> 의 값 유무 · root = 저장본이 RHEL 이고 값이 있을 때)과 같은 식이고,
+        수정일시 판정은 §4-1 의 <code>touch()</code> 호출 지점과 같다. 유지 선택지가 화면에 없는 상태는
+        <code>disabled</code> + tooltip 으로 재현했다 — 서버 400 이 direct PUT 안전망인 이유가 여기서 보인다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <p><b>새로 생기거나 바뀌는 URL 은 없다.</b> 두 결함은 모두 기존 수정 저장 경로
+        <code>PUT /provisioning/setting/{id}</code> 위에 있다. 아래는 그 한 요청이 지나가는 자리를 주체별로 편 것이다 —
+        바뀌는 지점 둘에 표시를 달았다.</p>
+        <div class="seq">
+          <div class="actor a1">폼 · 직접 PUT</div><div class="actor a2">JpaSettingCommandService.update</div><div class="actor a3">SettingDefinition</div>
+          <div class="step a1"><code>PUT /provisioning/setting/{id}</code> — 유지 플래그 포함 payload</div><div class="step a2">활성 정의서 로드 · 이름 중복 검사</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>validateReferences</code> — 값이 아니라 참조만 본다</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">저장본을 단계 타입으로 색인 → <code>withSecretsRetainedFrom</code> — <b>여기서 병합된다</b></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>changeNameAndClearProcesses</code> 호출</div><div class="step a3">이름 갱신 · 단계 분리 + <b><code>touch()</code></b></div>
+          <div class="step a1"></div><div class="step a2"><code>flush()</code> — 자식 DELETE 선반영</div><div class="step a3">부모 UPDATE 발생 → 감사 리스너가 <code>updated_at</code> 갱신</div>
+          <div class="step a1">200 <code>{id, name}</code> 또는 400 <code>fieldErrors</code></div><div class="step a2"><code>attachProcesses</code> — 병합된 payload 로 새 행 장착</div><div class="step a3"></div>
+        </div>
+        <div class="callout">병합이 <b>clear 보다 먼저</b> 있어야 하는 이유는 단순하다 — 저장본의 단계 payload 를 읽어야 값을 복사할 수 있는데,
+        <code>changeNameAndClearProcesses</code> 가 지나가면 그 컬렉션이 비기 때문이다. 현행 <code>update</code> 가 이미 그 순서로 되어 있어
+        서비스 코드는 바뀌지 않는다.</div>
+        <p>실패 경로도 기존 계약을 그대로 쓴다. 병합할 값이 없으면 <code>RetainedPasswordUnavailableException</code> 이
+        <code>FieldBoundBadRequestException</code> 으로서 400 과 필드명을 함께 싣고, 폼 스크립트의
+        <code>renderServerErrors</code> 가 <code>processList[i].rootPassword</code> · <code>processList[i].users</code> 를
+        해당 단계 카드 안으로 좁혀 인라인 표시한다(기존 매퍼 · 변경 0).</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) — 엔티티 필드 · DDL 변경 0</summary>
+      <div class="body">
+        <p>새 필드도 새 값 객체도 없다. 더해지는 것은 <b>기존 감사 필드를 움직이는 수단 하나</b>와
+        <b>리눅스 요청 계층의 비밀값 변환 훅 하나</b>다.</p>
+
+        <h4>4-1. <code>BaseTimeEntity.touch()</code> — 부모를 dirty 로 만드는 최소 수단</h4>
+        <pre><code>// global/entity/BaseTimeEntity
+protected void touch() {
+    this.updatedAt = LocalDateTime.now();   // 값이 아니라 "바뀌었다"는 사실이 목적
+}
+
+// provisioning/setting/entity/SettingDefinition
+public void changeNameAndClearProcesses(String name) {
+    this.name = name;
+    this.processes.clear();
+    touch();   // 이름이 그대로면 자식 교체만으로는 부모 UPDATE 가 나가지 않는다
+}</code></pre>
+        <p>여기서 넣는 시각은 결과에 영향을 주지 않는다. 자기 컬럼을 건드려 부모 행을 dirty 로 만드는 것이 목적이고,
+        flush 시점에 <code>AuditingEntityListener</code> 가 <code>@LastModifiedDate</code> 를 다시 덮으므로
+        <b>실제 저장 값은 언제나 감사 시각</b>이다. 그래서 이 한 줄은 HF13 의 <code>Clock</code> 주입과 무관하다 —
+        시각의 출처가 바뀌면 감사 리스너 쪽에서 바뀔 뿐이다.</p>
+        <p>가시성은 <code>protected</code> 다 — 도메인 수정 메서드가 자기 aggregate 안에서 부르는 수단이지
+        서비스가 밖에서 시각을 조작하는 통로가 아니다. 호출 지점도 <code>changeNameAndClearProcesses</code> 하나이며,
+        <code>flush()</code> 앞이라 같은 flush 에 실린다.</p>
+
+        <h4>4-2. <code>LinuxInstallationRequest.PasswordPatch</code> — 제거와 보존이 같은 길을 탄다</h4>
+        <pre><code>// 중첩 인터페이스 — user · root 두 변환을 한 묶음으로 전달한다
+protected interface PasswordPatch {
+    UserRequest        user(UserRequest user);
+    RootPasswordRequest root(RootPasswordRequest root);
+}
+
+public abstract LinuxInstallationRequest withPatchedPasswords(PasswordPatch patch);
+
+@Override public LinuxInstallationRequest withoutSecrets()                              { return withPatchedPasswords(STRIP); }
+@Override public LinuxInstallationRequest withSecretsRetainedFrom(AbstractProcessRequest existing) { return withPatchedPasswords(retainFrom(existing)); }</code></pre>
+        <p>계열 구현이 갖는 재조립 메서드는 <b>계열당 하나</b>로 유지된다. RHEL 은
+        <code>patch.root(rootPassword)</code> 와 <code>patchUsers(patch)</code> 를 자기 생성자에 넘기고,
+        Ubuntu 는 root 개념이 없으므로 <code>patchUsers(patch)</code> 만 넘긴다.
+        무엇을 하는 patch 인지는 중간층이 정하고, 어디에 꽂는지는 계열이 정하는 분담이다.</p>
+        <p>값 보유 판정 <code>hasPassword()</code> 와 복사 <code>retaining(...)</code> 은
+        <code>UserRequest</code> · <code>RootPasswordRequest</code> 자신이 갖는다.
+        Windows 축의 <code>WindowsAdministratorPasswordRequest.retaining</code> 이 이미 쓰는 관용구를 리눅스 쪽에 맞춰 두는 것이다.</p>
+
+        <h4>4-3. RETAIN 규칙 진리표 (판정 SSOT)</h4>
+        <table>
+          <thead><tr><th>대상</th><th>요청</th><th>저장본</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>사용자</td><td>유지 켬</td><td>같은 <code>username</code> 에 값 있음</td><td>값 복사 · 유지 플래그 해제</td></tr>
+            <tr><td>사용자</td><td>유지 켬</td><td>같은 <code>username</code> 이 없거나 값이 없음</td><td>400 <code>users</code></td></tr>
+            <tr><td>사용자</td><td>유지 끔</td><td>보지 않음</td><td>요청 값 그대로</td></tr>
+            <tr><td>root</td><td>유지 켬</td><td>RHEL 이고 root 값 있음</td><td>값 복사 · 유지 플래그 해제</td></tr>
+            <tr><td>root</td><td>유지 켬</td><td>RHEL 이 아니거나 root 값 없음</td><td>400 <code>rootPassword</code></td></tr>
+            <tr><td>root</td><td>유지 끔</td><td>보지 않음</td><td>요청 값 그대로(없으면 root 잠금)</td></tr>
+            <tr><td>공통</td><td>유지 켬</td><td>리눅스 요청이 아님 — 단계 신설 · 타입 변경</td><td>값 없음으로 본다 → 400</td></tr>
+          </tbody>
+        </table>
+        <p>사용자 대조 기준을 <code>username</code> 으로 잡는 이유는 사용자 목록에 안정된 식별자가 그것뿐이기 때문이다.
+        행 순서는 폼에서 자유롭게 바뀌므로 위치로 짝지을 수 없다. 이름을 바꾸면서 유지를 켠 행은
+        "저장본에 없는 사용자" 가 되어 400 으로 걸린다 — 조용히 다른 계정의 비밀번호를 옮겨 붙이지 않는다.</p>
+        <p>RHEL 재조립이 root 를 먼저, 사용자를 나중에 적용하므로 <b>둘 다 실패할 수 있는 요청은 <code>rootPassword</code> 로 응답</b>한다.
+        첫 실패에서 예외가 나가는 구조라 응답 하나에 사유 하나다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인 — 완료 고지 시 일괄</td></tr>
+            <tr><td>2~5</td><td>뷰 N/A(화면 변경 0) · Controller N/A · DTO 훅 · Service 시그니처 무변경</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>Repository N/A · Entity 도메인 메서드(<code>touch</code> 호출)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>병합 구현 + 스키마 N/A(DDL 0) — 테스트 제외 main 구현 · 빌드 통과</td><td><span class="chip cp4">CP4</span></td><td>중간 승인</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (§9 항목 계획 + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <p>Repository 는 새 쿼리가 없어 N/A 이고, 스키마 확인도 컬럼 · 제약이 그대로라 N/A 다.
+        엔티티 파일은 열지만 <b>필드가 아니라 도메인 메서드 본문</b>만 바뀐다.</p>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 —
+        ① CP1 승인 → CP4 게이트 지점 ② CP4 승인 → CP6 제출. 이번 묶음은 사용자 지시("HF12, 13 진행. 완료 후 고지")에 따라
+        CP1~CP6 을 멈추지 않고 진행하고 <b>완료 고지 시점에 일괄 검수</b>를 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <p>병합 규칙은 요청 객체의 순수 변환이라 단위 테스트가 본진이고, 예외의 HTTP 매핑과 수정 시각의 실제 이동은
+        레이어를 지나야 드러나므로 서비스 · 컨트롤러 테스트가 따라붙는다.
+        새 예외 생성자를 쓰는 시나리오는 <b>단위와 통합 양쪽</b>에 둔다.</p>
+        <table>
+          <thead><tr><th>계층</th><th>케이스</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>단위 · 요청</td><td>STRIP 회귀 — pre-fill 사본</td><td>root · 사용자 값 제거 · 유지 플래그 켜짐</td></tr>
+            <tr><td>단위 · 요청</td><td>RETAIN — RHEL root 유지</td><td>저장본 값 복사 · 유지 플래그 해제</td></tr>
+            <tr><td>단위 · 요청</td><td>RETAIN — 사용자 유지</td><td>같은 <code>username</code> 의 값 복사</td></tr>
+            <tr><td>단위 · 요청</td><td>RETAIN — 유지 끔</td><td>요청 값 그대로 통과</td></tr>
+            <tr><td>단위 · 요청</td><td>RETAIN — 유지할 값 없음</td><td><code>RetainedPasswordUnavailableException</code></td></tr>
+            <tr><td>단위 · 요청</td><td>RETAIN — 저장본이 리눅스 요청 아님</td><td>같은 예외(값 없음 취급)</td></tr>
+            <tr><td>단위 · 요청</td><td>RETAIN — Ubuntu 사용자 유지</td><td>사용자만 병합 · root 축 없음</td></tr>
+            <tr><td>단위 · 서비스</td><td>RHEL 유지 저장 · 수정 시각</td><td>저장본에 값 보존 · <code>touch</code> 로 UPDATE 유발</td></tr>
+            <tr><td>통합 · HTTP</td><td>PUT 유지 실패</td><td>400 · <code>fieldErrors[rootPassword]</code></td></tr>
+            <tr><td>회귀</td><td>Windows 유지 · pre-fill</td><td>기존 3 시나리오 무변경</td></tr>
+          </tbody>
+        </table>
+        <p>파일 단위로는 <code>LinuxInstallationRequestTest</code> 가 단위 7 케이스를 받고,
+        <code>JpaSettingCommandServiceTest</code> 에 병합 저장과 수정 시각 단언 2 개가 더해지며,
+        <code>SettingRestControllerSaveFlowTest</code> 에 400 시나리오 1 개가 붙는다.
+        <code>WindowsInstallationRequestTest</code> 는 손대지 않고 회귀 감시로 남긴다 — 훅 시그니처가 바뀌지 않았음을 이 파일이 증언한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p>새 예외 클래스를 만들지 않는다. Windows 축이 쓰던 예외에 <b>대상을 지정하는 생성자 하나</b>를 더해 리눅스 축이 함께 쓴다.
+        메시지는 대상 이름만 갈아 끼우고 필드명은 인자로 받는다.</p>
+        <pre><code>public RetainedPasswordUnavailableException(String fieldName, String subject) {
+    super("유지할 기존 " + subject + " 비밀번호가 없습니다. 비밀번호를 입력하십시오.", fieldName);
+}
+
+// 기존 무인자 생성자는 위임으로 남는다 — Windows 호출부 무변경
+public RetainedPasswordUnavailableException() { this("administratorPassword", "Administrator"); }</code></pre>
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>필드</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>RetainedPasswordUnavailableException</code></td><td>400</td><td><code>administratorPassword</code></td><td><span class="chip keep">재사용</span> Windows 현행</td></tr>
+            <tr><td><code>RetainedPasswordUnavailableException</code></td><td>400</td><td><code>rootPassword</code></td><td><span class="chip add">생성자 추가</span> RHEL root</td></tr>
+            <tr><td><code>RetainedPasswordUnavailableException</code></td><td>400</td><td><code>users</code></td><td><span class="chip add">생성자 추가</span> 리눅스 사용자</td></tr>
+            <tr><td><code>FieldBoundBadRequestException</code></td><td>400</td><td>상속</td><td><span class="chip keep">유지</span> 필드 직결 계약의 상위</td></tr>
+          </tbody>
+        </table>
+        <p>필드명을 값으로 받는 것이 분기 확장이 아닌 이유는, 예외가 <b>어느 필드에 붙을지</b>는 판정하는 쪽이 이미 알고 있고
+        예외는 그것을 그대로 실어 나르기만 하기 때문이다. 새 대상이 생겨도 이 클래스에 줄이 늘지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 설계 대안 · 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 설계 대안 · 결정 · 잔존</summary>
+      <div class="body">
+        <h4>8-1. A 의 대안 — 부모 행을 어떻게 움직일 것인가</h4>
+        <table>
+          <thead><tr><th>안</th><th>요지</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td><code>BaseTimeEntity.touch()</code> 를 도메인 수정 메서드가 호출해 부모를 dirty 로 만든다</td><td><span class="chip new">채택</span> 감사 리스너가 그대로 값을 정한다 · DDL 0</td></tr>
+            <tr><td>②</td><td><code>@Version</code> 컬럼을 두어 변경마다 증가시킨다</td><td>탈락 — DDL 변경 · 낙관적 락 의미 도입 · 그래도 dirty 가 있어야 증가한다</td></tr>
+            <tr><td>③</td><td>서비스가 네이티브 UPDATE 로 <code>updated_at</code> 을 직접 쓴다</td><td>탈락 — 감사 리스너를 우회하는 두 번째 시각 소스 · 레이어 경계 위반</td></tr>
+            <tr><td>④</td><td>양방향 매핑으로 바꿔 자식 변경이 부모에 닿게 한다</td><td>탈락 — 매핑 churn 이 크고 문제의 본질(부모 dirty)과 무관하다</td></tr>
+          </tbody>
+        </table>
+        <p>②가 걸리는 지점을 풀어 두면 이렇다 — 버전 컬럼은 <b>부모 행이 UPDATE 될 때</b> 증가한다.
+        지금 문제는 그 UPDATE 자체가 없는 것이므로, 컬럼을 더해도 같은 자리에서 멈춘다.
+        ③은 값이 맞더라도 시각을 정하는 곳이 둘이 되어 이후 어느 쪽이 정본인지 알 수 없게 된다.</p>
+
+        <h4>8-2. B 의 대안 — 병합 훅을 어디에 어떤 모양으로 둘 것인가</h4>
+        <table>
+          <thead><tr><th>안</th><th>요지</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>중간층의 추상 훅을 <code>withPatchedPasswords(PasswordPatch)</code> 로 일반화한다</td><td><span class="chip new">채택</span> 제거 · 보존이 같은 재조립 경로를 탄다 · 계열당 재조립 1개</td></tr>
+            <tr><td>②</td><td><code>withRetainedPasswords(users, previous)</code> 추상 메서드를 따로 더한다</td><td>탈락 — RHEL · Ubuntu 에 거의 같은 재조립 메서드가 둘씩 생긴다</td></tr>
+            <tr><td>③</td><td>서비스에서 <code>instanceof</code> 로 계열을 갈라 병합한다</td><td>탈락 — 조건분기 legacy 확장 금지 위배 · 계열 추가마다 줄이 는다</td></tr>
+          </tbody>
+        </table>
+        <p>②를 택하면 재조립 코드가 두 벌이 된다. RHEL 의 재조립은 생성자 인자 열 개를 그대로 옮겨 적는 일이라,
+        같은 목록이 두 번 있으면 필드가 늘 때 한쪽만 고치는 사고가 난다.
+        patch 를 인자로 받으면 <b>바뀌는 것은 변환 함수뿐</b>이다.</p>
+
+        <h4>8-3. 결정 D-1 ~ D-5</h4>
+        <ul>
+          <li><b>D-1</b> — <code>BaseTimeEntity.touch()</code> 를 <code>protected</code> 로 두고
+          <code>SettingDefinition.changeNameAndClearProcesses</code> 한 곳에서 부른다. 넣는 시각은 flush 때 감사 리스너가 덮으므로
+          결과 값은 언제나 감사 시각이다.</li>
+          <li><b>D-2</b> — 리눅스 중간층에 중첩 인터페이스 <code>PasswordPatch</code> 와 추상
+          <code>withPatchedPasswords(PasswordPatch)</code> 를 두고, 기존의 사용자 목록 인자 시그니처를 대체한다.
+          <code>withoutSecrets()</code> 는 STRIP, <code>withSecretsRetainedFrom(existing)</code> 은 RETAIN 을 넘긴다.</li>
+          <li><b>D-3</b> — RETAIN 규칙은 §4-3 진리표가 SSOT 다. 값 보유 판정과 복사는
+          <code>UserRequest</code> · <code>RootPasswordRequest</code> 의 <code>hasPassword()</code> · <code>retaining(...)</code> 이 맡는다.</li>
+          <li><b>D-4</b> — <code>RetainedPasswordUnavailableException(fieldName, subject)</code> 생성자를 더하고
+          Windows 무인자 생성자는 그것에 위임한다. 프론트엔드의 오류 매핑은 기존 매퍼가 그대로 처리한다.</li>
+          <li><b>D-5</b> — 프론트엔드 · DDL · 운영 설정 변경 0.
+          Windows 축은 pre-fill 이 <b>값이 있는 저장본에만</b> 유지 체크박스를 노출해 UI 가 1차 차단한다.
+          리눅스 축은 입력 자체가 화면에 없어(R11) 지금은 direct PUT 만 도달하며, 서버 예외가 그 안전망이다.
+          400 사유는 <code>resolveErrorTarget</code> 이 필드 요소를 못 찾으면 해당 단계 카드에 붙는다.</li>
+        </ul>
+
+        <h4>8-4. 잔존 · 주의</h4>
+        <div class="callout warn"><b>생성(POST) 경로의 유지 플래그</b> — 생성 요청에 유지 플래그를 직접 실어 보내면
+        병합할 저장본이 없으므로 비밀번호가 <code>null</code> 로 저장된다. <b>Windows 축도 같다</b> — 생성 경로는 병합 훅을 지나지 않는다.
+        정상 UX 에서는 생성 폼에 유지 체크박스가 없어 도달하지 않는 경로이므로 이 슬라이스에서 닫지 않고 S 계열 후보로 적립한다.</div>
+        <p>Open Questions 는 없다. 두 결함 모두 원인과 고칠 자리가 코드에서 확정됐고, 선택이 필요한 지점은 §8-1 · §8-2 에서 닫혔다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트 + CP5 검증 항목 계획</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="HF12-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (Windows 회귀 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 검증 (CP5, 항목별 스크린샷)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+
+        <h4>CP5 검증 항목 (Opus 하위 에이전트 위임)</h4>
+        <p>샌드박스는 HF11 이 세운 것을 재사용한다 — 데이터베이스 3379 · 애플리케이션 7888 · HF12 빌드 jar.
+        정상 흐름은 A, 비정상 조작은 B, 막는 방식은 C 로 번호를 매긴다.</p>
+        <div class="callout warn">R11 이 정의서 폼의 리눅스 상세 입력(타임존 · 파티션 · 사용자 · root)을 걷어 화면에 없다
+        (계약 · fragment 만 보존 · E4-L 부활 시 재노출). 따라서 <b>리눅스 축 항목은 브라우저가 아니라 직접 API</b>
+        (POST 로 정의서 생성 → PUT)로 수행하고, <b>화면 항목은 Windows 정의서</b>로 수행한다.</div>
+        <table>
+          <thead><tr><th>식별자</th><th>조작 (방법)</th><th>기대</th><th>증거</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td><b>Windows 정의서 · 브라우저</b> — 이름은 그대로 두고 단계 내용만 바꿔 저장</td><td>상세의 수정일시가 저장 시각으로 이동 · DB <code>updated_at</code> 이동</td><td>상세 화면 · DB 조회</td></tr>
+            <tr><td>A2</td><td><b>직접 API</b> — root 비밀번호 유지를 켠 채 저장</td><td>저장본 payload 에 root 값 보존 · 유지 플래그 해제</td><td>DB payload</td></tr>
+            <tr><td>A3</td><td><b>직접 API</b> — 사용자 비밀번호 유지를 켠 채 저장</td><td>해당 사용자 값 보존</td><td>DB payload</td></tr>
+            <tr><td>A4</td><td><b>직접 API</b> — 유지를 끄고 root 에 새 값을 실어 저장</td><td>새 값으로 교체</td><td>DB payload</td></tr>
+            <tr><td>A5</td><td><b>직접 API</b> — Ubuntu 정의서에서 사용자 유지 저장</td><td>사용자 값 보존 · root 축 없음</td><td>DB payload</td></tr>
+            <tr><td>A6</td><td><b>브라우저</b> — Windows 정의서에서 유지 저장 (회귀)</td><td>Administrator 값 보존</td><td>DB payload</td></tr>
+            <tr><td>A7</td><td><b>브라우저</b> — 이름을 바꾸면서 단계도 수정 (기존 경로 회귀)</td><td>수정일시 이동 · 이름 반영</td><td>상세 화면</td></tr>
+            <tr><td>B1</td><td><b>curl</b> — root 값이 없는 저장본에 유지 플래그 전송</td><td>400 <code>fieldErrors[rootPassword]</code> · 저장본 무변</td><td>응답 본문 · DB 재조회</td></tr>
+            <tr><td>B2</td><td><b>curl</b> — 저장본에 없는 <code>username</code> 으로 유지 전송</td><td>400 <code>fieldErrors[users]</code></td><td>응답 본문</td></tr>
+            <tr><td>B3</td><td><b>curl</b> — 유지 플래그와 새 비밀번호를 함께 전송</td><td>유지 우선 — 저장본 값 유지 · 보낸 값 무시</td><td>DB payload</td></tr>
+            <tr><td>C1</td><td><b>Windows 만 브라우저</b> — 수정 폼 pre-fill 확인 (리눅스 축 미수행 · 사유 R11)</td><td>값이 있는 저장본에만 유지 체크박스 노출</td><td>폼 화면</td></tr>
+            <tr><td>C2</td><td><b>코드 판정 + 응답 field 형식</b> — <code>resolveErrorTarget</code> 의 탐색 경로와 400 응답의 필드명을 대조</td><td>필드 요소가 없으면 해당 단계 카드에 붙는다 · field 는 <code>processList[i].rootPassword</code> · <code>processList[i].users</code></td><td>응답 본문 · 코드 인용</td></tr>
+          </tbody>
+        </table>
+        <p>B 항목이 직접 PUT 인 것은 의도한 설계다 — Windows 축의 정상 화면에서는 유지 체크박스가 값 있는 저장본에만 나타나고 리눅스 축은 입력이 없어(R11) 화면 경로가 아예 없으므로
+        이 요청을 폼으로 만들 수 없다. 서버 가드가 <b>실제로 비정상 경로에서만 발동하는지</b>를 확인하는 것이 B 의 목적이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/entity/BaseTimeEntity</code></td><td><code>touch()</code> 추가 — 부모 dirty 유발 수단</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/entity/SettingDefinition</code></td><td><code>changeNameAndClearProcesses</code> 에서 <code>touch()</code> 호출</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>dto/request/LinuxInstallationRequest</code></td><td><code>PasswordPatch</code> · STRIP · RETAIN · 추상 시그니처 교체</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>dto/request/RHELInstallationRequest</code></td><td>재조립을 patch 기반으로 — root 는 자기 계층에서 적용</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>dto/request/UbuntuInstallationRequest</code></td><td>재조립을 patch 기반으로 — 사용자 축만</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>dto/request/UserRequest</code></td><td><code>hasPassword()</code> · <code>retaining(...)</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>dto/request/RootPasswordRequest</code></td><td><code>hasPassword()</code> · <code>retaining(...)</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>exception/RetainedPasswordUnavailableException</code></td><td>필드 · 대상 생성자 추가 · 무인자는 위임</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>dto/request/LinuxInstallationRequestTest</code></td><td>STRIP 회귀 + RETAIN 6 케이스</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>service/JpaSettingCommandServiceTest</code></td><td>병합 저장 · 수정 시각 단언 2 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>controller/SettingRestControllerSaveFlowTest</code></td><td>PUT 유지 실패 400 시나리오 1 추가</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>service/JpaSettingCommandService</code></td><td>변경 0 — 병합 호출과 순서가 이미 제자리에 있다</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>dto/request/WindowsInstallationRequest</code></td><td>변경 0 — 훅 시그니처 무변경</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>static/provisioning/setting-form.js</code></td><td>변경 0 — 유지 플래그 전송과 오류 매핑이 이미 계약대로다</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>dto/request/WindowsInstallationRequestTest</code></td><td>변경 0 — 회귀 감시</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>HF13</b> — 시각 의존 테스트의 <code>Clock</code> 주입. 같은 지시 묶음의 다음 항목이며, HF12 의
+          <code>touch()</code> 와는 독립이다(저장 값은 감사 리스너가 정한다).</li>
+          <li><b>S 계열 후보</b> — 생성(POST) 경로에서 유지 플래그가 병합 대상 없이 통과하는 잔존(§8-4).
+          Windows · 리눅스 두 축이 같은 모양이므로 한 자리에서 닫는 편이 맞다.</li>
+          <li><b>Notion HF12 ②</b> — 비밀번호 평문 저장과 정의서 이력화. 이 슬라이스의 비목표이며 별도 슬라이스로 다룬다.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부 펴기 · 접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — 판정은 §4-2 RETAIN 규칙 + §4-1 touch 규칙과 같은 식 (드리프트 0)
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_CREATED_AT = '2026-09-01 07:49';
+  const DEMO_SAVED_AT   = '2026-09-05 20:45';
+  const DEMO_KEEP_TIP   = '저장본에 값이 없어 수정 폼에는 "기존 비밀번호 유지" 체크박스가 나타나지 않습니다. 이 상태의 유지 요청은 직접 PUT 으로만 만들 수 있습니다.';
+
+  let demo = {
+    mode: 'fixed', path: 'form',
+    prev: { family: 'RHEL', root: 'yes', alice: 'yes', bob: 'yes' },
+    req:  { name: 'same', part: '200', root: 'keep', alice: 'keep', bob: 'keep' },
+    result: null
+  };
+
+  // 저장본에 값이 없으면 화면 폼에서는 "유지" 를 고를 수 없다(pre-fill 규칙, D-5).
+  function demoKeepAllowed(target) {
+    if (demo.path === 'put') return true;
+    if (target === 'root')  return demo.prev.family === 'RHEL' && demo.prev.root === 'yes';
+    return demo.prev[target] === 'yes';
+  }
+  function demoNormalize() {
+    if (demo.prev.family !== 'RHEL' && demo.req.root === 'keep') demo.req.root = 'none';
+    ['root', 'alice', 'bob'].forEach(t => {
+      if (demo.req[t] === 'keep' && !demoKeepAllowed(t)) demo.req[t] = (t === 'root') ? 'none' : 'new';
+    });
+  }
+
+  // 병합 판정 — root 를 먼저, 사용자를 나중에 적용한다(RHEL 재조립의 인자 순서와 동일).
+  function demoMerge(st) {
+    const legacy = st.mode === 'legacy';
+    const rhel = st.prev.family === 'RHEL';
+    const out = { root: null, users: {}, trace: [] };
+    if (rhel) {
+      if (st.req.root === 'keep') {
+        if (legacy) { out.root = { pw: null, keep: true }; out.trace.push('root  : keep=true → 병합 훅 없음 → 그대로 저장'); }
+        else if (st.prev.root === 'yes') { out.root = { pw: '저장본 값', keep: false }; out.trace.push('root  : keep=true → previous(RHEL).rootPassword.hasPassword()=true → 복사'); }
+        else return { ok: false, field: 'rootPassword', message: '유지할 기존 root 비밀번호가 없습니다. 비밀번호를 입력하십시오.',
+                      trace: ['root  : keep=true → previous 값 없음 → RetainedPasswordUnavailableException("rootPassword")'] };
+      } else if (st.req.root === 'new') { out.root = { pw: '새 값', keep: false }; out.trace.push('root  : keep=false → 요청 값 사용'); }
+      else { out.root = null; out.trace.push('root  : 값 없음 → root 잠금'); }
+    } else {
+      out.trace.push('root  : Ubuntu — root 축 없음');
+    }
+    for (const name of ['alice', 'bob']) {
+      if (st.req[name] === 'keep') {
+        if (legacy) { out.users[name] = { pw: null, keep: true }; out.trace.push(name.padEnd(6) + ': keep=true → 병합 훅 없음 → 그대로 저장'); }
+        else if (st.prev[name] === 'yes') { out.users[name] = { pw: '저장본 값', keep: false }; out.trace.push(name.padEnd(6) + ': keep=true → previous.users["' + name + '"].hasPassword()=true → 복사'); }
+        else return { ok: false, field: 'users', message: '유지할 기존 사용자 비밀번호가 없습니다. 비밀번호를 입력하십시오.',
+                      trace: out.trace.concat([name.padEnd(6) + ': keep=true → previous 값 없음 → RetainedPasswordUnavailableException("users")']) };
+      } else { out.users[name] = { pw: '새 값', keep: false }; out.trace.push(name.padEnd(6) + ': keep=false → 요청 값 사용'); }
+    }
+    const moved = legacy ? (st.req.name === 'changed') : true;
+    out.trace.push('updated_at : ' + (legacy
+      ? (moved ? '이름이 바뀌어 부모 UPDATE 발생 → 갱신' : '부모 UPDATE 없음 → 감사 콜백 미발동 → 멈춤')
+      : 'touch() → 부모 UPDATE 발생 → 감사 리스너 갱신'));
+    return { ok: true, root: out.root, users: out.users, moved: moved, trace: out.trace };
+  }
+
+  function demoSet(key, value) {
+    if (key === 'mode' || key === 'path') demo[key] = value;
+    else if (key === 'family') demo.prev.family = value;
+    else if (key.startsWith('prev')) demo.prev[key.slice(4).toLowerCase()] = value;
+    else if (key === 'reqName') demo.req.name = value;
+    else if (key === 'reqPart') demo.req.part = value;
+    else demo.req[key] = value;
+    demoNormalize();
+    if (demo.result) demo.result = demoMerge(demo);   // 모드를 바꾸면 같은 조합을 다시 판정한다
+    demoRender();
+  }
+
+  function demoSave() {
+    demo.result = demoMerge(demo);
+    demoRender();
+  }
+
+  function demoScenario(n) {
+    const P = {
+      0: { mode: 'fixed',  path: 'form', prev: { family: 'RHEL',   root: 'yes', alice: 'yes', bob: 'yes' }, req: { name: 'same',    part: '200', root: 'keep', alice: 'keep', bob: 'keep' },
+           guide: '기본 상태로 돌아왔습니다. 저장본에는 root · alice · bob 모두 비밀번호가 들어 있습니다.' },
+      1: { mode: 'legacy', path: 'form', prev: { family: 'RHEL',   root: 'yes', alice: 'yes', bob: 'yes' }, req: { name: 'same',    part: '200', root: 'keep', alice: 'keep', bob: 'keep' },
+           guide: '① 이름은 그대로 두고 파티션만 200GB 로 바꾼 저장입니다. [저장] 을 누른 뒤 코드를 정정으로 바꿔 보십시오 — 수정일시가 갈립니다.' },
+      2: { mode: 'fixed',  path: 'form', prev: { family: 'RHEL',   root: 'yes', alice: 'yes', bob: 'yes' }, req: { name: 'same',    part: '200', root: 'keep', alice: 'new',  bob: 'new'  },
+           guide: '② root 만 유지하고 사용자 둘은 새 값을 넣었습니다. [저장] 후 코드를 종전으로 바꾸면 root 가 비는 것이 보입니다.' },
+      3: { mode: 'fixed',  path: 'form', prev: { family: 'RHEL',   root: 'yes', alice: 'yes', bob: 'yes' }, req: { name: 'same',    part: '100', root: 'keep', alice: 'keep', bob: 'new'  },
+           guide: '③ alice 는 유지, bob 은 새 값입니다. 같은 목록 안에서 항목마다 다르게 처리되는지 [저장] 으로 확인하십시오.' },
+      4: { mode: 'fixed',  path: 'put',  prev: { family: 'RHEL',   root: 'no',  alice: 'yes', bob: 'yes' }, req: { name: 'same',    part: '200', root: 'keep', alice: 'keep', bob: 'keep' },
+           guide: '④ 저장본에 root 값이 없는데 유지를 보냈습니다. 화면 폼으로는 만들 수 없는 요청이라 경로가 직접 PUT 입니다 — [저장] 을 누르면 400 이 나옵니다.' },
+      5: { mode: 'fixed',  path: 'form', prev: { family: 'UBUNTU', root: 'no',  alice: 'yes', bob: 'yes' }, req: { name: 'changed', part: '200', root: 'none', alice: 'keep', bob: 'keep' },
+           guide: '⑤ Ubuntu 정의서입니다. root 축이 없고 사용자만 병합됩니다 — 이름도 함께 바꿔 기존 경로의 회귀를 겸합니다.' }
+    }[n];
+    demo.mode = P.mode; demo.path = P.path;
+    demo.prev = Object.assign({}, P.prev); demo.req = Object.assign({}, P.req);
+    demo.result = null;
+    demoNormalize();
+    document.getElementById('demo-guide').textContent = P.guide;
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message';
+    msg.textContent = '상태를 세팅했습니다. [저장] 을 누르면 서버가 무엇을 저장하고 무엇으로 응답하는지 나옵니다.';
+    demoRender();
+  }
+
+  function demoSegs(target, options) {
+    return options.map(o => {
+      const blocked = (o.value === 'keep') && !demoKeepAllowed(target);
+      const active = demo.req[target] === o.value ? ' active' : '';
+      const dis = blocked ? ' disabled' : '';
+      const t = blocked ? (' data-tip="' + DEMO_KEEP_TIP + '"') : '';
+      return '<span class="tip"' + t + '><button class="seg' + active + '"' + dis +
+        ' onclick="demoSet(\'' + target + '\',\'' + o.value + '\')">' + o.label + '</button></span> ';
+    }).join('');
+  }
+
+  function demoRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-seg]').forEach(s => {
+      const g = s.dataset.seg, v = s.dataset.value;
+      const cur = (g === 'mode' || g === 'path') ? demo[g]
+        : (g === 'family') ? demo.prev.family
+        : (g === 'reqName') ? demo.req.name
+        : (g === 'reqPart') ? demo.req.part
+        : demo.prev[g.slice(4).toLowerCase()];
+      s.classList.toggle('active', cur === v);
+    });
+
+    const rhel = demo.prev.family === 'RHEL';
+    document.getElementById('demo-prev-summary').innerHTML =
+      '<span class="mono">rocky-web</span> · 계열 ' + (rhel ? 'RHEL' : 'Ubuntu') +
+      ' · root ' + (rhel ? (demo.prev.root === 'yes' ? '값 있음' : '값 없음') : '해당 없음') +
+      ' · alice ' + (demo.prev.alice === 'yes' ? '값 있음' : '값 없음') +
+      ' · bob ' + (demo.prev.bob === 'yes' ? '값 있음' : '값 없음') +
+      ' · 파티션 100GB · 수정일시 <span class="mono">' + DEMO_CREATED_AT + '</span>';
+
+    document.getElementById('demo-req-root-segs').innerHTML = rhel
+      ? demoSegs('root', [{ value: 'keep', label: '유지' }, { value: 'new', label: '새 값' }, { value: 'none', label: '비움(잠금)' }])
+      : '<span class="mono">해당 없음 — Ubuntu 는 root 축이 없습니다</span>';
+    document.getElementById('demo-req-alice-segs').innerHTML = demoSegs('alice', [{ value: 'keep', label: '유지' }, { value: 'new', label: '새 값' }]);
+    document.getElementById('demo-req-bob-segs').innerHTML = demoSegs('bob', [{ value: 'keep', label: '유지' }, { value: 'new', label: '새 값' }]);
+
+    document.getElementById('demo-req-summary').innerHTML =
+      '이름 ' + (demo.req.name === 'same' ? '<span class="mono">rocky-web</span> (그대로)' : '<span class="mono">rocky-web-2</span> (변경)') +
+      ' · 파티션 <span class="mono">' + demo.req.part + 'GB</span> · 경로 ' + (demo.path === 'form' ? '화면 폼' : '직접 PUT');
+
+    const box = document.getElementById('demo-result');
+    const caps = document.getElementById('demo-caps');
+    const msg = document.getElementById('demo-message');
+    const r = demo.result;
+    if (!r) {
+      box.innerHTML = '';
+      caps.textContent = '저장 전입니다. [저장] 을 누르면 판정 경과가 여기에 나옵니다.';
+      return;
+    }
+    caps.textContent = r.trace.join('\n');
+    if (!r.ok) {
+      box.innerHTML = '<div class="ux-row"><span class="label">응답 <span class="mono">400 Bad Request</span> · ' +
+        'fieldErrors[<span class="mono">' + r.field + '</span>] — ' + r.message + '</span><span class="badge del">거절</span></div>' +
+        '<div class="ux-row"><span class="label">저장본 — 변경 없음 (트랜잭션 롤백)</span><span class="badge off">무변</span></div>';
+      msg.className = 'ux-message error';
+      msg.textContent = '유지할 값이 저장본에 없어 400 으로 거절했습니다. 조용히 빈 비밀번호를 저장하지 않습니다.';
+      return;
+    }
+    const cell = (label, v) => {
+      if (v === null) return '<div class="ux-row"><span class="label">' + label + '</span><span class="badge off">없음</span></div>';
+      if (v.keep) return '<div class="ux-row"><span class="label">' + label + ' — <span class="mono">password=null · keep=true</span></span><span class="badge del">소실</span></div>';
+      return '<div class="ux-row"><span class="label">' + label + ' — <span class="mono">' + v.pw + ' · keep=false</span></span><span class="badge on">' +
+        (v.pw === '저장본 값' ? '보존' : '교체') + '</span></div>';
+    };
+    let html = '<div class="ux-row"><span class="label">응답 <span class="mono">200 OK</span> · ' +
+      '{ id: 10, name: "' + (demo.req.name === 'same' ? 'rocky-web' : 'rocky-web-2') + '" }</span><span class="badge on">성공</span></div>';
+    if (rhel) html += cell('root', r.root);
+    html += cell('alice', r.users.alice) + cell('bob', r.users.bob);
+    html += '<div class="ux-row"><span class="label">수정일시 — <span class="mono">' +
+      (r.moved ? DEMO_SAVED_AT : DEMO_CREATED_AT) + '</span></span><span class="badge ' + (r.moved ? 'on' : 'del') + '">' +
+      (r.moved ? '이동' : '멈춤') + '</span></div>';
+    box.innerHTML = html;
+
+    const lost = (rhel && r.root && r.root.keep) || (r.users.alice && r.users.alice.keep) || (r.users.bob && r.users.bob.keep);
+    if (lost || !r.moved) {
+      msg.className = 'ux-message error';
+      msg.textContent = '저장은 200 으로 끝났지만 결과가 잘못됐습니다 — ' +
+        (lost ? '유지를 켠 비밀번호가 빈 값으로 저장됐고 ' : '') + (!r.moved ? '수정일시가 움직이지 않았습니다.' : '.');
+    } else {
+      msg.className = 'ux-message success';
+      msg.textContent = '유지한 값은 저장본에서 복사됐고 수정일시도 저장 시각으로 이동했습니다.';
+    }
+  }
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

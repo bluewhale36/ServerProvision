@@ -51,8 +51,8 @@ public class UbuntuInstallationRequest extends LinuxInstallationRequest {
     }
 
     @Override
-    public UbuntuInstallationRequest withPatchedPasswords(List<UserRequest> patchedUsers) {
+    public UbuntuInstallationRequest withPatchedPasswords(PasswordPatch patch) {
         return new UbuntuInstallationRequest(
-                osMetadataId, isoId, timezone, partitions, patchedUsers, hostname, packages);
+                osMetadataId, isoId, timezone, partitions, patchUsers(patch), hostname, packages);
     }
 }

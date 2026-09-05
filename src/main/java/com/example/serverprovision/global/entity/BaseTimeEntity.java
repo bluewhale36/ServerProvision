@@ -26,4 +26,12 @@ public abstract class BaseTimeEntity {
 	@LastModifiedDate
 	@Column(name = "updated_at", nullable = false)
 	private LocalDateTime updatedAt;
+
+	/**
+	 * 자식 컬렉션만 바뀌는 수정에서 부모를 dirty 로 만든다(HF12). 단방향 컬렉션 변경은 부모 UPDATE 를 내지 않아
+	 * 감사 리스너가 돌지 않고 {@code updated_at} 이 멈춘다 — 실제 값은 flush 시 리스너가 다시 덮는다.
+	 */
+	protected void touch() {
+		this.updatedAt = LocalDateTime.now();
+	}
 }
