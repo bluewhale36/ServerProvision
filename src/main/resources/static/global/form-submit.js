@@ -20,6 +20,12 @@
    확인 modal 을 거치는 폼은 여기 오지 않는다. ConfirmModal.bindFormSubmit 이
    대상(form)에서 stopPropagation 하므로 document 까지 버블링되지 않으며,
    사용자 확인 후 ConfirmModal.approveAndSubmit 이 본 모듈의 sendAsync 를 부른다.
+
+   HF9 — PRG 와 flash. 서버가 리다이렉트로 답하면 fetch 가 그것을 <b>fetch 안에서</b> 따라가 목적지 GET 이
+   flash 를 소비해 버렸다(성공 안내가 화면에 닿지 않았다 · 2026-08-13 실측). 이제 서버(XhrRedirectFilter)가
+   X-Requested-With 요청의 리다이렉트를 200 + X-Redirect-Location 으로 내리고, 여기서는 그 헤더를 보면
+   브라우저 이동(location.assign)으로 끝낸다 — 이동 GET 이 flash 를 소비해 화면에 그린다. 같은 화면으로
+   돌아오는 PRG 는 현재 hash 를 이어붙여 화면 내 위치(예: 활성 탭)를 유지한다.
    ============================================================ */
 (function () {
     'use strict';
@@ -42,8 +48,8 @@
     }
 
     /**
-     * 폼을 fetch 로 전송하고 응답을 핸들러에 위임한다. 페이지는 이동하지 않는다.
-     * 성공(2xx 또는 redirect 추종)은 onSuccess, 거절은 본문을 파싱해 onRejected 로 넘긴다.
+     * 폼을 fetch 로 전송하고 응답을 핸들러에 위임한다. 리다이렉트 헤더가 있을 때만 페이지를 이동한다.
+     * 성공(2xx)은 onSuccess, 거절은 본문을 파싱해 onRejected 로 넘긴다.
      */
     /**
      * 지금 보내는 중인 폼. WeakSet 이라 폼이 DOM 에서 사라지면 함께 사라진다.
@@ -107,7 +113,12 @@
             h.onNetworkError(form, err);
             return;
         }
-        if (resp.ok || resp.redirected) {
+        if (resp.ok) {
+            const target = redirectTarget(resp);
+            if (target) {
+                navigateTo(target);
+                return;
+            }
             h.onSuccess(form, resp);
             return;
         }
@@ -128,6 +139,33 @@
         h.onRejected(form, resp.status, payload);
     }
 
+    /** 서버가 XHR 용으로 바꿔 내린 리다이렉트 목적지. 같은 경로로 돌아오고 대상에 hash 가 없으면 현재 hash 를 이어붙인다. */
+    const REDIRECT_HEADER = 'X-Redirect-Location';
+
+    function redirectTarget(resp) {
+        const location = resp.headers.get(REDIRECT_HEADER);
+        if (!location) return null;
+        const target = new URL(location, window.location.href);
+        if (!target.hash && window.location.hash && target.pathname === window.location.pathname) {
+            target.hash = window.location.hash;
+        }
+        return target;
+    }
+
+    /**
+     * 목적지로 간다. 같은 문서(경로 · 쿼리 동일)로 돌아오는 PRG 는 assign 이 아니라 reload 로 — hash 만 다르거나
+     * 같은 URL 로 assign 하면 브라우저가 프래그먼트 이동으로 처리해 재요청이 없고 flash 도 닿지 않는다(HF9 CP5 F-1).
+     */
+    function navigateTo(target) {
+        const here = window.location;
+        if (target.pathname === here.pathname && target.search === here.search) {
+            if (target.hash !== here.hash) history.replaceState(null, '', target.href);
+            here.reload();
+            return;
+        }
+        here.assign(target.href);
+    }
+
     /** 이 폼을 가로챌 것인가. 판정 근거는 파일 상단 주석 참조. */
     function shouldIntercept(form) {
         if ((form.getAttribute('method') || 'GET').toUpperCase() !== 'POST') return false;
@@ -144,5 +182,5 @@
         sendAsync(form);
     });
 
-    window.FormSubmit = {sendAsync, shouldIntercept};
+    window.FormSubmit = {sendAsync, shouldIntercept, redirectTarget, navigateTo};
 })();

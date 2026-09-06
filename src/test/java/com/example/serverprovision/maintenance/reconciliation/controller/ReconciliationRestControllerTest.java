@@ -210,6 +210,16 @@ class ReconciliationRestControllerTest {
     }
 
     @Test
+    @DisplayName("HF9 POST /drifts/{id}/apply (XHR) : RedirectView 경로도 200 + X-Redirect-Location · flash 저장")
+    void apply_xhr_returnsRedirectHeader() throws Exception {
+        mvc.perform(post("/maintenance/reconciliation/drifts/1/apply").header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string(com.example.serverprovision.global.web.XhrRedirectFilter.REDIRECT_HEADER, "/maintenance/reconciliation"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attributeExists("flashMessage"));
+    }
+
+    @Test
     @DisplayName("MK4-1 POST /drifts/{id}/snooze : 기간·사유를 받아 처리 후 페이지로 redirect")
     void snooze_success() throws Exception {
         mvc.perform(post("/maintenance/reconciliation/drifts/1/snooze")

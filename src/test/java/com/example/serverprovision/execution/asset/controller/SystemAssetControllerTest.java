@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -135,6 +136,31 @@ class SystemAssetControllerTest {
                 .andExpect(redirectedUrl("/system/asset"))
                 .andExpect(flash().attributeExists("flashMessage"));
         verify(sealedFileInspector).invalidateHashCache();
+    }
+
+    // ── HF9 : XHR(가로채기 fetch) 로 온 PRG 는 200 + X-Redirect-Location · flash 는 그대로 저장 ──────
+
+    @Test
+    @DisplayName("POST /system/asset/recheck (XHR) — 200 + X-Redirect-Location:/system/asset · flash 저장 · Location 없음")
+    void recheck_xhr_returnsRedirectHeader() throws Exception {
+        mvc.perform(post("/system/asset/recheck").header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(com.example.serverprovision.global.web.XhrRedirectFilter.REDIRECT_HEADER, "/system/asset"))
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(flash().attributeExists("flashMessage"));
+        verify(sealedFileInspector).invalidateHashCache();
+    }
+
+    @Test
+    @DisplayName("POST /system/asset/TFTP/seal (XHR) — 200 + X-Redirect-Location · flash 저장 · seal 호출")
+    void seal_xhr_returnsRedirectHeader() throws Exception {
+        given(dashboardService.seal("TFTP")).willReturn(new SealResult(1, 0));
+
+        mvc.perform(post("/system/asset/TFTP/seal").header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(com.example.serverprovision.global.web.XhrRedirectFilter.REDIRECT_HEADER, "/system/asset"))
+                .andExpect(flash().attributeExists("flashMessage"));
+        verify(dashboardService).seal("TFTP");
     }
 
     // ── 400 : 보존 개수 필드 검증(SSR 폼은 재렌더 + 필드 에러) ──────────────────

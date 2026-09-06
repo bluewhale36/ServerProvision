@@ -60,7 +60,9 @@
         <script th:src="@{/global/error-modal.js}" defer></script>
         <!-- S10 — 상태 변경 폼의 전역 제출 경로. 가로채기가 기본이고 data-native-submit 이 예외다.
              레이아웃에 두는 이유는 화면이 늘어도 적재 누락이 생기지 않게 하기 위함 — 종전처럼 폼마다
-             마커를 붙이는 방식은 마커를 잊는 것이 곧 raw JSON 노출 사고였다(U3-2-b). -->
+             마커를 붙이는 방식은 마커를 잊는 것이 곧 raw JSON 노출 사고였다(U3-2-b).
+             HF9 — PRG 의 flash 는 서버(XhrRedirectFilter)가 XHR 리다이렉트를 200 + X-Redirect-Location 으로 내리고
+             form-submit.js 가 브라우저 이동으로 받아 보존한다. flash 를 위해 네이티브로 빠질 이유는 더 없다. -->
         <script th:src="@{/global/form-submit.js}" defer></script>
         <!--/* 화면 이력 스택 — 목록↔상세 왕복의 "어디로 돌아가나" 와 "무엇을 짚나".
                목록이 있는 화면 어디서나 같은 규약(data-nav-key · data-nav-back)이 성립해야 하므로
