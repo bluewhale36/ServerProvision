@@ -1720,7 +1720,11 @@
             target.classList.add('has-error');
             const group = target.closest('.n-form-group');
             const anchor = group || target.parentElement || target;
-            anchor.querySelectorAll(':scope > .field-error-message').forEach(el => el.remove());
+            // HF9 — 같은 앵커(카드 본문 폴백 등)에 여러 사유가 오면 누적한다. 렌더 시작의 FormError.clear 가 옛 메시지를
+            // 지우므로 여기서 다시 지우면 뒤 사유가 앞 사유를 덮는다(HF12 CP5 F-1 — 3건 중 1건만 남았다). 같은 문장은 1회.
+            const duplicate = Array.prototype.some.call(
+                anchor.querySelectorAll(':scope > .field-error-message'), el => el.textContent === (message || ''));
+            if (duplicate) return;
             const note = document.createElement('div');
             note.className = 'field-error-message';
             note.textContent = message || '';

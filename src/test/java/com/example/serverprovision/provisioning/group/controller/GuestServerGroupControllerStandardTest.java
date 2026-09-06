@@ -305,6 +305,21 @@ class GuestServerGroupControllerStandardTest {
     }
 
     @Test
+    @DisplayName("HF9 지정 (XHR) — 가로채기 경로는 200 + X-Redirect-Location · flash 는 그대로 저장(마커 없이 flash 가 산다)")
+    void setStandard_xhr_returnsRedirectHeader() throws Exception {
+        given(commandService.setStandardDefinition(GROUP, DEFINITION)).willReturn("web-standard");
+
+        mvc.perform(post("/provisioning/server-group/{id}/standard-definition", GROUP)
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .param("definitionId", String.valueOf(DEFINITION)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(com.example.serverprovision.global.web.XhrRedirectFilter.REDIRECT_HEADER,
+                        "/provisioning/server-group/" + GROUP))
+                .andExpect(header().doesNotExist("Location"))
+                .andExpect(flash().attribute("flashMessage", containsString("web-standard")));
+    }
+
+    @Test
     @DisplayName("해제 302 — 이미 할당된 서버는 그대로라는 사실을 함께 알린다")
     void clearStandard_redirectsWithFlash() throws Exception {
         mvc.perform(post("/provisioning/server-group/{id}/standard-definition/clear", GROUP))

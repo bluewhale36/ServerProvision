@@ -59,8 +59,12 @@
             // 컨테이너 폭을 잠식한다. .n-form-group 을 stable anchor 로 사용해 항상 form-group 끝에 부착.
             const formGroup = target.closest('.n-form-group');
             const anchor = formGroup || target.parentElement || target;
-            // 동일 필드의 기존 메시지 제거 후 새 메시지 1건 부착.
-            anchor.querySelectorAll(':scope > .' + MESSAGE_CLASS).forEach(el => el.remove());
+            // HF9 — 같은 앵커에 여러 사유가 오면 누적한다(렌더 시작의 clear 가 이미 옛 메시지를 지웠다).
+            // 종전에는 앵커의 기존 메시지를 지우고 1건만 붙여, 같은 자리로 떨어진 사유들이 서로를 덮었다(HF12 CP5 F-1).
+            if (hasMessage(anchor, fe.message)) {
+                mappedCount++;
+                continue;
+            }
             const note = document.createElement('div');
             note.className = MESSAGE_CLASS;
             note.textContent = fe.message || '';
@@ -72,6 +76,13 @@
             mappedCount++;
         }
         return {overflow: overflow, mappedCount: mappedCount};
+    }
+
+    /** 같은 앵커에 같은 문장이 이미 붙어 있는가 — 중복 위반은 1건으로 보인다. */
+    function hasMessage(anchor, message) {
+        return Array.prototype.some.call(
+            anchor.querySelectorAll(':scope > .' + MESSAGE_CLASS),
+            el => el.textContent === (message || ''));
     }
 
     /**

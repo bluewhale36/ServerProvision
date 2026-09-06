@@ -90,29 +90,11 @@ class FormSubmissionConventionTest {
 	/* ═══════════ 서버 쪽 재렌더 핸들러와 템플릿 표기가 어긋나지 않는다 ═══════════ */
 
 	/**
-	 * 네이티브 제출이 <b>재렌더 말고 다른 이유</b>로 정당한 폼들. 여기 올리는 것은 기대값을 늘리는 일이므로
-	 * 사유를 함께 남긴다 — 숫자만 올리면 이 가드가 하는 일이 사라진다.
-	 *
-	 * <p>{@code server-group-detail.html} — 일괄 할당 결과를 {@code flashMessage} 로 알린다(U3-5-c DEC-E).
-	 * 가로채기가 fetch 로 리다이렉트를 따라가면 flash 가 <b>그 fetch 안에서</b> 소비되고, 이어지는
-	 * {@code location.reload()} 는 빈 손으로 온다 — 문구가 영영 화면에 뜨지 않는다. U3-5-c CP1 에서
-	 * 같은 페이지 · 같은 액션에 마커만 붙였다 뗐다 하며 실측해 확인했다.</p>
-	 *
-	 * <p>같은 파일이 <b>세 번</b> 오르는 이유는 그 화면에 같은 사정의 폼이 셋이기 때문이다(U3-5-d) —
-	 * ① 정의서 고르기 모달(일괄 할당과 표준 지정이 한 폼을 모드로 나눠 쓴다) ② 표준 해제
-	 * ③ 안내 배너의 표준 적용. 목록은 파일명이 아니라 <b>폼 하나마다 한 줄</b>이며, 아래에서 하나씩
-	 * 덜어내므로 셋 중 하나가 표기를 잃으면 덜어낼 것이 모자라 수가 어긋난다.</p>
-	 *
-	 * <p>{@code system/asset/dashboard.html} — Windows 설치 소스 영역의 [드라이버 페이로드 조립](E4-1-a-4). 조립 결과
-	 * (n종 · 크기 · 제외 k)를 flash 로 알리는데 같은 사정으로 flash 가 fetch 안에서 소비됐다(CP5 F-3 실측 · 적립 결함의
-	 * 4번째 지점). 같은 화면의 [봉인] 은 가로채기 그대로다.</p>
+	 * HF9 이전에는 "flash 를 살리기 위해" 네이티브로 빠진 폼 4 개를 이름으로 등재해 아래 수 대조에서 덜어냈다.
+	 * HF9 가 그 사정을 서버({@code XhrRedirectFilter} — XHR 리다이렉트를 200 + X-Redirect-Location 으로)와
+	 * {@code form-submit.js}(브라우저 이동)에서 없앴으므로 목록도 없다 — 네이티브 제출의 정당한 이유는 재렌더 하나뿐이다.
+	 * 아래 {@link #nativeSubmitNeverForFlash} 가 그 우회의 재유입을 막는다.
 	 */
-	private static final List<String> NATIVE_FOR_FLASH = List.of(
-			"provisioning/server-group-detail.html",
-			"provisioning/server-group-detail.html",
-			"provisioning/server-group-detail.html",
-			"system/asset/dashboard.html");
-
 	/**
 	 * 핵심 가드다. 실패 시 뷰를 다시 렌더하는 핸들러는 {@code BindingResult} 를 받는다 — 그것이 재렌더의
 	 * 유일한 목적이기 때문이다. 그런 핸들러를 부르는 폼을 fetch 로 가로채면 서버가 돌려준 재렌더 HTML 을
@@ -122,36 +104,47 @@ class FormSubmissionConventionTest {
 	 * 추가하면서 표기를 잊으면 이 수가 어긋나 CP4 에서 빨간불이 뜬다 — U3-2-b 의 실패 방식과 정확히
 	 * 반대 방향이다.</p>
 	 *
-	 * <p><b>정당한 예외는 {@link #NATIVE_FOR_FLASH} 에 이름으로 올린다</b>(U3-5-c 개정). 수를 그냥 올리면
-	 * "재렌더 폼에 표기를 잊었다" 와 "다른 이유로 네이티브다" 가 같은 숫자에 섞여 원래 가드가 무력해진다.
-	 * 이름으로 빼면 목록에 없는 폼이 늘어나는 순간 여전히 빨간불이 뜬다.</p>
+	 * <p>U3-5-c 부터 HF9 전까지는 flash 보존을 이유로 네이티브가 된 폼을 이름으로 빼는 예외 목록이 있었다. HF9 가
+	 * 그 이유를 없앴으므로 예외 없이 수가 같아야 한다.</p>
 	 */
 	@Test
-	@DisplayName("재렌더(BindingResult) 핸들러 수 = data-native-submit 폼 수 (기록된 예외 제외)")
+	@DisplayName("재렌더(BindingResult) 핸들러 수 = data-native-submit 폼 수")
 	void reRenderHandlersMatchNativeSubmitForms() {
 		List<String> reRenderHandlers = reRenderHandlers();
-		List<String> allNativeForms = nativeSubmitForms();
-		// 파일 단위가 아니라 폼 단위로 하나씩 덜어낸다 — 한 화면에 재렌더 폼과 예외 폼이 함께 있으면
-		// (server-group-detail 의 이름 변경 + 일괄 할당) 파일명으로 거르는 순간 정당한 폼까지 사라진다.
-		List<String> nativeForms = new ArrayList<>(allNativeForms);
-		NATIVE_FOR_FLASH.forEach(nativeForms::remove);
-
-		assertThat(allNativeForms)
-				.as("NATIVE_FOR_FLASH 에 올린 폼이 실제로는 네이티브 표기를 갖고 있지 않다. "
-						+ "표기를 뗐다면 목록에서도 빼라 — 남아 있으면 예외가 유령이 된다")
-				.containsAll(NATIVE_FOR_FLASH);
-
+		List<String> nativeForms = nativeSubmitForms();
 		assertThat(nativeForms)
 				.as("""
 						검증 실패 시 뷰를 다시 렌더하는 핸들러(BindingResult 수령)와, 네이티브 제출을 유지하도록 \
 						표기된 폼의 수가 어긋난다.
 						  재렌더 핸들러 %d개: %s
-						  표기된 폼   %d개: %s (기록된 예외 %s 제외)
-						새 입력 폼에 data-native-submit 표기를 빠뜨렸는지 확인하라. 재렌더가 아닌 다른 이유로 \
-						네이티브가 정당하다면 NATIVE_FOR_FLASH 에 사유와 함께 올려라."""
-						.formatted(reRenderHandlers.size(), reRenderHandlers,
-								nativeForms.size(), nativeForms, NATIVE_FOR_FLASH))
+						  표기된 폼   %d개: %s
+						새 입력 폼에 data-native-submit 표기를 빠뜨렸는지 확인하라. flash 를 살리려고 네이티브로 빼는 것은 \
+						HF9 이후 이유가 되지 않는다(XhrRedirectFilter + form-submit.js 가 PRG 의 flash 를 보존한다)."""
+						.formatted(reRenderHandlers.size(), reRenderHandlers, nativeForms.size(), nativeForms))
 				.hasSameSizeAs(reRenderHandlers);
+	}
+
+	/**
+	 * HF9 — flash 를 살리려고 네이티브 제출로 빼던 우회(U3-5-c · E4-1-a-4)가 되살아나지 않는다. 그 사정은
+	 * 서버와 가로채기 경로에서 없앴으므로, 사유에 flash 를 든 표기가 보이면 옛 우회를 다시 붙인 것이다.
+	 */
+	@Test
+	@DisplayName("data-native-submit 의 사유에 flash 가 없다 — HF9 이후 flash 보존은 네이티브 제출의 이유가 아니다")
+	void nativeSubmitNeverForFlash() {
+		List<String> offenders = new ArrayList<>();
+		templateFiles().forEach(p -> {
+			Matcher form = FORM_TAG.matcher(read(p));
+			while (form.find()) {
+				Matcher reason = NATIVE_MARKER.matcher(form.group());
+				if (reason.find() && reason.group(1).toLowerCase().contains("flash")) {
+					offenders.add(TEMPLATES.relativize(p).toString());
+				}
+			}
+		});
+		assertThat(offenders)
+				.as("flash 보존을 이유로 네이티브 제출로 빠진 폼이 있다. HF9 이후 가로채기 경로가 PRG 의 flash 를 "
+						+ "보존하므로(XhrRedirectFilter · form-submit.js) 이 우회는 이유가 없다 — 표기를 떼라")
+				.isEmpty();
 	}
 
 	/* ═══════════ 인터셉터가 조용히 빠지지 않는다 ═══════════ */
