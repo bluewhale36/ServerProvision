@@ -297,16 +297,6 @@
 <script th:src="@{/global/row-drag.js}"></script>
 <script th:src="@{/management/common/firmware-rank.js}"></script>
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        if (window.DeleteRejectModal) {
-            window.DeleteRejectModal.bind({
-                deleteFormSelector: 'form.mk3-2-delete-form',
-                modalPrefix: 'deleteReject'
-            });
-        }
-    });
-</script>
 
 </body>
 </html>

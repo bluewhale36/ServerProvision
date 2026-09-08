@@ -360,7 +360,7 @@
             li.innerHTML =
                 '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
                 '  <input type="radio" name="subprogramNudgeTarget" value="' + entry.id + '">' +
-                '  <span><strong>' + escapeHtml(entry.name) + '</strong> · v' + escapeHtml(entry.version) +
+                '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> · v' + UiUtil.escapeHtml(entry.version) +
                 '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">[' + entry.state + ' · #' + entry.id + ']</span></span>' +
                 '</label>';
             conflicts.appendChild(li);
@@ -534,15 +534,5 @@
             const el = document.getElementById(id);
             if (el) el.disabled = disabled;
         });
-    }
-
-    function escapeHtml(s) {
-        if (s == null) return '';
-        return String(s)
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;')
-            .replaceAll("'", '&#39;');
     }
 })();

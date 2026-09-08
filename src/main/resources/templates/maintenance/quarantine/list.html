@@ -78,20 +78,7 @@
 <!-- 복구 modal + 공통 모듈. 행 [복구] 버튼이 OrphanRecovery.open(recoveryId) 호출. -->
 <div th:replace="~{fragments/management/orphan-recovery-modal :: orphanModal('orphan')}"></div>
 <script th:src="@{/global/orphan-recovery.js}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('button[data-recovery-id]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                if (!window.OrphanRecovery) return;
-                window.OrphanRecovery.open(btn.dataset.recoveryId, {
-                    // 재시도 → 새 등록 job 의 redirect 로 이동. 폐기/나중에 → 목록 갱신.
-                    afterDiscard: function () { window.location.reload(); },
-                    afterLater: function () { /* 그대로 — 항목 유지 */ }
-                });
-            });
-        });
-    });
-</script>
+<!-- 행 [복구] 버튼(button[data-recovery-id])은 orphan-recovery.js 가 문서 위임으로 묶는다(S17-4). -->
 
 </body>
 </html>

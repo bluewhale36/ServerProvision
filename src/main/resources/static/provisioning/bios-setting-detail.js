@@ -12,16 +12,10 @@
 	const deleteButton = document.getElementById('templateDeleteBtn');
 	if (!deleteButton) return;
 	const banner = document.getElementById('templateActionBanner');
+	const showBanner = message => UiUtil.showBanner(banner, message, {scroll: true});
 	const deleteUrl = deleteButton.dataset.deleteUrl;
 	const listUrl = deleteButton.dataset.listUrl;
 	const resourceLabel = deleteButton.dataset.resourceLabel || '이 템플릿';
-
-	function showBanner(message) {
-		if (!banner) return;
-		banner.textContent = message;
-		banner.hidden = false;
-		window.scrollTo({top: 0, behavior: 'smooth'});
-	}
 
 	async function requestDelete() {
 		deleteButton.disabled = true;

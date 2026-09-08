@@ -193,15 +193,6 @@
     let currentTimer = null;
 
     // ---- XSS 방어 ----------------------------------------------
-    function escapeHtml(str) {
-        if (str == null) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
 
     function formatTime(iso) {
         if (!iso) return '';
@@ -273,31 +264,31 @@
                 job.status === 'FAILED' ? 'is-failed' :
                     job.status === 'RUNNING' ? 'is-running' : 'is-pending';
         const isTerminal = job.status === 'COMPLETED' || job.status === 'FAILED';
-        const subtitle = job.subtitle ? `<div class="n-bgjob-card-subtitle">${escapeHtml(job.subtitle)}</div>` : '';
+        const subtitle = job.subtitle ? `<div class="n-bgjob-card-subtitle">${UiUtil.escapeHtml(job.subtitle)}</div>` : '';
         const time = isTerminal ? formatTime(job.completedAt) : formatTime(job.createdAt);
         const errorMsg = job.errorMessage
-            ? `<div class="n-bgjob-card-message">${escapeHtml(job.errorMessage)}</div>` : '';
+            ? `<div class="n-bgjob-card-message">${UiUtil.escapeHtml(job.errorMessage)}</div>` : '';
 
         // chunk progress bar — 단계별 라벨 + 색상.
         // PENDING(grey) / RUNNING(blue) / DONE(green) / ERROR(red)
         const stages = Array.isArray(job.stages) ? job.stages : [];
         const chunks = stages.map(s => {
             const cls = 'n-bgjob-stage-chunk is-' + (s.status || 'PENDING').toLowerCase();
-            return `<div class="${cls}" title="${escapeHtml(s.label)}"><span class="n-bgjob-stage-label">${escapeHtml(s.label)}</span></div>`;
+            return `<div class="${cls}" title="${UiUtil.escapeHtml(s.label)}"><span class="n-bgjob-stage-label">${UiUtil.escapeHtml(s.label)}</span></div>`;
         }).join('');
 
         return `
-            <li class="n-bgjob-card ${stateClass}" data-job-id="${escapeHtml(job.id)}">
+            <li class="n-bgjob-card ${stateClass}" data-job-id="${UiUtil.escapeHtml(job.id)}">
                 <div class="n-bgjob-card-header">
-                    <span class="n-bgjob-card-title">${escapeHtml(job.title)}</span>
-                    <span class="n-bgjob-card-type">${escapeHtml(job.typeLabel)}</span>
+                    <span class="n-bgjob-card-title">${UiUtil.escapeHtml(job.title)}</span>
+                    <span class="n-bgjob-card-type">${UiUtil.escapeHtml(job.typeLabel)}</span>
                 </div>
                 ${subtitle}
                 ${errorMsg}
                 <div class="n-bgjob-stage-track">${chunks}</div>
                 <div class="n-bgjob-card-footer">
-                    <span class="n-bgjob-card-status">${escapeHtml(currentStatusText(job))}</span>
-                    <span class="n-bgjob-card-time">${escapeHtml(time)}</span>
+                    <span class="n-bgjob-card-status">${UiUtil.escapeHtml(currentStatusText(job))}</span>
+                    <span class="n-bgjob-card-time">${UiUtil.escapeHtml(time)}</span>
                     <button type="button"
                             class="n-bgjob-card-close"
                             aria-label="닫기"

@@ -44,6 +44,9 @@
           이 값을 페이지별로 override 하려면 해당 페이지 head 에서 <html> 에
           동일 data-* 를 박아도 된다. (script 속성이 우선)
         -->
+        <!-- S17-4 — 화면 스크립트가 공유하는 헬퍼 한 벌(escapeHtml · formatBytes · cssEscape · toast · banner).
+             defer 없이 싣는다: body 끝의 페이지 스크립트가 정의 시점에 window.UiUtil 을 봐야 한다(S17-2 F-3 의 순서). -->
+        <script th:src="@{/global/ui-util.js}"></script>
         <script th:src="@{/global/background-jobs.js}"
                 data-bgjob-fail-threshold="5"
                 data-bgjob-fail-grace-ms="1500"
@@ -68,6 +71,8 @@
                목록이 있는 화면 어디서나 같은 규약(data-nav-key · data-nav-back)이 성립해야 하므로
                페이지별로 싣지 않고 레이아웃에서 한 번 적재한다. */-->
         <script th:src="@{/global/nav-stack.js}" defer></script>
+        <!--/* 행 전체 클릭 목록(tr.n-row-clickable[data-href]) 의 위임 — 목록이 있는 화면 어디서나 같은 규약. */-->
+        <script th:src="@{/global/row-link.js}" defer></script>
     </th:block>
 </head>
 

@@ -106,29 +106,8 @@
     </div>
 </div>
 
-<!-- 행 전체 클릭 → 상세 이동. 셀 내부 <a>(명칭 링크)는 자체 동작하므로 중복 내비게이션을 막는다.
-     (setting 목록 전용 스크립트 파일을 늘리지 않기 위해 페이지 내 최소 스크립트로 처리 — server-list.js 와 동일 로직) -->
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('#settingTable .n-row-clickable').forEach(function (row) {
-            row.addEventListener('click', function (e) {
-                if (e.target.closest('a')) return;
-                const href = row.getAttribute('data-href');
-                if (href) window.location.href = href;
-            });
-        });
-        // U3-2-b — 휴지통 토글: querystring 만 갈아끼워 재조회.
-        const toggle = document.getElementById('settingIncludeDeletedToggle');
-        if (toggle) {
-            toggle.addEventListener('change', function () {
-                const url = new URL(window.location.href);
-                if (this.checked) url.searchParams.set('includeDeleted', 'true');
-                else url.searchParams.delete('includeDeleted');
-                window.location.href = url.toString();
-            });
-        }
-    });
-</script>
+<!-- 행 클릭은 전역 row-link.js 가 맡는다. 휴지통 토글만 이 화면 고유. -->
+<script th:src="@{/provisioning/setting-list.js}"></script>
 
 </body>
 </html>

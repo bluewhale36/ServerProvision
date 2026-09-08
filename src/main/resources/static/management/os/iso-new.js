@@ -314,8 +314,8 @@
             }
             const etaSec = speedBps > 0 ? Math.round((ev.total - ev.loaded) / speedBps) : -1;
 
-            const msg = `${formatBytes(ev.loaded)} / ${formatBytes(ev.total)}` +
-                (speedBps > 0 ? ` · ${formatBytes(speedBps)}/s` : '') +
+            const msg = `${UiUtil.formatBytes(ev.loaded)} / ${UiUtil.formatBytes(ev.total)}` +
+                (speedBps > 0 ? ` · ${UiUtil.formatBytes(speedBps)}/s` : '') +
                 (etaSec >= 0 ? ` · 약 ${formatDuration(etaSec)} 남음` : '');
             showProgress(`${displayPct}%  ${msg}`, displayPct);
         });
@@ -423,9 +423,9 @@
             li.style.cursor = 'pointer';
             li.dataset.targetId = c.id;
             li.innerHTML =
-                '<div style="font-weight: 600;">' + escapeHtml(c.name || '') + ' ' + escapeHtml(c.version || '') + '</div>' +
+                '<div style="font-weight: 600;">' + UiUtil.escapeHtml(c.name || '') + ' ' + UiUtil.escapeHtml(c.version || '') + '</div>' +
                 '<div style="font-size: 12px; color: var(--n-text-muted);">' +
-                'id=' + c.id + ' · ' + escapeHtml(c.state || '') + ' · ' + escapeHtml((c.hash || '').slice(0, 16)) + '…</div>';
+                'id=' + c.id + ' · ' + UiUtil.escapeHtml(c.state || '') + ' · ' + UiUtil.escapeHtml((c.hash || '').slice(0, 16)) + '…</div>';
             li.addEventListener('click', () => {
                 Array.from(list.children).forEach(el => el.style.background = '');
                 li.style.background = 'var(--n-bg-soft, #eef)';
@@ -534,7 +534,7 @@
             li.innerHTML =
                 '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
                 '  <input type="radio" name="isoIntentNudgeTarget" value="' + entry.id + '">' +
-                '  <span><strong>' + escapeHtml(entry.name) + '</strong> · v' + escapeHtml(entry.version) +
+                '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> · v' + UiUtil.escapeHtml(entry.version) +
                 '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">[' + entry.state + ' · #' + entry.id + ']</span></span>' +
                 '</label>';
             list.appendChild(li);
@@ -633,12 +633,6 @@
             const el = document.getElementById(id);
             if (el) el.disabled = disabled;
         });
-    }
-
-    function escapeHtml(s) {
-        return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function handleUploadNetworkError(message, checksumTimer) {
@@ -753,14 +747,6 @@
         if (!errorBox) return;
         errorBox.textContent = '';
         errorBox.classList.remove('is-visible');
-    }
-
-    function formatBytes(n) {
-        if (!Number.isFinite(n) || n <= 0) return '0 B';
-        if (n < 1024) return n.toFixed(0) + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-        if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
-        return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
     }
 
     function formatDuration(sec) {

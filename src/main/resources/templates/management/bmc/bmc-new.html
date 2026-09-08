@@ -191,31 +191,7 @@
 </div>
 
 <!-- S5-5 — board select 드롭다운에서 AJAX fetch + inject + init() 호출. /new 모드에만 필요. -->
-<script th:if="${boardId == null}">
-    document.getElementById('boardSelector').addEventListener('change', async function () {
-        const boardId = this.value;
-        if (!boardId) {
-            document.getElementById('formCardSlot').innerHTML = '';
-            return;
-        }
-        try {
-            const resp = await fetch('/management/bmc/' + encodeURIComponent(boardId) + '/new', {
-                headers: {'X-Requested-With': 'XMLHttpRequest'}
-            });
-            if (!resp.ok) {
-                console.error('[bmc-new] form fetch failed:', resp.status);
-                return;
-            }
-            const html = await resp.text();
-            document.getElementById('formCardSlot').innerHTML = html;
-            if (window.BmcNewForm && window.BmcNewForm.init) {
-                window.BmcNewForm.init();
-            }
-        } catch (err) {
-            console.error('[bmc-new] form fetch error:', err);
-        }
-    });
-</script>
+<!-- 보드 선택(#boardSelector) → 폼 AJAX 주입은 firmware-new-form.js 가 맡는다(S17-4). -->
 
 <!-- S5-5 — nudge modal + 업로드 script 는 두 모드 모두에서 로드 (동적 inject 폼도 동일 script 사용). -->
 <div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', @{/management/bmc/nudge})}"></div>
@@ -223,6 +199,7 @@
 <script th:src="@{/management/common/bundle-upload-bootstrap.js}"></script>
 <script th:src="@{/management/common/bundle-upload-shell.js}"></script>
 <script th:src="@{/global/nudge-modal.js}"></script>
+<script th:src="@{/management/common/firmware-new-form.js}"></script>
 <script th:src="@{/management/bmc/bmc-new.js}"></script>
 </body>
 </html>

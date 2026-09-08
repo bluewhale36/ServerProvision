@@ -29,18 +29,9 @@
         if (!form) return;
 
         const banner = form.querySelector('.n-form-banner');
+        const showBanner = lines => UiUtil.showBanner(banner, lines);
 
         /* ─────────────────────────── 공통 유틸 ─────────────────────────── */
-
-        function showBanner(lines) {
-            const text = (Array.isArray(lines) ? lines : [lines]).filter(Boolean).join(' · ');
-            if (!banner) {
-                if (text) console.warn('[settingForm]', text);
-                return;
-            }
-            banner.textContent = text;
-            banner.hidden = !text;
-        }
 
         function selectedOption(select) {
             return select && select.selectedIndex >= 0 ? select.options[select.selectedIndex] : null;
@@ -69,11 +60,6 @@
             return false;
         }
 
-        function cssEscape(value) {
-            if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(value);
-            return String(value).replace(/[^a-zA-Z0-9_\-\[\].]/g, ch => '\\' + ch);
-        }
-
         function cloneTemplateRow(templateId) {
             const tpl = document.getElementById(templateId);
             return tpl ? tpl.content.firstElementChild.cloneNode(true) : null;
@@ -89,7 +75,7 @@
         const emptyNotice = document.getElementById('stepEmptyNotice');
 
         function cardOf(type) {
-            return form.querySelector('[data-process-card="' + cssEscape(type) + '"]');
+            return form.querySelector('[data-process-card="' + UiUtil.cssEscape(type) + '"]');
         }
 
         function activeCards() {
@@ -97,7 +83,7 @@
         }
 
         function addButtonOf(type) {
-            return form.querySelector('[data-step-add="' + cssEscape(type) + '"]');
+            return form.querySelector('[data-step-add="' + UiUtil.cssEscape(type) + '"]');
         }
 
         function refreshEmptyNotice() {
@@ -193,7 +179,7 @@
             const emptyHint = document.getElementById(select === buBios ? 'buBiosEmptyHint' : 'buBmcEmptyHint');
             if (emptyHint) {
                 const hasAny = !autoLocked && !!boardId
-                    && !!select.querySelector('option[data-board-id="' + cssEscape(boardId) + '"]');
+                    && !!select.querySelector('option[data-board-id="' + UiUtil.cssEscape(boardId) + '"]');
                 emptyHint.hidden = autoLocked || !boardId || hasAny;
             }
         }
@@ -1748,14 +1734,14 @@
         function resolveErrorTarget(field, stepTypeByIndex) {
             const m = /^processList\[(\d+)\]\.?(.*)$/.exec(field || '');
             if (!m) {
-                return form.querySelector('[data-error-field="' + cssEscape(field || '') + '"]');
+                return form.querySelector('[data-error-field="' + UiUtil.cssEscape(field || '') + '"]');
             }
             const type = stepTypeByIndex[parseInt(m[1], 10)];
             const card = type ? cardOf(type) : null;
             if (!card) return null;
             let local = m[2];
             while (local) {
-                const target = card.querySelector('[data-error-field="' + cssEscape(local) + '"]');
+                const target = card.querySelector('[data-error-field="' + UiUtil.cssEscape(local) + '"]');
                 if (target) return target;
                 const shorter = local.replace(/(\.[^.\[\]]+|\[\d+\])$/, '');
                 if (shorter === local) break;
@@ -2034,7 +2020,7 @@
                 let missing = false;
                 ids.forEach(id => {
                     const chk = bsTemplatePanel
-                        ? bsTemplatePanel.querySelector('input[type="checkbox"][value="' + cssEscape(String(id)) + '"]')
+                        ? bsTemplatePanel.querySelector('input[type="checkbox"][value="' + UiUtil.cssEscape(String(id)) + '"]')
                         : null;
                     if (chk) chk.checked = true;
                     else missing = true; // 선택지에서 사라진 템플릿(삭제 레이스) — 무시하고 경고만

@@ -16,19 +16,8 @@
         if (!form) return;
 
         const banner = form.querySelector('.n-form-banner');
-
-        function showBanner(msg) {
-            if (!banner) {
-                console.error(TAG, msg);
-                return;
-            }
-            banner.hidden = false;
-            banner.textContent = msg;
-        }
-
-        function hideBanner() {
-            if (banner) banner.hidden = true;
-        }
+        const showBanner = msg => UiUtil.showBanner(banner, msg);
+        const hideBanner = () => UiUtil.hideBanner(banner);
 
         form.addEventListener('submit', evt => {
             evt.preventDefault();

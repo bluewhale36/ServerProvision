@@ -493,16 +493,6 @@
 <script th:src="@{/management/bios/bios-list.js}"></script>
 <!-- MK3-2 — softDelete reject modal 핸들러. mk3-2-delete-form 클래스의 form submit 을 가로채 fetch() 로 호출. -->
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        if (window.DeleteRejectModal) {
-            window.DeleteRejectModal.bind({
-                deleteFormSelector: 'form.mk3-2-delete-form',
-                modalPrefix: 'deleteReject'
-            });
-        }
-    });
-</script>
 
 </body>
 </html>

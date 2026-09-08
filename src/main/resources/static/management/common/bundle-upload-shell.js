@@ -130,8 +130,8 @@
             }
         }
 
-        const message = `${formatBytes(event.loaded)} / ${formatBytes(event.total)}` +
-            (speedBps > 0 ? ` · ${formatBytes(speedBps)}/s` : '') +
+        const message = `${UiUtil.formatBytes(event.loaded)} / ${UiUtil.formatBytes(event.total)}` +
+            (speedBps > 0 ? ` · ${UiUtil.formatBytes(speedBps)}/s` : '') +
             (etaSec >= 0 ? ` · 약 ${formatDuration(etaSec)} 남음` : '');
 
         return {shouldRender: true, percent, message, speedBps, etaSec};
@@ -214,14 +214,6 @@
         return !!(el && el.checked);
     }
 
-    function formatBytes(n) {
-        if (!Number.isFinite(n) || n <= 0) return '0 B';
-        if (n < 1024) return n.toFixed(0) + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-        if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
-        return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
-    }
-
     function formatDuration(sec) {
         if (sec < 60) return sec + '초';
         const m = Math.floor(sec / 60);
@@ -239,7 +231,6 @@
         resolveCommonFields,
         createUploadProgressTracker,
         describeUploadProgress,
-        formatBytes,
         formatDuration,
         startXhrUpload
     };

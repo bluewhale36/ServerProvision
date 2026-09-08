@@ -19,12 +19,6 @@
 (function () {
     'use strict';
 
-    function escapeHtml(s) {
-        return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    }
-
     function el(prefix, suffix) {
         return document.getElementById(prefix + suffix);
     }
@@ -121,11 +115,11 @@
             li.style.borderBottom = '1px solid var(--n-border)';
             li.style.cursor = 'pointer';
             li.dataset.targetId = c.id;
-            const hashFragment = c.hash ? (' · ' + escapeHtml(String(c.hash).slice(0, 16)) + '…') : '';
+            const hashFragment = c.hash ? (' · ' + UiUtil.escapeHtml(String(c.hash).slice(0, 16)) + '…') : '';
             li.innerHTML =
-                '<div style="font-weight: 600;">' + escapeHtml(c.name || '') + ' ' + escapeHtml(c.version || '') + '</div>' +
+                '<div style="font-weight: 600;">' + UiUtil.escapeHtml(c.name || '') + ' ' + UiUtil.escapeHtml(c.version || '') + '</div>' +
                 '<div style="font-size: 12px; color: var(--n-text-muted);">' +
-                'id=' + c.id + ' · ' + escapeHtml(c.state || '') + hashFragment + '</div>';
+                'id=' + c.id + ' · ' + UiUtil.escapeHtml(c.state || '') + hashFragment + '</div>';
             li.addEventListener('click', () => {
                 Array.from(list.children).forEach(item => item.style.background = '');
                 li.style.background = 'var(--n-bg-soft, #eef)';

@@ -169,4 +169,13 @@
     }
 
     window.DeleteRejectModal = {bind};
+
+    // 목록 4 화면(OS · BIOS · BMC · 드라이버/유틸리티)이 같은 8 줄 인라인 스크립트로 bind 를 부르던 것을
+    // 여기서 한 번에 한다(S17-4). 마커(form.mk3-2-delete-form)와 조각(#deleteRejectModal)이 둘 다 있는
+    // 화면만 묶이므로 다른 화면에서는 아무 일도 하지 않는다.
+    document.addEventListener('DOMContentLoaded', () => {
+        if (document.querySelector('form.mk3-2-delete-form') && document.getElementById('deleteRejectModal')) {
+            bind({deleteFormSelector: 'form.mk3-2-delete-form', modalPrefix: 'deleteReject'});
+        }
+    });
 })();
