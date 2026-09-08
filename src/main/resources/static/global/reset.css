@@ -1,0 +1,224 @@
+/* ============================================================
+   reset.css — 브라우저 기본값 정돈 (S17-5)
+   ─────────────────────────────────────────────────────────────
+   종전에는 Bootstrap 5.3 을 CDN 에서 통째로 실어 이 역할을 맡겼다. 실측(37 화면에 시트를 인라인으로
+   주입해 실제로 요소에 맞는 규칙만 추출)하니 쓰이는 것은 46 규칙뿐이고, 그중 클래스 규칙 7(.table 계열,
+   세팅 정의서 폼의 표 2 — table-list.css 의 .n-tbl-list 가 흡수)을 뺀 39 가 전부 reboot 였다.
+   그 39 를 값 그대로 옮겼다. 프로비저닝 서버는 인터넷 없는 데이터센터 안에 놓이므로 외부 CDN 하나가
+   곧 렌더 실패였다. 이 파일은 style.css 보다 먼저 실린다.
+
+   빠뜨리면 바로 드러나는 것 셋 — ① [hidden] { display: none !important } : 폼 배너 · 모달처럼 클래스가
+   display 를 세우는 요소를 hidden 속성으로 숨기는 자리가 많다. ② *, ::before, ::after { box-sizing }
+   : 폭 계산 전제. ③ button · input 의 font 상속 : 없으면 버튼 글꼴이 시스템 기본으로 돌아간다.
+
+   세는 단위 — "39 규칙" 은 실측 도구가 센 Bootstrap 선택자 묶음 수다. 여기서는 읽기 좋게 h1~h6 을
+   낱개로 풀고 파일 선택 버튼(의사 요소 · CP5 F-1)을 더해 선언 블록이 그보다 많다. 절은 Bootstrap
+   reboot 의 순서를 따른다 — 문서 · 제목과 문단 · 코드 · 이미지와 표 · 폼 컨트롤 · 숨김.
+   ============================================================ */
+
+/* ---- 문서 ------------------------------------------------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    :root {
+        scroll-behavior: smooth;
+    }
+}
+
+body {
+    margin: 0;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+}
+
+hr {
+    margin: 1rem 0;
+    color: inherit;
+    border: 0;
+    border-top: 1px solid;
+    opacity: 0.25;
+}
+
+/* ---- 제목과 문단 — 화면은 .n-page-title 등이 크기를 덮으므로 여기 값은 기본값일 뿐이다 --------- */
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+h1 { font-size: calc(1.375rem + 1.5vw); }
+h2 { font-size: calc(1.325rem + 0.9vw); }
+h3 { font-size: calc(1.3rem + 0.6vw); }
+h4 { font-size: calc(1.275rem + 0.3vw); }
+h5 { font-size: 1.25rem; }
+h6 { font-size: 1rem; }
+
+@media (min-width: 1200px) {
+    h1 { font-size: 2.5rem; }
+    h2 { font-size: 2rem; }
+    h3 { font-size: 1.75rem; }
+    h4 { font-size: 1.5rem; }
+}
+
+p {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+ol, ul {
+    padding-left: 2rem;
+}
+
+dl, ol, ul {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+dt {
+    font-weight: 700;
+}
+
+dd {
+    margin-bottom: 0.5rem;
+    margin-left: 0;
+}
+
+b, strong {
+    font-weight: bolder;
+}
+
+small {
+    font-size: 0.875em;
+}
+
+a {
+    text-decoration: underline;
+}
+
+/* ---- 코드 — code 의 면 · 반지름은 style.css 가 덮고, 여기서는 글꼴 스택과 크기 비율만 ------------- */
+code, kbd, pre, samp {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 1em;
+}
+
+pre {
+    display: block;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    overflow: auto;
+    font-size: 0.875em;
+}
+
+code {
+    font-size: 0.875em;
+    overflow-wrap: break-word;
+}
+
+kbd {
+    padding: 0.1875rem 0.375rem;
+    font-size: 0.875em;
+    color: #fff;
+    background-color: #212529;
+    border-radius: 0.25rem;
+}
+
+/* ---- 이미지와 표 — 표는 collapse 와 셀 테두리 상속이 .n-table · .n-tbl-list 격자의 전제다 ------- */
+img, svg {
+    vertical-align: middle;
+}
+
+table {
+    caption-side: bottom;
+    border-collapse: collapse;
+}
+
+th {
+    text-align: -webkit-match-parent;
+}
+
+thead, tbody, tfoot, tr, td, th {
+    border-color: inherit;
+    border-style: solid;
+    border-width: 0;
+}
+
+/* ---- 폼 컨트롤 — 글꼴 상속이 핵심이다. 없으면 버튼 · 입력이 시스템 글꼴 · 13.3px 로 돌아간다 ----- */
+label {
+    display: inline-block;
+}
+
+button {
+    border-radius: 0;
+}
+
+button:focus:not(:focus-visible) {
+    outline: 0;
+}
+
+input, button, select, optgroup, textarea {
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+button, select {
+    text-transform: none;
+}
+
+[role="button"] {
+    cursor: pointer;
+}
+
+select {
+    word-wrap: normal;
+}
+
+select:disabled {
+    opacity: 1;
+}
+
+button,
+[type="button"],
+[type="reset"],
+[type="submit"] {
+    -webkit-appearance: button;
+}
+
+button:not(:disabled),
+[type="button"]:not(:disabled),
+[type="reset"]:not(:disabled),
+[type="submit"]:not(:disabled) {
+    cursor: pointer;
+}
+
+/* 파일 입력의 '파일 선택' 버튼 — 의사 요소라 "요소에 맞는 규칙" 실측에 걸리지 않아 처음 빠뜨렸다
+   (S17-5 CP5 F-1: 글꼴 상속이 없으면 시스템 글꼴로 그려져 입력 높이가 46.5 → 43px 로 준다). */
+::-webkit-file-upload-button {
+    font: inherit;
+    -webkit-appearance: button;
+}
+
+::file-selector-button {
+    font: inherit;
+    -webkit-appearance: button;
+}
+
+textarea {
+    resize: vertical;
+}
+
+summary {
+    display: list-item;
+    cursor: pointer;
+}
+
+/* ---- 숨김 — hidden 속성이 클래스의 display 를 이기게 한다. 이 파일에서 가장 중요한 한 줄 ---------- */
+[hidden] {
+    display: none !important;
+}

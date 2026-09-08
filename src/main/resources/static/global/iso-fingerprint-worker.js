@@ -9,11 +9,11 @@
  *   { requestId, fingerprint: "<64-hex>", totalBytes }              — 완료
  *   { requestId, error: "<message>" }                               — 실패
  *
- * Web Crypto API (subtle.digest) 는 streaming 미지원 → 외부 hash-wasm CDN 사용.
+ * Web Crypto API (subtle.digest) 는 streaming 미지원 → hash-wasm(static/vendor/hash-wasm · MIT · S17-5 에서 CDN 을 로컬로) 사용.
  * hash-wasm 의 createSHA256() 는 chunked update + 최종 hex digest 지원 → 12GB 도 OOM 없이 처리.
  */
 
-importScripts('https://cdn.jsdelivr.net/npm/hash-wasm@4.11.0/dist/sha256.umd.min.js');
+importScripts('/vendor/hash-wasm/sha256.umd.min.js');
 
 const CHUNK_BYTES = 4 * 1024 * 1024; // 4MB — 메모리/속도 균형
 const PROGRESS_REPORT_INTERVAL_MS = 250;
@@ -28,7 +28,7 @@ self.addEventListener('message', async (event) => {
         return;
     }
     if (typeof self.hashwasm === 'undefined' || !self.hashwasm.createSHA256) {
-        self.postMessage({requestId, error: 'hash-wasm 라이브러리 로드 실패. 네트워크 / CDN 확인.'});
+        self.postMessage({requestId, error: 'hash-wasm 라이브러리를 싣지 못했습니다. /vendor/hash-wasm/ 배포를 확인하십시오.'});
         return;
     }
 

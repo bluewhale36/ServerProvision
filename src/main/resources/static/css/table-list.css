@@ -86,27 +86,54 @@
     text-decoration-color: var(--n-blue);
 }
 
-/* ---- n-tbl-list (Bootstrap .table 기반 인라인 테이블) ------ */
+/* ---- n-tbl-list (폼 안 인라인 편집 테이블) ------------------
+   종전에는 Bootstrap 의 .table .table-sm .table-bordered 위에 얹혀 격자와 머리 색을 그쪽에서 받았다.
+   S17-5 에서 Bootstrap 을 걷어내며 그 몫(격자선 · 머리 면 · 셀 여백 · 아래 여백)을 여기로 옮겼다 —
+   값은 종전 렌더의 계산값과 같다. */
 
 /* 컬럼 너비 고정. table-layout: fixed 를 쓰면 thead th 의 width 만 존중되고
    td 내용 길이에 따라 컬럼이 춤추지 않는다. 긴 경로는 overflow-wrap: anywhere 로 줄바꿈. */
 .n-tbl-list {
     table-layout: fixed;
     width: 100%;
+    margin-bottom: 16px;
+    border-collapse: collapse;
+    border-color: var(--n-border-row);
+    color: var(--n-text);
+    vertical-align: top;
 }
 
-.n-tbl-list tbody td {
-    overflow-wrap: anywhere;
+/* 격자 — 가로선은 행이, 세로선은 칸이 긋는다(종전 .table-bordered 와 같은 구조 · reset.css 가
+   tr · th · td 의 border-style 을 solid 로, border-color 를 상속으로 둔다) */
+.n-tbl-list > thead > tr,
+.n-tbl-list > tbody > tr {
+    border-width: 1px 0;
 }
 
-/* 헤더 셀: 수직·수평 가운데 */
+.n-tbl-list th,
+.n-tbl-list td {
+    border-width: 0 1px;
+}
+
+/* 헤더 셀: 표 머리와 같은 꺼진 면 · 대문자 11px · 수직·수평 가운데 */
 .n-tbl-list thead th {
+    background: var(--n-thead);
+    color: var(--n-text-sec);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--n-border);
     text-align: center;
     vertical-align: middle;
 }
 
 /* 데이터 셀: 수직 가운데·수평 왼쪽 */
 .n-tbl-list tbody td {
+    font-size: 13px;
+    padding: 6px 10px;
+    overflow-wrap: anywhere;
     text-align: left;
     vertical-align: middle;
 }

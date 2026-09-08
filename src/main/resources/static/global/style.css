@@ -4,8 +4,31 @@
    이 도구가 다루는 것은 문서가 아니라 장비 대장이다. 화면 대부분이 식별자 · 주소 · 버전 · 해시로
    채워지므로 종이 은유(따뜻한 회색 · 둥근 카드 · 부드러운 그림자)를 걷어냈다. 계층은 면이나 크기가
    아니라 위치가 진다 — 왼쪽 사이드바가 영역을 말하고, 판 안의 격자선이 칸을 말한다.
-   Bootstrap 5 뒤에 실려 시각 스타일을 덮어쓴다(그리드 · 유틸리티만 Bootstrap 에 남긴다).
+   reset.css(브라우저 기본값 정돈) 뒤에 실린다. Bootstrap 은 S17-5 에서 걷어냈다.
    ============================================================ */
+
+/* ---- 0. 글꼴 ---------------------------------------------
+   Inter 는 자체 호스팅한다(S17-5). 종전 Google Fonts 링크는 인터넷 없는 배포 환경에서 실리지 않았다.
+   Google 이 주는 파일은 굵기별이 아니라 가변 폰트 하나(latin · latin-ext 두 서브셋)라 두 파일이
+   400 · 500 · 600 · 700 을 모두 그린다. 한글은 이 글꼴에 없어 시스템 글꼴이 그린다(종전과 같다).
+   라이선스는 SIL OFL 1.1 — /fonts/inter/OFL.txt. */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('/fonts/inter/inter-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('/fonts/inter/inter-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 /* ---- 1. CSS 변수 ------------------------------------------ */
 :root {
@@ -69,8 +92,9 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
-/* 맨 링크도 팔레트의 파랑이다 — 두지 않으면 Bootstrap 의 --bs-link-color(#0d6efd)가 남아 한 화면에 파랑이
-   둘이 된다(CP5 F-5). 클래스가 있는 링크(.n-btn · .n-nav-link · .n-row-link …)는 자기 색을 갖는다. */
+/* 맨 링크도 팔레트의 파랑이다 — S17-1 CP5 F-5 때는 Bootstrap 의 --bs-link-color(#0d6efd)가 남아 한 화면에
+   파랑이 둘이었고, Bootstrap 을 걷어낸 뒤(S17-5)에는 브라우저 기본 파랑을 막는 규칙이다. 클래스가 있는
+   링크(.n-btn · .n-nav-link · .n-row-link …)는 자기 색을 갖는다. */
 a {
     color: var(--n-blue);
 }
@@ -1168,402 +1192,6 @@ code {
 
 /* 판 안의 작은 빈 상태(하위 목록이 비었을 때) — 80px 은 화면 단위 빈 상태의 값이다 */
 .n-empty.n-empty-sm { padding: 16px 24px; }
-
-/* ============================================================
-   Bootstrap 5.x 시각 오버라이드
-   (Bootstrap CSS 이후에 로드되므로 !important 최소화)
-   ============================================================ */
-
-/* 카드 */
-.card {
-    background: var(--n-surface);
-    border: 1px solid var(--n-border);
-    border-radius: var(--n-radius-lg);
-    box-shadow: var(--n-shadow-card);
-    margin-bottom: 20px;
-}
-
-.card-header {
-    background: var(--n-sunken);
-    border-bottom: 1px solid var(--n-border-row);
-    border-radius: var(--n-radius-lg) var(--n-radius-lg) 0 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--n-text-sec);
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    padding: 14px 24px;
-}
-
-.card-header.bg-dark {
-    background: var(--n-warm-dark);
-    color: rgba(255, 255, 255, 0.9);
-    letter-spacing: normal;
-    font-size: 14px;
-    text-transform: none;
-}
-
-.card-header.bg-primary {
-    background: var(--n-blue);
-    color: #ffffff;
-    letter-spacing: normal;
-    font-size: 14px;
-    text-transform: none;
-}
-
-.card-body {
-    padding: 24px;
-}
-
-/* 버튼 */
-.btn {
-    font-family: inherit;
-    font-weight: 600;
-    border-radius: var(--n-radius);
-    transition: background .15s, transform .1s;
-}
-
-.btn:active {
-    transform: scale(0.95);
-}
-
-.btn-primary {
-    background: var(--n-blue);
-    border-color: var(--n-blue);
-}
-
-.btn-primary:hover, .btn-primary:focus {
-    background: var(--n-blue-hover);
-    border-color: var(--n-blue-hover);
-}
-
-.btn-secondary {
-    background: rgba(15, 23, 42, 0.06);
-    border-color: var(--n-border);
-    color: var(--n-text);
-}
-
-.btn-secondary:hover {
-    background: rgba(15, 23, 42, 0.10);
-    color: var(--n-text);
-}
-
-.btn-outline-secondary {
-    background: transparent;
-    border-color: var(--n-border-form);
-    color: var(--n-text-sec);
-}
-
-.btn-outline-secondary:hover {
-    background: rgba(15, 23, 42, 0.06);
-    color: var(--n-text);
-}
-
-.btn-success {
-    background: rgba(15, 138, 77, 0.10);
-    border-color: transparent;
-    color: var(--n-green);
-}
-
-.btn-success:hover {
-    background: rgba(15, 138, 77, 0.18);
-    border-color: transparent;
-    color: var(--n-green);
-}
-
-.btn-outline-success {
-    border-color: rgba(15, 138, 77, 0.32);
-    color: var(--n-green);
-}
-
-.btn-outline-success:hover {
-    background: rgba(15, 138, 77, 0.10);
-}
-
-.btn-outline-danger {
-    border-color: rgba(194, 86, 10, 0.32);
-    color: var(--n-orange);
-}
-
-.btn-outline-danger:hover {
-    background: rgba(194, 86, 10, 0.10);
-}
-
-.btn-warning {
-    background: rgba(194, 86, 10, 0.10);
-    border-color: transparent;
-    color: var(--n-orange);
-}
-
-.btn-warning:hover {
-    background: rgba(194, 86, 10, 0.16);
-    border-color: transparent;
-    color: var(--n-orange);
-}
-
-.btn-info, .btn-info.text-white {
-    background: var(--n-blue-badge-bg);
-    border-color: transparent;
-    color: var(--n-blue-badge-text);
-}
-
-.btn-info:hover {
-    background: rgba(37, 87, 214, 0.15);
-    border-color: transparent;
-    color: var(--n-blue-badge-text);
-}
-
-.btn-outline-info {
-    border-color: rgba(37, 87, 214, 0.30);
-    color: var(--n-blue-badge-text);
-}
-
-.btn-outline-info:hover {
-    background: var(--n-blue-badge-bg);
-}
-
-/* 배지 */
-.badge {
-    border-radius: var(--n-radius);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    padding: 3px 10px;
-}
-
-.bg-primary {
-    background: var(--n-blue) !important;
-}
-
-.bg-secondary {
-    background: rgba(15, 23, 42, 0.06) !important;
-    color: var(--n-text-sec) !important;
-}
-
-.bg-success {
-    background: rgba(15, 138, 77, 0.10) !important;
-    color: var(--n-green) !important;
-}
-
-.bg-danger {
-    background: rgba(194, 86, 10, 0.10) !important;
-    color: var(--n-orange) !important;
-}
-
-.bg-warning.text-dark {
-    background: rgba(194, 86, 10, 0.10) !important;
-    color: var(--n-orange) !important;
-}
-
-.bg-info.text-dark {
-    background: var(--n-blue-badge-bg) !important;
-    color: var(--n-blue-badge-text) !important;
-}
-
-/* 테이블 */
-.table {
-    color: var(--n-text);
-}
-
-.table thead th {
-    background: var(--n-thead);
-    color: var(--n-text-sec);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--n-border);
-    padding: 10px 12px;
-}
-
-.table-dark, .table-dark thead th {
-    background: var(--n-warm-dark);
-    color: rgba(255, 255, 255, 0.85);
-}
-
-.table tbody td {
-    border-bottom: 1px solid var(--n-border-row);
-    font-size: 13px;
-    padding: 6px 10px;
-}
-
-.table-hover tbody tr:hover td {
-    background: var(--n-row-hover);
-}
-
-.table-bordered td, .table-bordered th {
-    border-color: var(--n-border-row);
-}
-
-/* 폼 */
-.form-control, .form-select {
-    font-family: inherit;
-    font-size: 15px;
-    color: var(--n-text);
-    border: 1px solid var(--n-border-form);
-    border-radius: var(--n-radius);
-    background: var(--n-surface);
-    padding: 8px 10px;
-    transition: border-color .15s, box-shadow .15s;
-}
-
-.form-control:focus, .form-select:focus {
-    border-color: var(--n-blue);
-    box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
-}
-
-.form-control::placeholder {
-    color: var(--n-text-muted);
-}
-
-.form-control[readonly], .form-control:disabled, .form-select:disabled {
-    background: var(--n-bg);
-    color: var(--n-text-sec);
-}
-
-.form-control.form-control-sm, .form-select.form-select-sm {
-    font-size: 13px;
-    padding: 4px 8px;
-}
-
-.form-control.is-invalid, .form-select.is-invalid {
-    border-color: var(--n-error);
-}
-
-.invalid-feedback {
-    color: var(--n-error);
-    font-size: 12px;
-}
-
-.form-label {
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--n-text);
-    margin-bottom: 6px;
-}
-
-.form-text {
-    font-size: 12px;
-    color: var(--n-text-sec);
-}
-
-.form-check-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--n-text);
-}
-
-.form-check-input:checked {
-    background-color: var(--n-blue);
-    border-color: var(--n-blue);
-}
-
-.form-switch .form-check-input:checked {
-    background-color: var(--n-blue);
-}
-
-/* 아코디언 */
-.accordion-item {
-    border: 1px solid var(--n-border);
-    border-radius: var(--n-radius-lg);
-    overflow: hidden;
-    margin-bottom: 8px;
-}
-
-.accordion-button {
-    font-family: inherit;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--n-text);
-    background: var(--n-surface);
-    box-shadow: none;
-    padding: 14px 20px;
-}
-
-.accordion-button:not(.collapsed) {
-    background: var(--n-bg);
-    color: var(--n-text);
-    box-shadow: none;
-}
-
-.accordion-body {
-    background: var(--n-surface);
-    border-top: 1px solid var(--n-border-row);
-    padding: 20px;
-}
-
-/* 알림 */
-.alert-info {
-    background: var(--n-blue-badge-bg);
-    border-color: rgba(37, 87, 214, 0.20);
-    color: var(--n-blue-badge-text);
-    border-radius: var(--n-radius-lg);
-    font-size: 14px;
-}
-
-.alert-secondary {
-    background: var(--n-sunken);
-    border-color: var(--n-border);
-    color: var(--n-text-sec);
-    border-radius: var(--n-radius-lg);
-    font-size: 14px;
-}
-
-.alert-success {
-    background: rgba(15, 138, 77, 0.07);
-    border-color: rgba(15, 138, 77, 0.20);
-    color: var(--n-green);
-    border-radius: var(--n-radius-lg);
-}
-
-/* 오류 축의 색은 하나다 — .n-alert-danger 와 같은 값 */
-.alert-danger {
-    background: color-mix(in srgb, var(--n-error) 7%, transparent);
-    border-color: color-mix(in srgb, var(--n-error) 22%, transparent);
-    color: var(--n-error);
-    border-radius: var(--n-radius-lg);
-}
-
-/* 프로그레스바 */
-.progress {
-    height: 6px;
-    background: rgba(15, 23, 42, 0.08);
-    border-radius: var(--n-radius);
-}
-
-.progress-bar {
-    border-radius: var(--n-radius);
-}
-
-.progress-bar.bg-info {
-    background-color: var(--n-blue) !important;
-}
-
-.progress-bar.bg-success {
-    background-color: var(--n-green) !important;
-}
-
-.progress-bar.bg-danger {
-    background-color: var(--n-error) !important;
-}
-
-/* 텍스트 색상 */
-.text-primary {
-    color: var(--n-blue) !important;
-}
-
-.text-muted {
-    color: var(--n-text-muted) !important;
-}
-
-.text-danger {
-    color: var(--n-error) !important;
-}
-
-.text-success {
-    color: var(--n-green) !important;
-}
 
 /* ============================================================
    R9-4 — Maintenance 페이지 배너 (DESIGN.md §4 Maintenance Page Patterns)

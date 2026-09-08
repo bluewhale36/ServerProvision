@@ -326,7 +326,7 @@
                                     <div class="n-hint">위 규칙부터 순서대로 디스크를 가져가고, 남은 디스크는 아래 규칙으로 흐릅니다. 어느 규칙에도 맞지 않는 디스크는 미배정으로 남습니다.</div>
                                     <!-- 도달 불가 안내(CP6 검수 반영 — 제목 아래로 이동) + 해당 행 색상은 is-unreachable 클래스가 담당 -->
                                     <div class="n-hint is-danger" id="rcUnreachableHint" hidden></div>
-                                    <table class="table table-sm table-bordered n-tbl-list" id="rcDiskGroupTable">
+                                    <table class="n-tbl-list" id="rcDiskGroupTable">
                                         <colgroup>
                                             <col class="n-col-4"><!-- 순서 핸들(드래그) -->
                                             <col class="n-col-8"><!-- 순위(E3.5-7-a) — 행 순서 = 적용 순서. 우선순위 표와 같은 배지, JS 가 다시 매긴다 -->
@@ -381,7 +381,7 @@
                                     <!-- 정의서 수준 @AssertTrue(SettingSaveRequest.isOsVolumeDeterminable) 오류는 최상위 경로라 이 컨테이너가 exact-match 로 받는다 -->
                                     <div data-error-field="osVolumeDeterminable">
                                     <div data-error-field="volumePriorityDistinct">
-                                    <table class="table table-sm table-bordered n-tbl-list" id="rcPriorityTable">
+                                    <table class="n-tbl-list" id="rcPriorityTable">
                                         <colgroup>
                                             <col class="n-col-4"><!-- 순서 핸들(드래그) -->
                                             <col class="n-col-8"><!-- 순위 — 행 순서가 곧 우선순위임을 숫자로 명시(CP6 검수). JS 가 재정렬 · 추가 · 삭제마다 다시 매긴다 -->
