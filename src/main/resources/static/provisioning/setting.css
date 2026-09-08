@@ -24,8 +24,8 @@
     text-decoration: underline;
 }
 
+/* 글꼴은 전역 .n-mono(style.css)가 정하고 여기서는 크기만 */
 .n-mono {
-    font-family: 'Courier New', monospace;
     font-size: 12px;
 }
 
@@ -43,7 +43,7 @@
 
 /* 패키지명 등 코드성 배지 */
 .n-badge-mono {
-    font-family: 'Courier New', monospace;
+    font-family: var(--n-font-mono);
 }
 
 /* ---- 상세 : 섹션 / 다형 단계 카드 -------------------------- */
@@ -182,7 +182,7 @@
 /* 패키지 그룹 체크박스 패널 */
 .n-check-panel {
     border: 1px solid var(--n-border);
-    border-radius: 6px;
+    border-radius: var(--n-radius-lg);
     background: var(--n-surface);
     padding: 10px 12px;
     display: flex;
@@ -254,7 +254,7 @@
     display: block;
     margin-top: 6px;
     padding: 6px 10px;
-    border-radius: 6px;
+    border-radius: var(--n-radius-lg);
     background: var(--n-yellow-bg);
     color: var(--n-yellow);
     border: 1px solid var(--n-yellow);
@@ -341,7 +341,7 @@
     display: inline-block;
     min-width: 22px;
     padding: 0 6px;
-    border-radius: 11px;
+    border-radius: var(--n-radius);
     background: var(--n-bg);
     color: var(--n-text);
     font-size: 12px;
@@ -387,7 +387,7 @@
 .dgVdBadge {
     margin-left: 4px;
     padding: 0 6px;
-    border-radius: 8px;
+    border-radius: var(--n-radius);
     background: var(--n-blue);
     color: #fff;
     font-size: 11px;

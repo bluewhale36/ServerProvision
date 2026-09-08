@@ -36,6 +36,8 @@
 
 <!-- 템플릿 메타 입력 — name(필수)/description(선택). 수정 모드는 editTemplate 값으로 pre-fill.
      서버 fieldErrors(name/description)가 이 영역에 매핑된다. -->
+<!-- 사이드바 옆 본문 한 덩어리 — body 가 가로 flex 라 메타 입력과 BIOS 스크린을 세로로 묶어야 한다(S17-1 shell 적용). -->
+<div class="bios-console">
 <section class="bios-setting-meta">
 	<div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
 	<div class="bios-setting-meta-fields">
@@ -188,6 +190,7 @@
 		      th:attr="data-from=${d.fromAttribute}, data-fromval=${d.fromValue}, data-to=${d.toAttribute}, data-prop=${d.toProperty}"></span>
 	</div>
 </form>
+</div>
 
 <script th:src="@{/provisioning/bios-setting-editor.js}"></script>
 </body>

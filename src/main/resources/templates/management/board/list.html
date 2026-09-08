@@ -86,7 +86,7 @@
                     <span th:unless="${board.isDeleted}"
                           class="n-miller-status-tag"
                           th:classappend="${board.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
-                          th:text="${board.isEnabled} ? '활성화' : '비활성화'">활성화</span>
+                          th:text="${board.isEnabled} ? '활성' : '비활성'">활성</span>
                 </button>
                 <!-- S5-5 — C2 내부 + 등록 버튼. -->
                 <div style="padding: 8px 12px;">
@@ -144,19 +144,47 @@
                         <tr>
                             <th>상태</th>
                             <td>
-                                <span th:if="${board.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
-                                <th:block th:unless="${board.isDeleted}">
+                                    <div class="n-actions">
+                                    <span th:if="${board.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
+                                    <th:block th:unless="${board.isDeleted}">
+                                        <span class="n-badge"
+                                              th:classappend="${board.isEnabled} ? 'n-badge-green' : 'n-badge-off'"
+                                              th:text="${board.isEnabled} ? '활성' : '비활성'"></span>
+                                        <form th:action="@{/management/board/{id}/toggle(id=${board.id})}"
+                                              method="post">
+                                            <button type="submit"
+                                                    class="n-btn n-btn-sm"
+                                                    th:classappend="${board.isEnabled} ? 'n-btn-outline' : 'n-btn-outline-success'"
+                                                    th:text="${board.isEnabled} ? '비활성화' : '활성화'"></button>
+                                        </form>
+                                    </th:block>
+
+                                    </div>
+                                </td>
+                        </tr>
+                        <!--/* 사용 중단 권고는 활성 여부와 다른 축이다(Deprecated ≠ 비활성).
+                               조작을 액션 줄에 두면 무엇이 바뀌는지 화면에서 보이지 않아 상태 옆으로 옮겼다. */-->
+                        <tr th:unless="${board.isDeleted}">
+                            <th>사용 중단 권고</th>
+                            <td>
+                                <div class="n-actions">
                                     <span class="n-badge"
-                                          th:classappend="${board.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
-                                          th:text="${board.isEnabled} ? '활성화' : '비활성화'"></span>
-                                    <form th:action="@{/management/board/{id}/toggle(id=${board.id})}"
-                                          method="post" style="display:inline; margin-left: 10px;">
-                                        <button type="submit"
-                                                class="n-btn n-btn-sm"
-                                                th:classappend="${board.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
-                                                th:text="${board.isEnabled} ? '비활성화' : '활성화'"></button>
+                                          th:classappend="${board.isDeprecated} ? 'n-badge-yellow' : 'n-badge-gray'"
+                                          th:text="${board.isDeprecated} ? 'Deprecated' : '해당 없음'"></span>
+                                    <form th:unless="${board.isDeprecated}"
+                                          th:action="@{/management/board/{id}/deprecate(id=${board.id})}"
+                                          method="post" style="display:inline;"
+                                          data-confirm-deprecate=""
+                                          th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
+                                          th:data-resource-extra="|하위 BIOS · BMC · 드라이버·유틸리티 도 함께 Deprecated 표시돼요.|">
+                                        <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                                     </form>
-                                </th:block>
+                                    <form th:if="${board.isDeprecated}"
+                                          th:action="@{/management/board/{id}/undeprecate(id=${board.id})}"
+                                          method="post" style="display:inline;">
+                                        <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         </tbody>
@@ -168,19 +196,8 @@
                             <a th:href="@{/management/board/{id}/edit(id=${board.id})}"
                                class="n-btn n-btn-secondary">수정</a>
                             <!-- MK2 — Deprecated 토글. -->
-                            <form th:unless="${board.isDeprecated}"
-                                  th:action="@{/management/board/{id}/deprecate(id=${board.id})}"
-                                  method="post" style="display:inline;"
-                                  data-confirm-deprecate=""
-                                  th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
-                                  th:data-resource-extra="|하위 BIOS · BMC · 드라이버·유틸리티 도 함께 Deprecated 표시돼요.|">
-                                <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
-                            </form>
-                            <form th:if="${board.isDeprecated}"
-                                  th:action="@{/management/board/{id}/undeprecate(id=${board.id})}"
-                                  method="post" style="display:inline;">
-                                <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
-                            </form>
+
+
                             <form th:action="@{/management/board/{id}/delete(id=${board.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-soft-delete=""

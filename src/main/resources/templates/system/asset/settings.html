@@ -79,7 +79,7 @@
                     <td style="text-align: right;">
                         <form th:action="@{/system/asset/{k}/seal(k=${area.areaKey})}" method="post"
                               style="display: inline;">
-                            <button type="submit" class="n-btn n-btn-sm n-btn-warning"
+                            <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning"
                                     th:disabled="${area.availability != 'CONFIGURED'}"
                                     th:title="${area.availability == 'CONFIGURED'}
                                               ? '존재하는 자산의 현재 해시를 무결성 기준으로 기록합니다.'
@@ -107,7 +107,7 @@
                     <td>
                         <span th:if="${area.availability == 'CONFIGURED'}"
                               th:text="'일치 ' + ${area.okCount} + ' / ' + ${area.totalCount}">일치 6 / 6</span>
-                        <span th:unless="${area.availability == 'CONFIGURED'}" class="n-badge n-badge-gray">서빙 비활성</span>
+                        <span th:unless="${area.availability == 'CONFIGURED'}" class="n-badge n-badge-off">서빙 비활성</span>
                     </td>
                 </tr>
                 </tbody>

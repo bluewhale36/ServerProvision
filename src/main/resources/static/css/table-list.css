@@ -34,12 +34,11 @@
     text-align: left;
 }
 
-/* 시각적 좌측 정렬 보정.
-   배지 (.n-badge) 는 자체 좌우 padding (10px) 때문에 td 의 left padding 안에서 추가로 들여쓰기 되어
-   다른 컬럼의 텍스트 시작점과 시각적으로 어긋난다. 첫 자식일 때만 자기 padding 만큼 negative margin 으로 보정.
-   인라인 코드 (<code>) 는 시각 보정 불요 (사용자 합의 2026-05-14). */
+/* 배지의 좌측 보정은 두지 않는다 — 종전에는 배지 padding 만큼(-10px) 당겨 '글자 시작점' 을 다른 열과
+   맞췄으나, 격자선이 칸 경계를 그리는 지금은 배지가 자기 상자로 읽히므로 그 보정이 오히려 배지를
+   칸 밖으로 튀어나오게 했다(S17-1). 인라인 코드 (<code>) 도 같은 이유로 보정하지 않는다. */
 .n-table tbody td > .n-badge:first-child {
-    margin-left: -10px; /* .n-badge { padding: 3px 10px } 와 동일 */
+    margin-left: 0;
 }
 
 /* 버튼·배지·상태 표시 셀: 수평 가운데
@@ -60,13 +59,31 @@
     justify-content: center;
 }
 
-/* ID 셀: 수평 가운데 + 모노스페이스 + muted 회색(--n-text-muted) */
+/* ID 셀: 수평 가운데 + 모노스페이스(전역 mono 한 벌) + muted 회색(--n-text-muted) */
 .n-table tbody td.n-td-id {
     text-align: center;
-    font-family: 'Courier New', monospace;
+    font-family: var(--n-font-mono);
+    font-feature-settings: "tnum";
     font-size: 13px;
     font-weight: 600;
     color: var(--n-text-muted);
+}
+
+/* 상세로 가는 길은 행의 ID 가 맡는다 — 액션 칸의 '상세' 버튼을 걷어내면 그 칸에는 상태를 바꾸는 조작만
+   남는다. 쉬는 동안에도 밑줄을 둔다 : 표 안의 값은 대부분 읽기만 하는 것이라 누를 수 있는 값 하나가
+   색만으로는 구분되지 않는다 — 마우스를 올려야 알 수 있는 것은 알 수 없는 것과 같다. */
+.n-table tbody td.n-td-id .n-row-link {
+    color: var(--n-blue);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--n-blue) 45%, transparent);
+}
+
+.n-table tbody td.n-td-id .n-row-link:hover {
+    text-decoration-thickness: 2px;
+    text-decoration-color: var(--n-blue);
 }
 
 /* ---- n-tbl-list (Bootstrap .table 기반 인라인 테이블) ------ */

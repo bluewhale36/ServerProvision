@@ -32,7 +32,7 @@
     display: flex;
     background: var(--n-surface);
     border: 1px solid var(--n-border);
-    border-radius: 12px;
+    border-radius: var(--n-radius-lg);
     box-shadow: var(--n-shadow-card);
     overflow: hidden;
     height: calc(100vh - 220px);
@@ -69,12 +69,12 @@
 }
 
 /* ---- 컬럼 헤더 ------------------------------------------ */
-/* .n-table thead th 와 동일한 톤의 고정 헤더 */
+/* .n-table thead th 와 같은 톤의 고정 헤더 — 같은 성격의 머리는 같은 토큰(--n-thead)을 본다 */
 .n-miller-col-header {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: var(--n-bg);
+    background: var(--n-thead);
     padding: 10px 18px;
     font-size: 11px;
     font-weight: 600;
@@ -104,7 +104,7 @@
 }
 
 .n-miller-item:hover {
-    background: rgba(0, 0, 0, 0.03);
+    background: var(--n-row-hover);
 }
 
 .n-miller-item.n-miller-selected {
@@ -136,24 +136,25 @@
     font-size: 11px;
     font-weight: 500;
     padding: 2px 8px;
-    border-radius: 9999px;
+    border-radius: var(--n-radius);
     letter-spacing: 0.2px;
 }
 
 .n-miller-status-tag-on {
-    background: rgba(26, 174, 57, 0.1);
+    background: rgba(15, 138, 77, 0.10);
     color: var(--n-green);
 }
 
+/* 비활성 — 전역 .n-badge-off 와 같은 값. 같은 상태가 화면마다 다른 색이면 다른 상태로 읽힌다. */
 .n-miller-status-tag-off {
-    background: rgba(0, 0, 0, 0.06);
-    color: var(--n-text-muted);
+    background: rgba(15, 23, 42, 0.07);
+    color: #64748b;
 }
 
 /* 주의를 요하되 막지는 않는 상태 (사용 중단 권고 · 대조 전) — 자원 화면이 사용 중단을 노란 점으로
    알리는 것과 같은 어휘다. on(초록) 과 off(회색) 사이에 이 층이 없어 U3-5-b 에서 계열을 채웠다. */
 .n-miller-status-tag-warn {
-    background: rgba(194, 147, 67, 0.12);
+    background: rgba(169, 122, 30, 0.12);
     color: var(--n-yellow);
 }
 
@@ -234,4 +235,43 @@
 /* 'latest' — 버전 이름 옆에 병기하는 표시. 배지가 아니라 부연이므로 굵기 · 배경을 두지 않는다. */
 .n-miller-latest {
     margin-left: 6px;
+}
+
+/* ---- 1024 이하 : 상세 열을 아래로 스택한다 (S17-1 D3) ----
+   3열이 고정 폭이라 사이드바 옆 796px 안에서는 상세 열이 250px 로 눌려 라벨이 글자 단위로 세로 분해되고
+   [수정][삭제] 가 패널 밖으로 잘려 조작이 불가능했다. 열을 좁혀 안쪽 가로 스크롤을 두는 대신 상세를
+   100% 폭으로 내려 "목록 → 상세" 순서를 세로로 잇는다 — 좁혀 들어가기라는 Miller 의 뜻은 그대로다.
+   목록 열은 첫 줄을 나눠 갖고(2열이면 이름 열이 전부), 각자 고정 높이 안에서 스크롤한다. */
+@media (max-width: 1024px) {
+    .n-miller {
+        flex-wrap: wrap;
+        height: auto;
+        max-height: none;
+    }
+
+    /* 높이는 상한만 둔다 — 고정 340px 이면 데이터가 두 줄뿐인 열도 빈 채로 340px 를 차지해 상세가 첫 화면
+       아래로 밀린다(CP5 C1 단서). 내용만큼 자라다 상한에서 자체 스크롤한다. */
+    .n-miller-col-names,
+    .n-miller-col-versions {
+        width: auto;
+        flex: 1 1 0;
+        min-width: 0;
+        max-height: 340px;
+    }
+
+    .n-miller-col-versions {
+        border-right: none;
+    }
+
+    .n-miller-col-detail {
+        flex: 1 1 100%;
+        min-height: 240px;
+        border-top: 1px solid var(--n-border);
+    }
+
+    /* 부모 높이가 auto 가 되므로 빈 상태 안내는 자기 높이를 갖는다 */
+    .n-miller-col-detail .n-miller-empty {
+        height: auto;
+        padding: 48px 0;
+    }
 }

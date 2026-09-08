@@ -229,15 +229,16 @@ class SettingControllerViewTest {
     }
 
     @Test
-    @DisplayName("GET /{id} — 비활성 · 사용 중단 상세는 액션 버튼이 '활성화' · '권고 해제'로 뒤집힌다")
+    @DisplayName("GET /{id} — 비활성 · 사용 중단 상세는 액션 버튼이 '활성화' · '사용 중단 권고 해제'로 뒤집힌다")
     void detail_rendersInverseLifecycleActions() throws Exception {
         given(queryService.findDetail(1L)).willReturn(detailWithPasswords(1L, false, true));
 
         mvc.perform(get("/provisioning/setting/{id}", 1L))
                 .andExpect(status().isOk())
                 // 상태 전이 액션은 현재 상태의 반대를 제시한다(현 상태는 배지가 알린다).
+                // 버튼 문구는 자원 화면과 같은 '사용 중단 권고 (해제)' 다 — 배지(상태)와 버튼(동작)을 한 어휘로 맞춘 S17-1.
                 .andExpect(content().string(containsString(">활성화<")))
-                .andExpect(content().string(containsString(">권고 해제<")))
+                .andExpect(content().string(containsString(">사용 중단 권고 해제<")))
                 .andExpect(content().string(containsString("/provisioning/setting/1/toggle")))
                 .andExpect(content().string(containsString("/provisioning/setting/1/undeprecate")));
     }

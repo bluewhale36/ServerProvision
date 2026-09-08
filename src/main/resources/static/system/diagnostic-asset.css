@@ -16,7 +16,7 @@
 
 /* ---- 모노 / 뮤트 헬퍼 (n-mono·n-muted 는 provisioning 전용이라 재정의) ---- */
 .da-mono {
-    font-family: 'Courier New', monospace;
+    font-family: var(--n-font-mono);
     font-size: 12px;
 }
 
@@ -31,7 +31,7 @@
 
 .da-filename {
     display: block;
-    font-family: 'Courier New', monospace;
+    font-family: var(--n-font-mono);
     font-size: 11px;
     color: var(--n-text-muted, #777);
 }

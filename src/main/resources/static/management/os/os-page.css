@@ -100,7 +100,7 @@
     display: none;
     margin-top: 16px;
     border: 1px solid var(--n-border);
-    border-radius: 6px;
+    border-radius: var(--n-radius-lg);
     padding: 12px;
     background: #fafafa;
 }
@@ -118,7 +118,7 @@
 .n-upload-progress-bar-wrap {
     height: 6px;
     background: #e5e5e5;
-    border-radius: 3px;
+    border-radius: var(--n-radius);
     overflow: hidden;
 }
 
@@ -134,7 +134,7 @@
     margin-top: 12px;
     padding: 10px;
     border: 1px solid #fca5a5;
-    border-radius: 6px;
+    border-radius: var(--n-radius-lg);
     background: #fef2f2;
     color: #b91c1c;
     font-size: 13px;

@@ -37,7 +37,7 @@
 
 .n-accordion-item {
     border: 1px solid var(--n-border);
-    border-radius: 6px;
+    border-radius: var(--n-radius-lg);
     background: #fff;
     overflow: hidden;
 }
@@ -179,5 +179,5 @@
     color: var(--n-text-muted);
     font-size: 13px;
     border: 1px dashed var(--n-border);
-    border-radius: 6px;
+    border-radius: var(--n-radius-lg);
 }

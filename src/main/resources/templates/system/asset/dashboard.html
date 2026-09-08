@@ -63,14 +63,14 @@
     </div>
 
     <!--/* 영역별 패널 — 첫 영역만 is-active(CSS 로 나머지 숨김), 탭이 전환한다 */-->
-    <section class="n-tab-panel" role="tabpanel" th:each="area, iter : ${overview.areas}"
+    <section class="n-tab-panel n-card" role="tabpanel" th:each="area, iter : ${overview.areas}"
              th:id="${'asset-panel-' + area.areaKey}"
              th:classappend="${iter.first} ? ' is-active'">
         <div class="asset-area-header">
             <div class="asset-area-heading">
                 <h2 class="asset-area-title" th:text="${area.displayName}">영역명</h2>
                 <span class="n-badge"
-                      th:classappend="${area.availability == 'CONFIGURED'} ? 'n-badge-green' : 'n-badge-gray'"
+                      th:classappend="${area.availability == 'CONFIGURED'} ? 'n-badge-green' : 'n-badge-off'"
                       th:text="${area.availability == 'CONFIGURED'} ? '서빙 활성' : '서빙 비활성'"></span>
                 <span class="n-badge n-badge-gray"
                       th:text="'정상 ' + ${area.okCount} + ' / 전체 ' + ${area.totalCount}"></span>
@@ -95,10 +95,11 @@
                                   ? ${area.actionBlockReason}
                                   : '활성 드라이버 자원을 sources/$OEM$ 로 복사하고 설치 후 스크립트를 씁니다. 자원이 바뀌면 다시 누르십시오.'">드라이버 페이로드 조립</button>
             </form>
-            <!--/* 봉인 버튼: 봉인 지원 영역만 렌더(supportsSeal), 서빙 비활성이면 disabled — 서버 가드와 동일 SSOT */-->
+            <!--/* 봉인 버튼: 봉인 지원 영역만 렌더(supportsSeal), 서빙 비활성이면 disabled — 서버 가드와 동일 SSOT.
+                   테두리형(outline)인 이유 — 채운 노랑은 옆의 상태 배지와 형태가 같아 조작인지 표시인지 알 수 없었다(S17-1 결함 ⑤). */-->
             <form th:if="${area.supportsSeal}" method="post" class="da-inline-form"
                   th:action="@{/system/asset/{k}/seal(k=${area.areaKey})}">
-                <button type="submit" class="n-btn n-btn-warning n-btn-sm"
+                <button type="submit" class="n-btn n-btn-outline-warning n-btn-sm"
                         th:disabled="${area.availability != 'CONFIGURED'}"
                         th:title="${area.availability == 'CONFIGURED'}
                                   ? '존재하는 자산의 현재 해시를 무결성 기준으로 기록합니다.'

@@ -89,7 +89,7 @@
     gap: 8px;
     padding: 10px 12px;
     border: 1px solid var(--n-border, #d0d7de);
-    border-radius: 6px;
+    border-radius: var(--n-radius-lg);
     cursor: pointer;
 }
 
@@ -135,7 +135,7 @@
     background: var(--n-color-danger-bg, rgba(191, 38, 38, 0.07));
     border-left: 3px solid var(--n-color-danger, #bf2626);
     padding: 10px 12px;
-    border-radius: 6px;
+    border-radius: var(--n-radius-lg);
     margin-bottom: 14px;
 }
 
@@ -161,7 +161,7 @@
 .cm-typed-target-box {
     background: var(--n-bg, #f5f5f5);
     padding: 10px 12px;
-    border-radius: 6px;
+    border-radius: var(--n-radius-lg);
     margin-bottom: 8px;
 }
 
@@ -184,8 +184,8 @@
     padding: 9px 12px;
     font-size: 14px;
     border: 1px solid var(--n-border, #d0d7de);
-    border-radius: 6px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    border-radius: var(--n-radius);
+    font-family: var(--n-font-mono);
 }
 
 /* ============================================================
@@ -205,9 +205,10 @@
     position: relative;
     max-width: 480px; width: 100%;
     background: var(--n-card-bg, #fff);
-    border-radius: 8px;
+    border-radius: var(--n-radius-lg);
     padding: 24px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+    /* 그림자 없음 — 확인 모달(.cm-card)과 같은 층 언어. 배경을 어둡게 덮는 오버레이가 판을 가른다 */
+    box-shadow: var(--n-shadow-card);
 }
 .gem-title {
     margin: 0 0 12px;
@@ -217,11 +218,11 @@
 .gem-status {
     font-size: 0.75rem;
     color: var(--n-text-muted, #57606a);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: var(--n-font-mono);
     margin-bottom: 12px;
     padding: 4px 8px;
     background: var(--n-surface-subtle, #f6f8fa);
-    border-radius: 4px;
+    border-radius: var(--n-radius);
     display: inline-block;
 }
 .gem-message {

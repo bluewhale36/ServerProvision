@@ -5,13 +5,17 @@
    ============================================================ */
 
 /* ---- 영역 블록(탭 패널 내부) ---------------------------------- */
-/* 영역 세로 스택 래퍼(.asset-area)는 탭 그룹(n-tab-panel) 도입으로 제거 — 영역 간 간격은 탭 바가 담당한다. */
+/* 영역 세로 스택 래퍼(.asset-area)는 탭 그룹(n-tab-panel) 도입으로 제거 — 영역 간 간격은 탭 바가 담당한다.
+   탭 패널은 판(.n-card)이고 이 머리는 그 판의 머리다 — 표 머리와 같은 꺼진 면 위에 서고 아래 격자선으로
+   표와 갈라진다(S17-1 결함 ⑤ : 이 화면만 판 밖에 있었다). 어휘 전면 흡수는 S17-3. */
 .asset-area-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 8px;
+    padding: 10px 14px;
+    background: var(--n-sunken);
+    border-bottom: 1px solid var(--n-border);
 }
 
 .asset-area-heading {

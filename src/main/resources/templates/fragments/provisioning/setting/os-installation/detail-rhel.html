@@ -34,7 +34,7 @@
                 <th>KDump</th>
                 <td>
                     <span th:if="${inst.isKDumpEnabled()}" class="n-badge n-badge-green">활성화</span>
-                    <span th:unless="${inst.isKDumpEnabled()}" class="n-badge n-badge-gray">비활성화</span>
+                    <span th:unless="${inst.isKDumpEnabled()}" class="n-badge n-badge-off">비활성화</span>
                 </td>
             </tr>
             <!-- allowSshRoot 는 Rocky 10 전용 — 전송되지 않은(null) 정의서에는 행 자체를 표시하지 않는다. -->

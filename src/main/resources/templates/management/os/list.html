@@ -84,7 +84,7 @@
                     <span th:unless="${os.isDeleted}"
                           class="n-miller-status-tag"
                           th:classappend="${os.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
-                          th:text="${os.isEnabled} ? '활성화' : '비활성화'">활성화</span>
+                          th:text="${os.isEnabled} ? '활성' : '비활성'">활성</span>
                 </button>
                 <!-- S5-5 — C2 내부 + 등록 버튼 (C1 선택 시에만 active 패널에서 가시). -->
                 <div style="padding: 8px 12px;">
@@ -136,23 +136,56 @@
                         <tr>
                             <th>상태</th>
                             <td>
-                                <!-- 삭제됨 상태 : 뱃지만 표시 -->
-                                <span th:if="${os.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
-                                <!-- 활성/비활성 뱃지 + 바로 옆에 토글 버튼 -->
-                                <th:block th:unless="${os.isDeleted}">
+                                    <div class="n-actions">
+                                    <!-- 삭제됨 상태 : 뱃지만 표시 -->
+                                    <span th:if="${os.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
+                                    <!-- 활성/비활성 뱃지 + 바로 옆에 토글 버튼 -->
+                                    <th:block th:unless="${os.isDeleted}">
+                                        <span class="n-badge"
+                                              th:classappend="${os.isEnabled} ? 'n-badge-green' : 'n-badge-off'"
+                                              th:text="${os.isEnabled} ? '활성' : '비활성'"></span>
+                                        <form th:action="@{/management/os/{id}/toggle(id=${os.id})}"
+                                              method="post">
+                                            <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                            <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
+                                            <button type="submit"
+                                                    class="n-btn n-btn-sm"
+                                                    th:classappend="${os.isEnabled} ? 'n-btn-outline' : 'n-btn-outline-success'"
+                                                    th:text="${os.isEnabled} ? '비활성화' : '활성화'"></button>
+                                        </form>
+                                    </th:block>
+
+                                    </div>
+                                </td>
+                        </tr>
+                        <!--/* 사용 중단 권고는 활성 여부와 다른 축이다(Deprecated ≠ 비활성).
+                               조작을 액션 줄에 두면 무엇이 바뀌는지 화면에서 보이지 않아 상태 옆으로 옮겼다. */-->
+                        <tr th:unless="${os.isDeleted}">
+                            <th>사용 중단 권고</th>
+                            <td>
+                                <div class="n-actions">
                                     <span class="n-badge"
-                                          th:classappend="${os.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
-                                          th:text="${os.isEnabled} ? '활성화' : '비활성화'"></span>
-                                    <form th:action="@{/management/os/{id}/toggle(id=${os.id})}"
-                                          method="post" style="display:inline; margin-left: 10px;">
+                                          th:classappend="${os.isDeprecated} ? 'n-badge-yellow' : 'n-badge-gray'"
+                                          th:text="${os.isDeprecated} ? 'Deprecated' : '해당 없음'"></span>
+                                    <form th:if="${!os.isDeprecated}"
+                                          th:action="@{/management/os/{id}/deprecate(id=${os.id})}"
+                                          method="post" style="display:inline;"
+                                          data-confirm-deprecate=""
+                                          th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|">
                                         <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
                                         <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
-                                        <button type="submit"
-                                                class="n-btn n-btn-sm"
-                                                th:classappend="${os.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
-                                                th:text="${os.isEnabled} ? '비활성화' : '활성화'"></button>
+                                        <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                                     </form>
-                                </th:block>
+                                    <form th:if="${os.isDeprecated}"
+                                          th:action="@{/management/os/{id}/undeprecate(id=${os.id})}"
+                                          method="post" style="display:inline;"
+                                          data-confirm-undeprecate=""
+                                          th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|">
+                                        <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                        <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
+                                        <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         </tbody>
@@ -164,24 +197,8 @@
                             <a th:href="@{/management/os/{id}/edit(id=${os.id})}"
                                class="n-btn n-btn-secondary">수정</a>
                             <!-- Deprecate ↔ Undeprecate 토글 (활성 자원에 대해서만 노출) -->
-                            <form th:if="${!os.isDeprecated}"
-                                  th:action="@{/management/os/{id}/deprecate(id=${os.id})}"
-                                  method="post" style="display:inline;"
-                                  data-confirm-deprecate=""
-                                  th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|">
-                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
-                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
-                                <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
-                            </form>
-                            <form th:if="${os.isDeprecated}"
-                                  th:action="@{/management/os/{id}/undeprecate(id=${os.id})}"
-                                  method="post" style="display:inline;"
-                                  data-confirm-undeprecate=""
-                                  th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|">
-                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
-                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
-                                <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
-                            </form>
+
+
                             <form th:action="@{/management/os/{id}/delete(id=${os.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-soft-delete=""
@@ -250,8 +267,8 @@
                                           class="n-badge n-badge-gray n-accordion-badge">삭제됨</span>
                                     <span th:if="${!iso.inProgress and !iso.isDeleted}"
                                           class="n-badge n-accordion-badge"
-                                          th:classappend="${iso.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
-                                          th:text="${iso.isEnabled} ? '활성화' : '비활성화'"></span>
+                                          th:classappend="${iso.isEnabled} ? 'n-badge-green' : 'n-badge-off'"
+                                          th:text="${iso.isEnabled} ? '활성' : '비활성'"></span>
                                 </summary>
 
                                 <!--/* S5-12 — 등록 중 placeholder : body 단순화. ID / 액션 / 무결성 모두 부재 — 안내만 노출 */-->
@@ -275,21 +292,21 @@
                                                 <span th:if="${iso.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
                                                 <th:block th:unless="${iso.isDeleted}">
                                                     <span class="n-badge"
-                                                          th:classappend="${iso.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
-                                                          th:text="${iso.isEnabled} ? '활성화' : '비활성화'"></span>
+                                                          th:classappend="${iso.isEnabled} ? 'n-badge-green' : 'n-badge-off'"
+                                                          th:text="${iso.isEnabled} ? '활성' : '비활성'"></span>
                                                     <!-- R2-2 / R4-1 — 활성화 방향이 부모 비활성/삭제로 막히면 disabled + tooltip (deprecated 는 차단 안 함, 차원 독립) -->
                                                     <span th:if="${!iso.isEnabled and iso.parentBlocksEnable}" class="n-btn-tooltip-wrap"
                                                           data-tooltip="부모 OS 버전이 비활성 / 삭제 상태입니다. 부모를 먼저 정상화해주세요.">
-                                                        <button type="button" class="n-btn n-btn-sm n-btn-outline-success" disabled>활성화</button>
+                                                          <button type="button" class="n-btn n-btn-sm n-btn-outline-success" disabled>활성화</button>
                                                     </span>
                                                     <form th:unless="${!iso.isEnabled and iso.parentBlocksEnable}"
                                                           th:action="@{/management/os/{osId}/iso/{isoId}/toggle(osId=${os.id},isoId=${iso.id})}"
                                                           method="post" class="n-accordion-inline-form">
-                                                <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
-                                                <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
-                                                <button type="submit"
+                                                        <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+                                                        <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
+                                                        <button type="submit"
                                                                 class="n-btn n-btn-sm"
-                                                                th:classappend="${iso.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
+                                                                th:classappend="${iso.isEnabled} ? 'n-btn-outline' : 'n-btn-outline-success'"
                                                                 th:text="${iso.isEnabled} ? '비활성화' : '활성화'"></button>
                                                     </form>
                                                 </th:block>

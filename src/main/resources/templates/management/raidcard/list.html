@@ -85,7 +85,7 @@
                     <span th:unless="${card.isDeleted}"
                           class="n-miller-status-tag"
                           th:classappend="${card.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
-                          th:text="${card.isEnabled} ? '활성화' : '비활성화'">활성화</span>
+                          th:text="${card.isEnabled} ? '활성' : '비활성'">활성</span>
                 </button>
                 <!-- CP6 개정 — 현재 제조사를 프리셀렉트해 등록 폼 진입 (ISO osId · BIOS/BMC boardId 방식). -->
                 <div style="padding: 8px 12px;">
@@ -191,19 +191,46 @@
                         <tr>
                             <th>상태</th>
                             <td>
-                                <span th:if="${card.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
-                                <th:block th:unless="${card.isDeleted}">
+                                    <div class="n-actions">
+                                    <span th:if="${card.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
+                                    <th:block th:unless="${card.isDeleted}">
+                                        <span class="n-badge"
+                                              th:classappend="${card.isEnabled} ? 'n-badge-green' : 'n-badge-off'"
+                                              th:text="${card.isEnabled} ? '활성' : '비활성'"></span>
+                                        <form th:action="@{/management/raidcard/{id}/toggle(id=${card.id})}"
+                                              method="post">
+                                            <button type="submit"
+                                                    class="n-btn n-btn-sm"
+                                                    th:classappend="${card.isEnabled} ? 'n-btn-outline' : 'n-btn-outline-success'"
+                                                    th:text="${card.isEnabled} ? '비활성화' : '활성화'"></button>
+                                        </form>
+                                    </th:block>
+
+                                    </div>
+                                </td>
+                        </tr>
+                        <!--/* 사용 중단 권고는 활성 여부와 다른 축이다(Deprecated ≠ 비활성).
+                               조작을 액션 줄에 두면 무엇이 바뀌는지 화면에서 보이지 않아 상태 옆으로 옮겼다. */-->
+                        <tr th:unless="${card.isDeleted}">
+                            <th>사용 중단 권고</th>
+                            <td>
+                                <div class="n-actions">
                                     <span class="n-badge"
-                                          th:classappend="${card.isEnabled} ? 'n-badge-green' : 'n-badge-orange'"
-                                          th:text="${card.isEnabled} ? '활성화' : '비활성화'"></span>
-                                    <form th:action="@{/management/raidcard/{id}/toggle(id=${card.id})}"
-                                          method="post" style="display:inline; margin-left: 10px;">
-                                        <button type="submit"
-                                                class="n-btn n-btn-sm"
-                                                th:classappend="${card.isEnabled} ? 'n-btn-outline-danger' : 'n-btn-outline-success'"
-                                                th:text="${card.isEnabled} ? '비활성화' : '활성화'"></button>
+                                          th:classappend="${card.isDeprecated} ? 'n-badge-yellow' : 'n-badge-gray'"
+                                          th:text="${card.isDeprecated} ? 'Deprecated' : '해당 없음'"></span>
+                                    <form th:unless="${card.isDeprecated}"
+                                          th:action="@{/management/raidcard/{id}/deprecate(id=${card.id})}"
+                                          method="post" style="display:inline;"
+                                          data-confirm-deprecate=""
+                                          th:data-resource-label="|RAID 카드 '${group.displayName} ${card.modelName}'|">
+                                        <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
                                     </form>
-                                </th:block>
+                                    <form th:if="${card.isDeprecated}"
+                                          th:action="@{/management/raidcard/{id}/undeprecate(id=${card.id})}"
+                                          method="post" style="display:inline;">
+                                        <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         </tbody>
@@ -214,18 +241,8 @@
                         <th:block th:unless="${card.isDeleted}">
                             <a th:href="@{/management/raidcard/{id}/edit(id=${card.id})}"
                                class="n-btn n-btn-secondary">수정</a>
-                            <form th:unless="${card.isDeprecated}"
-                                  th:action="@{/management/raidcard/{id}/deprecate(id=${card.id})}"
-                                  method="post" style="display:inline;"
-                                  data-confirm-deprecate=""
-                                  th:data-resource-label="|RAID 카드 '${group.displayName} ${card.modelName}'|">
-                                <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
-                            </form>
-                            <form th:if="${card.isDeprecated}"
-                                  th:action="@{/management/raidcard/{id}/undeprecate(id=${card.id})}"
-                                  method="post" style="display:inline;">
-                                <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
-                            </form>
+
+
                             <form th:action="@{/management/raidcard/{id}/delete(id=${card.id})}"
                                   method="post" style="display:inline;"
                                   data-confirm-soft-delete=""
