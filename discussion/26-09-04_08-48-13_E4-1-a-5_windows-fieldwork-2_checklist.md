@@ -154,9 +154,9 @@ VM 은 09-03 원복 뒤 NAT(`spvadmin@192.168.1.10`)에 있다. 아래는 그 �
 | W6 종단 exit | O | 수동 네트워크 부팅 → `exit` → 로컬 Windows 로그온 | 사용자 확인 |
 | K1 재진입 exit · n/5 | 미수행 | 부트 순서 디스크 우선 — Setup 재부팅이 재PXE 로 안 옴(재진입 0) | Run 2 |
 | K2 스윕 · 지연 보고 409 · 재시도 | 미수행 | | Run 2 |
-| D1 lsblk ↔ diskpart 순서 · Disk 0 = RAID 볼륨? | 부분 | 데이터 디스크 없이 Disk 0 = RAID1 확인 · BMC 가상 미디어 4개가 Disk 1~4(크기 0) | devices.txt |
-| D2 동일 모델 식별 키 | 미수행 | | Run 3 |
-| D4 파괴 범위(표식 생존 · OS 위치) | 미수행 | | Run 3 |
+| D1 lsblk ↔ diskpart 순서 · Disk 0 = RAID 볼륨? | **O** | **Run 3(09-08)**: lsblk `sda` 446.6G → `sdb` 18.2T 와 diskpart 디스크 0 446 GB(RAID1 `spvR1V1`) → 디스크 1 18 TB(RAID5) 가 같은 순서 · BMC 가상 미디어 4개는 디스크 2~5(미디어 없음 · 0 B)로 실디스크 뒤에 선다(Run 1 에서는 1~4 — 실디스크 수만큼 밀린다) | `R3-2-diskpart.png` · 진단 인벤토리(DB) |
+| D2 동일 모델 식별 키 | 부분(가상 디스크 한정 O) | Run 3 구성은 RAID 카드 뒤 가상 디스크 둘이라 같은 모델 물리 디스크는 못 봤다(JBOD · 패스스루에서 재실측). **대체 근거 확보 — Windows `Get-Disk` UniqueId 가 RAID 볼륨 WWN 과 두 디스크 모두 정확히 일치**(0 = `600605B0…791D` = VD0 · 1 = `…97DB` = VD1) → 서버가 아는 WWN 으로 Windows 디스크를 지목할 수 있다 | `run3/R3-3-disks-after.txt` |
+| D4 파괴 범위(표식 생존 · OS 위치) | **O** | **Run 3(09-08)**: `WillWipeDisk=true · DiskID=0` 은 디스크 0(RAID1)만 지운다 — 18 TB 볼륨(디스크 1)의 표식 텍스트 파일 생존 · C: = 446 GB RAID1 볼륨 | 사용자 확인(표식 생존 · C: 위치) |
 | S Secure Boot(선택) | 미수행 | | |
 
 ## 9-1. 2026-09-04 마감 상태 (Run 1 완료 · Run 2 · 3 미수행)
@@ -165,9 +165,46 @@ VM 은 09-03 원복 뒤 NAT(`spvadmin@192.168.1.10`)에 있다. 아래는 그 �
 - 결함 · 단계(2026-09-04 사용자 승인으로 Notion 신설): **HF11** Windows 실기 2호 파생 결함 묶음 — HF11-1 보고 파서 언어 무관화(F-W1) · HF11-2 진단 재진입 재수집 · 개시 소급 판정(F-R13) · HF11-3 `$OEM$` 조립 사전 판정 · 잔여 정리(F-OEM). 별도: **HF12** 정의서 저장 결함 2(updated_at · 리눅스 keep 미병합) · **HF13** 시각 의존 테스트 Clock 주입. F-3(flash) 는 HF9 에 4번째 지점으로 합류 · UI 문구 적립분은 S16-2 에 합류. 관찰(BMC 가상 디스크 열거)은 E4-1-a-6 입력.
 - 세션 교훈(메모리): 실기 인스턴스에서 `/boot` 확인 호출 금지 · journalctl `-u`/`-t` 혼용 금지 · VM 시계 NTP 없음(격리망) → 서빙 전 맥 시각으로 맞춤.
 
+## 9-2. 2026-09-08 Run 3 — 다중 디스크 (D1 O · D4 O · D2 부분 — UniqueId = WWN)
+
+**환경** — VM `dev` 3448d57(09-08 4차 재배포 · HF11~HF14 · S17 포함) · 게스트 "win test - run 3"(MS04-CE0 · 시리얼 PGC87000014). 이전 게스트 "win test (1)" 회수(20:09:22) → 재등록 20:12:07 → 진단 5 단계 SUCCEEDED(20:13:00) → 할당 20(정의서 10 "실기 2호 Windows Standard" · 보유 phase OS_INSTALL 만 — RAID 단계 없음). 데이터 디스크는 별도 물리 디스크가 아니라 **같은 9361-8i 뒤의 두 번째 가상 디스크**로 구성했다.
+
+| 가상 디스크 | 구성 | 멤버 | 크기 | 앱 소유 | WWN |
+|---|---|---|---|---|---|
+| VD0 `spvR1V1` | RAID1 | SSD 446.6 GB ×2(DG0 · 252:0 · 252:1) | 446.6 GB | 예(Run 1 에서 앱이 생성) | `600605b00d18aa1e322943670f84791d` |
+| VD1 (이름 없음) | RAID5 | SAS HDD 3.64 TB ×6(DG1 · 252:2~7) | 18.19 TB | 아니오(앱 밖에서 생성) | `600605b00d18aa1e3232a87905c797db` |
+
+진단 리눅스 `lsblk` = `sda` 446.6G → `sdb` 18.2T(hardware_spec.disks). RAID 인벤토리 = 카드 1000:9361 · 물리 8 · 볼륨 2(guest_server_detail.raid_inventory_json).
+
+**타임라인** — 20:21:00 개시(POST /start 200 · 커서 OS_INSTALLING · AWAITING_BOOT) → 20:21:01 체크인이 REBOOT 운반 → 20:28:36 토큰 발급 · wimboot 체인 착수 · 번들 5 파일 200(boot.wim 5.3 s) → WinPE `diskpart list disk` 표(사진) → SMB 마운트 · Setup → 20:41:30 완료 보고 200 · 종단(착수 후 **12분 54초** · 재진입 0 · computerName SPV-0F961A9D · Windows Server 2025 Standard 10.0.26100).
+
+| # | 판정 | 관찰 | 채증 |
+|---|---|---|---|
+| R3-0 표식 | 수행 | 18 TB 볼륨에 파티션 · 텍스트 파일(사용자) | 사용자 |
+| R3-1 인벤토리 | 수행 | 진단이 카드 · 물리 8 · 볼륨 2 · lsblk 순서를 적재 | DB(위 표) |
+| R3-2 **D1** | **O** | 디스크 0 = 446 GB(RAID1) · 디스크 1 = 18 TB(RAID5 · GPT · 사용 가능 1024 KB) · 디스크 2~5 = 미디어 없음 0 B(BMC 가상 미디어) — lsblk 와 같은 순서 | `R3-2-diskpart.png` |
+| R3-3 **D4** | **O** | Setup 이 디스크 0 만 지우고 설치 · `Get-Volume`: C: Windows 446.24 GB · D: '새 볼륨' 18.19 TB(표식 볼륨 그대로) · SYSTEM 256 MB · 18 TB 볼륨의 표식 파일 생존(사용자 확인) | `run3/R3-3-volumes.txt` · `run3/R3-3-disks-after.txt` |
+| R3-4 **D2** | 부분(가상 디스크 한정 O) | 같은 모델 물리 디스크는 못 봤다. 대신 `Get-Disk` UniqueId = RAID 볼륨 WWN 정확 일치(디스크 0 · 1 모두) · FriendlyName 은 둘 다 'AVAGO MR9361-8i' · SerialNumber 는 컨트롤러 생성 32자(구분엔 쓸 수 있으나 앱이 모르는 값) | `run3/R3-3-disks-after.txt` |
+| R3-5 열거 안정성 | 미수행(선택) | | |
+
+**채증** — `~/Desktop/fieldwork-2/run3/`(R3-3-disks-after.txt · R3-3-volumes.txt · setupcomplete.log 67.8 KB · spv-report.log · setupact.log 585 KB — spvout 공유 경유) · `~/Desktop/fieldwork-2/R3-2-diskpart.png`.
+
+**발견 · 관찰**
+- **F-R3-1(표시 오류 · 코드 결함 아님)** — 완료 보고가 "드라이버 0 · 문제 장치 0" 으로 적혔다. 원장의 SetupComplete 로그 꼬리는 pnputil 이 칩셋 · QAT 를 붙였고(게시 이름 `oem46.inf` 등 · QAT → DEV_4944 ×2) 문제 장치 조회가 "장치를 찾을 수 없습니다" 임을 보여준다. 원인 = VM 의 `$OEM$` 페이로드가 **09-04 조립본**(HF11-1 이전 · 영어 문구 `Added driver packages:` 파서)이라 ko-KR 출력에서 0 이 됐다 — F-W1 그대로. 게스트 `setupcomplete.log` 재계산 = 게시 이름 47(Run 1 과 동일) · 칩셋 pnputil exit 259(장치 없는 패키지 잔류 · Run 1 동일) · QAT 1/1 · 문제 장치 없음 → **실제 수치 47 · 0**. 대시보드 chip 은 이미 "갱신 필요 — 설치 후 스크립트 변경". **조치 = 다음 회차 전 대시보드 [조립] 재실행**(배포 뒤 재조립 누락 · 런북 배포 절차에 "페이로드 갱신 필요 chip 확인" 한 줄 추가 대상). **→ 21:59:02 재조립 완료(사용자)** — 매니페스트 assembledAt 갱신 · `spv-report.ps1` HF11-1 판 · chip "최신 · 2종".
+- O-R3-1 — 상세 페이지 SSE 가 30분마다 `AsyncRequestTimeoutException` WARN 을 남기고 재접속한다(무해 · S7 계열 관찰).
+- O-R3-2 — WinPE 게스트 IP 192.168.1.175 · 게이트웨이 192.168.1.10(VM dhcpd).
+- O-R3-3 — 체크인 · `/boot` 는 요청 로그에서 제외돼 저널에 안 보인다(`RequestCorrelationFilter`). 에이전트 생존은 `guest_server.last_seen_at` 로 본다.
+
+**판정이 만드는 것(Q3 입력)** — D1 이 일치하고 디스크 0 이 앱 소유 OS 볼륨이었으므로 **서버 사전 계산(②)의 전제가 이 구성에서 1회 성립**했다. 다만 표본이 1(같은 컨트롤러 · 가상 디스크 2 · 물리 디스크 직결 없음)이고 D2 를 못 봤으므로, ② 하나로 계약을 닫기에는 이르다. 다음을 E4-1-a-6 CP1 의 입력으로 넘긴다 — ① 서버가 RAID 인벤토리(볼륨 순서 · 크기 · WWN)로 OS 볼륨의 예상 번호를 계산하고 ② WinPE 배치가 `diskpart` 로 그 번호의 크기(및 가능하면 UniqueId = WWN)를 대조해 맞을 때만 진행, 어긋나면 멈춘다(최소 파괴 · `WillShowUI=OnError` 유지). 가상 미디어(0 B) 디스크는 대조에서 제외한다. 물리 디스크 직결(JBOD) 서버가 나오면 D2 를 그때 실측한다. **추가 입력(UniqueId = WWN)** — 서버는 RAID 인벤토리의 볼륨 WWN 을 이미 갖고 있으므로, ① 완료 보고에 C: 디스크의 `Get-Disk` UniqueId 를 실어 "의도한 볼륨에 들어갔는가" 를 서버가 판정할 수 있고 ② WinPE 시점은 크기로 고르고 설치 뒤 WWN 으로 확증하는 2 단 계약이 가능하다(Setup PE 에는 PowerShell · wmic 이 없어 WinPE 시점의 WWN 조회 수단은 별도 확인 대상).
+
+### 9-2-1. 2026-09-08 마감 상태 (Run 3 완료 · Run 2 미수행)
+- 게스트 "win test - run 3" 은 21:59:21 [회수] 완료(종단 → 회수 · U6 경로). Windows 는 RAID1 에 설치된 채 남아 있고 18 TB 볼륨(D:)의 표식도 그대로다 — 다음 회차의 표식 작업에 다시 쓸 수 있다.
+- VM 은 실기 모드 그대로(192.168.1.10 · dev 3448d57 · `$OEM$` 재조립본 · env 그대로). 스테이징으로 돌릴 때는 §10 첫 항목.
+- 남은 회차 = Run 2(K1 · K2 · 선택). Q3 는 §9-2 입력으로 확정 → E4-1-a-6 CP1.
+
 ## 10. 끝난 뒤
 
 - [ ] 망 원복(런북 §14-5 역순): dhcpd stop → enp2s0 DHCP → 정상 종료 → 어댑터 NAT → 기동 → `192.168.24.128`. env 임시값을 썼으면 기본값으로.
 - [ ] `/srv/pxe/oem-handmade-backup` 은 판정 O 뒤 삭제(앱 조립본이 정본).
 - [ ] 채증 묶음과 §9 표를 세션에 전달 → 세션이 T3 E4 절 7항목을 `[x]` 로 옮기고, E4-1-a-2 · -3 · -4 의 Notion 종료 경계(상태 완료 · 종료 일자)와 E4-1-a-5 원장 기입을 한다. 결함이 나오면 HF 로 갈아탄다(발견한 스트림에서).
-- [ ] 후속 판단 재료: K2 결과에 따라 스윕 유예 기본값(30분) 유지 여부 · S 트랙 결과에 따라 wimboot 2023 CA 판 필요 여부 · **Run 3(D1 · D2 · D4) 결과로 토론 Q3 확정 → E4-1-a-6 디스크 선택 계약 CP1**.
+- [x] 후속 판단 재료: **Run 3 결과 §9-2(2026-09-08)** → 토론 Q3 의 입력으로 확정(E4-1-a-6 디스크 선택 계약 CP1). 남은 것 = K2 결과에 따라 스윕 유예 기본값(30분) 유지 여부 · S 트랙 결과에 따라 wimboot 2023 CA 판 필요 여부.
