@@ -142,8 +142,8 @@
                 // highlight 와 동시 발생 시 hidden 우선 (시스템/메타 파일을 자원으로 오인하지 않도록).
                 const isHidden = e.hidden === true;
                 const icon = isDir ? '📁' : (highlight ? '💿' : '📄');
-                const sizeText = !isDir && typeof e.size === 'number' && e.size >= 0 ? '  · ' + formatBytes(e.size) : '';
-                li.innerHTML = `${icon} ${escapeHtml(e.name)}<span style="color: var(--n-text-muted); font-size: 11px;">${escapeHtml(sizeText)}</span>`;
+                const sizeText = !isDir && typeof e.size === 'number' && e.size >= 0 ? '  · ' + UiUtil.formatBytes(e.size) : '';
+                li.innerHTML = `${icon} ${UiUtil.escapeHtml(e.name)}<span style="color: var(--n-text-muted); font-size: 11px;">${UiUtil.escapeHtml(sizeText)}</span>`;
                 if (isHidden) {
                     li.style.color = 'var(--n-text-muted)';
                     li.style.opacity = '0.55';
@@ -195,24 +195,6 @@
                 panel.hidden = true;
             });
         }
-    }
-
-    function formatBytes(n) {
-        if (!Number.isFinite(n) || n <= 0) return '0 B';
-        if (n < 1024) return n.toFixed(0) + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-        if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
-        return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
-    }
-
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, c => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;'
-        }[c]));
     }
 
     global.PathBrowser = {attach};

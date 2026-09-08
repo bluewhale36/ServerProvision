@@ -24,7 +24,7 @@
 <body>
 <nav th:replace="~{fragments/layout :: navbar('reconciliation')}"></nav>
 
-<div class="n-page">
+<div class="n-page-md">
     <div class="n-page-header">
         <h1 class="n-page-title">점검 운영 설정</h1>
         <div th:replace="~{fragments/common/back-link :: backLink('/maintenance/reconciliation')}"></div>
@@ -62,8 +62,8 @@
                 <div class="n-card-body">
                     <div class="n-form-group" th:each="item : ${settings.items}"
                          th:if="${item.name == 'STARTUP_SCAN_ENABLED'}">
-                        <label class="n-form-label" th:text="${item.label}"></label>
-                        <p class="n-form-hint" th:text="${item.description}"></p>
+                        <label class="n-label strong" th:text="${item.label}"></label>
+                        <p class="n-hint" th:text="${item.description}"></p>
                         <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
                         <label class="n-toggle-row">
                             <input type="checkbox" th:field="*{startupScanEnabled}">
@@ -80,8 +80,8 @@
                       되비추는 것만으로는 "그래서 다음에 언제 보는가" 에 답이 되지 않는다.
                     */-->
                     <div class="n-form-group" th:each="d : ${settings.schedule.depths}">
-                        <label class="n-form-label" th:for="${d.fieldName}" th:text="${d.item.label}"></label>
-                        <p class="n-form-hint" th:text="${d.item.description}"></p>
+                        <label class="n-label strong" th:for="${d.fieldName}" th:text="${d.item.label}"></label>
+                        <p class="n-hint" th:text="${d.item.description}"></p>
                         <p class="n-form-meta">효과 시점 <span th:text="${d.item.effectTiming.label}"></span></p>
 
                         <div class="n-inline-row">
@@ -91,13 +91,13 @@
                                    th:min="${settings.schedule.minMinutes}"
                                    th:max="${settings.schedule.maxMinutes}">
                             <span>분</span>
-                            <span class="n-form-hint" th:text="'현재 ' + ${d.text}"></span>
+                            <span class="n-hint" th:text="'현재 ' + ${d.text}"></span>
                         </div>
                         <p class="n-error" th:if="${#fields.hasErrors(d.fieldName)}"
                            th:errors="*{__${d.fieldName}__}"></p>
 
                         <!--/* 기준이 될 기록이 없으면 예정이 아니라 밀린 상태다 — 그렇게 말해야 사실이다. */-->
-                        <p class="n-form-hint">
+                        <p class="n-hint">
                             <span th:if="${d.lastScanAt != null}">
                                 마지막 <span th:text="${d.depth.label}"></span> :
                                 <strong th:text="${#temporals.format(d.lastScanAt, 'yyyy-MM-dd HH:mm')}"></strong> ·
@@ -112,7 +112,7 @@
                         <!--/* 막지 않고 알리기만 한다. 겹친 회차는 건너뛰어질 뿐 무엇도 깨지지 않으므로
                              거절할 근거가 못 된다. 근거가 추측이 아니라 이 설치 환경의 실측값이라는
                              점이 이 문구의 값이다. */-->
-                        <p class="n-form-hint n-form-hint-warn" th:if="${d.warning}">
+                        <p class="n-hint n-hint-warn" th:if="${d.warning}">
                             지난 <span th:text="${d.depth.label}"></span>은
                             <strong th:text="${d.lastDurationText}"></strong> 걸렸습니다.
                             주기를 그보다 짧게 두면 일부 회차가 건너뛰어집니다.
@@ -131,9 +131,9 @@
                 <div class="n-card-body">
                     <div class="n-form-group" th:each="item : ${settings.items}"
                          th:if="${item.name == 'EXTRA_SCAN_ROOTS'}">
-                        <label class="n-form-label" for="extraScanRoots" th:text="${item.label}"></label>
-                        <p class="n-form-hint" th:text="${item.description}"></p>
-                        <p class="n-form-hint">한 줄에 한 경로씩 절대 경로로 입력합니다. 존재하지 않는 경로도 미리 등록할 수 있습니다.</p>
+                        <label class="n-label strong" for="extraScanRoots" th:text="${item.label}"></label>
+                        <p class="n-hint" th:text="${item.description}"></p>
+                        <p class="n-hint">한 줄에 한 경로씩 절대 경로로 입력합니다. 존재하지 않는 경로도 미리 등록할 수 있습니다.</p>
                         <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
                         <textarea id="extraScanRoots" class="n-input" rows="4"
                                   th:field="*{extraScanRoots}"
@@ -161,8 +161,8 @@
                     <!--/* 전역 스위치가 먼저다 — 이것이 꺼져 있으면 아래 종류 선택이 아무 효과가 없다. */-->
                     <div class="n-form-group" th:each="item : ${settings.items}"
                          th:if="${item.name == 'RESOLUTION_ENABLED'}">
-                        <label class="n-form-label" th:text="${item.label}"></label>
-                        <p class="n-form-hint" th:text="${item.description}"></p>
+                        <label class="n-label strong" th:text="${item.label}"></label>
+                        <p class="n-hint" th:text="${item.description}"></p>
                         <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
                         <label class="n-toggle-row">
                             <input type="checkbox" th:field="*{resolutionEnabled}">
@@ -179,11 +179,11 @@
                          th:if="${item.name == 'AUTO_APPLY_KINDS'}"
                          th:classappend="${!settingsForm.resolutionEnabled} ? 'n-group-inert'"
                          data-auto-apply-group>
-                        <label class="n-form-label" th:text="${item.label}"></label>
-                        <p class="n-form-hint" th:text="${item.description}"></p>
+                        <label class="n-label strong" th:text="${item.label}"></label>
+                        <p class="n-hint" th:text="${item.description}"></p>
                         <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
 
-                        <p class="n-form-hint n-form-hint-warn" data-auto-apply-inert-note
+                        <p class="n-hint n-hint-warn" data-auto-apply-inert-note
                            th:classappend="${settingsForm.resolutionEnabled} ? 'n-hidden'">
                             <strong>시스템 해결이 꺼져 있어 자동으로 처리하지 않습니다.</strong>
                             여기서 고른 종류는 저장되며, 시스템 해결을 다시 켜면 그때부터 적용됩니다.
@@ -221,8 +221,8 @@
                 <div class="n-card-body">
                     <div class="n-form-group" th:each="item : ${settings.items}"
                          th:if="${item.name == 'REPORT_RETENTION_COUNT'}">
-                        <label class="n-form-label" for="reportRetentionCount" th:text="${item.label}"></label>
-                        <p class="n-form-hint" th:text="${item.description}"></p>
+                        <label class="n-label strong" for="reportRetentionCount" th:text="${item.label}"></label>
+                        <p class="n-hint" th:text="${item.description}"></p>
                         <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
                         <input type="number" id="reportRetentionCount" class="n-input n-input-narrow"
                                min="1" max="10000" th:field="*{reportRetentionCount}">
@@ -242,7 +242,6 @@
 <!--/* MK4-4-4 CP7 — 시스템 해결 토글의 확인 창. 이 화면이 쓰는 확인 창은 하나뿐이라
      genericConfirmModal 만 싣는다(전용 fragment 를 새로 만들지 않는다). 문구는 settings.js 가
      끄는 경우와 켜는 경우로 갈라 주입한다 — 두 방향의 위험이 서로 다르기 때문이다. */-->
-<link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
 <div th:replace="~{fragments/maintenance/reconciliation-modals :: genericConfirmModal('resolutionToggle')}"></div>
 <script th:src="@{/management/common/confirm-modal-base.js}"></script>
 

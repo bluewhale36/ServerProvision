@@ -1,91 +1,19 @@
 /* ============================================================
-   MK3-2 — softDelete reject modal 처리.
+   MK3-2 — softDelete 거절 모달(3 택) 처리.
    ─────────────────────────────────────────────────────────────
-   기존 페이지의 "삭제" form submit 을 가로채 fetch() 로 호출.
-   - 200/204/302  → 정상 삭제 → form 의 action 으로 redirect (서버가 redirect 응답 시)
-                    또는 location.reload() 로 페이지 갱신
-   - 409 SOFTDELETE_REQUIRES_INTENT → modal 표시 → 사용자 액션 → delete-intent endpoint 호출
-   - 그 외 에러 → modal 의 error 영역 또는 alert
+   삭제 폼은 확인 모달(confirm-modal-base · data-confirm-soft-delete)이 먼저 잡아 FormSubmit.sendAsync 로
+   보낸다. 서버가 파일 부재를 발견해 409 SOFTDELETE_REQUIRES_INTENT 를 돌려주면(플래그
+   provision.softdelete.reject-on-missing=true · HF14) 이 모듈이 전역 거절 처리기에서 그 코드만 받아
+   3 택(위치 정정 후 삭제 · 강제 정리 · 취소) 모달을 연다. 조건 = form.mk3-2-delete-form 마커 + 조각
+   fragments/management/delete-reject-modal(prefix 'deleteReject'). 그 밖의 거절은 종전대로 전역 오류 모달.
 
-   사용 :
-     window.DeleteRejectModal.bind({
-         deleteFormSelector: 'form.delete-form',  // 가로챌 form 선택자
-         modalPrefix: 'deleteReject'              // fragment 의 prefix 와 일치
-     });
+   종전에는 폼의 submit 을 직접 가로채 fetch 하는 경로(bind · handleSubmit)도 있었으나 마커 폼이 전부
+   확인 마커도 갖고 있어 어느 화면에서도 실행되지 않았다(앵커 HF14 검증 O-A) — 제거했다.
 
-   form 의 action 이 `/management/<domain>/.../delete` 일 때, 본 JS 가
-   동일 prefix 의 `/delete-intent/{token}` endpoint 를 자동 조립.
+   form 의 action 이 `/management/<domain>/.../delete` 일 때 동일 prefix 의 `/delete-intent/{token}`
+   endpoint 를 자동 조립한다.
 */
 (function () {
-    const TAG = '[delete-reject]';
-
-    function bind(opts) {
-        const {deleteFormSelector, modalPrefix} = opts;
-        const forms = document.querySelectorAll(deleteFormSelector);
-        if (forms.length === 0) return;
-
-        const modal = document.getElementById(modalPrefix + 'Modal');
-        if (!modal) {
-            console.warn(TAG, 'modal element not found :', modalPrefix + 'Modal');
-            return;
-        }
-
-        forms.forEach(form => {
-            form.addEventListener('submit', e => {
-                e.preventDefault();
-                handleSubmit(form, modalPrefix);
-            }, true);
-        });
-    }
-
-    async function handleSubmit(form, prefix) {
-        const action = form.getAttribute('action');
-        if (!action) return;
-
-        // 사용자 confirm 은 form 의 onsubmit attribute 가 이미 처리. JS 가 가로챈 시점은
-        // onsubmit 이 OK 를 반환한 직후이므로 별도 confirm 추가 안 함 (중복 dialog 방지).
-
-        try {
-            const resp = await fetch(action, {
-                method: 'POST',
-                headers: {'Accept': 'application/json'},
-                redirect: 'manual'
-            });
-
-            // 정상 (204 / 302 redirect / 200) — 페이지 갱신 또는 redirect 따라가기
-            if (resp.ok || resp.status === 0 || resp.type === 'opaqueredirect') {
-                window.location.reload();
-                return;
-            }
-
-            // 409 + SOFTDELETE_REQUIRES_INTENT → modal
-            if (resp.status === 409) {
-                let body = null;
-                try {
-                    body = await resp.json();
-                } catch (_) { /* ignore */
-                }
-                if (body && body.code === 'SOFTDELETE_REQUIRES_INTENT') {
-                    openModal(prefix, body, action);
-                    return;
-                }
-                ErrorModal.show({message: (body && body.message) || '삭제 충돌이 발생했습니다.', status: resp.status});
-                return;
-            }
-
-            // 그 외 에러
-            let body = null;
-            try {
-                body = await resp.json();
-            } catch (_) { /* ignore */
-            }
-            ErrorModal.show({message: (body && body.message) || ('삭제 실패 (HTTP ' + resp.status + ')'), status: resp.status});
-        } catch (err) {
-            console.error(TAG, 'submit error', err);
-            ErrorModal.show({message: '네트워크 오류 : ' + err.message, status: 0});
-        }
-    }
-
     function openModal(prefix, payload, deleteAction) {
         const modal = document.getElementById(prefix + 'Modal');
         const missingEl = document.getElementById(prefix + 'MissingPath');
@@ -168,5 +96,23 @@
         }
     }
 
-    window.DeleteRejectModal = {bind};
+    // HF14 — 확인 모달(confirm-modal-base)이 같은 폼의 submit 을 먼저 잡아 FormSubmit.sendAsync 로 보낸다. 그 경로의 거절 처리기는 전역 오류 모달이라 409
+    // SOFTDELETE_REQUIRES_INTENT 가 3 택 거절 모달에 닿지 못했다(플래그 false 기본이던 동안 잠복). 등록 순서에
+    // 기대지 않고, 전역 거절 처리기를 감싸 그 코드만 여기로 돌린다. head defer 인 error-modal.js 가 base 를 만든
+    // 뒤여야 하므로 DOMContentLoaded 안에서 감싼다(S17-2 CP5 F-3 의 순서).
+    document.addEventListener('DOMContentLoaded', () => {
+        const base = window.AsyncSubmitResult;
+        if (!base) return;
+        window.AsyncSubmitResult = Object.assign({}, base, {
+            onRejected(form, status, payload) {
+                if (status === 409 && payload && payload.code === 'SOFTDELETE_REQUIRES_INTENT'
+                        && form && form.matches('form.mk3-2-delete-form') && document.getElementById('deleteRejectModal')) {
+                    openModal('deleteReject', payload, form.getAttribute('action'));
+                    return;
+                }
+                base.onRejected(form, status, payload);
+            }
+        });
+    });
+
 })();

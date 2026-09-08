@@ -72,9 +72,8 @@
 
                 <div class="n-form-group">
                     <label class="n-label strong">지원 RAID 레벨</label>
-                    <div data-error-field="supportedRaidLevels" data-level-group
-                         th:classappend="${#fields.hasErrors('supportedRaidLevels')} ? 'is-invalid'"
-                         style="display:flex; gap:16px; flex-wrap:wrap;">
+                    <div class="n-check-row" data-error-field="supportedRaidLevels" data-level-group
+                         th:classappend="${#fields.hasErrors('supportedRaidLevels')} ? 'is-invalid'">
                         <label class="n-checkbox">
                             <input type="checkbox" data-level-select-all>
                             <span>전체 선택</span>

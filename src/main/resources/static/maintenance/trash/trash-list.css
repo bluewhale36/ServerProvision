@@ -9,11 +9,11 @@
     gap: 4px;
     margin-bottom: 4px;
     font-size: 11px;
-    color: var(--n-text-muted, #666);
+    color: var(--n-text-muted);
 }
 
 .trash-parent-arrow {
-    color: var(--n-text-muted, #888);
+    color: var(--n-text-muted);
     font-size: 13px;
     line-height: 1;
 }
@@ -59,7 +59,7 @@
 .trash-block-link {
     margin-left: 6px;
     font-size: 11px;
-    color: var(--n-color-primary, #0075de);
+    color: var(--n-blue);
     text-decoration: none;
     white-space: nowrap;
 }
@@ -73,7 +73,7 @@
 .trash-block-hint {
     margin-left: 6px;
     font-size: 11px;
-    color: var(--n-text-muted, #777);
+    color: var(--n-text-muted);
     white-space: nowrap;
 }
 
@@ -121,7 +121,7 @@
 
 /* 값이 없는 칸의 '—'. 값과 같은 무게로 보이면 빈 것이 아니라 내용처럼 읽힌다. */
 .trash-empty-value {
-    color: var(--n-text-muted, #777);
+    color: var(--n-text-muted);
 }
 
 /* CP5 D1 — 인라인일 때부터 var(--n-color-danger) 를 썼고 그 토큰은 정의된 적이 없다. fallback 도
@@ -131,3 +131,15 @@
     color: var(--n-red);
     margin-left: 6px;
 }
+
+/* ---- 영구삭제 감사 로그 · 휴지통 운영 설정 (S17-2 — 인라인 style 36 곳을 걷음) ---- */
+.purge-filter-grid { display: grid; grid-template-columns: repeat(3, 1fr) auto auto; gap: 12px; align-items: end; }
+.purge-th-id { width: 60px; }
+.purge-th-rid { width: 70px; }
+.purge-th-result { width: 80px; }
+.purge-details-summary { cursor: pointer; color: var(--n-blue); font-size: 12px; }
+.purge-details-pre { font-size: 11px; margin-top: 6px; }
+.purge-pager { margin-top: 14px; display: flex; gap: 6px; align-items: center; justify-content: center; }
+.purge-pager-info { font-size: 13px; color: var(--n-text-muted); padding: 0 12px; }
+.trash-advanced { border: 1px solid var(--n-border); border-radius: var(--n-radius-lg); padding: 12px 14px; }
+.trash-advanced > summary { cursor: pointer; font-weight: 600; color: var(--n-text-muted); font-size: 13px; }

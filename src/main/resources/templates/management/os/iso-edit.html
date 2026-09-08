@@ -24,7 +24,7 @@
 
     <div class="n-card">
         <div class="n-card-body">
-            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+            <div class="n-alert n-alert-muted">
                 대상 OS : <strong th:text="${contextLabel}"></strong>
             </div>
 
@@ -39,14 +39,14 @@
 
                 <div class="n-form-group">
                     <label class="n-label strong" for="isoPath">ISO 경로</label>
-                    <div style="display: flex; gap: 8px;">
+                    <div class="n-field-row">
                         <input id="isoPath" type="text" th:field="*{isoPath}"
-                               class="n-input" style="flex: 1;"
+                               class="n-input"
                                data-error-field="isoPath"
                                th:classappend="${#fields.hasErrors('isoPath')} ? 'is-invalid'"
                                placeholder="/mnt/iso/rocky9/DVD.iso"
                                th:data-browse-url="@{/management/browse}">
-                        <button type="button" id="browseBtn" class="n-btn n-btn-ghost">탐색</button>
+                        <button type="button" id="browseBtn" class="n-btn n-btn-outline">탐색</button>
                     </div>
                     <div class="n-hint">
                         직접 타이핑하거나 <strong>탐색</strong> 버튼으로 디렉토리 / ISO 파일을 골라 채울 수 있습니다.

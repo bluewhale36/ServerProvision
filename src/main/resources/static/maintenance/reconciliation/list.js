@@ -24,10 +24,6 @@
     // 이 페이지에서 트리거한 jobId → 트리거 버튼. 완료/실패 이벤트에서 자기 작업 식별 + 버튼 원복.
     const selfJobs = new Map();
 
-    function toast(message, opts) {
-        if (typeof window.bgjobToast === 'function') window.bgjobToast(message, opts || {});
-    }
-
     function restore(btn) {
         if (!btn) return;
         btn.disabled = false;
@@ -71,7 +67,7 @@
             // 이벤트 detail 의 식별자 필드는 id — 트리거 응답(jobId)과 이름이 다름에 주의.
             selfJobs.set(data.jobId, btn);
             btn.textContent = isReissue ? '재서명 중…' : '스캔 중…';
-            toast(isReissue ? '마커 서명 재발급을 시작했습니다.' : '자원 점검을 시작했습니다.');
+            UiUtil.toast(isReissue ? '마커 서명 재발급을 시작했습니다.' : '자원 점검을 시작했습니다.');
             // 버튼 원복은 완료/실패 이벤트 수신 시 — 실제 완료와 무관한 고정 타이머는 폐기(R9-1).
         }).catch(err => {
             ErrorModal.show({message: err.message || '스캔 시작 실패', status: 0});
@@ -135,7 +131,7 @@
             const msg = '마커 재서명 완료 — 성공 ' + (m.reissueSucceeded != null ? m.reissueSucceeded : '?')
                 + '건, 실패 ' + (m.reissueFailed != null ? m.reissueFailed : '?') + '건'
                 + (failed > 0 ? ' — 실패 자원 확인을 위한 점검이 자동으로 이어집니다' : '');
-            toast(msg, failed > 0 ? {variant: 'error', duration: 8000} : {});
+            UiUtil.toast(msg, failed > 0 ? {variant: 'error', duration: 8000} : {});
             restore(selfJobs.get(d.id));
             selfJobs.delete(d.id);
         }
@@ -145,7 +141,7 @@
         const d = ev.detail || {};
         if (!selfJobs.has(d.id)) return;
         const prefix = ({MARKER_REISSUE: '마커 재서명 실패', HASH_ACCEPT: '내용 수용 실패'})[d.type] || '점검 실패';
-        toast(prefix + (d.errorMessage ? ' : ' + d.errorMessage : ''), {variant: 'error', duration: 8000});
+        UiUtil.toast(prefix + (d.errorMessage ? ' : ' + d.errorMessage : ''), {variant: 'error', duration: 8000});
         restore(selfJobs.get(d.id));
         selfJobs.delete(d.id);
     });
@@ -201,7 +197,7 @@
                             sessionStorage.setItem(TOAST_KEY, '해결 확인 — 목록에서 정리했습니다.');
                             window.location.reload();
                         } else {
-                            toast('아직 해결되지 않았습니다 — 안내된 조치 후 다시 시도하세요.', {duration: 6000});
+                            UiUtil.toast('아직 해결되지 않았습니다 — 안내된 조치 후 다시 시도하세요.', {duration: 6000});
                             btn.disabled = false;
                         }
                     })
@@ -260,7 +256,7 @@
             if (!data) return;
             selfJobs.set(data.jobId, btn);
             btn.textContent = '지문 재계산 중…';
-            toast('내용 수용 작업을 시작했습니다 — 완료되면 알려드립니다.');
+            UiUtil.toast('내용 수용 작업을 시작했습니다 — 완료되면 알려드립니다.');
         }).catch(() => {
             ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
             btn.disabled = false;
@@ -407,7 +403,7 @@
         const pending = sessionStorage.getItem(TOAST_KEY);
         if (pending) {
             sessionStorage.removeItem(TOAST_KEY);
-            toast(pending);
+            UiUtil.toast(pending);
         }
 
         if (window.ConfirmModal) {

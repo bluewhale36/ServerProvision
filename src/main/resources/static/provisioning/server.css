@@ -4,47 +4,7 @@
    여기서는 목록 행 클릭과 상세 페이지 섹션 간격만 보강한다.
    ============================================================ */
 
-/* 모노스페이스 셀(UUID / IP / MAC) 공통 */
-.n-mono {
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-}
-
-/* 값 없음(—) / 비활성 텍스트 */
-.n-muted {
-    color: var(--n-text-muted);
-}
-
-/* ---- 상세 : 섹션 ------------------------------------------ */
-.n-detail-section {
-    margin-top: 28px;
-}
-
-/* 절 제목은 페이지 제목(26px)과 본문(13px) 사이의 층이다. 14px 로는 본문과 거의 같아 상세가 길어질수록
-   "여기서 무엇이 새로 시작되는가" 가 눈에 걸리지 않았다(사용자 지적 2026-08-13). 18px 로 올려 층을 세우고,
-   letter-spacing 은 페이지 제목과 같은 방향으로 살짝 조여 크기만 커진 인상을 피한다. */
-.n-detail-section > .n-section-title {
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: -0.2px;
-    margin-bottom: 10px;
-    color: var(--n-text);
-}
-
-/* 제목이 커진 만큼 보조 설명도 12 → 13px. 제목과의 차이가 6px 이면 위계는 유지되면서 읽기가 편하다. */
-.n-detail-section > .n-section-hint {
-    font-size: 13px;
-    color: var(--n-text-muted);
-    margin-bottom: 12px;
-}
-
-/* 카드 안 소규모 "데이터 없음" 표시 — n-empty(80px) 대신 컴팩트 muted 한 줄 */
-.n-detail-empty {
-    color: var(--n-text-muted);
-    font-size: 13px;
-    margin: 0;
-    padding: 4px 0;
-}
+/* .n-muted · .n-detail-section · .n-detail-empty 는 style.css §13 으로 올렸다(S17-2 — setting.css 와 중복 정의). */
 
 /* 카드 내부에 들어가는 detail-table 의 기본 하단 마진 제거(카드 패딩이 여백 담당) */
 .n-card-body > .n-detail-table:last-child {
@@ -84,7 +44,7 @@
     display: inline-block;
     padding: 5px 12px;
     border: 1px solid var(--n-border);
-    border-radius: 999px;
+    border-radius: var(--n-radius);
     font-size: 12px;
     text-decoration: none;
     color: var(--n-text);
@@ -116,21 +76,72 @@
     white-space: nowrap;
 }
 
+/* 잘리면 뜻을 잃는 값은 자르지 않고 감싼다 — 이 화면의 값은 대부분 식별자라 앞자리만 남으면 무엇인지
+   알 수 없다. 끊을 자리가 없는 UUID · IP 만 overflow-wrap: anywhere 로 끊고(3 · 9 열), 이름 · 제조사 ·
+   보드 모델 · 등록 시각은 공백에서만 접는다 — anywhere 를 셀 전체에 걸면 'Gigabyte' 가 'Gigabyt/e' 로
+   갈라진다(S17-1 결함 ②). 배지 칸(6 · 7 · 8 열)은 그대로 한 줄이되, 넘칠 때 배지 뒤에 '…' 글자를 찍지
+   않는다 — 배지 옆의 말줄임표는 잘린 값이 아니라 글자로 읽힌다. */
+.n-table-servers td:nth-child(6),
+.n-table-servers td:nth-child(7),
+.n-table-servers td:nth-child(8) {
+    text-overflow: clip;
+}
+
+.n-table-servers td:nth-child(1),
+.n-table-servers td:nth-child(2),
+.n-table-servers td:nth-child(4),
+.n-table-servers td:nth-child(5),
+.n-table-servers td:nth-child(10) {
+    white-space: normal;
+    line-height: 1.45;
+}
+
+.n-table-servers td:nth-child(3),
+.n-table-servers td:nth-child(9) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+}
+
 /* U3-4 로 '그룹' 열이 2번째에 끼어 10 열이 됐다. 합이 100% 가 되도록 다시 배분한다.
    배분 원칙은 <b>잘렸을 때 무엇을 잃는가</b>다 — UUID 는 앞자리만 남아도 식별되지만
    등록 시각은 초가 잘리면 값이 반쪽이 되고 그룹 이름은 잘리면 못 읽는다.
    그래서 폭은 UUID 에서 덜어 오고, 등록 시각은 U3-3 의 15% 를 그대로 지킨다
    (CP5 증거 사진에서 12% 로 줄였다가 '2026-08-12 07:...' 로 잘리는 것을 확인해 되돌렸다). */
+/* S17-1 재배분 — 사이드바 228px 가 생겨 표 폭이 1360 → 1156px 로 줄었는데 비율은 그대로라 제조사 8%(92px)
+   가 'Gigabyte' 를 못 담고 연결 6%(69px)가 '끊어짐' 배지를 잘랐다(CP5 F-2 · F-3). 등록 시각은 이제 공백에서
+   두 줄로 접히므로(위 감싸기 규칙) 15% 를 지킬 이유가 없어졌고, UUID 는 anywhere 로 접히므로 한 단 덜어
+   식별자가 아닌 제조사 · 연결에 준다. */
 .n-table-servers th:nth-child(1),  .n-table-servers td:nth-child(1)  { width: 11%; }   /* 이름 */
 .n-table-servers th:nth-child(2),  .n-table-servers td:nth-child(2)  { width: 11%; }   /* 그룹 */
-.n-table-servers th:nth-child(3),  .n-table-servers td:nth-child(3)  { width: 13%; }   /* SMBIOS UUID */
-.n-table-servers th:nth-child(4),  .n-table-servers td:nth-child(4)  { width: 8%; }    /* 제조사 — 'Gigabyte' 가 잘리지 않는 최소 폭 */
+.n-table-servers th:nth-child(3),  .n-table-servers td:nth-child(3)  { width: 12%; }   /* SMBIOS UUID */
+.n-table-servers th:nth-child(4),  .n-table-servers td:nth-child(4)  { width: 11%; }   /* 제조사 — 'Gigabyte' 가 잘리지 않는 최소 폭(사이드바 포함 1440 기준) */
 .n-table-servers th:nth-child(5),  .n-table-servers td:nth-child(5)  { width: 9%; }    /* 보드 모델 */
 .n-table-servers th:nth-child(6),  .n-table-servers td:nth-child(6)  { width: 9%; }    /* 현재 단계 */
 .n-table-servers th:nth-child(7),  .n-table-servers td:nth-child(7)  { width: 8%; }    /* 운영 상태 */
-.n-table-servers th:nth-child(8),  .n-table-servers td:nth-child(8)  { width: 6%; }    /* 연결 */
+.n-table-servers th:nth-child(8),  .n-table-servers td:nth-child(8)  { width: 8%; }    /* 연결 — '끊어짐' 배지 43px + 셀 여백 28px */
 .n-table-servers th:nth-child(9),  .n-table-servers td:nth-child(9)  { width: 10%; }   /* 호스트 IP */
-.n-table-servers th:nth-child(10), .n-table-servers td:nth-child(10) { width: 15%; }   /* 등록 시각 */
+.n-table-servers th:nth-child(10), .n-table-servers td:nth-child(10) { width: 11%; }   /* 등록 시각 — 날짜 한 줄 + 시각 한 줄 */
+
+/* 1024 이하 (S17-1 D3) — 사이드바 옆 표 폭이 740px 라 10 열이 전부 잘린다. 상세에서 다시 볼 수 있는
+   하드웨어 정보(제조사 · 보드 모델)와 연결 살아 있음 표시를 숨기고(운영 상태는 남는다) 셀 여백을 10px 로
+   줄여 남은 7 열이 잘리지 않게 한다 — 8 열로는 등록 시각이 하이픈에서 네 줄로 분해됐다(CP5 F-4).
+   폭을 겹쳐 쓰는 이유는 기본 규칙과 명시도가 같아 뒤에 실린 이쪽이 이기기 때문이다. */
+@media (max-width: 1024px) {
+    .n-table-servers th, .n-table-servers td { padding-left: 10px; padding-right: 10px; }
+    .n-table-servers th:nth-child(4), .n-table-servers td:nth-child(4),
+    .n-table-servers th:nth-child(5), .n-table-servers td:nth-child(5),
+    .n-table-servers th:nth-child(8), .n-table-servers td:nth-child(8) { display: none; }
+    /* 머리글은 접는다 — 'SMBIOS UUID' 가 한 줄에 안 들어가면 말줄임 대신 두 줄 */
+    .n-table-servers th { white-space: normal; }
+    .n-table-servers th:nth-child(1),  .n-table-servers td:nth-child(1)  { width: 11%; }   /* 이름 */
+    .n-table-servers th:nth-child(2),  .n-table-servers td:nth-child(2)  { width: 11%; }   /* 그룹 */
+    .n-table-servers th:nth-child(3),  .n-table-servers td:nth-child(3)  { width: 17%; }   /* SMBIOS UUID */
+    .n-table-servers th:nth-child(6),  .n-table-servers td:nth-child(6)  { width: 15%; }   /* 현재 단계 — '진단 리눅스' 배지 75px + 여백 20 (표 실폭 665px 기준 100px) */
+    .n-table-servers th:nth-child(7),  .n-table-servers td:nth-child(7)  { width: 15%; }   /* 운영 상태 — '프로비저닝 중' 배지 */
+    .n-table-servers th:nth-child(9),  .n-table-servers td:nth-child(9)  { width: 14%; }   /* 호스트 IP */
+    .n-table-servers th:nth-child(10), .n-table-servers td:nth-child(10) { width: 17%; }   /* 등록 시각 — 날짜 '2026-09-05' 가 한 줄에 들어가는 최소 폭 */
+}
 
 /* ============================================================
    U3-4 — 게스트 서버 그룹
@@ -144,7 +155,7 @@
     max-width: 100%;
     padding: 2px 8px;
     border: 1px solid var(--n-border);
-    border-radius: 4px;
+    border-radius: var(--n-radius);
     font-size: 12.5px;
     color: var(--n-text);
     text-decoration: none;
@@ -217,6 +228,8 @@
 .n-table-groups th:nth-child(1), .n-table-groups td:nth-child(1) { width: 52%; }
 .n-table-groups th:nth-child(2), .n-table-groups td:nth-child(2) { width: 16%; }
 .n-table-groups th:nth-child(3), .n-table-groups td:nth-child(3) { width: 32%; }
+/* 그룹 이름은 잘리면 못 읽는다 — 공백에서 접는다 */
+.n-table-groups td:nth-child(1) { white-space: normal; line-height: 1.45; }
 
 @media (max-width: 900px) {
     .n-inline-form .n-input { width: 100%; }
@@ -284,6 +297,8 @@
 .n-table-picker th:nth-child(4), .n-table-picker td:nth-child(4) { width: 13%; }
 .n-table-picker th:nth-child(5), .n-table-picker td:nth-child(5) { width: 13%; }
 .n-table-picker th:nth-child(6), .n-table-picker td:nth-child(6) { width: 29%; }
+/* UUID 는 끊을 자리가 없어 anywhere 로 감싼다(서버 표와 같은 처리) */
+.n-table-picker td:nth-child(3) { white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
 
 @media (max-width: 900px) {
     /* 위 규칙과 같은 형태로 겹쳐 쓴다 — 명시도는 미디어 쿼리를 따지지 않으므로, 기본 규칙만 (0,2,0) 으로
@@ -345,13 +360,6 @@
 
 .n-row-diverged > td:first-child {
     box-shadow: inset 3px 0 0 var(--n-yellow);
-}
-
-/* 제목 옆 표식 — 이름과 붙지 않게 띄우고 글자 크기를 낮춰 제목을 가리지 않는다 */
-.n-title-badge {
-    margin-left: 10px;
-    vertical-align: middle;
-    font-size: 12px;
 }
 
 /* ---- 툴팁이 든 칸의 넘침 (U3-4 개정) ----
@@ -457,6 +465,10 @@
     display: flex;
     align-items: stretch;
     gap: 14px;
+    /* 묶음 안의 카드는 높이를 맞추려고 margin-bottom 을 0 으로 눌러 두었으므로 묶음 자체가 아래 여백을
+       돌려줘야 '멤버' 가 붙지 않는다. 값은 카드 사이의 가로 간격(gap)과 같게 — 가로 14 · 세로 22 면
+       같은 격자로 읽히지 않는다. */
+    margin-bottom: 14px;
 }
 
 .n-group-top > * {
@@ -490,7 +502,7 @@
     gap: 5px;
     padding: 3px 9px 3px 4px;
     border: 1px solid var(--n-blue-badge-bg);
-    border-radius: 999px;
+    border-radius: var(--n-radius);
     background: var(--n-blue-badge-bg);
     color: var(--n-blue-badge-text);
     font-size: 12px;
@@ -603,7 +615,7 @@
     margin-top: 4px;
     padding: 4px 10px;
     border: 1px solid var(--n-border);
-    border-radius: 6px;
+    border-radius: var(--n-radius);
     background: var(--n-bg);
 }
 .n-uuid-chip-label {
@@ -617,3 +629,9 @@
     font-weight: 600;
     color: var(--n-text);
 }
+
+/* ---- S17-2 — 인라인 style 을 걷은 자리 ---- */
+/* RAID 정책 분기 묶음 — 둘째 묶음부터 앞 묶음과 띄운다 */
+.n-raid-branch + .n-raid-branch { margin-top: 20px; }
+/* 원장 표의 비고 칸 — 긴 메시지를 폭 안에서 접는다 */
+.n-ledger-note { font-size: 12px; max-width: 320px; }

@@ -59,7 +59,7 @@
         <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${driverGroups}, 'driver', '드라이버', 'driverMiller', ${selectKind != null and selectKind.name() == 'DRIVER' ? selectId : null}, ${selectKind != null and selectKind.name() == 'DRIVER' ? selectKey : null})}"></div>
     </section>
 
-    <section class="n-subprogram-section" style="margin-top: 32px;">
+    <section class="n-subprogram-section">
         <div class="n-subprogram-section-header">
             <h2 class="n-subprogram-section-title">Utility</h2>
             <div class="n-subprogram-section-actions">
@@ -93,15 +93,5 @@
 <script th:src="@{/management/subprogram/subprogram-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        if (window.DeleteRejectModal) {
-            window.DeleteRejectModal.bind({
-                deleteFormSelector: 'form.mk3-2-delete-form',
-                modalPrefix: 'deleteReject'
-            });
-        }
-    });
-</script>
 </body>
 </html>

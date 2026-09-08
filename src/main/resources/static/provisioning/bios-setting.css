@@ -1,244 +1,239 @@
 /*
- * AMI Aptio Setup Utility 룩 재현 — BIOS 세팅 템플릿 화면 전용 (구 bios-setup.css 이관).
- * 링크 페이지: bios-setting-editor.html · bios-setting-board-select.html · bmc-password.html
- *            · bios-setting-detail.html (말미의 .bsd-* 상세 보조 클래스만 소비 — 포털 n-* 테마).
- * 범용 admin CSS(흰 CRUD 테마)로는 파란 모노스페이스 BIOS 콘솔을 낼 수 없어 전용 스타일을 둔다.
- * 편집기/보드선택은 commonHead(style.css) 뒤에 로드된다 — navbar 등 n-* 컴포넌트는 아래
- * "포털 chrome 공존" 절이 BIOS mono 상속에서 보호한다.
+ * BIOS 세팅 화면 전용 스타일 (S17-3 — AMI 콘솔 테마를 방향안 C 로 흡수)
+ * ─────────────────────────────────────────────────────────
+ * 링크 페이지: bios-setting-editor.html · bios-setting-board-select.html · bios-setting-detail.html.
+ * 종전에는 파란 바탕 · 모노 글꼴 · 노랑/시안 강조의 Aptio 콘솔 룩을 재현했으나(--bios-* 팔레트 18개), 그 화면만
+ * 다른 앱처럼 보였고 사이드바(--n-warm-dark)와 어두운 색 둘이 맞붙었다. 2026-09-06 결정 ② 로 콘솔 테마를
+ * 버리고 포털 토큰(--n-*)만 쓴다. 클래스 이름(bios-tab · bios-page · bios-row · bios-crumb · is-*)은 편집기
+ * JS(bios-setting-editor.js)가 만들고 찾는 것이라 그대로 두고 값만 바꿨다. BMC 비밀번호 화면은 n-* 폼으로
+ * 다시 써서 이 파일을 더 싣지 않는다.
+ * 편집기는 commonHead(style.css) 뒤에 적재된다 — 여기 규칙은 전부 이 화면에서만 뜻이 있는 것이다.
  */
-:root {
-	--bios-bg: #0a1a6b;          /* 본문 파랑 (클래식 AMI 보다 약간 부드럽게) */
-	--bios-bg-deep: #061047;
-	--bios-fg: #d6dcff;
-	--bios-fg-dim: #8b96d8;
-	--bios-leader: #44519a;
-	--bios-cyan: #38e0e0;        /* 값 텍스트 */
-	--bios-bracket: #25c0c0;
-	--bios-yellow: #ffd23c;      /* 페이지 제목 / 강조 */
-	--bios-hl-bg: #38e0e0;       /* 선택/포커스 행 */
-	--bios-hl-fg: #04123f;
-	--bios-bar: #c9cfe6;         /* 탭바/푸터 그레이 */
-	--bios-bar-fg: #1b245c;
-	--bios-reset: #ff9d3c;
-	--bios-grayout: #5a6498;
-	--bios-error: #ff6b6b;
-	--bios-help-bg: #08144f;
-	--bios-mono: "Cascadia Mono", "Consolas", "DejaVu Sans Mono", "Courier New", monospace;
+
+/* ───────── 편집기 골격 ─────────
+   body 는 전역 규칙대로 가로 flex(사이드바 | 본문)이므로 메타 입력과 BIOS 스크린의 세로 쌓임은 이 래퍼가 맡는다.
+   스크린은 잔여 뷰포트를 채우고 항목 영역이 안에서 스크롤한다(flex-basis 0). */
+.bios-console {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
-* { box-sizing: border-box; }
-
-/* 공통 베이스 — 높이/overflow 는 여기서 제약하지 않는다 (스크롤 필요 페이지가 있음). */
-body.bios-body {
-	margin: 0;
-	background: var(--bios-bg-deep);
-	color: var(--bios-fg);
-	font-family: var(--bios-mono);
-	font-size: 14px;
-	line-height: 1.5;
-}
-
-/* ───────── 포털 chrome 공존 (navbar + 템플릿 메타 입력) ─────────
-   본 파일이 style.css 뒤에 로드되며 body 에 mono 폰트를 깔므로, 포털 컴포넌트 영역은
-   포털 폰트로 되돌린다 (bmc-password.html 은 navbar 없이 단독 로드 — body mono 유지 필요). */
-body.bios-body .n-nav,
-body.bios-body .bios-setting-meta {
-	font-family: 'Inter', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
-}
-
-/* 편집기 페이지: navbar(sticky) + 메타 입력 아래에서 BIOS 스크린이 잔여 뷰포트를 채운다.
-   flex-basis 0 으로 스크린 높이를 잔여 공간으로 고정해 내부 스크롤(.bios-items)을 유지한다. */
-body.bios-editor-body {
-	min-height: 100vh;
-	display: flex;
-	flex-direction: column;
-}
-
-/* 템플릿 메타 입력 스트립 — n-* 폼 클래스(n-form-group/n-label/n-input/n-textarea) 를 담는 흰 배경 영역. */
+/* 템플릿 메타 입력 스트립 — n-form-group/n-label/n-input 을 담는 흰 띠 */
 .bios-setting-meta {
-	background: #fff;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-	padding: 14px 40px 2px;
+    background: var(--n-surface);
+    border-bottom: 1px solid var(--n-border);
+    padding: 16px 28px 2px;
 }
 
 .bios-setting-meta-fields {
-	display: grid;
-	grid-template-columns: minmax(260px, 1fr) 2fr;
-	gap: 0 24px;
-	align-items: start;
-}
-
-@media (max-width: 768px) {
-	.bios-setting-meta-fields {
-		grid-template-columns: 1fr;
-	}
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) 2fr;
+    gap: 0 24px;
+    align-items: start;
 }
 
 .bios-screen {
-	display: flex;
-	flex-direction: column;
-	height: 100vh;
-	background: var(--bios-bg);
-	border: 2px solid var(--bios-bar);
-}
-
-body.bios-editor-body .bios-screen {
-	flex: 1 1 0;
-	height: auto;
-	min-height: 480px;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 480px;
+    background: var(--n-surface);
 }
 
 /* ───────── 헤더 / 탭바 ───────── */
 .bios-header {
-	background: var(--bios-bg-deep);
-	border-bottom: 1px solid var(--bios-leader);
+    background: var(--n-surface);
+    border-bottom: 1px solid var(--n-border);
 }
 
 .bios-brand {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	padding: 6px 14px;
-	color: var(--bios-yellow);
-	letter-spacing: .04em;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 14px 28px 8px;
+    color: var(--n-text);
 }
 
-.bios-brand-name { font-weight: 700; }
-.bios-brand-sub { color: var(--bios-fg-dim); font-size: 12px; }
+.bios-brand-name {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+}
+
+.bios-brand-sub {
+    color: var(--n-text-sec);
+    font-size: 13px;
+}
+
 .bios-brand-back {
-	color: var(--bios-cyan);
-	text-decoration: none;
-	font-size: 12px;
-	margin-right: 12px;
+    color: var(--n-text-sec);
+    text-decoration: none;
+    font-size: 13px;
+    margin-right: 4px;
 }
-.bios-brand-back:hover { text-decoration: underline; }
 
+.bios-brand-back:hover {
+    color: var(--n-blue);
+}
+
+/* 탭바 — 전역 .n-tabs 와 같은 밑줄형. 이름이 다른 이유는 편집기 JS 가 .bios-tab 을 찾기 때문 */
 .bios-tabs {
-	display: flex;
-	flex-wrap: wrap;
-	background: var(--bios-bar);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 0 28px;
 }
 
 .bios-tab {
-	appearance: none;
-	border: 0;
-	background: transparent;
-	color: var(--bios-bar-fg);
-	font-family: inherit;
-	font-size: 13px;
-	font-weight: 600;
-	padding: 7px 16px;
-	cursor: pointer;
-	border-right: 1px solid #aab2d4;
+    appearance: none;
+    border: 0;
+    background: none;
+    color: var(--n-text-sec);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    transition: color .12s ease, border-color .12s ease;
 }
 
-.bios-tab:hover { background: #b3bbdd; }
+.bios-tab:hover {
+    color: var(--n-text);
+}
 
 .bios-tab.is-active {
-	background: var(--bios-bg);
-	color: var(--bios-yellow);
-	box-shadow: inset 0 -3px 0 var(--bios-cyan);
+    color: var(--n-blue);
+    font-weight: 600;
+    border-bottom-color: var(--n-blue);
 }
 
-/* ───────── 브레드크럼 ───────── */
+/* ───────── 브레드크럼 — 지금 어느 메뉴 깊이에 있는가 ───────── */
 .bios-breadcrumb {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	min-height: 26px;
-	padding: 3px 16px;
-	font-size: 12px;
-	color: var(--bios-fg-dim);
-	border-bottom: 1px solid var(--bios-leader);
-	background: var(--bios-bg-deep);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 6px 28px;
+    font-size: 12.5px;
+    color: var(--n-text-sec);
+    border-bottom: 1px solid var(--n-border-row);
+    background: var(--n-sunken);
 }
 
 .bios-crumb {
-	appearance: none;
-	border: 0;
-	background: transparent;
-	color: var(--bios-cyan);
-	font-family: inherit;
-	font-size: 12px;
-	cursor: pointer;
-	padding: 0;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--n-text-sec);
+    font-family: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 0;
 }
 
-.bios-crumb:hover { text-decoration: underline; }
-.bios-crumb.is-current { color: var(--bios-yellow); cursor: default; }
-.bios-crumb-sep { color: var(--bios-leader); }
+.bios-crumb:hover {
+    color: var(--n-blue);
+    text-decoration: underline;
+}
 
-/* ───────── 본문 레이아웃 ───────── */
+.bios-crumb.is-current {
+    color: var(--n-text);
+    font-weight: 600;
+    cursor: default;
+}
+
+.bios-crumb-sep {
+    color: var(--n-text-muted);
+}
+
+/* ───────── 본문 레이아웃: 항목 영역 | 도움말 ───────── */
 .bios-main {
-	flex: 1 1 auto;
-	display: grid;
-	grid-template-columns: 1fr 320px;
-	min-height: 0;
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    min-height: 0;
 }
 
 .bios-items {
-	overflow-y: auto;
-	padding: 10px 18px 18px;
+    overflow-y: auto;
+    padding: 16px 28px 24px;
 }
 
 .bios-help {
-	background: var(--bios-help-bg);
-	border-left: 2px solid var(--bios-cyan);
-	padding: 12px 14px;
-	overflow-y: auto;
+    background: var(--n-sunken);
+    border-left: 1px solid var(--n-border);
+    padding: 16px 18px;
+    overflow-y: auto;
 }
 
 .bios-help-title {
-	margin: 0 0 8px;
-	font-size: 13px;
-	color: var(--bios-yellow);
-	text-transform: uppercase;
-	letter-spacing: .08em;
-	border-bottom: 1px dashed var(--bios-leader);
-	padding-bottom: 6px;
+    margin: 0 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--n-text-sec);
+    text-transform: uppercase;
+    letter-spacing: .5px;
 }
 
-.bios-help-text { margin: 0 0 10px; font-size: 13px; white-space: pre-line; }
-.bios-help-meta { margin: 0; font-size: 12px; color: var(--bios-cyan); }
+.bios-help-text {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--n-text);
+    white-space: pre-line;
+}
 
-/* ───────── 페이지 / 행 ───────── */
+.bios-help-meta {
+    margin: 0;
+    font-size: 12px;
+    color: var(--n-text-muted);
+}
+
+/* ───────── 페이지 / 행 ─────────
+   행은 라벨 | 값 두 열이고 행 구분선이 칸을 가른다(격자). 콘솔의 리더 점선 · 대괄호는 걷었다. */
 .bios-page { display: none; }
 .bios-page.is-active { display: block; }
 
 .bios-page-title {
-	margin: 4px 0 12px;
-	text-align: center;
-	font-size: 15px;
-	font-weight: 700;
-	color: var(--bios-yellow);
-	letter-spacing: .05em;
+    margin: 4px 0 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--n-text);
 }
 
-.bios-rows { list-style: none; margin: 0; padding: 0; }
+.bios-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
 
 .bios-row {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	padding: 2px 6px;
-	min-height: 26px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    min-height: 38px;
+    border-bottom: 1px solid var(--n-border-row);
 }
 
 .bios-row:hover,
 .bios-row:focus-within {
-	background: var(--bios-hl-bg);
-	color: var(--bios-hl-fg);
+    background: var(--n-row-hover);
 }
 
-.bios-row:hover .bios-label,
-.bios-row:focus-within .bios-label { color: var(--bios-hl-fg); }
-
 .bios-label {
-	flex: 0 0 auto;
-	max-width: 60%;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+    flex: 0 0 auto;
+    max-width: 60%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 14px;
+    color: var(--n-text);
 }
 
 .is-indent-1 .bios-label { padding-left: 16px; }
@@ -246,334 +241,214 @@ body.bios-editor-body .bios-screen {
 .is-indent-3 .bios-label { padding-left: 48px; }
 .is-indent-4 .bios-label { padding-left: 64px; }
 
+/* 라벨과 값 사이를 벌리는 자리 — 편집기 JS 가 만드는 요소라 이름을 유지한다 */
 .bios-leader {
-	flex: 1 1 auto;
-	border-bottom: 1px dotted var(--bios-leader);
-	transform: translateY(-4px);
+    flex: 1 1 auto;
 }
-
-.bios-row:hover .bios-leader,
-.bios-row:focus-within .bios-leader { border-bottom-color: var(--bios-hl-fg); }
 
 .bios-value {
-	flex: 0 0 auto;
-	color: var(--bios-cyan);
-	min-width: 90px;
-	text-align: right;
+    flex: 0 0 auto;
+    min-width: 90px;
+    text-align: right;
+    font-family: var(--n-font-mono);
+    font-feature-settings: "tnum";
+    font-size: 13px;
+    color: var(--n-text);
 }
 
-/* 값 양옆의 BIOS 스타일 대괄호 (위젯 행만) */
-.bios-row--widget .bios-value::before { content: "["; color: var(--bios-bracket); margin-right: 2px; }
-.bios-row--widget .bios-value::after { content: "]"; color: var(--bios-bracket); margin-left: 2px; }
-.bios-row:hover .bios-value,
-.bios-row:focus-within .bios-value { color: var(--bios-hl-fg); }
-.bios-row:hover .bios-value::before, .bios-row:hover .bios-value::after,
-.bios-row:focus-within .bios-value::before, .bios-row:focus-within .bios-value::after { color: var(--bios-hl-fg); }
-
-/* 입력 위젯 — 텍스트처럼 보이게 */
+/* 입력 위젯 — 전역 입력과 같은 테두리 · 포커스 고리, 값은 mono */
 .bios-input {
-	appearance: none;
-	background: transparent;
-	border: 0;
-	color: inherit;
-	font-family: inherit;
-	font-size: inherit;
-	text-align: right;
-	cursor: pointer;
-	max-width: 220px;
+    appearance: none;
+    background: var(--n-surface);
+    border: 1px solid var(--n-border-form);
+    border-radius: var(--n-radius);
+    color: var(--n-text);
+    font-family: var(--n-font-mono);
+    font-size: 13px;
+    text-align: right;
+    cursor: pointer;
+    max-width: 220px;
+    padding: 3px 8px;
 }
 
 .bios-select { padding-right: 2px; }
-.bios-select option { background: var(--bios-bg-deep); color: var(--bios-fg); }
+.bios-select option { background: var(--n-surface); color: var(--n-text); }
 .bios-int { width: 80px; cursor: text; }
-.bios-input:focus { outline: 1px dotted var(--bios-hl-fg); }
 
-.bios-reset {
-	flex: 0 0 auto;
-	color: var(--bios-reset);
-	font-size: 12px;
-	margin-left: 4px;
+.bios-input:focus {
+    outline: none;
+    border-color: var(--n-blue);
+    box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
 }
-.bios-row:hover .bios-reset, .bios-row:focus-within .bios-reset { color: #7a3a00; }
+
+/* 기본값으로 되돌리기 — 주의 색(주황) */
+.bios-reset {
+    flex: 0 0 auto;
+    color: var(--n-orange);
+    font-size: 12px;
+    margin-left: 4px;
+}
 
 /* submenu 행 */
 .bios-row--submenu { cursor: pointer; }
-.bios-row--submenu .bios-label { color: var(--bios-fg); max-width: none; }
-.bios-row--submenu:hover .bios-label { color: var(--bios-hl-fg); }
-.bios-arrow { color: var(--bios-yellow); min-width: 1.5em; }
+.bios-row--submenu .bios-label { max-width: none; }
+.bios-row--submenu:hover .bios-label { color: var(--n-blue); }
+.bios-arrow { color: var(--n-text-muted); min-width: 1.5em; }
 .bios-row--submenu.is-disabled { cursor: default; opacity: .55; }
-.bios-row--submenu.is-disabled:hover { background: transparent; color: inherit; }
-.bios-row--submenu.is-disabled:hover .bios-label { color: var(--bios-fg-dim); }
+.bios-row--submenu.is-disabled:hover { background: transparent; }
+.bios-row--submenu.is-disabled:hover .bios-label { color: var(--n-text-sec); }
 
 /* 동적 가시성 (의존성 엔진) */
 .bios-row.is-hidden { display: none; }
 .bios-row.is-grayout { opacity: .45; pointer-events: none; }
-.bios-row.is-grayout .bios-value, .bios-row.is-grayout .bios-label { color: var(--bios-grayout); }
+.bios-row.is-grayout .bios-value, .bios-row.is-grayout .bios-label { color: var(--n-text-muted); }
 
-/* 검증 에러 표시 */
-.bios-row.has-error { outline: 1px solid var(--bios-error); background: rgba(255, 107, 107, .12); }
-.bios-row.has-error .bios-value { color: var(--bios-error); }
+/* 검증 에러 표시 — 오류 축의 색은 하나(--n-error) */
+.bios-row.has-error {
+    outline: 1px solid var(--n-error);
+    background: color-mix(in srgb, var(--n-error) 6%, transparent);
+}
+.bios-row.has-error .bios-value { color: var(--n-error); }
 
-.bios-empty { color: var(--bios-fg-dim); text-align: center; padding: 24px 0; font-style: italic; }
+.bios-empty {
+    color: var(--n-text-muted);
+    text-align: center;
+    padding: 24px 0;
+}
 
-/* ───────── 푸터 ───────── */
+/* ───────── 푸터: 키 안내 + 동작 ───────── */
 .bios-footer {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	background: var(--bios-bar);
-	color: var(--bios-bar-fg);
-	padding: 6px 14px;
-	flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--n-sunken);
+    border-top: 1px solid var(--n-border);
+    padding: 10px 28px;
+    flex-wrap: wrap;
 }
 
 .bios-keys {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 12px;
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	font-size: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    color: var(--n-text-sec);
 }
 
 .bios-keys kbd {
-	background: var(--bios-bg-deep);
-	color: var(--bios-cyan);
-	border-radius: 3px;
-	padding: 1px 5px;
-	font-family: inherit;
-	margin-right: 3px;
+    background: var(--n-surface);
+    border: 1px solid var(--n-border-form);
+    border-radius: var(--n-radius);
+    color: var(--n-text);
+    padding: 1px 6px;
+    font-family: var(--n-font-mono);
+    font-size: 11px;
+    margin-right: 3px;
 }
 
 .bios-actions { display: flex; gap: 8px; }
 
-.bios-btn {
-	appearance: none;
-	border: 1px solid var(--bios-bar-fg);
-	background: transparent;
-	color: var(--bios-bar-fg);
-	font-family: inherit;
-	font-size: 13px;
-	font-weight: 600;
-	padding: 5px 14px;
-	cursor: pointer;
-	border-radius: 3px;
-}
-
-.bios-btn:hover { background: #b3bbdd; }
-
-/* 저장 사전 차단(disabled) — 사유는 wrapper(.n-btn-tooltip-wrap) tooltip 이 안내한다. */
-.bios-btn:disabled {
-	opacity: .45;
-	cursor: not-allowed;
-}
-
-.bios-btn:disabled:hover { background: transparent; }
-
-.bios-btn--primary {
-	background: var(--bios-bg-deep);
-	color: var(--bios-yellow);
-	border-color: var(--bios-bg-deep);
-}
-
-.bios-btn--primary:hover { background: #04123f; }
-
-.bios-btn--primary:disabled:hover { background: var(--bios-bg-deep); }
-
-/* ───────── Redfish 요청 프리뷰 블록 (bmc-password.html) ─────────
-   구 저장 결과 모달(.bios-modal*) 스타일은 편집기의 echo 프리뷰 폐지(U2-2-1)와 함께 제거됨. */
-.bios-json {
-	background: var(--bios-bg-deep);
-	border: 1px solid var(--bios-leader);
-	border-radius: 4px;
-	padding: 12px;
-	margin: 0;
-	color: var(--bios-cyan);
-	font-size: 12.5px;
-	white-space: pre;
-	overflow-x: auto;
-}
-
-/* ───────── 보드 선택 랜딩 (bios-setting-board-select.html) ───────── */
-/* (body 는 베이스에서 높이/overflow 제약이 없으므로 선택/BMC 페이지는 자연스럽게 문서 스크롤된다.) */
-
-.bios-select {
-	max-width: 880px;
-	margin: 0 auto;
-	padding: 64px 24px;
-	text-align: center;
-}
-
-.bios-select-title {
-	margin: 0;
-	color: var(--bios-yellow);
-	letter-spacing: .06em;
-	font-size: 28px;
-}
-
-.bios-select-sub { color: var(--bios-fg-dim); margin: 8px 0 36px; }
-
+/* ───────── 보드 선택 랜딩 (bios-setting-board-select.html) ─────────
+   화면 골격은 n-page-md 이고, 여기는 보드 카드 격자만 정한다. */
 .bios-board-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-	gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
 }
 
 .bios-board-card {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	padding: 22px 18px;
-	background: var(--bios-help-bg);
-	border: 1px solid var(--bios-leader);
-	border-radius: 6px;
-	text-decoration: none;
-	transition: border-color .12s, transform .12s;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px;
+    background: var(--n-surface);
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    color: var(--n-text);
+    text-decoration: none;
+    transition: border-color .12s ease;
 }
 
-.bios-board-card:hover {
-	border-color: var(--bios-cyan);
-	transform: translateY(-2px);
+a.bios-board-card:hover {
+    border-color: var(--n-blue);
 }
 
 .bios-board-key {
-	color: var(--bios-fg-bright);
-	font-size: 20px;
-	font-weight: 700;
-	letter-spacing: .04em;
+    font-size: 16px;
+    font-weight: 600;
 }
 
-.bios-board-go { color: var(--bios-cyan); font-size: 13px; }
-
-.bios-select-empty { color: var(--bios-reset); margin-top: 28px; }
-
-.bios-select-links { margin-top: 32px; }
-
-.bios-select-links a {
-	color: var(--bios-cyan);
-	font-size: 13px;
-	text-decoration: none;
+.bios-board-go {
+    color: var(--n-blue);
+    font-size: 13px;
+    margin-top: 4px;
 }
 
-.bios-select-links a:hover { text-decoration: underline; }
-
-/* ───────── BMC 비밀번호 변경 (bmc-password.html) ───────── */
-.bmc-page { max-width: 640px; text-align: left; }
-
-.bmc-page .bios-select-title,
-.bmc-page .bios-select-sub { text-align: center; }
-
-.bmc-form {
-	display: flex;
-	flex-direction: column;
-	gap: 14px;
-	background: var(--bios-help-bg);
-	border: 1px solid var(--bios-leader);
-	border-radius: 6px;
-	padding: 24px;
+.bios-board-card.n-btn-disabled .bios-board-go {
+    color: var(--n-text-muted);
 }
-
-.bmc-field { display: flex; flex-direction: column; gap: 5px; }
-
-.bmc-label { color: var(--bios-fg-bright); font-size: 13px; font-weight: 600; }
-.bmc-opt { color: var(--bios-fg-dim); font-style: normal; font-weight: 400; }
-
-.bmc-input {
-	background: var(--bios-bg-deep);
-	border: 1px solid var(--bios-leader);
-	border-radius: 4px;
-	color: var(--bios-fg);
-	font-family: inherit;
-	font-size: 14px;
-	padding: 8px 10px;
-}
-
-.bmc-input:focus { outline: none; border-color: var(--bios-cyan); }
-
-.bmc-hint { color: var(--bios-fg-dim); font-size: 12px; }
-
-.bmc-error { color: var(--bios-error); margin: 0; font-size: 13px; }
-
-.bmc-actions {
-	display: flex;
-	justify-content: space-between;
-	gap: 10px;
-	margin-top: 6px;
-}
-
-.bmc-actions .bios-btn { text-decoration: none; display: inline-flex; align-items: center; }
-
-.bmc-result { margin-top: 28px; }
-
-.bmc-result-title { color: var(--bios-yellow); font-size: 17px; margin: 0 0 6px; }
-
-.bmc-result-sub { color: var(--bios-fg-dim); font-size: 13px; margin: 10px 0 6px; }
-
-.bmc-note { color: var(--bios-reset); font-size: 13px; margin-top: 12px; }
 
 /* ───────── 템플릿 상세 페이지 (bios-setting-detail.html) ─────────
-   상세는 BIOS 콘솔 룩이 아니라 포털 흰 테마(n-*) 위에 얹히는 보조 클래스만 필요하다.
-   색은 global/style.css 의 --n-* 변수만 사용 — bios-* 변수(파란 콘솔 팔레트)와 무관.
-   body 에 bios-body 클래스가 없으므로 위의 콘솔 스타일과 간섭하지 않는다. */
-
-/* menuPath 그룹 */
+   menuPath 그룹 · 기본값 → 저장값 대비 · Redfish 프리뷰(본문은 전역 .n-code-block). 포털 토큰만 쓴다. */
 .bsd-group { margin-bottom: 22px; }
 .bsd-group:last-child { margin-bottom: 0; }
 
 .bsd-group-title {
-	font-size: 12px;
-	font-weight: 600;
-	color: var(--n-text-sec);
-	letter-spacing: 0.4px;
-	padding-bottom: 6px;
-	border-bottom: 1px solid var(--n-border);
-	margin-bottom: 2px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--n-text-sec);
+    letter-spacing: 0.4px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--n-border);
+    margin-bottom: 2px;
 }
 
 .bsd-rows { list-style: none; margin: 0; padding: 0; }
 
 .bsd-row {
-	display: flex;
-	align-items: baseline;
-	gap: 10px;
-	flex-wrap: wrap;
-	padding: 9px 4px;
-	border-bottom: 1px solid var(--n-border-row);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 9px 4px;
+    border-bottom: 1px solid var(--n-border-row);
 }
 
 .bsd-row:last-child { border-bottom: none; }
 
-/* 라벨 = DisplayName(주) + AttributeName(mono 보조 — global code 스타일의 배지 배경을 끈다) */
+/* 라벨 = DisplayName(주) + AttributeName(mono 보조 — 전역 code 의 배지 배경을 끈다) */
 .bsd-row-label { font-size: 14px; font-weight: 600; color: var(--n-text); }
 
 .bsd-attr-name {
-	font-size: 11px;
-	color: var(--n-text-muted);
-	background: transparent;
-	border: none;
-	padding: 0;
+    font-size: 11px;
+    color: var(--n-text-muted);
+    background: transparent;
+    border: none;
+    padding: 0;
 }
 
 /* 기본값 → 저장값 대비 (default 는 muted, stored 가 강조) */
 .bsd-values {
-	margin-left: auto;
-	display: inline-flex;
-	align-items: baseline;
-	gap: 8px;
-	font-size: 14px;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 14px;
 }
 
 .bsd-value-default { color: var(--n-text-muted); }
 .bsd-value-arrow { color: var(--n-text-muted); font-size: 12px; }
 .bsd-value-stored { font-weight: 600; color: var(--n-blue); }
 
-/* stale 행(카탈로그에 없는 저장 속성) — 경고 톤(n-alert-danger 와 동일 orange 계열) */
+/* stale 행(카탈로그에 없는 저장 속성) — 주의 톤 */
 .bsd-stale-note {
-	margin: 0 0 10px;
-	font-size: 13px;
-	color: var(--n-orange);
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--n-orange);
 }
 
 .bsd-row-stale .bsd-attr-name { color: var(--n-orange); font-size: 12px; }
@@ -581,37 +456,37 @@ body.bios-editor-body .bios-screen {
 
 /* Redfish Request Body 프리뷰 */
 .bsd-redfish-head {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	flex-wrap: wrap;
-	margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
 }
 
 .bsd-redfish-target { font-size: 13px; word-break: break-all; }
 
-.bsd-redfish-pre {
-	background: var(--n-bg);
-	border: 1px solid var(--n-border);
-	border-radius: 6px;
-	padding: 14px 16px;
-	margin: 0;
-	font-family: 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
-	font-size: 12.5px;
-	line-height: 1.55;
-	color: var(--n-text);
-	white-space: pre;
-	overflow-x: auto;
-}
-
 .bsd-redfish-reset {
-	margin-top: 18px;
-	padding-top: 14px;
-	border-top: 1px dashed var(--n-border);
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--n-border);
 }
 
 .bsd-redfish-reset-note {
-	margin: 0 0 10px;
-	font-size: 13px;
-	color: var(--n-text-sec);
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--n-text-sec);
+}
+
+@media (max-width: 1024px) {
+    /* 도움말 패널은 항목 아래로 내린다 — 796px 안에서 두 열은 항목 라벨을 밀어낸다 */
+    .bios-main { grid-template-columns: 1fr; min-height: auto; }
+    .bios-help { border-left: 0; border-top: 1px solid var(--n-border); }
+    /* 세로는 뷰포트에 가두지 않는다 — 도움 패널이 두 번째 행이 되면 항목 영역이 182px 로 눌려
+       마지막 행이 잘렸다(S17-3 CP5 F-2: 768 중 메타 272 + 머리 126 + 도움 105 + 발 83 이 먼저 쓴다).
+       화면 자체가 스크롤되게 두고, 발은 아래에 붙여 저장 버튼이 늘 손에 닿게 한다. */
+    .bios-screen { flex: 1 0 auto; }
+    .bios-items { overflow-y: visible; }
+    .bios-footer { position: sticky; bottom: 0; z-index: 2; }
+    /* 메타 두 필드는 796px 에서도 나란히 선다 — 세로로 쌓으면 흰 띠가 272px 로 커져 콘솔보다 폼이 먼저 보인다 */
+    .bios-setting-meta-fields { grid-template-columns: minmax(220px, 1fr) 2fr; }
 }

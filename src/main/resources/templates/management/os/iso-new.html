@@ -30,7 +30,7 @@
 
     <div class="n-card">
         <div class="n-card-body">
-            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+            <div class="n-alert n-alert-muted">
                 대상 OS : <strong th:text="${contextLabel}"></strong>
             </div>
 
@@ -69,35 +69,33 @@
 
                 <div class="n-form-group">
                     <label class="n-label strong" for="isoPath">ISO 경로</label>
-                    <div style="display: flex; gap: 8px;">
+                    <div class="n-field-row">
                         <input id="isoPath" type="text" th:field="*{isoPath}"
-                               class="n-input" style="flex: 1;"
+                               class="n-input"
                                data-error-field="isoPath"
                                th:classappend="${#fields.hasErrors('isoPath')} ? 'is-invalid'"
                                placeholder="/mnt/iso/rocky9/DVD.iso"
                                th:data-browse-url="@{/management/browse}">
-                        <button type="button" id="browseBtn" class="n-btn n-btn-ghost">탐색</button>
+                        <button type="button" id="browseBtn" class="n-btn n-btn-outline">탐색</button>
                     </div>
                     <div class="n-hint">
-                        서버 파일시스템상의 저장 경로. 직접 타이핑하거나 <strong>탐색</strong> 버튼으로 디렉토리 / 기존 ISO 파일을 골라 채울 수 있습니다.
-                        업로드 시 이 경로에 직접 저장하며, 파일을 비우면 이 경로의 기존 ISO 를 그대로 등록합니다.
+                        직접 적거나 <strong>탐색</strong>으로 고릅니다. 아래 파일을 비우면 이 경로의 기존 ISO 를 그대로 등록합니다.
                     </div>
                     <div class="n-error" th:if="${#fields.hasErrors('isoPath')}"
                          th:errors="*{isoPath}"></div>
 
                     <!-- 경로 브라우저 패널 : 기본 숨김. 탐색 버튼 토글. directory-browse-panel fragment 재사용. -->
                     <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', '이 디렉토리에 저장')}"></div>
-                    <div class="n-hint" style="margin-top: 6px;">
-                        <strong>이 디렉토리에 저장</strong>: 현재 디렉토리를 ISO 경로로 적용 — 파일 업로드 시 multipart 파일명이 자동 추가됩니다.
+                    <div class="n-hint">
+                        탐색에서 <strong>이 디렉토리에 저장</strong>을 고르면 업로드한 파일명이 경로 뒤에 자동으로 붙습니다.
                     </div>
 
                     <!-- 디렉토리 생성 허용 -->
-                    <label class="n-check"
-                           style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <label class="n-check n-block-gap-sm">
                         <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
                         <span>상위 디렉토리 생성 허용</span>
                     </label>
-                    <div class="n-hint">대상 경로의 상위(부모) 디렉토리가 없을 때 함께 생성합니다. 대상 디렉토리 자체는 업로드 시 생성됩니다.</div>
+                    <div class="n-hint">경로에 없는 상위 디렉토리를 함께 만듭니다.</div>
                 </div>
 
                 <div class="n-form-group">
@@ -105,9 +103,7 @@
                     <input id="file" type="file" name="file" accept=".iso" class="n-input"
                            data-error-field="file">
                     <div class="n-hint">
-                        비워두면 파일 전송 없이 등록합니다 — 단, 서버가 위 경로의 기존 ISO 파일을 읽어
-                        manifest 해시를 계산하고 <code>.provision.json</code> 마커를 발급합니다.
-                        12GB 같은 큰 ISO 는 수 분이 걸릴 수 있습니다.
+                        비워 두면 위 경로의 기존 ISO 를 읽어 등록합니다. 큰 ISO 는 해시 계산에 수 분이 걸릴 수 있습니다.
                     </div>
                 </div>
 
@@ -131,9 +127,8 @@
                     <button type="submit" id="submitBtn" class="n-btn n-btn-primary">등록</button>
                 </div>
 
-                <div class="n-hint" style="margin-top: 16px;">
-                    등록이 완료될 때까지 페이지를 떠나지 마세요. 파일 업로드뿐 아니라 경로만 등록하는 경우에도
-                    서버가 manifest 해시 계산과 마커 발급을 수행합니다. 완료 시 자동으로 목록 페이지로 이동합니다.
+                <div class="n-hint n-hint-warn n-block-gap">
+                    등록이 끝날 때까지 페이지를 떠나지 마세요. 경로만 등록해도 해시 계산이 돌며, 끝나면 목록으로 이동합니다.
                 </div>
 
                 <!-- 업로드 진행률 카드 / 에러 박스 — JS 가 .is-visible 토글. 스타일은 os-page.css -->

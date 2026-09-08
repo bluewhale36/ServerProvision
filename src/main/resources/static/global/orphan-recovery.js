@@ -22,12 +22,6 @@
         return document.getElementById(prefix + suffix);
     }
 
-    function toast(message, variant) {
-        if (typeof window.bgjobToast === 'function') {
-            window.bgjobToast(message, {variant: variant || 'info'});
-        }
-    }
-
     // fetch 응답을 {ok, status, body} 로 정규화. 204 No Content 는 빈 body.
     function readResponse(resp) {
         if (resp.status === 204) return Promise.resolve({ok: resp.ok, status: 204, body: {}});
@@ -42,7 +36,7 @@
         if (!modal) {
             console.error('[OrphanRecovery] modal element 없음:', prefix + 'Modal');
             if (options.onError) options.onError('복구 모달을 찾을 수 없습니다.');
-            else toast('복구 모달을 찾을 수 없습니다.', 'error');
+            else UiUtil.toast('복구 모달을 찾을 수 없습니다.', 'error');
             return;
         }
 
@@ -55,7 +49,7 @@
                         ? '이미 처리되었거나 만료된 격리 항목입니다.'
                         : (body && body.message) || ('격리 정보를 불러오지 못했습니다 (HTTP ' + status + ')');
                     if (options.onError) options.onError(msg);
-                    else toast(msg, 'error');
+                    else UiUtil.toast(msg, 'error');
                     return;
                 }
                 render(prefix, modal, recoveryId, body, options);
@@ -63,7 +57,7 @@
             .catch(err => {
                 const msg = '격리 정보를 불러오지 못했습니다: ' + (err.message || err);
                 if (options.onError) options.onError(msg);
-                else toast(msg, 'error');
+                else UiUtil.toast(msg, 'error');
             });
     }
 
@@ -119,13 +113,13 @@
                 .then(({ok, status, body}) => {
                     if (!ok) throw new Error((body && body.message) || ('HTTP ' + status));
                     close();
-                    toast('등록을 다시 시작했습니다.', 'info');
+                    UiUtil.toast('등록을 다시 시작했습니다.', 'info');
                     if (options.afterRetry) options.afterRetry(body);
                     else if (body && body.redirect) window.location.href = body.redirect;
                 })
                 .catch(err => {
                     lockButtons(false);
-                    toast('재시도 실패: ' + (err.message || err), 'error');
+                    UiUtil.toast('재시도 실패: ' + (err.message || err), 'error');
                 });
         };
 
@@ -150,12 +144,12 @@
                 .then(({ok, status, body}) => {
                     if (!ok) throw new Error((body && body.message) || ('HTTP ' + status));
                     close();
-                    toast('격리된 파일을 폐기했습니다.', 'success');
+                    UiUtil.toast('격리된 파일을 폐기했습니다.', 'success');
                     if (options.afterDiscard) options.afterDiscard();
                 })
                 .catch(err => {
                     lockButtons(false);
-                    toast('폐기 실패: ' + (err.message || err), 'error');
+                    UiUtil.toast('폐기 실패: ' + (err.message || err), 'error');
                 });
         };
 
@@ -172,4 +166,17 @@
     }
 
     window.OrphanRecovery = {open: open};
+
+    // 격리 목록의 행 [복구] 버튼(button[data-recovery-id]) — 문서 위임으로 여기서 묶는다(S17-4).
+    // 처음엔 maintenance/quarantine/list.js 로 뺐으나 그 URL 이 OrphanRecoveryController 의
+    // GET /maintenance/quarantine/{recoveryId} 에 잡혀 404 가 났다(CP5 F-1). 이 모듈이 이미 그 화면에
+    // 실리므로 파일을 더 두지 않는다. 재시도 → 새 등록 job 의 redirect 로 이동, 폐기 → 목록 갱신, 나중에 → 그대로.
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-recovery-id]');
+        if (!btn) return;
+        open(btn.dataset.recoveryId, {
+            afterDiscard: function () { window.location.reload(); },
+            afterLater: function () { /* 그대로 — 항목 유지 */ }
+        });
+    });
 })();

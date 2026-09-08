@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  lifecycle 상태 행의 조각 (S17-2)
+  ─────────────────────────────────────────────────────────
+  자원 상세(OS · 메인보드 · BIOS · BMC · RAID 카드 · 드라이버/유틸리티 · ISO)와 세팅 정의서 상세가 같은 두 행을
+  가진다 — '상태'(활성 배지 + 토글)와 '사용 중단 권고'(배지 + 표시/해제). 종전에는 7 템플릿에 같은 블록이
+  복붙돼 있어 한 곳을 고치면 나머지를 빠뜨렸다(S17-1 CP5 F-1 이 그 사고다). 여기 한 벌만 둔다.
+
+  래퍼(<tr><th>…<td> 또는 <div class="n-accordion-field"><dt>…<dd>)는 호출하는 템플릿이 가진다 — 상세 표와
+  아코디언은 구조가 다르고, 이 조각은 그 안의 .n-actions 만 그린다.
+
+  statusActions(deleted, enabled, toggleUrl, blockEnable, blockTip, toggleTitle, selectKey, includeDeleted)
+    · blockEnable — 부모가 비활성/삭제라 활성화가 막힘(R2-2 / R4-1). true 면 disabled 버튼 + 툴팁.
+    · toggleTitle — 버튼 title(세팅 정의서만 씀). 없으면 null.
+    · selectKey · includeDeleted — PRG 뒤 선택 상태를 되살리는 hidden 입력(OS · ISO 화면). 없으면 null.
+  deprecateActions(deprecated, deprecateUrl, undeprecateUrl, deprecateConfirm, label, extra, blockUndeprecate, blockTip,
+                   undeprecateConfirm, resourceType, resourceId, selectKey, includeDeleted, badgeOn, btnOn, btnOff)
+    · deprecateConfirm — 표시에 확인 모달을 띄우는가(자원은 true · 세팅 정의서는 false).
+    · label · extra — 확인 모달의 data-resource-label / data-resource-extra(S5-2). extra 는 없으면 null.
+    · undeprecateConfirm — 해제에도 확인 모달을 띄우는가(OS · ISO · BIOS · BMC). resourceType · resourceId 는
+      ISO · BIOS · BMC 처럼 서명 확인 모달이 필요한 자원만 준다(그 밖은 null).
+    · badgeOn · btnOn · btnOff — 어휘. 자원은 'Deprecated' · 'Deprecated 표시' · 'Deprecated 해제',
+      세팅 정의서는 '사용 중단' · '사용 중단 권고' · '사용 중단 권고 해제'(문구 통일은 S16-2).
+  버튼 색은 결과 상태를 말한다(DESIGN.md 6절) — 활성화 초록 · 비활성화 중립 · 권고 노랑 · 해제 중립.
+  확인 모달 마커(data-confirm-*)의 값이 'true' 인 이유 — th:attr 는 null 뿐 아니라 빈 문자열도 속성을 지운다
+  (S17-2 CP5 F-1: '' 를 주자 마커가 통째로 사라져 모달 없이 즉시 제출됐다). JS 는 form[data-confirm-*] 의
+  존재만 보므로 값은 무엇이든 된다.
+-->
+<body>
+
+<div th:fragment="statusActions(deleted, enabled, toggleUrl, blockEnable, blockTip, toggleTitle, selectKey, includeDeleted)"
+     class="n-actions">
+    <span th:if="${deleted}" class="n-badge n-badge-gray">삭제됨</span>
+    <th:block th:unless="${deleted}">
+        <span class="n-badge"
+              th:classappend="${enabled} ? 'n-badge-green' : 'n-badge-off'"
+              th:text="${enabled} ? '활성' : '비활성'"></span>
+        <span th:if="${!enabled and blockEnable}" class="n-btn-tooltip-wrap" th:data-tooltip="${blockTip}">
+            <button type="button" class="n-btn n-btn-sm n-btn-outline-success" disabled>활성화</button>
+        </span>
+        <form th:unless="${!enabled and blockEnable}" th:action="${toggleUrl}" method="post">
+            <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+            <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
+            <button type="submit"
+                    class="n-btn n-btn-sm"
+                    th:classappend="${enabled} ? 'n-btn-outline' : 'n-btn-outline-success'"
+                    th:attr="title=${toggleTitle}"
+                    th:text="${enabled} ? '비활성화' : '활성화'"></button>
+        </form>
+    </th:block>
+</div>
+
+<div th:fragment="deprecateActions(deprecated, deprecateUrl, undeprecateUrl, deprecateConfirm, label, extra, blockUndeprecate, blockTip, undeprecateConfirm, resourceType, resourceId, selectKey, includeDeleted, badgeOn, btnOn, btnOff)"
+     class="n-actions">
+    <span class="n-badge"
+          th:classappend="${deprecated} ? 'n-badge-yellow' : 'n-badge-gray'"
+          th:text="${deprecated} ? ${badgeOn} : '해당 없음'"></span>
+    <form th:unless="${deprecated}" th:action="${deprecateUrl}" method="post"
+          th:attr="data-confirm-deprecate=${deprecateConfirm} ? 'true' : null,
+                   data-resource-label=${deprecateConfirm} ? ${label} : null,
+                   data-resource-extra=${deprecateConfirm} ? ${extra} : null">
+        <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+        <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
+        <button type="submit" class="n-btn n-btn-outline-warning" th:text="${btnOn}">Deprecated 표시</button>
+    </form>
+    <span th:if="${deprecated and blockUndeprecate}" class="n-btn-tooltip-wrap" th:data-tooltip="${blockTip}">
+        <button type="button" class="n-btn n-btn-outline" disabled th:text="${btnOff}">Deprecated 해제</button>
+    </span>
+    <form th:if="${deprecated and !blockUndeprecate}" th:action="${undeprecateUrl}" method="post"
+          th:attr="data-confirm-undeprecate=${undeprecateConfirm} ? 'true' : null,
+                   data-resource-type=${undeprecateConfirm} ? ${resourceType} : null,
+                   data-resource-id=${undeprecateConfirm} ? ${resourceId} : null,
+                   data-resource-label=${undeprecateConfirm} ? ${label} : null">
+        <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
+        <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
+        <button type="submit" class="n-btn n-btn-outline" th:text="${btnOff}">Deprecated 해제</button>
+    </form>
+</div>
+
+</body>
+</html>

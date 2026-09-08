@@ -26,7 +26,7 @@
    안쪽 흰 판이 떠 보이도록 옅은 배경을 깐다. 묶음 사이는 넉넉히 벌려
    경계가 바뀌는 지점이 눈에 들어오게 한다. */
 .n-glist {
-    background: #f7f7f8;
+    background: var(--n-sunken);
     padding: 14px 16px 16px;
     margin-bottom: 22px;
 }
@@ -42,8 +42,9 @@
     display: flex;
     align-items: baseline;
     gap: 10px;
-    padding: 0 2px;
+    padding: 0 2px 8px;
     margin-bottom: 10px;
+    border-bottom: 1px solid var(--n-border);
 }
 
 .n-glist-title {
@@ -65,19 +66,13 @@
    접힘이 필요 없는 목록(그룹 상세의 멤버)은 아코디언 대신 이것을 쓴다. */
 .n-glist-panel {
     background: #fff;
-    border-radius: 6px;
+    border-radius: var(--n-radius-lg);
     overflow: hidden;
 }
 
 /* 아코디언을 안쪽 묶음으로 쓸 때도 같은 흰 판이 된다 */
 .n-glist > .n-accordion > .n-accordion-item {
     background: #fff;
-}
-
-/* ---- 안쪽 묶음의 부제 ---- */
-.n-glist-sub {
-    font-size: 13px;
-    margin: 14px 0 4px;
 }
 
 /* ---- 안쪽 묶음 제목 옆의 요약 ----
@@ -115,19 +110,10 @@ a.n-accordion-head {
    행 전체가 아니라 <b>이름 링크만</b> 이동한다. 그래서 행에는 손 모양 커서를
    주지 않고 배경만 바꾼다 — 커서가 바뀌는데 눌러도 안 되는 것이 가장 나쁘다. */
 .n-row-hover:hover td {
-    background: var(--n-bg-hover, #f5f5f4);
+    background: var(--n-row-hover);
 }
 
-.n-row-link {
-    font-weight: 600;
-    color: var(--n-text);
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.n-row-link:hover {
-    text-decoration: underline;
-}
+/* .n-row-link 는 style.css §8 로 올렸다(S17-2 — setting.css 와 중복 정의). */
 
 /* ---- 상세에서 돌아온 행 ---- 은 table-list.css 로 옮겼다 (MK4-5-1 CP7).
    짝인 global/nav-stack.js 가 전역 스크립트인데 그 스타일만 이 파일에 있어,

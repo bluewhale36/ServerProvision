@@ -49,7 +49,7 @@
                 if (fe && fe.message) overflow.push(fe.message);
                 continue;
             }
-            const target = scope.querySelector('[data-error-field="' + cssEscape(fe.field) + '"]');
+            const target = scope.querySelector('[data-error-field="' + UiUtil.cssEscape(fe.field) + '"]');
             if (!target) {
                 overflow.push((fe.field ? fe.field + ': ' : '') + (fe.message || ''));
                 continue;
@@ -99,18 +99,8 @@
         for (const m of overflow || []) {
             if (m && lines.indexOf(m) === -1) lines.push(m);
         }
-        if (!banner) {
-            // banner 가 없다면 console 만 찍고 끝낸다 (alert 금지).
-            if (lines.length) console.warn('[FormError]', lines.join(' / '));
-            return;
-        }
-        if (lines.length === 0) {
-            banner.textContent = '';
-            banner.hidden = true;
-            return;
-        }
-        banner.textContent = lines.join(' · ');
-        banner.hidden = false;
+        // 배너 출력은 UiUtil 한 벌 — 없으면 console 만, 이을 것이 없으면 숨김.
+        UiUtil.showBanner(banner, lines);
     }
 
     /**
@@ -153,12 +143,6 @@
     /**
      * CSS.escape 폴백 (구형 브라우저 안전망).
      */
-    function cssEscape(value) {
-        if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-            return CSS.escape(value);
-        }
-        return String(value).replace(/[^a-zA-Z0-9_-]/g, ch => '\\' + ch);
-    }
 
     global.FormError = {
         clear,

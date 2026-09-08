@@ -28,7 +28,7 @@
     <th:block th:replace="~{fragments/layout :: commonHead('BIOS 세팅 템플릿 상세')}"></th:block>
     <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
     <!-- v 쿼리 = 캐시버스터 (스타일 변경 시 증가) -->
-    <link rel="stylesheet" th:href="@{/provisioning/bios-setting.css(v=3)}">
+    <link rel="stylesheet" th:href="@{/provisioning/bios-setting.css(v=4)}">
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('bios-setting')}"></nav>
@@ -166,14 +166,14 @@
                     <span class="n-badge n-badge-blue" th:text="${template.redfish.method}">PATCH</span>
                     <code class="bsd-redfish-target" th:text="${template.redfish.target}">/redfish/v1/Systems/1/Bios/Settings</code>
                 </div>
-                <pre class="bsd-redfish-pre" th:text="${template.redfish.bodyJson}">{ "Attributes": {} }</pre>
+                <pre class="n-code-block" th:text="${template.redfish.bodyJson}">{ "Attributes": {} }</pre>
                 <div th:if="${template.redfish.resetRequired}" class="bsd-redfish-reset">
                     <p class="bsd-redfish-reset-note">
                         재부팅 필요 속성이 포함되어 적용 후 아래 reset 액션이 함께 전송됩니다.</p>
                     <div class="bsd-redfish-head">
                         <code class="bsd-redfish-target" th:text="${template.redfish.resetTarget}">/redfish/v1/Systems/1/Actions/ComputerSystem.Reset</code>
                     </div>
-                    <pre class="bsd-redfish-pre" th:text="${template.redfish.resetBodyJson}">{"ResetType": "GracefulRestart"}</pre>
+                    <pre class="n-code-block" th:text="${template.redfish.resetBodyJson}">{"ResetType": "GracefulRestart"}</pre>
                 </div>
             </div>
         </div>

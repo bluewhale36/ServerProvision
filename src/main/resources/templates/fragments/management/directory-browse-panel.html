@@ -20,36 +20,34 @@
     browseCancelBtn · browseApplyBtn (directory 모드) · browseClearBtn (file 모드)
   ─────────────────────────────────────────────────────────────
 */-->
-<div th:fragment="browsePanel(prefix, mode, primaryActionLabel)"
+<div class="n-browse-panel" th:fragment="browsePanel(prefix, mode, primaryActionLabel)"
      th:id="${prefix} + 'Panel'"
-     hidden
-     style="margin-top: 10px; border: 1px solid var(--n-border); border-radius: 6px; padding: 12px; background: #fafafa;">
+     hidden>
 
-    <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 8px;">
+    <div class="n-browse-bar">
         <button type="button"
                 th:id="${prefix} + 'UpBtn'"
-                class="n-btn n-btn-sm n-btn-ghost"
+                class="n-btn n-btn-sm n-btn-outline"
                 th:title="${mode == 'file' ? '상위 디렉토리로 (트리 루트 밖으로는 이동 불가)' : '상위 디렉토리로'}">↑ 상위
         </button>
-        <code th:id="${prefix} + 'CurrentPath'"
-              style="flex: 1; font-size: 12px; word-break: break-all;"></code>
+        <code class="n-browse-path" th:id="${prefix} + 'CurrentPath'"
+             ></code>
     </div>
 
-    <div th:id="${prefix} + 'Status'" class="n-hint" style="margin-bottom: 8px;"></div>
+    <div th:id="${prefix} + 'Status'" class="n-hint n-lead"></div>
 
-    <ul th:id="${prefix} + 'Entries'"
-        style="list-style: none; padding: 0; margin: 0 0 8px 0; max-height: 240px; overflow-y: auto; border: 1px solid var(--n-border); border-radius: 4px; background: #fff;">
+    <ul class="n-browse-list" th:id="${prefix} + 'Entries'">
     </ul>
 
-    <div style="display: flex; justify-content: flex-end; gap: 6px;">
+    <div class="n-browse-actions">
         <button type="button"
                 th:id="${prefix} + 'CancelBtn'"
-                class="n-btn n-btn-sm n-btn-ghost">닫기
+                class="n-btn n-btn-sm n-btn-outline">닫기
         </button>
         <button th:if="${mode == 'file'}"
                 type="button"
                 th:id="${prefix} + 'ClearBtn'"
-                class="n-btn n-btn-sm n-btn-ghost">진입점 비우기
+                class="n-btn n-btn-sm n-btn-outline">진입점 비우기
         </button>
         <button th:if="${mode == 'directory'}"
                 type="button"

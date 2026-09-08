@@ -19,44 +19,35 @@
 
   CSS: 기존 .n-alert / .n-btn / .n-card 재사용. 신규 CSS 토큰 0.
 */-->
-<div th:fragment="nudgeModal(prefix, confirmBaseUrl)"
+<div class="cm-overlay" th:fragment="nudgeModal(prefix, confirmBaseUrl)"
      th:id="${prefix} + 'Modal'"
      hidden
-     th:data-confirm-base-url="${confirmBaseUrl}"
-     style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1050;
-            display: flex; align-items: center; justify-content: center; padding: 24px;">
+     th:data-confirm-base-url="${confirmBaseUrl}">
 
     <!-- backdrop -->
-    <div th:id="${prefix} + 'Backdrop'"
-         style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0, 0, 0, 0.45);"></div>
+    <div class="cm-backdrop" th:id="${prefix} + 'Backdrop'"></div>
 
     <!-- card -->
-    <div class="n-card" role="dialog" aria-modal="true"
-         style="position: relative; max-width: 560px; width: 100%; max-height: 90vh;
-                overflow-y: auto;">
+    <div class="n-card cm-card cm-card-md" role="dialog" aria-modal="true">
         <div class="n-card-body">
-            <h2 style="margin: 0 0 12px 0; font-size: 1.15rem; display: flex; justify-content: space-between; align-items: baseline; gap: 12px;">
+            <h2 class="cm-title cm-title-split">
                 <span>동일한 자원이 이미 존재합니다</span>
                 <!-- MK2 — TTL countdown. JS (NudgeTimer) 가 expiresAt 으로부터 mm:ss 갱신.
                      0:00 도달 시 modal 자동 닫힘 + onExpire 호출. -->
-                <span data-nudge-timer
-                      style="font-size: 0.85rem; font-weight: 500; color: var(--n-text-muted);"
+                <span class="cm-title-meta" data-nudge-timer
+                     
                       title="이 시간 안에 결정하지 않으면 nudge 세션이 만료됩니다."></span>
             </h2>
-            <div class="n-alert n-alert-warning" style="margin-bottom: 14px;">
+            <div class="n-alert n-alert-warning">
                 동일한 자원이 휴지통 또는 Deprecated 상태로 다음과 같이 발견되었습니다.
                 계속 진행할 방법을 선택하세요.
             </div>
 
-            <ul th:id="${prefix} + 'ConflictsList'"
-                style="list-style: none; padding: 0; margin: 0 0 18px 0;
-                       border: 1px solid var(--n-border); border-radius: 4px;
-                       background: #fff; max-height: 200px; overflow-y: auto;">
+            <ul class="cm-conflict-list" th:id="${prefix} + 'ConflictsList'">
                 <!-- JS 가 NudgeConflictEntry 로 채움 -->
             </ul>
 
-            <div class="n-hint" style="margin-bottom: 14px;">
+            <div class="n-hint n-lead">
                 <strong>그래도 등록</strong> : 새 자원으로 등록 (기존 자원은 그대로 보존)<br>
                 <strong>기존 영구 삭제 후 등록</strong> : 기존 자원을 영구 삭제하고 새 자원을 등록<br>
                 <strong>취소</strong> : 업로드를 취소하고 임시 파일 정리
@@ -67,25 +58,22 @@
               자원 선택 시 JS 가 hint 영역에 자원의 displayName 을 노출. 사용자가 동일 문자열을
               입력해야 ReplaceBtn 이 활성화 (휴지통 영구삭제와 동일 정책 — 우발 삭제 방어).
             -->
-            <div th:id="${prefix} + 'TypedNameWrap'"
-                 hidden
-                 style="border-top: 1px solid var(--n-border-soft); padding-top: 12px; margin-bottom: 12px;">
-                <label th:for="${prefix} + 'TypedName'"
-                       style="display: block; font-size: 0.9rem; margin-bottom: 6px;">
+            <div class="cm-typed-block" th:id="${prefix} + 'TypedNameWrap'"
+                 hidden>
+                <label class="cm-typed-target-label" th:for="${prefix} + 'TypedName'">
                     영구삭제를 확정하려면 아래 자원명을 정확히 입력하세요 :
                 </label>
-                <code th:id="${prefix} + 'TypedNameExpected'"
-                      style="display: block; font-size: 12px; padding: 6px 8px; background: var(--n-bg, #f6f8fa); border-radius: 4px; margin-bottom: 6px;"></code>
-                <input type="text"
+                <code class="cm-typed-target-code cm-path" th:id="${prefix} + 'TypedNameExpected'"
+                     ></code>
+                <input class="cm-typed-input" type="text"
                        th:id="${prefix} + 'TypedName'"
                        th:name="typedName"
                        autocomplete="off"
                        spellcheck="false"
-                       placeholder="자원명 입력"
-                       style="width: 100%; padding: 6px 8px;">
+                       placeholder="자원명 입력">
             </div>
 
-            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+            <div class="cm-actions">
                 <button type="button"
                         th:id="${prefix} + 'CancelBtn'"
                         class="n-btn n-btn-secondary">취소

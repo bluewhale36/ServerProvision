@@ -1,35 +1,72 @@
 /* ============================================================
-   Notion 디자인 시스템 — 글로벌 CSS
-   Bootstrap 5.x 이후에 로드되어 시각 스타일을 덮어씁니다.
+   전역 CSS — 계층을 "위치와 격자" 로 읽힌다 (S17-1, DESIGN.md 가 규칙의 정본)
+   ─────────────────────────────────────────────────────────
+   이 도구가 다루는 것은 문서가 아니라 장비 대장이다. 화면 대부분이 식별자 · 주소 · 버전 · 해시로
+   채워지므로 종이 은유(따뜻한 회색 · 둥근 카드 · 부드러운 그림자)를 걷어냈다. 계층은 면이나 크기가
+   아니라 위치가 진다 — 왼쪽 사이드바가 영역을 말하고, 판 안의 격자선이 칸을 말한다.
+   reset.css(브라우저 기본값 정돈) 뒤에 실린다. Bootstrap 은 S17-5 에서 걷어냈다.
    ============================================================ */
+
+/* ---- 0. 글꼴 ---------------------------------------------
+   Inter 는 자체 호스팅한다(S17-5). 종전 Google Fonts 링크는 인터넷 없는 배포 환경에서 실리지 않았다.
+   Google 이 주는 파일은 굵기별이 아니라 가변 폰트 하나(latin · latin-ext 두 서브셋)라 두 파일이
+   400 · 500 · 600 · 700 을 모두 그린다. 한글은 이 글꼴에 없어 시스템 글꼴이 그린다(종전과 같다).
+   라이선스는 SIL OFL 1.1 — /fonts/inter/OFL.txt. */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('/fonts/inter/inter-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('/fonts/inter/inter-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 /* ---- 1. CSS 변수 ------------------------------------------ */
 :root {
-    --n-bg: #f6f5f4;
+    --n-bg: #eef1f5;
     --n-surface: #ffffff;
-    --n-text: rgba(0, 0, 0, 0.95);
-    --n-text-sec: #615d59;
-    --n-text-muted: #a39e98;
-    --n-border: rgba(0, 0, 0, 0.1);
-    --n-border-row: rgba(0, 0, 0, 0.06);
-    --n-border-form: rgba(0, 0, 0, 0.15);
-    --n-blue: #0075de;
-    --n-blue-hover: #005bab;
-    --n-blue-badge-bg: #f2f9ff;
-    --n-blue-badge-text: #097fe8;
-    --n-green: #1aae39;
-    --n-orange: #dd5b00;
-    --n-red: #bf2626;
+    --n-sunken: #f7f9fb;          /* 판 안에서 한 단 꺼진 면 — 구획 머리 · 묶음 배경 */
+    --n-thead: #e3e8ef;           /* 표 머리 · Miller 열 머리 — 같은 성격의 머리는 같은 톤 */
+    --n-row-hover: #f1f5fa;
+    --n-text: #0f172a;
+    --n-text-sec: #475569;
+    --n-text-muted: #94a3b8;
+    --n-border: rgba(15, 23, 42, 0.14);
+    --n-border-row: rgba(15, 23, 42, 0.08);
+    --n-border-form: rgba(15, 23, 42, 0.22);
+    --n-blue: #2557d6;
+    --n-blue-hover: #1c44a8;
+    --n-blue-badge-bg: #eaf0fd;
+    --n-blue-badge-text: #2557d6;
+    --n-green: #0f8a4d;
+    --n-orange: #c2560a;          /* 주의 — 미설정 · 불일치 · 되돌릴 수 있는 삭제 */
+    --n-red: #c02626;             /* 오류 · 되돌릴 수 없는 것 */
     --n-red-hover: #951c1c;
-    --n-yellow: #C29343;
-    --n-yellow-bg: #FAF3DD;
-    --n-red-bg: #F9EAEA;
-    --n-teal: #2a9d99;
-    --n-warm-dark: #31302e;
-    --n-shadow-card: rgba(0, 0, 0, 0.04) 0px 4px 18px,
-    rgba(0, 0, 0, 0.027) 0px 2.025px 7.847px,
-    rgba(0, 0, 0, 0.02) 0px 0.8px 2.925px,
-    rgba(0, 0, 0, 0.01) 0px 0.175px 1.041px;
+    --n-yellow: #a97a1e;          /* 사용 중단 권고 */
+    --n-yellow-bg: #fbf3e2;
+    --n-red-bg: #f9eaea;
+    --n-teal: #17868c;
+    --n-warm-dark: #16202e;       /* 사이드바 · 어두운 머리 */
+    --n-shadow-card: none;        /* 격자가 구조를 지므로 그림자는 쓰지 않는다 */
+    /* 반지름은 두 값뿐이다 — 낱개로 서는 작은 조각(버튼 · 입력 · 배지 · 코드)은 4px,
+       내용을 담는 판(카드 · 알림 · 모달 · 패널)은 6px. 형태가 곧 뜻인 점(50%)만 예외다. */
+    --n-radius: 4px;
+    --n-radius-lg: 6px;
+    /* mono 는 한 벌이다 — 파일 경로(code) 와 MAC 주소(.n-table-mono) 가 같은 화면에서 다른 폰트로
+       보이던 것을 막는다 */
+    --n-font-mono: 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+    /* 오류는 하나의 축이라 색도 하나다 — 배너 · 입력 테두리 · 필드 메시지가 전부 이 값을 본다.
+       '삭제' 버튼의 주황(주의)과 갈리는 것이 요점이다 */
+    --n-error: var(--n-red);
 }
 
 /* ---- 2. 기본 스타일 --------------------------------------- */
@@ -37,6 +74,11 @@
     box-sizing: border-box;
 }
 
+/* body 가 곧 shell 이다 — 모든 화면이 <body> 바로 아래에 <nav class="n-nav"> 와 본문(.n-page 계열)을
+   형제로 두므로(49 화면 실측, S17-1 CP2) 감싸는 요소를 더하지 않고 body 를 가로 flex 로 세운다.
+   사이드바와 본문이 flex 형제가 되어 모달 오버레이(position: fixed)가 뷰포트 전체를 덮고, 보정 규칙이
+   필요 없다. align-items 를 flex-start 로 두는 이유는 사이드바(height: 100vh)가 본문 높이로 늘어나
+   sticky 가 죽는 것을 막기 위해서다. */
 body {
     font-family: 'Inter', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
     background: var(--n-bg);
@@ -44,134 +86,208 @@ body {
     font-size: 15px;
     line-height: 1.5;
     margin: 0;
+    display: flex;
+    align-items: flex-start;
+    min-height: 100vh;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 맨 링크도 팔레트의 파랑이다 — S17-1 CP5 F-5 때는 Bootstrap 의 --bs-link-color(#0d6efd)가 남아 한 화면에
+   파랑이 둘이었고, Bootstrap 을 걷어낸 뒤(S17-5)에는 브라우저 기본 파랑을 막는 규칙이다. 클래스가 있는
+   링크(.n-btn · .n-nav-link · .n-row-link …)는 자기 색을 갖는다. */
+a {
+    color: var(--n-blue);
+}
+
+a:hover {
+    color: var(--n-blue-hover);
 }
 
 /* 인라인 코드 — 배지와 유사한 형태의 코드 표시 요소 */
 code {
-    font-family: 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+    font-family: var(--n-font-mono);
+    font-feature-settings: "tnum";
     font-size: 0.85em;
     font-weight: 500;
-    color: rgba(0, 0, 0, 0.85);
-    background: rgba(0, 0, 0, 0.06);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: var(--n-text);
+    background: rgba(15, 23, 42, 0.06);
+    border: 1px solid rgba(15, 23, 42, 0.08);
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--n-radius);
     vertical-align: baseline;
 }
 
-/* ---- 3. 내비게이션 바 ------------------------------------- */
+/* 키 표기 — reset.css 는 Bootstrap 값(흰 글자 · #212529 면)을 그대로 옮긴 파일이라 손대지 않고 여기서 토큰으로 덮는다.
+   BIOS 편집기의 키 안내는 자기 시트(bios-setting.css)가 다시 덮는다. */
+kbd {
+    color: var(--n-surface);
+    background-color: var(--n-warm-dark);
+    border-radius: var(--n-radius);
+}
+
+/* 코드 블록 — Redfish 요청 본문처럼 여러 줄의 원문을 그대로 보이는 자리(BIOS 세팅 상세 · BMC 비밀번호) */
+.n-code-block {
+    background: var(--n-sunken);
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    padding: 14px 16px;
+    margin: 0;
+    font-family: var(--n-font-mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--n-text);
+    white-space: pre;
+    overflow-x: auto;
+}
+
+/* ---- 3. 사이드바 ------------------------------------------ */
+/* 왼쪽 사이드바가 영역을 진다 — 위치가 계층을 말하므로 본문은 제목 위에 영역명을 반복하지 않는다.
+   뷰포트 높이에 붙어(sticky) 긴 화면을 내려도 지금 있는 영역이 보인다. 폭은 1024 까지 228px 고정
+   (DESIGN.md 지원 하한 — 축소 · 서랍 전환은 하지 않는다). */
 .n-nav {
-    background: var(--n-surface);
-    border-bottom: 1px solid var(--n-border);
-    height: 52px;
-    display: flex;
-    align-items: center;
-    padding: 0 40px;
-    gap: 4px;
+    flex: 0 0 228px;
+    width: 228px;
     position: sticky;
     top: 0;
+    height: 100vh;
+    /* 1024×768 처럼 낮은 뷰포트에서는 링크 열아홉 + 라벨이 100vh 를 넘는다 — 안에서 스크롤해야 맨 아래
+       배경 작업 버튼에 닿는다. 그 버튼의 패널은 position: fixed 라 조상 overflow 에 잘리지 않는다. */
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1px;
+    padding: 16px 0;
+    background: var(--n-warm-dark);
+    border-right: 1px solid var(--n-border);
     z-index: 100;
 }
 
 .n-nav-brand {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
-    color: var(--n-text);
+    color: #ffffff;
     text-decoration: none;
-    margin-right: 16px;
-    letter-spacing: -0.25px;
+    margin: 0 0 14px;
+    padding: 0 18px;
+    letter-spacing: -0.2px;
     flex-shrink: 0;
 }
 
+/* 영역 라벨(자원 관리 · 운영 · 프로비저닝) — 링크가 아니라 묶음의 이름이다 */
+.n-nav-group {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #64748b;
+    padding: 16px 18px 6px;
+}
+
 .n-nav-link {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--n-text-sec);
+    display: block;
+    font-size: 13.5px;
+    font-weight: 400;
+    color: #cbd5e1;
     text-decoration: none;
-    padding: 5px 10px;
-    border-radius: 4px;
+    padding: 6px 18px;
+    border-left: 3px solid transparent;
     transition: background .15s, color .15s;
     white-space: nowrap;
 }
 
 .n-nav-link:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--n-text);
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
 }
 
 .n-nav-link.active {
-    color: var(--n-text);
+    background: rgba(255, 255, 255, 0.09);
+    color: #ffffff;
     font-weight: 600;
-    background: rgba(0, 0, 0, 0.04);
+    border-left-color: var(--n-blue);
 }
 
 /* 미구현 메뉴 : <span class="n-nav-link" aria-disabled="true"> 형태로 렌더링 */
 .n-nav-link[aria-disabled="true"] {
-    color: var(--n-text-muted);
-    opacity: 0.55;
+    color: #64748b;
     cursor: not-allowed;
 }
 
 .n-nav-link[aria-disabled="true"]:hover {
     background: transparent;
-    color: var(--n-text-muted);
+    color: #64748b;
+}
+
+.n-nav-spacer {
+    flex: 1 1 auto;
 }
 
 
 /* ---- 4. 페이지 레이아웃 ----------------------------------- */
-.n-page {
-    padding: 40px;
-    max-width: 1440px;
+/* 본문은 사이드바 옆의 남는 폭을 받는다(flex: 1). min-width: 0 이 없으면 표 · 긴 식별자가
+   flex 항목의 최소 폭(내용 폭)을 밀어 올려 사이드바를 밀어낸다. 폭 상한 안에서는 가운데 정렬. */
+.n-page,
+.n-page-md,
+.n-page-lg {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 24px 28px;
     margin: 0 auto;
 }
 
+.n-page {
+    max-width: 1440px;
+}
+
 .n-page-md {
-    padding: 40px;
     max-width: 960px;
-    margin: 0 auto;
 }
 
 /* 표 · 다단 카드가 있는 상세 · 작성 화면(세팅 정의서 · 게스트 서버 상세) — 960 은 8열 표에 좁다(U4-1-2 CP4 검수).
    1200 = DESIGN.md Desktop 브레이크포인트 하한 · 관리 자원의 단일 열 폼은 .n-page-md 그대로 둔다. */
 .n-page-lg {
-    padding: 40px;
     max-width: 1200px;
-    margin: 0 auto;
-}
-
-.n-page-sm {
-    padding: 40px;
-    max-width: 860px;
-    margin: 0 auto;
 }
 
 .n-page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16px;
     margin-bottom: 24px;
 }
 
+/* 제목은 줄어들지 않고 단어 안에서 끊기지 않는다 — 좁은 폭에서 오른쪽 동작 묶음이 제목을 밀어
+   '시스템 자 / 산' 으로 갈랐다(CP5 F-6). 한국어는 기본값이 음절 단위 줄바꿈이라 keep-all 이 필요하다. */
 .n-page-title {
     font-size: 26px;
     font-weight: 700;
     letter-spacing: -0.625px;
     line-height: 1.23;
     margin: 0;
+    flex-shrink: 0;
+    word-break: keep-all;
 }
 
 /* ---- 5. 카드 ---------------------------------------------- */
+/* 판 — 격자선(테두리)이 구조를 지고 그림자는 없다.
+   overflow 는 hidden 이 아니라 clip 이다 — 모서리는 그대로 깎이되 clip-margin 만큼 여백을 허용해
+   카드 위로 떠야 하는 툴팁이 잘리지 않는다(hidden 은 툴팁까지 함께 잘랐다). */
 .n-card {
     background: var(--n-surface);
     border: 1px solid var(--n-border);
-    border-radius: 12px;
+    border-radius: var(--n-radius-lg);
     box-shadow: var(--n-shadow-card);
-    overflow: hidden;
+    overflow: clip;
+    overflow-clip-margin: 90px;
     margin-bottom: 20px;
 }
 
+/* 대장은 한 화면에 많이 보여야 한다 — 종전 32px 에서 줄였다 */
 .n-card-body {
-    padding: 32px;
+    padding: 22px 24px;
 }
 
 /* 카드 안 구획 제목 — 휴지통 운영 설정 등에서 쓰이나 그동안 미정의였다. 도메인 폼/요약 카드의 머리글. */
@@ -182,28 +298,51 @@ code {
     margin: 0 0 16px;
 }
 
-.n-card-footer {
+/* 판의 머리 — 제목 · 집계 배지 · 판 단위 동작이 한 줄에 서는 자리(자산 대시보드의 탭 패널이 첫 사용처).
+   표 머리와 같은 꺼진 면 위에 서고 아래 격자선으로 본문과 갈라진다. 판 안에 본문 여백(.n-card-body)이
+   없는 표형 판에서도 머리만 붙일 수 있게 padding 을 스스로 가진다. (S17-3 — asset.css 의 영역 머리를 흡수) */
+.n-card-head {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding-top: 20px;
-    border-top: 1px solid var(--n-border);
-    margin-top: 8px;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--n-sunken);
+    border-bottom: 1px solid var(--n-border);
 }
 
+.n-card-head-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.n-card-head-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+
 /* ---- 6. 버튼 ---------------------------------------------- */
+/* 색은 "누르면 자원이 어떤 상태가 되는가" 를 말한다 — 채움은 화면의 주 동작(파랑) · 보조(회색) 둘뿐이고,
+   상태를 바꾸는 조작은 결과 상태의 색을 테두리로만 두르며 마우스를 올리면 그 색이 배경으로 드러난다.
+   채우면 배지처럼 보여 표시(상태)와 조작(버튼)이 헷갈리기 때문이다. 되돌릴 수 없는 것(영구 삭제)만
+   예외로 테두리가 진하고 올리면 채워진다. 크기는 표시(배지 11px)보다 커야 한다 — 어느 것이 눌리는지
+   크기로 가른다. */
 .n-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--n-radius);
     font-family: inherit;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     line-height: 1.4;
-    padding: 8px 16px;
+    padding: 6px 13px;
     cursor: pointer;
     text-decoration: none;
     white-space: nowrap;
@@ -222,7 +361,7 @@ code {
    새 flavor 의 hover 규칙을 추가할 때 반드시 같은 가드를 단다 (.n-btn-disabled 는 링크형 비활성). */
 .n-btn:disabled,
 .n-btn.n-btn-disabled {
-    background: rgba(0, 0, 0, 0.10);
+    background: rgba(15, 23, 42, 0.10);
     color: var(--n-text-muted);
     border-color: transparent;
     opacity: 1;
@@ -237,7 +376,19 @@ code {
 
 .n-btn-sm {
     font-size: 12px;
-    padding: 4px 10px;
+    padding: 3px 9px;
+}
+
+/* 버튼 크기는 자리가 정한다 — 마크업이 .n-btn-sm 을 붙였는지에 맡기면 화면마다 갈린다(실제로 갈렸다 :
+   '서버 넣기' 가 묶음 머리에서 제목보다 커 보였고, 상태 행의 'Deprecated 표시' 가 옆의 토글보다 컸다).
+     · 묶음 머리(.n-glist-head)          — 제목보다 커지면 안 된다
+     · 상세 표의 값 칸(.n-detail-table)   — 배지와 나란히 서므로 배지에 맞춘다
+     · 아코디언 필드(.n-accordion-field) — 위와 같다 */
+.n-glist-head .n-btn,
+.n-detail-table .n-actions .n-btn,
+.n-accordion-field .n-actions .n-btn {
+    font-size: 12px;
+    padding: 3px 9px;
 }
 
 /* 링크 버튼(a 태그) 비활성 상태 — button:disabled 는 a 에 적용되지 않음 */
@@ -276,10 +427,10 @@ code {
     bottom: calc(100% + 6px);
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(31, 35, 40, 0.82);
+    background: rgba(22, 32, 46, 0.88);
     color: #fff;
     padding: 6px 10px;
-    border-radius: 4px;
+    border-radius: var(--n-radius);
     font-size: 12px;
     line-height: 1.4;
     /* 핵심 — width: max-content 로 shrink-to-fit 회피 + max-width 로 긴 한국어 wrap. */
@@ -318,71 +469,83 @@ code {
 }
 
 .n-btn-secondary {
-    background: rgba(0, 0, 0, 0.06);
-    color: rgba(0, 0, 0, 0.85);
+    background: rgba(15, 23, 42, 0.06);
+    color: var(--n-text);
 }
 
 .n-btn-secondary:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(0, 0, 0, 0.09);
+    background: rgba(15, 23, 42, 0.10);
     color: var(--n-text);
 }
 
-.n-btn-ghost {
+/* 중립 테두리 — '비활성화' · '해제' 처럼 결과에 색이 없는 동작에 쓴다. 결과에 색이 없으니 버튼에도 색을
+   주지 않는다(S17-1 D4). 같은 뜻의 옛 이름 .n-btn-ghost 는 S17-2 에서 이 이름으로 합쳤다. */
+.n-btn-outline {
     background: transparent;
     color: var(--n-text-sec);
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--n-border-form);
+    font-weight: 500;
 }
 
-.n-btn-ghost:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(0, 0, 0, 0.04);
+.n-btn-outline:hover:not(:disabled):not(.n-btn-disabled) {
+    background: rgba(15, 23, 42, 0.06);
     color: var(--n-text);
+    border-color: rgba(15, 23, 42, 0.40);
 }
 
-.n-btn-info {
-    background: var(--n-blue-badge-bg);
-    color: var(--n-blue-badge-text);
-}
 
-.n-btn-info:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(9, 127, 232, 0.15);
-}
 
-.n-btn-warning {
-    background: rgba(221, 91, 0, 0.1);
-    color: var(--n-orange);
-}
 
-.n-btn-warning:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(221, 91, 0, 0.16);
-}
 
-.n-btn-success {
-    background: rgba(26, 174, 57, 0.1);
-    color: var(--n-green);
-}
-
-.n-btn-success:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(26, 174, 57, 0.18);
+/* 상태를 바꾸는 조작 — 결과 상태의 색을 테두리로만 두르고, 올리면 그 색이 배경으로 드러난다 */
+.n-btn-outline-success,
+.n-btn-outline-warning,
+.n-btn-outline-info,
+.n-btn-outline-danger {
+    background: transparent;
+    font-weight: 500;
 }
 
 .n-btn-outline-success {
-    background: transparent;
     color: var(--n-green);
-    border: 1px solid rgba(26, 174, 57, 0.3);
+    border: 1px solid rgba(15, 138, 77, 0.32);
 }
 
 .n-btn-outline-success:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(26, 174, 57, 0.08);
+    background: rgba(15, 138, 77, 0.10);
+    border-color: rgba(15, 138, 77, 0.60);
 }
 
+/* 주황 = 되돌릴 수 있는 삭제(휴지통) · 주의. 영구 삭제의 빨강(.n-btn-danger)과 구분 */
 .n-btn-outline-danger {
-    background: transparent;
     color: var(--n-orange);
-    border: 1px solid rgba(221, 91, 0, 0.3);
+    border: 1px solid rgba(194, 86, 10, 0.32);
 }
 
 .n-btn-outline-danger:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(221, 91, 0, 0.08);
+    background: rgba(194, 86, 10, 0.10);
+    border-color: rgba(194, 86, 10, 0.60);
+}
+
+.n-btn-outline-info {
+    color: var(--n-blue);
+    border: 1px solid rgba(37, 87, 214, 0.30);
+}
+
+.n-btn-outline-info:hover:not(:disabled):not(.n-btn-disabled) {
+    background: rgba(37, 87, 214, 0.09);
+    border-color: rgba(37, 87, 214, 0.58);
+}
+
+/* 'Deprecated 표시' — 사용 중단 권고의 노랑 */
+.n-btn-outline-warning {
+    color: var(--n-yellow);
+    border: 1px solid rgba(169, 122, 30, 0.34);
+}
+
+.n-btn-outline-warning:hover:not(:disabled):not(.n-btn-disabled) {
+    background: rgba(169, 122, 30, 0.12);
+    border-color: rgba(169, 122, 30, 0.62);
 }
 
 /* S5-2 — solid danger (영구 삭제 등 파괴적 액션 강조). 빨강 (--n-red) — outline-danger 의 주황과 구분. */
@@ -399,42 +562,39 @@ code {
 }
 
 .n-btn-danger:disabled {
-    background: rgba(0, 0, 0, 0.10);
+    background: rgba(15, 23, 42, 0.10);
     color: var(--n-text-muted);
     border-color: transparent;
     cursor: not-allowed;
 }
 
-.n-btn-outline-info {
+/* 액션 칸(상세 표 · 목록 행)의 영구 삭제는 다른 조작과 같은 테두리형으로 서되, 유일하게 테두리가 진하고
+   올리면 아예 채워진다 — 되돌릴 수 없는 것은 쉬는 동안에도 다르게 보여야 한다 */
+.n-actions .n-btn-danger {
     background: transparent;
-    color: var(--n-blue-badge-text);
-    border: 1px solid rgba(9, 127, 232, 0.3);
+    color: var(--n-red);
+    border: 1px solid rgba(192, 38, 38, 0.55);
+    font-weight: 600;
 }
 
-.n-btn-outline-info:hover:not(:disabled):not(.n-btn-disabled) {
-    background: var(--n-blue-badge-bg);
-}
-
-/* S5-2-1 — outline-warning 보강. miller 및 confirm-action modal 의 'Deprecated 표시' 버튼에서 참조됨.
-   color/border 는 --n-yellow + 30% opacity. hover 는 yellow-bg 토큰 재사용. */
-.n-btn-outline-warning {
-    background: transparent;
-    color: var(--n-yellow);
-    border: 1px solid rgba(194, 147, 67, 0.35);
-}
-
-.n-btn-outline-warning:hover:not(:disabled):not(.n-btn-disabled) {
-    background: var(--n-yellow-bg);
+.n-actions .n-btn-danger:hover:not(:disabled):not(.n-btn-disabled) {
+    background: var(--n-red);
+    border-color: var(--n-red);
+    color: #ffffff;
 }
 
 /* ---- 7. 배지 ---------------------------------------------- */
+/* 표시는 조작보다 작다 — 상세 카드의 '상태' 줄에 배지(활성)와 버튼(비활성화)이 나란히 서므로
+   배지를 한 단(11px) 작게 두어 크기로 가른다. 알약이 아니라 작은 조각의 반지름을 쓴다.
+   색이 뜻이다 — 초록 활성 · 회색 채움 비활성 · 노랑 사용 중단 권고 · 주황 주의 · 빨강 오류 · 파랑 정보 ·
+   회색 테두리 삭제됨 · 사실. 같은 뜻은 어느 화면에서든 같은 클래스여야 한다. */
 .n-badge {
     display: inline-block;
-    border-radius: 9999px;
-    font-size: 12px;
+    border-radius: var(--n-radius);
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.125px;
-    padding: 3px 10px;
+    letter-spacing: 0.1px;
+    padding: 2px 7px;
     white-space: nowrap;
 }
 
@@ -444,17 +604,18 @@ code {
 }
 
 .n-badge-green {
-    background: rgba(26, 174, 57, 0.1);
+    background: rgba(15, 138, 77, 0.10);
     color: var(--n-green);
 }
 
 .n-badge-red {
-    background: rgba(191, 38, 38, 0.1);
+    background: rgba(192, 38, 38, 0.10);
     color: var(--n-red);
 }
 
+/* 주의 — 미설정 · 불일치 · 정의서 지정(사용 중이라는 정보). 비활성이 아니다(아래 .n-badge-off). */
 .n-badge-orange {
-    background: rgba(221, 91, 0, 0.1);
+    background: rgba(194, 86, 10, 0.10);
     color: var(--n-orange);
 }
 
@@ -463,11 +624,27 @@ code {
     color: var(--n-yellow);
 }
 
-/* 중립(회색) — 상태가 아니라 사실만 알리는 표기용. 값은 기존 회색 선례
-   (.n-miller-status-tag-off) 와 동일하게 맞춰 화면 안에서 회색이 갈라지지 않게 한다. */
+/* 비활성 — '꺼져 있음' 이지 '주의' 가 아니므로 회색 채움. 종전에는 주황(.n-badge-orange)을 함께 써서
+   '정의서 지정' 같은 주의 배지와 같은 클래스였다(S17-1 결함 ④). Miller 의 .n-miller-status-tag-off 와
+   같은 값이다. */
+.n-badge-off {
+    background: rgba(15, 23, 42, 0.07);
+    color: #64748b;
+}
+
+/* 중립(회색 테두리) — 삭제됨 · 상태가 아니라 사실만 알리는 표기. 비활성(채움)과 형태로 가른다. */
 .n-badge-gray {
-    background: rgba(0, 0, 0, 0.06);
+    background: transparent;
     color: var(--n-text-muted);
+    box-shadow: inset 0 0 0 1px var(--n-border-form);
+}
+
+/* 제목 옆 표식 — 이름과 붙지 않게 띄우고 세로 가운데에 맞춘다. 드리프트 상세 · 점검 이력 상세 · 서버 그룹
+   상세 셋이 쓰는데 종전에는 server.css 에만 정의돼 앞의 둘에서는 사문이었다(S17-1 앵커 재검토). 크기는 일반
+   배지(11px)와 같다 — 제목 문맥이라고 배지가 커지면 "표시는 조작보다 작다" 가 흔들린다. */
+.n-title-badge {
+    margin-left: 10px;
+    vertical-align: middle;
 }
 
 /* Deprecated 식별용 작은 노란 점. Miller C2 처럼 공간이 좁은 라벨 옆에 부착. */
@@ -505,32 +682,34 @@ code {
     color: var(--n-text);
 }
 
-.n-badge-gray {
-    background: rgba(0, 0, 0, 0.06);
-    color: var(--n-text-sec);
-}
-
 .n-badge-teal {
-    background: rgba(42, 157, 153, 0.1);
+    background: rgba(23, 134, 140, 0.10);
     color: var(--n-teal);
 }
 
 /* ---- 8. 테이블 -------------------------------------------- */
+/* 격자선을 그린다 — 대장은 칸이 보여야 읽힌다. 세로선은 행 구분선과 같은 옅은 톤이고 마지막 칸은 판의
+   테두리가 대신한다. */
 .n-table {
     width: 100%;
     border-collapse: collapse;
 }
 
 .n-table thead th {
-    background: var(--n-bg);
+    background: var(--n-thead);
     color: var(--n-text-sec);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    padding: 10px 16px;
+    padding: 10px 14px;
     border-bottom: 1px solid var(--n-border);
+    border-right: 1px solid var(--n-border-row);
     white-space: nowrap;
+}
+
+.n-table thead th:last-child {
+    border-right: 0;
 }
 
 .n-table thead th.center {
@@ -538,11 +717,16 @@ code {
 }
 
 .n-table tbody td {
-    padding: 13px 16px;
+    padding: 8px 14px;
     border-bottom: 1px solid var(--n-border-row);
-    color: rgba(0, 0, 0, 0.85);
+    border-right: 1px solid var(--n-border-row);
+    color: var(--n-text);
     vertical-align: middle;
     font-size: 14px;
+}
+
+.n-table tbody td:last-child {
+    border-right: 0;
 }
 
 .n-table tbody td.center {
@@ -554,14 +738,34 @@ code {
 }
 
 .n-table tbody tr:hover td {
-    background: rgba(0, 117, 222, 0.025);
+    background: var(--n-row-hover);
 }
 
 .n-table-mono {
-    font-family: 'Courier New', monospace;
+    font-family: var(--n-font-mono);
+    font-feature-settings: "tnum";
     font-size: 13px;
     color: var(--n-text);
     font-weight: 600;
+}
+
+/* 행의 이름 · ID 가 상세로 가는 링크일 때 — 표 · 묶음 목록 · 정의서 목록이 같은 모양(S17-2 로 한 벌) */
+.n-row-link {
+    font-weight: 600;
+    color: var(--n-text);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.n-row-link:hover {
+    text-decoration: underline;
+}
+
+/* 표 밖에서도 쓰는 mono 값(UUID · IP · 해시) — code 와 같은 폰트 한 벌 */
+.n-mono {
+    font-family: var(--n-font-mono);
+    font-feature-settings: "tnum";
+    font-size: 12px;
 }
 
 .n-table-muted {
@@ -570,7 +774,8 @@ code {
 
 /* HF4-4 — 테이블 밖(배너 부가 설명 등)에서도 쓰는 범용 muted 텍스트 유틸.
    .n-table-muted 는 명칭이 테이블 스코프라 배너에 재사용하지 않고 토큰명 그대로 일반화. */
-.n-text-muted {
+.n-text-muted,
+.n-muted {
     color: var(--n-text-muted);
 }
 
@@ -582,15 +787,18 @@ code {
 }
 
 /* ---- 9. 폼 요소 ------------------------------------------- */
+/* 항목의 경계는 간격의 대비가 만든다 — 항목 사이(30px)를 항목 안의 쌓임(라벨 6 + 힌트 4)보다 확실히
+   벌려야 힌트가 다음 라벨과 한 덩어리로 읽히지 않는다. 라벨은 굵기와 색으로 항목의 닻이 된다(크기
+   위계는 쓰지 않는다). */
 .n-form-group {
-    margin-bottom: 18px;
+    margin-bottom: 30px;
 }
 
 .n-label {
     display: block;
     font-size: 13px;
-    font-weight: 500;
-    color: rgba(0, 0, 0, 0.85);
+    font-weight: 600;
+    color: var(--n-text);
     margin-bottom: 6px;
 }
 
@@ -610,11 +818,11 @@ code {
     width: 100%;
     box-sizing: border-box;
     border: 1px solid var(--n-border-form);
-    border-radius: 4px;
+    border-radius: var(--n-radius);
     font-family: inherit;
     font-size: 15px;
     line-height: 1.5;
-    color: rgba(0, 0, 0, 0.9);
+    color: var(--n-text);
     background: var(--n-surface);
     padding: 8px 10px;
     transition: border-color .15s, box-shadow .15s;
@@ -625,7 +833,7 @@ code {
 .n-input:focus, .n-select:focus {
     outline: none;
     border-color: var(--n-blue);
-    box-shadow: 0 0 0 3px rgba(0, 117, 222, 0.12);
+    box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
 }
 
 .n-input::placeholder {
@@ -651,23 +859,18 @@ code {
 }
 
 .n-input.is-invalid, .n-select.is-invalid {
-    border-color: var(--n-orange);
+    border-color: var(--n-error);
 }
 
-.n-select-sm {
-    font-size: 12px;
-    padding: 4px 6px;
-    width: auto;
-}
 
 .n-textarea {
     display: block;
     width: 100%;
     border: 1px solid var(--n-border-form);
-    border-radius: 4px;
+    border-radius: var(--n-radius);
     font-family: inherit;
     font-size: 15px;
-    color: rgba(0, 0, 0, 0.9);
+    color: var(--n-text);
     background: var(--n-surface);
     padding: 8px 10px;
     resize: vertical;
@@ -678,7 +881,7 @@ code {
 .n-textarea:focus {
     outline: none;
     border-color: var(--n-blue);
-    box-shadow: 0 0 0 3px rgba(0, 117, 222, 0.12);
+    box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
 }
 
 .n-textarea::placeholder {
@@ -687,14 +890,32 @@ code {
 
 .n-error {
     font-size: 12px;
-    color: var(--n-orange);
+    color: var(--n-error);
     margin-top: 4px;
 }
 
+/* 힌트는 입력에 딸린 주석이다 — 읽기 폭을 제한해 카드 폭을 다 쓰는 본문 문단처럼 보이지 않게 한다.
+   <p> 로 쓰이므로 Bootstrap 의 p { margin-bottom: 1rem } 을 끊어야 표 셀 안에서 내용이 위로 치우치지
+   않는다(상태 배지가 라벨보다 위에 떠 보이던 원인). */
+/* 항목의 뜻을 적는 자리. 조작 요소의 위(설정 화면 — 라벨 → 설명 → 조작 순, MK4-4-4 CP7 의 위계)에도
+   아래(입력 폼 — 형식 안내)에도 선다. S17-3 에서 form-validation.css 의 .n-form-hint 를 여기로 접었다 —
+   같은 뜻의 클래스가 둘이면 화면마다 갈린다. */
 .n-hint {
     font-size: 12px;
+    line-height: 1.55;
     color: var(--n-text-sec);
-    margin-top: 4px;
+    margin: 4px 0 6px;
+    max-width: 68ch;
+}
+
+/* 힌트가 연달아 오면 위 여백을 지운다 — 한 항목의 설명이 여러 줄로 갈린 것뿐이다. */
+.n-hint + .n-hint {
+    margin-top: -2px;
+}
+
+/* 주의를 끌어야 하는 힌트(주기가 실측 소요보다 짧다 등). 막지 않고 알리기만 하는 자리다. */
+.n-hint-warn {
+    color: var(--n-yellow);
 }
 
 /* 입력 그룹 */
@@ -703,31 +924,40 @@ code {
 }
 
 .n-input-group .n-input {
-    border-radius: 4px 0 0 4px;
+    border-radius: var(--n-radius) 0 0 var(--n-radius);
     border-right: none;
     flex: 1;
 }
 
 .n-input-group .n-btn {
-    border-radius: 0 4px 4px 0;
+    border-radius: 0 var(--n-radius) var(--n-radius) 0;
     flex-shrink: 0;
 }
 
 /* ---- 10. 섹션 구분자 -------------------------------------- */
+/* 구획 — 대문자 라벨을 유지하되 밑줄이 아니라 판의 머리(꺼진 면 + 왼쪽 파란 선)로 올린다 */
 .n-section {
     font-size: 11px;
     font-weight: 600;
-    color: var(--n-text-muted);
+    color: var(--n-text);
     letter-spacing: 0.7px;
     text-transform: uppercase;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--n-border);
-    margin-bottom: 18px;
-    margin-top: 32px;
+    background: var(--n-sunken);
+    border: 1px solid var(--n-border);
+    border-left: 3px solid var(--n-blue);
+    padding: 7px 12px;
+    margin: 26px 0 14px;
 }
 
 .n-section:first-child {
     margin-top: 0;
+}
+
+/* 판 안의 큰 단락 구분선 — <hr> 을 쓰되 기본 모양을 지운다 */
+.n-divider {
+    border: 0;
+    border-top: 1px solid var(--n-border);
+    margin: 28px 0;
 }
 
 /* ---- 11. 레이아웃 헬퍼 ------------------------------------ */
@@ -752,14 +982,49 @@ code {
     justify-content: center;
 }
 
+/* flex 컨테이너에 세로 정렬이 빠지면 자식이 stretch 된다 — 배지는 inline-block 이라 늘어난 상자 안에서
+   글자가 위에 붙는다. 알약 모서리가 곡선으로 가려 오래 눈에 띄지 않던 결함이다. */
 .n-header-actions {
     display: flex;
     gap: 8px;
+    align-items: center;
 }
 
-.n-footer-right {
-    display: flex;
-    gap: 8px;
+
+/* ---- 11-2. 역할 헬퍼 (S17-2 — 인라인 style= 264 곳을 걷어낸 자리) ----
+   값이 아니라 역할로 이름을 붙인다. margin-top: 16px 이 아니라 "앞 블록과 띄운다"(n-block-gap) 다.
+   간격은 두 단(16 · 8)뿐이다 — 종전 인라인은 4 · 6 · 8 · 12 · 14 · 16 · 20 · 32 여덟 값이 흩어져 있었고,
+   같은 자리끼리도 달랐다. */
+.n-note { font-size: 12px; color: var(--n-text-muted); }      /* 값 옆의 부연 · 작은 안내 */
+.n-small { font-size: 12px; }                                   /* 코드 · 식별자를 한 단 작게 */
+.n-strong { font-weight: 600; }
+.n-meta { margin-left: 8px; }                                   /* 배지 · 라벨 뒤에 붙는 부연 */
+.n-text-right { text-align: right; }
+.n-btn-block { width: 100%; }                                   /* 열 폭을 채우는 버튼(Miller 하단 등록) */
+.n-block-gap { margin-top: 16px; }                              /* 앞 블록(표 · 안내 · 카드)과 띄운다 */
+.n-block-gap-sm { margin-top: 8px; }                            /* 같은 묶음 안에서 살짝 띄운다 */
+.n-lead { margin-bottom: 14px; }                                /* 판을 여는 안내 문단 — 아래 내용과 띄운다 */
+.n-flush { margin-bottom: 0; }                                  /* 묶음의 마지막 항목 — 기본 아래 여백을 지운다 */
+.n-stack > * + * { margin-top: 16px; }                          /* 판 안에서 표 · 안내가 잇달아 쌓일 때 */
+.n-break { overflow-wrap: anywhere; }                          /* 경로 · 해시처럼 끊을 자리가 없는 값을 폭 안에 */
+
+/* 입력 옆에 버튼이 붙는 한 줄(찾아보기 · 검증) */
+.n-field-row { display: flex; gap: 8px; }
+.n-field-row > .n-input, .n-field-row > .n-select { flex: 1; min-width: 0; }
+
+/* 체크박스 한 개(라벨 안) · 여러 개를 한 줄에 — 종전에는 정의 없이 인라인으로만 그려졌다 */
+.n-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+.n-check input[type="checkbox"], .n-check input[type="radio"] { margin: 0; accent-color: var(--n-blue); }
+.n-check-row { display: flex; gap: 16px; flex-wrap: wrap; }
+
+/* 버튼 하나를 감싸는 <form> 은 배치에 끼어들 이유가 없다 — 폼의 상자를 지우면(display: contents)
+   버튼이 곧바로 flex 항목이 되어 배지와 같은 간격에 선다. 아직 style="display:inline" 을 단 폼 30곳은
+   인라인이 이겨 이 규칙이 닿지 않는다(flex 자식이라 시각 결과는 같다) — S17-2 가 인라인을 걷으면 성립.
+   .n-inline-form 은 라벨 · 입력 · 버튼을 한 줄에 세우는 진짜 폼이라 별개다. */
+.n-actions form,
+.n-form-actions form,
+.n-header-actions form {
+    display: contents;
 }
 
 .n-form-actions {
@@ -780,25 +1045,28 @@ code {
     border-top: none;
 }
 
+/* '목록으로' — 제목 줄(.n-page-header) 안에서 제목 오른쪽에 서는 되돌아가기. 버튼이 아니라 경로다. */
 .n-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 13px;
     font-weight: 500;
     color: var(--n-text-sec);
     text-decoration: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    border: 1px solid rgba(0, 0, 0, 0.12);
-    transition: background .15s, color .15s;
+    padding: 0 0 2px;
+    background: transparent;
+    border: 0;
+    transition: color .15s;
 }
 
 .n-back-link:hover {
-    background: rgba(0, 0, 0, 0.04);
-    color: var(--n-text);
+    color: var(--n-blue);
 }
 
 /* ---- 12. 알림 --------------------------------------------- */
 .n-alert {
-    border-radius: 8px;
+    border-radius: var(--n-radius-lg);
     padding: 11px 16px;
     font-size: 14px;
     font-weight: 500;
@@ -806,15 +1074,15 @@ code {
 }
 
 .n-alert-success {
-    background: rgba(26, 174, 57, 0.07);
-    border: 1px solid rgba(26, 174, 57, 0.2);
+    background: rgba(15, 138, 77, 0.07);
+    border: 1px solid rgba(15, 138, 77, 0.20);
     color: var(--n-green);
 }
 
 .n-alert-danger {
-    background: rgba(221, 91, 0, 0.07);
-    border: 1px solid rgba(221, 91, 0, 0.2);
-    color: var(--n-orange);
+    background: color-mix(in srgb, var(--n-error) 7%, transparent);
+    border: 1px solid color-mix(in srgb, var(--n-error) 22%, transparent);
+    color: var(--n-error);
 }
 
 /* 주의 — 막혔거나 되돌릴 수 없는 상태를 알리되 오류는 아닌 것(회수된 서버의 할당 차단 안내 등).
@@ -822,13 +1090,13 @@ code {
    규칙이 없어 padding 만 먹고 배경 · 테두리가 붙지 않았다(U3-5-a CP5 발견). */
 .n-alert-warning {
     background: var(--n-yellow-bg);
-    border: 1px solid rgba(194, 147, 67, 0.3);
+    border: 1px solid rgba(169, 122, 30, 0.30);
     color: var(--n-yellow);
 }
 
 .n-alert-info {
     background: var(--n-blue-badge-bg);
-    border: 1px solid rgba(9, 127, 232, 0.2);
+    border: 1px solid rgba(37, 87, 214, 0.20);
     color: var(--n-blue-badge-text);
 }
 
@@ -837,6 +1105,9 @@ code {
     border: 1px solid var(--n-border);
     color: var(--n-text-sec);
 }
+
+/* 알림 안의 제목 줄(오류 페이지) */
+.n-alert-title { font-size: 16px; font-weight: 600; }
 
 /* ---- 13. 상세 정보 테이블 --------------------------------- */
 .n-detail-table {
@@ -866,17 +1137,48 @@ code {
 .n-detail-table td {
     padding: 13px 0;
     font-size: 14px;
-    color: rgba(0, 0, 0, 0.9);
+    color: var(--n-text);
     vertical-align: middle;
 }
 
-/* ---- 14. 업로드 패널 -------------------------------------- */
-.upload-panel {
-    background: var(--n-bg);
-    border: 1px solid var(--n-border);
-    border-radius: 8px;
-    padding: 16px;
+/* 상세 화면의 절 — 서버 상세와 세팅 정의서 상세가 각자 정의하던 것을 한 벌로(S17-2).
+   절 제목은 페이지 제목(26px)과 본문 사이의 층이다. 14px 로는 본문과 거의 같아 상세가 길어질수록 "여기서
+   무엇이 새로 시작되는가" 가 눈에 걸리지 않았다(2026-08-13). 18px 로 층을 세우고 letter-spacing 은 페이지
+   제목과 같은 방향으로 살짝 조인다. */
+.n-detail-section {
+    margin-top: 28px;
 }
+
+.n-detail-section > .n-section-title {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    margin-bottom: 10px;
+    color: var(--n-text);
+}
+
+.n-detail-section > .n-section-hint {
+    font-size: 13px;
+    color: var(--n-text-muted);
+    margin-bottom: 12px;
+}
+
+/* 판 안의 작은 "데이터 없음" 한 줄 — 화면 단위 빈 상태(.n-empty)와 뜻이 다르다(표의 빈 행) */
+.n-detail-empty {
+    color: var(--n-text-muted);
+    font-size: 13px;
+    margin: 0;
+    padding: 4px 0;
+}
+
+/* ---- 14. 찾아보기 패널 ------------------------------------ */
+
+/* 서버 디렉터리 찾아보기 패널(fragments/management/directory-browse-panel) */
+.n-browse-panel { margin-top: 10px; border: 1px solid var(--n-border); border-radius: var(--n-radius-lg); padding: 12px; background: var(--n-sunken); }
+.n-browse-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+.n-browse-path { flex: 1; font-size: 12px; word-break: break-all; }
+.n-browse-list { list-style: none; padding: 0; margin: 0 0 8px; max-height: 240px; overflow-y: auto; border: 1px solid var(--n-border); border-radius: var(--n-radius); background: var(--n-surface); }
+.n-browse-actions { display: flex; justify-content: flex-end; gap: 6px; }
 
 /* ---- 15. 빈 상태 ------------------------------------------ */
 .n-empty {
@@ -896,400 +1198,8 @@ code {
     font-size: 14px;
 }
 
-/* ============================================================
-   Bootstrap 5.x 시각 오버라이드
-   (Bootstrap CSS 이후에 로드되므로 !important 최소화)
-   ============================================================ */
-
-/* 카드 */
-.card {
-    background: var(--n-surface);
-    border: 1px solid var(--n-border);
-    border-radius: 12px;
-    box-shadow: var(--n-shadow-card);
-    margin-bottom: 20px;
-}
-
-.card-header {
-    background: var(--n-bg);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 12px 12px 0 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--n-text-sec);
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    padding: 14px 24px;
-}
-
-.card-header.bg-dark {
-    background: var(--n-warm-dark);
-    color: rgba(255, 255, 255, 0.9);
-    letter-spacing: normal;
-    font-size: 14px;
-    text-transform: none;
-}
-
-.card-header.bg-primary {
-    background: var(--n-blue);
-    color: #ffffff;
-    letter-spacing: normal;
-    font-size: 14px;
-    text-transform: none;
-}
-
-.card-body {
-    padding: 24px;
-}
-
-/* 버튼 */
-.btn {
-    font-family: inherit;
-    font-weight: 600;
-    border-radius: 4px;
-    transition: background .15s, transform .1s;
-}
-
-.btn:active {
-    transform: scale(0.95);
-}
-
-.btn-primary {
-    background: var(--n-blue);
-    border-color: var(--n-blue);
-}
-
-.btn-primary:hover, .btn-primary:focus {
-    background: var(--n-blue-hover);
-    border-color: var(--n-blue-hover);
-}
-
-.btn-secondary {
-    background: rgba(0, 0, 0, 0.06);
-    border-color: rgba(0, 0, 0, 0.1);
-    color: rgba(0, 0, 0, 0.85);
-}
-
-.btn-secondary:hover {
-    background: rgba(0, 0, 0, 0.09);
-    color: var(--n-text);
-}
-
-.btn-outline-secondary {
-    background: transparent;
-    border-color: rgba(0, 0, 0, 0.15);
-    color: var(--n-text-sec);
-}
-
-.btn-outline-secondary:hover {
-    background: rgba(0, 0, 0, 0.04);
-    color: var(--n-text);
-}
-
-.btn-success {
-    background: rgba(26, 174, 57, 0.1);
-    border-color: transparent;
-    color: var(--n-green);
-}
-
-.btn-success:hover {
-    background: rgba(26, 174, 57, 0.18);
-    border-color: transparent;
-    color: var(--n-green);
-}
-
-.btn-outline-success {
-    border-color: rgba(26, 174, 57, 0.3);
-    color: var(--n-green);
-}
-
-.btn-outline-success:hover {
-    background: rgba(26, 174, 57, 0.08);
-}
-
-.btn-outline-danger {
-    border-color: rgba(221, 91, 0, 0.3);
-    color: var(--n-orange);
-}
-
-.btn-outline-danger:hover {
-    background: rgba(221, 91, 0, 0.08);
-}
-
-.btn-warning {
-    background: rgba(221, 91, 0, 0.1);
-    border-color: transparent;
-    color: var(--n-orange);
-}
-
-.btn-warning:hover {
-    background: rgba(221, 91, 0, 0.16);
-    border-color: transparent;
-    color: var(--n-orange);
-}
-
-.btn-info, .btn-info.text-white {
-    background: var(--n-blue-badge-bg);
-    border-color: transparent;
-    color: var(--n-blue-badge-text);
-}
-
-.btn-info:hover {
-    background: rgba(9, 127, 232, 0.15);
-    border-color: transparent;
-    color: var(--n-blue-badge-text);
-}
-
-.btn-outline-info {
-    border-color: rgba(9, 127, 232, 0.3);
-    color: var(--n-blue-badge-text);
-}
-
-.btn-outline-info:hover {
-    background: var(--n-blue-badge-bg);
-}
-
-/* 배지 */
-.badge {
-    border-radius: 9999px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    padding: 3px 10px;
-}
-
-.bg-primary {
-    background: var(--n-blue) !important;
-}
-
-.bg-secondary {
-    background: rgba(0, 0, 0, 0.06) !important;
-    color: var(--n-text-sec) !important;
-}
-
-.bg-success {
-    background: rgba(26, 174, 57, 0.1) !important;
-    color: var(--n-green) !important;
-}
-
-.bg-danger {
-    background: rgba(221, 91, 0, 0.1) !important;
-    color: var(--n-orange) !important;
-}
-
-.bg-warning.text-dark {
-    background: rgba(221, 91, 0, 0.1) !important;
-    color: var(--n-orange) !important;
-}
-
-.bg-info.text-dark {
-    background: var(--n-blue-badge-bg) !important;
-    color: var(--n-blue-badge-text) !important;
-}
-
-/* 테이블 */
-.table {
-    color: rgba(0, 0, 0, 0.85);
-}
-
-.table thead th {
-    background: var(--n-bg);
-    color: var(--n-text-sec);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--n-border);
-    padding: 10px 12px;
-}
-
-.table-dark, .table-dark thead th {
-    background: var(--n-warm-dark);
-    color: rgba(255, 255, 255, 0.85);
-}
-
-.table tbody td {
-    border-bottom: 1px solid var(--n-border-row);
-    font-size: 13px;
-    padding: 6px 10px;
-}
-
-.table-hover tbody tr:hover td {
-    background: rgba(0, 117, 222, 0.025);
-}
-
-.table-bordered td, .table-bordered th {
-    border-color: rgba(0, 0, 0, 0.08);
-}
-
-/* 폼 */
-.form-control, .form-select {
-    font-family: inherit;
-    font-size: 15px;
-    color: rgba(0, 0, 0, 0.9);
-    border: 1px solid var(--n-border-form);
-    border-radius: 4px;
-    background: var(--n-surface);
-    padding: 8px 10px;
-    transition: border-color .15s, box-shadow .15s;
-}
-
-.form-control:focus, .form-select:focus {
-    border-color: var(--n-blue);
-    box-shadow: 0 0 0 3px rgba(0, 117, 222, 0.12);
-}
-
-.form-control::placeholder {
-    color: var(--n-text-muted);
-}
-
-.form-control[readonly], .form-control:disabled, .form-select:disabled {
-    background: var(--n-bg);
-    color: var(--n-text-sec);
-}
-
-.form-control.form-control-sm, .form-select.form-select-sm {
-    font-size: 13px;
-    padding: 4px 8px;
-}
-
-.form-control.is-invalid, .form-select.is-invalid {
-    border-color: var(--n-orange);
-}
-
-.invalid-feedback {
-    color: var(--n-orange);
-    font-size: 12px;
-}
-
-.form-label {
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 500;
-    color: rgba(0, 0, 0, 0.85);
-    margin-bottom: 6px;
-}
-
-.form-text {
-    font-size: 12px;
-    color: var(--n-text-sec);
-}
-
-.form-check-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: rgba(0, 0, 0, 0.85);
-}
-
-.form-check-input:checked {
-    background-color: var(--n-blue);
-    border-color: var(--n-blue);
-}
-
-.form-switch .form-check-input:checked {
-    background-color: var(--n-blue);
-}
-
-/* 아코디언 */
-.accordion-item {
-    border: 1px solid var(--n-border);
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: 8px;
-}
-
-.accordion-button {
-    font-family: inherit;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--n-text);
-    background: var(--n-surface);
-    box-shadow: none;
-    padding: 14px 20px;
-}
-
-.accordion-button:not(.collapsed) {
-    background: var(--n-bg);
-    color: var(--n-text);
-    box-shadow: none;
-}
-
-.accordion-body {
-    background: var(--n-surface);
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
-    padding: 20px;
-}
-
-/* 알림 */
-.alert-info {
-    background: var(--n-blue-badge-bg);
-    border-color: rgba(9, 127, 232, 0.2);
-    color: var(--n-blue-badge-text);
-    border-radius: 8px;
-    font-size: 14px;
-}
-
-.alert-secondary {
-    background: var(--n-bg);
-    border-color: var(--n-border);
-    color: var(--n-text-sec);
-    border-radius: 8px;
-    font-size: 14px;
-}
-
-.alert-success {
-    background: rgba(26, 174, 57, 0.07);
-    border-color: rgba(26, 174, 57, 0.2);
-    color: var(--n-green);
-    border-radius: 8px;
-}
-
-.alert-danger {
-    background: rgba(221, 91, 0, 0.07);
-    border-color: rgba(221, 91, 0, 0.2);
-    color: var(--n-orange);
-    border-radius: 8px;
-}
-
-/* 프로그레스바 */
-.progress {
-    height: 6px;
-    background: rgba(0, 0, 0, 0.08);
-    border-radius: 9999px;
-}
-
-.progress-bar {
-    border-radius: 9999px;
-}
-
-.progress-bar.bg-info {
-    background-color: var(--n-blue) !important;
-}
-
-.progress-bar.bg-success {
-    background-color: var(--n-green) !important;
-}
-
-.progress-bar.bg-danger {
-    background-color: var(--n-orange) !important;
-}
-
-/* 텍스트 색상 */
-.text-primary {
-    color: var(--n-blue) !important;
-}
-
-.text-muted {
-    color: var(--n-text-muted) !important;
-}
-
-.text-danger {
-    color: var(--n-orange) !important;
-}
-
-.text-success {
-    color: var(--n-green) !important;
-}
+/* 판 안의 작은 빈 상태(하위 목록이 비었을 때) — 80px 은 화면 단위 빈 상태의 값이다 */
+.n-empty.n-empty-sm { padding: 16px 24px; }
 
 /* ============================================================
    R9-4 — Maintenance 페이지 배너 (DESIGN.md §4 Maintenance Page Patterns)
@@ -1298,12 +1208,12 @@ code {
 .n-banner {
     margin-bottom: 12px;
     padding: 10px 14px;
-    border-radius: 4px;
+    border-radius: var(--n-radius);
     font-size: 13px;
 }
 
 .n-banner-info {
-    background: var(--n-bg);
+    background: var(--n-sunken);
     border-left: 3px solid var(--n-blue);
 }
 
@@ -1356,4 +1266,17 @@ code {
 }
 .n-tab-panel.is-active {
     display: block;
+}
+
+/* ============================================================
+   반응형 — 지원 하한 1024 (DESIGN.md). 사이드바 228px 는 유지하고 본문 안에서 접는다.
+   Miller 의 상세 열 스택은 miller.css, 서버 표의 열 재배분은 server.css 가 각자 가진다 — 그 파일들이
+   이 시트 뒤에 실려 같은 명시도면 여기 규칙이 지기 때문이다.
+   ============================================================ */
+@media (max-width: 1024px) {
+    /* 탭 스트립 — 안쪽 가로 스크롤 대신 줄바꿈 */
+    .n-tabs {
+        flex-wrap: wrap;
+        overflow-x: visible;
+    }
 }

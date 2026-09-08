@@ -20,19 +20,23 @@
     <th:block th:replace="~{fragments/layout :: commonHead('PXE 인프라 임대')}"></th:block>
 </head>
 <body>
-<nav th:replace="~{fragments/layout :: navbar('system-asset')}"></nav>
+<nav th:replace="~{fragments/layout :: navbar('pxe-infra')}"></nav>
 
 <div class="n-page">
     <div class="n-page-header">
         <h1 class="n-page-title">PXE 인프라 임대 (dhcpd)</h1>
         <div class="n-header-actions">
             <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
+            <a th:href="@{/system/pxe-infra/network}" class="n-btn n-btn-secondary n-btn-sm">네트워크 설정</a>
         </div>
     </div>
 
     <!--/* 미구성: 관측 설정(pxe.dhcpd.fragment-path)이 없으면 임대 표 대신 안내 */-->
-    <div th:unless="${overview.configured}" class="n-hint">
-        dhcpd 관측이 구성되지 않았습니다(<code>pxe.dhcpd.fragment-path</code> 미설정). 설정하면 임대 목록이 여기 표시됩니다.
+    <div th:unless="${overview.configured}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">dhcpd 관측이 구성되지 않았습니다.</div>
+            <div class="n-empty-desc"><code>pxe.dhcpd.fragment-path</code> 미설정. 설정하면 임대 목록이 여기 표시됩니다.</div>
+        </div>
     </div>
 
     <th:block th:if="${overview.configured}">
@@ -42,6 +46,7 @@
             <span>임대 시각은 UTC 기준입니다.</span>
         </div>
 
+        <div class="n-card">
         <table class="n-table">
             <thead>
             <tr>
@@ -54,7 +59,7 @@
             </thead>
             <tbody>
             <tr th:if="${overview.leases.isEmpty()}">
-                <td colspan="5" style="color: var(--n-text-muted);">기록된 임대가 없습니다.</td>
+                <td class="n-text-muted" colspan="5">기록된 임대가 없습니다.</td>
             </tr>
             <tr th:each="lease : ${overview.leases}">
                 <td th:text="${lease.ip}"></td>
@@ -65,6 +70,7 @@
             </tr>
             </tbody>
         </table>
+        </div>
     </th:block>
 </div>
 </body>

@@ -10,6 +10,7 @@ import com.example.serverprovision.provisioning.biossetting.dto.response.BiosSet
 import com.example.serverprovision.provisioning.biossetting.dto.response.BiosSettingTemplateEditViewResponse;
 import com.example.serverprovision.provisioning.biossetting.dto.response.BiosSettingTemplateSummaryResponse;
 import com.example.serverprovision.provisioning.biossetting.entity.BiosSettingTemplate;
+import com.example.serverprovision.provisioning.biossetting.exception.BiosCatalogNotFoundException;
 import com.example.serverprovision.provisioning.biossetting.exception.BiosSettingTemplateNotFoundException;
 import com.example.serverprovision.provisioning.biossetting.repository.BiosSettingTemplateRepository;
 import com.example.serverprovision.provisioning.domain.BiosAttribute;
@@ -82,14 +83,26 @@ public class BiosSettingTemplateQueryService {
     public BiosSetupPageResponse editorView(Long boardModelId) {
         BoardModel board = boardModelRepository.findByIdAndIsDeletedFalse(boardModelId)
                 .orElseThrow(() -> new BoardModelNotFoundException(boardModelId));
+        requireCatalog(board);
         return editorView(board, Map.of());
+    }
+
+    /**
+     * 편집기 진입 가드 — 보드 카드의 disabled 판정과 같은 {@link BiosRegistryResolver#available} 하나를 본다
+     * (UI 1차 차단의 서버 안전망 · SSOT 공유). 로더에 맡기면 IO 실패가 500 으로 새어 direct GET 이 서버 오류로 보였다.
+     */
+    private void requireCatalog(BoardModel board) {
+        if (!registryResolver.available(board)) {
+            throw new BiosCatalogNotFoundException(board.getModelName());
+        }
     }
 
     /** 수정 편집기 뷰모델 — 생성과 동일 화면에 저장값 overlay(위젯 선택값만, diff 기준선 불변)를 주입. */
     public BiosSettingTemplateEditViewResponse editorViewFor(Long id) {
         BiosSettingTemplate template = findTemplate(id);
         // 카탈로그 미보유 보드는 상세의 catalogMissing 판정이 수정 버튼을 disabled 하므로(UI 1차 차단),
-        // 이 로더 호출의 404 는 direct GET 안전망으로만 발동한다.
+        // 이 가드의 404 는 direct GET 안전망으로만 발동한다.
+        requireCatalog(template.getBoardModel());
         BiosSetupPageResponse bios = editorView(template.getBoardModel(), toFormValues(template));
         return new BiosSettingTemplateEditViewResponse(
                 template.getId(), template.getName(), template.getDescription(),
@@ -175,7 +188,15 @@ public class BiosSettingTemplateQueryService {
     }
 
     // 보드의 카탈로그(자료 항목)가 미등록인 경우만 degraded(null) — 리소스 파일 파손은 기존 방침대로 500 전파.
+    /**
+     * 상세는 카탈로그가 없어도 degraded(전건 stale 경고 행)로 보여준다. 판정은 편집기 가드 · 보드 카드와 같은
+     * {@link BiosRegistryResolver#available} — properties 에는 있는데 파일이 사라진 보드(HF14 앵커 검증 ③)를 로더의
+     * IO 실패(500)에 맡기지 않고 여기서 null 로 돌린다.
+     */
     private ResolvedBiosRegistry resolveOrNull(BoardModel board) {
+        if (!registryResolver.available(board)) {
+            return null;
+        }
         try {
             return registryResolver.resolve(board);
         } catch (BiosBoardNotFoundException e) {

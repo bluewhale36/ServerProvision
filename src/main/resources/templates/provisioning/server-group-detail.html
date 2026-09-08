@@ -53,7 +53,7 @@
     <!--/* U3-5-c — 일괄 할당 결과(PRG flash). 몇 대에 붙었고 몇 대를 왜 건너뛰었는지 한 줄로 알린다.
            이 문구가 뜨려면 제출이 네이티브여야 한다(DEC-E) — 전역 폼 가로채기가 fetch 로 리다이렉트를
            따라가면 flash 가 그 안에서 소비되어 화면에 도달하지 못한다(CP1 실측). */-->
-    <div th:if="${flashMessage}" class="n-alert n-alert-success" style="margin-bottom: 14px;"
+    <div th:if="${flashMessage}" class="n-alert n-alert-success"
          th:text="${flashMessage}">세팅 정의서를 3 대에 할당했습니다.</div>
 
     <!-- ── 구성 혼재 알림 — 차단이 아니라 안내(DEC-I) ── -->
@@ -154,7 +154,7 @@
 
                     <form th:if="${standard.present}" method="post" class="n-inline-form"
                           th:action="@{/provisioning/server-group/{id}/standard-definition/clear(id=${group.id})}">
-                        <button type="submit" class="n-btn n-btn-sm n-btn-ghost">해제</button>
+                        <button type="submit" class="n-btn n-btn-sm n-btn-outline">해제</button>
                     </form>
                 </span>
             </div>
@@ -170,12 +170,11 @@
             <!--/* 사유를 제 줄에 놓는 이유(CP5 F2) : 사유 문자열은 도메인이 만든 것이라 마침표로 끝나지
                    않는다("…(활성화 후 재시도)"). 뒤 문장을 같은 줄에 이으면 두 문장이 붙어 읽힌다.
                    서버 상세의 하드웨어 불일치 경고가 쓰는 것과 같은 세 줄 형태로 맞춘다. */-->
-            <div th:if="${standard.present and !standard.usable}" class="n-alert n-alert-warning" role="alert"
-                 style="margin-top: 12px;">
+            <div th:if="${standard.present and !standard.usable}" class="n-alert n-alert-warning n-block-gap" role="alert">
                 <b>이 표준은 지금 쓸 수 없습니다.</b>
-                <div style="margin-top: 6px;" th:text="${standard.blockReason}">
+                <div class="n-block-gap-sm" th:text="${standard.blockReason}">
                     비활성화된 정의서는 신규 할당이 차단됩니다(활성화 후 재시도)</div>
-                <div class="n-section-hint" style="margin-top: 6px;">
+                <div class="n-section-hint n-block-gap-sm">
                     다른 정의서로 바꾸거나 해제해 주세요. 이미 할당된 서버는 그대로입니다.
                 </div>
             </div>
@@ -185,8 +184,8 @@
                    flash 로 하면 한 번 놓친 사용자는 다시 볼 방법이 없는데, 이 안내는 서버가 들어올 때마다
                    되살아나야 한다. 붙는 수를 문구에 싣는 것이 요약 미리보기 역할을 한다 — "2 대에 붙습니다"
                    를 읽고 누르므로 U3-5-c 의 '부분 적용을 미리 알고 승인' 계약이 원클릭에서도 유지된다. */-->
-            <div th:if="${standard.usable and standardBanner.visible}" class="n-alert n-alert-info"
-                 role="alert" style="margin-top: 12px;">
+            <div th:if="${standard.usable and standardBanner.visible}" class="n-alert n-alert-info n-block-gap"
+                 role="alert">
                 <!--/* 문구가 세는 집합을 정확히 말한다(개정) : 이 수는 "표준을 아직 적용받지 않은
                        서버" 가 아니라 <b>"지금 붙일 수 있는 서버"</b> 다. 다른 정의서가 붙어 있는 서버는
                        표준을 따르지 않는데도 갈아엎지 않는다는 규칙 때문에 빠지고, 회수된 서버도 빠진다.
@@ -213,12 +212,11 @@
 
             <!--/* 할 일이 없을 때는 배너를 내지 않는다(OQ-2). 다만 왜 없는지는 알려준다 —
                    빈 그룹과 '이미 다 붙은 그룹' 은 사용자가 할 일이 다르다. */-->
-            <p th:if="${standard.usable and group.members.isEmpty()}" class="n-section-hint"
-               style="margin-top: 12px;">
+            <p th:if="${standard.usable and group.members.isEmpty()}" class="n-section-hint n-block-gap">
                 아직 이 그룹에 서버가 없습니다. 서버를 넣으면 여기에서 한 번에 적용할 수 있습니다.
             </p>
             <p th:if="${standard.usable and !group.members.isEmpty() and !standardBanner.visible}"
-               class="n-section-hint" style="margin-top: 12px;">
+               class="n-section-hint n-block-gap">
                 지금 표준을 적용할 서버가 없습니다 — 멤버 모두가 이미 정의서를 가지고 있거나 조건이 맞지
                 않습니다. 어느 쪽인지는 아래 멤버 표에서 확인할 수 있습니다.
             </p>
@@ -304,7 +302,7 @@
                     <td class="n-th-center">
                         <form method="post"
                               th:action="@{/provisioning/server-group/{id}/members/{sid}/remove(id=${group.id}, sid=${m.server.id})}">
-                            <button type="submit" class="n-btn n-btn-sm n-btn-ghost">빼기</button>
+                            <button type="submit" class="n-btn n-btn-sm n-btn-outline">빼기</button>
                         </form>
                     </td>
                 </tr>

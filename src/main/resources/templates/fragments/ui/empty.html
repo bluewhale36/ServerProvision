@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  화면 단위 빈 상태의 조각 (S17-2)
+  ─────────────────────────────────────────────────────────
+  목록이 비었을 때 판(.n-card) 안 가운데에 제목 한 줄 + 설명 한 줄. 종전에는 네 형태가 있었다 — 카드 안 가운데 ·
+  묶음 패널 안 · 카드 없이 배경 위 문단(휴지통 · 격리 · 감사 로그) · 카드 안 왼쪽 회색 문장. 셋째 형태는 다른
+  앱처럼 보였다. 설명에 링크나 강조가 필요한 화면은 같은 마크업(.n-card > .n-empty > .n-empty-title + .n-empty-desc)을
+  직접 쓴다. 판 안의 작은 "데이터 없음" 한 줄은 .n-detail-empty 로 뜻이 다르다.
+-->
+<body>
+<div th:fragment="state(title, desc)" class="n-card">
+    <div class="n-empty">
+        <div class="n-empty-title" th:text="${title}">비어 있습니다.</div>
+        <div class="n-empty-desc" th:if="${desc != null}" th:text="${desc}">설명</div>
+    </div>
+</div>
+</body>
+</html>

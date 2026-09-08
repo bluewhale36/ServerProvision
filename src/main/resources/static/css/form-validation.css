@@ -12,16 +12,16 @@
  */
 
 /* ── 단순 입력 요소 (input, select, textarea) ──────────────────────────────
-   box-shadow 로 레이아웃 시프트 없이 빨간 테두리 표현.
+   box-shadow 로 레이아웃 시프트 없이 오류색(--n-error, 시스템 빨강 한 벌) 테두리 표현.
    border-color 를 덮어써 기존 파란 테두리와 색이 섞이는 현상을 방지한다.
    배경 틴트는 복합 섹션 컨테이너와 일관된 시각 처리다. */
 input.has-error,
 select.has-error,
 textarea.has-error {
-    box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.8) !important;
-    border-color: rgba(220, 53, 69, 0.5) !important;
-    background-color: rgba(220, 53, 69, 0.025) !important;
-    border-radius: 4px;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--n-error) 55%, transparent) !important;
+    border-color: color-mix(in srgb, var(--n-error) 45%, transparent) !important;
+    background-color: color-mix(in srgb, var(--n-error) 3%, transparent) !important;
+    border-radius: var(--n-radius);
 }
 
 /* ── 복합 섹션 컨테이너 (div, table 등 단순 입력이 아닌 요소) ──────────────
@@ -31,14 +31,14 @@ div.has-error,
 table.has-error {
     box-shadow: none !important;
     outline: none !important;
-    border-left: 2px solid rgba(220, 53, 69, 0.7) !important;
-    border-radius: 0 4px 4px 0 !important;
-    background: rgba(220, 53, 69, 0.025) !important;
+    border-left: 2px solid color-mix(in srgb, var(--n-error) 65%, transparent) !important;
+    border-radius: 0 var(--n-radius) var(--n-radius) 0 !important;
+    background: color-mix(in srgb, var(--n-error) 3%, transparent) !important;
     padding-left: 10px;
 }
 
 .field-error-message {
-    color: #dc3545;
+    color: var(--n-error);
     font-size: 0.75rem;
     margin-top: 6px;
     font-weight: 500;
@@ -46,40 +46,14 @@ table.has-error {
 }
 
 /* ============================================================
-   폼 라벨 · 힌트 (MK4-4-4)
+   설정 항목의 위계 (MK4-4-4 CP7 · S17-3)
    ─────────────────────────────────────────────────────────
-   MK4-3-1 이 운영 설정 화면을 만들며 이 클래스들을 썼는데 정의를 빠뜨렸다. 그 뒤로 라벨과 설명이
-   본문과 같은 크기 · 같은 색으로 렌더돼, 무엇이 항목 이름이고 무엇이 설명인지 갈리지 않았다.
-
-   여기 두는 이유는 성질이다 — 폼 안의 라벨과 힌트라, 검증 표시를 담은 이 파일의 주제와 맞는다.
-   (같은 자리에 있던 n-form-banner · n-btn-outline 은 전 도메인이 쓰는 전역 자산이라 이 슬라이스에서
-   건드리지 않았다. 정의를 넣는 순간 20 개 넘는 화면이 동시에 바뀌는데 이 슬라이스의 검증 범위는
-   reconciliation 화면뿐이다 — 별도 S 단계로 분리했다.)
+   라벨 · 설명 · 메타 · 입력이 같은 무게로 쌓이면 무엇이 항목 이름이고 무엇이 조작 대상인지 갈리지
+   않는다(MK4-4-4 CP7 사용자 지적). 그래서 설정 화면은 라벨(.n-label.strong 14px) → 설명(.n-hint 12px)
+   → 메타(아래 11.5px) → 조작 요소 순으로 쌓는다. 라벨과 설명은 전역 어휘(style.css)를 그대로 쓴다 —
+   종전의 .n-form-label / .n-form-hint 는 같은 뜻의 두 번째 이름이라 S17-3 에서 접었다(휴지통 · 시스템
+   자산 · 점검 세 설정 화면이 같은 순서 · 같은 클래스를 쓴다).
    ============================================================ */
-/* MK4-4-4 CP7 — 라벨 · 설명 · 메타 · 입력이 거의 같은 무게로 쌓여 무엇이 제목이고 무엇이 조작
-   대상인지 눈이 구분하지 못했다(사용자 지적). 세 층의 간격을 벌려 위계를 만든다 —
-   라벨 14px/700 → 설명 12.5px/muted → 메타 11.5px/더 흐리게. 값 자체는 입력 요소가 들고 있다. */
-.n-form-label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: -0.1px;
-}
-
-/* 항목의 뜻을 적는 자리. 라벨보다 작고 흐리되 읽히는 크기를 지킨다. */
-.n-form-hint {
-    margin: 0 0 6px;
-    font-size: 12.5px;
-    line-height: 1.55;
-    color: var(--n-text-muted);
-}
-
-/* 힌트가 연달아 오면 위 여백을 지운다 — 한 항목의 설명이 여러 줄로 갈린 것뿐이다. */
-.n-form-hint + .n-form-hint {
-    margin-top: -2px;
-}
-
 /* 효과 시점처럼 <b>항목의 부수 성질</b>을 적는 한 줄. 설명과 같은 크기로 두었더니 둘이 한 덩어리로
    읽혀 정작 라벨이 묻혔다 — 한 단 더 내려 "곁들인 정보" 임을 형태로 말한다. 라벨은 굵게 하지
    않는다(굵히면 그것대로 또 한 층이 생긴다). */
@@ -92,12 +66,7 @@ table.has-error {
 }
 
 .n-form-meta span {
-    color: var(--n-text-strong, inherit);
-}
-
-/* 주의를 끌어야 하는 힌트(주기가 실측 소요보다 짧다 등). 막지 않고 알리기만 하는 자리다. */
-.n-form-hint-warn {
-    color: var(--n-warm-dark, #8a6d00);
+    color: var(--n-text);
 }
 
 /* MK4-4-4 CP5 — 상위 스위치가 꺼져 지금은 효과가 없는 묶음. 입력을 잠그지 않는 것이 요점이다.
@@ -129,7 +98,7 @@ table.has-error {
     gap: 8px;
 }
 
-.n-inline-row .n-form-hint {
+.n-inline-row .n-hint {
     margin: 0;
 }
 

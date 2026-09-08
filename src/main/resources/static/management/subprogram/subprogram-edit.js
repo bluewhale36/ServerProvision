@@ -119,7 +119,7 @@
                 size.style.marginLeft = 'auto';
                 size.style.fontSize = '11px';
                 size.style.color = 'var(--n-text-muted)';
-                size.textContent = formatBytes(entry.size);
+                size.textContent = UiUtil.formatBytes(entry.size);
                 li.appendChild(size);
             }
 
@@ -179,13 +179,5 @@
         // 후행 슬래시 제거 (단, 루트 "/" 는 유지)
         if (p.length > 1 && p.endsWith('/')) return p.slice(0, -1);
         return p;
-    }
-
-    function formatBytes(n) {
-        if (!Number.isFinite(n) || n <= 0) return '0 B';
-        if (n < 1024) return n.toFixed(0) + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-        if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
-        return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
     }
 })();
