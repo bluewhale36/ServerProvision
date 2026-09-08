@@ -131,7 +131,6 @@
 <!-- U3-2-b — 삭제/영구삭제 확인 모달(관리 공용 fragment 사전 include) + base opener + setting 전용 바인딩.
      purge lazy 흐름은 ResourceType 레지스트리를 전제하므로 쓰지 않고, 사전 include 한 fragment 를
      ConfirmModal.open 으로 직접 구동한다. -->
-<link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
 <div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('confirmSoftDelete')}"></div>
 <div th:replace="~{fragments/management/confirm-purge :: confirmPurgeModal('confirmPurge')}"></div>
 <script th:src="@{/management/common/confirm-modal-base.js}"></script>

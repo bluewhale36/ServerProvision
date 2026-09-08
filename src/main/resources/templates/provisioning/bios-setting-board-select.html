@@ -13,50 +13,55 @@
   catalogAvailable=true  → 카드 클릭 시 /provisioning/bios-setting/new/{boardModelId} 작성 편집기로 진입.
   catalogAvailable=false → 카드 disabled + tooltip (UI 1차 차단) — direct GET 은 로더의
                            카탈로그 존재 판정(404) 안전망이 받는다 (같은 판정의 단일 SSOT).
-  본문은 BIOS 룩(bios-setting.css)을 유지하되, 포털 흐름에 편입되었으므로 navbar 를 포함한다.
+  본문은 포털 골격(n-page-md · 보드 카드 격자)이다(S17-3 — 콘솔 룩 폐기).
 -->
 <head>
 	<th:block th:replace="~{fragments/layout :: commonHead('BIOS 세팅 템플릿 작성 — 보드 선택')}"></th:block>
 	<!-- v 쿼리 = 캐시버스터 (스타일 변경 시 증가) -->
-	<link rel="stylesheet" th:href="@{/provisioning/bios-setting.css(v=2)}">
+	<link rel="stylesheet" th:href="@{/provisioning/bios-setting.css(v=4)}">
 </head>
-<body class="bios-body bios-select-body">
+<body>
 <nav th:replace="~{fragments/layout :: navbar('bios-setting')}"></nav>
 
-<main class="bios-select">
-	<h1 class="bios-select-title">BIOS 세팅 템플릿 작성</h1>
-	<p class="bios-select-sub">management 에 등록된 메인보드 모델 중 템플릿을 작성할 보드를 선택하세요.</p>
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">BIOS 세팅 템플릿 작성</h1>
+        <div class="n-header-actions">
+            <a th:href="@{/provisioning/bios-setting}" class="n-back-link">← 목록으로</a>
+        </div>
+    </div>
+    <p class="n-hint n-lead">management 에 등록된 메인보드 모델 중 템플릿을 작성할 보드를 선택하세요.</p>
 
-	<div class="bios-board-grid">
-		<th:block th:each="board : ${boards}">
-			<!-- 카탈로그 보유 — 편집기 진입 -->
-			<a th:if="${board.catalogAvailable}" class="bios-board-card"
-			   th:href="@{/provisioning/bios-setting/new/{id}(id=${board.boardModelId})}">
-				<span class="bios-board-key" th:text="${board.modelName}">MS74-HB0</span>
-				<span class="bios-brand-sub" th:text="${board.vendor}">GIGABYTE</span>
-				<span class="bios-board-go">템플릿 작성 ▶</span>
-			</a>
-			<!-- 카탈로그 미보유 — disabled 카드 + tooltip (UI 1차 차단).
-			     n-btn-disabled 가 pointer-events 를 제거하므로 hover tooltip 은 wrapper 가 발동한다
-			     (detail 페이지 '수정' 버튼과 동일한 S5-3-2 자산 사용법). -->
-			<span th:unless="${board.catalogAvailable}" class="n-btn-tooltip-wrap"
-			      data-tooltip="BIOS 카탈로그(registry/SetupData) 미보유 보드입니다">
-				<span class="bios-board-card n-btn-disabled" aria-disabled="true">
-					<span class="bios-board-key" th:text="${board.modelName}">MS74-HB0</span>
-					<span class="bios-brand-sub" th:text="${board.vendor}">GIGABYTE</span>
-					<span class="bios-board-go">카탈로그 미보유</span>
-				</span>
-			</span>
-		</th:block>
-	</div>
+    <div class="bios-board-grid" th:unless="${#lists.isEmpty(boards)}">
+        <th:block th:each="board : ${boards}">
+            <!-- 카탈로그 보유 — 편집기 진입 -->
+            <a th:if="${board.catalogAvailable}" class="bios-board-card"
+               th:href="@{/provisioning/bios-setting/new/{id}(id=${board.boardModelId})}">
+                <span class="bios-board-key" th:text="${board.modelName}">MS74-HB0</span>
+                <span class="n-note" th:text="${board.vendor}">GIGABYTE</span>
+                <span class="bios-board-go">템플릿 작성 ▶</span>
+            </a>
+            <!-- 카탈로그 미보유 — disabled 카드 + tooltip (UI 1차 차단).
+                 n-btn-disabled 가 pointer-events 를 제거하므로 hover tooltip 은 wrapper 가 발동한다
+                 (detail 페이지 '수정' 버튼과 동일한 S5-3-2 자산 사용법). -->
+            <span th:unless="${board.catalogAvailable}" class="n-btn-tooltip-wrap"
+                  data-tooltip="BIOS 카탈로그(registry/SetupData) 미보유 보드입니다">
+                <span class="bios-board-card n-btn-disabled" aria-disabled="true">
+                    <span class="bios-board-key" th:text="${board.modelName}">MS74-HB0</span>
+                    <span class="n-note" th:text="${board.vendor}">GIGABYTE</span>
+                    <span class="bios-board-go">카탈로그 미보유</span>
+                </span>
+            </span>
+        </th:block>
+    </div>
 
-	<p class="bios-select-empty" th:if="${#lists.isEmpty(boards)}">
-		등록된 메인보드 모델이 없습니다. management 의 메인보드 관리에서 모델을 먼저 등록하세요.
-	</p>
+    <th:block th:if="${#lists.isEmpty(boards)}">
+        <div th:replace="~{fragments/ui/empty :: state(title='등록된 메인보드 모델이 없습니다.', desc='management 의 메인보드 관리에서 모델을 먼저 등록하세요.')}"></div>
+    </th:block>
 
-	<p class="bios-select-links">
-		<a th:href="@{/provisioning/bmc-password}">BMC 비밀번호 변경 ›</a>
-	</p>
-</main>
+    <p class="n-hint n-block-gap">
+        <a th:href="@{/provisioning/bmc-password}">BMC 비밀번호 변경 ›</a>
+    </p>
+</div>
 </body>
 </html>

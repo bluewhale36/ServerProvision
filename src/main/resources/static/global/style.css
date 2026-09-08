@@ -93,6 +93,21 @@ code {
     vertical-align: baseline;
 }
 
+/* 코드 블록 — Redfish 요청 본문처럼 여러 줄의 원문을 그대로 보이는 자리(BIOS 세팅 상세 · BMC 비밀번호) */
+.n-code-block {
+    background: var(--n-sunken);
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    padding: 14px 16px;
+    margin: 0;
+    font-family: var(--n-font-mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--n-text);
+    white-space: pre;
+    overflow-x: auto;
+}
+
 /* ---- 3. 사이드바 ------------------------------------------ */
 /* 왼쪽 사이드바가 영역을 진다 — 위치가 계층을 말하므로 본문은 제목 위에 영역명을 반복하지 않는다.
    뷰포트 높이에 붙어(sticky) 긴 화면을 내려도 지금 있는 영역이 보인다. 폭은 1024 까지 228px 고정
@@ -249,6 +264,32 @@ code {
     font-weight: 600;
     color: var(--n-text);
     margin: 0 0 16px;
+}
+
+/* 판의 머리 — 제목 · 집계 배지 · 판 단위 동작이 한 줄에 서는 자리(자산 대시보드의 탭 패널이 첫 사용처).
+   표 머리와 같은 꺼진 면 위에 서고 아래 격자선으로 본문과 갈라진다. 판 안에 본문 여백(.n-card-body)이
+   없는 표형 판에서도 머리만 붙일 수 있게 padding 을 스스로 가진다. (S17-3 — asset.css 의 영역 머리를 흡수) */
+.n-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--n-sunken);
+    border-bottom: 1px solid var(--n-border);
+}
+
+.n-card-head-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.n-card-head-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
 }
 
 
@@ -824,12 +865,25 @@ code {
 /* 힌트는 입력에 딸린 주석이다 — 읽기 폭을 제한해 카드 폭을 다 쓰는 본문 문단처럼 보이지 않게 한다.
    <p> 로 쓰이므로 Bootstrap 의 p { margin-bottom: 1rem } 을 끊어야 표 셀 안에서 내용이 위로 치우치지
    않는다(상태 배지가 라벨보다 위에 떠 보이던 원인). */
+/* 항목의 뜻을 적는 자리. 조작 요소의 위(설정 화면 — 라벨 → 설명 → 조작 순, MK4-4-4 CP7 의 위계)에도
+   아래(입력 폼 — 형식 안내)에도 선다. S17-3 에서 form-validation.css 의 .n-form-hint 를 여기로 접었다 —
+   같은 뜻의 클래스가 둘이면 화면마다 갈린다. */
 .n-hint {
     font-size: 12px;
+    line-height: 1.55;
     color: var(--n-text-sec);
-    margin-top: 4px;
-    margin-bottom: 0;
+    margin: 4px 0 6px;
     max-width: 68ch;
+}
+
+/* 힌트가 연달아 오면 위 여백을 지운다 — 한 항목의 설명이 여러 줄로 갈린 것뿐이다. */
+.n-hint + .n-hint {
+    margin-top: -2px;
+}
+
+/* 주의를 끌어야 하는 힌트(주기가 실측 소요보다 짧다 등). 막지 않고 알리기만 하는 자리다. */
+.n-hint-warn {
+    color: var(--n-yellow);
 }
 
 /* 입력 그룹 */

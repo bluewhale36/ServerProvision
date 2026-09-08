@@ -5,16 +5,8 @@
    상세 다형 카드에 필요한 최소 클래스만 보강한다.
    ============================================================ */
 
-/* ---- 공통 : 목록 행 클릭 / 모노 / muted ------------------- */
-.n-row-clickable {
-    cursor: pointer;
-}
-
-.n-row-clickable:hover td {
-    background: var(--n-bg-hover, #f5f5f4);
-}
-
-/* .n-row-link · .n-muted 는 style.css 로 올렸다(S17-2 — grouped-list.css · server.css 와 중복 정의). */
+/* .n-row-link · .n-muted 는 style.css 로(S17-2), .n-row-clickable 은 table-list.css 로 올렸다(S17-3 —
+   diagnostic-asset.css 와 중복 정의). */
 
 /* 배지를 여러 개 나열하는 셀/필드 공통 래퍼 */
 .n-badge-list {

@@ -11,7 +11,6 @@
 */-->
 <th:block th:fragment="all">
     <!-- 공통 modal 스타일 — 4 fragment 가 .cm-* class 로 참조 -->
-    <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
     <div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('confirmSoftDelete')}"></div>
     <div th:replace="~{fragments/management/confirm-deprecate :: confirmDeprecateModal('confirmDeprecate')}"></div>
     <div th:replace="~{fragments/management/confirm-restore :: confirmRestoreModal('confirmRestore')}"></div>
@@ -30,7 +29,6 @@
   S5-6-2 진입 후 lazyShell 로 대체 — backward-compat 으로만 유지.
 */-->
 <th:block th:fragment="nonPurge">
-    <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
     <div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('confirmSoftDelete')}"></div>
     <div th:replace="~{fragments/management/confirm-deprecate :: confirmDeprecateModal('confirmDeprecate')}"></div>
     <div th:replace="~{fragments/management/confirm-restore :: confirmRestoreModal('confirmRestore')}"></div>
@@ -49,7 +47,6 @@
   delete-reject-modal 은 응답 흐름이 다른 별도 sub-slice 에서 다룸 (현재 호출측이 별도로 사전 include).
 */-->
 <th:block th:fragment="lazyShell">
-    <link rel="stylesheet" th:href="@{/css/confirm-modal.css}">
     <!-- modal markup 이 inject 될 placeholder. modal 1 개만 활성이므로 ID 공유 안전. -->
     <div id="modalLazySlot"></div>
     <script th:src="@{/management/common/confirm-modal-base.js}"></script>

@@ -22,16 +22,16 @@
     "전체 변경분 재수집" 이 PUT 의 전체 교체 의미론을 충족한다.
     400/404/409 → 배너 + fieldErrors 위젯/메타 매핑.
 
-  BIOS 트리 영역은 실제 펌웨어 화면 재현이 목적이라 bios-* 전용 스타일(bios-setting.css)을 유지한다.
+  BIOS 트리 영역은 편집기 전용 구조(탭 · 브레드크럼 · 항목 행 · 도움말)라 bios-* 클래스를 두되, 색 · 글꼴은 포털 토큰만 쓴다(S17-3).
   포털 흐름 편입으로 navbar + 메타 입력(n-* 폼)이 추가되었고, 공통 head 는 FormError(폼 에러 매핑)도 공급한다.
 -->
 <head>
 	<!-- 보드 표기 — 수정 모드는 editTemplate.boardModelName(BoardModel 표시명), 생성 모드는 bios.boardKey(카탈로그 키) -->
 	<th:block th:replace="~{fragments/layout :: commonHead(${editTemplate != null ? 'BIOS 세팅 템플릿 수정 — ' + editTemplate.boardModelName : 'BIOS 세팅 템플릿 작성 — ' + bios.boardKey})}"></th:block>
 	<!-- v 쿼리 = 캐시버스터 (스타일 변경 시 증가) -->
-	<link rel="stylesheet" th:href="@{/provisioning/bios-setting.css(v=3)}">
+	<link rel="stylesheet" th:href="@{/provisioning/bios-setting.css(v=4)}">
 </head>
-<body class="bios-body bios-editor-body">
+<body>
 <nav th:replace="~{fragments/layout :: navbar('bios-setting')}"></nav>
 
 <!-- 템플릿 메타 입력 — name(필수)/description(선택). 수정 모드는 editTemplate 값으로 pre-fill.
@@ -176,10 +176,10 @@
 			<li><kbd>Esc</kbd> Back</li>
 		</ul>
 		<div class="bios-actions">
-			<button type="button" class="bios-btn" id="biosResetDefaults">F3 기본값 복원</button>
+			<button type="button" class="n-btn n-btn-secondary" id="biosResetDefaults">F3 기본값 복원</button>
 			<!-- 저장 사전 차단(서버 판정과 동일 SSOT: name 비어있음 / 변경분 0건) — disabled + wrapper tooltip (S5-3-2 자산) -->
 			<span class="n-btn-tooltip-wrap" id="biosSaveWrap" data-tooltip-active="false">
-				<button type="submit" class="bios-btn bios-btn--primary" id="biosSave">F4 템플릿 저장</button>
+				<button type="submit" class="n-btn n-btn-primary" id="biosSave">F4 템플릿 저장</button>
 			</span>
 		</div>
 	</footer>

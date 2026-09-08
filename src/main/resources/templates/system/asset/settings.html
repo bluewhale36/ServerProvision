@@ -42,10 +42,10 @@
                   data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다">
                 <div class="n-form-group">
                     <label class="n-label strong" for="retentionCount">자산별 보존 버전 수</label>
+                    <p class="n-hint">교체·롤백 시 자산별로 최근 이 개수만큼만 버전을 보존합니다(초과분은 오래된 것부터 삭제). 1~20.</p>
                     <input id="retentionCount" type="number" th:field="*{retentionCount}"
-                           class="n-input" min="1" max="20"
+                           class="n-input n-input-narrow" min="1" max="20"
                            th:classappend="${#fields.hasErrors('retentionCount')} ? 'is-invalid'">
-                    <div class="n-hint">교체·롤백 시 자산별로 최근 이 개수만큼만 버전을 보존합니다(초과분은 오래된 것부터 삭제). 1~20.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('retentionCount')}" th:errors="*{retentionCount}"></div>
                 </div>
                 <div class="n-form-actions">

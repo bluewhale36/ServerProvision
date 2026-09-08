@@ -399,9 +399,16 @@ td.n-tl-cell::before {
     animation: n-row-returned 1.8s ease-out;
 }
 
+/* 행 전체가 상세로 가는 링크인 목록(세팅 정의서 · BIOS 세팅 · 진단 자산). 손 모양만 더한다 —
+   hover 면색은 표 전역 규칙(style.css)이 이미 칠한다. S17-3 에서 setting.css · diagnostic-asset.css
+   두 곳의 같은 정의를 여기 한 벌로 모았다. */
+.n-row-clickable {
+    cursor: pointer;
+}
+
 @keyframes n-row-returned {
     0% {
-        background-color: rgba(0, 117, 222, 0.18);
+        background-color: rgba(37, 87, 214, 0.18);
     }
     100% {
         background-color: transparent;

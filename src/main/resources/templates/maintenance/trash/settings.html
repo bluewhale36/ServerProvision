@@ -47,6 +47,7 @@
                 <!-- ① TTL -->
                 <div class="n-form-group">
                     <label class="n-label strong" for="ttlDays">TTL (보관 기간)</label>
+                    <p class="n-hint">휴지통에서 자동 영구삭제까지의 보관 기간이에요.</p>
                     <div class="n-input-group">
                         <input id="ttlDays" type="number" th:field="*{ttlDays}"
                                class="n-input" min="1"
@@ -57,7 +58,6 @@
                                 disabled>일
                         </button>
                     </div>
-                    <div class="n-hint">휴지통에서 자동 영구삭제까지의 보관 기간이에요.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('ttlDays')}"
                          th:errors="*{ttlDays}"></div>
                 </div>
@@ -65,6 +65,7 @@
                 <!-- ② 자동 영구삭제 활성화 — radio 2택 -->
                 <div class="n-form-group">
                     <label class="n-label strong">자동 영구삭제</label>
+                    <p class="n-hint">'사용 안 함' 으로 두면 TTL 만료 자원이 휴지통에 그대로 남고 알림만 발송돼요.</p>
                     <div class="n-check-row">
                         <label class="n-check">
                             <input type="radio" th:field="*{autoPurgeEnabled}" th:value="true"
@@ -78,12 +79,12 @@
                                    >(만료 자원 식별 + 알림만)</span></span>
                         </label>
                     </div>
-                    <div class="n-hint">'사용 안 함' 으로 두면 TTL 만료 자원이 휴지통에 그대로 남고 알림만 발송돼요.</div>
                 </div>
 
                 <!-- ③ 영구삭제 점검 주기 — preset select + 직접 입력 -->
                 <div class="n-form-group">
                     <label class="n-label strong" for="purgeCronPreset">영구삭제 점검 주기</label>
+                    <p class="n-hint">자동 영구삭제 후보를 점검하는 cron 주기예요. 대부분 '매시 정각' 으로 충분해요.</p>
                     <select id="purgeCronPreset" class="n-select" data-cron-target="#purgeCronExpression">
                         <option value="0 0 * * * *">매시 정각 — 1시간마다 (권장)</option>
                         <option value="0 */30 * * * *">매 30분</option>
@@ -92,15 +93,14 @@
                         <option value="0 0 */6 * * *">6시간마다</option>
                         <option value="__custom__">직접 입력 (cron 식)</option>
                     </select>
-                    <div class="n-hint">자동 영구삭제 후보를 점검하는 cron 주기예요. 대부분 '매시 정각' 으로 충분해요.</div>
 
                     <div class="n-block-gap-sm" data-cron-advanced hidden>
+                        <p class="n-hint">Spring scheduler 6 필드 형식 (초 분 시 일 월 요일).</p>
                         <input id="purgeCronExpression" type="text" th:field="*{purgeCronExpression}"
                                class="n-input"
                                data-error-field="purgeCronExpression"
                                th:classappend="${#fields.hasErrors('purgeCronExpression')} ? 'is-invalid'"
                                placeholder="0 0 * * * *">
-                        <div class="n-hint">Spring scheduler 6 필드 형식 (초 분 시 일 월 요일).</div>
                         <div class="n-error" th:if="${#fields.hasErrors('purgeCronExpression')}"
                              th:errors="*{purgeCronExpression}"></div>
                     </div>
@@ -109,6 +109,7 @@
                 <!-- ④ 사전 알림 점검 주기 — preset select + 직접 입력 -->
                 <div class="n-form-group">
                     <label class="n-label strong" for="notifyCronPreset">사전 알림 점검 주기</label>
+                    <p class="n-hint">TTL 임박 자원을 작업 조회 아이콘에 알림으로 등록하는 주기예요.</p>
                     <select id="notifyCronPreset" class="n-select" data-cron-target="#notifyCronExpression">
                         <option value="0 0 * * * *">매시 정각 — 1시간마다 (권장)</option>
                         <option value="0 */30 * * * *">매 30분</option>
@@ -116,9 +117,9 @@
                         <option value="0 0 */6 * * *">6시간마다</option>
                         <option value="__custom__">직접 입력 (cron 식)</option>
                     </select>
-                    <div class="n-hint">TTL 임박 자원을 작업 조회 아이콘에 알림으로 등록하는 주기예요.</div>
 
                     <div class="n-block-gap-sm" data-cron-advanced hidden>
+                        <p class="n-hint">Spring scheduler 6 필드 형식 (초 분 시 일 월 요일).</p>
                         <input id="notifyCronExpression" type="text" th:field="*{notifyCronExpression}"
                                class="n-input"
                                data-error-field="notifyCronExpression"
@@ -132,12 +133,12 @@
                 <!-- ⑤ 사전 알림 D-day -->
                 <div class="n-form-group">
                     <label class="n-label strong" for="notifyDaysBefore">사전 알림 시점 (D-day)</label>
+                    <p class="n-hint">콤마 구분 일수. 예 : <code>7,1</code> 입력 → 만료 7일 전 + 1일 전 알림 발송.</p>
                     <input id="notifyDaysBefore" type="text" th:field="*{notifyDaysBefore}"
                            class="n-input"
                            data-error-field="notifyDaysBefore"
                            th:classappend="${#fields.hasErrors('notifyDaysBefore')} ? 'is-invalid'"
                            placeholder="7,1">
-                    <div class="n-hint">콤마 구분 일수. 예 : <code>7,1</code> 입력 → 만료 7일 전 + 1일 전 알림 발송.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('notifyDaysBefore')}"
                          th:errors="*{notifyDaysBefore}"></div>
                 </div>
@@ -171,6 +172,7 @@
 
                         <div class="n-form-group n-flush">
                             <label class="n-label strong" for="retryBackoffBaseMs">retry backoff base</label>
+                            <p class="n-hint">exponential — 1차 base, 2차 ×2, 3차 ×4. 예 : <code>1000ms</code> → 1s · 2s · 4s.</p>
                             <div class="n-input-group">
                                 <input id="retryBackoffBaseMs" type="number" th:field="*{retryBackoffBaseMs}"
                                        class="n-input" min="100" step="100"
@@ -180,9 +182,6 @@
                                 <button type="button" class="n-btn n-btn-secondary" tabindex="-1"
                                         disabled>ms
                                 </button>
-                            </div>
-                            <div class="n-hint">exponential — 1차 base, 2차 ×2, 3차 ×4. 예 : <code>1000ms</code> → 1s · 2s ·
-                                4s.
                             </div>
                             <div class="n-error" th:if="${#fields.hasErrors('retryBackoffBaseMs')}"
                                  th:errors="*{retryBackoffBaseMs}"></div>
