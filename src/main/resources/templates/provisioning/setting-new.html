@@ -160,7 +160,7 @@
                                             </select>
                                         </span>
                                         <!-- SPECIFIED 보드에 등록 펌웨어 0개 — 저장은 허용(실행 시 skip), deprecated 와 같은 노란 강조(사용자 지시) -->
-                                        <span class="n-hint n-hint-warn" id="buBiosEmptyHint" hidden>
+                                        <span class="n-hint n-hint-warn-panel" id="buBiosEmptyHint" hidden>
                                             이 보드에 등록된 BIOS 펌웨어가 없습니다 — 실행 시점까지 등록되지 않으면 이 항목은 건너뜁니다.</span>
                                     </div>
                                     <div class="n-form-group" data-error-field="bmc">
@@ -184,7 +184,7 @@
                                             </select>
                                         </span>
                                         <!-- SPECIFIED 보드에 등록 펌웨어 0개 — 저장은 허용(실행 시 skip), deprecated 와 같은 노란 강조(사용자 지시) -->
-                                        <span class="n-hint n-hint-warn" id="buBmcEmptyHint" hidden>
+                                        <span class="n-hint n-hint-warn-panel" id="buBmcEmptyHint" hidden>
                                             이 보드에 등록된 BMC 펌웨어가 없습니다 — 실행 시점까지 등록되지 않으면 이 항목은 건너뜁니다.</span>
                                     </div>
                                 </div>
@@ -310,7 +310,7 @@
                                         <div class="n-hint" id="rcExistingPolicyHint" hidden>RAID 를 구성하는 묶음이 없어 선택이 필요하지 않습니다.</div>
                                         <div class="n-hint" id="rcExistingPolicyPrefillWarning" hidden>구 저장본이라 기존 구성 처리가 지정되어 있지 않습니다 — 저장하려면 선택해야 합니다.</div>
                                         <!-- 파괴 선택 시 상시 경고(CP6 검수 반영) — tooltip 은 열어야 보이지만 데이터 소실은 열지 않아도 알아야 한다. -->
-                                        <div class="n-hint-warn" id="rcDestroyWarning" hidden>집행 시 기존 볼륨을 전부 지웁니다. 디스크에 저장된 데이터는 삭제되며, 복구할 수 없습니다.</div>
+                                        <div class="n-hint-warn-panel" id="rcDestroyWarning" hidden>집행 시 기존 볼륨을 전부 지웁니다. 디스크에 저장된 데이터는 삭제되며, 복구할 수 없습니다.</div>
                                     </div>
                                 </div>
 

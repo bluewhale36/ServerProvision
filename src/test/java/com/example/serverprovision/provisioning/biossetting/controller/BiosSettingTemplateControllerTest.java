@@ -5,6 +5,7 @@ import com.example.serverprovision.provisioning.biossetting.dto.response.BiosSet
 import com.example.serverprovision.provisioning.biossetting.dto.response.BiosSettingTemplateEditViewResponse;
 import com.example.serverprovision.provisioning.biossetting.dto.response.BiosSettingTemplateSummaryResponse;
 import com.example.serverprovision.provisioning.biossetting.exception.BiosSettingTemplateNotFoundException;
+import com.example.serverprovision.provisioning.biossetting.exception.BiosCatalogNotFoundException;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.provisioning.biossetting.service.BiosSettingTemplateQueryService;
 import com.example.serverprovision.provisioning.dto.response.BiosSetupPageResponse;
@@ -80,6 +81,18 @@ class BiosSettingTemplateControllerTest {
         willThrow(new BoardModelNotFoundException(99L)).given(queryService).editorView(99L);
 
         mvc.perform(get("/provisioning/bios-setting/new/{boardModelId}", 99L).accept(MediaType.TEXT_HTML))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /new/{boardModelId} · /{id}/edit — 카탈로그 미보유 보드 → BiosCatalogNotFound 404 (HF14 · 종전 500)")
+    void editor_catalogMissing_returns404() throws Exception {
+        willThrow(new BiosCatalogNotFoundException("MS03-CE0")).given(queryService).editorView(1L);
+        willThrow(new BiosCatalogNotFoundException("MS03-CE0")).given(queryService).editorViewFor(1L);
+
+        mvc.perform(get("/provisioning/bios-setting/new/{boardModelId}", 1L).accept(MediaType.TEXT_HTML))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/provisioning/bios-setting/{id}/edit", 1L).accept(MediaType.TEXT_HTML))
                 .andExpect(status().isNotFound());
     }
 

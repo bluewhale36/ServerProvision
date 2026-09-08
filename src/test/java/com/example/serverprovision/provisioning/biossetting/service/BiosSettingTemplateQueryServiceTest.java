@@ -4,6 +4,7 @@ import com.example.serverprovision.provisioning.biossetting.dto.response.BiosSet
 import com.example.serverprovision.provisioning.biossetting.dto.response.BiosSettingTemplateEditViewResponse;
 import com.example.serverprovision.provisioning.biossetting.entity.BiosSettingTemplate;
 import com.example.serverprovision.provisioning.biossetting.exception.BiosSettingTemplateNotFoundException;
+import com.example.serverprovision.provisioning.biossetting.exception.BiosCatalogNotFoundException;
 import com.example.serverprovision.provisioning.biossetting.repository.BiosSettingTemplateRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -217,6 +218,23 @@ class BiosSettingTemplateQueryServiceTest {
     }
 
     @Test
+    @DisplayName("findDetail — properties 에는 있으나 카탈로그 파일이 사라진 보드 → degraded, 로더 미호출 (HF14 앵커 ③)")
+    void findDetail_catalogFileMissing_degradedWithoutLoader() {
+        Map<BiosAttributeName, BiosAttributeValue> values = new LinkedHashMap<>();
+        values.put(BiosAttributeName.of("TCG003"), BiosAttributeValue.ofString("Enable"));
+        BiosSettingTemplate fixture = template(values);
+        given(repository.findById(1L)).willReturn(Optional.of(fixture));
+        // 편집기 가드와 같은 판정 — 파일이 없으면 available=false. 종전에는 loader.load 가 IO 실패(500)로 샜다.
+        given(loader.registryFileExists(BOARD)).willReturn(false);
+
+        BiosSettingTemplateDetailResponse detail = service.findDetail(1L);
+
+        assertThat(detail.catalogMissing()).isTrue();
+        assertThat(detail.stale()).hasSize(1);
+        org.mockito.Mockito.verify(loader, org.mockito.Mockito.never()).load(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
     @DisplayName("editorViewFor — storedValue 는 위젯 선택값으로만 주입되고 diff 기준선(defaultValue)은 불변")
     void editorViewFor_overlaysStoredValueOnly() {
         Map<BiosAttributeName, BiosAttributeValue> values = new LinkedHashMap<>();
@@ -238,6 +256,45 @@ class BiosSettingTemplateQueryServiceTest {
         assertThat(timeout.storedValue()).isNull();
         assertThat(timeout.defaultValue()).isEqualTo("1000");
         assertThat(editView.name()).isEqualTo("Rocky9 표준");
+    }
+
+    @Test
+    @DisplayName("editorView — 카탈로그 보유 보드 → 편집기 뷰모델(페이지 · 위젯)")
+    void editorView_catalogAvailable_returnsPages() {
+        BoardModel withCatalog = boardMock(6L, BOARD);
+        given(boardModelRepository.findByIdAndIsDeletedFalse(6L)).willReturn(Optional.of(withCatalog));
+        given(loader.load(BOARD)).willReturn(menu(enumAttr("TCG003", "./Advanced/TC", false)));
+
+        BiosSetupPageResponse bios = service.editorView(6L);
+
+        assertThat(bios.pages()).hasSize(1);
+        assertThat(bios.pages().get(0).rows()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("editorView — 카탈로그 미보유 보드(direct GET) → BiosCatalogNotFoundException, 로더 미호출 (HF14)")
+    void editorView_catalogMissing_throwsNotFound() {
+        BoardModel withoutCatalog = boardMock(3L, "RX1330M6");
+        given(boardModelRepository.findByIdAndIsDeletedFalse(3L)).willReturn(Optional.of(withoutCatalog));
+
+        assertThatThrownBy(() -> service.editorView(3L))
+                .isInstanceOf(BiosCatalogNotFoundException.class)
+                .hasMessageContaining("RX1330M6");
+        org.mockito.Mockito.verify(loader, org.mockito.Mockito.never()).load(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("editorViewFor — 템플릿의 보드가 카탈로그 미보유 → BiosCatalogNotFoundException (수정 버튼 disabled 의 서버 안전망)")
+    void editorViewFor_catalogMissing_throwsNotFound() {
+        Map<BiosAttributeName, BiosAttributeValue> values = new LinkedHashMap<>();
+        values.put(BiosAttributeName.of("TCG003"), BiosAttributeValue.ofString("Enable"));
+        BiosSettingTemplate saved = BiosSettingTemplate.builder()
+                .name("구형 보드").description("설명").boardModel(boardMock(3L, "RX1330M6"))
+                .values(new BiosSettingValues(values)).build();
+        given(repository.findById(2L)).willReturn(Optional.of(saved));
+
+        assertThatThrownBy(() -> service.editorViewFor(2L))
+                .isInstanceOf(BiosCatalogNotFoundException.class);
     }
 
     @Test

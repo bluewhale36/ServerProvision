@@ -196,7 +196,7 @@
 
 /* 펌웨어 부재 경고 힌트(U2-2-3) — deprecated 뱃지와 같은 노란 팔레트로 강조(사용자 지시).
    select 아래 한 줄 배너 형태: 배경+테두리로 n-hint 보다 시인성을 높인다. */
-.n-hint-warn {
+.n-hint-warn-panel {
     display: block;
     margin-top: 6px;
     padding: 6px 10px;

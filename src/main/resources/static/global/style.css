@@ -117,6 +117,14 @@ code {
     vertical-align: baseline;
 }
 
+/* 키 표기 — reset.css 는 Bootstrap 값(흰 글자 · #212529 면)을 그대로 옮긴 파일이라 손대지 않고 여기서 토큰으로 덮는다.
+   BIOS 편집기의 키 안내는 자기 시트(bios-setting.css)가 다시 덮는다. */
+kbd {
+    color: var(--n-surface);
+    background-color: var(--n-warm-dark);
+    border-radius: var(--n-radius);
+}
+
 /* 코드 블록 — Redfish 요청 본문처럼 여러 줄의 원문을 그대로 보이는 자리(BIOS 세팅 상세 · BMC 비밀번호) */
 .n-code-block {
     background: var(--n-sunken);

@@ -182,8 +182,11 @@
                     <th:block th:unless="${sp.deleted}">
                         <a th:href="@{/management/subprogram/{id}/edit(id=${sp.id})}"
                            class="n-btn n-btn-secondary">수정</a>
+                            <!-- mk3-2-delete-form — 파일이 사라진 자원의 삭제가 409 로 거절되면 3 택 거절 모달로 안내(MK3-2). 다른 세 도메인과
+                                 달리 여기만 마커가 빠져 있어 플래그가 켜진 뒤(HF14) 일반 오류 모달만 보였다(CP5 O-1). -->
                             <form th:action="@{/management/subprogram/{id}/delete(id=${sp.id})}"
                               method="post"
+                              class="mk3-2-delete-form"
                               data-confirm-soft-delete=""
                               th:data-resource-label="|${sp.kindDisplayName} '${sp.name}'|">
                             <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>

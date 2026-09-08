@@ -217,11 +217,15 @@
 			if (row && (row.classList.contains('is-hidden') || row.classList.contains('is-grayout'))) return;
 			const cur = String(ctrl.value);
 			if (cur === '') return;
+			const def = ctrl.dataset.default != null ? String(ctrl.dataset.default) : '';
 			const stored = ctrl.dataset.stored != null ? String(ctrl.dataset.stored) : null;
-			const touched = stored == null || cur !== stored;
+			// "만진 위젯" 의 기준 — 수정 모드는 저장값, 생성 모드는 기본값이다. 생성 모드에서 stored 가 없다고 전부
+			// touched 로 보면 중복 배치 속성(TCG003 이 두 페이지에 있는 경우)의 뒤 위젯(기본값 그대로)이 앞의 변경을
+			// 덮어 저장 게이트가 "변경 없음" 으로 남았다(S17-3 CP5 관찰 · HF14).
+			const touched = stored == null ? cur !== def : cur !== stored;
 			const prev = picked[ctrl.dataset.attr];
 			if (prev && prev.touched && !touched) return;
-			picked[ctrl.dataset.attr] = { cur, touched, def: ctrl.dataset.default != null ? String(ctrl.dataset.default) : '' };
+			picked[ctrl.dataset.attr] = { cur, touched, def };
 		});
 		const changed = {};
 		Object.keys(picked).forEach(attr => {
