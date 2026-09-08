@@ -52,12 +52,12 @@
                     th:data-os-key="${board.id}">
                 <span class="n-miller-version-label">
                     <span th:text="${board.modelName}">MS03-CE0-000</span>
-                    <span style="font-size: 11px; color: var(--n-text-muted);"
+                    <span class="n-note"
                           th:text="' · ' + ${board.vendorDisplayName}"> · Gigabyte</span>
-                    <span th:if="${board.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                    <span class="n-note" th:if="${board.isDeleted}">(삭제됨)</span>
                 </span>
             </button>
-            <div class="n-empty-desc" style="padding: 10px 12px; font-size: 11px;">
+            <div class="n-miller-col-note">
                 신규 메인보드 모델은
                 <a th:href="@{/management/board}">메인보드 모델 관리</a>
                 페이지에서 등록하세요.
@@ -75,7 +75,7 @@
                  th:attr="data-rank-url=${board.isDeleted} ? null : @{/management/bmc/{b}/rank(b=${board.id})}">
 
                 <div th:if="${#lists.isEmpty(board.bmcList)}"
-                     class="n-empty-desc" style="padding: 10px 12px;">
+                     class="n-miller-col-note">
                     등록된 BMC 펌웨어가 없습니다.
                 </div>
 
@@ -93,7 +93,7 @@
                         <span th:if="${bmc.isDeprecated and !bmc.isDeleted}"
                               class="n-deprecated-dot"
                               title="Deprecated"></span>
-                        <span th:if="${bmc.isDeleted}" style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                        <span class="n-note" th:if="${bmc.isDeleted}">(삭제됨)</span>
                     </span>
                     <span th:unless="${bmc.isDeleted}"
                           class="n-miller-status-tag"
@@ -101,9 +101,9 @@
                           th:text="${bmc.isEnabled} ? '활성' : '비활성'">활성</span>
                 </button>
 
-                <div th:unless="${board.isDeleted}" style="padding: 8px 12px;">
+                <div class="n-miller-col-foot" th:unless="${board.isDeleted}">
                     <a th:href="@{/management/bmc/{boardId}/new(boardId=${board.id})}"
-                       class="n-btn n-btn-sm n-btn-primary" style="width: 100%;">+ BMC 등록</a>
+                       class="n-btn n-btn-sm n-btn-secondary n-btn-block">+ BMC 등록</a>
                 </div>
             </div>
         </div>
@@ -138,8 +138,8 @@
                             <dd>
                                 <span th:text="${bmc.name}"></span>
                                 <span th:if="${bmc.isDeprecated}"
-                                      class="n-badge n-badge-yellow"
-                                      style="margin-left: 8px;">Deprecated</span>
+                                      class="n-badge n-badge-yellow n-meta"
+                                     >Deprecated</span>
                             </dd>
                         </div>
                         <div class="n-accordion-field">
@@ -153,7 +153,7 @@
                         <!-- R12-2 — 실행 대상(진입점) 표기는 화면에서 제거 (구조는 유지 — 단일 펌웨어 파일 모델에서 표시 가치가 없다). -->
                         <div class="n-accordion-field">
                             <dt>manifest 해시</dt>
-                            <dd><code style="font-size: 11px;" th:text="${bmc.manifestHash}"></code></dd>
+                            <dd class="n-small"><code th:text="${bmc.manifestHash}"></code></dd>
                         </div>
                         <div class="n-accordion-field">
                             <dt>무결성</dt>
@@ -164,7 +164,7 @@
                                       th:data-verify-url="@{/management/bmc/{boardId}/bmc/{bmcId}/verify(boardId=${board.id},bmcId=${bmc.id})}"
                                       th:data-status-url="@{/management/bmc/{boardId}/bmc/{bmcId}/integrity-status(boardId=${board.id},bmcId=${bmc.id})}"
                                       th:text="${bmc.integrityStatus != null ? bmc.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
-                                <button type="button" class="n-btn n-btn-sm n-btn-ghost"
+                                <button type="button" class="n-btn n-btn-sm n-btn-outline"
                                         th:data-verify-url="@{/management/bmc/{boardId}/bmc/{bmcId}/verify(boardId=${board.id},bmcId=${bmc.id})}">
                                     검증
                                 </button>
@@ -177,28 +177,7 @@
                         <div class="n-accordion-field">
                             <dt>상태</dt>
                             <dd>
-                                    <div class="n-actions">
-                                    <span th:if="${bmc.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
-                                    <th:block th:unless="${bmc.isDeleted}">
-                                        <span class="n-badge"
-                                              th:classappend="${bmc.isEnabled} ? 'n-badge-green' : 'n-badge-off'"
-                                              th:text="${bmc.isEnabled} ? '활성' : '비활성'"></span>
-                                        <!-- R2-2 / R4-1 — 활성화 방향이 부모 비활성/삭제로 막히면 disabled + tooltip (deprecated 는 차단 안 함, 차원 독립) -->
-                                        <span th:if="${!bmc.isEnabled and bmc.parentBlocksEnable}" class="n-btn-tooltip-wrap"
-                                              data-tooltip="부모 메인보드가 비활성 / 삭제 상태입니다. 부모를 먼저 정상화해주세요.">
-                                            <button type="button" class="n-btn n-btn-sm n-btn-outline-success" disabled>활성화</button>
-                                        </span>
-                                        <form th:unless="${!bmc.isEnabled and bmc.parentBlocksEnable}"
-                                              th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/toggle(boardId=${board.id},bmcId=${bmc.id})}"
-                                              method="post" class="n-accordion-inline-form">
-                                            <button type="submit"
-                                                    class="n-btn n-btn-sm"
-                                                    th:classappend="${bmc.isEnabled} ? 'n-btn-outline' : 'n-btn-outline-success'"
-                                                    th:text="${bmc.isEnabled} ? '비활성화' : '활성화'"></button>
-                                        </form>
-                                    </th:block>
-
-                                    </div>
+                                    <div th:replace="~{fragments/ui/lifecycle-actions :: statusActions(deleted=${bmc.isDeleted}, enabled=${bmc.isEnabled}, toggleUrl=@{/management/bmc/{boardId}/bmc/{bmcId}/toggle(boardId=${board.id},bmcId=${bmc.id})}, blockEnable=${bmc.parentBlocksEnable}, blockTip='부모 메인보드가 비활성 / 삭제 상태입니다. 부모를 먼저 정상화해주세요.', toggleTitle=null, selectKey=null, includeDeleted=null)}"></div>
                                 </dd>
                         </div>
                         <!--/* 사용 중단 권고는 활성 여부와 다른 축이다(Deprecated ≠ 비활성).
@@ -206,33 +185,7 @@
                         <div class="n-accordion-field" th:unless="${bmc.isDeleted}">
                             <dt>사용 중단 권고</dt>
                             <dd>
-                                <div class="n-actions">
-                                    <span class="n-badge"
-                                          th:classappend="${bmc.isDeprecated} ? 'n-badge-yellow' : 'n-badge-gray'"
-                                          th:text="${bmc.isDeprecated} ? 'Deprecated' : '해당 없음'"></span>
-                                    <!-- MK2 — Deprecated 토글. -->
-                                    <form th:unless="${bmc.isDeprecated}"
-                                          th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/deprecate(boardId=${board.id},bmcId=${bmc.id})}"
-                                          method="post" style="display:inline;"
-                                          data-confirm-deprecate=""
-                                          th:data-resource-label="|BMC '${bmc.name}'|">
-                                        <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
-                                    </form>
-                                    <!-- R2-2 — 부모가 Deprecated/삭제면 undeprecate 차단 -->
-                                    <span th:if="${bmc.isDeprecated and bmc.parentBlocksUndeprecate}" class="n-btn-tooltip-wrap"
-                                          data-tooltip="부모 메인보드가 Deprecated / 삭제 상태입니다. 부모를 먼저 해제 / 복구해주세요.">
-                                        <button type="button" class="n-btn n-btn-outline-info" disabled>Deprecated 해제</button>
-                                    </span>
-                                    <form th:if="${bmc.isDeprecated and !bmc.parentBlocksUndeprecate}"
-                                          th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/undeprecate(boardId=${board.id},bmcId=${bmc.id})}"
-                                          method="post" style="display:inline;"
-                                          data-confirm-undeprecate=""
-                                          data-resource-type="BMC_FIRMWARE"
-                                          th:data-resource-id="${bmc.id}"
-                                          th:data-resource-label="|BMC '${bmc.name}'|">
-                                        <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
-                                    </form>
-                                </div>
+                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${bmc.isDeprecated}, deprecateUrl=@{/management/bmc/{boardId}/bmc/{bmcId}/deprecate(boardId=${board.id},bmcId=${bmc.id})}, undeprecateUrl=@{/management/bmc/{boardId}/bmc/{bmcId}/undeprecate(boardId=${board.id},bmcId=${bmc.id})}, deprecateConfirm=true, label=|BMC '${bmc.name}'|, extra=null, blockUndeprecate=${bmc.parentBlocksUndeprecate}, blockTip='부모 메인보드가 Deprecated / 삭제 상태입니다. 부모를 먼저 해제 / 복구해주세요.', undeprecateConfirm=true, resourceType='BMC_FIRMWARE', resourceId=${bmc.id}, selectKey=null, includeDeleted=null, badgeOn='Deprecated', btnOn='Deprecated 표시', btnOff='Deprecated 해제')}"></div>
                             </dd>
                         </div>
                     </dl>
@@ -242,7 +195,7 @@
                             <a th:href="@{/management/bmc/{boardId}/bmc/{bmcId}/edit(boardId=${board.id},bmcId=${bmc.id})}"
                                class="n-btn n-btn-secondary">수정</a>
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/delete(boardId=${board.id},bmcId=${bmc.id})}"
-                                  method="post" style="display:inline;"
+                                  method="post"
                                   class="mk3-2-delete-form"
                                   data-confirm-soft-delete=""
                                   th:data-resource-label="|BMC '${bmc.name}'|">
@@ -257,14 +210,14 @@
                             </span>
                             <form th:unless="${bmc.parentBlocksRestore}"
                                   th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/restore(boardId=${board.id},bmcId=${bmc.id})}"
-                                  method="post" style="display:inline;"
+                                  method="post"
                                   data-confirm-restore=""
                                   th:data-resource-label="|BMC '${bmc.name}'|">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <!-- S5-6-1 — typed-name expected 는 BE 가 modal trigger 시 응답. -->
                             <form th:action="@{/management/bmc/{boardId}/bmc/{bmcId}/purge(boardId=${board.id},bmcId=${bmc.id})}"
-                                  method="post" style="display:inline;"
+                                  method="post"
                                   data-confirm-purge=""
                                   data-resource-type="BMC_FIRMWARE"
                                   th:data-resource-id="${bmc.id}"

@@ -61,38 +61,14 @@
                     <tr th:unless="${setting.deleted}">
                         <th>사용 여부</th>
                         <td>
-                            <div class="n-actions">
-                                <span class="n-badge"
-                                      th:classappend="${setting.enabled} ? 'n-badge-green' : 'n-badge-off'"
-                                      th:text="${setting.enabled} ? '활성' : '비활성'">활성</span>
-                                <form method="post" class="n-inline-form"
-                                      th:action="@{/provisioning/setting/{id}/toggle(id=${setting.id})}">
-                                    <button type="submit" class="n-btn n-btn-sm"
-                                            th:classappend="${setting.enabled} ? 'n-btn-outline' : 'n-btn-outline-success'"
-                                            th:text="${setting.enabled} ? '비활성화' : '활성화'"
-                                            th:title="${setting.enabled}
-                                                      ? '비활성화하면 이 정의서를 서버에 새로 할당할 수 없습니다(기존 할당은 유지).'
-                                                      : '활성화하면 이 정의서를 다시 할당할 수 있습니다.'">비활성화</button>
-                                </form>
-                            </div>
+                            <div th:replace="~{fragments/ui/lifecycle-actions :: statusActions(deleted=false, enabled=${setting.enabled}, toggleUrl=@{/provisioning/setting/{id}/toggle(id=${setting.id})}, blockEnable=false, blockTip=null, toggleTitle=${setting.enabled} ? '비활성화하면 이 정의서를 서버에 새로 할당할 수 없습니다(기존 할당은 유지).' : '활성화하면 이 정의서를 다시 할당할 수 있습니다.', selectKey=null, includeDeleted=null)}"></div>
                             <p class="n-hint">비활성 정의서는 서버에 새로 할당할 수 없습니다. 이미 할당된 스냅샷은 그대로 유지됩니다.</p>
                         </td>
                     </tr>
                     <tr th:unless="${setting.deleted}">
                         <th>사용 중단 권고</th>
                         <td>
-                            <div class="n-actions">
-                                <span class="n-badge"
-                                      th:classappend="${setting.deprecated} ? 'n-badge-yellow' : 'n-badge-gray'"
-                                      th:text="${setting.deprecated} ? '사용 중단' : '해당 없음'">해당 없음</span>
-                                <form method="post" class="n-inline-form"
-                                      th:action="${setting.deprecated}
-                                                 ? @{/provisioning/setting/{id}/undeprecate(id=${setting.id})}
-                                                 : @{/provisioning/setting/{id}/deprecate(id=${setting.id})}">
-                                    <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning"
-                                            th:text="${setting.deprecated} ? '사용 중단 권고 해제' : '사용 중단 권고'">사용 중단 권고</button>
-                                </form>
-                            </div>
+                            <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${setting.deprecated}, deprecateUrl=@{/provisioning/setting/{id}/deprecate(id=${setting.id})}, undeprecateUrl=@{/provisioning/setting/{id}/undeprecate(id=${setting.id})}, deprecateConfirm=false, label=null, extra=null, blockUndeprecate=false, blockTip=null, undeprecateConfirm=false, resourceType=null, resourceId=null, selectKey=null, includeDeleted=null, badgeOn='사용 중단', btnOn='사용 중단 권고', btnOff='사용 중단 권고 해제')}"></div>
                             <p class="n-hint">사용 중단을 권고해도 할당은 계속 가능합니다. 정의서를 고를 때 경고만 붙습니다.</p>
                         </td>
                     </tr>

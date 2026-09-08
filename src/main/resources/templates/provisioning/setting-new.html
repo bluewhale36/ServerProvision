@@ -305,7 +305,7 @@
                                     <div data-error-field="existingConfigPolicy">
                                         <div id="rcExistingPolicy">
                                             <label><input type="radio" name="rcExistingPolicyRadio" value="PRESERVE"> 기존 구성 보존</label>
-                                            <label style="margin-left: 16px;"><input type="radio" name="rcExistingPolicyRadio" value="DESTROY"> 기존 구성 파괴</label>
+                                            <label class="n-meta"><input type="radio" name="rcExistingPolicyRadio" value="DESTROY"> 기존 구성 파괴</label>
                                         </div>
                                         <div class="n-hint" id="rcExistingPolicyHint" hidden>RAID 를 구성하는 묶음이 없어 선택이 필요하지 않습니다.</div>
                                         <div class="n-hint" id="rcExistingPolicyPrefillWarning" hidden>구 저장본이라 기존 구성 처리가 지정되어 있지 않습니다 — 저장하려면 선택해야 합니다.</div>
@@ -360,7 +360,7 @@
                                         </thead>
                                         <tbody></tbody>
                                     </table>
-                                    <button type="button" id="rcAddDiskGroup" class="n-btn n-btn-ghost n-btn-sm">+ 묶음 추가</button>
+                                    <button type="button" id="rcAddDiskGroup" class="n-btn n-btn-outline n-btn-sm">+ 묶음 추가</button>
                                     <!-- U4-1-2 — OS 후보 규칙(우선순위에 따름 · OS 영역)이 하나도 없을 때. OS 설치 카드가 있으면 저장이 막힌다(SettingSaveRequest.isOsVolumeDeterminable). -->
                                     <div class="n-hint" id="rcNoOsCandidateHint" hidden></div>
                                 </div>
@@ -376,7 +376,7 @@
                                                   data-tooltip="위 묶음이 만든 볼륨(RAID 볼륨 · 단독 디스크)을 세우는 순서입니다. 볼륨은 종류 · 전송이 같은 첫 행의 순번을 받고, 같은 행 안에서는 그 행의 용량 순서로 섭니다. 1 순위 볼륨이 OS 영역, 나머지는 순위대로 Data 1, 2, … 가 됩니다. 어느 행에도 맞지 않는 볼륨은 맨 뒤(열거 순서)입니다. 순위는 맨 앞 ☰ 핸들을 끌어 바꾸며 순위 열이 따라 바뀝니다.">?</span>
                                         </span>
                                         <!-- '기본 파티션 자동 생성' 과 같은 자리 · 같은 관례 — 기본값은 서버가 내린 defaultVolumePrioritiesJson -->
-                                        <button type="button" id="rcResetPriority" class="n-btn n-btn-ghost n-btn-sm">기본 행으로 되돌리기</button>
+                                        <button type="button" id="rcResetPriority" class="n-btn n-btn-outline n-btn-sm">기본 행으로 되돌리기</button>
                                     </div>
                                     <!-- 정의서 수준 @AssertTrue(SettingSaveRequest.isOsVolumeDeterminable) 오류는 최상위 경로라 이 컨테이너가 exact-match 로 받는다 -->
                                     <div data-error-field="osVolumeDeterminable">
@@ -404,7 +404,7 @@
                                     </table>
                                     </div>
                                     </div>
-                                    <button type="button" id="rcAddPriority" class="n-btn n-btn-ghost n-btn-sm">+ 행 추가</button>
+                                    <button type="button" id="rcAddPriority" class="n-btn n-btn-outline n-btn-sm">+ 행 추가</button>
                                     <script th:inline="javascript">
                                         window.DEFAULT_VOLUME_PRIORITIES_JSON = /*[[${defaultVolumePrioritiesJson}]]*/ '[]';
                                     </script>
@@ -598,7 +598,7 @@
                 <td class="n-td-center">
                     <!-- VD 파라미터 서브 행 토글(E3.5-6) — 기본값과 다른 축 수 배지는 JS 가 채운다. MegaRAID 카드에서만 활성 -->
                     <!-- 잠금 사유는 래퍼 span 의 data-tooltip 으로 — 비활성 버튼은 hover 를 받지 못한다(n-tooltip 관례 · 맨 오른쪽 열이라 right 정렬) -->
-                    <span class="n-tooltip dgVdToggleWrap" data-tooltip-align="right"><button type="button" class="n-btn n-btn-ghost n-btn-sm dgVdToggle" aria-label="VD 파라미터">⚙<span class="dgVdBadge" hidden></span></button></span>
+                    <span class="n-tooltip dgVdToggleWrap" data-tooltip-align="right"><button type="button" class="n-btn n-btn-outline n-btn-sm dgVdToggle" aria-label="VD 파라미터">⚙<span class="dgVdBadge" hidden></span></button></span>
                     <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-row-remove>삭제</button>
                 </td>
             </tr>

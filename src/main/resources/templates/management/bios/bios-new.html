@@ -37,7 +37,7 @@
          사용자가 board 를 바꿔가며 폼을 재로딩 할 수 있게 한다. -->
     <div class="n-card" th:if="${boardId == null}">
         <div class="n-card-body">
-            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+            <div class="n-alert n-alert-muted">
                 BIOS 펌웨어를 등록할 메인보드 모델을 선택하십시오.
             </div>
             <div class="n-form-group">
@@ -63,7 +63,7 @@
     <!-- S5-5 — 폼 카드 fragment. /{boardId}/new 직접 진입 시 inline 으로, AJAX 시 본 fragment 만 응답. -->
     <div class="n-card" th:if="${boardId != null}" th:fragment="formCard">
         <div class="n-card-body">
-            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+            <div class="n-alert n-alert-muted">
                 대상 메인보드 : <strong th:text="${contextLabel}"></strong>
             </div>
 
@@ -107,14 +107,14 @@
 
                 <div class="n-form-group">
                     <label class="n-label strong" for="firmwarePath">펌웨어 파일 경로</label>
-                    <div style="display: flex; gap: 8px;">
+                    <div class="n-field-row">
                         <input id="firmwarePath" type="text" th:field="*{firmwarePath}"
-                               class="n-input" style="flex: 1;"
+                               class="n-input"
                                data-error-field="firmwarePath"
                                th:classappend="${#fields.hasErrors('firmwarePath')} ? 'is-invalid'"
                                placeholder="예: /mnt/firmware/bios/2.03/"
                                th:data-browse-url="@{/management/browse}">
-                        <button type="button" id="browseBtn" class="n-btn n-btn-ghost">탐색</button>
+                        <button type="button" id="browseBtn" class="n-btn n-btn-outline">탐색</button>
                     </div>
                     <div class="n-hint">
                         서버 파일시스템상의 펌웨어 파일 경로. 경로가 <code>/</code> 로 끝나면 디렉토리로 간주해
@@ -127,12 +127,11 @@
 
                     <!-- 경로 브라우저 패널 : 기본 숨김. 탐색 버튼 토글 -->
                     <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', '이 디렉토리에 저장')}"></div>
-                    <div class="n-hint" style="margin-top: 6px;">
+                    <div class="n-hint n-block-gap-sm">
                         <strong>이 디렉토리에 저장</strong>: 현재 디렉토리를 펌웨어 파일 경로로 적용 — 파일 업로드 시 파일명이 자동 추가됩니다.
                     </div>
 
-                    <label class="n-check"
-                           style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <label class="n-check n-block-gap-sm">
                         <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
                         <span>상위 디렉토리 생성 허용</span>
                     </label>
@@ -174,7 +173,7 @@
                     <button type="submit" id="submitBtn" class="n-btn n-btn-primary">등록</button>
                 </div>
 
-                <div class="n-hint" style="margin-top: 16px;">
+                <div class="n-hint n-block-gap">
                     등록이 끝날 때까지 페이지를 떠나지 마십시오. 완료되면 자동으로 목록 페이지로 이동합니다.
                 </div>
 

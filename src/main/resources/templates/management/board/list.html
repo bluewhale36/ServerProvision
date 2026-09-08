@@ -80,8 +80,8 @@
                         <span th:if="${board.isDeprecated and !board.isDeleted}"
                               class="n-deprecated-dot"
                               title="Deprecated"></span>
-                        <span th:if="${board.isDeleted}"
-                              style="font-size: 11px; color: var(--n-text-muted);">(삭제됨)</span>
+                        <span class="n-note" th:if="${board.isDeleted}"
+                             >(삭제됨)</span>
                     </span>
                     <span th:unless="${board.isDeleted}"
                           class="n-miller-status-tag"
@@ -89,9 +89,9 @@
                           th:text="${board.isEnabled} ? '활성' : '비활성'">활성</span>
                 </button>
                 <!-- S5-5 — C2 내부 + 등록 버튼. -->
-                <div style="padding: 8px 12px;">
+                <div class="n-miller-col-foot">
                     <a th:href="@{/management/board/new}"
-                       class="n-btn n-btn-sm n-btn-primary" style="width: 100%;">+ 메인보드 모델 등록</a>
+                       class="n-btn n-btn-sm n-btn-secondary n-btn-block">+ 메인보드 모델 등록</a>
                 </div>
             </div>
         </div>
@@ -120,15 +120,15 @@
                         </tr>
                         <tr>
                             <th>제조사</th>
-                            <td style="font-weight:600;" th:text="${group.displayName}"></td>
+                            <td class="n-strong" th:text="${group.displayName}"></td>
                         </tr>
                         <tr>
                             <th>모델명</th>
                             <td>
                                 <span th:text="${board.modelName}"></span>
                                 <span th:if="${board.isDeprecated}"
-                                      class="n-badge n-badge-yellow"
-                                      style="margin-left: 8px;">Deprecated</span>
+                                      class="n-badge n-badge-yellow n-meta"
+                                     >Deprecated</span>
                             </td>
                         </tr>
                         <tr>
@@ -144,22 +144,7 @@
                         <tr>
                             <th>상태</th>
                             <td>
-                                    <div class="n-actions">
-                                    <span th:if="${board.isDeleted}" class="n-badge n-badge-gray">삭제됨</span>
-                                    <th:block th:unless="${board.isDeleted}">
-                                        <span class="n-badge"
-                                              th:classappend="${board.isEnabled} ? 'n-badge-green' : 'n-badge-off'"
-                                              th:text="${board.isEnabled} ? '활성' : '비활성'"></span>
-                                        <form th:action="@{/management/board/{id}/toggle(id=${board.id})}"
-                                              method="post">
-                                            <button type="submit"
-                                                    class="n-btn n-btn-sm"
-                                                    th:classappend="${board.isEnabled} ? 'n-btn-outline' : 'n-btn-outline-success'"
-                                                    th:text="${board.isEnabled} ? '비활성화' : '활성화'"></button>
-                                        </form>
-                                    </th:block>
-
-                                    </div>
+                                    <div th:replace="~{fragments/ui/lifecycle-actions :: statusActions(deleted=${board.isDeleted}, enabled=${board.isEnabled}, toggleUrl=@{/management/board/{id}/toggle(id=${board.id})}, blockEnable=false, blockTip=null, toggleTitle=null, selectKey=null, includeDeleted=null)}"></div>
                                 </td>
                         </tr>
                         <!--/* 사용 중단 권고는 활성 여부와 다른 축이다(Deprecated ≠ 비활성).
@@ -167,24 +152,7 @@
                         <tr th:unless="${board.isDeleted}">
                             <th>사용 중단 권고</th>
                             <td>
-                                <div class="n-actions">
-                                    <span class="n-badge"
-                                          th:classappend="${board.isDeprecated} ? 'n-badge-yellow' : 'n-badge-gray'"
-                                          th:text="${board.isDeprecated} ? 'Deprecated' : '해당 없음'"></span>
-                                    <form th:unless="${board.isDeprecated}"
-                                          th:action="@{/management/board/{id}/deprecate(id=${board.id})}"
-                                          method="post" style="display:inline;"
-                                          data-confirm-deprecate=""
-                                          th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
-                                          th:data-resource-extra="|하위 BIOS · BMC · 드라이버·유틸리티 도 함께 Deprecated 표시돼요.|">
-                                        <button type="submit" class="n-btn n-btn-outline-warning">Deprecated 표시</button>
-                                    </form>
-                                    <form th:if="${board.isDeprecated}"
-                                          th:action="@{/management/board/{id}/undeprecate(id=${board.id})}"
-                                          method="post" style="display:inline;">
-                                        <button type="submit" class="n-btn n-btn-outline-info">Deprecated 해제</button>
-                                    </form>
-                                </div>
+                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${board.isDeprecated}, deprecateUrl=@{/management/board/{id}/deprecate(id=${board.id})}, undeprecateUrl=@{/management/board/{id}/undeprecate(id=${board.id})}, deprecateConfirm=true, label=|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|, extra=|하위 BIOS · BMC · 드라이버·유틸리티 도 함께 Deprecated 표시돼요.|, blockUndeprecate=false, blockTip=null, undeprecateConfirm=false, resourceType=null, resourceId=null, selectKey=null, includeDeleted=null, badgeOn='Deprecated', btnOn='Deprecated 표시', btnOff='Deprecated 해제')}"></div>
                             </td>
                         </tr>
                         </tbody>
@@ -199,7 +167,7 @@
 
 
                             <form th:action="@{/management/board/{id}/delete(id=${board.id})}"
-                                  method="post" style="display:inline;"
+                                  method="post"
                                   data-confirm-soft-delete=""
                                   th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
                                   th:data-resource-extra="|하위 BIOS ${board.biosCount} · BMC ${board.bmcCount} · 드라이버·유틸리티 ${board.subprogramCount} 도 함께 삭제돼요.|">
@@ -208,7 +176,7 @@
                         </th:block>
                         <th:block th:if="${board.isDeleted}">
                             <form th:action="@{/management/board/{id}/restore(id=${board.id})}"
-                                  method="post" style="display:inline;"
+                                  method="post"
                                   data-confirm-restore=""
                                   th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
                                   data-cascade-true-title="하위 BIOS / BMC / 드라이버·유틸리티 도 함께 복구"
@@ -217,7 +185,7 @@
                             </form>
                             <!-- S5-2-2 — 영구 삭제. S5-6-1 — typed-name expected 는 BE 가 modal trigger 시 응답. -->
                             <form th:action="@{/management/board/{id}/purge(id=${board.id})}"
-                                  method="post" style="display:inline;"
+                                  method="post"
                                   data-confirm-purge=""
                                   data-resource-type="BOARD_MODEL"
                                   th:data-resource-id="${board.id}"
@@ -228,11 +196,11 @@
                     </div>
 
                     <!-- 구분선 -->
-                    <hr style="border: 0; border-top: 1px solid var(--n-border); margin: 28px 0;">
+                    <hr class="n-divider">
 
-                    <h3 class="n-label strong" style="margin-bottom: 8px;">호환 BIOS · BMC · Driver</h3>
-                    <div class="n-empty" style="padding: 16px;">
-                        <div class="n-empty-desc" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <h3 class="n-label strong n-lead">호환 BIOS · BMC · Driver</h3>
+                    <div class="n-empty n-empty-sm">
+                        <div class="n-empty-desc n-actions">
                             <a th:href="@{/management/bios/{boardId}/new(boardId=${board.id})}"
                                class="n-btn n-btn-sm n-btn-secondary">BIOS 등록</a>
                             <a th:href="@{/management/bmc/{boardId}/new(boardId=${board.id})}"

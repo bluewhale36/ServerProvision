@@ -236,3 +236,22 @@
     justify-content: flex-end;
     gap: 8px;
 }
+
+/* ---- 자원 모달 조각 공용 (S17-2) ----
+   nudge · orphan-recovery · delete-reject 세 조각이 인라인 style 46 곳으로 각자 그리던 것을 확인 모달의
+   어휘(.cm-*)로 모은다. 같은 화면에 뜨는 모달이 서로 다른 조각처럼 보이지 않게. */
+.cm-card-md { max-width: 560px; max-height: 90vh; overflow-y: auto; }
+.cm-title-split { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.cm-title-meta { font-size: 0.85rem; font-weight: 500; color: var(--n-text-muted); }
+.cm-note { color: var(--n-text-muted); font-size: 0.85rem; }
+.cm-block { margin: 8px 0 12px; }
+.cm-path { display: block; word-break: break-all; padding: 6px 8px; background: var(--n-sunken); border-radius: var(--n-radius); margin-top: 4px; font-size: 0.85rem; }
+.cm-ghost-badge { background: var(--n-red); color: #fff; }
+.cm-conflict-list { list-style: none; padding: 0; margin: 0 0 18px; border: 1px solid var(--n-border); border-radius: var(--n-radius); background: var(--n-surface); max-height: 200px; overflow-y: auto; }
+.cm-typed-block { border-top: 1px solid var(--n-border-row); padding-top: 12px; margin-bottom: 12px; }
+.cm-typed-target-code.cm-path { font-size: 12px; margin: 0 0 6px; }
+/* 선택지 버튼 — 제목 한 줄 + 설명 한 줄이 세로로 쌓인다. .n-btn 의 inline-flex 는 블록 자식을 가로로
+   늘어세우므로(모달 옵션 버튼 텍스트 넘침 결함) 여기서는 block 으로 세운다. */
+.cm-option-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.cm-option { display: block; width: 100%; text-align: left; padding: 12px; white-space: normal; }
+.cm-option-desc { font-size: 0.82rem; font-weight: 400; margin-top: 2px; color: var(--n-text-muted); }

@@ -237,6 +237,14 @@
     margin-left: 6px;
 }
 
+/* 열 하단의 등록 버튼 자리 · 안내문 — 다섯 자원 화면이 인라인 padding 으로 각자 그리던 것(S17-2) */
+.n-miller-col-foot { padding: 8px 12px; }
+.n-miller-col-note { padding: 10px 12px; font-size: 11px; color: var(--n-text-muted); }
+.n-miller-item .n-note { font-size: 11px; }
+
+/* Driver · Utility 두 Miller 를 세로로 쌓는 화면 — 묶음 사이 간격 */
+.n-subprogram-section + .n-subprogram-section { margin-top: 32px; }
+
 /* ---- 1024 이하 : 상세 열을 아래로 스택한다 (S17-1 D3) ----
    3열이 고정 폭이라 사이드바 옆 796px 안에서는 상세 열이 250px 로 눌려 라벨이 글자 단위로 세로 분해되고
    [수정][삭제] 가 패널 밖으로 잘려 조작이 불가능했다. 열을 좁혀 안쪽 가로 스크롤을 두는 대신 상세를

@@ -31,7 +31,7 @@
     </div>
 
     <!--/* PRG flash */-->
-    <div th:if="${flashMessage}" class="n-alert n-alert-success" style="margin-bottom: 14px;"
+    <div th:if="${flashMessage}" class="n-alert n-alert-success"
          th:text="${flashMessage}"></div>
 
     <!--/* ① 이력 보존 개수 (전 영역 공통) */-->
@@ -56,16 +56,16 @@
     </div>
 
     <!--/* ② 무결성 봉인 — 봉인 지원 영역별 액션 */-->
-    <div class="n-card" style="margin-top: 14px;">
+    <div class="n-card n-block-gap">
         <div class="n-card-body">
             <h2 class="n-card-title">무결성 봉인</h2>
-            <p class="n-hint" style="margin-bottom: 14px;">존재하는 모든 자산의 현재 해시를 무결성 기준으로 기록/갱신합니다. 교체 가능한 자산은 교체 시 자동 재봉인되지만, 빌드 스크립트·패키지로 관리되는 자산의 기준선은 여기서(또는 대시보드에서) 확립합니다. 변조·손상 상태를 봉인하면 그 상태가 기준선이 되니 대시보드에서 무결성을 먼저 확인하세요.</p>
+            <p class="n-hint n-lead">존재하는 모든 자산의 현재 해시를 무결성 기준으로 기록/갱신합니다. 교체 가능한 자산은 교체 시 자동 재봉인되지만, 빌드 스크립트·패키지로 관리되는 자산의 기준선은 여기서(또는 대시보드에서) 확립합니다. 변조·손상 상태를 봉인하면 그 상태가 기준선이 되니 대시보드에서 무결성을 먼저 확인하세요.</p>
             <table class="n-table">
                 <thead>
                 <tr>
                     <th>영역</th>
                     <th>서빙</th>
-                    <th style="text-align: right;">액션</th>
+                    <th class="n-text-right">액션</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -73,12 +73,11 @@
                     <td><strong th:text="${area.displayName}">영역명</strong></td>
                     <td>
                         <span class="n-badge"
-                              th:classappend="${area.availability == 'CONFIGURED'} ? 'n-badge-green' : 'n-badge-gray'"
+                              th:classappend="${area.availability == 'CONFIGURED'} ? 'n-badge-green' : 'n-badge-off'"
                               th:text="${area.availability == 'CONFIGURED'} ? '서빙 활성' : '서빙 비활성'"></span>
                     </td>
-                    <td style="text-align: right;">
-                        <form th:action="@{/system/asset/{k}/seal(k=${area.areaKey})}" method="post"
-                              style="display: inline;">
+                    <td class="n-text-right">
+                        <form th:action="@{/system/asset/{k}/seal(k=${area.areaKey})}" method="post">
                             <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning"
                                     th:disabled="${area.availability != 'CONFIGURED'}"
                                     th:title="${area.availability == 'CONFIGURED'}
@@ -93,7 +92,7 @@
     </div>
 
     <!--/* ③ 현재 적용된 값 — 휴지통 설정의 요약 카드와 동일 기조 */-->
-    <div class="n-card" style="margin-top: 14px;">
+    <div class="n-card n-block-gap">
         <div class="n-card-body">
             <h2 class="n-card-title">현재 적용된 값</h2>
             <table class="n-table">

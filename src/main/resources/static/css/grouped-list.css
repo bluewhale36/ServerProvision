@@ -75,12 +75,6 @@
     background: #fff;
 }
 
-/* ---- 안쪽 묶음의 부제 ---- */
-.n-glist-sub {
-    font-size: 13px;
-    margin: 14px 0 4px;
-}
-
 /* ---- 안쪽 묶음 제목 옆의 요약 ----
    코드가 아니라 사람이 읽는 문장이므로 코드 장식을 걷어내고 본문 글자로 둔다.
    제목과 붙어 보이지 않게 왼쪽 여백을 준다 — <b>제목 옆에서만</b> 쓴다. */
@@ -116,19 +110,10 @@ a.n-accordion-head {
    행 전체가 아니라 <b>이름 링크만</b> 이동한다. 그래서 행에는 손 모양 커서를
    주지 않고 배경만 바꾼다 — 커서가 바뀌는데 눌러도 안 되는 것이 가장 나쁘다. */
 .n-row-hover:hover td {
-    background: var(--n-bg-hover, #f5f5f4);
+    background: var(--n-row-hover);
 }
 
-.n-row-link {
-    font-weight: 600;
-    color: var(--n-text);
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.n-row-link:hover {
-    text-decoration: underline;
-}
+/* .n-row-link 는 style.css §8 로 올렸다(S17-2 — setting.css 와 중복 정의). */
 
 /* ---- 상세에서 돌아온 행 ---- 은 table-list.css 로 옮겼다 (MK4-5-1 CP7).
    짝인 global/nav-stack.js 가 전역 스크립트인데 그 스타일만 이 파일에 있어,

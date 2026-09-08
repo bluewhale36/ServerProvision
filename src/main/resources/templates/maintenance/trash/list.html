@@ -45,10 +45,9 @@
     </div>
 
     <!--/* 빈 상태 */-->
-    <div th:if="${#lists.isEmpty(trashItems)}" class="n-empty-state">
-        <div class="n-empty-title">휴지통이 비어있습니다.</div>
-        <div class="n-hint">soft-delete 한 자원이 여기에 보관됩니다.</div>
-    </div>
+    <th:block th:if="${#lists.isEmpty(trashItems)}">
+        <div th:replace="~{fragments/ui/empty :: state(title='휴지통이 비어있습니다.', desc='soft-delete 한 자원이 여기에 보관됩니다.')}"></div>
+    </th:block>
 
     <!--/* 자원 목록 */-->
     <table th:if="${not #lists.isEmpty(trashItems)}" class="n-table">
@@ -168,7 +167,7 @@
                             <span class="n-btn-tooltip-wrap"
                                   data-tooltip-align="right"
                                   th:attr="data-tooltip=${!item.ttlExtendable} ? '이 자원 종류는 보존기간 연장을 지원하지 않아요.' : null">
-                            <button type="submit" class="n-btn n-btn-sm n-btn-ghost"
+                            <button type="submit" class="n-btn n-btn-sm n-btn-outline"
                                     th:disabled="${!item.ttlExtendable}"
                                     th:text="|+${item.extendStepDays}일 연장|">+30일 연장</button>
                         </span>

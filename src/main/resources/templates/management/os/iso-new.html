@@ -30,7 +30,7 @@
 
     <div class="n-card">
         <div class="n-card-body">
-            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+            <div class="n-alert n-alert-muted">
                 대상 OS : <strong th:text="${contextLabel}"></strong>
             </div>
 
@@ -69,14 +69,14 @@
 
                 <div class="n-form-group">
                     <label class="n-label strong" for="isoPath">ISO 경로</label>
-                    <div style="display: flex; gap: 8px;">
+                    <div class="n-field-row">
                         <input id="isoPath" type="text" th:field="*{isoPath}"
-                               class="n-input" style="flex: 1;"
+                               class="n-input"
                                data-error-field="isoPath"
                                th:classappend="${#fields.hasErrors('isoPath')} ? 'is-invalid'"
                                placeholder="/mnt/iso/rocky9/DVD.iso"
                                th:data-browse-url="@{/management/browse}">
-                        <button type="button" id="browseBtn" class="n-btn n-btn-ghost">탐색</button>
+                        <button type="button" id="browseBtn" class="n-btn n-btn-outline">탐색</button>
                     </div>
                     <div class="n-hint">
                         직접 적거나 <strong>탐색</strong>으로 고릅니다. 아래 파일을 비우면 이 경로의 기존 ISO 를 그대로 등록합니다.
@@ -91,8 +91,7 @@
                     </div>
 
                     <!-- 디렉토리 생성 허용 -->
-                    <label class="n-check"
-                           style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <label class="n-check n-block-gap-sm">
                         <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
                         <span>상위 디렉토리 생성 허용</span>
                     </label>
@@ -128,7 +127,7 @@
                     <button type="submit" id="submitBtn" class="n-btn n-btn-primary">등록</button>
                 </div>
 
-                <div class="n-hint n-form-hint-warn" style="margin-top: 16px;">
+                <div class="n-hint n-form-hint-warn n-block-gap">
                     등록이 끝날 때까지 페이지를 떠나지 마세요. 경로만 등록해도 해시 계산이 돌며, 끝나면 목록으로 이동합니다.
                 </div>
 

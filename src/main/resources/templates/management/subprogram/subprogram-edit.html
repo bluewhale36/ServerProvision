@@ -18,7 +18,7 @@
 
     <div class="n-card">
         <div class="n-card-body">
-            <div class="n-alert n-alert-muted" style="margin-bottom: 18px;">
+            <div class="n-alert n-alert-muted">
                 트리 루트 : <code th:text="${subprogram.treeRootPath}"></code>
             </div>
 
@@ -50,13 +50,13 @@
 
                 <div class="n-form-group">
                     <label class="n-label" for="entrypointRelativePath">실행 진입점 상대경로 (선택)</label>
-                    <div style="display: flex; gap: 8px;">
+                    <div class="n-field-row">
                         <input id="entrypointRelativePath" type="text" th:field="*{entrypointRelativePath}"
                                class="n-input"
-                               style="flex: 1;"
+                              
                                data-error-field="entrypointRelativePath"
                                placeholder="예: install.sh / setup.exe / firmware/flash.nsh">
-                        <button type="button" id="entrypointBrowseBtn" class="n-btn n-btn-ghost">탐색</button>
+                        <button type="button" id="entrypointBrowseBtn" class="n-btn n-btn-outline">탐색</button>
                     </div>
                     <div class="n-hint">
                         번들 안에 진입점이 명확한 경우 입력하세요. "탐색" 으로 트리 안의 파일을 직접 선택할 수도 있습니다. 비워두면 진입점 없는 자원으로 표시됩니다.

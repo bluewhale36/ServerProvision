@@ -45,7 +45,7 @@
             const pairs = [[tabFolder, isFolder], [tabZip, isZip], [tabSingle, isSingle]];
             if (tabExisting) pairs.push([tabExisting, isExisting]);
             pairs.forEach(([btn, active]) => {
-                btn.classList.toggle('n-btn-ghost', !active);
+                btn.classList.toggle('n-btn-outline', !active);
                 btn.setAttribute('aria-selected', String(active));
             });
 

@@ -183,8 +183,7 @@ code {
    flex 항목의 최소 폭(내용 폭)을 밀어 올려 사이드바를 밀어낸다. 폭 상한 안에서는 가운데 정렬. */
 .n-page,
 .n-page-md,
-.n-page-lg,
-.n-page-sm {
+.n-page-lg {
     flex: 1 1 auto;
     min-width: 0;
     padding: 24px 28px;
@@ -203,10 +202,6 @@ code {
    1200 = DESIGN.md Desktop 브레이크포인트 하한 · 관리 자원의 단일 열 폼은 .n-page-md 그대로 둔다. */
 .n-page-lg {
     max-width: 1200px;
-}
-
-.n-page-sm {
-    max-width: 860px;
 }
 
 .n-page-header {
@@ -256,14 +251,6 @@ code {
     margin: 0 0 16px;
 }
 
-.n-card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 20px;
-    border-top: 1px solid var(--n-border);
-    margin-top: 8px;
-}
 
 /* ---- 6. 버튼 ---------------------------------------------- */
 /* 색은 "누르면 자원이 어떤 상태가 되는가" 를 말한다 — 채움은 화면의 주 동작(파랑) · 보조(회색) 둘뿐이고,
@@ -418,10 +405,8 @@ code {
     color: var(--n-text);
 }
 
-/* 중립 테두리 — '비활성화' 처럼 자원에서 색을 걷어내는 동작에 쓴다. 결과에 색이 없으니 버튼에도 색을
-   주지 않는다. .n-btn-outline 은 템플릿 29 곳이 쓰면서도 정의가 없던 이름이고 .n-btn-ghost 는 같은 뜻의
-   기존 이름이라 한 규칙으로 묶는다(S17-1 D4). */
-.n-btn-ghost,
+/* 중립 테두리 — '비활성화' · '해제' 처럼 결과에 색이 없는 동작에 쓴다. 결과에 색이 없으니 버튼에도 색을
+   주지 않는다(S17-1 D4). 같은 뜻의 옛 이름 .n-btn-ghost 는 S17-2 에서 이 이름으로 합쳤다. */
 .n-btn-outline {
     background: transparent;
     color: var(--n-text-sec);
@@ -429,39 +414,15 @@ code {
     font-weight: 500;
 }
 
-.n-btn-ghost:hover:not(:disabled):not(.n-btn-disabled),
 .n-btn-outline:hover:not(:disabled):not(.n-btn-disabled) {
     background: rgba(15, 23, 42, 0.06);
     color: var(--n-text);
     border-color: rgba(15, 23, 42, 0.40);
 }
 
-.n-btn-info {
-    background: var(--n-blue-badge-bg);
-    color: var(--n-blue-badge-text);
-}
 
-.n-btn-info:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(37, 87, 214, 0.15);
-}
 
-.n-btn-warning {
-    background: rgba(194, 86, 10, 0.10);
-    color: var(--n-orange);
-}
 
-.n-btn-warning:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(194, 86, 10, 0.16);
-}
-
-.n-btn-success {
-    background: rgba(15, 138, 77, 0.10);
-    color: var(--n-green);
-}
-
-.n-btn-success:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(15, 138, 77, 0.18);
-}
 
 /* 상태를 바꾸는 조작 — 결과 상태의 색을 테두리로만 두르고, 올리면 그 색이 배경으로 드러난다 */
 .n-btn-outline-success,
@@ -715,10 +676,23 @@ code {
     font-weight: 600;
 }
 
+/* 행의 이름 · ID 가 상세로 가는 링크일 때 — 표 · 묶음 목록 · 정의서 목록이 같은 모양(S17-2 로 한 벌) */
+.n-row-link {
+    font-weight: 600;
+    color: var(--n-text);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.n-row-link:hover {
+    text-decoration: underline;
+}
+
 /* 표 밖에서도 쓰는 mono 값(UUID · IP · 해시) — code 와 같은 폰트 한 벌 */
 .n-mono {
     font-family: var(--n-font-mono);
     font-feature-settings: "tnum";
+    font-size: 12px;
 }
 
 .n-table-muted {
@@ -727,7 +701,8 @@ code {
 
 /* HF4-4 — 테이블 밖(배너 부가 설명 등)에서도 쓰는 범용 muted 텍스트 유틸.
    .n-table-muted 는 명칭이 테이블 스코프라 배너에 재사용하지 않고 토큰명 그대로 일반화. */
-.n-text-muted {
+.n-text-muted,
+.n-muted {
     color: var(--n-text-muted);
 }
 
@@ -814,11 +789,6 @@ code {
     border-color: var(--n-error);
 }
 
-.n-select-sm {
-    font-size: 12px;
-    padding: 4px 6px;
-    width: auto;
-}
 
 .n-textarea {
     display: block;
@@ -897,6 +867,13 @@ code {
     margin-top: 0;
 }
 
+/* 판 안의 큰 단락 구분선 — <hr> 을 쓰되 기본 모양을 지운다 */
+.n-divider {
+    border: 0;
+    border-top: 1px solid var(--n-border);
+    margin: 28px 0;
+}
+
 /* ---- 11. 레이아웃 헬퍼 ------------------------------------ */
 .n-row {
     display: flex;
@@ -927,11 +904,32 @@ code {
     align-items: center;
 }
 
-.n-footer-right {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
+
+/* ---- 11-2. 역할 헬퍼 (S17-2 — 인라인 style= 264 곳을 걷어낸 자리) ----
+   값이 아니라 역할로 이름을 붙인다. margin-top: 16px 이 아니라 "앞 블록과 띄운다"(n-block-gap) 다.
+   간격은 두 단(16 · 8)뿐이다 — 종전 인라인은 4 · 6 · 8 · 12 · 14 · 16 · 20 · 32 여덟 값이 흩어져 있었고,
+   같은 자리끼리도 달랐다. */
+.n-note { font-size: 12px; color: var(--n-text-muted); }      /* 값 옆의 부연 · 작은 안내 */
+.n-small { font-size: 12px; }                                   /* 코드 · 식별자를 한 단 작게 */
+.n-strong { font-weight: 600; }
+.n-meta { margin-left: 8px; }                                   /* 배지 · 라벨 뒤에 붙는 부연 */
+.n-text-right { text-align: right; }
+.n-btn-block { width: 100%; }                                   /* 열 폭을 채우는 버튼(Miller 하단 등록) */
+.n-block-gap { margin-top: 16px; }                              /* 앞 블록(표 · 안내 · 카드)과 띄운다 */
+.n-block-gap-sm { margin-top: 8px; }                            /* 같은 묶음 안에서 살짝 띄운다 */
+.n-lead { margin-bottom: 14px; }                                /* 판을 여는 안내 문단 — 아래 내용과 띄운다 */
+.n-flush { margin-bottom: 0; }                                  /* 묶음의 마지막 항목 — 기본 아래 여백을 지운다 */
+.n-stack > * + * { margin-top: 16px; }                          /* 판 안에서 표 · 안내가 잇달아 쌓일 때 */
+.n-break { overflow-wrap: anywhere; }                          /* 경로 · 해시처럼 끊을 자리가 없는 값을 폭 안에 */
+
+/* 입력 옆에 버튼이 붙는 한 줄(찾아보기 · 검증) */
+.n-field-row { display: flex; gap: 8px; }
+.n-field-row > .n-input, .n-field-row > .n-select { flex: 1; min-width: 0; }
+
+/* 체크박스 한 개(라벨 안) · 여러 개를 한 줄에 — 종전에는 정의 없이 인라인으로만 그려졌다 */
+.n-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+.n-check input[type="checkbox"], .n-check input[type="radio"] { margin: 0; accent-color: var(--n-blue); }
+.n-check-row { display: flex; gap: 16px; flex-wrap: wrap; }
 
 /* 버튼 하나를 감싸는 <form> 은 배치에 끼어들 이유가 없다 — 폼의 상자를 지우면(display: contents)
    버튼이 곧바로 flex 항목이 되어 배지와 같은 간격에 선다. 아직 style="display:inline" 을 단 폼 30곳은
@@ -1022,6 +1020,9 @@ code {
     color: var(--n-text-sec);
 }
 
+/* 알림 안의 제목 줄(오류 페이지) */
+.n-alert-title { font-size: 16px; font-weight: 600; }
+
 /* ---- 13. 상세 정보 테이블 --------------------------------- */
 .n-detail-table {
     width: 100%;
@@ -1054,13 +1055,44 @@ code {
     vertical-align: middle;
 }
 
-/* ---- 14. 업로드 패널 -------------------------------------- */
-.upload-panel {
-    background: var(--n-sunken);
-    border: 1px solid var(--n-border);
-    border-radius: var(--n-radius-lg);
-    padding: 16px;
+/* 상세 화면의 절 — 서버 상세와 세팅 정의서 상세가 각자 정의하던 것을 한 벌로(S17-2).
+   절 제목은 페이지 제목(26px)과 본문 사이의 층이다. 14px 로는 본문과 거의 같아 상세가 길어질수록 "여기서
+   무엇이 새로 시작되는가" 가 눈에 걸리지 않았다(2026-08-13). 18px 로 층을 세우고 letter-spacing 은 페이지
+   제목과 같은 방향으로 살짝 조인다. */
+.n-detail-section {
+    margin-top: 28px;
 }
+
+.n-detail-section > .n-section-title {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    margin-bottom: 10px;
+    color: var(--n-text);
+}
+
+.n-detail-section > .n-section-hint {
+    font-size: 13px;
+    color: var(--n-text-muted);
+    margin-bottom: 12px;
+}
+
+/* 판 안의 작은 "데이터 없음" 한 줄 — 화면 단위 빈 상태(.n-empty)와 뜻이 다르다(표의 빈 행) */
+.n-detail-empty {
+    color: var(--n-text-muted);
+    font-size: 13px;
+    margin: 0;
+    padding: 4px 0;
+}
+
+/* ---- 14. 찾아보기 패널 ------------------------------------ */
+
+/* 서버 디렉터리 찾아보기 패널(fragments/management/directory-browse-panel) */
+.n-browse-panel { margin-top: 10px; border: 1px solid var(--n-border); border-radius: var(--n-radius-lg); padding: 12px; background: var(--n-sunken); }
+.n-browse-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+.n-browse-path { flex: 1; font-size: 12px; word-break: break-all; }
+.n-browse-list { list-style: none; padding: 0; margin: 0 0 8px; max-height: 240px; overflow-y: auto; border: 1px solid var(--n-border); border-radius: var(--n-radius); background: var(--n-surface); }
+.n-browse-actions { display: flex; justify-content: flex-end; gap: 6px; }
 
 /* ---- 15. 빈 상태 ------------------------------------------ */
 .n-empty {
@@ -1079,6 +1111,9 @@ code {
 .n-empty-desc {
     font-size: 14px;
 }
+
+/* 판 안의 작은 빈 상태(하위 목록이 비었을 때) — 80px 은 화면 단위 빈 상태의 값이다 */
+.n-empty.n-empty-sm { padding: 16px 24px; }
 
 /* ============================================================
    Bootstrap 5.x 시각 오버라이드

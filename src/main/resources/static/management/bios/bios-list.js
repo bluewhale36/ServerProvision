@@ -135,13 +135,25 @@
  */
 (function () {
     'use strict';
-    var base = window.AsyncSubmitResult;
-    window.AsyncSubmitResult = {
-        onSuccess: function (_form, resp) {
-            window.location.assign((resp && resp.url) ? resp.url : window.location.href);
-        },
-        onRejected: function (form, status, payload) {
-            if (base && base.onRejected) { base.onRejected(form, status, payload); }
-        }
-    };
+    // DOMContentLoaded 뒤에 감싼다 — 이 파일은 body 끝의 일반 스크립트라 head 의 defer 스크립트(error-modal.js)보다
+    // 먼저 실행된다. 즉시 감싸면 base 가 undefined 라 거절 안내(전역 오류 모달)가 통째로 사라진다(S17-2 CP5 F-3 —
+    // OS · BIOS · BMC · 드라이버 4 화면에서 409 가 조용히 삼켜졌다). setting-lifecycle.js 와 같은 방식이다.
+    document.addEventListener('DOMContentLoaded', function () {
+        var base = window.AsyncSubmitResult;
+        window.AsyncSubmitResult = {
+            onSuccess: function (_form, resp) {
+                window.location.assign((resp && resp.url) ? resp.url : window.location.href);
+            },
+            onRejected: function (form, status, payload) {
+                if (base && base.onRejected) { base.onRejected(form, status, payload); return; }
+                if (window.ErrorModal) {
+                    window.ErrorModal.show({message: (payload && payload.message) || ('요청이 거절되었어요. (HTTP ' + status + ')'), status: status});
+                }
+            },
+            onNetworkError: function () {
+                if (base && base.onNetworkError) { base.onNetworkError(); return; }
+                if (window.ErrorModal) { window.ErrorModal.show({message: '서버와 통신할 수 없어요. 잠시 후 다시 시도해주세요.', status: 0}); }
+            }
+        };
+    });
 })();

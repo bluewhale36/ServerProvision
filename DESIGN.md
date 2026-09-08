@@ -86,14 +86,13 @@
 
 ### 본문 컨테이너
 
-화면 성격으로 고른다. 안쪽 여백은 네 클래스 모두 `24px 28px` 이다.
+화면 성격으로 고른다. 안쪽 여백은 세 클래스 모두 `24px 28px` 이다.
 
 | 클래스 | 최대 폭 | 쓰는 곳 |
 |---|---|---|
 | `n-page` | 1440px | 목록, 대시보드. 표가 화면 폭을 쓰는 화면 |
 | `n-page-lg` | 1200px | 표와 다단 카드가 있는 상세, 작성 화면. 세팅 정의서, 게스트 서버 상세 |
 | `n-page-md` | 960px | 단일 열 입력 폼, 단순 상세. 관리 자원의 new, edit |
-| `n-page-sm` | 860px | 예비 |
 
 ### 반응형
 
@@ -158,11 +157,11 @@ Miller 의 상태 태그(`n-miller-status-tag-on`, `-off`, `-warn`)는 같은 �
 |---|---|---|---|
 | 주 동작 | `n-btn-primary` | 파랑 채움 | 화면의 한 가지 주 동작. 저장, 등록 |
 | 보조 동작 | `n-btn-secondary` | 회색 채움 | 취소, 수정으로 이동, 재검증 |
-| 중립 테두리 | `n-btn-outline`, `n-btn-ghost` | 회색 테두리 | 결과에 색이 없는 조작. 비활성화, 되돌리기 |
-| 결과 상태 테두리 | `n-btn-outline-success`, `-warning`, `-info`, `-danger` | 결과 상태의 색 테두리. 올리면 그 색이 배경으로 | 활성화(초록), Deprecated 표시와 봉인(노랑), 복구(파랑), 휴지통 삭제(주황) |
+| 중립 테두리 | `n-btn-outline` | 회색 테두리 | 결과에 색이 없는 조작. 비활성화, 사용 중단 권고 해제, 되돌리기 |
+| 결과 상태 테두리 | `n-btn-outline-success`, `-warning`, `-info`, `-danger` | 결과 상태의 색 테두리. 올리면 그 색이 배경으로 | 활성화(초록), Deprecated 표시와 봉인(노랑), 복구와 재시도(파랑), 휴지통 삭제(주황) |
 | 되돌릴 수 없음 | `n-btn-danger` | 빨강 채움. 액션 칸 안에서는 진한 빨강 테두리, 올리면 채움 | 영구 삭제 |
 
-상태를 바꾸는 조작은 채우지 않는다. 채우면 배지처럼 보여 표시와 조작이 헷갈린다. 되돌릴 수 없는 것만 예외로 쉬는 동안에도 다르게 보인다.
+상태를 바꾸는 조작은 채우지 않는다. 채우면 배지처럼 보여 표시와 조작이 헷갈린다. 되돌릴 수 없는 것만 예외로 쉬는 동안에도 다르게 보인다. 파랑 채움은 판 하나, 목록 머리 하나에 주 동작 하나뿐이다. 목록 머리의 신규 등록, 폼의 저장, 판의 적용이 그것이고, 두 목록을 가진 화면(드라이버와 유틸리티)이나 판이 여럿인 상세는 판마다 하나씩 가질 수 있다. 상세 안에서 하위 자원을 더하는 버튼(ISO 추가, BIOS 등록)과 Miller 열 하단의 등록 버튼은 보조 회색 채움이다.
 
 크기는 자리가 정한다. 묶음 머리(`n-glist-head`), 상세 표의 값 칸(`n-detail-table .n-actions`), 아코디언 필드(`n-accordion-field .n-actions`) 안의 버튼은 마크업에 `n-btn-sm` 이 있든 없든 작은 크기가 된다. 배지와 나란히 서는 자리이기 때문이다.
 
@@ -206,7 +205,7 @@ Miller 의 상태 태그(`n-miller-status-tag-on`, `-off`, `-warn`)는 같은 �
 |---|---|---|---|
 | 활성 | 활성 | `n-badge-green` | 활성화: `n-btn-outline-success` |
 | 비활성 | 비활성 | `n-badge-off` | 비활성화: `n-btn-outline` |
-| 사용 중단 권고 | 사용 중단 | `n-badge-yellow` | Deprecated 표시: `n-btn-outline-warning`, 해제는 `n-btn-outline` |
+| 사용 중단 권고 | 사용 중단 | `n-badge-yellow` | Deprecated 표시: `n-btn-outline-warning`, 해제는 `n-btn-outline` (조각 `fragments/ui/lifecycle-actions`) |
 | 휴지통 | 삭제됨 | `n-badge-gray` | 삭제: `n-btn-outline-danger`, 복구: `n-btn-outline-info` |
 | 영구 삭제 | 없음 | 없음 | 영구 삭제: `n-btn-danger` |
 | 주의 | 미설정, 불일치, 정의서 지정 | `n-badge-orange` | 없음 |
@@ -219,7 +218,7 @@ Miller 의 상태 태그(`n-miller-status-tag-on`, `-off`, `-warn`)는 같은 �
 ## 7. CSS 작성 규칙
 
 - 색과 반지름은 토큰만 쓴다. 규칙 본문에 색 값이나 px 반지름을 적지 않는다.
-- 인라인 스타일을 쓰지 않는다. `style="display: inline"` 으로 폼을 세우던 방식은 5절의 자리 규칙으로 대체됐다.
+- 인라인 스타일을 쓰지 않는다. 템플릿의 `style=` 은 0 이다. 간격과 부연은 역할 헬퍼로 표현한다. `n-block-gap`(앞 블록과 띄움), `n-block-gap-sm`, `n-lead`(판을 여는 안내 문단), `n-flush`, `n-stack`(판 안에서 잇달아 쌓이는 블록), `n-note`(값 옆 부연), `n-meta`(배지 뒤 부연), `n-small`, `n-strong`, `n-btn-block`, `n-field-row`(입력 옆 버튼), `n-check`와 `n-check-row`, `n-break`. 값 이름(`mt-16`)으로 된 헬퍼는 만들지 않는다.
 - 전역 시트(`style.css`)는 두 화면 이상이 같은 뜻으로 쓰는 규칙만 가진다. 한 화면의 사정은 그 화면의 CSS 파일과 템플릿 클래스에 둔다. 전역 선택자를 특정 화면 문맥으로 덮어쓰는 규칙(`.n-page-title .n-badge-gray { ... }` 같은 것)은 만들지 않는다.
 - 페이지 CSS 는 `style.css` 뒤에 실린다. 같은 명시도면 뒤에 실린 쪽이 이기므로, 페이지 CSS 가 전역 규칙을 덮으려면 그대로 쓰면 되고, 전역 규칙이 페이지 규칙을 덮어야 한다면 그 규칙은 전역이 아니라 페이지 파일의 것이다.
 - 변형 규칙은 기본 클래스와 겹쳐 쓴다(`.cm-card.cm-card-wide`). 명시도가 같으면 적재 순서가 승부를 가르고, 그 원인은 마크업 어디에도 보이지 않는다.
@@ -257,6 +256,20 @@ Miller 의 상태 태그(`n-miller-status-tag-on`, `-off`, `-warn`)는 같은 �
 `n-miller-*` 는 `css/miller.css` 에 정의된 Miller 컴포넌트다. 개별 클래스를 떼어 다른 화면에서 쓰지 않는다. 다단 선택 UI 가 필요하면 컴포넌트 구조 전체를 재사용하고, 자리에 맞는 치수만 그 화면의 CSS 에서 겹쳐 쓴다.
 
 OS 관리 화면의 업로드 진행 표시(`n-upload-*`)는 `management/os/os-page.css` 에 있다. 다른 화면에서 쓰려면 먼저 전역 시트로 옮긴다.
+
+### 화면 조각
+
+같은 행이 여러 화면에 나타나면 Thymeleaf 조각으로 둔다. 조각은 `templates/fragments/ui/` 에 있다.
+
+| 조각 | 무엇 | 쓰는 곳 |
+|---|---|---|
+| `lifecycle-actions :: statusActions` | 활성 배지 + 토글 버튼(부모 차단 툴팁, PRG 선택 복원 입력 포함) | 자원 상세 6, ISO, 세팅 정의서 상세 |
+| `lifecycle-actions :: deprecateActions` | 사용 중단 배지 + 표시와 해제(확인 모달 속성 포함) | 같음 |
+| `empty :: state(title, desc)` | 판 안 가운데의 빈 상태 | 목록이 빈 화면. 설명에 링크가 필요하면 같은 마크업을 직접 쓴다 |
+
+래퍼(`<tr><th>` 또는 `<dt><dd>`)는 호출하는 템플릿이 가진다. 조각은 그 안의 `n-actions` 만 그린다.
+
+빈 상태는 한 형태다. 판(`n-card`) 안 가운데에 제목 한 줄과 설명 한 줄이다. 판 없이 배경 위에 문단을 두지 않는다. 판 안의 작은 "데이터 없음" 한 줄은 `n-detail-empty` 로 뜻이 다르다. Miller 열 하단의 안내는 `n-miller-col-note` 다.
 
 ### 시맨틱 레이아웃 컨테이너
 

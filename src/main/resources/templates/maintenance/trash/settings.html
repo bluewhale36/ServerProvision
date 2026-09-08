@@ -15,6 +15,7 @@
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('휴지통 운영 설정')}"></th:block>
+    <link rel="stylesheet" th:href="@{/maintenance/trash/trash-list.css}">
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('trash')}"></nav>
@@ -53,7 +54,7 @@
                                th:classappend="${#fields.hasErrors('ttlDays')} ? 'is-invalid'"
                                placeholder="30">
                         <button type="button" class="n-btn n-btn-secondary" tabindex="-1"
-                                disabled style="cursor: default;">일
+                                disabled>일
                         </button>
                     </div>
                     <div class="n-hint">휴지통에서 자동 영구삭제까지의 보관 기간이에요.</div>
@@ -64,17 +65,17 @@
                 <!-- ② 자동 영구삭제 활성화 — radio 2택 -->
                 <div class="n-form-group">
                     <label class="n-label strong">자동 영구삭제</label>
-                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                        <label class="n-check" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <div class="n-check-row">
+                        <label class="n-check">
                             <input type="radio" th:field="*{autoPurgeEnabled}" th:value="true"
                                    data-error-field="autoPurgeEnabled">
                             <span>사용</span>
                         </label>
-                        <label class="n-check" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <label class="n-check">
                             <input type="radio" th:field="*{autoPurgeEnabled}" th:value="false"
                                    data-error-field="autoPurgeEnabled">
-                            <span>사용 안 함 <span
-                                    style="color: var(--n-text-muted); font-size: 12px;">(만료 자원 식별 + 알림만)</span></span>
+                            <span class="n-note">사용 안 함 <span
+                                   >(만료 자원 식별 + 알림만)</span></span>
                         </label>
                     </div>
                     <div class="n-hint">'사용 안 함' 으로 두면 TTL 만료 자원이 휴지통에 그대로 남고 알림만 발송돼요.</div>
@@ -93,7 +94,7 @@
                     </select>
                     <div class="n-hint">자동 영구삭제 후보를 점검하는 cron 주기예요. 대부분 '매시 정각' 으로 충분해요.</div>
 
-                    <div data-cron-advanced hidden style="margin-top: 8px;">
+                    <div class="n-block-gap-sm" data-cron-advanced hidden>
                         <input id="purgeCronExpression" type="text" th:field="*{purgeCronExpression}"
                                class="n-input"
                                data-error-field="purgeCronExpression"
@@ -117,7 +118,7 @@
                     </select>
                     <div class="n-hint">TTL 임박 자원을 작업 조회 아이콘에 알림으로 등록하는 주기예요.</div>
 
-                    <div data-cron-advanced hidden style="margin-top: 8px;">
+                    <div class="n-block-gap-sm" data-cron-advanced hidden>
                         <input id="notifyCronExpression" type="text" th:field="*{notifyCronExpression}"
                                class="n-input"
                                data-error-field="notifyCronExpression"
@@ -142,14 +143,12 @@
                 </div>
 
                 <!-- ⑥ 고급 설정 — retry 정책 접기 -->
-                <details class="n-form-group"
-                         style="border: 1px solid var(--n-border, #d0d7de); border-radius: 6px; padding: 12px 14px;">
-                    <summary
-                            style="cursor: pointer; font-weight: 600; color: var(--n-text-muted, #57606a); font-size: 13px;">
+                <details class="n-form-group trash-advanced">
+                    <summary>
                         고급 설정 (retry 정책)
                     </summary>
-                    <div style="margin-top: 14px;">
-                        <p class="n-hint" style="margin-bottom: 12px;">
+                    <div class="n-block-gap">
+                        <p class="n-hint n-lead">
                             TTL 자동 영구삭제 진입에만 적용돼요. 일시 I/O 장애 (read-only fs 등) 시 cron tick 안에서
                             지정된 횟수만큼 exponential backoff 로 재시도합니다.
                         </p>
@@ -163,14 +162,14 @@
                                        th:classappend="${#fields.hasErrors('retryMaxAttempts')} ? 'is-invalid'"
                                        placeholder="3">
                                 <button type="button" class="n-btn n-btn-secondary" tabindex="-1"
-                                        disabled style="cursor: default;">회
+                                        disabled>회
                                 </button>
                             </div>
                             <div class="n-error" th:if="${#fields.hasErrors('retryMaxAttempts')}"
                                  th:errors="*{retryMaxAttempts}"></div>
                         </div>
 
-                        <div class="n-form-group" style="margin-bottom: 0;">
+                        <div class="n-form-group n-flush">
                             <label class="n-label strong" for="retryBackoffBaseMs">retry backoff base</label>
                             <div class="n-input-group">
                                 <input id="retryBackoffBaseMs" type="number" th:field="*{retryBackoffBaseMs}"
@@ -179,7 +178,7 @@
                                        th:classappend="${#fields.hasErrors('retryBackoffBaseMs')} ? 'is-invalid'"
                                        placeholder="1000">
                                 <button type="button" class="n-btn n-btn-secondary" tabindex="-1"
-                                        disabled style="cursor: default;">ms
+                                        disabled>ms
                                 </button>
                             </div>
                             <div class="n-hint">exponential — 1차 base, 2차 ×2, 3차 ×4. 예 : <code>1000ms</code> → 1s · 2s ·
@@ -200,7 +199,7 @@
     </div>
 
     <!-- 현재 적용된 값 요약 카드 -->
-    <div class="n-card" style="margin-top: 14px;">
+    <div class="n-card n-block-gap">
         <div class="n-card-body">
             <h2 class="n-card-title">현재 적용된 값</h2>
             <table class="n-table">
@@ -230,7 +229,7 @@
                 </tr>
                 <tr>
                     <th>알림 채널</th>
-                    <td><code th:text="${settings.notificationChannels}" style="font-size: 11px;"></code></td>
+                    <td class="n-small"><code th:text="${settings.notificationChannels}"></code></td>
                 </tr>
                 <tr>
                     <th>retry 최대 / backoff</th>
@@ -242,10 +241,10 @@
                 <tr>
                     <th>마지막 갱신</th>
                     <td>
-                    <span th:if="${settings.updatedAt != null}"
+                    <span class="n-mono" th:if="${settings.updatedAt != null}"
                           th:text="${#temporals.format(settings.updatedAt, 'yyyy-MM-dd HH:mm:ss')}"
-                          style="font-family: ui-monospace, Menlo, monospace; font-size: 12px;"></span>
-                        <span th:if="${settings.updatedAt == null}" style="color: var(--n-text-muted, #777);">—</span>
+                         ></span>
+                        <span class="n-text-muted" th:if="${settings.updatedAt == null}">—</span>
                     </td>
                 </tr>
                 </tbody>

@@ -12,7 +12,7 @@
     · activePage 키
         Management   : 'os-metadata' | 'board' | 'bios' | 'bmc' | 'driver' | 'raidcard'
         Maintenance  : 'reconciliation' | 'quarantine' | 'trash'
-        System       : 'system-asset'
+        System       : 'system-asset' | 'pxe-infra'
         Provisioning : 'setting' | 'server'
     · 구현 완료 메뉴는 <a>, 미구현은 <span aria-disabled="true"> 로 남겨
       페이지가 완성될 때 태그만 교체한다.
@@ -112,6 +112,11 @@
     <a th:href="@{/system/asset}"
        class="n-nav-link"
        th:classappend="${activePage == 'system-asset'} ? ' active'">시스템 자산</a>
+    <!-- PXE 인프라(dhcpd 임대 · 네트워크 설정)는 종전에 자산 대시보드의 dhcpd 영역 링크로만 닿았고, 네트워크
+         설정 폼은 URL 을 직접 쳐야 했다(S17-2). -->
+    <a th:href="@{/system/pxe-infra}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'pxe-infra'} ? ' active'">PXE 인프라</a>
 
     <span class="n-nav-group">프로비저닝</span>
     <a th:href="@{/provisioning/setting}"

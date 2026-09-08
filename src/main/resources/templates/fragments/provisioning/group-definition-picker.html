@@ -29,7 +29,7 @@
     <div class="n-miller-col n-miller-col-names n-miller-col-definitions">
         <div class="n-miller-col-header">세팅 정의서</div>
 
-        <p th:if="${#lists.isEmpty(picker.items)}" class="n-detail-empty" style="padding: 14px 18px;">
+        <p th:if="${#lists.isEmpty(picker.items)}" class="n-empty n-empty-sm">
             할당할 수 있는 세팅 정의서가 없습니다.
         </p>
 
@@ -64,15 +64,15 @@
             </div>
             <div th:if="${item.deprecated}" class="n-alert n-alert-warning" role="alert">
                 <b>사용 중단이 권고된 정의서입니다.</b>
-                <div class="n-section-hint" style="margin-top: 6px;">
+                <div class="n-section-hint n-block-gap-sm">
                     할당은 가능하지만 대체할 정의서가 있는지 확인해 주세요.
                 </div>
             </div>
 
             <!--/* 멤버별 분류 — 확정하기 전에 무엇이 일어날지 이 표가 전부 말한다.
                    사유는 도메인이 만든 문구 그대로라 direct POST 를 거절하는 서버 가드와 같은 말이다. */-->
-            <div class="n-label strong" style="margin-top: 4px;">멤버별 적용</div>
-            <table class="n-table" style="margin-bottom: 20px;">
+            <div class="n-label strong n-block-gap-sm">멤버별 적용</div>
+            <table class="n-table">
                 <thead>
                 <tr>
                     <th>서버</th>
@@ -91,8 +91,8 @@
                               th:text="${member.outcome.displayName}">할당됨</span>
                     </td>
                     <td>
-                        <span th:if="${member.reason != null}" class="n-muted"
-                              style="font-size: 12px;" th:text="${member.reason}">사유</span>
+                        <span th:if="${member.reason != null}" class="n-muted n-small"
+                              th:text="${member.reason}">사유</span>
                         <span th:unless="${member.reason != null}" class="n-muted">—</span>
                     </td>
                 </tr>
