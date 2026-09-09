@@ -115,7 +115,7 @@ class SettingRestControllerDiskGroupTest {
         var vd = install.getDiskGroups().get(0).vdParameters();
         assertThat(vd).isNotNull();
         assertThat(vd.createOpts()).isEqualTo("wb ra direct strip=256 pdcache=off");   // 비운 3축은 HII 기본값
-        assertThat(vd.setOps()).containsExactly("bgi=off", "accesspolicy=rw");
+        assertThat(vd.setOps()).containsExactly("autobgi=off", "accesspolicy=rw");
         assertThat(vd.initToken()).isEqualTo("full");
         assertThat(install.getDiskGroups().get(0).hasVdParameters()).isTrue();
     }

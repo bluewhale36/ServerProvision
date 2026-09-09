@@ -31,6 +31,41 @@ public enum RaidChipFamily {
                 default -> null;   // 그 외 레벨은 지원 레벨 검증(정의서 저장 시)이 이미 거른다
             };
         }
+
+        /**
+         * IR 볼륨의 SCSI 식별자(실기 3호 F-7 · 3/3 실측) — sas3ircu 가 보이는 {@code Volume wwid}(8바이트)를
+         * 바이트 순서를 뒤집어 {@code 600508E0 00000000} 뒤에 붙인 NAA 6 형식. Windows {@code Get-Disk} UniqueId 와
+         * Linux {@code lsblk WWN} 이 같은 값을 보인다. 이미 32자 NAA 로 들어오면 그대로 받는다.
+         */
+        @Override
+        public String windowsUniqueIdOf(String volumeWwn) {
+            String hex = normalizeHex(volumeWwn);
+            if (hex == null) {
+                return null;
+            }
+            if (hex.length() == 32) {
+                return hex;
+            }
+            if (hex.length() != 16) {
+                return null;
+            }
+            StringBuilder reversed = new StringBuilder(16);
+            for (int i = 14; i >= 0; i -= 2) {
+                reversed.append(hex, i, i + 2);
+            }
+            return IR_NAA_PREFIX + reversed;
+        }
+
+        /**
+         * IR 펌웨어는 나중에 만든 볼륨에 낮은 ID 를 주어 sas3ircu 가 그것을 앞에 나열하지만(322 = 두 번째 볼륨 · 323 = 첫
+         * 볼륨), OS 는 만든 순서(ID 내림차순)로 디스크를 번호 매긴다 — 실기 3호 3/3(볼륨 2개). 볼륨 3개 이상은 미실측.
+         */
+        @Override
+        public <T> java.util.List<T> windowsDiskOrder(java.util.List<T> volumes, java.util.function.Function<T, String> idOf) {
+            return volumes.stream()
+                    .sorted(java.util.Comparator.comparingLong((T v) -> numericId(idOf.apply(v))).reversed())
+                    .toList();
+        }
     },
 
     /** MegaRAID RAID-on-Chip — storcli 계열 (예: AVAGO MegaRAID 9361-8i). */
@@ -49,7 +84,22 @@ public enum RaidChipFamily {
         public String memberCountBlockReason(RaidLevel level, int memberCount) {
             return null;   // 레벨별 수량 제약은 실측 표본이 생기면 그때 채운다
         }
+
+        /** storcli 의 {@code SCSI NAA Id} 가 곧 Windows UniqueId · lsblk WWN 이다(실기 2호 Run 3 · 3호 2/2). */
+        @Override
+        public String windowsUniqueIdOf(String volumeWwn) {
+            return normalizeHex(volumeWwn);
+        }
+
+        /** VD 번호 순(storcli 나열 순) = Windows 디스크 번호 순(실기 2호 Run 3 D1). */
+        @Override
+        public <T> java.util.List<T> windowsDiskOrder(java.util.List<T> volumes, java.util.function.Function<T, String> idOf) {
+            return volumes;
+        }
     };
+
+    /** IR 볼륨 NAA 6 식별자의 고정 앞부분 — LSI OUI(0508E0) + 예약 8자리(실기 3호 F-7). */
+    static final String IR_NAA_PREFIX = "600508e000000000";
 
     private final String displayName;
 
@@ -107,4 +157,38 @@ public enum RaidChipFamily {
      * ({@code SupportedRaidLevels.blockReasonFor} 반환 규약).
      */
     public abstract String memberCountBlockReason(RaidLevel level, int memberCount);
+
+    /**
+     * 카드 CLI 가 보이는 볼륨 WWN 을 OS 가 보는 SCSI 식별자(Windows {@code Get-Disk} UniqueId = Linux {@code lsblk WWN})로
+     * 옮긴다(HF15-5 · 실기 3호 F-7). 설치 대상 디스크 매칭과 설치 뒤 확증이 이 한 변환을 공유한다. 미노출 · 형식 불명은 null.
+     * 반환은 소문자 hex, {@code 0x} 접두 없음.
+     */
+    public abstract String windowsUniqueIdOf(String volumeWwn);
+
+    /**
+     * 카드 CLI 나열 순서의 볼륨을 OS 가 디스크 번호를 매기는 순서로 재배열한다(HF15-5 · 실기 3호 F-6) — lsblk 재채집이 없을
+     * 때의 보조 규칙. {@code idOf} 는 볼륨 ID 문자열 접근자(계열 무관 제네릭 — 이 enum 이 execution 모듈의 볼륨 타입을
+     * 알지 않게).
+     */
+    public abstract <T> java.util.List<T> windowsDiskOrder(java.util.List<T> volumes, java.util.function.Function<T, String> idOf);
+
+    /** hex 식별자 정규화 — 공백 제거 · {@code 0x} 접두 제거 · 소문자. 비어 있으면 null. */
+    public static String normalizeHex(String value) {
+        if (value == null) {
+            return null;
+        }
+        String v = value.trim().toLowerCase(java.util.Locale.ROOT);
+        if (v.startsWith("0x")) {
+            v = v.substring(2);
+        }
+        return v.isEmpty() ? null : v;
+    }
+
+    private static long numericId(String id) {
+        try {
+            return id == null ? Long.MIN_VALUE : Long.parseLong(id.trim());
+        } catch (NumberFormatException e) {
+            return Long.MIN_VALUE;   // 숫자가 아닌 ID 는 맨 뒤 — 정렬을 깨지 않는다
+        }
+    }
 }

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF15-3 Plan — 부팅마다 호스트 NIC 바인딩 갱신</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF15-3 — 부팅마다 호스트 NIC 바인딩 갱신 <span class="v2-badge">hotfix</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF15-3 (hotfix)</span>
+    <span><strong>상위</strong> HF15 (실기 3호 파생 결함 묶음)</span>
+    <span><strong>근거</strong> 실기 3호 기록 §5 F-5</span>
+    <span><strong>scope</strong> 재부팅이 보고한 NIC 을 바인딩에 반영 (추가 · IP 갱신)</span>
+    <span><strong>생성</strong> 2026-09-09 KST</span>
+    <span><strong>CP1</strong> 승인 (2026-09-08 22:30 · "무중단으로 끝까지" 지시)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <div class="callout"><b>이 문서의 성격</b> — HF15 묶음은 사용자의 "무중단으로 끝까지" 지시(2026-09-08 22:30)로 CP1 승인이 선행됐고 구현이 이미 끝나 있다. 따라서 이 plan 은 착수 전 계약이 아니라 <b>무엇을 왜 이렇게 했는가의 설계 기록</b>이며, 코드와 테스트의 SSOT(Single Source of Truth — 단일 진실 출처)는 저장소다.</div>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">실기 3호(2026-09-08)에서 일산 상1 이 등록 때와 <b>다른 포트</b>로 부팅했다 — 보고된 MAC 은 <code>…c4:cc</code> · IP 는 <code>.170</code> 이었는데, 서버 상세 화면의 호스트 NIC 섹션에는 등록 때 NIC(<code>…c4:cd</code> · <code>.184</code>) 한 행만 있었다. systemUUID 매칭이 서버 정체성을 잡아 주어 프로비저닝 흐름 자체는 끊기지 않았지만, 화면이 보여 주는 MAC · IP 가 실물과 어긋난 채로 남았다.</p>
+
+        <h4>부팅 경로별 write-set 실태</h4>
+        <table>
+          <thead><tr><th>부팅 경로</th><th>정체성</th><th>토큰</th><th>host_nic_binding</th></tr></thead>
+          <tbody>
+            <tr><td>최초 등록</td><td><code>guest_server</code> 신규</td><td>발급</td><td><code>isPrimary=true</code> 1행 생성</td></tr>
+            <tr><td><b>재부팅(활성 행 있음)</b></td><td>기존 행 반환</td><td><code>issueTokenIfAbsent()</code></td><td><b>손대지 않음 ← 결손</b></td></tr>
+            <tr><td>회수 후 재시도</td><td>신규 등록으로 흐름</td><td>발급</td><td>새 행의 primary 생성</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>결손의 성격</b> — 값이 틀린 것이 아니라 <b>낡았다</b>. 바인딩은 최초 등록 순간의 스냅샷이고, 그 뒤의 포트 교체 · DHCP 재임대를 반영할 경로가 없었다. 운영자는 이 화면의 IP 로 접속을 시도하므로 낡은 표시는 곧 잘못된 안내가 된다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>재부팅이 보고한 MAC 이 그 서버의 바인딩에 <b>없으면 행을 추가</b>한다(<code>isPrimary=false</code>).</li>
+          <li>같은 MAC 이 <b>다른 IP</b> 를 받았으면 그 행의 IP 를 갱신하고 <code>ipSource</code> 를 <code>DHCP</code> 로 둔다.</li>
+          <li>값이 그대로면 <b>아무 것도 쓰지 않는다</b> — <code>updatedAt</code> 이 부팅마다 헛돌지 않게.</li>
+          <li>MAC · IP 형식이 어긋나면 경고 로그만 남기고 <b>부팅 응답은 정상 진행</b>한다. 신원은 systemUUID 로 이미 확정됐으므로 표시 갱신 실패가 부팅을 막을 이유가 없다.</li>
+          <li>DDL 변경 0 · 화면 변경 0 — 상세의 NIC 섹션은 이미 그 서버의 모든 바인딩을 primary 우선으로 렌더한다.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>primary 재지정</b> — 목록의 대표 IP 가 부팅 포트마다 흔들리지 않게 최초 등록 NIC 에 고정(§4 대안 A 탈락 사유).</li>
+            <li><b>예약 · 고정 IP 관리</b>(<code>IpSource.STATIC</code>) — 별도 자산 관리 주제.</li>
+            <li><b>사라진 NIC 의 회수 · 이력 원장</b> — 더는 안 보이는 MAC 도 행으로 남는다(§8 Q1).</li>
+            <li><code>hostname</code> · <code>bondGroup</code> 채우기 — iPXE 보고 페이로드에 그 값이 없다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 바인딩 대조표 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래는 <b>재부팅 보고 → 바인딩 대조</b> 를 그대로 재현한 데모다. 프리셋을 고르면 그 부팅이 어떤 판정(추가 / IP 갱신 / 무변경 / 건너뜀)을 받는지 즉시 보이고, <b>[부팅 보고 적용]</b> 을 누르면 실제로 표가 바뀐다. 쓰지 않는 판정(무변경 · 건너뜀)에서는 버튼이 <code>disabled</code> 로 막히고 사유가 tooltip 에 뜬다 — 서버가 그 경우 <b>DB 에 손대지 않는 것</b>과 같은 판정이다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">부팅 보고 프리셋 :</span>
+            <button class="seg" data-preset="0" onclick="demoSet(0)">① 다른 포트</button>
+            <button class="seg" data-preset="1" onclick="demoSet(1)">② 같은 포트 · 재임대</button>
+            <button class="seg" data-preset="2" onclick="demoSet(2)">③ 같은 포트 · 같은 IP</button>
+            <button class="seg" data-preset="3" onclick="demoSet(3)">④ 형식 이상 MAC</button>
+          </div>
+          <div class="ux-row" id="demo-report"></div>
+          <div style="margin-top:12px;" id="demo-bindings"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">프리셋을 눌러 보고값을 바꾸고, [부팅 보고 적용] 로 대조 결과를 확인하세요.</div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 재부팅 분기</h4><pre><code>existing.issueTokenIfAbsent();
+<span class="diff-del">// 바인딩은 손대지 않음</span>
+return existing;</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 대조 1회</h4><pre><code>existing.issueTokenIfAbsent();
+<span class="diff-add">bindBootNic(existing, req);</span>
+return existing;</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 판정 함수 <code>demoJudge()</code> 는 서버의 <code>GuestServerRegistrationService.bindBootNic()</code> + <code>HostNicBinding.refreshIp()</code> 와 같은 순서 · 같은 조건이다. MAC 정규화(대소문자 · 구분자 흡수)도 <code>MacAddressVO</code> 와 동일하게 재현한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/api/pxe/v1/boot</code></td><td>iPXE 부팅 보고 → 최초 등록 또는 재부팅 멱등 처리 <b>+ NIC 대조(신규)</b></td><td>200 부팅 스크립트 / 400 형식 / 404 미등록 보드</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/{id}</code></td><td>서버 상세 — 호스트 NIC 섹션(primary 우선 전체 바인딩)</td><td>200</td></tr>
+          </tbody>
+        </table>
+        <p>두 경로 모두 <b>URL · 요청 계약 · 응답 계약이 무변경</b>이다. 바뀌는 것은 재부팅 분기의 write-set 뿐이라 게스트(iPXE)와 화면은 이 슬라이스를 알지 못한다.</p>
+
+        <div class="seq">
+          <div class="actor a1">게스트 (iPXE)</div><div class="actor a2">GuestServerRegistrationService</div><div class="actor a3">host_nic_binding</div>
+          <div class="step a1"><code>POST /boot</code> (mac · ip · systemUUID)</div><div class="step a2">활성 행 조회 → <b>있음</b></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>issueTokenIfAbsent()</code></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>bindBootNic()</code> — MAC 정규화 후 대조</div><div class="step a3"><code>findByGuestServer_IdAndMacAddress</code></div>
+          <div class="step a1"></div><div class="step a2">없으면 <code>save(primary=false)</code> · 있으면 <code>refreshIp()</code></div><div class="step a3">INSERT / UPDATE / <b>쓰기 없음</b></div>
+          <div class="step a1">200 부팅 스크립트</div><div class="step a2">기존 서버 반환 → dispatch</div><div class="step a3"></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>설계 대안 비교</h4>
+        <table>
+          <thead><tr><th>안</th><th>요지</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>A primary 이동</td><td>마지막 부팅 NIC 을 primary 로 옮긴다</td><td><b>탈락</b> — primary 는 "LAN1" 이라는 등록 시점의 의미다. 부팅 포트가 바뀔 때마다 서버 목록의 대표 IP 가 흔들린다</td></tr>
+            <tr><td><b>B 추가 · 갱신만 (채택)</b></td><td>새 MAC = 바인딩 추가(primary 아님) · 같은 MAC 다른 IP = IP 갱신 · 형식 이상은 건너뜀</td><td><b>채택</b> — 표시는 실물을 따라가고 등록 의미는 보존된다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>판정 진리표 — <code>bindBootNic()</code></h4>
+        <table>
+          <thead><tr><th>#</th><th>입력 조건</th><th>결과</th><th>쓰기</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>MAC 이 이 서버 바인딩에 없음</td><td>바인딩 추가 (<code>isPrimary=false</code> · <code>DHCP</code>)</td><td>INSERT 1</td></tr>
+            <tr><td>2</td><td>같은 MAC · 보고 IP 가 기존과 다름</td><td>기존 행 IP 갱신 (<code>ipSource=DHCP</code>)</td><td>dirty checking UPDATE 1</td></tr>
+            <tr><td>3</td><td>같은 MAC · 같은 IP (또는 IP 없음)</td><td>무변경</td><td>0</td></tr>
+            <tr><td>4</td><td>MAC · IP 형식 이상</td><td>경고 로그 후 건너뜀 — 부팅은 계속</td><td>0</td></tr>
+          </tbody>
+        </table>
+
+        <h4>SSOT — 엔티티 메서드와 조회</h4>
+        <pre><code>// HostNicBinding — 같은 값이면 손대지 않는다(updatedAt 헛돌기 방지)
+public boolean refreshIp(IpAddressVO observed) {
+    if (observed == null || observed.equals(this.ipAddress)) return false;
+    this.ipAddress = observed;
+    this.ipSource  = IpSource.DHCP;
+    return true;
+}
+
+// HostNicBindingRepository — 대조 키는 (serverId, MacAddressVO)
+Optional&lt;HostNicBinding&gt; findByGuestServer_IdAndMacAddress(UUID serverId, MacAddressVO macAddress);</code></pre>
+
+        <h4>값 타입 (Primitive Obsession 금지)</h4>
+        <table>
+          <thead><tr><th>타입</th><th>역할</th><th>이 슬라이스에서의 의미</th></tr></thead>
+          <tbody>
+            <tr><td><code>MacAddressVO</code></td><td>MAC 정규화 · 검증</td><td>대조 키가 <code>String</code> 이 아니라 VO 라 <code>AA-BB-…</code> 와 <code>aa:bb:…</code> 가 <b>같은 포트</b>로 인식된다 — 표기 차이가 새 행을 만들지 않는다</td></tr>
+            <tr><td><code>IpAddressVO</code></td><td>IPv4 검증</td><td><code>equals</code> 비교로 "값이 같으면 쓰지 않는다" 를 판정</td></tr>
+            <tr><td><code>IpSource</code></td><td>주소 출처 enum</td><td>부팅 보고분은 항상 <code>DHCP</code></td></tr>
+          </tbody>
+        </table>
+        <p><b>엔티티 필드 변경 0</b> — 신규 필드 · 신규 테이블 없이 기존 <code>host_nic_binding</code> 을 그대로 쓴다(DDL 0).</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인 — 무중단 지시로 선승인</td></tr>
+            <tr><td>2~4</td><td><b>N/A</b> — 뷰 · Controller · DTO 무변경(게스트 계약 그대로)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td><code>bindBootNic()</code> 시그니처(등록 서비스 내부 · 기존 <code>@Transactional</code> 경계 안)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>Repository finder 1 · Entity 메서드 <code>refreshIp()</code> 1 (필드 0)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>서비스 본체 · Step 9 <b>N/A</b>(DDL 0 — 스키마 무변경)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 테스트 신규 2 + 보정 1 · 전체 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 검증 — 하네스 <code>/boot</code> 호출 + 상세 화면 확인</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html (HF15 묶음)</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 4호 — E 계열 일괄 검증</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점 ② CP4 승인 → CP6 제출. E 계열 슬라이스라 CP5 는 브라우저 대신 모의 게스트 하네스 + 상세 화면 확인으로, CP7 은 실기 연결 테스트로 수행한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 — <code>GuestServerRegistrationServiceTest</code> (신규 2 · 보정 1)</h4>
+        <table>
+          <thead><tr><th>테스트</th><th>검증</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>reboot_newMac_addsBinding</code></td><td>다른 포트(새 MAC) → <code>save</code> 1회 · <code>isPrimary=false</code> · 서버 행은 재저장 안 함</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>reboot_sameMacNewIp_refreshes_malformedSkipped</code></td><td>같은 MAC 다른 IP → 기존 행 IP 만 갱신(<code>save</code> 0) · 이어서 형식 이상 MAC → 쓰기 0 · 예외 없음</td><td><span class="chip new">신규</span></td></tr>
+            <tr><td><code>register_idempotent_whenAlreadyRegistered</code></td><td>같은 포트 · 같은 IP 재부팅에서 네 저장소 모두 쓰기 0 (멱등 불변 유지)</td><td><span class="chip mod">보정</span></td></tr>
+          </tbody>
+        </table>
+
+        <h4>사용자 액션 범주 — HTTP 계층</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td><code>POST /boot</code> 재부팅 → 200 부팅 스크립트(바인딩 갱신 여부와 무관하게 응답 불변) — 기존 boot 통합 테스트가 회귀 그물</td><td>0 신규</td></tr>
+            <tr><td>400</td><td>systemUUID 공백 · 형식 오류 → <code>IllegalArgumentException</code> (기존 · 등록 경로)</td><td>0 신규</td></tr>
+            <tr><td>404</td><td>미등록 보드 모델 → <code>BoardModelNotFoundException</code> (기존 · 신규 등록 경로 한정)</td><td>0 신규</td></tr>
+            <tr><td>409</td><td><b>해당 없음</b> — 새 판정이 전부 "쓴다 / 안 쓴다" 라 충돌로 거절할 대상이 없다</td><td>0</td></tr>
+            <tr><td>500</td><td><b>해당 없음</b> — 형식 이상을 <code>catch</code> 해 건너뛰므로 새 500 경로가 생기지 않는다(이것이 곧 검증 대상이라 단위에서 확인)</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <p><b>신규 예외 0 → 신규 통합 시나리오 0.</b> 총 3 테스트(신규 2 · 보정 1)로 진리표 4행을 모두 덮는다(#1 · #2 · #3 · #4).</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>IllegalArgumentException</code></td><td>400</td><td><span class="chip keep">재사용</span> — 등록 경로의 systemUUID 형식. <b>재부팅 경로에서는 <code>bindBootNic</code> 이 catch 해 삼킨다</b></td></tr>
+            <tr><td><code>BoardModelNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span> — 신규 등록 경로 한정, 이 슬라이스와 무관</td></tr>
+            <tr><td>신규 예외</td><td>—</td><td><span class="chip keep">0</span> — 표시 갱신 실패는 프로그램 예외가 아니라 관용 대상(예외는 진짜 비정상에만)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>비대칭이 의도된 곳</b> — 같은 형식 오류가 최초 등록에서는 400, 재부팅에서는 무시다. 등록은 형식이 깨지면 신원을 <b>만들 수 없지만</b>, 재부팅은 systemUUID 로 신원이 이미 확정된 뒤라 부팅을 막을 이유가 없다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 사항 / 주의 / Open Questions</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>primary 는 최초 등록 NIC 에 고정</td><td>목록의 대표 IP 안정 · "LAN1" 이라는 등록 의미 보존(대안 A 탈락)</td></tr>
+            <tr><td>D2</td><td>형식 이상은 관용 — 로그만 남기고 부팅 계속</td><td>표시 갱신이 실패해도 프로비저닝이 멈추면 안 된다(§7 비대칭)</td></tr>
+            <tr><td>D3</td><td>보고 IP 가 비면 무변경</td><td>DHCP 보고 누락이 기존 주소를 지우지 않게 — <code>refreshIp(null)</code> 은 <code>false</code></td></tr>
+          </tbody>
+        </table>
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>더는 보이지 않는 NIC(케이블 제거 · 카드 교체)의 행은 계속 남는다. 표시할 것인가 회수할 것인가</td><td>본 슬라이스 밖. "마지막 관측 시각" 이 필요해지므로 NIC 이력 주제로 별도 판단</td></tr>
+            <tr><td>Q2</td><td>회수된 서버 행이 쥔 MAC 과 새 활성 행의 MAC 이 같을 때 섞이지 않는가</td><td>섞이지 않음 — finder 가 <code>guestServer.id</code> 로 좁힌다(회수 행은 다른 서버 id)</td></tr>
+          </tbody>
+        </table>
+        <p>부산물 없음 — CLAUDE.md 수정 0 · 화면 템플릿 수정 0 · DDL 0.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="HF15-3-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 green (단위 3 포함)</span></label></li>
+        </ul>
+        <h4>기능 (CP5 — 하네스 <code>/boot</code> + 상세 화면)</h4>
+        <ul class="check-list" data-storage="HF15-3-func">
+          <li><label><input type="checkbox" data-key="a1"> <span><b>A1</b> 등록 뒤 다른 MAC 으로 <code>/boot</code> → NIC 섹션 2행(추가분은 primary 아님)</span></label></li>
+          <li><label><input type="checkbox" data-key="a2"> <span><b>A2</b> 같은 MAC · 다른 IP 로 <code>/boot</code> → 행 수 그대로 · IP 만 갱신</span></label></li>
+          <li><label><input type="checkbox" data-key="b1"> <span><b>B1</b> 형식 이상 MAC → 부팅 응답 정상 · 바인딩 무변경 · 경고 로그</span></label></li>
+        </ul>
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="HF15-3-reg">
+          <li><label><input type="checkbox" data-key="r1"> <span>최초 등록 write-set 4행(server · detail · nic · progress) 불변</span></label></li>
+          <li><label><input type="checkbox" data-key="r2"> <span>서버 목록의 대표 IP = primary 그대로(표시 흔들림 없음)</span></label></li>
+          <li><label><input type="checkbox" data-key="r3"> <span>같은 포트 · 같은 IP 재부팅에서 쓰기 0 (멱등)</span></label></li>
+          <li><label><input type="checkbox" data-key="r4"> <span>실기 4호 — F-5 재현 0</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/service/GuestServerRegistrationService.java</code></td><td><code>bindBootNic()</code> 신설 + 재부팅 분기에서 호출</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/entity/HostNicBinding.java</code></td><td><code>refreshIp(IpAddressVO)</code> 추가 (필드 변경 0)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/repository/HostNicBindingRepository.java</code></td><td>대조 finder 1개 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>test/…/GuestServerRegistrationServiceTest.java</code></td><td>신규 2 · 멱등 테스트 보정 1</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>findAllByServerIdOrderByPrimary</code> (상세 조회)</td><td>정렬 · 렌더 그대로 — 추가 행이 자동 표시된다</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>findPrimaryByServerIdIn</code> (목록 조회)</td><td>primary 고정이라 무영향</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>ddl/</code> · 상세 Thymeleaf 템플릿</td><td>DDL 0 · 화면 마크업 0</td></tr>
+          </tbody>
+        </table>
+        <p>합계 — 수정 4(main 3 · 테스트 1) · 신규 파일 0 · 유지 3.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>HF15-4</b> — 정상 종료 무응답 안내 · 진단 리눅스 <code>acpid</code>(F-10).</li>
+          <li><b>HF15-5</b> — 설치 디스크 번호 근거 · IR 확증 · 계획 기반 준비도 · VD 표시(F-6 · F-7 · F-1 · F-9).</li>
+          <li><b>실기 4호</b> — HF15 묶음 일괄 CP7. 이 슬라이스의 확인 항목은 "다른 포트로 부팅한 서버의 상세가 실물 MAC · IP 를 보인다".</li>
+          <li>잔존 — 사라진 NIC 의 표기 · 회수(§8 Q1)는 NIC 이력 주제로 이월.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 바인딩 대조표 — GuestServerRegistrationService.bindBootNic() +
+  //     HostNicBinding.refreshIp() 를 같은 순서 · 같은 조건으로 재현 (드리프트 0)
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_PRESETS = [
+    { name: '① 다른 포트로 부팅',      mac: '30:56:0f:9a:c4:cc', ip: '192.168.1.170' },
+    { name: '② 같은 포트 · DHCP 재임대', mac: 'AA-BB-CC-DD-EE-FF', ip: '10.20.3.99' },
+    { name: '③ 같은 포트 · 같은 IP',    mac: 'aa:bb:cc:dd:ee:ff', ip: '10.20.3.11' },
+    { name: '④ 형식 이상 MAC',         mac: 'not-a-mac',         ip: '10.20.3.11' }
+  ];
+  const DEMO_TIPS = {
+    NOOP: '보고값이 기존 바인딩과 같습니다. 서버도 UPDATE 를 내지 않습니다 — updatedAt 이 부팅마다 헛돌지 않게.',
+    SKIP: 'MAC 형식이 어긋나 바인딩을 건드리지 않습니다. 신원은 systemUUID 로 이미 확정됐으므로 부팅 응답은 정상 진행합니다.'
+  };
+  let demoPreset = 0;
+  let demoRows = [];
+  function demoReset() {
+    demoRows = [{ mac: 'aa:bb:cc:dd:ee:ff', ip: '10.20.3.11', primary: true }];
+  }
+  demoReset();
+
+  // MacAddressVO — 구분자 · 대소문자를 흡수해 소문자 콜론 17자로 정규화. 형식 위반이면 null.
+  function demoMac(raw) {
+    if (!raw) return null;
+    const t = raw.trim();
+    if (!(/^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$/.test(t) || /^[0-9A-Fa-f]{2}(-[0-9A-Fa-f]{2}){5}$/.test(t) || /^[0-9A-Fa-f]{12}$/.test(t))) return null;
+    return (t.replace(/[:-]/g, '').toLowerCase().match(/.{2}/g) || []).join(':');
+  }
+  // IpAddressVO — 빈 값은 null(무변경), 형식 위반은 건너뜀 신호.
+  function demoIp(raw) {
+    if (raw == null || raw.trim() === '') return { ok: true, value: null };
+    const t = raw.trim();
+    const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(t);
+    if (!m || m.slice(1).some(o => Number(o) > 255)) return { ok: false, value: null };
+    return { ok: true, value: t };
+  }
+  // bindBootNic() 판정 — 서버와 같은 순서: 형식 → 대조 → refreshIp / save
+  function demoJudge(report) {
+    const mac = demoMac(report.mac);
+    if (mac === null) return { outcome: 'SKIP', mac: null, reason: 'MAC 형식 위반' };
+    const ip = demoIp(report.ip);
+    if (!ip.ok) return { outcome: 'SKIP', mac: mac, reason: 'IP 형식 위반' };
+    const bound = demoRows.find(r => r.mac === mac);
+    if (bound) {
+      const changes = !(ip.value === null || ip.value === bound.ip);   // refreshIp() 와 동일 조건
+      return { outcome: changes ? 'REFRESH' : 'NOOP', mac: mac, ip: ip.value, reason: changes ? '같은 MAC · 다른 IP' : '바뀐 값 없음' };
+    }
+    return { outcome: 'ADD', mac: mac, ip: ip.value, reason: '이 서버에 없는 MAC' };
+  }
+  function demoSet(i) { demoPreset = i; demoRender(); }
+  function demoApply() {
+    const p = DEMO_PRESETS[demoPreset], j = demoJudge(p), msg = document.getElementById('demo-message');
+    if (j.outcome === 'ADD') {
+      demoRows.push({ mac: j.mac, ip: j.ip, primary: false });
+      msg.className = 'ux-message success';
+      msg.textContent = '✓ 바인딩 추가 — INSERT 1행 (isPrimary=false · ipSource=DHCP). primary 는 최초 등록 NIC 그대로입니다.';
+    } else if (j.outcome === 'REFRESH') {
+      demoRows.find(r => r.mac === j.mac).ip = j.ip;
+      msg.className = 'ux-message success';
+      msg.textContent = '✓ IP 갱신 — 같은 포트가 다른 주소를 받아 그 행의 IP 만 UPDATE 됩니다(행 수 불변).';
+    }
+    demoRender();
+  }
+  function demoRestart() {
+    demoReset();
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message';
+    msg.textContent = '초기 상태로 되돌렸습니다 — 최초 등록 NIC 1행.';
+    demoRender();
+  }
+  function demoBtn(label, blocked, tip, onclick) {
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + (blocked ? ' disabled' : '') +
+      ' onclick="' + onclick + '">' + label + '</button></span>';
+  }
+  function demoRender() {
+    const p = DEMO_PRESETS[demoPreset], j = demoJudge(p);
+    document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(s =>
+      s.classList.toggle('active', Number(s.dataset.preset) === demoPreset));
+
+    const LABEL = { ADD: ['추가', 'on'], REFRESH: ['IP 갱신', 'dep'], NOOP: ['무변경', 'off'], SKIP: ['건너뜀', 'del'] };
+    const blocked = (j.outcome === 'NOOP' || j.outcome === 'SKIP');
+    document.getElementById('demo-report').innerHTML =
+      '<strong>부팅 보고</strong><span class="label mono">mac=' + p.mac + ' · ip=' + p.ip + '</span>' +
+      '<span class="badge ' + LABEL[j.outcome][1] + '">' + LABEL[j.outcome][0] + '</span>' +
+      demoBtn('부팅 보고 적용', blocked, DEMO_TIPS[j.outcome] || '', 'demoApply()') +
+      demoBtn('초기화', false, '', 'demoRestart()');
+
+    document.getElementById('demo-bindings').innerHTML = demoRows.map(r => {
+      const badge = r.primary
+        ? '<span class="badge on">primary (최초 등록 NIC)</span>'
+        : '<span class="badge off">보조 (부팅 관측)</span>';
+      return '<div class="ux-row' + (r.primary ? '' : ' child') + '"><strong>NIC</strong>' +
+        '<span class="label mono">' + r.mac + ' · ' + (r.ip || '(없음)') + '</span>' + badge + '</div>';
+    }).join('');
+
+    const tf = v => v ? '<span class="t">쓰기 있음</span>' : '<span class="f">쓰기 없음</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'MacAddressVO.of(보고 MAC)          = ' + (j.mac === null ? '<span class="t">형식 위반 → catch 후 return</span>' : j.mac) + '\n' +
+      'findByGuestServer_IdAndMacAddress = ' + (j.mac === null ? '(호출 안 함)' : (demoRows.some(r => r.mac === j.mac) ? '기존 행 1건' : '없음')) + '\n' +
+      '판정                               = ' + j.outcome + '  (' + j.reason + ')\n' +
+      'DB                                 = ' + tf(j.outcome === 'ADD' || j.outcome === 'REFRESH') +
+      '   · 부팅 응답 = <span class="f">200 (항상 정상)</span>';
+  }
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

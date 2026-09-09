@@ -22,6 +22,7 @@ public final class AutounattendRenderer {
      * @param administratorPassword 평문 — 여기서 두 번 인코딩한다(AdministratorPassword · AutoLogon)
      * @param reportBaseUrl         완료 보고 스크립트가 부를 앱 base URL(E4-1-a-4) — FirstLogonCommands 인자
      * @param guestToken            게스트 토큰 값 — 보고의 X-Guest-Token. 렌더본에만 실리고 로그 · toString 에는 나오지 않는다
+     * @param diskId                설치 대상 디스크 번호(E4-1-a-6) — DiskConfiguration · InstallTo 두 자리에 박힌다. 준비도가 계산 성립을 보장한 뒤에만 도달한다
      */
     public record AutounattendValues(
             String language,
@@ -31,13 +32,14 @@ public final class AutounattendRenderer {
             String timeZone,
             String administratorPassword,
             String reportBaseUrl,
-            String guestToken
+            String guestToken,
+            int diskId
     ) {
         @Override
         public String toString() {
             return "AutounattendValues[language=" + language + ", imageName=" + imageName
                     + ", computerName=" + computerName + ", timeZone=" + timeZone + ", reportBaseUrl=" + reportBaseUrl
-                    + ", productKey=****, password=****, guestToken=****]";
+                    + ", diskId=" + diskId + ", productKey=****, password=****, guestToken=****]";
         }
     }
 
@@ -51,6 +53,7 @@ public final class AutounattendRenderer {
                 .replace("__TIME_ZONE__", escape(v.timeZone()))
                 .replace("__REPORT_BASE_URL__", escape(v.reportBaseUrl()))
                 .replace("__GUEST_TOKEN__", escape(v.guestToken()))
+                .replace("__DISK_ID__", Integer.toString(v.diskId()))
                 .replace("__ADMIN_PASSWORD_B64__",
                         UnattendPassword.encode(v.administratorPassword(), UnattendPassword.ADMINISTRATOR_NODE))
                 .replace("__AUTOLOGON_PASSWORD_B64__",

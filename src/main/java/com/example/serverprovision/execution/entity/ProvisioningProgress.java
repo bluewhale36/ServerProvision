@@ -240,10 +240,23 @@ public class ProvisioningProgress extends BaseTimeEntity {
      * 그 phase 의 스크립트를 재발급한다. 가능 판정은 {@code RetryPolicy} 가 원장 사실과 함께 내린다.
      */
     public void clearFailed(LocalDateTime now) {
+        clearFailed(now, currentStep);
+    }
+
+    /**
+     * 재시도 + 같은 phase 안 되감기(HF15-2 · F-8) — 실행기가 정한 진입 step({@code ProvisioningPhaseExecutor#retryEntryStep})
+     * 에 커서를 다시 세운다. phase 를 벗어나는 되감기는 역행 금지 invariant 위반이라 막는다(재시도는 실패 phase 안의 일).
+     */
+    public void clearFailed(LocalDateTime now, ProvisioningPhaseStep entryStep) {
         if (!isFailed()) {
             throw new IllegalStateException("실패 상태가 아닌 프로비저닝의 재시도는 불가합니다. id=" + id);
         }
+        if (entryStep == null || currentStep == null || entryStep.getPhaseType() != currentStep.getPhaseType()) {
+            throw new IllegalStateException(
+                    "재시도 되감기는 같은 phase 안에서만 가능합니다: " + currentStep + " → " + entryStep + ", id=" + id);
+        }
         this.failedAt = null;
+        this.currentStep = entryStep;
         this.motion = ProvisioningMotion.AWAITING_BOOT;
         this.lastTransitionAt = now;
     }
@@ -270,6 +283,21 @@ public class ProvisioningProgress extends BaseTimeEntity {
     private boolean isFirmwareStep() {
         return currentStep == ProvisioningPhaseStep.BIOS_UPDATING
                 || currentStep == ProvisioningPhaseStep.BMC_UPDATING;
+    }
+
+    /**
+     * PXE 보장 창(HF15-1 · 실기 3호 F-2 · F-2b) — 개시 뒤 OS 설치 착수(wimboot 서빙) 전까지는 어떤 경로의 재부팅이든
+     * 다음 부팅이 PXE 여야 한다(에이전트 reboot · BMC 리셋 · 설정 적용의 내부 재시작 전부). 이 창 안이면 BMC 의
+     * BootSourceOverride 를 Continuous 로 두고, 밖(미개시 · 실패 · 종단 · 설치 착수 뒤)이면 푼다. 조정자와 화면이 이 한 판정을
+     * 공유한다. 실패는 창 밖이다 — 재시도가 창을 다시 연다.
+     */
+    public boolean isPxeGuaranteeWindow() {
+        if (!isStarted() || isFailed() || isCompleted()) {
+            return false;
+        }
+        boolean osInstallServed = currentStep == ProvisioningPhaseStep.OS_INSTALLING
+                && motion == ProvisioningMotion.STEP_RUNNING;
+        return !osInstallServed;
     }
 
     public boolean isStarted() {

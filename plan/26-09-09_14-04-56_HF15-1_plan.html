@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF15-1 Plan — 프로비저닝 중 PXE 부팅 보장 · 설정 판독 시점</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF15-1 — 프로비저닝 중 PXE 부팅 보장 · 설정 판독 시점 <span class="v2-badge">hotfix</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF15-1 (hotfix)</span>
+    <span><strong>상위</strong> HF15 (실기 3호 파생 결함)</span>
+    <span><strong>대상 결함</strong> F-2 · F-2b · F-4 · O-10</span>
+    <span><strong>생성</strong> 2026-09-09 14:04 KST</span>
+    <span><strong>CP1</strong> 승인됨 — 2026-09-08 22:30 "무중단으로 끝까지" 지시</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">2026-09-08 실기 3호(다섯 대 동시 프로비저닝)에서 나온 네 건이 이 슬라이스의 입력이다.
+          재현 근거는 <code>discussion/26-09-08_16-59-00_multi-server-fieldwork-3_record.md</code> §5 에 있다.</p>
+        <table>
+          <thead><tr><th>코드</th><th>실측</th><th>원인</th></tr></thead>
+          <tbody>
+            <tr><td><b>F-2</b></td><td>BIOS 설정 PATCH 뒤 <code>ForceRestart</code> 를 <code>Once</code> PXE 강제와 함께 발행했는데 UEFI 셸로 떨어짐 (사이버 성우 17:36)</td><td>설정 적용의 <b>내부 재시작</b>이 그 한 번을 소비</td></tr>
+            <tr><td><b>F-2b</b></td><td>RAID 검증 통과 뒤 에이전트가 자기 <code>reboot</code> → 다섯 대 전부 셸 (5/5)</td><td>이 경로엔 Redfish 무장이 <b>아예 없었다</b></td></tr>
+            <tr><td><b>F-4</b></td><td>재시작 전 폴링을 복귀로 읽어 <code>READBACK_MISMATCH</code> (일산 상2 17:58)</td><td>복귀 증거가 <code>lastSeenAt</code> — 30초 체크인 폴링도 이 값을 올린다</td></tr>
+            <tr><td><b>O-10</b></td><td>[재시도] 뒤 운영자가 <b>예외 없이</b> 네트워크 부팅을 손으로 건다</td><td>재시도의 전원 중립은 옳으나 다음 조작이 화면에 없다</td></tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><b>핵심 진단</b> — 창을 닫는 사건(종단 · 실패 · 회수 · 설치 착수)과 여는 사건(개시 · 재시도)이
+          실행기 · 워커 · 명령 서비스에 흩어져 있다. F-2b 는 그중 <b>한 경로에 무장이 빠진</b> 사고였고, 경로를 하나 더 늘리는 방식으로는
+          같은 종류의 누락이 반복된다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>개시부터 OS 설치 착수(wimboot 서빙) 직전까지는 <b>어떤 경로의 재부팅이든</b> 다음 부팅이 PXE 여야 한다 — 에이전트 <code>reboot</code> · BMC 리셋 · 설정 적용의 내부 재시작 전부.</li>
+          <li>원하는 무장 상태는 <b>진행 상태의 함수 하나</b>(<code>ProvisioningProgress.isPxeGuaranteeWindow()</code>)로만 정한다. 사이트별 명시 호출을 늘리지 않는다.</li>
+          <li>창 밖(미개시 · 실패 · 종단 · 회수 · 설치 착수 뒤)에서는 무장을 <b>푼다</b> — 설치한 OS 가 다시 PXE 로 돌아가면 안 된다.</li>
+          <li>설정 phase 의 복귀 증거는 <code>/boot</code> 도착 시각으로 바꾼다 — 체크인 폴링과 컬럼을 분리한다.</li>
+          <li>재시도 뒤 네트워크 부팅을 <b>한 번의 조작</b>으로 할 수 있게 한다 (BMC 가 검출된 서버에만 노출).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>게스트(진단 리눅스)에 BMC 자격증명을 주지 않는다 — 대안 C 탈락 사유이자 이 슬라이스의 경계.</li>
+            <li>Windows 설치 중 재PXE 정책(E4-1-a-3 K1)은 무변경 — 창이 서빙 시점에 닫히므로 설치 중 재부팅은 <code>Once</code> 시절과 동일하다.</li>
+            <li>BMC 주소 갱신 경로 · 예약 IP 관리는 다루지 않는다(BMC 주소는 진단이 한 번 읽은 스냅샷이라는 기존 제약 유지).</li>
+            <li>기본 [재시도] 는 전원 중립을 유지한다 — 네트워크 부팅은 <b>별도 액션</b>으로 분리한다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — PXE 보장 창 진리표 · 조정자 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 toolbar 로 진행 신호(개시 · 실패 · 종단 · 회수 · BMC 검출)와 커서 · motion 을 바꾸면
+          <b>원하는 무장</b>이 즉시 갱신된다. [조정자 실행] 은 <b>마지막으로 세운 값과 다를 때만</b> 활성화된다 —
+          BMC 를 매 변화마다 두드리지 않는 실제 규칙 그대로다.
+          (데모 판정 = <code>ProvisioningProgress.isPxeGuaranteeWindow()</code> + <code>BootOverrideReconciler.desiredOf()</code> 의 1:1 재현)</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">원클릭 시나리오 :</span>
+            <button class="seg" onclick="demoPreset(1)">① 개시 전</button>
+            <button class="seg" onclick="demoPreset(2)">② RAID 구성 중</button>
+            <button class="seg" onclick="demoPreset(3)">③ OS 설치 진입 대기</button>
+            <button class="seg" onclick="demoPreset(4)">④ wimboot 서빙 뒤</button>
+            <button class="seg" onclick="demoPreset(5)">⑤ 실패</button>
+            <button class="seg" onclick="demoPreset(6)">⑥ BMC 미검출</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">진행 신호 :</span>
+            <button class="seg" data-flag="started" onclick="demoToggle('started')">개시</button>
+            <button class="seg" data-flag="failed" onclick="demoToggle('failed')">실패</button>
+            <button class="seg" data-flag="completed" onclick="demoToggle('completed')">종단</button>
+            <button class="seg" data-flag="decommissioned" onclick="demoToggle('decommissioned')">회수</button>
+            <button class="seg" data-flag="bmc" onclick="demoToggle('bmc')">BMC 검출</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">커서 step :</span>
+            <button class="seg" data-step="DIAGNOSTIC_BOOTING" onclick="demoSet('step','DIAGNOSTIC_BOOTING')">DIAGNOSTIC_BOOTING</button>
+            <button class="seg" data-step="RAID_INVENTORY_COLLECTING" onclick="demoSet('step','RAID_INVENTORY_COLLECTING')">RAID_INVENTORY_COLLECTING</button>
+            <button class="seg" data-step="BIOS_UPDATING" onclick="demoSet('step','BIOS_UPDATING')">BIOS_UPDATING</button>
+            <button class="seg" data-step="OS_INSTALLING" onclick="demoSet('step','OS_INSTALLING')">OS_INSTALLING</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">motion :</span>
+            <button class="seg" data-motion="AWAITING_BOOT" onclick="demoSet('motion','AWAITING_BOOT')">AWAITING_BOOT</button>
+            <button class="seg" data-motion="STEP_RUNNING" onclick="demoSet('motion','STEP_RUNNING')">STEP_RUNNING</button>
+            <button class="seg" data-motion="HOLD" onclick="demoSet('motion','HOLD')">HOLD</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="demo-window">
+              <strong>PXE 보장 창</strong><span class="label" id="demo-window-why"></span>
+              <span class="badge off" id="demo-window-badge"></span>
+            </div>
+            <div class="ux-row child" id="demo-desired">
+              <strong>원하는 무장</strong><span class="label">desiredOf(progress)</span>
+              <span class="badge off" id="demo-desired-badge"></span>
+            </div>
+            <div class="ux-row child" id="demo-armed">
+              <strong>마지막 세운 값</strong><span class="label">armed(guestServerId)</span>
+              <span class="badge off" id="demo-armed-badge"></span>
+              <span id="demo-action"></span>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">시나리오 버튼을 누르거나 신호를 직접 토글해 보세요. 차단된 버튼에 마우스를 올리면 사유가 뜹니다.</div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 사이트별 명시 호출</h4><pre><code>PowerOnStep    → arm(<span class="diff-del">PXE_ONCE</span>)
+BeginSettingStep → arm(<span class="diff-del">PXE_ONCE</span>)
+agent reboot   → <span class="diff-del">무장 없음</span>  ← F-2b</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 상태의 함수 하나</h4><pre><code>desired = <span class="diff-add">isPxeGuaranteeWindow()</span>
+        ? PXE_CONTINUOUS : RELEASE
+모든 변화 → 조정자가 그 값에 맞춘다</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 판정 = 조정자의 판정 = 화면 표시가 모두
+          <code>ProvisioningProgress.isPxeGuaranteeWindow()</code> 단일 바디다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/provisioning/server/{id}/retry-boot</code> <span class="chip new">신규</span></td><td>재시도 + 네트워크 부팅(<code>networkBoot</code>) 한 묶음</td><td>302 상세 / 404 / 409</td></tr>
+            <tr><td>POST</td><td>기본 [재시도] 액션 <span class="chip keep">무변경</span></td><td>실패 해제만 — 전원 중립 유지</td><td>302 / 404 / 409</td></tr>
+            <tr><td>GET</td><td><code>/api/pxe/v1/boot</code> <span class="chip mod">수정</span></td><td>부팅 진입점 — <code>touchBoot</code> 가 <code>last_boot_at</code> 을 올린다</td><td>iPXE 스크립트</td></tr>
+          </tbody>
+        </table>
+        <h4>조정자 흐름 (이벤트 → 워커 → BMC)</h4>
+        <div class="seq">
+          <div class="actor a1">운영자 · 게스트</div><div class="actor a2">서버 (조정자)</div><div class="actor a3">BMC · 게스트 부팅</div>
+          <div class="step a1">개시 · 보고 · 실패 · 재시도 · 회수</div><div class="step a2"><code>GuestServerChangedEvent</code> 발행</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">AFTER_COMMIT → 단일 워커 스레드</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">읽기 트랜잭션 <code>desiredOf()</code></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">마지막 세운 값과 <b>다를 때만</b></div><div class="step a3"><code>PATCH Boot{Continuous · Pxe · UEFI}</code></div>
+          <div class="step a1">어떤 경로로든 재부팅</div><div class="step a2"><code>GET /boot</code> → <code>touchBoot</code></div><div class="step a3">iPXE 가 PXE 로 복귀</div>
+          <div class="step a1">[재시도 후 네트워크 부팅]</div><div class="step a2"><code>retry()</code> + <code>networkBoot()</code></div><div class="step a3">꺼짐=On · 켜짐=ForceRestart</div>
+        </div>
+        <pre><code>[정상]   창 안에서 뒤집힘 없음 → BMC 호출 0 (armed 캐시가 흡수)
+[세우기 실패] armed 에 기록하지 않음 → 다음 변화에서 재시도 (보장이 우선)
+[해제 실패]  애초 상태 미상(armed=null)이면 한 번으로 접음 → 꺼진 장비 BMC 반복 호출 방지
+[대상 아님]  BMC 미검출 · 게스트 없음 → desiredOf()=null, 호출 0</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>판정 SSOT — <code>ProvisioningProgress.isPxeGuaranteeWindow()</code></h4>
+        <pre><code>public boolean isPxeGuaranteeWindow() {
+    if (!isStarted() || isFailed() || isCompleted()) return false;
+    boolean osInstallServed = currentStep == ProvisioningPhaseStep.OS_INSTALLING
+            &amp;&amp; motion == ProvisioningMotion.STEP_RUNNING;
+    return !osInstallServed;
+}</code></pre>
+        <p>실패는 <b>창 밖</b>이다 — 재시도가 창을 다시 연다. 회수 여부는 <code>GuestServer</code> 소유라 조정자가 합성한다
+          (<code>server.getDecommissionedAt() == null &amp;&amp; progress.isPxeGuaranteeWindow()</code>).</p>
+        <div class="state-flow">창 밖 ──개시──▶ 창 안 (PXE_CONTINUOUS) ──서빙 · 실패 · 종단 · 회수──▶ 창 밖 (RELEASE)
+                       ▲                                                    │
+                       └────────────────── 재시도 ───────────────────────────┘</div>
+
+        <h4>엔티티 필드 · Enum</h4>
+        <table>
+          <thead><tr><th>대상</th><th>선언</th><th>의미</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServer</code></td><td><code>LocalDateTime lastBootAt</code> <span class="chip new">신규</span></td><td><code>/boot</code> 도착만 갱신 — 재부팅의 증거. <code>touchBoot(at)</code> 가 <code>lastSeenAt</code> 도 함께 올린다(부팅은 접촉이기도 하다)</td></tr>
+            <tr><td><code>NextBoot</code></td><td><code>PXE_CONTINUOUS</code> <span class="chip new">신규</span></td><td><code>Boot{Continuous · Pxe · UEFI}</code> PATCH — 풀 때까지 매 부팅 PXE</td></tr>
+            <tr><td><code>NextBoot</code></td><td><code>RELEASE</code> <span class="chip new">신규</span></td><td><code>BootSourceOverrideEnabled=Disabled</code> — 부트 순서대로</td></tr>
+            <tr><td><code>NextBoot</code></td><td><code>label()</code> <span class="chip add">추가</span></td><td>결과 메시지 · 로그 표기를 상수가 든다(method-per-constant)</td></tr>
+            <tr><td><code>BootOverrideReconciler</code></td><td><code>record Desired(NextBoot, RedfishTarget)</code></td><td><code>null</code> = 조정 대상 아님(BMC 미검출 · 게스트 없음)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>Primitive Obsession 회피</b> — 무장 의도를 <code>boolean pxe</code> 나 <code>String "Continuous"</code> 로 나르지 않고
+          <code>NextBoot</code> enum 이 wire 값 · 되읽기 판정 · 표기를 함께 든다. 부팅 시각과 접촉 시각도 <b>같은 컬럼에 겹치지 않고</b>
+          <code>last_boot_at</code> / <code>last_seen_at</code> 두 필드로 나뉜다 — F-4 는 두 의미를 한 값에 담아서 난 결함이다.</div>
+
+        <h4>변경 표면 — 무장 지점</h4>
+        <div class="pkg-tree">execution.engine.boot.BootOverrideReconciler   (신규 · 이벤트 → 워커 → BMC)
+execution.engine.firmware.step.PowerOnStep     PXE_ONCE → PXE_CONTINUOUS
+execution.engine.setting.step.BeginSettingStep PXE_ONCE → PXE_CONTINUOUS
+execution.engine.setting.step.ReturnReadbackStep  복귀 증거 lastSeenAt → lastBootAt</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인 — 2026-09-08 22:30 무중단 지시로 갈음</td></tr>
+            <tr><td>2~5</td><td>상세 화면 버튼 1 · 액션 컨트롤러 · Service 시그니처 (Step 4 DTO 는 N/A — 경로 변수만, 폼 바디 없음)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>Entity 필드 <code>lastBootAt</code> + <code>NextBoot</code> 확장 (Step 6 Repository 는 N/A — 기존 조회 재사용)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>조정자 본체 · 무장 지점 교체 · DDL 1문 (테스트 제외, 빌드 통과)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 검증 (BMC 없는 환경 — A1 · A2 · B1)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 4호 연결 테스트 — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인 (E 계열 일괄)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점
+          ② CP4 승인 → CP6 제출. 이 슬라이스는 사용자의 "무중단으로 끝까지" 지시로 CP1 이 선승인되었고, plan 은 그 범위의 <b>설계 기록</b>이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>사용자 액션 통합 (HTTP 계층)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공</td><td>[재시도 후 네트워크 부팅] → 302 + <code>retry</code> · <code>networkBoot</code> 호출 / <code>/boot</code> 도착이 <code>last_boot_at</code> 갱신</td><td>2</td></tr>
+            <tr><td>400</td><td>해당 없음 — 경로 변수만 받고 폼 바디가 없다</td><td>0</td></tr>
+            <tr><td>404</td><td>없는 게스트 id 로 retry-boot → <code>GuestServerNotFoundException</code></td><td>1</td></tr>
+            <tr><td>409</td><td>실패 상태가 아닌 서버 / 펌웨어 굽기 차단 → <code>ProvisioningRetryRejectedException</code> 2 경로</td><td>2</td></tr>
+            <tr><td>500</td><td>해당 없음 — BMC 실패는 <code>PowerControlResult.FAILED</code> 로 흡수되어 밖으로 던지는 예외가 없다(E1.5 P4)</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>테스트</th><th>칸</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><code>BootOverrideReconcilerTest</code></td><td>6</td><td>창 안 1회만 세움 · 뒤집힘 · 세우기 실패 재시도 · 미상 해제 1회로 접음 · BMC 없음 호출 0 · 회수</td></tr>
+            <tr><td><code>ProvisioningProgressTest.pxeGuaranteeWindow_truthTable</code></td><td>1</td><td>🎬 데모와 같은 진리표 전수</td></tr>
+            <tr><td><code>RedfishPowerServiceTest</code></td><td>3</td><td><code>Continuous</code> 본문 · <code>armBootOverride</code>(전원 불변) · <code>networkBoot</code>(꺼짐/켜짐 분기)</td></tr>
+            <tr><td><code>SettingStepExecutionTest</code></td><td>1</td><td>복귀 증거가 <code>touchBoot</code> 여야 판독으로 넘어간다</td></tr>
+            <tr><td><code>GuestServerControllerActionTest.retryBoot</code></td><td>1</td><td>액션 라우팅 · 버튼 노출 조건</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>신규 예외 0.</b> 새 액션은 기존 재시도의 가드를 그대로 통과하므로 계약이 늘지 않는다.</p>
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>ProvisioningRetryRejectedException</code></td><td>409</td><td><span class="chip keep">재사용</span> — <code>notFailed</code> · <code>firmwareBlocked</code></td></tr>
+            <tr><td>BMC 조작 실패</td><td>—</td><td><span class="chip opt">예외 아님</span> — <code>PowerControlResult</code> 결과값으로 흡수(E1.5 P4)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">조정자의 예외는 <b>삼키지 않되 전파하지도 않는다</b> — 워커에서 WARN 로그로 남기고 다음 상태 변화에서 다시 조정한다.
+          요청 스레드는 BMC 응답을 기다리지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>D1 — PXE 보장 방식 (채택 B)</h4>
+        <table>
+          <thead><tr><th>안</th><th>요지</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>A 사이트별 명시 호출</td><td>종단 · 실패 · 회수 · 설치 착수마다 해제, 개시 · 재시도에서 무장</td><td><span class="chip del">탈락</span> 창을 닫는 지점이 실행기 · 워커 · 명령 서비스에 흩어져 있고, F-2b 가 바로 "빠진 경로" 사고였다</td></tr>
+            <tr><td><b>B 조정자</b></td><td>원하는 상태 = 진행 상태의 함수 하나. 변경 이벤트 뒤 조정자가 BMC 를 그 값에 맞춘다</td><td><span class="chip new">채택</span></td></tr>
+            <tr><td>C 에이전트가 Redfish 호출</td><td>진단 리눅스가 재부팅 전 스스로 무장</td><td><span class="chip del">탈락</span> 게스트에 BMC 자격증명을 주게 되고, 설정 · 펌웨어 경로는 여전히 서버 소관이라 절반만 덮는다</td></tr>
+          </tbody>
+        </table>
+        <h4>리스크 · 잔존</h4>
+        <ul>
+          <li>BMC 가 굽기 직후 재기동 중이면 조정이 지연된다 — 다음 상태 변화에서 재시도한다.</li>
+          <li>해제가 끝내 실패해도 <code>/boot</code> 의 <code>exit</code> 폴스루로 로컬 부팅은 된다(서비스는 멈추지 않는다).</li>
+          <li><b>실 DB DDL 미적용</b> — <code>ddl/HF15-1_guest_last_boot_at.sql</code> 을 적용해야 한다. 기존 행은 <code>NULL</code> 이며 다음 부팅에서 채워진다.</li>
+          <li>CLAUDE.md 수정 사항 없음. 관련 페이지 동반 수정은 게스트 서버 상세 화면의 버튼 1개뿐이다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="HF15-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><b>빌드</b> — <code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><b>빌드</b> — <code>./gradlew test</code> 전체 green</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span><b>빌드</b> — DDL 적용 후 <code>SHOW CREATE TABLE guest_server</code> 로 <code>last_boot_at</code> 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="a1"> <span><b>기능 A1</b> — <code>/boot</code> 도착이 <code>last_boot_at</code> 을 올린다</span></label></li>
+          <li><label><input type="checkbox" data-key="a2"> <span><b>기능 A2</b> — [재시도 후 네트워크 부팅] 버튼이 BMC 검출 서버에만 뜬다</span></label></li>
+          <li><label><input type="checkbox" data-key="b1"> <span><b>기능 B1</b> — BMC 미검출 게스트는 조정자가 호출 0 (로그로 확인)</span></label></li>
+          <li><label><input type="checkbox" data-key="reg1"> <span><b>회귀</b> — 기존 [재시도] 가 여전히 전원 중립이다</span></label></li>
+          <li><label><input type="checkbox" data-key="reg2"> <span><b>회귀</b> — 설정 phase 판독이 정상 복귀에서 그대로 통과한다</span></label></li>
+          <li><label><input type="checkbox" data-key="field"> <span><b>실기 4호</b> — F-2 · F-2b · F-4 재현 0/5 · Continuous 반영 · 종단 뒤 해제</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (신규 2 · 수정 10 · 유지 2)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/boot/BootOverrideReconciler.java</code></td><td>이벤트 → 단일 워커 → 읽기 트랜잭션 → 뒤집힐 때만 BMC PATCH</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ddl/HF15-1_guest_last_boot_at.sql</code></td><td><code>guest_server.last_boot_at</code> 1문</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/redfish/NextBoot.java</code></td><td><code>PXE_CONTINUOUS</code> · <code>RELEASE</code> · <code>label()</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/redfish/RedfishPowerService.java</code></td><td><code>armBootOverride</code> · <code>networkBoot</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/redfish/BootOverrideOutcome.java</code></td><td><code>prefix(label)</code> — 무장 종류별 메시지 접두</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/entity/ProvisioningProgress.java</code></td><td><code>isPxeGuaranteeWindow()</code> 판정 SSOT</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/entity/GuestServer.java</code></td><td><code>lastBootAt</code> · <code>touchBoot(at)</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/setting/step/ReturnReadbackStep.java</code></td><td>복귀 증거 <code>lastSeenAt</code> → <code>lastBootAt &gt; rebootAt</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/setting/step/BeginSettingStep.java</code></td><td>재부팅 무장 <code>PXE_ONCE</code> → <code>PXE_CONTINUOUS</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/firmware/step/PowerOnStep.java</code></td><td>전원 투입 무장 <code>PXE_ONCE</code> → <code>PXE_CONTINUOUS</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/boot/BootService.java</code> (부팅 진입점)</td><td><code>touchSeen</code> 외에 <code>touchBoot</code> 호출</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/controller/GuestServerController.java</code> + <code>templates/provisioning/server-detail.html</code></td><td><code>retry-boot</code> 액션 · 버튼 노출 조건(BMC 검출)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>execution/service/GuestServerCommandService.retry</code></td><td>전원 중립 유지 — 네트워크 부팅은 새 액션이 얹는다</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>E4-1-a-3 Windows 재PXE 정책(K1)</td><td>변경 0 — 창이 서빙에서 닫히므로 설치 중 거동 동일</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>HF15-2</b> — RAID 재시도 되감기 · <code>storcli autobgi</code> (F-3 · F-8). 이 슬라이스가 도입한 재시도 흐름 위에 실행기별 진입 step 훅이 얹힌다.</li>
+          <li><b>HF15-3 ~ HF15-5</b> — 부팅마다 호스트 NIC 갱신 · 정상 종료 무응답 안내 · 설치 디스크 번호 근거.</li>
+          <li><b>실 DB DDL 적용</b> — <code>ddl/HF15-1_guest_last_boot_at.sql</code> 을 배포 전에 적용한다.</li>
+          <li><b>실기 4호</b> — F-2 · F-2b · F-4 의 재현 0/5 확인이 이 슬라이스의 CP7 이며, E 계열 일괄 승인에 합류한다.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 PXE 보장 창 진리표 + 조정자 시뮬레이터
+  //  판정은 ProvisioningProgress.isPxeGuaranteeWindow() 와 BootOverrideReconciler.desiredOf() 의 1:1 재현.
+  // ─────────────────────────────────────────────────────────────
+  const S = { started:false, failed:false, completed:false, decommissioned:false, bmc:true,
+              step:'DIAGNOSTIC_BOOTING', motion:'AWAITING_BOOT', armed:null };
+
+  function pxeGuaranteeWindow(s) {
+    if (!s.started || s.failed || s.completed) return false;
+    const osInstallServed = (s.step === 'OS_INSTALLING' && s.motion === 'STEP_RUNNING');
+    return !osInstallServed;
+  }
+  function desiredOf(s) {
+    if (!s.bmc) return null;                     // BMC 미검출 — 보장할 수단이 없다
+    const inWindow = !s.decommissioned && pxeGuaranteeWindow(s);
+    return inWindow ? 'PXE_CONTINUOUS' : 'RELEASE';
+  }
+
+  const PRESETS = {
+    1: { s:{}, m:'① 등록만 된 게스트 — 개시 전이라 창 밖. 조정자는 해제를 세운다.' },
+    2: { s:{started:true, step:'RAID_INVENTORY_COLLECTING', motion:'STEP_RUNNING'},
+         m:'② RAID 구성 중 — 에이전트가 스스로 reboot 해도 다음 부팅은 PXE (F-2b 가 여기서 났다).' },
+    3: { s:{started:true, step:'OS_INSTALLING', motion:'AWAITING_BOOT'},
+         m:'③ OS 설치 phase 로 넘어왔지만 아직 wimboot 를 서빙하기 전 — 창은 열려 있다.' },
+    4: { s:{started:true, step:'OS_INSTALLING', motion:'STEP_RUNNING'},
+         m:'④ wimboot 서빙 뒤 — 창이 닫힌다. 설치한 Windows 가 다시 PXE 로 가면 안 된다.' },
+    5: { s:{started:true, failed:true, step:'BIOS_UPDATING'},
+         m:'⑤ 실패 — 창 밖이다. 재시도가 창을 다시 연다(motion 은 실패 시 null 로 강제된다).' },
+    6: { s:{started:true, bmc:false, step:'BIOS_UPDATING', motion:'STEP_RUNNING'},
+         m:'⑥ BMC 미검출(QEMU · 진단 전) — 조정 대상이 아니다. BMC 호출 0.' }
+  };
+  function demoPreset(n) {
+    Object.assign(S, { started:false, failed:false, completed:false, decommissioned:false, bmc:true,
+                       step:'DIAGNOSTIC_BOOTING', motion:'AWAITING_BOOT' }, PRESETS[n].s);
+    demoRender(PRESETS[n].m, false);
+  }
+  function demoToggle(k) {
+    S[k] = !S[k];
+    if (k === 'failed' && S.failed) S.completed = false;      // 실패 · 종단 상호배타
+    if (k === 'completed' && S.completed) S.failed = false;
+    demoRender();
+  }
+  function demoSet(k, v) { S[k] = v; demoRender(); }
+  function demoReconcile() {
+    const want = desiredOf(S);
+    if (want === null || want === S.armed) { demoRender('이 상태에서는 BMC 를 부르지 않습니다.', true); return; }
+    S.armed = want;
+    demoRender('✓ BMC PATCH 발행 — armed = ' + want + ' (이후 같은 값이면 다시 부르지 않는다)', false);
+  }
+  function demoBtn(label, blocked, tip) {
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + (blocked ? ' disabled' : '') +
+      ' onclick="demoReconcile()">' + label + '</button></span>';
+  }
+  function demoRender(message, isError) {
+    document.querySelectorAll('.ux-toolbar .seg[data-flag]').forEach(b => b.classList.toggle('active', !!S[b.dataset.flag]));
+    document.querySelectorAll('.ux-toolbar .seg[data-step]').forEach(b => b.classList.toggle('active', b.dataset.step === S.step));
+    document.querySelectorAll('.ux-toolbar .seg[data-motion]').forEach(b =>
+      b.classList.toggle('active', b.dataset.motion === S.motion && !S.failed && !S.completed));
+
+    const inWindow = pxeGuaranteeWindow(S) && !S.decommissioned;
+    const want = desiredOf(S);
+    const motionShown = (S.failed || S.completed) ? 'null' : S.motion;
+
+    const wb = document.getElementById('demo-window-badge');
+    wb.textContent = inWindow ? '창 안' : '창 밖';
+    wb.className = 'badge ' + (inWindow ? 'on' : 'off');
+    document.getElementById('demo-window-why').textContent =
+      !S.started ? '개시 전' : S.failed ? '실패 상태' : S.completed ? '종단됨'
+      : S.decommissioned ? '회수됨'
+      : (S.step === 'OS_INSTALLING' && S.motion === 'STEP_RUNNING') ? 'wimboot 서빙 뒤'
+      : '프로비저닝 진행 중';
+
+    const db = document.getElementById('demo-desired-badge');
+    db.textContent = want === null ? '조정 대상 아님' : want;
+    db.className = 'badge ' + (want === 'PXE_CONTINUOUS' ? 'on' : want === null ? 'del' : 'dep');
+    document.getElementById('demo-desired').classList.toggle('muted', want === null);
+
+    const ab = document.getElementById('demo-armed-badge');
+    ab.textContent = S.armed === null ? 'null (미상)' : S.armed;
+    ab.className = 'badge ' + (S.armed === 'PXE_CONTINUOUS' ? 'on' : S.armed === null ? 'off' : 'dep');
+
+    const blocked = (want === null) || (want === S.armed);
+    const tip = want === null ? 'BMC 가 검출되지 않은 게스트입니다 — 조정 대상이 아닙니다.'
+                              : '원하는 값과 마지막 세운 값이 같습니다 — BMC 를 두드리지 않습니다.';
+    document.getElementById('demo-action').innerHTML = demoBtn('조정자 실행', blocked, tip);
+
+    const tf = v => v ? '<span class="f">true</span>' : '<span class="t">false</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'started=' + tf(S.started) + '  failed=' + tf(S.failed) + '  completed=' + tf(S.completed) +
+      '  decommissioned=' + tf(S.decommissioned) + '\n' +
+      'currentStep=' + S.step + '  motion=' + motionShown + '\n' +
+      'progress.isPxeGuaranteeWindow() = ' + tf(pxeGuaranteeWindow(S)) + '\n' +
+      'reconciler.desiredOf()          = ' + (want === null ? 'null (대상 아님)' : want) + '\n' +
+      'armed(last)                     = ' + (S.armed === null ? 'null' : S.armed) +
+      (blocked ? '   → BMC 호출 없음' : '   → 뒤집힘, BMC PATCH 필요');
+
+    const msg = document.getElementById('demo-message');
+    if (message) { msg.textContent = message; msg.className = 'ux-message ' + (isError ? 'error' : 'success'); }
+  }
+  demoRender();
+</script>
+</body>
+</html>

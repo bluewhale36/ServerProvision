@@ -279,6 +279,30 @@ class GuestServerCommandServiceTest {
     }
 
     @Test
+    @DisplayName("retry — phase 실행기가 정한 진입 step 으로 되감는다(HF15-2 · RAID 는 인벤토리 수집부터)")
+    void retry_rewindsToExecutorEntryStep() {
+        UUID id = UUID.randomUUID();
+        ProvisioningProgress progress = ProvisioningProgress.builder()
+                .guestServer(server(id))
+                .currentStep(ProvisioningPhaseStep.RAID_APPLYING).lastTransitionAt(LocalDateTime.now())
+                .startedAt(LocalDateTime.now())
+                .failedAt(LocalDateTime.now())
+                .build();
+        given(guestServerRepository.existsById(id)).willReturn(true);
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+        var raidExecutor = org.mockito.Mockito.mock(
+                com.example.serverprovision.execution.engine.phase.ProvisioningPhaseExecutor.class);
+        given(raidExecutor.retryEntryStep(progress)).willReturn(ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING);
+        given(phaseExecutorRegistry.find(ProvisioningPhase.RAID_CONFIGURATION)).willReturn(Optional.of(raidExecutor));
+
+        service.retry(id);
+
+        assertThat(progress.isFailed()).isFalse();
+        assertThat(progress.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING);
+        verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
+    }
+
+    @Test
     @DisplayName("retry — 펌웨어 flash 실패는 차단(409) + 신호 없음")
     void retry_firmwareBlocked_rejectedWithoutSignal() {
         UUID id = UUID.randomUUID();

@@ -57,4 +57,16 @@ public class HostNicBinding extends BaseTimeEntity {
     @Column(name = "bond_group", length = 64)
     private String bondGroup;
 
+    /**
+     * 부팅이 보고한 IP 로 갱신(HF15-3 · 실기 3호 F-5) — 같은 포트가 DHCP 재임대로 다른 주소를 받으면 표시가 실물과 어긋난다.
+     * 같은 값이면 건드리지 않는다(updatedAt 이 헛돌지 않게).
+     */
+    public boolean refreshIp(IpAddressVO observed) {
+        if (observed == null || observed.equals(this.ipAddress)) {
+            return false;
+        }
+        this.ipAddress = observed;
+        this.ipSource = IpSource.DHCP;
+        return true;
+    }
 }

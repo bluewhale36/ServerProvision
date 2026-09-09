@@ -69,6 +69,7 @@ public class GuestServerController {
 
     private final GuestServerQueryService guestServerQueryService;
     private final GuestServerCommandService guestServerCommandService;
+    private final com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 — 재시도 후 네트워크 부팅
     private final AssignmentCommandService assignmentCommandService;
     private final AssignmentQueryService assignmentQueryService;
     private final AssignmentStartService assignmentStartService;
@@ -276,6 +277,21 @@ public class GuestServerController {
     @PostMapping("/{id}/retry")
     public String retry(@PathVariable("id") UUID id) {
         guestServerCommandService.retry(id);
+        return "redirect:/provisioning/server/" + id;
+    }
+
+    /**
+     * 재시도 + 네트워크 부팅(HF15-1 · 실기 3호 O-10) — 재시도는 커서를 되돌릴 뿐 전원을 움직이지 않는데, 운영자가 그 뒤에
+     * 예외 없이 하는 일이 네트워크 부팅이다. 기본 [재시도] 는 전원 중립으로 두고(그 사이 배선이 바뀌었을 수 있다 — 사용자
+     * 판단), 이 액션만 재시도 뒤 PXE 보장 무장 + On/ForceRestart 를 잇는다. 전원 결과는 flash 로 알린다(실패도 결과).
+     */
+    @PostMapping("/{id}/retry-boot")
+    public String retryAndNetworkBoot(@PathVariable("id") UUID id,
+                                      org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        guestServerCommandService.retry(id);
+        com.example.serverprovision.global.redfish.PowerControlResult power =
+                redfishPowerService.networkBoot(guestServerQueryService.findDetail(id).redfishTarget());
+        redirectAttributes.addFlashAttribute("flashMessage", "재시도 접수 · " + power.message());
         return "redirect:/provisioning/server/" + id;
     }
 

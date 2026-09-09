@@ -88,7 +88,7 @@ public final class WindowsInstallTemplates {
                   <DiskConfiguration>
                     <WillShowUI>OnError</WillShowUI>
                     <Disk wcm:action="add" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
-                      <DiskID>0</DiskID>
+                      <DiskID>__DISK_ID__</DiskID>
                       <WillWipeDisk>true</WillWipeDisk>
                       <CreatePartitions>
                         <CreatePartition wcm:action="add"><Order>1</Order><Type>EFI</Type><Size>260</Size></CreatePartition>
@@ -110,7 +110,7 @@ public final class WindowsInstallTemplates {
                           <Value>__IMAGE_NAME__</Value>
                         </MetaData>
                       </InstallFrom>
-                      <InstallTo><DiskID>0</DiskID><PartitionID>3</PartitionID></InstallTo>
+                      <InstallTo><DiskID>__DISK_ID__</DiskID><PartitionID>3</PartitionID></InstallTo>
                       <WillShowUI>OnError</WillShowUI>
                     </OSImage>
                   </ImageInstall>

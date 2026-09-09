@@ -62,6 +62,16 @@ public interface ProvisioningPhaseExecutor {
     }
 
     /**
+     * 운영자 재시도가 이 phase 의 커서를 어느 step 에 다시 세울지(HF15-2 · 실기 3호 F-8). 기본값은 실패 지점
+     * 그대로다 — 대부분의 phase 는 실패한 step 을 다시 하면 된다. 재시도 전에 다시 채집해야 하는 phase(RAID 구성:
+     * 계획이 인벤토리에서 나오므로 옛 인벤토리로 세운 계획은 잔여 볼륨을 모른다)만 진입 step 으로 되감는다.
+     * 판정 지점은 {@code GuestServerCommandService.retry} 하나이고 phase 분기는 이 훅이 흡수한다.
+     */
+    default com.example.serverprovision.execution.enums.ProvisioningPhaseStep retryEntryStep(ProvisioningProgress progress) {
+        return progress.getCurrentStep();
+    }
+
+    /**
      * 이 phase 커서의 게스트가 진단 리눅스에서 체크인 · 보고했을 때 내릴 지시(E3.5-1, D-2 다형화).
      * 기본값 REBOOT — 서버가 BMC 로 일하는 phase(펌웨어 갱신 · 설정)에서는 게스트가 진단 리눅스에
      * 있을 이유가 없으므로 떠나라는 답이다. 게스트가 그 안에서 일해야 하는 phase(진단 · RAID 구성)만

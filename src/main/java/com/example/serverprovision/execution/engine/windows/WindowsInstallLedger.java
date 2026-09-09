@@ -52,14 +52,38 @@ public class WindowsInstallLedger {
     private final ProvisioningHistoryRepository historyRepository;
     private final ObjectMapper objectMapper;
 
-    /** 첫 서빙 — 스크립트를 내준 사실이 착수다(D-1). */
-    public ProvisioningHistory openServed(GuestServer server, WindowsImageName image, LocalDateTime now) {
+    /**
+     * 첫 서빙 — 스크립트를 내준 사실이 착수다(D-1). {@code targetDiskId}(E4-1-a-6)는 응답 파일에 실제로 박은 번호이고,
+     * {@code expectedUniqueId} · {@code diskBasis}(HF15-5)는 그 번호의 확증 기준과 근거 규칙이다 — 완료 보고의 대조가 이 meta 를
+     * 읽으므로 서빙 뒤 볼륨 행이 바뀌어도 판정이 흔들리지 않는다.
+     */
+    public ProvisioningHistory openServed(GuestServer server, WindowsImageName image,
+                                          WindowsDiskSelection.DiskSelection selection, LocalDateTime now) {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("origin", ORIGIN);
         meta.put("image", image == null ? null : image.value());
         meta.put("served", now.toString());
         meta.put("reentries", 0);
+        meta.put("targetDiskId", selection.diskId());
+        if (selection.expectedUniqueId() != null) {
+            meta.put("expectedUniqueId", selection.expectedUniqueId());
+        }
+        if (selection.basis() != null) {
+            meta.put("diskBasis", selection.basis().wire());
+        }
         return recorder.openRunning(server, STEP, now, write(meta));
+    }
+
+    /** 서빙 때 적어 둔 확증 기준(소문자 hex) — 없으면 null(구 서빙 행 · WWN 미노출 볼륨). */
+    public String expectedUniqueIdOf(ProvisioningHistory row) {
+        Object v = read(row).get("expectedUniqueId");
+        return v == null ? null : v.toString();
+    }
+
+    /** 서빙 때 번호를 낸 근거 규칙(wire) — 없으면 null. */
+    public String diskBasisOf(ProvisioningHistory row) {
+        Object v = read(row).get("diskBasis");
+        return v == null ? null : v.toString();
     }
 
     /** 재진입 서빙 — 행 교체가 아니라 meta 갱신(served 는 그대로, reentries +1). */
@@ -100,9 +124,13 @@ public class WindowsInstallLedger {
         return row.close(ProvisioningStatus.FAILED, write(meta), now);
     }
 
-    /** 완료 보고가 실은 사실(E4-1-a-4) — 비밀값 · 토큰은 없다. 로그 꼬리는 드라이버 0 의 이유를 원장에서 읽기 위한 것. */
+    /**
+     * 완료 보고가 실은 사실(E4-1-a-4 · E4-1-a-6) — 비밀값 · 토큰은 없다. 로그 꼬리는 드라이버 0 의 이유를 원장에서 읽기 위한 것.
+     * {@code diskConfirmed} 는 보고된 설치 디스크 WWN 대조 결과(true 확증 · false 어긋남 · null 미보고).
+     */
     public record Completion(String computerName, String osVersion, int driversAdded, int problemDeviceCount,
-                             List<String> problemDevices, String setupCompleteLogTail) {
+                             List<String> problemDevices, String setupCompleteLogTail,
+                             String installedDiskUniqueId, Boolean diskConfirmed) {
     }
 
     /**
@@ -121,6 +149,10 @@ public class WindowsInstallLedger {
         if (c.setupCompleteLogTail() != null && !c.setupCompleteLogTail().isBlank()) {
             meta.put("setupCompleteLogTail", c.setupCompleteLogTail());
         }
+        if (c.installedDiskUniqueId() != null) {
+            meta.put("installedDiskUniqueId", c.installedDiskUniqueId());
+        }
+        meta.put("diskConfirmed", c.diskConfirmed());   // null = 미보고(구 스크립트 · 조회 실패) — 오류 아님
         meta.put("reason", COMPLETED);
         meta.put("detail", "설치 완료 · 드라이버 " + c.driversAdded() + " · 문제 장치 " + c.problemDeviceCount());
         return row.close(ProvisioningStatus.SUCCEEDED, write(meta), now);
@@ -187,6 +219,28 @@ public class WindowsInstallLedger {
 
     public int problemDeviceCountOf(ProvisioningHistory row) {
         return intOf(read(row), "problemDeviceCount");
+    }
+
+    /** 서빙 meta 에 박은 설치 대상 디스크 번호(E4-1-a-6) — 없으면(구 데이터) null. */
+    public Integer targetDiskIdOf(ProvisioningHistory row) {
+        Object v = read(row).get("targetDiskId");
+        return v instanceof Number n ? n.intValue() : null;
+    }
+
+    /**
+     * 설치 디스크 WWN 대조 결과(E4-1-a-6) — CONFIRMED · MISMATCH · UNREPORTED. 완료 meta 의 {@code diskConfirmed}
+     * (true · false · null=미보고)를 화면 어휘로 옮긴다. 완료 행이 아니면 null.
+     */
+    public String diskConfirmationOf(ProvisioningHistory row) {
+        Map<String, Object> meta = read(row);
+        if (!meta.containsKey("diskConfirmed")) {
+            return null;
+        }
+        Object v = meta.get("diskConfirmed");
+        if (v == null) {
+            return "UNREPORTED";
+        }
+        return Boolean.TRUE.equals(v) ? "CONFIRMED" : "MISMATCH";
     }
 
     public List<String> problemDevicesOf(ProvisioningHistory row) {

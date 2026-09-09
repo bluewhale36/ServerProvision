@@ -10,6 +10,7 @@ import java.util.List;
  * Windows 설치 완료 보고(E4-1-a-4 R3) — 첫 로그온의 {@code spv-report.ps1} 이 보내는 JSON. {@code driversAdded} 의 뜻은
  * "SetupComplete 가 게시한 드라이버 패키지({@code oemNN.inf}) 고유 개수"(HF11-1 — 언어 무관 산출). 문제 장치는 개수는 그대로
  * 세고 목록만 50 으로 자른다(OQ-2). 로그 꼬리는 4 KB — 드라이버가 0 으로 끝난 이유를 원장에서 읽기 위한 것이다.
+ * {@code installedDiskUniqueId}(E4-1-a-6)는 설치된 C: 디스크 식별자 — 서버가 OS 볼륨 WWN 과 대조해 사후 확증한다.
  */
 public record WindowsInstallCompletionRequest(
 
@@ -30,7 +31,10 @@ public record WindowsInstallCompletionRequest(
         List<@Size(max = 200, message = "문제 장치 항목은 200자 이내여야 합니다.") String> problemDevices,
 
         @Size(max = 4096, message = "setupCompleteLogTail 은 4096자 이내여야 합니다.")
-        String setupCompleteLogTail
+        String setupCompleteLogTail,
+
+        @Size(max = 64, message = "installedDiskUniqueId 는 64자 이내여야 합니다.")
+        String installedDiskUniqueId
 ) {
 
     public List<String> problemDevicesOrEmpty() {

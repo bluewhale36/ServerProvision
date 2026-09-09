@@ -65,7 +65,7 @@ class WindowsInstallLedgerTest {
     @Test
     @DisplayName("openServed — origin · image · served · reentries 0 을 열림 시점에 적는다(판독기 3종과 왕복)")
     void openServed_writesMeta() {
-        ProvisioningHistory row = ledger.openServed(guest, IMAGE, NOW);
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
         assertThat(row.getStepCode()).isEqualTo(ProvisioningPhaseStep.OS_INSTALLING);
@@ -74,12 +74,15 @@ class WindowsInstallLedgerTest {
         assertThat(ledger.reentriesOf(row)).isZero();
         assertThat(ledger.imageOf(row)).isEqualTo(IMAGE.value());
         assertThat(ledger.isWindowsInstallRow(row)).isTrue();
+        assertThat(ledger.targetDiskIdOf(row)).isZero();
+        assertThat(ledger.expectedUniqueIdOf(row)).isEqualTo("wwn-os");        // HF15-5 — 확증 기준은 서빙 때 고정
+        assertThat(ledger.diskBasisOf(row)).isEqualTo("inventory-order");
     }
 
     @Test
     @DisplayName("bumpReentry — 같은 행의 reentries 만 오르고 served 는 그대로(행 교체 아님)")
     void bumpReentry_updatesMetaInPlace() {
-        ProvisioningHistory row = ledger.openServed(guest, IMAGE, NOW);
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
 
         assertThat(ledger.bumpReentry(row, NOW.plusMinutes(8))).isEqualTo(1);
         assertThat(ledger.bumpReentry(row, NOW.plusMinutes(25))).isEqualTo(2);
@@ -92,7 +95,7 @@ class WindowsInstallLedgerTest {
     @Test
     @DisplayName("failRunning — 열린 행을 FAILED 로 닫고 사유 · detail 을 얹되 image · served · reentries 는 보존 · 진행도 실패")
     void failRunning_closesRowPreservingMeta() {
-        ProvisioningHistory row = ledger.openServed(guest, IMAGE, NOW);
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
         ledger.bumpReentry(row, NOW.plusMinutes(5));
         ProvisioningProgress progress = startedProgress();
 
@@ -124,7 +127,7 @@ class WindowsInstallLedgerTest {
     @Test
     @DisplayName("latestRunning — 상태 조건으로 직접 묻는다(CP5 F-1 재발 원인): 뒤에 운영자 FAILED 행이 쌓여도 열린 행을 찾고, 없으면 empty")
     void latestRunning_asksByStatus() {
-        ProvisioningHistory open = ledger.openServed(guest, IMAGE, NOW);
+        ProvisioningHistory open = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeAndStatusOrderByCreatedAtDesc(
                 GUEST_ID, ProvisioningPhaseStep.OS_INSTALLING, ProvisioningStatus.RUNNING)).willReturn(Optional.of(open));
         assertThat(ledger.latestRunning(GUEST_ID)).contains(open);
@@ -154,7 +157,7 @@ class WindowsInstallLedgerTest {
     @Test
     @DisplayName("abortRunning — 진행 신호는 건드리지 않고 열린 행만 OPERATOR 사유로 닫는다(CP5 F-1) · 이미 닫힌 행은 false")
     void abortRunning_closesWithoutTouchingProgress() {
-        ProvisioningHistory row = ledger.openServed(guest, IMAGE, NOW);
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
 
         assertThat(ledger.abortRunning(row, WindowsInstallLedger.OPERATOR, "운영자 수동 실패 전환", NOW.plusMinutes(3))).isTrue();
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
@@ -167,11 +170,11 @@ class WindowsInstallLedgerTest {
     @Test
     @DisplayName("closeSucceeded(E4-1-a-4) — SUCCEEDED 로 닫되 서빙 meta 보존 + 완료 meta · 판독기 6종 왕복 · 로그 꼬리는 있을 때만")
     void closeSucceeded_keepsServingMeta() {
-        ProvisioningHistory row = ledger.openServed(guest, IMAGE, NOW);
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
         ledger.bumpReentry(row, NOW.plusMinutes(5));
 
         boolean closed = ledger.closeSucceeded(row, new WindowsInstallLedger.Completion("SPV-14174000", "Windows Server 2025 10.0.26100",
-                47, 2, java.util.List.of("A", "B"), "tail"), NOW.plusMinutes(12));
+                47, 2, java.util.List.of("A", "B"), "tail", null, null), NOW.plusMinutes(12));
 
         assertThat(closed).isTrue();
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
@@ -194,14 +197,14 @@ class WindowsInstallLedgerTest {
     @Test
     @DisplayName("closeSucceeded — 이미 닫힌 행은 false · 실패로 닫힌 행은 완료 행이 아니다 · 로그 꼬리 없으면 키 생략")
     void closeSucceeded_alreadyClosedAndNotCompleted() {
-        ProvisioningHistory failed = ledger.openServed(guest, IMAGE, NOW);
+        ProvisioningHistory failed = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
         ledger.abortRunning(failed, WindowsInstallLedger.OPERATOR, "운영자", NOW.plusMinutes(1));
-        WindowsInstallLedger.Completion c = new WindowsInstallLedger.Completion("SPV-1", null, 0, 0, null, " ");
+        WindowsInstallLedger.Completion c = new WindowsInstallLedger.Completion("SPV-1", null, 0, 0, null, " ", null, null);
 
         assertThat(ledger.closeSucceeded(failed, c, NOW.plusMinutes(2))).isFalse();
         assertThat(ledger.isCompletedRow(failed)).isFalse();
 
-        ProvisioningHistory row = ledger.openServed(guest, IMAGE, NOW);
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
         assertThat(ledger.closeSucceeded(row, c, NOW.plusMinutes(3))).isTrue();
         assertThat(row.getStatusMeta()).doesNotContain("setupCompleteLogTail");
         assertThat(ledger.problemDevicesOf(row)).isEmpty();

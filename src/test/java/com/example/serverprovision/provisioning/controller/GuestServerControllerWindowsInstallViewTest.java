@@ -51,6 +51,7 @@ class GuestServerControllerWindowsInstallViewTest {
 
     @Autowired MockMvc mvc;
     @MockitoBean GuestServerQueryService queryService;
+    @MockitoBean com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 — [재시도 후 네트워크 부팅]
     @MockitoBean GuestServerCommandService commandService;
     @MockitoBean AssignmentCommandService assignmentCommandService;
     @MockitoBean AssignmentQueryService assignmentQueryService;
@@ -76,7 +77,7 @@ class GuestServerControllerWindowsInstallViewTest {
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
                 null,
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
-                        DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null, null, null, null),
+                        DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null, null, null, null, List.of()),
                 List.of(),
                 new GuestServerDetailResponse.Progress(ProvisioningPhase.OS_INSTALLING, LocalDateTime.now(),
                         LocalDateTime.now(), null, null, null, false, true, false, false, false),
@@ -90,7 +91,7 @@ class GuestServerControllerWindowsInstallViewTest {
                                                                  int reentries, Long remaining, String failedReason,
                                                                  boolean holding, long holdRemaining) {
         return new GuestServerDetailResponse.WindowsInstall(IMAGE, DISPLAY, grade, notes, servedAt, reentries, 5,
-                remaining, failedReason, holding, holdRemaining, null, null, null, 0, 0, List.of(), false, null);
+                remaining, failedReason, holding, holdRemaining, null, null, null, 0, 0, List.of(), false, null, null, null, null);
     }
 
     @Test
@@ -177,7 +178,7 @@ class GuestServerControllerWindowsInstallViewTest {
         return new GuestServerDetailResponse.WindowsInstall(IMAGE, DISPLAY, ReadinessGrade.READY, List.of(),
                 LocalDateTime.of(2026, 9, 3, 13, 5, 9), 1, 5, null, null, false, 0,
                 LocalDateTime.of(2026, 9, 3, 13, 21, 40), "SPV-14174000", "Windows Server 2025 10.0.26100",
-                47, problems, devices, terminal, next);
+                47, problems, devices, terminal, next, null, null, null);
     }
 
     @Test

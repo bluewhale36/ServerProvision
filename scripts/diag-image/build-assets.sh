@@ -78,7 +78,7 @@ do_repo() {
             # 스스로 추가한다 — 누락 시 world 트랜잭션 전체가 실패해 busybox 심링크 트리거가 안 돌고
             # /sbin/init 부재로 부팅이 응급 셸에 떨어진다 (2026-07-19 QEMU 스모크 실측).
             cd /out
-            apk fetch --recursive --output . alpine-base openrc busybox dmidecode ipmitool openssl pciutils lsblk
+            apk fetch --recursive --output . alpine-base openrc busybox dmidecode ipmitool openssl pciutils lsblk acpid   # acpid: HF15-4 — world 와 같은 집합이어야 게스트 world 트랜잭션이 통째로 실패하지 않는다
             # 인덱스 생성 + 서명
             apk index --rewrite-arch "$ALPINE_ARCH" -o APKINDEX.unsigned.tar.gz ./*.apk
             key=$(ls /keys/*.rsa | head -1)
@@ -115,6 +115,10 @@ do_apkovl() {
     done
     ln -sf /etc/init.d/firstboot "$staging/etc/runlevels/default/firstboot"
     chmod +x "$staging/etc/init.d/firstboot"
+    # acpid(HF15-4) — BMC 정상 종료(ACPI 전원 버튼)에 진단 리눅스가 poweroff 로 응답하게. world 의 acpid 패키지가
+    # 서비스를 주고 핸들러는 apkovl 의 /etc/acpi/handler.sh(전원 버튼만)가 덮는다.
+    ln -sf /etc/init.d/acpid "$staging/etc/runlevels/default/acpid"
+    chmod +x "$staging/etc/acpi/handler.sh"
     # 부분 저장소 서명 공개키 신뢰 주입 (repo 단계가 만든 키)
     if ls "$KEYS_DIR"/*.rsa.pub >/dev/null 2>&1; then
         mkdir -p "$staging/etc/apk/keys"

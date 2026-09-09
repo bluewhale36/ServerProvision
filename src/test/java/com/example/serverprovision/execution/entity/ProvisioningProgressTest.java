@@ -287,6 +287,41 @@ class ProvisioningProgressTest {
     }
 
     @Test
+    @DisplayName("isPxeGuaranteeWindow — 개시~설치 착수 전만 true · 미개시 · 실패 · 종단 · 설치 서빙 뒤는 false(HF15-1)")
+    void pxeGuaranteeWindow_truthTable() {
+        assertThat(diag().build().isPxeGuaranteeWindow()).isFalse();                                   // 미개시
+        assertThat(diag().startedAt(T0).build().isPxeGuaranteeWindow()).isTrue();                       // 개시 · 진단
+        assertThat(diag().startedAt(T0).failedAt(T0).build().isPxeGuaranteeWindow()).isFalse();         // 실패
+        assertThat(diag().startedAt(T0).completedAt(T0).build().isPxeGuaranteeWindow()).isFalse();      // 종단
+        ProvisioningProgress raid = ProvisioningProgress.builder()
+                .currentStep(ProvisioningPhaseStep.RAID_VERIFYING).lastTransitionAt(T0).startedAt(T0).build();
+        assertThat(raid.isPxeGuaranteeWindow()).isTrue();                                                // RAID(에이전트 reboot 경로)
+        raid.advanceToEntry(ProvisioningPhaseStep.OS_INSTALLING, T1);
+        assertThat(raid.isPxeGuaranteeWindow()).isTrue();                                                // OS 설치 진입 대기 — 아직 PXE 필요
+        raid.positionAt(ProvisioningPhaseStep.OS_INSTALLING, T1);
+        assertThat(raid.isPxeGuaranteeWindow()).isFalse();                                               // wimboot 서빙 뒤 — 로컬 재부팅
+    }
+
+    @Test
+    @DisplayName("clearFailed(entry) — 같은 phase 안 되감기는 커서를 진입 step 에 세우고, phase 이탈은 IllegalState(HF15-2)")
+    void clearFailed_rewindsWithinPhase_only() {
+        ProvisioningProgress p = ProvisioningProgress.builder()
+                .currentStep(ProvisioningPhaseStep.RAID_APPLYING).lastTransitionAt(T0)
+                .startedAt(T0).failedAt(T0).build();
+        p.clearFailed(T1, ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING);
+        assertThat(p.isFailed()).isFalse();
+        assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING);
+        assertThat(p.getMotion()).isEqualTo(ProvisioningMotion.AWAITING_BOOT);
+
+        ProvisioningProgress q = ProvisioningProgress.builder()
+                .currentStep(ProvisioningPhaseStep.RAID_APPLYING).lastTransitionAt(T0)
+                .startedAt(T0).failedAt(T0).build();
+        assertThatThrownBy(() -> q.clearFailed(T1, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(q.isFailed()).isTrue();   // 거절은 상태를 건드리지 않는다
+    }
+
+    @Test
     @DisplayName("isFirmwarePhaseFailure — 실패 지점이 펌웨어 step 인가라는 사실만 답한다(차단 정책은 RetryPolicy 소관)")
     void firmwarePhaseFailure_isFactOnly() {
         assertThat(ProvisioningProgress.builder()

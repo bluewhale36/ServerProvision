@@ -247,6 +247,7 @@ CREATE TABLE `guest_server` (
   `guest_token` varchar(32) DEFAULT NULL COMMENT '게스트 신원 토큰 — 부팅 커널 인자로 전달, 에이전트 API 인증 (DEC-5)',
   `serial_number` varchar(32) DEFAULT NULL,
   `last_seen_at` datetime(6) DEFAULT NULL COMMENT '게스트 마지막 접촉 시각(E1-2, DEC-32 관찰 로그)',
+  `last_boot_at` datetime(6) DEFAULT NULL COMMENT '마지막 /boot 도착 시각 — 재부팅 증거(HF15-1)',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_guest_server_system_uuid` (`system_uuid`),
   UNIQUE KEY `UKrom2ekfu43bd2tu1ub8p0u5el` (`name`),
@@ -307,7 +308,6 @@ CREATE TABLE `host_nic_binding` (
   `host_mac` varchar(17) NOT NULL,
   `guest_server_id` uuid NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `UK4236oeuwacyprg08xcho28mpr` (`host_mac`),
   KEY `FKggvanbenc4u2qwb5ard660842` (`guest_server_id`),
   CONSTRAINT `FKggvanbenc4u2qwb5ard660842` FOREIGN KEY (`guest_server_id`) REFERENCES `guest_server` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

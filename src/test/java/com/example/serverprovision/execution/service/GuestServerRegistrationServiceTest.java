@@ -3,6 +3,8 @@ package com.example.serverprovision.execution.service;
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
 import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
 import com.example.serverprovision.execution.entity.GuestServer;
+import com.example.serverprovision.execution.vo.IpAddressVO;
+import com.example.serverprovision.execution.vo.MacAddressVO;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.HostNicBinding;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
@@ -109,10 +111,53 @@ class GuestServerRegistrationServiceTest {
     }
 
     @Test
+    @DisplayName("HF15-3 · 재부팅이 다른 포트(새 MAC)에서 오면 바인딩을 추가한다(primary 아님) — 실기 3호 F-5")
+    void reboot_newMac_addsBinding() {
+        GuestServer registered = GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID()).build();
+        given(guestServerRepository.findBySystemUUIDAndDecommissionedAtIsNull(any(UUID.class))).willReturn(Optional.of(registered));
+        given(hostNicBindingRepository.findByGuestServer_IdAndMacAddress(any(), any())).willReturn(Optional.empty());
+
+        service().initialRegistry(req("30:56:0f:9a:c4:cc", "192.168.1.170", UUID_STR, "Giga Computing", "MS73-HB1-000"));
+
+        org.mockito.ArgumentCaptor<HostNicBinding> captor = org.mockito.ArgumentCaptor.forClass(HostNicBinding.class);
+        verify(hostNicBindingRepository).save(captor.capture());
+        assertThat(captor.getValue().getMacAddress()).isEqualTo(MacAddressVO.of("30:56:0f:9a:c4:cc"));
+        assertThat(captor.getValue().getIpAddress()).isEqualTo(IpAddressVO.of("192.168.1.170"));
+        assertThat(captor.getValue().isPrimary()).isFalse();
+        verify(guestServerRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("HF15-3 · 같은 MAC 이 다른 IP 로 오면(재임대) 기존 바인딩의 IP 만 갱신 · 형식 이상은 건너뛴다")
+    void reboot_sameMacNewIp_refreshes_malformedSkipped() {
+        GuestServer registered = GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID()).build();
+        given(guestServerRepository.findBySystemUUIDAndDecommissionedAtIsNull(any(UUID.class))).willReturn(Optional.of(registered));
+        HostNicBinding bound = HostNicBinding.builder().id(UUID.randomUUID()).guestServer(registered)
+                .macAddress(MacAddressVO.of("aa:bb:cc:dd:ee:ff")).ipAddress(IpAddressVO.of("10.20.3.11"))
+                .ipSource(IpSource.DHCP).isPrimary(true).build();
+        given(hostNicBindingRepository.findByGuestServer_IdAndMacAddress(registered.getId(), MacAddressVO.of("aa:bb:cc:dd:ee:ff")))
+                .willReturn(Optional.of(bound));
+
+        service().initialRegistry(req("aa:bb:cc:dd:ee:ff", "10.20.3.99", UUID_STR, "Giga Computing", "MS73-HB1-000"));
+        assertThat(bound.getIpAddress()).isEqualTo(IpAddressVO.of("10.20.3.99"));
+        verify(hostNicBindingRepository, never()).save(any());
+
+        // 형식 이상 MAC — 부팅은 계속되고 바인딩은 손대지 않는다
+        service().initialRegistry(req("not-a-mac", "10.20.3.11", UUID_STR, "Giga Computing", "MS73-HB1-000"));
+        verify(hostNicBindingRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("재부팅 멱등성 — 이미 등록된 systemUUID 면 어떤 행도 저장하지 않음 (원장 중복 적재 없음)")
     void register_idempotent_whenAlreadyRegistered() {
+        GuestServer registered = GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID()).build();
         given(guestServerRepository.findBySystemUUIDAndDecommissionedAtIsNull(any(UUID.class)))
-                .willReturn(Optional.of(GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID()).build()));
+                .willReturn(Optional.of(registered));
+        // 같은 포트 · 같은 IP 로 재부팅 — 바인딩은 있고 바뀐 것이 없다(HF15-3)
+        given(hostNicBindingRepository.findByGuestServer_IdAndMacAddress(registered.getId(), MacAddressVO.of("aa:bb:cc:dd:ee:ff")))
+                .willReturn(Optional.of(HostNicBinding.builder().id(UUID.randomUUID()).guestServer(registered)
+                        .macAddress(MacAddressVO.of("aa:bb:cc:dd:ee:ff")).ipAddress(IpAddressVO.of("10.20.3.11"))
+                        .ipSource(IpSource.DHCP).isPrimary(true).build()));
 
         GuestServer existing = service().initialRegistry(validReq());
 

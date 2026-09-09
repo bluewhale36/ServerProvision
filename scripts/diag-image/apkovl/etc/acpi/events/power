@@ -1,0 +1,3 @@
+# 전원 버튼 이벤트 → handler.sh (acpid 표준 events 규약)
+event=button/power.*
+action=/etc/acpi/handler.sh %e

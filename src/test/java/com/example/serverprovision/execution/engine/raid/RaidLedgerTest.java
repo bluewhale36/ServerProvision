@@ -134,4 +134,45 @@ class RaidLedgerTest {
                 eq(ProvisioningStatus.FAILED), contains("RESULT_MISMATCH"), eq(NOW));
         verify(progress).markFailed(NOW);
     }
+
+    @Test
+    @DisplayName("awaitingVerification — 성공 집행 뒤 검증 행이 없으면 true, 그 뒤 검증(실패 포함)이 있으면 false, 집행 실패면 false(HF15-2)")
+    void awaitingVerification_truthTable() {
+        ProvisioningHistory applied = ProvisioningHistory.openRunning(guest(), ProvisioningPhaseStep.RAID_APPLYING, NOW);
+        applied.close(ProvisioningStatus.SUCCEEDED, null, NOW.plusMinutes(1));
+        given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(GUEST_ID, ProvisioningPhaseStep.RAID_APPLYING))
+                .willReturn(Optional.of(applied));
+
+        // 검증 행 없음 → 재채집 지시 대상
+        given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(GUEST_ID, ProvisioningPhaseStep.RAID_VERIFYING))
+                .willReturn(Optional.empty());
+        assertThat(ledger.awaitingVerification(GUEST_ID)).isTrue();
+
+        // 집행 뒤 검증이 실패로 닫힘 → 재시도는 새 계획으로 다시 집행해야 하므로 false
+        ProvisioningHistory verified = ProvisioningHistory.instant(guest(), ProvisioningPhaseStep.RAID_VERIFYING,
+                ProvisioningStatus.FAILED, "{\"reason\":\"RESULT_MISMATCH\"}", NOW.plusMinutes(2));
+        given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(GUEST_ID, ProvisioningPhaseStep.RAID_VERIFYING))
+                .willReturn(Optional.of(verified));
+        assertThat(ledger.awaitingVerification(GUEST_ID)).isFalse();
+
+        // 검증 행이 아직 열려 있음(RUNNING · 재채집 중) → 결과가 아니므로 계속 true(같은 지시)
+        ProvisioningHistory openVerify = ProvisioningHistory.openRunning(guest(), ProvisioningPhaseStep.RAID_VERIFYING, NOW.plusMinutes(2));
+        given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(GUEST_ID, ProvisioningPhaseStep.RAID_VERIFYING))
+                .willReturn(Optional.of(openVerify));
+        assertThat(ledger.awaitingVerification(GUEST_ID)).isTrue();
+
+        // 옛 검증(이전 회차)만 있고 그 뒤 새 집행이 성공 → true
+        ProvisioningHistory oldVerify = ProvisioningHistory.instant(guest(), ProvisioningPhaseStep.RAID_VERIFYING,
+                ProvisioningStatus.FAILED, null, NOW.minusHours(1));
+        given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(GUEST_ID, ProvisioningPhaseStep.RAID_VERIFYING))
+                .willReturn(Optional.of(oldVerify));
+        assertThat(ledger.awaitingVerification(GUEST_ID)).isTrue();
+
+        // 최신 집행이 실패 → false
+        ProvisioningHistory failedApply = ProvisioningHistory.openRunning(guest(), ProvisioningPhaseStep.RAID_APPLYING, NOW);
+        failedApply.close(ProvisioningStatus.FAILED, null, NOW.plusMinutes(1));
+        given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(GUEST_ID, ProvisioningPhaseStep.RAID_APPLYING))
+                .willReturn(Optional.of(failedApply));
+        assertThat(ledger.awaitingVerification(GUEST_ID)).isFalse();
+    }
 }

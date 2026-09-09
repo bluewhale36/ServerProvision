@@ -51,8 +51,10 @@ public class ReturnReadbackStep implements SettingStep {
     public void execute(SettingContext context) {
         ProvisioningHistory row = context.runningRow().orElseThrow();
         LocalDateTime rebootAt = ledger.rebootAtOf(row);
-        LocalDateTime lastSeen = context.server().getLastSeenAt();
-        boolean returned = lastSeen != null && lastSeen.isAfter(rebootAt);
+        // 복귀 증거 = 재부팅 발행 뒤의 /boot 도착(HF15-1 · 실기 3호 F-4). 진단 리눅스의 30초 체크인 폴링은 접촉이지 재부팅이
+        // 아니다 — BMC 리셋이 늦은 서버에서 그 폴링을 복귀로 읽어 미반영 판독(READBACK_MISMATCH)을 냈다.
+        LocalDateTime lastBoot = context.server().getLastBootAt();
+        boolean returned = lastBoot != null && lastBoot.isAfter(rebootAt);
         if (!returned) {
             if (timeoutPolicy.isExpired(rebootAt, timeoutPolicy.returnLimit(), context.now())) {
                 fail(context, row, SettingLedger.RETURN_TIMEOUT, "재부팅 뒤 시한 안에 게스트가 돌아오지 않았습니다");

@@ -55,12 +55,6 @@ public class GuestServerPowerRestController {
     }
 
     private RedfishTarget targetOf(GuestServerDetailResponse server) {
-        GuestServerDetailResponse.Inventory inventory = server.inventory();
-        if (inventory == null) {
-            return new RedfishTarget(null, null);
-        }
-        return new RedfishTarget(
-                inventory.bmcIp() == null ? null : inventory.bmcIp().value(),
-                inventory.boardSerial());
+        return server.redfishTarget();   // 조립 SSOT 는 응답 DTO(HF15-1) — [재시도 후 네트워크 부팅] 과 공유
     }
 }

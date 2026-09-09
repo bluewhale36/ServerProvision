@@ -3,3 +3,4 @@ dmidecode
 ipmitool
 pciutils
 lsblk
+acpid

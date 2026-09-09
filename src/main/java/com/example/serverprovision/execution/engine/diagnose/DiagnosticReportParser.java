@@ -159,22 +159,9 @@ public class DiagnosticReportParser {
         return List.copyOf(modules);
     }
 
+    /** 디스크 배열 해석은 RAID 검증 재채집(HF15-5)과 공유한다 — {@link OsVisibleDiskParser} 가 SSOT. */
     private List<HardwareSpec.DiskInfo> parseDisks(JsonNode arr) {
-        List<HardwareSpec.DiskInfo> disks = new ArrayList<>();
-        if (arr.isArray()) {
-            arr.forEach(d -> {
-                String device = text(d, "device");
-                if (device == null) {
-                    return;
-                }
-                // lsblk ROTA: 1=회전(HDD) / 0=비회전(SSD·NVMe)
-                String type = "1".equals(text(d, "rota")) ? "HDD" : "SSD";
-                String tran = text(d, "tran");
-                String transport = tran == null ? null : tran.toUpperCase(Locale.ROOT);
-                disks.add(new HardwareSpec.DiskInfo(device, type, transport, text(d, "size")));
-            });
-        }
-        return List.copyOf(disks);
+        return OsVisibleDiskParser.parse(arr);
     }
 
     private List<HardwareSpec.PcieDevice> parsePcie(JsonNode arr) {

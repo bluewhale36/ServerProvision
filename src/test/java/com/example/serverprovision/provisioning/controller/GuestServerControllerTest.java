@@ -59,6 +59,8 @@ class GuestServerControllerTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean GuestServerQueryService queryService;
+
+    @MockitoBean com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 — [재시도 후 네트워크 부팅]
     @MockitoBean GuestServerCommandService commandService;
     // U3-1 — 컨트롤러 신규 협력자(할당 스냅샷). 상세 렌더가 계획 rail 을 조립하므로 plannedPhasesOf 를 스텁한다.
     @MockitoBean AssignmentCommandService assignmentCommandService;
@@ -97,7 +99,7 @@ class GuestServerControllerTest {
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
                 null,   // E1-2 — 접촉 관찰 없음 fixture
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
-                        DiscoveryStage.IPXE_REGISTERED, null, null, null, null, null),
+                        DiscoveryStage.IPXE_REGISTERED, null, null, null, null, null, List.of()),
                 List.of(),
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now(),
@@ -119,7 +121,7 @@ class GuestServerControllerTest {
                 null,
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "QG260700082",
                         DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null,
-                        IpAddressVO.of("192.168.10.21"), null, null),
+                        IpAddressVO.of("192.168.10.21"), null, null, List.of()),
                 List.of(),
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.BOOTSTRAPPING, LocalDateTime.now(), null,
@@ -142,7 +144,7 @@ class GuestServerControllerTest {
                 GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
                 null,
                 new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
-                        DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null, null, null, null),
+                        DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null, null, null, null, List.of()),
                 List.of(),
                 new GuestServerDetailResponse.Progress(
                         ProvisioningPhase.DIAGNOSE_LINUX, LocalDateTime.now(),

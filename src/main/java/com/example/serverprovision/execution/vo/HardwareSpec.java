@@ -47,9 +47,10 @@ public record HardwareSpec(
     public record MemoryModule(String slot, String manufacturer, String size) {
     }
 
-    /** 디스크 1개 — SSD/HDD 구분 + 전송 방식(SAS/SATA/NVMe) + 용량. RAID 카드 뒤 물리 디스크는
-     *  OS 불가시 — OPEN-1(벤더 CLI 동봉) 후속에서 확장(plan §2-2 한계 명기). */
-    public record DiskInfo(String device, String type, String transport, String size) {
+    /** 디스크 1개 — SSD/HDD 구분 + 전송 방식(SAS/SATA/NVMe) + 용량 + SCSI 식별자(lsblk WWN · HF15-5). RAID 카드 뒤
+     *  물리 디스크는 OS 불가시(RAID 인벤토리가 담당). {@code wwn} 은 RAID 볼륨 행을 인벤토리 볼륨과 잇는 키다 —
+     *  구 저장본은 없어 null. */
+    public record DiskInfo(String device, String type, String transport, String size, String wwn) {
     }
 
     /**

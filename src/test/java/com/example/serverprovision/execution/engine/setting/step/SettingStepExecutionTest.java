@@ -288,7 +288,7 @@ class SettingStepExecutionTest {
     @DisplayName("복귀 — 재부팅 이전의 접촉은 복귀가 아니다(신호는 rebootAt 이후의 접촉만)")
     void readback_contactBeforeRebootIsNotReturn() {
         GuestServer server = server();
-        server.touchSeen(T.minusMinutes(1));
+        server.touchBoot(T.minusMinutes(1));
         ProvisioningHistory row = openRow(server, T);
 
         readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(5)));
@@ -472,7 +472,7 @@ class SettingStepExecutionTest {
     /** 재부팅(T) 뒤에 돌아온 게스트. */
     private static GuestServer returned() {
         GuestServer server = server();
-        server.touchSeen(T.plusMinutes(3));
+        server.touchBoot(T.plusMinutes(3));
         return server;
     }
 
@@ -563,7 +563,7 @@ class SettingStepExecutionTest {
     void begin_armsPxeOnce() {
         begin().execute(context(server(), started(), List.of(), target(), T));
 
-        verify(powerService).reset(any(), any(), eq(NextBoot.PXE_ONCE));
+        verify(powerService).reset(any(), any(), eq(NextBoot.PXE_CONTINUOUS));
     }
 
     @Test

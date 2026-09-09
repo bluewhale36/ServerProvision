@@ -202,6 +202,57 @@ class RedfishPowerServiceTest {
     }
 
     @Test
+    @DisplayName("HF15-1 · PXE_CONTINUOUS — 본문이 Continuous · Pxe · UEFI 이고 되읽기 일치면 '프로비저닝 중 PXE 보장 : 반영 확인'")
+    void pxeContinuous_body() {
+        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(JSON.readTree(
+                "{\"PowerState\":\"On\",\"Boot\":{\"BootSourceOverrideEnabled\":\"Continuous\",\"BootSourceOverrideTarget\":\"Pxe\"}}"));
+        given(client.postForTask(anyString(), any(), anyString(), any())).willReturn(Optional.empty());
+
+        PowerControlResult result = service.reset(TARGET, RedfishResetType.FORCE_RESTART, NextBoot.PXE_CONTINUOUS);
+
+        assertThat(result.message()).contains("프로비저닝 중 PXE 보장 : 반영 확인");
+        verify(client).patchJsonRefreshingEtag(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH),
+                eq(RedfishPowerService.SYSTEM_PATH), eq(NextBoot.overrideBody("Continuous")));
+    }
+
+    @Test
+    @DisplayName("HF15-1 · armBootOverride — 전원은 움직이지 않고 PATCH 만 · RELEASE 는 Disabled 본문 · 거절은 FAILED")
+    void armBootOverride_patchOnly() {
+        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(JSON.readTree(
+                "{\"PowerState\":\"On\",\"Boot\":{\"BootSourceOverrideEnabled\":\"Disabled\"}}"));
+
+        PowerControlResult released = service.armBootOverride(TARGET, NextBoot.RELEASE);
+
+        assertThat(released.kind()).isEqualTo(PowerControlResult.Kind.SENT);
+        assertThat(released.message()).contains("PXE 보장 해제 : 반영 확인");
+        verify(client).patchJsonRefreshingEtag(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH),
+                eq(RedfishPowerService.SYSTEM_PATH), eq(java.util.Map.of("Boot", java.util.Map.of("BootSourceOverrideEnabled", "Disabled"))));
+        verify(client, never()).postForTask(anyString(), any(), anyString(), any());
+
+        willThrow(new RedfishRequestException(RedfishError.PROTOCOL, "PATCH 거절(400)", null))
+                .given(client).patchJsonRefreshingEtag(anyString(), any(), anyString(), anyString(), any());
+        assertThat(service.armBootOverride(TARGET, NextBoot.PXE_CONTINUOUS).kind()).isEqualTo(PowerControlResult.Kind.FAILED);
+    }
+
+    @Test
+    @DisplayName("HF15-1 · networkBoot — 꺼져 있으면 On, 켜져 있으면 ForceRestart 를 Continuous 무장과 함께 발행")
+    void networkBoot_choosesResetByState() {
+        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(JSON.readTree(
+                "{\"PowerState\":\"Off\",\"Boot\":{\"BootSourceOverrideEnabled\":\"Continuous\",\"BootSourceOverrideTarget\":\"Pxe\"}}"));
+        given(client.postForTask(anyString(), any(), anyString(), any())).willReturn(Optional.empty());
+
+        PowerControlResult off = service.networkBoot(TARGET);
+        assertThat(off.message()).contains("켜기(On)");
+        verify(client).postForTask(anyString(), any(), eq(RedfishPowerService.RESET_PATH), eq(java.util.Map.of("ResetType", "On")));
+
+        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(JSON.readTree(
+                "{\"PowerState\":\"On\",\"Boot\":{\"BootSourceOverrideEnabled\":\"Continuous\",\"BootSourceOverrideTarget\":\"Pxe\"}}"));
+        PowerControlResult on = service.networkBoot(TARGET);
+        assertThat(on.message()).contains("재시작(ForceRestart)");
+        verify(client).postForTask(anyString(), any(), eq(RedfishPowerService.RESET_PATH), eq(java.util.Map.of("ResetType", "ForceRestart")));
+    }
+
+    @Test
     @DisplayName("PXE_ONCE — 무장 중 연결 불가는 FAILED 로 눕고 Reset 을 내지 않는다")
     void pxeOnce_connectFailureBlocksReset() {
         willThrow(new RedfishRequestException(RedfishError.CONNECT_FAILED, "연결 불가", null))

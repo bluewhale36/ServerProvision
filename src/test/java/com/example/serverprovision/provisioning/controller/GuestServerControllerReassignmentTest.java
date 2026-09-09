@@ -43,6 +43,8 @@ class GuestServerControllerReassignmentTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean GuestServerQueryService queryService;
+
+    @MockitoBean com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 — [재시도 후 네트워크 부팅]
     @MockitoBean GuestServerCommandService commandService;
     @MockitoBean AssignmentCommandService assignmentCommandService;
     @MockitoBean AssignmentQueryService assignmentQueryService;

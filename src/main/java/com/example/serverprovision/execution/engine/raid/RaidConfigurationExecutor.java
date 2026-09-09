@@ -10,9 +10,9 @@ import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.entity.RaidVolume;
 import com.example.serverprovision.execution.enums.AgentDirective;
+import com.example.serverprovision.execution.enums.ProvisioningMotion;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
-import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.RaidVolumeRepository;
 import lombok.RequiredArgsConstructor;
@@ -59,21 +59,32 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
     }
 
     /**
-     * 지시 상태기계(E3.5-3 plan §4) — ① 미적재 → 수집 ② 집행 성공 · 검증 미완 → 재채집
-     * ③ 외부 볼륨 + 축 부재 → 보류 ④ 계획 거절 → 보류 ⑤ 계획 성립 → 동결 + 집행.
+     * 재시도는 인벤토리 재채집부터(HF15-2 · 실기 3호 F-8) — 계획은 저장된 인벤토리에서 나오는데, 실패한 집행이 카드에
+     * 남긴 볼륨(spvR1V1 등)을 옛 인벤토리는 모른다. 재시도 커서를 진입 step 에 세우면 {@link #directiveFor} 의
+     * "진입 대기 = 재채집" 규칙이 최신 실물로 계획을 다시 세운다(잔여는 재구성 대상으로 지워진다).
+     */
+    @Override
+    public ProvisioningPhaseStep retryEntryStep(ProvisioningProgress progress) {
+        return ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING;
+    }
+
+    /**
+     * 지시 상태기계(E3.5-3 plan §4 · HF15-2 개정) — ① 미적재 또는 phase 진입 대기 → 수집 ② 집행 성공 · 검증 미완 →
+     * 재채집 ③ 외부 볼륨 + 축 부재 → 보류 ④ 계획 거절 → 보류 ⑤ 계획 성립 → 동결 + 집행.
      */
     @Override
     public AgentDirective directiveFor(GuestServer server, ProvisioningProgress progress) {
         Optional<GuestServerDetail> detail = guestServerDetailRepository.findByServerIdWithBoardModel(server.getId());
         String inventoryJson = detail.map(GuestServerDetail::getRaidInventoryJson).orElse(null);
-        if (inventoryJson == null) {
-            return AgentDirective.RAID_INVENTORY;                                    // ① 현행 유지(E3.5-1)
+        // ① 미적재(E3.5-1) 또는 phase 진입 · 재시도 직후의 부팅 대기(HF15-2) — 계획은 항상 이 부팅에서 채집한
+        //    실물로 세운다. 진단 때 채집한 인벤토리는 그 사이(펌웨어 · 설정 · 실패한 집행)에 낡을 수 있다.
+        if (inventoryJson == null || awaitingInventoryOnEntry(progress)) {
+            return AgentDirective.RAID_INVENTORY;
         }
-        // ② 집행이 성공 close 됐고 검증이 아직 커서를 전진시키지 못했으면 재채집 지시 — close 응답 ·
-        //    재체크인 양쪽이 같은 판정을 받는다(응답 유실 재전송 멱등).
-        boolean applied = raidLedger.latestOf(server.getId(), ProvisioningPhaseStep.RAID_APPLYING)
-                .filter(h -> h.getStatus() == ProvisioningStatus.SUCCEEDED).isPresent();
-        if (applied) {
+        // ② 집행이 성공 close 됐고 검증이 아직 그 결과를 거두지 않았으면 재채집 지시 — close 응답 ·
+        //    재체크인 양쪽이 같은 판정을 받는다(응답 유실 재전송 멱등). 검증이 이미 실패로 닫혔으면 재시도가
+        //    새 계획(잔여 재구성)으로 다시 집행해야 하므로 여기 걸리지 않는다.
+        if (raidLedger.awaitingVerification(server.getId())) {
             return AgentDirective.RAID_VERIFY;
         }
         RaidInventory inventory = parseStored(inventoryJson, server);
@@ -120,6 +131,12 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
         }
         raidLedger.freezePlanned(server, objectMapper.writeValueAsString(plan), now);   // ⑤ 동결(결정 2)
         return AgentDirective.RAID_APPLY;
+    }
+
+    /** 진입 step 에서 부팅을 기다리는 커서인가 — 진입(pre-position) · 재시도 되감기 둘 다 여기로 온다. */
+    private static boolean awaitingInventoryOnEntry(ProvisioningProgress progress) {
+        return progress.getCurrentStep() == ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING
+                && progress.getMotion() == ProvisioningMotion.AWAITING_BOOT;
     }
 
     /** RAID_APPLY 에 동봉할 집행 축약형 — 동결본(결정 2)에서 파생해 지시와 payload 가 같은 SSOT 를 본다. */
@@ -193,10 +210,46 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
             return;
         }
         recordVolumes(server, frozen, observed);
-        requireDetail(server).enrichRaidInventory(objectMapper.writeValueAsString(observed));   // 화면 = 실물
+        GuestServerDetail detail = requireDetail(server);
+        detail.enrichRaidInventory(objectMapper.writeValueAsString(observed));   // 화면 = 실물
+        refreshOsVisibleDisks(detail, step.getStatusMeta());                      // HF15-5 — 볼륨이 커널에 보인 뒤의 lsblk
         phaseCursorAdvancer.advanceOrComplete(progress, server.getId(), now);
         log.info("RAID 집행 검증 통과 — raid_volume {}건 기록 · 커서 전진 : guestServerId={}",
                 frozen.volumes().size() + frozen.passthroughs().size(), server.getId());
+    }
+
+    /**
+     * 검증 보고에 동봉된 OS 가시 디스크({@code disks} · lsblk 순서 · WWN)로 하드웨어 스펙의 디스크 목록만 갈아 넣는다
+     * (HF15-5 · 실기 3호 F-6 · F-9). 진단 때의 목록은 볼륨 생성 전(멤버 디스크 그대로)이라 OS 설치 디스크 번호의 근거가
+     * 못 된다. 동봉이 없으면(구 에이전트) 그대로 둔다 — 디스크 선택은 계열 순서 규칙으로 내려간다.
+     */
+    private void refreshOsVisibleDisks(GuestServerDetail detail, String statusMeta) {
+        List<com.example.serverprovision.execution.vo.HardwareSpec.DiskInfo> disks;
+        try {
+            disks = com.example.serverprovision.execution.engine.diagnose.OsVisibleDiskParser.parse(
+                    objectMapper.readTree(statusMeta).path("disks"));
+        } catch (RuntimeException e) {
+            return;   // 봉투 자체는 inventoryParser 가 이미 읽었다 — 디스크 동봉 해석 실패는 갱신 생략
+        }
+        if (disks.isEmpty()) {
+            return;
+        }
+        com.example.serverprovision.execution.vo.HardwareSpec current = null;
+        if (detail.getHardwareSpec() != null && !detail.getHardwareSpec().isBlank()) {
+            try {
+                current = objectMapper.readValue(detail.getHardwareSpec(),
+                        com.example.serverprovision.execution.vo.HardwareSpec.class);
+            } catch (RuntimeException ignored) {
+                // 옛 저장본 해석 불가 — 디스크만 담은 스펙으로 갱신
+            }
+        }
+        com.example.serverprovision.execution.vo.HardwareSpec merged = new com.example.serverprovision.execution.vo.HardwareSpec(
+                current == null ? null : current.cpuSockets(),
+                current == null ? null : current.memoryModules(),
+                disks,
+                current == null ? null : current.pcieDevices());
+        detail.updateHardwareSpec(objectMapper.writeValueAsString(merged));
+        log.info("OS 가시 디스크 갱신(RAID 검증 재채집) : guestServerId={}, disks={}", detail.getGuestServer().getId(), disks.size());
     }
 
     /** 검증 통과 실물의 replace 기록(결정 D-8) — 게스트 단위 전부 삭제 후 동결 계획 기준으로 다시 쓴다. */

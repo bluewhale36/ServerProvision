@@ -81,13 +81,33 @@ collect_memory_json() { # [{"slot":..,"manufacturer":..,"size":..},...] — 장�
 }
 
 collect_disks_json() { # [{"device":..,"size":..,"rota":..,"tran":..},...] — OS 가시 디스크(-d 상위 장치)
-    lsblk -dn -o NAME,SIZE,ROTA,TRAN 2>/dev/null | awk '
-        $1 !~ /^(loop|ram|sr)/ && $1 != "" {
-            tran = (NF >= 4) ? $4 : ""
-            printf "%s{\"device\":\"%s\",\"size\":\"%s\",\"rota\":\"%s\",\"tran\":\"%s\"}", sep, $1, $2, $3, tran
+    # -P(키="값" 쌍)로 읽는다 — TRAN · WWN 처럼 비는 열이 있으면 자리 기반 $N 파싱이 어긋난다(HF15-5).
+    # WWN 은 OS 가시 디스크와 RAID 볼륨(카드 CLI 의 WWN)을 잇는 키 — 설치 대상 디스크 번호의 근거(실기 3호 F-6).
+    lsblk -dnP -o NAME,SIZE,ROTA,TRAN,WWN 2>/dev/null | awk '
+        {
+            name=""; size=""; rota=""; tran=""; wwn=""
+            for (i = 1; i <= NF; i++) {
+                eq = index($i, "="); if (eq == 0) continue
+                k = substr($i, 1, eq - 1); v = substr($i, eq + 1); gsub(/"/, "", v)
+                if (k == "NAME") name = v; else if (k == "SIZE") size = v
+                else if (k == "ROTA") rota = v; else if (k == "TRAN") tran = v; else if (k == "WWN") wwn = v
+            }
+            if (name == "" || name ~ /^(loop|ram|sr)/) next
+            printf "%s{\"device\":\"%s\",\"size\":\"%s\",\"rota\":\"%s\",\"tran\":\"%s\",\"wwn\":\"%s\"}", sep, name, size, rota, tran, wwn
             sep=","
         }
         BEGIN { printf "[" } END { printf "]" }'
+}
+
+settle_block_devices() { # 볼륨 생성 직후 커널 재탐색(HF15-5) — SCSI 호스트 rescan 뒤 장치 수가 두 번 연속 같아질 때까지(최대 약 15초)
+    for h in /sys/class/scsi_host/host*/scan; do [ -w "$h" ] && echo "- - -" > "$h" 2>/dev/null; done
+    command -v mdev >/dev/null 2>&1 && mdev -s 2>/dev/null
+    prev=-1; n=0
+    while [ "$n" -lt 5 ]; do
+        cur=$(lsblk -dn -o NAME 2>/dev/null | wc -l | tr -d ' ')
+        [ "$cur" = "$prev" ] && return 0
+        prev=$cur; n=$((n + 1)); sleep 3
+    done
 }
 
 collect_pcie_json() { # ["<lspci 원문 1행>",...] — 종류(kind)·제조사 분류는 서버 파서가 담당(규칙 테스트 가능)
@@ -219,7 +239,7 @@ raid_envelope_json() {
     return 0
 }
 
-collect_raid_report() { # $1=stepCode $2=응답 바디(raidChips 힌트 운반) — 계열 CLI 원문 채집 → base64 봉투 보고
+collect_raid_report() { # $1=stepCode $2=응답 바디(raidChips 힌트 운반) $3=OS 가시 디스크 JSON(선택 · 검증 재채집) — 계열 CLI 원문 채집 → base64 봉투 보고
     echo "[agent] $1 - collecting card/disk/volume state..."
     META=$(raid_envelope_json "$2") || {
         report_step "$1" FAILED "$META" >/dev/null   # 지원 칩 없음 — RAID step 은 집행 전제라 실패 보고(종전 동작)
@@ -230,13 +250,18 @@ collect_raid_report() { # $1=stepCode $2=응답 바디(raidChips 힌트 운반) 
         report_step "$1" FAILED "$META" >/dev/null
         return 0 ;;
     esac
+    # 검증 재채집엔 lsblk(순서 · WWN)를 동봉한다(HF15-5) — 서버는 봉투의 다른 키를 무시하므로 계약이 깨지지 않는다
+    [ -n "${3:-}" ] && META="${META%\}},\"disks\":$3}"
     CLOSE_RESP=$(report_step "$1" SUCCEEDED "$META") || return 0
     echo "[agent] $1 reported ($(printf '%s' "$META" | wc -c | tr -d ' ') bytes)"
     handle_directive "$(printf '%s' "$CLOSE_RESP" | get_json_field directive)" "$CLOSE_RESP"
 }
 
 do_raid_inventory() { collect_raid_report RAID_INVENTORY_COLLECTING "$1"; }
-do_raid_verify() { collect_raid_report RAID_VERIFYING "$1"; }   # 재채집 = 같은 원문 · step 만 다름(결정 4)
+do_raid_verify() { # 재채집 = 같은 원문 · step 만 다름(결정 4) + 새 볼륨이 커널에 보인 뒤의 lsblk 동봉(HF15-5)
+    settle_block_devices
+    collect_raid_report RAID_VERIFYING "$1" "$(collect_disks_json)"
+}
 
 # ── RAID 집행(E3.5-3) — payload(중립 명령)를 계열 어댑터가 CLI 로 번역 ──────────
 # payload 계약(RaidApplyPayload 직렬화 — compact · record 선언 순 고정이 파싱의 전제):

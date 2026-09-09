@@ -56,6 +56,8 @@ class GuestServerControllerStartFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean GuestServerQueryService queryService;
+
+    @MockitoBean com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 — [재시도 후 네트워크 부팅]
     @MockitoBean GuestServerCommandService commandService;
     // U3-1 — 개시는 provisioning 측 오케스트레이터(AssignmentStartService)가 소유한다(D-D). 컨트롤러는 이걸 호출.
     @MockitoBean AssignmentCommandService assignmentCommandService;

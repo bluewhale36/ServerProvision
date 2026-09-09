@@ -105,6 +105,25 @@ public class RaidLedger {
         return historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(guestServerId, stepCode);
     }
 
+    /**
+     * 집행은 성공했는데 그 결과를 거둔 검증 행이 아직 없는가(HF15-2) — 최신 RAID_APPLYING 이 SUCCEEDED 이고, 그 뒤에
+     * 열린 RAID_VERIFYING 행이 없을 때만 true. 검증이 실패로 닫힌 뒤의 재시도는 새 계획으로 다시 집행해야 하므로
+     * "성공한 집행이 있다" 만으로 재채집 지시를 내면 잔여 볼륨 위에서 검증만 되풀이한다.
+     */
+    public boolean awaitingVerification(java.util.UUID guestServerId) {
+        Optional<ProvisioningHistory> applied = latestOf(guestServerId, ProvisioningPhaseStep.RAID_APPLYING)
+                .filter(h -> h.getStatus() == com.example.serverprovision.execution.enums.ProvisioningStatus.SUCCEEDED);
+        if (applied.isEmpty()) {
+            return false;
+        }
+        // 열린(RUNNING) 검증 행은 아직 결과가 아니다 — 게스트가 재채집 중인 동안의 체크인도 같은 지시(RAID_VERIFY)를 받아야 한다.
+        return latestOf(guestServerId, ProvisioningPhaseStep.RAID_VERIFYING)
+                .filter(v -> v.getStatus() != com.example.serverprovision.execution.enums.ProvisioningStatus.RUNNING)
+                .filter(v -> v.getStartedAt() != null && applied.get().getStartedAt() != null
+                        && !v.getStartedAt().isBefore(applied.get().getStartedAt()))
+                .isEmpty();
+    }
+
     private String reasonJson(String reason, String detail) {
         return "{\"reason\":\"" + reason + "\",\"detail\":\"" + escape(detail) + "\"}";
     }

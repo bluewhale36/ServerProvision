@@ -357,6 +357,9 @@ public class GuestServerQueryService {
             GuestServer server, GuestServerDetail detail,
             List<HostNicBinding> nics, ProvisioningProgress progress, List<ProvisioningHistory> steps) {
 
+        HardwareSpec hardwareSpec = detail == null ? null : parseTolerant(detail.getHardwareSpec(), HardwareSpec.class);
+        RaidInventory raidInventory = detail == null ? null : displayNormalized(parseTolerant(detail.getRaidInventoryJson(),
+                RaidInventory.class));
         GuestServerDetailResponse.Inventory inventory = (detail == null) ? null
                 : new GuestServerDetailResponse.Inventory(
                 detail.getBoardModel().getVendor(),            // 도출
@@ -364,12 +367,12 @@ public class GuestServerQueryService {
                 detail.getBoardModel().getModelName(),
                 detail.getBoardSerial(),
                 detail.getDiscoveryStage(),
-                parseTolerant(detail.getHardwareSpec(), HardwareSpec.class),
+                hardwareSpec,
                 parseTolerant(detail.getSoftwareSpec(), SoftwareSpec.class),
                 detail.getBmcIp(),
                 detail.getBmcMac(),
-                displayNormalized(parseTolerant(detail.getRaidInventoryJson(),
-                        com.example.serverprovision.execution.engine.raid.RaidInventory.class)));
+                raidInventory,
+                osVisibleDisksOf(hardwareSpec, raidInventory));
 
         GuestServerDetailResponse.RaidPlanPreview raidPlan = raidPlanPreviewOf(server.getId(),
                 inventory == null ? null : inventory.raidInventory());
@@ -436,6 +439,48 @@ public class GuestServerQueryService {
                 raidVolumes,
                 stepResponses
         );
+    }
+
+    /**
+     * OS 가시 디스크 표시 행(HF15-5 · 실기 3호 F-9) — BMC 가상 미디어(USB · 0B)는 걸러내고, RAID 인벤토리 볼륨과 SCSI
+     * 식별자(계열별 변환 {@code RaidChipFamily.windowsUniqueIdOf})가 맞는 장치는 종류 · 전송을 비우고 볼륨 이름을 단다.
+     * 식별자 없이 전송도 비어 있는데 RAID 카드가 있으면(구 저장본의 VD) 종류만 비운다 — lsblk 의 회전 값은 볼륨의 실물이
+     * 아니다. 수집 불가 값은 띄우지 않는다는 사용자 지시의 구현.
+     */
+    private List<GuestServerDetailResponse.OsVisibleDisk> osVisibleDisksOf(HardwareSpec spec, RaidInventory raidInventory) {
+        if (spec == null || spec.disks() == null) {
+            return List.of();
+        }
+        com.example.serverprovision.management.raidcard.enums.RaidChipFamily family =
+                raidInventory == null || raidInventory.card() == null ? null : raidInventory.card().chipFamily();
+        java.util.Map<String, String> volumeNameByUniqueId = new java.util.HashMap<>();
+        if (raidInventory != null) {
+            for (com.example.serverprovision.execution.engine.raid.RaidExistingVolume v : raidInventory.volumes()) {
+                String key = family == null
+                        ? com.example.serverprovision.management.raidcard.enums.RaidChipFamily.normalizeHex(v.wwn())
+                        : family.windowsUniqueIdOf(v.wwn());
+                if (key != null) {
+                    volumeNameByUniqueId.put(key, v.name() == null || v.name().isBlank() ? v.id() : v.name().trim());
+                }
+            }
+        }
+        List<GuestServerDetailResponse.OsVisibleDisk> rows = new java.util.ArrayList<>();
+        for (HardwareSpec.DiskInfo d : spec.disks()) {
+            if (!com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.isControllerDiskForDisplay(d)) {
+                continue;
+            }
+            String uniqueId = com.example.serverprovision.management.raidcard.enums.RaidChipFamily.normalizeHex(d.wwn());
+            String volumeName = uniqueId == null ? null : volumeNameByUniqueId.get(uniqueId);
+            boolean behindRaidCard = raidInventory != null && raidInventory.card() != null;
+            if (volumeName != null) {
+                rows.add(new GuestServerDetailResponse.OsVisibleDisk(d.device(), null, null, d.size(), volumeName));
+            } else if (behindRaidCard && d.transport() == null) {
+                rows.add(new GuestServerDetailResponse.OsVisibleDisk(d.device(), null, null, d.size(), null));
+            } else {
+                rows.add(new GuestServerDetailResponse.OsVisibleDisk(d.device(), d.type(), d.transport(), d.size(), null));
+            }
+        }
+        return List.copyOf(rows);
     }
 
     /**
@@ -866,7 +911,37 @@ public class GuestServerQueryService {
                 completed.map(windowsInstallLedger::problemDeviceCountOf).orElse(0),
                 completed.map(windowsInstallLedger::problemDevicesOf).orElse(List.of()),
                 completed.isPresent() && provisioningCompleted,
-                nextPhase);
+                nextPhase,
+                running.or(() -> completed).map(windowsInstallLedger::targetDiskIdOf).orElse(null),   // E4-1-a-6
+                running.or(() -> completed)
+                        .map(row -> basisLabelOf(windowsInstallLedger.diskBasisOf(row)))                // 서빙 뒤 = 원장 meta 의 근거(CP5 O-1)
+                        .orElseGet(() -> resolved.map(WindowsInstallReadinessResolver.Resolved::diskSelection)
+                                .map(this::diskSelectionNoteOf).orElse(null)),                        // HF15-5 — 서빙 전 안내
+                completed.map(windowsInstallLedger::diskConfirmationOf).orElse(null));
+    }
+
+    /** 서빙 전 디스크 선택 안내(HF15-5) — BLOCKED 사유는 준비도 notes 가 이미 보이므로 여기서는 비운다. */
+    private String diskSelectionNoteOf(com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection sel) {
+        if (sel == null) {
+            return null;
+        }
+        return switch (sel.confidence()) {
+            case DEFERRED -> sel.note();
+            case CONFIDENT -> "디스크 " + sel.diskId()
+                    + (sel.basis() == null ? "" : " · " + basisLabelOf(sel.basis().wire()));
+            case BLOCKED -> null;
+        };
+    }
+
+    /** 번호의 근거 표기 — 서빙 전(판정 결과)과 서빙 뒤(원장 meta) 가 같은 문구를 쓴다. 근거 미상(구 행)은 null. */
+    private static String basisLabelOf(String basisWire) {
+        com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis basis =
+                com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.fromWire(basisWire);
+        if (basis == null) {
+            return null;
+        }
+        return "근거 " + (basis == com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.OS_VISIBLE_DISKS
+                ? "RAID 검증 재채집(lsblk 순서)" : "카드 계열 순서 규칙");
     }
 
     private static GuestServerDetailResponse.FirmwarePlan.Axis axisOf(AxisResolution axis, String label) {

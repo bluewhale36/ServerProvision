@@ -72,6 +72,14 @@ public class GuestServer extends BaseTimeEntity {
     private LocalDateTime lastSeenAt;
 
     /**
+     * 게스트 마지막 <b>부팅</b> 시각(HF15-1 · 실기 3호 F-4) — {@code /boot} 도착만 갱신한다. iPXE 는 부팅에서만 돌므로 이것이
+     * "실제로 재부팅했다" 의 증거이고, 체크인 폴링이 함께 올리는 {@link #lastSeenAt} 은 그 증거가 못 된다(BMC 리셋이 늦으면
+     * 재시작 전 폴링이 복귀로 읽혔다).
+     */
+    @Column(name = "last_boot_at")
+    private LocalDateTime lastBootAt;
+
+    /**
      * 상세 화면 인라인 수정 — 운영자 입력 4필드 일괄 갱신.
      */
     public void updateOperatorInfo(String name, String modelName, String serialNumber, String memo) {
@@ -148,6 +156,12 @@ public class GuestServer extends BaseTimeEntity {
 
     /** 게스트 접촉 표식(E1-2) — 항상 최신으로 덮는다(관찰 로그라 순서 보정 불요). */
     public void touchSeen(LocalDateTime at) {
+        this.lastSeenAt = at;
+    }
+
+    /** 부팅 표식(HF15-1) — {@code /boot} 도착에서만. 접촉 표식도 함께 올린다(부팅은 접촉이기도 하다). */
+    public void touchBoot(LocalDateTime at) {
+        this.lastBootAt = at;
         this.lastSeenAt = at;
     }
 

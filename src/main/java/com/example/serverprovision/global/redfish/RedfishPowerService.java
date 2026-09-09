@@ -65,14 +65,44 @@ public class RedfishPowerService {
         return reset(target, type, NextBoot.AS_CONFIGURED);
     }
 
-    /** 단발 발행 + 다음 부팅 의도(E2.5) — 엔진의 재부팅 경로({@code BeginSettingStep})가 {@link NextBoot#PXE_ONCE} 로 부른다. */
+    /** 단발 발행 + 다음 부팅 의도(E2.5) — 엔진의 재부팅 경로({@code BeginSettingStep})가 {@link NextBoot#PXE_CONTINUOUS} 로 부른다. */
     public PowerControlResult reset(RedfishTarget target, RedfishResetType type, NextBoot nextBoot) {
         return guarded(target, credentials -> {
             BootOverrideOutcome outcome = arm(nextBoot, target, credentials);
             issueReset(target, credentials, type);
             RedfishPowerState after = readPowerStateQuietly(target, credentials);
-            return PowerControlResult.sent(after, outcome.prefix()
+            return PowerControlResult.sent(after, outcome.prefix(nextBoot.label())
                     + type.getDisplayName() + "(" + type.getWireValue() + ") 명령이 전달되었습니다 — [상태 조회] 로 결과를 확인하세요.");
+        });
+    }
+
+    /**
+     * 부팅 의도만 세우거나 푼다(HF15-1) — 전원은 움직이지 않는다. PXE 보장 조정자가 진행 상태 변화마다 부른다.
+     * 거절(리소스 단위)은 FAILED 로 돌려 호출자가 다음 기회에 다시 시도하게 한다.
+     */
+    public PowerControlResult armBootOverride(RedfishTarget target, NextBoot nextBoot) {
+        return guarded(target, credentials -> {
+            BootOverrideOutcome outcome = arm(nextBoot, target, credentials);
+            if (outcome.status() == BootOverrideOutcome.Status.REJECTED) {
+                return PowerControlResult.failed(null, outcome.prefix(nextBoot.label()) + "BootSourceOverride 조정을 BMC 가 거절했습니다.");
+            }
+            return PowerControlResult.sent(RedfishPowerState.UNKNOWN, outcome.prefix(nextBoot.label()) + nextBoot.label() + " 반영.");
+        });
+    }
+
+    /**
+     * 네트워크 부팅으로 다시 세우기(HF15-1 · O-10) — 꺼져 있으면 On, 켜져 있으면 ForceRestart 를 PXE 보장 무장과 함께 발행한다.
+     * [재시도 후 네트워크 부팅] 의 전원 조작이다.
+     */
+    public PowerControlResult networkBoot(RedfishTarget target) {
+        return guarded(target, credentials -> {
+            RedfishResetType type = readPowerStateQuietly(target, credentials) == RedfishPowerState.OFF
+                    ? RedfishResetType.ON : RedfishResetType.FORCE_RESTART;
+            BootOverrideOutcome outcome = arm(NextBoot.PXE_CONTINUOUS, target, credentials);
+            issueReset(target, credentials, type);
+            RedfishPowerState after = readPowerStateQuietly(target, credentials);
+            return PowerControlResult.sent(after, outcome.prefix(NextBoot.PXE_CONTINUOUS.label())
+                    + type.getDisplayName() + "(" + type.getWireValue() + ") 발행 — 게스트가 PXE 로 돌아오면 이어서 진행합니다.");
         });
     }
 
@@ -85,7 +115,7 @@ public class RedfishPowerService {
             BootOverrideOutcome first = arm(nextBoot, target, credentials);
             issueReset(target, credentials, RedfishResetType.ON);
             if (pollUntilOn(target, credentials)) {
-                return PowerControlResult.verified(first.prefix() + "전원이 켜졌습니다 (Reset(On) → PowerState 폴링 확인).");
+                return PowerControlResult.verified(first.prefix(nextBoot.label()) + "전원이 켜졌습니다 (Reset(On) → PowerState 폴링 확인).");
             }
             log.warn("[redfish] {} — On 발행 후 {}초 동안 전원 불변(실측 실패 모드) → PowerCycle 폴백",
                     target.bmcIp(), pollTimeout.toSeconds());
@@ -93,7 +123,7 @@ public class RedfishPowerService {
             BootOverrideOutcome second = arm(nextBoot, target, credentials);
             issueReset(target, credentials, RedfishResetType.POWER_CYCLE);
             if (pollUntilOn(target, credentials)) {
-                return PowerControlResult.verified(second.prefix() + "PowerCycle 폴백으로 전원이 켜졌습니다.");
+                return PowerControlResult.verified(second.prefix(nextBoot.label()) + "PowerCycle 폴백으로 전원이 켜졌습니다.");
             }
             log.warn("[redfish] {} — PowerCycle 폴백 후에도 전원 불변 — 수동 개입 필요", target.bmcIp());
             return PowerControlResult.failed(RedfishPowerState.OFF,
