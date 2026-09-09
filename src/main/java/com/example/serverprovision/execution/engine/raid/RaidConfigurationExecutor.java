@@ -193,10 +193,46 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
             return;
         }
         recordVolumes(server, frozen, observed);
-        requireDetail(server).enrichRaidInventory(objectMapper.writeValueAsString(observed));   // 화면 = 실물
+        GuestServerDetail detail = requireDetail(server);
+        detail.enrichRaidInventory(objectMapper.writeValueAsString(observed));   // 화면 = 실물
+        refreshOsVisibleDisks(detail, step.getStatusMeta());                      // HF15-5 — 볼륨이 커널에 보인 뒤의 lsblk
         phaseCursorAdvancer.advanceOrComplete(progress, server.getId(), now);
         log.info("RAID 집행 검증 통과 — raid_volume {}건 기록 · 커서 전진 : guestServerId={}",
                 frozen.volumes().size() + frozen.passthroughs().size(), server.getId());
+    }
+
+    /**
+     * 검증 보고에 동봉된 OS 가시 디스크({@code disks} · lsblk 순서 · WWN)로 하드웨어 스펙의 디스크 목록만 갈아 넣는다
+     * (HF15-5 · 실기 3호 F-6 · F-9). 진단 때의 목록은 볼륨 생성 전(멤버 디스크 그대로)이라 OS 설치 디스크 번호의 근거가
+     * 못 된다. 동봉이 없으면(구 에이전트) 그대로 둔다 — 디스크 선택은 계열 순서 규칙으로 내려간다.
+     */
+    private void refreshOsVisibleDisks(GuestServerDetail detail, String statusMeta) {
+        List<com.example.serverprovision.execution.vo.HardwareSpec.DiskInfo> disks;
+        try {
+            disks = com.example.serverprovision.execution.engine.diagnose.OsVisibleDiskParser.parse(
+                    objectMapper.readTree(statusMeta).path("disks"));
+        } catch (RuntimeException e) {
+            return;   // 봉투 자체는 inventoryParser 가 이미 읽었다 — 디스크 동봉 해석 실패는 갱신 생략
+        }
+        if (disks.isEmpty()) {
+            return;
+        }
+        com.example.serverprovision.execution.vo.HardwareSpec current = null;
+        if (detail.getHardwareSpec() != null && !detail.getHardwareSpec().isBlank()) {
+            try {
+                current = objectMapper.readValue(detail.getHardwareSpec(),
+                        com.example.serverprovision.execution.vo.HardwareSpec.class);
+            } catch (RuntimeException ignored) {
+                // 옛 저장본 해석 불가 — 디스크만 담은 스펙으로 갱신
+            }
+        }
+        com.example.serverprovision.execution.vo.HardwareSpec merged = new com.example.serverprovision.execution.vo.HardwareSpec(
+                current == null ? null : current.cpuSockets(),
+                current == null ? null : current.memoryModules(),
+                disks,
+                current == null ? null : current.pcieDevices());
+        detail.updateHardwareSpec(objectMapper.writeValueAsString(merged));
+        log.info("OS 가시 디스크 갱신(RAID 검증 재채집) : guestServerId={}, disks={}", detail.getGuestServer().getId(), disks.size());
     }
 
     /** 검증 통과 실물의 replace 기록(결정 D-8) — 게스트 단위 전부 삭제 후 동결 계획 기준으로 다시 쓴다. */

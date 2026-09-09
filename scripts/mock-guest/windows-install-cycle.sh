@@ -61,6 +61,8 @@ serve() {
   grep -o '<Key>/IMAGE/NAME</Key>' "$STATE_DIR/autounattend.xml" >/dev/null && sed -n '/\/IMAGE\/NAME/{n;s/.*<Value>\(.*\)<\/Value>.*/ImageName=\1/p;}' "$STATE_DIR/autounattend.xml"
   grep -c '<Value>[A-Za-z0-9+/=]\{8,\}</Value>' "$STATE_DIR/autounattend.xml" | sed 's/^/Base64 비밀번호 값 개수(기대 2)=/'
   grep -q 'ProductKey><Key>[^<]\{5,\}' "$STATE_DIR/autounattend.xml" && echo "ProductKey=(설정됨 · 마스킹)"
+  echo "--- 설치 대상 디스크(E4-1-a-6) — DiskConfiguration · InstallTo 두 자리가 서버 계산 번호"
+  grep -o '<DiskID>[0-9]*</DiskID>' "$STATE_DIR/autounattend.xml" | sort | uniq -c | sed 's/^/DiskID /'
   echo "--- install.bat 접속 줄(비밀번호 마스킹)"
   sed -n 's/\(net use N: [^ ]* \/user:[^ ]* \)"[^"]*"/\1"****"/p' "$STATE_DIR/install.bat"
   echo "--- 상세 화면: 카드 '설치 중 · 서빙 시각 · 재진입 0/max · 잔여 분' 확인"
@@ -71,9 +73,12 @@ serve() {
 complete_report() {   # $1 = 문제 장치 수, stdout = 응답 본문, $STATE_DIR/complete.code = HTTP 코드
   n=${1:-2}; devices=""
   i=0; while [ $i -lt "$n" ]; do i=$((i+1)); devices="$devices${devices:+,}\"Unknown device $i (PCI\\\\VEN_8086&DEV_7AE$i)\""; done
+  # E4-1-a-6 — INSTALLED_DISK_UNIQUE_ID 가 있으면 설치 디스크 식별자를 실어 서버의 WWN 확증을 재연한다(없으면 미보고).
+  disk_field=""
+  [ -n "${INSTALLED_DISK_UNIQUE_ID:-}" ] && disk_field=",\"installedDiskUniqueId\":\"$INSTALLED_DISK_UNIQUE_ID\""
   curl -sS -o "$STATE_DIR/complete.body" -w '%{http_code}' -X POST "$BASE/api/pxe/v1/agent/windows/complete" \
        -H "X-Guest-Token: ${GUEST_TOKEN:?GUEST_TOKEN 이 필요하다}" -H "Content-Type: application/json" \
-       -d "{\"computerName\":\"SPV-$(printf '%s' "$UUID" | tr -d '-' | tail -c 8 | tr a-f A-F)\",\"osVersion\":\"Microsoft Windows Server 2025 Standard 10.0.26100\",\"driversAdded\":47,\"problemDeviceCount\":$n,\"problemDevices\":[$devices],\"setupCompleteLogTail\":\"[mock] pnputil Added driver packages:  47\\n[mock] SetupComplete end\"}" \
+       -d "{\"computerName\":\"SPV-$(printf '%s' "$UUID" | tr -d '-' | tail -c 8 | tr a-f A-F)\",\"osVersion\":\"Microsoft Windows Server 2025 Standard 10.0.26100\",\"driversAdded\":47,\"problemDeviceCount\":$n,\"problemDevices\":[$devices],\"setupCompleteLogTail\":\"[mock] pnputil Added driver packages:  47\\n[mock] SetupComplete end\"$disk_field}" \
        > "$STATE_DIR/complete.code"
   cat "$STATE_DIR/complete.body"; echo
   echo "HTTP $(cat "$STATE_DIR/complete.code")"

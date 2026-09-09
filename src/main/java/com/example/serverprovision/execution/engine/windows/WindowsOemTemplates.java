@@ -110,6 +110,18 @@ public final class WindowsOemTemplates {
               $osVersion = ('{0} {1}' -f $os.Caption, $os.Version).Trim()
               if ($osVersion.Length -gt 64) { $osVersion = $osVersion.Substring(0, 64) }
 
+              # E4-1-a-6: UniqueId of the disk holding C: - the server matches it against the OS volume WWN to confirm the target.
+              # Left null on lookup failure (confirmation unreported, not an error).
+              $installedDiskUniqueId = $null
+              try {
+                $sysDrive = $env:SystemDrive.TrimEnd(':')
+                $diskNo = (Get-Partition -DriveLetter $sysDrive -ErrorAction Stop).DiskNumber
+                $installedDiskUniqueId = (Get-Disk -Number $diskNo -ErrorAction Stop).UniqueId
+                if ($installedDiskUniqueId -and $installedDiskUniqueId.Length -gt 64) { $installedDiskUniqueId = $installedDiskUniqueId.Substring(0, 64) }
+              } catch {
+                Write-Output ("Get-Disk for system drive unavailable: {0}" -f $_.Exception.Message)
+              }
+
               $body = @{
                 computerName = $env:COMPUTERNAME
                 osVersion = $osVersion
@@ -117,6 +129,7 @@ public final class WindowsOemTemplates {
                 problemDeviceCount = $problems.Count
                 problemDevices = @($problems | Select-Object -First 50)
                 setupCompleteLogTail = $logTail
+                installedDiskUniqueId = $installedDiskUniqueId
               } | ConvertTo-Json -Depth 3 -Compress
               $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
               $headers = @{ 'X-Guest-Token' = $Token }

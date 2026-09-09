@@ -26,6 +26,12 @@ public interface GuestServerDetailRepository extends JpaRepository<GuestServerDe
     Optional<GuestServerDetail> findByServerIdWithBoardModel(@Param("serverId") UUID serverId);
 
     /**
+     * RAID 인벤토리만 필요한 경로(E4-1-a-6 디스크 선택)용 — boardModel 을 join 하지 않는다.
+     * 보드 미확정 게스트에서도 detail 행을 놓치지 않아야 하므로(fetch join 은 inner) 별도로 둔다.
+     */
+    Optional<GuestServerDetail> findByGuestServer_Id(UUID guestServerId);
+
+    /**
      * 수집 적재 전 보드 시리얼 중복 사전 검사(E1-2) — board_serial UNIQUE 를 커밋 시점 500 으로
      * 맞지 않기 위한 관용 경로의 입력. 중복이면 시리얼만 적재 생략(원문은 원장 statusMeta 보존)하고
      * 나머지 인벤토리는 정상 적재한다 — T1 하네스 실측 결함(2026-07-19) 대응.

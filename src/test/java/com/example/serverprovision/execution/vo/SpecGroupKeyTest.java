@@ -26,7 +26,7 @@ class SpecGroupKeyTest {
     }
 
     private static HardwareSpec.DiskInfo disk(String device, String size) {
-        return new HardwareSpec.DiskInfo(device, "SSD", "nvme", size);
+        return new HardwareSpec.DiskInfo(device, "SSD", "nvme", size, null);
     }
 
     @Test

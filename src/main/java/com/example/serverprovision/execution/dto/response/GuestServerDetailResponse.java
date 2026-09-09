@@ -88,8 +88,17 @@ public record GuestServerDetailResponse(
             IpAddressVO bmcIp,
             MacAddressVO bmcMac,
             /** RAID 카드 뒤 인벤토리(E3.5-1) — RAID 구성 phase 진입 전엔 null. 관용 파싱 결과. */
-            com.example.serverprovision.execution.engine.raid.RaidInventory raidInventory
+            com.example.serverprovision.execution.engine.raid.RaidInventory raidInventory,
+            /** OS 가시 디스크 표시 행(HF15-5 · F-9) — 가상 미디어(USB · 0B)는 걸러지고 RAID 볼륨은 이름으로 표기된다. */
+            List<OsVisibleDisk> osVisibleDisks
     ) {
+    }
+
+    /**
+     * OS 가시 디스크 한 행의 표시 모델(HF15-5 · 실기 3호 F-9). 컨트롤러 뒤 볼륨은 lsblk 의 회전 · 전송 값이 실물을 말하지
+     * 않으므로 {@code type} · {@code transport} 를 비우고 {@code raidVolumeName} 으로 표기한다 — 수집 불가 값은 띄우지 않는다.
+     */
+    public record OsVisibleDisk(String device, String type, String transport, String size, String raidVolumeName) {
     }
 
     /**
@@ -295,7 +304,13 @@ public record GuestServerDetailResponse(
             int problemDeviceCount,
             List<String> problemDevices,
             boolean provisioningCompleted,
-            ProvisioningPhase nextPhase
+            ProvisioningPhase nextPhase,
+            /** E4-1-a-6 — 서빙 시점에 계산해 응답 파일에 박은 설치 대상 디스크 번호(원장 서빙 meta 에서 읽는다). 서빙 전 null. */
+            Integer targetDiskId,
+            /** 서빙 전 디스크 선택의 안내(HF15-5 · F-1) — DEFERRED("RAID 구성 뒤 확정 — 계획의 OS 영역 …") · CONFIDENT("디스크 N · 근거"). 서빙 뒤 · BLOCKED 는 null. */
+            String diskSelectionNote,
+            /** E4-1-a-6 — 설치 뒤 C: 디스크 WWN 대조 결과: CONFIRMED · MISMATCH · UNREPORTED. 완료 전 null. */
+            String diskConfirmation
     ) {
         /** 설치 중(열린 서빙 행) — 완료 · 실패 뒤에는 false. */
         public boolean served() {

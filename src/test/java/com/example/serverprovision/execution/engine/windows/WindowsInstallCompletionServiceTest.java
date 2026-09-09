@@ -59,6 +59,7 @@ class WindowsInstallCompletionServiceTest {
     @Mock WindowsInstallTokenRegistry tokenRegistry;
     @Mock PhaseCursorAdvancer cursorAdvancer;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock com.example.serverprovision.execution.repository.RaidVolumeRepository raidVolumeRepository;
 
     private final GuestServer guest = GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID()).build();
     private WindowsInstallLedger ledger;
@@ -69,14 +70,14 @@ class WindowsInstallCompletionServiceTest {
         lenient().when(recorder.openRunning(any(), any(), any(), any())).thenAnswer(inv -> ProvisioningHistory.openRunning(
                 inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)));
         ledger = new WindowsInstallLedger(recorder, historyRepository, new ObjectMapper());
-        service = new WindowsInstallCompletionService(authenticator, progressRepository, ledger, tokenRegistry, cursorAdvancer, eventPublisher);
+        service = new WindowsInstallCompletionService(authenticator, progressRepository, ledger, tokenRegistry, cursorAdvancer, eventPublisher, raidVolumeRepository);
         lenient().when(authenticator.requireByToken(TOKEN)).thenReturn(guest);
     }
 
     private static WindowsInstallCompletionRequest report(int problems) {
         return new WindowsInstallCompletionRequest("SPV-14174000", "Microsoft Windows Server 2025 Standard 10.0.26100", 47,
                 problems, problems == 0 ? List.of() : List.of("Unknown device (ACPI\\INT34C6)", "PCI Simple Communications Controller"),
-                "[mock] Added driver packages:  47");
+                "[mock] Added driver packages:  47", null);
     }
 
     private ProvisioningProgress installing() {
@@ -89,7 +90,12 @@ class WindowsInstallCompletionServiceTest {
     }
 
     private ProvisioningHistory openRow() {
-        ProvisioningHistory row = ledger.openServed(guest, IMAGE, NOW.minusMinutes(20));
+        return openRow("600605b0aa11");
+    }
+
+    /** 서빙 meta 의 확증 기준(expectedUniqueId)을 정해 여는 행 — null 이면 구 서빙 행(기준 없음)을 재연한다. */
+    private ProvisioningHistory openRow(String expectedUniqueId) {
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, expectedUniqueId, 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW.minusMinutes(20));
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeAndStatusOrderByCreatedAtDesc(
                 guest.getId(), ProvisioningPhaseStep.OS_INSTALLING, ProvisioningStatus.RUNNING)).willReturn(Optional.of(row));
         return row;
@@ -139,13 +145,90 @@ class WindowsInstallCompletionServiceTest {
         assertThat(res.nextPhase()).isEqualTo(ProvisioningPhase.TESTING);
     }
 
+    // ==== E4-1-a-6 설치 디스크 사후 확증 ====================================
+
+    private WindowsInstallCompletionRequest reportWithDisk(String installedDiskUniqueId) {
+        return new WindowsInstallCompletionRequest("SPV-14174000", "Windows Server 2025 10.0.26100", 47, 0, List.of(),
+                "tail", installedDiskUniqueId);
+    }
+
+    private void osVolumeWwn(String wwn) {
+        com.example.serverprovision.execution.entity.RaidVolume os =
+                com.example.serverprovision.execution.entity.RaidVolume.of(null, "spvR1V1",
+                        com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID1, "[]", 480_103_981_056L,
+                        com.example.serverprovision.execution.engine.raid.PlannedVolumeRole.OS, 1, "Optl", wwn);
+        given(raidVolumeRepository.findFirstByGuestServer_IdAndVolumeRole(guest.getId(),
+                com.example.serverprovision.execution.engine.raid.PlannedVolumeRole.OS)).willReturn(Optional.of(os));
+    }
+
+    @Test
+    @DisplayName("확증 O — 보고된 UniqueId 가 OS 볼륨 WWN 과 일치(대소문자 무시) → diskConfirmed true · CONFIRMED")
+    void diskConfirmed_true() {
+        installing();
+        ProvisioningHistory row = openRow();   // 서빙 meta 의 기준 = 600605b0aa11 — raid_volume 은 보지 않는다(HF15-5)
+
+        service.complete(TOKEN, reportWithDisk("600605B0AA11"));
+
+        assertThat(ledger.diskConfirmationOf(row)).isEqualTo("CONFIRMED");
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
+    }
+
+    @Test
+    @DisplayName("어긋남 — UniqueId 가 OS 볼륨 WWN 과 다르다 → diskConfirmed false · MISMATCH · 그래도 완료(실패 아님)")
+    void diskConfirmed_mismatch() {
+        installing();
+        ProvisioningHistory row = openRow();
+
+        WindowsInstallCompletionResponse res = service.complete(TOKEN, reportWithDisk("600605b0dddd"));
+
+        assertThat(res.closed()).isTrue();                       // 사후라 되돌릴 수 없다 — 완료는 완료
+        assertThat(ledger.diskConfirmationOf(row)).isEqualTo("MISMATCH");
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
+    }
+
+    @Test
+    @DisplayName("구 서빙 행(기준 없음)은 raid_volume 의 OS 볼륨 WWN 으로 폴백해 대조한다(HF15-5 호환)")
+    void diskConfirmed_fallbackToRaidVolume_whenNoExpectedInMeta() {
+        installing();
+        ProvisioningHistory row = openRow(null);
+        osVolumeWwn("600605b0aa11");
+
+        service.complete(TOKEN, reportWithDisk("600605B0AA11"));
+
+        assertThat(ledger.diskConfirmationOf(row)).isEqualTo("CONFIRMED");
+    }
+
+    @Test
+    @DisplayName("IR 볼륨 — 서빙 meta 의 기준이 NAA 변환값이면 Windows UniqueId(대문자)와 그대로 맞는다(F-7 · 일산 상3 실측값)")
+    void diskConfirmed_irNaaFromMeta() {
+        installing();
+        ProvisioningHistory row = openRow("600508e0000000002e2ff7379820a800");
+
+        service.complete(TOKEN, reportWithDisk("600508E0000000002E2FF7379820A800"));
+
+        assertThat(ledger.diskConfirmationOf(row)).isEqualTo("CONFIRMED");
+        verify(raidVolumeRepository, never()).findFirstByGuestServer_IdAndVolumeRole(any(), any());
+    }
+
+    @Test
+    @DisplayName("미보고 — UniqueId 가 없으면(구 스크립트) diskConfirmed null · UNREPORTED · OS 볼륨은 조회하지 않는다")
+    void diskConfirmed_unreported() {
+        installing();
+        ProvisioningHistory row = openRow();
+
+        service.complete(TOKEN, reportWithDisk(null));
+
+        assertThat(ledger.diskConfirmationOf(row)).isEqualTo("UNREPORTED");
+        verify(raidVolumeRepository, never()).findFirstByGuestServer_IdAndVolumeRole(any(), any());
+    }
+
     @Test
     @DisplayName("중복 보고(열린 행 없음 + 최신 행이 완료 행) → closed:false 200 · 원장 · 토큰 · 커서 무변경(멱등)")
     void duplicate_noop() {
         ProvisioningProgress p = installing();
         p.markCompleted(NOW);
-        ProvisioningHistory done = ledger.openServed(guest, IMAGE, NOW.minusMinutes(20));
-        ledger.closeSucceeded(done, new WindowsInstallLedger.Completion("SPV-1", null, 1, 0, List.of(), null), NOW);
+        ProvisioningHistory done = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "600605b0aa11", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW.minusMinutes(20));
+        ledger.closeSucceeded(done, new WindowsInstallLedger.Completion("SPV-1", null, 1, 0, List.of(), null, null, null), NOW);
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeAndStatusOrderByCreatedAtDesc(
                 guest.getId(), ProvisioningPhaseStep.OS_INSTALLING, ProvisioningStatus.RUNNING)).willReturn(Optional.empty());
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(guest.getId(), ProvisioningPhaseStep.OS_INSTALLING))

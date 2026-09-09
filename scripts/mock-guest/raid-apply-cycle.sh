@@ -51,5 +51,8 @@ else
     PD=$F/mr-applied-pd.json; VD=$F/mr-applied-vd.json
 fi
 META="{\"tool\":\"storcli64\",\"lspci_b64\":\"$(b64 < "$F/mr-lspci-nnvv.txt")\",\"pd_b64\":\"$(b64 < "$PD")\",\"vd_b64\":\"$(b64 < "$VD")\",\"c0_b64\":\"$(b64 < "$F/mr-c0-show-all.json")\"}"
+# HF15-5 — 검증 재채집에 OS 가시 디스크(lsblk 순서 · WWN)를 동봉한다(에이전트 do_raid_verify 와 같은 봉투 모양).
+#   예: VERIFY_DISKS='[{"device":"sda","size":"446.6G","rota":"1","tran":"","wwn":"0x600605b0..."}]'
+[ -n "${VERIFY_DISKS:-}" ] && META="${META%\}},\"disks\":$VERIFY_DISKS}"
 CLOSE2=$(close_step "$SID2" "{\"status\":\"SUCCEEDED\",\"statusMeta\":\"$(printf '%s' "$META" | esc)\"}")
 echo "VERIFYING close 응답: $CLOSE2"

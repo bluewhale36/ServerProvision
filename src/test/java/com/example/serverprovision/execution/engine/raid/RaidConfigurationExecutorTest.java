@@ -444,6 +444,44 @@ class RaidConfigurationExecutorTest {
         }
 
         @Test
+        @DisplayName("HF15-5 — 검증 보고에 lsblk(disks) 가 동봉되면 hardware_spec 의 디스크 목록만 갈아 넣는다(다른 축 보존)")
+        void matching_refreshesOsVisibleDisks() {
+            GuestServer g = guest();
+            ProvisioningProgress p = progress();
+            given(inventoryParser.parse(any())).willReturn(observedMatching());
+            stubFrozen();
+            GuestServerDetail detail = stubDetail();
+            given(detail.getGuestServer()).willReturn(g);
+            given(detail.getHardwareSpec()).willReturn(
+                    "{\"cpuSockets\":[{\"slot\":\"CPU0\",\"manufacturer\":\"Intel\",\"model\":\"6517P\"}],"
+                            + "\"memoryModules\":[],\"disks\":[{\"device\":\"sda\",\"type\":\"SSD\",\"transport\":\"SAS\",\"size\":\"223.6G\"}],\"pcieDevices\":[]}");
+            String meta = "{\"tool\":\"storcli64\",\"lspci_b64\":\"x\",\"disks\":[{\"device\":\"sda\",\"size\":\"446.6G\",\"rota\":\"1\",\"tran\":\"\",\"wwn\":\"0x600605B00D18AA1E322807F9084A72AA\"}]}";
+
+            executor.onStepClosed(g, p, ProvisioningHistory.openRunning(g, ProvisioningPhaseStep.RAID_VERIFYING, LocalDateTime.now(), meta));
+
+            org.mockito.ArgumentCaptor<String> spec = org.mockito.ArgumentCaptor.captor();
+            verify(detail).updateHardwareSpec(spec.capture());
+            assertThat(spec.getValue()).contains("\"wwn\":\"600605b00d18aa1e322807f9084a72aa\"")   // 정규화된 WWN
+                    .contains("446.6G").contains("6517P")                                             // 디스크 교체 · CPU 보존
+                    .doesNotContain("223.6G");
+        }
+
+        @Test
+        @DisplayName("HF15-5 — disks 동봉이 없으면(구 에이전트) hardware_spec 을 건드리지 않는다")
+        void matching_withoutDisks_keepsSpec() {
+            GuestServer g = guest();
+            ProvisioningProgress p = progress();
+            given(inventoryParser.parse(any())).willReturn(observedMatching());
+            stubFrozen();
+            GuestServerDetail detail = stubDetail();
+
+            executor.onStepClosed(g, p, ProvisioningHistory.openRunning(g, ProvisioningPhaseStep.RAID_VERIFYING, LocalDateTime.now(),
+                    "{\"tool\":\"storcli64\",\"lspci_b64\":\"x\"}"));
+
+            verify(detail, never()).updateHardwareSpec(anyString());
+        }
+
+        @Test
         @DisplayName("V6 — 불일치: RESULT_MISMATCH 실패 · 기록 없음")
         void mismatch_failsWithoutRecording() {
             GuestServer g = guest();

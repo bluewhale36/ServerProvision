@@ -263,16 +263,21 @@
                         </tbody>
                     </table>
 
-                    <!-- 디스크 — SSD/HDD + 전송(SAS/SATA/NVMe), lsblk 가시분. RAID 카드 뒤 물리 디스크는 진단 시점 RAID 채집(E3.5-5-a)이 아래 RAID 인벤토리 카드에 세운다 -->
-                    <table th:if="${not #lists.isEmpty(server.inventory.hardwareSpec.disks)}" class="n-table n-block-gap">
+                    <!-- 디스크 — lsblk 가시분(HF15-5 · F-9): RAID 볼륨 행은 종류 · 전송 대신 볼륨 이름, 가상 미디어(USB · 0B)는 숨김.
+                         RAID 카드 뒤 물리 디스크는 진단 시점 RAID 채집(E3.5-5-a)이 아래 RAID 인벤토리 카드에 세운다 -->
+                    <table th:if="${not #lists.isEmpty(server.inventory.osVisibleDisks)}" class="n-table n-block-gap">
                         <thead>
                         <tr><th colspan="4">디스크 (OS 가시 장치 — RAID 카드 뒤 물리 디스크는 아래 RAID 인벤토리)</th></tr>
                         <tr><th>장치</th><th>종류</th><th>전송</th><th>용량</th></tr>
                         </thead>
                         <tbody>
-                        <tr th:each="d : ${server.inventory.hardwareSpec.disks}">
+                        <tr th:each="d : ${server.inventory.osVisibleDisks}">
                             <td><code class="n-mono" th:text="${d.device}">nvme0n1</code></td>
-                            <td th:text="${d.type != null} ? ${d.type} : '—'">SSD</td>
+                            <td>
+                                <span th:if="${d.raidVolumeName != null}" class="n-badge n-badge-gray"
+                                      th:text="'RAID 볼륨 · ' + ${d.raidVolumeName}">RAID 볼륨 · spvR1V1</span>
+                                <span th:if="${d.raidVolumeName == null}" th:text="${d.type != null} ? ${d.type} : '—'">SSD</span>
+                            </td>
                             <td th:text="${d.transport != null} ? ${d.transport} : '—'">NVME</td>
                             <td th:text="${d.size != null} ? ${d.size} : '—'">1.9T</td>
                         </tr>
@@ -849,6 +854,17 @@
                             <span th:unless="${wi.readinessGrade.name() == 'READY'}" class="n-firmware-detail"
                                   th:text="${#strings.listJoin(wi.readinessNotes, ' · ')}">install.wim 없음</span>
                         </li>
+                        <li th:if="${wi.targetDiskId != null}">
+                            <span th:text="#{provisioning.windows.install.disk}">설치 대상 디스크</span>
+                            <span class="n-firmware-detail"
+                                  th:text="|#{provisioning.windows.install.disk.number} ${wi.targetDiskId}|">디스크 0</span>
+                            <!-- 서빙 뒤에도 번호의 근거를 남긴다(HF15-5 CP5 O-1) — 원장 meta diskBasis -->
+                            <span th:if="${wi.diskSelectionNote != null}" class="n-hint" th:text="${wi.diskSelectionNote}">근거 RAID 검증 재채집(lsblk 순서)</span>
+                        </li>
+                        <li th:if="${wi.targetDiskId == null and wi.diskSelectionNote != null}">
+                            <span th:text="#{provisioning.windows.install.disk}">설치 대상 디스크</span>
+                            <span class="n-hint" th:text="${wi.diskSelectionNote}">RAID 구성 뒤 확정 — 계획의 OS 영역 spvR1V1</span>
+                        </li>
                         <li th:classappend="${wi.failedReason != null} ? 'is-failed' : (${wi.completed()} ? 'is-selected' : (${wi.served()} ? 'is-running' : ''))">
                             <span th:text="#{provisioning.windows.install.progress}">진행</span>
                             <!-- E4-1-a-4 — 완료 보고로 닫힌 행: 완료 시각 · ComputerName · 드라이버 · 문제 장치 -->
@@ -885,6 +901,13 @@
                            th:text="|#{provisioning.windows.install.progress.completed.next} — ${wi.nextPhase.description}|">다음 단계로 넘어갔습니다</p>
                         <p class="n-section-hint" th:if="${wi.problemDeviceCount == 0}"
                            th:text="#{provisioning.windows.install.progress.completed.problems.none}">문제 장치 없음</p>
+                        <!-- E4-1-a-6 — 설치 디스크 사후 확증: 의도한 OS 볼륨에 들어갔는지 -->
+                        <p class="n-section-hint" th:if="${wi.diskConfirmation == 'CONFIRMED'}"
+                           th:text="#{provisioning.windows.install.disk.confirmed}">의도한 OS 볼륨에 설치됐습니다.</p>
+                        <p class="n-firmware-hold" th:if="${wi.diskConfirmation == 'MISMATCH'}"
+                           th:text="#{provisioning.windows.install.disk.mismatch}">경고 — 계획한 OS 볼륨과 다른 디스크에 설치됐습니다.</p>
+                        <p class="n-section-hint" th:if="${wi.diskConfirmation == 'UNREPORTED'}"
+                           th:text="#{provisioning.windows.install.disk.unreported}">설치 디스크 확증 정보가 없습니다.</p>
                         <details th:if="${wi.problemDeviceCount > 0}" class="n-firmware-detail">
                             <summary th:text="|#{provisioning.windows.install.progress.completed.problems.list} (${wi.problemDeviceCount})|">문제 장치 목록 (2)</summary>
                             <p class="n-section-hint" th:text="#{provisioning.windows.install.progress.completed.problems.hint}">드라이버가 잡히지 않은 장치입니다.</p>

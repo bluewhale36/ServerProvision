@@ -12,7 +12,7 @@ class AutounattendRendererTest {
 
     private static AutounattendRenderer.AutounattendValues values(String imageName, String password) {
         return new AutounattendRenderer.AutounattendValues("ko-KR", "TVRH6-WHNXV-R9WG3-9XRFY-MY832", imageName,
-                "SPV-14174000", "Korea Standard Time", password, "http://10.0.0.7:8080", "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d");
+                "SPV-14174000", "Korea Standard Time", password, "http://10.0.0.7:8080", "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d", 0);
     }
 
     @Test
@@ -47,6 +47,18 @@ class AutounattendRendererTest {
     void render_escapesXml() {
         String xml = AutounattendRenderer.render(values("A & B <C>", "x\"y'z"));
         assertThat(xml).contains("<Value>A &amp; B &lt;C&gt;</Value>").doesNotContain("<Value>A & B");
+    }
+
+    @Test
+    @DisplayName("DiskID 치환(E4-1-a-6) — DiskConfiguration · InstallTo 두 자리가 계산 번호이고 자리표시자 · 옛 0 은 남지 않는다")
+    void render_diskId_bothSlots() {
+        AutounattendRenderer.AutounattendValues v = new AutounattendRenderer.AutounattendValues("ko-KR",
+                "TVRH6-WHNXV-R9WG3-9XRFY-MY832", "Windows Server 2025 SERVERSTANDARD", "SPV-14174000",
+                "Korea Standard Time", "P@ss", "http://10.0.0.7:8080", "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d", 3);
+        String xml = AutounattendRenderer.render(v);
+
+        assertThat(xml).doesNotContain("__DISK_ID__").doesNotContain("<DiskID>0</DiskID>");
+        assertThat(xml.split("<DiskID>3</DiskID>", -1)).hasSize(3);   // DiskConfiguration · InstallTo 두 자리
     }
 
     @Test

@@ -138,6 +138,17 @@ public class GuestServerDetail extends BaseTimeEntity {
         return discoveryStage.isSpecAvailable();
     }
 
+    /**
+     * 하드웨어 스펙 갱신(HF15-5) — 진단이 적은 값에 이은 <b>두 번째 작성자</b>. RAID 구성이 볼륨을 만들면 OS 가 보는
+     * 디스크 목록이 바뀌므로(멤버 디스크 사라짐 · 볼륨 등장) 검증 재채집이 그 부분을 최신으로 덮는다. 호출자가
+     * 기존 스펙에 디스크 목록만 갈아 넣은 JSON 을 만들어 온다.
+     */
+    public void updateHardwareSpec(String hardwareSpec) {
+        if (hardwareSpec != null) {
+            this.hardwareSpec = hardwareSpec;
+        }
+    }
+
     /** RAID 인벤토리 적재(E3.5-1) — 재수집 보고는 최신값으로 덮는다(멱등). */
     public void enrichRaidInventory(String raidInventoryJson) {
         if (raidInventoryJson != null) {

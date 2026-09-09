@@ -74,7 +74,31 @@ class WindowsInstallReportRestControllerTest {
                 .andExpect(jsonPath("$.nextPhase").value("TESTING"));
     }
 
+    @Test
+    @DisplayName("200 — installedDiskUniqueId(E4-1-a-6)가 서비스에 그대로 전달된다")
+    void complete_carriesInstalledDiskUniqueId() throws Exception {
+        given(completionService.complete(eq(TOKEN), any())).willReturn(new WindowsInstallCompletionResponse(true, true, null));
+        String body = "{\"computerName\":\"SPV-14174000\",\"driversAdded\":47,\"problemDeviceCount\":0,"
+                + "\"installedDiskUniqueId\":\"600605B00D18AA1E322943670F84791D\"}";
+
+        mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+        verify(completionService).complete(eq(TOKEN), org.mockito.ArgumentMatchers.argThat(r ->
+                "600605B00D18AA1E322943670F84791D".equals(r.installedDiskUniqueId())));
+    }
+
     // ==== 400 ====================================================
+
+    @Test
+    @DisplayName("400 — installedDiskUniqueId 65자 → 필드 메시지, 서비스 미호출(E4-1-a-6)")
+    void complete_diskUniqueIdTooLong400() throws Exception {
+        String tooLong = "x".repeat(65);
+        mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"computerName\":\"SPV-1\",\"driversAdded\":0,\"problemDeviceCount\":0,\"installedDiskUniqueId\":\"" + tooLong + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field=='installedDiskUniqueId')]").exists());
+        verify(completionService, never()).complete(any(), any());
+    }
 
     @Test
     @DisplayName("400 — computerName 16자(NetBIOS 15) · problemDevices 51개 · driversAdded 음수 → 필드 메시지, 서비스 미호출")

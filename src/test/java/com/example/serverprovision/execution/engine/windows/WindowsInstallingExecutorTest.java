@@ -33,6 +33,7 @@ import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -82,13 +83,13 @@ class WindowsInstallingExecutorTest {
 
     private static WindowsInstallReadinessResolver.Resolved ready() {
         return new WindowsInstallReadinessResolver.Resolved(WindowsInstallTarget.windows(STANDARD, "P@ssw0rd!"),
-                InstallSourceSnapshot.present(List.of(image()), 1L, Instant.now()), Optional.of(image()), PhaseReadiness.ready());
+                InstallSourceSnapshot.present(List.of(image()), 1L, Instant.now()), Optional.of(image()), PhaseReadiness.ready(), com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER));
     }
 
     private static WindowsInstallReadinessResolver.Resolved blocked(String wire) {
         return new WindowsInstallReadinessResolver.Resolved(WindowsInstallTarget.windows(STANDARD, "P@ssw0rd!"),
                 InstallSourceSnapshot.missing(), Optional.empty(),
-                PhaseReadiness.of(ReadinessGrade.BLOCKED, List.of("install.wim 없음"), wire));
+                PhaseReadiness.of(ReadinessGrade.BLOCKED, List.of("install.wim 없음"), wire), null);
     }
 
     private static ProvisioningProgress awaitingBoot() {
@@ -158,7 +159,26 @@ class WindowsInstallingExecutorTest {
 
         assertThat(progress.getMotion()).isEqualTo(ProvisioningMotion.STEP_RUNNING);
         assertThat(progress.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.OS_INSTALLING);
-        verify(ledger).openServed(guest, STANDARD, NOW);
+        verify(ledger).openServed(org.mockito.ArgumentMatchers.eq(guest), org.mockito.ArgumentMatchers.eq(STANDARD), org.mockito.ArgumentMatchers.argThat(sel -> sel.diskId() == 0), org.mockito.ArgumentMatchers.eq(NOW));
+    }
+
+    @Test
+    @DisplayName("HF15-5 안전망 — 준비도는 READY 인데 디스크 선택이 DEFERRED 면 서빙하지 않고 대기 · 착수 아님")
+    void deferredDiskSelection_holdsWithoutOpening() {
+        WindowsInstallReadinessResolver.Resolved deferred = new WindowsInstallReadinessResolver.Resolved(
+                WindowsInstallTarget.windows(STANDARD, "P@ssw0rd!"),
+                InstallSourceSnapshot.present(List.of(image()), 1L, Instant.now()), Optional.of(image()), PhaseReadiness.ready(),
+                WindowsDiskSelection.DiskSelection.deferred("RAID 구성 뒤 확정 — 계획의 OS 영역 spvR1V1"));
+        given(resolver.resolve(GUEST_ID)).willReturn(Optional.of(deferred));
+        ProvisioningProgress progress = awaitingBoot();
+
+        String script = executor.bootScript(guest, progress, "q");
+        executor.onBootScriptServed(guest, progress, NOW);
+
+        assertThat(script).contains("waiting for resources: disk selection not confident");
+        assertThat(progress.getMotion()).isEqualTo(ProvisioningMotion.AWAITING_BOOT);
+        verify(ledger, never()).openServed(any(), any(), any(), any());
+        assertThat(script).doesNotContain("wimboot");   // 토큰 번들이 발급되지 않았다(실 레지스트리)
     }
 
     @Test
@@ -172,7 +192,7 @@ class WindowsInstallingExecutorTest {
 
         assertThat(script).contains("waiting for resources: windows install target missing");
         assertThat(progress.getMotion()).isEqualTo(ProvisioningMotion.AWAITING_BOOT);
-        verify(ledger, never()).openServed(any(), any(), any());
+        verify(ledger, never()).openServed(any(), any(), any(), any());
     }
 
     @Test
@@ -186,7 +206,7 @@ class WindowsInstallingExecutorTest {
 
         assertThat(script).contains("waiting for resources: install.wim missing");
         assertThat(progress.getMotion()).isEqualTo(ProvisioningMotion.AWAITING_BOOT);
-        verify(ledger, never()).openServed(any(), any(), any());
+        verify(ledger, never()).openServed(any(), any(), any(), any());
     }
 
     @Test
@@ -202,7 +222,7 @@ class WindowsInstallingExecutorTest {
                 .contains("this server: ip=${ip} mac=${mac} uuid=${uuid}")
                 .contains("exit").doesNotContain("chain");
         verify(ledger).bumpReentry(row, NOW);
-        verify(ledger, never()).openServed(any(), any(), any());
+        verify(ledger, never()).openServed(any(), any(), any(), any());
         verify(ledger, never()).failRunning(any(), any(), any(), any(), any(), any());
     }
 
@@ -239,7 +259,7 @@ class WindowsInstallingExecutorTest {
         executor.onBootScriptServed(guest, progress, NOW);
 
         verify(ledger, never()).bumpReentry(any(), any());
-        verify(ledger, never()).openServed(any(), any(), any());
+        verify(ledger, never()).openServed(any(), any(), any(), any());
     }
 
     @Test
@@ -315,6 +335,6 @@ class WindowsInstallingExecutorTest {
         executor.onBootScriptServed(guest, progress, NOW);
 
         verify(ledger).abortRunning(eq(stale), eq(WindowsInstallLedger.SUPERSEDED), any(), eq(NOW));
-        verify(ledger).openServed(guest, STANDARD, NOW);
+        verify(ledger).openServed(org.mockito.ArgumentMatchers.eq(guest), org.mockito.ArgumentMatchers.eq(STANDARD), org.mockito.ArgumentMatchers.argThat(sel -> sel.diskId() == 0), org.mockito.ArgumentMatchers.eq(NOW));
     }
 }

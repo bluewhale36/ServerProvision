@@ -98,7 +98,7 @@ class GuestServerQueryServiceWindowsInstallTest {
 
     private static WindowsInstallReadinessResolver.Resolved resolved(PhaseReadiness readiness) {
         return new WindowsInstallReadinessResolver.Resolved(WindowsInstallTarget.windows(STANDARD, "P@ss"),
-                InstallSourceSnapshot.present(List.of(image()), 1L, Instant.now()), Optional.of(image()), readiness);
+                InstallSourceSnapshot.present(List.of(image()), 1L, Instant.now()), Optional.of(image()), readiness, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER));
     }
 
     private ProvisioningProgress progressAt(ProvisioningPhaseStep step) {
@@ -143,7 +143,7 @@ class GuestServerQueryServiceWindowsInstallTest {
     void running_projectsLedgerRow() {
         given(resolver.resolve(server.getId())).willReturn(Optional.of(resolved(PhaseReadiness.ready())));
         LocalDateTime served = now.minusMinutes(18).minusSeconds(10);
-        ProvisioningHistory row = ledger.openServed(server, STANDARD, served);
+        ProvisioningHistory row = ledger.openServed(server, STANDARD, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), served);
         ledger.bumpReentry(row, now.minusMinutes(9));
         ledger.bumpReentry(row, now.minusMinutes(2));
         ProvisioningProgress progress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
@@ -162,7 +162,7 @@ class GuestServerQueryServiceWindowsInstallTest {
     @DisplayName("실패 — 원장이 닫은 FAILED 행의 사유(REPXE_LOOP)가 실리고 served 는 false(열린 행 없음)")
     void failed_showsReason() {
         given(resolver.resolve(server.getId())).willReturn(Optional.of(resolved(PhaseReadiness.ready())));
-        ProvisioningHistory row = ledger.openServed(server, STANDARD, now.minusMinutes(30));
+        ProvisioningHistory row = ledger.openServed(server, STANDARD, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), now.minusMinutes(30));
         ProvisioningProgress progress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
         progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now.minusMinutes(30));
         ledger.failRunning(server, progress, row, WindowsInstallLedger.REPXE_LOOP, "재진입 6회", now);
@@ -195,7 +195,7 @@ class GuestServerQueryServiceWindowsInstallTest {
     @DisplayName("할당이 사라졌어도 원장 행이 있으면 카드는 남는다 — 이미지는 행에서, 준비도는 없음")
     void ledgerOnly_keepsCard() {
         given(resolver.resolve(server.getId())).willReturn(Optional.empty());
-        ProvisioningHistory row = ledger.openServed(server, STANDARD, now.minusMinutes(3));
+        ProvisioningHistory row = ledger.openServed(server, STANDARD, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), now.minusMinutes(3));
         ProvisioningProgress progress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
         progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now.minusMinutes(3));
 
@@ -211,7 +211,7 @@ class GuestServerQueryServiceWindowsInstallTest {
     @DisplayName("CP5 F-1 — 운영자 수동 실패로 닫힌 행은 OPERATOR 사유 · 실패 뒤 남은 열린 행(구 데이터)은 진행으로 보지 않는다")
     void operatorFailed_showsReason_andIgnoresStaleRunningRow() {
         given(resolver.resolve(server.getId())).willReturn(Optional.of(resolved(PhaseReadiness.ready())));
-        ProvisioningHistory row = ledger.openServed(server, STANDARD, now.minusMinutes(10));
+        ProvisioningHistory row = ledger.openServed(server, STANDARD, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), now.minusMinutes(10));
         ProvisioningProgress progress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
         progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now.minusMinutes(10));
         progress.markFailedManually(now);
@@ -221,7 +221,7 @@ class GuestServerQueryServiceWindowsInstallTest {
         assertThat(card.failedReason()).isEqualTo("OPERATOR");
         assertThat(card.served()).isFalse();
 
-        ProvisioningHistory stale = ledger.openServed(server, STANDARD, now.minusMinutes(5));   // 훅 이전에 남은 열린 행
+        ProvisioningHistory stale = ledger.openServed(server, STANDARD, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), now.minusMinutes(5));   // 훅 이전에 남은 열린 행
         ProvisioningProgress failedProgress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
         failedProgress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now.minusMinutes(5));
         failedProgress.markFailedManually(now);
@@ -236,9 +236,9 @@ class GuestServerQueryServiceWindowsInstallTest {
         given(resolver.resolve(server.getId())).willReturn(Optional.of(resolved(PhaseReadiness.ready())));
         ProvisioningProgress progress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
         progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now);
-        ProvisioningHistory row = ledger.openServed(server, STANDARD, now.minusMinutes(30));
+        ProvisioningHistory row = ledger.openServed(server, STANDARD, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), now.minusMinutes(30));
         ledger.closeSucceeded(row, new WindowsInstallLedger.Completion("SPV-14174000", "Windows Server 2025 10.0.26100",
-                47, 2, List.of("Unknown device (ACPI\\INT34C6)", "PCI Simple Communications Controller"), null), now.minusMinutes(2));
+                47, 2, List.of("Unknown device (ACPI\\INT34C6)", "PCI Simple Communications Controller"), null, null, null), now.minusMinutes(2));
         progress.markCompleted(now.minusMinutes(2));
 
         var card = cardWith(progress, List.of(row));
@@ -264,8 +264,8 @@ class GuestServerQueryServiceWindowsInstallTest {
         given(resolver.resolve(server.getId())).willReturn(Optional.of(resolved(PhaseReadiness.ready())));
         ProvisioningProgress progress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
         progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now);
-        ProvisioningHistory row = ledger.openServed(server, STANDARD, now.minusMinutes(30));
-        ledger.closeSucceeded(row, new WindowsInstallLedger.Completion("SPV-1", null, 0, 0, List.of(), null), now.minusMinutes(2));
+        ProvisioningHistory row = ledger.openServed(server, STANDARD, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), now.minusMinutes(30));
+        ledger.closeSucceeded(row, new WindowsInstallLedger.Completion("SPV-1", null, 0, 0, List.of(), null, null, null), now.minusMinutes(2));
         progress.advanceToEntry(ProvisioningPhaseStep.entryOf(ProvisioningPhase.TESTING), now.minusMinutes(2));
 
         var card = cardWith(progress, List.of(row));
