@@ -188,7 +188,11 @@ public class GuestServerCommandService {
         if (retryPolicy.isBlocked(progress)) {
             throw ProvisioningRetryRejectedException.firmwareBlocked(id, progress.getCurrentStep());
         }
-        progress.clearFailed(LocalDateTime.now());
+        // 되감기 지점은 phase 실행기가 정한다(HF15-2 · F-8) — RAID 는 인벤토리 재채집부터, 그 외는 실패 지점 그대로.
+        ProvisioningPhaseStep entry = phaseExecutorRegistry.find(progress.currentPhase())
+                .map(executor -> executor.retryEntryStep(progress))
+                .orElse(progress.getCurrentStep());
+        progress.clearFailed(LocalDateTime.now(), entry);
         publishChanged(id);
     }
 

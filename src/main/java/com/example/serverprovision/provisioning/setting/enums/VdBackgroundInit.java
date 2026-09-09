@@ -2,14 +2,15 @@ package com.example.serverprovision.provisioning.setting.enums;
 
 /**
  * VD 파라미터 축(E3.5-6) — MegaRAID "CONFIGURE VIRTUAL DRIVE PARAMETERS" 의 한 항목. 값은 컨트롤러 중립으로
- * 명명하고 storcli 어휘는 {@code cliToken} 이 소유한다(새 카드 계열 = 어휘 매핑만 추가). {@link #DEFAULT} 는
+ * 명명하고 storcli 어휘는 {@code cliToken} 이 소유한다(새 카드 계열 = 어휘 매핑만 추가). 토큰은 {@code autobgi=on|off}
+ * — 실기 3호(2026-09-08)에서 storcli 007.2508 이 옛 토큰 {@code bgi=} 를 {@code syntax error, unexpected TOKEN_BGI} 로 거절해 정정(F-3). {@link #DEFAULT} 는
  * 9361-8i HII 의 기본 선택 — 정의서가 고르지 않은 축도 이 값으로 항상 명시 전송한다(2026-09-02 미지정 축 폐지).
  */
 public enum VdBackgroundInit {
     /** HII "Disable Background Initialization: No" — BGI 가 돈다(기본). */
-    ON("bgi=on", "No (BGI 켬)"),
+    ON("autobgi=on", "No (BGI 켬)"),
     /** HII "Disable Background Initialization: Yes" — BGI 를 끈다. */
-    OFF("bgi=off", "Yes (BGI 끔)");
+    OFF("autobgi=off", "Yes (BGI 끔)");
 
     public static final VdBackgroundInit DEFAULT = ON;
 

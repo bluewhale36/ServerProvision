@@ -57,7 +57,15 @@ class RaidConfigurationExecutorTest {
         return GuestServer.builder().id(GUEST_ID).systemUUID(UUID.randomUUID()).build();
     }
 
+    /** 인벤토리 보고를 마친 커서(STEP_RUNNING) — 계획 · 집행 판정의 기본 전제(HF15-2: 진입 대기는 재채집이므로 구분). */
     private ProvisioningProgress progress() {
+        ProvisioningProgress p = entryProgress();
+        p.positionAt(ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING, LocalDateTime.now());
+        return p;
+    }
+
+    /** phase 진입 직후 · 재시도 직후의 부팅 대기 커서(AWAITING_BOOT). */
+    private ProvisioningProgress entryProgress() {
         ProvisioningProgress p = ProvisioningProgress.builder()
                 .id(UUID.randomUUID())
                 .currentStep(ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING)
@@ -93,6 +101,26 @@ class RaidConfigurationExecutorTest {
 
         given(detail.getRaidInventoryJson()).willReturn("{}");   // planFor 미스텁 = empty(창 밖) → WAIT
         assertThat(executor.directiveFor(guest(), progress())).isEqualTo(AgentDirective.WAIT);
+    }
+
+    @Test
+    @DisplayName("HF15-2 — 인벤토리가 있어도 진입 · 재시도 직후의 부팅 대기 커서는 RAID_INVENTORY(재채집)")
+    void directive_entryAwaitingBoot_recollects() {
+        GuestServerDetail detail = stubDetail();
+        given(detail.getRaidInventoryJson()).willReturn("{}");
+
+        assertThat(executor.directiveFor(guest(), entryProgress())).isEqualTo(AgentDirective.RAID_INVENTORY);
+        verify(resolutionProvider, never()).planFor(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("HF15-2 — 재시도 진입 step 은 어느 step 에서 실패했든 RAID_INVENTORY_COLLECTING")
+    void retryEntry_isInventoryCollecting() {
+        ProvisioningProgress failedAtApply = ProvisioningProgress.builder()
+                .id(UUID.randomUUID()).currentStep(ProvisioningPhaseStep.RAID_APPLYING)
+                .lastTransitionAt(LocalDateTime.now()).startedAt(LocalDateTime.now()).failedAt(LocalDateTime.now())
+                .build();
+        assertThat(executor.retryEntryStep(failedAtApply)).isEqualTo(ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING);
     }
 
     // ==== onStepClosed — 대조 진리표 ====
@@ -298,12 +326,7 @@ class RaidConfigurationExecutorTest {
         void appliedSucceeded_instructsVerify() {
             GuestServerDetail detail = stubDetail();
             given(detail.getRaidInventoryJson()).willReturn("{}");
-            ProvisioningHistory applied = ProvisioningHistory.openRunning(
-                    guest(), ProvisioningPhaseStep.RAID_APPLYING, LocalDateTime.now());
-            applied.close(com.example.serverprovision.execution.enums.ProvisioningStatus.SUCCEEDED,
-                    null, LocalDateTime.now());
-            given(raidLedger.latestOf(GUEST_ID, ProvisioningPhaseStep.RAID_APPLYING))
-                    .willReturn(Optional.of(applied));
+            given(raidLedger.awaitingVerification(GUEST_ID)).willReturn(true);   // 성공 집행 · 검증 행 없음(판정은 원장 테스트)
 
             assertThat(executor.directiveFor(guest(), progress())).isEqualTo(AgentDirective.RAID_VERIFY);
             verify(resolutionProvider, never()).planFor(any(), any(), any());
@@ -313,12 +336,7 @@ class RaidConfigurationExecutorTest {
         @DisplayName("V8 — 직전 집행 실패 후 재진입은 새 동결 + 재집행(V1 재현)")
         void failedApply_replansOnRetry() {
             stubStored(inventoryWith());
-            ProvisioningHistory failed = ProvisioningHistory.openRunning(
-                    guest(), ProvisioningPhaseStep.RAID_APPLYING, LocalDateTime.now());
-            failed.close(com.example.serverprovision.execution.enums.ProvisioningStatus.FAILED,
-                    null, LocalDateTime.now());
-            given(raidLedger.latestOf(GUEST_ID, ProvisioningPhaseStep.RAID_APPLYING))
-                    .willReturn(Optional.of(failed));
+            // 직전 집행 FAILED → awaitingVerification=false(mock 기본값) → 재계획 경로
             given(resolutionProvider.planFor(eq(GUEST_ID), any(), eq(RaidExistingConfigPolicy.DESTROY)))
                     .willReturn(Optional.of(planOf()));
 

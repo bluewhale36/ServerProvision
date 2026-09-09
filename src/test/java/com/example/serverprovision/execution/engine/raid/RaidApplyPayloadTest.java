@@ -20,7 +20,7 @@ class RaidApplyPayloadTest {
     private RaidPlan plan() {
         return new RaidPlan(true,
                 List.of(new PlannedVolume("spvR1V1", RaidLevel.RAID1, List.of("252:0", "252:1"),
-                        1L, PlannedVolumeRole.OS, 1, "wb pdcache=off", List.of("bgi=off"), "full")),
+                        1L, PlannedVolumeRole.OS, 1, "wb pdcache=off", List.of("autobgi=off"), "full")),
                 List.of(new PlannedPassthrough("252:4", 1L, PlannedVolumeRole.DATA, 2)),
                 List.of(), List.of(), null);
     }
@@ -36,7 +36,7 @@ class RaidApplyPayloadTest {
             assertThat(v.slots()).containsExactly("252:0", "252:1");
             // E3.5-6 — 조립 3필드는 계획에서 그대로 복사된다(조립 주체 = 서버 VdParameters)
             assertThat(v.createOpts()).isEqualTo("wb pdcache=off");
-            assertThat(v.setOps()).containsExactly("bgi=off");
+            assertThat(v.setOps()).containsExactly("autobgi=off");
             assertThat(v.init()).isEqualTo("full");
         });
         assertThat(payload.jbod()).containsExactly("252:4");
@@ -50,7 +50,7 @@ class RaidApplyPayloadTest {
         assertThat(json).contains("\"name\":\"spvR1V1\"").contains("\"level\":\"RAID1\"")
                 .contains("\"deleteExisting\":true")
                 // agent.sh 파이프 파싱이 이 키 순서(slots → createOpts → setOps → init)에 묶인다(E3.5-6)
-                .contains("\"createOpts\":\"wb pdcache=off\",\"setOps\":[\"bgi=off\"],\"init\":\"full\"");
+                .contains("\"createOpts\":\"wb pdcache=off\",\"setOps\":[\"autobgi=off\"],\"init\":\"full\"");
         assertThat(objectMapper.readValue(json, RaidApplyPayload.class)).isEqualTo(payload);
     }
 

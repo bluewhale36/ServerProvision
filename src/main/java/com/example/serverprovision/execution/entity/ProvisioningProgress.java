@@ -240,10 +240,23 @@ public class ProvisioningProgress extends BaseTimeEntity {
      * 그 phase 의 스크립트를 재발급한다. 가능 판정은 {@code RetryPolicy} 가 원장 사실과 함께 내린다.
      */
     public void clearFailed(LocalDateTime now) {
+        clearFailed(now, currentStep);
+    }
+
+    /**
+     * 재시도 + 같은 phase 안 되감기(HF15-2 · F-8) — 실행기가 정한 진입 step({@code ProvisioningPhaseExecutor#retryEntryStep})
+     * 에 커서를 다시 세운다. phase 를 벗어나는 되감기는 역행 금지 invariant 위반이라 막는다(재시도는 실패 phase 안의 일).
+     */
+    public void clearFailed(LocalDateTime now, ProvisioningPhaseStep entryStep) {
         if (!isFailed()) {
             throw new IllegalStateException("실패 상태가 아닌 프로비저닝의 재시도는 불가합니다. id=" + id);
         }
+        if (entryStep == null || currentStep == null || entryStep.getPhaseType() != currentStep.getPhaseType()) {
+            throw new IllegalStateException(
+                    "재시도 되감기는 같은 phase 안에서만 가능합니다: " + currentStep + " → " + entryStep + ", id=" + id);
+        }
         this.failedAt = null;
+        this.currentStep = entryStep;
         this.motion = ProvisioningMotion.AWAITING_BOOT;
         this.lastTransitionAt = now;
     }
@@ -272,15 +285,4 @@ public class ProvisioningProgress extends BaseTimeEntity {
                 || currentStep == ProvisioningPhaseStep.BMC_UPDATING;
     }
 
-    public boolean isStarted() {
-        return startedAt != null;
-    }
-
-    public boolean isFailed() {
-        return failedAt != null;
-    }
-
-    public boolean isCompleted() {
-        return completedAt != null;
-    }
 }

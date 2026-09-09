@@ -268,7 +268,7 @@ class RaidPlannerTest {
             assertThat(plan.volumes()).hasSize(2);
             assertThat(plan.volumes()).allSatisfy(v -> {
                 assertThat(v.createOpts()).isEqualTo("wb ra direct strip=256 pdcache=off");
-                assertThat(v.setOps()).containsExactly("bgi=off", "accesspolicy=rw");
+                assertThat(v.setOps()).containsExactly("autobgi=off", "accesspolicy=rw");
                 assertThat(v.init()).isEqualTo("full");
             });
         }
@@ -282,7 +282,7 @@ class RaidPlannerTest {
 
             assertThat(plan.volumes()).singleElement().satisfies(v -> {
                 assertThat(v.createOpts()).isEqualTo("wb ra direct strip=256 pdcache=default");
-                assertThat(v.setOps()).containsExactly("bgi=on", "accesspolicy=rw");
+                assertThat(v.setOps()).containsExactly("autobgi=on", "accesspolicy=rw");
                 assertThat(v.init()).isEqualTo("none");
             });
         }

@@ -31,7 +31,7 @@ class VdParametersTest {
         VdParameters p = of(null, null, null, null, null, null, null, null);
         assertThat(p).isEqualTo(VdParameters.DEFAULTS);
         assertThat(p.createOpts()).isEqualTo(DEFAULT_CREATE);
-        assertThat(p.setOps()).containsExactly("bgi=on", "accesspolicy=rw");
+        assertThat(p.setOps()).containsExactly("autobgi=on", "accesspolicy=rw");
         assertThat(p.initToken()).isEqualTo("none");
         assertThat(p.overridesDriveCache()).isFalse();
     }
@@ -58,7 +58,7 @@ class VdParametersTest {
         VdParameters p = of(VdWritePolicy.WRITE_THROUGH, VdReadPolicy.NO_READ_AHEAD, VdIoPolicy.CACHED,
                 VdStripSize.KB_64, null, VdDriveCache.OFF, null, null);
         assertThat(p.createOpts()).isEqualTo("wt nora cached strip=64 pdcache=off");
-        assertThat(p.setOps()).containsExactly("bgi=on", "accesspolicy=rw");
+        assertThat(p.setOps()).containsExactly("autobgi=on", "accesspolicy=rw");
         assertThat(p.overridesDriveCache()).isTrue();
     }
 
@@ -68,7 +68,7 @@ class VdParametersTest {
         VdParameters p = of(null, null, null, null,
                 VdAccessPolicy.READ_ONLY, null, VdBackgroundInit.OFF, null);
         assertThat(p.createOpts()).isEqualTo(DEFAULT_CREATE);
-        assertThat(p.setOps()).containsExactly("bgi=off", "accesspolicy=ro");
+        assertThat(p.setOps()).containsExactly("autobgi=off", "accesspolicy=ro");
     }
 
     @Test
