@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF15-5 Plan — 설치 디스크 번호 근거 · IR 확증 · 계획 기반 준비도 · VD 표시</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF15-5 — 설치 디스크 번호 근거 · IR 확증 · 계획 기반 준비도 · VD 표시 <span class="v2-badge">hotfix</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF15-5 (hotfix)</span>
+    <span><strong>상위</strong> HF15 (실기 3호 파생 결함 묶음)</span>
+    <span><strong>기인</strong> 실기 3호 F-6 · F-7 · F-1 · F-9</span>
+    <span><strong>scope</strong> Windows 설치 대상 디스크 번호의 근거를 실물 관측으로 옮기고 · IR 볼륨 확증 기준을 바로잡고 · RAID 전 준비도를 계획으로 판정하고 · VD 행 표시를 실측 가능한 값으로 줄인다</span>
+    <span><strong>생성</strong> 2026-09-09 KST</span>
+    <span><strong>CP1</strong> 승인 (2026-09-08 22:30 · "무중단으로 끝까지" 지시)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">2026-09-08 실기 3호(다섯 대 동시 프로비저닝)에서 나온 결함 열 건 가운데 <b>OS 설치 대상 디스크</b>를 둘러싼 네 건을 한 슬라이스로 묶는다. 넷은 증상이 달라 보이지만 재료가 같다 — 서버가 "어느 디스크에 설치할 것인가" 를 <b>실물 관측 없이 카드 CLI 의 나열 순서만으로</b> 정하고 있었다는 한 가지 전제에서 갈라져 나왔다.</p>
+
+        <table>
+          <thead><tr><th>결함</th><th>실측</th><th>원인</th></tr></thead>
+          <tbody>
+            <tr><td><b>F-6</b> 오설치</td><td>SAS3008 세 대 전부 데이터 볼륨(HDD)에 설치 — 3/3. MegaRAID 두 대는 정상(양성 대조 2/2)</td><td>IR 펌웨어는 나중에 만든 볼륨에 낮은 ID(322)를 주어 <code>sas3ircu</code> 가 그것을 앞에 나열하는데, Windows 는 만든 순서로 번호를 준다</td></tr>
+            <tr><td><b>F-7</b> 헛 확증</td><td>설치가 맞게 끝난 서버도 완료 보고 대조가 어긋남 — 3/3</td><td>IR 볼륨의 Windows UniqueId 는 <code>sas3ircu</code> 의 <code>wwid</code> 원문이 아니라 <code>600508E0 00000000</code> + wwid 8바이트를 뒤집어 붙인 NAA 6 형식</td></tr>
+            <tr><td><b>F-1</b> 헛 차단</td><td>RAID 구성 단계 전인데 준비도가 "OS 영역 RAID 볼륨이 없습니다" 로 BLOCKED</td><td>판정이 <code>raid_volume</code> 실물 행만 봤다 — 계획은 OS 영역을 이미 정해 두었는데도 그 사실을 읽지 않았다</td></tr>
+            <tr><td><b>F-9</b> 헛 표시</td><td>MegaRAID VD 의 디스크 행이 종류 HDD · 전송 "—" 로 고정</td><td>컨트롤러 뒤 볼륨은 <code>lsblk</code> 의 <code>ROTA</code> · <code>TRAN</code> 이 실물을 말하지 않는데 그 값을 그대로 표시했다</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout danger"><b>핵심 진단</b> — E4-1-a-6 이 도입한 규칙 "인벤토리 나열 순서 = Windows 디스크 번호" 는 <b>MegaRAID 에서만 실증된 사실</b>이었는데 계열 무관으로 일반화됐다. 계열마다 나열 규칙이 다르다는 것을 몰랐던 것이 아니라, <b>그것을 확인할 관측이 없었다</b> — 볼륨을 만든 뒤 OS 가 그 볼륨을 어떤 순서로 보는지 서버가 한 번도 물어본 적이 없다.</div>
+
+        <h4>진입 전제 (선행 슬라이스)</h4>
+        <ul>
+          <li><b>E4-1-a-6</b> — 디스크 번호 판정 도입(<code>WindowsDiskSelection</code>) · 서빙 meta 의 <code>targetDiskId</code> · 완료 보고의 사후 확증. 본 슬라이스는 그 뼈대를 유지하고 근거 층만 갈아 넣는다.</li>
+          <li><b>E3.5-3</b> — RAID 집행 · 검증 사이클(<code>RAID_VERIFYING</code> 재채집)이 이미 있다. 실물 관측을 얹을 자리가 여기다.</li>
+          <li><b>E3.5-5-a</b> — 진단 시점 RAID 채집. 인벤토리 봉투 계약(<code>RaidInventoryParser</code>)을 진단과 검증이 공유한다.</li>
+          <li><b>E1-2</b> — 하드웨어 수집(<code>HardwareSpec</code>). 디스크 목록은 있었으나 볼륨을 만들기 <b>전</b>의 목록이라 설치 번호의 근거가 못 됐다.</li>
+        </ul>
+
+        <div class="callout warn"><b>이 문서의 성격</b> — 사용자 지시("무중단으로 끝까지" · 2026-09-08 22:30)로 CP1 승인과 구현이 이어졌으므로, 이 plan 은 착수 전 계약이 아니라 <b>"무엇을 왜 이렇게 했는가" 의 설계 기록</b>이다. 코드 · 테스트가 SSOT 이며 본문의 식별자는 전부 저장소에 실재한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>번호의 근거를 실물 관측으로</b> — RAID 검증 재채집이 <code>lsblk</code>(순서 · WWN)를 동봉하고, OS 영역 볼륨의 SCSI 식별자를 가진 장치의 인덱스를 디스크 번호로 쓴다. BMC 가상 미디어(USB · 크기 0B)는 세지 않는다.</li>
+          <li><b>계열 순서 규칙은 폴백으로 남긴다</b> — 재채집이 없거나(구 에이전트) 식별자를 못 찾으면 계열별 나열 규칙(<code>MPT_IR</code> = ID 내림차순 · <code>MEGARAID</code> = 나열 순)으로 계산한다. 둘 다 안 되면 BLOCKED 로 서빙을 막는다.</li>
+          <li><b>확증 기준을 계열 변환으로</b> — 설치 뒤 <code>Get-Disk</code> UniqueId 와 대조할 값은 볼륨 WWN 원문이 아니라 계열별 변환의 결과다. 이 변환은 서빙 시점에 원장 meta 에 박아 두고 완료 보고가 그것을 읽는다.</li>
+          <li><b>RAID 단계가 남았으면 계획으로 판정</b> — 실물 볼륨이 없어도 계획에 OS 영역이 있으면 "RAID 구성 뒤 확정"(DEFERRED)이고 준비도는 READY 다. 계획에도 없을 때만 BLOCKED 로 미리 알린다.</li>
+          <li><b>수집 불가 값은 띄우지 않는다</b> — 컨트롤러 뒤 볼륨 행은 종류 · 전송을 비우고 "RAID 볼륨 · spvR1V1" 로 표기한다. 가상 미디어 행은 화면에서도 숨긴다(번호 계산과 같은 걸러내기).</li>
+          <li><b>안내는 다음 할 일을 짚는다</b> — Windows 카드의 "설치 대상 디스크" 줄은 확정이면 번호와 근거를, 미확정이면 무엇을 기다리는지를 문장으로 말한다.</li>
+        </ol>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><b>WinPE 사전 게이트</b>(설치 직전 <code>diskpart</code> 로 번호를 재확인) — E4-1-a-7 로 넘긴다. 이번에는 "설치 전 판정 + 설치 후 확증" 두 지점만 다룬다.</li>
+            <li><b>물리 디스크 직결(passthrough) 지원</b> — 그 순서는 미실측이라 종전대로 BLOCKED 를 유지한다.</li>
+            <li><b>볼륨 3개 이상의 IR 나열 순서</b> — 실기 표본이 2개까지다. 규칙은 그대로 두고 실측 항목으로 적립한다.</li>
+            <li><b>진단 시점 디스크 목록의 갱신 주기 일반화</b> — 이번 갱신은 RAID 검증 통과 시점 한 곳에서만 일어난다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 디스크 번호 판정 진리표 (라이브)</summary>
+      <div class="body">
+        <p style="margin-top:0;">아래 위젯은 <code>WindowsDiskSelection.judge(volumes, inventory, osVisibleDisks)</code> 와 그 앞의 <code>WindowsInstallReadinessResolver</code> 분기를 그대로 재현한다. <b>표본</b>을 고르고 <b>검증 재채집(lsblk)</b> 을 껐다 켜 보면 같은 서버에서 번호가 어떻게 갈리는지, 실기 3호에서 왜 데이터 볼륨에 설치됐는지가 그 자리에서 보인다. 판정 JS 는 Java 와 같은 순서 · 같은 규칙이다(드리프트 0).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">표본 :</span>
+            <button class="seg" data-preset="p1" onclick="demoPreset('p1')">MegaRAID</button>
+            <button class="seg" data-preset="p2" onclick="demoPreset('p2')">SAS3008 · 상1</button>
+            <button class="seg" data-preset="p3" onclick="demoPreset('p3')">SAS3008 · 상3</button>
+            <button class="seg" data-preset="p4" onclick="demoPreset('p4')">가상 미디어 4행</button>
+            <button class="seg" data-preset="p5" onclick="demoPreset('p5')">RAID 구성 전</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">검증 재채집 :</span>
+            <button class="seg" data-lsblk="on" onclick="demoLsblk(true)">lsblk 동봉</button>
+            <button class="seg" data-lsblk="off" onclick="demoLsblk(false)">동봉 없음</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">정의서 계획 :</span>
+            <button class="seg" data-plan="on" onclick="demoPlan(true)">OS 영역 있음</button>
+            <button class="seg" data-plan="off" onclick="demoPlan(false)">OS 영역 없음</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div id="demo-inventory"></div>
+            <div id="demo-disks"></div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 판정 · 걸러내기 · 계열 변환은 <code>WindowsDiskSelection.judge</code> · <code>WindowsDiskSelection.isControllerDisk</code> · <code>RaidChipFamily.windowsUniqueIdOf</code> · <code>RaidChipFamily.windowsDiskOrder</code> 의 JS 재현이고, 표본 값은 전부 <code>WindowsDiskSelectionTest</code> 의 실기 3호 실측 표본이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <p style="margin-top:0;">신규 URL 은 없다. 이미 있는 네 창구에 <b>재료 한 가지</b>(OS 가시 디스크)와 <b>기준 한 가지</b>(계열 변환된 식별자)가 실린다.</p>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/steps/{stepId}/close</code><br>(<code>RAID_VERIFYING</code>)</td><td>검증 재채집 봉투에 <code>disks</code>(lsblk 순서 · WWN) 동봉 → 통과 시 <code>hardware_spec</code> 의 디스크 목록만 교체</td><td>200 (다음 지시)</td></tr>
+            <tr><td>GET</td><td>Windows 설치 응답 파일 서빙 (E4-1-a-3 토큰 번들 · 경로 무변경)</td><td>판정 결과의 <code>diskId</code> 를 <code>autounattend</code> 에 박고, 원장 서빙 meta 에 <code>expectedUniqueId</code> · <code>diskBasis</code> 를 함께 적는다</td><td>200 / BLOCKED 면 게이트가 막음</td></tr>
+            <tr><td>POST</td><td>Windows 설치 완료 보고 창구 (E4-1-a-4 · 경로 무변경)</td><td>보고된 <code>installedDiskUniqueId</code> 를 <b>서빙 meta 의 기준</b>과 대조 → <code>diskConfirmed</code> 기록</td><td>200 (중복 보고 no-op)</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/{id}</code></td><td>디스크 표(가상 미디어 숨김 · 볼륨 이름 표기) · Windows 카드의 <code>diskSelectionNote</code></td><td>200</td></tr>
+          </tbody>
+        </table>
+
+        <h4>검증 재채집 봉투 (계약)</h4>
+        <pre><code>RAID_VERIFYING statusMeta = {
+  "tool":"storcli64", "lspci_b64":"…", "pd_b64":"…", "vd_b64":"…", "c0_b64":"…",
+  "disks":[ {"device":"sdb","size":"446.6G","rota":"1","tran":"","wwn":"0x600605b0aa11"}, … ]
+}
+// 서버는 봉투의 모르는 키를 무시하므로 기존 계약(RaidInventoryParser)이 깨지지 않는다.
+// 동봉이 없으면(구 에이전트) 갱신을 생략하고 판정이 ② 계열 순서 규칙으로 내려간다.</code></pre>
+
+        <h4>흐름</h4>
+        <div class="seq">
+          <div class="actor a1">게스트 (agent.sh)</div><div class="actor a2">서버 (실행기 · 판정)</div><div class="actor a3">화면 · 응답 파일</div>
+          <div class="step a1"><code>do_raid_verify</code> — <code>settle_block_devices</code>(SCSI rescan · 최대 15초) 뒤 <code>collect_disks_json</code></div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">봉투 + <code>disks</code> 를 <code>RAID_VERIFYING</code> close 로</div><div class="step a2"><code>RaidConfigurationExecutor.consumeVerificationReport</code> — 계획 대조 통과 → <code>refreshOsVisibleDisks</code></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>WindowsInstallReadinessResolver.selectDisk</code> → <code>WindowsDiskSelection.judge</code></div><div class="step a3">상세 디스크 표 · Windows 카드 "설치 대상 디스크 0 · 근거 RAID 검증 재채집"</div>
+          <div class="step a1">재PXE → 설치 부팅</div><div class="step a2"><code>WindowsInstallLedger.openServed</code> — <code>targetDiskId</code> · <code>expectedUniqueId</code> · <code>diskBasis</code></div><div class="step a3"><code>autounattend</code> 의 DiskID</div>
+          <div class="step a1">첫 로그온 완료 보고(<code>installedDiskUniqueId</code>)</div><div class="step a2"><code>WindowsInstallCompletionService.confirmInstalledDisk</code> — 서빙 meta 기준과 대조</div><div class="step a3">CONFIRMED · MISMATCH · UNREPORTED</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>설계 대안 — 번호의 근거를 어디서 얻을 것인가</h4>
+        <table>
+          <thead><tr><th>안</th><th>요지</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>① 계열별 순서 규칙</td><td>카드 계열마다 "CLI 나열 순서 → OS 번호" 변환을 둔다</td><td><b>보조로 채택</b> — 볼륨 2개까지는 실측(3/3 + 2/2)이지만 3개 이상은 가설이다. 관측이 없을 때의 폴백으로만 쓴다</td></tr>
+            <tr><td>② <code>lsblk</code> 재채집 + SCSI 식별자 매칭</td><td>볼륨을 만든 뒤 다시 부팅한 리눅스가 본 순서를 그대로 쓴다</td><td><b>본안 채택</b> — 계열 분기가 없고, Linux 와 Windows 가 같은 SAS 타깃 탐색 순서를 따른다는 실기 2호 Run 3 D1 근거가 있다</td></tr>
+            <tr><td>③ WinPE 사전 게이트</td><td>설치 직전 <code>diskpart</code> 로 번호를 다시 확인</td><td><b>탈락</b> — 가장 정확하지만 설치 스크립트 계약을 늘린다. E4-1-a-7 로 분리</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><b>핵심 발견</b> — 계열별 변환 <code>windowsUniqueIdOf(볼륨 wwn)</code> <b>하나</b>가 두 문제를 동시에 푼다. ② 의 <code>lsblk</code> WWN 매칭과 F-7 의 설치 뒤 UniqueId 확증은 <b>같은 SCSI NAA 식별자</b>를 다른 쪽에서 읽은 것이기 때문이다. 변환을 한 곳에 두었으므로 매칭과 확증이 어긋날 수 없다.</div>
+
+        <h4>판정 순서 (<code>WindowsDiskSelection.judge</code>)</h4>
+        <pre><code>osVolume 없음                      → BLOCKED "os volume missing"
+inventory 없음 · 빈 목록           → BLOCKED "raid inventory missing"
+RAID 레벨 없는 볼륨(passthrough)   → BLOCKED "passthrough not supported"
+
+expected = uniqueIdOf(family, osVolume.wwn)
+① lsblk 인덱스  = 컨트롤러 디스크만 세어(USB · 0B 제외) expected 와 일치하는 위치
+   ≥ 0  → CONFIDENT(diskId, expected, basis=lsblk)
+② 계열 순서 규칙 = family.windowsDiskOrder(inventory.volumes) 에서 식별자(우선) · 이름으로 찾은 위치
+   ≥ 0  → CONFIDENT(diskId, expected, basis=inventory-order)
+그 외                              → BLOCKED "os volume not in inventory"</code></pre>
+
+        <h4><code>RaidChipFamily</code> — method-per-constant 두 가지</h4>
+        <table>
+          <thead><tr><th>계열</th><th><code>windowsUniqueIdOf</code></th><th><code>windowsDiskOrder</code></th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td><code>MEGARAID</code></td><td><code>normalizeHex</code> 만 — storcli 의 SCSI NAA Id 가 곧 UniqueId</td><td>나열 순 그대로</td><td>실기 2호 Run 3 · 3호 2/2</td></tr>
+            <tr><td><code>MPT_IR</code></td><td><code>600508e000000000</code> + wwid 8바이트 뒤집기 (이미 32자 NAA 면 그대로)</td><td>볼륨 ID 내림차순 — 나중에 만든 볼륨이 낮은 ID</td><td>실기 3호 F-7 3/3 · F-6 3/3</td></tr>
+          </tbody>
+        </table>
+        <p><code>windowsDiskOrder</code> 는 <code>&lt;T&gt; List&lt;T&gt; (List&lt;T&gt;, Function&lt;T,String&gt; idOf)</code> 제네릭이다 — management 패키지의 enum 이 execution 패키지의 볼륨 타입을 알지 않게 하려는 것이고, 덕분에 인벤토리 볼륨과 저장 볼륨 어느 쪽에도 같은 규칙을 적용할 수 있다.</p>
+
+        <h4>타입 (Primitive Obsession 방어)</h4>
+        <table>
+          <thead><tr><th>타입</th><th>구분</th><th>의미</th></tr></thead>
+          <tbody>
+            <tr><td><code>WindowsDiskSelection.Confidence</code></td><td><span class="chip mod">확장</span></td><td><code>CONFIDENT</code> · <code>DEFERRED</code>(신규) · <code>BLOCKED</code> — "못 정했다" 와 "아직 정할 때가 아니다" 를 <code>boolean</code> 두 개로 흩지 않는다</td></tr>
+            <tr><td><code>WindowsDiskSelection.Basis</code></td><td><span class="chip new">신규</span></td><td>번호를 낸 규칙(<code>lsblk</code> · <code>inventory-order</code>). <code>wire()</code> 로 원장 · 로그에 남고 <code>fromWire</code> 로 되읽는다 — 화면이 문자열을 지어내지 않는다</td></tr>
+            <tr><td><code>WindowsDiskSelection.DiskSelection</code></td><td><span class="chip mod">확장</span></td><td>번호 · 확증 기준 · 기대 용량 · 근거 · 사유를 한 묶음으로 나른다. <code>diskId</code> 정수는 <code>autounattend</code> 계약값이므로 그 자체가 원시값이 아니라 <b>이 record 안에서만</b> 의미를 갖는다</td></tr>
+            <tr><td><code>HardwareSpec.DiskInfo.wwn</code></td><td><span class="chip add">추가</span></td><td>OS 가시 디스크와 RAID 볼륨을 잇는 키. 문자열이지만 <code>RaidChipFamily.normalizeHex</code> 단일 통로로만 들어오고 나간다(<code>0x</code> 접두 · 대소문자 흡수)</td></tr>
+            <tr><td><code>GuestServerDetailResponse.OsVisibleDisk</code></td><td><span class="chip new">신규</span></td><td>표시 전용 행 — 종류 · 전송을 비울 수 있고 <code>raidVolumeName</code> 을 든다. 저장 모델(<code>DiskInfo</code>)과 분리해 "수집 불가면 비운다" 규칙을 화면 계약에 새긴다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>준비도 합류 (F-1)</h4>
+        <div class="state-flow">실물 OS 볼륨 있음            ──judge──▶ CONFIDENT / BLOCKED
+실물 없음 + RAID 단계 남음  ──계획에 OS 영역 있음──▶ DEFERRED  (준비도 READY · 서빙은 아직)
+실물 없음 + RAID 단계 남음  ──계획에도 없음────────▶ BLOCKED   "os volume missing in plan" (+ osAbsenceReason)
+실물 없음 + RAID 단계 지남  ──judge──▶ BLOCKED "os volume missing"</div>
+        <p><code>WindowsInstallReadinessResolver.combine</code> 은 <b>BLOCKED 만</b> 막고 DEFERRED 는 통과시킨다. RAID 분기를 <code>WindowsInstallReadiness</code> 진리표에 늘리지 않고 resolver 에서 합류시킨 이유는, 그 진리표가 "소스 · 이미지 · 운영 설정" 축이라 디스크 축을 섞으면 칸 수가 곱으로 늘기 때문이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>이 슬라이스의 산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서 — 설계 기록)</td><td><span class="chip cp1">CP1</span></td><td>승인 (2026-09-08)</td></tr>
+            <tr><td>2</td><td>상세 화면 — 디스크 표(볼륨 이름 · 가상 미디어 숨김) · Windows 카드 "설치 대상 디스크" 줄</td><td><span class="chip cp2">CP2</span></td><td rowspan="4">보고 (무중단)</td></tr>
+            <tr><td>3</td><td>Controller — 변경 0 (신규 URL 없음)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>4</td><td>DTO — <code>OsVisibleDisk</code> 신설 · <code>WindowsInstall.diskSelectionNote</code> 추가</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td>시그니처 — <code>judge</code> 3-arg 확장 · <code>RaidChipFamily</code> 추상 메서드 2</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6</td><td>Repository — <b>N/A</b> (신규 0 · 기존 조회 재사용)</td><td><span class="chip cp3">CP3</span></td><td rowspan="2">보고 (무중단)</td></tr>
+            <tr><td>7</td><td>Entity · VO — <code>DiskInfo.wwn</code> · <code>GuestServerDetail.updateHardwareSpec</code></td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8</td><td>판정 · 파서 · 실행기 · 원장 본체 + 에이전트 · 하네스</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>9</td><td>스키마 — <b>N/A</b> (<code>hardware_spec</code> JSON 컬럼 안의 형식 확장 · DDL 0)</td><td><span class="chip cp4">CP4</span></td><td>보고</td></tr>
+            <tr><td>8 잔여</td><td>단위 테스트 29건 + 기존 회귀</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>CP5 — 하네스(<code>VERIFY_DISKS</code>) + 브라우저 상세 화면, 항목별 스크린샷</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 4호 — E 단계 CP7 일괄(HF15 다섯 건 동시)</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). 본 슬라이스는 사용자 지시로 CP1 승인 시점에 CP6 까지의 무중단 진행이 함께 지시됐다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 — 진리표가 곧 테스트 목록</h4>
+        <table>
+          <thead><tr><th>파일</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>WindowsDiskSelectionTest</code></td><td>① lsblk 근거 4(우선 채택 · 가상 미디어 제외 · IR NAA 일치 · WWN 없는 구 저장본 폴백) · ② 계열 순서 5(MegaRAID 2 · IR 상1 · IR 상3 · 이름 폴백) · ③ 미성립 6(BLOCKED 4 · 정규화 · DEFERRED)</td><td>15</td></tr>
+            <tr><td><code>RaidChipFamilyWindowsIdentityTest</code></td><td>계열 변환 · 나열 순서 — IR wwid 뒤집기 · 32자 NAA 통과 · 형식 불명 null · MegaRAID 항등 · ID 내림차순 정렬</td><td>5</td></tr>
+            <tr><td><code>OsVisibleDiskParserTest</code></td><td>봉투 해석 — 필드 누락 관용 · <code>rota</code>/<code>tran</code>/<code>wwn</code> 정규화</td><td>2</td></tr>
+            <tr><td><code>WindowsInstallReadinessResolverTest</code></td><td>F-1 — 계획 OS 영역으로 DEFERRED(준비도 READY) · 계획에 없으면 BLOCKED · RAID 단계를 지난 뒤의 볼륨 부재는 실패</td><td>+3</td></tr>
+            <tr><td><code>RaidConfigurationExecutorTest</code></td><td>검증 통과 시 디스크 목록 교체 · 동봉 없음이면 갱신 생략</td><td>+2</td></tr>
+            <tr><td><code>WindowsInstallCompletionServiceTest</code></td><td>서빙 meta 기준 대조 · IR NAA 확증(구 서빙 행은 <code>raid_volume</code> 폴백)</td><td>+2</td></tr>
+            <tr><td><code>WindowsInstallLedgerTest</code></td><td>서빙 meta 왕복 — <code>expectedUniqueId</code> · <code>diskBasis</code> 보존</td><td>보정</td></tr>
+          </tbody>
+        </table>
+        <p>합계 <b>29건 + 원장 meta 보정</b>. 표본 값은 지어내지 않고 실기 3호 실측(상1 <code>08169c022f61a40c</code> · 상3 <code>06923d86adedc238</code> · IR 나열 <code>322</code> · <code>323</code>)을 그대로 썼다 — 그래야 "이 테스트가 그 사고를 막는가" 를 눈으로 확인할 수 있다.</p>
+
+        <h4>HTTP 계층 (사용자 액션) 범주</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>검증 close 200(<code>disks</code> 동봉 흡수 · 디스크 목록 교체) · 완료 보고 200(<code>diskConfirmed=true</code>) · 상세 200(표 · 카드 문구)</td><td>3</td></tr>
+            <tr><td>400</td><td>해당 없음 — 요청 <b>계약을 늘리지 않았다</b>. <code>disks</code> 는 봉투의 추가 키이고 해석 실패는 거절이 아니라 갱신 생략이다</td><td>0</td></tr>
+            <tr><td>404</td><td>신규 0 — 토큰 인증 경로 무변경</td><td>0</td></tr>
+            <tr><td>409</td><td>신규 0 — 완료 보고의 phase 불일치 등 기존 <code>AgentReportRejectedException</code> 유지. <b>확증 어긋남은 409 가 아니다</b>(아래 §7)</td><td>0</td></tr>
+            <tr><td>500</td><td>0 — 봉투 해석 실패 · 계획 산출 실패 · 저장본 손상은 전부 관용(<code>null</code> · 생략)으로 수렴한다</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <p>신규 예외가 없어 "새 예외마다 트리거 시나리오" 규율에 걸리는 항목도 없다. 대신 <b>판정 결과가 화면 · 원장에 어떻게 남는지</b>를 CP5 항목(§9)이 실지로 확인한다 — 이 슬라이스의 위험은 상태 코드가 아니라 <b>잘못된 숫자를 자신 있게 내놓는 것</b>이기 때문이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>신규 예외</td><td>—</td><td><span class="chip keep">없음</span> 0건</td></tr>
+            <tr><td><code>AgentReportRejectedException</code></td><td>409</td><td><span class="chip keep">재사용</span> 완료 보고의 상태 · phase 게이트 — 변경 0</td></tr>
+            <tr><td><code>RaidInventoryParser.ReportUnparsableException</code></td><td>—(원장 실패 기록)</td><td><span class="chip keep">재사용</span> 봉투 해석 실패는 예외로 새지 않고 사유 코드로 남는다</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>왜 예외를 늘리지 않았는가</b> — 이 슬라이스가 만들어 내는 부정적 상태는 셋인데 어느 것도 프로그램 예외가 아니다. ① <b>BLOCKED</b> 는 준비도 등급이라 서빙 게이트가 조용히 막고 화면이 사유를 말한다. ② <b>DEFERRED</b> 는 정상 진행 중의 미확정이다. ③ <b>MISMATCH</b> 는 이미 끝난 설치에 대한 사후 사실이라 되돌릴 대상이 없다 — 예외로 던지면 완료 보고가 실패해 원장에 아무것도 안 남는 더 나쁜 결과가 된다. "예외는 진짜 비정상에만" 원칙의 직접 적용이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>결정</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>탈락 대안 · 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>근거 우선순위 = ① <code>lsblk</code> 재채집 → ② 계열 순서 규칙 → BLOCKED</td><td>③ WinPE 게이트 = 정확하지만 설치 스크립트 계약 확장 → E4-1-a-7</td></tr>
+            <tr><td>D2</td><td>계열 변환 <code>windowsUniqueIdOf</code> 하나가 매칭과 확증을 함께 담당</td><td>매칭용 · 확증용 변환을 따로 두는 안 = 같은 식별자에 규칙이 둘이 되어 드리프트</td></tr>
+            <tr><td>D3</td><td><code>windowsDiskOrder</code> 를 제네릭으로</td><td>execution 의 볼륨 타입을 인자로 받는 안 = management → execution 역의존</td></tr>
+            <tr><td>D4</td><td>RAID 단계가 남았으면 계획으로 DEFERRED(준비도 READY)</td><td>실물 없으면 무조건 BLOCKED = F-1 그대로 · 준비도가 정상 흐름을 막는다</td></tr>
+            <tr><td>D5</td><td>확증 기준은 <b>서빙 시점</b> meta 에 박는다(구 행은 <code>raid_volume</code> 폴백)</td><td>완료 시점에 볼륨 행에서 다시 계산하는 안 = 서빙 뒤 볼륨이 바뀌면 판정이 흔들린다</td></tr>
+            <tr><td>D6</td><td>수집 불가 값(종류 · 전송)은 비운다 · 가상 미디어는 숨긴다</td><td>추정해 채우는 안 = 사용자 지시로 배제. 표시와 번호 계산이 <b>같은 걸러내기</b>를 써야 운영자가 번호를 셀 수 있다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>IR 볼륨이 3개 이상일 때도 "ID 내림차순 = 만든 순" 인가</td><td>실기 4호에서 표본이 생기면 확인. 그때까지는 ① 이 우선이라 실사용 위험은 낮다</td></tr>
+            <tr><td>Q2</td><td>물리 디스크 직결(passthrough)이 섞인 구성의 번호 순서</td><td>BLOCKED 유지. 실측 전까지 추정하지 않는다</td></tr>
+            <tr><td>Q3</td><td>SCSI 식별자를 <code>ScsiIdentifier</code> Value Object 로 승격할 것인가</td><td>지금은 <code>normalizeHex</code> 단일 통로로 충분. 세 번째 사용처(WinPE 게이트 등)가 생기는 시점에 승격 — "갈라지는 시점에 분리"</td></tr>
+          </tbody>
+        </table>
+
+        <h4>잔존 · 주의</h4>
+        <ul>
+          <li>"lsblk 순서 = Windows 번호" 는 MegaRAID 실증 · SAS3008 미실증이다. IR 에서는 ② 폴백이 실기 3호 3/3 근거를 갖는다 — 두 근거가 서로를 받친다.</li>
+          <li>볼륨 생성 직후 커널이 장치를 늦게 보이면 <code>lsblk</code> 에 안 잡힐 수 있다. 에이전트의 안정화 루프(SCSI rescan + 장치 수가 두 번 연속 같아질 때까지 · 최대 약 15초)와 ② 폴백이 안전망이다.</li>
+          <li>DDL 변경 0 — <code>hardware_spec</code> 은 JSON 컬럼이고 구 저장본에는 <code>wwn</code> 이 없어 <code>null</code> 로 읽힌다(관용 파싱).</li>
+          <li>CLAUDE.md 수정 없음. 규약 변경 없이 기존 계약 안에서 재료만 늘렸다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="HF15-5-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (신규 · 증분 29건 포함)</span></label></li>
+        </ul>
+        <h4>기능 (CP5 — 하네스 + 브라우저)</h4>
+        <ul class="check-list" data-storage="HF15-5-func">
+          <li><label><input type="checkbox" data-key="a1"> <span><b>A1</b> MegaRAID 검증 재채집에 <code>VERIFY_DISKS</code> 동봉 → 상세 디스크 표에 "RAID 볼륨 · spvR1V1" 행 · 종류 · 전송 비움 · Windows 카드 "디스크 0 · 근거 RAID 검증 재채집"</span></label></li>
+          <li><label><input type="checkbox" data-key="a2"> <span><b>A2</b> 서빙 원장 meta 에 <code>diskBasis=lsblk</code> · <code>expectedUniqueId</code> 기록</span></label></li>
+          <li><label><input type="checkbox" data-key="a3"> <span><b>A3</b> 완료 보고의 UniqueId(대문자)를 대조 → <code>CONFIRMED</code></span></label></li>
+          <li><label><input type="checkbox" data-key="b1"> <span><b>B1</b> RAID 단계 전 정의서(펌웨어 → RAID → OS) 할당 → 카드 "RAID 구성 뒤 확정 — 계획의 OS 영역 spvR1V1" · 준비도 READY</span></label></li>
+          <li><label><input type="checkbox" data-key="b2"> <span><b>B2</b> OS 영역 없는 정의서 → BLOCKED "os volume missing in plan"</span></label></li>
+          <li><label><input type="checkbox" data-key="b3"> <span><b>B3</b> <code>disks</code> 동봉 없음(구 에이전트) → 근거 <code>inventory-order</code> 로 폴백 · 갱신 생략</span></label></li>
+          <li><label><input type="checkbox" data-key="c1"> <span><b>C1</b> 안내 문구가 다음 할 일을 짚는가 — 미확정 사유와 확정 근거가 운영자 어휘로 읽히는가</span></label></li>
+        </ul>
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="HF15-5-regress">
+          <li><label><input type="checkbox" data-key="r1"> <span>진단 수집(E1-2) 경로가 같은 파서로 흡수된 뒤에도 디스크 표시가 종전과 같은가</span></label></li>
+          <li><label><input type="checkbox" data-key="r2"> <span>구 저장본(<code>wwn</code> 없음 · 구 서빙 meta)에서 MegaRAID 판정 · 확증이 종전대로 동작하는가</span></label></li>
+          <li><label><input type="checkbox" data-key="r3"> <span>검증 봉투에 <code>disks</code> 가 늘어도 <code>RaidInventoryParser</code> 계약이 깨지지 않는가</span></label></li>
+          <li><label><input type="checkbox" data-key="r4"> <span>실기 4호 — 일산 3대 재설치 시 SSD 설치 · <code>diskConfirmed=true</code> · IR lsblk WWN 형식 실측</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/diagnose/OsVisibleDiskParser.java</code></td><td>lsblk 보고(<code>disks</code>) 해석 — 진단 수집과 검증 재채집이 공유하는 단일 계약</td></tr>
+            <tr><td rowspan="13"><span class="chip mod">수정</span></td><td><code>management/raidcard/enums/RaidChipFamily.java</code></td><td><code>windowsUniqueIdOf</code> · <code>windowsDiskOrder</code> 추상 메서드 2 + <code>normalizeHex</code></td></tr>
+            <tr><td><code>execution/engine/windows/WindowsDiskSelection.java</code></td><td>근거 3층 판정 · <code>Basis</code> · <code>DEFERRED</code> · 컨트롤러 디스크 걸러내기</td></tr>
+            <tr><td><code>execution/engine/windows/WindowsInstallReadinessResolver.java</code></td><td>계획 기반 DEFERRED · BLOCKED 합류(<code>combine</code>) · OS 가시 디스크 공급</td></tr>
+            <tr><td><code>execution/engine/windows/WindowsInstallLedger.java</code></td><td>서빙 meta 에 <code>expectedUniqueId</code> · <code>diskBasis</code> 기록 · 판독</td></tr>
+            <tr><td><code>execution/engine/windows/WindowsInstallCompletionService.java</code></td><td>확증 기준을 서빙 meta 에서 읽고 구 행은 <code>raid_volume</code> 폴백</td></tr>
+            <tr><td><code>execution/engine/raid/RaidConfigurationExecutor.java</code></td><td><code>refreshOsVisibleDisks</code> — 검증 통과 시 디스크 목록만 교체</td></tr>
+            <tr><td><code>execution/engine/diagnose/AgentReportService.java</code></td><td>진단 수집의 디스크 해석을 공용 파서로 흡수</td></tr>
+            <tr><td><code>execution/vo/HardwareSpec.java</code></td><td><code>DiskInfo.wwn</code> 추가(구 저장본 <code>null</code> 관용)</td></tr>
+            <tr><td><code>execution/entity/GuestServerDetail.java</code></td><td><code>updateHardwareSpec</code> — 디스크 목록 교체 통로</td></tr>
+            <tr><td><code>execution/dto/response/GuestServerDetailResponse.java</code></td><td><code>OsVisibleDisk</code> record · <code>Inventory.osVisibleDisks</code> · <code>WindowsInstall.diskSelectionNote</code></td></tr>
+            <tr><td><code>execution/service/GuestServerQueryService.java</code>(<code>osVisibleDisksOf</code> · <code>diskSelectionNoteOf</code>) · <code>templates/provisioning/server-detail.html</code></td><td>디스크 표(가상 미디어 숨김 · 볼륨 이름) · Windows 카드 "설치 대상 디스크" 줄</td></tr>
+            <tr><td><code>scripts/diag-image/agent/agent.sh</code></td><td><code>collect_disks_json</code> = <code>lsblk -dnP … WWN</code> · <code>settle_block_devices</code> · <code>do_raid_verify</code> 동봉</td></tr>
+            <tr><td><code>scripts/mock-guest/raid-apply-cycle.sh</code></td><td><code>VERIFY_DISKS</code> 환경변수로 동봉 재현(CP5 하네스)</td></tr>
+            <tr><td rowspan="4"><span class="chip keep">유지</span></td><td><code>execution/engine/raid/RaidInventoryParser.java</code></td><td>변경 0 — 봉투의 모르는 키를 무시하는 관용이 계약을 지켜 준다</td></tr>
+            <tr><td><code>execution/engine/windows/WindowsInstallReadiness.java</code></td><td>변경 0 — 디스크 축을 진리표에 섞지 않고 resolver 가 합류</td></tr>
+            <tr><td><code>execution/engine/phase/PhaseCursorAdvancer.java</code></td><td>변경 0 — 전진 · 종단 규칙 무관</td></tr>
+            <tr><td><code>ddl/</code></td><td>변경 0 — JSON 컬럼 안의 형식 확장이라 스키마 무변경</td></tr>
+          </tbody>
+        </table>
+        <p>신규 1 · 수정 13 · 유지 4. 자바 소스 10 · 스크립트 2 · 화면 1 이 수정 13 의 내역이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="HF15-5-next">
+          <li><label><input type="checkbox" data-key="m1"> <span><b>실기 4호</b> — 일산 3대 재설치로 F-6 · F-7 재현 0 확인. IR 볼륨의 <code>lsblk</code> WWN 이 NAA 형식으로 보이는지 실측(② 가 IR 에서도 성립하는지의 마지막 확증)</span></label></li>
+          <li><label><input type="checkbox" data-key="m2"> <span><b>HF15 묶음 PR</b> — HF15-1 ~ HF15-5 를 한 브랜치로 <code>dev</code> 병합. CP7 은 E 단계 규약대로 실기에서 일괄 판정</span></label></li>
+          <li><label><input type="checkbox" data-key="m3"> <span><b>E4-1-a-7</b> — WinPE 사전 게이트(설치 직전 <code>diskpart</code> 대조) 착수 여부 판단. 실기 4호에서 ① 이 3/3 성립하면 우선순위를 낮춘다</span></label></li>
+          <li><label><input type="checkbox" data-key="m4"> <span><b>실측 적립</b> — 볼륨 3개 이상의 IR 나열 순서 · passthrough 혼합 구성의 번호를 <code>docs/T3-checklist.md</code> 에 남긴다</span></label></li>
+        </ul>
+        <p>본 슬라이스가 남기는 잔존 책임은 둘이다 — <b>IR 3볼륨 이상의 순서 가설</b>(Q1)과 <b>passthrough BLOCKED</b>(Q2). 둘 다 관측이 생기는 시점에 판정하며, 그때까지는 "모르는 것을 자신 있게 계산하지 않는다" 는 지금의 태도가 안전망이다.</p>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 디스크 번호 판정 진리표 — WindowsDiskSelection.judge + WindowsInstallReadinessResolver.selectDisk 의 JS 재현
+  //  표본은 WindowsDiskSelectionTest 의 실기 3호 실측값.
+  // ─────────────────────────────────────────────────────────────
+  const IR_NAA_PREFIX = '600508e000000000';
+
+  function normalizeHex(v) {                                   // RaidChipFamily.normalizeHex
+    if (v === null || v === undefined) return null;
+    let s = String(v).trim().toLowerCase();
+    if (s.startsWith('0x')) s = s.slice(2);
+    return s === '' ? null : s;
+  }
+  function windowsUniqueIdOf(family, wwn) {                    // RaidChipFamily.windowsUniqueIdOf
+    const hex = normalizeHex(wwn);
+    if (family !== 'MPT_IR') return hex;                       // MEGARAID = SCSI NAA Id 그대로
+    if (hex === null) return null;
+    if (hex.length === 32) return hex;
+    if (hex.length !== 16) return null;
+    let reversed = '';
+    for (let i = 14; i >= 0; i -= 2) reversed += hex.slice(i, i + 2);
+    return IR_NAA_PREFIX + reversed;
+  }
+  function numericId(id) {
+    const n = Number.parseInt(String(id === null ? '' : id).trim(), 10);
+    return Number.isNaN(n) ? Number.MIN_SAFE_INTEGER : n;
+  }
+  function windowsDiskOrder(family, volumes) {                 // RaidChipFamily.windowsDiskOrder
+    if (family !== 'MPT_IR') return volumes.slice();
+    return volumes.slice().sort((a, b) => numericId(b.id) - numericId(a.id));
+  }
+  function isZeroSize(size) {
+    return size !== null && size !== undefined && /^0(\.0+)?[KMGTPE]?i?B?$/.test(String(size).trim());
+  }
+  function isControllerDisk(d) {                               // WindowsDiskSelection.isControllerDisk
+    if (d.transport && d.transport.toUpperCase() === 'USB') return false;
+    return !isZeroSize(d.size);
+  }
+  function judge(family, storedVolumes, inventoryVolumes, lsblk) {   // WindowsDiskSelection.judge
+    const os = storedVolumes.find(v => v.role === 'OS');
+    if (!os) return { c: 'BLOCKED', diskId: -1, wire: 'os volume missing', note: 'OS 영역 RAID 볼륨이 없습니다 — RAID 구성을 먼저 완료하세요' };
+    if (!inventoryVolumes || inventoryVolumes.length === 0)
+      return { c: 'BLOCKED', diskId: -1, wire: 'raid inventory missing', note: 'RAID 인벤토리가 없습니다 — 진단이 먼저 필요합니다' };
+    if (storedVolumes.some(v => !v.level))
+      return { c: 'BLOCKED', diskId: -1, wire: 'passthrough not supported', note: '물리 디스크 직결 구성은 아직 지원하지 않습니다' };
+
+    const expected = windowsUniqueIdOf(family, os.wwn);
+    let byDisks = -1, i = 0;
+    if (expected !== null && lsblk) {
+      for (const d of lsblk) {
+        if (!isControllerDisk(d)) continue;
+        if (expected === normalizeHex(d.wwn)) { byDisks = i; break; }
+        i++;
+      }
+    }
+    if (byDisks >= 0) return { c: 'CONFIDENT', diskId: byDisks, expected: expected, basis: 'lsblk' };
+
+    const ordered = windowsDiskOrder(family, inventoryVolumes);
+    let byOrder = ordered.findIndex(v => expected !== null && expected === windowsUniqueIdOf(family, v.wwn));
+    if (byOrder < 0 && os.name) {
+      byOrder = ordered.findIndex(v => v.name && v.name.trim().toLowerCase() === os.name.trim().toLowerCase());
+    }
+    if (byOrder >= 0) return { c: 'CONFIDENT', diskId: byOrder, expected: expected, basis: 'inventory-order', ordered: ordered };
+    return { c: 'BLOCKED', diskId: -1, wire: 'os volume not in inventory', note: 'OS 볼륨을 디스크 목록에서 찾지 못했습니다 — 재구성이 필요할 수 있습니다' };
+  }
+
+  // 표본 — 전부 WindowsDiskSelectionTest 의 값
+  const PRESETS = {
+    p1: { title: 'MegaRAID(9361) · OS 볼륨이 첫 볼륨', family: 'MEGARAID', raidPending: false,
+      stored: [{ name: 'spvR1V1', role: 'OS', wwn: '600605b0aa11', level: 'RAID1' }],
+      inv: [{ id: 'VD0', name: 'spvR1V1', wwn: '600605b0aa11' }, { id: 'VD1', name: 'data', wwn: '600605b0dddd' }],
+      lsblk: [{ device: 'sda', size: '18.2T', wwn: '0x600605b0dddd' }, { device: 'sdb', size: '446.6G', wwn: '0x600605b0aa11' }] },
+    p2: { title: 'SAS3008(MPT_IR) · 상1 표본 — OS = 먼저 만든 V1', family: 'MPT_IR', raidPending: false,
+      stored: [{ name: 'spvR1V1', role: 'OS', wwn: '08169c022f61a40c', level: 'RAID1' }],
+      inv: [{ id: '322', name: 'spvR1V2', wwn: '023ff9af195f01b1' }, { id: '323', name: 'spvR1V1', wwn: '08169c022f61a40c' }],
+      lsblk: [{ device: 'sda', size: '14.6T', wwn: '0x600508e000000000b1015f19aff93f02' }, { device: 'sdb', size: '223.6G', wwn: '0x600508e0000000000ca4612f029c1608' }] },
+    p3: { title: 'SAS3008(MPT_IR) · 상3 표본 — OS = 나중에 만든 V2', family: 'MPT_IR', raidPending: false,
+      stored: [{ name: 'spvR1V2', role: 'OS', wwn: '06923d86adedc238', level: 'RAID1' }],
+      inv: [{ id: '322', name: 'spvR1V2', wwn: '06923d86adedc238' }, { id: '323', name: 'spvR1V1', wwn: '00a8209837f72f2e' }],
+      lsblk: [{ device: 'sda', size: '223.6G', wwn: null }, { device: 'sdb', size: '14.6T', wwn: null }] },
+    p4: { title: 'BMC 가상 미디어가 앞에 붙은 4행', family: 'MEGARAID', raidPending: false,
+      stored: [{ name: 'spvR1V1', role: 'OS', wwn: '600605b0aa11', level: 'RAID1' }],
+      inv: [{ id: 'VD0', name: 'spvR1V1', wwn: '600605b0aa11' }, { id: 'VD1', name: 'data', wwn: '600605b0dddd' }],
+      lsblk: [{ device: 'sda', size: '0B', transport: 'USB', wwn: null }, { device: 'sdb', size: '0B', transport: 'USB', wwn: null },
+              { device: 'sdc', size: '446.6G', wwn: '0x600605b0aa11' }, { device: 'sdd', size: '18.2T', wwn: '0x600605b0dddd' }] },
+    p5: { title: 'RAID 구성 단계가 아직 남았다 — 실물 볼륨 0', family: 'MEGARAID', raidPending: true,
+      stored: [], inv: [{ id: 'VD0', name: '(기존 없음)', wwn: null }], lsblk: null, planOs: 'spvR1V1' }
+  };
+
+  let demoKey = 'p1', demoUseLsblk = true, demoPlanHasOs = true;
+  function demoPreset(k) { demoKey = k; demoRender(); }
+  function demoLsblk(on) { demoUseLsblk = on; demoRender(); }
+  function demoPlan(on) { demoPlanHasOs = on; demoRender(); }
+
+  function demoBtn(action, label, blocked, tip) {
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + (blocked ? ' disabled' : '') +
+      ' onclick="demoClick(\'' + action + '\',' + blocked + ')">' + label + '</button></span>';
+  }
+  function demoClick(action, blocked) {
+    const msg = document.getElementById('demo-message');
+    if (blocked) {
+      msg.className = 'ux-message error';
+      msg.textContent = '이 버튼은 판정이 확정되지 않아 disabled 입니다 — 서빙 게이트도 같은 판정을 봅니다(단일 SSOT).';
+      return;
+    }
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ autounattend 에 DiskID 를 박고 원장 서빙 meta 에 확증 기준(expectedUniqueId) · 근거(diskBasis)를 함께 적습니다.';
+  }
+
+  function demoRender() {
+    const p = PRESETS[demoKey];
+    document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(s => s.classList.toggle('active', s.dataset.preset === demoKey));
+    document.querySelectorAll('.ux-toolbar .seg[data-lsblk]').forEach(s => s.classList.toggle('active', (s.dataset.lsblk === 'on') === demoUseLsblk));
+    document.querySelectorAll('.ux-toolbar .seg[data-plan]').forEach(s => s.classList.toggle('active', (s.dataset.plan === 'on') === demoPlanHasOs));
+
+    const lsblk = (demoUseLsblk && p.lsblk) ? p.lsblk : null;
+    let r, caps, msgClass, msgText;
+
+    if (p.raidPending && !p.stored.some(v => v.role === 'OS')) {            // WindowsInstallReadinessResolver.deferredByPlan
+      if (demoPlanHasOs) {
+        r = { c: 'DEFERRED', diskId: -1, note: 'RAID 구성 뒤 확정 — 계획의 OS 영역 ' + p.planOs };
+      } else {
+        r = { c: 'BLOCKED', diskId: -1, wire: 'os volume missing in plan',
+              note: 'RAID 계획에 OS 영역 볼륨이 없습니다 — 정의서의 디스크 묶음 규칙에서 OS 영역을 지정하세요' };
+      }
+    } else {
+      r = judge(p.family, p.stored, p.inv, lsblk);
+    }
+
+    // 인벤토리 볼륨 행
+    let html = '<div style="font-size:12px;color:var(--text-muted);margin:8px 0 4px;">카드 CLI 인벤토리 — ' + p.title + '</div>';
+    if (p.stored.length === 0) {
+      html += '<div class="ux-row muted"><span class="label">저장된 RAID 볼륨 0 — 아직 구성하지 않았습니다</span><span class="badge off">실물 없음</span></div>';
+    }
+    p.inv.forEach(v => {
+      const isOs = p.stored.some(s => s.role === 'OS' && normalizeHex(s.wwn) === normalizeHex(v.wwn));
+      html += '<div class="ux-row"><strong>' + v.id + '</strong><span class="label">' + v.name +
+        ' <span style="color:var(--text-muted)">wwn=' + (v.wwn || '—') + '</span></span>' +
+        (isOs ? '<span class="badge on">OS 영역</span>' : '<span class="badge off">DATA</span>') + '</div>';
+    });
+    document.getElementById('demo-inventory').innerHTML = html;
+
+    // lsblk 행
+    let dhtml = '<div style="font-size:12px;color:var(--text-muted);margin:12px 0 4px;">RAID 검증 재채집 — OS 가시 디스크(lsblk 순서)</div>';
+    if (!lsblk) {
+      dhtml += '<div class="ux-row muted"><span class="label">동봉 없음 — 판정이 ② 계열 순서 규칙으로 내려갑니다</span><span class="badge off">재료 없음</span></div>';
+    } else {
+      let idx = 0;
+      lsblk.forEach(d => {
+        const ctrl = isControllerDisk(d);
+        const badge = ctrl ? '<span class="badge on">index ' + (idx++) + '</span>' : '<span class="badge off">가상 미디어 · 제외</span>';
+        dhtml += '<div class="ux-row' + (ctrl ? '' : ' muted') + '"><strong>' + d.device + '</strong><span class="label">' +
+          d.size + ' <span style="color:var(--text-muted)">wwn=' + (d.wwn || '—') + '</span></span>' + badge + '</div>';
+      });
+    }
+    document.getElementById('demo-disks').innerHTML = dhtml;
+
+    // 판정 트레이스
+    const os = p.stored.find(v => v.role === 'OS');
+    const expected = os ? windowsUniqueIdOf(p.family, os.wwn) : null;
+    const yes = s => '<span class="f">' + s + '</span>';
+    const no = s => '<span class="t">' + s + '</span>';
+    caps = 'family              = ' + p.family + '\n' +
+      'osVolume            = ' + (os ? os.name + ' (wwn=' + os.wwn + ')' : '(없음 — 실물 볼륨 0)') + '\n' +
+      'expectedUniqueId    = ' + (expected === null ? '(null)' : expected) + '\n';
+    if (r.c === 'DEFERRED' || r.wire === 'os volume missing in plan') {
+      caps += 'raidPhasePending    = ' + yes('true') + '  → 계획으로 판정\n' +
+        'plan.osVolume       = ' + (demoPlanHasOs ? yes(p.planOs) : no('(없음)')) + '\n';
+    } else {
+      const orderNames = windowsDiskOrder(p.family, p.inv).map(v => v.id).join(' → ');
+      caps += '① lsblk 인덱스      = ' + (r.basis === 'lsblk' ? yes(String(r.diskId)) : no('미성립')) + '\n' +
+        '② 계열 순서 규칙    = [' + orderNames + ']  ' + (r.basis === 'inventory-order' ? yes('index ' + r.diskId) : '(미사용)') + '\n';
+    }
+    caps += 'judge               = ' + (r.c === 'BLOCKED' ? no(r.c) : yes(r.c)) +
+      (r.c === 'CONFIDENT' ? '  diskId=' + r.diskId + '  basis=' + r.basis : '') +
+      (r.wire ? '  wire="' + r.wire + '"' : '') + '\n' +
+      'readiness           = ' + (r.c === 'BLOCKED' ? no('BLOCKED') : yes('READY')) + '   (DEFERRED 는 막지 않는다)';
+    document.getElementById('demo-caps').innerHTML = caps;
+
+    if (r.c === 'CONFIDENT') {
+      msgClass = 'ux-message success';
+      msgText = '설치 대상 디스크 ' + r.diskId + ' · 근거 ' + (r.basis === 'lsblk' ? 'RAID 검증 재채집(lsblk)' : '카드 계열 순서 규칙') +
+        ' · 확증 기준 ' + (r.expected || '(미노출)') + '   ';
+    } else if (r.c === 'DEFERRED') {
+      msgClass = 'ux-message';
+      msgText = r.note + ' — 준비도는 READY 다(F-1 정정: 계획이 답을 알고 있으면 막지 않는다).   ';
+    } else {
+      msgClass = 'ux-message error';
+      msgText = r.note + '   ';
+    }
+    const msg = document.getElementById('demo-message');
+    msg.className = msgClass;
+    msg.innerHTML = msgText + demoBtn('serve', '설치 서빙 — DiskID 박기', r.c !== 'CONFIDENT',
+      r.c === 'DEFERRED' ? 'RAID 구성이 끝나야 번호가 확정됩니다. 준비도는 READY 라 흐름은 계속됩니다.' : (r.note || '판정 미성립'));
+  }
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

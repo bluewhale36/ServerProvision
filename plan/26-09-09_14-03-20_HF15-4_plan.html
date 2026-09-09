@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF15-4 Plan — 정상 종료 무응답 안내 · 진단 리눅스 acpid</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; margin-right:6px; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF15-4 — 정상 종료 무응답 안내 · 진단 리눅스 acpid <span class="v2-badge">F-10</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF15-4 (hotfix)</span>
+    <span><strong>상위</strong> HF15 — 실기 3호 파생 결함 정정</span>
+    <span><strong>scope</strong> 정상 종료가 먹히지 않을 때 화면이 알아채 안내하고, 진단 리눅스는 실제로 응답하게 한다</span>
+    <span><strong>생성</strong> 2026-09-09 KST</span>
+    <span><strong>CP1</strong> 설계 기록 (무중단 진행 지시 2026-09-08 22:30)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">실기 3호(2026-09-08)에서 정상 종료(Redfish <code>GracefulShutdown</code>)를 세 번 발행했다. BMC 는 세 번 모두 Task 를 만들었고(<code>state=null</code>) 화면은 200 을 받았지만, 호스트는 꺼지지 않았다. 결국 매번 [강제 끄기] 로 끝냈고 그날 종료 7 건이 전부 강제였다.</p>
+        <table>
+          <thead><tr><th>시각</th><th>대상</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>18:06</td><td>웨이브</td><td>Task 생성 · 호스트 무반응 → 강제 끄기</td></tr>
+            <tr><td>18:08</td><td>사이버 성우</td><td>동일</td></tr>
+            <tr><td>18:46</td><td>일산 상2</td><td>동일</td></tr>
+          </tbody>
+        </table>
+        <h4>원인 둘</h4>
+        <ol>
+          <li><b>호스트에 받는 쪽이 없다.</b> 정상 종료는 BMC 가 ACPI 전원 버튼을 누르는 것이라 호스트 OS 가 그 이벤트를 받아 스스로 꺼야 한다. 진단 리눅스(Alpine)에는 <code>acpid</code> 가 없었다 — <code>apkovl/etc/apk/world</code> 에도, 런레벨에도 부재.</li>
+          <li><b>화면이 결과를 모른다.</b> <code>server-power.js</code> 는 E1.5 의 결정 D4(화면 경로는 폴링하지 않는다)에 따라 발행 결과만 표기하고 [상태 조회] 로 잇게 돼 있다. 운영자는 "전달됐지만 무시된 것" 과 "곧 꺼질 것" 을 구분할 수 없었다.</li>
+        </ol>
+        <div class="callout danger"><b>F-10</b> — 발행은 성공(200)인데 결과는 실패다. 응답 코드가 조작의 성패를 말해 주지 않는 상황이라 운영자는 매번 60초쯤 지켜보다 포기하고 강제로 껐다.</div>
+        <p><b>진입 전제</b> — E1.5(Redfish 전원 제어 · <code>PowerControlResult</code> · <code>RedfishResetType</code>)와 E1-1(진단 자산 조립 <code>build-assets.sh</code>)이 완료돼 있다. 서버의 발행 경로는 그대로 두고 화면과 진단 이미지만 손댄다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>정상 종료를 발행하면 화면이 스스로 결과를 확인한다 — <code>GET …/power</code> 를 5초 간격으로 최대 60초.</li>
+          <li>시한 안에 <code>Off</code> 를 보면 "정상 종료가 완료됐습니다 (PowerState Off 확인)." 로 확정하고 감시를 멈춘다.</li>
+          <li>시한을 넘기면 무응답임을 문장으로 알리고 — 전원 버튼을 처리하는 OS 가 없는 상태(진단 리눅스 · 설치 화면 · UEFI 셸)일 수 있다고 짚고 — [강제 끄기] 를 <code>n-btn-outline-danger</code> → <code>n-btn-danger</code> 로 강조한다(기존 클래스 재사용 · 신규 CSS 0).</li>
+          <li>발행 자체가 실패하면(<code>kind=FAILED</code>) 감시를 시작하지 않는다.</li>
+          <li>다른 전원 명령을 누르거나 정상 종료를 다시 누르면 진행 중이던 감시를 멈추고 강조를 되돌린다.</li>
+          <li>진단 리눅스는 전원 버튼에 응답한다 — <code>acpid</code> 를 world 에 넣고 <code>button/power</code> → <code>poweroff</code> 핸들러를 가방에 동봉해 기본 런레벨에 올린다.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>서버가 폴링해 결과를 확정하는 것 — E1.5 D4 를 유지한다(화면 경로에 60초 블로킹 금지).</li>
+            <li>시한이 지났을 때 자동으로 강제 끄기로 넘어가는 것 — 파괴적 조작은 운영자 확인(confirm 모달)을 거친다.</li>
+            <li>Windows 설치 화면 · UEFI 셸이 전원 버튼에 응답하게 만드는 것 — 우리가 못 고친다. 안내로 덮는다.</li>
+            <li>감시 간격 · 시한(5초 · 60초)의 설정화 — 상수로 고정하고 실기 관측 뒤 재검토(§8 Q3).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 정상 종료 감시 상태기계</summary>
+      <div class="body">
+        <p style="margin-top:0;">발행 결과 · 호스트 응답 · 경과 시간 세 입력이 화면 문구와 [강제 끄기] 강조를 정한다. 아래 판정 JS 는 <code>server-power.js</code> 의 <code>watchGraceful()</code> 한 주기를 그대로 옮긴 것이다(드리프트 0). <b>프리셋을 누르면 그 상황이 끝까지 재생</b>되고, [정상 종료 발행] → [+5초 경과] 로 한 틱씩 직접 밟아볼 수도 있다.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 프리셋 :</span>
+            <button class="seg" data-preset="ok" onclick="demoPreset('ok')">① 진단 리눅스 — 응답</button>
+            <button class="seg" data-preset="none" onclick="demoPreset('none')">② 설치 화면 — 무응답</button>
+            <button class="seg" data-preset="fail" onclick="demoPreset('fail')">③ 발행 실패</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">직접 조작 :</span>
+            <span id="demo-actions"></span>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="demo-host">
+              <strong>게스트</strong><span class="label" id="demo-host-label"></span>
+              <span class="badge on" id="demo-badge">On</span>
+            </div>
+            <div class="ux-row">
+              <span class="label">전원 섹션 버튼</span><span id="demo-buttons"></span>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 <code>demoWatchTick()</code> 은 <code>server-power.js</code> 의 <code>watchGraceful()</code> 과 같은 순서로 판정한다: ① <code>powerState === 'OFF'</code> 확인 → ② 경과 <code>&gt;= GRACEFUL_WATCH_MS</code> 확인 → ③ 그 외엔 대기 문구 갱신 후 재귀.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/provisioning/server/{id}/power/reset</code></td><td>본문 <code>{"resetType":"GRACEFUL_SHUTDOWN"}</code> 단발 발행 <span class="chip keep">변경 0</span></td><td>200 <code>PowerControlResult</code>(kind=SENT|FAILED)</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/{id}/power</code></td><td>현재 전원 상태 조회 — 감시가 5초마다 호출 <span class="chip keep">변경 0</span></td><td>200 <code>PowerControlResult</code>(powerState)</td></tr>
+          </tbody>
+        </table>
+        <p>서버 계약은 한 줄도 바꾸지 않는다. 늘어난 것은 <b>같은 엔드포인트를 화면이 몇 번 더 부른다</b>는 사실뿐이다.</p>
+        <div class="seq">
+          <div class="actor a1">운영자 · 화면</div><div class="actor a2">Provisioning Server</div><div class="actor a3">BMC · 호스트</div>
+          <div class="step a1">[정상 종료] → confirm → POST /power/reset</div><div class="step a2">Redfish Reset 발행 (단발)</div><div class="step a3">ACPI 전원 버튼</div>
+          <div class="step a1">SENT 확인 → 감시 시작</div><div class="step a2"></div><div class="step a3">받는 쪽이 있으면 종료 진행</div>
+          <div class="step a1">GET /power 를 5초마다</div><div class="step a2">PowerState 조회</div><div class="step a3">On / Off 응답</div>
+          <div class="step a1">Off → 완료 확정 / 60초 → 무응답 안내 + [강제 끄기] 강조</div><div class="step a2">관여 없음</div><div class="step a3"></div>
+        </div>
+        <h4>ACPI 쪽 경로 (진단 이미지)</h4>
+        <div class="pkg-tree">BMC ──Redfish GracefulShutdown──▶ ACPI 전원 버튼
+  ├─ 진단 리눅스 : acpid ─▶ /etc/acpi/events/power ─▶ handler.sh ─▶ /sbin/poweroff   (HF15-4 신설)
+  └─ 설치 화면 · UEFI 셸 : 받는 주체 없음 ─▶ 무응답 ─▶ 화면이 60초 뒤 안내</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>설계 대안 비교</h4>
+        <table>
+          <thead><tr><th>안</th><th>요지</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>A 서버 폴링</td><td>Graceful 발행 뒤 서버가 60초 PowerState 를 확인하고 FAILED 로 확정</td><td>탈락 — 결과는 정확하지만 E1.5 D4 가 금지한 60초 블로킹을 화면 경로에 얹는다</td></tr>
+            <tr><td><b>B 화면 감시</b></td><td>서버는 단발 유지 · JS 가 5초 × 60초 지켜보고 Off 면 확정, 아니면 안내</td><td><b>채택</b></td></tr>
+            <tr><td>C 이미지 수정</td><td>진단 리눅스에 acpid 를 넣어 실제로 응답하게</td><td>단독으로는 탈락 — Windows 설치 화면 · UEFI 셸은 여전히 무응답이라 안내가 필요하다</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>채택 = B + C</b> — 안내(B)로 모든 상태를 덮고, 우리가 고칠 수 있는 상태(C)는 실제로 고친다. 둘은 겹치지 않는다: B 가 없으면 Windows 에서 여전히 깜깜하고, C 가 없으면 진단 리눅스는 영원히 안내만 받는다.</div>
+
+        <h4>계약 ① 화면 감시 상태기계 (<code>server-power.js</code>)</h4>
+        <p>상수 <code>GRACEFUL_WATCH_MS = 60000</code> · <code>GRACEFUL_STEP_MS = 5000</code>. 판정 입력은 <code>PowerControlResult.powerState</code> 와 발행 이후 경과 시간 둘뿐이다.</p>
+        <table>
+          <thead><tr><th>조건</th><th>화면 결과</th></tr></thead>
+          <tbody>
+            <tr><td><code>powerState === 'OFF'</code></td><td>SENT · "정상 종료가 완료됐습니다 (PowerState Off 확인)." · 감시 종료</td></tr>
+            <tr><td>경과 <code>&gt;= 60000</code></td><td>FAILED · 무응답 안내 · [강제 끄기] <code>n-btn-danger</code> 강조 · 감시 종료</td></tr>
+            <tr><td>그 외</td><td>"…응답을 기다립니다 (N초)…" · 5초 뒤 재확인</td></tr>
+            <tr><td>발행이 <code>kind=FAILED</code></td><td>감시 시작하지 않음</td></tr>
+            <tr><td>다른 명령 발행</td><td><code>stopWatch()</code> — 타이머 해제 + 강조 원복</td></tr>
+          </tbody>
+        </table>
+
+        <h4>계약 ② ACPI 이벤트 (진단 이미지)</h4>
+        <pre><code>etc/acpi/events/power   event=button/power.*  →  action=/etc/acpi/handler.sh %e
+etc/acpi/handler.sh     case button/power) logger -t provision-acpi … ; /sbin/poweroff</code></pre>
+        <p>핸들러는 전원 버튼만 처리하고 나머지 이벤트는 무시한다. <code>logger -t provision-acpi</code> 로 실기에서 호출 여부를 직접 확인할 수 있다.</p>
+        <div class="callout warn"><b>Primitive Obsession</b> — 신규 엔티티 필드 · Value Object · Enum 이 0 이다. 재사용하는 도메인 타입은 <code>RedfishResetType.GRACEFUL_SHUTDOWN</code> 과 <code>PowerControlResult</code>(kind · powerState · message) 이며, 감시 간격 · 시한은 화면 스크립트 상수라 타입화 대상이 아니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>화면 자산 <code>server-power.js</code> + 진단 이미지 자산 4건. Controller · DTO · Service 변경 0</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>N/A — 영속 상태가 늘지 않는다(감시는 화면 안에서만 산다)</td><td><span class="chip cp3">CP3</span></td><td>—</td></tr>
+            <tr><td>8~9</td><td>N/A — 서버 코드 · DDL 0. 빌드 회귀만 확인</td><td><span class="chip cp4">CP4</span></td><td>중간 승인</td></tr>
+            <tr><td>10</td><td>CP5 — 샌드박스는 BMC 미검출이라 전원 섹션이 뜨지 않는다. 콘솔 <code>fetch</code> 스텁 + tar 내용 검사로 대체(§9)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 4호 — E 계열 일괄 검증</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점 ② CP4 승인 → CP6 제출. 본 슬라이스는 사용자의 "무중단으로 끝까지" 지시(2026-09-08 22:30)로 CP1 승인을 갈음해 구현이 선행됐고, 이 문서는 그 설계 근거를 사후에 남기는 기록이다 — <b>코드와 어긋나면 저장소가 정본</b>이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>해당 없음 — 발행 · 조회의 성공 경로는 E1.5 통합 테스트가 이미 덮는다(요청 · 응답 계약 무변경)</td><td>0</td></tr>
+            <tr><td>400</td><td>해당 없음 — 요청 본문 계약이 그대로다</td><td>0</td></tr>
+            <tr><td>404</td><td>해당 없음 — 새 경로 · 새 조회 대상이 없다</td><td>0</td></tr>
+            <tr><td>409</td><td>해당 없음 — 새 <code>ConflictException</code> 하위가 없다</td><td>0</td></tr>
+            <tr><td>500</td><td>해당 없음 — 감시 중 조회 실패는 예외로 새지 않고 다음 주기로 넘어간다(§7)</td><td>0</td></tr>
+            <tr><td>회귀</td><td>기존 전원 제어 단위 · 통합 테스트 전량 green 유지</td><td>기존 전량</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">신규 서버 코드가 0 이라 Step 8 신규 시나리오도 0 이다. <b>검증 부담이 CP5 로 옮겨간다</b> — 감시 로직은 브라우저 콘솔 스텁으로, 이미지 조립은 tar 내용 검사로 확인한다(§9). 신규 예외가 없으므로 "새 예외마다 트리거 시나리오" 규율에 걸리는 항목도 없다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>대상</th><th>처리</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>PowerControlResult.kind = FAILED</code></td><td>예외가 아니라 정상 응답의 실패 표기 — 화면이 빨간 문구로 옮긴다</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td>감시 중 <code>GET /power</code> 실패</td><td>삼키고 다음 주기로 넘어간다. 시한까지 못 살리면 무응답 안내로 수렴</td><td><span class="chip new">화면 규약</span></td></tr>
+            <tr><td>브라우저 <code>fetch</code> 오류</td><td>기존 <code>call()</code> 의 표기 경로 재사용("요청 실패 (HTTP N)" · "서버와 통신할 수 없습니다")</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>신규 예외 0.</b> 호스트가 전원 버튼을 무시하는 것은 프로그램 예외가 아니라 그 순간의 호스트 상태다 — 서버 예외를 새로 만들지 않고 화면 안내로 처리한다(CLAUDE.md "예외 = 프로그램 예외 전용, UX 모순은 UI 1차 차단").</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>배포 부산물</h4>
+        <p><code>world</code> 에 <code>acpid</code> 가 한 줄 늘었다. 게스트는 부분 apk 저장소에서 world 를 설치하므로 <b>저장소를 Docker 로 재조립한 뒤</b>(<code>build-assets.sh repo</code> → <code>apkovl</code>) 전 사이트에 배포해야 한다. 화면 자산은 정적 파일이라 애플리케이션 재배포로 반영된다.</p>
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td><code>do_repo</code> 의 <code>apk fetch --recursive</code> 목록(현행 실측 : alpine-base · openrc · busybox · dmidecode · ipmitool · openssl · pciutils · lsblk)에 <code>acpid</code> 가 없다. 스크립트 주석은 이 저장소가 world 의 전체 의존성 폐쇄를 담아야 부팅이 완결된다고 적고 있다(2026-07-19 QEMU 실측)</td><td><b>재조립 전에 확인한다.</b> 누락이면 world 트랜잭션 전체가 실패해 응급 셸로 떨어진다 — 과거 openssl 누락과 같은 실패 형태다</td></tr>
+            <tr><td>Q2</td><td>Alpine <code>acpid</code> 패키지의 기본 핸들러 형식이 우리 <code>handler.sh</code> 와 다르면 호출이 안 될 수 있다</td><td><code>events/power</code> 규칙을 동봉해 두었으므로 방어는 돼 있다. 실기에서 <code>provision-acpi</code> 태그 로그로 실제 호출을 확인한다</td></tr>
+            <tr><td>Q3</td><td>감시 간격 5초 · 시한 60초가 적절한가</td><td>현행 고정. 실기 4호에서 진단 리눅스가 실제로 꺼지기까지 걸린 시간을 재고 조정한다</td></tr>
+            <tr><td>Q4</td><td>요구사항 5(다른 명령 발행 시 감시 중단)가 모든 경우에 성립하는가. <code>stopWatch()</code> 는 대기 중인 <code>setTimeout</code> 핸들만 지운다 — 주기 콜백이 이미 깨어나 <code>await fetchState()</code> 중이면 그 콜백은 재개되어 <code>watchGraceful(sentAt)</code> 로 스스로를 다시 건다. BMC 응답이 느릴 때 감시 사슬이 겹칠 수 있다</td><td><b>CP5 A3 에서 조회를 느리게 스텁해 재현을 시도한다.</b> 재현되면 세대 카운터(발행마다 증가시키고 <code>await</code> 뒤 자기 세대를 확인)로 닫는다 — 화면 문구가 뒤늦게 덮이는 표시 문제이고 서버 상태에는 영향이 없다</td></tr>
+          </tbody>
+        </table>
+        <h4>주의</h4>
+        <ul>
+          <li>감시는 화면이 열려 있는 동안만 산다 — 탭을 닫으면 안내가 뜨지 않는다. 서버 상태에는 아무 영향이 없고, 다시 열어 [상태 조회] 를 누르면 된다.</li>
+          <li>무응답 안내 문구는 진단 리눅스를 여전히 예시로 든다. HF15-4 배포 뒤 진단 리눅스는 응답하지만, 구 이미지로 부팅한 서버가 남아 있는 동안은 그 예시가 맞다.</li>
+          <li>CLAUDE.md 수정 사항 없음. 관련 페이지 동반 수정 없음.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>빌드</b> · <b>기능</b> · <b>회귀</b> 셋으로 나눈다. 샌드박스는 BMC 가 없어 <code>powerControlSection</code> 의 <code>data-bmc-detected</code> 가 <code>true</code> 가 아니고, 스크립트가 즉시 반환해 전원 섹션 자체가 뜨지 않는다 — 그래서 기능 검증을 콘솔 스텁으로 대체한다.</p>
+        <ul class="check-list" data-storage="HF15-4-verify">
+          <li><label><input type="checkbox" data-key="build"> <span>[빌드] <code>./gradlew build</code> green — 서버 코드 변경 0 의 회귀 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="a1"> <span>[기능 A1] 콘솔에서 <code>fetch</code> 를 Off 응답으로 스텁 → 완료 문구로 확정되고 감시가 멈춘다</span></label></li>
+          <li><label><input type="checkbox" data-key="a2"> <span>[기능 A2] On 응답 스텁 유지 → 60초 뒤 무응답 안내 + [강제 끄기] 가 <code>n-btn-danger</code> 로 바뀐다</span></label></li>
+          <li><label><input type="checkbox" data-key="a3"> <span>[기능 A3] 감시 중 다른 명령 발행 → <code>stopWatch()</code> 로 타이머 해제 + 강조 원복</span></label></li>
+          <li><label><input type="checkbox" data-key="image"> <span>[기능 A4] <code>build-assets.sh apkovl</code> → <code>diag.apkovl.tar.gz</code> 안에 <code>etc/acpi/handler.sh</code> · <code>etc/acpi/events/power</code> · <code>etc/runlevels/default/acpid</code> 존재</span></label></li>
+          <li><label><input type="checkbox" data-key="repo"> <span>[회귀 B1] 부분 apk 저장소에 <code>acpid</code> 패키지가 실렸는가 (§8 Q1)</span></label></li>
+          <li><label><input type="checkbox" data-key="regress"> <span>[회귀 B2] 켜기 · 재시작 · 강제 끄기의 기존 동작 무변경(감시는 정상 종료에만 붙는다)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="field"> <span>실기 4호 — 진단 리눅스 정상 종료가 poweroff 로 이어지는가 · Windows 화면에서 안내가 뜨는가 · <code>provision-acpi</code> 로그</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>scripts/diag-image/apkovl/etc/acpi/handler.sh</code></td><td><code>button/power</code> → <code>logger</code> + <code>/sbin/poweroff</code>, 그 외 무시</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>scripts/diag-image/apkovl/etc/acpi/events/power</code></td><td><code>event=button/power.*</code> → <code>handler.sh %e</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/diag-image/apkovl/etc/apk/world</code></td><td><code>acpid</code> 한 줄 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/diag-image/build-assets.sh</code></td><td><code>runlevels/default/acpid</code> 심링크 + <code>handler.sh</code> 실행권한</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>src/main/resources/static/provisioning/server-power.js</code></td><td><code>watchGraceful</code> · <code>stopWatch</code> · <code>fetchState</code> 추가와 <code>reset()</code> 배선</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>서버 전원 제어 경로(<code>PowerControlResult</code> · Redfish 발행 · 컨트롤러)</td><td>변경 0 — E1.5 D4(단발) 유지</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>게스트 상세 전원 섹션 마크업 · 전역 CSS</td><td>강조는 JS 의 <code>classList.replace</code> 로 런타임 처리 — 신규 클래스 0</td></tr>
+          </tbody>
+        </table>
+        <p>신규 2 · 수정 3 · 유지 2. 자바 소스 변경이 0 이라는 점이 이 슬라이스의 성격을 그대로 말한다 — 고칠 곳은 서버가 아니라 <b>화면의 관측</b>과 <b>게스트의 응답</b>이었다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>CP5</b> — §9 의 A1~A4 · B1~B2 를 수행하고 항목별 스크린샷(콘솔 스텁 화면 · tar 목록)을 남긴다.</li>
+          <li><b>CP6</b> — report html 산출 후 승인.</li>
+          <li><b>CP7</b> — E 계열 일괄 실기(4호). 진단 리눅스에서 정상 종료가 실제 <code>poweroff</code> 로 이어지는지, Windows 설치 · 로그온 화면에서 60초 안내가 뜨는지 확인한다.</li>
+          <li><b>잔존</b> — Q1(저장소 <code>acpid</code> 포함)은 재조립 전에, Q3(상수 조정)은 실기 4호 관측 뒤에 닫는다.</li>
+          <li><b>형제 슬라이스</b> — HF15-1(프로비저닝 중 PXE 부팅 보장) · HF15-2(RAID 재시도 되감기) · HF15-3(부팅마다 호스트 NIC 갱신) · HF15-5(설치 디스크 번호 근거)가 같은 실기 3호 기록에서 갈라져 나왔다.</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 정상 종료 감시 상태기계 — server-power.js 의 watchGraceful() 재현 (드리프트 0)
+  // ─────────────────────────────────────────────────────────────
+  const GRACEFUL_WATCH_MS = 60000, GRACEFUL_STEP_MS = 5000;
+  const MSG_DONE = '정상 종료가 완료됐습니다 (PowerState Off 확인).';
+  const MSG_TIMEOUT = '호스트가 정상 종료 요청에 응답하지 않습니다 — 전원 버튼을 처리하는 OS 가 없는 상태(진단 리눅스 · 설치 화면 · UEFI 셸)일 수 있습니다. [강제 끄기] 로 종료하십시오.';
+  const MSG_ISSUE_FAIL = '요청 실패 (HTTP 502)';
+  const HOST_LABEL = {
+    ACPID: '진단 리눅스 (acpid 있음 — HF15-4 적용 이미지)',
+    NONE:  'Windows 설치 화면 · UEFI 셸 (전원 버튼을 받는 주체 없음)'
+  };
+  let demoState = {
+    host: 'ACPID', issue: 'SENT', preset: null,
+    watching: false, elapsed: 0, powerState: 'ON',
+    kind: null, message: '프리셋을 누르거나 [정상 종료 발행] 로 직접 밟아보세요.', forceStrong: false
+  };
+
+  // GET /power 응답 모형 — acpid 가 있는 호스트는 발행 10초쯤 뒤 Off 로 넘어간다
+  function demoPowerState(s) {
+    return (s.host === 'ACPID' && s.watching && s.elapsed >= 10000) ? 'OFF' : 'ON';
+  }
+  // watchGraceful() 한 주기: ① OFF 확인 → ② 시한 확인 → ③ 대기 문구
+  function demoWatchTick(s) {
+    const state = demoPowerState(s);
+    if (state === 'OFF') return { done: true, kind: 'SENT', powerState: 'OFF', message: MSG_DONE, force: false };
+    if (s.elapsed >= GRACEFUL_WATCH_MS) return { done: true, kind: 'FAILED', powerState: state, message: MSG_TIMEOUT, force: true };
+    return { done: false, kind: 'SENT', powerState: state,
+      message: '정상 종료 요청 전달 — 호스트 응답을 기다립니다 (' + Math.round(s.elapsed / 1000) + '초)…', force: false };
+  }
+  function demoStopWatch() { demoState.watching = false; demoState.forceStrong = false; }
+
+  function demoAction(name) {
+    if (name === 'issue') {
+      demoStopWatch(); demoState.elapsed = 0; demoState.powerState = 'ON';
+      if (demoState.issue === 'FAILED') { demoState.kind = 'FAILED'; demoState.message = MSG_ISSUE_FAIL; }
+      else { demoState.kind = 'SENT'; demoState.watching = true;
+        demoState.message = '정상 종료 요청 전달 — 호스트 응답을 기다립니다 (0초)…'; }
+    } else if (name === 'tick') {
+      if (!demoState.watching) return;
+      demoState.elapsed += GRACEFUL_STEP_MS;
+      const r = demoWatchTick(demoState);
+      demoState.kind = r.kind; demoState.powerState = r.powerState;
+      demoState.message = r.message; demoState.forceStrong = r.force;
+      if (r.done) demoState.watching = false;
+    } else if (name === 'force') {
+      demoStopWatch();
+      demoState.kind = 'SENT'; demoState.powerState = 'OFF';
+      demoState.message = '강제 끄기 발행 — stopWatch() 로 감시를 멈추고 강조를 되돌린다. 이후 표기는 서버 PowerControlResult 가 정한다.';
+    } else if (name === 'clear') {
+      demoStopWatch(); demoState.elapsed = 0; demoState.kind = null; demoState.powerState = 'ON';
+      demoState.message = '초기 상태. [정상 종료 발행] 부터 다시 밟아보세요.';
+    }
+    demoRender();
+  }
+  function demoPreset(p) {
+    demoState.preset = p;
+    demoState.host = (p === 'ok') ? 'ACPID' : 'NONE';
+    demoState.issue = (p === 'fail') ? 'FAILED' : 'SENT';
+    demoAction('issue');
+    let guard = 0;
+    while (demoState.watching && guard++ < 20) demoAction('tick');
+    demoRender();
+  }
+  function demoBtn(action, label, blocked, tip, extra) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    const st = extra ? (' style="' + extra + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + st + dis +
+      ' onclick="demoAction(\'' + action + '\')">' + label + '</button></span>';
+  }
+  function demoRender() {
+    const s = demoState;
+    document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(b =>
+      b.classList.toggle('active', b.dataset.preset === s.preset));
+    document.getElementById('demo-host-label').textContent = HOST_LABEL[s.host];
+    const badge = document.getElementById('demo-badge');
+    badge.textContent = (s.kind === 'FAILED' && !s.watching && s.powerState !== 'OFF') ? '실패'
+      : (s.powerState === 'OFF' ? 'Off' : 'On');
+    badge.className = 'badge ' + (s.powerState === 'OFF' ? 'off' : (s.kind === 'FAILED' ? 'del' : 'on'));
+    document.getElementById('demo-host').classList.toggle('muted', s.powerState === 'OFF');
+
+    document.getElementById('demo-actions').innerHTML =
+      demoBtn('issue', '정상 종료 발행', false, '') +
+      demoBtn('tick', '+5초 경과', !s.watching, '감시 중이 아닙니다 — 먼저 [정상 종료 발행] 을 누르세요.') +
+      demoBtn('clear', '초기화', false, '');
+    const strong = s.forceStrong
+      ? 'background:var(--red);color:#fff;border-color:var(--red)'
+      : 'border-color:var(--red);color:var(--red)';
+    document.getElementById('demo-buttons').innerHTML =
+      demoBtn('force', '강제 끄기' + (s.forceStrong ? ' (강조)' : ''), false, '', strong);
+
+    const tf = v => v ? '<span class="t">true</span>' : '<span class="f">false</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'watchTimer          = ' + (s.watching ? '감시 중 (경과 ' + Math.round(s.elapsed / 1000) + '/60초)' : 'null') + '\n' +
+      'GET /power          → powerState = ' + s.powerState + '\n' +
+      'powerState === OFF  = ' + tf(s.powerState === 'OFF') + '\n' +
+      'elapsed >= 60000    = ' + tf(s.elapsed >= GRACEFUL_WATCH_MS) + '\n' +
+      'forceOff class      = ' + (s.forceStrong ? 'n-btn-danger (강조)' : 'n-btn-outline-danger');
+
+    const msg = document.getElementById('demo-message');
+    msg.textContent = s.message;
+    msg.className = 'ux-message' + (s.kind === 'FAILED' ? ' error' : (s.powerState === 'OFF' ? ' success' : ''));
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
