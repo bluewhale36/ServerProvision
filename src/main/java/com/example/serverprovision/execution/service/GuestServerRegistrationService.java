@@ -68,6 +68,7 @@ public class GuestServerRegistrationService {
         var existing = guestServerRepository.findBySystemUUIDAndDecommissionedAtIsNull(systemUUID);
         if (existing.isPresent()) {
             existing.get().issueTokenIfAbsent();
+            bindBootNic(existing.get(), req);   // HF15-3 — 다른 포트 · 재임대 IP 를 바인딩에 반영
             log.info("이미 등록된 서버 재부팅 — 등록 생략 : systemUUID={}", systemUUID);
             return existing.get();
         }
@@ -130,6 +131,42 @@ public class GuestServerRegistrationService {
         log.info("신규 서버 등록 완료 : systemUUID={}, vendor={}, boardModel={}, mac={}",
                 systemUUID, vendor, boardModel.getModelName(), req.macAddress());
         return server;
+    }
+
+    /**
+     * 재부팅이 보고한 NIC 을 바인딩에 반영한다(HF15-3 · 실기 3호 F-5). 등록 때와 다른 포트에 꽂혀 부팅하면 새 MAC 의 바인딩을
+     * 추가하고(primary 는 최초 등록 NIC 그대로), 같은 포트가 다른 IP 를 받았으면 IP 를 갱신한다. 매칭은 systemUUID 로 이미
+     * 끝났으므로 형식이 어긋난 MAC · IP 는 부팅을 막지 않고 건너뛴다(관용).
+     */
+    private void bindBootNic(GuestServer server, BootIPXEInfoRequest req) {
+        MacAddressVO mac;
+        IpAddressVO ip;
+        try {
+            mac = MacAddressVO.of(req.macAddress());
+            ip = req.ipAddress() == null || req.ipAddress().isBlank() ? null : IpAddressVO.of(req.ipAddress());
+        } catch (IllegalArgumentException malformed) {
+            log.warn("재부팅 NIC 형식 이상 — 바인딩 갱신 생략 : guestServerId={}, mac={}, ip={}",
+                    server.getId(), req.macAddress(), req.ipAddress());
+            return;
+        }
+        Optional<HostNicBinding> bound = hostNicBindingRepository.findByGuestServer_IdAndMacAddress(server.getId(), mac);
+        if (bound.isPresent()) {
+            if (bound.get().refreshIp(ip)) {
+                log.info("호스트 NIC IP 갱신(재임대) : guestServerId={}, mac={}, ip={}", server.getId(), mac.value(), ip.value());
+            }
+            return;
+        }
+        hostNicBindingRepository.save(
+                HostNicBinding.builder()
+                        .id(newId())
+                        .guestServer(server)
+                        .macAddress(mac)
+                        .ipAddress(ip)
+                        .ipSource(IpSource.DHCP)
+                        .isPrimary(false)   // 최초 등록 NIC 이 primary — 이 포트는 부팅에 쓰인 추가 NIC
+                        .build());
+        log.info("호스트 NIC 바인딩 추가(다른 포트로 부팅) : guestServerId={}, mac={}, ip={}",
+                server.getId(), mac.value(), ip == null ? null : ip.value());
     }
 
     /**

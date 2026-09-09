@@ -307,7 +307,6 @@ CREATE TABLE `host_nic_binding` (
   `host_mac` varchar(17) NOT NULL,
   `guest_server_id` uuid NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `UK4236oeuwacyprg08xcho28mpr` (`host_mac`),
   KEY `FKggvanbenc4u2qwb5ard660842` (`guest_server_id`),
   CONSTRAINT `FKggvanbenc4u2qwb5ard660842` FOREIGN KEY (`guest_server_id`) REFERENCES `guest_server` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

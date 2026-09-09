@@ -23,4 +23,8 @@ public interface HostNicBindingRepository extends JpaRepository<HostNicBinding, 
      */
     @Query("select n from HostNicBinding n where n.guestServer.id = :serverId order by n.isPrimary desc, n.createdAt asc")
     List<HostNicBinding> findAllByServerIdOrderByPrimary(@Param("serverId") UUID serverId);
+
+    /** 재부팅 경로의 NIC 대조(HF15-3) — 같은 서버 · 같은 MAC 의 바인딩. 회수 행의 MAC 은 다른 서버 id 라 섞이지 않는다. */
+    java.util.Optional<HostNicBinding> findByGuestServer_IdAndMacAddress(UUID serverId,
+            com.example.serverprovision.execution.vo.MacAddressVO macAddress);
 }
