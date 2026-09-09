@@ -22,9 +22,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -38,6 +40,8 @@ class GuestServerControllerActionTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean GuestServerQueryService queryService;
+
+    @MockitoBean com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 — [재시도 후 네트워크 부팅]
     @MockitoBean GuestServerCommandService commandService;
     // U3-1 — 컨트롤러 신규 협력자(할당 스냅샷). 본 액션(mark-failed·retry)은 소비하지 않으나 컨텍스트 로드에 필요.
     @MockitoBean AssignmentCommandService assignmentCommandService;
@@ -68,6 +72,29 @@ class GuestServerControllerActionTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/provisioning/server/" + id));
         verify(commandService).retry(id);
+    }
+
+    @Test
+    @DisplayName("HF15-1 · POST /{id}/retry-boot — 재시도 뒤 BMC 네트워크 부팅을 잇고 결과를 flash 로 알린다(302 PRG)")
+    void retryBoot_retriesThenNetworkBoots() throws Exception {
+        UUID id = UUID.randomUUID();
+        com.example.serverprovision.execution.dto.response.GuestServerDetailResponse detail =
+                org.mockito.Mockito.mock(com.example.serverprovision.execution.dto.response.GuestServerDetailResponse.class);
+        com.example.serverprovision.global.redfish.RedfishTarget target =
+                new com.example.serverprovision.global.redfish.RedfishTarget("192.168.1.111", "QG26");
+        given(detail.redfishTarget()).willReturn(target);
+        given(queryService.findDetail(id)).willReturn(detail);
+        given(redfishPowerService.networkBoot(target)).willReturn(
+                com.example.serverprovision.global.redfish.PowerControlResult.sent(
+                        com.example.serverprovision.global.redfish.RedfishPowerState.ON, "재시작(ForceRestart) 발행"));
+
+        mvc.perform(post("/provisioning/server/{id}/retry-boot", id))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/provisioning/server/" + id))
+                .andExpect(flash().attribute("flashMessage", org.hamcrest.Matchers.containsString("재시도 접수")));
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(commandService, redfishPowerService);
+        order.verify(commandService).retry(id);
+        order.verify(redfishPowerService).networkBoot(target);
     }
 
     // ==== 409 — UI 1차 차단을 우회한 direct POST 안전망 =================

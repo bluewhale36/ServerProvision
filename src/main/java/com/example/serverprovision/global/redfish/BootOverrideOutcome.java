@@ -33,13 +33,18 @@ public record BootOverrideOutcome(Status status, String detail) {
         return new BootOverrideOutcome(Status.REJECTED, detail);
     }
 
-    /** 결과 메시지 접두 — NONE 은 빈 문자열(화면 경로의 문구는 바뀌지 않는다, D-9). */
+    /** 결과 메시지 접두 — NONE 은 빈 문자열(화면 경로의 문구는 바뀌지 않는다, D-9). E2.5 계약 유지(Once 표기). */
     public String prefix() {
+        return prefix(NextBoot.PXE_ONCE.label());
+    }
+
+    /** 무장 종류별 표기(HF15-1) — {@code label} 은 {@link NextBoot#label()}. */
+    public String prefix(String label) {
         return switch (status) {
             case NONE -> "";
-            case APPLIED -> "다음 부팅 PXE 강제 : 반영 확인 · ";
-            case UNCONFIRMED -> "다음 부팅 PXE 강제 : 미확인(pending 경유 가능) · ";
-            case REJECTED -> "다음 부팅 PXE 강제 : 거절(" + detail + ") — 부트 순서대로 부팅될 수 있습니다 · ";
+            case APPLIED -> label + " : 반영 확인 · ";
+            case UNCONFIRMED -> label + " : 미확인(pending 경유 가능) · ";
+            case REJECTED -> label + " : 거절(" + detail + ") — 부트 순서대로 부팅될 수 있습니다 · ";
         };
     }
 }

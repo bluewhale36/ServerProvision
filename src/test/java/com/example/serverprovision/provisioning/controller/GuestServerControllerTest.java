@@ -59,6 +59,8 @@ class GuestServerControllerTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean GuestServerQueryService queryService;
+
+    @MockitoBean com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 — [재시도 후 네트워크 부팅]
     @MockitoBean GuestServerCommandService commandService;
     // U3-1 — 컨트롤러 신규 협력자(할당 스냅샷). 상세 렌더가 계획 rail 을 조립하므로 plannedPhasesOf 를 스텁한다.
     @MockitoBean AssignmentCommandService assignmentCommandService;

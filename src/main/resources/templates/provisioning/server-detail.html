@@ -41,6 +41,10 @@
 <div class="n-page n-page-lg" data-stream-scope="detail"
      th:data-server-id="${server.id}" th:data-stream-url="@{/provisioning/server/stream}">
     <!-- S7 — [data-live] = 실시간 교체 영역(읽기 전용·액션 버튼). 수정 폼은 미마킹 = 입력 보존 규약 -->
+    <!-- PRG flash(HF15-1 CP5 F-1) — [재시도 후 네트워크 부팅] 의 전원 결과(실패도 결과)를 리다이렉트 뒤 한 번 보인다. 그룹 상세와 같은 조각. -->
+    <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status"
+         th:text="${flashMessage}">재시도 접수 · 재시작(ForceRestart) 발행 — 게스트가 PXE 로 돌아오면 이어서 진행합니다.</div>
+
     <div class="n-page-header" data-live="header">
         <div>
             <h1 class="n-page-title"
@@ -957,6 +961,12 @@
                     <form th:if="${server.progress.retryable}"
                           th:action="@{/provisioning/server/{id}/retry(id=${server.id})}" method="post">
                         <button type="submit" class="n-btn n-btn-primary">재시도</button>
+                    </form>
+                    <!-- HF15-1 (O-10) — 재시도는 전원 중립. BMC 가 있으면 "재시도 + PXE 보장 무장 + On/ForceRestart" 를 한 번에 잇는 선택지를 준다. -->
+                    <form th:if="${server.progress.retryable and server.inventory != null and server.inventory.bmcIp != null}"
+                          th:action="@{/provisioning/server/{id}/retry-boot(id=${server.id})}" method="post">
+                        <button type="submit" class="n-btn n-btn-secondary"
+                                title="재시도 접수 뒤 BMC 로 네트워크 부팅을 겁니다 (꺼져 있으면 켜기 · 켜져 있으면 재시작)">재시도 후 네트워크 부팅</button>
                     </form>
                     <button th:if="${server.progress.retryBlocked}" type="button" class="n-btn n-btn-secondary" disabled
                             th:title="#{provisioning.retry.blocked.tooltip}">재시도 (차단됨)</button>

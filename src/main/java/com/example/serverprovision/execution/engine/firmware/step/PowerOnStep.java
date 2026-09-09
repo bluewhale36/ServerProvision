@@ -56,8 +56,8 @@ public class PowerOnStep implements FlashStep {
         if (powerService.powerState(context.target()).powerState() == RedfishPowerState.ON) {
             return;   // 이미 켜져 있다 — 돌아오기를 기다릴 뿐이다.
         }
-        // 전원 투입 직전 다음 부팅을 PXE 로 무장한다(E2.5) — 부트 순서가 디스크 1순위여도 게스트가 돌아온다.
-        PowerControlResult result = powerService.powerOnAndVerify(context.target(), NextBoot.PXE_ONCE);
+        // 전원 투입 직전 PXE 보장을 무장한다(E2.5 · HF15-1 Continuous) — 부트 순서가 디스크 1순위여도 게스트가 돌아온다.
+        PowerControlResult result = powerService.powerOnAndVerify(context.target(), NextBoot.PXE_CONTINUOUS);
         if (result.kind() == PowerControlResult.Kind.VERIFIED) {
             // 되돌릴 수 없는 일회 사건의 감사 기록(E2-4 Q4) — detail 에 무장(BootSourceOverride) 결과가 실린다.
             ledger.instantPower(context.server(), context.progress().getCurrentStep(),

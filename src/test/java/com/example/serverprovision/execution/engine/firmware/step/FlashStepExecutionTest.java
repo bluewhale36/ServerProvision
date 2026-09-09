@@ -435,7 +435,7 @@ class FlashStepExecutionTest {
         new PowerOnStep(guard, powerService, timeoutPolicy, ledger)
                 .execute(context(flashing(FirmwareAxis.BMC), closedBoth(), ready()));
 
-        verify(powerService).powerOnAndVerify(any(), eq(NextBoot.PXE_ONCE));
+        verify(powerService).powerOnAndVerify(any(), eq(NextBoot.PXE_CONTINUOUS));
     }
 
     @Test

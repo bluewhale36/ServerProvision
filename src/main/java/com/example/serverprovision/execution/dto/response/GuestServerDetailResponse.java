@@ -95,6 +95,18 @@ public record GuestServerDetailResponse(
     }
 
     /**
+     * BMC 조작 대상(HF15-1) — 전원 제어 REST 와 [재시도 후 네트워크 부팅] 이 같은 조립을 쓴다. 상세 행이 없거나 BMC 미검출이면
+     * 빈 대상(서비스가 "지원 안 함" 으로 답한다).
+     */
+    public com.example.serverprovision.global.redfish.RedfishTarget redfishTarget() {
+        if (inventory == null) {
+            return new com.example.serverprovision.global.redfish.RedfishTarget(null, null);
+        }
+        return new com.example.serverprovision.global.redfish.RedfishTarget(
+                inventory.bmcIp() == null ? null : inventory.bmcIp().value(), inventory.boardSerial());
+    }
+
+    /**
      * OS 가시 디스크 한 행의 표시 모델(HF15-5 · 실기 3호 F-9). 컨트롤러 뒤 볼륨은 lsblk 의 회전 · 전송 값이 실물을 말하지
      * 않으므로 {@code type} · {@code transport} 를 비우고 {@code raidVolumeName} 으로 표기한다 — 수집 불가 값은 띄우지 않는다.
      */
