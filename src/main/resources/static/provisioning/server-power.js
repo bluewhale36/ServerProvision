@@ -61,8 +61,54 @@
             }
         }
 
-        function reset(type) {
-            call('POST', base + '/reset', {resetType: type});
+        // 정상 종료(GracefulShutdown)는 BMC 가 ACPI 전원 버튼을 누르는 것이라 호스트 OS 가 응답해야 꺼진다 — 진단 리눅스 ·
+        // 설치 화면처럼 그 이벤트를 처리하지 않는 상태에서는 아무 일도 안 일어난다(실기 3호 F-10 · 3/3). 서버는 단발(D4)로
+        // 두고, 화면이 상태를 잠시 지켜보다 시한 안에 꺼지지 않으면 강제 끄기를 안내한다.
+        const GRACEFUL_WATCH_MS = 60000, GRACEFUL_STEP_MS = 5000;
+        const forceOffBtn = section.querySelector('[data-power-reset="FORCE_OFF"]');
+        let watchTimer = null;
+        let watchGen = 0;   // 감시 세대 — 조회 대기 중이던 옛 사슬이 깨어나 새 조작의 문구를 덮지 않게(HF15-4 Q4)
+
+        function stopWatch() {
+            watchGen++;
+            if (watchTimer) { clearTimeout(watchTimer); watchTimer = null; }
+            if (forceOffBtn) forceOffBtn.classList.replace('n-btn-danger', 'n-btn-outline-danger');
+        }
+
+        async function fetchState() {
+            const resp = await fetch(base);
+            return resp.ok ? resp.json() : null;
+        }
+
+        function watchGraceful(sentAt, gen) {
+            if (gen === undefined) gen = watchGen;
+            watchTimer = setTimeout(async function () {
+                let state = null;
+                try { state = await fetchState(); } catch (e) { /* 다음 주기 */ }
+                if (gen !== watchGen) return;   // 조회하는 사이 다른 조작이 감시를 끝냈다 — 이 사슬은 여기서 죽는다
+                if (state && state.powerState === 'OFF') {
+                    paint({kind: 'SENT', powerState: 'OFF', message: '정상 종료가 완료됐습니다 (PowerState Off 확인).'});
+                    stopWatch();
+                    return;
+                }
+                if (Date.now() - sentAt >= GRACEFUL_WATCH_MS) {
+                    paint({kind: 'FAILED', powerState: state ? state.powerState : null,
+                        message: '호스트가 정상 종료 요청에 응답하지 않습니다 — 전원 버튼을 처리하는 OS 가 없는 상태(진단 리눅스 · 설치 화면 · UEFI 셸)일 수 있습니다. [강제 끄기] 로 종료하십시오.'});
+                    if (forceOffBtn) forceOffBtn.classList.replace('n-btn-outline-danger', 'n-btn-danger');   // 기존 클래스 재사용 — 채움 빨강으로 강조
+                    watchTimer = null;
+                    return;
+                }
+                message.textContent = '정상 종료 요청 전달 — 호스트 응답을 기다립니다 (' + Math.round((Date.now() - sentAt) / 1000) + '초)…';
+                watchGraceful(sentAt, gen);
+            }, GRACEFUL_STEP_MS);
+        }
+
+        async function reset(type) {
+            stopWatch();
+            await call('POST', base + '/reset', {resetType: type});
+            if (type === 'GRACEFUL_SHUTDOWN' && !message.classList.contains('is-danger')) {
+                watchGraceful(Date.now());
+            }
         }
 
         refreshBtn.addEventListener('click', function () { call('GET', base); });
