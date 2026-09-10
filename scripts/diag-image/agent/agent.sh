@@ -80,23 +80,31 @@ collect_memory_json() { # [{"slot":..,"manufacturer":..,"size":..},...] — 장�
         BEGIN { printf "[" } END { printf "]" }'
 }
 
-collect_disks_json() { # [{"device":..,"size":..,"rota":..,"tran":..},...] — OS 가시 디스크(-d 상위 장치)
-    # -P(키="값" 쌍)로 읽는다 — TRAN · WWN 처럼 비는 열이 있으면 자리 기반 $N 파싱이 어긋난다(HF15-5).
+collect_disks_json() { # [{"device":..,"size":..,"rota":..,"tran":..,"wwn":..},...] — lsblk -d(디스크만) · -P(키="값")
+    # -P 로 읽는다 — TRAN · WWN 처럼 비는 열이 있으면 자리 기반 $N 파싱이 어긋난다(HF15-5).
     # WWN 은 OS 가시 디스크와 RAID 볼륨(카드 CLI 의 WWN)을 잇는 키 — 설치 대상 디스크 번호의 근거(실기 3호 F-6).
-    lsblk -dnP -o NAME,SIZE,ROTA,TRAN,WWN 2>/dev/null | awk '
-        {
-            name=""; size=""; rota=""; tran=""; wwn=""
-            for (i = 1; i <= NF; i++) {
-                eq = index($i, "="); if (eq == 0) continue
-                k = substr($i, 1, eq - 1); v = substr($i, eq + 1); gsub(/"/, "", v)
-                if (k == "NAME") name = v; else if (k == "SIZE") size = v
-                else if (k == "ROTA") rota = v; else if (k == "TRAN") tran = v; else if (k == "WWN") wwn = v
-            }
-            if (name == "" || name ~ /^(loop|ram|sr)/) next
-            printf "%s{\"device\":\"%s\",\"size\":\"%s\",\"rota\":\"%s\",\"tran\":\"%s\",\"wwn\":\"%s\"}", sep, name, size, rota, tran, wwn
-            sep=","
-        }
-        BEGIN { printf "[" } END { printf "]" }'
+    # 진단 리눅스는 udev 없이 mdev 라 lsblk 의 WWN 열이 빈다(실기 4호 10:16 · SAS3008 IR 볼륨 2개 모두 null) —
+    # 커널이 sysfs 에 두는 SCSI 식별자(/sys/block/<dev>/device/wwid · "naa.<hex>")로 채운다(HF15-5-1).
+    sep=""
+    printf '['
+    lsblk -dnP -o NAME,SIZE,ROTA,TRAN,WWN 2>/dev/null | while IFS= read -r line; do
+        name=""; size=""; rota=""; tran=""; wwn=""
+        for kv in $line; do
+            k=${kv%%=*}; v=${kv#*=}; v=${v#\"}; v=${v%\"}
+            case "$k" in
+                NAME) name=$v ;; SIZE) size=$v ;; ROTA) rota=$v ;; TRAN) tran=$v ;; WWN) wwn=$v ;;
+            esac
+        done
+        [ -z "$name" ] && continue
+        case "$name" in loop*|ram*|sr*) continue ;; esac
+        if [ -z "$wwn" ] && [ -r "/sys/block/$name/device/wwid" ]; then
+            wwn=$(tr -d ' \n' < "/sys/block/$name/device/wwid" 2>/dev/null)
+            wwn=${wwn#naa.}   # naa.600508e0… → hex(서버 normalizeHex 와 같은 꼴). t10./eui. 형식은 그대로 실린다(매칭 불일치 = 무해)
+        fi
+        printf '%s{"device":"%s","size":"%s","rota":"%s","tran":"%s","wwn":"%s"}' "$sep" "$name" "$size" "$rota" "$tran" "$(printf '%s' "$wwn" | esc)"
+        sep=","
+    done
+    printf ']'
 }
 
 settle_block_devices() { # 볼륨 생성 직후 커널 재탐색(HF15-5) — SCSI 호스트 rescan 뒤 장치 수가 두 번 연속 같아질 때까지(최대 약 15초)
