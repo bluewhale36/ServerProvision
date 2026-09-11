@@ -863,7 +863,7 @@
                             <span class="n-firmware-detail"
                                   th:text="|#{provisioning.windows.install.disk.number} ${wi.targetDiskId}|">디스크 0</span>
                             <!-- 서빙 뒤에도 번호의 근거를 남긴다(HF15-5 CP5 O-1) — 원장 meta diskBasis -->
-                            <span th:if="${wi.diskSelectionNote != null}" class="n-hint" th:text="${wi.diskSelectionNote}">근거 RAID 검증 재채집(lsblk 순서)</span>
+                            <span th:if="${wi.diskSelectionNote != null}" class="n-hint" th:text="${wi.diskSelectionNote}">근거 카드 계열 순서 규칙</span>
                         </li>
                         <li th:if="${wi.targetDiskId == null and wi.diskSelectionNote != null}">
                             <span th:text="#{provisioning.windows.install.disk}">설치 대상 디스크</span>

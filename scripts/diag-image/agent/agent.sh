@@ -101,7 +101,7 @@ collect_disks_json() { # [{"device":..,"size":..,"rota":..,"tran":..,"wwn":..},.
             wwn=$(tr -d ' \n' < "/sys/block/$name/device/wwid" 2>/dev/null)
             wwn=${wwn#naa.}   # naa.600508e0… → hex(서버 normalizeHex 와 같은 꼴). t10./eui. 형식은 그대로 실린다(매칭 불일치 = 무해)
         fi
-        printf '%s{"device":"%s","size":"%s","rota":"%s","tran":"%s","wwn":"%s"}' "$sep" "$name" "$size" "$rota" "$tran" "$(printf '%s' "$wwn" | esc)"
+        printf '%s{"device":"%s","size":"%s","rota":"%s","tran":"%s","wwn":"%s"}' "$sep" "$name" "$size" "$rota" "$tran" "$(esc "$wwn")"
         sep=","
     done
     printf ']'

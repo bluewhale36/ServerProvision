@@ -14,11 +14,10 @@ import java.util.function.Function;
  * OS 설치 대상 디스크 번호 판정(E4-1-a-6 D-1 · HF15-5 개정) — 의존 0 인 정적 진리표. autounattend 는 디스크를 정수
  * 번호로만 지목하므로(WWN · 크기 지정 불가) 서버가 번호를 계산해 응답 파일에 박는다.
  *
- * <p>근거의 우선순위(실기 3호 F-6 — sas3ircu 나열 순서는 Windows 열거 순서의 역순이었다):
- * ① RAID 검증 재채집이 남긴 OS 가시 디스크({@code lsblk} · WWN 동봉)에서 OS 볼륨의 SCSI 식별자를 찾은 인덱스 —
- * Linux 와 Windows 가 같은 SAS 타깃 탐색 순서를 따르고(Run 3 D1), 가상 미디어(USB · 0B)는 그 뒤에 붙는다.
- * ② 그 재채집이 없으면 카드 계열의 순서 규칙({@link RaidChipFamily#windowsDiskOrder})으로 인벤토리를 재배열한 인덱스.
- * ③ 둘 다 안 되면 BLOCKED — 준비도가 서빙을 막는다.</p>
+ * <p>번호의 근거는 카드 계열의 순서 규칙({@link RaidChipFamily#windowsDiskOrder})으로 인벤토리를 재배열한 인덱스 하나다
+ * (실기 3호 F-6 — sas3ircu 나열 순서는 Windows 열거 순서의 역순). 실기 4호 O-3 에서 Linux(mpt3sas)는 IR 볼륨을 id 오름차순,
+ * Windows 는 내림차순으로 열거함이 확인돼 "lsblk 순서 = Windows 번호" 라는 옛 ① 근거는 폐기했다 — RAID 검증 재채집의
+ * OS 가시 디스크는 화면 표시(F-9 배지)에만 쓴다. 순서 규칙으로도 못 찾으면 BLOCKED — 준비도가 서빙을 막는다.</p>
  *
  * <p>확증 기준 {@code expectedUniqueId} 는 계열별 변환({@link RaidChipFamily#windowsUniqueIdOf})의 결과라 설치 뒤
  * {@code Get-Disk} UniqueId 와 그대로 비교된다(F-7). {@code DEFERRED} 는 RAID 구성 단계가 아직 남아 볼륨 실물이 없을 때
@@ -35,19 +34,25 @@ public final class WindowsDiskSelection {
         BLOCKED
     }
 
-    /** 번호의 근거 — 원장 meta · 로그 · 보고에 실려 어느 규칙이 번호를 냈는지 남는다. */
+    /** 번호의 근거 — 원장 meta · 로그 · 보고에 실려 어느 규칙이 번호를 냈는지 남는다(옛 "lsblk" 근거는 실기 4호 O-3 로 폐기). */
     public enum Basis {
-        OS_VISIBLE_DISKS("lsblk"),
-        INVENTORY_ORDER("inventory-order");
+        INVENTORY_ORDER("inventory-order", "카드 계열 순서 규칙");
 
         private final String wire;
+        private final String label;
 
-        Basis(String wire) {
+        Basis(String wire, String label) {
             this.wire = wire;
+            this.label = label;
         }
 
         public String wire() {
             return wire;
+        }
+
+        /** 화면 문구 — 서빙 전(판정 결과)과 서빙 뒤(원장 meta)가 같은 문구를 쓴다. */
+        public String label() {
+            return "근거 " + label;
         }
 
         public static Basis fromWire(String wire) {
@@ -95,10 +100,8 @@ public final class WindowsDiskSelection {
     /**
      * @param allVolumes     이 게스트의 저장된 RAID 볼륨 전부(OS 영역 볼륨 선별 · passthrough 감지)
      * @param inventory      진단 · 검증이 관측한 RAID 인벤토리(카드 계열 · 볼륨 순서 · WWN) — null 이면 아직 진단 전
-     * @param osVisibleDisks OS 가시 디스크(lsblk 순서 · WWN) — RAID 검증 재채집분. null · WWN 없음이면 ② 로 내려간다
      */
-    public static DiskSelection judge(List<RaidVolume> allVolumes, RaidInventory inventory,
-                                      List<HardwareSpec.DiskInfo> osVisibleDisks) {
+    public static DiskSelection judge(List<RaidVolume> allVolumes, RaidInventory inventory) {
         RaidVolume osVolume = allVolumes.stream()
                 .filter(v -> v.getVolumeRole() == PlannedVolumeRole.OS)
                 .findFirst()
@@ -118,11 +121,7 @@ public final class WindowsDiskSelection {
         RaidChipFamily family = inventory.card() == null ? null : inventory.card().chipFamily();
         String expected = uniqueIdOf(family, osVolume.getWwn());
 
-        int byDisks = indexInOsVisibleDisks(expected, osVisibleDisks);                       // ①
-        if (byDisks >= 0) {
-            return DiskSelection.confident(byDisks, expected, osVolume.getUsableBytes(), Basis.OS_VISIBLE_DISKS);
-        }
-        int byOrder = indexInInventoryOrder(osVolume, expected, family, inventory.volumes());   // ②
+        int byOrder = indexInInventoryOrder(osVolume, expected, family, inventory.volumes());
         if (byOrder >= 0) {
             return DiskSelection.confident(byOrder, expected, osVolume.getUsableBytes(), Basis.INVENTORY_ORDER);
         }
@@ -130,25 +129,7 @@ public final class WindowsDiskSelection {
                 "OS 볼륨을 디스크 목록에서 찾지 못했습니다 — 재구성이 필요할 수 있습니다");
     }
 
-    /** ① 컨트롤러 디스크만 센 lsblk 순서에서 OS 볼륨의 SCSI 식별자를 가진 장치의 인덱스. 재료가 없거나 못 찾으면 -1. */
-    private static int indexInOsVisibleDisks(String expected, List<HardwareSpec.DiskInfo> disks) {
-        if (expected == null || disks == null) {
-            return -1;
-        }
-        int index = 0;
-        for (HardwareSpec.DiskInfo disk : disks) {
-            if (!isControllerDisk(disk)) {
-                continue;   // BMC 가상 미디어(USB · 0B)는 Windows 가 컨트롤러 디스크 뒤에 번호를 준다(Run 3 D1) — 세지 않는다
-            }
-            if (expected.equals(RaidChipFamily.normalizeHex(disk.wwn()))) {
-                return index;
-            }
-            index++;
-        }
-        return -1;
-    }
-
-    /** ② 계열 순서 규칙으로 재배열한 인벤토리에서 OS 볼륨을 식별자(우선) · 이름으로 찾은 인덱스. */
+    /** 계열 순서 규칙으로 재배열한 인벤토리에서 OS 볼륨을 식별자(우선) · 이름으로 찾은 인덱스. */
     private static int indexInInventoryOrder(RaidVolume osVolume, String expected, RaidChipFamily family,
                                              List<RaidExistingVolume> volumes) {
         List<RaidExistingVolume> ordered = family == null ? volumes
@@ -174,7 +155,7 @@ public final class WindowsDiskSelection {
         return family == null ? RaidChipFamily.normalizeHex(wwn) : family.windowsUniqueIdOf(wwn);
     }
 
-    /** 표시 층(상세 화면 F-9)이 같은 걸러내기를 쓴다 — 번호 계산과 화면이 다른 목록을 보면 운영자가 번호를 세지 못한다. */
+    /** 표시 층(상세 화면 F-9)의 걸러내기 — 가상 미디어(USB · 0B)는 컨트롤러 디스크가 아니므로 디스크 표에 세우지 않는다. */
     public static boolean isControllerDiskForDisplay(HardwareSpec.DiskInfo disk) {
         return isControllerDisk(disk);
     }

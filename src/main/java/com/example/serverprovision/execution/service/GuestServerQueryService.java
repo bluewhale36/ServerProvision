@@ -928,7 +928,7 @@ public class GuestServerQueryService {
         return switch (sel.confidence()) {
             case DEFERRED -> sel.note();
             case CONFIDENT -> "디스크 " + sel.diskId()
-                    + (sel.basis() == null ? "" : " · " + basisLabelOf(sel.basis().wire()));
+                    + (sel.basis() == null ? "" : " · " + sel.basis().label());
             case BLOCKED -> null;
         };
     }
@@ -937,11 +937,7 @@ public class GuestServerQueryService {
     private static String basisLabelOf(String basisWire) {
         com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis basis =
                 com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.fromWire(basisWire);
-        if (basis == null) {
-            return null;
-        }
-        return "근거 " + (basis == com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.OS_VISIBLE_DISKS
-                ? "RAID 검증 재채집(lsblk 순서)" : "카드 계열 순서 규칙");
+        return basis == null ? null : basis.label();
     }
 
     private static GuestServerDetailResponse.FirmwarePlan.Axis axisOf(AxisResolution axis, String label) {
