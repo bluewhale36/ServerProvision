@@ -8,6 +8,7 @@ description="provision diagnose-linux bootstrap"
 depend() {
     need net
     after firewall
+    before acpid    # button 모듈 적재 뒤에 acpid 가 떠야 전원 버튼 이벤트 소스를 잡는다(HF15-4 · 실기 4호 F-5)
 }
 
 start() {
@@ -15,6 +16,9 @@ start() {
     # BMC 로컬 통신 모듈 (E1-2 ipmitool 수집 준비) — 실패해도 부팅은 계속(V3 는 실보드 확인 항목)
     modprobe ipmi_devintf 2>/dev/null || true
     modprobe ipmi_si 2>/dev/null || true
+    # ACPI 전원 버튼 드라이버(HF15-4 실기 4호 F-5) — BMC 의 정상 종료는 ACPI 전원 버튼 이벤트로 오는데, hwdrivers 는
+    # sysinit 에서 modloop 마운트 전에 돌아 modloop 의 button 모듈을 적재하지 못한다. acpid 가 이벤트를 받으려면 여기서 적재.
+    modprobe button 2>/dev/null || true
 
     base=$(sed -n 's/.*provision_base=\([^ ]*\).*/\1/p' /proc/cmdline)
     if [ -z "$base" ]; then
