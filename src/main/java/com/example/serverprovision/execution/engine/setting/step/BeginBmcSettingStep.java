@@ -44,6 +44,9 @@ public class BeginBmcSettingStep implements SettingStep {
     private final FlashTimeoutPolicy timeoutPolicy;
     private final SettingCursor settingCursor;
 
+    /** 항목의 일시 오류(TRANSIENT)를 다음 주기에 다시 시도하는 상한 — 이 횟수째에는 그 항목만 건너뛴다(HF15-7). */
+    static final int TRANSIENT_MAX_ATTEMPTS = 3;
+
     @Override
     public int order() {
         return 7;
@@ -106,6 +109,19 @@ public class BeginBmcSettingStep implements SettingStep {
                         ledger.markBondAt(row, context.now());
                         log.info("[setting] {} — {} 적용 뒤 연결 끊김, 재접속 대기(bondAt)", context.server().getId(), item.name());
                         return;
+                    }
+                    case TRANSIENT -> {
+                        // 실기 4호 — 되읽기가 BMC 일시 오류(code 1334)로 막혀 축이 즉시 실패하던 것을 재시도 · 건너뜀으로.
+                        // 행은 RUNNING 으로 남아 다음 주기가 항목을 처음부터 다시 쓴다(재개 규약 · 멱등).
+                        int attempts = ledger.bumpRetry(row, item);
+                        if (attempts < TRANSIENT_MAX_ATTEMPTS) {
+                            log.info("[setting] {} — {} 일시 오류 {}회, 다음 주기 재시도 : {}",
+                                    context.server().getId(), item.name(), attempts, outcome.detail());
+                            return;
+                        }
+                        ledger.markItem(row, item, BmcItemOutcome.skipped("되읽기 오류 " + attempts + "회 — " + outcome.detail()));
+                        log.warn("[setting] {} — {} 일시 오류 {}회, 이 항목만 건너뜀 : {}",
+                                context.server().getId(), item.name(), attempts, outcome.detail());
                     }
                 }
             }

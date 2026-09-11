@@ -160,4 +160,18 @@ class SettingLedgerTest {
         assertThat(ledger.rebootAtOf(row)).isEqualTo(T.plusMinutes(1));
         assertThat(ledger.targetOf(row)).isEqualTo(TARGET);
     }
+
+    @Test
+    @DisplayName("일시 오류 횟수(HF15-7) — 항목별로 1씩 오르고 다른 항목 · 기존 items 를 건드리지 않는다")
+    void bumpRetryCountsPerItem() {
+        ProvisioningHistory row = ledger.openBmc(server, T);
+        ledger.markItem(row, BmcSettingItem.DATE_TIME, BmcItemOutcome.applied());
+
+        assertThat(ledger.bumpRetry(row, BmcSettingItem.COLD_REDUNDANT)).isEqualTo(1);
+        assertThat(ledger.bumpRetry(row, BmcSettingItem.COLD_REDUNDANT)).isEqualTo(2);
+        assertThat(ledger.retriesOf(row, BmcSettingItem.COLD_REDUNDANT)).isEqualTo(2);
+        assertThat(ledger.retriesOf(row, BmcSettingItem.FAN_PROFILE)).isZero();
+        assertThat(ledger.itemsOf(row)).containsEntry("DATE_TIME", "APPLIED");
+        assertThat(row.getStatusMeta()).contains("\"retries\":{\"COLD_REDUNDANT\":2}");
+    }
 }

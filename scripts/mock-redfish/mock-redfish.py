@@ -410,6 +410,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if path == '/api/cold_redundant-status':
             if method == 'GET':
+                if w['coldGetFailLeft'] > 0:
+                    w['coldGetFailLeft'] -= 1
+                    self._json(200, {'error': 'Error in Getting Cold Redundant Status', 'code': 1334})   # 실기 4호 웨이브
+                    return
                 self._json(200, dict(w['coldRedundant']))
             else:
                 w['coldRedundant'] = {'get_cold_redundant_enable': body.get('set_cold_redundant_enable', 0),
@@ -525,12 +529,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path == '/__mode':
             STATE['mode'] = body.get('mode', 'normal')
             STATE['web']['dropSeconds'] = int(body.get('dropSeconds', BOND_DROP_SECONDS))
+            STATE['web']['pciNotReadyLeft'] = int(body.get('pciNotReadyLeft', 0))
+            STATE['web']['coldGetFailLeft'] = int(body.get('coldGetFailLeft', 0))
             self._json(200, STATE)
             return
         if self.path == '/__reset-state':
             STATE.update({'power': 'Off', 'mode': 'normal', 'requests': [],
-            STATE['web']['pciNotReadyLeft'] = int(body.get('pciNotReadyLeft', 0))
-            STATE['web']['coldGetFailLeft'] = int(body.get('coldGetFailLeft', 0))
                           'inventory': {'BIOS': 'F27', 'BMC': '13.06.26'}, 'flash': [],
                           'pulled': [], 'pullErrors': [], 'taskSeq': 1,
                           'passwords': ['standard-pw', 'QG260700082'], 'accountEtag': 1000,

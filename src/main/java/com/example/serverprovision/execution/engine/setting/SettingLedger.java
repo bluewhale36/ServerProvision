@@ -81,6 +81,31 @@ public class SettingLedger {
         return v == null ? null : LocalDateTime.parse(v.toString());
     }
 
+    /** 항목의 일시 오류 횟수를 1 올리고 그 값을 돌려준다(HF15-7) — meta {@code retries.<ITEM>}. */
+    public int bumpRetry(ProvisioningHistory row, BmcSettingItem item) {
+        Map<String, Object> meta = read(row);
+        Map<String, Object> retries = retriesMap(meta);
+        int next = retryCount(retries.get(item.name())) + 1;
+        retries.put(item.name(), next);
+        meta.put("retries", retries);
+        row.updateRunningMeta(write(meta));
+        return next;
+    }
+
+    public int retriesOf(ProvisioningHistory row, BmcSettingItem item) {
+        return retryCount(retriesMap(read(row)).get(item.name()));
+    }
+
+    private static int retryCount(Object v) {
+        return v instanceof Number n ? n.intValue() : 0;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> retriesMap(Map<String, Object> meta) {
+        Object v = meta.get("retries");
+        return v instanceof Map<?, ?> m ? new LinkedHashMap<>((Map<String, Object>) m) : new LinkedHashMap<>();
+    }
+
     public Map<String, String> itemsOf(ProvisioningHistory row) {
         Map<String, String> out = new LinkedHashMap<>();
         itemsMap(read(row)).forEach((k, v) -> out.put(k, String.valueOf(v)));

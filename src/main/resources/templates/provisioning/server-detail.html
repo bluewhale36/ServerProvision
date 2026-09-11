@@ -154,7 +154,7 @@
 
     <!-- 전원 제어 (E1.5) — BMC Redfish 단발 경로. 페이지 로드 시 BMC 를 조회하지 않는다(BMC 다운이 페이지를 느리게 하지 않게 — lazy XHR).
          bmcIp 가 없으면 버튼 대신 이유 문구(UI 1 차 차단 — 결과 타입 UNSUPPORTED 와 같은 사실). 문구 · 판정의 SSOT 는 서버(PowerControlResult). -->
-    <div class="n-detail-section" id="powerControlSection"
+    <div class="n-detail-section" id="powerControlSection" data-live="power"
          th:with="bmcDetected=${server.inventory != null and server.inventory.bmcIp != null}"
          th:data-server-id="${server.id}"
          th:data-bmc-detected="${bmcDetected}">
