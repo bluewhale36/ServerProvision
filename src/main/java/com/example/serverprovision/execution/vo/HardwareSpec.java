@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.vo;
 
+import com.example.serverprovision.execution.enums.PcieMount;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -54,9 +55,28 @@ public record HardwareSpec(
     }
 
     /**
-     * PCIe 슬롯 장착물 1개. {@code kind} 분류(RAID/LAN/LAN_10G_UTP/LAN_10G_SFP/FC_16G/FC_32G/GPU/ETC)는
+     * PCIe 장치 1개. {@code kind} 분류(RAID/LAN/LAN_10G_UTP/LAN_10G_SFP/FC_16G/FC_32G/GPU/ETC)는
      * lspci 모델명 기반 규칙 — 미분류는 ETC + 원문(model)이 그대로 남아 수집 유실이 없다(T3 실측으로 보강).
+     * {@code mount} · {@code slotDesignation} 은 BMC 시스템 인벤토리가 진단 뒤 비동기로 채운다(HF15-6) — 구 저장본은
+     * 필드가 없어 UNKNOWN 으로 읽힌다. 추가 생성자 대신 정적 팩토리를 두는 이유는 Jackson 이 레코드의 생성자를 하나만
+     * 허용하기 때문이다(HF15-5 DiskInfo 선례).
      */
-    public record PcieDevice(String slot, String kind, String vendor, String model) {
+    public record PcieDevice(String slot, String kind, String vendor, String model,
+                             PcieMount mount, String slotDesignation) {
+
+        public PcieDevice {
+            mount = mount == null ? PcieMount.UNKNOWN : mount;
+        }
+
+        /** 진단 파서가 만드는 초기 상태 — 장착 구분은 아직 모른다. */
+        public static PcieDevice untagged(String slot, String kind, String vendor, String model) {
+            return new PcieDevice(slot, kind, vendor, model, PcieMount.UNKNOWN, null);
+        }
+
+        /** BMC 인벤토리로 장착 구분을 붙인 사본. 온보드는 슬롯 표기를 갖지 않는다. */
+        public PcieDevice tagged(PcieMount mount, String slotDesignation) {
+            return new PcieDevice(slot, kind, vendor, model, mount,
+                    mount == PcieMount.ADD_IN ? slotDesignation : null);
+        }
     }
 }

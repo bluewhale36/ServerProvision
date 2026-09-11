@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.vo;
 
+import com.example.serverprovision.execution.enums.PcieMount;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -24,6 +25,8 @@ public record SpecGroupKey(String value) implements Comparable<SpecGroupKey> {
     private static final String FIELD_SEP = " | ";
     private static final String ITEM_SEP = ",";
     private static final String UNKNOWN = "?";
+    /** 추가 장착 PCIe 가 하나도 없는 서버 — 스펙 부재(UNKNOWN)와 구분한다(HF15-6). */
+    private static final String NONE = "none";
 
     /**
      * 보드 모델명과 하드웨어 인벤토리로 키를 만든다.
@@ -62,16 +65,20 @@ public record SpecGroupKey(String value) implements Comparable<SpecGroupKey> {
         return joinCounted(countBySize);
     }
 
-    /** PCIe — 분류와 모델명의 다중집합. */
+    /**
+     * PCIe — 분류와 모델명의 다중집합. 온보드(BMC 인벤토리로 확인된 것)는 보드마다 같으므로 세지 않는다(HF15-6 ·
+     * 2026-09-11 사용자 결정). 미확인(UNKNOWN)은 종전대로 센다 — 태깅 전 서버는 재진단 때 갱신된다.
+     */
     private static String pcieField(HardwareSpec spec) {
         if (spec == null || spec.pcieDevices() == null || spec.pcieDevices().isEmpty()) {
             return UNKNOWN;
         }
         List<String> items = spec.pcieDevices().stream()
+                .filter(p -> p == null || p.mount() != PcieMount.ONBOARD)
                 .map(p -> p == null ? UNKNOWN : nullSafe(p.kind()) + "/" + nullSafe(p.model()))
                 .sorted(Comparator.naturalOrder())
                 .toList();
-        return String.join(ITEM_SEP, items);
+        return items.isEmpty() ? NONE : String.join(ITEM_SEP, items);
     }
 
     /** 디스크 — 종류 · 전송 방식 · 용량의 다중집합. 장치명(device)은 부팅 순서에 따라 흔들리므로 제외한다. */

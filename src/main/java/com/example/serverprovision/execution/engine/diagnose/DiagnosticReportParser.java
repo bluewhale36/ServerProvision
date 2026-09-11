@@ -194,7 +194,7 @@ public class DiagnosticReportParser {
         int firstSpace = raw.indexOf(' ');
         int classSep = raw.indexOf(": ", firstSpace);
         if (firstSpace < 0 || classSep < 0) {
-            return new HardwareSpec.PcieDevice(null, "ETC", null, raw.trim());
+            return HardwareSpec.PcieDevice.untagged(null, "ETC", null, raw.trim());
         }
         String slot = raw.substring(0, firstSpace).trim();
         String className = raw.substring(firstSpace + 1, classSep).trim();
@@ -207,7 +207,7 @@ public class DiagnosticReportParser {
         if (displayClass && descriptor.toLowerCase(Locale.ROOT).contains("aspeed")) {
             return null;   // BMC 통합 그래픽 — 서버 보드 상존 관리 장치라 장착물이 아니다
         }
-        return new HardwareSpec.PcieDevice(slot, kindOf(className, descriptor),
+        return HardwareSpec.PcieDevice.untagged(slot, kindOf(className, descriptor),
                 vendorOf(descriptor), descriptor);
     }
 
