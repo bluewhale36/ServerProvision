@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF15-6 Plan — PCIe 장착 구분 (BMC 시스템 인벤토리 태깅)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF15-6 — PCIe 장착 구분 (BMC 시스템 인벤토리 태깅) <span class="v2-badge">hotfix</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF15-6 (hotfix)</span>
+    <span><strong>상위</strong> HF15 (실기 3호 · 4호 파생 결함 정정)</span>
+    <span><strong>scope</strong> 온보드 · 추가 장착 구분 + 온보드를 스펙 그룹 키에서 제외</span>
+    <span><strong>생성</strong> 2026-09-11 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">진단 리눅스 에이전트는 <code>lspci</code> 원문을 서버로 보내고, 서버 파서 <code>DiagnosticReportParser.classifyPcie</code> 가 장치 클래스로 걸러 <code>HardwareSpec.PcieDevice(slot, kind, vendor, model)</code> 로 적재한다. 온보드 NIC(Intel I210 두 개)도 Ethernet 클래스라 같은 목록에 담기고, 그 결과 "PCIe 슬롯 장착물" 표에서 운영자가 추가로 꽂은 카드와 보드에 붙박인 칩을 구분하지 못한다 — 실기 4호에서 사용자가 지적한 지점이다.</p>
+
+        <h4>BMC 웹 API 실측 (AMI · E0-3 계열 · 2026-09-10 HAR)</h4>
+        <p><code>GET /api/system_inventory_gbt/pci_info</code> 가 장치마다 다음을 준다. 헤더는 <code>X-CSRFTOKEN</code> + 세션 쿠키이며, 로그인 <code>POST /api/session</code> 과 함께 기존 <code>global.bmcweb.AmiWebClient</code> 가 이미 구현해 두었다.</p>
+        <table>
+          <thead><tr><th>필드</th><th>예시</th><th>쓰임</th></tr></thead>
+          <tbody>
+            <tr><td><code>hexBusNumber</code></td><td><code>"0x00AE"</code></td><td>lspci 슬롯의 버스</td></tr>
+            <tr><td><code>hexDeviceNum</code></td><td><code>"0x0000"</code></td><td>lspci 슬롯의 장치 번호</td></tr>
+            <tr><td><code>iOnBoard</code></td><td><code>0</code> / <code>1</code></td><td>온보드 여부 판정 축</td></tr>
+            <tr><td><code>strSlotDesignation</code></td><td><code>"PCIE_1"</code> / <code>"Onboard"</code></td><td>추가 장착일 때 보드 표기</td></tr>
+            <tr><td><code>hexVendorID</code> · <code>hexDeviceID</code> · <code>strClass</code> · <code>strProductName</code></td><td>—</td><td>대조 참고(판정 축 아님)</td></tr>
+          </tbody>
+        </table>
+        <p>lspci 의 슬롯 표기 <code>ae:00.0</code> 은 버스 <code>0xAE</code> · 장치 <code>0</code> · 기능 <code>0</code> 이므로, 버스와 장치 번호로 BMC 응답과 1:1 로 이어진다.</p>
+
+        <div class="callout warn"><b>제약(사용자 실측)</b> — 이 조회는 BMC 최초 접속 뒤 일정 시간이 지나거나 cold boot 등 조건이 맞아야 정상 응답하고, 그 전에는 오류를 낸다. 즉시 실패로 다루면 정상 장비가 실패로 기록된다.</div>
+        <div class="callout"><b>사용자 결정(2026-09-11)</b> — 온보드 NIC 는 보드마다 항상 같으므로 스펙 그룹 키에서 제외해도 무방하다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>진단이 적재한 PCIe 장착물 각 항목에 <b>온보드 · 추가 장착 · 미확인</b> 중 하나를 태깅한다. 판정 축은 BMC <code>pci_info</code> 의 <code>iOnBoard</code>, 추가 장착의 보드 표기는 <code>strSlotDesignation</code> 이다.</li>
+          <li>lspci 슬롯과 BMC 항목은 <b>버스 + 장치 번호</b>로 잇는다. 같은 버스 · 장치의 다중 기능(듀얼 포트 NIC 의 <code>.0</code> · <code>.1</code>)은 같은 태그를 받는다.</li>
+          <li>조회는 진단 완주 뒤 <b>비동기</b>로 한다. 사용자 요청 스레드도, 설정 · 굽기 워커도 태깅을 기다리지 않는다.</li>
+          <li>미준비 증상(오류 · 빈 목록)은 <b>5 회 · 30 초 간격</b>으로 재시도한다. 인증 실패는 즉시 중단한다.</li>
+          <li>끝내 못 받으면 "미확인" 으로 두고 <b>프로비저닝을 막지 않는다</b> — 상태 · 원장에 실패를 남기지 않는다.</li>
+          <li>스펙 그룹 키에서 <b>온보드 항목을 뺀다</b>. 뺀 뒤 비면 "추가 장착 없음" 을 뜻하는 값으로 둔다.</li>
+          <li>서버 상세 화면 PCIe 표에 "장착" 열을 더하고, 태깅이 끝나면 <b>새로고침 없이</b> 갱신되게 한다.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li><code>hdd_info</code> · <code>cpu_info</code> · <code>dimm_info</code> 는 쓰지 않는다 — 디스크는 RAID 인벤토리와 <code>lsblk</code> 가 담당한다.</li>
+            <li>BMC 미준비 조건 자체를 해소하지 않는다(콜드 부팅 유도 등).</li>
+            <li>그룹 재편성을 자동 실행하지 않는다 — 키가 바뀌면 다음 편성 때 반영된다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 매칭 · 재시도 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">왼쪽은 진단이 이미 적재한 <code>lspci</code> 항목, 오른쪽은 BMC <code>pci_info</code> 응답이다. 오른쪽 항목을 빼고 넣거나 응답 조건(빈 목록 · 인증 실패)을 켠 뒤 <b>[조회 시도]</b> 를 누르면, 시도 횟수가 올라가며 왼쪽 배지와 판정 캡션이 바뀐다. 판정 JS 는 §4 의 <code>PcieSlotTagger.tag</code> 진리표와 재시도 규칙을 그대로 재현한다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">프리셋 :</span>
+            <button class="seg" data-preset="1" onclick="demoPreset(1)">① 정상</button>
+            <button class="seg" data-preset="2" onclick="demoPreset(2)">② BMC 미준비</button>
+            <button class="seg" data-preset="3" onclick="demoPreset(3)">③ 인증 실패</button>
+            <button class="seg" onclick="demoReset(true)">초기화</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">응답 조건 :</span>
+            <button class="seg" id="demo-seg-empty" onclick="demoToggle('empty')">빈 목록</button>
+            <button class="seg" id="demo-seg-auth" onclick="demoToggle('auth')">인증 실패</button>
+            <span id="demo-attempt-slot"></span>
+          </div>
+
+          <div class="split-grid">
+            <div class="split-card">
+              <h4>진단 적재 (lspci)</h4>
+              <div id="demo-devices"></div>
+            </div>
+            <div class="split-card">
+              <h4>BMC pci_info 응답</h4>
+              <div id="demo-bmc"></div>
+            </div>
+          </div>
+
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 매칭 판정은 <code>PcieSlotTagger.tag(devices, pciInfo)</code>, 재시도 · 중단 판정은 <code>PcieMountEnricher</code> 의 시도 한 바퀴와 같은 순서다(응답 판정 → 인증이면 중단 → 아니면 시도 횟수 확인).</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL / 신호</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/api/session</code> (BMC)</td><td>로그인 — 세션 쿠키 + <code>X-CSRFTOKEN</code> 확보. <code>AmiWebClient</code> 기존 경로</td><td>200 / 인증 실패</td></tr>
+            <tr><td>GET</td><td><code>/api/system_inventory_gbt/pci_info</code> (BMC)</td><td>장착 목록 조회</td><td>200 JSON 배열 / 오류 / <code>[]</code></td></tr>
+            <tr><td>event</td><td><code>BmcEndpointDiscoveredEvent</code></td><td>진단 수집이 BMC IP 를 적재할 때 이미 발행됨 → <code>AFTER_COMMIT</code> 으로 수신</td><td>—</td></tr>
+            <tr><td>event</td><td><code>GuestServerChangedEvent</code></td><td>태깅 커밋 뒤 발행 → SSE 신호</td><td>—</td></tr>
+            <tr><td>GET</td><td>게스트 서버 상세 (경로 무변경)</td><td>PCIe 표에 "장착" 열 추가</td><td>200</td></tr>
+          </tbody>
+        </table>
+
+        <div class="seq">
+          <div class="actor a1">진단 리눅스</div><div class="actor a2">Provisioning Server</div><div class="actor a3">BMC</div>
+          <div class="step a1"><code>lspci</code> 원문 보고</div><div class="step a2"><code>classifyPcie</code> → <code>PcieDevice.untagged(...)</code> 적재 (mount=UNKNOWN)</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">BMC IP 적재 → <code>BmcEndpointDiscoveredEvent</code></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>PcieMountEnricher</code> 단일 스레드 스케줄러 시도 N</div><div class="step a3"><code>POST /api/session</code> → <code>GET pci_info</code></div>
+          <div class="step a1"></div><div class="step a2">인증 실패 → 중단 / 오류 · 빈 목록 → 30 초 뒤 재시도(최대 5)</div><div class="step a3">200 배열 또는 오류</div>
+          <div class="step a1"></div><div class="step a2"><code>PcieSlotTagger.tag</code> → <code>updateHardwareSpec</code>(pcieDevices 만 교체)</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>GuestServerChangedEvent</code> → SSE → 상세 화면 인벤토리 영역 갱신</div><div class="step a3"></div>
+        </div>
+
+        <div class="callout"><b>왜 이벤트인가</b> — 태깅은 미개시(그룹 편성) 상태에서도 필요하므로 phase 워커 행에 묶지 않는다. <code>BmcEndpointDiscoveredEvent</code> 는 E1.6 계정 표준화가 이미 소비하는 신호라 새 신호를 만들지 않아도 된다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>PcieMount (신규 enum)</h4>
+        <table>
+          <thead><tr><th>상수</th><th>label</th><th>의미</th></tr></thead>
+          <tbody>
+            <tr><td><code>ONBOARD</code></td><td>온보드</td><td>보드에 붙박인 장치 — 그룹 키에서 제외</td></tr>
+            <tr><td><code>ADD_IN</code></td><td>추가 장착</td><td>슬롯에 꽂은 카드 — 보드 표기 동반</td></tr>
+            <tr><td><code>UNKNOWN</code></td><td>미확인</td><td>BMC 응답을 못 받았거나 일치 항목이 없음</td></tr>
+          </tbody>
+        </table>
+
+        <h4>HardwareSpec.PcieDevice 필드 (수정)</h4>
+        <table>
+          <thead><tr><th>필드</th><th>타입</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>slot</code> · <code>kind</code> · <code>vendor</code> · <code>model</code></td><td>기존</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td><code>mount</code></td><td><code>PcieMount</code></td><td><span class="chip new">신규</span> 원시 boolean 대신 enum</td></tr>
+            <tr><td><code>slotDesignation</code></td><td><code>String</code></td><td><span class="chip new">신규</span> <code>ADD_IN</code> 일 때 보드 표기, 그 외 <code>null</code></td></tr>
+          </tbody>
+        </table>
+        <p>구 저장 JSON(두 필드 없음)은 레코드 compact 생성자가 <code>UNKNOWN</code> 으로 채워 읽는다. Jackson 이 생성자를 고르지 못하는 문제(HF15-5 <code>DiskInfo</code> 선례)를 피하려고 추가 생성자를 만들지 않고, 파서 · 테스트가 정적 팩토리 <code>PcieDevice.untagged(...)</code> 를 쓴다.</p>
+
+        <h4>PcieSlotTagger.tag(devices, pciInfo) — 의존 0 정적 진리표</h4>
+        <table>
+          <thead><tr><th>버스 · 장치 일치</th><th><code>iOnBoard</code></th><th><code>mount</code></th><th><code>slotDesignation</code></th></tr></thead>
+          <tbody>
+            <tr><td>있음</td><td><code>1</code></td><td><code>ONBOARD</code></td><td><code>null</code></td></tr>
+            <tr><td>있음</td><td><code>0</code></td><td><code>ADD_IN</code></td><td><code>strSlotDesignation</code></td></tr>
+            <tr><td>없음</td><td>—</td><td><code>UNKNOWN</code> (유지)</td><td><code>null</code></td></tr>
+          </tbody>
+        </table>
+        <p>매칭 키는 lspci 슬롯 <code class="mono">[dddd:]bb:dd.f</code> 의 <b>버스 · 장치</b> 와 BMC 의 <code>hexBusNumber</code> · <code>hexDeviceNum</code> 이다. 기능(<code>.f</code>)은 키에 넣지 않으므로 다중 기능 장치의 모든 기능이 같은 태그를 받는다.</p>
+
+        <h4>SpecGroupKey.pcieField (수정)</h4>
+        <div class="state-flow">전체 PcieDevice ──filter(mount != ONBOARD)──▶ 키 구성 항목
+                        └─ 비면 "none" (추가 장착 없음 — 스펙 부재 UNKNOWN 과 구분)</div>
+
+        <h4>PcieMountEnricher 시도 한 바퀴</h4>
+        <pre><code>① BMC 조회 (session → pci_info)
+② 인증 실패      → 중단 (자격 문제는 시간이 해결하지 않음)
+③ 연결 실패 · 프로토콜 오류 · 데이터 거절 · 빈 목록
+                 → attempt &lt; 5 이면 30 초 뒤 재시도, 아니면 포기(로그만)
+④ 정상 목록      → tag → updateHardwareSpec(pcieDevices 교체) → GuestServerChangedEvent</code></pre>
+        <p>태깅 트랜잭션은 <code>GuestServerDetail.hardwareSpec</code> 의 <code>pcieDevices</code> 만 갈아 끼운다(디스크 · 메모리 보존 · <code>updateHardwareSpec</code> 재사용). 낙관적 잠금 충돌은 한 회 시도로 세고 다음 시도로 넘긴다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td><code>server-detail.html</code> PCIe 표 "장착" 열</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3~4</td><td>N/A — 신규 엔드포인트 · Request/Response 0 (아웃바운드 조회 + 내부 이벤트)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td><code>PcieSlotTagger</code> · <code>PcieMountEnricher</code> 시그니처 · 트랜잭션 경계</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td>N/A — 기존 조회 재사용, 신규 Repository 0</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>7</td><td><code>PcieMount</code> enum + <code>PcieDevice</code> 필드 2 (VO 변경, Entity 무변경)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>Tagger · Enricher 본체 + 스키마 확인 (DDL 0 — JSON 컬럼 안)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 검증 — 화면은 브라우저, 태깅 경로는 모의 응답 (§9)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 확정 — HF15 CP7 일괄</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출).</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>사용자 액션 통합 테스트 — 범주별</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>해당 없음 — 신규 HTTP 엔드포인트 0. 상세 화면은 경로 · 응답 구조 무변경이라 CP5 A1 이 회귀를 본다</td><td>0</td></tr>
+            <tr><td>400</td><td>해당 없음 — 사용자 입력 경로를 건드리지 않는다</td><td>0</td></tr>
+            <tr><td>404</td><td>해당 없음 — 신규 조회 경로 0</td><td>0</td></tr>
+            <tr><td>409</td><td>해당 없음 — 충돌 판정 신설 0. 낙관적 잠금 충돌은 사용자에게 노출되지 않고 다음 시도로 넘어간다</td><td>0</td></tr>
+            <tr><td>500</td><td>해당 없음 — BMC 조회 실패는 요청 스레드 밖이며, 실패해도 UNKNOWN 으로 수렴한다</td><td>0</td></tr>
+            <tr><td>회귀</td><td><code>SpecGroupKeyTest</code>(온보드 제외 · "none") · <code>DiagnosticReportParserTest</code>(untagged) · <code>HardwareSpec</code> 구 JSON 역직렬화</td><td>3 파일</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">신규 HTTP 시나리오가 0 이므로 <b>검증 부담이 단위 테스트와 CP5 로 옮겨간다</b>. 아래 단위 8 건과 §9 의 A · B · C 항목이 이 슬라이스의 실제 그물이다.</div>
+
+        <h4>단위 테스트 (신규 2 파일 · 8 건)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>PcieSlotTaggerTest</code></td><td>온보드 매칭 · 추가 장착 매칭(보드 표기) · 미일치 UNKNOWN 유지 · 다중 기능 동일 태그</td><td>4</td></tr>
+            <tr><td><code>PcieMountEnricherTest</code><br>(동기 실행기)</td><td>정상 응답 태깅 · 인증 실패 즉시 중단 · 5 회 소진 포기 · 빈 목록 재시도</td><td>4</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>상황</th><th>처리</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>인증 실패</td><td>즉시 중단 — UNKNOWN 유지, 로그만</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td>연결 실패 · 프로토콜 오류 · 데이터 거절</td><td>재시도 대상(최대 5)</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td>빈 목록(<code>[]</code>)</td><td>예외 아님 — 미준비 증상으로 보고 재시도</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td>낙관적 잠금 충돌</td><td>한 회 시도로 세고 다음 시도로 넘김</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>신규 예외 0.</b> 전부 <code>AmiWebClient</code> 가 이미 던지는 형을 받아 분류한다 — 구체 클래스명은 CP2 착수 시 실측해 확정한다. HTTP 매핑은 없다(사용자 요청 스레드 밖이라 advice 가 닿지 않는다).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>설계 결정</h4>
+        <table>
+          <thead><tr><th>#</th><th>채택</th><th>비채택 · 탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1</td><td>서버가 <code>BmcEndpointDiscoveredEvent</code>(AFTER_COMMIT)를 받아 단일 스레드 스케줄러로 비동기 조회 — <code>BootOverrideReconciler</code>(HF15-1)와 같은 모양</td><td>(A) 에이전트가 BMC 직접 조회 — 자격증명이 게스트로 감 / (B) 보고 처리 스레드에서 동기 조회 — 재시도 요건 · 요청 지연 / (D) 설정 · 굽기 워커 행 — 미개시 때도 태깅이 필요</td></tr>
+            <tr><td>D-2</td><td>5 회 · 30 초(총 2.5 분). 인증 실패만 즉시 중단, 소진 시 로그만</td><td>즉시 실패 처리 — 정상 장비가 실패로 기록됨</td></tr>
+            <tr><td>D-3</td><td><code>PcieMount</code> enum + <code>slotDesignation</code>, 정적 팩토리 <code>untagged(...)</code></td><td>추가 생성자 — Jackson 모호성(HF15-5 선례)</td></tr>
+            <tr><td>D-5</td><td>그룹 키에서 온보드 제외, 비면 "none"</td><td>전체 유지 — 같은 하드웨어가 온보드 표기 차이로 갈림</td></tr>
+            <tr><td>D-7</td><td><code>pcieDevices</code> 만 교체(<code>updateHardwareSpec</code> 재사용)</td><td>스펙 전체 재적재 — 디스크 · 메모리 소실 위험</td></tr>
+          </tbody>
+        </table>
+
+        <h4>주의</h4>
+        <ul>
+          <li><b>과도기 그룹 분화</b> — 태깅 전 서버(UNKNOWN)는 종전대로 온보드가 키에 남아, 같은 하드웨어라도 태깅된 서버와 다른 그룹에 갈 수 있다. 다음 PXE 재진단 때 해소된다(재진단마다 이벤트가 다시 나므로 태깅도 갱신된다).</li>
+          <li><b>DDL 0 · env 0</b> — 두 필드는 기존 JSON 컬럼 안에 들어간다. 스키마 변경도 새 환경변수도 없다.</li>
+          <li><code>slotDesignation</code> 은 보드 인쇄 표기를 그대로 담는 표시 전용 값이라 이번에는 <code>String</code> 이다(D-3). 판정에 쓰이지 않는 표시 전용 값이라 VO 로 올리지 않는다(세션 결정 · CP1) — 판정에 쓰이게 되는 시점에 승격한다.</li>
+        </ul>
+
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>5 회 · 30 초(2.5 분)가 BMC 미준비 구간을 덮는가</td><td>실기(HF15 CP7)에서 실제 소요를 재고 그 값으로 조정. 그 전까지는 2.5 분 유지 — 넘쳐도 UNKNOWN 이라 피해가 없다</td></tr>
+            <tr><td>Q2</td><td>과도기 UNKNOWN 서버를 일괄 재태깅할 것인가</td><td>하지 않는다 — 재진단으로 자연 해소. 별도 마이그레이션 경로를 만들지 않는다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="HF15-6-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 green (회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span>DDL 0 · env 0 확인 (스키마 변경 없음)</span></label></li>
+        </ul>
+        <h4>기능 (CP5)</h4>
+        <ul class="check-list" data-storage="HF15-6-func">
+          <li><label><input type="checkbox" data-key="a1"> <span><b>A1</b> 태깅 전 서버 상세 — "장착" 열 전부 "—" · 그룹 키 종전과 동일</span></label></li>
+          <li><label><input type="checkbox" data-key="a2"> <span><b>A2</b> 태깅 성공(모의 <code>pci_info</code>) — I210 두 행 온보드 · SAS3008 <code>PCIE_1</code> · 미일치 행 "—"</span></label></li>
+          <li><label><input type="checkbox" data-key="a3"> <span><b>A3</b> 온보드 제외 그룹 키 — 추가 장착만 같은 두 스펙이 같은 그룹</span></label></li>
+          <li><label><input type="checkbox" data-key="c1"> <span><b>C1</b> 태깅 뒤 SSE 로 인벤토리 영역 자동 갱신(새로고침 없이 배지 등장)</span></label></li>
+        </ul>
+        <h4>회귀 · 비정상 (CP5)</h4>
+        <ul class="check-list" data-storage="HF15-6-reg">
+          <li><label><input type="checkbox" data-key="b1"> <span><b>B1</b> BMC 미준비(빈 목록 · 5 회) — 재시도 뒤 미확인 · 프로비저닝 상태 무변화 · 오류 원장 0</span></label></li>
+          <li><label><input type="checkbox" data-key="b2"> <span><b>B2</b> 인증 실패 — 1 회 뒤 중단 · 미확인</span></label></li>
+          <li><label><input type="checkbox" data-key="b3"> <span><b>B3</b> 구 저장 JSON(필드 없음) 읽기 — UNKNOWN · 화면 "—"</span></label></li>
+        </ul>
+        <div class="callout warn">샌드박스에는 BMC 가 없으므로 태깅 경로는 테스트 · 모의 응답으로, 화면은 브라우저로 본다. 실기 확정은 다음 실기(HF15 CP7 일괄)에서 하며, BMC 미준비 조건의 실제 소요 시간은 그때 잰다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/enums/PcieMount.java</code></td><td>ONBOARD · ADD_IN · UNKNOWN + label</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/diagnose/PcieSlotTagger.java</code></td><td>의존 0 정적 진리표 (§4)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/diagnose/PcieMountEnricher.java</code></td><td>이벤트 리스너 · 스케줄러 · 트랜잭션 · 재시도</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/vo/HardwareSpec.java</code></td><td><code>PcieDevice</code> 필드 2 + <code>untagged</code> 팩토리</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/diagnose/DiagnosticReportParser.java</code></td><td><code>untagged</code> 사용</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/vo/SpecGroupKey.java</code></td><td>온보드 제외 · 비면 "none"</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/server-detail.html</code></td><td>PCIe 표 "장착" 열</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>테스트 <code>PcieSlotTaggerTest</code> · <code>PcieMountEnricherTest</code></td><td>8 건 (§6)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>테스트 <code>SpecGroupKeyTest</code> · <code>DiagnosticReportParserTest</code> · <code>HardwareSpec</code> 구 JSON 호환</td><td>3 파일</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>global.bmcweb.AmiWebClient</code> · <code>BmcEndpointDiscoveredEvent</code> · <code>GuestServerDetail.updateHardwareSpec</code> · <code>GuestServerChangedEvent</code></td><td>변경 0 — 기존 자산 재사용</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>ddl/schema.sql</code></td><td>DDL 0 (JSON 컬럼 안) · env 0</td></tr>
+          </tbody>
+        </table>
+        <p>자바 소스 신규 3 · 수정 3, 템플릿 수정 1, 테스트 신규 2 파일 · 수정 3 파일.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="HF15-6-next">
+          <li><label><input type="checkbox" data-key="m1"> <span>HF15 CP7 일괄 실기 — 태깅 결과 실측 확인 + BMC 미준비 소요 시간 계측 (Q1 의 입력)</span></label></li>
+          <li><label><input type="checkbox" data-key="m2"> <span>과도기 UNKNOWN 서버는 다음 PXE 재진단으로 해소 — 별도 마이그레이션 없음 (Q2)</span></label></li>
+          <li><label><input type="checkbox" data-key="m3"> <span>그룹 재편성은 자동 실행하지 않는다 — 키 변경은 다음 편성 때 반영</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — PcieSlotTagger.tag 진리표 + PcieMountEnricher 재시도 규칙 재현
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_MAX_ATTEMPT = 5;
+  // 진단이 적재한 lspci 항목 (버스 · 장치 · 기능)
+  const DEMO_LSPCI = [
+    { slot:'ae:00.0', bus:0xae, dev:0x00, name:'SAS3008 (SAS controller)' },
+    { slot:'34:00.0', bus:0x34, dev:0x00, name:'I210 (Ethernet)' },
+    { slot:'35:00.0', bus:0x35, dev:0x00, name:'I210 (Ethernet)' },
+    { slot:'01:00.0', bus:0x01, dev:0x00, name:'X710 (Ethernet · 기능 0)' },
+    { slot:'01:00.1', bus:0x01, dev:0x00, name:'X710 (Ethernet · 기능 1)' }
+  ];
+  // BMC pci_info 표본 (실측 필드 형식). on=응답에 포함할지
+  const DEMO_BMC_ROWS = [
+    { id:'sas',  hexBus:'0x00AE', hexDev:'0x0000', onBoard:0, desig:'PCIE_1',  name:'SAS3008', on:true  },
+    { id:'nic1', hexBus:'0x0034', hexDev:'0x0000', onBoard:1, desig:'Onboard', name:'I210',    on:true  },
+    { id:'nic2', hexBus:'0x0035', hexDev:'0x0000', onBoard:1, desig:'Onboard', name:'I210',    on:true  },
+    { id:'x710', hexBus:'0x0001', hexDev:'0x0000', onBoard:0, desig:'PCIE_2',  name:'X710',    on:false }
+  ];
+  let demoState;
+
+  function demoInit() {
+    demoState = {
+      bmc: DEMO_BMC_ROWS.map(r => Object.assign({}, r)),
+      empty:false, auth:false, attempt:0, status:'ready', last:'—', preset:null,
+      tags: DEMO_LSPCI.map(() => ({ mount:'UNKNOWN', desig:null }))
+    };
+  }
+  // PcieSlotTagger.tag — 버스 · 장치 일치 → iOnBoard 로 분기 (§4 진리표)
+  function demoTag(devices, pciInfo) {
+    return devices.map(d => {
+      const m = pciInfo.find(p => parseInt(p.hexBus, 16) === d.bus && parseInt(p.hexDev, 16) === d.dev);
+      if (!m) return { mount:'UNKNOWN', desig:null };
+      return m.onBoard === 1 ? { mount:'ONBOARD', desig:null } : { mount:'ADD_IN', desig:m.desig };
+    });
+  }
+  // SpecGroupKey.pcieField — ONBOARD 제외, 비면 "none"
+  function demoGroupField(tags) {
+    const kept = DEMO_LSPCI.filter((d, i) => tags[i].mount !== 'ONBOARD').map(d => d.slot);
+    return kept.length ? '[' + kept.join(', ') + ']' : '"none"';
+  }
+  // PcieMountEnricher 시도 한 바퀴 (응답 판정 → 인증이면 중단 → 아니면 시도 횟수 확인)
+  function demoStep() {
+    if (demoState.status === 'done' || demoState.status === 'aborted' || demoState.status === 'gaveup') return;
+    demoState.attempt++;
+    if (demoState.auth) { demoState.last = 'AUTH_FAILURE'; demoState.status = 'aborted'; return; }
+    const rows = demoState.empty ? [] : demoState.bmc.filter(r => r.on);
+    if (rows.length === 0) {
+      demoState.last = 'EMPTY_LIST';
+      demoState.status = (demoState.attempt >= DEMO_MAX_ATTEMPT) ? 'gaveup' : 'retrying';
+      return;
+    }
+    demoState.tags = demoTag(DEMO_LSPCI, rows);
+    demoState.last = 'OK';
+    demoState.status = 'done';
+  }
+  function demoAttempt() { demoStep(); demoRender(); }
+  function demoToggle(k) {
+    if (demoState.status !== 'ready' && demoState.status !== 'retrying') return;
+    demoState[k] = !demoState[k];
+    demoRender();
+  }
+  function demoBmcToggle(id) {
+    const r = demoState.bmc.find(x => x.id === id);
+    if (r) r.on = !r.on;
+    demoRender();
+  }
+  function demoReset(render) { demoInit(); if (render !== false) demoRender(); }
+  function demoPreset(n) {
+    demoReset(false);
+    demoState.preset = n;
+    if (n === 2) demoState.empty = true;
+    if (n === 3) demoState.auth = true;
+    let guard = 0;
+    do { demoStep(); } while (demoState.status === 'retrying' && guard++ < 10);
+    demoRender();
+  }
+  function demoBtn(label, onclick, blocked, tip) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked ? (' data-tip="' + tip + '"') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis + ' onclick="' + onclick + '">' + label + '</button></span>';
+  }
+  function demoRender() {
+    const s = demoState, terminal = (s.status === 'done' || s.status === 'aborted' || s.status === 'gaveup');
+    document.getElementById('demo-seg-empty').classList.toggle('active', s.empty);
+    document.getElementById('demo-seg-auth').classList.toggle('active', s.auth);
+    document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(b =>
+      b.classList.toggle('active', String(s.preset) === b.dataset.preset));
+
+    document.getElementById('demo-attempt-slot').innerHTML =
+      demoBtn('조회 시도 (' + s.attempt + '/' + DEMO_MAX_ATTEMPT + ')', 'demoAttempt()', terminal,
+              '이번 사이클은 끝났습니다. [초기화] 후 다시 시도하세요.');
+
+    const MOUNT = {
+      ONBOARD: '<span class="badge off">온보드</span>',
+      UNKNOWN: '<span class="badge off">—</span>'
+    };
+    document.getElementById('demo-devices').innerHTML = DEMO_LSPCI.map((d, i) => {
+      const t = s.tags[i];
+      const badge = t.mount === 'ADD_IN' ? '<span class="badge on">' + t.desig + '</span>' : MOUNT[t.mount];
+      return '<div class="ux-row' + (t.mount === 'ONBOARD' ? ' muted' : '') + '">' +
+             '<code>' + d.slot + '</code><span class="label">' + d.name + '</span>' + badge + '</div>';
+    }).join('');
+
+    document.getElementById('demo-bmc').innerHTML = s.bmc.map(r =>
+      '<div class="ux-row' + (r.on ? '' : ' muted') + '">' +
+      '<code>' + r.hexBus + '</code><span class="label">' + r.name +
+      ' · iOnBoard=' + r.onBoard + ' · ' + r.desig + '</span>' +
+      demoBtn(r.on ? '포함됨' : '제외됨', "demoBmcToggle('" + r.id + "')", terminal,
+              '조회가 끝난 뒤에는 응답을 바꿀 수 없습니다. [초기화] 후 다시 구성하세요.') + '</div>'
+    ).join('');
+
+    const tagged = s.tags.filter(t => t.mount !== 'UNKNOWN').length;
+    const tf = (v, yes, no) => v ? '<span class="t">true</span> → ' + yes : '<span class="f">false</span> → ' + no;
+    document.getElementById('demo-caps').innerHTML =
+      'attempt              = ' + s.attempt + ' / ' + DEMO_MAX_ATTEMPT + '\n' +
+      'lastOutcome          = ' + s.last + '\n' +
+      'authFailure          = ' + tf(s.auth, '즉시 중단', '재시도 가능') + '\n' +
+      'retryable            = ' + tf(s.last === 'EMPTY_LIST', '30초 뒤 재시도', '재시도 불필요') + '\n' +
+      'tagged / total       = ' + tagged + ' / ' + DEMO_LSPCI.length + '\n' +
+      'SpecGroupKey.pcie    = ' + demoGroupField(s.tags) + '   (ONBOARD 제외)';
+
+    const msg = document.getElementById('demo-message');
+    if (s.status === 'ready') {
+      msg.className = 'ux-message';
+      msg.textContent = 'BMC 응답을 구성한 뒤 [조회 시도] 를 누르세요. 아직 아무 항목도 태깅되지 않아 전부 "미확인" 입니다.';
+    } else if (s.status === 'retrying') {
+      msg.className = 'ux-message';
+      msg.textContent = '시도 ' + s.attempt + '/' + DEMO_MAX_ATTEMPT + ' — 빈 목록 응답(미준비 증상). 30초 뒤 재시도합니다 (총 대기 2.5분).';
+    } else if (s.status === 'gaveup') {
+      msg.className = 'ux-message error';
+      msg.textContent = '5회 소진 — 태깅을 포기하고 로그만 남깁니다. 전 항목 "미확인" 으로 두며 프로비저닝 상태 · 원장에는 아무것도 남기지 않습니다.';
+    } else if (s.status === 'aborted') {
+      msg.className = 'ux-message error';
+      msg.textContent = '인증 실패 — 자격 문제는 시간이 해결하지 않으므로 즉시 중단합니다 (재시도 없음). 전 항목 "미확인".';
+    } else {
+      const onb = s.tags.filter(t => t.mount === 'ONBOARD').length;
+      const add = s.tags.filter(t => t.mount === 'ADD_IN').length;
+      const unk = s.tags.filter(t => t.mount === 'UNKNOWN').length;
+      msg.className = 'ux-message success';
+      msg.textContent = '✓ 시도 ' + s.attempt + '회에 응답 — 온보드 ' + onb + ' · 추가 장착 ' + add + ' · 미확인 ' + unk +
+        ' 로 태깅하고 GuestServerChangedEvent 로 상세 화면을 갱신합니다.';
+    }
+  }
+  demoInit();
+  demoRender();   // ⚠ 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
