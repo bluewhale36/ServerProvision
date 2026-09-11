@@ -420,4 +420,56 @@ class BmcSettingStepExecutionTest {
         ledger.markBondAt(row, T);
         return row;
     }
+
+    // ---- HF15-7 되읽기 일시 오류 관용 --------------------------------------------
+
+    @Test
+    @DisplayName("착수 — 되읽기가 BMC 오류(1334)면 실패가 아니다: retries 를 세고 RUNNING 으로 남겨 다음 주기가 재개, 통과하면 SUCCEEDED")
+    void begin_transientReadbackRetriesThenSucceeds() {
+        BmcSettingTarget target = bmcTarget(profile());
+        api.applied(target, "FAN_PROFILE").fail("GET /api/cold_redundant-status", AmiWebError.DATA_REJECTED, 2);
+        GuestServer server = server();
+        ProvisioningProgress progress = bmcAxis();
+
+        begin().execute(context(server, progress, List.of(), target, T));
+        ProvisioningHistory row = opened.get();
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
+        assertThat(ledger.retriesOf(row, BmcSettingItem.COLD_REDUNDANT)).isEqualTo(1);
+        assertThat(ledger.itemsOf(row).get("COLD_REDUNDANT")).startsWith("TRANSIENT");
+        assertThat(api.writes()).doesNotContain("POST /api/settings/fanprofile");   // 뒤 항목은 아직
+        assertThat(progress.isFailed()).isFalse();
+
+        begin().execute(context(server, progress, List.of(row), target, T.plusSeconds(30)));
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
+        assertThat(ledger.retriesOf(row, BmcSettingItem.COLD_REDUNDANT)).isEqualTo(2);
+
+        begin().execute(context(server, progress, List.of(row), target, T.plusSeconds(60)));
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
+        assertThat(ledger.itemsOf(row)).containsEntry("COLD_REDUNDANT", "APPLIED");
+        assertThat(row.getStatusMeta()).contains("4개 적용").doesNotContain("건너뜀");
+        verify(recorder).openRunning(any(), any(), any(), any());   // 행은 한 번만 열렸다
+        verify(cursorAdvancer).advanceOrComplete(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("착수 — 되읽기 오류가 3회째면 그 항목만 SKIPPED 로 남기고 뒤 항목을 계속 써 SUCCEEDED(요약에 건너뜀)")
+    void begin_transientReadbackSkipsAfterThirdAttempt() {
+        BmcSettingTarget target = bmcTarget(profile());
+        api.applied(target, "FAN_PROFILE").fail("GET /api/cold_redundant-status", AmiWebError.DATA_REJECTED, 3);
+        GuestServer server = server();
+        ProvisioningProgress progress = bmcAxis();
+
+        begin().execute(context(server, progress, List.of(), target, T));
+        ProvisioningHistory row = opened.get();
+        begin().execute(context(server, progress, List.of(row), target, T.plusSeconds(30)));
+        begin().execute(context(server, progress, List.of(row), target, T.plusSeconds(60)));
+
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
+        assertThat(ledger.retriesOf(row, BmcSettingItem.COLD_REDUNDANT)).isEqualTo(BeginBmcSettingStep.TRANSIENT_MAX_ATTEMPTS);
+        assertThat(ledger.itemsOf(row).get("COLD_REDUNDANT")).startsWith("SKIPPED:되읽기 오류 3회");
+        assertThat(ledger.itemsOf(row)).containsEntry("FAN_PROFILE", "APPLIED").containsEntry("NETWORK_BOND", "APPLIED");
+        assertThat(row.getStatusMeta()).contains("3개 적용 · COLD_REDUNDANT 건너뜀(되읽기 오류 3회");
+        assertThat(api.writes()).contains("PUT /api/settings/network-bond");
+        assertThat(progress.isFailed()).isFalse();
+    }
 }

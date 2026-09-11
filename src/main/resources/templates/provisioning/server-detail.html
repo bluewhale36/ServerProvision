@@ -154,7 +154,7 @@
 
     <!-- 전원 제어 (E1.5) — BMC Redfish 단발 경로. 페이지 로드 시 BMC 를 조회하지 않는다(BMC 다운이 페이지를 느리게 하지 않게 — lazy XHR).
          bmcIp 가 없으면 버튼 대신 이유 문구(UI 1 차 차단 — 결과 타입 UNSUPPORTED 와 같은 사실). 문구 · 판정의 SSOT 는 서버(PowerControlResult). -->
-    <div class="n-detail-section" id="powerControlSection"
+    <div class="n-detail-section" id="powerControlSection" data-live="power"
          th:with="bmcDetected=${server.inventory != null and server.inventory.bmcIp != null}"
          th:data-server-id="${server.id}"
          th:data-bmc-detected="${bmcDetected}">
@@ -288,15 +288,24 @@
                         </tbody>
                     </table>
 
-                    <!-- PCIe 슬롯 — RAID·LAN·10G(UTP/SFP+)·FC(16/32Gb)·GPU. 미분류(ETC)도 원문 유지 -->
+                    <!-- PCIe 장치 — RAID·LAN·10G(UTP/SFP+)·FC(16/32Gb)·GPU. 미분류(ETC)도 원문 유지.
+                         장착 열은 BMC 시스템 인벤토리가 진단 뒤 비동기로 채운다(HF15-6) — 온보드 · 보드 슬롯 표기 · 미확인(—) -->
                     <table th:if="${not #lists.isEmpty(server.inventory.hardwareSpec.pcieDevices)}" class="n-table n-block-gap">
                         <thead>
-                        <tr><th colspan="4">PCIe 슬롯 장착물</th></tr>
-                        <tr><th>슬롯</th><th>종류</th><th>제조사</th><th>모델</th></tr>
+                        <tr><th colspan="5">PCIe 장치</th></tr>
+                        <tr><th>PCI 주소</th><th>장착</th><th>종류</th><th>제조사</th><th>모델</th></tr>
                         </thead>
                         <tbody>
                         <tr th:each="pc : ${server.inventory.hardwareSpec.pcieDevices}">
                             <td><code class="n-mono" th:text="${pc.slot != null} ? ${pc.slot} : '—'">01:00.0</code></td>
+                            <td>
+                                <span th:if="${pc.mount != null and pc.mount.name() == 'ONBOARD'}" class="n-badge n-badge-gray"
+                                      th:text="${pc.mount.label}">온보드</span>
+                                <code th:if="${pc.mount != null and pc.mount.name() == 'ADD_IN'}" class="n-mono"
+                                      th:text="${pc.slotDesignation != null} ? ${pc.slotDesignation} : ${pc.mount.label}">PCIE_1</code>
+                                <span th:if="${pc.mount == null or pc.mount.name() == 'UNKNOWN'}" class="n-muted"
+                                      title="BMC 시스템 인벤토리에서 확인되지 않았습니다 — 미조회 · 미준비로 포기 · BMC 목록에 없는 장치">—</span>
+                            </td>
                             <td><span class="n-badge n-badge-gray" th:text="${pc.kind != null} ? ${pc.kind} : 'ETC'">RAID</span></td>
                             <td th:text="${pc.vendor != null} ? ${pc.vendor} : '—'">Broadcom</td>
                             <td th:text="${pc.model != null} ? ${pc.model} : '—'">MegaRAID 9560-8i</td>
@@ -863,7 +872,7 @@
                             <span class="n-firmware-detail"
                                   th:text="|#{provisioning.windows.install.disk.number} ${wi.targetDiskId}|">디스크 0</span>
                             <!-- 서빙 뒤에도 번호의 근거를 남긴다(HF15-5 CP5 O-1) — 원장 meta diskBasis -->
-                            <span th:if="${wi.diskSelectionNote != null}" class="n-hint" th:text="${wi.diskSelectionNote}">근거 RAID 검증 재채집(lsblk 순서)</span>
+                            <span th:if="${wi.diskSelectionNote != null}" class="n-hint" th:text="${wi.diskSelectionNote}">근거 카드 계열 순서 규칙</span>
                         </li>
                         <li th:if="${wi.targetDiskId == null and wi.diskSelectionNote != null}">
                             <span th:text="#{provisioning.windows.install.disk}">설치 대상 디스크</span>

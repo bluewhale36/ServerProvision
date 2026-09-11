@@ -13,7 +13,12 @@ public record BmcItemOutcome(Status status, String detail) {
         /** 썼는데 되읽은 값이 다르다. */
         MISMATCH,
         /** 썼는데 되읽기 전에 연결이 끊겼다 — Bond 재구성. 다음 주기가 거둔다. */
-        RECONNECT_PENDING
+        RECONNECT_PENDING,
+        /**
+         * BMC 가 일시 오류를 냈다(HF15-7 — 실기 4호 COLD_REDUNDANT 되읽기 code 1334 가 세 번째 시도에서 통과). 값의 거절이
+         * 아니라 읽기 · 응답의 실패라 단계가 다음 주기에 다시 시도하고, 거듭되면 그 항목만 건너뛴다.
+         */
+        TRANSIENT
     }
 
     public static BmcItemOutcome applied() {
@@ -30,6 +35,10 @@ public record BmcItemOutcome(Status status, String detail) {
 
     public static BmcItemOutcome mismatch(String detail) {
         return new BmcItemOutcome(Status.MISMATCH, detail);
+    }
+
+    public static BmcItemOutcome transientError(String detail) {
+        return new BmcItemOutcome(Status.TRANSIENT, detail);
     }
 
     public static BmcItemOutcome reconnectPending() {

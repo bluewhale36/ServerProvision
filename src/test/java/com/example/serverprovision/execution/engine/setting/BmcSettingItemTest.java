@@ -161,4 +161,29 @@ class BmcSettingItemTest {
     static BmcSettingTarget target(BmcStandardSettings standard, FanProfileResources.FanProfile profile) {
         return new BmcSettingTarget(standard, "MS03-CE0", profile);
     }
+
+    @Test
+    @DisplayName("HF15-7 — 쓰기의 데이터 거절은 REJECTED, 쓰기의 프로토콜 오류와 되읽기의 거절(code 1334 류)은 TRANSIENT")
+    void transientClassification() {
+        BmcSettingTarget target = target(standard(), null);
+
+        ScriptedAmiWebApi writeRejected = new ScriptedAmiWebApi().applied(target, "default")
+                .fail("POST /api/cold_redundant-status", AmiWebError.DATA_REJECTED, 1);
+        assertThat(BmcSettingItem.COLD_REDUNDANT.apply(writeRejected, target, NOW).status()).isEqualTo(BmcItemOutcome.Status.REJECTED);
+
+        ScriptedAmiWebApi writeProtocol = new ScriptedAmiWebApi().applied(target, "default")
+                .fail("POST /api/cold_redundant-status", AmiWebError.PROTOCOL, 1);
+        assertThat(BmcSettingItem.COLD_REDUNDANT.apply(writeProtocol, target, NOW).status()).isEqualTo(BmcItemOutcome.Status.TRANSIENT);
+
+        ScriptedAmiWebApi readbackRejected = new ScriptedAmiWebApi().applied(target, "default")
+                .fail("GET /api/cold_redundant-status", AmiWebError.DATA_REJECTED, 1);
+        BmcItemOutcome outcome = BmcSettingItem.COLD_REDUNDANT.apply(readbackRejected, target, NOW);
+        assertThat(outcome.status()).isEqualTo(BmcItemOutcome.Status.TRANSIENT);
+        assertThat(outcome.detail()).contains("GET /api/cold_redundant-status");
+
+        ScriptedAmiWebApi readbackConnect = new ScriptedAmiWebApi().applied(target, "default")
+                .fail("GET /api/cold_redundant-status", AmiWebError.CONNECT_FAILED, 1);
+        assertThatThrownBy(() -> BmcSettingItem.COLD_REDUNDANT.apply(readbackConnect, target, NOW))
+                .isInstanceOf(AmiWebRequestException.class);   // 연결 · 인증은 주기의 일 — 그대로 올린다
+    }
 }

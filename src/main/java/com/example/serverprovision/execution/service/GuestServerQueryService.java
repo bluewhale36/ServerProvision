@@ -305,7 +305,11 @@ public class GuestServerQueryService {
             parts.add("디스크 " + spec.disks().size() + "개");
         }
         if (spec != null && spec.pcieDevices() != null && !spec.pcieDevices().isEmpty()) {
-            parts.add("PCIe " + spec.pcieDevices().size() + "장");
+            // 키(SpecGroupKey)가 온보드를 빼고 세므로 라벨도 같은 대상을 센다 — 라벨이 같은데 묶음이 갈리면 운영자가 이유를 못 본다(HF15-6 CP5 O-1)
+            long addIn = spec.pcieDevices().stream()
+                    .filter(p -> p == null || p.mount() != com.example.serverprovision.execution.enums.PcieMount.ONBOARD)
+                    .count();
+            parts.add(addIn > 0 ? "PCIe " + addIn + "장" : "추가 PCIe 없음");
         }
         return String.join(" · ", parts);
     }
@@ -928,7 +932,7 @@ public class GuestServerQueryService {
         return switch (sel.confidence()) {
             case DEFERRED -> sel.note();
             case CONFIDENT -> "디스크 " + sel.diskId()
-                    + (sel.basis() == null ? "" : " · " + basisLabelOf(sel.basis().wire()));
+                    + (sel.basis() == null ? "" : " · " + sel.basis().label());
             case BLOCKED -> null;
         };
     }
@@ -937,11 +941,7 @@ public class GuestServerQueryService {
     private static String basisLabelOf(String basisWire) {
         com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis basis =
                 com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.fromWire(basisWire);
-        if (basis == null) {
-            return null;
-        }
-        return "근거 " + (basis == com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.OS_VISIBLE_DISKS
-                ? "RAID 검증 재채집(lsblk 순서)" : "카드 계열 순서 규칙");
+        return basis == null ? null : basis.label();
     }
 
     private static GuestServerDetailResponse.FirmwarePlan.Axis axisOf(AxisResolution axis, String label) {

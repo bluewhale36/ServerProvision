@@ -22,7 +22,7 @@ class SpecGroupKeyTest {
     }
 
     private static HardwareSpec.PcieDevice pcie(String slot, String model) {
-        return new HardwareSpec.PcieDevice(slot, "RAID", "Broadcom", model);
+        return HardwareSpec.PcieDevice.untagged(slot, "RAID", "Broadcom", model);
     }
 
     private static HardwareSpec.DiskInfo disk(String device, String size) {
@@ -82,5 +82,31 @@ class SpecGroupKeyTest {
         assertThat(SpecGroupKey.of(null, new HardwareSpec(null, null, null, null))).isNotNull();
         // 같은 결측 상태끼리는 한 그룹으로 묶인다 — "알 수 없음" 도 하나의 구성이다
         assertThat(SpecGroupKey.of("MS03-CE0", null)).isEqualTo(SpecGroupKey.of("MS03-CE0", null));
+    }
+
+    @Test
+    @DisplayName("온보드로 확인된 PCIe 는 키에서 뺀다 — 온보드 NIC 는 보드마다 같다(HF15-6 · 2026-09-11 결정)")
+    void onboardPcieExcluded() {
+        HardwareSpec.PcieDevice raid = pcie("ae:00.0", "SAS3008").tagged(com.example.serverprovision.execution.enums.PcieMount.ADD_IN, "PCIE_1");
+        HardwareSpec.PcieDevice onboardNic = HardwareSpec.PcieDevice.untagged("34:00.0", "LAN", "Intel", "I210")
+                .tagged(com.example.serverprovision.execution.enums.PcieMount.ONBOARD, null);
+        HardwareSpec withOnboard = new HardwareSpec(List.of(cpu("CPU1", "6338")), List.of(), List.of(), List.of(raid, onboardNic));
+        HardwareSpec withoutOnboard = new HardwareSpec(List.of(cpu("CPU1", "6338")), List.of(), List.of(), List.of(raid));
+
+        assertThat(SpecGroupKey.of("MS04-CE0", withOnboard)).isEqualTo(SpecGroupKey.of("MS04-CE0", withoutOnboard));
+    }
+
+    @Test
+    @DisplayName("온보드만 있는 서버(추가 장착 없음)는 PCIe 정보가 없는 서버와 다른 키다 · 미확인은 종전대로 센다")
+    void onlyOnboardIsNoneNotUnknown() {
+        HardwareSpec.PcieDevice onboardNic = HardwareSpec.PcieDevice.untagged("34:00.0", "LAN", "Intel", "I210")
+                .tagged(com.example.serverprovision.execution.enums.PcieMount.ONBOARD, null);
+        HardwareSpec onlyOnboard = new HardwareSpec(List.of(cpu("CPU1", "6338")), List.of(), List.of(), List.of(onboardNic));
+        HardwareSpec noPcie = new HardwareSpec(List.of(cpu("CPU1", "6338")), List.of(), List.of(), List.of());
+        HardwareSpec untagged = new HardwareSpec(List.of(cpu("CPU1", "6338")), List.of(), List.of(),
+                List.of(HardwareSpec.PcieDevice.untagged("34:00.0", "LAN", "Intel", "I210")));
+
+        assertThat(SpecGroupKey.of("MS04-CE0", onlyOnboard)).isNotEqualTo(SpecGroupKey.of("MS04-CE0", noPcie));
+        assertThat(SpecGroupKey.of("MS04-CE0", untagged)).isNotEqualTo(SpecGroupKey.of("MS04-CE0", onlyOnboard));
     }
 }

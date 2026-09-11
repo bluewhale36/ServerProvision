@@ -171,16 +171,31 @@ public enum BmcSettingItem {
     public abstract BmcItemOutcome verify(AmiWebApi api, BmcSettingTarget target);
 
     /**
-     * 쓰기 + 되읽기 한 세트. BMC 의 거절(데이터 · 프로토콜)은 이 항목의 REJECTED 로 흡수하고, 연결 · 인증 실패는
-     * 항목의 일이 아니라 주기의 일이므로 그대로 올린다.
+     * 쓰기 + 되읽기 한 세트. 쓰기의 데이터 거절은 이 항목의 REJECTED, 쓰기의 프로토콜 오류와 되읽기의 거절 · 프로토콜
+     * 오류는 TRANSIENT(값은 거절된 것이 아니라 BMC 가 답하지 못한 것 — HF15-7)로 흡수하고, 연결 · 인증 실패는 항목의
+     * 일이 아니라 주기의 일이므로 그대로 올린다.
      */
     public BmcItemOutcome apply(AmiWebApi api, BmcSettingTarget target, Instant now) {
+        BmcItemOutcome skipped;
         try {
-            BmcItemOutcome skipped = write(api, target, now);
-            return skipped != null ? skipped : verify(api, target);
+            skipped = write(api, target, now);
+        } catch (AmiWebRequestException e) {
+            if (e.getError() == AmiWebError.DATA_REJECTED) {
+                return BmcItemOutcome.rejected(e.getMessage());
+            }
+            if (e.getError() == AmiWebError.PROTOCOL) {
+                return BmcItemOutcome.transientError(e.getMessage());
+            }
+            throw e;
+        }
+        if (skipped != null) {
+            return skipped;
+        }
+        try {
+            return verify(api, target);
         } catch (AmiWebRequestException e) {
             if (e.getError() == AmiWebError.DATA_REJECTED || e.getError() == AmiWebError.PROTOCOL) {
-                return BmcItemOutcome.rejected(e.getMessage());
+                return BmcItemOutcome.transientError(e.getMessage());
             }
             throw e;
         }

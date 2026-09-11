@@ -117,7 +117,26 @@ def web_initial():
         'expireServed': False,
         'bondDropUntil': 0,
         'dropSeconds': BOND_DROP_SECONDS,
+        'pciNotReadyLeft': 0,                      # HF15-6 — pci_info 가 미준비([])로 답할 남은 횟수
+        'pciInfoGets': 0,
+        'coldGetFailLeft': 0,                      # HF15-7 — cold_redundant GET 이 code 1334 로 답할 남은 횟수
     }
+
+# HF15-6 — 2026-09-10 HAR(일산 상2 · MS04-CE0) 의 pci_info 정본. SAS3008 은 PCIE_1, I210 둘은 온보드.
+PCI_INFO = [
+    {'hexHandle': '0x0033', 'strClass': 'Serial Attached SCSI controller', 'hexDeviceID': '0x0097', 'hexVendorID': '0x1000',
+     'strManufacturer': 'Broadcom / LSI', 'strProductName': 'SAS3008 PCI-Express Fusion-MPT SAS-3', 'iOnBoard': 0,
+     'hexSlotHandle': '0x002A', 'hexOnboardIndex': '0xFFFF', 'hexBusNumber': '0x00AE', 'hexDeviceNum': '0x0000',
+     'strSlotDesignation': 'PCIE_1'},
+    {'hexHandle': '0x0034', 'strClass': 'Ethernet controller', 'hexDeviceID': '0x1533', 'hexVendorID': '0x8086',
+     'strManufacturer': 'Intel Corporation', 'strProductName': 'I210 Gigabit Network Connection', 'iOnBoard': 1,
+     'strSlotDesignation': 'Onboard', 'hexBusNumber': '0x0034', 'hexDeviceNum': '0x0000'},
+    {'hexHandle': '0x0035', 'strClass': 'Ethernet controller', 'hexDeviceID': '0x1533', 'hexVendorID': '0x8086',
+     'strManufacturer': 'Intel Corporation', 'strProductName': 'I210 Gigabit Network Connection', 'iOnBoard': 1,
+     'strSlotDesignation': 'Onboard', 'hexBusNumber': '0x0035', 'hexDeviceNum': '0x0000'},
+    {'hexHandle': '0x0037', 'strClass': 'VGA compatible controller', 'hexVendorID': '0x1A03', 'iOnBoard': 1,
+     'strSlotDesignation': 'Onboard', 'hexBusNumber': '0x0037', 'hexDeviceNum': '0x0000'},
+]
 
 STATE['web'] = web_initial()
 
@@ -381,8 +400,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             w['datetime'][k] = body[k]
                 self._json(200, body)
             return
+        if path == '/api/system_inventory_gbt/pci_info':
+            w['pciInfoGets'] += 1
+            if w['pciNotReadyLeft'] > 0:
+                w['pciNotReadyLeft'] -= 1
+                self._json(200, [])                   # 미준비 — 실측 증상(최초 접속 뒤 조건 미충족)
+                return
+            self._json(200, PCI_INFO)
+            return
         if path == '/api/cold_redundant-status':
             if method == 'GET':
+                if w['coldGetFailLeft'] > 0:
+                    w['coldGetFailLeft'] -= 1
+                    self._json(200, {'error': 'Error in Getting Cold Redundant Status', 'code': 1334})   # 실기 4호 웨이브
+                    return
                 self._json(200, dict(w['coldRedundant']))
             else:
                 w['coldRedundant'] = {'get_cold_redundant_enable': body.get('set_cold_redundant_enable', 0),
@@ -498,6 +529,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path == '/__mode':
             STATE['mode'] = body.get('mode', 'normal')
             STATE['web']['dropSeconds'] = int(body.get('dropSeconds', BOND_DROP_SECONDS))
+            STATE['web']['pciNotReadyLeft'] = int(body.get('pciNotReadyLeft', 0))
+            STATE['web']['coldGetFailLeft'] = int(body.get('coldGetFailLeft', 0))
             self._json(200, STATE)
             return
         if self.path == '/__reset-state':

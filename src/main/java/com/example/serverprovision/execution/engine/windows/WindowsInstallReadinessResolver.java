@@ -97,7 +97,7 @@ public class WindowsInstallReadinessResolver {
         if (!hasOsVolume && raidPhasePending(guestServerId)) {
             return deferredByPlan(guestServerId, inventory);
         }
-        return WindowsDiskSelection.judge(volumes, inventory, osVisibleDisksOf(detail));
+        return WindowsDiskSelection.judge(volumes, inventory);
     }
 
     /** RAID 구성 단계를 보유했고 커서가 아직 그 단계를 지나지 않았는가 — 지났다면 볼륨 부재는 실패다. */
@@ -164,20 +164,6 @@ public class WindowsInstallReadinessResolver {
         }
         try {
             return objectMapper.readValue(json, RaidInventory.class);
-        } catch (RuntimeException notParseable) {
-            return null;
-        }
-    }
-
-    /** RAID 검증 재채집이 갱신한 OS 가시 디스크(WWN 동봉) — 구 저장본(WWN 없음)이면 진리표가 ② 규칙으로 내려간다. */
-    private List<HardwareSpec.DiskInfo> osVisibleDisksOf(Optional<GuestServerDetail> detail) {
-        String json = detail.map(GuestServerDetail::getHardwareSpec).orElse(null);
-        if (json == null || json.isBlank()) {
-            return null;
-        }
-        try {
-            HardwareSpec spec = objectMapper.readValue(json, HardwareSpec.class);
-            return spec == null ? null : spec.disks();
         } catch (RuntimeException notParseable) {
             return null;
         }
