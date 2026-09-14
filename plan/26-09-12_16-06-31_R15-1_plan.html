@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R15-1 Plan — Subprogram OS 축 · 변형 모델 · 등록</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; }
+  .ux-row .label { flex:1; }
+  .ux-row input[type=text], .ux-row select { padding:5px 8px; font-size:12px; font-family:var(--mono); border:1px solid var(--border); border-radius:5px; background:var(--card); max-width:100%; }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .ux-wrap table { margin:8px 0 0; background:var(--card); border-radius:6px; overflow:hidden; }
+  .ux-wrap th { background:var(--bg); }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R15-1 — Subprogram OS 축 · 변형 모델 · 등록 <span class="v2-badge">R15 1/3</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R15-1 (refactor)</span>
+    <span><strong>상위</strong> R15 드라이버 · 유틸리티 관리 개편</span>
+    <span><strong>scope</strong> OS 축 + 변형 모델 + 등록 · 수정 화면 (조립 · 설치는 R15-2)</span>
+    <span><strong>생성</strong> 2026-09-12 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 개편 동기</a></li>
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 개편 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 개편 동기 (R15 토론 종결분)</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 개편은 E4-1-a-4(Windows <code>$OEM$</code> 조립 · 완료 보고)가 만든 조립 · 설치 경로 위에 놓인다. 당시 조립은 Subprogram 에 OS 구분이 없어 <b>"트리에 INF 가 하나라도 있으면 대상"</b> 으로 판별했고, 그 한계를 CP1 후속으로 명시해 두었다. 실기 4호 뒤 사용자가 이를 문제로 제기했다.</p>
+        <ol>
+          <li>OS 에 따라 드라이버가 다르면서 보드에 따라서도 다른데, 분류 기준이 보드뿐이다.</li>
+          <li>같은 OS 라도 버전에 따라 실행할 파일이 다르다 — ASPEED 한 패키지 안의 Win10 · Win11 · Server 2022 · Server 2025 MSI.</li>
+        </ol>
+        <p>R15 는 이를 <b>모델 · 등록(R15-1) / 조립 · 설치 선별(R15-2) / 현황 · 경고 · 자동 조립(R15-3)</b> 셋으로 나눴다(검증 줄기가 각각 등록 화면 · 설치 하네스 · 대시보드로 다르다). 본 문서는 첫째다.</p>
+        <div class="callout"><b>본 슬라이스 한 줄</b> — Subprogram 에 OS 축(<code>osName</code> · null = OS 무관)을 더하고, 벤더 패키지 안의 버전별 변형을 <code>SubprogramVariant</code>(OS 버전 · 진입점 상대 경로 · 인자 · 재부팅 플래그)로 <b>선언</b>한다. 선언한 변형을 실제로 <b>고르고 실행</b>하는 것은 R15-2 다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (2026-09-11 · 12 실측)</summary>
+      <div class="body">
+        <h4>모델 · 경로</h4>
+        <table>
+          <thead><tr><th>층</th><th>현행</th><th>본 슬라이스 관계</th></tr></thead>
+          <tbody>
+            <tr><td><code>Subprogram</code></td><td>kind(DRIVER · UTILITY) · boardModel(nullable = 공용 · <code>BoardScope</code> VO) · name · version · treeRootPath · entrypointRelativePath(nullable) · 마커(manifestHash · signature) · 무결성 · 설명 · fileCount · totalBytes · lifecycle</td><td>OS 축 · OS 버전 축 <b>부재</b></td></tr>
+            <tr><td>진입점</td><td>MA5-D5 — 등록 시 받지 않고 수정 폼에서 입력. <code>EntrypointPolicyService.validateAndNormalize(treeRoot, input)</code> 가 절대경로 · <code>..</code> · 트리 밖을 차단</td><td>정책은 그대로 재사용, 필드 자리만 변형으로 이동</td></tr>
+            <tr><td>마커</td><td>attribute = kind · name · version · scope(· boardId). 진입점 · 설명은 마커 밖</td><td><code>osName</code> 도 마커 밖에 둔다(D-1)</td></tr>
+            <tr><td>등록 3 경로</td><td>업로드(<code>SubprogramUploadIntentRequest</code> → <code>addSubprogram</code>) · 기존 트리 등록(<code>registerExisting</code>) · nudge 재등록(<code>persistFromNudge</code>)</td><td>셋 모두 <code>osName</code> 을 나르게 한다</td></tr>
+            <tr><td>수정</td><td><code>SubprogramUpdateRequest(name, version, description, entrypointRelativePath)</code> → <code>SubprogramService.update</code></td><td>진입점 제거 · 변형 목록 추가</td></tr>
+            <tr><td>화면</td><td><code>management/subprogram/{list, subprogram-new, subprogram-edit}.html</code>. 수정 폼의 진입점 입력 + 탐색 패널 fragment <code>directory-browse-panel</code></td><td>탐색 패널은 변형 행의 진입점 선택에 재사용</td></tr>
+            <tr><td>OS 모델</td><td><code>OSName</code> = UBUNTU · CENTOS · ROCKY_LINUX · WINDOWS · WINDOWS_SERVER(각각 <code>OSFamily</code>). <code>OSMetadata</code> = osName + osVersion(문자열 · "9.7" · "24.04")</td><td>정의서의 OS 설치 요청은 <code>osMetadataId</code> 를 가리키므로 대상 OS 버전 = 그 OSMetadata 의 osVersion (R15-2 의 매칭 키)</td></tr>
+            <tr><td>DDL</td><td><code>subprogram</code> 표에 <code>entrypoint_relative_path varchar(512)</code> 존재</td><td>마이그레이션에서 DROP (D-8)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>실 DB — DRIVER 4 · UTILITY 0</h4>
+        <ul>
+          <li>id 4 — ASPEED 1.15.03 (MS04-CE0) · entrypoint <code>WDDM Installer/Win2025.msi</code></li>
+          <li>id 2 — Intel Chipset (MS04-CE0) / id 3 — Intel QAT (MS04-CE0) / id 1 — Intel Chipset (MS74-HB0)</li>
+        </ul>
+        <div class="pkg-tree">ASPEED 1.15.03 트리 (실측 15 파일)
+├── WIN2016/astgrp.inf      ├── WIN10_22H2/astgrp.inf
+├── WIN2019/astgrp.inf      ├── WIN11_23H2/astgrp.inf
+├── WIN2022/astgrp.inf      ├── WIN11_24H2/astgrp.inf
+├── WIN2025/astgrp.inf      ├── WIN11_ARM/astgrp.inf
+└── WDDM Installer/
+    ├── Win2016.msi  Win2019.msi  Win2022.msi  Win2025.msi
+    └── Win10.msi    Win11_23H2.msi  Win11_24H2.msi</div>
+        <div class="callout warn"><b>진단</b> — 자원 하나가 8 개 OS 버전을 품는데 모델이 표현할 수 있는 것은 진입점 <b>하나</b>뿐이다. 그래서 현행 실 DB 는 ASPEED 의 진입점을 <code>Win2025.msi</code> 로 고정해 둔 상태이고, 나머지 7 개 버전의 설치 경로는 어디에도 선언돼 있지 않다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>OS 축</b> — <code>Subprogram.osName</code>(<code>OSName</code> · nullable · null = OS 무관). 등록 시 선택(필수 아님 · 기본 OS 무관) · 수정 가능. <b>마커 attribute 에는 넣지 않는다.</b></li>
+          <li><b>변형</b> — 신규 엔티티 <code>SubprogramVariant</code>(OS 버전 · 진입점 상대 경로 · 인자 · 재부팅 플래그 · 정렬 · 시각). 한 패키지에 여러 행.</li>
+          <li><b>진입점 SSOT 는 변형</b> — 자원 단위 <code>entrypointRelativePath</code> 를 엔티티 · DTO · 응답 · 수정 폼 · 컬럼에서 제거한다. 변형이 하나뿐인 패키지도 변형 1 행으로 표현한다.</li>
+          <li><b>설치 방식은 진입점 확장자가 정한다</b> — enum <code>InstallEntrypointKind</code>(INF · MSI · EXE). 별도 "설치 방식" 선택 필드를 두지 않는다. 그 외 확장자는 400 필드 메시지로 거절.</li>
+          <li><b>변형 편집은 수정 폼</b>(MA5-D5 와 같은 결) — 표 편집(행: OS 버전 · 진입점 · 인자 · 재부팅) · [행 추가] · [삭제] · <code>variants[i].*</code> 인덱스 바인딩 · 서버는 <b>전체 교체</b>(삭제 후 삽입).</li>
+          <li><b>변형 유일성</b> — <code>UNIQUE(subprogram_id, os_version)</code> + OS 버전을 비운 변형(그 OS 의 모든 버전)은 <b>1 행 이하</b>(서비스 가드).</li>
+          <li><b>등록 3 경로</b>(업로드 · 기존 트리 · nudge 재등록) 모두 <code>osName</code> 을 나른다.</li>
+          <li><b>화면 표시</b> — 목록(Miller) 자원 행에 OS 라벨("OS 무관" 포함) · 상세 패널에 OS + 변형 표(버전 · 종류 배지 INF/MSI/EXE · 진입점 · 인자 · 재부팅). 변형 0 이면 "변형 없음 — 트리 전체(INF)로 다룸(현행)".</li>
+          <li><b>마이그레이션</b> — <code>ddl/R15-1_subprogram_os_variant.sql</code> 5 문(§8 D-8) + <code>schema.sql</code> 동기.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>조립 · 설치 선별(서빙 시점 선택 목록 계산 · 게스트 전달 · SetupComplete 실행) → <b>R15-2</b></li>
+            <li>보드 × OS 현황표 · 누락 경고 · 자동 조립 → <b>R15-3</b></li>
+            <li>폴더명 자동 추정(Q2 에서 사용자가 배제 — 등록 폼 보조로도 넣지 않는다)</li>
+            <li>리눅스 드라이버(E4-L 부활 시) · UTILITY 의 실행(변형 선언은 가능하나 실행 경로 없음)</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 변형 표 편집기 (라이브 데모)</summary>
+      <div class="body">
+        <p style="margin-top:0;">ASPEED 트리의 실측 파일에서 진입점을 고르고 OS 버전을 적어 <b>변형 행을 쌓는</b> 데모다. 확장자 위반 · 같은 버전 중복 · 버전 비운 행 2 개는 즉시 거절된다(데모의 거절 판정 = 서버 <code>SubprogramService</code> 가드 = 같은 SSOT). 아래 "대상 OS 버전" 을 바꾸면 <b>어느 행이 뽑히는지</b> 미리 볼 수 있다 — 이 선택 규칙은 R15-2 의 예고이며 본 슬라이스에서 구현하지 않는다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">프리셋 :</span>
+            <button class="seg" data-preset="1" onclick="demoPreset(1)">① 마이그레이션 직후</button>
+            <button class="seg" data-preset="2" onclick="demoPreset(2)">② 4 버전 선언</button>
+            <button class="seg" data-preset="3" onclick="demoPreset(3)">③ 위반 3 종 시연</button>
+            <button class="seg" onclick="demoReset()">초기화(변형 0)</button>
+          </div>
+          <div class="callout" id="demo-guide" style="margin:6px 0 10px;"></div>
+
+          <div class="ux-row">
+            <span class="label" style="flex:0 0 100%; font-weight:600;">변형 추가 — 진입점 · OS 버전 · 인자 · 재부팅</span>
+            <select id="demo-path" onchange="demoRender()" style="flex:1; min-width:240px;"></select>
+            <input type="text" id="demo-version" placeholder="OS 버전 (비우면 전 버전)" oninput="demoRender()" style="width:170px;">
+            <input type="text" id="demo-args" placeholder="인자 (선택)" style="width:120px;">
+            <label style="font-size:12px;"><input type="checkbox" id="demo-reboot"> 재부팅</label>
+            <button class="n-demo-btn" onclick="demoAdd()">행 추가</button>
+          </div>
+
+          <table>
+            <thead><tr><th>#</th><th>OS 버전</th><th>종류</th><th>진입점</th><th>인자</th><th>재부팅</th><th></th></tr></thead>
+            <tbody id="demo-rows"></tbody>
+          </table>
+
+          <div class="ux-toolbar" style="margin-top:12px;">
+            <span class="group-label">대상 OS 버전 :</span>
+            <button class="seg" data-target="2016" onclick="demoSetTarget('2016')">2016</button>
+            <button class="seg" data-target="2019" onclick="demoSetTarget('2019')">2019</button>
+            <button class="seg" data-target="2022" onclick="demoSetTarget('2022')">2022</button>
+            <button class="seg" data-target="2025" onclick="demoSetTarget('2025')">2025</button>
+            <button class="seg" data-target="" onclick="demoSetTarget('')">없음</button>
+          </div>
+
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">프리셋을 누르거나 진입점 · OS 버전을 직접 넣어 [행 추가] 를 눌러보세요.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 확장자 판정은 <code>InstallEntrypointKind.fromPath(String)</code>, 중복 판정은 <code>SubprogramService</code> 의 변형 교체 가드(§4)와 같은 로직이다. 데모는 폼에서 즉시 거절하지만 <b>서버 재검증이 SSOT</b> 이며 direct POST 는 400 으로 막힌다(§6 B 범주).</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/management/subprogram</code></td><td>Miller 목록(Driver · Utility)</td><td>자원 행에 OS 라벨 <span class="chip mod">수정</span></td></tr>
+            <tr><td>GET</td><td><code>/management/subprogram/new?kind=</code></td><td>등록 폼</td><td>OS select 추가 <span class="chip mod">수정</span></td></tr>
+            <tr><td>GET</td><td><code>/management/subprogram/{id}/edit</code></td><td>수정 폼 렌더</td><td>진입점 입력 제거 · 변형 표 <span class="chip mod">수정</span></td></tr>
+            <tr><td>POST</td><td><code>/management/subprogram/{id}/edit</code></td><td>메타 + 변형 전체 교체 → 302</td><td>바인딩 <code>variants[i].*</code> <span class="chip mod">수정</span></td></tr>
+            <tr><td>GET</td><td><code>/management/subprogram/{id}</code></td><td>REST 상세 (상세 패널)</td><td>응답에 osName · variants <span class="chip mod">수정</span></td></tr>
+            <tr><td>GET</td><td><code>/management/subprogram/items</code></td><td>scope 별 목록 (REST)</td><td>응답 필드만 늘어남 <span class="chip mod">수정</span></td></tr>
+            <tr><td>POST</td><td>등록 3 경로 (<code>SubprogramUploadController</code> · <code>SubprogramNudgeController</code> 관할)</td><td>업로드 · 기존 트리 · nudge 재등록</td><td><b>경로 무변경</b> · 본문에 <code>osName</code> <span class="chip mod">수정</span></td></tr>
+            <tr><td>GET</td><td><code>/management/browse</code></td><td>디렉토리 · 파일 탐색</td><td>변형 행의 진입점 선택에 재사용 <span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+
+        <h4>변형 전체 교체 흐름 (수정 폼 제출)</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">SubprogramController</div><div class="actor a3">SubprogramService</div>
+          <div class="step a1">변형 표에서 행 추가 · 삭제 (JS)</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">POST <code>variants[0..n].*</code></div><div class="step a2"><code>@Valid</code> + BindingResult<br>Layer A 바인딩 검증</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">에러 시 폼 재렌더<br>(입력 유지)</div><div class="step a3"><code>update(id, request)</code></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">확장자 · 중복 · null 버전 가드<br>→ <code>InvalidSubprogramVariantException</code></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">기존 변형 삭제 → 신규 삽입<br>(<code>EntrypointPolicyService</code> 로 경로 정규화)</div>
+          <div class="step a1">302 → 목록 (선택 보존)</div><div class="step a2">redirect</div><div class="step a3"></div>
+        </div>
+        <div class="callout">진입점 검증은 <b>기존 정책을 그대로 재사용</b>한다 — <code>EntrypointPolicyService.validateAndNormalize(Path.of(treeRootPath), input)</code> 가 절대경로 · <code>..</code> · 트리 밖을 이미 차단하므로 변형마다 같은 호출을 태운다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>Subprogram — 변경분</h4>
+        <table>
+          <thead><tr><th>필드</th><th>타입</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>osName</code></td><td><code>OSName</code> (nullable · <code>@Enumerated(STRING)</code>)</td><td><span class="chip new">신규</span> null = OS 무관. 마커 attribute 아님</td></tr>
+            <tr><td><code>variants</code></td><td><code>List&lt;SubprogramVariant&gt;</code> (1:N · cascade · orphanRemoval)</td><td><span class="chip new">신규</span> 전체 교체 대상</td></tr>
+            <tr><td><code>entrypointRelativePath</code></td><td><code>String</code></td><td><span class="chip del">제거</span> 변형으로 이관 (D-3)</td></tr>
+            <tr><td>kind · boardModel · name · version · treeRootPath · 마커 · lifecycle</td><td>현행</td><td><span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+
+        <h4>SubprogramVariant — 신규</h4>
+        <table>
+          <thead><tr><th>필드 / 컬럼</th><th>타입</th><th>규칙</th></tr></thead>
+          <tbody>
+            <tr><td><code>subprogram</code> / <code>subprogram_id</code></td><td>FK</td><td>ON DELETE CASCADE</td></tr>
+            <tr><td><code>osVersion</code> / <code>os_version</code></td><td><code>varchar(64)</code> nullable</td><td>null = 그 OS 의 모든 버전. trim · 대소문자 보존 (D-6)</td></tr>
+            <tr><td><code>entrypointRelativePath</code></td><td><code>varchar(512)</code> not null</td><td><code>EntrypointPolicyService</code> 정규화 통과분</td></tr>
+            <tr><td><code>arguments</code></td><td><code>varchar(512)</code> nullable</td><td>EXE · MSI 추가 인자 1 개 문자열</td></tr>
+            <tr><td><code>rebootRequired</code> / <code>reboot_required</code></td><td><code>bit</code></td><td>재부팅 요구 플래그</td></tr>
+            <tr><td><code>sortOrder</code> / <code>sort_order</code></td><td><code>int</code></td><td>표시 순서 — 폼에 노출하지 않고 제출된 행 순서(0부터)로 서버가 부여한다(세션 결정 · CP1)</td></tr>
+            <tr><td colspan="3"><b>제약</b> <code>UNIQUE(subprogram_id, os_version)</code> + 서비스 가드 "null 버전 1 행 이하"</td></tr>
+          </tbody>
+        </table>
+
+        <h4>InstallEntrypointKind — 설치 방식의 SSOT</h4>
+        <pre><code>public enum InstallEntrypointKind {
+    INF, MSI, EXE;
+
+    public static InstallEntrypointKind fromPath(String relativePath);  // 확장자 → 상수, 미지원이면 거절
+    public String label();                                              // 화면 배지 문구
+}
+// R15-2 가 constant 별 메서드로 실행 명령(pnputil · msiexec · 직접 실행)을 붙인다. 본 슬라이스는 분류 + 검증만.</code></pre>
+
+        <h4>변형 교체 가드 (서비스 · 🎬 데모와 같은 판정)</h4>
+        <pre><code>replaceVariants(sp, requests):
+    for r in requests:
+        kind = InstallEntrypointKind.fromPath(r.entrypointRelativePath)   // null → 400 (확장자)
+        path = entrypointPolicyService.validateAndNormalize(Path.of(sp.treeRootPath), r.entrypointRelativePath)
+        v    = trim(r.osVersion)                                          // blank → null
+    if 중복(v)         → 400   // UNIQUE(subprogram_id, os_version) 선행 가드
+    if null 버전 2 행  → 400
+    기존 변형 전부 삭제 → 신규 삽입</code></pre>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 진입점 2 곳</h4><pre><code>Subprogram.entrypointRelativePath
+  "WDDM Installer/Win2025.msi"   ← <span class="diff-del">자원 하나에 진입점 하나</span>
+(나머지 7 버전은 선언 자리 없음)</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 변형이 유일한 SSOT</h4><pre><code>SubprogramVariant[
+  {"2016", "WIN2016/astgrp.inf",            INF}
+  {"2022", "WDDM Installer/Win2022.msi",    MSI}
+  {"2025", "WDDM Installer/Win2025.msi",    MSI}
+]   ← <span class="diff-add">버전마다 한 행</span></code></pre></div>
+        </div>
+
+        <div class="callout warn"><b>Primitive Obsession 판단</b> — 설치 방식은 문자열이 아니라 <code>InstallEntrypointKind</code> enum 으로, OS 는 <code>OSName</code> enum 으로 타입화한다. 반대로 <code>osVersion</code> 은 <b>의도적으로 문자열</b>이다 — 매칭 상대인 <code>OSMetadata.osVersion</code> 이 이미 문자열이고, FK 로 묶으면 드라이버 버전마다 OS 메타를 먼저 등록해야 하기 때문이다(D-6). 진입점 경로는 자유 문자열이 아니라 <code>EntrypointPolicyService</code> 정규화를 통과한 값만 저장한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>등록 · 수정 템플릿 + 변형 표 JS · Controller 바인딩 · DTO 5 종 · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td><code>SubprogramVariantRepository</code> · <code>SubprogramVariant</code> · <code>InstallEntrypointKind</code></td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>변형 교체 본체 + 마이그레이션 DDL 적용 · <code>validate</code> 기동 (테스트 제외 · 빌드 통과)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (A1~A4 · B1~B5 · C1~C2, 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출).</div>
+        <div class="callout warn"><b>Step 9 주의</b> — 샌드박스는 <code>ddl-auto=update</code> 라 컬럼 DROP 이 일어나지 않는다. 자원 단위 진입점 컬럼 제거의 검증은 <b>실 DDL 을 적용한 뒤</b> <code>validate</code> 기동으로 확인한다(CP5 C1).</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오 (17 + 단위)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx · 3xx</td><td>edit POST 변형 3 행 저장 302 · 변형 0 으로 전체 삭제 302 · GET <code>/{id}</code> 응답에 <code>osName</code> · <code>variants</code> · 등록 3 경로(업로드 · 기존 트리 · nudge)의 <code>osName</code> 적재</td><td>6</td></tr>
+            <tr><td>400</td><td>확장자 위반(<code>.txt</code>) 필드 메시지 · 같은 OS 버전 2 행 · 버전 비운 행 2 개 · 트리 밖 경로(<code>../x.msi</code>) · 진입점 공백 · direct POST 로 <code>osName</code> 이상값</td><td>6</td></tr>
+            <tr><td>404</td><td>없는 <code>subprogramId</code> 로 edit GET · edit POST · REST 상세 — <code>SubprogramGuards.requireLive</code> 경로</td><td>3</td></tr>
+            <tr><td>409</td><td>이름 · 버전 변경 시 <code>DuplicateSubprogramVersionException</code>(공용 scope · 보드 scope 각 1)</td><td>2</td></tr>
+            <tr><td>500</td><td>해당 없음 — 신규 실패 경로는 전부 400 · 404 · 409 로 수렴한다</td><td>0</td></tr>
+            <tr><td><b>통합 합계</b></td><td><code>SubprogramControllerTest</code> + 등록 경로 테스트</td><td><b>17</b></td></tr>
+            <tr><td>단위</td><td><code>InstallEntrypointKindTest</code>(INF · MSI · EXE 매핑 · 대소문자 · 미지원 확장자) · <code>SubprogramServiceTest</code>(변형 교체 happy · 확장자 위반 · 버전 중복 · null 버전 2 행 · 트리 밖 경로)</td><td>8</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">신규 예외 <code>InvalidSubprogramVariantException</code> 은 400 범주의 앞 3 시나리오가 <b>실제로 트리거</b>한다(테스트 규율 — 새 예외에는 통합 시나리오가 반드시 따라붙는다). Mockito mocking 은 Service 단까지만 두고 advice 매핑은 실제 실행시킨다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>발생 조건</th></tr></thead>
+          <tbody>
+            <tr><td><code>InvalidSubprogramVariantException</code></td><td>400</td><td><span class="chip new">신규</span></td><td>미지원 확장자 · 같은 OS 버전 중복 · 버전 비운 행 2 개</td></tr>
+            <tr><td><code>DuplicateSubprogramVersionException</code></td><td>409</td><td><span class="chip keep">재사용</span></td><td>이름 · 버전 변경 시 (kind, scope, name, version) 충돌 — 현행 그대로</td></tr>
+            <tr><td><code>SubprogramGuards.requireLive</code> 의 NotFound 계열</td><td>404</td><td><span class="chip keep">재사용</span></td><td>없는 자원 = <code>SubprogramNotFoundException</code>(404) · 삭제된 자원 = <code>IllegalSubprogramStateException</code>(기존 매핑 그대로) — 실측 확정(CP1)</td></tr>
+            <tr><td><code>EntrypointPolicyService</code> 위반 예외</td><td>400</td><td><span class="chip keep">재사용</span></td><td>절대경로 · <code>..</code> · 트리 밖 · 제어문자 · 길이 = <code>EntrypointInvalidException</code>(global.security · 기존 매핑 그대로 · 변형 행마다 필드 오류로 표시) — 실측 확정(CP1)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">신규 예외 1 건이므로 CP2 착수 시 <code>.claude/domain-conventions/new-exception.md</code> 관문을 먼저 연다. 폼 · 안내 문구가 함께 늘어나므로 <code>new-form.md</code> · <code>new-user-copy.md</code> 도 같은 시점에 연다(데모의 거절 문구는 확정 문구가 아니라 <b>규칙의 표현</b>이며, 최종 문구는 그 관문에서 정한다).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 설계 결정 · 잔존 · 주의</summary>
+      <div class="body">
+        <h4>결정 D-1 ~ D-9 (채택 · 비채택 · 탈락 사유)</h4>
+        <table>
+          <thead><tr><th>#</th><th>채택</th><th>비채택 대안</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td><b>D-1</b> OS 축의 자리</td><td><code>Subprogram.osName</code>(OSName · nullable · null = OS 무관)</td><td><code>OSFamily</code>(계열)</td><td>패키지가 계열을 넘나드는 일은 없어 충분해 보이나 사용자 결정 Q1(c) 가 <code>OSName</code> 을 지목</td></tr>
+            <tr><td><b>D-2</b> 변형의 저장</td><td>별도 엔티티 <code>SubprogramVariant</code> + UNIQUE(subprogram_id, os_version)</td><td><code>Subprogram</code> 의 JSON 컬럼</td><td>DDL 은 작아지지만 버전 유일성 · R15-3 의 보드 × OS 조인 · R15-2 의 원장 참조가 전부 앱 코드로 내려온다</td></tr>
+            <tr><td><b>D-3</b> 진입점 SSOT</td><td>자원 단위 필드 <b>제거</b> · 변형만 보유</td><td>자원 필드를 남기고 변형에도 두기</td><td>두 곳이 갈라진다. 사용자 Q3 의 "그대로 사용" 은 <b>규약 재사용</b>이지 필드 병존이 아님</td></tr>
+            <tr><td><b>D-4</b> 설치 방식</td><td>진입점 확장자가 정한다 — <code>InstallEntrypointKind</code>(INF · MSI · EXE)</td><td>별도 "설치 방식" 선택 필드</td><td>진입점과 방식이 어긋날 수 있고 입력이 는다. 한 트리에 INF · MSI 가 둘 다 있어도 운영자가 진입점으로 이미 하나를 고른 것</td></tr>
+            <tr><td><b>D-5</b> 변형 편집의 자리</td><td>수정 폼의 표 편집 (MA5-D5 와 같은 결)</td><td>등록 폼에서 함께</td><td>업로드 흐름은 등록 시점에 트리가 아직 없어 진입점 검증이 불가능</td></tr>
+            <tr><td><b>D-6</b> 버전 키</td><td>문자열 <code>osVersion</code>(trim · 대소문자 보존) + 폼 datalist 제안</td><td><code>OSMetadata</code> FK</td><td>드라이버 버전마다 OS 메타를 (ISO 없이도) 먼저 등록해야 한다</td></tr>
+            <tr><td><b>D-7</b> 등록 폼 OS 선택</td><td>select(OS 무관 + OSName 라벨) · 필수 아님 · 등록 3 경로 모두 전달</td><td>—</td><td>기본값 "OS 무관" 이라 기존 등록 흐름이 그대로 성립</td></tr>
+            <tr><td><b>D-8</b> 마이그레이션</td><td><code>ddl/R15-1_subprogram_os_variant.sql</code> 5 문 (아래)</td><td>—</td><td>Q6 권고 그대로 — 기존 4 건 일괄 지정 · ASPEED 만 변형 1 행</td></tr>
+            <tr><td><b>D-9</b> 화면 표시</td><td>목록 행 OS 라벨 + 상세 변형 표(종류 배지)</td><td>—</td><td>변형 0 이면 "변형 없음 — 트리 전체(INF)로 다룸(현행)" 으로 회귀 없음을 명시</td></tr>
+          </tbody>
+        </table>
+
+        <h4>D-8 마이그레이션 5 문</h4>
+        <pre><code>① ALTER TABLE subprogram ADD os_name enum('UBUNTU','CENTOS','ROCKY_LINUX','WINDOWS','WINDOWS_SERVER') NULL;
+② CREATE TABLE subprogram_variant (...);        -- FK CASCADE + UNIQUE(subprogram_id, os_version)
+③ UPDATE subprogram SET os_name='WINDOWS_SERVER' WHERE kind='DRIVER';   -- 실 DB 4 건 전부 Windows Server 보드용
+④ INSERT INTO subprogram_variant ...            -- ASPEED(id 4) : '2025' / 'WDDM Installer/Win2025.msi' / reboot 1 / sort 0
+⑤ ALTER TABLE subprogram DROP COLUMN entrypoint_relative_path;
+-- schema.sql 동기</code></pre>
+
+        <h4>잔존 책임 · 위험</h4>
+        <ul>
+          <li>R15-2 전까지 <b>변형은 선언만 되고</b> 조립 · 설치는 현행(트리 전체 INF) 경로를 탄다 — 의도된 임시 비대칭.</li>
+          <li>자원 단위 진입점 제거는 실 DB DDL(DROP)이 앱 배포와 <b>같은 순간</b>에 있어야 한다(<code>ddl-auto=validate</code>). 9 · 10 차 재배포 절차에 <b>DDL 선적용</b>을 넣는다.</li>
+          <li><code>osName</code> 을 마커 밖에 두므로 파일 이동 재조정(reconciliation)에서 OS 는 DB 값이 유지된다(마커로 복원되지 않음) — 의도.</li>
+          <li>CLAUDE.md 수정 필요 없음. Notion 은 R15-1 시작 경계로 상태 · 시작 일자만 갱신.</li>
+        </ul>
+
+        <h4>Open Questions (CP1 결정 요청)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q-a</td><td>OS 버전 중복 판정의 대소문자 취급 — D-6 은 <b>저장 규칙</b>(trim · 보존)만 정했다</td><td><b>결정(CP1)</b> — 저장은 trim 만 하고 보존, 중복 판정과 R15-2 의 선택 비교는 모두 trim + 대소문자 무시 동등 비교(같은 정규화 한 곳 · <code>SubprogramVariant.versionKey()</code>)</td></tr>
+            <tr><td>Q-b</td><td><code>sort_order</code> 를 폼에 노출하는가</td><td><b>결정(CP1)</b> — 노출하지 않고 제출된 행 순서로 서버가 부여</td></tr>
+            <tr><td>Q-c</td><td>기존 4 건 OS 일괄 지정값 — 토론 Q6 은 "Windows(계열)", 브리프 D-8 은 <code>WINDOWS_SERVER</code></td><td><b>결정(CP1)</b> — <code>WINDOWS_SERVER</code>. 토론의 "Windows(계열)" 는 실 DB 4 건이 전부 서버 보드용이므로 이 값으로 구체화(CP1 보고에 명시)</td></tr>
+            <tr><td>Q-d</td><td>변형의 버전 키가 "범위" 인가 "단일 값" 인가 — 토론 문구는 범위, 모델은 단일 값</td><td><b>결정(CP1)</b> — 단일 값 + null 와일드카드. 여러 버전에 같은 진입점이면 행을 여러 개 둔다(범위 문법을 만들지 않는다 — 실측 패키지는 버전마다 파일이 다르다)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="R15-1-verify-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 green (기존 회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span>마이그레이션 DDL 적용 후 <code>ddl-auto=validate</code> 기동 성공</span></label></li>
+        </ul>
+        <h4>기능 (CP5 항목)</h4>
+        <ul class="check-list" data-storage="R15-1-verify-func">
+          <li><label><input type="checkbox" data-key="a1"> <span>A1 등록 폼 OS 선택(WINDOWS_SERVER) → 저장 → 목록 행에 OS 라벨</span></label></li>
+          <li><label><input type="checkbox" data-key="a2"> <span>A2 수정 폼에서 변형 3 행(2016 inf · 2022 msi · 2025 msi) 추가 · 저장 → 상세 표(종류 배지)</span></label></li>
+          <li><label><input type="checkbox" data-key="a3"> <span>A3 변형 1 행 삭제 · 저장 → 반영</span></label></li>
+          <li><label><input type="checkbox" data-key="a4"> <span>A4 변형 0 자원 상세의 "변형 없음 — 트리 전체" 문구</span></label></li>
+          <li><label><input type="checkbox" data-key="b1"> <span>B1 확장자 <code>.txt</code> 진입점 → 400 필드 메시지 (폼 입력 유지)</span></label></li>
+          <li><label><input type="checkbox" data-key="b2"> <span>B2 같은 OS 버전 2 행 → 400</span></label></li>
+          <li><label><input type="checkbox" data-key="b3"> <span>B3 버전 비운 행 2 개 → 400</span></label></li>
+          <li><label><input type="checkbox" data-key="b4"> <span>B4 트리 밖 경로(<code>../x.msi</code>) → 거절 (기존 EntrypointPolicy)</span></label></li>
+          <li><label><input type="checkbox" data-key="b5"> <span>B5 direct POST 로 <code>osName</code> 이상값 → 400</span></label></li>
+        </ul>
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="R15-1-verify-reg">
+          <li><label><input type="checkbox" data-key="c1"> <span>C1 마이그레이션 뒤 4 건 OS = Windows Server · ASPEED 변형 1 행 · <code>entrypoint_relative_path</code> 컬럼 없음</span></label></li>
+          <li><label><input type="checkbox" data-key="c2"> <span>C2 변형 없는 자원의 조립 결과가 종전과 동일 (<code>WindowsOemPayloadAssembler</code> 테스트 green)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (신규 8 · 수정 13 · 유지 4 · 테스트 4)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/subprogram/entity/SubprogramVariant.java</code></td><td>변형 엔티티</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/subprogram/enums/InstallEntrypointKind.java</code></td><td>INF · MSI · EXE + <code>fromPath</code> · <code>label</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/subprogram/repository/SubprogramVariantRepository.java</code></td><td>조회 · 일괄 삭제</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>dto/request/SubprogramVariantRequest.java</code></td><td>인덱스 바인딩 요소</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>dto/response/SubprogramVariantResponse.java</code></td><td>종류 배지 · 진입점 · 인자 · 재부팅</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>exception/InvalidSubprogramVariantException.java</code></td><td>400 (new-exception.md 관문)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>static/management/subprogram/subprogram-variants.js</code></td><td>표 행 추가 · 삭제 · 인덱스 재부여 · 탐색 패널 연동</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ddl/R15-1_subprogram_os_variant.sql</code></td><td>D-8 5 문</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>entity/Subprogram.java</code></td><td><code>osName</code> 추가 · 진입점 제거 · <code>variants</code> 관계</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>dto/request/SubprogramCreateRequest</code> · <code>SubprogramRegisterExistingRequest</code> · <code>SubprogramUploadIntentRequest</code></td><td><code>osName</code> 3 종</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>dto/request/SubprogramUpdateRequest</code></td><td>진입점 제거 · <code>List&lt;SubprogramVariantRequest&gt;</code> 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>dto/response/SubprogramResponse</code></td><td><code>osName</code> · <code>variants</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>service/SubprogramService</code></td><td><code>update</code> 의 변형 교체 · 가드 · <code>toResponse</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>service/SubprogramRegistrationService</code></td><td>등록 3 경로의 <code>osName</code> 적재</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>controller/SubprogramController</code></td><td>edit 폼 바인딩 (변형 목록)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/management/subprogram/{list, subprogram-new, subprogram-edit}.html</code></td><td>OS 라벨 · OS select · 변형 표</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>ddl/schema.sql</code></td><td>DDL 동기</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>global/security/EntrypointPolicyService</code></td><td>변경 0 — 변형마다 그대로 호출</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>fragments/management/directory-browse-panel</code></td><td>변경 0 — 변형 행에서 재사용</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>WindowsOemPayloadAssembler</code></td><td>변경 0 — R15-2 소관 (회귀 C2 로 확인)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>마커 인프라 (<code>ProvisionMarkerService</code> · <code>SubprogramMarkerWriter</code>)</td><td>변경 0 — attribute 무변경이라 기존 4 건 재봉인 불필요</td></tr>
+            <tr><td><span class="chip add">테스트</span></td><td><code>InstallEntrypointKindTest</code>(신규) · <code>SubprogramServiceTest</code> · <code>SubprogramControllerTest</code> · 등록 3 경로 테스트</td><td>§6 참조</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ol>
+          <li><b>R15-2 조립 · 설치 선별</b> — 서빙 시점에 보드 × 대상 OS 버전으로 설치 목록을 계산해 게스트에 전달하고, SetupComplete 가 진입점별로 실행(INF · MSI · EXE)한다. 본 슬라이스가 선언한 변형과 <code>InstallEntrypointKind</code> 의 constant 별 메서드가 그 입력이다. 데모의 "대상 OS 버전" 미리보기가 여기서 실물이 된다.</li>
+          <li><b>R15-3 현황 · 경고 · 자동 조립</b> — 보드 × OS 적용 현황표 · 정의서 · 할당 시점 누락 안내(막지 않음) · 변경 뒤 자동 조립과 미반영 표시.</li>
+          <li><b>배포 절차</b> — 진입점 컬럼 DROP 이 있으므로 9 · 10 차 재배포에 <b>DDL 선적용</b>을 포함한다(§8 잔존).</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 변형 표 편집기 — 서버 판정 1:1 재현 (드리프트 0)
+  //   · demoKind()     = InstallEntrypointKind.fromPath(String)
+  //   · demoValidate() = SubprogramService 의 변형 교체 가드 (확장자 · 중복 · null 버전)
+  //   · demoPick()     = R15-2 의 선택 규칙 예고 (본 슬라이스 구현 대상 아님)
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_FILES = [
+    'WIN2016/astgrp.inf', 'WIN2019/astgrp.inf', 'WIN2022/astgrp.inf', 'WIN2025/astgrp.inf',
+    'WIN10_22H2/astgrp.inf', 'WIN11_23H2/astgrp.inf', 'WIN11_24H2/astgrp.inf', 'WIN11_ARM/astgrp.inf',
+    'WDDM Installer/Win2016.msi', 'WDDM Installer/Win2019.msi', 'WDDM Installer/Win2022.msi',
+    'WDDM Installer/Win2025.msi', 'WDDM Installer/Win10.msi', 'WDDM Installer/Win11_23H2.msi',
+    'WDDM Installer/Win11_24H2.msi'
+  ];
+  const DEMO_BAD = 'WDDM Installer/readme.txt';   // 실측 15 파일 밖 — 확장자 위반 시연용
+  const DEMO_GUIDES = {
+    0: '트리의 실측 파일 15 개 중 하나를 고르고 OS 버전을 적어 [행 추가] 를 누르세요. 버전을 비우면 "그 OS 의 모든 버전" 변형이 됩니다.',
+    1: '<b>① 마이그레이션 직후</b> — D-8 의 ④ INSERT 로 옮겨진 ASPEED 변형 1 행입니다. 아래 "대상 OS 버전" 을 2016 으로 바꿔 보세요. 일치 행이 없어 "변형 없음 · 트리 전체" 로 떨어집니다.',
+    2: '<b>② 4 버전 선언</b> — 운영자가 2016(INF) · 2019 · 2022 · 2025(MSI) 를 선언한 상태입니다. 대상 버전을 바꾸면 뽑히는 행이 따라 바뀝니다.',
+    3: '<b>③ 위반 3 종</b> — 폼에 <code>readme.txt</code> 가 채워져 있습니다. ⓐ 그대로 [행 추가] → 확장자 거절, ⓑ 진입점을 <code>Win2025.msi</code> 로 바꾸면 → 버전 중복 거절, ⓒ 버전 칸을 비우면 → 버전 비운 행 2 개 거절.'
+  };
+  let demoRows = [];
+  let demoTarget = '2025';
+  let demoGuideKey = 0;
+
+  function demoKind(path) {                       // = InstallEntrypointKind.fromPath
+    if (!path) return null;
+    const p = path.toLowerCase();
+    if (p.endsWith('.inf')) return 'INF';
+    if (p.endsWith('.msi')) return 'MSI';
+    if (p.endsWith('.exe')) return 'EXE';
+    return null;
+  }
+  function demoNorm(v) { return (v || '').trim(); }
+
+  function demoValidate(cand) {                   // = SubprogramService 변형 교체 가드
+    if (!cand.path) return { ok:false, code:'ENTRYPOINT_BLANK', msg:'진입점을 선택해주세요.' };
+    if (demoKind(cand.path) === null)
+      return { ok:false, code:'UNSUPPORTED_EXTENSION', msg:'진입점은 .inf · .msi · .exe 만 지원합니다 (D-4).' };
+    const v = demoNorm(cand.version);
+    if (v === '' && demoRows.some(r => demoNorm(r.version) === ''))
+      return { ok:false, code:'DUPLICATE_NULL_VERSION', msg:'OS 버전을 비운 변형(그 OS 의 모든 버전)은 하나만 둘 수 있습니다 (D-2).' };
+    if (v !== '' && demoRows.some(r => demoNorm(r.version) === v))
+      return { ok:false, code:'DUPLICATE_OS_VERSION', msg:'같은 OS 버전의 변형이 이미 있습니다 — UNIQUE(subprogram_id, os_version) (D-2).' };
+    return { ok:true, code:'OK', msg:'' };
+  }
+
+  function demoPick(target) {                     // R15-2 선택 규칙 예고
+    const t = demoNorm(target);
+    if (t !== '') {
+      const i = demoRows.findIndex(r => demoNorm(r.version) === t);
+      if (i >= 0) return { idx:i, why:'버전 "' + t + '" 정확 일치' };
+    }
+    const w = demoRows.findIndex(r => demoNorm(r.version) === '');
+    if (w >= 0) return { idx:w, why:'버전 일치 없음 → 버전 비운 행(전 버전)' };
+    return { idx:-1, why:'변형 없음 → 트리 전체(INF) 현행 경로' };
+  }
+
+  function demoForm() {
+    return {
+      path: document.getElementById('demo-path').value,
+      version: document.getElementById('demo-version').value,
+      args: document.getElementById('demo-args').value,
+      reboot: document.getElementById('demo-reboot').checked
+    };
+  }
+  function demoAdd() {
+    const cand = demoForm();
+    const r = demoValidate(cand);
+    const msg = document.getElementById('demo-message');
+    if (!r.ok) {
+      msg.className = 'ux-message error';
+      msg.innerHTML = '✕ 폼 오류 — ' + r.msg + ' <span style="opacity:0.75;">(서버는 같은 판정으로 400 필드 메시지)</span>';
+      demoRender();
+      return;
+    }
+    demoRows.push({ version: demoNorm(cand.version), path: cand.path, args: cand.args, reboot: cand.reboot });
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ 변형 추가 — ' + (demoNorm(cand.version) === '' ? '(전 버전)' : demoNorm(cand.version)) + ' → ' + cand.path;
+    document.getElementById('demo-version').value = '';
+    document.getElementById('demo-args').value = '';
+    demoRender();
+  }
+  function demoRemove(i) {
+    const r = demoRows.splice(i, 1)[0];
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message success';
+    msg.textContent = '✓ 변형 삭제 — ' + (r.version === '' ? '(전 버전)' : r.version) + '. 저장 시 전체 교체(삭제 후 삽입)로 반영됩니다.';
+    demoRender();
+  }
+  function demoReset() {
+    demoRows = []; demoGuideKey = 0;
+    document.getElementById('demo-path').value = DEMO_FILES[0];
+    document.getElementById('demo-version').value = '';
+    document.getElementById('demo-args').value = '';
+    document.getElementById('demo-reboot').checked = false;
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message';
+    msg.textContent = '변형 0 — 상세 화면은 "변형 없음 — 트리 전체(INF)로 다룸(현행)" 을 표시합니다.';
+    demoRender();
+  }
+  function demoPreset(n) {
+    demoGuideKey = n;
+    document.getElementById('demo-args').value = '';
+    document.getElementById('demo-reboot').checked = false;
+    if (n === 1) {
+      demoRows = [{ version:'2025', path:'WDDM Installer/Win2025.msi', args:'', reboot:true }];
+      document.getElementById('demo-path').value = DEMO_FILES[0];
+      document.getElementById('demo-version').value = '';
+    } else if (n === 2) {
+      demoRows = [
+        { version:'2016', path:'WIN2016/astgrp.inf', args:'', reboot:false },
+        { version:'2019', path:'WDDM Installer/Win2019.msi', args:'', reboot:false },
+        { version:'2022', path:'WDDM Installer/Win2022.msi', args:'', reboot:false },
+        { version:'2025', path:'WDDM Installer/Win2025.msi', args:'', reboot:true }
+      ];
+      document.getElementById('demo-path').value = DEMO_FILES[4];
+      document.getElementById('demo-version').value = '';
+    } else {
+      demoRows = [
+        { version:'2025', path:'WDDM Installer/Win2025.msi', args:'', reboot:true },
+        { version:'', path:'WIN2016/astgrp.inf', args:'', reboot:false }
+      ];
+      document.getElementById('demo-path').value = DEMO_BAD;
+      document.getElementById('demo-version').value = '2025';
+    }
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message';
+    msg.textContent = '프리셋 적용 — 위 안내대로 조작해보세요.';
+    demoRender();
+  }
+  function demoSetTarget(v) { demoTarget = v; demoRender(); }
+
+  function demoRender() {
+    const sel = document.getElementById('demo-path');
+    if (!sel.options.length) {
+      DEMO_FILES.forEach(f => {
+        const o = document.createElement('option'); o.value = f; o.textContent = f; sel.appendChild(o);
+      });
+      const bad = document.createElement('option');
+      bad.value = DEMO_BAD; bad.textContent = DEMO_BAD + '   (실측 밖 · 위반 시연용)';
+      sel.appendChild(bad);
+    }
+    document.getElementById('demo-guide').innerHTML = DEMO_GUIDES[demoGuideKey];
+    document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(s =>
+      s.classList.toggle('active', Number(s.dataset.preset) === demoGuideKey));
+    document.querySelectorAll('.ux-toolbar .seg[data-target]').forEach(s =>
+      s.classList.toggle('active', s.dataset.target === demoTarget));
+
+    const pick = demoPick(demoTarget);
+    const tb = document.getElementById('demo-rows');
+    if (!demoRows.length) {
+      tb.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);">변형 없음 — 트리 전체(INF)로 다룸(현행). 회귀 0.</td></tr>';
+    } else {
+      tb.innerHTML = demoRows.map((r, i) => {
+        const k = demoKind(r.path);
+        const badge = '<span class="badge ' + (k === 'INF' ? 'on' : k === 'MSI' ? 'dep' : 'off') + '">' + k + '</span>';
+        const mark = (i === pick.idx) ? ' style="background:var(--blue-bg);"' : '';
+        return '<tr' + mark + '><td>' + (i + 1) + (i === pick.idx ? ' ◀' : '') + '</td>' +
+          '<td>' + (r.version === '' ? '<i>(전 버전)</i>' : r.version) + '</td>' +
+          '<td>' + badge + '</td><td class="mono">' + r.path + '</td>' +
+          '<td class="mono">' + (r.args ? r.args : '—') + '</td>' +
+          '<td>' + (r.reboot ? '요구' : '—') + '</td>' +
+          '<td><button class="n-demo-btn" onclick="demoRemove(' + i + ')">삭제</button></td></tr>';
+      }).join('');
+    }
+
+    const cand = demoForm();
+    const v = demoValidate(cand);
+    const kind = demoKind(cand.path);
+    const tf = (bad, txt) => bad ? '<span class="t">' + txt + '</span>' : '<span class="f">' + txt + '</span>';
+    document.getElementById('demo-caps').innerHTML =
+      'InstallEntrypointKind.fromPath("' + cand.path + '")\n   = ' + tf(kind === null, kind === null ? '거절 (미지원 확장자)' : kind) + '\n' +
+      '변형 교체 가드(osVersion="' + demoNorm(cand.version) + '")\n   = ' + tf(!v.ok, v.code) + (v.ok ? '' : '  → 400') + '\n' +
+      'R15-2 선택 예고(대상 "' + (demoTarget === '' ? '없음' : demoTarget) + '")\n   = ' +
+      (pick.idx >= 0 ? ('row#' + (pick.idx + 1) + '  [' + pick.why + ']') : ('<span class="f">변형 없음</span>  [' + pick.why + ']'));
+  }
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
