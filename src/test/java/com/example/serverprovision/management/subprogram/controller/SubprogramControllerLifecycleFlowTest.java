@@ -68,7 +68,7 @@ class SubprogramControllerLifecycleFlowTest {
 
     private SubprogramResponse deletedSp(boolean parentBlocksRestore) {
         return new SubprogramResponse(
-                5L, SubprogramKind.DRIVER, "드라이버", 10L, "a", "1.0", "/p", null, "h",
+                5L, SubprogramKind.DRIVER, "드라이버", 10L, "a", "1.0", "/p", null, "OS 무관", java.util.List.of(), "h",
                 1, 100L, "d", IntegrityStatus.NOT_VERIFIED,
                 false, true, false, LifecycleStage.SOFT_DELETED,
                 false, false, parentBlocksRestore);

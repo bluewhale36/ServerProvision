@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.subprogram.dto.request;
 
+import com.example.serverprovision.management.os.enums.OSName;
+
 import com.example.serverprovision.management.subprogram.enums.SubprogramUploadMode;
 import jakarta.validation.constraints.*;
 
@@ -27,7 +29,9 @@ public record SubprogramUploadIntentRequest(
 		@Size(max = 64)
 		String version,
 
-		boolean allowCreateDirectory
+		boolean allowCreateDirectory,
+
+		OSName osName
 ) {
 
 }

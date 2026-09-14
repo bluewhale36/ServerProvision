@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.subprogram.dto.request;
 
+import com.example.serverprovision.management.os.enums.OSName;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -22,7 +24,9 @@ public record SubprogramRegisterExistingRequest(
 		String targetDirectory,
 
 		@Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")
-		String description
+		String description,
+
+		OSName osName
 ) {
 
 }

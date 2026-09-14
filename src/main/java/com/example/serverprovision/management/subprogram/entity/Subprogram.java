@@ -5,6 +5,7 @@ import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.board.entity.BoardModel;
+import com.example.serverprovision.management.os.enums.OSName;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -16,6 +17,8 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.time.Instant;
 
 /**
@@ -60,11 +63,16 @@ public class Subprogram extends LifecycleEntity implements Markable {
 	@Column(name = "tree_root_path", nullable = false, length = 1024)
 	private String treeRootPath;
 
-	/**
-	 * 등록 시점에는 {@code null}. 사용자가 편집 화면에서 명시 입력 (MA5-D5).
-	 */
-	@Column(name = "entrypoint_relative_path", length = 512)
-	private String entrypointRelativePath;
+	/** 적용 OS(R15-1 D-1) — null 이면 OS 무관. 마커 attribute 에는 넣지 않는다(기존 서명 보존 · 설명과 같은 메타 성격). */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "os_name", length = 32)
+	private OSName osName;
+
+	/** 버전별 변형(R15-1 D-2) — 진입점의 유일한 자리. 수정 폼이 표 전체를 제출하므로 교체로 다룬다. */
+	@OneToMany(mappedBy = "subprogram", cascade = CascadeType.ALL, orphanRemoval = true)
+	@OrderBy("sortOrder ASC")
+	@Builder.Default
+	private List<SubprogramVariant> variants = new ArrayList<>();
 
 	@Column(name = "manifest_hash", nullable = false, length = 64)
 	private String manifestHash;
@@ -89,11 +97,40 @@ public class Subprogram extends LifecycleEntity implements Markable {
 	@Column(name = "total_bytes", nullable = false)
 	private long totalBytes;
 
-	public void update(String name, String version, String description, String entrypointRelativePath) {
+	public void update(String name, String version, String description, OSName osName) {
 		this.name = name;
 		this.version = version;
 		this.description = description;
-		this.entrypointRelativePath = blankToNull(entrypointRelativePath);
+		this.osName = osName;
+	}
+
+	/**
+	 * 변형 표 동기화 — 폼이 전체를 제출한다(D-5). 같은 버전 키의 행은 제자리에서 갱신하고, 없는 키는 더하고, 빠진 키는 뺀다.
+	 * clear + addAll 로 갈아 끼우면 Hibernate 가 INSERT 를 orphan DELETE 보다 먼저 flush 해 UNIQUE(subprogram_id, os_version)
+	 * 에 걸린다(CP5 F-1) — 그래서 키 단위로 맞추며, 유지되는 행의 id 도 그대로다.
+	 */
+	public void syncVariants(List<SubprogramVariant> desired) {
+		java.util.Map<String, SubprogramVariant> existing = new java.util.HashMap<>();
+		for (SubprogramVariant v : variants) {
+			existing.put(v.versionKey(), v);
+		}
+		List<SubprogramVariant> next = new ArrayList<>();
+		for (SubprogramVariant d : desired) {
+			SubprogramVariant kept = existing.remove(d.versionKey());
+			if (kept != null) {
+				kept.updateFrom(d);
+				next.add(kept);
+			} else {
+				next.add(d);
+			}
+		}
+		variants.removeAll(existing.values());   // orphanRemoval → DELETE
+		variants.removeAll(next);
+		variants.addAll(next);                   // 제출 순서로 재배열(sortOrder 는 각 행이 이미 품고 있다)
+	}
+
+	public String osLabel() {
+		return osName == null ? "OS 무관" : osName.getDisplayName();
 	}
 
 	public void updateTreeRootPath(String treeRootPath) {

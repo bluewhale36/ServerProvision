@@ -4,6 +4,8 @@ import com.example.serverprovision.management.board.service.metadata.BoardModelM
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramCreateRequest;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest;
+import com.example.serverprovision.management.subprogram.dto.request.SubprogramVariantRequest;
+import com.example.serverprovision.management.subprogram.service.SubprogramVariantRules;
 import com.example.serverprovision.management.subprogram.dto.response.BoardWithSubprogramListResponse;
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramResponse;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
@@ -77,7 +79,8 @@ public class SubprogramController {
 		model.addAttribute("kindToken", kind.pathToken());
 		model.addAttribute("kindDisplayName", kind.getDisplayName());
 		model.addAttribute("vendorGroups", boardModelService.findAllGrouped(false));
-		model.addAttribute("subprogramForm", new SubprogramCreateRequest("", "", "", "", false));
+		model.addAttribute("subprogramForm", new SubprogramCreateRequest("", "", "", "", false, null));
+		model.addAttribute("osNames", com.example.serverprovision.management.os.enums.OSName.values());
 
 		// Miller 에서 사전 선택된 boardScope 가 있으면 폼 라디오/select 초기값 주입.
 		// boardScopeToken 가 "common" 이면 prefillScopeMode=common, 양의 정수면 prefillScopeMode=board.
@@ -106,11 +109,14 @@ public class SubprogramController {
 						sp.name(),
 						sp.version(),
 						SubprogramControllerSupport.nullToEmpty(sp.description()),
-						SubprogramControllerSupport.nullToEmpty(sp.entrypointRelativePath())
+						sp.osName(),
+						sp.variants().stream()
+								.map(v -> new SubprogramVariantRequest(v.osVersion(), v.entrypointRelativePath(), v.arguments(), v.rebootRequired()))
+								.toList()
 				)
 		);
-		model.addAttribute("kind", sp.kind());
-		model.addAttribute("kindDisplayName", sp.kind().getDisplayName());
+		SubprogramControllerSupport.addEditModel(model, sp);
+		model.addAttribute("osVersionSuggestions", subprogramService.osVersionSuggestions(sp.osName()));
 		return "management/subprogram/subprogram-edit";
 	}
 
@@ -121,11 +127,15 @@ public class SubprogramController {
 			BindingResult bindingResult,
 			Model model
 	) {
+		// R15-1 — 변형 표의 구조 · 경로 규칙은 폼에서 먼저(UI 1차 차단) · update 가 같은 판정으로 안전망(SSOT = SubprogramService.checkVariants)
+		for (SubprogramVariantRules.Finding f : subprogramService.checkVariants(id, request.variantsOrEmpty())) {
+			bindingResult.rejectValue(f.field(), f.violation().code(), new Object[]{f.detail() == null ? "" : f.detail()}, f.message());
+		}
 		if (bindingResult.hasErrors()) {
 			SubprogramResponse sp = subprogramService.findSubprogram(id);
 			model.addAttribute("subprogram", sp);
-			model.addAttribute("kind", sp.kind());
-			model.addAttribute("kindDisplayName", sp.kind().getDisplayName());
+			SubprogramControllerSupport.addEditModel(model, sp);
+			model.addAttribute("osVersionSuggestions", subprogramService.osVersionSuggestions(request.getOsName()));
 			return "management/subprogram/subprogram-edit";
 		}
 		subprogramService.update(id, request);

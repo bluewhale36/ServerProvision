@@ -200,7 +200,8 @@
             targetDirectory: valueOf(form, 'input[name="targetDirectory"]'),
             description: valueOf(form, 'textarea[name="description"]'),
             allowCreateDirectory: checkedValueOf(form, 'input[name="allowCreateDirectory"]'),
-            entrypointRelativePath: valueOf(form, 'input[name="entrypointRelativePath"]')
+            entrypointRelativePath: valueOf(form, 'input[name="entrypointRelativePath"]'),
+            osName: valueOf(form, 'select[name="osName"]')   // R15-1 — Subprogram 등록 폼만 가진다(없으면 '')
         };
     }
 

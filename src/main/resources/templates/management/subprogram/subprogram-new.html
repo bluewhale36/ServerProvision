@@ -89,6 +89,15 @@
                 </div>
 
                 <div class="n-form-group">
+                    <label class="n-label strong" for="osName">OS</label>
+                    <select id="osName" name="osName" class="n-input" data-error-field="osName">
+                        <option value="" th:text="#{management.subprogram.os.any}">OS 무관</option>
+                        <option th:each="os : ${osNames}" th:value="${os.name()}" th:text="${os.displayName}">Windows Server</option>
+                    </select>
+                    <div class="n-hint">이 패키지가 적용되는 OS 입니다. 버전별 실행 파일(변형)은 등록 뒤 수정 화면에서 선언합니다.</div>
+                </div>
+
+                <div class="n-form-group">
                     <label class="n-label strong" for="targetDirectory">대상 디렉토리</label>
                     <div class="n-field-row">
                         <input id="targetDirectory" type="text" th:field="*{targetDirectory}" class="n-input"
