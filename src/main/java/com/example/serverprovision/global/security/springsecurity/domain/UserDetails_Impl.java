@@ -34,6 +34,19 @@ public class UserDetails_Impl implements UserDetails {
 		return user.getUsername();
 	}
 
+	public String displayName() {
+		return user.getName();
+	}
+
+	public boolean isAdmin() {
+		return roles.contains(Role.ADMIN);
+	}
+
+	/** S18 — 첫 로그인 강제 변경 여부(성공 핸들러 · 인터셉터가 읽는다). */
+	public boolean mustChangePassword() {
+		return user.isMustChangePassword();
+	}
+
 	@Override
 	public boolean isAccountNonLocked() {
 		return user.getIsLocked() != null && !user.getIsLocked();

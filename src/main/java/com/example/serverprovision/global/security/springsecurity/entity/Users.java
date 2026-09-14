@@ -29,4 +29,14 @@ public class Users {
 	private Boolean isEnabled;
 
 	private Boolean isLocked;
+
+	/** S18 — 관리자가 초기 비밀번호로 만든 계정은 첫 로그인에서 비밀번호를 바꿔야 한다. */
+	@Column(nullable = false)
+	private boolean mustChangePassword;
+
+	/** 비밀번호 교체 — 강제 변경 플래그도 함께 내린다. */
+	public void changePassword(String encodedPassword) {
+		this.password = encodedPassword;
+		this.mustChangePassword = false;
+	}
 }

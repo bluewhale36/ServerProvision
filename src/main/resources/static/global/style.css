@@ -224,6 +224,33 @@ kbd {
     flex: 1 1 auto;
 }
 
+/* S18 — 사이드바 계정 영역(사용자명 · 비밀번호 변경 · 사용자 등록 · 로그아웃). 로그아웃은 POST 폼이라 버튼을
+   링크 모양에 맞춘다. 사용자명은 링크가 아니라 묶음의 값이다. */
+.n-nav-user {
+    display: block;
+    font-size: 12.5px;
+    color: #cbd5e1;
+    padding: 0 18px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.n-nav-form {
+    display: contents;
+}
+
+.n-nav-link-button {
+    width: 100%;
+    background: none;
+    border: 0;
+    border-left: 3px solid transparent;
+    text-align: left;
+    font-family: inherit;
+    font-size: 13.5px;
+    cursor: pointer;
+}
+
 
 /* ---- 4. 페이지 레이아웃 ----------------------------------- */
 /* 본문은 사이드바 옆의 남는 폭을 받는다(flex: 1). min-width: 0 이 없으면 표 · 긴 식별자가

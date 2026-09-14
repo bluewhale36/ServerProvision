@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -33,6 +34,15 @@ class FormSubmissionConventionTest {
 
 	private static final Pattern FORM_TAG = Pattern.compile("<form\\b[^>]*>", Pattern.DOTALL);
 	private static final Pattern NATIVE_MARKER = Pattern.compile("data-native-submit\\s*=\\s*\"([^\"]*)\"");
+
+	/**
+	 * S18 — Spring Security 의 필터가 서블릿 앞에서 처리하는 폼. 재렌더 핸들러가 없는데도 네이티브여야 한다(전역 fetch 의
+	 * multipart 본문을 필터가 읽지 못한다). 등식에서 이 목록만 뺀다 — 상수 +1 로 두면 다른 폼이 마커를 빠뜨려도 총합이
+	 * 우연히 맞을 수 있다. 목록에 없는 네이티브 폼은 종전대로 등식에 걸린다.
+	 */
+	private static final Map<String, String> FILTER_HANDLED_FORMS = Map.of(
+			"security/login.html", "UsernamePasswordAuthenticationFilter 가 로그인 POST 를 처리한다",
+			"fragments/layout.html", "LogoutFilter 가 로그아웃 POST 를 처리한다");
 
 	/**
 	 * {@code @PostMapping} 부터 파라미터 목록 여는 괄호까지. 사이에 붙는 다른 어노테이션
@@ -108,10 +118,12 @@ class FormSubmissionConventionTest {
 	 * 그 이유를 없앴으므로 예외 없이 수가 같아야 한다.</p>
 	 */
 	@Test
-	@DisplayName("재렌더(BindingResult) 핸들러 수 = data-native-submit 폼 수")
+	@DisplayName("재렌더(BindingResult) 핸들러 수 = data-native-submit 폼 수 − 필터 처리 폼(허용 목록)")
 	void reRenderHandlersMatchNativeSubmitForms() {
 		List<String> reRenderHandlers = reRenderHandlers();
-		List<String> nativeForms = nativeSubmitForms();
+		List<String> nativeForms = nativeSubmitForms().stream()
+				.filter(form -> !FILTER_HANDLED_FORMS.containsKey(form))
+				.toList();
 		assertThat(nativeForms)
 				.as("""
 						검증 실패 시 뷰를 다시 렌더하는 핸들러(BindingResult 수령)와, 네이티브 제출을 유지하도록 \
