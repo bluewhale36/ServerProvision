@@ -1,6 +1,6 @@
 #!/bin/sh
-# E4-1-a-3 · E4-1-a-4 CP5 하네스 — Windows 설치 phase 의 게스트 HTTP 행동(iPXE + 설치된 OS 의 첫 로그온 완료 보고)을 curl 로 재연한다.
-#   첫 진입 /boot = wimboot 체인(토큰 URL 5) → 번들 5 파일 GET/HEAD(렌더 값 · 평문 부재) → 재PXE ×N = exit(재진입 n/max)
+# E4-1-a-3 · E4-1-a-4 · R15-2 CP5 하네스 — Windows 설치 phase 의 게스트 HTTP 행동(iPXE + 설치된 OS 의 첫 로그온 완료 보고)을 curl 로 재연한다.
+#   첫 진입 /boot = wimboot 체인(토큰 URL 5) → 번들 6 파일 GET/HEAD(렌더 값 · 평문 부재 · R15-2 드라이버 목록) → 재PXE ×N = exit(재진입 n/max)
 #   → 상한 초과 = FAILED REPXE_LOOP → 다음 /boot = dispatch 3행(실패 안내) → (운영자 재시도 뒤) 새 토큰 · 옛 토큰 404
 #
 # 전제: 앱 기동(WINDOWS_INSTALL_* 7키 + PXE_SERVER_BASE_URL) · 게스트 등록(boot-register.sh) · Windows 정의서 할당 · 개시 ·
@@ -10,12 +10,13 @@
 #     mode: serve   (기본) 첫 진입 서빙 + 번들 5 파일 확인
 #           reentry 재PXE 1회 — exit 스크립트 · 재진입 n/max 확인
 #           loop    상한을 넘길 때까지 재PXE — FAILED REPXE_LOOP · 다음 /boot 의 실패 안내 확인
-#           token   마지막 서빙의 토큰 URL 로 5 파일 HEAD (재시도 뒤 옛 토큰 404 확인용 — OLD_BUNDLE 환경변수)
+#           token   마지막 서빙의 토큰 URL 로 6 파일 HEAD (재시도 뒤 옛 토큰 404 확인용 — OLD_BUNDLE 환경변수)
 #           complete  (E4-1-a-4) 첫 로그온 완료 보고 재연 — GUEST_TOKEN 필수. 1회 = 200 closed:true → 2회 = 200 closed:false(멱등)
 #                     → 다음 /boot = exit(종단 4행 · 재진입 아님) → 옛 토큰 URL 5 파일 404. PROBLEM_DEVICES(기본 2) 로 문제 장치 수 조절
 #           reject    (E4-1-a-4) 경계 — 위조 토큰 404 · JSON 위반(computerName 16자 · problemDevices 51) 400 · 서빙 전/실패 게스트 409
 #   EXPECT_ABSENT="<문자열>" — 렌더본 · 스크립트 어디에도 이 값이 평문으로 없어야 한다(예: 정의서의 Administrator 비밀번호)
 #   GUEST_TOKEN="<hex>"     — complete · reject 모드의 X-Guest-Token(guest_server.guest_token 값 · boot-register.sh 출력)
+#   INSTALLS_JSON='[{"folder":"4_aspeed-driver","mode":"MSI","exitCode":0}]' — (R15-2) complete 모드가 싣는 항목별 설치 결과. 비우면 미보고.
 set -eu
 BASE=$1; UUID=$2; MAC=$3; MODE=${4:-serve}
 IP="${MOCK_IP:-192.168.1.150}"; VENDOR="${MOCK_VENDOR:-Giga Computing}"; BOARD="${MOCK_BOARD:-MS03-CE0}"
@@ -68,6 +69,23 @@ serve() {
   echo "--- 상세 화면: 카드 '설치 중 · 서빙 시각 · 재진입 0/max · 잔여 분' 확인"
   echo "--- autounattend.xml 의 완료 보고 명령(E4-1-a-4 — 토큰은 마스킹)"
   sed -n 's|.*<CommandLine>\(powershell.exe [^<]*-BaseUrl "[^"]*"\) -Token "[^"]*".*|\1 -Token "****"|p' "$STATE_DIR/autounattend.xml"
+
+  step "3. (R15-2) 드라이버 선택 목록 spv-drivers.lst — 서버가 보드 · 대상 OS · 버전으로 고른 줄(mode|folder|entrypoint|arguments|reboot · 빈 필드 = -)"
+  curl -sS -o "$STATE_DIR/spv-drivers.lst" -w "HTTP %{http_code} %{content_type} ← spv-drivers.lst\n" "$BUNDLE/spv-drivers.lst"
+  if [ -s "$STATE_DIR/spv-drivers.lst" ]; then
+    cat "$STATE_DIR/spv-drivers.lst" | tr -d '\r'
+    printf 'lines=%s  TREE=%s  INF=%s  MSI=%s  EXE=%s\n' "$(grep -c . "$STATE_DIR/spv-drivers.lst")" \
+      "$(grep -c '^TREE|' "$STATE_DIR/spv-drivers.lst")" "$(grep -c '^INF|' "$STATE_DIR/spv-drivers.lst")" \
+      "$(grep -c '^MSI|' "$STATE_DIR/spv-drivers.lst")" "$(grep -c '^EXE|' "$STATE_DIR/spv-drivers.lst")"
+    # CRLF 의 CR(0x0D)은 줄 끝 표기라 검사에서 제외한다(CP5 F-1 — CR 을 비 ASCII 로 오판해 중단하던 결함)
+    if tr -d '\r' < "$STATE_DIR/spv-drivers.lst" | LC_ALL=C grep -q '[^ -~]'; then echo "→ FAIL: 목록에 비 ASCII 문자가 있다"; exit 1; else echo "→ OK: US-ASCII(CRLF)"; fi
+  else
+    echo "(빈 목록 — 후보 0 이거나 전부 제외. 상세 카드의 '제외' 사유와 대조)"
+  fi
+  echo "--- autounattend.xml 의 목록 내려받기 명령(specialize · 토큰 URL 마스킹)"
+  grep -o 'curl.exe [^<]*spv-drivers.lst[^<]*' "$STATE_DIR/autounattend.xml" | sed 's|/windows/[0-9a-f-]*/|/windows/****/|' | head -1
+  grep -q '__DRIVERS_URL__' "$STATE_DIR/autounattend.xml" && { echo "→ FAIL: __DRIVERS_URL__ 자리표시자가 남았다"; exit 1; } || true
+  echo "--- 상세 화면: 카드 '드라이버 N(변형 M · 트리 K) · 제외 J' + 선택 목록 · 제외 사유 확인"
 }
 
 complete_report() {   # $1 = 문제 장치 수, stdout = 응답 본문, $STATE_DIR/complete.code = HTTP 코드
@@ -76,9 +94,12 @@ complete_report() {   # $1 = 문제 장치 수, stdout = 응답 본문, $STATE_D
   # E4-1-a-6 — INSTALLED_DISK_UNIQUE_ID 가 있으면 설치 디스크 식별자를 실어 서버의 WWN 확증을 재연한다(없으면 미보고).
   disk_field=""
   [ -n "${INSTALLED_DISK_UNIQUE_ID:-}" ] && disk_field=",\"installedDiskUniqueId\":\"$INSTALLED_DISK_UNIQUE_ID\""
+  # R15-2 — INSTALLS_JSON 이 있으면 SetupComplete 의 [SPV-INSTALL] 줄(항목별 종료 코드)을 그대로 싣는다.
+  installs_field=""
+  [ -n "${INSTALLS_JSON:-}" ] && installs_field=",\"installs\":$INSTALLS_JSON"
   curl -sS -o "$STATE_DIR/complete.body" -w '%{http_code}' -X POST "$BASE/api/pxe/v1/agent/windows/complete" \
        -H "X-Guest-Token: ${GUEST_TOKEN:?GUEST_TOKEN 이 필요하다}" -H "Content-Type: application/json" \
-       -d "{\"computerName\":\"SPV-$(printf '%s' "$UUID" | tr -d '-' | tail -c 8 | tr a-f A-F)\",\"osVersion\":\"Microsoft Windows Server 2025 Standard 10.0.26100\",\"driversAdded\":47,\"problemDeviceCount\":$n,\"problemDevices\":[$devices],\"setupCompleteLogTail\":\"[mock] pnputil Added driver packages:  47\\n[mock] SetupComplete end\"$disk_field}" \
+       -d "{\"computerName\":\"SPV-$(printf '%s' "$UUID" | tr -d '-' | tail -c 8 | tr a-f A-F)\",\"osVersion\":\"Microsoft Windows Server 2025 Standard 10.0.26100\",\"driversAdded\":47,\"problemDeviceCount\":$n,\"problemDevices\":[$devices],\"setupCompleteLogTail\":\"[mock] pnputil Added driver packages:  47\\n[mock] SetupComplete end\"$disk_field$installs_field}" \
        > "$STATE_DIR/complete.code"
   cat "$STATE_DIR/complete.body"; echo
   echo "HTTP $(cat "$STATE_DIR/complete.code")"
@@ -103,16 +124,17 @@ complete() {
     *"provisioning completed"*|*"exit"*) echo "→ OK: 종단 exit(재진입 카운트 0 유지)";;
     *) echo "→ 다음 phase 스크립트(정의서에 후속 phase 가 있는 경우) — 상세 화면의 '다음 단계' 안내 대조";;
   esac
-  step "4. 옛 토큰 URL 5 파일 — 전부 404 기대(완료 시 회수)"
+  step "4. 옛 토큰 URL 6 파일 — 전부 404 기대(완료 시 회수)"
   OLD=$(cat "$STATE_DIR/bundle-url" 2>/dev/null || true)
   if [ -n "$OLD" ]; then
-    for f in wimboot winpeshl.ini install.bat autounattend.xml boot.wim; do
+    for f in wimboot winpeshl.ini install.bat autounattend.xml boot.wim spv-drivers.lst; do
       curl -sS -o /dev/null -I -w "HTTP %{http_code} ← $f\n" "$OLD/$f"
     done
   else
     echo "(이전 serve 의 bundle-url 이 없어 건너뜀 — OLD_BUNDLE 로 mode=token 실행)"
   fi
   echo "--- 상세 화면: 카드 '완료 · ComputerName · 드라이버 47 · 문제 장치 n(목록 접힘)' · 종단/다음 단계 안내 · 이력 SUCCEEDED 행 detail 확인"
+  [ -n "${INSTALLS_JSON:-}" ] && echo "--- (R15-2) 카드 '설치 결과' 목록 — INSTALLS_JSON 의 folder · mode · exit 와 대조"
 }
 
 reject() {
@@ -128,6 +150,11 @@ reject() {
   curl -sS -w "\nHTTP %{http_code}\n" -X POST "$BASE/api/pxe/v1/agent/windows/complete" \
        -H "X-Guest-Token: $GUEST_TOKEN" -H "Content-Type: application/json" \
        -d "{\"computerName\":\"SPV-1\",\"driversAdded\":0,\"problemDeviceCount\":51,\"problemDevices\":[$many]}"
+  step "B4. (R15-2) installs 51 개 → 400 기대(항목 상한 50)"
+  many_inst=$(i=0; s=""; while [ $i -lt 51 ]; do i=$((i+1)); printf '%s{"folder":"f%s","mode":"INF","exitCode":0}' "$s" "$i"; s=,; done)
+  curl -sS -w "\nHTTP %{http_code}\n" -X POST "$BASE/api/pxe/v1/agent/windows/complete" \
+       -H "X-Guest-Token: $GUEST_TOKEN" -H "Content-Type: application/json" \
+       -d "{\"computerName\":\"SPV-1\",\"driversAdded\":0,\"problemDeviceCount\":0,\"installs\":[$many_inst]}"
   step "B2/B3. 현재 상태의 정상 보고 — 서빙 전 · 실패 · 다른 phase 게스트면 409 기대(본문 사유 확인)"
   complete_report 0
 }
@@ -159,8 +186,8 @@ case "$MODE" in
   token)
     OLD=${OLD_BUNDLE:-$(cat "$STATE_DIR/bundle-url" 2>/dev/null || true)}
     [ -n "$OLD" ] || { echo "OLD_BUNDLE(또는 이전 serve 의 bundle-url)이 없다"; exit 1; }
-    step "토큰 URL HEAD ×5 — $OLD"
-    for f in wimboot winpeshl.ini install.bat autounattend.xml boot.wim; do
+    step "토큰 URL HEAD ×6 — $OLD"
+    for f in wimboot winpeshl.ini install.bat autounattend.xml boot.wim spv-drivers.lst; do
       curl -sS -o /dev/null -I -w "HTTP %{http_code} ← $f\n" "$OLD/$f"
     done
     step "경계 — 목록 밖 파일명 · 경로 조작 · 위조 토큰 → 404"

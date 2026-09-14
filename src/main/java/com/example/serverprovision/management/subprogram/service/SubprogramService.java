@@ -8,6 +8,11 @@ import com.example.serverprovision.management.board.repository.BoardModelReposit
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest;
 import com.example.serverprovision.management.subprogram.dto.response.BoardWithSubprogramListResponse;
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramResponse;
+import com.example.serverprovision.management.subprogram.dto.response.SubprogramVariantResponse;
+import com.example.serverprovision.management.subprogram.dto.request.SubprogramVariantRequest;
+import com.example.serverprovision.management.subprogram.entity.SubprogramVariant;
+import com.example.serverprovision.management.subprogram.exception.InvalidSubprogramVariantException;
+import java.util.ArrayList;
 import com.example.serverprovision.management.subprogram.entity.Subprogram;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
 import com.example.serverprovision.management.subprogram.exception.DuplicateSubprogramVersionException;
@@ -43,6 +48,7 @@ public class SubprogramService {
 	private final SubprogramRepository subprogramRepository;
 	private final BoardModelRepository boardModelRepository;
 	private final EntrypointPolicyService entrypointPolicyService;
+	private final com.example.serverprovision.management.os.repository.OSMetadataRepository osMetadataRepository;
 
 	/* ─────────────────────────── 조회 ─────────────────────────── */
 
@@ -122,25 +128,78 @@ public class SubprogramService {
 	public void update(Long subprogramId, SubprogramUpdateRequest request) {
 		Subprogram sp = SubprogramGuards.requireLive(subprogramRepository, subprogramId);
 		// version 변경 시 (kind, scope, name, version) 중복 재검사
-		if (!sp.getVersion().equals(request.version()) || !sp.getName().equals(request.name())) {
+		if (!sp.getVersion().equals(request.getVersion()) || !sp.getName().equals(request.getName())) {
 			Optional<Subprogram> conflict = sp.isCommonScope()
-					? subprogramRepository.findActiveByCommonKey(sp.getKind(), request.name(), request.version())
-					: subprogramRepository.findActiveByBoardKey(sp.getKind(), sp.getBoardId(), request.name(), request.version());
+					? subprogramRepository.findActiveByCommonKey(sp.getKind(), request.getName(), request.getVersion())
+					: subprogramRepository.findActiveByBoardKey(sp.getKind(), sp.getBoardId(), request.getName(), request.getVersion());
 			if (conflict.isPresent() && !conflict.get().getId().equals(subprogramId)) {
 				BoardScope scope = sp.isCommonScope() ? BoardScope.COMMON : BoardScope.ofBoard(sp.getBoardId());
-				throw new DuplicateSubprogramVersionException(sp.getKind(), scope, request.name(), request.version());
+				throw new DuplicateSubprogramVersionException(sp.getKind(), scope, request.getName(), request.getVersion());
 			}
 		}
-		// S3 — entrypoint 입력 검증 (절대경로 / .. / 트리 밖 차단).
-		// C2 — 빈 입력(null/blank) 은 "값 유지" 로 해석. 명시적 제거는 별도 액션이 없으므로 wipe 방지.
-		// 의미 있는 입력이 들어왔을 때만 정책 검증 후 교체.
-		String requestedEntrypoint = request.entrypointRelativePath();
-		boolean entrypointProvided = requestedEntrypoint != null && !requestedEntrypoint.isBlank();
-		String nextEntrypoint = entrypointProvided
-				? entrypointPolicyService.validateAndNormalize(
-				Path.of(sp.getTreeRootPath()), requestedEntrypoint)
-				: sp.getEntrypointRelativePath();
-		sp.update(request.name(), request.version(), request.description(), nextEntrypoint);
+		// R15-1 — 변형 표 동기화. 구조 · 경로 규칙은 폼이 먼저 걸렀고(checkVariants) 여기서는 안전망(direct POST).
+		List<SubprogramVariantRequest> rows = request.variantsOrEmpty();
+		Inspection inspection = inspect(sp, rows);
+		if (!inspection.findings().isEmpty()) {
+			SubprogramVariantRules.Finding first = inspection.findings().getFirst();
+			throw new InvalidSubprogramVariantException(first.message(), first.field());
+		}
+		List<SubprogramVariant> next = new ArrayList<>();
+		for (int i = 0; i < rows.size(); i++) {
+			SubprogramVariantRequest row = rows.get(i);
+			next.add(new SubprogramVariant(sp, row.getOsVersion(), inspection.normalized().get(i), row.getArguments(), row.isRebootRequired(), i));
+		}
+		sp.update(request.getName(), request.getVersion(), request.getDescription(), request.getOsName());
+		sp.syncVariants(next);
+	}
+
+	/**
+	 * 변형 표 검사(R15-1) — 구조 규칙(SubprogramVariantRules)에 경로 보안 정책(EntrypointPolicyService)을 더한 전체 판정.
+	 * 폼(BindingResult 행 필드 오류)과 update 안전망이 같은 목록을 본다. 경로 위반은 SSR 폼에서 500 으로 새던 경로(CP5 F-2)라
+	 * 정책 예외를 행 필드 오류로 옮긴다 — 정책의 판정은 그대로, 표기만 옮긴다.
+	 */
+	@Transactional(readOnly = true)
+	public List<SubprogramVariantRules.Finding> checkVariants(Long subprogramId, List<SubprogramVariantRequest> rows) {
+		return inspect(SubprogramGuards.requireLive(subprogramRepository, subprogramId), rows).findings();
+	}
+
+	/** 검사 결과 — 위반 목록과 행별 정규화 진입점(위반 행은 null). 정책 호출은 행당 한 번이다. */
+	private record Inspection(List<SubprogramVariantRules.Finding> findings, List<String> normalized) {
+	}
+
+	private Inspection inspect(Subprogram sp, List<SubprogramVariantRequest> rows) {
+		List<SubprogramVariantRules.Finding> findings = new ArrayList<>(SubprogramVariantRules.check(rows));
+		List<String> normalized = new ArrayList<>();
+		Path treeRoot = Path.of(sp.getTreeRootPath());
+		for (int i = 0; i < rows.size(); i++) {
+			String entrypoint = rows.get(i) == null ? null : rows.get(i).getEntrypointRelativePath();
+			if (entrypoint == null || entrypoint.isBlank()) {
+				normalized.add(null);   // 누락은 구조 규칙이 이미 잡았다
+				continue;
+			}
+			try {
+				normalized.add(entrypointPolicyService.validateAndNormalize(treeRoot, entrypoint));
+			} catch (com.example.serverprovision.global.security.exception.EntrypointInvalidException e) {
+				normalized.add(null);
+				findings.add(new SubprogramVariantRules.Finding(i, SubprogramVariantRules.Violation.ENTRYPOINT_PATH, e.getMessage()));
+			}
+		}
+		return new Inspection(findings, normalized);
+	}
+
+	/** 수정 폼의 OS 버전 제안(R15-1 D-6) — 등록된 OS 메타의 버전. 입력은 자유 문자열이라 제안일 뿐이다. */
+	@Transactional(readOnly = true)
+	public List<String> osVersionSuggestions(com.example.serverprovision.management.os.enums.OSName osName) {
+		if (osName == null) {
+			return List.of();
+		}
+		return osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc().stream()
+				.filter(os -> os.getOsName() == osName)
+				.map(os -> os.getOsVersion())
+				.filter(v -> v != null && !v.isBlank())
+				.distinct()
+				.sorted(Comparator.reverseOrder())
+				.toList();
 	}
 
 	/* ─────────────────────────── 뷰 변환 ─────────────────────────── */
@@ -162,7 +221,9 @@ public class SubprogramService {
 				entity.getName(),
 				entity.getVersion(),
 				entity.getTreeRootPath(),
-				entity.getEntrypointRelativePath(),
+				entity.getOsName(),
+				entity.osLabel(),
+				entity.getVariants().stream().map(SubprogramVariantResponse::of).toList(),
 				entity.getManifestHash(),
 				entity.getFileCount(),
 				entity.getTotalBytes(),

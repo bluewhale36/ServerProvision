@@ -603,11 +603,11 @@ CREATE TABLE `subprogram` (
   `created_at` datetime(6) NOT NULL,
   `updated_at` datetime(6) NOT NULL,
   `description` varchar(1024) DEFAULT NULL,
-  `entrypoint_relative_path` varchar(512) DEFAULT NULL,
   `file_count` int(11) NOT NULL,
   `is_deleted` bit(1) NOT NULL,
   `is_enabled` bit(1) NOT NULL,
   `kind` enum('DRIVER','UTILITY') NOT NULL,
+  `os_name` enum('UBUNTU','CENTOS','ROCKY_LINUX','WINDOWS','WINDOWS_SERVER') DEFAULT NULL,
   `last_integrity_status` enum('MARKER_MISSING','NOT_VERIFIED','ORIGINAL','SIGNATURE_INVALID','TAMPERED') NOT NULL,
   `last_verified_at` datetime(6) DEFAULT NULL,
   `manifest_hash` varchar(64) NOT NULL,
@@ -627,6 +627,21 @@ CREATE TABLE `subprogram` (
   PRIMARY KEY (`id`),
   KEY `FK9bjja3sfeu9nxmy3hrt3x47n1` (`board_model_id`),
   CONSTRAINT `FK9bjja3sfeu9nxmy3hrt3x47n1` FOREIGN KEY (`board_model_id`) REFERENCES `board_model` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `subprogram_variant` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `subprogram_id` bigint(20) NOT NULL,
+  `os_version` varchar(64) DEFAULT NULL,
+  `entrypoint_relative_path` varchar(512) NOT NULL,
+  `arguments` varchar(512) DEFAULT NULL,
+  `reboot_required` bit(1) NOT NULL,
+  `sort_order` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_subprogram_variant_version` (`subprogram_id`,`os_version`),
+  CONSTRAINT `fk_subprogram_variant_subprogram` FOREIGN KEY (`subprogram_id`) REFERENCES `subprogram` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `trash_settings` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,

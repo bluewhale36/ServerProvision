@@ -1,5 +1,8 @@
 package com.example.serverprovision.management.subprogram.dto.response;
 
+import com.example.serverprovision.management.os.enums.OSName;
+import java.util.List;
+
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
@@ -19,7 +22,9 @@ public record SubprogramResponse(
 		String name,
 		String version,
 		String treeRootPath,
-		String entrypointRelativePath,
+		OSName osName,
+		String osLabel,
+		List<SubprogramVariantResponse> variants,
 		String manifestHash,
 		int fileCount,
 		long totalBytes,

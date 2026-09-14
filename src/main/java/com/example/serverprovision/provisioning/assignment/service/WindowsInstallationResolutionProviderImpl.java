@@ -23,6 +23,7 @@ import java.util.UUID;
 public class WindowsInstallationResolutionProviderImpl implements WindowsInstallationResolutionProvider {
 
     private final SettingAssignmentSnapshotRepository assignmentRepository;
+    private final com.example.serverprovision.management.os.repository.OSMetadataRepository osMetadataRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -35,14 +36,24 @@ public class WindowsInstallationResolutionProviderImpl implements WindowsInstall
                         .filter(OSInstallationRequest.class::isInstance)
                         .map(OSInstallationRequest.class::cast)
                         .findFirst())
-                .map(WindowsInstallationResolutionProviderImpl::toTarget);
+                .map(this::toTarget);
     }
 
-    private static WindowsInstallTarget toTarget(OSInstallationRequest request) {
+    private WindowsInstallTarget toTarget(OSInstallationRequest request) {
         if (request instanceof WindowsInstallationRequest windows) {
             String password = windows.getAdministratorPassword() == null ? null : windows.getAdministratorPassword().getPassword();
-            return WindowsInstallTarget.windows(windows.getImageName(), password);
+            return WindowsInstallTarget.windows(windows.getImageName(), password, osTargetOf(request));
         }
         return WindowsInstallTarget.unsupported(request.osFamily().getDisplayName());
+    }
+
+    /** 정의서가 가리키는 OS 메타(R15-2 D-1) — 드라이버 변형 선택의 열쇠. 메타가 없으면(삭제 · 부재) 미상. */
+    private WindowsInstallTarget.OsTarget osTargetOf(OSInstallationRequest request) {
+        if (request.getOsMetadataId() == null) {
+            return WindowsInstallTarget.OsTarget.UNKNOWN;
+        }
+        return osMetadataRepository.findById(request.getOsMetadataId())
+                .map(os -> new WindowsInstallTarget.OsTarget(os.getOsName(), os.getOsVersion()))
+                .orElse(WindowsInstallTarget.OsTarget.UNKNOWN);
     }
 }

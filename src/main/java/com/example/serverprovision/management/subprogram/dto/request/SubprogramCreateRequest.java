@@ -1,11 +1,13 @@
 package com.example.serverprovision.management.subprogram.dto.request;
 
+import com.example.serverprovision.management.os.enums.OSName;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
  * Subprogram 등록 Request.
- * <p>등록 시점에는 {@code entrypointRelativePath} 를 입력받지 않는다 (MA5-D5). 등록 후 편집 화면에서 설정.</p>
+ * <p>진입점은 등록 시점에 받지 않는다 (MA5-D5) — 변형 표(R15-1)로 편집 화면에서 선언한다. {@code osName} 은 null 이면 OS 무관.</p>
  */
 public record SubprogramCreateRequest(
 
@@ -24,7 +26,9 @@ public record SubprogramCreateRequest(
 		@Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")
 		String description,
 
-		boolean allowCreateDirectory
+		boolean allowCreateDirectory,
+
+		OSName osName
 ) {
 
 }

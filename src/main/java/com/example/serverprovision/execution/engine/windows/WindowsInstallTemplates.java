@@ -122,6 +122,16 @@ public final class WindowsInstallTemplates {
                   <ComputerName>__COMPUTER_NAME__</ComputerName>
                   <TimeZone>__TIME_ZONE__</TimeZone>
                 </component>
+                <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+                  <RunSynchronous>
+                    <RunSynchronousCommand wcm:action="add" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+                      <Order>1</Order>
+                      <Path>cmd /c mkdir C:\\SPV &amp; curl.exe -fsS -o C:\\SPV\\spv-drivers.lst "__DRIVERS_URL__"</Path>
+                      <Description>ServerProvision driver selection list (R15-2)</Description>
+                      <WillReboot>Never</WillReboot>
+                    </RunSynchronousCommand>
+                  </RunSynchronous>
+                </component>
               </settings>
 
               <settings pass="oobeSystem">

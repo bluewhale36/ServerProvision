@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.subprogram.service;
 
+import com.example.serverprovision.management.os.enums.OSName;
+
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.global.security.PathPolicyService;
@@ -114,11 +116,11 @@ public class SubprogramRegistrationService {
 			ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
 			// MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated, 같은 scope) 탐지 시 nudge throw.
-			issueHashNudge(kind, scope, request.name(), request.version(), request.description(),
+			issueHashNudge(kind, scope, request.name(), request.version(), request.description(), request.osName(),
 					targetDir, manifest, "addSubprogram");
 
 			Subprogram saved = persistBundle(kind, scope, parent, request.name(), request.version(),
-					request.description(), targetDir, manifest);
+					request.description(), request.osName(), targetDir, manifest);
 
 			log.info(
 					"[addSubprogram] 등록 완료. id={}, kind={}, scope={}, name={}, version={}",
@@ -158,11 +160,11 @@ public class SubprogramRegistrationService {
 
 		ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
-		issueHashNudge(kind, scope, request.name(), request.version(), request.description(),
+		issueHashNudge(kind, scope, request.name(), request.version(), request.description(), request.osName(),
 				targetDir, manifest, "registerExistingSubprogram");
 
 		Subprogram saved = persistBundle(kind, scope, parent, request.name(), request.version(),
-				request.description(), targetDir, manifest);
+				request.description(), request.osName(), targetDir, manifest);
 
 		log.info(
 				"[registerExistingSubprogram] 등록 완료. id={}, kind={}, scope={}, name={}, version={}",
@@ -187,9 +189,11 @@ public class SubprogramRegistrationService {
 		int fileCount = Integer.parseInt(payload.attributes().getOrDefault("fileCount", "0"));
 		long totalBytes = Long.parseLong(payload.attributes().getOrDefault("totalBytes", "0"));
 		String description = payload.attributes().getOrDefault("description", "");
+		String osNameAttr = payload.attributes().getOrDefault("osName", "");
+		OSName osName = osNameAttr.isBlank() ? null : OSName.valueOf(osNameAttr);
 		BoardScope scope = common ? BoardScope.COMMON : BoardScope.ofBoard(parent.getId());
 
-		Subprogram saved = persistBundle(kind, scope, parent, payload.name(), payload.version(), description,
+		Subprogram saved = persistBundle(kind, scope, parent, payload.name(), payload.version(), description, osName,
 				targetDir, payload.manifestHash(), fileCount, totalBytes);
 
 		log.info("[persistFromNudge.subprogram] id={}, kind={}, scope={}", saved.getId(), kind, scope.pathToken());
@@ -238,7 +242,7 @@ public class SubprogramRegistrationService {
 	 * <p>addSubprogram / registerExisting 에 복붙돼 있던 블록을 단일화. {@code logContext} 만 호출처별로 다르다.</p>
 	 */
 	private void issueHashNudge(
-			SubprogramKind kind, BoardScope scope, String name, String version, String description,
+			SubprogramKind kind, BoardScope scope, String name, String version, String description, OSName osName,
 			Path targetDir, ManifestSummary manifest, String logContext
 	) {
 		List<Subprogram> hashCandidates = subprogramRepository.findHashConflictCandidates(
@@ -264,7 +268,8 @@ public class SubprogramRegistrationService {
 								"boardId", scope.isCommon() ? "" : String.valueOf(scope.boardId()),
 								"fileCount", String.valueOf(manifest.fileCount()),
 								"totalBytes", String.valueOf(manifest.totalBytes()),
-								"description", description != null ? description : ""
+								"description", description != null ? description : "",
+								"osName", osName == null ? "" : osName.name()
 						)
 				)
 		);
@@ -293,15 +298,15 @@ public class SubprogramRegistrationService {
 	 */
 	private Subprogram persistBundle(
 			SubprogramKind kind, BoardScope scope, BoardModel parent, String name, String version,
-			String description, Path targetDir, ManifestSummary manifest
+			String description, OSName osName, Path targetDir, ManifestSummary manifest
 	) {
-		return persistBundle(kind, scope, parent, name, version, description, targetDir,
+		return persistBundle(kind, scope, parent, name, version, description, osName, targetDir,
 				manifest.manifestHash(), manifest.fileCount(), manifest.totalBytes());
 	}
 
 	private Subprogram persistBundle(
 			SubprogramKind kind, BoardScope scope, BoardModel parent, String name, String version,
-			String description, Path targetDir, String manifestHash, int fileCount, long totalBytes
+			String description, OSName osName, Path targetDir, String manifestHash, int fileCount, long totalBytes
 	) {
 		Subprogram saved = subprogramRepository.save(Subprogram.builder()
 				.kind(kind)
@@ -309,7 +314,7 @@ public class SubprogramRegistrationService {
 				.name(name)
 				.version(version)
 				.treeRootPath(targetDir.toString())
-				.entrypointRelativePath(null)  // MA5-D5 — 등록 시 미입력
+				.osName(osName)                // R15-1 — null = OS 무관. 진입점은 변형 표(수정 폼)에서
 				.manifestHash(manifestHash)
 				.markerSignature(null)
 				.lastIntegrityStatus(IntegrityStatus.NOT_VERIFIED)

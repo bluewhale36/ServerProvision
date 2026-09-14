@@ -38,6 +38,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
@@ -119,7 +121,7 @@ class SubprogramControllerTest {
     @Test
     @DisplayName("POST /{kind}/{boardScope}/upload-intent (정상) : 200 + uploadToken")
     void intent_success() throws Exception {
-        var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false);
+        var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null);
         given(subprogramUploadIntentService.issue(eq(SubprogramKind.DRIVER), any(BoardScope.class), any()))
                 .willReturn(new SubprogramUploadIntentResponse("tok-1", List.of(), null));
 
@@ -153,7 +155,7 @@ class SubprogramControllerTest {
     @Test
     @DisplayName("POST /upload-intent (활성 동일 트리 점유) : 409")
     void intent_conflict_409() throws Exception {
-        var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false);
+        var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null);
         willThrow(new DuplicateSubprogramVersionException(SubprogramKind.DRIVER, BoardScope.COMMON, "n", "1.0"))
                 .given(subprogramUploadIntentService).issue(any(), any(), any());
 
@@ -169,7 +171,7 @@ class SubprogramControllerTest {
         given(subprogramService.findSubprogram(7L))
                 .willReturn(new SubprogramResponse(
                         7L, SubprogramKind.UTILITY, "유틸리티",
-                        null, "raid-cli", "1.0", "/x", null, "h",
+                        null, "raid-cli", "1.0", "/x", null, "OS 무관", java.util.List.of(), "h",
                         1, 100L, "d", IntegrityStatus.ORIGINAL, true, false, false,
                         com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE,
                         false, false, false));
@@ -228,7 +230,7 @@ class SubprogramControllerTest {
         @Test
         @DisplayName("intent : 메타 충돌 → 409 NUDGE_REQUIRED (Driver, common scope)")
         void intentMetaNudge() throws Exception {
-            var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024, "1.0.0", false);
+            var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024, "1.0.0", false, null);
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
             var session = new com.example.serverprovision.management.common.nudge.NudgeSession(
                     nudgeId,
@@ -285,5 +287,116 @@ class SubprogramControllerTest {
             mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/cancel"))
                     .andExpect(status().isNoContent());
         }
+    }
+
+    /* ─────────────────────────── R15-1 변형 표 ─────────────────────────── */
+
+    private static SubprogramResponse driverResponse() {
+        return new SubprogramResponse(
+                7L, SubprogramKind.DRIVER, "드라이버", 10L, "ASPEED Driver", "1.15.03", "/x",
+                com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER, "Windows Server",
+                java.util.List.of(new com.example.serverprovision.management.subprogram.dto.response.SubprogramVariantResponse(
+                        1L, "2025", "WDDM Installer/Win2025.msi",
+                        com.example.serverprovision.management.subprogram.enums.InstallEntrypointKind.MSI, null, true)),
+                "h", 1, 100L, "d", IntegrityStatus.ORIGINAL, true, false, false,
+                com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE, false, false, false);
+    }
+
+    @Test
+    @DisplayName("GET /{id} : osName · osLabel · variants(종류 배지용 entrypointKind)가 JSON 에 실린다")
+    void detail_hasOsAndVariants() throws Exception {
+        given(subprogramService.findSubprogram(7L)).willReturn(driverResponse());
+
+        mvc.perform(get("/management/subprogram/7"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.osName").value("WINDOWS_SERVER"))
+                .andExpect(jsonPath("$.osLabel").value("Windows Server"))
+                .andExpect(jsonPath("$.variants[0].osVersion").value("2025"))
+                .andExpect(jsonPath("$.variants[0].entrypointKind").value("MSI"));
+    }
+
+    @Test
+    @DisplayName("GET /{id}/edit : 폼에 OS 와 변형 행이 채워진다(수정 폼 200)")
+    void editForm_prefilled() throws Exception {
+        given(subprogramService.findSubprogram(7L)).willReturn(driverResponse());
+        given(subprogramService.osVersionSuggestions(any())).willReturn(java.util.List.of("2025", "2022"));
+
+        mvc.perform(get("/management/subprogram/7/edit"))
+                .andExpect(status().isOk())
+                .andExpect(model().attributeExists("osNames", "osVersionSuggestions"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("variants[0].entrypointRelativePath")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("WDDM Installer/Win2025.msi")));
+    }
+
+    @Test
+    @DisplayName("POST /{id}/edit (정상) : OS + 변형 2 행(인덱스 바인딩) → 서비스 update 호출 · 302")
+    void edit_withVariants_redirects() throws Exception {
+        mvc.perform(post("/management/subprogram/7/edit")
+                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("description", "")
+                        .param("osName", "WINDOWS_SERVER")
+                        .param("variants[0].osVersion", "2025").param("variants[0].entrypointRelativePath", "WDDM Installer/Win2025.msi")
+                        .param("variants[0].arguments", "/norestart").param("variants[0].rebootRequired", "true")
+                        .param("variants[1].osVersion", "2016").param("variants[1].entrypointRelativePath", "WIN2016/astgrp.inf"))
+                .andExpect(status().is3xxRedirection());
+
+        org.mockito.ArgumentCaptor<com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest.class);
+        org.mockito.Mockito.verify(subprogramService).update(eq(7L), captor.capture());
+        assertThat(captor.getValue().getOsName()).isEqualTo(com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER);
+        assertThat(captor.getValue().getVariants()).hasSize(2);
+        assertThat(captor.getValue().getVariants().get(0).isRebootRequired()).isTrue();
+        assertThat(captor.getValue().getVariants().get(1).getEntrypointRelativePath()).isEqualTo("WIN2016/astgrp.inf");
+    }
+
+    @Test
+    @DisplayName("POST /{id}/edit (400 · 폼 재렌더) : 허용되지 않는 확장자 · 같은 버전 중복 → 행 필드 오류 · 서비스 미호출")
+    void edit_variantViolations_rerender() throws Exception {
+        given(subprogramService.findSubprogram(7L)).willReturn(driverResponse());
+        // 규칙 판정의 SSOT 는 서비스(checkVariants) — 컨트롤러는 그 결과를 행 필드 오류로 옮긴다
+        given(subprogramService.checkVariants(eq(7L), any())).willReturn(java.util.List.of(
+                new com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Finding(0,
+                        com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRYPOINT_KIND),
+                new com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Finding(1,
+                        com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.VERSION_DUPLICATE)));
+
+        mvc.perform(post("/management/subprogram/7/edit")
+                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER")
+                        .param("variants[0].osVersion", "2025").param("variants[0].entrypointRelativePath", "readme.txt")
+                        .param("variants[1].osVersion", "2025").param("variants[1].entrypointRelativePath", "a.msi"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("management/subprogram/subprogram-edit"))
+                .andExpect(model().attributeHasFieldErrors("subprogramForm", "variants[0].entrypointRelativePath", "variants[1].osVersion"));
+
+        org.mockito.Mockito.verify(subprogramService, org.mockito.Mockito.never()).update(any(), any());
+    }
+
+    @Test
+    @DisplayName("POST /{id}/edit (400 · direct POST) : osName 이상값 → 바인딩 오류로 폼 재렌더")
+    void edit_badOsName_rerender() throws Exception {
+        given(subprogramService.findSubprogram(7L)).willReturn(driverResponse());
+
+        mvc.perform(post("/management/subprogram/7/edit")
+                        .param("name", "n").param("version", "v").param("osName", "AMIGA_OS"))
+                .andExpect(status().isOk())
+                .andExpect(model().attributeHasFieldErrors("subprogramForm", "osName"));
+    }
+
+    @Test
+    @DisplayName("POST /{id}/edit (400 · 폼 재렌더 · CP5 F-2) : 트리 밖 경로(../)는 500 이 아니라 그 행의 필드 오류로 돌아온다")
+    void edit_pathViolation_rerender() throws Exception {
+        given(subprogramService.findSubprogram(7L)).willReturn(driverResponse());
+        given(subprogramService.checkVariants(eq(7L), any())).willReturn(java.util.List.of(
+                new com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Finding(0,
+                        com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRYPOINT_PATH, ".. 시그먼트 금지")));
+
+        mvc.perform(post("/management/subprogram/7/edit")
+                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER")
+                        .param("variants[0].osVersion", "2025").param("variants[0].entrypointRelativePath", "../x.msi"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("management/subprogram/subprogram-edit"))
+                .andExpect(model().attributeHasFieldErrors("subprogramForm", "variants[0].entrypointRelativePath"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(".. 시그먼트 금지")));
+
+        org.mockito.Mockito.verify(subprogramService, org.mockito.Mockito.never()).update(any(), any());
     }
 }

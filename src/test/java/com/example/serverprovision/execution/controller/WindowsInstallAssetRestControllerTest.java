@@ -47,7 +47,7 @@ class WindowsInstallAssetRestControllerTest {
         given(tokenRegistry.resolve(token)).willReturn(Optional.of(new WindowsInstallBundle(
                 wimboot, bootWim, "[LaunchApps]\r\ncmd.exe, /k X:\\install.bat\r\n",
                 "@echo off\nnet use N: \\\\h\\s /user:deploy \"pw\"\n",
-                "<?xml version=\"1.0\" encoding=\"utf-8\"?><unattend/>")));
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?><unattend/>", "MSI|4_aspeed-driver|WDDM Installer\\Win2025.msi||1\r\n")));
     }
 
     @Test
@@ -102,7 +102,7 @@ class WindowsInstallAssetRestControllerTest {
     @DisplayName("404 — 토큰은 살아 있으나 정적 파일이 사라졌다(소스 교체 중) · 500 으로 새지 않는다")
     void notFound_missingStaticFile() throws Exception {
         given(tokenRegistry.resolve(token)).willReturn(Optional.of(new WindowsInstallBundle(
-                tempDir.resolve("gone"), tempDir.resolve("gone.wim"), "i", "b", "x")));
+                tempDir.resolve("gone"), tempDir.resolve("gone.wim"), "i", "b", "x", "MSI|4_aspeed-driver|WDDM Installer\\Win2025.msi||1\r\n")));
         mvc.perform(get("/api/pxe/v1/windows/{token}/wimboot", token)).andExpect(status().isNotFound());
     }
 

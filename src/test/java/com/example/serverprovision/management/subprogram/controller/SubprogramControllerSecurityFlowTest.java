@@ -66,7 +66,7 @@ class SubprogramControllerSecurityFlowTest {
     @DisplayName("uploadIntent : targetDirectory=/etc/passwd → 403 PathOutsideAllowedRoots")
     void uploadIntent_targetEtcPasswd_403() throws Exception {
         var req = new SubprogramUploadIntentRequest(
-                "/etc/passwd", SubprogramUploadMode.FOLDER, 1, 1024L, "1.0", false);
+                "/etc/passwd", SubprogramUploadMode.FOLDER, 1, 1024L, "1.0", false, null);
         // Service 가 PathPolicyService.assertWritablePath 에서 PathOutsideAllowedRootsException 을 던짐을 흉내.
         willThrow(new PathOutsideAllowedRootsException())
                 .given(subprogramUploadIntentService).issue(eq(SubprogramKind.DRIVER), any(BoardScope.class), any());
@@ -116,6 +116,8 @@ class SubprogramControllerSecurityFlowTest {
                 "1.2.3",
                 "/opt/subprogram/x",
                 null,
+                "OS 무관",
+                java.util.List.of(),
                 "manifest",
                 1,
                 1024L,

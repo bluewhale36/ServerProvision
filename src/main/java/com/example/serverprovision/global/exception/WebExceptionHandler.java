@@ -1,5 +1,6 @@
 package com.example.serverprovision.global.exception;
 
+
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +44,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * </ul>
  *
  * <p>{@link SecurityException} 은 본 advice 에서 다루지 않고 항상 {@link ApiExceptionHandler} 가 JSON 으로 응답한다.
+ * (R15-1 CP5 F-2 — SSR 폼이 보안 예외를 만나던 유일한 경로(변형 표 진입점)는 서비스가 정책 판정을 필드 오류 · 도메인 400 으로
+ * 옮겨 닫았다. text/html 보안 핸들러를 더하면 {@code *}{@code /*} XHR 이 HTML 로 갈라져 D4=B 불변식이 깨진다 — 시도 뒤 되돌림.)
  * 이유 : 보안 예외가 발생하는 엔드포인트군 (BIOS / BMC / OSMetadata / Subprogram 의 upload / upload-intent / browse) 은
  * 모두 {@code @ResponseBody} XHR 호출이며 클라이언트가 응답 사유를 파싱해 사용자에게 inline 노출한다. 본 advice 에
  * SSR variant 를 추가하면 {@code Accept: *}{@code /*} 매칭에서 XHR 에 HTML 가 회신되어 클라이언트 파싱이 깨진다.

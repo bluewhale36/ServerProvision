@@ -28,7 +28,11 @@ public class WindowsInstallTokenRegistry {
     }
 
     public UUID issue(UUID guestServerId, WindowsInstallBundle bundle) {
-        UUID token = UUID.randomUUID();
+        return issue(guestServerId, UUID.randomUUID(), bundle);
+    }
+
+    /** 미리 뽑은 토큰으로 발급 — 번들 안의 autounattend 가 자기 토큰 URL(드라이버 목록)을 품어야 해서(R15-2 D-3). */
+    public UUID issue(UUID guestServerId, UUID token, WindowsInstallBundle bundle) {
         issued.put(token, bundle);
         UUID previous = byGuest.put(guestServerId, token);
         if (previous != null) {
@@ -62,6 +66,11 @@ public class WindowsInstallTokenRegistry {
         if (!issued.containsKey(token)) {
             throw new IllegalStateException("발급되지 않았거나 회수된 토큰의 URL 요청. token=" + token);
         }
+        return bundleUrlOf(token);
+    }
+
+    /** 발급 여부와 무관한 URL 조립 — 번들 렌더 시점(발급 직전)에 쓴다. */
+    public String bundleUrlOf(UUID token) {
         return baseUrl + "/api/pxe/v1/windows/" + token;
     }
 

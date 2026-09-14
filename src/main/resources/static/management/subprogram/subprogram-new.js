@@ -170,6 +170,7 @@
                     fileCount,
                     totalBytes,
                     version: commonFields.version.trim(),
+                    osName: commonFields.osName || null,
                     allowCreateDirectory: commonFields.allowCreateDirectory
                 }
             });
@@ -214,7 +215,8 @@
                     name: fields.name.trim(),
                     version: fields.version.trim(),
                     targetDirectory: fields.targetDirectory.trim(),
-                    description: fields.description
+                    description: fields.description,
+                    osName: fields.osName || null
                 })
             });
             const body = await resp.json().catch(() => ({}));
@@ -251,6 +253,7 @@
                 version: commonFields.version,
                 targetDirectory: commonFields.targetDirectory,
                 description: commonFields.description,
+                osName: commonFields.osName || '',
                 allowCreateDirectory: commonFields.allowCreateDirectory ? 'true' : 'false'
             }
         });

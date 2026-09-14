@@ -40,6 +40,14 @@ public final class SubprogramControllerSupport {
 	/**
 	 * Thymeleaf 폼 binding 안전화 — null 문자열을 빈 문자열로 변환.
 	 */
+	/** 수정 폼 공통 모델(R15-1) — 종류 라벨 · OS 선택지 · 변형 표의 확장자 라벨. */
+	public static void addEditModel(org.springframework.ui.Model model, com.example.serverprovision.management.subprogram.dto.response.SubprogramResponse sp) {
+		model.addAttribute("kind", sp.kind());
+		model.addAttribute("kindDisplayName", sp.kind().getDisplayName());
+		model.addAttribute("osNames", com.example.serverprovision.management.os.enums.OSName.values());
+		model.addAttribute("entrypointKinds", com.example.serverprovision.management.subprogram.enums.InstallEntrypointKind.values());
+	}
+
 	public static String nullToEmpty(String value) {
 		return value == null ? "" : value;
 	}

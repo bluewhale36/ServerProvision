@@ -49,21 +49,85 @@
                 </div>
 
                 <div class="n-form-group">
-                    <label class="n-label" for="entrypointRelativePath">실행 진입점 상대경로 (선택)</label>
-                    <div class="n-field-row">
-                        <input id="entrypointRelativePath" type="text" th:field="*{entrypointRelativePath}"
-                               class="n-input"
-                              
-                               data-error-field="entrypointRelativePath"
-                               placeholder="예: install.sh / setup.exe / firmware/flash.nsh">
-                        <button type="button" id="entrypointBrowseBtn" class="n-btn n-btn-outline">탐색</button>
-                    </div>
-                    <div class="n-hint">
-                        번들 안에 진입점이 명확한 경우 입력하세요. "탐색" 으로 트리 안의 파일을 직접 선택할 수도 있습니다. 비워두면 진입점 없는 자원으로 표시됩니다.
-                    </div>
-                    <div class="n-error" th:if="${#fields.hasErrors('entrypointRelativePath')}"
-                         th:errors="*{entrypointRelativePath}"></div>
+                    <label class="n-label strong" for="osName">OS</label>
+                    <select id="osName" th:field="*{osName}" class="n-input" data-error-field="osName">
+                        <option value="" th:text="#{management.subprogram.os.any}">OS 무관</option>
+                        <option th:each="os : ${osNames}" th:value="${os.name()}" th:text="${os.displayName}">Windows Server</option>
+                    </select>
+                    <div class="n-hint">이 패키지가 적용되는 OS 입니다. 버전은 아래 변형 표에서 행마다 적습니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('osName')}" th:errors="*{osName}"></div>
+                </div>
 
+                <!-- R15-1 — 변형 표. 행마다 OS 버전(비우면 전 버전) · 진입점(.inf · .msi · .exe) · 인자 · 재부팅. 폼이 표 전체를 제출한다(교체). -->
+                <div class="n-form-group" id="variantsGroup">
+                    <label class="n-label strong">변형</label>
+                    <div class="n-hint">
+                        같은 패키지 안의 OS 버전별 실행 파일을 선언합니다. 설치 방식은 진입점 확장자가 정합니다 —
+                        .inf 는 pnputil, .msi 는 msiexec, .exe 는 직접 실행. OS 버전을 비우면 이 OS 의 모든 버전에 적용합니다(한 행만).
+                    </div>
+                    <div class="n-error" th:if="${#fields.hasErrors('variants')}" th:errors="*{variants}"></div>
+                    <div class="n-table-wrap">
+                        <table class="n-table" id="variantsTable">
+                            <thead>
+                            <tr><th>OS 버전</th><th>진입점(트리 안 상대 경로)</th><th>인자</th><th>재부팅</th><th></th></tr>
+                            </thead>
+                            <tbody id="variantsBody">
+                            <tr th:each="v, stat : *{variants}" class="variant-row" th:data-index="${stat.index}">
+                                <td>
+                                    <input type="text" class="n-input" th:field="*{variants[__${stat.index}__].osVersion}"
+                                           th:attr="data-error-field='variants[' + ${stat.index} + '].osVersion'"
+                                           placeholder="예: 2025" list="osVersionSuggestions">
+                                    <div class="n-error" th:if="${#fields.hasErrors('variants[__${stat.index}__].osVersion')}"
+                                         th:errors="*{variants[__${stat.index}__].osVersion}"></div>
+                                </td>
+                                <td>
+                                    <div class="n-field-row">
+                                        <input type="text" class="n-input variant-entrypoint" th:field="*{variants[__${stat.index}__].entrypointRelativePath}"
+                                               th:attr="data-error-field='variants[' + ${stat.index} + '].entrypointRelativePath'"
+                                               placeholder="예: WDDM Installer/Win2025.msi">
+                                        <button type="button" class="n-btn n-btn-sm n-btn-outline variant-browse">탐색</button>
+                                    </div>
+                                    <div class="n-error" th:if="${#fields.hasErrors('variants[__${stat.index}__].entrypointRelativePath')}"
+                                         th:errors="*{variants[__${stat.index}__].entrypointRelativePath}"></div>
+                                </td>
+                                <td>
+                                    <input type="text" class="n-input" th:field="*{variants[__${stat.index}__].arguments}"
+                                           th:attr="data-error-field='variants[' + ${stat.index} + '].arguments'"
+                                           placeholder="예: /norestart">
+                                </td>
+                                <td class="n-center">
+                                    <input type="checkbox" th:field="*{variants[__${stat.index}__].rebootRequired}">
+                                </td>
+                                <td class="n-center">
+                                    <button type="button" class="n-btn n-btn-sm n-btn-outline-danger variant-remove" th:text="#{action.delete}">삭제</button>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="n-detail-empty" id="variantsEmpty" th:hidden="${not #lists.isEmpty(subprogramForm.variants)}"
+                       th:text="#{management.subprogram.variant.none}">변형 없음 — 트리 전체를 현행대로 다룹니다(INF 일괄).</p>
+                    <div class="n-block-gap-sm">
+                        <button type="button" id="variantAddBtn" class="n-btn n-btn-sm n-btn-outline" th:text="#{action.add-row}">행 추가</button>
+                    </div>
+                    <datalist id="osVersionSuggestions">
+                        <option th:each="ver : ${osVersionSuggestions}" th:value="${ver}"></option>
+                    </datalist>
+                    <!-- 행 템플릿 — JS 가 __INDEX__ 를 바꿔 복제한다 -->
+                    <template id="variantRowTemplate">
+                        <tr class="variant-row" data-index="__INDEX__">
+                            <td><input type="text" class="n-input" name="variants[__INDEX__].osVersion" placeholder="예: 2025" list="osVersionSuggestions"></td>
+                            <td>
+                                <div class="n-field-row">
+                                    <input type="text" class="n-input variant-entrypoint" name="variants[__INDEX__].entrypointRelativePath" placeholder="예: WDDM Installer/Win2025.msi">
+                                    <button type="button" class="n-btn n-btn-sm n-btn-outline variant-browse">탐색</button>
+                                </div>
+                            </td>
+                            <td><input type="text" class="n-input" name="variants[__INDEX__].arguments" placeholder="예: /norestart"></td>
+                            <td class="n-center"><input type="checkbox" name="variants[__INDEX__].rebootRequired" value="true"></td>
+                            <td class="n-center"><button type="button" class="n-btn n-btn-sm n-btn-outline-danger variant-remove">삭제</button></td>
+                        </tr>
+                    </template>
                     <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('entrypointBrowse', 'file', null)}"></div>
                 </div>
 

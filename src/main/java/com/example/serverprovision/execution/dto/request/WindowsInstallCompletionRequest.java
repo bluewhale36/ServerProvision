@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.dto.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -34,8 +35,24 @@ public record WindowsInstallCompletionRequest(
         String setupCompleteLogTail,
 
         @Size(max = 64, message = "installedDiskUniqueId 는 64자 이내여야 합니다.")
-        String installedDiskUniqueId
+        String installedDiskUniqueId,
+
+        /** R15-2 — SetupComplete 가 목록(spv-drivers.lst)의 항목마다 남긴 실행 결과. 구 스크립트는 보내지 않는다(빈 목록). */
+        @Size(max = 50, message = "installs 는 50개 이내여야 합니다.")
+        List<@Valid InstallResult> installs
 ) {
+    /** 한 항목의 실행 결과 — folder 는 $OEM$ 폴더명, mode 는 TREE · INF · MSI · EXE · LEGACY, exitCode 는 프로세스 종료 코드. */
+    public record InstallResult(
+            @Size(max = 120, message = "folder 는 120자 이내여야 합니다.") String folder,
+            @Size(max = 16, message = "mode 는 16자 이내여야 합니다.") String mode,
+            Integer exitCode
+    ) {
+    }
+
+    public List<InstallResult> installsOrEmpty() {
+        return installs == null ? List.of() : installs;
+    }
+
 
     public List<String> problemDevicesOrEmpty() {
         return problemDevices == null ? List.of() : problemDevices;

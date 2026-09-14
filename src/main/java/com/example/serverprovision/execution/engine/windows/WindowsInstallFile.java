@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * 토큰 번들이 내주는 파일 5종 — 파일명을 enum 으로 매칭하므로 경로 조작({@code ..})이 애초에 성립하지 않는다
+ * 토큰 번들이 내주는 파일 6종(R15-2 에서 드라이버 목록 추가) — 파일명을 enum 으로 매칭하므로 경로 조작({@code ..})이 애초에 성립하지 않는다
  * (문자열로 경로를 이어 붙이지 않는다). 순서는 win.ipxe 가 받는 순서다.
  */
 public enum WindowsInstallFile {
@@ -17,7 +17,9 @@ public enum WindowsInstallFile {
     WINPESHL("winpeshl.ini", false, MediaType.TEXT_PLAIN, StandardCharsets.US_ASCII),
     INSTALL_BAT("install.bat", false, MediaType.TEXT_PLAIN, StandardCharsets.US_ASCII),
     AUTOUNATTEND("autounattend.xml", false, MediaType.APPLICATION_XML, StandardCharsets.UTF_8),
-    BOOT_WIM("boot.wim", true, MediaType.APPLICATION_OCTET_STREAM, null);
+    BOOT_WIM("boot.wim", true, MediaType.APPLICATION_OCTET_STREAM, null),
+    /** R15-2 — 게스트별 드라이버 설치 목록. WinPE 가 아니라 설치된 OS 의 specialize 패스가 내려받는다(autounattend 의 curl). */
+    DRIVERS("spv-drivers.lst", false, MediaType.TEXT_PLAIN, StandardCharsets.US_ASCII);
 
     private final String fileName;
     private final boolean streamed;

@@ -75,7 +75,7 @@ class SubprogramRegistrationServiceTest {
     }
 
     private SubprogramCreateRequest req(String name, String version, Path target) {
-        return new SubprogramCreateRequest(name, version, target.toString(), "desc", false);
+        return new SubprogramCreateRequest(name, version, target.toString(), "desc", false, null);
     }
 
     @Test
@@ -108,6 +108,45 @@ class SubprogramRegistrationServiceTest {
                 req("ixgbe", "5.20", target),
                 SubprogramUploadMode.FOLDER, new MultipartFile[]{}, null, null);
 
+        assertThat(id).isEqualTo(99L);
+        verify(bundleExtractionService).extractFolder(any(), any());
+        verify(subprogramMarkerWriter).writeSignedMarker(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("addSubprogram(happy · R15-1) : OS 를 지정하면 저장 엔티티에 osName 이 실리고 변형은 비어 있다")
+    void addDriver_board_happy_withOsName(@TempDir Path tmp) {
+        Path target = tmp.resolve("driver-board");
+        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
+        given(subprogramRepository.findActiveByBoardKey(SubprogramKind.DRIVER, 10L, "ixgbe", "5.20"))
+                .willReturn(Optional.empty());
+        given(subprogramRepository.findSoftDeletedByBoardKey(SubprogramKind.DRIVER, 10L, "ixgbe", "5.20"))
+                .willReturn(Optional.empty());
+        given(subprogramRepository.findFirstByTreeRootPathAndIsDeletedFalse(any()))
+                .willReturn(Optional.empty());
+        given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("hash1", 5, 2048L));
+        given(subprogramRepository.save(any(Subprogram.class))).willAnswer(inv -> {
+            Subprogram s = inv.getArgument(0);
+            return Subprogram.builder()
+                    .id(99L).kind(s.getKind()).boardModel(s.getBoardModel())
+                    .name(s.getName()).version(s.getVersion())
+                    .treeRootPath(s.getTreeRootPath())
+                    .manifestHash(s.getManifestHash())
+                    .fileCount(s.getFileCount()).totalBytes(s.getTotalBytes())
+                    .description(s.getDescription())
+                    .isEnabled(true).isDeleted(false)
+                    .build();
+        });
+
+        Long id = subprogramRegistrationService.addSubprogram(
+                SubprogramKind.DRIVER, BoardScope.ofBoard(10L),
+                new SubprogramCreateRequest("ixgbe", "5.20", (target).toString(), "desc", false, com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER),
+                SubprogramUploadMode.FOLDER, new MultipartFile[]{}, null, null);
+
+        org.mockito.ArgumentCaptor<Subprogram> saved = org.mockito.ArgumentCaptor.forClass(Subprogram.class);
+        org.mockito.Mockito.verify(subprogramRepository).save(saved.capture());
+        assertThat(saved.getValue().getOsName()).isEqualTo(com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER);
+        assertThat(saved.getValue().getVariants()).isEmpty();
         assertThat(id).isEqualTo(99L);
         verify(bundleExtractionService).extractFolder(any(), any());
         verify(subprogramMarkerWriter).writeSignedMarker(any(), any(), any(), any(), any(), any(), any());

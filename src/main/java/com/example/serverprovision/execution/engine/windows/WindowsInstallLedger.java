@@ -130,7 +130,80 @@ public class WindowsInstallLedger {
      */
     public record Completion(String computerName, String osVersion, int driversAdded, int problemDeviceCount,
                              List<String> problemDevices, String setupCompleteLogTail,
-                             String installedDiskUniqueId, Boolean diskConfirmed) {
+                             String installedDiskUniqueId, Boolean diskConfirmed,
+                             List<Map<String, Object>> installs) {
+        /** R15-2 이전 호출 호환 — 실행 결과 없음. */
+        public Completion(String computerName, String osVersion, int driversAdded, int problemDeviceCount,
+                          List<String> problemDevices, String setupCompleteLogTail,
+                          String installedDiskUniqueId, Boolean diskConfirmed) {
+            this(computerName, osVersion, driversAdded, problemDeviceCount, problemDevices, setupCompleteLogTail,
+                    installedDiskUniqueId, diskConfirmed, List.of());
+        }
+    }
+
+    /** R15-2 — 서빙 시점 드라이버 선택을 서빙 행에 남긴다: 목록(drivers)과 제외(driversSkipped · 사유). 카드 · 실기 대조용. */
+    public void markDrivers(ProvisioningHistory row, WindowsDriverSelection.Selection selection) {
+        if (selection == null) {
+            return;
+        }
+        Map<String, Object> meta = read(row);
+        meta.put("drivers", selection.entries().stream().map(e -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", e.id()); m.put("name", e.name()); m.put("folder", e.folder()); m.put("mode", e.mode().name());
+            m.put("entrypoint", e.entrypoint()); m.put("arguments", e.arguments()); m.put("reboot", e.rebootRequired());
+            m.put("osVersion", e.osVersion());
+            return m;
+        }).toList());
+        meta.put("driversSkipped", selection.skipped().stream().map(sk -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", sk.id()); m.put("name", sk.name()); m.put("reason", sk.reason());
+            return m;
+        }).toList());
+        row.updateRunningMeta(write(meta));
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> driversOf(ProvisioningHistory row) {
+        Object v = read(row).get("drivers");
+        return v instanceof List<?> l ? (List<Map<String, Object>>) l : List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> driversSkippedOf(ProvisioningHistory row) {
+        Object v = read(row).get("driversSkipped");
+        return v instanceof List<?> l ? (List<Map<String, Object>>) l : List.of();
+    }
+
+    /**
+     * 서빙 meta 의 선택을 {@link WindowsDriverSelection.Selection} 으로 되살린다 — 카드 문구 · 목록 라벨이 서빙 전(판정 결과)과
+     * 같은 코드에서 나오게. R15-2 이전 행(키 없음)은 empty — "선택 0" 과 구별해 화면이 드라이버 줄을 그리지 않는다.
+     */
+    public Optional<WindowsDriverSelection.Selection> driverSelectionOf(ProvisioningHistory row) {
+        Map<String, Object> meta = read(row);
+        if (!meta.containsKey("drivers")) {
+            return Optional.empty();
+        }
+        List<WindowsDriverSelection.Entry> entries = driversOf(row).stream().map(m -> new WindowsDriverSelection.Entry(
+                longOf(m.get("id")), str(m.get("name")), str(m.get("folder")),
+                WindowsDriverSelection.Mode.valueOf(str(m.get("mode"))), str(m.get("entrypoint")), str(m.get("arguments")),
+                Boolean.TRUE.equals(m.get("reboot")), str(m.get("osVersion")))).toList();
+        List<WindowsDriverSelection.Skipped> skipped = driversSkippedOf(row).stream().map(m -> new WindowsDriverSelection.Skipped(
+                longOf(m.get("id")), str(m.get("name")), str(m.get("reason")))).toList();
+        return Optional.of(new WindowsDriverSelection.Selection(entries, skipped));
+    }
+
+    private static long longOf(Object v) {
+        return v instanceof Number n ? n.longValue() : 0L;
+    }
+
+    private static String str(Object v) {
+        return v == null ? null : v.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> installsOf(ProvisioningHistory row) {
+        Object v = read(row).get("installs");
+        return v instanceof List<?> l ? (List<Map<String, Object>>) l : List.of();
     }
 
     /**
@@ -153,6 +226,7 @@ public class WindowsInstallLedger {
             meta.put("installedDiskUniqueId", c.installedDiskUniqueId());
         }
         meta.put("diskConfirmed", c.diskConfirmed());   // null = 미보고(구 스크립트 · 조회 실패) — 오류 아님
+        meta.put("installs", c.installs() == null ? List.of() : c.installs());   // R15-2 — SetupComplete 의 항목별 실행 결과(exit code)
         meta.put("reason", COMPLETED);
         meta.put("detail", "설치 완료 · 드라이버 " + c.driversAdded() + " · 문제 장치 " + c.problemDeviceCount());
         return row.close(ProvisioningStatus.SUCCEEDED, write(meta), now);

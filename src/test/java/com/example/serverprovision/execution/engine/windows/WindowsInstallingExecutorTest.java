@@ -83,13 +83,13 @@ class WindowsInstallingExecutorTest {
 
     private static WindowsInstallReadinessResolver.Resolved ready() {
         return new WindowsInstallReadinessResolver.Resolved(WindowsInstallTarget.windows(STANDARD, "P@ssw0rd!"),
-                InstallSourceSnapshot.present(List.of(image()), 1L, Instant.now()), Optional.of(image()), PhaseReadiness.ready(), com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER));
+                InstallSourceSnapshot.present(List.of(image()), 1L, Instant.now()), Optional.of(image()), PhaseReadiness.ready(), com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Selection.EMPTY);
     }
 
     private static WindowsInstallReadinessResolver.Resolved blocked(String wire) {
         return new WindowsInstallReadinessResolver.Resolved(WindowsInstallTarget.windows(STANDARD, "P@ssw0rd!"),
                 InstallSourceSnapshot.missing(), Optional.empty(),
-                PhaseReadiness.of(ReadinessGrade.BLOCKED, List.of("install.wim 없음"), wire), null);
+                PhaseReadiness.of(ReadinessGrade.BLOCKED, List.of("install.wim 없음"), wire), null, com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Selection.EMPTY);
     }
 
     private static ProvisioningProgress awaitingBoot() {
@@ -168,7 +168,7 @@ class WindowsInstallingExecutorTest {
         WindowsInstallReadinessResolver.Resolved deferred = new WindowsInstallReadinessResolver.Resolved(
                 WindowsInstallTarget.windows(STANDARD, "P@ssw0rd!"),
                 InstallSourceSnapshot.present(List.of(image()), 1L, Instant.now()), Optional.of(image()), PhaseReadiness.ready(),
-                WindowsDiskSelection.DiskSelection.deferred("RAID 구성 뒤 확정 — 계획의 OS 영역 spvR1V1"));
+                WindowsDiskSelection.DiskSelection.deferred("RAID 구성 뒤 확정 — 계획의 OS 영역 spvR1V1"), com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Selection.EMPTY);
         given(resolver.resolve(GUEST_ID)).willReturn(Optional.of(deferred));
         ProvisioningProgress progress = awaitingBoot();
 

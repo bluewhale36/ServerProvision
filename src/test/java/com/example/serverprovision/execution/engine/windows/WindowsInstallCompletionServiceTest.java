@@ -77,7 +77,7 @@ class WindowsInstallCompletionServiceTest {
     private static WindowsInstallCompletionRequest report(int problems) {
         return new WindowsInstallCompletionRequest("SPV-14174000", "Microsoft Windows Server 2025 Standard 10.0.26100", 47,
                 problems, problems == 0 ? List.of() : List.of("Unknown device (ACPI\\INT34C6)", "PCI Simple Communications Controller"),
-                "[mock] Added driver packages:  47", null);
+                "[mock] Added driver packages:  47", null, null);
     }
 
     private ProvisioningProgress installing() {
@@ -149,7 +149,7 @@ class WindowsInstallCompletionServiceTest {
 
     private WindowsInstallCompletionRequest reportWithDisk(String installedDiskUniqueId) {
         return new WindowsInstallCompletionRequest("SPV-14174000", "Windows Server 2025 10.0.26100", 47, 0, List.of(),
-                "tail", installedDiskUniqueId);
+                "tail", installedDiskUniqueId, null);
     }
 
     private void osVolumeWwn(String wwn) {

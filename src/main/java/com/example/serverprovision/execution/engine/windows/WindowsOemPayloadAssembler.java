@@ -137,7 +137,7 @@ public class WindowsOemPayloadAssembler {
             Files.createDirectories(tmp.resolve(DRIVERS_SUBDIR));
             List<WindowsOemManifest.Entry> entries = new ArrayList<>();
             for (Subprogram s : c.eligible()) {
-                String folder = s.getId() + "_" + slug(s.getName());
+                String folder = folderOf(s);
                 Copied copied = copyTree(s.getResourcePath(), tmp.resolve(DRIVERS_SUBDIR).resolve(folder));
                 entries.add(new WindowsOemManifest.Entry(s.getId(), s.getName(), s.getVersion(), s.getManifestHash(),
                         copied.files(), copied.bytes(), folder));
@@ -164,7 +164,15 @@ public class WindowsOemPayloadAssembler {
                       List<WindowsOemManifest.Excluded> excluded) {
     }
 
-    /** 대상 = DRIVER · 미삭제 · effective 활성 · 트리에 INF 보유(재귀). 비활성은 대상이 아니고, 트리 부재 · INF 부재는 제외 목록. */
+    /** 게스트 {@code $1\SPV\Drivers} 아래 폴더명 — 서빙 시점 선택(WindowsDriverSelection)과 같은 규칙이어야 목록이 실물을 가리킨다. */
+    public static String folderOf(Subprogram s) {
+        return s.getId() + "_" + slug(s.getName());
+    }
+
+    /**
+     * 대상 = DRIVER · 미삭제 · effective 활성 · (변형 1 개 이상 OR 트리에 INF 보유). R15-2 — MSI · EXE 변형만 선언한 패키지도
+     * 실린다(INF 가 없어도). 비활성은 대상이 아니고, 트리 부재 · (변형도 INF 도 없음)은 제외 목록.
+     */
     Candidates candidates() {
         List<Subprogram> eligible = new ArrayList<>();
         List<WindowsOemManifest.Entry> entries = new ArrayList<>();
@@ -176,7 +184,7 @@ public class WindowsOemPayloadAssembler {
             Path tree = s.getResourcePath();
             if (!Files.isDirectory(tree)) {
                 excluded.add(new WindowsOemManifest.Excluded(s.getId(), s.getName(), TREE_MISSING));
-            } else if (!hasInf(tree)) {
+            } else if (s.getVariants().isEmpty() && !hasInf(tree)) {
                 excluded.add(new WindowsOemManifest.Excluded(s.getId(), s.getName(), INF_MISSING));
             } else {
                 eligible.add(s);
@@ -210,7 +218,7 @@ public class WindowsOemPayloadAssembler {
 
     // ── 파일 ────────────────────────────────────────────────────────────────
 
-    Optional<WindowsOemManifest> readManifest() {
+    public Optional<WindowsOemManifest> readManifest() {
         Optional<Path> root = properties.sourceRootPath();
         if (root.isEmpty()) {
             return Optional.empty();

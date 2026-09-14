@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.subprogram.service;
 
+import com.example.serverprovision.management.os.enums.OSName;
+
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
@@ -114,6 +116,7 @@ public class SubprogramUploadIntentService {
 						request.fileCount(),
 						request.totalBytes(),
 						request.version(),
+						request.osName(),
 						Instant.now()
 				)
 		);
@@ -150,6 +153,7 @@ public class SubprogramUploadIntentService {
 		attributes.put("fileCount", String.valueOf(request.fileCount()));
 		attributes.put("totalBytes", String.valueOf(request.totalBytes()));
 		attributes.put("allowCreateDirectory", String.valueOf(request.allowCreateDirectory()));
+		attributes.put("osName", request.osName() == null ? "" : request.osName().name());
 		return nudgeRegistry.register(
 				NudgeResourceType.SUBPROGRAM,
 				scope.isCommon() ? null : scope.boardId(),
@@ -184,7 +188,8 @@ public class SubprogramUploadIntentService {
 				Integer.parseInt(attributes.get("fileCount")),
 				Long.parseLong(attributes.get("totalBytes")),
 				attributes.get("version"),
-				Boolean.parseBoolean(attributes.getOrDefault("allowCreateDirectory", "false"))
+				Boolean.parseBoolean(attributes.getOrDefault("allowCreateDirectory", "false")),
+				attributes.getOrDefault("osName", "").isBlank() ? null : OSName.valueOf(attributes.get("osName"))
 		);
 		return new IntentReissue(kind, scope, request);
 	}
@@ -229,6 +234,7 @@ public class SubprogramUploadIntentService {
 			int fileCount,
 			long totalBytes,
 			String version,
+			OSName osName,
 			Instant issuedAt
 	) {
 

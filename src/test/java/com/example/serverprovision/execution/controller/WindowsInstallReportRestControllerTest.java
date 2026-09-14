@@ -150,4 +150,41 @@ class WindowsInstallReportRestControllerTest {
                     .andExpect(jsonPath("$.message").value(ex.getMessage()));
         }
     }
+
+    // ==== R15-2 — 항목별 설치 결과 installs ====================================================
+
+    @Test
+    @DisplayName("200 — installs(folder · mode · exitCode)가 서비스에 그대로 전달된다 · 생략하면 빈 목록")
+    void complete_carriesInstalls() throws Exception {
+        given(completionService.complete(eq(TOKEN), any())).willReturn(new WindowsInstallCompletionResponse(true, true, null));
+        String body = "{\"computerName\":\"SPV-14174000\",\"driversAdded\":47,\"problemDeviceCount\":0,"
+                + "\"installs\":[{\"folder\":\"4_aspeed-driver\",\"mode\":\"MSI\",\"exitCode\":0},{\"folder\":\"-\",\"mode\":\"LEGACY\",\"exitCode\":0}]}";
+
+        mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+        verify(completionService).complete(eq(TOKEN), org.mockito.ArgumentMatchers.argThat(r ->
+                r.installsOrEmpty().size() == 2 && r.installsOrEmpty().get(0).folder().equals("4_aspeed-driver")
+                        && r.installsOrEmpty().get(0).mode().equals("MSI") && r.installsOrEmpty().get(0).exitCode() == 0));
+
+        mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isOk());
+        verify(completionService).complete(eq(TOKEN), org.mockito.ArgumentMatchers.argThat(r -> r.installsOrEmpty().isEmpty()));
+    }
+
+    @Test
+    @DisplayName("400 — installs 51 개 · 항목의 folder 121자 → @Valid 거절, 서비스 미호출")
+    void complete_installsOutOfBounds400() throws Exception {
+        String many = IntStream.range(0, 51)
+                .mapToObj(i -> "{\"folder\":\"f" + i + "\",\"mode\":\"INF\",\"exitCode\":0}")
+                .collect(Collectors.joining(","));
+        mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"computerName\":\"SPV-1\",\"driversAdded\":0,\"problemDeviceCount\":0,\"installs\":[" + many + "]}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"computerName\":\"SPV-1\",\"driversAdded\":0,\"problemDeviceCount\":0,"
+                                + "\"installs\":[{\"folder\":\"" + "x".repeat(121) + "\",\"mode\":\"INF\",\"exitCode\":0}]}"))
+                .andExpect(status().isBadRequest());
+        verify(completionService, never()).complete(any(), any());
+    }
 }

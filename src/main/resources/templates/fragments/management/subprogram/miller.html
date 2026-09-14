@@ -123,13 +123,26 @@
                         <dd><code th:text="${sp.treeRootPath}"></code></dd>
                     </div>
                     <div class="n-accordion-field">
-                        <dt>실행 대상</dt>
+                        <dt>OS</dt>
+                        <dd th:text="${sp.osLabel}">OS 무관</dd>
+                    </div>
+                    <div class="n-accordion-field">
+                        <dt>변형</dt>
                         <dd>
-                            <code th:if="${sp.entrypointRelativePath != null and !#strings.isEmpty(sp.entrypointRelativePath)}"
-                                  th:text="${sp.entrypointRelativePath}"></code>
-                            <span class="n-note" th:if="${sp.entrypointRelativePath == null or #strings.isEmpty(sp.entrypointRelativePath)}">
-                                미설정 — 수정에서 입력하세요.
-                            </span>
+                            <span class="n-note" th:if="${#lists.isEmpty(sp.variants)}"
+                                  th:text="#{management.subprogram.variant.none}">변형 없음</span>
+                            <table class="n-table n-table-compact" th:unless="${#lists.isEmpty(sp.variants)}">
+                                <thead><tr><th>OS 버전</th><th>종류</th><th>진입점</th><th>인자</th><th>재부팅</th></tr></thead>
+                                <tbody>
+                                <tr th:each="v : ${sp.variants}">
+                                    <td th:text="${v.osVersion != null} ? ${v.osVersion} : '전 버전'">2025</td>
+                                    <td><span class="n-badge n-badge-gray" th:text="${v.entrypointKind.label}">MSI</span></td>
+                                    <td><code th:text="${v.entrypointRelativePath}"></code></td>
+                                    <td th:text="${v.arguments != null} ? ${v.arguments} : '—'">—</td>
+                                    <td th:text="${v.rebootRequired} ? '필요' : '—'">—</td>
+                                </tr>
+                                </tbody>
+                            </table>
                         </dd>
                     </div>
                     <div class="n-accordion-field">
