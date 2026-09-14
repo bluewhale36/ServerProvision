@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  S18 — 사용자 등록(관리자 모드). ROLE_ADMIN 만 도달한다(SignupAccessPolicy). 초기 비밀번호를 정해 계정을 만들고,
+  그 계정은 첫 로그인에서 비밀번호 변경을 요구받는다. 폼은 fragments/security/signup-form 을 공유한다.
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('사용자 등록')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('users')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">사용자 등록</h1>
+    </div>
+
+    <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status" th:text="${flashMessage}">사용자 계정 등록을 마쳤습니다.</div>
+
+    <div class="n-card">
+        <div class="n-card-body">
+            <p class="n-section-hint">이 서버에 접근할 사용자를 만듭니다. 초기 비밀번호를 전달하면 사용자는 첫 로그인에서 새 비밀번호로 바꾸게 됩니다.</p>
+            <th:block th:replace="~{fragments/security/signup-form :: signupForm}"></th:block>
+        </div>
+    </div>
+</div>
+</body>
+</html>

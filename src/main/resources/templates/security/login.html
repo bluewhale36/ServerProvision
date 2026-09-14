@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  S18 — 로그인. 제출은 Spring Security 의 UsernamePasswordAuthenticationFilter 가 서블릿 앞에서 처리한다(컨트롤러 없음).
+  실패(?error) · 로그아웃(?logout) 은 URL 파라미터로 안내한다 — 계정 존재 여부를 드러내지 않는 한 문장.
+  Model: bootstrapOpen(관리자 부재 — "최초 관리자 등록" 링크 노출 조건 · UsersService.bootstrapOpen SSOT)
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('로그인')}"></th:block>
+    <link rel="stylesheet" th:href="@{/global/auth.css}">
+</head>
+<body>
+<main class="n-auth">
+    <div class="n-card n-auth-card">
+        <div class="n-card-body">
+            <p class="n-auth-brand">Provision Portal</p>
+            <h1 class="n-auth-title">로그인</h1>
+            <p class="n-auth-lead">유니와이드 프로비저닝 서버입니다. 발급받은 계정으로 로그인하십시오.</p>
+
+            <div th:if="${param.error}" class="n-alert n-alert-danger" role="alert">아이디 또는 비밀번호가 올바르지 않습니다.</div>
+            <div th:if="${param.logout}" class="n-alert n-alert-info" role="status">로그아웃했습니다.</div>
+            <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status" th:text="${flashMessage}">최초 관리자 계정을 만들었습니다.</div>
+
+            <form th:action="@{/login}" method="post"
+                  data-native-submit="Spring Security 의 로그인 필터가 서블릿 앞에서 처리한다 — 전역 fetch 의 multipart 본문은 필터가 읽지 못한다">
+                <div class="n-form-group">
+                    <label class="n-label strong" for="username">아이디</label>
+                    <input id="username" name="username" type="text" class="n-input" autocomplete="username" autofocus required>
+                </div>
+                <div class="n-form-group">
+                    <label class="n-label strong" for="password">비밀번호</label>
+                    <input id="password" name="password" type="password" class="n-input" autocomplete="current-password" required>
+                </div>
+                <div class="n-form-actions">
+                    <button type="submit" class="n-btn n-btn-primary n-btn-block">로그인</button>
+                </div>
+            </form>
+
+            <p class="n-auth-foot" th:if="${bootstrapOpen}">아직 관리자 계정이 없습니다. <a th:href="@{/signup}">최초 관리자 등록</a></p>
+        </div>
+    </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  S18 — 가입 폼 조각. 부트스트랩(최초 관리자) 화면과 관리자의 사용자 등록 화면이 같은 폼을 쓴다(D-13 · 마크업 복붙 금지).
+  Model: signUpForm(SignUpRequest) · signupMode(SignupMode — requiresRoleSelection 으로 역할 표 · 문구 분기) · roleOptions
+  관리자 모드는 "초기 비밀번호" 를 정하고, 만들어진 계정은 첫 로그인에서 변경을 요구받는다(D-14).
+-->
+<body>
+<th:block th:fragment="signupForm">
+    <form th:action="@{/signup}" th:object="${signUpForm}" method="post" novalidate
+          data-native-submit="검증 실패 시 같은 뷰를 다시 렌더한다(BindingResult · 필드 오류)">
+
+        <div class="n-form-group">
+            <label class="n-label strong" for="username">아이디</label>
+            <input id="username" type="text" th:field="*{username}" class="n-input" autocomplete="username"
+                   data-error-field="username"
+                   th:classappend="${#fields.hasErrors('username')} ? 'is-invalid'"
+                   placeholder="예: hong.gildong">
+            <div class="n-hint">사내 메일의 도메인 앞부분을 그대로 씁니다.</div>
+            <div class="n-error" th:if="${#fields.hasErrors('username')}" th:errors="*{username}"></div>
+        </div>
+
+        <div class="n-form-group">
+            <label class="n-label strong" for="name">이름</label>
+            <input id="name" type="text" th:field="*{name}" class="n-input" autocomplete="name"
+                   data-error-field="name"
+                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
+                   placeholder="예: 홍길동">
+            <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
+        </div>
+
+        <div class="n-form-group">
+            <label class="n-label strong" for="password"
+                   th:text="${signupMode.requiresRoleSelection()} ? '초기 비밀번호' : '비밀번호'">비밀번호</label>
+            <input id="password" type="password" name="password" class="n-input" autocomplete="new-password"
+                   data-error-field="password"
+                   th:classappend="${#fields.hasErrors('password')} ? 'is-invalid'">
+            <div class="n-hint">영문 대소문자 · 숫자 · 특수기호(! @ # $ % ^ &amp; * ( ) - _ = + . , ?)로 8자 이상 72자 이하입니다.</div>
+            <div class="n-hint" th:if="${signupMode.requiresRoleSelection()}">사용자는 이 비밀번호로 처음 로그인한 뒤 반드시 새 비밀번호로 바꿔야 합니다.</div>
+            <div class="n-error" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+        </div>
+
+        <div class="n-form-group">
+            <label class="n-label strong" for="retypedPassword"
+                   th:text="${signupMode.requiresRoleSelection()} ? '초기 비밀번호 확인' : '비밀번호 확인'">비밀번호 확인</label>
+            <input id="retypedPassword" type="password" name="retypedPassword" class="n-input" autocomplete="new-password"
+                   data-error-field="retypedPassword"
+                   th:classappend="${#fields.hasErrors('retypedPassword') or #fields.hasErrors('passwordConfirmed')} ? 'is-invalid'">
+            <div class="n-error" th:if="${#fields.hasErrors('retypedPassword')}" th:errors="*{retypedPassword}"></div>
+            <div class="n-error" th:if="${#fields.hasErrors('passwordConfirmed')}" th:errors="*{passwordConfirmed}"></div>
+        </div>
+
+        <div class="n-form-group" th:if="${signupMode.requiresRoleSelection()}"
+             th:classappend="${#fields.hasErrors('roles')} ? 'has-error'">
+            <span class="n-label strong">역할</span>
+            <div class="n-hint">관리자는 사용자 권한을 함께 가집니다. 관리자를 고르면 사용자 권한도 부여됩니다.</div>
+            <div class="n-option-row" th:each="role : ${roleOptions}">
+                <input type="checkbox" th:field="*{roles}" th:value="${role.name()}" th:id="|role-${role.name()}|">
+                <label th:for="|role-${role.name()}|">
+                    <span class="n-option-title" th:text="${role.description}">관리자</span>
+                </label>
+            </div>
+            <div class="n-error" th:if="${#fields.hasErrors('roles')}" th:errors="*{roles}"></div>
+        </div>
+
+        <div class="n-form-actions">
+            <a th:if="${signupMode.requiresRoleSelection()}" th:href="@{/provisioning/server}" class="n-btn n-btn-secondary">취소</a>
+            <button type="submit" class="n-btn n-btn-primary"
+                    th:classappend="${signupMode.requiresRoleSelection()} ? '' : 'n-btn-block'"
+                    th:text="${signupMode.requiresRoleSelection()} ? '사용자 등록' : '관리자 등록'">등록</button>
+        </div>
+    </form>
+</th:block>
+</body>
+</html>

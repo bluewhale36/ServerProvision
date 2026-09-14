@@ -1,0 +1,68 @@
+/* S18 — 인증 화면(로그인 · 최초 관리자 등록)의 셸. body 가 flex 라 .n-auth 가 본문 컨테이너 자리에 서고 카드를 가운데 세운다.
+   사이드바가 없는 유일한 화면 계열이라 여기서만 쓴다. 색 · 반지름은 style.css 토큰만. */
+.n-auth {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.n-auth-card {
+    width: 100%;
+    max-width: 420px;
+    margin: 0;
+}
+
+.n-auth-card .n-card-body {
+    padding: 28px;
+}
+
+.n-auth-brand {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--n-text);
+    letter-spacing: -0.2px;
+    margin: 0 0 4px;
+}
+
+.n-auth-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--n-text);
+    margin: 0 0 6px;
+}
+
+.n-auth-lead {
+    font-size: 13px;
+    color: var(--n-text-sec);
+    margin: 0 0 22px;
+}
+
+.n-auth .n-alert {
+    margin-bottom: 18px;
+}
+
+.n-auth .n-btn-block {
+    width: 100%;
+}
+
+.n-auth-foot {
+    margin: 18px 0 0;
+    font-size: 13px;
+    color: var(--n-text-sec);
+    text-align: center;
+}
+
+@media (max-width: 600px) {
+    .n-auth {
+        padding: 16px;
+        align-items: flex-start;
+    }
+
+    .n-auth-card .n-card-body {
+        padding: 22px 18px;
+    }
+}
