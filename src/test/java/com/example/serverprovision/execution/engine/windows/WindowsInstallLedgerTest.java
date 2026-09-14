@@ -210,4 +210,61 @@ class WindowsInstallLedgerTest {
         assertThat(ledger.problemDevicesOf(row)).isEmpty();
         assertThat(ledger.osVersionOf(row)).isNull();
     }
+
+    // ==== R15-2 — 드라이버 선택 meta · 항목별 설치 결과 ====================================================
+
+    private static final com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection DISK =
+            com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L,
+                    com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER);
+
+    @Test
+    @DisplayName("markDrivers — 선택(항목 · 제외)을 서빙 meta 에 적고 driverSelectionOf 가 같은 Selection 으로 되살린다(라벨 · 요약 SSOT)")
+    void markDrivers_roundTrip() {
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, DISK, NOW);
+        WindowsDriverSelection.Selection sel = new WindowsDriverSelection.Selection(
+                java.util.List.of(new WindowsDriverSelection.Entry(4L, "ASPEED", "4_aspeed", WindowsDriverSelection.Mode.MSI,
+                                "WDDM Installer\\Win2025.msi", "/l*v C:\\SPV\\a.log", true, "2025"),
+                        new WindowsDriverSelection.Entry(2L, "Chipset", "2_chipset", WindowsDriverSelection.Mode.TREE, "", null, false, null)),
+                java.util.List.of(new WindowsDriverSelection.Skipped(9L, "NVMe", WindowsDriverSelection.SKIP_NO_VARIANT_FOR_VERSION)));
+
+        ledger.markDrivers(row, sel);
+
+        assertThat(ledger.driverSelectionOf(row)).contains(sel);
+        assertThat(ledger.driverSelectionOf(row).orElseThrow().summary()).isEqualTo("드라이버 2(변형 1 · 트리 1) · 제외 1");
+        assertThat(ledger.imageOf(row)).isEqualTo(IMAGE.value());   // 서빙 meta 는 그대로
+        assertThat(ledger.driversOf(row)).hasSize(2);
+        assertThat(ledger.driversSkippedOf(row)).singleElement().satisfies(m -> assertThat(m.get("reason")).isEqualTo("해당 버전 변형 없음"));
+    }
+
+    @Test
+    @DisplayName("driverSelectionOf — R15-2 이전 행(drivers 키 없음)은 empty · 선택 0 은 빈 Selection(구별된다)")
+    void driverSelectionOf_absentVersusEmpty() {
+        ProvisioningHistory legacy = ledger.openServed(guest, IMAGE, DISK, NOW);
+        assertThat(ledger.driverSelectionOf(legacy)).isEmpty();
+
+        ProvisioningHistory none = ledger.openServed(guest, IMAGE, DISK, NOW);
+        ledger.markDrivers(none, WindowsDriverSelection.Selection.EMPTY);
+        assertThat(ledger.driverSelectionOf(none)).contains(WindowsDriverSelection.Selection.EMPTY);
+    }
+
+    @Test
+    @DisplayName("closeSucceeded — 완료 보고의 installs(folder · mode · exitCode)를 meta 에 적고 installsOf 로 읽는다 · 옛 8-인자 Completion 은 빈 목록")
+    void closeSucceeded_writesInstalls() {
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, DISK, NOW);
+        java.util.Map<String, Object> one = new java.util.LinkedHashMap<>();
+        one.put("folder", "4_aspeed"); one.put("mode", "MSI"); one.put("exitCode", 3010);
+        WindowsInstallLedger.Completion c = new WindowsInstallLedger.Completion("SPV-1", "10.0.26100", 47, 0,
+                java.util.List.of(), "tail", null, null, java.util.List.of(one));
+
+        assertThat(ledger.closeSucceeded(row, c, NOW.plusMinutes(30))).isTrue();
+        assertThat(ledger.installsOf(row)).singleElement().satisfies(m -> {
+            assertThat(m.get("folder")).isEqualTo("4_aspeed");
+            assertThat(m.get("mode")).isEqualTo("MSI");
+            assertThat(m.get("exitCode")).isEqualTo(3010);
+        });
+
+        ProvisioningHistory legacy = ledger.openServed(guest, IMAGE, DISK, NOW);
+        ledger.closeSucceeded(legacy, new WindowsInstallLedger.Completion("SPV-2", null, 0, 0, java.util.List.of(), null, null, null), NOW);
+        assertThat(ledger.installsOf(legacy)).isEmpty();
+    }
 }

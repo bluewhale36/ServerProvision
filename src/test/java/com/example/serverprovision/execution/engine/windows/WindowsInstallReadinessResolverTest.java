@@ -54,18 +54,23 @@ class WindowsInstallReadinessResolverTest {
     private final com.example.serverprovision.execution.engine.raid.RaidConfigurationResolutionProvider raidResolutionProvider =
             mock(com.example.serverprovision.execution.engine.raid.RaidConfigurationResolutionProvider.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
+    // R15-2 — 드라이버 선별 재료: 후보 0 · 매니페스트 없음이면 선별은 EMPTY 라 base 판정을 가리지 않는다.
+    private final com.example.serverprovision.management.subprogram.repository.SubprogramRepository subprogramRepository =
+            mock(com.example.serverprovision.management.subprogram.repository.SubprogramRepository.class);
+    private final WindowsOemPayloadAssembler oemAssembler = mock(WindowsOemPayloadAssembler.class);
 
     private WindowsInstallReadinessResolver resolver(String datacenterKey) {
         WindowsInstallProperties props = new WindowsInstallProperties(root.toString(), "\\\\10.0.0.5\\win2025", "deploy",
                 "share-secret-9x", null, new WindowsInstallProperties.ProductKeys("KEY-STD", datacenterKey));
         stubConfidentDisk();
         return new WindowsInstallReadinessResolver(provider, new WindowsImageCatalog(props), props,
-                new WindowsInstallSource(props), raidVolumeRepository, detailRepository,
+                new WindowsInstallSource(props), raidVolumeRepository, detailRepository, subprogramRepository, oemAssembler,
                 progressRepository, ownedPhasesProvider, raidResolutionProvider, objectMapper);
     }
 
     /** OS 볼륨 + 그 볼륨을 담은 RAID 인벤토리를 준비해 디스크 선택이 CONFIDENT 가 되게 한다. */
     private void stubConfidentDisk() {
+        lenient().when(oemAssembler.readManifest()).thenReturn(Optional.empty());
         RaidVolume os = RaidVolume.of(null, "spvR1V1", RaidLevel.RAID1, "[]", 480103981056L, PlannedVolumeRole.OS, 1, "Optl", "wwn-os");
         lenient().when(raidVolumeRepository.findAllByGuestServer_Id(any())).thenReturn(List.of(os));
         GuestServerDetail detail = mock(GuestServerDetail.class);

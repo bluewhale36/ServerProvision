@@ -76,7 +76,8 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
             return IpxeScripts.shortageHold("disk selection not confident", rebootQuery);
         }
         WindowsImage image = r.image().orElseThrow();   // READY 는 이미지 실재를 보장한다(진리표 7번)
-        UUID token = tokenRegistry.issue(id, bundleFor(server, r.target(), image, r.diskSelection()));
+        UUID token = UUID.randomUUID();   // R15-2 — autounattend 가 자기 토큰 URL(드라이버 목록)을 품어야 해 먼저 뽑는다
+        tokenRegistry.issue(id, token, bundleFor(server, r.target(), image, r.diskSelection(), r.driverSelection(), token));
         return WindowsInstallChainload.script(tokenRegistry.bundleUrl(token), image.name().value(), rebootQuery);
     }
 
@@ -131,7 +132,8 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
                 ledger.abortRunning(stale, WindowsInstallLedger.SUPERSEDED, "새 서빙으로 대체 — 열린 채 남아 있던 행", now));
         progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now);
         WindowsDiskSelection.DiskSelection selection = resolved.get().diskSelection();   // READY 를 지난 서빙이라 CONFIDENT 가 보장된다
-        ledger.openServed(server, resolved.get().target().imageName(), selection, now);
+        ProvisioningHistory servedRow = ledger.openServed(server, resolved.get().target().imageName(), selection, now);
+        ledger.markDrivers(servedRow, resolved.get().driverSelection());   // R15-2 — 이 게스트가 받은 드라이버 목록 · 제외 사유
         log.info("[wininstall] {} — wimboot 체인 서빙 = 착수 : image={}, diskId={}, basis={}, expectedUniqueId={}",
                 id, resolved.get().target().imageName(), selection.diskId(),
                 selection.basis() == null ? null : selection.basis().wire(), selection.expectedUniqueId());
@@ -154,7 +156,8 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
     }
 
     private WindowsInstallBundle bundleFor(GuestServer server, WindowsInstallTarget target, WindowsImage image,
-                                           WindowsDiskSelection.DiskSelection diskSelection) {
+                                           WindowsDiskSelection.DiskSelection diskSelection,
+                                           WindowsDriverSelection.Selection drivers, UUID token) {
         WindowsInstallAssets assets = source.assets();
         String productKey = properties.productKeysOrEmpty().forEdition(image.editionId()).orElseThrow();
         String autounattend = AutounattendRenderer.render(new AutounattendRenderer.AutounattendValues(
@@ -162,9 +165,11 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
                 AutounattendRenderer.computerNameFor(server.getSystemUUID()),
                 properties.effectiveTimeZone(), target.administratorPassword(),
                 tokenRegistry.baseUrl(), server.issueTokenIfAbsent().value(),   // E4-1-a-4 — 첫 로그온 완료 보고 인자
-                diskSelection.diskId()));                                       // E4-1-a-6 — 설치 대상 디스크 번호
+                diskSelection.diskId(),                                         // E4-1-a-6 — 설치 대상 디스크 번호
+                tokenRegistry.bundleUrlOf(token) + "/" + WindowsInstallFile.DRIVERS.fileName()));   // R15-2 — 드라이버 목록 URL
         String installBat = InstallBatRenderer.render(properties.shareUnc(), properties.shareUser(), properties.sharePassword());
         return new WindowsInstallBundle(assets.wimboot(), assets.bootWim(),
-                WindowsInstallTemplates.WINPESHL_INI, installBat, autounattend);
+                WindowsInstallTemplates.WINPESHL_INI, installBat, autounattend,
+                (drivers == null ? WindowsDriverSelection.Selection.EMPTY : drivers).toListText());
     }
 }

@@ -895,6 +895,11 @@ public class GuestServerQueryService {
         boolean provisioningCompleted = progress != null && progress.isCompleted();
         ProvisioningPhase nextPhase = completed.isPresent() && !provisioningCompleted && progress != null
                 && progress.currentPhase() != ProvisioningPhase.OS_INSTALLING ? progress.currentPhase() : null;
+        // R15-2 — 서빙 뒤에는 원장 meta 의 선택(그때 고른 것)만 보인다. 옛 행(키 없음)은 비운다 — 지금 판정을 덧대면 실제 설치와 어긋난다.
+        Optional<com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Selection> driverSelection =
+                running.or(() -> completed).isPresent()
+                        ? running.or(() -> completed).flatMap(windowsInstallLedger::driverSelectionOf)
+                        : resolved.map(WindowsInstallReadinessResolver.Resolved::driverSelection);
         return new GuestServerDetailResponse.WindowsInstall(
                 resolved.map(r -> r.target().imageName()).map(name -> name == null ? null : name.value())
                         .orElseGet(() -> latest.map(windowsInstallLedger::imageOf).orElse(null)),
@@ -921,7 +926,22 @@ public class GuestServerQueryService {
                         .map(row -> basisLabelOf(windowsInstallLedger.diskBasisOf(row)))                // 서빙 뒤 = 원장 meta 의 근거(CP5 O-1)
                         .orElseGet(() -> resolved.map(WindowsInstallReadinessResolver.Resolved::diskSelection)
                                 .map(this::diskSelectionNoteOf).orElse(null)),                        // HF15-5 — 서빙 전 안내
-                completed.map(windowsInstallLedger::diskConfirmationOf).orElse(null));
+                completed.map(windowsInstallLedger::diskConfirmationOf).orElse(null),
+                driverSelection.map(com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Selection::summary).orElse(null),
+                driverSelection.map(sel -> sel.entries().stream()
+                        .map(com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Entry::label).toList()).orElse(List.of()),
+                driverSelection.map(sel -> sel.skipped().stream()
+                        .map(com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Skipped::label).toList()).orElse(List.of()),
+                completed.map(windowsInstallLedger::installsOf).orElse(List.of()).stream().map(GuestServerQueryService::installLabelOf).toList());
+    }
+
+    /** R15-2 — 완료 보고의 항목별 설치 결과 한 줄. LEGACY(목록 없이 옛 전체 INF 루프) 는 폴더 없이 모드만. */
+    private static String installLabelOf(java.util.Map<String, Object> m) {
+        Object folder = m.get("folder");
+        Object mode = m.get("mode");
+        Object exit = m.get("exitCode");
+        String head = folder == null || "-".equals(folder) ? String.valueOf(mode) : folder + " · " + mode;
+        return head + " · 종료 코드 " + (exit == null ? "?" : exit);
     }
 
     /** 서빙 전 디스크 선택 안내(HF15-5) — BLOCKED 사유는 준비도 notes 가 이미 보이므로 여기서는 비운다. */

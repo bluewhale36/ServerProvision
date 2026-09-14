@@ -34,6 +34,7 @@ class WindowsInstallationResolutionProviderImplTest {
     private static final WindowsImageName STANDARD = new WindowsImageName("Windows Server 2025 SERVERSTANDARD");
 
     @Mock SettingAssignmentSnapshotRepository assignmentRepository;
+    @Mock com.example.serverprovision.management.os.repository.OSMetadataRepository osMetadataRepository;   // R15-2 — OsTarget 재료
     @InjectMocks WindowsInstallationResolutionProviderImpl provider;
 
     private void stubSnapshot(AbstractProcessRequest... requests) {
@@ -66,6 +67,25 @@ class WindowsInstallationResolutionProviderImplTest {
             assertThat(t.administratorPassword()).isEqualTo("P@ss");
             assertThat(t.toString()).doesNotContain("P@ss").contains("****");
         });
+    }
+
+    @Test
+    @DisplayName("R15-2 — 정의서의 OSMetadata 가 있으면 OsTarget(이름 · 버전)을 채우고, 없거나 삭제됐으면 UNKNOWN")
+    void windows_osTarget() {
+        com.example.serverprovision.management.os.entity.OSMetadata os = mock(com.example.serverprovision.management.os.entity.OSMetadata.class);
+        given(os.getOsName()).willReturn(com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER);
+        given(os.getOsVersion()).willReturn("2025");
+        given(osMetadataRepository.findById(1L)).willReturn(Optional.of(os));
+        stubSnapshot(new WindowsInstallationRequest(1L, 2L, STANDARD, new WindowsAdministratorPasswordRequest("P@ss", false)));
+
+        assertThat(provider.resolveFor(GUEST_ID)).hasValueSatisfying(t -> {
+            assertThat(t.osTarget().known()).isTrue();
+            assertThat(t.osTarget().osName()).isEqualTo(com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER);
+            assertThat(t.osTarget().osVersion()).isEqualTo("2025");
+        });
+
+        given(osMetadataRepository.findById(1L)).willReturn(Optional.empty());
+        assertThat(provider.resolveFor(GUEST_ID)).hasValueSatisfying(t -> assertThat(t.osTarget()).isEqualTo(WindowsInstallTarget.OsTarget.UNKNOWN));
     }
 
     @Test

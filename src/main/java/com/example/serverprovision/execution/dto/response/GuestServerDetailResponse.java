@@ -322,7 +322,15 @@ public record GuestServerDetailResponse(
             /** 서빙 전 디스크 선택의 안내(HF15-5 · F-1) — DEFERRED("RAID 구성 뒤 확정 — 계획의 OS 영역 …") · CONFIDENT("디스크 N · 근거"). 서빙 뒤 · BLOCKED 는 null. */
             String diskSelectionNote,
             /** E4-1-a-6 — 설치 뒤 C: 디스크 WWN 대조 결과: CONFIRMED · MISMATCH · UNREPORTED. 완료 전 null. */
-            String diskConfirmation
+            String diskConfirmation,
+            /** R15-2 — 드라이버 선택 요약 "드라이버 N(변형 M · 트리 K) · 제외 J". 서빙 전 = 지금 판정 · 서빙 뒤 = 원장 meta. R15-2 이전 행은 null. */
+            String driverSummary,
+            /** R15-2 — 선택된 항목 라벨(이름 · 모드 진입점 · 버전). */
+            List<String> driverEntries,
+            /** R15-2 — 후보였으나 제외된 패키지 라벨(이름 — 사유). */
+            List<String> driversSkipped,
+            /** R15-2 — 완료 보고의 항목별 설치 결과 "폴더 · 모드 · 종료 코드 N". 완료 전 · 미보고 빈 목록. */
+            List<String> driverInstalls
     ) {
         /** 설치 중(열린 서빙 행) — 완료 · 실패 뒤에는 false. */
         public boolean served() {

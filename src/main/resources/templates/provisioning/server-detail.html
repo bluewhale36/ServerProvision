@@ -878,6 +878,12 @@
                             <span th:text="#{provisioning.windows.install.disk}">설치 대상 디스크</span>
                             <span class="n-hint" th:text="${wi.diskSelectionNote}">RAID 구성 뒤 확정 — 계획의 OS 영역 spvR1V1</span>
                         </li>
+                        <!-- R15-2 — 서빙 시점 드라이버 선택(보드 · 대상 OS · 버전). 서빙 뒤에는 원장 meta 의 그때 목록 -->
+                        <li th:if="${wi.driverSummary != null}"
+                            th:classappend="${#lists.isEmpty(wi.driverEntries)} ? 'is-blocked-or-skipped' : 'is-selected'">
+                            <span th:text="#{provisioning.windows.install.drivers}">드라이버</span>
+                            <span class="n-firmware-detail" th:text="${wi.driverSummary}">드라이버 2(변형 1 · 트리 1) · 제외 1</span>
+                        </li>
                         <li th:classappend="${wi.failedReason != null} ? 'is-failed' : (${wi.completed()} ? 'is-selected' : (${wi.served()} ? 'is-running' : ''))">
                             <span th:text="#{provisioning.windows.install.progress}">진행</span>
                             <!-- E4-1-a-4 — 완료 보고로 닫힌 행: 완료 시각 · ComputerName · 드라이버 · 문제 장치 -->
@@ -902,6 +908,25 @@
                                   th:text="#{provisioning.windows.install.progress.before}">서빙 전</span>
                         </li>
                     </ul>
+                    <!-- R15-2 — 선택 목록 · 제외 사유(접힘). 목록이 비면 안내 한 줄 -->
+                    <th:block th:if="${wi.driverSummary != null}">
+                        <p class="n-section-hint" th:if="${#lists.isEmpty(wi.driverEntries) and #lists.isEmpty(wi.driversSkipped)}"
+                           th:text="#{provisioning.windows.install.drivers.none}">선택된 드라이버가 없습니다.</p>
+                        <details th:if="${not #lists.isEmpty(wi.driverEntries)}" class="n-firmware-detail">
+                            <summary th:text="|#{provisioning.windows.install.drivers.list} (${#lists.size(wi.driverEntries)})|">선택 목록 (2)</summary>
+                            <p class="n-section-hint" th:text="#{provisioning.windows.install.drivers.hint}">서빙 시점에 고른 목록입니다.</p>
+                            <ul>
+                                <li th:each="d : ${wi.driverEntries}" th:text="${d}">ASPEED Graphics · MSI WDDM Installer\Win2025.msi · 2025</li>
+                            </ul>
+                        </details>
+                        <details th:if="${not #lists.isEmpty(wi.driversSkipped)}" class="n-firmware-detail">
+                            <summary th:text="|#{provisioning.windows.install.drivers.skipped} (${#lists.size(wi.driversSkipped)})|">제외 (1)</summary>
+                            <p class="n-section-hint" th:text="#{provisioning.windows.install.drivers.skipped.hint}">후보였으나 제외된 패키지입니다.</p>
+                            <ul>
+                                <li th:each="d : ${wi.driversSkipped}" th:text="${d}">Intel LAN — 해당 버전 변형 없음</li>
+                            </ul>
+                        </details>
+                    </th:block>
                     <p th:if="${wi.served() and wi.remainingMinutes != null and wi.remainingMinutes == 0}"
                        class="n-firmware-hold" th:text="#{provisioning.windows.install.progress.expired}">설치 시한이 지났습니다.</p>
                     <p th:if="${wi.served()}" class="n-section-hint"
@@ -921,6 +946,14 @@
                            th:text="#{provisioning.windows.install.disk.mismatch}">경고 — 계획한 OS 볼륨과 다른 디스크에 설치됐습니다.</p>
                         <p class="n-section-hint" th:if="${wi.diskConfirmation == 'UNREPORTED'}"
                            th:text="#{provisioning.windows.install.disk.unreported}">설치 디스크 확증 정보가 없습니다.</p>
+                        <!-- R15-2 — 항목별 설치 결과(SetupComplete [SPV-INSTALL] 줄) -->
+                        <details th:if="${not #lists.isEmpty(wi.driverInstalls)}" class="n-firmware-detail">
+                            <summary th:text="|#{provisioning.windows.install.drivers.installs} (${#lists.size(wi.driverInstalls)})|">설치 결과 (2)</summary>
+                            <p class="n-section-hint" th:text="#{provisioning.windows.install.drivers.installs.hint}">게스트가 항목별로 보고한 종료 코드입니다.</p>
+                            <ul>
+                                <li th:each="d : ${wi.driverInstalls}" th:text="${d}">4_aspeed-driver · MSI · 종료 코드 0</li>
+                            </ul>
+                        </details>
                         <details th:if="${wi.problemDeviceCount > 0}" class="n-firmware-detail">
                             <summary th:text="|#{provisioning.windows.install.progress.completed.problems.list} (${wi.problemDeviceCount})|">문제 장치 목록 (2)</summary>
                             <p class="n-section-hint" th:text="#{provisioning.windows.install.progress.completed.problems.hint}">드라이버가 잡히지 않은 장치입니다.</p>

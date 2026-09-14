@@ -14,7 +14,7 @@ class WindowsInstallTokenRegistryTest {
 
     private static final UUID GUEST = UUID.randomUUID();
     private static final WindowsInstallBundle BUNDLE = new WindowsInstallBundle(
-            Path.of("/srv/pxe/win2025/wimboot"), Path.of("/srv/pxe/win2025/sources/boot.wim"), "ini", "bat", "xml");
+            Path.of("/srv/pxe/win2025/wimboot"), Path.of("/srv/pxe/win2025/sources/boot.wim"), "ini", "bat", "xml", "");
 
     private final WindowsInstallTokenRegistry registry = new WindowsInstallTokenRegistry("http://10.0.0.7:8080/");
 

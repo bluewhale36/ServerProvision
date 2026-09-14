@@ -33,7 +33,9 @@ public final class AutounattendRenderer {
             String administratorPassword,
             String reportBaseUrl,
             String guestToken,
-            int diskId
+            int diskId,
+            /** R15-2 — 이 게스트의 드라이버 목록 URL(토큰 번들의 spv-drivers.lst). specialize 패스가 내려받는다. */
+            String driversUrl
     ) {
         @Override
         public String toString() {
@@ -54,6 +56,7 @@ public final class AutounattendRenderer {
                 .replace("__REPORT_BASE_URL__", escape(v.reportBaseUrl()))
                 .replace("__GUEST_TOKEN__", escape(v.guestToken()))
                 .replace("__DISK_ID__", Integer.toString(v.diskId()))
+                .replace("__DRIVERS_URL__", escape(v.driversUrl()))
                 .replace("__ADMIN_PASSWORD_B64__",
                         UnattendPassword.encode(v.administratorPassword(), UnattendPassword.ADMINISTRATOR_NODE))
                 .replace("__AUTOLOGON_PASSWORD_B64__",

@@ -23,19 +23,64 @@ public final class WindowsOemTemplates {
      */
     public static final String SETUPCOMPLETE_CMD = """
             @echo off
-            rem ServerProvision E4-1-a-4 - SetupComplete.cmd (runs once as SYSTEM after Windows Setup, before first logon).
-            rem Installs every driver bundle under %SystemDrive%\\SPV\\Drivers (copied by Setup from $OEM$\\$1\\SPV) with pnputil,
-            rem then records the problem-device list. Fieldwork #2/#3 (2026-09-02): 92 problem devices -> 0 with this loop.
+            rem ServerProvision E4-1-a-4 / R15-2 - SetupComplete.cmd (runs once as SYSTEM after Windows Setup, before first logon).
+            rem R15-2: if the server left a per-guest selection list (C:\\SPV\\spv-drivers.lst, downloaded in the specialize pass),
+            rem install only the listed entries by mode: TREE = pnputil over the whole folder, INF = pnputil on that file,
+            rem MSI = msiexec /i /qn /norestart, EXE = run directly. Without a list fall back to the legacy loop (every folder, all INF).
+            rem Every entry logs one line "[SPV-INSTALL] folder|mode|exit=N" which spv-report.ps1 forwards to the server.
             rem ASCII only. Setup skips this file when an OEM product key is used (GVLK / retail keys run it).
             setlocal EnableDelayedExpansion
             set SPV=%SystemDrive%\\SPV
             set LOG=%SPV%\\setupcomplete.log
+            set LIST=%SPV%\\spv-drivers.lst
+            set NEEDREBOOT=0
             if not exist "%SPV%" mkdir "%SPV%"
             echo [%DATE% %TIME%] SetupComplete start > "%LOG%"
             if not exist "%SPV%\\Drivers" (
               echo [%DATE% %TIME%] no driver payload at %SPV%\\Drivers >> "%LOG%"
               goto :problems
             )
+            if not exist "%LIST%" goto :legacy
+            echo [%DATE% %TIME%] selection list found: %LIST% >> "%LOG%"
+            for /f "usebackq tokens=1-5 delims=|" %%A in ("%LIST%") do (
+              set MODE=%%A
+              set FOLDER=%%B
+              set ENTRY=%%C
+              set ARGS=%%D
+              set REBOOT=%%E
+              rem "-" marks an empty field (for /f collapses consecutive delimiters, so the server never sends an empty field)
+              if "!ENTRY!"=="-" set ENTRY=
+              if "!ARGS!"=="-" set ARGS=
+              set BASE=%SPV%\\Drivers\\!FOLDER!
+              set RC=
+              if /i "!MODE!"=="TREE" (
+                echo [%DATE% %TIME%] pnputil /add-driver "!BASE!\\*.inf" /subdirs /install >> "%LOG%"
+                pnputil /add-driver "!BASE!\\*.inf" /subdirs /install >> "%LOG%" 2>&1
+                set RC=!ERRORLEVEL!
+              )
+              if /i "!MODE!"=="INF" (
+                echo [%DATE% %TIME%] pnputil /add-driver "!BASE!\\!ENTRY!" /install >> "%LOG%"
+                pnputil /add-driver "!BASE!\\!ENTRY!" /install >> "%LOG%" 2>&1
+                set RC=!ERRORLEVEL!
+              )
+              if /i "!MODE!"=="MSI" (
+                echo [%DATE% %TIME%] msiexec /i "!BASE!\\!ENTRY!" /qn /norestart !ARGS! >> "%LOG%"
+                msiexec /i "!BASE!\\!ENTRY!" /qn /norestart !ARGS! >> "%LOG%" 2>&1
+                set RC=!ERRORLEVEL!
+              )
+              if /i "!MODE!"=="EXE" (
+                echo [%DATE% %TIME%] "!BASE!\\!ENTRY!" !ARGS! >> "%LOG%"
+                "!BASE!\\!ENTRY!" !ARGS! >> "%LOG%" 2>&1
+                set RC=!ERRORLEVEL!
+              )
+              if "!RC!"=="" set RC=-1
+              echo [SPV-INSTALL] !FOLDER!^|!MODE!^|exit=!RC! >> "%LOG%"
+              if "!REBOOT!"=="1" set NEEDREBOOT=1
+            )
+            goto :problems
+            :legacy
+            echo [%DATE% %TIME%] no selection list - legacy all-INF loop >> "%LOG%"
+            echo [SPV-INSTALL] -^|LEGACY^|exit=0 >> "%LOG%"
             for /d %%D in ("%SPV%\\Drivers\\*") do (
               echo [%DATE% %TIME%] pnputil /add-driver "%%~fD\\*.inf" /subdirs /install >> "%LOG%"
               pnputil /add-driver "%%~fD\\*.inf" /subdirs /install >> "%LOG%" 2>&1
@@ -45,6 +90,10 @@ public final class WindowsOemTemplates {
             echo [%DATE% %TIME%] problem devices: >> "%LOG%"
             pnputil /enum-devices /problem >> "%LOG%" 2>&1
             echo [%DATE% %TIME%] SetupComplete end >> "%LOG%"
+            if "%NEEDREBOOT%"=="1" (
+              echo [%DATE% %TIME%] reboot requested by a driver entry - shutdown /r /t 10 >> "%LOG%"
+              shutdown /r /t 10 /c "ServerProvision driver install requested a reboot"
+            )
             endlocal
             exit /b 0
             """;
@@ -94,6 +143,16 @@ public final class WindowsOemTemplates {
                 if ($logTail.Length -gt 4000) { $logTail = $logTail.Substring($logTail.Length - 4000) }
               }
 
+              # R15-2: per-entry install results written by SetupComplete as "[SPV-INSTALL] folder|mode|exit=N" (max 50 forwarded).
+              $installs = New-Object System.Collections.Generic.List[object]
+              if (Test-Path $logPath) {
+                foreach ($m in ($lines | Select-String -Pattern '^\\[SPV-INSTALL\\] ([^|]*)\\|([^|]*)\\|exit=(-?\\d+)')) {
+                  if ($installs.Count -ge 50) { break }
+                  $g = $m.Matches[0].Groups
+                  $installs.Add(@{ folder = $g[1].Value; mode = $g[2].Value; exitCode = [int]$g[3].Value })
+                }
+              }
+
               # Problem devices = present PnP devices whose Status is not OK (enum, language-neutral) - the pnputil problem listing is not parsed any more.
               $problems = New-Object System.Collections.Generic.List[string]
               try {
@@ -130,10 +189,11 @@ public final class WindowsOemTemplates {
                 problemDevices = @($problems | Select-Object -First 50)
                 setupCompleteLogTail = $logTail
                 installedDiskUniqueId = $installedDiskUniqueId
+                installs = @($installs)
               } | ConvertTo-Json -Depth 3 -Compress
               $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
               $headers = @{ 'X-Guest-Token' = $Token }
-              Write-Output ("reporting to {0}: computerName={1} drivers={2} problems={3}" -f $uri, $env:COMPUTERNAME, $driversAdded, $problems.Count)
+              Write-Output ("reporting to {0}: computerName={1} drivers={2} problems={3} installs={4}" -f $uri, $env:COMPUTERNAME, $driversAdded, $problems.Count, $installs.Count)
 
               for ($i = 1; $i -le 20; $i++) {
                 try {

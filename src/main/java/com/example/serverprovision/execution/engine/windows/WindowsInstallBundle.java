@@ -12,7 +12,8 @@ public record WindowsInstallBundle(
         Path bootWim,
         String winpeshlIni,
         String installBat,
-        String autounattendXml
+        String autounattendXml,
+        String driversList
 ) {
 
     public Optional<Path> pathOf(WindowsInstallFile file) {
@@ -28,6 +29,7 @@ public record WindowsInstallBundle(
             case WINPESHL -> Optional.ofNullable(winpeshlIni);
             case INSTALL_BAT -> Optional.ofNullable(installBat);
             case AUTOUNATTEND -> Optional.ofNullable(autounattendXml);
+            case DRIVERS -> Optional.ofNullable(driversList);
             default -> Optional.empty();
         };
     }

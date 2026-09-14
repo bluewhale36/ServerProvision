@@ -55,6 +55,8 @@ public class WindowsInstallReadinessResolver {
     private final WindowsInstallSource source;
     private final RaidVolumeRepository raidVolumeRepository;
     private final GuestServerDetailRepository detailRepository;
+    private final com.example.serverprovision.management.subprogram.repository.SubprogramRepository subprogramRepository;   // R15-2
+    private final WindowsOemPayloadAssembler oemAssembler;                                                             // R15-2 — 매니페스트 폴더 집합
     private final ProvisioningProgressRepository progressRepository;
     private final OwnedPhasesProvider ownedPhasesProvider;
     private final RaidConfigurationResolutionProvider raidResolutionProvider;
@@ -65,7 +67,8 @@ public class WindowsInstallReadinessResolver {
      * 목표일 때만 계산된다(리눅스 · 창 밖은 판정 대상 아님).
      */
     public record Resolved(WindowsInstallTarget target, InstallSourceSnapshot snapshot,
-                           Optional<WindowsImage> image, PhaseReadiness readiness, DiskSelection diskSelection) {
+                           Optional<WindowsImage> image, PhaseReadiness readiness, DiskSelection diskSelection,
+                           WindowsDriverSelection.Selection driverSelection) {
     }
 
     /** empty = 창 밖(활성 할당 없음 · OS 설치 단계 없음). */
@@ -81,7 +84,10 @@ public class WindowsInstallReadinessResolver {
         // 디스크 선택은 Windows 목표일 때만 의미가 있다(리눅스는 base 가 이미 미지원으로 막는다).
         DiskSelection selection = target.get().windows() ? selectDisk(guestServerId) : null;
         PhaseReadiness readiness = combine(base, selection);
-        return Optional.of(new Resolved(target.get(), snapshot, image, readiness, selection));
+        // R15-2 — 드라이버 선택은 준비도를 막지 않는다(0 이어도 설치는 진행 · 카드에 안내만).
+        WindowsDriverSelection.Selection drivers = target.get().windows()
+                ? selectDrivers(guestServerId, target.get().osTarget()) : WindowsDriverSelection.Selection.EMPTY;
+        return Optional.of(new Resolved(target.get(), snapshot, image, readiness, selection, drivers));
     }
 
     public PhaseReadiness readiness(UUID guestServerId) {
@@ -98,6 +104,19 @@ public class WindowsInstallReadinessResolver {
             return deferredByPlan(guestServerId, inventory);
         }
         return WindowsDiskSelection.judge(volumes, inventory);
+    }
+
+    /** 서빙 시점 드라이버 선택(R15-2 D-2) — 게스트 보드 · 대상 OS · 활성 DRIVER · 현재 $OEM$ 매니페스트의 폴더 집합. */
+    private WindowsDriverSelection.Selection selectDrivers(UUID guestServerId, WindowsInstallTarget.OsTarget osTarget) {
+        Long boardId = detailRepository.findByGuestServer_Id(guestServerId)
+                .map(d -> d.getBoardModel() == null ? null : d.getBoardModel().getId())
+                .orElse(null);
+        java.util.Set<String> assembled = oemAssembler.readManifest()
+                .map(m -> m.entries().stream().map(WindowsOemManifest.Entry::folder).collect(java.util.stream.Collectors.toSet()))
+                .orElse(java.util.Set.of());
+        return WindowsDriverSelection.select(boardId, osTarget,
+                subprogramRepository.findAllByKindAndIsDeletedFalse(com.example.serverprovision.management.subprogram.enums.SubprogramKind.DRIVER),
+                assembled);
     }
 
     /** RAID 구성 단계를 보유했고 커서가 아직 그 단계를 지나지 않았는가 — 지났다면 볼륨 부재는 실패다. */

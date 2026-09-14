@@ -98,7 +98,7 @@ class GuestServerQueryServiceWindowsInstallTest {
 
     private static WindowsInstallReadinessResolver.Resolved resolved(PhaseReadiness readiness) {
         return new WindowsInstallReadinessResolver.Resolved(WindowsInstallTarget.windows(STANDARD, "P@ss"),
-                InstallSourceSnapshot.present(List.of(image()), 1L, Instant.now()), Optional.of(image()), readiness, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER));
+                InstallSourceSnapshot.present(List.of(image()), 1L, Instant.now()), Optional.of(image()), readiness, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Selection.EMPTY);
     }
 
     private ProvisioningProgress progressAt(ProvisioningPhaseStep step) {

@@ -12,7 +12,8 @@ class AutounattendRendererTest {
 
     private static AutounattendRenderer.AutounattendValues values(String imageName, String password) {
         return new AutounattendRenderer.AutounattendValues("ko-KR", "TVRH6-WHNXV-R9WG3-9XRFY-MY832", imageName,
-                "SPV-14174000", "Korea Standard Time", password, "http://10.0.0.7:8080", "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d", 0);
+                "SPV-14174000", "Korea Standard Time", password, "http://10.0.0.7:8080", "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d", 0,
+                "http://10.0.0.7:8080/api/pxe/v1/windows/00000000-0000-0000-0000-000000000001/spv-drivers.lst");
     }
 
     @Test
@@ -54,7 +55,8 @@ class AutounattendRendererTest {
     void render_diskId_bothSlots() {
         AutounattendRenderer.AutounattendValues v = new AutounattendRenderer.AutounattendValues("ko-KR",
                 "TVRH6-WHNXV-R9WG3-9XRFY-MY832", "Windows Server 2025 SERVERSTANDARD", "SPV-14174000",
-                "Korea Standard Time", "P@ss", "http://10.0.0.7:8080", "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d", 3);
+                "Korea Standard Time", "P@ss", "http://10.0.0.7:8080", "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d", 3,
+                "http://10.0.0.7:8080/api/pxe/v1/windows/00000000-0000-0000-0000-000000000001/spv-drivers.lst");
         String xml = AutounattendRenderer.render(v);
 
         assertThat(xml).doesNotContain("__DISK_ID__").doesNotContain("<DiskID>0</DiskID>");
@@ -80,5 +82,15 @@ class AutounattendRendererTest {
         assertThat(name).isEqualTo("SPV-14174000").hasSizeLessThanOrEqualTo(15);
         assertThat(AutounattendRenderer.computerNameFor(uuid)).isEqualTo(name);
         assertThat(AutounattendRenderer.computerNameFor(UUID.fromString("00000000-0000-0000-0000-0000deadbeef"))).isEqualTo("SPV-DEADBEEF");
+    }
+
+    @Test
+    @DisplayName("R15-2 — specialize 의 RunSynchronousCommand 가 토큰 URL 의 spv-drivers.lst 를 C:\\SPV 로 내려받는다(자리표시자 0 · & 는 &amp;)")
+    void render_driversListDownload() {
+        String xml = AutounattendRenderer.render(values("Windows Server 2025 SERVERSTANDARD", "P@ssw0rd!"));
+        assertThat(xml).doesNotContain("__DRIVERS_URL__")
+                .contains("<RunSynchronousCommand wcm:action=\"add\"")
+                .contains("cmd /c mkdir C:\\SPV &amp; curl.exe -fsS -o C:\\SPV\\spv-drivers.lst "
+                        + "\"http://10.0.0.7:8080/api/pxe/v1/windows/00000000-0000-0000-0000-000000000001/spv-drivers.lst\"");
     }
 }

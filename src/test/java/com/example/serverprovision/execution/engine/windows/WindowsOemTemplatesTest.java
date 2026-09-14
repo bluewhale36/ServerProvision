@@ -23,6 +23,30 @@ class WindowsOemTemplatesTest {
     }
 
     @Test
+    @DisplayName("R15-2 — SetupComplete 는 spv-drivers.lst 를 5 필드로 읽어 TREE · INF · MSI · EXE 로 분기하고 항목마다 [SPV-INSTALL] 줄을 남긴다 · 목록이 없으면 옛 전체 INF 루프")
+    void setupComplete_listDriven() {
+        String cmd = WindowsOemTemplates.SETUPCOMPLETE_CMD;
+        assertThat(cmd).contains("set LIST=%SPV%\\spv-drivers.lst").contains("if not exist \"%LIST%\" goto :legacy")
+                .contains("tokens=1-5 delims=|").contains("if \"!ENTRY!\"==\"-\" set ENTRY=").contains("if \"!ARGS!\"==\"-\" set ARGS=")
+                .contains("if /i \"!MODE!\"==\"TREE\"").contains("if /i \"!MODE!\"==\"INF\"")
+                .contains("if /i \"!MODE!\"==\"MSI\"").contains("if /i \"!MODE!\"==\"EXE\"")
+                .contains("msiexec /i \"!BASE!\\!ENTRY!\" /qn /norestart !ARGS!")
+                .contains("pnputil /add-driver \"!BASE!\\*.inf\" /subdirs /install")
+                .contains("echo [SPV-INSTALL] !FOLDER!^|!MODE!^|exit=!RC!")
+                .contains("if \"!REBOOT!\"==\"1\" set NEEDREBOOT=1").contains("shutdown /r /t 10")
+                .contains(":legacy").contains("[SPV-INSTALL] -^|LEGACY^|exit=0");
+    }
+
+    @Test
+    @DisplayName("R15-2 — spv-report.ps1 은 [SPV-INSTALL] 줄을 installs(folder · mode · exitCode · 최대 50) 로 본문에 싣는다")
+    void reportScript_forwardsInstalls() {
+        String ps1 = WindowsOemTemplates.SPV_REPORT_PS1;
+        assertThat(ps1).contains("[SPV-INSTALL]").contains("exit=(-?\\d+)").contains("$installs.Count -ge 50")
+                .contains("folder = $g[1].Value; mode = $g[2].Value; exitCode = [int]$g[3].Value")
+                .contains("installs = @($installs)");
+    }
+
+    @Test
     @DisplayName("두 원문은 ASCII 만 쓴다(WinPE · cmd 코드페이지) · 해시는 원문에서 결정된다")
     void asciiOnly_andHash() {
         for (String text : new String[]{WindowsOemTemplates.SETUPCOMPLETE_CMD, WindowsOemTemplates.SPV_REPORT_PS1}) {
