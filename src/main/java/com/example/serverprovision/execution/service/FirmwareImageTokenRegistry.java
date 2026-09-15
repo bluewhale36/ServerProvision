@@ -30,6 +30,8 @@ public class FirmwareImageTokenRegistry {
     private final Map<UUID, Path> issued = new ConcurrentHashMap<>();
     /** (게스트, 축) → 지금 유효한 토큰. 굽기가 끝나면 이 키로 회수한다 — 토큰만으로는 누구 것인지 모른다. */
     private final Map<String, UUID> byAxis = new ConcurrentHashMap<>();
+    /** 토큰 → 게스트 — 게스트 체인이 서빙 토큰(BMC 가 당겨 가는 URL)으로 신원을 세울 때 쓴다(S19-1 D-3). */
+    private final Map<UUID, UUID> guestByToken = new ConcurrentHashMap<>();
     private final String baseUrl;
 
     public FirmwareImageTokenRegistry(@Value("${pxe.server.base-url:}") String baseUrl) {
@@ -40,9 +42,11 @@ public class FirmwareImageTokenRegistry {
     public UUID issue(UUID guestServerId, FirmwareAxis axis, Path imagePath) {
         UUID token = UUID.randomUUID();
         issued.put(token, imagePath);
+        guestByToken.put(token, guestServerId);
         UUID previous = byAxis.put(key(guestServerId, axis), token);
         if (previous != null) {
             issued.remove(previous);   // 재시도로 다시 구울 때 옛 URL 이 살아 있지 않게
+            guestByToken.remove(previous);
         }
         // 토큰 값 · 파일명을 함께 남긴다 — 사후에 접근 로그(URL 의 token/파일명 세그먼트)와 대조해
         // "그때 무엇이 서빙됐는가" 를 로그만으로 추적하기 위함(2026-08-25). 토큰은 회수되면 죽는 일회용이다.
@@ -59,6 +63,7 @@ public class FirmwareImageTokenRegistry {
         UUID token = byAxis.remove(key(guestServerId, axis));
         if (token != null) {
             issued.remove(token);
+            guestByToken.remove(token);
             log.info("[flash] {} — {} 이미지 토큰 회수", guestServerId, axis.label());
         }
     }
@@ -75,6 +80,12 @@ public class FirmwareImageTokenRegistry {
     /** 그 축의 집행이 끝나면 회수한다 — 파일이 필요 이상으로 열려 있지 않게. */
     public void revoke(UUID token) {
         issued.remove(token);
+        guestByToken.remove(token);
+    }
+
+    /** 토큰을 발급받은 게스트 — 없거나 회수됐으면 empty(게스트 체인의 서빙 토큰 인증 재료). */
+    public Optional<UUID> guestOf(UUID token) {
+        return Optional.ofNullable(guestByToken.get(token));
     }
 
     /**

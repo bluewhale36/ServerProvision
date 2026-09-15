@@ -28,7 +28,7 @@ public class BootService {
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public String boot(BootIPXEInfoRequest request, String rebootQuery) {
+    public String boot(BootIPXEInfoRequest request, String reentryUrl) {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         GuestServer server = registrationService.initialRegistry(request);
         server.touchBoot(now);   // 부팅 · 접촉 관찰 로그(E1-2 DEC-32 · HF15-1) — dispatch 판정 입력 아님, 설정 판독의 복귀 증거
@@ -40,7 +40,7 @@ public class BootService {
         PhaseReadiness readiness = phaseEntryGate.evaluate(server, progress, now);
         // 실시간 스트림 신호(S7) — 등록·접촉 변화. AFTER_COMMIT 리스너가 커밋 확정 후에만 내보낸다.
         eventPublisher.publishEvent(new GuestServerChangedEvent(server.getId()));
-        BootDispatch dispatch = bootScriptDispatcher.dispatch(server, progress, readiness, rebootQuery == null ? "" : rebootQuery);
+        BootDispatch dispatch = bootScriptDispatcher.dispatch(server, progress, readiness, reentryUrl);
         // 착수 훅(E4-1-a-3 D-1) — 위임된 실행기만 받는다. 게스트가 보고할 수 없는 phase 는 "내준 사실" 이 착수 신호다.
         dispatch.delegated().ifPresent(executor -> executor.onBootScriptServed(server, progress, now));
         return dispatch.script();

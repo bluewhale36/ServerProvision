@@ -54,7 +54,9 @@ class DiagnoseLinuxExecutorTest {
                 .willReturn(java.util.Set.of());
         eventPublisher = org.mockito.Mockito.mock(org.springframework.context.ApplicationEventPublisher.class);
         executor = new DiagnoseLinuxExecutor(
-                new PxeAssetsProperties(assetsRoot.toString(), "http://10.0.2.2:7777/"),
+                // S19-2 — 자산 URL 은 PXE 부팅 자격이 든 절대 URL, provision_base 는 자격 없이(에이전트는 토큰)
+                new com.example.serverprovision.execution.engine.boot.PxeBootUrls("http://10.0.2.2:7777/",
+                        new com.example.serverprovision.execution.config.PxeBootProperties("pxe", "s3cret", "")),
                 new DiagnosticReportParser(mapper),
                 detailRepository, recorder, mapper,
                 new PhaseCursorAdvancer(ownedPhasesProvider), eventPublisher,
@@ -102,20 +104,20 @@ class DiagnoseLinuxExecutorTest {
     @Test
     @DisplayName("체인로드 스크립트 — 자산 절대 URL · 커널 인자 계약 · EFI initrd= · 실패 폴백 전부 포함")
     void bootScript_containsFullContract() {
-        String script = executor.bootScript(server(new GuestToken(TOKEN)), progress(), "systemUUID=abc");
+        String script = executor.bootScript(server(new GuestToken(TOKEN)), progress(), "http://pxe:s3cret@10.0.2.2:7777/api/pxe/v1/boot?systemUUID=abc");
 
         assertThat(script)
                 .startsWith("#!ipxe")
-                .contains("kernel http://10.0.2.2:7777/api/pxe/v1/assets/vmlinuz-lts")
-                .contains("alpine_repo=http://10.0.2.2:7777/api/pxe/v1/assets/repo/main")
-                .contains("modloop=http://10.0.2.2:7777/api/pxe/v1/assets/modloop-lts")
-                .contains("apkovl=http://10.0.2.2:7777/api/pxe/v1/assets/diag.apkovl.tar.gz")
+                .contains("kernel http://pxe:s3cret@10.0.2.2:7777/api/pxe/v1/assets/vmlinuz-lts")
+                .contains("alpine_repo=http://pxe:s3cret@10.0.2.2:7777/api/pxe/v1/assets/repo/main")
+                .contains("modloop=http://pxe:s3cret@10.0.2.2:7777/api/pxe/v1/assets/modloop-lts")
+                .contains("apkovl=http://pxe:s3cret@10.0.2.2:7777/api/pxe/v1/assets/diag.apkovl.tar.gz")
                 .contains("provision_token=" + TOKEN)
-                .contains("provision_base=http://10.0.2.2:7777")
+                .contains("provision_base=http://10.0.2.2:7777 initrd=initramfs-lts")   // 자격 없음(에이전트는 토큰)
                 .contains("initrd=initramfs-lts")                       // EFI 필수 중복 명기(E1-R §1)
-                .contains("initrd http://10.0.2.2:7777/api/pxe/v1/assets/initramfs-lts")
+                .contains("initrd http://pxe:s3cret@10.0.2.2:7777/api/pxe/v1/assets/initramfs-lts")
                 .contains(":failed")                                    // 로드 실패 폴백 라벨
-                .contains("chain /api/pxe/v1/boot?systemUUID=abc")      // 재진입은 원본 쿼리 그대로
+                .contains("chain http://pxe:s3cret@10.0.2.2:7777/api/pxe/v1/boot?systemUUID=abc")   // 재진입 = 절대 자격 URL 그대로
                 .doesNotContain("7777//");                              // base-url 정규화 검증
     }
 

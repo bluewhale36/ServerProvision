@@ -20,9 +20,9 @@ public interface ProvisioningPhaseExecutor {
     /**
      * 이 phase 에 진입한(또는 진행 중인) 게스트의 {@code /boot} 재진입에 줄 iPXE 스크립트.
      *
-     * @param rebootQuery 게스트가 재진입할 때 그대로 되돌려줄 원본 쿼리 문자열 (chain URL 조립용)
+     * @param reentryUrl 게스트가 같은 신원으로 /boot 를 다시 묻는 chain 대상(S19-2 — PxeBootUrls.reentry 가 만든 절대 자격 URL)
      */
-    String bootScript(GuestServer server, ProvisioningProgress progress, String rebootQuery);
+    String bootScript(GuestServer server, ProvisioningProgress progress, String reentryUrl);
 
     /**
      * 이 phase 의 step 종결 보고 소비(E1-2 신설 — DEC-6 이 예고한 "두 번째 실물" 시점의 확장).

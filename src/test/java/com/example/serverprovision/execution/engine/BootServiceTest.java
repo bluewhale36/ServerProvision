@@ -62,10 +62,10 @@ class BootServiceTest {
                 .willReturn(PhaseReadiness.ready());
         given(bootScriptDispatcher.dispatch(org.mockito.ArgumentMatchers.eq(server),
                 org.mockito.ArgumentMatchers.eq(progress), org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.eq(""))).willReturn(
+                org.mockito.ArgumentMatchers.eq("/api/pxe/v1/boot?systemUUID=x"))).willReturn(   // S19-2 — 재진입 URL 은 컨트롤러가 만들어 넘긴다
                 com.example.serverprovision.execution.engine.boot.BootDispatch.plain("#!ipxe\nsleep 30"));
 
-        String script = service.boot(REQUEST, null);
+        String script = service.boot(REQUEST, "/api/pxe/v1/boot?systemUUID=x");
 
         assertThat(script).isEqualTo("#!ipxe\nsleep 30");
         assertThat(server.getLastSeenAt()).isNotNull();   // 접촉 관찰 갱신(DEC-32)

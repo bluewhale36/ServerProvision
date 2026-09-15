@@ -1,7 +1,7 @@
 package com.example.serverprovision.execution.engine.raid;
 
 import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
-import com.example.serverprovision.execution.config.PxeAssetsProperties;
+import com.example.serverprovision.execution.engine.boot.PxeBootUrls;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
@@ -43,7 +43,7 @@ class RaidConfigurationExecutorTest {
 
     private static final UUID GUEST_ID = UUID.randomUUID();
 
-    @Mock PxeAssetsProperties properties;
+    @Mock PxeBootUrls pxeBootUrls;
     @Mock GuestServerDetailRepository guestServerDetailRepository;
     @Mock RaidInventoryParser inventoryParser;
     @Mock RaidConfigurationResolutionProvider resolutionProvider;

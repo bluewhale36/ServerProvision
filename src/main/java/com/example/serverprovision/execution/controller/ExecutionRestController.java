@@ -3,6 +3,7 @@ package com.example.serverprovision.execution.controller;
 import com.example.serverprovision.execution.dto.BootIPXEInfoRequest;
 import com.example.serverprovision.execution.engine.boot.BootService;
 import com.example.serverprovision.execution.engine.boot.IpxeScripts;
+import com.example.serverprovision.execution.engine.boot.PxeBootUrls;
 import com.example.serverprovision.global.exception.ExceptionLogPolicy;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * PXE 부팅 채널(iPXE)의 진입점. E1-0b 부터 응답이 빈 200 이 아니라 <b>text/plain iPXE 스크립트</b>다 —
+ * PXE 부팅 채널(iPXE)의 entry point. E1-0b 부터 응답이 빈 200 이 아니라 <b>text/plain iPXE 스크립트</b>다 —
  * 판정(dispatch 매트릭스)은 {@link BootService} 가, 스크립트 조립은 {@code IpxeScripts} 가 담당한다.
  *
  * <p><b>예외 → 안전 스크립트 변환(DEC-5)</b>: JSON/HTML 오류가 iPXE 로 새면 파싱 불능 → 부팅 실패
@@ -32,12 +33,14 @@ import org.springframework.web.bind.annotation.*;
 public class ExecutionRestController {
 
     private final BootService bootService;
+    private final PxeBootUrls pxeBootUrls;
 
     @GetMapping(value = "/boot", produces = MediaType.TEXT_PLAIN_VALUE)
     public String initialBoot(@ModelAttribute BootIPXEInfoRequest initialRequest, HttpServletRequest request) {
         log.info("PXE 부팅 요청 : info={}", initialRequest.toString());
         // 재진입(chain) URL 은 게스트가 보낸 쿼리를 그대로 되돌려 준다 — /boot 를 무상태로 유지하는 방법.
-        return bootService.boot(initialRequest, request.getQueryString());
+        // S19-2 — 대상은 PXE 부팅 credential 이 든 절대 URL(base-url 없는 인스턴스는 상대 경로).
+        return bootService.boot(initialRequest, pxeBootUrls.reentry(request.getQueryString()));
     }
 
     /** PXE 채널 전용 예외 경계 — 전 예외를 200 + 재시도 스크립트로. 원 예외 로그는 그대로(silent 흡수 아님). */
@@ -46,6 +49,6 @@ public class ExecutionRestController {
         ResponseStatus rs = AnnotationUtils.findAnnotation(ex.getClass(), ResponseStatus.class);
         HttpStatus mapped = rs != null ? rs.value() : HttpStatus.INTERNAL_SERVER_ERROR;
         ExceptionLogPolicy.record("pxe.boot.converted", ex, mapped, "ipxe");
-        return IpxeScripts.retryAfterError(request.getQueryString());
+        return IpxeScripts.retryAfterError(pxeBootUrls.reentry(request.getQueryString()));
     }
 }

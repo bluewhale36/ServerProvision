@@ -48,7 +48,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({ BootService.class, BootScriptDispatcher.class, PhaseExecutorRegistry.class,
         com.example.serverprovision.execution.engine.boot.PhaseEntryGate.class,
         com.example.serverprovision.execution.engine.phase.HoldTtlPolicy.class,
-        ExecutionRestControllerBootFlowTest.FakeDiagnoseExecutor.class })
+        ExecutionRestControllerBootFlowTest.FakeDiagnoseExecutor.class,
+        com.example.serverprovision.execution.config.PxeBootProperties.class, com.example.serverprovision.execution.engine.boot.PxeBootUrls.class })   // S19-2 — base-url 없음 = 상대 재진입
 class ExecutionRestControllerBootFlowTest {
 
     /** dispatch 7행(실행기 위임) 검증용 가짜 실행기 — DIAGNOSE_LINUX 만 등록(다른 phase 는 HOLD 유지). */

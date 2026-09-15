@@ -21,7 +21,7 @@ public class FirmwareSettingExecutor implements ProvisioningPhaseExecutor {
     }
 
     @Override
-    public String bootScript(GuestServer server, ProvisioningProgress progress, String rebootQuery) {
-        return IpxeScripts.awaitingBiosSetting(rebootQuery);
+    public String bootScript(GuestServer server, ProvisioningProgress progress, String reentryUrl) {
+        return IpxeScripts.awaitingBiosSetting(reentryUrl);
     }
 }

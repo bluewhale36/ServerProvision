@@ -8,8 +8,11 @@ import com.example.serverprovision.execution.enums.AgentDirective;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.exception.AgentReportRejectedException;
-import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.exception.ProvisioningHistoryNotFoundException;
+import com.example.serverprovision.global.security.springsecurity.guest.GuestPrincipal;
+import com.example.serverprovision.global.security.springsecurity.guest.GuestTestSupport;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,18 +45,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class GuestAgentRestControllerFlowTest {
 
     private static final String TOKEN = "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d";
+    private static final GuestPrincipal GUEST = new GuestPrincipal(UUID.randomUUID(), UUID.randomUUID());   // S19-1 — 체인이 세운 principal
 
     @Autowired MockMvc mvc;
 
     @MockitoBean AgentReportService agentReportService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
+    /** 슬라이스에는 게스트 체인이 없으므로 체인이 세웠을 principal 을 컨텍스트에 직접 둔다(S19-1). */
+    @BeforeEach
+    void authenticateAsGuest() {
+        GuestTestSupport.authenticateAs(GUEST.guestServerId(), GUEST.systemUUID());
+    }
+
+    @AfterEach
+    void clearGuest() {
+        GuestTestSupport.clear();
+    }
+
     // ==== 성공 2xx ====================================================
 
     @Test
     @DisplayName("POST /agent/checkin — 새 지시 값 RAID_INVENTORY 직렬화 (E3.5-1)")
     void checkin_carriesRaidInventoryDirective() throws Exception {
-        given(agentReportService.checkin(TOKEN))
+        given(agentReportService.checkin(GUEST))
                 .willReturn(new AgentCheckinResponse(AgentDirective.RAID_INVENTORY, "guest-01"));
 
         mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", TOKEN))
@@ -64,7 +79,7 @@ class GuestAgentRestControllerFlowTest {
     @Test
     @DisplayName("POST /agent/checkin — 200 + 지시 골격(WAIT) + 배너용 서버명(E1-1, DEC-33)")
     void checkin_returnsDirective() throws Exception {
-        given(agentReportService.checkin(TOKEN))
+        given(agentReportService.checkin(GUEST))
                 .willReturn(new AgentCheckinResponse(AgentDirective.WAIT, "rack-a-03"));
 
         mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", TOKEN))
@@ -77,7 +92,7 @@ class GuestAgentRestControllerFlowTest {
     @DisplayName("POST /agent/steps — DIAGNOSTIC_BOOTING(E1-1 신규 상수) 역직렬화 + 201")
     void openStep_diagnosticBooting_returns201() throws Exception {
         UUID stepId = UUID.randomUUID();
-        given(agentReportService.openStep(TOKEN, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING))
+        given(agentReportService.openStep(GUEST, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING))
                 .willReturn(new StepOpenResponse(stepId));
 
         mvc.perform(post("/api/pxe/v1/agent/steps").header("X-Guest-Token", TOKEN)
@@ -91,7 +106,7 @@ class GuestAgentRestControllerFlowTest {
     @DisplayName("POST /agent/steps — 201 + stepId (RUNNING 열림)")
     void openStep_returns201WithStepId() throws Exception {
         UUID stepId = UUID.randomUUID();
-        given(agentReportService.openStep(TOKEN, ProvisioningPhaseStep.INFORMATION_COLLECTING))
+        given(agentReportService.openStep(GUEST, ProvisioningPhaseStep.INFORMATION_COLLECTING))
                 .willReturn(new StepOpenResponse(stepId));
 
         mvc.perform(post("/api/pxe/v1/agent/steps").header("X-Guest-Token", TOKEN)
@@ -105,7 +120,7 @@ class GuestAgentRestControllerFlowTest {
     @DisplayName("POST /agent/steps/{id}/close — 200 + 다음 지시 바디(E1-2 — REBOOT 의 유일한 운반로)")
     void closeStep_returns200() throws Exception {
         UUID stepId = UUID.randomUUID();
-        given(agentReportService.closeStep(eq(TOKEN), eq(stepId), eq(ProvisioningStatus.FAILED), any()))
+        given(agentReportService.closeStep(eq(GUEST), eq(stepId), eq(ProvisioningStatus.FAILED), any()))
                 .willReturn(new StepCloseResponse(AgentDirective.WAIT));
 
         mvc.perform(post("/api/pxe/v1/agent/steps/{id}/close", stepId).header("X-Guest-Token", TOKEN)
@@ -114,7 +129,7 @@ class GuestAgentRestControllerFlowTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.directive").value("WAIT"));
 
-        verify(agentReportService).closeStep(eq(TOKEN), eq(stepId),
+        verify(agentReportService).closeStep(eq(GUEST), eq(stepId),
                 eq(ProvisioningStatus.FAILED), any());
     }
 
@@ -122,7 +137,7 @@ class GuestAgentRestControllerFlowTest {
     @DisplayName("close 응답 directive=REBOOT — 완주 지시가 close 바디로 운반된다 (E1-2)")
     void closeStep_carriesReboot() throws Exception {
         UUID stepId = UUID.randomUUID();
-        given(agentReportService.closeStep(eq(TOKEN), eq(stepId), eq(ProvisioningStatus.SUCCEEDED), any()))
+        given(agentReportService.closeStep(eq(GUEST), eq(stepId), eq(ProvisioningStatus.SUCCEEDED), any()))
                 .willReturn(new StepCloseResponse(AgentDirective.REBOOT));
 
         mvc.perform(post("/api/pxe/v1/agent/steps/{id}/close", stepId).header("X-Guest-Token", TOKEN)
@@ -132,32 +147,25 @@ class GuestAgentRestControllerFlowTest {
                 .andExpect(jsonPath("$.directive").value("REBOOT"));
     }
 
-    // ==== 404 — 토큰 사칭 · stepId forging ============================
+    // ==== 401 — 게스트 principal 없음 · 404 — stepId forging ============================
 
     @Test
-    @DisplayName("토큰 불일치 — checkin/open/close 3종 모두 404 (존재 비노출)")
-    void tokenMismatch_returns404() throws Exception {
-        willThrow(GuestServerNotFoundException.byToken()).given(agentReportService).checkin(any());
-        willThrow(GuestServerNotFoundException.byToken()).given(agentReportService).openStep(any(), any());
-        willThrow(GuestServerNotFoundException.byToken())
-                .given(agentReportService).closeStep(any(), any(), any(), any());
-
+    @DisplayName("게스트 principal 없음 — @CurrentGuest 가 401 (체인 뒤에서는 필터가 먼저 401 · 슬라이스에서는 인자 resolver 가 막는다)")
+    void noGuestPrincipal_returns401() throws Exception {
+        GuestTestSupport.clear();
         mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", "bad"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isUnauthorized());
         mvc.perform(post("/api/pxe/v1/agent/steps").header("X-Guest-Token", "bad")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"stepCode\":\"OS_INSTALLING\"}"))
-                .andExpect(status().isNotFound());
-        mvc.perform(post("/api/pxe/v1/agent/steps/{id}/close", UUID.randomUUID())
-                        .header("X-Guest-Token", "bad")
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"SUCCEEDED\"}"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isUnauthorized());
+        verify(agentReportService, org.mockito.Mockito.never()).checkin(any());
     }
 
     @Test
     @DisplayName("프로비저닝 중 아닌 서버(미개시·회수·종단) 보고 — 409 AgentReportRejected (게이트 우회 거절)")
     void notProvisioning_returns409() throws Exception {
         willThrow(AgentReportRejectedException.notProvisioning(UUID.randomUUID()))
-                .given(agentReportService).checkin(TOKEN);
+                .given(agentReportService).checkin(GUEST);
         willThrow(AgentReportRejectedException.notProvisioning(UUID.randomUUID()))
                 .given(agentReportService).openStep(any(), any());
 
@@ -173,7 +181,7 @@ class GuestAgentRestControllerFlowTest {
     void openStep_phaseMismatch_returns409() throws Exception {
         willThrow(AgentReportRejectedException.phaseMismatch(
                 UUID.randomUUID(), ProvisioningPhaseStep.BIOS_UPDATING, ProvisioningPhaseStep.INFORMATION_COLLECTING))
-                .given(agentReportService).openStep(TOKEN, ProvisioningPhaseStep.BIOS_UPDATING);
+                .given(agentReportService).openStep(GUEST, ProvisioningPhaseStep.BIOS_UPDATING);
 
         mvc.perform(post("/api/pxe/v1/agent/steps").header("X-Guest-Token", TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -214,12 +222,8 @@ class GuestAgentRestControllerFlowTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Test
-    @DisplayName("토큰 헤더 누락 → 400 (MissingRequestHeader)")
-    void missingTokenHeader_returns400() throws Exception {
-        mvc.perform(post("/api/pxe/v1/agent/checkin"))
-                .andExpect(status().isBadRequest());
-    }
+
+    // S19-1 — 토큰 헤더 누락 · 위조는 게스트 체인이 401 로 끝낸다(GuestChainSecurityTest) — 컨트롤러는 헤더를 읽지 않는다.
 
     // ==== E3.5-3 — 집행 payload · 칩 힌트 · 검증 지시 직렬화 (진리표 V12) ====
 
@@ -230,7 +234,7 @@ class GuestAgentRestControllerFlowTest {
                 java.util.List.of(new RaidApplyPayload.VolumeSpec("spvR1V1", RaidLevel.RAID1,
                         java.util.List.of("252:0", "252:1"), null, java.util.List.of(), null)),
                 java.util.List.of("252:4"));
-        given(agentReportService.checkin(TOKEN)).willReturn(new AgentCheckinResponse(
+        given(agentReportService.checkin(GUEST)).willReturn(new AgentCheckinResponse(
                 AgentDirective.RAID_APPLY, "guest-01", payload, RaidChipFamily.agentChipHint()));
 
         mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", TOKEN))
@@ -248,7 +252,7 @@ class GuestAgentRestControllerFlowTest {
     @DisplayName("POST /agent/steps/{id}/close — RAID_VERIFY 지시 직렬화 · payload 없는 지시는 필드가 비어 있다")
     void close_carriesRaidVerifyDirective() throws Exception {
         UUID stepId = UUID.randomUUID();
-        given(agentReportService.closeStep(eq(TOKEN), eq(stepId), any(), any()))
+        given(agentReportService.closeStep(eq(GUEST), eq(stepId), any(), any()))
                 .willReturn(new StepCloseResponse(AgentDirective.RAID_VERIFY, null,
                         RaidChipFamily.agentChipHint()));
 
@@ -266,7 +270,7 @@ class GuestAgentRestControllerFlowTest {
     void openStep_raidApplySteps_return201() throws Exception {
         for (String step : java.util.List.of("RAID_APPLYING", "RAID_VERIFYING")) {
             UUID stepId = UUID.randomUUID();
-            given(agentReportService.openStep(eq(TOKEN), any())).willReturn(new StepOpenResponse(stepId));
+            given(agentReportService.openStep(eq(GUEST), any())).willReturn(new StepOpenResponse(stepId));
 
             mvc.perform(post("/api/pxe/v1/agent/steps")
                             .header("X-Guest-Token", TOKEN)

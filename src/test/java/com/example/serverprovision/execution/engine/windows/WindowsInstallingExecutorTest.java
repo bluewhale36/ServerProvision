@@ -126,7 +126,7 @@ class WindowsInstallingExecutorTest {
         given(resolver.resolve(GUEST_ID)).willReturn(Optional.of(ready()));
         ProvisioningProgress progress = awaitingBoot();
 
-        String script = executor.bootScript(guest, progress, "systemUUID=x");
+        String script = executor.bootScript(guest, progress, "/api/pxe/v1/boot?systemUUID=x");
 
         assertThat(script).startsWith("#!ipxe")
                 .contains("echo [provision] windows install: Windows Server 2025 SERVERSTANDARD")

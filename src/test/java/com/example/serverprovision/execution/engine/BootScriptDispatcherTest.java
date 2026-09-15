@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BootScriptDispatcherTest {
 
     private static final LocalDateTime T = LocalDateTime.of(2026, 7, 18, 12, 0);
-    private static final String Q = "systemUUID=abc";
+    private static final String Q = "/api/pxe/v1/boot?systemUUID=abc";   // S19-2 — 재진입 대상은 호출자(PxeBootUrls)가 만든 URL
 
     private final ProvisioningPhaseExecutor diagnoseExecutor = new ProvisioningPhaseExecutor() {
         @Override public ProvisioningPhase phase() { return ProvisioningPhase.DIAGNOSE_LINUX; }
@@ -73,7 +73,7 @@ progress().failedAt(T).currentStep(ProvisioningPhaseStep.BIOS_UPDATING).build(),
 progress().startedAt(T).currentStep(ProvisioningPhaseStep.INFORMATION_PERSISTING).completedAt(T).build(), PhaseReadiness.ready(), Q);
         assertThat(script)
                 .contains("awaiting assignment")
-                .contains("chain /api/pxe/v1/boot?" + Q)
+                .contains("chain " + Q)
                 .doesNotContain("exit");   // OS 없는 베어메탈에 exit = 부팅 실패 루프 (로드맵 D3)
     }
 
@@ -110,7 +110,7 @@ progress().build(), PhaseReadiness.ready(), Q);
 
         assertThat(script)
                 .contains("waiting for resources: BIOS=MARKER_MISSING")
-                .contains("chain /api/pxe/v1/boot?" + Q);
+                .contains("chain " + Q);
     }
 
     @Test

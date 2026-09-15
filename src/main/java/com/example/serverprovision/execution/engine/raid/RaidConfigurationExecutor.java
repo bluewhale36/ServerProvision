@@ -1,6 +1,6 @@
 package com.example.serverprovision.execution.engine.raid;
 
-import com.example.serverprovision.execution.config.PxeAssetsProperties;
+import com.example.serverprovision.execution.engine.boot.PxeBootUrls;
 import com.example.serverprovision.execution.engine.boot.DiagnoseLinuxChainload;
 import com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer;
 import com.example.serverprovision.execution.engine.phase.ProvisioningPhaseExecutor;
@@ -36,7 +36,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
 
-    private final PxeAssetsProperties properties;
+    private final PxeBootUrls pxeBootUrls;
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final RaidInventoryParser inventoryParser;
     private final RaidConfigurationResolutionProvider resolutionProvider;
@@ -51,11 +51,11 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
     }
 
     @Override
-    public String bootScript(GuestServer server, ProvisioningProgress progress, String rebootQuery) {
+    public String bootScript(GuestServer server, ProvisioningProgress progress, String reentryUrl) {
         if (server.getGuestToken() == null) {
             throw new IllegalStateException("게스트 토큰 부재 — 등록 invariant 위반. guestServerId=" + server.getId());
         }
-        return DiagnoseLinuxChainload.script(properties.getBaseUrl(), server.getGuestToken().value(), rebootQuery);
+        return DiagnoseLinuxChainload.script(pxeBootUrls, server.getGuestToken().value(), reentryUrl);
     }
 
     /**

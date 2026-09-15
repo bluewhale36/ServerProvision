@@ -15,7 +15,8 @@ import com.example.serverprovision.execution.exception.AgentReportRejectedExcept
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
-import com.example.serverprovision.execution.service.GuestTokenAuthenticator;
+import com.example.serverprovision.execution.service.GuestPrincipalLoader;
+import com.example.serverprovision.global.security.springsecurity.guest.GuestPrincipal;
 import com.example.serverprovision.execution.wininstall.vo.WindowsImageName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,11 +49,11 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class WindowsInstallCompletionServiceTest {
 
-    private static final String TOKEN = "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d";
+    private static final GuestPrincipal GUEST = new GuestPrincipal(UUID.randomUUID(), UUID.randomUUID());   // S19-1
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 9, 3, 11, 0);
     private static final WindowsImageName IMAGE = new WindowsImageName("Windows Server 2025 SERVERSTANDARD");
 
-    @Mock GuestTokenAuthenticator authenticator;
+    @Mock GuestPrincipalLoader guestPrincipalLoader;
     @Mock ProvisioningProgressRepository progressRepository;
     @Mock ProvisioningHistoryRepository historyRepository;
     @Mock ProvisioningHistoryRecorder recorder;
@@ -70,8 +71,8 @@ class WindowsInstallCompletionServiceTest {
         lenient().when(recorder.openRunning(any(), any(), any(), any())).thenAnswer(inv -> ProvisioningHistory.openRunning(
                 inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)));
         ledger = new WindowsInstallLedger(recorder, historyRepository, new ObjectMapper());
-        service = new WindowsInstallCompletionService(authenticator, progressRepository, ledger, tokenRegistry, cursorAdvancer, eventPublisher, raidVolumeRepository);
-        lenient().when(authenticator.requireByToken(TOKEN)).thenReturn(guest);
+        service = new WindowsInstallCompletionService(guestPrincipalLoader, progressRepository, ledger, tokenRegistry, cursorAdvancer, eventPublisher, raidVolumeRepository);
+        lenient().when(guestPrincipalLoader.require(GUEST)).thenReturn(guest);
     }
 
     private static WindowsInstallCompletionRequest report(int problems) {
@@ -111,7 +112,7 @@ class WindowsInstallCompletionServiceTest {
         willAnswer(inv -> { p.markCompleted(inv.getArgument(2)); return null; })
                 .given(cursorAdvancer).advanceOrComplete(eq(p), eq(guest.getId()), any());
 
-        WindowsInstallCompletionResponse res = service.complete(TOKEN, report(2));
+        WindowsInstallCompletionResponse res = service.complete(GUEST, report(2));
 
         assertThat(res.closed()).isTrue();
         assertThat(res.provisioningCompleted()).isTrue();
@@ -125,7 +126,6 @@ class WindowsInstallCompletionServiceTest {
         assertThat(ledger.problemDeviceCountOf(row)).isEqualTo(2);
         assertThat(ledger.problemDevicesOf(row)).hasSize(2).first().asString().contains("ACPI");
         assertThat(row.displayNote()).isEqualTo("설치 완료 · 드라이버 47 · 문제 장치 2");
-        assertThat(row.getStatusMeta()).doesNotContain(TOKEN);
         verify(tokenRegistry).revoke(guest.getId());
         verify(eventPublisher).publishEvent(new GuestServerChangedEvent(guest.getId()));
     }
@@ -138,7 +138,7 @@ class WindowsInstallCompletionServiceTest {
         willAnswer(inv -> { p.advanceToEntry(ProvisioningPhaseStep.entryOf(ProvisioningPhase.TESTING), inv.getArgument(2)); return null; })
                 .given(cursorAdvancer).advanceOrComplete(eq(p), eq(guest.getId()), any());
 
-        WindowsInstallCompletionResponse res = service.complete(TOKEN, report(0));
+        WindowsInstallCompletionResponse res = service.complete(GUEST, report(0));
 
         assertThat(res.closed()).isTrue();
         assertThat(res.provisioningCompleted()).isFalse();
@@ -167,7 +167,7 @@ class WindowsInstallCompletionServiceTest {
         installing();
         ProvisioningHistory row = openRow();   // 서빙 meta 의 기준 = 600605b0aa11 — raid_volume 은 보지 않는다(HF15-5)
 
-        service.complete(TOKEN, reportWithDisk("600605B0AA11"));
+        service.complete(GUEST, reportWithDisk("600605B0AA11"));
 
         assertThat(ledger.diskConfirmationOf(row)).isEqualTo("CONFIRMED");
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
@@ -179,7 +179,7 @@ class WindowsInstallCompletionServiceTest {
         installing();
         ProvisioningHistory row = openRow();
 
-        WindowsInstallCompletionResponse res = service.complete(TOKEN, reportWithDisk("600605b0dddd"));
+        WindowsInstallCompletionResponse res = service.complete(GUEST, reportWithDisk("600605b0dddd"));
 
         assertThat(res.closed()).isTrue();                       // 사후라 되돌릴 수 없다 — 완료는 완료
         assertThat(ledger.diskConfirmationOf(row)).isEqualTo("MISMATCH");
@@ -193,7 +193,7 @@ class WindowsInstallCompletionServiceTest {
         ProvisioningHistory row = openRow(null);
         osVolumeWwn("600605b0aa11");
 
-        service.complete(TOKEN, reportWithDisk("600605B0AA11"));
+        service.complete(GUEST, reportWithDisk("600605B0AA11"));
 
         assertThat(ledger.diskConfirmationOf(row)).isEqualTo("CONFIRMED");
     }
@@ -204,7 +204,7 @@ class WindowsInstallCompletionServiceTest {
         installing();
         ProvisioningHistory row = openRow("600508e0000000002e2ff7379820a800");
 
-        service.complete(TOKEN, reportWithDisk("600508E0000000002E2FF7379820A800"));
+        service.complete(GUEST, reportWithDisk("600508E0000000002E2FF7379820A800"));
 
         assertThat(ledger.diskConfirmationOf(row)).isEqualTo("CONFIRMED");
         verify(raidVolumeRepository, never()).findFirstByGuestServer_IdAndVolumeRole(any(), any());
@@ -216,7 +216,7 @@ class WindowsInstallCompletionServiceTest {
         installing();
         ProvisioningHistory row = openRow();
 
-        service.complete(TOKEN, reportWithDisk(null));
+        service.complete(GUEST, reportWithDisk(null));
 
         assertThat(ledger.diskConfirmationOf(row)).isEqualTo("UNREPORTED");
         verify(raidVolumeRepository, never()).findFirstByGuestServer_IdAndVolumeRole(any(), any());
@@ -234,7 +234,7 @@ class WindowsInstallCompletionServiceTest {
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(guest.getId(), ProvisioningPhaseStep.OS_INSTALLING))
                 .willReturn(Optional.of(done));
 
-        WindowsInstallCompletionResponse res = service.complete(TOKEN, report(0));
+        WindowsInstallCompletionResponse res = service.complete(GUEST, report(0));
 
         assertThat(res.closed()).isFalse();
         assertThat(res.provisioningCompleted()).isTrue();
@@ -246,15 +246,6 @@ class WindowsInstallCompletionServiceTest {
     // ==== 거절 ====================================================
 
     @Test
-    @DisplayName("토큰 불일치 → 인증기의 404 가 그대로 — 진행 · 원장을 읽지 않는다")
-    void badToken_404() {
-        given(authenticator.requireByToken("deadbeef")).willThrow(GuestServerNotFoundException.byToken());
-
-        assertThatThrownBy(() -> service.complete("deadbeef", report(0))).isInstanceOf(GuestServerNotFoundException.class);
-        verify(progressRepository, never()).findByGuestServer_Id(any());
-    }
-
-    @Test
     @DisplayName("실패 상태 게스트(스윕이 먼저 닫음) 의 지연 보고 → 409 notProvisioning")
     void failedGuest_409() {
         ProvisioningProgress p = installing();
@@ -262,7 +253,7 @@ class WindowsInstallCompletionServiceTest {
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeAndStatusOrderByCreatedAtDesc(any(), any(), any())).willReturn(Optional.empty());
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(any(), any())).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.complete(TOKEN, report(0)))
+        assertThatThrownBy(() -> service.complete(GUEST, report(0)))
                 .isInstanceOf(AgentReportRejectedException.class).hasMessageContaining("프로비저닝 중이 아닌");
         verify(tokenRegistry, never()).revoke(any());
     }
@@ -277,7 +268,7 @@ class WindowsInstallCompletionServiceTest {
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeAndStatusOrderByCreatedAtDesc(any(), any(), any())).willReturn(Optional.empty());
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(any(), any())).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.complete(TOKEN, report(0)))
+        assertThatThrownBy(() -> service.complete(GUEST, report(0)))
                 .isInstanceOf(AgentReportRejectedException.class).hasMessageContaining("phase 밖");
     }
 
@@ -288,7 +279,7 @@ class WindowsInstallCompletionServiceTest {
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeAndStatusOrderByCreatedAtDesc(any(), any(), any())).willReturn(Optional.empty());
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(any(), any())).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.complete(TOKEN, report(0)))
+        assertThatThrownBy(() -> service.complete(GUEST, report(0)))
                 .isInstanceOf(AgentReportRejectedException.class).hasMessageContaining("열린 OS_INSTALLING 행이 없어");
         verify(cursorAdvancer, never()).advanceOrComplete(any(), any(), any());
     }

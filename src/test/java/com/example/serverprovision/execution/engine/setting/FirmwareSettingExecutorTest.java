@@ -31,7 +31,7 @@ class FirmwareSettingExecutorTest {
     @Test
     @DisplayName("bootScript — 설정 적용 대기 + 원본 쿼리로 재진입(chain)")
     void bootScript_awaitsBiosSetting() {
-        assertThat(executor.bootScript(server, started(), "systemUUID=abc"))
+        assertThat(executor.bootScript(server, started(), "/api/pxe/v1/boot?systemUUID=abc"))
                 .contains("applying bios settings via bmc")
                 .contains("chain /api/pxe/v1/boot?systemUUID=abc");
     }

@@ -12,7 +12,8 @@ import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.exception.AgentReportRejectedException;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
-import com.example.serverprovision.execution.service.GuestTokenAuthenticator;
+import com.example.serverprovision.execution.service.GuestPrincipalLoader;
+import com.example.serverprovision.global.security.springsecurity.guest.GuestPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -34,7 +35,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class WindowsInstallCompletionService {
 
-    private final GuestTokenAuthenticator authenticator;
+    private final GuestPrincipalLoader guestPrincipalLoader;
     private final ProvisioningProgressRepository progressRepository;
     private final WindowsInstallLedger ledger;
     private final WindowsInstallTokenRegistry tokenRegistry;
@@ -43,12 +44,12 @@ public class WindowsInstallCompletionService {
     private final com.example.serverprovision.execution.repository.RaidVolumeRepository raidVolumeRepository;
 
     /**
-     * 순서 — 인증(404) → 열린 행이 없고 최신 행이 완료 행이면 no-op(200) → 게이트(프로비저닝 중 · 커서 OS 설치 phase, 아니면 409)
+     * 순서 — 신원 로드(게스트 체인이 인증 · 부재는 500) → 열린 행이 없고 최신 행이 완료 행이면 no-op(200) → 게이트(프로비저닝 중 · 커서 OS 설치 phase, 아니면 409)
      * → 열린 행 없음 409 → 닫기 · 회수 · 전진/종단 · 이벤트.
      */
     @Transactional
-    public WindowsInstallCompletionResponse complete(String presentedToken, WindowsInstallCompletionRequest report) {
-        GuestServer server = authenticator.requireByToken(presentedToken);
+    public WindowsInstallCompletionResponse complete(GuestPrincipal guest, WindowsInstallCompletionRequest report) {
+        GuestServer server = guestPrincipalLoader.require(guest);
         ProvisioningProgress progress = requireProgress(server);
         UUID id = server.getId();
         Optional<ProvisioningHistory> running = ledger.latestRunning(id);

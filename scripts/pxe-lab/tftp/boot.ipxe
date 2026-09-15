@@ -6,4 +6,6 @@
 dhcp
 # 실기 보정(2026-08-24): 멀티 NIC 보드에서 net0 은 케이블 없는 NIC 일 수 있다 — 스코프 없는
 # ${mac}/${ip} 는 DHCP 에 성공한 NIC 기준으로 확장된다(qemu 단일 NIC 에서는 동등).
-chain http://10.0.2.2:@PORT@/api/pxe/v1/boot?systemUUID=${uuid}&macAddress=${mac}&ipAddress=${ip}&vendor=${manufacturer}&boardModel=${product}
+# S19-2 — 첫 접촉 credential(PXE 부팅 계정)은 URL userinfo 로 배포된다. run-guest.sh 가 @PXE_AUTH@ 를 "pxe:<secret>@" 로 치환한다.
+# 실배포의 boot.ipxe 도 같은 모양 — credential 이 없거나 틀리면 앱이 401 을 내고 iPXE 는 "Permission denied" 로 멈춘다.
+chain http://@PXE_AUTH@10.0.2.2:@PORT@/api/pxe/v1/boot?systemUUID=${uuid}&macAddress=${mac}&ipAddress=${ip}&vendor=${manufacturer}&boardModel=${product}

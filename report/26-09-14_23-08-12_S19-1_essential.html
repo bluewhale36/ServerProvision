@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S19-1 Essential — 게스트 채널 전용 필터 체인과 게스트 토큰 인증 승격</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* .seq — 4 주체(게스트 · 게스트 체인 · 인증 부품 · 컨트롤러/서비스) 시간 흐름 */
+  .seq { display:grid; grid-template-columns:minmax(0,0.8fr) minmax(0,1.1fr) minmax(0,1.4fr) minmax(0,1.2fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step code { overflow-wrap:anywhere; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+
+  /* .dg — SVG 도식(시퀀스 · 블록 · 분기). 색은 :root 토큰만 */
+  .dg { margin:10px 0 16px; padding:12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .dg svg { display:block; font-family:var(--mono); max-width:none; }
+  .dg text { fill:var(--text); }
+  .dg text.muted { fill:var(--text-muted); }
+  .dg figcaption { margin-top:8px; font-size:12px; color:var(--text-muted); font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif; }
+  .dg .lane { stroke:var(--border); stroke-width:1; stroke-dasharray:4 4; }
+  .dg .call { stroke:var(--text); stroke-width:1.3; fill:none; }
+  .dg .ret { stroke:var(--text-muted); stroke-width:1.2; stroke-dasharray:5 3; fill:none; }
+  .dg .arr-fill { fill:var(--text); } .dg .arr-open { fill:none; stroke:var(--text-muted); stroke-width:1.2; }
+  .dg .lbl-bg { fill:var(--card); opacity:0.92; }
+  .dg .frame { fill:var(--bg); stroke:var(--border); }
+  .dg .tree { stroke:var(--text-muted); stroke-width:1.2; fill:none; }
+  .dg text.desc { fill:var(--text); }
+  .dg .grp-af, .dg .grp-az, .dg .grp-ct { fill:var(--bg); }
+  .dg .stage { fill:var(--card); stroke:var(--border-soft); } .dg .stage2 { fill:var(--bg); stroke:var(--border-soft); stroke-dasharray:3 3; }
+  .dg g rect { stroke-width:1.4; }
+  .dg .n-guest rect { fill:var(--blue-bg); stroke:var(--blue); }
+  .dg .n-chain rect { fill:var(--green-bg); stroke:var(--green); }
+  .dg .n-part rect { fill:var(--orange-bg); stroke:var(--orange); }
+  .dg .n-data rect { fill:var(--purple-bg); stroke:var(--purple); }
+  .dg .n-ctl rect { fill:var(--blue-bg); stroke:var(--blue); }
+  .dg .n-value rect { fill:var(--card); stroke:var(--text-muted); }
+  .dg .n-rule rect { fill:var(--card); stroke:var(--green); }
+  .dg .n-decision rect { fill:var(--yellow-bg); stroke:var(--yellow); }
+  .dg .n-reject rect { fill:var(--red-bg); stroke:var(--red); }
+  .dg .n-web rect { fill:var(--bg); stroke:var(--text-muted); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card li { font-size:12px; line-height:1.55; }
+
+
+  /* 전폭 골격(essential 전용) — 절이 다섯이라 사이드 목차 대신 상단 가로 목차, 본문 한 단으로 도식 폭을 확보한다 */
+  .layout { grid-template-columns:1fr; max-width:1280px; gap:12px; }
+  nav.toc { position:static; max-height:none; display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; padding:10px 14px; }
+  nav.toc strong { margin:0 6px 0 0; }
+  nav.toc ol { display:flex; flex-wrap:wrap; gap:2px 4px; margin:0; }
+  nav.toc .toc-actions { margin-left:auto; }
+  nav.toc button { flex:none; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S19-1 Essential — 게스트 채널 전용 필터 체인과 게스트 토큰 인증 승격 <span class="v2-badge">구조 · 책임 · 흐름</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> S19-1 (feature)</span>
+    <span><strong>상위</strong> S19 게스트 채널 인증</span>
+    <span><strong>대상</strong> 무엇을 만들었고 · 어떤 구조이며 · 각 클래스가 무엇을 맡고 · 요청 한 건이 어떻게 흐르는가</span>
+    <span><strong>제외</strong> 검증 방식 · 결과 · 다음 작업</span>
+    <span><strong>생성</strong> 2026-09-14 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 범위 — 무엇을 만들었나</a></li>
+      <li><a href="#s2">§2 구조 — 두 체인과 부품 배치</a></li>
+      <li><a href="#s3">§3 데이터 흐름 — 요청 한 건</a></li>
+      <li><a href="#s4">§4 클래스별 책임</a></li>
+      <li><a href="#s5">§5 계약 — 요청 · 응답 형태</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 범위 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 범위 — 무엇을 만들었나</summary>
+      <div class="body">
+        <p style="margin-top:0;">게스트 채널 <code>/api/pxe/v1/**</code> 을 웹 화면 체인에서 떼어 <b>전용 <code>SecurityFilterChain</code></b> 으로 받고, 게스트가 제시하는 두 credential 을 <b>Spring Security 의 인증</b>으로 올렸다. 컨트롤러는 토큰 문자열이 아니라 체인이 세운 principal 을 받는다.</p>
+
+        <div class="card-grid">
+          <div class="card v-blue"><h4>① 전용 체인</h4>
+            <ul><li><code>GuestSecurityConfig</code> 가 <code>@Order(1)</code> 로 <code>/api/pxe/v1/**</code> 만 받는다</li>
+                <li>세션 없음(STATELESS) · CSRF 없음 · 로그인 리다이렉트 없음</li>
+                <li>거절은 전부 JSON(401 · 403)</li></ul></div>
+          <div class="card v-green"><h4>② 두 credential → 한 principal</h4>
+            <ul><li>헤더 <code>X-Guest-Token</code>(진단 에이전트 · Windows 완료 보고)</li>
+                <li>경로 서빙 토큰 <code>/windows/{token}/…</code> · <code>/firmware/{token}/…</code></li>
+                <li>둘 다 <code>GuestPrincipal</code>(게스트 서버 id · systemUUID) + 권한 <code>MachineAuthority.GUEST</code> 로 끝난다</li></ul></div>
+          <div class="card v-orange"><h4>③ 컨트롤러 진입 방식</h4>
+            <ul><li><code>@CurrentGuest GuestPrincipal</code> 인자 하나</li>
+                <li>토큰 대조 코드는 컨트롤러 · 서비스에서 사라지고 필터의 provider 한 곳으로 모였다</li>
+                <li><code>GuestTokenAuthenticator</code> 삭제 → <code>GuestPrincipalLoader</code>(principal → 엔티티)</li></ul></div>
+        </div>
+
+        <h4>변경 전후 — 컨트롤러 · 서비스가 받는 것</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 토큰 문자열이 서비스까지 내려간다</h4>
+<pre><code>// 컨트롤러
+checkin(@RequestHeader("X-Guest-Token") String token)
+
+// 서비스
+GuestServer server = guestTokenAuthenticator
+        .authenticate(token);   // findByGuestToken
+                                // 없으면 404 NotFound
+                                // 헤더 누락은 400</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 체인이 세운 principal 만 내려간다</h4>
+<pre><code>// 컨트롤러
+checkin(@CurrentGuest GuestPrincipal guest)
+
+// 서비스
+GuestServer server = guestPrincipalLoader
+        .require(guest);        // findById + touchSeen
+                                // 토큰 대조는 이미 끝났다
+// 없거나 틀린 토큰은 여기 오기 전에 401 JSON</code></pre></div>
+        </div>
+
+        <div class="callout warn"><b>이 슬라이스 밖</b> : <code>/api/pxe/v1/boot</code> 와 부팅 자산 <code>/api/pxe/v1/assets/**</code> 는 토큰이 생기기 전의 첫 접촉이라 이 체인 안에서 <b>permitAll</b> 로 남긴다. 그 구간을 막는 것은 2단계(S19-2 · PXE 부팅 계정 + LAN 제한)의 몫이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 구조 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 구조 — 두 체인과 부품 배치</summary>
+      <div class="body">
+        <h4>2-1. 요청이 어느 체인으로 가는가</h4>
+        <p style="margin-top:0;">Spring Security 는 <code>SecurityFilterChain</code> 빈을 <code>@Order</code> 순으로 훑어 <b>매처에 처음 맞는 체인 하나</b>에 요청을 넘긴다. 게스트 체인이 앞이라 <code>/api/pxe/v1/**</code> 은 웹 체인에 닿지 않는다.</p>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1160" height="176" viewBox="0 0 1160 176"><defs><marker id="d21-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d21-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<g class="n-guest"><rect x="16" y="62" width="120" height="44" rx="6"/>
+<text x="76.0" y="88.8" text-anchor="middle" font-size="12" font-weight="700">HTTP 요청</text>
+</g>
+<g class="n-decision"><rect x="184" y="40" width="310" height="88" rx="6"/>
+<text x="339.0" y="64.0" text-anchor="middle" font-size="11" font-weight="700">URL 이 /api/pxe/v1/** 인가?</text>
+<text x="339.0" y="79.0" text-anchor="middle" font-size="11">SecurityFilterChain 빈을 @Order 순으로 훑어</text>
+<text x="339.0" y="94.0" text-anchor="middle" font-size="11">매처에 처음 맞는 체인 하나가 요청을 받는다</text>
+<text x="339.0" y="109.0" text-anchor="middle" font-size="11">(뒤 체인은 보지 않는다)</text>
+</g>
+<path class="call" d="M136,84 L184,84" marker-end="url(#d21-arr)"/>
+<g class="n-chain"><rect x="580" y="8" width="564" height="76" rx="6"/>
+<text x="862.0" y="26.0" text-anchor="middle" font-size="11" font-weight="700">@Order(1)  GuestSecurityConfig.guestSecurityFilterChain</text>
+<text x="862.0" y="41.0" text-anchor="middle" font-size="11">세션 없음(STATELESS) · CSRF 끔 · 보안 컨텍스트 = 요청 속성(요청 안에서만 산다)</text>
+<text x="862.0" y="56.0" text-anchor="middle" font-size="11">credential = X-Guest-Token 헤더  |  경로 서빙 토큰</text>
+<text x="862.0" y="71.0" text-anchor="middle" font-size="11">거절 = 401 JSON(credential 없음 · 틀림)  |  403 JSON(권한 부족)</text>
+</g>
+<g class="n-web"><rect x="580" y="104" width="564" height="60" rx="6"/>
+<text x="862.0" y="121.5" text-anchor="middle" font-size="11" font-weight="700">@Order(2)  SecurityConfig.securityFilterChain  (S18)</text>
+<text x="862.0" y="136.5" text-anchor="middle" font-size="11">HTTP 세션 · formLogin · httpBasic</text>
+<text x="862.0" y="151.5" text-anchor="middle" font-size="11">거절 = 로그인 302 / 401</text>
+</g>
+<path class="call" d="M494,70 L536,70 L536,46 L580,46" marker-end="url(#d21-arr)"/>
+<rect class="lbl-bg" x="536.0" y="29.0" width="20.0" height="16.5" rx="3"/>
+<text x="546.0" y="40.0" text-anchor="middle" font-size="10">예</text>
+<path class="call" d="M494,98 L536,98 L536,134 L580,134" marker-end="url(#d21-arr)"/>
+<rect class="lbl-bg" x="495.0" y="139.0" width="108.6" height="16.5" rx="3"/>
+<text x="500.0" y="150.0" text-anchor="start" font-size="10">아니오(나머지 전부)</text></svg><figcaption>요청은 매처에 처음 맞는 체인 하나로만 간다 — 게스트 채널은 웹 체인에 닿지 않는다.</figcaption></figure>
+
+        <table>
+          <thead><tr><th>순서</th><th>체인</th><th>매처</th><th>세션</th><th>credential</th><th>거절</th></tr></thead>
+          <tbody>
+            <tr><td><code>@Order(1)</code></td><td><code>GuestSecurityConfig</code></td><td><code>/api/pxe/v1/**</code></td><td>없음 · 컨텍스트는 요청 속성</td><td>헤더 토큰 · 경로 서빙 토큰</td><td>401 · 403 JSON</td></tr>
+            <tr><td><code>@Order(2)</code></td><td><code>SecurityConfig</code>(S18)</td><td>나머지 전부</td><td>HTTP 세션</td><td>formLogin · httpBasic</td><td>로그인 302 · 401</td></tr>
+          </tbody>
+        </table>
+
+        <h4>2-2. 게스트 체인 안의 부품 배치</h4>
+        <p style="margin-top:0;">체인 하나가 <b>필터 두 개</b>로 일한다. <code>AuthenticationFilter</code> 가 credential 을 principal 로 바꾸고, <code>AuthorizationFilter</code> 가 경로별 권한을 본다. 그 뒤가 컨트롤러다. 각 필터에 꽂힌 부품은 이 슬라이스가 만든 클래스다.</p>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1095.7144" height="884" viewBox="0 0 1095.7144 884"><defs><marker id="d22-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d22-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<rect class="stage grp-af" x="42" y="45" width="1040" height="415" rx="8"/>
+<rect class="stage2 grp-pm" x="76" y="135" width="1006" height="211" rx="8"/>
+<rect class="stage grp-az" x="42" y="453" width="984" height="273" rx="8"/>
+<rect class="stage grp-ct" x="42" y="719" width="1027" height="159" rx="8"/>
+<path class="tree" d="M32,44 V741.0"/>
+<path class="tree" d="M32,67.0 H50"/>
+<path class="tree" d="M32,475.0 H50"/>
+<path class="tree" d="M32,741.0 H50"/>
+<path class="tree" d="M66,82 V437.0"/>
+<path class="tree" d="M66,112.0 H84"/>
+<path class="tree" d="M66,157.0 H84"/>
+<path class="tree" d="M66,361.0 H84"/>
+<path class="tree" d="M66,399.0 H84"/>
+<path class="tree" d="M66,437.0 H84"/>
+<path class="tree" d="M100,172 V195.0"/>
+<path class="tree" d="M100,195.0 H118"/>
+<path class="tree" d="M134,210 V233.0"/>
+<path class="tree" d="M134,233.0 H152"/>
+<path class="tree" d="M168,248 V316.0"/>
+<path class="tree" d="M168,271.0 H186"/>
+<path class="tree" d="M168,316.0 H186"/>
+<path class="tree" d="M66,490 V589.0"/>
+<path class="tree" d="M66,513.0 H84"/>
+<path class="tree" d="M66,551.0 H84"/>
+<path class="tree" d="M66,589.0 H84"/>
+<path class="tree" d="M100,604 V703.0"/>
+<path class="tree" d="M100,627.0 H118"/>
+<path class="tree" d="M100,665.0 H118"/>
+<path class="tree" d="M100,703.0 H118"/>
+<path class="tree" d="M66,756 V817.0"/>
+<path class="tree" d="M66,779.0 H84"/>
+<path class="tree" d="M66,817.0 H84"/>
+<path class="tree" d="M100,832 V855.0"/>
+<path class="tree" d="M100,855.0 H118"/>
+<g class="n-chain"><rect x="16" y="14" width="792" height="30" rx="5"/>
+<text x="26.0" y="33.0" font-size="11" font-weight="700">게스트 체인  @Order(1)</text>
+<text x="185.1" y="33.5" font-size="10.5" class="desc">securityMatcher("/api/pxe/v1/**")  ·  세션 없음(STATELESS)  ·  CSRF 끔  ·  보안 컨텍스트 = 요청 속성</text>
+</g>
+<g class="n-chain"><rect x="50" y="52" width="322" height="30" rx="5"/>
+<text x="60.0" y="71.0" font-size="11" font-weight="700">AuthenticationFilter</text>
+<text x="218.6" y="71.5" font-size="10.5" class="desc">credential → principal</text>
+</g>
+<g class="n-part"><rect x="84" y="90" width="751" height="44" rx="5"/>
+<text x="94.0" y="116.0" font-size="11" font-weight="700">GuestCredentialConverter</text>
+<text x="281.5" y="110.0" font-size="10.5" class="desc">요청 → GuestCredential</text>
+<text x="281.5" y="123.0" font-size="10.5" class="desc">서빙 경로면 경로 토큰(헤더 무시)  ·  아니면 X-Guest-Token 헤더  ·  없으면 null(인증 시도 없음)</text>
+</g>
+<g class="n-value"><rect x="84" y="142" width="701" height="30" rx="5"/>
+<text x="94.0" y="161.0" font-size="11" font-weight="700">ProviderManager</text>
+<text x="216.4" y="161.5" font-size="10.5" class="desc">이 체인 전용  ·  빈이 아니다(빈으로 두면 전역 AuthenticationManager 를 독점해 웹 로그인이 죽는다)</text>
+</g>
+<g class="n-part"><rect x="118" y="180" width="954" height="30" rx="5"/>
+<text x="128.0" y="199.0" font-size="11" font-weight="700">GuestTokenAuthenticationProvider</text>
+<text x="373.3" y="199.5" font-size="10.5" class="desc">미인증 GuestAuthenticationToken → 인증된 토큰(GuestPrincipal + ROLE_GUEST)  ·  못 풀면 BadCredentialsException</text>
+</g>
+<g class="n-part"><rect x="152" y="218" width="609" height="30" rx="5"/>
+<text x="162.0" y="237.0" font-size="11" font-weight="700">GuestPrincipalResolver</text>
+<text x="335.0" y="237.5" font-size="10.5" class="desc">credential → GuestPrincipal  ·  @Transactional(readOnly) · 조회만</text>
+</g>
+<g class="n-data"><rect x="186" y="256" width="453" height="30" rx="5"/>
+<text x="196.0" y="275.0" font-size="11" font-weight="700">HeaderToken →</text>
+<text x="304.0" y="275.5" font-size="10.5" class="desc">GuestServerRepository.findByGuestToken(GuestToken)</text>
+</g>
+<g class="n-data"><rect x="186" y="294" width="708" height="44" rx="5"/>
+<text x="196.0" y="320.0" font-size="11" font-weight="700">ServingToken →</text>
+<text x="311.2" y="314.0" font-size="10.5" class="desc">WindowsInstallTokenRegistry.guestOf(token)  |  FirmwareImageTokenRegistry.guestOf(token)</text>
+<text x="311.2" y="327.0" font-size="10.5" class="desc">→ GuestServerRepository.findById(guestServerId)</text>
+</g>
+<g class="n-value"><rect x="84" y="346" width="389" height="30" rx="5"/>
+<text x="94.0" y="365.0" font-size="11" font-weight="700">successHandler = no-op</text>
+<text x="267.0" y="365.5" font-size="10.5" class="desc">세운 principal 로 체인을 계속 간다</text>
+</g>
+<g class="n-reject"><rect x="84" y="384" width="670" height="30" rx="5"/>
+<text x="94.0" y="403.0" font-size="11" font-weight="700">failureHandler = GuestAuthenticationEntryPoint</text>
+<text x="440.5" y="403.5" font-size="10.5" class="desc">틀린 credential → 401 JSON  ·  permitAll 경로라도</text>
+</g>
+<g class="n-value"><rect x="84" y="422" width="568" height="30" rx="5"/>
+<text x="94.0" y="441.0" font-size="11" font-weight="700">SecurityContextRepository = RequestAttribute</text>
+<text x="426.1" y="441.5" font-size="10.5" class="desc">이 요청 안에서만  ·  세션에 쓰지 않는다</text>
+</g>
+<g class="n-chain"><rect x="50" y="460" width="230" height="30" rx="5"/>
+<text x="60.0" y="479.0" font-size="11" font-weight="700">AuthorizationFilter</text>
+<text x="211.4" y="479.5" font-size="10.5" class="desc">경로별 권한</text>
+</g>
+<g class="n-rule"><rect x="84" y="498" width="240" height="30" rx="5"/>
+<text x="94.0" y="517.0" font-size="11" font-weight="700">ERROR · ASYNC 디스패치</text>
+<text x="255.8" y="517.5" font-size="10.5" class="desc">permitAll</text>
+</g>
+<g class="n-rule"><rect x="84" y="536" width="458" height="30" rx="5"/>
+<text x="94.0" y="555.0" font-size="11" font-weight="700">/boot  ·  /assets/**</text>
+<text x="252.6" y="555.5" font-size="10.5" class="desc">permitAll  —  1단계 · 토큰이 생기기 전의 첫 접촉</text>
+</g>
+<g class="n-rule"><rect x="84" y="574" width="401" height="30" rx="5"/>
+<text x="94.0" y="593.0" font-size="11" font-weight="700">나머지</text>
+<text x="143.0" y="593.5" font-size="10.5" class="desc">hasAuthority(MachineAuthority.GUEST = "ROLE_GUEST")</text>
+</g>
+<g class="n-reject"><rect x="118" y="612" width="562" height="30" rx="5"/>
+<text x="128.0" y="631.0" font-size="11" font-weight="700">익명이면</text>
+<text x="188.6" y="631.5" font-size="10.5" class="desc">GuestAuthenticationEntryPoint.commence  →  401 JSON  GUEST_UNAUTHENTICATED</text>
+</g>
+<g class="n-reject"><rect x="118" y="650" width="508" height="30" rx="5"/>
+<text x="128.0" y="669.0" font-size="11" font-weight="700">권한 부족이면</text>
+<text x="219.2" y="669.5" font-size="10.5" class="desc">GuestAccessDeniedHandler.handle  →  403 JSON  GUEST_FORBIDDEN</text>
+</g>
+<g class="n-value"><rect x="118" y="688" width="898" height="30" rx="5"/>
+<text x="128.0" y="707.0" font-size="11" font-weight="700">GuestJsonResponses.write</text>
+<text x="315.5" y="707.5" font-size="10.5" class="desc">위 두 핸들러가 공유  ·  ApiErrorResponse{message, code}  ·  application/json;charset=UTF-8  ·  Set-Cookie 없음</text>
+</g>
+<g class="n-ctl"><rect x="50" y="726" width="318" height="30" rx="5"/>
+<text x="60.0" y="745.0" font-size="11" font-weight="700">컨트롤러</text>
+<text x="120.6" y="745.5" font-size="10.5" class="desc">@CurrentGuest GuestPrincipal 을 인자로</text>
+</g>
+<g class="n-part"><rect x="84" y="764" width="975" height="30" rx="5"/>
+<text x="94.0" y="783.0" font-size="11" font-weight="700">CurrentGuestArgumentResolver</text>
+<text x="310.4" y="783.5" font-size="10.5" class="desc">SecurityContextHolder → GuestPrincipal  ·  없으면 GuestUnauthenticatedException(401 · 슬라이스 테스트 · 배선 오류에서만)</text>
+</g>
+<g class="n-ctl"><rect x="84" y="802" width="810" height="30" rx="5"/>
+<text x="94.0" y="821.0" font-size="11" font-weight="700">서비스</text>
+<text x="143.0" y="821.5" font-size="10.5" class="desc">AgentReportService.checkin(guest)  ·  WindowsInstallCompletionService.complete(guest, …)  —  첫 줄이 require(guest)</text>
+</g>
+<g class="n-data"><rect x="118" y="840" width="931" height="30" rx="5"/>
+<text x="128.0" y="859.0" font-size="11" font-weight="700">GuestPrincipalLoader.require(guest)</text>
+<text x="395.0" y="859.5" font-size="10.5" class="desc">findById → GuestServer 엔티티 + touchSeen(now)  ·  호출자 트랜잭션  ·  없으면 IllegalStateException(500)</text>
+</g></svg><figcaption>텍스트 트리의 순서와 들여쓰기 그대로 — 상자 하나가 부품 하나(이름 · 맡는 일), 테두리 영역이 AuthenticationFilter · ProviderManager(점선) · AuthorizationFilter · 컨트롤러의 경계다. 요청은 위에서 아래로 지난다.</figcaption></figure>
+
+        <h4>2-3. 값이 어떤 타입을 거치는가</h4>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1160" height="300" viewBox="0 0 1160 300"><defs><marker id="d23-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d23-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<g class="n-guest"><rect x="12" y="50" width="246" height="66" rx="6"/>
+<text x="135.0" y="72.0" text-anchor="middle" font-size="11" font-weight="700">요청</text>
+<text x="135.0" y="86.0" text-anchor="middle" font-size="11">X-Guest-Token 헤더</text>
+<text x="135.0" y="100.0" text-anchor="middle" font-size="11">또는 경로 세그먼트 {token}</text>
+</g>
+<path class="call" d="M258,83.0 L314,83.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="206.6" y="15.0" width="158.8" height="29.0" rx="3"/>
+<text x="286.0" y="26.0" text-anchor="middle" font-size="10">GuestCredentialConverter</text>
+<text x="286.0" y="38.5" text-anchor="middle" font-size="10">.convert(request)</text>
+<g class="n-value"><rect x="314" y="50" width="246" height="66" rx="6"/>
+<text x="437.0" y="72.0" text-anchor="middle" font-size="11" font-weight="700">GuestCredential (sealed)</text>
+<text x="437.0" y="86.0" text-anchor="middle" font-size="11">HeaderToken(String value)</text>
+<text x="437.0" y="100.0" text-anchor="middle" font-size="11">ServingToken(UUID value, kind)</text>
+</g>
+<path class="call" d="M560,83.0 L616,83.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="496.2" y="15.0" width="183.6" height="29.0" rx="3"/>
+<text x="588.0" y="26.0" text-anchor="middle" font-size="10">GuestAuthenticationToken</text>
+<text x="588.0" y="38.5" text-anchor="middle" font-size="10">.unauthenticated(credential)</text>
+<g class="n-value"><rect x="616" y="50" width="246" height="66" rx="6"/>
+<text x="739.0" y="72.0" text-anchor="middle" font-size="11" font-weight="700">GuestAuthenticationToken</text>
+<text x="739.0" y="86.0" text-anchor="middle" font-size="11">[인증 전] credential 을 든다</text>
+<text x="739.0" y="100.0" text-anchor="middle" font-size="11">principal 없음 · authenticated=false</text>
+</g>
+<path class="call" d="M862,83.0 L918,83.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="782.7" y="15.0" width="214.6" height="29.0" rx="3"/>
+<text x="890.0" y="26.0" text-anchor="middle" font-size="10">Provider ▸ GuestPrincipalResolver</text>
+<text x="890.0" y="38.5" text-anchor="middle" font-size="10">.resolve(credential)</text>
+<g class="n-value"><rect x="918" y="50" width="246" height="66" rx="6"/>
+<text x="1041.0" y="72.0" text-anchor="middle" font-size="11" font-weight="700">GuestPrincipal (record)</text>
+<text x="1041.0" y="86.0" text-anchor="middle" font-size="11">UUID guestServerId</text>
+<text x="1041.0" y="100.0" text-anchor="middle" font-size="11">UUID systemUUID</text>
+</g>
+<g class="n-value"><rect x="12" y="190" width="246" height="66" rx="6"/>
+<text x="135.0" y="212.0" text-anchor="middle" font-size="11" font-weight="700">GuestAuthenticationToken</text>
+<text x="135.0" y="226.0" text-anchor="middle" font-size="11">[인증 후] principal · ROLE_GUEST</text>
+<text x="135.0" y="240.0" text-anchor="middle" font-size="11">authenticated=true</text>
+</g>
+<path class="call" d="M258,223.0 L314,223.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="184.7" y="267.0" width="202.6" height="29.0" rx="3"/>
+<text x="286.0" y="278.0" text-anchor="middle" font-size="10">CurrentGuestArgumentResolver</text>
+<text x="286.0" y="290.5" text-anchor="middle" font-size="10">SecurityContextHolder 에서 꺼낸다</text>
+<g class="n-ctl"><rect x="314" y="190" width="246" height="66" rx="6"/>
+<text x="437.0" y="212.0" text-anchor="middle" font-size="11" font-weight="700">@CurrentGuest GuestPrincipal</text>
+<text x="437.0" y="226.0" text-anchor="middle" font-size="11">컨트롤러 메서드 인자</text>
+<text x="437.0" y="240.0" text-anchor="middle" font-size="11">→ 서비스 시그니처로 그대로</text>
+</g>
+<path class="call" d="M560,223.0 L616,223.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="521.0" y="267.0" width="134.0" height="29.0" rx="3"/>
+<text x="588.0" y="278.0" text-anchor="middle" font-size="10">GuestPrincipalLoader</text>
+<text x="588.0" y="290.5" text-anchor="middle" font-size="10">.require(guest)</text>
+<g class="n-data"><rect x="616" y="190" width="246" height="66" rx="6"/>
+<text x="739.0" y="212.0" text-anchor="middle" font-size="11" font-weight="700">GuestServer 엔티티</text>
+<text x="739.0" y="226.0" text-anchor="middle" font-size="11">findById + touchSeen(now)</text>
+<text x="739.0" y="240.0" text-anchor="middle" font-size="11">서비스 안 · 호출자 트랜잭션</text>
+</g>
+<path class="call" d="M1041.0,116 L1041.0,154 L135.0,154 L135.0,190" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="146.0" y="135.0" width="165.0" height="29.0" rx="3"/>
+<text x="151.0" y="146.0" text-anchor="start" font-size="10">GuestAuthenticationToken</text>
+<text x="151.0" y="158.5" text-anchor="start" font-size="10">.authenticated(principal)</text></svg><figcaption>값이 어떤 타입을 거치는가 — 화살표 옆이 변환하는 부품, 상자가 값의 타입과 필드. 윗줄 끝에서 아랫줄로 이어진다.</figcaption></figure>
+
+        <h4>2-4. 패키지 — <code>global/security/springsecurity/</code></h4>
+        <div class="pkg-tree">springsecurity/
+├── config/
+│   ├── GuestSecurityConfig                 (신규)  게스트 체인 조립 — 필터 · provider · 인가 규칙 · entry point 을 한 곳에서 잇는다
+│   └── SecurityConfig                      (수정)  웹 체인 @Order(2) · /api/pxe/v1/** permitAll 줄 제거
+├── domain/
+│   ├── MachineAuthority                    (신규)  기계 principal 의 권한 어휘 — GUEST("ROLE_GUEST"). 사람 계정 권한 Role 과 분리
+│   └── Role                                (유지)  사람 계정 권한(ADMIN ⊃ USER) — 가입 화면 · users_role 저장 · 포함 관계
+├── exception/
+│   └── GuestUnauthenticatedException       (신규)  @CurrentGuest 를 요구했는데 principal 이 없다 → 401
+└── guest/
+    ├── GuestPrincipal                      (신규)  인증 결과 — 게스트 서버 id · systemUUID
+    ├── GuestCredential                     (신규)  인증 전 credential — sealed: HeaderToken | ServingToken(UUID · kind WINDOWS/FIRMWARE)
+    ├── GuestAuthenticationToken            (신규)  Spring Security Authentication — 전: credential / 후: principal + ROLE_GUEST
+    ├── authentication/
+    │   ├── GuestCredentialConverter        (신규)  요청 → credential
+    │   ├── GuestPrincipalResolver          (신규)  credential → principal (DB · 레지스트리 조회)
+    │   └── GuestTokenAuthenticationProvider(신규)  Authentication 전 → 후 (Resolver 위임 · 실패 = BadCredentials)
+    └── web/
+        ├── GuestAuthenticationEntryPoint   (신규)  401 JSON — credential 없음(entry point) · credential 틀림(필터 실패) 겸임
+        ├── GuestAccessDeniedHandler        (신규)  403 JSON
+        ├── GuestJsonResponses              (신규)  두 핸들러가 공유하는 ApiErrorResponse 직렬화
+        ├── CurrentGuest                    (신규)  컨트롤러 인자 어노테이션
+        ├── CurrentGuestArgumentResolver    (신규)  보안 컨텍스트 → GuestPrincipal
+        └── GuestWebConfig                  (신규)  resolver 를 MVC 에 등록
+
+execution/
+├── service/GuestPrincipalLoader            (신규)  principal → GuestServer 엔티티 + touchSeen   (구 GuestTokenAuthenticator 는 삭제)
+├── engine/windows/WindowsInstallTokenRegistry   (수정)  guestByToken 역맵 + guestOf(token)
+├── service/FirmwareImageTokenRegistry           (수정)  guestByToken 역맵 + guestOf(token)
+├── controller/GuestAgentRestController          (수정)  @RequestHeader 토큰 → @CurrentGuest GuestPrincipal
+├── controller/WindowsInstallReportRestController(수정)  같음
+├── engine/diagnose/AgentReportService           (수정)  checkin · openStep · closeStep(GuestPrincipal …)
+└── engine/windows/WindowsInstallCompletionService(수정) complete(GuestPrincipal, …)</div>
+
+        <div class="callout danger"><b>provider 는 빈이 아니다</b> — <code>GuestTokenAuthenticationProvider</code> 를 <code>@Component</code> 로 두면 Spring Security 가 <b>전역 <code>AuthenticationManager</code> 를 그 provider 만으로</b> 구성해 웹 체인의 formLogin(<code>UserDetailsService</code> + 인코더)이 죽는다. 그래서 <code>GuestSecurityConfig</code> 가 <code>new ProviderManager(new GuestTokenAuthenticationProvider(resolver))</code> 로 직접 만들어 게스트 필터에만 꽂는다. 두 체인은 인증 관리자를 공유하지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 데이터 흐름 ===== -->
+    <details class="section" id="s3" open>
+      <summary>§3. 데이터 흐름 — 요청 한 건</summary>
+      <div class="body">
+        <p style="margin-top:0;">주체 넷 — <b>게스트</b>(에이전트 · iPXE) · <b>게스트 체인</b>(Spring Security 필터) · <b>인증 부품</b>(이 슬라이스가 만든 클래스) · <b>컨트롤러 · 서비스</b>(execution 영역). 가로가 주체, 세로가 시간이다.</p>
+
+        <h4>3-1. 정상 — 진단 에이전트가 헤더 토큰으로 체크인한다</h4>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1168" height="740" viewBox="0 0 1168 740">
+<defs><marker id="d31-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d31-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<line class="lane" x1="72.0" y1="72" x2="72.0" y2="736"/>
+<g class="n-guest"><rect x="12.0" y="16" width="120" height="56" rx="6"/>
+<text x="72.0" y="34.2" text-anchor="middle" font-size="10" font-weight="700">게스트</text>
+<text x="72.0" y="46.8" text-anchor="middle" font-size="10">(진단</text>
+<text x="72.0" y="59.2" text-anchor="middle" font-size="10">에이전트)</text>
+</g>
+<line class="lane" x1="200.0" y1="72" x2="200.0" y2="736"/>
+<g class="n-chain"><rect x="140.0" y="16" width="120" height="56" rx="6"/>
+<text x="200.0" y="34.2" text-anchor="middle" font-size="10" font-weight="700">Authentication</text>
+<text x="200.0" y="46.8" text-anchor="middle" font-size="10">Filter</text>
+<text x="200.0" y="59.2" text-anchor="middle" font-size="10">(게스트 체인)</text>
+</g>
+<line class="lane" x1="328.0" y1="72" x2="328.0" y2="736"/>
+<g class="n-part"><rect x="268.0" y="16" width="120" height="56" rx="6"/>
+<text x="328.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">GuestCredential</text>
+<text x="328.0" y="53.0" text-anchor="middle" font-size="10">Converter</text>
+</g>
+<line class="lane" x1="456.0" y1="72" x2="456.0" y2="736"/>
+<g class="n-part"><rect x="396.0" y="16" width="120" height="56" rx="6"/>
+<text x="456.0" y="34.2" text-anchor="middle" font-size="10" font-weight="700">GuestToken</text>
+<text x="456.0" y="46.8" text-anchor="middle" font-size="10">Authentication</text>
+<text x="456.0" y="59.2" text-anchor="middle" font-size="10">Provider</text>
+</g>
+<line class="lane" x1="584.0" y1="72" x2="584.0" y2="736"/>
+<g class="n-part"><rect x="524.0" y="16" width="120" height="56" rx="6"/>
+<text x="584.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">GuestPrincipal</text>
+<text x="584.0" y="53.0" text-anchor="middle" font-size="10">Resolver</text>
+</g>
+<line class="lane" x1="712.0" y1="72" x2="712.0" y2="736"/>
+<g class="n-data"><rect x="652.0" y="16" width="120" height="56" rx="6"/>
+<text x="712.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">GuestServer</text>
+<text x="712.0" y="53.0" text-anchor="middle" font-size="10">Repository</text>
+</g>
+<line class="lane" x1="840.0" y1="72" x2="840.0" y2="736"/>
+<g class="n-chain"><rect x="780.0" y="16" width="120" height="56" rx="6"/>
+<text x="840.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">Authorization</text>
+<text x="840.0" y="53.0" text-anchor="middle" font-size="10">Filter</text>
+</g>
+<line class="lane" x1="968.0" y1="72" x2="968.0" y2="736"/>
+<g class="n-ctl"><rect x="908.0" y="16" width="120" height="56" rx="6"/>
+<text x="968.0" y="34.2" text-anchor="middle" font-size="10" font-weight="700">컨트롤러</text>
+<text x="968.0" y="46.8" text-anchor="middle" font-size="10">(@CurrentGuest</text>
+<text x="968.0" y="59.2" text-anchor="middle" font-size="10">인자)</text>
+</g>
+<line class="lane" x1="1096.0" y1="72" x2="1096.0" y2="736"/>
+<g class="n-ctl"><rect x="1036.0" y="16" width="120" height="56" rx="6"/>
+<text x="1096.0" y="34.2" text-anchor="middle" font-size="10" font-weight="700">서비스</text>
+<text x="1096.0" y="46.8" text-anchor="middle" font-size="10">+ GuestPrincipal</text>
+<text x="1096.0" y="59.2" text-anchor="middle" font-size="10">Loader</text>
+</g>
+<line class="call" x1="72.0" y1="124" x2="200.0" y2="124" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="21.9" y="94.0" width="228.2" height="30.0" rx="3"/>
+<text x="136.0" y="106.0" text-anchor="middle" font-size="11">① POST /api/pxe/v1/agent/checkin</text>
+<text x="136.0" y="119.0" text-anchor="middle" font-size="11">X-Guest-Token: &lt;32hex&gt;</text>
+<path class="call" d="M200.0,144 h16 v13 h-16" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="221.0" y="136.0" width="474.0" height="17.0" rx="3"/>
+<text x="226.0" y="148.0" text-anchor="start" font-size="11">체인 선택 — URL 이 /api/pxe/v1/** 이므로 @Order(1). 세션 쿠키는 읽지 않는다</text>
+<line class="call" x1="200.0" y1="191" x2="328.0" y2="191" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="197.6" y="174.0" width="132.8" height="17.0" rx="3"/>
+<text x="264.0" y="186.0" text-anchor="middle" font-size="11">② convert(request)</text>
+<line class="ret" x1="328.0" y1="235" x2="200.0" y2="235" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="150.4" y="205.0" width="227.1" height="30.0" rx="3"/>
+<text x="264.0" y="217.0" text-anchor="middle" class="muted" font-size="11">③ 미인증 GuestAuthenticationToken</text>
+<text x="264.0" y="230.0" text-anchor="middle" class="muted" font-size="11">(HeaderToken "&lt;32hex&gt;")</text>
+<line class="call" x1="200.0" y1="266" x2="456.0" y2="266" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="183.0" y="249.0" width="290.1" height="17.0" rx="3"/>
+<text x="328.0" y="261.0" text-anchor="middle" font-size="11">④ ProviderManager.authenticate(미인증 토큰)</text>
+<line class="call" x1="456.0" y1="297" x2="584.0" y2="297" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="440.0" y="280.0" width="160.0" height="17.0" rx="3"/>
+<text x="520.0" y="292.0" text-anchor="middle" font-size="11">⑤ resolve(HeaderToken)</text>
+<line class="call" x1="584.0" y1="328" x2="712.0" y2="328" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="503.2" y="311.0" width="289.6" height="17.0" rx="3"/>
+<text x="648.0" y="323.0" text-anchor="middle" font-size="11">⑥ findByGuestToken(GuestToken("&lt;32hex&gt;"))</text>
+<line class="ret" x1="712.0" y1="359" x2="584.0" y2="359" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="564.6" y="342.0" width="166.9" height="17.0" rx="3"/>
+<text x="648.0" y="354.0" text-anchor="middle" class="muted" font-size="11">⑦ Optional&lt;GuestServer&gt;</text>
+<line class="ret" x1="584.0" y1="390" x2="456.0" y2="390" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="371.8" y="373.0" width="296.4" height="17.0" rx="3"/>
+<text x="520.0" y="385.0" text-anchor="middle" class="muted" font-size="11">⑧ Optional&lt;GuestPrincipal(id, systemUUID)&gt;</text>
+<line class="ret" x1="456.0" y1="434" x2="200.0" y2="434" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="214.4" y="404.0" width="227.1" height="30.0" rx="3"/>
+<text x="328.0" y="416.0" text-anchor="middle" class="muted" font-size="11">⑨ 인증된 GuestAuthenticationToken</text>
+<text x="328.0" y="429.0" text-anchor="middle" class="muted" font-size="11">(GuestPrincipal + ROLE_GUEST)</text>
+<path class="call" d="M200.0,454 h16 v13 h-16" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="221.0" y="446.0" width="611.0" height="17.0" rx="3"/>
+<text x="226.0" y="458.0" text-anchor="start" font-size="11">⑩ RequestAttributeSecurityContextRepository 에 저장(이 요청 안에서만) · successHandler no-op</text>
+<line class="call" x1="200.0" y1="501" x2="840.0" y2="501" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="445.3" y="484.0" width="149.5" height="17.0" rx="3"/>
+<text x="520.0" y="496.0" text-anchor="middle" font-size="11">⑪ doFilter — 체인 계속</text>
+<path class="call" d="M840.0,521 h-16 v13 h16" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="507.4" y="513.0" width="311.6" height="17.0" rx="3"/>
+<text x="814.0" y="525.0" text-anchor="end" font-size="11">⑫ /agent/** → hasAuthority("ROLE_GUEST") 통과</text>
+<line class="call" x1="840.0" y1="581" x2="968.0" y2="581" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="755.6" y="551.0" width="296.9" height="30.0" rx="3"/>
+<text x="904.0" y="563.0" text-anchor="middle" font-size="11">⑬ 디스패치 — CurrentGuestArgumentResolver 가</text>
+<text x="904.0" y="576.0" text-anchor="middle" font-size="11">SecurityContextHolder 의 principal 을 인자로</text>
+<line class="call" x1="968.0" y1="612" x2="1096.0" y2="612" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="941.8" y="595.0" width="180.5" height="17.0" rx="3"/>
+<text x="1032.0" y="607.0" text-anchor="middle" font-size="11">⑭ checkin(GuestPrincipal)</text>
+<path class="call" d="M1096.0,632 h-16 v13 h16" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="621.7" y="624.0" width="453.3" height="30.0" rx="3"/>
+<text x="1070.0" y="636.0" text-anchor="end" font-size="11">⑮ GuestPrincipalLoader.require(guest) = findById + touchSeen(now)</text>
+<text x="1070.0" y="649.0" text-anchor="end" font-size="11">→ 종전 도메인 로직(게이트 · 지시 계산)</text>
+<line class="ret" x1="1096.0" y1="685" x2="968.0" y2="685" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="952.0" y="668.0" width="160.0" height="17.0" rx="3"/>
+<text x="1032.0" y="680.0" text-anchor="middle" class="muted" font-size="11">⑯ AgentCheckinResponse</text>
+<line class="ret" x1="968.0" y1="716" x2="72.0" y2="716" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="440.0" y="699.0" width="160.0" height="17.0" rx="3"/>
+<text x="520.0" y="711.0" text-anchor="middle" class="muted" font-size="11">⑰ 200 application/json</text>
+</svg><figcaption>실선 = 호출(넘기는 값) · 점선 = 반환(돌려주는 값) · 고리 화살표 = 그 주체 안의 처리. 번호는 시간 순.</figcaption></figure>
+
+        <h4>3-2. 정상 — iPXE 가 경로 토큰으로 wimboot 를 받는다</h4>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1168" height="697" viewBox="0 0 1168 697">
+<defs><marker id="d32-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d32-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<line class="lane" x1="72.0" y1="72" x2="72.0" y2="693"/>
+<g class="n-guest"><rect x="12.0" y="16" width="120" height="56" rx="6"/>
+<text x="72.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">게스트</text>
+<text x="72.0" y="53.0" text-anchor="middle" font-size="10">(iPXE)</text>
+</g>
+<line class="lane" x1="200.0" y1="72" x2="200.0" y2="693"/>
+<g class="n-chain"><rect x="140.0" y="16" width="120" height="56" rx="6"/>
+<text x="200.0" y="34.2" text-anchor="middle" font-size="10" font-weight="700">Authentication</text>
+<text x="200.0" y="46.8" text-anchor="middle" font-size="10">Filter</text>
+<text x="200.0" y="59.2" text-anchor="middle" font-size="10">(게스트 체인)</text>
+</g>
+<line class="lane" x1="328.0" y1="72" x2="328.0" y2="693"/>
+<g class="n-part"><rect x="268.0" y="16" width="120" height="56" rx="6"/>
+<text x="328.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">GuestCredential</text>
+<text x="328.0" y="53.0" text-anchor="middle" font-size="10">Converter</text>
+</g>
+<line class="lane" x1="456.0" y1="72" x2="456.0" y2="693"/>
+<g class="n-part"><rect x="396.0" y="16" width="120" height="56" rx="6"/>
+<text x="456.0" y="34.2" text-anchor="middle" font-size="10" font-weight="700">GuestToken</text>
+<text x="456.0" y="46.8" text-anchor="middle" font-size="10">Authentication</text>
+<text x="456.0" y="59.2" text-anchor="middle" font-size="10">Provider</text>
+</g>
+<line class="lane" x1="584.0" y1="72" x2="584.0" y2="693"/>
+<g class="n-part"><rect x="524.0" y="16" width="120" height="56" rx="6"/>
+<text x="584.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">GuestPrincipal</text>
+<text x="584.0" y="53.0" text-anchor="middle" font-size="10">Resolver</text>
+</g>
+<line class="lane" x1="712.0" y1="72" x2="712.0" y2="693"/>
+<g class="n-data"><rect x="652.0" y="16" width="120" height="56" rx="6"/>
+<text x="712.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">WindowsInstall</text>
+<text x="712.0" y="53.0" text-anchor="middle" font-size="10">TokenRegistry</text>
+</g>
+<line class="lane" x1="840.0" y1="72" x2="840.0" y2="693"/>
+<g class="n-data"><rect x="780.0" y="16" width="120" height="56" rx="6"/>
+<text x="840.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">GuestServer</text>
+<text x="840.0" y="53.0" text-anchor="middle" font-size="10">Repository</text>
+</g>
+<line class="lane" x1="968.0" y1="72" x2="968.0" y2="693"/>
+<g class="n-chain"><rect x="908.0" y="16" width="120" height="56" rx="6"/>
+<text x="968.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">Authorization</text>
+<text x="968.0" y="53.0" text-anchor="middle" font-size="10">Filter</text>
+</g>
+<line class="lane" x1="1096.0" y1="72" x2="1096.0" y2="693"/>
+<g class="n-ctl"><rect x="1036.0" y="16" width="120" height="56" rx="6"/>
+<text x="1096.0" y="34.2" text-anchor="middle" font-size="10" font-weight="700">WindowsInstall</text>
+<text x="1096.0" y="46.8" text-anchor="middle" font-size="10">AssetRestController</text>
+<text x="1096.0" y="59.2" text-anchor="middle" font-size="10">.serve</text>
+</g>
+<line class="call" x1="72.0" y1="124" x2="200.0" y2="124" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="2.0" y="94.0" width="289.6" height="30.0" rx="3"/>
+<text x="146.8" y="106.0" text-anchor="middle" font-size="11">① GET /api/pxe/v1/windows/{token}/wimboot</text>
+<text x="146.8" y="119.0" text-anchor="middle" font-size="11">(헤더 없음)</text>
+<line class="call" x1="200.0" y1="155" x2="328.0" y2="155" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="197.6" y="138.0" width="132.8" height="17.0" rx="3"/>
+<text x="264.0" y="150.0" text-anchor="middle" font-size="11">② convert(request)</text>
+<path class="call" d="M328.0,175 h16 v13 h-16" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="349.0" y="167.0" width="652.8" height="30.0" rx="3"/>
+<text x="354.0" y="179.0" text-anchor="start" font-size="11">경로가 ^/api/pxe/v1/(windows|firmware)/([^/]+)/ 에 맞는다 → 경로 토큰이 credential(헤더는 읽지 않는다)</text>
+<text x="354.0" y="192.0" text-anchor="start" font-size="11">세그먼트가 UUID 가 아니면 value=null 인 credential 을 만든다(⑤ 에서 거절)</text>
+<line class="ret" x1="328.0" y1="241" x2="200.0" y2="241" marker-end="url(#d32-arro)"/>
+<rect class="lbl-bg" x="150.4" y="211.0" width="227.1" height="30.0" rx="3"/>
+<text x="264.0" y="223.0" text-anchor="middle" class="muted" font-size="11">③ 미인증 GuestAuthenticationToken</text>
+<text x="264.0" y="236.0" text-anchor="middle" class="muted" font-size="11">(ServingToken(UUID, WINDOWS))</text>
+<line class="call" x1="200.0" y1="272" x2="456.0" y2="272" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="183.0" y="255.0" width="290.1" height="17.0" rx="3"/>
+<text x="328.0" y="267.0" text-anchor="middle" font-size="11">④ ProviderManager.authenticate(미인증 토큰)</text>
+<line class="call" x1="456.0" y1="303" x2="584.0" y2="303" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="436.6" y="286.0" width="166.9" height="17.0" rx="3"/>
+<text x="520.0" y="298.0" text-anchor="middle" font-size="11">⑤ resolve(ServingToken)</text>
+<line class="call" x1="584.0" y1="334" x2="712.0" y2="334" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="588.4" y="317.0" width="119.1" height="17.0" rx="3"/>
+<text x="648.0" y="329.0" text-anchor="middle" font-size="11">⑥ guestOf(token)</text>
+<line class="ret" x1="712.0" y1="378" x2="584.0" y2="378" marker-end="url(#d32-arro)"/>
+<rect class="lbl-bg" x="540.7" y="348.0" width="214.6" height="30.0" rx="3"/>
+<text x="648.0" y="360.0" text-anchor="middle" class="muted" font-size="11">⑦ Optional&lt;UUID guestServerId&gt;</text>
+<text x="648.0" y="373.0" text-anchor="middle" class="muted" font-size="11">(발급 시 채운 역맵 · 회수 시 지움)</text>
+<line class="call" x1="584.0" y1="409" x2="840.0" y2="409" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="621.8" y="392.0" width="180.5" height="17.0" rx="3"/>
+<text x="712.0" y="404.0" text-anchor="middle" font-size="11">⑧ findById(guestServerId)</text>
+<line class="ret" x1="840.0" y1="440" x2="584.0" y2="440" marker-end="url(#d32-arro)"/>
+<rect class="lbl-bg" x="628.6" y="423.0" width="166.9" height="17.0" rx="3"/>
+<text x="712.0" y="435.0" text-anchor="middle" class="muted" font-size="11">⑨ Optional&lt;GuestServer&gt;</text>
+<line class="ret" x1="584.0" y1="471" x2="456.0" y2="471" marker-end="url(#d32-arro)"/>
+<rect class="lbl-bg" x="426.3" y="454.0" width="187.3" height="17.0" rx="3"/>
+<text x="520.0" y="466.0" text-anchor="middle" class="muted" font-size="11">⑩ Optional&lt;GuestPrincipal&gt;</text>
+<line class="ret" x1="456.0" y1="502" x2="200.0" y2="502" marker-end="url(#d32-arro)"/>
+<rect class="lbl-bg" x="186.4" y="485.0" width="283.2" height="17.0" rx="3"/>
+<text x="328.0" y="497.0" text-anchor="middle" class="muted" font-size="11">⑪ 인증된 토큰(GuestPrincipal + ROLE_GUEST)</text>
+<line class="call" x1="200.0" y1="533" x2="968.0" y2="533" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="498.0" y="516.0" width="171.9" height="17.0" rx="3"/>
+<text x="584.0" y="528.0" text-anchor="middle" font-size="11">⑫ 컨텍스트 저장 뒤 체인 계속</text>
+<path class="call" d="M968.0,553 h-16 v13 h16" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="621.7" y="545.0" width="325.3" height="17.0" rx="3"/>
+<text x="942.0" y="557.0" text-anchor="end" font-size="11">⑬ /windows/** → hasAuthority("ROLE_GUEST") 통과</text>
+<line class="call" x1="968.0" y1="600" x2="1096.0" y2="600" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="926.6" y="583.0" width="210.9" height="17.0" rx="3"/>
+<text x="1032.0" y="595.0" text-anchor="middle" font-size="11">⑭ 디스패치 — serve(token, file)</text>
+<path class="call" d="M1096.0,620 h-16 v13 h16" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="735.9" y="612.0" width="339.1" height="30.0" rx="3"/>
+<text x="1070.0" y="624.0" text-anchor="end" font-size="11">⑮ 종전처럼 경로 토큰으로 번들을 푼다(registry.resolve)</text>
+<text x="1070.0" y="637.0" text-anchor="end" font-size="11">체인은 principal 만 세우고 번들 해석에는 관여하지 않는다</text>
+<line class="ret" x1="1096.0" y1="673" x2="72.0" y2="673" marker-end="url(#d32-arro)"/>
+<rect class="lbl-bg" x="527.6" y="656.0" width="112.7" height="17.0" rx="3"/>
+<text x="584.0" y="668.0" text-anchor="middle" class="muted" font-size="11">⑯ 200 파일 스트림</text>
+</svg><figcaption>경로 토큰은 Converter 가 credential 로 삼고 Resolver 가 레지스트리 역맵으로 게스트를 찾는다. 컨트롤러의 번들 해석은 체인과 무관하다.</figcaption></figure>
+        <div class="callout">레지스트리는 발급 시 <code>guestByToken</code> 역맵을 함께 채우고 회수 시 지운다. 그래서 회수된 토큰은 ③ 에서 풀리지 않아 401 로 끝난다.</div>
+
+        <h4>3-3. 거절 — 세 갈래가 어디서 끝나는가</h4>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1160" height="486" viewBox="0 0 1160 486"><defs><marker id="d33-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d33-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<g class="n-guest"><rect x="10" y="160" width="62" height="44" rx="6"/>
+<text x="41.0" y="186.2" text-anchor="middle" font-size="11.5" font-weight="700">요청</text>
+</g>
+<g class="n-decision"><rect x="92" y="150" width="210" height="64" rx="6"/>
+<text x="197.0" y="171.0" text-anchor="middle" font-size="11" font-weight="700">GuestCredentialConverter</text>
+<text x="197.0" y="185.0" text-anchor="middle" font-size="11">.convert(request)</text>
+<text x="197.0" y="199.0" text-anchor="middle" font-size="11">credential 이 있는가?</text>
+</g>
+<path class="call" d="M72,182 L92,182" marker-end="url(#d33-arr)"/>
+<g class="n-chain"><rect x="322" y="16" width="210" height="52" rx="6"/>
+<text x="427.0" y="38.0" text-anchor="middle" font-size="11" font-weight="700">AuthenticationFilter</text>
+<text x="427.0" y="52.0" text-anchor="middle" font-size="11">건너뜀 — 인증 시도 없음</text>
+</g>
+<g class="n-chain"><rect x="552" y="16" width="210" height="52" rx="6"/>
+<text x="657.0" y="38.0" text-anchor="middle" font-size="11" font-weight="700">AuthorizationFilter</text>
+<text x="657.0" y="52.0" text-anchor="middle" font-size="11">익명 → 권한 없음</text>
+</g>
+<g class="n-part"><rect x="782" y="16" width="200" height="52" rx="6"/>
+<text x="882.0" y="38.0" text-anchor="middle" font-size="11" font-weight="700">GuestAuthenticationEntryPoint</text>
+<text x="882.0" y="52.0" text-anchor="middle" font-size="11">.commence</text>
+</g>
+<g class="n-reject"><rect x="1002" y="16" width="150" height="52" rx="6"/>
+<text x="1077.0" y="37.5" text-anchor="middle" font-size="10.5" font-weight="700">401 JSON</text>
+<text x="1077.0" y="51.5" text-anchor="middle" font-size="10.5">GUEST_UNAUTHENTICATED</text>
+</g>
+<path class="call" d="M302,166 L312,166 L312,42 L322,42" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="311.0" y="87.0" width="67.2" height="16.5" rx="3"/>
+<text x="316.0" y="98.0" text-anchor="start" font-size="10">없음(null)</text>
+<path class="call" d="M532,42 L552,42" marker-end="url(#d33-arr)"/>
+<path class="call" d="M762,42 L782,42" marker-end="url(#d33-arr)"/>
+<path class="call" d="M982,42 L1002,42" marker-end="url(#d33-arr)"/>
+<g class="n-decision"><rect x="322" y="150" width="210" height="64" rx="6"/>
+<text x="427.0" y="171.0" text-anchor="middle" font-size="11" font-weight="700">GuestTokenAuthentication</text>
+<text x="427.0" y="185.0" text-anchor="middle" font-size="11">Provider.authenticate</text>
+<text x="427.0" y="199.0" text-anchor="middle" font-size="11">Resolver 가 principal 을 찾는가?</text>
+</g>
+<path class="call" d="M302,182 L322,182" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="297.0" y="163.0" width="30.0" height="16.5" rx="3"/>
+<text x="312.0" y="174.0" text-anchor="middle" font-size="10">있음</text>
+<g class="n-value"><rect x="552" y="150" width="210" height="64" rx="6"/>
+<text x="657.0" y="171.0" text-anchor="middle" font-size="11" font-weight="700">인증됨</text>
+<text x="657.0" y="185.0" text-anchor="middle" font-size="11">GuestPrincipal + ROLE_GUEST</text>
+<text x="657.0" y="199.0" text-anchor="middle" font-size="11">요청 속성 컨텍스트에 저장</text>
+</g>
+<path class="call" d="M532,182 L552,182" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="527.0" y="163.0" width="30.0" height="16.5" rx="3"/>
+<text x="542.0" y="174.0" text-anchor="middle" font-size="10">찾음</text>
+<g class="n-decision"><rect x="782" y="150" width="200" height="64" rx="6"/>
+<text x="882.0" y="171.0" text-anchor="middle" font-size="11" font-weight="700">AuthorizationFilter</text>
+<text x="882.0" y="185.0" text-anchor="middle" font-size="11">경로 규칙 ∧ 권한</text>
+<text x="882.0" y="199.0" text-anchor="middle" font-size="11">허용되는가?</text>
+</g>
+<path class="call" d="M762,182 L782,182" marker-end="url(#d33-arr)"/>
+<g class="n-ctl"><rect x="1002" y="150" width="150" height="64" rx="6"/>
+<text x="1077.0" y="171.0" text-anchor="middle" font-size="11" font-weight="700">컨트롤러</text>
+<text x="1077.0" y="185.0" text-anchor="middle" font-size="11">@CurrentGuest</text>
+<text x="1077.0" y="199.0" text-anchor="middle" font-size="11">GuestPrincipal</text>
+</g>
+<path class="call" d="M982,182 L1002,182" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="977.0" y="163.0" width="30.0" height="16.5" rx="3"/>
+<text x="992.0" y="174.0" text-anchor="middle" font-size="10">허용</text>
+<g class="n-part"><rect x="782" y="282" width="200" height="52" rx="6"/>
+<text x="882.0" y="304.0" text-anchor="middle" font-size="11" font-weight="700">GuestAccessDeniedHandler</text>
+<text x="882.0" y="318.0" text-anchor="middle" font-size="11">.handle</text>
+</g>
+<g class="n-reject"><rect x="1002" y="282" width="150" height="52" rx="6"/>
+<text x="1077.0" y="303.5" text-anchor="middle" font-size="10.5" font-weight="700">403 JSON</text>
+<text x="1077.0" y="317.5" text-anchor="middle" font-size="10.5">GUEST_FORBIDDEN</text>
+</g>
+<path class="call" d="M882.0,214 L882.0,282" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="885.0" y="237.0" width="56.2" height="16.5" rx="3"/>
+<text x="890.0" y="248.0" text-anchor="start" font-size="10">권한 부족</text>
+<path class="call" d="M982,308 L1002,308" marker-end="url(#d33-arr)"/>
+<g class="n-reject"><rect x="322" y="392" width="210" height="52" rx="6"/>
+<text x="427.0" y="414.0" text-anchor="middle" font-size="11" font-weight="700">BadCredentialsException</text>
+<text x="427.0" y="428.0" text-anchor="middle" font-size="11">위조 · 회수 · 형식 위반</text>
+</g>
+<g class="n-part"><rect x="552" y="392" width="210" height="52" rx="6"/>
+<text x="657.0" y="414.0" text-anchor="middle" font-size="11" font-weight="700">failureHandler</text>
+<text x="657.0" y="428.0" text-anchor="middle" font-size="11">= GuestAuthenticationEntryPoint</text>
+</g>
+<g class="n-reject"><rect x="1002" y="392" width="150" height="52" rx="6"/>
+<text x="1077.0" y="413.5" text-anchor="middle" font-size="10.5" font-weight="700">401 JSON</text>
+<text x="1077.0" y="427.5" text-anchor="middle" font-size="10.5">GUEST_UNAUTHENTICATED</text>
+</g>
+<path class="call" d="M427.0,214 L427.0,392" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="430.0" y="237.0" width="46.2" height="16.5" rx="3"/>
+<text x="435.0" y="248.0" text-anchor="start" font-size="10">못 찾음</text>
+<path class="call" d="M532,418 L552,418" marker-end="url(#d33-arr)"/>
+<path class="call" d="M762,418 L1002,418" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="697.8" y="455.0" width="368.4" height="16.5" rx="3"/>
+<text x="882.0" y="466.0" text-anchor="middle" font-size="10">/boot 처럼 permitAll 경로라도 credential 을 냈으면 여기서 끝난다</text></svg><figcaption>판정 상자(노랑)에서 갈라진다 — credential 없음 · 못 풀림은 401, 인증 뒤 권한 부족은 403.</figcaption></figure>
+        <table>
+          <thead><tr><th>상황</th><th>어디서 끝나는가</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>credential 이 없다(헤더도 경로 토큰도 없음)</td><td>Converter 가 null → 필터 통과 → <code>AuthorizationFilter</code> 가 익명을 거절 → <code>GuestAuthenticationEntryPoint.commence</code></td><td>401 <code>{"message":"게스트 인증이 필요합니다.","code":"GUEST_UNAUTHENTICATED"}</code></td></tr>
+            <tr><td>credential 이 틀리다(위조 · 회수 · UUID 형식 위반)</td><td>Provider 가 <code>BadCredentialsException</code> → 필터의 failureHandler(= 같은 entry point)</td><td>401 같은 본문. <code>/boot</code> 처럼 permitAll 인 경로라도 틀린 credential 을 들고 오면 여기서 끝난다</td></tr>
+            <tr><td>인증은 됐으나 <code>ROLE_GUEST</code> 가 아니다</td><td><code>AuthorizationFilter</code> → <code>GuestAccessDeniedHandler</code></td><td>403 <code>{"message":"게스트 credential 로는 허용되지 않는 요청입니다.","code":"GUEST_FORBIDDEN"}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §4 클래스별 책임 ===== -->
+    <details class="section" id="s4" open>
+      <summary>§4. 클래스별 책임 — 맡는 것 · 맡지 않는 것</summary>
+      <div class="body">
+        <h4>4-1. 조립</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>변경</th><th>맡는 것</th><th>맡지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestSecurityConfig</code></td><td><span class="chip new">신규</span></td><td>게스트 체인 조립 — 매처 · STATELESS · <code>AuthenticationFilter</code>(Converter + <code>ProviderManager(Provider)</code>) · 인가 규칙(<code>/boot</code> · <code>/assets/**</code> permitAll · 나머지 GUEST · ERROR/ASYNC permit) · entry point · AccessDeniedHandler. Provider 를 직접 <code>new</code> 한다</td><td>웹 체인의 규칙</td></tr>
+            <tr><td><code>SecurityConfig</code>(S18)</td><td><span class="chip mod">수정</span></td><td>웹 화면 체인(<code>@Order(2)</code>)</td><td><code>/api/pxe/v1/**</code> — permitAll 줄을 뺐다. 게스트 체인이 앞에서 받으므로 이 체인에는 오지 않는다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-2. credential · principal 값</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>변경</th><th>맡는 것</th><th>맡지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestCredential</code></td><td><span class="chip new">신규</span></td><td>credential 의 종류를 닫힌 타입으로 표현(<code>sealed</code>) — <code>HeaderToken(String)</code> · <code>ServingToken(UUID, kind)</code></td><td>유효성 판단</td></tr>
+            <tr><td><code>GuestPrincipal</code></td><td><span class="chip new">신규</span></td><td>인증 결과 값 객체 — 게스트 서버 id · systemUUID</td><td>엔티티 접근</td></tr>
+            <tr><td><code>GuestAuthenticationToken</code></td><td><span class="chip new">신규</span></td><td><code>Authentication</code> 구현 — 전(credential) · 후(principal + <code>MachineAuthority.GUEST</code>) 두 상태를 정적 팩토리 <code>unauthenticated</code> · <code>authenticated</code> 로만 만든다</td><td>—</td></tr>
+            <tr><td><code>MachineAuthority</code></td><td><span class="chip new">신규</span></td><td>기계 principal 권한 문자열의 유일한 정의처 — <code>GUEST("ROLE_GUEST")</code></td><td>사람 계정 권한(<code>Role</code> — 가입 화면 · <code>users_role</code> · 포함 관계)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-3. 인증 부품 (AuthenticationFilter 에 꽂히는 것)</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>변경</th><th>맡는 것</th><th>맡지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestCredentialConverter</code></td><td><span class="chip new">신규</span></td><td>요청에서 credential 하나를 읽는 규칙 — 서빙 경로면 경로 토큰(헤더 무시), 아니면 헤더, 없으면 null</td><td>DB · 레지스트리 조회</td></tr>
+            <tr><td><code>GuestPrincipalResolver</code></td><td><span class="chip new">신규</span></td><td>credential → principal. <code>HeaderToken</code> 은 <code>guest_server.guest_token</code> 대조, <code>ServingToken</code> 은 레지스트리 <code>guestOf</code> → <code>findById</code>. 읽기 전용 트랜잭션</td><td>접촉 기록(<code>touchSeen</code>) · 예외 변환</td></tr>
+            <tr><td><code>GuestTokenAuthenticationProvider</code></td><td><span class="chip new">신규</span></td><td>Spring Security 의 <code>AuthenticationProvider</code> 계약 — <code>GuestAuthenticationToken</code> 만 지원, Resolver 의 결과를 인증된 토큰으로, 없으면 <code>BadCredentialsException</code>. <b>빈이 아니다</b></td><td>응답 작성</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-4. 거절 응답</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>변경</th><th>맡는 것</th><th>맡지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestAuthenticationEntryPoint</code></td><td><span class="chip new">신규</span></td><td>401 JSON. <code>AuthenticationEntryPoint</code>(credential 없음)와 <code>AuthenticationFailureHandler</code>(credential 틀림)를 한 클래스가 겸해 두 경우의 응답이 같다</td><td>403</td></tr>
+            <tr><td><code>GuestAccessDeniedHandler</code></td><td><span class="chip new">신규</span></td><td>403 JSON</td><td>401</td></tr>
+            <tr><td><code>GuestJsonResponses</code></td><td><span class="chip new">신규</span></td><td>상태 · 메시지 · 코드로 <code>ApiErrorResponse</code> 를 JSON 으로 쓰는 한 함수(Jackson 3 <code>ObjectMapper</code>). 메시지 · 코드 상수의 정의처</td><td>—</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-5. 컨트롤러 진입</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>변경</th><th>맡는 것</th><th>맡지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>CurrentGuest</code> · <code>CurrentGuestArgumentResolver</code> · <code>GuestWebConfig</code></td><td><span class="chip new">신규</span></td><td>컨트롤러 인자 <code>@CurrentGuest GuestPrincipal</code> 해석 — <code>SecurityContextHolder</code> 의 인증된 <code>GuestAuthenticationToken</code> 에서 principal 을 꺼낸다. 없으면 <code>GuestUnauthenticatedException</code>(401). <code>GuestWebConfig</code> 가 MVC 에 등록</td><td>인증 자체</td></tr>
+            <tr><td><code>GuestUnauthenticatedException</code></td><td><span class="chip new">신규</span></td><td><code>@ResponseStatus(UNAUTHORIZED)</code>. 체인 뒤에서는 일어나지 않고 슬라이스 테스트 · 배선 오류에서만 401</td><td>—</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-6. execution 영역의 변화</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>변경</th><th>맡는 것</th><th>맡지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestPrincipalLoader</code></td><td><span class="chip new">신규</span></td><td>principal → <code>GuestServer</code> 엔티티 + <code>touchSeen(now)</code>. 호출자의 트랜잭션에 참여. principal 이 DB 에 없으면 데이터 손상으로 보고 <code>IllegalStateException</code>(500)</td><td>토큰 대조(필터로 이동)</td></tr>
+            <tr><td><code>GuestTokenAuthenticator</code></td><td><span class="chip del">삭제</span></td><td>—</td><td>종전에 헤더 토큰을 <code>findByGuestToken</code> 으로 대조하고 없으면 404 를 내던 클래스. 그 일은 <code>GuestPrincipalResolver</code> + 필터가 맡는다</td></tr>
+            <tr><td><code>WindowsInstallTokenRegistry</code> · <code>FirmwareImageTokenRegistry</code></td><td><span class="chip mod">수정</span></td><td>기존 발급 · 해석 · 회수 + <code>guestByToken</code> 역맵 + <code>guestOf(token)</code> 역조회</td><td>—</td></tr>
+            <tr><td><code>GuestAgentRestController</code> · <code>WindowsInstallReportRestController</code></td><td><span class="chip mod">수정</span></td><td><code>@RequestHeader</code> 토큰 대신 <code>@CurrentGuest GuestPrincipal</code> 을 받아 서비스에 넘긴다</td><td>토큰 검사</td></tr>
+            <tr><td><code>AgentReportService</code> · <code>WindowsInstallCompletionService</code></td><td><span class="chip mod">수정</span></td><td>시그니처 <code>String presentedToken</code> → <code>GuestPrincipal guest</code>. 첫 줄이 <code>guestPrincipalLoader.require(guest)</code></td><td>토큰 검사</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §5 계약 ===== -->
+    <details class="section" id="s5" open>
+      <summary>§5. 계약 — 요청 · 응답 형태</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>경로</th><th>credential</th><th>인가</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>/api/pxe/v1/agent/**</code></td><td>헤더 <code>X-Guest-Token: &lt;guest_server.guest_token · 32 hex&gt;</code></td><td><code>ROLE_GUEST</code></td><td>진단 에이전트 체크인 · step 열기/닫기 · Windows 완료 보고</td></tr>
+            <tr><td><code>/api/pxe/v1/windows/{UUID}/{file}</code></td><td>경로 서빙 토큰 — 헤더는 읽지 않는다</td><td><code>ROLE_GUEST</code></td><td>wimboot 번들 · 드라이버 목록</td></tr>
+            <tr><td><code>/api/pxe/v1/firmware/{UUID}/{file}</code></td><td>경로 서빙 토큰 — 헤더는 읽지 않는다</td><td><code>ROLE_GUEST</code></td><td>펌웨어 이미지</td></tr>
+            <tr><td><code>/api/pxe/v1/boot</code> · <code>/api/pxe/v1/assets/**</code></td><td>없음</td><td>permitAll</td><td>단, 틀린 credential 을 제시하면 401 — 필터의 failureHandler 가 먼저 끝낸다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>거절 본문</h4>
+        <ul>
+          <li>전부 <code>ApiErrorResponse</code> JSON(<code>message</code> · <code>code</code>) · <code>Content-Type: application/json;charset=UTF-8</code> · <code>Set-Cookie</code> 없음.</li>
+          <li>401 <code>GUEST_UNAUTHENTICATED</code> — credential 없음 · credential 틀림 둘 다. 403 <code>GUEST_FORBIDDEN</code> — 인증됐으나 권한 부족.</li>
+          <li>종전의 <span class="diff-del">위조 토큰 404 · 헤더 누락 400</span> 계약은 <span class="diff-add">401</span> 로 바뀌었다(모의 게스트 하네스도 401 로 갱신).</li>
+        </ul>
+
+        <h4>두 체인 사이의 무관계</h4>
+        <ul>
+          <li>웹 로그인 쿠키는 게스트 채널에서 아무 뜻이 없다 → 401.</li>
+          <li>게스트 토큰 헤더는 웹 체인에서 아무 뜻이 없다 → 로그인 302.</li>
+          <li>인증 관리자도 공유하지 않는다 — 게스트 provider 는 게스트 필터의 <code>ProviderManager</code> 안에만 있다.</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

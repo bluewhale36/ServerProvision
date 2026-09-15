@@ -5,7 +5,7 @@ import com.example.serverprovision.execution.engine.boot.DiagnoseLinuxChainload;
 import com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer;
 import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
 import com.example.serverprovision.execution.engine.phase.ProvisioningPhaseExecutor;
-import com.example.serverprovision.execution.config.PxeAssetsProperties;
+import com.example.serverprovision.execution.engine.boot.PxeBootUrls;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
@@ -52,7 +52,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
 
-    private final PxeAssetsProperties properties;
+    private final PxeBootUrls pxeBootUrls;
     private final DiagnosticReportParser reportParser;
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final ProvisioningHistoryRecorder provisioningHistoryRecorder;
@@ -67,13 +67,13 @@ public class DiagnoseLinuxExecutor implements ProvisioningPhaseExecutor {
     }
 
     @Override
-    public String bootScript(GuestServer server, ProvisioningProgress progress, String rebootQuery) {
+    public String bootScript(GuestServer server, ProvisioningProgress progress, String reentryUrl) {
         if (server.getGuestToken() == null) {
             // 등록 트랜잭션(issueTokenIfAbsent)이 항상 선행하므로 도달 불가 — 데이터 손상은 500 이 정직하다.
             throw new IllegalStateException("게스트 토큰 부재 — 등록 invariant 위반. guestServerId=" + server.getId());
         }
         // 체인로드 본문은 공용 빌더 소유(E3.5-1) — RAID 구성 phase 가 두 번째 사용처가 되며 추출됐다.
-        return DiagnoseLinuxChainload.script(properties.getBaseUrl(), server.getGuestToken().value(), rebootQuery);
+        return DiagnoseLinuxChainload.script(pxeBootUrls, server.getGuestToken().value(), reentryUrl);
     }
 
     /**

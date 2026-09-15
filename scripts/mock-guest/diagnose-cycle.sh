@@ -3,10 +3,10 @@
 # 게스트의 전체 프로토콜 시퀀스를 curl 로 재연한다:
 #   부팅(/boot 스크립트 수신·토큰 추출) → 체크인(지시 수신) → COLLECT: 수집 보고(관용 파싱·적재·완주)
 #   REENTRY=1 (HF11-2): 체크인 전에 DIAGNOSTIC_BOOTING 을 열고 닫아 재부팅 재진입을 재연 — 수집 완료 게스트도 COLLECT 를 받아야 한다
-#   → close 응답의 REBOOT 확인 → 재부팅 재연(/boot = 입고 검수 대기) → 멱등·사칭 확인
+#   → close 응답의 REBOOT 확인 → 재부팅 재연(/boot = 입고 검수 대기) → 멱등·사칭 확인(위조 토큰 401 · S19-1)
 #
 # 사용:
-#   ./diagnose-cycle.sh [BASE_URL]                # 기본 http://localhost:7777
+#   PXE_BOOT_AUTH=pxe:<secret> ./diagnose-cycle.sh [BASE_URL]   # 기본 http://localhost:7777 · (S19-2) 첫 접촉 credential 필수
 #   MOCK_UUID=... ./diagnose-cycle.sh             # 기존 서버 재사용
 #   FAIL_STEP=1 ./diagnose-cycle.sh               # 실패 보고 변형 (markFailed → 운영자 재시도 확인)
 #   PLACEHOLDER=1 ./diagnose-cycle.sh             # placeholder 시리얼 변형 (필터 → boardSerial null 적재)
@@ -29,11 +29,12 @@ IP="${MOCK_IP:-192.168.1.150}"
 VENDOR="${MOCK_VENDOR:-Giga Computing}"
 BOARD="${MOCK_BOARD:-MS03-CE0}"
 QUERY="systemUUID=${UUID}&macAddress=${MAC}&ipAddress=${IP}&vendor=${VENDOR}&boardModel=${BOARD}"
+AUTH="${PXE_BOOT_AUTH:?PXE_BOOT_AUTH=pxe:<secret> 가 필요하다 (S19-2 첫 접촉 인증 — 앱의 PXE_BOOT_SECRET)}"   # /boot 두 곳에만 쓴다 — 에이전트 채널은 토큰
 
 step() { printf '\n\033[1m== %s ==\033[0m\n' "$1"; }
 
 step "1. iPXE 부팅 — /boot 스크립트 수신"
-BOOT_BODY=$(curl -sS -G "${BASE_URL}/api/pxe/v1/boot" \
+BOOT_BODY=$(curl -sS -u "$AUTH" -G "${BASE_URL}/api/pxe/v1/boot" \
      --data-urlencode "systemUUID=${UUID}" --data-urlencode "macAddress=${MAC}" \
      --data-urlencode "ipAddress=${IP}" --data-urlencode "vendor=${VENDOR}" \
      --data-urlencode "boardModel=${BOARD}")
@@ -121,7 +122,7 @@ case "$CLOSE" in
 esac
 
 step "5-1. 재부팅 재연 — /boot 재호출 = 입고 검수 대기 (dispatch 4행 이분)"
-curl -sS -G "${BASE_URL}/api/pxe/v1/boot" \
+curl -sS -u "$AUTH" -G "${BASE_URL}/api/pxe/v1/boot" \
      --data-urlencode "systemUUID=${UUID}" --data-urlencode "macAddress=${MAC}" \
      --data-urlencode "ipAddress=${IP}" --data-urlencode "vendor=${VENDOR}" \
      --data-urlencode "boardModel=${BOARD}" | head -3
@@ -131,7 +132,7 @@ curl -sS -X POST "${BASE_URL}/api/pxe/v1/agent/steps/${STEP_ID}/close" \
      -H "X-Guest-Token: ${TOKEN}" -H "Content-Type: application/json" \
      -d "$RESULT" -w '\nHTTP %{http_code}\n'
 
-step "7. 사칭 확인 — 잘못된 토큰 → 404"
+step "7. 사칭 확인 — 잘못된 토큰 → 401 JSON(S19-1 게스트 체인 · 종전 404)"
 curl -sS -o /dev/null -X POST "${BASE_URL}/api/pxe/v1/agent/checkin" \
      -H "X-Guest-Token: deadbeefdeadbeefdeadbeefdeadbeef" -w 'HTTP %{http_code}\n'
 

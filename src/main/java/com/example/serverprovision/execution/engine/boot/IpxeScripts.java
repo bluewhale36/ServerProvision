@@ -8,9 +8,9 @@ import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
  * enum 명 · 초)뿐이라 이스케이프 계층이 불필요하다. E4 의 Kickstart 렌더러(사용자 입력 포함)와는
  * 별개 문제 — 여기 유틸을 그쪽에 확장하지 않는다.
  *
- * <p>대기 계열은 전부 "sleep 후 같은 쿼리로 chain 재진입" — 게스트가 30초 주기로 /boot 를
- * 다시 묻는 폴링 루프(DEC-1 pull 구동)의 실체다. chain 은 상대 경로로 두어 서버 주소 지식을
- * 스크립트에 심지 않는다(iPXE 는 현재 URL 기준으로 해석).</p>
+ * <p>대기 계열은 전부 "sleep 후 같은 principal 로 chain 재진입" — 게스트가 30초 주기로 /boot 를
+ * 다시 묻는 폴링 루프(DEC-1 pull 구동)의 실체다. 재진입 대상은 {@link PxeBootUrls#reentry} 가 만든
+ * 절대 credential URL(S19-2 D-4 — iPXE 의 credential 상속에 기대지 않는다)이고, base-url 이 없는 인스턴스에서만 상대 경로다.</p>
  */
 public final class IpxeScripts {
 
@@ -20,54 +20,54 @@ public final class IpxeScripts {
     }
 
     /**
-     * 대기 계열 공통 골격. 신원 줄(HF10)은 게스트 콘솔에서 "이 화면이 어느 서버인가" 를 바로 읽기 위한 것 —
+     * 대기 계열 공통 골격. principal 줄(HF10)은 게스트 콘솔에서 "이 화면이 어느 서버인가" 를 바로 읽기 위한 것 —
      * 실패 화면 앞에 선 운영자가 관리 화면과 대조할 열쇠가 없던 2026-08-27 실기가 계기. 변수는 iPXE 가
      * 확장하며, 스코프 없는 {@code ${ip}}/{@code ${mac}} 는 DHCP 에 성공한 NIC 기준이다(boot.ipxe 와 동일).
      */
-    private static String waitAndChain(String reason, String rebootQuery) {
+    private static String waitAndChain(String reason, String reentryUrl) {
         return """
                 #!ipxe
                 echo [provision] %s
                 echo [provision] this server: ip=${ip} mac=${mac} uuid=${uuid}
                 sleep %d
-                chain /api/pxe/v1/boot?%s
-                """.formatted(reason, RETRY_SECONDS, rebootQuery);
+                chain %s
+                """.formatted(reason, RETRY_SECONDS, reentryUrl);
     }
 
     /** 회수된 서버 — dispatch 2행. */
-    public static String decommissioned(String rebootQuery) {
-        return waitAndChain("decommissioned server. not a provisioning target.", rebootQuery);
+    public static String decommissioned(String reentryUrl) {
+        return waitAndChain("decommissioned server. not a provisioning target.", reentryUrl);
     }
 
     /** 실패 상태(자동 재시도 없음, DEC-4) — dispatch 3행. 실패 지점 = 커서 step(ES-2 D-5, 항상 non-null). */
-    public static String failed(ProvisioningPhaseStep failedStep, String rebootQuery) {
-        return waitAndChain("provisioning FAILED at " + failedStep + ". waiting for operator...", rebootQuery);
+    public static String failed(ProvisioningPhaseStep failedStep, String reentryUrl) {
+        return waitAndChain("provisioning FAILED at " + failedStep + ". waiting for operator...", reentryUrl);
     }
 
     /**
      * 완주했지만 OS 설치 전(진단만 완주 = 입고 검수 상태) — dispatch 4행 이분(E1-2)의 대기쪽.
      * U3 할당이 생기면 이 폴링 루프 자체가 재개 트리거다(로드맵 §3-E1-3).
      */
-    public static String awaitingIntake(String rebootQuery) {
-        return waitAndChain("diagnosis complete. awaiting assignment (intake hold)...", rebootQuery);
+    public static String awaitingIntake(String reentryUrl) {
+        return waitAndChain("diagnosis complete. awaiting assignment (intake hold)...", reentryUrl);
     }
 
     /**
      * 자원 결손 대기(E2-1-b, D1 사다리) — 진입에 필요한 재료가 무너진 게스트. 폴링이 공짜 재시도라
      * 운영자가 자원을 되살리면 다음 폴링에서 저절로 풀린다. 시한(TTL)이 지나면 실패로 전환된다.
      */
-    public static String shortageHold(String summary, String rebootQuery) {
-        return waitAndChain("waiting for resources: " + summary, rebootQuery);
+    public static String shortageHold(String summary, String reentryUrl) {
+        return waitAndChain("waiting for resources: " + summary, reentryUrl);
     }
 
     /**
      * 펌웨어 해석 완료 · 집행 대기(E2-1-b) — 무엇을 어느 버전으로 구울지는 정해졌고, 실제로 굽는
      * 실행기(E2-2 BIOS · E2-3 BMC)는 아직 없다. 조용히 통과시키지 않고 이 대기를 명시한다.
      */
-    public static String awaitingFirmwareFlash(String summary, String rebootQuery) {
+    public static String awaitingFirmwareFlash(String summary, String reentryUrl) {
         // "resolved" 라고 단정하지 않는다 — 게이트가 판정을 건너뛴 경우(작업 중 게스트)에는 차단 사유가
         // 섞인 요약이 그대로 실려 "해석됐다는데 왜 실패 코드가 있나" 로 읽힌다(E2-1-b CP5 F-3).
-        return waitAndChain("firmware plan: " + summary + ". awaiting flash engine...", rebootQuery);
+        return waitAndChain("firmware plan: " + summary + ". awaiting flash engine...", reentryUrl);
     }
 
     /**
@@ -75,23 +75,23 @@ public final class IpxeScripts {
      * 서버가 BMC 의 인벤토리를 읽어 목표와 대조하는 동안 이 자리에서 대기한다. <b>게스트의 재진입
      * 자체가 "POST 를 지났다" 는 신호</b>이므로, 이 스크립트를 받는다는 것은 확인 단계에 들어섰다는 뜻이다.
      */
-    public static String awaitingFirmwareVerification(String rebootQuery) {
-        return waitAndChain("firmware flash applied. verifying inventory...", rebootQuery);
+    public static String awaitingFirmwareVerification(String reentryUrl) {
+        return waitAndChain("firmware flash applied. verifying inventory...", reentryUrl);
     }
 
     /** BIOS 설정 적용 중(E3-1) — PATCH · 재부팅 · readback 은 워커가 BMC 로 하고, 게스트는 돌아온 것만 알리면 된다. */
-    public static String awaitingBiosSetting(String rebootQuery) {
-        return waitAndChain("applying bios settings via bmc. waiting...", rebootQuery);
+    public static String awaitingBiosSetting(String reentryUrl) {
+        return waitAndChain("applying bios settings via bmc. waiting...", reentryUrl);
     }
 
     /** 미구현 phase HOLD(silent 통과 금지, DEC-6) — dispatch 7행. */
-    public static String hold(ProvisioningPhase phase, String rebootQuery) {
-        return waitAndChain("phase " + phase + " not implemented yet (HOLD).", rebootQuery);
+    public static String hold(ProvisioningPhase phase, String reentryUrl) {
+        return waitAndChain("phase " + phase + " not implemented yet (HOLD).", reentryUrl);
     }
 
     /**
      * Windows 설치 중 재진입(E4-1-a-3 D-2) — Setup 이 스스로 한 재부팅이 네트워크 우선 펌웨어에서 재PXE 로 돌아온 것.
-     * {@code exit} 로 iPXE 를 끝내 부트 순서의 다음(로컬 디스크)으로 넘긴다. 신원 · 재진입 n/max 를 콘솔에 남긴다.
+     * {@code exit} 로 iPXE 를 끝내 부트 순서의 다음(로컬 디스크)으로 넘긴다. principal · 재진입 n/max 를 콘솔에 남긴다.
      */
     public static String localBootFallthrough(int reentry, int maxReentries) {
         return """
@@ -103,8 +103,8 @@ public final class IpxeScripts {
     }
 
     /** Windows 설치 실패 전환 직후의 안내(E4-1-a-3) — 다음 폴링부터는 dispatch 3행(failed)이 받는다. */
-    public static String windowsInstallFailed(String reason, String rebootQuery) {
-        return waitAndChain("windows install FAILED (" + reason + "). waiting for operator...", rebootQuery);
+    public static String windowsInstallFailed(String reason, String reentryUrl) {
+        return waitAndChain("windows install FAILED (" + reason + "). waiting for operator...", reentryUrl);
     }
 
     /** 종단 — iPXE 종료 → 부트 순서 폴스루(로컬 디스크). 실효성은 T2 검증 유보 — dispatch 4행. */
@@ -116,7 +116,7 @@ public final class IpxeScripts {
     }
 
     /** 처리 중 예외의 안전 응답(PXE 한정 advice 전용) — JSON 이 iPXE 로 새는 것을 막는다. */
-    public static String retryAfterError(String rebootQuery) {
-        return waitAndChain("server error. retrying...", rebootQuery == null ? "" : rebootQuery);
+    public static String retryAfterError(String reentryUrl) {
+        return waitAndChain("server error. retrying...", reentryUrl);
     }
 }

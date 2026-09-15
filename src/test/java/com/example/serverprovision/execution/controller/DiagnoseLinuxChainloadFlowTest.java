@@ -56,6 +56,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         com.example.serverprovision.execution.engine.phase.HoldTtlPolicy.class,
         com.example.serverprovision.execution.engine.firmware.FirmwareUpdatingExecutor.class, BootService.class, BootScriptDispatcher.class, PhaseExecutorRegistry.class,
         DiagnoseLinuxExecutor.class, PxeAssetsProperties.class, PxeAssetsConfig.class,
+        com.example.serverprovision.execution.config.PxeBootProperties.class, com.example.serverprovision.execution.engine.boot.PxeBootUrls.class,   // S19-2 — 자격 URL 조립
         com.example.serverprovision.execution.engine.diagnose.DiagnosticReportParser.class,
         com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer.class })   // ES-1 — DiagnoseLinuxExecutor 협력자
 class DiagnoseLinuxChainloadFlowTest {
@@ -79,6 +80,7 @@ class DiagnoseLinuxChainloadFlowTest {
     static void pxeProperties(DynamicPropertyRegistry registry) {
         registry.add("pxe.assets.root", ASSETS_ROOT::toString);
         registry.add("pxe.server.base-url", () -> BASE);
+        registry.add("pxe.boot.secret", () -> "s3cret");   // S19-2 — 자산 인스턴스는 비밀 필수(fail-fast)
     }
 
     @Autowired MockMvc mvc;
@@ -121,12 +123,12 @@ class DiagnoseLinuxChainloadFlowTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/plain"))
                 .andExpect(content().string(containsString("#!ipxe")))
-                .andExpect(content().string(containsString("kernel " + BASE + "/api/pxe/v1/assets/vmlinuz-lts")))
+                .andExpect(content().string(containsString("kernel http://pxe:s3cret@10.0.2.2:7777/api/pxe/v1/assets/vmlinuz-lts")))   // S19-2 자격 URL
                 .andExpect(content().string(containsString("provision_token=" + TOKEN)))
-                .andExpect(content().string(containsString("provision_base=" + BASE)))
+                .andExpect(content().string(containsString("provision_base=" + BASE + " ")))   // 자격 없음
                 .andExpect(content().string(containsString("initrd=initramfs-lts")))
                 .andExpect(content().string(containsString(":failed")))
-                .andExpect(content().string(containsString("chain /api/pxe/v1/boot?")))
+                .andExpect(content().string(containsString("chain http://pxe:s3cret@10.0.2.2:7777/api/pxe/v1/boot?")))   // S19-2 — 재진입도 절대 자격 URL
                 .andExpect(content().string(containsString("systemUUID=11111111")));
     }
 
@@ -151,7 +153,7 @@ class DiagnoseLinuxChainloadFlowTest {
         boot(progress().currentStep(ProvisioningPhaseStep.BIOS_UPDATING).startedAt(T).build())
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("awaiting flash engine")))
-                .andExpect(content().string(containsString("chain /api/pxe/v1/boot?")));   // 재진입 유지
+                .andExpect(content().string(containsString("chain http://pxe:s3cret@10.0.2.2:7777/api/pxe/v1/boot?")));   // 재진입 유지(S19-2 절대 자격 URL)
     }
 
     // ==== E2-1-b — 펌웨어 phase 의 진입 판정이 /boot 응답을 가른다 ====

@@ -51,10 +51,11 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class AgentReportServiceTest {
 
-    private static final String TOKEN = "a3f9d2c8b41e4f7a9c0d5e6f7a8b9c1d";
+    private static final com.example.serverprovision.global.security.springsecurity.guest.GuestPrincipal GUEST =
+            new com.example.serverprovision.global.security.springsecurity.guest.GuestPrincipal(UUID.randomUUID(), UUID.randomUUID());   // S19-1 — 체인이 세운 신원
     private static final LocalDateTime T = LocalDateTime.of(2026, 7, 18, 12, 0);
 
-    @Mock com.example.serverprovision.execution.service.GuestTokenAuthenticator guestTokenAuthenticator;   // E4-1-a-4 D-5 — 토큰 인증 추출
+    @Mock com.example.serverprovision.execution.service.GuestPrincipalLoader guestPrincipalLoader;   // E4-1-a-4 D-5 — 토큰 인증 추출
     @Mock GuestServerDetailRepository guestServerDetailRepository;   // E1-2 — 지시 판정(미수집 여부) 입력
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
     @Mock ProvisioningHistoryRepository provisioningHistoryRepository;
@@ -79,7 +80,7 @@ class AgentReportServiceTest {
     private GuestServer stubGuest() {
         UUID id = UUID.randomUUID();
         GuestServer g = guest(id);
-        given(guestTokenAuthenticator.requireByToken(TOKEN)).willReturn(g);
+        given(guestPrincipalLoader.require(GUEST)).willReturn(g);
         return g;
     }
 
@@ -104,7 +105,7 @@ class AgentReportServiceTest {
         ProvisioningProgress p = progress(g, true, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
 
-        var res = service.checkin(TOKEN);
+        var res = service.checkin(GUEST);
 
         // seed 커서가 이미 진단 phase + detail 미수집(기본 empty) → 수집 지시 (E1-2 지시 판정)
         assertThat(res.directive()).isEqualTo(AgentDirective.COLLECT);
@@ -123,7 +124,7 @@ class AgentReportServiceTest {
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
         // U3-3 DEC-A — 판정은 엔티티의 isDiagnosticEnriched() 가 갖는다(엔진 · 목록 · 그룹 가드가 공유).
 
-        var res = service.checkin(TOKEN);
+        var res = service.checkin(GUEST);
         assertThat(res.directive()).isEqualTo(AgentDirective.WAIT);
         assertThat(res.raidChips()).isNull();   // E3.5-5-a — 힌트는 채집 지시(COLLECT · RAID 3종)에만
     }
@@ -135,7 +136,7 @@ class AgentReportServiceTest {
         ProvisioningProgress p = progress(g, true, ProvisioningPhaseStep.BIOS_UPDATING);   // 진단 이후로 pre-position 된 커서
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
 
-        var res = service.checkin(TOKEN);
+        var res = service.checkin(GUEST);
 
         assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);
         assertThat(p.currentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);      // 체크인 무전이
@@ -149,7 +150,7 @@ class AgentReportServiceTest {
         ProvisioningProgress p = progress(g, true, ProvisioningPhaseStep.INFORMATION_COLLECTING);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
 
-        service.checkin(TOKEN);
+        service.checkin(GUEST);
 
         assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.INFORMATION_COLLECTING);
         assertThat(p.getLastTransitionAt()).isEqualTo(T);   // 전이 시각 불변
@@ -163,7 +164,7 @@ class AgentReportServiceTest {
         ProvisioningProgress p = progress(g, false, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
 
-        assertThat(service.checkin(TOKEN).directive()).isEqualTo(AgentDirective.COLLECT);
+        assertThat(service.checkin(GUEST).directive()).isEqualTo(AgentDirective.COLLECT);
     }
 
     @Test
@@ -173,7 +174,7 @@ class AgentReportServiceTest {
         ProvisioningProgress p = progress(g, false, ProvisioningPhaseStep.BIOS_UPDATING);
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
 
-        assertThatThrownBy(() -> service.checkin(TOKEN))
+        assertThatThrownBy(() -> service.checkin(GUEST))
                 .isInstanceOf(AgentReportRejectedException.class);
         assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.BIOS_UPDATING);   // 커서 불변
     }
@@ -184,22 +185,12 @@ class AgentReportServiceTest {
         UUID id = UUID.randomUUID();
         GuestServer decom = GuestServer.builder().id(id).systemUUID(UUID.randomUUID())
                 .decommissionedAt(T).build();
-        given(guestTokenAuthenticator.requireByToken(TOKEN)).willReturn(decom);
+        given(guestPrincipalLoader.require(GUEST)).willReturn(decom);
         given(provisioningProgressRepository.findByGuestServer_Id(id))
                 .willReturn(Optional.of(progress(decom, true, ProvisioningPhaseStep.INFORMATION_COLLECTING)));
 
-        assertThatThrownBy(() -> service.checkin(TOKEN))
+        assertThatThrownBy(() -> service.checkin(GUEST))
                 .isInstanceOf(AgentReportRejectedException.class);
-    }
-
-    @Test
-    @DisplayName("토큰 불일치·공백 → GuestServerNotFound(404) — 존재 비노출")
-    void checkin_badToken_throws404() {
-        given(guestTokenAuthenticator.requireByToken(any())).willThrow(GuestServerNotFoundException.byToken());
-        assertThatThrownBy(() -> service.checkin("deadbeef"))
-                .isInstanceOf(GuestServerNotFoundException.class);
-        assertThatThrownBy(() -> service.checkin("  "))
-                .isInstanceOf(GuestServerNotFoundException.class);
     }
 
     // ==== steps open / close ==========================================
@@ -213,7 +204,7 @@ class AgentReportServiceTest {
         ProvisioningHistory opened = ProvisioningHistory.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
         given(provisioningHistoryRecorder.openRunning(any(), any(), any())).willReturn(opened);
 
-        StepOpenResponse res = service.openStep(TOKEN, ProvisioningPhaseStep.INFORMATION_COLLECTING);
+        StepOpenResponse res = service.openStep(GUEST, ProvisioningPhaseStep.INFORMATION_COLLECTING);
 
         assertThat(res.stepId()).isEqualTo(opened.getId());
         assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.INFORMATION_COLLECTING);   // 같은 phase 안 이동
@@ -228,7 +219,7 @@ class AgentReportServiceTest {
         ProvisioningHistory reopened = ProvisioningHistory.openRunning(g, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING, T);
         given(provisioningHistoryRecorder.openRunning(any(), any(), any())).willReturn(reopened);
 
-        StepOpenResponse res = service.openStep(TOKEN, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);   // 재부팅 재시작
+        StepOpenResponse res = service.openStep(GUEST, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);   // 재부팅 재시작
 
         assertThat(res.stepId()).isEqualTo(reopened.getId());
         assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);   // 커서가 따라감(phase 불변)
@@ -241,7 +232,7 @@ class AgentReportServiceTest {
         ProvisioningProgress p = progress(g, true, ProvisioningPhaseStep.INFORMATION_COLLECTING);   // 진단 phase 커서
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
 
-        assertThatThrownBy(() -> service.openStep(TOKEN, ProvisioningPhaseStep.BIOS_UPDATING))     // phase 이탈
+        assertThatThrownBy(() -> service.openStep(GUEST, ProvisioningPhaseStep.BIOS_UPDATING))     // phase 이탈
                 .isInstanceOf(AgentReportRejectedException.class);
         verify(provisioningHistoryRecorder, never()).openRunning(any(), any(), any());   // 원장 미오염
         assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.INFORMATION_COLLECTING);    // 커서 불변
@@ -257,7 +248,7 @@ class AgentReportServiceTest {
         given(provisioningHistoryRecorder.openRunning(eq(g), eq(ProvisioningPhaseStep.INFORMATION_COLLECTING), any()))
                 .willReturn(opened);
 
-        service.openStep(TOKEN, ProvisioningPhaseStep.INFORMATION_COLLECTING);
+        service.openStep(GUEST, ProvisioningPhaseStep.INFORMATION_COLLECTING);
 
         assertThat(p.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.INFORMATION_COLLECTING);   // 미개시 진단 창의 커서 이동
     }
@@ -269,7 +260,7 @@ class AgentReportServiceTest {
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId()))
                 .willReturn(Optional.of(progress(g, false, ProvisioningPhaseStep.BIOS_UPDATING)));
 
-        assertThatThrownBy(() -> service.openStep(TOKEN, ProvisioningPhaseStep.BIOS_UPDATING))
+        assertThatThrownBy(() -> service.openStep(GUEST, ProvisioningPhaseStep.BIOS_UPDATING))
                 .isInstanceOf(AgentReportRejectedException.class);
         verify(provisioningHistoryRecorder, never()).openRunning(any(), any(), any());   // 원장 미오염
     }
@@ -283,7 +274,7 @@ class AgentReportServiceTest {
         given(provisioningHistoryRepository.findById(step.getId())).willReturn(Optional.of(step));
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
 
-        service.closeStep(TOKEN, step.getId(), ProvisioningStatus.FAILED, "{\"reason\":\"x\"}");
+        service.closeStep(GUEST, step.getId(), ProvisioningStatus.FAILED, "{\"reason\":\"x\"}");
 
         assertThat(step.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
         assertThat(p.isFailed()).isTrue();
@@ -300,7 +291,7 @@ class AgentReportServiceTest {
         step.close(ProvisioningStatus.SUCCEEDED, null, T);
         given(provisioningHistoryRepository.findById(step.getId())).willReturn(Optional.of(step));
 
-        service.closeStep(TOKEN, step.getId(), ProvisioningStatus.FAILED, null);
+        service.closeStep(GUEST, step.getId(), ProvisioningStatus.FAILED, null);
 
         assertThat(step.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);   // 행 불변
         assertThat(p.isFailed()).isFalse();                                     // markFailed 재발화 없음
@@ -317,7 +308,7 @@ class AgentReportServiceTest {
         ProvisioningPhaseExecutor executor = org.mockito.Mockito.mock(ProvisioningPhaseExecutor.class);
         given(phaseExecutorRegistry.find(ProvisioningPhase.DIAGNOSE_LINUX)).willReturn(Optional.of(executor));
 
-        service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
+        service.closeStep(GUEST, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
 
         verify(executor).onStepClosed(g, p, step);
     }
@@ -337,7 +328,7 @@ class AgentReportServiceTest {
             return null;
         }).when(executor).onStepClosed(g, p, step);
 
-        StepCloseResponse res = service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
+        StepCloseResponse res = service.closeStep(GUEST, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
 
         assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);
     }
@@ -357,7 +348,7 @@ class AgentReportServiceTest {
             return null;
         }).when(executor).onStepClosed(g, p, step);
 
-        StepCloseResponse res = service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
+        StepCloseResponse res = service.closeStep(GUEST, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
 
         assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);                      // 전진했으므로 진단을 떠나라
         assertThat(p.currentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);
@@ -375,7 +366,7 @@ class AgentReportServiceTest {
         step.close(ProvisioningStatus.SUCCEEDED, "{}", T);   // 이미 종결된 행
         given(provisioningHistoryRepository.findById(step.getId())).willReturn(Optional.of(step));
 
-        StepCloseResponse res = service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
+        StepCloseResponse res = service.closeStep(GUEST, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
 
         assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);
         assertThat(step.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);   // 행 불변(no-op)
@@ -387,11 +378,11 @@ class AgentReportServiceTest {
         UUID id = UUID.randomUUID();
         GuestServer decom = GuestServer.builder().id(id).systemUUID(UUID.randomUUID())
                 .decommissionedAt(T).build();
-        given(guestTokenAuthenticator.requireByToken(TOKEN)).willReturn(decom);
+        given(guestPrincipalLoader.require(GUEST)).willReturn(decom);
         given(provisioningProgressRepository.findByGuestServer_Id(id))
                 .willReturn(Optional.of(progress(decom, true, ProvisioningPhaseStep.INFORMATION_COLLECTING)));
 
-        assertThatThrownBy(() -> service.closeStep(TOKEN, UUID.randomUUID(), ProvisioningStatus.SUCCEEDED, null))
+        assertThatThrownBy(() -> service.closeStep(GUEST, UUID.randomUUID(), ProvisioningStatus.SUCCEEDED, null))
                 .isInstanceOf(AgentReportRejectedException.class);
         verify(provisioningHistoryRepository, never()).findById(any());   // 가드가 step 조회보다 앞선다
     }
@@ -406,12 +397,12 @@ class AgentReportServiceTest {
         ProvisioningHistory foreign = ProvisioningHistory.openRunning(other, ProvisioningPhaseStep.OS_INSTALLING, T);
         given(provisioningHistoryRepository.findById(foreign.getId())).willReturn(Optional.of(foreign));
 
-        assertThatThrownBy(() -> service.closeStep(TOKEN, foreign.getId(), ProvisioningStatus.SUCCEEDED, null))
+        assertThatThrownBy(() -> service.closeStep(GUEST, foreign.getId(), ProvisioningStatus.SUCCEEDED, null))
                 .isInstanceOf(ProvisioningHistoryNotFoundException.class);
 
         UUID unknown = UUID.randomUUID();
         given(provisioningHistoryRepository.findById(unknown)).willReturn(Optional.empty());
-        assertThatThrownBy(() -> service.closeStep(TOKEN, unknown, ProvisioningStatus.SUCCEEDED, null))
+        assertThatThrownBy(() -> service.closeStep(GUEST, unknown, ProvisioningStatus.SUCCEEDED, null))
                 .isInstanceOf(ProvisioningHistoryNotFoundException.class);
     }
 
@@ -424,7 +415,7 @@ class AgentReportServiceTest {
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId()))
                 .willReturn(Optional.of(progress(g, true, ProvisioningPhaseStep.INFORMATION_COLLECTING)));
 
-        service.checkin(TOKEN);
+        service.checkin(GUEST);
 
         verify(eventPublisher).publishEvent(new GuestServerChangedEvent(g.getId()));
     }
@@ -438,7 +429,7 @@ class AgentReportServiceTest {
         ProvisioningHistory step = ProvisioningHistory.openRunning(g, ProvisioningPhaseStep.INFORMATION_COLLECTING, T);
         given(provisioningHistoryRepository.findById(step.getId())).willReturn(Optional.of(step));
 
-        service.closeStep(TOKEN, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
+        service.closeStep(GUEST, step.getId(), ProvisioningStatus.SUCCEEDED, "{}");
 
         verify(eventPublisher).publishEvent(new GuestServerChangedEvent(g.getId()));
     }
@@ -450,7 +441,7 @@ class AgentReportServiceTest {
         given(provisioningProgressRepository.findByGuestServer_Id(g.getId()))
                 .willReturn(Optional.of(progress(g, false, ProvisioningPhaseStep.BIOS_UPDATING)));
 
-        assertThatThrownBy(() -> service.checkin(TOKEN))
+        assertThatThrownBy(() -> service.checkin(GUEST))
                 .isInstanceOf(AgentReportRejectedException.class);
 
         verify(eventPublisher, never()).publishEvent(any());
