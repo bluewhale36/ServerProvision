@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S19-1 Plan — 게스트 채널 필터 체인 분리와 게스트 토큰 인증 승격</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.55; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:0; }
+  .badge { display:inline-block; font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:250px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq 스윔레인 (4 actor) ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); }
+  .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S19-1 — 게스트 채널 필터 체인 분리와 게스트 토큰 인증 승격 <span class="v2-badge">1단계</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> S19-1 (feature)</span>
+    <span><strong>상위</strong> S19 게스트 채널 인증</span>
+    <span><strong>scope</strong> <code>/api/pxe/v1/**</code> 전용 SecurityFilterChain 분리 + 토큰 인증 승격 + 401 계약</span>
+    <span><strong>생성</strong> 2026-09-14 19:52 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 배경</a></li>
+      <li><a href="#s1">§1 현재 상태 (실측)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (요청 시뮬레이터)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트 시나리오</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 · Open Questions</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 배경 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 배경 — 화면에는 자물쇠가 생겼고 게스트 채널에는 아직 없다</summary>
+      <div class="body">
+        <p style="margin-top:0;">S18 로 웹 화면에 로그인이 들어왔다. 그 슬라이스는 <b>브라우저로 들어오는 요청</b>에 자격을 요구하게 만들었지만,
+          게스트 서버가 쓰는 통로인 <code>/api/pxe/v1/**</code> 는 손대지 않았다. <code>SecurityConfig</code> 에
+          <code>.requestMatchers("/api/pxe/v1/**").permitAll()</code> 한 줄이 그대로 남아 있고, 그 주석에도
+          "PXE 채널에 대한 인증 수단 추가하기 전까지 무인증 허용" 이라고 적혀 있다. 즉 <b>인증 수단을 만드는 것이 남은 일</b>이고, 이 슬라이스가 그 첫 단계다.</p>
+
+        <p>지금 이 통로가 열려 있다는 말은 구체적으로 이렇다. 사내망에 있는 누구든 다음 한 줄을 치면 게스트 서버 한 대가 <b>실제로 등록된다</b>.</p>
+        <pre><code>curl "http://&lt;프로비저닝 서버&gt;/api/pxe/v1/boot?systemUUID=00000000-0000-0000-0000-000000000001\
+&amp;macAddress=aa:bb:cc:dd:ee:ff&amp;ipAddress=10.0.0.99&amp;vendor=…&amp;boardModel=…"</code></pre>
+        <p><code>/boot</code> 는 이름과 달리 읽기 전용이 아니다 — 처음 보는 시스템 UUID 면 게스트를 등록하고 게스트 토큰을 발급한다.
+          이것은 추정이 아니라 실기에서 겪은 일이다(누적 메모리 · "<code>/boot</code> 는 읽기 전용이 아니다": 확인용 <code>curl</code> 한 번이 <code>RUNNING</code> 행과 토큰을 기록했다).</p>
+
+        <h4>사용자가 정한 목적 (2026-09-14)</h4>
+        <table>
+          <thead><tr><th>#</th><th>지시</th><th>이 plan 에서</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>완벽한 보안이 목표가 아니다 — 사내망의 <b>의도되지 않은 접근</b>을 막는다</td><td>D-1 · D-5 · D-7</td></tr>
+            <tr><td>②</td><td>외부망에 배포할 때의 <b>악의적 접근</b>을 Spring Security 로 막을 인프라를 세운다</td><td>D-2 ~ D-4 (필터 경계 자체를 만든다)</td></tr>
+            <tr><td>③</td><td>권고 구성은 둘로 나눈다 — <b>게스트 체인 분리</b>(1단계) + <b>첫 접촉의 PXE 부팅 계정 · LAN 제한</b>(2단계)</td><td>이 문서 = 1단계. 2단계는 §11</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><b>왜 두 단계로 나누는가</b> — 게스트에게 자격을 요구하려면 <b>그 게스트에게 자격이 이미 있어야</b> 한다.
+          그런데 게스트 토큰은 <code>/boot</code> 의 최초 등록 트랜잭션에서 발급되므로, <code>/boot</code> 와 부팅 자산(<code>/assets/**</code>)은
+          <b>정의상 자격이 생기기 전의 요청</b>이다. 여기에 토큰을 요구하면 부팅 자체가 성립하지 않는다.
+          그래서 1단계는 <b>토큰이 이미 있는 요청</b>(에이전트 보고 · 서빙 자산)을 필터로 끌어올리고, 첫 접촉에는 <b>별도의 자격</b>(2단계의 PXE 부팅 계정과 출발지 제한)을 따로 붙인다.</div>
+        <p style="color:var(--text-muted);font-size:12px;margin-bottom:0;">Notion S19 페이지는 2026-09-14 에 신설했다. S19-1 · S19-2 의 하위 페이지 분리는 Q4 에서 판정을 받는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (2026-09-14 코드 실측)</summary>
+      <div class="body">
+        <h4>지금 게스트를 무엇으로 알아보는가 — 두 종류의 토큰</h4>
+        <p style="margin-top:0;">게스트 채널에는 이미 <b>토큰이 두 종류</b> 돌아다닌다. 하나는 게스트의 신원 그 자체이고, 다른 하나는 파일 한 벌을 내주기 위한 일회용 열쇠다.
+          둘 다 "자격" 으로 쓰이고 있는데, 지금은 어느 쪽도 Spring Security 가 모른다 — <b>컨트롤러와 서비스가 각자 대조</b>한다.</p>
+        <table>
+          <thead><tr><th>종류</th><th>발급 · 수명</th><th>제시 방법</th><th>지금의 대조 지점</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>게스트 토큰</b><br><code>GuestToken</code>(VO)</td>
+              <td><code>GuestToken.issue()</code> = UUID 랜덤의 대시를 뺀 32자 16진수. <b>등록 트랜잭션에서 1회</b> 발급되고 <code>guest_server.guest_token</code> 에 영속. <b>회전 없음</b>(고정)</td>
+              <td><code>/boot</code> 응답의 진단 체인로드 커널 인자 <code>provision_token</code>(<code>DiagnoseLinuxChainload</code>) → 게스트 안에서 <code>agent.sh</code> 가 읽어 <code>X-Guest-Token</code> 헤더로 회신. Windows 완료 보고(<code>spv-report.ps1</code>)도 같은 헤더</td>
+              <td>컨트롤러가 <code>@RequestHeader</code> 로 받아 <b>문자열 그대로</b> 서비스에 넘기고, 서비스가 <code>GuestTokenAuthenticator.requireByToken</code> 을 부른다</td>
+            </tr>
+            <tr>
+              <td><b>서빙 토큰</b><br>(경로 세그먼트)</td>
+              <td>메모리 레지스트리. Windows 번들은 게스트당 하나(<code>WindowsInstallTokenRegistry.issue</code>), 펌웨어는 굽기 한 건마다(<code>FirmwareImageTokenRegistry.issue</code>). 재발급하면 앞 토큰은 그 자리에서 죽고, 완료 · 종료 시 <code>revoke</code></td>
+              <td>URL 경로에 박혀 있다 — <code>/windows/{token}/{file}</code> · <code>/firmware/{token}/{file}</code>. 받는 쪽이 iPXE · wimboot · <code>curl.exe</code> · <b>게스트의 BMC</b> 라서 <b>헤더를 붙일 수 없다</b></td>
+              <td>컨트롤러가 레지스트리의 <code>resolve(token)</code> 으로 풀고, 없으면 <code>404</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>토큰이 생기기 전의 요청 — 첫 접촉 둘</h4>
+        <table>
+          <thead><tr><th>엔드포인트</th><th>부르는 쪽</th><th>지금 하는 일</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /api/pxe/v1/boot</code><br>(<code>ExecutionRestController</code>)</td><td>iPXE(펌웨어 NIC)</td>
+              <td>쿼리로 <code>systemUUID</code> · <code>macAddress</code> · <code>ipAddress</code> · <code>vendor</code> · <code>boardModel</code> 을 받아 카탈로그에 없는 보드면 404, 있으면 <b>등록 + 토큰 발급</b> 후 iPXE 스크립트(text/plain)를 돌려준다. 이 채널은 모든 예외를 <b>200 + 재시도 스크립트</b>로 바꾼다(DEC-5)</td></tr>
+            <tr><td><code>GET /api/pxe/v1/assets/**</code><br>(<code>PxeAssetsConfig</code> 정적 핸들러)</td><td>iPXE</td>
+              <td>커널 · initramfs · modloop · apkovl 을 그대로 내준다. 요청에 어떤 헤더도 없다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>웹 체인(S18)이 지금 이 통로를 어떻게 다루는가</h4>
+        <p><code>SecurityConfig</code> 는 <b>체인 하나</b>다. 정적 자산 · <code>DispatcherType.ERROR</code> · <code>ASYNC</code> · <code>/resources/**</code> · <code>/api/pxe/v1/**</code> ·
+          <code>/login</code> 을 <code>permitAll</code> 하고, <code>/signup</code> 은 <code>SignupAccessPolicy</code> 로, 나머지는 <code>authenticated</code> 다.
+          <code>formLogin</code> 과 <code>httpBasic</code> 이 함께 켜져 있고, XHR 요청(<code>X-Requested-With</code>)만 로그인 화면 진입점으로 따로 보낸다.
+          즉 게스트 채널은 <b>지금 이 체인을 통과하되 아무 검사를 받지 않고</b> 지나간다. <code>MustChangePasswordWebConfig</code> 는 이미 <code>/api/pxe/**</code> 를 인터셉터 대상에서 빼 두었다.</p>
+
+        <h4>테스트 · 하네스가 잠가 놓은 현행 계약 — 위조 토큰은 <b>404</b></h4>
+        <table>
+          <thead><tr><th>자산</th><th>지금 단언하는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestAgentRestControllerFlowTest</code></td><td>"토큰 사칭" 시나리오 — 다른 값의 <code>X-Guest-Token</code> → <b>404</b></td></tr>
+            <tr><td><code>WindowsInstallReportRestControllerTest</code></td><td>위조 토큰 완료 보고 → <b>404</b></td></tr>
+            <tr><td><code>FirmwareImageRestControllerTest</code></td><td>미발급 · 회수 토큰 다운로드 → <b>404</b></td></tr>
+            <tr><td><code>scripts/mock-guest/diagnose-cycle.sh</code></td><td>7단계 "사칭 확인 — 잘못된 토큰 → 404"</td></tr>
+            <tr><td><code>scripts/mock-guest/windows-install-cycle.sh</code></td><td><code>B1</code> "위조 토큰 — 404 기대", <code>token</code> 모드 "옛 토큰 404 확인용", <code>complete</code> 4단계 "옛 토큰 URL 6 파일 — 전부 404 기대"</td></tr>
+          </tbody>
+        </table>
+        <p>이 404 는 우연이 아니라 <b>의도한 설계</b>였다 — <code>GuestTokenAuthenticator</code> 의 주석("불일치 · 공백은 404 로 존재를 숨기고")과
+          <code>FirmwareImageRestController</code> 의 주석("위조와 만료를 같은 응답으로 다루는 것이 기존 관례이며, 존재 여부를 응답으로 흘리지 않는다")이 그 근거를 남겨 두었다.
+          <b>D-7 은 이 계약을 바꾸는 결정</b>이므로 §8 에서 따로 판정을 받는다.</p>
+
+        <div class="callout warn"><b>테스트를 짤 때 미리 알아야 할 실측 둘</b>(S18 에서 확인) —
+          ① Spring Boot 4 의 <code>@WebMvcTest</code> 는 <b>보안 필터를 자동으로 얹지 않는다</b>. 그래서 지금의 컨트롤러 테스트들은 체인이 생겨도 그대로 통과한다.
+          체인을 실제로 태우려면 <code>@Import</code> 로 설정을 넣고 <code>apply(springSecurity())</code> 로 필터를 명시적으로 얹어야 한다.
+          ② <code>@AuthenticationPrincipal</code> 은 그 슬라이스에서 해석되지 않는다 — principal 전달 방식을 고를 때 이 제약이 D-6 을 가른다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (1단계 확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>게스트 채널 전용 <code>SecurityFilterChain</code> 을 웹 체인과 분리한다</b> — 세션을 만들지 않고, 로그인 화면으로 되돌리지 않는다(D-1).</li>
+          <li><b>헤더 토큰과 경로 토큰을 Spring Security 인증으로 승격한다</b> — <code>AuthenticationConverter</code> 가 자격을 읽고, <code>AuthenticationProvider</code> 가 판정하고, <code>AuthenticationFilter</code> 가 배선한다(D-2 · D-3 · D-4).</li>
+          <li><b>인증 실패와 자격 부재는 <code>401</code> JSON 이다</b> — 본문 형식은 기존 <code>ApiErrorResponse</code> 를 그대로 쓴다(D-1 · D-7).</li>
+          <li><b>컨트롤러는 문자열 토큰이 아니라 principal 로 게스트를 받는다</b> — 도메인 가드(미개시 · 회수 <code>409</code> · 진입 게이트)는 있던 자리에 그대로 둔다(D-6).</li>
+          <li><b><code>/boot</code> 와 <code>/assets/**</code> 는 게스트 체인 <b>안에서</b> <code>permitAll</code></b> 이다 — 열어 두되 <b>웹 체인이 아니라 게스트 체인의 규칙</b>으로 연다(D-5).</li>
+          <li><b>웹 체인에서 <code>/api/pxe/v1/**</code> <code>permitAll</code> 한 줄을 뺀다</b> — 그 경로는 이제 앞 체인이 가져간다(D-1).</li>
+          <li><b>하네스와 테스트의 계약을 갱신한다</b> — 404 를 단언하던 자리를 401 로 옮기고, 체인 경계 자체를 잠그는 테스트를 새로 만든다(D-7 · D-9).</li>
+          <li><b>인증 판정 · 토큰 발급 · 회전 정책은 바꾸지 않는다</b> — 게스트 토큰은 여전히 등록 시 1회 발급되는 고정 값이고, 대조 규칙도 그대로다. <b>옮기는 것이지 바꾸는 것이 아니다.</b></li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> — 아래는 이 슬라이스에서 하지 않는다.
+          <ul>
+            <li><b>첫 접촉의 인증</b>(<code>/boot</code> · <code>/assets/**</code>) — <b>2단계(S19-2)</b> 의 PXE 부팅 계정과 LAN 출발지 제한이 받는다. 1단계에서는 <code>permitAll</code> 로 남으므로,
+              §0 의 <code>curl</code> 로 유령 게스트를 등록하는 일은 <b>이 슬라이스가 끝나도 여전히 가능하다</b>(D-8 에 명시).</li>
+            <li><b>게스트 토큰의 회전 · 만료 · 재발급</b> — 고정 토큰 전제를 유지한다. 수명 정책은 이 슬라이스의 판단 대상이 아니다.</li>
+            <li><b>TLS 종단 · 상호 TLS 인증(mTLS — 서버와 클라이언트가 서로 인증서를 제시하는 방식)</b> — 외부망 배포 시 검토 대상이며 2단계 예고에 적는다.</li>
+            <li><b>CSRF(Cross-Site Request Forgery) 활성화 · 세션 정책 · 웹 체인의 인증 판정</b> — S18 이 정한 자리 그대로다. 이번에 웹 체인에서 지우는 것은 <code>permitAll</code> 한 줄뿐이다.</li>
+            <li><b>레지스트리의 영속화</b> — 서빙 토큰이 메모리에만 사는 것은 기존 설계이며(재기동 시 새 토큰), 여기서 바꾸지 않는다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 요청 시뮬레이터 (경로 × 자격 → 체인 → Converter → Provider → 인가 → HTTP)</summary>
+      <div class="body">
+        <p style="margin-top:0;">위 두 줄이 <b>요청 하나</b>를 만든다 — <b>어느 경로</b>로 오는가와 <b>무엇을 들고</b> 오는가.
+          이 둘을 바꾸면 아래 파이프라인이 즉시 다시 계산된다. 어느 체인이 이 요청을 잡았는지(<code>@Order(1)</code> 게스트 / <code>@Order(2)</code> 웹),
+          <code>GuestCredentialConverter</code> 가 자격을 무엇으로 읽었는지(<b>서빙 경로면 경로 토큰, 그 밖이면 헤더 토큰</b> · D-2), <code>GuestTokenAuthenticationProvider</code> 가 그것을 <code>GuestPrincipal</code> 로 세웠는지 아니면
+          <code>BadCredentialsException</code> 으로 떨어뜨렸는지, 인가 규칙이 무엇을 요구했는지, 그래서 게스트가 받는 HTTP 응답이 무엇인지가 한 줄씩 나온다.</p>
+        <p>맨 아래 <b>판정 표</b>는 장식이 아니라 <b>같은 함수로 36칸을 전부 돌려 그린 것</b>이다 — 지금 고른 조합이 표에서 파랗게 표시된다.
+          표의 값은 <b>체인이 내는 판정</b>(D-1 ~ D-5)이고, 컨트롤러가 그 뒤에 무엇을 하는지는 파이프라인 마지막 줄에 따로 나온다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">요청 경로 :</span>
+            <button class="seg" data-path="boot" onclick="demoPath('boot')">/boot</button>
+            <button class="seg" data-path="assets" onclick="demoPath('assets')">/assets/**</button>
+            <button class="seg" data-path="agent" onclick="demoPath('agent')">/agent/checkin</button>
+            <button class="seg" data-path="windows" onclick="demoPath('windows')">/windows/{t}/…</button>
+            <button class="seg" data-path="firmware" onclick="demoPath('firmware')">/firmware/{t}/…</button>
+            <button class="seg" data-path="web" onclick="demoPath('web')">/management/os</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">제시 자격 :</span>
+            <button class="seg" data-cred="none" onclick="demoCred('none')">없음</button>
+            <button class="seg" data-cred="headerOk" onclick="demoCred('headerOk')">헤더 정상</button>
+            <button class="seg" data-cred="headerBad" onclick="demoCred('headerBad')">헤더 위조</button>
+            <button class="seg" data-cred="pathOk" onclick="demoCred('pathOk')">경로 토큰 정상</button>
+            <button class="seg" data-cred="pathGone" onclick="demoCred('pathGone')">경로 토큰 회수됨</button>
+            <button class="seg" data-cred="cookie" onclick="demoCred('cookie')">웹 로그인 쿠키</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">프리셋 :</span>
+            <button class="n-demo-btn" onclick="demoPreset(1)">① 진단 에이전트 정상 체크인</button>
+            <button class="n-demo-btn" onclick="demoPreset(2)">② 헤더 없는 curl</button>
+            <button class="n-demo-btn" onclick="demoPreset(3)">③ 위조 토큰</button>
+            <button class="n-demo-btn" onclick="demoPreset(4)">④ 완료 뒤 옛 Windows 토큰</button>
+            <button class="n-demo-btn" onclick="demoPreset(5)">⑤ 로그인 쿠키로 게스트 API</button>
+            <button class="n-demo-btn" onclick="demoPreset(6)">⑥ 게스트 토큰으로 관리자 화면</button>
+            <button class="n-demo-btn" onclick="demoPreset(0)">초기화</button>
+          </div>
+
+          <div style="margin-top:12px;" id="demo-request"></div>
+          <div id="demo-pipe"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+
+          <h4 style="margin-top:16px;">체인 판정 표 — 경로 6 × 자격 6 (<code>guestJudge()</code> 한 함수가 그린다)</h4>
+          <div id="demo-matrix"></div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 컨트롤러가 문자열을 받는다</h4><pre><code>@PostMapping("/checkin")
+public AgentCheckinResponse checkin(
+    @RequestHeader(TOKEN_HEADER) String token) {
+  return agentReportService.checkin(token);
+}
+
+// 서비스 안에서
+GuestServer s = guestTokenAuthenticator
+        .requireByToken(presentedToken);   // 불일치 → 404</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 체인이 신원을 세운 뒤 넘긴다</h4><pre><code>@PostMapping("/checkin")
+public AgentCheckinResponse checkin(
+    @CurrentGuest GuestPrincipal guest) {
+  return agentReportService.checkin(guest);
+}
+
+// 서비스 안에서
+GuestServer s = guestPrincipalLoader
+        .require(guest);   // findById · touchSeen</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 <code>guestJudge()</code> 가 계산하는 다섯 단계는
+          D-1(어느 체인) · D-2(Converter 가 무엇을 읽는가 — <b>서빙 경로는 경로 토큰, 그 밖은 헤더 토큰</b>) · D-3(Provider 판정) · D-4(실패 시 체인이 거기서 끝난다) · D-5(인가 규칙)와 <b>같은 값</b>이다.
+          판정 표의 36칸도 이 함수 하나로 그리므로, 결정이 바뀌면 데모와 표가 함께 바뀐다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>게스트 채널 엔드포인트 — 체인 · 자격 · 인가 · 결과</h4>
+        <table>
+          <thead><tr><th>Method · URL</th><th>체인</th><th>자격</th><th>인가</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>GET /api/pxe/v1/boot</code></td>
+              <td>게스트 <code>@Order(1)</code></td>
+              <td>없음 — 토큰이 생기기 전의 요청</td>
+              <td><code>permitAll</code></td>
+              <td><code>200</code> iPXE 스크립트(<code>text/plain</code>) · 예외도 200 재시도 스크립트(DEC-5 유지)</td>
+            </tr>
+            <tr>
+              <td><code>GET /api/pxe/v1/assets/**</code></td>
+              <td>게스트 <code>@Order(1)</code></td>
+              <td>없음</td>
+              <td><code>permitAll</code></td>
+              <td><code>200</code> 정적 부팅 자산</td>
+            </tr>
+            <tr>
+              <td><code>POST /api/pxe/v1/agent/checkin</code><br><code>POST /api/pxe/v1/agent/steps</code><br><code>POST /api/pxe/v1/agent/steps/{stepId}/close</code></td>
+              <td>게스트 <code>@Order(1)</code></td>
+              <td><code>X-Guest-Token</code> → <code>HeaderToken</code></td>
+              <td><code>hasRole("GUEST")</code></td>
+              <td><code>200</code> · <code>201</code>(steps) / 자격 부재 · 위조 <code>401</code> JSON / 도메인 가드 <code>409</code> · <code>400</code> 은 종전대로</td>
+            </tr>
+            <tr>
+              <td><code>POST /api/pxe/v1/agent/windows/complete</code></td>
+              <td>게스트 <code>@Order(1)</code></td>
+              <td><code>X-Guest-Token</code> → <code>HeaderToken</code></td>
+              <td><code>hasRole("GUEST")</code></td>
+              <td><code>200</code> closed/no-op / <code>401</code> / 상태 <code>409</code> · 검증 <code>400</code> 유지</td>
+            </tr>
+            <tr>
+              <td><code>GET /api/pxe/v1/windows/{token}/{file}</code></td>
+              <td>게스트 <code>@Order(1)</code></td>
+              <td>경로 토큰 → <code>ServingToken(WINDOWS)</code></td>
+              <td><code>hasRole("GUEST")</code></td>
+              <td><code>200</code> 스트리밍 / 미발급 · 회수 <code>401</code> / 목록 밖 파일명 <code>404</code>(종전)</td>
+            </tr>
+            <tr>
+              <td><code>GET /api/pxe/v1/firmware/{token}/{file}</code></td>
+              <td>게스트 <code>@Order(1)</code></td>
+              <td>경로 토큰 → <code>ServingToken(FIRMWARE)</code></td>
+              <td><code>hasRole("GUEST")</code></td>
+              <td><code>200</code> 파일 / 미발급 · 회수 <code>401</code></td>
+            </tr>
+            <tr>
+              <td><code>ERROR</code> · <code>ASYNC</code> 디스패치</td>
+              <td>게스트 <code>@Order(1)</code></td>
+              <td>—</td>
+              <td><code>permitAll</code></td>
+              <td>원 요청의 응답 그대로 — 오류 디스패치가 인가에 두 번 걸리지 않게(웹 체인의 같은 처방)</td>
+            </tr>
+            <tr>
+              <td><code>GET /management/**</code> 등 그 밖 전부</td>
+              <td>웹 <code>@Order(2)</code></td>
+              <td>세션(<code>JSESSIONID</code>)</td>
+              <td><code>authenticated</code></td>
+              <td><code>200</code> 화면 / 비인증 <code>302</code> → <code>/login</code>. <b>게스트 토큰은 여기서 자격이 아니다</b>(D-8)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>흐름 ① — 진단 에이전트 체크인, 정상 경로</h4>
+        <div class="seq">
+          <div class="actor a1">진단 에이전트<br>(agent.sh · wget)</div>
+          <div class="actor a2">게스트 체인<br>AuthenticationFilter</div>
+          <div class="actor a3">Provider<br>+ PrincipalResolver</div>
+          <div class="actor a4">컨트롤러 · 서비스</div>
+
+          <div class="step a1"><code>POST /agent/checkin</code><br><code>X-Guest-Token: a1b2…</code></div>
+          <div class="step a2"><code>securityMatcher</code> 적중 → 이 체인이 처리</div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>GuestCredentialConverter</code> → <code>HeaderToken("a1b2…")</code></div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>ProviderManager</code> 위임</div>
+          <div class="step a3"><code>findByGuestToken</code> 적중 → <code>GuestPrincipal(id, systemUUID)</code> · <code>ROLE_GUEST</code></div>
+          <div class="step a4"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>SecurityContext</code> 에 적재(요청 속성 · 세션 없음) → 계속 진행</div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>AuthorizationFilter</code> — <code>hasRole("GUEST")</code> 통과</div>
+          <div class="step a3"></div>
+          <div class="step a4"><code>@CurrentGuest</code> 로 principal 수령</div>
+
+          <div class="step a1"></div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+          <div class="step a4"><code>GuestPrincipalLoader.require</code> → <code>findById</code> · <code>touchSeen</code> → 게이트 판정 → 지시 응답</div>
+
+          <div class="step a1"><code>200</code> + 다음 지시 수신</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+        </div>
+
+        <h4>흐름 ② — 위조 토큰, 401 경로</h4>
+        <div class="seq">
+          <div class="actor a1">사칭 클라이언트<br>(curl)</div>
+          <div class="actor a2">게스트 체인<br>AuthenticationFilter</div>
+          <div class="actor a3">Provider<br>+ PrincipalResolver</div>
+          <div class="actor a4">컨트롤러 · 서비스</div>
+
+          <div class="step a1"><code>POST /agent/checkin</code><br><code>X-Guest-Token: deadbeef…</code></div>
+          <div class="step a2"><code>securityMatcher</code> 적중</div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2">Converter → <code>HeaderToken("deadbeef…")</code></div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>ProviderManager</code> 위임</div>
+          <div class="step a3"><code>findByGuestToken</code> 공백 → <code>BadCredentialsException</code></div>
+          <div class="step a4"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2"><code>failureHandler</code> — <b>체인을 여기서 끝낸다</b>. <code>401</code> + <code>application/json</code></div>
+          <div class="step a3"></div>
+          <div class="step a4" style="color:var(--text-muted);">도달하지 않는다 — 서비스 트랜잭션도 열리지 않는다</div>
+
+          <div class="step a1"><code>401</code><br><code>{"message":"게스트 인증이 필요합니다.","code":"GUEST_UNAUTHENTICATED"}</code></div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+          <div class="step a4"></div>
+        </div>
+        <p>자격을 <b>아예 안 들고</b> 온 요청은 ② 와 경로가 조금 다르다. Converter 가 <code>null</code> 을 돌려주면 필터는 그냥 통과시키고,
+          그 다음 <code>AuthorizationFilter</code> 가 <code>hasRole("GUEST")</code> 를 만족하지 못해 <code>GuestAuthenticationEntryPoint</code> 를 부른다.
+          <b>도착 지점은 같다</b> — 같은 <code>401</code> 과 같은 JSON 본문이다. 필터가 거절했는지 인가가 거절했는지를 게스트가 구분할 이유가 없기 때문이다.</p>
+
+        <h4>필터 배선 — 요청 하나가 지나가는 순서</h4>
+        <div class="pkg-tree">HTTP 요청
+  │
+  ├─ FilterChainProxy 가 체인을 고른다 (@Order 오름차순, 첫 적중에서 멈춤)
+  │    ├─ @Order(1) guestChain     securityMatcher("/api/pxe/v1/**")   ← 적중하면 여기서 확정
+  │    └─ @Order(2) securityFilterChain   (매처 없음 = 나머지 전부)
+  │
+  └─ guestChain 내부
+       ├─ SecurityContextHolderFilter   (RequestAttributeSecurityContextRepository — 세션 조회 0)
+       ├─ AuthenticationFilter          ← addFilterBefore(…, AuthorizationFilter.class)
+       │     ├─ GuestCredentialConverter        요청 → GuestCredential | null
+       │     ├─ ProviderManager → GuestTokenAuthenticationProvider
+       │     ├─ successHandler = no-op          (계속 진행 — 리다이렉트하지 않는다)
+       │     └─ failureHandler = 401 JSON       (여기서 체인 종료)
+       ├─ ExceptionTranslationFilter    entryPoint = GuestAuthenticationEntryPoint (401 JSON)
+       │                                accessDeniedHandler = 403 JSON
+       └─ AuthorizationFilter           /boot · /assets/** · ERROR · ASYNC = permitAll
+                                        그 밖 = hasRole("GUEST")</div>
+        <div class="callout"><b><code>successHandler</code> 가 "아무것도 하지 않는 것" 이 핵심이다</b> — Spring Security 의 기본 성공 핸들러는 <b>리다이렉트</b>를 한다(로그인 폼을 전제로 설계됐기 때문이다).
+          게스트 채널에서는 인증이 성공했다고 해서 요청이 끝나면 안 된다 — 그 요청은 <b>계속 흘러가 컨트롤러에 닿아야</b> 한다. 그래서 성공 핸들러를 "체인을 계속 진행" 으로 바꾼다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) — 자격 · 토큰 · principal</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 슬라이스는 <b>엔티티를 만들지 않는다</b>. 새로 생기는 것은 전부 인증 경계의 타입이며, DDL 도 0 이다.
+          아래 타입들이 "게스트란 무엇인가" 를 표현하는 SSOT(Single Source of Truth — 단일 진실 출처)가 된다.</p>
+
+        <h4>자격 — <code>GuestCredential</code> (sealed interface)</h4>
+        <pre><code>public sealed interface GuestCredential
+        permits GuestCredential.HeaderToken, GuestCredential.ServingToken {
+
+    /** X-Guest-Token 헤더로 온 게스트 신원 토큰(32 hex 고정 값). */
+    record HeaderToken(String value) implements GuestCredential {}
+
+    /** 경로 세그먼트로 온 서빙 토큰 — 어느 레지스트리에 물을지가 kind 로 갈린다. */
+    record ServingToken(UUID value, ServingKind kind) implements GuestCredential {}
+
+    enum ServingKind { WINDOWS, FIRMWARE }
+}</code></pre>
+        <p><code>sealed</code> 로 닫는 이유는 <b>자격의 종류가 늘 때 분기문이 자라지 않게</b> 하기 위해서다.
+          공급자는 <code>switch</code> 패턴 매칭으로 두 갈래를 남김없이 다루고, 새 자격이 생기면 <b>컴파일러가 빠진 갈래를 알려 준다</b>.
+          <code>ServingKind</code> 를 따로 둔 것은 경로 접두(<code>/windows/</code> · <code>/firmware/</code>)가 <b>어느 레지스트리에 물어야 하는가</b>를 이미 말해 주기 때문이다 —
+          토큰 값만으로는 누구 것인지 알 수 없다는 것은 <code>FirmwareImageTokenRegistry</code> 주석이 이미 지적해 둔 성질이다.</p>
+
+        <h4>인증 토큰 · principal</h4>
+        <table>
+          <thead><tr><th>타입</th><th>역할</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestAuthenticationToken</code></td><td><code>AbstractAuthenticationToken</code> 구현. <code>unauthenticated(GuestCredential)</code> 과 <code>authenticated(GuestPrincipal, 권한)</code> 두 팩토리</td><td>미인증 토큰은 자격을, 인증 토큰은 principal 을 담는다. 자격은 인증 후 지운다</td></tr>
+            <tr><td><code>GuestPrincipal</code></td><td><code>record(UUID guestServerId, String systemUUID)</code> — 컨트롤러 · 서비스가 받는 게스트 신원</td><td>엔티티가 아니다. 트랜잭션 밖에서 들고 다녀도 안전한 값</td></tr>
+            <tr><td>권한</td><td><code>ROLE_GUEST</code> 하나</td><td>게스트 사이에 권한 차이를 두지 않는다 — 인가는 "게스트인가" 만 본다(D-5)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>판정 SSOT — 데모가 재현하는 바로 그 메서드들</h4>
+        <pre><code>// ① 요청 → 자격 (경로가 자격의 종류를 정한다)
+GuestCredentialConverter implements AuthenticationConverter
+  Authentication convert(HttpServletRequest request)
+    · 경로가 /api/pxe/v1/windows/{uuid}/…   → ServingToken(uuid, WINDOWS)   ← 헤더는 읽지 않는다
+    · 경로가 /api/pxe/v1/firmware/{uuid}/…  → ServingToken(uuid, FIRMWARE)  ← 헤더는 읽지 않는다
+    · 그 밖의 경로에서 X-Guest-Token 이 있고 공백이 아니면 → HeaderToken
+    · 그 밖                                 → null   (필터는 건너뛴다)
+
+// ② 자격 → 신원
+GuestTokenAuthenticationProvider implements AuthenticationProvider
+  boolean supports(Class&lt;?&gt;)            → GuestAuthenticationToken
+  Authentication authenticate(Authentication)
+    HeaderToken  → GuestPrincipalResolver.byGuestToken(value)
+    ServingToken → WINDOWS  : windowsInstallTokenRegistry.guestOf(value)
+                   FIRMWARE : firmwareImageTokenRegistry.guestOf(value)
+    비어 있으면   → throw new BadCredentialsException(...)
+
+// ③ 신원 → 엔티티 (서비스 트랜잭션 안에서)
+GuestPrincipalLoader.require(GuestPrincipal)
+    guestServerRepository.findById(principal.guestServerId())
+      .orElseThrow(() -&gt; new IllegalStateException(...))   // 인증됐는데 없다 = 데이터 손상
+    server.touchSeen(LocalDateTime.now());                  // DEC-32 관찰 로그</code></pre>
+
+        <div class="callout warn"><b><code>touchSeen</code> 이 공급자가 아니라 서비스 트랜잭션에 남는 이유</b> — <code>lastSeenAt</code> 갱신은 <b>쓰기</b>다.
+          공급자는 인증 필터 안에서 도는 코드라 서비스의 트랜잭션 경계 밖이고, 여기서 쓰기를 하면 <b>도메인 가드가 409 로 롤백해도 갱신만 살아남는</b> 비대칭이 생긴다.
+          기존 <code>GuestTokenAuthenticator</code> 는 호출자의 트랜잭션에 참여해 그 비대칭이 없었고(주석에 그 판단이 적혀 있다), <b>그 성질을 그대로 물려받는다</b>.
+          공급자는 <b>읽기 전용 조회</b>만 한다.</div>
+
+        <h4>레지스트리에 더하는 것 — <code>guestOf</code> 하나씩</h4>
+        <table>
+          <thead><tr><th>레지스트리</th><th>지금 있는 것</th><th>더하는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>WindowsInstallTokenRegistry</code></td><td><code>byGuest</code>(게스트 → 토큰) 역맵이 <b>이미 있다</b></td><td><code>Optional&lt;UUID&gt; guestOf(UUID token)</code> — 역맵을 되짚어 게스트를 돌려준다</td></tr>
+            <tr><td><code>FirmwareImageTokenRegistry</code></td><td><code>byAxis</code>(게스트+축 → 토큰)만 있어 <b>토큰에서 게스트로 가는 길이 없다</b></td><td>발급 시 <code>token → guestServerId</code> 맵을 함께 채우고 회수 시 함께 비운다 + 같은 <code>guestOf</code></td></tr>
+          </tbody>
+        </table>
+        <p>두 레지스트리에 <b>같은 이름의 같은 시그니처</b>를 두는 이유는 공급자가 두 갈래에서 같은 모양으로 물을 수 있게 하기 위해서다.
+          인터페이스로 묶지는 않는다 — 지금 구현이 둘뿐이고, 둘의 나머지 책임(번들 렌더 · <code>ImageURI</code> 조립)이 서로 다르기 때문이다.
+          <b>갈라지는 시점에 분리한다</b>는 원칙의 반대 방향, 즉 <b>합쳐질 이유가 생길 때 합친다</b>.</p>
+
+        <h4>컨트롤러가 principal 을 받는 방법</h4>
+        <pre><code>@Target(ElementType.PARAMETER) @Retention(RetentionPolicy.RUNTIME)
+public @interface CurrentGuest {}
+
+// CurrentGuestArgumentResolver implements HandlerMethodArgumentResolver
+supportsParameter : @CurrentGuest 가 붙은 GuestPrincipal 파라미터
+resolveArgument   : SecurityContextHolder 의 Authentication 이
+                    GuestAuthenticationToken 이면 그 principal,
+                    아니면 throw new GuestUnauthenticatedException()</code></pre>
+        <p>등록은 <code>WebMvcConfigurer</code>(<code>GuestWebConfig</code>)로 한다. <code>@WebMvcTest</code> 슬라이스는 <code>WebMvcConfigurer</code> 빈을 포함하는 부류이므로
+          <b>컨트롤러 테스트에서도 이 resolver 가 실제로 동작</b>한다 — S18 에서 <code>@AuthenticationPrincipal</code> 이 슬라이스에서 해석되지 않던 것과 갈리는 지점이다(D-6).</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인 — plan 검수</td></tr>
+            <tr><td>2</td><td>뷰 — <b>N/A</b>. 화면이 없는 슬라이스다(게스트는 HTTP 로만 상호작용)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3~5</td><td>Controller 시그니처 치환(<code>@CurrentGuest</code>) · <code>GuestSecurityConfig</code> · Converter · Provider · EntryPoint · Resolver 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고 (무중단)</td></tr>
+            <tr><td>6~7</td><td>Repository · Entity — <b>N/A</b>. 조회는 기존 <code>findByGuestToken</code> · <code>findById</code> 를 그대로 쓰고 엔티티 변경이 0 이다</td><td><span class="chip cp3">CP3</span></td><td>보고 (무중단)</td></tr>
+            <tr><td>8~9</td><td>Provider · Resolver · Loader 본체, 레지스트리 <code>guestOf</code>, 서비스 시그니처 치환, 하네스 2 갱신. <b>스키마 확인 N/A</b>(DDL 0 · 환경변수 0)</td><td><span class="chip cp4">CP4</span></td><td><b>중간 승인 — main 코드 검수</b></td></tr>
+            <tr><td>8 잔여</td><td>체인 테스트 · Converter · Provider · Resolver 단위 테스트 + 기존 테스트 갱신 → 전체 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td><b>하네스 검증</b>(E 단계 예외) — <code>diagnose-cycle.sh</code> · <code>windows-install-cycle.sh</code> 완주 + 게스트 서버 상세 화면 확인 + 401 경계 조작</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>사용자 실기 — <b>E 계열 일괄 CP7</b> 에 합류</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계마다 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출).
+          CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+        <div class="callout warn"><b>CP5 · CP7 의 E 단계 예외를 적용한다</b> — 이 슬라이스의 주체는 게스트이고 게스트에게는 화면이 없다.
+          그래서 CP5 를 브라우저 조작 대신 <b>모의 게스트 하네스 실행 + 게스트 서버 상세 화면 확인</b>으로 수행한다.
+          다만 <b>웹 체인 무회귀 확인(C1)만은 브라우저</b>로 본다 — 웹 체인에서 한 줄을 빼는 변경이라 화면이 실제로 그대로인지 눈으로 봐야 한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오 (D-9)</summary>
+      <div class="body">
+        <p style="margin-top:0;">지금 이 경계를 잠그는 테스트는 <b>0</b> 이다. 보안 필터가 <code>@WebMvcTest</code> 에 자동으로 얹히지 않으므로,
+          체인을 넣기만 해서는 <b>기존 테스트가 전부 통과한 채 아무것도 검증하지 않는다</b>. 그래서 체인을 <b>명시적으로 얹는 전용 테스트</b>를 새로 만든다.</p>
+        <table>
+          <thead><tr><th>파일</th><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="4"><code>GuestChainSecurityTest</code><br><span class="chip new">신규</span><br><code>@WebMvcTest(GuestAgentRestController, WindowsInstallAssetRestController)</code><br><code>@Import(GuestSecurityConfig, SecurityConfig …)</code> + <code>apply(springSecurity())</code></td>
+                <td>성공 2xx</td><td>정상 <code>X-Guest-Token</code> → 컨트롤러 도달 <code>200</code> · 정상 서빙 토큰 경로 <code>200</code> · <code>/boot</code> 익명 통과</td><td>3</td></tr>
+            <tr><td>401</td><td>헤더 없음(본문 <code>message</code> · <code>code</code> 확인) · 헤더 위조 · 공백 헤더 · 서빙 토큰 위조 · 회수 뒤 서빙 토큰 · 로그인 쿠키로 <code>/agent/checkin</code></td><td>6</td></tr>
+            <tr><td>체인 경계</td><td><code>/management/os</code> 는 웹 체인이 잡아 <code>302</code> → <code>/login</code>(게스트 토큰을 들고 가도 마찬가지)</td><td>2</td></tr>
+            <tr><td>형식</td><td>401 응답이 <code>application/json</code> 이고 <code>ApiErrorResponse</code> 모양인지 · <code>Set-Cookie</code> 로 세션이 생기지 않는지</td><td>2</td></tr>
+            <tr><td><code>GuestCredentialConverterTest</code> <span class="chip new">신규</span></td><td>단위</td><td>일반 경로의 헤더만 · 서빙 경로의 경로 토큰만(WINDOWS · FIRMWARE) · <b>서빙 경로에 헤더를 함께 보내도 경로 토큰이 읽힌다</b> · 일반 경로의 경로형 토큰은 읽지 않는다 · 아무것도 없으면 <code>null</code> · 서빙 경로의 토큰 세그먼트가 UUID 가 아니면 <code>null</code></td><td>7</td></tr>
+            <tr><td><code>GuestTokenAuthenticationProviderTest</code> <span class="chip new">신규</span></td><td>단위</td><td>헤더 정상 → principal · 헤더 불일치 → <code>BadCredentialsException</code> · 서빙 토큰 정상(두 종류) · 미발급 · 회수 토큰 → 예외 · <code>supports()</code> 가 다른 토큰을 거절</td><td>7</td></tr>
+            <tr><td><code>CurrentGuestArgumentResolverTest</code> <span class="chip new">신규</span></td><td>단위</td><td>인증 토큰이 있으면 principal 주입 · 없거나 다른 타입이면 <code>GuestUnauthenticatedException</code></td><td>3</td></tr>
+            <tr><td><code>GuestAgentRestControllerFlowTest</code><br><code>WindowsInstallReportRestControllerTest</code><br><code>FirmwareImageRestControllerTest</code> <span class="chip mod">수정</span></td>
+                <td>갱신</td><td><b>404 단언을 걷어내고</b>(그 책임은 체인 테스트로 이관) principal 주입 방식으로 바꾼다. 도메인 가드 <code>409</code> · 검증 <code>400</code> · 목록 밖 파일명 <code>404</code> 시나리오는 <b>그대로 남긴다</b></td><td>기존 유지 + 재배선</td></tr>
+            <tr><td>서비스 단위 테스트 <span class="chip mod">수정</span></td><td>갱신</td><td><code>AgentReportService</code> · <code>WindowsInstallCompletionService</code> 의 인자가 문자열에서 <code>GuestPrincipal</code> 로 바뀐 만큼 시그니처 갱신. <b>판정 로직은 무변경</b>이라 단언은 그대로</td><td>기존 유지</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b><code>FormSubmissionConventionTest</code> 는 무관하다</b> — 이 슬라이스에는 폼도 <code>BindingResult</code> 재렌더 핸들러도 없다. 그 등식을 건드리지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 · HTTP 매핑</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>타입</th><th>HTTP</th><th>구분</th><th>누가 어떻게 응답으로 바꾸는가</th></tr></thead>
+          <tbody>
+            <tr><td><code>BadCredentialsException</code></td><td><code>401</code></td><td><span class="chip keep">재사용</span> Spring Security</td>
+                <td>공급자가 던지면 <code>AuthenticationFilter</code> 의 <code>failureHandler</code> 가 잡아 JSON 본문을 쓴다. advice 를 거치지 않는다 — <b>필터 계층에서 끝난다</b></td></tr>
+            <tr><td>자격 부재(예외 아님)</td><td><code>401</code></td><td><span class="chip new">신규</span> 진입점</td>
+                <td><code>GuestAuthenticationEntryPoint</code> — <code>ExceptionTranslationFilter</code> 가 인가 실패를 받아 부른다. 본문은 <code>failureHandler</code> 와 <b>같은 조립기를 공유</b>한다(문구가 둘로 갈리지 않게)</td></tr>
+            <tr><td>권한 부족</td><td><code>403</code></td><td><span class="chip new">신규</span> 핸들러</td>
+                <td><code>accessDeniedHandler</code> — 인증은 됐는데 규칙을 만족 못 한 경우. 1단계 규칙(<code>hasRole("GUEST")</code> 하나)에서는 도달 경로가 없지만, 규칙이 늘 때 <b>로그인 화면으로 새지 않게</b> 미리 막아 둔다</td></tr>
+            <tr><td><code>GuestUnauthenticatedException</code></td><td><code>401</code></td><td><span class="chip new">신규</span></td>
+                <td><code>CurrentGuestArgumentResolver</code> 가 principal 없이 호출됐을 때. <b>정상 경로에서는 발생하지 않는다</b> — 인가 규칙이 먼저 막기 때문이다. 배선 실수(새 엔드포인트를 <code>permitAll</code> 에 넣고 <code>@CurrentGuest</code> 를 쓰는 경우)를 <b>조용한 NPE 대신 뜻이 있는 401</b> 로 드러내는 안전망이다</td></tr>
+            <tr><td><code>GuestServerNotFoundException</code></td><td><code>404</code></td><td><span class="chip mod">용도 축소</span></td>
+                <td>지금은 "토큰 불일치" 와 "게스트 부재" 를 겸한다. <b>토큰 불일치 용도(<code>byToken()</code>)가 사라지고</b>, 게스트 부재 용도만 남는다 — 남은 용도가 없으면 그 팩토리를 지운다(죽은 코드 금지)</td></tr>
+            <tr><td><code>IllegalStateException</code></td><td><code>500</code></td><td><span class="chip keep">재사용</span></td>
+                <td><code>GuestPrincipalLoader.require</code> 가 인증된 principal 의 게스트를 못 찾은 경우. <b>사용자 오류가 아니라 데이터 손상</b>이므로 도메인 예외로 감싸 숨기지 않는다(레지스트리들이 미발급 토큰 URL 요청에 같은 선택을 한 선례)</td></tr>
+            <tr><td>도메인 가드 <code>409</code> · 검증 <code>400</code></td><td>—</td><td><span class="chip keep">유지</span></td>
+                <td>미개시 · 회수 · 진입 게이트 · <code>@Valid</code> 위반은 <b>있던 자리 그대로</b>다. 인증 경계가 앞에 생겼을 뿐 도메인 판정은 손대지 않는다</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b><code>/boot</code> 의 예외 변환 규칙과 충돌하지 않는지 확인해야 한다</b> — <code>ExecutionRestController</code> 는 자기 <code>@ExceptionHandler</code> 로
+          모든 예외를 <b>200 + 재시도 스크립트</b>로 바꾼다(iPXE 는 2xx 본문만 실행하므로 5xx 로는 재시도 루프를 못 만든다).
+          그런데 <b>필터는 컨트롤러보다 앞</b>이라 <code>@ExceptionHandler</code> 가 닿지 않는다. 1단계에서 <code>/boot</code> 를 <code>permitAll</code> 로 두는 한 필터가 거절할 일이 없으므로 충돌은 없지만,
+          <b>2단계에서 <code>/boot</code> 에 자격을 요구하는 순간 이 문제가 정면으로 온다</b> — iPXE 가 401 을 받으면 스크립트가 아니라 오류 본문을 받는다. §11 에 넘긴다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 결정 · Open Questions ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 D-1 ~ D-10 · Open Questions · 주의</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>채택</th><th>비채택 대안</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>D-1</b><br>체인 분리</td>
+              <td><code>GuestSecurityConfig</code> 를 새로 두고 <code>@Order(1) SecurityFilterChain guestChain</code> 을 정의한다 —
+                <code>securityMatcher("/api/pxe/v1/**")</code> · <code>sessionManagement(STATELESS)</code> · <code>csrf</code> 비활성 · <code>formLogin</code> 과 <code>httpBasic</code> 없음 ·
+                <code>securityContext</code> 는 명시 저장 기본 · <code>exceptionHandling</code> 의 진입점은 <code>GuestAuthenticationEntryPoint</code>(<code>401</code> · <code>application/json</code> ·
+                <code>ApiErrorResponse("게스트 인증이 필요합니다.", code "GUEST_UNAUTHENTICATED")</code>) · <code>accessDeniedHandler</code> 는 <code>403</code> JSON.
+                기존 <code>SecurityConfig</code> 는 <code>@Order(2)</code> 로 두고 <code>/api/pxe/v1/**</code> <code>permitAll</code> <b>한 줄만</b> 뺀다</td>
+              <td>(a) 지금 체인 하나에 매처만 더한다<br>(b) 현행(<code>permitAll</code> + 컨트롤러 대조)을 유지한다</td>
+              <td>(a) 한 체인 안에서 <b>진입점</b>(로그인 302 대 JSON 401) · <b>세션 생성</b>(만든다 대 안 만든다) · <b>CSRF 규칙</b>이 서로 얽힌다 — 경로별로 갈라야 할 것이 셋이나 되는데 체인은 하나라 전부 조건 분기가 된다.<br>
+                (b) 필터 경계가 아예 없어 <b>새 엔드포인트를 만들 때마다 대조를 잊을 수 있고</b>, 대조 코드가 컨트롤러 · 서비스에 흩어진다</td>
+            </tr>
+            <tr>
+              <td><b>D-2</b><br>자격 모델</td>
+              <td><code>GuestCredential</code> sealed interface — <code>HeaderToken(String)</code> 과 <code>ServingToken(UUID, ServingKind)</code>.
+                <code>GuestCredentialConverter</code> <b>하나</b>가 요청에서 어느 쪽이든 읽어 <code>GuestAuthenticationToken.unauthenticated(credential)</code> 을 만들고,
+                자격이 없으면 <code>null</code> 을 돌려준다(필터가 건너뛰고 인가가 401 로 끝낸다).
+                <b>어느 자격을 읽을지는 경로가 정한다</b> — 서빙 경로(<code>/windows/{token}/…</code> · <code>/firmware/{token}/…</code>)에서는
+                <b>경로 토큰이 자격이고 <code>X-Guest-Token</code> 은 읽지 않는다</b>. 그 밖의 경로에서는 헤더 토큰만 본다</td>
+              <td>(a) 자격마다 필터를 하나씩 둔다<br>(b) 경로 토큰은 지금처럼 컨트롤러 대조로 남긴다<br>(c) 둘 다 오면 <b>헤더 우선</b></td>
+              <td>(a) 필터 · <code>ProviderManager</code> · 실패 핸들러 배선이 <b>통째로 복제</b>된다 — 같은 것이 둘이 되는 전형.<br>
+                (b) 인증 경계가 <b>둘로 갈린다</b> — 헤더는 필터가, 경로는 컨트롤러가 본다면 "어디서 막히는가" 를 두 곳에서 읽어야 한다.
+                다만 컨트롤러가 <b>번들 · 파일 경로를 푸는 일 자체는 그대로</b> 둔다 — 체인은 <b>신원만</b> 세운다.<br>
+                (c) <b>헤더 우선이면 서빙 경로에서 신원과 번들이 어긋난다</b> — 체인은 헤더가 가리키는 게스트로 신원을 세우는데
+                컨트롤러는 경로 토큰으로 번들을 푸니, 둘이 다른 게스트를 가리켜도 통과하거나 자원만 404 가 되는 어긋남이 생긴다.
+                <b>그 엔드포인트의 자격은 경로 토큰</b>이므로 그것 하나만 읽는 것이 신원과 자원을 한 값에 묶는다</td>
+            </tr>
+            <tr>
+              <td><b>D-3</b><br>인증 공급자</td>
+              <td><code>GuestTokenAuthenticationProvider implements AuthenticationProvider</code>.
+                <code>HeaderToken</code> 은 <code>GuestPrincipalResolver.byGuestToken</code>(<code>findByGuestToken</code> · 읽기 전용 트랜잭션)로,
+                <code>ServingToken</code> 은 레지스트리의 <code>guestOf(token)</code> 으로 푼다.
+                성공은 <code>GuestAuthenticationToken.authenticated(GuestPrincipal(guestServerId, systemUUID), ROLE_GUEST)</code>, 실패는 <code>BadCredentialsException</code>.
+                <b><code>touchSeen</code> 은 공급자가 아니라 서비스 트랜잭션에서</b>(D-6)</td>
+              <td>공급자가 <code>GuestServer</code> 엔티티를 그대로 principal 로 싣고 <code>touchSeen</code> 까지 한다</td>
+              <td>인증 필터는 서비스 트랜잭션 <b>밖</b>이다. 엔티티를 여기서 꺼내면 준영속 상태로 컨트롤러까지 흘러가고,
+                <code>touchSeen</code> 쓰기가 <b>도메인 가드의 롤백과 분리</b>돼 "거절당했는데 관찰 로그만 갱신" 이라는 비대칭이 생긴다</td>
+            </tr>
+            <tr>
+              <td><b>D-4</b><br>필터 배선</td>
+              <td>Spring Security 의 <code>AuthenticationFilter(ProviderManager(provider), converter)</code> 를 쓴다 —
+                <code>successHandler</code> 는 체인을 계속 진행(no-op), <code>failureHandler</code> 는 진입점과 같은 401 JSON,
+                <code>securityContextRepository</code> 는 <code>RequestAttributeSecurityContextRepository</code>(세션 없음).
+                <code>http.addFilterBefore(filter, AuthorizationFilter.class)</code>.
+                <b><code>permitAll</code> 경로라도 제시된 자격이 틀리면 401 이다</b> — <code>failureHandler</code> 가 인가에 닿기 전에 체인을 끝내기 때문이며,
+                이는 의도한 거동이다(틀린 자격은 어디서든 오류다. iPXE 는 헤더를 보내지 않으므로 <code>/boot</code> 의 실무 흐름에는 영향이 없다)</td>
+              <td><code>OncePerRequestFilter</code> 를 직접 써서 헤더를 읽고 <code>SecurityContextHolder</code> 에 넣는다</td>
+              <td>프레임워크가 이미 <b>같은 모양의 primitive</b> 를 제공한다 — Converter · ProviderManager · 성공 · 실패 핸들러라는 확장점을 직접 만든 필터는 다시 갖추지 못한다.
+                "조건분기 legacy 확장 금지 → 다형성 · Framework primitive" 의 직접 적용</td>
+            </tr>
+            <tr>
+              <td><b>D-5</b><br>인가 규칙</td>
+              <td>게스트 체인 안에서 — <code>/boot</code> 와 <code>/assets/**</code> 는 <code>permitAll</code>(1단계 한정 · 2단계에서 PXE 부팅 계정이 받는다),
+                <code>dispatcherTypeMatchers(ERROR, ASYNC)</code> 는 <code>permitAll</code>, <b>나머지 전부</b>(<code>/agent/**</code> · <code>/windows/**</code> · <code>/firmware/**</code> · 앞으로 생길 경로)는 <code>hasRole("GUEST")</code></td>
+              <td>엔드포인트를 하나씩 열거해 <code>hasRole</code> 을 붙인다</td>
+              <td>열거 방식은 <b>새 엔드포인트가 기본으로 열리는</b> 구조다 — 빠뜨리면 무인증으로 열린다.
+                "나머지 전부 <code>hasRole</code>" 은 반대로 <b>새 엔드포인트가 기본으로 닫히고</b>, 열려면 명시해야 한다</td>
+            </tr>
+            <tr>
+              <td><b>D-6</b><br>컨트롤러 · 서비스 치환</td>
+              <td><code>CurrentGuestArgumentResolver</code>(<code>HandlerMethodArgumentResolver</code>)를 <code>WebMvcConfigurer</code> 로 등록하고,
+                컨트롤러의 <code>@RequestHeader(TOKEN_HEADER) String token</code> 을 <code>@CurrentGuest GuestPrincipal guest</code> 로 바꾼다.
+                서비스 시그니처의 <code>String presentedToken</code> 은 <code>GuestPrincipal guest</code> 가 되고,
+                <code>GuestTokenAuthenticator.requireByToken(String)</code> 은 <code>GuestPrincipalLoader.require(GuestPrincipal)</code>(<code>findById</code> · 부재면 <code>IllegalStateException</code> · <code>touchSeen</code>)이 된다.
+                Windows · 펌웨어 자산 컨트롤러는 경로 토큰으로 번들 · 경로를 푸는 <b>현행을 그대로</b> 둔다 —
+                D-2 에서 그 경로의 자격이 경로 토큰으로 확정됐으므로 <b>체인이 세운 신원과 컨트롤러가 푸는 번들이 같은 토큰에서 나온다</b>. 따로 대조할 것이 없다</td>
+              <td>(a) <code>@AuthenticationPrincipal</code> 을 쓴다<br>(b) 서비스가 계속 토큰 문자열을 받는다</td>
+              <td>(a) <b>S18 실측</b> — <code>@WebMvcTest</code> 슬라이스에서 해석되지 않아 컨트롤러 테스트가 principal 을 받지 못한다. 직접 만든 resolver 는 <code>WebMvcConfigurer</code> 로 등록되어 슬라이스에 포함된다.<br>
+                (b) 토큰 대조가 필터로 올라갔는데 서비스가 여전히 문자열을 받으면 <b>인증이 두 곳에 남는다</b> — 옮긴 의미가 없어지고 죽은 코드가 생긴다</td>
+            </tr>
+            <tr>
+              <td><b>D-7</b><br>계약 변경</td>
+              <td><b>위조 · 누락 · 회수된 토큰은 <code>404</code> 가 아니라 <code>401</code> JSON 이다.</b>
+                회수된 Windows 번들 토큰(완료 뒤)과 펌웨어 토큰도 같다. 영향 — 테스트 3 파일의 404 단언을 체인 테스트로 이관(401),
+                하네스 3 곳(<code>diagnose-cycle.sh</code> 7단계 · <code>windows-install-cycle.sh</code> 의 <code>B1</code> · <code>token</code> 모드 · <code>complete</code> 4단계) 기대값 갱신,
+                <code>docs/T3-checklist.md</code> 의 "옛 토큰 404" 표기 갱신</td>
+              <td>진입점이 <code>404</code> 를 내어 기존 계약을 지킨다</td>
+              <td>401 은 <b>필터 계층의 표준</b>이고, 게스트 토큰이 32자 16진수 랜덤이라 <b>"존재 숨김" 의 실익이 없다</b>(추측으로 맞힐 수 없는 값이다).
+                반대로 404 를 유지하면 <b>헤더를 아예 안 보낸 요청까지 "없는 자원" 이 되어</b> 뜻이 어긋난다 — 자원은 있고 자격이 없는 것이다</td>
+            </tr>
+            <tr>
+              <td><b>D-8</b><br>웹 세션 ≠ 게스트 자격</td>
+              <td>로그인 쿠키로 <code>/api/pxe/v1/agent/**</code> 를 부르면 <code>401</code> 이다 — 체인이 다르고 그 체인은 세션을 읽지 않는다.
+                그리고 <b>운영자가 브라우저로 <code>/boot</code> 를 열어 착수를 기록하던 사고는 1단계에서 그대로 남는다</b>(<code>permitAll</code>).
+                2단계의 PXE 부팅 계정이 그것을 막는다</td>
+              <td>—</td>
+              <td>대안을 두고 고른 항목이 아니다. <b>D-1 · D-5 의 귀결</b>이며, 특히 두 번째 문장은 <b>이 슬라이스가 무엇을 못 막는지를 미리 밝히는</b> 범위 선언이다</td>
+            </tr>
+            <tr>
+              <td><b>D-9</b><br>테스트 전략</td>
+              <td>체인을 실제로 얹는 <code>GuestChainSecurityTest</code> 를 새로 만들고(<code>@Import</code> + <code>apply(springSecurity())</code>),
+                Converter · Provider · ArgumentResolver 단위 테스트를 각각 둔다. 기존 컨트롤러 테스트 3 은 principal 주입 방식으로 갱신하며 404 단언을 걷어낸다.
+                서비스 테스트는 시그니처만 갱신한다</td>
+              <td>—</td>
+              <td>대안 비교 항목이 아니라 <b>D-7 의 계약 변경이 어디를 깨는지에 대한 대응 목록</b>이다. 상세는 §6</td>
+            </tr>
+            <tr>
+              <td><b>D-10</b><br>CP5 검증 계획</td>
+              <td><b>A(정상)</b> A1 진단 사이클 무회귀(<code>diagnose-cycle.sh</code> 완주 · 상세 화면에 채집 반영) · A2 RAID 인벤토리 · 적용 사이클 무회귀 ·
+                A3 Windows 서빙 · 완료 무회귀(<code>windows-install-cycle.sh</code> 의 <code>serve</code> · <code>complete</code>) · A4 <code>lastSeenAt</code> 갱신 확인.
+                <b>B(비정상)</b> B1 헤더 없음 → 401 JSON 본문 · B2 위조 → 401 · B3 회수된 Windows 토큰 → 401 · B4 로그인 쿠키로 <code>/agent/checkin</code> → 401 · B5 게스트 토큰으로 웹 화면 GET → 302 <code>/login</code>.
+                <b>C(막는 방식 · 무회귀)</b> C1 웹 회귀(S18 로그인 + 관리자 화면 3) · C2 앱 로그 <code>ERROR</code> 0</td>
+              <td>—</td>
+              <td>대안 비교 항목이 아니다. E 단계 예외를 적용한 검증 항목 계획이며, CP5 에서 이 식별자 그대로 수행 · 채증한다</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="color:var(--text-muted);font-size:12px;">D-8 · D-9 · D-10 은 대안을 두고 고른 것이 아니라 앞 결정들의 귀결 · 대응 · 범위를 명시한 항목이다 — 표의 모양을 맞추려고 없는 대안을 지어내지 않았다.</p>
+
+        <h4>Open Questions — CP1 에서 판정을 받는다</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td><b>Q1</b></td>
+              <td><b>브랜치 기반</b> — S18 이 아직 커밋되지 않았고 이 슬라이스는 <code>SecurityConfig</code> 를 함께 고치므로 S18 위에 쌓인다.
+                <code>feat/S19-1_guest-chain</code> 을 <code>feat/S18_login-signup</code> 에서 딸 것인가, <code>dev</code> 병합을 기다릴 것인가</td>
+              <td><b>권고 — S18 PR 을 먼저 열고 그 위에 스택</b>한다. CP7 을 모아서 받는 관례(E 계열 일괄)와 맞고, <code>dev</code> 병합을 기다리면 같은 파일을 두 브랜치가 만지는 기간이 길어진다</td></tr>
+            <tr><td><b>Q2</b></td>
+              <td><b>401 계약(D-7) 승인 여부</b> — 위조 · 누락 · 회수 토큰의 응답을 404 에서 401 로 바꾼다. 테스트 3 파일과 하네스 3 곳, T3 체크리스트 표기가 함께 움직인다</td>
+              <td><b>권고 — 승인</b>. 32자 랜덤 토큰에는 존재 숨김의 실익이 없고, 헤더 부재까지 404 가 되는 현행이 의미상 어긋난다. 다만 <b>바꾸는 범위가 문서 · 하네스까지</b>라는 점을 함께 봐 주셔야 한다</td></tr>
+            <tr><td><b>Q3</b></td>
+              <td><b>경로 토큰을 체인 안으로 넣을 것인가</b>(D-2 · D-3) — Windows 번들과 펌웨어 이미지의 서빙 토큰까지 인증으로 승격한다. 부르는 쪽이 iPXE · wimboot · BMC 라 헤더를 붙일 수 없어 <b>경로가 유일한 자격</b>이다</td>
+              <td><b>권고 — 포함</b>. 빼면 인증 경계가 헤더와 경로로 갈려 "어디서 막히는가" 가 두 곳이 되고, 지금 404 로 끝나던 회수 토큰 접근이 <b>여전히 필터 밖</b>에 남는다</td></tr>
+            <tr><td><b>Q4</b></td>
+              <td><b>인벤토리 표기</b> — S19 를 S19-1(체인 분리) · S19-2(PXE 부팅 계정 · LAN 제한)로 나누고 Notion 하위 페이지를 따로 만들 것인가</td>
+              <td><b>권고 — 만든다</b>. 두 단계는 <b>상태가 따로 움직인다</b> — 1단계는 이번 주에 끝나고 2단계는 iPXE 스크립트 자격 · apkovl 재포장 · nginx 헤더까지 걸쳐 있어 착수 시점이 다르다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>주의 · 부산물</h4>
+        <ul>
+          <li><b>하네스는 git 추적 자산이다</b> — <code>diagnose-cycle.sh</code> · <code>windows-install-cycle.sh</code> 의 기대값을 고치면 그 자체가 계약 문서의 변경이다. 주석의 설명 문구까지 함께 고친다(코드만 고치면 다음 사람이 옛 주석을 믿는다).</li>
+          <li><b><code>GuestTokenAuthenticator</code> 는 이름이 사라진다</b> — 토큰 대조가 공급자로 올라가고 남는 책임은 "인증된 principal 로 엔티티를 꺼내고 <code>lastSeenAt</code> 을 찍는 것" 이므로 <code>GuestPrincipalLoader</code> 가 실체에 맞는 이름이다. 옛 클래스를 남겨 두지 않는다.</li>
+          <li><b><code>/boot</code> 의 200 재시도 변환과 필터의 관계</b>는 §7 의 경고대로 <b>2단계에서 정면 과제</b>가 된다. 1단계에서는 <code>permitAll</code> 이라 접점이 없지만, 2단계 plan 의 입력으로 적어 둔다.</li>
+          <li><b>샌드박스 포트</b>는 동시 세션과 겹치지 않게 스트림마다 다른 값을 쓴다. 이 슬라이스는 <code>PXE_ASSETS_ROOT</code> 와 <code>PXE_SERVER_BASE_URL</code> 이 있어야 진단 · Windows 하네스가 돈다(E 계열 선례).</li>
+          <li><b>환경변수 · DDL 변경 0</b> — 배포 시 추가로 넣을 값이 없다. 2단계는 반대로 PXE 부팅 계정 자격을 환경변수로 받는다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="S19-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 green (기존 회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="chain"> <span><code>GuestChainSecurityTest</code> 13 시나리오 통과 — 401 본문 형식 · 세션 미생성 포함</span></label></li>
+          <li><label><input type="checkbox" data-key="unit"> <span>Converter · Provider · ArgumentResolver 단위 테스트 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="legacy"> <span>기존 컨트롤러 테스트 3 재배선 — 404 단언 제거, 409 · 400 시나리오는 존치</span></label></li>
+          <li><label><input type="checkbox" data-key="harness"> <span>하네스 2 갱신 후 완주 (A1 · A2 · A3)</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>CP5 검증 A4 · B1~B5 · C1 · C2 수행 + 항목별 채증</span></label></li>
+          <li><label><input type="checkbox" data-key="docs"> <span><code>docs/T3-checklist.md</code> 의 "옛 토큰 404" 표기 갱신</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>실기 CP7 — E 계열 일괄 연결 테스트에 합류</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/security/springsecurity/config/GuestSecurityConfig.java</code></td><td><code>@Order(1) guestChain</code> — 매처 · STATELESS · 진입점 · 인가 규칙 · 필터 배선 (D-1 · D-4 · D-5)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>…/authorization/guest/GuestCredential.java</code></td><td>sealed interface + <code>HeaderToken</code> · <code>ServingToken</code> · <code>ServingKind</code> (D-2)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>…/authorization/guest/GuestAuthenticationToken.java</code></td><td>미인증 · 인증 두 팩토리</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>…/authorization/guest/GuestPrincipal.java</code></td><td><code>record(UUID guestServerId, String systemUUID)</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>…/authorization/guest/GuestCredentialConverter.java</code></td><td>요청 → 자격. 서빙 경로는 경로 토큰 · 그 밖은 헤더 토큰 · 없으면 <code>null</code> (D-2)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>…/authorization/guest/GuestTokenAuthenticationProvider.java</code></td><td>자격 → principal. 실패는 <code>BadCredentialsException</code> (D-3)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>…/authorization/guest/GuestPrincipalResolver.java</code></td><td><code>byGuestToken</code> — 읽기 전용 조회 (D-3)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>…/authorization/guest/GuestAuthenticationEntryPoint.java</code></td><td>401 JSON. <code>failureHandler</code> 와 본문 조립기 공유 (D-1 · D-7)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>…/authorization/guest/CurrentGuest.java</code> · <code>CurrentGuestArgumentResolver.java</code> · <code>GuestWebConfig.java</code></td><td>principal 주입 (D-6)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>테스트 4 — <code>GuestChainSecurityTest</code> · <code>GuestCredentialConverterTest</code> · <code>GuestTokenAuthenticationProviderTest</code> · <code>CurrentGuestArgumentResolverTest</code></td><td>§6</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/security/springsecurity/config/SecurityConfig.java</code></td><td><code>@Order(2)</code> 부여 + <code>/api/pxe/v1/**</code> <code>permitAll</code> <b>한 줄 제거</b>. 그 밖 무변경</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/controller/GuestAgentRestController.java</code></td><td>3 엔드포인트의 <code>@RequestHeader String token</code> → <code>@CurrentGuest GuestPrincipal</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/controller/WindowsInstallReportRestController.java</code></td><td>같은 치환. <code>TOKEN_HEADER</code> 상수 참조가 사라진다</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/controller/WindowsInstallAssetRestController.java</code></td><td>번들 해석 <b>무변경</b>. 경로 토큰이 곧 자격이 되어 미발급 · 회수는 체인이 401 로 끝낸다 — 목록 밖 파일명 404 만 남는다</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/controller/FirmwareImageRestController.java</code></td><td>다운로드 해석 <b>무변경</b>. 미발급 · 회수는 이제 체인이 401 로 끝낸다</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/diagnose/AgentReportService.java</code></td><td><code>String presentedToken</code> → <code>GuestPrincipal</code>. 내부 <code>requireByToken</code> 헬퍼가 <code>GuestPrincipalLoader</code> 호출로</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/windows/WindowsInstallCompletionService.java</code></td><td>같은 치환</td></tr>
+            <tr><td><span class="chip move">개명</span></td><td><code>execution/service/GuestTokenAuthenticator.java</code> → <code>GuestPrincipalLoader.java</code></td><td>토큰 대조는 공급자로. 남는 책임은 <code>findById</code> + <code>touchSeen</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/windows/WindowsInstallTokenRegistry.java</code></td><td><code>guestOf(UUID)</code> 추가 — 기존 <code>byGuest</code> 역맵 활용</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/service/FirmwareImageTokenRegistry.java</code></td><td><code>token → guestServerId</code> 맵 추가 + <code>guestOf(UUID)</code>. 발급 · 회수에서 함께 관리</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/mock-guest/diagnose-cycle.sh</code> · <code>windows-install-cycle.sh</code></td><td>7단계 · <code>B1</code> · <code>token</code> 모드 · <code>complete</code> 4단계의 기대값 404 → 401 (주석 문구 포함)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>기존 테스트 3+ · <code>docs/T3-checklist.md</code></td><td>404 단언 재배선 · 표기 갱신</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>execution/vo/GuestToken.java</code> · <code>DiagnoseLinuxChainload.java</code> · <code>scripts/diag-image/agent/agent.sh</code></td><td><b>변경 0</b> — 토큰 발급 · 전달 · 제시 방식은 그대로다. 게스트는 자기가 하던 일을 똑같이 한다</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>execution/controller/ExecutionRestController.java</code> · <code>PxeAssetsConfig</code></td><td><b>변경 0</b> — 1단계에서 <code>permitAll</code> 이다 (D-5 · D-8)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>ddl/</code> · <code>schema.sql</code> · 환경변수</td><td><b>DDL 0 · env 0</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤 — S19-2 (2단계)</summary>
+      <div class="body">
+        <p style="margin-top:0;">1단계가 끝나면 <b>토큰이 있는 요청</b>은 전부 필터를 지난다. 남는 것은 <b>토큰이 생기기 전의 요청</b> 둘 — <code>/boot</code> 와 <code>/assets/**</code> 다.
+          2단계는 여기에 <b>게스트 개별 신원이 아닌 채널 자격</b>을 붙인다.</p>
+        <div class="card-grid">
+          <div class="card v-blue"><h4>PXE 부팅 계정</h4><ul>
+            <li><code>httpBasic</code> · <code>ROLE_PXE_BOOT</code> · 자격은 환경변수로 주입</li>
+            <li>iPXE 체인 스크립트 URL 에 자격을 실어야 한다</li>
+            <li><code>DiagnoseLinuxChainload</code> 의 <code>provision_base</code> 에 자격 반영</li>
+            <li><code>agent.sh</code> 의 <code>wget</code> 헤더 · apkovl <b>재포장(조각만)</b> — RAID CLI 바이너리 동봉이라 통째 재조립은 금지</li>
+          </ul></div>
+          <div class="card v-orange"><h4>출발지 제한</h4><ul>
+            <li><code>IpAddressMatcher</code> 로 LAN 대역 밖 차단</li>
+            <li>nginx 앞단이 있으므로 forward-headers 설정이 먼저 맞아야 실제 출발지가 보인다</li>
+          </ul></div>
+          <div class="card v-purple"><h4>외부망 배포 시</h4><ul>
+            <li>TLS 종단 + 상호 TLS 인증(mTLS) 검토</li>
+            <li>사내망 전제가 깨지는 시나리오에서만 필요 — 1 · 2단계와 별개 판단</li>
+          </ul></div>
+        </div>
+        <div class="callout warn"><b>2단계가 반드시 먼저 풀어야 할 것</b> — <code>/boot</code> 는 <b>모든 예외를 200 + 재시도 스크립트로</b> 바꾸는 채널이다(iPXE 가 2xx 본문만 실행하기 때문).
+          여기에 자격을 요구하면 <b>필터가 컨트롤러보다 앞</b>이라 401 본문이 그대로 iPXE 에 닿는다 — 스크립트가 아닌 것을 받은 iPXE 가 어떻게 행동하는지부터 정해야 한다.
+          1단계에서는 <code>permitAll</code> 이라 접점이 없으므로 이 문제를 그대로 2단계 plan 의 입력으로 넘긴다(§7).</div>
+        <ol>
+          <li><b>S19-2</b> — PXE 부팅 계정 + LAN 출발지 제한. 위 경고의 해결안이 CP1 의 첫 결정이 된다.</li>
+          <li><b>실기 CP7</b> — E 계열 일괄 연결 테스트에 이 슬라이스를 합류시킨다(하네스로 확인한 401 경계가 실 게스트에서도 같은지).</li>
+        </ol>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 요청 시뮬레이터
+  //  guestJudge(path, cred) 는 D-1(체인) · D-2(Converter — 서빙 경로는 경로 토큰, 그 밖은 헤더) · D-3(Provider)
+  //  · D-4(실패 시 체인 종료) · D-5(인가 규칙)를 그대로 재현한다. 판정 표 36칸도 이 함수가 그린다.
+  // ─────────────────────────────────────────────────────────────
+  const OK_TOKEN = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
+  const BAD_TOKEN = 'deadbeefdeadbeefdeadbeefdeadbeef';
+  const OK_SERVING = '7c1f0d92-4e5a-4b3c-9d81-06ab5f2c1e44';
+  const GONE_SERVING = '0b93e5aa-1c27-4f60-8e12-9d4477ab3c05';
+
+  const PATHS = {
+    boot:     { seg:'/boot',          url:'/api/pxe/v1/boot?systemUUID=…&macAddress=…', kind:'permit',
+                who:'iPXE (펌웨어 NIC)', rule:'permitAll (1단계 · D-5)' },
+    assets:   { seg:'/assets/**',     url:'/api/pxe/v1/assets/vmlinuz-lts',             kind:'permit',
+                who:'iPXE', rule:'permitAll (1단계 · D-5)' },
+    agent:    { seg:'/agent/checkin', url:'/api/pxe/v1/agent/checkin',                  kind:'guard',
+                who:'진단 에이전트 (agent.sh · wget)', rule:'hasRole("GUEST")' },
+    windows:  { seg:'/windows/{t}/…', url:'/api/pxe/v1/windows/{token}/wimboot',        kind:'guard', serving:'WINDOWS',
+                who:'iPXE · wimboot', rule:'hasRole("GUEST")' },
+    firmware: { seg:'/firmware/{t}/…',url:'/api/pxe/v1/firmware/{token}/bios.bin',      kind:'guard', serving:'FIRMWARE',
+                who:'게스트의 BMC', rule:'hasRole("GUEST")' },
+    web:      { seg:'/management/os', url:'/management/os',                             kind:'web',
+                who:'운영자 브라우저', rule:'anyRequest().authenticated()' }
+  };
+  const CREDS = {
+    none:      { label:'없음',              short:'없음' },
+    headerOk:  { label:'헤더 토큰 정상',     short:'헤더 정상' },
+    headerBad: { label:'헤더 토큰 위조',     short:'헤더 위조' },
+    pathOk:    { label:'경로 토큰 정상',     short:'경로 정상' },
+    pathGone:  { label:'경로 토큰 회수됨',   short:'경로 회수' },
+    cookie:    { label:'웹 로그인 쿠키',     short:'로그인 쿠키' }
+  };
+
+  let demoPathKey = 'agent';
+  let demoCredKey = 'headerOk';
+
+  // ── 요청 한 줄을 그대로 재구성한다 (URL 의 토큰 세그먼트가 자격 선택에 따라 달라진다)
+  function requestLine(p, c) {
+    const path = PATHS[p];
+    let url = path.url;
+    if (path.serving) {
+      const t = (c === 'pathOk') ? OK_SERVING : (c === 'pathGone') ? GONE_SERVING : GONE_SERVING;
+      url = url.replace('{token}', t);
+    }
+    const method = (p === 'agent') ? 'POST' : 'GET';
+    const headers = [];
+    if (c === 'headerOk')  headers.push('X-Guest-Token: ' + OK_TOKEN);
+    if (c === 'headerBad') headers.push('X-Guest-Token: ' + BAD_TOKEN);
+    if (c === 'cookie')    headers.push('Cookie: JSESSIONID=8F31…  (S18 로그인 세션)');
+    return { method: method, url: url, headers: headers };
+  }
+
+  // ── 판정 (서버 설정과 1:1)
+  function guestJudge(p, c) {
+    const path = PATHS[p];
+
+    // D-1 : FilterChainProxy 가 @Order 오름차순으로 첫 적중 체인을 고른다
+    if (path.kind === 'web') {
+      const authed = (c === 'cookie');
+      return {
+        chainGuest: false,
+        chain: '웹 체인 <code>@Order(2)</code> — 매처 없음(나머지 전부)',
+        converter: '<span style="color:var(--text-muted)">실행되지 않음 — 게스트 필터는 게스트 체인에만 있다</span>',
+        provider: '<span style="color:var(--text-muted)">실행되지 않음</span>',
+        authz: authed ? '<code>authenticated</code> — 세션 인증 통과' : '<code>authenticated</code> — 익명 거절 → 진입점',
+        authzOk: authed,
+        code: authed ? '200' : '302',
+        http: authed ? '<code>200</code> — 관리자 화면 렌더' : '<code>302</code> → <code>/login</code> (<code>LoginUrlAuthenticationEntryPoint</code>)',
+        ctrl: authed ? '관리자 컨트롤러가 화면을 그린다' : null,
+        kind: authed ? 'on' : 'dep',
+        trace: [
+          'chain          = webChain (@Order(2), securityMatcher 없음)',
+          'converter      = (게스트 필터 없음)',
+          'provider       = (실행 안 함)',
+          'authorization  = anyRequest().authenticated() → ' + (authed ? '<span class="f">통과</span>' : '<span class="t">거절</span>'),
+          'response       = ' + (authed ? '200' : '302 Location: /login')
+        ]
+      };
+    }
+
+    // ── 게스트 체인
+    // D-2 : 어느 자격을 읽을지는 경로가 정한다.
+    //       서빙 경로 → 경로 토큰만 (X-Guest-Token 은 읽지 않는다) · 그 밖 → 헤더 토큰만.
+    let cred = null;
+    if (path.serving) {
+      const tv = (c === 'pathOk') ? OK_SERVING : GONE_SERVING;
+      const ignored = (c === 'headerOk' || c === 'headerBad');
+      cred = { type: 'ServingToken', text: 'ServingToken(' + tv.slice(0, 8) + '…, ' + path.serving + ')',
+               valid: (c === 'pathOk'),
+               via: '경로 세그먼트' + (ignored ? ' — <b>X-Guest-Token 은 이 경로에서 읽지 않는다</b>' : '') };
+    } else if (c === 'headerOk' || c === 'headerBad') {
+      cred = { type: 'HeaderToken', text: 'HeaderToken("' + (c === 'headerOk' ? OK_TOKEN : BAD_TOKEN).slice(0, 8) + '…")',
+               valid: (c === 'headerOk'), via: 'X-Guest-Token 헤더' };
+    }
+    // 웹 로그인 쿠키는 게스트 체인에서 자격이 아니다 (D-8) — 세션을 읽지 않는다(STATELESS)
+    // 일반 경로에는 토큰 세그먼트가 없으므로 경로 토큰을 골라도 자격이 아니다
+
+    const permit = (path.kind === 'permit');
+
+    if (cred === null) {
+      const note = (c === 'cookie')
+        ? 'null — <b>세션을 읽지 않는다</b>(STATELESS · D-8). 로그인 쿠키는 이 체인에서 자격이 아니다'
+        : ((c === 'pathOk' || c === 'pathGone')
+            ? 'null — 이 경로에는 토큰 세그먼트가 없다. 경로 토큰은 서빙 경로의 자격이다 (D-2)'
+            : 'null — 제시된 자격이 없다');
+      return {
+        chainGuest: true,
+        chain: '게스트 체인 <code>@Order(1)</code> — <code>securityMatcher("/api/pxe/v1/**")</code> 적중',
+        converter: note,
+        provider: '<span style="color:var(--text-muted)">실행되지 않음 — 필터가 건너뛴다</span>',
+        authz: permit ? '<code>permitAll</code> — 규칙이 자격을 요구하지 않는다' : '<code>hasRole("GUEST")</code> — 익명이라 거절 → 진입점',
+        authzOk: permit,
+        code: permit ? '200' : '401',
+        http: permit ? '<code>200</code> — ' + (p === 'boot' ? 'iPXE 스크립트(text/plain)' : '정적 부팅 자산')
+                     : '<code>401</code> <code>application/json</code> — <code>GuestAuthenticationEntryPoint</code>',
+        ctrl: permit ? (p === 'boot' ? '<code>ExecutionRestController</code> 가 등록 · 토큰 발급 후 스크립트를 조립한다 (읽기 전용이 아니다)' : '정적 핸들러가 파일을 내준다') : null,
+        kind: permit ? 'on' : 'del',
+        trace: [
+          'chain          = guestChain (@Order(1), securityMatcher "/api/pxe/v1/**")',
+          'converter      = null',
+          'provider       = (실행 안 함)',
+          'authorization  = ' + (permit ? 'permitAll → <span class="f">통과</span>' : 'hasRole("GUEST") → <span class="t">거절</span>'),
+          'response       = ' + (permit ? '200' : '401 {"message":"게스트 인증이 필요합니다.","code":"GUEST_UNAUTHENTICATED"}')
+        ]
+      };
+    }
+
+    // D-3 : Provider 판정
+    if (!cred.valid) {
+      // D-4 : failureHandler 가 체인을 여기서 끝낸다 — permitAll 경로여도 인가에 닿지 않는다
+      const src = (cred.type === 'HeaderToken') ? 'findByGuestToken 공백' : 'registry.guestOf 공백 (미발급 · 회수)';
+      return {
+        chainGuest: true,
+        chain: '게스트 체인 <code>@Order(1)</code> — <code>securityMatcher("/api/pxe/v1/**")</code> 적중',
+        converter: '<code>' + cred.text + '</code> <span style="color:var(--text-muted)">← ' + cred.via + '</span>',
+        provider: '<code>' + src + '</code> → <b>BadCredentialsException</b>',
+        authz: '<span style="color:var(--text-muted)">도달하지 않는다 — <code>failureHandler</code> 가 체인을 끝냈다 (D-4)</span>' +
+               (permit ? '<br><b>이 경로는 <code>permitAll</code> 이지만</b> 제시한 자격이 틀렸으므로 인가 이전에 끝난다' : ''),
+        authzOk: false,
+        code: '401',
+        http: '<code>401</code> <code>application/json</code> — <code>failureHandler</code>',
+        ctrl: null,
+        kind: 'del',
+        trace: [
+          'chain          = guestChain (@Order(1))',
+          'converter      = ' + cred.text,
+          'provider       = <span class="t">BadCredentialsException</span>  (' + src + ')',
+          'authorization  = (도달 안 함 — failureHandler 가 체인 종료)',
+          'response       = 401 {"message":"게스트 인증이 필요합니다.","code":"GUEST_UNAUTHENTICATED"}'
+        ]
+      };
+    }
+
+    // 인증 성공
+    const principal = 'GuestPrincipal(guestServerId=3f2a…, systemUUID=4c2e…)';
+    let ctrl;
+    if (p === 'agent') {
+      ctrl = '<code>@CurrentGuest</code> 로 principal 수령 → <code>GuestPrincipalLoader.require</code>(<code>findById</code> · <code>touchSeen</code>) → 게이트 판정 → 다음 지시 응답';
+    } else if (path.serving) {
+      ctrl = '<b>체인이 신원을 세운 그 토큰</b>으로 레지스트리에서 번들 · 경로를 풀어 내준다 — 신원과 자원이 한 값에서 나오므로 어긋날 수 없다 (D-2 · D-6)';
+    } else if (p === 'boot') {
+      ctrl = '<code>ExecutionRestController</code> 가 등록 · 토큰 발급 후 스크립트를 조립한다 (읽기 전용이 아니다)';
+    } else {
+      ctrl = '정적 핸들러가 파일을 내준다';
+    }
+    return {
+      chainGuest: true,
+      chain: '게스트 체인 <code>@Order(1)</code> — <code>securityMatcher("/api/pxe/v1/**")</code> 적중',
+      converter: '<code>' + cred.text + '</code> <span style="color:var(--text-muted)">← ' + cred.via + '</span>',
+      provider: '<code>' + principal + '</code> · 권한 <code>ROLE_GUEST</code>',
+      authz: permit ? '<code>permitAll</code> — 통과' : '<code>hasRole("GUEST")</code> — 통과',
+      authzOk: true,
+      code: '200',
+      http: '<code>200</code> — 컨트롤러 도달',
+      ctrl: ctrl,
+      kind: 'on',
+      trace: [
+        'chain          = guestChain (@Order(1))',
+        'converter      = ' + cred.text,
+        'provider       = ' + principal + '  [ROLE_GUEST]',
+        'authorization  = ' + (permit ? 'permitAll' : 'hasRole("GUEST")') + ' → <span class="f">통과</span>',
+        'response       = 200 (컨트롤러 도달)'
+      ]
+    };
+  }
+
+  // ── 렌더
+  function demoPath(p) { demoPathKey = p; clearNote(); demoRender(); }
+  function demoCred(c) { demoCredKey = c; clearNote(); demoRender(); }
+  let demoNote = '';
+  function clearNote() { demoNote = ''; }
+
+  function pipeRow(no, title, value, badge, badgeKind) {
+    return '<div class="ux-row"><strong style="min-width:104px;">' + no + ' ' + title + '</strong>' +
+           '<span class="label">' + value + '</span>' +
+           (badge ? '<span class="badge ' + badgeKind + '">' + badge + '</span>' : '') + '</div>';
+  }
+
+  function demoRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-path]').forEach(s => s.classList.toggle('active', s.dataset.path === demoPathKey));
+    document.querySelectorAll('.ux-toolbar .seg[data-cred]').forEach(s => s.classList.toggle('active', s.dataset.cred === demoCredKey));
+
+    const path = PATHS[demoPathKey];
+    const req = requestLine(demoPathKey, demoCredKey);
+    const v = guestJudge(demoPathKey, demoCredKey);
+
+    document.getElementById('demo-request').innerHTML =
+      '<div class="ux-row"><strong style="min-width:104px;">요청</strong><span class="label"><code>' + req.method + ' ' + req.url + '</code>' +
+      (req.headers.length ? '<br><span style="color:var(--text-muted);font-size:12px;">' + req.headers.map(h => '<code>' + h + '</code>').join('<br>') + '</span>'
+                          : '<br><span style="color:var(--text-muted);font-size:12px;">헤더 없음</span>') +
+      '</span><span class="badge off">' + path.who + '</span></div>';
+
+    let html = '';
+    html += pipeRow('①', '체인 매칭', v.chain, v.chainGuest ? '게스트' : '웹', v.chainGuest ? 'on' : 'off');
+    html += pipeRow('②', 'Converter', v.converter, '', '');
+    html += pipeRow('③', 'Provider', v.provider, '', '');
+    html += pipeRow('④', '인가', v.authz, v.authzOk ? '통과' : '거절', v.authzOk ? 'on' : 'del');
+    html += pipeRow('⑤', '체인 결과', v.http, v.code, v.kind);
+    html += v.ctrl
+      ? pipeRow('⑥', '컨트롤러', v.ctrl, '도달', 'on')
+      : pipeRow('⑥', '컨트롤러', '<span style="color:var(--text-muted)">도달하지 않는다 — 서비스 트랜잭션도 열리지 않는다</span>', '미도달', 'off');
+    document.getElementById('demo-pipe').innerHTML = html;
+
+    document.getElementById('demo-caps').innerHTML = v.trace.join('\n');
+
+    const msg = document.getElementById('demo-message');
+    if (demoNote) {
+      msg.className = 'ux-message';
+      msg.innerHTML = demoNote;
+    } else if (v.code === '200') {
+      msg.className = 'ux-message success';
+      msg.innerHTML = '✓ <b>' + path.seg + '</b> · 자격 <b>' + CREDS[demoCredKey].label + '</b> → 체인 통과. 인가 규칙은 <code>' + path.rule + '</code> 이다.';
+    } else if (v.code === '401') {
+      msg.className = 'ux-message error';
+      msg.innerHTML = '✕ <b>401</b> — 같은 본문 한 벌이다. 필터가 거절했는지(위조) 인가가 거절했는지(부재)를 게스트가 구분할 이유가 없다(D-7).';
+    } else {
+      msg.className = 'ux-message error';
+      msg.innerHTML = '↪ <b>302 /login</b> — 웹 체인이 잡았다. 게스트 자격은 이 체인에서 읽히지 않는다(D-8).';
+    }
+
+    renderMatrix();
+  }
+
+  function renderMatrix() {
+    const pKeys = Object.keys(PATHS), cKeys = Object.keys(CREDS);
+    let t = '<table><thead><tr><th>경로 \\ 자격</th>';
+    cKeys.forEach(c => { t += '<th>' + CREDS[c].short + '</th>'; });
+    t += '</tr></thead><tbody>';
+    pKeys.forEach(p => {
+      t += '<tr><td><code>' + PATHS[p].seg + '</code></td>';
+      cKeys.forEach(c => {
+        const r = guestJudge(p, c);
+        const cls = (r.code === '200') ? 'on' : (r.code === '401') ? 'del' : 'dep';
+        const cur = (p === demoPathKey && c === demoCredKey);
+        t += '<td' + (cur ? ' style="outline:2px solid var(--blue); outline-offset:-2px;"' : '') + '>' +
+             '<span class="badge ' + cls + '">' + r.code + '</span></td>';
+      });
+      t += '</tr>';
+    });
+    t += '</tbody></table>';
+    t += '<p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">' +
+         '<b>200</b> = 체인 통과(컨트롤러 도달) · <b>401</b> = 게스트 체인이 거절 · <b>302</b> = 웹 체인이 로그인으로 보냄. ' +
+         '표의 값은 <b>체인 판정</b>이다 — 컨트롤러가 그 뒤에 무엇을 하는지는 파이프라인 ⑥ 에 나온다.</p>';
+    document.getElementById('demo-matrix').innerHTML = t;
+  }
+
+  // ── 프리셋 6 (세팅 + 안내 배너)
+  const PRESETS = {
+    0: { path:'agent', cred:'headerOk',
+         note:'<b>초기화</b> — 진단 에이전트의 정상 체크인 조합으로 되돌렸습니다. 위 두 줄을 직접 눌러 36 조합을 아무거나 만들어 보십시오.' },
+    1: { path:'agent', cred:'headerOk',
+         note:'<b>① 진단 에이전트 정상 체크인</b> — <code>agent.sh</code> 가 커널 인자 <code>provision_token</code> 에서 읽은 값을 <code>X-Guest-Token</code> 으로 회신합니다. ' +
+              'Converter 가 <code>HeaderToken</code> 으로 읽고, Provider 가 <code>findByGuestToken</code> 으로 게스트를 세우고, 인가 <code>hasRole("GUEST")</code> 를 지나 컨트롤러에 닿습니다. ' +
+              '<b>게스트가 하는 일은 지금과 똑같습니다</b> — 바뀐 것은 대조하는 자리뿐입니다.' },
+    2: { path:'agent', cred:'none',
+         note:'<b>② 헤더 없는 curl</b> — 사내망에서 누가 그냥 쳐 본 경우입니다. Converter 가 <code>null</code> 을 돌려주므로 필터는 <b>건너뜁니다</b>. ' +
+              '거절하는 것은 그다음 인가 규칙이고, <code>GuestAuthenticationEntryPoint</code> 가 401 JSON 을 씁니다. ' +
+              '<b>지금은 이 요청이 404 를 받습니다</b> — 헤더가 없는데 "없는 자원" 이라고 답하는 것이 어긋난다는 것이 D-7 의 근거입니다.' },
+    3: { path:'agent', cred:'headerBad',
+         note:'<b>③ 위조 토큰</b> — 하네스 <code>diagnose-cycle.sh</code> 7단계가 하는 바로 그 조작입니다(<code>deadbeef…</code>). ' +
+              'Converter 는 자격을 읽었고 Provider 가 떨어뜨렸으므로 이번에는 <code>failureHandler</code> 가 <b>체인을 거기서 끝냅니다</b>(D-4). ' +
+              '②와 도착 지점은 같은 401 · 같은 본문이지만 <b>지나온 길이 다릅니다</b> — ⑥ 줄이 둘 다 미도달인 것을 확인해 보십시오.' },
+    4: { path:'windows', cred:'pathGone',
+         note:'<b>④ 완료 뒤 옛 Windows 토큰</b> — 설치가 끝나면 <code>WindowsInstallTokenRegistry.revoke</code> 가 번들 토큰을 회수합니다. ' +
+              '그 URL 을 다시 당기면 <code>guestOf</code> 가 비어 있어 <code>BadCredentialsException</code> 입니다. ' +
+              '<b>지금은 컨트롤러가 404 를 냅니다</b>(하네스 <code>complete</code> 4단계 "옛 토큰 URL 6 파일 — 전부 404 기대"). D-7 이 이 기대값을 401 로 옮깁니다. ' +
+              '자격을 <b>헤더 정상</b>으로 바꿔 보십시오 — 이 경로의 자격은 경로 토큰이므로 <b><code>X-Guest-Token</code> 은 읽히지 않고</b> 결과가 그대로 401 입니다(D-2).' },
+    5: { path:'agent', cred:'cookie',
+         note:'<b>⑤ 로그인 쿠키로 게스트 API</b> — 운영자가 브라우저 세션을 들고 게스트 엔드포인트를 부른 경우입니다. ' +
+              '게스트 체인은 <code>STATELESS</code> 라 <b>세션을 아예 읽지 않습니다</b> — 쿠키는 자격이 아니고 Converter 는 <code>null</code> 입니다(D-8). ' +
+              '웹에 로그인했다는 사실이 게스트 채널의 통행증이 되지 않는다는 것이 이 조합의 요지입니다.' },
+    6: { path:'web', cred:'headerOk',
+         note:'<b>⑥ 게스트 토큰으로 관리자 화면</b> — 반대 방향입니다. <code>/management/os</code> 는 <code>securityMatcher</code> 에 걸리지 않아 <b>웹 체인</b>이 잡고, ' +
+              '웹 체인에는 게스트 필터가 없으므로 <code>X-Guest-Token</code> 은 그냥 모르는 헤더입니다. 익명으로 <code>authenticated</code> 에 걸려 <code>302 /login</code> 입니다. ' +
+              '<b>두 채널이 서로의 자격을 인정하지 않는 것</b>이 체인 분리(D-1)의 결과입니다. ' +
+              '같은 이유로 게스트 체인 안에서도 <b>경로가 자격의 종류를 정합니다</b> — 서빙 경로는 경로 토큰, 그 밖은 헤더 토큰입니다(D-2).' }
+  };
+  function demoPreset(i) {
+    const p = PRESETS[i];
+    demoPathKey = p.path;
+    demoCredKey = p.cred;
+    demoNote = p.note;
+    demoRender();
+  }
+
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
