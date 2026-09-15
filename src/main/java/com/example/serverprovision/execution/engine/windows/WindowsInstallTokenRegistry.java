@@ -21,6 +21,8 @@ public class WindowsInstallTokenRegistry {
 
     private final Map<UUID, WindowsInstallBundle> issued = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> byGuest = new ConcurrentHashMap<>();
+    /** 토큰 → 게스트 — 게스트 체인이 서빙 토큰으로 신원을 세울 때 쓴다(S19-1 D-3). */
+    private final Map<UUID, UUID> guestByToken = new ConcurrentHashMap<>();
     private final String baseUrl;
 
     public WindowsInstallTokenRegistry(@Value("${pxe.server.base-url:}") String baseUrl) {
@@ -34,9 +36,11 @@ public class WindowsInstallTokenRegistry {
     /** 미리 뽑은 토큰으로 발급 — 번들 안의 autounattend 가 자기 토큰 URL(드라이버 목록)을 품어야 해서(R15-2 D-3). */
     public UUID issue(UUID guestServerId, UUID token, WindowsInstallBundle bundle) {
         issued.put(token, bundle);
+        guestByToken.put(token, guestServerId);
         UUID previous = byGuest.put(guestServerId, token);
         if (previous != null) {
             issued.remove(previous);
+            guestByToken.remove(previous);
         }
         // 토큰 값만 남긴다(접근 로그의 token 세그먼트와 대조용) — 번들 내용은 비밀값이라 싣지 않는다.
         log.info("[wininstall] {} — 설치 번들 토큰 발급 : token={}", guestServerId, token);
@@ -52,8 +56,14 @@ public class WindowsInstallTokenRegistry {
         UUID token = byGuest.remove(guestServerId);
         if (token != null) {
             issued.remove(token);
+            guestByToken.remove(token);
             log.info("[wininstall] {} — 설치 번들 토큰 회수", guestServerId);
         }
+    }
+
+    /** 토큰을 발급받은 게스트 — 없거나 회수됐으면 empty(게스트 체인의 서빙 토큰 인증 재료). */
+    public Optional<UUID> guestOf(UUID token) {
+        return Optional.ofNullable(guestByToken.get(token));
     }
 
     /** 앱 base URL(pxe.server.base-url, 끝 슬래시 제거) — 완료 보고 스크립트의 인자로도 쓰인다(E4-1-a-4). */

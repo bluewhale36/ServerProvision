@@ -29,14 +29,14 @@ public class BootScriptDispatcher {
      * {@code GuestServerRegistrationService} 가 이미 수행 — 여기 도달 시점엔 항상 등록돼 있다.)
      */
     public BootDispatch dispatch(GuestServer server, ProvisioningProgress progress,
-                                 PhaseReadiness readiness, String rebootQuery) {
+                                 PhaseReadiness readiness, String reentryUrl) {
         if (server.getDecommissionedAt() != null) {                       // 2행
             // U6 이후 정상 경로에서 도달 불가 — 등록 멱등이 활성 행만 돌려주므로 회수 행이 dispatch 에
             // 들어올 일이 없다(같은 UUID 새 부팅 = 신규 등록). 비정상 경로 안전망으로만 남긴다.
-            return BootDispatch.plain(IpxeScripts.decommissioned(rebootQuery));
+            return BootDispatch.plain(IpxeScripts.decommissioned(reentryUrl));
         }
         if (progress.isFailed()) {                                        // 3행 — 실패 지점 = 커서(ES-2 D-5)
-            return BootDispatch.plain(IpxeScripts.failed(progress.getCurrentStep(), rebootQuery));
+            return BootDispatch.plain(IpxeScripts.failed(progress.getCurrentStep(), reentryUrl));
         }
         if (progress.isCompleted()) {                                     // 4행 — E1-2 이분(로드맵 D3)
             // OS 미설치 베어메탈에 exit(로컬 부팅 폴스루)는 부팅 실패 루프다. 완주 커서는 "마지막
@@ -44,7 +44,7 @@ public class BootScriptDispatcher {
             // 대기 폴링을 유지한다(U3 할당이 생기면 이 폴링이 재개 트리거).
             boolean osInstalled = progress.currentPhase() != null
                     && progress.currentPhase().ordinal() >= ProvisioningPhase.OS_INSTALLING.ordinal();
-            return BootDispatch.plain(osInstalled ? IpxeScripts.completedExit() : IpxeScripts.awaitingIntake(rebootQuery));
+            return BootDispatch.plain(osInstalled ? IpxeScripts.completedExit() : IpxeScripts.awaitingIntake(reentryUrl));
         }
         // 옛 5행(미개시 → 개시 대기 스크립트)은 R13 으로 소멸 — 진단 phase 는 개시 없이 자동 진행하고,
         // 미개시 커서는 도메인 가드(positionAt · advanceToEntry)에 의해 진단 phase 를 벗어날 수 없으므로
@@ -52,14 +52,14 @@ public class BootScriptDispatcher {
         if (progress.isHolding()) {                                       // 5행 — 자원 결손 대기(E2-1-b)
             // 진입 게이트가 이미 대기로 들여보낸 상태다. 여기서는 그 사실을 게스트에게 알리기만 한다 —
             // 재료가 돌아오면 다음 폴링에서 게이트가 대기를 풀고 이 행을 지나친다.
-            return BootDispatch.plain(IpxeScripts.shortageHold(readiness.wire(), rebootQuery));
+            return BootDispatch.plain(IpxeScripts.shortageHold(readiness.wire(), reentryUrl));
         }
         // 커서의 phase 파생이 곧 부팅 목표(ES-2 D-1) — 커서가 항상 "도달했거나 향하는 목표 step" 을
         // 가리키므로(등록 seed 부터 DIAGNOSTIC_BOOTING), 옛 bootTargetPhase 의 BOOTSTRAPPING 특례가
         // 필요 없어졌다(E1-0b 스모크가 발견했던 영구 HOLD 문제의 원인 자체가 소멸).
         ProvisioningPhase target = progress.currentPhase();
         return phaseExecutorRegistry.find(target)                         // 7행 HOLD / 8행 위임
-                .map(executor -> BootDispatch.delegated(executor.bootScript(server, progress, rebootQuery), executor))
-                .orElseGet(() -> BootDispatch.plain(IpxeScripts.hold(target, rebootQuery)));
+                .map(executor -> BootDispatch.delegated(executor.bootScript(server, progress, reentryUrl), executor))
+                .orElseGet(() -> BootDispatch.plain(IpxeScripts.hold(target, reentryUrl)));
     }
 }

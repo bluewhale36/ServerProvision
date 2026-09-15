@@ -21,7 +21,8 @@ import com.example.serverprovision.execution.exception.ProvisioningHistoryNotFou
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
-import com.example.serverprovision.execution.service.GuestTokenAuthenticator;
+import com.example.serverprovision.execution.service.GuestPrincipalLoader;
+import com.example.serverprovision.global.security.springsecurity.guest.GuestPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -45,7 +46,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AgentReportService {
 
-    private final GuestTokenAuthenticator guestTokenAuthenticator;   // E4-1-a-4 D-5 — 완료 보고 창구와 공유
+    private final GuestPrincipalLoader guestPrincipalLoader;   // E4-1-a-4 D-5 — 완료 보고 창구와 공유
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final ProvisioningProgressRepository provisioningProgressRepository;
     private final ProvisioningHistoryRepository provisioningHistoryRepository;
@@ -60,8 +61,8 @@ public class AgentReportService {
      * 오지 못한다(게이트가 거절) — close 응답이 운반.
      */
     @Transactional
-    public AgentCheckinResponse checkin(String presentedToken) {
-        GuestServer server = requireByToken(presentedToken);
+    public AgentCheckinResponse checkin(GuestPrincipal guest) {
+        GuestServer server = guestPrincipalLoader.require(guest);
         ProvisioningProgress progress = requireProgress(server);
         requireProvisioning(server, progress);
         publishChanged(server);
@@ -77,8 +78,8 @@ public class AgentReportService {
      * 막으므로 엔티티의 phase 이탈 IllegalStateException 은 내부 버그 안전망으로만 남는다.
      */
     @Transactional
-    public StepOpenResponse openStep(String presentedToken, ProvisioningPhaseStep stepCode) {
-        GuestServer server = requireByToken(presentedToken);
+    public StepOpenResponse openStep(GuestPrincipal guest, ProvisioningPhaseStep stepCode) {
+        GuestServer server = guestPrincipalLoader.require(guest);
         ProvisioningProgress progress = requireProgress(server);
         requireProvisioning(server, progress);
         if (stepCode.getPhaseType() != progress.currentPhase()) {
@@ -99,9 +100,9 @@ public class AgentReportService {
      * 타 게스트의 stepId(forging)는 404 로 존재를 숨긴다.
      */
     @Transactional
-    public StepCloseResponse closeStep(String presentedToken, UUID stepId,
+    public StepCloseResponse closeStep(GuestPrincipal guest, UUID stepId,
                                        ProvisioningStatus result, String statusMeta) {
-        GuestServer server = requireByToken(presentedToken);
+        GuestServer server = guestPrincipalLoader.require(guest);
         ProvisioningProgress progress = requireProgress(server);
 
         // 게이트의 좁은 예외(E1-2): 완주는 close 트랜잭션 안에서 판정되므로, REBOOT 응답이 유실된
@@ -234,10 +235,6 @@ public class AgentReportService {
     private boolean inUnstartedDiagnosticWindow(GuestServerStatus status, ProvisioningProgress progress) {
         return status == GuestServerStatus.REGISTERED
                 && progress.currentPhase() == ProvisioningPhase.DIAGNOSE_LINUX;
-    }
-
-    private GuestServer requireByToken(String presented) {
-        return guestTokenAuthenticator.requireByToken(presented);   // 404 · touchSeen(DEC-32)은 인증기 소관
     }
 
     private ProvisioningProgress requireProgress(GuestServer server) {

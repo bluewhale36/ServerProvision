@@ -9,7 +9,7 @@ public final class WindowsInstallChainload {
     private WindowsInstallChainload() {
     }
 
-    public static String script(String bundleUrl, String imageName, String rebootQuery) {
+    public static String script(String bundleUrl, String imageName, String reentryUrl) {
         return """
                 #!ipxe
                 echo [provision] windows install: %s
@@ -23,7 +23,7 @@ public final class WindowsInstallChainload {
                 :failed
                 echo [provision] windows chainload failed. retrying...
                 sleep 30
-                chain /api/pxe/v1/boot?%s
-                """.formatted(imageName, bundleUrl, bundleUrl, bundleUrl, bundleUrl, bundleUrl, rebootQuery);
+                chain %s
+                """.formatted(imageName, bundleUrl, bundleUrl, bundleUrl, bundleUrl, bundleUrl, reentryUrl);
     }
 }

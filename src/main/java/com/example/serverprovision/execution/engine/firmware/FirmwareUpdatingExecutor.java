@@ -49,13 +49,13 @@ public class FirmwareUpdatingExecutor implements ProvisioningPhaseExecutor {
      * 읽어 반영을 확인한다. 아직 착수 전이면 무엇을 구울지만 알려 주고 워커를 기다린다.</p>
      */
     @Override
-    public String bootScript(GuestServer server, ProvisioningProgress progress, String rebootQuery) {
+    public String bootScript(GuestServer server, ProvisioningProgress progress, String reentryUrl) {
         if (progress.getMotion() == ProvisioningMotion.STEP_RUNNING) {
-            return IpxeScripts.awaitingFirmwareVerification(rebootQuery);
+            return IpxeScripts.awaitingFirmwareVerification(reentryUrl);
         }
         String summary = firmwareResolutionProvider.resolveFor(server.getId())
                 .map(FirmwareResolution::wireSummary)
                 .orElse("no target");
-        return IpxeScripts.awaitingFirmwareFlash(summary, rebootQuery);
+        return IpxeScripts.awaitingFirmwareFlash(summary, reentryUrl);
     }
 }

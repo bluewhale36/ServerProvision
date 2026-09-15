@@ -153,11 +153,12 @@ sudo chmod 0600 /etc/serverprovision/env
 주의와 확인 지점:
 
 - **바인딩 주소는 12절의 구성과 한 쌍으로 정한다.** application.properties 가 server.address=localhost 를 고정하므로 앱은 기본적으로 루프백 전용이다. 12절의 nginx TLS 종단을 쓰는 최종 구성에서는 이것이 그대로 맞다. 외부 창구는 443 하나이고 방화벽에 8080 을 열지 않는다. nginx 없이 HTTP 를 직접 노출해 확인하는 임시 단계에서만 `SERVER_ADDRESS=0.0.0.0` 을 넣어 덮어쓴다. OS 환경변수가 패키징된 properties 보다 우선하므로 덮어쓰기가 성립한다. 실측 2026-08-15.
-- **PROVISION_MARKER_SECRET 은 한 번 정하면 바꾸지 않는다.** 마커 서명이 이 비밀에 묶이므로 바꾸는 순간 기존 마커 전부가 서명 불일치가 된다. 현재 코드에는 기본값이 있으나 OPS-3 D9 가 기본값 제거를 확정했으므로 처음부터 명시 주입한다.
+- **PROVISION_MARKER_SECRET 은 한 번 정하면 바꾸지 않는다.** 마커 서명이 이 secret 에 묶이므로 바꾸는 순간 기존 마커 전부가 서명 불일치가 된다. 현재 코드에는 기본값이 있으나 OPS-3 D9 가 기본값 제거를 확정했으므로 처음부터 명시 주입한다.
 - 기본값 없는 필수 키는 SERVER_PORT, DB_URL, DB_USERNAME, DB_PASSWORD, RECONCILIATION_SCAN_EXTRA_ROOTS 다섯이다. 마지막 키는 빈 값 허용 여부를 첫 기동으로 확인한다.
 - PROVISION_ALLOWED_ROOTS 의 다중 경로 표기 형식(쉼표 구분 여부)은 application.properties 주석과 첫 기동으로 확인한다.
 - ISO 압축 해제 작업 공간(internal/work)은 아직 설정 지점이 없다(OPS-2 D4 의 구현 과제). 반영 전까지 자바 기본 임시 디렉토리가 쓰인다.
 - PXE 관련 변수는 E 슬라이스 리허설을 시작할 때 추가한다. 미병합 E1-I 계열이 요구 변수를 더한다(예: PXE_ASSETS_ROOT, PXE_SERVER_BASE_URL).
+- **첫 접촉 인증(S19-2 · 2026-09-15)**: `PXE_BOOT_SECRET`(PXE 부팅 계정의 secret · 영문 · 숫자 · `. _ ~ -` 만 · 생성 예 `openssl rand -hex 16`)과 `PXE_GUEST_ALLOWED_CIDRS=192.168.1.0/24`(게스트 채널 `/api/pxe/v1/**` 의 출발지 대역 · 쉼표 구분)를 env 에 넣는다. `PXE_ASSETS_ROOT` 가 있는 인스턴스는 secret 없이 기동하지 않는다(fail-fast). 대역을 비우면 제한 없이 기동하며 WARN 을 남긴다 — 스테이징에서만. tftp `boot.ipxe` 의 진입 줄은 `chain http://pxe:<secret>@<서버>/api/pxe/v1/boot?systemUUID=${uuid}&…` 로 credential 을 넣는다(앱이 렌더하는 체인 스크립트의 자산 URL 과 재진입 URL 에도 같은 credential 이 실린다 · 진단 이미지는 무변경 — 그래서 firstboot 가 credential 없이 받는 `/assets/agent.sh` 한 파일만 대역 제한 아래 credential 없이 열려 있다). secret 은 tftp 파일 · 게스트 콘솔 · `/proc/cmdline` 에 보이는 값이다 — 프로비저닝 LAN 안에서 PXE 부팅하는 기계는 어차피 받는 값이고, 그 경계는 카탈로그 보드 검사와 운영자 개시 승인이 맡는다. nginx 는 무변경: 12절의 `SERVER_FORWARD_HEADERS_STRATEGY=native` 가 켜져 있으면 앱이 `X-Forwarded-For` 를 출발지로 쓰되 같은 호스트(127.0.0.1)의 프록시만 신뢰한다(application.properties `server.tomcat.remoteip.*`). 운영 확인용 curl 로 `/boot` 를 부르지 않는다 — 등록을 기록한다(2026-09-04 교훈). 부를 일이 있으면 `-u pxe:<secret>` 이 필요하다.
 
 ## 10. systemd 유닛
 
@@ -272,7 +273,7 @@ sudo systemctl restart serverprovision
 ```bash
 # Claude Code 네이티브 설치(Linux aarch64 지원, 터미널 도구라 minimal 에서 동작)
 curl -fsSL https://claude.ai/install.sh | bash
-# git 신원
+# git principal
 git config --global user.name "<이름>"
 git config --global user.email "<이메일>"
 ```

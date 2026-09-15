@@ -1,7 +1,7 @@
 #!/bin/sh
 # E4-1-a-3 · E4-1-a-4 · R15-2 CP5 하네스 — Windows 설치 phase 의 게스트 HTTP 행동(iPXE + 설치된 OS 의 첫 로그온 완료 보고)을 curl 로 재연한다.
 #   첫 진입 /boot = wimboot 체인(토큰 URL 5) → 번들 6 파일 GET/HEAD(렌더 값 · 평문 부재 · R15-2 드라이버 목록) → 재PXE ×N = exit(재진입 n/max)
-#   → 상한 초과 = FAILED REPXE_LOOP → 다음 /boot = dispatch 3행(실패 안내) → (운영자 재시도 뒤) 새 토큰 · 옛 토큰 404
+#   → 상한 초과 = FAILED REPXE_LOOP → 다음 /boot = dispatch 3행(실패 안내) → (운영자 재시도 뒤) 새 토큰 · 옛 토큰 401(S19-1)
 #
 # 전제: 앱 기동(WINDOWS_INSTALL_* 7키 + PXE_SERVER_BASE_URL) · 게스트 등록(boot-register.sh) · Windows 정의서 할당 · 개시 ·
 #       진단 완주(diagnose-cycle.sh) → 커서 OS_INSTALLING. 커서가 다른 phase 면 이 스크립트는 그 phase 의 스크립트를 보고 멈춘다.
@@ -10,11 +10,12 @@
 #     mode: serve   (기본) 첫 진입 서빙 + 번들 5 파일 확인
 #           reentry 재PXE 1회 — exit 스크립트 · 재진입 n/max 확인
 #           loop    상한을 넘길 때까지 재PXE — FAILED REPXE_LOOP · 다음 /boot 의 실패 안내 확인
-#           token   마지막 서빙의 토큰 URL 로 6 파일 HEAD (재시도 뒤 옛 토큰 404 확인용 — OLD_BUNDLE 환경변수)
+#           token   마지막 서빙의 토큰 URL 로 6 파일 HEAD (재시도 뒤 옛 토큰 401 확인용(S19-1) — OLD_BUNDLE 환경변수)
 #           complete  (E4-1-a-4) 첫 로그온 완료 보고 재연 — GUEST_TOKEN 필수. 1회 = 200 closed:true → 2회 = 200 closed:false(멱등)
-#                     → 다음 /boot = exit(종단 4행 · 재진입 아님) → 옛 토큰 URL 5 파일 404. PROBLEM_DEVICES(기본 2) 로 문제 장치 수 조절
-#           reject    (E4-1-a-4) 경계 — 위조 토큰 404 · JSON 위반(computerName 16자 · problemDevices 51) 400 · 서빙 전/실패 게스트 409
+#                     → 다음 /boot = exit(종단 4행 · 재진입 아님) → 옛 토큰 URL 6 파일 401(S19-1). PROBLEM_DEVICES(기본 2) 로 문제 장치 수 조절
+#           reject    (E4-1-a-4) 경계 — 위조 토큰 401(S19-1 게스트 체인) · JSON 위반(computerName 16자 · problemDevices 51) 400 · 서빙 전/실패 게스트 409
 #   EXPECT_ABSENT="<문자열>" — 렌더본 · 스크립트 어디에도 이 값이 평문으로 없어야 한다(예: 정의서의 Administrator 비밀번호)
+#   PXE_BOOT_AUTH=pxe:<secret> — (S19-2) /boot 첫 접촉 credential. 필수. 번들 · 완료 보고는 토큰이라 무관.
 #   GUEST_TOKEN="<hex>"     — complete · reject 모드의 X-Guest-Token(guest_server.guest_token 값 · boot-register.sh 출력)
 #   INSTALLS_JSON='[{"folder":"4_aspeed-driver","mode":"MSI","exitCode":0}]' — (R15-2) complete 모드가 싣는 항목별 설치 결과. 비우면 미보고.
 set -eu
@@ -25,12 +26,12 @@ mkdir -p "$STATE_DIR"
 
 step() { printf '\n\033[1m== %s ==\033[0m\n' "$1"; }
 boot() {
-  curl -sS -G "$BASE/api/pxe/v1/boot" --data-urlencode "systemUUID=$UUID" --data-urlencode "macAddress=$MAC" \
+  curl -sS -u "${PXE_BOOT_AUTH:?PXE_BOOT_AUTH=pxe:<secret> 가 필요하다 (S19-2)}" -G "$BASE/api/pxe/v1/boot" --data-urlencode "systemUUID=$UUID" --data-urlencode "macAddress=$MAC" \
        --data-urlencode "ipAddress=$IP" --data-urlencode "vendor=$VENDOR" --data-urlencode "boardModel=$BOARD"
 }
 absent_check() {   # $1 = 파일, $2 = 라벨
   if [ -n "${EXPECT_ABSENT:-}" ] && grep -qF -- "$EXPECT_ABSENT" "$1"; then
-    echo "→ FAIL: $2 에 비밀값 평문이 있다"; exit 1
+    echo "→ FAIL: $2 에 secret값 평문이 있다"; exit 1
   fi
 }
 
@@ -57,7 +58,7 @@ serve() {
     curl -sS -o "$STATE_DIR/$f" -w "HTTP %{http_code} %{content_type} ← $f\n" "$BUNDLE/$f"
     absent_check "$STATE_DIR/$f" "$f"
   done
-  echo "--- autounattend.xml 렌더 값 발췌(비밀 자리는 마스킹)"
+  echo "--- autounattend.xml 렌더 값 발췌(secret 자리는 마스킹)"
   sed -n 's|.*<UILanguage>\(.*\)</UILanguage>.*|UILanguage=\1|p; s|.*<Value>\(/IMAGE/NAME\)</Value>.*|key=\1|p; s|.*<ComputerName>\(.*\)</ComputerName>.*|ComputerName=\1|p; s|.*<TimeZone>\(.*\)</TimeZone>.*|TimeZone=\1|p' "$STATE_DIR/autounattend.xml" | sort -u
   grep -o '<Key>/IMAGE/NAME</Key>' "$STATE_DIR/autounattend.xml" >/dev/null && sed -n '/\/IMAGE\/NAME/{n;s/.*<Value>\(.*\)<\/Value>.*/ImageName=\1/p;}' "$STATE_DIR/autounattend.xml"
   grep -c '<Value>[A-Za-z0-9+/=]\{8,\}</Value>' "$STATE_DIR/autounattend.xml" | sed 's/^/Base64 비밀번호 값 개수(기대 2)=/'
@@ -124,7 +125,7 @@ complete() {
     *"provisioning completed"*|*"exit"*) echo "→ OK: 종단 exit(재진입 카운트 0 유지)";;
     *) echo "→ 다음 phase 스크립트(정의서에 후속 phase 가 있는 경우) — 상세 화면의 '다음 단계' 안내 대조";;
   esac
-  step "4. 옛 토큰 URL 6 파일 — 전부 404 기대(완료 시 회수)"
+  step "4. 옛 토큰 URL 6 파일 — 전부 401 기대(완료 시 회수 · S19-1: 회수된 서빙 토큰은 체인이 401 로 끝낸다)"
   OLD=$(cat "$STATE_DIR/bundle-url" 2>/dev/null || true)
   if [ -n "$OLD" ]; then
     for f in wimboot winpeshl.ini install.bat autounattend.xml boot.wim spv-drivers.lst; do
@@ -138,7 +139,7 @@ complete() {
 }
 
 reject() {
-  step "B1. 위조 토큰 — 404 기대"
+  step "B1. 위조 토큰 — 401 JSON 기대(S19-1 게스트 체인)"
   curl -sS -o /dev/null -w "HTTP %{http_code}\n" -X POST "$BASE/api/pxe/v1/agent/windows/complete" \
        -H "X-Guest-Token: 00000000000000000000000000000000" -H "Content-Type: application/json" \
        -d '{"computerName":"SPV-00000000","driversAdded":0,"problemDeviceCount":0}'
@@ -160,7 +161,7 @@ reject() {
 }
 
 reentry() {
-  step "재PXE — 설치 중 재진입 = exit 스크립트(신원 · 재진입 n/max) 기대"
+  step "재PXE — 설치 중 재진입 = exit 스크립트(principal · 재진입 n/max) 기대"
   BODY=$(boot); echo "$BODY"
   case "$BODY" in
     *"windows setup in progress (reentry "*")"*"exit"*) echo "→ OK: exit(로컬 부팅 폴스루)"; return 0;;
@@ -190,7 +191,7 @@ case "$MODE" in
     for f in wimboot winpeshl.ini install.bat autounattend.xml boot.wim spv-drivers.lst; do
       curl -sS -o /dev/null -I -w "HTTP %{http_code} ← $f\n" "$OLD/$f"
     done
-    step "경계 — 목록 밖 파일명 · 경로 조작 · 위조 토큰 → 404"
+    step "경계 — 목록 밖 파일명 404 · 경로 조작 400 · 위조 토큰 401(S19-1)"
     curl -sS -o /dev/null -w "HTTP %{http_code} ← install.wim(목록 밖)\n" "$OLD/install.wim"
     curl -sS -o /dev/null -w "HTTP %{http_code} ← ..%%2Fapplication.properties(조작)\n" "$OLD/..%2Fapplication.properties"
     curl -sS -o /dev/null -w "HTTP %{http_code} ← 위조 토큰\n" "$BASE/api/pxe/v1/windows/00000000-0000-0000-0000-000000000000/wimboot";;

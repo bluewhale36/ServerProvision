@@ -55,35 +55,35 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
     }
 
     @Override
-    public String bootScript(GuestServer server, ProvisioningProgress progress, String rebootQuery) {
+    public String bootScript(GuestServer server, ProvisioningProgress progress, String reentryUrl) {
         UUID id = server.getId();
         LocalDateTime now = LocalDateTime.now();
         Optional<ProvisioningHistory> running = runningRow(id, progress);
         if (running.isPresent()) {
-            return reentry(server, progress, running.get(), rebootQuery, now);
+            return reentry(server, progress, running.get(), reentryUrl, now);
         }
         Optional<WindowsInstallReadinessResolver.Resolved> resolved = resolver.resolve(id);
         if (resolved.isEmpty()) {
             // 커서는 이 phase 인데 활성 할당에 OS 설치 단계가 없다(할당 교체 등) — 게이트는 창 밖으로 봐 READY 를 돌려주므로 여기서 세운다.
-            return IpxeScripts.shortageHold("windows install target missing (no active assignment)", rebootQuery);
+            return IpxeScripts.shortageHold("windows install target missing (no active assignment)", reentryUrl);
         }
         WindowsInstallReadinessResolver.Resolved r = resolved.get();
         if (r.readiness().isBlocked()) {
-            return IpxeScripts.shortageHold(r.readiness().wire(), rebootQuery);   // 게이트와 서빙 사이의 결손(드묾)
+            return IpxeScripts.shortageHold(r.readiness().wire(), reentryUrl);   // 게이트와 서빙 사이의 결손(드묾)
         }
         if (r.diskSelection() != null && !r.diskSelection().confident()) {
             // DEFERRED(RAID 구성 뒤 확정)는 카드 안내용이라 준비도를 막지 않는다 — 서빙에는 확정 번호가 필요하므로 여기서 세운다(HF15-5 안전망).
-            return IpxeScripts.shortageHold("disk selection not confident", rebootQuery);
+            return IpxeScripts.shortageHold("disk selection not confident", reentryUrl);
         }
         WindowsImage image = r.image().orElseThrow();   // READY 는 이미지 실재를 보장한다(진리표 7번)
         UUID token = UUID.randomUUID();   // R15-2 — autounattend 가 자기 토큰 URL(드라이버 목록)을 품어야 해 먼저 뽑는다
         tokenRegistry.issue(id, token, bundleFor(server, r.target(), image, r.diskSelection(), r.driverSelection(), token));
-        return WindowsInstallChainload.script(tokenRegistry.bundleUrl(token), image.name().value(), rebootQuery);
+        return WindowsInstallChainload.script(tokenRegistry.bundleUrl(token), image.name().value(), reentryUrl);
     }
 
     /** 설치 중 재진입 — 두 눈금을 넘으면 실패, 아니면 로컬 부팅으로 돌려보낸다(D-2). */
     private String reentry(GuestServer server, ProvisioningProgress progress, ProvisioningHistory row,
-                           String rebootQuery, LocalDateTime now) {
+                           String reentryUrl, LocalDateTime now) {
         LocalDateTime served = ledger.servedAtOf(row);
         int reentries = ledger.reentriesOf(row);
         int max = timeoutPolicy.maxReentries();
@@ -93,14 +93,14 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
                     "서빙 후 " + elapsed + "분 — 설치 시한 " + timeoutPolicy.installTimeout().toMinutes() + "분 초과", now);
             tokenRegistry.revoke(server.getId());   // 실패로 세운 서버의 응답 파일이 계속 열려 있지 않게(CP5 F-2)
             log.warn("[wininstall] {} — 설치 시한 초과, 실패 전환 : served={}, reentries={}", server.getId(), served, reentries);
-            return IpxeScripts.windowsInstallFailed(WindowsInstallLedger.INSTALL_TIMEOUT, rebootQuery);
+            return IpxeScripts.windowsInstallFailed(WindowsInstallLedger.INSTALL_TIMEOUT, reentryUrl);
         }
         if (reentries + 1 > max) {
             ledger.failRunning(server, progress, row, WindowsInstallLedger.REPXE_LOOP,
                     "재진입 " + (reentries + 1) + "회 — 상한 " + max + "회 초과", now);
             tokenRegistry.revoke(server.getId());
             log.warn("[wininstall] {} — 재진입 상한 초과, 실패 전환 : reentries={}", server.getId(), reentries + 1);
-            return IpxeScripts.windowsInstallFailed(WindowsInstallLedger.REPXE_LOOP, rebootQuery);
+            return IpxeScripts.windowsInstallFailed(WindowsInstallLedger.REPXE_LOOP, reentryUrl);
         }
         return IpxeScripts.localBootFallthrough(reentries + 1, max);
     }

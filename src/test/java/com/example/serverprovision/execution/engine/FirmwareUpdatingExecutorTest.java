@@ -76,7 +76,7 @@ class FirmwareUpdatingExecutorTest {
                 new FirmwareResolution(AxisResolution.selected(1L, "F27", "/tmp/fw/F27.img"),
                         AxisResolution.of(FirmwareAxisReason.NO_CANDIDATE))));
 
-        String script = executor.bootScript(server, awaitingBoot(), "systemUUID=abc");
+        String script = executor.bootScript(server, awaitingBoot(), "/api/pxe/v1/boot?systemUUID=abc");
 
         assertThat(script)
                 .contains("firmware plan: BIOS=F27 BMC=NO_CANDIDATE")
@@ -87,7 +87,7 @@ class FirmwareUpdatingExecutorTest {
     @Test
     @DisplayName("bootScript — 집행에 착수한 게스트가 돌아오면 반영 확인 대기(다시 굽게 하지 않는다)")
     void bootScript_whenFlashing_awaitsVerification() {
-        String script = executor.bootScript(server, stepRunning(), "systemUUID=abc");
+        String script = executor.bootScript(server, stepRunning(), "/api/pxe/v1/boot?systemUUID=abc");
 
         assertThat(script)
                 .contains("verifying inventory")

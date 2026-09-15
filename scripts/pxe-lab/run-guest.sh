@@ -4,10 +4,11 @@
 #   게스트 → 내장 DHCP → 내장 TFTP(boot.ipxe) → 호스트(10.0.2.2)의 앱 /boot → 체인로드.
 #
 # 전제: 로컬에서 앱이 기동 중이어야 한다 —
-#   SERVER_PORT=7777 PXE_SERVER_BASE_URL=http://10.0.2.2:7777 PXE_ASSETS_ROOT=<자산 디렉토리> ... bootRun
+#   SERVER_PORT=7777 PXE_SERVER_BASE_URL=http://10.0.2.2:7777 PXE_ASSETS_ROOT=<자산 디렉토리> PXE_BOOT_SECRET=<secret> ... bootRun
 #   (base-url 은 게스트 관점 주소이므로 반드시 10.0.2.2 — localhost 로 주면 게스트가 자산을 못 받는다.)
 #
 # 사용:
+#   PXE_BOOT_AUTH=pxe:<secret> ./run-guest.sh   # (S19-2) 첫 접촉 credential — 앱의 PXE_BOOT_SECRET 과 같은 값. 필수(boot.ipxe 의 @PXE_AUTH@ 치환)
 #   ./run-guest.sh                     # 새 UUID 게스트 (등록부터 재현)
 #   GUEST_UUID=... ./run-guest.sh      # 기존 게스트 재부팅 재현
 #   PORT=7779 MEM=3072 ./run-guest.sh
@@ -61,10 +62,11 @@ if [ "${FIRMWARE:-uefi}" != "bios" ]; then
     done
 fi
 
-# boot.ipxe 의 @PORT@ 치환 → 임시 tftp 스테이징
+# boot.ipxe 의 @PORT@ · @PXE_AUTH@ 치환 → 임시 tftp 스테이징. credential(S19-2)은 URL userinfo 로 실린다 — secret 은 unreserved 문자만이라 sed 에 안전.
+PXE_BOOT_AUTH="${PXE_BOOT_AUTH:?PXE_BOOT_AUTH=pxe:<secret> 가 필요하다 (S19-2 첫 접촉 인증)}"
 STAGING=$(mktemp -d)
 trap 'rm -rf "$STAGING"' EXIT
-sed "s/@PORT@/$PORT/" "$SELF_DIR/tftp/boot.ipxe" > "$STAGING/boot.ipxe"
+sed -e "s/@PORT@/$PORT/" -e "s|@PXE_AUTH@|$PXE_BOOT_AUTH@|" "$SELF_DIR/tftp/boot.ipxe" > "$STAGING/boot.ipxe"
 
 echo "[pxe-lab] guest uuid=$GUEST_UUID mac=$MAC board=$BOARD sockets=$SOCKETS → http://10.0.2.2:$PORT"
 [ -n "$FW" ] && echo "[pxe-lab] UEFI: $FW" || echo "[pxe-lab] 경고: OVMF 미발견 — legacy BIOS 모드"

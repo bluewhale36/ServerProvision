@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -27,6 +28,7 @@ public class SecurityConfig {
 	private final MustChangePasswordSuccessHandler successHandler;
 
 	@Bean
+	@Order(2)   // S19-1 — 게스트 채널 체인(@Order(1)) 뒤의 웹 화면 체인
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.csrf(AbstractHttpConfigurer::disable)
@@ -40,7 +42,7 @@ public class SecurityConfig {
 						// 로그아웃 뒤 다시 인가에 걸려 "response already committed" ERROR 를 남기지 않게(CP5 F-4) — ASYNC 는 원 요청이 통과한 뒤에만 온다.
 						.dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.ASYNC).permitAll()
 						.requestMatchers("/resources/**").permitAll()
-						.requestMatchers("/api/pxe/v1/**").permitAll()	// PXE 채널에 대한 인증 수단 추가하기 전까지 무인증 허용.
+						// /api/pxe/v1/** 는 S19-1 부터 GuestSecurityConfig(@Order(1)) 의 게스트 체인이 받는다 — 이 체인에는 오지 않는다.
 						.requestMatchers("/login").permitAll()
 						.requestMatchers("/signup").access(signupAccessPolicy)   // S18 D-12 — 관리자 부재면 누구나 · 있으면 ROLE_ADMIN
 						.anyRequest().authenticated()
@@ -48,7 +50,7 @@ public class SecurityConfig {
 
 				// S18 CP5 C3 — 세션이 끊긴 뒤의 XHR 폼 제출(form-submit.js · X-Requested-With)은 httpBasic 의 401 이 아니라 로그인 화면으로
 				// 보낸다. 302 는 XhrRedirectFilter 가 200 + X-Redirect-Location 으로 바꾸고 form-submit.js 가 브라우저 이동으로 받는다(HF9 경로).
-				// httpBasic 의 진입점은 X-Requested-With 요청도 자기 것으로 잡으므로 이 매핑을 먼저 둔다.
+				// httpBasic 의 entry point 은 X-Requested-With 요청도 자기 것으로 잡으므로 이 매핑을 먼저 둔다.
 				.exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
 						new LoginUrlAuthenticationEntryPoint("/login"),
 						new RequestHeaderRequestMatcher("X-Requested-With", "XMLHttpRequest")))
