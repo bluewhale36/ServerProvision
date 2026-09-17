@@ -40,6 +40,12 @@ public enum DhcpMode {
             sb.append("dhcp-boot=tag:rom,").append(bootFilename).append(",,")
                     .append(config.getBootServerIp().value()).append('\n');
         }
+
+        @Override
+        public void appendIpxeBoot(StringBuilder sb, PxeNetworkConfig config, String scriptFilename) {
+            sb.append("dhcp-boot=tag:ipxe,").append(scriptFilename).append(",,")
+                    .append(config.getBootServerIp().value()).append('\n');
+        }
     },
 
     /**
@@ -62,10 +68,30 @@ public enum DhcpMode {
         @Override
         public void appendRomBoot(StringBuilder sb, PxeNetworkConfig config, String bootFilename) {
             sb.append("pxe-prompt=\"ServerProvision\",0\n");
-            sb.append("pxe-service=tag:rom,X86-64_EFI,\"ServerProvision PXE\",").append(bootFilename)
-                    .append(',').append(config.getBootServerIp().value()).append('\n');
+            appendPxeServices(sb, "rom", "ServerProvision PXE", bootFilename, config);
+        }
+
+        /** proxy 모드에서 dnsmasq 는 pxe-prompt · pxe-service 만 낸다(dhcp-boot 무시 — man dnsmasq) — iPXE 둘째 단도 서비스로. */
+        @Override
+        public void appendIpxeBoot(StringBuilder sb, PxeNetworkConfig config, String scriptFilename) {
+            appendPxeServices(sb, "ipxe", "ServerProvision iPXE", scriptFilename, config);
+        }
+
+        /**
+         * 같은 파일을 두 CSA 이름으로 선언한다. dnsmasq 의 이름표는 RFC 4578 과 반대다 — dnsmasq 에서 {@code x86-64_EFI} 가
+         * client-arch 7, {@code BC_EFI} 가 9 다(2.85 바이너리의 테이블 순서로 실측 · 2026-09-17). 실 AMI UEFI ROM 은 7 을 보내므로
+         * 두 이름을 다 두면 어느 쪽 해석이든 맞는다. 아키당 서비스는 하나뿐이라 dnsmasq 의 UEFI 우회(메뉴 대신 siaddr · file)가 든다.
+         */
+        private static void appendPxeServices(StringBuilder sb, String tag, String menuText, String filename, PxeNetworkConfig config) {
+            for (String csa : PROXY_UEFI_CSA) {
+                sb.append("pxe-service=tag:").append(tag).append(',').append(csa).append(",\"").append(menuText).append("\",")
+                        .append(filename).append(',').append(config.getBootServerIp().value()).append('\n');
+            }
         }
     };
+
+    /** proxy 응답을 낼 UEFI client-arch 이름(dnsmasq CSA) — dnsmasq 표기로 x86-64_EFI = 7 · BC_EFI = 9(RFC 4578 이름과 반대). */
+    private static final String[] PROXY_UEFI_CSA = {"BC_EFI", "x86-64_EFI"};
 
     private final String label;
 
@@ -84,6 +110,9 @@ public enum DhcpMode {
     /** 조각의 주소 배정 구간(모드 선언 + range + 옵션). */
     public abstract void appendAddressing(StringBuilder sb, PxeNetworkConfig config);
 
-    /** 조각의 ROM(첫 단) 부팅 응답 구간 — iPXE(둘째 단)의 {@code dhcp-boot} 는 두 모드 공통이라 렌더러가 붙인다. */
+    /** 조각의 ROM(첫 단) 부팅 응답 구간. */
     public abstract void appendRomBoot(StringBuilder sb, PxeNetworkConfig config, String bootFilename);
+
+    /** 조각의 iPXE(둘째 단) 부팅 응답 구간 — 자체 DHCP 는 dhcp-boot, proxy 는 pxe-service(dhcp-boot 는 proxy 에서 무시된다). */
+    public abstract void appendIpxeBoot(StringBuilder sb, PxeNetworkConfig config, String scriptFilename);
 }

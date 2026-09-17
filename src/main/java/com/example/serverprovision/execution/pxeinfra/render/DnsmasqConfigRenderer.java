@@ -18,7 +18,8 @@ import java.util.UUID;
  *
  * <p>공통 줄의 뜻 — {@code port=0} 은 dnsmasq 의 DNS 를 끈다(우리는 DHCP 만 · 조각에 있어도 전역). {@code bind-interfaces} +
  * {@code listen-address} 는 부트 서버 IP 가 붙은 NIC 에만 응답하게 한다(다중 NIC · D-6). iPXE 2단 분기는 user-class
- * {@code iPXE} 태그와 {@code tag-if} 로 ROM 과 iPXE 를 갈라 각자 다른 파일을 준다(D-4 — 같은 파일을 주면 무한 체인).</p>
+ * {@code iPXE} 태그와 {@code tag-if} 로 ROM 과 iPXE 를 갈라 각자 다른 파일을 준다(D-4 — 같은 파일을 주면 무한 체인).
+ * 두 단의 응답 줄은 모드 상수가 든다 — proxy 는 dnsmasq 가 {@code dhcp-boot} 를 무시하므로 iPXE 단도 {@code pxe-service} 다(실기 2026-09-17).</p>
  */
 @Component
 public class DnsmasqConfigRenderer {
@@ -46,8 +47,7 @@ public class DnsmasqConfigRenderer {
         sb.append("dhcp-userclass=set:ipxe,iPXE\n");
         sb.append("tag-if=set:rom,tag:efi,tag:!ipxe\n");
         config.getDhcpMode().appendRomBoot(sb, config, BOOT_FILENAME);
-        sb.append("dhcp-boot=tag:ipxe,").append(IPXE_SCRIPT_FILENAME).append(",,")
-                .append(config.getBootServerIp().value()).append('\n');
+        config.getDhcpMode().appendIpxeBoot(sb, config, IPXE_SCRIPT_FILENAME);
         return sb.toString();
     }
 

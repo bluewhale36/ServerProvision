@@ -72,7 +72,7 @@ class DnsmasqConfigRendererTest {
     }
 
     @Test
-    @DisplayName("proxyDHCP 골든 — 주소 배정 줄 없음 · dhcp-range proxy · ROM 은 pxe-service · iPXE 는 dhcp-boot")
+    @DisplayName("proxyDHCP 골든 — 주소 배정 줄 없음 · dhcp-range proxy · ROM · iPXE 모두 pxe-service(BC_EFI + x86-64_EFI · dhcp-boot")
     void proxy_golden() {
         assertThat(renderer.render(proxy())).isEqualTo("""
                 # Managed by ServerProvision. Do not edit by hand.
@@ -87,8 +87,10 @@ class DnsmasqConfigRendererTest {
                 dhcp-userclass=set:ipxe,iPXE
                 tag-if=set:rom,tag:efi,tag:!ipxe
                 pxe-prompt="ServerProvision",0
-                pxe-service=tag:rom,X86-64_EFI,"ServerProvision PXE",ipxe.efi,10.1.1.17
-                dhcp-boot=tag:ipxe,boot.ipxe,,10.1.1.17
+                pxe-service=tag:rom,BC_EFI,"ServerProvision PXE",ipxe.efi,10.1.1.17
+                pxe-service=tag:rom,x86-64_EFI,"ServerProvision PXE",ipxe.efi,10.1.1.17
+                pxe-service=tag:ipxe,BC_EFI,"ServerProvision iPXE",boot.ipxe,10.1.1.17
+                pxe-service=tag:ipxe,x86-64_EFI,"ServerProvision iPXE",boot.ipxe,10.1.1.17
                 """);
     }
 

@@ -28,6 +28,14 @@ provisioning ALL=(root) NOPASSWD: /usr/bin/systemctl restart dnsmasq
 
 문법 검사가 실기에서 권한으로 실패하면(조각 디렉토리나 메인 구성이 읽히지 않는 경우) 그때 `dnsmasq --test -C *` 줄을 더하고 코드의 `requiresSudo` 를 함께 올린다. 미리 넣지 않는다.
 
+### 3-1. 방화벽 — proxy 모드는 4011/udp
+
+proxyDHCP 의 부팅 파일 교환은 DISCOVER · OFFER(67/68) 뒤에 게스트가 우리 서버의 **UDP 4011** 로 보내는 REQUEST 로 이루어진다. firewalld 의 `dhcp` 서비스는 67/68 만 열므로 4011 을 따로 연다. 2026-09-17 사내망 실기에서 이 포트가 닫혀 있어 OFFER 는 갔는데 파일명을 못 받았다.
+
+```bash
+sudo firewall-cmd --permanent --add-port=4011/udp && sudo firewall-cmd --reload
+```
+
 ## 4. 조각 디렉토리와 systemd
 
 애플리케이션은 `/etc/dnsmasq.d/serverprovision-pxe.conf` 를 쓴다. `provisioning` 계정이 그 디렉토리에 쓸 수 있어야 하고, systemd 하드닝(`ProtectSystem=strict`)이 걸린 유닛은 `ReadWritePaths` 로 열어야 한다.
@@ -74,14 +82,16 @@ dhcp-boot=tag:rom,ipxe.efi,,192.168.1.15
 dhcp-boot=tag:ipxe,boot.ipxe,,192.168.1.15
 ```
 
-proxyDHCP 모드는 주소 배정 줄이 빠지고 ROM 응답이 PXE 메뉴로 바뀐다.
+proxyDHCP 모드는 주소 배정 줄이 빠지고 ROM · iPXE 응답이 모두 PXE 메뉴(`pxe-service`)로 바뀐다. proxy 모드에서 dnsmasq 는 `dhcp-boot` 를 쓰지 않는다. 실 x86-64 UEFI ROM 은 client-arch 7 을 보낸다(2026-09-17 실기 · AMI). dnsmasq 의 이름표는 RFC 4578 과 반대로 `x86-64_EFI` 가 7, `BC_EFI` 가 9 이므로 두 이름을 다 선언해 어느 해석이든 맞게 둔다.
 
 ```
 dhcp-no-override
 dhcp-range=10.1.1.0,proxy,255.255.255.0
 pxe-prompt="ServerProvision",0
-pxe-service=tag:rom,X86-64_EFI,"ServerProvision PXE",ipxe.efi,10.1.1.17
-dhcp-boot=tag:ipxe,boot.ipxe,,10.1.1.17
+pxe-service=tag:rom,BC_EFI,"ServerProvision PXE",ipxe.efi,10.1.1.17
+pxe-service=tag:rom,x86-64_EFI,"ServerProvision PXE",ipxe.efi,10.1.1.17
+pxe-service=tag:ipxe,BC_EFI,"ServerProvision iPXE",boot.ipxe,10.1.1.17
+pxe-service=tag:ipxe,x86-64_EFI,"ServerProvision iPXE",boot.ipxe,10.1.1.17
 ```
 
 `listen-address` 는 부트 서버 주소다. NIC 가 여럿인 서버에서 그 주소가 붙은 NIC 에만 응답한다.
@@ -100,7 +110,7 @@ sudo journalctl -u dnsmasq -f
 
 ## 실기 확인 유보 항목
 
-- proxy 모드에서 실 PXE ROM(AMI UEFI)이 `pxe-service` 응답을 받아 `ipxe.efi` 를 받는지, iPXE 둘째 단이 `boot.ipxe` 를 받는지.
+- proxy 모드에서 실 PXE ROM(AMI UEFI)이 `pxe-service` 응답을 받아 `ipxe.efi` 를 받는지, iPXE 둘째 단이 `boot.ipxe` 를 받는지(4011/udp 개방 뒤 재확인 중 · 2026-09-17).
 - `dnsmasq --test` 가 비특권으로 통과하는지, 재기동이 20초 안에 끝나는지.
 - 다중 NIC 에서 `listen-address` 의 NIC 만 응답하는지.
 - SELinux enforcing 에서 조각과 임대 파일 읽기.

@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R16 Essential — proxyDHCP 전환 · dnsmasq 두 모드</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* .seq — 4 주체(게스트 · 게스트 체인 · 인증 부품 · 컨트롤러/서비스) 시간 흐름 */
+  .seq { display:grid; grid-template-columns:minmax(0,0.8fr) minmax(0,1.1fr) minmax(0,1.4fr) minmax(0,1.2fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step code { overflow-wrap:anywhere; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+
+  /* .dg — SVG 도식(시퀀스 · 블록 · 분기). 색은 :root 토큰만 */
+  .dg { margin:10px 0 16px; padding:12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .dg svg { display:block; font-family:var(--mono); max-width:none; }
+  .dg text { fill:var(--text); }
+  .dg text.muted { fill:var(--text-muted); }
+  .dg figcaption { margin-top:8px; font-size:12px; color:var(--text-muted); font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif; }
+  .dg .lane { stroke:var(--border); stroke-width:1; stroke-dasharray:4 4; }
+  .dg .call { stroke:var(--text); stroke-width:1.3; fill:none; }
+  .dg .ret { stroke:var(--text-muted); stroke-width:1.2; stroke-dasharray:5 3; fill:none; }
+  .dg .arr-fill { fill:var(--text); } .dg .arr-open { fill:none; stroke:var(--text-muted); stroke-width:1.2; }
+  .dg .lbl-bg { fill:var(--card); opacity:0.92; }
+  .dg .frame { fill:var(--bg); stroke:var(--border); }
+  .dg .tree { stroke:var(--text-muted); stroke-width:1.2; fill:none; }
+  .dg text.desc { fill:var(--text); }
+  .dg .grp-af, .dg .grp-az, .dg .grp-ct { fill:var(--bg); }
+  .dg .stage { fill:var(--card); stroke:var(--border-soft); } .dg .stage2 { fill:var(--bg); stroke:var(--border-soft); stroke-dasharray:3 3; }
+  .dg g rect { stroke-width:1.4; }
+  .dg .n-guest rect { fill:var(--blue-bg); stroke:var(--blue); }
+  .dg .n-chain rect { fill:var(--green-bg); stroke:var(--green); }
+  .dg .n-part rect { fill:var(--orange-bg); stroke:var(--orange); }
+  .dg .n-data rect { fill:var(--purple-bg); stroke:var(--purple); }
+  .dg .n-ctl rect { fill:var(--blue-bg); stroke:var(--blue); }
+  .dg .n-value rect { fill:var(--card); stroke:var(--text-muted); }
+  .dg .n-rule rect { fill:var(--card); stroke:var(--green); }
+  .dg .n-decision rect { fill:var(--yellow-bg); stroke:var(--yellow); }
+  .dg .n-reject rect { fill:var(--red-bg); stroke:var(--red); }
+  .dg .n-web rect { fill:var(--bg); stroke:var(--text-muted); }
+  .dg .grp.stage { fill:var(--bg); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card li { font-size:12px; line-height:1.55; }
+
+
+  /* 전폭 골격(essential 전용) — 절이 다섯이라 사이드 목차 대신 상단 가로 목차, 본문 한 단으로 도식 폭을 확보한다 */
+  .layout { grid-template-columns:1fr; max-width:1280px; gap:12px; }
+  nav.toc { position:static; max-height:none; display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; padding:10px 14px; }
+  nav.toc strong { margin:0 6px 0 0; }
+  nav.toc ol { display:flex; flex-wrap:wrap; gap:2px 4px; margin:0; }
+  nav.toc .toc-actions { margin-left:auto; }
+  nav.toc button { flex:none; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <h1>R16 Essential — proxyDHCP 전환 · dnsmasq 두 모드 <span class="v2-badge">구조 · 책임 · 흐름</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R16 (refactor)</span>
+    <span><strong>상위</strong> 없음 — PXE 인프라. E1-I-3-c 의 dhcpd 배선을 대체한다</span>
+    <span><strong>전제</strong> S19-2 essential(첫 접촉 인증 · <code>/boot</code> 의 Basic 과 LAN 제한) 위에서 부팅 파일까지</span>
+    <span><strong>대상</strong> 무엇을 만들었고 · 어떤 구조이며 · 각 클래스가 무엇을 맡고 · 적용 한 건과 게스트 첫 접촉 한 건이 어떻게 흐르는가</span>
+    <span><strong>제외</strong> 검증 방식 · 결과 · 다음 작업</span>
+    <span><strong>생성</strong> 2026-09-17 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 범위 — 무엇을 만들었나</a></li>
+      <li><a href="#s2">§2 구조 — 부품 · 타입 · 패키지</a></li>
+      <li><a href="#s3">§3 데이터 흐름 — 적용 한 건 · 첫 접촉 한 건</a></li>
+      <li><a href="#s4">§4 클래스별 책임</a></li>
+      <li><a href="#s5">§5 계약 — 조각 · 상태 · 예외 · 명령 · 배선</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 범위 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 범위 — 무엇을 만들었나</summary>
+      <div class="body">
+        <p style="margin-top:0;">종전 PXE 네트워크 구성 화면은 ISC dhcpd 조각(<code>/etc/dhcp/serverprovision-pxe.conf</code>)을 렌더해 include 로 잇고 <code>dhcpd -t</code> 로 검사한 뒤 재기동했다. 낼 수 있는 응답이 <b>자체 DHCP 한 모드</b>뿐이라, 자체 DHCP 를 둘 수 없고 사내 DHCP 도 고칠 수 없는 사내망에서는 쓸 수 없었다. R16 은 데몬을 <b>dnsmasq</b> 로 바꾸고, 한 화면 · 한 행에서 <b>자체 DHCP</b>(<code>AUTHORITATIVE</code>)와 <b>proxyDHCP</b>(<code>PROXY</code>) 두 모드를 낸다.</p>
+
+        <p>proxyDHCP 는 PXE 규격이 정한 응답 형태다 — <b>IP 는 남이 주고 부팅 위치만 우리가 답한다</b>. 게스트 ROM 은 사내 DHCP 에서 주소를 받고, 부트 서버 질의는 우리 dnsmasq 에 따로 던진다. 화면의 모드 라디오가 주소 배정 필드 묶음을 통째로 켜고 끄며, 그 판정(<code>DhcpMode.requiresAddressing()</code>)을 Validator 와 엔티티 invariant 가 같이 본다.</p>
+
+        <div class="card-grid">
+          <div class="card v-orange"><h4>① 두 모드를 한 화면에서</h4>
+            <ul><li><code>DhcpMode</code> 상수 둘이 모드별 필수 필드와 조각의 모드별 줄을 함께 든다 — <code>DnsmasqConfigRenderer</code> 에는 모드 분기가 없다</li>
+                <li>화면은 <code>&lt;fieldset disabled&gt;</code> 로 주소 배정 묶음을 막고 안내를 낸다(UI 1차 차단)</li>
+                <li>서버는 <code>PROXY</code> 로 온 주소 배정 값을 검증하지 않고 버린다 — 사내 DHCP 의 몫이다</li></ul></div>
+          <div class="card v-purple"><h4>② 적용 파이프라인</h4>
+            <ul><li>렌더 → temp → 원자 교체 → <code>dnsmasq --test</code> 게이트 → 재기동 → active 검증</li>
+                <li>어긋나면 이전 조각(없으면 유효한 빈 조각)으로 되돌린다</li>
+                <li>프로세스 락 안에서 조각 상태와 DB 기록이 함께 갱신된다</li></ul></div>
+          <div class="card v-blue"><h4>③ 관측과 배선</h4>
+            <ul><li>임대 파일 파서 교체 · 조각 드리프트 · 서비스 상태 · 자산 대시보드 chip</li>
+                <li>DDL R16 · 런북 <code>docs/pxe-dnsmasq-setup.md</code> · env <code>PXE_DNSMASQ_FRAGMENT_PATH</code></li>
+                <li>sudoers 한 줄과 방화벽 <code>4011/udp</code> — proxy 질의가 닿는 포트다</li></ul></div>
+        </div>
+
+        <h4>변경 전후 — 데몬과 그 배선</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — ISC dhcpd · 자체 DHCP 한 모드</h4>
+<pre><code>데몬         dhcpd (ISC)
+조각         /etc/dhcp/serverprovision-pxe.conf
+             (메인 conf 에서 include 로 잇는다)
+문법 게이트   dhcpd -t -cf &lt;conf&gt;
+재기동        sudo systemctl restart dhcpd
+모드          자체 DHCP 하나 — 주소 배정과 부팅 응답이 한 덩어리
+사내망        쓸 수 없다(자체 DHCP 금지 · 사내 DHCP 수정 불가)</code></pre></div>
+          <div class="split-card after"><h4>AFTER — dnsmasq · 두 모드</h4>
+<pre><code>데몬         dnsmasq
+조각         /etc/dnsmasq.d/serverprovision-pxe.conf
+             (conf-dir drop-in · include 불요)
+문법 게이트   dnsmasq --test -C /etc/dnsmasq.conf   (비특권)
+재기동        sudo systemctl restart dnsmasq
+모드          AUTHORITATIVE · PROXY — 한 화면 · 한 행
+사내망        proxyDHCP 로 답한다(IP 는 사내 DHCP · 부팅 위치만 우리가)</code></pre></div>
+        </div>
+
+        <div class="callout warn"><b>바꾸지 않은 것</b> : PXE 부팅 진입점 <code>/api/pxe/v1/boot</code> · 자산 서빙 · S19-2 의 credential 과 LAN 제한 · tftp 의 <code>ipxe.efi</code> · <code>boot.ipxe</code>(앱이 만들지 않는 런북 관리 파일). R16 은 <b>게스트가 우리 서버를 찾아오는 구간</b>만 바꾼다 — 찾아온 뒤의 인증 · 등록 · 실행은 종전 그대로다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 구조 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 구조 — 부품 · 타입 · 패키지</summary>
+      <div class="body">
+        <h4>2-1. 부품 배치 — 저장 한 번이 지나는 길과, 화면이 읽어 오는 길</h4>
+        <p style="margin-top:0;">왼쪽 위가 적용 경로다. 화면이 낸 값이 검증 · 변환을 거쳐 <code>DhcpConfigApplyService</code> 에 닿고, 거기서부터는 조각을 만들고 바꾸고 검사하고 재기동하는 다섯 부품이 순서대로 일한다. 그 귀결 하나(<code>ApplyOutcome</code>)가 DB 기록과 HTTP 응답 둘로 갈라진다. 아래쪽은 관측 경로로, 적용과 겹치는 부품(<code>SystemServiceInspector</code>)을 공유하되 상태를 바꾸지 않는다.</p>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1160" height="540" viewBox="0 0 1160 540"><defs><marker id="d21-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d21-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<rect class="stage grp" x="8" y="20" width="1140" height="334" rx="8"/>
+<rect class="stage grp" x="8" y="374" width="1140" height="152" rx="8"/>
+<text x="24.0" y="36.0" text-anchor="start" class="muted" font-size="10.5">적용 — [저장 및 적용] 한 번이 지나는 길</text>
+<text x="24.0" y="390.0" text-anchor="start" class="muted" font-size="10.5">관측 — 화면이 읽어 오는 길(상태를 바꾸지 않는다)</text>
+<g class="n-guest"><rect x="20" y="46" width="204" height="58" rx="6"/>
+<text x="122.0" y="65.2" text-anchor="middle" font-size="10" font-weight="700">PXE 네트워크 구성 화면</text>
+<text x="122.0" y="77.8" text-anchor="middle" font-size="10">network-form.html</text>
+<text x="122.0" y="90.2" text-anchor="middle" font-size="10">pxe-network-form.js</text>
+</g>
+<g class="n-ctl"><rect x="248" y="46" width="204" height="58" rx="6"/>
+<text x="350.0" y="65.2" text-anchor="middle" font-size="10" font-weight="700">PxeNetworkConfigController</text>
+<text x="350.0" y="77.8" text-anchor="middle" font-size="10">GET · POST</text>
+<text x="350.0" y="90.2" text-anchor="middle" font-size="10">/system/pxe-infra/network</text>
+</g>
+<g class="n-part"><rect x="476" y="46" width="204" height="58" rx="6"/>
+<text x="578.0" y="65.2" text-anchor="middle" font-size="10" font-weight="700">PxeNetworkConfigValidator</text>
+<text x="578.0" y="77.8" text-anchor="middle" font-size="10">모드별 필수 · 범위 · 형식</text>
+<text x="578.0" y="90.2" text-anchor="middle" font-size="10">(@Valid · BindingResult)</text>
+</g>
+<g class="n-part"><rect x="704" y="46" width="204" height="58" rx="6"/>
+<text x="806.0" y="65.2" text-anchor="middle" font-size="10" font-weight="700">PxeNetworkConfigMapper</text>
+<text x="806.0" y="77.8" text-anchor="middle" font-size="10">toEntity(request)</text>
+<text x="806.0" y="90.2" text-anchor="middle" font-size="10">문자열 → Value Object</text>
+</g>
+<g class="n-ctl"><rect x="932" y="46" width="204" height="58" rx="6"/>
+<text x="1034.0" y="65.2" text-anchor="middle" font-size="10" font-weight="700">DhcpConfigApplyService</text>
+<text x="1034.0" y="77.8" text-anchor="middle" font-size="10">applyAndRecord(desired,</text>
+<text x="1034.0" y="90.2" text-anchor="middle" font-size="10">persister) — 프로세스 락</text>
+</g>
+<path class="call" d="M224,75 L248,75" marker-end="url(#d21-arr)"/>
+<path class="call" d="M452,75 L476,75" marker-end="url(#d21-arr)"/>
+<path class="call" d="M680,75 L704,75" marker-end="url(#d21-arr)"/>
+<path class="call" d="M908,75 L932,75" marker-end="url(#d21-arr)"/>
+<g class="n-reject"><rect x="440" y="132" width="276" height="32" rx="6"/>
+<text x="578.0" y="150.8" text-anchor="middle" font-size="10" font-weight="700">오류 → 400 으로 폼 재렌더(예외 아님)</text>
+</g>
+<path class="call" d="M578,104 L578,132" marker-end="url(#d21-arr)"/>
+<g class="n-part"><rect x="20" y="196" width="204" height="58" rx="6"/>
+<text x="122.0" y="215.2" text-anchor="middle" font-size="10" font-weight="700">DnsmasqConfigRenderer</text>
+<text x="122.0" y="227.8" text-anchor="middle" font-size="10">renderToTemp(desired, dir)</text>
+<text x="122.0" y="240.2" text-anchor="middle" font-size="10">조각과 같은 디렉토리</text>
+</g>
+<g class="n-part"><rect x="248" y="196" width="204" height="58" rx="6"/>
+<text x="350.0" y="215.2" text-anchor="middle" font-size="10" font-weight="700">AtomicAssetSwap</text>
+<text x="350.0" y="227.8" text-anchor="middle" font-size="10">swap(조각 ← temp)</text>
+<text x="350.0" y="240.2" text-anchor="middle" font-size="10">이전본은 버전 저장소로</text>
+</g>
+<g class="n-part"><rect x="476" y="196" width="204" height="58" rx="6"/>
+<text x="578.0" y="215.2" text-anchor="middle" font-size="10" font-weight="700">SystemCommandRunner</text>
+<text x="578.0" y="227.8" text-anchor="middle" font-size="10">DNSMASQ_SYNTAX_CHECK</text>
+<text x="578.0" y="240.2" text-anchor="middle" font-size="10">dnsmasq --test -C &lt;conf&gt;</text>
+</g>
+<g class="n-part"><rect x="704" y="196" width="204" height="58" rx="6"/>
+<text x="806.0" y="215.2" text-anchor="middle" font-size="10" font-weight="700">SystemCommandRunner</text>
+<text x="806.0" y="227.8" text-anchor="middle" font-size="10">DNSMASQ_SERVICE_RESTART</text>
+<text x="806.0" y="240.2" text-anchor="middle" font-size="10">sudo systemctl restart</text>
+</g>
+<g class="n-part"><rect x="932" y="196" width="204" height="58" rx="6"/>
+<text x="1034.0" y="221.5" text-anchor="middle" font-size="10" font-weight="700">SystemServiceInspector</text>
+<text x="1034.0" y="234.0" text-anchor="middle" font-size="10">status() 가 ACTIVE 인가</text>
+</g>
+<path class="call" d="M224,225 L248,225" marker-end="url(#d21-arr)"/>
+<path class="call" d="M452,225 L476,225" marker-end="url(#d21-arr)"/>
+<path class="call" d="M680,225 L704,225" marker-end="url(#d21-arr)"/>
+<path class="call" d="M908,225 L932,225" marker-end="url(#d21-arr)"/>
+<path class="call" d="M1034,104 L1034,176 L122,176 L122,196" marker-end="url(#d21-arr)"/>
+<g class="n-value"><rect x="20" y="286" width="386" height="52" rx="6"/>
+<text x="213.0" y="308.5" text-anchor="middle" font-size="10" font-weight="700">ApplyOutcome</text>
+<text x="213.0" y="321.0" text-anchor="middle" font-size="10">APPLIED · REJECTED · ROLLED_BACK · RESTORE_FAILED</text>
+</g>
+<g class="n-data"><rect x="436" y="286" width="352" height="52" rx="6"/>
+<text x="612.0" y="308.5" text-anchor="middle" font-size="10" font-weight="700">PxeNetworkConfigService.save(request, outcome)</text>
+<text x="612.0" y="321.0" text-anchor="middle" font-size="10">→ recordApply — 성패 무관 기록</text>
+</g>
+<g class="n-reject"><rect x="818" y="286" width="330" height="52" rx="6"/>
+<text x="983.0" y="308.5" text-anchor="middle" font-size="10" font-weight="700">ApplyResult.throwIfNotApplied</text>
+<text x="983.0" y="321.0" text-anchor="middle" font-size="10">400(문법 거절) · 500(재기동 · 복원)</text>
+</g>
+<path class="call" d="M1034,254 L1034,270 L213,270 L213,286" marker-end="url(#d21-arr)"/>
+<path class="call" d="M406,312 L436,312" marker-end="url(#d21-arr)"/>
+<path class="call" d="M788,312 L818,312" marker-end="url(#d21-arr)"/>
+<g class="n-ctl"><rect x="20" y="400" width="240" height="46" rx="6"/>
+<text x="140.0" y="419.5" text-anchor="middle" font-size="10" font-weight="700">PxeInfraController</text>
+<text x="140.0" y="432.0" text-anchor="middle" font-size="10">GET /system/pxe-infra</text>
+</g>
+<g class="n-part"><rect x="290" y="400" width="240" height="46" rx="6"/>
+<text x="410.0" y="419.5" text-anchor="middle" font-size="10" font-weight="700">DhcpLeaseReader.read()</text>
+<text x="410.0" y="432.0" text-anchor="middle" font-size="10">미구성 · 부재 → 빈 스냅샷</text>
+</g>
+<g class="n-part"><rect x="560" y="400" width="240" height="46" rx="6"/>
+<text x="680.0" y="419.5" text-anchor="middle" font-size="10" font-weight="700">DnsmasqLeaseParser</text>
+<text x="680.0" y="432.0" text-anchor="middle" font-size="10">줄 단위 파싱 · 손상 줄 skip</text>
+</g>
+<path class="call" d="M260,423 L290,423" marker-end="url(#d21-arr)"/>
+<path class="call" d="M530,423 L560,423" marker-end="url(#d21-arr)"/>
+<g class="n-part"><rect x="20" y="464" width="240" height="46" rx="6"/>
+<text x="140.0" y="483.5" text-anchor="middle" font-size="10" font-weight="700">DhcpAssetArea</text>
+<text x="140.0" y="496.0" text-anchor="middle" font-size="10">자산 대시보드 영역</text>
+</g>
+<g class="n-value"><rect x="290" y="464" width="600" height="46" rx="6"/>
+<text x="590.0" y="483.5" text-anchor="middle" font-size="10" font-weight="700">SystemServiceInspector(서비스) · DnsmasqConfigInspector(조각 · 문법)</text>
+<text x="590.0" y="496.0" text-anchor="middle" font-size="10">PxeNetworkConfigService.load()(모드) · DhcpLeaseReader(활성 임대)</text>
+</g>
+<path class="call" d="M260,487 L290,487" marker-end="url(#d21-arr)"/></svg><figcaption>위 영역이 적용 경로 — 화면 · 컨트롤러 · 검증 · 변환을 지나 적용 서비스에 닿고, 조각을 만들고 바꾸고 검사하고 재기동한 뒤 귀결 하나가 DB 기록과 HTTP 응답으로 갈라진다. 아래 영역이 관측 경로다.</figcaption></figure>
+
+        <h4>2-2. 패키지 트리</h4>
+        <p style="margin-top:0;">패키지와 부품의 계층 · 이름 · 맡는 일을 텍스트 트리로 적는다. 엔티티는 Value Object 를, 적용 묶음은 명령 셋과 예외 셋을 거느린다. 흐름(호출 · 반환 · 분기)은 2-1 과 §3 의 도식이 맡는다.</p>
+        <pre class="pkg-tree">execution.pxeinfra                      PXE 인프라 — DHCP 데몬 배선 · 관측 · 화면
+├── controller
+│   ├── PxeNetworkConfigController        GET/POST /system/pxe-infra/network — 폼 · 저장 + 적용 · 400 재렌더 · flash
+│   └── PxeInfraController                GET /system/pxe-infra — 임대 목록 정렬 · PROXY 안내
+├── dto
+│   ├── request/PxeNetworkConfigRequest   DhcpMode · 7 필드(문자열 · Long leaseSeconds)
+│   └── response/                         PxeNetworkConfigResponse · PxeInfraOverviewResponse · DhcpLeaseView
+├── validation
+│   ├── @ValidPxeNetworkConfig
+│   └── PxeNetworkConfigValidator         모드별 필수 · 범위 ⊂ 서브넷 · 시작 ≤ 끝 · VO 형식 메시지
+├── converter/                            SubnetCidrConverter · LeaseSecondsConverter
+├── enums
+│   └── DhcpMode                          AUTHORITATIVE · PROXY — requiresAddressing() SSOT
+│                                         appendAddressing · appendRomBoot · appendIpxeBoot (method-per-constant)
+├── entity
+│   └── PxeNetworkConfig                  한 행 — desired 9 필드 + applied_result · applied_version_id · applied_at
+│                                         create · updateDesired · assertInvariants · recordApply
+├── vo/                                   SubnetCidr(network · netmask · host bit 0) · LeaseSeconds   (IpAddressVO 는 execution.vo)
+├── render
+│   └── DnsmasqConfigRenderer             render(순수 함수 · 골든 조각) · renderEmpty · renderToTemp
+├── apply
+│   ├── DhcpConfigApplyService            applyAndRecord(프로세스 락) · apply(상태기계) · restoreFragment · restoreAndReverify
+│   ├── ApplyOutcome                      APPLIED · REJECTED · ROLLED_BACK · RESTORE_FAILED
+│   └── ApplyResult                       throwIfNotApplied — 귀결별 예외 승격(method-per-constant)
+├── command
+│   ├── AllowedCommand                    DNSMASQ_SYNTAX_CHECK(비특권) · DNSMASQ_SERVICE_STATUS(비특권) · DNSMASQ_SERVICE_RESTART(sudo)
+│   ├── SystemCommandRunner → ProcessSystemCommandRunner
+│   └── CommandResult · CommandOutcome · ArgShape
+├── exception
+│   ├── DhcpConfigInvalidException        400 — dnsmasq --test 거절(폼 + 게이트 원문)
+│   ├── DhcpServiceControlFailedException 500 — 게이트 실행 불능 · 재기동 실패(이전 조각 복원)
+│   └── DhcpConfigRestoreFailedException  500 — 복원까지 실패
+├── inspect
+│   ├── DnsmasqLeaseParser · DhcpLeaseReader · LeaseSnapshot · LeaseEntry   임대 파일 → 엔트리 · 활성 수
+│   ├── DnsmasqConfigInspector            조각 존재 · 문법 → ConfigFileCondition
+│   └── SystemServiceInspector            systemctl is-active → ServiceState
+├── spi
+│   ├── DhcpAssetArea                     자산 대시보드 영역 — 슬롯(조각) · chip(서비스 · 모드 · 활성 임대) · 미구성 게이팅
+│   └── ConfigFileCondition · ServiceState · LeaseBindingState
+├── config
+│   └── PxeInfraProperties                fragment-path(활성화 스위치 = PXE_DNSMASQ_FRAGMENT_PATH) · conf-path · leases-path
+├── service
+│   ├── PxeNetworkConfigService           load · save(upsert · recordApply)
+│   └── PxeNetworkConfigMapper            toEntity · applyTo — 변환 SSOT(PROXY 면 주소 배정 값 버림)
+└── repository/PxeNetworkConfigRepository
+
+templates/system/pxe-infra/              network-form.html(모드 라디오 · fieldset · 배지 · 드리프트) · overview.html
+static/system/pxe-network-form.js        라디오 ↔ fieldset disabled · 안내 표시
+ddl/R16_pxe_network_config_dnsmasq.sql   docs/pxe-dnsmasq-setup.md</pre>
+
+        <h4>2-3. 값이 어떤 타입을 거치는가</h4>
+        <p style="margin-top:0;">윗줄은 화면이 낸 문자열이 <b>검증된 desired</b> 가 되기까지, 가운뎃줄은 그 desired 가 <b>dnsmasq 가 읽는 파일</b>이 되기까지, 아랫줄은 저장된 행이 다시 <b>화면</b>으로 돌아오기까지다. 문자열이 Value Object 로 좁혀지는 지점이 한 곳(<code>PxeNetworkConfigMapper</code>)이고, 그 앞에서 <code>PxeNetworkConfigValidator</code> 가 같은 Value Object 생성자를 미리 시도해 실패를 필드 오류로 옮긴다.</p>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1160" height="500" viewBox="0 0 1160 500"><defs><marker id="d23-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d23-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<text x="12.0" y="46.0" text-anchor="start" class="muted" font-size="10.5">값 사슬 — 화면의 문자열이 검증된 desired 가 되기까지</text>
+<g class="n-guest"><rect x="12" y="56" width="254" height="74" rx="6"/>
+<text x="139.0" y="82.2" text-anchor="middle" font-size="10.5" font-weight="700">폼 입력</text>
+<text x="139.0" y="95.8" text-anchor="middle" font-size="10.5">라디오 1 · 텍스트 8 · 숫자 1</text>
+<text x="139.0" y="109.2" text-anchor="middle" font-size="10.5">모두 문자열</text>
+</g>
+<path class="call" d="M266,93.0 L306,93.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="199.7" y="141.0" width="172.6" height="29.0" rx="3"/>
+<text x="286.0" y="152.0" text-anchor="middle" font-size="10">@ModelAttribute 바인딩</text>
+<text x="286.0" y="164.5" text-anchor="middle" font-size="10">@ValidPxeNetworkConfig 판정</text>
+<g class="n-value"><rect x="306" y="56" width="254" height="74" rx="6"/>
+<text x="433.0" y="82.2" text-anchor="middle" font-size="10.5" font-weight="700">PxeNetworkConfigRequest</text>
+<text x="433.0" y="95.8" text-anchor="middle" font-size="10.5">DhcpMode · 문자열 8</text>
+<text x="433.0" y="109.2" text-anchor="middle" font-size="10.5">Long leaseSeconds</text>
+</g>
+<path class="call" d="M560,93.0 L600,93.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="488.2" y="141.0" width="183.6" height="29.0" rx="3"/>
+<text x="580.0" y="152.0" text-anchor="middle" font-size="10">PxeNetworkConfigMapper.toVos</text>
+<text x="580.0" y="164.5" text-anchor="middle" font-size="10">PROXY 면 주소 배정 값을 버린다</text>
+<g class="n-value"><rect x="600" y="56" width="254" height="74" rx="6"/>
+<text x="727.0" y="82.2" text-anchor="middle" font-size="10.5" font-weight="700">Mapper 내부 Vos</text>
+<text x="727.0" y="95.8" text-anchor="middle" font-size="10.5">SubnetCidr · IpAddressVO ×6</text>
+<text x="727.0" y="109.2" text-anchor="middle" font-size="10.5">LeaseSeconds</text>
+</g>
+<path class="call" d="M854,93.0 L894,93.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="797.7" y="141.0" width="152.6" height="29.0" rx="3"/>
+<text x="874.0" y="152.0" text-anchor="middle" font-size="10">PxeNetworkConfig.create</text>
+<text x="874.0" y="164.5" text-anchor="middle" font-size="10">assertInvariants</text>
+<g class="n-data"><rect x="894" y="56" width="254" height="74" rx="6"/>
+<text x="1021.0" y="82.2" text-anchor="middle" font-size="10.5" font-weight="700">PxeNetworkConfig (desired)</text>
+<text x="1021.0" y="95.8" text-anchor="middle" font-size="10.5">모드가 쓰지 않는 값은 null</text>
+<text x="1021.0" y="109.2" text-anchor="middle" font-size="10.5">invariant 가 안전망</text>
+</g>
+<text x="12.0" y="194.0" text-anchor="start" class="muted" font-size="10.5">조각 사슬 — desired 가 dnsmasq 가 읽는 파일이 되기까지</text>
+<g class="n-data"><rect x="12" y="204" width="254" height="74" rx="6"/>
+<text x="139.0" y="237.0" text-anchor="middle" font-size="10.5" font-weight="700">PxeNetworkConfig (desired)</text>
+<text x="139.0" y="250.5" text-anchor="middle" font-size="10.5">같은 값 · 아직 파일이 아니다</text>
+</g>
+<path class="call" d="M266,241.0 L306,241.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="194.2" y="289.0" width="183.6" height="29.0" rx="3"/>
+<text x="286.0" y="300.0" text-anchor="middle" font-size="10">DnsmasqConfigRenderer.render</text>
+<text x="286.0" y="312.5" text-anchor="middle" font-size="10">모드 상수가 모드별 줄을 든다</text>
+<g class="n-value"><rect x="306" y="204" width="254" height="74" rx="6"/>
+<text x="433.0" y="230.2" text-anchor="middle" font-size="10.5" font-weight="700">조각 텍스트 (String)</text>
+<text x="433.0" y="243.8" text-anchor="middle" font-size="10.5">머리말 + 공통 5 줄</text>
+<text x="433.0" y="257.2" text-anchor="middle" font-size="10.5">+ 모드별 세 구간</text>
+</g>
+<path class="call" d="M560,241.0 L600,241.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="490.2" y="289.0" width="179.6" height="29.0" rx="3"/>
+<text x="580.0" y="300.0" text-anchor="middle" font-size="10">renderToTemp(config, dir)</text>
+<text x="580.0" y="312.5" text-anchor="middle" font-size="10">결정적 · 같은 입력 → 같은 바이트</text>
+<g class="n-value"><rect x="600" y="204" width="254" height="74" rx="6"/>
+<text x="727.0" y="230.2" text-anchor="middle" font-size="10.5" font-weight="700">temp 파일</text>
+<text x="727.0" y="243.8" text-anchor="middle" font-size="10.5">조각과 같은 디렉토리</text>
+<text x="727.0" y="257.2" text-anchor="middle" font-size="10.5">(같은 파일시스템이어야 한다)</text>
+</g>
+<path class="call" d="M854,241.0 L894,241.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="785.8" y="289.0" width="176.4" height="29.0" rx="3"/>
+<text x="874.0" y="300.0" text-anchor="middle" font-size="10">AtomicAssetSwap.swap</text>
+<text x="874.0" y="312.5" text-anchor="middle" font-size="10">ATOMIC_MOVE · 이전본 archive</text>
+<g class="n-part"><rect x="894" y="204" width="254" height="74" rx="6"/>
+<text x="1021.0" y="230.2" text-anchor="middle" font-size="10.5" font-weight="700">/etc/dnsmasq.d/</text>
+<text x="1021.0" y="243.8" text-anchor="middle" font-size="10.5">serverprovision-pxe.conf</text>
+<text x="1021.0" y="257.2" text-anchor="middle" font-size="10.5">dnsmasq 가 읽는 파일</text>
+</g>
+<text x="12.0" y="342.0" text-anchor="start" class="muted" font-size="10.5">되돌아오는 사슬 — 저장된 행이 화면으로</text>
+<g class="n-data"><rect x="12" y="352" width="254" height="74" rx="6"/>
+<text x="139.0" y="378.2" text-anchor="middle" font-size="10.5" font-weight="700">PxeNetworkConfig (saved)</text>
+<text x="139.0" y="391.8" text-anchor="middle" font-size="10.5">desired + applied_result</text>
+<text x="139.0" y="405.2" text-anchor="middle" font-size="10.5">+ applied_at</text>
+</g>
+<path class="call" d="M266,389.0 L306,389.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="191.1" y="437.0" width="189.8" height="29.0" rx="3"/>
+<text x="286.0" y="448.0" text-anchor="middle" font-size="10">PxeNetworkConfigResponse.from</text>
+<text x="286.0" y="460.5" text-anchor="middle" font-size="10">APPLIED 가 아니면 drift = true</text>
+<g class="n-value"><rect x="306" y="352" width="254" height="74" rx="6"/>
+<text x="433.0" y="378.2" text-anchor="middle" font-size="10.5" font-weight="700">PxeNetworkConfigResponse</text>
+<text x="433.0" y="391.8" text-anchor="middle" font-size="10.5">모드 배지 · 마지막 적용</text>
+<text x="433.0" y="405.2" text-anchor="middle" font-size="10.5">driftFromServing</text>
+</g>
+<path class="call" d="M560,389.0 L600,389.0" marker-end="url(#d23-arr)"/>
+<rect class="lbl-bg" x="478.9" y="437.0" width="202.2" height="29.0" rx="3"/>
+<text x="580.0" y="448.0" text-anchor="middle" font-size="10">Thymeleaf · pxe-network-form.js</text>
+<text x="580.0" y="460.5" text-anchor="middle" font-size="10">라디오가 fieldset 을 켜고 끈다</text>
+<g class="n-guest"><rect x="600" y="352" width="254" height="74" rx="6"/>
+<text x="727.0" y="378.2" text-anchor="middle" font-size="10.5" font-weight="700">폼 재진입 화면</text>
+<text x="727.0" y="391.8" text-anchor="middle" font-size="10.5">프리필 · 배지 · 드리프트 경고</text>
+<text x="727.0" y="405.2" text-anchor="middle" font-size="10.5">모드별 fieldset 상태</text>
+</g></svg><figcaption>윗줄은 문자열이 검증된 desired 가 되기까지, 가운뎃줄은 그 desired 가 파일이 되기까지, 아랫줄은 저장된 행이 화면으로 돌아오기까지다. 화살표 아래가 변환을 맡는 부품.</figcaption></figure>
+
+        <h4>2-4. 조각 — 두 모드의 실제 텍스트</h4>
+        <p style="margin-top:0;">렌더러는 순수 함수이고 같은 입력이면 항상 바이트 단위로 같은 조각을 낸다. 머리말과 공통 다섯 줄은 렌더러가 고정하고, 갈리는 세 구간(주소 배정 · ROM 응답 · iPXE 응답)은 <code>DhcpMode</code> 상수가 든다.</p>
+        <div class="split-grid">
+          <div class="split-card"><h4>AUTHORITATIVE — 자체 DHCP</h4>
+<pre><code># Managed by ServerProvision. Do not edit by hand.
+port=0
+bind-interfaces
+listen-address=192.168.1.15
+log-dhcp
+dhcp-authoritative
+dhcp-range=192.168.1.100,192.168.1.200,255.255.255.0,600s
+dhcp-option=option:router,192.168.1.1
+dhcp-option=option:dns-server,8.8.8.8
+dhcp-match=set:efi,option:client-arch,7
+dhcp-match=set:efi,option:client-arch,9
+dhcp-userclass=set:ipxe,iPXE
+tag-if=set:rom,tag:efi,tag:!ipxe
+dhcp-boot=tag:rom,ipxe.efi,,192.168.1.15
+dhcp-boot=tag:ipxe,boot.ipxe,,192.168.1.15</code></pre></div>
+          <div class="split-card"><h4>PROXY — proxyDHCP</h4>
+<pre><code># Managed by ServerProvision. Do not edit by hand.
+port=0
+bind-interfaces
+listen-address=10.1.1.10
+log-dhcp
+dhcp-no-override
+dhcp-range=10.1.1.0,proxy,255.255.255.0
+dhcp-match=set:efi,option:client-arch,7
+dhcp-match=set:efi,option:client-arch,9
+dhcp-userclass=set:ipxe,iPXE
+tag-if=set:rom,tag:efi,tag:!ipxe
+pxe-prompt="ServerProvision",0
+pxe-service=tag:rom,BC_EFI,"ServerProvision PXE",ipxe.efi,10.1.1.10
+pxe-service=tag:rom,x86-64_EFI,"ServerProvision PXE",ipxe.efi,10.1.1.10
+pxe-service=tag:ipxe,BC_EFI,"ServerProvision iPXE",boot.ipxe,10.1.1.10
+pxe-service=tag:ipxe,x86-64_EFI,"ServerProvision iPXE",boot.ipxe,10.1.1.10</code></pre></div>
+        </div>
+        <table>
+          <thead><tr><th>줄</th><th>뜻</th></tr></thead>
+          <tbody>
+            <tr><td><code>port=0</code></td><td>dnsmasq 의 DNS 를 끈다 — 우리는 DHCP 만 쓴다(조각에 있어도 전역에 적용된다)</td></tr>
+            <tr><td><code>bind-interfaces</code> · <code>listen-address</code></td><td>부트 서버 주소가 붙은 NIC 에만 응답한다. 다중 NIC 장비에서 엉뚱한 대역에 답하지 않게 한다</td></tr>
+            <tr><td><code>dhcp-match</code> · client-arch 7 · 9</td><td>UEFI 클라이언트에 <code>efi</code> 태그를 붙인다</td></tr>
+            <tr><td><code>dhcp-userclass</code> · <code>tag-if</code></td><td>user-class <code>iPXE</code> 로 ROM 과 iPXE 를 갈라 각자 다른 파일을 준다 — 같은 파일을 주면 무한 체인이 된다</td></tr>
+            <tr><td><code>dhcp-boot</code> vs <code>pxe-service</code></td><td>자체 DHCP 는 option 67(filename)로 답하고, proxy 모드의 dnsmasq 는 <code>dhcp-boot</code> 를 무시하므로 두 단 모두 <code>pxe-service</code> 로 답한다</td></tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><b>CSA 이름표가 RFC 4578 과 반대다</b> — dnsmasq 2.85 에서 <code>x86-64_EFI</code> 가 client-arch 7, <code>BC_EFI</code> 가 9 다. 실 AMI UEFI ROM 은 7 을 보내므로 <b>같은 파일을 두 이름으로 선언</b>해 어느 해석이든 맞게 했다. 아키텍처당 서비스가 하나뿐이면 dnsmasq 가 메뉴를 띄우지 않고 곧장 <code>siaddr</code> · <code>file</code> 로 답한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 데이터 흐름 ===== -->
+    <details class="section" id="s3" open>
+      <summary>§3. 데이터 흐름 — 적용 한 건 · 첫 접촉 한 건</summary>
+      <div class="body">
+        <p style="margin-top:0;">실선은 호출과 넘기는 값, 점선은 반환과 돌려주는 값, 고리 화살표는 그 주체 안의 처리다. 번호는 시간 순.</p>
+
+        <h4>3-1. 정상 — [저장 및 적용] 한 번이 조각을 바꾸고 dnsmasq 를 재기동한다</h4>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1168" height="713" viewBox="0 0 1168 713">
+<defs><marker id="d31-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d31-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<line class="lane" x1="80.0" y1="72" x2="80.0" y2="709"/>
+<g class="n-guest"><rect x="12.0" y="16" width="136" height="56" rx="6"/>
+<text x="80.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">운영자</text>
+<text x="80.0" y="53.0" text-anchor="middle" font-size="10">(구성 화면)</text>
+</g>
+<line class="lane" x1="224.0" y1="72" x2="224.0" y2="709"/>
+<g class="n-ctl"><rect x="156.0" y="16" width="136" height="56" rx="6"/>
+<text x="224.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">PxeNetworkConfig</text>
+<text x="224.0" y="53.0" text-anchor="middle" font-size="10">Controller</text>
+</g>
+<line class="lane" x1="368.0" y1="72" x2="368.0" y2="709"/>
+<g class="n-ctl"><rect x="300.0" y="16" width="136" height="56" rx="6"/>
+<text x="368.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">DhcpConfig</text>
+<text x="368.0" y="53.0" text-anchor="middle" font-size="10">ApplyService</text>
+</g>
+<line class="lane" x1="512.0" y1="72" x2="512.0" y2="709"/>
+<g class="n-part"><rect x="444.0" y="16" width="136" height="56" rx="6"/>
+<text x="512.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">DnsmasqConfig</text>
+<text x="512.0" y="53.0" text-anchor="middle" font-size="10">Renderer</text>
+</g>
+<line class="lane" x1="656.0" y1="72" x2="656.0" y2="709"/>
+<g class="n-part"><rect x="588.0" y="16" width="136" height="56" rx="6"/>
+<text x="656.0" y="46.8" text-anchor="middle" font-size="10" font-weight="700">AtomicAssetSwap</text>
+</g>
+<line class="lane" x1="800.0" y1="72" x2="800.0" y2="709"/>
+<g class="n-part"><rect x="732.0" y="16" width="136" height="56" rx="6"/>
+<text x="800.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">SystemCommand</text>
+<text x="800.0" y="53.0" text-anchor="middle" font-size="10">Runner</text>
+</g>
+<line class="lane" x1="944.0" y1="72" x2="944.0" y2="709"/>
+<g class="n-part"><rect x="876.0" y="16" width="136" height="56" rx="6"/>
+<text x="944.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">SystemService</text>
+<text x="944.0" y="53.0" text-anchor="middle" font-size="10">Inspector</text>
+</g>
+<line class="lane" x1="1088.0" y1="72" x2="1088.0" y2="709"/>
+<g class="n-data"><rect x="1020.0" y="16" width="136" height="56" rx="6"/>
+<text x="1088.0" y="34.2" text-anchor="middle" font-size="10" font-weight="700">PxeNetworkConfig</text>
+<text x="1088.0" y="46.8" text-anchor="middle" font-size="10">Service</text>
+<text x="1088.0" y="59.2" text-anchor="middle" font-size="10">(DB)</text>
+</g>
+<line class="call" x1="80.0" y1="111" x2="224.0" y2="111" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="2.0" y="94.0" width="399.6" height="17.0" rx="3"/>
+<text x="201.8" y="106.0" text-anchor="middle" font-size="11">① POST /system/pxe-infra/network — 모드 라디오 + 그 모드의 값</text>
+<path class="call" d="M224.0,131 h16 v13 h-16" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="245.0" y="123.0" width="437.7" height="17.0" rx="3"/>
+<text x="250.0" y="135.0" text-anchor="start" font-size="11">② @Valid → 위반이 있으면 400 으로 폼 재렌더하고 여기서 끝난다(예외 아님)</text>
+<path class="call" d="M224.0,167 h16 v13 h-16" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="245.0" y="159.0" width="550.8" height="17.0" rx="3"/>
+<text x="250.0" y="171.0" text-anchor="start" font-size="11">③ PxeNetworkConfigMapper.toEntity(request) — 문자열을 Value Object 로 좁힌 desired</text>
+<line class="call" x1="224.0" y1="214" x2="368.0" y2="214" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="107.2" y="197.0" width="377.6" height="17.0" rx="3"/>
+<text x="296.0" y="209.0" text-anchor="middle" font-size="11">④ applyAndRecord(desired, persister) — 프로세스 락을 쥔다</text>
+<line class="call" x1="368.0" y1="245" x2="512.0" y2="245" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="313.3" y="228.0" width="253.3" height="17.0" rx="3"/>
+<text x="440.0" y="240.0" text-anchor="middle" font-size="11">⑤ renderToTemp(desired, 조각 디렉토리)</text>
+<line class="ret" x1="512.0" y1="276" x2="368.0" y2="276" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="382.3" y="259.0" width="115.4" height="17.0" rx="3"/>
+<text x="440.0" y="271.0" text-anchor="middle" class="muted" font-size="11">⑤' temp 파일 경로</text>
+<line class="call" x1="368.0" y1="307" x2="656.0" y2="307" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="421.5" y="290.0" width="180.9" height="17.0" rx="3"/>
+<text x="512.0" y="302.0" text-anchor="middle" font-size="11">⑥ swap(조각, temp, 버전 키)</text>
+<line class="ret" x1="656.0" y1="338" x2="368.0" y2="338" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="348.4" y="321.0" width="327.2" height="17.0" rx="3"/>
+<text x="512.0" y="333.0" text-anchor="middle" class="muted" font-size="11">⑥' SwapResult — 이전본을 archive 한 버전 id · 경로</text>
+<line class="call" x1="368.0" y1="369" x2="800.0" y2="369" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="347.7" y="352.0" width="472.7" height="17.0" rx="3"/>
+<text x="584.0" y="364.0" text-anchor="middle" font-size="11">⑦ DNSMASQ_SYNTAX_CHECK — dnsmasq --test -C /etc/dnsmasq.conf (비특권)</text>
+<line class="ret" x1="800.0" y1="400" x2="368.0" y2="400" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="548.3" y="383.0" width="71.4" height="17.0" rx="3"/>
+<text x="584.0" y="395.0" text-anchor="middle" class="muted" font-size="11">⑦' exit 0</text>
+<line class="call" x1="368.0" y1="431" x2="800.0" y2="431" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="381.2" y="414.0" width="405.6" height="17.0" rx="3"/>
+<text x="584.0" y="426.0" text-anchor="middle" font-size="11">⑧ DNSMASQ_SERVICE_RESTART — sudo systemctl restart dnsmasq</text>
+<line class="ret" x1="800.0" y1="462" x2="368.0" y2="462" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="548.3" y="445.0" width="71.4" height="17.0" rx="3"/>
+<text x="584.0" y="457.0" text-anchor="middle" class="muted" font-size="11">⑧' exit 0</text>
+<line class="call" x1="368.0" y1="493" x2="944.0" y2="493" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="514.6" y="476.0" width="282.8" height="17.0" rx="3"/>
+<text x="656.0" y="488.0" text-anchor="middle" font-size="11">⑨ status() — systemctl is-active dnsmasq</text>
+<line class="ret" x1="944.0" y1="524" x2="368.0" y2="524" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="620.3" y="507.0" width="71.4" height="17.0" rx="3"/>
+<text x="656.0" y="519.0" text-anchor="middle" class="muted" font-size="11">⑨' ACTIVE</text>
+<path class="call" d="M368.0,544 h16 v13 h-16" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="389.0" y="536.0" width="289.6" height="17.0" rx="3"/>
+<text x="394.0" y="548.0" text-anchor="start" font-size="11">⑩ ApplyOutcome.applied(archivedVersionId)</text>
+<line class="call" x1="368.0" y1="591" x2="1088.0" y2="591" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="447.9" y="574.0" width="560.2" height="17.0" rx="3"/>
+<text x="728.0" y="586.0" text-anchor="middle" font-size="11">⑪ persister.accept(outcome) → save(request, outcome) · recordApply — 락 안에서 커밋</text>
+<line class="ret" x1="368.0" y1="622" x2="224.0" y2="622" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="230.2" y="605.0" width="131.7" height="17.0" rx="3"/>
+<text x="296.0" y="617.0" text-anchor="middle" class="muted" font-size="11">⑫ outcome (락 해제)</text>
+<path class="call" d="M224.0,642 h16 v13 h-16" marker-end="url(#d31-arr)"/>
+<rect class="lbl-bg" x="245.0" y="634.0" width="318.9" height="17.0" rx="3"/>
+<text x="250.0" y="646.0" text-anchor="start" font-size="11">⑬ throwIfNotApplied() — APPLIED 라 던지지 않는다</text>
+<line class="ret" x1="224.0" y1="689" x2="80.0" y2="689" marker-end="url(#d31-arro)"/>
+<rect class="lbl-bg" x="2.0" y="672.0" width="382.2" height="17.0" rx="3"/>
+<text x="193.1" y="684.0" text-anchor="middle" class="muted" font-size="11">⑭ 302 + flash "자체 DHCP 모드로 dnsmasq 구성을 적용했습니다"</text>
+</svg><figcaption>적용 한 건 — 검증과 변환은 컨트롤러 안에서 끝나고, 조각 교체부터 재기동 · 검증까지는 프로세스 락 안에서 한 줄로 이어진다. 기록도 그 락 안이고, 예외 승격만 락 밖이다.</figcaption></figure>
+        <div class="callout">기록(<code>persister</code>)이 적용 <b>안에서</b> 불린다. <code>DhcpConfigApplyService</code> 가 프로세스 락을 쥔 채 파이프라인을 돌리고 그 락 안에서 콜백으로 저장까지 커밋하므로, 조각의 실제 상태와 DB 의 <code>applied_result</code> 가 한 임계 구간에서 함께 움직인다. 실패를 HTTP 로 승격하는 <code>throwIfNotApplied</code> 는 락 · 트랜잭션 <b>밖</b>에서 컨트롤러가 부른다 — 안에서 던지면 실패 기록 자체가 롤백돼 사라진다.</div>
+
+        <h4>3-2. 거절 · 복원 — 어디서 갈라지고 무엇으로 끝나는가</h4>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1160" height="650" viewBox="0 0 1160 650"><defs><marker id="d32-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d32-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<g class="n-value"><rect x="8" y="14" width="229" height="42" rx="6"/>
+<text x="122.5" y="30.5" text-anchor="middle" font-size="10.5" font-weight="700">조각 원자 교체 완료</text>
+<text x="122.5" y="44.5" text-anchor="middle" font-size="10.5">이전본은 버전 저장소로</text>
+</g>
+<path class="call" d="M122.5,56 L122.5,90" marker-end="url(#d32-arr)"/>
+<g class="n-decision"><rect x="8" y="90" width="229" height="58" rx="6"/>
+<text x="122.5" y="114.5" text-anchor="middle" font-size="10.5" font-weight="700">dnsmasq --test 를</text>
+<text x="122.5" y="128.5" text-anchor="middle" font-size="10.5">실행할 수 있었는가</text>
+</g>
+<g class="n-part"><rect x="313" y="90" width="229" height="58" rx="6"/>
+<text x="427.5" y="114.5" text-anchor="middle" font-size="10.5" font-weight="700">restoreFragment</text>
+<text x="427.5" y="128.5" text-anchor="middle" font-size="10.5">이전본 · 없으면 빈 조각</text>
+</g>
+<g class="n-value"><rect x="618" y="90" width="229" height="58" rx="6"/>
+<text x="732.5" y="114.5" text-anchor="middle" font-size="10.5" font-weight="700">ApplyOutcome</text>
+<text x="732.5" y="128.5" text-anchor="middle" font-size="10.5">rolledBack(실행 불능)</text>
+</g>
+<g class="n-reject"><rect x="923" y="90" width="229" height="58" rx="6"/>
+<text x="1037.5" y="114.5" text-anchor="middle" font-size="10.5" font-weight="700">DhcpServiceControlFailed</text>
+<text x="1037.5" y="128.5" text-anchor="middle" font-size="10.5">Exception  ·  500</text>
+</g>
+<path class="call" d="M237,119 L313,119" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="246.9" y="101.0" width="56.2" height="16.5" rx="3"/>
+<text x="275.0" y="112.0" text-anchor="middle" font-size="10">실행 불능</text>
+<path class="call" d="M542,119 L618,119" marker-end="url(#d32-arr)"/>
+<path class="call" d="M847,119 L923,119" marker-end="url(#d32-arr)"/>
+<path class="call" d="M122.5,148 L122.5,180" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="127.5" y="159.0" width="40.0" height="16.5" rx="3"/>
+<text x="132.5" y="170.0" text-anchor="start" font-size="10">실행됨</text>
+<g class="n-decision"><rect x="8" y="180" width="229" height="58" rx="6"/>
+<text x="122.5" y="204.5" text-anchor="middle" font-size="10.5" font-weight="700">게이트가 exit 0 으로</text>
+<text x="122.5" y="218.5" text-anchor="middle" font-size="10.5">통과했는가</text>
+</g>
+<g class="n-part"><rect x="313" y="180" width="229" height="58" rx="6"/>
+<text x="427.5" y="204.5" text-anchor="middle" font-size="10.5" font-weight="700">restoreFragment</text>
+<text x="427.5" y="218.5" text-anchor="middle" font-size="10.5">재기동은 하지 않았다</text>
+</g>
+<g class="n-value"><rect x="618" y="180" width="229" height="58" rx="6"/>
+<text x="732.5" y="204.5" text-anchor="middle" font-size="10.5" font-weight="700">ApplyOutcome</text>
+<text x="732.5" y="218.5" text-anchor="middle" font-size="10.5">rejected(게이트 원문)</text>
+</g>
+<g class="n-reject"><rect x="923" y="180" width="229" height="58" rx="6"/>
+<text x="1037.5" y="204.5" text-anchor="middle" font-size="10.5" font-weight="700">DhcpConfigInvalidException</text>
+<text x="1037.5" y="218.5" text-anchor="middle" font-size="10.5">400  ·  폼에 원문 표시</text>
+</g>
+<path class="call" d="M237,209 L313,209" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="245.2" y="191.0" width="59.6" height="16.5" rx="3"/>
+<text x="275.0" y="202.0" text-anchor="middle" font-size="10">exit ≠ 0</text>
+<path class="call" d="M542,209 L618,209" marker-end="url(#d32-arr)"/>
+<path class="call" d="M847,209 L923,209" marker-end="url(#d32-arr)"/>
+<path class="call" d="M122.5,238 L122.5,270" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="127.5" y="249.0" width="47.2" height="16.5" rx="3"/>
+<text x="132.5" y="260.0" text-anchor="start" font-size="10">exit 0</text>
+<g class="n-part"><rect x="8" y="270" width="229" height="42" rx="6"/>
+<text x="122.5" y="286.5" text-anchor="middle" font-size="10.5" font-weight="700">sudo systemctl</text>
+<text x="122.5" y="300.5" text-anchor="middle" font-size="10.5">restart dnsmasq</text>
+</g>
+<path class="call" d="M122.5,312 L122.5,344" marker-end="url(#d32-arr)"/>
+<g class="n-decision"><rect x="8" y="344" width="229" height="58" rx="6"/>
+<text x="122.5" y="368.5" text-anchor="middle" font-size="10.5" font-weight="700">exit 0 이고 is-active 가</text>
+<text x="122.5" y="382.5" text-anchor="middle" font-size="10.5">ACTIVE 인가</text>
+</g>
+<g class="n-part"><rect x="313" y="344" width="229" height="58" rx="6"/>
+<text x="427.5" y="368.5" text-anchor="middle" font-size="10.5" font-weight="700">restoreAndReverify</text>
+<text x="427.5" y="382.5" text-anchor="middle" font-size="10.5">복원 + 재기동 1회 + 검증 1회</text>
+</g>
+<g class="n-value"><rect x="618" y="344" width="229" height="58" rx="6"/>
+<text x="732.5" y="368.5" text-anchor="middle" font-size="10.5" font-weight="700">ACTIVE  →  rolledBack</text>
+<text x="732.5" y="382.5" text-anchor="middle" font-size="10.5">이전 구성으로 서빙 중</text>
+</g>
+<g class="n-reject"><rect x="923" y="344" width="229" height="58" rx="6"/>
+<text x="1037.5" y="368.5" text-anchor="middle" font-size="10.5" font-weight="700">DhcpServiceControlFailed</text>
+<text x="1037.5" y="382.5" text-anchor="middle" font-size="10.5">Exception  ·  500</text>
+</g>
+<path class="call" d="M237,373 L313,373" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="255.0" y="355.0" width="40.0" height="16.5" rx="3"/>
+<text x="275.0" y="366.0" text-anchor="middle" font-size="10">아니오</text>
+<path class="call" d="M542,373 L618,373" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="556.4" y="355.0" width="47.2" height="16.5" rx="3"/>
+<text x="580.0" y="366.0" text-anchor="middle" font-size="10">ACTIVE</text>
+<path class="call" d="M847,373 L923,373" marker-end="url(#d32-arr)"/>
+<g class="n-value"><rect x="618" y="434" width="229" height="58" rx="6"/>
+<text x="732.5" y="458.5" text-anchor="middle" font-size="10.5" font-weight="700">비활성  →  restoreFailed</text>
+<text x="732.5" y="472.5" text-anchor="middle" font-size="10.5">수동 복구 절차 안내</text>
+</g>
+<g class="n-reject"><rect x="923" y="434" width="229" height="58" rx="6"/>
+<text x="1037.5" y="458.5" text-anchor="middle" font-size="10.5" font-weight="700">DhcpConfigRestoreFailed</text>
+<text x="1037.5" y="472.5" text-anchor="middle" font-size="10.5">Exception  ·  500</text>
+</g>
+<path class="call" d="M427.5,402 L427.5,463 L618,463" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="432.5" y="419.0" width="40.0" height="16.5" rx="3"/>
+<text x="437.5" y="430.0" text-anchor="start" font-size="10">비활성</text>
+<path class="call" d="M847,463 L923,463" marker-end="url(#d32-arr)"/>
+<g class="n-rule"><rect x="8" y="524" width="229" height="42" rx="6"/>
+<text x="122.5" y="540.5" text-anchor="middle" font-size="10.5" font-weight="700">ApplyOutcome.applied</text>
+<text x="122.5" y="554.5" text-anchor="middle" font-size="10.5">(archivedVersionId)</text>
+</g>
+<g class="n-ctl"><rect x="923" y="524" width="229" height="42" rx="6"/>
+<text x="1037.5" y="540.5" text-anchor="middle" font-size="10.5" font-weight="700">302 + flash</text>
+<text x="1037.5" y="554.5" text-anchor="middle" font-size="10.5">적용 완료 안내</text>
+</g>
+<path class="call" d="M122.5,402 L122.5,524" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="127.5" y="439.0" width="20.0" height="16.5" rx="3"/>
+<text x="132.5" y="450.0" text-anchor="start" font-size="10">예</text>
+<path class="call" d="M237,545 L923,545" marker-end="url(#d32-arr)"/>
+<rect class="lbl-bg" x="481.4" y="527.0" width="197.2" height="16.5" rx="3"/>
+<text x="580.0" y="538.0" text-anchor="middle" font-size="10">적용 성공 — 컨트롤러가 던지지 않는다</text>
+<g class="n-data"><rect x="8" y="592" width="1144" height="46" rx="6"/>
+<text x="580.0" y="609.5" text-anchor="middle" font-size="10.5" font-weight="700">네 귀결 공통 — persister → PxeNetworkConfigService.save(request, outcome) → PxeNetworkConfig.recordApply</text>
+<text x="580.0" y="624.5" text-anchor="middle" font-size="10.5">프로세스 락 안에서 성패 무관하게 기록한다. APPLIED 가 아니면 재진입 폼이 마지막 적용 배지와 드리프트 경고를 낸다.</text>
+</g></svg><figcaption>판정 상자(노랑) 셋에서 갈라진다. 게이트를 실행하지 못하면 500, 문법이 거절되면 400 에 원문을 붙여 보여주고, 재기동이 실패하면 이전 조각으로 되돌린 뒤 살아났는지에 따라 500 두 가지로 갈린다.</figcaption></figure>
+        <p>네 귀결 중 <code>APPLIED</code> 가 아닌 셋은 <b>저장은 남기고</b> 끝난다. 그래서 폼에 다시 들어가면 마지막 적용 배지(<code>복원됨(재기동 실패)</code> 등)와 드리프트 경고 — "저장된 구성이 현재 서빙 중인 dnsmasq 조각과 다릅니다 … 다시 저장하면 재적용을 시도합니다" — 가 뜨고, 입력값은 그대로 프리필된다. 사용자는 값을 고쳐 다시 제출하는 것으로 재적용을 시도한다.</p>
+
+        <h4>3-3. 게스트 첫 접촉 — proxyDHCP 에서 우리 서버를 어떻게 찾아오는가</h4>
+        <p style="margin-top:0;">사내망(proxyDHCP)에서는 주소를 주는 쪽과 부팅 위치를 답하는 쪽이 다르다. 게스트 ROM 이 한 번의 브로드캐스트로 두 답을 받고, 부트 서버 질의는 포트 <b>4011</b> 로 우리에게 따로 온다. 자체 DHCP 모드에서는 ②와 ④가 없고 dnsmasq 가 IP 와 부팅 파일명을 한 번에 준다.</p>
+        <figure class="dg"><svg xmlns="http://www.w3.org/2000/svg" width="1156" height="639" viewBox="0 0 1156 639">
+<defs><marker id="d33-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arr-fill"/></marker><marker id="d33-arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" class="arr-open"/></marker></defs>
+<line class="lane" x1="103.0" y1="72" x2="103.0" y2="635"/>
+<g class="n-guest"><rect x="12.0" y="16" width="182" height="56" rx="6"/>
+<text x="103.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">게스트 ROM</text>
+<text x="103.0" y="53.0" text-anchor="middle" font-size="10">(UEFI · client-arch 7)</text>
+</g>
+<line class="lane" x1="293.0" y1="72" x2="293.0" y2="635"/>
+<g class="n-data"><rect x="202.0" y="16" width="182" height="56" rx="6"/>
+<text x="293.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">사내 DHCP</text>
+<text x="293.0" y="53.0" text-anchor="middle" font-size="10">(우리 것이 아니다)</text>
+</g>
+<line class="lane" x1="483.0" y1="72" x2="483.0" y2="635"/>
+<g class="n-part"><rect x="392.0" y="16" width="182" height="56" rx="6"/>
+<text x="483.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">dnsmasq</text>
+<text x="483.0" y="53.0" text-anchor="middle" font-size="10">(proxy · 우리 서버)</text>
+</g>
+<line class="lane" x1="673.0" y1="72" x2="673.0" y2="635"/>
+<g class="n-part"><rect x="582.0" y="16" width="182" height="56" rx="6"/>
+<text x="673.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">tftp</text>
+<text x="673.0" y="53.0" text-anchor="middle" font-size="10">(우리 서버)</text>
+</g>
+<line class="lane" x1="863.0" y1="72" x2="863.0" y2="635"/>
+<g class="n-guest"><rect x="772.0" y="16" width="182" height="56" rx="6"/>
+<text x="863.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">iPXE</text>
+<text x="863.0" y="53.0" text-anchor="middle" font-size="10">(게스트에서 실행)</text>
+</g>
+<line class="lane" x1="1053.0" y1="72" x2="1053.0" y2="635"/>
+<g class="n-ctl"><rect x="962.0" y="16" width="182" height="56" rx="6"/>
+<text x="1053.0" y="40.5" text-anchor="middle" font-size="10" font-weight="700">앱</text>
+<text x="1053.0" y="53.0" text-anchor="middle" font-size="10">/api/pxe/v1</text>
+</g>
+<line class="call" x1="103.0" y1="124" x2="483.0" y2="124" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="105.0" y="94.0" width="376.1" height="30.0" rx="3"/>
+<text x="293.0" y="106.0" text-anchor="middle" font-size="11">① DISCOVER 브로드캐스트 — option 60 PXEClient:Arch:00007</text>
+<text x="293.0" y="119.0" text-anchor="middle" font-size="11">사내 DHCP 와 우리 dnsmasq 가 함께 받는다</text>
+<line class="ret" x1="293.0" y1="155" x2="103.0" y2="155" marker-end="url(#d33-arro)"/>
+<rect class="lbl-bg" x="39.9" y="138.0" width="316.2" height="17.0" rx="3"/>
+<text x="198.0" y="150.0" text-anchor="middle" class="muted" font-size="11">② OFFER — IP 10.1.1.7 (주소는 사내 DHCP 가 준다)</text>
+<line class="ret" x1="483.0" y1="199" x2="103.0" y2="199" marker-end="url(#d33-arro)"/>
+<rect class="lbl-bg" x="125.6" y="169.0" width="334.7" height="30.0" rx="3"/>
+<text x="293.0" y="181.0" text-anchor="middle" class="muted" font-size="11">③ proxy OFFER — option 60 PXEClient · 97 UUID 만</text>
+<text x="293.0" y="194.0" text-anchor="middle" class="muted" font-size="11">IP 도 파일명도 없다 — "부팅은 나에게 물어라" 는 표시</text>
+<line class="call" x1="103.0" y1="230" x2="293.0" y2="230" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="162.3" y="213.0" width="71.4" height="17.0" rx="3"/>
+<text x="198.0" y="225.0" text-anchor="middle" font-size="11">④ REQUEST</text>
+<line class="ret" x1="293.0" y1="261" x2="103.0" y2="261" marker-end="url(#d33-arro)"/>
+<rect class="lbl-bg" x="141.1" y="244.0" width="113.8" height="17.0" rx="3"/>
+<text x="198.0" y="256.0" text-anchor="middle" class="muted" font-size="11">④' ACK — IP 확정</text>
+<line class="call" x1="103.0" y1="292" x2="483.0" y2="292" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="175.8" y="275.0" width="234.4" height="17.0" rx="3"/>
+<text x="293.0" y="287.0" text-anchor="middle" font-size="11">⑤ 포트 4011 REQUEST — 부트 서버 질의</text>
+<line class="ret" x1="483.0" y1="336" x2="103.0" y2="336" marker-end="url(#d33-arro)"/>
+<rect class="lbl-bg" x="41.6" y="306.0" width="502.8" height="30.0" rx="3"/>
+<text x="293.0" y="318.0" text-anchor="middle" class="muted" font-size="11">⑤' ACK — siaddr=10.1.1.10 · file=ipxe.efi</text>
+<text x="293.0" y="331.0" text-anchor="middle" class="muted" font-size="11">pxe-service tag:rom · client-arch 하나에 서비스가 하나라 메뉴 대신 파일로 답한다</text>
+<line class="call" x1="103.0" y1="367" x2="673.0" y2="367" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="335.3" y="350.0" width="105.5" height="17.0" rx="3"/>
+<text x="388.0" y="362.0" text-anchor="middle" font-size="11">⑥ RRQ ipxe.efi</text>
+<line class="ret" x1="673.0" y1="398" x2="103.0" y2="398" marker-end="url(#d33-arro)"/>
+<rect class="lbl-bg" x="252.8" y="381.0" width="270.5" height="17.0" rx="3"/>
+<text x="388.0" y="393.0" text-anchor="middle" class="muted" font-size="11">⑥' 바이너리 — 실행하면 주체가 iPXE 로 바뀐다</text>
+<path class="call" d="M863.0,418 h-16 v13 h16" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="553.0" y="410.0" width="289.0" height="17.0" rx="3"/>
+<text x="837.0" y="422.0" text-anchor="end" font-size="11">⑦ dhcp — user-class iPXE 를 실어 다시 묻는다</text>
+<line class="call" x1="863.0" y1="465" x2="483.0" y2="465" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="484.2" y="448.0" width="377.6" height="17.0" rx="3"/>
+<text x="673.0" y="460.0" text-anchor="middle" font-size="11">⑧ 같은 왕복(DISCOVER · 4011 REQUEST) — tag:ipxe 로 갈린다</text>
+<line class="ret" x1="483.0" y1="496" x2="863.0" y2="496" marker-end="url(#d33-arro)"/>
+<rect class="lbl-bg" x="511.1" y="479.0" width="323.7" height="17.0" rx="3"/>
+<text x="673.0" y="491.0" text-anchor="middle" class="muted" font-size="11">⑧' ACK — file=boot.ipxe (pxe-service tag:ipxe)</text>
+<line class="call" x1="863.0" y1="527" x2="673.0" y2="527" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="711.9" y="510.0" width="112.3" height="17.0" rx="3"/>
+<text x="768.0" y="522.0" text-anchor="middle" font-size="11">⑨ RRQ boot.ipxe</text>
+<line class="ret" x1="673.0" y1="571" x2="863.0" y2="571" marker-end="url(#d33-arro)"/>
+<rect class="lbl-bg" x="619.8" y="541.0" width="296.4" height="30.0" rx="3"/>
+<text x="768.0" y="553.0" text-anchor="middle" class="muted" font-size="11">⑨' chain http://pxe:***@10.1.1.10:8080</text>
+<text x="768.0" y="566.0" text-anchor="middle" class="muted" font-size="11">/api/pxe/v1/boot?systemUUID=…&amp;macAddress=…</text>
+<line class="call" x1="863.0" y1="615" x2="1053.0" y2="615" marker-end="url(#d33-arr)"/>
+<rect class="lbl-bg" x="792.0" y="585.0" width="332.1" height="30.0" rx="3"/>
+<text x="958.0" y="597.0" text-anchor="middle" font-size="11">⑩ GET /boot — Basic credential · LAN 제한(S19-2)</text>
+<text x="958.0" y="610.0" text-anchor="middle" font-size="11">등록 · 게이트 판정 · 진단 리눅스 체인로드는 종전 그대로</text>
+</svg><figcaption>proxyDHCP 에서 주소를 주는 쪽과 부팅 위치를 답하는 쪽이 다르다. ROM 은 사내 DHCP 에서 IP 를, 우리 dnsmasq 에서 부팅 위치를 따로 받고, iPXE 로 바뀐 뒤 같은 왕복을 한 번 더 돌아 우리 앱에 닿는다.</figcaption></figure>
+        <div class="callout warn"><b>방화벽 두 자리</b> — <code>dhcp</code> 서비스(67 · 68)만 열면 ⑤가 닿지 않는다. proxyDHCP 의 부트 서버 질의는 <b><code>4011/udp</code></b> 로 오므로 이 포트를 함께 열어야 한다. tftp 는 별도 소켓(<code>tftp.socket</code>)이고, ⑨부터는 S19-2 의 Basic credential 과 LAN 제한이 그대로 적용된다.</div>
+
+        <h4>3-4. 관측 — 화면이 읽어 오는 것</h4>
+        <p style="margin-top:0;"><b>임대 목록</b>(<code>/system/pxe-infra</code>)은 <code>DhcpLeaseReader</code> 가 임대 파일을 읽어 <code>DnsmasqLeaseParser</code> 에 넘긴 결과다. 한 줄이 한 임대이고 <code>&lt;만료 epoch&gt; &lt;MAC&gt; &lt;IP&gt; &lt;hostname&gt; &lt;client-id&gt;</code> 형식이며, 만료 <code>0</code> 은 무만료다. DHCPv6 <code>duid</code> 줄과 손상된 줄은 그 줄만 버린다 — 어떤 입력에도 예외를 던지지 않는다. 활성 여부는 파일이 적어 주는 것이 아니라 <b>만료 시각과 관측 시각의 비교</b>로 판정한다(dnsmasq 가 만료된 줄을 다음 갱신까지 남기기 때문이다). 저장된 구성이 <code>PROXY</code> 면 임대가 존재할 수 없으므로 표 대신 안내를 낸다.</p>
+        <p><b>자산 대시보드</b>의 "PXE 인프라 (dnsmasq)" 영역은 슬롯 하나(조각 파일의 존재 · 크기 · 수정 시각 · 전체 구성 문법 판정)와 헤더 chip(서비스 상태 · 모드 · 활성 임대)으로 이뤄진다. 임대 chip 은 자체 DHCP 모드에서만 낸다. 조각 경로가 설정되지 않은 환경에서는 <code>PxeInfraProperties</code> 빈이 통째로 없고, 영역은 명령을 한 번도 spawn 하지 않은 채 "서빙 비활성" 으로 조회된다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 클래스별 책임 ===== -->
+    <details class="section" id="s4" open>
+      <summary>§4. 클래스별 책임 — 맡는 것 · 맡지 않는 것</summary>
+      <div class="body">
+        <h4>4-1. 모드와 렌더</h4>
+        <p style="margin-top:0;">모드가 늘어도 분기가 늘지 않게, 갈리는 것을 전부 enum 상수 안으로 넣었다. 렌더러에는 모드 분기가 없고 상수의 메서드를 순서대로 부를 뿐이다.</p>
+        <table>
+          <thead><tr><th>클래스</th><th>변경</th><th>맡는 것</th><th>맡지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>DhcpMode</code></td><td><span class="chip new">신규</span></td><td>모드 두 값과 그 표기. <code>requiresAddressing()</code> 이 필수 필드 판정의 SSOT. 조각의 모드별 세 구간(<code>appendAddressing</code> · <code>appendRomBoot</code> · <code>appendIpxeBoot</code>)을 상수가 직접 든다</td><td>화면 라벨 이상의 UI · 명령 실행 · 파일 IO</td></tr>
+            <tr><td><code>DnsmasqConfigRenderer</code></td><td><span class="chip new">신규</span></td><td>머리말과 공통 줄의 순서 · 결정성(같은 입력 → 같은 바이트). 복원용 빈 조각(<code>renderEmpty</code>) · 조각과 같은 디렉토리에 temp 쓰기(<code>renderToTemp</code>)</td><td>모드 분기 · 파일 교체 · 문법 검증</td></tr>
+            <tr><td><code>PxeNetworkConfig</code></td><td><span class="chip mod">수정</span></td><td>한 행짜리 desired 와 마지막 적용 기록. 모드가 요구하지 않는 주소 배정 값을 null 로 정규화하고 invariant 를 안전망으로 검사한다</td><td>렌더 · 적용 · 화면 표기</td></tr>
+            <tr><td><code>SubnetCidr</code> · <code>LeaseSeconds</code> · <code>IpAddressVO</code></td><td><span class="chip keep">유지</span></td><td>형식과 경계의 판정을 타입이 든다 — <code>containsRange</code> 가 범위 검증의 SSOT</td><td>모드별 필수 판정</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-2. 적용</h4>
+        <p style="margin-top:0;">적용 경로는 예외로 끊지 않고 값(<code>ApplyOutcome</code>)으로 귀결한다. 예외로 바꾸는 일은 상수가 알고(<code>ApplyResult</code>), 부르는 자리는 컨트롤러 한 곳이다.</p>
+        <table>
+          <thead><tr><th>클래스</th><th>변경</th><th>맡는 것</th><th>맡지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>DhcpConfigApplyService</code></td><td><span class="chip move">이름 변경</span></td><td>프로세스 락 · 적용 상태기계(렌더 → 교체 → 게이트 → 재기동 → 검증) · 복원. 데몬이 바뀌어도 이 상태기계는 그대로다</td><td>DB 저장(콜백에 위임) · 예외 승격</td></tr>
+            <tr><td><code>ApplyOutcome</code> · <code>ApplyResult</code></td><td><span class="chip keep">유지</span></td><td>귀결 네 종과 그 부속 값. 각 상수가 "적용 안 됨을 어떤 예외로 알릴지" 를 스스로 안다(method-per-constant)</td><td>어느 상태인지 판단하는 일</td></tr>
+            <tr><td><code>AllowedCommand</code></td><td><span class="chip mod">수정</span></td><td>허용 명령 셋을 dnsmasq 3 종으로 교체. 절대 경로 · 고정 플래그 · 인자 모양 · sudo 여부 · 타임아웃 · sudoers 예시를 상수가 보유한다</td><td>결과 해석</td></tr>
+            <tr><td><code>SystemCommandRunner</code> · <code>ProcessSystemCommandRunner</code></td><td><span class="chip keep">유지</span></td><td>셸을 거치지 않는 argv 실행과 종료 양태(<code>COMPLETED</code> · <code>NOT_FOUND</code> · <code>TIMED_OUT</code>) 흡수</td><td>어떤 명령인지 아는 일</td></tr>
+            <tr><td><code>SystemServiceInspector</code></td><td><span class="chip mod">수정</span></td><td><code>systemctl is-active dnsmasq</code> 결과를 <code>ServiceState</code> 로 옮긴다(비특권)</td><td>재기동 · 복원</td></tr>
+            <tr><td><code>AtomicAssetSwap</code></td><td><span class="chip keep">유지</span></td><td>공용 부품 — temp → 조각 <code>ATOMIC_MOVE</code>, 이전본을 버전 저장소에 archive, 복원</td><td>dnsmasq 에 대한 지식</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-3. 화면과 검증</h4>
+        <p style="margin-top:0;">모드가 필수 필드를 정한다는 사실은 세 곳이 알아야 하는데, 그 판정은 하나다. 화면은 <code>&lt;fieldset disabled&gt;</code> 로 막고(브라우저가 전송에서 제외한다), Validator 는 그 모드에서만 필수를 요구하며, 엔티티는 비정상 경로를 대비한 안전망으로만 던진다.</p>
+        <table>
+          <thead><tr><th>클래스</th><th>변경</th><th>맡는 것</th><th>맡지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>PxeNetworkConfigController</code></td><td><span class="chip mod">수정</span></td><td>GET 프리필 폼 · POST 검증 → 적용 → 기록 → 승격. 폼 오류는 예외가 아니라 400 재렌더, 성공은 302 와 flash</td><td>렌더 · 명령 실행 · 트랜잭션</td></tr>
+            <tr><td><code>PxeNetworkConfigValidator</code></td><td><span class="chip mod">수정</span></td><td>모드별 필수 · Value Object 형식 메시지 · 범위가 서브넷 안인지 · 시작 ≤ 끝. <code>PROXY</code> 의 주소 배정 값은 보지 않는다(서버가 버릴 값이라 막을 이유가 없다)</td><td>저장 · 적용</td></tr>
+            <tr><td><code>PxeNetworkConfigMapper</code></td><td><span class="chip mod">수정</span></td><td>문자열 → Value Object 변환의 단일 지점. 신규 생성과 기존 갱신이 같은 변환을 공유한다</td><td>검증 · 필수 판정</td></tr>
+            <tr><td><code>PxeNetworkConfigService</code></td><td><span class="chip keep">유지</span></td><td>트랜잭션 경계 — 싱글턴 행 upsert 와 적용 귀결 기록(성패 무관)</td><td>적용 · 예외 승격</td></tr>
+            <tr><td><code>network-form.html</code> · <code>pxe-network-form.js</code></td><td><span class="chip mod">수정</span> <span class="chip new">신규</span></td><td>라디오 ↔ 주소 배정 fieldset 의 disabled · 안내 표시 · 필수 라벨 강조 · 마지막 적용 배지 · 드리프트 경고</td><td>값 검증</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-4. 관측</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>변경</th><th>맡는 것</th><th>맡지 않는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>DnsmasqLeaseParser</code></td><td><span class="chip new">신규</span></td><td>임대 파일 텍스트 → 항목 목록. 무만료 · DHCPv6 <code>duid</code> 줄 · 손상 줄을 그 줄만 버려 흡수한다</td><td>정렬 · 표기 · 활성 판정</td></tr>
+            <tr><td><code>DhcpLeaseReader</code> · <code>LeaseSnapshot</code></td><td><span class="chip mod">수정</span> <span class="chip keep">유지</span></td><td>파일 읽기 경계(미구성 · 부재 · IO 실패 → 빈 스냅샷)와 활성 건수 집계</td><td>파싱 규칙 · 화면 정렬</td></tr>
+            <tr><td><code>PxeInfraController</code></td><td><span class="chip mod">수정</span></td><td>정렬(활성 우선 · 만료 늦은 순) · KST 표기 · <code>PROXY</code> 면 표 대신 안내</td><td>파싱 · 상태 변경</td></tr>
+            <tr><td><code>DnsmasqConfigInspector</code> · <code>ConfigFileCondition</code></td><td><span class="chip move">이름 변경</span> <span class="chip mod">수정</span></td><td>조각 존재 + 전체 구성 문법으로 판정. 미구성 · 조각 부재면 명령을 실행하지 않는다</td><td>적용 · 재기동</td></tr>
+            <tr><td><code>DhcpAssetArea</code></td><td><span class="chip move">이름 변경</span></td><td>자산 대시보드의 한 영역 — 슬롯 하나와 헤더 chip. 미구성이면 chip 을 내지 않는다. 봉인 미지원을 <code>supportsSeal()</code> 로 명시해 화면이 버튼을 렌더하지 않게 한다</td><td>재기동 · 봉인</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-5. 배선 — 앱 밖</h4>
+        <table>
+          <thead><tr><th>대상</th><th>변경</th><th>맡는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>PxeInfraProperties</code></td><td><span class="chip mod">수정</span></td><td>경로 셋(조각 · 메인 구성 · 임대)과 영역 활성화 스위치. 조각 경로 키가 없으면 빈 자체가 없다</td></tr>
+            <tr><td><code>docs/pxe-dnsmasq-setup.md</code></td><td><span class="chip new">신규</span></td><td>패키지 · sudoers 한 줄 · 방화벽 <code>4011/udp</code> · 조각 디렉토리 권한 · systemd <code>ReadWritePaths</code> · env · 모드별 조각 예시 · 확인 절차. 종전 dhcpd 배선 문서는 삭제했다</td></tr>
+            <tr><td><code>ddl/R16_pxe_network_config_dnsmasq.sql</code></td><td><span class="chip new">신규</span></td><td><code>dhcp_mode</code> 추가 · 주소 배정 열 nullable 전환 · <code>default_lease_seconds</code> → <code>lease_seconds</code> · <code>max_lease_seconds</code> 제거</td></tr>
+            <tr><td>tftp <code>boot.ipxe</code> · <code>ipxe.efi</code></td><td><span class="chip keep">유지</span></td><td>앱이 만들지 않는 런북 관리 파일 — 조각은 파일명만 가리킨다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §5 계약 ===== -->
+    <details class="section" id="s5" open>
+      <summary>§5. 계약 — 조각 · 상태 · 예외 · 명령 · 배선</summary>
+      <div class="body">
+        <h4>조각</h4>
+        <ul>
+          <li>경로 <code>/etc/dnsmasq.d/serverprovision-pxe.conf</code> — Rocky 의 dnsmasq 기본 <code>conf-dir</code> 라 include 를 잇지 않는다.</li>
+          <li>머리말 <code>#&nbsp;Managed by ServerProvision. Do not edit by hand.</code> 는 가변값 없는 고정 문자열이다.</li>
+          <li>빈 조각 = 머리말 + <code>#&nbsp;(구성 없음 — 유효한 빈 조각)</code>. 복원 경로를 하나로 두기 위해 <b>파일을 지우지 않는다</b>.</li>
+        </ul>
+
+        <h4>모드별 필수 필드</h4>
+        <table>
+          <thead><tr><th>모드</th><th>필수</th><th>쓰지 않음</th><th>화면</th></tr></thead>
+          <tbody>
+            <tr><td><code>AUTHORITATIVE</code> (자체 DHCP)</td><td>서브넷 · 부트 서버 · 리스 범위 · 라우터 · 주 DNS · 임대 시간</td><td>—</td><td>주소 배정 묶음이 살아 있다</td></tr>
+            <tr><td><code>PROXY</code> (proxyDHCP)</td><td>서브넷 · 부트 서버</td><td>범위 · 라우터 · DNS · 임대 시간 — 값이 와도 서버가 버린다(NULL 저장)</td><td>주소 배정 묶음이 <code>disabled</code> + 안내</td></tr>
+          </tbody>
+        </table>
+
+        <h4>상태와 예외</h4>
+        <table>
+          <thead><tr><th><code>applied_result</code></th><th>뜻</th><th>예외</th><th>HTTP</th></tr></thead>
+          <tbody>
+            <tr><td><code>APPLIED</code></td><td>조각 교체 · 재기동 · active 검증까지 통과</td><td>—</td><td>302 + flash</td></tr>
+            <tr><td><code>REJECTED</code></td><td><code>dnsmasq --test</code> 가 문법 거절(재기동 전)</td><td><code>DhcpConfigInvalidException</code></td><td>400 — 게이트 원문을 그대로 보여준다</td></tr>
+            <tr><td><code>ROLLED_BACK</code></td><td>게이트 실행 불능이거나 재기동 실패 → 이전 구성으로 서빙 중</td><td><code>DhcpServiceControlFailedException</code></td><td>500</td></tr>
+            <tr><td><code>RESTORE_FAILED</code></td><td>재기동과 복원이 모두 실패해 서비스가 비활성</td><td><code>DhcpConfigRestoreFailedException</code></td><td>500 — 수동 복구 절차를 안내</td></tr>
+          </tbody>
+        </table>
+        <p>폼 검증 위반은 이 표에 없다. 예외가 아니라 <b>400 으로 폼을 다시 렌더</b>하며 필드마다 메시지를 붙인다 — 정상 UX 안에서 사용자가 낼 수 있는 잘못은 예외로 거절하지 않는다는 원칙 그대로다.</p>
+
+        <h4>명령 셋</h4>
+        <table>
+          <thead><tr><th>상수</th><th>명령</th><th>권한</th><th>쓰임</th></tr></thead>
+          <tbody>
+            <tr><td><code>DNSMASQ_SYNTAX_CHECK</code></td><td><code>/usr/sbin/dnsmasq --test -C &lt;conf&gt;</code></td><td>비특권</td><td>적용 게이트 · 조각 판정</td></tr>
+            <tr><td><code>DNSMASQ_SERVICE_STATUS</code></td><td><code>/usr/bin/systemctl is-active dnsmasq</code></td><td>비특권</td><td>적용 후 검증 · 대시보드 chip</td></tr>
+            <tr><td><code>DNSMASQ_SERVICE_RESTART</code></td><td><code>/usr/bin/systemctl restart dnsmasq</code></td><td>sudo</td><td>적용 · 복원</td></tr>
+          </tbody>
+        </table>
+        <p>sudo 가 필요한 상수는 자기 sudoers 줄을 스스로 들고 있다 — <code>provisioning ALL=(root) NOPASSWD: /usr/bin/systemctl restart dnsmasq</code>. 런북이 이 값을 인용하므로 권한 요건과 명령이 같은 곳에 산다.</p>
+
+        <h4>배선</h4>
+        <ul>
+          <li><b>env</b> — <code>PXE_DNSMASQ_FRAGMENT_PATH</code>(있어야 영역이 활성) · <code>PXE_DNSMASQ_CONF_PATH</code>(기본 <code>/etc/dnsmasq.conf</code>) · <code>PXE_DNSMASQ_LEASES_PATH</code>(기본 <code>/var/lib/dnsmasq/dnsmasq.leases</code>).</li>
+          <li><b>파일 권한</b> — <code>/etc/dnsmasq.d</code> 를 <code>provisioning</code> 그룹 쓰기(2775)로, systemd 드롭인에 <code>ReadWritePaths=/etc/dnsmasq.d</code>.</li>
+          <li><b>방화벽</b> — <code>dhcp</code> 서비스(67 · 68) + <b><code>4011/udp</code></b>. tftp 는 별도 소켓. 종전 <code>dhcpd</code> 는 disable 해 포트 67 을 양보한다.</li>
+          <li><b>게스트 채널 대역</b> <code>PXE_GUEST_ALLOWED_CIDRS</code> 는 env 로 남긴다 — 화면의 서브넷과 별개 값이다(S19-2 의 보안 경계를 화면 입력에 묶지 않는다).</li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

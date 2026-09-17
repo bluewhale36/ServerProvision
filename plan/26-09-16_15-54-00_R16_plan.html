@@ -478,8 +478,11 @@ dhcp-match=set:efi,option:client-arch,9
 dhcp-userclass=set:ipxe,iPXE
 tag-if=set:rom,tag:efi,tag:!ipxe
 pxe-prompt="ServerProvision",0
-pxe-service=tag:rom,X86-64_EFI,"ServerProvision PXE",ipxe.efi,&lt;bootServerIp&gt;
-dhcp-boot=tag:ipxe,boot.ipxe,,&lt;bootServerIp&gt;</code></pre>
+pxe-service=tag:rom,BC_EFI,"ServerProvision PXE",ipxe.efi,&lt;bootServerIp&gt;
+pxe-service=tag:rom,x86-64_EFI,"ServerProvision PXE",ipxe.efi,&lt;bootServerIp&gt;
+pxe-service=tag:ipxe,BC_EFI,"ServerProvision iPXE",boot.ipxe,&lt;bootServerIp&gt;
+pxe-service=tag:ipxe,x86-64_EFI,"ServerProvision iPXE",boot.ipxe,&lt;bootServerIp&gt;</code></pre>
+<p class="note">실기 정정(2026-09-17): 실 UEFI ROM 은 client-arch 7 을 보내는데 dnsmasq 의 CSA 이름표는 RFC 4578 과 반대(<code>x86-64_EFI</code>=7 · <code>BC_EFI</code>=9)라 두 이름을 다 선언한다. proxy 모드에서 dnsmasq 는 <code>dhcp-boot</code> 를 쓰지 않으므로 iPXE 둘째 단도 <code>pxe-service</code> 다. 부팅 파일 교환은 UDP 4011 이라 방화벽에 <code>4011/udp</code> 를 연다(런북 §3-1).</p>
 
         <h4>4-5. 렌더 골든 — <code>AUTHORITATIVE</code></h4>
         <pre><code># Managed by ServerProvision. Do not edit by hand.
@@ -989,8 +992,10 @@ dhcp-boot=tag:ipxe,boot.ipxe,,&lt;bootServerIp&gt;</code></pre>
       L.push('dhcp-userclass=set:ipxe,iPXE');
       L.push('tag-if=set:rom,tag:efi,tag:!ipxe');
       L.push('pxe-prompt="ServerProvision",0');
-      L.push('pxe-service=tag:rom,X86-64_EFI,"ServerProvision PXE",ipxe.efi,' + boot);
-      L.push('dhcp-boot=tag:ipxe,boot.ipxe,,' + boot);
+      L.push('pxe-service=tag:rom,BC_EFI,"ServerProvision PXE",ipxe.efi,' + boot);
+      L.push('pxe-service=tag:rom,x86-64_EFI,"ServerProvision PXE",ipxe.efi,' + boot);
+      L.push('pxe-service=tag:ipxe,BC_EFI,"ServerProvision iPXE",boot.ipxe,' + boot);
+      L.push('pxe-service=tag:ipxe,x86-64_EFI,"ServerProvision iPXE",boot.ipxe,' + boot);
     } else {
       var rs = String(e.rangeStart).trim() || '<rangeStart>';
       var re = String(e.rangeEnd).trim() || '<rangeEnd>';
