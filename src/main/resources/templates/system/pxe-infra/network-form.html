@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  E1-I-3-c. dhcpd PXE 네트워크 구성 폼.
+  E1-I-3-c → R16. PXE 네트워크 구성 폼(dnsmasq · 모드 2).
   ─────────────────────────────────────────────────────────
-  관리자가 서브넷·리스풀·라우터·DNS·부트 서버를 정의·수정한다. 저장과 동시에 dhcpd 조각을 렌더·적용한다
-  (스왑 → dhcpd -t 게이트 → 재기동 → 검증). 성공은 302 PRG, 실패는 advice 가 400(문법 거절)/500 으로 처리한다.
+  관리자가 DHCP 모드(자체 DHCP · proxyDHCP)와 그 모드의 값을 정의 · 수정한다. 저장과 동시에 dnsmasq 조각을 렌더 · 적용한다
+  (스왑 → dnsmasq --test 게이트 → 재기동 → 검증). 성공은 302 PRG, 실패는 advice 가 400(문법 거절)/500 으로 처리한다.
+  proxyDHCP 모드에서는 주소 배정 필드 그룹이 disabled 된다(UI 1차 차단 — DhcpMode.requiresAddressing() 과 같은 판정을
+  pxe-network-form.js 가 화면에서 적용). 서버는 그 필드 값을 어차피 버린다.
 
   Model:
-    pxeNetworkConfigRequest : PxeNetworkConfigRequest  @ModelAttribute (프리필·재렌더 바인딩)
-    config                  : PxeNetworkConfigResponse  (저장된 구성이 있을 때만 — 적용 결과·드리프트 표시)
+    pxeNetworkConfigRequest : PxeNetworkConfigRequest  @ModelAttribute (프리필 · 재렌더 바인딩)
+    config                  : PxeNetworkConfigResponse  (저장된 구성이 있을 때만 — 적용 결과 · 드리프트 표시)
+                                · dhcpModeLabel    : String  (자체 DHCP · proxyDHCP)
                                 · appliedResult    : String  (APPLIED/REJECTED/ROLLED_BACK/RESTORE_FAILED, nullable)
                                 · appliedAt        : LocalDateTime
                                 · driftFromServing : boolean  (저장 desired ≠ 현재 서빙 조각)
@@ -23,7 +26,7 @@
 
 <div class="n-page-md">
     <div class="n-page-header">
-        <h1 class="n-page-title">PXE 네트워크 구성 (dhcpd)</h1>
+        <h1 class="n-page-title">PXE 네트워크 구성 (dnsmasq)</h1>
         <div class="n-header-actions">
             <a th:href="@{/system/pxe-infra}" class="n-back-link">← PXE 인프라</a>
         </div>
@@ -32,9 +35,10 @@
     <!--/* 적용 성공 flash */-->
     <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status" th:text="${flashMessage}"></div>
 
-    <!--/* 저장된 구성의 마지막 적용 결과·드리프트 안내 */-->
+    <!--/* 저장된 구성의 마지막 적용 결과 · 드리프트 안내 */-->
     <th:block th:if="${config != null}">
         <div class="n-hint">
+            <span class="n-badge n-badge-gray" th:text="${config.dhcpModeLabel}">자체 DHCP</span>
             <span th:switch="${config.appliedResult}">
                 <span th:case="'APPLIED'" class="n-badge n-badge-green">적용됨</span>
                 <span th:case="'REJECTED'" class="n-badge n-badge-gray">문법 거절</span>
@@ -46,11 +50,11 @@
                   th:text="'마지막 적용 : ' + ${#temporals.format(config.appliedAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
         </div>
         <div th:if="${config.driftFromServing}" class="n-alert n-alert-danger" role="alert">
-            저장된 구성이 현재 서빙 중인 dhcpd 조각과 다릅니다 — 마지막 적용이 실패해 이전 구성이 서빙되고 있습니다.
+            저장된 구성이 현재 서빙 중인 dnsmasq 조각과 다릅니다 — 마지막 적용이 실패해 이전 구성이 서빙되고 있습니다.
             아래 값을 확인하고 다시 저장하면 재적용을 시도합니다.
         </div>
         <div th:if="${config.lastGateOutput != null}" class="n-form-group">
-            <label class="n-label">dhcpd 문법 검사 출력 (dhcpd -t)</label>
+            <label class="n-label">dnsmasq 문법 검사 출력 (dnsmasq --test)</label>
             <pre class="n-code-block" th:text="${config.lastGateOutput}"></pre>
         </div>
     </th:block>
@@ -67,91 +71,101 @@
                 <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
 
                 <div class="n-form-group">
-                    <label class="n-label strong" for="subnetCidr">서브넷 CIDR</label>
+                    <label class="n-label strong">DHCP 모드</label>
+                    <label class="n-toggle-row">
+                        <input type="radio" th:field="*{dhcpMode}" value="AUTHORITATIVE">
+                        <span>자체 DHCP — 이 서버가 IP · 라우터 · DNS 까지 배정합니다(실습 LAN · 자체 서브넷)</span>
+                    </label>
+                    <label class="n-toggle-row">
+                        <input type="radio" th:field="*{dhcpMode}" value="PROXY">
+                        <span>proxyDHCP — IP 는 사내 DHCP 가 주고, 이 서버는 부팅 위치만 답합니다(사내망)</span>
+                    </label>
+                    <div class="n-hint">모드는 dnsmasq 조각 한 벌을 만듭니다. 바꾸면 저장 · 적용 때 조각이 통째로 다시 써집니다.</div>
+                    <div class="n-error" th:if="${#fields.hasErrors('dhcpMode')}" th:errors="*{dhcpMode}"></div>
+                </div>
+
+                <div class="n-form-group">
+                    <label class="n-label strong" for="subnetCidr">게스트 서브넷 CIDR</label>
                     <input id="subnetCidr" type="text" th:field="*{subnetCidr}" class="n-input"
                            th:classappend="${#fields.hasErrors('subnetCidr')} ? 'is-invalid'"
                            placeholder="예: 10.0.2.0/24">
-                    <div class="n-hint">네트워크 주소/prefix 형식(host bit 은 0). 넷마스크는 이 값에서 자동 계산됩니다.</div>
+                    <div class="n-hint">네트워크 주소/prefix 형식(host bit 은 0). 자체 DHCP 는 이 대역에서 배정하고, proxyDHCP 는 이 대역의 PXE 요청에만 답합니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('subnetCidr')}" th:errors="*{subnetCidr}"></div>
                 </div>
 
                 <div class="n-form-group">
-                    <label class="n-label strong" for="rangeStart">리스 시작 주소</label>
-                    <input id="rangeStart" type="text" th:field="*{rangeStart}" class="n-input"
-                           th:classappend="${#fields.hasErrors('rangeStart')} ? 'is-invalid'"
-                           placeholder="예: 10.0.2.100">
-                    <div class="n-error" th:if="${#fields.hasErrors('rangeStart')}" th:errors="*{rangeStart}"></div>
-                </div>
-
-                <div class="n-form-group">
-                    <label class="n-label strong" for="rangeEnd">리스 끝 주소</label>
-                    <input id="rangeEnd" type="text" th:field="*{rangeEnd}" class="n-input"
-                           th:classappend="${#fields.hasErrors('rangeEnd')} ? 'is-invalid'"
-                           placeholder="예: 10.0.2.200">
-                    <div class="n-hint">시작·끝 모두 서브넷 경계 안이어야 하며 시작 ≤ 끝 이어야 합니다.</div>
-                    <div class="n-error" th:if="${#fields.hasErrors('rangeEnd')}" th:errors="*{rangeEnd}"></div>
-                </div>
-
-                <div class="n-form-group">
-                    <label class="n-label strong" for="routers">라우터(게이트웨이)</label>
-                    <input id="routers" type="text" th:field="*{routers}" class="n-input"
-                           th:classappend="${#fields.hasErrors('routers')} ? 'is-invalid'"
-                           placeholder="예: 10.0.2.1">
-                    <div class="n-error" th:if="${#fields.hasErrors('routers')}" th:errors="*{routers}"></div>
-                </div>
-
-                <div class="n-form-group">
-                    <label class="n-label strong" for="primaryDns">주 DNS</label>
-                    <input id="primaryDns" type="text" th:field="*{primaryDns}" class="n-input"
-                           th:classappend="${#fields.hasErrors('primaryDns')} ? 'is-invalid'"
-                           placeholder="예: 8.8.8.8">
-                    <div class="n-error" th:if="${#fields.hasErrors('primaryDns')}" th:errors="*{primaryDns}"></div>
-                </div>
-
-                <div class="n-form-group">
-                    <label class="n-label" for="secondaryDns">보조 DNS (선택)</label>
-                    <input id="secondaryDns" type="text" th:field="*{secondaryDns}" class="n-input"
-                           th:classappend="${#fields.hasErrors('secondaryDns')} ? 'is-invalid'"
-                           placeholder="예: 8.8.4.4">
-                    <div class="n-hint">비워 두면 주 DNS 만 조각에 기록됩니다.</div>
-                    <div class="n-error" th:if="${#fields.hasErrors('secondaryDns')}" th:errors="*{secondaryDns}"></div>
-                </div>
-
-                <div class="n-form-group">
-                    <label class="n-label strong" for="bootServerIp">부트 서버 주소 (next-server)</label>
+                    <label class="n-label strong" for="bootServerIp">부트 서버 주소</label>
                     <input id="bootServerIp" type="text" th:field="*{bootServerIp}" class="n-input"
                            th:classappend="${#fields.hasErrors('bootServerIp')} ? 'is-invalid'"
                            placeholder="예: 10.0.2.2">
-                    <div class="n-hint">PXE 클라이언트가 부트 로더(<code>ipxe.efi</code>)를 받아올 TFTP 서버 주소입니다.</div>
+                    <div class="n-hint">게스트가 <code>ipxe.efi</code> · <code>boot.ipxe</code> 를 받아올 이 서버의 TFTP 주소입니다. dnsmasq 는 이 주소가 붙은 NIC 에만 응답합니다(listen-address).</div>
                     <div class="n-error" th:if="${#fields.hasErrors('bootServerIp')}" th:errors="*{bootServerIp}"></div>
                 </div>
 
-                <div class="n-form-group">
-                    <label class="n-label strong" for="defaultLeaseSeconds">기본 리스 시간(초)</label>
-                    <input id="defaultLeaseSeconds" type="number" th:field="*{defaultLeaseSeconds}" class="n-input"
-                           th:classappend="${#fields.hasErrors('defaultLeaseSeconds')} ? 'is-invalid'"
-                           placeholder="예: 600">
-                    <div class="n-error" th:if="${#fields.hasErrors('defaultLeaseSeconds')}"
-                         th:errors="*{defaultLeaseSeconds}"></div>
+                <!--/* 주소 배정 필드 그룹 — 자체 DHCP 모드에서만 살아 있다. proxyDHCP 에서는 disabled(제출되지 않음) + 안내. */-->
+                <div class="n-hint" data-mode-hint hidden>
+                    proxyDHCP 모드에서는 IP · 라우터 · DNS · 임대를 사내 DHCP 가 배정합니다. 아래 필드는 쓰지 않으며 서버도 값을 저장하지 않습니다.
                 </div>
+                <fieldset class="n-fieldset" data-mode-group="AUTHORITATIVE">
+                    <div class="n-form-group">
+                        <label class="n-label strong" data-required="true" for="rangeStart">리스 시작 주소</label>
+                        <input id="rangeStart" type="text" th:field="*{rangeStart}" class="n-input"
+                               th:classappend="${#fields.hasErrors('rangeStart')} ? 'is-invalid'"
+                               placeholder="예: 10.0.2.100">
+                        <div class="n-error" th:if="${#fields.hasErrors('rangeStart')}" th:errors="*{rangeStart}"></div>
+                    </div>
 
-                <div class="n-form-group">
-                    <label class="n-label strong" for="maxLeaseSeconds">최대 리스 시간(초)</label>
-                    <input id="maxLeaseSeconds" type="number" th:field="*{maxLeaseSeconds}" class="n-input"
-                           th:classappend="${#fields.hasErrors('maxLeaseSeconds')} ? 'is-invalid'"
-                           placeholder="예: 7200">
-                    <div class="n-hint">기본 리스 시간 이상이어야 합니다.</div>
-                    <div class="n-error" th:if="${#fields.hasErrors('maxLeaseSeconds')}"
-                         th:errors="*{maxLeaseSeconds}"></div>
-                </div>
+                    <div class="n-form-group">
+                        <label class="n-label strong" data-required="true" for="rangeEnd">리스 끝 주소</label>
+                        <input id="rangeEnd" type="text" th:field="*{rangeEnd}" class="n-input"
+                               th:classappend="${#fields.hasErrors('rangeEnd')} ? 'is-invalid'"
+                               placeholder="예: 10.0.2.200">
+                        <div class="n-hint">시작 · 끝 모두 서브넷 경계 안이어야 하며 시작 ≤ 끝 이어야 합니다.</div>
+                        <div class="n-error" th:if="${#fields.hasErrors('rangeEnd')}" th:errors="*{rangeEnd}"></div>
+                    </div>
 
-                <div class="n-form-group">
-                    <label class="n-label" for="domainName">도메인 이름 (선택)</label>
-                    <input id="domainName" type="text" th:field="*{domainName}" class="n-input"
-                           th:classappend="${#fields.hasErrors('domainName')} ? 'is-invalid'"
-                           placeholder="예: prov.example.com">
-                    <div class="n-error" th:if="${#fields.hasErrors('domainName')}" th:errors="*{domainName}"></div>
-                </div>
+                    <div class="n-form-group">
+                        <label class="n-label strong" data-required="true" for="routers">라우터(게이트웨이)</label>
+                        <input id="routers" type="text" th:field="*{routers}" class="n-input"
+                               th:classappend="${#fields.hasErrors('routers')} ? 'is-invalid'"
+                               placeholder="예: 10.0.2.1">
+                        <div class="n-error" th:if="${#fields.hasErrors('routers')}" th:errors="*{routers}"></div>
+                    </div>
+
+                    <div class="n-form-group">
+                        <label class="n-label strong" data-required="true" for="primaryDns">주 DNS</label>
+                        <input id="primaryDns" type="text" th:field="*{primaryDns}" class="n-input"
+                               th:classappend="${#fields.hasErrors('primaryDns')} ? 'is-invalid'"
+                               placeholder="예: 8.8.8.8">
+                        <div class="n-error" th:if="${#fields.hasErrors('primaryDns')}" th:errors="*{primaryDns}"></div>
+                    </div>
+
+                    <div class="n-form-group">
+                        <label class="n-label" for="secondaryDns">보조 DNS (선택)</label>
+                        <input id="secondaryDns" type="text" th:field="*{secondaryDns}" class="n-input"
+                               th:classappend="${#fields.hasErrors('secondaryDns')} ? 'is-invalid'"
+                               placeholder="예: 8.8.4.4">
+                        <div class="n-hint">비워 두면 주 DNS 만 조각에 기록됩니다.</div>
+                        <div class="n-error" th:if="${#fields.hasErrors('secondaryDns')}" th:errors="*{secondaryDns}"></div>
+                    </div>
+
+                    <div class="n-form-group">
+                        <label class="n-label strong" data-required="true" for="leaseSeconds">임대 시간(초)</label>
+                        <input id="leaseSeconds" type="number" th:field="*{leaseSeconds}" class="n-input"
+                               th:classappend="${#fields.hasErrors('leaseSeconds')} ? 'is-invalid'"
+                               placeholder="예: 600">
+                        <div class="n-hint">dnsmasq 는 임대 시간을 한 값으로 둡니다(최소 · 최대 구분 없음).</div>
+                        <div class="n-error" th:if="${#fields.hasErrors('leaseSeconds')}" th:errors="*{leaseSeconds}"></div>
+                    </div>
+
+                    <div class="n-form-group">
+                        <label class="n-label" for="domainName">도메인 이름 (선택)</label>
+                        <input id="domainName" type="text" th:field="*{domainName}" class="n-input"
+                               th:classappend="${#fields.hasErrors('domainName')} ? 'is-invalid'"
+                               placeholder="예: prov.example.com">
+                        <div class="n-error" th:if="${#fields.hasErrors('domainName')}" th:errors="*{domainName}"></div>
+                    </div>
+                </fieldset>
 
                 <div class="n-form-actions">
                     <a th:href="@{/system/pxe-infra}" class="n-btn n-btn-secondary">취소</a>
@@ -161,5 +175,6 @@
         </div>
     </div>
 </div>
+<script th:src="@{/system/pxe-network-form.js}"></script>
 </body>
 </html>

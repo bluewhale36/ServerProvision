@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  E1-I-3-b. dhcpd PXE 인프라 임대 목록 (조회 전용).
+  E1-I-3-b → R16. PXE 인프라(dnsmasq) 임대 목록 (조회 전용).
   ─────────────────────────────────────────────────────────
-  통합 시스템 자산 대시보드의 dhcpd 영역 헤더는 서비스 상태·활성 임대 건수만 요약한다. 개별 임대 명세
-  (IP·MAC·시작·만료·상태)는 이 페이지에서 본다. 상태를 바꾸는 액션은 없다(조회 전용).
+  통합 시스템 자산 대시보드의 DHCP 영역 헤더는 서비스 상태 · 모드 · 활성 임대 건수만 요약한다. 개별 임대 명세
+  (IP · MAC · 만료 · 상태)는 이 페이지에서 본다. proxyDHCP 모드는 IP 를 배정하지 않으므로 임대 표 대신 안내를 낸다.
 
   Model:
     overview : PxeInfraOverviewResponse
-                 · configured   : boolean (dhcpd 관측 설정 존재 — false 면 미구성 안내)
-                 · activeCount  : int (현재 활성·미만료 임대 수)
-                 · totalCount   : int (파싱된 전체 임대 블록 수)
-                 · leases       : List<DhcpLeaseView>
-                     (ip / mac / starts / ends / state / stateBadgeClass) — 활성 우선·만료 내림차순
+                 · configured    : boolean (dnsmasq 관측 설정 존재 — false 면 미구성 안내)
+                 · dhcpModeLabel : String  (자체 DHCP · proxyDHCP · 저장 전 null)
+                 · proxyMode     : boolean (true 면 임대 없음 안내)
+                 · activeCount   : int (현재 활성 · 미만료 임대 수)
+                 · totalCount    : int (파싱된 전체 임대 줄 수)
+                 · leases        : List<DhcpLeaseView> (ip / mac / ends / state / stateBadgeClass) — 활성 우선 · 만료 내림차순
 
-  임대 시각은 ISC dhcpd 관례대로 UTC 표기다(원본 dhcpd.leases 와 대조 가능하게 KST 변환 없음).
+  만료 시각은 KST 표기다(dnsmasq 임대 파일은 epoch 초를 기록한다).
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('PXE 인프라 임대')}"></th:block>
@@ -24,53 +25,62 @@
 
 <div class="n-page">
     <div class="n-page-header">
-        <h1 class="n-page-title">PXE 인프라 임대 (dhcpd)</h1>
+        <h1 class="n-page-title">PXE 인프라 임대 (dnsmasq)</h1>
         <div class="n-header-actions">
             <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
             <a th:href="@{/system/pxe-infra/network}" class="n-btn n-btn-secondary n-btn-sm">네트워크 설정</a>
         </div>
     </div>
 
-    <!--/* 미구성: 관측 설정(pxe.dhcpd.fragment-path)이 없으면 임대 표 대신 안내 */-->
+    <!--/* 미구성: 관측 설정(pxe.dnsmasq.fragment-path)이 없으면 임대 표 대신 안내 */-->
     <div th:unless="${overview.configured}" class="n-card">
         <div class="n-empty">
-            <div class="n-empty-title">dhcpd 관측이 구성되지 않았습니다.</div>
-            <div class="n-empty-desc"><code>pxe.dhcpd.fragment-path</code> 미설정. 설정하면 임대 목록이 여기 표시됩니다.</div>
+            <div class="n-empty-title">dnsmasq 관측이 구성되지 않았습니다.</div>
+            <div class="n-empty-desc"><code>pxe.dnsmasq.fragment-path</code> 미설정. 설정하면 임대 목록이 여기 표시됩니다.</div>
         </div>
     </div>
 
     <th:block th:if="${overview.configured}">
-        <div class="n-hint">
-            <span class="n-badge n-badge-green" th:text="'활성 ' + ${overview.activeCount} + '건'"></span>
-            <span class="n-badge n-badge-gray" th:text="'전체 ' + ${overview.totalCount} + '건'"></span>
-            <span>임대 시각은 UTC 기준입니다.</span>
+        <!--/* proxyDHCP: 이 서버는 IP 를 배정하지 않으므로 임대가 없다 */-->
+        <div th:if="${overview.proxyMode}" class="n-card">
+            <div class="n-empty">
+                <div class="n-empty-title">proxyDHCP 모드 — 이 서버는 임대를 만들지 않습니다.</div>
+                <div class="n-empty-desc">IP 는 사내 DHCP 가 배정하고 이 서버는 부팅 위치만 답합니다. 게스트가 어떤 주소로 왔는지는 게스트 서버 목록의 등록 · 접촉 기록에서 봅니다.</div>
+            </div>
         </div>
 
-        <div class="n-card">
-        <table class="n-table">
-            <thead>
-            <tr>
-                <th>IP 주소</th>
-                <th>MAC 주소</th>
-                <th>시작(UTC)</th>
-                <th>만료(UTC)</th>
-                <th>상태</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:if="${overview.leases.isEmpty()}">
-                <td class="n-text-muted" colspan="5">기록된 임대가 없습니다.</td>
-            </tr>
-            <tr th:each="lease : ${overview.leases}">
-                <td th:text="${lease.ip}"></td>
-                <td th:text="${lease.mac}"></td>
-                <td th:text="${lease.starts}"></td>
-                <td th:text="${lease.ends}"></td>
-                <td><span class="n-badge" th:classappend="${lease.stateBadgeClass}" th:text="${lease.state}"></span></td>
-            </tr>
-            </tbody>
-        </table>
-        </div>
+        <th:block th:unless="${overview.proxyMode}">
+            <div class="n-hint">
+                <span class="n-badge n-badge-gray" th:if="${overview.dhcpModeLabel != null}" th:text="${overview.dhcpModeLabel}">자체 DHCP</span>
+                <span class="n-badge n-badge-green" th:text="'활성 ' + ${overview.activeCount} + '건'"></span>
+                <span class="n-badge n-badge-gray" th:text="'전체 ' + ${overview.totalCount} + '건'"></span>
+                <span>만료 시각은 KST 기준입니다.</span>
+            </div>
+
+            <div class="n-card">
+            <table class="n-table">
+                <thead>
+                <tr>
+                    <th>IP 주소</th>
+                    <th>MAC 주소</th>
+                    <th>만료(KST)</th>
+                    <th>상태</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${overview.leases.isEmpty()}">
+                    <td class="n-text-muted" colspan="4">기록된 임대가 없습니다.</td>
+                </tr>
+                <tr th:each="lease : ${overview.leases}">
+                    <td th:text="${lease.ip}"></td>
+                    <td th:text="${lease.mac}"></td>
+                    <td th:text="${lease.ends}"></td>
+                    <td><span class="n-badge" th:classappend="${lease.stateBadgeClass}" th:text="${lease.state}"></span></td>
+                </tr>
+                </tbody>
+            </table>
+            </div>
+        </th:block>
     </th:block>
 </div>
 </body>

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * dhcpd 서비스 상태 조회 검증 — {@code systemctl is-active} stdout·종료 양태를 {@link ServiceState} 로 흡수한다.
+ * dnsmasq 서비스 상태 조회 검증 — {@code systemctl is-active} stdout·종료 양태를 {@link ServiceState} 로 흡수한다.
  * 종료 양태(부재·타임아웃)가 stdout 파싱보다 우선하며, 미지 stdout 은 UNKNOWN 으로 흡수한다.
  */
 class SystemServiceInspectorTest {
@@ -53,7 +53,7 @@ class SystemServiceInspectorTest {
 
     private ServiceState statusFor(CommandResult result) {
         StubSystemCommandRunner runner = new StubSystemCommandRunner()
-                .stub(AllowedCommand.DHCPD_SERVICE_STATUS, result);
+                .stub(AllowedCommand.DNSMASQ_SERVICE_STATUS, result);
         return new SystemServiceInspector(runner).status();
     }
 }

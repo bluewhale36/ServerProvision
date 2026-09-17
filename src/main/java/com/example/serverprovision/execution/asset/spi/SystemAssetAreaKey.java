@@ -16,8 +16,8 @@ public enum SystemAssetAreaKey {
     /** TFTP/PXE 부팅 인프라 자산. */
     TFTP,
 
-    /** dhcpd(DHCP 서버) PXE 인프라 관측 영역. 파일 봉인이 아닌 존재·문법·서비스 상태·임대로 판정. */
-    DHCPD,
+    /** dnsmasq(DHCP · proxyDHCP) PXE 인프라 관측 영역(R16 · 데몬 중립 키). 파일 봉인이 아닌 존재 · 문법 · 서비스 상태 · 모드 · 임대로 판정. */
+    DHCP,
 
     /** Windows 설치 소스(Samba 공유) 관측 영역(E4-1-a-2). 파일 존재 · install.wim 이미지 목록 · 운영 설정 상태로 판정, 봉인 없음. */
     WINDOWS_INSTALL
