@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 /**
- * E1-I-3-b — dhcpd 임대 목록 페이지의 미구성 시나리오. {@link com.example.serverprovision.execution.pxeinfra.config.PxeInfraProperties}
+ * E1-I-3-b → R16 — dnsmasq 임대 목록 페이지의 미구성 시나리오. {@link com.example.serverprovision.execution.pxeinfra.config.PxeInfraProperties}
  * 빈이 없으면({@code @ConditionalOnProperty} 미충족) {@code ObjectProvider} 가 null 을 돌려 {@code configured=false} 가
  * 되고, 뷰는 임대 표 대신 미구성 안내를 렌더한다 — 오류 없이 200 으로 조회됨을 확인한다.
  */
@@ -32,6 +32,8 @@ class PxeInfraControllerUnconfiguredTest {
     @MockitoBean
     DhcpLeaseReader leaseReader;
     @MockitoBean
+    com.example.serverprovision.execution.pxeinfra.service.PxeNetworkConfigService configService;
+    @MockitoBean
     JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @Test
@@ -43,6 +45,6 @@ class PxeInfraControllerUnconfiguredTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("system/pxe-infra/overview"))
                 .andExpect(model().attributeExists("overview"))
-                .andExpect(content().string(containsString("dhcpd 관측이 구성되지 않았습니다")));
+                .andExpect(content().string(containsString("dnsmasq 관측이 구성되지 않았습니다")));
     }
 }

@@ -1,31 +1,32 @@
 package com.example.serverprovision.execution.pxeinfra.dto.request;
 
+import com.example.serverprovision.execution.pxeinfra.enums.DhcpMode;
 import com.example.serverprovision.execution.pxeinfra.validation.ValidPxeNetworkConfig;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
- * PXE 네트워크 구성 폼 제출값. VO 로의 변환·교차 검증은 {@link ValidPxeNetworkConfig} 가 맡으므로 필드는 원시
- * 문자열/롱을 그대로 받는다(바인딩 단계 통과 후 Validator 가 의미 검증). 개별 형식은 필드 어노테이션이 1차 차단.
+ * PXE 네트워크 구성 폼 제출값(R16 · 모드 2). 두 모드 공통 필수(모드 · 서브넷 · 부트 서버)만 필드 어노테이션이 1차 차단하고,
+ * 모드에 따라 갈리는 필수 집합(범위 · 라우터 · DNS · 임대)과 VO 변환 · 교차 검증은 {@link ValidPxeNetworkConfig} 가 맡는다.
+ * 임대 시간은 PROXY 에서 비어 오므로 원시 {@code long} 이 아니라 {@link Long} 으로 받는다(빈 값 → 형식 오류 아님).
  */
 @ValidPxeNetworkConfig
 public record PxeNetworkConfigRequest(
 
+        @NotNull(message = "DHCP 모드를 선택하세요.")
+        DhcpMode dhcpMode,
+
         @NotBlank(message = "서브넷 CIDR 은 필수입니다.")
         String subnetCidr,
 
-        @NotBlank(message = "리스 시작 주소는 필수입니다.")
         String rangeStart,
 
-        @NotBlank(message = "리스 끝 주소는 필수입니다.")
         String rangeEnd,
 
-        @NotBlank(message = "라우터(게이트웨이) 주소는 필수입니다.")
         String routers,
 
-        @NotBlank(message = "주 DNS 주소는 필수입니다.")
         String primaryDns,
 
         String secondaryDns,
@@ -33,11 +34,7 @@ public record PxeNetworkConfigRequest(
         @NotBlank(message = "부트 서버 주소는 필수입니다.")
         String bootServerIp,
 
-        @Positive(message = "default-lease-time 은 양수여야 합니다.")
-        long defaultLeaseSeconds,
-
-        @Positive(message = "max-lease-time 은 양수여야 합니다.")
-        long maxLeaseSeconds,
+        Long leaseSeconds,
 
         @Size(max = 253, message = "도메인 이름은 253자를 넘을 수 없습니다.")
         @Pattern(

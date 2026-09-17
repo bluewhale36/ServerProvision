@@ -6,7 +6,7 @@ import com.example.serverprovision.execution.pxeinfra.command.StubSystemCommandR
 import com.example.serverprovision.execution.pxeinfra.config.PxeInfraProperties;
 import com.example.serverprovision.execution.pxeinfra.entity.PxeNetworkConfig;
 import com.example.serverprovision.execution.pxeinfra.inspect.SystemServiceInspector;
-import com.example.serverprovision.execution.pxeinfra.render.DhcpdConfigRenderer;
+import com.example.serverprovision.execution.pxeinfra.render.DnsmasqConfigRenderer;
 import com.example.serverprovision.execution.pxeinfra.spi.ServiceState;
 import com.example.serverprovision.global.asset.AtomicAssetSwap;
 import com.example.serverprovision.global.asset.FakeAssetHistoryService;
@@ -28,24 +28,24 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 /**
- * E1-I-3-c — dhcpd 조각 적용 상태기계(§7)의 전 경로 검증. 실제 프로세스를 spawn 하지 않는 스텁 러너와, 실 바이트를
+ * E1-I-3-c — dnsmasq 조각 적용 상태기계(§7)의 전 경로 검증. 실제 프로세스를 spawn 하지 않는 스텁 러너와, 실 바이트를
  * 보관하는 이력 페이크(복원 정합 확인용) 위에서 APPLIED·REJECTED·게이트 실행불능·ROLLED_BACK·RESTORE_FAILED·
  * 최초적용 실패(빈 조각)를 각각 유발한다. 파이프라인은 명령 실패를 예외가 아닌 {@link ApplyOutcome} 으로만
  * 귀결해야 하며(archive IO·미구성만 예외), 실패 경로에서는 재기동을 함부로 부르지 않고 이전 조각을 되살린다.
  */
-class DhcpdConfigApplyServiceTest {
+class DhcpConfigApplyServiceTest {
 
     @TempDir
-    Path work;    // dhcpd 조각과 temp 가 함께 사는 디렉토리
+    Path work;    // dnsmasq 조각과 temp 가 함께 사는 디렉토리
     @TempDir
     Path store;   // 이력 store
 
     private Path fragmentPath;
     private StubSystemCommandRunner runner;
     private SystemServiceInspector inspector;
-    private DhcpdConfigRenderer renderer;
+    private DnsmasqConfigRenderer renderer;
     private FakeAssetHistoryService history;
-    private DhcpdConfigApplyService service;
+    private DhcpConfigApplyService service;
 
     private final PxeNetworkConfig desired = full();
 
@@ -54,8 +54,8 @@ class DhcpdConfigApplyServiceTest {
         fragmentPath = work.resolve("pxe-fragment.conf");
         PxeInfraProperties props = new PxeInfraProperties(
                 fragmentPath.toString(),
-                work.resolve("dhcpd.conf").toString(),
-                work.resolve("dhcpd.leases").toString());
+                work.resolve("dnsmasq.conf").toString(),
+                work.resolve("dnsmasq.leases").toString());
 
         @SuppressWarnings("unchecked")
         ObjectProvider<PxeInfraProperties> provider = mock(ObjectProvider.class);
@@ -63,13 +63,13 @@ class DhcpdConfigApplyServiceTest {
 
         runner = new StubSystemCommandRunner();
         inspector = mock(SystemServiceInspector.class);
-        renderer = new DhcpdConfigRenderer();
+        renderer = new DnsmasqConfigRenderer();
         FileSystemHardener hardener = new FileSystemHardener(mock(FileSystemSecurityProperties.class));
         // 실패 복원 시 방금 만든 archive 제거(중복 축적 방지) 검증을 위해 스왑 부품과 apply 서비스가 같은 이력 페이크를 공유한다.
         history = new FakeAssetHistoryService(store);
         AtomicAssetSwap swap = new AtomicAssetSwap(history, hardener);
 
-        service = new DhcpdConfigApplyService(runner, inspector, swap, renderer, provider, history, hardener);
+        service = new DhcpConfigApplyService(runner, inspector, swap, renderer, provider, history, hardener);
     }
 
     // ── APPLIED ──────────────────────────────────────────────────────────────
@@ -78,8 +78,8 @@ class DhcpdConfigApplyServiceTest {
     @DisplayName("APPLIED — 게이트 통과·재기동 0·active → 새 조각 서빙 + 이전본 archive")
     void applied_existingFragment() throws IOException {
         seedFragment("OLD-FRAGMENT");
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
-                .stub(AllowedCommand.DHCPD_SERVICE_RESTART, CommandResult.completed(0, "", ""));
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
+                .stub(AllowedCommand.DNSMASQ_SERVICE_RESTART, CommandResult.completed(0, "", ""));
         given(inspector.status()).willReturn(ServiceState.ACTIVE);
 
         ApplyOutcome outcome = service.apply(desired);
@@ -93,8 +93,8 @@ class DhcpdConfigApplyServiceTest {
     @Test
     @DisplayName("APPLIED — 최초 적용(이전본 없음)이면 archivedVersionId 는 null")
     void applied_firstApply_noPreviousVersion() {
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
-                .stub(AllowedCommand.DHCPD_SERVICE_RESTART, CommandResult.completed(0, "", ""));
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
+                .stub(AllowedCommand.DNSMASQ_SERVICE_RESTART, CommandResult.completed(0, "", ""));
         given(inspector.status()).willReturn(ServiceState.ACTIVE);
 
         ApplyOutcome outcome = service.apply(desired);
@@ -106,16 +106,16 @@ class DhcpdConfigApplyServiceTest {
     // ── REJECTED (실패경로 ①) ─────────────────────────────────────────────────
 
     @Test
-    @DisplayName("REJECTED — dhcpd -t 거절 → 이전 조각 복원, 재기동 미실행, 게이트 원문 보존")
+    @DisplayName("REJECTED — dnsmasq --test 거절 → 이전 조각 복원, 재기동 미실행, 게이트 원문 보존")
     void rejected_gateSyntaxError() throws IOException {
         seedFragment("OLD-FRAGMENT");
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK,
-                CommandResult.completed(1, "dhcpd.conf line 3: syntax error", " near ';'"));
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK,
+                CommandResult.completed(1, "dnsmasq.conf line 3: syntax error", " near ';'"));
 
         ApplyOutcome outcome = service.apply(desired);
 
         assertThat(outcome.result()).isEqualTo(ApplyResult.REJECTED);
-        assertThat(outcome.gateOutput()).isEqualTo("dhcpd.conf line 3: syntax error\nnear ';'");  // stdout·stderr 개행 결합 원문
+        assertThat(outcome.gateOutput()).isEqualTo("dnsmasq.conf line 3: syntax error\nnear ';'");  // stdout·stderr 개행 결합 원문
         assertThat(Files.readString(fragmentPath)).isEqualTo("OLD-FRAGMENT");                     // 복원
         assertThat(restartInvoked()).isFalse();                                                    // 재기동 안 함
     }
@@ -125,14 +125,14 @@ class DhcpdConfigApplyServiceTest {
     void rejected_discardsRedundantArchive() throws IOException {
         seedFragment("PREVIOUS-FRAGMENT");
         // 1회 정상 적용 → 이전본(PREVIOUS-FRAGMENT) 1건 archive.
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
-                .stub(AllowedCommand.DHCPD_SERVICE_RESTART, CommandResult.completed(0, "", ""));
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
+                .stub(AllowedCommand.DNSMASQ_SERVICE_RESTART, CommandResult.completed(0, "", ""));
         given(inspector.status()).willReturn(ServiceState.ACTIVE);
         service.apply(desired);
         assertThat(history.archiveCount()).isEqualTo(1);
 
         // 이후 게이트 거절 적용 → 스왑이 현재본을 archive 했다가 복원하며 그 archive 를 제거 → 이력 그대로 1(2 로 안 늘어남).
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK, CommandResult.completed(1, "syntax error", ""));
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK, CommandResult.completed(1, "syntax error", ""));
         ApplyOutcome outcome = service.apply(desired);
 
         assertThat(outcome.result()).isEqualTo(ApplyResult.REJECTED);
@@ -145,7 +145,7 @@ class DhcpdConfigApplyServiceTest {
     @DisplayName("게이트 실행불능(NOT_FOUND) → ROLLED_BACK(500), 이전 조각 복원, 재기동 미실행")
     void gateUnexecutable_notFound_rollsBack() throws IOException {
         seedFragment("OLD-FRAGMENT");
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK, CommandResult.notFound());
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK, CommandResult.notFound());
 
         ApplyOutcome outcome = service.apply(desired);
 
@@ -159,7 +159,7 @@ class DhcpdConfigApplyServiceTest {
     @DisplayName("게이트 실행불능(TIMED_OUT) → ROLLED_BACK(500)")
     void gateUnexecutable_timedOut_rollsBack() throws IOException {
         seedFragment("OLD-FRAGMENT");
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK, CommandResult.timedOut());
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK, CommandResult.timedOut());
 
         ApplyOutcome outcome = service.apply(desired);
 
@@ -174,8 +174,8 @@ class DhcpdConfigApplyServiceTest {
     @DisplayName("ROLLED_BACK — 재기동 실패 → 복원 후 재기동·재검증 active")
     void rolledBack_restartFails_restoreActive() throws IOException {
         seedFragment("OLD-FRAGMENT");
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
-                .stub(AllowedCommand.DHCPD_SERVICE_RESTART, CommandResult.completed(1, "", "restart failed"));
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
+                .stub(AllowedCommand.DNSMASQ_SERVICE_RESTART, CommandResult.completed(1, "", "restart failed"));
         given(inspector.status()).willReturn(ServiceState.ACTIVE);   // 복원 후 이전 구성으로 살아남
 
         ApplyOutcome outcome = service.apply(desired);
@@ -188,8 +188,8 @@ class DhcpdConfigApplyServiceTest {
     @DisplayName("ROLLED_BACK — 재기동은 0 이나 검증 inactive → 복원 후 재검증 active")
     void rolledBack_verifyInactiveThenRestoreActive() throws IOException {
         seedFragment("OLD-FRAGMENT");
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
-                .stub(AllowedCommand.DHCPD_SERVICE_RESTART, CommandResult.completed(0, "", ""));
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
+                .stub(AllowedCommand.DNSMASQ_SERVICE_RESTART, CommandResult.completed(0, "", ""));
         given(inspector.status()).willReturn(ServiceState.INACTIVE, ServiceState.ACTIVE);
 
         ApplyOutcome outcome = service.apply(desired);
@@ -204,14 +204,14 @@ class DhcpdConfigApplyServiceTest {
     @DisplayName("RESTORE_FAILED — 재기동 실패 + 복원 후 재검증도 inactive → 최악(500, 수동복구)")
     void restoreFailed_restartAndRestoreBothDead() throws IOException {
         seedFragment("OLD-FRAGMENT");
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
-                .stub(AllowedCommand.DHCPD_SERVICE_RESTART, CommandResult.completed(1, "", "dead"));
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK, CommandResult.completed(0, "", ""))
+                .stub(AllowedCommand.DNSMASQ_SERVICE_RESTART, CommandResult.completed(1, "", "dead"));
         given(inspector.status()).willReturn(ServiceState.INACTIVE);
 
         ApplyOutcome outcome = service.apply(desired);
 
         assertThat(outcome.result()).isEqualTo(ApplyResult.RESTORE_FAILED);
-        assertThat(outcome.detail()).contains("systemctl restart dhcpd");   // 수동 복구 안내
+        assertThat(outcome.detail()).contains("systemctl restart dnsmasq");   // 수동 복구 안내
     }
 
     // ── 최초 적용 게이트 실패 → 빈 조각(삭제 아님) ─────────────────────────────
@@ -220,7 +220,7 @@ class DhcpdConfigApplyServiceTest {
     @DisplayName("최초 적용 게이트 실패 — 이전본이 없으니 삭제가 아닌 유효한 빈 조각으로 복원(D7)")
     void firstApplyGateFailure_writesEmptyFragment() throws IOException {
         // 이전 조각을 seed 하지 않음 → 복원 소스 없음.
-        runner.stub(AllowedCommand.DHCPD_SYNTAX_CHECK, CommandResult.completed(1, "invalid", ""));
+        runner.stub(AllowedCommand.DNSMASQ_SYNTAX_CHECK, CommandResult.completed(1, "invalid", ""));
 
         ApplyOutcome outcome = service.apply(desired);
 
@@ -238,7 +238,7 @@ class DhcpdConfigApplyServiceTest {
 
     private boolean restartInvoked() {
         return runner.invocations().stream()
-                .anyMatch(i -> i.command() == AllowedCommand.DHCPD_SERVICE_RESTART);
+                .anyMatch(i -> i.command() == AllowedCommand.DNSMASQ_SERVICE_RESTART);
     }
 
     private boolean noTempLeftover() throws IOException {

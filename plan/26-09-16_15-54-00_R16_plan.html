@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R16 Plan — proxyDHCP 전환 · PXE 인프라의 dhcpd 를 dnsmasq 로(모드 2)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .ux-wrap input[type="text"] { flex:1; min-width:0; font-family:var(--mono); font-size:12px; padding:4px 8px;
+    border:1px solid var(--border); border-radius:5px; background:var(--card); color:var(--text); }
+  .ux-wrap input[type="text"]:disabled { background:rgba(0,0,0,0.05); color:var(--text-muted); cursor:not-allowed; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R16 — proxyDHCP 전환 · PXE 인프라의 dhcpd 를 dnsmasq 로(모드 2) <span class="v2-badge">refactor</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> R16 (refactor)</span>
+    <span><strong>브랜치</strong> refactor/R16_proxydhcp</span>
+    <span><strong>관계</strong> E1-I-3 후속 · S19-2 연계</span>
+    <span><strong>생성</strong> 2026-09-16 15:54 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>1-1. 배경 — 왜 지금인가</h4>
+        <p style="margin-top:0;">2026-09-15 사용자 확인으로 두 가지가 동시에 닫혔다. 사내망 배포에서는 우리 DHCP 를 띄울 수 없고,
+          사내 DHCP 도 우리가 수정할 수 없다. 이어 2026-09-16 네트워크 관리사 회신은 정확한 확인은 불가하나 정황상 별도 제약
+          (DHCP snooping 차단 등)은 걸려 있지 않을 것이라는 내용이었다. 즉 우리가 IP 를 배정하는 길은 막혀 있지만, 부팅 옵션만 얹는
+          응답까지 차단돼 있다고 볼 근거는 없다. 그래서 PXE 규격이 이 상황을 위해 두고 있는 <b>proxyDHCP</b> — IP 는 사내 DHCP 가 주고
+          부팅 옵션만 우리가 준다 — 로 첫 접촉을 바꾸는 시험에 들어간다. 설명 자료는
+          <code>discussion/26-09-15_16-29-30_proxydhcp-first-contact_brief.html</code>(앵커 미커밋)이다.</p>
+        <div class="callout warn"><b>한 데몬 · 두 모드</b> — 그러나 실습 LAN(192.168.1.0/24 · 실기 1~4호)은 우리 DHCP 가 IP 까지 준다.
+          그 경로를 잃으면 실기 회귀 수단이 없어진다. 따라서 이 슬라이스는 "proxy 전용" 이 아니라, 한 데몬이 두 모드를 내는 구조다.</div>
+
+        <h4>1-2. pxeinfra 의 현재 구조 (E1-I-3-b · c · 코드 실측)</h4>
+        <table>
+          <thead><tr><th>층</th><th>지금</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>데몬</td><td>ISC dhcpd</td><td>2022-10 EOL · proxyDHCP 불가</td></tr>
+            <tr><td>엔티티</td><td><code>PxeNetworkConfig</code> 싱글턴 1행 · 10 필드(서브넷 · 범위 2 · 라우터 · DNS 2 · 부트 서버 · 임대 2 · 도메인) + 적용 결과 3</td><td><code>pxe_network_config</code></td></tr>
+            <tr><td>렌더</td><td><code>DhcpdConfigRenderer</code> — subnet 블록 + <code>pxeclients</code> 클래스 + iPXE user-class 분기</td><td>결정적 골든</td></tr>
+            <tr><td>적용</td><td><code>DhcpdConfigApplyService</code> — 렌더 → 원자 스왑(이력) → <code>dhcpd -t</code> 게이트 → restart → is-active 검증 → 실패 시 이전 조각 복원</td><td>프로세스 락 · <code>ApplyOutcome</code> 4종</td></tr>
+            <tr><td>특권 명령</td><td><code>AllowedCommand</code> 3 — <code>dhcpd -t -cf &lt;conf&gt;</code>(sudo) · <code>systemctl is-active dhcpd</code> · <code>systemctl restart dhcpd</code>(sudo)</td><td>sudoers 2줄</td></tr>
+            <tr><td>관측</td><td><code>DhcpdConfigInspector</code>(조각 존재 + 문법) · <code>SystemServiceInspector</code> · <code>DhcpLeaseReader</code> + ISC <code>dhcpd.leases</code> 파서</td><td>대시보드 영역 <code>DhcpdAssetArea</code>(키 <code>DHCPD</code>)</td></tr>
+            <tr><td>화면</td><td><code>/system/pxe-infra/network</code> 폼(필드 10) · <code>/system/pxe-infra</code> 임대 목록</td><td>대시보드에서 임대 링크</td></tr>
+            <tr><td>런북</td><td><code>docs/26-07-29_01-03-05_pxe-network-config-setup.md</code> — sudoers 2줄 · <code>dhcpd.conf</code> include 1줄 · 최초 빈 조각</td><td>SELinux disabled 전제</td></tr>
+            <tr><td>설정 키</td><td><code>pxe.dhcpd.fragment-path</code>(빈 존재 조건) · <code>conf-path</code> · <code>leases-path</code></td><td>env 주입</td></tr>
+          </tbody>
+        </table>
+        <p>이 표에서 갈라 봐야 할 것은 "데몬에 묶인 것" 과 "데몬과 무관한 것" 이다. 적용 파이프라인(스왑 · 게이트 · 재기동 · 검증 · 롤백 ·
+          이력 · 락)은 데몬과 무관한 자산이고 그대로 남는다. 바뀌는 것은 <b>무엇을 렌더하고, 어떤 명령으로 검사 · 재기동하며, 무엇을
+          관측하는가</b> 다. 그래서 이 슬라이스의 부피는 커 보여도 위험이 몰려 있는 지점은 렌더러 · 명령 셋 · 임대 파서 셋으로 좁다.</p>
+
+        <h4>1-3. 게스트 첫 접촉의 두 단 (현행 · dhcpd)</h4>
+        <ol>
+          <li>PXE ROM 이 DHCPDISCOVER(option 60 = <code>PXEClient</code>)를 보내면 dhcpd 가 IP 와 next-server · filename <code>ipxe.efi</code> 를 함께 준다.</li>
+          <li>ROM 이 tftp 로 <code>ipxe.efi</code> 를 받아 올린다.</li>
+          <li>iPXE 가 다시 DHCP 를 돌린다(user-class <code>iPXE</code>). 이때 dhcpd 는 filename 으로 <code>boot.ipxe</code> 를 준다 — 같은 파일을 주면 무한 체인이 된다(2026-08-24 실기 보정).</li>
+          <li>tftp 로 <code>boot.ipxe</code> 를 받아 <code>chain http://pxe:&lt;secret&gt;@&lt;서버&gt;/api/pxe/v1/boot?…</code> 로 넘어간다(S19-2 가 정한 PXE 부팅 계정 credential 이 여기 실린다).</li>
+          <li>이후 등록 · 진단 · RAID · 펌웨어 · 설정 · Windows 설치는 이 전환과 무관하다.</li>
+        </ol>
+        <p>바꾸는 것은 ①과 ③ 뿐이다. ②와 ④ 는 tftp 전송이고, ⑤ 는 HTTP 로 넘어간 뒤라 데몬 교체의 영향권 밖이다.</p>
+
+        <h4>1-4. 실 서버 spv-01 의 상태 (2026-09-16 구축 · OPS-4)</h4>
+        <table>
+          <thead><tr><th>항목</th><th>실측</th></tr></thead>
+          <tbody>
+            <tr><td>OS</td><td>Rocky 9.6</td></tr>
+            <tr><td>NIC</td><td><code>eno1</code> 10.1.1.17/24(사내망) · <code>eno3</code> 192.168.1.15/24(실습망)</td></tr>
+            <tr><td>설치됨</td><td>dnsmasq 2.85(비활성) · tftp-server · <code>ipxe.efi</code> 배치 완료</td></tr>
+            <tr><td>없음</td><td>dhcpd 미설치 · 앱 미배포</td></tr>
+            <tr><td>SELinux</td><td>enforcing (nginx 불리언 설정 과정에서 확인)</td></tr>
+          </tbody>
+        </table>
+        <p>즉 전환의 목적지 쪽 장비는 이미 dnsmasq 를 담고 있고 dhcpd 는 아예 없다. 반대로 실기 1~4호를 받아 온 스테이징 VM 은 dhcpd 였다 —
+          이 비대칭이 §8 의 배포 주의로 이어진다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>요구</th></tr></thead>
+          <tbody>
+            <tr><td><b>R-1</b></td><td>데몬을 dnsmasq 로 교체한다. 한 데몬이 두 모드를 낸다</td></tr>
+            <tr><td><b>R-2</b></td><td>모드 <code>PROXY</code> — 사내 DHCP 가 IP · 우리는 부팅 옵션만. 입력 = 게스트 서브넷 · 부트 서버 IP</td></tr>
+            <tr><td><b>R-3</b></td><td>모드 <code>AUTHORITATIVE</code> — 종전 입력(서브넷 · 범위 · 라우터 · DNS · 임대 · 도메인 · 부트 서버) 유지. max-lease 는 dnsmasq 에 없어 제거</td></tr>
+            <tr><td><b>R-4</b></td><td>iPXE 2단 분기(ROM → <code>ipxe.efi</code> · iPXE → <code>boot.ipxe</code>)를 두 모드 모두 유지</td></tr>
+            <tr><td><b>R-5</b></td><td>적용 파이프라인(스왑 · 게이트 · 재기동 · 검증 · 롤백 · 이력 · 락)은 유지 · 명령 셋만 교체</td></tr>
+            <tr><td><b>R-6</b></td><td>임대 목록은 <code>AUTHORITATIVE</code> 에서만 의미 — dnsmasq 임대 파일 형식으로 파서 교체 · <code>PROXY</code> 는 안내</td></tr>
+            <tr><td><b>R-7</b></td><td>대시보드 영역 표시 · chip 을 dnsmasq · 모드에 맞춘다</td></tr>
+            <tr><td><b>R-8</b></td><td>런북 · 설정 키 · DDL · T3 를 함께 옮긴다</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>비 목표</b> (어디로 가는지 함께) :
+          <ul>
+            <li>TFTP 를 dnsmasq 내장 tftp 로 합치기 — <b>별도 슬라이스</b>. 지금은 tftp-server 를 유지하고 자산 계약 <code>TftpAsset</code> 은 손대지 않는다.</li>
+            <li><code>PXE_GUEST_ALLOWED_CIDRS</code> 를 화면 서브넷에서 자동 파생 — S19-2 가 이 값을 env 로 정했고, 보안 설정과 화면 값을 묶지 않는다. 런북에 사내 대역을 적는 것으로 갈음한다.</li>
+            <li><code>ipxe.efi</code> 커스텀 빌드(임베디드 스크립트) — D-4 의 예비안이다. proxy 2단이 실기에서 안 되면 그때 꺼낸다.</li>
+            <li>legacy BIOS(x86PC) PXE · IPv6 · 다중 서브넷 · UEFI HTTP boot · BMC 가상 미디어 — 범위 밖. 지금 자산이 UEFI <code>ipxe.efi</code> 하나다.</li>
+            <li>HF17(PXE 보장 Once 회귀)과의 병행 — 패키지가 겹치지 않는다(<code>pxeinfra</code> 대 <code>execution.engine</code> · <code>global.redfish</code>). 충돌 파일 없음.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침: §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — dnsmasq 조각 렌더 · 적용 파이프라인 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">패널 A 에서 모드와 입력을 바꾸면 오른쪽 조각 텍스트가 즉시 다시 렌더되고 판정이 갱신된다.
+          <code>PROXY</code> 를 고르면 주소 배정 필드 그룹이 <code>disabled</code> 로 잠기고 "사내 DHCP 가 배정합니다" 안내가 붙는다 —
+          UX 모순을 서버 400 이 아니라 화면이 먼저 막는 그 규칙을 그대로 체험하는 자리다.
+          패널 B 의 [적용] 은 렌더 · 스왑 · <code>dnsmasq --test</code> · restart · is-active 다섯 단계를 순서대로 켜고,
+          게이트 결과가 정한 지점에서 멈춰 결과 배지를 낸다.
+          아래 <b>원클릭 시나리오</b> 여섯 개가 두 패널을 한 번에 세팅한다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">원클릭 시나리오 :</span>
+            <button class="seg" data-preset="1" onclick="demoPreset(1)">① 사내망 PROXY</button>
+            <button class="seg" data-preset="2" onclick="demoPreset(2)">② 실습 LAN AUTHORITATIVE</button>
+            <button class="seg" data-preset="3" onclick="demoPreset(3)">③ 범위 이탈</button>
+            <button class="seg" data-preset="4" onclick="demoPreset(4)">④ PROXY 직접 POST</button>
+            <button class="seg" data-preset="5" onclick="demoPreset(5)">⑤ 문법 거절</button>
+            <button class="seg" data-preset="6" onclick="demoPreset(6)">⑥ 재기동 실패</button>
+          </div>
+          <div class="ux-message" id="demo-banner">시나리오 버튼을 누르거나, 아래 모드 · 필드를 직접 바꿔 보세요.</div>
+
+          <h4>패널 A — dnsmasq 조각 렌더 (<code>DnsmasqConfigRenderer</code>)</h4>
+          <div class="ux-toolbar">
+            <span class="group-label">모드 :</span>
+            <button class="seg" data-mode="AUTHORITATIVE" onclick="demoMode('AUTHORITATIVE')">AUTHORITATIVE</button>
+            <button class="seg" data-mode="PROXY" onclick="demoMode('PROXY')">PROXY</button>
+          </div>
+          <div class="split-grid">
+            <div>
+              <div class="ux-row"><span class="label" style="flex:0 0 108px;">서브넷 CIDR</span><input type="text" id="demo-subnetCidr" oninput="demoInput('subnetCidr',this.value)"></div>
+              <div class="ux-row"><span class="label" style="flex:0 0 108px;">부트 서버 IP</span><input type="text" id="demo-bootServerIp" oninput="demoInput('bootServerIp',this.value)"></div>
+              <div class="ux-row" id="demo-addr-head"><strong>주소 배정 필드</strong><span class="label" id="demo-addr-note"></span><span class="badge off" id="demo-addr-badge">비활성</span></div>
+              <div class="ux-row"><span class="label" style="flex:0 0 108px;">범위 시작</span><input type="text" id="demo-rangeStart" oninput="demoInput('rangeStart',this.value)"></div>
+              <div class="ux-row"><span class="label" style="flex:0 0 108px;">범위 끝</span><input type="text" id="demo-rangeEnd" oninput="demoInput('rangeEnd',this.value)"></div>
+              <div class="ux-row"><span class="label" style="flex:0 0 108px;">라우터</span><input type="text" id="demo-routers" oninput="demoInput('routers',this.value)"></div>
+              <div class="ux-row"><span class="label" style="flex:0 0 108px;">주 DNS</span><input type="text" id="demo-primaryDns" oninput="demoInput('primaryDns',this.value)"></div>
+              <div class="ux-row"><span class="label" style="flex:0 0 108px;">보조 DNS</span><input type="text" id="demo-secondaryDns" oninput="demoInput('secondaryDns',this.value)"></div>
+              <div class="ux-row"><span class="label" style="flex:0 0 108px;">도메인</span><input type="text" id="demo-domainName" oninput="demoInput('domainName',this.value)"></div>
+              <div class="ux-row"><span class="label" style="flex:0 0 108px;">임대(초)</span><input type="text" id="demo-leaseSeconds" oninput="demoInput('leaseSeconds',this.value)"></div>
+            </div>
+            <div>
+              <pre id="demo-fragment" style="margin:0; min-height:270px;"></pre>
+              <div class="ux-message" id="demo-verdict"></div>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+        </div>
+
+        <div class="ux-wrap">
+          <h4>패널 B — 적용 파이프라인 (<code>DhcpConfigApplyService.applyAndRecord</code>)</h4>
+          <div class="ux-toolbar">
+            <span class="group-label">게이트 결과 :</span>
+            <button class="seg" data-gate="PASS" onclick="demoGate('PASS')">통과</button>
+            <button class="seg" data-gate="SYNTAX" onclick="demoGate('SYNTAX')">문법 거절</button>
+            <button class="seg" data-gate="RESTART" onclick="demoGate('RESTART')">재기동 실패</button>
+            <button class="seg" data-gate="RESTORE" onclick="demoGate('RESTORE')">복원까지 실패</button>
+            <button class="seg" data-gate="NOTFOUND" onclick="demoGate('NOTFOUND')">게이트 실행 불능</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">POST :</span>
+            <span id="demo-apply-holder"></span>
+          </div>
+          <div id="demo-steps"></div>
+          <div class="ux-row"><strong>결과</strong><span class="label" id="demo-outcome-label">아직 적용하지 않았습니다.</span><span class="badge off" id="demo-outcome-badge">대기</span></div>
+          <div class="ux-message" id="demo-outcome">[적용] 을 누르면 다섯 단계가 순서대로 켜집니다.</div>
+        </div>
+
+        <p><b>드리프트 0</b> — 패널 A 의 판정 JS 는 §4-2 의 엔티티 invariant 와 <code>PxeNetworkConfigValidator</code> 의 모드별 필수 집합을
+          그대로 옮긴 것이고, 조각 텍스트는 §4-4 · §4-5 의 골든과 줄 단위로 같다. 화면의 <code>disabled</code> 판정과 서버의 필수 집합은
+          모두 <code>DhcpMode.requiresAddressing()</code> 하나를 부른다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>URL</th><th>메서드</th><th>하는 일</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td><code>/system/pxe-infra/network</code></td><td>GET</td><td>저장된 desired 로 프리필한 폼 + 마지막 적용 결과 · 드리프트</td><td>200</td></tr>
+            <tr><td><code>/system/pxe-infra/network</code></td><td>POST</td><td>모드별 검증 → 적용 → 기록</td><td>302 PRG / 400 / 500</td></tr>
+            <tr><td><code>/system/pxe-infra</code></td><td>GET</td><td>임대 목록(<code>AUTHORITATIVE</code>) · <code>PROXY</code> 안내 · 미구성 안내</td><td>200</td></tr>
+            <tr><td><code>/system/asset</code></td><td>GET</td><td>대시보드 영역 chip(서비스 · 모드 · 활성 임대)</td><td>200 <span class="chip keep">기존</span></td></tr>
+          </tbody>
+        </table>
+        <p>URL 은 하나도 늘지 않는다. 폼이 받는 필드 집합과 그 뒤에서 도는 명령만 바뀐다.</p>
+
+        <h4>적용 흐름 (폼 POST → 파이프라인 → PRG)</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">Controller · 검증</div><div class="actor a3">DhcpConfigApplyService</div>
+          <div class="step a1">POST <code>/system/pxe-infra/network</code></div><div class="step a2"><code>@Valid</code> → <code>PxeNetworkConfigValidator</code><br>(모드가 정한 필수 집합)</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>PxeNetworkConfigMapper</code></div><div class="step a3"><code>applyAndRecord</code> — 프로세스 락 진입</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>DnsmasqConfigRenderer.renderToTemp</code></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>AtomicAssetSwap.swap</code> (이력 category <code>PXE</code>)</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>AllowedCommand.DNSMASQ_SYNTAX_CHECK</code></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>DNSMASQ_SERVICE_RESTART</code> → <code>DNSMASQ_SERVICE_STATUS</code></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>PxeNetworkConfigService.save</code> — 결과 기록(락 안)</div>
+          <div class="step a1">302 PRG · 결과 배지</div><div class="step a2">락 밖 <code>ApplyOutcome.throwIfNotApplied</code></div><div class="step a3"></div>
+        </div>
+        <p>기록은 락 안에서, 예외 전환은 락 밖에서 한다는 순서가 종전과 같다. 실패해도 적용 결과가 남아야 화면이 마지막 상태를 말할 수 있고,
+          예외를 락 안에서 던지면 기록이 롤백될 여지가 생기기 때문이다.</p>
+
+        <h4>게스트 첫 접촉 — 모드별 (상세는 §1-3 과 설명 자료)</h4>
+        <div class="card-grid">
+          <div class="card v-green"><h4>AUTHORITATIVE</h4>
+            <ul>
+              <li>dnsmasq 가 IP 를 배정한다.</li>
+              <li>같은 응답에 <code>dhcp-boot</code> 가 실린다 — tag <code>rom</code> 에는 <code>ipxe.efi</code>, tag <code>ipxe</code> 에는 <code>boot.ipxe</code>.</li>
+              <li>실습 LAN 의 회귀 경로가 이것이다.</li>
+            </ul>
+          </div>
+          <div class="card v-orange"><h4>PROXY</h4>
+            <ul>
+              <li>IP 는 사내 DHCP 가 준다.</li>
+              <li>dnsmasq 는 proxy 응답만 낸다 — PXE 메뉴(<code>pxe-service</code>)로 <code>ipxe.efi</code> 를 가리키고, iPXE 재DHCP 에는 <code>dhcp-boot=tag:ipxe,boot.ipxe</code> 를 준다.</li>
+              <li>ROM 이 두 응답을 합쳐 부팅한다.</li>
+            </ul>
+          </div>
+        </div>
+        <p>두 모드 어느 쪽이든 <code>/api/pxe/v1/boot</code> 부터는 무변경이다. 이 슬라이스가 건드리는 구간은 게스트가 아직 우리 애플리케이션에
+          도달하기 전, 즉 DHCP 응답 한 번과 tftp 두 번뿐이다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>4-1. <code>DhcpMode</code> <span class="chip new">신규 enum</span> — <code>pxeinfra.enums</code></h4>
+        <table>
+          <thead><tr><th>상수</th><th>뜻</th><th><code>requiresAddressing()</code> · <code>label()</code></th><th><code>renderRange(config)</code></th></tr></thead>
+          <tbody>
+            <tr><td><code>AUTHORITATIVE</code></td><td>우리가 IP 까지 배정</td><td><code>true</code> · "자체 DHCP"</td><td><code>dhcp-range=&lt;start&gt;,&lt;end&gt;,&lt;netmask&gt;,&lt;lease&gt;s</code> + <code>dhcp-authoritative</code> + option 줄들</td></tr>
+            <tr><td><code>PROXY</code></td><td>사내 DHCP 가 IP · 우리는 부팅 옵션만</td><td><code>false</code> · "proxyDHCP"</td><td><code>dhcp-range=&lt;network&gt;,proxy,&lt;netmask&gt;</code> + <code>pxe-prompt</code> · <code>pxe-service</code></td></tr>
+          </tbody>
+        </table>
+        <p><code>requiresAddressing()</code> 이 이 슬라이스의 단일 SSOT 다. 화면의 필드 그룹 <code>disabled</code> 판정,
+          <code>PxeNetworkConfigValidator</code> 의 모드별 필수 집합, 엔티티 invariant 셋이 모두 이 메서드 하나를 부른다.
+          세 곳에 같은 조건을 복붙하면 그 순간부터 셋이 갈라지고, 화면은 막지 않는데 서버는 거절하거나 그 반대가 된다.</p>
+
+        <h4>4-2. <code>PxeNetworkConfig</code> 변경</h4>
+        <table>
+          <thead><tr><th>필드</th><th>분류</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>dhcpMode</code></td><td><span class="chip new">신규</span></td><td><code>@Enumerated(STRING)</code> · NOT NULL</td></tr>
+            <tr><td><code>rangeStart</code> · <code>rangeEnd</code> · <code>routers</code> · <code>primaryDns</code></td><td><span class="chip mod">수정</span></td><td>nullable 로 — <code>PROXY</code> 에서 null</td></tr>
+            <tr><td><code>defaultLeaseSeconds</code> · <code>maxLeaseSeconds</code></td><td><span class="chip mod">수정</span></td><td><code>leaseSeconds</code> 하나로(dnsmasq 는 한 값) · nullable</td></tr>
+            <tr><td><code>secondaryDns</code> · <code>domainName</code></td><td><span class="chip keep">유지</span></td><td>그대로(nullable)</td></tr>
+            <tr><td><code>subnetCidr</code> · <code>bootServerIp</code></td><td><span class="chip keep">유지</span></td><td>그대로 — 두 모드 공통 NOT NULL</td></tr>
+            <tr><td><code>appliedResult</code> · <code>appliedVersionId</code> · <code>appliedAt</code></td><td><span class="chip keep">유지</span></td><td>그대로</td></tr>
+          </tbody>
+        </table>
+        <p>invariant(정적 팩토리 · <code>updateDesired</code>)는 셋으로 갈린다. <b>두 모드 공통</b> — 서브넷 · 부트 서버 필수.
+          <b><code>AUTHORITATIVE</code></b> — 범위 · 라우터 · 주 DNS · 임대 필수, 범위가 서브넷 안, 시작 ≤ 끝.
+          <b><code>PROXY</code></b> — 주소 배정 필드는 null 로 정규화한다(값이 와도 버린다). 마지막 항이 중요한 이유는 direct POST 다.
+          화면은 필드를 잠가 두지만 잠긴 필드를 우회해 값을 실어 보낼 수는 있고, 그때 값이 남아 있으면 모드를 되돌렸을 때
+          아무도 입력한 적 없는 범위가 되살아난다.</p>
+
+        <h4>4-3. DDL — <code>ddl/R16_pxe_network_config_dnsmasq.sql</code></h4>
+        <pre><code>ALTER TABLE pxe_network_config
+  ADD COLUMN dhcp_mode VARCHAR(20) NOT NULL DEFAULT 'AUTHORITATIVE' AFTER id,
+  MODIFY range_start VARCHAR(45) NULL,
+  MODIFY range_end VARCHAR(45) NULL,
+  MODIFY routers VARCHAR(45) NULL,
+  MODIFY primary_dns VARCHAR(45) NULL,
+  CHANGE default_lease_seconds lease_seconds BIGINT(20) NULL,
+  DROP COLUMN max_lease_seconds;</code></pre>
+        <p>기본값을 <code>AUTHORITATIVE</code> 로 둔 것은 기존 1행의 의미를 보존하기 위해서다 — 지금 들어 있는 값은 우리가 IP 까지 주던
+          설정이므로 그대로 그 모드가 맞다. <code>ddl/schema.sql</code> 도 같이 동기한다.</p>
+
+        <h4>4-4. 렌더 골든 — <code>PROXY</code></h4>
+        <pre><code># Managed by ServerProvision. Do not edit by hand.
+port=0
+bind-interfaces
+listen-address=&lt;bootServerIp&gt;
+log-dhcp
+dhcp-no-override
+dhcp-range=&lt;network&gt;,proxy,&lt;netmask&gt;
+dhcp-match=set:efi,option:client-arch,7
+dhcp-match=set:efi,option:client-arch,9
+dhcp-userclass=set:ipxe,iPXE
+tag-if=set:rom,tag:efi,tag:!ipxe
+pxe-prompt="ServerProvision",0
+pxe-service=tag:rom,X86-64_EFI,"ServerProvision PXE",ipxe.efi,&lt;bootServerIp&gt;
+dhcp-boot=tag:ipxe,boot.ipxe,,&lt;bootServerIp&gt;</code></pre>
+
+        <h4>4-5. 렌더 골든 — <code>AUTHORITATIVE</code></h4>
+        <pre><code># Managed by ServerProvision. Do not edit by hand.
+port=0
+bind-interfaces
+listen-address=&lt;bootServerIp&gt;
+log-dhcp
+dhcp-authoritative
+dhcp-range=&lt;rangeStart&gt;,&lt;rangeEnd&gt;,&lt;netmask&gt;,&lt;leaseSeconds&gt;s
+dhcp-option=option:router,&lt;routers&gt;
+dhcp-option=option:dns-server,&lt;primaryDns&gt;[,&lt;secondaryDns&gt;]
+dhcp-option=option:domain-name,&lt;domainName&gt;      (도메인이 있을 때만)
+dhcp-match=set:efi,option:client-arch,7
+dhcp-match=set:efi,option:client-arch,9
+dhcp-userclass=set:ipxe,iPXE
+tag-if=set:rom,tag:efi,tag:!ipxe
+dhcp-boot=tag:rom,ipxe.efi,,&lt;bootServerIp&gt;
+dhcp-boot=tag:ipxe,boot.ipxe,,&lt;bootServerIp&gt;</code></pre>
+        <p>결정성 규율은 종전 렌더러와 같다 — 머리말은 정적, 줄 순서는 리터럴로 고정, 마지막에 trailing newline,
+          선택 줄(보조 DNS · 도메인)의 유무 조합은 분기로 명시한다. 같은 입력이 같은 바이트를 내야 드리프트 비교와 골든 테스트가 성립한다.
+          빈 조각(<code>renderEmpty</code>)은 머리말 + <code># (구성 없음 — 유효한 빈 조각)</code> 을 유지한다(복원 경로 D-8).</p>
+
+        <h4>4-6. 그 밖의 타입</h4>
+        <p><b>설정 키</b> — <code>PxeInfraProperties</code> 가 <code>pxe.dnsmasq.fragment-path</code>(빈 존재 조건 · 예
+          <code>/etc/dnsmasq.d/serverprovision-pxe.conf</code>) · <code>pxe.dnsmasq.conf-path</code>(기본 <code>/etc/dnsmasq.conf</code> ·
+          <code>--test -C</code> 대상) · <code>pxe.dnsmasq.leases-path</code>(기본 <code>/var/lib/dnsmasq/dnsmasq.leases</code>)를 받는다.
+          env 는 <code>PXE_DNSMASQ_FRAGMENT_PATH</code>.</p>
+        <table>
+          <thead><tr><th><code>AllowedCommand</code></th><th>명령</th><th>특권 · 타임아웃</th></tr></thead>
+          <tbody>
+            <tr><td><code>DNSMASQ_SYNTAX_CHECK</code></td><td><code>/usr/sbin/dnsmasq --test -C &lt;conf&gt;</code></td><td>sudo 없이 시도 · 3초</td></tr>
+            <tr><td><code>DNSMASQ_SERVICE_STATUS</code></td><td><code>systemctl is-active dnsmasq</code></td><td>비특권</td></tr>
+            <tr><td><code>DNSMASQ_SERVICE_RESTART</code></td><td><code>systemctl restart dnsmasq</code></td><td>sudo · 20초</td></tr>
+          </tbody>
+        </table>
+        <p>sudoers 는 한 줄로 줄어든다 — <code>provisioning ALL=(root) NOPASSWD: /usr/bin/systemctl restart dnsmasq</code>.
+          종전 dhcpd 는 문법 검사에도 sudo 가 필요해 두 줄이었다.</p>
+        <p><b>임대</b> — <code>DnsmasqLeaseParser</code>(신규)가 한 줄
+          <code>&lt;만료 epoch&gt; &lt;mac&gt; &lt;ip&gt; &lt;hostname|*&gt; &lt;client-id|*&gt;</code> 를 읽는다.
+          <code>LeaseEntry</code> 는 ip · mac · ends 만 갖는다 — 시작 시각을 dnsmasq 가 기록하지 않으므로 <code>starts</code> 열을 뺀다.
+          상태는 만료가 now 보다 크면 ACTIVE 이고, epoch 0 은 무만료다. ISC <code>DhcpLeaseParser</code> 는 삭제한다.</p>
+        <p><b>대시보드</b> — <code>SystemAssetAreaKey.DHCPD</code> 를 <code>DHCP</code> 로(데몬 중립) 바꾸고,
+          <code>DhcpAssetArea</code>(구 <code>DhcpdAssetArea</code>)의 표시명을 "PXE 인프라 (dnsmasq)" 로 한다.
+          chip 은 서비스 상태 · 모드 라벨 · 활성 임대 수이며 활성 임대는 <code>AUTHORITATIVE</code> 에서만 뜬다.</p>
+        <table>
+          <thead><tr><th>구 이름</th><th>새 이름</th><th>기준</th></tr></thead>
+          <tbody>
+            <tr><td><code>DhcpdConfigRenderer</code></td><td><code>DnsmasqConfigRenderer</code></td><td>산출물이 dnsmasq 문법 — 데몬 명시</td></tr>
+            <tr><td><code>DhcpdConfigInspector</code></td><td><code>DnsmasqConfigInspector</code></td><td>조각 문법을 dnsmasq 로 본다 — 데몬 명시</td></tr>
+            <tr><td><code>DhcpdConfigApplyService</code></td><td><code>DhcpConfigApplyService</code></td><td>파이프라인은 데몬 무관 — 중립</td></tr>
+            <tr><td><code>DhcpdAssetArea</code></td><td><code>DhcpAssetArea</code></td><td>영역 키도 <code>DHCP</code> 로 중립</td></tr>
+          </tbody>
+        </table>
+        <p>예외 3종(<code>DhcpConfigInvalidException</code> · <code>DhcpServiceControlFailedException</code> ·
+          <code>DhcpConfigRestoreFailedException</code>)은 이름을 유지하고 문구의 dhcpd 만 dnsmasq 로 바꾼다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>뷰(폼 · 임대 · 대시보드) · Controller · DTO · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>Repository · Entity + <code>DhcpMode</code> enum</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>렌더러 · 파서 · 적용 서비스 본체 + 스키마 확인 (테스트 코드 제외, 빌드 통과)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (항목 계획 + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <p>승인 게이트는 <b>CP1 · CP4(중간 — 테스트 제외 main 구현 + 빌드 통과) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 —
+          ① CP1 승인에서 CP4 게이트 지점까지, ② CP4 승인에서 CP6 제출까지.
+          리팩토링 슬라이스지만 엔티티 · DDL 변경이 있어 <b>Step 6 · 7 · 9 가 살아 있다</b>. Step 9 의 DDL 은 워크트리 · 샌드박스 DB 에 적용해
+          <code>ddl-auto=validate</code> 통과를 확인하고, 실 DB 적용은 배포 시점에 한다.</p>
+
+        <h4>작업 위치</h4>
+        <p>단기 워크트리 <code>ServerProvision-refactor/R16_proxydhcp</code>(브랜치 <code>refactor/R16_proxydhcp</code> ·
+          base <code>origin/dev</code> 60f3284 · 2026-09-16 생성)에서 진행한다. 앵커에서 도는 HF17 과 파일이 겹치지 않으므로 병행해도
+          충돌하지 않는다. 슬라이스가 끝나면 워크트리는 제거한다.</p>
+
+        <h4>CP5 의 한계 — 어디까지 샌드박스에서 보는가</h4>
+        <p>이 슬라이스는 화면이 있으므로 CP5 는 <b>브라우저</b> 로 하고 하네스를 곁들인다. 다만 샌드박스(macOS)에는
+          <code>/usr/sbin/dnsmasq</code> 가 없어 문법 게이트가 실행 불능(NOT_FOUND)으로 떨어진다. 그래서
+          <b>APPLIED 경로의 화면</b>은 Linux(스테이징 VM 또는 spv-01)에서 CP7 실기로 본다.
+          샌드박스 CP5 가 맡는 것은 폼 · 모드 전환 · 400 · 안내 · 임대 페이지 · 대시보드 chip 과, 게이트 실행 불능일 때의 500 문구다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 테스트</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>DnsmasqConfigRendererTest</code></td><td>골든 — 모드 2 × 보조 DNS 유무 × 도메인 유무 · 빈 조각 · 결정성</td><td>미확정</td></tr>
+            <tr><td><code>DhcpModeTest</code></td><td><code>requiresAddressing()</code> · <code>renderRange()</code></td><td>2</td></tr>
+            <tr><td><code>PxeNetworkConfigTest</code></td><td>모드별 invariant · <code>PROXY</code> 의 주소 필드 null 정규화</td><td>2</td></tr>
+            <tr><td><code>PxeNetworkConfigValidatorTest</code></td><td>모드별 필수 · 범위 · CIDR</td><td>3</td></tr>
+            <tr><td><code>DnsmasqLeaseParserTest</code></td><td>정상 · 무만료 0 · 빈 파일 · 깨진 줄 무시</td><td>4</td></tr>
+            <tr><td><code>DhcpConfigApplyServiceTest</code></td><td>APPLIED · REJECTED · 게이트 NOT_FOUND → ROLLED_BACK · restart 실패 → ROLLED_BACK · 복원 실패 → RESTORE_FAILED · 이력 remove</td><td>6</td></tr>
+            <tr><td><code>DhcpAssetAreaTest</code></td><td>미구성 · 조각 부재 · 문법 · chip 모드</td><td>4</td></tr>
+          </tbody>
+        </table>
+        <p>적용 서비스는 <code>StubSystemCommandRunner</code> 로 각 명령의 종료 코드를 지정해 다섯 갈래를 모두 만든다 —
+          실제 dnsmasq 바이너리에 의존하지 않아야 CI 와 macOS 샌드박스에서도 같은 결과가 난다.
+          렌더러 골든의 케이스 수는 선택 줄(보조 DNS · 도메인) 조합을 확정하는 Step 8 에서 고정한다.</p>
+
+        <h4>사용자 액션 통합 테스트 (<code>@WebMvcTest</code> + MockMvc)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 302</td><td><code>PxeNetworkConfigControllerTest</code> — 두 모드 각각 저장 · 적용 후 PRG</td><td>2</td></tr>
+            <tr><td>400 필드</td><td>모드별 필수 누락 · 범위 이탈 · CIDR 형식</td><td>3</td></tr>
+            <tr><td>400 REJECTED</td><td>문법 게이트 거절 — 응답 바디에 원문</td><td>1</td></tr>
+            <tr><td>500</td><td>ROLLED_BACK · RESTORE_FAILED · 게이트 실행 불능</td><td>3</td></tr>
+            <tr><td>200 조회</td><td><code>PxeInfraControllerTest</code> — <code>AUTHORITATIVE</code> 임대 표 · <code>PROXY</code> 안내 · 미구성 안내</td><td>3</td></tr>
+            <tr><td>200 대시보드</td><td>영역 키 <code>DHCP</code> 의 링크 · chip</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <p>통합 시나리오 합계는 <b>13</b> 이다. <b>404 · 409 는 이 슬라이스에 해당 없다</b> — 이 화면은 싱글턴 1행을 다루므로
+          id 로 찾다 없는 경로도, 같은 자원이 둘이 되는 충돌 경로도 존재하지 않는다(§7 의 예외 3종도 400 과 500 뿐이다).
+          <b>새 예외가 0</b> 이므로 "새 예외마다 트리거 시나리오를 함께 낸다" 는 규율에 걸리는 추가분은 없고,
+          기존 3종의 <b>문구 변경분</b>만 통합 테스트의 기대 문자열에서 갱신한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>신규 없음.</b> 세 예외를 이름 그대로 재사용하고 매핑도 <code>WebExceptionHandler.handleDomain</code> 그대로 둔다.
+          바뀌는 것은 메시지 안의 <code>dhcpd</code> · <code>dhcpd -t</code> 가 <code>dnsmasq</code> · <code>dnsmasq --test</code> 로 가는 것뿐이다.</p>
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>계기</th></tr></thead>
+          <tbody>
+            <tr><td><code>DhcpConfigInvalidException</code></td><td>400 (<code>@ResponseStatus</code>)</td><td><span class="chip keep">재사용</span></td><td>문법 게이트 거절 — 원문을 화면에 싣는다</td></tr>
+            <tr><td><code>DhcpServiceControlFailedException</code></td><td>500</td><td><span class="chip keep">재사용</span></td><td>재기동 · 활성 검증 실패 후 복원 성공(ROLLED_BACK)</td></tr>
+            <tr><td><code>DhcpConfigRestoreFailedException</code></td><td>500</td><td><span class="chip keep">재사용</span></td><td>복원까지 실패(RESTORE_FAILED) — 수동 복구 안내</td></tr>
+          </tbody>
+        </table>
+        <p>이름에 데몬이 들어 있지 않은 것이 여기서 이득이 된다. 예외는 "구성이 틀렸다 · 서비스 제어가 실패했다 · 되돌리기가 실패했다" 라는
+          파이프라인의 사건을 가리키지 데몬을 가리키지 않으므로, 데몬을 갈아도 계층을 건드릴 이유가 없다(D-12).</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>8-1. 결정 — 채택 · 탈락 대안 · 사유</h4>
+        <table>
+          <thead><tr><th>ID</th><th>채택</th><th>탈락 대안 · 사유</th></tr></thead>
+          <tbody>
+            <tr><td><b>D-1</b></td><td>데몬 = dnsmasq 단일</td><td>dhcpd 유지 + dnsmasq proxy 병존 — 렌더러 · 명령 · 관측이 두 벌이 되고 같은 LAN 에서 두 데몬이 충돌한다. ISC Kea — proxyDHCP 미지원</td></tr>
+            <tr><td><b>D-2</b></td><td>모드 enum 2 값 · 한 행 · 한 화면</td><td>proxy 전용 — 실습 LAN 의 자체 DHCP 를 잃는다. 모드별 테이블 — 싱글턴이 둘 · 화면이 둘이 되는 churn</td></tr>
+            <tr><td><b>D-3</b></td><td>모드 라디오가 필드 그룹을 <code>disabled</code> + 안내(UI 1차 차단) · Validator · invariant 가 <code>requiresAddressing()</code> 을 공유</td><td>서버 400 만 — 정상 UX 흐름을 예외로 거절하게 되어 불가침 원칙 위반</td></tr>
+            <tr><td><b>D-4</b></td><td>iPXE 2단 = <code>dhcp-userclass=set:ipxe,iPXE</code> + <code>tag-if</code> 로 ROM 과 분리</td><td><code>ipxe.efi</code> 임베디드 스크립트 빌드 — 자산 파이프라인을 새로 세워야 한다. 예비안으로만 둔다</td></tr>
+            <tr><td><b>D-5</b></td><td><code>PROXY</code> 응답 = <code>pxe-service</code>(메뉴 · 프롬프트 0초) + iPXE 는 <code>dhcp-boot</code></td><td><code>dhcp-boot</code> 만 — proxy 모드에서 ROM 이 메뉴 프로토콜(4011)을 쓰므로 보장되지 않는다(미실측)</td></tr>
+            <tr><td><b>D-6</b></td><td>인터페이스 한정 = <code>bind-interfaces</code> + <code>listen-address=&lt;부트 서버 IP&gt;</code></td><td>NIC 이름 입력 필드 — OS 종속값을 화면에 노출하게 된다</td></tr>
+            <tr><td><b>D-7</b></td><td>문법 게이트 <code>dnsmasq --test -C &lt;conf&gt;</code> 는 비특권으로 시도</td><td>sudo 기본 — 필요하다고 실측되면 그때 라인을 추가한다</td></tr>
+            <tr><td><b>D-8</b></td><td>조각 = <code>/etc/dnsmasq.d</code> drop-in(Rocky 기본 <code>conf-dir</code>) · include 불요 · 최초 빈 조각 불요. 복원 경로의 빈 조각 쓰기는 유지</td><td>메인 conf 편집 — 런북 단계가 늘고 dhcpd 의 include 함정을 되풀이한다</td></tr>
+            <tr><td><b>D-9</b></td><td>임대 뷰 유지(<code>AUTHORITATIVE</code>) · 파서 교체 · <code>starts</code> 열 제거 · <code>PROXY</code> 안내</td><td>페이지 삭제 — 실습 LAN 의 관측 수단을 잃는다</td></tr>
+            <tr><td><b>D-10</b></td><td>임대 시간 한 값(<code>lease_seconds</code>) · max 제거</td><td>두 값 유지 — dnsmasq 에 대응 옵션이 없다</td></tr>
+            <tr><td><b>D-11</b></td><td><code>PXE_GUEST_ALLOWED_CIDRS</code> 는 env 유지</td><td>화면 서브넷에서 파생 — S19-2 의 결정을 번복하고 보안값과 화면값을 결합시킨다</td></tr>
+            <tr><td><b>D-12</b></td><td>클래스 · 키 이름은 데몬 중립(<code>Dhcp…</code>) 또는 dnsmasq 명시(렌더러 · 인스펙터)</td><td>전부 dnsmasq 접두 — 파이프라인 · 예외까지 이름 churn 이 번진다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>8-2. 주의 · 부산물</h4>
+        <div class="callout warn"><b>실기에서 먼저 확인해야 하는 둘</b> :
+          <ul>
+            <li><b>SELinux enforcing</b>(spv-01) — 앱이 쓰는 조각은 <code>/etc/dnsmasq.d</code> 의 기본 컨텍스트를 받는다.
+              dnsmasq 가 그 파일을 읽을 수 있는지는 실측 대상이다(K-4). 앱 쪽에는 systemd <code>ReadWritePaths=/etc/dnsmasq.d</code> drop-in 이 필요하다(런북).</li>
+            <li><b>다중 NIC</b>(spv-01 의 <code>eno1</code> · <code>eno3</code>) — <code>listen-address</code> 가 부트 서버 IP 를 가진 NIC 만 잡는지 실측한다(K-3).
+              여기서 잘못 잡으면 사내망에 우리 DHCP 응답이 새어 나간다.</li>
+          </ul>
+        </div>
+        <ul>
+          <li><code>port=0</code> 은 조각에 적혀 있어도 전역으로 작동한다 — dnsmasq 의 DNS 기능을 끈다. 우리가 쓰는 것은 DHCP 뿐이다.</li>
+          <li>실기 4호까지 쓰던 스테이징 VM 은 dhcpd 였다. 전환 배포에는 dhcpd 정지 · 제거와 env 키 교체(<code>PXE_DNSMASQ_FRAGMENT_PATH</code>)가 따라간다(런북).</li>
+          <li>이력 category <code>PXE</code> 의 파일명 키가 조각 파일명이라, 파일명이 바뀌면 이전 이력과 끊긴다 — 새 파일명으로 시작한다(허용).</li>
+        </ul>
+
+        <h4>8-3. Open Questions</h4>
+        <table>
+          <thead><tr><th>#</th><th>내용</th><th>기본값</th></tr></thead>
+          <tbody>
+            <tr><td><b>Q-1</b></td><td>실기 테스트 베드 — 실습 LAN(192.168.1.0/24)에 IP 만 주는 DHCP(라우터)가 있는가. 없으면 proxy 실기는 사내망(10.1.1.0/24 · spv-01)에서 한다</td><td>사용자 확인</td></tr>
+            <tr><td><b>Q-2</b></td><td>legacy BIOS 게스트(x86PC · <code>undionly.kpxe</code>) 지원</td><td>비목표 유지</td></tr>
+            <tr><td><b>Q-3</b></td><td>dnsmasq 내장 TFTP 통합 시점</td><td>별도 슬라이스</td></tr>
+            <tr><td><b>Q-4</b></td><td>임대 페이지 이름 · 대시보드 라벨 문구</td><td>"PXE 인프라 (dnsmasq)"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트 (CP5 · 항목 식별자)</summary>
+      <div class="body">
+        <h4>A — 정상 흐름</h4>
+        <table>
+          <thead><tr><th>ID</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><b>A1</b></td><td>미구성(env 없음) — 대시보드 "서빙 비활성" · 임대 페이지 안내 · 폼은 열린다</td></tr>
+            <tr><td><b>A2</b></td><td><code>AUTHORITATIVE</code> 저장 — 필드 10 → 조각 골든(테스트) · 화면은 게이트 실행 불능 500 문구(샌드박스)</td></tr>
+            <tr><td><b>A3</b></td><td><code>PROXY</code> 저장 — 서브넷 · 부트 서버만 · 주소 필드 <code>disabled</code> · 조각 골든(테스트)</td></tr>
+            <tr><td><b>A4</b></td><td>저장 뒤 GET 프리필 — 모드 · 필드 복원 · 마지막 적용 결과 배지</td></tr>
+            <tr><td><b>A5</b></td><td>임대 페이지 — <code>AUTHORITATIVE</code> 표(dnsmasq 형식 fixture) · <code>PROXY</code> 안내</td></tr>
+            <tr><td><b>A6</b></td><td>대시보드 chip — 서비스 · 모드 · 활성 임대(<code>AUTHORITATIVE</code> 만)</td></tr>
+          </tbody>
+        </table>
+        <h4>B — 비정상 조작</h4>
+        <table>
+          <thead><tr><th>ID</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><b>B1</b></td><td><code>AUTHORITATIVE</code> 범위 이탈 · 시작 &gt; 끝 → 400 필드 오류</td></tr>
+            <tr><td><b>B2</b></td><td>CIDR 형식 · host bit ≠ 0 · IPv6 → 400 필드 오류</td></tr>
+            <tr><td><b>B3</b></td><td><code>PROXY</code> 직접 POST 에 주소 필드 값 → 저장은 되되 값은 null 로</td></tr>
+            <tr><td><b>B4</b></td><td>문법 거절(테스트 StubRunner) → 400 · 원문 표시</td></tr>
+            <tr><td><b>B5</b></td><td>재기동 실패 · 복원 실패(테스트) → 500 문구 두 종</td></tr>
+          </tbody>
+        </table>
+        <h4>C — 막는 방식</h4>
+        <table>
+          <thead><tr><th>ID</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><b>C1</b></td><td>모드 전환 시 필드 그룹 <code>disabled</code> + 안내 문구 · 필수 표시가 모드를 따라 바뀐다</td></tr>
+            <tr><td><b>C2</b></td><td>게이트 실행 불능 500 이 "바이너리 · sudoers 확인" 을 안내한다</td></tr>
+          </tbody>
+        </table>
+        <h4>K — CP7 실기 (Linux · 실 게스트)</h4>
+        <table>
+          <thead><tr><th>ID</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><b>K-1</b></td><td><code>dnsmasq --test</code> 의 비특권 종료 코드 · <code>restart</code> 가 20초 안에 끝나는가</td></tr>
+            <tr><td><b>K-2</b></td><td>실 PXE ROM(AMI UEFI)이 proxy 응답을 받아 <code>ipxe.efi</code> 를 받는가 · iPXE 2단이 <code>boot.ipxe</code> 를 받는가</td></tr>
+            <tr><td><b>K-3</b></td><td>다중 NIC 에서 <code>listen-address</code> 의 NIC 만 응답하는가</td></tr>
+            <tr><td><b>K-4</b></td><td>SELinux enforcing 에서 조각 읽기 · 임대 파일 읽기가 되는가</td></tr>
+          </tbody>
+        </table>
+        <p>A · B · C 열두 항목은 샌드박스 브라우저에서, K 넷은 CP7 실기에서 확인한다. K-2 가 이 슬라이스의 존재 이유를 직접 증명하는 항목이며,
+          여기서 막히면 D-4 의 예비안(<code>ipxe.efi</code> 임베디드 스크립트)을 꺼낸다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>건수</th><th>성격</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td>5 + 테스트 3</td><td>모드 enum · dnsmasq 렌더러 · dnsmasq 임대 파서 · DDL · 런북</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>30 + 기존 테스트 13</td><td>엔티티 · DTO · 검증 · 서비스 · 컨트롤러 · 명령 · 관측 · 템플릿 · 설정 · 문서</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td>3</td><td>ISC 전용 렌더러 · 파서 · 런북</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>파이프라인 · VO · 예외 · 자산 계약</td><td>데몬과 무관해 변경 0</td></tr>
+          </tbody>
+        </table>
+
+        <h4><span class="chip new">신규</span></h4>
+        <p><code>pxeinfra/enums/DhcpMode.java</code> · <code>pxeinfra/render/DnsmasqConfigRenderer.java</code> ·
+          <code>pxeinfra/inspect/DnsmasqLeaseParser.java</code> · <code>ddl/R16_pxe_network_config_dnsmasq.sql</code> ·
+          <code>docs/pxe-dnsmasq-setup.md</code>(구 dhcpd 런북 대체) · 테스트 신규 3.</p>
+
+        <h4><span class="chip mod">수정</span></h4>
+        <p><b>도메인 · 서비스</b> — <code>entity/PxeNetworkConfig</code> · <code>dto/request/PxeNetworkConfigRequest</code> ·
+          <code>dto/response/PxeNetworkConfigResponse</code> · <code>PxeInfraOverviewResponse</code> · <code>DhcpLeaseView</code> ·
+          <code>validation/PxeNetworkConfigValidator</code> · <code>service/PxeNetworkConfigMapper</code> ·
+          <code>service/PxeNetworkConfigService</code> · <code>controller/PxeNetworkConfigController</code> ·
+          <code>controller/PxeInfraController</code> · <code>apply/DhcpConfigApplyService</code>(개명) ·
+          <code>command/AllowedCommand</code> · <code>config/PxeInfraProperties</code>.</p>
+        <p><b>관측 · 대시보드</b> — <code>inspect/DnsmasqConfigInspector</code>(개명) · <code>inspect/SystemServiceInspector</code> ·
+          <code>inspect/DhcpLeaseReader</code> · <code>inspect/LeaseEntry</code> · <code>inspect/LeaseSnapshot</code> ·
+          <code>spi/DhcpAssetArea</code>(개명) · <code>spi/ConfigFileCondition</code>(문구) · <code>asset/spi/SystemAssetAreaKey</code>.</p>
+        <p><b>화면 · 설정 · 문서</b> — <code>system/pxe-infra/network-form.html</code> · <code>overview.html</code> ·
+          <code>system/asset/dashboard.html</code> · <code>application.properties</code> · <code>ddl/schema.sql</code> ·
+          <code>docs/staging-vm-bootstrap.md</code> · <code>docs/pxe-server-install.md</code> · <code>docs/README.md</code> ·
+          <code>docs/T3-checklist.md</code> · 기존 테스트 13.</p>
+
+        <h4><span class="chip del">삭제</span></h4>
+        <p><code>render/DhcpdConfigRenderer</code> · <code>inspect/DhcpLeaseParser</code>(ISC) ·
+          <code>docs/26-07-29_01-03-05_pxe-network-config-setup.md</code>.</p>
+
+        <h4><span class="chip keep">유지</span></h4>
+        <p><code>AtomicAssetSwap</code> · <code>AssetHistoryService</code> · <code>ProcessSystemCommandRunner</code> · <code>ArgShape</code> ·
+          <code>SubnetCidr</code> · <code>LeaseSeconds</code> · 예외 3 · <code>TftpAsset</code> · S19-2 전부.
+          유지 목록이 이 슬라이스의 경계를 말해 준다 — 파이프라인과 Value Object, 예외, 게스트 채널 인증은 데몬이 바뀌어도 그대로다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R16-milestone">
+          <li><label><input type="checkbox" data-key="cp1"> <span>CP1 승인 → 워크트리에서 CP2~CP4 진행</span></label></li>
+          <li><label><input type="checkbox" data-key="q1"> <span>Q-1 테스트 베드 결정 — 실습 LAN 에 IP 만 주는 라우터 DHCP 가 있는가</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7 실기 — K-1~K-4 · 게스트 1대 PXE 부팅 · 네트워크팀 사전 통보</span></label></li>
+          <li><label><input type="checkbox" data-key="backlog"> <span>적립 — dnsmasq TFTP 통합 · <code>ipxe.efi</code> 임베디드(예비) · UEFI HTTP boot 실측 · BMC 가상 미디어 원인 규명</span></label></li>
+          <li><label><input type="checkbox" data-key="notion"> <span>Notion <code>R16 : proxyDHCP 전환</code> 페이지 신설(사용자 지시 뒤 notion-sync)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(function(a){
+    a.addEventListener('click', function(e){
+      var href = a.getAttribute('href');
+      var target = document.querySelector(href);
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', function(){
+    document.querySelectorAll('details.section').forEach(function(d){ d.open = true; });
+  });
+  document.getElementById('btn-collapse').addEventListener('click', function(){
+    document.querySelectorAll('details.section').forEach(function(d){ d.open = false; });
+  });
+  document.getElementById('filter').addEventListener('input', function(e){
+    var q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(function(d){
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().indexOf(q) >= 0) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(function(ul){
+    var key = ul.dataset.storage;
+    var stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', function(){
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — 판정은 §4-2 엔티티 invariant · PxeNetworkConfigValidator 와 1:1,
+  //           조각 텍스트는 §4-4 · §4-5 골든과 줄 단위로 동일 (드리프트 0)
+  // ─────────────────────────────────────────────────────────────
+  var DEMO_ADDR_FIELDS = ['rangeStart','rangeEnd','routers','primaryDns','secondaryDns','domainName','leaseSeconds'];
+  var DEMO_LABELS = {
+    subnetCidr:'서브넷 CIDR', bootServerIp:'부트 서버 IP', rangeStart:'범위 시작', rangeEnd:'범위 끝',
+    routers:'라우터', primaryDns:'주 DNS', secondaryDns:'보조 DNS', domainName:'도메인', leaseSeconds:'임대(초)'
+  };
+  var DEMO_BLANK = { mode:'PROXY', subnetCidr:'', bootServerIp:'', rangeStart:'', rangeEnd:'', routers:'',
+    primaryDns:'', secondaryDns:'', domainName:'', leaseSeconds:'' };
+  var DEMO_STEPS = [
+    ['① 렌더', 'DnsmasqConfigRenderer.renderToTemp'],
+    ['② 원자 스왑', 'AtomicAssetSwap.swap — 이력 category PXE'],
+    ['③ 문법 게이트', 'dnsmasq --test -C &lt;conf&gt;'],
+    ['④ 재기동', 'systemctl restart dnsmasq'],
+    ['⑤ 활성 검증', 'systemctl is-active dnsmasq']
+  ];
+  var DEMO_STEP_BADGE = {
+    wait:['대기','off'], ok:['통과','on'], reject:['거절','del'], fail:['실패','del'], skip:['미실행','off']
+  };
+  var DEMO_OUTCOMES = {
+    APPLIED: { badge:'on', label:'APPLIED · 302', cls:'success',
+      msg:'<b>적용 완료</b> — 다섯 단계가 모두 통과했습니다. <code>PxeNetworkConfigService.save</code> 가 결과를 기록하고 PRG 로 302 를 냅니다. 새 조각이 서빙 중입니다.' },
+    REJECTED: { badge:'del', label:'REJECTED · 400', cls:'error',
+      msg:'<b>문법 거절</b> — 게이트가 <code>dnsmasq: bad option at line 7</code> 을 돌려줬습니다. 원문이 그대로 화면에 뜨고, 이전 조각이 복원돼 서비스는 종전 구성 그대로입니다. (<code>DhcpConfigInvalidException</code> → 400)' },
+    ROLLED_BACK: { badge:'dep', label:'ROLLED_BACK · 500', cls:'error',
+      msg:'<b>재기동 실패 → 복원 성공</b> — 이전 조각으로 되돌렸습니다. 이전 구성으로 동작 중이고 방금 넣은 값은 미반영입니다. (<code>DhcpServiceControlFailedException</code> → 500)' },
+    GATE_NOT_FOUND: { badge:'dep', label:'ROLLED_BACK · 500', cls:'error',
+      msg:'<b>게이트 실행 불능</b> — <code>/usr/sbin/dnsmasq</code> 를 찾지 못했습니다(NOT_FOUND). 바이너리 설치와 sudoers 를 확인하세요. 이전 조각은 복원됐습니다. (500) · macOS 샌드박스의 CP5 가 보는 경로가 이것입니다.' },
+    RESTORE_FAILED: { badge:'del', label:'RESTORE_FAILED · 500', cls:'error',
+      msg:'<b>복원까지 실패</b> — 수동 복구가 필요합니다. 조각 파일과 dnsmasq 서비스 상태를 사람이 직접 확인해야 합니다. (<code>DhcpConfigRestoreFailedException</code> → 500)' }
+  };
+  var DEMO_PRESETS = {
+    1: { gate:'PASS',
+         fields:{ mode:'PROXY', subnetCidr:'10.1.1.0/24', bootServerIp:'10.1.1.17' },
+         banner:'<b>① 사내망 proxyDHCP</b> — 사내 DHCP 가 IP 를 주고 우리는 부팅 옵션만 얹습니다. 주소 배정 필드는 잠기고 조각에는 <code>dhcp-range=10.1.1.0,proxy,255.255.255.0</code> 과 <code>pxe-service</code> · <code>dhcp-boot=tag:ipxe,boot.ipxe</code> 만 들어갑니다. [적용] 을 누르면 통과합니다.' },
+    2: { gate:'PASS',
+         fields:{ mode:'AUTHORITATIVE', subnetCidr:'192.168.1.0/24', rangeStart:'192.168.1.100', rangeEnd:'192.168.1.200',
+                  routers:'192.168.1.1', primaryDns:'8.8.8.8', leaseSeconds:'600', bootServerIp:'192.168.1.15' },
+         banner:'<b>② 실습 LAN 자체 DHCP</b> — 우리가 IP 까지 배정하던 종전 경로입니다. <code>dhcp-authoritative</code> 와 <code>dhcp-range=…,600s</code>, <code>dhcp-option=option:router,…</code> 가 붙는 것을 보세요.' },
+    3: { gate:'PASS',
+         fields:{ mode:'AUTHORITATIVE', subnetCidr:'192.168.1.0/24', rangeStart:'192.168.1.100', rangeEnd:'192.168.2.10',
+                  routers:'192.168.1.1', primaryDns:'8.8.8.8', leaseSeconds:'600', bootServerIp:'192.168.1.15' },
+         banner:'<b>③ 범위 이탈</b> — 끝 주소가 <code>192.168.2.10</code> 이라 서브넷 밖입니다. <code>rangeEnd</code> 필드 오류로 400 이고, [적용] 버튼은 화면이 먼저 막습니다.' },
+    4: { gate:'PASS',
+         fields:{ mode:'PROXY', subnetCidr:'10.1.1.0/24', rangeStart:'10.1.1.100', rangeEnd:'10.1.1.200',
+                  routers:'10.1.1.1', primaryDns:'8.8.8.8', leaseSeconds:'600', bootServerIp:'10.1.1.17' },
+         banner:'<b>④ PROXY 인데 주소 배정 필드를 채운 직접 POST</b> — 화면에서는 필드가 잠겨 보낼 수 없지만, 그 경로를 우회해 값이 와도 서버는 그것을 버리고 null 로 정규화해 저장합니다. 아래 판정 패널에서 "버려짐" 표시를 보세요 — 조각에도 남지 않습니다.' },
+    5: { gate:'SYNTAX',
+         fields:{ mode:'AUTHORITATIVE', subnetCidr:'192.168.1.0/24', rangeStart:'192.168.1.100', rangeEnd:'192.168.1.200',
+                  routers:'192.168.1.1', primaryDns:'8.8.8.8', leaseSeconds:'600', bootServerIp:'192.168.1.15' },
+         banner:'<b>⑤ 문법 거절</b> — 입력은 멀쩡하지만 게이트가 원문을 돌려줍니다. [적용] 을 눌러 다섯 단계가 ③ 에서 멈추는 것을 보세요.' },
+    6: { gate:'RESTART',
+         fields:{ mode:'AUTHORITATIVE', subnetCidr:'192.168.1.0/24', rangeStart:'192.168.1.100', rangeEnd:'192.168.1.200',
+                  routers:'192.168.1.1', primaryDns:'8.8.8.8', leaseSeconds:'600', bootServerIp:'192.168.1.15' },
+         banner:'<b>⑥ 재기동 실패 → 복원 성공</b> — [적용] 을 누르면 ④ 에서 멈추고 ROLLED_BACK 이 뜹니다. "이전 구성으로 동작 중 · 방금 값은 미반영" 이 그 뜻입니다.' }
+  };
+
+  var demoState = Object.assign({}, DEMO_BLANK, DEMO_PRESETS[1].fields);
+  var demoGateResult = 'PASS';
+  var demoPresetId = 1;
+  var demoStepStates = [null,null,null,null,null];
+  var demoOutcome = null;
+  var demoRunToken = 0;
+
+  function demoEsc(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function demoRequiresAddressing(mode){ return mode === 'AUTHORITATIVE'; }   // DhcpMode.requiresAddressing()
+  function demoIpToInt(ip){
+    var m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(String(ip).trim());
+    if (!m) return null;
+    var n = 0;
+    for (var i = 1; i <= 4; i++) {
+      var part = m[i];
+      if (part.length > 1 && part.charAt(0) === '0') return null;
+      var o = Number(part);
+      if (o > 255) return null;
+      n = n * 256 + o;
+    }
+    return n >>> 0;
+  }
+  function demoIntToIp(n){
+    return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.');
+  }
+  function demoParseCidr(v){
+    var m = /^([^\/]+)\/(\d{1,2})$/.exec(String(v).trim());
+    if (!m) return null;
+    var ip = demoIpToInt(m[1]);
+    var p = Number(m[2]);
+    if (ip === null || p < 0 || p > 32) return null;
+    var mask = p === 0 ? 0 : ((0xFFFFFFFF << (32 - p)) >>> 0);
+    var network = (ip & mask) >>> 0;
+    return { ip:ip, prefix:p, mask:mask, network:network, netmask:demoIntToIp(mask), hostBitZero:(network === ip) };
+  }
+  // PROXY invariant — 주소 배정 필드는 null 로 정규화(값이 와도 버린다)
+  function demoEffective(){
+    var e = Object.assign({}, demoState);
+    if (!demoRequiresAddressing(e.mode)) {
+      DEMO_ADDR_FIELDS.forEach(function(f){ e[f] = ''; });
+    }
+    return e;
+  }
+  // PxeNetworkConfigValidator — 모드가 정한 필수 집합 + 형식 · 경계
+  function demoErrors(){
+    var s = demoState, errs = [];
+    function push(f, m){ errs.push({ field:f, msg:m }); }
+    var cidr = demoParseCidr(s.subnetCidr);
+    if (!String(s.subnetCidr).trim()) push('subnetCidr', '필수 — 두 모드 공통입니다.');
+    else if (!cidr) push('subnetCidr', 'IPv4 CIDR 형식이 아닙니다 (예 10.1.1.0/24).');
+    else if (!cidr.hostBitZero) push('subnetCidr', '네트워크 주소가 아닙니다 — host bit 이 0 이어야 합니다 (' + demoIntToIp(cidr.network) + '/' + cidr.prefix + ').');
+    if (!String(s.bootServerIp).trim()) push('bootServerIp', '필수 — 두 모드 공통입니다.');
+    else if (demoIpToInt(s.bootServerIp) === null) push('bootServerIp', 'IPv4 주소 형식이 아닙니다.');
+
+    if (demoRequiresAddressing(s.mode)) {
+      var checkIp = function(f, required){
+        var v = String(s[f]).trim();
+        if (!v) { if (required) push(f, 'AUTHORITATIVE 에서는 필수입니다.'); return null; }
+        var n = demoIpToInt(v);
+        if (n === null) { push(f, 'IPv4 주소 형식이 아닙니다.'); return null; }
+        return n;
+      };
+      var st = checkIp('rangeStart', true), en = checkIp('rangeEnd', true);
+      checkIp('routers', true); checkIp('primaryDns', true); checkIp('secondaryDns', false);
+      if (cidr && cidr.hostBitZero) {
+        if (st !== null && ((st & cidr.mask) >>> 0) !== cidr.network) push('rangeStart', '서브넷 ' + String(s.subnetCidr).trim() + ' 밖입니다.');
+        if (en !== null && ((en & cidr.mask) >>> 0) !== cidr.network) push('rangeEnd', '서브넷 ' + String(s.subnetCidr).trim() + ' 밖입니다.');
+      }
+      if (st !== null && en !== null && st > en) push('rangeEnd', '시작 주소보다 앞섭니다 — 시작 ≤ 끝 이어야 합니다.');
+      var lv = String(s.leaseSeconds).trim();
+      if (!lv) push('leaseSeconds', 'AUTHORITATIVE 에서는 필수입니다.');
+      else if (!/^\d+$/.test(lv) || Number(lv) <= 0) push('leaseSeconds', '양의 정수여야 합니다.');
+    }
+    return errs;
+  }
+  // DnsmasqConfigRenderer — §4-4 · §4-5 골든
+  function demoFragment(){
+    var e = demoEffective();
+    var c = demoParseCidr(e.subnetCidr);
+    var net = c ? demoIntToIp(c.network) : '<network>';
+    var mask = c ? c.netmask : '<netmask>';
+    var boot = String(e.bootServerIp).trim() || '<bootServerIp>';
+    var L = ['# Managed by ServerProvision. Do not edit by hand.', 'port=0', 'bind-interfaces', 'listen-address=' + boot, 'log-dhcp'];
+    if (!demoRequiresAddressing(e.mode)) {
+      L.push('dhcp-no-override');
+      L.push('dhcp-range=' + net + ',proxy,' + mask);
+      L.push('dhcp-match=set:efi,option:client-arch,7');
+      L.push('dhcp-match=set:efi,option:client-arch,9');
+      L.push('dhcp-userclass=set:ipxe,iPXE');
+      L.push('tag-if=set:rom,tag:efi,tag:!ipxe');
+      L.push('pxe-prompt="ServerProvision",0');
+      L.push('pxe-service=tag:rom,X86-64_EFI,"ServerProvision PXE",ipxe.efi,' + boot);
+      L.push('dhcp-boot=tag:ipxe,boot.ipxe,,' + boot);
+    } else {
+      var rs = String(e.rangeStart).trim() || '<rangeStart>';
+      var re = String(e.rangeEnd).trim() || '<rangeEnd>';
+      var ls = String(e.leaseSeconds).trim() || '<leaseSeconds>';
+      var rt = String(e.routers).trim() || '<routers>';
+      var d1 = String(e.primaryDns).trim() || '<primaryDns>';
+      var d2 = String(e.secondaryDns).trim();
+      var dn = String(e.domainName).trim();
+      L.push('dhcp-authoritative');
+      L.push('dhcp-range=' + rs + ',' + re + ',' + mask + ',' + ls + 's');
+      L.push('dhcp-option=option:router,' + rt);
+      L.push('dhcp-option=option:dns-server,' + d1 + (d2 ? ',' + d2 : ''));
+      if (dn) L.push('dhcp-option=option:domain-name,' + dn);
+      L.push('dhcp-match=set:efi,option:client-arch,7');
+      L.push('dhcp-match=set:efi,option:client-arch,9');
+      L.push('dhcp-userclass=set:ipxe,iPXE');
+      L.push('tag-if=set:rom,tag:efi,tag:!ipxe');
+      L.push('dhcp-boot=tag:rom,ipxe.efi,,' + boot);
+      L.push('dhcp-boot=tag:ipxe,boot.ipxe,,' + boot);
+    }
+    return L.join('\n') + '\n';
+  }
+
+  // ── 액션 (입력 · 모드 · 게이트 · 프리셋 · 적용)
+  function demoResetApply(){
+    demoRunToken++;
+    demoStepStates = [null,null,null,null,null];
+    demoOutcome = null;
+  }
+  function demoInput(field, value){ demoState[field] = value; demoPresetId = 0; demoResetApply(); demoRender(); }
+  function demoMode(mode){ demoState.mode = mode; demoPresetId = 0; demoResetApply(); demoRender(); }
+  function demoGate(gate){ demoGateResult = gate; demoPresetId = 0; demoResetApply(); demoRender(); }
+  function demoPreset(n){
+    var p = DEMO_PRESETS[n];
+    demoState = Object.assign({}, DEMO_BLANK, p.fields);
+    demoGateResult = p.gate;
+    demoPresetId = n;
+    demoResetApply();
+    var banner = document.getElementById('demo-banner');
+    banner.className = 'ux-message';
+    banner.innerHTML = p.banner;
+    demoRender();
+  }
+  function demoPlan(){
+    switch (demoGateResult) {
+      case 'SYNTAX':   return { states:['ok','ok','reject','skip','skip'], outcome:'REJECTED' };
+      case 'NOTFOUND': return { states:['ok','ok','fail','skip','skip'],   outcome:'GATE_NOT_FOUND' };
+      case 'RESTART':  return { states:['ok','ok','ok','fail','skip'],     outcome:'ROLLED_BACK' };
+      case 'RESTORE':  return { states:['ok','ok','ok','fail','skip'],     outcome:'RESTORE_FAILED' };
+      default:         return { states:['ok','ok','ok','ok','ok'],         outcome:'APPLIED' };
+    }
+  }
+  function demoApply(){
+    if (demoErrors().length) return;                 // UI 1차 차단 — 버튼이 이미 disabled
+    demoResetApply();
+    var run = demoRunToken, plan = demoPlan(), i = 0;
+    demoRenderApply();
+    (function tick(){
+      if (run !== demoRunToken) return;
+      if (i < 5) { demoStepStates[i] = plan.states[i]; i++; demoRenderApply(); setTimeout(tick, 420); }
+      else { demoOutcome = plan.outcome; demoRenderApply(); }
+    })();
+  }
+  function demoApplyBtn(blocked, tip){
+    return '<span class="tip"' + (blocked ? ' data-tip="' + tip + '"' : '') +
+      '><button class="n-demo-btn"' + (blocked ? ' disabled' : '') +
+      ' onclick="demoApply()">[적용] POST /system/pxe-infra/network</button></span>';
+  }
+
+  // ── 렌더
+  function demoRenderApply(){
+    var errs = demoErrors();
+    document.getElementById('demo-apply-holder').innerHTML =
+      demoApplyBtn(errs.length > 0, '필드 오류 ' + errs.length + '건이 남아 있습니다. 서버에 보내기 전에 화면이 먼저 막습니다.');
+    document.getElementById('demo-steps').innerHTML = DEMO_STEPS.map(function(s, i){
+      var m = DEMO_STEP_BADGE[demoStepStates[i] || 'wait'];
+      return '<div class="ux-row"><strong>' + s[0] + '</strong><span class="label"><code>' + s[1] +
+        '</code></span><span class="badge ' + m[1] + '">' + m[0] + '</span></div>';
+    }).join('');
+    var badge = document.getElementById('demo-outcome-badge');
+    var label = document.getElementById('demo-outcome-label');
+    var msg = document.getElementById('demo-outcome');
+    if (!demoOutcome) {
+      badge.className = 'badge off';
+      badge.textContent = '대기';
+      label.textContent = errs.length ? '필드 오류가 있어 적용할 수 없습니다.' : '아직 적용하지 않았습니다.';
+      msg.className = 'ux-message';
+      msg.innerHTML = errs.length
+        ? '패널 A 의 오류를 고치면 [적용] 이 열립니다 — 화면이 막는 조건과 서버가 거절하는 조건이 같은 판정입니다.'
+        : '[적용] 을 누르면 다섯 단계가 순서대로 켜집니다.';
+      return;
+    }
+    var o = DEMO_OUTCOMES[demoOutcome];
+    badge.className = 'badge ' + o.badge;
+    badge.textContent = o.label;
+    label.textContent = 'ApplyOutcome.throwIfNotApplied — 락 밖에서 전환';
+    msg.className = 'ux-message ' + o.cls;
+    msg.innerHTML = o.msg;
+  }
+  function demoRenderCaps(){
+    var raw = demoState, cidr = demoParseCidr(raw.subnetCidr), errs = demoErrors();
+    function mark(f){
+      for (var i = 0; i < errs.length; i++) if (errs[i].field === f) return ' <span class="t">오류</span>';
+      return ' <span class="f">ok</span>';
+    }
+    function pad(t){ return (t + '                          ').slice(0, 24); }
+    var addressing = demoRequiresAddressing(raw.mode);
+    var L = [];
+    L.push(pad('mode') + '= ' + raw.mode);
+    L.push(pad('requiresAddressing()') + '= ' + (addressing
+      ? 'true   → 범위 · 라우터 · 주 DNS · 임대 필수'
+      : 'false  → 주소 배정 필드 disabled · null 정규화'));
+    L.push(pad('subnetCidr') + '= ' + demoEsc(String(raw.subnetCidr).trim() || '(빈 값)') +
+      (cidr ? '  → network ' + demoIntToIp(cidr.network) + ' · netmask ' + cidr.netmask : '') + mark('subnetCidr'));
+    L.push(pad('bootServerIp') + '= ' + demoEsc(String(raw.bootServerIp).trim() || '(빈 값)') + mark('bootServerIp'));
+    DEMO_ADDR_FIELDS.forEach(function(f){
+      var typed = String(raw[f]).trim();
+      if (addressing) L.push(pad(f) + '= ' + demoEsc(typed || '(빈 값)') + mark(f));
+      else L.push(pad(f) + '= null' + (typed ? '   (입력 ' + demoEsc(typed) + ' 은 버려짐)' : '   (PROXY — 쓰이지 않음)'));
+    });
+    L.push(pad('렌더 판정') + '= ' + (errs.length
+      ? '<span class="t">불가 — 필드 오류 ' + errs.length + '건</span>'
+      : '<span class="f">가능</span>'));
+    document.getElementById('demo-caps').innerHTML = L.join('\n');
+  }
+  function demoRender(){
+    document.querySelectorAll('.ux-toolbar .seg[data-mode]').forEach(function(s){
+      s.classList.toggle('active', s.dataset.mode === demoState.mode);
+    });
+    document.querySelectorAll('.ux-toolbar .seg[data-gate]').forEach(function(s){
+      s.classList.toggle('active', s.dataset.gate === demoGateResult);
+    });
+    document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(function(s){
+      s.classList.toggle('active', Number(s.dataset.preset) === demoPresetId);
+    });
+
+    var addressing = demoRequiresAddressing(demoState.mode);
+    var errs = demoErrors();
+    Object.keys(DEMO_LABELS).forEach(function(f){
+      var el = document.getElementById('demo-' + f);
+      if (!el) return;
+      if (el.value !== demoState[f]) el.value = demoState[f];
+      el.disabled = (DEMO_ADDR_FIELDS.indexOf(f) >= 0) && !addressing;
+      el.style.borderColor = '';
+    });
+    errs.forEach(function(e){
+      var el = document.getElementById('demo-' + e.field);
+      if (el) el.style.borderColor = 'var(--red)';
+    });
+
+    var addrBadge = document.getElementById('demo-addr-badge');
+    addrBadge.className = 'badge ' + (addressing ? 'on' : 'off');
+    addrBadge.textContent = addressing ? '필수' : '비활성';
+    document.getElementById('demo-addr-note').textContent = addressing
+      ? '이 모드에서는 우리가 IP 를 배정합니다 — 범위 · 라우터 · 주 DNS · 임대가 필수입니다.'
+      : '사내 DHCP 가 배정합니다 — 이 필드들은 잠기고 저장 시 null 로 정규화됩니다.';
+    document.getElementById('demo-addr-head').classList.toggle('muted', !addressing);
+
+    document.getElementById('demo-fragment').textContent = demoFragment();
+
+    var v = document.getElementById('demo-verdict');
+    if (errs.length) {
+      v.className = 'ux-message error';
+      v.innerHTML = '<b>필드 오류 ' + errs.length + '건 — 렌더 · 적용 불가</b><ul>' + errs.map(function(e){
+        return '<li><code>' + e.field + '</code> · ' + DEMO_LABELS[e.field] + ' — ' + demoEsc(e.msg) + '</li>';
+      }).join('') + '</ul>';
+    } else {
+      v.className = 'ux-message success';
+      v.innerHTML = '<b>렌더 가능</b> — 모드가 요구하는 필드가 모두 채워졌고 형식 · 경계 검사를 통과했습니다. 왼쪽 값이 바뀌면 이 조각이 즉시 다시 렌더됩니다.';
+    }
+
+    demoRenderCaps();
+    demoRenderApply();
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

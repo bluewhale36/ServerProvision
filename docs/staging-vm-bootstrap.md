@@ -189,9 +189,7 @@ WantedBy=multi-user.target
 EOF
 ```
 
-OPS-3 원안에는 ReadWritePaths 에 /etc/dhcp 가 한 줄 더 있다. dhcpd 를 설치하지 않은 스테이징에서 그 디렉토리가 없으면 기동이 막히므로, PXE 리허설을 시작하는 시점(dhcp-server 와 tftp-server 설치)에 그 줄을 추가한다. 특권 위임 sudoers(dhcpd 문법 검사와 재기동)도 같은 시점에 AllowedCommand.sudoersLine() 값으로 만든다(OPS-3 D5).
-
-실측 반영 2026-08-15 — 그 시점이 오면 이렇게 한다. ReadWritePaths 추가는 유닛 본문 수정 대신 drop-in 이 깔끔하다: `/etc/systemd/system/serverprovision.service.d/dhcp.conf` 에 `[Service]` 와 `ReadWritePaths=/etc/dhcp` 두 줄(목록형 지시자라 본문 값에 누적된다). sudoers 는 `/etc/sudoers.d/serverprovision` 에 AllowedCommand 정본 두 줄(dhcpd -t 문법 검사, systemctl restart dhcpd)을 넣고 440 으로 좁힌다. dhcpd 는 설치와 문법 검사 위임 확인까지만 하고 기동하지 않는다 — 공유 가상 네트워크에서 켜면 하이퍼바이저 DHCP 와 충돌하고, 브리지에서 켜면 사내망에 불량 DHCP 를 뿌린다. 실서빙은 격리 세그먼트에서 한다.
+PXE 리허설을 시작하는 시점에 DHCP 를 배선한다. R16 부터 데몬은 dhcpd 가 아니라 dnsmasq 이고, 조각은 `/etc/dnsmasq.d/serverprovision-pxe.conf` 다. 하드닝된 유닛이 그 디렉토리에 쓰려면 drop-in `/etc/systemd/system/serverprovision.service.d/dnsmasq.conf` 에 `[Service]` 와 `ReadWritePaths=/etc/dnsmasq.d` 두 줄을 둔다(목록형 지시자라 본문 값에 누적된다). sudoers 는 재기동 한 줄(`AllowedCommand.DNSMASQ_SERVICE_RESTART` 의 정본)만 필요하다. 절차 전체는 `pxe-dnsmasq-setup.md` 를 따른다. 종전 dhcpd 배선(`/etc/dhcp` ReadWritePaths, `dhcpd -t` sudoers, include, 빈 조각)은 걷어낸다.
 
 ## 11. 방화벽과 기동 검증
 

@@ -86,6 +86,6 @@ class BmcAddressRediscoveryTest {
     }
 
     private static LeaseEntry lease(String ip, MacAddressVO mac, Instant ends, LeaseBindingState state) {
-        return new LeaseEntry(IpAddressVO.of(ip), mac, T.minusSeconds(600), ends, state);
+        return new LeaseEntry(IpAddressVO.of(ip), mac, ends, state);
     }
 }

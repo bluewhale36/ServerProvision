@@ -151,3 +151,15 @@ table.has-error {
     margin: 0;
     padding-left: 18px;
 }
+
+/* 모드에 따라 통째로 켜고 끄는 필드 묶음(R16 PXE 네트워크 구성) — 브라우저 기본 fieldset 테두리를 걷고, 꺼지면 흐리게 */
+.n-fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+
+.n-fieldset:disabled {
+    opacity: .55;
+}
