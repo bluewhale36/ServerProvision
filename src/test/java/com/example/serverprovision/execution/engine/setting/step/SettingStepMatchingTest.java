@@ -49,7 +49,7 @@ class SettingStepMatchingTest {
             new SkipNoTargetStep(null, null),
             new SkipOutOfSettingWindowStep(),
             new ReconnectReadbackStep(ledger, null, null, null, null, null),
-            new ReturnReadbackStep(ledger, null, null, null, null)));
+            new ReturnReadbackStep(ledger, null, null, null, null, null)));
 
     @Test
     @DisplayName("1행 — 재부팅을 걸어 둔 행이 있으면 창 밖이어도 그 결과부터 거둔다")

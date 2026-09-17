@@ -48,7 +48,7 @@ public final class WindowsOemTemplates {
               set ENTRY=%%C
               set ARGS=%%D
               set REBOOT=%%E
-              rem "-" marks an empty field (for /f collapses consecutive delimiters, so the server never sends an empty field)
+              rem "-" marks an empty field - for /f collapses consecutive delimiters, so the server never sends an empty field
               if "!ENTRY!"=="-" set ENTRY=
               if "!ARGS!"=="-" set ARGS=
               set BASE=%SPV%\\Drivers\\!FOLDER!
@@ -90,9 +90,13 @@ public final class WindowsOemTemplates {
             echo [%DATE% %TIME%] problem devices: >> "%LOG%"
             pnputil /enum-devices /problem >> "%LOG%" 2>&1
             echo [%DATE% %TIME%] SetupComplete end >> "%LOG%"
+            rem HF18: never reboot here. SetupComplete finishes right before the single auto logon - LogonCount=1 - so a shutdown
+            rem from here kills spv-report.ps1 mid-flight and the completion report is never sent, fieldwork 2026-09-16.
+            rem Leave a flag instead: spv-report.ps1 restarts the machine after the report has been delivered.
+            rem No parentheses inside the block below - cmd closes a block at the first unquoted closing parenthesis, even in echo text.
             if "%NEEDREBOOT%"=="1" (
-              echo [%DATE% %TIME%] reboot requested by a driver entry - shutdown /r /t 10 >> "%LOG%"
-              shutdown /r /t 10 /c "ServerProvision driver install requested a reboot"
+              echo [%DATE% %TIME%] reboot requested by a driver entry - deferred until spv-report.ps1 has reported, flag %SPV%\\reboot-required >> "%LOG%"
+              echo 1 > "%SPV%\\reboot-required"
             )
             endlocal
             exit /b 0
@@ -112,6 +116,7 @@ public final class WindowsOemTemplates {
             # ServerProvision E4-1-a-4 - first-logon completion report (FirstLogonCommands, runs as Administrator).
             # Counts published drivers from C:\\SPV\\setupcomplete.log and lists non-OK PnP devices, then POSTs one JSON to the provisioning server.
             # ASCII only. Retries: network wait 20 x 15 s, POST 20 x 15 s. Terminal answers (400/404/409) stop the loop.
+            # Collections: only arrays, HashSet[string] and List[string] - see the HF18-2 note at the install list below.
             $ErrorActionPreference = 'Continue'
             $spv = Join-Path $env:SystemDrive 'SPV'
             New-Item -ItemType Directory -Force -Path $spv | Out-Null
@@ -144,12 +149,16 @@ public final class WindowsOemTemplates {
               }
 
               # R15-2: per-entry install results written by SetupComplete as "[SPV-INSTALL] folder|mode|exit=N" (max 50 forwarded).
-              $installs = New-Object System.Collections.Generic.List[object]
+              # HF18-2: a plain array, not a generic List of object - with that list in the script the later
+              # "$problems | Select-Object -First 50" died with ArgumentException "Argument types do not match" on
+              # Windows PowerShell 5.1 (fieldwork 2026-09-17; the report was never sent). Keep only the collections the
+              # last good run used (HashSet[string] and List[string]).
+              $installs = @()
               if (Test-Path $logPath) {
                 foreach ($m in ($lines | Select-String -Pattern '^\\[SPV-INSTALL\\] ([^|]*)\\|([^|]*)\\|exit=(-?\\d+)')) {
                   if ($installs.Count -ge 50) { break }
                   $g = $m.Matches[0].Groups
-                  $installs.Add(@{ folder = $g[1].Value; mode = $g[2].Value; exitCode = [int]$g[3].Value })
+                  $installs += @{ folder = $g[1].Value; mode = $g[2].Value; exitCode = [int]$g[3].Value }
                 }
               }
 
@@ -208,6 +217,20 @@ public final class WindowsOemTemplates {
                   Start-Sleep -Seconds 15
                 }
               }
+
+              # HF18: a driver entry may have asked for a reboot. SetupComplete only leaves a flag (rebooting there would kill this
+              # script during the single auto logon), so the restart happens here, after the report has been delivered or given up.
+              $rebootFlag = Join-Path $spv 'reboot-required'
+              if (Test-Path $rebootFlag) {
+                Write-Output 'reboot requested by a driver entry (SetupComplete flag) - restarting now that the report is done'
+                Remove-Item $rebootFlag -Force -ErrorAction SilentlyContinue
+                shutdown.exe /r /t 5 /c "ServerProvision driver install requested a reboot (after completion report)"
+              }
+            } catch {
+              # HF18-2: without this catch a terminating error unwinds straight to finally, the transcript closes first and the
+              # error text only flashes on a console that the auto logon closes - the 2026-09-17 death left a 0-line transcript.
+              Write-Output ("FATAL {0}: {1}" -f $_.Exception.GetType().Name, $_.Exception.Message)
+              Write-Output $_.InvocationInfo.PositionMessage
             } finally {
               Stop-Transcript | Out-Null
             }

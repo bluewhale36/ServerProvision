@@ -163,3 +163,9 @@ table.has-error {
 .n-fieldset:disabled {
     opacity: .55;
 }
+
+/* 인라인 행 안의 입력은 남은 폭을 다 쓴다 — 비밀번호 보기 토글처럼 버튼이 옆에 붙을 때 */
+.n-inline-row > .n-input {
+    flex: 1;
+    min-width: 0;
+}

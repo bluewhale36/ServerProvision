@@ -32,9 +32,14 @@
         <div class="n-form-group">
             <label class="n-label strong" for="password"
                    th:text="${signupMode.requiresRoleSelection()} ? '초기 비밀번호' : '비밀번호'">비밀번호</label>
-            <input id="password" type="password" name="password" class="n-input" autocomplete="new-password"
-                   data-error-field="password"
-                   th:classappend="${#fields.hasErrors('password')} ? 'is-invalid'">
+            <div class="n-inline-row">
+                <input id="password" type="password" name="password" class="n-input" autocomplete="new-password"
+                       data-error-field="password" data-password-watch
+                       th:classappend="${#fields.hasErrors('password')} ? 'is-invalid'">
+                <button type="button" class="n-btn n-btn-secondary n-btn-sm" data-password-toggle="password"
+                        aria-pressed="false" title="입력한 비밀번호를 보이게 합니다">보기</button>
+            </div>
+            <div class="n-error" data-password-hint hidden></div>
             <div class="n-hint">영문 대소문자 · 숫자 · 특수기호(! @ # $ % ^ &amp; * ( ) - _ = + . , ?)로 8자 이상 72자 이하입니다.</div>
             <div class="n-hint" th:if="${signupMode.requiresRoleSelection()}">사용자는 이 비밀번호로 처음 로그인한 뒤 반드시 새 비밀번호로 바꿔야 합니다.</div>
             <div class="n-error" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
@@ -43,9 +48,14 @@
         <div class="n-form-group">
             <label class="n-label strong" for="retypedPassword"
                    th:text="${signupMode.requiresRoleSelection()} ? '초기 비밀번호 확인' : '비밀번호 확인'">비밀번호 확인</label>
-            <input id="retypedPassword" type="password" name="retypedPassword" class="n-input" autocomplete="new-password"
-                   data-error-field="retypedPassword"
-                   th:classappend="${#fields.hasErrors('retypedPassword') or #fields.hasErrors('passwordConfirmed')} ? 'is-invalid'">
+            <div class="n-inline-row">
+                <input id="retypedPassword" type="password" name="retypedPassword" class="n-input" autocomplete="new-password"
+                       data-error-field="retypedPassword" data-password-watch
+                       th:classappend="${#fields.hasErrors('retypedPassword') or #fields.hasErrors('passwordConfirmed')} ? 'is-invalid'">
+                <button type="button" class="n-btn n-btn-secondary n-btn-sm" data-password-toggle="retypedPassword"
+                        aria-pressed="false" title="입력한 비밀번호를 보이게 합니다">보기</button>
+            </div>
+            <div class="n-error" data-password-hint hidden></div>
             <div class="n-error" th:if="${#fields.hasErrors('retypedPassword')}" th:errors="*{retypedPassword}"></div>
             <div class="n-error" th:if="${#fields.hasErrors('passwordConfirmed')}" th:errors="*{passwordConfirmed}"></div>
         </div>

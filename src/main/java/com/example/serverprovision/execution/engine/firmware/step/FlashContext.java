@@ -124,4 +124,18 @@ public record FlashContext(
         LocalDateTime since = returnWaitSince();
         return server.getLastSeenAt() != null && since != null && server.getLastSeenAt().isAfter(since);
     }
+
+    /**
+     * 이번 복귀 대기 안에서 이미 PXE 재무장을 했는가(HF17) — 재무장 사건 행은 복귀 기점 자체를 자기 시각으로 옮기므로
+     * 기점과 같은 시각의 행도 "이번 대기의 것" 이다. 운영자 재시도는 기점을 재시도 시각으로 다시 열어 한 번 더 허용한다.
+     */
+    public boolean pxeRearmedSinceWait() {
+        LocalDateTime since = returnWaitSince();
+        return history.stream()
+                .filter(row -> com.example.serverprovision.execution.engine.firmware.FlashLedger.PXE_REARM
+                        .equals(row.flashFailureReason()))
+                .map(ProvisioningHistory::getFinishedAt)
+                .filter(java.util.Objects::nonNull)
+                .anyMatch(at -> since == null || !at.isBefore(since));
+    }
 }

@@ -191,6 +191,16 @@ EOF
 
 PXE 리허설을 시작하는 시점에 DHCP 를 배선한다. R16 부터 데몬은 dhcpd 가 아니라 dnsmasq 이고, 조각은 `/etc/dnsmasq.d/serverprovision-pxe.conf` 다. 하드닝된 유닛이 그 디렉토리에 쓰려면 drop-in `/etc/systemd/system/serverprovision.service.d/dnsmasq.conf` 에 `[Service]` 와 `ReadWritePaths=/etc/dnsmasq.d` 두 줄을 둔다(목록형 지시자라 본문 값에 누적된다). sudoers 는 재기동 한 줄(`AllowedCommand.DNSMASQ_SERVICE_RESTART` 의 정본)만 필요하다. 절차 전체는 `pxe-dnsmasq-setup.md` 를 따른다. 종전 dhcpd 배선(`/etc/dhcp` ReadWritePaths, `dhcpd -t` sudoers, include, 빈 조각)은 걷어낸다.
 
+## 10-1. 인증 로그 판독
+
+인증 · 인가 · 계정 사건은 애플리케이션 로그에 태그로 남는다(S20). 로그인이 안 될 때는 코드나 DB 를 뒤지기 전에 이 줄부터 본다.
+
+```bash
+sudo journalctl -u serverprovision --since "-30 min" --no-pager | grep -E '\[auth|\[authz'
+```
+
+태그와 뜻은 다음과 같다. `[auth.login]` 은 사람의 폼 로그인 성공(사용자 · 역할 · 출발지), `[auth.login.failed]` 는 실패와 사유 코드(`BAD_CREDENTIALS` 는 계정 부재와 비밀번호 불일치를 함께 뜻한다. 계정 열거를 막기 위해 Spring Security 가 감춘다. `DISABLED` · `LOCKED` 는 계정 상태), `[auth.logout]` 은 로그아웃, `[authz.denied]` 는 인증된 사용자가 권한 없는 경로에 닿았거나 게스트 채널 요청이 프로비저닝 LAN 밖에서 왔을 때, `[auth.account.created]` 와 `[auth.password.changed]` 는 가입과 비밀번호 변경이다. 요청마다 다시 인증되는 Basic 과 게스트 토큰의 성공은 `[auth.authenticated]` 로 DEBUG 에만 남는다. 비밀번호 · secret · 토큰 값은 어느 줄에도 없다.
+
 ## 11. 방화벽과 기동 검증
 
 ```bash

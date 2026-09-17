@@ -12,6 +12,11 @@ import com.example.serverprovision.global.security.springsecurity.repository.Use
 import com.example.serverprovision.global.security.springsecurity.repository.UsersRoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import com.example.serverprovision.global.security.springsecurity.audit.AccountAuditEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +36,7 @@ public class UsersService {
 	private final UsersRepository usersRepository;
 	private final UsersRoleRepository usersRoleRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final ApplicationEventPublisher eventPublisher;   // S20 — 계정 사건(가입 · 비밀번호 변경)을 로그로
 
 	/** 관리자가 하나도 없는가 — 그동안만 익명 가입(최초 관리자)이 열린다. */
 	@Transactional(readOnly = true)
@@ -65,6 +71,9 @@ public class UsersService {
 				.map(r -> UsersRole.builder().user(saved).role(r).build())
 				.toList();
 		usersRoleRepository.saveAll(rows);
+		eventPublisher.publishEvent(AccountAuditEvent.created(username, currentActor(), mode.name(),
+				roles.stream().map(Role::getRoleName).collect(java.util.stream.Collectors.toCollection(java.util.TreeSet::new)),
+				mode.mustChangePassword()));
 		return saved;
 	}
 
@@ -79,6 +88,14 @@ public class UsersService {
 		if (!request.newPassword().equals(request.retypedPassword())) {
 			throw PasswordMismatchException.retyped();
 		}
+		boolean forced = user.isMustChangePassword();
 		user.changePassword(passwordEncoder.encode(request.newPassword()));
+		eventPublisher.publishEvent(AccountAuditEvent.passwordChanged(username, currentActor(), forced));
+	}
+
+	/** 사건의 행위자 — 로그인된 사용자명, 없으면(부트스트랩 가입) anonymous. */
+	private static String currentActor() {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		return auth == null || auth instanceof AnonymousAuthenticationToken ? "anonymous" : auth.getName();
 	}
 }

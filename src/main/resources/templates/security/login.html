@@ -29,7 +29,14 @@
                 </div>
                 <div class="n-form-group">
                     <label class="n-label strong" for="password">비밀번호</label>
-                    <input id="password" name="password" type="password" class="n-input" autocomplete="current-password" required>
+                    <!--/* 보기 토글 + Caps Lock · 한/영 경고(password-toggle.js) — 마스킹 때문에 보이지 않던 입력 오류를 그 자리에서 드러낸다 */-->
+                    <div class="n-inline-row">
+                        <input id="password" name="password" type="password" class="n-input" autocomplete="current-password" required
+                               data-password-watch>
+                        <button type="button" class="n-btn n-btn-secondary n-btn-sm" data-password-toggle="password"
+                                aria-pressed="false" title="입력한 비밀번호를 보이게 합니다">보기</button>
+                    </div>
+                    <div class="n-error" data-password-hint hidden></div>
                 </div>
                 <div class="n-form-actions">
                     <button type="submit" class="n-btn n-btn-primary n-btn-block">로그인</button>
@@ -40,5 +47,6 @@
         </div>
     </div>
 </main>
+<script th:src="@{/global/password-toggle.js}"></script>
 </body>
 </html>
