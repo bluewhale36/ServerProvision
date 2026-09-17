@@ -31,8 +31,7 @@
         const status = document.getElementById('definitionPickerStatus');
         const submit = document.getElementById('definitionPickerSubmit');
         const choice = document.getElementById('definitionPickerChoice');
-        const openers = document.querySelectorAll('#openAssignPicker, #openReassignPicker');
-        if (!form || !body || !openers.length) return;
+        if (!form || !body) return;
 
         let loaded = false;
 
@@ -95,7 +94,12 @@
             if (e.key === 'Escape') close();
         }
 
-        openers.forEach((opener) => opener.addEventListener('click', async function () {
+        /* 여는 버튼은 문서 위임으로 듣는다(S21-1). 개요의 '다음 행동' 은 실시간 교체 영역이라 직접 바인딩하면
+           신호 한 번에 버튼이 벙어리가 된다. 계획 판의 #openAssignPicker · #openReassignPicker 와 개요의
+           [data-picker-opener] 가 같은 모달을 연다. */
+        document.addEventListener('click', async function (e) {
+            const opener = e.target.closest('#openAssignPicker, #openReassignPicker, [data-picker-opener]');
+            if (!opener) return;
             // 흐름마다 다른 셋을 갈아끼운다 — 이 세 줄이 모달을 한 벌로 유지하는 값이다
             title.textContent = opener.getAttribute('data-picker-title');
             submit.textContent = opener.getAttribute('data-picker-submit-label');
@@ -120,7 +124,7 @@
                 }
             }
             clearSelection();
-        }));
+        });
 
         body.addEventListener('click', function (e) {
             const item = e.target.closest('.n-miller-item');

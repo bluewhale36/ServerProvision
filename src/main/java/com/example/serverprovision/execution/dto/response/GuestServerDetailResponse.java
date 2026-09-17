@@ -60,6 +60,69 @@ public record GuestServerDetailResponse(
 ) {
 
     /**
+     * 스테퍼의 국면 한 줄(S21-1) — 지금 도는 축이 무엇이고 어디쯤인지. 굽기 → 설정 적용 → Windows 설치 순으로
+     * 보고, 도는 것이 없으면 null(화면은 열린 원장 행으로 폴백). 문구를 화면이 조립하지 않도록 여기서 만든다 —
+     * 개요와 단계 패널이 같은 사실을 같은 말로 보여야 한다.
+     */
+    public String currentStageText() {
+        if (firmwareFlash != null && firmwareFlash.running()) {
+            for (AxisFlash axis : firmwareFlash.axes()) {
+                if (axis.state() == AxisFlashState.RUNNING) {
+                    StringBuilder text = new StringBuilder(axis.label()).append(' ').append(axis.state().getLabel());
+                    if (firmwareFlash.stageText() != null) {
+                        text.append(" · ").append(firmwareFlash.stageText());
+                    }
+                    appendRemaining(text, firmwareFlash.stageRemainingMinutes());
+                    return text.toString();
+                }
+            }
+            if (firmwareFlash.stageText() != null) {
+                return firmwareFlash.stageText();
+            }
+        }
+        if (firmwareSetting != null) {
+            for (AxisSetting axis : firmwareSetting.axes()) {
+                if (axis.state() == AxisFlashState.RUNNING) {
+                    StringBuilder text = new StringBuilder(axis.label()).append(" 적용 중");
+                    if (axis.itemsProgress() != null) {
+                        text.append(" · ").append(axis.itemsProgress());
+                    }
+                    if (axis.stageText() != null) {
+                        text.append(" · ").append(axis.stageText());
+                    }
+                    appendRemaining(text, axis.stageRemainingMinutes());
+                    return text.toString();
+                }
+            }
+        }
+        if (windowsInstall != null && windowsInstall.served()) {
+            StringBuilder text = new StringBuilder("설치 중 · 재진입 ")
+                    .append(windowsInstall.reentries()).append('/').append(windowsInstall.maxReentries());
+            if (windowsInstall.remainingMinutes() != null) {
+                text.append(" · 잔여 ").append(windowsInstall.remainingMinutes()).append('분');
+            }
+            return text.toString();
+        }
+        return null;
+    }
+
+    private static void appendRemaining(StringBuilder text, Long remainingMinutes) {
+        if (remainingMinutes != null && remainingMinutes > 0) {
+            text.append(" (잔여 ").append(remainingMinutes).append("분)");
+        }
+    }
+
+    /** 실패 사유(S21-1) — 원장에서 가장 최근의 실패 행이 적은 사유. 없으면 null. */
+    public String failedStepNote() {
+        for (int i = steps.size() - 1; i >= 0; i--) {
+            if (steps.get(i).status() == ProvisioningStatus.FAILED) {
+                return steps.get(i).note();
+            }
+        }
+        return null;
+    }
+
+    /**
      * 게스트 접촉 관찰(E1-2, DEC-32) — 판정 입력이 아닌 표시용(화면 용어: 연결 중 / 끊어짐).
      * {@code active} 는 "폴링 주기(30초) 3회 이내 접촉"(90초) 기준으로 조회 시점에 계산된다.
      * 한 번도 접촉이 없으면 record 자체가 null.

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  게스트 서버 상태 · 연결 배지 (S21-1)
+  ─────────────────────────────────────────────────────────
+  머리 띠와 개요 판이 같은 사실(운영 상태 · 접촉)을 같은 모습으로 그린다. 두 자리에 복붙하면
+  한쪽만 고치는 드리프트가 생기므로 조각 하나로 둔다.
+
+    statusBadge(server)  : 운영 상태 배지 (GuestServerStatus 도출값)
+    contactBadge(server) : 접촉 관찰 배지 — 연결 중 / 집행 중 · 전원 꺼짐 / 끊어짐 (E1-2 DEC-32 · E2-4 Q6)
+                           data-contact-remaining(S7) 은 끊어짐 전이 예정 시각의 재조회 예약 입력
+-->
+<body>
+<span class="n-meta" th:fragment="statusBadge(server)" th:if="${server.status != null}" th:switch="${server.status.name()}">
+    <span th:case="'REGISTERED'"     class="n-badge n-badge-blue"  th:text="${server.status.description}">등록됨</span>
+    <span th:case="'PROVISIONING'"   class="n-badge n-badge-green" th:text="${server.status.description}">프로비저닝 중</span>
+    <span th:case="'PROVISIONED'"    class="n-badge n-badge-teal"  th:text="${server.status.description}">완료</span>
+    <span th:case="'FAILED'"         class="n-badge n-badge-red"   th:text="${server.status.description}">실패</span>
+    <span th:case="'DECOMMISSIONED'" class="n-badge n-badge-gray"  th:text="${server.status.description}">회수됨</span>
+</span>
+
+<span class="n-meta" th:fragment="contactBadge(server)" th:if="${server.contact != null}">
+    <span th:if="${server.contact.active}" class="n-badge n-badge-teal"
+          th:data-contact-remaining="${server.contact.remainingSeconds}"
+          th:text="'연결 중 · ' + ${server.contact.secondsSince} + '초 전'">연결 중</span>
+    <!-- 굽는 창의 침묵(전원 차단)은 고장이 아니라 설계다(E2-4 Q6 · decisions 8). -->
+    <span th:if="${!server.contact.active and server.progress != null and server.progress.disruptionBlocked}"
+          class="n-badge n-badge-blue" th:text="#{provisioning.contact.flashing}">집행 중 · 전원 꺼짐</span>
+    <!-- Thymeleaf 3.1+ 는 T() 타입 참조를 금지 — 분 하한(최소 1분)은 SpEL 삼항으로 계산 -->
+    <span th:if="${!server.contact.active and !(server.progress != null and server.progress.disruptionBlocked)}"
+          class="n-badge n-badge-gray"
+          th:text="'끊어짐 · ' + ${server.contact.secondsSince < 120 ? 1 : server.contact.secondsSince / 60} + '분 전'">끊어짐</span>
+</span>
+
+<!-- 원장 행(세부 단계)의 작업 상태 배지 — 상태마다 색이 갈린다(완료 청록 · 진행 파랑 · 실패 빨강 · 대기 회색 테두리 · 건너뜀 회색 채움).
+     6절 상태 어휘와 같은 클래스라 단계 패널의 상태 배지와 한 어휘로 읽힌다. -->
+<th:block th:fragment="stepStatusBadge(status)">
+    <span th:if="${status == null}" class="n-muted">—</span>
+    <th:block th:if="${status != null}" th:switch="${status.name()}">
+        <span th:case="'SUCCEEDED'" class="n-badge n-badge-teal" th:text="${status.description}">작업 완료</span>
+        <span th:case="'RUNNING'"   class="n-badge n-badge-blue" th:text="${status.description}">작업 중</span>
+        <span th:case="'FAILED'"    class="n-badge n-badge-red"  th:text="${status.description}">작업 실패</span>
+        <span th:case="'SKIPPED'"   class="n-badge n-badge-off"  th:text="${status.description}">작업 건너뜀</span>
+        <span th:case="*"           class="n-badge n-badge-gray" th:text="${status.description}">작업 대기</span>
+    </th:block>
+</th:block>
+</body>
+</html>

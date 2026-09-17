@@ -61,6 +61,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.querySelectorAll('[data-live]').forEach(function (cur) {
                     const fresh = next.querySelector('[data-live="' + cur.getAttribute('data-live') + '"]');
                     if (!fresh) return;
+                    // S21-1 — 영역 안의 아코디언(<details id>)은 운영자가 열고 닫은 상태를 지킨다. 서버는 매번
+                    // 기본값(완료 = 접힘)으로 그리므로, 그대로 두면 신호가 올 때마다 보던 패널이 닫힌다.
+                    cur.querySelectorAll('details[id]').forEach(function (was) {
+                        const now = fresh.querySelector('details[id="' + was.id + '"]');
+                        if (now) now.open = was.open;
+                    });
                     cur.replaceWith(fresh);
                     fresh.classList.add('n-live-flash');
                     fresh.addEventListener('animationend', function () {
