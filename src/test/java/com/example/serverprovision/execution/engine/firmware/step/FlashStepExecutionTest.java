@@ -223,6 +223,24 @@ class FlashStepExecutionTest {
     }
 
     @Test
+    @DisplayName("폴링 — 굽는 중이면 AMI 진행률을 관측 줄에 붙인다(2026-09-17 · 'BIOS 37% (Flashing)')")
+    void poll_runningNotesProgress() {
+        ProvisioningProgress progress = flashing(FirmwareAxis.BIOS);
+        ProvisioningHistory row = openFlashRow(FirmwareAxis.BIOS);
+        given(provider.pollTask(any(), any())).willReturn(FlashTaskState.RUNNING);
+        given(provider.pollProgress(any())).willReturn(java.util.Optional.of(
+                new com.example.serverprovision.execution.engine.firmware.FlashProgress(37, "Flashing", "BIOS")));
+
+        FlashContext ctx = context(progress, List.of(row), ready());
+        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations).execute(ctx);
+
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
+        assertThat(observations.latestOf(ctx.server().getId())).isPresent()
+                .get().extracting(com.example.serverprovision.execution.engine.WorkerObservations.Observation::note)
+                .asString().contains("굽는 중").contains("BIOS 37% (Flashing)");
+    }
+
+    @Test
     @DisplayName("폴링 — Exception 이면 그 축을 실패로 닫고 phase 도 실패한다")
     void poll_exceptionFailsPhase() {
         ProvisioningProgress progress = flashing(FirmwareAxis.BIOS);

@@ -45,6 +45,13 @@ public class RedfishUpdateService {
                                 "ImageURI", imageUri)));
     }
 
+    static final String UPDATE_SERVICE_PATH = "/redfish/v1/UpdateService";
+
+    /** UpdateService 전문 — AMI 확장의 굽기 진행률({@code AMIUpdateService.UpdateInformation}) 판독은 호출자 몫이다. */
+    public JsonNode updateService(RedfishTarget target) {
+        return credentialsFallback.attempt(target, c -> redfishClient.getJson(target.bmcIp(), c, UPDATE_SERVICE_PATH));
+    }
+
     /** Task 리소스 전문. {@code TaskState} 판독은 호출자 몫이다. */
     public JsonNode task(RedfishTarget target, String taskPath) {
         return credentialsFallback.attempt(target, c -> redfishClient.getJson(target.bmcIp(), c, taskPath));

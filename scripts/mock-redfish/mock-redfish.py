@@ -242,6 +242,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not self._authed():
             self._json(401, {'error': 'unauthorized'})
             return
+        if self.path == '/redfish/v1/UpdateService':
+            # 2026-09-17 — AMI 확장 진행률(GCT 안내 문서). flash-slow 모드에서 조회마다 20% 씩 오르고, 그 외는 Completed.
+            STATE['updatePolls'] = STATE.get('updatePolls', 0) + 1
+            target = (STATE['flash'][-1].get('UpdateComponent') if STATE.get('flash') else None) or 'BIOS'
+            if STATE['mode'] == 'flash-slow':
+                pct = min(100, 20 * STATE['updatePolls'])
+                info = {'FlashPercentage': '%d%% done.' % pct, 'UpdateStatus': 'Flashing', 'UpdateTarget': target}
+            else:
+                info = {'FlashPercentage': '100% done.', 'UpdateStatus': 'Completed', 'UpdateTarget': target}
+            self._json(200, {'@odata.type': '#UpdateService.v1_6_0.UpdateService', 'Id': 'UpdateService',
+                             'AMIUpdateService': {'@odata.type': '#AMIUpdateService.v1_0_0.AMIUpdateService',
+                                                  'UpdateInformation': info}})
+            return
         if self.path == '/redfish/v1/Systems/Self':
             boot = dict(STATE['boot'])
             boot.update({

@@ -55,6 +55,14 @@ public interface FirmwareUpdateProvider {
     FlashTaskState pollTask(RedfishTarget target, String taskPath);
 
     /**
+     * 굽기 진행률(2026-09-17) — 흐름이 제공하면 퍼센트 · 상태를, 아니면 empty. 관측용이라 실패해도 집행을 바꾸지 않는다.
+     * 기본은 empty — 진행률을 모르는 흐름(모의 · 다른 벤더)이 억지로 채울 필요가 없다.
+     */
+    default java.util.Optional<FlashProgress> pollProgress(RedfishTarget target) {
+        return java.util.Optional.empty();
+    }
+
+    /**
      * 이 축의 현재 펌웨어 버전을 읽는다. 굽기 전 멱등 판정(D-7)과 굽고 난 뒤 반영 확인(8행)이
      * 같은 원천을 쓴다 — 판정과 확인이 다른 곳을 보면 어긋날 자리가 생긴다.
      */

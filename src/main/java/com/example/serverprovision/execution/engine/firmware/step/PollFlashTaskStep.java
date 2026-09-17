@@ -47,7 +47,13 @@ public class PollFlashTaskStep implements FlashStep {
 
         FlashTaskState state = context.provider().pollTask(context.target(), row.flashTaskPath());
         // 관측값은 저장하지 않는다(E2-4 Q2) — 마지막 관측만 인메모리에 남겨 화면이 "돌고 있음" 을 안다.
-        observations.note(context.server().getId(), "BMC Task 확인 — " + state.getUserDetail(), context.now());
+        // 굽는 중이면 AMI 확장의 진행률(FlashPercentage)을 같은 줄에 붙인다(2026-09-17) — 화면의 하트비트가 "BIOS 37%" 를 보인다.
+        String note = "BMC Task 확인 — " + state.getUserDetail();
+        if (!state.isTerminal()) {
+            note += context.provider().pollProgress(context.target())
+                    .map(p -> " · " + p.summary(axis.label())).orElse("");
+        }
+        observations.note(context.server().getId(), note, context.now());
         if (state.isTerminal()) {
             // 굽기가 끝났으니 파일을 더 열어 둘 이유가 없다(CP5 F-3).
             tokenRegistry.revoke(context.server().getId(), axis);

@@ -3,6 +3,7 @@ package com.example.serverprovision.execution.engine.firmware.provider;
 import com.example.serverprovision.execution.engine.firmware.BmcIdentity;
 import com.example.serverprovision.execution.engine.firmware.FirmwareAxis;
 import com.example.serverprovision.execution.engine.firmware.FirmwareUpdateProvider;
+import com.example.serverprovision.execution.engine.firmware.FlashProgress;
 import com.example.serverprovision.execution.engine.firmware.FlashTaskState;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
@@ -75,6 +76,16 @@ public class RedfishSimpleUpdateProvider implements FirmwareUpdateProvider {
             return updateService.simpleUpdate(target, axis.getUpdateComponent(), imageUri);
         } catch (RedfishRequestException e) {
             log.warn("[flash] {} — {} 굽기 요청 실패 : {}", target.bmcIp(), axis.label(), e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /** AMI 확장 {@code UpdateService.AMIUpdateService.UpdateInformation} 에서 굽기 진행률을 읽는다 — 못 읽으면 empty(관측일 뿐). */
+    @Override
+    public Optional<FlashProgress> pollProgress(RedfishTarget target) {
+        try {
+            return FlashProgress.parse(updateService.updateService(target));
+        } catch (RedfishRequestException e) {
             return Optional.empty();
         }
     }
