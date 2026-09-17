@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.authentication.DefaultAuthenticationEventPublisher;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationManager;
@@ -63,6 +65,7 @@ public class GuestSecurityConfig {
 	private final GuestAuthenticationEntryPoint guestAuthenticationEntryPoint;
 	private final PxeBootEntryPoint pxeBootEntryPoint;
 	private final GuestAccessDeniedHandler guestAccessDeniedHandler;
+	private final ApplicationEventPublisher applicationEventPublisher;
 
 	@Bean
 	@Order(1)
@@ -72,6 +75,9 @@ public class GuestSecurityConfig {
 				new GuestTokenAuthenticationProvider(guestPrincipalResolver),
 				new PxeBootAuthenticationProvider(pxeBootProperties)
 		);
+		// S20 — 손으로 만든 ProviderManager 는 이벤트를 내지 않는다(NullEventPublisher). 웹 체인과 같은 발행기를 이어야
+		// 게스트 토큰 · PXE 부팅 계정의 성공 · 실패가 AuthenticationEventLogger 에 닿는다.
+		guestManager.setAuthenticationEventPublisher(new DefaultAuthenticationEventPublisher(applicationEventPublisher));
 		AuthenticationFilter guestFilter = new AuthenticationFilter(guestManager, new GuestCredentialConverter());
 		guestFilter.setSuccessHandler(
 				(request, response, authentication) -> { }

@@ -193,6 +193,16 @@ OPS-3 원안에는 ReadWritePaths 에 /etc/dhcp 가 한 줄 더 있다. dhcpd �
 
 실측 반영 2026-08-15 — 그 시점이 오면 이렇게 한다. ReadWritePaths 추가는 유닛 본문 수정 대신 drop-in 이 깔끔하다: `/etc/systemd/system/serverprovision.service.d/dhcp.conf` 에 `[Service]` 와 `ReadWritePaths=/etc/dhcp` 두 줄(목록형 지시자라 본문 값에 누적된다). sudoers 는 `/etc/sudoers.d/serverprovision` 에 AllowedCommand 정본 두 줄(dhcpd -t 문법 검사, systemctl restart dhcpd)을 넣고 440 으로 좁힌다. dhcpd 는 설치와 문법 검사 위임 확인까지만 하고 기동하지 않는다 — 공유 가상 네트워크에서 켜면 하이퍼바이저 DHCP 와 충돌하고, 브리지에서 켜면 사내망에 불량 DHCP 를 뿌린다. 실서빙은 격리 세그먼트에서 한다.
 
+## 10-1. 인증 로그 판독
+
+인증 · 인가 · 계정 사건은 애플리케이션 로그에 태그로 남는다(S20). 로그인이 안 될 때는 코드나 DB 를 뒤지기 전에 이 줄부터 본다.
+
+```bash
+sudo journalctl -u serverprovision --since "-30 min" --no-pager | grep -E '\[auth|\[authz'
+```
+
+태그와 뜻은 다음과 같다. `[auth.login]` 은 사람의 폼 로그인 성공(사용자 · 역할 · 출발지), `[auth.login.failed]` 는 실패와 사유 코드(`BAD_CREDENTIALS` 는 계정 부재와 비밀번호 불일치를 함께 뜻한다. 계정 열거를 막기 위해 Spring Security 가 감춘다. `DISABLED` · `LOCKED` 는 계정 상태), `[auth.logout]` 은 로그아웃, `[authz.denied]` 는 인증된 사용자가 권한 없는 경로에 닿았거나 게스트 채널 요청이 프로비저닝 LAN 밖에서 왔을 때, `[auth.account.created]` 와 `[auth.password.changed]` 는 가입과 비밀번호 변경이다. 요청마다 다시 인증되는 Basic 과 게스트 토큰의 성공은 `[auth.authenticated]` 로 DEBUG 에만 남는다. 비밀번호 · secret · 토큰 값은 어느 줄에도 없다.
+
 ## 11. 방화벽과 기동 검증
 
 ```bash

@@ -33,8 +33,22 @@ class WindowsOemTemplatesTest {
                 .contains("msiexec /i \"!BASE!\\!ENTRY!\" /qn /norestart !ARGS!")
                 .contains("pnputil /add-driver \"!BASE!\\*.inf\" /subdirs /install")
                 .contains("echo [SPV-INSTALL] !FOLDER!^|!MODE!^|exit=!RC!")
-                .contains("if \"!REBOOT!\"==\"1\" set NEEDREBOOT=1").contains("shutdown /r /t 10")
+                .contains("if \"!REBOOT!\"==\"1\" set NEEDREBOOT=1").contains("echo 1 > \"%SPV%\\reboot-required\"")
                 .contains(":legacy").contains("[SPV-INSTALL] -^|LEGACY^|exit=0");
+    }
+
+    @Test
+    @DisplayName("HF18 — 재부팅은 SetupComplete 가 아니라 완료 보고 뒤 spv-report.ps1 이 한다(첫 로그온 1회를 재부팅이 끊어 보고가 유실되던 실기 결함)")
+    void rebootDeferredUntilReported() {
+        String cmd = WindowsOemTemplates.SETUPCOMPLETE_CMD;
+        assertThat(cmd).doesNotContain("shutdown /r").contains("reboot-required");
+
+        String ps1 = WindowsOemTemplates.SPV_REPORT_PS1;
+        int report = ps1.indexOf("Invoke-WebRequest -Uri $uri -Method Post");
+        int reboot = ps1.indexOf("shutdown.exe /r /t 5");
+        assertThat(report).isPositive();
+        assertThat(reboot).as("재부팅은 보고 전송 뒤에 온다").isGreaterThan(report);
+        assertThat(ps1).contains("Join-Path $spv 'reboot-required'").contains("Remove-Item $rebootFlag");
     }
 
     @Test
@@ -43,7 +57,9 @@ class WindowsOemTemplatesTest {
         String ps1 = WindowsOemTemplates.SPV_REPORT_PS1;
         assertThat(ps1).contains("[SPV-INSTALL]").contains("exit=(-?\\d+)").contains("$installs.Count -ge 50")
                 .contains("folder = $g[1].Value; mode = $g[2].Value; exitCode = [int]$g[3].Value")
-                .contains("installs = @($installs)");
+                .contains("installs = @($installs)")
+                // HF18-2 — 제네릭 List[object] 는 5.1 에서 List[string] 파이프 열거를 깨뜨렸다(09-17 실기) · 본문 catch 가 예외를 transcript 에 남긴다
+                .doesNotContain("Generic.List[object]").contains("$installs = @()").contains("FATAL {0}: {1}");
     }
 
     @Test
@@ -54,4 +70,21 @@ class WindowsOemTemplatesTest {
         }
         assertThat(WindowsOemTemplates.scriptsHash()).hasSize(64).matches("[0-9a-f]{64}");
     }
+
+	@Test
+	@DisplayName("SetupComplete — 괄호 블록 안의 줄에는 괄호 문자가 없다(cmd 는 블록 안 첫 닫는 괄호에서 블록을 닫는다 · echo 본문도 예외 아님)")
+	void setupComplete_noParenthesesInsideBlocks() {
+		int depth = 0;
+		for (String raw : WindowsOemTemplates.SETUPCOMPLETE_CMD.split("\n")) {
+			String line = raw.strip();
+			if (depth > 0 && !line.equals(")") && !line.endsWith("(")) {   // 중첩 블록의 여는 줄(if … ( )은 정당
+				org.assertj.core.api.Assertions.assertThat(line)
+						.as("블록 안 줄: " + line)
+						.doesNotContain("(").doesNotContain(")");
+			}
+			if (line.endsWith("(")) depth++;
+			if (line.equals(")")) depth--;
+		}
+		org.assertj.core.api.Assertions.assertThat(depth).isZero();
+	}
 }

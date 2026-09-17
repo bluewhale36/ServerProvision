@@ -37,6 +37,7 @@ class UsersServiceTest {
 	@Mock UsersRepository usersRepository;
 	@Mock UsersRoleRepository usersRoleRepository;
 	@Mock PasswordEncoder passwordEncoder;
+	@Mock org.springframework.context.ApplicationEventPublisher eventPublisher;   // S20 — 계정 사건 발행
 	@InjectMocks UsersService service;
 
 	private static SignUpRequest request(String username, String password, String retyped, List<Role> roles) {

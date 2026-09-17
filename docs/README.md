@@ -31,6 +31,13 @@ ServerProvision의 문서는 두 갈래다. 개발자 매뉴얼은 `dev/` 아래
 | `user-guide/06-reference.md` | 상태 전이 표, 마커 파일, 네트워크 부팅 요구조건 | 예정(DOC-6) |
 | `user-guide/07-troubleshooting.md` | 문제 해결 | 예정(DOC-6) |
 
+### 운영 · 배포 런북
+
+| 문서 | 내용 | 상태 |
+|---|---|---|
+| `pxe-server-install.md` | 실 기기 OS 설치 — OPS-2 개정(단일 티어 · 카드 RAID 10) · WebBIOS · 부팅 모드 · 파티션 표 · 첫 부팅 확인 · RAID 관측 | 초안(OPS-4 · 2026-09-16) |
+| `staging-vm-bootstrap.md` | OS 설치 뒤의 전 절차 — 계정 · JDK · MariaDB · 디렉토리 · 빌드 · 스키마 · env · systemd · 방화벽 · nginx · Windows 기반. 실서버에도 그대로 적용 | 실측(DPL-1) |
+
 `T3-checklist.md`는 물리 서버를 확보했을 때 몰아서 검증할 항목의 목록이다.
 
 ## 정보의 기준 출처

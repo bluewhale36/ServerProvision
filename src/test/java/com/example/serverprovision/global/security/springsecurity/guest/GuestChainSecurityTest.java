@@ -68,7 +68,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 		// S19-2 — 첫 접촉 credential · LAN 정책 · URL 조립
 		com.example.serverprovision.execution.config.PxeBootProperties.class, com.example.serverprovision.execution.engine.boot.PxeBootUrls.class,
 		com.example.serverprovision.global.security.springsecurity.guest.authorization.ProvisioningLanPolicy.class,
-		com.example.serverprovision.global.security.springsecurity.guest.web.PxeBootEntryPoint.class})
+		com.example.serverprovision.global.security.springsecurity.guest.web.PxeBootEntryPoint.class,
+		// S20 — 손으로 만든 ProviderManager 와 AuthorizationFilter 가 이벤트를 내는지
+		com.example.serverprovision.global.security.springsecurity.audit.AuthenticationEventLogger.class,
+		com.example.serverprovision.global.security.springsecurity.audit.SecurityEventConfig.class})
 @TestPropertySource(properties = {"pxe.boot.secret=s3cret", "pxe.guest.allowed-cidrs=127.0.0.1/32,10.0.2.0/24"})   // MockMvc 출발지 = 127.0.0.1
 class GuestChainSecurityTest {
 
@@ -238,5 +241,27 @@ class GuestChainSecurityTest {
 		mvc.perform(get("/management/os").accept(MediaType.TEXT_HTML).header("X-Guest-Token", TOKEN))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/login"));
+	}
+
+	@Test
+	@DisplayName("S20 인증 로그 — 위조 토큰은 WARN [auth.login.failed] BAD_CREDENTIALS channel=guest(토큰 값 없음) · 정상 토큰은 DEBUG [auth.authenticated] 게스트 id · LAN 밖은 WARN [authz.denied] result=Denied")
+	void auditLog_guestChain() throws Exception {
+		given(agentReportService.checkin(any())).willReturn(new AgentCheckinResponse(com.example.serverprovision.execution.enums.AgentDirective.COLLECT, "guest-01"));
+		try (com.example.serverprovision.global.security.springsecurity.audit.AuthLogCapture capture
+					 = new com.example.serverprovision.global.security.springsecurity.audit.AuthLogCapture()) {
+			mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", "bad")).andExpect(status().isUnauthorized());
+			mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", TOKEN)).andExpect(status().isOk());
+			mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", TOKEN).with(r -> { r.setRemoteAddr("172.16.0.5"); return r; }))
+					.andExpect(status().isForbidden());
+
+			org.assertj.core.api.Assertions.assertThat(capture.lines())
+					.anySatisfy(l -> org.assertj.core.api.Assertions.assertThat(l)
+							.startsWith("[auth.login.failed] user=guest reason=BAD_CREDENTIALS channel=guest ip=127.0.0.1"))
+					.anySatisfy(l -> org.assertj.core.api.Assertions.assertThat(l)
+							.startsWith("[auth.authenticated] user=" + GUEST_ID).contains("channel=guest"))
+					.anySatisfy(l -> org.assertj.core.api.Assertions.assertThat(l)
+							.startsWith("[authz.denied] user=" + GUEST_ID + " method=POST path=/api/pxe/v1/agent/checkin channel=guest ip=172.16.0.5 result=Denied"))
+					.allSatisfy(l -> org.assertj.core.api.Assertions.assertThat(l).doesNotContain(TOKEN).doesNotContain("X-Guest-Token"));
+		}
 	}
 }
