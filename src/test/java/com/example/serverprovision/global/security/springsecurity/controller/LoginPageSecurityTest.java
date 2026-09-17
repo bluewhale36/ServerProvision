@@ -1,5 +1,7 @@
 package com.example.serverprovision.global.security.springsecurity.controller;
 
+import com.example.serverprovision.global.security.springsecurity.audit.AuthLogCapture;
+import com.example.serverprovision.global.security.springsecurity.audit.AuthenticationEventLogger;
 import com.example.serverprovision.global.security.springsecurity.authorization.MustChangePasswordSuccessHandler;
 import com.example.serverprovision.global.security.springsecurity.authorization.SignupAccessPolicy;
 import com.example.serverprovision.global.security.springsecurity.config.PasswordEncoderConfig;
@@ -26,6 +28,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -40,7 +43,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 초기 비밀번호 계정의 로그인 목적지를 본다. 인증 판정 자체(UserDetailsService · 인코더)는 실물 인코더 + mock 사용자다.
  */
 @WebMvcTest(controllers = LoginController.class)
-@Import({SecurityConfig.class, PasswordEncoderConfig.class, SignupAccessPolicy.class, MustChangePasswordSuccessHandler.class})
+@Import({SecurityConfig.class, PasswordEncoderConfig.class, SignupAccessPolicy.class, MustChangePasswordSuccessHandler.class,
+		AuthenticationEventLogger.class})   // S20 — 인증 이벤트가 실제 체인에서 로그로 닿는지
 class LoginPageSecurityTest {
 
 	@Autowired WebApplicationContext context;
@@ -144,5 +148,26 @@ class LoginPageSecurityTest {
 		mvc.perform(post("/logout").accept(MediaType.TEXT_HTML))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/login?logout"));
+	}
+
+	@Test
+	@DisplayName("S20 인증 로그 — 틀린 비밀번호는 WARN [auth.login.failed] BAD_CREDENTIALS · 성공은 INFO [auth.login] · 로그아웃은 [auth.logout] · 비밀번호는 어느 줄에도 없다")
+	void auditLog_webChain() throws Exception {
+		given(userDetailsService.loadUserByUsername("hong.gildong")).willReturn(user("NewPass99!", false, Role.ADMIN));
+		try (AuthLogCapture capture = new AuthLogCapture()) {
+			mvc.perform(post("/login").param("username", "hong.gildong").param("password", "wrong")
+							.with(r -> { r.setRemoteAddr("192.168.1.5"); return r; }))
+					.andExpect(redirectedUrl("/login?error=true"));
+			mvc.perform(post("/login").param("username", "hong.gildong").param("password", "NewPass99!"))
+					.andExpect(redirectedUrl("/"));
+			mvc.perform(post("/logout").accept(MediaType.TEXT_HTML).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("hong.gildong")))
+					.andExpect(redirectedUrl("/login?logout"));
+
+			assertThat(capture.lines())
+					.anySatisfy(l -> assertThat(l).startsWith("[auth.login.failed] user=hong.gildong reason=BAD_CREDENTIALS channel=web ip=192.168.1.5"))
+					.anySatisfy(l -> assertThat(l).startsWith("[auth.login] user=hong.gildong roles=[").contains("ROLE_ADMIN").contains("channel=web"))
+					.anySatisfy(l -> assertThat(l).startsWith("[auth.logout] user=hong.gildong"))
+					.allSatisfy(l -> assertThat(l).doesNotContain("wrong").doesNotContain("NewPass99!"));
+		}
 	}
 }
