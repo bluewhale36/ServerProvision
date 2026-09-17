@@ -79,6 +79,13 @@
    사이드바와 본문이 flex 형제가 되어 모달 오버레이(position: fixed)가 뷰포트 전체를 덮고, 보정 규칙이
    필요 없다. align-items 를 flex-start 로 두는 이유는 사이드바(height: 100vh)가 본문 높이로 늘어나
    sticky 가 죽는 것을 막기 위해서다. */
+/* 탄성 스크롤(mac 트랙패드의 위아래 튕김)을 끈다 — 튕기는 동안 문서 전체가 밀려 100vh 사이드바의 위나 아래가
+   잘려 보였다(S21-1 검수). 사이드바를 fixed 로 바꾸는 대신 튕김 자체를 막는다. */
+html {
+    background: var(--n-bg);
+    overscroll-behavior-y: none;
+}
+
 body {
     font-family: 'Inter', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
     background: var(--n-bg);
@@ -90,6 +97,7 @@ body {
     align-items: flex-start;
     min-height: 100vh;
     font-variant-numeric: tabular-nums;
+    overscroll-behavior-y: none;
 }
 
 /* 맨 링크도 팔레트의 파랑이다 — S17-1 CP5 F-5 때는 Bootstrap 의 --bs-link-color(#0d6efd)가 남아 한 화면에
@@ -296,6 +304,11 @@ kbd {
     margin: 0;
     flex-shrink: 0;
     word-break: keep-all;
+}
+
+/* 되돌아가기는 두 어절이다 — 제목 아래 칩이 늘어 머리가 좁아져도 '목록으 / 로' 로 갈리지 않는다(S21-1 실측). */
+.n-page-header .n-back-link {
+    white-space: nowrap;
 }
 
 /* ---- 5. 카드 ---------------------------------------------- */
@@ -1168,6 +1181,12 @@ kbd {
     vertical-align: middle;
 }
 
+/* 값 칸의 첫 조각이 부연(.n-meta)으로 감싸인 배지면 왼쪽 여백을 없앤다 — 배지 조각을 머리 띠와 같이 쓰는 상세 표에서
+   첫 배지만 8px 밀려 다른 행과 세로선이 어긋났다(S21-1 검수). */
+.n-detail-table td > .n-meta:first-child {
+    margin-left: 0;
+}
+
 /* 상세 화면의 절 — 서버 상세와 세팅 정의서 상세가 각자 정의하던 것을 한 벌로(S17-2).
    절 제목은 페이지 제목(26px)과 본문 사이의 층이다. 14px 로는 본문과 거의 같아 상세가 길어질수록 "여기서
    무엇이 새로 시작되는가" 가 눈에 걸리지 않았다(2026-08-13). 18px 로 층을 세우고 letter-spacing 은 페이지
@@ -1259,10 +1278,13 @@ kbd {
    .n-tab-panel#패널id(활성은 .is-active). 전환 로직은 global/n-tab.js. */
 .n-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 2px;
     border-bottom: 1px solid var(--n-border);
     margin-bottom: 20px;
-    overflow-x: auto;
+    /* overflow-x: auto 를 두면 탭의 margin-bottom: -1px 가 세로 넘침이 되어 스크롤바를 항상 보이는 설정의 mac 에서
+       스트립 오른쪽에 세로 스크롤바가 선다(S21-1 검수). 넘치면 줄바꿈으로 받는다. */
+    overflow: visible;
 }
 .n-tab {
     display: inline-flex;
@@ -1300,10 +1322,4 @@ kbd {
    Miller 의 상세 열 스택은 miller.css, 서버 표의 열 재배분은 server.css 가 각자 가진다 — 그 파일들이
    이 시트 뒤에 실려 같은 명시도면 여기 규칙이 지기 때문이다.
    ============================================================ */
-@media (max-width: 1024px) {
-    /* 탭 스트립 — 안쪽 가로 스크롤 대신 줄바꿈 */
-    .n-tabs {
-        flex-wrap: wrap;
-        overflow-x: visible;
-    }
-}
+/* 탭 스트립은 폭과 무관하게 줄바꿈한다(위 .n-tabs) — 종전의 1024 전용 규칙은 흡수됐다. */

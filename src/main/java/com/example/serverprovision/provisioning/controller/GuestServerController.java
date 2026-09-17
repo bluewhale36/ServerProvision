@@ -173,12 +173,15 @@ public class GuestServerController {
 
         if (bindingResult.hasErrors()) {
             // 검증 실패 — 같은 상세 화면을 다시 렌더(읽기 전용 영역 복원 + 입력값/에러 유지).
+            // 폼은 관리 탭에 있다(S21-1) — 재렌더 URL 엔 hash 가 없으므로 서버가 그 탭을 열어 준다.
             addDetailModel(model, id, guestServerQueryService.findDetail(id));
+            model.addAttribute("activeTab", "manage");
             return "provisioning/server-detail";
         }
 
         guestServerCommandService.update(id, request);
-        return "redirect:/provisioning/server/" + id;
+        // 네이티브 제출은 PRG 에서 hash 를 잃는다 — 저장한 자리(관리 탭)로 돌아가게 fragment 를 싣는다(S21-1).
+        return "redirect:/provisioning/server/" + id + "#manage";
     }
 
     @PostMapping("/{id}/decommission")
@@ -334,10 +337,8 @@ public class GuestServerController {
         // 폼 자체를 닫을 사유(회수)와 옵션별 사유(하드웨어)가 한 응답으로 온다 — 같은 판정에서 나온다.
         model.addAttribute("assignmentForm",
                 assignmentQueryService.assignmentForm(id, settingQueryService.findAssignable()));
+        // S21-1 — rail 은 계획 phase 에 진행 커서와 원장 행을 겹친 단계 패널 목록이다(암시 단계 2 + 계획 + 원장 + 데이터가 실린 단계).
         AssignmentPlanResponse plan = assignmentQueryService.plannedPhasesOf(id);
-        GuestServerDetailResponse.Progress progress = server.progress();
-        ProvisioningPhase currentPhase = progress != null ? progress.currentPhase() : null;
-        boolean started = progress != null && progress.startedAt() != null;
-        model.addAttribute("phaseRail", PlannedPhaseRailResponse.of(plan, currentPhase, started));
+        model.addAttribute("phaseRail", PlannedPhaseRailResponse.of(plan, server));
     }
 }

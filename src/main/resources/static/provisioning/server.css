@@ -635,3 +635,392 @@
 .n-raid-branch + .n-raid-branch { margin-top: 20px; }
 /* 원장 표의 비고 칸 — 긴 메시지를 폭 안에서 접는다 */
 .n-ledger-note { font-size: 12px; max-width: 320px; }
+
+/* ============================================================
+   S21-1 — 게스트 서버 상세 재설계 (탭 4 · 개요 · 단계 패널)
+   구획은 구현 슬라이스가 아니라 운영자의 질문으로 나눈다. 아래 규칙은 이 화면에만 뜻이 있어
+   전역 시트가 아니라 여기에 둔다(DESIGN.md 원칙 6).
+   ============================================================ */
+
+/* ---- 개요 : 상태 판(왼쪽) · 신원 판(오른쪽) 나란히 — 높이는 stretch 로 맞춘다 ---- */
+.n-overview {
+    display: flex;
+    align-items: stretch;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.n-overview > .n-card {
+    flex: 1 1 0;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+/* 상태 판이 다음 행동 버튼 줄을 품으므로 한 단 넓다 */
+.n-overview > .n-card.n-overview-status {
+    flex: 1.35 1 0;
+}
+
+@media (max-width: 1024px) {
+    /* flex-basis 0 은 세로로 뒤집히면 높이가 되어 판이 주저앉는다(.n-group-top 과 같은 함정) — auto 로 되돌린다 */
+    .n-overview { flex-direction: column; }
+    .n-overview > .n-card { flex: 0 0 auto; }
+}
+
+/* 판 머리의 오른쪽 링크 — 다른 탭으로 가는 길. 버튼이 아니라 경로이므로 글자만 */
+.n-card-head-link {
+    font-size: 12.5px;
+    color: var(--n-blue);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.n-card-head-link:hover {
+    text-decoration: underline;
+}
+
+/* ---- 다음 행동 — 상태 판의 발. 버튼 줄과 한 줄 안내가 함께 선다 ---- */
+.n-next {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--n-border);
+}
+
+.n-next-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: var(--n-text-sec);
+}
+
+.n-next-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* 버튼 하나를 감싸는 폼은 배치에 끼어들지 않는다(.n-actions 와 같은 규칙) */
+.n-next-actions > form {
+    display: contents;
+}
+
+.n-next-hint {
+    margin: 8px 0 0;
+    font-size: 12.5px;
+    color: var(--n-text-sec);
+}
+
+/* 개요 표의 실패 사유 · 관리 탭의 차단 사유 — 값 아래 한 줄 경고 */
+.n-detail-table .n-hint-warn {
+    margin: 4px 0 0;
+}
+
+/* ---- 진행 경로 — 가로 스테퍼. 단계(phase)가 1층, 그 아래 한 줄 국면이 2층이다 ---- */
+.n-steps {
+    display: flex;
+    align-items: flex-start;
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+}
+
+.n-step {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    padding-right: 12px;
+}
+
+/* 연결선 — 번호 원의 세로 중심(11px)에 걸고 다음 항목까지 잇는다. 마지막은 없다 */
+.n-step::before {
+    content: "";
+    position: absolute;
+    top: 11px;
+    left: 26px;
+    right: 0;
+    height: 2px;
+    background: var(--n-border);
+}
+
+.n-step:last-child::before {
+    display: none;
+}
+
+/* 번호 원 — 스테퍼와 단계 패널 머리가 같은 모양 · 같은 상태색을 쓴다 */
+.n-step-no {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;    /* 형태가 뜻이다 — 순서를 나타내는 원 */
+    font-size: 11.5px;
+    font-weight: 700;
+    background: var(--n-surface);
+    border: 2px solid var(--n-border-form);
+    color: var(--n-text-sec);
+}
+
+.n-step.is-done .n-step-no,
+.n-phase-panel.is-done .n-step-no {
+    background: var(--n-teal);
+    border-color: var(--n-teal);
+    color: var(--n-surface);
+}
+
+.n-step.is-done::before {
+    background: var(--n-teal);
+}
+
+.n-step.is-current .n-step-no,
+.n-phase-panel.is-current .n-step-no {
+    background: var(--n-blue);
+    border-color: var(--n-blue);
+    color: var(--n-surface);
+    box-shadow: 0 0 0 4px var(--n-blue-badge-bg);
+}
+
+.n-step.is-failed .n-step-no,
+.n-phase-panel.is-failed .n-step-no {
+    background: var(--n-red);
+    border-color: var(--n-red);
+    color: var(--n-surface);
+}
+
+/* 회수로 멈춘 자리와 그 뒤(CP5 F-1) — 채운 회색. 비활성(꺼져 있음)의 어휘와 같다 */
+.n-step.is-stopped .n-step-no,
+.n-phase-panel.is-stopped .n-step-no {
+    background: var(--n-text-muted);
+    border-color: var(--n-text-muted);
+    color: var(--n-surface);
+}
+
+.n-step.is-stopped .n-step-name {
+    color: var(--n-text-sec);
+    font-weight: 500;
+}
+
+/* 아직 정해지지 않은 단계 — 점선 원 */
+.n-step.is-ghost .n-step-no,
+.n-step-no.is-ghost {
+    border-style: dashed;
+}
+
+.n-step-name {
+    display: block;
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--n-text);
+}
+
+.n-step.is-pending .n-step-name,
+.n-step.is-ghost .n-step-name {
+    color: var(--n-text-sec);
+    font-weight: 500;
+}
+
+.n-step-sub {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--n-text-sec);
+}
+
+.n-step.is-failed .n-step-sub {
+    color: var(--n-red);
+}
+
+/* ---- 단계 패널 — <details> 아코디언. 완료 단계만 기본 접힘(사용자 결정 2026-09-13) ----
+   판 머리(summary)에 번호 · 이름 · 상태 · 시각, 본문에 계획 · 집행 · 결과 · 세부 단계가 n-section 구획으로 선다. */
+.n-phase-panel {
+    margin-bottom: 14px;
+}
+
+.n-phase-panel > .n-card-head {
+    padding: 9px 14px;
+}
+
+/* summary 는 브라우저가 list-item 으로 그려 삼각형 마커를 붙인다 — 판 머리 flex 로 바꾸고 마커는 지운다 */
+.n-phase-head {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.n-phase-head::-webkit-details-marker {
+    display: none;
+}
+
+.n-phase-head::marker {
+    content: "";
+}
+
+.n-phase-panel:hover > .n-phase-head {
+    background: var(--n-row-hover);
+}
+
+/* 열림 표시 — 아코디언과 같은 꺾쇠(accordion.css 의 chevron 과 같은 모양, 이 화면은 그 시트를 싣지 않는다) */
+.n-phase-chevron {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-right: 2px solid var(--n-text-muted);
+    border-bottom: 2px solid var(--n-text-muted);
+    transform: rotate(-45deg);
+    transition: transform 150ms ease;
+    flex-shrink: 0;
+    margin: 0 2px 2px 2px;
+}
+
+.n-phase-panel[open] > .n-phase-head .n-phase-chevron {
+    transform: rotate(45deg);
+    margin-bottom: 0;
+}
+
+/* 예정 · 밟지 않을 단계의 머리는 꺼진 면 대신 흰 면 — 아무 일도 없었다는 뜻 */
+.n-phase-panel.is-pending > .n-card-head,
+.n-phase-panel.is-stopped > .n-card-head {
+    background: var(--n-surface);
+}
+
+.n-phase-head-name {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.n-phase-time {
+    font-size: 12px;
+    color: var(--n-text-sec);
+    white-space: nowrap;
+}
+
+.n-phase-panel > .n-card-body {
+    padding: 16px 20px 18px;
+}
+
+.n-phase-panel.is-pending > .n-card-body {
+    padding: 12px 20px;
+}
+
+.n-phase-empty {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--n-text-muted);
+}
+
+/* 판 안 구획 머리는 전역 .n-section 을 쓴다 — 단계 패널 안에서는 위 여백만 한 단 줄인다 */
+.n-phase-panel .n-section {
+    margin-top: 23px;
+}
+
+/* 단계 패널 안의 힌트는 읽기 폭 제한(68ch)을 풀어 한 줄로 — 폼의 주석이 아니라 단계의 설명이다(S21-1 검수) */
+.n-phase-panel .n-hint {
+    max-width: none;
+}
+
+/* 단계 패널 안의 2 열 표 — 라벨 열을 좁히고 행을 한 단 조밀하게. 축 목록(글자 나열)을 대신하는 자리다 */
+.n-phase-panel .n-detail-table {
+    margin-bottom: 0;
+}
+
+.n-phase-panel .n-detail-table th {
+    width: 140px;
+    padding: 9px 12px 9px 0;
+}
+
+.n-phase-panel .n-detail-table td {
+    padding: 9px 0;
+}
+
+.n-phase-panel .n-detail-table + .n-section {
+    margin-top: 16px;
+}
+
+.n-phase-panel .n-detail-table details {
+    margin-top: 6px;
+}
+
+.n-phase-panel .n-detail-table details summary {
+    cursor: pointer;
+    font-size: 12.5px;
+    color: var(--n-blue);
+}
+
+.n-phase-panel .n-detail-table details ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    font-size: 13px;
+}
+
+/* 운영자 개입 — 정상 흐름의 다음 행동과 갈라 둔다(수동 실패 전환은 흐름의 다음 단계가 아니라 판단이다) */
+.n-next-intervene {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--n-border);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.n-next-intervene > form {
+    display: contents;
+}
+
+/* 개입 블록이 발의 첫 내용이면(흐름의 다음 행동이 없을 때) 판의 구분선 하나로 충분하다 — 점선을 겹치지 않는다 */
+.n-next > .n-next-intervene:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.n-next-intervene .n-next-hint {
+    margin: 0;
+    flex: 1 1 260px;
+}
+
+.n-phase-panel .n-section:first-child {
+    margin-top: 0;
+}
+
+/* 축 목록(.n-firmware-axes)은 종전에 판 안 border-top 블록(.n-firmware-plan)에 살았다 — 이제 n-section 아래라 위 여백만 */
+.n-phase-panel .n-firmware-axes {
+    margin-top: 8px;
+}
+
+/* 세부 단계 표 — 판 안의 두 번째 층이라 한 단 조밀하게 */
+.n-steps-table th,
+.n-steps-table td {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    font-size: 13px;
+}
+
+.n-steps-table code {
+    font-size: 12px;
+}
+
+/* ---- 탭 라벨의 알림 점 — 숨은 탭 안에 실패가 있을 때 ---- */
+.n-tab-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;    /* 형태가 뜻이다 — 점 */
+    background: var(--n-red);
+}
+
+/* ---- 관리 탭 : 회수와 삭제를 한 판에 두 구획으로 ---- */
+.n-lifecycle-block + .n-lifecycle-block {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--n-border);
+}
+
+.n-lifecycle-block .n-hint {
+    margin: 4px 0 10px;
+}

@@ -308,7 +308,117 @@ class GuestServerControllerTest {
                         .param("serialNumber", "RE2108X")
                         .param("memo", "메모"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(header().string("Location", "/provisioning/server/" + id));
+                // S21-1 — 폼은 관리 탭에 있다. 네이티브 제출은 PRG 에서 hash 를 잃으므로 서버가 그 탭으로 돌려보낸다.
+                .andExpect(header().string("Location", "/provisioning/server/" + id + "#manage"));
+    }
+
+    // ==== S21-1 — 탭 · 단계 패널 렌더 ====================================
+
+    @Test
+    @DisplayName("상세 — 탭 4 · 개요가 기본 · 암시 단계 둘이 단계 패널로 선다(완료 = 접힘 · 현재 = 펼침)")
+    void detail_rendersTabsAndImplicitPhasePanels() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detail(id));   // 진행 커서 = DIAGNOSE_LINUX · 미할당
+
+        String html = normalized(mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andReturn());
+        org.assertj.core.api.Assertions.assertThat(html)
+                .contains("data-panel=\"overview\" aria-selected=\"true\"")
+                .contains("data-panel=\"hardware\" aria-selected=\"false\"")
+                .contains("data-panel=\"provisioning\" aria-selected=\"false\"")
+                .contains("data-panel=\"manage\" aria-selected=\"false\"")
+                .contains("id=\"phase-BOOTSTRAPPING\" class=\"n-card n-phase-panel is-done\">")
+                .contains("id=\"phase-DIAGNOSE_LINUX\" class=\"n-card n-phase-panel is-current\" open=\"open\"")
+                .contains("정의서를 할당하면 이 서버가 밟을 단계가 여기에 정해집니다")   // 미할당 — 이후 단계 자리
+                .contains("global/n-tab.js");
+    }
+
+    /** 템플릿은 속성 사이에 줄바꿈을 둔다 — 속성 순서 · 값만 보도록 공백을 한 칸으로 접는다. */
+    private static String normalized(org.springframework.test.web.servlet.MvcResult result) throws Exception {
+        return result.getResponse().getContentAsString().replaceAll("\\s+", " ");
+    }
+
+    @Test
+    @DisplayName("POST /{id}/edit 검증 실패 재렌더 — 관리 탭이 열린 채 그려진다(activeTab)")
+    void edit_rerender_opensManageTab() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detail(id));
+
+        String html = normalized(mvc.perform(post("/provisioning/server/{id}/edit", id)
+                        .param("name", "a".repeat(129)))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("activeTab", "manage"))
+                .andReturn());
+        org.assertj.core.api.Assertions.assertThat(html)
+                .contains("data-panel=\"manage\" aria-selected=\"true\"")
+                .contains("data-panel=\"overview\" aria-selected=\"false\"")
+                .contains("class=\"n-tab-panel is-active\" id=\"manage\"");
+    }
+
+    @Test
+    @DisplayName("상세 — 실패한 서버: 머리 띠에 '실패 · 단계' · 프로비저닝 탭에 점 · 개요 실패 행에 원장 사유")
+    void detail_failed_marksTabAndShowsReason() throws Exception {
+        UUID id = UUID.randomUUID();
+        LocalDateTime failedAt = LocalDateTime.of(2026, 9, 13, 10, 34, 0);
+        var failedStep = new GuestServerDetailResponse.Step(ProvisioningPhase.RAID_CONFIGURATION,
+                com.example.serverprovision.execution.enums.ProvisioningPhaseStep.RAID_APPLYING,
+                com.example.serverprovision.execution.enums.ProvisioningStatus.FAILED,
+                failedAt.minusMinutes(1), failedAt, "지정 카드 불일치 — 집행 전 대조에서 거절됨");
+        given(queryService.findDetail(id)).willReturn(new GuestServerDetailResponse(
+                id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "464331aabbcc", null, "memo",
+                GuestServerStatus.FAILED, null, LocalDateTime.now(), LocalDateTime.now(),
+                null,
+                new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
+                        DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null, null, null, null, null),
+                List.of(),
+                new GuestServerDetailResponse.Progress(ProvisioningPhase.RAID_CONFIGURATION, failedAt, failedAt.minusHours(1),
+                        failedAt, com.example.serverprovision.execution.enums.ProvisioningPhaseStep.RAID_APPLYING, null,
+                        false, false, true, false, false),
+                null, null, null, null, null, List.of(), List.of(failedStep)));
+
+        String html = normalized(mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andReturn());
+        org.assertj.core.api.Assertions.assertThat(html)
+                .contains("실패 · RAID 구성")
+                .contains("class=\"n-tab-dot\"")
+                .contains("지정 카드 불일치 — 집행 전 대조에서 거절됨")
+                .contains("id=\"phase-RAID_CONFIGURATION\" class=\"n-card n-phase-panel is-failed\" open=\"open\"")
+                .contains("/provisioning/server/" + id + "/retry\"");
+    }
+
+    @Test
+    @DisplayName("상세 — 회수된 서버(CP5 F-1): 머리 띠에 단계 배지 없음 · 개요 '중단' · 스테퍼 STOPPED · 이후 단계 자리 없음 · 탭 점 없음")
+    void detail_decommissioned_showsStoppedNotCurrent() throws Exception {
+        UUID id = UUID.randomUUID();
+        LocalDateTime decommissionedAt = LocalDateTime.of(2026, 9, 13, 11, 0, 0);
+        given(queryService.findDetail(id)).willReturn(new GuestServerDetailResponse(
+                id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "464331aabbcc", "회수된 서버는 전원을 조작할 수 없습니다.", "memo",
+                GuestServerStatus.DECOMMISSIONED, decommissionedAt, LocalDateTime.now(), LocalDateTime.now(),
+                null,
+                new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
+                        DiscoveryStage.IPXE_REGISTERED, null, null, null, null, null, List.of()),
+                List.of(),
+                new GuestServerDetailResponse.Progress(ProvisioningPhase.DIAGNOSE_LINUX, decommissionedAt.minusHours(1),
+                        null, decommissionedAt.minusMinutes(30), null, null, false, false, false, false, false),   // 실패 뒤 회수
+                null, null, null, null, null, List.of(), List.of()));
+        // U3-5-a — 회수된 서버는 할당 폼이 닫힌다
+        given(assignmentQueryService.assignmentForm(any(UUID.class), anyList()))
+                .willReturn(new AssignmentFormResponse("회수된 서버에는 세팅 정의서를 할당할 수 없습니다.", List.of()));
+
+        String html = normalized(mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andReturn());
+        org.assertj.core.api.Assertions.assertThat(html)
+                .contains("회수되어 프로비저닝 대상이 아닙니다")
+                .contains("id=\"phase-DIAGNOSE_LINUX\" class=\"n-card n-phase-panel is-stopped\"")
+                .contains("class=\"n-step is-stopped\"")
+                .contains("회수된 서버입니다 — 진행이 멈춘 자리만 남습니다")
+                .doesNotContain("class=\"n-tab-dot\"")
+                .doesNotContain("is-current")
+                .doesNotContain("정의서를 할당하면 이 서버가 밟을 단계가 여기에 정해집니다")
+                .doesNotContain("실패 · 진단 리눅스");
     }
 
     @Test
