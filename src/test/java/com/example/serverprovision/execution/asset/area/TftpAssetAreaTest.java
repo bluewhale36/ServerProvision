@@ -96,7 +96,7 @@ class TftpAssetAreaTest {
         SealResult result = area.seal();
 
         assertThat(result.sealed()).isEqualTo(1);
-        assertThat(result.skipped()).isZero();
+        assertThat(result.skipped()).isEqualTo(1);   // boot.ipxe 슬롯(2026-09-17)은 이 픽스처에 없다 — 부재는 건너뜀
         assertThat(area.inspect(ipxeSlot()).condition()).isEqualTo(SealedFileCondition.ORIGINAL);
     }
 

@@ -5,7 +5,7 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import java.nio.file.Path;
 
 /**
- * TFTP/PXE 부팅 인프라 자산의 고정 슬롯. 현재는 iPXE UEFI 부트로더 {@code ipxe.efi} 1종이다. 진단 자산과
+ * TFTP/PXE 부팅 인프라 자산의 고정 슬롯 — iPXE UEFI 부트로더 {@code ipxe.efi} 와 둘째 단 스크립트 {@code boot.ipxe} 2종. 진단 자산과
  * 마찬가지로 개수·구성이 고정이라 DB 열거가 불필요하므로 자원 엔티티가 아니라 enum 이 SSOT 다(DEC-14 동형).
  *
  * <p><b>읽기·봉인 전용</b>: {@code ipxe.efi} 는 {@code dnf install ipxe-bootimgs} 가 설치한 배포판 산출물
@@ -18,7 +18,14 @@ import java.nio.file.Path;
  */
 public enum TftpAsset {
 
-    IPXE_EFI("ipxe.efi", MarkerLayout.SIDECAR, "iPXE 부트 (ipxe.efi)", Category.NETBOOT, "패키지 업데이트 시");
+    IPXE_EFI("ipxe.efi", MarkerLayout.SIDECAR, "iPXE 부트 (ipxe.efi)", Category.NETBOOT, "패키지 업데이트 시"),
+
+    /**
+     * iPXE 둘째 단 스크립트(2026-09-17) — ROM 이 받은 ipxe.efi 가 이것을 받아 {@code /api/pxe/v1/boot} 로 체인한다.
+     * 런북이 손으로 쓰는 파일(서버 주소 · PXE 부팅 계정이 든다)이라 앱은 만들지 않지만, 대시보드가 존재 · 무결성을
+     * 보여야 주소 이전 뒤 옛 서버를 가리키는 사고를 눈으로 잡는다.
+     */
+    BOOT_IPXE("boot.ipxe", MarkerLayout.SIDECAR, "iPXE 체인 스크립트 (boot.ipxe)", Category.NETBOOT, "서버 주소 · 부팅 계정 변경 시");
 
     private final String filename;
     private final MarkerLayout layout;
