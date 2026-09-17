@@ -65,7 +65,7 @@ class PxeInfraControllerTest {
                 .andExpect(view().name("system/pxe-infra/overview"))
                 .andExpect(model().attributeExists("overview"))
                 .andExpect(content().string(allOf(
-                        containsString("PXE 인프라 임대 (dnsmasq)"),
+                        containsString("proxy DHCP 임대 (dnsmasq)"),
                         containsString("자체 DHCP"),
                         containsString("10.0.2.50"),
                         containsString("10.0.2.60"),

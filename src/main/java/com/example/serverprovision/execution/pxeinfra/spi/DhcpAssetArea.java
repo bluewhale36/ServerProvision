@@ -72,7 +72,7 @@ public class DhcpAssetArea implements SystemAssetArea {
 
     @Override
     public String displayName() {
-        return "PXE 인프라 (dnsmasq)";
+        return "proxy DHCP (dnsmasq)";
     }
 
     @Override

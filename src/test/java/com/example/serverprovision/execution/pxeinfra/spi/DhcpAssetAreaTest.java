@@ -59,7 +59,7 @@ class DhcpAssetAreaTest {
                 providerOf(null), configInspector, serviceInspector, leaseReader, configService);
 
         assertThat(area.areaKey()).isEqualTo(SystemAssetAreaKey.DHCP);
-        assertThat(area.displayName()).isEqualTo("PXE 인프라 (dnsmasq)");
+        assertThat(area.displayName()).isEqualTo("proxy DHCP (dnsmasq)");
         assertThat(area.availability()).isEqualTo(AreaAvailability.NOT_CONFIGURED);
 
         SystemAssetSlot slot = area.slots().get(0);

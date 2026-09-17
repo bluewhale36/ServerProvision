@@ -18,14 +18,14 @@
   만료 시각은 KST 표기다(dnsmasq 임대 파일은 epoch 초를 기록한다).
 -->
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('PXE 인프라 임대')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('proxy DHCP 임대')}"></th:block>
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('pxe-infra')}"></nav>
 
 <div class="n-page">
     <div class="n-page-header">
-        <h1 class="n-page-title">PXE 인프라 임대 (dnsmasq)</h1>
+        <h1 class="n-page-title">proxy DHCP 임대 (dnsmasq)</h1>
         <div class="n-header-actions">
             <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
             <a th:href="@{/system/pxe-infra/network}" class="n-btn n-btn-secondary n-btn-sm">네트워크 설정</a>
