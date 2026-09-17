@@ -29,6 +29,7 @@ public class PollFlashTaskStep implements FlashStep {
     private final FlashLedger ledger;
     private final com.example.serverprovision.execution.service.FirmwareImageTokenRegistry tokenRegistry;
     private final com.example.serverprovision.execution.engine.WorkerObservations observations;
+    private final com.example.serverprovision.execution.engine.firmware.FlashProgressBoard progressBoard;
 
     @Override
     public int order() {
@@ -50,8 +51,12 @@ public class PollFlashTaskStep implements FlashStep {
         // 굽는 중이면 AMI 확장의 진행률(FlashPercentage)을 같은 줄에 붙인다(2026-09-17) — 화면의 하트비트가 "BIOS 37%" 를 보인다.
         String note = "BMC Task 확인 — " + state.getUserDetail();
         if (!state.isTerminal()) {
-            note += context.provider().pollProgress(context.target())
-                    .map(p -> " · " + p.summary(axis.label())).orElse("");
+            java.util.Optional<com.example.serverprovision.execution.engine.firmware.FlashProgress> progress =
+                    context.provider().pollProgress(context.target());
+            progress.ifPresent(p -> progressBoard.note(context.server().getId(), p));   // 축 줄의 막대 · 퍼센트 재료
+            note += progress.map(p -> " · " + p.summary(axis.label())).orElse("");
+        } else {
+            progressBoard.clear(context.server().getId());
         }
         observations.note(context.server().getId(), note, context.now());
         if (state.isTerminal()) {

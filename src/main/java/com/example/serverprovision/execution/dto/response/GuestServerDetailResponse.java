@@ -296,8 +296,13 @@ public record GuestServerDetailResponse(
             String label,
             AxisFlashState state,
             String targetVersion,
-            String detail
+            String detail,
+            /** 굽는 중일 때의 BMC 진행률(0~100 · 2026-09-17) — 없으면 null(막대 생략). 인메모리 게시판 값이라 재기동 직후엔 null. */
+            Integer progressPercent
     ) {
+        public AxisFlash(String label, AxisFlashState state, String targetVersion, String detail) {
+            this(label, state, targetVersion, detail, null);
+        }
     }
 
     /** 호스트 NIC 1개 (host_nic_binding). {@code createdAt} = 바인딩 시각(옛 bounded_at 을 BaseTimeEntity.createdAt 이 흡수). */

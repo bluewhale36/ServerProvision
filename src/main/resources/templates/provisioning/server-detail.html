@@ -833,6 +833,11 @@
                                         <span th:text="${axis.label}">BIOS</span>
                                         <span th:if="${axis.targetVersion != null}" th:text="${axis.targetVersion}">F29</span>
                                         <span class="n-firmware-state" th:text="${axis.state.label}">굽는 중</span>
+                                        <!-- 굽는 동안의 BMC 진행률(2026-09-17) — 인메모리 게시판 값이라 없으면 그리지 않는다. -->
+                                        <progress th:if="${axis.progressPercent != null}" class="n-flash-progress"
+                                                  th:value="${axis.progressPercent}" max="100">37%</progress>
+                                        <span th:if="${axis.progressPercent != null}" class="n-flash-percent"
+                                              th:text="|${axis.progressPercent}%|">37%</span>
                                         <span th:if="${axis.detail != null}" class="n-firmware-detail" th:text="${axis.detail}"></span>
                                     </li>
                                 </ul>

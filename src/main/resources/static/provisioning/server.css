@@ -569,6 +569,19 @@
     background: var(--n-text-muted);
 }
 .n-firmware-axes li.is-selected::before { background: var(--n-green); }
+/* 굽기 진행률(2026-09-17) — 굽는 중인 축 줄에 막대 + 퍼센트. 인라인 스타일 없이 progress 요소의 value 로 그린다. */
+.n-flash-progress {
+    width: 120px;
+    height: 8px;
+    margin-left: 8px;
+    vertical-align: middle;
+    accent-color: var(--n-green);
+}
+.n-flash-percent {
+    margin-left: 4px;
+    font-variant-numeric: tabular-nums;
+    color: var(--n-text-muted);
+}
 .n-firmware-hold {
     margin: 12px 0 0;
     font-size: 12.5px;

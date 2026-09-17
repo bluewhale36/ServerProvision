@@ -89,12 +89,13 @@ public class GuestServerQueryService {
     private final RetryPolicy retryPolicy;   // 재시도 가능 판정 — 화면 · 가드 공용 SSOT
     private final FlashTimeoutPolicy flashTimeoutPolicy;   // E2-2 — 화면의 잔여 시한과 워커가 같은 값을 본다
     private final SettingLedger settingLedger;             // E2-4 — 설정 원장 meta 판독(작성과 같은 SSOT)
-    private final WorkerObservations workerObservations;   // E2-4 Q2 — 하트비트(인메모리 최신 관측)
+    private final WorkerObservations workerObservations;
     private final ObjectMapper objectMapper;
     private final WindowsInstallReadinessResolver windowsInstallReadinessResolver;   // E4-1-a-3 — 카드 준비도(실행기와 같은 조립)
     private final WindowsInstallLedger windowsInstallLedger;                         // E4-1-a-3 — 서빙 · 재진입 · 실패 사유 판독
     private final WindowsInstallTimeoutPolicy windowsInstallTimeoutPolicy;           // E4-1-a-3 — 잔여 분 · 상한(화면 = 실행기 값)
     private final Clock clock;   // HF13 — 이 클래스의 모든 "지금" 은 이 시계 하나(그룹 눈금 · 잔여 분 · 접촉 판정)
+    private final com.example.serverprovision.execution.engine.firmware.FlashProgressBoard flashProgressBoard;   // 굽기 진행률(2026-09-17)
 
     private static final DateTimeFormatter OBSERVATION_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -619,7 +620,7 @@ public class GuestServerQueryService {
             return flashWaitingCard(server, detail, progress);
         }
         List<GuestServerDetailResponse.AxisFlash> axes = Arrays.stream(FirmwareAxis.values())
-                .map(axis -> axisFlashOf(axis, flashRows))
+                .map(axis -> axisFlashOf(axis, flashRows, server.getId()))
                 .toList();
         boolean running = !progress.isFailed() && !progress.isCompleted();
         // 전원을 켠 뒤의 실패(복귀 시한 만료)만 켜져 있다 — 그 밖의 실패는 굽다 멈춘 것이라 꺼진 채다(D-10).
@@ -719,7 +720,8 @@ public class GuestServerQueryService {
      * 그 기록은 "실패 지점 = 커서" 규약에 따라 커서 step 자리에 남을 뿐 그 축의 결과가 아니라서,
      * 함께 세면 이미 성공한 축이 실패로 뒤집혀 보인다(CP5 F-2).</p>
      */
-    private GuestServerDetailResponse.AxisFlash axisFlashOf(FirmwareAxis axis, List<ProvisioningHistory> flashRows) {
+    private GuestServerDetailResponse.AxisFlash axisFlashOf(FirmwareAxis axis, List<ProvisioningHistory> flashRows,
+                                                            UUID guestId) {
         ProvisioningHistory last = flashRows.stream()
                 .filter(row -> row.getStepCode() == axis.getStep())
                 .filter(row -> !FlashLedger.isPhaseLevel(row.flashFailureReason()))
@@ -731,8 +733,11 @@ public class GuestServerQueryService {
         String version = last.flashTargetVersion();
         String name = last.flashResourceName();
         String display = (name == null || version == null) ? version : name + " (" + version + ")";   // E2-4 R7
-        return new GuestServerDetailResponse.AxisFlash(axis.label(), AxisFlashState.of(last.getStatus()),
-                display, last.flashDetail());
+        AxisFlashState state = AxisFlashState.of(last.getStatus());
+        // 굽는 중인 축에만 BMC 진행률(인메모리 게시판 · 2026-09-17)을 얹는다 — 축은 한 번에 하나만 굽는다.
+        Integer percent = state == AxisFlashState.RUNNING
+                ? flashProgressBoard.latestOf(guestId).map(p -> p.percent()).orElse(null) : null;
+        return new GuestServerDetailResponse.AxisFlash(axis.label(), state, display, last.flashDetail(), percent);
     }
 
     /**

@@ -28,6 +28,24 @@ class FlashProgressTest {
     }
 
     @Test
+    @DisplayName("실 BMC(MS04-CE0 · 13.06.29)는 확장을 Oem 아래에 둔다 — Oem.AMIUpdateService.UpdateInformation 을 먼저 읽는다 · 값이 전부 null 이면 empty")
+    void parsesOemWrappedShape() {
+        Optional<FlashProgress> p = FlashProgress.parse(JSON.readTree("""
+                {"Id":"UpdateService","Oem":{"AMIUpdateService":{"@odata.type":"#AMIUpdateService.v1_0_0.AMIUpdateService",
+                 "PreserveConfiguration":{"BMC":true},
+                 "UpdateInformation":{"FlashPercentage":"62% done.","UpdateStatus":"Flashing","UpdateTarget":"BMC"}}}}
+                """));
+        assertThat(p).isPresent();
+        assertThat(p.get().percent()).isEqualTo(62);
+        assertThat(p.get().summary("BIOS")).isEqualTo("BMC 62% (Flashing)");
+
+        Optional<FlashProgress> idle = FlashProgress.parse(JSON.readTree("""
+                {"Oem":{"AMIUpdateService":{"UpdateInformation":{"FlashPercentage":null,"UpdateStatus":null,"UpdateTarget":null}}}}
+                """));
+        assertThat(idle).isEmpty();
+    }
+
+    @Test
     @DisplayName("확장 노드가 없거나 비면 empty — 진행률 없음은 오류가 아니다 · 퍼센트가 없으면 축 라벨과 상태만")
     void emptyWhenMissing() {
         assertThat(FlashProgress.parse(JSON.readTree("{\"Id\":\"UpdateService\"}"))).isEmpty();

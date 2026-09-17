@@ -25,7 +25,11 @@ public record FlashProgress(Integer percent, String status, String target) {
         if (updateService == null) {
             return Optional.empty();
         }
-        JsonNode info = updateService.path("AMIUpdateService").path("UpdateInformation");
+        // 실 BMC(2026-09-17 · MS04-CE0 · BMC 13.06.29)는 확장을 Oem 아래에 둔다 — GCT 문서의 최상위 표기는 그 다음.
+        JsonNode info = updateService.path("Oem").path("AMIUpdateService").path("UpdateInformation");
+        if (info.isMissingNode() || !info.isObject()) {
+            info = updateService.path("AMIUpdateService").path("UpdateInformation");
+        }
         if (info.isMissingNode() || !info.isObject()) {
             return Optional.empty();
         }

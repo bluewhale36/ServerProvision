@@ -74,6 +74,7 @@ class FlashStepExecutionTest {
     private FlashLedger ledger;
     private FlashTimeoutPolicy timeoutPolicy;
     private final com.example.serverprovision.execution.engine.WorkerObservations observations = new com.example.serverprovision.execution.engine.WorkerObservations();
+    private final com.example.serverprovision.execution.engine.firmware.FlashProgressBoard progressBoard = new com.example.serverprovision.execution.engine.firmware.FlashProgressBoard();
     private BmcIdentityGuard guard;
 
     @BeforeEach
@@ -211,13 +212,16 @@ class FlashStepExecutionTest {
         ProvisioningProgress progress = flashing(FirmwareAxis.BIOS);
         ProvisioningHistory row = openFlashRow(FirmwareAxis.BIOS);
         given(provider.pollTask(any(), any())).willReturn(FlashTaskState.COMPLETED);
+        FlashContext ctx = context(progress, List.of(row), ready());
+        progressBoard.note(ctx.server().getId(), new com.example.serverprovision.execution.engine.firmware.FlashProgress(90, "Flashing", "BIOS"));
 
-        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations).execute(context(progress, List.of(row), ready()));
+        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations, progressBoard).execute(ctx);
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
         assertThat(progress.isFailed()).isFalse();
         // 굽기가 끝났으니 파일을 더 열어 둘 이유가 없다(CP5 F-3).
         verify(tokenRegistry).revoke(any(), eq(FirmwareAxis.BIOS));
+        assertThat(progressBoard.latestOf(ctx.server().getId())).isEmpty();   // 종결이면 막대 재료도 지운다(2026-09-17)
         // 무엇을 구웠는지는 지워지지 않는다 — 반영 확인이 대조할 기준이다(CP5 F-1).
         assertThat(row.flashTargetVersion()).isEqualTo("F29");
     }
@@ -232,12 +236,15 @@ class FlashStepExecutionTest {
                 new com.example.serverprovision.execution.engine.firmware.FlashProgress(37, "Flashing", "BIOS")));
 
         FlashContext ctx = context(progress, List.of(row), ready());
-        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations).execute(ctx);
+        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations, progressBoard).execute(ctx);
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
         assertThat(observations.latestOf(ctx.server().getId())).isPresent()
                 .get().extracting(com.example.serverprovision.execution.engine.WorkerObservations.Observation::note)
                 .asString().contains("굽는 중").contains("BIOS 37% (Flashing)");
+        // 축 줄의 막대 재료 — 게시판에 마지막 진행률이 남는다(2026-09-17).
+        assertThat(progressBoard.latestOf(ctx.server().getId())).isPresent()
+                .get().extracting(com.example.serverprovision.execution.engine.firmware.FlashProgress::percent).isEqualTo(37);
     }
 
     @Test
@@ -247,7 +254,7 @@ class FlashStepExecutionTest {
         ProvisioningHistory row = openFlashRow(FirmwareAxis.BIOS);
         given(provider.pollTask(any(), any())).willReturn(FlashTaskState.FAILED);
 
-        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations).execute(context(progress, List.of(row), ready()));
+        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations, progressBoard).execute(context(progress, List.of(row), ready()));
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
         assertThat(row.getStatusMeta()).contains(FlashLedger.FLASH_EXCEPTION);
@@ -261,7 +268,7 @@ class FlashStepExecutionTest {
         ProvisioningHistory row = openFlashRow(FirmwareAxis.BIOS);
         given(provider.pollTask(any(), any())).willReturn(FlashTaskState.UNREACHABLE);
 
-        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations).execute(context(progress, List.of(row), ready()));
+        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations, progressBoard).execute(context(progress, List.of(row), ready()));
 
         assertThat(row.getFinishedAt()).isNull();
         assertThat(progress.isFailed()).isFalse();
@@ -276,7 +283,7 @@ class FlashStepExecutionTest {
 
         FlashContext late = new FlashContext(server(), progress, detail(), List.of(row), ready(), provider,
                 T.plusMinutes(16));   // BIOS 기본 시한 15분
-        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations).execute(late);
+        new PollFlashTaskStep(timeoutPolicy, ledger, tokenRegistry, observations, progressBoard).execute(late);
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
         assertThat(row.getStatusMeta()).contains(FlashLedger.BMC_UNREACHABLE);
