@@ -9,9 +9,10 @@ package com.example.serverprovision.execution.engine.firmware;
  * @param imagePath  굽을 파일의 서버 로컬 경로 (SELECTED 만) — 집행이 이 파일을 HTTP 로 내주고
  *                   BMC 가 당겨 간다(E2-2 D-5). 판정 시점에 존재를 이미 확인했으므로 그때 함께 싣는다
  * @param reason     사유 (SELECTED 는 null)
+ * @param boardModelName 자원이 속한 보드 모델 이름 (SELECTED · 있을 때만) — 화면 표기 "BIOS F29 (MS04-CE0) 적용 예정"
  */
 public record AxisResolution(AxisOutcome outcome, Long firmwareId, String resourceName, String display,
-                             String imagePath, FirmwareAxisReason reason) {
+                             String imagePath, FirmwareAxisReason reason, String boardModelName) {
 
     public enum AxisOutcome { SELECTED, SKIPPED, BLOCKED }
 
@@ -20,14 +21,20 @@ public record AxisResolution(AxisOutcome outcome, Long firmwareId, String resour
         return selected(firmwareId, null, display, imagePath);
     }
 
+    /** 보드 이름까지 싣는 변형(2026-09-17) — 화면의 "적용 예정" 줄이 어느 보드의 펌웨어인지 함께 말한다. */
+    public static AxisResolution selected(Long firmwareId, String resourceName, String boardModelName, String display,
+                                          String imagePath) {
+        return new AxisResolution(AxisOutcome.SELECTED, firmwareId, resourceName, display, imagePath, null, boardModelName);
+    }
+
     /** 자원 이름을 함께 싣는 변형(E2-4 R7) — 화면 표기는 "이름 (버전)", 대조 재료는 버전 그대로. */
     public static AxisResolution selected(Long firmwareId, String resourceName, String display, String imagePath) {
-        return new AxisResolution(AxisOutcome.SELECTED, firmwareId, resourceName, display, imagePath, null);
+        return new AxisResolution(AxisOutcome.SELECTED, firmwareId, resourceName, display, imagePath, null, null);
     }
 
     /** 사유로부터 결과 등급을 받는다 — 사유와 등급이 어긋날 자리를 없앤다. */
     public static AxisResolution of(FirmwareAxisReason reason) {
-        return new AxisResolution(reason.getOutcome(), null, null, null, null, reason);
+        return new AxisResolution(reason.getOutcome(), null, null, null, null, reason, null);
     }
 
     /** 표시 라벨(E2-4 R7) — "이름 (버전)". 이름이 없으면 버전만(구 데이터 호환). */
@@ -45,6 +52,10 @@ public record AxisResolution(AxisOutcome outcome, Long firmwareId, String resour
 
     /** 화면 · 스크립트가 쓰는 한 줄 — 선택이면 "이름 (버전)" 표기(E2-4 R7). */
     public String message(String axisLabel) {
-        return isSelected() ? axisLabel + " " + displayLabel() + " 적용 예정" : axisLabel + " — " + reason.getUserMessage();
+        if (!isSelected()) {
+            return axisLabel + " — " + reason.getUserMessage();
+        }
+        String board = boardModelName == null || boardModelName.isBlank() ? "" : " (" + boardModelName.trim() + ")";
+        return axisLabel + " " + displayLabel() + board + " 적용 예정";
     }
 }
