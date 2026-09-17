@@ -115,7 +115,7 @@ class SettingStepExecutionTest {
     }
 
     private ReturnReadbackStep readback() {
-        return new ReturnReadbackStep(ledger, probe, biosService, timeoutPolicy, settingCursor);
+        return new ReturnReadbackStep(ledger, probe, biosService, powerService, timeoutPolicy, settingCursor);
     }
 
     // ---- 5행 착수 ------------------------------------------------------------
@@ -278,7 +278,7 @@ class SettingStepExecutionTest {
         GuestServer server = server();
         ProvisioningHistory row = openRow(server, T);
 
-        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(5)));
+        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(3)));
 
         verify(biosService, never()).bios(any());
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
@@ -291,7 +291,7 @@ class SettingStepExecutionTest {
         server.touchBoot(T.minusMinutes(1));
         ProvisioningHistory row = openRow(server, T);
 
-        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(5)));
+        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(3)));
 
         verify(biosService, never()).bios(any());
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
@@ -559,11 +559,101 @@ class SettingStepExecutionTest {
     // ---- E2.5 — 재부팅 무장 ---------------------------------------------------
 
     @Test
-    @DisplayName("착수 — 재부팅은 다음 부팅 PXE 무장 인자로 나간다(E2.5 D-6)")
+    @DisplayName("착수 — 재부팅은 다음 부팅 PXE(Once) 무장 인자로 나간다(E2.5 D-6 · HF17 Once 회귀)")
     void begin_armsPxeOnce() {
         begin().execute(context(server(), started(), List.of(), target(), T));
 
-        verify(powerService).reset(any(), any(), eq(NextBoot.PXE_CONTINUOUS));
+        verify(powerService).reset(any(), any(), eq(NextBoot.PXE_ONCE));
+    }
+
+    // ---- HF17 — 미도착 재무장(설정 적용 이중 POST 대비) ------------------------
+
+    @Test
+    @DisplayName("미도착 — 재부팅 뒤 재무장 지연(4분)이 지나도 /boot 가 없으면 Once 를 다시 세워 켜고 행에 rearmAt 을 적는다")
+    void readback_rearmsOnceWhenOverdue() {
+        GuestServer server = server();
+        ProvisioningHistory row = openRow(server, T);
+        given(powerService.networkBoot(any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON,
+                "다음 부팅 PXE 강제 : 반영 확인 · 재시작(ForceRestart) 발행"));
+
+        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(5)));
+
+        verify(powerService).networkBoot(any());
+        verify(biosService, never()).bios(any());
+        assertThat(ledger.rearmAtOf(row)).isEqualTo(T.plusMinutes(5));
+        assertThat(row.getStatusMeta()).contains("\"rearm\"").contains("ForceRestart");
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
+    }
+
+    @Test
+    @DisplayName("미도착 — 재무장 지연 전에는 세우지 않는다(정상 PXE 도착은 3분 안)")
+    void readback_noRearmBeforeDelay() {
+        GuestServer server = server();
+        ProvisioningHistory row = openRow(server, T);
+
+        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(3)));
+
+        verify(powerService, never()).networkBoot(any());
+        assertThat(ledger.rearmAtOf(row)).isNull();
+    }
+
+    @Test
+    @DisplayName("미도착 — 재무장은 행마다 한 번 · 이후는 복귀 시한까지 기다리다 return-timeout")
+    void readback_rearmOnlyOnce() {
+        GuestServer server = server();
+        ProvisioningHistory row = openRow(server, T);
+        ledger.markRearmed(row, T.plusMinutes(5), "재시작");
+        ProvisioningProgress progress = started();
+
+        readback().execute(context(server, progress, List.of(row), target(), T.plusMinutes(12)));
+        verify(powerService, never()).networkBoot(any());
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
+
+        readback().execute(context(server, progress, List.of(row), target(), T.plusMinutes(30)));
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
+        assertThat(row.getStatusMeta()).contains(SettingLedger.RETURN_TIMEOUT);
+    }
+
+    @Test
+    @DisplayName("미도착 — 재무장 명령이 실패하면 행에 적지 않고 다음 주기가 다시 시도한다")
+    void readback_rearmFailureRetriesNextCycle() {
+        GuestServer server = server();
+        ProvisioningHistory row = openRow(server, T);
+        given(powerService.networkBoot(any())).willReturn(PowerControlResult.failed(null, "BMC 거절"));
+
+        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(5)));
+
+        assertThat(ledger.rearmAtOf(row)).isNull();
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
+    }
+
+    @Test
+    @DisplayName("미도착 — 재무장도 전원 조작이라 신원이 다르면 세우지 않고 identity-mismatch 로 닫는다")
+    void readback_rearmRefusesMismatchedIdentity() {
+        given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.MISMATCHED);
+        GuestServer server = server();
+        ProvisioningHistory row = openRow(server, T);
+        ProvisioningProgress progress = started();
+
+        readback().execute(context(server, progress, List.of(row), target(), T.plusMinutes(5)));
+
+        verify(powerService, never()).networkBoot(any());
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
+        assertThat(row.getStatusMeta()).contains(SettingLedger.IDENTITY_MISMATCH);
+        assertThat(progress.isFailed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("복귀 — /boot 가 왔으면 재무장 지연이 지났어도 세우지 않고 readback 으로 간다")
+    void readback_returnedSkipsRearm() {
+        GuestServer server = returned();
+        ProvisioningHistory row = openRow(server, T);
+        given(biosService.bios(any())).willReturn(resource(TARGET));
+
+        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(6)));
+
+        verify(powerService, never()).networkBoot(any());
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
     }
 
     @Test

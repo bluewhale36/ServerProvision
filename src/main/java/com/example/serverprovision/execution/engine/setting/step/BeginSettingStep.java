@@ -103,8 +103,9 @@ public class BeginSettingStep implements SettingStep {
 
         RedfishResetType reset = powerService.powerState(target).powerState() == RedfishPowerState.OFF
                 ? RedfishResetType.ON : RedfishResetType.FORCE_RESTART;
-        // 재부팅 직전 PXE 보장을 무장한다(E2.5 · HF15-1 Continuous — 설정 적용의 내부 재시작이 Once 를 소비했다, F-2).
-        PowerControlResult result = powerService.reset(target, reset, NextBoot.PXE_CONTINUOUS);
+        // 재부팅 직전 다음 부팅을 PXE 로 무장한다(E2.5 · HF17 Once 회귀). 설정 적용의 내부 재시작이 이 Once 를 소비하면(F-2)
+        // 게스트가 돌아오지 않는데, 그 경우는 ReturnReadbackStep 의 미도착 재무장이 한 번 더 세워 켠다.
+        PowerControlResult result = powerService.reset(target, reset, NextBoot.PXE_ONCE);
         if (result.kind() == PowerControlResult.Kind.FAILED) {
             log.info("[setting] {} — 재부팅 명령 실패, 다음 주기 재시도 : {}", context.server().getId(), result.message());
             return;   // 행은 rebootAt 없이 남는다 — 다음 주기가 이 행을 이어 다시 한다
