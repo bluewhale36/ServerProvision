@@ -154,6 +154,21 @@ public class SettingLedger {
         row.updateRunningMeta(write(meta));
     }
 
+    /** PXE 미도착 재무장(HF17)을 했다 — 행마다 한 번이므로 이 시각이 있으면 다시 세우지 않는다. 결과 요약도 함께 남긴다. */
+    public void markRearmed(ProvisioningHistory row, LocalDateTime at, String summary) {
+        Map<String, Object> meta = read(row);
+        meta.put("rearmAt", at.toString());
+        if (summary != null && !summary.isBlank()) {
+            meta.put("rearm", summary);
+        }
+        row.updateRunningMeta(write(meta));
+    }
+
+    public LocalDateTime rearmAtOf(ProvisioningHistory row) {
+        Object v = read(row).get("rearmAt");
+        return v == null ? null : LocalDateTime.parse(v.toString());
+    }
+
     /** 열린 행을 결과로 닫는다 — target · rebootAt · pendingSeen 을 보존한 채 사유를 덧쓴다. */
     public void close(ProvisioningHistory row, ProvisioningStatus status, String reason, String detail,
                       LocalDateTime now) {

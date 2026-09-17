@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.engine.diagnose;
 
+import com.example.serverprovision.execution.engine.boot.RebootDirectiveArmer;
 import com.example.serverprovision.execution.engine.phase.PhaseExecutorRegistry;
 import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
 import com.example.serverprovision.execution.dto.response.AgentCheckinResponse;
@@ -40,6 +41,10 @@ import java.util.UUID;
  * <p>E1-2 — 지시 판정({@link #directiveFor})이 실전화되고, step 종결 보고의 소비는 phase 실행기의
  * {@code onStepClosed} 훅에 위임한다(접수 창구에 phase 분기를 쌓지 않는다). 모든 접촉은
  * {@code GuestServer.lastSeenAt} 관찰 로그를 갱신한다(DEC-32).</p>
+ *
+ * <p>HF17 — 지시가 REBOOT 이면 응답 직전에 {@link RebootDirectiveArmer} 가 BMC 의 다음 부팅을 Once · Pxe 로 세운다.
+ * 에이전트는 REBOOT 를 받는 즉시 자기 reboot 를 하므로 무장은 응답보다 먼저여야 하고(실기 3호 F-2b), 지시를 계산하는
+ * 자리가 여기 하나라 어느 실행기의 REBOOT 든 빠지지 않는다.</p>
  */
 @Slf4j
 @Service
@@ -53,6 +58,7 @@ public class AgentReportService {
     private final ProvisioningHistoryRecorder provisioningHistoryRecorder;
     private final PhaseExecutorRegistry phaseExecutorRegistry;
     private final ApplicationEventPublisher eventPublisher;
+    private final RebootDirectiveArmer rebootDirectiveArmer;   // HF17 — REBOOT 지시 직전 Once · Pxe 무장
 
     /**
      * 체크인 — 진단 리눅스 기동 사실 신호. 응답 지시는 {@link #directiveFor} 가 판정한다.
@@ -67,6 +73,7 @@ public class AgentReportService {
         requireProvisioning(server, progress);
         publishChanged(server);
         AgentDirective directive = directiveFor(server, progress);
+        rebootDirectiveArmer.armIfReboot(directive, server, progress);
         return new AgentCheckinResponse(directive, server.getName(),
                 raidApplyFor(directive, server, progress), raidChipsFor(directive));
     }
@@ -151,6 +158,7 @@ public class AgentReportService {
         }
         publishChanged(server);
         AgentDirective directive = directiveFor(server, progress);
+        rebootDirectiveArmer.armIfReboot(directive, server, progress);
         return new StepCloseResponse(directive, raidApplyFor(directive, server, progress), raidChipsFor(directive));
     }
 

@@ -27,6 +27,8 @@ public class FlashTimeoutPolicy {
     private static final String FLASH_KEY_PREFIX = "provision.execution.flash-timeout.";
     private static final String RETURN_KEY = "provision.execution.return-timeout";
     private static final Duration DEFAULT_RETURN_LIMIT = Duration.ofMinutes(20);
+    private static final String PXE_REARM_KEY = "provision.execution.pxe-rearm-delay";
+    private static final Duration DEFAULT_PXE_REARM_DELAY = Duration.ofMinutes(4);
 
     private final Environment environment;
 
@@ -38,6 +40,14 @@ public class FlashTimeoutPolicy {
     /** 전원을 켠 뒤 게스트가 돌아오기를 기다리는 시한. */
     public Duration returnLimit() {
         return durationOf(RETURN_KEY, DEFAULT_RETURN_LIMIT);
+    }
+
+    /**
+     * 재부팅 · 전원 투입 뒤 이만큼 {@code /boot} 가 없으면 Once 무장을 다시 세워 한 번 더 켜는 지연(HF17).
+     * 정상 PXE 도착은 POST 1~2분 + iPXE 30초로 3분 안이라 기본 4분 — 그 뒤에도 없으면 첫 POST 가 Once 를 소비한 것이다.
+     */
+    public Duration pxeRearmDelay() {
+        return durationOf(PXE_REARM_KEY, DEFAULT_PXE_REARM_DELAY);
     }
 
     /**

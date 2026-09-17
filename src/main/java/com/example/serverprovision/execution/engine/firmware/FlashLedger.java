@@ -34,6 +34,8 @@ public class FlashLedger {
     public static final String POWER_OFF = "power-off";
     /** 전원 투입 사건(E2-4 Q4) — detail 에 무장(BootSourceOverride) 결과가 함께 실린다. */
     public static final String POWER_ON = "power-on";
+    /** PXE 미도착 재무장 사건(HF17) — 켜진 뒤 게스트가 오지 않아 Once 를 다시 세워 재시작했다. 복귀 기점도 이 시각으로 옮긴다. */
+    public static final String PXE_REARM = "pxe-rearm";
 
     /**
      * 축이 아니라 <b>phase 수준에서 일어난 사건</b>의 사유들. 기록은 "실패 지점 = 커서" 규약(ES-2 D-5)에
@@ -42,7 +44,7 @@ public class FlashLedger {
      * 이 목록에 없으면 축 처리 판정({@code FlashContext.closedRowOf})까지 오염된다.
      */
     private static final java.util.Set<String> PHASE_LEVEL_REASONS =
-            java.util.Set.of(RETURN_TIMEOUT, IDENTITY_MISMATCH, BMC_UNREACHABLE, POWER_OFF, POWER_ON);
+            java.util.Set.of(RETURN_TIMEOUT, IDENTITY_MISMATCH, BMC_UNREACHABLE, POWER_OFF, POWER_ON, PXE_REARM);
 
     /** 이 사유가 축의 결과인가, 아니면 phase 수준 사건인가. */
     public static boolean isPhaseLevel(String reason) {

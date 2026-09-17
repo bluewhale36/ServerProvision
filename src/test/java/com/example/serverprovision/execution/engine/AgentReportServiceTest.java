@@ -62,6 +62,7 @@ class AgentReportServiceTest {
     @Mock ProvisioningHistoryRecorder provisioningHistoryRecorder;
     @Mock PhaseExecutorRegistry phaseExecutorRegistry;               // E1-2 — 소비 훅 위임(기본 empty = 미등록)
     @Mock ApplicationEventPublisher eventPublisher;                  // S7 — 실시간 스트림 신호 발행 검증
+    @Mock com.example.serverprovision.execution.engine.boot.RebootDirectiveArmer rebootDirectiveArmer;   // HF17 — REBOOT 직전 무장
     @InjectMocks AgentReportService service;
 
     private GuestServer guest(UUID id) {
@@ -141,6 +142,21 @@ class AgentReportServiceTest {
         assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);
         assertThat(p.currentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);      // 체크인 무전이
         assertThat(p.isCompleted()).isFalse();                                            // 종단 아닌데도 REBOOT
+        verify(rebootDirectiveArmer).armIfReboot(AgentDirective.REBOOT, g, p);           // HF17 — 응답 전 무장 요청
+    }
+
+    @Test
+    @DisplayName("체크인 — REBOOT 가 아닌 지시(COLLECT)도 무장기에 지나가되 무장기가 걸러낸다(판정은 한 곳)")
+    void checkin_nonReboot_stillConsultsArmer() {
+        GuestServer g = stubGuest();
+        stubDiagnoseExecutor();
+        ProvisioningProgress p = progress(g, true, ProvisioningPhaseStep.DIAGNOSTIC_BOOTING);
+        given(provisioningProgressRepository.findByGuestServer_Id(g.getId())).willReturn(Optional.of(p));
+
+        var res = service.checkin(GUEST);
+
+        assertThat(res.directive()).isEqualTo(AgentDirective.COLLECT);
+        verify(rebootDirectiveArmer).armIfReboot(AgentDirective.COLLECT, g, p);
     }
 
     @Test
@@ -353,6 +369,7 @@ class AgentReportServiceTest {
         assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);                      // 전진했으므로 진단을 떠나라
         assertThat(p.currentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);
         assertThat(p.isCompleted()).isFalse();
+        verify(rebootDirectiveArmer).armIfReboot(AgentDirective.REBOOT, g, p);             // HF17 — 에이전트 reboot 전에 Once 무장(F-2b)
     }
 
     @Test
@@ -370,6 +387,7 @@ class AgentReportServiceTest {
 
         assertThat(res.directive()).isEqualTo(AgentDirective.REBOOT);
         assertThat(step.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);   // 행 불변(no-op)
+        verify(rebootDirectiveArmer, never()).armIfReboot(any(), any(), any());  // HF17 — 완주 서버의 REBOOT 은 로컬 부팅(무장 없음)
     }
 
     @Test

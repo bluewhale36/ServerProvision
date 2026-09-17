@@ -135,3 +135,7 @@
 4. **O-2** — iPXE 대기 체인 `/boot` 폴링이 `last_boot_at` 을 올리는 잔존 경합 — BIOS pending 해소 조건 추가 검토.
 5. 웨이브 BMC 주소가 192.168.1.1 로 적재돼 있다 — 라우터 주소와 겹치지 않는지 사용자 확인(Redfish 응답은 정상).
 
+## 8. 사후 발견 (2026-09-16 · 사용자 보고 · HF17 로 정정)
+
+- **O-4(09-16 · K5 의 사각)** — 프로비저닝을 지난 서버의 BIOS 셋업에서 부트 순서 1번이 네트워크로 고정되고 디스크가 4번으로 내려가 있다(`disk → cd → usb → network → shell` 의 1번과 4번이 교체). 셋업에서 바꿔 저장 · 재부팅해도 되돌아가지 않고 CMOS 클리어 점퍼만 복구한다. K5 는 Redfish `BootSourceOverrideEnabled=Disabled` 만 확인해 이것을 놓쳤다. 원인 = HF15-1 의 `Continuous · Pxe` 를 AMI BIOS 가 persistent device 로 기억해 매 POST 덧씌우는 것 — 실측 5건(`bootparam get 5` = 비어 있음 · `Once · Hdd` 는 그 POST 만 · `Continuous · None` 은 무시 · `Continuous · Hdd` 는 기억을 Hdd 로 옮김 · 셋업 편집 여전히 무효)으로 확정. 정정 = **HF17**(Continuous 전면 폐기 · Once 회귀 · REBOOT 지시 직전 무장 · 미도착 재무장) — `plan/26-09-16_15-39-11_HF17_plan.html`. 이 회차의 세 대(상2 · 상3 · 웨이브)와 후속 1대는 전부 영향권이다.
+

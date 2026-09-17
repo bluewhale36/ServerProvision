@@ -52,6 +52,11 @@ E3-3 이 더한 것 — BIOS 속성 레지스트리 채집 체인의 실측 재�
                                                없으면 STATE['bios'] 키로 만든 최소 레지스트리(허용값 = 현재값 + 'Auto')
   모드  registry-missing : Registries/* 를 404 로 — 채집 불가(unavailable) 경로 재연(PATCH 는 종전대로 진행돼야 한다)
 
+HF17 이 더한 것 — PXE 무장 이중 POST 의 재현(실기 3호 F-2 · 2026-09-16 AMI 실측):
+  모드  settings-double-post : pending BIOS 설정이 있는 재부팅에서 첫 POST 가 boot override(Once)를 소비만 하고 내부 재시작,
+                              두 번째 POST 가 실제 부팅(부트 순서대로) — 앱의 미도착 재무장(ReturnReadbackStep)이 이를 넘어야 한다.
+  bootPatches 에 PATCH 된 Boot 본문이 전부 남는다 — 하네스가 "Continuous 0회" 를 단언하는 근거.
+
 모드 전환(무인증, 하네스 전용): POST /__mode {"mode": "..."} · 상태 초기화: POST /__reset-state
 버전 조작(무인증): POST /__inventory {"BIOS": "F29", "BMC": "13.06.27"}
 비밀번호 조작(무인증): POST /__passwords {"valid": ["QG260700082"]}
@@ -198,17 +203,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """단절 구간 판정 — bmc-rebooting 모드이거나 Bond 재구성(bond-drop) 창 안이면 어느 경로든 연결을 주지 않는다."""
         return STATE['mode'] == 'bmc-rebooting' or time.time() < STATE['web']['bondDropUntil']
 
-    def _consume_boot_override(self):
-        """POST 재연(E2.5) — pending 무장을 먼저 적용하고, Once 를 소진하며 어디로 부팅했는지 기록한다."""
+    def _consume_boot_override(self, record=True):
+        """POST 재연(E2.5) — pending 무장을 먼저 적용하고, Once 를 소진하며 어디로 부팅했는지 기록한다.
+        record=False 는 내부 재시작 POST(HF17) — flag 는 소비하되 부팅 기록은 남기지 않는다."""
         if STATE['bootPending']:
             STATE['boot'].update(STATE['bootPending'])
             STATE['bootPending'] = None
         armed = STATE['boot'].get('BootSourceOverrideEnabled') in ('Once', 'Continuous') \
             and STATE['boot'].get('BootSourceOverrideTarget') == 'Pxe'
-        STATE['bootedVia'].append('Pxe' if armed else 'BootOrder')
+        if record:
+            STATE['bootedVia'].append('Pxe' if armed else 'BootOrder')
         if STATE['boot'].get('BootSourceOverrideEnabled') == 'Once':
             STATE['boot']['BootSourceOverrideEnabled'] = 'Disabled'
             STATE['boot']['BootSourceOverrideTarget'] = 'None'
+
+    def _reboot_post(self):
+        """재부팅 = POST 재연. settings-double-post 모드(HF17)에서 pending BIOS 설정이 있으면 첫 POST 가 Once 를 소비만 하고
+        내부 재시작하며, 두 번째 POST 가 부트 순서대로 부팅한다(실기 3호 F-2)."""
+        if STATE['mode'] == 'settings-double-post' and STATE['biosPending']:
+            self._consume_boot_override(record=False)
+            self._apply_pending()
+            self._consume_boot_override()
+            return
+        self._apply_pending()
+        self._consume_boot_override()
 
     def do_GET(self):
         if self.path == '/__state':
@@ -594,12 +612,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             elif reset == 'On':
                 if STATE['mode'] != 'on-noop':
                     STATE['power'] = 'On'      # on-noop: 202 만 주고 전원 불변(실측 실패 모드)
-                    self._apply_pending()      # 꺼진 장비를 켜는 것도 POST 를 지난다 — pending 반영(E3-1)
-                    self._consume_boot_override()
+                    self._reboot_post()        # 꺼진 장비를 켜는 것도 POST 를 지난다 — pending 반영(E3-1) + 무장 소비
             elif reset in ('PowerCycle', 'ForceRestart'):
                 STATE['power'] = 'On'
-                self._apply_pending()   # 재부팅 = POST 재연: pending 을 현재값에 반영하고 비운다
-                self._consume_boot_override()
+                self._reboot_post()     # 재부팅 = POST 재연: pending 을 현재값에 반영하고 비운다 · 무장 소비
             else:
                 self._json(400, {'error': 'unknown ResetType ' + str(reset)})
                 return
