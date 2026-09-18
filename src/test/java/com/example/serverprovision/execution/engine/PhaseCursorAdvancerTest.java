@@ -31,8 +31,10 @@ class PhaseCursorAdvancerTest {
 
     @Mock OwnedPhasesProvider ownedPhasesProvider;
 
+    private final java.util.List<Object> published = new java.util.ArrayList<>();   // HF20 — 종단 사건 관측
+
     private PhaseCursorAdvancer advancer() {
-        return new PhaseCursorAdvancer(ownedPhasesProvider);
+        return new PhaseCursorAdvancer(ownedPhasesProvider, published::add);
     }
 
     /** 진단 리눅스 커서(수집 step)에서 시작한, 개시된 진행 상태(전진 가드 통과 전제). */
@@ -57,6 +59,7 @@ class PhaseCursorAdvancerTest {
         assertThat(progress.currentPhase()).isEqualTo(ProvisioningPhase.FIRMWARE_UPDATING);
         assertThat(progress.isCompleted()).isFalse();
         assertThat(progress.getLastTransitionAt()).isEqualTo(T.plusMinutes(1));
+        assertThat(published).isEmpty();   // HF20 — 전진은 종단 사건이 아니다
     }
 
     @Test
@@ -70,6 +73,9 @@ class PhaseCursorAdvancerTest {
 
         assertThat(progress.isCompleted()).isTrue();
         assertThat(progress.currentPhase()).isEqualTo(ProvisioningPhase.DIAGNOSE_LINUX);   // markCompleted 는 커서 불변
+        // HF20 — 종단을 확정한 그 자리에서 종단 사건 1 건(게스트 · 시각). 부트 순서 정착은 이 사건을 듣는다.
+        assertThat(published).containsExactly(
+                new com.example.serverprovision.execution.engine.phase.ProvisioningCompletedEvent(guestId, T.plusMinutes(1)));
     }
 
     @Test

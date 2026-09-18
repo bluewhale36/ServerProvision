@@ -28,6 +28,7 @@ import java.util.UUID;
 public class PhaseCursorAdvancer {
 
     private final OwnedPhasesProvider ownedPhasesProvider;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     /**
      * {@code progress} 의 현재 phase 를 완주한 시점에 호출한다. 소유 다음 phase 가 있으면 그 phase 의
@@ -39,6 +40,9 @@ public class PhaseCursorAdvancer {
         PhaseSequence.nextAfter(progress.currentPhase(), owned)
                 .ifPresentOrElse(                                          // 소유 phase 있음 → 진입 step 으로 pre-position
                         next -> progress.advanceToEntry(ProvisioningPhaseStep.entryOf(next), now),
-                        () -> progress.markCompleted(now));                // 없음 → 종단(무할당 = 현 동작 보존)
+                        () -> {
+                            progress.markCompleted(now);
+                            eventPublisher.publishEvent(new ProvisioningCompletedEvent(guestId, now));   // HF20 — 종단 사건
+                        });                // 없음 → 종단(무할당 = 현 동작 보존)
     }
 }

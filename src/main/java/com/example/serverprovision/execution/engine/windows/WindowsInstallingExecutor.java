@@ -43,6 +43,7 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
     private final WindowsInstallLedger ledger;
     private final WindowsInstallTimeoutPolicy timeoutPolicy;
     private final WindowsInstallTokenRegistry tokenRegistry;
+    private final com.example.serverprovision.execution.engine.boot.RebootDirectiveArmer bootArmer;   // HF20 G-1 — Setup 재부팅 앞 Once·Hdd
 
     @Override
     public ProvisioningPhase phase() {
@@ -137,6 +138,7 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
         log.info("[wininstall] {} — wimboot 체인 서빙 = 착수 : image={}, diskId={}, basis={}, expectedUniqueId={}",
                 id, resolved.get().target().imageName(), selection.diskId(),
                 selection.basis() == null ? null : selection.basis().wire(), selection.expectedUniqueId());
+        bootArmer.armForWindowsSetup(server);   // HF20 G-1 — Setup 의 첫 재부팅(BMC 를 안 거침)을 디스크로. 커밋 뒤 best effort
     }
 
     /**

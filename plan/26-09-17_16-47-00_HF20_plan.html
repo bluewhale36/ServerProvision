@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF20 Plan — 부트 순서 표류 정정</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:18px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  p { margin:8px 0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* ── callout 강조 박스 ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+
+  /* ── 진행 체크리스트 (localStorage 동기화) ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── 반응형 (명세 §3) — 데스크톱 무변경 ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF20 : 부트 순서 표류 정정 — plan <span class="v2-badge">hotfix</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF20</span>
+    <span><strong>요지</strong> Once 무장 전 셸을 맨 뒤로 · 종단 시 디스크를 맨 앞으로</span>
+    <span><strong>브랜치</strong> <code>fix/HF20_boot-order-settlement</code> (<code>origin/dev</code> 기준)</span>
+    <span><strong>상태</strong> CP1 · HF19(표준 FBO 강제)는 이 plan 으로 대체 · 폐기 권고</span>
+    <span><strong>생성</strong> 2026-09-17 16:47 KST</span>
+    <span><strong>계보</strong> HF17 · HF19 후속</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 배경</a></li>
+      <li><a href="#s2">§2 실측 (2026-09-17)</a></li>
+      <li><a href="#s3">§3 결론</a></li>
+      <li><a href="#s4">§4 수정 방향</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 배경 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경</summary>
+      <div class="body">
+        <p style="margin-top:0;">이 문서는 버그 수정(HF) 슬라이스의 CP1 산출물이다. 표준 11 섹션 대신 상황 파악과 해결책 탐색에 필요한
+          네 절만 둔다 — 배경 · 실측 · 결론 · 수정 방향이다.</p>
+
+        <h4>1-1. 무엇이 멈췄나</h4>
+        <p>2026-09-17 사내망 실기에서 같은 기계(MS04-CE0 · CRA3338)가 정의서 9 를 거듭 돌릴수록 BIOS 의 Fixed Boot Order
+          (<code>FBO201</code> ~ <code>FBO205</code> · 셋업 메뉴의 Boot Option #1 ~ #5)에서 내장 셸(UEFI AP)이 위로 올라왔다.
+          셸이 1순위가 되자 오버라이드 없이 도는 Windows Setup 의 재부팅이 UEFI 셸로 떨어져 설치가 멈췄다
+          (1호기 · 2호기의 3번째 사이클). 운영자가 <code>BootOrder</code> PATCH 로 살렸다.</p>
+
+        <h4>1-2. 직전 두 슬라이스가 남긴 자리</h4>
+        <p>HF17(2026-09-16)은 Continuous 오버라이드가 Fixed Boot Order 를 영구 교체하는 부작용을 Once 로 회귀시켜 막았다고 보았다.
+          그러나 <b>Once 도 그룹 순서를 남긴다</b>는 것이 이번 계측으로 드러났다.</p>
+        <p>HF19 는 BIOS 설정 단계에서 Fixed Boot Order 5속성을 기본값으로 PATCH 하는 증상 방어였다.
+          계측 결과 그 뒤에 오는 Once 가 다시 맞바꾸므로 근본이 아니며, 이 plan 이 대체한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 실측 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 실측 (2026-09-17)</summary>
+      <div class="body">
+        <p style="margin-top:0;"><b>계측 방식</b> — 사내망 VM 에서 30초마다 BMC 의 <code>PowerState</code> · Override ·
+          <code>BootOrder</code> · <code>FBO201</code> ~ <code>FBO205</code> 를 읽어 <b>변화가 있을 때만</b> 기록하는 루프를 돌렸다.
+          대상은 2호기 BMC <code>10.1.1.9</code> 이고, 시각은 VM 시계 기준이다.</p>
+
+        <h4>2-1. 셸 낙하 시점의 상태 (01:36 · 정의서 9 의 3번째 사이클 뒤)</h4>
+<pre>GET /redfish/v1/Systems/Self
+GET /redfish/v1/Systems/Self/Bios</pre>
+        <p><b>결과</b> — <code>BootOrder</code> = [<code>Boot0001</code> Built-in EFI Shell, <code>Boot0005</code> Windows Boot Manager,
+          <code>Boot0003</code> PXE c4:e8, <code>Boot0004</code> PXE c4:e9] · Override 는 <code>Disabled</code> 다.
+          <code>Bios</code> 의 Fixed Boot Order 는 레지스트리 기본값과 다음과 같이 어긋나 있었다
+          (기본값 출처 = <code>bios_registry_snapshot</code> · F29).</p>
+        <table>
+          <thead><tr><th>슬롯</th><th>기본값 (registry)</th><th>01:36 실기값</th></tr></thead>
+          <tbody>
+            <tr><td><code>FBO201_BootOption1</code></td><td>UEFI Hard Disk</td><td>UEFI AP</td></tr>
+            <tr><td><code>FBO202_BootOption2</code></td><td>UEFI CD/DVD</td><td>UEFI CD/DVD</td></tr>
+            <tr><td><code>FBO203_BootOption3</code></td><td>UEFI USB Device</td><td>UEFI USB Device</td></tr>
+            <tr><td><code>FBO204_BootOption4</code></td><td>UEFI Network</td><td>UEFI Hard Disk</td></tr>
+            <tr><td><code>FBO205_BootOption5</code></td><td>UEFI AP</td><td>UEFI Network</td></tr>
+          </tbody>
+        </table>
+        <p><b>그 뒤 한 일</b> — 사용자가 Windows 를 앞세운 <code>BootOrder</code> PATCH(<code>If-Match</code> ETag 동반 ·
+          첫 시도는 <b>428 PreconditionHeaderMissing</b> 으로 거절) 뒤 ForceRestart → 설치 재개 → <b>01:48 완주</b>.
+          01:42 계측에서는 <code>BootOrder</code> 는 바뀌었으나 Fixed Boot Order 는 여전히 AP 가 1순위였다.</p>
+
+        <h4>2-2. 정의서 13 한 사이클 (RAID → OS · 굽기 · 설정 없음 · 01:54 → 02:17 완주)</h4>
+        <table>
+          <thead><tr><th>시각</th><th>앱</th><th>BMC 계측</th></tr></thead>
+          <tbody>
+            <tr><td>01:56:12</td><td>REBOOT 지시 직전 Once = Pxe 무장</td><td>—</td></tr>
+            <tr><td>01:56:23</td><td>—</td>
+                <td>Override = Once · Pxe · FBO = [UEFI AP, UEFI CD/DVD, UEFI USB Device, UEFI Hard Disk, UEFI Network] 그대로</td></tr>
+            <tr><td>01:58:13</td><td>(Once 를 소비한 POST 뒤)</td>
+                <td>Override <code>Disabled</code> · <code>BootOrder</code> = [<code>Boot0004</code> PXE, <code>Boot0003</code> PXE,
+                  <code>Boot0001</code> 셸](RAID 재구성으로 Windows 항목 소멸) ·
+                  <b>FBO = [UEFI Network, UEFI CD/DVD, UEFI USB Device, UEFI Hard Disk, UEFI AP]</b></td></tr>
+            <tr><td>02:12:20</td><td>(WinPE 뒤 Setup 재부팅 뒤)</td>
+                <td><code>BootOrder</code> = [<code>Boot0005</code> Windows, <code>Boot0004</code>, <code>Boot0003</code>, <code>Boot0001</code>] ·
+                  <b>FBO = [UEFI Hard Disk, UEFI CD/DVD, UEFI USB Device, UEFI Network, UEFI AP] = 기본값</b></td></tr>
+          </tbody>
+        </table>
+        <p>01:58:13 에서는 Network 가 1순위로 올라가고 AP 가 Network 의 자리(5번)로 내려갔다.
+          02:12:20 에서는 Windows 가 만든 항목이 <code>BootOrder</code> 의 첫 항목이 되자 Hard Disk 가 1순위로 올라가고 Network 가 4번으로 내려갔다.</p>
+
+        <h4>2-3. 정의서 14 한 사이클 (BASIC_SETTING 만 · 02:22 → 02:28 종단)</h4>
+        <table>
+          <thead><tr><th>시각</th><th>앱</th><th>BMC 계측</th></tr></thead>
+          <tbody>
+            <tr><td>02:25:12</td><td>Once 무장</td><td>—</td></tr>
+            <tr><td>02:25:21</td><td>BIOS 설정 5개 PATCH(pending 미확인 = 이미 같은 값) + ForceRestart</td><td>—</td></tr>
+            <tr><td>02:27:07</td><td>—</td>
+                <td>Override <code>Disabled</code> · <code>BootOrder</code> = [<code>Boot0004</code> PXE, <code>Boot0003</code> PXE,
+                  <code>Boot0005</code> Windows, <code>Boot0001</code> 셸] ·
+                  <b>FBO = [UEFI Network, UEFI CD/DVD, UEFI USB Device, UEFI Hard Disk, UEFI AP]</b></td></tr>
+          </tbody>
+        </table>
+        <p>기본값 상태에서 <b>Once 한 번에 Network 와 Hard Disk 가 맞바뀌었다</b>. 설정 적용 POST 는 셸을 앞세우지 않았다(AP 는 5번 유지).
+          이번 사이클에는 4분 미도착이 없었다.</p>
+        <p><b>그 뒤 한 일</b> — 없음. 이 상태로 남아 있다 — 다음 부팅은 PXE 가 우선이고, 종단된 게스트는 서버의 exit 스크립트로 다음 항목에 폴스루한다.</p>
+
+        <h4>2-4. 정의서 9 사이클들 (굽기 · 설정 · RAID · OS)</h4>
+        <p>2호기 기준으로 1회차 뒤 FBO = [UEFI Hard Disk, UEFI CD/DVD, UEFI USB Device, UEFI AP, UEFI Network],
+          2회차 뒤 FBO = [UEFI AP, UEFI CD/DVD, UEFI USB Device, UEFI Hard Disk, UEFI Network] 였다
+          (계측 루프가 돌기 전 시기라 변화 시각은 없다).</p>
+        <p>매 사이클의 "굽기 뒤 전원 투입(Once)" 과 "설정 적용 뒤 ForceRestart(Once)" 에서 4분 PXE 미도착이 생겨
+          재무장 + 재시작이 각 1회씩 있었다.</p>
+
+        <h4>2-5. 코드 · 이력</h4>
+        <p>앱은 UefiShell · BiosSetup 을 대상으로 한 오버라이드를 쓴 적이 없다.
+          <code>BootOrder</code> PATCH 는 AMI 가 <code>If-Match</code> 를 요구한다(428) — 앱의 <code>RedfishClient</code> 는
+          이미 <code>If-Match: *</code> → 412 시 fresh ETag 사다리(E0-4-1)를 가지며,
+          <code>RedfishBiosService.patchPending</code> 이 그것을 쓴다.</p>
+
+        <h4>2-6. 정의서 1 한 사이클 (BASIC_UPDATE → BASIC_SETTING · 굽기 + 설정 · 02:36 → 03:03 종단 · 계측 루프 병행)</h4>
+        <table>
+          <thead><tr><th>시각</th><th>앱</th><th>BMC 계측</th></tr></thead>
+          <tbody>
+            <tr><td>02:41:44</td><td>진단 → 굽기 전이 · Once = Pxe 무장 · 전원 차단</td>
+                <td>02:41:52 <code>Off</code> · Once · Pxe ·
+                  <code>BootOrder</code> = [<code>Boot0004</code> PXE, <code>Boot0003</code> PXE, <code>Boot0005</code> Windows, <code>Boot0001</code> 셸] ·
+                  FBO = [UEFI Network, UEFI CD/DVD, UEFI USB Device, UEFI Hard Disk, UEFI AP]</td></tr>
+            <tr><td>02:42 ~ 02:48</td><td>BIOS F29 · BMC 13.06.29 굽기</td>
+                <td>BMC 재기동 구간(응답 없음 · <code>None</code>)</td></tr>
+            <tr><td>02:48:42</td><td>굽기 완료 · 전원 투입(Once)</td>
+                <td>02:48:50 <code>On</code> · Once · Pxe · <code>BootOrder</code> 그대로</td></tr>
+            <tr><td>02:52:31</td><td>(굽기 뒤 첫 POST)</td>
+                <td>Once 유지 · <b><code>BootOrder</code> = [<code>Boot0003</code>, <code>Boot0004</code>, <code>Boot0002</code>, <code>Boot0001</code>]</b>
+                  — 항목 재열거(Windows 항목이 <code>Boot0005</code> → <code>Boot0002</code> 로 번호 이동) ·
+                  PXE 는 여전히 첫 항목 · FBO 변화 없음 · 이 POST 는 Once 를 타지 않았다</td></tr>
+            <tr><td>02:52:52</td><td>4분 PXE 미도착 → Once 재무장 + ForceRestart</td>
+                <td>02:54:22 Override <code>Disabled</code>(소비) → 02:55:17 PXE 복귀 · 반영 확인</td></tr>
+            <tr><td>02:55:32</td><td>BIOS 설정 5개 PATCH(pending 확인 = 실제 적용) + ForceRestart(Once)</td>
+                <td>02:55:36 Once · Pxe</td></tr>
+            <tr><td>02:59:18</td><td>(설정 적용 POST 뒤)</td>
+                <td>Override <code>Disabled</code> ·
+                  <b><code>BootOrder</code> = [<code>Boot0001</code> 셸, <code>Boot0002</code>, <code>Boot0003</code>, <code>Boot0004</code>]
+                  — 숫자 순으로 재구성되어 셸이 첫 항목</b> ·
+                  <b>FBO = [UEFI AP, UEFI CD/DVD, UEFI USB Device, UEFI Hard Disk, UEFI Network]</b>(AP 와 Network 맞바꿈) ·
+                  이 POST 도 Once 를 타지 않았다(게스트는 셸로)</td></tr>
+            <tr><td>02:59:37</td><td>4분 PXE 미도착 → Once 재무장 + ForceRestart</td>
+                <td>02:59:55 Once · Pxe → 03:01:09 <code>Disabled</code>(소비) →
+                  <b>03:01:46 <code>BootOrder</code> = [<code>Boot0003</code>, <code>Boot0004</code>, <code>Boot0002</code>, <code>Boot0001</code>] ·
+                  FBO = [UEFI Network, UEFI CD/DVD, UEFI USB Device, UEFI Hard Disk, UEFI AP]</b>(Network 와 AP 맞바꿈 · AP 가 5번으로) →
+                  03:02:01 PXE 복귀 · 반영 확인</td></tr>
+            <tr><td>03:02:39</td><td>BMC 표준 세팅 4개 · 축 종결 → 종단</td>
+                <td>종단 뒤 상태 = <code>BootOrder</code> 는 PXE 우선 · FBO 는 Network 우선</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §3 결론 ===== -->
+    <details class="section" id="s3" open>
+      <summary>§3. 결론</summary>
+      <div class="body">
+        <div class="callout danger" style="margin-top:0;"><b>이 AMI BIOS 는 POST 때 <code>BootOrder</code> 첫 항목이 속한 그룹을 Fixed Boot Order 1순위로 올리고,
+          종전 1순위 그룹을 그 자리로 내린다(맞바꿈).</b> 그리고 그 결과를 되돌리지 않는다.</div>
+
+        <p><b>행위자 셋</b> — 사이클마다 다음 셋이 <code>BootOrder</code> 첫 항목을 바꾸고, BIOS 가 그것을 그룹 순서로 옮겨 적는다.</p>
+        <ol>
+          <li>우리의 Once = Pxe — 그 POST 의 첫 항목이 PXE 가 되므로 Network 가 1순위로 올라간다.</li>
+          <li>BIOS 설정이 실제로 적용되는 POST(pending 이 있을 때)가 부팅 항목 목록을 숫자 순으로 재구성해 셸(<code>Boot0001</code>)이 첫 항목이 되고,
+            그 POST 에서 AP 가 1순위로 올라온다(실측 6 · 02:59:18). 굽기 뒤 POST 는 항목 번호를 옮기지만 첫 항목(PXE)은 유지했다.
+            두 POST 모두 Once 오버라이드를 타지 않고 지나가(4분 미도착), 재무장의 다음 POST 가 다시 Network 를 1순위로 올린다.</li>
+          <li>Windows Setup 의 항목 생성 — Hard Disk 가 1순위로 올라간다.</li>
+        </ol>
+        <p>사이클마다 ①이 누적되고 거기에 ②가 끼면 셸이 위로 올라오며, ③이 마지막에 오면 기본값으로 되돌아온다.</p>
+
+        <p>따라서 정정은 "Fixed Boot Order 를 써 두는 것"(HF19)이 아니라
+          <b><code>BootOrder</code> 첫 항목을 우리가 원하는 그룹으로 두고 BIOS 의 맞바꿈이 그대로 따라오게 하는 것</b>이다.
+          셸이 첫 항목이 될 길을 막고(무장 전 셸을 맨 뒤로), 종단 때 디스크를 첫 항목으로 되돌린다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 수정 방향 ===== -->
+    <details class="section" id="s4" open>
+      <summary>§4. 수정 방향</summary>
+      <div class="body">
+
+        <h4>4-1. 대안 비교</h4>
+        <table>
+          <thead><tr><th>대안</th><th>채택</th><th>탈락 사유</th><th>근거 실측</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>A</b> <code>BootOrder</code> 정착 — Once 무장 직전마다 셸 항목을 맨 뒤로(idempotent · 다르면만 PATCH),
+                종단 때 디스크(Windows Boot Manager · <code>HD(…)</code>) 항목을 맨 앞으로. BIOS 규칙이 다음 POST 에 Fixed Boot Order 를 따라 맞춘다</td>
+              <td><b>채택</b></td>
+              <td>—</td>
+              <td>2-2 · 2-3</td>
+            </tr>
+            <tr>
+              <td><b>B</b> BootNext 로 전환(HF17 적립) — Once 대신 UEFI BootNext 를 쓰면 맞바꿈이 없을 수 있다</td>
+              <td>탈락</td>
+              <td>미계측 · 굽기 뒤 재열거(행위자 ②)는 못 막는다 · HF17 F-2(이중 POST)에서의 동작이 미상이다. 후속 계측 항목으로 적립한다</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><b>C</b> Fixed Boot Order 속성 PATCH(HF19)</td>
+              <td>탈락 · 폐기</td>
+              <td>그 뒤에 오는 Once 가 다시 맞바꾼다</td>
+              <td>2-3</td>
+            </tr>
+            <tr>
+              <td><b>D</b> 오버라이드 자체를 없애고 영구 순서를 Network 우선으로 — 매 부팅이 PXE 를 타고 서버가 종단 게스트에 exit 를 주는 구조</td>
+              <td>탈락</td>
+              <td>HF17 이 명시적으로 폐기한 방향이다 — 부팅마다 서버에 의존하고 DHCP 가 없으면 지연된다</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>4-2. 변경</h4>
+        <table>
+          <thead><tr><th>#</th><th>자리</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td><td><code>global.redfish.BootEntries</code> (신규 · 순수)</td>
+              <td><code>GET Systems/Self/BootOptions?$expand=.</code> 의 멤버(<code>Id</code> · <code>DisplayName</code> ·
+                <code>UefiDevicePath</code>)를 분류한다 — SHELL(<code>VenMedia(</code> 또는 <code>DisplayName</code> 에 "EFI Shell") ·
+                DISK(<code>HD(</code> 또는 "Windows Boot Manager") · NETWORK(<code>MAC(</code> 또는 "PXE") · OTHER</td>
+            </tr>
+            <tr>
+              <td>2</td><td><code>BootOrderPolicy</code> enum (신규 · method-per-constant)</td>
+              <td><code>SHELL_LAST</code>(상대 순서 유지 · SHELL 만 맨 뒤) · <code>DISK_FIRST</code>(DISK 를 앞으로 ·
+                Windows Boot Manager 우선 · 나머지 순서 유지 · SHELL 맨 뒤). 현재 <code>BootOrder</code> 와 같으면 empty 를 내어 PATCH 하지 않는다</td>
+            </tr>
+            <tr>
+              <td>3</td><td><code>RedfishPowerService.settleBootOrder(target, policy)</code></td>
+              <td>GET(<code>BootOptions</code> + <code>Systems/Self</code>) → 정책 적용 → 다르면
+                <code>patchJsonRefreshingEtag(Systems/Self, Systems/Self, {"Boot":{"BootOrder":[…]}})</code>.
+                best effort 다 — 실패는 로그로 남기고 흐름은 바꾸지 않는다</td>
+            </tr>
+            <tr>
+              <td>4</td><td>무장 지점 통합 — <code>RedfishPowerService</code> 의 private <code>arm(nextBoot, …)</code></td>
+              <td><code>nextBoot.arms()</code>(<code>PXE_ONCE</code>)일 때 먼저 <code>SHELL_LAST</code> 정착 → 그 뒤 오버라이드 PATCH.
+                호출자(<code>RebootDirectiveArmer</code> · <code>BeginSettingStep</code> · <code>PowerOnStep</code> ·
+                <code>ReturnReadbackStep</code> 재무장 · <code>networkBoot</code> · E2.5 화면)는 무변경이다.
+                재무장(<code>PowerOnStep</code> · <code>ReturnReadbackStep</code>)도 같은 private <code>arm()</code> 을 지나므로,
+                설정 적용 POST 가 셸을 첫 항목으로 만든 직후의 재무장에서 <code>SHELL_LAST</code> 가
+                [<code>Boot0002</code>, <code>Boot0003</code>, <code>Boot0004</code>, <code>Boot0001</code>] 로 되돌린 뒤 Once 가 얹힌다
+                (실측 6 의 02:59:55 자리)</td>
+            </tr>
+            <tr>
+              <td>5</td><td>종단 지점 — <code>PhaseCursorAdvancer.advanceOrComplete</code> · <code>BootOrderSettlement</code> (신규)</td>
+              <td>종단할 때 <code>ProvisioningCompletedEvent(guestId)</code> 를 발행하고,
+                <code>BootOrderSettlement</code>(<code>@TransactionalEventListener</code> AFTER_COMMIT)이 BMC 가 있으면
+                <code>DISK_FIRST</code> 로 정착한다. 완료 보고(<code>WindowsInstallCompletionService</code>)는 응답 전에 커밋되므로,
+                게스트의 보고 뒤 재부팅(HF18)보다 PATCH 가 먼저 닿는다</td>
+            </tr>
+            <tr>
+              <td>6</td><td>모의 BMC</td>
+              <td><code>BootOptions</code> 4종(셸 · PXE ×2 · Windows)과 <code>BootOrder</code> 상태 · PATCH 수용 ·
+                Once 를 소비한 POST 에서의 맞바꿈 흉내(NETWORK 를 앞으로)까지 넣는다 — 정책이 실제 규칙 위에서 도는지 샌드박스에서 본다</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p><b>테스트</b></p>
+        <table>
+          <thead><tr><th>파일</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td><code>BootOrderPolicyTest</code></td>
+                <td>분류 · <code>SHELL_LAST</code> · <code>DISK_FIRST</code> · 동일하면 empty · 항목이 없을 때</td></tr>
+            <tr><td><code>RedfishPowerServiceTest</code></td>
+                <td>무장 전 정착 PATCH · 이미 맨 뒤면 PATCH 없음 · GET 실패해도 무장은 진행</td></tr>
+            <tr><td><code>BootOrderSettlementTest</code></td>
+                <td>종단 이벤트 → <code>DISK_FIRST</code> · BMC 가 없으면 무동작</td></tr>
+            <tr><td><code>PhaseCursorAdvancer</code> 테스트</td><td>종단 시 이벤트 발행 1건</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>범위 밖 (비목표)</b>
+          <ul style="margin:6px 0 0;">
+            <li>굽기 · 설정 적용 뒤의 4분 미도착(재무장 지연) 개선 — 별도로 다룬다.</li>
+            <li>BootNext 계측(대안 B).</li>
+            <li>굽기 뒤 셸이 첫 항목이 되는 재열거 자체의 억제 — BIOS 몫이다.</li>
+            <li>HF19 코드 — 폐기하고 브랜치를 삭제한다.</li>
+          </ul>
+        </div>
+
+        <h4>4-3. 실기 검증 (CP5 대체 · 2호기 · 계측 루프 병행)</h4>
+        <ul class="check-list" data-storage="HF20-fieldwork">
+          <li><label><input type="checkbox" data-key="k1a"> <span><b>K-1</b> 정의서 1(굽기 + 설정) 사이클 — 설정 적용 POST 뒤 재무장 직전 <code>BootOrder</code> 에서 셸이 맨 뒤로 옮겨진다</span></label></li>
+          <li><label><input type="checkbox" data-key="k1b"> <span><b>K-1</b> 종단 직후 <code>BootOrder</code> 첫 항목이 Windows Boot Manager 다</span></label></li>
+          <li><label><input type="checkbox" data-key="k1c"> <span><b>K-1</b> 다음 POST 뒤 Fixed Boot Order 가 기본값이다</span></label></li>
+          <li><label><input type="checkbox" data-key="k1d"> <span><b>K-1</b> 계측에 AP 1순위가 일시적으로만(설정 POST 직후) 나타난다</span></label></li>
+          <li><label><input type="checkbox" data-key="k2a"> <span><b>K-2</b> 정의서 9 사이클 — 굽기 뒤 재열거가 있어도 셸이 첫 항목이 되지 않는다(계측에 AP 1순위 0회)</span></label></li>
+          <li><label><input type="checkbox" data-key="k2b"> <span><b>K-2</b> Windows Setup 의 재부팅이 디스크로 가고 완주한다</span></label></li>
+          <li><label><input type="checkbox" data-key="k2c"> <span><b>K-2</b> 종단 뒤 Fixed Boot Order 가 기본값이다</span></label></li>
+          <li><label><input type="checkbox" data-key="k3"> <span><b>K-3</b> 정의서 13 사이클 — 완주하고 종단 뒤 Fixed Boot Order 가 기본값이다</span></label></li>
+        </ul>
+
+        <h4>4-4. 배포 · 후속</h4>
+        <p style="margin-top:0;">HF20 을 <code>dev</code> 에 병합한 뒤 사내망 VM 에 16차로 재배포한다
+          (현 15차 = <code>53b2648</code> · 그 뒤 <code>dev</code> 에 들어온 소수정 5건을 함께 싣는다).</p>
+        <div class="callout warn">HF19 브랜치 <code>fix/HF19_standard-boot-order</code> 는 폐기한다 — 미커밋 변경을 버리고,
+          <code>plan/26-09-17_13-01-36_HF19_plan.html</code> 은 이력으로만 남긴다.</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부펴기·접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

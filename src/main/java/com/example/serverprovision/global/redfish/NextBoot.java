@@ -33,7 +33,19 @@ public enum NextBoot {
     PXE_ONCE("다음 부팅 PXE 강제") {
         @Override
         BootOverrideOutcome arm(RedfishClient client, String bmcIp, BmcCredentials credentials) {
-            return patchAndReadback(client, bmcIp, credentials);
+            return patchAndReadback(client, bmcIp, credentials, "Pxe", OVERRIDE_BODY);
+        }
+    },
+
+    /**
+     * 다음 한 번은 디스크(HF20 G-1) — Windows Setup 이 자기 부팅 항목을 만들고 스스로 재부팅하는 POST 에서 이 BIOS 는
+     * 항목 목록을 셸 우선으로 다시 세운다. 그 재부팅은 BMC 를 거치지 않으므로, wimboot 체인을 서빙한 직후 미리 세워 둔다.
+     * 오버라이드로 디스크에서 부팅하면 맞바꿈 규칙이 Hard Disk 를 Fixed Boot Order 1순위로 올려 이후 재부팅이 안정된다.
+     */
+    HDD_ONCE("다음 부팅 디스크 강제") {
+        @Override
+        BootOverrideOutcome arm(RedfishClient client, String bmcIp, BmcCredentials credentials) {
+            return patchAndReadback(client, bmcIp, credentials, "Hdd", HDD_OVERRIDE_BODY);
         }
     };
 
@@ -48,19 +60,31 @@ public enum NextBoot {
         return label;
     }
 
-    /** Once 본문(E2.5 테스트 계약) — 이 enum 이 BMC 에 보내는 유일한 override 다. */
-    static final Map<String, Object> OVERRIDE_BODY = Map.of("Boot", Map.of(
-            "BootSourceOverrideEnabled", "Once",
-            "BootSourceOverrideTarget", "Pxe",
-            "BootSourceOverrideMode", "UEFI"));
+    /** Once 본문(E2.5 테스트 계약) — PXE. Mode 를 함께 보내는 이유는 {@link #PXE_ONCE} 참고. */
+    static final Map<String, Object> OVERRIDE_BODY = overrideBody("Pxe");
+    /** Once 본문 — 디스크(HF20 G-1). */
+    static final Map<String, Object> HDD_OVERRIDE_BODY = overrideBody("Hdd");
+
+    private static Map<String, Object> overrideBody(String target) {
+        return Map.of("Boot", Map.of(
+                "BootSourceOverrideEnabled", "Once",
+                "BootSourceOverrideTarget", target,
+                "BootSourceOverrideMode", "UEFI"));
+    }
 
     abstract BootOverrideOutcome arm(RedfishClient client, String bmcIp, BmcCredentials credentials);
 
+    /** 오버라이드를 실제로 세우는가 — 세우는 값만 부트 순서 정착(HF20 · 셸 맨 뒤)을 먼저 지난다. */
+    public boolean armsOverride() {
+        return this != AS_CONFIGURED;
+    }
+
     /** PATCH → 되읽기. 되읽기는 관찰이지 실패 판정이 아니다(D-4) — 불일치 · 리소스 단위 실패는 UNCONFIRMED 로 눕힌다. */
-    private static BootOverrideOutcome patchAndReadback(RedfishClient client, String bmcIp, BmcCredentials credentials) {
+    private static BootOverrideOutcome patchAndReadback(RedfishClient client, String bmcIp, BmcCredentials credentials,
+                                                        String target, Map<String, Object> body) {
         try {
             client.patchJsonRefreshingEtag(bmcIp, credentials, RedfishPowerService.SYSTEM_PATH,
-                    RedfishPowerService.SYSTEM_PATH, OVERRIDE_BODY);
+                    RedfishPowerService.SYSTEM_PATH, body);
         } catch (RedfishRequestException e) {
             if (e.getError().resourceSpecific()) {
                 return BootOverrideOutcome.rejected(e.getMessage());
@@ -77,7 +101,7 @@ public enum NextBoot {
             throw e;
         }
         boolean applied = "Once".equals(boot.path("BootSourceOverrideEnabled").asString(null))
-                && "Pxe".equals(boot.path("BootSourceOverrideTarget").asString(null));
+                && target.equals(boot.path("BootSourceOverrideTarget").asString(null));
         return applied ? BootOverrideOutcome.applied() : BootOverrideOutcome.unconfirmed();
     }
 }

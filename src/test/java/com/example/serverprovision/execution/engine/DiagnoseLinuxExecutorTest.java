@@ -59,7 +59,7 @@ class DiagnoseLinuxExecutorTest {
                         new com.example.serverprovision.execution.config.PxeBootProperties("pxe", "s3cret", "")),
                 new DiagnosticReportParser(mapper),
                 detailRepository, recorder, mapper,
-                new PhaseCursorAdvancer(ownedPhasesProvider), eventPublisher,
+                new PhaseCursorAdvancer(ownedPhasesProvider, event -> { }), eventPublisher,
                 // E3.5-5-a — 진단 시점 RAID 봉투도 실물 파서로 정규화한다(RAID phase 와 같은 파서)
                 new com.example.serverprovision.execution.engine.raid.RaidInventoryParser(mapper));
     }

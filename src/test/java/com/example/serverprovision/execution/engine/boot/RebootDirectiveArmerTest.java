@@ -117,6 +117,35 @@ class RebootDirectiveArmerTest {
     }
 
     @Test
+    @DisplayName("HF20 G-1 · Windows 설치 착수 — BMC 검출이면 Once · Hdd 를 세우고, 미검출이면 BMC 를 부르지 않는다")
+    void armForWindowsSetup() {
+        GuestServer server = server();
+        given(detailRepository.findByGuestServer_Id(server.getId())).willReturn(Optional.of(detail()));
+        given(powerService.armBootOverride(any(), any()))
+                .willReturn(PowerControlResult.sent(RedfishPowerState.UNKNOWN, "다음 부팅 디스크 강제 : 반영 확인"));
+
+        armer.armForWindowsSetup(server);
+        verify(powerService).armBootOverride(eq(new RedfishTarget("10.10.0.51", "QG260700082")), eq(NextBoot.HDD_ONCE));
+
+        given(detailRepository.findByGuestServer_Id(server.getId())).willReturn(Optional.empty());
+        armer.armForWindowsSetup(server);
+        verify(powerService, org.mockito.Mockito.times(1)).armBootOverride(any(), any());   // 미검출은 무동작
+    }
+
+    @Test
+    @DisplayName("HF20 G-1 · Windows 설치 착수 — 무장 FAILED · 예외는 삼킨다(best effort · 서빙 응답을 깨지 않는다)")
+    void armForWindowsSetupIsBestEffort() {
+        GuestServer server = server();
+        given(detailRepository.findByGuestServer_Id(server.getId())).willReturn(Optional.of(detail()));
+        given(powerService.armBootOverride(any(), any()))
+                .willReturn(PowerControlResult.failed(RedfishPowerState.UNKNOWN, "거절"))
+                .willThrow(new IllegalStateException("boom"));
+
+        org.assertj.core.api.Assertions.assertThatCode(() -> armer.armForWindowsSetup(server)).doesNotThrowAnyException();
+        org.assertj.core.api.Assertions.assertThatCode(() -> armer.armForWindowsSetup(server)).doesNotThrowAnyException();
+    }
+
+    @Test
     @DisplayName("BMC 미검출(QEMU · 진단 전)은 세울 수단이 없다 — 무장 없음")
     void ignoresWhenBmcUnknown() {
         GuestServer server = server();
