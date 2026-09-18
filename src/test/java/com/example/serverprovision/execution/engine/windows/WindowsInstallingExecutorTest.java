@@ -57,6 +57,7 @@ class WindowsInstallingExecutorTest {
     @Mock WindowsInstallReadinessResolver resolver;
     @Mock WindowsInstallSource source;
     @Mock WindowsInstallLedger ledger;
+    @Mock com.example.serverprovision.execution.engine.boot.RebootDirectiveArmer bootArmer;   // HF20 G-1
 
     private final WindowsInstallProperties properties = new WindowsInstallProperties("/srv/pxe/win2025",
             "\\\\10.0.0.7\\win2025", "deploy", "s3cret-9x", null,
@@ -69,7 +70,7 @@ class WindowsInstallingExecutorTest {
 
     @BeforeEach
     void setUp() {
-        executor = new WindowsInstallingExecutor(resolver, properties, source, ledger, timeoutPolicy, tokenRegistry);
+        executor = new WindowsInstallingExecutor(resolver, properties, source, ledger, timeoutPolicy, tokenRegistry, bootArmer);
         lenient().when(source.assets()).thenReturn(new WindowsInstallAssets(
                 Path.of("/srv/pxe/win2025/wimboot"), true, Path.of("/srv/pxe/win2025/sources/boot.wim"), true,
                 Path.of("/srv/pxe/win2025/sources/setup.exe"), true,
@@ -159,6 +160,7 @@ class WindowsInstallingExecutorTest {
 
         assertThat(progress.getMotion()).isEqualTo(ProvisioningMotion.STEP_RUNNING);
         assertThat(progress.getCurrentStep()).isEqualTo(ProvisioningPhaseStep.OS_INSTALLING);
+        verify(bootArmer).armForWindowsSetup(guest);   // HF20 G-1 — Setup 의 첫 재부팅을 디스크로 보낼 Once·Hdd
         verify(ledger).openServed(org.mockito.ArgumentMatchers.eq(guest), org.mockito.ArgumentMatchers.eq(STANDARD), org.mockito.ArgumentMatchers.argThat(sel -> sel.diskId() == 0), org.mockito.ArgumentMatchers.eq(NOW));
     }
 
@@ -222,6 +224,7 @@ class WindowsInstallingExecutorTest {
                 .contains("this server: ip=${ip} mac=${mac} uuid=${uuid}")
                 .contains("exit").doesNotContain("chain");
         verify(ledger).bumpReentry(row, NOW);
+        verify(bootArmer, never()).armForWindowsSetup(any());   // HF20 G-1 — 재진입은 새 무장이 아니다
         verify(ledger, never()).openServed(any(), any(), any(), any());
         verify(ledger, never()).failRunning(any(), any(), any(), any(), any(), any());
     }

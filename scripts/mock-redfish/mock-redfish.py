@@ -85,8 +85,23 @@ def boot_initial():
     return {'BootSourceOverrideEnabled': 'Disabled', 'BootSourceOverrideTarget': 'None',
             'BootSourceOverrideMode': 'Legacy'}
 
+def boot_order_initial():
+    # HF20 — 2호기(MD72-HB3 · F44) 실측 모양. Windows 설치 직후의 결함 상태(셸이 첫 항목)로 시작해
+    # SHELL_LAST(무장 직전) · DISK_FIRST(종단) 두 정착이 실제로 순서를 바꾸는지 볼 수 있게 한다.
+    return ['Boot0001', 'Boot0003', 'Boot0002']
+
+BOOT_OPTIONS = [
+    {'Id': '0001', 'DisplayName': 'UEFI: Built-in EFI Shell',
+     'UefiDevicePath': 'VenMedia(7C04A583-9E3E-4F1C-AD65-E05268D0B4D1)'},
+    {'Id': '0002', 'DisplayName': 'Windows Boot Manager (LSI Logical Volume 3000, Partition 1)',
+     'UefiDevicePath': 'HD(1,GPT,3A2B6C1E-0000-0000-0000-000000000000,0x800,0x32000)/\\EFI\\Microsoft\\Boot\\bootmgfw.efi'},
+    {'Id': '0003', 'DisplayName': 'UEFI: PXE IPv4 Intel(R) I350 Gigabit Network Connection',
+     'UefiDevicePath': 'PciRoot(0x0)/Pci(0x1C,0x0)/Pci(0x0,0x0)/MAC(B42E99A0B1C2,0x1)/IPv4(0.0.0.0)'},
+]
+
 STATE = {
     'power': 'Off', 'mode': 'normal', 'requests': [],
+    'bootOrder': boot_order_initial(), 'bootOrderPatches': [],   # HF20 — 부트 순서 정착 관측
     'inventory': {'BIOS': 'F27', 'BMC': '13.06.26'},   # 굽기 전 현재 버전
     'flash': [],                                       # SimpleUpdate 요청 원문 (굽기 요청 0건 확인용)
     'pulled': [],                                      # 실제로 당겨 간 ImageURI (토큰 URL 동작 확인용)
@@ -102,6 +117,7 @@ STATE = {
     'biosPatches': [],                             # If-Match · Attributes 요청 원문
     'patch412Served': False,
                           'boot': boot_initial(), 'systemEtag': 7000, 'bootPatches': [],
+                          'bootOrder': boot_order_initial(), 'bootOrderPatches': [],
                           'bootPending': None, 'bootPatch412Served': False, 'bootedVia': [],                       # patch-412-once 모드의 1회 소비 표식
     'web': None,                                   # AMI 웹 API 상태(E3-2) — web_initial() 로 채운다
 }
@@ -209,10 +225,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if STATE['bootPending']:
             STATE['boot'].update(STATE['bootPending'])
             STATE['bootPending'] = None
-        armed = STATE['boot'].get('BootSourceOverrideEnabled') in ('Once', 'Continuous') \
-            and STATE['boot'].get('BootSourceOverrideTarget') == 'Pxe'
+        target = STATE['boot'].get('BootSourceOverrideTarget')
+        armed = STATE['boot'].get('BootSourceOverrideEnabled') in ('Once', 'Continuous') and target in ('Pxe', 'Hdd')
         if record:
-            STATE['bootedVia'].append('Pxe' if armed else 'BootOrder')
+            STATE['bootedVia'].append(target if armed else 'BootOrder')   # HF20 G-1 — Hdd 오버라이드 부팅도 기록
         if STATE['boot'].get('BootSourceOverrideEnabled') == 'Once':
             STATE['boot']['BootSourceOverrideEnabled'] = 'Disabled'
             STATE['boot']['BootSourceOverrideTarget'] = 'None'
@@ -255,8 +271,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                              'AMIUpdateService': {'@odata.type': '#AMIUpdateService.v1_0_0.AMIUpdateService',
                                                   'UpdateInformation': info}})
             return
+        if self.path.startswith('/redfish/v1/Systems/Self/BootOptions'):
+            # HF20 — 확장 컬렉션(?$expand=.)만 낸다. 항목 셋의 모양은 2호기 실측(셸 · Windows Boot Manager · PXE).
+            members = [dict(o, **{'@odata.id': '/redfish/v1/Systems/Self/BootOptions/' + o['Id'],
+                                  'BootOptionReference': 'Boot' + o['Id']}) for o in BOOT_OPTIONS]
+            self._json(200, {'Members@odata.count': len(members), 'Members': members})
+            return
         if self.path == '/redfish/v1/Systems/Self':
             boot = dict(STATE['boot'])
+            boot['BootOrder'] = list(STATE['bootOrder'])   # HF20
             boot.update({
                 'BootSourceOverrideEnabled@Redfish.AllowableValues': ['Disabled', 'Once', 'Continuous'],
                 'BootSourceOverrideTarget@Redfish.AllowableValues': ['None', 'Pxe', 'Hdd', 'BiosSetup'],
@@ -501,7 +524,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._json(400, {'error': {'@Message.ExtendedInfo': [
                     {'Message': 'boot override rejected (mock mode boot-override-reject)'}]}})
                 return
-            boot = body.get('Boot') or {}
+            boot = dict(body.get('Boot') or {})
+            if 'BootOrder' in boot:
+                # HF20 — 부트 순서 정착. override 원장과 섞지 않는다(E2.5 하네스가 bootPatches 건수를 센다).
+                order = list(boot.pop('BootOrder'))
+                STATE['bootOrderPatches'].append({'ifMatch': if_match, 'order': order})
+                STATE['bootOrder'] = order
+                if not boot:
+                    STATE['systemEtag'] += 1
+                    self.send_response(204)
+                    self.send_header('Content-Length', '0')
+                    self.end_headers()
+                    return
             STATE['bootPatches'].append({'ifMatch': if_match, 'boot': boot})
             if STATE['mode'] == 'boot-override-pending':
                 STATE['bootPending'] = dict(STATE['bootPending'] or {}, **boot)   # Systems/Self 표시 불변(SD 경유 재연)
@@ -574,6 +608,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                    'BirchStream0059_TurboMode': 'Enable', 'BirchStream0063_PackageCState': 'Auto'},
                           'biosEtag': 5000, 'biosPending': None, 'biosPatches': [], 'patch412Served': False,
                           'boot': boot_initial(), 'systemEtag': 7000, 'bootPatches': [],
+                          'bootOrder': boot_order_initial(), 'bootOrderPatches': [],
                           'bootPending': None, 'bootPatch412Served': False, 'bootedVia': [],
                           'web': web_initial()})
             self._json(200, STATE)

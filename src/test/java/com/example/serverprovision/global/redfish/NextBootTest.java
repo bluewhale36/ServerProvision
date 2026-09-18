@@ -46,6 +46,33 @@ class NextBootTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("HDD_ONCE 바디(HF20 G-1) — Once · Hdd · UEFI · 라벨 '다음 부팅 디스크 강제' · 무장값이다")
+    void hddOverrideBodyWireValues() {
+        assertThat((Map<String, Object>) NextBoot.HDD_OVERRIDE_BODY.get("Boot"))
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "BootSourceOverrideEnabled", "Once",
+                        "BootSourceOverrideTarget", "Hdd",
+                        "BootSourceOverrideMode", "UEFI"));
+        assertThat(NextBoot.HDD_ONCE.label()).isEqualTo("다음 부팅 디스크 강제");
+        assertThat(NextBoot.HDD_ONCE.armsOverride()).isTrue();
+        assertThat(NextBoot.AS_CONFIGURED.armsOverride()).isFalse();
+    }
+
+    @Test
+    @DisplayName("HDD_ONCE — Hdd 본문으로 PATCH 하고 되읽기 Target 이 Hdd 면 APPLIED · Pxe 로 읽히면 UNCONFIRMED")
+    void hddOnceAppliedAndUnconfirmed() {
+        given(client.getJson(eq(BMC_IP), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(
+                JSON.readTree("{\"Boot\":{\"BootSourceOverrideEnabled\":\"Once\",\"BootSourceOverrideTarget\":\"Hdd\"}}"),
+                JSON.readTree("{\"Boot\":{\"BootSourceOverrideEnabled\":\"Once\",\"BootSourceOverrideTarget\":\"Pxe\"}}"));
+
+        assertThat(NextBoot.HDD_ONCE.arm(client, BMC_IP, CREDS).status()).isEqualTo(BootOverrideOutcome.Status.APPLIED);
+        assertThat(NextBoot.HDD_ONCE.arm(client, BMC_IP, CREDS).status()).isEqualTo(BootOverrideOutcome.Status.UNCONFIRMED);
+        verify(client, org.mockito.Mockito.times(2)).patchJsonRefreshingEtag(eq(BMC_IP), any(),
+                eq(RedfishPowerService.SYSTEM_PATH), eq(RedfishPowerService.SYSTEM_PATH), eq(NextBoot.HDD_OVERRIDE_BODY));
+    }
+
+    @Test
     @DisplayName("AS_CONFIGURED — 호출 0 · NONE · 접두 없음(화면 경로 무변경)")
     void asConfiguredDoesNothing() {
         BootOverrideOutcome outcome = NextBoot.AS_CONFIGURED.arm(client, BMC_IP, CREDS);

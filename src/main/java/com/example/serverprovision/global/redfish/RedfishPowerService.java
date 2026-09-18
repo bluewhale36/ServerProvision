@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 
+import java.util.ArrayList;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,67 @@ public class RedfishPowerService {
         this.credentialsFallback = credentialsFallback;
         this.pollInterval = Duration.ofMillis(pollIntervalMs);
         this.pollTimeout = Duration.ofMillis(pollTimeoutMs);
+    }
+
+    static final String BOOT_OPTIONS_PATH = SYSTEM_PATH + "/BootOptions?$expand=.";
+
+    /**
+     * 부트 순서 정착(HF20) — 정책대로 {@code Boot.BootOrder} 를 PATCH 한다(If-Match 사다리 · 같으면 무동작). 종단 자리가
+     * {@link BootOrderPolicy#DISK_FIRST} 로 부른다. 무장 직전의 {@link BootOrderPolicy#SHELL_LAST} 는 서비스 안에서 자동이다.
+     */
+    public PowerControlResult settleBootOrder(RedfishTarget target, BootOrderPolicy policy) {
+        return guarded(target, credentials -> {
+            Settlement settlement = settle(policy, target, credentials);
+            return settlement.failed()
+                    ? PowerControlResult.failed(RedfishPowerState.UNKNOWN, policy.label() + " — " + settlement.detail())
+                    : PowerControlResult.sent(RedfishPowerState.UNKNOWN, policy.label() + " — " + settlement.detail());
+        });
+    }
+
+    /** 정착 한 번의 결과 — 적용(새 순서) · 무변경 · 실패(사유). 무장 경로는 이 값을 보지 않는다(best effort). */
+    record Settlement(boolean applied, boolean failed, String detail) {
+        static Settlement applied(List<String> order) {
+            return new Settlement(true, false, "BootOrder 를 " + String.join(",", order) + " 로 정착했습니다.");
+        }
+        static Settlement unchanged() {
+            return new Settlement(false, false, "이미 그 순서라 손대지 않았습니다.");
+        }
+        static Settlement failed(String reason) {
+            return new Settlement(false, true, "정착하지 못했습니다 : " + reason);
+        }
+    }
+
+    /**
+     * 정책 적용 한 번. 항목 · 순서를 읽어 정책이 바꾼 순서만 PATCH 한다. 401 은 되던져 자격증명 폴백 사다리가 돌게 하고,
+     * 그 밖의 Redfish 실패(미지원 BMC · 프로토콜)는 실패로 접어 무장 · 종단이 계속되게 한다.
+     */
+    private Settlement settle(BootOrderPolicy policy, RedfishTarget target, BmcCredentials credentials) {
+        try {
+            var system = redfishClient.getJson(target.bmcIp(), credentials, SYSTEM_PATH);
+            var options = redfishClient.getJson(target.bmcIp(), credentials, BOOT_OPTIONS_PATH);
+            if (system == null || options == null) {
+                return Settlement.failed("BMC 가 부트 항목을 내지 않았습니다");
+            }
+            List<BootEntries.Entry> entries = BootEntries.parse(options);
+            List<String> current = new ArrayList<>();
+            for (var node : system.path("Boot").path("BootOrder")) {
+                current.add(node.asText());
+            }
+            Optional<List<String>> arranged = policy.reorder(current, entries);
+            if (arranged.isEmpty()) {
+                return Settlement.unchanged();
+            }
+            redfishClient.patchJsonRefreshingEtag(target.bmcIp(), credentials, SYSTEM_PATH, SYSTEM_PATH,
+                    Map.of("Boot", Map.of("BootOrder", arranged.get())));
+            log.info("[boot-order] {} — {} : {} → {}", target.bmcIp(), policy.label(), current, arranged.get());
+            return Settlement.applied(arranged.get());
+        } catch (BmcRequestException e) {
+            if (e.authFailure()) {
+                throw e;
+            }
+            log.warn("[boot-order] {} — {} 실패(best effort) : {}", target.bmcIp(), policy.label(), e.getMessage());
+            return Settlement.failed(e.getMessage());
+        }
     }
 
     /** 현재 전원 상태 조회 — 검증 주장이 없는 SENT. */
@@ -140,6 +202,10 @@ public class RedfishPowerService {
 
     /** 무장(E2.5) — 전원 발행 직전 1회. 관찰 결과의 로그는 여기서, 메시지 접두는 호출자가 잇는다(D-4 · D-9). */
     private BootOverrideOutcome arm(NextBoot nextBoot, RedfishTarget target, BmcCredentials credentials) {
+        if (nextBoot.armsOverride()) {
+            // HF20 — 오버라이드가 첫 항목을 PXE 로 두는 POST 앞에서 셸을 맨 뒤로. 실패해도 무장은 계속(best effort).
+            settle(BootOrderPolicy.SHELL_LAST, target, credentials);
+        }
         BootOverrideOutcome outcome = nextBoot.arm(redfishClient, target.bmcIp(), credentials);
         if (outcome.status() == BootOverrideOutcome.Status.REJECTED) {
             log.warn("[redfish] {} — 다음 부팅 PXE 강제 거절(전원 명령은 계속) : {}", target.bmcIp(), outcome.detail());

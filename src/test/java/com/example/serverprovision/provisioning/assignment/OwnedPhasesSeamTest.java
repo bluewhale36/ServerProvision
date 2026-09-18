@@ -81,7 +81,7 @@ class OwnedPhasesSeamTest {
         Set<ProvisioningPhase> owned = persistedThenRestored(
                 SettingProcessType.BASIC_UPDATE, SettingProcessType.OS_INSTALLATION);
         // OwnedPhasesProvider 는 단일 메서드 SPI — 복원 집합을 그대로 공급하는 람다로 엔진 소비를 재현한다.
-        PhaseCursorAdvancer advancer = new PhaseCursorAdvancer(guestId -> owned);
+        PhaseCursorAdvancer advancer = new PhaseCursorAdvancer(guestId -> owned, event -> { });
         ProvisioningProgress progress = diagnoseProgress();
 
         advancer.advanceOrComplete(progress, UUID.randomUUID(), T.plusMinutes(1));
@@ -95,7 +95,7 @@ class OwnedPhasesSeamTest {
     void advancer_emptyOwned_completes() {
         Set<ProvisioningPhase> empty = converter.convertToEntityAttribute(
                 converter.convertToDatabaseColumn(OwnedPhases.empty())).asSet();
-        PhaseCursorAdvancer advancer = new PhaseCursorAdvancer(guestId -> empty);
+        PhaseCursorAdvancer advancer = new PhaseCursorAdvancer(guestId -> empty, event -> { });
         ProvisioningProgress progress = diagnoseProgress();
 
         advancer.advanceOrComplete(progress, UUID.randomUUID(), T.plusMinutes(1));
