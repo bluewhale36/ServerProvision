@@ -2,13 +2,15 @@ package com.example.serverprovision.provisioning.setting.repository;
 
 import com.example.serverprovision.provisioning.setting.entity.SettingDefinition;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface SettingDefinitionRepository extends JpaRepository<SettingDefinition, Long> {
+public interface SettingDefinitionRepository extends JpaRepository<SettingDefinition, Long>,
+        JpaSpecificationExecutor<SettingDefinition> {
 
     /** create 명칭 중복 검사 — <b>활성</b> 정의서만 대상(U3-2-b DEC-B, soft-delete 이름은 재사용 허용). */
     boolean existsByNameAndIsDeletedFalse(String name);
@@ -22,7 +24,7 @@ public interface SettingDefinitionRepository extends JpaRepository<SettingDefini
     /** purge 대상 조회 — soft-delete 선행 강제(DEC-E). 활성/부재는 빈 Optional → 404. */
     Optional<SettingDefinition> findByIdAndIsDeletedTrue(Long id);
 
-    /** 목록 기본 — 활성 전용(DEC-F). includeDeleted 는 상속 {@code findAll(Sort)} 로 전건 조회. */
+    /** 할당 선택지({@code findAssignable}) — 활성 전용(DEC-F). 목록 화면은 S8-1 부터 {@code SettingSpecifications} 로 조회한다. */
     List<SettingDefinition> findAllByIsDeletedFalseOrderByIdAsc();
 
     /** BIOS 세팅 템플릿 사용중 판정(U2-2-3) — @ElementCollection 은 JPQL join 으로 질의한다. */

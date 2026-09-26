@@ -88,7 +88,7 @@ class GuestServerGroupCommandServiceStandardTest {
 
         service.setStandardDefinition(GROUP, DEFINITION);
 
-        assertThat(group.memberCount()).isZero();
+        assertThat(group.getMembers()).isEmpty();
         assertThat(group.hasStandard()).isTrue();
     }
 

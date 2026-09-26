@@ -76,3 +76,8 @@ Redfish	약어	BMC 표준 관리 API
 설치 시한	도메인	설치 번들을 서빙한 시각부터 재진입이 허용되는 시간(기본 60분). 지난 뒤의 재진입은 INSTALL_TIMEOUT 실패. 재진입 상한(기본 5회)과 함께 두 눈금	시한 · 타임아웃	execution/engine/windows/WindowsInstallTimeoutPolicy	E4-1-a-3 등재
 드라이버 페이로드	도메인	앱이 설치 소스의 sources/$OEM$ 에 조립하는 설치 후 자료 — 활성 DRIVER 자원의 트리(INF)와 설치 후 스크립트 둘(SetupComplete.cmd · spv-report.ps1)과 매니페스트. 대시보드 [드라이버 페이로드 조립] 이 만들고 chip 이 미조립 · 최신 · 갱신 필요를 보인다	$OEM$ 페이로드 · OEM 페이로드	execution/engine/windows/WindowsOemPayloadAssembler, WindowsOemManifest	E4-1-a-4 등재
 완료 보고	도메인	설치된 Windows 의 첫 로그온 스크립트가 앱에 보내는 한 번의 보고(ComputerName · 드라이버 수 · 문제 장치). 열린 서빙 행을 SUCCEEDED 로 닫고 토큰을 회수하며 커서를 전진 · 종단한다. 중복은 no-op	설치 완료 보고 · 첫 로그온 보고	execution/engine/windows/WindowsInstallCompletionService, WindowsInstallReportRestController	E4-1-a-4 등재
+검색	액션	목록에서 입력한 문자열로 이름 등을 부분 일치로 찾는 것. 버튼 라벨 "검색", placeholder 는 예시형	조회(동사) · 서치 · 찾기(라벨)	messages action.search · global/web/list	S8-1
+필터	액션	목록을 축(활성 · 단계 · 상태 등)의 값으로 거르는 것. "필터 적용" 용법은 적용 항목 참고	필터링 · 거르기(라벨)	provisioning/setting/dto/request/SettingListQuery	S8-1
+정렬	액션	목록의 순서를 항목과 방향(오름차순 · 내림차순)으로 정하는 것	소팅 · 정렬하기(라벨) · 순서 바꾸기	global/web/list/SortField	S8-1
+페이지	용어	목록을 표시 개수 단위로 나눈 한 쪽. 표기는 "n / N 페이지" · "표시 개수"	쪽(화면 라벨) · 페이지네이션(라벨)	global/web/list/ListLinks · fragments/ui/pagination	S8-1
+초기화	액션	검색 · 필터 · 정렬 · 페이지를 모두 버리고 기본 목록으로 돌아가는 것. 링크 라벨 "초기화"	리셋 · 재설정 · 지우기	messages action.reset	S8-1

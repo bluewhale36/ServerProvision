@@ -31,6 +31,11 @@ import com.example.serverprovision.provisioning.setting.enums.OSFamily;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
 import com.example.serverprovision.provisioning.setting.repository.SettingDefinitionRepository;
+import com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import com.example.serverprovision.provisioning.setting.vo.ProcessPayload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -84,29 +89,33 @@ class JpaSettingQueryServiceTest {
     }
 
     @Test
-    @DisplayName("findAll(false) — 활성 전용 조회 + 단계 타입 요약이 enum 선언 순(D7 · U3-2-b DEC-F)")
-    void findAll_activeOnly_summarizesTypesInEnumOrder() {
-        given(repository.findAllByIsDeletedFalseOrderByIdAsc())
-                .willReturn(List.of(reversedDefinition()));
+    @DisplayName("search — Specification · 화이트리스트 정렬로 한 쪽을 읽고 단계 타입 요약이 enum 선언 순(D7 · S8-1)")
+    void search_summarizesTypesInEnumOrder() {
+        given(repository.findAll(any(Specification.class), any(PageRequest.class)))
+                .willReturn(new PageImpl<>(List.of(reversedDefinition())));
 
-        List<SettingSummaryResponse> result = service.findAll(false);
+        Page<SettingSummaryResponse> result = service.search(defaultQuery(), PageRequest.of(0, 20));
 
-        assertThat(result.get(0).processTypes())
+        assertThat(result.getContent().get(0).processTypes())
                 .containsExactly(SettingProcessType.BASIC_UPDATE, SettingProcessType.BASIC_SETTING);
-        assertThat(result.get(0).deleted()).isFalse();
+        assertThat(result.getContent().get(0).deleted()).isFalse();
     }
 
     @Test
-    @DisplayName("findAll(true) — includeDeleted 면 전건 조회(휴지통 토글) + 삭제 플래그 전달")
-    void findAll_includeDeleted_returnsAllWithFlag() {
+    @DisplayName("search — 삭제된 정의서는 삭제 플래그를 실어 보낸다(삭제 포함 목록의 배지 재료)")
+    void search_carriesDeletedFlag() {
         SettingDefinition deleted = reversedDefinition();
         deleted.softDelete();
-        given(repository.findAll(any(org.springframework.data.domain.Sort.class)))
-                .willReturn(List.of(deleted));
+        given(repository.findAll(any(Specification.class), any(PageRequest.class)))
+                .willReturn(new PageImpl<>(List.of(deleted)));
 
-        List<SettingSummaryResponse> result = service.findAll(true);
+        Page<SettingSummaryResponse> result = service.search(defaultQuery(), PageRequest.of(0, 20));
 
-        assertThat(result.get(0).deleted()).isTrue();
+        assertThat(result.getContent().get(0).deleted()).isTrue();
+    }
+
+    private SettingListQuery defaultQuery() {
+        return new SettingListQuery(null, null, null, null, null, null, null);
     }
 
     @Test

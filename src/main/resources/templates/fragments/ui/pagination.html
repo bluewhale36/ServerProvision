@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  쪽 이동 줄 조각 (S8-1)
+  ─────────────────────────────────────────────────────────
+  표가 든 판의 바닥에 붙는 한 줄 — 이전 · 현재/전체 · 총 건수 · 다음 · 표시 개수.
+  이동 링크는 컨트롤러 인자 ListLinks 가 만든다(page 만 바꾸고 나머지 상태는 그대로).
+  이동할 수 없는 방향은 링크가 아니라 흐린 글자다(점검 이력의 옛 줄과 같은 관례).
+
+  표시 개수 셀렉트는 조회 띠 폼(id="listQuery") 소속이다 — HTML form 속성으로 폼 밖에 서 있어도 그 폼의
+  필드가 되므로, 바꾸면 폼이 제출되고 page 는 폼 필드가 아니라 사라져 첫 쪽이 된다. data-default 는
+  Paging.DEFAULT_SIZE 와 같은 값이며 list-query.js 가 기본값을 URL 에서 뺄 때 본다.
+
+  사용:
+    <div th:replace="~{fragments/ui/pagination :: pager(${page}, ${links})}"></div>
+      page  : org.springframework.data.domain.Page
+      links : global.web.list.ListLinks
+-->
+<body>
+<div th:fragment="pager(page, links)" class="n-pagination">
+    <div class="n-pagination-nav">
+        <a th:if="${page.hasPrevious()}" class="n-btn n-btn-sm n-btn-outline"
+           th:href="${links.page(page.number - 1)}">← 이전</a>
+        <span th:unless="${page.hasPrevious()}" class="n-text-muted">← 이전</span>
+        <span class="n-pagination-info">
+            <b th:text="${page.number + 1}">1</b> / <span th:text="${page.totalPages > 0 ? page.totalPages : 1}">1</span> 페이지
+            · 총 <b th:text="${page.totalElements}">0</b>건
+        </span>
+        <a th:if="${page.hasNext()}" class="n-btn n-btn-sm n-btn-outline"
+           th:href="${links.page(page.number + 1)}">다음 →</a>
+        <span th:unless="${page.hasNext()}" class="n-text-muted">다음 →</span>
+    </div>
+    <label class="n-pagination-size">표시 개수
+        <select name="size" form="listQuery" class="n-select" data-default="20" aria-label="표시 개수">
+            <option value="20" th:selected="${page.size == 20}">20</option>
+            <option value="50" th:selected="${page.size == 50}">50</option>
+            <option value="100" th:selected="${page.size == 100}">100</option>
+        </select>
+    </label>
+</div>
+</body>
+</html>

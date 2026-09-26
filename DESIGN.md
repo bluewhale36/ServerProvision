@@ -135,6 +135,12 @@
 
 `n-table` 과 `n-tbl-list`(폼 안 인라인 편집, `table-list.css` 가 격자와 머리를 스스로 그린다)는 서로 배타적이다. 한 표에 둘을 같이 쓰지 않는다.
 
+### 조회 띠와 쪽 이동
+
+목록 화면의 검색 · 필터 · 정렬은 페이지 머리 아래 한 줄의 조회 띠(`n-filter-bar`)에 둔다. 띠는 `<form method="get">` 하나이고 검색 입력(`n-filter-search`), 축마다 라벨과 칩을 묶은 `n-filter-group`, 정렬 셀렉트 둘(`n-filter-sort`, 항목과 방향), 오른쪽 끝의 결과 건수와 초기화 링크(`n-filter-summary`)로 구성한다. 상태는 전부 URL 질의 파라미터다. 칩(`n-chip`)은 숨은 라디오 또는 체크박스를 감싼 label 이고 선택은 `:has(input:checked)` 로 표시한다. 다중 선택 축의 "전체" 는 선택을 비우는 버튼(`n-chip-all`)이며 하나도 고르지 않았을 때 활성으로 보인다. 링크 칩(`n-chip-link`)은 게스트 서버 목록의 phase 칩이 쓰는 이전 형태다. 칩 · 셀렉트 · 체크박스는 바뀌면 바로 제출되고 검색 입력은 Enter 나 검색 버튼으로 제출된다(`global/list-query.js`). 제출은 첫 페이지로 돌아간다.
+
+쪽 이동(`n-pagination`)은 표가 든 판의 바닥에 한 줄로 선다. 이전 · 현재/전체 페이지 · 총 건수 · 다음과 표시 개수 셀렉트(`n-pagination-size`)다. 표시 개수 셀렉트는 조회 띠 폼에 `form` 속성으로 소속되어 바꾸면 첫 페이지로 다시 조회된다. 이동 링크는 컨트롤러 인자 `ListLinks` 가 만들고, 이동할 수 없는 방향은 링크가 아니라 흐린 글자다. 조각은 `fragments/ui/pagination :: pager(page, links)` 이며 감사 로그와 점검 이력의 옛 쪽 이동 줄은 아직 이 조각을 쓰지 않는다.
+
 ### 배지
 
 `n-badge` 는 11px, 굵기 600, `2px 7px` 여백, 반지름 4px 이다. 색이 뜻이므로 새 배지를 만들 때는 6절의 상태 어휘 표에서 클래스를 고른다.
@@ -290,6 +296,8 @@ OS 관리 화면의 업로드 진행 표시(`n-upload-*`)는 `management/os/os-p
 | `lifecycle-actions :: statusActions` | 활성 배지 + 토글 버튼(부모 차단 툴팁, PRG 선택 복원 입력 포함) | 자원 상세 6, ISO, 세팅 정의서 상세 |
 | `lifecycle-actions :: deprecateActions` | 사용 중단 배지 + 표시와 해제(확인 모달 속성 포함) | 같음 |
 | `empty :: state(title, desc)` | 판 안 가운데의 빈 상태 | 목록이 빈 화면. 설명에 링크가 필요하면 같은 마크업을 직접 쓴다 |
+| `pagination :: pager(page, links)` | 판 바닥의 쪽 이동 줄과 표시 개수 셀렉트 | 세팅 정의서 · 서버 그룹 목록 |
+| `sort-selects :: selects(fields, query, sortDefault)` | 조회 띠의 정렬 항목 · 방향 셀렉트 둘 | 같음 |
 | `provisioning/server-badges :: statusBadge(server)`, `contactBadge(server)` | 게스트 서버의 운영 상태 배지와 접촉 배지 | 게스트 서버 상세의 머리 띠와 개요 판. 같은 사실을 두 자리에 그리므로 조각 하나다 |
 
 래퍼(`<tr><th>` 또는 `<dt><dd>`)는 호출하는 템플릿이 가진다. 조각은 그 안의 `n-actions` 만 그린다.

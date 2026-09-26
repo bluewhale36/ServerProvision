@@ -156,18 +156,7 @@
     text-transform: uppercase;
 }
 
-/* ---- 페이지네이션 줄 (MK4-4-2) -----------------------------
-   목록 아래에 붙는 이전 · 현재쪽 · 다음 한 줄. 종전에는 화면마다 인라인 스타일로
-   같은 모양을 다시 그렸고, 그래서 한쪽을 고치면 다른 쪽이 뒤처졌다.
-   비활성 방향은 링크가 아니라 흐린 글자로 두어 누를 수 있는 것과 구분된다. */
-.n-pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 12px;
-    border-top: 1px solid var(--n-border);
-    font-size: 12px;
-}
+/* 페이지네이션 줄(.n-pagination)은 style.css §16 으로 올렸다(S8-1 — 조회 띠 · 쪽 이동 공통). */
 
 /* ---- 경로 표시 (MK4-4-2) ----------------------------------
    파일 경로는 공백이 없어 기본 규칙으로는 줄이 바뀌지 않는다. 긴 경로 하나가 표나 상세 칸을

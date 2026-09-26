@@ -24,6 +24,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -95,13 +96,13 @@ class GuestServerGroupControllerTest {
     @Test
     @DisplayName("GET /server-group — 목록 200 + 멤버 수가 화면에 나온다")
     void list_returns200() throws Exception {
-        given(queryService.findAll()).willReturn(
-                List.of(new GroupSummaryResponse(7L, "8월 2차", 3L, true, LocalDateTime.now())));
+        given(queryService.search(any(), any())).willReturn(
+                new PageImpl<>(List.of(new GroupSummaryResponse(7L, "8월 2차", 3L, true, LocalDateTime.now()))));
 
         mvc.perform(get("/provisioning/server-group"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/server-group-list"))
-                .andExpect(model().attributeExists("groups"))
+                .andExpect(model().attributeExists("page", "query", "links"))
                 .andExpect(content().string(containsString("8월 2차")))
                 .andExpect(content().string(containsString("3대")))
                 // 구성 혼재는 문장이 아니라 표식으로 알린다 — 자원 화면의 사용 중단과 같은 어휘(개정)
@@ -112,7 +113,7 @@ class GuestServerGroupControllerTest {
     @Test
     @DisplayName("그룹이 하나도 없으면 만드는 두 경로를 안내한다")
     void list_emptyStateGuidesBothEntryPoints() throws Exception {
-        given(queryService.findAll()).willReturn(List.of());
+        given(queryService.search(any(), any())).willReturn(new PageImpl<>(List.of()));
 
         mvc.perform(get("/provisioning/server-group"))
                 .andExpect(status().isOk())
@@ -257,8 +258,8 @@ class GuestServerGroupControllerTest {
                 .andExpect(content().string(containsString("data-nav-back")))
                 .andExpect(content().string(containsString("href=\"/provisioning/server-group\"")));
 
-        given(queryService.findAll()).willReturn(
-                List.of(new GroupSummaryResponse(7L, "8월 2차", 3L, false, LocalDateTime.now())));
+        given(queryService.search(any(), any())).willReturn(
+                new PageImpl<>(List.of(new GroupSummaryResponse(7L, "8월 2차", 3L, false, LocalDateTime.now()))));
         mvc.perform(get("/provisioning/server-group"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-nav-key=\"7\"")));

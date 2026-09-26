@@ -22,13 +22,19 @@ import com.example.serverprovision.provisioning.setting.enums.FileSystem;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.example.serverprovision.provisioning.setting.enums.SizeUnit;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
+import com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery;
+import com.example.serverprovision.provisioning.setting.enums.SettingSortField;
+import com.example.serverprovision.global.web.list.ListLinks;
+import com.example.serverprovision.global.web.list.Paging;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.LinkedHashMap;
 import java.util.Arrays;
@@ -54,14 +60,22 @@ public class SettingController {
     private final SettingQueryService settingQueryService;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 정의서 목록(S8-1) — 조회 띠(GET 폼)의 조건과 쪽을 받아 한 쪽만 그린다.
+     *
+     * <p>조건은 {@link SettingListQuery} 로 바인딩되고 쪽은 Spring Data 의 {@code Pageable} 리졸버가 정정한다(음수 · 비수치는
+     * 기본값, 크기 상한은 {@code spring.data.web.pageable.max-page-size}). 알 수 없는 enum · boolean 값은 바인딩 실패로
+     * 400 이 되며 새 분기를 만들지 않는다. {@link ListLinks} 는 쪽 이동 · 초기화 링크의 재료다 — 나머지 상태는 폼이 조립한다.</p>
+     */
     @GetMapping
-    public String list(
-            @RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
-            Model model
-    ) {
-        // U3-2-b — 활성 전용이 기본, includeDeleted 면 삭제분 포함(휴지통 토글, os 선례 DEC-F).
-        model.addAttribute("settings", settingQueryService.findAll(includeDeleted));
-        model.addAttribute("includeDeleted", includeDeleted);
+    public String list(@ModelAttribute("query") SettingListQuery query,
+                       @PageableDefault(size = Paging.DEFAULT_SIZE) Pageable pageable,
+                       ListLinks links, Model model) {
+        model.addAttribute("page", settingQueryService.search(query, pageable));
+        model.addAttribute("links", links);
+        model.addAttribute("processTypes", SettingProcessType.values());
+        model.addAttribute("sortFields", SettingSortField.values());
+        model.addAttribute("sortDefault", SettingListQuery.DEFAULT_SORT);
         return "provisioning/setting-list";
     }
 

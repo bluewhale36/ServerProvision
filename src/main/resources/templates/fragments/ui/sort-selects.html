@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  정렬 셀렉트 둘 조각 (S8-1) — 항목 · 방향
+  ─────────────────────────────────────────────────────────
+  조회 띠 폼 안에 선다. 항목 셀렉트의 값은 화면별 SortField enum 상수 이름(sort 파라미터), 방향은 Spring 의
+  Sort.Direction(dir 파라미터)이다. 두 화면(세팅 정의서 · 서버 그룹)의 마크업이 같아 조각으로 둔다.
+
+  data-default(항목의 기본값) 와 option 의 data-default-dir(그 항목의 기본 방향)은 list-query.js 가 제출 시
+  기본값을 URL 에서 뺄 때 본다 — 서버는 파라미터가 없으면 같은 기본값으로 받는다(*ListQuery 압축 생성자).
+
+  사용:
+    <div th:replace="~{fragments/ui/sort-selects :: selects(${sortFields}, ${query}, ${sortDefault})}"></div>
+      fields      : SortField[]  (enum values)
+      query       : *ListQuery   (sort · dir 를 가진 record)
+      sortDefault : SortField    (기본 항목)
+-->
+<body>
+<div th:fragment="selects(fields, query, sortDefault)" class="n-filter-sort">
+    <label class="n-filter-label" for="listSortField">정렬</label>
+    <select id="listSortField" name="sort" class="n-select" th:data-default="${sortDefault.name()}">
+        <option th:each="f : ${fields}" th:value="${f.name()}"
+                th:data-default-dir="${f.defaultDirection().name()}"
+                th:selected="${f == query.sort}" th:text="${f.label()}">번호</option>
+    </select>
+    <select name="dir" class="n-select" aria-label="정렬 방향">
+        <option value="ASC" th:selected="${query.dir.name() == 'ASC'}">오름차순</option>
+        <option value="DESC" th:selected="${query.dir.name() == 'DESC'}">내림차순</option>
+    </select>
+</div>
+</body>
+</html>

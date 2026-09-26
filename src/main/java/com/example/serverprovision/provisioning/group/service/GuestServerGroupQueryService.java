@@ -15,6 +15,11 @@ import com.example.serverprovision.provisioning.group.exception.GroupNameConflic
 import com.example.serverprovision.provisioning.group.exception.GuestServerGroupNotFoundException;
 import com.example.serverprovision.provisioning.group.repository.GuestServerGroupMemberRepository;
 import com.example.serverprovision.provisioning.group.repository.GuestServerGroupRepository;
+import com.example.serverprovision.provisioning.group.repository.GroupSpecifications;
+import com.example.serverprovision.provisioning.group.dto.request.GroupListQuery;
+import com.example.serverprovision.global.web.list.Paging;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,32 +50,36 @@ public class GuestServerGroupQueryService {
     private final GuestServerQueryService guestServerQueryService;
 
     /**
-     * 그룹 목록 — 집계로 읽은 뒤 구성 혼재 여부를 덧댄다.
+     * 그룹 목록 한 쪽(S8-1) — 조회 조건으로 거르고 정렬해 한 쪽을 읽은 뒤, 그 쪽의 그룹에만 구성 혼재 여부를 덧댄다.
      *
-     * <p>혼재는 SQL 로 판정할 수 없다. 구성 키가 JSON 컬럼 안의 값에서 만들어지기 때문이다(DEC-D).
-     * 그래서 소속 전부를 한 번에 읽어 애플리케이션에서 가른다 — 그룹마다 멤버를 따로 읽으면
-     * 그룹 수만큼 왕복이 생기지만, 이 방식은 그룹이 몇 개든 질의 수가 늘지 않는다.</p>
+     * <p>멤버 수는 엔티티의 {@code @Formula} 속성이라 집계 질의 없이 행에 실려 오고 정렬에도 쓰인다.
+     * 혼재는 SQL 로 판정할 수 없다 — 구성 키가 JSON 컬럼 안의 값에서 만들어지기 때문이다(DEC-D). 종전에는
+     * 전 서버 · 전 소속을 읽어 갈랐지만, 보이는 그룹의 멤버만 읽으면 조회 범위가 그 쪽 안에서 닫힌다.</p>
      */
     @Transactional(readOnly = true)
-    public List<GroupSummaryResponse> findAll() {
-        List<GroupSummaryResponse> rows = groupRepository.findAllSummaries();
-        if (rows.isEmpty()) {
-            return rows;
-        }
-        Set<Long> diverged = divergedGroupIds();
-        return rows.stream().map(r -> r.withSpecDiverged(diverged.contains(r.id()))).toList();
+    public Page<GroupSummaryResponse> search(GroupListQuery query, Pageable pageable) {
+        Page<GuestServerGroup> page = groupRepository.findAll(
+                GroupSpecifications.of(query), Paging.of(pageable, query.sort(), query.dir()));
+        Set<Long> diverged = divergedGroupIds(page.getContent().stream().map(GuestServerGroup::getId).toList());
+        return page.map(g -> new GroupSummaryResponse(
+                g.getId(), g.getName(), g.getMemberCount(), diverged.contains(g.getId()), g.getCreatedAt()));
     }
 
-    /** 구성이 갈린 그룹의 id — 멤버의 구성 키가 둘 이상인 그룹이다. */
-    private Set<Long> divergedGroupIds() {
+    /** 구성이 갈린 그룹의 id — 멤버의 구성 키가 둘 이상인 그룹이다. 주어진 그룹만 본다. */
+    private Set<Long> divergedGroupIds(Collection<Long> groupIds) {
+        if (groupIds.isEmpty()) {
+            return Set.of();
+        }
+        List<GuestServerGroupMember> members = memberRepository.findAllByGroupIdIn(groupIds);
+        List<UUID> serverIds = members.stream().map(m -> m.getGuestServer().getId()).toList();
         Map<UUID, SpecGroupKey> keyByServer = new HashMap<>();
-        for (GuestServerSummaryResponse row : guestServerQueryService.findAll()) {
+        for (GuestServerSummaryResponse row : guestServerQueryService.findSummaries(serverIds)) {
             if (row.specGroupKey() != null) {
                 keyByServer.put(row.id(), row.specGroupKey());
             }
         }
         Map<Long, Set<SpecGroupKey>> keysByGroup = new HashMap<>();
-        for (GuestServerGroupMember m : memberRepository.findAllWithGroup()) {
+        for (GuestServerGroupMember m : members) {
             SpecGroupKey key = keyByServer.get(m.getGuestServer().getId());
             if (key != null) {
                 keysByGroup.computeIfAbsent(m.getGroup().getId(), g -> new HashSet<>()).add(key);

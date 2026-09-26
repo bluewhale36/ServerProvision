@@ -49,6 +49,11 @@ import com.example.serverprovision.provisioning.setting.enums.OSFamily;
 import com.example.serverprovision.provisioning.setting.enums.SizeUnit;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
 import com.example.serverprovision.provisioning.setting.repository.SettingDefinitionRepository;
+import com.example.serverprovision.provisioning.setting.repository.SettingSpecifications;
+import com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery;
+import com.example.serverprovision.global.web.list.Paging;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.example.serverprovision.provisioning.setting.service.reference.ProcessReferenceInspectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -107,12 +112,11 @@ public class JpaSettingQueryService implements SettingQueryService {
     }
 
     @Override
-    public List<SettingSummaryResponse> findAll(boolean includeDeleted) {
-        // 기본은 활성 전용(DEC-F). includeDeleted 면 전건(휴지통 토글) — 삭제 배지는 deleted 플래그로 렌더.
-        List<SettingDefinition> definitions = includeDeleted
-                ? repository.findAll(Sort.by(Sort.Direction.ASC, "id"))
-                : repository.findAllByIsDeletedFalseOrderByIdAsc();
-        return definitions.stream().map(this::toSummary).toList();
+    public Page<SettingSummaryResponse> search(SettingListQuery query, Pageable pageable) {
+        // S8-1 — 조건은 Specification 한 벌, 정렬은 화이트리스트 enum 이 만든 Sort 로. 삭제분은 includeDeleted 일 때만(DEC-F).
+        return repository
+                .findAll(SettingSpecifications.of(query), Paging.of(pageable, query.sort(), query.dir()))
+                .map(this::toSummary);
     }
 
     /**
