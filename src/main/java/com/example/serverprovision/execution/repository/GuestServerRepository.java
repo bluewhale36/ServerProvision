@@ -3,6 +3,7 @@ package com.example.serverprovision.execution.repository;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.vo.GuestToken;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -10,7 +11,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface GuestServerRepository extends JpaRepository<GuestServer, UUID> {
+public interface GuestServerRepository extends JpaRepository<GuestServer, UUID>,
+        JpaSpecificationExecutor<GuestServer> {
 
     /**
      * 재부팅 멱등성 — 동일 SMBIOS UUID 의 서버가 이미 등록되어 있는지 검사.

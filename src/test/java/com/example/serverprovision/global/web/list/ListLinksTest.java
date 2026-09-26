@@ -52,4 +52,13 @@ class ListLinksTest {
         assertThat(href).doesNotContain(" ").doesNotContain("월");
         assertThat(java.net.URLDecoder.decode(q, StandardCharsets.UTF_8)).isEqualTo("8월 표준 & 50%");
     }
+
+    @Test
+    @DisplayName("toggle — 없으면 넣고 있으면 뺀다 · 다른 조건은 지니고 쪽은 버린다(S8-2 펼침 링크)")
+    void toggleAddsOrRemoves() {
+        assertThat(linksOf("includeDecommissioned=true&page=2").toggle("pending", "open"))
+                .isEqualTo("/provisioning/setting?includeDecommissioned=true&pending=open");
+        assertThat(linksOf("pending=open&phase=DIAGNOSE_LINUX").toggle("pending", "open"))
+                .isEqualTo("/provisioning/setting?phase=DIAGNOSE_LINUX");
+    }
 }

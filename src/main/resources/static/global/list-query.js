@@ -18,6 +18,14 @@
 (function () {
     'use strict';
 
+    // 필드의 기본값 — 셀렉트는 자기 data-default, 라디오 묶음(RadioNodeList)은 data-default 를 가진 항목의 값(S8-2 보기 전환).
+    function defaultOf(control) {
+        if (!control) return null;
+        if (typeof control.getAttribute === 'function') return control.getAttribute('data-default');
+        const marked = Array.from(control).find(function (el) { return el.hasAttribute && el.hasAttribute('data-default'); });
+        return marked ? marked.getAttribute('data-default') : null;
+    }
+
     function listFormOf(el) {
         const form = el && el.form;
         return form && form.hasAttribute('data-list-query') ? form : null;
@@ -45,6 +53,62 @@
         const qs = new URLSearchParams(new FormData(form)).toString();   // formdata 이벤트가 먼저 정리한다
         const action = form.getAttribute('action') || window.location.pathname;
         window.location.assign(action + (qs ? '?' + qs : ''));
+    });
+
+    // ⑦ 기간 입력(S8-2 · CP5 D-1 · D-2) — 달력에서 고르면 곧 제출하고, 키보드로 칸을 고치는 중이면 Enter 나 칸을
+    //    벗어날 때 한 번 제출한다. Chrome 은 연 · 월 · 일 칸 하나가 바뀔 때마다 change 를 쏘므로, 그대로 제출하면
+    //    연도 첫 글자에서 0002 년으로 조회된다. 값이 바뀌면 상대 칸의 min/max 를 다시 맞춰 거꾸로 고를 수 없게 한다
+    //    (서버는 거꾸로 상태에서 min/max 를 그리지 않는다 — 그리면 두 칸이 서로를 가둬 어떤 제출도 못 한다).
+    // 상한이 없으면 Chrome 의 연도 칸이 6 자리까지 받아 "202608-02-05" 같은 값이 된다(CP5 R-1) — 기본 상한을 둔다.
+    const RANGE_MAX = '9999-12-31';
+    // 속성은 값이 달라질 때만, 편집 중인 칸은 건너뛰고 대입한다(CP5 D-3). Chrome 은 min/max 가 대입되는 순간
+    // 그 칸의 진행 중 편집을 초기화해, 치던 연도가 빈 값으로 사라진다(같은 값을 다시 넣어도).
+    function setAttr(el, name, value, editing) {
+        if (el === editing) return;
+        if (value == null) { if (el.hasAttribute(name)) el.removeAttribute(name); return; }
+        if (el.getAttribute(name) !== value) el.setAttribute(name, value);
+    }
+    function syncRange(form, editing) {
+        const start = form.querySelector('input[type="date"][data-range-start]');
+        const end = form.querySelector('input[type="date"][data-range-end]');
+        if (!start || !end) return;
+        const reversed = start.value && end.value && start.value > end.value;
+        setAttr(start, 'max', reversed ? RANGE_MAX : (end.value || RANGE_MAX), editing);
+        setAttr(end, 'min', reversed ? null : (start.value || null), editing);
+        setAttr(end, 'max', RANGE_MAX, editing);
+    }
+    document.addEventListener('keydown', function (e) {
+        const el = e.target;
+        if (el instanceof HTMLInputElement && el.type === 'date' && e.key !== 'Enter' && e.key !== 'Tab') {
+            el.dataset.typing = '1';
+        }
+    }, true);
+    document.addEventListener('change', function (e) {
+        const el = e.target;
+        if (!(el instanceof HTMLInputElement) || el.type !== 'date') return;
+        const form = listFormOf(el);
+        if (!form) return;
+        if (el.dataset.typing === '1') {
+            el.dataset.dirty = '1';   // 치는 중 — min/max 도 건드리지 않고, Enter 또는 칸을 벗어날 때 제출
+            return;
+        }
+        // 검증이 먼저다(CP5 D-4) — 맞추기(syncRange)가 거꾸로를 보고 min 을 풀면 이른 날짜가 막히지 않는다.
+        if (!el.checkValidity()) { el.reportValidity(); return; }
+        syncRange(form, null);
+        form.requestSubmit();
+    });
+    document.addEventListener('focusout', function (e) {
+        const el = e.target;
+        if (!(el instanceof HTMLInputElement) || el.type !== 'date') return;
+        const dirty = el.dataset.dirty === '1';
+        delete el.dataset.typing;
+        delete el.dataset.dirty;
+        const form = listFormOf(el);
+        if (!form || !dirty) return;
+        // 검증이 먼저다(CP5 D-4). 막히면 브라우저 안내를 띄우고 제출하지 않는다 — 통과했을 때만 두 칸을 맞추고 제출.
+        if (!el.checkValidity()) { el.reportValidity(); return; }
+        syncRange(form, null);
+        form.requestSubmit();
     });
 
     // ⑥ 검색 입력칸 Enter — 조합 중이면 조합이 끝날 때, 아니면 바로 제출한다.
@@ -93,8 +157,7 @@
             const all = fd.getAll(key);
             const values = all.filter(function (v) { return typeof v !== 'string' || v.trim() !== ''; });   // 공백만 친 검색어도 빈 값(CP5 O-6)
             if (values.length === 0) { fd.delete(key); return; }
-            const control = form.elements.namedItem(key);
-            const def = control && typeof control.getAttribute === 'function' ? control.getAttribute('data-default') : null;
+            const def = defaultOf(form.elements.namedItem(key));
             if (values.length === 1 && ((key === 'dir' && dirDefault && values[0] === dirDefault) || (def !== null && values[0] === def))) {
                 fd.delete(key);
                 return;

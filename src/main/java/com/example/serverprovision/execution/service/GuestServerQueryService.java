@@ -1,5 +1,15 @@
 package com.example.serverprovision.execution.service;
 
+import com.example.serverprovision.execution.dto.request.ServerListQuery;
+import com.example.serverprovision.execution.dto.response.BoardOptionResponse;
+import com.example.serverprovision.execution.dto.response.BoardOptionGroupResponse;
+import com.example.serverprovision.execution.repository.GuestServerSpecifications;
+import com.example.serverprovision.execution.vo.ServerScope;
+import com.example.serverprovision.global.web.list.Paging;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import com.example.serverprovision.execution.engine.raid.RaidConfigurationResolutionProvider;
 import com.example.serverprovision.execution.engine.raid.RaidExistingConfigPolicy;
 import com.example.serverprovision.execution.engine.raid.RaidInventory;
@@ -148,20 +158,39 @@ public class GuestServerQueryService {
     }
 
     /**
-     * 목록 화면용 그룹 조립 (U3-3) — 등록 진행 중을 먼저 가르고, 스펙 보유 서버만 시간 구간 × 스펙으로 묶는다.
+     * 목록 화면용 그룹 조립 (U3-3 · S8-2 개정) — 등록 진행 중을 먼저 가르고, 스펙 보유 서버만 시간 구간 × 스펙으로 묶는다.
      *
-     * <p>그룹 키는 JSON 컬럼 안의 값으로 만들어지므로 SQL 로 묶을 수 없다. 이미 상세를 함께 읽고 있고
-     * 게스트 수가 입고 단위(수십~수백)라, 읽어 온 것을 애플리케이션에서 묶는다(DEC-D).</p>
-     *
-     * @param phaseFilter null 이면 전체. 값이 있으면 그 phase 인 서버만 남긴다(진행 정보가 없으면 제외)
+     * <p>그룹 키는 JSON 컬럼 안의 값으로 만들어지므로 SQL 로 묶을 수 없다. 대신 검색 · 필터는 S8-2 부터 SQL
+     * ({@link GuestServerSpecifications})이 먼저 걸러, 묶음은 조건에 맞는 서버만 대상으로 한다 — 표 보기와 같은 술어다.
+     * 회수 제외도 그 술어의 한 축이다(U6 D-4).</p>
      */
     @Transactional(readOnly = true)
-    public GuestServerListResponse findGrouped(ProvisioningPhase phaseFilter, boolean includeDecommissioned) {
-        // 기본은 활성만(U6 D-4) — 회수 행은 '회수된 서버 보기' 를 켰을 때만 노출한다(자원 휴지통 모드 선례).
-        List<GuestServer> servers = includeDecommissioned
-                ? guestServerRepository.findAllByOrderByCreatedAtDesc()
-                : guestServerRepository.findAllByDecommissionedAtIsNullOrderByCreatedAtDesc();
-        return assembleGroups(servers, phaseFilter);
+    public GuestServerListResponse findGrouped(ServerListQuery query, ServerScope scope) {
+        return assembleGroups(guestServerRepository.findAll(
+                GuestServerSpecifications.of(query, scope), Sort.by(Sort.Direction.DESC, "createdAt")));
+    }
+
+    /**
+     * 표 보기 한 쪽(S8-2) — 같은 술어로 거르고 화이트리스트 정렬로 한 쪽만 읽은 뒤, 그 쪽의 서버만 요약한다
+     * (상세 · NIC · 진행을 id 묶음으로 한 번씩 — N+1 없음).
+     */
+    @Transactional(readOnly = true)
+    public Page<GuestServerSummaryResponse> findPage(ServerListQuery query, ServerScope scope, Pageable pageable) {
+        Page<GuestServer> page = guestServerRepository.findAll(
+                GuestServerSpecifications.of(query, scope), Paging.of(pageable, query.sort(), query.dir()));
+        return new PageImpl<>(assembleSummaries(page.getContent()), page.getPageable(), page.getTotalElements());
+    }
+
+    /** 보드 셀렉트 선택지(S8-2) — 서버에 실제로 등장한 보드만, 제조사별 묶음(저장소의 제조사 · 이름 정렬을 그대로 승계). */
+    @Transactional(readOnly = true)
+    public List<BoardOptionGroupResponse> findBoardOptions() {
+        Map<String, List<BoardOptionResponse>> byVendor = new LinkedHashMap<>();
+        for (BoardOptionResponse b : detailRepository.findBoardOptions()) {
+            byVendor.computeIfAbsent(b.vendor().getDisplayName(), k -> new ArrayList<>()).add(b);
+        }
+        return byVendor.entrySet().stream()
+                .map(e -> new BoardOptionGroupResponse(e.getKey(), List.copyOf(e.getValue())))
+                .toList();
     }
 
     /** 활성 서버 요약(U6 D-4) — 그룹 '서버 넣기' 후보처럼 회수 서버가 나오면 안 되는 소비처가 쓴다. */
@@ -183,11 +212,11 @@ public class GuestServerQueryService {
         }
         return assembleGroups(guestServerRepository.findAllById(serverIds).stream()
                 .sorted(Comparator.comparing(GuestServer::getCreatedAt).reversed())
-                .toList(), null);
+                .toList());
     }
 
     /** 서버 목록 → 시간 × 스펙 그룹 응답. 연관은 id 묶음으로 한 번씩만 읽는다. */
-    private GuestServerListResponse assembleGroups(List<GuestServer> servers, ProvisioningPhase phaseFilter) {
+    private GuestServerListResponse assembleGroups(List<GuestServer> servers) {
         if (servers.isEmpty()) {
             return new GuestServerListResponse(null, List.of());
         }
@@ -201,9 +230,7 @@ public class GuestServerQueryService {
                 .collect(Collectors.toMap(p -> p.getGuestServer().getId(), Function.identity(), (a, b) -> a));
 
         LocalDateTime now = LocalDateTime.now(clock);
-        List<GuestServer> visible = servers.stream()
-                .filter(s -> matchesPhase(progressByServer.get(s.getId()), phaseFilter))
-                .toList();
+        List<GuestServer> visible = servers;   // S8-2 — 단계 필터는 SQL 술어가 이미 걸렀다
 
         // 스펙 보유 여부로 두 갈래 — 그룹 키를 만들 재료가 있는가가 곧 자격이다(DEC-B)
         List<GuestServer> grouped = new ArrayList<>();
@@ -223,13 +250,6 @@ public class GuestServerQueryService {
         return new GuestServerListResponse(
                 buildPending(pending, progressByServer, toRow),
                 buildTimeGroups(grouped, now, toRow));
-    }
-
-    private boolean matchesPhase(ProvisioningProgress progress, ProvisioningPhase filter) {
-        if (filter == null) {
-            return true;
-        }
-        return progress != null && progress.currentPhase() == filter;
     }
 
     /**

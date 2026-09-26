@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S8-2 Plan — 게스트 서버 목록 : 묶음 · 표 보기 전환과 검색 · 필터 · 정렬 · 페이징</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label, .ux-toolbar .label { flex:1; }
+  .ux-wrap .badge { display:inline-block; font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-wrap .badge.on { background:var(--green-bg); color:var(--green); } .ux-wrap .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-wrap .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-wrap .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; font-family:inherit; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  /* 데모 안의 화면 mock 요소 — 새 class 를 만들지 않고 .ux-wrap 범위의 요소 선택자로만 꾸민다 */
+  .ux-wrap input[type="text"] { padding:5px 10px; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--card); min-width:210px; font-family:inherit; }
+  .ux-wrap input[type="date"] { padding:4px 8px; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--card); font-family:var(--mono); }
+  .ux-wrap select { padding:5px 10px; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--card); font-family:var(--mono); }
+  .ux-wrap label { display:inline-flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; }
+  .ux-wrap table { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin:4px 0 8px; font-size:12.5px; }
+  .ux-wrap th, .ux-wrap td { padding:6px 9px; }
+
+  /* ── .seq : 4-actor 데이터 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); }
+  .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  /* ── .pkg-tree ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S8-2 : 게스트 서버 목록 — 묶음 · 표 보기 전환과 검색 · 필터 · 정렬 · 페이징 <span class="v2-badge">S8 두 번째 슬라이스</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> S8-2 (feature)</span>
+    <span><strong>상위</strong> S8 : 조회 화면 기능 강화</span>
+    <span><strong>영역</strong> provisioning(controller · group) + execution(service · repository)</span>
+    <span><strong>scope</strong> 서버 목록에 표 보기를 더하고, 두 보기 공통의 검색 · 필터를 SQL 로 옮긴다</span>
+    <span><strong>기준 코드</strong> <code>dev</code> 487987e (S8-1 PR #89 병합 뒤)</span>
+    <span><strong>생성</strong> 2026-09-26 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (2026-09-26 · <code>feat/S8-1_list-query</code> 작업 트리 실측)</summary>
+      <div class="body">
+        <p style="margin-top:0;">게스트 서버 목록은 <b>전 서버를 읽은 뒤 메모리에서 거르고 묶습니다</b>.
+          필터는 진행 단계 하나(단일 값)뿐이고, 링크 칩의 URL 은 컨트롤러가 조립합니다. 아래 표가 현행입니다.</p>
+        <table>
+          <thead><tr><th>항목</th><th>현행</th><th>이 슬라이스에서</th></tr></thead>
+          <tbody>
+            <tr><td>진입점</td>
+                <td><code>GET /provisioning/server</code> → <code>GuestServerController.list</code>. 파라미터 <code>phase</code>(단일) · <code>pending</code>(<code>open</code>) · <code>includeDecommissioned</code></td>
+                <td><span class="chip mod">수정</span> 파라미터 확장</td></tr>
+            <tr><td>조회</td>
+                <td><code>GuestServerQueryService.findGrouped(phase, includeDecommissioned)</code> — <code>findAllByOrderByCreatedAtDesc</code> 또는 회수 제외판으로 전수</td>
+                <td><span class="chip mod">수정</span> Specification 으로</td></tr>
+            <tr><td>조립</td>
+                <td><code>assembleGroups</code> — 상세 · 대표 NIC · 진행을 id 묶음으로 한 번씩 읽고, <code>matchesPhase</code> 로 메모리 필터 뒤 등록 진행 중 / 시간 구간 × 스펙으로 묶는다</td>
+                <td><span class="chip del">제거</span> <code>matchesPhase</code></td></tr>
+            <tr><td>칩 링크</td>
+                <td><code>n-chip-link</code>. URL 은 <code>listUrl(phase, pendingOpen, includeDecommissioned)</code> 가 조립(<code>chipUrls</code> EnumMap · <code>allChipUrl</code> · <code>pendingToggleUrl</code>)</td>
+                <td><span class="chip del">제거</span> 폼 + <code>ListLinks</code></td></tr>
+            <tr><td>회수 토글</td>
+                <td>머리의 체크박스 <code>data-include-deleted-toggle="includeDecommissioned"</code> + <code>include-deleted-toggle.js</code></td>
+                <td><span class="chip move">이동</span> 폼 필드로</td></tr>
+            <tr><td>실시간</td>
+                <td><code>server-stream.js</code> 가 SSE 신호마다 <code>fetch(location.href)</code> → <code>[data-live="server-list"]</code> 만 교체(DEC-E). 필터 띠는 영역 <b>밖</b></td>
+                <td><span class="chip keep">유지</span> 영역 이름 불변</td></tr>
+            <tr><td>행 조각</td>
+                <td><code>fragments/provisioning/server-rows :: head / row(server)</code> — 열 10 · <code>data-nav-key</code> · <code>n-table-servers</code> 고정 레이아웃</td>
+                <td><span class="chip keep">유지</span> 표 보기도 이것</td></tr>
+            <tr><td>소속 그룹 배지</td>
+                <td>컨트롤러가 <code>GuestServerGroupQueryService.findBadges(보이는 서버 id)</code> 로 받아 모델에 얹는다(DEC-C)</td>
+                <td><span class="chip keep">유지</span> 같은 합성</td></tr>
+            <tr><td>CSS</td>
+                <td>S8-1 에서 <code>.n-filter-bar</code> · <code>.n-chip-link</code> 가 전역(<code>style.css</code> §16)으로 이동. CP5 C4 회귀 없음 · O-9 치수 미세 변화</td>
+                <td><span class="chip del">제거</span> <code>.n-chip-link</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>1-1. 필터가 SQL 로 옮겨질 수 있는가 — 엔티티 관계와 도출값</h4>
+        <table>
+          <thead><tr><th>엔티티</th><th>관계</th><th>필터가 쓰는 속성</th></tr></thead>
+          <tbody>
+            <tr><td><code>GuestServerDetail</code></td><td>1:1 · 자식 → <code>GuestServer</code></td><td><code>boardModel</code>(FK) · <code>bmcIp</code>(VO) · <code>boardSerial</code></td></tr>
+            <tr><td><code>HostNicBinding</code></td><td>N:1 · 자식 → <code>GuestServer</code></td><td><code>ipAddress</code>(VO) · <code>isPrimary</code></td></tr>
+            <tr><td><code>ProvisioningProgress</code></td><td>1:1 · 자식 → <code>GuestServer</code></td><td><code>currentStep</code> · <code>startedAt</code> · <code>failedAt</code> · <code>completedAt</code></td></tr>
+          </tbody>
+        </table>
+        <p>셋 모두 자식이 <code>GuestServer</code> 를 가리키고 <b><code>GuestServer</code> 쪽 역참조가 없습니다</b>. 그래서 필터는 join 이 아니라 상관 서브쿼리 <code>exists</code> 로 풉니다(S8-1 의 <code>hasProcessType</code> 과 같은 방식).</p>
+        <div class="callout"><b>도출값 둘은 컬럼 조합이라 SQL 술어가 됩니다</b> —
+          현재 단계는 <code>currentStep.getPhaseType()</code> 이고(<code>ProvisioningPhaseStep</code> 16 상수 → <code>ProvisioningPhase</code> 8),
+          운영 상태는 <code>GuestServerStatus.derive(progress, decommissionedAt)</code> 입니다. derive 의 우선순위는
+          회수됨(<code>decommissionedAt</code>) → 실패(<code>failedAt</code>) → 완료(<code>completedAt</code>) → 등록됨(progress 없음 또는 <code>startedAt</code> 없음) → 프로비저닝 중입니다.
+          단계는 step 목록의 <code>IN</code> 으로, 상태는 네 null 조합의 술어로 옮겨집니다(§4-3).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <h4>2-1. 사용자 결정 (누적)</h4>
+        <ol>
+          <li><b>B 안</b> — 기존 묶음 보기(등록 진행 중 + 상대 시간 × 스펙)를 기본으로 두고 <b>표 보기</b>를 더합니다. 페이징 · 정렬은 표 보기에만 있습니다.</li>
+          <li>서버 필터에 <b>최초 등록 시각 범위</b>(<code>from</code> · <code>to</code>)를 추가합니다.</li>
+          <li>검색 · 필터 축 · 쪽 크기(20 · 50 · 100)는 세션 제안대로 확정됐습니다(2026-09-21).</li>
+          <li>S8-1 의 UI 규칙을 따릅니다 — 조회 띠 = GET 폼 · 정렬 = 항목 + 방향 셀렉트 둘 · 검색 입력은 Enter 가 주 경로('검색' 버튼은 남김) · 다중 선택 칩 + "전체" 해제 버튼.</li>
+          <li><b>S8-4(가칭) 예고</b>(2026-09-26) — 모든 목록의 기본 필터 "생성 일시 1 년 이내" + '검색' 버튼이 여는 <b>상세 조회 창</b>, 그리고 조회 띠의 필터를 <b>전부 그 창 안으로</b> 옮기는 일입니다. S8-2 는 이것을 앞당겨 만들지 않고, 필터를 낱개 <code>n-filter-group</code> 블록으로 두어 옮기기 쉽게만 합니다.</li>
+        </ol>
+
+        <h4>2-2. 공통 규칙 (S8-1 그대로)</h4>
+        <p style="margin-top:0;">GET 폼 · 칩 · 셀렉트는 즉시 제출 · 검색은 Enter · 빈 값과 기본값은 URL 에서 생략 · 제출은 첫 쪽으로 · 쪽 이동만 링크 · 알 수 없는 값은 400 입니다.</p>
+
+        <h4>2-3. 축</h4>
+        <table>
+          <thead><tr><th>축</th><th>파라미터</th><th>값 · 뜻</th></tr></thead>
+          <tbody>
+            <tr><td>보기</td><td><code>view</code></td><td><code>GROUPED</code>(기본 · 생략) / <code>TABLE</code></td></tr>
+            <tr><td>검색</td><td><code>q</code></td><td>이름 · SMBIOS UUID · 시리얼 · 호스트 IP(대표 NIC) · BMC IP · 보드 모델명 부분 일치(OR)</td></tr>
+            <tr><td>진행 단계</td><td><code>phase</code> (반복)</td><td><code>ProvisioningPhase</code> 8 · 다중 선택 · 축 안 OR</td></tr>
+            <tr><td>운영 상태</td><td><code>status</code> (반복)</td><td>등록됨 · 프로비저닝 중 · 완료 · 실패 · 다중 · OR · 회수됨은 칩에 없음</td></tr>
+            <tr><td>회수 포함</td><td><code>includeDecommissioned</code></td><td>체크박스 (현행 유지)</td></tr>
+            <tr><td>보드 모델</td><td><code>board</code></td><td>셀렉트 · 서버에 실제로 등장한 보드 모델만</td></tr>
+            <tr><td>소속 그룹</td><td><code>group</code></td><td>셀렉트 · 전체 / 무소속(<code>none</code>) / 그룹 id</td></tr>
+            <tr><td>최초 등록 시각</td><td><code>from</code> · <code>to</code></td><td><code>input type=date</code> · 날짜 단위 · 양 끝 포함</td></tr>
+            <tr><td>정렬 (표 보기만)</td><td><code>sort</code> · <code>dir</code></td><td><code>CREATED_AT</code>(기본 · DESC) · <code>NAME</code>(ASC) · <code>LAST_SEEN_AT</code>(DESC)</td></tr>
+            <tr><td>쪽 (표 보기만)</td><td><code>page</code> · <code>size</code></td><td>20(기본) · 50 · 100</td></tr>
+            <tr><td>등록 진행 중 펼침 (묶음 보기만)</td><td><code>pending</code></td><td><code>open</code> (현행 유지)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>2-4. 화면 규칙</h4>
+        <ol>
+          <li><b>R1 묶음 보기에도 검색 · 필터가 똑같이 걸립니다.</b> 현행 phase 필터가 묶음 보기에서 동작하므로 빼면 회귀입니다.</li>
+          <li><b>R2 묶음 보기는 쪽 · 정렬이 없습니다.</b> 순서는 시간 구간이 정하므로 정렬 셀렉트와 쪽 이동 줄을 그리지 않습니다.</li>
+          <li><b>R3 표 보기의 행은 기존 <code>server-rows</code> 조각</b>을 그대로 씁니다(열 10 · 그룹 배지 · 연결 배지 · nav-key).</li>
+          <li><b>R4 결과 건수는 SSE 교체 영역 안</b>에 둡니다(교체 때 함께 갱신). 검색 입력 · 칩 · 셀렉트는 영역 <b>밖</b>입니다(입력 중인 글자 보존).</li>
+          <li><b>R5 빈 결과는 두 갈래</b>입니다 — 조건으로 비었음(초기화 유도) / 아예 없음(현행 PXE 안내). S8-1 R8 과 같습니다.</li>
+          <li><b>R6 기간이 거꾸로(<code>from</code> &gt; <code>to</code>)면</b> 결과가 비고 "시작일이 종료일보다 늦습니다. 기간을 다시 고르십시오." 를 안내합니다. UI 는 두 입력의 <code>min</code> · <code>max</code> 로 거꾸로 고를 수 없게 막습니다(주소창 직접 입력만 이 경로에 닿습니다).</li>
+        </ol>
+
+        <div class="callout warn"><b>비 목표</b> — 아래는 이 슬라이스에서 하지 않습니다.
+          <ul>
+            <li><b>S8-4 의 상세 조회 창 · 기본 1 년 필터 · 필터의 창 안 이동</b> — 이번에는 조회 띠에 둡니다. 낱개 <code>n-filter-group</code> 블록 구조만 준비합니다.</li>
+            <li><b>자원 관리 목록 여섯</b> → S8-3(가칭).</li>
+            <li><b>기존 pager 이관</b>(감사 로그 · 점검 이력) → 후속 housekeeping.</li>
+            <li><b>O-3 advice 협상 HF</b> — 바인딩 400 경로는 S8-1 과 같이 둡니다.</li>
+            <li><b>묶음 보기의 페이징 · 가상 스크롤</b> — 하지 않습니다.</li>
+            <li><b>스펙(구성) 필터 · 연결 상태 필터</b> — 연결은 90 초 판정이라 시간이 지나면 저절로 바뀌는 값이어서 SQL 필터와 SSE 갱신이 어긋납니다. 필요하면 S8-4 에서 봅니다.</li>
+            <li><b>저장된 조회 조건</b> — 하지 않습니다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침 : §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 두 보기 · 필터 · URL · Specification 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0;">가짜 서버 30 대(결정적 생성 · 난수 없음)를 두 보기로 그립니다. 기준 시각은 <span class="mono">2026-09-26 17:40</span> 입니다.
+          위 세그먼트로 <b>묶음 / 표</b> 를 바꾸고, 조회 띠의 칩 · 셀렉트 · 기간 · 체크박스를 바꾸면 아래 결과와 캡션이 함께 바뀝니다.</p>
+        <p>캡션 셋째 줄까지가 판정입니다. <b>URL</b> 은 §2 규칙대로 조립한 경로이고(빈 값 · 기본값 생략, <code>view=GROUPED</code> 생략, 묶음 보기면 <code>sort</code> · <code>dir</code> · <code>page</code> · <code>size</code> 없음),
+          <b>Specification</b> 은 지금 살아 있는 술어의 합성과 저장소 호출입니다. 표 · 묶음을 거르는 술어와 캡션의 술어는 <b>같은 목록 하나</b>에서 나옵니다.
+          운영 상태는 <code>demoStatus()</code> 한 함수가 판정하며, 그 본문은 <code>GuestServerStatus.derive</code> 의 우선순위(회수됨 → 실패 → 완료 → 등록됨 → 프로비저닝 중)를 그대로 옮긴 것입니다.
+          셋째 줄 <b>술어 대조</b>는 §4-3 의 SQL 술어를 30 대 전부에 적용해 <code>demoStatus()</code> 와 어긋나는 서버 수를 셉니다.</p>
+        <p>진행 단계와 운영 상태 칩은 <b>여럿 고를수록 넓어집니다</b>(축 안 OR · D6). 축과 축 사이는 AND 라 다른 축을 더하면 좁아집니다.
+          '펌웨어 두 단계' 프리셋이 이 차이를 건수로 보여줍니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">보기 :</span>
+            <button class="seg" data-view="GROUPED" onclick="demoView('GROUPED')">묶음</button>
+            <button class="seg" data-view="TABLE" onclick="demoView('TABLE')">표</button>
+          </div>
+          <div class="ux-toolbar" id="demo-presets"></div>
+
+          <div style="margin-top:14px;">
+            <div id="demo-bar"></div>
+            <div id="demo-live"></div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 전수 읽고 메모리에서 phase 필터</h4><pre><code>List&lt;GuestServer&gt; servers = includeDecommissioned
+    ? repository.findAllByOrderByCreatedAtDesc()
+    : repository.findAllByDecommissionedAtIsNull
+                     OrderByCreatedAtDesc();
+return assembleGroups(servers, phaseFilter);
+  // 안에서 matchesPhase(progress, filter)</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 두 보기가 같은 Specification</h4><pre><code>Specification&lt;GuestServer&gt; spec =
+    GuestServerSpecifications.of(query, scope);
+// GROUPED
+assembleGroups(repository.findAll(spec,
+    Sort.by(DESC, "createdAt")));
+// TABLE
+repository.findAll(spec,
+    Paging.of(pageable, query.sort(), query.dir()))
+  .map(쪽 내용만 assembleSummaries);</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 운영 상태 판정(<code>demoStatus</code>) = <code>GuestServerStatus.derive</code>,
+          단계 판정(<code>demoPhase</code>) = <code>ProvisioningPhaseStep.getPhaseType()</code> 16 상수 표,
+          필터 합성(축 안 OR · 축 사이 AND · 회수 포함이 꺼지면 <code>decommissioned(false)</code> · 기간 양 끝 포함) = §4 의 <code>GuestServerSpecifications.of</code>,
+          묶음 눈금 = <code>RegistrationAge.of</code> 입니다. SQL 술어와 derive 가 같은 판정인지는 §6-3 의 조합 전수 대조 테스트가 고정합니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름 + 프론트</summary>
+      <div class="body">
+        <h4>3-1. URL</h4>
+        <p style="margin-top:0;">신규 POST 는 없습니다. 기존 GET 하나가 받는 파라미터가 늘어납니다. SSE <code>GET /provisioning/server/stream</code> 은 무변경입니다.</p>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>파라미터</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/provisioning/server</code></td>
+                <td><code>view</code> · <code>q</code> · <code>phase</code>(반복) · <code>status</code>(반복) · <code>includeDecommissioned</code> · <code>board</code> · <code>group</code> · <code>from</code> · <code>to</code> · <code>sort</code> · <code>dir</code> · <code>page</code> · <code>size</code> · <code>pending</code></td>
+                <td>200 <code>provisioning/server-list</code> (두 보기)</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server</code></td>
+                <td><code>view=XX</code> · <code>status=XX</code> · <code>phase=XX</code> · <code>board=abc</code> · <code>group=??</code> · <code>from=2026-13-01</code> · <code>sort=ZZZ</code> · <code>dir=UP</code></td>
+                <td>400 <code>error.html</code></td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/stream</code></td><td>—</td><td>SSE 무변경</td></tr>
+          </tbody>
+        </table>
+        <pre><code>[묶음 기본]   GET /provisioning/server
+[표 보기]     GET /provisioning/server?view=TABLE
+[단계 둘]     GET /provisioning/server?phase=FIRMWARE_UPDATING&amp;phase=FIRMWARE_SETTING      (OR)
+[무소속]      GET /provisioning/server?view=TABLE&amp;group=none&amp;sort=LAST_SEEN_AT
+[9월 등록분]  GET /provisioning/server?from=2026-09-01&amp;to=2026-09-30
+[쪽 이동]     links.page(1)  → 나머지 파라미터 유지 + page=1
+[펼침 토글]   links.toggle("pending", "open")  → 있으면 빼고 없으면 넣는다 (page 는 버림)
+[초기화]      links.reset()  → /provisioning/server
+[오류값]      ?view=XX · ?group=?? · ?from=2026-13-01 … → 바인딩 · 변환 실패 → 400 → templates/error.html</code></pre>
+
+        <h4>3-2. 요청 한 건의 흐름</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">Controller (provisioning)</div><div class="actor a3">Service (execution)</div><div class="actor a4">Repository</div>
+          <div class="step a1">조회 띠 GET 제출(스크립트가 빈 값 · 기본값 제거) 또는 쪽 · 펼침 링크</div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"><code>@ModelAttribute("query") ServerListQuery</code> · <code>@PageableDefault(size = 20) Pageable</code> · <code>ListLinks</code> 수령</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">그룹 조건을 서버 id 범위로 번역 — <code>GuestServerGroupQueryService.scopeOf(group)</code> → <code>ServerScope</code>(그룹 id → 멤버 id 집합 / 무소속 → 소속 서버 id 전부를 제외 목록으로)</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>GuestServerSpecifications.of(query, scope)</code> 합성</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><b>GROUPED</b> — <code>findAll(spec, Sort.by(DESC, "createdAt"))</code> → 기존 <code>assembleGroups</code>(메모리 phase 필터 제거)</div><div class="step a4">select 1 + 상세 · NIC · 진행 id 묶음 각 1</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><b>TABLE</b> — <code>findAll(spec, Paging.of(pageable, query.sort(), query.dir()))</code> → 쪽 내용만 <code>assembleSummaries</code> → <code>Page&lt;GuestServerSummaryResponse&gt;</code></div><div class="step a4">count 1 + select 1 + id 묶음 각 1 (N+1 없음)</div>
+          <div class="step a1"></div><div class="step a2">보이는 서버 id 로 <code>findBadges</code> → 모델 (현행과 같은 합성)</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">조회 띠에 상태 복원 · <code>[data-live]</code> 안에 결과 건수 + (묶음 | 표 + 쪽 이동)</div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+        </div>
+        <p>SSE 재조회는 이 흐름을 그대로 한 번 더 탑니다. URL 에 상태가 전부 있으므로 교체된 영역은 같은 보기 · 같은 필터 · 같은 쪽으로 다시 그려집니다.</p>
+
+        <h4>3-3. 컨트롤러 시그니처와 모델</h4>
+        <pre><code>@GetMapping
+public String list(@ModelAttribute("query") ServerListQuery query,
+                   @PageableDefault(size = 20) Pageable pageable,
+                   ListLinks links, Model model)</code></pre>
+        <table>
+          <thead><tr><th>모델 속성</th><th>타입 · 내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>list</code></td><td><code>GuestServerListResponse</code> — 묶음 보기일 때</td></tr>
+            <tr><td><code>page</code></td><td><code>Page&lt;GuestServerSummaryResponse&gt;</code> — 표 보기일 때</td></tr>
+            <tr><td><code>query</code></td><td><code>ServerListQuery</code> — 조회 띠 상태 복원</td></tr>
+            <tr><td><code>links</code></td><td><code>ListLinks</code> — 쪽 이동 · 펼침 토글 · 초기화</td></tr>
+            <tr><td><code>phases</code></td><td><code>ProvisioningPhase.values()</code></td></tr>
+            <tr><td><code>statuses</code></td><td><code>GuestServerStatus</code> 중 <code>DECOMMISSIONED</code> 제외 4</td></tr>
+            <tr><td><code>boardOptions</code></td><td><code>findBoardOptions()</code> — 서버에 등장한 보드 모델 id · 이름</td></tr>
+            <tr><td><code>groupOptions</code></td><td><code>findOptions()</code> — 그룹 id · 이름</td></tr>
+            <tr><td><code>sortFields</code> · <code>sortDefault</code></td><td><code>ServerSortField.values()</code> · 기본 항목</td></tr>
+            <tr><td><code>groupBadges</code></td><td><code>Map&lt;UUID, GroupBadgeResponse&gt;</code></td></tr>
+            <tr><td><code>pendingOpen</code></td><td><code>boolean</code></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>삭제</b> — <code>listUrl</code> · <code>chipUrls</code> · <code>allChipUrl</code> · <code>pendingToggleUrl</code>. 폼과 <code>ListLinks</code> 가 대신합니다.
+          펼침 토글 링크는 <code>ListLinks</code> 에 <code>toggle(name, value)</code> 한 메서드를 더해 만듭니다.</div>
+
+        <h4>3-4. 프론트</h4>
+        <table>
+          <thead><tr><th>자리</th><th>구성</th></tr></thead>
+          <tbody>
+            <tr><td>조회 띠 (<code>server-list.html</code> · 영역 밖)</td>
+                <td>검색 입력 + 검색 버튼 · 보기 전환 칩(라디오 <code>GROUPED</code> / <code>TABLE</code>) · 진행 단계 칩(체크박스 8 + 전체 해제) · 운영 상태 칩(체크박스 4 + 전체 해제) · 보드 셀렉트 · 그룹 셀렉트 · 등록 시각 <code>from</code> ~ <code>to</code> · 회수된 서버 보기 체크박스 · (표 보기일 때만) 정렬 셀렉트 둘 · 초기화 링크</td></tr>
+            <tr><td>필터 블록</td><td>전부 낱개 <code>n-filter-group</code> — S8-4 가 통째로 창 안으로 옮기기 쉽게</td></tr>
+            <tr><td><code>[data-live="server-list"]</code> 안</td>
+                <td>결과 건수 한 줄 · 묶음(현행 마크업) 또는 표(<code>n-card</code> + <code>n-table n-table-servers</code> + <code>server-rows</code> 조각 + <code>pagination :: pager</code>)</td></tr>
+            <tr><td><code>list-query.js</code></td>
+                <td>한 기능 추가 — 날짜 입력 둘이 바뀌면 즉시 제출, 서로 <code>min</code> · <code>max</code> 를 걸어 거꾸로 고를 수 없게</td></tr>
+            <tr><td><code>style.css</code></td><td>§16 의 <code>.n-chip-link</code> 규칙 삭제(사용처 0 확인 후) · 날짜 입력 폭</td></tr>
+            <tr><td>스크립트 적재</td><td>이 화면에서만 <code>include-deleted-toggle.js</code> 적재 제거 (다른 화면은 계속 사용)</td></tr>
+            <tr><td><code>messages.properties</code></td>
+                <td><code>provisioning.server.list.empty-filtered</code>="조건에 맞는 서버가 없습니다." · <code>provisioning.server.list.range-reversed</code>="시작일이 종료일보다 늦습니다. 기간을 다시 고르십시오."</td></tr>
+            <tr><td><code>DESIGN.md</code></td><td>§5 조회 띠 문단에 "보기 전환 칩" · "기간 입력" 한 줄씩, <code>n-chip-link</code> 언급 삭제, D6 의 AND · OR 규칙 한 줄</td></tr>
+          </tbody>
+        </table>
+        <p>칩 · 머리글 라벨은 화면 1 회성 명사라 템플릿에 직접 적습니다. 검색 입력 placeholder 는 <span class="mono">예: srv-01 · 10.1.1.5</span> 입니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) — 엔티티 · DDL 변경 없음</summary>
+      <div class="body">
+        <h4>4-1. 신규 · 수정 타입</h4>
+        <table>
+          <thead><tr><th>타입</th><th>위치</th><th>구분</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>ServerListView</code></td><td><code>execution/enums</code></td><td><span class="chip new">신규</span></td><td><code>GROUPED</code> · <code>TABLE</code></td></tr>
+            <tr><td><code>ServerSortField</code></td><td><code>execution/enums</code></td><td><span class="chip new">신규</span></td><td><code>implements SortField</code> · <code>CREATED_AT("createdAt", DESC)</code> · <code>NAME("name", ASC)</code> · <code>LAST_SEEN_AT("lastSeenAt", DESC)</code></td></tr>
+            <tr><td>운영 상태 필터</td><td>—</td><td><span class="chip keep">재사용</span></td><td><code>GuestServerStatus</code> · 칩 선택지는 <code>DECOMMISSIONED</code> 제외</td></tr>
+            <tr><td><code>ServerListQuery</code></td><td><code>execution/dto/request</code></td><td><span class="chip new">신규</span></td><td>record — 아래 4-2</td></tr>
+            <tr><td><code>GroupFilter</code></td><td><code>provisioning/group/vo</code></td><td><span class="chip new">신규</span></td><td>값 객체 — <code>ANY</code>(없음) · <code>UNGROUPED</code> · <code>of(id)</code></td></tr>
+            <tr><td><code>GroupFilterConverter</code></td><td><code>provisioning/group/vo</code></td><td><span class="chip new">신규</span></td><td><code>Converter&lt;String, GroupFilter&gt;</code> — <code>""</code> → <code>ANY</code> · <code>"none"</code> → <code>UNGROUPED</code> · 숫자 → <code>of(id)</code> · 그 밖 → 400</td></tr>
+            <tr><td><code>ServerScope</code></td><td><code>execution/vo</code></td><td><span class="chip new">신규</span></td><td>record(<code>Set&lt;UUID&gt; onlyIds</code> nullable, <code>Set&lt;UUID&gt; excludeIds</code>)</td></tr>
+            <tr><td><code>GuestServerSpecifications</code></td><td><code>execution/repository</code></td><td><span class="chip new">신규</span></td><td>static 술어 7 + <code>of(query, scope)</code> — 아래 4-3</td></tr>
+            <tr><td><code>GuestServerRepository</code></td><td><code>execution/repository</code></td><td><span class="chip mod">수정</span></td><td><code>JpaSpecificationExecutor&lt;GuestServer&gt;</code> 추가</td></tr>
+            <tr><td><code>GuestServerQueryService</code></td><td><code>execution/service</code></td><td><span class="chip mod">수정</span></td><td><code>findGrouped(ServerListQuery, ServerScope)</code> · <code>findPage(ServerListQuery, ServerScope, Pageable)</code> 신설 · <code>findBoardOptions()</code> 신설 · <code>matchesPhase</code> 삭제</td></tr>
+            <tr><td><code>GuestServerGroupQueryService</code></td><td><code>provisioning/group/service</code></td><td><span class="chip mod">수정</span></td><td><code>scopeOf(GroupFilter)</code> → <code>ServerScope</code> · <code>findOptions()</code></td></tr>
+            <tr><td><code>ListLinks</code></td><td><code>global/web/list</code></td><td><span class="chip mod">수정</span></td><td><code>toggle(name, value)</code> — 있으면 빼고 없으면 넣은 링크 · <code>page</code> 는 버림</td></tr>
+          </tbody>
+        </table>
+        <p><code>ServerSortField</code> 의 <code>label()</code> 은 "등록 시각" · "이름" · "마지막 접촉" 입니다(CP1 세션 확정 — 서버 표의 머리글 어휘와 같게).</p>
+
+        <h4>4-2. <code>ServerListQuery</code></h4>
+        <pre><code>public record ServerListQuery(
+        ServerListView view,
+        String q,
+        @BindParam("phase")  Set&lt;ProvisioningPhase&gt; phases,
+        @BindParam("status") Set&lt;GuestServerStatus&gt; statuses,
+        boolean includeDecommissioned,
+        @BindParam("board")  Long boardModelId,
+        @DateTimeFormat(iso = DATE) LocalDate from,
+        @DateTimeFormat(iso = DATE) LocalDate to,
+        ServerSortField sort,
+        Sort.Direction dir) {
+
+    // 압축 생성자: 공백 q → null · null 원소 제거 · statuses 에서 DECOMMISSIONED 무시
+    //             · view / sort / dir 기본값 (dir 은 그 항목의 defaultDirection())
+    public boolean isFiltered()      { … }
+    public boolean isRangeReversed() { return from != null &amp;&amp; to != null &amp;&amp; from.isAfter(to); }
+}</code></pre>
+        <p><b>그룹 조건은 이 record 에 두지 않습니다(CP1 세션 판정).</b> <code>GroupFilter</code> 는 provisioning 타입이라 execution 의 record 가 들면
+          D5 가 막으려던 역방향 의존이 생깁니다. 컨트롤러(provisioning)가 <code>@RequestParam(value = "group", required = false) GroupFilter group</code> 으로 따로 받아
+          <code>scopeOf(group)</code> 로 <code>ServerScope</code> 를 만들고, 화면의 "조건이 걸렸는가" 는 <code>query.isFiltered() || group.isSet()</code> 를 모델 <code>filtered</code> 로 넘겨 판단합니다.</p>
+        <p><code>statuses</code> 에서 <code>DECOMMISSIONED</code> 를 무시하는 이유는 회수 여부를 체크박스 한 축이 맡기 때문입니다(D7). 주소창에 <code>status=DECOMMISSIONED</code> 를 직접 넣어도 400 이 아니라 조용히 빠집니다(CP5 B2).</p>
+
+        <h4>4-3. <code>GuestServerSpecifications.of(query, scope)</code></h4>
+        <table>
+          <thead><tr><th>술어</th><th>조건</th></tr></thead>
+          <tbody>
+            <tr><td><code>searchAny(q)</code></td><td><code>name</code> · <code>cast(systemUUID as String)</code> · <code>serialNumber</code> LIKE ∨ exists 대표 NIC <code>ipAddress</code> LIKE ∨ exists 상세(<code>bmcIp</code> LIKE ∨ <code>boardModel.modelName</code> LIKE)</td></tr>
+            <tr><td><code>phaseIn(phases)</code></td><td>exists 진행 · <code>currentStep IN</code> [고른 phase 들의 step]</td></tr>
+            <tr><td><code>statusIn(statuses)</code></td><td>상태별 술어(아래 표)를 OR</td></tr>
+            <tr><td><code>decommissioned(false)</code></td><td><code>decommissionedAt is null</code> — 회수 포함이 아닐 때</td></tr>
+            <tr><td><code>boardIs(id)</code></td><td>exists 상세 · <code>boardModel.id = :id</code></td></tr>
+            <tr><td><code>scope(onlyIds / excludeIds)</code></td><td><code>id IN onlyIds</code> · <code>id NOT IN excludeIds</code></td></tr>
+            <tr><td><code>createdBetween(from, to)</code></td><td><code>createdAt &gt;= from 00:00</code> ∧ <code>createdAt &lt; to 다음 날 00:00</code></td></tr>
+          </tbody>
+        </table>
+        <p><code>phaseIn</code> 의 step 목록은 손으로 적지 않고 <code>ProvisioningPhaseStep.values()</code> 를 <code>getPhaseType()</code> 으로 걸러 만듭니다. step → phase 매핑의 SSOT 가 enum 한 곳에 남습니다.</p>
+
+        <table>
+          <thead><tr><th>운영 상태</th><th>술어 (진행 p 는 상관 서브쿼리)</th></tr></thead>
+          <tbody>
+            <tr><td>회수됨</td><td><code>decommissionedAt</code> 있음</td></tr>
+            <tr><td>실패</td><td>회수 아님 ∧ exists p(<code>failedAt</code> 있음)</td></tr>
+            <tr><td>완료</td><td>회수 아님 ∧ exists p(<code>failedAt</code> 없음 ∧ <code>completedAt</code> 있음)</td></tr>
+            <tr><td>등록됨</td><td>회수 아님 ∧ not exists p(<code>startedAt</code> 있음 ∨ <code>failedAt</code> 있음 ∨ <code>completedAt</code> 있음)</td></tr>
+            <tr><td>프로비저닝 중</td><td>회수 아님 ∧ exists p(<code>startedAt</code> 있음 ∧ <code>failedAt</code> 없음 ∧ <code>completedAt</code> 없음)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>등록됨 술어 정정(에이전트 발굴 · CP1 세션 채택)</b> —
+          브리프 원안은 "회수 아님 ∧ not exists p(<code>startedAt</code> 있음)" 입니다. 그런데 <code>ProvisioningProgress</code> 에는 R13 이 만든 <b>미개시 실패</b>가 있습니다
+          (<code>startedAt</code> null 인 채 진단 창에서 게스트가 FAILED 를 보고한 경우 — <code>isStartableWith</code> 주석). derive 는 실패를 등록됨보다 먼저 보므로 이 서버를 <b>실패</b>로 판정하지만,
+          원안 술어는 같은 서버를 <b>등록됨</b>으로도 잡아 두 상태에 동시에 걸립니다. 그래서 등록됨에서 실패 · 완료 신호가 있는 진행을 함께 빼는 형태로 적었습니다.
+          <code>completedAt</code> 은 <code>markCompleted</code> 가 미개시를 막아 실제로는 <code>startedAt</code> 없이 생기지 않지만, §6-3 의 조합 전수 대조가 그 조합도 만들므로 술어에 포함했습니다.
+          데모의 셋째 캡션 줄이 원안 술어였을 때의 불일치 수를 함께 보여줍니다.</div>
+
+        <h4>4-4. Specification 이 쓰는 속성</h4>
+        <div class="pkg-tree">GuestServer
+├── name               (searchAny · 정렬 NAME)
+├── systemUUID         (searchAny — cast(... as String))
+├── serialNumber       (searchAny)
+├── decommissionedAt   (decommissioned · statusIn)
+├── createdAt          (createdBetween · 정렬 기본)
+├── lastSeenAt         (정렬 LAST_SEEN_AT)
+└── id                 (scope)
+
+HostNicBinding.guestServer ──▶ GuestServer   exists (isPrimary ∧ ipAddress LIKE — VO 컨버터 컬럼 as(String.class))
+GuestServerDetail.guestServer ──▶ GuestServer exists (bmcIp LIKE · boardModel.modelName LIKE · boardModel.id =)
+ProvisioningProgress.guestServer ──▶ GuestServer exists (currentStep IN · startedAt · failedAt · completedAt)</div>
+
+        <h4>4-5. 서비스 시그니처</h4>
+        <pre><code>// execution
+GuestServerListResponse            GuestServerQueryService.findGrouped(ServerListQuery query, ServerScope scope)
+Page&lt;GuestServerSummaryResponse&gt;   GuestServerQueryService.findPage(ServerListQuery query, ServerScope scope, Pageable pageable)
+List&lt;…&gt;                            GuestServerQueryService.findBoardOptions()        // 서버에 등장한 보드 모델 id · 이름
+  └ 삭제: findGrouped(ProvisioningPhase, boolean) · matchesPhase
+
+// provisioning
+ServerScope                        GuestServerGroupQueryService.scopeOf(GroupFilter group)
+List&lt;…&gt;                            GuestServerGroupQueryService.findOptions()        // 그룹 셀렉트 id · 이름
+
+// global
+String                             ListLinks.toggle(String name, String value)</code></pre>
+        <p>선택지 반환 타입(CP1 세션 확정): <code>findBoardOptions()</code> → <code>List&lt;BoardOptionResponse&gt;</code>(<code>execution/dto/response</code> · record(id, name)) · <code>findOptions()</code> → <code>List&lt;GroupOptionResponse&gt;</code>(<code>provisioning/group/dto/response</code> · record(id, name)).</p>
+
+        <div class="callout success"><b>Primitive Obsession 점검</b> —
+          보기 · 정렬 · 단계 · 상태는 <b>enum</b>(<code>ServerListView</code> · <code>ServerSortField</code> · <code>ProvisioningPhase</code> · <code>GuestServerStatus</code>),
+          그룹은 <b><code>GroupFilter</code> VO</b>, 범위는 <b><code>ServerScope</code> VO</b>, 날짜는 <b><code>LocalDate</code></b>, 방향은 Spring <code>Sort.Direction</code> 입니다.
+          검색어 <code>q</code> 는 형식이 없는 사용자 입력이라 S8-1 과 같이 <code>String</code> 으로 둡니다.
+          보드는 선택지에서 고른 기존 엔티티의 <code>Long</code> id 입니다.</div>
+        <div class="callout success"><b>의존 방향(에이전트 발굴 · CP1 세션 판정)</b> — 브리프 원안은 <code>ServerListQuery</code>(execution)가 <code>GroupFilter</code>(provisioning)를 필드로 가져 역방향 의존이 생겼습니다. 그룹 조건을 record 에서 빼고 컨트롤러가 따로 받는 형태로 고쳤습니다(4-2). execution 은 <code>ServerScope</code>(자기 타입)만 봅니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td><code>server-list.html</code> 조회 띠 · 두 보기 · <code>list-query.js</code> 날짜 입력 · <code>style.css</code> · <code>messages.properties</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3</td><td><code>GuestServerController.list</code> 시그니처 · 모델 · <code>listUrl</code> 류 삭제</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>4</td><td><code>ServerListQuery</code> · <code>GroupFilter</code> · <code>ServerScope</code> · <code>ServerListView</code> · <code>ServerSortField</code> · <code>GroupFilterConverter</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td><code>findGrouped</code> · <code>findPage</code> · <code>findBoardOptions</code> · <code>scopeOf</code> · <code>findOptions</code> 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td><code>JpaSpecificationExecutor</code> · <code>GuestServerSpecifications</code></td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>7</td><td>N/A — 엔티티 무변경</td><td><span class="chip cp3">CP3</span></td><td>—</td></tr>
+            <tr><td>8</td><td>서비스 본체 · <code>ListLinks.toggle</code> · Converter 등록 (테스트 제외, 빌드 통과)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>9</td><td>DDL 없음 — <code>ddl-auto=validate</code> 기동 확인만</td><td><span class="chip cp4">CP4</span></td><td>중간 승인</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 · 저장소 테스트 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (Opus 하위 에이전트 수행 · 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷입니다. 무중단 구간은 둘입니다 —
+          ① CP1 승인 → CP4 게이트 지점(main 구현 · 경계마다 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출).
+          CP5 는 수행 결과를 보고만 하고 그 검수는 CP6 에서 report 와 함께 받습니다.</div>
+        <div class="callout warn"><b>브랜치</b> — S8-2 는 S8-1 의 <b>미커밋 부품</b>(<code>ListLinks</code> · <code>SortField</code> · <code>Paging</code> · <code>LikePattern</code> · <code>pagination</code> · <code>sort-selects</code> 조각 · <code>list-query.js</code> · <code>style.css</code> §16) 위에서 섭니다.
+          S8-1 은 2026-09-26 에 PR #89 로 <code>dev</code> 에 병합됐습니다(487987e). CP1 승인 뒤 <code>origin/dev</code> 에서 <code>feat/S8-2_server-list</code> 를 땁니다(§8 Q1 해소).</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오 (단위 17 · 통합 12 · 저장소 12)</summary>
+      <div class="body">
+        <h4>6-1. 단위 테스트 (JUnit + Mockito)</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>ServerListQueryTest</code></td><td>기본값 · 공백 <code>q</code> · null 원소 · <code>DECOMMISSIONED</code> 무시 · 거꾸로 기간(<code>isRangeReversed</code>) · <code>isFiltered</code></td><td>6</td></tr>
+            <tr><td><code>GroupFilterConverterTest</code></td><td><code>""</code> · <code>none</code> · 숫자 · 잘못된 값</td><td>4</td></tr>
+            <tr><td><code>ListLinksTest</code></td><td><code>toggle</code> — 없으면 넣는다 · 있으면 뺀다(둘 다 <code>page</code> 버림)</td><td>2</td></tr>
+            <tr><td><code>GuestServerGroupQueryServiceTest.scopeOf</code></td><td><code>ANY</code> · <code>UNGROUPED</code> · <code>of(id)</code></td><td>3</td></tr>
+            <tr><td><code>GuestServerQueryServiceTest</code></td><td><code>findPage</code> · <code>findGrouped</code></td><td>2</td></tr>
+          </tbody>
+        </table>
+
+        <h4>6-2. 사용자 액션 통합 테스트 (<code>GuestServerControllerListTest</code> · <code>@WebMvcTest</code> + <code>MockMvc</code> + <code>@MockitoBean</code>)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 200</td>
+                <td>묶음 기본(현행 화면 요소 · <code>pending</code> 펼침) · 표 보기(쪽 이동 · 정렬 셀렉트) · 전 축 바인딩(<code>phase</code> 반복 · <code>status</code> 반복 · <code>board</code> · <code>group=none</code> · <code>from</code>/<code>to</code> · <code>sort</code> · <code>dir</code>) · SSE 재조회 헤더(<code>X-Requested-With</code>)로도 같은 화면 · 거꾸로 기간 안내</td><td>5</td></tr>
+            <tr><td>400</td><td><code>view</code> · <code>phase</code> · <code>status</code> · <code>board</code> · <code>group</code> · <code>from</code> · <code>sort</code>/<code>dir</code> 오류값</td><td>7</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>404 · 409 · 500 범주는 이 슬라이스에 없습니다.</b>
+          목록 조회는 존재하지 않는 자원을 가리키지 않고(404 없음), 상태를 바꾸지 않으며(409 없음), 신규 예외가 0 입니다.
+          <code>GroupFilter</code> 변환 실패는 도메인 예외가 아니라 <b>바인딩 400</b> 이고 위 표가 트리거합니다.</div>
+
+        <h4>6-3. 저장소 테스트 (<code>GuestServerSpecificationsJpaTest</code> · <code>@DataJpaTest</code> · S8-1 선례 설정)</h4>
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>상태 술어 ↔ <code>GuestServerStatus.derive</code></td><td>조합 전수 대조 — 진행 없음 1 + (<code>startedAt</code> · <code>failedAt</code> · <code>completedAt</code> 유무 8) = 9 × <code>decommissionedAt</code> 유무 2 = 18 대를 만들고, 각 상태로 조회한 결과가 derive 결과와 1:1</td><td>1</td></tr>
+            <tr><td><code>phaseIn</code></td><td>두 phase → OR</td><td>1</td></tr>
+            <tr><td><code>searchAny</code></td><td>필드별 — 이름 · UUID(cast) · 시리얼 · 대표 NIC IP(VO LIKE) · BMC IP · 보드 모델명</td><td>6</td></tr>
+            <tr><td><code>createdBetween</code></td><td>양 끝 포함</td><td>1</td></tr>
+            <tr><td><code>scope</code></td><td>포함 · 제외</td><td>2</td></tr>
+            <tr><td><code>decommissioned(false)</code></td><td>회수 제외 기본</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <p>조합 전수 대조가 D4 의 안전장치입니다. derive 의 규칙이 바뀌면 이 테스트가 먼저 깨져 SQL 술어가 따라 바뀌어야 함을 알립니다.</p>
+
+        <h4>6-4. 회귀</h4>
+        <ul>
+          <li><code>GuestServerControllerTest</code> 류의 목록 테스트를 새 <code>findGrouped</code> 시그니처에 맞춥니다.</li>
+          <li><code>server-stream.js</code> 교체 영역 이름(<code>server-list</code>)이 그대로인지 확인합니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 0</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외 · 경로</th><th>HTTP</th><th>구분</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>enum · <code>Long</code> · <code>LocalDate</code> 바인딩 실패, <code>GroupFilterConverter</code> 변환 실패 → Spring <code>DefaultHandlerExceptionResolver</code></td><td>400</td>
+                <td><span class="chip keep">재사용</span></td><td><code>templates/error.html</code> — S8-1 과 같은 경로</td></tr>
+            <tr><td>도메인 예외</td><td>—</td><td><span class="chip keep">없음</span></td><td>목록 조회는 자원을 가리키지 않음</td></tr>
+          </tbody>
+        </table>
+        <p>O-3(advice 의 콘텐츠 협상) HF 후보는 S8-1 에서 적립된 그대로 두고, 이 슬라이스에서 바인딩 실패 핸들러를 더하지 않습니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 (D1 ~ D15)</summary>
+      <div class="body">
+        <h4>8-1. 결정</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택</th><th>비채택 대안</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b></td><td>보기 전환</td><td><code>view</code> 파라미터 (URL 상태)</td><td>별도 경로 <code>/server/table</code> / 클라이언트 JS 전환</td></tr>
+            <tr><td><b>D2</b></td><td>필터 적용 범위</td><td>두 보기 공통 · Specification 한 벌</td><td>표 보기에만 필터</td></tr>
+            <tr><td><b>D3</b></td><td>phase 필터 자리</td><td>메모리 → SQL</td><td>메모리 유지</td></tr>
+            <tr><td><b>D4</b></td><td>운영 상태 필터</td><td>derive 규칙을 SQL 술어로 + 조합 전수 대조 테스트</td><td>상태 컬럼 신설 / 메모리 필터</td></tr>
+            <tr><td><b>D5</b></td><td>그룹 필터</td><td>provisioning 이 <code>ServerScope</code> 로 번역해 넘김</td><td>execution Specification 이 그룹 멤버를 직접 join</td></tr>
+            <tr><td><b>D6</b></td><td>단계 · 상태 다중 선택</td><td>축 안 OR</td><td>AND (S8-1 포함 단계와 같게)</td></tr>
+            <tr><td><b>D7</b></td><td>회수 표현</td><td>체크박스 유지 · 상태 칩에서 회수됨 제외</td><td>상태 칩에 회수됨 포함</td></tr>
+            <tr><td><b>D8</b></td><td>기간</td><td>날짜 단위 · 양 끝 포함 · 거꾸로면 빈 결과 + 안내 · UI <code>min</code>/<code>max</code></td><td>조용히 뒤바꿈 / 400</td></tr>
+            <tr><td><b>D9</b></td><td>검색</td><td>6 필드 OR 한 입력</td><td>필드 선택 드롭다운</td></tr>
+            <tr><td><b>D10</b></td><td>SSE 교체 범위</td><td>결과 건수 · 표 · 쪽 이동은 영역 안, 입력 · 칩은 밖</td><td>조회 띠 전체를 영역 안</td></tr>
+            <tr><td><b>D11</b></td><td>정렬 · 쪽</td><td>표 보기만</td><td>묶음 안 정렬</td></tr>
+            <tr><td><b>D12</b></td><td>링크 조립</td><td>링크 칩 · <code>listUrl</code> 제거, 폼 + <code>ListLinks.toggle</code></td><td>현행 유지</td></tr>
+            <tr><td><b>D13</b></td><td>보드 선택지</td><td>서버에 실제로 나온 보드만</td><td>등록된 보드 전부</td></tr>
+            <tr><td><b>D14</b></td><td>연결 상태 필터</td><td>제외</td><td>연결 상태 칩 추가</td></tr>
+            <tr><td><b>D15</b></td><td>S8-4 대비</td><td>구조만 (낱개 필터 블록)</td><td>상세 조회 창을 이번에 함께</td></tr>
+          </tbody>
+        </table>
+
+        <h4>8-2. 탈락 사유</h4>
+        <p style="margin-top:0;"><b>D1</b> — 별도 경로는 SSE 범위 · nav-stack · 링크를 둘로 만듭니다. JS 전환은 URL 상태 원칙(DEC-E)을 깨서, 새로고침이나 SSE 재조회 때 보기가 풀립니다.</p>
+        <p><b>D2</b> — 현행 phase 필터가 묶음 보기에서 동작하므로, 필터를 표 보기에만 두면 그 기능이 사라지는 회귀입니다.</p>
+        <p><b>D3</b> — 메모리 필터를 남기면 표 보기 페이징의 총 건수가 틀어집니다(DB 가 센 건수와 메모리가 거른 건수가 다릅니다). step → phase 매핑은 enum 에서 파생하므로 SQL 로 옮겨도 SSOT 가 유지됩니다.</p>
+        <p><b>D4</b> — 운영 상태는 저장하지 않는 도출값(U1 §D4)이라, 컬럼을 두면 진행 신호와 상태 컬럼 두 곳이 갈라질 자리가 생깁니다. 메모리 필터는 D3 과 같은 이유로 페이징과 양립하지 않습니다.</p>
+        <p><b>D5</b> — execution 의 Specification 이 그룹 멤버 엔티티를 join 하면 execution → provisioning 역방향 의존이 생겨 DEC-C 를 어깁니다.</p>
+        <p><b>D6</b> — 서버의 단계와 상태는 <b>한 값</b>이라 AND 면 두 개를 고르는 순간 항상 빈 결과입니다. 규칙은 "여러 값을 갖는 속성(정의서의 단계들)은 AND, 한 값인 속성은 OR" 이고, 이 문장을 DESIGN.md 에 적습니다.</p>
+        <p><b>D7</b> — 상태 칩에 회수됨을 두면 두 축이 같은 사실을 서로 다르게 말하게 됩니다(체크 해제 + 회수됨 칩 = 모순).</p>
+        <p><b>D8</b> — 조용히 뒤바꾸면 사용자가 모르는 조건으로 조회됩니다. 400 은 주소창 한 글자 실수에 오류 페이지를 보입니다. UX 모순은 UI 가 1차로 막고(<code>min</code> · <code>max</code>), 서버는 빈 결과 + 안내로 안전망만 둡니다.</p>
+        <p><b>D9</b> — S8-1 비목표와 같습니다. 필드별 조건은 S8-4 의 상세 조회 창에서 다룰 수 있습니다.</p>
+        <p><b>D10</b> — 조회 띠를 영역 안에 두면 SSE 교체 때 입력 중이던 글자와 포커스가 사라집니다.</p>
+        <p><b>D11</b> — 묶음 보기의 순서는 시간 구간 자체가 뜻이라, 정렬을 걸면 묶음의 의미가 흐려집니다.</p>
+        <p><b>D12</b> — 축이 넷 이상이면 컨트롤러의 URL 조립이 축 × 값의 곱으로 자랍니다(S8-1 D2).</p>
+        <p><b>D13</b> — 등록된 보드 전부를 두면 고르는 순간 항상 빈 결과가 되는 선택지가 생깁니다.</p>
+        <p><b>D14</b> — 연결은 90 초 판정으로 시간이 지나면 바뀌는 값이라, SQL 로 거른 결과와 SSE 갱신이 어긋납니다.</p>
+        <p><b>D15</b> — 상세 조회 창과 기본 1 년 필터는 S8-4 가 모든 목록에 들이는 일입니다. 이번에는 필터를 낱개 블록으로 두어 옮길 자리만 준비합니다.</p>
+
+        <h4>8-3. 주의</h4>
+        <div class="callout warn"><b><code>systemUUID</code> LIKE</b> — MariaDB <code>uuid</code> 형이라 LIKE 에 <code>cast(... as String)</code> 가 필요합니다. H2 · MariaDB 둘 다에서 도는지 CP4(저장소 테스트) · CP5(샌드박스)에서 확인합니다.</div>
+        <div class="callout warn"><b>IP 는 VO 컨버터 컬럼</b> — <code>ipAddress</code> · <code>bmcIp</code> 는 <code>as(String.class)</code> 로 LIKE 합니다.</div>
+        <div class="callout"><b>묶음 보기는 여전히 조건에 맞는 서버를 전부 읽습니다</b> — 페이징이 없기 때문입니다. 규모가 커지면 S8-4 의 기본 1 년 필터가 상한 역할을 합니다.</div>
+        <div class="callout"><b>표 보기 열 폭</b>은 <code>n-table-servers</code> 고정 레이아웃을 그대로 씁니다. <b><code>.n-chip-link</code> 제거</b>는 다른 사용처 0 을 확인한 뒤 합니다.</div>
+        <div class="callout"><b>펼침 상태와 폼 제출(CP1 세션 확정)</b> — 묶음 보기에서 <code>pending=open</code> 이면 조회 띠 폼에 숨은 필드 <code>&lt;input type="hidden" name="pending" value="open"&gt;</code> 를 싣습니다. 펼친 채 칩 · 검색으로 제출해도 펼침이 유지됩니다(CP5 A11). 표 보기에서는 싣지 않습니다.</div>
+        <div class="callout"><b>step 수(에이전트 정정 · 세션 확인)</b> — 브리프는 <code>ProvisioningPhaseStep</code> 을 17 상수로 적었으나 작업 트리의 enum 은 16 상수입니다(<code>RAID_CONFIGURATION</code> 단일 step 이 셋으로 분할된 뒤). 본문과 데모는 16 으로 적었습니다.</div>
+
+        <h4>8-4. Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td><b>Q1</b></td><td>브랜치</td><td><b>해소</b> — S8-1 이 PR #89 로 <code>dev</code> 에 병합됨 · <code>origin/dev</code> 에서 <code>feat/S8-2_server-list</code></td></tr>
+            <tr><td><b>Q2</b></td><td>기본 보기</td><td>묶음 (현행 유지)</td></tr>
+            <tr><td><b>Q3</b></td><td>표 보기 기본 정렬</td><td>등록 시각 최신순</td></tr>
+            <tr><td><b>Q4</b></td><td>그룹 셀렉트에 "무소속"</td><td>포함</td></tr>
+            <tr><td><b>Q5</b></td><td>보드 선택지</td><td>서버에 등장한 보드만</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트 + CP5 검증 항목 (27)</summary>
+      <div class="body">
+        <h4>9-1. 빌드 · 테스트 · 회귀</h4>
+        <ul class="check-list" data-storage="S8-2-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew build</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 green (기존 회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="unit"> <span>단위 17 · 통합 12 작성 완료 (§6)</span></label></li>
+          <li><label><input type="checkbox" data-key="repo"> <span><code>GuestServerSpecificationsJpaTest</code> 12 — 상태 조합 전수 대조 포함</span></label></li>
+          <li><label><input type="checkbox" data-key="validate"> <span><code>ddl-auto=validate</code> 기동 확인 (DDL 변경 없음)</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>CP5 검증 A · B · C 27 항목 수행 + 항목별 스크린샷</span></label></li>
+          <li><label><input type="checkbox" data-key="regress"> <span>회귀 — 정의서 · 그룹 목록(공통 부품 변경) · SSE 교체 영역</span></label></li>
+          <li><label><input type="checkbox" data-key="docs"> <span><code>DESIGN.md</code> §5 · <code>messages.properties</code> 2 키 · <code>.n-chip-link</code> 삭제</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7 · 사용자 단독)</span></label></li>
+        </ul>
+
+        <h4>9-2. CP5 항목 — A 정상 흐름 (14)</h4>
+        <table>
+          <thead><tr><th>#</th><th>조작</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><b>A1</b></td><td>기본 진입</td><td>묶음 보기가 현행과 같음</td></tr>
+            <tr><td><b>A2</b></td><td>이름 검색 후 Enter</td><td>부분 일치 · <code>q</code> 만 URL 에</td></tr>
+            <tr><td><b>A3</b></td><td>IP · BMC IP · UUID 일부 · 보드명 검색 각 1</td><td>필드마다 걸림</td></tr>
+            <tr><td><b>A4</b></td><td>진행 단계 두 개 선택</td><td>OR 로 넓어짐</td></tr>
+            <tr><td><b>A5</b></td><td>운영 상태 실패 · 완료</td><td>해당 상태만</td></tr>
+            <tr><td><b>A6</b></td><td>보드 셀렉트</td><td>해당 보드만</td></tr>
+            <tr><td><b>A7</b></td><td>그룹 셀렉트 (그룹 · 무소속)</td><td>멤버만 / 무소속만</td></tr>
+            <tr><td><b>A8</b></td><td>등록 기간 <code>from</code> · <code>to</code></td><td>양 끝 날짜 포함</td></tr>
+            <tr><td><b>A9</b></td><td>표 보기 전환 → 쪽 이동 · 정렬 항목 · 방향</td><td>쪽 · 정렬 동작 · 필터 유지</td></tr>
+            <tr><td><b>A10</b></td><td>표 보기 2쪽 → 상세 → 목록으로</td><td>같은 쪽 · 행 강조</td></tr>
+            <tr><td><b>A11</b></td><td>묶음 보기 등록 진행 중 펼침</td><td>펼침 + 필터 유지</td></tr>
+            <tr><td><b>A12</b></td><td>회수된 서버 보기</td><td>회수 행 등장</td></tr>
+            <tr><td><b>A13</b></td><td>초기화</td><td>경로만 남음</td></tr>
+            <tr><td><b>A14</b></td><td>하네스로 게스트 상태 변화 신호</td><td>SSE 뒤 필터 · 쪽 · 입력 중 글자 유지 + 결과 건수 갱신</td></tr>
+          </tbody>
+        </table>
+
+        <h4>9-3. CP5 항목 — B 의도하지 않은 조작 (8) · C 막는 방식 (5)</h4>
+        <table>
+          <thead><tr><th>#</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td><b>B1</b></td><td><code>view=XX</code></td><td>400 오류 페이지</td></tr>
+            <tr><td><b>B2</b></td><td><code>status=DECOMMISSIONED</code> 직접</td><td>무시 (400 아님)</td></tr>
+            <tr><td><b>B3</b></td><td><code>phase=XX</code></td><td>400 오류 페이지</td></tr>
+            <tr><td><b>B4</b></td><td><code>group=abc</code></td><td>400 오류 페이지</td></tr>
+            <tr><td><b>B5</b></td><td><code>from=2026-13-01</code></td><td>400 오류 페이지</td></tr>
+            <tr><td><b>B6</b></td><td>거꾸로 기간 URL</td><td>빈 결과 + 기간 안내</td></tr>
+            <tr><td><b>B7</b></td><td>표 보기 <code>page=999</code></td><td>빈 쪽 안내</td></tr>
+            <tr><td><b>B8</b></td><td>묶음 보기에 <code>sort=NAME</code> 직접</td><td>무시 · 묶음 순서 유지</td></tr>
+            <tr><td><b>C1</b></td><td>결과 0 건</td><td>"조건에 맞는 서버가 없습니다." + 초기화</td></tr>
+            <tr><td><b>C2</b></td><td>기간 입력에서 거꾸로 고르기</td><td><code>min</code> · <code>max</code> 로 선택 불가</td></tr>
+            <tr><td><b>C3</b></td><td>2쪽에서 필터 변경</td><td>1쪽 복귀</td></tr>
+            <tr><td><b>C4</b></td><td>한글 검색어 Enter</td><td>IME 조합 중 제출 없이 한 번에 제출</td></tr>
+            <tr><td><b>C5</b></td><td>정의서 · 그룹 목록</td><td>공통 부품(<code>ListLinks.toggle</code> · <code>list-query.js</code> 날짜 입력) 변경 회귀 없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files — 신규 12 · 수정 14 · 유지 4</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/enums/ServerListView.java</code></td><td>2 상수 (D1)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/enums/ServerSortField.java</code></td><td>3 상수 · <code>SortField</code> 구현</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/dto/request/ServerListQuery.java</code></td><td>record + 압축 생성자 + <code>isFiltered</code> · <code>isRangeReversed</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/vo/ServerScope.java</code></td><td>그룹 조건의 id 범위 (D5)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/repository/GuestServerSpecifications.java</code></td><td>술어 7 + 합성 (D3 · D4)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/group/vo/GroupFilter.java</code></td><td>값 객체</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/group/vo/GroupFilterConverter.java</code></td><td><code>Converter&lt;String, GroupFilter&gt;</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>GroupFilterWebConfig</code> (권고)</td><td><code>WebMvcConfigurer</code> Converter 등록</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ServerListQueryTest</code></td><td>단위 6</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>GroupFilterConverterTest</code></td><td>단위 4</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>GuestServerControllerListTest</code></td><td>통합 12</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>GuestServerSpecificationsJpaTest</code></td><td>저장소 12</td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerController</code></td><td><code>list</code> 시그니처 · 모델 · <code>listUrl</code> 류 삭제</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerQueryService</code></td><td><code>findGrouped</code> · <code>findPage</code> · <code>findBoardOptions</code> · <code>matchesPhase</code> 삭제</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerRepository</code></td><td><code>JpaSpecificationExecutor</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerGroupQueryService</code></td><td><code>scopeOf</code> · <code>findOptions</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>ListLinks</code></td><td><code>toggle(name, value)</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>ListLinksTest</code></td><td>toggle 2</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerGroupQueryServiceTest</code> · <code>GuestServerQueryServiceTest</code></td><td>단위 3 · 2</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/server-list.html</code></td><td>조회 띠 · 두 보기 · 빈 상태 두 갈래 · 스크립트 적재</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/global/list-query.js</code></td><td>날짜 입력 즉시 제출 · <code>min</code>/<code>max</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/global/style.css</code></td><td>§16 <code>.n-chip-link</code> 삭제 · 날짜 입력 폭</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td>2 키</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>DESIGN.md</code></td><td>§5 두 줄 · AND/OR 규칙 · <code>n-chip-link</code> 언급 삭제</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>기존 목록 테스트 (<code>GuestServerControllerTest</code> 류)</td><td>새 시그니처 적응</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>fragments/provisioning/server-rows.html</code></td><td>표 보기도 그대로 사용 (R3)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>provisioning/server-stream.js</code></td><td>교체 영역 이름 불변</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>provisioning/server.css</code></td><td><code>n-table-servers</code></td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>global/include-deleted-toggle.js</code></td><td>다른 화면이 계속 사용</td></tr>
+          </tbody>
+        </table>
+        <p>DDL 없음. <code>GroupFilterWebConfig</code> · <code>GroupFilterConverter</code> 는 <code>provisioning/group/web/</code> 에 둡니다(CP1 세션 확정 — 그룹 도메인의 웹 바인딩이라 전역 <code>ListWebConfig</code> 와 섞지 않음). 선택지 응답 record 둘(<code>BoardOptionResponse</code> · <code>GroupOptionResponse</code>)도 신규입니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="S8-2-next">
+          <li><label><input type="checkbox" data-key="cp1"> <span><b>CP1</b> 승인 — Q1 ~ Q5 판정</span></label></li>
+          <li><label><input type="checkbox" data-key="s81commit"> <span><b>S8-1 커밋 · PR</b> (지시 시) — S8-2 의 부품 기반</span></label></li>
+          <li><label><input type="checkbox" data-key="cp234"> <span><b>CP2 ~ CP4</b> 무중단 구현 → CP4 중간 승인 → 테스트 → CP5 → CP6 report → CP7</span></label></li>
+          <li><label><input type="checkbox" data-key="s83"> <span><b>S8-3(가칭)</b> 자원 관리 목록 여섯</span></label></li>
+          <li><label><input type="checkbox" data-key="s84"> <span><b>S8-4(가칭)</b> ecount 식 조회 — 기본 1 년 필터 · 상세 조회 창 · 필터의 창 안 이동 · 기간 필터 기구를 S8-2 의 <code>from</code>/<code>to</code> 와 통합</span></label></li>
+          <li><label><input type="checkbox" data-key="o3"> <span>HF 후보 O-3 (advice 콘텐츠 협상)</span></label></li>
+          <li><label><input type="checkbox" data-key="pager"> <span>pager 통일 — 감사 로그 · 점검 이력의 <code>fragments/ui/pagination</code> 이관</span></label></li>
+        </ul>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부 펴기 · 접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — 게스트 서버 목록 : 두 보기 · 필터 → URL → Specification
+  //  demoStatus = GuestServerStatus.derive · demoPhase = ProvisioningPhaseStep.getPhaseType()
+  //  demoAge = RegistrationAge.of · 필터 = GuestServerSpecifications.of (축 안 OR · 축 사이 AND)
+  //  표 · 묶음을 거르는 술어와 캡션의 술어가 같은 목록 하나(demoPreds)에서 나온다.
+  //  demoRender() 는 파일 끝에서 1회 호출.
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_NOW = Date.UTC(2026, 8, 26, 17, 40, 0);   // 2026-09-26 17:40 (KST 벽시계를 그대로 쓴다)
+  const DEMO_PHASES = [
+    ['BOOTSTRAPPING','부트스트래핑'], ['DIAGNOSE_LINUX','진단 리눅스'], ['FIRMWARE_UPDATING','펌웨어 업데이트'],
+    ['FIRMWARE_SETTING','펌웨어 설정'], ['RAID_CONFIGURATION','RAID 구성'], ['OS_INSTALLING','OS 설치'],
+    ['OS_SETTING','OS 설정'], ['TESTING','테스트']
+  ];
+  const DEMO_PHASE_LABEL = {}; DEMO_PHASES.forEach(function (p) { DEMO_PHASE_LABEL[p[0]] = p[1]; });
+  // ProvisioningPhaseStep 16 상수 → phaseType (선언 순서 그대로)
+  const DEMO_STEP_PHASE = {
+    NETWORK_ALLOCATING:'BOOTSTRAPPING', INIT_PERSISTING:'BOOTSTRAPPING',
+    DIAGNOSTIC_BOOTING:'DIAGNOSE_LINUX', INFORMATION_COLLECTING:'DIAGNOSE_LINUX', INFORMATION_PERSISTING:'DIAGNOSE_LINUX', IPMI_SETTING:'DIAGNOSE_LINUX',
+    BIOS_UPDATING:'FIRMWARE_UPDATING', BMC_UPDATING:'FIRMWARE_UPDATING',
+    BIOS_SETTING:'FIRMWARE_SETTING', BMC_SETTING:'FIRMWARE_SETTING',
+    RAID_INVENTORY_COLLECTING:'RAID_CONFIGURATION', RAID_APPLYING:'RAID_CONFIGURATION', RAID_VERIFYING:'RAID_CONFIGURATION',
+    OS_INSTALLING:'OS_INSTALLING', OS_SETTING:'OS_SETTING', TESTING:'TESTING'
+  };
+  // 칩 선택지 = GuestServerStatus 중 DECOMMISSIONED 제외 4
+  const DEMO_STATUSES = [['REGISTERED','등록됨'], ['PROVISIONING','프로비저닝 중'], ['PROVISIONED','완료'], ['FAILED','실패']];
+  const DEMO_STATUS_LABEL = { REGISTERED:'등록됨', PROVISIONING:'프로비저닝 중', PROVISIONED:'완료', FAILED:'실패', DECOMMISSIONED:'회수됨' };
+  const DEMO_STATUS_CHIP  = { REGISTERED:'opt', PROVISIONING:'mod', PROVISIONED:'new', FAILED:'del', DECOMMISSIONED:'keep' };
+  const DEMO_BOARDS = [{ id:1, name:'MS03-CE0' }, { id:2, name:'MS04-CE0' }, { id:3, name:'MD72-HB3' }];
+  const DEMO_GROUPS = [{ id:1, name:'8월 1차' }, { id:2, name:'9월 증설' }, { id:3, name:'RAID 검증용' }];
+  // 진행 양상 10 가지 — enriched = 진단 수집 완료(스펙 보유 → 시간 × 스펙 묶음 자격)
+  const DEMO_PATTERNS = [
+    { step:null,                     started:false, failed:false, completed:false, enriched:false },  // 진행 없음
+    { step:'INFORMATION_COLLECTING', started:false, failed:false, completed:false, enriched:false },  // 수집 중
+    { step:'INFORMATION_PERSISTING', started:false, failed:false, completed:false, enriched:true  },  // 수집 완료 · 미개시
+    { step:'BIOS_UPDATING',          started:true,  failed:false, completed:false, enriched:true  },
+    { step:'BMC_SETTING',            started:true,  failed:false, completed:false, enriched:true  },
+    { step:'BIOS_UPDATING',          started:true,  failed:true,  completed:false, enriched:true  },
+    { step:'OS_INSTALLING',          started:true,  failed:false, completed:false, enriched:true  },
+    { step:'TESTING',                started:true,  failed:false, completed:true,  enriched:true  },
+    { step:'RAID_APPLYING',          started:true,  failed:true,  completed:false, enriched:true  },
+    { step:'INFORMATION_COLLECTING', started:false, failed:true,  completed:false, enriched:false }   // R13 미개시 실패
+  ];
+  const DEMO_DECOM = [9, 19, 26];
+
+  function demoPad(n) { return n < 10 ? ('0' + n) : ('' + n); }
+  function demoFmt(ms) {
+    const d = new Date(ms);
+    return d.getUTCFullYear() + '-' + demoPad(d.getUTCMonth() + 1) + '-' + demoPad(d.getUTCDate())
+         + ' ' + demoPad(d.getUTCHours()) + ':' + demoPad(d.getUTCMinutes()) + ':' + demoPad(d.getUTCSeconds());
+  }
+  function demoHex(n, len) { return ('00000000' + (n >>> 0).toString(16)).slice(-len); }
+
+  // 가짜 서버 30 대 — 결정적 생성. i 가 클수록 오래전 등록(2026-08-01 ~ 방금)
+  const DEMO_SERVERS = (function () {
+    const rows = [];
+    for (let i = 1; i <= 30; i++) {
+      const pt = DEMO_PATTERNS[(i * 3) % 10];
+      const created = DEMO_NOW - Math.round(2.5 * Math.pow(1.62, i)) * 1000;
+      const progress = pt.step === null ? null : {
+        currentStep: pt.step,
+        startedAt: pt.started ? true : null, failedAt: pt.failed ? true : null, completedAt: pt.completed ? true : null
+      };
+      rows.push({
+        id: i,
+        name: pt.step === null ? null : ('srv-' + demoPad(((i * 7) % 30) + 1)),
+        uuid: demoHex((0x9e3779b1 * i) % 0xffffffff, 8) + '-4d2c-11ef-9a4b-0cc47a' + demoHex((i * 2654435) % 0xffffff, 6),
+        serial: 'GBT' + (2400100 + i * 37),
+        ip: '10.1.1.' + (2 * i + 1),
+        bmcIp: '10.9.0.' + (100 + i),
+        board: pt.enriched ? DEMO_BOARDS[i % 3] : null,
+        group: (i % 4 === 0) ? null : DEMO_GROUPS[(i % 4) - 1],
+        progress: progress,
+        enriched: pt.enriched,
+        decommissioned: DEMO_DECOM.indexOf(i) >= 0,
+        created: created,
+        lastSeen: progress ? (DEMO_NOW - ((((i * 11) % 30) + 1) * 83000)) : null
+      });
+    }
+    return rows;
+  })();
+
+  // ── 판정 (SSOT 재현) ──
+  // GuestServerStatus.derive(progress, decommissionedAt) — 우선순위 고정
+  function demoStatus(s) {
+    if (s.decommissioned) return 'DECOMMISSIONED';
+    const p = s.progress;
+    if (p !== null && p.failedAt) return 'FAILED';
+    if (p !== null && p.completedAt) return 'PROVISIONED';
+    if (p === null || !p.startedAt) return 'REGISTERED';
+    return 'PROVISIONING';
+  }
+  // ProvisioningProgress.currentPhase() = currentStep.getPhaseType()
+  function demoPhase(s) { return (s.progress && s.progress.currentStep) ? DEMO_STEP_PHASE[s.progress.currentStep] : null; }
+  // RegistrationAge.of(registeredAt, now) — 10초 · 1분 · 1시간 · 1일 · 1주 눈금으로 내림
+  function demoAge(created) {
+    let e = Math.floor((DEMO_NOW - created) / 1000); if (e < 0) e = 0;
+    let step, secs, suf;
+    if (e < 60)          { step = 10;     secs = 1;      suf = '초'; }
+    else if (e < 3600)   { step = 60;     secs = 60;     suf = '분'; }
+    else if (e < 86400)  { step = 3600;   secs = 3600;   suf = '시간'; }
+    else if (e < 604800) { step = 86400;  secs = 86400;  suf = '일'; }
+    else                 { step = 604800; secs = 604800; suf = '주'; }
+    const amount = Math.floor(e / step) * step / secs;
+    return { key: amount * secs, label: (secs === 1 && amount === 0) ? '방금' : (amount + suf + ' 전') };
+  }
+  // §4-3 의 SQL 술어 — 술어 대조 줄에서만 쓴다(필터 판정은 demoStatus 하나)
+  function demoSqlStatusMatch(s, st, original) {
+    const p = s.progress, notDecom = !s.decommissioned;
+    if (st === 'FAILED')       return notDecom && p !== null && !!p.failedAt;
+    if (st === 'PROVISIONED')  return notDecom && p !== null && !p.failedAt && !!p.completedAt;
+    if (st === 'PROVISIONING') return notDecom && p !== null && !!p.startedAt && !p.failedAt && !p.completedAt;
+    if (st === 'REGISTERED')   return original
+        ? (notDecom && !(p !== null && p.startedAt))
+        : (notDecom && !(p !== null && (p.startedAt || p.failedAt || p.completedAt)));
+    return !notDecom;   // DECOMMISSIONED
+  }
+  function demoDrift(original) {
+    let n = 0;
+    DEMO_SERVERS.forEach(function (s) {
+      const hits = ['REGISTERED','PROVISIONING','PROVISIONED','FAILED','DECOMMISSIONED']
+        .filter(function (st) { return demoSqlStatusMatch(s, st, original); });
+      if (hits.length !== 1 || hits[0] !== demoStatus(s)) n++;
+    });
+    return n;
+  }
+
+  // ServerSortField — (property, label, defaultDirection)
+  const DEMO_SORT = {
+    CREATED_AT:   { k:'created',  p:'createdAt',  l:'등록 시각',   d:'DESC' },
+    NAME:         { k:'name',     p:'name',       l:'이름',        d:'ASC'  },
+    LAST_SEEN_AT: { k:'lastSeen', p:'lastSeenAt', l:'마지막 접촉', d:'DESC' }
+  };
+  const DEMO_PRESETS = [
+    ['실패만','p1'], ['펌웨어 두 단계','p2'], ['IP 로 찾기','p3'], ['9월 등록분','p4'],
+    ['그룹 무소속 + 표 보기 + 마지막 접촉순','p5'], ['기간 거꾸로','p6'], ['초기화','p0']
+  ];
+  const DEMO_EMPTY_FILTERED = '조건에 맞는 서버가 없습니다.';
+  const DEMO_RANGE_REVERSED = '시작일이 종료일보다 늦습니다. 기간을 다시 고르십시오.';
+
+  let demoS = null;
+  function demoResetState() {
+    demoS = { view:'GROUPED', q:'', phases:[], statuses:[], includeDecommissioned:false, board:null, group:null,
+              from:'', to:'', sort:'CREATED_AT', dir:'DESC', page:0, size:20, pendingOpen:false };
+  }
+  demoResetState();
+  let demoMsg = { cls:'', txt:'칩 · 셀렉트 · 기간 · 체크박스는 바꾸는 즉시 제출되고, 검색어는 Enter 나 검색 버튼으로만 제출됩니다. 프리셋으로 한 번에 재현할 수도 있습니다.' };
+
+  function demoEsc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]; }); }
+  function demoReadQ() { const el = document.getElementById('demo-q'); if (el) demoS.q = el.value.trim(); }
+  function demoOrdered(list, all) { return all.map(function (x) { return x[0]; }).filter(function (k) { return list.indexOf(k) >= 0; }); }
+  function demoRangeReversed() { return !!(demoS.from && demoS.to && demoS.from > demoS.to); }
+  function demoIsFiltered() {
+    const s = demoS;
+    return !!(s.q || s.phases.length || s.statuses.length || s.includeDecommissioned || s.board !== null || s.group !== null || s.from || s.to);
+  }
+
+  // ── GuestServerSpecifications.of(query, scope) : 술어 목록 하나가 표 · 묶음 · 캡션을 모두 만든다 ──
+  function demoPreds() {
+    const s = demoS, out = [];
+    if (s.q) {
+      const q = s.q.toLowerCase();
+      out.push({ txt:'searchAny("' + s.q + '")', fn:function (r) {
+        return [r.name, r.uuid, r.serial, r.ip, r.bmcIp, r.board ? r.board.name : null]
+          .some(function (v) { return v !== null && String(v).toLowerCase().indexOf(q) >= 0; });
+      } });
+    }
+    if (s.phases.length) out.push({ txt:'phaseIn(' + s.phases.join(', ') + ')',
+      fn:function (r) { return s.phases.indexOf(demoPhase(r)) >= 0; } });                 // 축 안 OR
+    if (s.statuses.length) out.push({ txt:'statusIn(' + s.statuses.join(', ') + ')',
+      fn:function (r) { return s.statuses.indexOf(demoStatus(r)) >= 0; } });              // 축 안 OR
+    if (!s.includeDecommissioned) out.push({ txt:'decommissioned(false)', fn:function (r) { return !r.decommissioned; } });
+    if (s.board !== null) out.push({ txt:'boardIs(' + s.board + ')', fn:function (r) { return r.board !== null && r.board.id === s.board; } });
+    if (s.group === 'none') {
+      const n = DEMO_SERVERS.filter(function (r) { return r.group !== null; }).length;
+      out.push({ txt:'scope(excludeIds=' + n + '대)', fn:function (r) { return r.group === null; } });
+    } else if (s.group !== null) {
+      const n = DEMO_SERVERS.filter(function (r) { return r.group !== null && r.group.id === s.group; }).length;
+      out.push({ txt:'scope(onlyIds=' + n + '대)', fn:function (r) { return r.group !== null && r.group.id === s.group; } });
+    }
+    if (s.from || s.to) out.push({ txt:'createdBetween(' + (s.from || 'null') + ', ' + (s.to || 'null') + ')', fn:function (r) {
+      const d = demoFmt(r.created).slice(0, 10);                                          // 날짜 단위 · 양 끝 포함
+      return (!s.from || d >= s.from) && (!s.to || d <= s.to);
+    } });
+    return out;
+  }
+  function demoFiltered() {
+    const preds = demoPreds();
+    return DEMO_SERVERS.filter(function (r) { return preds.every(function (p) { return p.fn(r); }); })
+      .sort(function (a, b) { return b.created - a.created; });                           // Sort.by(DESC, "createdAt")
+  }
+  function demoSorted(rows) {
+    const f = DEMO_SORT[demoS.sort], asc = (demoS.dir === 'ASC');
+    return rows.slice().sort(function (a, b) {
+      const x = a[f.k], y = b[f.k];
+      let r;
+      if (x === null && y === null) r = 0;
+      else if (x === null) r = -1;                                                        // NULL 은 가장 작은 값(MariaDB)
+      else if (y === null) r = 1;
+      else r = (typeof x === 'number') ? (x - y) : String(x).localeCompare(String(y), 'ko');
+      return asc ? r : -r;
+    });
+  }
+
+  // ── URL 조립 : 빈 값 · 기본값 생략, view=GROUPED 생략, 묶음 보기면 sort · dir · page · size 없음 ──
+  function demoUrl() {
+    const s = demoS, p = [];
+    if (s.view === 'TABLE') p.push('view=TABLE');
+    if (s.q) p.push('q=' + s.q);
+    demoOrdered(s.phases, DEMO_PHASES).forEach(function (x) { p.push('phase=' + x); });
+    demoOrdered(s.statuses, DEMO_STATUSES).forEach(function (x) { p.push('status=' + x); });
+    if (s.includeDecommissioned) p.push('includeDecommissioned=true');
+    if (s.board !== null) p.push('board=' + s.board);
+    if (s.group !== null) p.push('group=' + s.group);
+    if (s.from) p.push('from=' + s.from);
+    if (s.to) p.push('to=' + s.to);
+    if (s.view === 'TABLE') {
+      if (s.sort !== 'CREATED_AT') p.push('sort=' + s.sort);
+      if (s.dir !== DEMO_SORT[s.sort].d) p.push('dir=' + s.dir);
+      if (s.page > 0) p.push('page=' + s.page);
+      if (s.size !== 20) p.push('size=' + s.size);
+    } else if (s.pendingOpen) {
+      p.push('pending=open');
+    }
+    return '/provisioning/server' + (p.length ? ('?' + p.join('&')) : '');
+  }
+
+  /* ── 조작 (폼 제출 계열은 입력칸의 검색어를 함께 싣고 첫 쪽으로, 링크 계열은 싣지 않는다) ── */
+  function demoSubmit(fn, txt) { demoReadQ(); fn(demoS); demoS.page = 0; demoMsg = { cls:'', txt:txt }; demoRender(); }
+  function demoView(v) {
+    demoSubmit(function (s) {
+      s.view = v; s.sort = 'CREATED_AT'; s.dir = 'DESC'; s.size = 20;   // 정렬 · 표시 개수는 표 보기에서만 폼에 있다
+      if (v === 'TABLE') s.pendingOpen = false;
+    }, v === 'TABLE'
+      ? '표 보기 → 같은 Specification 에 PageRequest 가 붙습니다. 행은 server-rows 조각 그대로이고, 정렬 셀렉트와 쪽 이동 줄이 생깁니다.'
+      : '묶음 보기 → 같은 Specification 으로 조건에 맞는 서버를 전부 읽어 등록 진행 중 / 시간 구간 × 스펙으로 묶습니다. 정렬 · 쪽이 없고 URL 에서 view 가 빠집니다.');
+  }
+  function demoSearch() { demoSubmit(function () {}, '검색 제출 → 첫 쪽으로. 이름 · UUID · 시리얼 · 대표 IP · BMC IP · 보드명 여섯 필드 중 하나라도 걸리면 남습니다(OR).'); }
+  function demoPhaseToggle(ph) {
+    demoSubmit(function (s) {
+      const i = s.phases.indexOf(ph); if (i >= 0) s.phases.splice(i, 1); else s.phases.push(ph);
+      s.phases = demoOrdered(s.phases, DEMO_PHASES);
+    }, '진행 단계 칩 → 고른 단계들이 phaseIn 하나로 묶여 OR 로 넓어집니다. 서버의 단계는 한 값이라 AND 면 둘째 칩부터 항상 빈 결과입니다 (D6).');
+  }
+  function demoPhaseClear() { demoSubmit(function (s) { s.phases = []; }, '"전체" 는 단계 선택을 지우는 버튼입니다 — phaseIn 술어가 빠집니다.'); }
+  function demoStatusToggle(st) {
+    demoSubmit(function (s) {
+      const i = s.statuses.indexOf(st); if (i >= 0) s.statuses.splice(i, 1); else s.statuses.push(st);
+      s.statuses = demoOrdered(s.statuses, DEMO_STATUSES);
+    }, '운영 상태 칩 → statusIn 이 상태별 술어를 OR 로 잇습니다. 판정은 demoStatus = GuestServerStatus.derive 입니다.');
+  }
+  function demoStatusClear() { demoSubmit(function (s) { s.statuses = []; }, '"전체" 는 상태 선택을 지우는 버튼입니다 — statusIn 술어가 빠집니다.'); }
+  function demoBoard(v) { demoSubmit(function (s) { s.board = v === '' ? null : parseInt(v, 10); }, '보드 셀렉트 → boardIs. 선택지는 서버에 실제로 등장한 보드만입니다 (D13).'); }
+  function demoGroup(v) {
+    demoSubmit(function (s) { s.group = v === '' ? null : (v === 'none' ? 'none' : parseInt(v, 10)); },
+      v === 'none' ? '무소속 → provisioning 이 소속 서버 id 전부를 제외 목록(ServerScope.excludeIds)으로 번역해 넘깁니다 (D5).'
+                   : '그룹 → provisioning 이 멤버 서버 id 집합(ServerScope.onlyIds)으로 번역해 넘깁니다. execution 은 그룹을 모릅니다 (D5).');
+  }
+  function demoFrom(v) { demoSubmit(function (s) { s.from = v; }, '시작일 → createdBetween. 종료일 입력의 min 이 이 날짜로 걸려 거꾸로 고를 수 없습니다 (D8).'); }
+  function demoTo(v) { demoSubmit(function (s) { s.to = v; }, '종료일 → createdBetween(양 끝 포함 — 종료일 다음 날 00:00 미만). 시작일 입력의 max 가 이 날짜로 걸립니다 (D8).'); }
+  function demoDecom(on) {
+    demoSubmit(function (s) { s.includeDecommissioned = on; }, on
+      ? '회수 포함 → decommissioned(false) 가 빠집니다. 회수 행의 상태는 회수됨이라 상태 칩(회수됨 없음)과 겹치지 않습니다 (D7).'
+      : '회수 포함 해제 → decommissioned(false) 가 다시 붙습니다.');
+  }
+  function demoSortField(v) { demoSubmit(function (s) { s.sort = v; }, '정렬 항목 → 첫 쪽. 방향이 그 항목의 기본 방향과 같으면 dir 이 URL 에서 빠집니다.'); }
+  function demoSortDir(v) { demoSubmit(function (s) { s.dir = v; }, '정렬 방향 → 첫 쪽.'); }
+  function demoSize(v) { demoSubmit(function (s) { s.size = parseInt(v, 10); }, '표시 개수 → 첫 쪽. 기본 20 이면 URL 에 쓰지 않습니다.'); }
+  function demoPage(n) { demoS.page = n; demoMsg = { cls:'', txt:'쪽 이동은 링크(links.page) — 나머지 상태를 그대로 싣고, 입력만 해 둔 검색어는 싣지 않습니다.' }; demoRender(); }
+  function demoPending() {
+    demoS.pendingOpen = !demoS.pendingOpen;
+    demoMsg = { cls:'', txt:'등록 진행 중 펼침은 링크(links.toggle("pending", "open")) — 있으면 빼고 없으면 넣습니다. 필터는 그대로 남습니다.' };
+    demoRender();
+  }
+  function demoReset() { demoResetState(); demoMsg = { cls:'', txt:'초기화 → 경로만 남습니다 (links.reset).' }; demoRender(); }
+
+  function demoCountWith(mut) { const keep = JSON.stringify(demoS); mut(demoS); const n = demoFiltered().length; demoS = JSON.parse(keep); return n; }
+  function demoPreset(k) {
+    demoResetState();
+    let m = '';
+    if (k === 'p1') { demoS.statuses = ['FAILED'];
+      m = '운영 상태 "실패" — statusIn(FAILED). 미개시 실패(진단 중 FAILED 보고 · startedAt 없음) 서버도 derive 가 실패로 판정하므로 함께 남습니다.'; }
+    else if (k === 'p2') {
+      const one = demoCountWith(function (s) { s.phases = ['FIRMWARE_UPDATING']; });
+      demoS.phases = ['FIRMWARE_UPDATING', 'FIRMWARE_SETTING'];
+      const two = demoFiltered().length;
+      m = '펌웨어 업데이트만 고르면 ' + one + '대, 펌웨어 설정을 더하면 ' + two + '대 — 축 안 OR 라 넓어집니다. SQL 은 currentStep IN [BIOS_UPDATING, BMC_UPDATING, BIOS_SETTING, BMC_SETTING] 이고 이 목록은 enum 에서 파생합니다.'; }
+    else if (k === 'p3') { demoS.q = '10.1.1.5';
+      m = '검색 "10.1.1.5" — 부분 일치라 10.1.1.5 와 10.1.1.51 · 53 · 55 · 57 · 59 가 함께 걸립니다(회수 행은 제외). 대표 NIC 의 ipAddress 는 VO 컨버터 컬럼이라 as(String.class) 로 LIKE 합니다.'; }
+    else if (k === 'p4') { demoS.from = '2026-09-01'; demoS.to = '2026-09-30';
+      m = '등록 기간 9월 — createdAt ≥ 09-01 00:00 ∧ createdAt < 10-01 00:00. 8월에 등록된 서버가 빠집니다.'; }
+    else if (k === 'p5') { demoS.group = 'none'; demoS.view = 'TABLE'; demoS.sort = 'LAST_SEEN_AT';
+      m = '무소속 + 표 보기 + 마지막 접촉순 — 내림차순이 LAST_SEEN_AT 의 기본 방향이라 dir 은 URL 에 없습니다. 접촉이 없던 서버(NULL)는 내림차순에서 맨 뒤입니다.'; }
+    else if (k === 'p6') { demoS.from = '2026-09-20'; demoS.to = '2026-09-10';
+      m = '주소창에 거꾸로 된 기간을 직접 넣은 경우입니다. 화면의 날짜 입력은 min · max 로 이렇게 고를 수 없습니다(UI 1차 차단). 서버는 400 대신 빈 결과 + 기간 안내로 받습니다 (D8).'; }
+    else { m = '초기화 → 기본 목록(묶음 보기). URL 은 경로만 남습니다.'; }
+    demoMsg = { cls:'', txt:'프리셋 — ' + m };
+    demoRender();
+  }
+
+  /* ── 렌더 ── */
+  function demoBtn(call, label, blocked, tip) {
+    return '<span class="tip"' + (blocked ? (' data-tip="' + tip + '"') : '') + '>'
+         + '<button class="n-demo-btn"' + (blocked ? ' disabled' : '') + ' onclick="' + call + '">' + label + '</button></span>';
+  }
+  function demoBar() {
+    const s = demoS;
+    let h = '<div class="ux-toolbar"><span class="group-label">검색 :</span>'
+      + '<input type="text" id="demo-q" value="' + demoEsc(s.q) + '" placeholder="예: srv-01 · 10.1.1.5"'
+      + ' onkeydown="if(event.key===\'Enter\'){demoSearch();}">'
+      + '<button class="n-demo-btn" onclick="demoSearch()">검색</button>';
+    if (s.view === 'TABLE') {
+      h += '<span class="label"></span><span class="mono">정렬</span><select onchange="demoSortField(this.value)">';
+      Object.keys(DEMO_SORT).forEach(function (k) { h += '<option value="' + k + '"' + (k === s.sort ? ' selected' : '') + '>' + DEMO_SORT[k].l + '</option>'; });
+      h += '</select><select onchange="demoSortDir(this.value)">'
+        + '<option value="ASC"' + (s.dir === 'ASC' ? ' selected' : '') + '>오름차순</option>'
+        + '<option value="DESC"' + (s.dir === 'DESC' ? ' selected' : '') + '>내림차순</option></select>';
+    } else {
+      h += '<span class="label"></span>';
+    }
+    h += '<button class="n-demo-btn" onclick="demoReset()">초기화</button></div>';
+
+    h += '<div class="ux-toolbar"><span class="group-label">진행 단계 :</span>'
+      + '<button class="seg' + (s.phases.length ? '' : ' active') + '" onclick="demoPhaseClear()">전체</button>';
+    DEMO_PHASES.forEach(function (p) {
+      h += '<button class="seg' + (s.phases.indexOf(p[0]) >= 0 ? ' active' : '') + '" onclick="demoPhaseToggle(\'' + p[0] + '\')">' + p[1] + '</button>';
+    });
+    h += '</div><div class="ux-toolbar"><span class="group-label">운영 상태 :</span>'
+      + '<button class="seg' + (s.statuses.length ? '' : ' active') + '" onclick="demoStatusClear()">전체</button>';
+    DEMO_STATUSES.forEach(function (st) {
+      h += '<button class="seg' + (s.statuses.indexOf(st[0]) >= 0 ? ' active' : '') + '" onclick="demoStatusToggle(\'' + st[0] + '\')">' + st[1] + '</button>';
+    });
+    h += '</div>';
+
+    // 보드 선택지 = 서버에 실제로 등장한 보드만 (D13)
+    const seen = [];
+    DEMO_SERVERS.forEach(function (r) { if (r.board && seen.indexOf(r.board.id) < 0) seen.push(r.board.id); });
+    h += '<div class="ux-toolbar"><span class="group-label">보드 · 그룹 :</span><select onchange="demoBoard(this.value)"><option value="">보드 전체</option>';
+    DEMO_BOARDS.filter(function (b) { return seen.indexOf(b.id) >= 0; }).forEach(function (b) {
+      h += '<option value="' + b.id + '"' + (s.board === b.id ? ' selected' : '') + '>' + b.name + '</option>';
+    });
+    h += '</select><select onchange="demoGroup(this.value)"><option value="">그룹 전체</option>'
+      + '<option value="none"' + (s.group === 'none' ? ' selected' : '') + '>무소속</option>';
+    DEMO_GROUPS.forEach(function (g) { h += '<option value="' + g.id + '"' + (s.group === g.id ? ' selected' : '') + '>' + g.name + '</option>'; });
+    h += '</select></div>';
+
+    // 등록 시각 — 서로 min · max 를 걸어 거꾸로 고를 수 없게 (list-query.js 추가 기능)
+    h += '<div class="ux-toolbar"><span class="group-label">최초 등록 시각 :</span>'
+      + '<input type="date" value="' + s.from + '"' + (s.to ? (' max="' + s.to + '"') : '') + ' onchange="demoFrom(this.value)">'
+      + '<span class="mono">~</span>'
+      + '<input type="date" value="' + s.to + '"' + (s.from ? (' min="' + s.from + '"') : '') + ' onchange="demoTo(this.value)">'
+      + '<span class="label"></span>'
+      + '<label><input type="checkbox"' + (s.includeDecommissioned ? ' checked' : '') + ' onchange="demoDecom(this.checked)"> 회수된 서버 보기</label></div>';
+    return h;
+  }
+  function demoCells(r) {
+    const st = demoStatus(r), ph = demoPhase(r);
+    return [
+      r.name === null ? '<span class="mono">(이름 미지정)</span>' : demoEsc(r.name),
+      r.board ? r.board.name : '—',
+      ph ? DEMO_PHASE_LABEL[ph] : '—',
+      '<span class="chip ' + DEMO_STATUS_CHIP[st] + '">' + DEMO_STATUS_LABEL[st] + '</span>',
+      '<span class="mono">' + r.ip + '</span>',
+      '<span class="mono">' + demoFmt(r.created) + '</span>'
+    ];
+  }
+  function demoTable(rows) {
+    let h = '<table><thead><tr><th>이름</th><th>보드</th><th>단계</th><th>상태</th><th>IP</th><th>등록 시각</th></tr></thead><tbody>';
+    rows.forEach(function (r) { h += '<tr>' + demoCells(r).map(function (x) { return '<td>' + x + '</td>'; }).join('') + '</tr>'; });
+    return h + '</tbody></table>';
+  }
+  function demoEmpty() {
+    if (demoRangeReversed()) return '<div class="ux-row"><span class="label">' + DEMO_RANGE_REVERSED + '</span>' + demoBtn('demoReset()', '초기화', false, '') + '</div>';
+    if (demoIsFiltered()) return '<div class="ux-row"><span class="label">' + DEMO_EMPTY_FILTERED + '</span>' + demoBtn('demoReset()', '초기화', false, '') + '</div>';
+    return '<div class="ux-row"><span class="label">등록된 게스트 서버가 없습니다. 서버가 PXE 부팅으로 /api/pxe/v1/boot 에 진입하면 이곳에 표시됩니다.</span></div>';
+  }
+  // 묶음 보기 — GuestServerQueryService.assembleGroups 의 모양
+  function demoGrouped(rows) {
+    if (!rows.length) return demoEmpty();
+    let h = '';
+    const pending = rows.filter(function (r) { return !r.enriched; });
+    const grouped = rows.filter(function (r) { return r.enriched; });
+    if (pending.length) {
+      // 등록만 됨 = 진단 phase 미도달 / 수집 중 = 진단 phase 이상 (buildPending)
+      const diagIdx = 1;
+      const reached = function (r) { const ph = demoPhase(r); return ph !== null && DEMO_PHASES.map(function (x) { return x[0]; }).indexOf(ph) >= diagIdx; };
+      const only = pending.filter(function (r) { return !reached(r); }), coll = pending.filter(reached);
+      h += '<div class="ux-row"><strong>등록 진행 중</strong><span class="label">스펙이 아직 없어 그룹 대상이 아닙니다</span>'
+        + '<span class="chip keep">' + pending.length + '대</span>'
+        + demoBtn('demoPending()', demoS.pendingOpen ? '접기' : '펼치기', false, '') + '</div>';
+      [['등록만 됨', only], ['수집 중', coll]].forEach(function (g) {
+        if (!g[1].length) return;
+        h += '<div class="ux-row child"><strong>' + g[0] + '</strong><span class="label"></span><span class="chip keep">' + g[1].length + '대</span></div>';
+        if (demoS.pendingOpen) h += '<div class="ux-row child" style="display:block;">' + demoTable(g[1]) + '</div>';
+      });
+    }
+    // 시간 구간(RegistrationAge) × 스펙(데모는 보드 이름으로 축약)
+    const buckets = [], byKey = {};
+    grouped.forEach(function (r) {
+      const a = demoAge(r.created);
+      if (!byKey[a.key]) { byKey[a.key] = { age:a, specs:[], bySpec:{} }; buckets.push(byKey[a.key]); }
+      const b = byKey[a.key], sk = r.board.name;
+      if (!b.bySpec[sk]) { b.bySpec[sk] = []; b.specs.push(sk); }
+      b.bySpec[sk].push(r);
+    });
+    buckets.sort(function (x, y) { return x.age.key - y.age.key; });
+    buckets.forEach(function (b) {
+      let n = 0; b.specs.forEach(function (sk) { n += b.bySpec[sk].length; });
+      h += '<div class="ux-row"><strong>' + b.age.label + '</strong><span class="label">이 시간대에 묶인 서버 ' + n + '대</span></div>';
+      b.specs.forEach(function (sk, i) {
+        h += '<div class="ux-row child"><strong>스펙 ' + (i + 1) + '</strong><span class="label">' + sk + '</span><span class="chip opt">' + b.bySpec[sk].length + '대</span></div>'
+          + '<div class="ux-row child" style="display:block;">' + demoTable(b.bySpec[sk]) + '</div>';
+      });
+    });
+    return h;
+  }
+  function demoPager(total, pages) {
+    const s = demoS;
+    let h = '<div class="ux-row">'
+      + demoBtn('demoPage(' + (s.page - 1) + ')', '← 이전', s.page <= 0, '첫 쪽입니다.')
+      + '<span class="mono">' + (s.page + 1) + ' / ' + pages + ' · 총 ' + total + '건</span>'
+      + demoBtn('demoPage(' + (s.page + 1) + ')', '다음 →', s.page >= pages - 1, '마지막 쪽입니다.')
+      + '<span class="label"></span><span class="mono">표시 개수</span><select onchange="demoSize(this.value)">';
+    [20, 50, 100].forEach(function (n) { h += '<option value="' + n + '"' + (n === s.size ? ' selected' : '') + '>' + n + '</option>'; });
+    return h + '</select></div>';
+  }
+  function demoRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-view]').forEach(function (b) { b.classList.toggle('active', b.dataset.view === demoS.view); });
+    document.getElementById('demo-presets').innerHTML = '<span class="group-label">프리셋 :</span>'
+      + DEMO_PRESETS.map(function (p) { return '<button class="n-demo-btn" onclick="demoPreset(\'' + p[1] + '\')">' + p[0] + '</button>'; }).join('');
+
+    const focused = document.activeElement && document.activeElement.id === 'demo-q';
+    document.getElementById('demo-bar').innerHTML = demoBar();                           // [data-live] 밖 — 조회 띠
+    if (focused) { const el = document.getElementById('demo-q'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
+
+    const rows = demoFiltered(), total = rows.length, s = demoS;
+    let live = '<div class="ux-row"><span class="mono">결과 ' + total + '대</span><span class="label"></span>'
+      + '<span class="mono">[data-live="server-list"] 교체 영역</span></div>';
+    let call;
+    if (s.view === 'TABLE') {
+      const pages = Math.max(1, Math.ceil(total / s.size));
+      const pageRows = demoSorted(rows).slice(s.page * s.size, s.page * s.size + s.size);
+      live += total ? (pageRows.length ? demoTable(pageRows) : '<div class="ux-row"><span class="label">이 쪽에는 표시할 서버가 없습니다.</span></div>') : demoEmpty();
+      live += demoPager(total, pages);
+      const f = DEMO_SORT[s.sort];
+      call = 'findAll(spec, PageRequest.of(' + s.page + ', ' + s.size + ', Sort.by(' + s.dir + ', "' + f.p + '")))  → 쪽 내용만 assembleSummaries';
+    } else {
+      live += demoGrouped(rows);
+      call = 'findAll(spec, Sort.by(DESC, "createdAt"))  → assembleGroups';
+    }
+    document.getElementById('demo-live').innerHTML = live;
+
+    const preds = demoPreds();
+    const spec = preds.length ? preds.map(function (p) { return p.txt; }).join(' ∧ ') : '(술어 없음 — 전체 조회)';
+    document.getElementById('demo-caps').textContent =
+      'URL            ' + demoUrl() + '\n' +
+      'Specification  ' + spec + '   ·   ' + call + '\n' +
+      '술어 대조      §4-3 SQL 술어 ↔ demoStatus(derive) 불일치 ' + demoDrift(false) + ' / 30   (브리프 원안 등록됨 술어였다면 ' + demoDrift(true) + ' / 30)';
+
+    const msg = document.getElementById('demo-message');
+    let txt = demoMsg.txt, cls = demoMsg.cls;
+    if (demoRangeReversed()) { cls = 'error'; txt += ' / ' + DEMO_RANGE_REVERSED; }
+    else if (total === 0) { cls = 'error'; txt += ' / 결과가 0 건 — ' + (demoIsFiltered() ? '"조건에 맞는 서버가 없습니다." + 초기화 유도' : 'PXE 안내') + ' 갈래입니다 (R5).'; }
+    msg.className = 'ux-message' + (cls ? (' ' + cls) : '');
+    msg.textContent = txt;
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

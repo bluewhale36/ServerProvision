@@ -1,6 +1,16 @@
 package com.example.serverprovision.provisioning.controller;
 
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
+import com.example.serverprovision.execution.dto.request.ServerListQuery;
+import com.example.serverprovision.execution.enums.GuestServerStatus;
+import com.example.serverprovision.execution.enums.ServerSortField;
+import com.example.serverprovision.execution.vo.ServerScope;
+import com.example.serverprovision.global.web.list.ListLinks;
+import com.example.serverprovision.global.web.list.Paging;
+import com.example.serverprovision.provisioning.group.vo.GroupFilter;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
@@ -41,7 +51,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.Map;
 import java.util.List;
 import java.util.UUID;
@@ -77,61 +86,53 @@ public class GuestServerController {
     private final GuestServerGroupQueryService groupQueryService;
 
     /**
-     * 게스트 서버 목록 (U3-3) — 상대 시간 × 스펙으로 묶어 보여준다.
+     * 게스트 서버 목록 (U3-3 · S8-2) — 묶음 보기(시간 × 스펙) 또는 표 보기(정렬 · 페이징)로 그린다.
      *
-     * <p>필터와 '등록 진행 중' 의 펼침이 <b>질의 파라미터</b>인 이유는 SSE 갱신 때문이다(DEC-E · DEC-H).
-     * {@code server-stream.js} 는 신호를 받으면 {@code fetch(location.href)} 로 같은 URL 을 다시 받아
-     * {@code [data-live]} 영역을 통째 교체한다. 상태가 URL 에 있으면 서버가 같은 화면을 다시 렌더해 주므로
-     * 복원 코드가 필요 없다 — 반대로 화면에만 두면 갱신 때마다 지워진다.</p>
-     *
-     * <p>알 수 없는 {@code phase} 값은 Spring 의 enum 바인딩 실패로 400 이 된다. 새 분기를 만들지 않으며,
-     * 주소창 진입이 HTML 오류 페이지를 받는 것은 S10 의 Accept 정규화가 보장한다.</p>
+     * <p>검색 · 필터 · 보기는 전부 <b>질의 파라미터</b>다(DEC-E). {@code server-stream.js} 가 SSE 신호마다
+     * {@code fetch(location.href)} 로 같은 URL 을 다시 받아 {@code [data-live]} 만 교체하므로, 상태가 URL 에 있으면
+     * 갱신 뒤에도 같은 화면이 다시 그려진다. 조회 조건은 {@link ServerListQuery} 로 바인딩되고, 소속 그룹 조건만
+     * 따로 받아 provisioning 이 서버 id 범위({@code ServerScope})로 번역한다 — 조회(execution)가 그룹을 모르게(DEC-C).
+     * 알 수 없는 값은 바인딩 실패로 400 이다.</p>
      */
     @GetMapping
-    public String list(@RequestParam(value = "phase", required = false) ProvisioningPhase phase,
+    public String list(@ModelAttribute("query") ServerListQuery query,
+                       @RequestParam(value = "group", required = false) GroupFilter group,
                        @RequestParam(value = "pending", required = false) String pending,
-                       @RequestParam(value = "includeDecommissioned", required = false,
-                               defaultValue = "false") boolean includeDecommissioned,
-                       Model model) {
-        GuestServerListResponse list = guestServerQueryService.findGrouped(phase, includeDecommissioned);
-        model.addAttribute("list", list);
-        model.addAttribute("phaseFilter", phase);
-        model.addAttribute("phases", ProvisioningPhase.values());
+                       @PageableDefault(size = Paging.DEFAULT_SIZE) Pageable pageable,
+                       ListLinks links, Model model) {
+        GroupFilter groupFilter = group == null ? GroupFilter.ANY : group;
+        ServerScope scope = groupQueryService.scopeOf(groupFilter);
+        List<UUID> visible;
+        if (query.isTable()) {
+            Page<GuestServerSummaryResponse> page = guestServerQueryService.findPage(query, scope, pageable);
+            model.addAttribute("page", page);
+            model.addAttribute("resultCount", page.getTotalElements());
+            visible = page.getContent().stream().map(GuestServerSummaryResponse::id).toList();
+        } else {
+            GuestServerListResponse list = guestServerQueryService.findGrouped(query, scope);
+            model.addAttribute("list", list);
+            visible = visibleServerIds(list);
+            model.addAttribute("resultCount", visible.size());
+        }
         boolean pendingOpen = "open".equals(pending);
         model.addAttribute("pendingOpen", pendingOpen);
-        model.addAttribute("includeDecommissioned", includeDecommissioned);
-        // 목록 상태 링크는 여기서 완성해 넘긴다(U6 CP5 D-2) — 상태 파라미터가 늘 때마다 뷰의 분기가
-        // 곱해지던 것(phase × pending × includeDecommissioned)을 조립 한 곳으로 모은다.
-        model.addAttribute("allChipUrl", listUrl(null, pendingOpen, includeDecommissioned));
-        Map<ProvisioningPhase, String> chipUrls = new EnumMap<>(ProvisioningPhase.class);
-        for (ProvisioningPhase p : ProvisioningPhase.values()) {
-            chipUrls.put(p, listUrl(p, pendingOpen, includeDecommissioned));
-        }
-        model.addAttribute("chipUrls", chipUrls);
-        model.addAttribute("pendingToggleUrl", listUrl(phase, !pendingOpen, includeDecommissioned));
+        model.addAttribute("group", groupFilter);
+        model.addAttribute("filtered", query.isFiltered() || groupFilter.isSet());
+        model.addAttribute("links", links);
+        model.addAttribute("phases", ProvisioningPhase.values());
+        model.addAttribute("statuses", SELECTABLE_STATUSES);
+        model.addAttribute("boardOptions", guestServerQueryService.findBoardOptions());
+        model.addAttribute("sortFields", ServerSortField.values());
+        model.addAttribute("sortDefault", ServerListQuery.DEFAULT_SORT);
         // U3-4 — 소속 그룹 배지. 목록 조회는 execution 이고 그룹은 provisioning 이라 요약 응답에 실을 수 없다(DEC-C).
-        // 이 컨트롤러가 이미 provisioning 이므로 두 서비스를 각각 부른 뒤 모델 단계에서 합성한다 — SPI 역전 불요.
-        model.addAttribute("groupBadges", groupQueryService.findBadges(visibleServerIds(list)));
+        model.addAttribute("groupBadges", groupQueryService.findBadges(visible));
         return "provisioning/server-list";
     }
 
-    /**
-     * 목록 URL 조립 SSOT — 상태(phase · pending · includeDecommissioned)에서 완성 URL 을 만든다. 빈 파라미터를
-     * 남기지 않는다(URL 이 곧 상태 저장소, DEC-E). {@code OSControllerSupport.redirectToList} 와 같은 결.
-     */
-    static String listUrl(ProvisioningPhase phase, boolean pendingOpen, boolean includeDecommissioned) {
-        List<String> params = new ArrayList<>(3);
-        if (phase != null) {
-            params.add("phase=" + phase.name());
-        }
-        if (pendingOpen) {
-            params.add("pending=open");
-        }
-        if (includeDecommissioned) {
-            params.add("includeDecommissioned=true");
-        }
-        return "/provisioning/server" + (params.isEmpty() ? "" : "?" + String.join("&", params));
-    }
+    /** 상태 칩 선택지 — 회수됨은 '회수된 서버 보기' 체크박스 한 축이 맡는다(S8-2 D7). */
+    private static final List<GuestServerStatus> SELECTABLE_STATUSES = java.util.Arrays.stream(GuestServerStatus.values())
+            .filter(s -> s != GuestServerStatus.DECOMMISSIONED)
+            .toList();
 
     /** 화면에 실제로 그려지는 서버들 — 그룹 배지는 이들만 있으면 된다. */
     private List<UUID> visibleServerIds(GuestServerListResponse list) {

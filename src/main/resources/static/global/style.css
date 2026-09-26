@@ -1250,7 +1250,7 @@ kbd {
 /* ---- 16. 조회 띠 · 쪽 이동 (S8-1) --------------------------
    목록 화면의 검색 · 필터 · 정렬은 페이지 머리 아래 한 줄의 GET 폼(.n-filter-bar)에 서고 상태는 URL 에 있다.
    칩은 숨은 라디오 · 체크박스를 감싼 label 이며 선택은 :has(input:checked) 로 그린다(Chrome 105+ — DESIGN.md
-   원칙 7). 종전에 server.css 가 갖던 링크 칩(.n-chip-link)도 여기로 옮겼다 — 두 화면 이상이 같은 뜻으로 쓴다.
+   원칙 7). 게스트 서버 목록의 링크 칩(.n-chip-link)은 S8-2 에서 폼 칩으로 바뀌며 사용처가 없어져 지웠다.
    쪽 이동 줄(.n-pagination)은 table-list.css 에서 옮겨 왔다(MK4-4-2 원형). */
 .n-filter-bar {
     display: flex;
@@ -1276,6 +1276,7 @@ kbd {
 .n-filter-sort {
     display: inline-flex;
     align-items: center;
+    flex-wrap: wrap;   /* 칩이 많은 축(게스트 서버 단계 8)은 좁은 폭에서 칩째 줄바꿈한다(S8-2 CP5) */
     gap: 6px;
 }
 
@@ -1291,8 +1292,7 @@ kbd {
     padding: 4px 8px;
 }
 
-.n-chip,
-.n-chip-link {
+.n-chip {
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -1307,10 +1307,10 @@ kbd {
     cursor: pointer;
     user-select: none;
     text-decoration: none;
+    white-space: nowrap;   /* 라벨이 "부트스트래/핑" 처럼 쪼개지지 않게 */
 }
 
-.n-chip:hover,
-.n-chip-link:hover {
+.n-chip:hover {
     background: var(--n-sunken);
 }
 
@@ -1326,7 +1326,6 @@ kbd {
 
 /* 선택된 칩 · 활성 링크 칩 · 하나도 고르지 않은 다중 선택 축의 "전체" 버튼 */
 .n-chip:has(input:checked),
-.n-chip-link.is-active,
 .n-filter-group:not(:has(input:checked)) > .n-chip-all {
     background: var(--n-text);
     color: var(--n-surface);
@@ -1335,6 +1334,21 @@ kbd {
 
 .n-chip:has(input:focus-visible) {
     box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
+}
+
+/* 조회 띠 안의 셀렉트 · 날짜 입력은 내용 폭만 — 전역 .n-input · .n-select 의 width:100% 를 띠 안에서만 푼다(S8-2) */
+.n-filter-group .n-select,
+.n-filter-range .n-input {
+    width: auto;
+    font-size: 13px;
+    padding: 4px 8px;
+}
+
+/* 결과 건수 한 줄 — 실시간 갱신 영역 안에 두어 교체 때 함께 바뀐다(S8-2) */
+.n-list-count {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: var(--n-text-sec);
 }
 
 .n-filter-summary {
