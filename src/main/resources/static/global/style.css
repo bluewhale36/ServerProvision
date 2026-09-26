@@ -1247,6 +1247,135 @@ kbd {
 /* 판 안의 작은 빈 상태(하위 목록이 비었을 때) — 80px 은 화면 단위 빈 상태의 값이다 */
 .n-empty.n-empty-sm { padding: 16px 24px; }
 
+/* ---- 16. 조회 띠 · 쪽 이동 (S8-1) --------------------------
+   목록 화면의 검색 · 필터 · 정렬은 페이지 머리 아래 한 줄의 GET 폼(.n-filter-bar)에 서고 상태는 URL 에 있다.
+   칩은 숨은 라디오 · 체크박스를 감싼 label 이며 선택은 :has(input:checked) 로 그린다(Chrome 105+ — DESIGN.md
+   원칙 7). 종전에 server.css 가 갖던 링크 칩(.n-chip-link)도 여기로 옮겼다 — 두 화면 이상이 같은 뜻으로 쓴다.
+   쪽 이동 줄(.n-pagination)은 table-list.css 에서 옮겨 왔다(MK4-4-2 원형). */
+.n-filter-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-bottom: 14px;
+}
+
+.n-filter-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.n-filter-search .n-input {
+    width: 260px;
+    font-size: 13px;
+    padding: 5px 10px;
+}
+
+.n-filter-group,
+.n-filter-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.n-filter-label {
+    font-size: 12px;
+    color: var(--n-text-muted);
+    margin-right: 2px;
+}
+
+.n-filter-sort .n-select {
+    width: auto;
+    font-size: 13px;
+    padding: 4px 8px;
+}
+
+.n-chip,
+.n-chip-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 11px;
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius);
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--n-text);
+    background: var(--n-surface);
+    cursor: pointer;
+    user-select: none;
+    text-decoration: none;
+}
+
+.n-chip:hover,
+.n-chip-link:hover {
+    background: var(--n-sunken);
+}
+
+/* 라디오 · 체크박스는 보이지 않되 키보드 포커스와 접근성은 남긴다 */
+.n-chip input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+    pointer-events: none;
+}
+
+/* 선택된 칩 · 활성 링크 칩 · 하나도 고르지 않은 다중 선택 축의 "전체" 버튼 */
+.n-chip:has(input:checked),
+.n-chip-link.is-active,
+.n-filter-group:not(:has(input:checked)) > .n-chip-all {
+    background: var(--n-text);
+    color: var(--n-surface);
+    border-color: var(--n-text);
+}
+
+.n-chip:has(input:focus-visible) {
+    box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
+}
+
+.n-filter-summary {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--n-text-sec);
+}
+
+/* 쪽 이동 줄 — 표 아래 이전 · 현재/전체 · 총 건수 · 다음 · 표시 개수 한 줄.
+   이동할 수 없는 방향은 링크가 아니라 흐린 글자로 두어 누를 수 있는 것과 구분된다. */
+.n-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-top: 1px solid var(--n-border);
+    font-size: 12px;
+}
+
+.n-pagination-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.n-pagination-size {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--n-text-sec);
+}
+
+.n-pagination-size .n-select {
+    width: auto;
+    font-size: 12px;
+    padding: 2px 6px;
+}
+
 /* ============================================================
    R9-4 — Maintenance 페이지 배너 (DESIGN.md §4 Maintenance Page Patterns)
    도메인 인트로(info) / 대기·도착 안내(warn). 기존 토큰 재사용 — 팔레트 이원화 금지.

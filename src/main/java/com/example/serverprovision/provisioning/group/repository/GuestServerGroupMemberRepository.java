@@ -35,9 +35,13 @@ public interface GuestServerGroupMemberRepository extends JpaRepository<GuestSer
     List<UUID> findAllGroupedServerIds();
 
     /**
-     * 모든 소속 — 그룹 목록의 구성 혼재 판정에 쓴다.
-     * 그룹마다 멤버를 따로 읽으면 그룹 수만큼 왕복이 생기므로 한 번에 읽어 애플리케이션에서 가른다.
+     * 주어진 그룹들의 소속 — 그룹 목록 한 쪽의 구성 혼재 판정에 쓴다(S8-1).
+     * 종전에는 전 소속을 읽었지만, 쪽 단위로 보이는 그룹만 읽으면 조회 범위가 그 쪽 안에서 닫힌다.
      */
-    @Query("select m from GuestServerGroupMember m join fetch m.group")
-    List<GuestServerGroupMember> findAllWithGroup();
+    @Query("""
+            select m from GuestServerGroupMember m
+            join fetch m.group
+            where m.group.id in :groupIds
+            """)
+    List<GuestServerGroupMember> findAllByGroupIdIn(Collection<Long> groupIds);
 }

@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.Formula;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -69,6 +70,14 @@ public class GuestServerGroup extends BaseTimeEntity {
     @Column(name = "standard_definition_id")
     private Long standardDefinitionId;
 
+    /**
+     * 멤버 수(S8-1) — 읽기 전용 파생 컬럼. 목록이 멤버 컬렉션을 지연 로드하지 않고 행에 실어 오며, 속성이므로
+     * {@code Sort.by("memberCount")} 로 정렬된다. 스키마에는 없다({@code ddl-auto=validate} 무관).
+     * {@code id} 는 Hibernate 가 이 엔티티의 alias 로 한정하고, {@code m.group_id} 는 명시 alias 라 그대로다.
+     */
+    @Formula("(select count(*) from guest_server_group_member m where m.group_id = id)")
+    private long memberCount;
+
     private GuestServerGroup(String name) {
         this.name = name;
     }
@@ -114,10 +123,6 @@ public class GuestServerGroup extends BaseTimeEntity {
 
     public void rename(String name) {
         this.name = name;
-    }
-
-    public int memberCount() {
-        return members.size();
     }
 
     /**

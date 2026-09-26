@@ -10,7 +10,10 @@ import com.example.serverprovision.provisioning.setting.dto.response.SettingSumm
 import com.example.serverprovision.provisioning.setting.dto.response.SettingRaidCardOptionGroupResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.TimezoneRegionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.WindowsImageOptionResponse;
+import com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -21,10 +24,10 @@ import java.util.List;
 public interface SettingQueryService {
 
     /**
-     * 정의서 목록. {@code includeDeleted=false} 면 활성 전용(기본), true 면 soft-deleted 포함(휴지통 토글,
-     * U3-2-b DEC-F · os 선례).
+     * 정의서 목록 한 쪽(S8-1) — 조회 띠의 조건({@code SettingListQuery})으로 거르고 정렬해 {@code pageable} 의 쪽만 읽는다.
+     * 삭제분은 {@code includeDeleted} 일 때만 섞인다(휴지통 토글, U3-2-b DEC-F · os 선례).
      */
-    List<SettingSummaryResponse> findAll(boolean includeDeleted);
+    Page<SettingSummaryResponse> search(SettingListQuery query, Pageable pageable);
 
     /**
      * 할당 가능한 정의서 목록(U3-2-b DEC-G) — 게스트 서버 상세의 할당 · 재할당 드롭다운 선택지.

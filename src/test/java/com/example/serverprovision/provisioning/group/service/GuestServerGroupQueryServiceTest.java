@@ -25,11 +25,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import com.example.serverprovision.provisioning.group.dto.request.GroupListQuery;
+import com.example.serverprovision.provisioning.group.dto.response.GroupSummaryResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -170,5 +178,59 @@ class GuestServerGroupQueryServiceTest {
         assertThat(service.nameConflictReason("빈 이름", null)).isNull();
         assertThat(service.nameConflictReason("8월 2차", null)).contains("8월 2차");
         assertThat(service.nameConflictReason("8월 2차", 7L)).isNull();   // 자기 자신은 충돌이 아니다
+    }
+
+    // ==== S8-1 — 목록 한 쪽 조회 ======================================
+
+    private GuestServerGroupMember member(GuestServerGroup group, UUID serverId) {
+        GuestServer server = mock(GuestServer.class);
+        when(server.getId()).thenReturn(serverId);
+        GuestServerGroupMember m = mock(GuestServerGroupMember.class);
+        when(m.getGuestServer()).thenReturn(server);
+        when(m.getGroup()).thenReturn(group);
+        return m;
+    }
+
+    private GuestServerGroup listed(Long id, long memberCount) {
+        GuestServerGroup g = mock(GuestServerGroup.class);
+        when(g.getId()).thenReturn(id);
+        when(g.getName()).thenReturn("그룹-" + id);
+        when(g.getMemberCount()).thenReturn(memberCount);
+        when(g.getCreatedAt()).thenReturn(LocalDateTime.now());
+        return g;
+    }
+
+    @Test
+    @DisplayName("search — 한 쪽의 그룹만 멤버 · 서버를 읽고, 구성이 갈린 그룹만 혼재로 표시한다")
+    void search_judgesDivergenceOnlyForVisibleGroups() {
+        GuestServerGroup mixed = listed(1L, 2);
+        GuestServerGroup uniform = listed(2L, 1);
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID(), c = UUID.randomUUID();
+        when(groupRepository.findAll(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(mixed, uniform)));
+        List<GuestServerGroupMember> members = List.of(member(mixed, a), member(mixed, b), member(uniform, c));
+        when(memberRepository.findAllByGroupIdIn(List.of(1L, 2L))).thenReturn(members);
+        when(guestServerQueryService.findSummaries(List.of(a, b, c)))
+                .thenReturn(List.of(row(a, "K1"), row(b, "K2"), row(c, "K1")));
+
+        Page<GroupSummaryResponse> page = service.search(new GroupListQuery(null, null, null, null), PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).extracting(GroupSummaryResponse::id, GroupSummaryResponse::memberCount,
+                        GroupSummaryResponse::specDiverged)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(1L, 2L, true),
+                        org.assertj.core.groups.Tuple.tuple(2L, 1L, false));
+        verify(guestServerQueryService, never()).findAll();
+    }
+
+    @Test
+    @DisplayName("search — 빈 쪽이면 멤버 · 서버 조회를 하지 않는다")
+    void search_emptyPage_skipsMemberLookup() {
+        when(groupRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(Page.empty());
+
+        Page<GroupSummaryResponse> page = service.search(new GroupListQuery(null, null, null, null), PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).isEmpty();
+        verify(memberRepository, never()).findAllByGroupIdIn(any());
+        verify(guestServerQueryService, never()).findSummaries(any());
     }
 }

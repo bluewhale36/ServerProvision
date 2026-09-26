@@ -20,6 +20,10 @@ import com.example.serverprovision.provisioning.setting.enums.SettingProcessType
 import com.example.serverprovision.provisioning.setting.enums.SizeUnit;
 import com.example.serverprovision.provisioning.setting.exception.SettingNotFoundException;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
+import com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery;
+import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,7 +38,10 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -126,27 +133,28 @@ class SettingControllerViewTest {
     // ==== 성공 2xx ====================================================
 
     @Test
-    @DisplayName("GET /provisioning/setting — 목록 200 + list 뷰 + settings (활성 전용 기본)")
+    @DisplayName("GET /provisioning/setting — 목록 200 + list 뷰 + page · query · links (S8-1)")
     void list_returns200() throws Exception {
-        given(queryService.findAll(false)).willReturn(List.of(summary(1L)));
+        given(queryService.search(any(), any())).willReturn(new PageImpl<>(List.of(summary(1L))));
 
         mvc.perform(get("/provisioning/setting"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/setting-list"))
-                .andExpect(model().attributeExists("settings"))
-                .andExpect(model().attribute("includeDeleted", false));
+                .andExpect(model().attributeExists("page", "query", "links", "processTypes", "sortFields"));
     }
 
     @Test
-    @DisplayName("GET /provisioning/setting?includeDeleted=true — 삭제분 포함 조회 + 토글 상태 전달 (U3-2-b DEC-F)")
-    void list_includeDeleted_returnsAll() throws Exception {
-        given(queryService.findAll(true)).willReturn(List.of(summary(1L), summary(2L, true)));
+    @DisplayName("GET /provisioning/setting?includeDeleted=true — 삭제 포함이 조회 조건으로 바인딩된다 (U3-2-b DEC-F · S8-1)")
+    void list_includeDeleted_bindsIntoQuery() throws Exception {
+        given(queryService.search(any(), any())).willReturn(new PageImpl<>(List.of(summary(1L), summary(2L, true))));
 
         mvc.perform(get("/provisioning/setting").param("includeDeleted", "true"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("provisioning/setting-list"))
-                .andExpect(model().attribute("includeDeleted", true))
-                .andExpect(model().attributeExists("settings"));
+                .andExpect(view().name("provisioning/setting-list"));
+
+        ArgumentCaptor<SettingListQuery> captor = ArgumentCaptor.forClass(SettingListQuery.class);
+        then(queryService).should().search(captor.capture(), any(Pageable.class));
+        assertThat(captor.getValue().includeDeleted()).isTrue();
     }
 
     @Test
@@ -220,7 +228,7 @@ class SettingControllerViewTest {
     @Test
     @DisplayName("GET /provisioning/setting — 비활성 · 사용 중단 정의서에 상태 배지 렌더 (U3-2-b DEC-G)")
     void list_rendersLifecycleBadges() throws Exception {
-        given(queryService.findAll(false)).willReturn(List.of(summary(1L, false, false, true)));
+        given(queryService.search(any(), any())).willReturn(new PageImpl<>(List.of(summary(1L, false, false, true))));
 
         mvc.perform(get("/provisioning/setting"))
                 .andExpect(status().isOk())

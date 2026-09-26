@@ -192,7 +192,7 @@ class JpaSettingCommandServiceTest {
         // 불일치 → 400, delete 미호출.
         assertThatThrownBy(() -> service.purge(1L, "다른 이름"))
                 .isInstanceOf(com.example.serverprovision.global.exception.TypedNameMismatchException.class);
-        verify(repository, org.mockito.Mockito.never()).delete(any());
+        verify(repository, org.mockito.Mockito.never()).delete(any(SettingDefinition.class));
 
         // 일치 → delete 호출(자식 setting_process 는 cascade/orphanRemoval 동반).
         service.purge(1L, "영구삭제 대상");

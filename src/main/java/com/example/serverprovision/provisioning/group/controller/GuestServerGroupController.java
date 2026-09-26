@@ -15,6 +15,12 @@ import com.example.serverprovision.provisioning.group.dto.response.GroupStandard
 import com.example.serverprovision.provisioning.group.dto.response.SeedCandidateResponse;
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupCommandService;
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
+import com.example.serverprovision.provisioning.group.dto.request.GroupListQuery;
+import com.example.serverprovision.provisioning.group.enums.GroupSortField;
+import com.example.serverprovision.global.web.list.ListLinks;
+import com.example.serverprovision.global.web.list.Paging;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import com.example.serverprovision.provisioning.setting.dto.response.ReferencedDefinitionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
@@ -55,9 +61,18 @@ public class GuestServerGroupController {
     private final GroupAssignmentService groupAssignmentService;
     private final SettingQueryService settingQueryService;
 
+    /**
+     * 그룹 목록(S8-1) — 조회 띠(GET 폼)의 조건과 쪽을 받아 한 쪽만 그린다. 조건 바인딩 · 쪽 정정 · 400 규칙은
+     * {@code SettingController#list} 와 같다.
+     */
     @GetMapping
-    public String list(Model model) {
-        model.addAttribute("groups", queryService.findAll());
+    public String list(@ModelAttribute("query") GroupListQuery query,
+                       @PageableDefault(size = Paging.DEFAULT_SIZE) Pageable pageable,
+                       ListLinks links, Model model) {
+        model.addAttribute("page", queryService.search(query, pageable));
+        model.addAttribute("links", links);
+        model.addAttribute("sortFields", GroupSortField.values());
+        model.addAttribute("sortDefault", GroupListQuery.DEFAULT_SORT);
         return "provisioning/server-group-list";
     }
 

@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.BatchSize;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -81,6 +82,8 @@ public class SettingDefinition extends BaseTimeEntity {
      * 단계 행들 — aggregate 종속(단방향, cascade + orphanRemoval). 순서 컬럼 없음(D7) —
      * 재조립·표시는 {@code SettingProcessType} enum 선언 순.
      */
+    // S8-1 — 목록 한 쪽(최대 100 행)의 단계 배지를 행마다 따로 읽지 않고 한 번에 읽는다(N+1 해소).
+    @BatchSize(size = 100)
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "setting_definition_id", nullable = false)
     private List<SettingProcess> processes = new ArrayList<>();

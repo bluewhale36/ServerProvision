@@ -1,19 +1,25 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  세팅 정의서 목록 페이지
+  세팅 정의서 목록 페이지 (S8-1 — 검색 · 필터 · 정렬 · 페이징)
   ─────────────────────────────────────────────────────────
   Model:
-    settings : List<SettingSummaryResponse>
-                 · id           : Long
-                 · name         : String
-                 · processTypes : List<SettingProcessType> (단계 요약 배지)
-                 · deleted      : boolean (삭제됨 배지 — includeDeleted 목록에서만 등장)
-                 · enabled      : boolean (false 면 '비활성' 배지 — 신규 할당 차단, U3-2-b DEC-G)
-                 · deprecated   : boolean (true 면 '사용 중단' 배지 — 할당은 허용, 경고만)
-                 · createdAt    : LocalDateTime
+    page         : Page<SettingSummaryResponse> — 조회 조건으로 거른 한 쪽
+                     · id · name · processTypes(단계 요약 배지) · deleted(삭제됨 배지 — 삭제 포함일 때만 등장)
+                     · enabled(false 면 '비활성' 배지 — 신규 할당 차단, U3-2-b DEC-G) · deprecated('사용 중단' 배지 — 할당은 허용)
+                     · createdAt
+    query        : SettingListQuery — 조회 띠의 현재 상태(q · enabled · deprecated · processTypes · includeDeleted · sort · dir)
+    links        : ListLinks — 쪽 이동 · 초기화 링크(page 만 바꾸고 나머지 상태는 그대로)
+    processTypes : SettingProcessType[] — 단계 칩 선택지
+    sortFields   : SettingSortField[] — 정렬 항목 셀렉트 선택지
+    sortDefault  : SettingSortField — 정렬 항목 기본값(list-query.js 가 URL 에서 뺀다)
 
-  행 클릭 시 /provisioning/setting/{id} 상세로 이동.
+  조회 띠는 GET 폼이다 — 상태는 전부 URL 질의 파라미터이고 브라우저가 조립한다(plan D2). 칩 · 셀렉트 · 체크박스는
+  바뀌면 바로 제출되고(global/list-query.js) 검색 입력은 Enter · 검색 버튼으로 제출된다. 제출은 page 를 버려
+  첫 쪽으로 돌아간다(R4). "전체" 라디오는 value="" 를 보내고 서버는 그것을 null(술어 없음)로 받는다.
+  단계 칩은 체크박스 다중 선택이고 고른 단계를 모두 포함하는 정의서만 남는다(D15). "전체" 는 선택을 비우는 버튼이다.
+
+  행 클릭 시 /provisioning/setting/{id} 상세로 이동 — 전역 row-link.js 가 맡는다.
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('세팅 정의서')}"></th:block>
@@ -26,28 +32,81 @@
     <div class="n-page-header">
         <h1 class="n-page-title">세팅 정의서</h1>
         <div class="n-header-actions">
-            <!-- U3-2-b — 휴지통 토글(os 선례 DEC-F). on 이면 삭제분도 목록에 노출(삭제 배지). -->
-            <label class="n-checkbox">
-                <input type="checkbox"
-                       th:checked="${includeDeleted}"
-                       id="settingIncludeDeletedToggle">
-                삭제된 항목 포함
-            </label>
             <a th:href="@{/provisioning/setting/new}" class="n-btn n-btn-primary">새 정의서 작성</a>
         </div>
     </div>
 
-    <!-- 빈 상태 -->
-    <div th:if="${#lists.isEmpty(settings)}" class="n-card">
+    <!-- 조회 띠 — 검색 · 필터 · 정렬. 상태는 URL 에 있다(S8-1 R1~R4). -->
+    <form id="listQuery" class="n-filter-bar" method="get" th:action="@{/provisioning/setting}" data-list-query>
+        <div class="n-filter-search">
+            <input class="n-input" type="search" name="q" th:value="${query.q}"
+                   placeholder="예: 8월 표준 세팅" aria-label="정의서 이름 검색">
+            <button type="submit" class="n-btn n-btn-secondary n-btn-sm" th:text="#{action.search}">검색</button>
+        </div>
+
+        <div class="n-filter-group" role="group" aria-label="활성">
+            <span class="n-filter-label">활성</span>
+            <label class="n-chip"><input type="radio" name="enabled" value="" th:checked="${query.enabled == null}">전체</label>
+            <label class="n-chip"><input type="radio" name="enabled" value="true" th:checked="${query.enabled == true}">활성</label>
+            <label class="n-chip"><input type="radio" name="enabled" value="false" th:checked="${query.enabled == false}">비활성</label>
+        </div>
+
+        <div class="n-filter-group" role="group" aria-label="사용 중단">
+            <span class="n-filter-label">사용 중단</span>
+            <label class="n-chip"><input type="radio" name="deprecated" value="" th:checked="${query.deprecated == null}">전체</label>
+            <label class="n-chip"><input type="radio" name="deprecated" value="true" th:checked="${query.deprecated == true}">권고</label>
+            <label class="n-chip"><input type="radio" name="deprecated" value="false" th:checked="${query.deprecated == false}">정상</label>
+        </div>
+
+        <div class="n-filter-group" role="group" aria-label="포함 단계">
+            <span class="n-filter-label">포함 단계</span>
+            <button type="button" class="n-chip n-chip-all" data-chip-clear="processType">전체</button>
+            <label class="n-chip" th:each="t : ${processTypes}">
+                <input type="checkbox" name="processType" th:value="${t.name()}"
+                       th:checked="${query.processTypes.contains(t)}">
+                <span th:text="${t.displayName}">단계</span>
+            </label>
+        </div>
+
+        <!-- U3-2-b — 휴지통 토글(os 선례 DEC-F). on 이면 삭제분도 목록에 노출(삭제 배지). S8-1 부터 폼 필드다. -->
+        <label class="n-checkbox">
+            <input type="checkbox" name="includeDeleted" value="true" th:checked="${query.includeDeleted}">
+            삭제된 항목 포함
+        </label>
+
+        <div th:replace="~{fragments/ui/sort-selects :: selects(${sortFields}, ${query}, ${sortDefault})}"></div>
+
+        <div class="n-filter-summary">
+            <span>결과 <b th:text="${page.totalElements}">0</b>건</span>
+            <a th:if="${query.filtered}" th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>
+        </div>
+    </form>
+
+    <!-- 빈 상태 — 조건 때문에 비었는지, 아예 없는지를 가른다(S8-1 R8) -->
+    <div th:if="${page.totalElements == 0}" class="n-card">
         <div class="n-empty">
-            <div class="n-empty-title">등록된 세팅 정의서가 없습니다.</div>
-            <div class="n-empty-desc">새 정의서 작성 버튼을 눌러 첫 번째 정의서를 만들어보세요.</div>
+            <th:block th:if="${query.filtered}">
+                <div class="n-empty-title" th:text="#{provisioning.setting.list.empty-filtered}">조건에 맞는 세팅 정의서가 없습니다.</div>
+                <div class="n-empty-desc">조건을 바꾸거나 <a th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>하면 전체 목록이 보입니다.</div>
+            </th:block>
+            <th:block th:unless="${query.filtered}">
+                <div class="n-empty-title">등록된 세팅 정의서가 없습니다.</div>
+                <div class="n-empty-desc">새 정의서 작성 버튼을 눌러 첫 번째 정의서를 만드십시오.</div>
+            </th:block>
+        </div>
+    </div>
+
+    <!-- 범위 밖 쪽(주소창으로 page 를 크게 넣은 경우) — 결과는 있는데 이 쪽이 빈 상태 -->
+    <div th:if="${page.totalElements > 0 and page.content.isEmpty()}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">이 페이지에는 항목이 없습니다.</div>
+            <div class="n-empty-desc"><a th:href="${links.page(0)}">첫 페이지</a>로 돌아가면 목록이 보입니다.</div>
         </div>
     </div>
 
     <!-- 정의서 목록 -->
-    <div th:unless="${#lists.isEmpty(settings)}" class="n-card">
-        <table class="n-table" id="settingTable">
+    <div th:if="${!page.content.isEmpty()}" class="n-card">
+        <table class="n-table n-table-settings" id="settingTable">
             <thead>
             <tr>
                 <th class="n-th-center">#</th>
@@ -59,8 +118,10 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:each="setting : ${settings}"
+            <!--/* data-nav-key — 상세에서 '목록으로' 를 누르면 떠난 쪽으로 돌아와 이 행을 짚는다(nav-stack.js · S8-1 CP5 D-1). */-->
+            <tr th:each="setting : ${page.content}"
                 class="n-row-clickable"
+                th:data-nav-key="${setting.id}"
                 th:data-href="@{/provisioning/setting/{id}(id=${setting.id})}">
                 <td class="n-td-id" th:text="${setting.id}">1</td>
                 <td>
@@ -103,11 +164,14 @@
             </tr>
             </tbody>
         </table>
+
+        <!--/* 표와 쪽 이동은 붙어 다닌다 — 판 바닥의 한 줄(S8-1). */-->
+        <div th:replace="~{fragments/ui/pagination :: pager(${page}, ${links})}"></div>
     </div>
 </div>
 
-<!-- 행 클릭은 전역 row-link.js 가 맡는다. 휴지통 토글만 이 화면 고유. -->
-<script th:src="@{/provisioning/setting-list.js}"></script>
+<!-- 행 클릭은 전역 row-link.js 가 맡는다. 조회 띠의 즉시 제출 · 빈 값 정리는 list-query.js(S8-1). -->
+<script th:src="@{/global/list-query.js}"></script>
 
 </body>
 </html>

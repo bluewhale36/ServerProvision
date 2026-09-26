@@ -335,3 +335,34 @@
 @media (max-width: 600px) {
     .n-vd-grid { grid-template-columns: 1fr; }
 }
+
+/* ---- 목록 : 정의서 표의 열 폭 (S8-1 CP7) ---------------------
+   자동 레이아웃이면 그 쪽에 담긴 내용에 맞춰 열 폭을 다시 계산하므로, 필터 · 쪽을 바꿀 때마다 열이 흔들린다.
+   고정 레이아웃으로 폭을 정해 둔다(서버 목록 .n-table-servers 와 같은 방식). 정의서 명칭이 남는 폭을 모두 갖고,
+   값이 짧은 열(번호 · 활성 · 사용 중단 · 생성일시)은 한 줄에 들어가는 만큼만 둔다. */
+.n-table-settings {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.n-table-settings th:nth-child(1) { width: 56px; }
+.n-table-settings th:nth-child(3) { width: 64px; }
+.n-table-settings th:nth-child(4) { width: 112px; }
+.n-table-settings th:nth-child(5) { width: 30%; }
+.n-table-settings th:nth-child(6) { width: 176px; }   /* "2026-09-23 15:05" 약 134px + 셀 좌우 여백 28px + 여유 */
+
+.n-table-settings th:nth-child(1),
+.n-table-settings th:nth-child(3),
+.n-table-settings th:nth-child(4),
+.n-table-settings th:nth-child(6),
+.n-table-settings td:nth-child(1),
+.n-table-settings td:nth-child(3),
+.n-table-settings td:nth-child(4),
+.n-table-settings td:nth-child(6) {
+    white-space: nowrap;
+}
+
+/* 이름은 공백에서 접는다 — 끊을 자리가 없는 긴 이름만 글자 단위로(DESIGN §5 표 · 셀 값 처리) */
+.n-table-settings td:nth-child(2) {
+    overflow-wrap: anywhere;
+}
