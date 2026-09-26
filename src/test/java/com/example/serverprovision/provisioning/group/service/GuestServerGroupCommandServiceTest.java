@@ -180,7 +180,7 @@ class GuestServerGroupCommandServiceTest {
         service.removeMember(7L, serverId);
 
         verify(group).removeMember(serverId);
-        verify(guestServerRepository, never()).delete(any());
+        verify(guestServerRepository, never()).delete(any(com.example.serverprovision.execution.entity.GuestServer.class));
     }
 
     @Test
@@ -208,6 +208,6 @@ class GuestServerGroupCommandServiceTest {
 
         verify(groupRepository).delete(group);
         verify(memberRepository, never()).deleteAll();
-        verify(guestServerRepository, never()).delete(any());
+        verify(guestServerRepository, never()).delete(any(com.example.serverprovision.execution.entity.GuestServer.class));
     }
 }

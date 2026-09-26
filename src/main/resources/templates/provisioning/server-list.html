@@ -1,26 +1,28 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  등록된 게스트 서버 목록 페이지 (U3-3 — 상대 시간 × 스펙)
+  등록된 게스트 서버 목록 페이지 (U3-3 — 상대 시간 × 스펙 · S8-2 — 묶음 · 표 보기와 검색 · 필터 · 정렬 · 페이징)
   ─────────────────────────────────────────────────────────
   Model:
-    list        : GuestServerListResponse — pending(등록 진행 중, 0대면 null) + timeGroups(멤버 있는 구간만)
-    phaseFilter : ProvisioningPhase (nullable — 전체)
-    phases      : ProvisioningPhase[] (필터 칩)
-    pendingOpen : boolean — '등록 진행 중' 을 펼친 상태인가
-    groupBadges : Map<UUID, GroupBadgeResponse> — 소속 그룹 (U3-4)
+    query        : ServerListQuery — 조회 띠 상태(view · q · phases · statuses · includeDecommissioned · boardModelId · from · to · sort · dir)
+    group        : GroupFilter — 소속 그룹 조건(ANY · UNGROUPED · GROUP) — 조회(execution)가 모르게 따로 받는다
+    filtered     : boolean — 조건이 하나라도 걸렸는가(그룹 포함) — 빈 상태 갈래 · 초기화 링크
+    list         : GuestServerListResponse — 묶음 보기일 때. pending(0대면 null) + timeGroups(멤버 있는 구간만)
+    page         : Page<GuestServerSummaryResponse> — 표 보기일 때
+    resultCount  : 결과 건수(두 보기 공통)
+    links        : ListLinks — 쪽 이동 · 초기화 · 펼침 토글
+    phases · statuses · boardOptions(제조사별 묶음) · sortFields · sortDefault : 조회 띠 선택지
+    pendingOpen  : boolean — '등록 진행 중' 펼침(묶음 보기)
+    groupBadges  : Map<UUID, GroupBadgeResponse> — 소속 그룹 (U3-4)
 
   화면 규칙:
-    · 바깥 묶음(등록 진행 중 · 상대 시간)과 안쪽 묶음(수집 상태 · 스펙)의 양식은
-      css/grouped-list.css 가 한 곳에서 정의한다 — 화면마다 다르게 재현되지 않도록.
-    · 멤버가 없는 시간 구간 · 스펙은 서버가 아예 담아 보내지 않으므로 여기서 걸러낼 것이 없다.
-    · 수집이 끝난 스펙 묶음은 펼침 기본(<details open>) — 접는 것은 사용자의 선택이다.
-    · 행 전체는 클릭 대상이 아니다. 이동은 이름 링크만 한다(개정) — 커서가 손 모양인데
-      눌러도 아무 일이 없는 상태가 실제로 있었다.
-
-  DEC-E · DEC-H — 필터 칩과 '등록 진행 중' 토글은 [data-live] 영역 **밖**의 링크이고 상태는 URL 에 있다.
-  server-stream.js 가 fetch(location.href) 로 같은 URL 을 다시 받아 [data-live] 만 교체하므로,
-  URL 에 실린 상태는 갱신 후에도 그대로 살아난다(복원 코드 0). 영역 안에 두면 갱신 때마다 지워진다.
+    · 조회 띠는 GET 폼(S8-1 과 같은 규칙 · global/list-query.js)이고 [data-live] 영역 **밖**이다 — SSE 갱신이
+      영역만 교체하므로 입력 중인 검색어 · 칩 선택이 지워지지 않는다. 결과 건수 · 묶음 · 표 · 쪽 이동은 영역 **안**.
+    · 검색 · 필터는 두 보기에 같이 걸리고, 정렬 · 쪽은 표 보기에만 있다(묶음의 순서는 시간 구간이 뜻이다).
+    · 단계 · 상태 칩은 여러 개 고를 수 있고 축 안에서는 OR 다(서버의 단계 · 상태는 한 값이다).
+    · 필터는 낱개 n-filter-group 블록으로 둔다 — S8-4 가 상세 조회 창 안으로 옮기기 쉽게.
+    · 바깥 묶음 · 안쪽 묶음의 양식은 css/grouped-list.css, 표 열 폭은 server.css 의 n-table-servers.
+    · 행 전체는 클릭 대상이 아니다. 이동은 이름 링크만 한다(개정).
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('게스트 서버')}"></th:block>
@@ -40,48 +42,126 @@
         <h1 class="n-page-title">게스트 서버</h1>
         <div class="n-header-actions">
             <span class="n-hint">iPXE 부팅으로 등록된 물리 서버를 등록 시각과 하드웨어 스펙으로 묶어 보여줍니다.</span>
-            <!-- U6 D-4 — 회수 행은 기본 숨김. 토글은 자원 휴지통 모드(S5-4)와 같은 전역 스크립트가
-                 URL 의 다른 파라미터(phase · pending)를 보존한 채 이 키만 바꾼다. -->
-            <label class="n-checkbox">
-                <input type="checkbox"
-                       th:checked="${includeDecommissioned}"
-                       data-include-deleted-toggle="includeDecommissioned">
-                회수된 서버 보기
-            </label>
         </div>
     </div>
 
-    <!-- ── phase 필터 — [data-live] 밖(DEC-E). 상태는 URL 에 남는다 ── -->
-    <div class="n-filter-bar">
-        <span class="n-filter-label">진행 단계</span>
-        <!--/* Thymeleaf 는 null 파라미터를 빈 값(?phase=)으로 렌더한다. URL 이 곧 상태 저장소이므로
-               (DEC-E · DEC-H) 지저분한 빈 파라미터가 남지 않게 완성된 URL 을 골라 쓴다. */-->
-        <!--/* 상태 링크(phase · pending · includeDecommissioned)는 컨트롤러가 완성해 넘긴다(U6 CP5 D-2 —
-               GuestServerController.listUrl 이 조립 SSOT). 파라미터가 늘어도 여기 분기가 곱해지지 않는다.
-               chipUrls 는 EnumMap — 반드시 .get(p) 로 읽는다. 대괄호 표기(chipUrls[p])는 SpEL Indexer 가
-               키 타입을 java.lang.Enum 으로 읽어 변환에 실패해 페이지가 500 이 된다(CP5 실측). */-->
-        <a class="n-chip-link" th:classappend="${phaseFilter == null} ? ' is-active'"
-           th:href="@{${allChipUrl}}">전체</a>
-        <a th:each="p : ${phases}" class="n-chip-link"
-           th:classappend="${phaseFilter != null and phaseFilter.name() == p.name()} ? ' is-active'"
-           th:href="@{${chipUrls.get(p)}}"
-           th:text="${p.description}">진단 리눅스</a>
-    </div>
+    <!-- 조회 띠 — [data-live] 밖(DEC-E). 상태는 URL 에 남는다(S8-2) -->
+    <form id="listQuery" class="n-filter-bar" method="get" th:action="@{/provisioning/server}" data-list-query>
+        <div class="n-filter-search">
+            <input class="n-input" type="search" name="q" th:value="${query.q}"
+                   placeholder="예: srv-01 · 10.1.1.5" aria-label="이름 · UUID · 시리얼 · IP · 보드 검색">
+            <button type="submit" class="n-btn n-btn-secondary n-btn-sm" th:text="#{action.search}">검색</button>
+        </div>
+
+        <div class="n-filter-group" role="group" aria-label="보기">
+            <span class="n-filter-label">보기</span>
+            <label class="n-chip"><input type="radio" name="view" value="GROUPED" data-default="GROUPED" th:checked="${!query.table}">묶음</label>
+            <label class="n-chip"><input type="radio" name="view" value="TABLE" th:checked="${query.table}">표</label>
+        </div>
+
+        <div class="n-filter-group" role="group" aria-label="진행 단계">
+            <span class="n-filter-label">진행 단계</span>
+            <button type="button" class="n-chip n-chip-all" data-chip-clear="phase">전체</button>
+            <label class="n-chip" th:each="p : ${phases}">
+                <input type="checkbox" name="phase" th:value="${p.name()}" th:checked="${query.phases.contains(p)}">
+                <span th:text="${p.description}">진단 리눅스</span>
+            </label>
+        </div>
+
+        <div class="n-filter-group" role="group" aria-label="운영 상태">
+            <span class="n-filter-label">운영 상태</span>
+            <button type="button" class="n-chip n-chip-all" data-chip-clear="status">전체</button>
+            <label class="n-chip" th:each="st : ${statuses}">
+                <input type="checkbox" name="status" th:value="${st.name()}" th:checked="${query.statuses.contains(st)}">
+                <span th:text="${st.description}">등록됨</span>
+            </label>
+        </div>
+
+        <!--/* 보드는 제조사별 optgroup(S8-2 CP6 임시 조치). 소속 그룹 조건은 화면에서 잠시 뺐다 — 보드 · 그룹은 자기 조회
+               화면이 있는 대상이라 단순 셀렉트가 맞지 않고, S8-4 상세 조회 창에서 다시 설계한다(서버 쪽 group 파라미터는 남아 있다). */-->
+        <div class="n-filter-group" role="group" aria-label="보드 모델">
+            <span class="n-filter-label">보드</span>
+            <select name="board" class="n-select" aria-label="보드 모델">
+                <option value="">보드 전체</option>
+                <optgroup th:each="vg : ${boardOptions}" th:label="${vg.vendor}">
+                    <option th:each="b : ${vg.boards}" th:value="${b.id}" th:text="${b.name}"
+                            th:selected="${query.boardModelId == b.id}">MS03-CE0</option>
+                </optgroup>
+            </select>
+        </div>
+
+        <!--/* 기간 — 양 끝 포함 · 날짜 단위. 두 입력이 서로 min/max 를 걸어 거꾸로 고를 수 없다(list-query.js). */-->
+        <div class="n-filter-group n-filter-range" role="group" aria-label="최초 등록 시각">
+            <span class="n-filter-label">등록 시각</span>
+            <input type="date" name="from" class="n-input" th:value="${query.from}" th:attr="max=${query.rangeReversed or query.to == null ? '9999-12-31' : query.to}" data-range-start aria-label="시작일">
+            <span class="n-filter-label">~</span>
+            <input type="date" name="to" class="n-input" th:value="${query.to}" max="9999-12-31" th:attr="min=${query.rangeReversed ? null : query.from}" data-range-end aria-label="종료일">
+        </div>
+
+        <label class="n-checkbox">
+            <input type="checkbox" name="includeDecommissioned" value="true" th:checked="${query.includeDecommissioned}">
+            회수된 서버 보기
+        </label>
+
+        <!--/* th:replace 는 th:if 보다 먼저 실행되므로 조건은 바깥 블록이 진다. 정렬은 표 보기만. */-->
+        <th:block th:if="${query.table}">
+            <div th:replace="~{fragments/ui/sort-selects :: selects(${sortFields}, ${query}, ${sortDefault})}"></div>
+        </th:block>
+
+        <!--/* 묶음 보기에서 '등록 진행 중' 을 펼친 채 필터를 바꿔도 펼침이 남도록 숨은 필드로 싣는다. */-->
+        <input th:if="${!query.table and pendingOpen}" type="hidden" name="pending" value="open">
+
+        <div class="n-filter-summary">
+            <a th:if="${filtered}" th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>
+        </div>
+    </form>
 
     <!-- S7 — 실시간 교체 영역: 빈 상태 ↔ 목록 전환(첫 등록)까지 한 영역으로 묶는다 -->
     <div data-live="server-list">
 
-    <!-- 빈 상태 -->
-    <div th:if="${list.empty}" class="n-card">
+    <p class="n-list-count">결과 <b th:text="${resultCount}">0</b>건</p>
+
+    <!-- 빈 상태 — 기간이 거꾸로 / 조건 때문에 비었음 / 아예 없음 -->
+    <div th:if="${resultCount == 0}" class="n-card">
         <div class="n-empty">
-            <div class="n-empty-title" th:if="${phaseFilter == null}">등록된 게스트 서버가 없습니다.</div>
-            <div class="n-empty-title" th:unless="${phaseFilter == null}">이 단계에 해당하는 서버가 없습니다.</div>
-            <div class="n-empty-desc" th:if="${phaseFilter == null}">
-                서버가 PXE 부팅으로 <code>/api/pxe/v1/boot</code> 에 진입하면 이곳에 표시됩니다.</div>
-            <div class="n-empty-desc" th:unless="${phaseFilter == null}">
-                다른 단계를 고르거나 <a th:href="@{/provisioning/server}">전체</a> 로 되돌리면 모든 서버가 보입니다.</div>
+            <th:block th:if="${query.rangeReversed}">
+                <div class="n-empty-title" th:text="#{provisioning.server.list.range-reversed}">시작일이 종료일보다 늦습니다.</div>
+                <div class="n-empty-desc">날짜 하나를 고치거나 <a th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>하면 다시 조회됩니다.</div>
+            </th:block>
+            <th:block th:if="${!query.rangeReversed and filtered}">
+                <div class="n-empty-title" th:text="#{provisioning.server.list.empty-filtered}">조건에 맞는 서버가 없습니다.</div>
+                <div class="n-empty-desc">조건을 바꾸거나 <a th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>하면 전체 목록이 보입니다.</div>
+            </th:block>
+            <th:block th:if="${!filtered}">
+                <div class="n-empty-title">등록된 게스트 서버가 없습니다.</div>
+                <div class="n-empty-desc">서버가 PXE 부팅으로 <code>/api/pxe/v1/boot</code> 에 진입하면 이곳에 표시됩니다.</div>
+            </th:block>
         </div>
     </div>
+
+    <!-- ── 표 보기(S8-2) — 행은 묶음 보기와 같은 조각 ── -->
+    <th:block th:if="${query.table and page != null}">
+        <div th:if="${page.totalElements > 0 and page.content.isEmpty()}" class="n-card">
+            <div class="n-empty">
+                <div class="n-empty-title">이 페이지에는 항목이 없습니다.</div>
+                <div class="n-empty-desc"><a th:href="${links.page(0)}">첫 페이지</a>로 돌아가면 목록이 보입니다.</div>
+            </div>
+        </div>
+        <div th:if="${!page.content.isEmpty()}" class="n-card">
+            <table class="n-table n-table-servers">
+                <thead th:replace="~{fragments/provisioning/server-rows :: head}"></thead>
+                <tbody>
+                <th:block th:each="server : ${page.content}">
+                    <tr th:replace="~{fragments/provisioning/server-rows :: row(${server})}"></tr>
+                </th:block>
+                </tbody>
+            </table>
+            <div th:replace="~{fragments/ui/pagination :: pager(${page}, ${links})}"></div>
+        </div>
+    </th:block>
+
+    <!-- ── 묶음 보기 ── -->
+    <th:block th:if="${!query.table and list != null}">
 
     <!--/* ── 등록 진행 중 — 시간 묶음과 같은 양식(개정) ──
            바깥 묶음이 제목과 대수를 이고, 안쪽 묶음이 '등록만 됨' · '수집 중' 으로 갈린다.
@@ -95,7 +175,7 @@
         </div>
 
         <div class="n-accordion"
-             th:with="pendingHref=@{${pendingToggleUrl}}">
+             th:with="pendingHref=${links.toggle('pending', 'open')}">
 
             <div th:if="${!list.pending.registeredOnly.isEmpty()}"
                  class="n-accordion-item" th:classappend="${pendingOpen} ? ' is-open'">
@@ -181,12 +261,14 @@
         </div>
     </section>
 
+    </th:block>
+
     </div><!-- /data-live="server-list" -->
 </div>
 
 <!-- S7 — SSE 구독 + 신호-재조회 부분 교체 -->
 <script th:src="@{/provisioning/server-stream.js}"></script>
-<script th:src="@{/global/include-deleted-toggle.js}"></script>
+<script th:src="@{/global/list-query.js}"></script>
 
 </body>
 </html>

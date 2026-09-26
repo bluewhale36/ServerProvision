@@ -230,7 +230,7 @@ class GuestServerControllerTest {
     @DisplayName("GET /provisioning/server — 목록 200 + list 뷰")
     void list_returns200() throws Exception {
         // U3-3 — 목록은 평면 리스트가 아니라 그룹 응답을 받는다. 그룹 렌더 자체는 전용 테스트가 덮는다.
-        given(queryService.findGrouped(null, false)).willReturn(
+        given(queryService.findGrouped(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).willReturn(
                 new com.example.serverprovision.execution.dto.response.GuestServerListResponse(null, List.of()));
 
         mvc.perform(get("/provisioning/server"))

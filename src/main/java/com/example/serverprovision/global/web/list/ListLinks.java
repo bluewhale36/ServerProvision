@@ -42,6 +42,23 @@ public record ListLinks(String path, Map<String, List<String>> params) {
         return builder.encode().toUriString();
     }
 
+    /**
+     * 파라미터 하나를 켜고 끈 링크(S8-2) — 있으면 빼고 없으면 {@code value} 로 넣는다. 쪽은 버린다(첫 쪽).
+     * 게스트 서버 묶음 보기의 '등록 진행 중' 펼침처럼 폼 필드가 아닌 화면 상태에 쓴다.
+     */
+    public String toggle(String name, String value) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromPath(path);
+        params.forEach((n, values) -> {
+            if (!n.equals(name)) {
+                builder.queryParam(n, values.toArray());
+            }
+        });
+        if (!params.containsKey(name)) {
+            builder.queryParam(name, value);
+        }
+        return builder.encode().toUriString();
+    }
+
     /** 검색 · 필터 · 정렬 · 쪽을 모두 버린 기본 목록. */
     public String reset() {
         return path;

@@ -8,6 +8,8 @@ import com.example.serverprovision.provisioning.group.dto.response.GroupBadgeRes
 import com.example.serverprovision.provisioning.group.dto.response.GroupDetailResponse;
 import com.example.serverprovision.provisioning.group.dto.response.GroupMemberResponse;
 import com.example.serverprovision.provisioning.group.dto.response.GroupSummaryResponse;
+import com.example.serverprovision.provisioning.group.vo.GroupFilter;
+import com.example.serverprovision.execution.vo.ServerScope;
 import com.example.serverprovision.provisioning.group.dto.response.SeedCandidateResponse;
 import com.example.serverprovision.provisioning.group.entity.GuestServerGroup;
 import com.example.serverprovision.provisioning.group.entity.GuestServerGroupMember;
@@ -63,6 +65,19 @@ public class GuestServerGroupQueryService {
         Set<Long> diverged = divergedGroupIds(page.getContent().stream().map(GuestServerGroup::getId).toList());
         return page.map(g -> new GroupSummaryResponse(
                 g.getId(), g.getName(), g.getMemberCount(), diverged.contains(g.getId()), g.getCreatedAt()));
+    }
+
+    /**
+     * 소속 그룹 조건 → 서버 id 범위(S8-2). 서버 조회(execution)는 그룹을 모르므로 여기서 번역해 넘긴다(DEC-C).
+     * 무소속은 "소속이 있는 서버 전부를 뺀다", 특정 그룹은 "그 멤버만" 이다. 없는 그룹 id 면 멤버가 없어 결과가 빈다.
+     */
+    @Transactional(readOnly = true)
+    public ServerScope scopeOf(GroupFilter filter) {
+        return switch (filter.mode()) {
+            case ANY -> ServerScope.ALL;
+            case UNGROUPED -> ServerScope.excluding(new HashSet<>(memberRepository.findAllGroupedServerIds()));
+            case GROUP -> ServerScope.only(new HashSet<>(memberRepository.findServerIdsByGroupId(filter.groupId())));
+        };
     }
 
     /** 구성이 갈린 그룹의 id — 멤버의 구성 키가 둘 이상인 그룹이다. 주어진 그룹만 본다. */

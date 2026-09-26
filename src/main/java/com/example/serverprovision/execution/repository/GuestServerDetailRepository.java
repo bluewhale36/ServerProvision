@@ -13,6 +13,12 @@ import java.util.UUID;
 @Repository
 public interface GuestServerDetailRepository extends JpaRepository<GuestServerDetail, UUID> {
 
+    /** 서버 목록 보드 셀렉트의 선택지(S8-2) — 서버에 실제로 등장한 보드 모델만(고르면 늘 빈 결과가 되는 선택지를 두지 않는다). */
+    @Query("select distinct new com.example.serverprovision.execution.dto.response.BoardOptionResponse(b.id, b.modelName, b.vendor) "
+            + "from GuestServerDetail d join d.boardModel b order by b.vendor, b.modelName")
+    List<com.example.serverprovision.execution.dto.response.BoardOptionResponse> findBoardOptions();
+
+
     /**
      * 목록용 — 여러 서버의 detail 을 boardModel 까지 fetch join 으로 한 번에 적재(N+1 회피).
      */

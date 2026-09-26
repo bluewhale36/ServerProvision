@@ -30,6 +30,10 @@ public interface GuestServerGroupMemberRepository extends JpaRepository<GuestSer
             """)
     List<GuestServerGroupMember> findAllByServerIdIn(Collection<UUID> serverIds);
 
+    /** 한 그룹의 멤버 서버 id(S8-2) — 서버 목록의 소속 그룹 조건을 서버 id 범위로 번역할 때 쓴다. */
+    @Query("select m.guestServer.id from GuestServerGroupMember m where m.group.id = :groupId")
+    List<UUID> findServerIdsByGroupId(Long groupId);
+
     /** 어느 그룹에도 속하지 않은 서버 골라내기의 재료 — 소속이 있는 서버 id 전부. */
     @Query("select m.guestServer.id from GuestServerGroupMember m")
     List<UUID> findAllGroupedServerIds();

@@ -1,5 +1,7 @@
 package com.example.serverprovision.execution.service;
 
+import com.example.serverprovision.execution.dto.request.ServerListQuery;
+import com.example.serverprovision.execution.vo.ServerScope;
 import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
@@ -60,6 +62,9 @@ class GuestServerQueryServiceGroupingTest {
 
     @InjectMocks private GuestServerQueryService service;
 
+    /** 조건 없는 조회 — 필터 판정은 SQL(GuestServerSpecificationsJpaTest)이 보고, 여기는 묶는 규칙만 본다. */
+    private static final ServerListQuery ALL_QUERY = new ServerListQuery(null, null, null, null, null, null, null, null, null, null);
+
     private final List<GuestServer> servers = new ArrayList<>();
     private final List<GuestServerDetail> details = new ArrayList<>();
     private final List<ProvisioningProgress> progresses = new ArrayList<>();
@@ -72,7 +77,8 @@ class GuestServerQueryServiceGroupingTest {
 
     @BeforeEach
     void wireRepositories() {
-        when(guestServerRepository.findAllByDecommissionedAtIsNullOrderByCreatedAtDesc()).thenReturn(servers);
+        when(guestServerRepository.findAll(org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<GuestServer>>any(),
+                any(org.springframework.data.domain.Sort.class))).thenReturn(servers);
         when(detailRepository.findAllByServerIdInWithBoardModel(any())).thenReturn(details);
         when(nicRepository.findPrimaryByServerIdIn(any())).thenReturn(List.of());
         when(progressRepository.findAllByGuestServer_IdIn(any())).thenReturn(progresses);
@@ -116,7 +122,7 @@ class GuestServerQueryServiceGroupingTest {
         given("MS03-CE0", SPEC_2S, 70, ProvisioningPhase.DIAGNOSE_LINUX);
         given("MS03-CE0", SPEC_1S, 75, ProvisioningPhase.DIAGNOSE_LINUX);
 
-        GuestServerListResponse result = service.findGrouped(null, false);
+        GuestServerListResponse result = service.findGrouped(ALL_QUERY, ServerScope.ALL);
 
         assertThat(result.timeGroups()).hasSize(1);
         GuestServerListResponse.TimeGroup bucket = result.timeGroups().getFirst();
@@ -131,7 +137,7 @@ class GuestServerQueryServiceGroupingTest {
         given("MS03-CE0", SPEC_2S, 65, ProvisioningPhase.DIAGNOSE_LINUX);            // 1분 전
         given("MS03-CE0", SPEC_2S, 3L * 24 * 3600, ProvisioningPhase.DIAGNOSE_LINUX); // 그 이전
 
-        GuestServerListResponse result = service.findGrouped(null, false);
+        GuestServerListResponse result = service.findGrouped(ALL_QUERY, ServerScope.ALL);
 
         // 눈금이 동적이라 상수로 비교하지 않는다 — 최근 것이 먼저, 3일 전은 일 단위 묶음이 된다
         assertThat(result.timeGroups()).hasSize(2);
@@ -144,7 +150,7 @@ class GuestServerQueryServiceGroupingTest {
     void pendingIsNullWhenNobodyIsPending() {
         given("MS03-CE0", SPEC_2S, 65, ProvisioningPhase.DIAGNOSE_LINUX);
 
-        assertThat(service.findGrouped(null, false).pending()).isNull();
+        assertThat(service.findGrouped(ALL_QUERY, ServerScope.ALL).pending()).isNull();
     }
 
     @Test
@@ -153,26 +159,13 @@ class GuestServerQueryServiceGroupingTest {
         given(null, null, 65, ProvisioningPhase.BOOTSTRAPPING);
         given(null, null, 70, ProvisioningPhase.DIAGNOSE_LINUX);
 
-        GuestServerListResponse.PendingRegistrations pending = service.findGrouped(null, false).pending();
+        GuestServerListResponse.PendingRegistrations pending = service.findGrouped(ALL_QUERY, ServerScope.ALL).pending();
 
         assertThat(pending).isNotNull();
         assertThat(pending.registeredOnly()).hasSize(1);
         assertThat(pending.collecting()).hasSize(1);
         assertThat(pending.total()).isEqualTo(2);
-        assertThat(service.findGrouped(null, false).timeGroups()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("phase 필터는 그 단계인 서버만 남긴다 — 진행 정보가 없으면 제외된다")
-    void phaseFilterNarrowsList() {
-        given("MS03-CE0", SPEC_2S, 65, ProvisioningPhase.DIAGNOSE_LINUX);
-        given("MS03-CE0", SPEC_2S, 70, ProvisioningPhase.FIRMWARE_UPDATING);
-        given("MS03-CE0", SPEC_2S, 75, null);
-
-        GuestServerListResponse result = service.findGrouped(ProvisioningPhase.DIAGNOSE_LINUX, false);
-
-        assertThat(result.timeGroups()).hasSize(1);
-        assertThat(result.timeGroups().getFirst().serverCount()).isEqualTo(1);
+        assertThat(service.findGrouped(ALL_QUERY, ServerScope.ALL).timeGroups()).isEmpty();
     }
 
     @Test
@@ -181,7 +174,7 @@ class GuestServerQueryServiceGroupingTest {
         given("MS03-CE0", SPEC_2S, 65, ProvisioningPhase.DIAGNOSE_LINUX);   // 1분 전
         given("MS03-CE0", SPEC_2S, 130, ProvisioningPhase.DIAGNOSE_LINUX);  // 2분 전
 
-        GuestServerListResponse result = service.findGrouped(null, false);
+        GuestServerListResponse result = service.findGrouped(ALL_QUERY, ServerScope.ALL);
 
         assertThat(result.timeGroups()).hasSize(2);
         assertThat(result.timeGroups().get(0).bucket().amount()).isEqualTo(1L);  // 최근이 먼저
@@ -189,23 +182,49 @@ class GuestServerQueryServiceGroupingTest {
     }
 
     @Test
-    @DisplayName("아무것도 남지 않으면 isEmpty — 빈 상태 화면으로 간다")
-    void emptyWhenNothingMatches() {
-        given("MS03-CE0", SPEC_2S, 65, ProvisioningPhase.DIAGNOSE_LINUX);
+    @DisplayName("S8-2 — 검색 · 필터 · 회수 제외는 Specification 이 맡고, 묶음은 등록 최신순으로 읽은 것을 묶는다")
+    void readsBySpecificationNewestFirst() {
+        service.findGrouped(ALL_QUERY, ServerScope.ALL);
 
-        assertThat(service.findGrouped(ProvisioningPhase.OS_INSTALLING, false).isEmpty()).isTrue();
+        org.mockito.Mockito.verify(guestServerRepository).findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<GuestServer>>any(),
+                org.mockito.ArgumentMatchers.eq(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")));
+        // 옛 경로(회수 여부로 저장소 메서드를 고르던 분기)는 더 타지 않는다 — 회수 제외도 술어의 한 축이다
+        org.mockito.Mockito.verify(guestServerRepository, org.mockito.Mockito.never()).findAllByDecommissionedAtIsNullOrderByCreatedAtDesc();
     }
 
     @Test
-    @DisplayName("U6 D-4 — '회수된 서버 보기' 를 켜면 전체 조회 경로를 탄다(회수 행 포함)")
-    void includeDecommissioned_readsAll() {
-        org.mockito.Mockito.when(guestServerRepository.findAllByOrderByCreatedAtDesc())
-                .thenReturn(java.util.List.of());
+    @DisplayName("S8-2 findPage — 한 쪽만 읽어 그 쪽의 서버만 요약하고 총 건수 · 쪽 정보를 지닌다(정렬은 화이트리스트 + id 2차 키)")
+    void findPageSummarizesOnlyThePage() {
+        given("MS03-CE0", SPEC_2S, 65, ProvisioningPhase.DIAGNOSE_LINUX);
+        org.springframework.data.domain.PageRequest pr = org.springframework.data.domain.PageRequest.of(1, 20);
+        when(guestServerRepository.findAll(org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<GuestServer>>any(),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(servers, pr, 41));
 
-        service.findGrouped(null, true);
+        org.springframework.data.domain.Page<com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse> page =
+                service.findPage(ALL_QUERY, ServerScope.ALL, pr);
 
-        org.mockito.Mockito.verify(guestServerRepository).findAllByOrderByCreatedAtDesc();
-        org.mockito.Mockito.verify(guestServerRepository,
-                org.mockito.Mockito.never()).findAllByDecommissionedAtIsNullOrderByCreatedAtDesc();
+        assertThat(page.getTotalElements()).isEqualTo(41);
+        assertThat(page.getNumber()).isEqualTo(1);
+        assertThat(page.getContent()).hasSize(1);
+        org.mockito.ArgumentCaptor<org.springframework.data.domain.Pageable> c = org.mockito.ArgumentCaptor.forClass(org.springframework.data.domain.Pageable.class);
+        org.mockito.Mockito.verify(guestServerRepository).findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<GuestServer>>any(), c.capture());
+        assertThat(c.getValue().getSort().toString()).isEqualTo("createdAt: DESC,id: DESC");
+    }
+
+    @Test
+    @DisplayName("S8-2 보드 선택지 — 저장소의 제조사 · 이름 순서를 지키며 제조사별로 묶는다(optgroup)")
+    void boardOptionsGroupedByVendor() {
+        when(detailRepository.findBoardOptions()).thenReturn(List.of(
+                new com.example.serverprovision.execution.dto.response.BoardOptionResponse(1L, "MD72-HB3", com.example.serverprovision.management.board.enums.Vendor.GIGABYTE),
+                new com.example.serverprovision.execution.dto.response.BoardOptionResponse(2L, "MS04-CE0", com.example.serverprovision.management.board.enums.Vendor.GIGABYTE),
+                new com.example.serverprovision.execution.dto.response.BoardOptionResponse(3L, "Z13PP", com.example.serverprovision.management.board.enums.Vendor.ASUS)));
+
+        var groups = service.findBoardOptions();
+
+        assertThat(groups).extracting(g -> g.vendor()).containsExactly("Gigabyte", "Asus");
+        assertThat(groups.getFirst().boards()).extracting(b -> b.name()).containsExactly("MD72-HB3", "MS04-CE0");
     }
 }

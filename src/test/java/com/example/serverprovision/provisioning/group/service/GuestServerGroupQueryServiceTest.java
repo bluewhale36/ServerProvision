@@ -233,4 +233,28 @@ class GuestServerGroupQueryServiceTest {
         verify(memberRepository, never()).findAllByGroupIdIn(any());
         verify(guestServerQueryService, never()).findSummaries(any());
     }
+
+    // ==== S8-2 — 소속 그룹 조건 → 서버 id 범위 ========================
+
+    @Test
+    @DisplayName("scopeOf — 조건 없음은 전체 · 무소속은 소속 서버 전부 제외 · 그룹은 그 멤버만")
+    void scopeOfTranslatesGroupFilter() {
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID();
+        when(memberRepository.findAllGroupedServerIds()).thenReturn(List.of(a, b));
+        when(memberRepository.findServerIdsByGroupId(7L)).thenReturn(List.of(a));
+
+        assertThat(service.scopeOf(com.example.serverprovision.provisioning.group.vo.GroupFilter.ANY))
+                .isEqualTo(com.example.serverprovision.execution.vo.ServerScope.ALL);
+        assertThat(service.scopeOf(com.example.serverprovision.provisioning.group.vo.GroupFilter.UNGROUPED).excludeIds())
+                .containsExactlyInAnyOrder(a, b);
+        assertThat(service.scopeOf(com.example.serverprovision.provisioning.group.vo.GroupFilter.of(7L)).onlyIds())
+                .containsExactly(a);
+    }
+
+    @Test
+    @DisplayName("scopeOf — 멤버가 없는 그룹이면 빈 허용 집합(결과 없음)")
+    void scopeOfEmptyGroup() {
+        when(memberRepository.findServerIdsByGroupId(9L)).thenReturn(List.of());
+        assertThat(service.scopeOf(com.example.serverprovision.provisioning.group.vo.GroupFilter.of(9L)).onlyIds()).isEmpty();
+    }
 }
