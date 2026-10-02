@@ -172,4 +172,37 @@ class WindowsDriverSelectionTest {
         assertThat(sel.summary()).isEqualTo("드라이버 3(변형 0 · 트리 3)");
         assertThat(WindowsDriverSelection.Selection.EMPTY.toListText()).isEmpty();
     }
+
+    @Test
+    @DisplayName("HF23 — 한 버전의 여러 행(제품군별 OS 폴더)이 표 순서대로 각각 한 줄 · FOLDER 줄은 역슬래시 표기 · 전 버전 행은 정확 일치가 있으면 빠진다")
+    void variants_multipleRowsPerVersion_folder() {
+        Subprogram s = driver(9, "Intel LAN", BOARD, OSName.WINDOWS_SERVER, true);
+        withVariants(s,
+                new SubprogramVariant(s, null, "NDIS65/", null, false, 0),
+                new SubprogramVariant(s, "2025", "PROXGB/Winx64/WS2025/", null, false, 2),
+                new SubprogramVariant(s, "2025", "PRO1000/Winx64/WS2025/", null, false, 1));
+        WindowsDriverSelection.Selection sel = WindowsDriverSelection.select(BOARD, WIN2025, List.of(s), assembled(s));
+
+        assertThat(sel.entries()).extracting(WindowsDriverSelection.Entry::entrypoint)
+                .containsExactly("PRO1000\\Winx64\\WS2025\\", "PROXGB\\Winx64\\WS2025\\");
+        WindowsDriverSelection.Entry e = sel.entries().get(0);
+        assertThat(e.mode()).isEqualTo(WindowsDriverSelection.Mode.FOLDER);
+        assertThat(e.line()).isEqualTo("FOLDER|" + WindowsOemPayloadAssembler.folderOf(s) + "|PRO1000\\Winx64\\WS2025\\|-|0");
+        assertThat(e.label()).isEqualTo("Intel LAN · 폴더 PRO1000\\Winx64\\WS2025\\ · 2025");
+        assertThat(sel.summary()).startsWith("드라이버 2(변형 2 · 트리 0)");
+    }
+
+    @Test
+    @DisplayName("HF23 — 정확 일치 행이 없으면 전 버전 행 전부(여럿)")
+    void variants_multipleWildcardRows() {
+        Subprogram s = driver(10, "Pkg", BOARD, OSName.WINDOWS_SERVER, true);
+        withVariants(s,
+                new SubprogramVariant(s, "2022", "x/2022/", null, false, 0),
+                new SubprogramVariant(s, null, "a/", null, false, 1),
+                new SubprogramVariant(s, null, "b.inf", null, false, 2));
+        WindowsDriverSelection.Selection sel = WindowsDriverSelection.select(BOARD, WIN2025, List.of(s), assembled(s));
+
+        assertThat(sel.entries()).extracting(WindowsDriverSelection.Entry::mode)
+                .containsExactly(WindowsDriverSelection.Mode.FOLDER, WindowsDriverSelection.Mode.INF);
+    }
 }

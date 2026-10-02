@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF23 Plan — Windows 드라이버 설치가 서명 검증 실패 대화 상자에서 멈춤 · 진입점에 폴더 허용</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:var(--card); border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .muted { color:var(--text-muted); font-size:12.5px; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp4{background:var(--orange-bg);color:var(--orange);} .chip.cp5{background:var(--red-bg);color:var(--red);}
+  .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.del{background:var(--red-bg);color:var(--red);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card li { font-size:12px; line-height:1.55; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF23 : Windows 드라이버 설치가 서명 검증 실패 대화 상자에서 멈춤 · 진입점에 폴더 허용 <span class="v2-badge">HF</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF23 (hotfix)</span>
+    <span><strong>요지</strong> 서명 검증 실패 시 묻지 않고 거절 · 실패 INF 전체 보고 · 진입점에 파일 또는 폴더</span>
+    <span><strong>브랜치</strong> <code>fix/HF23_driver-install-scope</code> (<code>origin/dev</code> 4b58b96 기준)</span>
+    <span><strong>상태</strong> CP1 사용자 승인 대기</span>
+    <span><strong>생성</strong> 2026-10-02 13:27 KST</span>
+    <span><strong>Notion</strong> HF23</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 배경</a></li>
+      <li><a href="#s2">§2 실측</a></li>
+      <li><a href="#s3">§3 결론</a></li>
+      <li><a href="#s4">§4 수정 방향</a></li>
+      <li><a href="#s5">§5 결정과 탈락 대안</a></li>
+      <li><a href="#s6">§6 검증</a></li>
+      <li><a href="#s7">§7 Critical Files</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button type="button" id="btn-expand">전부 펴기</button>
+      <button type="button" id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input class="filter-box" id="filter" type="search" placeholder="섹션 검색 (예: BehaviorOnFailedVerify, FOLDER, failedInfs)">
+
+    <!-- §1 배경 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경</summary>
+      <div class="body">
+        <p>Windows Server 2025 무인 설치(서버 <code>260915009</code> · <code>260914017</code>, 보드 MS04-CE0) 중 "이 드라이버 소프트웨어의 게시자를 확인할 수 없습니다" 창이 2~3 회 떴습니다. 사람이 "설치하지 않음" 을 눌러야 설치가 이어졌습니다. 화면 앞에 사람이 없으면 SetupComplete(Windows 설치 직후 SYSTEM 으로 한 번 도는 스크립트)가 끝나지 않고, 첫 로그온 완료 보고까지 막힙니다.</p>
+        <div class="callout danger"><b>무인 설치에서 대화 상자 대기는 실패보다 나쁩니다.</b></div>
+        <p>드라이버는 SetupComplete 가 <code>pnputil /add-driver … /install</code> 로 설치합니다. 드라이버 자원마다 설치 방식이 있습니다.</p>
+        <table>
+          <thead><tr><th>조건</th><th>설치 방식</th><th>설치 대상</th></tr></thead>
+          <tbody>
+            <tr><td>변형 없음</td><td>TREE</td><td>폴더 안 INF 전부 (<code>/subdirs</code>)</td></tr>
+            <tr><td>변형 있음</td><td>진입점 확장자로 INF · MSI · EXE</td><td>파일 하나</td></tr>
+          </tbody>
+        </table>
+        <p>INF 는 드라이버 설치 정보 파일, CAT 은 그 INF 패키지의 파일 해시를 담은 서명 카탈로그입니다. 변형은 OS 버전당 한 행만 허용합니다(<code>SubprogramVariantRules.VERSION_DUPLICATE</code>).</p>
+        <h4>사용자 지시 (2026-10-02)</h4>
+        <ul>
+          <li><b>A 안</b> : 서명 검증 실패 시 묻지 않고 거절합니다.</li>
+          <li><b>B 안</b> : 진입점에 폴더를 지정하는 방식을 현행 방식과 융합해 "파일 또는 폴더" 를 지정할 수 있게 기능을 수정합니다.</li>
+          <li>둘 다 이 HF 에서 처리합니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §2 실측 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 실측</summary>
+      <div class="body">
+        <h4>표 1 — 1 차(<code>260915009</code>) · 2 차(<code>260914017</code>) 설치</h4>
+        <table>
+          <thead><tr><th>항목</th><th>1 차</th><th>2 차</th></tr></thead>
+          <tbody>
+            <tr><td>창</td><td>2~3 회</td><td>3 회</td></tr>
+            <tr><td>QAT 설치 방식</td><td>TREE</td><td>INF (<code>icp_qat4.inf</code> 진입점 · 사용자가 변경)</td></tr>
+            <tr><td>QAT 결과</td><td>exit <code>0xE000022F</code> · 예제 <code>Sample/bin/x64/CpmBCryptSample.inf</code> 의 .cat 부재</td><td>exit 0</td></tr>
+            <tr><td>LAN (TREE · INF 77)</td><td>추가 74 · 실패 3 (이름 미상)</td><td>추가 74 · 실패 3</td></tr>
+            <tr><td>문제 장치</td><td>0</td><td>0</td></tr>
+            <tr><td>결과</td><td>설치 완료 · 드라이버 정상</td><td>설치 완료 · 드라이버 정상</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">1 차 LAN 실패 3 건은 서버가 받은 로그에 꼬리만 있어 INF 이름을 알 수 없었습니다.</p>
+
+        <h4>표 2 — 2 차 실패 INF</h4>
+        <p>출처는 <code>C:\SPV\setupcomplete.log</code> · <code>C:\Windows\INF\setupapi.dev.log</code> 이며, 공유 폴더로 전달받아 분석했습니다.</p>
+        <table>
+          <thead><tr><th>INF</th><th>원인</th><th>setupapi 기록</th></tr></thead>
+          <tbody>
+            <tr><td><code>PRO1000/Winx64/NDIS65/v1q65x64.inf</code></td><td>co-installer <code>NicCo5.dll</code> 해시가 <code>v1q65x64.cat</code> 에 없음</td><td><code>user does not want to install it</code> · 창 약 21 초</td></tr>
+            <tr><td><code>PROXGB/Winx64/NDIS65/ixt65x64.inf</code></td><td>같음 (<code>ixt65x64.cat</code>)</td><td>같음</td></tr>
+            <tr><td><code>PROXGB/Winx64/NDIS65/vxs65x64.inf</code></td><td>같음 (<code>vxs65x64.cat</code>)</td><td>같음</td></tr>
+          </tbody>
+        </table>
+        <p>세 건 모두 오류 <code>0xE000024B</code>("변조된 것으로 보임")였고, 세 건이 곧 창 세 번입니다.</p>
+
+        <h4>실측에서 확정한 사실</h4>
+        <ul>
+          <li><b>우리 사본 손상이 아닙니다.</b> 같은 폴더(<code>PROXGB/NDIS65</code>)의 같은 <code>nicco5.dll</code> 로 <code>ixn</code> · <code>sxa</code> 등 다른 카탈로그는 통과했습니다. 따라서 Intel 원본 패키지 안의 일부 옛 INF 카탈로그가 다른 버전의 <code>nicco5.dll</code> 로 만들어졌다고 봅니다.</li>
+          <li><b>서명자로 거를 수 없습니다.</b> 카탈로그 서명자는 LAN 77 · Chipset 92 · ASPEED · QAT 전부 Microsoft Windows Hardware Compatibility Publisher 입니다. 즉 모두 WHQL(Windows Hardware Quality Labs) 서명입니다. "서명 카탈로그 없는 INF 건너뛰기" 는 1 차의 QAT 예제만 잡고 2 차는 잡지 못합니다.</li>
+          <li><b>INF 선언으로도 거를 수 없습니다.</b> <code>NDIS65</code> INF 는 <code>[Manufacturer]</code> 에 <code>NTamd64.10.0</code>(상한 없음)으로 선언돼 있어, INF 선언 기준의 "대상 OS 아님" 판정으로는 걸러지지 않습니다. Intel 은 OS 구분을 <b>폴더 이름</b>(NDIS65 · NDIS68 · WS2022 · WS2025)으로 합니다.</li>
+          <li>LAN 패키지의 Server 2025 폴더는 7 개입니다: <code>PRO1000</code> · <code>PRO2500</code> · <code>PRO40GB</code> · <code>PROAVF</code> · <code>PROCGB</code> · <code>PROXGB</code> 의 <code>Winx64/WS2025</code>, 그리고 <code>RDMA/Windows/ws2025</code>.</li>
+          <li><b>Windows 에는 "묻지 않고 거절" 갈래가 있습니다.</b> 같은 setupapi 로그에서 Windows 기본 프린터 드라이버(<code>prnms009.inf</code>)는 같은 해시 오류를 <code>Code Integrity is enforced</code> 경로로 묻지 않고 실패했습니다.</li>
+          <li><b>서버가 받는 로그는 꼬리 60 줄(최대 4,000 자)뿐입니다.</b> 그래서 1 차에는 실패 INF 이름이 잘렸습니다. <code>pnputil</code> 출력은 로캘에 따라 바뀌는 문장이므로 파싱하지 않습니다(HF11-1 원칙).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §3 결론 -->
+    <details class="section" id="s3" open>
+      <summary>§3. 결론</summary>
+      <div class="body">
+        <p>원인은 두 겹입니다.</p>
+        <div class="card-grid">
+          <div class="card v-red">
+            <h4>(1) 서명 실패 시 사람에게 묻는다</h4>
+            <ul>
+              <li>서명 검증에 실패한 패키지에 대해 Windows 가 사람에게 묻습니다.</li>
+              <li>무인 설치가 정지합니다.</li>
+              <li>대응 : 원인이 무엇이든 막습니다 (A).</li>
+            </ul>
+          </div>
+          <div class="card v-orange">
+            <h4>(2) TREE 가 옛 OS · 예제 INF 까지 설치한다</h4>
+            <ul>
+              <li>TREE 방식이 패키지 안의 옛 OS · 예제 INF 까지 설치 대상으로 삼습니다.</li>
+              <li>대응 : 설치 범위를 OS 폴더로 좁힐 수 있게 합니다 (B).</li>
+            </ul>
+          </div>
+        </div>
+        <p>여기에 더해, 실패를 화면에서 볼 수 있어야 합니다. 그래서 실패 INF 를 잘리지 않게 전부 보고합니다(§4-2).</p>
+      </div>
+    </details>
+
+    <!-- §4 수정 방향 -->
+    <details class="section" id="s4" open>
+      <summary>§4. 수정 방향</summary>
+      <div class="body">
+        <h4>§4-1 A — 서명 검증 실패 시 묻지 않고 거절</h4>
+        <p>SetupComplete 가 드라이버 설치 전에 드라이버 서명 정책 <code>HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Driver Signing</code> 의 <code>BehaviorOnFailedVerify</code> 를 <code>2</code>(차단)로 두고, 설치가 끝나면 원래 값으로 되돌립니다. 원래 값이 없었으면 지웁니다.</p>
+        <div class="callout warn"><b>Server 2025 가 이 정책을 따르는지는 미확인입니다.</b> 실기 검증 항목입니다(§6). 따르지 않으면 §5 의 A2(시간 제한 감시)로 넘어갑니다.</div>
+
+        <h4>§4-2 INF 단위 설치 · 실패 INF 전체 보고</h4>
+        <p>TREE · FOLDER 방식은 <code>pnputil … /subdirs</code> 한 번 대신 <code>for /r</code> 로 INF 하나씩 <code>pnputil /add-driver "&lt;INF&gt;" /install</code> 을 돌리고, INF 마다 한 줄을 남깁니다. 종료 코드는 로캘과 무관합니다.</p>
+<pre>[SPV-INF] &lt;folder&gt;|&lt;상대경로&gt;|exit=N
+[SPV-INSTALL] &lt;folder&gt;|&lt;mode&gt;|&lt;entry&gt;|exit=N</pre>
+        <table>
+          <thead><tr><th>종료 코드</th><th>뜻</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td>성공</td><td>정상</td></tr>
+            <tr><td><code>259</code></td><td>맞는 장치 없음</td><td>정상</td></tr>
+            <tr><td><code>3010</code></td><td>재부팅 필요</td><td>정상</td></tr>
+            <tr><td>그 밖</td><td>—</td><td>실패</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>항목 줄 <code>[SPV-INSTALL]</code> 에 진입점 필드를 더합니다. 같은 패키지에 행이 여럿일 수 있기 때문입니다.</li>
+          <li>TREE · FOLDER 의 항목 exit 은 실패 INF 가 없으면 0, 있으면 첫 실패 코드입니다.</li>
+          <li><code>spv-report.ps1</code> 이 <code>[SPV-INF]</code> 의 실패 줄을 모아 완료 보고에 <code>failedInfs</code>(최대 100 · {folder, path, exitCode})로 싣습니다. 옛 3 필드 <code>[SPV-INSTALL]</code> 도 계속 읽습니다.</li>
+        </ul>
+        <table>
+          <thead><tr><th>서버 쪽 변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>WindowsInstallCompletionRequest</code></td><td><code>failedInfs</code> 추가 (없으면 빈 목록)</td></tr>
+            <tr><td><code>InstallResult</code></td><td><code>entrypoint</code> 추가 (선택)</td></tr>
+            <tr><td>원장 메타</td><td><code>failedInfs</code> 저장</td></tr>
+            <tr><td>상세 화면 Windows 설치 카드</td><td>"설치 결과" 아래 "실패한 INF (N)" 접이식 표 (폴더 · 경로 · 종료 코드 16 진)</td></tr>
+            <tr><td>완료 문구</td><td>"· 실패 INF N" 덧붙임</td></tr>
+          </tbody>
+        </table>
+
+        <h4>§4-3 B — 진입점에 파일 또는 폴더</h4>
+        <p>변형 진입점에 폴더를 지정할 수 있게 합니다. 저장 시 트리 안 실제 경로를 보고 판정합니다.</p>
+        <table>
+          <thead><tr><th>실제 경로</th><th>판정</th><th>저장값</th></tr></thead>
+          <tbody>
+            <tr><td>디렉토리</td><td>FOLDER</td><td>끝에 <code>/</code> 를 붙여 정규화</td></tr>
+            <tr><td>파일</td><td>확장자로 INF · MSI · EXE (종전대로)</td><td>그대로</td></tr>
+          </tbody>
+        </table>
+        <p><code>InstallEntrypointKind</code> 에 <code>FOLDER</code> 를 더하고, <code>fromPath</code> 는 끝의 <code>/</code> 로 FOLDER 를 압니다. 그래서 종류를 저장할 컬럼은 필요 없습니다. 다만 "한 OS 버전에 여러 행" 은 기존 고유 제약 (subprogram_id, os_version) 과 충돌하므로 제약 교체 DDL 1 건이 따릅니다(CP2 에서 발견 · 정정).</p>
+        <p><b>한 OS 버전에 여러 행을 허용합니다.</b> <code>VERSION_DUPLICATE</code> · <code>WILDCARD_DUPLICATE</code> 를 "같은 OS 버전 + 같은 진입점" 중복 하나로 바꿉니다. 선택(<code>WindowsDriverSelection.pick</code>)은 버전이 정확히 일치하는 행 <b>전부</b>(정렬 순)를 고르고, 없으면 전 버전 행 전부를 고릅니다.</p>
+        <p>게스트 목록 한 줄은 행 하나에 대응합니다. SetupComplete 는 FOLDER 줄을 받으면 그 하위 폴더에서 §4-2 의 INF 단위 루프를 돕니다.</p>
+<pre>FOLDER|7_intel-lan|PRO1000\Winx64\WS2025\|-|0</pre>
+        <table>
+          <thead><tr><th>화면 변경</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>탐색 패널 (file 모드)</td><td>"이 폴더를 진입점으로" 버튼 추가</td></tr>
+            <tr><td>안내 문구</td><td>"진입점은 .inf · .msi · .exe 파일 또는 폴더입니다"</td></tr>
+            <tr><td>위반 문구</td><td>갱신</td></tr>
+            <tr><td>인자 칸</td><td>INF · FOLDER 에서 쓰이지 않음 (종전 INF 와 같음)</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><b>반영</b> : 두 스크립트 원문이 바뀌므로 대시보드가 "갱신 필요" 로 표시되고, [조립] 을 다시 실행해야 합니다.</li>
+          <li><b>운영 데이터 권고</b>(배포 뒤 사용자) : MS04-CE0 LAN 에 2025 행 7 개(§2 의 폴더)를 두고, QAT 는 현행 INF 를 유지합니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §5 결정과 탈락 대안 -->
+    <details class="section" id="s5" open>
+      <summary>§5. 결정과 탈락 대안</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>결정</th><th>채택</th><th>대안</th></tr></thead>
+          <tbody>
+            <tr><td>D1 묻지 않고 거절</td><td>A1 서명 정책 <code>BehaviorOnFailedVerify=2</code> (설치 동안만)</td><td>A2 INF 별 시간 제한 감시 (PowerShell 로 실행 · 초과 시 종료) · A3 사전 카탈로그 해시 대조</td></tr>
+            <tr><td>D2 실패 수집</td><td>INF 단위 실행 + 종료 코드 줄</td><td>pnputil 출력 문장 파싱 · 로그 꼬리 확대</td></tr>
+            <tr><td>D3 폴더 판정 저장</td><td>끝의 <code>/</code> 정규화 (종류 컬럼 없음)</td><td>진입점 종류 컬럼 추가 · 서빙 시점 파일 시스템 확인</td></tr>
+            <tr><td>D4 여러 경로</td><td>같은 OS 버전 여러 행</td><td>한 칸에 <code>;</code> 구분 여러 경로 · 패키지 단위 포함 폴더 목록</td></tr>
+          </tbody>
+        </table>
+        <h4>탈락 사유</h4>
+        <ul>
+          <li><b>A2</b> : 대화 상자를 띄운 쪽이 pnputil 이 아니라 설치 하위 프로세스일 수 있어, pnputil 을 종료해도 창이 남을 수 있습니다. 또 정상적으로 오래 걸리는 설치를 잘못 끊습니다. A1 이 실기에서 무시될 때의 차선으로 남겨 둡니다.</li>
+          <li><b>A3</b> : 카탈로그 파싱 · Authenticode 해시 계산의 구현 비용이 크고, Windows 가 이미 하는 검증을 다시 만드는 일입니다.</li>
+          <li><b>출력 파싱</b> : 로캘에 의존합니다(HF11-1).</li>
+          <li><b>로그 꼬리 확대</b> : 길이 상한이 남아 같은 잘림이 재발합니다.</li>
+          <li><b>종류 컬럼</b> : 경로에서 유도되는 정보를 두 곳에 저장하면 어긋날 수 있습니다. R15-1 의 "확장자가 방식을 정한다" 와 같은 원칙입니다.</li>
+          <li><b>서빙 시점 확인</b> : 선택 로직은 의존 0 의 정적 진리표(R15-2)이므로 파일 시스템 의존을 넣지 않습니다.</li>
+          <li><b><code>;</code> 구분</b> : 경로마다 검증하고 오류 위치를 표시하기 어렵습니다.</li>
+          <li><b>포함 폴더 목록</b> : OS 버전별로 폴더가 달라(WS2022 · WS2025) 버전 연결을 다시 만들어야 합니다. 변형 행이 이미 그 연결을 갖고 있습니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §6 검증 -->
+    <details class="section" id="s6" open>
+      <summary>§6. 검증</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>층</th><th>대상</th><th>확인 내용</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td><code>InstallEntrypointKind.fromPath</code></td><td>끝 <code>/</code> → FOLDER</td></tr>
+            <tr><td>단위</td><td><code>SubprogramVariantRules</code></td><td>같은 버전 여러 행 허용 · 같은 버전 + 같은 진입점 중복 거절</td></tr>
+            <tr><td>단위</td><td><code>WindowsDriverSelection.pick</code></td><td>정확 일치 여러 행 · 전 버전 여러 행 · 우선순위</td></tr>
+            <tr><td>단위</td><td>목록 줄</td><td>FOLDER 줄</td></tr>
+            <tr><td>단위</td><td>완료 요청 <code>failedInfs</code> 바인딩</td><td>없으면 빈 목록 · 100 초과 400</td></tr>
+            <tr><td>통합</td><td>변형 저장</td><td>폴더 진입점 → FOLDER 정규화 · 트리 밖 경로 거절</td></tr>
+            <tr><td>통합</td><td>완료 보고 엔드포인트</td><td><code>failedInfs</code> 저장</td></tr>
+            <tr><td>통합</td><td>상세 화면</td><td>"실패한 INF" 표</td></tr>
+            <tr><td>스크립트</td><td>SetupComplete · <code>spv-report.ps1</code> 원문 테스트</td><td>정책 설정 · 원복 줄 · <code>[SPV-INF]</code> 줄 · 신구 <code>[SPV-INSTALL]</code> 정규식</td></tr>
+          </tbody>
+        </table>
+
+        <h4>실기 (HF 의 CP5 = 실기 · 2026-09-16 규칙)</h4>
+        <p>MS04-CE0 서버에 Windows 2025 를 설치합니다.</p>
+        <table>
+          <thead><tr><th>회차</th><th>조건</th><th>기대</th><th>확인하는 것</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>LAN 을 TREE 로 둔 채 설치</td><td>창이 뜨지 않음 · NDIS65 3 건이 "실패한 INF" 로 화면에 보임</td><td>A1</td></tr>
+            <tr><td>②</td><td>LAN 을 2025 폴더 행 7 개로 바꿔 설치</td><td>실패 INF 0 · 드라이버 정상</td><td>B</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">①에서 창이 뜨면 A1 은 무효입니다. A2 로 전환해 반복합니다.</div>
+
+        <h4>CP 운용</h4>
+        <p>HF 규칙을 따릅니다. <span class="chip cp4">CP4</span> 까지(코드 · 테스트) 무중단으로 진행하고, <span class="chip cp5">CP5</span> 는 실기로 대체합니다. 해결이 확인되면 반복 과정을 담아 <span class="chip cp6">CP6</span> report 를 냅니다.</p>
+      </div>
+    </details>
+
+    <!-- §7 Critical Files -->
+    <details class="section" id="s7" open>
+      <summary>§7. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>구분</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>execution/engine/windows/WindowsOemTemplates.java</code></td><td><span class="chip mod">수정</span></td><td>SetupComplete · <code>spv-report.ps1</code></td></tr>
+            <tr><td><code>execution/engine/windows/WindowsDriverSelection.java</code></td><td><span class="chip mod">수정</span></td><td>여러 행 선택 · FOLDER 줄</td></tr>
+            <tr><td><code>execution/dto/request/WindowsInstallCompletionRequest.java</code></td><td><span class="chip mod">수정</span></td><td><code>failedInfs</code> · <code>InstallResult.entrypoint</code></td></tr>
+            <tr><td><code>execution/engine/windows/WindowsInstallLedger.java</code></td><td><span class="chip mod">수정</span></td><td>원장 메타 저장</td></tr>
+            <tr><td><code>execution/service/GuestServerQueryService.java</code></td><td><span class="chip mod">수정</span></td><td>상세 표시 (필요 시)</td></tr>
+            <tr><td><code>management/subprogram/enums/InstallEntrypointKind.java</code></td><td><span class="chip mod">수정</span></td><td><code>FOLDER</code> · <code>fromPath</code></td></tr>
+            <tr><td><code>management/subprogram/service/SubprogramVariantRules.java</code></td><td><span class="chip mod">수정</span></td><td>중복 규칙 통합</td></tr>
+            <tr><td><code>management/subprogram/service/SubprogramService.java</code>(변형 저장 · <code>EntrypointPolicyService</code> 경로 검증 뒤 폴더 판정)</td><td><span class="chip mod">수정</span></td><td>폴더 판정</td></tr>
+            <tr><td><code>templates/management/subprogram/subprogram-edit.html</code></td><td><span class="chip mod">수정</span></td><td>안내 · 위반 문구</td></tr>
+            <tr><td><code>fragments/management/directory-browse-panel.html</code> + 탐색 JS</td><td><span class="chip mod">수정</span></td><td>"이 폴더를 진입점으로" 버튼</td></tr>
+            <tr><td><code>templates/provisioning/server-detail.html</code></td><td><span class="chip mod">수정</span></td><td>"실패한 INF (N)" 표</td></tr>
+            <tr><td><code>messages.properties</code></td><td><span class="chip mod">수정</span></td><td>문구</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">DDL 1 건(CP2 정정 — <code>ddl/HF23_subprogram_variant_multi_row.sql</code>: 고유 제약 (subprogram_id, os_version) → (subprogram_id, os_version, entrypoint_relative_path)). 진단 이미지 · <code>agent.sh</code> 변경 없음.</div>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      const sticky = getComputedStyle(document.querySelector('header.page-header')).position === 'sticky';
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - (sticky ? 108 : 8), behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        cb.closest('label').classList.toggle('done', cb.checked);
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) {}
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -131,13 +131,21 @@ public class WindowsInstallLedger {
     public record Completion(String computerName, String osVersion, int driversAdded, int problemDeviceCount,
                              List<String> problemDevices, String setupCompleteLogTail,
                              String installedDiskUniqueId, Boolean diskConfirmed,
-                             List<Map<String, Object>> installs) {
+                             List<Map<String, Object>> installs, List<Map<String, Object>> failedInfs) {
         /** R15-2 이전 호출 호환 — 실행 결과 없음. */
         public Completion(String computerName, String osVersion, int driversAdded, int problemDeviceCount,
                           List<String> problemDevices, String setupCompleteLogTail,
                           String installedDiskUniqueId, Boolean diskConfirmed) {
             this(computerName, osVersion, driversAdded, problemDeviceCount, problemDevices, setupCompleteLogTail,
-                    installedDiskUniqueId, diskConfirmed, List.of());
+                    installedDiskUniqueId, diskConfirmed, List.of(), List.of());
+        }
+
+        /** HF23 이전 호출 호환 — 실패 INF 없음. */
+        public Completion(String computerName, String osVersion, int driversAdded, int problemDeviceCount,
+                          List<String> problemDevices, String setupCompleteLogTail,
+                          String installedDiskUniqueId, Boolean diskConfirmed, List<Map<String, Object>> installs) {
+            this(computerName, osVersion, driversAdded, problemDeviceCount, problemDevices, setupCompleteLogTail,
+                    installedDiskUniqueId, diskConfirmed, installs, List.of());
         }
     }
 
@@ -200,6 +208,13 @@ public class WindowsInstallLedger {
         return v == null ? null : v.toString();
     }
 
+    /** HF23 — 완료 보고의 실패 INF 목록(folder · path · exitCode). HF23 이전 행은 빈 목록. */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> failedInfsOf(ProvisioningHistory row) {
+        Object v = read(row).get("failedInfs");
+        return v instanceof List<?> l ? (List<Map<String, Object>>) l : List.of();
+    }
+
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> installsOf(ProvisioningHistory row) {
         Object v = read(row).get("installs");
@@ -227,8 +242,11 @@ public class WindowsInstallLedger {
         }
         meta.put("diskConfirmed", c.diskConfirmed());   // null = 미보고(구 스크립트 · 조회 실패) — 오류 아님
         meta.put("installs", c.installs() == null ? List.of() : c.installs());   // R15-2 — SetupComplete 의 항목별 실행 결과(exit code)
+        List<Map<String, Object>> failedInfs = c.failedInfs() == null ? List.of() : c.failedInfs();
+        meta.put("failedInfs", failedInfs);   // HF23 — INF 단위 실패(서명 거절 등)
         meta.put("reason", COMPLETED);
-        meta.put("detail", "설치 완료 · 드라이버 " + c.driversAdded() + " · 문제 장치 " + c.problemDeviceCount());
+        meta.put("detail", "설치 완료 · 드라이버 " + c.driversAdded() + " · 문제 장치 " + c.problemDeviceCount()
+                + (failedInfs.isEmpty() ? "" : " · 실패 INF " + failedInfs.size()));
         return row.close(ProvisioningStatus.SUCCEEDED, write(meta), now);
     }
 

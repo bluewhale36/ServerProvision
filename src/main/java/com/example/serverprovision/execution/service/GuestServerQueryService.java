@@ -925,16 +925,39 @@ public class GuestServerQueryService {
                         .map(com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Entry::label).toList()).orElse(List.of()),
                 driverSelection.map(sel -> sel.skipped().stream()
                         .map(com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Skipped::label).toList()).orElse(List.of()),
-                completed.map(windowsInstallLedger::installsOf).orElse(List.of()).stream().map(GuestServerQueryService::installLabelOf).toList());
+                completed.map(windowsInstallLedger::installsOf).orElse(List.of()).stream().map(GuestServerQueryService::installLabelOf).toList(),
+                completed.map(windowsInstallLedger::failedInfsOf).orElse(List.of()).stream().map(GuestServerQueryService::failedInfLabelOf).toList());
     }
 
     /** R15-2 — 완료 보고의 항목별 설치 결과 한 줄. LEGACY(목록 없이 옛 전체 INF 루프) 는 폴더 없이 모드만. */
     private static String installLabelOf(java.util.Map<String, Object> m) {
         Object folder = m.get("folder");
         Object mode = m.get("mode");
+        Object entry = m.get("entrypoint");
         Object exit = m.get("exitCode");
         String head = folder == null || "-".equals(folder) ? String.valueOf(mode) : folder + " · " + mode;
-        return head + " · 종료 코드 " + (exit == null ? "?" : exit);
+        if (entry != null && !entry.toString().isBlank() && !"-".equals(entry)) {
+            head = head + " " + entry;   // HF23 — 한 패키지에 행이 여럿이면 진입점으로 가른다
+        }
+        return head + " · 종료 코드 " + exitCodeLabelOf(exit);
+    }
+
+    /** HF23 — 실패한 INF 한 줄 "폴더 · 상대경로 · 종료 코드 0xE000024B". */
+    private static String failedInfLabelOf(java.util.Map<String, Object> m) {
+        return m.get("folder") + " · " + m.get("path") + " · 종료 코드 " + exitCodeLabelOf(m.get("exitCode"));
+    }
+
+    /** 음수(32비트 부호 있는 표기)인 Windows 오류는 16진으로 — 0xE000024B 처럼 문서 표기와 대조할 수 있게. 그 밖은 10진. */
+    static String exitCodeLabelOf(Object exit) {
+        if (exit == null) {
+            return "?";
+        }
+        try {
+            int code = Integer.parseInt(exit.toString());
+            return code < 0 ? String.format("0x%08X", code) : Integer.toString(code);
+        } catch (NumberFormatException e) {
+            return exit.toString();
+        }
     }
 
     /** 서빙 전 디스크 선택 안내(HF15-5) — BLOCKED 사유는 준비도 notes 가 이미 보이므로 여기서는 비운다. */

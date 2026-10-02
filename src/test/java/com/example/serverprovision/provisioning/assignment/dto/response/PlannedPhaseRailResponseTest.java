@@ -158,7 +158,7 @@ class PlannedPhaseRailResponseTest {
         var windows = new GuestServerDetailResponse.WindowsInstall("WS2025", null,
                 com.example.serverprovision.execution.engine.phase.ReadinessGrade.READY, List.of(),
                 null, 0, 5, null, null, false, 0, null, null, null, 0, 0, List.of(), false, null, null, null, null,
-                null, List.of(), List.of(), List.of());   // R15-2 — 드라이버 4 필드
+                null, List.of(), List.of(), List.of(), List.of());   // R15-2 — 드라이버 4 필드
         var raidPlan = new GuestServerDetailResponse.RaidPlanPreview(false, List.of(), null);
         var server = new GuestServerDetailResponse(
                 java.util.UUID.randomUUID(), "web-01", null, null, java.util.UUID.randomUUID(), "aabbcc", null, null,

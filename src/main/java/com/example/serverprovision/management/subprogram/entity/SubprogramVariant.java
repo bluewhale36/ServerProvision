@@ -25,7 +25,8 @@ import java.util.Locale;
  */
 @Entity
 @Table(name = "subprogram_variant",
-        uniqueConstraints = @UniqueConstraint(name = "uk_subprogram_variant_version", columnNames = {"subprogram_id", "os_version"}))
+        uniqueConstraints = @UniqueConstraint(name = "uk_subprogram_variant_entry",
+                columnNames = {"subprogram_id", "os_version", "entrypoint_relative_path"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SubprogramVariant extends BaseTimeEntity {
@@ -63,7 +64,7 @@ public class SubprogramVariant extends BaseTimeEntity {
         this.sortOrder = sortOrder;
     }
 
-    /** 같은 버전 키의 행을 제자리에서 갱신(id 유지) — 진입점 · 인자 · 재부팅 · 순서. 버전 표기(대소문자 · 공백)는 새 입력을 따른다. */
+    /** 같은 동기화 키(버전 + 진입점)의 행을 제자리에서 갱신(id 유지) — 인자 · 재부팅 · 순서 · 표기(대소문자 · 공백)는 새 입력을 따른다. */
     public void updateFrom(SubprogramVariant d) {
         this.osVersion = d.osVersion;
         this.entrypointRelativePath = d.entrypointRelativePath;
@@ -80,6 +81,24 @@ public class SubprogramVariant extends BaseTimeEntity {
     public static String versionKeyOf(String osVersion) {
         String v = blankToNull(osVersion);
         return v == null ? null : v.toLowerCase(Locale.ROOT);
+    }
+
+    /** 진입점 비교 키(HF23) — 역슬래시 · 끝 슬래시 · 대소문자 차이를 무시한다. 한 버전에 여러 행이 생기면서 중복 판정의 축이 됐다. */
+    public static String entrypointKeyOf(String entrypoint) {
+        String e = blankToNull(entrypoint);
+        if (e == null) {
+            return null;
+        }
+        e = e.replace('\\', '/');
+        while (e.endsWith("/")) {
+            e = e.substring(0, e.length() - 1);
+        }
+        return e.toLowerCase(Locale.ROOT);
+    }
+
+    /** 동기화 키(HF23) — 한 OS 버전에 여러 행(폴더 여럿)이 생기므로 버전만으로는 행을 가를 수 없다. */
+    public String syncKey() {
+        return versionKey() + "|" + entrypointKeyOf(entrypointRelativePath);
     }
 
     public boolean appliesToAllVersions() {

@@ -398,7 +398,9 @@ public record GuestServerDetailResponse(
             /** R15-2 — 후보였으나 제외된 패키지 라벨(이름 — 사유). */
             List<String> driversSkipped,
             /** R15-2 — 완료 보고의 항목별 설치 결과 "폴더 · 모드 · 종료 코드 N". 완료 전 · 미보고 빈 목록. */
-            List<String> driverInstalls
+            List<String> driverInstalls,
+            /** HF23 — 실패한 INF "폴더 · 경로 · 종료 코드 0x…". 완료 전 · HF23 이전 · 실패 없음은 빈 목록. */
+            List<String> failedInfs
     ) {
         /** 설치 중(열린 서빙 행) — 완료 · 실패 뒤에는 false. */
         public boolean served() {

@@ -23,11 +23,16 @@ public final class WindowsOemTemplates {
      */
     public static final String SETUPCOMPLETE_CMD = """
             @echo off
-            rem ServerProvision E4-1-a-4 / R15-2 - SetupComplete.cmd (runs once as SYSTEM after Windows Setup, before first logon).
+            rem ServerProvision E4-1-a-4 / R15-2 / HF23 - SetupComplete.cmd (runs once as SYSTEM after Windows Setup, before first logon).
             rem R15-2: if the server left a per-guest selection list (C:\\SPV\\spv-drivers.lst, downloaded in the specialize pass),
-            rem install only the listed entries by mode: TREE = pnputil over the whole folder, INF = pnputil on that file,
-            rem MSI = msiexec /i /qn /norestart, EXE = run directly. Without a list fall back to the legacy loop (every folder, all INF).
-            rem Every entry logs one line "[SPV-INSTALL] folder|mode|exit=N" which spv-report.ps1 forwards to the server.
+            rem install only the listed entries by mode: TREE = every INF of the package folder, FOLDER = every INF under that subfolder,
+            rem INF = pnputil on that file, MSI = msiexec /i /qn /norestart, EXE = run directly. Without a list fall back to the legacy loop.
+            rem HF23: TREE and FOLDER install one INF at a time and log "[SPV-INF] folder|path|exit=N" per INF - exit codes are
+            rem language-neutral, so spv-report.ps1 can list the failed INFs. 0, 259 and 3010 count as fine.
+            rem HF23: a package whose files fail catalog verification makes pnputil pop a prompt that waits for a click. The legacy
+            rem driver signing policy BehaviorOnFailedVerify=2 does NOT suppress it on Server 2025 (fieldwork 2026-10-02) - do not retry it.
+            rem Keep such packages out of scope instead: point variants at the OS folders of a package (FOLDER entries).
+            rem Every entry logs one line "[SPV-INSTALL] folder|mode|entry|exit=N" which spv-report.ps1 forwards to the server.
             rem ASCII only. Setup skips this file when an OEM product key is used (GVLK / retail keys run it).
             setlocal EnableDelayedExpansion
             set SPV=%SystemDrive%\\SPV
@@ -54,9 +59,14 @@ public final class WindowsOemTemplates {
               set BASE=%SPV%\\Drivers\\!FOLDER!
               set RC=
               if /i "!MODE!"=="TREE" (
-                echo [%DATE% %TIME%] pnputil /add-driver "!BASE!\\*.inf" /subdirs /install >> "%LOG%"
-                pnputil /add-driver "!BASE!\\*.inf" /subdirs /install >> "%LOG%" 2>&1
-                set RC=!ERRORLEVEL!
+                echo [%DATE% %TIME%] pnputil per INF under "!BASE!" >> "%LOG%"
+                call :infloop "!BASE!" "!FOLDER!"
+                set RC=!INFRC!
+              )
+              if /i "!MODE!"=="FOLDER" (
+                echo [%DATE% %TIME%] pnputil per INF under "!BASE!\\!ENTRY!" >> "%LOG%"
+                call :infloop "!BASE!\\!ENTRY!" "!FOLDER!"
+                set RC=!INFRC!
               )
               if /i "!MODE!"=="INF" (
                 echo [%DATE% %TIME%] pnputil /add-driver "!BASE!\\!ENTRY!" /install >> "%LOG%"
@@ -74,17 +84,18 @@ public final class WindowsOemTemplates {
                 set RC=!ERRORLEVEL!
               )
               if "!RC!"=="" set RC=-1
-              echo [SPV-INSTALL] !FOLDER!^|!MODE!^|exit=!RC! >> "%LOG%"
+              set SHOWENTRY=!ENTRY!
+              if "!SHOWENTRY!"=="" set SHOWENTRY=-
+              echo [SPV-INSTALL] !FOLDER!^|!MODE!^|!SHOWENTRY!^|exit=!RC! >> "%LOG%"
               if "!REBOOT!"=="1" set NEEDREBOOT=1
             )
             goto :problems
             :legacy
             echo [%DATE% %TIME%] no selection list - legacy all-INF loop >> "%LOG%"
-            echo [SPV-INSTALL] -^|LEGACY^|exit=0 >> "%LOG%"
+            echo [SPV-INSTALL] -^|LEGACY^|-^|exit=0 >> "%LOG%"
             for /d %%D in ("%SPV%\\Drivers\\*") do (
-              echo [%DATE% %TIME%] pnputil /add-driver "%%~fD\\*.inf" /subdirs /install >> "%LOG%"
-              pnputil /add-driver "%%~fD\\*.inf" /subdirs /install >> "%LOG%" 2>&1
-              echo [%DATE% %TIME%] exit code !ERRORLEVEL! for %%~nxD >> "%LOG%"
+              echo [%DATE% %TIME%] pnputil per INF under "%%~fD" >> "%LOG%"
+              call :infloop "%%~fD" "%%~nxD"
             )
             :problems
             echo [%DATE% %TIME%] problem devices: >> "%LOG%"
@@ -99,6 +110,26 @@ public final class WindowsOemTemplates {
               echo 1 > "%SPV%\\reboot-required"
             )
             endlocal
+            exit /b 0
+
+            rem HF23 - install every INF under %1 one at a time; %2 is the package folder name for the log.
+            rem INFRC = 0 when every INF ended 0, 259 or 3010, otherwise the first other exit code. The extension test drops 8.3 short-name
+            rem matches such as ".info". A path holding "!" is mangled by delayed expansion - driver trees are ASCII without "!".
+            :infloop
+            set INFRC=0
+            set INFROOT=%~1
+            rem a FOLDER entry ends with a backslash - drop it so the relative path below is cut cleanly
+            if "%INFROOT:~-1%"=="\\" set INFROOT=%INFROOT:~0,-1%
+            for /r "%INFROOT%" %%I in (*.inf) do (
+              if /i "%%~xI"==".inf" (
+                pnputil /add-driver "%%~fI" /install >> "%LOG%" 2>&1
+                set IRC=!ERRORLEVEL!
+                set REL=%%~fI
+                set REL=!REL:%INFROOT%\\=!
+                echo [SPV-INF] %~2^|!REL!^|exit=!IRC! >> "%LOG%"
+                if not "!IRC!"=="0" if not "!IRC!"=="259" if not "!IRC!"=="3010" if "!INFRC!"=="0" set INFRC=!IRC!
+              )
+            )
             exit /b 0
             """;
 
@@ -153,12 +184,30 @@ public final class WindowsOemTemplates {
               # "$problems | Select-Object -First 50" died with ArgumentException "Argument types do not match" on
               # Windows PowerShell 5.1 (fieldwork 2026-09-17; the report was never sent). Keep only the collections the
               # last good run used (HashSet[string] and List[string]).
+              # HF23: the entry line gained an entrypoint field "folder|mode|entry|exit=N" - the 3-field form of older payloads still parses.
               $installs = @()
               if (Test-Path $logPath) {
-                foreach ($m in ($lines | Select-String -Pattern '^\\[SPV-INSTALL\\] ([^|]*)\\|([^|]*)\\|exit=(-?\\d+)')) {
+                foreach ($m in ($lines | Select-String -Pattern '^\\[SPV-INSTALL\\] ([^|]*)\\|([^|]*)\\|(?:([^|]*)\\|)?exit=(-?\\d+)')) {
                   if ($installs.Count -ge 50) { break }
                   $g = $m.Matches[0].Groups
-                  $installs += @{ folder = $g[1].Value; mode = $g[2].Value; exitCode = [int]$g[3].Value }
+                  $entry = $g[3].Value
+                  if ($entry -eq '-') { $entry = '' }
+                  $installs += @{ folder = $g[1].Value; mode = $g[2].Value; entrypoint = $entry; exitCode = [int]$g[4].Value }
+                }
+              }
+
+              # HF23: per-INF results "[SPV-INF] folder|path|exit=N" - 0, 259 (no matching device) and 3010 (reboot) are fine,
+              # anything else is a failed INF (e.g. a refused signature, 0xE000024B). Max 100 forwarded; plain array as above.
+              $failedInfs = @()
+              if (Test-Path $logPath) {
+                foreach ($m in ($lines | Select-String -Pattern '^\\[SPV-INF\\] ([^|]*)\\|([^|]*)\\|exit=(-?\\d+)')) {
+                  $g = $m.Matches[0].Groups
+                  $code = [int]$g[3].Value
+                  if ($code -eq 0 -or $code -eq 259 -or $code -eq 3010) { continue }
+                  if ($failedInfs.Count -ge 100) { break }
+                  $path = $g[2].Value.Trim()
+                  if ($path.Length -gt 260) { $path = $path.Substring($path.Length - 260) }
+                  $failedInfs += @{ folder = $g[1].Value; path = $path; exitCode = $code }
                 }
               }
 
@@ -199,10 +248,11 @@ public final class WindowsOemTemplates {
                 setupCompleteLogTail = $logTail
                 installedDiskUniqueId = $installedDiskUniqueId
                 installs = @($installs)
+                failedInfs = @($failedInfs)
               } | ConvertTo-Json -Depth 3 -Compress
               $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
               $headers = @{ 'X-Guest-Token' = $Token }
-              Write-Output ("reporting to {0}: computerName={1} drivers={2} problems={3} installs={4}" -f $uri, $env:COMPUTERNAME, $driversAdded, $problems.Count, $installs.Count)
+              Write-Output ("reporting to {0}: computerName={1} drivers={2} problems={3} installs={4} failedInfs={5}" -f $uri, $env:COMPUTERNAME, $driversAdded, $problems.Count, $installs.Count, $failedInfs.Count)
 
               for ($i = 1; $i -le 20; $i++) {
                 try {

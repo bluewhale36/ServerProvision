@@ -158,13 +158,11 @@ CREATE TABLE `drift` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `detail` varchar(1024) DEFAULT NULL,
   `observed_hash` varchar(64) DEFAULT NULL,
-  `detected_at` datetime(6) NOT NULL,
   `kind` varchar(32) NOT NULL,
   `new_path` varchar(1024) DEFAULT NULL,
   `old_path` varchar(1024) NOT NULL,
   `resource_id` bigint(20) NOT NULL,
   `resource_type` enum('BIOS_BUNDLE','BMC_FIRMWARE','BOARD_MODEL','OS_IMAGE','OS_ISO','SUBPROGRAM') NOT NULL,
-  `drift_report_id` bigint(20) NOT NULL,
   `version` bigint(20) NOT NULL,
   `display_name` varchar(255) DEFAULT NULL,
   `first_detected_at` datetime(6) NOT NULL,
@@ -178,9 +176,7 @@ CREATE TABLE `drift` (
   `status` enum('OPEN','RESOLVED','SNOOZED') NOT NULL,
   `predecessor_drift_id` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `FK5xmpogqbx1vxcadgc1rbqddoa` (`drift_report_id`),
   KEY `fk_drift_predecessor` (`predecessor_drift_id`),
-  CONSTRAINT `FK5xmpogqbx1vxcadgc1rbqddoa` FOREIGN KEY (`drift_report_id`) REFERENCES `drift_report` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_drift_predecessor` FOREIGN KEY (`predecessor_drift_id`) REFERENCES `drift` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `drift_handling` (
@@ -640,7 +636,7 @@ CREATE TABLE `subprogram_variant` (
   `reboot_required` bit(1) NOT NULL,
   `sort_order` int(11) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_subprogram_variant_version` (`subprogram_id`,`os_version`),
+  UNIQUE KEY `uk_subprogram_variant_entry` (`subprogram_id`,`os_version`,`entrypoint_relative_path`),
   CONSTRAINT `fk_subprogram_variant_subprogram` FOREIGN KEY (`subprogram_id`) REFERENCES `subprogram` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `trash_settings` (

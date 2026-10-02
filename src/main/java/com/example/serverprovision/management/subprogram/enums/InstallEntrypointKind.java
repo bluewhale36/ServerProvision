@@ -4,13 +4,15 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * 변형 진입점의 설치 방식(R15-1 D-4) — 별도 선택 필드 없이 진입점 파일의 확장자가 정한다.
- * 실행 명령(pnputil · msiexec · 직접 실행)의 렌더는 R15-2 가 constant 별 메서드로 붙인다.
+ * 변형 진입점의 설치 방식(R15-1 D-4) — 별도 선택 필드 없이 진입점 경로가 정한다: 파일이면 확장자, 폴더면 끝의 {@code /}
+ * (HF23 — 저장 시 실제 디렉토리면 끝에 {@code /} 를 붙여 정규화한다). 실행 명령의 렌더는 R15-2 · HF23 이 맡는다.
  */
 public enum InstallEntrypointKind {
     INF("INF", "inf"),
     MSI("MSI", "msi"),
-    EXE("EXE", "exe");
+    EXE("EXE", "exe"),
+    /** 폴더 아래 INF 를 하나씩 설치(HF23) — 패키지 안의 OS 폴더(예: {@code PRO1000/Winx64/WS2025/})로 범위를 좁힌다. */
+    FOLDER("폴더", null);
 
     private final String label;
     private final String extension;
@@ -34,6 +36,9 @@ public enum InstallEntrypointKind {
             return Optional.empty();
         }
         String name = relativePath.trim().replace('\\', '/');
+        if (name.endsWith("/")) {
+            return Optional.of(FOLDER);
+        }
         int slash = name.lastIndexOf('/');
         String file = slash >= 0 ? name.substring(slash + 1) : name;
         int dot = file.lastIndexOf('.');
@@ -42,7 +47,7 @@ public enum InstallEntrypointKind {
         }
         String ext = file.substring(dot + 1).toLowerCase(Locale.ROOT);
         for (InstallEntrypointKind kind : values()) {
-            if (kind.extension.equals(ext)) {
+            if (ext.equals(kind.extension)) {
                 return Optional.of(kind);
             }
         }

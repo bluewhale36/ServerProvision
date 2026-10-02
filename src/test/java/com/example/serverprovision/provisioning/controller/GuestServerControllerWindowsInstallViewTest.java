@@ -92,7 +92,7 @@ class GuestServerControllerWindowsInstallViewTest {
                                                                  boolean holding, long holdRemaining) {
         return new GuestServerDetailResponse.WindowsInstall(IMAGE, DISPLAY, grade, notes, servedAt, reentries, 5,
                 remaining, failedReason, holding, holdRemaining, null, null, null, 0, 0, List.of(), false, null, null, null, null,
-                null, java.util.List.of(), java.util.List.of(), java.util.List.of());
+                null, java.util.List.of(), java.util.List.of(), java.util.List.of(), List.of());
     }
 
     @Test
@@ -176,11 +176,35 @@ class GuestServerControllerWindowsInstallViewTest {
 
     private static GuestServerDetailResponse.WindowsInstall completedCard(int problems, List<String> devices,
                                                                           boolean terminal, ProvisioningPhase next) {
+        return completedCard(problems, devices, terminal, next, List.of());
+    }
+
+    private static GuestServerDetailResponse.WindowsInstall completedCard(int problems, List<String> devices,
+                                                                          boolean terminal, ProvisioningPhase next,
+                                                                          List<String> failedInfs) {
         return new GuestServerDetailResponse.WindowsInstall(IMAGE, DISPLAY, ReadinessGrade.READY, List.of(),
                 LocalDateTime.of(2026, 9, 3, 13, 5, 9), 1, 5, null, null, false, 0,
                 LocalDateTime.of(2026, 9, 3, 13, 21, 40), "SPV-14174000", "Windows Server 2025 10.0.26100",
                 47, problems, devices, terminal, next, null, null, null,
-                null, java.util.List.of(), java.util.List.of(), java.util.List.of());
+                null, java.util.List.of(), java.util.List.of(), java.util.List.of(), failedInfs);
+    }
+
+    @Test
+    @DisplayName("HF23 — 실패한 INF 가 있으면 펼친 목록(건수 · 폴더 · 경로 · 16진 종료 코드)과 안내 · 없으면 행 자체가 없다")
+    void completedWithFailedInfs() throws Exception {
+        UUID id = detailWith(completedCard(0, List.of(), true, null,
+                List.of("7_intel-lan · PRO1000\\Winx64\\NDIS65\\v1q65x64.inf · 종료 코드 0xE000024B")));
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-failed-infs")))
+                .andExpect(content().string(containsString("실패한 INF (1)")))
+                .andExpect(content().string(containsString("v1q65x64.inf · 종료 코드 0xE000024B")))
+                .andExpect(content().string(containsString("서명 검증 실패로 묻지 않고 거절된 것")));
+
+        UUID clean = detailWith(completedCard(0, List.of(), true, null));
+        mvc.perform(get("/provisioning/server/{id}", clean))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-failed-infs"))));
     }
 
     @Test

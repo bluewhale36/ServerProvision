@@ -8,7 +8,6 @@ import com.example.serverprovision.management.subprogram.entity.SubprogramVarian
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -19,9 +18,9 @@ import java.util.Set;
  */
 public final class WindowsDriverSelection {
 
-    /** 패키지의 설치 모드 — TREE 는 패키지 단위(트리 전체 INF), 나머지는 변형의 진입점 종류다. */
+    /** 패키지의 설치 모드 — TREE 는 패키지 단위(트리 전체 INF), 나머지는 변형의 진입점 종류다(FOLDER 는 HF23 — 하위 폴더의 INF). */
     public enum Mode {
-        TREE, INF, MSI, EXE
+        TREE, INF, MSI, EXE, FOLDER
     }
 
     public static final String SKIP_NO_VARIANT_FOR_VERSION = "해당 버전 변형 없음";
@@ -47,6 +46,9 @@ public final class WindowsDriverSelection {
         public String label() {
             if (mode == Mode.TREE) {
                 return name + " · 트리 전체 INF";
+            }
+            if (mode == Mode.FOLDER) {
+                return name + " · 폴더 " + entrypoint + " · " + (osVersion == null ? "전 버전" : osVersion);
             }
             return name + " · " + mode.name() + " " + entrypoint + " · " + (osVersion == null ? "전 버전" : osVersion)
                     + (rebootRequired ? " · 재부팅" : "");
@@ -116,19 +118,20 @@ public final class WindowsDriverSelection {
                 entries.add(new Entry(s.getId(), s.getName(), folder, Mode.TREE, "", null, false, null));
                 continue;
             }
-            Optional<SubprogramVariant> variant = pick(s.getVariants(), osTarget);
-            if (variant.isEmpty()) {
+            List<SubprogramVariant> picked = pick(s.getVariants(), osTarget);
+            if (picked.isEmpty()) {
                 skipped.add(new Skipped(s.getId(), s.getName(), SKIP_NO_VARIANT_FOR_VERSION));
                 continue;
             }
-            SubprogramVariant v = variant.get();
-            String entrypoint = v.getEntrypointRelativePath().replace('/', '\\');
-            if (!isAscii(entrypoint) || !isAscii(v.getArguments()) || containsPipe(entrypoint) || containsPipe(v.getArguments())) {
-                skipped.add(new Skipped(s.getId(), s.getName(), SKIP_NON_ASCII));
-                continue;
+            for (SubprogramVariant v : picked) {   // HF23 — 한 버전의 여러 행(제품군별 OS 폴더 등)이 각각 한 줄이 된다
+                String entrypoint = v.getEntrypointRelativePath().replace('/', '\\');
+                if (!isAscii(entrypoint) || !isAscii(v.getArguments()) || containsPipe(entrypoint) || containsPipe(v.getArguments())) {
+                    skipped.add(new Skipped(s.getId(), s.getName(), SKIP_NON_ASCII));
+                    continue;
+                }
+                entries.add(new Entry(s.getId(), s.getName(), folder, Mode.valueOf(v.entrypointKind().name()), entrypoint,
+                        v.getArguments(), v.isRebootRequired(), v.getOsVersion()));
             }
-            entries.add(new Entry(s.getId(), s.getName(), folder, Mode.valueOf(v.entrypointKind().name()), entrypoint,
-                    v.getArguments(), v.isRebootRequired(), v.getOsVersion()));
         }
         return new Selection(List.copyOf(entries), List.copyOf(skipped));
     }
@@ -149,16 +152,22 @@ public final class WindowsDriverSelection {
         return os.getFamily() == OSFamily.WINDOWS_BASED;
     }
 
-    /** 버전 정확 일치(정규화 키) → 전 버전(null) 변형 → empty. 대상 버전을 모르면 전 버전 변형만. */
-    static Optional<SubprogramVariant> pick(List<SubprogramVariant> variants, WindowsInstallTarget.OsTarget osTarget) {
+    /**
+     * 버전 정확 일치(정규화 키) 행 전부 → 없으면 전 버전(null) 행 전부 → 빈 목록. 대상 버전을 모르면 전 버전 행만.
+     * 한 버전에 여러 행을 허용하면서(HF23) 하나가 아니라 목록을 고른다 — 순서는 변형 표의 순서(sortOrder)다.
+     */
+    static List<SubprogramVariant> pick(List<SubprogramVariant> variants, WindowsInstallTarget.OsTarget osTarget) {
+        List<SubprogramVariant> ordered = variants.stream()
+                .sorted(Comparator.comparingInt(SubprogramVariant::getSortOrder))
+                .toList();
         String key = osTarget == null ? null : SubprogramVariant.versionKeyOf(osTarget.osVersion());
         if (key != null) {
-            Optional<SubprogramVariant> exact = variants.stream().filter(v -> key.equals(v.versionKey())).findFirst();
-            if (exact.isPresent()) {
+            List<SubprogramVariant> exact = ordered.stream().filter(v -> key.equals(v.versionKey())).toList();
+            if (!exact.isEmpty()) {
                 return exact;
             }
         }
-        return variants.stream().filter(SubprogramVariant::appliesToAllVersions).findFirst();
+        return ordered.stream().filter(SubprogramVariant::appliesToAllVersions).toList();
     }
 
     private static boolean isAscii(String s) {

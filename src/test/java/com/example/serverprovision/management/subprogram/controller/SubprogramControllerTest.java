@@ -349,7 +349,7 @@ class SubprogramControllerTest {
     }
 
     @Test
-    @DisplayName("POST /{id}/edit (400 · 폼 재렌더) : 허용되지 않는 확장자 · 같은 버전 중복 → 행 필드 오류 · 서비스 미호출")
+    @DisplayName("POST /{id}/edit (400 · 폼 재렌더) : 허용되지 않는 진입점 종류 · 같은 버전 + 같은 진입점 중복 → 행 필드 오류 · 서비스 미호출")
     void edit_variantViolations_rerender() throws Exception {
         given(subprogramService.findSubprogram(7L)).willReturn(driverResponse());
         // 규칙 판정의 SSOT 는 서비스(checkVariants) — 컨트롤러는 그 결과를 행 필드 오류로 옮긴다
@@ -357,7 +357,7 @@ class SubprogramControllerTest {
                 new com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Finding(0,
                         com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRYPOINT_KIND),
                 new com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Finding(1,
-                        com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.VERSION_DUPLICATE)));
+                        com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRY_DUPLICATE)));
 
         mvc.perform(post("/management/subprogram/7/edit")
                         .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER")
@@ -365,7 +365,7 @@ class SubprogramControllerTest {
                         .param("variants[1].osVersion", "2025").param("variants[1].entrypointRelativePath", "a.msi"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("management/subprogram/subprogram-edit"))
-                .andExpect(model().attributeHasFieldErrors("subprogramForm", "variants[0].entrypointRelativePath", "variants[1].osVersion"));
+                .andExpect(model().attributeHasFieldErrors("subprogramForm", "variants[0].entrypointRelativePath", "variants[1].entrypointRelativePath"));
 
         org.mockito.Mockito.verify(subprogramService, org.mockito.Mockito.never()).update(any(), any());
     }

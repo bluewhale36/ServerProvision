@@ -10,14 +10,14 @@
     - mode               : "directory" — 임의 경로(주로 디렉토리)를 사용자에게 지정받음.
                                           "이 경로로 적용" 주요 액션 버튼 노출.
                            "file"      — 트리 루트 안의 파일을 진입점으로 선택. 파일 클릭이 곧 적용.
-                                          "진입점 비우기" 보조 액션만 노출.
+                                          "진입점 비우기" · "이 폴더를 진입점으로"(HF23) 액션 노출.
     - primaryActionLabel : (옵션, directory 모드 전용) primary 액션 버튼 라벨. null 또는 미지정 시
                            "이 경로로 적용" default. file 모드에서는 무시.
                            Thymeleaf 는 호출자가 생략한 fragment 파라미터를 null 로 바인딩하므로
                            기존 호출자 (`browsePanel('browse', 'directory')` 등) 는 변경 불필요.
   생성되는 element id (prefix="browse" 기준):
     browsePanel · browseUpBtn · browseCurrentPath · browseStatus · browseEntries
-    browseCancelBtn · browseApplyBtn (directory 모드) · browseClearBtn (file 모드)
+    browseCancelBtn · browseApplyBtn (directory 모드) · browseClearBtn · browseFolderBtn (file 모드)
   ─────────────────────────────────────────────────────────────
 */-->
 <div class="n-browse-panel" th:fragment="browsePanel(prefix, mode, primaryActionLabel)"
@@ -48,6 +48,12 @@
                 type="button"
                 th:id="${prefix} + 'ClearBtn'"
                 class="n-btn n-btn-sm n-btn-outline">진입점 비우기
+        </button>
+        <!--/* HF23 — 진입점에 폴더도 지정한다(그 폴더 아래 INF 를 하나씩 설치). 트리 루트는 변형 없이(트리 전체) 다루므로 막는다. */-->
+        <button th:if="${mode == 'file'}"
+                type="button"
+                th:id="${prefix} + 'FolderBtn'"
+                class="n-btn n-btn-sm n-btn-primary">이 폴더를 진입점으로
         </button>
         <button th:if="${mode == 'directory'}"
                 type="button"

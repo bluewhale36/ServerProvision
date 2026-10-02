@@ -26,27 +26,35 @@ class SubprogramVariantRulesTest {
     }
 
     @Test
-    @DisplayName("위반 — 진입점 누락 · 허용되지 않는 확장자 · 같은 버전(trim · 대소문자 무시) 중복 · 전 버전 2 행 — 필드 경로는 행 인덱스를 품는다")
+    @DisplayName("HF23 — 한 OS 버전에 여러 행 허용(진입점이 다르면) · 전 버전 행도 여럿 허용")
+    void multipleRowsPerVersion_allowed() {
+        assertThat(SubprogramVariantRules.check(List.of(
+                row("2025", "PRO1000/Winx64/WS2025/"), row("2025", "PROXGB/Winx64/WS2025/"),
+                row(null, "a.inf"), row(null, "b.inf")))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("위반 — 진입점 누락 · 같은 버전 + 같은 진입점(trim · 대소문자 · 역슬래시 · 끝 슬래시 무시) — 필드 경로는 행 인덱스를 품는다")
     void violations() {
         List<SubprogramVariantRules.Finding> findings = SubprogramVariantRules.check(List.of(
-                row("2025", ""),                       // [0] 누락
-                row("2022", "readme.txt"),             // [1] 확장자
-                row("2022 ", "a.msi"),                 // [2] 버전 중복(trim)
-                row("2019", "b.msi"),
+                row("2025", ""),                                   // [0] 누락
+                row("2025", "PRO1000/Winx64/WS2025/"),
+                row("2025 ", "pro1000\\winx64\\ws2025"),       // [2] 같은 버전 + 같은 진입점(표기만 다름)
                 row(null, "c.inf"),
-                row("  ", "d.exe"),                    // [5] 전 버전 2 행
-                row("2019", "e.exe")));                // [6] 버전 중복
+                row("  ", "C.INF")));                              // [4] 전 버전 + 같은 진입점
 
         assertThat(findings).extracting(SubprogramVariantRules.Finding::field).containsExactly(
                 "variants[0].entrypointRelativePath",
-                "variants[1].entrypointRelativePath",
-                "variants[2].osVersion",
-                "variants[5].osVersion",
-                "variants[6].osVersion");
+                "variants[2].entrypointRelativePath",
+                "variants[4].entrypointRelativePath");
         assertThat(findings.get(0).violation()).isEqualTo(SubprogramVariantRules.Violation.ENTRYPOINT_REQUIRED);
-        assertThat(findings.get(1).violation()).isEqualTo(SubprogramVariantRules.Violation.ENTRYPOINT_KIND);
-        assertThat(findings.get(2).violation()).isEqualTo(SubprogramVariantRules.Violation.VERSION_DUPLICATE);
-        assertThat(findings.get(3).violation()).isEqualTo(SubprogramVariantRules.Violation.WILDCARD_DUPLICATE);
-        assertThat(findings.get(3).violation().code()).isEqualTo("management.subprogram.variant.wildcard-duplicate");
+        assertThat(findings.get(1).violation()).isEqualTo(SubprogramVariantRules.Violation.ENTRY_DUPLICATE);
+        assertThat(findings.get(1).violation().code()).isEqualTo("management.subprogram.variant.entry-duplicate");
+    }
+
+    @Test
+    @DisplayName("구조 규칙은 종류를 보지 않는다 — 확장자 · 폴더 판정은 트리를 보는 SubprogramService 몫(HF23)")
+    void kindIsNotStructural() {
+        assertThat(SubprogramVariantRules.check(List.of(row("2025", "readme.txt")))).isEmpty();
     }
 }

@@ -1184,6 +1184,19 @@
                                                 </details>
                                             </td>
                                         </tr>
+                                        <!-- HF23 — INF 단위 설치에서 실패한 INF(서명 거절 등). 펼쳐 둔다 — 조용히 넘어가면 안 되는 정보다. -->
+                                        <tr th:if="${not #lists.isEmpty(wi.failedInfs)}" data-failed-infs>
+                                            <th th:text="#{provisioning.windows.install.drivers.failed-infs}">실패한 INF</th>
+                                            <td>
+                                                <details open>
+                                                    <summary th:text="|#{provisioning.windows.install.drivers.failed-infs} (${#lists.size(wi.failedInfs)})|">실패한 INF (3)</summary>
+                                                    <div class="n-hint" th:text="#{provisioning.windows.install.drivers.failed-infs.hint}">설치하지 못한 INF 입니다.</div>
+                                                    <ul>
+                                                        <li th:each="f : ${wi.failedInfs}" th:text="${f}">7_intel-lan · PRO1000\Winx64\NDIS65\v1q65x64.inf · 종료 코드 0xE000024B</li>
+                                                    </ul>
+                                                </details>
+                                            </td>
+                                        </tr>
                                         </tbody>
                                     </table>
                                 </th:block>
