@@ -199,4 +199,34 @@ class WindowsInstallReportRestControllerTest {
                 .andExpect(status().isBadRequest());
         verify(completionService, never()).complete(any(), any());
     }
+
+    // ==== HF23 ====================================================
+
+    @Test
+    @DisplayName("200 — HF23 failedInfs · installs 의 entrypoint 가 서비스에 그대로 전달된다(구 스크립트처럼 없으면 빈 목록)")
+    void complete_carriesFailedInfs() throws Exception {
+        given(completionService.complete(eq(GUEST), any())).willReturn(new WindowsInstallCompletionResponse(true, true, null));
+        String body = "{\"computerName\":\"SPV-1\",\"driversAdded\":74,\"problemDeviceCount\":0,"
+                + "\"installs\":[{\"folder\":\"7_intel-lan\",\"mode\":\"FOLDER\",\"entrypoint\":\"PRO1000\\\\Winx64\\\\WS2025\\\\\",\"exitCode\":0}],"
+                + "\"failedInfs\":[{\"folder\":\"7_intel-lan\",\"path\":\"PRO1000\\\\Winx64\\\\NDIS65\\\\v1q65x64.inf\",\"exitCode\":-536870325}]}";
+
+        mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+        verify(completionService).complete(eq(GUEST), org.mockito.ArgumentMatchers.argThat(r ->
+                r.failedInfsOrEmpty().size() == 1
+                        && r.failedInfsOrEmpty().get(0).exitCode() == -536870325
+                        && "PRO1000\\Winx64\\WS2025\\".equals(r.installsOrEmpty().get(0).entrypoint())));
+    }
+
+    @Test
+    @DisplayName("400 — HF23 failedInfs 101개 → 필드 메시지, 서비스 미호출")
+    void complete_failedInfsTooMany400() throws Exception {
+        String many = IntStream.rangeClosed(1, 101)
+                .mapToObj(i -> "{\"folder\":\"f\",\"path\":\"p" + i + ".inf\",\"exitCode\":-1}").collect(Collectors.joining(","));
+        mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"computerName\":\"SPV-1\",\"driversAdded\":0,\"problemDeviceCount\":0,\"failedInfs\":[" + many + "]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field=='failedInfs')].message").value(org.hamcrest.Matchers.hasItem("failedInfs 는 100개 이내여야 합니다.")));
+        verify(completionService, never()).complete(any(), any());
+    }
 }

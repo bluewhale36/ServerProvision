@@ -177,12 +177,31 @@ public class SubprogramService {
 				normalized.add(null);   // 누락은 구조 규칙이 이미 잡았다
 				continue;
 			}
+			String path;
 			try {
-				normalized.add(entrypointPolicyService.validateAndNormalize(treeRoot, entrypoint));
+				path = entrypointPolicyService.validateAndNormalize(treeRoot, entrypoint);
 			} catch (com.example.serverprovision.global.security.exception.EntrypointInvalidException e) {
 				normalized.add(null);
 				findings.add(new SubprogramVariantRules.Finding(i, SubprogramVariantRules.Violation.ENTRYPOINT_PATH, e.getMessage()));
+				continue;
 			}
+			// HF23 — 트리 안 실제 디렉토리면 폴더 진입점(끝에 / 를 붙여 정규화), 끝에 / 를 붙였는데 폴더가 없으면 경로 위반.
+			// 구분자 정규화는 정책도 하지만 폴더 판정이 그 구현에 기대지 않게 여기서도 한다(Windows 표기 입력).
+			path = path.replace('\\', '/');
+			String folderForm = path.endsWith("/") ? path : path + "/";
+			if (java.nio.file.Files.isDirectory(treeRoot.resolve(path))) {
+				path = folderForm;
+			} else if (path.endsWith("/")) {
+				normalized.add(null);
+				findings.add(new SubprogramVariantRules.Finding(i, SubprogramVariantRules.Violation.ENTRYPOINT_PATH, "폴더가 없습니다"));
+				continue;
+			}
+			if (com.example.serverprovision.management.subprogram.enums.InstallEntrypointKind.fromPath(path).isEmpty()) {
+				normalized.add(null);
+				findings.add(new SubprogramVariantRules.Finding(i, SubprogramVariantRules.Violation.ENTRYPOINT_KIND));
+				continue;
+			}
+			normalized.add(path);
 		}
 		return new Inspection(findings, normalized);
 	}

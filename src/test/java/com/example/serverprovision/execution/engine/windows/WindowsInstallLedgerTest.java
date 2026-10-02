@@ -267,4 +267,24 @@ class WindowsInstallLedgerTest {
         ledger.closeSucceeded(legacy, new WindowsInstallLedger.Completion("SPV-2", null, 0, 0, java.util.List.of(), null, null, null), NOW);
         assertThat(ledger.installsOf(legacy)).isEmpty();
     }
+
+    @Test
+    @DisplayName("closeSucceeded(HF23) — 실패 INF 목록을 meta 에 남기고 판독기로 왕복 · 완료 문구에 '실패 INF N' · 없으면 빈 목록 · 문구 그대로")
+    void closeSucceeded_recordsFailedInfs() {
+        ProvisioningHistory row = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
+        java.util.Map<String, Object> failed = new java.util.LinkedHashMap<>();
+        failed.put("folder", "7_intel-lan"); failed.put("path", "PRO1000\\Winx64\\NDIS65\\v1q65x64.inf"); failed.put("exitCode", -536870325);
+
+        ledger.closeSucceeded(row, new WindowsInstallLedger.Completion("SPV-1", "WS2025", 74, 0, java.util.List.of(), null, null, null,
+                java.util.List.of(), java.util.List.of(failed)), NOW.plusMinutes(10));
+
+        assertThat(ledger.failedInfsOf(row)).hasSize(1);
+        assertThat(ledger.failedInfsOf(row).get(0)).containsEntry("path", "PRO1000\\Winx64\\NDIS65\\v1q65x64.inf");
+        assertThat(row.displayNote()).isEqualTo("설치 완료 · 드라이버 74 · 문제 장치 0 · 실패 INF 1");
+
+        ProvisioningHistory clean = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
+        ledger.closeSucceeded(clean, new WindowsInstallLedger.Completion("SPV-1", "WS2025", 74, 0, java.util.List.of(), null, null, null), NOW.plusMinutes(10));
+        assertThat(ledger.failedInfsOf(clean)).isEmpty();
+        assertThat(clean.displayNote()).isEqualTo("설치 완료 · 드라이버 74 · 문제 장치 0");
+    }
 }

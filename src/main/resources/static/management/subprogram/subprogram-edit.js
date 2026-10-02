@@ -3,8 +3,9 @@
    ─────────────────────────────────────────────────────────────
    변형 표 편집: [행 추가] · 행별 [삭제] · 행별 [탐색]. 탐색 패널은 하나(entrypointBrowse)이고
    마지막으로 [탐색] 을 누른 행의 진입점 입력에 파일 상대경로를 채운다. 트리 루트 밖은 진입 불가.
+   HF23 — [이 폴더를 진입점으로] 는 지금 보고 있는 폴더의 상대경로 + "/" 를 채운다(서버도 실제 디렉토리면 같은 형태로 정규화).
    행 인덱스는 제출 직전 0 부터 다시 매긴다(variants[i].*) — 서버는 제출 순서로 sortOrder 를 부여한다.
-   구조 규칙(확장자 · 버전 중복)은 서버(SubprogramVariantRules)가 폼에 되돌려 준다 — 여기서 복제하지 않는다.
+   구조 규칙(진입점 종류 · 같은 버전 + 같은 진입점 중복)은 서버가 폼에 되돌려 준다 — 여기서 복제하지 않는다.
    ============================================================ */
 (function () {
     const TAG = '[subprogram-edit]';
@@ -73,6 +74,7 @@
     const entriesEl = document.getElementById('entrypointBrowseEntries');
     const cancelBtn = document.getElementById('entrypointBrowseCancelBtn');
     const clearBtn = document.getElementById('entrypointBrowseClearBtn');
+    const folderBtn = document.getElementById('entrypointBrowseFolderBtn');
     if (!panel) return;
 
     let activeInput = null;
@@ -92,6 +94,17 @@
     if (clearBtn) {
         clearBtn.addEventListener('click', function () {
             if (activeInput) activeInput.value = '';
+            panel.hidden = true;
+        });
+    }
+    if (folderBtn) {
+        folderBtn.addEventListener('click', function () {
+            const rel = toRelative(currentAbs, treeRoot);
+            if (rel === null || rel === '') {
+                statusEl.textContent = '트리 루트 전체는 변형 없이 설치됩니다 — 하위 폴더로 들어가 고르십시오.';
+                return;
+            }
+            if (activeInput) activeInput.value = rel + '/';
             panel.hidden = true;
         });
     }
@@ -128,6 +141,7 @@
         statusEl.textContent = '';
         currentPathEl.textContent = displayRelative(data.path || absPath);
         upBtn.disabled = (currentAbs === treeRoot);
+        if (folderBtn) folderBtn.disabled = (currentAbs === treeRoot);
 
         const entries = data.entries || [];
         if (entries.length === 0) {

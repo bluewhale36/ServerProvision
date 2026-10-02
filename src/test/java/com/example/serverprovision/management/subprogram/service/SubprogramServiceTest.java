@@ -134,7 +134,7 @@ class SubprogramServiceTest {
     }
 
     @Test
-    @DisplayName("update(fail · R15-1) : 확장자 위반 · 같은 버전 중복 · 전 버전 2 행 → InvalidSubprogramVariantException(필드 직결 400)")
+    @DisplayName("update(fail · R15-1 · HF23) : 허용되지 않는 종류 · 같은 버전 + 같은 진입점 · 끝이 / 인데 폴더 없음 → InvalidSubprogramVariantException(필드 직결 400)")
     void update_variantRuleViolations() {
         Subprogram sp = Subprogram.builder()
                 .id(7L).kind(SubprogramKind.DRIVER).boardModel(activeBoard())
@@ -149,17 +149,45 @@ class SubprogramServiceTest {
 
         assertThatThrownBy(() -> subprogramService.update(7L, new SubprogramUpdateRequest("n", "v", "d", null, java.util.List.of(
                 new SubprogramVariantRequest("2025", "a/x.msi", null, false),
-                new SubprogramVariantRequest("2025 ", "b/y.msi", null, false)))))
+                new SubprogramVariantRequest("2025 ", "A\\X.MSI", null, false)))))
                 .isInstanceOf(InvalidSubprogramVariantException.class)
-                .satisfies(e -> assertThat(((InvalidSubprogramVariantException) e).fieldName()).isEqualTo("variants[1].osVersion"));
+                .satisfies(e -> assertThat(((InvalidSubprogramVariantException) e).fieldName()).isEqualTo("variants[1].entrypointRelativePath"));
 
         assertThatThrownBy(() -> subprogramService.update(7L, new SubprogramUpdateRequest("n", "v", "d", null, java.util.List.of(
-                new SubprogramVariantRequest(null, "a/x.inf", null, false),
-                new SubprogramVariantRequest("", "b/y.exe", null, false)))))
+                new SubprogramVariantRequest("2025", "no/such/folder/", null, false)))))
                 .isInstanceOf(InvalidSubprogramVariantException.class)
-                .satisfies(e -> assertThat(((InvalidSubprogramVariantException) e).fieldName()).isEqualTo("variants[1].osVersion"));
+                .satisfies(e -> assertThat(e.getMessage()).contains("폴더가 없습니다"));
 
         assertThat(sp.getVariants()).isEmpty();   // 어느 위반도 표를 바꾸지 않았다
+    }
+
+    @Test
+    @DisplayName("update(happy · HF23) : 트리 안 실제 폴더는 끝에 / 를 붙여 FOLDER 로 저장 · 한 버전에 여러 행 · 다시 저장해도 같은 행(id) 유지")
+    void update_folderEntrypoints(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tree) throws Exception {
+        java.nio.file.Files.createDirectories(tree.resolve("PRO1000/Winx64/WS2025"));
+        java.nio.file.Files.createDirectories(tree.resolve("PROXGB/Winx64/WS2025"));
+        Subprogram sp = Subprogram.builder()
+                .id(7L).kind(SubprogramKind.DRIVER).boardModel(activeBoard())
+                .name("n").version("v").treeRootPath(tree.toString()).manifestHash("h")
+                .fileCount(1).totalBytes(1L).isDeleted(false).build();
+        given(subprogramRepository.findById(7L)).willReturn(Optional.of(sp));
+
+        java.util.List<SubprogramVariantRequest> rows = java.util.List.of(
+                new SubprogramVariantRequest("2025", "PRO1000/Winx64/WS2025", null, false),
+                new SubprogramVariantRequest("2025", "PROXGB\\Winx64\\WS2025\\", null, false));
+        subprogramService.update(7L, new SubprogramUpdateRequest("n", "v", "d", null, rows));
+
+        assertThat(sp.getVariants()).extracting(com.example.serverprovision.management.subprogram.entity.SubprogramVariant::getEntrypointRelativePath)
+                .containsExactly("PRO1000/Winx64/WS2025/", "PROXGB/Winx64/WS2025/");
+        assertThat(sp.getVariants()).allSatisfy(v -> assertThat(v.entrypointKind())
+                .isEqualTo(com.example.serverprovision.management.subprogram.enums.InstallEntrypointKind.FOLDER));
+
+        // 같은 표를 다시 저장 — 동기화 키(버전 + 진입점)가 같으니 기존 행을 제자리에서 갱신한다(UNIQUE 충돌 없음)
+        java.util.List<Object> before = new java.util.ArrayList<>(sp.getVariants());
+        subprogramService.update(7L, new SubprogramUpdateRequest("n", "v", "d", null, rows));
+        assertThat(sp.getVariants()).hasSize(2);
+        assertThat(sp.getVariants().get(0)).isSameAs(before.get(0));
+        assertThat(sp.getVariants().get(1)).isSameAs(before.get(1));
     }
 
     @Test

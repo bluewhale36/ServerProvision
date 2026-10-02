@@ -20,4 +20,13 @@ class InstallEntrypointKindTest {
         assertThat(InstallEntrypointKind.fromPath("x.")).isEmpty();
         assertThat(InstallEntrypointKind.fromPath(null)).isEmpty();
     }
+
+    @Test
+    @DisplayName("HF23 — 끝이 / (또는 \\) 이면 FOLDER — 폴더 이름의 점(QAT2.0…)은 확장자로 읽지 않는다")
+    void fromPath_folder() {
+        assertThat(InstallEntrypointKind.fromPath("PRO1000/Winx64/WS2025/")).contains(InstallEntrypointKind.FOLDER);
+        assertThat(InstallEntrypointKind.fromPath("PROXGB\\Winx64\\WS2025\\")).contains(InstallEntrypointKind.FOLDER);
+        assertThat(InstallEntrypointKind.fromPath("QAT2.0.W.2.2.0-0018/")).contains(InstallEntrypointKind.FOLDER);
+        assertThat(InstallEntrypointKind.fromPath("PRO1000/Winx64/WS2025")).isEmpty();   // 슬래시 없는 폴더는 저장 시 서비스가 / 를 붙인다
+    }
 }

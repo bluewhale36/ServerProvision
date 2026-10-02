@@ -112,11 +112,11 @@ public class Subprogram extends LifecycleEntity implements Markable {
 	public void syncVariants(List<SubprogramVariant> desired) {
 		java.util.Map<String, SubprogramVariant> existing = new java.util.HashMap<>();
 		for (SubprogramVariant v : variants) {
-			existing.put(v.versionKey(), v);
+			existing.put(v.syncKey(), v);
 		}
 		List<SubprogramVariant> next = new ArrayList<>();
 		for (SubprogramVariant d : desired) {
-			SubprogramVariant kept = existing.remove(d.versionKey());
+			SubprogramVariant kept = existing.remove(d.syncKey());   // HF23 — 버전 + 진입점
 			if (kept != null) {
 				kept.updateFrom(d);
 				next.add(kept);

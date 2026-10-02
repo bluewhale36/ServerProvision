@@ -58,18 +58,19 @@
                     <div class="n-error" th:if="${#fields.hasErrors('osName')}" th:errors="*{osName}"></div>
                 </div>
 
-                <!-- R15-1 — 변형 표. 행마다 OS 버전(비우면 전 버전) · 진입점(.inf · .msi · .exe) · 인자 · 재부팅. 폼이 표 전체를 제출한다(교체). -->
+                <!-- R15-1 — 변형 표. 행마다 OS 버전(비우면 전 버전) · 진입점(.inf · .msi · .exe 파일 또는 폴더 — HF23) · 인자 · 재부팅. 폼이 표 전체를 제출한다(교체). -->
                 <div class="n-form-group" id="variantsGroup">
                     <label class="n-label strong">변형</label>
                     <div class="n-hint">
-                        같은 패키지 안의 OS 버전별 실행 파일을 선언합니다. 설치 방식은 진입점 확장자가 정합니다 —
-                        .inf 는 pnputil, .msi 는 msiexec, .exe 는 직접 실행. OS 버전을 비우면 이 OS 의 모든 버전에 적용합니다(한 행만).
+                        같은 패키지 안의 OS 버전별 설치 대상을 선언합니다. 설치 방식은 진입점이 정합니다 —
+                        .inf 는 pnputil, .msi 는 msiexec, .exe 는 직접 실행, 폴더(끝이 /)는 그 아래 INF 를 하나씩 pnputil.
+                        한 OS 버전에 여러 행을 둘 수 있습니다(예: 제품군별 WS2025 폴더). OS 버전을 비운 행은 정확히 맞는 버전 행이 없을 때 쓰입니다.
                     </div>
                     <div class="n-error" th:if="${#fields.hasErrors('variants')}" th:errors="*{variants}"></div>
                     <div class="n-table-wrap">
                         <table class="n-table" id="variantsTable">
                             <thead>
-                            <tr><th>OS 버전</th><th>진입점(트리 안 상대 경로)</th><th>인자</th><th>재부팅</th><th></th></tr>
+                            <tr><th>OS 버전</th><th>진입점(트리 안 파일 또는 폴더)</th><th>인자</th><th>재부팅</th><th></th></tr>
                             </thead>
                             <tbody id="variantsBody">
                             <tr th:each="v, stat : *{variants}" class="variant-row" th:data-index="${stat.index}">
@@ -84,7 +85,7 @@
                                     <div class="n-field-row">
                                         <input type="text" class="n-input variant-entrypoint" th:field="*{variants[__${stat.index}__].entrypointRelativePath}"
                                                th:attr="data-error-field='variants[' + ${stat.index} + '].entrypointRelativePath'"
-                                               placeholder="예: WDDM Installer/Win2025.msi">
+                                               placeholder="예: WDDM Installer/Win2025.msi · PRO1000/Winx64/WS2025/">
                                         <button type="button" class="n-btn n-btn-sm n-btn-outline variant-browse">탐색</button>
                                     </div>
                                     <div class="n-error" th:if="${#fields.hasErrors('variants[__${stat.index}__].entrypointRelativePath')}"
@@ -119,7 +120,7 @@
                             <td><input type="text" class="n-input" name="variants[__INDEX__].osVersion" placeholder="예: 2025" list="osVersionSuggestions"></td>
                             <td>
                                 <div class="n-field-row">
-                                    <input type="text" class="n-input variant-entrypoint" name="variants[__INDEX__].entrypointRelativePath" placeholder="예: WDDM Installer/Win2025.msi">
+                                    <input type="text" class="n-input variant-entrypoint" name="variants[__INDEX__].entrypointRelativePath" placeholder="예: WDDM Installer/Win2025.msi · PRO1000/Winx64/WS2025/">
                                     <button type="button" class="n-btn n-btn-sm n-btn-outline variant-browse">탐색</button>
                                 </div>
                             </td>

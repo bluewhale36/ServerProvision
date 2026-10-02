@@ -40,7 +40,7 @@ class GuestServerDetailResponseStageTextTest {
         return new GuestServerDetailResponse.WindowsInstall("WS2025", "Windows Server 2025", ReadinessGrade.READY, List.of(),
                 servedAt, 2, 5, remaining, null, false, 0, completedAt, null, null, 0, 0, List.of(), false, null,
                 null, null, null,
-                null, List.of(), List.of(), List.of());   // R15-2 — driverSummary · driverEntries · driversSkipped · driverInstalls
+                null, List.of(), List.of(), List.of(), List.of());   // R15-2 — driverSummary · driverEntries · driversSkipped · driverInstalls
     }
 
     @Test

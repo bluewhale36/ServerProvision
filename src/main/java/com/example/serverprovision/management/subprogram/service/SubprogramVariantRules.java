@@ -18,12 +18,12 @@ public final class SubprogramVariantRules {
     public enum Violation {
         ENTRYPOINT_REQUIRED("entrypointRelativePath", "management.subprogram.variant.entrypoint-required",
                 "진입점을 입력하십시오."),
+        /** 종류 판정은 트리 안 실제 경로(파일 · 폴더)를 봐야 해서 SubprogramService 의 검사가 붙인다(HF23). */
         ENTRYPOINT_KIND("entrypointRelativePath", "management.subprogram.variant.entrypoint-kind",
-                "진입점은 .inf · .msi · .exe 파일이어야 합니다."),
-        VERSION_DUPLICATE("osVersion", "management.subprogram.variant.version-duplicate",
-                "같은 OS 버전의 변형이 이미 있습니다."),
-        WILDCARD_DUPLICATE("osVersion", "management.subprogram.variant.wildcard-duplicate",
-                "모든 버전에 적용하는 변형은 하나만 둘 수 있습니다."),
+                "진입점은 .inf · .msi · .exe 파일 또는 폴더여야 합니다."),
+        /** HF23 — 한 OS 버전에 여러 행을 허용하므로 막는 것은 같은 버전 + 같은 진입점의 반복뿐이다. */
+        ENTRY_DUPLICATE("entrypointRelativePath", "management.subprogram.variant.entry-duplicate",
+                "같은 OS 버전에 같은 진입점이 이미 있습니다."),
         /** 경로 보안 정책 위반(절대경로 · `..` · 트리 밖 · 제어문자) — 판정은 EntrypointPolicyService, 표기는 여기서(CP5 F-2). */
         ENTRYPOINT_PATH("entrypointRelativePath", "management.subprogram.variant.entrypoint-path",
                 "진입점은 트리 안의 상대 경로여야 합니다.");
@@ -75,24 +75,17 @@ public final class SubprogramVariantRules {
         if (variants == null) {
             return findings;
         }
-        Set<String> seenVersions = new HashSet<>();
-        boolean wildcardSeen = false;
+        Set<String> seen = new HashSet<>();
         for (int i = 0; i < variants.size(); i++) {
             SubprogramVariantRequest v = variants.get(i);
             String entrypoint = v == null ? null : v.getEntrypointRelativePath();
             if (entrypoint == null || entrypoint.isBlank()) {
                 findings.add(new Finding(i, Violation.ENTRYPOINT_REQUIRED));
-            } else if (InstallEntrypointKind.fromPath(entrypoint).isEmpty()) {
-                findings.add(new Finding(i, Violation.ENTRYPOINT_KIND));
+                continue;
             }
-            String key = v == null ? null : SubprogramVariant.versionKeyOf(v.getOsVersion());
-            if (key == null) {
-                if (wildcardSeen) {
-                    findings.add(new Finding(i, Violation.WILDCARD_DUPLICATE));
-                }
-                wildcardSeen = true;
-            } else if (!seenVersions.add(key)) {
-                findings.add(new Finding(i, Violation.VERSION_DUPLICATE));
+            String key = SubprogramVariant.versionKeyOf(v.getOsVersion()) + "|" + SubprogramVariant.entrypointKeyOf(entrypoint);
+            if (!seen.add(key)) {
+                findings.add(new Finding(i, Violation.ENTRY_DUPLICATE));
             }
         }
         return findings;

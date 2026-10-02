@@ -23,18 +23,42 @@ class WindowsOemTemplatesTest {
     }
 
     @Test
-    @DisplayName("R15-2 — SetupComplete 는 spv-drivers.lst 를 5 필드로 읽어 TREE · INF · MSI · EXE 로 분기하고 항목마다 [SPV-INSTALL] 줄을 남긴다 · 목록이 없으면 옛 전체 INF 루프")
+    @DisplayName("R15-2 · HF23 — SetupComplete 는 spv-drivers.lst 를 5 필드로 읽어 TREE · FOLDER · INF · MSI · EXE 로 분기하고 항목마다 [SPV-INSTALL] 줄(진입점 포함)을 남긴다 · 목록이 없으면 옛 전체 INF 루프")
     void setupComplete_listDriven() {
         String cmd = WindowsOemTemplates.SETUPCOMPLETE_CMD;
         assertThat(cmd).contains("set LIST=%SPV%\\spv-drivers.lst").contains("if not exist \"%LIST%\" goto :legacy")
                 .contains("tokens=1-5 delims=|").contains("if \"!ENTRY!\"==\"-\" set ENTRY=").contains("if \"!ARGS!\"==\"-\" set ARGS=")
-                .contains("if /i \"!MODE!\"==\"TREE\"").contains("if /i \"!MODE!\"==\"INF\"")
+                .contains("if /i \"!MODE!\"==\"TREE\"").contains("if /i \"!MODE!\"==\"FOLDER\"").contains("if /i \"!MODE!\"==\"INF\"")
                 .contains("if /i \"!MODE!\"==\"MSI\"").contains("if /i \"!MODE!\"==\"EXE\"")
                 .contains("msiexec /i \"!BASE!\\!ENTRY!\" /qn /norestart !ARGS!")
-                .contains("pnputil /add-driver \"!BASE!\\*.inf\" /subdirs /install")
-                .contains("echo [SPV-INSTALL] !FOLDER!^|!MODE!^|exit=!RC!")
+                .contains("call :infloop \"!BASE!\" \"!FOLDER!\"").contains("call :infloop \"!BASE!\\!ENTRY!\" \"!FOLDER!\"")
+                .doesNotContain("/subdirs")   // HF23 — 폴더 일괄 pnputil 은 실패 INF 를 가려 INF 단위로 바꿨다
+                .contains("echo [SPV-INSTALL] !FOLDER!^|!MODE!^|!SHOWENTRY!^|exit=!RC!")
                 .contains("if \"!REBOOT!\"==\"1\" set NEEDREBOOT=1").contains("echo 1 > \"%SPV%\\reboot-required\"")
-                .contains(":legacy").contains("[SPV-INSTALL] -^|LEGACY^|exit=0");
+                .contains(":legacy").contains("[SPV-INSTALL] -^|LEGACY^|-^|exit=0");
+    }
+
+    @Test
+    @DisplayName("HF23 — INF 단위 루프: 확장자 재확인 · INF 마다 [SPV-INF] 줄 · 0 · 259 · 3010 외 첫 실패 코드가 항목 결과 · 끝 역슬래시 제거")
+    void setupComplete_perInfLoop() {
+        String cmd = WindowsOemTemplates.SETUPCOMPLETE_CMD;
+        int loop = cmd.indexOf(":infloop\n");
+        assertThat(loop).isPositive();
+        assertThat(cmd.substring(loop))
+                .contains("for /r \"%INFROOT%\" %%I in (*.inf) do (").contains("if /i \"%%~xI\"==\".inf\" (")
+                .contains("pnputil /add-driver \"%%~fI\" /install")
+                .contains("echo [SPV-INF] %~2^|!REL!^|exit=!IRC!")
+                .contains("if not \"!IRC!\"==\"0\" if not \"!IRC!\"==\"259\" if not \"!IRC!\"==\"3010\" if \"!INFRC!\"==\"0\" set INFRC=!IRC!")
+                .contains("if \"%INFROOT:~-1%\"==\"\\\" set INFROOT=%INFROOT:~0,-1%");
+        assertThat(cmd.indexOf("exit /b 0")).as("본문의 exit 뒤에 서브루틴이 온다").isLessThan(loop);
+    }
+
+    @Test
+    @DisplayName("HF23 — 서명 정책(BehaviorOnFailedVerify)은 Server 2025 에서 창을 막지 못해(실기 2026-10-02) 쓰지 않는다 · 주석이 그 사실을 남긴다")
+    void setupComplete_noSigningPolicyHack() {
+        String cmd = WindowsOemTemplates.SETUPCOMPLETE_CMD;
+        assertThat(cmd).doesNotContain("reg add").doesNotContain("reg delete")
+                .contains("BehaviorOnFailedVerify=2 does NOT suppress it on Server 2025");
     }
 
     @Test
@@ -52,14 +76,16 @@ class WindowsOemTemplatesTest {
     }
 
     @Test
-    @DisplayName("R15-2 — spv-report.ps1 은 [SPV-INSTALL] 줄을 installs(folder · mode · exitCode · 최대 50) 로 본문에 싣는다")
+    @DisplayName("R15-2 · HF23 — spv-report.ps1 은 [SPV-INSTALL] 줄(옛 3 필드 · 새 4 필드)을 installs 로, [SPV-INF] 실패 줄을 failedInfs 로 싣는다")
     void reportScript_forwardsInstalls() {
         String ps1 = WindowsOemTemplates.SPV_REPORT_PS1;
-        assertThat(ps1).contains("[SPV-INSTALL]").contains("exit=(-?\\d+)").contains("$installs.Count -ge 50")
-                .contains("folder = $g[1].Value; mode = $g[2].Value; exitCode = [int]$g[3].Value")
+        assertThat(ps1).contains("[SPV-INSTALL]").contains("(?:([^|]*)\\|)?exit=(-?\\d+)").contains("$installs.Count -ge 50")
+                .contains("folder = $g[1].Value; mode = $g[2].Value; entrypoint = $entry; exitCode = [int]$g[4].Value")
                 .contains("installs = @($installs)")
+                .contains("[SPV-INF]").contains("$code -eq 0 -or $code -eq 259 -or $code -eq 3010").contains("$failedInfs.Count -ge 100")
+                .contains("failedInfs = @($failedInfs)")
                 // HF18-2 — 제네릭 List[object] 는 5.1 에서 List[string] 파이프 열거를 깨뜨렸다(09-17 실기) · 본문 catch 가 예외를 transcript 에 남긴다
-                .doesNotContain("Generic.List[object]").contains("$installs = @()").contains("FATAL {0}: {1}");
+                .doesNotContain("Generic.List[object]").contains("$installs = @()").contains("$failedInfs = @()").contains("FATAL {0}: {1}");
     }
 
     @Test

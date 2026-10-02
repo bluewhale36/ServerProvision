@@ -39,18 +39,38 @@ public record WindowsInstallCompletionRequest(
 
         /** R15-2 — SetupComplete 가 목록(spv-drivers.lst)의 항목마다 남긴 실행 결과. 구 스크립트는 보내지 않는다(빈 목록). */
         @Size(max = 50, message = "installs 는 50개 이내여야 합니다.")
-        List<@Valid InstallResult> installs
+        List<@Valid InstallResult> installs,
+
+        /** HF23 — INF 단위 설치에서 실패한 INF(종료 코드 0 · 259 · 3010 이외). 구 스크립트는 보내지 않는다(빈 목록). */
+        @Size(max = 100, message = "failedInfs 는 100개 이내여야 합니다.")
+        List<@Valid FailedInf> failedInfs
 ) {
-    /** 한 항목의 실행 결과 — folder 는 $OEM$ 폴더명, mode 는 TREE · INF · MSI · EXE · LEGACY, exitCode 는 프로세스 종료 코드. */
+    /**
+     * 한 항목의 실행 결과 — folder 는 $OEM$ 폴더명, mode 는 TREE · FOLDER · INF · MSI · EXE · LEGACY, entrypoint 는 변형의 진입점
+     * (HF23 — 한 패키지에 행이 여럿일 수 있다 · 구 스크립트 · TREE 는 빈 값), exitCode 는 프로세스 종료 코드.
+     */
     public record InstallResult(
             @Size(max = 120, message = "folder 는 120자 이내여야 합니다.") String folder,
             @Size(max = 16, message = "mode 는 16자 이내여야 합니다.") String mode,
+            @Size(max = 512, message = "entrypoint 는 512자 이내여야 합니다.") String entrypoint,
+            Integer exitCode
+    ) {
+    }
+
+    /** 실패한 INF 하나(HF23) — folder 는 $OEM$ 폴더명, path 는 그 폴더 기준 상대경로(최대 260자), exitCode 는 pnputil 종료 코드. */
+    public record FailedInf(
+            @Size(max = 120, message = "folder 는 120자 이내여야 합니다.") String folder,
+            @Size(max = 260, message = "path 는 260자 이내여야 합니다.") String path,
             Integer exitCode
     ) {
     }
 
     public List<InstallResult> installsOrEmpty() {
         return installs == null ? List.of() : installs;
+    }
+
+    public List<FailedInf> failedInfsOrEmpty() {
+        return failedInfs == null ? List.of() : failedInfs;
     }
 
 

@@ -75,7 +75,12 @@ public class WindowsInstallCompletionService {
                 report.setupCompleteLogTail(), report.installedDiskUniqueId(), diskConfirmed,
                 report.installsOrEmpty().stream().map(r -> {
                     java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
-                    m.put("folder", r.folder()); m.put("mode", r.mode()); m.put("exitCode", r.exitCode());
+                    m.put("folder", r.folder()); m.put("mode", r.mode()); m.put("entrypoint", r.entrypoint()); m.put("exitCode", r.exitCode());
+                    return m;
+                }).toList(),
+                report.failedInfsOrEmpty().stream().map(f -> {   // HF23
+                    java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("folder", f.folder()); m.put("path", f.path()); m.put("exitCode", f.exitCode());
                     return m;
                 }).toList()), now);
         tokenRegistry.revoke(id);   // 완료한 게스트의 응답 파일이 열린 채 남지 않게(-3 인계 ②)
