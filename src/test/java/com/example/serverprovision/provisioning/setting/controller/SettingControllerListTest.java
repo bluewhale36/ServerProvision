@@ -34,6 +34,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+import com.example.serverprovision.global.web.list.ListFilterMarkup;
 
 /**
  * S8-1 — 세팅 정의서 목록의 조회 조건 바인딩 · 쪽 정정 · 400 · 화면 조립을 HTTP 계층에서 본다.
@@ -181,4 +182,19 @@ class SettingControllerListTest {
         mvc.perform(get("/provisioning/setting").param("enabled", "maybe")).andExpect(status().isBadRequest());
         then(queryService).should(never()).search(any(), any());
     }
+
+    @Test
+    @DisplayName("200 — 조건 넷은 조회 조건 창 안에, 정렬은 띠에 남는다(S8-4)")
+    void conditionsLiveInFilterPanel_sortStaysOnBar() throws Exception {
+        String html = mvc.perform(get("/provisioning/setting").param("deprecated", "true").param("processType", "RAID_CONFIGURATION"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(ListFilterMarkup.rowLabels(html)).containsExactly("활성", "사용 중단", "포함 단계", "삭제된 항목");
+        String panel = ListFilterMarkup.panel(html);
+        assertThat(panel).contains("name=\"deprecated\" value=\"true\" checked", "value=\"RAID_CONFIGURATION\" checked");
+        assertThat(panel).doesNotContain("name=\"sort\"");
+        assertThat(ListFilterMarkup.outsidePanel(html)).contains("name=\"sort\"", "name=\"dir\"");
+    }
+
 }

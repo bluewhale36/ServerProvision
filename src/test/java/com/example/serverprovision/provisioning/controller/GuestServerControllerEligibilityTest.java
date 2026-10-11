@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.service.GuestServerCommandService;
 import com.example.serverprovision.execution.service.GuestServerQueryService;
 import com.example.serverprovision.provisioning.assignment.exception.DefinitionHardwareMismatchException;
@@ -37,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Mocking 은 Service 단까지다. 컨트롤러의 {@code @ResponseBody} 와 advice 매핑은 실경로로 실행된다.</p>
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = GuestServerController.class)
 class GuestServerControllerEligibilityTest {
 

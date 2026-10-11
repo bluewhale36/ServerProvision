@@ -84,6 +84,7 @@ public class GuestServerController {
     private final AssignmentStartService assignmentStartService;
     private final SettingQueryService settingQueryService;
     private final GuestServerGroupQueryService groupQueryService;
+    private final java.time.Clock clock;   // S8-4 — 등록 시각 기본 범위의 '오늘'
 
     /**
      * 게스트 서버 목록 (U3-3 · S8-2) — 묶음 보기(시간 × 스펙) 또는 표 보기(정렬 · 페이징)로 그린다.
@@ -95,12 +96,17 @@ public class GuestServerController {
      * 알 수 없는 값은 바인딩 실패로 400 이다.</p>
      */
     @GetMapping
-    public String list(@ModelAttribute("query") ServerListQuery query,
+    public String list(@ModelAttribute("query") ServerListQuery requested,
                        @RequestParam(value = "group", required = false) GroupFilter group,
                        @RequestParam(value = "pending", required = false) String pending,
                        @PageableDefault(size = Paging.DEFAULT_SIZE) Pageable pageable,
                        ListLinks links, Model model) {
         GroupFilter groupFilter = group == null ? GroupFilter.ANY : group;
+        java.time.LocalDate today = java.time.LocalDate.now(clock);
+        ServerListQuery query = requested.withDefaultRange(today);
+        model.addAttribute("query", query);
+        model.addAttribute("rangeDefaultFrom", ServerListQuery.defaultFrom(today));
+        model.addAttribute("rangeDefaultTo", today);
         ServerScope scope = groupQueryService.scopeOf(groupFilter);
         List<UUID> visible;
         if (query.isTable()) {
@@ -117,7 +123,7 @@ public class GuestServerController {
         boolean pendingOpen = "open".equals(pending);
         model.addAttribute("pendingOpen", pendingOpen);
         model.addAttribute("group", groupFilter);
-        model.addAttribute("filtered", query.isFiltered() || groupFilter.isSet());
+        model.addAttribute("filtered", requested.isFiltered(today) || groupFilter.isSet());
         model.addAttribute("links", links);
         model.addAttribute("phases", ProvisioningPhase.values());
         model.addAttribute("statuses", SELECTABLE_STATUSES);

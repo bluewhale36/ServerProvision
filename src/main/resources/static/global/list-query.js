@@ -11,14 +11,21 @@
      ⑤ 제출은 스크립트가 URL 을 조립해 이동한다 — 남은 필드가 없을 때 주소 끝에 "?" 가 붙지 않게(CP5 O-5).
      ⑥ 검색 입력칸(input[data-list-search])의 Enter 는 스크립트가 받아 한 번에 제출한다(S8-1 CP7). 한글처럼 조합 중인 글자가 있으면
         브라우저가 첫 Enter 를 "조합 확정" 으로 써 버려 제출이 일어나지 않는다 — 그때는 조합이 끝나는 순간
-        (compositionend) 제출한다. 옆의 '검색' 버튼은 지금도 제출하지만, 후속 단계(S8-4)에서 상세 조회 창을 여는
-        자리로 바뀔 예정이라 Enter 가 검색의 주 경로가 된다.
+        (compositionend) 제출한다. 옆의 Search 버튼은 제출하지 않고 조회 조건 창을 연다(S8-4) — 띠에서 검색어를
+        제출하는 길은 Enter 하나다.
      ⑧ 자원 관리 목록(S8-3 · Miller) — 선택은 클릭 때 history.replaceState 로 주소만 바뀐다. 그래서
         (a) data-list-keep 에 적힌 선택 파라미터는 제출 순간의 주소에서 읽어 싣는다(서버가 그린 값은 낡는다).
         (b) [data-list-reset] 초기화는 누른 순간의 주소에서 적힌 조건만 빼고 이동한다(선택 · 삭제 포함은 남긴다).
         (c) data-list-return 이 있는 화면에서 Miller 안의 상태 변경 폼(POST)이 제출되면 지금 주소를
             returnQuery 로 싣는다 — 서버(ReturnQueryInterceptor)가 리다이렉트에 조건 · 묶음 선택을 되붙인다.
             확인 모달을 거치는 폼은 대상에서 전파를 끊으므로 캡처 단계에서 싣는다.
+     ⑩ 조회 조건 창(S8-4 · [data-filter-panel] popover) — 창 안 컨트롤은 ① · ③ · ⑦ 의 즉시 제출에서 빠진다. 값만 바뀌고
+        하단 [검색](폼의 첫 submit 버튼 · 창 안 Enter 의 암묵 제출도 여기로)이 한 번에 적용한다. 적용 없이 닫히면
+        (닫기 · Esc · 바깥 클릭) 창 안 컨트롤을 서버가 그린 값(defaultChecked · defaultValue · defaultSelected = 지금 주소의
+        조건)으로 되돌린다 — 다시 열었을 때 창과 목록이 어긋나지 않게. 열리면 첫 컨트롤로 포커스를 옮긴다.
+     ⑪ 걸린 조건 토큰 — 창의 줄([data-filter-row])마다 기본값과 다른 컨트롤이 있으면 "줄 라벨: 선택값" 토큰을 띠에
+        그린다. × 는 그 줄만 기본값으로 되돌리고 제출한다. 문구는 줄 마크업에서 읽으므로 서버가 따로 그리지 않는다.
+     ⑫ 쪽 번호 입력(쪽 이동 줄 · S8-4) — Enter 로 그 쪽으로 간다.
    폼 제출은 전부 page 를 버린다 — page 는 폼 필드가 아니다. 필터 · 정렬 · 크기를 바꾸면 첫 쪽으로 돌아가는
    규칙(plan R4)이 여기서 나온다. 쪽 이동만 링크(ListLinks)라 나머지 상태를 그대로 든다. */
 (function () {
@@ -37,13 +44,18 @@
         return form && form.hasAttribute('data-list-query') ? form : null;
     }
 
+    // ⑩ 창 안의 컨트롤인가 — 그렇다면 값만 바꾸고 제출하지 않는다.
+    function inPanel(el) {
+        return !!(el && el.closest && el.closest('[data-filter-panel]'));
+    }
+
     document.addEventListener('change', function (e) {
         const el = e.target;
         const isSelect = el instanceof HTMLSelectElement;
         const isToggle = el instanceof HTMLInputElement && (el.type === 'radio' || el.type === 'checkbox');
         if (!isSelect && !isToggle) return;
         const form = listFormOf(el);
-        if (!form) return;
+        if (!form || inPanel(el)) return;
         if (isSelect && el.name === 'sort') {
             const dir = form.elements.namedItem('dir');
             const def = el.selectedOptions[0] && el.selectedOptions[0].getAttribute('data-default-dir');
@@ -56,6 +68,12 @@
         const form = e.target;
         if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-list-query')) return;
         e.preventDefault();
+        // ⑩ 창 밖에서 일어난 제출(띠의 칩 · 정렬 · 검색칸 Enter · 토큰 ×)이면 열린 창을 먼저 닫아 미적용 값을 버린다(CP5 D-1).
+        //    닫힘 처리(beforetoggle)는 동기라 FormData 를 만들기 전에 값이 되돌아가 있다. 창의 [검색] · 창 안 Enter 는
+        //    submitter 가 창 안 버튼이므로 그대로 싣는다.
+        const openPanel = form.querySelector('[data-filter-panel]:popover-open');
+        if (openPanel && !(e.submitter && inPanel(e.submitter))) openPanel.hidePopover();
+        form.dataset.submitting = '1';
         const qs = new URLSearchParams(new FormData(form)).toString();   // formdata 이벤트가 먼저 정리한다
         const action = form.getAttribute('action') || window.location.pathname;
         window.location.assign(action + (qs ? '?' + qs : ''));
@@ -101,7 +119,7 @@
         // 검증이 먼저다(CP5 D-4) — 맞추기(syncRange)가 거꾸로를 보고 min 을 풀면 이른 날짜가 막히지 않는다.
         if (!el.checkValidity()) { el.reportValidity(); return; }
         syncRange(form, null);
-        form.requestSubmit();
+        if (!inPanel(el)) form.requestSubmit();
     });
     document.addEventListener('focusout', function (e) {
         const el = e.target;
@@ -114,7 +132,7 @@
         // 검증이 먼저다(CP5 D-4). 막히면 브라우저 안내를 띄우고 제출하지 않는다 — 통과했을 때만 두 칸을 맞추고 제출.
         if (!el.checkValidity()) { el.reportValidity(); return; }
         syncRange(form, null);
-        form.requestSubmit();
+        if (!inPanel(el)) form.requestSubmit();
     });
 
     // ⑥ 검색 입력칸 Enter — 조합 중이면 조합이 끝날 때, 아니면 바로 제출한다.
@@ -148,7 +166,7 @@
         form.querySelectorAll('input[type="checkbox"][name="' + name + '"]').forEach(function (cb) {
             cb.checked = false;
         });
-        form.requestSubmit();
+        if (!inPanel(btn)) form.requestSubmit();
     });
 
     // ⑨ 진입하면 검색 입력칸에 커서를 둔다(S8-3 CP6) — 값이 있으면 끝으로. 입력칸은 type="text"(data-list-search)다:
@@ -187,6 +205,118 @@
         }
         input.value = window.location.pathname + window.location.search;
     }, true);
+
+    // ⑩ 조회 조건 창 — 열리면 첫 컨트롤로, 적용 없이 닫히면 서버가 그린 값으로 되돌린다.
+    function controlsIn(root) {
+        return Array.from(root.querySelectorAll('input, select'));
+    }
+    function restore(control) {
+        if (control instanceof HTMLSelectElement) {
+            Array.from(control.options).forEach(function (o) { o.selected = o.defaultSelected; });
+        } else if (control.type === 'radio' || control.type === 'checkbox') {
+            control.checked = control.defaultChecked;
+        } else {
+            control.value = control.defaultValue;
+        }
+    }
+    const panel = document.querySelector('[data-filter-panel]');
+    if (panel) {
+        panel.addEventListener('toggle', function (e) {
+            if (e.newState !== 'open') return;
+            const first = panel.querySelector('input:not([type="hidden"]), select');
+            if (first) first.focus({preventScroll: true});
+        });
+        // 되돌리기는 beforetoggle(동기)에서 한다 — toggle 은 비동기라, 같은 클릭 · 키 안에서 창 밖 제출이 먼저 일어나면
+        // 미적용 값이 FormData 에 실린다(CP5 D-1).
+        panel.addEventListener('beforetoggle', function (e) {
+            const form = panel.closest('form');
+            if (e.newState !== 'closed' || (form && form.dataset.submitting === '1')) return;
+            controlsIn(panel).forEach(restore);
+            if (form) syncRange(form, null);
+        });
+    }
+
+    // ⑪ 걸린 조건 토큰 — 줄마다 기본값과 다른 컨트롤의 글자를 모은다(서버가 그린 값 = 지금 주소의 조건).
+    function labelText(control) {
+        const label = control.closest('label');
+        return label ? label.textContent.replace(/\s+/g, ' ').trim() : '';
+    }
+    function rowValues(row) {
+        const values = [];
+        const dates = [];
+        controlsIn(row).forEach(function (c) {
+            if (c instanceof HTMLSelectElement) {
+                const o = Array.from(c.options).find(function (opt) { return opt.defaultSelected; });
+                if (o && o.value !== '' && o.value !== c.getAttribute('data-default')) values.push(o.textContent.trim());
+            } else if (c.type === 'radio') {
+                if (c.defaultChecked && c.value !== '' && !c.hasAttribute('data-default')) values.push(labelText(c));
+            } else if (c.type === 'checkbox') {
+                if (c.defaultChecked) values.push(labelText(c));
+            } else if (c.type === 'date') {
+                dates.push({value: c.defaultValue, base: c.getAttribute('data-default') || ''});
+            }
+        });
+        // 기간은 기본 범위(data-default)와 하나라도 다를 때만 토큰이 된다 — 양 끝을 함께 보여 범위가 읽히게(S8-4).
+        if (dates.some(function (d) { return d.value !== d.base; })) {
+            values.push(dates.map(function (d) { return d.value; }).join(' ~ ').trim());
+        }
+        return values;
+    }
+    function clearRow(row) {
+        controlsIn(row).forEach(function (c) {
+            if (c instanceof HTMLSelectElement) {
+                c.value = c.getAttribute('data-default') || '';
+            } else if (c.type === 'radio') {
+                c.checked = c.value === '' || c.hasAttribute('data-default');
+            } else if (c.type === 'checkbox') {
+                c.checked = false;
+            } else {
+                c.value = c.getAttribute('data-default') || '';
+            }
+        });
+    }
+    const tokens = document.querySelector('[data-filter-tokens]');
+    if (panel && tokens) {
+        const clearLabel = tokens.getAttribute('data-token-clear-label') || '';
+        panel.querySelectorAll('[data-filter-row]').forEach(function (row) {
+            const values = rowValues(row);
+            if (values.length === 0) return;
+            const name = row.querySelector('.n-filter-row-label');
+            const title = name ? name.textContent.trim() : '';
+            const token = document.createElement('span');
+            token.className = 'n-filter-token';
+            token.textContent = title + ': ' + values.join(', ');
+            const x = document.createElement('button');
+            x.type = 'button';
+            x.textContent = '×';
+            x.setAttribute('aria-label', title + ' ' + clearLabel);
+            x.addEventListener('click', function () {
+                const form = panel.closest('form');
+                // 창이 열려 있으면 먼저 닫아 미적용 값을 버린 뒤(beforetoggle) 이 줄만 푼다 — 순서가 바뀌면 되돌리기가 푼 값을 덮는다.
+                if (panel.matches(':popover-open')) panel.hidePopover();
+                clearRow(row);
+                if (form) form.requestSubmit();
+            });
+            token.appendChild(x);
+            tokens.appendChild(token);
+        });
+        tokens.hidden = tokens.childElementCount === 0;
+    }
+
+    // ⑫ 쪽 번호 입력(S8-4 · 쪽 이동 줄) — Enter 로 그 쪽으로 간다. 폼 필드가 아니므로 첫 쪽 주소(data-page-base)에
+    //    page 만 바꿔 이동한다. 쪽 번호는 1 부터, page 파라미터는 0 부터다. 범위 밖 값은 1 · 전체 쪽 수로 맞춘다.
+    document.addEventListener('keydown', function (e) {
+        const el = e.target;
+        if (e.key !== 'Enter' || !(el instanceof HTMLInputElement) || !el.hasAttribute('data-page-jump')) return;
+        e.preventDefault();
+        const typed = parseInt(el.value, 10);
+        if (isNaN(typed)) return;
+        const total = parseInt(el.getAttribute('data-page-total'), 10) || 1;
+        const number = Math.min(Math.max(typed, 1), total);
+        const url = new URL(el.getAttribute('data-page-base'), window.location.href);
+        if (number > 1) url.searchParams.set('page', String(number - 1)); else url.searchParams.delete('page');
+        window.location.assign(url.pathname + url.search);
+    });
 
     document.addEventListener('formdata', function (e) {
         const form = e.target;

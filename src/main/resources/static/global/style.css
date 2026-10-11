@@ -1358,6 +1358,147 @@ kbd {
     padding: 4px 8px;
 }
 
+/* 조회 조건 창(S8-4) — Search 버튼이 여는 popover. 최상위 레이어에 그려져 Miller 의 overflow 에 잘리지 않는다.
+   위치는 CSS anchor positioning 으로 검색칸 바로 아래 · 왼쪽 맞춤. 닫힌 상태의 display:none 은 브라우저 기본 규칙이
+   맡으므로 display 는 열린 상태(:popover-open)에서만 정한다 — 바탕 규칙에 display 를 두면 닫혀도 보인다. */
+.n-filter-search {
+    anchor-name: --list-filter-search;
+}
+
+.n-filter-bar:has(.n-filter-panel:popover-open) .n-filter-open {
+    background: var(--n-blue-hover);
+}
+
+.n-filter-panel {
+    position-anchor: --list-filter-search;
+    inset: auto;
+    top: anchor(bottom);
+    left: anchor(left);
+    margin: 6px 0 0;
+    width: min(640px, calc(100vw - 32px));
+    max-height: min(70vh, 560px);
+    overflow: auto;
+    padding: 0;
+    border: 1px solid var(--n-blue);
+    border-radius: var(--n-radius);
+    background: var(--n-surface);
+    color: var(--n-text);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+}
+
+.n-filter-panel:popover-open {
+    display: flex;
+    flex-direction: column;
+}
+
+/* anchor positioning 을 모르는 브라우저 — 화면 위쪽 가운데에 띄운다(깨지지 않게만) */
+@supports not (anchor-name: --a) {
+    .n-filter-panel {
+        top: 72px;
+        left: 50%;
+        translate: -50% 0;
+    }
+}
+
+/* 좁은 화면 — 좌우 16px 여백을 남긴 꽉 찬 폭 */
+@media (max-width: 640px) {
+    .n-filter-panel {
+        left: 16px;
+        right: 16px;
+        width: auto;
+    }
+}
+
+.n-filter-rows {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 12px;
+}
+
+.n-filter-row {
+    display: grid;
+    grid-template-columns: 112px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--n-border-row);
+}
+
+.n-filter-row:last-child {
+    border-bottom: none;
+}
+
+.n-filter-row-label {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: var(--n-radius);
+    background: var(--n-sunken);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--n-text-sec);
+}
+
+.n-filter-row-field {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+.n-filter-panel-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--n-border-row);
+}
+
+@media (max-width: 480px) {
+    .n-filter-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+}
+
+/* 걸린 조건 토큰 — 창을 열지 않아도 목록이 왜 좁아졌는지 보이게. 문구는 창의 줄 마크업에서 스크립트가 만든다. */
+.n-filter-tokens {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.n-filter-token {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px 2px 9px;
+    border-radius: var(--n-radius);
+    background: var(--n-blue-badge-bg);
+    color: var(--n-blue-badge-text);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.n-filter-token button {
+    padding: 0 5px;
+    border: none;
+    border-radius: var(--n-radius);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.n-filter-token button:hover,
+.n-filter-token button:focus-visible {
+    background: var(--n-surface);
+}
+
 /* 결과 건수 한 줄 — 실시간 갱신 영역 안에 두어 교체 때 함께 바뀐다(S8-2) */
 .n-list-count {
     margin: 0 0 10px;
@@ -1374,21 +1515,72 @@ kbd {
     color: var(--n-text-sec);
 }
 
-/* 쪽 이동 줄 — 표 아래 이전 · 현재/전체 · 총 건수 · 다음 · 표시 개수 한 줄.
-   이동할 수 없는 방향은 링크가 아니라 흐린 글자로 두어 누를 수 있는 것과 구분된다. */
+/* 쪽 이동 줄(S8-4 개편 · ecount 방식) — 표가 든 판의 위에 붙는 한 줄. 왼쪽 « · 쪽 번호 · » · 쪽 번호 입력 / 전체,
+   오른쪽 표시 개수. 갈 수 없는 방향의 « · » 는 자리만 지킨다(visibility) — 첫 쪽에서 번호가 옆으로 밀리지 않게. */
 .n-pagination {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 12px;
-    border-top: 1px solid var(--n-border);
+    gap: 12px;
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--n-border);
+    background: var(--n-surface);
     font-size: 12px;
 }
 
 .n-pagination-nav {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.n-page-num,
+.n-page-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 999px;
+    color: var(--n-text-sec);
+    font-size: 13px;
+    font-weight: 600;
+    font-feature-settings: "tnum";
+    text-decoration: none;
+}
+
+a.n-page-num:hover,
+a.n-page-arrow:hover {
+    background: var(--n-sunken);
+    color: var(--n-text);
+}
+
+.n-page-current {
+    background: var(--n-blue);
+    color: var(--n-surface);
+}
+
+.n-page-arrow-hidden {
+    visibility: hidden;
+}
+
+.n-page-jump {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    color: var(--n-text-sec);
+}
+
+.n-page-jump .n-input {
+    width: 56px;
+    padding: 2px 8px;
+    font-size: 12px;
+    border-radius: 999px;
 }
 
 .n-pagination-size {
@@ -1402,6 +1594,67 @@ kbd {
     width: auto;
     font-size: 12px;
     padding: 2px 6px;
+}
+
+/* 표만 스크롤하는 목록(S8-4 · ecount 방식) — .n-page-fill 화면은 높이가 화면 하나로 고정되고, 제목 · 조회 띠 ·
+   쪽 이동 줄은 제자리에 선 채 표 감싸개(.n-table-scroll)만 안쪽에서 세로 · 가로로 스크롤한다. 표가 든 판이 남는 높이를
+   모두 받는다(flex: 1 · min-height: 0 — 없으면 flex 항목이 내용 높이 아래로 줄지 않아 문서가 다시 길어진다).
+   게스트 서버 목록은 판이 실시간 갱신 영역([data-live]) 안에 있어 그 영역도 같은 사슬에 넣는다. */
+.n-page-fill {
+    height: 100vh;
+    height: 100dvh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.n-page-fill > *,
+.n-page-fill > [data-live] > * {
+    flex-shrink: 0;
+}
+
+.n-page-fill > [data-live],
+.n-page-fill > .n-card:has(> .n-table-scroll),
+.n-page-fill > [data-live] > .n-card:has(> .n-table-scroll) {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.n-page-fill .n-card:has(> .n-table-scroll) {
+    margin-bottom: 0;
+}
+
+.n-table-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* 표 머리는 감싸개 위쪽에 붙는다. collapse 경계선은 sticky 와 함께 움직이지 않아 아래 선을 그림자로 그린다. */
+.n-table-scroll .n-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    box-shadow: inset 0 -1px 0 var(--n-border);
+}
+
+/* 좁은 화면 — 화면 높이 고정을 풀고 문서 스크롤로 돌아간다(표만 스크롤할 높이가 남지 않는다). */
+@media (max-width: 640px) {
+    .n-page-fill {
+        height: auto;
+        display: block;
+    }
+
+    .n-table-scroll {
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+
+    .n-pagination {
+        flex-wrap: wrap;
+    }
 }
 
 /* ============================================================

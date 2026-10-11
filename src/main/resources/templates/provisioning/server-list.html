@@ -34,7 +34,7 @@
 <nav th:replace="~{fragments/layout :: navbar('server')}"></nav>
 
 <!-- S7 — 실시간 상태 스트림 선언부: server-stream.js 가 이 속성을 보고 SSE 를 구독한다 -->
-<div class="n-page" data-stream-scope="list" th:data-stream-url="@{/provisioning/server/stream}">
+<div class="n-page" th:classappend="${query.table} ? 'n-page-fill'" data-stream-scope="list" th:data-stream-url="@{/provisioning/server/stream}">
     <!-- S18 — 비밀번호 변경 등 PRG 의 flash 를 여기서도 그린다(상세 · 그룹 상세와 같은 조각 · CP5 F-1). -->
     <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status" th:text="${flashMessage}">비밀번호를 바꿨습니다.</div>
 
@@ -47,11 +47,64 @@
 
     <!-- 조회 띠 — [data-live] 밖(DEC-E). 상태는 URL 에 남는다(S8-2) -->
     <form id="listQuery" class="n-filter-bar" method="get" th:action="@{/provisioning/server}" data-list-query>
-        <div class="n-filter-search">
-            <input class="n-input" type="text" name="q" th:value="${query.q}" data-list-search autocomplete="off"
-                   th:placeholder="#{common.list.search-placeholder}" aria-label="이름 · UUID · 시리얼 · IP · 보드 검색">
-            <button type="submit" class="n-btn n-btn-secondary n-btn-sm" th:text="#{action.search}">검색</button>
-        </div>
+        <!--/* 조건 줄은 조회 조건 창 안에 선다(S8-4 · fragments/ui/list-filter). 보기 · 정렬은 띠에 남아 곧 적용된다. */-->
+        <th:block th:replace="~{fragments/ui/list-filter :: search(${query.q}, '이름 · UUID · 시리얼 · IP · 보드 검색', ~{::#listFilterRows})}">
+            <div id="listFilterRows" class="n-filter-rows">
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">진행 단계</span>
+                    <div class="n-filter-row-field n-filter-group" role="group" aria-label="진행 단계">
+                        <button type="button" class="n-chip n-chip-all" data-chip-clear="phase">전체</button>
+                        <label class="n-chip" th:each="p : ${phases}">
+                            <input type="checkbox" name="phase" th:value="${p.name()}" th:checked="${query.phases.contains(p)}">
+                            <span th:text="${p.description}">진단 리눅스</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">운영 상태</span>
+                    <div class="n-filter-row-field n-filter-group" role="group" aria-label="운영 상태">
+                        <button type="button" class="n-chip n-chip-all" data-chip-clear="status">전체</button>
+                        <label class="n-chip" th:each="st : ${statuses}">
+                            <input type="checkbox" name="status" th:value="${st.name()}" th:checked="${query.statuses.contains(st)}">
+                            <span th:text="${st.description}">등록됨</span>
+                        </label>
+                    </div>
+                </div>
+                <!--/* 보드는 제조사별 optgroup(S8-2 CP6 임시 조치). 소속 그룹 조건은 화면에서 잠시 뺐다 — 보드 · 그룹은 자기 조회
+                       화면이 있는 대상이라 단순 셀렉트가 맞지 않고, 뒤 슬라이스(S8-6 가칭)에서 다시 설계한다(서버 쪽 group 파라미터는 남아 있다). */-->
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">보드</span>
+                    <div class="n-filter-row-field n-filter-group" role="group" aria-label="보드 모델">
+                        <select name="board" class="n-select" aria-label="보드 모델">
+                            <option value="">보드 전체</option>
+                            <optgroup th:each="vg : ${boardOptions}" th:label="${vg.vendor}">
+                                <option th:each="b : ${vg.boards}" th:value="${b.id}" th:text="${b.name}"
+                                        th:selected="${query.boardModelId == b.id}">MS03-CE0</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+                <!--/* 기간 — 양 끝 포함 · 날짜 단위. 두 입력이 서로 min/max 를 걸어 거꾸로 고를 수 없다(list-query.js).
+                       기본 범위는 1 년 전 ~ 오늘(S8-4) — data-default 와 같은 값은 URL 에서 빠지고 토큰도 생기지 않는다. */-->
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">등록 시각</span>
+                    <div class="n-filter-row-field n-filter-group n-filter-range" role="group" aria-label="최초 등록 시각">
+                        <input type="date" name="from" class="n-input" th:value="${query.from}" th:attr="max=${query.rangeReversed or query.to == null ? '9999-12-31' : query.to},data-default=${rangeDefaultFrom}" data-range-start aria-label="시작일">
+                        <span class="n-filter-label">~</span>
+                        <input type="date" name="to" class="n-input" th:value="${query.to}" max="9999-12-31" th:attr="min=${query.rangeReversed ? null : query.from},data-default=${rangeDefaultTo}" data-range-end aria-label="종료일">
+                    </div>
+                </div>
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">회수된 서버</span>
+                    <div class="n-filter-row-field">
+                        <label class="n-checkbox">
+                            <input type="checkbox" name="includeDecommissioned" value="true" th:checked="${query.includeDecommissioned}">
+                            보기
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </th:block>
 
         <div class="n-filter-group" role="group" aria-label="보기">
             <span class="n-filter-label">보기</span>
@@ -59,49 +112,6 @@
             <label class="n-chip"><input type="radio" name="view" value="TABLE" th:checked="${query.table}">표</label>
         </div>
 
-        <div class="n-filter-group" role="group" aria-label="진행 단계">
-            <span class="n-filter-label">진행 단계</span>
-            <button type="button" class="n-chip n-chip-all" data-chip-clear="phase">전체</button>
-            <label class="n-chip" th:each="p : ${phases}">
-                <input type="checkbox" name="phase" th:value="${p.name()}" th:checked="${query.phases.contains(p)}">
-                <span th:text="${p.description}">진단 리눅스</span>
-            </label>
-        </div>
-
-        <div class="n-filter-group" role="group" aria-label="운영 상태">
-            <span class="n-filter-label">운영 상태</span>
-            <button type="button" class="n-chip n-chip-all" data-chip-clear="status">전체</button>
-            <label class="n-chip" th:each="st : ${statuses}">
-                <input type="checkbox" name="status" th:value="${st.name()}" th:checked="${query.statuses.contains(st)}">
-                <span th:text="${st.description}">등록됨</span>
-            </label>
-        </div>
-
-        <!--/* 보드는 제조사별 optgroup(S8-2 CP6 임시 조치). 소속 그룹 조건은 화면에서 잠시 뺐다 — 보드 · 그룹은 자기 조회
-               화면이 있는 대상이라 단순 셀렉트가 맞지 않고, S8-4 상세 조회 창에서 다시 설계한다(서버 쪽 group 파라미터는 남아 있다). */-->
-        <div class="n-filter-group" role="group" aria-label="보드 모델">
-            <span class="n-filter-label">보드</span>
-            <select name="board" class="n-select" aria-label="보드 모델">
-                <option value="">보드 전체</option>
-                <optgroup th:each="vg : ${boardOptions}" th:label="${vg.vendor}">
-                    <option th:each="b : ${vg.boards}" th:value="${b.id}" th:text="${b.name}"
-                            th:selected="${query.boardModelId == b.id}">MS03-CE0</option>
-                </optgroup>
-            </select>
-        </div>
-
-        <!--/* 기간 — 양 끝 포함 · 날짜 단위. 두 입력이 서로 min/max 를 걸어 거꾸로 고를 수 없다(list-query.js). */-->
-        <div class="n-filter-group n-filter-range" role="group" aria-label="최초 등록 시각">
-            <span class="n-filter-label">등록 시각</span>
-            <input type="date" name="from" class="n-input" th:value="${query.from}" th:attr="max=${query.rangeReversed or query.to == null ? '9999-12-31' : query.to}" data-range-start aria-label="시작일">
-            <span class="n-filter-label">~</span>
-            <input type="date" name="to" class="n-input" th:value="${query.to}" max="9999-12-31" th:attr="min=${query.rangeReversed ? null : query.from}" data-range-end aria-label="종료일">
-        </div>
-
-        <label class="n-checkbox">
-            <input type="checkbox" name="includeDecommissioned" value="true" th:checked="${query.includeDecommissioned}">
-            회수된 서버 보기
-        </label>
 
         <!--/* th:replace 는 th:if 보다 먼저 실행되므로 조건은 바깥 블록이 진다. 정렬은 표 보기만. */-->
         <th:block th:if="${query.table}">
@@ -148,15 +158,19 @@
             </div>
         </div>
         <div th:if="${!page.content.isEmpty()}" class="n-card">
-            <table class="n-table n-table-servers">
-                <thead th:replace="~{fragments/provisioning/server-rows :: head}"></thead>
-                <tbody>
-                <th:block th:each="server : ${page.content}">
-                    <tr th:replace="~{fragments/provisioning/server-rows :: row(${server})}"></tr>
-                </th:block>
-                </tbody>
-            </table>
+            <!--/* 쪽 이동은 표 위(S8-4 · ecount 방식). */-->
             <div th:replace="~{fragments/ui/pagination :: pager(${page}, ${links})}"></div>
+            <!--/* 표만 안쪽에서 스크롤한다(S8-4 · ecount 방식) — 제목 · 조회 띠 · 쪽 이동 줄은 그대로 서고 표 머리는 붙는다. */-->
+            <div class="n-table-scroll">
+                <table class="n-table n-table-servers">
+                    <thead th:replace="~{fragments/provisioning/server-rows :: head}"></thead>
+                    <tbody>
+                    <th:block th:each="server : ${page.content}">
+                        <tr th:replace="~{fragments/provisioning/server-rows :: row(${server})}"></tr>
+                    </th:block>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </th:block>
 
