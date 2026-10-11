@@ -224,6 +224,50 @@ class GuestServerControllerTest {
                 .andExpect(content().string(not(containsString("RAID 구성 단계에 진입하면 수집됩니다"))));   // 디스크 표 헤더는 hardwareSpec 이 있는 픽스처에서만 그려진다(CP5 A1 로 확인)
     }
 
+    /** HF22 — 진단 보고는 왔는데(하드웨어 스펙 있음) RAID 인벤토리가 없는 서버. pcie 로 RAID 카드 유무를 바꾼다. */
+    private GuestServerDetailResponse detailWithPcie(UUID id, List<com.example.serverprovision.execution.vo.HardwareSpec.PcieDevice> pcie) {
+        var spec = new com.example.serverprovision.execution.vo.HardwareSpec(List.of(), List.of(), List.of(), pcie);
+        GuestServerDetailResponse base = detail(id);
+        var inv = base.inventory();
+        return new GuestServerDetailResponse(
+                id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "464331aabbcc", null, "memo",
+                GuestServerStatus.REGISTERED, null, LocalDateTime.now(), LocalDateTime.now(),
+                null,
+                new GuestServerDetailResponse.Inventory(inv.vendor(), inv.boardModelId(), inv.boardModelName(), inv.boardSerial(),
+                        DiscoveryStage.DIAGNOSTIC_ENRICHED, spec, null, null, null, null, List.of()),
+                List.of(), base.progress(), null, null, null, null, null, List.of(), List.of());
+    }
+
+    @Test
+    @DisplayName("HF22 — PCIe 에 RAID 카드가 있는데 RAID 인벤토리가 없으면 미채집 경고 + 카드 이름을 보이고 빈 문구는 숨긴다")
+    void detail_warnsUncollectedRaidCard() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detailWithPcie(id, List.of(
+                com.example.serverprovision.execution.vo.HardwareSpec.PcieDevice.untagged(
+                        "ae:00.0", "RAID", "Broadcom", "Broadcom / LSI MegaRAID 12GSAS/PCIe Secure SAS39xx"))));
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-raid-uncollected")))
+                .andExpect(content().string(containsString("카드 뒤 디스크 정보를 채집하지 못했습니다")))
+                .andExpect(content().string(containsString("Secure SAS39xx")))
+                .andExpect(content().string(not(containsString("카드가 없는 서버는 비어 있는 것이 정상입니다"))));
+    }
+
+    @Test
+    @DisplayName("HF22 — RAID 카드가 없는 서버는 경고 없이 종전 빈 문구")
+    void detail_noRaidCard_keepsEmptyCopy() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detailWithPcie(id, List.of(
+                com.example.serverprovision.execution.vo.HardwareSpec.PcieDevice.untagged(
+                        "17:00.0", "LAN_10G_UTP", "Intel", "Intel X710 10GBASE-T"))));
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-raid-uncollected"))))
+                .andExpect(content().string(containsString("카드가 없는 서버는 비어 있는 것이 정상입니다")));
+    }
+
     // ==== 성공 2xx ====================================================
 
     @Test

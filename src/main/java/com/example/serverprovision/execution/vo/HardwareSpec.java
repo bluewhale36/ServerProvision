@@ -64,6 +64,9 @@ public record HardwareSpec(
     public record PcieDevice(String slot, String kind, String vendor, String model,
                              PcieMount mount, String slotDesignation) {
 
+        /** RAID 카드(SAS HBA 포함) 종류 표기 — 진단 파서가 붙이고 화면의 미채집 경고(HF22)가 읽는다. */
+        public static final String KIND_RAID = "RAID";
+
         public PcieDevice {
             mount = mount == null ? PcieMount.UNKNOWN : mount;
         }

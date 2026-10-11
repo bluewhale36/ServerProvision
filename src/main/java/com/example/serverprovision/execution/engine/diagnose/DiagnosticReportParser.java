@@ -217,7 +217,7 @@ public class DiagnosticReportParser {
         // SAS HBA(Serial Attached SCSI)도 RAID 로 묶는다 — 사내 RAID 카드(CRA3338 = SAS3008, no cache)가
         // lspci 에서 이 클래스로 잡힌다(MS74-HB0 실측).
         if (cls.contains("raid") || cls.contains("serial attached scsi") || desc.contains("megaraid")) {
-            return "RAID";
+            return HardwareSpec.PcieDevice.KIND_RAID;
         }
         if (cls.contains("fibre channel")) {
             if (desc.contains("32gb") || desc.contains("2772") || desc.contains("lpe32")) {

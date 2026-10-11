@@ -568,8 +568,20 @@
                         <p th:if="${#lists.isEmpty(raid.volumes)}" class="n-detail-empty">기존 볼륨이 없습니다.</p>
                     </th:block>
 
-                    <p th:unless="${server.inventory != null and server.inventory.raidInventory != null}" class="n-detail-empty"
-                       th:text="#{execution.raid-inventory.empty}">RAID 인벤토리가 아직 없습니다.</p>
+                    <!-- HF22 — 카드는 보이는데 카드 뒤 인벤토리가 없음(지원하지 않는 칩 · 채집 도구 없음). 조용히 지나가지 않게 경고한다. -->
+                    <th:block th:with="uncollected=${server.inventory == null ? null : server.inventory.uncollectedRaidCards()}">
+                        <div th:if="${uncollected != null and !uncollected.isEmpty()}" class="n-banner n-banner-warn" data-raid-uncollected>
+                            <div>
+                                <div th:text="#{execution.raid-inventory.uncollected}">RAID 카드가 장착돼 있지만 카드 뒤 디스크 정보를 채집하지 못했습니다.</div>
+                                <div th:each="c : ${uncollected}" class="n-muted">
+                                    <code class="n-mono" th:text="${c.slot}">ae:00.0</code>
+                                    <span th:text="${c.model}">Broadcom / LSI MegaRAID 12GSAS/PCIe Secure SAS39xx</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p th:if="${(server.inventory == null or server.inventory.raidInventory == null) and (uncollected == null or uncollected.isEmpty())}"
+                           class="n-detail-empty" th:text="#{execution.raid-inventory.empty}">RAID 인벤토리가 아직 없습니다.</p>
+                    </th:block>
                 </div>
             </div>
         </div>

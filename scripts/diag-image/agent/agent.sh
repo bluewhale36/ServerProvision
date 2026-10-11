@@ -293,8 +293,13 @@ do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
     run_cli() { # 실행 + 로그 축적 — 첫 실패에서 멈추고 원문을 남긴다(조용히 삼키지 않는다)
         OUT=$("$@" 2>&1); RC=$?
         LOG="$LOG\$ $*\n$OUT\n"
+        # storcli 는 실패에도 종료 코드 0 을 낸다(실기 2026-09-01 · HF22 의 set 실패 2건) — 출력의 Status 도 본다
+        [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q 'Status = Failure' && RC=1
         [ "$RC" -ne 0 ] && FAILED_CMD="$*"
         return $RC
+    }
+    vd_of_name() { # $1=VD 이름 → 컨트롤러가 붙인 VD 번호. SAS3108 은 0 부터 오르고 SAS39xx 는 239 부터 내려간다(HF22 실측 0/239)
+        "$TOOL" /c0/vall show 2>/dev/null | awk -v n="$1" '$1 ~ /^[0-9]+\/[0-9]+$/ && $NF == n { split($1, a, "/"); print a[2]; exit }'
     }
     if [ "$FAMILY" = "MEGARAID" ]; then
         TOOL=""; command -v storcli64 >/dev/null 2>&1 && TOOL=storcli64
@@ -305,7 +310,6 @@ do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
         fi
         if [ -n "$DEL" ]; then run_cli "$TOOL" /c0/vall del force || true; fi
         OK=1
-        VDIDX=0   # del force 후 생성이라 VD 번호 = 생성 순서(실측 spvR1V1=VD0)
         # for 순회는 createOpts 의 공백에 워드 분리로 깨진다(CP5 H1 실측) — 행 단위 read 로 돈다.
         while IFS= read -r line; do
             [ -z "$line" ] && continue
@@ -319,21 +323,26 @@ do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
             EXTRA=""
             [ "$LEVEL" = "RAID10" ] && EXTRA="pdperarray=2"
             run_cli "$TOOL" /c0 add vd type="$LV" name="$NAME" drives="$SLOTS" $CREATE $EXTRA || { OK=0; break; }
+            # VD 번호는 생성 순서로 가정하지 않고 이름으로 되찾는다 — 칩마다 번호 체계가 다르다(HF22)
+            VD=$(vd_of_name "$NAME")
+            if [ -z "$VD" ]; then
+                LOG="$LOG\$ $TOOL /c0/vall show (VD lookup: $NAME)\n$("$TOOL" /c0/vall show 2>&1)\n"
+                FAILED_CMD="VD lookup by name $NAME"; OK=0; break
+            fi
             for op in $SETOPS; do
-                run_cli "$TOOL" "/c0/v$VDIDX" set "$op" || { OK=0; break; }
+                run_cli "$TOOL" "/c0/v$VD" set "$op" || { OK=0; break; }
             done
             [ "$OK" = 0 ] && break
             # 초기화 — none = 생략(HII 기본) · fast/full = force 실행. 서버가 항상 채워 보낸다(E3.5-6 기본값 = HII 기본);
             # 빈 값은 닿지 않는 방어 경로(fast). OS/FS 감지 거부(ErrCd 255)와 storcli 의 Failure-exit 0 때문에 force + 출력 검사(실기 2026-09-01).
             if [ "$INIT" != "none" ]; then
                 INIT_KW=""; [ "$INIT" = "full" ] && INIT_KW="full"
-                INIT_OUT=$("$TOOL" "/c0/v$VDIDX" start init $INIT_KW force 2>&1)
-                LOG="$LOG\$ $TOOL /c0/v$VDIDX start init $INIT_KW force\n$INIT_OUT\n"
+                INIT_OUT=$("$TOOL" "/c0/v$VD" start init $INIT_KW force 2>&1)
+                LOG="$LOG\$ $TOOL /c0/v$VD start init $INIT_KW force\n$INIT_OUT\n"
                 if printf '%s' "$INIT_OUT" | grep -qE 'Failed|Failure'; then
-                    FAILED_CMD="$TOOL /c0/v$VDIDX start init $INIT_KW force"; OK=0; break
+                    FAILED_CMD="$TOOL /c0/v$VD start init $INIT_KW force"; OK=0; break
                 fi
             fi
-            VDIDX=$((VDIDX + 1))
         done <<VDEOF
 $VOL_LINES
 VDEOF

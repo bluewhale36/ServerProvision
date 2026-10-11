@@ -64,11 +64,15 @@ class RaidApplyPayloadTest {
     @Test
     @DisplayName("칩 힌트 — id=계열 공백 구분 · 선언 순, lspci 판별과 같은 SSOT")
     void agentChipHint_format() {
-        assertThat(RaidChipFamily.agentChipHint()).isEqualTo("1000:0097=MPT_IR 1000:005d=MEGARAID");
+        assertThat(RaidChipFamily.agentChipHint()).isEqualTo("1000:0097=MPT_IR 1000:005d=MEGARAID 1000:10e2=MEGARAID");
         assertThat(RaidChipFamily.fromLspci("RAID bus controller [0104]: ... [1000:005d]"))
                 .contains(RaidChipFamily.MEGARAID);
         assertThat(RaidChipFamily.fromLspci("Serial Attached SCSI controller ... [1000:0097]"))
                 .contains(RaidChipFamily.MPT_IR);
+        // HF22 — SAS39xx Secure(GIGABYTE CRA4760 실기 lspci 원문)도 MegaRAID 계열로 판별
+        assertThat(RaidChipFamily.fromLspci(
+                "ae:00.0 RAID bus controller [0104]: Broadcom / LSI MegaRAID 12GSAS/PCIe Secure SAS39xx [1000:10e2]"))
+                .contains(RaidChipFamily.MEGARAID);
         assertThat(RaidChipFamily.fromLspci("no raid here")).isEmpty();
     }
 }

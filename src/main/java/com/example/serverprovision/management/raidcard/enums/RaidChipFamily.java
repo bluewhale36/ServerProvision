@@ -3,7 +3,8 @@ package com.example.serverprovision.management.raidcard.enums;
 
 /**
  * RAID 카드 칩 계열(E3.5-1) — 제어 계열(드라이버 · CLI · 파서)을 정하는 축이다(사전 조사 §2).
- * 브랜드가 아니라 PCI Vendor:Device 가 판별자다: {@code 1000:0097} = SAS3008(IR) · {@code 1000:005d} = SAS3108(MegaRAID).
+ * 브랜드가 아니라 PCI Vendor:Device 가 판별자다: {@code 1000:0097} = SAS3008(IR) · {@code 1000:005d} = SAS3108(MegaRAID) ·
+ * {@code 1000:10e2} = SAS39xx Secure(MegaRAID).
  */
 public enum RaidChipFamily {
 
@@ -72,7 +73,8 @@ public enum RaidChipFamily {
     MEGARAID("MegaRAID (storcli 계열)") {
         @Override
         public java.util.List<String> chipPciIds() {
-            return java.util.List.of("1000:005d");   // SAS3108 MegaRAID
+            // SAS3108 MegaRAID · SAS39xx Secure(SAS3908 · SAS3916 — GIGABYTE CRA4760 · CRA4960, HF22 실기 1000:10e2 실측)
+            return java.util.List.of("1000:005d", "1000:10e2");
         }
 
         @Override
