@@ -22,6 +22,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
+import com.example.serverprovision.global.web.list.ListFilterMarkup;
 
 /**
  * S8-3 — OS 버전 목록의 조회 띠 흐름(HTTP 계층).
@@ -95,4 +97,22 @@ class OSMetadataListQueryFlowTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/management/os?selectId=3&selectKey=ROCKY_LINUX"));
     }
+
+    @Test
+    @DisplayName("GET /management/os — 조건은 Search 버튼이 여는 조회 조건 창에 한 줄씩 서고, 걸린 값이 창 안에 checked 로 그려진다(S8-4)")
+    void list_conditionsLiveInFilterPanel() throws Exception {
+        given(osMetadataService.findAllGrouped(any())).willReturn(List.of());
+        String html = mvc.perform(get("/management/os?q=ab&enabled=false&includeDeleted=true"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("popovertarget=\"listFilterPanel\"", ">Search</button>", "popover=\"auto\"", "data-filter-tokens");
+        assertThat(ListFilterMarkup.rowLabels(html)).containsExactly("활성", "사용 중단", "삭제된 항목");
+        String panel = ListFilterMarkup.panel(html);
+        assertThat(panel).contains("name=\"enabled\" value=\"false\" checked", "name=\"includeDeleted\" value=\"true\" checked");
+        // 검색칸은 창 밖(띠)에 남는다 — Enter 로 바로 제출되는 길
+        assertThat(panel).doesNotContain("name=\"q\"");
+        assertThat(ListFilterMarkup.outsidePanel(html)).contains("name=\"q\"", "value=\"ab\"");
+    }
+
 }

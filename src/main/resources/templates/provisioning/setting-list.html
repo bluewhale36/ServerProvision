@@ -28,7 +28,7 @@
 <body>
 <nav th:replace="~{fragments/layout :: navbar('setting')}"></nav>
 
-<div class="n-page">
+<div class="n-page n-page-fill">
     <div class="n-page-header">
         <h1 class="n-page-title">세팅 정의서</h1>
         <div class="n-header-actions">
@@ -38,41 +38,47 @@
 
     <!-- 조회 띠 — 검색 · 필터 · 정렬. 상태는 URL 에 있다(S8-1 R1~R4). -->
     <form id="listQuery" class="n-filter-bar" method="get" th:action="@{/provisioning/setting}" data-list-query>
-        <div class="n-filter-search">
-            <input class="n-input" type="text" name="q" th:value="${query.q}" data-list-search autocomplete="off"
-                   th:placeholder="#{common.list.search-placeholder}" aria-label="정의서 이름 검색">
-            <button type="submit" class="n-btn n-btn-secondary n-btn-sm" th:text="#{action.search}">검색</button>
-        </div>
-
-        <div class="n-filter-group" role="group" aria-label="활성">
-            <span class="n-filter-label">활성</span>
-            <label class="n-chip"><input type="radio" name="enabled" value="" th:checked="${query.enabled == null}">전체</label>
-            <label class="n-chip"><input type="radio" name="enabled" value="true" th:checked="${query.enabled == true}">활성</label>
-            <label class="n-chip"><input type="radio" name="enabled" value="false" th:checked="${query.enabled == false}">비활성</label>
-        </div>
-
-        <div class="n-filter-group" role="group" aria-label="사용 중단">
-            <span class="n-filter-label">사용 중단</span>
-            <label class="n-chip"><input type="radio" name="deprecated" value="" th:checked="${query.deprecated == null}">전체</label>
-            <label class="n-chip"><input type="radio" name="deprecated" value="true" th:checked="${query.deprecated == true}">권고</label>
-            <label class="n-chip"><input type="radio" name="deprecated" value="false" th:checked="${query.deprecated == false}">정상</label>
-        </div>
-
-        <div class="n-filter-group" role="group" aria-label="포함 단계">
-            <span class="n-filter-label">포함 단계</span>
-            <button type="button" class="n-chip n-chip-all" data-chip-clear="processType">전체</button>
-            <label class="n-chip" th:each="t : ${processTypes}">
-                <input type="checkbox" name="processType" th:value="${t.name()}"
-                       th:checked="${query.processTypes.contains(t)}">
-                <span th:text="${t.displayName}">단계</span>
-            </label>
-        </div>
-
-        <!-- U3-2-b — 휴지통 토글(os 선례 DEC-F). on 이면 삭제분도 목록에 노출(삭제 배지). S8-1 부터 폼 필드다. -->
-        <label class="n-checkbox">
-            <input type="checkbox" name="includeDeleted" value="true" th:checked="${query.includeDeleted}">
-            삭제된 항목 포함
-        </label>
+        <!--/* 조건 줄은 조회 조건 창 안에 선다(S8-4 · fragments/ui/list-filter). 정렬은 띠에 남아 곧 적용된다. */-->
+        <th:block th:replace="~{fragments/ui/list-filter :: search(${query.q}, '정의서 이름 검색', ~{::#listFilterRows})}">
+            <div id="listFilterRows" class="n-filter-rows">
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">활성</span>
+                    <div class="n-filter-row-field n-filter-group" role="group" aria-label="활성">
+                        <label class="n-chip"><input type="radio" name="enabled" value="" th:checked="${query.enabled == null}">전체</label>
+                        <label class="n-chip"><input type="radio" name="enabled" value="true" th:checked="${query.enabled == true}">활성</label>
+                        <label class="n-chip"><input type="radio" name="enabled" value="false" th:checked="${query.enabled == false}">비활성</label>
+                    </div>
+                </div>
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">사용 중단</span>
+                    <div class="n-filter-row-field n-filter-group" role="group" aria-label="사용 중단">
+                        <label class="n-chip"><input type="radio" name="deprecated" value="" th:checked="${query.deprecated == null}">전체</label>
+                        <label class="n-chip"><input type="radio" name="deprecated" value="true" th:checked="${query.deprecated == true}">권고</label>
+                        <label class="n-chip"><input type="radio" name="deprecated" value="false" th:checked="${query.deprecated == false}">정상</label>
+                    </div>
+                </div>
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">포함 단계</span>
+                    <div class="n-filter-row-field n-filter-group" role="group" aria-label="포함 단계">
+                        <button type="button" class="n-chip n-chip-all" data-chip-clear="processType">전체</button>
+                        <label class="n-chip" th:each="t : ${processTypes}">
+                            <input type="checkbox" name="processType" th:value="${t.name()}"
+                                   th:checked="${query.processTypes.contains(t)}">
+                            <span th:text="${t.displayName}">단계</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">삭제된 항목</span>
+                    <div class="n-filter-row-field">
+                        <label class="n-checkbox">
+                            <input type="checkbox" name="includeDeleted" value="true" th:checked="${query.includeDeleted}">
+                            포함
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </th:block>
 
         <div th:replace="~{fragments/ui/sort-selects :: selects(${sortFields}, ${query}, ${sortDefault})}"></div>
 
@@ -106,67 +112,69 @@
 
     <!-- 정의서 목록 -->
     <div th:if="${!page.content.isEmpty()}" class="n-card">
-        <table class="n-table n-table-settings" id="settingTable">
-            <thead>
-            <tr>
-                <th class="n-th-center">#</th>
-                <th>정의서 명칭</th>
-                <th class="n-th-center">활성</th>
-                <th class="n-th-center">사용 중단</th>
-                <th>포함 단계</th>
-                <th>생성일시</th>
-            </tr>
-            </thead>
-            <tbody>
-            <!--/* data-nav-key — 상세에서 '목록으로' 를 누르면 떠난 쪽으로 돌아와 이 행을 짚는다(nav-stack.js · S8-1 CP5 D-1). */-->
-            <tr th:each="setting : ${page.content}"
-                class="n-row-clickable"
-                th:data-nav-key="${setting.id}"
-                th:data-href="@{/provisioning/setting/{id}(id=${setting.id})}">
-                <td class="n-td-id" th:text="${setting.id}">1</td>
-                <td>
-                    <a class="n-row-link"
-                       th:href="@{/provisioning/setting/{id}(id=${setting.id})}"
-                       th:text="${setting.name}">정의서 명칭</a>
-                    <span th:if="${setting.deleted}" class="n-badge n-badge-red">삭제됨</span>
-                </td>
-                <!-- U3-2-b DEC-G — 활성 축: 비활성이면 신규 할당만 차단되고 이미 만들어진 할당 스냅샷은 무영향.
-                     삭제된 정의서는 두 축이 의미를 잃으므로 '-' 로 비운다. -->
-                <td class="n-td-center">
-                    <span th:if="${setting.deleted}" class="n-table-muted">-</span>
-                    <span th:if="${!setting.deleted and setting.enabled}"
-                          class="n-badge n-badge-green"
-                          title="서버에 새로 할당할 수 있는 정의서입니다.">활성</span>
-                    <span th:if="${!setting.deleted and !setting.enabled}"
-                          class="n-badge n-badge-off"
-                          title="비활성 정의서는 서버에 새로 할당할 수 없습니다.">비활성</span>
-                </td>
-                <!-- 사용 중단 축: 할당을 막지 않고 권고만 한다 — 정상은 값 없음('-'), 권고는 노란 배지. -->
-                <td class="n-td-center">
-                    <span th:if="${setting.deleted or !setting.deprecated}" class="n-table-muted">-</span>
-                    <span th:if="${!setting.deleted and setting.deprecated}"
-                          class="n-badge n-badge-yellow"
-                          title="사용 중단이 권고된 정의서입니다. 할당은 가능하지만 다른 정의서 사용을 권장합니다.">사용 중단 권고</span>
-                </td>
-                <td>
-                    <span th:if="${#lists.isEmpty(setting.processTypes)}" class="n-table-muted">-</span>
-                    <span th:unless="${#lists.isEmpty(setting.processTypes)}" class="n-badge-list">
-                        <span class="n-badge n-badge-blue"
-                              th:each="type : ${setting.processTypes}"
-                              th:text="${type.displayName}">단계</span>
-                    </span>
-                </td>
-                <td>
-                    <span th:if="${setting.createdAt != null}"
-                          th:text="${#temporals.format(setting.createdAt, 'yyyy-MM-dd HH:mm')}">2026-07-01 12:00</span>
-                    <span th:unless="${setting.createdAt != null}" class="n-table-muted">-</span>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-
-        <!--/* 표와 쪽 이동은 붙어 다닌다 — 판 바닥의 한 줄(S8-1). */-->
+        <!--/* 쪽 이동은 표 위(S8-4 · ecount 방식). */-->
         <div th:replace="~{fragments/ui/pagination :: pager(${page}, ${links})}"></div>
+        <!--/* 표만 안쪽에서 스크롤한다(S8-4 · ecount 방식) — 제목 · 조회 띠 · 쪽 이동 줄은 그대로 서고 표 머리는 붙는다. */-->
+        <div class="n-table-scroll">
+            <table class="n-table n-table-settings" id="settingTable">
+                <thead>
+                <tr>
+                    <th class="n-th-center">#</th>
+                    <th>정의서 명칭</th>
+                    <th class="n-th-center">활성</th>
+                    <th class="n-th-center">사용 중단</th>
+                    <th>포함 단계</th>
+                    <th>생성일시</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!--/* data-nav-key — 상세에서 '목록으로' 를 누르면 떠난 쪽으로 돌아와 이 행을 짚는다(nav-stack.js · S8-1 CP5 D-1). */-->
+                <tr th:each="setting : ${page.content}"
+                    class="n-row-clickable"
+                    th:data-nav-key="${setting.id}"
+                    th:data-href="@{/provisioning/setting/{id}(id=${setting.id})}">
+                    <td class="n-td-id" th:text="${setting.id}">1</td>
+                    <td>
+                        <a class="n-row-link"
+                           th:href="@{/provisioning/setting/{id}(id=${setting.id})}"
+                           th:text="${setting.name}">정의서 명칭</a>
+                        <span th:if="${setting.deleted}" class="n-badge n-badge-red">삭제됨</span>
+                    </td>
+                    <!-- U3-2-b DEC-G — 활성 축: 비활성이면 신규 할당만 차단되고 이미 만들어진 할당 스냅샷은 무영향.
+                         삭제된 정의서는 두 축이 의미를 잃으므로 '-' 로 비운다. -->
+                    <td class="n-td-center">
+                        <span th:if="${setting.deleted}" class="n-table-muted">-</span>
+                        <span th:if="${!setting.deleted and setting.enabled}"
+                              class="n-badge n-badge-green"
+                              title="서버에 새로 할당할 수 있는 정의서입니다.">활성</span>
+                        <span th:if="${!setting.deleted and !setting.enabled}"
+                              class="n-badge n-badge-off"
+                              title="비활성 정의서는 서버에 새로 할당할 수 없습니다.">비활성</span>
+                    </td>
+                    <!-- 사용 중단 축: 할당을 막지 않고 권고만 한다 — 정상은 값 없음('-'), 권고는 노란 배지. -->
+                    <td class="n-td-center">
+                        <span th:if="${setting.deleted or !setting.deprecated}" class="n-table-muted">-</span>
+                        <span th:if="${!setting.deleted and setting.deprecated}"
+                              class="n-badge n-badge-yellow"
+                              title="사용 중단이 권고된 정의서입니다. 할당은 가능하지만 다른 정의서 사용을 권장합니다.">사용 중단 권고</span>
+                    </td>
+                    <td>
+                        <span th:if="${#lists.isEmpty(setting.processTypes)}" class="n-table-muted">-</span>
+                        <span th:unless="${#lists.isEmpty(setting.processTypes)}" class="n-badge-list">
+                            <span class="n-badge n-badge-blue"
+                                  th:each="type : ${setting.processTypes}"
+                                  th:text="${type.displayName}">단계</span>
+                        </span>
+                    </td>
+                    <td>
+                        <span th:if="${setting.createdAt != null}"
+                              th:text="${#temporals.format(setting.createdAt, 'yyyy-MM-dd HH:mm')}">2026-07-01 12:00</span>
+                        <span th:unless="${setting.createdAt != null}" class="n-table-muted">-</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 

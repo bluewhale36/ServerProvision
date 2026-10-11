@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.dto.request.ServerListQuery;
 import com.example.serverprovision.execution.dto.response.BoardOptionGroupResponse;
 import com.example.serverprovision.execution.dto.response.BoardOptionResponse;
@@ -54,11 +56,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+import com.example.serverprovision.global.web.list.ListFilterMarkup;
 
 /**
  * 게스트 서버 목록(U3-3 · S8-2) — 두 보기의 렌더 · 조회 조건 바인딩 · 그룹 조건 번역 · 400 을 HTTP 계층에서 본다.
  * Mocking 은 조회 서비스까지 — 바인딩 · 변환기(GroupFilterConverter) · Pageable · ListLinks 리졸버 · 템플릿은 실제로 돈다.
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = GuestServerController.class)
 class GuestServerControllerListTest {
 
@@ -138,7 +142,7 @@ class GuestServerControllerListTest {
                 .andExpect(content().string(not(containsString("n-pagination"))))
                 .andExpect(content().string(not(containsString("include-deleted-toggle.js"))));
 
-        assertThat(groupedQuery().isFiltered()).isFalse();
+        assertThat(groupedQuery().isFiltered(FixedClockTestConfig.TODAY)).isFalse();
         then(queryService).should(never()).findPage(any(), any(), any());
     }
 
@@ -334,4 +338,49 @@ class GuestServerControllerListTest {
         then(queryService).should(never()).findGrouped(any(), any());
         then(queryService).should(never()).findPage(any(), any(), any());
     }
+
+    @Test
+    @DisplayName("200 — 조건 다섯은 조회 조건 창 안에(보드 셀렉트 · 기간 포함), 보기 · 정렬은 띠에 남는다(S8-4)")
+    void conditionsLiveInFilterPanel_viewAndSortStayOnBar() throws Exception {
+        String html = mvc.perform(get("/provisioning/server").param("view", "TABLE").param("status", "REGISTERED")
+                        .param("board", "9").param("from", "2026-01-01"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(ListFilterMarkup.rowLabels(html)).containsExactly("진행 단계", "운영 상태", "보드", "등록 시각", "회수된 서버");
+        String panel = ListFilterMarkup.panel(html);
+        assertThat(panel).contains("value=\"REGISTERED\" checked", "value=\"9\" selected", "name=\"from\"", "value=\"2026-01-01\"")
+                .doesNotContain("name=\"view\"", "name=\"sort\"");
+        assertThat(ListFilterMarkup.outsidePanel(html)).contains("name=\"view\"", "name=\"sort\"");
+    }
+
+
+    @Test
+    @DisplayName("200 — 기간이 없으면 기본 범위(1 년 전 ~ 오늘)로 조회하고, 입력칸은 그 값 · data-default 로 그려지며 조건으로 치지 않는다(S8-4)")
+    void defaultRange_appliedAndNotFiltered() throws Exception {
+        String html = mvc.perform(get("/provisioning/server"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("filtered", false))
+                .andReturn().getResponse().getContentAsString();
+
+        ServerListQuery q = groupedQuery();
+        assertThat(q.from()).isEqualTo(LocalDate.of(2025, 10, 11));
+        assertThat(q.to()).isEqualTo(FixedClockTestConfig.TODAY);
+        assertThat(ListFilterMarkup.panel(html))
+                .contains("name=\"from\"", "value=\"2025-10-11\"", "data-default=\"2025-10-11\"",
+                        "value=\"2026-10-11\"", "data-default=\"2026-10-11\"");
+    }
+
+    @Test
+    @DisplayName("200 — 시작일만 바꾸면 끝은 오늘로 채워지고, 기본 범위와 다르므로 조건이다(S8-4)")
+    void changedStart_fillsEndAndCountsAsFilter() throws Exception {
+        mvc.perform(get("/provisioning/server").param("from", "2020-01-01"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("filtered", true));
+
+        ServerListQuery q = groupedQuery();
+        assertThat(q.from()).isEqualTo(LocalDate.of(2020, 1, 1));
+        assertThat(q.to()).isEqualTo(FixedClockTestConfig.TODAY);
+    }
+
 }

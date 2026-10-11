@@ -35,6 +35,8 @@ import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.example.serverprovision.global.web.list.ListFilterMarkup;
+import static org.mockito.BDDMockito.willAnswer;
 
 /** S8-1 — 서버 그룹 목록의 조회 조건 바인딩 · 쪽 정정 · 400 을 HTTP 계층에서 본다. */
 @WebMvcTest(controllers = GuestServerGroupController.class)
@@ -127,4 +129,39 @@ class GuestServerGroupControllerListTest {
         mvc.perform(get("/provisioning/server-group").param("hasStandardDefinition", "maybe")).andExpect(status().isBadRequest());
         then(queryService).should(never()).search(any(), any());
     }
+
+    @Test
+    @DisplayName("200 — 표준 정의서 조건은 조회 조건 창 안에, 정렬은 띠에 남는다(S8-4)")
+    void conditionLivesInFilterPanel_sortStaysOnBar() throws Exception {
+        String html = mvc.perform(get("/provisioning/server-group").param("hasStandardDefinition", "false"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(ListFilterMarkup.rowLabels(html)).containsExactly("표준 정의서");
+        assertThat(ListFilterMarkup.panel(html)).contains("name=\"hasStandardDefinition\" value=\"false\" checked")
+                .doesNotContain("name=\"sort\"");
+        assertThat(ListFilterMarkup.outsidePanel(html)).contains("name=\"sort\"");
+    }
+
+
+    @Test
+    @DisplayName("200 — 쪽 이동 줄은 표 위에 « · 쪽 번호 · » · 쪽 번호 입력 / 전체로 서고, 지금 쪽은 링크가 아니다(S8-4)")
+    void pagerAboveTable_numbersArrowsAndJump() throws Exception {
+        willAnswer(inv -> new PageImpl<>(
+                List.of(new GroupSummaryResponse(7L, "8월 2차", 3L, false, LocalDateTime.now())),
+                (Pageable) inv.getArgument(1), 45)).given(queryService).search(any(), any());
+
+        String html = mvc.perform(get("/provisioning/server-group").param("page", "1"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html.indexOf("class=\"n-pagination\"")).isLessThan(html.indexOf("<table class=\"n-table n-table-groups\">"));
+        assertThat(html).contains(
+                "aria-label=\"이전 쪽\"", "aria-label=\"다음 쪽\"",
+                "<span class=\"n-page-num n-page-current\" aria-current=\"page\">2</span>",
+                "href=\"/provisioning/server-group\">1</a>",
+                "href=\"/provisioning/server-group?page=2\">3</a>",
+                "data-page-total=\"3\"", "data-page-base=\"/provisioning/server-group\"");
+    }
+
 }

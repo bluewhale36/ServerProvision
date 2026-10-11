@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
@@ -50,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 상세 렌더 3분기(미개시 버튼 노출 / 개시됨 비노출 / 회수 비노출)는 startable 플래그가
  * 서버 가드와 같은 SSOT 에서 왔음을 바디로 검증한다.
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = GuestServerController.class)
 class GuestServerControllerStartFlowTest {
 

@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
 import com.example.serverprovision.execution.engine.phase.ReadinessGrade;
 import com.example.serverprovision.execution.enums.DiscoveryStage;
@@ -43,6 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * E4-1-a-3 CP4 — 게스트 상세의 "Windows 설치" 카드 렌더(R5). 응답 record 의 상태 다섯(서빙 전 · 설치 중 · 시한 만료 ·
  * 실패 · 결손 대기)이 화면 문구로 옮겨지는지, 창 밖이면 카드가 없는지.
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = GuestServerController.class)
 class GuestServerControllerWindowsInstallViewTest {
 

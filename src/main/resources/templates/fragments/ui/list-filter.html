@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  조회 띠의 검색칸 + 조회 조건 창 (S8-4)
+  ─────────────────────────────────────────────────────────
+  목록 9 화면이 공유하는 껍데기다. 검색칸 옆 Search 버튼이 바로 아래에 조회 조건 창(popover)을 연다.
+  창은 화면이 넘긴 조건 줄들과 하단 [검색] · [닫기] 로 되어 있다. 조건 줄은 화면마다 달라 인자로 받는다.
+
+  search(q, ariaLabel, rows)
+    · q          — 검색어(값 복원)
+    · ariaLabel  — 검색칸의 접근성 이름(검색 대상)
+    · rows       — 조건 줄 묶음(마크업 조각). 줄 하나는 아래 모양을 따른다:
+                     <div class="n-filter-row" data-filter-row>
+                       <span class="n-filter-row-label">활성</span>
+                       <div class="n-filter-row-field n-filter-group" role="group" aria-label="활성"> 칩 · 셀렉트 · 날짜 · 체크박스 </div>
+                     </div>
+                   줄 라벨과 선택된 컨트롤의 글자가 띠의 토큰 문구가 된다(list-query.js ⑩). 서버는 토큰을 따로 그리지 않는다.
+
+  창 안 컨트롤은 바꿔도 곧 제출되지 않는다 — [검색](또는 Enter)이 한 번에 적용하고, 그냥 닫으면 바꾼 값을 버린다.
+  [검색] 은 폼의 첫 submit 버튼이라 창 안 입력칸의 Enter(암묵 제출)도 이 버튼으로 간다.
+  사용: 조회 띠 form#listQuery 안에서
+    <th:block th:replace="~{fragments/ui/list-filter :: search(${query.q}, '검색 대상', ~{::#listFilterRows})}">
+      <div id="listFilterRows"> 조건 줄들 </div>
+    </th:block>
+-->
+<body>
+
+<th:block th:fragment="search(q, ariaLabel, rows)">
+    <div class="n-filter-search">
+        <input class="n-input" type="text" name="q" th:value="${q}" data-list-search autocomplete="off"
+               th:placeholder="#{common.list.search-placeholder}" th:aria-label="${ariaLabel}">
+        <button type="button" class="n-btn n-btn-primary n-btn-sm n-filter-open" popovertarget="listFilterPanel"
+                th:text="#{common.list.search-open}">Search</button>
+    </div>
+
+    <div class="n-filter-tokens" data-filter-tokens th:attr="data-token-clear-label=#{common.list.token-clear}" hidden></div>
+
+    <div id="listFilterPanel" class="n-filter-panel" popover="auto" data-filter-panel role="dialog"
+         th:aria-label="#{common.list.panel-label}">
+        <div class="n-filter-rows" th:replace="${rows}"></div>
+        <div class="n-filter-panel-actions">
+            <button type="submit" class="n-btn n-btn-primary n-btn-sm" th:text="#{action.search}">검색</button>
+            <button type="button" class="n-btn n-btn-secondary n-btn-sm" popovertarget="listFilterPanel"
+                    popovertargetaction="hide" th:text="#{action.close}">닫기</button>
+        </div>
+    </div>
+</th:block>
+
+</body>
+</html>

@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.exception.GuestServerNotDecommissionedException;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.service.GuestServerCommandService;
@@ -34,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 예외 → HTTP 매핑(400 · 409 · 404)이 실제로 실행된다. 성공은 목록으로의 PRG 를 검증한다
  * (보던 상세가 사라지는 액션 — 화면 JS 가 redirect 도착지를 따라간다).
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = GuestServerController.class)
 class GuestServerControllerPurgeFlowTest {
 

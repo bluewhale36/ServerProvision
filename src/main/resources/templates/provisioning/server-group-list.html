@@ -25,7 +25,7 @@
 <body>
 <nav th:replace="~{fragments/layout :: navbar('server-group')}"></nav>
 
-<div class="n-page">
+<div class="n-page n-page-fill">
     <div class="n-page-header">
         <h1 class="n-page-title">서버 그룹</h1>
         <div class="n-header-actions">
@@ -36,18 +36,19 @@
 
     <!-- 조회 띠 — 검색 · 필터 · 정렬. 상태는 URL 에 있다(S8-1). -->
     <form id="listQuery" class="n-filter-bar" method="get" th:action="@{/provisioning/server-group}" data-list-query>
-        <div class="n-filter-search">
-            <input class="n-input" type="text" name="q" th:value="${query.q}" data-list-search autocomplete="off"
-                   th:placeholder="#{common.list.search-placeholder}" aria-label="그룹 이름 검색">
-            <button type="submit" class="n-btn n-btn-secondary n-btn-sm" th:text="#{action.search}">검색</button>
-        </div>
-
-        <div class="n-filter-group" role="group" aria-label="표준 정의서">
-            <span class="n-filter-label">표준 정의서</span>
-            <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="" th:checked="${query.hasStandardDefinition == null}">전체</label>
-            <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="true" th:checked="${query.hasStandardDefinition == true}">지정됨</label>
-            <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="false" th:checked="${query.hasStandardDefinition == false}">미지정</label>
-        </div>
+        <!--/* 조건 줄은 조회 조건 창 안에 선다(S8-4 · fragments/ui/list-filter). 정렬은 띠에 남아 곧 적용된다. */-->
+        <th:block th:replace="~{fragments/ui/list-filter :: search(${query.q}, '그룹 이름 검색', ~{::#listFilterRows})}">
+            <div id="listFilterRows" class="n-filter-rows">
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">표준 정의서</span>
+                    <div class="n-filter-row-field n-filter-group" role="group" aria-label="표준 정의서">
+                        <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="" th:checked="${query.hasStandardDefinition == null}">전체</label>
+                        <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="true" th:checked="${query.hasStandardDefinition == true}">지정됨</label>
+                        <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="false" th:checked="${query.hasStandardDefinition == false}">미지정</label>
+                    </div>
+                </div>
+            </div>
+        </th:block>
 
         <div th:replace="~{fragments/ui/sort-selects :: selects(${sortFields}, ${query}, ${sortDefault})}"></div>
 
@@ -83,36 +84,38 @@
     </div>
 
     <div th:if="${!page.content.isEmpty()}" class="n-card">
-        <table class="n-table n-table-groups">
-            <thead>
-            <tr>
-                <th>이름</th>
-                <th>멤버</th>
-                <th>만든 시각</th>
-            </tr>
-            </thead>
-            <tbody>
-            <!--/* 행 전체는 클릭 대상이 아니다(개정) — 이동은 이름 링크만 한다. */-->
-            <tr th:each="g : ${page.content}" class="n-row-hover" th:data-nav-key="${g.id}">
-                <td>
-                    <a class="n-row-link" th:href="@{/provisioning/server-group/{id}(id=${g.id})}"
-                       th:text="${g.name}">8월 2차</a>
-                    <!--/* 구성 혼재를 자원 화면의 사용 중단과 같은 방식으로 알린다 —
-                           목록에서 열어보기 전에 손볼 것이 있는지 보이게. 문장이 아니라 표식이라
-                           행이 늘어도 목록이 시끄러워지지 않는다. */-->
-                    <span th:if="${g.specDiverged}" class="n-deprecated-dot n-tooltip"
-                          data-tooltip="구성 혼재 — 하드웨어 구성이 다른 서버가 섞여 있습니다"></span>
-                </td>
-                <td th:text="${g.memberCount} + '대'">3대</td>
-                <!--/* 구성 혼재 여부는 여기 두지 않는다 — 판정에는 멤버와 서버 상세가 필요한데(N+1), 그 안내가
-                       필요한 자리는 상세 화면이다(DEC-I). S8-1 부터 판정은 보이는 쪽의 그룹만 대상으로 한다. */-->
-                <td th:text="${#temporals.format(g.createdAt, 'yyyy-MM-dd HH:mm')}">2026-08-11 16:00</td>
-            </tr>
-            </tbody>
-        </table>
-
-        <!--/* 표와 쪽 이동은 붙어 다닌다 — 판 바닥의 한 줄(S8-1). */-->
+        <!--/* 쪽 이동은 표 위(S8-4 · ecount 방식). */-->
         <div th:replace="~{fragments/ui/pagination :: pager(${page}, ${links})}"></div>
+        <!--/* 표만 안쪽에서 스크롤한다(S8-4 · ecount 방식) — 제목 · 조회 띠 · 쪽 이동 줄은 그대로 서고 표 머리는 붙는다. */-->
+        <div class="n-table-scroll">
+            <table class="n-table n-table-groups">
+                <thead>
+                <tr>
+                    <th>이름</th>
+                    <th>멤버</th>
+                    <th>만든 시각</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!--/* 행 전체는 클릭 대상이 아니다(개정) — 이동은 이름 링크만 한다. */-->
+                <tr th:each="g : ${page.content}" class="n-row-hover" th:data-nav-key="${g.id}">
+                    <td>
+                        <a class="n-row-link" th:href="@{/provisioning/server-group/{id}(id=${g.id})}"
+                           th:text="${g.name}">8월 2차</a>
+                        <!--/* 구성 혼재를 자원 화면의 사용 중단과 같은 방식으로 알린다 —
+                               목록에서 열어보기 전에 손볼 것이 있는지 보이게. 문장이 아니라 표식이라
+                               행이 늘어도 목록이 시끄러워지지 않는다. */-->
+                        <span th:if="${g.specDiverged}" class="n-deprecated-dot n-tooltip"
+                              data-tooltip="구성 혼재 — 하드웨어 구성이 다른 서버가 섞여 있습니다"></span>
+                    </td>
+                    <td th:text="${g.memberCount} + '대'">3대</td>
+                    <!--/* 구성 혼재 여부는 여기 두지 않는다 — 판정에는 멤버와 서버 상세가 필요한데(N+1), 그 안내가
+                           필요한 자리는 상세 화면이다(DEC-I). S8-1 부터 판정은 보이는 쪽의 그룹만 대상으로 한다. */-->
+                    <td th:text="${#temporals.format(g.createdAt, 'yyyy-MM-dd HH:mm')}">2026-08-11 16:00</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 

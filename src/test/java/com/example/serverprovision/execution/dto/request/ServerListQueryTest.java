@@ -15,6 +15,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ServerListQueryTest {
 
+    private static final LocalDate TODAY = LocalDate.of(2026, 10, 11);
+
+
     private static ServerListQuery empty() {
         return new ServerListQuery(null, null, null, null, null, null, null, null, null, null);
     }
@@ -28,7 +31,7 @@ class ServerListQueryTest {
         assertThat(q.sort()).isEqualTo(ServerSortField.CREATED_AT);
         assertThat(q.dir()).isEqualTo(Sort.Direction.DESC);
         assertThat(q.includeDecommissioned()).isFalse();
-        assertThat(q.isFiltered()).isFalse();
+        assertThat(q.isFiltered(TODAY)).isFalse();
     }
 
     @Test
@@ -47,7 +50,7 @@ class ServerListQueryTest {
         assertThat(q.q()).isNull();
         assertThat(q.dir()).isEqualTo(Sort.Direction.ASC);
         assertThat(q.isTable()).isTrue();
-        assertThat(q.isFiltered()).isFalse();   // 보기 · 정렬은 조건이 아니다
+        assertThat(q.isFiltered(TODAY)).isFalse();   // 보기 · 정렬은 조건이 아니다
     }
 
     @Test
@@ -56,6 +59,27 @@ class ServerListQueryTest {
         LocalDate a = LocalDate.of(2026, 9, 1), b = LocalDate.of(2026, 9, 30);
         assertThat(new ServerListQuery(null, null, null, null, null, null, b, a, null, null).isRangeReversed()).isTrue();
         assertThat(new ServerListQuery(null, null, null, null, null, null, a, b, null, null).isRangeReversed()).isFalse();
-        assertThat(new ServerListQuery(null, null, null, null, null, null, a, null, null, null).isFiltered()).isTrue();
+        assertThat(new ServerListQuery(null, null, null, null, null, null, a, null, null, null).isFiltered(TODAY)).isTrue();
+    }
+
+    @Test
+    @DisplayName("S8-4 — 비어 있는 기간 끝은 기본 범위(1 년 전 ~ 오늘)로 채워지고, 주어진 끝은 그대로다")
+    void withDefaultRange_fillsOnlyEmptyEnds() {
+        ServerListQuery filled = empty().withDefaultRange(TODAY);
+        assertThat(filled.from()).isEqualTo(LocalDate.of(2025, 10, 11));
+        assertThat(filled.to()).isEqualTo(TODAY);
+
+        LocalDate a = LocalDate.of(2020, 1, 1);
+        ServerListQuery half = new ServerListQuery(null, null, null, null, null, null, a, null, null, null).withDefaultRange(TODAY);
+        assertThat(half.from()).isEqualTo(a);
+        assertThat(half.to()).isEqualTo(TODAY);
+    }
+
+    @Test
+    @DisplayName("S8-4 — 기본 범위와 같은 기간은 조건이 아니고, 한 끝이라도 다르면 조건이다")
+    void defaultRangeIsNotAFilter() {
+        LocalDate defaultFrom = ServerListQuery.defaultFrom(TODAY);
+        assertThat(new ServerListQuery(null, null, null, null, null, null, defaultFrom, TODAY, null, null).isFiltered(TODAY)).isFalse();
+        assertThat(new ServerListQuery(null, null, null, null, null, null, defaultFrom, TODAY.minusDays(1), null, null).isFiltered(TODAY)).isTrue();
     }
 }
