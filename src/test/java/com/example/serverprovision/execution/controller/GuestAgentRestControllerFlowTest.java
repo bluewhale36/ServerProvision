@@ -245,7 +245,7 @@ class GuestAgentRestControllerFlowTest {
                 .andExpect(jsonPath("$.raidApply.volumes[0].level").value("RAID1"))
                 .andExpect(jsonPath("$.raidApply.volumes[0].slots[1]").value("252:1"))
                 .andExpect(jsonPath("$.raidApply.jbod[0]").value("252:4"))
-                .andExpect(jsonPath("$.raidChips").value("1000:0097=MPT_IR 1000:005d=MEGARAID"));
+                .andExpect(jsonPath("$.raidChips").value("1000:0097=MPT_IR 1000:005d=MEGARAID 1000:10e2=MEGARAID"));
     }
 
     @Test

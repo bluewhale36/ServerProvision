@@ -155,6 +155,19 @@ public record GuestServerDetailResponse(
             /** OS 가시 디스크 표시 행(HF15-5 · F-9) — 가상 미디어(USB · 0B)는 걸러지고 RAID 볼륨은 이름으로 표기된다. */
             List<OsVisibleDisk> osVisibleDisks
     ) {
+        /**
+         * PCIe 에 RAID 카드가 보이는데 카드 뒤 인벤토리가 없는 경우의 그 카드들(HF22). 에이전트는 지원 칩 목록에 없는 칩이면
+         * RAID 보고를 생략하고 정상 보고하므로(카드 없는 서버를 실패로 만들지 않기 위함) 디스크 누락이 조용히 지나간다 —
+         * 화면이 이것으로 경고한다. 진단 보고 전(하드웨어 스펙 없음)에는 판정하지 않는다.
+         */
+        public List<HardwareSpec.PcieDevice> uncollectedRaidCards() {
+            if (raidInventory != null || hardwareSpec == null || hardwareSpec.pcieDevices() == null) {
+                return List.of();
+            }
+            return hardwareSpec.pcieDevices().stream()
+                    .filter(d -> HardwareSpec.PcieDevice.KIND_RAID.equals(d.kind()))
+                    .toList();
+        }
     }
 
     /**
