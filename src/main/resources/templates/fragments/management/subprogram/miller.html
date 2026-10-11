@@ -36,6 +36,7 @@
                           th:text="' · ' + ${group.vendorDisplayName}"> · Supermicro</span>
                 </th:block>
                 <span class="n-note" th:if="${group.deleted}">(삭제됨)</span>
+                <span class="n-note" th:if="${query.filtered}" th:text="|(${group.items.size()})|">(1)</span>
             </span>
         </button>
     </div>
@@ -86,6 +87,8 @@
              th:text="${selectId != null or selectKey != null} ? |${kindDisplayName}를 선택하여 상세 보기| : |메인보드 모델을 선택하여 ${kindDisplayName} 보기|">
             자원을 선택하여 상세 사항 보기
         </div>
+        <!-- S8-3 — 주소의 선택이 조건에 걸려 그려지지 않았을 때(subprogram-list.js 가 연다). -->
+        <th:block th:replace="~{fragments/ui/resource-filter :: selectionFiltered(${query}, ${links.without('q','enabled','deprecated')})}"></th:block>
 
         <th:block th:each="group : ${groups}">
             <div th:each="sp : ${group.items}"

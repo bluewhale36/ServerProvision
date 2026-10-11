@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.board.service.metadata;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
@@ -120,7 +121,7 @@ class BoardModelMetadataServiceTest {
         given(bmcRepository.findAllByBoardModel_IdIn(anyList())).willReturn(List.of());
         given(subprogramRepository.findAllByBoardModel_IdIn(anyList())).willReturn(List.of());
 
-        List<VendorGroupResponse> groups = boardModelService.findAllGrouped(false);
+        List<VendorGroupResponse> groups = boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false));
 
         assertThat(groups).hasSize(2);
         // ASUS 그룹의 보드 1건 — BIOS 1, BMC 0
@@ -328,5 +329,24 @@ class BoardModelMetadataServiceTest {
                 Instant.now(),
                 Instant.now().plusSeconds(300)
         );
+    }
+
+    // ==== S8-3 — 조회 조건 =============================================
+
+    @Test
+    @DisplayName("findAllGrouped(S8-3) : 조건은 보드에 걸고 맞는 보드가 없는 제조사는 묶음이 생기지 않는다 · 설명도 검색 대상")
+    void findAllGrouped_filtersBeforeGrouping() {
+        BoardModel asus = activeBoard(1L, Vendor.ASUS, "P13R-E");
+        BoardModel giga = BoardModel.builder().id(2L).vendor(Vendor.GIGABYTE).modelName("MS03")
+                .description("rack 1U").isEnabled(true).isDeleted(false).build();
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).willReturn(List.of(asus, giga));
+        given(biosRepository.findAllByBoardModel_IdIn(anyList())).willReturn(List.of());
+        given(bmcRepository.findAllByBoardModel_IdIn(anyList())).willReturn(List.of());
+        given(subprogramRepository.findAllByBoardModel_IdIn(anyList())).willReturn(List.of());
+
+        List<VendorGroupResponse> groups = boardModelService.findAllGrouped(new ResourceListQuery("RACK", null, null, false));
+
+        assertThat(groups).extracting(VendorGroupResponse::vendor).containsExactly(Vendor.GIGABYTE);
+        assertThat(groups.get(0).items()).extracting(r -> r.id()).containsExactly(2L);
     }
 }

@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.os.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
+import com.example.serverprovision.global.web.list.ListLinks;
 import com.example.serverprovision.global.exception.ApiErrorResponse;
 import com.example.serverprovision.management.os.dto.request.OSMetadataCreateRequest;
 import com.example.serverprovision.management.os.dto.request.OSMetadataUpdateRequest;
@@ -65,14 +67,17 @@ public class OSMetadataController {
 
 	@GetMapping
 	public String list(
-			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
+			@ModelAttribute("query") ResourceListQuery query,
+			ListLinks links,
 			@RequestParam(name = "selectId", required = false) Long selectId,
 			// S5-4 — C1 (OSName) 선택 보존. '삭제된 항목 포함' 토글이나 새로고침 시 동일 그룹 active.
 			@RequestParam(name = "selectKey", required = false) String selectKey,
 			Model model
 	) {
-		model.addAttribute("osGroups", osMetadataService.findAllGrouped(includeDeleted));
-		model.addAttribute("includeDeleted", includeDeleted);
+		// S8-3 — 조회 조건(검색 · 활성 · 사용 중단 · 삭제 포함). 모델의 includeDeleted 이름은 기존 조각이 읽으므로 남긴다.
+		model.addAttribute("osGroups", osMetadataService.findAllGrouped(query));
+		model.addAttribute("includeDeleted", query.includeDeleted());
+		model.addAttribute("links", links);   // S8-3 — 조건만 푸는 초기화 주소
 		model.addAttribute("selectId", selectId);
 		model.addAttribute("selectKey", selectKey);
 		return "management/os/list";

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.board.service.metadata;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
@@ -68,10 +69,18 @@ public class BoardModelMetadataService {
 		return toResponse(board, biosCount, bmcCount, subprogramCount);
 	}
 
-	public List<VendorGroupResponse> findAllGrouped(boolean includeDeleted) {
-		List<BoardModel> boards = includeDeleted
+	/**
+	 * 목록 묶음(S8-3 — 조회 조건 반영). 조건은 보드 모델(C2 항목)에 걸고 묶기 전에 거른다 — 맞는 모델이 없는 제조사는
+	 * 묶음이 생기지 않는다. 검색 대상 = 제조사 표시명 · 모델명 · 설명. 목록 밖 호출부(보드 고르기 폼)는
+	 * {@link ResourceListQuery#unfiltered(boolean)} 로 부른다.
+	 */
+	public List<VendorGroupResponse> findAllGrouped(ResourceListQuery query) {
+		boolean includeDeleted = query.includeDeleted();
+		List<BoardModel> boards = (includeDeleted
 				? boardModelRepository.findAllByOrderByVendorAscCreatedAtDesc()
-				: boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc();
+				: boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).stream()
+				.filter(b -> query.matches(b, b.getVendor().getDisplayName(), b.getModelName(), b.getDescription()))
+				.toList();
 
 		List<Long> boardIds = boards.stream().map(BoardModel::getId).toList();
 		Map<Long, Integer> biosCounts = biosRepository.findAllByBoardModel_IdIn(boardIds).stream()

@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.bios.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
+import com.example.serverprovision.global.web.list.ListLinks;
 import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
 import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosResponse;
@@ -39,15 +41,17 @@ public class BiosMetadataController {
 
 	@GetMapping
 	public String list(
-			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
+			@ModelAttribute("query") ResourceListQuery query,
+			ListLinks links,
 			@RequestParam(name = "selectId", required = false) Long selectId,
 			@RequestParam(name = "selectBoardId", required = false) Long selectBoardId,
 			@RequestParam(name = "selectedBoardId", required = false) Long selectedBoardId,
 			Model model
 	) {
 		Long initialBoardId = selectBoardId != null ? selectBoardId : selectedBoardId;
-		model.addAttribute("boards", biosService.findAllGrouped(includeDeleted));
-		model.addAttribute("includeDeleted", includeDeleted);
+		model.addAttribute("boards", biosService.findAllGrouped(query));   // S8-3 — 조회 조건
+		model.addAttribute("includeDeleted", query.includeDeleted());
+		model.addAttribute("links", links);   // S8-3 — 조건만 푸는 초기화 주소
 		model.addAttribute("selectId", selectId);
 		model.addAttribute("selectBoardId", initialBoardId);
 		return "management/bios/list";
@@ -88,7 +92,7 @@ public class BiosMetadataController {
 		model.addAttribute("biosForm", new BiosCreateRequest("", "", "", "", false));
 		model.addAttribute("boardId", null);
 		model.addAttribute("contextLabel", null);
-		model.addAttribute("vendorGroups", boardModelService.findAllGrouped(false));
+		model.addAttribute("vendorGroups", boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false)));
 		return "management/bios/bios-new";
 	}
 

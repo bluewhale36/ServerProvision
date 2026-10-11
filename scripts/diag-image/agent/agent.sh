@@ -83,8 +83,7 @@ collect_memory_json() { # [{"slot":..,"manufacturer":..,"size":..},...] — 장�
 collect_disks_json() { # [{"device":..,"size":..,"rota":..,"tran":..,"wwn":..},...] — lsblk -d(디스크만) · -P(키="값")
     # -P 로 읽는다 — TRAN · WWN 처럼 비는 열이 있으면 자리 기반 $N 파싱이 어긋난다(HF15-5).
     # WWN 은 OS 가시 디스크와 RAID 볼륨(카드 CLI 의 WWN)을 잇는 키 — 설치 대상 디스크 번호의 근거(실기 3호 F-6).
-    # 진단 리눅스는 udev 없이 mdev 라 lsblk 의 WWN 열이 빈다(실기 4호 10:16 · SAS3008 IR 볼륨 2개 모두 null) —
-    # 커널이 sysfs 에 두는 SCSI 식별자(/sys/block/<dev>/device/wwid · "naa.<hex>")로 채운다(HF15-5-1).
+    # 진단 리눅스는 udev 없이 mdev 라 lsblk 의 WWN 열이 빈다(실기 4호 10:16 · SAS3008 IR 볼륨 2개 모두 null) — 커널이 sysfs 에 두는 SCSI 식별자(/sys/block/<dev>/device/wwid · "naa.<hex>")로 채운다(HF15-5-1).
     sep=""
     printf '['
     lsblk -dnP -o NAME,SIZE,ROTA,TRAN,WWN 2>/dev/null | while IFS= read -r line; do

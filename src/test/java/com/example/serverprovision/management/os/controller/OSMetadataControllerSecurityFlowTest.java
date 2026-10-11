@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.security.exception.PathOutsideAllowedRootsException;
 import com.example.serverprovision.global.security.exception.UploadLimitExceededException;
 import com.example.serverprovision.global.security.exception.ZipBombInspectionFailedException;
@@ -141,15 +142,17 @@ class OSMetadataControllerSecurityFlowTest {
                 .andExpect(jsonPath("$.message").exists());
     }
 
-    // S5-4 — '삭제된 항목 포함' 체크박스의 마커 검증 + inline onchange 부재 회귀.
+    // S8-3 — '삭제된 항목 포함' 은 조회 띠 폼 필드다(토글 스크립트 폐기) · inline onchange 부재 회귀.
     @Test
-    @DisplayName("GET /management/os — '삭제된 항목 포함' 체크박스에 data-include-deleted-toggle 마커 + inline onchange 부재")
-    void renders_includeDeletedToggle_with_dataMarker() throws Exception {
-        given(osMetadataService.findAllGrouped(false)).willReturn(List.of());
+    @DisplayName("GET /management/os — '삭제된 항목 포함' 이 조회 띠 폼 필드 + 토글 스크립트 · inline onchange 부재")
+    void renders_includeDeleted_asListQueryField() throws Exception {
+        given(osMetadataService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/os"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-include-deleted-toggle")))
+                .andExpect(content().string(containsString("name=\"includeDeleted\"")))
+                .andExpect(content().string(containsString("data-list-query")))
+                .andExpect(content().string(not(containsString("include-deleted-toggle"))))
                 .andExpect(content().string(not(containsString("onchange=\"window.location"))));
     }
 
@@ -167,7 +170,7 @@ class OSMetadataControllerSecurityFlowTest {
         var osGroup = com.example.serverprovision.management.os.dto.response.OSGroupResponse.of(
                 com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX,
                 java.util.List.of(os));
-        given(osMetadataService.findAllGrouped(false)).willReturn(java.util.List.of(osGroup));
+        given(osMetadataService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(java.util.List.of(osGroup));
 
         mvc.perform(get("/management/os"))
                 .andExpect(status().isOk())
@@ -185,7 +188,7 @@ class OSMetadataControllerSecurityFlowTest {
                 com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX,
                 java.util.List.of()
         );
-        given(osMetadataService.findAllGrouped(false)).willReturn(java.util.List.of(osGroup));
+        given(osMetadataService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(java.util.List.of(osGroup));
 
         mvc.perform(get("/management/os"))
                 .andExpect(status().isOk())

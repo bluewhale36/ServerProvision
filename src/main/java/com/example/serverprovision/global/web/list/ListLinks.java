@@ -59,6 +59,21 @@ public record ListLinks(String path, Map<String, List<String>> params) {
         return builder.encode().toUriString();
     }
 
+    /**
+     * 이름 붙은 파라미터만 버린 링크(S8-3) — 자원 관리 목록의 초기화는 조건(검색 · 활성 · 사용 중단)만 풀고
+     * Miller 선택과 삭제 포함 보기는 남긴다. 선택을 풀면 사용자가 보던 항목을 다시 찾아야 한다.
+     */
+    public String without(String... names) {
+        List<String> dropped = List.of(names);
+        UriComponentsBuilder builder = UriComponentsBuilder.fromPath(path);
+        params.forEach((n, values) -> {
+            if (!dropped.contains(n)) {
+                builder.queryParam(n, values.toArray());
+            }
+        });
+        return builder.encode().toUriString();
+    }
+
     /** 검색 · 필터 · 정렬 · 쪽을 모두 버린 기본 목록. */
     public String reset() {
         return path;

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.raidcard.dto.response.RaidCardObservationSummaryResponse;
 import com.example.serverprovision.management.raidcard.dto.response.RaidCardResponse;
@@ -66,7 +67,7 @@ class RaidCardObservationControllerTest {
 	}
 
 	private void stubList(boolean includeDeleted, RaidCardResponse card, RaidCardObservationSummaryResponse summary) {
-		given(raidCardService.findAllGrouped(includeDeleted))
+		given(raidCardService.findAllGrouped(ResourceListQuery.unfiltered(includeDeleted)))
 				.willReturn(List.of(RaidCardVendorGroupResponse.of(RaidCardVendor.GIGABYTE, List.of(card))));
 		given(observationService.summariesByCard(any())).willReturn(summary == null ? Map.of() : Map.of(3L, summary));
 	}

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.board.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.board.dto.response.BoardModelResponse;
 import com.example.serverprovision.management.board.dto.response.VendorGroupResponse;
@@ -64,7 +65,7 @@ class BoardModelMetadataControllerTest {
     @Test
     @DisplayName("GET /management/board — 목록 200 + list 뷰")
     void list_returns200() throws Exception {
-        given(boardModelService.findAllGrouped(false)).willReturn(List.of(
+        given(boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of(
                 VendorGroupResponse.of(Vendor.ASUS, List.of(activeBoard()))));
 
         mvc.perform(get("/management/board"))
@@ -73,15 +74,17 @@ class BoardModelMetadataControllerTest {
                 .andExpect(model().attributeExists("boardGroups"));
     }
 
-    // S5-4 (흡수) — '삭제된 항목 포함' 체크박스의 마커 검증 + inline onchange 부재 회귀.
+    // S8-3 — '삭제된 항목 포함' 은 조회 띠 폼 필드다(토글 스크립트 폐기) · inline onchange 부재 회귀.
     @Test
-    @DisplayName("GET /management/board — '삭제된 항목 포함' 체크박스에 data-include-deleted-toggle 마커 + inline onchange 부재")
-    void renders_includeDeletedToggle_with_dataMarker() throws Exception {
-        given(boardModelService.findAllGrouped(false)).willReturn(List.of());
+    @DisplayName("GET /management/board — '삭제된 항목 포함' 이 조회 띠 폼 필드 + 토글 스크립트 · inline onchange 부재")
+    void renders_includeDeleted_asListQueryField() throws Exception {
+        given(boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/board"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-include-deleted-toggle")))
+                .andExpect(content().string(containsString("name=\"includeDeleted\"")))
+                .andExpect(content().string(containsString("data-list-query")))
+                .andExpect(content().string(not(containsString("include-deleted-toggle"))))
                 .andExpect(content().string(not(containsString("onchange=\"window.location"))));
     }
 
@@ -92,7 +95,7 @@ class BoardModelMetadataControllerTest {
         BoardModelResponse board = new BoardModelResponse(
                 1L, Vendor.GIGABYTE, "MS03-CE0", "",
                 2, 1, 3, true, false, false, LifecycleStage.ACTIVE);
-        given(boardModelService.findAllGrouped(false)).willReturn(List.of(
+        given(boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of(
                 VendorGroupResponse.of(Vendor.GIGABYTE, List.of(board))));
 
         mvc.perform(get("/management/board"))

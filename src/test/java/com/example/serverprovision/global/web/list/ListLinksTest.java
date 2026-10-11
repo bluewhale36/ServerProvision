@@ -61,4 +61,14 @@ class ListLinksTest {
         assertThat(linksOf("pending=open&phase=DIAGNOSE_LINUX").toggle("pending", "open"))
                 .isEqualTo("/provisioning/setting?phase=DIAGNOSE_LINUX");
     }
+
+    @Test
+    @DisplayName("without(names) — 이름 붙은 조건만 빼고 선택 · 삭제 포함은 남긴다(S8-3 초기화)")
+    void without_dropsNamedOnly() {
+        ListLinks links = linksOf("q=ms&enabled=false&includeDeleted=true&selectKey=GIGABYTE&selectId=5");
+
+        assertThat(links.without("q", "enabled", "deprecated"))
+                .isEqualTo("/provisioning/setting?includeDeleted=true&selectKey=GIGABYTE&selectId=5");
+        assertThat(linksOf("q=ms").without("q", "enabled", "deprecated")).isEqualTo("/provisioning/setting");
+    }
 }

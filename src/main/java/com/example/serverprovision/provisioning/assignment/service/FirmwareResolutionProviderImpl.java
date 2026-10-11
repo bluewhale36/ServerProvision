@@ -4,6 +4,7 @@ import com.example.serverprovision.execution.engine.firmware.FirmwareResolution;
 import com.example.serverprovision.execution.engine.firmware.FirmwareResolutionProvider;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
+import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.BasicUpdateRequest;
 import lombok.RequiredArgsConstructor;
@@ -45,8 +46,7 @@ public class FirmwareResolutionProviderImpl implements FirmwareResolutionProvide
                 .map(detail -> firmwareResolver.resolve(firmware.get(), detail.getBoardModel().getId()));
     }
 
-    private static Optional<BasicUpdateRequest> firmwareStepOf(
-            com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot snapshot) {
+    private static Optional<BasicUpdateRequest> firmwareStepOf(SettingAssignmentSnapshot snapshot) {
         return snapshot.getProcesses().stream()
                 .map(AssignedProcessSnapshot::getPayload)
                 .map(payload -> payload.request())

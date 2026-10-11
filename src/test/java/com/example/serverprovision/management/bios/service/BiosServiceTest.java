@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bios.service;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
@@ -73,7 +74,7 @@ class BiosServiceTest {
                 .willReturn(List.of(b));
         given(biosRepository.findAllByBoardModel_IdIn(List.of(10L))).willReturn(List.of(bios));
 
-        var groups = biosService.findAllGrouped(false);
+        var groups = biosService.findAllGrouped(ResourceListQuery.unfiltered(false));
 
         assertThat(groups).hasSize(1);
         assertThat(groups.get(0).biosList()).hasSize(1);
@@ -90,7 +91,7 @@ class BiosServiceTest {
                 .willReturn(List.of(b));
         given(biosRepository.findAllByBoardModel_IdIn(List.of(10L))).willReturn(List.of(bios));
 
-        var groups = biosService.findAllGrouped(false);
+        var groups = biosService.findAllGrouped(ResourceListQuery.unfiltered(false));
 
         assertThat(groups.get(0).biosList().get(0).integrityStatus()).isEqualTo(IntegrityStatus.TAMPERED);
     }
@@ -146,7 +147,7 @@ class BiosServiceTest {
         BoardBIOS first = rankedBios(2L, board, 1, true, false);
         given(biosRepository.findAllByBoardModel_IdIn(List.of(10L))).willReturn(List.of(second, first));
 
-        var groups = biosService.findAllGrouped(false);
+        var groups = biosService.findAllGrouped(ResourceListQuery.unfiltered(false));
 
         assertThat(groups.get(0).biosList()).extracting(r -> r.id()).containsExactly(2L, 1L);
         assertThat(groups.get(0).latestBiosId()).isEqualTo(2L);   // 순위 1위 enabled = 최신
@@ -162,7 +163,7 @@ class BiosServiceTest {
         BoardBIOS enabledSecond = rankedBios(2L, board, 2, true, false);
         given(biosRepository.findAllByBoardModel_IdIn(List.of(10L))).willReturn(List.of(disabledTop, enabledSecond));
 
-        var groups = biosService.findAllGrouped(false);
+        var groups = biosService.findAllGrouped(ResourceListQuery.unfiltered(false));
 
         assertThat(groups.get(0).latestBiosId()).isEqualTo(2L);
     }
@@ -202,5 +203,53 @@ class BiosServiceTest {
                 .isInstanceOf(BiosNotFoundException.class);   // 타 보드 · 미존재 — forging 관례
         assertThat(a.getVersionRank()).isEqualTo(1);          // 거절 시 순위 불변
         assertThat(b.getVersionRank()).isEqualTo(2);
+    }
+
+    // ==== S8-3 — 조회 조건 =============================================
+
+    @Test
+    @DisplayName("findAllGrouped(S8-3) : '최신' 은 거르기 전 목록으로 — 검색으로 1 위가 가려져도 최신이 옮겨 가지 않는다(F-1)")
+    void findAllGrouped_latestComputedBeforeFilter() {
+        BoardModel board = activeBoard();
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).willReturn(List.of(board));
+        BoardBIOS top = rankedBios(1L, board, 1, true, false);      // version V1 — 최신
+        BoardBIOS second = rankedBios(2L, board, 2, true, false);   // version V2
+        given(biosRepository.findAllByBoardModel_IdIn(List.of(10L))).willReturn(List.of(top, second));
+
+        var groups = biosService.findAllGrouped(new ResourceListQuery("V2", null, null, false));
+
+        assertThat(groups.get(0).biosList()).extracting(r -> r.id()).containsExactly(2L);
+        assertThat(groups.get(0).latestBiosId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("findAllGrouped(S8-3) : 항목 0 개 보드는 평소에는 남고(첫 등록 진입점) 조건 중에는 빠진다(F-3) · 순위 순서 유지")
+    void findAllGrouped_emptyBoardHiddenOnlyWhenFiltered() {
+        BoardModel withBios = activeBoard();
+        BoardModel empty = BoardModel.builder().id(20L).vendor(Vendor.ASUS).modelName("P13R")
+                .isEnabled(true).isDeleted(false).build();
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).willReturn(List.of(withBios, empty));
+        BoardBIOS third = rankedBios(3L, withBios, 3, false, false);
+        BoardBIOS first = rankedBios(1L, withBios, 1, false, false);
+        given(biosRepository.findAllByBoardModel_IdIn(List.of(10L, 20L))).willReturn(List.of(third, first));
+
+        assertThat(biosService.findAllGrouped(ResourceListQuery.unfiltered(false))).hasSize(2);
+
+        var filtered = biosService.findAllGrouped(new ResourceListQuery(null, false, null, false));
+        assertThat(filtered).extracting(g -> g.id()).containsExactly(10L);
+        assertThat(filtered.get(0).biosList()).extracting(r -> r.id()).containsExactly(1L, 3L);
+    }
+
+    @Test
+    @DisplayName("findAllGrouped(S8-3) : 검색 대상에 보드 모델명이 들어간다 — 모델명으로 찾으면 그 보드의 BIOS 가 전부 보인다")
+    void findAllGrouped_searchByBoardModelName() {
+        BoardModel board = activeBoard();   // MS03-CE0
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).willReturn(List.of(board));
+        given(biosRepository.findAllByBoardModel_IdIn(List.of(10L)))
+                .willReturn(List.of(rankedBios(1L, board, 1, true, false), rankedBios(2L, board, 2, true, false)));
+
+        var groups = biosService.findAllGrouped(new ResourceListQuery("ms03", null, null, false));
+
+        assertThat(groups.get(0).biosList()).hasSize(2);
     }
 }

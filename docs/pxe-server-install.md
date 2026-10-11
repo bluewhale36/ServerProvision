@@ -170,6 +170,18 @@ sudo storcli64 /c0/v0 show all | grep -i "write\|read\|strip"
 - NIC(설치 당시): `eno1` 10.1.1.17/24(사내망) · `eno3` 192.168.1.15/24(개발 접속 · 실기망) · `eno2` `eno4` `ens3f0` `ens3f1` 미사용. tftp.socket · dnsmasq 는 설치만 하고 켜지 않았다 — 첫 접촉 통로 결정 뒤. **2026-09-18 에 역할을 §7 대로 다시 정했다**(eno1 web · eno2 admin · eno3 + eno4 bond0 pxe). 주소는 §7 표에 채운다.
 - 방화벽 public 존에 기본 `cockpit` 서비스가 열려 있다(설치 기본값). 운영 개시 전에 닫을지 결정.
 
+## 6-2. 실측 기록 (spv-01 재설치 · 2026-09-18)
+
+- 재설치 뒤 인프라만 구성했다(앱 배포는 DPL-2 로). 순서 = 자원 볼륨 두 개를 §5 의 정렬 옵션(stride 64 · stripe-width 128 · `-m 1`)으로 재생성하고 fstab 에 `noexec,nosuid,nodev` → dnf 갱신 → JDK 21(기본 1.8 제거) → `provisioning` 계정 · `spvadmin` 그룹 → §6 디렉토리 · ACL → `/srv/pxe` 배치 → env(비밀값은 서버에서 생성 · `/root/spv-secrets.txt` 0600 에만) → systemd 유닛 + drop-in 2(등록만 · disabled) → dnsmasq 재기동 sudoers → firewalld zone web · admin · pxe · 기본 zone drop → MariaDB 10.5(익명 · test 제거 · `server_provision` · `spv_app` DML) → nginx TLS(SAN = web · admin 주소) → Samba(deploy · `win2025` 읽기 · `spvout` 쓰기 · `interfaces = lo bond0` · `bind interfaces only`) → tftp(`ipxe.efi`) → dnsmasq enable(조각은 앱이 렌더).
+- 논리 볼륨 이름은 이번에도 설치 관리자 자동 이름(`srv_pxe` · `var_lib_serverprovision`)이라 §5 의 명령을 그 이름으로 바꿔 썼다. 표준 이름(§4 표)을 쓰려면 설치 관리자에서 Name 을 직접 적어야 한다.
+- RAID: D2616(2108) FW 2.130.353 · RAID10 Optl 1.089 TB · Strip 256 KB · Read Ahead · Write Through(BBU Failure) · Disk Cache Disabled · SAS HDD EG0600FBVFP × 4 Onln. `storcli64` 는 맥 `~/raid-tools/bin/storcli64` 를 `/usr/sbin` 에 올렸다.
+- NIC 는 §7 표대로 커넥션이 있으나 배선 전이다. eno1(web · 192.168.110.23) · eno3 · eno4(bond0 슬레이브) 는 링크 없음. 임시로 eno2(admin · 10.1.1.19)와 ens3f1(DHCP · 인터넷 통로 · admin zone)이 같은 10.1.1.0/24 에 있어 ARP 뒤섞임이 실제로 났고(SSH 가 ens3f1 로 들어감), `arp_ignore=1 · arp_announce=2` 를 `/etc/sysctl.d/90-spv-multihome.conf` 로 두어 해소했다. pxe(bond0) 주소는 스테이징 VM(10.1.1.10)과 겹쳐 10.1.1.20 으로 바꿨다. admin 대역은 추후 변경 예정.
+- Samba `spvout` 은 `deploy:spvadmin` 2775 여야 게스트가 쓴다(`provisioning` 소유면 `NT_STATUS_ACCESS_DENIED`). `setsebool` 여러 개는 `이름=값` 꼴로 준다(`setsebool -P a=1 b=1`). 공백 구분 인자는 usage 오류로 끝나고 공유가 `NT_STATUS_BAD_NETWORK_NAME` 이 된다.
+- env 에 비워 둔 값(사용자 기입): `BMC_USERNAME` · `BMC_PASSWORD` · `PROVISION_BIOS_MATERIALS_DIR` · `WINDOWS_PRODUCT_KEY_SERVERSTANDARD`. Windows 설치 소스(`/srv/pxe/win2025/sources` · `setup.exe` · `wimboot`)와 BIOS 자료 디렉토리는 아직 비어 있다.
+- 같은 날 DPL-2 로 배포까지 했다. env 의 BMC 계정 · 제품 키 · `SERVER_ADDRESS` 는 스테이징에서 값을 보지 않고 서버 간 반입했고, BIOS 레지스트리 JSON 6 종은 `/var/lib/serverprovision/internal/bios-materials`(env 의 `PROVISION_BIOS_MATERIALS_DIR`)로 복사했다. **MariaDB 는 10.11 스트림이어야 한다** — 기본 10.5 에 스테이징 덤프를 넣으니 UUID 컬럼(`uuid` 자료형 · 10.7 이상)에서 `ERROR 4161` 로 멈춰 스트림을 갈아탔다(런북 §5). 스키마 42 테이블 · jar(dev cef5f02) · 유닛 enable → 기동 15 초 · nginx 443 로그인 200.
+- Tailscale 로 관리 접속을 세웠다(§7-5 · 100.77.64.113 · Mac 별칭 `spv-01`). 인터넷은 임시로 eno2 에 기본 게이트웨이 10.1.1.1 을 두어 잡았다. web 대역(192.168.110.0/24)의 게이트웨이 · DNS 는 미확인(.1 · .254 무응답 · 유일 응답 .5 는 게이트웨이 아님) — 값이 나오면 web-access 에 넣고 eno2 의 기본 경로를 걷는다.
+- 남은 것 = `/signup` 최초 관리자 등록, 앱의 proxy DHCP 화면에서 `bond0` 조각 렌더와 dnsmasq 기동, 자원(ISO · 펌웨어 · 드라이버 · RAID 카드 · Windows 소스 · wimboot) 등록, 배선 뒤 §7-4 확인.
+
 ## 7. NIC 역할 · 고정 IP · 방화벽 zone (2026-09-18 확정)
 
 온보드 NIC 4 개를 역할별로 나눈다. IP 는 배선과 대역이 정해질 때 아래 표의 자리에 적어 넣고, 명령의 `<…>` 를 그 값으로 바꾼다.
@@ -177,7 +189,7 @@ sudo storcli64 /c0/v0 show all | grep -i "write\|read\|strip"
 | NIC | 커넥션 이름 | 역할 | zone | 주소 | 게이트웨이 |
 |---|---|---|---|---|---|
 | `eno1` | `web` | 사내망 · 웹 UI(nginx 443) | `web` | `<web IP>/<prefix>` (예 `192.168.x.y/24`) | `<web gateway>` — **기본 게이트웨이는 이 NIC 에만** |
-| `eno2` | `admin` | SSH · 운영 접속 | `admin` | `<admin IP>/<prefix>` | 없음 |
+| `tailscale0` (+ `eno2` 임시) | `admin` | SSH · 운영 접속 — Tailscale 오버레이(§7-5) | `admin` | `100.77.64.113/32` (tailnet 이 배정) | 없음 |
 | `eno3` + `eno4` | `pxe` (`bond0`) | 프로비저닝 세그먼트 — proxyDHCP · TFTP · HTTP 8080 · SMB · BMC Redfish 발신 | `pxe` | `<pxe IP>/24` (예 `10.1.1.10/24`) | 없음 |
 | `ens3f0` `ens3f1` | | 미사용(예비) | | | |
 
@@ -248,6 +260,35 @@ sudo firewall-cmd --get-active-zones                                     # web=e
 - sshd — 기본값(모든 주소)으로 두고 admin zone 이 22 를 가른다. `ListenAddress <admin IP>` 를 쓰려면 NIC 보다 sshd 가 먼저 뜰 때 bind 에 실패해 sshd 전체가 안 뜨는 문제가 있으므로 `sshd.service` 에 `After=network-online.target` 을 함께 둔다.
 - 앱 환경 파일(런북 §9) — `PXE_SERVER_BASE_URL=http://<pxe IP>:8080` · `PXE_GUEST_ALLOWED_CIDRS=<pxe 대역>` · Windows 공유 UNC 는 `\\<pxe IP>\win2025`. 게스트 쪽은 평문 8080 이어야 한다(iPXE · wimboot · 완료 보고가 base URL 로 만들어지고 게스트는 자체 서명 CA 를 신뢰할 수 없다).
 - nginx 인증서 — SAN 에 `<web IP>` 를 넣고, admin 경로로도 열 거면 `<admin IP>` 를 더한다. web IP 가 바뀌면 재발급한다.
+
+### 7-5. 관리 접속은 Tailscale 오버레이로 (2026-09-18 확정)
+
+어디서든 SSH 를 쓰려면 관리 NIC 를 공인망에 두어야 하는데, 그러면 22 번이 인터넷에 노출된다. 대신 서버와 운영자 기기를 Tailscale tailnet 에 넣는다. 서버는 인바운드 포트를 하나도 열지 않고(아웃바운드만), 오버레이 사설 주소로만 SSH 를 받는다. admin zone 은 `tailscale0` 에 붙는다.
+
+```bash
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://pkgs.tailscale.com/stable/rhel/9/tailscale.repo
+sudo dnf -y install tailscale
+sudo systemctl enable --now tailscaled
+sudo tailscale up --hostname spv-01                 # 출력 URL 을 브라우저에서 승인
+sudo tailscale set --accept-dns=false               # MagicDNS 가 resolv.conf 를 덮지 않게(NM 의 DNS 유지)
+sudo firewall-cmd --permanent --zone=admin --add-interface=tailscale0 && sudo firewall-cmd --reload
+tailscale ip -4                                     # 100.x.y.z
+```
+
+전제는 **서버의 아웃바운드 인터넷**이다. 기본 게이트웨이가 없으면 제어 서버에 닿지 못해 `offline` 이 되고 SSH 가 timeout 난다(2026-09-18 실측). 인터넷 통로는 web NIC 의 기본 게이트웨이가 맡아야 하고, 그 값이 정해지기 전에는 임시 통로(ens3f1 DHCP 또는 eno2 에 10.1.1.1)를 유지한다. 그 임시 통로를 걷는 순간 Tailscale 도 끊기므로 순서를 지킨다.
+
+운영자 Mac 에는 Tailscale 앱을 설치해 같은 계정으로 로그인하고, `~/.ssh/config` 에 별칭을 둔다. 주소가 바뀌면 이 파일만 고친다.
+
+```
+Host spv-01
+    HostName 100.77.64.113
+    User spvadmin
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+```
+
+처음 붙을 때 호스트 키가 기존 경로(10.1.1.19)의 것과 같은지 `ssh-keyscan` 으로 대조한다. `authorized_keys` 의 키 줄에 `from="100.64.0.0/10"` 을 붙이면 tailnet 밖에서는 그 키를 못 쓴다.
 
 ### 7-4. 확인
 

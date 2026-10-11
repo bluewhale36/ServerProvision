@@ -20,6 +20,14 @@
     const versionPanels = miller.querySelectorAll('.n-miller-version-panel');
     const detailPanels = miller.querySelectorAll('.n-miller-detail-panel');
     const emptyState = miller.querySelector('#millerEmpty');
+    // S8-3 — 주소의 선택이 조건에 걸려 그려지지 않았을 때의 안내(조건이 걸린 화면에만 있다).
+    const selectionFiltered = miller.querySelector('[data-selection-filtered]');
+
+    function showSelectionFiltered(on) {
+        if (!selectionFiltered) return;
+        selectionFiltered.hidden = !on;
+        if (on && emptyState) emptyState.classList.add('hidden');
+    }
 
     // S5-5 — C3 안내 텍스트 2 상태. 도메인별로 data-empty-before / data-empty-after 가
     // miller-empty element 에 박혀 있어 EMPTY_VERSION_MSG 단일 상수가 더 이상 적합하지 않다.
@@ -77,6 +85,7 @@
     // ---- Miller 상호작용 ---------------------------------------
 
     function selectOsName(osKey, opts) {
+        showSelectionFiltered(false);
         nameCol.querySelectorAll('.n-miller-item').forEach(btn => {
             btn.classList.toggle('n-miller-selected', btn.dataset.osKey === osKey);
         });
@@ -105,6 +114,7 @@
     }
 
     function selectOsId(osId, opts) {
+        showSelectionFiltered(false);
         versionCol.querySelectorAll('.n-miller-item').forEach(btn => {
             btn.classList.toggle('n-miller-selected', btn.dataset.osId === osId);
         });
@@ -144,6 +154,7 @@
     const initialBoardId = miller.dataset.initialSelectBoardId;
     const initialKey = miller.dataset.initialSelectKey;
     // 초기 복원은 URL 갱신을 일으키지 않는다 — 이미 URL 이 진실.
+    let restored = false;
     if (initialId) {
         const versionBtn = versionCol.querySelector(
             '.n-miller-item[data-os-id="' + initialId + '"]'
@@ -153,23 +164,31 @@
             if (panel) {
                 selectOsName(panel.dataset.osKey, {skipUrl: true});
                 selectOsId(initialId, {skipUrl: true});
+                restored = true;
             }
         }
-    } else if (initialBoardId) {
+    }
+    // S8-3 — 항목을 찾지 못하면(조건에 걸림) 묶음 선택으로 넘어간다 — 같은 묶음의 맞는 항목은 보이게.
+    if (!restored && initialBoardId) {
         const boardBtn = nameCol.querySelector(
             '.n-miller-item[data-os-key="' + initialBoardId + '"]'
         );
         if (boardBtn) {
             selectOsName(initialBoardId, {skipUrl: true});
+            restored = true;
         }
-    } else if (initialKey) {
+    } else if (!restored && initialKey) {
         // S5-4 — C1 만 선택된 상태 (OS / Board 페이지). C2 는 비어있음.
         const c1Btn = nameCol.querySelector(
             '.n-miller-item[data-os-key="' + initialKey + '"]'
         );
         if (c1Btn) {
             selectOsName(initialKey, {skipUrl: true});
+            restored = true;
         }
+    }
+    if (initialId && !miller.querySelector('.n-miller-detail-panel.active')) {
+        showSelectionFiltered(true);   // 조건이 없는 화면이면 안내 요소가 없어 종전의 빈 안내가 남는다
     }
 
     try {

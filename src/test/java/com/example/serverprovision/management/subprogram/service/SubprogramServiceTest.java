@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.subprogram.service;
 
+import java.util.List;
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import static org.mockito.Mockito.verify;
 
 import static org.mockito.Mockito.times;
@@ -260,5 +262,46 @@ class SubprogramServiceTest {
                 new SubprogramVariantRequest("2022", "../x.msi", null, false)))))
                 .isInstanceOf(InvalidSubprogramVariantException.class);
         assertThat(sp.getVariants()).isEmpty();
+    }
+
+    /* ─────────────────────────── S8-3 — 조회 조건 ─────────────────────────── */
+
+    private Subprogram sp(long id, BoardModel board, String name) {
+        return Subprogram.builder()
+                .id(id).kind(SubprogramKind.DRIVER).boardModel(board)
+                .name(name).version("1.0").treeRootPath("/p" + id).manifestHash("h")
+                .fileCount(1).totalBytes(1L).isEnabled(true).isDeleted(false).build();
+    }
+
+    @Test
+    @DisplayName("findAllGrouped(S8-3) : 평소에는 공용 행 · 빈 보드가 남고, 조건 중에는 맞는 항목이 있는 범위만 남는다")
+    void findAllGrouped_emptyScopesHiddenOnlyWhenFiltered() {
+        BoardModel board = activeBoard();   // MS03-CE0
+        BoardModel empty = BoardModel.builder().id(20L).vendor(Vendor.ASUS).modelName("P13R")
+                .isEnabled(true).isDeleted(false).build();
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).willReturn(List.of(board, empty));
+        given(subprogramRepository.findAllByKindAndIsDeletedFalse(SubprogramKind.DRIVER))
+                .willReturn(List.of(sp(1L, board, "mlnx-ofed"), sp(2L, null, "ipmitool")));
+
+        assertThat(subprogramService.findAllGrouped(SubprogramKind.DRIVER, ResourceListQuery.unfiltered(false))).hasSize(3);
+
+        var filtered = subprogramService.findAllGrouped(SubprogramKind.DRIVER, new ResourceListQuery("mlnx", null, null, false));
+        assertThat(filtered).hasSize(1);
+        assertThat(filtered.get(0).boardId()).isEqualTo(10L);
+    }
+
+    @Test
+    @DisplayName("findAllGrouped(S8-3) : 보드 모델명 · '공용' 도 검색 대상이다")
+    void findAllGrouped_searchByScopeName() {
+        BoardModel board = activeBoard();
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).willReturn(List.of(board));
+        given(subprogramRepository.findAllByKindAndIsDeletedFalse(SubprogramKind.DRIVER))
+                .willReturn(List.of(sp(1L, board, "mlnx-ofed"), sp(2L, null, "ipmitool")));
+
+        var byBoard = subprogramService.findAllGrouped(SubprogramKind.DRIVER, new ResourceListQuery("ms03", null, null, false));
+        assertThat(byBoard).extracting(r -> r.isCommonScope()).containsExactly(false);
+
+        var byCommon = subprogramService.findAllGrouped(SubprogramKind.DRIVER, new ResourceListQuery("공용", null, null, false));
+        assertThat(byCommon).extracting(r -> r.isCommonScope()).containsExactly(true);
     }
 }

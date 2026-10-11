@@ -48,8 +48,8 @@
     <!-- 조회 띠 — [data-live] 밖(DEC-E). 상태는 URL 에 남는다(S8-2) -->
     <form id="listQuery" class="n-filter-bar" method="get" th:action="@{/provisioning/server}" data-list-query>
         <div class="n-filter-search">
-            <input class="n-input" type="search" name="q" th:value="${query.q}"
-                   placeholder="예: srv-01 · 10.1.1.5" aria-label="이름 · UUID · 시리얼 · IP · 보드 검색">
+            <input class="n-input" type="text" name="q" th:value="${query.q}" data-list-search autocomplete="off"
+                   th:placeholder="#{common.list.search-placeholder}" aria-label="이름 · UUID · 시리얼 · IP · 보드 검색">
             <button type="submit" class="n-btn n-btn-secondary n-btn-sm" th:text="#{action.search}">검색</button>
         </div>
 

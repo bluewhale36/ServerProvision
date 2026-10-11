@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.subprogram.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
+import com.example.serverprovision.global.web.list.ListLinks;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramCreateRequest;
@@ -51,16 +53,19 @@ public class SubprogramController {
 
 	@GetMapping
 	public String list(
-			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
+			@ModelAttribute("query") ResourceListQuery query,
+			ListLinks links,
 			@RequestParam(name = "selectId", required = false) Long selectId,
 			@RequestParam(name = "selectKind", required = false) SubprogramKind selectKind,
 			// S5-4 — C1 (scope = boardId 또는 'common') 선택 보존. selectKind 와 함께 어느 미러를 가리키는지 결정.
 			@RequestParam(name = "selectKey", required = false) String selectKey,
 			Model model
 	) {
-		model.addAttribute("driverGroups", subprogramService.findAllGrouped(SubprogramKind.DRIVER, includeDeleted));
-		model.addAttribute("utilityGroups", subprogramService.findAllGrouped(SubprogramKind.UTILITY, includeDeleted));
-		model.addAttribute("includeDeleted", includeDeleted);
+		// S8-3 — 조회 띠 하나가 두 Miller 에 함께 걸린다(삭제 포함이 원래 페이지 전역이었던 것과 같게).
+		model.addAttribute("driverGroups", subprogramService.findAllGrouped(SubprogramKind.DRIVER, query));
+		model.addAttribute("utilityGroups", subprogramService.findAllGrouped(SubprogramKind.UTILITY, query));
+		model.addAttribute("includeDeleted", query.includeDeleted());
+		model.addAttribute("links", links);   // S8-3 — 조건만 푸는 초기화 주소
 		model.addAttribute("selectId", selectId);
 		model.addAttribute("selectKind", selectKind);
 		model.addAttribute("selectKey", selectKey);
@@ -78,7 +83,7 @@ public class SubprogramController {
 		model.addAttribute("kind", kind);
 		model.addAttribute("kindToken", kind.pathToken());
 		model.addAttribute("kindDisplayName", kind.getDisplayName());
-		model.addAttribute("vendorGroups", boardModelService.findAllGrouped(false));
+		model.addAttribute("vendorGroups", boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false)));
 		model.addAttribute("subprogramForm", new SubprogramCreateRequest("", "", "", "", false, null));
 		model.addAttribute("osNames", com.example.serverprovision.management.os.enums.OSName.values());
 

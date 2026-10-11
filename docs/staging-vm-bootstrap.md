@@ -51,11 +51,13 @@ java -version
 
 ```bash
 dnf module list mariadb                  # 10.11 스트림 제공 여부 확인
-sudo dnf -y module enable mariadb:10.11  # 없으면 기본 스트림(10.5) 또는 MariaDB 공식 저장소
+sudo dnf -y module enable mariadb:10.11  # 반드시 10.11 이상 — 기본 스트림 10.5 는 안 된다(아래)
 sudo dnf -y install mariadb-server
 sudo systemctl enable --now mariadb
 sudo mariadb-secure-installation
 ```
+
+**10.5 는 쓸 수 없다(2026-09-18 실서버 실측).** 스키마의 UUID 컬럼(`guest_server.id` 등 17 개)이 MariaDB 10.7 에서 생긴 네이티브 `uuid` 자료형이라, 10.5 에 스키마를 넣으면 `ERROR 4161 Unknown data type: 'uuid'` 로 멈춘다. 기본 스트림(10.5)이 이미 깔려 있으면 데이터가 없을 때 갈아탄다: `sudo systemctl stop mariadb && sudo dnf -y module reset mariadb && sudo dnf -y module enable mariadb:10.11 && sudo dnf -y distro-sync mariadb-server && sudo rm -rf /var/lib/mysql/* && sudo systemctl start mariadb` 뒤 계정 · DB 를 다시 만든다.
 
 데이터베이스와 앱 계정을 만든다. 앱 계정에는 DML 권한만 준다. ddl-auto 가 validate 라 애플리케이션은 스키마를 만들지 않으며, DDL 은 관리 계정으로 적용한다(로컬 개발의 계정 분리 관행과 동일).
 

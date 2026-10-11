@@ -203,6 +203,12 @@
 .n-rank-handle:active {
     cursor: grabbing;
 }
+/* S8-3 — 조건 중 꺼진 핸들. 자리와 모양은 그대로 두고 옅은 색 · 끌 수 없음을 커서로 알린다(이유는 프로젝트 툴팁).
+   흐리게를 opacity 로 하지 않는다 — opacity 는 ::after 툴팁까지 흐리게 하고 쌓임 맥락을 새로 만들어 툴팁이 열 머리 아래로 깔린다. */
+.n-rank-handle.n-rank-handle-disabled {
+    cursor: not-allowed;
+    color: var(--n-border-form);
+}
 
 /* 드래그 표시 — 클래스 이름은 공용 모듈(global/row-drag.js)이 붙이는 것을 그대로 쓰고,
    Miller 항목(버튼) 문맥의 스타일만 여기서 정의한다(세팅 정의서 표는 셀 그림자로 같은 이름을 받는다). */

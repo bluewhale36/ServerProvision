@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bmc.service;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.bmc.dto.response.BoardWithBmcListResponse;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
@@ -55,7 +56,7 @@ class BmcServiceTest {
                 .willReturn(List.of(activeBoard()));
         given(bmcRepository.findAllByBoardModel_IdIn(List.of(10L))).willReturn(List.of(bmc));
 
-        List<BoardWithBmcListResponse> groups = bmcService.findAllGrouped(false);
+        List<BoardWithBmcListResponse> groups = bmcService.findAllGrouped(ResourceListQuery.unfiltered(false));
 
         assertThat(groups).hasSize(1);
         assertThat(groups.get(0).bmcList().get(0).integrityStatus()).isEqualTo(IntegrityStatus.ORIGINAL);
@@ -110,5 +111,26 @@ class BmcServiceTest {
                 .fileCount(1).totalBytes(10L)
                 .versionRank(rank)
                 .isEnabled(true).isDeleted(false).build();
+    }
+
+    // ==== S8-3 — 조회 조건 (BiosService 와 대칭) =========================
+
+    @Test
+    @DisplayName("findAllGrouped(S8-3) : '최신' 은 거르기 전 목록으로(F-1) · 조건 중 빈 보드는 빠진다(F-3)")
+    void findAllGrouped_latestBeforeFilter_emptyBoardHidden() {
+        com.example.serverprovision.management.board.entity.BoardModel board = activeBoard();
+        com.example.serverprovision.management.board.entity.BoardModel empty =
+                com.example.serverprovision.management.board.entity.BoardModel.builder()
+                        .id(20L).vendor(Vendor.ASUS).modelName("P13R").isEnabled(true).isDeleted(false).build();
+        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).willReturn(List.of(board, empty));
+        given(bmcRepository.findAllByBoardModel_IdIn(List.of(10L, 20L)))
+                .willReturn(List.of(bmcOf(board, 1L, 1), bmcOf(board, 2L, 2)));
+
+        List<BoardWithBmcListResponse> groups =
+                bmcService.findAllGrouped(new ResourceListQuery("13.06.2", null, null, false));
+
+        assertThat(groups).extracting(g -> g.id()).containsExactly(10L);
+        assertThat(groups.get(0).bmcList()).extracting(r -> r.id()).containsExactly(2L);
+        assertThat(groups.get(0).latestBmcId()).isEqualTo(1L);
     }
 }

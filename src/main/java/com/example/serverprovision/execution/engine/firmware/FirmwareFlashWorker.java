@@ -33,7 +33,7 @@ public class FirmwareFlashWorker {
     private final ProvisioningProgressRepository progressRepository;
     private final FirmwareFlashCycle cycle;
 
-    @Scheduled(fixedDelayString = "${provision.execution.flash-worker.interval:30s}")
+    @Scheduled(fixedDelayString = "${provision.execution.flash-worker.interval:10s}")
     public void sweep() {
         List<UUID> targets = progressRepository
                 .findAllByCurrentStepInAndFailedAtIsNullAndCompletedAtIsNull(

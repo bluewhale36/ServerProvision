@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.service.metadata;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.security.PathPolicyService;
@@ -70,10 +71,17 @@ public class OSMetadataService {
 		return ISOResponse.from(requireLiveISO(osMetadataId, isoId));
 	}
 
-	public List<OSGroupResponse> findAllGrouped(boolean includeDeleted) {
-		List<OSMetadata> images = includeDeleted
+	/**
+	 * 목록 묶음(S8-3 — 조회 조건 반영). 조건은 OS 버전(C2 항목)에 걸고 묶기 전에 거른다 — 맞는 버전이 없는 OS 이름은
+	 * 묶음 자체가 생기지 않는다. 검색 대상 = OS 이름 표시명 · 버전 · 설명(ISO 는 한 단계 안쪽이라 대상이 아니다).
+	 */
+	public List<OSGroupResponse> findAllGrouped(ResourceListQuery query) {
+		boolean includeDeleted = query.includeDeleted();
+		List<OSMetadata> images = (includeDeleted
 				? osMetadataRepository.findAllByOrderByOsNameAscCreatedAtDesc()
-				: osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc();
+				: osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()).stream()
+				.filter(img -> query.matches(img, img.getOsName().getDisplayName(), img.getOsVersion(), img.getDescription()))
+				.toList();
 
 		Map<OSName, List<OSMetadata>> byName = images.stream().collect(
 				Collectors.groupingBy(OSMetadata::getOsName, LinkedHashMap::new, Collectors.toList())
