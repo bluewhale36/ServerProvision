@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.subprogram.service;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.global.security.EntrypointPolicyService;
 import com.example.serverprovision.management.board.entity.BoardModel;
@@ -52,15 +53,28 @@ public class SubprogramService {
 
 	/* ─────────────────────────── 조회 ─────────────────────────── */
 
-	public List<BoardWithSubprogramListResponse> findAllGrouped(SubprogramKind kind, boolean includeDeleted) {
+	/** 검색 대상의 공용 범위 표기 — 화면의 C1 공용 행 이름과 같다. */
+	private static final String COMMON_LABEL = "공용";
+
+	/**
+	 * 목록 묶음(S8-3 — 조회 조건 반영). 조건은 드라이버 · 유틸리티(C2 항목)에 건다. 항목 0 개 범위(보드 · 공용)는 평소에는
+	 * 남기고 조건이 걸렸을 때만 뺀다. 검색 대상 = 이름 · 버전 · 보드 모델명(공용이면 "공용").
+	 */
+	public List<BoardWithSubprogramListResponse> findAllGrouped(SubprogramKind kind, ResourceListQuery query) {
+		boolean includeDeleted = query.includeDeleted();
 		// 보드별 활성 보드 + 공용 노드(첫 행 고정).
 		List<BoardModel> boards = includeDeleted
 				? boardModelRepository.findAllByOrderByVendorAscCreatedAtDesc()
 				: boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc();
 
-		List<Subprogram> all = includeDeleted
+		Map<Long, String> boardNames = new HashMap<>();
+		boards.forEach(b -> boardNames.put(b.getId(), b.getModelName()));
+		List<Subprogram> all = (includeDeleted
 				? subprogramRepository.findAllByKind(kind)
-				: subprogramRepository.findAllByKindAndIsDeletedFalse(kind);
+				: subprogramRepository.findAllByKindAndIsDeletedFalse(kind)).stream()
+				.filter(sp -> query.matches(sp, sp.getName(), sp.getVersion(),
+						sp.isCommonScope() ? COMMON_LABEL : boardNames.get(sp.getBoardId())))
+				.toList();
 
 		// boardId(또는 null) → 자원 목록.
 		Map<Long, List<Subprogram>> byBoardId = new HashMap<>();
@@ -74,10 +88,15 @@ public class SubprogramService {
 		}
 
 		List<BoardWithSubprogramListResponse> rows = new ArrayList<>();
-		rows.add(BoardWithSubprogramListResponse.common(toResponses(commonItems)));
+		if (!query.isFiltered() || !commonItems.isEmpty()) {
+			rows.add(BoardWithSubprogramListResponse.common(toResponses(commonItems)));   // 공용 — 첫 행 고정
+		}
 
 		for (BoardModel board : boards) {
 			List<Subprogram> items = byBoardId.getOrDefault(board.getId(), List.of());
+			if (query.isFiltered() && items.isEmpty()) {
+				continue;   // 조건 중 빈 보드는 뺀다
+			}
 			rows.add(new BoardWithSubprogramListResponse(
 					board.getId(),
 					board.getVendor(),

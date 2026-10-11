@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bmc.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.exception.ApiErrorResponse;
 import com.example.serverprovision.management.bmc.dto.request.BmcCreateRequest;
 import com.example.serverprovision.management.bmc.dto.request.BmcUploadIntentRequest;
@@ -73,7 +74,7 @@ public class BmcUploadController {
 		model.addAttribute("bmcForm", new BmcCreateRequest("", "", "", "", false));
 		model.addAttribute("boardId", null);
 		model.addAttribute("contextLabel", null);
-		model.addAttribute("vendorGroups", boardModelService.findAllGrouped(false));
+		model.addAttribute("vendorGroups", boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false)));
 		return "management/bmc/bmc-new";
 	}
 

@@ -12,20 +12,20 @@
     <div class="n-page-header">
         <h1 class="n-page-title">BMC 펌웨어 관리</h1>
         <div class="n-header-actions">
-            <!-- S5-4 — 토글 시 selectBoardId / selectId 등 다른 querystring 보존. -->
-            <label class="n-checkbox">
-                <input type="checkbox"
-                       th:checked="${includeDeleted}"
-                       data-include-deleted-toggle>
-                삭제된 항목 포함
-            </label>
             <!-- S5-5 — 외부 우상단 + 신규 BMC 등록. boardId 없는 진입점이라 폼에서 board 선택 단계. -->
             <a th:href="@{/management/bmc/new}"
                class="n-btn n-btn-primary">+ 신규 BMC 등록</a>
         </div>
     </div>
 
-    <div th:if="${#lists.isEmpty(boards)}" class="n-card">
+    <!-- S8-3 — 조회 띠(검색 · 활성 · 사용 중단 · 삭제 포함). 조건은 C2 항목에 걸고 맞는 항목이 없는 묶음은 숨긴다. -->
+    <form th:replace="~{fragments/ui/resource-filter :: bar(@{/management/bmc}, ${query}, ${boards.isEmpty() ? 0 : #aggregates.sum(boards.![bmcList.size()])}, 'selectBoardId selectId', ${links.without('q','enabled','deprecated')})}"></form>
+
+    <th:block th:if="${#lists.isEmpty(boards) and query.filtered}">
+        <div th:replace="~{fragments/ui/resource-filter :: emptyFiltered(${links.without('q','enabled','deprecated')})}"></div>
+    </th:block>
+
+    <div th:if="${#lists.isEmpty(boards) and !query.filtered}" class="n-card">
         <div class="n-empty">
             <div class="n-empty-title">등록된 메인보드 모델이 없습니다.</div>
             <div class="n-empty-desc">
@@ -37,7 +37,7 @@
 
     <div th:unless="${#lists.isEmpty(boards)}"
          class="n-miller"
-         th:data-rank-enabled="${!includeDeleted}"
+         th:data-rank-enabled="${!includeDeleted and !query.filtered}"
          th:data-rank-error="#{management.firmware.rank.save-failed}"
          data-board-aware="true"
          th:data-initial-select-id="${selectId}"
@@ -55,6 +55,7 @@
                     <span class="n-note"
                           th:text="' · ' + ${board.vendorDisplayName}"> · Gigabyte</span>
                     <span class="n-note" th:if="${board.isDeleted}">(삭제됨)</span>
+                    <span class="n-note" th:if="${query.filtered}" th:text="|(${board.bmcList.size()})|">(1)</span>
                 </span>
             </button>
             <div class="n-miller-col-note">
@@ -67,7 +68,7 @@
         <div class="n-miller-col n-miller-col-versions">
             <div class="n-miller-col-header">BMC 버전</div>
             <!-- E2-1-a — 순서 SSOT 안내(BIOS 목록과 대칭). -->
-            <div class="n-section-hint" id="fwRankHint" th:unless="${includeDeleted}"
+            <div class="n-section-hint" id="fwRankHint" th:unless="${includeDeleted or query.filtered}"
                  th:text="#{management.firmware.rank.hint}">드래그하여 버전 순서 조정</div>
             <div th:each="board : ${boards}"
                  class="n-miller-version-panel"
@@ -85,8 +86,12 @@
                         th:classappend="${bmc.isDeleted} ? 'n-miller-item-disabled' : ''"
                         th:data-os-id="${bmc.id}">
                     <span class="n-miller-version-label">
-                        <span class="n-rank-handle" th:unless="${includeDeleted or bmc.isDeleted}"
-                              title="끌어서 순서 변경" aria-label="끌어서 순서 변경">☰</span>
+                        <span class="n-rank-handle n-tooltip n-tooltip-float" th:unless="${includeDeleted or query.filtered or bmc.isDeleted}"
+                              data-tooltip="끌어서 순서 변경" aria-label="끌어서 순서 변경">☰</span>
+                        <!-- S8-3 — 조건이 걸리면 보이지 않는 항목과의 상대 순서가 모호해 드래그를 끈다(plan D8). 같은 자리에 꺼진 핸들 + 이유는 프로젝트 툴팁. -->
+                        <span class="n-rank-handle n-rank-handle-disabled n-tooltip n-tooltip-float" th:if="${query.filtered and !includeDeleted and !bmc.isDeleted}"
+                              aria-disabled="true"
+                              th:attr="data-tooltip=#{management.firmware.rank.disabled-filtered},aria-label=#{management.firmware.rank.disabled-filtered}">☰</span>
                         <span th:text="${bmc.version}">12.61</span>
                         <span th:if="${board.latestBmcId != null and bmc.id == board.latestBmcId}"
                               class="n-miller-latest" data-latest-mark>latest</span>
@@ -116,6 +121,8 @@
                  th:text="${selectBoardId != null or selectId != null} ? '버전을 선택하여 상세 보기' : '메인보드 모델을 선택하여 버전 보기'">메인보드
                 모델을 선택하여 버전 보기
             </div>
+            <!-- S8-3 — 주소의 선택이 조건에 걸려 그려지지 않았을 때(os-list.js 가 연다). -->
+            <th:block th:replace="~{fragments/ui/resource-filter :: selectionFiltered(${query}, ${links.without('q','enabled','deprecated')})}"></th:block>
 
             <th:block th:each="board : ${boards}">
                 <div th:each="bmc : ${board.bmcList}"
@@ -241,7 +248,7 @@
 <div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
 
 <!-- S5-4 — '삭제된 항목 포함' 토글 시 selectBoardId / selectId 등 querystring 보존. -->
-<script th:src="@{/global/include-deleted-toggle.js}"></script>
+<script th:src="@{/global/list-query.js}"></script>
 <script th:src="@{/management/os/os-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
 <script th:src="@{/global/row-drag.js}"></script>

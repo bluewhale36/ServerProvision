@@ -498,6 +498,20 @@ kbd {
     transform: none;
 }
 
+/*
+  S8-3 — 잘라내는 조상 안의 툴팁(.n-tooltip-float). Miller 항목 · 버전 라벨은 말줄임 때문에 overflow: hidden 이라
+  위의 absolute 상자가 잘린다. 상자를 fixed 로 띄우면 조상의 잘라내기를 벗어나고, top · left 를 두지 않으면
+  흐름상 제자리(대상 바로 뒤 · 같은 줄 위끝)에 놓이므로 transform 으로 대상 위로 올린다. 상자 모양은 위 규칙 그대로다.
+  전제: 조상에 transform · filter · contain 이 없어야 한다(있으면 fixed 의 기준이 그 조상으로 바뀐다).
+*/
+.n-tooltip.n-tooltip-float[data-tooltip]:hover::after,
+.n-tooltip.n-tooltip-float[data-tooltip]:focus-within::after {
+    position: fixed;
+    bottom: auto;
+    left: auto;
+    transform: translate(-50%, calc(-100% - 6px));
+}
+
 .n-btn-primary {
     background: var(--n-blue);
     color: #ffffff;

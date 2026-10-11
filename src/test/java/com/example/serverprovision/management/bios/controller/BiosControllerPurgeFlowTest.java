@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bios.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.bios.service.BiosService;
@@ -88,15 +89,17 @@ class BiosControllerPurgeFlowTest {
                 .andExpect(status().isNotFound());
     }
 
-    // S5-4 — '삭제된 항목 포함' 체크박스의 마커 검증 + inline onchange 부재 회귀.
+    // S8-3 — '삭제된 항목 포함' 은 조회 띠 폼 필드다(토글 스크립트 폐기) · inline onchange 부재 회귀.
     @Test
-    @DisplayName("GET /management/bios — '삭제된 항목 포함' 체크박스에 data-include-deleted-toggle 마커 + inline onchange 부재")
-    void renders_includeDeletedToggle_with_dataMarker() throws Exception {
-        given(biosService.findAllGrouped(false)).willReturn(List.of());
+    @DisplayName("GET /management/bios — '삭제된 항목 포함' 이 조회 띠 폼 필드 + 토글 스크립트 · inline onchange 부재")
+    void renders_includeDeleted_asListQueryField() throws Exception {
+        given(biosService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/bios"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-include-deleted-toggle")))
+                .andExpect(content().string(containsString("name=\"includeDeleted\"")))
+                .andExpect(content().string(containsString("data-list-query")))
+                .andExpect(content().string(not(containsString("include-deleted-toggle"))))
                 .andExpect(content().string(not(containsString("onchange=\"window.location"))));
     }
 
@@ -104,7 +107,7 @@ class BiosControllerPurgeFlowTest {
     @Test
     @DisplayName("GET /management/bios — 외부 우상단 '+ 신규 BIOS 등록' 버튼 노출")
     void renders_external_register_button() throws Exception {
-        given(biosService.findAllGrouped(false)).willReturn(List.of());
+        given(biosService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/bios"))
                 .andExpect(status().isOk())
@@ -115,7 +118,7 @@ class BiosControllerPurgeFlowTest {
     @Test
     @DisplayName("GET /management/bios/new — boardId 없는 진입 → 메인보드 선택 dropdown")
     void renders_new_without_boardId() throws Exception {
-        given(boardModelService.findAllGrouped(false)).willReturn(List.of());
+        given(boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/bios/new"))
                 .andExpect(status().isOk())
@@ -141,7 +144,7 @@ class BiosControllerPurgeFlowTest {
                 "Gigabyte", "MS73-HB1", false,
                 null,   // E2-1-a latestBiosId — 이 흐름과 무관
                 java.util.List.of(bios));
-        given(biosService.findAllGrouped(false)).willReturn(java.util.List.of(boardWithBios));
+        given(biosService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(java.util.List.of(boardWithBios));
 
         mvc.perform(get("/management/bios"))
                 .andExpect(status().isOk())

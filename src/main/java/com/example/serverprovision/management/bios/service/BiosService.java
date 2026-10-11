@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bios.service;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.management.bios.BoardBiosCatalog;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.bios.dto.request.BiosUpdateRequest;
@@ -23,6 +24,7 @@ import java.util.Set;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -47,7 +49,14 @@ public class BiosService {
 
 	// ==== 조회 ========================================================
 
-	public List<BoardWithBiosListResponse> findAllGrouped(boolean includeDeleted) {
+	/**
+	 * 목록 묶음(S8-3 — 조회 조건 반영). 조건은 펌웨어(C2 항목)에 건다. "최신" 표시는 <b>거르기 전</b> 목록으로 계산한다 —
+	 * 굽기 대상 해석과 같은 술어라, 검색으로 1 위가 가려졌다고 최신이 옮겨 가면 화면과 실행이 어긋난다(plan F-1).
+	 * 항목 0 개 보드는 평소에는 남기고(첫 펌웨어 등록 진입점) 조건이 걸렸을 때만 뺀다(plan F-3).
+	 * 검색 대상 = 보드 모델명 · 이름 · 버전.
+	 */
+	public List<BoardWithBiosListResponse> findAllGrouped(ResourceListQuery query) {
+		boolean includeDeleted = query.includeDeleted();
 		List<BoardModel> boards = includeDeleted
 				? boardModelRepository.findAllByOrderByVendorAscCreatedAtDesc()
 				: boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc();
@@ -64,16 +73,23 @@ public class BiosService {
 					List<BoardBIOS> ofBoard = byBoard.getOrDefault(board.getId(), List.of()).stream()
 							.sorted(Comparator.comparingInt(BoardBIOS::getVersionRank))   // 운영자 순서 SSOT(E2-1-a)
 							.toList();
+					List<BoardBIOS> shown = ofBoard.stream()
+							.filter(f -> query.matches(f, board.getModelName(), f.getName(), f.getVersion()))
+							.toList();
+					if (query.isFiltered() && shown.isEmpty()) {
+						return null;   // 조건 중 빈 보드는 뺀다
+					}
 					return new BoardWithBiosListResponse(
 							board.getId(),
 							board.getVendor(),
 							board.getVendor().getDisplayName(),
 							board.getModelName(),
 							board.isDeleted(),
-							latestOf(ofBoard),
-							ofBoard.stream().map(BiosService::toResponse).toList()
+							latestOf(ofBoard),   // 거르기 전 목록 — F-1
+							shown.stream().map(BiosService::toResponse).toList()
 					);
 				})
+				.filter(Objects::nonNull)
 				.toList();
 	}
 

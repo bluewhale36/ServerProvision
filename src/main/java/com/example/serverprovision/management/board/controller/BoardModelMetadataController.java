@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.board.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
+import com.example.serverprovision.global.web.list.ListLinks;
 import com.example.serverprovision.management.board.dto.request.BoardModelCreateRequest;
 import com.example.serverprovision.management.board.dto.request.BoardModelUpdateRequest;
 import com.example.serverprovision.management.board.dto.response.BoardModelCreateResponse;
@@ -49,14 +51,16 @@ public class BoardModelMetadataController {
 
 	@GetMapping
 	public String list(
-			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
+			@ModelAttribute("query") ResourceListQuery query,
+			ListLinks links,
 			@RequestParam(name = "selectId", required = false) Long selectId,
 			// S5-4 — C1 (Vendor) 선택 보존. '삭제된 항목 포함' 토글이나 새로고침 시 동일 vendor active.
 			@RequestParam(name = "selectKey", required = false) String selectKey,
 			Model model
 	) {
-		model.addAttribute("boardGroups", boardModelService.findAllGrouped(includeDeleted));
-		model.addAttribute("includeDeleted", includeDeleted);
+		model.addAttribute("boardGroups", boardModelService.findAllGrouped(query));   // S8-3 — 조회 조건
+		model.addAttribute("includeDeleted", query.includeDeleted());
+		model.addAttribute("links", links);   // S8-3 — 조건만 푸는 초기화 주소
 		model.addAttribute("selectId", selectId);
 		model.addAttribute("selectKey", selectKey);
 		return "management/board/list";

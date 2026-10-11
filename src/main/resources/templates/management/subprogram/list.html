@@ -41,40 +41,39 @@
         <h1 class="n-page-title">Subprogram (Driver · Utility)</h1>
     </div>
 
+    <!-- S8-3 — 조회 띠 하나가 Driver · Utility 두 Miller 에 함께 걸린다(삭제 포함이 원래 페이지 전역이었던 것과 같게). -->
+    <form th:replace="~{fragments/ui/resource-filter :: bar(@{/management/subprogram}, ${query}, ${(driverGroups.isEmpty() ? 0 : #aggregates.sum(driverGroups.![items.size()])) + (utilityGroups.isEmpty() ? 0 : #aggregates.sum(utilityGroups.![items.size()]))}, 'selectKind selectKey selectId', ${links.without('q','enabled','deprecated')})}"></form>
+
     <section class="n-subprogram-section">
         <div class="n-subprogram-section-header">
             <h2 class="n-subprogram-section-title">Driver</h2>
             <div class="n-subprogram-section-actions">
-                <!-- S5-5 — 체크박스를 외부 + 등록 버튼의 왼편으로 swap. -->
-                <!-- S5-4 — 토글 시 selectKind / selectId 등 다른 querystring 보존. -->
-                <label class="n-checkbox">
-                    <input type="checkbox"
-                           th:checked="${includeDeleted}"
-                           data-include-deleted-toggle>
-                    삭제된 항목 포함
-                </label>
                 <a th:href="@{/management/subprogram/new(kind='DRIVER')}" class="n-btn n-btn-primary">+ 신규 드라이버 등록</a>
             </div>
         </div>
-        <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${driverGroups}, 'driver', '드라이버', 'driverMiller', ${selectKind != null and selectKind.name() == 'DRIVER' ? selectId : null}, ${selectKind != null and selectKind.name() == 'DRIVER' ? selectKey : null})}"></div>
+        <!-- S8-3 — 조건에 맞는 항목이 없으면 Miller 대신 안내(조건이 없으면 공용 행이 늘 있어 Miller 를 그린다). -->
+        <th:block th:if="${driverGroups.isEmpty() and query.filtered}">
+            <div th:replace="~{fragments/ui/resource-filter :: emptyFiltered(${links.without('q','enabled','deprecated')})}"></div>
+        </th:block>
+        <th:block th:unless="${driverGroups.isEmpty() and query.filtered}">
+            <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${driverGroups}, 'driver', '드라이버', 'driverMiller', ${selectKind != null and selectKind.name() == 'DRIVER' ? selectId : null}, ${selectKind != null and selectKind.name() == 'DRIVER' ? selectKey : null})}"></div>
+        </th:block>
     </section>
 
     <section class="n-subprogram-section">
         <div class="n-subprogram-section-header">
             <h2 class="n-subprogram-section-title">Utility</h2>
             <div class="n-subprogram-section-actions">
-                <!-- S5-5 — 체크박스를 외부 + 등록 버튼의 왼편으로 swap. -->
-                <!-- S5-4 — 토글 시 selectKind / selectId 등 다른 querystring 보존. -->
-                <label class="n-checkbox">
-                    <input type="checkbox"
-                           th:checked="${includeDeleted}"
-                           data-include-deleted-toggle>
-                    삭제된 항목 포함
-                </label>
                 <a th:href="@{/management/subprogram/new(kind='UTILITY')}" class="n-btn n-btn-primary">+ 신규 유틸리티 등록</a>
             </div>
         </div>
-        <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${utilityGroups}, 'utility', '유틸리티', 'utilityMiller', ${selectKind != null and selectKind.name() == 'UTILITY' ? selectId : null}, ${selectKind != null and selectKind.name() == 'UTILITY' ? selectKey : null})}"></div>
+        <!-- S8-3 — 조건에 맞는 항목이 없으면 Miller 대신 안내(조건이 없으면 공용 행이 늘 있어 Miller 를 그린다). -->
+        <th:block th:if="${utilityGroups.isEmpty() and query.filtered}">
+            <div th:replace="~{fragments/ui/resource-filter :: emptyFiltered(${links.without('q','enabled','deprecated')})}"></div>
+        </th:block>
+        <th:block th:unless="${utilityGroups.isEmpty() and query.filtered}">
+            <div th:replace="~{fragments/management/subprogram/miller :: kindMiller(${utilityGroups}, 'utility', '유틸리티', 'utilityMiller', ${selectKind != null and selectKind.name() == 'UTILITY' ? selectId : null}, ${selectKind != null and selectKind.name() == 'UTILITY' ? selectKey : null})}"></div>
+        </th:block>
     </section>
 </div>
 
@@ -88,8 +87,7 @@
 <!-- S5-6-1 — confirm-purge 만 lazy-load. -->
 <div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
 
-<!-- S5-4 — '삭제된 항목 포함' 토글 시 selectKind / selectId 등 querystring 보존. -->
-<script th:src="@{/global/include-deleted-toggle.js}"></script>
+<script th:src="@{/global/list-query.js}"></script>
 <script th:src="@{/management/subprogram/subprogram-list.js}"></script>
 <script th:src="@{/management/bios/bios-list.js}"></script>
 <script th:src="@{/management/common/delete-reject-modal.js}"></script>

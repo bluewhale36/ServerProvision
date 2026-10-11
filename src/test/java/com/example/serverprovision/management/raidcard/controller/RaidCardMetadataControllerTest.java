@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
@@ -69,7 +70,7 @@ class RaidCardMetadataControllerTest {
 	@Test
 	@DisplayName("GET /management/raidcard — 목록 200 + list 뷰 + 지원 레벨 렌더")
 	void list_returns200() throws Exception {
-		given(raidCardService.findAllGrouped(false)).willReturn(List.of(
+		given(raidCardService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of(
 				RaidCardVendorGroupResponse.of(RaidCardVendor.GIGABYTE, List.of(activeCard("1458:0011")))));
 
 		mvc.perform(get("/management/raidcard"))
@@ -82,7 +83,7 @@ class RaidCardMetadataControllerTest {
 	@Test
 	@DisplayName("GET /management/raidcard — PCI 미입력 카드는 '미확인' 배지 렌더 (D3 수용 슬롯의 화면 계약)")
 	void list_rendersUnknownPciBadge() throws Exception {
-		given(raidCardService.findAllGrouped(false)).willReturn(List.of(
+		given(raidCardService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of(
 				RaidCardVendorGroupResponse.of(RaidCardVendor.GIGABYTE, List.of(activeCard(null)))));
 
 		mvc.perform(get("/management/raidcard"))

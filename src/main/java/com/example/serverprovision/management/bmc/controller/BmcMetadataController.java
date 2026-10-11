@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.bmc.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
+import com.example.serverprovision.global.web.list.ListLinks;
 import com.example.serverprovision.management.bmc.dto.request.BmcUpdateRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcResponse;
 import com.example.serverprovision.management.bmc.service.BmcService;
@@ -35,15 +37,17 @@ public class BmcMetadataController {
 
 	@GetMapping
 	public String list(
-			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
+			@ModelAttribute("query") ResourceListQuery query,
+			ListLinks links,
 			@RequestParam(name = "selectId", required = false) Long selectId,
 			@RequestParam(name = "selectBoardId", required = false) Long selectBoardId,
 			@RequestParam(name = "selectedBoardId", required = false) Long selectedBoardId,
 			Model model
 	) {
 		Long initialBoardId = selectBoardId != null ? selectBoardId : selectedBoardId;
-		model.addAttribute("boards", bmcService.findAllGrouped(includeDeleted));
-		model.addAttribute("includeDeleted", includeDeleted);
+		model.addAttribute("boards", bmcService.findAllGrouped(query));   // S8-3 — 조회 조건
+		model.addAttribute("includeDeleted", query.includeDeleted());
+		model.addAttribute("links", links);   // S8-3 — 조건만 푸는 초기화 주소
 		model.addAttribute("selectId", selectId);
 		model.addAttribute("selectBoardId", initialBoardId);
 		return "management/bmc/list";

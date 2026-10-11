@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  자원 관리 목록(Miller)의 조회 띠 (S8-3)
+  ─────────────────────────────────────────────────────────
+  OS · 메인보드 · BIOS · BMC · 드라이버/유틸리티 · RAID 카드 여섯 화면이 같은 축(검색 · 활성 · 사용 중단 · 삭제 포함)을
+  가져 한 벌로 둔다. S8-1 의 목록 화면들은 축이 화면마다 달라 조회 띠를 인라인으로 두었다(S8-1 D13).
+
+  bar(action, query, count, keep, resetUrl)
+    · action      — 목록 GET 경로
+    · query       — ResourceListQuery(값 복원)
+    · count       — 조건에 맞는 항목 수(C2 항목 기준)
+    · keep        — 제출 때 현재 주소에서 옮겨 실을 선택 파라미터 이름(공백 구분). 클릭 선택은 history.replaceState 로
+                    주소만 바꾸므로 서버가 그린 숨은 필드로는 낡는다 — list-query.js 가 제출 순간의 주소에서 읽는다.
+    · resetUrl    — 조건(검색 · 활성 · 사용 중단)만 푼 주소. 선택 · 삭제 포함은 남긴다. 스크립트가 있으면 누른 순간의 주소로 다시 만든다.
+  data-list-return — 이 화면의 상태 변경 폼이 제출될 때 지금 주소를 returnQuery 로 싣는다(ReturnQueryInterceptor).
+-->
+<body>
+
+<form th:fragment="bar(action, query, count, keep, resetUrl)"
+      id="listQuery" class="n-filter-bar" method="get" th:action="${action}"
+      data-list-query data-list-return th:attr="data-list-keep=${keep}">
+    <div class="n-filter-search">
+        <input class="n-input" type="text" name="q" th:value="${query.q}" data-list-search autocomplete="off"
+               th:placeholder="#{common.list.search-placeholder}" aria-label="검색">
+        <button type="submit" class="n-btn n-btn-secondary n-btn-sm" th:text="#{action.search}">검색</button>
+    </div>
+
+    <div class="n-filter-group" role="group" aria-label="활성">
+        <span class="n-filter-label">활성</span>
+        <label class="n-chip"><input type="radio" name="enabled" value="" th:checked="${query.enabled == null}">전체</label>
+        <label class="n-chip"><input type="radio" name="enabled" value="true" th:checked="${query.enabled == true}">활성</label>
+        <label class="n-chip"><input type="radio" name="enabled" value="false" th:checked="${query.enabled == false}">비활성</label>
+    </div>
+
+    <div class="n-filter-group" role="group" aria-label="사용 중단">
+        <span class="n-filter-label">사용 중단</span>
+        <label class="n-chip"><input type="radio" name="deprecated" value="" th:checked="${query.deprecated == null}">전체</label>
+        <label class="n-chip"><input type="radio" name="deprecated" value="true" th:checked="${query.deprecated == true}">권고</label>
+        <label class="n-chip"><input type="radio" name="deprecated" value="false" th:checked="${query.deprecated == false}">정상</label>
+    </div>
+
+    <label class="n-checkbox">
+        <input type="checkbox" name="includeDeleted" value="true" th:checked="${query.includeDeleted}">
+        삭제된 항목 포함
+    </label>
+
+    <div class="n-filter-summary">
+        <span>결과 <b th:text="${count}">0</b>건</span>
+        <a th:if="${query.filtered}" th:href="${resetUrl}" data-list-reset="q enabled deprecated"
+           th:text="#{action.reset}">초기화</a>
+    </div>
+</form>
+
+<!--/* 선택한 항목이 조건에 걸려 C3 에 보일 것이 없을 때(plan D7). 스크립트가 초기 선택을 찾지 못하면 연다. */-->
+<div th:fragment="selectionFiltered(query, resetUrl)" th:if="${query.filtered}"
+     class="n-empty n-empty-sm" hidden data-selection-filtered>
+    <div class="n-empty-title" th:text="#{management.list.selection-filtered}">선택한 항목이 조건에 맞지 않습니다.</div>
+    <div class="n-empty-desc">
+        <a th:href="${resetUrl}" data-list-reset="q enabled deprecated" th:text="#{action.reset}">초기화</a>하면 다시 보입니다.
+    </div>
+</div>
+
+<!--/* 조건에 맞는 항목이 하나도 없을 때(Miller 대신). 조건이 없는데 비었으면 화면 고유의 빈 상태를 쓴다. */-->
+<div th:fragment="emptyFiltered(resetUrl)" class="n-card">
+    <div class="n-empty">
+        <div class="n-empty-title" th:text="#{management.list.empty-filtered}">조건에 맞는 항목이 없습니다.</div>
+        <div class="n-empty-desc">조건을 바꾸거나 <a th:href="${resetUrl}" data-list-reset="q enabled deprecated" th:text="#{action.reset}">초기화</a>하면 전체 목록이 보입니다.</div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.subprogram.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.dto.response.IntegrityStatusResponse;
@@ -65,8 +66,8 @@ class SubprogramControllerTest {
     @Test
     @DisplayName("GET /management/subprogram : 페이지 200 + 두 Miller 모델 주입")
     void list_page() throws Exception {
-        given(subprogramService.findAllGrouped(SubprogramKind.DRIVER, false)).willReturn(List.of());
-        given(subprogramService.findAllGrouped(SubprogramKind.UTILITY, false)).willReturn(List.of());
+        given(subprogramService.findAllGrouped(SubprogramKind.DRIVER, ResourceListQuery.unfiltered(false))).willReturn(List.of());
+        given(subprogramService.findAllGrouped(SubprogramKind.UTILITY, ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/subprogram"))
                 .andExpect(status().isOk())
@@ -77,8 +78,8 @@ class SubprogramControllerTest {
     @Test
     @DisplayName("GET /management/subprogram — 미러 헤더가 '메인보드 모델' / '드라이버' / '유틸리티' 로 통일 + '드라이버 분류' 부재")
     void miller_headers_use_unified_text() throws Exception {
-        given(subprogramService.findAllGrouped(SubprogramKind.DRIVER, false)).willReturn(List.of());
-        given(subprogramService.findAllGrouped(SubprogramKind.UTILITY, false)).willReturn(List.of());
+        given(subprogramService.findAllGrouped(SubprogramKind.DRIVER, ResourceListQuery.unfiltered(false))).willReturn(List.of());
+        given(subprogramService.findAllGrouped(SubprogramKind.UTILITY, ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/subprogram"))
                 .andExpect(status().isOk())
@@ -89,30 +90,29 @@ class SubprogramControllerTest {
                 .andExpect(content().string(not(containsString("유틸리티 분류"))));
     }
 
-    // S5-4 — Driver / Utility 두 섹션 모두 data-include-deleted-toggle 마커 + inline onchange 부재.
+    // S8-3 — 조회 띠 하나가 두 Miller 에 걸린다 — '삭제된 항목 포함' 은 페이지에 한 번, 폼 필드로.
     @Test
-    @DisplayName("GET /management/subprogram — 2 체크박스 (Driver / Utility) 모두 data-include-deleted-toggle 마커 + inline onchange 부재")
-    void renders_two_includeDeletedToggles() throws Exception {
-        given(subprogramService.findAllGrouped(SubprogramKind.DRIVER, false)).willReturn(List.of());
-        given(subprogramService.findAllGrouped(SubprogramKind.UTILITY, false)).willReturn(List.of());
+    @DisplayName("GET /management/subprogram — 조회 띠 1 개(삭제 포함 필드 1 개) + 토글 스크립트 · inline onchange 부재")
+    void renders_single_listQueryBar() throws Exception {
+        given(subprogramService.findAllGrouped(SubprogramKind.DRIVER, ResourceListQuery.unfiltered(false))).willReturn(List.of());
+        given(subprogramService.findAllGrouped(SubprogramKind.UTILITY, ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         String body = mvc.perform(get("/management/subprogram"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-include-deleted-toggle")))
+                .andExpect(content().string(not(containsString("include-deleted-toggle"))))
                 .andExpect(content().string(not(containsString("onchange=\"window.location"))))
                 .andReturn().getResponse().getContentAsString();
 
-        int occurrences = body.split("data-include-deleted-toggle", -1).length - 1;
-        if (occurrences != 2) {
-            throw new AssertionError(
-                    "data-include-deleted-toggle 마커가 정확히 2 개여야 한다 (Driver / Utility 섹션). 실제: " + occurrences);
+        int occurrences = body.split("name=\"includeDeleted\"", -1).length - 1;
+        if (occurrences != 1) {
+            throw new AssertionError("'삭제된 항목 포함' 필드가 정확히 1 개여야 한다(조회 띠 공유). 실제: " + occurrences);
         }
     }
 
     @Test
     @DisplayName("GET /new?kind=DRIVER : 신규 폼 렌더")
     void new_form() throws Exception {
-        given(boardModelService.findAllGrouped(false)).willReturn(List.of());
+        given(boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
         mvc.perform(get("/management/subprogram/new").param("kind", "DRIVER"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("management/subprogram/subprogram-new"));

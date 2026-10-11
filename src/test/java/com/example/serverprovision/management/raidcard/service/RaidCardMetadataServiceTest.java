@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.service;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
@@ -87,7 +88,7 @@ class RaidCardMetadataServiceTest {
 						savedCard(1L, RaidCardVendor.GIGABYTE, "CRA3338"),
 						savedCard(2L, RaidCardVendor.AVAGO, "9361-8i")));
 
-		List<RaidCardVendorGroupResponse> groups = raidCardService.findAllGrouped(false);
+		List<RaidCardVendorGroupResponse> groups = raidCardService.findAllGrouped(ResourceListQuery.unfiltered(false));
 
 		assertThat(groups).hasSize(2);
 		assertThat(groups.get(0).items().get(0).supportedRaidLevels())
@@ -301,5 +302,28 @@ class RaidCardMetadataServiceTest {
 
 	private static java.util.Optional<RaidCard> OptionalOf(RaidCard card) {
 		return java.util.Optional.of(card);
+	}
+
+	// ==== S8-3 — 조회 조건 ============================================
+
+	@Test
+	@DisplayName("findAllGrouped(S8-3) : PCI Subsystem ID(표시형)로 찾는다 · 맞는 카드가 없는 제조사는 묶음이 없다")
+	void findAllGrouped_searchByPciSubsystemId() {
+		RaidCard giga = savedCard(1L, RaidCardVendor.GIGABYTE, "CRA3338");
+		RaidCard avago = RaidCard.builder()
+				.id(2L).vendor(RaidCardVendor.AVAGO).modelName("9361-8i")
+				.pciSubsystemId(com.example.serverprovision.management.raidcard.vo.PciSubsystemId.parse("1000:9361"))
+				.supportedRaidLevels(SupportedRaidLevels.of(List.of(RaidLevel.RAID0)))
+				.cacheCapacity(CacheCapacity.NONE)
+				.ownEnabled(true).ownDeprecated(false).isDeleted(false)
+				.build();
+		avago.recomputeEffective();
+		given(raidCardRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).willReturn(List.of(giga, avago));
+
+		List<RaidCardVendorGroupResponse> groups =
+				raidCardService.findAllGrouped(new ResourceListQuery("1000:9361", null, null, false));
+
+		assertThat(groups).hasSize(1);
+		assertThat(groups.get(0).items()).extracting(r -> r.id()).containsExactly(2L);
 	}
 }

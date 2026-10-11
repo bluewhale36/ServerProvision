@@ -31,11 +31,20 @@
         const versionPanels = miller.querySelectorAll('.n-miller-version-panel');
         const detailPanels = miller.querySelectorAll('.n-miller-detail-panel');
         const emptyState = detailCol.querySelector('.n-miller-empty');
+        // S8-3 — 주소의 선택이 조건에 걸려 그려지지 않았을 때의 안내(조건이 걸린 화면에만 있다).
+        const selectionFiltered = detailCol.querySelector('[data-selection-filtered]');
+
+        function showSelectionFiltered(on) {
+            if (!selectionFiltered) return;
+            selectionFiltered.hidden = !on;
+            if (on && emptyState) emptyState.classList.add('hidden');
+        }
 
         // 본 미러의 kind ('driver' / 'utility') → URL selectKind = 대문자.
         const kind = miller.dataset.kind ? miller.dataset.kind.toUpperCase() : null;
 
         function selectScope(scopeKey, opts) {
+            showSelectionFiltered(false);
             nameCol.querySelectorAll('.n-miller-item').forEach(btn => {
                 btn.classList.toggle('n-miller-selected', btn.dataset.osKey === scopeKey);
             });
@@ -63,6 +72,7 @@
         }
 
         function selectItem(itemId, opts) {
+            showSelectionFiltered(false);
             versionCol.querySelectorAll('.n-miller-item').forEach(btn => {
                 btn.classList.toggle('n-miller-selected', btn.dataset.osId === itemId);
             });
@@ -99,18 +109,26 @@
         // 초기 선택 복원 — URL 은 이미 진실이므로 갱신하지 않는다.
         const initialId = miller.dataset.initialSelectId;
         const initialKey = miller.dataset.initialSelectKey;
+        let restored = false;
         if (initialId) {
             const target = miller.querySelector(`.n-miller-item[data-os-id="${initialId}"]`);
             if (target) {
                 const versionPanel = target.closest('.n-miller-version-panel');
                 if (versionPanel) selectScope(versionPanel.dataset.osKey, {skipUrl: true});
                 selectItem(initialId, {skipUrl: true});
+                restored = true;
             }
-        } else if (initialKey) {
+        }
+        // S8-3 — 항목을 찾지 못하면(조건에 걸림) 묶음 선택으로 넘어간다.
+        if (!restored && initialKey) {
             // S5-4 — C1 만 선택된 상태.
             const c1Btn = miller.querySelector(`.n-miller-item[data-os-key="${initialKey}"]`);
-            if (c1Btn) selectScope(initialKey, {skipUrl: true});
+            if (c1Btn) {
+                selectScope(initialKey, {skipUrl: true});
+                restored = true;
+            }
         }
+        if (initialId && !miller.querySelector('.n-miller-detail-panel.active')) showSelectionFiltered(true);
     }
 
     document.addEventListener('DOMContentLoaded', () => {

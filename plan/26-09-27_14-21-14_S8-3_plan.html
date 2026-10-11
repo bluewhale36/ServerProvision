@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S8-3 Plan — 자원 관리 목록(Miller)의 검색 · 필터</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:8px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:0; }
+  .ux-wrap .badge { display:inline-block; font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-wrap .badge.on { background:var(--green-bg); color:var(--green); } .ux-wrap .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-wrap .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-wrap .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; font-family:inherit; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  /* 데모 안의 화면 mock 요소 — 새 class 를 만들지 않고 .ux-wrap 범위의 요소 선택자로만 꾸민다 */
+  .ux-wrap input[type="text"] { padding:5px 10px; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--card); min-width:190px; font-family:inherit; }
+  .ux-wrap label { display:inline-flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; }
+
+  /* ── .seq : 4-actor 데이터 흐름 (§3) ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); }
+  .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+
+  /* ── .pkg-tree ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── 반응형 (명세 §3 — 데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S8-3 : 자원 관리 목록(Miller)의 검색 · 필터 <span class="v2-badge">S8 세 번째 슬라이스</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> S8-3 (feature)</span>
+    <span><strong>상위</strong> S8 : 조회 화면 기능 강화</span>
+    <span><strong>영역</strong> management(os · board · bios · bmc · subprogram · raidcard) + global(lifecycle dto · ui 조각)</span>
+    <span><strong>scope</strong> 자원 관리 목록 여섯의 Miller 위에 조회 띠를 두고, 조건을 C2 항목에 건다</span>
+    <span><strong>기준 코드</strong> <code>dev</code> 4b58b96 (S8-1 · S8-2 병합 뒤)</span>
+    <span><strong>생성</strong> 2026-09-27 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름 + 프론트</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (2026-09-27 · <code>dev</code> 4b58b96 실측)</summary>
+      <div class="body">
+        <p style="margin-top:0;">자원 관리 목록 여섯은 모두 Miller 3 열(C1 묶음 → C2 항목 → C3 상세) 화면이고, <b>페이징 없이 전부 읽은 뒤 서버에서 묶습니다</b>.
+          검색 · 필터 · 정렬 UI 는 없고, 조건처럼 쓰이는 것은 "삭제된 항목 포함" 체크박스 하나뿐입니다.</p>
+        <table>
+          <thead><tr><th>화면</th><th>URL</th><th>Miller 열</th><th>선택 파라미터</th><th>목록 조회</th></tr></thead>
+          <tbody>
+            <tr><td>OS</td><td><code>/management/os</code></td><td>C1 OS 이름 → C2 버전 → C3 상세 (+ ISO 아코디언)</td><td><code>selectKey</code>(OSName) · <code>selectId</code></td><td><code>OSMetadataService.findAllGrouped</code> 전수 · 이름 → 등록 최신순</td></tr>
+            <tr><td>메인보드</td><td><code>/management/board</code></td><td>C1 제조사 → C2 모델 → C3 상세 (호환 BIOS · BMC · 드라이버 개수)</td><td><code>selectKey</code>(Vendor) · <code>selectId</code></td><td><code>BoardModelMetadataService.findAllGrouped</code> 전수</td></tr>
+            <tr><td>BIOS</td><td><code>/management/bios</code></td><td>C1 보드 → C2 BIOS 버전 (<b>운영자 순위 드래그</b>) → C3</td><td><code>selectBoardId</code>(<code>selectedBoardId</code> 도 받음) · <code>selectId</code></td><td><code>BiosService.findAllGrouped</code> 전수 · 보드 안은 <code>versionRank</code></td></tr>
+            <tr><td>BMC</td><td><code>/management/bmc</code></td><td>BIOS 와 같음</td><td>BIOS 와 같음</td><td><code>BmcService.findAllGrouped</code></td></tr>
+            <tr><td>Driver/Utility</td><td><code>/management/subprogram</code></td><td>한 화면에 Miller 둘(DRIVER · UTILITY) · C1 보드 범위(보드 또는 공용) → C2 이름 · 버전 → C3</td><td><code>selectKind</code> · <code>selectKey</code> · <code>selectId</code></td><td><code>SubprogramService.findAllGrouped(kind, includeDeleted)</code> 두 번</td></tr>
+            <tr><td>RAID 카드</td><td><code>/management/raidcard</code></td><td>C1 제조사 → C2 카드 → C3</td><td><code>selectKey</code>(RaidCardVendor) · <code>selectId</code></td><td><code>RaidCardMetadataService.findAllGrouped</code> 전수</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>여섯 컨트롤러 모두 <code>@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted</code> 를 받습니다.
+            화면의 "삭제된 항목 포함" 체크박스는 <code>global/include-deleted-toggle.js</code> 가 처리합니다(URL 의 다른 파라미터를 보존한 채 키 하나를 토글하고 전체 페이지를 이동).
+            S8-2 에서 서버 목록이 이 스크립트를 떠나 폼 필드로 옮겼으므로, <b>현재 사용처는 이 여섯 화면뿐</b>입니다.</li>
+          <li>선택 상태는 URL 이 SSOT 입니다. <code>os-list.js</code>(OS · 보드 · BIOS · BMC · RAID 카드 공용, board-aware 분기 포함)와 <code>subprogram-list.js</code>(Miller 여럿)가 클릭 때 <code>history.replaceState</code> 로 URL 을 맞춥니다.</li>
+          <li>규모는 Miller 열 안 스크롤로 감당하는 크기입니다(보드 수 ~ 수십 · 보드당 펌웨어 몇 개). 수치 근거는 없고 설계 전제로만 둡니다.</li>
+          <li>등록일(<code>createdAt</code>)은 어느 화면에도 표시되지 않습니다(정렬에만 쓰입니다).</li>
+          <li>BIOS · BMC 의 C2 순서는 운영자가 드래그로 정한 순위입니다(<code>firmware-rank.js</code> + <code>row-drag.js</code> · <code>PATCH /management/{bios|bmc}/{boardId}/rank</code>). 삭제 포함일 때는 템플릿이 <code>th:data-rank-enabled="${!includeDeleted}"</code> 로 드래그를 끕니다.</li>
+          <li>여섯 엔티티 모두 <code>LifecycleEntity</code> 를 상속합니다 — 활성 · 사용 중단 · 삭제 플래그(own / effective)가 공통이라 필터 축도 공통입니다.</li>
+        </ul>
+        <div class="callout warn"><b>상태 변경 뒤 리다이렉트가 도메인마다 비대칭</b> — OS 만 폼 숨은 필드로 <code>selectKey</code> · <code>selectId</code> · <code>includeDeleted</code> 3 축을 보존합니다(<code>OSControllerSupport.redirectToList</code>).
+          보드 · RAID 카드는 선택을 잃거나 <code>?includeDeleted=true</code> 만, BIOS · BMC 는 <code>selectBoardId</code> 만, Driver/Utility 는 <code>selectId</code> 만 보존합니다. 조건이 더해지면 이 비대칭이 커집니다(§8 Q1).</div>
+
+        <h4>1-1. 코드 대조로 확인한 사실 (전사 에이전트 대조 · 세션 판정 대상)</h4>
+        <table>
+          <thead><tr><th>#</th><th>사실</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>F-1</td><td>BIOS 의 "latest" 표시는 순위 순 목록에서 삭제되지 않은 활성 첫 항목입니다. 실행 엔진의 굽기 대상 해석도 같은 술어를 부릅니다</td><td><code>BiosService.latestOf</code> → <code>BoardBiosCatalog.latestEnabled</code></td></tr>
+            <tr><td>F-2</td><td>순위 PATCH 에는 "조건 중" 을 아는 가드가 없습니다. 대신 요청이 살아 있는 행 <b>전부</b>를 담지 않으면 400 입니다</td><td><code>BiosService.reorderVersionRanks</code> — 중복 400 · 타 보드 · 미존재 · 삭제 행 404 · 누락 400(<code>InvalidVersionRankRequestException.incomplete()</code>)</td></tr>
+            <tr><td>F-3</td><td>BIOS 와 Driver/Utility 는 <b>항목이 0 개인 보드도</b> C1 에 그립니다. BIOS 는 그 보드의 C2 에 "등록된 BIOS 가 없습니다" 와 "+ BIOS 등록" 버튼을 둡니다</td><td><code>BiosService.findAllGrouped</code> · <code>SubprogramService.findAllGrouped</code> · <code>bios/list.html</code></td></tr>
+            <tr><td>F-4</td><td>BIOS 의 C1 에는 개수 표시가 없습니다(보드 모델명 · 제조사만)</td><td><code>bios/list.html</code> C1</td></tr>
+            <tr><td>F-5</td><td><code>BoardModelMetadataService.findAllGrouped(false)</code> 는 목록 밖에서도 불립니다 — BIOS 보드 선택 폼 · Driver/Utility 신규 폼</td><td><code>BiosMetadataController.newFormWithoutBoard</code> · <code>SubprogramController.newForm</code></td></tr>
+            <tr><td>F-6</td><td>RAID 카드의 PCI Subsystem ID 는 문자열이 아니라 VO 이고 null 일 수 있습니다(미확인)</td><td><code>RaidCard.pciSubsystemId</code> : <code>PciSubsystemId</code> <code>@Embedded</code></td></tr>
+          </tbody>
+        </table>
+        <p>F-1 ~ F-5 는 §8-3 의 결정 보강 항목으로 이어집니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <h4>2-1. 사용자 전제</h4>
+        <ol>
+          <li>S8 = 조회 화면 기능 강화입니다. S8-1(공통 부품 · 세팅 정의서 · 서버 그룹)과 S8-2(게스트 서버)가 끝났고, <b>S8-3 은 자원 관리 목록 여섯</b>입니다.</li>
+          <li><b>S8-4(시작 전)</b>는 모든 목록의 기본 필터 "생성 일시 1 년 이내" · '검색' 버튼이 여는 상세 조회 창 · 조회 띠의 필터를 그 창 안으로 옮기기 · 보드 · 그룹처럼 자기 조회 화면이 있는 대상의 필터 표현 재설계입니다.</li>
+          <li>검색 입력은 <b>Enter 가 주 경로</b>이고 '검색' 버튼은 남깁니다(S8-4 에서 상세 조회 창을 여는 버튼이 됩니다).</li>
+        </ol>
+
+        <h4>2-2. 요구 (여섯 화면 공통)</h4>
+        <ol>
+          <li><b>R1 조회 띠</b>(S8-1 의 GET 폼)를 Miller 위에 둡니다 — 검색 입력(Enter · '검색' 버튼) · 활성 칩(전체 · 활성 · 비활성) · 사용 중단 칩(전체 · 권고 · 정상) · 삭제된 항목 포함 체크박스 · 결과 건수 · 초기화.</li>
+          <li><b>R2 조건은 C2 항목(자원 한 건)에 겁니다.</b> 조건에 맞는 항목이 없는 C1 묶음은 숨깁니다. C1 머리에 맞는 항목 수를 보입니다(기존 개수 표시가 있으면 그것을 조건 뒤 값으로).</li>
+          <li><b>R3 폼 제출 때 선택 파라미터를 숨은 필드로 보존</b>합니다(화면별 <code>selectKey</code> · <code>selectId</code> · <code>selectBoardId</code> · <code>selectKind</code>). 선택한 항목이 조건에 걸려 사라지면 C3 는 빈 상태("선택한 항목이 조건에 맞지 않습니다." + 조건 초기화 링크)입니다.</li>
+          <li><b>R4 조건이 하나라도 걸리면 BIOS · BMC 의 순위 드래그를 끕니다</b>(삭제 포함 때와 같은 게이트). 끈 이유를 드래그 핸들 자리에 안내합니다(툴팁 또는 한 줄).</li>
+          <li><b>R5 검색 대상</b>은 부분 일치 · 대소문자 무시이고 아래 2-4 표와 같습니다. <b>ISO 는 검색 대상이 아닙니다</b>(OS 버전 아래 아코디언 — 한 단계 더 안쪽).</li>
+          <li><b>R6 Driver/Utility 는 조회 띠 하나가 두 Miller 모두에 걸립니다</b>(삭제 포함이 이미 페이지 전역입니다).</li>
+          <li><b>R7 <code>include-deleted-toggle.js</code> 를 폼 필드로 흡수</b>하고, 사용처가 0 이 되면 파일을 지웁니다.</li>
+          <li><b>R8 알 수 없는 값</b>(<code>enabled=maybe</code> 등)은 바인딩 400 입니다(S8-1 과 같은 경로).</li>
+        </ol>
+
+        <h4>2-3. 축</h4>
+        <table>
+          <thead><tr><th>축</th><th>파라미터</th><th>값 · 뜻</th></tr></thead>
+          <tbody>
+            <tr><td>검색</td><td><code>q</code></td><td>화면별 검색 필드 부분 일치(OR) · 대소문자 무시 · 공백만이면 없음</td></tr>
+            <tr><td>활성</td><td><code>enabled</code></td><td>없음(전체) · <code>true</code>(활성) · <code>false</code>(비활성) — effective 값</td></tr>
+            <tr><td>사용 중단</td><td><code>deprecated</code></td><td>없음(전체) · <code>true</code>(권고) · <code>false</code>(정상) — effective 값</td></tr>
+            <tr><td>삭제 포함</td><td><code>includeDeleted</code></td><td>체크박스 (기존 의미 유지 · 기본 <code>false</code>)</td></tr>
+            <tr><td>선택</td><td>화면별 선택 파라미터</td><td>조건이 아닌 화면 상태 — 숨은 필드로 실어 보존</td></tr>
+          </tbody>
+        </table>
+
+        <h4>2-4. 검색 대상 (R5)</h4>
+        <table>
+          <thead><tr><th>화면</th><th>검색 필드</th></tr></thead>
+          <tbody>
+            <tr><td>OS</td><td>OS 이름 표시명 · 버전 · 설명</td></tr>
+            <tr><td>메인보드</td><td>제조사 표시명 · 모델명 · 설명</td></tr>
+            <tr><td>BIOS · BMC</td><td>보드 모델명 · 이름 · 버전</td></tr>
+            <tr><td>Driver/Utility</td><td>이름 · 버전 · 보드 모델명(공용이면 "공용")</td></tr>
+            <tr><td>RAID 카드</td><td>제조사 표시명 · 모델명 · PCI Subsystem ID</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>비 목표</b> — 아래는 이 슬라이스에서 하지 않습니다.
+          <ul>
+            <li><b>페이징</b> — Miller 는 고른 것의 하위만 보이므로 열이 이미 작습니다.</li>
+            <li><b>정렬</b> — C1 은 묶음이고, BIOS · BMC 의 C2 는 운영자 순위가 뜻입니다.</li>
+            <li><b>ISO · 설치 환경 · 패키지 그룹 검색</b> — 한 단계 더 안쪽이라 S8-4 의 상세 조회 창에서 필드별 조건으로 봅니다.</li>
+            <li><b>등록일 표시와 기간 필터 · 상세 조회 창</b> → S8-4.</li>
+            <li><b>Miller 마크업의 조각화</b> — 다섯 화면이 인라인으로 두고 있으며 이번에 건드리지 않습니다.</li>
+            <li><b>선택 파라미터 헬퍼 통합</b> — <code>*ControllerSupport</code> 는 도메인별로 의도적으로 통합하지 않았습니다(Javadoc 근거).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 (불가침 : §2 직후 + 진짜 인터랙티브) ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — Miller 3 열 · 조회 띠 · 선택 보존 · 순위 드래그 게이트 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0;">가짜 데이터(결정적 · 난수 없음)로 <b>메인보드 / BIOS / Driver · Utility</b> 세 화면을 그립니다. 제조사 3(Gigabyte · Asus · Fujitsu) · 보드 8 · 보드당 BIOS 0 ~ 4 · 드라이버 5 · 유틸리티 5(공용 포함)입니다.
+          셋이면 형태가 다 나옵니다 — 제조사 묶음형 · 보드 묶음 + 순위형 · Miller 둘형입니다.</p>
+        <p>C1 · C2 항목을 누르면 선택이 바뀌고(URL 의 선택 파라미터가 따라 바뀝니다), 조회 띠의 검색(Enter 또는 '검색') · 칩 · 체크박스를 바꾸면 Miller 와 캡션이 함께 바뀝니다.
+          BIOS 화면의 ▲ ▼ 는 드래그를 대신하는 버튼입니다. 조건이 걸리면 핸들이 꺼지고 마우스를 올리면 이유가 뜹니다.
+          '보이는 순서로 PATCH 직접' 버튼은 조건 중에 걸러진 목록을 서버에 보냈을 때 <code>reorderVersionRanks</code> 가 무엇을 돌려주는지 재현합니다(§9 B4).</p>
+        <p>캡션 첫 줄은 <b>URL</b>(빈 값 · 기본값 생략, 선택 파라미터는 숨은 필드로 보존), 둘째 줄은 <b>서버 판정</b>입니다. 항목을 거르는 함수는 <code>demoMatches</code> 하나이며, 그 본문은 §4-2 의 <code>ResourceListQuery.matches</code> 와 같습니다.
+          활성 · 사용 중단은 effective 값으로 판정합니다 — 부모 보드가 비활성이면 그 BIOS 도 비활성으로 보이고 걸립니다(<code>LifecycleEntity.recomputeEffective</code> 와 같은 결합).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">화면 :</span>
+            <button class="seg" data-screen="BOARD" onclick="demoScreen('BOARD')">메인보드</button>
+            <button class="seg" data-screen="BIOS" onclick="demoScreen('BIOS')">BIOS</button>
+            <button class="seg" data-screen="SUB" onclick="demoScreen('SUB')">Driver · Utility</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="seg" data-preset="name" onclick="demoPreset('name')">이름으로 찾기</button>
+            <button class="seg" data-preset="disabled" onclick="demoPreset('disabled')">비활성만</button>
+            <button class="seg" data-preset="deprecated" onclick="demoPreset('deprecated')">사용 중단 권고만</button>
+            <button class="seg" data-preset="deleted" onclick="demoPreset('deleted')">삭제 포함</button>
+            <button class="seg" data-preset="lost" onclick="demoPreset('lost')">선택한 항목이 걸러짐</button>
+            <button class="seg" data-preset="reset" onclick="demoPreset('reset')">초기화</button>
+          </div>
+
+          <div style="margin-top:12px;" id="demo-bar"></div>
+          <div id="demo-miller"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — 전부 읽고 묶기만</h4><pre><code>List&lt;BoardBIOS&gt; allBios = ...;
+Map&lt;Long, List&lt;BoardBIOS&gt;&gt; byBoard = allBios.stream()
+    .filter(b -&gt; includeDeleted || !b.isDeleted())
+    .collect(groupingBy(...));
+// 보드마다 versionRank 순 · latestOf · 응답</code></pre></div>
+          <div class="split-card after"><h4>AFTER — 묶기 전에 query::matches</h4><pre><code>// 보드마다 versionRank 순 목록 ofBoard
+Long latest = latestOf(ofBoard);      // 거르기 전 (F-1)
+List&lt;BoardBIOS&gt; shown = ofBoard.stream()
+    .filter(b -&gt; query.matches(b,
+        board.getModelName(), b.getName(), b.getVersion()))
+    .toList();
+// 조건 중 shown 이 비면 이 보드 묶음을 뺀다</code></pre></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 거르기(<code>demoMatches</code>) = <code>ResourceListQuery.matches</code>,
+          effective 결합(<code>demoEff</code>) = <code>LifecycleEntity.recomputeEffective</code>(자식 활성 = own ∧ 부모 활성 · 자식 사용 중단 = own ∨ 부모 사용 중단),
+          드래그 게이트 = <code>!query.isFiltered() &amp;&amp; !query.includeDeleted()</code>,
+          latest 표시 = <code>BoardBiosCatalog.latestEnabled</code>(거르기 전 목록),
+          직접 PATCH 판정(<code>demoReorder</code>) = <code>BiosService.reorderVersionRanks</code> 의 검사 순서입니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름 + 프론트</summary>
+      <div class="body">
+        <h4>3-1. URL</h4>
+        <p style="margin-top:0;">신규 POST 는 없습니다. 기존 GET 여섯이 받는 파라미터에 <code>q</code> · <code>enabled</code> · <code>deprecated</code> 가 더해집니다. 순위 PATCH 는 무변경입니다.</p>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>파라미터</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/management/os</code></td><td><code>q</code> · <code>enabled</code> · <code>deprecated</code> · <code>includeDeleted</code> · <code>selectKey</code> · <code>selectId</code></td><td>200 <code>management/os/list</code></td></tr>
+            <tr><td>GET</td><td><code>/management/board</code></td><td>같은 조건 · <code>selectKey</code> · <code>selectId</code></td><td>200 <code>management/board/list</code></td></tr>
+            <tr><td>GET</td><td><code>/management/bios</code></td><td>같은 조건 · <code>selectBoardId</code> · <code>selectedBoardId</code> · <code>selectId</code></td><td>200 <code>management/bios/list</code></td></tr>
+            <tr><td>GET</td><td><code>/management/bmc</code></td><td>BIOS 와 같음</td><td>200 <code>management/bmc/list</code></td></tr>
+            <tr><td>GET</td><td><code>/management/subprogram</code></td><td>같은 조건 · <code>selectKind</code> · <code>selectKey</code> · <code>selectId</code></td><td>200 <code>management/subprogram/list</code></td></tr>
+            <tr><td>GET</td><td><code>/management/raidcard</code></td><td>같은 조건 · <code>selectKey</code> · <code>selectId</code></td><td>200 <code>management/raidcard/list</code></td></tr>
+            <tr><td>GET</td><td>위 여섯</td><td><code>enabled=maybe</code> · <code>deprecated=abc</code></td><td>400 <code>error.html</code></td></tr>
+            <tr><td>PATCH</td><td><code>/management/{bios|bmc}/{boardId}/rank</code></td><td><code>orderedIds</code> (JSON)</td><td>무변경 — 204 / 400 / 404</td></tr>
+          </tbody>
+        </table>
+        <pre><code>[기본]           GET /management/bios
+[버전 검색]      GET /management/bios?q=F10
+[비활성 + 선택]  GET /management/bios?enabled=false&amp;selectBoardId=1&amp;selectId=13
+[두 Miller]      GET /management/subprogram?q=storcli&amp;selectKind=UTILITY&amp;selectKey=common
+[삭제 포함]      GET /management/raidcard?includeDeleted=true
+[초기화]         → 경로 + 선택 파라미터만 (조건만 푼다)
+[오류값]         ?enabled=maybe → Boolean 변환 실패 → 400 → templates/error.html</code></pre>
+        <p><code>enabled</code> · <code>deprecated</code> 는 Spring 의 기본 문자열 → <code>Boolean</code> 변환을 탑니다. 조회 띠는 <code>true</code> · <code>false</code> 만 보내며, 주소창에 그 밖의 값을 넣으면 400 입니다.
+          초기화 링크는 <b>조건만 풀고 선택 파라미터는 남깁니다</b>(CP1 세션 판정 — 보던 항목에 머문다).</p>
+
+        <h4>3-2. 요청 한 건의 흐름</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">Controller</div><div class="actor a3">Service</div><div class="actor a4">뷰 (Thymeleaf)</div>
+          <div class="step a1">① 조회 띠 GET 제출 — <code>list-query.js</code> 가 제출 순간 현재 URL 의 선택 파라미터를 숨은 필드에 복사(<code>data-list-keep</code>) · 빈 값 · 기본값 제거</div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">② <code>@ModelAttribute("query") ResourceListQuery</code> 수령 (변환 실패 → 400) · 선택 파라미터는 종전대로 <code>@RequestParam</code></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">③ 저장소에서 기존대로 읽는다(삭제 제외판 / 포함판) → (BIOS · BMC) <code>latestOf</code> 는 거르기 전 목록으로 → <b>묶기 전에</b> <code>query::matches</code>(도메인 검색 필드) → 묶음 · 개수 · 조건 중 빈 묶음 제외</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">모델 — 목록 · <code>query</code> · <code>rankEnabled</code> · 선택 파라미터</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"></div><div class="step a4">④ 조회 띠 복원 · 결과 건수 · Miller 렌더 · 선택 복원 · C3 "걸러진 선택" 빈 상태 · 드래그 게이트 <code>data-rank-enabled="${rankEnabled}"</code></div>
+          <div class="step a1">⑤ 클릭 선택 → <code>os-list.js</code> · <code>subprogram-list.js</code> 가 <code>history.replaceState</code> 로 URL 만 갱신 (서버 왕복 없음)</div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+        </div>
+        <p>⑤ 가 D9 의 이유입니다. 클릭 선택은 서버를 거치지 않으므로 서버가 렌더한 숨은 필드 값은 그 순간 낡습니다. 그래서 숨은 필드는 제출 시점에 현재 URL 에서 채웁니다.</p>
+
+        <h4>3-3. 컨트롤러 시그니처와 모델 (BIOS 예)</h4>
+        <pre><code>@GetMapping
+public String list(@ModelAttribute("query") ResourceListQuery query,
+                   @RequestParam(name = "selectId", required = false) Long selectId,
+                   @RequestParam(name = "selectBoardId", required = false) Long selectBoardId,
+                   @RequestParam(name = "selectedBoardId", required = false) Long selectedBoardId,
+                   Model model)</code></pre>
+        <table>
+          <thead><tr><th>모델 속성</th><th>타입 · 내용</th></tr></thead>
+          <tbody>
+            <tr><td>목록 (<code>boards</code> · <code>osGroups</code> · <code>boardGroups</code> · <code>driverGroups</code> / <code>utilityGroups</code> · <code>raidCardGroups</code>)</td><td>기존 응답 타입 그대로 · 걸러진 내용</td></tr>
+            <tr><td><code>query</code></td><td><code>ResourceListQuery</code> — 조회 띠 복원 · <code>query.filtered</code> · <code>query.includeDeleted</code></td></tr>
+            <tr><td><code>includeDeleted</code></td><td>제거 — 템플릿은 <code>query.includeDeleted</code> 를 읽는다</td></tr>
+            <tr><td><code>rankEnabled</code> (BIOS · BMC)</td><td><code>!query.isFiltered() &amp;&amp; !query.includeDeleted()</code></td></tr>
+            <tr><td>선택 파라미터</td><td>종전과 같음</td></tr>
+          </tbody>
+        </table>
+        <p>모델 속성 <code>includeDeleted</code> 는 <b>이름을 남기고 값만 <code>query.includeDeleted()</code> 에서 채웁니다</b>(CP1 세션 판정) — 기존 템플릿 · 조각(<code>lifecycle-actions</code> 등)이 그 이름을 읽으므로 건드리지 않습니다.</p>
+
+        <h4>3-4. 프론트</h4>
+        <table>
+          <thead><tr><th>자리</th><th>구성</th></tr></thead>
+          <tbody>
+            <tr><td><code>list.html</code> 여섯</td><td>페이지 머리의 "삭제된 항목 포함" 체크박스를 조회 띠 폼 필드로 옮김 · 조회 띠(<code>n-filter-bar</code> · <code>data-list-query</code>) · 선택 파라미터 숨은 필드 · 결과 건수 한 줄 · C3 의 "걸러진 선택" 빈 상태 · <code>list-query.js</code> 적재 · <code>include-deleted-toggle.js</code> 적재 제거</td></tr>
+            <tr><td><code>fragments/ui/resource-filter :: bar(action, query, hidden)</code></td><td>조회 띠 조각(신규). 여섯 화면의 축이 정확히 같아서 조각으로 둡니다(D5). 선택 파라미터 숨은 필드는 호출부가 <code>th:block</code> 인자 또는 화면별 조각 인자로 조각 안에 넣습니다</td></tr>
+            <tr><td><code>list-query.js</code></td><td>submit 처리에 한 기능 — 폼의 <code>data-list-keep="selectKey selectId …"</code> 에 적힌 이름을 현재 URL 에서 읽어 숨은 필드를 채운다(D9)</td></tr>
+            <tr><td><code>firmware-rank.js</code></td><td>무변경 — <code>data-rank-enabled</code> 게이트를 그대로 쓴다. 템플릿이 그 값을 <code>rankEnabled</code> 로 준다</td></tr>
+            <tr><td>BIOS · BMC <code>list.html</code></td><td>핸들 조건 <code>th:unless="${includeDeleted or bios.isDeleted}"</code> 을 게이트에 맞춰 바꾸고, 조건 중에는 <code>fwRankHint</code> 자리에 꺼진 이유 문구</td></tr>
+            <tr><td><code>DESIGN.md</code></td><td>§5 조회 띠 문단에 "Miller 화면 : 조건은 C2 에 걸고 빈 C1 은 숨김 · 순위 드래그는 조건이 걸리면 끔" 한 줄 · §8 조각 표에 <code>resource-filter :: bar</code> 행</td></tr>
+            <tr><td><code>include-deleted-toggle.js</code></td><td>삭제 (사용처 0 — R7 · D10)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>3-5. 문구 (<code>messages.properties</code>)</h4>
+        <table>
+          <thead><tr><th>키</th><th>문구</th></tr></thead>
+          <tbody>
+            <tr><td><code>management.list.empty-filtered</code></td><td>조건에 맞는 항목이 없습니다.</td></tr>
+            <tr><td><code>management.list.selection-filtered</code></td><td>선택한 항목이 조건에 맞지 않습니다.</td></tr>
+            <tr><td><code>management.list.rank-disabled-filtered</code></td><td>조건이 걸린 동안에는 순서를 바꿀 수 없습니다. 조건을 초기화하면 다시 바꿀 수 있습니다.</td></tr>
+          </tbody>
+        </table>
+        <p>검색 입력 placeholder 는 화면별 예시입니다(예: 메인보드 <span class="mono">예: MS04-CE0</span> · BIOS <span class="mono">예: F10</span>). 칩 라벨은 화면 1 회성 명사라 조각에 직접 적습니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) — 엔티티 · DDL 변경 없음</summary>
+      <div class="body">
+        <h4>4-1. 신규 · 수정 타입</h4>
+        <table>
+          <thead><tr><th>타입</th><th>위치</th><th>구분</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>ResourceListQuery</code></td><td><code>global/lifecycle/dto</code></td><td><span class="chip new">신규</span></td><td>record — 아래 4-2</td></tr>
+            <tr><td>도메인 서비스 여섯</td><td>각 도메인 <code>service</code></td><td><span class="chip mod">수정</span></td><td><code>findAllGrouped</code> 가 <code>ResourceListQuery</code> 를 받음 · 도메인 검색 필드(R5)를 <code>matches</code> 에 넘김 · 조건 중 빈 묶음 제외 · 묶음 개수는 걸러진 수</td></tr>
+            <tr><td>컨트롤러 여섯</td><td>각 도메인 <code>controller</code></td><td><span class="chip mod">수정</span></td><td><code>includeDeleted</code> <code>@RequestParam</code> → <code>@ModelAttribute("query") ResourceListQuery</code> · 모델 <code>query</code> · <code>rankEnabled</code></td></tr>
+          </tbody>
+        </table>
+        <p><code>ResourceListQuery</code> 를 global 에 두는 이유는 생명주기 플래그(활성 · 사용 중단 · 삭제)의 뜻이 여섯 도메인에서 같기 때문입니다. 도메인마다 다른 것은 검색 필드뿐이고, 그것은 호출하는 서비스가 넘깁니다.</p>
+
+        <h4>4-2. <code>ResourceListQuery</code></h4>
+        <pre><code>public record ResourceListQuery(
+        String q,
+        Boolean enabled,          // null = 전체
+        Boolean deprecated,       // null = 전체
+        Boolean includeDeleted) {
+
+    // 압축 생성자: 공백 q → null · includeDeleted null → false
+
+    /** q · enabled · deprecated 중 하나라도 — includeDeleted 는 별도 축(기존 의미 유지). */
+    public boolean isFiltered() { … }
+
+    /** 삭제 제외(includeDeleted 아니면) · 활성 · 사용 중단은 effective 값 · 검색은 searchable 중 하나라도 소문자 부분 일치. */
+    public boolean matches(LifecycleEntity e, String... searchable) { … }
+}</code></pre>
+        <table>
+          <thead><tr><th>판정 순서</th><th>조건</th><th>엔티티 값</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>includeDeleted</code> 가 아니고 삭제됨 → 제외</td><td><code>isDeleted()</code></td></tr>
+            <tr><td>2</td><td><code>enabled</code> 가 있고 다름 → 제외</td><td><code>isEnabled()</code> (effective)</td></tr>
+            <tr><td>3</td><td><code>deprecated</code> 가 있고 다름 → 제외</td><td><code>isDeprecated()</code> (effective)</td></tr>
+            <tr><td>4</td><td><code>q</code> 가 있으면 <code>searchable</code> 중 null 아닌 값 하나라도 <code>toLowerCase().contains(q 소문자)</code></td><td>도메인이 넘긴 문자열</td></tr>
+          </tbody>
+        </table>
+        <p>삭제 판정은 저장소가 이미 삭제 제외 조회(<code>...IsDeletedFalse...</code>)를 쓰는 곳은 그대로 두고, <code>matches</code> 도 방어적으로 같은 판정을 합니다.
+          활성 · 사용 중단을 effective 로 보는 이유는 화면 표시와 같게 하기 위해서입니다 — 부모 보드가 비활성이면 그 BIOS 는 화면에 "비활성" 으로 보이고, 비활성 칩에도 걸려야 합니다(§8 Q3).</p>
+
+        <h4>4-3. 도메인별 검색 필드와 서비스 시그니처</h4>
+        <table>
+          <thead><tr><th>서비스</th><th>시그니처 (수정 후)</th><th><code>matches</code> 에 넘기는 값</th></tr></thead>
+          <tbody>
+            <tr><td><code>OSMetadataService</code></td><td><code>findAllGrouped(ResourceListQuery query)</code></td><td>OS 이름 표시명 · 버전 · 설명</td></tr>
+            <tr><td><code>BoardModelMetadataService</code></td><td><code>findAllGrouped(ResourceListQuery query)</code></td><td>제조사 표시명 · 모델명 · 설명</td></tr>
+            <tr><td><code>BiosService</code></td><td><code>List&lt;BoardWithBiosListResponse&gt; findAllGrouped(ResourceListQuery query)</code></td><td>보드 모델명 · 이름 · 버전</td></tr>
+            <tr><td><code>BmcService</code></td><td><code>findAllGrouped(ResourceListQuery query)</code></td><td>보드 모델명 · 이름 · 버전</td></tr>
+            <tr><td><code>SubprogramService</code></td><td><code>List&lt;BoardWithSubprogramListResponse&gt; findAllGrouped(SubprogramKind kind, ResourceListQuery query)</code></td><td>이름 · 버전 · 보드 모델명 또는 "공용"</td></tr>
+            <tr><td><code>RaidCardMetadataService</code></td><td><code>List&lt;RaidCardVendorGroupResponse&gt; findAllGrouped(ResourceListQuery query)</code></td><td>제조사 표시명 · 모델명 · <code>PciSubsystemId</code> 의 표시 문자열(null 이면 null)</td></tr>
+          </tbody>
+        </table>
+        <p>기존 <code>boolean includeDeleted</code> 인자는 <code>ResourceListQuery.includeDeleted</code> 가 흡수하는 것으로 적었습니다(CP1 세션 확인 — record 가 includeDeleted 를 담으므로 둘을 함께 받으면 중복이다).
+          반환 타입은 바뀌지 않습니다. <code>PciSubsystemId</code> 에서 문자열을 꺼내는 메서드 이름은 CP2 에서 VO 를 보고 정합니다.</p>
+
+        <h4>4-4. 서비스 안의 순서 (BIOS 예)</h4>
+        <div class="pkg-tree">findAllGrouped(query)
+├── boards  = query.includeDeleted ? 전체 보드 : 삭제 제외 보드          (저장소 · 기존)
+├── allBios = findAllByBoardModel_IdIn(boardIds)                        (저장소 · 기존)
+└── 보드마다
+    ├── ofBoard = includeDeleted 필터 → versionRank 순                  (기존)
+    ├── latest  = latestOf(ofBoard)                                     (거르기 전 — F-1 · 세션 판정)
+    ├── shown   = ofBoard.filter(b → query.matches(b, 보드 모델명, 이름, 버전))
+    └── query.isFiltered() 이고 shown 이 비면 → 이 보드 묶음 제외       (조건 중에만 — F-3 · 세션 판정)</div>
+        <p><code>shown</code> 은 <code>ofBoard</code> 의 순서를 그대로 두고 거르기만 하므로 순위 순서가 유지됩니다(§6 단위 테스트가 고정).</p>
+
+        <div class="callout success"><b>거르기가 메모리 판정인 이유</b> — 여섯 화면은 페이징이 없고 묶음을 이미 메모리에서 만듭니다. SQL 로 옮기면 도메인마다 Specification 이 한 벌씩(6 벌) 생기는데 얻는 것이 없습니다.
+          S8-1 · S8-2 가 SQL 로 간 이유는 페이징의 총 건수가 DB 에서 세어져야 했기 때문이며, 이 화면에는 그 조건이 없습니다.</div>
+        <div class="callout success"><b>Primitive Obsession 점검</b> — 검색어 <code>q</code> 는 형식이 없는 사용자 입력이라 S8-1 과 같이 <code>String</code> 으로 둡니다.
+          활성 · 사용 중단은 <code>Boolean</code> 축(null = 전체)이고, 선택 파라미터는 기존 타입(<code>Long</code> · <code>SubprogramKind</code> 등)을 그대로 씁니다. 새 도메인 의미값은 생기지 않습니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td><code>resource-filter</code> 조각 · <code>list.html</code> 여섯 · <code>list-query.js</code> 선택 보존 · <code>messages.properties</code> 3 키</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3</td><td>컨트롤러 여섯의 <code>list</code> 시그니처 · 모델 <code>query</code> · <code>rankEnabled</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>4</td><td><code>ResourceListQuery</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td>서비스 여섯의 <code>findAllGrouped(…, ResourceListQuery)</code> 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td>N/A — 저장소 무변경(기존 조회를 그대로 쓰고 메모리에서 거름)</td><td><span class="chip cp3">CP3</span></td><td>—</td></tr>
+            <tr><td>7</td><td>N/A — 엔티티 무변경</td><td><span class="chip cp3">CP3</span></td><td>—</td></tr>
+            <tr><td>8</td><td>서비스 본체(거르기 · 빈 묶음 · 개수) · <code>ResourceListQuery</code> 본체 · <code>include-deleted-toggle.js</code> 삭제 · <code>DESIGN.md</code> (테스트 제외, 빌드 통과)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>9</td><td>DDL 없음 — <code>ddl-auto=validate</code> 기동 확인만</td><td><span class="chip cp4">CP4</span></td><td>중간 승인</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 + 기존 목록 테스트 적응 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (Opus 하위 에이전트 수행 · 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷입니다. 무중단 구간은 둘입니다 —
+          ① CP1 승인 → CP4 게이트 지점(main 구현 · 경계마다 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출).
+          CP5 는 수행 결과를 보고만 하고 그 검수는 CP6 에서 report 와 함께 받습니다.</div>
+        <div class="callout"><b>브랜치</b> — CP1 승인 뒤 <code>origin/dev</code> 에서 <code>feat/S8-3_resource-list-filter</code> 를 땁니다. Q1 을 채택하면 상태 변경 리다이렉트 작업이 같은 브랜치에 더해집니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오 (단위 15 · 통합 20 · Q1 채택 시 추가)</summary>
+      <div class="body">
+        <h4>6-1. 단위 테스트 (JUnit + Mockito)</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>ResourceListQueryTest</code></td><td>기본값 · 공백 <code>q</code> → null · <code>isFiltered</code> · <code>matches</code> 삭제 제외 · effective 활성(부모 비활성 자식) · effective 사용 중단(부모 권고 자식) · 검색 대소문자 · <code>searchable</code> null 안전</td><td>8</td></tr>
+            <tr><td>도메인 서비스 여섯의 <code>findAllGrouped</code></td><td>조건 1 건씩 — 조건 중 빈 묶음 제외 · 묶음 개수 = 걸러진 수</td><td>6</td></tr>
+            <tr><td><code>BiosService.findAllGrouped</code></td><td>걸러진 뒤에도 묶음 안 순위 순서 유지</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <p>F-1 · F-3 채택(CP1 세션 판정)에 따라 두 시나리오를 더합니다 — "latest 표시는 거르기 전 목록 기준(조건으로 1 위가 걸러져도 latest 가 옮겨 가지 않음 · BIOS · BMC 둘 다)" · "조건이 없으면 항목 0 개 보드도 C1 에 남음".</p>
+
+        <h4>6-2. 사용자 액션 통합 테스트 (<code>@WebMvcTest</code> + <code>MockMvc</code> + <code>@MockitoBean</code> · 컨트롤러 여섯)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 200</td><td>조건 바인딩 — <code>q</code> · <code>enabled</code> · <code>deprecated</code> · <code>includeDeleted</code> 가 서비스 인자로 전달(인자 캡처) × 6</td><td>6</td></tr>
+            <tr><td>성공 200</td><td>조회 띠 렌더 + 선택 파라미터 숨은 필드 × 6</td><td>6</td></tr>
+            <tr><td>성공 200</td><td>BIOS · BMC — 조건이 걸리면 <code>data-rank-enabled="false"</code> × 2</td><td>2</td></tr>
+            <tr><td>400</td><td><code>enabled=maybe</code> × 6</td><td>6</td></tr>
+            <tr><td>회귀</td><td>기존 목록 테스트 적응(<code>includeDeleted</code> 파라미터 → query) — 수는 기존 테스트 그대로</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <p>Q1 을 채택하면 도메인마다 "조건 중 상태 변경 뒤 리다이렉트가 조건 · 선택을 보존" 시나리오가 더해집니다. 조작 5 ~ 6 종 중 몇을 통합 테스트로 덮을지는 사용자의 Q1 판정 뒤 정합니다(권고: 도메인마다 대표 조작 하나 — 활성 토글).</p>
+        <div class="callout warn"><b>404 · 409 · 500 범주는 이 슬라이스에 없습니다.</b>
+          목록 조회는 존재하지 않는 자원을 가리키지 않고(선택 id 가 없으면 C3 가 빈 상태일 뿐 404 가 아님), 상태를 바꾸지 않으며(409 없음), 신규 예외가 0 입니다.
+          <code>Boolean</code> 변환 실패는 도메인 예외가 아니라 <b>바인딩 400</b> 이고 위 표가 트리거합니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 0</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외 · 경로</th><th>HTTP</th><th>구분</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><code>enabled</code> · <code>deprecated</code> 의 <code>Boolean</code> 바인딩 실패 → Spring <code>DefaultHandlerExceptionResolver</code></td><td>400</td><td><span class="chip keep">재사용</span></td><td><code>templates/error.html</code> — S8-1 · S8-2 와 같은 경로</td></tr>
+            <tr><td><code>InvalidVersionRankRequestException</code> (중복 · 누락)</td><td>400</td><td><span class="chip keep">재사용</span></td><td>순위 PATCH 의 기존 안전망 — 조건 중 걸러진 부분 목록을 직접 보내면 누락으로 걸린다(F-2)</td></tr>
+            <tr><td><code>BiosNotFoundException</code> · <code>BoardModelNotFoundException</code></td><td>404</td><td><span class="chip keep">재사용</span></td><td>순위 PATCH 의 forging 관례 — 무변경</td></tr>
+          </tbody>
+        </table>
+        <p>O-3(advice 의 콘텐츠 협상) HF 후보는 S8-1 에서 적립된 그대로 두고, 이 슬라이스에서 바인딩 실패 핸들러를 더하지 않습니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 (D1 ~ D11 · Q1 ~ Q3)</summary>
+      <div class="body">
+        <h4>8-1. 결정</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택</th><th>비채택 대안</th></tr></thead>
+          <tbody>
+            <tr><td><b>D1</b></td><td>페이징</td><td>없음</td><td>열마다 쪽 이동</td></tr>
+            <tr><td><b>D2</b></td><td>정렬</td><td>없음</td><td>정렬 셀렉트</td></tr>
+            <tr><td><b>D3</b></td><td>거르기 자리</td><td>메모리 · 묶기 전</td><td>도메인별 Specification</td></tr>
+            <tr><td><b>D4</b></td><td>조건 타입</td><td>record 하나를 여섯 도메인이 공유(global)</td><td>도메인별 record</td></tr>
+            <tr><td><b>D5</b></td><td>조회 띠 마크업</td><td>조각화 <code>resource-filter :: bar</code></td><td>화면마다 인라인 (S8-1 방식)</td></tr>
+            <tr><td><b>D6</b></td><td>조건을 거는 열</td><td>C2 · 빈 C1 숨김</td><td>C1 도 검색 대상 / 빈 묶음 표시</td></tr>
+            <tr><td><b>D7</b></td><td>선택이 걸러질 때</td><td>C3 빈 상태 + 조건 초기화</td><td>조건 무시하고 선택 유지 / 선택 자동 해제</td></tr>
+            <tr><td><b>D8</b></td><td>조건 중 순위 드래그</td><td>끔</td><td>걸러진 목록에서 드래그 허용</td></tr>
+            <tr><td><b>D9</b></td><td>선택 숨은 필드 값</td><td>제출 시점에 현재 URL 에서 복사</td><td>서버 렌더 숨은 필드만</td></tr>
+            <tr><td><b>D10</b></td><td><code>include-deleted-toggle.js</code></td><td>삭제</td><td>유지</td></tr>
+            <tr><td><b>D11</b></td><td>ISO 검색</td><td>대상 아님</td><td>OS 버전 아래 ISO 이름까지</td></tr>
+          </tbody>
+        </table>
+
+        <h4>8-2. 탈락 사유</h4>
+        <p style="margin-top:0;"><b>D1</b> — Miller 는 고른 것의 하위만 보여 열이 작습니다. 쪽 이동이 세 열에 겹치면 선택 복원이 쪽 좌표까지 떠안아야 합니다.</p>
+        <p><b>D2</b> — C1 의 묶음 순서와 BIOS · BMC 의 운영자 순위가 그 자체로 뜻입니다. 정렬을 걸면 그 뜻이 흐려집니다.</p>
+        <p><b>D3</b> — 페이징이 없고 묶음을 이미 메모리에서 만듭니다. SQL 로 옮겨도 총 건수 같은 이득이 없고 Specification 6 벌만 생깁니다(§4 callout).</p>
+        <p><b>D4</b> — 축이 생명주기 플래그로 여섯 도메인에서 같습니다. 도메인마다 다른 것은 검색 필드뿐이고 그것은 서비스가 넘깁니다. 도메인별 record 는 같은 필드 넷을 여섯 번 복붙하게 됩니다.</p>
+        <p><b>D5</b> — S8-1 D13 은 "조회 띠는 화면마다 축이 달라 조각화하지 않는다" 였습니다. 이번에는 여섯 화면의 축이 <b>정확히 같아</b> 판단이 반대입니다. "갈라지는 시점에 분리" 원칙의 반대편 — 이미 같은 시점이므로 묶습니다.</p>
+        <p><b>D6</b> — 검색의 단위는 자원 한 건입니다. 조건에 맞는 항목이 없는 묶음을 그리면 눌러도 아무것도 없는 줄이 늘어나 소음이 됩니다.</p>
+        <p><b>D7</b> — 조건을 어기는 항목을 C3 에 계속 보이면 조건이 거짓말이 됩니다. 조용히 선택을 풀면 사용자는 왜 상세가 사라졌는지 모릅니다. 빈 상태 문구와 초기화 링크가 이유와 다음 행동을 함께 줍니다.</p>
+        <p><b>D8</b> — 걸러진 목록에서 끌어 놓으면, 보이지 않는 항목과의 상대 순서가 어떻게 되는지 사용자가 알 수 없습니다. 서버도 부분 목록을 받으면 누락 400 으로 거절합니다(F-2) — UI 가 먼저 막고 서버 검사는 안전망으로 남습니다.</p>
+        <p><b>D9</b> — 클릭 선택은 <code>replaceState</code> 로 URL 만 바꿔서, 서버가 렌더한 숨은 필드 값은 첫 클릭부터 낡습니다.</p>
+        <p><b>D10</b> — S8-2 이후 사용처가 이 여섯 화면뿐이고, 이번에 전부 폼 필드로 옮기므로 사용처가 0 이 됩니다.</p>
+        <p><b>D11</b> — ISO 는 OS 버전 아래 아코디언으로 한 단계 더 안쪽입니다. C2 에 걸리는 조건으로 ISO 를 찾으면 어느 항목이 왜 걸렸는지 화면에 드러나지 않습니다. S8-4 의 상세 조회 창에서 필드별 조건으로 봅니다.</p>
+
+        <h4>8-3. 코드 대조에서 나온 보강 (전사 에이전트 발굴 · CP1 세션 판정 완료)</h4>
+        <div class="callout success"><b>F-1 latest 표시는 거르기 전 목록으로 계산 — CP1 세션 채택</b> —
+          <code>BiosService</code> 의 latest 는 <code>BoardBiosCatalog.latestEnabled</code> 이고, 같은 술어를 실행 엔진의 굽기 대상 해석이 부릅니다("화면이 보여주는 것과 실행이 고르는 것이 어긋나지 않는다" — 클래스 Javadoc).
+          브리프대로 "묶기 전에 거르기" 를 <code>latestOf</code> 앞에 두면, 검색으로 1 위 버전이 걸러진 순간 2 위 버전에 latest 가 붙습니다. 실행은 여전히 1 위를 고르므로 화면이 실행과 어긋납니다.
+          그래서 4-4 와 데모는 <code>latestOf(ofBoard)</code> 를 거르기 전에 두었습니다. <b>BMC 도 같은 구조임을 세션이 확인했습니다</b>(<code>BmcService.latestOf</code> — 순위 1 위 활성 · BIOS 와 대칭) — 둘 다 적용합니다.</div>
+        <div class="callout success"><b>F-3 빈 묶음 숨김은 조건이 걸렸을 때만 — CP1 세션 채택</b> —
+          BIOS · BMC · Driver/Utility 는 지금 항목이 0 개인 보드도 C1 에 그리고, BIOS 는 그 보드의 C2 에 "+ BIOS 등록" 버튼을 둡니다. 조건이 없을 때도 빈 묶음을 숨기면 그 보드에 첫 BIOS 를 등록하는 진입점이 목록에서 사라집니다.
+          4-4 · 데모는 <code>query.isFiltered()</code> 일 때만 빈 묶음을 뺍니다. 삭제 포함만 켠 경우는 조건이 아니므로 숨기지 않습니다. Driver/Utility 의 공용 행도 같은 규칙(조건 중 비면 숨김 · 보이면 첫 행)으로 적었습니다.</div>
+        <div class="callout warn"><b>F-2 순위 PATCH 의 서버 가드</b> — "조건 중" 을 아는 가드는 없습니다(서버는 조건을 모릅니다). 조건 중 화면이 보낼 수 있는 부분 목록은 누락 400(<code>InvalidVersionRankRequestException.incomplete()</code>)으로 거절됩니다.
+          조건과 무관하게 살아 있는 행 전부를 담은 직접 PATCH 는 정당한 요청이라 204 입니다. 새 가드는 더하지 않습니다(§9 B4 가 이 판정을 확인).</div>
+        <div class="callout warn"><b>F-4 BIOS · BMC 의 C1 개수</b> — R2 의 "C1 머리에 맞는 항목 수" 는 BIOS C1 에 기존 표시가 없어 신설이 됩니다. <b>조건이 걸렸을 때만 보입니다</b>(CP1 세션 판정 — 평소 화면은 지금과 같게 두고, 개수는 "조건에 몇 개가 맞았나" 를 알려 줄 때만 뜻이 있다). 데모는 설명을 위해 항상 보입니다.</div>
+        <div class="callout warn"><b>F-5 목록 밖 호출부</b> — <code>BoardModelMetadataService.findAllGrouped(false)</code> 를 BIOS 보드 선택 폼과 Driver/Utility 신규 폼이 부릅니다. 시그니처를 바꾸면 이 호출부가 "조건 없음 · 삭제 제외" 를 표현할 방법이 필요합니다 — <b>정적 생성자 <code>ResourceListQuery.unfiltered(boolean includeDeleted)</code> 로 호출부가 "조건 없음" 을 표현합니다</b>(CP1 세션 판정 — 오버로드를 두면 같은 조회가 두 입구를 갖는다).</div>
+
+        <h4>8-4. 주의</h4>
+        <div class="callout">effective 값으로 판정합니다 — 부모가 비활성이면 자식도 비활성으로 보이고 비활성 칩에 걸립니다(화면 표시와 같음).
+          Driver/Utility 의 공용 범위 묶음은 첫 행 고정을 유지합니다. BIOS · BMC 의 <code>selectedBoardId</code> 호환 파라미터는 유지합니다.</div>
+
+        <h4>8-5. Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td><b>Q1</b></td><td>상태 변경 뒤 조건 유실 — 여섯 도메인의 리다이렉트를 "조회 조건 + 선택 보존" 으로 맞출지 / 알려진 비대칭으로 남길지</td><td><b>이번에 맞춘다</b> — 상태 변경 폼에 숨은 필드 <code>returnQuery</code> 하나 · <code>*ControllerSupport</code> 에 한 인자</td></tr>
+            <tr><td><b>Q2</b></td><td>S8-4 의 기본 1 년 필터를 기준 자료(보드 · OS)에 걸지</td><td>S8-4 에서 자원 관리 화면은 기본 기간 필터 예외 (S8-4 Open Question 으로 적립)</td></tr>
+            <tr><td><b>Q3</b></td><td>활성 칩의 판정 기준</td><td>effective (대안 own)</td></tr>
+          </tbody>
+        </table>
+        <p><b>Q1 풀이</b> — 활성화 · 삭제 같은 조작 뒤 리다이렉트가 도메인마다 선택 상태를 다르게 잃습니다(OS 만 3 축 보존 — §1 callout). 여기에 조건이 붙으면 조작 한 번에 필터가 풀립니다.
+          권고안은 상태 변경 폼에 현재 목록 질의를 숨은 필드 <code>returnQuery</code> 하나로 싣고, 각 컨트롤러가 리다이렉트에 붙이는 방식입니다. 비용은 도메인 여섯 × 조작 5 ~ 6 입니다.</p>
+        <p><b>Q3 풀이</b> — own 으로 판정하면 부모 보드가 비활성이라 화면에 "비활성" 으로 보이는 BIOS 가 "활성" 칩에 걸립니다. 보이는 것과 걸리는 것이 달라지므로 effective 를 권고합니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트 + CP5 검증 항목 (21)</summary>
+      <div class="body">
+        <h4>9-1. 빌드 · 테스트 · 회귀</h4>
+        <ul class="check-list" data-storage="S8-3-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew build</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 green (기존 회귀 0)</span></label></li>
+          <li><label><input type="checkbox" data-key="unit"> <span>단위 15 · 통합 20 작성 완료 (§6, 보강 채택 시 추가분 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="validate"> <span><code>ddl-auto=validate</code> 기동 확인 (DDL 변경 없음)</span></label></li>
+          <li><label><input type="checkbox" data-key="toggle"> <span><code>include-deleted-toggle.js</code> 사용처 0 확인 후 삭제</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>CP5 검증 A · B · C 21 항목 수행 + 항목별 스크린샷</span></label></li>
+          <li><label><input type="checkbox" data-key="regress"> <span>회귀 — 정의서 · 그룹 · 서버 목록(공통 스크립트 <code>list-query.js</code> 변경)</span></label></li>
+          <li><label><input type="checkbox" data-key="docs"> <span><code>DESIGN.md</code> §5 한 줄 · §8 조각 표 · <code>messages.properties</code> 3 키</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7 · 사용자 단독)</span></label></li>
+        </ul>
+
+        <h4>9-2. CP5 항목 — A 정상 흐름 (13)</h4>
+        <table>
+          <thead><tr><th>#</th><th>조작</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><b>A1</b></td><td>OS 검색(버전)</td><td>맞는 버전만 · 빈 OS 이름 묶음 숨김</td></tr>
+            <tr><td><b>A2</b></td><td>보드 검색(모델명)</td><td>빈 제조사 묶음 숨김</td></tr>
+            <tr><td><b>A3</b></td><td>BIOS 검색 + 선택 유지</td><td>선택이 조건에 맞으면 C3 유지</td></tr>
+            <tr><td><b>A4</b></td><td>BMC 비활성 칩</td><td>비활성(effective)만</td></tr>
+            <tr><td><b>A5</b></td><td>Driver/Utility 조건</td><td>두 Miller 모두에 걸림</td></tr>
+            <tr><td><b>A6</b></td><td>RAID 카드 PCI Subsystem ID 검색</td><td>해당 카드만</td></tr>
+            <tr><td><b>A7</b></td><td>사용 중단 권고 칩</td><td>권고(effective)만</td></tr>
+            <tr><td><b>A8</b></td><td>삭제 포함 (폼 필드)</td><td>삭제 항목 등장 · 다른 조건 · 선택 유지</td></tr>
+            <tr><td><b>A9</b></td><td>선택 후 조건</td><td>C3 "선택한 항목이 조건에 맞지 않습니다." + 초기화</td></tr>
+            <tr><td><b>A10</b></td><td>BIOS 순위 드래그</td><td>조건 없음 → 가능 · 조건 중 → 꺼짐 + 안내</td></tr>
+            <tr><td><b>A11</b></td><td>클릭으로 선택을 바꾼 뒤 조건 제출</td><td>새 선택이 보존 (D9)</td></tr>
+            <tr><td><b>A12</b></td><td>초기화</td><td>조건이 모두 풀림</td></tr>
+            <tr><td><b>A13</b></td><td>(Q1 채택 시) 조건 중 활성화 조작</td><td>리다이렉트 뒤 조건 · 선택 유지</td></tr>
+          </tbody>
+        </table>
+
+        <h4>9-3. CP5 항목 — B 의도하지 않은 조작 (4) · C 막는 방식 (4)</h4>
+        <table>
+          <thead><tr><th>#</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td><b>B1</b></td><td><code>enabled=maybe</code></td><td>400 오류 페이지</td></tr>
+            <tr><td><b>B2</b></td><td><code>selectId</code> 에 존재하지 않는 id</td><td>C3 빈 상태 (오류 아님)</td></tr>
+            <tr><td><b>B3</b></td><td>삭제 포함 없이 삭제된 항목 <code>selectId</code> 직접</td><td>C3 빈 상태 (삭제 항목 노출 없음)</td></tr>
+            <tr><td><b>B4</b></td><td>BIOS 조건 중 순위 PATCH 직접 호출</td><td>부분 목록 → 400 누락 · 전체 목록 → 204 (F-2 — 조건 가드 없음, 신설 없음)</td></tr>
+            <tr><td><b>C1</b></td><td>결과 0 건</td><td>"조건에 맞는 항목이 없습니다." + 초기화</td></tr>
+            <tr><td><b>C2</b></td><td>드래그 꺼짐</td><td>핸들 자리 안내 문구 · 툴팁</td></tr>
+            <tr><td><b>C3</b></td><td>한글 검색어 Enter</td><td>IME 조합 중 제출 없이 한 번에 제출</td></tr>
+            <tr><td><b>C4</b></td><td>정의서 · 그룹 · 서버 목록</td><td>공통 스크립트 변경 회귀 없음</td></tr>
+          </tbody>
+        </table>
+        <p>B4 는 브리프가 "현재 가드 여부 실측" 으로 남긴 항목입니다. 코드 대조 결과(F-2)를 기대값으로 적었고, CP5 는 이것을 샌드박스에서 실제로 확인합니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files — 신규 3 + 테스트 · 수정 22 · 삭제 1 · 유지 5</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/lifecycle/dto/ResourceListQuery.java</code></td><td>record + 압축 생성자 + <code>isFiltered</code> · <code>matches</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>templates/fragments/ui/resource-filter.html</code></td><td>조회 띠 조각 <code>bar(action, query, hidden)</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ResourceListQueryTest</code></td><td>단위 8</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>컨트롤러 통합 테스트 여섯 (기존 목록 테스트가 있으면 확장)</td><td>통합 20 — 파일 이름은 CP4 에서 기존 테스트를 보고 확정</td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataController</code> · <code>BoardModelMetadataController</code> · <code>BiosMetadataController</code> · <code>BmcMetadataController</code> · <code>SubprogramController</code> · <code>RaidCardMetadataController</code></td><td><code>list</code> 시그니처 · 모델 (6)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OSMetadataService</code> · <code>BoardModelMetadataService</code> · <code>BiosService</code> · <code>BmcService</code> · <code>SubprogramService</code> · <code>RaidCardMetadataService</code></td><td><code>findAllGrouped</code> 거르기 · 빈 묶음 · 개수 (6)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/management/{os,board,bios,bmc,subprogram,raidcard}/list.html</code></td><td>조회 띠 · 숨은 필드 · 결과 건수 · C3 빈 상태 · 스크립트 적재 (6)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/global/list-query.js</code></td><td><code>data-list-keep</code> — 제출 시 현재 URL 의 선택 파라미터 복사</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td>3 키</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>DESIGN.md</code></td><td>§5 한 줄 · §8 조각 표 한 행</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>서비스 단위 테스트 · 기존 목록 테스트</td><td>새 시그니처 적응 + 조건 1 건씩</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>(F-5) <code>BiosMetadataController.newFormWithoutBoard</code> · <code>SubprogramController.newForm</code> 의 <code>findAllGrouped(false)</code> 호출</td><td>시그니처 변경에 따른 호출 형태 — CP2 확정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>(Q1 채택 시) <code>*ControllerSupport</code> 여섯 · 라이프사이클 컨트롤러 · <code>fragments/ui/lifecycle-actions</code> · <code>fragments/management/confirm-*</code></td><td><code>returnQuery</code> 숨은 필드 · 리다이렉트 인자</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>static/global/include-deleted-toggle.js</code></td><td>사용처 0 (D10)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>static/management/common/firmware-rank.js</code></td><td><code>data-rank-enabled</code> 게이트 그대로</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>static/global/row-drag.js</code></td><td>드래그 조작감 공용 모듈</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>static/management/os/os-list.js</code> · <code>subprogram-list.js</code></td><td>선택의 <code>replaceState</code> 동작 그대로 (D9 가 그 결과를 읽음)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>저장소 여섯</td><td>기존 조회 그대로 (Step 6 N/A)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>BoardBiosCatalog</code></td><td>latest 술어 무변경 (F-1 은 호출 순서만)</td></tr>
+          </tbody>
+        </table>
+        <p>DDL 없음. 수정 22 는 컨트롤러 6 · 서비스 6 · 템플릿 6 · <code>list-query.js</code> · <code>messages.properties</code> · <code>DESIGN.md</code> · 테스트 적응 묶음 1 을 센 값이며, F-5 · Q1 채택분은 따로입니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="S8-3-next">
+          <li><label><input type="checkbox" data-key="cp1"> <span><b>CP1</b> 승인 — Q1 ~ Q3 판정 + §8-3 보강(F-1 · F-3 · F-4 · F-5) 판정</span></label></li>
+          <li><label><input type="checkbox" data-key="cp234"> <span><b>CP2 ~ CP4</b> 무중단 구현 → CP4 중간 승인 → 테스트 → CP5 → CP6 report → CP7</span></label></li>
+          <li><label><input type="checkbox" data-key="s84"> <span><b>S8-4</b> 상세 조회 창 · 기본 기간 필터(자원 관리 화면 예외 여부 — Q2) · 보드 · 그룹 필터 재설계 · 서버 목록 등록 기간 통합</span></label></li>
+          <li><label><input type="checkbox" data-key="o3"> <span>HF 후보 O-3 (advice 콘텐츠 협상)</span></label></li>
+          <li><label><input type="checkbox" data-key="pager"> <span>쪽 이동 통일 — 감사 로그 · 점검 이력의 pager 이관</span></label></li>
+        </ul>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  4 불가침 로직 (ToC 클릭→open+scroll / 전부 펴기 · 접기 / filter / check-list localStorage)
+  // ─────────────────────────────────────────────────────────────
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — 자원 관리 Miller : 조회 띠 → 거르기 → 선택 보존 → 순위 드래그 게이트
+  //  demoMatches  = ResourceListQuery.matches (판정 함수 하나 — 세 화면 · 두 Miller 가 전부 이것을 부른다)
+  //  demoEff      = LifecycleEntity.recomputeEffective (자식 활성 = own ∧ 부모 활성 · 사용 중단 = own ∨ 부모)
+  //  demoReorder  = BiosService.reorderVersionRanks 의 검사 순서
+  //  latest       = BoardBiosCatalog.latestEnabled (거르기 전 목록 — F-1)
+  //  demoRender() 는 파일 끝에서 1회 호출.
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_VENDOR = { GIGABYTE: 'Gigabyte', ASUS: 'Asus', FUJITSU: 'Fujitsu' };
+  const DEMO_VENDOR_ORDER = ['GIGABYTE', 'ASUS', 'FUJITSU'];
+  const DEMO_BOARDS = [
+    { id: 1, v: 'GIGABYTE', m: 'MS04-CE0',    d: '2U 2노드',        en: true,  dep: false, del: false },
+    { id: 2, v: 'GIGABYTE', m: 'MS03-CE0',    d: '1U 단일 노드',    en: true,  dep: false, del: false },
+    { id: 3, v: 'GIGABYTE', m: 'MZ33-AR1',    d: 'AMD EPYC 1소켓',  en: false, dep: false, del: false },
+    { id: 4, v: 'ASUS',     m: 'RS520-E11',   d: '1U 랙',           en: true,  dep: false, del: false },
+    { id: 5, v: 'ASUS',     m: 'RS720-E11',   d: '2U 랙',           en: true,  dep: true,  del: false },
+    { id: 6, v: 'ASUS',     m: 'ESC4000-E11', d: 'GPU 서버',        en: true,  dep: false, del: true  },
+    { id: 7, v: 'FUJITSU',  m: 'RX2540-M7',   d: '2U 범용',         en: true,  dep: false, del: false },
+    { id: 8, v: 'FUJITSU',  m: 'RX1330-M5',   d: '1U 엔트리',       en: true,  dep: false, del: false }
+  ];
+  // BIOS — 보드 안 선언 순서 = 초기 순위 (own 플래그)
+  const DEMO_BIOS = [
+    { id: 11, b: 1, ver: 'F10',   en: true,  dep: false, del: false },
+    { id: 12, b: 1, ver: 'F08',   en: true,  dep: true,  del: false },
+    { id: 13, b: 1, ver: 'F05',   en: false, dep: false, del: false },
+    { id: 14, b: 1, ver: 'F03',   en: true,  dep: false, del: true  },
+    { id: 21, b: 2, ver: 'F12',   en: true,  dep: false, del: false },
+    { id: 22, b: 2, ver: 'F10',   en: true,  dep: false, del: false },
+    { id: 31, b: 3, ver: 'F06',   en: true,  dep: false, del: false },
+    { id: 41, b: 4, ver: '1102',  en: true,  dep: false, del: false },
+    { id: 42, b: 4, ver: '0901',  en: false, dep: false, del: false },
+    { id: 51, b: 5, ver: '2001',  en: true,  dep: false, del: false },
+    { id: 52, b: 5, ver: '1801',  en: true,  dep: false, del: false },
+    { id: 61, b: 6, ver: '0301',  en: true,  dep: false, del: false },
+    { id: 71, b: 7, ver: 'R1.10', en: true,  dep: false, del: false },
+    { id: 72, b: 7, ver: 'R1.02', en: true,  dep: true,  del: false }
+  ];
+  // Driver · Utility — b = null 이면 공용
+  const DEMO_SUBS = [
+    { id: 101, kind: 'DRIVER',  b: null, name: 'Intel ixgbe',         ver: '5.19.6', en: true,  dep: false, del: false },
+    { id: 102, kind: 'DRIVER',  b: null, name: 'Broadcom bnxt_en',    ver: '1.10.2', en: false, dep: false, del: false },
+    { id: 103, kind: 'DRIVER',  b: 1,    name: 'Mellanox mlx5_core',  ver: '23.10',  en: true,  dep: false, del: false },
+    { id: 104, kind: 'DRIVER',  b: 4,    name: 'ASPEED AST2600 VGA',  ver: '1.13',   en: true,  dep: true,  del: false },
+    { id: 105, kind: 'DRIVER',  b: 7,    name: 'Broadcom mpi3mr',     ver: '8.6.1',  en: true,  dep: false, del: true  },
+    { id: 201, kind: 'UTILITY', b: null, name: 'storcli',             ver: '7.27',   en: true,  dep: false, del: false },
+    { id: 202, kind: 'UTILITY', b: null, name: 'ipmitool',            ver: '1.8.19', en: true,  dep: false, del: false },
+    { id: 203, kind: 'UTILITY', b: 1,    name: 'Gigabyte GSM CLI',    ver: '2.1',    en: true,  dep: false, del: false },
+    { id: 204, kind: 'UTILITY', b: 5,    name: 'ASUS ASMB CLI',       ver: '1.3',    en: true,  dep: false, del: false },
+    { id: 205, kind: 'UTILITY', b: 2,    name: 'Gigabyte fw tool',    ver: '0.9',    en: false, dep: false, del: false }
+  ];
+  const DEMO_RANK = {};   // boardId → BIOS id 순위 순 (삭제 행 포함)
+  DEMO_BOARDS.forEach(b => { DEMO_RANK[b.id] = DEMO_BIOS.filter(x => x.b === b.id).map(x => x.id); });
+  const DEMO_MSG = {
+    emptyFiltered: '조건에 맞는 항목이 없습니다.',
+    selectionFiltered: '선택한 항목이 조건에 맞지 않습니다.',
+    rankDisabled: '조건이 걸린 동안에는 순서를 바꿀 수 없습니다. 조건을 초기화하면 다시 바꿀 수 있습니다.',
+    rankHint: '드래그하여 버전 순서 조정'
+  };
+  const DEMO_PATH = { BOARD: '/management/board', BIOS: '/management/bios', SUB: '/management/subprogram' };
+  const DEMO_PLACEHOLDER = { BOARD: '예: MS04-CE0', BIOS: '예: F10', SUB: '예: storcli' };
+  const DEMO_FIELDS = { BOARD: '제조사 표시명, 모델명, 설명', BIOS: '보드 모델명, 이름, 버전', SUB: '이름, 버전, 보드 모델명|"공용"' };
+
+  const dS = {
+    screen: 'BIOS', draft: '', q: null, enabled: null, deprecated: null, includeDeleted: false, preset: null,
+    sel: { BOARD: { key: null, id: null }, BIOS: { key: null, id: null }, SUB: { kind: null, key: null, id: null } },
+    msg: null
+  };
+
+  function dBoard(id) { return DEMO_BOARDS.find(b => b.id === id) || null; }
+  function dBios(id) { return DEMO_BIOS.find(x => x.id === id); }
+  function dEsc(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+  // LifecycleEntity.recomputeEffective — 부모가 없으면 effective = own
+  function demoEff(e, parent) {
+    return { en: e.en && (!parent || parent.en), dep: e.dep || (!!parent && parent.dep), del: e.del };
+  }
+  function dQuery() { return { q: dS.q, enabled: dS.enabled, deprecated: dS.deprecated, includeDeleted: dS.includeDeleted }; }
+  // ResourceListQuery.isFiltered — includeDeleted 는 별도 축
+  function demoIsFiltered(q) { return q.q !== null || q.enabled !== null || q.deprecated !== null; }
+  // ResourceListQuery.matches — 판정 함수 하나 (드리프트 0)
+  function demoMatches(e, q, searchable) {
+    if (!q.includeDeleted && e.del) return false;
+    if (q.enabled !== null && e.en !== q.enabled) return false;
+    if (q.deprecated !== null && e.dep !== q.deprecated) return false;
+    if (q.q !== null) {
+      const needle = q.q.toLowerCase();
+      return searchable.some(s => s != null && String(s).toLowerCase().includes(needle));
+    }
+    return true;
+  }
+
+  // ── 서비스 재현 : 화면별 findAllGrouped ──
+  function demoBoardGroups(q) {
+    return DEMO_VENDOR_ORDER.map(v => {
+      const all = DEMO_BOARDS.filter(b => b.v === v && (q.includeDeleted || !b.del));
+      const items = all.filter(b => demoMatches(demoEff(b, null), q, [DEMO_VENDOR[v], b.m, b.d]))
+        .map(b => ({ id: b.id, label: b.m, eff: demoEff(b, null), src: b }));
+      return { key: v, label: DEMO_VENDOR[v], sub: '', total: all.length, items: items, deletedGroup: false };
+    });
+  }
+  function demoBiosGroups(q) {
+    return DEMO_BOARDS.filter(b => q.includeDeleted || !b.del).map(b => {
+      const ofBoard = DEMO_RANK[b.id].map(dBios).filter(x => q.includeDeleted || !x.del);
+      const latest = ofBoard.find(x => !x.del && demoEff(x, b).en);   // latestEnabled — 거르기 전 (F-1)
+      const items = ofBoard.filter(x => demoMatches(demoEff(x, b), q, [b.m, b.m + ' BIOS', x.ver]))
+        .map(x => ({ id: x.id, label: x.ver, eff: demoEff(x, b), src: x, latest: !!latest && latest.id === x.id }));
+      return { key: String(b.id), label: b.m, sub: DEMO_VENDOR[b.v], total: ofBoard.length, items: items, deletedGroup: b.del, board: b };
+    });
+  }
+  function demoSubGroups(q, kind) {
+    const scopes = [{ key: 'common', label: '공용', b: null }].concat(
+      DEMO_BOARDS.filter(b => q.includeDeleted || !b.del).map(b => ({ key: String(b.id), label: b.m, b: b })));
+    return scopes.map(s => {
+      const all = DEMO_SUBS.filter(x => x.kind === kind && (s.b ? x.b === s.b.id : x.b === null) && (q.includeDeleted || !x.del));
+      const items = all.filter(x => demoMatches(demoEff(x, s.b), q, [x.name, x.ver, s.b ? s.b.m : '공용']))
+        .map(x => ({ id: x.id, label: x.name + ' ' + x.ver, eff: demoEff(x, s.b), src: x }));
+      return { key: s.key, label: s.label, sub: s.b ? DEMO_VENDOR[s.b.v] : '보드 무관', total: all.length, items: items, deletedGroup: s.b ? s.b.del : false, board: s.b };
+    });
+  }
+  // 조건 중에만 빈 묶음 제외 (F-3 — 조건이 없으면 항목 0 개 보드도 남는다)
+  function demoVisible(groups, filtered) { return filtered ? groups.filter(g => g.items.length > 0) : groups; }
+
+  // ── 조작 ──
+  function demoScreen(s) {   // 화면 전환 = 다른 페이지 진입 → 조건은 새로 시작
+    dS.screen = s; dS.preset = null; demoClearQuery();
+    dS.msg = ['', '화면을 바꿨습니다. 각 화면은 다른 GET 이라 조건은 비어 있고, 선택은 그 화면에서 마지막으로 고른 것이 URL 에 남아 있습니다.'];
+    demoRender();
+  }
+  function demoClearQuery() { dS.draft = ''; dS.q = null; dS.enabled = null; dS.deprecated = null; dS.includeDeleted = false; }
+  function demoDraft(v) { dS.draft = v; }
+  function demoSubmitQ() {   // 압축 생성자 — 공백 q → null
+    dS.q = dS.draft.trim() === '' ? null : dS.draft; dS.preset = null;
+    dS.msg = ['', '검색 제출 — 숨은 필드가 현재 URL 의 선택 파라미터를 그대로 실어 갑니다(D9).'];
+    demoRender();
+  }
+  function demoChip(axis, value) { dS[axis] = value; dS.preset = null; dS.msg = ['', '칩은 즉시 제출됩니다.']; demoRender(); }
+  function demoSetDel(checked) { dS.includeDeleted = checked; dS.preset = null; dS.msg = ['', checked ? '삭제된 항목 포함 — 조건 축은 아니지만 드래그를 끕니다(기존 게이트).' : '삭제된 항목 포함 해제.']; demoRender(); }
+  function demoResetQuery() { demoClearQuery(); dS.preset = null; dS.msg = ['success', '조건 초기화 — 선택 파라미터는 남깁니다.']; demoRender(); }
+  function demoPickGroup(kind, key) {
+    if (dS.screen === 'SUB') dS.sel.SUB = { kind: kind, key: key, id: null };
+    else dS.sel[dS.screen] = { key: key, id: null };
+    dS.msg = ['', 'C1 선택 — os-list.js / subprogram-list.js 가 replaceState 로 URL 만 바꿉니다(서버 왕복 없음).'];
+    demoRender();
+  }
+  function demoPickItem(kind, key, id) {
+    if (dS.screen === 'SUB') dS.sel.SUB = { kind: kind, key: key, id: id };
+    else dS.sel[dS.screen] = { key: key, id: id };
+    dS.msg = ['', 'C2 선택 — URL 의 selectId 가 바뀌었습니다. 다음 조건 제출이 이 값을 보존합니다.'];
+    demoRender();
+  }
+  // 순위 이동 — 삭제 행은 자기 자리 보존, 살아 있는 행만 맞바꾼다 (reorderVersionRanks 의 재번호 규칙)
+  function demoMove(boardId, id, dir) {
+    const all = DEMO_RANK[boardId];
+    const live = all.filter(x => !dBios(x).del);
+    const i = live.indexOf(id), j = i + dir;
+    if (i < 0 || j < 0 || j >= live.length) { dS.msg = ['', '더 옮길 자리가 없습니다.']; demoRender(); return; }
+    const t = live[i]; live[i] = live[j]; live[j] = t;
+    let k = 0;
+    DEMO_RANK[boardId] = all.map(x => dBios(x).del ? x : live[k++]);
+    const r = demoReorder(boardId, live);
+    dS.msg = [r[0], 'PATCH /management/bios/' + boardId + '/rank  orderedIds=[' + live.join(', ') + ']  → ' + r[1]];
+    demoRender();
+  }
+  // BiosService.reorderVersionRanks 의 검사 순서
+  function demoReorder(boardId, orderedIds) {
+    const b = dBoard(boardId);
+    if (!b || b.del) return ['error', '404 BoardModelNotFoundException'];
+    const live = DEMO_RANK[boardId].filter(x => !dBios(x).del);
+    if (new Set(orderedIds).size !== orderedIds.length) return ['error', '400 InvalidVersionRankRequestException.duplicated()'];
+    for (const id of orderedIds) if (live.indexOf(id) < 0) return ['error', '404 BiosNotFoundException'];
+    if (orderedIds.length !== live.length) return ['error', '400 InvalidVersionRankRequestException.incomplete()'];
+    return ['success', '204 No Content'];
+  }
+  function demoDirectPatch() {
+    const key = dS.sel.BIOS.key;
+    if (!key) { dS.msg = ['error', 'C1 에서 보드를 먼저 고르십시오.']; demoRender(); return; }
+    const boardId = Number(key);
+    const g = demoBiosGroups(dQuery()).find(x => x.key === key);
+    const ids = g ? g.items.filter(i => !i.src.del).map(i => i.id) : [];
+    const r = demoReorder(boardId, ids);
+    dS.msg = [r[0], '직접 PATCH (지금 보이는 순서) /management/bios/' + boardId + '/rank  orderedIds=[' + ids.join(', ') + ']  → ' + r[1] +
+      (r[1].indexOf('incomplete') >= 0 ? ' — 조건으로 걸러진 행이 빠져 서버가 누락으로 거절합니다(F-2).' : '')];
+    demoRender();
+  }
+  function demoPreset(p) {
+    demoClearQuery(); dS.preset = p;
+    if (p === 'name') {
+      dS.screen = 'BIOS'; dS.sel.BIOS = { key: null, id: null }; dS.q = 'F10'; dS.draft = 'F10';
+      dS.msg = ['', '버전 "F10" 검색 — F10 이 있는 보드 둘만 C1 에 남고 나머지 묶음은 숨습니다. 조건이 걸렸으므로 순위 핸들이 꺼집니다.'];
+    } else if (p === 'disabled') {
+      dS.screen = 'BIOS'; dS.enabled = false;
+      dS.msg = ['', '비활성만 — MZ33-AR1 의 F06 은 자기 플래그는 활성이지만 보드가 비활성이라 effective 비활성으로 걸립니다.'];
+    } else if (p === 'deprecated') {
+      dS.screen = 'BIOS'; dS.deprecated = true;
+      dS.msg = ['', '사용 중단 권고만 — RS720-E11 의 두 버전은 보드가 권고 상태라 effective 로 함께 걸립니다.'];
+    } else if (p === 'deleted') {
+      dS.screen = 'BIOS'; dS.includeDeleted = true; dS.sel.BIOS = { key: '1', id: null };
+      dS.msg = ['', '삭제 포함 — 삭제된 보드 ESC4000-E11 과 F03 이 나타납니다. 조건은 없지만 기존 게이트대로 드래그가 꺼지고 핸들이 사라집니다.'];
+    } else if (p === 'lost') {
+      dS.screen = 'BIOS'; dS.sel.BIOS = { key: '1', id: 11 }; dS.enabled = false;
+      dS.msg = ['error', 'MS04-CE0 의 F10(활성)을 고른 채 "비활성" 칩을 눌렀습니다 — 선택은 URL 에 남았지만 조건에 맞지 않아 C3 가 빈 상태 + 초기화를 보입니다(D7).'];
+    } else {
+      dS.msg = ['success', '초기화 — 조건을 모두 풀었습니다. 선택 파라미터는 남깁니다.'];
+    }
+    demoRender();
+  }
+
+  // ── 렌더 조각 ──
+  function demoBadges(eff) {
+    if (eff.del) return '<span class="badge del">삭제됨</span>';
+    return (eff.en ? '<span class="badge on">활성</span>' : '<span class="badge off">비활성</span>') +
+      (eff.dep ? ' <span class="badge dep">사용 중단 권고</span>' : '');
+  }
+  function demoSegChip(axis, value, label) {
+    const on = dS[axis] === value;
+    const v = value === null ? 'null' : String(value);
+    return '<button class="seg' + (on ? ' active' : '') + '" onclick="demoChip(\'' + axis + '\',' + v + ')">' + label + '</button>';
+  }
+  function demoBarHtml(count, filtered) {
+    let h = '<div class="ux-toolbar">' +
+      '<span class="group-label">조회 띠 (GET 폼) :</span>' +
+      '<input type="text" id="demo-q" placeholder="' + DEMO_PLACEHOLDER[dS.screen] + '" value="' + dEsc(dS.draft) + '" ' +
+      'oninput="demoDraft(this.value)" onkeydown="if(event.key===\'Enter\'){demoSubmitQ();}">' +
+      '<button class="n-demo-btn" onclick="demoSubmitQ()">검색</button>' +
+      '<label><input type="checkbox"' + (dS.includeDeleted ? ' checked' : '') + ' onchange="demoSetDel(this.checked)"> 삭제된 항목 포함</label>' +
+      '<button class="n-demo-btn" onclick="demoResetQuery()">초기화</button></div>';
+    h += '<div class="ux-toolbar"><span class="group-label">활성 :</span>' +
+      demoSegChip('enabled', null, '전체') + demoSegChip('enabled', true, '활성') + demoSegChip('enabled', false, '비활성') + '</div>';
+    h += '<div class="ux-toolbar"><span class="group-label">사용 중단 :</span>' +
+      demoSegChip('deprecated', null, '전체') + demoSegChip('deprecated', true, '권고') + demoSegChip('deprecated', false, '정상') + '</div>';
+    h += '<div class="ux-toolbar"><span class="group-label">결과 :</span><span class="label"><b>조건에 맞는 항목 ' + count + ' 개</b>' +
+      (filtered && count === 0 ? ' — ' + DEMO_MSG.emptyFiltered : '') + '</span>' +
+      (dS.screen === 'BIOS' ? '<button class="n-demo-btn" onclick="demoDirectPatch()">보이는 순서로 PATCH 직접 (B4)</button>' : '') + '</div>';
+    return h;
+  }
+  const COL = 'background:var(--card);border:1px solid var(--border-soft);border-radius:6px;padding:8px;min-width:0;';
+  const COL_HEAD = 'font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:6px;font-family:var(--mono);';
+  const ROW = 'cursor:pointer;margin-bottom:4px;padding:6px 9px;font-size:12.5px;';
+  const ROW_SEL = 'border-color:var(--blue);background:var(--blue-bg);';
+  const NOTE = 'font-size:12px;color:var(--text-muted);padding:6px 2px;';
+
+  function demoRankHandle(boardId, item, rankEnabled, filtered) {
+    if (item.src.del || dS.includeDeleted) return '';   // 현행 : 삭제 행 · 삭제 포함 보기에는 핸들을 그리지 않는다
+    if (!rankEnabled) return '<span class="tip" data-tip="' + DEMO_MSG.rankDisabled + '"><button class="n-demo-btn" disabled>☰</button></span>';
+    return '<button class="n-demo-btn" onclick="event.stopPropagation();demoMove(' + boardId + ',' + item.id + ',-1)">▲</button>' +
+      '<button class="n-demo-btn" onclick="event.stopPropagation();demoMove(' + boardId + ',' + item.id + ',1)">▼</button>';
+  }
+  function demoDetail(screen, g, item) {
+    const rows = [];
+    if (screen === 'BOARD') {
+      const b = item.src;
+      const nBios = DEMO_BIOS.filter(x => x.b === b.id && !x.del).length;
+      const nSub = DEMO_SUBS.filter(x => x.b === b.id && !x.del).length;
+      rows.push(['제조사', DEMO_VENDOR[b.v]], ['모델', b.m], ['설명', b.d], ['호환 BIOS', nBios + ' 개'], ['드라이버 · 유틸리티', nSub + ' 개']);
+    } else if (screen === 'BIOS') {
+      rows.push(['메인보드', g.sub + ' · ' + g.label], ['이름', g.label + ' BIOS'], ['버전', item.src.ver],
+        ['순위', (DEMO_RANK[g.board.id].indexOf(item.id) + 1) + ' 위' + (item.latest ? ' · latest' : '')]);
+    } else {
+      rows.push(['종류', item.src.kind], ['범위', g.label], ['이름', item.src.name], ['버전', item.src.ver]);
+    }
+    let h = rows.map(r => '<div style="font-size:12px;margin-bottom:3px;"><span style="color:var(--text-muted);">' + r[0] + '</span> · ' + r[1] + '</div>').join('');
+    h += '<div style="margin-top:6px;">' + demoBadges(item.eff) + '</div>';
+    return h;
+  }
+  // Miller 하나 (C1 → C2 → C3)
+  function demoMiller(o) {
+    const vis = o.groups;
+    const selGroup = o.sel.key != null ? vis.find(g => g.key === o.sel.key) : null;
+    const selItem = selGroup && o.sel.id != null ? selGroup.items.find(i => i.id === o.sel.id) : null;
+    const lost = (o.sel.key != null && !selGroup) || (o.sel.id != null && !selItem);
+    let c1 = '<div style="' + COL + '"><div style="' + COL_HEAD + '">C1 ' + o.c1Title + '</div>';
+    vis.forEach(g => {
+      const s = selGroup === g;
+      c1 += '<div class="ux-row' + (g.deletedGroup ? ' muted' : '') + '" style="' + ROW + (s ? ROW_SEL : '') + '" ' +
+        'onclick="demoPickGroup(' + (o.kind ? '\'' + o.kind + '\'' : 'null') + ',\'' + g.key + '\')">' +
+        '<span class="label">' + g.label + (g.sub ? ' <span style="color:var(--text-muted);font-size:11px;">· ' + g.sub + '</span>' : '') +
+        (g.deletedGroup ? ' <span style="color:var(--text-muted);font-size:11px;">(삭제됨)</span>' : '') + '</span>' +
+        '<span class="mono" style="color:var(--text-muted);">' + g.items.length + '</span></div>';
+    });
+    if (vis.length === 0) c1 += '<div style="' + NOTE + '">' + DEMO_MSG.emptyFiltered + '</div>';
+    c1 += '</div>';
+
+    let c2 = '<div style="' + COL + '"><div style="' + COL_HEAD + '">C2 ' + o.c2Title + '</div>';
+    if (o.rank && selGroup) {
+      if (o.filtered) c2 += '<div style="font-size:11.5px;color:var(--orange);margin-bottom:6px;">' + DEMO_MSG.rankDisabled + '</div>';
+      else if (!dS.includeDeleted) c2 += '<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:6px;">' + DEMO_MSG.rankHint + '</div>';
+    }
+    if (!selGroup) c2 += '<div style="' + NOTE + '">C1 에서 묶음을 고르십시오.</div>';
+    else if (selGroup.items.length === 0) c2 += '<div style="' + NOTE + '">등록된 항목이 없습니다.</div>';
+    else selGroup.items.forEach(it => {
+      const s = selItem === it;
+      c2 += '<div class="ux-row' + (it.src.del ? ' muted' : '') + '" style="' + ROW + (s ? ROW_SEL : '') + '" ' +
+        'onclick="demoPickItem(' + (o.kind ? '\'' + o.kind + '\'' : 'null') + ',\'' + selGroup.key + '\',' + it.id + ')">' +
+        (o.rank ? demoRankHandle(selGroup.board.id, it, o.rankEnabled, o.filtered) : '') +
+        '<span class="label">' + it.label + (it.latest ? ' <span class="badge on">latest</span>' : '') + '</span>' + demoBadges(it.eff) + '</div>';
+    });
+    c2 += '</div>';
+
+    let c3 = '<div style="' + COL + '"><div style="' + COL_HEAD + '">C3 상세</div>';
+    if (lost) c3 += '<div class="ux-message error" style="margin-top:0;">' + DEMO_MSG.selectionFiltered +
+      ' <button class="n-demo-btn" onclick="demoResetQuery()">조건 초기화</button></div>';
+    else if (selItem) c3 += demoDetail(o.screen, selGroup, selItem);
+    else c3 += '<div style="' + NOTE + '">' + (selGroup ? o.emptyAfter : o.emptyBefore) + '</div>';
+    c3 += '</div>';
+
+    return (o.title ? '<div style="font-size:12px;font-weight:700;margin:10px 0 6px;">' + o.title + '</div>' : '') +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:8px;">' + c1 + c2 + c3 + '</div>';
+  }
+
+  function demoUrl() {
+    const p = [];
+    if (dS.q !== null) p.push('q=' + encodeURIComponent(dS.q));
+    if (dS.enabled !== null) p.push('enabled=' + dS.enabled);
+    if (dS.deprecated !== null) p.push('deprecated=' + dS.deprecated);
+    if (dS.includeDeleted) p.push('includeDeleted=true');
+    const s = dS.sel[dS.screen];
+    if (dS.screen === 'BOARD') { if (s.key) p.push('selectKey=' + s.key); if (s.id != null) p.push('selectId=' + s.id); }
+    if (dS.screen === 'BIOS')  { if (s.key) p.push('selectBoardId=' + s.key); if (s.id != null) p.push('selectId=' + s.id); }
+    if (dS.screen === 'SUB')   { if (s.kind) p.push('selectKind=' + s.kind); if (s.key) p.push('selectKey=' + s.key); if (s.id != null) p.push('selectId=' + s.id); }
+    return DEMO_PATH[dS.screen] + (p.length ? '?' + p.join('&') : '');
+  }
+
+  function demoRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-screen]').forEach(b => b.classList.toggle('active', b.dataset.screen === dS.screen));
+    document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(b => b.classList.toggle('active', b.dataset.preset === dS.preset));
+    const q = dQuery();
+    const filtered = demoIsFiltered(q);
+    const rankEnabled = !filtered && !q.includeDeleted;   // 모델 rankEnabled = data-rank-enabled
+    let millers = '', shown = 0, loaded = 0, groupsShown = 0;
+    const tally = gs => gs.forEach(g => { shown += g.items.length; loaded += g.total; });
+
+    if (dS.screen === 'BOARD') {
+      const all = demoBoardGroups(q); tally(all); const vis = demoVisible(all, filtered); groupsShown = vis.length;
+      millers = demoMiller({ screen: 'BOARD', kind: null, groups: vis, sel: dS.sel.BOARD, c1Title: '제조사', c2Title: '모델',
+        rank: false, filtered: filtered, emptyBefore: '제조사를 선택하여 모델 보기', emptyAfter: '모델을 선택하여 상세 보기' });
+    } else if (dS.screen === 'BIOS') {
+      const all = demoBiosGroups(q); tally(all); const vis = demoVisible(all, filtered); groupsShown = vis.length;
+      millers = demoMiller({ screen: 'BIOS', kind: null, groups: vis, sel: dS.sel.BIOS, c1Title: '메인보드 모델', c2Title: 'BIOS 버전 (순위 순)',
+        rank: true, rankEnabled: rankEnabled, filtered: filtered, emptyBefore: '메인보드 모델을 선택하여 버전 보기', emptyAfter: '버전을 선택하여 상세 보기' });
+    } else {
+      ['DRIVER', 'UTILITY'].forEach(kind => {
+        const all = demoSubGroups(q, kind); tally(all); const vis = demoVisible(all, filtered); groupsShown += vis.length;
+        const sel = dS.sel.SUB.kind === kind ? dS.sel.SUB : { key: null, id: null };
+        millers += demoMiller({ screen: 'SUB', kind: kind, groups: vis, sel: sel, title: kind === 'DRIVER' ? 'Driver' : 'Utility',
+          c1Title: '보드 범위', c2Title: '이름 · 버전', rank: false, filtered: filtered,
+          emptyBefore: '보드 범위를 선택하여 목록 보기', emptyAfter: '항목을 선택하여 상세 보기' });
+      });
+    }
+    document.getElementById('demo-bar').innerHTML = demoBarHtml(shown, filtered);
+    document.getElementById('demo-miller').innerHTML = millers;
+
+    const tf = v => v ? '<span class="f">true</span>' : '<span class="t">false</span>';
+    const show = v => v === null ? '—' : String(v);
+    document.getElementById('demo-caps').innerHTML =
+      'URL     GET ' + dEsc(demoUrl()) + '\n' +
+      '서버    ResourceListQuery.matches(e, ' + DEMO_FIELDS[dS.screen] + ')  q=' + (dS.q === null ? '—' : '"' + dEsc(dS.q) + '"') +
+      ' · enabled=' + show(dS.enabled) + ' · deprecated=' + show(dS.deprecated) + ' · includeDeleted=' + dS.includeDeleted +
+      '  → C2 ' + shown + '/' + loaded + ' · C1 ' + groupsShown + ' 묶음' +
+      (dS.screen === 'BIOS'
+        ? '  · rankEnabled = !filtered(' + filtered + ') && !includeDeleted(' + dS.includeDeleted + ') = ' + tf(rankEnabled)
+        : '  · 순위 없는 화면');
+
+    const m = document.getElementById('demo-message');
+    const msg = dS.msg || ['', '시나리오 버튼을 누르거나, C1 · C2 를 눌러 선택한 뒤 조회 띠를 바꿔 보십시오.'];
+    m.className = 'ux-message' + (msg[0] ? ' ' + msg[0] : '');
+    m.textContent = msg[1];
+  }
+  demoRender();   // ⚠ 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

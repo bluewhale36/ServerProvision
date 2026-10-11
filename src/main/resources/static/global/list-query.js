@@ -9,10 +9,16 @@
      ④ 정렬 항목을 바꾸면 방향 셀렉트를 그 항목의 기본 방향(data-default-dir)으로 맞춘 뒤 제출한다 — 항목만
         골라도 "최근 생성순" · "멤버 많은 순" 이 나오게(CP5 D-2). 방향을 따로 바꾸는 것은 그다음 선택이다.
      ⑤ 제출은 스크립트가 URL 을 조립해 이동한다 — 남은 필드가 없을 때 주소 끝에 "?" 가 붙지 않게(CP5 O-5).
-     ⑥ 검색 입력칸의 Enter 는 스크립트가 받아 한 번에 제출한다(S8-1 CP7). 한글처럼 조합 중인 글자가 있으면
+     ⑥ 검색 입력칸(input[data-list-search])의 Enter 는 스크립트가 받아 한 번에 제출한다(S8-1 CP7). 한글처럼 조합 중인 글자가 있으면
         브라우저가 첫 Enter 를 "조합 확정" 으로 써 버려 제출이 일어나지 않는다 — 그때는 조합이 끝나는 순간
         (compositionend) 제출한다. 옆의 '검색' 버튼은 지금도 제출하지만, 후속 단계(S8-4)에서 상세 조회 창을 여는
         자리로 바뀔 예정이라 Enter 가 검색의 주 경로가 된다.
+     ⑧ 자원 관리 목록(S8-3 · Miller) — 선택은 클릭 때 history.replaceState 로 주소만 바뀐다. 그래서
+        (a) data-list-keep 에 적힌 선택 파라미터는 제출 순간의 주소에서 읽어 싣는다(서버가 그린 값은 낡는다).
+        (b) [data-list-reset] 초기화는 누른 순간의 주소에서 적힌 조건만 빼고 이동한다(선택 · 삭제 포함은 남긴다).
+        (c) data-list-return 이 있는 화면에서 Miller 안의 상태 변경 폼(POST)이 제출되면 지금 주소를
+            returnQuery 로 싣는다 — 서버(ReturnQueryInterceptor)가 리다이렉트에 조건 · 묶음 선택을 되붙인다.
+            확인 모달을 거치는 폼은 대상에서 전파를 끊으므로 캡처 단계에서 싣는다.
    폼 제출은 전부 page 를 버린다 — page 는 폼 필드가 아니다. 필터 · 정렬 · 크기를 바꾸면 첫 쪽으로 돌아가는
    규칙(plan R4)이 여기서 나온다. 쪽 이동만 링크(ListLinks)라 나머지 상태를 그대로 든다. */
 (function () {
@@ -115,7 +121,7 @@
     let submitAfterComposition = null;
     document.addEventListener('keydown', function (e) {
         const el = e.target;
-        if (e.key !== 'Enter' || !(el instanceof HTMLInputElement) || el.type !== 'search') return;
+        if (e.key !== 'Enter' || !(el instanceof HTMLInputElement) || !el.hasAttribute('data-list-search')) return;
         const form = listFormOf(el);
         if (!form) return;
         e.preventDefault();
@@ -145,10 +151,56 @@
         form.requestSubmit();
     });
 
+    // ⑨ 진입하면 검색 입력칸에 커서를 둔다(S8-3 CP6) — 값이 있으면 끝으로. 입력칸은 type="text"(data-list-search)다:
+    //    type="search" 는 브라우저가 지우기(x) 버튼과 Esc 지우기를 붙이는데, 이 목록들에서는 쓰지 않는다.
+    const searchInput = document.querySelector('form[data-list-query] input[data-list-search]');
+    if (searchInput) {
+        searchInput.focus({preventScroll: true});
+        const end = searchInput.value.length;
+        searchInput.setSelectionRange(end, end);
+    }
+
+    // ⑧-b 초기화 — 누른 순간의 주소에서 조건만 뺀다.
+    document.addEventListener('click', function (e) {
+        const link = e.target.closest('a[data-list-reset]');
+        if (!link) return;
+        e.preventDefault();
+        const params = new URLSearchParams(window.location.search);
+        link.getAttribute('data-list-reset').split(/\s+/).forEach(function (k) { if (k) params.delete(k); });
+        const qs = params.toString();
+        window.location.assign(window.location.pathname + (qs ? '?' + qs : ''));
+    });
+
+    // ⑧-c 상태 변경 폼에 지금 주소를 싣는다(캡처 단계 — 확인 모달이 전파를 끊기 전).
+    const RETURN_PARAM = 'returnQuery';
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (!(form instanceof HTMLFormElement) || form.hasAttribute('data-list-query')) return;
+        if ((form.getAttribute('method') || 'GET').toUpperCase() !== 'POST') return;
+        if (!form.closest('.n-miller') || !document.querySelector('form[data-list-return]')) return;
+        let input = form.querySelector('input[name="' + RETURN_PARAM + '"]');
+        if (!input) {
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = RETURN_PARAM;
+            form.appendChild(input);
+        }
+        input.value = window.location.pathname + window.location.search;
+    }, true);
+
     document.addEventListener('formdata', function (e) {
         const form = e.target;
         if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-list-query')) return;
         const fd = e.formData;
+        // ⑧-a 선택 파라미터 — 제출 순간의 주소에서 옮겨 싣는다.
+        const keep = form.getAttribute('data-list-keep');
+        if (keep) {
+            const current = new URLSearchParams(window.location.search);
+            keep.split(/\s+/).forEach(function (k) {
+                if (!k || fd.has(k)) return;
+                current.getAll(k).forEach(function (v) { fd.append(k, v); });
+            });
+        }
         const sortSelect = form.elements.namedItem('sort');
         const dirDefault = sortSelect && sortSelect.selectedOptions && sortSelect.selectedOptions[0]
             ? sortSelect.selectedOptions[0].getAttribute('data-default-dir') : null;

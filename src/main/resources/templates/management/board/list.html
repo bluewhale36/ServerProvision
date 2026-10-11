@@ -25,20 +25,20 @@
     <div class="n-page-header">
         <h1 class="n-page-title">메인보드 모델 관리</h1>
         <div class="n-header-actions">
-            <!-- S5-4 — 토글 시 selectId 등 다른 querystring 보존. -->
-            <label class="n-checkbox">
-                <input type="checkbox"
-                       th:checked="${includeDeleted}"
-                       data-include-deleted-toggle>
-                삭제된 항목 포함
-            </label>
             <a th:href="@{/management/board/new}"
                class="n-btn n-btn-primary">+ 신규 메인보드 모델 등록</a>
         </div>
     </div>
 
+    <!-- S8-3 — 조회 띠(검색 · 활성 · 사용 중단 · 삭제 포함). 조건은 C2 항목에 걸고 맞는 항목이 없는 묶음은 숨긴다. -->
+    <form th:replace="~{fragments/ui/resource-filter :: bar(@{/management/board}, ${query}, ${boardGroups.isEmpty() ? 0 : #aggregates.sum(boardGroups.![items.size()])}, 'selectKey selectId', ${links.without('q','enabled','deprecated')})}"></form>
+
     <!-- 빈 상태 -->
-    <div th:if="${#lists.isEmpty(boardGroups)}" class="n-card">
+    <th:block th:if="${#lists.isEmpty(boardGroups) and query.filtered}">
+        <div th:replace="~{fragments/ui/resource-filter :: emptyFiltered(${links.without('q','enabled','deprecated')})}"></div>
+    </th:block>
+
+    <div th:if="${#lists.isEmpty(boardGroups) and !query.filtered}" class="n-card">
         <div class="n-empty">
             <div class="n-empty-title"
                  th:text="${includeDeleted} ? '등록된 메인보드 모델이 없습니다 (휴지통 포함).' : '등록된 메인보드 모델이 없습니다.'">등록된 메인보드 모델이 없습니다.
@@ -59,8 +59,9 @@
             <button th:each="group : ${boardGroups}"
                     type="button"
                     class="n-miller-item"
-                    th:data-os-key="${group.vendor.name()}"
-                    th:text="${group.displayName}">Gigabyte
+                    th:data-os-key="${group.vendor.name()}">
+                <span th:text="${group.displayName}">Gigabyte</span>
+                <span class="n-note" th:if="${query.filtered}" th:text="|(${group.items.size()})|">(1)</span>
             </button>
         </div>
 
@@ -105,6 +106,8 @@
                  th:text="${selectKey != null or selectId != null} ? '모델을 선택하여 상세 보기' : '제조사를 선택하여 모델 보기'">제조사를 선택하여 모델
                 보기
             </div>
+            <!-- S8-3 — 주소의 선택이 조건에 걸려 그려지지 않았을 때(os-list.js 가 연다). -->
+            <th:block th:replace="~{fragments/ui/resource-filter :: selectionFiltered(${query}, ${links.without('q','enabled','deprecated')})}"></th:block>
 
             <th:block th:each="group : ${boardGroups}">
                 <div th:each="board : ${group.items}"
@@ -224,7 +227,7 @@
 <div th:replace="~{fragments/management/confirm-modals :: lazyShell}"></div>
 
 <!-- S5-4 — '삭제된 항목 포함' 토글 시 selectId 등 querystring 보존. -->
-<script th:src="@{/global/include-deleted-toggle.js}"></script>
+<script th:src="@{/global/list-query.js}"></script>
 <!-- Miller 컬럼 상호작용 스크립트 : A1 의 os-list.js 를 그대로 재사용. -->
 <script th:src="@{/management/os/os-list.js}"></script>
 

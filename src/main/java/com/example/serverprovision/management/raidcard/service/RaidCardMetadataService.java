@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.service;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
@@ -74,10 +75,17 @@ public class RaidCardMetadataService {
 		return RaidCardResponse.of(RaidCardGuards.requireActiveCard(raidCardRepository, id));
 	}
 
-	public List<RaidCardVendorGroupResponse> findAllGrouped(boolean includeDeleted) {
-		List<RaidCard> cards = includeDeleted
+	/**
+	 * 목록 묶음(S8-3 — 조회 조건 반영). 조건은 카드(C2 항목)에 걸고 묶기 전에 거른다.
+	 * 검색 대상 = 제조사 표시명 · 모델명 · PCI Subsystem ID(표시형).
+	 */
+	public List<RaidCardVendorGroupResponse> findAllGrouped(ResourceListQuery query) {
+		List<RaidCard> cards = (query.includeDeleted()
 				? raidCardRepository.findAllByOrderByVendorAscCreatedAtDesc()
-				: raidCardRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc();
+				: raidCardRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).stream()
+				.filter(c -> query.matches(c, c.getVendor().getDisplayName(), c.getModelName(),
+						c.getPciSubsystemId() == null ? null : c.getPciSubsystemId().toDisplay()))
+				.toList();
 
 		Map<RaidCardVendor, List<RaidCard>> byVendor = cards.stream().collect(
 				Collectors.groupingBy(RaidCard::getVendor, LinkedHashMap::new, Collectors.toList())

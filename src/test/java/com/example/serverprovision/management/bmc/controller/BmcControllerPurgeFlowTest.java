@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bmc.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.management.bmc.exception.BmcNotFoundException;
 import com.example.serverprovision.management.bmc.service.BmcLifecycleService;
@@ -90,15 +91,17 @@ class BmcControllerPurgeFlowTest {
                 .andExpect(status().isNotFound());
     }
 
-    // S5-4 — '삭제된 항목 포함' 체크박스의 마커 검증 + inline onchange 부재 회귀.
+    // S8-3 — '삭제된 항목 포함' 은 조회 띠 폼 필드다(토글 스크립트 폐기) · inline onchange 부재 회귀.
     @Test
-    @DisplayName("GET /management/bmc — '삭제된 항목 포함' 체크박스에 data-include-deleted-toggle 마커 + inline onchange 부재")
-    void renders_includeDeletedToggle_with_dataMarker() throws Exception {
-        given(bmcService.findAllGrouped(false)).willReturn(List.of());
+    @DisplayName("GET /management/bmc — '삭제된 항목 포함' 이 조회 띠 폼 필드 + 토글 스크립트 · inline onchange 부재")
+    void renders_includeDeleted_asListQueryField() throws Exception {
+        given(bmcService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/bmc"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-include-deleted-toggle")))
+                .andExpect(content().string(containsString("name=\"includeDeleted\"")))
+                .andExpect(content().string(containsString("data-list-query")))
+                .andExpect(content().string(not(containsString("include-deleted-toggle"))))
                 .andExpect(content().string(not(containsString("onchange=\"window.location"))));
     }
 
@@ -106,7 +109,7 @@ class BmcControllerPurgeFlowTest {
     @Test
     @DisplayName("GET /management/bmc — 외부 우상단 '+ 신규 BMC 등록' 버튼 노출")
     void renders_external_register_button() throws Exception {
-        given(bmcService.findAllGrouped(false)).willReturn(List.of());
+        given(bmcService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/bmc"))
                 .andExpect(status().isOk())
@@ -132,7 +135,7 @@ class BmcControllerPurgeFlowTest {
                 "Gigabyte", "MS73-HB1", false,
                 null,   // E2-1-a latestBmcId — 이 흐름과 무관
                 java.util.List.of(bmc));
-        given(bmcService.findAllGrouped(false)).willReturn(java.util.List.of(boardWithBmc));
+        given(bmcService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(java.util.List.of(boardWithBmc));
 
         mvc.perform(get("/management/bmc"))
                 .andExpect(status().isOk())
@@ -145,7 +148,7 @@ class BmcControllerPurgeFlowTest {
     @Test
     @DisplayName("GET /management/bmc/new — boardId 없는 진입 → 메인보드 선택 dropdown")
     void renders_new_without_boardId() throws Exception {
-        given(boardModelService.findAllGrouped(false)).willReturn(List.of());
+        given(boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/bmc/new"))
                 .andExpect(status().isOk())

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.subprogram.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -161,10 +162,10 @@ class SubprogramControllerLifecycleFlowTest {
     @Test
     @DisplayName("GET /list : 부모 삭제 자식은 복구 버튼 disabled + tooltip 렌더")
     void list_renders_disabledRestore_withTooltip() throws Exception {
-        given(subprogramService.findAllGrouped(SubprogramKind.DRIVER, true))
+        given(subprogramService.findAllGrouped(SubprogramKind.DRIVER, ResourceListQuery.unfiltered(true)))
                 .willReturn(List.of(new BoardWithSubprogramListResponse(
                         10L, Vendor.GIGABYTE, "GIGABYTE", "MS03-CE0", false, List.of(deletedSp(true)))));
-        given(subprogramService.findAllGrouped(SubprogramKind.UTILITY, true)).willReturn(List.of());
+        given(subprogramService.findAllGrouped(SubprogramKind.UTILITY, ResourceListQuery.unfiltered(true))).willReturn(List.of());
 
         mvc.perform(get("/management/subprogram").param("includeDeleted", "true"))
                 .andExpect(status().isOk())

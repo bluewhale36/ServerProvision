@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.service.metadata;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.management.os.dto.request.ISOCreateRequest;
 import com.example.serverprovision.management.os.dto.request.OSMetadataCreateRequest;
 import com.example.serverprovision.management.os.dto.request.OSMetadataUpdateRequest;
@@ -585,5 +586,24 @@ class OSMetadataServiceTest {
         assertThat(placeholder.extracted()).isFalse();
         assertThat(placeholder.providedEnvironmentCodes()).isEmpty();
         assertThat(placeholder.providedPackageGroupCount()).isZero();
+    }
+
+    // ==== S8-3 — 조회 조건 =============================================
+
+    @Test
+    @DisplayName("findAllGrouped(S8-3) : 조건은 OS 버전에 걸고 맞는 버전이 없는 OS 이름은 묶음이 없다 · OS 이름 표시명도 검색 대상")
+    void findAllGrouped_filtersVersionsBeforeGrouping() {
+        OSMetadata rocky = OSMetadata.builder()
+                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6").isEnabled(true).isDeleted(false).build();
+        OSMetadata ubuntu = OSMetadata.builder()
+                .id(2L).osName(OSName.UBUNTU).osVersion("24.04").isEnabled(false).isDeleted(false).build();
+        given(osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()).willReturn(List.of(rocky, ubuntu));
+
+        var byName = osMetadataService.findAllGrouped(
+                new ResourceListQuery(OSName.ROCKY_LINUX.getDisplayName().toUpperCase(), null, null, false));
+        assertThat(byName).extracting(g -> g.osName()).containsExactly(OSName.ROCKY_LINUX);
+
+        var disabledOnly = osMetadataService.findAllGrouped(new ResourceListQuery(null, false, null, false));
+        assertThat(disabledOnly).extracting(g -> g.osName()).containsExactly(OSName.UBUNTU);
     }
 }

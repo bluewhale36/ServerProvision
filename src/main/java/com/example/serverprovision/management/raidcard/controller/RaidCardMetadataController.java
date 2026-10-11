@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.raidcard.controller;
 
+import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
+import com.example.serverprovision.global.web.list.ListLinks;
 import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.management.common.web.ControllerValidationSupport;
 import com.example.serverprovision.management.raidcard.dto.request.RaidCardCreateRequest;
@@ -46,16 +48,18 @@ public class RaidCardMetadataController {
 
 	@GetMapping
 	public String list(
-			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted,
+			@ModelAttribute("query") ResourceListQuery query,
+			ListLinks links,
 			@RequestParam(name = "selectId", required = false) Long selectId,
 			@RequestParam(name = "selectKey", required = false) String selectKey,
 			Model model
 	) {
-		List<RaidCardVendorGroupResponse> groups = raidCardService.findAllGrouped(includeDeleted);
+		List<RaidCardVendorGroupResponse> groups = raidCardService.findAllGrouped(query);   // S8-3 — 조회 조건
 		model.addAttribute("raidCardGroups", groups);
 		// E3.5-5-b — 카드별 관측 요약(파생 · 비삭제 카드만). 배지 · 버튼 · tooltip 이 이 판정 하나를 본다.
 		model.addAttribute("observationByCard", observationService.summariesByCard(groups));
-		model.addAttribute("includeDeleted", includeDeleted);
+		model.addAttribute("includeDeleted", query.includeDeleted());
+		model.addAttribute("links", links);   // S8-3 — 조건만 푸는 초기화 주소
 		model.addAttribute("selectId", selectId);
 		model.addAttribute("selectKey", selectKey);
 		return "management/raidcard/list";
