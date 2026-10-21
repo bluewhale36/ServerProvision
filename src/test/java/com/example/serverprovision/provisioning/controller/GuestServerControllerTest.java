@@ -72,6 +72,7 @@ class GuestServerControllerTest {
     @MockitoBean SettingQueryService settingQueryService;
     // U3-4 — 목록이 소속 그룹 배지를 합성하므로 컨트롤러가 이 빈을 요구한다.
     @MockitoBean GuestServerGroupQueryService groupQueryService;
+    @MockitoBean com.example.serverprovision.execution.service.GuestServerLookupService lookupService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @BeforeEach
@@ -276,6 +277,7 @@ class GuestServerControllerTest {
     @Test
     @DisplayName("GET /provisioning/server — 목록 200 + list 뷰")
     void list_returns200() throws Exception {
+        given(groupQueryService.retainExisting(any())).willAnswer(inv -> inv.getArgument(0));   // S8-6 — 그룹 조건 정리
         // U3-3 — 목록은 평면 리스트가 아니라 그룹 응답을 받는다. 그룹 렌더 자체는 전용 테스트가 덮는다.
         given(queryService.findGrouped(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).willReturn(
                 new com.example.serverprovision.execution.dto.response.GuestServerListResponse(null, List.of()));

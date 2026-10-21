@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  게스트 서버 목록의 검색 선택기 팝업 내용 (S8-6) — GET /provisioning/server/lookup/{boards|groups} 가 돌려준다.
+  행([data-lookup-row])이 JS 에 넘기는 것: data-value(조건 값) · data-label(칩 이름). 이미 고른 값은 스크립트가 줄의 칩과
+  대조해 체크 · 비활성 · '선택됨' 으로 바꾼다(서버는 선택 상태를 모른다 · plan D6). 이름 버튼은 하나를 바로 고른다.
+-->
+<body>
+
+<table th:fragment="boards" class="n-table n-lookup-table">
+    <thead>
+    <tr><th class="n-lookup-check" aria-label="고르기"></th><th>보드 모델</th><th>제조사</th><th class="center">서버 수</th></tr>
+    </thead>
+    <tbody>
+    <tr th:each="row : ${rows}" data-lookup-row th:attr="data-value=${row.id},data-label=${row.name}"
+        th:classappend="${!row.enabled} ? 'n-lookup-row-disabled'">
+        <td class="n-lookup-check"><input type="checkbox" data-lookup-check th:aria-label="${row.name}"></td>
+        <td>
+            <button type="button" class="n-lookup-pick" data-lookup-pick th:text="${row.name}">MS03-CE0</button>
+            <span th:if="${!row.enabled}" class="n-badge" th:text="#{common.lookup.disabled}">비활성</span>
+            <span th:if="${row.deprecated}" class="n-badge n-badge-yellow" th:text="#{common.lookup.deprecated}">사용 중단</span>
+        </td>
+        <td th:text="${row.vendor.displayName}">Gigabyte</td>
+        <td class="center" th:text="${row.serverCount}">3</td>
+    </tr>
+    <tr th:if="${rows.isEmpty()}"><td colspan="4" class="n-lookup-empty" th:text="#{common.lookup.empty}">검색 결과가 없습니다.</td></tr>
+    </tbody>
+</table>
+
+<table th:fragment="groups" class="n-table n-lookup-table">
+    <thead>
+    <tr><th class="n-lookup-check" aria-label="고르기"></th><th>서버 그룹</th><th class="center">서버 수</th></tr>
+    </thead>
+    <tbody>
+    <tr th:if="${ungroupedRow}" data-lookup-row th:attr="data-value=${ungroupedValue},data-label=${ungroupedLabel}">
+        <td class="n-lookup-check"><input type="checkbox" data-lookup-check th:aria-label="${ungroupedLabel}"></td>
+        <td><button type="button" class="n-lookup-pick" data-lookup-pick th:text="${ungroupedLabel}">무소속</button></td>
+        <td class="center">&mdash;</td>
+    </tr>
+    <tr th:each="row : ${rows}" data-lookup-row th:attr="data-value=${row.id},data-label=${row.name}">
+        <td class="n-lookup-check"><input type="checkbox" data-lookup-check th:aria-label="${row.name}"></td>
+        <td><button type="button" class="n-lookup-pick" data-lookup-pick th:text="${row.name}">8월 2차</button></td>
+        <td class="center" th:text="${row.memberCount}">3</td>
+    </tr>
+    <tr th:if="${rows.isEmpty() and !ungroupedRow}"><td colspan="3" class="n-lookup-empty" th:text="#{common.lookup.empty}">검색 결과가 없습니다.</td></tr>
+    </tbody>
+</table>
+
+</body>
+</html>

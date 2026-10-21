@@ -69,6 +69,7 @@ class GuestServerControllerStartFlowTest {
     @MockitoBean SettingQueryService settingQueryService;
     // U3-4 — 목록이 소속 그룹 배지를 합성하므로 컨트롤러가 이 빈을 요구한다.
     @MockitoBean GuestServerGroupQueryService groupQueryService;
+    @MockitoBean com.example.serverprovision.execution.service.GuestServerLookupService lookupService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @BeforeEach

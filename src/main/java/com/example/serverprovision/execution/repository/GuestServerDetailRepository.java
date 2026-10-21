@@ -13,10 +13,14 @@ import java.util.UUID;
 @Repository
 public interface GuestServerDetailRepository extends JpaRepository<GuestServerDetail, UUID> {
 
-    /** 서버 목록 보드 셀렉트의 선택지(S8-2) — 서버에 실제로 등장한 보드 모델만(고르면 늘 빈 결과가 되는 선택지를 두지 않는다). */
-    @Query("select distinct new com.example.serverprovision.execution.dto.response.BoardOptionResponse(b.id, b.modelName, b.vendor) "
-            + "from GuestServerDetail d join d.boardModel b order by b.vendor, b.modelName")
-    List<com.example.serverprovision.execution.dto.response.BoardOptionResponse> findBoardOptions();
+    /**
+     * 보드 검색 팝업의 행(S8-6) — 등록된(삭제되지 않은) 보드 모델 전부와 그 보드를 가진 서버 수(없으면 0) · 활성 · 사용 중단 여부.
+     * 서버가 아직 없는 보드도 고를 수 있다(CP4 사용자 지시). 검색어 거르기는 서비스가 한다(보드는 수십 개 규모).
+     */
+    @Query("select new com.example.serverprovision.execution.dto.response.BoardLookupRow(b.id, b.modelName, b.vendor, count(d), b.isEnabled, b.isDeprecated) "
+            + "from com.example.serverprovision.management.board.entity.BoardModel b left join GuestServerDetail d on d.boardModel = b "
+            + "where b.isDeleted = false group by b.id, b.modelName, b.vendor, b.isEnabled, b.isDeprecated order by b.vendor, b.modelName")
+    List<com.example.serverprovision.execution.dto.response.BoardLookupRow> findBoardLookupRows();
 
 
     /**

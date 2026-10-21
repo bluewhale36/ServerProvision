@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  검색 선택기 줄 (S8-6 · ecount '창고검색' 방식)
+  ─────────────────────────────────────────────────────────
+  조회 조건 창(list-filter)의 한 줄. 돋보기 · 입력칸 · 고른 값 칩 · 전부 해제(×)로 되어 있고, 돋보기나 입력칸 Enter 가
+  검색 팝업을 연다. 팝업은 이 줄 안에 둔 popover="auto" 다 — 조건 창(역시 popover="auto")의 DOM 안에서 열리므로 브라우저가
+  자식 popover 로 쌓는다. 그래서 Esc · 팝업 바깥(창 안) 클릭은 팝업만 닫고 조건 창은 남는다(plan D1).
+
+  field(name, label, lookupUrl, chips, disabledToggle)
+    · name             — 칩의 hidden input 이름(목록 파라미터 · board · group). 반복 값이 되어 줄 안에서는 OR 다.
+    · label            — 줄 라벨이자 팝업 제목 · 토큰 라벨
+    · lookupUrl        — 팝업 내용(행 조각) 경로. q · includeDisabled 를 붙여 fetch 한다.
+    · chips            — List<LookupChip> 서버가 그린 지금 조건(실재하는 것만)
+    · disabledToggle   — 팝업에 '비활성 포함' 토글을 둘지(켜면 비활성 항목도 후보 · 사용 중단은 토글과 무관하게 보이고 배지로만 알림)
+  칩 영역([data-lookup-chips])은 창을 적용 없이 닫으면 서버가 그린 마크업으로 되돌아간다(list-query.js ⑩).
+  동작: static/global/list-lookup.js
+-->
+<body>
+<div th:fragment="field(name, label, lookupUrl, chips, disabledToggle)" class="n-filter-row" data-filter-row>
+    <span class="n-filter-row-label" th:text="${label}">보드</span>
+    <div class="n-filter-row-field n-lookup-field" data-lookup-field
+         th:attr="data-lookup-url=${lookupUrl},data-lookup-name=${name},data-lookup-remove-label=#{common.lookup.remove},data-lookup-chosen-label=#{common.lookup.chosen}">
+        <button type="button" class="n-lookup-open" data-lookup-open th:aria-label="#{common.lookup.open(${label})}">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+        <input type="text" class="n-input n-lookup-input" data-lookup-input autocomplete="off"
+               th:placeholder="#{common.list.search-placeholder}" th:aria-label="#{common.lookup.open(${label})}">
+        <span class="n-lookup-chips" data-lookup-chips>
+            <span th:each="chip : ${chips}" class="n-lookup-chip" data-lookup-chip th:attr="data-value=${chip.value}">
+                <span th:text="${chip.label}">MS03-CE0</span>
+                <input type="hidden" th:name="${name}" th:value="${chip.value}">
+                <button type="button" data-lookup-remove th:aria-label="|${chip.label} #{common.lookup.remove}|">&minus;</button>
+            </span>
+        </span>
+        <button type="button" class="n-lookup-clear" data-lookup-clear th:aria-label="#{common.lookup.clear}">&times;</button>
+    </div>
+
+    <div class="n-lookup-panel" popover="auto" data-lookup-panel role="dialog" th:aria-label="#{common.lookup.open(${label})}">
+        <div class="n-lookup-head">
+            <strong th:text="#{common.lookup.open(${label})}">보드 검색</strong>
+            <button type="button" class="n-lookup-x" data-lookup-close th:aria-label="#{action.close}">&times;</button>
+        </div>
+        <div class="n-lookup-search">
+            <input type="text" class="n-input" data-lookup-search autocomplete="off"
+                   th:placeholder="#{common.list.search-placeholder}" th:aria-label="#{common.lookup.open(${label})}">
+            <button type="button" class="n-btn n-btn-primary n-btn-sm" data-lookup-search-btn th:text="#{common.list.search-open}">Search</button>
+            <label th:if="${disabledToggle}" class="n-chip n-lookup-disabled">
+                <input type="checkbox" data-lookup-disabled><span th:text="#{common.lookup.include-disabled}">비활성 포함</span>
+            </label>
+        </div>
+        <div class="n-lookup-results" data-lookup-results></div>
+        <div class="n-lookup-actions">
+            <span class="n-lookup-status" data-lookup-status></span>
+            <button type="button" class="n-btn n-btn-primary n-btn-sm" data-lookup-apply th:text="#{common.lookup.apply}">적용</button>
+            <button type="button" class="n-btn n-btn-secondary n-btn-sm" data-lookup-close th:text="#{action.close}">닫기</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>

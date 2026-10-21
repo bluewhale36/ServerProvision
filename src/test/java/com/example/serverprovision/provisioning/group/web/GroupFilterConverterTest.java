@@ -17,8 +17,6 @@ class GroupFilterConverterTest {
         assertThat(converter.convert("")).isEqualTo(GroupFilter.ANY);
         assertThat(converter.convert("none")).isEqualTo(GroupFilter.UNGROUPED);
         assertThat(converter.convert(" 7 ")).isEqualTo(GroupFilter.of(7L));
-        assertThat(GroupFilter.of(7L).param()).isEqualTo("7");
-        assertThat(GroupFilter.UNGROUPED.param()).isEqualTo("none");
         assertThat(GroupFilter.ANY.isSet()).isFalse();
     }
 

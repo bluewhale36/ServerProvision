@@ -1,8 +1,6 @@
 package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.request.ServerListQuery;
-import com.example.serverprovision.execution.dto.response.BoardOptionResponse;
-import com.example.serverprovision.execution.dto.response.BoardOptionGroupResponse;
 import com.example.serverprovision.execution.repository.GuestServerSpecifications;
 import com.example.serverprovision.execution.vo.ServerScope;
 import com.example.serverprovision.global.web.list.Paging;
@@ -179,18 +177,6 @@ public class GuestServerQueryService {
         Page<GuestServer> page = guestServerRepository.findAll(
                 GuestServerSpecifications.of(query, scope), Paging.of(pageable, query.sort(), query.dir()));
         return new PageImpl<>(assembleSummaries(page.getContent()), page.getPageable(), page.getTotalElements());
-    }
-
-    /** 보드 셀렉트 선택지(S8-2) — 서버에 실제로 등장한 보드만, 제조사별 묶음(저장소의 제조사 · 이름 정렬을 그대로 승계). */
-    @Transactional(readOnly = true)
-    public List<BoardOptionGroupResponse> findBoardOptions() {
-        Map<String, List<BoardOptionResponse>> byVendor = new LinkedHashMap<>();
-        for (BoardOptionResponse b : detailRepository.findBoardOptions()) {
-            byVendor.computeIfAbsent(b.vendor().getDisplayName(), k -> new ArrayList<>()).add(b);
-        }
-        return byVendor.entrySet().stream()
-                .map(e -> new BoardOptionGroupResponse(e.getKey(), List.copyOf(e.getValue())))
-                .toList();
     }
 
     /** 활성 서버 요약(U6 D-4) — 그룹 '서버 넣기' 후보처럼 회수 서버가 나오면 안 되는 소비처가 쓴다. */

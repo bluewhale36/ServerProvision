@@ -53,8 +53,8 @@ public final class GuestServerSpecifications {
             if (!q.includeDecommissioned()) {
                 p.add(cb.isNull(root.get("decommissionedAt")));
             }
-            if (q.boardModelId() != null) {
-                p.add(existsDetail(root, query, cb, (d, c) -> c.equal(d.get("boardModel").get("id"), q.boardModelId())));
+            if (!q.boardModelIds().isEmpty()) {   // S8-6 — 여러 보드는 OR(in)
+                p.add(existsDetail(root, query, cb, (d, c) -> d.get("boardModel").get("id").in(q.boardModelIds())));
             }
             DateRangePredicates.addWithin(p, cb, root.get("createdAt"), q.range());
             if (scope.onlyIds() != null) {

@@ -33,7 +33,7 @@ public record ServerListQuery(
         @BindParam("phase") Set<ProvisioningPhase> phases,
         @BindParam("status") Set<GuestServerStatus> statuses,
         Boolean includeDecommissioned,
-        @BindParam("board") Long boardModelId,
+        @BindParam("board") Set<Long> boardModelIds,
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
         ServerSortField sort,
@@ -55,6 +55,12 @@ public record ServerListQuery(
             statuses.stream().filter(Objects::nonNull).filter(s -> s != GuestServerStatus.DECOMMISSIONED).forEach(st::add);
         }
         statuses = Collections.unmodifiableSet(st);
+        // 보드는 여러 개를 고를 수 있다(S8-6 · 줄 안 OR). 빈 값(board=)은 null 원소로 바인딩되므로 걸러 낸다.
+        Set<Long> boards = new java.util.LinkedHashSet<>();
+        if (boardModelIds != null) {
+            boardModelIds.stream().filter(Objects::nonNull).forEach(boards::add);
+        }
+        boardModelIds = Collections.unmodifiableSet(boards);
         includeDecommissioned = Boolean.TRUE.equals(includeDecommissioned);
         sort = sort == null ? DEFAULT_SORT : sort;
         dir = dir == null ? sort.defaultDirection() : dir;
@@ -67,7 +73,12 @@ public record ServerListQuery(
     /** 비어 있는 기간 끝을 기본 범위(1 년 전 ~ 오늘)로 채운 조건 — 조회와 화면은 이 값을 쓴다. */
     public ServerListQuery withDefaultRange(LocalDate today) {
         DateRange r = range().withDefault(today);
-        return new ServerListQuery(view, q, phases, statuses, includeDecommissioned, boardModelId, r.from(), r.to(), sort, dir);
+        return new ServerListQuery(view, q, phases, statuses, includeDecommissioned, boardModelIds, r.from(), r.to(), sort, dir);
+    }
+
+    /** 실재하는 보드만 남긴 조건 — 주소에 없는 id 를 넣어도 숨은 조건이 생기지 않게(S8-6 · S8-4 관찰 O-3). */
+    public ServerListQuery withBoardModelIds(Set<Long> existing) {
+        return new ServerListQuery(view, q, phases, statuses, includeDecommissioned, existing, from, to, sort, dir);
     }
 
     /**
@@ -76,7 +87,7 @@ public record ServerListQuery(
      */
     public boolean isFiltered(LocalDate today) {
         return q != null || !phases.isEmpty() || !statuses.isEmpty() || includeDecommissioned
-                || boardModelId != null || !range().isDefault(today);
+                || !boardModelIds.isEmpty() || !range().isDefault(today);
     }
 
 }

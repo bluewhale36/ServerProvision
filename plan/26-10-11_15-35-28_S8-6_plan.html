@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S8-6 Plan — 보드 · 소속 그룹 검색 선택기</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:12px; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:var(--border-soft); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--border-soft); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq / .pkg-tree / card ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  /* ── 반응형 (명세 §3) — 데스크톱 무변경 ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S8-6 보드 · 소속 그룹 검색 선택기 <span class="v2-badge">게스트 서버 목록</span></h1>
+  <div class="meta">
+    <span><strong>인벤토리</strong> S8-6 (feature)</span>
+    <span><strong>상위</strong> S8 조회 화면 기능 강화</span>
+    <span><strong>브랜치(예정)</strong> S8-5 위(feat/S8-5_default-date-range · 미커밋) · 착수 시점에 결정</span>
+    <span><strong>착수</strong> S8-5 완료(2026-10-21) · 사용자 추가 수정(messages.properties 용어 정비) 뒤 (사용자 지시)</span>
+    <span><strong>작성</strong> 2026-10-11 15:35 KST</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/3f6ef0e868f9817c9186e96fc10c6814">S8-6 단계 페이지</a></span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표 + ecount 실측</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">S8-4 로 게스트 서버 목록의 조건은 <b>Search</b> 버튼이 여는 조회 조건 창(<code>popover="auto"</code>) 안에 줄로 선다. 그중 '보드' 줄은 제조사별 optgroup 셀렉트 하나라 <b>한 개만</b> 고를 수 있고, 목록이 길어지면 스크롤로 찾아야 한다.</p>
+
+        <h4>현재 코드 사실</h4>
+        <table>
+          <thead><tr><th>대상</th><th>현재</th></tr></thead>
+          <tbody>
+            <tr><td>보드 줄 (화면)</td><td>제조사별 optgroup 셀렉트 · 한 개만</td></tr>
+            <tr><td>보드 선택지 출처</td><td><code>GuestServerDetailRepository.findBoardOptions()</code> — 서버에 실제 등장한 보드 모델만 (S8-2)</td></tr>
+            <tr><td>보드 서버 조건</td><td><code>ServerListQuery.boardModelId</code> (Long 하나) · <code>GuestServerSpecifications</code> 가 detail.boardModel.id 같음으로 거름</td></tr>
+            <tr><td>소속 그룹 서버 조건</td><td><code>group</code> 파라미터 · <code>GroupFilter</code> (ANY · UNGROUPED("none") · GROUP(id) 중 하나) · <code>GuestServerGroupQueryService.scopeOf</code> → <code>ServerScope</code> — 잔존</td></tr>
+            <tr><td>소속 그룹 줄 (화면)</td><td>없음 — S8-2 CP6 에서 뺌</td></tr>
+            <tr><td>선택 모달 선례</td><td>정의서 선택 모달 (U3-5-b) — <code>GET /provisioning/server/{id}/assignment/picker</code> 가 HTML 조각 반환 · <code>.cm-overlay</code> 자체 레이어 · 처음 열 때 fetch</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><b>S8-2 CP6 의 판단</b> : 보드 · 그룹은 자기 조회 화면이 있는 대상이라 단순 셀렉트가 맞지 않다 — 그래서 소속 그룹 줄을 화면에서 뺐고, 서버 쪽 <code>group</code> 파라미터만 남았다.</div>
+        <div class="callout warn"><b>사용자 지시 (2026-10-11)</b> : 보드는 셀렉트가 아니라 ecount '창고검색' 처럼 별도 검색 팝업으로. 근거 = 참고 사진 5 장 + 세션이 ecount 데모를 직접 조작해 관찰한 동작(§2 ecount 실측 표).</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <h4>요구</h4>
+        <ol>
+          <li>조건 창의 '보드' 줄 = <b>검색 아이콘 + 입력칸 + 고른 값 칩들 + 전부 해제 ×</b></li>
+          <li>아이콘 클릭 → 검색 팝업(빈 검색). 입력칸에 글자 + Enter → 그 글자로 걸러진 팝업. <b>일치 1 건이면 팝업 없이 바로 칩 추가</b></li>
+          <li>팝업 = 제목 바 · 자체 검색칸(입력 후 [Enter]) · Search · '사용 중단 포함' 토글 · 표(체크 열 · 이름 · 보조 열) · 하단 [적용] · [닫기]</li>
+          <li>이름 클릭 = 하나 바로 추가 · 팝업 닫힘. 체크 여러 개 + [적용] = 한꺼번에 추가. 고른 값은 기존 칩에 누적</li>
+          <li>칩 ⊖ = 하나 해제 · 줄 오른쪽 × = 전부 해제</li>
+          <li>Esc = 검색 팝업만 닫힘 (조회 조건 창은 남음 · 포커스는 줄 입력칸으로)</li>
+          <li>같은 선택기로 <b>'소속 그룹' 줄을 화면에 되살린다</b> (무소속 포함)</li>
+          <li>고른 값도 S8-4 규칙을 따른다 — 창 안에서 바꾼 것은 [검색] 으로 적용 · 적용 없이 닫으면 버림 · 걸린 값은 띠 토큰</li>
+        </ol>
+
+        <div class="callout warn"><b>비 목표</b> :
+          <table>
+            <thead><tr><th>항목</th><th>처리</th></tr></thead>
+            <tbody>
+              <tr><td>다른 목록 화면에 선택기 확대</td><td>필요 생길 때</td></tr>
+              <tr><td>줄 라벨 ▾ 하위 줄 (ecount '창고계층그룹' · 예: 보드 ▾ → 제조사)</td><td>하지 않음 (Q5)</td></tr>
+              <tr><td>팝업의 '신규(F2)' · 창 끌기 · 최대화 · 새 창</td><td>하지 않음</td></tr>
+              <tr><td>단축키</td><td>하지 않음</td></tr>
+              <tr><td>기본 1 년 생성 시각 조건 (목록 전반)</td><td>S8-5</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4 id="s2-ref">§2-ref ecount 데모 실측 (세션 관찰 · 2026-10-11 · 판매조회 출하창고)</h4>
+        <table>
+          <thead><tr><th>#</th><th>조작</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>줄 돋보기</td><td>빈 검색 팝업</td></tr>
+            <tr><td>②</td><td>입력 "본사" + Enter</td><td>걸러진 팝업 (2 건)</td></tr>
+            <tr><td>③</td><td>입력 "불량" + Enter</td><td>1 건 일치 → 팝업 없이 칩 추가</td></tr>
+            <tr><td>④</td><td>팝업 검색 "공장"</td><td>구분 · 코드 · 이름 열 모두 대상</td></tr>
+            <tr><td>⑤</td><td>행 번호 칸 2 개 + 적용</td><td>칩 2 개 일괄 추가</td></tr>
+            <tr><td>⑥</td><td>이름 클릭</td><td>하나 추가 · 팝업 닫힘 · 기존 칩에 누적</td></tr>
+            <tr><td>⑦</td><td>줄 ×</td><td>칩 전부 해제</td></tr>
+            <tr><td>⑧</td><td>사용중단포함 토글</td><td>주황 · 사용 중단 행 분홍 배경으로 섞임</td></tr>
+            <tr><td>⑨</td><td>줄 라벨 ▾</td><td>하위 줄 '창고계층그룹' 펼침</td></tr>
+            <tr><td>⑩</td><td>팝업에서 Esc</td><td>팝업만 닫힘 · 조건 창 유지 · 포커스 줄 입력칸</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">ecount 팝업 구현 = <code>div.ui-dialog.panel-modal</code> (z 2002 · 끌기 가능 react 컴포넌트) — 표준 popover / dialog 가 아니다. 본 설계는 같은 동작을 표준 중첩 popover 로 낸다(D1).</div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">모의 게스트 서버 목록이다. <b>Search</b> 로 조회 조건 창을 열고, 보드 · 소속 그룹 줄의 <b>🔍</b> 또는 입력칸 Enter 로 검색 팝업을 띄운다. 팝업은 조건 창 <b>위에</b> 겹쳐 뜨고, 닫혀도 조건 창은 남는다. 칩 추가 · 해제는 창 안 변경이라 <b>[검색]</b> 전까지 결과 · 토큰 · URL 이 바뀌지 않는다. 모의 데이터(보드 12 · 그룹 8 + 무소속 · 서버 20)를 실제로 걸러 계산한다. 시나리오 버튼은 클릭 지점을 주황 테두리로 짚으며 재생하고, 끝난 뒤 이어서 직접 조작할 수 있다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar" data-demo-keep>
+            <span class="group-label">시나리오 :</span>
+            <button class="n-demo-btn" onclick="demoPreset(1)">① 돋보기 → 이름 클릭</button>
+            <button class="n-demo-btn" onclick="demoPreset(2)">② "MS74" Enter → 바로 칩</button>
+            <button class="n-demo-btn" onclick="demoPreset(3)">③ "MS0" Enter → 체크 2 + 적용</button>
+            <button class="n-demo-btn" onclick="demoPreset(4)">④ 사용 중단 포함</button>
+            <button class="n-demo-btn" onclick="demoPreset(5)">⑤ 무소속 + 그룹 (OR)</button>
+            <button class="n-demo-btn" onclick="demoPreset(6)">⑥ Esc → 바깥 클릭 버림</button>
+          </div>
+
+          <div id="demo-stage" style="position:relative; margin-top:10px;">
+            <div class="ux-row" id="demo-bar" style="flex-wrap:wrap; margin-bottom:0;"></div>
+            <div class="card" id="demo-panel" role="dialog" aria-label="조회 조건" hidden
+                 style="position:absolute; left:12px; top:calc(100% + 2px); width:min(600px, calc(100% - 24px)); z-index:20; padding:12px; border:2px solid var(--blue); box-shadow:0 8px 24px var(--border);">
+              <div id="demo-panel-rows"></div>
+              <div class="card" id="demo-popup" role="dialog" aria-label="검색 팝업" hidden
+                   style="position:absolute; left:8px; top:52px; width:calc(100% - 16px); max-width:520px; z-index:30; padding:12px; border:2px solid var(--purple); box-shadow:0 8px 24px var(--border);"></div>
+            </div>
+          </div>
+          <div id="demo-results" style="margin-top:10px; min-height:580px;"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div id="demo-log" style="margin-top:6px; font-size:12px; color:var(--text-muted);"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <h4>데모가 재현하는 동작 규칙</h4>
+        <table>
+          <thead><tr><th>조작</th><th>데모 동작</th><th>결정</th></tr></thead>
+          <tbody>
+            <tr><td>🔍</td><td>빈 검색 팝업 · 조건 창 유지</td><td>D1</td></tr>
+            <tr><td>줄 입력 + Enter</td><td>걸러진 팝업 · 1 건이면 팝업 없이 칩 · 0 건이면 팝업 "결과 없음"</td><td>D9</td></tr>
+            <tr><td>팝업 검색 Enter · Search</td><td>이름 · 제조사(보드) 부분 일치 · 대소문자 무시</td><td>D2</td></tr>
+            <tr><td>사용 중단 포함</td><td>꺼짐 = 사용 중단 보드 숨김 · 켜짐 = 섞여 나옴 + '사용 중단' 표시</td><td>D5</td></tr>
+            <tr><td>이미 칩인 행</td><td>체크된 채 비활성 + '선택됨'</td><td>D6</td></tr>
+            <tr><td>이름 클릭</td><td>하나 추가 · 팝업 닫힘 · 기존 칩에 누적</td><td>—</td></tr>
+            <tr><td>체크 + [적용]</td><td>일괄 추가 · 팝업 닫힘</td><td>—</td></tr>
+            <tr><td>팝업 [닫기] · × · Esc · 팝업 바깥(창 안) 클릭</td><td>팝업만 닫힘 · 조건 창 · 창 안 변경 유지</td><td>D1 · D7</td></tr>
+            <tr><td>칩 ⊖ · 줄 ×</td><td>해제 (창 안 · 미적용)</td><td>D7</td></tr>
+            <tr><td>조건 창 [검색]</td><td>적용 — 결과 · 토큰 · URL 갱신</td><td>D7</td></tr>
+            <tr><td>조건 창 [닫기] · Esc · 바깥 클릭</td><td>창 안 변경 (칩 포함) 버림</td><td>D7</td></tr>
+            <tr><td>토큰</td><td>"보드: MS03-CE0, MS74-HB0 ×" — 칩 이름 그대로 · × = 그 줄만 풀고 즉시 적용</td><td>D7</td></tr>
+            <tr><td>결과 판정</td><td>보드 여러 개 = OR · 그룹 여러 개 = OR (무소속 포함) · 보드 × 그룹 = AND</td><td>D3 · D4</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 "1 건 즉시 추가" 판정과 팝업 행은 같은 lookup 함수 하나에서 나온다(실제 구현도 서버 검색 한 규칙 — D2 · D9). 결과 판정의 그룹 축은 <code>scopeOf</code> = (무소속 서버) ∪ (고른 그룹 멤버) 와 같은 식이다. 토큰 문구 · hidden input 은 줄의 칩 목록에서 읽는다(§4 칩 마크업 SSOT).</div>
+        <div class="callout">데모의 조건 창 · 검색 팝업은 popover 를 흉내 낸 절대 위치 레이어다(바깥 판정 = <code>pointerdown</code>). 팝업을 조건 창 DOM 안에 두어 "팝업 바깥이지만 창 안" 클릭은 팝업만 닫고, "창 바깥" 클릭은 둘 다 닫는다 — 실제 기구는 D1 중첩 <code>popover="auto"</code>. 모의 데이터의 이름 · 날짜 · id 는 예시값이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>경로</th><th>용도</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/provisioning/server?board=3&amp;board=9&amp;group=5&amp;group=none</code></td><td>목록 (기존 경로 · 다중 값)</td><td>페이지</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/lookup/boards?q=&amp;includeDeprecated=</code></td><td>보드 검색 팝업 내용</td><td>HTML 조각 (표 행)</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/lookup/groups?q=</code></td><td>그룹 검색 팝업 내용</td><td>HTML 조각 (표 행)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>파라미터 변경</h4>
+        <table>
+          <thead><tr><th>파라미터</th><th>지금</th><th>바뀐 뒤</th><th>하위 호환</th></tr></thead>
+          <tbody>
+            <tr><td><code>board</code></td><td>Long 하나</td><td>여러 값 (OR)</td><td>단일 값 주소 그대로 동작</td></tr>
+            <tr><td><code>group</code></td><td><code>GroupFilter</code> 하나</td><td>여러 값 — 그룹 id · <code>none</code> (OR)</td><td>단일 값 주소 그대로 동작</td></tr>
+          </tbody>
+        </table>
+
+        <h4>흐름 — 팝업에서 고르기 → 적용</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저 (조건 창)</div><div class="actor a2">검색 팝업</div><div class="actor a3">서버</div>
+          <div class="step a1">🔍 클릭 · 또는 줄 입력 Enter</div><div class="step a2">열림 (조건 창 위 · 중첩)</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">fetch lookup 조각 (<code>q</code>)</div><div class="step a3"><code>GET …/lookup/boards?q=</code> → 표 행 조각</div>
+          <div class="step a1"></div><div class="step a2">행 그림</div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2">이름 클릭 · 또는 체크 + [적용] → 닫힘</div><div class="step a3"></div>
+          <div class="step a1">줄에 칩 + hidden input (<code>name=board value=id</code>) 추가</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">조건 창 [검색] → GET 목록 (<code>board</code> 반복)</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">칩 · hidden input 을 그려 돌려줌</div>
+          <div class="step a1">토큰 (칩 이름 그대로)</div><div class="step a2"></div><div class="step a3"></div>
+        </div>
+
+        <h4>흐름 — 1 건 즉시 추가 (D9)</h4>
+        <div class="seq">
+          <div class="actor a1">브라우저 (조건 창)</div><div class="actor a2">검색 팝업</div><div class="actor a3">서버</div>
+          <div class="step a1">줄 입력 Enter</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">fetch lookup (<code>q</code>)</div><div class="step a2"></div><div class="step a3">걸러진 행 조각</div>
+          <div class="step a1">행이 정확히 1 개 → 칩 추가</div><div class="step a2">열지 않음</div><div class="step a3"></div>
+          <div class="step a1">행 0 개 · 2 개 이상</div><div class="step a2">열림 — "결과 없음" · 또는 걸러진 행</div><div class="step a3"></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <div class="callout success"><b>엔티티 · 스키마 변경 없음 (DDL 0).</b> 바뀌는 것은 조회 조건 DTO · 그룹 조건 표현 · 선택지 응답 DTO · 줄 마크업이다.</div>
+
+        <h4>ServerListQuery — 보드 조건</h4>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE</h4><pre><code>@BindParam("board") Long boardModelId
+// GuestServerSpecifications: id 같음</code></pre></div>
+          <div class="split-card after"><h4>AFTER</h4><pre><code>Set&lt;Long&gt; boardModelIds   // 빈 집합 = 조건 없음
+// GuestServerSpecifications: id in</code></pre></div>
+        </div>
+
+        <h4>GroupFilter — 하나 → 묶음 (Q2 결정에 따름)</h4>
+        <table>
+          <thead><tr><th>항목</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>지금</td><td>ANY · UNGROUPED("none") · GROUP(id) 중 하나</td></tr>
+            <tr><td>후보 표현</td><td><code>GroupFilter(boolean ungrouped, Set&lt;Long&gt; groupIds)</code></td></tr>
+            <tr><td><code>scopeOf</code></td><td>(무소속 서버) ∪ (그룹 멤버)</td></tr>
+            <tr><td>변환기</td><td>반복 파라미터 목록을 받음</td></tr>
+          </tbody>
+        </table>
+
+        <h4>선택지 응답</h4>
+        <table>
+          <thead><tr><th>DTO</th><th>필드</th></tr></thead>
+          <tbody>
+            <tr><td><code>BoardLookupRow</code></td><td><code>id</code> · <code>name</code> · <code>vendor</code> · <code>serverCount</code> · <code>deprecated</code></td></tr>
+            <tr><td><code>GroupLookupRow</code></td><td><code>id</code> · <code>name</code> · <code>memberCount</code> + 무소속 행</td></tr>
+          </tbody>
+        </table>
+
+        <h4>칩 마크업 — 토큰 문구 · 해제 · 되돌리기의 단일 출처</h4>
+        <div class="pkg-tree">보드 줄 (S8-4 줄 마크업 안)              ← fragments/ui/lookup-field :: field(name, label, lookupUrl, selected)
+├── button   돋보기                    → 검색 팝업 (빈 검색)
+├── input    찾기 입력칸                → Enter = lookup(q) · 1 행이면 바로 칩
+├── span.n-lookup-chip[data-lookup-value]   이름 + ⊖
+│   └── input[type=hidden][name=board][value=id]   짝
+├── … 칩 반복
+└── button   ×                         → 전부 해제
+검색 팝업 껍데기 (조건 창 DOM 안 · 중첩)   ← fragments/ui/lookup-panel</div>
+        <p>토큰 문구 · 칩 해제 · 적용 없이 닫을 때의 되돌리기가 모두 이 칩 목록을 읽는다 — S8-4 의 "줄 마크업 = SSOT" 원칙의 연장이다. 서버는 칩과 hidden input 을 함께 그리고, 토큰은 서버가 따로 그리지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td>뷰 — 줄 조각 · 팝업 조각</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3</td><td>Controller — lookup 두 경로 · 목록 다중 값</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>4</td><td>DTO — lookup 행 · <code>ServerListQuery</code> · <code>GroupFilter</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td>Service — lookup 조회 · <code>scopeOf</code> 다중</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td>Repository — 보드 lookup 쿼리 · 그룹 lookup · id in</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>7</td><td>Entity — 변경 없음</td><td><span class="chip cp3">CP3</span></td><td>N/A</td></tr>
+            <tr><td>8~9</td><td>Service 본체 · 스키마 변경 없음 — main 구현 (테스트 제외) + 빌드 통과</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (§9 A · B · C + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+        <div class="callout warn"><b>착수 시점</b> : CP1 승인 뒤에도 구현은 <b>S8-5 와 사용자의 추가 수정이 끝난 다음</b>에 시작한다 (사용자 지시 2026-10-11). 그 사이 S8-4 코드가 바뀌면 착수 전에 이 plan 을 재확인한다(§8 주의 ⑤).</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 테스트</h4>
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td><code>ServerListQuery</code></td><td>보드 집합 · 빈 값 무시</td><td>2</td></tr>
+            <tr><td><code>GroupFilter</code></td><td>다중 · none 섞임 · 변환기</td><td>3</td></tr>
+            <tr><td><code>scopeOf</code></td><td>무소속 ∪ 그룹 OR</td><td>1</td></tr>
+            <tr><td>lookup 서비스</td><td>q 부분 일치 · 사용 중단 포함 여부 · 서버 수</td><td>3</td></tr>
+          </tbody>
+        </table>
+        <p>단위 합계 9.</p>
+
+        <h4>통합 테스트 (<code>@WebMvcTest</code>)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>대상</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 200</td><td>목록</td><td><code>board</code> 반복 바인딩 · <code>group</code> 반복 바인딩 · 단일 값 하위 호환 · 칩 · hidden input 렌더 · 토큰 자리</td><td>5</td></tr>
+            <tr><td>성공 200</td><td>lookup</td><td>조각 (행) · <code>q</code> 걸러짐 · <code>includeDeprecated</code> — '선택됨' 표시는 서버가 아니라 스크립트가 줄의 칩과 대조해 붙인다(lookup 은 선택 상태를 모른다)</td><td>3</td></tr>
+            <tr><td>400</td><td>바인딩</td><td>잘못된 id · 알 수 없는 <code>group</code> 값</td><td>2</td></tr>
+            <tr><td>404</td><td>목록</td><td>해당 없음 — 없는 보드 · 그룹 id 는 예외가 아님: 칩을 그리지 않고 조건에서도 뺌 · 토큰 없음 (200 으로 확인 · S8-4 관찰 O-3 해소)</td><td>1</td></tr>
+            <tr><td>409</td><td>—</td><td>해당 없음 — 상태를 바꾸지 않는 조회 경로</td><td>0</td></tr>
+            <tr><td>500</td><td>—</td><td>해당 없음 — 신규 예외 없음 (§7)</td><td>0</td></tr>
+            <tr><td>JPA</td><td><code>GuestServerSpecifications</code></td><td>id in</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <p>통합 합계 12 (JPA 1 포함).</p>
+        <div class="callout">팝업 레이어 · 1 건 즉시 추가 · 버림 같은 JS 동작은 서버 응답으로 검증할 수 없으므로 CP5 브라우저 검증(§9)이 맡는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>구분</th><th>내용</th><th>HTTP</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip keep">신규</span></td><td>없음 (예정)</td><td>—</td></tr>
+            <tr><td><span class="chip keep">재사용</span></td><td>잘못된 파라미터 — 기존 바인딩 오류 처리</td><td>400</td></tr>
+            <tr><td><span class="chip keep">예외 아님</span></td><td>없는 보드 · 그룹 id — 조용히 무시 (칩 없음 · 조건 제외)</td><td>200</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">없는 id 는 주소 변조 경로에서만 생긴다 — 화면 정상 흐름은 lookup 이 돌려준 행에서만 칩을 만들기 때문이다. 그래서 예외로 거절하지 않고 조건에서 뺀다(예외 = 프로그램 예외 전용 원칙).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>주의</h4>
+        <ol>
+          <li>중첩 popover 성립 조건 (D1) — CP5 확인</li>
+          <li>실시간 갱신은 <code>[data-live]</code> 만 교체 — 폼 · 팝업 무관 (S8-4 B12 확인)</li>
+          <li>S8-4 의 토큰(⑪) · 되돌리기(⑩)가 칩 줄을 다루도록 확장 필요</li>
+          <li>S8-4 관찰 O-3 (없는 보드 id 숨은 조건) 해소</li>
+          <li>구현은 S8-5 뒤 — 그 사이 S8-4 코드가 바뀌면 plan 재확인</li>
+                  <li>2026-10-21 갱신 — S8-5 완료로 기간 줄은 공용 조각 <code>date-range-row</code> · 오늘은 <code>ListDateRangeDefaults</code> 가 맡는다. 새 줄(보드 · 소속 그룹)은 기간 줄과 같은 <code>n-filter-row</code> 마크업을 따르고, 새 문구는 처음부터 messages 키로 둔다(사용자의 용어 정비가 messages.properties 에서 이뤄지므로).</li>
+</ol>
+
+        <h4>결정 D1~D9</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택</th><th>비채택 대안</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>검색 팝업 레이어 기구</td><td>조건 창 안 중첩 <code>popover="auto"</code></td><td>① <code>&lt;dialog&gt;.showModal()</code><br>② 기존 <code>.cm-overlay</code> 자체 레이어</td><td>① 모달을 열면 브라우저가 열린 auto popover 를 모두 닫음 — 조건 창 사라짐<br>② 조건 창 DOM 밖 — 그 안 클릭이 조건 창의 바깥 클릭 · Esc 직접 처리</td></tr>
+            <tr><td>D2</td><td>선택지 전달</td><td>HTML 조각 엔드포인트 (GET lookup · <code>q</code> 서버 검색) — 권장 · Q1</td><td>페이지에 미리 그려 클라이언트 거르기</td><td>실시간 갱신이 매번 큰 페이지를 받음 · 검색 규칙이 JS 에 따로 생김</td></tr>
+            <tr><td>D3</td><td>다중 선택 의미</td><td>줄 안 OR · 줄 사이 AND</td><td>—</td><td>—</td></tr>
+            <tr><td>D4</td><td>그룹 다중</td><td>여러 개 + '무소속' 한 행 섞기 — 권장 · Q2</td><td>그룹은 하나만 (<code>GroupFilter</code> 무변경)</td><td>칩 UI 가 보드와 달라짐</td></tr>
+            <tr><td>D5</td><td>보드 후보</td><td>서버에 등장한 보드만 + 서버 수 열 · '사용 중단 포함' 토글 — 권장 · Q3</td><td>등록된 보드 모델 전부</td><td>빈 결과가 되는 선택지 생김</td></tr>
+            <tr><td>D6</td><td>이미 고른 값</td><td>팝업에서 체크된 채 비활성 + '선택됨'(스크립트가 줄의 칩과 행 id 를 대조해 표시) — 권장 · Q4</td><td>팝업에서 체크 해제로도 빼기</td><td>팝업이 선택 전체를 편집 — ecount 와 다름</td></tr>
+            <tr><td>D7</td><td>S8-4 규칙 연장</td><td>칩 추가 · 해제 = 창 안 변경 · [검색] 전 미적용 · 적용 없이 닫으면 서버가 그린 칩으로 복원</td><td>—</td><td>—</td></tr>
+            <tr><td>D8</td><td>공용 부품</td><td><code>lookup-field</code> · <code>lookup-panel</code> · <code>list-lookup.js</code> 한 벌 (보드 · 그룹 공용)</td><td>보드 전용 마크업 두 벌</td><td>중복 금지 규약 위반</td></tr>
+            <tr><td>D9</td><td>1 건 즉시 추가</td><td>줄 Enter · 서버 검색 1 행 → 팝업 없이 칩 · 0 건 → 팝업 "결과 없음"</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+
+        <h4>결정 보충</h4>
+        <ul>
+          <li><b>D1</b> — 부모 popover 의 DOM 안에서 열린 auto popover 는 브라우저가 "자식" 으로 쌓는다. 그래서 자식이 열려도 부모(조건 창)가 닫히지 않고, Esc · 바깥 클릭이 자식만 닫는다 — ecount ⑩ 동작이 표준으로 나온다. <b>위험</b>: 중첩 판정은 "자식의 DOM 조상 또는 여는 버튼이 부모 안" 이어야 성립한다 — CP5 확인 항목(A1 · B1).</li>
+          <li><b>D2</b> — 정의서 선택 모달(U3-5-b)과 같은 결이다. 선택지가 늘어도 페이지가 무거워지지 않고, 1 건 판정을 서버 검색과 같은 규칙으로 낸다. 대안은 엔드포인트가 0 이라 가장 단순하고 보드 · 그룹이 수십 개 규모면 충분하다는 장점이 있다.</li>
+          <li><b>D3</b> — S8-2 의 단계 · 상태 칩과 같은 규칙이다(보드 A 또는 B · 보드 × 그룹 × 다른 조건).</li>
+          <li><b>D5</b> — S8-2 원칙(고르면 늘 빈 결과가 되는 선택지를 두지 않는다)을 유지한다. '사용 중단 포함' 토글은 사용 중단 보드 모델을 숨김 / 표시한다.</li>
+          <li><b>D6</b> — 중복 추가를 막고, 해제는 줄의 칩에서 한다.</li>
+          <li><b>D7</b> — 되돌리기 = 줄 칩 영역의 처음 마크업을 보관했다가 복원. 검색 팝업이 닫히는 것은 조건 창 변경을 버리지 않는다(팝업만 닫힘).</li>
+          <li><b>D8</b> — <code>fragments/ui/lookup-field :: field(name, label, lookupUrl, selected)</code> (줄 = 돋보기 · 입력칸 · 칩 · ×) + <code>fragments/ui/lookup-panel</code> (팝업 껍데기) + <code>static/global/list-lookup.js</code>.</li>
+          <li><b>D9</b> — ecount ③ 동작. 0 건에 팝업을 여는 이유는 입력이 잘못됐는지 보이게 하기 위해서다.</li>
+        </ul>
+
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권장</th><th>대안</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>선택지 전달</td><td>HTML 조각 엔드포인트</td><td>페이지에 미리 그려 클라이언트 거르기</td></tr>
+            <tr><td>Q2</td><td>소속 그룹 다중</td><td>다중 + 무소속 섞기</td><td>하나만</td></tr>
+            <tr><td>Q3</td><td>보드 후보</td><td>서버에 등장한 보드만 + 서버 수</td><td>등록 보드 전부</td></tr>
+            <tr><td>Q4</td><td>이미 고른 값</td><td>팝업에서 선택됨 · 비활성</td><td>팝업에서 해제도 가능</td></tr>
+            <tr><td>Q5</td><td>줄 라벨 ▾ 하위 줄 (보드 ▾ → 제조사)</td><td>하지 않음 (제조사는 검색어로 충분)</td><td>S8-6 에 포함</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드 · 테스트</h4>
+        <ul class="check-list" data-storage="S8-6-verify-build">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (기존 목록 · 그룹 조건 테스트 회귀 포함)</span></label></li>
+        </ul>
+
+        <h4>CP5 정상 흐름 (A)</h4>
+        <ul class="check-list" data-storage="S8-6-verify-a">
+          <li><label><input type="checkbox" data-key="A1"> <span><b>A1</b> 보드 줄 돋보기 → 팝업 (조건 창 유지)</span></label></li>
+          <li><label><input type="checkbox" data-key="A2"> <span><b>A2</b> 이름 클릭 하나 추가</span></label></li>
+          <li><label><input type="checkbox" data-key="A3"> <span><b>A3</b> 체크 2 + 적용</span></label></li>
+          <li><label><input type="checkbox" data-key="A4"> <span><b>A4</b> 줄 입력 1 건 즉시 칩</span></label></li>
+          <li><label><input type="checkbox" data-key="A5"> <span><b>A5</b> 줄 입력 여러 건 → 걸러진 팝업</span></label></li>
+          <li><label><input type="checkbox" data-key="A6"> <span><b>A6</b> 사용 중단 포함 토글</span></label></li>
+          <li><label><input type="checkbox" data-key="A7"> <span><b>A7</b> 칩 ⊖ · ×</span></label></li>
+          <li><label><input type="checkbox" data-key="A8"> <span><b>A8</b> [검색] 적용 → URL 반복 파라미터 · 토큰 · 결과</span></label></li>
+          <li><label><input type="checkbox" data-key="A9"> <span><b>A9</b> 그룹 무소속 + 그룹 → OR 결과</span></label></li>
+          <li><label><input type="checkbox" data-key="A10"> <span><b>A10</b> 단일 값 옛 주소 (<code>board=3</code> · <code>group=5</code>) 그대로 동작</span></label></li>
+        </ul>
+
+        <h4>CP5 비정상 조작 (B)</h4>
+        <ul class="check-list" data-storage="S8-6-verify-b">
+          <li><label><input type="checkbox" data-key="B1"> <span><b>B1</b> 팝업 Esc → 팝업만 닫힘</span></label></li>
+          <li><label><input type="checkbox" data-key="B2"> <span><b>B2</b> 조건 창 바깥 클릭 → 칩 변경 버려짐</span></label></li>
+          <li><label><input type="checkbox" data-key="B3"> <span><b>B3</b> 이미 고른 값 다시 고르기 차단</span></label></li>
+          <li><label><input type="checkbox" data-key="B4"> <span><b>B4</b> 0 건 입력 → 결과 없음 안내</span></label></li>
+          <li><label><input type="checkbox" data-key="B5"> <span><b>B5</b> 주소에 없는 보드 · 그룹 id → 칩 없음 · 조건 무시</span></label></li>
+          <li><label><input type="checkbox" data-key="B6"> <span><b>B6</b> 팝업 안 검색 연타 · 빠른 Enter</span></label></li>
+          <li><label><input type="checkbox" data-key="B7"> <span><b>B7</b> 390px 팝업 배치</span></label></li>
+        </ul>
+
+        <h4>CP5 막는 방식 (C)</h4>
+        <ul class="check-list" data-storage="S8-6-verify-c">
+          <li><label><input type="checkbox" data-key="C1"> <span><b>C1</b> 걸린 보드 · 그룹이 창을 열지 않고 토큰으로 보이는가</span></label></li>
+          <li><label><input type="checkbox" data-key="C2"> <span><b>C2</b> 1 건 즉시 추가가 놀랍지 않은가 (무엇이 추가됐는지 보이는가)</span></label></li>
+          <li><label><input type="checkbox" data-key="C3"> <span><b>C3</b> 키보드만으로 팝업 열기 · 고르기 · 적용 · 닫기</span></label></li>
+        </ul>
+
+        <h4>보고 · E2E</h4>
+        <ul class="check-list" data-storage="S8-6-verify-report">
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6) — 항목 20 개 (A10 · B7 · C3) 와 스크린샷 1:1</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (예상)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>templates/fragments/ui/lookup-field.html</code></td><td>줄 = 돋보기 · 입력칸 · 칩 · ×</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>templates/fragments/ui/lookup-panel.html</code></td><td>검색 팝업 껍데기</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>templates/fragments/provisioning/server-lookup-rows.html</code></td><td>보드 · 그룹 행 조각</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>static/global/list-lookup.js</code></td><td>팝업 열기 · fetch · 1 건 즉시 추가 · 칩</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>BoardLookupRow</code></td><td>보드 lookup 행 DTO</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>GroupLookupRow</code></td><td>그룹 lookup 행 DTO</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>테스트</td><td>§6 단위 · 통합</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>ServerListQuery</code></td><td><code>boardModelId</code> → <code>boardModelIds</code> · <code>isFiltered(today)</code> · <code>withDefaultRange</code> 의 record 재조립도 집합에 맞춰 고침(S8-5 에서 기간 규칙은 <code>DateRange</code> 위임 · <code>DateRangeQuery</code> 구현)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerSpecifications</code></td><td>id 같음 → id in</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GroupFilter</code> (+ 변환기)</td><td>하나 → 묶음 · 반복 파라미터</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerGroupQueryService.scopeOf</code></td><td>무소속 ∪ 그룹 OR</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerQueryService</code></td><td>보드 lookup</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerDetailRepository</code></td><td>보드 lookup 쿼리</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerController</code></td><td>lookup 두 경로 · 모델</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/server-list.html</code></td><td>보드 · 소속 그룹 줄</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/global/list-query.js</code></td><td>⑩ 되돌리기 · ⑪ 토큰의 칩 줄 대응</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/global/style.css</code></td><td>줄 · 칩 · 팝업</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td>팝업 · 줄 문구</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>DESIGN.md</code></td><td>선택기 조각</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>엔티티</td><td>변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>스키마</td><td>DDL 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>다른 목록 화면</td><td>변경 0 (비목표)</td></tr>
+          </tbody>
+        </table>
+        <p>합계 — 신규 7 행 · 수정 12 행 · 유지 3 행. 경로가 확인되지 않은 클래스는 이름만 적었다(CP2 착수 시 실측).</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="S8-6-next">
+          <li><label><input type="checkbox" data-key="cp1"> <span>CP1 승인</span></label></li>
+          <li><label><input type="checkbox" data-key="wait"> <span>S8-5 · 사용자 추가 수정 완료 대기 → 브랜치 결정 → CP2 착수</span></label></li>
+          <li><label><input type="checkbox" data-key="expand"> <span>다른 화면 선택기 확대 여부 판단</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) { /* 저장 불가 환경 */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 보드 · 소속 그룹 검색 선택기 데모
+  //  판정: demoLookup = 서버 lookup 검색 규칙(D2 · D5 · D9) · demoMatch = 목록 조건(D3 · D4 · scopeOf)
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_PHASES = [['BOOTSTRAPPING','부트스트래핑'],['DIAGNOSE_LINUX','진단 리눅스'],['FIRMWARE_UPDATING','펌웨어 업데이트'],['OS_INSTALLING','OS 설치'],['TESTING','테스트']];
+  const DEMO_BOARDS = [
+    { id:'1',  name:'MZ33-AR0',  vendor:'Gigabyte',   dep:false },
+    { id:'2',  name:'MZ73-LM0',  vendor:'Gigabyte',   dep:false },
+    { id:'3',  name:'MS03-CE0',  vendor:'Gigabyte',   dep:false },
+    { id:'4',  name:'MS03-6L0',  vendor:'Gigabyte',   dep:false },
+    { id:'5',  name:'MS04-CE0',  vendor:'Gigabyte',   dep:false },
+    { id:'6',  name:'MW34-SP0',  vendor:'Gigabyte',   dep:true  },
+    { id:'7',  name:'K14PA-U24', vendor:'ASUS',       dep:false },
+    { id:'8',  name:'Z13PP-D32', vendor:'ASUS',       dep:false },
+    { id:'9',  name:'MS74-HB0',  vendor:'Gigabyte',   dep:false },
+    { id:'10', name:'X13SEI-F',  vendor:'Supermicro', dep:false },
+    { id:'11', name:'H13SSL-N',  vendor:'Supermicro', dep:false },
+    { id:'12', name:'X11DPi-N',  vendor:'Supermicro', dep:true  }
+  ];
+  const DEMO_GROUPS = [
+    { id:'1', name:'랙A-웹' }, { id:'2', name:'랙A-DB' }, { id:'3', name:'GPU-클러스터' }, { id:'4', name:'스테이징' },
+    { id:'5', name:'실기4호' }, { id:'6', name:'반납 대기' }, { id:'7', name:'HCI-1차' }, { id:'8', name:'테스트벤치' }
+  ];
+  const DEMO_SERVERS = [
+    { n:'srv-a01', b:'3',  g:'1',  r:'2026-10-08', ph:'BOOTSTRAPPING' },
+    { n:'srv-a02', b:'3',  g:'1',  r:'2026-10-08', ph:'DIAGNOSE_LINUX' },
+    { n:'srv-a03', b:'9',  g:'1',  r:'2026-10-07', ph:'FIRMWARE_UPDATING' },
+    { n:'srv-a04', b:'9',  g:'2',  r:'2026-10-07', ph:'OS_INSTALLING' },
+    { n:'srv-a05', b:'1',  g:'2',  r:'2026-10-05', ph:'TESTING' },
+    { n:'srv-b01', b:'2',  g:'3',  r:'2026-09-29', ph:'OS_INSTALLING' },
+    { n:'srv-b02', b:'4',  g:'3',  r:'2026-09-29', ph:'TESTING' },
+    { n:'srv-b03', b:'5',  g:'4',  r:'2026-09-22', ph:'FIRMWARE_UPDATING' },
+    { n:'srv-b04', b:'6',  g:'4',  r:'2026-09-22', ph:'TESTING' },
+    { n:'srv-c01', b:'7',  g:'5',  r:'2026-09-16', ph:'OS_INSTALLING' },
+    { n:'srv-c02', b:'8',  g:'5',  r:'2026-09-16', ph:'TESTING' },
+    { n:'srv-c03', b:'10', g:'5',  r:'2026-09-10', ph:'DIAGNOSE_LINUX' },
+    { n:'srv-c04', b:'11', g:'6',  r:'2026-09-10', ph:'FIRMWARE_UPDATING' },
+    { n:'srv-d01', b:'12', g:null, r:'2026-09-02', ph:'TESTING' },
+    { n:'srv-d02', b:'3',  g:null, r:'2026-08-28', ph:'BOOTSTRAPPING' },
+    { n:'srv-d03', b:'10', g:null, r:'2026-08-20', ph:'OS_INSTALLING' },
+    { n:'srv-e01', b:'1',  g:'7',  r:'2026-10-09', ph:'BOOTSTRAPPING' },
+    { n:'srv-e02', b:'11', g:'7',  r:'2026-10-09', ph:'OS_INSTALLING' },
+    { n:'srv-e03', b:'9',  g:null, r:'2026-10-10', ph:'DIAGNOSE_LINUX' },
+    { n:'srv-e04', b:'2',  g:'8',  r:'2026-08-15', ph:'TESTING' }
+  ];
+  const DEMO_FIELDS = {
+    board: { label:'보드', title:'보드 검색', sub:['제조사', '서버 수'] },
+    group: { label:'소속 그룹', title:'소속 그룹 검색', sub:['멤버 수'] }
+  };
+  const DEMO_KEYS = ['phase', 'board', 'group', 'range'];
+  const DEMO_KEY_LABEL = { phase:'진행 단계', board:'보드', group:'소속 그룹', range:'등록 시각' };
+  const DEMO_CTRL = 'padding:4px 6px;font-size:12px;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--text);';
+  const DEMO_PRIMARY = 'background:var(--blue);color:var(--card);';
+  const DEMO_ICON_BTN = 'border:none;background:none;color:inherit;cursor:pointer;font-weight:700;padding:0 0 0 5px;';
+
+  function demoEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function demoClone(o) { return JSON.parse(JSON.stringify(o)); }
+  function demoEmpty() { return { phase:[], board:[], group:[], from:'', to:'' }; }
+  function demoBoardCount(id) { return DEMO_SERVERS.filter(s => s.b === id).length; }
+  function demoGroupCount(id) { return DEMO_SERVERS.filter(s => id === 'none' ? s.g === null : s.g === id).length; }
+  function demoNameOf(field, v) {
+    if (field === 'board') { const b = DEMO_BOARDS.find(x => x.id === v); return b ? b.name : v; }
+    if (v === 'none') return '무소속';
+    const g = DEMO_GROUPS.find(x => x.id === v);
+    return g ? g.name : v;
+  }
+
+  // 서버 lookup 규칙 — 팝업 행과 1 건 즉시 추가 판정이 함께 쓴다(D2 · D9)
+  function demoLookup(field, q, includeDeprecated) {
+    const t = (q || '').trim().toLowerCase();
+    if (field === 'board') {
+      return DEMO_BOARDS
+        .filter(b => demoBoardCount(b.id) > 0)                  // D5 서버에 등장한 보드만
+        .filter(b => includeDeprecated || !b.dep)               // 사용 중단 포함 토글
+        .filter(b => !t || b.name.toLowerCase().includes(t) || b.vendor.toLowerCase().includes(t))
+        .slice().sort((a, b) => a.vendor.localeCompare(b.vendor) || a.name.localeCompare(b.name))
+        .map(b => ({ value:b.id, name:b.name, sub:[b.vendor, demoBoardCount(b.id) + '대'], dep:b.dep }));
+    }
+    const rows = [{ value:'none', name:'무소속' }].concat(DEMO_GROUPS.map(g => ({ value:g.id, name:g.name })));
+    return rows
+      .filter(r => !t || r.name.toLowerCase().includes(t))
+      .map(r => ({ value:r.value, name:r.name, sub:[demoGroupCount(r.value) + '대'], dep:false }));
+  }
+
+  // 목록 조건 — 줄 안 OR · 줄 사이 AND · 그룹 축 = (무소속) ∪ (그룹 멤버)
+  function demoMatch(s, c, q) {
+    const t = (q || '').trim().toLowerCase();
+    return (!t || s.n.toLowerCase().includes(t))
+      && (c.phase.length === 0 || c.phase.includes(s.ph))
+      && (c.board.length === 0 || c.board.includes(s.b))
+      && (c.group.length === 0 || c.group.includes(s.g === null ? 'none' : s.g))
+      && (!c.from || s.r >= c.from) && (!c.to || s.r <= c.to);
+  }
+  function demoIsSet(c, k) { return k === 'range' ? !!(c.from || c.to) : c[k].length > 0; }
+  function demoSame(a, b, k) { return k === 'range' ? (a.from === b.from && a.to === b.to) : JSON.stringify(a[k]) === JSON.stringify(b[k]); }
+  function demoTokenText(c, k) {
+    if (k === 'phase') return DEMO_PHASES.filter(o => c.phase.includes(o[0])).map(o => o[1]).join(', ');
+    if (k === 'board' || k === 'group') return c[k].map(v => demoNameOf(k, v)).join(', ');
+    if (c.from && c.to) return c.from + ' ~ ' + c.to;
+    return c.from ? c.from + ' ~' : '~ ' + c.to;
+  }
+  function demoUrl(c, q) {
+    const p = [];
+    if ((q || '').trim()) p.push('q=' + q.trim());
+    c.phase.forEach(v => p.push('phase=' + v));
+    c.board.forEach(v => p.push('board=' + v));
+    c.group.forEach(v => p.push('group=' + v));
+    if (c.from) p.push('from=' + c.from);
+    if (c.to) p.push('to=' + c.to);
+    return '/provisioning/server' + (p.length ? '?' + p.join('&') : '');
+  }
+
+  // 상태 — applied(서버가 그린 값) / draft(조건 창 열린 동안만) / pop(검색 팝업)
+  const demo = { open:false, draft:null, applied:null, q:'', qDraft:'', pop:null, rowInput:{ board:'', group:'' }, moves:0, discards:0 };
+  let demoTimer = 0;
+  function demoResetAll() {
+    demo.applied = demoEmpty(); demo.q = ''; demo.qDraft = '';
+    demo.open = false; demo.draft = null; demo.pop = null; demo.rowInput = { board:'', group:'' };
+    demo.moves = 0; demo.discards = 0;
+  }
+  demoResetAll();
+
+  function demoResults() {
+    return DEMO_SERVERS.filter(s => demoMatch(s, demo.applied, demo.q)).slice()
+      .sort((a, b) => b.r.localeCompare(a.r) || a.n.localeCompare(b.n));
+  }
+  function demoDiffCount() {
+    if (!demo.open) return 0;
+    return DEMO_KEYS.filter(k => !demoSame(demo.draft, demo.applied, k)).length;
+  }
+  function demoSay(text, kind) {
+    const el = document.getElementById('demo-message');
+    el.className = 'ux-message' + (kind ? ' ' + kind : '');
+    el.textContent = text;
+  }
+  function demoFocus(sel) { const el = document.querySelector(sel); if (el) el.focus({ preventScroll:true }); }
+
+  // 띠
+  function demoRenderBar() {
+    const a = demo.applied;
+    let h = '<input id="demo-q" type="text" autocomplete="off" placeholder="입력 후 [Enter]" aria-label="검색" value="' + demoEsc(demo.qDraft) + '"'
+      + ' oninput="demo.qDraft=this.value" onkeydown="demoQKey(event)" style="' + DEMO_CTRL + 'width:150px;">';
+    h += '<button type="button" id="demo-search-btn" class="n-demo-btn" aria-haspopup="dialog" aria-expanded="' + demo.open + '"'
+      + ' onclick="demoToggle()" style="' + DEMO_PRIMARY + '">Search</button>';
+    const tokens = DEMO_KEYS.filter(k => demoIsSet(a, k)).map(k =>
+      '<span class="chip move">' + DEMO_KEY_LABEL[k] + ': ' + demoEsc(demoTokenText(a, k))
+      + '<button type="button" data-token="' + k + '" aria-label="' + DEMO_KEY_LABEL[k] + ' 조건 풀기" onclick="demoTokenClear(\'' + k + '\')" style="' + DEMO_ICON_BTN + '">×</button></span>').join('');
+    h += '<span id="demo-tokens" style="display:inline-flex;flex-wrap:wrap;gap:4px;">' + tokens + '</span>';
+    h += '<span class="label"></span><span style="font-size:12.5px;">결과 <b>' + demoResults().length + '</b>건</span>';
+    document.getElementById('demo-bar').innerHTML = h;
+  }
+
+  // 조건 창 — 줄
+  function demoRowWrap(label, inner) {
+    return '<div class="ux-toolbar" style="align-items:stretch;border-bottom:1px solid var(--border-soft);padding-bottom:6px;">'
+      + '<span class="group-label" style="background:var(--bg);padding:6px 8px;border-radius:4px;display:flex;align-items:center;font-weight:600;color:var(--text);">' + label + '</span>'
+      + '<span style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:0;">' + inner + '</span></div>';
+  }
+  function demoLookupField(field) {
+    const d = demo.draft, f = DEMO_FIELDS[field];
+    let h = '<button type="button" class="n-demo-btn" id="demo-lens-' + field + '" aria-label="' + f.label + ' 검색 열기" onclick="demoLens(\'' + field + '\')">🔍</button>'
+      + '<input type="text" id="demo-in-' + field + '" data-lookup-input="' + field + '" autocomplete="off" placeholder="입력 후 [Enter]" aria-label="' + f.label + ' 찾기"'
+      + ' value="' + demoEsc(demo.rowInput[field]) + '" oninput="demo.rowInput.' + field + '=this.value" onkeydown="demoRowKey(event,\'' + field + '\')" style="' + DEMO_CTRL + 'width:120px;">';
+    h += d[field].map(v => '<span class="chip opt" data-lookup-value="' + v + '">' + demoEsc(demoNameOf(field, v))
+      + '<button type="button" data-chip-remove="' + field + '-' + v + '" aria-label="' + demoEsc(demoNameOf(field, v)) + ' 해제" onclick="demoChipRemove(\'' + field + '\',\'' + v + '\')" style="' + DEMO_ICON_BTN + '">⊖</button></span>').join('');
+    if (d[field].length) h += '<button type="button" class="n-demo-btn" id="demo-clear-' + field + '" aria-label="' + f.label + ' 전부 해제" onclick="demoChipClear(\'' + field + '\')">×</button>';
+    return h;
+  }
+  function demoRenderPanel() {
+    const el = document.getElementById('demo-panel'), rowsEl = document.getElementById('demo-panel-rows');
+    if (!demo.open) { el.hidden = true; rowsEl.innerHTML = ''; demoRenderPopup(); return; }
+    el.hidden = false;
+    const d = demo.draft;
+    let h = '';
+    h += demoRowWrap('진행 단계',
+      '<button type="button" class="seg' + (d.phase.length === 0 ? ' active' : '') + '" data-row="phase" data-val="*" onclick="demoPhase(\'*\')">전체</button>'
+      + DEMO_PHASES.map(o => '<button type="button" class="seg' + (d.phase.includes(o[0]) ? ' active' : '') + '" data-row="phase" data-val="' + o[0] + '"'
+        + ' aria-pressed="' + d.phase.includes(o[0]) + '" onclick="demoPhase(\'' + o[0] + '\')">' + o[1] + '</button>').join(''));
+    h += demoRowWrap('보드', demoLookupField('board'));
+    h += demoRowWrap('소속 그룹', demoLookupField('group'));
+    h += demoRowWrap('등록 시각',
+      '<input type="date" id="demo-from" aria-label="시작일" value="' + d.from + '" onchange="demoDate(\'from\',this.value)" style="' + DEMO_CTRL + '">'
+      + '<span style="color:var(--text-muted);">~</span>'
+      + '<input type="date" id="demo-to" aria-label="종료일" value="' + d.to + '" onchange="demoDate(\'to\',this.value)" style="' + DEMO_CTRL + '">');
+    h += '<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px;">'
+      + '<button type="button" id="demo-apply" class="n-demo-btn" onclick="demoApply()" style="' + DEMO_PRIMARY + '">검색</button>'
+      + '<button type="button" id="demo-close" class="n-demo-btn" onclick="demoDiscard(\'[닫기]\', true)">닫기</button></div>';
+    rowsEl.innerHTML = h;
+  }
+
+  // 검색 팝업 — 조건 창 DOM 안(중첩)
+  function demoRenderPopup() {
+    const el = document.getElementById('demo-popup');
+    if (!demo.open || !demo.pop) { el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false;
+    const p = demo.pop, f = DEMO_FIELDS[p.field], rows = demoLookup(p.field, p.q, p.dep), chosen = demo.draft[p.field];
+    let h = '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--purple);color:var(--card);margin:-12px -12px 10px;padding:6px 12px;font-weight:600;font-size:13px;">'
+      + '<span>' + f.title + '</span><button type="button" id="demo-pop-x" aria-label="' + f.title + ' 닫기" onclick="demoPopClose(\'[×]\', true)" style="' + DEMO_ICON_BTN + '">×</button></div>';
+    h += '<div class="ux-toolbar">'
+      + '<input type="text" id="demo-pop-q" autocomplete="off" placeholder="입력 후 [Enter]" aria-label="' + f.title + ' 검색어" value="' + demoEsc(p.qInput) + '"'
+      + ' oninput="demo.pop.qInput=this.value" onkeydown="demoPopKey(event)" style="' + DEMO_CTRL + 'width:120px;flex:1;min-width:0;">'
+      + '<button type="button" class="n-demo-btn" id="demo-pop-search" onclick="demoPopSearch()" style="' + DEMO_PRIMARY + '">Search</button>';
+    if (p.field === 'board') {
+      h += '<button type="button" class="seg' + (p.dep ? ' active' : '') + '" id="demo-pop-dep" aria-pressed="' + p.dep + '" onclick="demoPopDep()">사용 중단 포함</button>';
+    }
+    h += '</div>';
+    h += '<div style="max-height:250px;overflow:auto;border:1px solid var(--border-soft);border-radius:4px;">'
+      + '<table style="margin:0;"><thead><tr><th>선택</th><th>이름</th>' + f.sub.map(s => '<th>' + s + '</th>').join('') + '</tr></thead><tbody>';
+    if (!rows.length) {
+      h += '<tr><td colspan="' + (2 + f.sub.length) + '">결과 없음 — 검색어 "' + demoEsc(p.q) + '" 와 일치하는 항목이 없습니다.</td></tr>';
+    }
+    rows.forEach(r => {
+      const sel = chosen.includes(r.value), ck = p.checked.includes(r.value);
+      h += '<tr' + (r.dep ? ' style="background:var(--yellow-bg);"' : '') + '>'
+        + '<td><input type="checkbox" data-pop-check="' + r.value + '" aria-label="' + demoEsc(r.name) + ' 체크"'
+        + (sel ? ' checked disabled' : (ck ? ' checked' : '')) + ' onchange="demoPopCheck(\'' + r.value + '\',this.checked)"></td>'
+        + '<td>' + (sel ? demoEsc(r.name) + ' <span class="chip keep">선택됨</span>'
+          : '<a href="#" data-pop-name="' + r.value + '" onclick="demoPopPick(\'' + r.value + '\');return false;">' + demoEsc(r.name) + '</a>')
+        + (r.dep ? ' <span class="chip dep">사용 중단</span>' : '') + '</td>'
+        + r.sub.map(s => '<td>' + demoEsc(s) + '</td>').join('') + '</tr>';
+    });
+    h += '</tbody></table></div>';
+    h += '<div id="demo-pop-foot" style="display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap;margin-top:10px;"></div>';
+    el.innerHTML = h;
+    demoRenderPopFoot();
+  }
+  function demoRenderPopFoot() {
+    const el = document.getElementById('demo-pop-foot');
+    if (!el || !demo.pop) return;
+    el.innerHTML = '<span style="font-size:12px;color:var(--text-muted);margin-right:auto;">체크 ' + demo.pop.checked.length + '개</span>'
+      + '<button type="button" class="n-demo-btn" id="demo-pop-apply" onclick="demoPopApply()" style="' + DEMO_PRIMARY + '">적용</button>'
+      + '<button type="button" class="n-demo-btn" id="demo-pop-close" onclick="demoPopClose(\'[닫기]\', true)">닫기</button>';
+  }
+
+  // 결과
+  function demoRenderResults() {
+    const list = demoResults(), el = document.getElementById('demo-results');
+    const meta = t => '<span style="font-size:11px;color:var(--text-muted);">' + t + '</span>';
+    let h = '';
+    if (!list.length) h = '<div class="ux-row muted">조건에 맞는 서버가 없습니다.</div>';
+    list.forEach(s => {
+      const ph = DEMO_PHASES.find(o => o[0] === s.ph)[1];
+      h += '<div class="ux-row" style="flex-wrap:wrap;"><span class="label">' + s.n + '</span>' + meta(ph)
+        + meta(demoNameOf('board', s.b)) + meta(s.g === null ? '무소속' : demoNameOf('group', s.g)) + meta(s.r) + '</div>';
+    });
+    el.innerHTML = h;
+  }
+
+  // 캡션 · 카운터
+  function demoRenderCaps() {
+    const n = demoResults().length, diff = demoDiffCount();
+    const win = !demo.open ? '<span class="f">닫힘</span>'
+      : diff ? '<span class="t">열림 · 미적용 변경 ' + diff + ' 줄</span>  (결과 · 토큰 · URL 은 마지막 적용 상태 그대로)'
+      : '<span class="f">열림 · 변경 없음</span>';
+    const pop = !demo.pop ? '닫힘'
+      : '<span class="t">열림</span> — ' + DEMO_FIELDS[demo.pop.field].label + ' · 검색어 "' + demoEsc(demo.pop.q) + '"'
+        + (demo.pop.field === 'board' ? ' · 사용 중단 포함 ' + (demo.pop.dep ? '켜짐' : '꺼짐') : '')
+        + ' · 행 ' + demoLookup(demo.pop.field, demo.pop.q, demo.pop.dep).length;
+    const form = demo.open ? demo.draft : demo.applied;
+    const hid = ['board', 'group'].map(k => form[k].length ? form[k].map(v => k + '=' + v).join(' ') : k + '=(없음)').join('  ');
+    document.getElementById('demo-caps').innerHTML =
+      'URL     ' + demoEsc(demoUrl(demo.applied, demo.q)) + '\n'
+      + '조건 창  ' + win + '\n'
+      + '팝업    ' + pop + '\n'
+      + 'hidden  ' + hid + (demo.open ? '  (창 안 폼)' : '  (서버가 그린 값)') + '\n'
+      + '결과    ' + n + '건 / 모의 서버 ' + DEMO_SERVERS.length + '대';
+    document.getElementById('demo-log').textContent =
+      '카운터 — 적용(페이지 이동) ' + demo.moves + ' 회 · 버려짐 ' + demo.discards + ' 회';
+  }
+
+  function demoRender() {
+    demoRenderBar();
+    demoRenderPanel();
+    demoRenderPopup();
+    demoRenderResults();
+    demoRenderCaps();
+  }
+
+  // 액션 — 띠
+  function demoQKey(e) {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    demo.q = demo.qDraft; demo.moves++;
+    demoRender();
+    demoSay('검색칸 Enter — 조건 창과 무관하게 제출했습니다(페이지 이동 1 회).', 'success');
+    demoFocus('#demo-q');
+  }
+  function demoToggle() {
+    if (demo.open) { demoDiscard('Search 다시 누름', true); return; }
+    demo.draft = demoClone(demo.applied); demo.open = true; demo.pop = null; demo.rowInput = { board:'', group:'' };
+    demoRenderBar(); demoRenderPanel(); demoRenderPopup(); demoRenderCaps();
+    demoSay('조회 조건 창이 열렸습니다. 보드 · 소속 그룹 줄의 칩은 서버가 그린 값에서 시작합니다.', '');
+    demoFocus('#demo-panel-rows [data-row]');
+  }
+  function demoTokenClear(k) {
+    if (k === 'range') { demo.applied.from = ''; demo.applied.to = ''; } else demo.applied[k] = [];
+    demo.q = demo.qDraft; demo.moves++;
+    demoRender();
+    demoSay('토큰 × — \'' + DEMO_KEY_LABEL[k] + '\' 줄만 풀고 바로 적용했습니다(페이지 이동 1 회).', 'success');
+  }
+
+  // 액션 — 조건 창 (창 안 변경 · 제출 없음)
+  function demoPhase(v) {
+    if (!demo.open) return;
+    const arr = demo.draft.phase;
+    if (v === '*') arr.length = 0;
+    else { const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); }
+    demoRenderPanel(); demoRenderCaps();
+    demoFocus('#demo-panel-rows [data-row="phase"][data-val="' + v + '"]');
+  }
+  function demoDate(which, v) { if (!demo.open) return; demo.draft[which] = v; demoRenderCaps(); }
+  function demoAdd(field, values) {
+    const arr = demo.draft[field], added = [];
+    values.forEach(v => { if (!arr.includes(v)) { arr.push(v); added.push(v); } });
+    return added;
+  }
+  function demoChipRemove(field, v) {
+    if (!demo.open) return;
+    const arr = demo.draft[field], i = arr.indexOf(v);
+    if (i >= 0) arr.splice(i, 1);
+    demoRenderPanel(); demoRenderCaps();
+    demoSay('칩 ⊖ — ' + demoNameOf(field, v) + ' 해제 (창 안 · 미적용).', '');
+    demoFocus('#demo-in-' + field);
+  }
+  function demoChipClear(field) {
+    if (!demo.open) return;
+    demo.draft[field] = [];
+    demoRenderPanel(); demoRenderCaps();
+    demoSay('줄 × — ' + DEMO_FIELDS[field].label + ' 칩 전부 해제 (창 안 · 미적용).', '');
+    demoFocus('#demo-in-' + field);
+  }
+  function demoRowKey(e, field) {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    demoRowEnter(field);
+  }
+  function demoRowEnter(field) {
+    if (!demo.open) return;
+    const q = demo.rowInput[field], rows = demoLookup(field, q, false);
+    if (rows.length === 1) {
+      const r = rows[0];
+      if (demo.draft[field].includes(r.value)) {
+        demoSay('"' + q + '" — 일치 1 건(' + r.name + ')이 이미 고른 값이라 추가하지 않았습니다.', '');
+        return;
+      }
+      demoAdd(field, [r.value]);
+      demo.rowInput[field] = '';
+      demoRenderPanel(); demoRenderCaps();
+      demoSay('"' + q + '" — 일치 1 건이라 팝업 없이 칩을 추가했습니다: ' + r.name + ' (창 안 · 미적용)', 'success');
+      demoFocus('#demo-in-' + field);
+      return;
+    }
+    demo.pop = { field:field, qInput:q, q:q, dep:false, checked:[] };
+    demoRenderPopup(); demoRenderCaps();
+    demoSay(rows.length
+      ? '"' + q + '" — 일치 ' + rows.length + ' 건. 걸러진 검색 팝업을 엽니다(조건 창은 그대로).'
+      : '"' + q + '" — 일치 0 건. 팝업을 열어 "결과 없음" 을 보여 줍니다.', rows.length ? '' : 'error');
+    demoFocus('#demo-pop-q');
+  }
+
+  // 액션 — 검색 팝업
+  function demoLens(field) {
+    if (!demo.open) return;
+    demo.pop = { field:field, qInput:'', q:'', dep:false, checked:[] };
+    demoRenderPopup(); demoRenderCaps();
+    demoSay(DEMO_FIELDS[field].title + ' 팝업 — 빈 검색' + (field === 'board' ? '(사용 중단 보드는 숨김)' : '') + '. 조건 창은 그대로 열려 있습니다.', '');
+    demoFocus('#demo-pop-q');
+  }
+  function demoPopKey(e) {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    demoPopSearch();
+  }
+  function demoPopSearch() {
+    if (!demo.pop) return;
+    demo.pop.q = demo.pop.qInput;
+    demoRenderPopup(); demoRenderCaps();
+    const n = demoLookup(demo.pop.field, demo.pop.q, demo.pop.dep).length;
+    demoSay('팝업 검색 "' + demo.pop.q + '" — ' + n + ' 행' + (demo.pop.field === 'board' ? ' (이름 · 제조사 대상)' : ' (이름 대상)') + '.', n ? '' : 'error');
+    demoFocus('#demo-pop-q');
+  }
+  function demoPopDep() {
+    if (!demo.pop) return;
+    demo.pop.dep = !demo.pop.dep;
+    demoRenderPopup(); demoRenderCaps();
+    demoSay(demo.pop.dep ? '사용 중단 포함 켜짐 — 사용 중단 보드가 섞여 나오고 행에 \'사용 중단\' 표시.' : '사용 중단 포함 꺼짐 — 사용 중단 보드를 숨깁니다.', '');
+    demoFocus('#demo-pop-dep');
+  }
+  function demoPopCheck(v, on) {
+    if (!demo.pop) return;
+    const c = demo.pop.checked, i = c.indexOf(v);
+    if (on && i < 0) c.push(v);
+    if (!on && i >= 0) c.splice(i, 1);
+    demoRenderPopFoot();
+  }
+  function demoPopPick(v) {
+    if (!demo.pop) return;
+    const field = demo.pop.field;
+    demoAdd(field, [v]);
+    demo.pop = null;
+    demoRenderPanel(); demoRenderPopup(); demoRenderCaps();
+    demoSay('이름 클릭 — ' + demoNameOf(field, v) + ' 추가 · 팝업 닫힘 (기존 칩에 누적 · 창 안 · 미적용).', 'success');
+    demoFocus('#demo-in-' + field);
+  }
+  function demoPopApply() {
+    if (!demo.pop) return;
+    const field = demo.pop.field, vals = demo.pop.checked.slice();
+    if (!vals.length) { demoSay('체크한 행이 없습니다 — 하나만 고를 때는 이름을 누르세요.', ''); return; }
+    const added = demoAdd(field, vals);
+    demo.pop = null;
+    demoRenderPanel(); demoRenderPopup(); demoRenderCaps();
+    demoSay('[적용] — 체크 ' + added.length + ' 개 일괄 추가: ' + added.map(v => demoNameOf(field, v)).join(', ') + ' (창 안 · 미적용).', 'success');
+    demoFocus('#demo-in-' + field);
+  }
+  function demoPopClose(how, focusBack) {
+    if (!demo.pop) return;
+    const field = demo.pop.field;
+    demo.pop = null;
+    demoRenderPopup(); demoRenderCaps();
+    demoSay(how + ' — 검색 팝업만 닫혔습니다. 조건 창과 창 안 변경은 그대로입니다.', '');
+    if (focusBack) demoFocus('#demo-in-' + field);
+  }
+
+  // 액션 — 조건 창 적용 · 버림
+  function demoApply() {
+    if (!demo.open) return;
+    demo.applied = demoClone(demo.draft);
+    demo.q = demo.qDraft;
+    demo.open = false; demo.draft = null; demo.pop = null;
+    demo.moves++;
+    demoRender();
+    demoSay('적용 — [검색] 한 번(페이지 이동 1 회). 결과 ' + demoResults().length + '건 · URL ' + demoUrl(demo.applied, demo.q), 'success');
+  }
+  function demoDiscard(how, focusBack) {
+    if (!demo.open) return;
+    const changed = demoDiffCount();
+    demo.open = false; demo.draft = null; demo.pop = null;
+    if (changed > 0) {
+      demo.discards++;
+      demoSay(how + ' — 미적용 변경 ' + changed + ' 줄(칩 포함)을 버리고 서버가 그린 상태로 되돌렸습니다. 결과 · 토큰은 그대로입니다.', 'error');
+    } else {
+      demoSay(how + ' — 바꾼 것이 없어 그대로 닫혔습니다.', '');
+    }
+    demoRenderBar(); demoRenderPanel(); demoRenderCaps();
+    if (focusBack) demoFocus('#demo-search-btn');
+  }
+
+  // 바깥 클릭 · Esc — 중첩 popover 흉내 (팝업 = 조건 창의 자식)
+  document.addEventListener('pointerdown', e => {
+    if (!demo.open) return;
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+    if (t.closest('[data-demo-keep]')) return;
+    if (t.closest('#demo-search-btn')) { if (demo.pop) demoPopClose('Search 누름', false); return; }
+    if (demo.pop) {
+      if (t.closest('#demo-popup')) return;
+      if (t.closest('#demo-panel')) { demoPopClose('팝업 바깥(조건 창 안) 클릭', false); return; }
+      demoDiscard('조건 창 바깥 클릭', false);
+      return;
+    }
+    if (t.closest('#demo-panel')) return;
+    demoDiscard('조건 창 바깥 클릭', false);
+  });
+  document.addEventListener('keydown', e => {
+    if (!demo.open) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (demo.pop) demoPopClose('Esc', true); else demoDiscard('Esc', true);
+      return;
+    }
+    const t = e.target;
+    if (e.key === 'Enter' && !e.isComposing && t instanceof HTMLInputElement && t.type === 'date' && t.closest('#demo-panel-rows')) {
+      e.preventDefault();
+      demoApply();
+    }
+  });
+
+  // 시나리오 프리셋 — 클릭 지점을 짚은 뒤 같은 액션 함수를 호출한다
+  function demoPlay(steps) {
+    const token = demoTimer;
+    let i = 0;
+    const next = () => {
+      if (token !== demoTimer || i >= steps.length) return;
+      const s = steps[i++];
+      const el = s.sel ? document.querySelector(s.sel) : null;
+      if (el) { el.style.outline = '3px solid var(--orange)'; el.style.outlineOffset = '2px'; }
+      if (s.say) demoSay(s.say, '');
+      setTimeout(() => {
+        if (token !== demoTimer) return;
+        if (el) { el.style.outline = ''; el.style.outlineOffset = ''; }
+        if (s.act) s.act();
+        setTimeout(next, 600);
+      }, 900);
+    };
+    setTimeout(next, 300);
+  }
+  const DEMO_PRESETS = {
+    1: { setup: () => {},
+      steps: [
+        { sel:'#demo-search-btn', act: demoToggle, say:'① Search 로 조회 조건 창을 엽니다.' },
+        { sel:'#demo-lens-board', act: () => demoLens('board'), say:'보드 줄 🔍 — 빈 검색 팝업이 조건 창 위에 뜹니다.' },
+        { sel:'#demo-popup [data-pop-name="3"]', act: () => demoPopPick('3'), say:'이름 MS03-CE0 를 누릅니다 — 하나 추가 · 팝업 닫힘.' },
+        { sel:'#demo-apply', act: demoApply, say:'조건 창 [검색] 으로 적용합니다.' }
+      ] },
+    2: { setup: () => {},
+      steps: [
+        { sel:'#demo-search-btn', act: demoToggle, say:'② 조건 창을 엽니다.' },
+        { sel:'#demo-in-board', act: () => { demo.rowInput.board = 'MS74'; demoRenderPanel(); }, say:'보드 줄 입력칸에 "MS74".' },
+        { sel:'#demo-in-board', act: () => demoRowEnter('board'), say:'Enter — 일치가 1 건이면 팝업 없이 바로 칩이 됩니다.' },
+        { sel:'#demo-apply', act: demoApply, say:'[검색] 으로 적용합니다.' }
+      ] },
+    3: { setup: () => {},
+      steps: [
+        { sel:'#demo-search-btn', act: demoToggle, say:'③ 조건 창을 엽니다.' },
+        { sel:'#demo-in-board', act: () => { demo.rowInput.board = 'MS0'; demoRenderPanel(); }, say:'보드 줄 입력칸에 "MS0".' },
+        { sel:'#demo-in-board', act: () => demoRowEnter('board'), say:'Enter — 일치 여러 건이라 걸러진 팝업이 열립니다.' },
+        { sel:'#demo-popup [data-pop-check="3"]', act: () => { demoPopCheck('3', true); demoRenderPopup(); }, say:'MS03-CE0 체크.' },
+        { sel:'#demo-popup [data-pop-check="5"]', act: () => { demoPopCheck('5', true); demoRenderPopup(); }, say:'MS04-CE0 체크.' },
+        { sel:'#demo-pop-apply', act: demoPopApply, say:'팝업 [적용] — 체크한 두 개를 한꺼번에 칩으로.' },
+        { sel:'#demo-apply', act: demoApply, say:'조건 창 [검색] — 보드 두 개는 OR.' }
+      ] },
+    4: { setup: () => {},
+      steps: [
+        { sel:'#demo-search-btn', act: demoToggle, say:'④ 조건 창을 엽니다.' },
+        { sel:'#demo-lens-board', act: () => demoLens('board'), say:'🔍 — 사용 중단 보드(MW34-SP0 · X11DPi-N)는 목록에 없습니다.' },
+        { sel:'#demo-pop-dep', act: demoPopDep, say:'사용 중단 포함 을 켭니다.' },
+        { sel:'#demo-popup [data-pop-name="12"]', act: () => demoPopPick('12'), say:'숨어 있던 X11DPi-N 을 고릅니다.' },
+        { sel:'#demo-apply', act: demoApply, say:'[검색] 으로 적용합니다.' }
+      ] },
+    5: { setup: () => {},
+      steps: [
+        { sel:'#demo-search-btn', act: demoToggle, say:'⑤ 조건 창을 엽니다.' },
+        { sel:'#demo-lens-group', act: () => demoLens('group'), say:'소속 그룹 줄 🔍 — 맨 위에 무소속 행이 있습니다.' },
+        { sel:'#demo-popup [data-pop-name="5"]', act: () => demoPopPick('5'), say:'실기4호 를 고릅니다.' },
+        { sel:'#demo-lens-group', act: () => demoLens('group'), say:'다시 엽니다.' },
+        { sel:'#demo-popup [data-pop-check="5"]', say:'실기4호 행은 체크된 채 비활성 + 선택됨 — 중복 추가가 막힙니다.' },
+        { sel:'#demo-popup [data-pop-name="none"]', act: () => demoPopPick('none'), say:'무소속 을 고릅니다.' },
+        { sel:'#demo-apply', act: demoApply, say:'[검색] — 같은 줄 안은 OR: 실기4호 멤버 ∪ 무소속 서버.' }
+      ] },
+    6: { setup: () => { demo.applied.board = ['3']; },
+      steps: [
+        { sel:'#demo-tokens', say:'⑥ 보드 MS03-CE0 가 걸린 채 도착한 화면입니다.' },
+        { sel:'#demo-search-btn', act: demoToggle, say:'조건 창을 엽니다.' },
+        { sel:'#demo-in-board', act: () => { demo.rowInput.board = 'MS74'; demoRenderPanel(); }, say:'보드 줄 입력칸에 "MS74".' },
+        { sel:'#demo-in-board', act: () => demoRowEnter('board'), say:'Enter — MS74-HB0 칩 추가(창 안 · 미적용).' },
+        { sel:'#demo-lens-board', act: () => demoLens('board'), say:'🔍 로 팝업을 엽니다.' },
+        { sel:'#demo-pop-q', act: () => demoPopClose('Esc', true), say:'Esc — 팝업만 닫히고 조건 창 · 미적용 변경은 남습니다.' },
+        { sel:'#demo-results', act: () => demoDiscard('조건 창 바깥 클릭', false), say:'조건 창 바깥을 클릭합니다.' },
+        { sel:'#demo-search-btn', act: demoToggle, say:'다시 엽니다 — 보드 칩은 MS03-CE0 하나(서버가 그린 상태)로 돌아와 있습니다.' }
+      ] }
+  };
+  function demoPreset(n) {
+    demoTimer++;
+    demoResetAll();
+    DEMO_PRESETS[n].setup();
+    demoRender();
+    demoPlay(DEMO_PRESETS[n].steps);
+  }
+
+  demoSay('Search 로 조회 조건 창을 연 뒤 보드 · 소속 그룹 줄의 🔍 이나 입력칸 Enter 로 검색 팝업을 띄워 보세요. 시나리오 버튼은 단계를 짚으며 재생합니다.', '');
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>
