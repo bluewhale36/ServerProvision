@@ -12,6 +12,7 @@
 #   PLACEHOLDER=1 ./diagnose-cycle.sh             # placeholder 시리얼 변형 (필터 → boardSerial null 적재)
 #   RAID_MODE=mr ./diagnose-cycle.sh                # (E3.5-5-a) 진단 보고에 RAID 봉투 동봉 — raid-envelope.sh 의 모드(mr · mrclean · ssd6 · cra · toolmissing)
 #   MOCK_SERIAL=QG260700082 MOCK_BMC_IP=127.0.0.1 MOCK_BMC_MAC=00:1f:c6:e2:1b:01 ./diagnose-cycle.sh
+#   RAID_DEVICES='[{"slot":"01:00.0","driver":"megaraid_sas"}]' ./diagnose-cycle.sh   # (R17) 장치별 커널 드라이버 관측 동봉
 #   MOCK_PCIE_RAW='["ae:00.0 Serial Attached SCSI controller: …","34:00.0 Ethernet controller: …"]' ./diagnose-cycle.sh
 #                                                 # (HF15-6) lspci 원문 배열 교체 — 모의 BMC pci_info 의 버스 번호와 맞춰 장착 태깅 재연
 #                                                 # BMC 검출 변형 (E1.5+) — 수집 JSON 에 bmc {ip, mac} 동봉, 시리얼은 모의 BMC 와 맞춘다
@@ -110,7 +111,12 @@ else
   PCIE_RAW_JSON="${MOCK_PCIE_RAW:-[\"01:00.0 RAID bus controller: Broadcom / LSI MegaRAID 9560-8i\"]}"
   PCIE_RAW_ESC=$(printf '%s' "$PCIE_RAW_JSON" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip())[1:-1])')
   # 수집 JSON(사용자 확정 스펙 견본)을 statusMeta 문자열 값으로 이스케이프해 싣는다 — agent.sh 와 동일 계약
-  INNER="{\\\"boardSerial\\\":\\\"${SERIAL}\\\",\\\"biosVersion\\\":\\\"F13\\\",\\\"cpuSockets\\\":[{\\\"slot\\\":\\\"CPU1\\\",\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"},{\\\"slot\\\":\\\"CPU2\\\",\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"}],\\\"memoryModules\\\":[{\\\"slot\\\":\\\"DIMM_A1\\\",\\\"manufacturer\\\":\\\"Samsung\\\",\\\"size\\\":\\\"32 GB\\\"}],\\\"disks\\\":[{\\\"device\\\":\\\"nvme0n1\\\",\\\"size\\\":\\\"1.9T\\\",\\\"rota\\\":\\\"0\\\",\\\"tran\\\":\\\"nvme\\\"}],\\\"pcieRaw\\\":${PCIE_RAW_ESC}${BMC_JSON}${RAID_JSON}}"
+  # (R17) RAID_DEVICES 가 있으면 장치별 커널 드라이버 관측 배열(JSON)을 "raidDevices" 로 싣는다 — 예: '[{"slot":"01:00.0","driver":"mpi3mr"}]'
+  RAID_DEVICES_JSON=""
+  if [ -n "${RAID_DEVICES:-}" ]; then
+    RAID_DEVICES_JSON=",\\\"raidDevices\\\":$(printf '%s' "$RAID_DEVICES" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip())[1:-1])')"
+  fi
+  INNER="{\\\"boardSerial\\\":\\\"${SERIAL}\\\",\\\"biosVersion\\\":\\\"F13\\\",\\\"cpuSockets\\\":[{\\\"slot\\\":\\\"CPU1\\\",\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"},{\\\"slot\\\":\\\"CPU2\\\",\\\"manufacturer\\\":\\\"Intel\\\",\\\"model\\\":\\\"Xeon Gold 6338\\\"}],\\\"memoryModules\\\":[{\\\"slot\\\":\\\"DIMM_A1\\\",\\\"manufacturer\\\":\\\"Samsung\\\",\\\"size\\\":\\\"32 GB\\\"}],\\\"disks\\\":[{\\\"device\\\":\\\"nvme0n1\\\",\\\"size\\\":\\\"1.9T\\\",\\\"rota\\\":\\\"0\\\",\\\"tran\\\":\\\"nvme\\\"}],\\\"pcieRaw\\\":${PCIE_RAW_ESC}${BMC_JSON}${RAID_JSON}${RAID_DEVICES_JSON}}"
   RESULT="{\"status\":\"SUCCEEDED\",\"statusMeta\":\"${INNER}\"}"
 fi
 CLOSE=$(curl -sS -X POST "${BASE_URL}/api/pxe/v1/agent/steps/${STEP_ID}/close" \

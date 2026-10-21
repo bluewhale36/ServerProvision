@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.engine.diagnose;
 
 import com.example.serverprovision.execution.vo.HardwareSpec;
+import com.example.serverprovision.execution.vo.KernelDriverObservation;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.execution.vo.MacAddressVO;
 import com.example.serverprovision.execution.vo.SoftwareSpec;
@@ -85,7 +86,7 @@ public class DiagnosticReportParser {
                 parseCpuSockets(root, filtered),
                 parseMemory(root.path("memoryModules"), filtered),
                 parseDisks(root.path("disks")),
-                parsePcie(root.path("pcieRaw")));
+                withKernelDrivers(parsePcie(root.path("pcieRaw")), root.path("raidDevices")));
 
         IpAddressVO bmcIp = null;
         MacAddressVO bmcMac = null;
@@ -161,6 +162,38 @@ public class DiagnosticReportParser {
     /** 디스크 배열 해석은 RAID 검증 재채집(HF15-5)과 공유한다 — {@link OsVisibleDiskParser} 가 SSOT. */
     private List<HardwareSpec.DiskInfo> parseDisks(JsonNode arr) {
         return OsVisibleDiskParser.parse(arr);
+    }
+
+    /**
+     * 진단 리눅스가 관측한 RAID 후보 장치의 커널 드라이버(R17 {@code raidDevices[{slot, driver}]})를 슬롯으로 붙인다.
+     * 필드가 없는 옛 보고는 그대로(관측 없음 = null) — 미채집 경고가 종전 문구로 떨어진다. 슬롯은 PCI 도메인 접두
+     * ({@code 0000:})를 떼고 대조한다(lspci 는 단일 도메인이면 접두를 생략하고 sysfs 는 항상 붙인다).
+     */
+    private List<HardwareSpec.PcieDevice> withKernelDrivers(List<HardwareSpec.PcieDevice> devices, JsonNode raidDevices) {
+        if (!raidDevices.isArray() || devices.isEmpty()) {
+            return devices;
+        }
+        java.util.Map<String, KernelDriverObservation> bySlot = new java.util.HashMap<>();
+        raidDevices.forEach(entry -> {
+            String slot = shortSlot(entry.path("slot").asString(null));
+            if (slot != null) {
+                bySlot.put(slot, new KernelDriverObservation(entry.path("driver").asString(null)));
+            }
+        });
+        return devices.stream()
+                .map(d -> {
+                    KernelDriverObservation observed = bySlot.get(shortSlot(d.slot()));
+                    return observed == null ? d : d.withKernelDriver(observed);
+                })
+                .toList();
+    }
+
+    private static String shortSlot(String slot) {
+        if (slot == null || slot.isBlank()) {
+            return null;
+        }
+        String s = slot.trim().toLowerCase(Locale.ROOT);
+        return s.startsWith("0000:") ? s.substring(5) : s;
     }
 
     private List<HardwareSpec.PcieDevice> parsePcie(JsonNode arr) {

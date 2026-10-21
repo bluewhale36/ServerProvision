@@ -582,6 +582,15 @@ public class GuestServerQueryService {
         }
     }
 
+    /** 계획 볼륨의 레벨 칸 — 스팬 구성 볼륨은 "RAID10 · 스팬 3 × 2대"(R17-1). */
+    private static String plannedLevelDisplay(com.example.serverprovision.execution.engine.raid.PlannedVolume v) {
+        if (v.span() == null) {
+            return v.level().getDisplayName();
+        }
+        return v.level().getDisplayName() + " · 스팬 " + v.span().spansOf(v.memberSlots().size())
+                + " × " + v.span().value() + "대";
+    }
+
     private GuestServerDetailResponse.RaidPlanBranch branchOf(String label, RaidPlanOutcome outcome) {
         if (outcome instanceof RaidPlanRejection rejection) {
             return new GuestServerDetailResponse.RaidPlanBranch(label, rejection.code(), rejection.detail(),
@@ -591,7 +600,7 @@ public class GuestServerQueryService {
         return new GuestServerDetailResponse.RaidPlanBranch(label, null, null,
                 plan.deleteExistingFirst(),
                 plan.volumes().stream().map(v -> new GuestServerDetailResponse.PlannedVolumeView(
-                        v.name(), v.level().getDisplayName(), String.join(" · ", v.memberSlots()),
+                        v.name(), plannedLevelDisplay(v), String.join(" · ", v.memberSlots()),
                         formatDecimalBytes(v.usableBytes()), v.role())).toList(),
                 plan.passthroughs().stream().map(p -> new GuestServerDetailResponse.PlannedPassthroughView(
                         p.slot(), formatDecimalBytes(p.usableBytes()), p.role())).toList(),

@@ -136,12 +136,47 @@ class RaidInventoryParserTest {
     }
 
     @Test
-    @DisplayName("lspci 에 지원 칩이 없으면 ReportUnparsable — 미지 카드를 조용히 흡수하지 않는다")
-    void unsupportedChip_throws() {
-        String envelope = "{\"tool\":\"storcli64\",\"lspci_b64\":\"" + b64("c6:00.0 RAID bus controller [0104]: Other [1000:00ff]") + "\"}";
+    @DisplayName("R17 — 계열은 봉투의 커널 드라이버로 정한다: 칩 목록에 없던 CRA4760(1000:10e2)도 megaraid_sas 면 MEGARAID")
+    void family_fromKernelDriver_unlistedChip() {
+        String lspci = fixture("mr-lspci-nnvv.txt")
+                .replace("MegaRAID SAS-3 3108 [Invader] [1000:005d]", "MegaRAID 12GSAS/PCIe Secure SAS39xx [1000:10e2]")
+                .replace("Broadcom / LSI MegaRAID SAS 9361-8i [1000:9361]", "Gigabyte Technology Co., Ltd Device [1458:fa05]");
+        String envelope = "{\"driver\":\"megaraid_sas\",\"slot\":\"ae:00.0\",\"tool\":\"storcli64\",\"lspci_b64\":\"" + b64(lspci)
+                + "\",\"pd_b64\":\"" + b64(fixture("mr-pd-all.json"))
+                + "\",\"vd_b64\":\"" + b64(fixture("mr-vd-all.json"))
+                + "\",\"c0_b64\":\"" + b64(fixture("mr-c0-show-all.json")) + "\"}";
+
+        RaidInventory inv = parser.parse(envelope);
+
+        assertThat(inv.card().chipFamily()).isEqualTo(RaidChipFamily.MEGARAID);
+        assertThat(inv.card().pciSubsystemId()).isEqualTo("1458:fa05");
+    }
+
+    @Test
+    @DisplayName("R17 — 드라이버가 tool 보다 우선한다: driver=mpt3sas 면 tool 표기와 무관하게 MPT_IR 로 해석한다")
+    void family_driverWinsOverTool() {
+        String envelope = "{\"driver\":\"mpt3sas\",\"tool\":\"storcli64\",\"lspci_b64\":\"" + b64(fixture("cra-lspci-nnvv.txt"))
+                + "\",\"display_b64\":\"" + b64(fixture("cra-display.txt")) + "\"}";
+
+        assertThat(parser.parse(envelope).card().chipFamily()).isEqualTo(RaidChipFamily.MPT_IR);
+    }
+
+    @Test
+    @DisplayName("R17 — 계열 밖 드라이버(mpi3mr)는 ReportUnparsable — 미지 카드를 조용히 흡수하지 않는다")
+    void family_unsupportedDriver_throws() {
+        String envelope = "{\"driver\":\"mpi3mr\",\"tool\":\"storcli64\",\"lspci_b64\":\"" + b64("c6:00.0 RAID bus controller [0104]: Other [1000:00a5]") + "\"}";
         assertThatThrownBy(() -> parser.parse(envelope))
                 .isInstanceOf(RaidInventoryParser.ReportUnparsableException.class)
-                .hasMessageContaining("지원 칩");
+                .hasMessageContaining("계열 밖 드라이버");
+    }
+
+    @Test
+    @DisplayName("R17 — driver · tool 이 모두 없으면 ReportUnparsable(계열을 정할 근거 없음)")
+    void family_noDriverNoTool_throws() {
+        String envelope = "{\"lspci_b64\":\"" + b64(fixture("mr-lspci-nnvv.txt")) + "\"}";
+        assertThatThrownBy(() -> parser.parse(envelope))
+                .isInstanceOf(RaidInventoryParser.ReportUnparsableException.class)
+                .hasMessageContaining("driver · tool");
     }
 
     @Test

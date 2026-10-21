@@ -1,18 +1,22 @@
 package com.example.serverprovision.management.raidcard.enums;
 
+import com.example.serverprovision.management.raidcard.vo.DrivesPerSpan;
+import com.example.serverprovision.management.raidcard.vo.MemberCountRule;
+
 
 /**
  * RAID 카드 칩 계열(E3.5-1) — 제어 계열(드라이버 · CLI · 파서)을 정하는 축이다(사전 조사 §2).
- * 브랜드가 아니라 PCI Vendor:Device 가 판별자다: {@code 1000:0097} = SAS3008(IR) · {@code 1000:005d} = SAS3108(MegaRAID) ·
- * {@code 1000:10e2} = SAS39xx Secure(MegaRAID).
+ * 판별자는 칩 ID 목록이 아니라 <b>진단 리눅스 커널이 카드에 붙인 드라이버</b>다(R17) — 칩 → 드라이버 대응은 커널의
+ * {@code modules.alias} 가 이미 갖고 있고(실측: {@code 1000:10e2} · {@code 1000:005d} → megaraid_sas, {@code 1000:0097} → mpt3sas),
+ * 앱이 그 사본을 들면 HF22 처럼 낡는다. 계열이 소유하는 것은 드라이버 이름 하나다.
  */
 public enum RaidChipFamily {
 
     /** Fusion-MPT SAS-3 의 Integrated RAID 펌웨어 — sas3ircu 계열 (예: GIGABYTE CRA3338). */
     MPT_IR("MPT IR (sas3ircu 계열)") {
         @Override
-        public java.util.List<String> chipPciIds() {
-            return java.util.List.of("1000:0097");   // SAS3008 IR
+        public String kernelDriver() {
+            return "mpt3sas";   // IR(RAID) · IT(HBA) 를 함께 다룬다 — IR 여부는 에이전트가 sas3ircu 로 확인(NOT_IR)
         }
 
         @Override
@@ -20,16 +24,18 @@ public enum RaidChipFamily {
             return 2;   // IR 펌웨어의 볼륨 상한(사전 조사 §2)
         }
 
+        /**
+         * IR 펌웨어의 볼륨 대수(GIGABYTE CRA3338 스펙 — RAID 0 · 1E · 10 은 볼륨당 10대, RAID 1 은 2대). RAID10 은 홀수를
+         * 허용하는 IR 방식이라 하한이 3 이다. 스팬 개념이 없어 span 은 읽지 않는다. RAID5 · RAID6 은 IR 이 만들지 못해
+         * 지원 레벨 검증이 먼저 거르므로 레벨 하한만 둔다.
+         */
         @Override
-        public String memberCountBlockReason(RaidLevel level, int memberCount) {
+        public MemberCountRule memberCountRule(RaidLevel level, boolean cardHasCache, DrivesPerSpan span) {
             return switch (level) {
-                case RAID1 -> memberCount == 2 ? null
-                        : "MPT_IR 의 RAID1 은 정확히 2대로만 구성됩니다 — " + memberCount + "대는 만들 수 없습니다";
-                case RAID10 -> memberCount >= 3 && memberCount <= 10 ? null
-                        : "MPT_IR 의 RAID10 은 3~10대 구성입니다 — " + memberCount + "대는 만들 수 없습니다";
-                case RAID0 -> memberCount <= 10 ? null
-                        : "MPT_IR 의 RAID0 은 최대 10대 구성입니다 — " + memberCount + "대는 만들 수 없습니다";
-                default -> null;   // 그 외 레벨은 지원 레벨 검증(정의서 저장 시)이 이미 거른다
+                case RAID0 -> MemberCountRule.of(level, level.minimumDisks(cardHasCache), 10);
+                case RAID1 -> MemberCountRule.of(level, 2, 2);
+                case RAID10 -> MemberCountRule.of(level, 3, 10);
+                case RAID5, RAID6 -> MemberCountRule.of(level, level.minimumDisks(cardHasCache), null);
             };
         }
 
@@ -72,9 +78,8 @@ public enum RaidChipFamily {
     /** MegaRAID RAID-on-Chip — storcli 계열 (예: AVAGO MegaRAID 9361-8i). */
     MEGARAID("MegaRAID (storcli 계열)") {
         @Override
-        public java.util.List<String> chipPciIds() {
-            // SAS3108 MegaRAID · SAS39xx Secure(SAS3908 · SAS3916 — GIGABYTE CRA4760 · CRA4960, HF22 실기 1000:10e2 실측)
-            return java.util.List.of("1000:005d", "1000:10e2");
+        public String kernelDriver() {
+            return "megaraid_sas";
         }
 
         @Override
@@ -82,9 +87,29 @@ public enum RaidChipFamily {
             return 64;   // VD 상한(사전 조사 §2)
         }
 
+        /**
+         * Broadcom MegaRAID Tri-Mode SW UG — 단일 스팬 최대 32대 · RAID1 은 짝수 2~32대 · RAID10 은 스팬 2~8개 × 스팬당
+         * 짝수 대(storcli {@code pdperarray}). RAID6 은 문서상 3대부터지만 레벨 하한(4)을 그대로 둔다(R17-1 비목표).
+         */
         @Override
-        public String memberCountBlockReason(RaidLevel level, int memberCount) {
-            return null;   // 레벨별 수량 제약은 실측 표본이 생기면 그때 채운다
+        public MemberCountRule memberCountRule(RaidLevel level, boolean cardHasCache, DrivesPerSpan span) {
+            return switch (level) {
+                case RAID0, RAID5, RAID6 -> MemberCountRule.of(level, level.minimumDisks(cardHasCache), SINGLE_SPAN_MAX);
+                case RAID1 -> new MemberCountRule(level, 2, SINGLE_SPAN_MAX, 2, null);
+                case RAID10 -> {
+                    DrivesPerSpan p = span == null ? DrivesPerSpan.DEFAULT : span;
+                    yield new MemberCountRule(level, p.value() * MIN_SPANS, p.value() * MAX_SPANS, p.value(), p);
+                }
+            };
+        }
+
+        /** RAID10 이면 storcli 가 스팬 구성을 받는다 — 지정이 없으면 기본(2). 그 밖 레벨은 스팬이 없다. */
+        @Override
+        public DrivesPerSpan spanOf(RaidLevel level, DrivesPerSpan requested) {
+            if (level != RaidLevel.RAID10) {
+                return null;
+            }
+            return requested == null ? DrivesPerSpan.DEFAULT : requested;
         }
 
         /** storcli 의 {@code SCSI NAA Id} 가 곧 Windows UniqueId · lsblk WWN 이다(실기 2호 Run 3 · 3호 2/2). */
@@ -100,6 +125,11 @@ public enum RaidChipFamily {
         }
     };
 
+    /** MegaRAID 단일 스팬 최대 대수 · RAID10 스팬 수 범위(Broadcom MegaRAID Tri-Mode SW UG). */
+    static final int SINGLE_SPAN_MAX = 32;
+    static final int MIN_SPANS = 2;
+    static final int MAX_SPANS = 8;
+
     /** IR 볼륨 NAA 6 식별자의 고정 앞부분 — LSI OUI(0508E0) + 예약 8자리(실기 3호 F-7). */
     static final String IR_NAA_PREFIX = "600508e000000000";
 
@@ -114,32 +144,24 @@ public enum RaidChipFamily {
         return displayName;
     }
 
-    /**
-     * 이 계열로 판별되는 칩의 PCI Vendor:Device 목록 — 칩 판별의 SSOT(E3.5-3 CP4 검수 반영).
-     * 새 칩(같은 계열의 다른 컨트롤러)은 여기에만 추가한다 — 파서와 에이전트 힌트가 함께 따라온다.
-     */
-    public abstract java.util.List<String> chipPciIds();
+    /** 이 계열의 카드를 다루는 커널 드라이버(모듈) 이름 — 계열 판별의 SSOT(R17). */
+    public abstract String kernelDriver();
 
     /**
-     * 에이전트 동봉 판별 힌트 — {@code "1000:0097=MPT_IR 1000:005d=MEGARAID"} 형태(공백 구분).
-     * agent.sh 는 이 맵으로만 계열을 판별하므로 스크립트에 칩 id 가 남지 않는다.
+     * 에이전트 동봉 판별 힌트 — {@code "mpt3sas=MPT_IR megaraid_sas=MEGARAID"}(선언 순서 · 공백 구분).
+     * agent.sh 는 이 맵으로만 드라이버 → 계열을 정하므로 스크립트에 계열 · 모듈 이름이 남지 않는다.
      */
-    public static String agentChipHint() {
+    public static String agentDriverHint() {
         return java.util.Arrays.stream(values())
-                .flatMap(family -> family.chipPciIds().stream().map(id -> id + "=" + family.name()))
+                .map(family -> family.kernelDriver() + "=" + family.name())
                 .collect(java.util.stream.Collectors.joining(" "));
     }
 
-    /** lspci 원문에서 계열 판별 — 파서와 에이전트가 같은 id 집합 · 같은 선언 순서로 판별한다. */
-    public static java.util.Optional<RaidChipFamily> fromLspci(String lspci) {
-        for (RaidChipFamily family : values()) {
-            for (String id : family.chipPciIds()) {
-                if (lspci.contains("[" + id + "]")) {
-                    return java.util.Optional.of(family);
-                }
-            }
-        }
-        return java.util.Optional.empty();
+    /** 커널 드라이버 이름 → 계열. 계열 밖 드라이버(mpi3mr 등) · null 은 empty. */
+    public static java.util.Optional<RaidChipFamily> fromKernelDriver(String driver) {
+        return java.util.Arrays.stream(values())
+                .filter(family -> family.kernelDriver().equals(driver))
+                .findFirst();
     }
 
     /** 이 계열이 만들 수 있는 볼륨 수 상한 — 계획 검증(E3.5-2)이 정의서 검증이 못 잡는 수량 층을 여기서 잡는다. */
@@ -155,10 +177,23 @@ public enum RaidChipFamily {
     }
 
     /**
-     * 레벨 × 멤버 수의 계열 제약 — {@code null} = 통과, 문자열 = 거절 사유
-     * ({@code SupportedRaidLevels.blockReasonFor} 반환 규약).
+     * 이 계열로 이 레벨을 몇 대로 만들 수 있는가(R17-1) — 정의서 폼 · 저장 가드 · 계획이 함께 보는 SSOT.
+     * span 은 스팬 구성 레벨(MegaRAID RAID10)에서만 읽힌다(null = 기본). 카드 캐시는 레벨 하한(RAID0 단일 디스크)에만 관여한다.
      */
-    public abstract String memberCountBlockReason(RaidLevel level, int memberCount);
+    public abstract MemberCountRule memberCountRule(RaidLevel level, boolean cardHasCache, DrivesPerSpan span);
+
+    /**
+     * 볼륨에 실을 스팬 구성 — 이 계열 · 레벨이 스팬을 받지 않으면 null(지정이 있어도 무시하지 않고 저장 가드가 먼저 막는다).
+     * 기본 구현 = 스팬 없음.
+     */
+    public DrivesPerSpan spanOf(RaidLevel level, DrivesPerSpan requested) {
+        return null;
+    }
+
+    /** 정의서가 이 계열 · 레벨 묶음에 스팬을 지정할 수 있는가 — 폼 노출 · 저장 가드(규칙 10)가 함께 본다. */
+    public boolean acceptsSpan(RaidLevel level) {
+        return spanOf(level, DrivesPerSpan.DEFAULT) != null;
+    }
 
     /**
      * 카드 CLI 가 보이는 볼륨 WWN 을 OS 가 보는 SCSI 식별자(Windows {@code Get-Disk} UniqueId = Linux {@code lsblk WWN})로

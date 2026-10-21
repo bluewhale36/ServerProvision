@@ -229,13 +229,13 @@ class GuestAgentRestControllerFlowTest {
 
     @Test
     @DisplayName("POST /agent/checkin — RAID_APPLY payload 와 칩 힌트 직렬화 (E3.5-3 결정 1 · 검수 반영)")
-    void checkin_carriesRaidApplyPayloadAndChipHint() throws Exception {
+    void checkin_carriesRaidApplyPayloadAndDriverHint() throws Exception {
         RaidApplyPayload payload = new RaidApplyPayload(true,
                 java.util.List.of(new RaidApplyPayload.VolumeSpec("spvR1V1", RaidLevel.RAID1,
                         java.util.List.of("252:0", "252:1"), null, java.util.List.of(), null)),
                 java.util.List.of("252:4"));
         given(agentReportService.checkin(GUEST)).willReturn(new AgentCheckinResponse(
-                AgentDirective.RAID_APPLY, "guest-01", payload, RaidChipFamily.agentChipHint()));
+                AgentDirective.RAID_APPLY, "guest-01", payload, RaidChipFamily.agentDriverHint()));
 
         mvc.perform(post("/api/pxe/v1/agent/checkin").header("X-Guest-Token", TOKEN))
                 .andExpect(status().isOk())
@@ -245,7 +245,7 @@ class GuestAgentRestControllerFlowTest {
                 .andExpect(jsonPath("$.raidApply.volumes[0].level").value("RAID1"))
                 .andExpect(jsonPath("$.raidApply.volumes[0].slots[1]").value("252:1"))
                 .andExpect(jsonPath("$.raidApply.jbod[0]").value("252:4"))
-                .andExpect(jsonPath("$.raidChips").value("1000:0097=MPT_IR 1000:005d=MEGARAID 1000:10e2=MEGARAID"));
+                .andExpect(jsonPath("$.raidDrivers").value("mpt3sas=MPT_IR megaraid_sas=MEGARAID"));
     }
 
     @Test
@@ -254,7 +254,7 @@ class GuestAgentRestControllerFlowTest {
         UUID stepId = UUID.randomUUID();
         given(agentReportService.closeStep(eq(GUEST), eq(stepId), any(), any()))
                 .willReturn(new StepCloseResponse(AgentDirective.RAID_VERIFY, null,
-                        RaidChipFamily.agentChipHint()));
+                        RaidChipFamily.agentDriverHint()));
 
         mvc.perform(post("/api/pxe/v1/agent/steps/{id}/close", stepId)
                         .header("X-Guest-Token", TOKEN)
@@ -262,7 +262,7 @@ class GuestAgentRestControllerFlowTest {
                         .content("{\"status\":\"SUCCEEDED\",\"statusMeta\":null}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.directive").value("RAID_VERIFY"))
-                .andExpect(jsonPath("$.raidChips").exists());
+                .andExpect(jsonPath("$.raidDrivers").exists());
     }
 
     @Test

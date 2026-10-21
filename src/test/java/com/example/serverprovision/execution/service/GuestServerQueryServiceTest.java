@@ -317,6 +317,33 @@ class GuestServerQueryServiceTest {
     }
 
     @Test
+    @DisplayName("R17-1 — 계획 볼륨 레벨 칸: 스팬 볼륨은 'RAID10 · 스팬 3 × 2대', 스팬 없는 볼륨은 레벨명만")
+    void preview_spanVolume_levelDisplay() {
+        UUID id = stubDetailWithRaidInventory(raidInv());
+        given(raidConfigurationResolutionProvider.policyOf(id)).willReturn(Optional.of(
+                com.example.serverprovision.execution.engine.raid.RaidExistingConfigPolicy.DESTROY));
+        var span = new com.example.serverprovision.execution.engine.raid.PlannedVolume("spvR1V1",
+                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID10,
+                java.util.List.of("252:0", "252:1", "252:2", "252:3", "252:4", "252:5"), 1L,
+                com.example.serverprovision.execution.engine.raid.PlannedVolumeRole.DATA, 1,
+                "wb pdperarray=2", java.util.List.of(), "none",
+                com.example.serverprovision.management.raidcard.vo.DrivesPerSpan.DEFAULT);
+        var plain = new com.example.serverprovision.execution.engine.raid.PlannedVolume("spvR2V1",
+                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID1,
+                java.util.List.of("252:6", "252:7"), 1L,
+                com.example.serverprovision.execution.engine.raid.PlannedVolumeRole.OS, 2,
+                null, java.util.List.of(), null, null);
+        given(raidConfigurationResolutionProvider.planFor(eq(id), any(), any()))
+                .willReturn(Optional.of(new com.example.serverprovision.execution.engine.raid.RaidPlan(
+                        false, java.util.List.of(span, plain), java.util.List.of(), java.util.List.of(), java.util.List.of(), null)));
+
+        var volumes = service.findDetail(id).raidPlan().branches().get(0).volumes();
+
+        assertThat(volumes.get(0).level()).isEqualTo("RAID10 · 스팬 3 × 2대");
+        assertThat(volumes.get(1).level()).isEqualTo("RAID1");
+    }
+
+    @Test
     @DisplayName("W8 — 축 null + 외부 볼륨 = 두 갈래 병기(현행 유지)")
     void preview_legacyWithForeign_twoBranches() {
         UUID id = stubDetailWithRaidInventory(raidInv(vol("legacy")));

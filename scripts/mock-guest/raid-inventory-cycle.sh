@@ -4,10 +4,11 @@
 # 원문은 fixtures-raid/ 의 2026-08-31 실측본 — agent.sh 의 base64 봉투 계약(RaidInventoryParser SSOT) 그대로.
 #
 # 사용:
-#   ./raid-inventory-cycle.sh <BASE_URL> <GUEST_TOKEN> [mr|mrclean|ssd6|cra|mismatch|toolmissing]
+#   ./raid-inventory-cycle.sh <BASE_URL> <GUEST_TOKEN> [mr|mrclean|ssd6|hdd7|cra|mismatch|toolmissing]
 #     mr          9361-8i 실측(기본) — storcli JSON 3종
 #     mrclean     9361-8i 실측 + 기존 볼륨 없음(E3.5-3 정상 완주 시작점)
 #     ssd6        9361-8i 파생(E3.5-7-a 사례 (c)) — 같은 스펙 SSD 6장(252:0~5) + HDD 2장 · 기존 볼륨 없음
+#     hdd7        9361-8i 파생(R17-1) — SSD 2장 + 같은 스펙 HDD 7장 · 기존 볼륨 없음('개 이상' 홀수 그룹)
 #     cra         CRA3338 실측 — sas3ircu display
 #     mismatch    lspci 는 CRA(1458:3008), 카드 지정이 9361 이면 CARD_MISMATCH 재현과 동일 효과
 #     toolmissing 도구 부재 FAILED 보고 (에이전트 TOOL_MISSING 경로)

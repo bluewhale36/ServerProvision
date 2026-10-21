@@ -75,7 +75,7 @@ public class AgentReportService {
         AgentDirective directive = directiveFor(server, progress);
         rebootDirectiveArmer.armIfReboot(directive, server, progress);
         return new AgentCheckinResponse(directive, server.getName(),
-                raidApplyFor(directive, server, progress), raidChipsFor(directive));
+                raidApplyFor(directive, server, progress), raidDriversFor(directive));
     }
 
     /**
@@ -159,7 +159,7 @@ public class AgentReportService {
         publishChanged(server);
         AgentDirective directive = directiveFor(server, progress);
         rebootDirectiveArmer.armIfReboot(directive, server, progress);
-        return new StepCloseResponse(directive, raidApplyFor(directive, server, progress), raidChipsFor(directive));
+        return new StepCloseResponse(directive, raidApplyFor(directive, server, progress), raidDriversFor(directive));
     }
 
     /**
@@ -198,15 +198,15 @@ public class AgentReportService {
     }
 
     /**
-     * RAID 지시의 칩 판별 힌트(E3.5-3 CP4 검수 반영) — 칩 id 의 SSOT 는 서버(RaidChipFamily)이고
-     * 에이전트는 받은 맵으로만 판별한다. 실물 기준 판별이라 지정 카드와 다른 계열이 꽂혀 있어도
-     * 채집은 성공하고, 불일치는 서버 대조(CARD_MISMATCH)가 정직하게 잡는다.
+     * RAID 지시의 계열 판별 힌트(R17 — 칩 id 힌트를 대체) — 드라이버 → 계열 대응의 SSOT 는 서버(RaidChipFamily)이고,
+     * 에이전트는 커널이 카드에 붙인 드라이버를 이 맵에 대어 계열을 정한다. 실물 기준 판별이라 지정 카드와 다른 계열이
+     * 꽂혀 있어도 채집은 성공하고, 불일치는 서버 대조(CARD_MISMATCH)가 정직하게 잡는다.
      * E3.5-5-a — 진단 수집(COLLECT)에도 싣는다: 최초 진단이 카드 뒤 디스크까지 채집하려면 같은 판별이 필요하다.
      */
-    private String raidChipsFor(AgentDirective directive) {
+    private String raidDriversFor(AgentDirective directive) {
         if (directive == AgentDirective.COLLECT || directive == AgentDirective.RAID_INVENTORY
                 || directive == AgentDirective.RAID_APPLY || directive == AgentDirective.RAID_VERIFY) {
-            return com.example.serverprovision.management.raidcard.enums.RaidChipFamily.agentChipHint();
+            return com.example.serverprovision.management.raidcard.enums.RaidChipFamily.agentDriverHint();
         }
         return null;
     }

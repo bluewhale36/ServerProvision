@@ -20,7 +20,7 @@ class RaidApplyPayloadTest {
     private RaidPlan plan() {
         return new RaidPlan(true,
                 List.of(new PlannedVolume("spvR1V1", RaidLevel.RAID1, List.of("252:0", "252:1"),
-                        1L, PlannedVolumeRole.OS, 1, "wb pdcache=off", List.of("autobgi=off"), "full")),
+                        1L, PlannedVolumeRole.OS, 1, "wb pdcache=off", List.of("autobgi=off"), "full", null)),
                 List.of(new PlannedPassthrough("252:4", 1L, PlannedVolumeRole.DATA, 2)),
                 List.of(), List.of(), null);
     }
@@ -62,17 +62,13 @@ class RaidApplyPayloadTest {
     }
 
     @Test
-    @DisplayName("칩 힌트 — id=계열 공백 구분 · 선언 순, lspci 판별과 같은 SSOT")
-    void agentChipHint_format() {
-        assertThat(RaidChipFamily.agentChipHint()).isEqualTo("1000:0097=MPT_IR 1000:005d=MEGARAID 1000:10e2=MEGARAID");
-        assertThat(RaidChipFamily.fromLspci("RAID bus controller [0104]: ... [1000:005d]"))
-                .contains(RaidChipFamily.MEGARAID);
-        assertThat(RaidChipFamily.fromLspci("Serial Attached SCSI controller ... [1000:0097]"))
-                .contains(RaidChipFamily.MPT_IR);
-        // HF22 — SAS39xx Secure(GIGABYTE CRA4760 실기 lspci 원문)도 MegaRAID 계열로 판별
-        assertThat(RaidChipFamily.fromLspci(
-                "ae:00.0 RAID bus controller [0104]: Broadcom / LSI MegaRAID 12GSAS/PCIe Secure SAS39xx [1000:10e2]"))
-                .contains(RaidChipFamily.MEGARAID);
-        assertThat(RaidChipFamily.fromLspci("no raid here")).isEmpty();
+    @DisplayName("R17 드라이버 힌트 — driver=계열 공백 구분 · 선언 순, 파서 판별과 같은 SSOT · 계열 밖 드라이버는 empty")
+    void agentDriverHint_format() {
+        assertThat(RaidChipFamily.agentDriverHint()).isEqualTo("mpt3sas=MPT_IR megaraid_sas=MEGARAID");
+        assertThat(RaidChipFamily.fromKernelDriver("megaraid_sas")).contains(RaidChipFamily.MEGARAID);
+        assertThat(RaidChipFamily.fromKernelDriver("mpt3sas")).contains(RaidChipFamily.MPT_IR);
+        // 9600 계열 HBA(mpi3mr) · 바인딩 없음은 계열이 아니다 — 칩 ID 목록 없이 판별한다(HF22 의 CRA4760 은 커널이 megaraid_sas 를 붙인다)
+        assertThat(RaidChipFamily.fromKernelDriver("mpi3mr")).isEmpty();
+        assertThat(RaidChipFamily.fromKernelDriver(null)).isEmpty();
     }
 }

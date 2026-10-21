@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.setting.dto.request;
 
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.management.raidcard.vo.DrivesPerSpan;
 import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
 import com.example.serverprovision.provisioning.setting.enums.DiskTransportRequirement;
 import com.example.serverprovision.provisioning.setting.enums.DiskTypeRequirement;
@@ -52,7 +53,13 @@ public record DiskGroupRuleRequest(
          * 중복 판정({@code DiskGroupRules.identity})에는 넣지 않는다 — {@code role} 불포함과 같은 사유.
          */
         @Valid
-        VdParameters vdParameters
+        VdParameters vdParameters,
+
+        /**
+         * 스팬당 디스크 수(R17-1) — MegaRAID RAID10 묶음에서만 지정한다(규칙 10). {@code null} = 지정 없음(구 저장본 ·
+         * 다른 레벨 · IR 카드) — 계획은 계열의 기본(2)으로 본다. 중복 판정에는 넣지 않는다({@code vdParameters} 와 같은 사유).
+         */
+        DrivesPerSpan drivesPerSpan
 ) {
 
     @JsonCreator
@@ -63,7 +70,8 @@ public record DiskGroupRuleRequest(
             @JsonProperty("capacity")  DiskCapacityRequirement capacity,
             @JsonProperty("count")        DiskCountRequirement count,
             @JsonProperty("role")         DiskGroupRole role,
-            @JsonProperty("vdParameters") VdParameters vdParameters
+            @JsonProperty("vdParameters") VdParameters vdParameters,
+            @JsonProperty("drivesPerSpan") DrivesPerSpan drivesPerSpan
     ) {
         this.raidLevel    = raidLevel;
         this.diskType     = diskType;
@@ -72,13 +80,27 @@ public record DiskGroupRuleRequest(
         this.count        = count;
         this.role         = role;
         this.vdParameters = vdParameters;
+        this.drivesPerSpan = drivesPerSpan;
+    }
+
+    /** 7-인자 호환 생성자 — 스팬 지정 없음(R17-1 이전 저장본 · 기존 테스트 픽스처와 동형). */
+    public DiskGroupRuleRequest(RaidLevel raidLevel, DiskTypeRequirement diskType,
+                                DiskTransportRequirement transport, DiskCapacityRequirement capacity,
+                                DiskCountRequirement count, DiskGroupRole role, VdParameters vdParameters) {
+        this(raidLevel, diskType, transport, capacity, count, role, vdParameters, null);
     }
 
     /** 6-인자 호환 생성자 — VD 파라미터 축 없음(구 저장본 · 기존 테스트 픽스처와 동형). */
     public DiskGroupRuleRequest(RaidLevel raidLevel, DiskTypeRequirement diskType,
                                 DiskTransportRequirement transport, DiskCapacityRequirement capacity,
                                 DiskCountRequirement count, DiskGroupRole role) {
-        this(raidLevel, diskType, transport, capacity, count, role, null);
+        this(raidLevel, diskType, transport, capacity, count, role, null, null);
+    }
+
+    /** 스팬을 지정했는가 — 규칙 10(MegaRAID RAID10 만)의 판정 재료. */
+    @JsonIgnore
+    public boolean hasDrivesPerSpan() {
+        return drivesPerSpan != null;
     }
 
     /** VD 파라미터 축을 실어 왔는가 — 지원 계열 · RAID 구성 가드(DiskGroupRules 9 번)의 판정 재료. */

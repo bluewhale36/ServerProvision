@@ -146,10 +146,10 @@ class WindowsInstallReadinessResolverTest {
     private static com.example.serverprovision.execution.engine.raid.RaidPlan planWithOs(String osName) {
         var vol = new com.example.serverprovision.execution.engine.raid.PlannedVolume(osName, RaidLevel.RAID1,
                 List.of("1:2", "1:3"), 240_056_459_591L,
-                osName == null ? PlannedVolumeRole.DATA : PlannedVolumeRole.OS, 1, null, List.of(), null);
+                osName == null ? PlannedVolumeRole.DATA : PlannedVolumeRole.OS, 1, null, List.of(), null, null);
         return new com.example.serverprovision.execution.engine.raid.RaidPlan(false,
                 List.of(osName == null ? new com.example.serverprovision.execution.engine.raid.PlannedVolume("spvR1V1", RaidLevel.RAID1,
-                        List.of("1:0", "1:1"), 1L, PlannedVolumeRole.DATA, 1, null, List.of(), null) : vol),
+                        List.of("1:0", "1:1"), 1L, PlannedVolumeRole.DATA, 1, null, List.of(), null, null) : vol),
                 List.of(), List.of(), List.of(), osName == null ? "우선순위 없음" : null);
     }
 

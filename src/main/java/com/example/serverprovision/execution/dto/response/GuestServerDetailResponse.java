@@ -160,13 +160,19 @@ public record GuestServerDetailResponse(
          * RAID 보고를 생략하고 정상 보고하므로(카드 없는 서버를 실패로 만들지 않기 위함) 디스크 누락이 조용히 지나간다 —
          * 화면이 이것으로 경고한다. 진단 보고 전(하드웨어 스펙 없음)에는 판정하지 않는다.
          */
-        public List<HardwareSpec.PcieDevice> uncollectedRaidCards() {
+        public List<UncollectedRaidCard> uncollectedRaidCards() {
             if (raidInventory != null || hardwareSpec == null || hardwareSpec.pcieDevices() == null) {
                 return List.of();
             }
             return hardwareSpec.pcieDevices().stream()
                     .filter(d -> HardwareSpec.PcieDevice.KIND_RAID.equals(d.kind()))
+                    .map(d -> new UncollectedRaidCard(d, com.example.serverprovision.execution.vo.RaidCollectionNotice.of(d.kernelDriver())))
                     .toList();
+        }
+
+        /** 미채집 카드 한 장과 그 원인 판정(R17) — 화면이 문구 키 · 드라이버 이름을 함께 그린다. */
+        public record UncollectedRaidCard(HardwareSpec.PcieDevice device,
+                                          com.example.serverprovision.execution.vo.RaidCollectionNotice notice) {
         }
     }
 

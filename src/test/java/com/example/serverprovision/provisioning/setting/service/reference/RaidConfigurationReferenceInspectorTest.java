@@ -64,6 +64,7 @@ class RaidConfigurationReferenceInspectorTest {
                 .id(5L).vendor(RaidCardVendor.GIGABYTE).modelName("CRA3338")
                 .supportedRaidLevels(SupportedRaidLevels.of(List.of(RaidLevel.RAID0, RaidLevel.RAID1)))
                 .cacheCapacity(CacheCapacity.NONE)
+                .chipFamily(com.example.serverprovision.management.raidcard.enums.RaidChipFamily.MPT_IR)   // DB NOT NULL — 디스크 수 규칙(R17-1)의 재료
                 .ownEnabled(enabled).ownDeprecated(deprecated).isDeleted(false)
                 .build();
         card.recomputeEffective();

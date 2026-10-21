@@ -189,7 +189,8 @@
                                     <span th:if="${rule.capacity.isAuto()}" class="n-table-muted">자동 탐지</span>
                                     <span th:unless="${rule.capacity.isAuto()}" th:text="${rule.capacity.toDisplay()}">480 GB</span>
                                 </td>
-                                <td th:text="${rule.count.toDisplay()}">2개</td>
+                                <!--/* 스팬(R17-1) — 지정한 묶음만 부기. 지정이 없는 구 저장본은 계획이 기본 2 로 본다 — 파서 주석이라 렌더에 남지 않는다 */-->
+                                <td><span th:text="${rule.count.toDisplay()}">2개</span><span th:if="${rule.drivesPerSpan != null}" class="n-table-muted" th:text="' · ' + ${rule.drivesPerSpan.toDisplay()}"> · 스팬당 2대</span></td>
                                 <!-- 역할(U4-1-2) — 구 저장본은 role 이 없을 수 있어 null 안전. OS 고정만 색을 준다. -->
                                 <td>
                                     <span th:if="${rule.role == null}" class="n-table-muted">미지정</span>

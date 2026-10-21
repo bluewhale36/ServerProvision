@@ -1,7 +1,6 @@
 package com.example.serverprovision.provisioning.setting.exception;
 
 import com.example.serverprovision.global.exception.FieldBoundBadRequestException;
-import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 
 /**
  * 디스크 묶음 규칙 위반 (400, field-bound=diskGroups) — U4-1-1.
@@ -41,10 +40,15 @@ public class InvalidDiskGroupException extends FieldBoundBadRequestException {
         return new InvalidDiskGroupException(ruleNo + "번 묶음: " + blockReason);
     }
 
-    /** 레벨의 최소 디스크 수 미달(카드의 캐시 유무 반영). */
-    public static InvalidDiskGroupException tooFewDisks(int ruleNo, RaidLevel level, int minimum, int given) {
-        return new InvalidDiskGroupException(ruleNo + "번 묶음: " + level.getDisplayName() + " " + level.getObjectParticle()
-                + " 구성하려면 디스크 " + minimum + "개 이상이 필요합니다 (지정: " + given + "개).");
+    /** 카드 계열 · 레벨 · 스팬의 디스크 수 규칙 위반(R17-1) — 사유 문구는 {@code MemberCountRule} 그대로. */
+    public static InvalidDiskGroupException memberCount(int ruleNo, String blockReason) {
+        return new InvalidDiskGroupException(ruleNo + "번 묶음: " + blockReason + ".");
+    }
+
+    /** 스팬을 받지 않는 묶음의 스팬 지정(R17-1 규칙 10) — MegaRAID RAID10 묶음에서만 지정한다. */
+    public static InvalidDiskGroupException spanNotApplicable(int ruleNo) {
+        return new InvalidDiskGroupException(ruleNo
+                + "번 묶음: 스팬당 디스크 수는 MegaRAID 카드의 RAID10 묶음에서만 지정합니다.");
     }
 
     /** RAID 없음 묶음의 개수가 1 미만 — {@code @Min(1)} 의 안전망. */

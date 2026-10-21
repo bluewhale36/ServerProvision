@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.engine.raid;
 
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.management.raidcard.vo.DrivesPerSpan;
 
 import java.util.List;
 
@@ -22,7 +23,9 @@ public record PlannedVolume(
         /** 생성 후 per-VD {@code set} 인자 목록(autobgi= · accesspolicy= …) — 축이 없는 계열은 빈 목록. */
         List<String> setOps,
         /** 초기화 방식("none"|"fast"|"full") — HII 기본은 none(초기화 생략). 축이 없는 계열은 null. */
-        String init
+        String init,
+        /** 스팬당 디스크 수(R17-1) — 스팬을 받는 볼륨(MegaRAID RAID10)만, 그 밖 null. 토큰은 이미 createOpts 에 실렸고 이것은 표시용. */
+        DrivesPerSpan span
 ) {
 
     public PlannedVolume {

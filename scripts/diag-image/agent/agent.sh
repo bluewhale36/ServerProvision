@@ -131,7 +131,7 @@ collect_bmc_json() { # {"ip":..,"mac":..} — BMC 미검출(QEMU·모듈 실패)
     printf '{"ip":"%s","mac":"%s"}' "$(esc "$ip")" "$(esc "$mac")"
 }
 
-build_report_json() { # $1=RAID 봉투(선택 · E3.5-5-a) — 수집 결과 전체 JSON (statusMeta). 누락 축은 필드 생략(서버 관용 파서가 흡수)
+build_report_json() { # $1=RAID 봉투(선택 · E3.5-5-a) $2=RAID 후보 장치 바인딩(선택 · R17) — 수집 결과 전체 JSON (statusMeta). 누락 축은 필드 생략(서버 관용 파서가 흡수)
     serial=$(dmidecode -s baseboard-serial-number 2>/dev/null | head -1)
     bios=$(dmidecode -s bios-version 2>/dev/null | head -1)
     cpu_sockets=$(collect_cpu_sockets_json)
@@ -146,7 +146,8 @@ build_report_json() { # $1=RAID 봉투(선택 · E3.5-5-a) — 수집 결과 전
     [ -n "$cpu_sockets" ] && [ "$cpu_sockets" != "[]" ] && json="$json\"cpuSockets\":$cpu_sockets,"
     json="$json\"memoryModules\":${mem:-[]},\"disks\":${disks:-[]},\"pcieRaw\":${pcie:-[]}"
     [ -n "$bmc" ]    && json="$json,\"bmc\":$bmc"
-    [ -n "${1:-}" ]  && json="$json,\"raid\":$1"   # 카드 뒤 디스크 · 볼륨 봉투(RAID step 과 같은 계약) — 지원 칩 없음이면 키 생략
+    [ -n "${1:-}" ]  && json="$json,\"raid\":$1"   # 카드 뒤 디스크 · 볼륨 봉투(RAID step 과 같은 계약) — RAID 클래스 장치 없음이면 키 생략
+    [ -n "${2:-}" ] && [ "$2" != "[]" ] && json="$json,\"raidDevices\":$2"   # R17 — 장치별 커널 드라이버(미채집 원인 판정)
     json="$json}"
     printf '%s' "$json"
 }
@@ -174,10 +175,10 @@ report_step() { # $1=stepCode $2=status $3=statusMeta(JSON or null) → close �
     return 1
 }
 
-do_collect() { # $1=응답 바디(raidChips 힌트 — E3.5-5-a: 최초 진단도 카드 뒤 디스크까지 채집한다)
+do_collect() { # $1=응답 바디(raidDrivers 힌트 — E3.5-5-a: 최초 진단도 카드 뒤 디스크까지 채집한다)
     echo "[agent] COLLECT - gathering hardware inventory..."
-    RAID_ENV=$(raid_envelope_json "${1:-}") || RAID_ENV=""   # 지원 칩 없음 = 봉투 생략(정상). 도구 부재는 reason 봉투로 실어 서버가 관용 흡수
-    REPORT=$(build_report_json "$RAID_ENV")
+    RAID_ENV=$(raid_envelope_json "${1:-}") || RAID_ENV=""   # 카드 없음 = 봉투 생략(정상). 판정 실패 · 도구 부재는 reason 봉투로 실어 서버가 관용 흡수
+    REPORT=$(build_report_json "$RAID_ENV" "$(raid_devices_json)")
     CLOSE_RESP=$(report_step INFORMATION_COLLECTING SUCCEEDED "$REPORT") || return 0
     echo "[agent] inventory reported ($(printf '%s' "$REPORT" | wc -c | tr -d ' ') bytes)"
     handle_directive "$(printf '%s' "$CLOSE_RESP" | get_json_field directive)" "$CLOSE_RESP"
@@ -187,37 +188,71 @@ b64() { # 개행 있는 원문을 statusMeta JSON 문자열 값으로 안전 운
     base64 | tr -d '\n'
 }
 
-detect_raid_family() { # $1=서버 동봉 칩 맵("1000:0097=MPT_IR 1000:005d=MEGARAID") — id 의 SSOT 는 서버(RaidChipFamily)
-    IDS=$(lspci -nn -d 1000: 2>/dev/null)
-    FAMILY=""
-    for pair in $1; do
-        if printf '%s' "$IDS" | grep -q "${pair%%=*}"; then FAMILY=${pair#*=}; ensure_raid_driver; return 0; fi
+# ── RAID 계열 판별(R17) — 칩 ID 목록이 아니라 커널이 카드에 붙인 드라이버로 정한다 ────────────────────
+# 칩 → 드라이버 대응은 커널 modules.alias 가 SSOT 다(실측 1000:10e2 · 005d → megaraid_sas, 0097 → mpt3sas).
+# 서버는 드라이버 → 계열 맵만 보낸다(raidDrivers). 스크립트에는 칩 · 모듈 · 계열 이름이 남지 않는다.
+SYSFS_PCI="${SYSFS_PCI:-/sys/bus/pci/devices}"   # 테스트에서 가짜 sysfs 트리로 바꿔 끼운다
+
+raid_class_devices() { # RAID bus(0104) · SAS(0107) 클래스 장치의 sysfs 이름(0000:ae:00.0)
+    for d in "$SYSFS_PCI"/*; do
+        case "$(cat "$d/class" 2>/dev/null)" in 0x0104*|0x0107*) echo "${d##*/}" ;; esac
+    done
+}
+
+driver_of() { # $1=sysfs 장치 이름 → 바인딩된 드라이버 이름(없으면 빈 출력)
+    [ -e "$SYSFS_PCI/$1/driver" ] && basename "$(readlink "$SYSFS_PCI/$1/driver")"
+}
+
+# 드라이버 적재 — hwdrivers 가 modloop 마운트 전에 돌아 RAID 드라이버가 미로드일 수 있다(실기 2026-09-01).
+# 장치마다 modalias 로 modprobe 해 커널 alias 표가 고르는 드라이버를 그대로 올린다(계열 밖 mpi3mr 도 붙어야
+# "RAID 미지원 컨트롤러" 로 정확히 안내된다). 힌트의 계열 모듈은 보강으로 한 번 더 올린다(관용).
+load_raid_drivers() { # $1=드라이버 힌트
+    for dev in $(raid_class_devices); do
+        alias=$(cat "$SYSFS_PCI/$dev/modalias" 2>/dev/null)
+        [ -n "$alias" ] && modprobe "$alias" 2>/dev/null
+    done
+    for pair in $1; do modprobe "${pair%%=*}" 2>/dev/null; done
+    command -v mdev >/dev/null 2>&1 && mdev -s 2>/dev/null
+    sleep 1
+    return 0
+}
+
+detect_raid_family() { # $1=서버 동봉 드라이버 맵("mpt3sas=MPT_IR megaraid_sas=MEGARAID") → FAMILY · SLOT · DRIVER
+    FAMILY=""; SLOT=""; DRIVER=""
+    load_raid_drivers "$1"
+    for dev in $(raid_class_devices); do
+        drv=$(driver_of "$dev")
+        [ -z "$drv" ] && continue
+        for pair in $1; do
+            if [ "$drv" = "${pair%%=*}" ]; then
+                FAMILY=${pair#*=}; SLOT=${dev#0000:}; DRIVER=$drv; return 0
+            fi
+        done
     done
     return 1
 }
 
-# 커널 드라이버 보장 — hwdrivers 가 modloop 마운트 전에 돌아 RAID 드라이버가 미로드일 수 있다
-# (실기 2026-09-01: storcli "Controller 0 not found"). 이 시점엔 modloop 가 있으므로 관용 로드한다.
-ensure_raid_driver() {
-    case "$FAMILY" in
-    MEGARAID) modprobe megaraid_sas 2>/dev/null || true ;;
-    MPT_IR)   modprobe mpt3sas 2>/dev/null || true ;;
-    esac
-    command -v mdev >/dev/null 2>&1 && mdev -s 2>/dev/null
-    sleep 1
+raid_devices_json() { # [{"slot":"ae:00.0","driver":"megaraid_sas"},..] — RAID 후보 장치별 바인딩(미채집 원인 판정 재료)
+    out=""; sep=""
+    for dev in $(raid_class_devices); do
+        out="$out$sep{\"slot\":\"${dev#0000:}\",\"driver\":\"$(driver_of "$dev")\"}"; sep=","
+    done
+    printf '[%s]' "$out"
 }
 
-# RAID 봉투 조립(E3.5-1 계약 · E3.5-5-a 에서 COLLECT 와 RAID step 이 공유) — $1=응답 바디(raidChips 힌트)
-#   stdout = 봉투 JSON. 정상 = tool + 원문 base64 / 도구 부재 · 미지 계열 = reason TOOL_MISSING 봉투(return 0)
-#   지원 칩 없음 = "no supported raid chip" reason 봉투를 내고 return 1 — COLLECT 는 생략(정상), RAID step 은 실패 보고
+# RAID 봉투 조립(E3.5-1 계약 · E3.5-5-a 에서 COLLECT 와 RAID step 이 공유) — $1=응답 바디(raidDrivers 힌트)
+#   stdout = 봉투 JSON. 정상 = tool · driver · slot + 원문 base64 / 도구 부재 · IR 아님 · 계열 드라이버 없음 = reason 봉투(return 0)
+#   RAID 클래스 장치 자체가 없음 = return 1 — COLLECT 는 생략(카드 없는 서버 = 정상), RAID step 은 실패 보고
 raid_envelope_json() {
-    LSPCI=$(lspci -nn -vv -d 1000: 2>/dev/null)
-    LSPCI_B64=$(printf '%s' "$LSPCI" | b64)
-    CHIPS=$(printf '%s' "$1" | get_json_field raidChips)
-    if ! detect_raid_family "$CHIPS"; then
-        printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"no supported raid chip (server hint: $CHIPS)\",\"lspci_b64\":\"$LSPCI_B64\"}"
-        return 1
+    DRIVERS=$(printf '%s' "$1" | get_json_field raidDrivers)
+    if ! detect_raid_family "$DRIVERS"; then
+        LSPCI_B64=$(lspci -nn -vv -d 1000: 2>/dev/null | b64)
+        [ -z "$(raid_class_devices)" ] && return 1
+        printf '%s' "{\"reason\":\"NO_RAID_DRIVER\",\"detail\":\"no family driver bound (server hint: $DRIVERS)\",\"lspci_b64\":\"$LSPCI_B64\"}"
+        return 0
     fi
+    LSPCI_B64=$(lspci -nn -vv -s "$SLOT" 2>/dev/null | b64)   # 판정된 그 카드 한 장 — Subsystem 대조의 원문
+    ID="\"driver\":\"$DRIVER\",\"slot\":\"$SLOT\",\"lspci_b64\":\"$LSPCI_B64\""
     case "$FAMILY" in
     MEGARAID)
         # storcli64 우선, storcli(alias) 폴백 (사전 조사 §2 · 사용자 확인)
@@ -225,35 +260,41 @@ raid_envelope_json() {
         command -v storcli64 >/dev/null 2>&1 && TOOL=storcli64
         [ -z "$TOOL" ] && command -v storcli >/dev/null 2>&1 && TOOL=storcli
         if [ -z "$TOOL" ]; then
-            printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64/storcli not found\",\"lspci_b64\":\"$LSPCI_B64\"}"
+            printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64/storcli not found\",$ID}"
             return 0
         fi
         PD=$("$TOOL" /c0/eall/sall show all J 2>&1); VD=$("$TOOL" /c0/vall show all J 2>&1); C0=$("$TOOL" /c0 show all J 2>&1)
-        printf '%s' "{\"tool\":\"$TOOL\",\"lspci_b64\":\"$LSPCI_B64\",\"pd_b64\":\"$(printf '%s' "$PD" | b64)\",\"vd_b64\":\"$(printf '%s' "$VD" | b64)\",\"c0_b64\":\"$(printf '%s' "$C0" | b64)\"}"
+        printf '%s' "{\"tool\":\"$TOOL\",$ID,\"pd_b64\":\"$(printf '%s' "$PD" | b64)\",\"vd_b64\":\"$(printf '%s' "$VD" | b64)\",\"c0_b64\":\"$(printf '%s' "$C0" | b64)\"}"
         ;;
     MPT_IR)
         if ! command -v sas3ircu >/dev/null 2>&1; then
-            printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"sas3ircu not found\",\"lspci_b64\":\"$LSPCI_B64\"}"
+            printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"sas3ircu not found\",$ID}"
+            return 0
+        fi
+        # mpt3sas 는 IR(RAID) · IT(HBA) 펌웨어를 함께 다룬다 — sas3ircu 가 컨트롤러 0 을 잡지 못하면 IR 이 아니다(R17).
+        # 미확인 · 실측 대기: IT 펌웨어에서 sas3ircu LIST 의 실제 응답 문구(CP7 실기 — T3 적립).
+        if ! sas3ircu LIST 2>/dev/null | grep -qE '^[[:space:]]+0[[:space:]]'; then
+            printf '%s' "{\"reason\":\"NOT_IR\",\"detail\":\"sas3ircu does not list controller 0 (IT firmware?)\",$ID}"
             return 0
         fi
         DISPLAY_OUT=$(sas3ircu 0 display 2>&1)
-        printf '%s' "{\"tool\":\"sas3ircu\",\"lspci_b64\":\"$LSPCI_B64\",\"display_b64\":\"$(printf '%s' "$DISPLAY_OUT" | b64)\"}"
+        printf '%s' "{\"tool\":\"sas3ircu\",$ID,\"display_b64\":\"$(printf '%s' "$DISPLAY_OUT" | b64)\"}"
         ;;
     *)
-        printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"unknown family $FAMILY (agent adapter missing)\",\"lspci_b64\":\"$LSPCI_B64\"}"
+        printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"unknown family $FAMILY (agent adapter missing)\",$ID}"
         ;;
     esac
     return 0
 }
 
-collect_raid_report() { # $1=stepCode $2=응답 바디(raidChips 힌트 운반) $3=OS 가시 디스크 JSON(선택 · 검증 재채집) — 계열 CLI 원문 채집 → base64 봉투 보고
+collect_raid_report() { # $1=stepCode $2=응답 바디(raidDrivers 힌트 운반) $3=OS 가시 디스크 JSON(선택 · 검증 재채집) — 계열 CLI 원문 채집 → base64 봉투 보고
     echo "[agent] $1 - collecting card/disk/volume state..."
     META=$(raid_envelope_json "$2") || {
-        report_step "$1" FAILED "$META" >/dev/null   # 지원 칩 없음 — RAID step 은 집행 전제라 실패 보고(종전 동작)
+        report_step "$1" FAILED "{\"reason\":\"NO_RAID_DRIVER\",\"detail\":\"no raid-class pci device\"}" >/dev/null   # 카드 없음 — 실패 보고(종전 동작)
         return 0
     }
     case "$META" in
-    *'"reason":"TOOL_MISSING"'*)
+    *'"reason":'*)   # TOOL_MISSING · NOT_IR · NO_RAID_DRIVER — RAID step 은 집행 전제라 실패 보고
         report_step "$1" FAILED "$META" >/dev/null
         return 0 ;;
     esac
@@ -282,9 +323,9 @@ do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
     VOL_LINES=$(printf '%s' "$BODY" | tr '{' '\n' | sed -n 's/.*"name":"\([^"]*\)","level":"\([^"]*\)","slots":\[\([^]]*\)\],"createOpts":\(null\|"[^"]*"\),"setOps":\[\([^]]*\)\],"init":\(null\|"[^"]*"\).*/\1|\2|\3|\4|\5|\6/p')
     JBOD=$(printf '%s' "$BODY" | sed -n 's/.*"jbod":\[\([^]]*\)\].*/\1/p' | tr -d '"' | tr ',' ' ')
 
-    CHIPS=$(printf '%s' "$BODY" | get_json_field raidChips)
-    detect_raid_family "$CHIPS" || {
-        report_step RAID_APPLYING FAILED "{\"reason\":\"TOOL_MISSING\",\"detail\":\"no supported raid chip (server hint: $CHIPS)\"}" >/dev/null
+    DRIVERS=$(printf '%s' "$BODY" | get_json_field raidDrivers)
+    detect_raid_family "$DRIVERS" || {
+        report_step RAID_APPLYING FAILED "{\"reason\":\"NO_RAID_DRIVER\",\"detail\":\"no family driver bound (server hint: $DRIVERS)\"}" >/dev/null
         return 0
     }
     LOG=""
@@ -319,9 +360,8 @@ do_raid_apply() { # $1 = raidApply 를 담은 응답 바디 원문
             [ "$CREATE" = "null" ] && CREATE="" || CREATE=$(printf '%s' "$CREATE" | tr -d '"')
             [ "$INIT" = "null" ] && INIT="" || INIT=$(printf '%s' "$INIT" | tr -d '"')
             LV=$(printf '%s' "$LEVEL" | tr 'A-Z' 'a-z')   # RAID1 → raid1
-            EXTRA=""
-            [ "$LEVEL" = "RAID10" ] && EXTRA="pdperarray=2"
-            run_cli "$TOOL" /c0 add vd type="$LV" name="$NAME" drives="$SLOTS" $CREATE $EXTRA || { OK=0; break; }
+            # RAID10 스팬(pdperarray)도 서버가 createOpts 에 조립해 온다(R17-1 — 고정 pdperarray=2 폐지)
+            run_cli "$TOOL" /c0 add vd type="$LV" name="$NAME" drives="$SLOTS" $CREATE || { OK=0; break; }
             # VD 번호는 생성 순서로 가정하지 않고 이름으로 되찾는다 — 칩마다 번호 체계가 다르다(HF22)
             VD=$(vd_of_name "$NAME")
             if [ -z "$VD" ]; then

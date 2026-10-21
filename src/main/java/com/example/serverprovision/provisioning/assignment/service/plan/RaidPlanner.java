@@ -14,6 +14,7 @@ import com.example.serverprovision.execution.engine.raid.RaidPlanRejection;
 import com.example.serverprovision.execution.engine.raid.RaidRuleOutcome;
 import com.example.serverprovision.execution.engine.raid.UnassignedDisk;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.management.raidcard.vo.DrivesPerSpan;
 import com.example.serverprovision.provisioning.setting.dto.request.VdParameters;
 import com.example.serverprovision.provisioning.setting.dto.request.DiskGroupRuleRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest;
@@ -128,7 +129,9 @@ public final class RaidPlanner {
         List<Entry> volumes = entries.stream().filter(e -> e.volume).toList();
         if (family != null) {
             for (Entry v : volumes) {
-                String reason = family.memberCountBlockReason(v.level, v.members.size());
+                // 계획은 카드 캐시를 모른다 — 하한은 저장 가드가 이미 보장했으므로 가장 느슨한 하한(캐시 있음)으로
+                // 규칙을 받고, 여기서 새로 잡는 것은 상한 · 단위다('개 이상' 그룹의 홀수 등 · R17-1 축 5).
+                String reason = family.memberCountRule(v.level, true, v.rule.drivesPerSpan()).blockReasonFor(v.members.size());
                 if (reason != null) {
                     return new RaidPlanRejection(RaidPlanRejection.MEMBER_COUNT, v.name + " — " + reason);
                 }
@@ -177,11 +180,18 @@ public final class RaidPlanner {
                 .map(e -> {
                     // VD 파라미터(E3.5-6) — 조립 SSOT 는 VdParameters(폼 데모 JS 와 같은 진리표)
                     VdParameters vd = vdParametersOf(e.rule, family);
+                    // 스팬(R17-1) — 받는 계열 · 레벨이면 storcli 토큰을 add vd 인라인 옵션 뒤에 붙인다(조립 SSOT = DrivesPerSpan)
+                    DrivesPerSpan span = family == null ? null : family.spanOf(e.level, e.rule.drivesPerSpan());
+                    String createOpts = vd == null ? null : vd.createOpts();
+                    if (span != null) {
+                        createOpts = createOpts == null ? span.cliToken() : createOpts + " " + span.cliToken();
+                    }
                     return new PlannedVolume(e.name, e.level,
                             e.members.stream().map(c -> c.slot).toList(), e.usableBytes, e.plannedRole, e.ruleNo,
-                            vd == null ? null : vd.createOpts(),
+                            createOpts,
                             vd == null ? java.util.List.of() : vd.setOps(),
-                            vd == null ? null : vd.initToken());
+                            vd == null ? null : vd.initToken(),
+                            span);
                 })
                 .toList();
         List<PlannedPassthrough> passthroughs = entries.stream()

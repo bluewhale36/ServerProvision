@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R17-1 Plan — RAID10 스팬 지정 · 계열별 디스크 수 규칙</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:var(--card); border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  .muted { color:var(--text-muted); }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover:not(:disabled) { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-toolbar .seg:disabled { cursor:not-allowed; color:var(--text-muted); background:var(--bg); }
+  .ux-toolbar input, .ux-toolbar select { font-family:var(--mono); font-size:12px; padding:4px 6px; border:1px solid var(--border); border-radius:5px; background:var(--card); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:200px; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:var(--bg); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--bg); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--text); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); } .seq .step.a4 { background:var(--purple-bg); }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R17-1 — RAID10 스팬 지정 · 계열별 디스크 수 규칙 <span class="v2-badge">refactor</span></h1>
+  <div class="meta">
+    <span><strong>상위</strong> R17(커널 드라이버로 RAID 계열 자동 판별 · CP6 승인 10-11 · CP7 실기 예정 · 미커밋 브랜치 <code>refactor/R17_raid-family-autodetect</code>)</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/3edef0e868f981b282dad6414ef9e7ef">R17-1 페이지</a></span>
+    <span><strong>형제</strong> R17-2(<code>RaidLevel.typicallyRequiresCache</code> 제거 — 별도 CP1)</span>
+    <span><strong>브랜치(제안)</strong> R17 커밋 뒤 그 위에 <code>refactor/R17-1_raid10-span</code></span>
+    <span><strong>생성</strong> 2026-10-11 18:30 KST</span>
+    <span><strong>CP1</strong> 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 요약</a></li>
+      <li><a href="#s1">§1 배경 · 진단</a></li>
+      <li><a href="#s2">§2 요구사항 · 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 라이브 데모</a></li>
+      <li><a href="#s3">§3 설계 대안 비교</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 흐름</a></li>
+      <li><a href="#s6">§6 수정 · 신규 파일</a></li>
+      <li><a href="#s7">§7 예외 · 오류 경로</a></li>
+      <li><a href="#s8">§8 테스트 계획</a></li>
+      <li><a href="#s9">§9 CP5 검증 계획</a></li>
+      <li><a href="#s10">§10 위험 · 미확인</a></li>
+      <li><a href="#s11">§11 체크리스트</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 요약 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 요약</summary>
+      <div class="body">
+        <ul>
+          <li>정의서의 RAID10 묶음에 <b>스팬당 디스크 수</b>(storcli <code>pdperarray</code>)를 지정할 수 있게 합니다. 지금은 agent.sh 가 MegaRAID RAID10 에 <code>pdperarray=2</code> 를 고정으로 붙입니다.</li>
+          <li>"이 카드 계열로 이 레벨을 디스크 몇 대로 만들 수 있는가" 를 계열이 내는 값 객체 하나(<code>MemberCountRule</code> — 최소 · 최대 · 단위)로 모읍니다. 폼 잠금 · 저장 가드 · 계획 검증이 같은 객체를 봅니다.</li>
+          <li>그래서 세 어긋남이 함께 풀립니다: ① 스팬 고정 ② MegaRAID 의 수량 규칙 부재(홀수 RAID10 · 홀수 RAID1 이 집행에서야 카드에 거절됨) ③ 폼 최소치 불일치(RAID10 하한이 레벨 고정 4 라 MPT_IR 의 3대 RAID10 을 폼이 막음).</li>
+          <li>storcli 인자는 지금처럼 서버가 조립합니다(<code>createOpts</code> 에 <code>pdperarray=N</code> 추가) — agent 는 고정값 한 줄만 지우고 파싱은 그대로입니다.</li>
+          <li>DDL 없음(규칙은 정의서 JSON 안). 지원 레벨은 0 · 1 · 5 · 6 · 10 그대로 — 카드가 00 · 50 · 60 을 지원해도 추가하지 않습니다(사용자 지시 10-11).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §1 배경 · 진단 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경 · 진단 (실측 · 문서 2026-10-11)</summary>
+      <div class="body">
+        <p style="margin-top:0;">실태(번호는 본문 인용용):</p>
+        <ol>
+          <li>agent.sh MegaRAID 집행: <code>[ "$LEVEL" = "RAID10" ] &amp;&amp; EXTRA="pdperarray=2"</code> 뒤 <code>storcli /c0 add vd type=raid10 drives=… $CREATE $EXTRA</code>. 스팬 구성을 정의서가 말할 자리가 없습니다.</li>
+          <li>같은 파일 주석의 원칙(E3.5-6): "createOpts · setOps · init 어휘는 서버가 조립해 오고 에이전트는 전달 · 실행만 한다 — 항목이 늘어도 이 스크립트는 불변." 위 1 의 고정값은 이 원칙의 유일한 예외입니다.</li>
+          <li><code>RaidChipFamily.memberCountBlockReason(level, n)</code>: MPT_IR = RAID1 정확히 2 · RAID10 3~10 · RAID0 ≤10. <b>MEGARAID = 항상 null</b>("실측 표본이 생기면 채운다"). 그래서 MegaRAID RAID10 7대 · RAID1 3대 계획이 통과하고 집행의 storcli 가 거절합니다.</li>
+          <li>이 판정은 <b>계획(<code>RaidPlanner</code>)에서만</b> 호출됩니다. 폼과 저장 가드(<code>DiskGroupRules.validateRaidRule</code>)는 <code>RaidLevel.minimumDisks(cardHasCache)</code> 하나만 봅니다 — 계열을 모릅니다.</li>
+          <li><code>RaidLevel.RAID10</code> 의 baseMinimumDisks = 4. MPT_IR 은 3대 RAID10(IR 의 홀수 허용 방식)을 만들 수 있는데 폼과 저장 가드가 4 미만을 막습니다. 반대로 MPT_IR RAID1 3대는 폼이 통과시키고 계획에서야 거절됩니다. → 폼과 계획이 서로 다른 표를 봅니다.</li>
+          <li>폼은 레벨 옵션의 <code>data-min-disks</code> · <code>data-min-disks-cached</code>(카드 무관 · 레벨 고정)로 하한을 그립니다. 카드 메타(<code>raidCardMetaJson</code>)에는 <code>hasCache</code> · <code>blockReasons</code>(레벨 지원 여부) · <code>chipFamily</code> · <code>supportsVdParameters</code> 가 있습니다.</li>
+          <li>9361-8i 실측 원문(<code>mr-c0-show-all.json</code>): "RAID Level Supported : RAID0, RAID1(2 or more drives), RAID5, RAID6, RAID00, RAID10(2 or more drives per span), RAID50, RAID60".</li>
+          <li>문서 「Broadcom 12Gb/s MegaRAID Tri-Mode Software User Guide」: RAID 10 드라이브 그룹은 <b>스팬 최대 8개 · 스팬당 최대 32대 · 스팬마다 짝수 대</b>. RAID 1 은 <b>짝수 2~32대 단일 스팬</b>. 단일 스팬 최대 32대. RAID 6 최소 3대(문서) — 현행 하한 4 는 이 단계에서 바꾸지 않습니다(기록만).</li>
+          <li>HF22 실기(10-02): CRA4760(SAS3908) 의 기존 VD(Virtual Drive) 가 6대 RAID10 이었습니다(스팬 구성 원문 미보존).</li>
+        </ol>
+        <div class="callout warn"><span class="chip dep">미확인 · 실측 대기</span>
+          <ol>
+            <li>SAS39xx(CRA4760) 펌웨어가 위 8 의 스팬 한도를 그대로 따르는가(문서는 Tri-Mode 계열 공통이라 그렇다고 말하지만 실기 원문 없음).</li>
+            <li>storcli 가 <code>drives</code> 수가 <code>pdperarray</code> 의 배수가 아닐 때 내는 오류 문구.</li>
+          </ol>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 · 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 · 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>정의서 RAID10 묶음(MegaRAID 카드)에 스팬당 디스크 수 지정 — 짝수 2~32, 기본 2(구 저장본 = 2, 현행 동작과 같음)</li>
+          <li>계열별 디스크 수 규칙을 <code>MemberCountRule</code> 로 일원화 — 폼 · 저장 가드 · 계획이 공유</li>
+          <li>MegaRAID 수량 규칙 신설(RAID1 짝수 2~32 · RAID10 = 스팬당 p × 스팬 2~8 · 단일 스팬 레벨 최대 32)</li>
+          <li>MPT_IR RAID10 하한 3 을 폼 · 저장 가드도 인정</li>
+          <li>storcli <code>pdperarray</code> 를 서버가 <code>createOpts</code> 에 조립 · agent 고정값 제거</li>
+          <li>상세 화면(정의서 묶음 요약 · 계획 볼륨)에 스팬 표시</li>
+          <li>테스트 두 레이어</li>
+          <li>CP5(정의서 폼 브라우저 + mock-guest RAID 사이클 + agent BusyBox 가짜 storcli)</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>RAID00 · 50 · 60(사용자 지시 — 카드가 지원해도 추가 안 함)</li>
+            <li><code>typicallyRequiresCache</code> 제거(R17-2)</li>
+            <li>RAID6 MegaRAID 하한 3 반영(문서상 3 이나 이 단계 밖 — 기록만)</li>
+            <li>MPT_IR RAID10 의 스팬(IR 은 스팬 개념이 없다 · sas3ircu 에 인자 없음)</li>
+            <li>3대 RAID10(=RAID1E) 의 유효 용량 셈 보정(<code>usableDisks</code> 는 내림이라 하한으로는 안전 — 기록만)</li>
+            <li>스팬마다 다른 디스크 수(storcli <code>pdperarray</code> 는 단일 값)</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 라이브 데모 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 라이브 데모 — 계열 · 레벨 · 개수 · 스팬으로 MemberCountRule 판정</summary>
+      <div class="body">
+        <p style="margin-top:0;">카드 계열 · 캐시 · 레벨 · 개수 방식 · 값 · 스팬당 디스크 · (개 이상일 때) 계획 시점 그룹 크기를 바꾸면, 그 조합의 <code>MemberCountRule</code> 과 저장 판정 · 스팬 옵션 표 · 계획 판정 · 집행 명령 미리보기가 즉시 다시 그려집니다. 맨 아래 비교 줄은 같은 입력을 <b>현행(R17-1 이전)</b> 규칙으로 판정한 결과입니다. 실제 폼은 막힌 스팬 옵션을 disabled 로 잠그지만, 데모는 막힌 값의 판정을 보여 주려고 선택을 허용하고 "막힘" 표시만 붙입니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">원클릭 시나리오 :</span>
+            <button class="n-demo-btn" onclick="demoScenario(1)">① MegaRAID RAID10 6대</button>
+            <button class="n-demo-btn" onclick="demoScenario(2)">② 스팬 한도 36대</button>
+            <button class="n-demo-btn" onclick="demoScenario(3)">③ MPT_IR RAID10 3대</button>
+            <button class="n-demo-btn" onclick="demoScenario(4)">④ MegaRAID 홀수 그룹</button>
+            <button class="n-demo-btn" onclick="demoScenario(5)">⑤ MegaRAID RAID1 3대</button>
+            <button class="n-demo-btn" onclick="demoScenario(6)">⑥ MPT_IR RAID1 3대</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">① 카드 계열 :</span>
+            <button class="seg" data-k="family" data-v="MEGARAID" onclick="demoSet('family','MEGARAID')">MEGARAID(9361 · CRA4760)</button>
+            <button class="seg" data-k="family" data-v="MPT_IR" onclick="demoSet('family','MPT_IR')">MPT_IR(CRA3338)</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">② 캐시 :</span>
+            <span class="tip" id="demo-cache-tip"><button class="seg" data-k="cache" data-v="true" onclick="demoSet('cache',true)">있음</button></span>
+            <button class="seg" data-k="cache" data-v="false" onclick="demoSet('cache',false)">없음</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">③ 레벨 :</span>
+            <button class="seg" data-k="level" data-v="RAID0" onclick="demoSet('level','RAID0')">RAID0</button>
+            <button class="seg" data-k="level" data-v="RAID1" onclick="demoSet('level','RAID1')">RAID1</button>
+            <button class="seg" data-k="level" data-v="RAID5" onclick="demoSet('level','RAID5')">RAID5</button>
+            <button class="seg" data-k="level" data-v="RAID6" onclick="demoSet('level','RAID6')">RAID6</button>
+            <button class="seg" data-k="level" data-v="RAID10" onclick="demoSet('level','RAID10')">RAID10</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">④ 개수 방식 · 값 n :</span>
+            <button class="seg" data-k="mode" data-v="EXACT" onclick="demoSet('mode','EXACT')">개</button>
+            <button class="seg" data-k="mode" data-v="EACH" onclick="demoSet('mode','EACH')">개씩</button>
+            <button class="seg" data-k="mode" data-v="AT_LEAST" onclick="demoSet('mode','AT_LEAST')">개 이상</button>
+            <input type="number" id="demo-n" min="1" max="300" oninput="demoNum('n',this.value)">
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">⑤ 스팬당 디스크 :</span>
+            <span class="tip" id="demo-p-tip"><select id="demo-p" onchange="demoNum('p',this.value)"></select></span>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">⑥ 계획 시점 그룹 g :</span>
+            <span class="tip" id="demo-g-tip"><input type="number" id="demo-g" min="1" max="300" oninput="demoNum('g',this.value)"></span>
+            <button class="n-demo-btn" onclick="demoReset()">⑦ 초기화</button>
+          </div>
+
+          <div style="margin-top:12px;" id="demo-rows"></div>
+          <div id="demo-span-table"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">원클릭 시나리오를 누르거나 조작부를 직접 바꿔 보세요.</div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — 데모의 판정 함수 <code>demoRule()</code> · <code>demoBlockForCount()</code> · <code>demoBlockForMembers()</code> 는 §4 D2 · D3 진리표 그대로입니다(서버 <code>RaidChipFamily.memberCountRule</code> · <code>MemberCountRule</code> 과 같은 표). 폼 잠금 · 저장 가드 · 계획 검증이 이 한 표를 봅니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 설계 대안 비교 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 설계 대안 비교</summary>
+      <div class="body">
+        <h4>축 1 — 스팬을 무엇으로 지정하나</h4>
+        <table>
+          <thead><tr><th>안</th><th>지정값</th><th>'개 이상' 과의 궁합</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><b>A 스팬당 디스크 수 p</b></td><td>storcli <code>pdperarray</code> 그대로</td><td>그룹 크기가 바뀌어도 p 고정 · 스팬 수만 늘어남</td><td><span class="chip new">채택</span></td></tr>
+            <tr><td>B 스팬 수 k</td><td>k</td><td>그룹 크기마다 p = g/k 가 바뀌고 홀수가 될 수 있음</td><td><span class="chip del">탈락</span></td></tr>
+            <tr><td>C 서버 자동 선택</td><td>없음</td><td>—</td><td><span class="chip del">탈락</span></td></tr>
+          </tbody>
+        </table>
+        <p>A: p 는 카드 명령의 실제 인자이고 미러 묶음의 구조(한 스팬 = 한 미러 그룹)를 정합니다. '개 이상' 규칙에서 그룹이 커져도 의미가 유지됩니다(스팬만 늘어남). B 탈락: 스팬 수를 고정하면 p 가 그룹 크기에 끌려 다니며 짝수 조건을 깨기 쉽습니다. C 탈락: 사용자 확정(10-11) "스팬 구성 지정" — 미러 구조는 운영자가 정하는 결정입니다. 기본값 2 는 C 의 효과(지금 동작)를 그대로 줍니다.</p>
+
+        <h4>축 2 — 스팬 값을 어디에 담나</h4>
+        <table>
+          <thead><tr><th>안</th><th>자리</th><th>agent 영향</th></tr></thead>
+          <tbody>
+            <tr><td><b>A 규칙의 새 필드 <code>drivesPerSpan</code>(VO) + 서버가 createOpts 에 토큰 조립</b> <span class="chip new">채택</span></td><td><code>DiskGroupRuleRequest</code></td><td>고정 한 줄 삭제만 · 파싱 불변</td></tr>
+            <tr><td>B <code>VdParameters</code> 의 9번째 축 <span class="chip del">탈락</span></td><td>VD 파라미터 서브 행</td><td>동일</td></tr>
+            <tr><td>C payload 에 별도 필드 <code>pdPerArray</code> <span class="chip del">탈락</span></td><td><code>RaidApplyPayload</code> 볼륨</td><td>정규식 파싱 변경</td></tr>
+          </tbody>
+        </table>
+        <p>A: 스팬은 디스크 수 판정의 재료라(축 3) 규칙의 구조 값입니다. 조립은 실태 2 의 원칙(어휘는 서버가 조립)에 맞춰 <code>PlannedVolume.createOpts</code> 뒤에 붙입니다. B 탈락: <code>VdParameters</code> 는 HII(Human Interface Infrastructure) "CONFIGURE VIRTUAL DRIVE PARAMETERS" 8축이라는 정체를 갖고, 디스크 수 판정이 VD 파라미터를 열어 보게 되면 책임이 엉킵니다. C 탈락: agent 파싱 정규식을 바꾸게 되어 실태 2 의 원칙을 깹니다.</p>
+
+        <h4>축 3 — 디스크 수 규칙의 SSOT(Single Source of Truth)</h4>
+        <table>
+          <thead><tr><th>안</th><th>폼</th><th>저장 가드</th><th>계획</th></tr></thead>
+          <tbody>
+            <tr><td><b>A 계열이 내는 <code>MemberCountRule</code></b> <span class="chip new">채택</span></td><td>카드 메타로 받은 규칙</td><td>같은 규칙</td><td>같은 규칙</td></tr>
+            <tr><td>B 현행 유지 + 계획에만 MegaRAID 규칙 추가 <span class="chip del">탈락</span></td><td>레벨 고정 하한</td><td>레벨 고정 하한</td><td>계열 규칙</td></tr>
+            <tr><td>C 폼이 XHR 로 서버에 판정 질의 <span class="chip del">탈락</span></td><td>서버 질의</td><td>같은 메서드</td><td>같은 메서드</td></tr>
+          </tbody>
+        </table>
+        <p>A: 실태 4 · 5 의 어긋남은 "폼과 계획이 서로 다른 표를 본다" 는 한 원인에서 나옵니다. 규칙 객체 하나를 세 곳이 보면 원인이 사라집니다(UI 차단 조건과 서버 가드 조건의 단일 SSOT 원칙 — <code>childEnableBlockReason()</code> 선례). B 탈락: ② 는 고치지만 ③ 이 남고 폼 · 계획 드리프트가 그대로입니다. C 탈락: 판정 재료가 카드 하나 · 레벨 다섯 · 스팬 16 으로 유한해 렌더 시 다 실어 보낼 수 있습니다 — 왕복 지연과 오류 경로만 늡니다.</p>
+
+        <h4>축 4 — '개 이상' 그룹이 계획 시점에 규칙을 어길 때</h4>
+        <table>
+          <thead><tr><th>안</th><th>그룹 7대 · RAID10 p=2</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><b>A 계획 전체 거절 <code>MEMBER_COUNT</code></b></td><td>거절 + 사유</td><td><span class="chip new">채택</span></td></tr>
+            <tr><td>B 맞는 만큼만 소비(6대) · 1대 미배정</td><td>볼륨 3스팬 · 1대 남음</td><td><span class="chip del">탈락</span></td></tr>
+            <tr><td>C 그룹 미소비 → 후행 규칙으로 흘림</td><td>볼륨 없음</td><td><span class="chip del">탈락</span></td></tr>
+          </tbody>
+        </table>
+        <p>A: MPT_IR 에서 이미 쓰는 경로(<code>RaidPlanRejection.MEMBER_COUNT</code>)라 화면 · 원장 · 문구가 준비돼 있고, 집행 전에 사람이 봅니다. B 탈락: "개 이상 = 그룹 전체를 한 볼륨으로"(E3.5-7-a D2)의 뜻을 바꾸고, 남는 디스크가 조용히 생깁니다. C 탈락: 계획은 성공으로 보이는데 의도한 볼륨이 없어 OS 영역 판정 등 뒤 단계에서 엉뚱한 사유로 드러납니다.</p>
+
+        <h4>축 5 — 계획 시점의 캐시 유무</h4>
+        <p><code>MemberCountRule</code> 의 최소치는 카드 캐시(RAID0 단일 디스크)에 따라 갈리는데, 계획 엔진(<code>RaidPlanner</code>)은 관측 인벤토리만 알고 캐시를 모릅니다. <b>계획은 <code>cardHasCache = true</code>(가장 느슨한 최소치)로 규칙을 받습니다(채택)</b> — 최소치는 저장 가드가 이미 보장했고(개 · 개씩 = n, 개 이상 = 그룹 ≥ n ≥ 최소치) 계획이 새로 잡아야 하는 것은 최대 · 단위뿐이기 때문입니다. 탈락: 계획 엔진에 카드 스냅숏을 새로 넘기기(호출 사슬 변경 대비 얻는 판정 없음).</p>
+        <h4>축 6 — 정의서 폼에서 스팬을 어디서 정하나 <span class="chip">사용자 결정 10-11</span></h4>
+        <table>
+          <thead><tr><th>안</th><th>자리</th><th>발견성</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><b>A 개수 셀 둘째 줄</b></td><td>MegaRAID × RAID10 행의 개수 셀 아래</td><td>RAID10 을 고르는 즉시 보임</td><td>채택</td></tr>
+            <tr><td>B 독립 '스팬' 열</td><td>표에 열 추가</td><td>항상 보임</td><td>탈락</td></tr>
+            <tr><td>C VD 파라미터 서브 행</td><td>⚙ 로 펼치는 줄</td><td>기본 접힘</td><td>탈락</td></tr>
+          </tbody>
+        </table>
+        <p>A: 스팬은 디스크 수와 한 몸인 값이라(스팬 수 = 개수 ÷ 스팬당 디스크) 개수 바로 아래가 의미상 제자리입니다. 용량 셀의 "직접 지정 → 둘째 줄에 값 · 단위" 와 같은 기존 패턴(<code>n-cell-stack</code>)이라 새 레이아웃이 없습니다. B 탈락: RAID10 이 아닌 모든 행에 '—' 열이 생겨 이미 넓은 표가 더 넓어집니다. C 탈락(초안의 안): 기본 접힘이라 RAID10 을 고른 사람이 스팬을 정할 수 있다는 사실을 놓치고, HII VD 파라미터 8축과 성격이 다른 구조 값이 섞입니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델</summary>
+      <div class="body">
+        <h4>D1 <code>DrivesPerSpan</code> <span class="chip new">신규 VO</span> <span class="muted mono">management.raidcard.vo</span></h4>
+        <p>record(int value) — 생성자 가드: 짝수 · 2~32(<code>IllegalArgumentException</code>). <code>DEFAULT = 2</code>. <code>cliToken()</code> = <code>"pdperarray=" + value</code>. <code>static List&lt;DrivesPerSpan&gt; options()</code> = 2 · 4 · … · 32(폼 선택지). <code>toDisplay()</code> = "스팬당 N대". Jackson 은 숫자 하나로 직렬화(<code>@JsonValue</code> · <code>@JsonCreator</code>).</p>
+
+        <h4>D2 <code>MemberCountRule</code> <span class="chip new">신규 VO</span> <span class="muted mono">management.raidcard.vo</span> — 판정 진리표</h4>
+        <p>record(int min, Integer max, int step, String display) — max null = 상한 없음. <code>display</code> 표기: 기본 "최소~최대대" · 최소 = 최대면 "N대" · 상한 없음 "N대 이상" · 단위가 2 이상일 때만 " · S대 단위" 를 붙인다(예 "4~16대 · 2대 단위" · MPT_IR RAID1 "2대" · MegaRAID RAID5 "3~32대"). 두 판정:</p>
+        <ul>
+          <li><code>blockReasonFor(DiskCountRequirement count)</code> (저장 · 폼): 개(EXACT) · 개씩(EACH) → n 이 <code>min ≤ n ≤ max</code> 이고 <code>n % step == 0</code> 이어야 · 개 이상(AT_LEAST) → <code>min ≤ n</code>(≤ max) 만 — 단위는 계획 시점 그룹 크기의 몫.</li>
+          <li><code>blockReasonFor(int members)</code> (계획): <code>min ≤ g ≤ max</code> · <code>g % step == 0</code>.</li>
+        </ul>
+        <p>반환 규약 = null 통과 · 문자열 = 화면 안내이자 거절 사유(<code>SupportedRaidLevels.blockReasonFor</code> 와 같은 규약).</p>
+
+        <h4>D3 <code>RaidChipFamily.memberCountRule(RaidLevel level, boolean cardHasCache, DrivesPerSpan span)</code> — <code>memberCountBlockReason</code> 대체</h4>
+        <table>
+          <thead><tr><th>계열 \ 레벨</th><th>RAID0</th><th>RAID1</th><th>RAID5</th><th>RAID6</th><th>RAID10</th></tr></thead>
+          <tbody>
+            <tr><td>MPT_IR</td><td>레벨 하한 ~ 10</td><td>2 ~ 2</td><td>(지원 레벨 검증이 막음)</td><td>(동일)</td><td>3 ~ 10</td></tr>
+            <tr><td>MEGARAID</td><td>레벨 하한 ~ 32</td><td>2 ~ 32 · 2 단위</td><td>3 ~ 32</td><td>4 ~ 32</td><td>2p ~ 8p · p 단위</td></tr>
+          </tbody>
+        </table>
+        <p>"레벨 하한" = <code>RaidLevel.minimumDisks(cardHasCache)</code>(현행 그대로 — RAID0 캐시 있음 1 · 없음 2). span 인자는 MEGARAID × RAID10 에서만 읽고 나머지는 무시합니다. MPT_IR 의 RAID5 · RAID6 은 IR 이 지원하지 않아 카드 등록 단계에서 지원 레벨로 걸러지므로 레벨 하한 그대로 둡니다.</p>
+
+        <h4>D4 <code>DiskGroupRuleRequest</code> <span class="chip mod">수정</span></h4>
+        <p>필드 추가 <code>DrivesPerSpan drivesPerSpan</code>(nullable — null = 스팬 지정 없음 · 구 저장본). <code>@JsonIgnore DrivesPerSpan effectiveSpan()</code> = null 이면 DEFAULT. 중복 판정(<code>DiskGroupRules.identity</code>)에는 넣지 않습니다(<code>vdParameters</code> · <code>role</code> 불포함과 같은 사유). 호환 생성자(6 · 7 인자) 유지.</p>
+
+        <h4>D5 <code>DiskGroupRules</code> (저장 가드) <span class="chip mod">수정</span></h4>
+        <ul>
+          <li><code>validateRaidRule</code>: <code>level.minimumDisks</code> 대신 <code>card.getChipFamily().memberCountRule(level, card.hasCache(), rule.effectiveSpan()).blockReasonFor(rule.count())</code> → 거절이면 <code>InvalidDiskGroupException.memberCount(ruleNo, reason)</code>(기존 <code>tooFewDisks</code> 를 대체 — 팩토리 교체, 새 예외 클래스 아님).</li>
+          <li>규칙 10(새): <code>drivesPerSpan</code> 은 RAID10 × MEGARAID 묶음에서만 → 아니면 <code>InvalidDiskGroupException.spanNotApplicable(ruleNo)</code>. UI 는 스팬 select 잠금으로 먼저 막습니다(규칙 9 · VD 파라미터와 같은 구조).</li>
+        </ul>
+
+        <h4>D6 <code>RaidPlanner</code> <span class="chip mod">수정</span></h4>
+        <p><code>family.memberCountBlockReason(level, n)</code> → <code>family.memberCountRule(level, true, rule.effectiveSpan()).blockReasonFor(n)</code>(축 5). MegaRAID 볼륨의 <code>createOpts</code> 뒤에 RAID10 이면 <code>" " + span.cliToken()</code> 을 붙입니다(조립 SSOT = <code>DrivesPerSpan.cliToken</code>). <code>PlannedVolume</code> 에 <code>DrivesPerSpan span</code>(RAID10 · MEGARAID 만, 그 밖 null) 추가 — 상세 표시용.</p>
+
+        <h4>D7 agent.sh <span class="chip mod">수정</span></h4>
+        <p><code>EXTRA=""</code> · <code>[ "$LEVEL" = "RAID10" ] &amp;&amp; EXTRA="pdperarray=2"</code> 두 줄 삭제, <code>add vd … $CREATE</code> 만. 파싱 정규식 불변. 배포 이행: jar 와 AGENT 를 함께 교체(R17 과 같은 묶음 — 새 jar + 옛 agent 면 <code>pdperarray</code> 가 두 번 붙어 storcli 가 거절할 수 있다).</p>
+        <div class="split-grid">
+          <div class="split-card before"><h4>현행 agent.sh</h4><pre><code>EXTRA=""
+[ "$LEVEL" = "RAID10" ] &amp;&amp; EXTRA="pdperarray=2"
+storcli /c0 add vd type=raid10 drives=… $CREATE $EXTRA</code></pre></div>
+          <div class="split-card after"><h4>R17-1 agent.sh</h4><pre><code>storcli /c0 add vd type=raid10 drives=… $CREATE
+# $CREATE = 서버 createOpts (… pdperarray=p)</code></pre></div>
+        </div>
+
+        <h4>D8 폼 · 화면 <span class="chip mod">수정</span></h4>
+        <ul>
+          <li>카드 메타(<code>SettingRaidCardOptionResponse</code>)에 <code>memberRules</code>(레벨 → {min, max, step, display}) · <code>spanMemberRules</code>(MEGARAID 만: p → RAID10 규칙)를 서버가 계산해 싣습니다. 레벨 옵션의 <code>data-min-disks(-cached)</code> 는 제거(카드에 따라 갈리므로).</li>
+          <li><b>스팬 입력 = 개수 셀 둘째 줄(축 6)</b>: <code>tplDiskGroupRow</code> 의 개수 셀을 <code>n-cell-stack</code> 으로 바꾸고, 둘째 줄에 "스팬당 [p ▾]대" select(<code>dgSpan</code> · 선택지 = <code>DrivesPerSpan.options()</code> · 기본 2)를 둡니다. <b>MegaRAID 카드 × RAID10 행에서만 보이고</b>, 그 밖(레벨 변경 · 카드 해제 · MPT_IR 카드로 교체)에는 숨기고 제출 JSON 에서 <code>drivesPerSpan</code> 을 빼서 보냅니다(서버 규칙 10 에 걸릴 값을 UI 가 만들지 않는다). 개 · 개씩 n 과 맞지 않는 p 옵션은 disabled + 그 p 의 규칙 문구.</li>
+          <li><b>구성 미리보기</b>: 스팬 select 아래 한 줄 — 개 · 개씩이면 "→ 스팬 3개 × 2대", 개 이상이면 "→ 그룹 크기 ÷ 2 = 스팬 수(2~8개)". 규칙 위반이면 미리보기 대신 규칙 문구가 같은 자리에 <code>has-error</code> 로 뜹니다.</li>
+          <li><b>MPT_IR × RAID10 안내</b>: 둘째 줄에 스팬 select 대신 짧은 안내 "IR 방식 · 3~10대(홀수 허용) · 스팬 지정 없음" — 문구는 서버 <code>MemberCountRule.display</code> + 고정 꼬리.</li>
+          <li><b>수정 폼</b>(<code>setting-edit.html</code> — 같은 조각 재사용): <code>SETTING_INITIAL</code> 의 <code>drivesPerSpan</code> 으로 select 를 미리 채우고, 필드가 없는 구 저장본은 기본 2 로 보입니다(저장하면 2 가 명시됨 — 동작 동일).</li>
+          <li>개수 입력: min · max · step 을 input 속성과 placeholder("4~16 · 2 단위")로, 위반은 <code>has-error</code> + title = 규칙 문구(서버 <code>MemberCountRule.display</code> 를 그대로 씁니다 — JS 는 문구를 짓지 않습니다). 개 이상 + 단위 있는 규칙이면 보조 안내 "계획 시점 그룹이 2대 단위가 아니면 계획이 거절됩니다".</li>
+          <li>표시: <code>OsVolumeTargets.summarize</code> = "RAID10(스팬당 2대) · HDD · SAS · 자동 탐지 · 4개 이상"(스팬 지정 묶음만) · 게스트 상세 계획 볼륨 레벨 칸 "RAID10 · 스팬 3 × 2대".</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §5 흐름 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 흐름 (정의서 작성 → 계획 → 집행)</summary>
+      <div class="body">
+        <ol>
+          <li>폼: 카드 선택 → 카드 메타의 <code>memberRules</code> 로 개수 하한 · 상한 · 단위 · 스팬 옵션 잠금 → 저장 POST.</li>
+          <li>저장: <code>DiskGroupRules.validate</code> → <code>memberCountRule(...).blockReasonFor(count)</code> · 규칙 10 → 400(<code>InvalidDiskGroupException</code>).</li>
+          <li>할당 · 개시 → RAID 인벤토리 재채집 → <code>RaidPlanner.plan</code> → 볼륨마다 <code>blockReasonFor(g)</code> → 위반이면 <code>MEMBER_COUNT</code> 거절(원장 · 상세에 사유), 통과면 <code>createOpts</code> 에 <code>pdperarray=p</code>.</li>
+          <li>집행: <code>RAID_APPLY</code> 지시 → agent 가 <code>add vd type=raid10 drives=… &lt;createOpts&gt;</code> 실행.</li>
+        </ol>
+        <div class="seq">
+          <div class="actor a1">정의서 폼</div><div class="actor a2">저장 가드</div><div class="actor a3">RaidPlanner</div><div class="actor a4">agent.sh</div>
+          <div class="step a1">카드 메타 <code>memberRules</code> 로 잠금 → POST</div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"><code>blockReasonFor(count)</code> · 규칙 10 → 400</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>blockReasonFor(g)</code> → <code>MEMBER_COUNT</code> 또는 <code>createOpts</code> + <code>pdperarray=p</code></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"></div><div class="step a4"><code>RAID_APPLY</code> → <code>add vd … &lt;createOpts&gt;</code></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §6 수정 · 신규 파일 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 수정 · 신규 파일</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>파일</th><th>분류</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>management/raidcard/vo/DrivesPerSpan.java</code></td><td><span class="chip new">신규</span></td><td>신규 VO</td></tr>
+            <tr><td><code>management/raidcard/vo/MemberCountRule.java</code></td><td><span class="chip new">신규</span></td><td>신규 VO</td></tr>
+            <tr><td><code>management/raidcard/enums/RaidChipFamily.java</code></td><td><span class="chip mod">수정</span></td><td>memberCountBlockReason → memberCountRule</td></tr>
+            <tr><td><code>provisioning/setting/dto/request/DiskGroupRuleRequest.java</code></td><td><span class="chip mod">수정</span></td><td>drivesPerSpan · effectiveSpan</td></tr>
+            <tr><td><code>provisioning/setting/service/reference/os/DiskGroupRules.java</code></td><td><span class="chip mod">수정</span></td><td>계열 규칙 · 규칙 10</td></tr>
+            <tr><td><code>provisioning/setting/exception/InvalidDiskGroupException.java</code></td><td><span class="chip mod">수정</span></td><td>memberCount · spanNotApplicable(tooFewDisks 대체)</td></tr>
+            <tr><td><code>provisioning/setting/service/reference/os/OsVolumeTargets.java</code></td><td><span class="chip mod">수정</span></td><td>summarize 스팬 표기</td></tr>
+            <tr><td><code>provisioning/assignment/service/plan/RaidPlanner.java</code></td><td><span class="chip mod">수정</span></td><td>규칙 · createOpts 토큰</td></tr>
+            <tr><td><code>execution/engine/raid/PlannedVolume.java</code></td><td><span class="chip mod">수정</span></td><td>span 성분</td></tr>
+            <tr><td><code>provisioning/setting/dto/response/SettingRaidCardOptionResponse.java</code></td><td><span class="chip mod">수정</span></td><td>memberRules · spanMemberRules</td></tr>
+            <tr><td><code>templates/provisioning/setting-new.html</code> · 상세 템플릿</td><td><span class="chip mod">수정</span></td><td>data-min-disks 제거 · 개수 셀 n-cell-stack + dgSpan · 미리보기 줄</td></tr>
+            <tr><td><code>templates/provisioning/setting-edit.html</code> · <code>setting-detail.html</code></td><td><span class="chip mod">확인</span></td><td>수정 폼 pre-fill(조각 재사용 · JS) · 상세 요약 표기(summarize)</td></tr>
+            <tr><td><code>static/provisioning/setting-form.js</code></td><td><span class="chip mod">수정</span></td><td>규칙 기반 잠금(D2 진리표 미러)</td></tr>
+            <tr><td><code>scripts/diag-image/agent/agent.sh</code></td><td><span class="chip mod">수정</span></td><td>고정 pdperarray 삭제</td></tr>
+            <tr><td>DDL</td><td><span class="chip keep">없음</span></td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 · 오류 경로 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 · 오류 경로</summary>
+      <div class="body">
+        <p style="margin-top:0;">새 예외 클래스 없음 — <code>InvalidDiskGroupException</code> 의 팩토리 둘(memberCount · spanNotApplicable)이 기존 400 매핑을 탑니다(체크리스트 <code>.claude/domain-conventions/new-exception.md</code> 해당 없음 — 클래스 신설이 아님). 계획 거절은 기존 <code>RaidPlanRejection.MEMBER_COUNT</code>. 새 문구는 <code>.claude/domain-conventions/new-user-copy.md</code> 를 CP2 진입 전에 엽니다.</p>
+        <table>
+          <thead><tr><th>경로</th><th>HTTP · 거절</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>InvalidDiskGroupException.memberCount(ruleNo, reason)</code></td><td>400</td><td><span class="chip mod">팩토리 교체</span></td></tr>
+            <tr><td><code>InvalidDiskGroupException.spanNotApplicable(ruleNo)</code></td><td>400</td><td><span class="chip add">팩토리 추가</span></td></tr>
+            <tr><td><code>RaidPlanRejection.MEMBER_COUNT</code></td><td>계획 거절</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+        <h4>문구(안)</h4>
+        <ul>
+          <li>규칙 표기 "4~16대 · 2대 단위"</li>
+          <li>거절 "RAID10 을 스팬당 2대로 만들려면 4~16대 · 2대 단위여야 합니다 — 7대는 만들 수 없습니다"</li>
+          <li>스팬 잠금 "RAID10 에서만 지정합니다"</li>
+          <li>RAID1 MegaRAID "RAID1 은 2~32대 · 2대 단위로 구성합니다 — 3대는 만들 수 없습니다"</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §8 테스트 계획 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 테스트 계획 (CP4 잔여)</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>테스트</th><th>대상</th></tr></thead>
+          <tbody>
+            <tr><td><code>MemberCountRuleTest</code></td><td>모드 3 × 경계 — 개 · 개씩 단위 위반 · 개 이상 단위 무시 · 상한</td></tr>
+            <tr><td><code>DrivesPerSpanTest</code></td><td>홀수 · 0 · 34 거절 · cliToken</td></tr>
+            <tr><td><code>RaidChipFamilyTest</code></td><td>D3 표 행마다 — MPT_IR RAID10 3 통과 · MEGARAID RAID10 p=2 7 거절 · 36 p=6 통과 · RAID1 3 거절</td></tr>
+            <tr><td><code>DiskGroupRulesTest</code></td><td>계열 규칙 · 규칙 10 · 구 저장본 drivesPerSpan null</td></tr>
+            <tr><td><code>RaidPlannerTest</code></td><td>개 이상 그룹 7 → MEMBER_COUNT · createOpts 에 pdperarray=4 · 구 저장본 = pdperarray=2</td></tr>
+          </tbody>
+        </table>
+        <h4>통합(MockMvc)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>400</td><td>정의서 저장 400 두 팩토리(memberCount · spanNotApplicable)</td></tr>
+            <tr><td>성공 2xx</td><td>스팬 지정 RAID10 · MPT_IR RAID10 3대</td></tr>
+            <tr><td>폼 렌더</td><td>카드 메타에 memberRules · 스팬 select</td></tr>
+          </tbody>
+        </table>
+        <h4>agent</h4>
+        <p>BusyBox + 가짜 storcli64(인자 기록) — RAID10 add vd 인자에 <code>pdperarray</code> 가 정확히 한 번 · 값 = 서버 createOpts 값(HF22 선례 하네스).</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 CP5 검증 계획 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. CP5 검증 계획 (식별자)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td><b>A1</b></td><td>MegaRAID 카드 정의서: RAID10 · 개 6 · 스팬 2 저장 → 상세 요약 "RAID10(스팬당 2대)"</td></tr>
+            <tr><td><b>A2</b></td><td>스팬 4 로 바꾸면 스팬 옵션 4 가 막혀 있음(사유 툴팁) — 개 8 이면 열림</td></tr>
+            <tr><td><b>A3</b></td><td>MPT_IR 카드 정의서 RAID10 개 3 저장 통과(현행 막힘의 해소)</td></tr>
+            <tr><td><b>A4</b></td><td>mock-guest RAID 사이클(9361 픽스처 · 개 이상 4 · 스팬 2 · 그룹 6) → 계획 볼륨 "RAID10 · 스팬 3 × 2대" · RAID_APPLY 지시 원문 createOpts 에 <code>pdperarray=2</code></td></tr>
+            <tr><td><b>A5</b></td><td>구 저장본(스팬 필드 없음) 정의서 → 계획 createOpts <code>pdperarray=2</code>(호환)</td></tr>
+            <tr><td><b>A6</b></td><td>폼: MegaRAID 카드 · 레벨 RAID10 을 고르는 즉시 개수 셀 둘째 줄에 스팬 select 와 "→ 스팬 3개 × 2대" 미리보기 · 레벨을 RAID5 로 바꾸면 사라짐 · 카드를 MPT_IR 로 바꾸면 "IR 방식 · 3~10대" 안내로 바뀜(제출 JSON 에 drivesPerSpan 없음 확인)</td></tr>
+            <tr><td><b>A7</b></td><td>수정 폼: A2 에서 개 8 · 스팬 4 로 저장한 정의서를 열면 스팬 select 가 4 로 미리 채워짐 · 구 저장본은 2 로 보임</td></tr>
+            <tr><td><b>B1</b></td><td>MegaRAID RAID1 개 3 → 폼 has-error · direct POST 400 문구</td></tr>
+            <tr><td><b>B2</b></td><td>RAID10 아닌 묶음에 drivesPerSpan direct POST → 400(규칙 10)</td></tr>
+            <tr><td><b>B3</b></td><td>MPT_IR 카드 묶음에 drivesPerSpan direct POST → 400</td></tr>
+            <tr><td><b>B4</b></td><td>개 이상 4 · 그룹 7(픽스처 파생) → 계획 MEMBER_COUNT 거절 사유가 상세에</td></tr>
+            <tr><td><b>B5</b></td><td>개 36 · 스팬 2 → 폼 막힘(스팬 18 &gt; 8) · 스팬 6 으로 열림</td></tr>
+            <tr><td><b>C1</b></td><td>막힘마다 이유가 화면에 보이는가(툴팁 · placeholder · 보조 안내) · 다음 행동(스팬 · 개수 조정)이 읽히는가</td></tr>
+            <tr><td><b>C2</b></td><td>앱 로그 ERROR 0 · 콘솔 오류 0</td></tr>
+            <tr><td><b>D1</b></td><td>agent 하네스: BusyBox 가짜 storcli 로 pdperarray 1회 확인(CP5 증거 txt)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 위험 · 미확인 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. 위험 · 미확인</summary>
+      <div class="body">
+        <div class="callout warn"><span class="chip dep">미확인 · 실측 대기</span> SAS39xx 의 스팬 한도 실기 미확인 → CP7 실기에서 CRA4760 RAID10 6대(p=2 · 스팬 3) 집행으로 확인, T3 적립.</div>
+        <ul>
+          <li>배포 순서: 새 jar + 옛 agent = pdperarray 중복 가능 → jar · AGENT 동시 교체(R17 과 한 번에).</li>
+          <li>R17 미커밋 위에 쌓입니다 — R17 커밋(사용자 지시) 뒤 브랜치를 팝니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §11 체크리스트 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 체크리스트</summary>
+      <div class="body">
+        <p>사용자 승인 게이트는 CP1 · CP4(중간 승인 — main 코드 검수) · CP6 · CP7 넷입니다. CP1 승인 뒤 CP2~CP4 는 무중단, CP4 승인 뒤 테스트 · CP5 · CP6 제출까지 무중단입니다.</p>
+        <ul class="check-list" data-storage="r17-1-plan">
+          <li><label><input type="checkbox" data-key="cp1"> <span><span class="chip cp1">CP1</span> 승인</span></label></li>
+          <li><label><input type="checkbox" data-key="cp2"> <span><span class="chip cp2">CP2</span> VO 2 + 계열 규칙</span></label></li>
+          <li><label><input type="checkbox" data-key="cp3"> <span><span class="chip cp3">CP3</span> N/A(엔티티 · DDL 없음)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp4"> <span><span class="chip cp4">CP4</span> 폼 · 계획 · agent + 빌드 green(중간 승인)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp4-test"> <span><span class="chip cp4">CP4</span> 테스트 두 레이어</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span><span class="chip cp5">CP5</span> A1~A7 · B1~B5 · C1~C2 · 하네스 D1</span></label></li>
+          <li><label><input type="checkbox" data-key="cp6"> <span><span class="chip cp6">CP6</span> report</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span><span class="chip cp7">CP7</span> 실기(CRA4760 RAID10)</span></label></li>
+        </ul>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) { /* sandboxed iframe */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — 서버 RaidChipFamily.memberCountRule · MemberCountRule 과 같은 표 — 드리프트 0
+  //  (§4 D2 · D3 진리표 그대로)
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_INIT = { family: 'MEGARAID', cache: true, level: 'RAID10', mode: 'EXACT', n: 6, p: 2, g: 6 };
+  let demo = Object.assign({}, DEMO_INIT);
+  const SPAN_OPTIONS = []; for (let p = 2; p <= 32; p += 2) SPAN_OPTIONS.push(p);   // DrivesPerSpan.options()
+  const MODE_LABEL = { EXACT: '개', EACH: '개씩', AT_LEAST: '개 이상' };
+
+  // RaidLevel.minimumDisks(cardHasCache) — 현행 그대로
+  function demoLevelMin(level, cache) {
+    return { RAID0: cache ? 1 : 2, RAID1: 2, RAID5: 3, RAID6: 4, RAID10: 4 }[level];
+  }
+  function demoDisplay(min, max, step) {
+    const range = max === null ? (min + '대 이상') : (min === max ? (min + '대') : (min + '~' + max + '대'));
+    return step > 1 ? (range + ' · ' + step + '대 단위') : range;
+  }
+  function demoMake(min, max, step) { return { min: min, max: max, step: step, display: demoDisplay(min, max, step) }; }
+
+  // D3 RaidChipFamily.memberCountRule(level, cardHasCache, span)
+  function demoRule(family, level, cache, p) {
+    const lm = demoLevelMin(level, cache);
+    if (family === 'MPT_IR') {
+      if (level === 'RAID0') return demoMake(lm, 10, 1);
+      if (level === 'RAID1') return demoMake(2, 2, 1);
+      if (level === 'RAID10') return demoMake(3, 10, 1);
+      return demoMake(lm, null, 1);   // RAID5 · RAID6 — 지원 레벨 검증이 막음, 레벨 하한 그대로
+    }
+    if (level === 'RAID0') return demoMake(lm, 32, 1);
+    if (level === 'RAID1') return demoMake(2, 32, 2);
+    if (level === 'RAID5') return demoMake(3, 32, 1);
+    if (level === 'RAID6') return demoMake(4, 32, 1);
+    return demoMake(2 * p, 8 * p, p);   // RAID10 — 2p ~ 8p · p 단위
+  }
+  function demoReason(level, family, p, rule, n) {
+    if (level === 'RAID10' && family === 'MEGARAID')
+      return 'RAID10 을 스팬당 ' + p + '대로 만들려면 ' + rule.display + '여야 합니다 — ' + n + '대는 만들 수 없습니다';
+    return level + ' 은 ' + rule.display + '로 구성합니다 — ' + n + '대는 만들 수 없습니다';
+  }
+  function demoInRange(rule, v) { return v >= rule.min && (rule.max === null || v <= rule.max); }
+  // D2 blockReasonFor(DiskCountRequirement) — 저장 · 폼
+  function demoBlockForCount(rule, mode, n, level, family, p) {
+    const ok = (mode === 'AT_LEAST') ? demoInRange(rule, n) : (demoInRange(rule, n) && n % rule.step === 0);
+    return ok ? null : demoReason(level, family, p, rule, n);
+  }
+  // D2 blockReasonFor(int members) — 계획
+  function demoBlockForMembers(rule, g, level, family, p) {
+    return (demoInRange(rule, g) && g % rule.step === 0) ? null : demoReason(level, family, p, rule, g);
+  }
+  function demoSpanApplicable(s) { return s.family === 'MEGARAID' && s.level === 'RAID10'; }
+  function demoMpt56(s) { return s.family === 'MPT_IR' && (s.level === 'RAID5' || s.level === 'RAID6'); }
+  function demoPlanSize(s) { return s.mode === 'AT_LEAST' ? s.g : s.n; }
+
+  // 현행(R17-1 이전) — 폼 하한 = 레벨 고정값 · MegaRAID 계획 판정 항상 통과 · pdperarray=2 고정
+  function demoCurrentForm(s) {
+    const lm = demoLevelMin(s.level, s.cache);
+    return s.n >= lm ? null : ('하한 ' + lm + ' 미만');
+  }
+  function demoCurrentPlan(s, g) {   // RaidChipFamily.memberCountBlockReason(level, n)
+    if (s.family === 'MEGARAID') return null;
+    if (s.level === 'RAID1' && g !== 2) return 'RAID1 은 정확히 2';
+    if (s.level === 'RAID10' && (g < 3 || g > 10)) return 'RAID10 은 3~10';
+    if (s.level === 'RAID0' && g > 10) return 'RAID0 은 10 이하';
+    return null;
+  }
+  function demoCommand(s, g, withSpan, p) {
+    if (s.family === 'MPT_IR') return 'sas3ircu 0 create ' + s.level + ' MAX …';
+    return 'storcli64 /c0 add vd type=' + s.level.toLowerCase() + ' drives=… wb ra direct strip=256 pdcache=default'
+      + (withSpan ? ' pdperarray=' + p : '');
+  }
+
+  function demoSet(k, v) {
+    demo[k] = v;
+    if (demo.family === 'MPT_IR') demo.cache = false;   // MPT_IR 은 캐시 없음 고정
+    demoRender();
+  }
+  function demoNum(k, v) {
+    const x = parseInt(v, 10);
+    if (!isNaN(x)) { demo[k] = x; demoRender(); }
+  }
+  function demoReset() { demo = Object.assign({}, DEMO_INIT); demoMessage('초기화했습니다.', ''); demoRender(); }
+  function demoMessage(text, cls) {
+    const m = document.getElementById('demo-message');
+    m.className = 'ux-message' + (cls ? ' ' + cls : '');
+    m.textContent = text;
+  }
+
+  const DEMO_SCENARIOS = {
+    1: { s: { family: 'MEGARAID', cache: true, level: 'RAID10', mode: 'EXACT', n: 6, p: 2, g: 6 },
+         msg: '① MegaRAID RAID10 개 6 · p=2 → 통과(스팬 3). 스팬당 디스크를 4 로 바꾸면 막힙니다(p=4 의 규칙은 8~32대 · 4대 단위라 6대는 하한에도 못 미치고 4대 단위도 아님) — 스팬 옵션 표의 p=4 행도 함께 보세요.', cls: 'success' },
+    2: { s: { family: 'MEGARAID', cache: true, level: 'RAID10', mode: 'EXACT', n: 36, p: 6, g: 36 },
+         msg: '② 스팬 한도 — MegaRAID RAID10 개 36 → p=2 막힘(스팬 18 > 8) · p=4 막힘(9 > 8) · p=6 통과(스팬 6). 스팬 옵션 표에서 p 마다 판정을 확인하세요.', cls: 'success' },
+    3: { s: { family: 'MPT_IR', cache: false, level: 'RAID10', mode: 'EXACT', n: 3, p: 2, g: 3 },
+         msg: '③ 폼 최소치 불일치 해소 — MPT_IR RAID10 개 3 → 현행: 폼 막힘(하한 4) / R17-1: 통과(3~10).', cls: 'success' },
+    4: { s: { family: 'MEGARAID', cache: true, level: 'RAID10', mode: 'AT_LEAST', n: 4, p: 2, g: 7 },
+         msg: '④ MegaRAID 홀수 RAID10 — 개 이상 4 · p=2 · 그룹 7 → 저장 통과 · 계획 MEMBER_COUNT 거절 / 현행: 계획 통과 → 집행에서 storcli 거절.', cls: 'error' },
+    5: { s: { family: 'MEGARAID', cache: true, level: 'RAID1', mode: 'EXACT', n: 3, p: 2, g: 3 },
+         msg: '⑤ MegaRAID RAID1 개 3 → 막힘(짝수 2~32) / 현행: 통과.', cls: 'error' },
+    6: { s: { family: 'MPT_IR', cache: false, level: 'RAID1', mode: 'EXACT', n: 3, p: 2, g: 3 },
+         msg: '⑥ MPT_IR RAID1 개 3 → 현행: 폼 통과 · 계획 거절 / R17-1: 폼에서 막힘.', cls: 'error' }
+  };
+  function demoScenario(i) {
+    const sc = DEMO_SCENARIOS[i];
+    if (!sc) return;
+    demo = Object.assign({}, sc.s);
+    demoMessage(sc.msg, sc.cls);
+    demoRender();
+  }
+
+  function demoBadge(block) {
+    return block ? '<span class="badge del">거절</span>' : '<span class="badge on">통과</span>';
+  }
+  function demoEsc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  function demoRender() {
+    const s = demo;
+    // 조작부 동기화
+    document.querySelectorAll('.ux-toolbar .seg[data-k]').forEach(b => {
+      b.classList.toggle('active', String(s[b.dataset.k]) === b.dataset.v);
+    });
+    const cacheBtn = document.querySelector('.seg[data-k="cache"][data-v="true"]');
+    const cacheTip = document.getElementById('demo-cache-tip');
+    cacheBtn.disabled = (s.family === 'MPT_IR');
+    if (cacheBtn.disabled) cacheTip.setAttribute('data-tip', 'MPT_IR 은 캐시 없음 고정입니다.'); else cacheTip.removeAttribute('data-tip');
+    document.getElementById('demo-n').value = s.n;
+
+    const spanOn = demoSpanApplicable(s);
+    const pSel = document.getElementById('demo-p');
+    const pTip = document.getElementById('demo-p-tip');
+    pSel.innerHTML = SPAN_OPTIONS.map(p => {
+      const r = demoRule('MEGARAID', 'RAID10', true, p);
+      const blocked = spanOn && demoBlockForCount(r, s.mode, s.n, 'RAID10', 'MEGARAID', p) !== null;
+      return '<option value="' + p + '"' + (p === s.p ? ' selected' : '') + '>스팬당 ' + p + '대' + (blocked ? ' (막힘)' : '') + '</option>';
+    }).join('');
+    pSel.disabled = !spanOn;
+    if (spanOn) pTip.removeAttribute('data-tip');
+    else pTip.setAttribute('data-tip', s.family === 'MPT_IR'
+      ? 'MPT_IR(IR) 은 스팬 개념이 없습니다 — sas3ircu 에 인자 없음'
+      : 'RAID10 에서만 지정합니다');
+
+    const gInput = document.getElementById('demo-g');
+    const gTip = document.getElementById('demo-g-tip');
+    gInput.value = s.g;
+    gInput.disabled = (s.mode !== 'AT_LEAST');
+    if (gInput.disabled) gTip.setAttribute('data-tip', '개 · 개씩은 볼륨 크기 = n 입니다. 그룹 크기는 개 이상일 때만 씁니다.');
+    else gTip.removeAttribute('data-tip');
+
+    // 판정
+    const p = s.p;
+    const rule = demoRule(s.family, s.level, s.cache, p);
+    const saveBlock = demoBlockForCount(rule, s.mode, s.n, s.level, s.family, p);
+    const g = demoPlanSize(s);
+    const planRule = demoRule(s.family, s.level, true, p);   // 축 5 — 계획은 cardHasCache = true
+    const planBlock = saveBlock ? null : demoBlockForMembers(planRule, g, s.level, s.family, p);
+    const spans = (spanOn && g % p === 0) ? (g / p) : null;
+
+    let rows = '';
+    rows += '<div class="ux-row"><strong>MemberCountRule</strong><span class="label mono">min=' + rule.min + ' · max=' + (rule.max === null ? 'null' : rule.max)
+      + ' · step=' + rule.step + ' · 표기 "' + demoEsc(rule.display) + '"</span></div>';
+    rows += '<div class="ux-row"><strong>저장 판정</strong><span class="label">폼 · DiskGroupRules — '
+      + MODE_LABEL[s.mode] + ' ' + s.n + (saveBlock ? ' → ' + demoEsc(saveBlock) : ' → 통과') + '</span>' + demoBadge(saveBlock) + '</div>';
+    if (saveBlock) {
+      rows += '<div class="ux-row muted"><strong>계획 판정</strong><span class="label">저장에서 막혀 계획까지 오지 않습니다</span><span class="badge off">도달 안 함</span></div>';
+    } else {
+      rows += '<div class="ux-row"><strong>계획 판정</strong><span class="label">RaidPlanner — ' + g + '대 볼륨'
+        + (planBlock ? ' → MEMBER_COUNT 거절 · ' + demoEsc(planBlock) : ' → 통과' + (spans ? ' (스팬 ' + spans + ' × ' + p + '대)' : ''))
+        + '</span>' + demoBadge(planBlock) + '</div>';
+    }
+    if (demoMpt56(s)) {
+      rows += '<div class="ux-row muted"><strong>지원 레벨</strong><span class="label">MPT_IR 은 ' + s.level + ' 을 지원하지 않아 카드 등록 단계에서 지원 레벨로 걸러집니다(레벨 하한 그대로)</span><span class="badge dep">지원 레벨 검증</span></div>';
+    }
+    document.getElementById('demo-rows').innerHTML = rows;
+
+    // 스팬 옵션 표
+    let tbl = '';
+    if (spanOn) {
+      tbl = '<table><thead><tr><th>p</th><th>RAID10 규칙</th><th>판정(' + MODE_LABEL[s.mode] + ' ' + s.n + ')</th></tr></thead><tbody>';
+      SPAN_OPTIONS.forEach(q => {
+        const r = demoRule('MEGARAID', 'RAID10', true, q);
+        const b = demoBlockForCount(r, s.mode, s.n, 'RAID10', 'MEGARAID', q);
+        tbl += '<tr><td>' + (q === p ? '<b>' + q + '</b>' : q) + '</td><td>' + demoEsc(r.display) + '</td><td>'
+          + (b ? '<span class="chip del">막힘</span> ' + demoEsc(b) : '<span class="chip new">허용</span>' + (s.mode !== 'AT_LEAST' ? ' 스팬 ' + (s.n / q) : '')) + '</td></tr>';
+      });
+      tbl += '</tbody></table>';
+    } else {
+      tbl = '<div class="ux-row muted"><strong>스팬 옵션</strong><span class="label">MEGARAID × RAID10 에서만 표가 열립니다</span><span class="badge off">잠금</span></div>';
+    }
+    document.getElementById('demo-span-table').innerHTML = tbl;
+
+    // 집행 미리보기 + 현행 비교
+    const tf = b => b ? '<span class="t">거절</span>' : '<span class="f">통과</span>';
+    const curForm = demoCurrentForm(s);
+    const curPlan = curForm ? null : demoCurrentPlan(s, g);
+    let caps = '';
+    caps += '판정 표       = 서버 RaidChipFamily.memberCountRule · MemberCountRule 과 같은 표 — 드리프트 0\n';
+    caps += 'memberCountRule(' + s.level + ', cardHasCache=' + s.cache + ', span=' + (spanOn ? p : '무시') + ') = "' + demoEsc(rule.display) + '"\n';
+    caps += 'R17-1  저장   = ' + tf(saveBlock) + '   계획 = ' + (saveBlock ? '도달 안 함' : tf(planBlock)) + '\n';
+    if (!saveBlock && !planBlock) {
+      caps += 'R17-1  집행   = ' + demoEsc(demoCommand(s, g, spanOn, p)) + (spanOn ? '   (스팬 수 = ' + g + '/' + p + ' = ' + spans + ')' : '') + '\n';
+    } else {
+      caps += 'R17-1  집행   = 없음(앞 단계에서 거절)\n';
+    }
+    caps += '── 현행(R17-1 이전) ── 폼 하한 = 레벨 고정값 · MegaRAID 계획 판정 = 항상 통과 · pdperarray=2 고정\n';
+    caps += '현행   폼     = ' + tf(curForm) + (curForm ? ' (' + curForm + ')' : ' (하한 ' + demoLevelMin(s.level, s.cache) + ')') + '\n';
+    caps += '현행   계획   = ' + (curForm ? '도달 안 함' : (tf(curPlan) + (curPlan ? ' (' + curPlan + ')' : ''))) + '\n';
+    if (!curForm && !curPlan) {
+      const curCmd = demoCommand(s, g, s.family === 'MEGARAID' && s.level === 'RAID10', 2);
+      // 현행은 pdperarray=2 고정이므로 카드가 받는지는 p=2 규칙으로 본다
+      const cardRejects = s.family === 'MEGARAID' && demoBlockForMembers(demoRule('MEGARAID', s.level, true, 2), g, s.level, 'MEGARAID', 2) !== null;
+      caps += '현행   집행   = ' + demoEsc(curCmd)
+        + (cardRejects ? '   → storcli 가 카드에서 거절' : '') + '\n';
+    }
+    document.getElementById('demo-caps').innerHTML = caps;
+  }
+
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

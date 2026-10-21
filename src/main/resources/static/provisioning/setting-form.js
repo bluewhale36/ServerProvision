@@ -532,7 +532,10 @@
                 : '자동 탐지';
             // 모드 표기(개 · 개씩 · 개 이상)는 select 옵션 텍스트 = 서버 DiskCountMode.suffix 그대로(E3.5-7-a)
             const cnt = (row.querySelector('.dgCount').value || '?') + selectedOption(row.querySelector('.dgCountMode')).textContent;
-            return [levelSel.value ? selectedOption(levelSel).textContent : 'RAID 없음',
+            const card = selectedRaidCard();
+            const level = !levelSel.value ? 'RAID 없음'
+                : selectedOption(levelSel).textContent + (rowAcceptsSpan(row, card) ? '(스팬당 ' + rowSpan(row) + '대)' : '');
+            return [level,
                 selectedOption(row.querySelector('.dgType')).textContent,
                 selectedOption(row.querySelector('.dgTransport')).textContent, cap, cnt].join(' · ');
         }
@@ -638,9 +641,9 @@
 
         /* ---- RAID 구성 단계 — RAID 카드 + 디스크 묶음 규칙 (U4-1-1 v2) ---- */
 
-        // 판정 재료는 전부 서버가 준다 — 카드는 raidCardMetaJson(hasCache / supportedLevels / blockReasons),
-        // 레벨 최소치는 레벨 옵션의 data-min-disks(-cached). 이 JS 는 문구를 짓지 않고 읽어서 잠그기만 한다
-        // (SSOT = SupportedRaidLevels.blockReasonFor · RaidLevel.minimumDisks — 서버 DiskGroupRules 가 같은 표로 안전망).
+        // 판정 재료는 전부 서버가 준다 — 카드는 raidCardMetaJson(hasCache / supportedLevels / blockReasons / memberRules /
+        // spanMemberRules). 이 JS 는 문구를 짓지 않고 읽어서 잠그기만 한다(SSOT = SupportedRaidLevels.blockReasonFor ·
+        // RaidChipFamily.memberCountRule — 서버 DiskGroupRules 가 같은 표로 안전망, R17-1).
         const RAID_CARD_BY_ID = {};
         (function () {
             let groups = [];
@@ -681,9 +684,29 @@
         function rowBuildsRaid(row) {
             return !!row.querySelector('.dgLevel').value;
         }
-        function levelMinDisks(levelOpt, hasCache) {
-            if (!levelOpt || !levelOpt.value) return 1;
-            return parseInt(hasCache ? levelOpt.dataset.minDisksCached : levelOpt.dataset.minDisks, 10) || 1;
+        /** 이 행이 스팬을 받는가 — 카드가 그 레벨에 스팬 규칙을 실어 보냈을 때만(RaidChipFamily.acceptsSpan 의 결과). */
+        function rowAcceptsSpan(row, card) {
+            const level = row.querySelector('.dgLevel').value;
+            return !!(card && level && card.spanMemberRules && card.spanMemberRules[level]);
+        }
+        function rowSpan(row) {
+            return parseInt(row.querySelector('.dgSpan').value, 10) || 2;
+        }
+        /** 행의 디스크 수 규칙 {min, max, step, display} — RAID 를 구성하지 않거나 카드가 없으면 null(R17-1). */
+        function rowMemberRule(row, card) {
+            const level = row.querySelector('.dgLevel').value;
+            if (!card || !level) return null;
+            if (rowAcceptsSpan(row, card)) return card.spanMemberRules[level][String(rowSpan(row))] || null;
+            return (card.memberRules || {})[level] || null;
+        }
+        /**
+         * 개수 축이 규칙을 지키는가 — DiskCountRequirement.memberCountBlockReason 과 같은 진리표(드리프트 0):
+         * '개' · '개씩' 은 n 이 볼륨 멤버 수라 하한 · 상한 · 단위 전부, '개 이상' 은 하한 · 상한만(단위는 계획 시점 그룹 크기).
+         */
+        function countAdmitted(rule, mode, n) {
+            if (!rule || n == null) return true;
+            const within = n >= rule.min && (rule.max == null || n <= rule.max);
+            return mode === 'AT_LEAST' ? within : within && n % rule.step === 0;
         }
         /** 병기형 조사를 앞 글자로 해소한다(HF5 의 KoreanParticle — 서버 RaidLevel.objectParticle 과 같은 규칙: 5 → 를, 0·6·10 → 을). */
         function particles(text) {
@@ -812,18 +835,7 @@
                     if (!card) { setOptionState(opt, MSG_PICK_CARD_FIRST); return; }
                     setOptionState(opt, (card.blockReasons || {})[opt.value] || null);
                 });
-                const countInput = row.querySelector('.dgCount');
-                const min = rowBuildsRaid(row) && card ? levelMinDisks(selectedOption(levelSel), card.hasCache) : 1;
-                countInput.min = String(min);
-                // 최소치는 셀 안 상시 문구 대신 placeholder · title 로만 알린다(CP7 검수) — 문구는 서버 tooFewDisks 와 같은 뜻.
-                countInput.placeholder = min > 1 ? min + ' 이상' : '1';
-                countInput.title = rowBuildsRaid(row) && card && min > 1
-                    ? particles(selectedOption(levelSel).textContent + ' 은(는) 디스크 ' + min + '개 이상이 필요합니다'
-                        + (card.hasCache ? '' : ' (캐시 없는 카드)') + '.')
-                    : '';
-                const value = intOrNull(countInput.value);
-                const short = value != null && value < min;
-                countInput.classList.toggle('has-error', short);
+                applyMemberCountLock(row, card);
                 // 종류 ↔ 전송 정합 — HDD 에는 NVMe 전송이 없다(DiskGroupRules 6 · CP7 검수). SAS SSD 는 실재하므로 막지 않는다.
                 const typeSel = row.querySelector('.dgType');
                 const transportSel = row.querySelector('.dgTransport');
@@ -866,6 +878,56 @@
         }
 
         /** 다섯 축의 정규 표기 — 서버 DiskGroupRules.identity 와 같은 축을 본다. */
+        /**
+         * 개수 셀 잠금 · 둘째 줄(R17-1) — 규칙(min · max · step)을 input 속성 · placeholder 로 알리고(셀 안 상시 문구 없음 — CP7 검수),
+         * 스팬을 받는 행이면 스팬 select 와 구성 미리보기를 보인다. 문구는 서버 MemberCountRule.display 를 그대로 쓴다.
+         */
+        function applyMemberCountLock(row, card) {
+            const countInput = row.querySelector('.dgCount');
+            const mode = row.querySelector('.dgCountMode').value;
+            const value = intOrNull(countInput.value);
+            const rule = rowBuildsRaid(row) ? rowMemberRule(row, card) : null;
+            countInput.min = String(rule ? rule.min : 1);
+            if (rule && rule.max != null) countInput.max = String(rule.max); else countInput.removeAttribute('max');
+            countInput.step = String(rule && mode !== 'AT_LEAST' ? rule.step : 1);
+            countInput.placeholder = rule ? rule.display : '1';
+            countInput.title = rule ? '구성 대수: ' + rule.display : '';
+            countInput.classList.toggle('has-error', !countAdmitted(rule, mode, value));
+
+            const acceptsSpan = rowBuildsRaid(row) && rowAcceptsSpan(row, card);
+            const spanLine = row.querySelector('.dgSpanLine');
+            spanLine.hidden = !acceptsSpan;
+            if (acceptsSpan) {
+                // '개' · '개씩' 이면 n 을 못 만드는 스팬 옵션을 잠근다 — 사유 = 그 스팬의 규칙 표기
+                const bySpan = card.spanMemberRules[row.querySelector('.dgLevel').value];
+                Array.from(row.querySelector('.dgSpan').options).forEach(opt => {
+                    const spanRule = bySpan[opt.value];
+                    const blocked = mode !== 'AT_LEAST' && value != null && !countAdmitted(spanRule, mode, value);
+                    setOptionState(opt, blocked ? '스팬당 ' + opt.value + '대: ' + spanRule.display : null);
+                });
+            }
+            const preview = row.querySelector('.dgCountPreview');
+            const text = memberCountPreview(row, rule, mode, value, acceptsSpan);
+            preview.hidden = !text;
+            preview.textContent = text || '';
+            preview.classList.toggle('is-danger', !countAdmitted(rule, mode, value));   // 기존 .n-hint.is-danger(도달 불가 안내와 공용)
+        }
+        /**
+         * 구성 미리보기 한 줄 — 개수가 규칙을 어기면 그 규칙(값을 넣으면 placeholder 가 사라져 이유가 title 에만 남는다 — CP5 O-1),
+         * 스팬 행은 스팬 수, 스팬을 받지 않는 RAID10 은 '스팬 지정 없음' 안내.
+         */
+        function memberCountPreview(row, rule, mode, value, acceptsSpan) {
+            if (!rule) return '';
+            if (!countAdmitted(rule, mode, value)) return '구성 대수: ' + rule.display;
+            if (acceptsSpan) {
+                const span = rowSpan(row);
+                if (mode === 'AT_LEAST') return '→ 그룹 크기 ÷ ' + span + ' = 스팬 수 (' + rule.display + ')';
+                return value != null && countAdmitted(rule, mode, value)
+                    ? '→ 스팬 ' + (value / span) + '개 × ' + span + '대' : '';
+            }
+            return row.querySelector('.dgLevel').value === 'RAID10' ? '스팬 지정 없음 · 구성 대수 ' + rule.display : '';
+        }
+
         function diskGroupIdentity(row) {
             const capMode = row.querySelector('.dgCapacityMode').value;
             return [
@@ -913,13 +975,15 @@
             const cnt = d.count || {};
             row.querySelector('.dgCount').value = cnt.value != null ? cnt.value : '';
             if (cnt.mode) row.querySelector('.dgCountMode').value = cnt.mode;
+            // 스팬(R17-1) — 저장본 값으로 채운다. 없으면(구 저장본 · 다른 레벨) 템플릿 기본 2 가 그대로 보인다.
+            if (d.drivesPerSpan != null) row.querySelector('.dgSpan').value = String(d.drivesPerSpan);
             // 역할(U4-1-2) — 저장본에 없으면(구 payload) '우선순위에 따름'. 스펙 축이 아니라 해석 규칙이라 기본값이 정당하다.
             row.querySelector('.dgRole').value = d.role || 'BY_PRIORITY';
             // RAID 없음 묶음의 개수는 '1개 이상'(제약 없음 = 그 스펙 디스크 각각이 볼륨)이 중립값이라 비어 있으면 채운다 —
             // 디스크 스펙(종류 · 전송 · 용량)에는 기본값을 두지 않는다(E16). 사용자는 언제든 고칠 수 있다.
             defaultCountForNoRaid(row);
 
-            ['.dgLevel', '.dgCapacityMode', '.dgCount', '.dgCountMode', '.dgType', '.dgTransport', '.dgCapacitySize', '.dgCapacityUnit', '.dgRole']
+            ['.dgLevel', '.dgCapacityMode', '.dgCount', '.dgCountMode', '.dgType', '.dgTransport', '.dgCapacitySize', '.dgCapacityUnit', '.dgRole', '.dgSpan']
                 .forEach(sel => row.querySelector(sel).addEventListener('change', applyDiskGroupConstraints));
             row.querySelector('.dgCount').addEventListener('input', applyDiskGroupConstraints);
             // 사용자가 개수 · 모드를 직접 만지면 자동값 표식을 지운다 — 이후 레벨 변경이 그 값을 되돌리지 않는다
@@ -1070,7 +1134,9 @@
                         : {mode: 'AUTO', size: null, unit: null},
                     count: {mode: row.querySelector('.dgCountMode').value, value: intOrNull(row.querySelector('.dgCount').value)},
                     role: row.querySelector('.dgRole').value,
-                    vdParameters: vdParametersOf(row, vdSupported)   // E3.5-6 — 지원 계열 × RAID 행은 8축 명시, 잠금이면 null
+                    vdParameters: vdParametersOf(row, vdSupported),   // E3.5-6 — 지원 계열 × RAID 행은 8축 명시, 잠금이면 null
+                    // R17-1 — 스팬 줄이 보이는 행만 싣는다. 숨긴 행(레벨 · 카드 변경)은 빼서 서버 규칙 10 에 걸릴 값을 만들지 않는다
+                    drivesPerSpan: rowAcceptsSpan(row, card) ? rowSpan(row) : null
                 };
             });
         }
@@ -1842,7 +1908,8 @@
                 rows.forEach(row => {
                     const countInput = row.querySelector('.dgCount');
                     const value = intOrNull(countInput.value);
-                    if (value == null || value < (parseInt(countInput.min, 10) || 1)) {
+                    const rule = rowBuildsRaid(row) ? rowMemberRule(row, selectedRaidCard()) : null;
+                    if (value == null || value < 1 || !countAdmitted(rule, row.querySelector('.dgCountMode').value, value)) {
                         countInput.classList.add('has-error');
                         countError = true;
                     }
@@ -1861,7 +1928,7 @@
                 }
                 if (countError) {
                     const container = form.querySelector('[data-error-field="diskGroups"]');
-                    if (container) paintFieldError(container, '디스크 묶음의 개수(레벨별 최소치 이상)와 직접 지정한 용량을 채워야 합니다.');
+                    if (container) paintFieldError(container, '디스크 묶음의 개수가 비었거나 카드가 만들 수 있는 구성 대수(빨간 칸 아래 안내)에 맞지 않습니다 — 직접 지정한 용량도 확인하십시오.');
                     ok = false;
                 }
                 const duplicates = markDuplicateDiskGroups();
