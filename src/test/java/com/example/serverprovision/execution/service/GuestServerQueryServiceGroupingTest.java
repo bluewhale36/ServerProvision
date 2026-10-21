@@ -214,17 +214,4 @@ class GuestServerQueryServiceGroupingTest {
         assertThat(c.getValue().getSort().toString()).isEqualTo("createdAt: DESC,id: DESC");
     }
 
-    @Test
-    @DisplayName("S8-2 보드 선택지 — 저장소의 제조사 · 이름 순서를 지키며 제조사별로 묶는다(optgroup)")
-    void boardOptionsGroupedByVendor() {
-        when(detailRepository.findBoardOptions()).thenReturn(List.of(
-                new com.example.serverprovision.execution.dto.response.BoardOptionResponse(1L, "MD72-HB3", com.example.serverprovision.management.board.enums.Vendor.GIGABYTE),
-                new com.example.serverprovision.execution.dto.response.BoardOptionResponse(2L, "MS04-CE0", com.example.serverprovision.management.board.enums.Vendor.GIGABYTE),
-                new com.example.serverprovision.execution.dto.response.BoardOptionResponse(3L, "Z13PP", com.example.serverprovision.management.board.enums.Vendor.ASUS)));
-
-        var groups = service.findBoardOptions();
-
-        assertThat(groups).extracting(g -> g.vendor()).containsExactly("Gigabyte", "Asus");
-        assertThat(groups.getFirst().boards()).extracting(b -> b.name()).containsExactly("MD72-HB3", "MS04-CE0");
-    }
 }

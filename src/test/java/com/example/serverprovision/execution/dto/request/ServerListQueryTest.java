@@ -83,4 +83,16 @@ class ServerListQueryTest {
         assertThat(new ServerListQuery(null, null, null, null, null, null, defaultFrom, TODAY, null, null).isFiltered(TODAY)).isFalse();
         assertThat(new ServerListQuery(null, null, null, null, null, null, defaultFrom, TODAY.minusDays(1), null, null).isFiltered(TODAY)).isTrue();
     }
+
+    @Test
+    @DisplayName("S8-6 — 보드는 여러 개 · 빈 값(null 원소)은 빠지고, 고른 보드가 있으면 조건이다 · 실재 보드만 남길 수 있다")
+    void boardSet() {
+        ServerListQuery q = new ServerListQuery(null, null, null, null, null,
+                new java.util.HashSet<>(java.util.Arrays.asList(3L, null, 9L)), null, null, null, null);
+        assertThat(q.boardModelIds()).containsExactlyInAnyOrder(3L, 9L);
+        assertThat(q.isFiltered(TODAY)).isTrue();
+        assertThat(q.withBoardModelIds(java.util.Set.of()).isFiltered(TODAY)).isFalse();
+        assertThat(q.withBoardModelIds(java.util.Set.of(3L)).withDefaultRange(TODAY).boardModelIds()).containsExactly(3L);
+    }
+
 }

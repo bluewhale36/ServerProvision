@@ -1,5 +1,8 @@
 package com.example.serverprovision.provisioning.group.service;
 
+import com.example.serverprovision.global.web.list.dto.LookupChip;
+import com.example.serverprovision.provisioning.group.dto.response.GroupLookupRow;
+import com.example.serverprovision.provisioning.group.vo.GroupFilter;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.service.GuestServerQueryService;
 import com.example.serverprovision.execution.vo.SpecGroupKey;
@@ -241,7 +244,7 @@ class GuestServerGroupQueryServiceTest {
     void scopeOfTranslatesGroupFilter() {
         UUID a = UUID.randomUUID(), b = UUID.randomUUID();
         when(memberRepository.findAllGroupedServerIds()).thenReturn(List.of(a, b));
-        when(memberRepository.findServerIdsByGroupId(7L)).thenReturn(List.of(a));
+        when(memberRepository.findServerIdsByGroupIdIn(java.util.Set.of(7L))).thenReturn(List.of(a));
 
         assertThat(service.scopeOf(com.example.serverprovision.provisioning.group.vo.GroupFilter.ANY))
                 .isEqualTo(com.example.serverprovision.execution.vo.ServerScope.ALL);
@@ -254,7 +257,55 @@ class GuestServerGroupQueryServiceTest {
     @Test
     @DisplayName("scopeOf — 멤버가 없는 그룹이면 빈 허용 집합(결과 없음)")
     void scopeOfEmptyGroup() {
-        when(memberRepository.findServerIdsByGroupId(9L)).thenReturn(List.of());
+        when(memberRepository.findServerIdsByGroupIdIn(java.util.Set.of(9L))).thenReturn(List.of());
         assertThat(service.scopeOf(com.example.serverprovision.provisioning.group.vo.GroupFilter.of(9L)).onlyIds()).isEmpty();
     }
+
+    // ==== S8-6 — 다중 그룹 조건 · 검색 선택기 ========================
+
+    @Test
+    @DisplayName("S8-6 scopeOf — 그룹 여럿은 그 멤버의 합 · 무소속을 함께 고르면 '소속 서버 중 고른 그룹 멤버가 아닌 것' 만 뺀다")
+    void scopeOfMultiAndUngrouped() {
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID(), c = UUID.randomUUID();
+        when(memberRepository.findAllGroupedServerIds()).thenReturn(List.of(a, b, c));
+        when(memberRepository.findServerIdsByGroupIdIn(java.util.Set.of(7L, 8L))).thenReturn(List.of(a, b));
+        when(memberRepository.findServerIdsByGroupIdIn(java.util.Set.of(7L))).thenReturn(List.of(a));
+
+        GroupFilter twoGroups = new GroupFilter(false, java.util.Set.of(7L, 8L));
+        assertThat(service.scopeOf(twoGroups).onlyIds()).containsExactlyInAnyOrder(a, b);
+        assertThat(service.scopeOf(new GroupFilter(true, java.util.Set.of(7L))).excludeIds()).containsExactlyInAnyOrder(b, c);
+    }
+
+    @Test
+    @DisplayName("S8-6 lookupGroups — 이름 부분 일치(대소문자 무시) · 이름 순 · 멤버 수 / 무소속 행은 빈 검색어나 '무소속' 에 맞을 때")
+    void lookupGroupsAndUngroupedRow() {
+        GuestServerGroup alpha = mock(GuestServerGroup.class);
+        when(alpha.getId()).thenReturn(1L); when(alpha.getName()).thenReturn("Rack-A"); when(alpha.getMemberCount()).thenReturn(3L);
+        GuestServerGroup beta = mock(GuestServerGroup.class);
+        when(beta.getId()).thenReturn(2L); when(beta.getName()).thenReturn("8월 2차"); when(beta.getMemberCount()).thenReturn(0L);
+        when(groupRepository.findAll(org.springframework.data.domain.Sort.by("name"))).thenReturn(List.of(beta, alpha));
+
+        assertThat(service.lookupGroups("rack")).containsExactly(new GroupLookupRow(1L, "Rack-A", 3L));
+        assertThat(service.lookupGroups(null)).hasSize(2);
+        assertThat(service.ungroupedMatches(null)).isTrue();
+        assertThat(service.ungroupedMatches("소속")).isTrue();
+        assertThat(service.ungroupedMatches("rack")).isFalse();
+    }
+
+    @Test
+    @DisplayName("S8-6 retainExisting · groupChips — 없는 그룹 id 는 빠지고, 칩은 무소속이 먼저 · 그룹은 이름 순")
+    void retainAndChips() {
+        GuestServerGroup seven = mock(GuestServerGroup.class);
+        when(seven.getId()).thenReturn(7L); when(seven.getName()).thenReturn("Z 묶음");
+        GuestServerGroup eight = mock(GuestServerGroup.class);
+        when(eight.getId()).thenReturn(8L); when(eight.getName()).thenReturn("A 묶음");
+        when(groupRepository.findAllById(java.util.Set.of(7L, 99L))).thenReturn(List.of(seven));
+        when(groupRepository.findAllById(java.util.Set.of(7L, 8L))).thenReturn(List.of(seven, eight));
+
+        assertThat(service.retainExisting(new GroupFilter(true, java.util.Set.of(7L, 99L))))
+                .isEqualTo(new GroupFilter(true, java.util.Set.of(7L)));
+        assertThat(service.groupChips(new GroupFilter(true, java.util.Set.of(7L, 8L)))).containsExactly(
+                new LookupChip("none", "무소속"), new LookupChip("8", "A 묶음"), new LookupChip("7", "Z 묶음"));
+    }
+
 }

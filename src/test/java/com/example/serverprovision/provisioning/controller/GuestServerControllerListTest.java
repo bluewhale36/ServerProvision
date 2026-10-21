@@ -3,8 +3,7 @@ package com.example.serverprovision.provisioning.controller;
 import com.example.serverprovision.support.FixedClockTestConfig;
 import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.dto.request.ServerListQuery;
-import com.example.serverprovision.execution.dto.response.BoardOptionGroupResponse;
-import com.example.serverprovision.execution.dto.response.BoardOptionResponse;
+import com.example.serverprovision.global.web.list.dto.LookupChip;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
@@ -76,6 +75,7 @@ class GuestServerControllerListTest {
     @MockitoBean AssignmentStartService assignmentStartService;
     @MockitoBean SettingQueryService settingQueryService;
     @MockitoBean GuestServerGroupQueryService groupQueryService;
+    @MockitoBean com.example.serverprovision.execution.service.GuestServerLookupService lookupService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private static GuestServerSummaryResponse row(String name) {
@@ -98,9 +98,12 @@ class GuestServerControllerListTest {
         given(queryService.findGrouped(any(), any())).willReturn(bucketOf("MS03-CE0 · 6338 ×2", row("srv-01"), row("srv-02")));
         given(queryService.findPage(any(), any(), any())).willAnswer(inv ->
                 new PageImpl<>(List.of(row("srv-t1")), (Pageable) inv.getArgument(2), 41));
-        given(queryService.findBoardOptions()).willReturn(List.of(
-                new BoardOptionGroupResponse("Gigabyte", List.of(new BoardOptionResponse(3L, "MS04-CE0", Vendor.GIGABYTE))),
-                new BoardOptionGroupResponse("Asus", List.of(new BoardOptionResponse(9L, "Z13PP-D32", Vendor.ASUS)))));
+        // S8-6 — 보드 칩은 실재하는 보드(3 · 9)만 · 그룹 조건은 그대로 통과 · 그룹 칩은 없음
+        given(lookupService.boardChips(any())).willAnswer(inv -> ((java.util.Set<Long>) inv.getArgument(0)).stream()
+                .filter(id -> id == 3L || id == 9L)
+                .map(id -> new LookupChip(String.valueOf(id), id == 3L ? "MS04-CE0" : "Z13PP-D32")).toList());
+        given(groupQueryService.retainExisting(any())).willAnswer(inv -> inv.getArgument(0));
+        given(groupQueryService.groupChips(any())).willReturn(List.of());
     }
 
     private ServerListQuery groupedQuery() {
@@ -129,11 +132,11 @@ class GuestServerControllerListTest {
         mvc.perform(get("/provisioning/server"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/server-list"))
-                .andExpect(model().attributeExists("list", "query", "links", "phases", "statuses", "boardOptions"))
-                // 보드는 제조사별 optgroup · 소속 그룹 셀렉트는 화면에서 뺐다(S8-2 CP6 · S8-4 재설계)
-                .andExpect(content().string(containsString("<optgroup label=\"Gigabyte\">")))
-                .andExpect(content().string(containsString("<optgroup label=\"Asus\">")))
-                .andExpect(content().string(not(containsString("name=\"group\""))))
+                .andExpect(model().attributeExists("list", "query", "links", "phases", "statuses", "selectedBoards", "selectedGroups"))
+                // 보드 · 소속 그룹은 검색 선택기 줄(S8-6) — 셀렉트가 아니라 검색 팝업 경로를 단다
+                .andExpect(content().string(containsString("data-lookup-url=\"/provisioning/server/lookup/boards\"")))
+                .andExpect(content().string(containsString("data-lookup-url=\"/provisioning/server/lookup/groups\"")))
+                .andExpect(content().string(not(containsString("<optgroup"))))
                 .andExpect(content().string(containsString("MS03-CE0 · 6338 ×2")))
                 .andExpect(content().string(containsString("30초 전")))
                 .andExpect(content().string(containsString("결과 <b>2</b>건")))
@@ -207,7 +210,7 @@ class GuestServerControllerListTest {
         assertThat(q.phases()).containsExactly(ProvisioningPhase.FIRMWARE_UPDATING, ProvisioningPhase.FIRMWARE_SETTING);
         assertThat(q.statuses()).containsExactly(GuestServerStatus.PROVISIONED, GuestServerStatus.FAILED);
         assertThat(q.includeDecommissioned()).isTrue();
-        assertThat(q.boardModelId()).isEqualTo(3L);
+        assertThat(q.boardModelIds()).containsExactly(3L);
         assertThat(q.from()).isEqualTo(LocalDate.of(2026, 9, 1));
         assertThat(q.to()).isEqualTo(LocalDate.of(2026, 9, 30));
     }
@@ -340,16 +343,16 @@ class GuestServerControllerListTest {
     }
 
     @Test
-    @DisplayName("200 — 조건 다섯은 조회 조건 창 안에(보드 셀렉트 · 기간 포함), 보기 · 정렬은 띠에 남는다(S8-4)")
+    @DisplayName("200 — 조건 여섯은 조회 조건 창 안에(보드 · 소속 그룹 선택기 · 기간 포함), 보기 · 정렬은 띠에 남는다(S8-4)")
     void conditionsLiveInFilterPanel_viewAndSortStayOnBar() throws Exception {
         String html = mvc.perform(get("/provisioning/server").param("view", "TABLE").param("status", "REGISTERED")
                         .param("board", "9").param("from", "2026-01-01"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        assertThat(ListFilterMarkup.rowLabels(html)).containsExactly("진행 단계", "운영 상태", "보드", "등록 시각", "회수된 서버");
+        assertThat(ListFilterMarkup.rowLabels(html)).containsExactly("진행 단계", "운영 상태", "보드", "소속 그룹", "등록 시각", "회수된 서버");
         String panel = ListFilterMarkup.panel(html);
-        assertThat(panel).contains("value=\"REGISTERED\" checked", "value=\"9\" selected", "name=\"from\"", "value=\"2026-01-01\"")
+        assertThat(panel).contains("value=\"REGISTERED\" checked", "name=\"board\" value=\"9\"", ">Z13PP-D32<", "name=\"from\"", "value=\"2026-01-01\"")
                 .doesNotContain("name=\"view\"", "name=\"sort\"");
         assertThat(ListFilterMarkup.outsidePanel(html)).contains("name=\"view\"", "name=\"sort\"");
     }
@@ -381,6 +384,80 @@ class GuestServerControllerListTest {
         ServerListQuery q = groupedQuery();
         assertThat(q.from()).isEqualTo(LocalDate.of(2020, 1, 1));
         assertThat(q.to()).isEqualTo(FixedClockTestConfig.TODAY);
+    }
+
+
+    // ==== S8-6 — 보드 · 소속 그룹 검색 선택기 =========================
+
+    @Test
+    @DisplayName("200 — board 반복은 집합(OR)으로 · 등록되지 않은 보드 id(99)는 칩도 조건도 남지 않는다 · 칩은 hidden input 을 품는다")
+    void boardsRepeated_unknownDropped_chipsRendered() throws Exception {
+        String html = mvc.perform(get("/provisioning/server").param("board", "3").param("board", "99").param("board", "9"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(groupedQuery().boardModelIds()).containsExactlyInAnyOrder(3L, 9L);
+        assertThat(ListFilterMarkup.panel(html)).contains(
+                "data-lookup-chip", ">MS04-CE0<", ">Z13PP-D32<", "name=\"board\" value=\"3\"", "name=\"board\" value=\"9\"")
+                .doesNotContain("value=\"99\"");
+    }
+
+    @Test
+    @DisplayName("200 — 없는 보드 id 만 주면 조건이 아니다(초기화 링크 없음 · 숨은 조건 없음)")
+    void onlyUnknownBoard_notFiltered() throws Exception {
+        mvc.perform(get("/provisioning/server").param("board", "99"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("filtered", false));
+        assertThat(groupedQuery().boardModelIds()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("200 — group 반복(none · 7 · 8)은 하나로 합쳐 실재 확인을 거쳐 범위 번역에 넘어간다")
+    void groupsRepeated_merged() throws Exception {
+        mvc.perform(get("/provisioning/server").param("group", "none").param("group", "7").param("group", "8"))
+                .andExpect(status().isOk());
+        assertThat(groupFilter()).isEqualTo(new GroupFilter(true, java.util.Set.of(7L, 8L)));
+    }
+
+    @Test
+    @DisplayName("400 — board · group 에 숫자가 아닌 값")
+    void badBoardOrGroup_400() throws Exception {
+        mvc.perform(get("/provisioning/server").param("board", "abc")).andExpect(status().isBadRequest());
+        mvc.perform(get("/provisioning/server").param("group", "abc")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("200 — 보드 검색 조각: 검색어 · 비활성 포함을 넘기고, 행(data-value · data-label) · 서버 수 · 비활성 · 사용 중단 표시를 그린다")
+    void lookupBoards_fragment() throws Exception {
+        given(lookupService.lookupBoards("ms", true)).willReturn(List.of(
+                new com.example.serverprovision.execution.dto.response.BoardLookupRow(3L, "MS04-CE0", com.example.serverprovision.management.board.enums.Vendor.GIGABYTE, 15L, true, true),
+                new com.example.serverprovision.execution.dto.response.BoardLookupRow(7L, "MS-OLD", com.example.serverprovision.management.board.enums.Vendor.GIGABYTE, 0L, false, false)));
+
+        mvc.perform(get("/provisioning/server/lookup/boards").param("q", "ms").param("includeDisabled", "true"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-value=\"3\" data-label=\"MS04-CE0\"")))
+                .andExpect(content().string(containsString("n-lookup-row-disabled")))
+                .andExpect(content().string(containsString(">사용 중단<")))
+                .andExpect(content().string(containsString(">비활성<")))
+                .andExpect(content().string(containsString(">15<")))
+                .andExpect(content().string(not(containsString("<html"))));
+    }
+
+    @Test
+    @DisplayName("200 — 그룹 검색 조각: 검색어가 무소속에 맞으면 무소속 행(none)이 먼저 · 결과가 없으면 '검색 결과가 없습니다.'")
+    void lookupGroups_fragment() throws Exception {
+        given(groupQueryService.lookupGroups(null)).willReturn(List.of(new com.example.serverprovision.provisioning.group.dto.response.GroupLookupRow(7L, "8월 2차", 3L)));
+        given(groupQueryService.ungroupedMatches(null)).willReturn(true);
+        mvc.perform(get("/provisioning/server/lookup/groups"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-value=\"none\" data-label=\"무소속\"")))
+                .andExpect(content().string(containsString("data-value=\"7\" data-label=\"8월 2차\"")));
+
+        given(groupQueryService.lookupGroups("zz")).willReturn(List.of());
+        given(groupQueryService.ungroupedMatches("zz")).willReturn(false);
+        mvc.perform(get("/provisioning/server/lookup/groups").param("q", "zz"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("검색 결과가 없습니다.")));
     }
 
 }

@@ -82,7 +82,7 @@ class GuestServerSpecificationsJpaTest {
 
     private static ServerListQuery query(String q, Set<ProvisioningPhase> phases, Boolean includeDecommissioned,
                                          Long board, LocalDate from, LocalDate to) {
-        return new ServerListQuery(null, q, phases, null, includeDecommissioned, board, from, to, null, null);
+        return new ServerListQuery(null, q, phases, null, includeDecommissioned, board == null ? null : Set.of(board), from, to, null, null);
     }
 
     private List<String> names(Specification<GuestServer> spec) {
@@ -224,4 +224,33 @@ class GuestServerSpecificationsJpaTest {
         assertThat(names(GuestServerSpecifications.of(all, ServerScope.excluding(Set.of(a.getId()))))).containsExactly("b", "c");
         assertThat(names(GuestServerSpecifications.of(all, ServerScope.only(Set.of())))).isEmpty();
     }
+
+    @Autowired com.example.serverprovision.execution.repository.GuestServerDetailRepository detailRepository;
+
+    @Test
+    @DisplayName("S8-6 — 보드 여럿은 OR(in) · 보드 검색 행은 등록된 보드 전부(서버 0 대 포함 · 삭제 제외) + 서버 수 · 활성 · 사용 중단 여부")
+    void boardsInAndLookupRows() {
+        BoardModel ms04 = board("MS04-CE0");
+        BoardModel md72 = board("MD72-HB3");
+        BoardModel empty = board("X11-EMPTY");
+        BoardModel gone = board("GONE-01");
+        BoardModel off = board("OFF-01");
+        GuestServer a = server("a"), b = server("b"), c = server("c");
+        em.persist(GuestServerDetail.builder().id(UUID.randomUUID()).guestServer(a).boardModel(ms04).discoveryStage(DiscoveryStage.DIAGNOSTIC_ENRICHED).build());
+        em.persist(GuestServerDetail.builder().id(UUID.randomUUID()).guestServer(b).boardModel(md72).discoveryStage(DiscoveryStage.DIAGNOSTIC_ENRICHED).build());
+        em.persist(GuestServerDetail.builder().id(UUID.randomUUID()).guestServer(c).boardModel(md72).discoveryStage(DiscoveryStage.DIAGNOSTIC_ENRICHED).build());
+        em.flush();
+        em.createNativeQuery("update board_model set is_deprecated = true where id = ?").setParameter(1, empty.getId()).executeUpdate();
+        em.createNativeQuery("update board_model set is_deleted = true where id = ?").setParameter(1, gone.getId()).executeUpdate();
+        em.createNativeQuery("update board_model set is_enabled = false where id = ?").setParameter(1, off.getId()).executeUpdate();
+        em.clear();
+
+        ServerListQuery both = new ServerListQuery(null, null, null, null, null, Set.of(ms04.getId(), md72.getId()), null, null, null, null);
+        assertThat(names(GuestServerSpecifications.of(both, ServerScope.ALL))).containsExactly("a", "b", "c");
+
+        assertThat(detailRepository.findBoardLookupRows())
+                .extracting(r -> r.name() + ":" + r.serverCount() + ":" + r.enabled() + ":" + r.deprecated())
+                .containsExactlyInAnyOrder("MS04-CE0:1:true:false", "MD72-HB3:2:true:false", "X11-EMPTY:0:true:true", "OFF-01:0:false:false");
+    }
+
 }

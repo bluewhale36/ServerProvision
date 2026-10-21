@@ -23,8 +23,8 @@
         하단 [검색](폼의 첫 submit 버튼 · 창 안 Enter 의 암묵 제출도 여기로)이 한 번에 적용한다. 적용 없이 닫히면
         (닫기 · Esc · 바깥 클릭) 창 안 컨트롤을 서버가 그린 값(defaultChecked · defaultValue · defaultSelected = 지금 주소의
         조건)으로 되돌린다 — 다시 열었을 때 창과 목록이 어긋나지 않게. 열리면 첫 컨트롤로 포커스를 옮긴다.
-     ⑪ 걸린 조건 토큰 — 창의 줄([data-filter-row])마다 기본값과 다른 컨트롤이 있으면 "줄 라벨: 선택값" 토큰을 띠에
-        그린다. × 는 그 줄만 기본값으로 되돌리고 제출한다. 문구는 줄 마크업에서 읽으므로 서버가 따로 그리지 않는다.
+     ⑪ 걸린 조건 토큰 — 창의 줄([data-filter-row])마다 기본값과 다른 컨트롤이 있으면 "줄 라벨 + 걸린 개수" 토큰을 띠
+        아래 줄에 그린다(값은 툴팁 · S8-6 CP6). × 는 그 줄만 기본값으로 되돌리고 제출한다. 문구는 줄 마크업에서 읽으므로 서버가 따로 그리지 않는다.
      ⑫ 쪽 번호 입력(쪽 이동 줄 · S8-4) — Enter 로 그 쪽으로 간다.
      ⑬ 빠른 기간 칩(S8-5 · 기간 줄) — 두 날짜를 채우기만 한다(창 안이라 [검색] 으로 적용). 지금 두 날짜와 같은 칩은 눌린 모양.
    폼 제출은 전부 page 를 버린다 — page 는 폼 필드가 아니다. 필터 · 정렬 · 크기를 바꾸면 첫 쪽으로 돌아가는
@@ -225,6 +225,12 @@
         }
     }
     const panel = document.querySelector('[data-filter-panel]');
+    // 검색 선택기 줄(S8-6)의 칩 영역은 칩이 생기고 없어지는 영역이라 컨트롤 하나하나를 되돌릴 수 없다 — 서버가 그린 마크업을
+    // 통째로 보관했다가 되돌린다.
+    const chipSnapshots = new Map();
+    if (panel) {
+        panel.querySelectorAll('[data-lookup-chips]').forEach(function (box) { chipSnapshots.set(box, box.innerHTML); });
+    }
     if (panel) {
         panel.addEventListener('toggle', function (e) {
             if (e.newState !== 'open') return;
@@ -237,6 +243,8 @@
             const form = panel.closest('form');
             if (e.newState !== 'closed' || (form && form.dataset.submitting === '1')) return;
             controlsIn(panel).forEach(restore);
+            chipSnapshots.forEach(function (html, box) { box.innerHTML = html; });
+            panel.querySelectorAll('[data-lookup-input]').forEach(function (input) { input.value = ''; });
             if (form) syncRange(form, null);
             panel.querySelectorAll('.n-filter-range').forEach(markPresets);
         });
@@ -248,6 +256,11 @@
         return label ? label.textContent.replace(/\s+/g, ' ').trim() : '';
     }
     function rowValues(row) {
+        // 검색 선택기 줄(S8-6) — 칩 이름이 곧 값이다(서버가 그린 칩 = 지금 주소의 조건).
+        const chips = row.querySelectorAll('[data-lookup-chip]');
+        if (row.querySelector('[data-lookup-chips]')) {
+            return Array.from(chips).map(function (c) { return c.firstElementChild ? c.firstElementChild.textContent.trim() : ''; });
+        }
         const values = [];
         const dates = [];
         controlsIn(row).forEach(function (c) {
@@ -269,6 +282,7 @@
         return values;
     }
     function clearRow(row) {
+        row.querySelectorAll('[data-lookup-chip]').forEach(function (c) { c.remove(); });
         controlsIn(row).forEach(function (c) {
             if (c instanceof HTMLSelectElement) {
                 c.value = c.getAttribute('data-default') || '';
@@ -289,9 +303,16 @@
             if (values.length === 0) return;
             const name = row.querySelector('.n-filter-row-label');
             const title = name ? name.textContent.trim() : '';
+            // 값을 다 늘어놓으면 띠가 무너진다(S8-6 CP6 지시) — 줄 이름과 걸린 개수만 보이고, 값은 마우스를 올리면 툴팁으로.
             const token = document.createElement('span');
             token.className = 'n-filter-token';
-            token.textContent = title + ': ' + values.join(', ');
+            token.title = values.join(', ');
+            const label = document.createElement('span');
+            label.textContent = title;
+            const count = document.createElement('b');
+            count.className = 'n-filter-token-count';
+            count.textContent = String(values.length);
+            token.append(label, count);
             const x = document.createElement('button');
             x.type = 'button';
             x.textContent = '×';

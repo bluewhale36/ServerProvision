@@ -69,6 +69,7 @@ class GuestServerControllerPickerTest {
     @MockitoBean AssignmentStartService assignmentStartService;
     @MockitoBean SettingQueryService settingQueryService;
     @MockitoBean GuestServerGroupQueryService groupQueryService;
+    @MockitoBean com.example.serverprovision.execution.service.GuestServerLookupService lookupService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private static final String BLOCK_REASON =

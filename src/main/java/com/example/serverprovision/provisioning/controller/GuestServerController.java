@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.controller;
 
 import com.example.serverprovision.global.web.list.ListDateRangeDefaults;
+import com.example.serverprovision.global.web.list.dto.LookupChip;
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
 import com.example.serverprovision.execution.dto.request.ServerListQuery;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
@@ -85,7 +86,8 @@ public class GuestServerController {
     private final AssignmentStartService assignmentStartService;
     private final SettingQueryService settingQueryService;
     private final GuestServerGroupQueryService groupQueryService;
-    private final ListDateRangeDefaults rangeDefaults;   // S8-4 · S8-5 — 등록 시각 기본 범위
+    private final ListDateRangeDefaults rangeDefaults;
+    private final com.example.serverprovision.execution.service.GuestServerLookupService lookupService;   // S8-6 — 보드 검색 선택기   // S8-4 · S8-5 — 등록 시각 기본 범위
 
     /**
      * 게스트 서버 목록 (U3-3 · S8-2) — 묶음 보기(시간 × 스펙) 또는 표 보기(정렬 · 페이징)로 그린다.
@@ -98,13 +100,19 @@ public class GuestServerController {
      */
     @GetMapping
     public String list(@ModelAttribute("query") ServerListQuery requested,
-                       @RequestParam(value = "group", required = false) GroupFilter group,
+                       @RequestParam(value = "group", required = false) List<GroupFilter> groups,
                        @RequestParam(value = "pending", required = false) String pending,
                        @PageableDefault(size = Paging.DEFAULT_SIZE) Pageable pageable,
                        ListLinks links, Model model) {
-        GroupFilter groupFilter = group == null ? GroupFilter.ANY : group;
+        // S8-6 — 보드 · 소속 그룹은 검색 선택기의 칩이다. 실재하는 것만 칩 · 조건으로 남긴다(없는 id 는 숨은 조건이 되지 않게).
+        List<LookupChip> boardChips = lookupService.boardChips(requested.boardModelIds());
+        ServerListQuery cleaned = requested.withBoardModelIds(
+                boardChips.stream().map(chip -> Long.valueOf(chip.value())).collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new)));
+        GroupFilter groupFilter = groupQueryService.retainExisting(GroupFilter.merge(groups));
+        model.addAttribute("selectedBoards", boardChips);
+        model.addAttribute("selectedGroups", groupQueryService.groupChips(groupFilter));
         java.time.LocalDate today = rangeDefaults.addTo(model);
-        ServerListQuery query = requested.withDefaultRange(today);
+        ServerListQuery query = cleaned.withDefaultRange(today);
         model.addAttribute("query", query);
         ServerScope scope = groupQueryService.scopeOf(groupFilter);
         List<UUID> visible;
@@ -122,16 +130,37 @@ public class GuestServerController {
         boolean pendingOpen = "open".equals(pending);
         model.addAttribute("pendingOpen", pendingOpen);
         model.addAttribute("group", groupFilter);
-        model.addAttribute("filtered", requested.isFiltered(today) || groupFilter.isSet());
+        model.addAttribute("filtered", cleaned.isFiltered(today) || groupFilter.isSet());
         model.addAttribute("links", links);
         model.addAttribute("phases", ProvisioningPhase.values());
         model.addAttribute("statuses", SELECTABLE_STATUSES);
-        model.addAttribute("boardOptions", guestServerQueryService.findBoardOptions());
         model.addAttribute("sortFields", ServerSortField.values());
         model.addAttribute("sortDefault", ServerListQuery.DEFAULT_SORT);
         // U3-4 — 소속 그룹 배지. 목록 조회는 execution 이고 그룹은 provisioning 이라 요약 응답에 실을 수 없다(DEC-C).
         model.addAttribute("groupBadges", groupQueryService.findBadges(visible));
         return "provisioning/server-list";
+    }
+
+    /**
+     * 보드 검색 팝업 내용(S8-6) — 검색어 · 비활성 포함 여부로 거른 행 조각(사용 중단은 거르지 않고 배지로 알린다). 팝업을 열 때와 그 안에서 검색할 때 fetch 한다.
+     * 줄 입력칸 Enter 의 '1 건이면 바로 칩' 판정도 이 응답의 행 수를 본다(같은 검색 규칙).
+     */
+    @GetMapping("/lookup/boards")
+    public String lookupBoards(@RequestParam(value = "q", required = false) String q,
+                               @RequestParam(value = "includeDisabled", defaultValue = "false") boolean includeDisabled,
+                               Model model) {
+        model.addAttribute("rows", lookupService.lookupBoards(q, includeDisabled));
+        return "fragments/provisioning/server-lookup-rows :: boards";
+    }
+
+    /** 소속 그룹 검색 팝업 내용(S8-6) — 이름 검색으로 거른 그룹 행 + 검색어가 맞으면 무소속 행. */
+    @GetMapping("/lookup/groups")
+    public String lookupGroups(@RequestParam(value = "q", required = false) String q, Model model) {
+        model.addAttribute("rows", groupQueryService.lookupGroups(q));
+        model.addAttribute("ungroupedRow", groupQueryService.ungroupedMatches(q));
+        model.addAttribute("ungroupedValue", GroupFilter.UNGROUPED_PARAM);
+        model.addAttribute("ungroupedLabel", GroupFilter.UNGROUPED_LABEL);
+        return "fragments/provisioning/server-lookup-rows :: groups";
     }
 
     /** 상태 칩 선택지 — 회수됨은 '회수된 서버 보기' 체크박스 한 축이 맡는다(S8-2 D7). */

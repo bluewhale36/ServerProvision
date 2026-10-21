@@ -61,6 +61,7 @@ class GuestServerControllerWindowsInstallViewTest {
     @MockitoBean AssignmentStartService assignmentStartService;
     @MockitoBean SettingQueryService settingQueryService;
     @MockitoBean GuestServerGroupQueryService groupQueryService;
+    @MockitoBean com.example.serverprovision.execution.service.GuestServerLookupService lookupService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     @BeforeEach

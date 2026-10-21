@@ -1477,12 +1477,220 @@ kbd {
     border-color: var(--n-text);
 }
 
+/* 검색 선택기 줄(S8-6 · ecount 방식) — 돋보기 · 입력칸 · 고른 값 칩 · 전부 해제(×)가 한 칸에 선다. */
+.n-lookup-field {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px;
+    border: 1px solid var(--n-border-form);
+    border-radius: var(--n-radius);
+    background: var(--n-surface);
+}
+
+.n-lookup-open,
+.n-lookup-clear,
+.n-lookup-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: var(--n-radius);
+    background: transparent;
+    color: var(--n-text-sec);
+    font: inherit;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+.n-lookup-open:hover,
+.n-lookup-clear:hover,
+.n-lookup-x:hover {
+    background: var(--n-sunken);
+    color: var(--n-text);
+}
+
+.n-lookup-field .n-lookup-input {
+    width: 120px;
+    flex: 0 0 auto;
+    padding: 3px 8px;
+    font-size: 12px;
+    border-radius: 999px;
+}
+
+.n-lookup-chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.n-lookup-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 2px 1px 8px;
+    border-radius: 999px;
+    background: var(--n-blue-badge-bg);
+    color: var(--n-blue-badge-text);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.n-lookup-chip button {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: var(--n-blue);
+    color: var(--n-surface);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* 검색 팝업 — 조건 창 안의 자식 popover. 화면 가운데 위쪽에 띄운다(최상위 레이어라 조건 창 위에 겹친다). */
+.n-lookup-panel {
+    position: fixed;
+    inset: auto;
+    top: 12vh;
+    left: 50%;
+    translate: -50% 0;
+    margin: 0;
+    width: min(720px, calc(100vw - 32px));
+    max-height: 72vh;
+    padding: 0;
+    border: 1px solid var(--n-blue);
+    border-radius: var(--n-radius);
+    background: var(--n-surface);
+    color: var(--n-text);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
+}
+
+.n-lookup-panel:popover-open {
+    display: flex;
+    flex-direction: column;
+}
+
+.n-lookup-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--n-blue);
+    color: var(--n-surface);
+    font-size: 13px;
+}
+
+.n-lookup-head .n-lookup-x {
+    color: var(--n-surface);
+}
+
+.n-lookup-head .n-lookup-x:hover {
+    background: var(--n-blue-hover);
+    color: var(--n-surface);
+}
+
+.n-lookup-search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+}
+
+.n-lookup-search .n-input {
+    width: 220px;
+    padding: 5px 10px;
+    font-size: 13px;
+}
+
+.n-lookup-results {
+    flex: 1 1 auto;
+    min-height: 120px;
+    overflow: auto;
+    border-top: 1px solid var(--n-border-row);
+    border-bottom: 1px solid var(--n-border-row);
+}
+
+.n-lookup-results .n-lookup-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    box-shadow: inset 0 -1px 0 var(--n-border);
+}
+
+.n-lookup-check {
+    width: 36px;
+    text-align: center;
+}
+
+.n-lookup-pick {
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--n-blue);
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+
+.n-lookup-pick:hover:not(:disabled) {
+    text-decoration: underline;
+}
+
+.n-lookup-pick:disabled {
+    color: var(--n-text-muted);
+    cursor: default;
+}
+
+.n-lookup-row-disabled td {
+    background: var(--n-sunken);
+    color: var(--n-text-muted);
+}
+
+.n-lookup-row-chosen td {
+    color: var(--n-text-muted);
+}
+
+.n-lookup-chosen {
+    margin-left: 6px;
+}
+
+.n-lookup-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--n-text-muted);
+}
+
+.n-lookup-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+}
+
+.n-lookup-status {
+    margin-right: auto;
+    font-size: 12px;
+    color: var(--n-text-sec);
+}
+
 /* 걸린 조건 토큰 — 창을 열지 않아도 목록이 왜 좁아졌는지 보이게. 문구는 창의 줄 마크업에서 스크립트가 만든다. */
 .n-filter-tokens {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 6px;
+    order: 99;          /* 검색 · 보기 · 정렬 · 결과 줄 아래 한 줄로(S8-6 CP6) */
+    flex-basis: 100%;
 }
 
 .n-filter-token {
@@ -1495,6 +1703,17 @@ kbd {
     color: var(--n-blue-badge-text);
     font-size: 12px;
     white-space: nowrap;
+}
+
+.n-filter-token-count {
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--n-blue);
+    color: var(--n-surface);
+    font-size: 11px;
+    line-height: 16px;
+    text-align: center;
 }
 
 .n-filter-token button {

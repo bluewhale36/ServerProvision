@@ -4,14 +4,15 @@
   등록된 게스트 서버 목록 페이지 (U3-3 — 상대 시간 × 스펙 · S8-2 — 묶음 · 표 보기와 검색 · 필터 · 정렬 · 페이징)
   ─────────────────────────────────────────────────────────
   Model:
-    query        : ServerListQuery — 조회 띠 상태(view · q · phases · statuses · includeDecommissioned · boardModelId · from · to · sort · dir)
+    query        : ServerListQuery — 조회 띠 상태(view · q · phases · statuses · includeDecommissioned · boardModelIds · from · to · sort · dir)
     group        : GroupFilter — 소속 그룹 조건(ANY · UNGROUPED · GROUP) — 조회(execution)가 모르게 따로 받는다
     filtered     : boolean — 조건이 하나라도 걸렸는가(그룹 포함) — 빈 상태 갈래 · 초기화 링크
     list         : GuestServerListResponse — 묶음 보기일 때. pending(0대면 null) + timeGroups(멤버 있는 구간만)
     page         : Page<GuestServerSummaryResponse> — 표 보기일 때
     resultCount  : 결과 건수(두 보기 공통)
     links        : ListLinks — 쪽 이동 · 초기화 · 펼침 토글
-    phases · statuses · boardOptions(제조사별 묶음) · sortFields · sortDefault : 조회 띠 선택지
+    phases · statuses · sortFields · sortDefault : 조회 띠 선택지
+    selectedBoards · selectedGroups : 검색 선택기 줄의 칩(List<LookupChip> · 실재하는 것만 · S8-6)
     pendingOpen  : boolean — '등록 진행 중' 펼침(묶음 보기)
     groupBadges  : Map<UUID, GroupBadgeResponse> — 소속 그룹 (U3-4)
 
@@ -70,20 +71,9 @@
                         </label>
                     </div>
                 </div>
-                <!--/* 보드는 제조사별 optgroup(S8-2 CP6 임시 조치). 소속 그룹 조건은 화면에서 잠시 뺐다 — 보드 · 그룹은 자기 조회
-                       화면이 있는 대상이라 단순 셀렉트가 맞지 않고, 뒤 슬라이스(S8-6 가칭)에서 다시 설계한다(서버 쪽 group 파라미터는 남아 있다). */-->
-                <div class="n-filter-row" data-filter-row>
-                    <span class="n-filter-row-label">보드</span>
-                    <div class="n-filter-row-field n-filter-group" role="group" aria-label="보드 모델">
-                        <select name="board" class="n-select" aria-label="보드 모델">
-                            <option value="">보드 전체</option>
-                            <optgroup th:each="vg : ${boardOptions}" th:label="${vg.vendor}">
-                                <option th:each="b : ${vg.boards}" th:value="${b.id}" th:text="${b.name}"
-                                        th:selected="${query.boardModelId == b.id}">MS03-CE0</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                </div>
+                <!--/* 보드 · 소속 그룹 — 검색 선택기(S8-6 · ecount 방식). 셀렉트 대신 검색 팝업에서 골라 칩으로 쌓는다(줄 안 OR). */-->
+                <div th:replace="~{fragments/ui/lookup-field :: field('board', '보드', @{/provisioning/server/lookup/boards}, ${selectedBoards}, true)}"></div>
+                <div th:replace="~{fragments/ui/lookup-field :: field('group', '소속 그룹', @{/provisioning/server/lookup/groups}, ${selectedGroups}, false)}"></div>
                 <!--/* 기간 — 등록 시각 · 기본 범위 1 년 전 ~ 오늘(S8-4 · 공용 줄은 S8-5). */-->
                 <div th:replace="~{fragments/ui/date-range-row :: row('등록 시각', ${query})}"></div>
                 <div class="n-filter-row" data-filter-row>
@@ -273,6 +263,7 @@
 
 <!-- S7 — SSE 구독 + 신호-재조회 부분 교체 -->
 <script th:src="@{/provisioning/server-stream.js}"></script>
+<script th:src="@{/global/list-lookup.js}"></script>
 <script th:src="@{/global/list-query.js}"></script>
 
 </body>

@@ -4,7 +4,9 @@ import com.example.serverprovision.execution.dto.response.GuestServerListRespons
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.service.GuestServerQueryService;
 import com.example.serverprovision.execution.vo.SpecGroupKey;
+import com.example.serverprovision.global.web.list.dto.LookupChip;
 import com.example.serverprovision.provisioning.group.dto.response.GroupBadgeResponse;
+import com.example.serverprovision.provisioning.group.dto.response.GroupLookupRow;
 import com.example.serverprovision.provisioning.group.dto.response.GroupDetailResponse;
 import com.example.serverprovision.provisioning.group.dto.response.GroupMemberResponse;
 import com.example.serverprovision.provisioning.group.dto.response.GroupSummaryResponse;
@@ -68,16 +70,61 @@ public class GuestServerGroupQueryService {
     }
 
     /**
-     * 소속 그룹 조건 → 서버 id 범위(S8-2). 서버 조회(execution)는 그룹을 모르므로 여기서 번역해 넘긴다(DEC-C).
-     * 무소속은 "소속이 있는 서버 전부를 뺀다", 특정 그룹은 "그 멤버만" 이다. 없는 그룹 id 면 멤버가 없어 결과가 빈다.
+     * 소속 그룹 조건 → 서버 id 범위(S8-2 · S8-6 다중). 서버 조회(execution)는 그룹을 모르므로 여기서 번역해 넘긴다(DEC-C).
+     * 고른 그룹들은 "그 멤버만", 무소속을 함께 고르면 "소속 서버 중 고른 그룹 멤버가 아닌 것만 뺀 전부" 다(OR).
      */
+    /** 소속 그룹 검색 팝업 행(S8-6) — 이름 부분 일치(대소문자 무시) · 이름 순. 그룹은 수십 개 규모라 메모리에서 거른다. */
+    @Transactional(readOnly = true)
+    public List<GroupLookupRow> lookupGroups(String q) {
+        String needle = q == null ? "" : q.trim().toLowerCase();
+        return groupRepository.findAll(org.springframework.data.domain.Sort.by("name")).stream()
+                .filter(g -> needle.isEmpty() || g.getName().toLowerCase().contains(needle))
+                .map(g -> new GroupLookupRow(g.getId(), g.getName(), g.getMemberCount()))
+                .toList();
+    }
+
+    /** 검색어가 무소속에 맞는가 — 맞으면 팝업이 무소속 행을 함께 그린다. */
+    public boolean ungroupedMatches(String q) {
+        return q == null || q.isBlank() || GroupFilter.UNGROUPED_LABEL.contains(q.trim());
+    }
+
+    /** 실재하는 그룹만 남긴 조건(S8-6) — 주소에 없는 그룹 id 는 칩도 조건도 남기지 않는다. */
+    @Transactional(readOnly = true)
+    public GroupFilter retainExisting(GroupFilter filter) {
+        if (filter.groupIds().isEmpty()) {
+            return filter;
+        }
+        List<Long> existing = groupRepository.findAllById(filter.groupIds()).stream().map(GuestServerGroup::getId).toList();
+        return filter.retainGroups(existing);
+    }
+
+    /** 줄에 쌓일 칩 — 무소속이 먼저, 그룹은 이름 순. */
+    @Transactional(readOnly = true)
+    public List<LookupChip> groupChips(GroupFilter filter) {
+        List<LookupChip> chips = new ArrayList<>();
+        if (filter.ungrouped()) {
+            chips.add(new LookupChip(GroupFilter.UNGROUPED_PARAM, GroupFilter.UNGROUPED_LABEL));
+        }
+        groupRepository.findAllById(filter.groupIds()).stream()
+                .sorted(java.util.Comparator.comparing(GuestServerGroup::getName))
+                .forEach(g -> chips.add(new LookupChip(String.valueOf(g.getId()), g.getName())));
+        return chips;
+    }
+
     @Transactional(readOnly = true)
     public ServerScope scopeOf(GroupFilter filter) {
-        return switch (filter.mode()) {
-            case ANY -> ServerScope.ALL;
-            case UNGROUPED -> ServerScope.excluding(new HashSet<>(memberRepository.findAllGroupedServerIds()));
-            case GROUP -> ServerScope.only(new HashSet<>(memberRepository.findServerIdsByGroupId(filter.groupId())));
-        };
+        if (!filter.isSet()) {
+            return ServerScope.ALL;
+        }
+        Set<UUID> members = filter.groupIds().isEmpty()
+                ? Set.of() : new HashSet<>(memberRepository.findServerIdsByGroupIdIn(filter.groupIds()));
+        if (!filter.ungrouped()) {
+            return ServerScope.only(members);
+        }
+        // 무소속 ∪ 고른 그룹 멤버 = 소속 서버 중 고른 그룹 멤버가 아닌 것만 뺀 전체(S8-6).
+        Set<UUID> excluded = new HashSet<>(memberRepository.findAllGroupedServerIds());
+        excluded.removeAll(members);
+        return ServerScope.excluding(excluded);
     }
 
     /** 구성이 갈린 그룹의 id — 멤버의 구성 키가 둘 이상인 그룹이다. 주어진 그룹만 본다. */
