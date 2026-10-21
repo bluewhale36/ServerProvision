@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.group.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.provisioning.assignment.dto.response.GroupApplyPreviewResponse;
@@ -60,6 +62,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 멤버 0 이면 모달을 렌더하지 않았는데, U3-5-d 의 표준 지정은 <b>빈 그룹에서 하는 일</b>이라 그대로
  * 두면 핵심 유스케이스가 닿지 않는다(DEC-B).</p>
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = GuestServerGroupController.class)
 class GuestServerGroupControllerStandardTest {
 

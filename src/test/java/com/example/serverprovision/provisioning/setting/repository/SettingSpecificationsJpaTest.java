@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.repository;
 
+import jakarta.persistence.EntityManager;
 import com.example.serverprovision.global.web.list.Paging;
 import com.example.serverprovision.provisioning.setting.dto.request.BasicSettingRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.BasicUpdateRequest;
@@ -42,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SettingSpecificationsJpaTest {
 
     @Autowired SettingDefinitionRepository repository;
+    @Autowired EntityManager em;
 
     private static SettingProcess update() {
         return new SettingProcess(new ProcessPayload(new BasicUpdateRequest(
@@ -75,7 +77,7 @@ class SettingSpecificationsJpaTest {
     }
 
     private static SettingListQuery query(String q, Boolean enabled, Set<SettingProcessType> types, Boolean includeDeleted) {
-        return new SettingListQuery(q, enabled, null, types, includeDeleted, SettingSortField.NAME, Sort.Direction.ASC);
+        return new SettingListQuery(q, enabled, null, types, includeDeleted, null, null, SettingSortField.NAME, Sort.Direction.ASC);
     }
 
     @Test
@@ -110,11 +112,31 @@ class SettingSpecificationsJpaTest {
     @Test
     @DisplayName("활성 축 + 이름 역순 정렬")
     void enabledAxisAndSort() {
-        SettingListQuery disabled = new SettingListQuery(null, false, null, null, null, SettingSortField.NAME, Sort.Direction.DESC);
+        SettingListQuery disabled = new SettingListQuery(null, false, null, null, null, null, null, SettingSortField.NAME, Sort.Direction.DESC);
         assertThat(search(disabled).map(SettingDefinition::getName).getContent()).containsExactly("비활성 표준");
 
-        SettingListQuery byNameDesc = new SettingListQuery(null, null, null, null, null, SettingSortField.NAME, Sort.Direction.DESC);
+        SettingListQuery byNameDesc = new SettingListQuery(null, null, null, null, null, null, null, SettingSortField.NAME, Sort.Direction.DESC);
         assertThat(search(byNameDesc).map(SettingDefinition::getName).getContent())
                 .containsExactly("펌웨어만", "비활성 표준", "8월 표준 세팅", "50%_할인");
     }
+
+    @Test
+    @DisplayName("S8-5 — 생성 일시 기간: 시작일 0 시 포함 · 종료일 하루 전체 포함 · 다음 날 0 시 제외")
+    void createdAtRange() {
+        setCreatedAt("펌웨어만", java.time.LocalDateTime.of(2026, 8, 31, 23, 59));
+        setCreatedAt("50%_할인", java.time.LocalDateTime.of(2026, 9, 1, 0, 0));
+        setCreatedAt("8월 표준 세팅", java.time.LocalDateTime.of(2026, 9, 30, 23, 59));
+        setCreatedAt("비활성 표준", java.time.LocalDateTime.of(2026, 10, 1, 0, 0));
+
+        SettingListQuery september = new SettingListQuery(null, null, null, null, null,
+                java.time.LocalDate.of(2026, 9, 1), java.time.LocalDate.of(2026, 9, 30), SettingSortField.NAME, Sort.Direction.ASC);
+        assertThat(search(september).map(SettingDefinition::getName).getContent()).containsExactly("50%_할인", "8월 표준 세팅");
+    }
+
+    private void setCreatedAt(String name, java.time.LocalDateTime at) {
+        em.createNativeQuery("update setting_definition set created_at = ? where name = ?")
+                .setParameter(1, at).setParameter(2, name).executeUpdate();
+        em.clear();
+    }
+
 }

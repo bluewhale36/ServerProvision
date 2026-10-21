@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.dto.request;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.example.serverprovision.provisioning.setting.enums.SettingSortField;
 import org.junit.jupiter.api.DisplayName;
@@ -17,39 +18,39 @@ class SettingListQueryTest {
     @Test
     @DisplayName("아무 조건도 없으면 번호 오름차순 · 삭제 제외 · 필터 없음")
     void defaults() {
-        SettingListQuery q = new SettingListQuery(null, null, null, null, null, null, null);
+        SettingListQuery q = new SettingListQuery(null, null, null, null, null, null, null, null, null);
 
         assertThat(q.sort()).isEqualTo(SettingSortField.ID);
         assertThat(q.dir()).isEqualTo(Sort.Direction.ASC);
         assertThat(q.includeDeleted()).isFalse();
         assertThat(q.processTypes()).isEmpty();
-        assertThat(q.isFiltered()).isFalse();
+        assertThat(q.isFiltered(FixedClockTestConfig.TODAY)).isFalse();
     }
 
     @Test
     @DisplayName("공백 검색어는 조건이 아니다 · 앞뒤 공백은 걷는다")
     void blankQueryIsNull() {
-        assertThat(new SettingListQuery("   ", null, null, null, null, null, null).q()).isNull();
-        assertThat(new SettingListQuery("  표준 ", null, null, null, null, null, null).q()).isEqualTo("표준");
+        assertThat(new SettingListQuery("   ", null, null, null, null, null, null, null, null).q()).isNull();
+        assertThat(new SettingListQuery("  표준 ", null, null, null, null, null, null, null, null).q()).isEqualTo("표준");
     }
 
     @Test
     @DisplayName("단계 집합의 null 원소(빈 값 파라미터)는 걸러진다")
     void nullProcessTypeElementsAreDropped() {
         SettingListQuery q = new SettingListQuery(null, null, null,
-                new HashSet<>(Arrays.asList(null, SettingProcessType.RAID_CONFIGURATION)), null, null, null);
+                new HashSet<>(Arrays.asList(null, SettingProcessType.RAID_CONFIGURATION)), null, null, null, null, null);
 
         assertThat(q.processTypes()).containsExactly(SettingProcessType.RAID_CONFIGURATION);
-        assertThat(q.isFiltered()).isTrue();
+        assertThat(q.isFiltered(FixedClockTestConfig.TODAY)).isTrue();
     }
 
     @Test
-    @DisplayName("방향이 없으면 정렬 항목의 기본 방향 — 생성일시는 최신순")
+    @DisplayName("방향이 없으면 정렬 항목의 기본 방향 — 생성 일시는 최신순")
     void directionFallsBackToFieldDefault() {
-        SettingListQuery q = new SettingListQuery(null, null, null, null, null, SettingSortField.CREATED_AT, null);
+        SettingListQuery q = new SettingListQuery(null, null, null, null, null, null, null, SettingSortField.CREATED_AT, null);
 
         assertThat(q.dir()).isEqualTo(Sort.Direction.DESC);
-        assertThat(q.isFiltered()).isFalse();
+        assertThat(q.isFiltered(FixedClockTestConfig.TODAY)).isFalse();
     }
 
     @Test
@@ -58,4 +59,17 @@ class SettingListQueryTest {
         assertThat(Arrays.stream(SettingSortField.values()).map(f -> f.property() + ":" + f.defaultDirection()))
                 .containsExactly("id:ASC", "name:ASC", "createdAt:DESC");
     }
+
+    @Test
+    @DisplayName("S8-5 — 생성 일시 기본 범위로 채운 조건은 다른 축을 그대로 두고, 기본 범위와 같으면 조건이 아니다")
+    void withDefaultRange_keepsOtherAxes() {
+        SettingListQuery q = new SettingListQuery("표준", true, null, null, null, null, null, null, null).withDefaultRange(FixedClockTestConfig.TODAY);
+        assertThat(q.q()).isEqualTo("표준");
+        assertThat(q.enabled()).isTrue();
+        assertThat(q.from()).isEqualTo(java.time.LocalDate.of(2025, 10, 11));
+        assertThat(q.to()).isEqualTo(FixedClockTestConfig.TODAY);
+        assertThat(new SettingListQuery(null, null, null, null, null, null, null, null, null).withDefaultRange(FixedClockTestConfig.TODAY)
+                .isFiltered(FixedClockTestConfig.TODAY)).isFalse();
+    }
+
 }

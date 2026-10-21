@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.controller;
 
+import com.example.serverprovision.global.web.list.ListDateRangeDefaults;
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
 import com.example.serverprovision.execution.dto.request.ServerListQuery;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
@@ -84,7 +85,7 @@ public class GuestServerController {
     private final AssignmentStartService assignmentStartService;
     private final SettingQueryService settingQueryService;
     private final GuestServerGroupQueryService groupQueryService;
-    private final java.time.Clock clock;   // S8-4 — 등록 시각 기본 범위의 '오늘'
+    private final ListDateRangeDefaults rangeDefaults;   // S8-4 · S8-5 — 등록 시각 기본 범위
 
     /**
      * 게스트 서버 목록 (U3-3 · S8-2) — 묶음 보기(시간 × 스펙) 또는 표 보기(정렬 · 페이징)로 그린다.
@@ -102,11 +103,9 @@ public class GuestServerController {
                        @PageableDefault(size = Paging.DEFAULT_SIZE) Pageable pageable,
                        ListLinks links, Model model) {
         GroupFilter groupFilter = group == null ? GroupFilter.ANY : group;
-        java.time.LocalDate today = java.time.LocalDate.now(clock);
+        java.time.LocalDate today = rangeDefaults.addTo(model);
         ServerListQuery query = requested.withDefaultRange(today);
         model.addAttribute("query", query);
-        model.addAttribute("rangeDefaultFrom", ServerListQuery.defaultFrom(today));
-        model.addAttribute("rangeDefaultTo", today);
         ServerScope scope = groupQueryService.scopeOf(groupFilter);
         List<UUID> visible;
         if (query.isTable()) {

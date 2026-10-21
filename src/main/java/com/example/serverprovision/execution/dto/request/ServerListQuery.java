@@ -7,9 +7,10 @@ import com.example.serverprovision.execution.enums.ServerSortField;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.BindParam;
+import com.example.serverprovision.global.web.list.vo.DateRange;
+import com.example.serverprovision.global.web.list.vo.DateRangeQuery;
 
 import java.time.LocalDate;
-import java.time.Period;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Objects;
@@ -23,8 +24,8 @@ import java.util.Set;
  * 서버의 단계 · 상태는 한 값이므로 축 안에서는 OR 로 합친다(여러 값을 갖는 속성의 AND 와 다르다).
  * 회수 여부는 체크박스 한 축이 맡으므로 상태 집합에서 {@code DECOMMISSIONED} 는 조용히 뺀다.</p>
  *
- * <p>등록 시각 기간은 비어 있으면 기본 범위(오늘부터 1 년 전 ~ 오늘)다(S8-4). 기본 범위는 URL 에 싣지 않으므로
- * 오늘이 바뀌면 같은 주소가 새 기본 범위로 그려진다 — 컨트롤러가 {@link #withDefaultRange} 로 채워 조회에 쓴다.</p>
+ * <p>등록 시각 기간은 비어 있으면 기본 범위(1 년 전 ~ 오늘)다(S8-4 · 규칙은 S8-5 에서 {@link DateRange} 로 옮김).
+ * 컨트롤러가 {@link #withDefaultRange} 로 채워 조회에 쓴다.</p>
  */
 public record ServerListQuery(
         ServerListView view,
@@ -37,14 +38,9 @@ public record ServerListQuery(
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
         ServerSortField sort,
         Sort.Direction dir
-) {
+) implements DateRangeQuery {
 
     public static final ServerSortField DEFAULT_SORT = ServerSortField.CREATED_AT;
-    public static final Period DEFAULT_RANGE = Period.ofYears(1);
-
-    public static LocalDate defaultFrom(LocalDate today) {
-        return today.minus(DEFAULT_RANGE);
-    }
 
     public ServerListQuery {
         view = view == null ? ServerListView.GROUPED : view;
@@ -70,8 +66,8 @@ public record ServerListQuery(
 
     /** 비어 있는 기간 끝을 기본 범위(1 년 전 ~ 오늘)로 채운 조건 — 조회와 화면은 이 값을 쓴다. */
     public ServerListQuery withDefaultRange(LocalDate today) {
-        return new ServerListQuery(view, q, phases, statuses, includeDecommissioned, boardModelId,
-                from == null ? defaultFrom(today) : from, to == null ? today : to, sort, dir);
+        DateRange r = range().withDefault(today);
+        return new ServerListQuery(view, q, phases, statuses, includeDecommissioned, boardModelId, r.from(), r.to(), sort, dir);
     }
 
     /**
@@ -80,12 +76,7 @@ public record ServerListQuery(
      */
     public boolean isFiltered(LocalDate today) {
         return q != null || !phases.isEmpty() || !statuses.isEmpty() || includeDecommissioned
-                || boardModelId != null
-                || (from != null && !from.equals(defaultFrom(today))) || (to != null && !to.equals(today));
+                || boardModelId != null || !range().isDefault(today);
     }
 
-    /** 기간이 거꾸로인가 — 결과가 비고 화면이 안내한다(UI 는 날짜 입력의 min/max 로 먼저 막는다). */
-    public boolean isRangeReversed() {
-        return from != null && to != null && from.isAfter(to);
-    }
 }

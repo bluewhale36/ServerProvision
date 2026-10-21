@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.repository;
 
+import com.example.serverprovision.global.web.list.DateRangePredicates;
 import com.example.serverprovision.global.web.list.LikePattern;
 import com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery;
 import com.example.serverprovision.provisioning.setting.entity.SettingDefinition;
@@ -40,6 +41,7 @@ public final class SettingSpecifications {
             if (!q.includeDeleted()) {
                 predicates.add(cb.isFalse(root.get("isDeleted")));
             }
+            DateRangePredicates.addWithin(predicates, cb, root.get("createdAt"), q.range());   // S8-5 — 생성 일시
             // 여러 단계를 골랐으면 모두 포함해야 한다(AND) — 필터 띠의 다른 축처럼 고를수록 좁아진다.
             for (SettingProcessType type : q.processTypes()) {
                 predicates.add(hasProcessType(root, query, cb, type));

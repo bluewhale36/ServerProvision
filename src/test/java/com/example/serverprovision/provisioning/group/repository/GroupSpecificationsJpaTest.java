@@ -68,7 +68,7 @@ class GroupSpecificationsJpaTest {
     @Test
     @DisplayName("@Formula 멤버 수가 행에 실리고 그 값으로 정렬된다")
     void sortsByFormulaMemberCount() {
-        Page<GuestServerGroup> page = search(new GroupListQuery(null, null, GroupSortField.MEMBER_COUNT, Sort.Direction.DESC));
+        Page<GuestServerGroup> page = search(new GroupListQuery(null, null, null, null, GroupSortField.MEMBER_COUNT, Sort.Direction.DESC));
 
         assertThat(page.getContent()).extracting(GuestServerGroup::getName, GuestServerGroup::getMemberCount)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple("8월 2차", 3L),
@@ -79,10 +79,10 @@ class GroupSpecificationsJpaTest {
     @Test
     @DisplayName("이름 검색 · 표준 정의서 지정 축")
     void nameAndStandardAxes() {
-        assertThat(search(new GroupListQuery("8월", null, GroupSortField.NAME, Sort.Direction.ASC)).getTotalElements()).isEqualTo(2);
-        assertThat(search(new GroupListQuery(null, true, null, null)).map(GuestServerGroup::getName).getContent())
+        assertThat(search(new GroupListQuery("8월", null, null, null, GroupSortField.NAME, Sort.Direction.ASC)).getTotalElements()).isEqualTo(2);
+        assertThat(search(new GroupListQuery(null, true, null, null, null, null)).map(GuestServerGroup::getName).getContent())
                 .containsExactly("8월 2차");
-        assertThat(search(new GroupListQuery(null, false, null, null)).getTotalElements()).isEqualTo(2);
+        assertThat(search(new GroupListQuery(null, false, null, null, null, null)).getTotalElements()).isEqualTo(2);
     }
 
     @Test
@@ -91,4 +91,23 @@ class GroupSpecificationsJpaTest {
         assertThat(memberRepository.findAllByGroupIdIn(java.util.List.of(threeId))).hasSize(3)
                 .allMatch(m -> m.getGroup().getId().equals(threeId));
     }
+
+    @Test
+    @DisplayName("S8-5 — 생성 일시 기간: 시작일 0 시 포함 · 종료일 하루 전체 포함 · 다음 날 0 시 제외")
+    void createdAtRange() {
+        java.util.List<GuestServerGroup> all = groupRepository.findAll();
+        em.createNativeQuery("update guest_server_group set created_at = ? where name = ?")
+                .setParameter(1, java.time.LocalDateTime.of(2026, 8, 31, 23, 59)).setParameter(2, "8월 1차").executeUpdate();
+        em.createNativeQuery("update guest_server_group set created_at = ? where name = ?")
+                .setParameter(1, java.time.LocalDateTime.of(2026, 9, 1, 0, 0)).setParameter(2, "8월 2차").executeUpdate();
+        em.createNativeQuery("update guest_server_group set created_at = ? where name = ?")
+                .setParameter(1, java.time.LocalDateTime.of(2026, 10, 1, 0, 0)).setParameter(2, "9월 신규").executeUpdate();
+        em.clear();
+
+        GroupListQuery september = new GroupListQuery(null, null, java.time.LocalDate.of(2026, 9, 1), java.time.LocalDate.of(2026, 9, 30),
+                GroupSortField.NAME, Sort.Direction.ASC);
+        assertThat(all).hasSize(3);
+        assertThat(search(september).map(GuestServerGroup::getName).getContent()).containsExactly("8월 2차");
+    }
+
 }

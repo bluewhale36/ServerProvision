@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.group.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.BatchAssignResult;
 import com.example.serverprovision.provisioning.assignment.dto.response.GroupApplyPreviewResponse;
@@ -63,6 +65,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 그대로 믿지 않고 같은 미리보기를 다시 만들어 붙는 멤버를 고른다. 그래야 화면이 알린 것과 실제로 하는
  * 것이 같은 판정에서 나온다.</p>
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = GuestServerGroupController.class)
 class GuestServerGroupControllerBatchAssignTest {
 

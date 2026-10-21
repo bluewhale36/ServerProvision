@@ -4,7 +4,7 @@
   게스트 서버 그룹 목록 (U3-4 · S8-1 — 검색 · 필터 · 정렬 · 페이징)
   ─────────────────────────────────────────────────────────
   Model:
-    page        : Page<GroupSummaryResponse> — 조회 조건으로 거른 한 쪽(기본 만든 시각 최신순, Q2)
+    page        : Page<GroupSummaryResponse> — 조회 조건으로 거른 한 쪽(기본 생성 일시 최신순, Q2)
     query       : GroupListQuery — 조회 띠의 현재 상태(q · hasStandardDefinition · sort · dir)
     links       : ListLinks — 쪽 이동 · 초기화 링크
     sortFields  : GroupSortField[] — 정렬 항목 셀렉트 선택지
@@ -47,6 +47,8 @@
                         <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="false" th:checked="${query.hasStandardDefinition == false}">미지정</label>
                     </div>
                 </div>
+                <!--/* 생성 일시 — 기본 범위 1 년 전 ~ 오늘(S8-5). */-->
+                <div th:replace="~{fragments/ui/date-range-row :: row('생성 일시', ${query})}"></div>
             </div>
         </th:block>
 
@@ -54,18 +56,21 @@
 
         <div class="n-filter-summary">
             <span>결과 <b th:text="${page.totalElements}">0</b>건</span>
-            <a th:if="${query.filtered}" th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>
+            <a th:if="${filtered}" th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>
         </div>
     </form>
 
-    <!-- 빈 상태 — 조건 때문에 비었는지, 아예 없는지를 가른다(S8-1 R8) -->
+    <!-- 빈 상태 — 기간이 거꾸로 / 조건 때문에 비었음 / 아예 없음(S8-1 R8 · S8-5) -->
     <div th:if="${page.totalElements == 0}" class="n-card">
         <div class="n-empty">
-            <th:block th:if="${query.filtered}">
+            <th:block th:if="${query.rangeReversed}">
+                <th:block th:replace="~{fragments/ui/date-range-row :: reversedNotice(${links.reset()})}"></th:block>
+            </th:block>
+            <th:block th:if="${!query.rangeReversed and filtered}">
                 <div class="n-empty-title" th:text="#{provisioning.group.list.empty-filtered}">조건에 맞는 그룹이 없습니다.</div>
                 <div class="n-empty-desc">조건을 바꾸거나 <a th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>하면 전체 목록이 보입니다.</div>
             </th:block>
-            <th:block th:unless="${query.filtered}">
+            <th:block th:unless="${filtered}">
                 <div class="n-empty-title">만들어진 그룹이 없습니다.</div>
                 <div class="n-empty-desc">
                     <a th:href="@{/provisioning/server}">게스트 서버 목록</a> 의 스펙 묶음에서 그대로 만들거나,
@@ -93,7 +98,7 @@
                 <tr>
                     <th>이름</th>
                     <th>멤버</th>
-                    <th>만든 시각</th>
+                    <th>생성 일시</th>
                 </tr>
                 </thead>
                 <tbody>

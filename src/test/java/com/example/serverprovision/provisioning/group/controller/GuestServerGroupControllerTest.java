@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.group.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
 import com.example.serverprovision.execution.vo.RegistrationAge;
@@ -56,6 +58,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * advice 의 예외 매핑이 실제로 실행된다. 신규 예외 3 종은 전부 여기서 트리거된다 —
  * 예외 클래스만 늘리고 발생 시나리오가 빠진 묶음은 승인 대상이 아니라는 규율 때문이다.</p>
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = GuestServerGroupController.class)
 class GuestServerGroupControllerTest {
 

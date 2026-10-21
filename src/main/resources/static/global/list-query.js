@@ -26,6 +26,7 @@
      ⑪ 걸린 조건 토큰 — 창의 줄([data-filter-row])마다 기본값과 다른 컨트롤이 있으면 "줄 라벨: 선택값" 토큰을 띠에
         그린다. × 는 그 줄만 기본값으로 되돌리고 제출한다. 문구는 줄 마크업에서 읽으므로 서버가 따로 그리지 않는다.
      ⑫ 쪽 번호 입력(쪽 이동 줄 · S8-4) — Enter 로 그 쪽으로 간다.
+     ⑬ 빠른 기간 칩(S8-5 · 기간 줄) — 두 날짜를 채우기만 한다(창 안이라 [검색] 으로 적용). 지금 두 날짜와 같은 칩은 눌린 모양.
    폼 제출은 전부 page 를 버린다 — page 는 폼 필드가 아니다. 필터 · 정렬 · 크기를 바꾸면 첫 쪽으로 돌아가는
    규칙(plan R4)이 여기서 나온다. 쪽 이동만 링크(ListLinks)라 나머지 상태를 그대로 든다. */
 (function () {
@@ -96,9 +97,13 @@
         const start = form.querySelector('input[type="date"][data-range-start]');
         const end = form.querySelector('input[type="date"][data-range-end]');
         if (!start || !end) return;
-        const reversed = start.value && end.value && start.value > end.value;
-        setAttr(start, 'max', reversed ? RANGE_MAX : (end.value || RANGE_MAX), editing);
-        setAttr(end, 'min', reversed ? null : (start.value || null), editing);
+        // 비어 있는 끝은 서버가 기본값(data-default — 시작 1 년 전 · 끝 오늘)으로 채우므로 그 값으로 막는다(S8-5 CP5 D-2).
+        // 기본값이 없는 칸(옛 화면)은 종전대로 막지 않는다.
+        const startValue = start.value || start.getAttribute('data-default') || '';
+        const endValue = end.value || end.getAttribute('data-default') || '';
+        const reversed = startValue && endValue && startValue > endValue;
+        setAttr(start, 'max', reversed ? RANGE_MAX : (endValue || RANGE_MAX), editing);
+        setAttr(end, 'min', reversed ? null : (startValue || null), editing);
         setAttr(end, 'max', RANGE_MAX, editing);
     }
     document.addEventListener('keydown', function (e) {
@@ -233,6 +238,7 @@
             if (e.newState !== 'closed' || (form && form.dataset.submitting === '1')) return;
             controlsIn(panel).forEach(restore);
             if (form) syncRange(form, null);
+            panel.querySelectorAll('.n-filter-range').forEach(markPresets);
         });
     }
 
@@ -316,6 +322,60 @@
         const url = new URL(el.getAttribute('data-page-base'), window.location.href);
         if (number > 1) url.searchParams.set('page', String(number - 1)); else url.searchParams.delete('page');
         window.location.assign(url.pathname + url.search);
+    });
+
+    // ⑬ 빠른 기간 칩 — 기준일은 서버의 오늘(data-range-today)이다. 1 년 전은 Java Period.ofYears(1) 와 같게
+    //    2 월 29 일이면 2 월 28 일로 맞춘다(JS Date 는 3 월 1 일로 넘긴다).
+    function shiftDays(iso, days) {
+        const d = new Date(iso + 'T00:00:00Z');
+        d.setUTCDate(d.getUTCDate() + days);
+        return d.toISOString().slice(0, 10);
+    }
+    function minusOneYear(iso) {
+        const d = new Date(iso + 'T00:00:00Z');
+        const month = d.getUTCMonth();
+        d.setUTCFullYear(d.getUTCFullYear() - 1);
+        if (d.getUTCMonth() !== month) d.setUTCDate(0);
+        return d.toISOString().slice(0, 10);
+    }
+    function presetRange(code, today) {
+        switch (code) {
+            case '0d': return [today, today];
+            case '7d': return [shiftDays(today, -7), today];
+            case '30d': return [shiftDays(today, -30), today];
+            case '1y': return [minusOneYear(today), today];
+            case 'ytd': return [today.slice(0, 4) + '-01-01', today];
+            default: return null;
+        }
+    }
+    function markPresets(group) {
+        const holder = group.querySelector('[data-range-today]');
+        if (!holder) return;
+        const start = group.querySelector('input[data-range-start]');
+        const end = group.querySelector('input[data-range-end]');
+        const today = holder.getAttribute('data-range-today');
+        holder.querySelectorAll('[data-range-preset]').forEach(function (chip) {
+            const r = presetRange(chip.getAttribute('data-range-preset'), today);
+            chip.setAttribute('aria-pressed', String(!!r && start.value === r[0] && end.value === r[1]));
+        });
+    }
+    document.querySelectorAll('[data-range-today]').forEach(function (holder) { markPresets(holder.parentElement); });
+    document.addEventListener('click', function (e) {
+        const chip = e.target.closest('[data-range-preset]');
+        if (!chip) return;
+        const group = chip.closest('.n-filter-range');
+        const holder = chip.closest('[data-range-today]');
+        const r = presetRange(chip.getAttribute('data-range-preset'), holder.getAttribute('data-range-today'));
+        if (!group || !r) return;
+        group.querySelector('input[data-range-start]').value = r[0];
+        group.querySelector('input[data-range-end]').value = r[1];
+        const form = listFormOf(group.querySelector('input[data-range-start]'));
+        if (form) syncRange(form, null);
+        markPresets(group);
+    });
+    document.addEventListener('input', function (e) {
+        const group = e.target instanceof HTMLInputElement && e.target.type === 'date' ? e.target.closest('.n-filter-range') : null;
+        if (group) markPresets(group);
     });
 
     document.addEventListener('formdata', function (e) {

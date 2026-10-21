@@ -6,7 +6,7 @@ import org.springframework.data.domain.Sort;
 /** 서버 그룹 목록의 정렬 항목(S8-1) — {@code memberCount} 는 엔티티의 {@code @Formula} 속성이라 SQL 정렬이 된다. */
 public enum GroupSortField implements SortField {
 
-    CREATED_AT("createdAt", "만든 시각", Sort.Direction.DESC),
+    CREATED_AT("createdAt", "생성 일시", Sort.Direction.DESC),
     NAME("name", "이름", Sort.Direction.ASC),
     MEMBER_COUNT("memberCount", "멤버 수", Sort.Direction.DESC);
 

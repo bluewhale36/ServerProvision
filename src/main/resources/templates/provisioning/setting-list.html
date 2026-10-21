@@ -68,6 +68,8 @@
                         </label>
                     </div>
                 </div>
+                <!--/* 생성 일시 — 기본 범위 1 년 전 ~ 오늘(S8-5). */-->
+                <div th:replace="~{fragments/ui/date-range-row :: row('생성 일시', ${query})}"></div>
                 <div class="n-filter-row" data-filter-row>
                     <span class="n-filter-row-label">삭제된 항목</span>
                     <div class="n-filter-row-field">
@@ -84,18 +86,21 @@
 
         <div class="n-filter-summary">
             <span>결과 <b th:text="${page.totalElements}">0</b>건</span>
-            <a th:if="${query.filtered}" th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>
+            <a th:if="${filtered}" th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>
         </div>
     </form>
 
-    <!-- 빈 상태 — 조건 때문에 비었는지, 아예 없는지를 가른다(S8-1 R8) -->
+    <!-- 빈 상태 — 기간이 거꾸로 / 조건 때문에 비었음 / 아예 없음(S8-1 R8 · S8-5) -->
     <div th:if="${page.totalElements == 0}" class="n-card">
         <div class="n-empty">
-            <th:block th:if="${query.filtered}">
+            <th:block th:if="${query.rangeReversed}">
+                <th:block th:replace="~{fragments/ui/date-range-row :: reversedNotice(${links.reset()})}"></th:block>
+            </th:block>
+            <th:block th:if="${!query.rangeReversed and filtered}">
                 <div class="n-empty-title" th:text="#{provisioning.setting.list.empty-filtered}">조건에 맞는 세팅 정의서가 없습니다.</div>
                 <div class="n-empty-desc">조건을 바꾸거나 <a th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>하면 전체 목록이 보입니다.</div>
             </th:block>
-            <th:block th:unless="${query.filtered}">
+            <th:block th:unless="${filtered}">
                 <div class="n-empty-title">등록된 세팅 정의서가 없습니다.</div>
                 <div class="n-empty-desc">새 정의서 작성 버튼을 눌러 첫 번째 정의서를 만드십시오.</div>
             </th:block>
@@ -124,7 +129,7 @@
                     <th class="n-th-center">활성</th>
                     <th class="n-th-center">사용 중단</th>
                     <th>포함 단계</th>
-                    <th>생성일시</th>
+                    <th>생성 일시</th>
                 </tr>
                 </thead>
                 <tbody>

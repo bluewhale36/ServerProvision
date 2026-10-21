@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.dto.request;
 
+import com.example.serverprovision.global.web.list.vo.DateRange;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
 import com.example.serverprovision.execution.enums.ServerListView;
 import com.example.serverprovision.execution.enums.ServerSortField;
@@ -78,7 +79,7 @@ class ServerListQueryTest {
     @Test
     @DisplayName("S8-4 — 기본 범위와 같은 기간은 조건이 아니고, 한 끝이라도 다르면 조건이다")
     void defaultRangeIsNotAFilter() {
-        LocalDate defaultFrom = ServerListQuery.defaultFrom(TODAY);
+        LocalDate defaultFrom = DateRange.defaultFrom(TODAY);
         assertThat(new ServerListQuery(null, null, null, null, null, null, defaultFrom, TODAY, null, null).isFiltered(TODAY)).isFalse();
         assertThat(new ServerListQuery(null, null, null, null, null, null, defaultFrom, TODAY.minusDays(1), null, null).isFiltered(TODAY)).isTrue();
     }
