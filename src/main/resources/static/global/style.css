@@ -1463,6 +1463,20 @@ kbd {
     }
 }
 
+/* 빠른 기간 칩(S8-5) — 기간 줄의 날짜 뒤에 선다. 지금 두 날짜와 같은 칩은 선택된 칩과 같은 모양(aria-pressed). */
+.n-range-presets {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-left: 8px;
+}
+
+.n-range-presets .n-chip[aria-pressed="true"] {
+    background: var(--n-text);
+    color: var(--n-surface);
+    border-color: var(--n-text);
+}
+
 /* 걸린 조건 토큰 — 창을 열지 않아도 목록이 왜 좁아졌는지 보이게. 문구는 창의 줄 마크업에서 스크립트가 만든다. */
 .n-filter-tokens {
     display: inline-flex;

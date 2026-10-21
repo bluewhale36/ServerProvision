@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.setting.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.provisioning.setting.dto.request.BasicSettingRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.BasicUpdateRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.RHELOSSettingRequest;
@@ -54,6 +56,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Mocking 은 {@code SettingQueryService} 까지만 — 뷰 선택·Model 적재·initialSettingJson 직렬화(비밀번호 제거)·
  * advice 404 매핑은 실제로 실행된다.
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = SettingController.class)
 class SettingControllerViewTest {
 

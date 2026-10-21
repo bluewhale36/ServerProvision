@@ -8,7 +8,7 @@ public enum SettingSortField implements SortField {
 
     ID("id", "번호", Sort.Direction.ASC),
     NAME("name", "이름", Sort.Direction.ASC),
-    CREATED_AT("createdAt", "생성일시", Sort.Direction.DESC);
+    CREATED_AT("createdAt", "생성 일시", Sort.Direction.DESC);
 
     private final String property;
     private final String label;

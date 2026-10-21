@@ -5,6 +5,11 @@ import com.example.serverprovision.provisioning.setting.enums.SettingSortField;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.BindParam;
 
+import com.example.serverprovision.global.web.list.vo.DateRange;
+import com.example.serverprovision.global.web.list.vo.DateRangeQuery;
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Objects;
@@ -23,9 +28,11 @@ public record SettingListQuery(
         Boolean deprecated,
         @BindParam("processType") Set<SettingProcessType> processTypes,
         Boolean includeDeleted,
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
         SettingSortField sort,
         Sort.Direction dir
-) {
+) implements DateRangeQuery {
 
     public static final SettingSortField DEFAULT_SORT = SettingSortField.ID;
 
@@ -42,8 +49,18 @@ public record SettingListQuery(
         dir = dir == null ? sort.defaultDirection() : dir;
     }
 
-    /** 조건이 하나라도 걸려 있는가 — 빈 결과의 안내 갈래와 초기화 링크 노출이 이것을 본다. */
-    public boolean isFiltered() {
-        return q != null || enabled != null || deprecated != null || !processTypes.isEmpty() || includeDeleted;
+    /** 비어 있는 생성 일시 기간 끝을 기본 범위(1 년 전 ~ 오늘)로 채운 조건(S8-5) — 조회와 화면은 이 값을 쓴다. */
+    public SettingListQuery withDefaultRange(LocalDate today) {
+        DateRange r = range().withDefault(today);
+        return new SettingListQuery(q, enabled, deprecated, processTypes, includeDeleted, r.from(), r.to(), sort, dir);
+    }
+
+    /**
+     * 조건이 하나라도 걸려 있는가 — 빈 결과의 안내 갈래와 초기화 링크 노출이 이것을 본다.
+     * 기본 범위와 같은 기간은 조건이 아니다(S8-5).
+     */
+    public boolean isFiltered(LocalDate today) {
+        return q != null || enabled != null || deprecated != null || !processTypes.isEmpty() || includeDeleted
+                || !range().isDefault(today);
     }
 }

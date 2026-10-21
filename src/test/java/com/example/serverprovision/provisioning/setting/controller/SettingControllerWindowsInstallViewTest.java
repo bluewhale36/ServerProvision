@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.setting.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.wininstall.vo.WindowsImageName;
 import com.example.serverprovision.provisioning.setting.dto.request.WindowsAdministratorPasswordRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest;
@@ -37,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * OS 옵션의 계열 · 차단 사유(disabled + title) · 설치 이미지 select · 비밀번호 입력 · 상세 fragment(detail-windows) 의 배지 ·
  * pre-fill JSON 의 비밀값 제거가 실제 Thymeleaf · Jackson 으로 실행된다.
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = SettingController.class)
 class SettingControllerWindowsInstallViewTest {
 

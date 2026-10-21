@@ -115,7 +115,7 @@ class JpaSettingQueryServiceTest {
     }
 
     private SettingListQuery defaultQuery() {
-        return new SettingListQuery(null, null, null, null, null, null, null);
+        return new SettingListQuery(null, null, null, null, null, null, null, null, null);
     }
 
     @Test

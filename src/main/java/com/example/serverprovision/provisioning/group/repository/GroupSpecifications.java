@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.group.repository;
 
+import com.example.serverprovision.global.web.list.DateRangePredicates;
 import com.example.serverprovision.global.web.list.LikePattern;
 import com.example.serverprovision.provisioning.group.dto.request.GroupListQuery;
 import com.example.serverprovision.provisioning.group.entity.GuestServerGroup;
@@ -26,6 +27,7 @@ public final class GroupSpecifications {
                         ? cb.isNotNull(root.get("standardDefinitionId"))
                         : cb.isNull(root.get("standardDefinitionId")));
             }
+            DateRangePredicates.addWithin(predicates, cb, root.get("createdAt"), q.range());   // S8-5 — 생성 일시
             return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(Predicate[]::new));
         };
     }

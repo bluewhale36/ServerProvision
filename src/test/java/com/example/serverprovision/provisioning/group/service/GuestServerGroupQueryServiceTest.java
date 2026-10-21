@@ -213,7 +213,7 @@ class GuestServerGroupQueryServiceTest {
         when(guestServerQueryService.findSummaries(List.of(a, b, c)))
                 .thenReturn(List.of(row(a, "K1"), row(b, "K2"), row(c, "K1")));
 
-        Page<GroupSummaryResponse> page = service.search(new GroupListQuery(null, null, null, null), PageRequest.of(0, 20));
+        Page<GroupSummaryResponse> page = service.search(new GroupListQuery(null, null, null, null, null, null), PageRequest.of(0, 20));
 
         assertThat(page.getContent()).extracting(GroupSummaryResponse::id, GroupSummaryResponse::memberCount,
                         GroupSummaryResponse::specDiverged)
@@ -227,7 +227,7 @@ class GuestServerGroupQueryServiceTest {
     void search_emptyPage_skipsMemberLookup() {
         when(groupRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(Page.empty());
 
-        Page<GroupSummaryResponse> page = service.search(new GroupListQuery(null, null, null, null), PageRequest.of(0, 20));
+        Page<GroupSummaryResponse> page = service.search(new GroupListQuery(null, null, null, null, null, null), PageRequest.of(0, 20));
 
         assertThat(page.getContent()).isEmpty();
         verify(memberRepository, never()).findAllByGroupIdIn(any());

@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.setting.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest;
 import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
@@ -49,6 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Mocking 은 {@code SettingQueryService} 까지만 — Thymeleaf 조각(카드 행 · 묶음 표 · 사라진 카드 표기) ·
  * Model 적재(선택지 7 종 + raidCardMetaJson) · initialSettingJson 직렬화가 실제로 실행된다.
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = SettingController.class)
 class SettingControllerDiskGroupViewTest {
 

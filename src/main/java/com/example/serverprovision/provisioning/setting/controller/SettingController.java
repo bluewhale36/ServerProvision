@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.controller;
 
+import com.example.serverprovision.global.web.list.ListDateRangeDefaults;
 import com.example.serverprovision.provisioning.setting.enums.VdAccessPolicy;
 import com.example.serverprovision.provisioning.setting.enums.VdBackgroundInit;
 import com.example.serverprovision.provisioning.setting.enums.VdDriveCache;
@@ -59,6 +60,7 @@ public class SettingController {
 
     private final SettingQueryService settingQueryService;
     private final ObjectMapper objectMapper;
+    private final ListDateRangeDefaults rangeDefaults;   // S8-5 — 생성 일시 기본 범위
 
     /**
      * 정의서 목록(S8-1) — 조회 띠(GET 폼)의 조건과 쪽을 받아 한 쪽만 그린다.
@@ -68,9 +70,13 @@ public class SettingController {
      * 400 이 되며 새 분기를 만들지 않는다. {@link ListLinks} 는 쪽 이동 · 초기화 링크의 재료다 — 나머지 상태는 폼이 조립한다.</p>
      */
     @GetMapping
-    public String list(@ModelAttribute("query") SettingListQuery query,
+    public String list(@ModelAttribute("query") SettingListQuery requested,
                        @PageableDefault(size = Paging.DEFAULT_SIZE) Pageable pageable,
                        ListLinks links, Model model) {
+        java.time.LocalDate today = rangeDefaults.addTo(model);
+        SettingListQuery query = requested.withDefaultRange(today);
+        model.addAttribute("query", query);
+        model.addAttribute("filtered", requested.isFiltered(today));
         model.addAttribute("page", settingQueryService.search(query, pageable));
         model.addAttribute("links", links);
         model.addAttribute("processTypes", SettingProcessType.values());

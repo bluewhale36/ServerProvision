@@ -84,16 +84,8 @@
                         </select>
                     </div>
                 </div>
-                <!--/* 기간 — 양 끝 포함 · 날짜 단위. 두 입력이 서로 min/max 를 걸어 거꾸로 고를 수 없다(list-query.js).
-                       기본 범위는 1 년 전 ~ 오늘(S8-4) — data-default 와 같은 값은 URL 에서 빠지고 토큰도 생기지 않는다. */-->
-                <div class="n-filter-row" data-filter-row>
-                    <span class="n-filter-row-label">등록 시각</span>
-                    <div class="n-filter-row-field n-filter-group n-filter-range" role="group" aria-label="최초 등록 시각">
-                        <input type="date" name="from" class="n-input" th:value="${query.from}" th:attr="max=${query.rangeReversed or query.to == null ? '9999-12-31' : query.to},data-default=${rangeDefaultFrom}" data-range-start aria-label="시작일">
-                        <span class="n-filter-label">~</span>
-                        <input type="date" name="to" class="n-input" th:value="${query.to}" max="9999-12-31" th:attr="min=${query.rangeReversed ? null : query.from},data-default=${rangeDefaultTo}" data-range-end aria-label="종료일">
-                    </div>
-                </div>
+                <!--/* 기간 — 등록 시각 · 기본 범위 1 년 전 ~ 오늘(S8-4 · 공용 줄은 S8-5). */-->
+                <div th:replace="~{fragments/ui/date-range-row :: row('등록 시각', ${query})}"></div>
                 <div class="n-filter-row" data-filter-row>
                     <span class="n-filter-row-label">회수된 서버</span>
                     <div class="n-filter-row-field">
@@ -135,8 +127,7 @@
     <div th:if="${resultCount == 0}" class="n-card">
         <div class="n-empty">
             <th:block th:if="${query.rangeReversed}">
-                <div class="n-empty-title" th:text="#{provisioning.server.list.range-reversed}">시작일이 종료일보다 늦습니다.</div>
-                <div class="n-empty-desc">날짜 하나를 고치거나 <a th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>하면 다시 조회됩니다.</div>
+                <th:block th:replace="~{fragments/ui/date-range-row :: reversedNotice(${links.reset()})}"></th:block>
             </th:block>
             <th:block th:if="${!query.rangeReversed and filtered}">
                 <div class="n-empty-title" th:text="#{provisioning.server.list.empty-filtered}">조건에 맞는 서버가 없습니다.</div>

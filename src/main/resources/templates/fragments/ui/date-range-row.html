@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  조회 조건 창의 기간 줄 (S8-5)
+  ─────────────────────────────────────────────────────────
+  세팅 정의서 · 서버 그룹(생성 일시) · 게스트 서버(등록 시각)가 같은 줄을 쓴다. 줄 라벨은 그 화면의 열 · 정렬 이름과 같게 둔다(S8-5 CP6 사용자 지시). 규칙은 DateRange 가 SSOT 다.
+  · 날짜 두 칸은 서로 min/max 를 걸어 거꾸로 고를 수 없다(list-query.js ⑦). 기본 범위(1 년 전 ~ 오늘)는 data-default 로
+    실려 URL 에서 빠지고 토큰도 만들지 않는다(list-query.js ② · ⑪).
+  · 빠른 기간 칩(ecount 조회 창 하단의 금일 · 금월 · 금년 대응)은 두 날짜를 채우기만 한다 — 창 안이라 [검색] 으로 적용한다
+    (list-query.js ⑬). 최근 N일 = 오늘 − N일 ~ 오늘, 올해 = 1월 1일 ~ 오늘.
+
+  row(label, query)
+    · label — 줄 라벨이자 토큰 라벨 — 같은 화면의 열 · 정렬 이름과 같은 말
+    · query — DateRangeQuery(from · to · rangeReversed). 컨트롤러가 기본 범위를 채운 값이다.
+  모델: rangeDefaultFrom · rangeDefaultTo · rangeToday(ListDateRangeDefaults)
+-->
+<body>
+<div th:fragment="row(label, query)" class="n-filter-row" data-filter-row>
+    <span class="n-filter-row-label" th:text="${label}">생성 일시</span>
+    <div class="n-filter-row-field n-filter-group n-filter-range" role="group" th:aria-label="${label}">
+        <input type="date" name="from" class="n-input" th:value="${query.from}"
+               th:attr="max=${query.rangeReversed or query.to == null ? '9999-12-31' : query.to},data-default=${rangeDefaultFrom}"
+               data-range-start aria-label="시작일">
+        <span class="n-filter-label">~</span>
+        <input type="date" name="to" class="n-input" th:value="${query.to}" max="9999-12-31"
+               th:attr="min=${query.rangeReversed ? null : query.from},data-default=${rangeDefaultTo}"
+               data-range-end aria-label="종료일">
+        <span class="n-range-presets" th:attr="data-range-today=${rangeToday}">
+            <button type="button" class="n-chip" data-range-preset="0d">오늘</button>
+            <button type="button" class="n-chip" data-range-preset="7d">최근 7일</button>
+            <button type="button" class="n-chip" data-range-preset="30d">최근 30일</button>
+            <button type="button" class="n-chip" data-range-preset="1y">최근 1년</button>
+            <button type="button" class="n-chip" data-range-preset="ytd">올해</button>
+        </span>
+    </div>
+</div>
+
+<!--/* 기간이 거꾸로라 비었을 때의 안내(S8-5 · 게스트 서버의 S8-2 안내를 세 화면 공용으로). 주소에 직접 넣은 경우에만 생긴다 —
+       창 안에서는 날짜 두 칸의 min/max 가 먼저 막는다. th:replace 는 th:if 보다 먼저 실행되므로 호출부가 th:block 으로 감싼다. */-->
+<th:block th:fragment="reversedNotice(resetUrl)">
+    <div class="n-empty-title" th:text="#{common.list.range-reversed}">시작일이 종료일보다 늦습니다. 기간을 다시 고르십시오.</div>
+    <div class="n-empty-desc">날짜 하나를 고치거나 <a th:href="${resetUrl}" th:text="#{action.reset}">초기화</a>하면 다시 조회됩니다.</div>
+</th:block>
+</body>
+</html>

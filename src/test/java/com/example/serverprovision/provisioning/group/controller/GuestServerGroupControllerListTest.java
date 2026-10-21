@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.group.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.provisioning.assignment.service.AssignmentQueryService;
 import com.example.serverprovision.provisioning.assignment.service.GroupAssignmentService;
 import com.example.serverprovision.provisioning.group.dto.request.GroupListQuery;
@@ -34,11 +36,13 @@ import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import com.example.serverprovision.global.web.list.ListFilterMarkup;
 import static org.mockito.BDDMockito.willAnswer;
 
 /** S8-1 — 서버 그룹 목록의 조회 조건 바인딩 · 쪽 정정 · 400 을 HTTP 계층에서 본다. */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = GuestServerGroupController.class)
 class GuestServerGroupControllerListTest {
 
@@ -70,7 +74,7 @@ class GuestServerGroupControllerListTest {
     }
 
     @Test
-    @DisplayName("200 — 기본은 만든 시각 최신순 · 필터 없음, 조회 띠와 쪽 이동 줄을 그린다")
+    @DisplayName("200 — 기본은 생성 일시 최신순 · 필터 없음, 조회 띠와 쪽 이동 줄을 그린다")
     void defaultList() throws Exception {
         mvc.perform(get("/provisioning/server-group"))
                 .andExpect(status().isOk())
@@ -81,7 +85,7 @@ class GuestServerGroupControllerListTest {
         GroupListQuery q = capturedQuery();
         assertThat(q.sort()).isEqualTo(GroupSortField.CREATED_AT);
         assertThat(q.dir()).isEqualTo(Sort.Direction.DESC);
-        assertThat(q.isFiltered()).isFalse();
+        assertThat(q.isFiltered(FixedClockTestConfig.TODAY)).isFalse();
     }
 
     @Test
@@ -137,7 +141,7 @@ class GuestServerGroupControllerListTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        assertThat(ListFilterMarkup.rowLabels(html)).containsExactly("표준 정의서");
+        assertThat(ListFilterMarkup.rowLabels(html)).containsExactly("표준 정의서", "생성 일시");
         assertThat(ListFilterMarkup.panel(html)).contains("name=\"hasStandardDefinition\" value=\"false\" checked")
                 .doesNotContain("name=\"sort\"");
         assertThat(ListFilterMarkup.outsidePanel(html)).contains("name=\"sort\"");
@@ -162,6 +166,35 @@ class GuestServerGroupControllerListTest {
                 "href=\"/provisioning/server-group\">1</a>",
                 "href=\"/provisioning/server-group?page=2\">3</a>",
                 "data-page-total=\"3\"", "data-page-base=\"/provisioning/server-group\"");
+    }
+
+
+    @Test
+    @DisplayName("S8-5 — 생성 일시 기간이 없으면 기본 범위로 조회하고 조건으로 치지 않는다 · 종료일만 바꾸면 조건 · 잘못된 날짜는 400")
+    void defaultCreatedRange() throws Exception {
+        mvc.perform(get("/provisioning/server-group"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("filtered", false));
+        GroupListQuery q = capturedQuery();
+        assertThat(q.from()).isEqualTo(java.time.LocalDate.of(2025, 10, 11));
+        assertThat(q.to()).isEqualTo(FixedClockTestConfig.TODAY);
+
+        mvc.perform(get("/provisioning/server-group").param("to", "2026-10-01"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("filtered", true));
+
+        mvc.perform(get("/provisioning/server-group").param("to", "not-a-date"))
+                .andExpect(status().isBadRequest());
+    }
+
+
+    @Test
+    @DisplayName("S8-5 CP5 D-1 — 시작일만 미래라 기본 종료일(오늘)보다 늦으면 거꾸로 기간 안내")
+    void futureStartOnly_showsReversedNotice() throws Exception {
+        willAnswer(inv -> new PageImpl<>(List.of(), (Pageable) inv.getArgument(1), 0)).given(queryService).search(any(), any());
+        mvc.perform(get("/provisioning/server-group").param("from", "2026-12-01"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("시작일이 종료일보다 늦습니다. 기간을 다시 고르십시오.")));
     }
 
 }

@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.repository;
 
+import com.example.serverprovision.global.web.list.DateRangePredicates;
 import com.example.serverprovision.execution.dto.request.ServerListQuery;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
@@ -55,12 +56,7 @@ public final class GuestServerSpecifications {
             if (q.boardModelId() != null) {
                 p.add(existsDetail(root, query, cb, (d, c) -> c.equal(d.get("boardModel").get("id"), q.boardModelId())));
             }
-            if (q.from() != null) {
-                p.add(cb.greaterThanOrEqualTo(root.get("createdAt"), q.from().atStartOfDay()));
-            }
-            if (q.to() != null) {
-                p.add(cb.lessThan(root.get("createdAt"), q.to().plusDays(1).atStartOfDay()));
-            }
+            DateRangePredicates.addWithin(p, cb, root.get("createdAt"), q.range());
             if (scope.onlyIds() != null) {
                 p.add(scope.onlyIds().isEmpty() ? cb.disjunction() : root.get("id").in(scope.onlyIds()));
             }

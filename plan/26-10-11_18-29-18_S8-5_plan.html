@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S8-5 Plan — 목록 생성 시각 기본 1 년 조건</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:12px; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:var(--border-soft); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--border-soft); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S8-5 목록 생성 시각 기본 1 년 조건 <span class="v2-badge">목록 3 화면</span></h1>
+  <div class="meta">
+    <span><strong>인벤토리</strong> S8-5 (feature)</span>
+    <span><strong>상위</strong> S8 조회 화면 기능 강화</span>
+    <span><strong>브랜치</strong> <code>feat/S8-5_default-date-range</code> (dev 861a8a0 기준)</span>
+    <span><strong>선행</strong> S8-4 (PR #94 병합)</span>
+    <span><strong>작성</strong> 2026-10-11 18:29 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 통합 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>S8-4 가 남긴 것 — 게스트 서버 목록만 기간 줄을 가졌다</h4>
+        <p style="margin-top:0;">S8-4 CP6 수정으로 게스트 서버 목록에 '등록 시각' 기간 줄과 기본 범위(1 년 전 ~ 오늘)가 생겼다.</p>
+        <table>
+          <thead><tr><th>자리</th><th>구현</th></tr></thead>
+          <tbody>
+            <tr><td><code>ServerListQuery</code></td><td><code>DEFAULT_RANGE</code> · <code>defaultFrom(today)</code> · <code>withDefaultRange(today)</code> · <code>isFiltered(today)</code> · <code>isRangeReversed()</code></td></tr>
+            <tr><td><code>GuestServerController</code></td><td><code>Clock</code> 으로 today 결정 · 모델에 <code>rangeDefaultFrom</code> · <code>rangeDefaultTo</code></td></tr>
+            <tr><td><code>server-list.html</code></td><td>날짜 입력 2 에 <code>data-default</code> (인라인 마크업)</td></tr>
+            <tr><td><code>list-query.js</code> ⑪</td><td>기간 토큰은 기본값과 다를 때만</td></tr>
+          </tbody>
+        </table>
+
+        <h4>나머지 두 화면 — 기간 조건 없음</h4>
+        <table>
+          <thead><tr><th>화면</th><th>조건 record</th><th>현재 필드</th><th>조회</th></tr></thead>
+          <tbody>
+            <tr><td>세팅 정의서</td><td><code>SettingListQuery</code></td><td>q · enabled · deprecated · processType · includeDeleted · sort · dir</td><td><code>SettingSpecifications</code></td></tr>
+            <tr><td>서버 그룹</td><td><code>GroupListQuery</code></td><td>q · hasStandardDefinition · sort · dir</td><td><code>GroupSpecifications</code></td></tr>
+          </tbody>
+        </table>
+        <p>둘 다 <code>BaseTimeEntity.createdAt</code> 을 가진다. 자원 관리 6 화면은 S8-3 결정(Q2)으로 기간 조건 예외다.</p>
+
+        <div class="callout danger"><b>발견한 결함 (S8-4 에서 생김)</b> : 게스트 서버 목록에서 다른 조건 없이 기본 범위 때문에 결과가 0 이면, 1 년보다 오래된 서버가 있어도 "등록된 게스트 서버가 없습니다" 라고 안내한다. <code>server-list.html</code> 빈 상태 갈래가 <code>filtered</code> 만 보고, 기본 범위는 조건이 아니므로 <code>filtered = false</code> 이기 때문이다. 세팅 정의서 · 서버 그룹에 기본 범위를 넣으면 같은 문제가 그대로 생긴다.</div>
+
+        <h4>사용자 구상</h4>
+        <ul>
+          <li>2026-09-26 원 구상 — "모든 목록 화면의 기본 필터 = 생성 일시가 현재 기준 1 년 이내"</li>
+          <li>2026-10-11 지시 — 끝 = 오늘, 시작 = 그 1 년 전</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>세팅 정의서 · 서버 그룹 조회 조건 창에 <b>기간 줄 추가</b> — 기본 1 년 전 ~ 오늘</li>
+          <li>세 화면이 같은 기간 규칙을 <b>하나의 부품으로 공유</b></li>
+          <li>기본 범위 때문에 비었을 때 안내가 "없습니다" 가 아니라 <b>기간을 넓히라는 안내</b></li>
+          <li>URL · 토큰 · 초기화 규칙은 S8-4 와 같다 — 기본값은 URL 에 안 실림 · 기본과 같으면 조건 아님 · 비운 끝은 기본값</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <table>
+            <thead><tr><th>항목</th><th>넘기는 곳</th></tr></thead>
+            <tbody>
+              <tr><td>자원 관리 6 화면</td><td>예외 유지 (S8-3 Q2)</td></tr>
+              <tr><td>보드 · 소속 그룹 선택기</td><td>S8-6</td></tr>
+              <tr><td>기간 기준 필드를 수정 시각으로</td><td>하지 않음 (Q2)</td></tr>
+              <tr><td>화면 전체 고정 배치 확대</td><td>S8-4 에서 끝남</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">화면 탭을 고르고 <b>Search</b> 로 조회 조건 창을 연다. 기간 줄의 날짜 · 빠른 기간 칩은 창 안 값만 바꾸고 <b>[검색]</b> 을 눌러야 적용된다. 모의 데이터를 실제로 걸러 결과 · 토큰 · URL · 빈 상태 갈래를 계산한다. <b>오늘은 2026-10-11 로 고정</b>이다. '데이터' 줄로 "최근 1 년이 비어 있는 데이터" · "0 건" 을 골라 빈 상태 세 갈래를 직접 볼 수 있다. 시나리오 버튼은 클릭 지점을 주황 테두리로 짚으며 재생하고, 끝난 뒤 이어서 직접 조작할 수 있다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar" data-demo-keep>
+            <span class="group-label">시나리오 :</span>
+            <button class="n-demo-btn" onclick="demoPreset(1)">① 기본 진입</button>
+            <button class="n-demo-btn" onclick="demoPreset(2)">② 시작일 넓히기</button>
+            <button class="n-demo-btn" onclick="demoPreset(3)">③ 칩 '최근 30일'</button>
+            <button class="n-demo-btn" onclick="demoPreset(4)">④ 서버 그룹 · 기간 넓히기</button>
+            <button class="n-demo-btn" onclick="demoPreset(5)">⑤ 게스트 서버 · 같은 규칙</button>
+          </div>
+          <div class="ux-toolbar" data-demo-keep>
+            <span class="group-label">화면 :</span>
+            <button class="seg" data-screen="setting" onclick="demoSetScreen('setting')">세팅 정의서</button>
+            <button class="seg" data-screen="group" onclick="demoSetScreen('group')">서버 그룹</button>
+            <button class="seg" data-screen="guest" onclick="demoSetScreen('guest')">게스트 서버</button>
+          </div>
+          <div class="ux-toolbar" data-demo-keep>
+            <span class="group-label">데이터 :</span>
+            <button class="seg" data-mode="normal" onclick="demoSetData('normal')">보통 (2024-03 ~ 2026-10)</button>
+            <button class="seg" data-mode="old" onclick="demoSetData('old')">최근 1 년 비어 있음</button>
+            <button class="seg" data-mode="none" onclick="demoSetData('none')">0 건</button>
+          </div>
+
+          <div id="demo-stage" style="position:relative; margin-top:10px;">
+            <div class="ux-row" id="demo-bar" style="flex-wrap:wrap; margin-bottom:0;"></div>
+            <div class="card" id="demo-panel" role="dialog" aria-label="조회 조건" hidden
+                 style="position:absolute; left:12px; top:calc(100% + 2px); width:min(600px, calc(100% - 24px)); z-index:20; padding:12px; background:var(--card); border:2px solid var(--blue); border-radius:6px; box-shadow:0 8px 24px var(--border);"></div>
+          </div>
+          <div id="demo-results" style="margin-top:10px; min-height:380px; max-height:420px; overflow-y:auto;"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <h4>데모가 재현하는 동작 규칙</h4>
+        <table>
+          <thead><tr><th>규칙</th><th>데모 동작</th><th>결정</th></tr></thead>
+          <tbody>
+            <tr><td>기본 진입</td><td>기간 2025-10-11 ~ 2026-10-11 · URL 에 from/to 없음 · 토큰 없음</td><td>D1</td></tr>
+            <tr><td>날짜 바꿔 [검색]</td><td>바뀐 끝만 URL · 토큰 "줄 라벨: 시작 ~ 끝" · 초기화 보임</td><td>D1 · D3</td></tr>
+            <tr><td>기본값과 같은 끝</td><td>URL 에서 빠짐 · 조건 아님</td><td>D1</td></tr>
+            <tr><td>토큰 × · 시작일 비우고 적용 · 초기화</td><td>기본 범위로 복귀</td><td>D1</td></tr>
+            <tr><td>빠른 기간 칩</td><td>두 날짜를 채우기만 · [검색] 으로 적용</td><td>D7</td></tr>
+            <tr><td>날짜 거꾸로</td><td>[검색] 막힘 (S8-4 동작)</td><td>—</td></tr>
+            <tr><td>결과 0 · 다른 조건 있음</td><td>빈 상태 ① "조건에 맞는 … 없습니다"</td><td>D5</td></tr>
+            <tr><td>결과 0 · 조건 없음 · 범위 밖엔 있음</td><td>빈 상태 ② "최근 1 년 안에 … 없습니다" + [기간 넓히기]</td><td>D5 · D6</td></tr>
+            <tr><td>결과 0 · 기간 빼도 0</td><td>빈 상태 ③ "등록된 … 없습니다" (화면별 기존 문구)</td><td>D5</td></tr>
+            <tr><td>[기간 넓히기]</td><td>시작일 = 기간 밖 가장 오래된 항목 날짜 · 바로 적용</td><td>D6</td></tr>
+          </tbody>
+        </table>
+
+        <h4>프리셋 기대 결과</h4>
+        <table>
+          <thead><tr><th>프리셋</th><th>끝 상태</th></tr></thead>
+          <tbody>
+            <tr><td>① 기본 진입</td><td>세팅 정의서 10건 / 18건 · URL <code>/provisioning/setting</code> · 창의 기간 줄 2025-10-11 ~ 2026-10-11 · '최근 1년' 칩 선택 표시</td></tr>
+            <tr><td>② 시작일 넓히기</td><td>18건 · URL <code>?from=2024-01-01</code> · 토큰 "작성 시각: 2024-01-01 ~ 2026-10-11" · 초기화 보임</td></tr>
+            <tr><td>③ 칩 '최근 30일'</td><td>칩 클릭 뒤 결과 10건 그대로(미적용) → [검색] 뒤 3건 · URL <code>?from=2026-09-11</code></td></tr>
+            <tr><td>④ 서버 그룹</td><td>최근 1 년 비어 있음 데이터 · 0건 · 빈 상태 ② → [기간 넓히기] → 8건 · 토큰 "생성 시각: 2024-04-22 ~ 2026-10-11"</td></tr>
+            <tr><td>⑤ 게스트 서버</td><td>9건 → 시작일 2024-01-01 적용 15건 · 토큰 "등록 시각: …" → 토큰 × → 9건 · URL 깨끗</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 <code>drDefaultFrom</code> · <code>drWithDefault</code> · <code>drIsDefault</code> · <code>drIsReversed</code> · <code>drContains</code> 는 §4 <code>DateRange</code> 의 <code>defaultFrom</code> · <code>withDefault</code> · <code>isDefault</code> · <code>isReversed</code> · <code>startInclusive</code>/<code>endExclusive</code> 와 1:1 이다. 빈 상태 갈래 판정(<code>demoEmptyBranch</code>)은 §3 흐름의 "결과 0 이고 조건 없음일 때만 기간을 뺀 조회" 와 같다.</div>
+        <div class="callout">모의 데이터의 이름 · 날짜는 예시값이다. 빠른 칩의 날짜 계산(최근 N일 = 오늘 − N일 ~ 오늘 · 올해 = 1월 1일 ~ 오늘)은 데모가 정한 값이며 Q3 확정 때 함께 정한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>화면</th><th>경로</th><th>추가 파라미터</th><th>기간 기준 필드</th><th>줄 라벨</th></tr></thead>
+          <tbody>
+            <tr><td>세팅 정의서</td><td><code>/provisioning/setting</code></td><td><code>from</code> · <code>to</code> (ISO 날짜)</td><td><code>SettingDefinition.createdAt</code></td><td>작성 시각</td></tr>
+            <tr><td>서버 그룹</td><td><code>/provisioning/server-group</code></td><td><code>from</code> · <code>to</code></td><td><code>GuestServerGroup.createdAt</code></td><td>생성 시각</td></tr>
+            <tr><td>게스트 서버</td><td><code>/provisioning/server</code></td><td><code>from</code> · <code>to</code> (기존)</td><td><code>GuestServer.createdAt</code> (기존)</td><td>등록 시각</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">라벨 근거 — 문구 규약 8(동사는 대상별 배타): 정의서 = 작성 · 그룹 = 생성 · 서버 = 등록.</div>
+
+        <h4>흐름</h4>
+        <pre><code>GET /provisioning/{setting|server-group|server}?…
+  → 컨트롤러: ListDateRangeDefaults.today()            (Clock)
+  → 조건 record.range()  → DateRange
+  → DateRange.withDefault(today)                         (비운 끝 = 기본값)
+  → 조회: Specification
+        createdAt ≥ from 0시   (startInclusive)
+        createdAt <  to+1일 0시 (endExclusive)
+  → 결과 0 이고 조건 없음(isFiltered(today) = false)?
+        예 → 기간만 뺀 조회 (빈 상태 ② 판정)
+  → 모델: query · rangeDefaultFrom · rangeDefaultTo (+ 빈 상태 ② 재료)
+  → 조각 date-range-row: 기간 줄 · data-default 를 그림</code></pre>
+        <div class="callout">기간만 뺀 조회는 <b>결과 0 · 조건 없음</b>일 때만 부른다. 결과가 있거나 다른 조건이 걸린 요청은 쿼리 수가 S8-4 와 같다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 (SSOT) ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>신규 VO — <code>global/web/list/vo/DateRange</code></h4>
+        <table>
+          <thead><tr><th>멤버</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>record DateRange(LocalDate from, LocalDate to)</code></td><td>목록 기간 조건</td></tr>
+            <tr><td><code>DEFAULT_SPAN = Period.ofYears(1)</code></td><td>기본 길이</td></tr>
+            <tr><td><code>defaultFrom(today)</code></td><td>today − 1 년</td></tr>
+            <tr><td><code>withDefault(today)</code></td><td>비운 끝을 기본값으로</td></tr>
+            <tr><td><code>isDefault(today)</code></td><td>기본 범위와 같은가 (= 조건 아님)</td></tr>
+            <tr><td><code>isReversed()</code></td><td>시작 &gt; 끝</td></tr>
+            <tr><td><code>startInclusive()</code></td><td><code>LocalDateTime</code> — from 0시</td></tr>
+            <tr><td><code>endExclusive()</code></td><td><code>LocalDateTime</code> — to 다음날 0시</td></tr>
+          </tbody>
+        </table>
+
+        <h4>세 조건 record</h4>
+        <ul>
+          <li>URL 호환을 위해 <code>from</code> · <code>to</code> 필드를 그대로 둔다(파라미터 이름 불변).</li>
+          <li><code>range()</code> 로 <code>DateRange</code> 를 돌려준다.</li>
+          <li><code>SettingListQuery</code> · <code>GroupListQuery</code> 에 <code>from</code> · <code>to</code> 추가.</li>
+          <li><code>ServerListQuery</code> 의 S8-4 메서드(<code>defaultFrom</code> · <code>withDefaultRange</code> · <code>isFiltered(today)</code> · <code>isRangeReversed</code>)는 <code>DateRange</code> 에 위임하도록 옮긴다(동작 불변).</li>
+        </ul>
+        <div class="split-grid">
+          <div class="split-card before"><h4>BEFORE — S8-4</h4><pre><code>ServerListQuery
+  DEFAULT_RANGE
+  defaultFrom(today)
+  withDefaultRange(today)
+  isFiltered(today)   // 기간 비교 직접
+  isRangeReversed()
+SettingListQuery  // 기간 없음
+GroupListQuery    // 기간 없음</code></pre></div>
+          <div class="split-card after"><h4>AFTER — DateRange 1 소스</h4><pre><code>DateRange (vo)
+  DEFAULT_SPAN · defaultFrom · withDefault
+  isDefault · isReversed
+  startInclusive · endExclusive
+Server/Setting/GroupListQuery
+  from · to (필드 유지)
+  range() → DateRange
+  isFiltered(today) → !range().isDefault(today) …</code></pre></div>
+        </div>
+
+        <h4>빈 상태 판정</h4>
+        <p>서비스가 <b>기간 밖에서 가장 오래된 생성 날짜</b>를 돌려주는 메서드 하나를 둔다(예: <code>findOldestCreatedDate()</code> → <code>Optional&lt;LocalDate&gt;</code> · 기간 외 다른 조건은 없음 상태에서만 부름). 값이 있으면 빈 상태 ②(기본 범위 때문에 0 건)이고 그 날짜가 [기간 넓히기] 링크의 시작일이 된다(D6). 값이 없으면 ③(아예 없음). 별도의 건수 · 존재 확인 메서드는 두지 않는다 — 한 번의 조회로 판정과 링크 값이 함께 나온다.</p>
+        <div class="callout info"><b>세션 판정(CP1 검수)</b> — 전사 단계에서 D6 와 판정 메서드의 반환형이 어긋난 것을 이렇게 맞췄다. 빈 상태 ① 의 설명 문구 "초기화하면 전체 목록이 보입니다" 는 S8-5 뒤 사실과 달라지므로(초기화 = 기본 범위) "초기화하면 기본 범위의 목록이 보입니다" 로 messages 에서 바꾼다. 서버 그룹의 ③ 문구는 기존 "만들어진 그룹이 없습니다." 를 유지한다. 빠른 칩의 날짜 계산은 최근 N일 = 오늘 − N일 ~ 오늘, 올해 = 1월 1일 ~ 오늘로 확정한다(Q3 채택 시).</div>
+
+        <h4>그 밖</h4>
+        <table>
+          <thead><tr><th>대상</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>엔티티 · 스키마</td><td>없음 (DDL 0)</td></tr>
+            <tr><td>Primitive Obsession</td><td>기간 = <code>DateRange</code> VO · URL 바인딩용 <code>LocalDate</code> 두 필드는 record 경계에서만</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td>뷰 — <code>date-range-row</code> 조각 · 두 화면 기간 줄 · 빈 상태</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3</td><td>Controller — 세 컨트롤러에 <code>ListDateRangeDefaults</code> 주입</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>4</td><td>DTO — 두 record 에 <code>from</code> · <code>to</code> · <code>range()</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td>Service — 빈 상태 판정 메서드 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6</td><td>Repository — Specification 기간 술어</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>7</td><td>Entity — N/A (변경 없음)</td><td><span class="chip cp3">CP3</span></td><td>N/A</td></tr>
+            <tr><td>8~9</td><td>Service 본체 · 스키마 N/A — main 구현(테스트 제외) 완료 + 빌드 통과</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (§9 A · B · C + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 통합 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 통합 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 테스트</h4>
+        <table>
+          <thead><tr><th>대상</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><code>DateRange</code></td><td>기본 채움 · 기본과 같음 판정 · 거꾸로 · 경계(to 당일 23:59 포함 · 다음날 0시 제외)</td></tr>
+            <tr><td>두 record</td><td><code>range()</code> 위임 · <code>isFiltered(today)</code></td></tr>
+            <tr><td>Specification</td><td>기간 경계</td></tr>
+            <tr><td>빈 상태 판정 서비스</td><td>범위 밖 있음 · 없음</td></tr>
+          </tbody>
+        </table>
+
+        <h4>통합 테스트 (<code>@WebMvcTest</code> + <code>FixedClockTestConfig</code>) — 세 화면 각각</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>화면당</th></tr></thead>
+          <tbody>
+            <tr><td>성공 200</td><td>① 기본 진입 → 기본 범위로 조회 · <code>data-default</code> · filtered false</td><td>1</td></tr>
+            <tr><td>성공 200</td><td>② from 만 → to 오늘 · filtered true</td><td>1</td></tr>
+            <tr><td>성공 200</td><td>③ 빈 상태 3 갈래 문구 (조건 0 건 · 기본 범위 0 건 + [기간 넓히기] · 아예 없음)</td><td>3</td></tr>
+            <tr><td>400</td><td>④ 잘못된 날짜 (바인딩)</td><td>1</td></tr>
+            <tr><td>성공 200</td><td>⑤ 거꾸로 기간 안내 (세팅 정의서 · 서버 그룹도 게스트 서버와 같은 안내)</td><td>1</td></tr>
+            <tr><td>404 · 409</td><td>N/A — 목록 GET · 신규 예외 없음</td><td>0</td></tr>
+            <tr><td>500</td><td>N/A — 신규 경로 없음 · 기존 유지</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <p>합계 — 화면당 7 × 3 화면 = 통합 21 시나리오. 빠른 칩 · 토큰 동작(JS)은 서버 응답으로 검증할 수 없으므로 CP5(§9)가 맡는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>구분</th><th>내용</th><th>HTTP</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip keep">신규</span></td><td>없음</td><td>—</td></tr>
+            <tr><td><span class="chip keep">재사용</span></td><td>잘못된 날짜 = 바인딩 오류 (기존)</td><td>400</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <h4>주의</h4>
+        <ol>
+          <li>S8-4 의 게스트 서버 빈 상태 결함을 여기서 함께 고친다 (D5).</li>
+          <li>기본값은 URL 에 안 실리므로 날짜가 바뀌면 같은 주소가 새 범위다 — 실시간 갱신(게스트 서버)도 같은 규칙.</li>
+          <li>서버 그룹 목록은 정렬 기본이 생성 최신순이라 기본 범위와 잘 맞는다.</li>
+          <li>세팅 정의서는 정렬 기본이 번호 순 — 오래된 정의서가 기본으로 숨는 것이 운영상 괜찮은지 (Q1).</li>
+        </ol>
+
+        <h4>결정 D1~D7</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택</th><th>비채택 대안</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>기간 규칙 공유</td><td>VO <code>DateRange</code> + 세 record 가 위임</td><td>A 각 record 에 S8-4 코드 복붙<br>B record 안 중첩 record 로 바인딩</td><td>A 중복 금지 위반 · 세 곳 drift<br>B 파라미터가 <code>range.from</code> 으로 바뀌어 기존 주소 · 북마크 깨짐</td></tr>
+            <tr><td>D2</td><td>today · 기본값의 모델 전달</td><td>작은 빈 <code>ListDateRangeDefaults</code> (Clock 주입 · <code>today()</code> · 모델에 <code>rangeDefaultFrom</code>/<code>To</code>) 를 세 컨트롤러가 주입</td><td>컨트롤러마다 Clock 주입 + 같은 세 줄 복붙</td><td>S8-4 의 <code>GuestServerController</code> 방식을 셋으로 복제</td></tr>
+            <tr><td>D3</td><td>기간 줄 마크업</td><td>조각 <code>fragments/ui/date-range-row :: row(label, query, defaultFrom, defaultTo)</code> 하나를 세 화면이 씀 (현재 <code>server-list.html</code> 인라인을 이리로 이동)</td><td>화면마다 인라인</td><td>세 벌 중복</td></tr>
+            <tr><td>D4</td><td>기간 기준 필드</td><td>생성 시각 (<code>createdAt</code>)</td><td>수정 시각</td><td>사용자 원 구상이 '생성 일시 1 년' (정의서는 고치며 쓰므로 최근 수정이 더 유용할 수는 있음) → Q2</td></tr>
+            <tr><td>D5</td><td>빈 상태 갈래</td><td>3 갈래 (조건 0 건 · 기본 범위 때문에 0 건 · 아예 없음) + 기본 범위 갈래에 [기간 넓히기]</td><td>기본 범위도 '조건' 으로 쳐서 "조건에 맞는 … 없습니다"</td><td>초기화를 눌러도 같은 기본 범위라 빠져나갈 길이 안 보임</td></tr>
+            <tr><td>D6</td><td>[기간 넓히기] 시작일</td><td>(권장) 기간 밖 가장 오래된 항목의 생성 날짜</td><td>고정 값 (예: 5 년 전)</td><td>고정 값은 쿼리 0 이지만 아주 오래된 것은 또 숨음 → Q4</td></tr>
+            <tr><td>D7</td><td>빠른 기간 칩</td><td>(권장) 기간 줄 안에 오늘 · 최근 7일 · 최근 30일 · 최근 1년 · 올해 — 채우기만 · 적용은 [검색]</td><td>두지 않음</td><td>→ Q3 (ecount 판매조회 하단 금일 · 전주 · 금월 · 최근30일 · 금년 대응)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">D5 의 3 갈래로 S8-4 게스트 서버 결함도 해소된다. 게스트 서버의 기존 '거꾸로 기간' 안내는 3 갈래와 별개로 유지하고, 세팅 정의서 · 서버 그룹도 같은 안내를 갖는다(§6 ⑤).</div>
+
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권장</th><th>대안</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>세팅 정의서에도 기본 1 년</td><td>적용 (사용자 원 구상 "모든 목록")</td><td>정의서는 예외 (재사용 자산이라 오래돼도 자주 씀)</td></tr>
+            <tr><td>Q2</td><td>기간 기준 필드</td><td>생성 시각</td><td>수정 시각</td></tr>
+            <tr><td>Q3</td><td>빠른 기간 칩</td><td>포함 (오늘 · 7일 · 30일 · 1년 · 올해)</td><td>두지 않음</td></tr>
+            <tr><td>Q4</td><td>[기간 넓히기] 시작일</td><td>기간 밖 가장 오래된 항목 날짜</td><td>고정 5 년 전</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드 · 테스트</h4>
+        <ul class="check-list" data-storage="S8-5-verify-build">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (S8-4 게스트 서버 테스트 회귀 포함)</span></label></li>
+        </ul>
+
+        <h4>CP5 정상 흐름 (A)</h4>
+        <ul class="check-list" data-storage="S8-5-verify-a">
+          <li><label><input type="checkbox" data-key="A1"> <span><b>A1</b> 세 화면 기본 진입 — 기간 줄 기본값 · URL 깨끗 · 토큰 없음</span></label></li>
+          <li><label><input type="checkbox" data-key="A2"> <span><b>A2</b> 시작일 넓혀 적용 · 토큰 · 초기화</span></label></li>
+          <li><label><input type="checkbox" data-key="A3"> <span><b>A3</b> 빠른 칩 각각 · [검색] 전 미적용</span></label></li>
+          <li><label><input type="checkbox" data-key="A4"> <span><b>A4</b> 토큰 × · 비우기 → 기본</span></label></li>
+          <li><label><input type="checkbox" data-key="A5"> <span><b>A5</b> 정렬 · 쪽 이동과 함께 유지</span></label></li>
+          <li><label><input type="checkbox" data-key="A6"> <span><b>A6</b> 게스트 서버 기존 동작 회귀 (S8-4 E1~E5)</span></label></li>
+        </ul>
+
+        <h4>CP5 비정상 조작 (B)</h4>
+        <ul class="check-list" data-storage="S8-5-verify-b">
+          <li><label><input type="checkbox" data-key="B1"> <span><b>B1</b> 거꾸로 기간</span></label></li>
+          <li><label><input type="checkbox" data-key="B2"> <span><b>B2</b> 주소에 잘못된 날짜 → 400</span></label></li>
+          <li><label><input type="checkbox" data-key="B3"> <span><b>B3</b> 기본 범위만으로 0 건 → 안내 ② · [기간 넓히기]</span></label></li>
+          <li><label><input type="checkbox" data-key="B4"> <span><b>B4</b> 다른 조건으로 0 건 → 안내 ①</span></label></li>
+          <li><label><input type="checkbox" data-key="B5"> <span><b>B5</b> 데이터 0 → 안내 ③</span></label></li>
+          <li><label><input type="checkbox" data-key="B6"> <span><b>B6</b> 기본값과 같은 날짜를 주소에 직접 → 조건 아님 (토큰 · 초기화 없음)</span></label></li>
+        </ul>
+
+        <h4>CP5 막는 방식 (C)</h4>
+        <ul class="check-list" data-storage="S8-5-verify-c">
+          <li><label><input type="checkbox" data-key="C1"> <span><b>C1</b> 오래된 항목이 숨은 사실을 사용자가 알 수 있는가</span></label></li>
+          <li><label><input type="checkbox" data-key="C2"> <span><b>C2</b> 빠른 칩이 적용 전임을 알 수 있는가</span></label></li>
+          <li><label><input type="checkbox" data-key="C3"> <span><b>C3</b> 키보드로 기간 · 칩 조작</span></label></li>
+        </ul>
+
+        <h4>보고 · E2E</h4>
+        <ul class="check-list" data-storage="S8-5-verify-report">
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6) — 항목 15 개(A6 · B6 · C3)와 스크린샷 1:1</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (예상)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/web/list/vo/DateRange.java</code></td><td>기간 VO</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>global/web/list/ListDateRangeDefaults.java</code></td><td>today · 모델 기본값</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>templates/fragments/ui/date-range-row.html</code></td><td>기간 줄 조각</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>테스트</td><td>§6</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingListQuery</code> · <code>GroupListQuery</code></td><td><code>from</code> · <code>to</code> · <code>range()</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>ServerListQuery</code></td><td>DateRange 위임</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingSpecifications</code> · <code>GroupSpecifications</code> · <code>GuestServerSpecifications</code></td><td>기간 술어 (게스트 서버는 필요 시 DateRange 사용)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingController</code> · <code>GuestServerGroupController</code> · <code>GuestServerController</code></td><td>defaults 주입 · 빈 상태 재료</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>세 조회 서비스 (<code>SettingQueryService</code> · <code>GuestServerGroupQueryService</code> · 게스트 서버 목록 서비스)</td><td>빈 상태 판정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting-list.html</code> · <code>server-group-list.html</code> · <code>server-list.html</code></td><td>기간 줄 · 빈 상태</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/global/list-query.js</code></td><td>빠른 칩</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/global/style.css</code></td><td>칩 · 빈 상태 링크</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td>빈 상태 문구 · 칩 라벨</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>DESIGN.md</code></td><td>조각 표 · 빈 상태 규칙</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>엔티티 · 스키마</td><td>변경 0</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>자원 관리 6 화면</td><td>변경 0 (S8-3 Q2 예외)</td></tr>
+          </tbody>
+        </table>
+        <p>합계 — 신규 3 + 테스트 · 수정 20 파일 내외(14 행) · 유지 2 항목. 게스트 서버 목록 서비스의 클래스 이름은 CP2 착수 시 실측 확정.</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="S8-5-next">
+          <li><label><input type="checkbox" data-key="cp1"> <span>CP1 승인 → 구현 (CP2~CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="user"> <span>사용자 추가 수정</span></label></li>
+          <li><label><input type="checkbox" data-key="s86"> <span>S8-6 구현 (CP1 plan 은 제출됨 — 승인 대기)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) { /* 저장 불가 환경 */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 기본 1 년 기간 데모 — 판정은 §4 DateRange · §3 흐름과 1:1
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_TODAY = '2026-10-11';
+
+  // 날짜 산술 (UTC 기준 — 시간대 영향 없음)
+  function dParse(s) { const p = s.split('-').map(Number); return Date.UTC(p[0], p[1] - 1, p[2]); }
+  function dFmt(t) { const d = new Date(t); return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0'); }
+  function dAddDays(s, n) { return dFmt(dParse(s) + n * 86400000); }
+  function dMinusYears(s, n) {   // Period.ofYears — 없는 날(2월 29일)은 그 달 마지막 날로
+    const p = s.split('-').map(Number), y = p[0] - n;
+    const last = new Date(Date.UTC(y, p[1], 0)).getUTCDate();
+    return y + '-' + String(p[1]).padStart(2, '0') + '-' + String(Math.min(p[2], last)).padStart(2, '0');
+  }
+
+  // DateRange (§4) 의 JS 재현
+  function drDefaultFrom(today) { return dMinusYears(today, 1); }                                  // defaultFrom
+  function drWithDefault(r, today) { return { from: r.from || drDefaultFrom(today), to: r.to || today }; } // withDefault
+  function drIsDefault(r, today) { const e = drWithDefault(r, today); return e.from === drDefaultFrom(today) && e.to === today; } // isDefault
+  function drIsReversed(r) { return !!(r.from && r.to && r.from > r.to); }                          // isReversed
+  function drContains(eff, d) { return d >= eff.from && d <= eff.to; }  // createdAt ≥ startInclusive ∧ < endExclusive (날짜 단위)
+
+  const DEMO_YN = (a, b) => [['', '전체'], ['true', a], ['false', b]];
+  const DEMO_STATUSES = [['REGISTERED','등록됨'],['PROVISIONING','프로비저닝 중'],['PROVISIONED','완료'],['FAILED','실패']];
+  const DEMO_STATUS_BADGE = { REGISTERED:['등록됨','off'], PROVISIONING:['프로비저닝 중','dep'], PROVISIONED:['완료','on'], FAILED:['실패','del'], DECOMMISSIONED:['회수됨','off'] };
+  const DEMO_CHIPS = [
+    ['today', '오늘',      t => ({ from: t, to: t })],
+    ['d7',    '최근 7일',  t => ({ from: dAddDays(t, -7), to: t })],
+    ['d30',   '최근 30일', t => ({ from: dAddDays(t, -30), to: t })],
+    ['y1',    '최근 1년',  t => ({ from: drDefaultFrom(t), to: t })],
+    ['year',  '올해',      t => ({ from: t.slice(0, 4) + '-01-01', to: t })]
+  ];
+  const DEMO_CTRL = 'padding:4px 6px;font-size:12px;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--text);';
+  const DEMO_PRIMARY = 'background:var(--blue);color:var(--card);';
+
+  const DEMO_SCREENS = {
+    setting: {
+      name:'세팅 정의서', path:'/provisioning/setting', rangeLabel:'작성 시각',
+      emptyFiltered:'조건에 맞는 세팅 정의서가 없습니다.', emptyRange:'최근 1 년 안에 세팅 정의서가 없습니다.', emptyNone:'등록된 세팅 정의서가 없습니다.',
+      rows:[
+        { key:'enabled', label:'활성', type:'radio', options:DEMO_YN('활성','비활성') },
+        { key:'deprecated', label:'사용 중단', type:'radio', options:DEMO_YN('권고','정상') }
+      ],
+      match:(it, c) => demoBool(c.enabled, it.e) && demoBool(c.deprecated, it.d),
+      sort:(a, b) => a.id - b.id,
+      items:[
+        {id:1,n:'표준-웹서버',c:'2024-03-14',e:1,d:0},{id:2,n:'DB-RAID10',c:'2024-05-02',e:1,d:1},{id:3,n:'Windows-기본',c:'2024-08-19',e:1,d:0},
+        {id:4,n:'펌웨어만',c:'2024-11-07',e:0,d:1},{id:5,n:'구형-RAID5',c:'2025-01-23',e:0,d:1},{id:6,n:'Rocky-기본',c:'2025-04-10',e:1,d:0},
+        {id:7,n:'GPU-노드',c:'2025-07-01',e:1,d:0},{id:8,n:'BIOS-튜닝',c:'2025-09-30',e:1,d:0},{id:9,n:'스토리지-JBOD',c:'2025-10-11',e:1,d:0},
+        {id:10,n:'HCI-노드',c:'2025-11-20',e:1,d:0},{id:11,n:'Ubuntu-24',c:'2026-01-08',e:1,d:0},{id:12,n:'테스트-최소',c:'2026-02-17',e:0,d:0},
+        {id:13,n:'RAID1-부트',c:'2026-04-03',e:1,d:0},{id:14,n:'Windows-2025',c:'2026-06-22',e:1,d:0},{id:15,n:'DB-RAID6',c:'2026-08-05',e:1,d:1},
+        {id:16,n:'엣지-노드',c:'2026-09-14',e:1,d:0},{id:17,n:'실기4호-표준',c:'2026-09-28',e:1,d:0},{id:18,n:'Rocky-9.6',c:'2026-10-10',e:0,d:0}
+      ]
+    },
+    group: {
+      name:'서버 그룹', path:'/provisioning/server-group', rangeLabel:'생성 시각',
+      emptyFiltered:'조건에 맞는 그룹이 없습니다.', emptyRange:'최근 1 년 안에 그룹이 없습니다.', emptyNone:'만들어진 그룹이 없습니다.',
+      rows:[ { key:'hasStandardDefinition', label:'표준 정의서', type:'radio', options:DEMO_YN('지정됨','미지정') } ],
+      match:(it, c) => demoBool(c.hasStandardDefinition, it.std),
+      sort:(a, b) => b.c.localeCompare(a.c),
+      items:[
+        {n:'랙A-웹',c:'2024-04-22',std:1,m:8},{n:'랙A-DB',c:'2024-06-10',std:1,m:4},{n:'스테이징',c:'2024-09-03',std:0,m:2},
+        {n:'반납 대기',c:'2024-12-16',std:0,m:5},{n:'GPU-클러스터',c:'2025-02-27',std:0,m:6},{n:'테스트벤치',c:'2025-05-19',std:0,m:1},
+        {n:'랙B-스토리지',c:'2025-08-08',std:1,m:7},{n:'실기3호',c:'2025-10-02',std:1,m:5},{n:'실기4호',c:'2025-11-25',std:1,m:3},
+        {n:'HCI-1차',c:'2026-01-14',std:1,m:12},{n:'랙C-웹',c:'2026-03-30',std:1,m:6},{n:'임시',c:'2026-05-11',std:0,m:0},
+        {n:'GPU-2차',c:'2026-07-07',std:0,m:4},{n:'사내망-1',c:'2026-08-21',std:1,m:3},{n:'랙D',c:'2026-09-29',std:0,m:2},
+        {n:'신규-입고',c:'2026-10-08',std:0,m:1}
+      ]
+    },
+    guest: {
+      name:'게스트 서버', path:'/provisioning/server', rangeLabel:'등록 시각',
+      emptyFiltered:'조건에 맞는 서버가 없습니다.', emptyRange:'최근 1 년 안에 게스트 서버가 없습니다.', emptyNone:'등록된 게스트 서버가 없습니다.',
+      rows:[
+        { key:'status', label:'운영 상태', type:'multi', options:DEMO_STATUSES },
+        { key:'includeDecommissioned', label:'회수된 서버', type:'check', text:'보기' }
+      ],
+      match:(it, c) => (c.status.length === 0 || c.status.includes(it.st)) && (c.includeDecommissioned || it.st !== 'DECOMMISSIONED'),
+      sort:(a, b) => b.c.localeCompare(a.c) || a.n.localeCompare(b.n),
+      items:[
+        {n:'srv-a01',c:'2024-03-05',st:'PROVISIONED'},{n:'srv-a02',c:'2024-03-05',st:'DECOMMISSIONED'},{n:'srv-a03',c:'2024-07-18',st:'PROVISIONED'},
+        {n:'srv-a04',c:'2024-10-29',st:'FAILED'},{n:'srv-b01',c:'2025-01-15',st:'PROVISIONED'},{n:'srv-b02',c:'2025-03-26',st:'DECOMMISSIONED'},
+        {n:'srv-b03',c:'2025-06-12',st:'PROVISIONED'},{n:'srv-b04',c:'2025-09-09',st:'PROVISIONED'},{n:'srv-c01',c:'2025-10-20',st:'PROVISIONED'},
+        {n:'srv-c02',c:'2025-12-03',st:'FAILED'},{n:'srv-c03',c:'2026-02-11',st:'PROVISIONED'},{n:'srv-c04',c:'2026-04-28',st:'DECOMMISSIONED'},
+        {n:'srv-d01',c:'2026-06-30',st:'PROVISIONED'},{n:'srv-d02',c:'2026-08-27',st:'PROVISIONING'},{n:'srv-d03',c:'2026-09-22',st:'PROVISIONED'},
+        {n:'srv-d04',c:'2026-10-07',st:'PROVISIONING'},{n:'srv-e01',c:'2026-10-09',st:'REGISTERED'},{n:'srv-e02',c:'2026-10-10',st:'REGISTERED'}
+      ]
+    }
+  };
+  const DEMO_ORDER = ['setting', 'group', 'guest'];
+  const DEMO_MODE_LABEL = { normal:'보통', old:'최근 1 년 비어 있음', none:'0 건' };
+
+  function demoBool(sel, v) { return sel === '' || (!!v) === (sel === 'true'); }
+  function demoQ(item, q) { const t = (q || '').trim().toLowerCase(); return !t || item.n.toLowerCase().includes(t); }
+  function demoDefaultOf(r) { return r.type === 'multi' ? [] : r.type === 'check' ? false : ''; }
+  function demoIsDefault(r, v) { return r.type === 'multi' ? v.length === 0 : r.type === 'check' ? !v : v === ''; }
+  function demoClone(o) { return JSON.parse(JSON.stringify(o)); }
+  function demoEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function demoTokenText(r, v) {
+    if (r.type === 'radio') { const f = r.options.find(o => o[0] === v); return f ? f[1] : v; }
+    if (r.type === 'multi') return r.options.filter(o => v.includes(o[0])).map(o => o[1]).join(', ');
+    return r.text;
+  }
+
+  // 상태 — applied = 서버가 그린 값(URL), draft = 창이 열린 동안만
+  const demo = { screen:'setting', data:'normal', open:false, draft:null, applied:{}, q:{}, qDraft:{}, moves:0 };
+  let demoTimer = 0;
+  function demoInitScreen(key) {
+    const o = { range: { from:'', to:'' } };
+    DEMO_SCREENS[key].rows.forEach(r => { o[r.key] = demoDefaultOf(r); });
+    demo.applied[key] = o; demo.q[key] = ''; demo.qDraft[key] = '';
+  }
+  function demoResetAll() { DEMO_ORDER.forEach(demoInitScreen); demo.open = false; demo.draft = null; demo.moves = 0; demo.data = 'normal'; }
+  demoResetAll();
+
+  function demoSc() { return DEMO_SCREENS[demo.screen]; }
+  function demoItems(key) {
+    const all = DEMO_SCREENS[key].items;
+    if (demo.data === 'none') return [];
+    if (demo.data === 'old') return all.filter(it => it.c < drDefaultFrom(DEMO_TODAY));
+    return all;
+  }
+  function demoEff(key) { return drWithDefault(demo.applied[key].range, DEMO_TODAY); }
+  // isFiltered(today) — 기본 범위와 같은 기간은 조건이 아니다
+  function demoOtherFiltered(key) {
+    const sc = DEMO_SCREENS[key], a = demo.applied[key];
+    return sc.rows.some(r => !demoIsDefault(r, a[r.key])) || demo.q[key].trim() !== '';
+  }
+  function demoFiltered(key) { return demoOtherFiltered(key) || !drIsDefault(demo.applied[key].range, DEMO_TODAY); }
+  function demoOtherMatch(key, it) { return demoQ(it, demo.q[key]) && DEMO_SCREENS[key].match(it, demo.applied[key]); }
+  function demoResults(key) {
+    const eff = demoEff(key);
+    return demoItems(key).filter(it => demoOtherMatch(key, it) && drContains(eff, it.c)).sort(DEMO_SCREENS[key].sort);
+  }
+  // 빈 상태 갈래 — 결과 0 이고 조건 없음일 때만 '기간만 뺀 조회' 를 부른다
+  function demoEmptyBranch(key) {
+    const n = demoResults(key).length;
+    if (n > 0) return { branch:null, calls:0 };
+    if (drIsReversed(demoEff(key))) return { branch:'R', calls:0 };
+    if (demoFiltered(key)) return { branch:'1', calls:0 };
+    const ignoring = demoItems(key).filter(it => demoOtherMatch(key, it));
+    if (ignoring.length === 0) return { branch:'3', calls:1, outside:0 };
+    const oldest = ignoring.map(it => it.c).sort()[0];
+    return { branch:'2', calls:1, outside:ignoring.length, oldest:oldest };
+  }
+  function demoUrl(key) {
+    const sc = DEMO_SCREENS[key], a = demo.applied[key], p = [];
+    if (demo.q[key].trim()) p.push('q=' + demo.q[key].trim());
+    sc.rows.forEach(r => {
+      const v = a[r.key];
+      if (demoIsDefault(r, v)) return;
+      if (r.type === 'multi') v.forEach(x => p.push(r.key + '=' + x));
+      else if (r.type === 'check') p.push(r.key + '=true');
+      else p.push(r.key + '=' + v);
+    });
+    if (a.range.from) p.push('from=' + a.range.from);
+    if (a.range.to) p.push('to=' + a.range.to);
+    return sc.path + (p.length ? '?' + p.join('&') : '');
+  }
+
+  function demoSay(text, kind) {
+    const el = document.getElementById('demo-message');
+    el.className = 'ux-message' + (kind ? ' ' + kind : '');
+    el.textContent = text;
+  }
+
+  // 띠
+  function demoRenderBar() {
+    const key = demo.screen, sc = demoSc(), a = demo.applied[key];
+    let h = '<input id="demo-q" type="text" autocomplete="off" placeholder="입력 후 [Enter]" aria-label="검색" value="' + demoEsc(demo.qDraft[key]) + '"'
+      + ' oninput="demoQInput(this.value)" onkeydown="demoQKey(event)" style="' + DEMO_CTRL + 'width:150px;">';
+    h += '<button type="button" id="demo-search-btn" class="n-demo-btn" aria-haspopup="dialog" aria-expanded="' + demo.open + '"'
+      + ' onclick="demoToggle()" style="' + DEMO_PRIMARY + '">Search</button>';
+    const chip = (key2, label, text) => '<span class="chip move">' + label + ': ' + demoEsc(text)
+      + '<button type="button" data-token="' + key2 + '" aria-label="' + label + ' 조건 풀기" onclick="demoTokenClear(\'' + key2 + '\')"'
+      + ' style="border:none;background:none;color:inherit;cursor:pointer;font-weight:700;padding:0 0 0 5px;">×</button></span>';
+    let tokens = sc.rows.filter(r => !demoIsDefault(r, a[r.key])).map(r => chip(r.key, r.label, demoTokenText(r, a[r.key]))).join('');
+    if (!drIsDefault(a.range, DEMO_TODAY)) { const e = demoEff(key); tokens += chip('range', sc.rangeLabel, e.from + ' ~ ' + e.to); }
+    h += '<span id="demo-tokens" style="display:inline-flex;flex-wrap:wrap;gap:4px;">' + tokens + '</span>';
+    h += '<span class="label"></span>';
+    let right = '<span style="font-size:12.5px;">결과 <b>' + demoResults(key).length + '</b>건</span>';
+    if (demoFiltered(key)) right += '<a href="#" id="demo-reset" onclick="demoReset();return false;" style="font-size:12.5px;color:var(--blue);">초기화</a>';
+    h += '<span style="display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center;">' + right + '</span>';
+    document.getElementById('demo-bar').innerHTML = h;
+  }
+
+  // 창
+  function demoControl(r, v) {
+    if (r.type === 'radio') {
+      return r.options.map(o => '<button type="button" class="seg' + (v === o[0] ? ' active' : '') + '" data-row="' + r.key + '" data-val="' + o[0] + '"'
+        + ' onclick="demoPick(\'' + r.key + '\',\'' + o[0] + '\')">' + o[1] + '</button>').join('');
+    }
+    if (r.type === 'multi') {
+      return '<button type="button" class="seg' + (v.length === 0 ? ' active' : '') + '" data-row="' + r.key + '" data-val="*" onclick="demoClearRow(\'' + r.key + '\')">전체</button>'
+        + r.options.map(o => '<button type="button" class="seg' + (v.includes(o[0]) ? ' active' : '') + '" data-row="' + r.key + '" data-val="' + o[0] + '"'
+        + ' aria-pressed="' + v.includes(o[0]) + '" onclick="demoToggleMulti(\'' + r.key + '\',\'' + o[0] + '\')">' + o[1] + '</button>').join('');
+    }
+    return '<label style="display:inline-flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer;">'
+      + '<input type="checkbox" data-row="' + r.key + '"' + (v ? ' checked' : '') + ' onchange="demoCheck(\'' + r.key + '\',this.checked)"> ' + r.text + '</label>';
+  }
+  function demoRangeControl(rg) {
+    const reversed = drIsReversed(rg);
+    let h = '<input type="date" id="demo-from" data-row="range" aria-label="시작일" value="' + rg.from + '" data-default="' + drDefaultFrom(DEMO_TODAY) + '"'
+      + ' max="' + (reversed || !rg.to ? '9999-12-31' : rg.to) + '" onchange="demoDate(\'from\',this.value)" style="' + DEMO_CTRL + '">'
+      + '<span style="color:var(--text-muted);">~</span>'
+      + '<input type="date" id="demo-to" aria-label="종료일" value="' + rg.to + '" data-default="' + DEMO_TODAY + '" max="9999-12-31"'
+      + (!reversed && rg.from ? ' min="' + rg.from + '"' : '') + ' onchange="demoDate(\'to\',this.value)" style="' + DEMO_CTRL + '">';
+    h += '<span style="flex-basis:100%;height:0;"></span>';
+    h += DEMO_CHIPS.map(c => {
+      const v = c[2](DEMO_TODAY), on = v.from === rg.from && v.to === rg.to;
+      return '<button type="button" class="seg' + (on ? ' active' : '') + '" data-chip="' + c[0] + '" aria-pressed="' + on + '"'
+        + ' onclick="demoChip(\'' + c[0] + '\')" style="font-size:11px;padding:3px 9px;">' + c[1] + '</button>';
+    }).join('');
+    return h;
+  }
+  function demoRenderPanel() {
+    const el = document.getElementById('demo-panel');
+    if (!demo.open) { el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false;
+    const rowWrap = (label, inner, id) => '<div class="ux-toolbar"' + (id ? ' id="' + id + '"' : '') + ' style="align-items:stretch;border-bottom:1px solid var(--border-soft);padding-bottom:6px;">'
+      + '<span class="group-label" style="background:var(--bg);padding:6px 8px;border-radius:4px;display:flex;align-items:center;font-weight:600;color:var(--text);">' + label + '</span>'
+      + '<span style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1;min-width:0;">' + inner + '</span></div>';
+    let h = '';
+    demoSc().rows.forEach(r => { h += rowWrap(r.label, demoControl(r, demo.draft[r.key])); });
+    h += rowWrap(demoSc().rangeLabel, demoRangeControl(demo.draft.range), 'demo-range-row');
+    h += '<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px;">'
+      + '<button type="button" id="demo-apply" class="n-demo-btn" onclick="demoApply()" style="' + DEMO_PRIMARY + '">검색</button>'
+      + '<button type="button" id="demo-close" class="n-demo-btn" onclick="demoDiscard(\'[닫기]\', true)">닫기</button></div>';
+    el.innerHTML = h;
+  }
+
+  // 결과 목록 · 빈 상태
+  function demoItemRow(key, it) {
+    const meta = t => '<span style="font-size:11px;color:var(--text-muted);">' + t + '</span>';
+    if (key === 'setting') {
+      return '<div class="ux-row" style="flex-wrap:wrap;">' + meta('#' + it.id) + '<span class="label">' + it.n + '</span>'
+        + '<span class="badge ' + (it.e ? 'on' : 'off') + '">' + (it.e ? '활성' : '비활성') + '</span>'
+        + (it.d ? '<span class="badge dep">사용 중단</span>' : '') + meta('작성 ' + it.c) + '</div>';
+    }
+    if (key === 'group') {
+      return '<div class="ux-row" style="flex-wrap:wrap;"><span class="label">' + it.n + '</span>'
+        + '<span class="badge ' + (it.std ? 'on' : 'off') + '">표준 정의서 ' + (it.std ? '지정됨' : '미지정') + '</span>'
+        + meta('멤버 ' + it.m + '대') + meta('생성 ' + it.c) + '</div>';
+    }
+    const sb = DEMO_STATUS_BADGE[it.st];
+    return '<div class="ux-row' + (it.st === 'DECOMMISSIONED' ? ' muted' : '') + '" style="flex-wrap:wrap;"><span class="label">' + it.n + '</span>'
+      + '<span class="badge ' + sb[1] + '">' + sb[0] + '</span>' + meta('등록 ' + it.c) + '</div>';
+  }
+  function demoRenderResults() {
+    const key = demo.screen, sc = demoSc(), list = demoResults(key), el = document.getElementById('demo-results'), eb = demoEmptyBranch(key);
+    let h = '';
+    if (list.length > 0) {
+      list.forEach(it => { h += demoItemRow(key, it); });
+    } else {
+      let title, desc, mark;
+      if (eb.branch === '2') {
+        mark = '②'; title = sc.emptyRange;
+        desc = '기간을 넓히면 이전 항목이 보입니다. <a href="#" id="demo-widen" onclick="demoWiden();return false;" style="color:var(--blue);font-weight:600;">기간 넓히기</a>';
+      } else if (eb.branch === '1') {
+        mark = '①'; title = sc.emptyFiltered;
+        desc = '조건을 바꾸거나 <a href="#" onclick="demoReset();return false;" style="color:var(--blue);">초기화</a>하면 기본 범위의 목록이 보입니다.';
+      } else {
+        mark = '③'; title = sc.emptyNone; desc = '새 항목이 생기면 이곳에 표시됩니다.';
+      }
+      h = '<div class="ux-row" id="demo-empty" style="flex-direction:column;align-items:flex-start;gap:4px;padding:18px 16px;">'
+        + '<span style="font-size:11px;color:var(--text-muted);">빈 상태 ' + mark + '</span>'
+        + '<b>' + title + '</b><span style="font-size:12.5px;color:var(--text-muted);">' + desc + '</span></div>';
+    }
+    el.innerHTML = h;
+  }
+
+  function demoRenderCaps() {
+    const key = demo.screen, sc = demoSc(), a = demo.applied[key], eff = demoEff(key), eb = demoEmptyBranch(key);
+    const isDef = drIsDefault(a.range, DEMO_TODAY);
+    const win = !demo.open ? '<span class="f">닫힘</span>'
+      : demoDraftChanged() ? '<span class="t">열림 · 미적용 변경 있음</span>  (결과 · 토큰 · URL 은 마지막 적용 상태 그대로)'
+      : '<span class="f">열림 · 변경 없음</span>';
+    const br = eb.branch === null ? '— (결과 있음)'
+      : eb.branch === '1' ? '① 조건 0 건 (기간만 뺀 조회 안 부름)'
+      : eb.branch === '2' ? '② 기본 범위 때문에 0 건 — 기간 밖 ' + eb.outside + '건 · 가장 오래된 ' + eb.oldest
+      : eb.branch === '3' ? '③ 아예 없음 (기간 빼도 0 건)' : '거꾸로 기간';
+    document.getElementById('demo-caps').innerHTML =
+      'URL     ' + demoEsc(demoUrl(key)) + '\n'
+      + '기간    ' + eff.from + ' ~ ' + eff.to + '  ' + (isDef ? '<span class="f">기본 범위 — 조건 아님</span>' : '<span class="t">조건</span>') + '\n'
+      + '판정    isFiltered(today) = ' + (demoFiltered(key) ? '<span class="t">true</span>' : '<span class="f">false</span>')
+      + ' · 결과 ' + demoResults(key).length + '건 / 데이터 ' + demoItems(key).length + '건 (' + DEMO_MODE_LABEL[demo.data] + ')\n'
+      + '빈 상태 ' + br + '\n'
+      + '창      ' + win + '\n'
+      + '오늘    ' + DEMO_TODAY + ' (고정) · 페이지 이동 ' + demo.moves + ' 회';
+  }
+  function demoDraftChanged() {
+    if (!demo.open) return false;
+    const a = demo.applied[demo.screen], d = demo.draft, eff = demoEff(demo.screen);
+    if (demoSc().rows.some(r => JSON.stringify(d[r.key]) !== JSON.stringify(a[r.key]))) return true;
+    return d.range.from !== eff.from || d.range.to !== eff.to;
+  }
+
+  function demoRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-screen]').forEach(s => s.classList.toggle('active', s.dataset.screen === demo.screen));
+    document.querySelectorAll('.ux-toolbar .seg[data-mode]').forEach(s => s.classList.toggle('active', s.dataset.mode === demo.data));
+    demoRenderBar();
+    demoRenderPanel();
+    demoRenderResults();
+    demoRenderCaps();
+  }
+
+  // 액션 — 띠
+  function demoSetScreen(key) {
+    demoTimer++;
+    demo.open = false; demo.draft = null; demo.screen = key;
+    demoSay('화면: ' + DEMO_SCREENS[key].name + ' — Search 를 눌러 기간 줄을 확인해 보세요.', '');
+    demoRender();
+  }
+  function demoSetData(mode) {
+    demoTimer++;
+    demo.data = mode; demo.open = false; demo.draft = null;
+    demoSay('데이터: ' + DEMO_MODE_LABEL[mode] + (mode === 'old' ? ' — 모든 항목이 2025-10-11 보다 오래됨.' : mode === 'none' ? ' — 항목이 하나도 없음.' : ''), '');
+    demoRender();
+  }
+  function demoQInput(v) { demo.qDraft[demo.screen] = v; }
+  function demoQKey(e) {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    demo.q[demo.screen] = demo.qDraft[demo.screen];
+    demo.moves++;
+    demoSay('검색칸 Enter — 제출했습니다. 기간은 그대로 걸립니다.', 'success');
+    demoRender();
+    const q = document.getElementById('demo-q');
+    if (q) { q.focus({ preventScroll:true }); q.setSelectionRange(q.value.length, q.value.length); }
+  }
+  function demoToggle() {
+    if (demo.open) { demoDiscard('Search 다시 누름', true); return; }
+    const key = demo.screen, d = demoClone(demo.applied[key]);
+    d.range = demoClone(demoEff(key));   // 서버는 withDefault 한 값을 날짜 칸에 그린다
+    demo.draft = d; demo.open = true;
+    demoRenderBar(); demoRenderPanel(); demoRenderCaps();
+    const f = document.querySelector('#demo-panel [data-row]');
+    if (f) f.focus({ preventScroll:true });
+  }
+  function demoTokenClear(rowKey) {
+    const key = demo.screen;
+    if (rowKey === 'range') demo.applied[key].range = { from:'', to:'' };
+    else demo.applied[key][rowKey] = demoDefaultOf(demoSc().rows.find(r => r.key === rowKey));
+    demo.q[key] = demo.qDraft[key];
+    demo.moves++;
+    demoSay(rowKey === 'range' ? '토큰 × — 기간을 기본 범위로 되돌렸습니다. URL 에서 from · to 가 빠집니다.' : '토큰 × — 그 줄만 기본값으로 되돌렸습니다.', 'success');
+    demoRender();
+  }
+  function demoReset() {
+    const key = demo.screen;
+    demoInitScreen(key);
+    demo.moves++;
+    demoSay('초기화 — 경로만 남기고 조건을 풀었습니다. 기간은 기본 범위(2025-10-11 ~ 2026-10-11)로 돌아갑니다.', 'success');
+    demoRender();
+  }
+  function demoWiden() {
+    const key = demo.screen, eb = demoEmptyBranch(key);
+    if (eb.branch !== '2') return;
+    demo.applied[key].range = { from: eb.oldest === drDefaultFrom(DEMO_TODAY) ? '' : eb.oldest, to:'' };
+    demo.moves++;
+    demoRender();
+    demoSay('[기간 넓히기] — 시작일 = 기간 밖 가장 오래된 항목 날짜 ' + eb.oldest + '. 결과 ' + demoResults(key).length + '건.', 'success');
+  }
+
+  // 액션 — 창 (초안만 바꾼다)
+  function demoPick(rowKey, val) { if (!demo.open) return; demo.draft[rowKey] = val; demoRenderPanel(); demoRenderCaps(); }
+  function demoToggleMulti(rowKey, val) {
+    if (!demo.open) return;
+    const arr = demo.draft[rowKey], i = arr.indexOf(val);
+    if (i >= 0) arr.splice(i, 1); else arr.push(val);
+    demoRenderPanel(); demoRenderCaps();
+  }
+  function demoClearRow(rowKey) { if (!demo.open) return; demo.draft[rowKey] = []; demoRenderPanel(); demoRenderCaps(); }
+  function demoCheck(rowKey, checked) { if (!demo.open) return; demo.draft[rowKey] = checked; demoRenderCaps(); }
+  function demoDate(which, v) {
+    if (!demo.open) return;
+    demo.draft.range[which] = v;
+    demoRenderPanel(); demoRenderCaps();
+    const el = document.getElementById(which === 'from' ? 'demo-from' : 'demo-to');
+    if (el) el.focus({ preventScroll:true });
+  }
+  function demoChip(id) {
+    if (!demo.open) return;
+    const c = DEMO_CHIPS.find(x => x[0] === id);
+    demo.draft.range = c[2](DEMO_TODAY);
+    demoRenderPanel(); demoRenderCaps();
+    demoSay('칩 \'' + c[1] + '\' — 두 날짜를 ' + demo.draft.range.from + ' ~ ' + demo.draft.range.to + ' 로 채웠습니다. 아직 적용 전입니다 — [검색] 을 눌러야 결과가 바뀝니다.', '');
+    const b = document.querySelector('#demo-panel [data-chip="' + id + '"]');
+    if (b) b.focus({ preventScroll:true });
+  }
+  function demoApply() {
+    if (!demo.open) return;
+    const key = demo.screen, d = demo.draft;
+    if (drIsReversed(d.range)) { demoSay('막힘 — 시작일이 종료일보다 늦습니다. 날짜 칸이 안내를 띄우고 제출하지 않습니다.', 'error'); return; }
+    // list-query.js ② — data-default 와 같은 끝은 URL 에서 뺀다 (비운 끝도 빠짐 → 기본값)
+    const rg = { from: d.range.from === drDefaultFrom(DEMO_TODAY) ? '' : d.range.from, to: d.range.to === DEMO_TODAY ? '' : d.range.to };
+    const next = demoClone(d); next.range = rg;
+    demo.applied[key] = next;
+    demo.q[key] = demo.qDraft[key];
+    demo.open = false; demo.draft = null;
+    demo.moves++;
+    demoRender();
+    demoSay('적용 — 결과 ' + demoResults(key).length + '건. ' + (drIsDefault(rg, DEMO_TODAY) ? '기간은 기본 범위라 URL · 토큰에 나타나지 않습니다.' : '기간 토큰이 생겼습니다.'), 'success');
+  }
+  function demoDiscard(how, focusBack) {
+    if (!demo.open) return;
+    const changed = demoDraftChanged();
+    demo.open = false; demo.draft = null;
+    demoSay(how + (changed ? ' — 미적용 변경을 버리고 마지막 적용 상태로 되돌렸습니다.' : ' — 바꾼 것이 없어 그대로 닫혔습니다.'), '');
+    demoRenderBar(); demoRenderPanel(); demoRenderCaps();
+    if (focusBack) { const b = document.getElementById('demo-search-btn'); if (b) b.focus({ preventScroll:true }); }
+  }
+
+  // 바깥 클릭 · Esc · 창 안 Enter
+  document.addEventListener('pointerdown', e => {
+    if (!demo.open) return;
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+    if (t.closest('#demo-panel') || t.closest('#demo-search-btn') || t.closest('[data-demo-keep]')) return;
+    demoDiscard('창 바깥 클릭', false);
+  });
+  document.addEventListener('keydown', e => {
+    if (!demo.open) return;
+    if (e.key === 'Escape') { e.preventDefault(); demoDiscard('Esc', true); return; }
+    const t = e.target;
+    if (e.key === 'Enter' && t instanceof Element && t.closest('#demo-panel')) {
+      if (t.id === 'demo-close' || t.hasAttribute('data-chip') || t.classList.contains('seg')) return;
+      e.preventDefault();
+      demoApply();
+    }
+  });
+
+  // 시나리오 프리셋 — 클릭 지점을 짚은 뒤 같은 액션 함수를 호출한다
+  function demoPlay(steps) {
+    const token = demoTimer;
+    let i = 0;
+    const next = () => {
+      if (token !== demoTimer || i >= steps.length) return;
+      const s = steps[i++];
+      const el = s.sel ? document.querySelector(s.sel) : null;
+      if (el) { el.style.outline = '3px solid var(--orange)'; el.style.outlineOffset = '2px'; }
+      if (s.say) demoSay(s.say, '');
+      setTimeout(() => {
+        if (token !== demoTimer) return;
+        if (el) { el.style.outline = ''; el.style.outlineOffset = ''; }
+        if (s.act) s.act();
+        setTimeout(next, 600);
+      }, 900);
+    };
+    setTimeout(next, 300);
+  }
+  const DEMO_PRESETS = {
+    1: { setup: () => { demo.screen = 'setting'; },
+      steps: [
+        { sel:'#demo-caps', say:'① 세팅 정의서 기본 진입 — URL 에 from · to 가 없고 토큰도 없습니다. 결과는 기본 범위 안 10건.' },
+        { sel:'#demo-search-btn', act: demoToggle, say:'Search 로 창을 엽니다.' },
+        { sel:'#demo-range-row', say:'작성 시각 줄 — 2025-10-11 ~ 2026-10-11 이 채워져 있고 \'최근 1년\' 칩이 선택돼 보입니다.' },
+        { sel:'#demo-close', act: () => demoDiscard('[닫기]', true), say:'바꾼 것 없이 닫습니다.' }
+      ] },
+    2: { setup: () => { demo.screen = 'setting'; },
+      steps: [
+        { sel:'#demo-search-btn', act: demoToggle, say:'② 창을 엽니다.' },
+        { sel:'#demo-from', act: () => demoDate('from', '2024-01-01'), say:'시작일을 2024-01-01 로 바꿉니다 (아직 미적용).' },
+        { sel:'#demo-apply', act: demoApply, say:'[검색] 으로 적용합니다 — URL ?from=2024-01-01 · 토큰 · 초기화가 생깁니다.' }
+      ] },
+    3: { setup: () => { demo.screen = 'setting'; },
+      steps: [
+        { sel:'#demo-search-btn', act: demoToggle, say:'③ 창을 엽니다.' },
+        { sel:'#demo-panel [data-chip="d30"]', act: () => demoChip('d30'), say:'\'최근 30일\' 칩 — 날짜만 채웁니다.' },
+        { sel:'#demo-caps', say:'결과는 아직 10건 그대로 · 창 = 열림 · 미적용 변경 있음.' },
+        { sel:'#demo-apply', act: demoApply, say:'[검색] 으로 적용합니다.' }
+      ] },
+    4: { setup: () => { demo.screen = 'group'; demo.data = 'old'; },
+      steps: [
+        { sel:'#demo-empty', say:'④ 서버 그룹 — 모든 그룹이 1 년보다 오래된 데이터. 조건이 없는데 0 건 → 빈 상태 ② "최근 1 년 안에 그룹이 없습니다".' },
+        { sel:'#demo-widen', act: demoWiden, say:'[기간 넓히기] — 시작일을 기간 밖 가장 오래된 그룹 날짜로.' }
+      ] },
+    5: { setup: () => { demo.screen = 'guest'; },
+      steps: [
+        { sel:'#demo-caps', say:'⑤ 게스트 서버 — 공용 부품으로 바뀌어도 동작은 같습니다. 기본 9건(회수 제외).' },
+        { sel:'#demo-search-btn', act: demoToggle, say:'창을 엽니다 — 등록 시각 줄.' },
+        { sel:'#demo-from', act: () => demoDate('from', '2024-01-01'), say:'시작일 2024-01-01.' },
+        { sel:'#demo-apply', act: demoApply, say:'[검색] — 토큰 "등록 시각: 2024-01-01 ~ 2026-10-11".' },
+        { sel:'[data-token="range"]', act: () => demoTokenClear('range'), say:'토큰 × — 기본 범위로 돌아갑니다.' }
+      ] }
+  };
+  function demoPreset(n) {
+    demoTimer++;
+    demoResetAll();
+    DEMO_PRESETS[n].setup();
+    demoRender();
+    demoPlay(DEMO_PRESETS[n].steps);
+  }
+
+  demoSay('화면 탭을 고르고 Search 를 눌러 기간 줄을 열어 보세요. 시나리오 버튼은 단계를 짚으며 재생합니다.', '');
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

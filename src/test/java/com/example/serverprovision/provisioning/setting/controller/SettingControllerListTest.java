@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.setting.controller;
 
+import com.example.serverprovision.support.FixedClockTestConfig;
+import org.springframework.context.annotation.Import;
 import com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
@@ -32,6 +34,7 @@ import static org.mockito.BDDMockito.willReturn;
 import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 import com.example.serverprovision.global.web.list.ListFilterMarkup;
@@ -40,6 +43,7 @@ import com.example.serverprovision.global.web.list.ListFilterMarkup;
  * S8-1 — 세팅 정의서 목록의 조회 조건 바인딩 · 쪽 정정 · 400 · 화면 조립을 HTTP 계층에서 본다.
  * Mocking 은 {@code SettingQueryService} 까지 — 바인딩 · Pageable 리졸버 · ListLinks 리졸버 · 템플릿은 실제로 돈다.
  */
+@Import(FixedClockTestConfig.class)
 @WebMvcTest(controllers = SettingController.class)
 class SettingControllerListTest {
 
@@ -88,7 +92,7 @@ class SettingControllerListTest {
         SettingListQuery q = capturedQuery();
         assertThat(q.sort()).isEqualTo(SettingSortField.ID);
         assertThat(q.dir()).isEqualTo(Sort.Direction.ASC);
-        assertThat(q.isFiltered()).isFalse();
+        assertThat(q.isFiltered(FixedClockTestConfig.TODAY)).isFalse();
         assertThat(capturedPageable().getPageSize()).isEqualTo(20);
     }
 
@@ -190,11 +194,53 @@ class SettingControllerListTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        assertThat(ListFilterMarkup.rowLabels(html)).containsExactly("활성", "사용 중단", "포함 단계", "삭제된 항목");
+        assertThat(ListFilterMarkup.rowLabels(html)).containsExactly("활성", "사용 중단", "포함 단계", "생성 일시", "삭제된 항목");
         String panel = ListFilterMarkup.panel(html);
         assertThat(panel).contains("name=\"deprecated\" value=\"true\" checked", "value=\"RAID_CONFIGURATION\" checked");
         assertThat(panel).doesNotContain("name=\"sort\"");
         assertThat(ListFilterMarkup.outsidePanel(html)).contains("name=\"sort\"", "name=\"dir\"");
+    }
+
+
+    @Test
+    @DisplayName("S8-5 — 생성 일시 기간이 없으면 기본 범위(1 년 전 ~ 오늘)로 조회하고, 기간 줄 · 빠른 칩 · data-default 를 그리며 조건으로 치지 않는다")
+    void defaultCreatedRange() throws Exception {
+        String html = mvc.perform(get("/provisioning/setting"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("filtered", false))
+                .andReturn().getResponse().getContentAsString();
+
+        SettingListQuery q = capturedQuery();
+        assertThat(q.from()).isEqualTo(java.time.LocalDate.of(2025, 10, 11));
+        assertThat(q.to()).isEqualTo(FixedClockTestConfig.TODAY);
+        assertThat(com.example.serverprovision.global.web.list.ListFilterMarkup.panel(html))
+                .contains("data-default=\"2025-10-11\"", "data-default=\"2026-10-11\"", "data-range-today=\"2026-10-11\"",
+                        "data-range-preset=\"30d\"", "data-range-preset=\"ytd\"");
+    }
+
+    @Test
+    @DisplayName("S8-5 — 시작일만 주면 끝은 오늘 · 조건으로 친다(초기화 링크) / 잘못된 날짜는 400")
+    void changedStart_andBadDate() throws Exception {
+        mvc.perform(get("/provisioning/setting").param("from", "2024-01-01"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("filtered", true));
+        SettingListQuery q = capturedQuery();
+        assertThat(q.from()).isEqualTo(java.time.LocalDate.of(2024, 1, 1));
+        assertThat(q.to()).isEqualTo(FixedClockTestConfig.TODAY);
+
+        mvc.perform(get("/provisioning/setting").param("from", "2024-13-45"))
+                .andExpect(status().isBadRequest());
+    }
+
+
+    @Test
+    @DisplayName("S8-5 CP5 D-1 — 주소에 거꾸로 기간을 넣어 비면 '시작일이 종료일보다 늦습니다' 안내(게스트 서버와 같은 공용 안내)")
+    void reversedRange_showsReversedNotice() throws Exception {
+        willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0)).given(queryService).search(any(), any());
+        mvc.perform(get("/provisioning/setting").param("from", "2026-05-01").param("to", "2026-01-01"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("시작일이 종료일보다 늦습니다. 기간을 다시 고르십시오.")))
+                .andExpect(content().string(not(containsString("조건에 맞는 세팅 정의서가 없습니다."))));
     }
 
 }
