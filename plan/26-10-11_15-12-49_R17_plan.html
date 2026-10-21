@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R17 Plan — RAID 계열 자동 판별 (커널 드라이버 기준)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:var(--bg); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--border-soft); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--text); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); } .seq .step.a4 { background:var(--purple-bg); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  [data-error="1"] { color:var(--red); font-weight:700; }
+  tr[data-current="1"] td { background:var(--orange-bg); font-weight:600; }
+
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R17 — RAID 계열 자동 판별 (커널 드라이버 기준) <span class="v2-badge">개정판</span></h1>
+  <div class="meta">
+    <span><strong>브랜치</strong> <code>refactor/R17_raid-family-autodetect</code> (origin/dev 313e21e)</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/3edef0e868f981ec89cdd54762e45252">R17</a> 진행 중 10-11</span>
+    <span><strong>하위</strong> R17-1 · R17-2 는 별도 CP1</span>
+    <span><strong>착수 브리핑</strong> <code>discussion/26-10-11_14-20-04_R17-raid-chip-registry_brief.md</code></span>
+    <span><strong>선행</strong> HF22 (PR #92 병합)</span>
+    <span><strong>개정</strong> v1 칩 등록 표 안 폐기 — §8 축 1</span>
+    <span><strong>생성</strong> 2026-10-11 15:12 KST</span>
+    <span><strong>CP1</strong> 승인 2026-10-11 (CP6 까지 무중단 — 사용자 지시)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 요약 · 재설계 동기</a></li>
+      <li><a href="#s1">§1 배경 · 진단</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 데이터 흐름 · 계약</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트 계획</a></li>
+      <li><a href="#s7">§7 엔티티 · 스키마 · 예외</a></li>
+      <li><a href="#s8">§8 설계 결정 · 리스크</a></li>
+      <li><a href="#s9">§9 Verification · CP5 계획</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 남은 일</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 요약 · 재설계 동기 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 요약 · 재설계 동기 (v1 → 개정판)</summary>
+      <div class="body">
+        <ol>
+          <li>RAID 카드의 제어 계열(<code>MEGARAID</code> · <code>MPT_IR</code>)을 <b>사람이 칩 ID 를 등록해서가 아니라, 진단 리눅스 커널이 그 카드에 붙인 드라이버로 자동 판별</b>합니다. <code>megaraid_sas</code> → MEGARAID · <code>mpt3sas</code> → MPT_IR 후보(IR 펌웨어 확인) · 그 밖(<code>mpi3mr</code> 등) → RAID 미지원.</li>
+          <li>근거는 진단 이미지 <code>modloop-lts</code>(커널 6.12.94-lts) 실측입니다. 커널 장치 ID 표 <code>modules.alias</code> 에 <code>1000:10e2</code>(CRA4760) · <code>1000:005d</code>(9361-8i) → <code>megaraid_sas</code>, <code>1000:0097</code>(CRA3338) → <code>mpt3sas</code> 가 이미 들어 있습니다. HF22 의 누락은 <b>커널은 알던 칩을 앱의 사본 목록이 몰라서</b> 생겼습니다.</li>
+          <li>그래서 코드의 칩 ID 목록(<code>RaidChipFamily.chipPciIds()</code>)을 없애고, 계열이 소유하는 것은 <b>드라이버 이름 하나</b>(<code>kernelDriver()</code>)로 줄입니다. 칩 표 · 등록 화면 · DDL 은 만들지 않습니다.</li>
+          <li>같은 계열의 새 칩은 커널이 알면 <b>아무것도 바꾸지 않아도</b> 붙습니다. 커널이 모르면 칩 표가 있어도 storcli · sas3ircu 가 카드에 닿지 못하므로, 답은 진단 이미지(modloop) 갱신입니다 — 앱 재배포가 아니라 시스템 자산 교체입니다.</li>
+          <li>미채집 경고(HF22)는 "왜 못 읽었는가" 를 드라이버 관측으로 가릅니다(지원 계열인데 실패 · RAID 미지원 HBA · 커널이 모르는 칩 · 옛 보고).</li>
+        </ol>
+        <div class="callout">v1 은 칩 ID ↔ 계열 대응을 데이터(등록 표 · 화면 · DDL)로 옮기는 안이었습니다. 개정판은 그 대응을 소유하지 않고 커널에 맡깁니다. 폐기 사유는 §8 축 1 에 있습니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 배경 · 진단 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경 · 진단 (실측 2026-10-11)</summary>
+      <div class="body">
+        <p><b>출발점</b> — HF22(10-02): CRA4760(SAS3908 <code>1000:10e2</code>)이 <code>RaidChipFamily.MEGARAID.chipPciIds()</code> 에 없어 에이전트가 RAID 보고를 생략했고, 디스크 인벤토리가 통째로 빠졌습니다. 고치는 데 코드 한 줄 · 빌드 · 운영 배포가 필요했습니다.</p>
+        <h4>실태 (번호는 본문 인용용)</h4>
+        <ol>
+          <li><b>현재 판별 사슬</b>: 서버 <code>RaidChipFamily.agentChipHint()</code> → 응답 <code>raidChips</code>(<code>"1000:0097=MPT_IR 1000:005d=MEGARAID 1000:10e2=MEGARAID"</code>) → agent <code>detect_raid_family</code> 가 <code>lspci -nn -d 1000:</code> 와 대조 → FAMILY → <code>ensure_raid_driver</code> 가 <b>판별 뒤에</b> 그 계열 모듈만 modprobe. 서버 <code>RaidInventoryParser.familyOf</code> 는 봉투의 lspci 원문에 <code>RaidChipFamily.fromLspci()</code> 를 다시 적용합니다.</li>
+          <li><b>진단 이미지 실측</b>(앵커 샌드박스 자산 <code>sbx-e35/pxe-assets-lab/modloop-lts</code> · squashfs 목록): 커널 <code>6.12.94-0-lts</code>, <code>megaraid_sas.ko</code> · <code>mpt3sas.ko</code> · <code>mpi3mr.ko</code> 모두 있음. <code>modules.alias</code>: <code>pci:v00001000d000010E2… megaraid_sas</code> · <code>…d0000005D… megaraid_sas</code> · <code>…d00000097… mpt3sas</code>.</li>
+          <li><b>실기 원문</b>(<code>~/e35-fieldwork</code> · 2026-08-31): 9361-8i = <code>RAID bus controller [0104]</code> · <code>Kernel driver in use: megaraid_sas</code> / CRA3338 = <code>Serial Attached SCSI controller [0107]</code> · <code>mpt3sas</code>. 참고(앵커 기록): Fujitsu D2616 <code>1000:0079</code> = <code>[0104]</code> · <code>megaraid_sas</code>.</li>
+          <li>두 드라이버(+ mpi3mr)는 각자의 PCI ID 표로만 바인딩하므로 함께 로드해도 충돌하지 않습니다(앵커 회신 C · 일반 배포판 커널 동작).</li>
+          <li><b>BMC</b>: Gigabyte AMI 의 <code>Chassis/Self/PCIeDevices</code> → <code>PCIeFunctions</code> 가 있으나, 표준 PCIeFunction 에는 <b>드라이버 정보가 없습니다</b>(드라이버는 호스트 OS 개념). 얻을 수 있는 것은 ID · ClassCode = <code>lspci -nn</code> 수준입니다. E3.5-0 실측에서 Storage Members 는 두 BMC 모두 0 이었습니다.</li>
+          <li><b>lspci 옵션</b>(Alpine pciutils 3.12 실행 · 실기 원문 대조): <code>-nn</code> = 칩 ID 만 · Subsystem 은 <code>-v</code>/<code>-vv</code>/<code>-vmm</code>/<code>-mm</code> 에서만. RAID 봉투는 이미 <code>-nn -vv -d 1000:</code> 이라 채집되는 카드의 Subsystem 은 지금도 들어옵니다.</li>
+          <li>COLLECT 에서 지원 칩이 없으면 agent 가 RAID 봉투를 버립니다(<code>RAID_ENV=… || RAID_ENV=""</code>) → 서버는 "왜 못 읽었는지" 를 모릅니다. HF22 경고 <code>uncollectedRaidCards()</code> 는 원인 무관(PCIe kind RAID + 인벤토리 없음)입니다.</li>
+        </ol>
+        <div class="callout warn"><b>미확인 · 실측 대기</b>
+          <ol>
+            <li><b>CRA4760 실물이 실제로 <code>megaraid_sas</code> 에 바인딩되는가</b> — alias 표는 그렇다고 말하지만 실기 원문이 없습니다. 운영 spv-01 진단 보고 원문 조회는 사용자 지시로 보류 중입니다.</li>
+            <li>운영 modloop 이 위 샌드박스 자산과 같은 커널 판인가.</li>
+            <li><b>IT 펌웨어 SAS3008(HBA)에서 sas3ircu 가 어떻게 응답하는가</b>(IR 여부 판정 문구).</li>
+            <li>BMC PCIeFunction 필드의 실제 채움 여부(비목표라 판정에 영향 없음).</li>
+          </ol>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><code>RaidChipFamily</code> 에서 <code>chipPciIds()</code> · <code>agentChipHint()</code> · <code>fromLspci()</code> 제거, <code>kernelDriver()</code> 추가(MEGARAID = <code>megaraid_sas</code> · MPT_IR = <code>mpt3sas</code>).</li>
+          <li>서버 힌트를 <code>raidDrivers</code>(<code>"&lt;driver&gt;=&lt;FAMILY&gt;"</code> 공백 연결 — §4 D1)로 교체합니다.</li>
+          <li>agent: RAID 클래스 장치(0104 · 0107)마다 <b>그 장치의 <code>modalias</code> 로 modprobe</b>(커널 alias 표가 고르는 드라이버 — <code>mpi3mr</code> 포함) → <code>/sys/bus/pci/devices/*/driver</code> 로 계열 판정 → 봉투에 <code>driver</code> · <code>slot</code> 을 싣습니다. COLLECT 에서도 판정 실패 사유를 버리지 않고 보고합니다.</li>
+          <li>agent 진단 보고에 <code>raidDevices</code>(RAID 후보 장치별 슬롯 · 드라이버 — 드라이버 없음 포함)를 추가합니다.</li>
+          <li>서버 파서: 봉투의 <code>driver</code> 로 계열을 정하고, 없으면 <code>tool</code> 로 폴백합니다(옛 봉투 관용).</li>
+          <li>미채집 경고 4 갈래(§4 D4).</li>
+          <li>테스트 두 레이어(§6).</li>
+          <li>CP5: mock-guest 하네스 + 게스트 상세 화면(§9).</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>칩 등록 표 · 화면 · DDL(v1 안 — 폐기).</li>
+            <li>BMC 를 판별 근거로 쓰기(실태 5).</li>
+            <li>진단 PCIe 목록의 Subsystem 수집(<code>-mm -nn</code> 전환) — 2026-10-11 사용자 확정 — 비목표(§8 Q1).</li>
+            <li>새 계열 추가 — 지금처럼 코드 변경으로 합니다.</li>
+            <li>한 서버에 RAID 카드 둘 이상 — 지금처럼 첫 판정 카드 하나만 다룹니다.</li>
+            <li>R17-1(RAID10 스팬 · 수량 · 폼 최소치) · R17-2(<code>typicallyRequiresCache</code> 제거) — 각자 별도 CP1.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 장착 카드별 RAID 판별 시뮬레이터</summary>
+      <div class="body">
+        <p style="margin-top:0;">장착 카드 · agent 판 · 채집 도구 유무를 고르고 <b>[진단 실행]</b> 을 누르면, 서버 힌트 → agent 판별 → 서버 파서 → 게스트 상세 경고까지 한 번에 흘러갑니다. 판정 JS 는 <code>RaidChipFamily.agentDriverHint()</code> · agent <code>detect_raid_family</code> · <code>RaidInventoryParser.familyOf</code> · <code>RaidCollectionNotice</code>(D4 진리표 4행)를 그대로 옮긴 것입니다. 이 슬라이스에는 사용자가 누르는 버튼이 없으므로, 버튼은 "게스트 · 서버가 하는 일" 을 대신 돌립니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">원클릭 시나리오 :</span>
+            <button class="n-demo-btn" onclick="demoScenario(1)">① 9361 회귀</button>
+            <button class="n-demo-btn" onclick="demoScenario(2)">② HF22 재현</button>
+            <button class="n-demo-btn" onclick="demoScenario(3)">③ 가상 신규 MegaRAID</button>
+            <button class="n-demo-btn" onclick="demoScenario(4)">④ 9600 HBA</button>
+            <button class="n-demo-btn" onclick="demoScenario(5)">⑤ 커널이 모르는 칩</button>
+            <button class="n-demo-btn" onclick="demoScenario(6)">⑥ CRA3338 IT</button>
+          </div>
+          <div class="callout" id="demo-banner">시나리오를 누르거나 아래 토글을 직접 바꾼 뒤 [진단 실행] 을 누르십시오.</div>
+
+          <div class="ux-toolbar" id="demo-presets">
+            <span class="group-label">장착 카드 :</span>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">agent 판 :</span>
+            <button class="seg" data-agent="new" onclick="demoSetAgent('new')">새 agent</button>
+            <button class="seg" data-agent="old" onclick="demoSetAgent('old')">옛 agent (칩 ID 힌트만 앎)</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">채집 도구 :</span>
+            <button class="seg" data-tool="on" onclick="demoSetTool(true)">도구 있음</button>
+            <button class="seg" data-tool="off" onclick="demoSetTool(false)">도구 없음</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">실행 :</span>
+            <span class="tip" data-tip="게스트가 PXE 로 진단 리눅스에 들어와 COLLECT 를 수행하고 보고하는 한 사이클을 돌립니다."><button class="n-demo-btn" onclick="demoRun()">진단 실행</button></span>
+            <span class="tip" data-tip="카드 9361-8i · 새 agent · 도구 있음 · 미실행 상태로 되돌립니다."><button class="n-demo-btn" onclick="demoReset()">초기화</button></span>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row"><strong>① 서버 힌트</strong><span class="label" id="demo-hint"></span></div>
+            <div class="ux-caps" id="demo-agent"></div>
+            <div class="ux-row" id="demo-parser-row"><strong>③ 서버 파서</strong><span class="label" id="demo-parser"></span><span class="badge off" id="demo-inv-badge">미실행</span></div>
+          </div>
+
+          <h4>④ 게스트 상세 경고 — <code>RaidCollectionNotice</code> 진리표 (현재 행 ▶)</h4>
+          <table id="demo-d4">
+            <thead><tr><th>조건</th><th>상수</th><th>표시 문구</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="ux-row"><strong>경고 미리보기</strong><span class="label" id="demo-notice"></span><span class="badge off" id="demo-notice-badge">-</span></div>
+
+          <div class="split-grid">
+            <div class="split-card before"><h4>옛 방식 — 칩 ID 목록 (HF22 이전: 0097 · 005d)</h4><div id="demo-old"></div></div>
+            <div class="split-card after"><h4>새 방식 — 커널 드라이버</h4><div id="demo-new"></div></div>
+          </div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> — 데모의 힌트 조립 = <code>RaidChipFamily.agentDriverHint()</code>, 계열 판정 = <code>RaidChipFamily.fromKernelDriver()</code>, 경고 판정 = <code>RaidCollectionNotice</code> 진리표와 같은 규칙입니다. 커널 바인딩은 프리셋마다 고정값(커널 alias 표가 붙이는 드라이버)으로 둡니다.</div>
+        <div class="callout warn"><b>미확인 · 실측 대기</b> — 시나리오 ⑥ 의 "IR 아님" 판정은 sas3ircu 의 IT 펌웨어 응답 문구가 실측되지 않았습니다. 시나리오 ② 의 CRA4760 바인딩도 alias 표 근거이며 실기 원문은 없습니다(§1).</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 데이터 흐름 · 계약 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 데이터 흐름 · 계약</summary>
+      <div class="body">
+        <p>URL · 화면 · 컨트롤러 신설은 없습니다. 바뀌는 것은 기존 agent 응답 · 봉투 · 진단 보고의 필드입니다.</p>
+        <h4>정상 흐름 — CRA4760 (4 레인)</h4>
+        <div class="seq">
+          <div class="actor a1">게스트 상세</div><div class="actor a2">서버 (AgentReportService · 파서)</div><div class="actor a3">agent</div><div class="actor a4">커널</div>
+          <div class="step a1"></div><div class="step a2">1) PXE → COLLECT 지시 + <code>raidDrivers</code></div><div class="step a3">수신</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">2) <code>modprobe $(cat …/0000:ae:00.0/modalias)</code></div><div class="step a4">alias 표가 10e2 에 <code>megaraid_sas</code> 바인딩</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">3) <code>…/0000:ae:00.0/driver</code> → <code>megaraid_sas</code> → FAMILY=MEGARAID</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">4) storcli 채집 → 봉투(driver · slot · lspci · pd · vd · c0) + <code>raidDevices</code></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">5) 파서 계열 = <code>fromKernelDriver</code> → 인벤토리 적재</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">6) RAID 인벤토리 표시 · 경고 없음</div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+        </div>
+        <div class="callout">분기: 2) 에서 바인딩이 없으면 <code>raidDevices</code> 의 driver 가 <code>""</code> 로 보고되고, 상세는 <code>DRIVER_NOT_BOUND</code> 경고를 띄웁니다.</div>
+        <h4>계약 변경</h4>
+        <table>
+          <thead><tr><th>계약</th><th>종전</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td>응답 힌트</td><td><code>raidChips</code> = 칩 ID=계열</td><td><code>raidDrivers</code> = 드라이버=계열</td></tr>
+            <tr><td>RAID 봉투</td><td>tool · lspci_b64 · pd/vd/c0 · display</td><td>+ <code>driver</code> · <code>slot</code></td></tr>
+            <tr><td>진단 보고</td><td>cpu · mem · disks · pcieRaw · bmc · raid</td><td>+ <code>raidDevices[{slot, driver}]</code></td></tr>
+            <tr><td>reason 코드</td><td><code>TOOL_MISSING</code></td><td>+ <code>NOT_IR</code> · <code>NO_RAID_DRIVER</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>D1 <code>RaidChipFamily</code></h4>
+        <table>
+          <thead><tr><th>구분</th><th>멤버</th><th>값 · 규칙</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip del">제거</span></td><td><code>chipPciIds()</code> · <code>agentChipHint()</code> · <code>fromLspci()</code></td><td>-</td></tr>
+            <tr><td><span class="chip new">추가</span></td><td><code>String kernelDriver()</code></td><td>MEGARAID = <code>"megaraid_sas"</code> · MPT_IR = <code>"mpt3sas"</code></td></tr>
+            <tr><td><span class="chip new">추가</span></td><td><code>static Optional&lt;RaidChipFamily&gt; fromKernelDriver(String)</code></td><td>드라이버 이름 → 계열</td></tr>
+            <tr><td><span class="chip new">추가</span></td><td><code>static String agentDriverHint()</code></td><td>선언 순서 <code>"&lt;driver&gt;=&lt;FAMILY&gt;"</code> 공백 연결</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>나머지 멤버</td><td>불변</td></tr>
+          </tbody>
+        </table>
+
+        <h4>D2 <code>agent.sh</code></h4>
+        <ul>
+          <li><code>detect_raid_family</code>: PCI 클래스 0104 · 0107 장치마다 <code>modprobe "$(cat /sys/bus/pci/devices/&lt;장치&gt;/modalias)"</code>(관용 — 커널 alias 표가 고르는 드라이버를 그대로 로드하므로 계열 밖 <code>mpi3mr</code> 도 붙는다) → 보강으로 힌트 <code>raidDrivers</code> 의 모듈도 로드 → <code>mdev -s</code> → <code>…/driver</code> 의 basename 이 힌트의 드라이버와 같은 첫 장치 → FAMILY · SLOT · DRIVER. <b>RAID 클래스 장치가 없으면 봉투를 생략</b>(종전 관용 — 카드 없는 서버). 장치는 있는데 계열 드라이버가 아니면 reason <code>NO_RAID_DRIVER</code>. <span class="chip dep">미확인 · 실측 대기</span> BusyBox <code>modprobe</code> 가 modalias 문자열을 <code>modules.alias</code> 로 풀어 로드하는지.</li>
+          <li><code>ensure_raid_driver</code> 는 이 앞단으로 흡수합니다(판별 뒤 로드 → 판별 전 로드).</li>
+          <li>MPT_IR 은 <code>sas3ircu LIST</code> 로 IR 을 확인하고, 아니면 reason <code>NOT_IR</code> 입니다. <span class="chip dep">미확인 · 실측 대기</span> IT 펌웨어 응답 문구.</li>
+          <li>봉투에 <code>"driver"</code> · <code>"slot"</code> 을 추가합니다.</li>
+          <li><code>collect_raid_devices</code>: PCI 클래스 0104 · 0107 장치마다 slot · driver(없으면 빈 값) → 보고의 <code>raidDevices</code>.</li>
+          <li>COLLECT 에서 판정 실패 사유 봉투도 버리지 않고 싣습니다(서버가 원장 filtered 에 흡수 — 종전 경로).</li>
+        </ul>
+
+        <h4>D3 서버 수신</h4>
+        <ul>
+          <li><code>AgentReportService.raidChipsFor</code> → <code>raidDriversFor</code>(응답 필드 <code>raidDrivers</code>).</li>
+          <li><code>RaidInventoryParser.familyOf</code>: 봉투 <code>driver</code> → <code>fromKernelDriver</code>, 없으면 <code>tool</code>(storcli* → MEGARAID · sas3ircu → MPT_IR) 폴백.</li>
+          <li><code>DiagnosticReportParser</code>: <code>raidDevices</code> → <code>HardwareSpec.raidDevices</code>(<code>List&lt;RaidDeviceBinding(slot, driver)&gt;</code> · null 관용).</li>
+        </ul>
+
+        <h4>D4 미채집 경고 판정 SSOT <code>RaidCollectionNotice</code></h4>
+        <p>위치 <code>execution.vo</code> · method-per-constant · 상수가 문구 키를 소유합니다. 판정 대상은 PCIe kind RAID 장치가 있고 RAID 인벤토리가 없을 때이며, 장치의 <code>raidDevices</code> 바인딩으로 가릅니다.</p>
+        <table>
+          <thead><tr><th>조건</th><th>상수</th><th>문구</th></tr></thead>
+          <tbody>
+            <tr><td>raidDevices 없음 (옛 보고 · 옛 agent)</td><td><code>UNKNOWN</code></td><td>종전 HF22 문구 그대로 (<code>execution.raid-inventory.uncollected</code>)</td></tr>
+            <tr><td>계열 드라이버 (megaraid_sas · mpt3sas)</td><td><code>SUPPORTED_NOT_COLLECTED</code></td><td>지원하는 RAID 카드이지만 디스크 정보를 채집하지 못했습니다 — 채집 도구가 없거나 RAID 펌웨어가 아닙니다. 서버 이력의 사유를 확인한 뒤 다시 PXE 부팅하십시오.</td></tr>
+            <tr><td>드라이버 있음 · 계열 밖 (mpi3mr 등)</td><td><code>UNSUPPORTED_CONTROLLER</code></td><td>RAID 를 지원하지 않는 컨트롤러({driver})입니다 — 디스크는 OS 가시 장치로만 보입니다.</td></tr>
+            <tr><td>드라이버 없음</td><td><code>DRIVER_NOT_BOUND</code></td><td>진단 이미지 커널이 이 RAID 칩을 인식하지 못했습니다 — 진단 이미지(modloop)를 갱신해야 채집할 수 있습니다.</td></tr>
+          </tbody>
+        </table>
+        <p><code>GuestServerDetailResponse.uncollectedRaidCards()</code> 는 카드별 <code>(PcieDevice, RaidCollectionNotice)</code> 목록으로 대체합니다. 판정은 조회 서비스가 채워 넘깁니다 — 레코드가 판정 로직을 품지 않게 하고, 문구 키는 상수가 소유합니다.</p>
+
+        <h4>화면 반영</h4>
+        <p>게스트 상세 RAID 인벤토리 카드의 HF22 경고 자리(<code>n-banner n-banner-warn</code>)에서 상수별 문구 · 카드 슬롯 · 모델 · (UNSUPPORTED_CONTROLLER 는 드라이버명)을 표시합니다. 신규 CSS 는 없고, 문구는 messages 키 4 개입니다(<code>new-user-copy.md</code> 관문).</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td><code>server-detail.html</code> 경고 자리 · 응답 DTO 필드명 · <code>GuestServerDetailResponse</code> · <code>raidDriversFor</code> 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>N/A — 엔티티 · Repository 변경 없음</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8</td><td>D1~D4 본체 + <code>agent.sh</code> (테스트 제외, 빌드 통과)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인</td></tr>
+            <tr><td>9</td><td>N/A — DDL 없음 (<code>HardwareSpec</code> 은 JSON 컬럼 안 record 성분)</td><td><span class="chip cp4">CP4</span></td><td>-</td></tr>
+            <tr><td>8 잔여</td><td>§6 테스트 + 전체 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>mock-guest 하네스 + 게스트 상세 화면 (E 단계 예외)</td><td><span class="chip cp5">CP5</span></td><td>보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 확인 — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷입니다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점 ② CP4 승인 → CP6 제출(테스트 · CP5 · report).</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 계획 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 계획</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>클래스</th><th>검증</th></tr></thead>
+          <tbody>
+            <tr><td><code>RaidChipFamilyTest</code></td><td>kernelDriver · fromKernelDriver · agentDriverHint 형식 · 순서</td></tr>
+            <tr><td><code>RaidInventoryParserTest</code></td><td>driver → 계열 · tool 폴백 · 둘 다 없으면 해석 불가</td></tr>
+            <tr><td><code>DiagnosticReportParserTest</code></td><td>raidDevices · 옛 보고 null</td></tr>
+            <tr><td><code>RaidCollectionNoticeTest</code></td><td>진리표 4행</td></tr>
+            <tr><td>기존 3 클래스 적응</td><td><code>AgentReportServiceTest</code> · <code>GuestAgentRestControllerFlowTest</code> · <code>RaidApplyPayloadTest</code> — agentChipHint → agentDriverHint · 응답 필드명</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (HTTP 계층)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td><code>GuestServerControllerTest</code> 경고 4 상수 렌더</td><td>4</td></tr>
+            <tr><td>성공 2xx</td><td><code>GuestAgentRestControllerFlowTest</code> 응답 <code>raidDrivers</code></td><td>1</td></tr>
+            <tr><td>400 · 404 · 409 · 500</td><td>해당 없음 — 신규 URL · 신규 예외 없음, 기존 시나리오 회귀</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <h4>agent.sh (BusyBox)</h4>
+        <p>Alpine(BusyBox) 컨테이너 + 가짜 sysfs 트리(<code>/sys/bus/pci/devices/*/driver</code> 심링크) + 가짜 <code>storcli64</code> · <code>sas3ircu</code> 로 판정 5 경우를 확인합니다 — megaraid_sas · mpt3sas IR · mpt3sas IT · mpi3mr · 드라이버 없음. HF22 때의 검증 방식이며, macOS sed 는 <code>\|</code> 를 지원하지 않아 BusyBox 에서 합니다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 엔티티 · 스키마 · 예외 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 엔티티 · 스키마 · 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>항목</th><th>변경</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>엔티티</td><td>없음</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>DDL</td><td>없음 — Step 6 · 7 · 9 N/A</td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td><code>HardwareSpec</code></td><td>JSON 컬럼 안 record 성분 <code>raidDevices</code> 추가</td><td><span class="chip mod">수정</span></td></tr>
+            <tr><td>예외 클래스</td><td>없음</td><td><span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><code>NOT_IR</code> · <code>NO_RAID_DRIVER</code> 는 Java 예외가 아니라 agent 가 봉투에 싣는 reason 코드입니다. 서버는 종전 <code>TOOL_MISSING</code> 과 같은 경로(원장 filtered)로 흡수합니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 설계 결정 · 리스크 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 설계 결정 (대안 비교) · 리스크 · 열린 질문</summary>
+      <div class="body">
+        <h4>축 1 — 판별의 SSOT(Single Source of Truth) (핵심 · v1 개정)</h4>
+        <table>
+          <thead><tr><th>안</th><th>판별 근거</th><th>새 칩 (같은 계열)</th><th>커널이 모르는 칩</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip del">v1</span> 칩 등록 표 (폐기)</td><td>운영자가 등록한 칩 ID</td><td>화면 등록 1회</td><td>등록해도 도구가 카드에 못 닿음</td></tr>
+            <tr><td><span class="chip new">A</span> 커널 드라이버 바인딩 (채택)</td><td>커널 alias 표 → sysfs 드라이버</td><td>변경 없음</td><td>진단 이미지 갱신 (자산 교체)</td></tr>
+            <tr><td><span class="chip keep">B</span> PCI 클래스 코드 (0104/0107)</td><td>클래스 + 벤더 1000</td><td>변경 없음</td><td>오판 (IT HBA 도 0107)</td></tr>
+            <tr><td><span class="chip keep">C</span> BMC PCIe 인벤토리</td><td>Redfish ID · ClassCode</td><td>칩 표 필요 (ID 수준)</td><td>동일</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><b>v1 폐기</b>: 칩 표는 커널이 이미 가진 "칩 → 드라이버" 지식의 손 사본입니다. HF22 는 그 사본이 낡아서 생겼고, 표를 데이터로 옮겨도 사본이라는 성질은 그대로입니다. 게다가 커널이 모르는 칩은 표에 등록해도 storcli · sas3ircu 가 장치에 닿지 못해 쓸모가 없습니다(드라이버가 먼저입니다).</li>
+          <li><b>B 탈락</b>: 클래스는 계열의 상관물입니다. IT 펌웨어 HBA 도 0107 이고, MegaRAID 의 eHBA 개성도 있을 수 있습니다. R17-2 의 캐시 플래그가 상관물을 판정에 쓴 실패와 같은 함정입니다.</li>
+          <li><b>C 탈락</b>: BMC 는 드라이버를 모르고(실태 5) 제조사마다 데이터 품질이 고르지 않습니다. 진단 리눅스는 모든 서버가 거치므로 진단 전에 아는 이점도 작습니다(앵커 회신 B).</li>
+          <li><b>A 채택</b>: 판별의 원천이 <b>실제로 카드를 다루는 주체(커널 드라이버)</b>라서 상관물이 아니라 원인입니다.</li>
+        </ul>
+
+        <h4>축 2 — 판정 주체</h4>
+        <p><b>채택: agent 가 판정하고 결과(driver · family 또는 사유)를 보고합니다.</b> 드라이버 바인딩은 게스트 안에서만 관측됩니다. 서버는 계열 ↔ 드라이버 대응(<code>kernelDriver()</code>)을 힌트로 내려 주는 것만 소유합니다 — 스크립트에 계열 이름 · 모듈 이름을 박지 않는 현 원칙(서버가 SSOT)을 유지합니다. <b>탈락</b>: 서버가 <code>lspci -k</code> 원문을 받아 판정(봉투가 커지고 sysfs 가 더 직접적).</p>
+
+        <h4>축 3 — MPT 의 IR / IT 구분</h4>
+        <p><code>mpt3sas</code> 는 IR(RAID 가능)과 IT(HBA)를 모두 다룹니다. <b>채택: sas3ircu 로 컨트롤러가 IR 로 잡히는지 확인</b> — 잡히지 않으면 reason <code>NOT_IR</code>. <span class="chip dep">미확인 · 실측 대기</span> IT 펌웨어에서의 sas3ircu 출력 문구. <b>탈락</b>: 펌웨어 버전 문자열 추측.</p>
+
+        <h4>축 4 — 미채집 사유를 서버에 남기는 자리</h4>
+        <p><b>채택: 진단 보고 JSON 에 <code>raidDevices</code> 배열 추가 → <code>HardwareSpec</code> 에 저장.</b> 예: <code>[{"slot":"ae:00.0","driver":"megaraid_sas"}, {"slot":"c6:00.0","driver":""}]</code>. JSON 컬럼 안이라 DDL 이 없고, 옛 보고는 필드 없음(null)으로 관용합니다. <b>탈락</b>: 새 컬럼(DDL · 실 DB 적용 부담) · 원장 filtered 문자열을 화면이 파싱(취약 — 5-a F-2 의 교훈).</p>
+
+        <h4>축 5 — 배포 이행</h4>
+        <p>옛 agent 는 <code>raidChips</code> 만 압니다. 새 서버가 <code>raidDrivers</code> 만 보내면 옛 agent 는 RAID 를 생략합니다(카드 없는 것처럼 정상 보고 — 종전 관용과 같은 결). <b>채택: 배포 = jar 교체 + 시스템 자산 화면에서 AGENT 교체를 함께</b>, RAID 단계 진행 중 게스트가 없을 때 합니다(RAID_APPLY 중 옛 agent 는 TOOL_MISSING 실패). <b>탈락</b>: 한 릴리스 동안 <code>raidChips</code> 병행 송신(칩 목록을 다시 코드에 남기게 되어 이 단계의 목적과 정면 충돌).</p>
+
+        <h4>리스크</h4>
+        <table>
+          <thead><tr><th>#</th><th>리스크</th><th>대응</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><span class="chip dep">미확인</span> CRA4760 실물 바인딩 · 운영 modloop 판</td><td>운영 실측 재개 시 확인 (앵커 대기)</td></tr>
+            <tr><td>2</td><td><span class="chip dep">미확인</span> IT 펌웨어 sas3ircu 응답</td><td>CP7 실기 · T3 적립</td></tr>
+            <tr><td>3</td><td>배포 이행 (축 5)</td><td>jar 와 AGENT 자산을 함께 · RAID 단계 진행 중 게스트 없을 때</td></tr>
+            <tr><td>4</td><td>여러 드라이버 선로드로 진단 부팅 시간 증가 (모듈 로드 수 초)</td><td>CP7 관찰</td></tr>
+          </tbody>
+        </table>
+
+        <h4>열린 질문 (사용자 판단)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>진단 PCIe 목록 Subsystem 수집 (<code>lspci -mm -nn</code> 안)</td><td>사용자 확정(10-11) · 본 슬라이스 비목표</td></tr>
+            <tr><td>Q2</td><td>Notion R17 제목 개정 ("RAID 칩 판별 목록 데이터화" → "RAID 계열 자동 판별")</td><td>사용자 판단</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification · CP5 계획 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트 · CP5 검증 계획</summary>
+      <div class="body">
+        <h4>CP5 — mock-guest 하네스 + 게스트 상세 화면 (E 단계 예외)</h4>
+        <p>하네스 변경: <code>raid-envelope.sh</code> 에 <code>driver</code> · <code>slot</code> 추가 · <code>diagnose-cycle.sh</code> 에 <code>RAID_DEVICES</code> 옵션(바인딩 시나리오 주입).</p>
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>9361 진단</td><td>적재 (회귀)</td></tr>
+            <tr><td>A2</td><td>CRA4760 봉투 (10e2 · megaraid_sas)</td><td>적재 — 칩 목록 없이</td></tr>
+            <tr><td>A3</td><td>응답 원문 curl</td><td><code>raidDrivers</code> 확인</td></tr>
+            <tr><td>A4</td><td>RAID phase 재채집 (raid-inventory-cycle)</td><td>계열 판정 동일</td></tr>
+            <tr><td>B1</td><td>옛 봉투 (driver 없음 · tool storcli64)</td><td>tool 폴백 적재</td></tr>
+            <tr><td>B2</td><td>driver 도 tool 도 없는 봉투</td><td>해석 불가 관용 (원장 filtered)</td></tr>
+            <tr><td>B3</td><td>raidDevices 없는 옛 보고 + 미채집</td><td>UNKNOWN 문구</td></tr>
+            <tr><td>B4</td><td>mpi3mr 바인딩</td><td>UNSUPPORTED_CONTROLLER</td></tr>
+            <tr><td>B5</td><td>드라이버 없음</td><td>DRIVER_NOT_BOUND</td></tr>
+            <tr><td>B6</td><td>mpt3sas + NOT_IR 봉투</td><td>SUPPORTED_NOT_COLLECTED + 이력 사유 raid(NOT_IR)</td></tr>
+            <tr><td>C1</td><td>경고 문구 평가</td><td>원인과 다음 행동 (도구 · 펌웨어 확인 / 이미지 갱신 / 미지원) 제시</td></tr>
+            <tr><td>C2</td><td>경고 표시 평가</td><td>카드 슬롯 · 모델 함께 표시</td></tr>
+          </tbody>
+        </table>
+        <h4>체크리스트</h4>
+        <ul class="check-list" data-storage="R17-verify">
+          <li><label><input type="checkbox" data-key="build"> <span>빌드 — <code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span>빌드 — <code>./gradlew test</code> 전체 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="agent"> <span>기능 — agent.sh BusyBox 판정 5 경우</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>기능 — CP5 A1~A4 · B1~B6 · C1~C2 (항목별 채증)</span></label></li>
+          <li><label><input type="checkbox" data-key="regress"> <span>회귀 — 기존 3 테스트 클래스 적응 후 green · A1 9361 적재</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>CP7 실기 (사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RaidChipFamily</code></td><td>D1</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>AgentReportService</code> (+ 응답 DTO 필드명)</td><td><code>raidDriversFor</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RaidInventoryParser</code></td><td>driver → tool 폴백</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>DiagnosticReportParser</code></td><td>raidDevices</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>HardwareSpec</code></td><td>raidDevices 성분</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerDetailResponse</code> · <code>GuestServerQueryService</code></td><td>카드별 notice</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>server-detail.html</code> · <code>messages.properties</code></td><td>경고 4 문구</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>agent.sh</code></td><td>판별 · 봉투 · raidDevices</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>mock-guest <code>raid-envelope.sh</code> · <code>diagnose-cycle.sh</code></td><td>driver · slot · RAID_DEVICES</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>RaidCollectionNotice</code></td><td>D4</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>RaidDeviceBinding</code></td><td>record (slot, driver)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>테스트 (§6)</td><td>단위 4 · 통합 추가</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>엔티티 · DDL</td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 남은 일 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 남은 일 · 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R17-next">
+          <li><label><input type="checkbox" data-key="subsys"> <span>진단 PCIe 목록 Subsystem 수집 (<code>lspci -mm -nn</code> 안) — 사용자 확정(10-11) 비목표</span></label></li>
+          <li><label><input type="checkbox" data-key="r17-1"> <span>R17-1 (RAID10 스팬 · 수량 · 폼 최소치) — 별도 CP1</span></label></li>
+          <li><label><input type="checkbox" data-key="r17-2"> <span>R17-2 (<code>typicallyRequiresCache</code> 제거) — 별도 CP1</span></label></li>
+          <li><label><input type="checkbox" data-key="t3"> <span>CP7 실기 (T3 적립: CRA4760 바인딩 · IT HBA 응답 · 9600 계열 mpi3mr)</span></label></li>
+          <li><label><input type="checkbox" data-key="notion"> <span>Notion R17 제목 개정 제안 — 사용자 판단</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) {}
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 RAID 계열 판별 시뮬레이터
+  // ─────────────────────────────────────────────────────────────
+
+  // 서버 RaidChipFamily 와 같은 선언 순서 · 같은 kernelDriver() 값 — 드리프트 0
+  const FAMILIES = [
+    { name: 'MPT_IR',   kernelDriver: 'mpt3sas',      tool: 'sas3ircu' },
+    { name: 'MEGARAID', kernelDriver: 'megaraid_sas', tool: 'storcli64' }
+  ];
+  // 서버 RaidChipFamily.agentDriverHint() 와 같은 조립 — 선언 순서 "<driver>=<FAMILY>" 공백 연결 (드리프트 0)
+  function agentDriverHint() {
+    return FAMILIES.map(f => f.kernelDriver + '=' + f.name).join(' ');
+  }
+  // 서버 RaidChipFamily.fromKernelDriver() 와 같은 판정 — 드리프트 0
+  function fromKernelDriver(driver) {
+    return FAMILIES.find(f => f.kernelDriver === driver) || null;
+  }
+
+  // 프리셋 — kernelBinding 은 커널 alias 표가 붙이는 드라이버(고정값). '' = 커널이 모르는 칩
+  const PRESETS = [
+    { id: 'p9361',  label: '9361-8i',              pci: '1000:005d', kernelBinding: 'megaraid_sas', firmware: 'RAID' },
+    { id: 'p3338',  label: 'CRA3338 IR',           pci: '1000:0097', kernelBinding: 'mpt3sas',      firmware: 'IR' },
+    { id: 'p4760',  label: 'CRA4760',              pci: '1000:10e2', kernelBinding: 'megaraid_sas', firmware: 'RAID' },
+    { id: 'p10e6',  label: '가상 신규 MegaRAID',     pci: '1000:10e6', kernelBinding: 'megaraid_sas', firmware: 'RAID' },
+    { id: 'p9600',  label: 'Broadcom 9600 HBA',    pci: '1000:00a5', kernelBinding: 'mpi3mr',       firmware: 'HBA' },
+    { id: 'p3338it',label: 'CRA3338 IT 펌웨어',      pci: '1000:0097', kernelBinding: 'mpt3sas',      firmware: 'IT' },
+    { id: 'pffff',  label: '커널이 모르는 칩',        pci: '1000:ffff', kernelBinding: '',             firmware: 'RAID' },
+    { id: 'pnone',  label: '카드 없음',              pci: null,        kernelBinding: null,           firmware: null }
+  ];
+  const DEMO_SLOT = 'ae:00.0';   // 예시 슬롯 (모든 프리셋 공통)
+  // 옛 방식 비교용 — HF22 이전 RaidChipFamily.chipPciIds() 목록
+  const OLD_CHIP_LIST = { '1000:0097': 'MPT_IR', '1000:005d': 'MEGARAID' };
+
+  const demo = { preset: 'p9361', agent: 'new', tool: true, result: null };
+
+  // agent.sh detect_raid_family 미러 — 모듈 전부 로드 → 커널 alias 고정값으로 바인딩 → 힌트 대조 → MPT_IR 은 IR 확인
+  function detectRaidFamily(card, agentKind, toolOn) {
+    const log = [];
+    if (agentKind === 'old') {
+      log.push('raidChips 힌트 없음 (서버는 raidDrivers 만 보냄) → 옛 agent 는 RAID 생략');
+      log.push('raidDevices 미보고 (옛 보고)');
+      return { log: log, envelope: null, raidDevices: null };
+    }
+    const hint = agentDriverHint();
+    const modules = hint.split(' ').map(p => p.split('=')[0]);
+    if (!card.pci) {
+      log.push('PCI 클래스 0104 · 0107 장치 없음 → 봉투 생략 (카드 없는 서버 — 종전 관용)');
+      return { log: log, envelope: null, raidDevices: [] };
+    }
+    const bound = card.kernelBinding;   // 커널 alias 표가 이 칩에 고르는 드라이버(없으면 null)
+    log.push('modprobe "$(cat /sys/bus/pci/devices/0000:' + DEMO_SLOT + '/modalias)"   → ' + (bound ? bound + ' 로드' : 'alias 표에 없음 — 로드할 드라이버 없음'));
+    log.push('modprobe ' + modules.join(' ') + '   # 보강 (관용)');
+    log.push('mdev -s');
+    const raidDevices = [{ slot: DEMO_SLOT, driver: bound }];
+    log.push('/sys/bus/pci/devices/0000:' + DEMO_SLOT + '/driver → ' + (bound ? bound : '(바인딩 없음)'));
+    const pairs = hint.split(' ').map(p => p.split('='));
+    const hit = pairs.find(p => p[0] === bound);
+    if (!hit) {
+      log.push('<span data-error="1">힌트의 드라이버와 일치하는 장치 없음 → reason NO_RAID_DRIVER</span>');
+      return { log: log, envelope: { reason: 'NO_RAID_DRIVER' }, raidDevices: raidDevices };
+    }
+    const family = hit[1];
+    log.push('FAMILY=' + family + '  SLOT=' + DEMO_SLOT + '  DRIVER=' + bound);
+    const tool = fromKernelDriver(bound).tool;
+    if (!toolOn) {
+      log.push('<span data-error="1">' + tool + ' 없음 → reason TOOL_MISSING</span>');
+      return { log: log, envelope: { reason: 'TOOL_MISSING', driver: bound, slot: DEMO_SLOT }, raidDevices: raidDevices };
+    }
+    if (family === 'MPT_IR') {
+      if (card.firmware === 'IT') {
+        log.push('sas3ircu LIST → IR 컨트롤러로 잡히지 않음 (미확인 · 실측 대기)');
+        log.push('<span data-error="1">reason NOT_IR</span>');
+        return { log: log, envelope: { reason: 'NOT_IR', driver: bound, slot: DEMO_SLOT }, raidDevices: raidDevices };
+      }
+      log.push('sas3ircu LIST → IR 확인');
+    }
+    log.push(tool + ' 채집 → 봉투 { tool, driver:"' + bound + '", slot:"' + DEMO_SLOT + '", lspci, pd, vd, c0 }');
+    return { log: log, envelope: { tool: tool, driver: bound, slot: DEMO_SLOT }, raidDevices: raidDevices };
+  }
+
+  // 서버 RaidInventoryParser.familyOf 미러 — driver → fromKernelDriver, 없으면 tool 폴백 (드리프트 0)
+  function parserFamilyOf(envelope) {
+    if (envelope.driver) {
+      const f = fromKernelDriver(envelope.driver);
+      return f ? f.name : null;
+    }
+    if (envelope.tool && envelope.tool.indexOf('storcli') === 0) return 'MEGARAID';
+    if (envelope.tool === 'sas3ircu') return 'MPT_IR';
+    return null;
+  }
+
+  // 서버 RaidCollectionNotice.of 와 같은 표 — 드리프트 0
+  const NOTICE_ROWS = [
+    { key: 'UNKNOWN', cond: 'raidDevices 없음 (옛 보고 · 옛 agent)', badge: 'off',
+      text: '종전 HF22 문구 (execution.raid-inventory.uncollected)' },
+    { key: 'SUPPORTED_NOT_COLLECTED', cond: '계열 드라이버 (megaraid_sas · mpt3sas)', badge: 'dep',
+      text: '지원하는 RAID 카드이지만 디스크 정보를 채집하지 못했습니다 — 채집 도구가 없거나 RAID 펌웨어가 아닙니다. 서버 이력의 사유를 확인한 뒤 다시 PXE 부팅하십시오.' },
+    { key: 'UNSUPPORTED_CONTROLLER', cond: '드라이버 있음 · 계열 밖', badge: 'off',
+      text: 'RAID 를 지원하지 않는 컨트롤러({driver})입니다 — 디스크는 OS 가시 장치로만 보입니다.' },
+    { key: 'DRIVER_NOT_BOUND', cond: '드라이버 없음', badge: 'del',
+      text: '진단 이미지 커널이 이 RAID 칩을 인식하지 못했습니다 — 진단 이미지(modloop)를 갱신해야 채집할 수 있습니다.' }
+  ];
+  function noticeOf(hasRaidPcie, hasInventory, raidDevices, slot) {
+    if (!hasRaidPcie || hasInventory) return null;          // 판정 대상 아님
+    if (raidDevices == null) return { key: 'UNKNOWN', driver: null };
+    const b = raidDevices.find(d => d.slot === slot);
+    if (!b) return { key: 'UNKNOWN', driver: null };         // 브리프 미정 자리 — 보고 쟁점
+    if (fromKernelDriver(b.driver)) return { key: 'SUPPORTED_NOT_COLLECTED', driver: b.driver };
+    if (b.driver) return { key: 'UNSUPPORTED_CONTROLLER', driver: b.driver };
+    return { key: 'DRIVER_NOT_BOUND', driver: '' };
+  }
+
+  // 옛 방식(HF22 이전 칩 ID 목록) 결과 — 비교 표시용
+  function oldWay(card, toolOn) {
+    if (!card.pci) return 'RAID 후보 없음 → RAID 보고 생략';
+    const fam = OLD_CHIP_LIST[card.pci];
+    if (!fam) return '칩 목록에 ' + card.pci + ' 없음 → RAID 보고 생략 → <span data-error="1">디스크 인벤토리 누락</span> (HF22 증상)';
+    if (!toolOn) return fam + ' 판정 → 도구 없음 → COLLECT 봉투 버림 → 서버는 사유를 모름';
+    if (card.firmware === 'IT') return fam + ' 판정 → sas3ircu 응답에 달림 (미확인)';
+    return fam + ' 판정 → 적재';
+  }
+
+  const SCENARIOS = {
+    1: { preset: 'p9361',   banner: '① 9361-8i — 칩 ID 목록이 없어도 커널이 megaraid_sas 를 붙여 종전과 같이 적재됩니다(회귀).' },
+    2: { preset: 'p4760',   banner: '② HF22 재현 — 아래 비교 카드를 보십시오. 옛 방식은 10e2 가 목록에 없어 생략, 새 방식은 커널이 megaraid_sas 를 붙여 아무 등록 없이 적재합니다.' },
+    3: { preset: 'p10e6',   banner: '③ 가상 신규 MegaRAID 10e6 — 커널이 아는 같은 계열 칩은 코드 · 데이터 변경 없이 적재됩니다.' },
+    4: { preset: 'p9600',   banner: '④ Broadcom 9600 — 커널은 mpi3mr 를 붙였지만 계열 드라이버가 아니므로 "RAID 를 지원하지 않는 컨트롤러" 경고입니다.' },
+    5: { preset: 'pffff',   banner: '⑤ 커널이 모르는 칩 — 바인딩이 없으므로 앱이 아니라 진단 이미지 갱신이 답입니다.' },
+    6: { preset: 'p3338it', banner: '⑥ CRA3338 IT 펌웨어 — mpt3sas 이지만 IR 이 아니어서 NOT_IR. sas3ircu 응답 문구는 미확인 · 실측 대기입니다.' }
+  };
+
+  function currentCard() { return PRESETS.find(p => p.id === demo.preset); }
+  function demoSetPreset(id) { demo.preset = id; demo.result = null; demoRender(); }
+  function demoSetAgent(a) { demo.agent = a; demo.result = null; demoRender(); }
+  function demoSetTool(t) { demo.tool = t; demo.result = null; demoRender(); }
+  function demoRun() {
+    const card = currentCard();
+    const agentOut = detectRaidFamily(card, demo.agent, demo.tool);
+    let family = null, inventory = false;
+    if (agentOut.envelope && !agentOut.envelope.reason) {
+      family = parserFamilyOf(agentOut.envelope);
+      inventory = family !== null;
+    }
+    const notice = noticeOf(!!card.pci, inventory, agentOut.raidDevices, DEMO_SLOT);
+    demo.result = { agentOut: agentOut, family: family, inventory: inventory, notice: notice };
+    demoRender();
+  }
+  function demoReset() {
+    demo.preset = 'p9361'; demo.agent = 'new'; demo.tool = true; demo.result = null;
+    document.getElementById('demo-banner').textContent = '시나리오를 누르거나 아래 토글을 직접 바꾼 뒤 [진단 실행] 을 누르십시오.';
+    demoRender();
+  }
+  // 원클릭 시나리오 = 토글 세팅 + 자동 실행 + 안내 배너
+  function demoScenario(n) {
+    const s = SCENARIOS[n];
+    demo.preset = s.preset; demo.agent = 'new'; demo.tool = true;
+    document.getElementById('demo-banner').textContent = s.banner;
+    demoRun();
+  }
+
+  function demoRender() {
+    const card = currentCard();
+    const pre = document.getElementById('demo-presets');
+    pre.innerHTML = '<span class="group-label">장착 카드 :</span>' + PRESETS.map(p =>
+      '<button class="seg' + (p.id === demo.preset ? ' active' : '') + '" onclick="demoSetPreset(\'' + p.id + '\')">' +
+      p.label + (p.pci ? ' ' + p.pci : '') + '</button>').join('');
+    document.querySelectorAll('.seg[data-agent]').forEach(b => b.classList.toggle('active', b.dataset.agent === demo.agent));
+    document.querySelectorAll('.seg[data-tool]').forEach(b => b.classList.toggle('active', (b.dataset.tool === 'on') === demo.tool));
+
+    document.getElementById('demo-hint').innerHTML = demo.agent === 'new'
+      ? 'raidDrivers = <code>"' + agentDriverHint() + '"</code>'
+      : 'raidDrivers = <code>"' + agentDriverHint() + '"</code> — 옛 agent 는 이 필드를 읽지 않습니다';
+
+    const r = demo.result;
+    const agentEl = document.getElementById('demo-agent');
+    const parserEl = document.getElementById('demo-parser');
+    const invBadge = document.getElementById('demo-inv-badge');
+    const noticeEl = document.getElementById('demo-notice');
+    const noticeBadge = document.getElementById('demo-notice-badge');
+    const msg = document.getElementById('demo-message');
+    const rows = NOTICE_ROWS.map(row => {
+      const cur = r && r.notice && r.notice.key === row.key;
+      return '<tr' + (cur ? ' data-current="1"' : '') + '><td>' + (cur ? '▶ ' : '') + row.cond + '</td><td><code>' + row.key + '</code></td><td>' + row.text + '</td></tr>';
+    }).join('');
+    document.querySelector('#demo-d4 tbody').innerHTML = rows;
+
+    if (!r) {
+      agentEl.innerHTML = '② agent 단계 — [진단 실행] 을 누르면 채워집니다.';
+      parserEl.textContent = '-';
+      invBadge.className = 'badge off'; invBadge.textContent = '미실행';
+      noticeEl.textContent = '-';
+      noticeBadge.className = 'badge off'; noticeBadge.textContent = '-';
+      document.getElementById('demo-old').innerHTML = oldWay(card, demo.tool);
+      document.getElementById('demo-new').innerHTML = '[진단 실행] 대기';
+      msg.className = 'ux-message'; msg.textContent = '카드 · agent 판 · 도구를 고른 뒤 [진단 실행].';
+      return;
+    }
+    const env = r.agentOut.envelope;
+    const envLine = env == null ? '봉투 없음 (RAID 생략)'
+      : env.reason ? '봉투 reason=' + env.reason + (env.driver ? ' driver=' + env.driver : '') + '  → 원장 filtered 흡수'
+      : '봉투 정상 driver=' + env.driver + ' slot=' + env.slot;
+    const devLine = 'raidDevices = ' + (r.agentOut.raidDevices == null ? 'null (옛 보고)' : JSON.stringify(r.agentOut.raidDevices));
+    agentEl.innerHTML = '② agent 단계\n' + r.agentOut.log.map(l => '  ' + l).join('\n') + '\n  ' + envLine + '\n  ' + devLine;
+
+    if (env && !env.reason) {
+      parserEl.innerHTML = 'familyOf: driver "' + env.driver + '" → <code>' + (r.family || '해석 불가') + '</code>';
+    } else {
+      parserEl.textContent = '정상 봉투 없음 → 인벤토리 없음';
+    }
+    invBadge.className = 'badge ' + (r.inventory ? 'on' : 'del');
+    invBadge.textContent = r.inventory ? '인벤토리 적재' : '인벤토리 없음';
+
+    if (r.notice) {
+      const row = NOTICE_ROWS.find(x => x.key === r.notice.key);
+      noticeEl.textContent = row.text.replace('{driver}', r.notice.driver || '') + '  (슬롯 ' + DEMO_SLOT + ' · ' + card.label + ')';
+      noticeBadge.className = 'badge ' + row.badge; noticeBadge.textContent = r.notice.key;
+    } else {
+      noticeEl.textContent = r.inventory ? '경고 없음 — RAID 인벤토리 표시' : '경고 없음 — 판정 대상 아님 (PCIe RAID 장치 없음)';
+      noticeBadge.className = 'badge on'; noticeBadge.textContent = '경고 없음';
+    }
+
+    document.getElementById('demo-old').innerHTML = oldWay(card, demo.tool);
+    document.getElementById('demo-new').innerHTML = r.inventory
+      ? (r.family + ' 판정 (드라이버 ' + env.driver + ') → 적재 — 칩 ID 등록 없음')
+      : (r.notice ? r.notice.key + ' 경고로 원인 표시' : '판정 대상 없음');
+
+    if (r.inventory) {
+      msg.className = 'ux-message success';
+      msg.textContent = '커널이 붙인 드라이버 ' + env.driver + ' 로 계열 ' + r.family + ' 판정 — 코드에 칩 ID 가 없어도 적재됩니다.';
+    } else if (demo.agent === 'old') {
+      msg.className = 'ux-message error';
+      msg.textContent = '배포 이행 함정(§8 축 5) — jar 만 바꾸고 AGENT 자산을 바꾸지 않으면 RAID 가 조용히 생략됩니다. 경고는 UNKNOWN 으로 남습니다.';
+    } else if (r.notice) {
+      msg.className = 'ux-message error';
+      msg.textContent = '인벤토리 없음 — 원인이 ' + r.notice.key + ' 로 갈려 다음 행동이 경고 문구에 실립니다.';
+    } else {
+      msg.className = 'ux-message';
+      msg.textContent = 'RAID 후보 장치가 없어 경고 판정 대상이 아닙니다.';
+    }
+  }
+
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

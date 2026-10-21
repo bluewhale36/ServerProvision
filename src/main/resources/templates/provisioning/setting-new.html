@@ -12,10 +12,11 @@
     fileSystems  : List<FileSystem>                    파티션 행 템플릿 (name()/displayName)
     sizeUnits    : List<SizeUnit>                      파티션 행 템플릿 (name()/symbol)
     raidCardOptions   : List<SettingRaidCardOptionGroupResponse>  U4-1-1 v2 RAID_CONFIGURATION 카드의 RAID 카드 select — 제조사 optgroup.
-    raidCardMetaJson  : String — 위 선택지의 판정 재료(hasCache / supportedLevels / blockReasons)를 서버가 JSON 으로 직렬화한 문자열
+    raidCardMetaJson  : String — 위 선택지의 판정 재료(hasCache / supportedLevels / blockReasons / memberRules / spanMemberRules)를 서버가 JSON 으로 직렬화한 문자열
                         (initialSettingJson 과 같은 경로 — JS 가 파싱해 RAID_CARD_META 로 쓴다)
-    raidLevels        : List<RaidLevel>                디스크 묶음 행 템플릿 — 옵션 data-min-disks / data-min-disks-cached
+    raidLevels        : List<RaidLevel>                디스크 묶음 행 템플릿 — 옵션 data-usable-a / data-usable-b
     diskTypes / diskTransports / diskCapacityUnits / diskCountModes : 디스크 묶음 행 템플릿 select 들
+    drivesPerSpanOptions : List<DrivesPerSpan>       R17-1 묶음 행 둘째 줄의 스팬당 디스크 select(2 · 4 · … · 32 — 기본 2)
     diskGroupRoles    : List<DiskGroupRole>            U4-1-2 묶음 행의 역할 select(우선순위에 따름 / OS 영역 / Data 영역 / 영역 할당 없음)
     capacityOrders    : List<CapacityOrder>            U4-1-2 우선순위 행의 용량 순서 select
     defaultVolumePrioritiesJson : String — 기본 우선순위 행(VolumePriorityRuleRequest.defaults())을 서버가 직렬화한 문자열
@@ -255,7 +256,7 @@
                             <div class="n-accordion-body">
                                 <div class="n-hint">RAID card 를 이용한 RAID 구성만 지원되며, Onboard RAID 는 지원되지 않습니다.</div>
                                 <!-- 디스크 구성 (U4-1-1 v2) — RAID 카드 먼저, 그 다음 묶음 규칙(D7). 독립 단계 카드라 OS 선택과 무관하게 항상 보인다. 판정 재료는 서버가 내려주고 JS 는 읽기만 한다:
-                                     카드 → raidCardMetaJson(hasCache / supportedLevels / blockReasons), 레벨 → 옵션 data-min-disks(-cached).
+                                     카드 → raidCardMetaJson(hasCache / supportedLevels / blockReasons / memberRules / spanMemberRules — R17-1).
                                      @AssertTrue(raidCardPresentWhenRequired) 오류는 카드 그룹 컨테이너가 exact-match 로 받는다. -->
                                 <div class="n-form-group" data-error-field="raidCardPresentWhenRequired">
                                     <!-- 안내는 상시 노출 대신 라벨 바로 옆 ⓘ 표식 hover 로(CP7 검수) — 전역 .n-tooltip 규칙 재사용.
@@ -550,8 +551,6 @@
                         <option th:each="lv : ${raidLevels}"
                                 th:value="${lv.name()}"
                                 th:text="${lv.displayName}"
-                                th:data-min-disks="${lv.minimumDisks(false)}"
-                                th:data-min-disks-cached="${lv.minimumDisks(true)}"
                                 th:data-usable-a="${lv.usableA}"
                                 th:data-usable-b="${lv.usableB}"></option>
                     </select>
@@ -582,12 +581,22 @@
                     </div>
                 </td>
                 <td>
-                    <!-- 레벨별 최소치는 placeholder · title 로만(셀 안 상시 문구 없음 — CP7 검수) -->
-                    <div class="n-cell-pair">
-                        <input type="number" class="n-input dgCount" min="1" placeholder="1">
-                        <select class="n-select dgCountMode">
-                            <option th:each="cm : ${diskCountModes}" th:value="${cm.name()}" th:text="${cm.suffix}"></option>
-                        </select>
+                    <!-- 디스크 수 규칙은 placeholder · title 로(셀 안 상시 문구 없음 — CP7 검수). 재료 = 카드 메타 memberRules(R17-1).
+                         둘째 줄(R17-1 · 용량 셀과 같은 n-cell-stack 패턴) = 스팬당 디스크(스팬을 받는 카드 · 레벨 행에서만) + 구성 미리보기 -->
+                    <div class="n-cell-stack">
+                        <div class="n-cell-pair">
+                            <input type="number" class="n-input dgCount" min="1" placeholder="1">
+                            <select class="n-select dgCountMode">
+                                <option th:each="cm : ${diskCountModes}" th:value="${cm.name()}" th:text="${cm.suffix}"></option>
+                            </select>
+                        </div>
+                        <label class="n-cell-pair dgSpanLine" hidden>스팬당
+                            <select class="n-select dgSpan" title="한 스팬(미러 묶음)에 넣을 디스크 수">
+                                <option th:each="sp : ${drivesPerSpanOptions}" th:value="${sp.value()}" th:text="${sp.value()}"
+                                        th:selected="${sp.value() == 2}"></option>
+                            </select>대
+                        </label>
+                        <span class="n-hint dgCountPreview" hidden></span>
                     </div>
                 </td>
                 <td>

@@ -62,7 +62,7 @@ public record HardwareSpec(
      * 허용하기 때문이다(HF15-5 DiskInfo 선례).
      */
     public record PcieDevice(String slot, String kind, String vendor, String model,
-                             PcieMount mount, String slotDesignation) {
+                             PcieMount mount, String slotDesignation, KernelDriverObservation kernelDriver) {
 
         /** RAID 카드(SAS HBA 포함) 종류 표기 — 진단 파서가 붙이고 화면의 미채집 경고(HF22)가 읽는다. */
         public static final String KIND_RAID = "RAID";
@@ -73,13 +73,21 @@ public record HardwareSpec(
 
         /** 진단 파서가 만드는 초기 상태 — 장착 구분은 아직 모른다. */
         public static PcieDevice untagged(String slot, String kind, String vendor, String model) {
-            return new PcieDevice(slot, kind, vendor, model, PcieMount.UNKNOWN, null);
+            return new PcieDevice(slot, kind, vendor, model, PcieMount.UNKNOWN, null, null);
         }
 
         /** BMC 인벤토리로 장착 구분을 붙인 사본. 온보드는 슬롯 표기를 갖지 않는다. */
         public PcieDevice tagged(PcieMount mount, String slotDesignation) {
             return new PcieDevice(slot, kind, vendor, model, mount,
-                    mount == PcieMount.ADD_IN ? slotDesignation : null);
+                    mount == PcieMount.ADD_IN ? slotDesignation : null, kernelDriver);
+        }
+
+        /**
+         * 진단 리눅스가 관측한 커널 드라이버를 붙인 사본(R17) — RAID 카드의 계열 판별 근거이자 미채집 경고의 원인 재료.
+         * null(관측 없음 — 옛 보고)은 그대로 null 로 남는다.
+         */
+        public PcieDevice withKernelDriver(KernelDriverObservation observation) {
+            return new PcieDevice(slot, kind, vendor, model, mount, slotDesignation, observation);
         }
     }
 }

@@ -2,10 +2,11 @@
 # 모의 게스트 하네스 — RAID 봉투 조립(E3.5-1 계약 · E3.5-5-a 에서 공용화)
 # raid-inventory-cycle.sh(RAID step 보고)와 diagnose-cycle.sh(진단 보고의 "raid" 하위 봉투)가 같은 조립을 쓴다.
 #
-# 사용: raid-envelope.sh <mr|mrclean|ssd6|cra|mismatch|toolmissing>   → stdout 봉투 JSON(한 줄)
+# 사용: [RAID_DRIVER=megaraid_sas RAID_SLOT=ae:00.0] raid-envelope.sh <mr|mrclean|ssd6|hdd7|cra|mismatch|toolmissing|mr4760|notir|noraiddriver>   → stdout 봉투 JSON(한 줄)
 #   mr          9361-8i 실측 — storcli JSON 3종(pd · vd · c0)
 #   mrclean     9361-8i 실측 + 기존 볼륨 없음
 #   ssd6        9361-8i 파생(E3.5-7-a 사례 (c)) — 같은 스펙 SSD 6장 + HDD 2장 · 기존 볼륨 없음
+#   hdd7        9361-8i 파생(R17-1) — SSD 2장 + 같은 스펙 HDD 7장(252:2~8) · 기존 볼륨 없음 — '개 이상' 그룹이 홀수인 경우
 #   cra         CRA3338 실측 — sas3ircu display
 #   mismatch    lspci 는 CRA(1458:3008) — 카드 지정이 9361 이면 CARD_MISMATCH 재현과 동일 효과
 #   toolmissing 도구 부재 reason 봉투(에이전트 TOOL_MISSING 경로)
@@ -16,10 +17,20 @@ FIX="$HERE/fixtures-raid"
 
 b64() { base64 | tr -d '\n'; }
 
+# (R17) RAID_DRIVER · RAID_SLOT 이 있으면 봉투 앞에 "driver" · "slot" 을 붙인다 — 새 에이전트 봉투. 없으면 옛 봉투(tool 폴백 검증용).
+emit() {
+    if [ -n "${RAID_DRIVER:-}" ]; then
+        printf '{"driver":"%s","slot":"%s",%s' "$RAID_DRIVER" "${RAID_SLOT:-ae:00.0}" "$(cat | cut -c2-)"
+    else
+        cat
+    fi
+}
+
+{
 case "$MODE" in
-    mr|mrclean|ssd6)
+    mr|mrclean|ssd6|hdd7)
         VD="$FIX/mr-vd-all.json"; [ "$MODE" != "mr" ] && VD="$FIX/mr-novol-vd.json"
-        PD="$FIX/mr-pd-all.json"; [ "$MODE" = "ssd6" ] && PD="$FIX/mr-ssd6-pd.json"
+        PD="$FIX/mr-pd-all.json"; [ "$MODE" = "ssd6" ] && PD="$FIX/mr-ssd6-pd.json"; [ "$MODE" = "hdd7" ] && PD="$FIX/mr-hdd7-pd.json"
         LSPCI=$(cat "$FIX/mr-lspci-nnvv.txt" | b64)
         printf '%s' "{\"tool\":\"storcli64\",\"lspci_b64\":\"$LSPCI\",\"pd_b64\":\"$(b64 < "$PD")\",\"vd_b64\":\"$(b64 < "$VD")\",\"c0_b64\":\"$(b64 < "$FIX/mr-c0-show-all.json")\"}" ;;
     cra|mismatch)
@@ -28,5 +39,19 @@ case "$MODE" in
     toolmissing)
         LSPCI=$(cat "$FIX/mr-lspci-nnvv.txt" | b64)
         printf '%s' "{\"reason\":\"TOOL_MISSING\",\"detail\":\"storcli64/storcli not found\",\"lspci_b64\":\"$LSPCI\"}" ;;
+    mr4760)
+        # (R17) CRA4760(SAS3908 1000:10e2) 합성본 — 실기 원문이 없어 9361 원문의 칩 행 · Subsystem 만 바꿨다(PD · VD 는 9361 실측)
+        LSPCI=$(sed -e 's/MegaRAID SAS-3 3108 \[Invader\] \[1000:005d\]/MegaRAID 12GSAS\/PCIe Secure SAS39xx [1000:10e2]/' \
+                    -e 's/Broadcom \/ LSI MegaRAID SAS 9361-8i \[1000:9361\]/Gigabyte Technology Co., Ltd Device [1458:fa05]/' "$FIX/mr-lspci-nnvv.txt" | b64)
+        printf '%s' "{\"tool\":\"storcli64\",\"lspci_b64\":\"$LSPCI\",\"pd_b64\":\"$(b64 < "$FIX/mr-pd-all.json")\",\"vd_b64\":\"$(b64 < "$FIX/mr-novol-vd.json")\",\"c0_b64\":\"$(b64 < "$FIX/mr-c0-show-all.json")\"}" ;;
+    notir)
+        # (R17) mpt3sas 가 붙었지만 sas3ircu 가 컨트롤러를 잡지 못한 경우(IT 펌웨어 HBA)
+        LSPCI=$(cat "$FIX/cra-lspci-nnvv.txt" | b64)
+        printf '%s' "{\"reason\":\"NOT_IR\",\"detail\":\"sas3ircu does not list controller 0 (IT firmware?)\",\"lspci_b64\":\"$LSPCI\"}" ;;
+    noraiddriver)
+        # (R17) RAID 클래스 장치는 있는데 계열 드라이버가 붙지 않은 경우(mpi3mr HBA · 커널이 모르는 칩)
+        LSPCI=$(cat "$FIX/mr-lspci-nnvv.txt" | b64)
+        printf '%s' "{\"reason\":\"NO_RAID_DRIVER\",\"detail\":\"no family driver bound\",\"lspci_b64\":\"$LSPCI\"}" ;;
     *) echo "알 수 없는 모드: $MODE" >&2; exit 2 ;;
 esac
+} | emit

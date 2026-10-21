@@ -145,12 +145,12 @@ class DiskGroupRulesTest {
     // ==== 규칙 2 — 최소 디스크 수(카드 캐시 유무 반영) ======================================
 
     @Test
-    @DisplayName("규칙 2 — RAID0 1개: 캐시 없는 카드는 최소 2 라 400, 캐시 카드는 최소 1 이라 통과 (minimumDisks 경로)")
+    @DisplayName("규칙 2 — RAID0 1개: 캐시 없는 카드는 하한 2 라 400, 캐시 카드는 하한 1 이라 통과 (memberCountRule 의 레벨 하한)")
     void tooFewDisks_dependsOnCardCache() {
         assertThatThrownBy(() -> DiskGroupRules.validate(List.of(rule(RaidLevel.RAID0, 1)), CRA3338))
                 .isInstanceOf(InvalidDiskGroupException.class)
-                .hasMessageContaining("RAID0 을 구성하려면 디스크 2개 이상")
-                .hasMessageContaining("지정: 1개");
+                .hasMessageContaining("1번 묶음: RAID0 의 구성 대수는 2~10대입니다")
+                .hasMessageContaining("1대는 만들 수 없습니다");
 
         assertThatCode(() -> DiskGroupRules.validate(List.of(rule(RaidLevel.RAID0, 1)), AVAGO_9361))
                 .doesNotThrowAnyException();
@@ -161,7 +161,7 @@ class DiskGroupRulesTest {
     void tooFewDisks_raid5() {
         assertThatThrownBy(() -> DiskGroupRules.validate(List.of(rule(RaidLevel.RAID5, 2)), AVAGO_9361))
                 .isInstanceOf(InvalidDiskGroupException.class)
-                .hasMessageContaining("RAID5 를 구성하려면 디스크 3개 이상");
+                .hasMessageContaining("RAID5 의 구성 대수는 3~32대입니다");
         assertThatCode(() -> DiskGroupRules.validate(List.of(rule(RaidLevel.RAID5, 3)), AVAGO_9361))
                 .doesNotThrowAnyException();
     }
@@ -184,12 +184,13 @@ class DiskGroupRulesTest {
     @Test
     @DisplayName("규칙 4 — 다섯 축이 전부 같은 규칙 둘은 400(번호 명시), 개수만 달라도 다른 규칙")
     void duplicateRule() {
-        DiskGroupRuleRequest a = rule(RaidLevel.RAID1, 2);
-        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(a, rule(null, 1), rule(RaidLevel.RAID1, 2)), CRA3338))
+        DiskGroupRuleRequest a = rule(RaidLevel.RAID0, 2);
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(a, rule(null, 1), rule(RaidLevel.RAID0, 2)), CRA3338))
                 .isInstanceOf(InvalidDiskGroupException.class)
                 .hasMessageContaining("3번 묶음이 1번 묶음과 같은 규칙");
 
-        assertThatCode(() -> DiskGroupRules.validate(List.of(a, rule(RaidLevel.RAID1, 4)), CRA3338))
+        // 개수만 다른 규칙 — RAID0(IR 2~10대) 안에서 고른다. RAID1 은 IR 에서 정확히 2대라 4 가 규칙 2 에 먼저 걸린다(R17-1)
+        assertThatCode(() -> DiskGroupRules.validate(List.of(a, rule(RaidLevel.RAID0, 4)), CRA3338))
                 .doesNotThrowAnyException();
     }
 
@@ -271,7 +272,8 @@ class DiskGroupRulesTest {
 
     private static DiskGroupRuleRequest r8(DiskTypeRequirement type, DiskTransportRequirement transport,
                                            DiskCapacityRequirement capacity, DiskCountMode mode, int count) {
-        return new DiskGroupRuleRequest(RaidLevel.RAID1, type, transport, capacity,
+        // RAID0 — 규칙 8 은 포섭만 본다. RAID1 은 R17-1 부터 MegaRAID 짝수 규칙(규칙 2)이 홀수 개수를 먼저 거른다
+        return new DiskGroupRuleRequest(RaidLevel.RAID0, type, transport, capacity,
                 new DiskCountRequirement(mode, count), DiskGroupRole.BY_PRIORITY);
     }
 
@@ -368,5 +370,67 @@ class DiskGroupRulesTest {
                         DiskGroupRules.validate(List.of(covering, covered), AVAGO_9361))
                 .isInstanceOf(com.example.serverprovision.provisioning.setting.exception.InvalidDiskGroupException.class)
                 .hasMessageContaining("2번 묶음은 1번 묶음에 가려 도달할 수 없습니다");
+    }
+
+    // ==== R17-1 — 계열 디스크 수 규칙 · 규칙 10(스팬) ==========================================
+
+    private static DiskGroupRuleRequest spanRule(RaidLevel level, DiskCountMode mode, int count, Integer drivesPerSpan) {
+        return new DiskGroupRuleRequest(level, DiskTypeRequirement.HDD, DiskTransportRequirement.SAS,
+                new DiskCapacityRequirement(CapacityRequirementMode.AUTO, null, null),
+                new DiskCountRequirement(mode, count), DiskGroupRole.BY_PRIORITY, null,
+                drivesPerSpan == null ? null : new com.example.serverprovision.management.raidcard.vo.DrivesPerSpan(drivesPerSpan));
+    }
+
+    @Test
+    @DisplayName("R17-1 — MegaRAID RAID10 개 6 · 스팬 2 통과 · 스팬 4 는 400(8~32대 · 4대 단위) · 개 8 · 스팬 4 통과")
+    void megaRaidRaid10_spanValidated() {
+        assertThatCode(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 6, 2)), AVAGO_9361))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 6, 4)), AVAGO_9361))
+                .isInstanceOf(InvalidDiskGroupException.class)
+                .hasMessageContaining("1번 묶음: RAID10 을 스팬당 4대로 만들려면 8~32대 · 4대 단위여야 합니다");
+        assertThatCode(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 8, 4)), AVAGO_9361))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("R17-1 — '개 이상' 은 단위를 계획으로 미룬다: 개 이상 5 · 스팬 2 는 저장 통과, 개 이상 3 은 하한 미달 400")
+    void atLeast_deferStepToPlan() {
+        assertThatCode(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.AT_LEAST, 5, 2)), AVAGO_9361))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.AT_LEAST, 3, 2)), AVAGO_9361))
+                .isInstanceOf(InvalidDiskGroupException.class);
+    }
+
+    @Test
+    @DisplayName("R17-1 — 구 저장본(스팬 없음) MegaRAID RAID10 은 기본 스팬 2 로 판정 · 홀수 7 은 400")
+    void legacyRule_defaultSpan() {
+        assertThatCode(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 6, null)), AVAGO_9361))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 7, null)), AVAGO_9361))
+                .hasMessageContaining("7대는 만들 수 없습니다");
+    }
+
+    @Test
+    @DisplayName("R17-1 — MPT_IR RAID10 개 3 통과(폼 하한 4 불일치 해소) · RAID1 개 3 은 저장에서 400(종전엔 계획에서야 거절)")
+    void irRules_atSave() {
+        RaidCard ir10 = card(List.of(RaidLevel.RAID0, RaidLevel.RAID1, RaidLevel.RAID10), 0);
+        assertThatCode(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 3, null)), ir10))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(rule(RaidLevel.RAID1, 3)), CRA3338))
+                .hasMessageContaining("RAID1 의 구성 대수는 2대입니다");
+    }
+
+    @Test
+    @DisplayName("규칙 10 — 스팬은 MegaRAID RAID10 묶음에서만: RAID5 · RAID 없음 · IR 카드 RAID10 은 400")
+    void spanNotApplicable() {
+        RaidCard ir10 = card(List.of(RaidLevel.RAID0, RaidLevel.RAID1, RaidLevel.RAID10), 0);
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID5, DiskCountMode.EXACT, 4, 2)), AVAGO_9361))
+                .isInstanceOf(InvalidDiskGroupException.class)
+                .hasMessageContaining("1번 묶음: 스팬당 디스크 수는 MegaRAID 카드의 RAID10 묶음에서만 지정합니다");
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(null, DiskCountMode.EXACT, 1, 2)), null))
+                .hasMessageContaining("스팬당 디스크 수는");
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 4, 2)), ir10))
+                .hasMessageContaining("스팬당 디스크 수는");
     }
 }

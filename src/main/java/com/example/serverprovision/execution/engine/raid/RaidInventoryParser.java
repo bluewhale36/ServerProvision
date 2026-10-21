@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
  *
  * <p>봉투 계약(agent.sh 와의 SSOT): {@code {"tool":"storcli64|storcli|sas3ircu","lspci_b64":..,
  * "pd_b64":..,"vd_b64":..,"c0_b64":..,"display_b64":..}} — 원문에 개행이 있어 base64 로 나른다.
- * 칩 판별은 도구 이름이 아니라 lspci 의 Vendor:Device 가 한다(0097 = IR · 005d = MegaRAID).</p>
+ * 계열은 에이전트가 관측한 커널 드라이버({@code driver})로 정한다(R17 — 옛 봉투는 도구 이름 폴백).</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -47,7 +47,7 @@ public class RaidInventoryParser {
             if (lspci == null) {
                 throw new ReportUnparsableException("봉투에 lspci_b64 가 없습니다", null);
             }
-            RaidChipFamily family = familyOf(lspci);
+            RaidChipFamily family = familyOf(envelope);
             String subsystem = subsystemOf(lspci);
             if (family == RaidChipFamily.MEGARAID) {
                 return parseMegaRaid(subsystem, decode(envelope, "pd_b64"),
@@ -61,10 +61,25 @@ public class RaidInventoryParser {
         }
     }
 
-    private RaidChipFamily familyOf(String lspci) {
-        // 칩 id 의 SSOT 는 RaidChipFamily.chipPciIds — 에이전트 동봉 힌트와 같은 집합 · 같은 순서로 판별한다.
-        return RaidChipFamily.fromLspci(lspci).orElseThrow(() ->
-                new ReportUnparsableException("지원 칩(" + RaidChipFamily.agentChipHint() + ")이 lspci 에 없습니다", null));
+    /**
+     * 계열 = 에이전트가 관측한 커널 드라이버(R17 봉투 {@code driver}). 옛 에이전트 봉투에는 driver 가 없으므로 도구 이름으로
+     * 폴백한다 — 도구는 에이전트가 계열로 고른 것이라 같은 사실의 다른 표현이다(storcli · storcli64 → MEGARAID · sas3ircu → MPT_IR).
+     */
+    private RaidChipFamily familyOf(JsonNode envelope) {
+        String driver = envelope.path("driver").asString(null);
+        if (driver != null && !driver.isBlank()) {
+            return RaidChipFamily.fromKernelDriver(driver).orElseThrow(() ->
+                    new ReportUnparsableException("계열 밖 드라이버입니다 : " + driver
+                            + " (지원 = " + RaidChipFamily.agentDriverHint() + ")", null));
+        }
+        String tool = envelope.path("tool").asString("");
+        if (tool.startsWith("storcli")) {
+            return RaidChipFamily.MEGARAID;
+        }
+        if (tool.equals("sas3ircu")) {
+            return RaidChipFamily.MPT_IR;
+        }
+        throw new ReportUnparsableException("봉투에 driver · tool 이 없어 계열을 정할 수 없습니다", null);
     }
 
     private String subsystemOf(String lspci) {

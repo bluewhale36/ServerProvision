@@ -168,14 +168,14 @@ class SettingRestControllerDiskGroupTest {
     }
 
     @Test
-    @DisplayName("POST — 최소 디스크 미달(DiskGroupRules 2) · 중복 규칙(4) · HDD×NVMe(6) → 400 fieldErrors[diskGroups]")
+    @DisplayName("POST — 디스크 수 규칙 위반(DiskGroupRules 2 · R17-1) · 중복 규칙(4) · HDD×NVMe(6) → 400 fieldErrors[diskGroups]")
     void create_tooFewDisksAndDuplicate_return400() throws Exception {
-        given(commandService.create(any())).willThrow(InvalidDiskGroupException.tooFewDisks(1,
-                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID0, 2, 1));
+        given(commandService.create(any())).willThrow(InvalidDiskGroupException.memberCount(1,
+                "RAID0 의 구성 대수는 2~10대입니다 — 1대는 만들 수 없습니다"));
         send(body(raid("1", RAID1_RULE)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'diskGroups')].message")
-                        .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("디스크 2개 이상"))));
+                        .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("1번 묶음: RAID0 의 구성 대수는 2~10대입니다"))));
 
         // 이미 던지도록 스터빙된 mock 은 given() 안에서 호출하면 그 예외가 튀어나온다 — willThrow().given() 형태로 재스터빙.
         org.mockito.BDDMockito.willThrow(InvalidDiskGroupException.duplicateRule(3, 1)).given(commandService).create(any());
@@ -467,5 +467,48 @@ class SettingRestControllerDiskGroupTest {
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'diskGroups')].message")
                         .value(org.hamcrest.Matchers.hasItem(
                                 org.hamcrest.Matchers.containsString("2번 묶음은 1번 묶음에 가려 도달할 수 없습니다"))));
+    }
+
+    // ==== R17-1 — 스팬 지정(drivesPerSpan) · 디스크 수 규칙 ====================================
+
+    private static String raid10Rule(String drivesPerSpan) {
+        return """
+                {"raidLevel": "RAID10", "diskType": "HDD", "transport": "SAS",
+                 "capacity": {"mode": "AUTO"}, "count": {"mode": "EXACT", "value": 8}, "role": "BY_PRIORITY",
+                 "drivesPerSpan": %s}
+                """.formatted(drivesPerSpan);
+    }
+
+    @Test
+    @DisplayName("R17-1 POST — RAID10 묶음에 drivesPerSpan 4 → 201, 계약에 스팬이 실려 계획의 pdperarray 재료가 된다")
+    void create_withDrivesPerSpan_returns201_andCarriesSpan() throws Exception {
+        given(commandService.create(any())).willReturn(new SettingSaveResponse(12L, "디스크 세팅"));
+
+        send(body(raid("1", raid10Rule("4")))).andExpect(status().isCreated());
+
+        ArgumentCaptor<SettingSaveRequest> captor = ArgumentCaptor.forClass(SettingSaveRequest.class);
+        verify(commandService).create(captor.capture());
+        RaidConfigurationRequest install = (RaidConfigurationRequest) captor.getValue().processList().get(0);
+        assertThat(install.getDiskGroups().get(0).drivesPerSpan().value()).isEqualTo(4);
+        assertThat(install.getDiskGroups().get(0).hasDrivesPerSpan()).isTrue();
+    }
+
+    @Test
+    @DisplayName("R17-1 POST — drivesPerSpan 3(홀수 · direct POST 변조) → 400, 서비스는 호출되지 않는다(500 으로 새지 않는다)")
+    void create_oddDrivesPerSpan_returns400() throws Exception {
+        send(body(raid("1", raid10Rule("3")))).andExpect(status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(commandService);
+    }
+
+    @Test
+    @DisplayName("R17-1 POST — 스팬을 받지 않는 묶음의 스팬(규칙 10) → 400 fieldErrors[diskGroups]")
+    void create_spanNotApplicable_returns400() throws Exception {
+        given(commandService.create(any())).willThrow(InvalidDiskGroupException.spanNotApplicable(1));
+
+        send(body(raid("1", raid10Rule("2"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'diskGroups')].message")
+                        .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString(
+                                "스팬당 디스크 수는 MegaRAID 카드의 RAID10 묶음에서만 지정합니다"))));
     }
 }

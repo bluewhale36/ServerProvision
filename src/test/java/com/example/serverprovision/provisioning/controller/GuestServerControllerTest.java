@@ -257,6 +257,32 @@ class GuestServerControllerTest {
                 .andExpect(content().string(not(containsString("카드가 없는 서버는 비어 있는 것이 정상입니다"))));
     }
 
+    private com.example.serverprovision.execution.vo.HardwareSpec.PcieDevice raidCard(String driver, boolean observed) {
+        var d = com.example.serverprovision.execution.vo.HardwareSpec.PcieDevice.untagged(
+                "ae:00.0", "RAID", "Broadcom", "Broadcom / LSI MegaRAID 12GSAS/PCIe Secure SAS39xx");
+        return observed ? d.withKernelDriver(new com.example.serverprovision.execution.vo.KernelDriverObservation(driver)) : d;
+    }
+
+    @Test
+    @DisplayName("R17 — 미채집 원인 4종이 카드마다 다른 안내로 보인다(관측 없음 · 계열 드라이버 · 계열 밖 · 바인딩 없음)")
+    void detail_uncollectedNotice_perCause() throws Exception {
+        record Case(String driver, boolean observed, String notice, String copy) {}
+        for (Case c : List.of(
+                new Case(null, false, "UNKNOWN", "지원하지 않는 RAID 칩이거나 채집 도구가 없습니다"),
+                new Case("megaraid_sas", true, "SUPPORTED_NOT_COLLECTED", "지원하는 RAID 카드이지만"),
+                new Case("mpi3mr", true, "UNSUPPORTED_CONTROLLER", "RAID 를 지원하지 않는 컨트롤러(mpi3mr)입니다"),
+                new Case("", true, "DRIVER_NOT_BOUND", "진단 이미지의 커널이 이 RAID 칩을 인식하지 못했습니다"))) {
+            UUID id = UUID.randomUUID();
+            given(queryService.findDetail(id)).willReturn(detailWithPcie(id, List.of(raidCard(c.driver(), c.observed()))));
+
+            mvc.perform(get("/provisioning/server/{id}", id))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("data-raid-notice=\"" + c.notice() + "\"")))
+                    .andExpect(content().string(containsString(c.copy())))
+                    .andExpect(content().string(containsString("Secure SAS39xx")));
+        }
+    }
+
     @Test
     @DisplayName("HF22 — RAID 카드가 없는 서버는 경고 없이 종전 빈 문구")
     void detail_noRaidCard_keepsEmptyCopy() throws Exception {

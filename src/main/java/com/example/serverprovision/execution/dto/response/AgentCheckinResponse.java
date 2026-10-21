@@ -12,7 +12,7 @@ import com.example.serverprovision.execution.enums.AgentDirective;
  *                   파싱을 깨는 표면을 만들지 않기 위해(E1-1 plan Q3).
  */
 public record AgentCheckinResponse(AgentDirective directive, String serverName,
-                                   RaidApplyPayload raidApply, String raidChips) {
+                                   RaidApplyPayload raidApply, String raidDrivers) {
 
     /** payload 없는 지시(E3.5-3 이전 호출부 호환). */
     public AgentCheckinResponse(AgentDirective directive, String serverName) {

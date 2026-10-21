@@ -219,7 +219,8 @@ class RaidPlannerTest {
             for (int i = 0; i < poolSize; i++) {
                 disks[i] = disk("p:" + i, "SSD", "SATA", S480);
             }
-            return plan(mega(disks), rule(RaidLevel.RAID1, DiskTypeRequirement.SSD,
+            // RAID0 — 개수 축 소비만 본다(RAID1 은 R17-1 부터 MegaRAID 짝수 규칙이 끼어든다)
+            return plan(mega(disks), rule(RaidLevel.RAID0, DiskTypeRequirement.SSD,
                     DiskTransportRequirement.AUTO, auto(), mode, count, DiskGroupRole.DATA));
         }
 
@@ -634,7 +635,7 @@ class RaidPlannerTest {
             assertThat(outcome).isInstanceOf(RaidPlanRejection.class);
             RaidPlanRejection rejection = (RaidPlanRejection) outcome;
             assertThat(rejection.code()).isEqualTo(RaidPlanRejection.MEMBER_COUNT);
-            assertThat(rejection.detail()).contains("spvR1V1").contains("정확히 2대");
+            assertThat(rejection.detail()).contains("spvR1V1").contains("RAID1 의 구성 대수는 2대입니다");
         }
 
         @Test
@@ -655,14 +656,24 @@ class RaidPlannerTest {
         }
 
         @Test
-        @DisplayName("MEGARAID 는 RAID1 3대 · 볼륨 3개 전부 허용(수량 제약은 실측 표본 후)")
+        @DisplayName("MEGARAID 는 RAID1 4대 · 볼륨 3개 허용, RAID1 3대(홀수)는 MEMBER_COUNT 거절(R17-1 — 짝수 2~32)")
         void megaRaid_permitsSameShapes() {
-            RaidPlan threeMember = plan(
+            RaidPlan fourMember = plan(
+                    mega(disk("p:0", "SSD", "SATA", S480), disk("p:1", "SSD", "SATA", S480),
+                            disk("p:2", "SSD", "SATA", S480), disk("p:3", "SSD", "SATA", S480)),
+                    rule(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
+                            auto(), DiskCountMode.EXACT, 4, DiskGroupRole.DATA));
+            assertThat(fourMember.volumes()).hasSize(1);
+
+            RaidPlanOutcome threeMember = RaidPlanner.plan(
+                    List.of(rule(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
+                            auto(), DiskCountMode.EXACT, 3, DiskGroupRole.DATA)),
+                    VolumePriorityRuleRequest.defaults(),
                     mega(disk("p:0", "SSD", "SATA", S480), disk("p:1", "SSD", "SATA", S480),
                             disk("p:2", "SSD", "SATA", S480)),
-                    rule(RaidLevel.RAID1, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
-                            auto(), DiskCountMode.EXACT, 3, DiskGroupRole.DATA));
-            assertThat(threeMember.volumes()).hasSize(1);
+                    RaidExistingConfigPolicy.DESTROY);
+            assertThat(threeMember).isInstanceOf(RaidPlanRejection.class);
+            assertThat(((RaidPlanRejection) threeMember).detail()).contains("2~32대 · 2대 단위");
 
             RaidPlan threeVolumes = plan(
                     mega(disk("1:0", "SSD", "SATA", S480), disk("1:1", "SSD", "SATA", S480),
@@ -914,6 +925,72 @@ class RaidPlannerTest {
                 assertThat(v.role()).isEqualTo(PlannedVolumeRole.OS);
             });
             assertThat(plan.unassigned()).isEmpty();
+        }
+    }
+
+    /** R17-1 — 스팬 지정 · 계열 디스크 수 규칙의 계획 시점 판정 · storcli 토큰 조립. */
+    @org.junit.jupiter.api.Nested
+    class SpanAndMemberRules {
+
+        private DiskGroupRuleRequest raid10(DiskCountMode mode, int count, Integer drivesPerSpan) {
+            return new DiskGroupRuleRequest(RaidLevel.RAID10, DiskTypeRequirement.HDD, DiskTransportRequirement.AUTO, auto(),
+                    new DiskCountRequirement(mode, count), DiskGroupRole.DATA, null,
+                    drivesPerSpan == null ? null : new com.example.serverprovision.management.raidcard.vo.DrivesPerSpan(drivesPerSpan));
+        }
+
+        private RaidPhysicalDisk[] hdds(int n) {
+            RaidPhysicalDisk[] disks = new RaidPhysicalDisk[n];
+            for (int i = 0; i < n; i++) {
+                disks[i] = disk("252:" + i, "HDD", "SAS", S4T);
+            }
+            return disks;
+        }
+
+        @Test
+        @DisplayName("개 이상 4 · 스팬 2 · 그룹 7(홀수) → MEMBER_COUNT 거절 — 종전엔 계획 통과 후 storcli 가 거절")
+        void atLeastOddGroup_rejected() {
+            RaidPlanOutcome outcome = RaidPlanner.plan(List.of(raid10(DiskCountMode.AT_LEAST, 4, 2)),
+                    VolumePriorityRuleRequest.defaults(), mega(hdds(7)), RaidExistingConfigPolicy.DESTROY);
+            assertThat(outcome).isInstanceOf(RaidPlanRejection.class);
+            RaidPlanRejection rejection = (RaidPlanRejection) outcome;
+            assertThat(rejection.code()).isEqualTo(RaidPlanRejection.MEMBER_COUNT);
+            assertThat(rejection.detail()).contains("spvR1V1").contains("스팬당 2대").contains("7대는 만들 수 없습니다");
+        }
+
+        @Test
+        @DisplayName("개 8 · 스팬 4 → createOpts 끝에 pdperarray=4 · 볼륨 span 4(표시용)")
+        void spanTokenAppended() {
+            RaidPlan plan = plan(mega(hdds(8)), raid10(DiskCountMode.EXACT, 8, 4));
+            var volume = plan.volumes().get(0);
+            assertThat(volume.createOpts()).startsWith(com.example.serverprovision.provisioning.setting.dto.request.VdParameters.DEFAULTS.createOpts())
+                    .endsWith(" pdperarray=4");
+            assertThat(volume.span().value()).isEqualTo(4);
+        }
+
+        @Test
+        @DisplayName("구 저장본(스팬 없음) RAID10 → pdperarray=2 — R17-1 이전 agent 고정값과 같은 명령")
+        void legacyRule_defaultToken() {
+            RaidPlan plan = plan(mega(hdds(4)), raid10(DiskCountMode.EXACT, 4, null));
+            assertThat(plan.volumes().get(0).createOpts()).endsWith(" pdperarray=2");
+        }
+
+        @Test
+        @DisplayName("MPT_IR RAID10 3대 → 통과 · createOpts 없음 · span 없음(sas3ircu 는 스팬 인자가 없다)")
+        void irRaid10_noSpan() {
+            RaidPlan plan = planOf(RaidPlanner.plan(List.of(raid10(DiskCountMode.EXACT, 3, null)),
+                    VolumePriorityRuleRequest.defaults(), inv(RaidChipFamily.MPT_IR, List.of(hdds(3)), List.of()),
+                    RaidExistingConfigPolicy.DESTROY));
+            assertThat(plan.volumes().get(0).createOpts()).isNull();
+            assertThat(plan.volumes().get(0).span()).isNull();
+        }
+
+        @Test
+        @DisplayName("MegaRAID RAID1 은 스팬이 없다 — createOpts 에 pdperarray 없음")
+        void megaRaid1_noSpanToken() {
+            RaidPlan plan = plan(mega(hdds(2)), rule(RaidLevel.RAID1, DiskTypeRequirement.HDD,
+                    DiskTransportRequirement.AUTO, auto(), DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
+            assertThat(plan.volumes().get(0).createOpts()).doesNotContain("pdperarray");
+            assertThat(plan.volumes().get(0).span()).isNull();
         }
     }
 }

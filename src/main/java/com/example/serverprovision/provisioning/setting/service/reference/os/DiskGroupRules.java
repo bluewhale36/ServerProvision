@@ -3,6 +3,7 @@ package com.example.serverprovision.provisioning.setting.service.reference.os;
 import com.example.serverprovision.provisioning.setting.enums.DiskCountMode;
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.management.raidcard.vo.MemberCountRule;
 import com.example.serverprovision.provisioning.setting.dto.request.DiskCountRequirement;
 import com.example.serverprovision.provisioning.setting.dto.request.DiskGroupRuleRequest;
 import com.example.serverprovision.provisioning.setting.enums.DiskTransportRequirement;
@@ -15,10 +16,10 @@ import java.util.Map;
 
 /**
  * 디스크 묶음 규칙의 값 검증 — 의존 0 static ({@link LinuxPartitionRules} 와 같은 자리, U4-1-1 D5). 규칙 일곱:
- * 지원 레벨 · 최소 디스크 · RAID 없음 개수 · 중복 · 용량 · 종류-전송 정합(HDD × NVMe 불가) · OS 고정 최대 1(U4-1-2).
+ * 지원 레벨 · 디스크 수(계열 규칙 — R17-1) · RAID 없음 개수 · 중복 · 용량 · 종류-전송 정합(HDD × NVMe 불가) · OS 고정 최대 1(U4-1-2).
  *
  * <p>판정 재료는 정의서가 아니라 <b>카드</b>가 준다 — 만들 수 있는 레벨은 {@code SupportedRaidLevels.blockReasonFor},
- * 최소 디스크 수는 {@code RaidLevel.minimumDisks(cardHasCache)}. 두 메서드가 SSOT 이고 폼은 그 결과를
+ * 디스크 수는 {@code RaidChipFamily.memberCountRule}(R17-1). 두 메서드가 SSOT 이고 폼은 그 결과를
  * option data-* 로 받아 같은 판정을 먼저 한다(UI 1차 차단 · 여기는 안전망).</p>
  *
  * <p>카드가 {@code null} 인데 RAID 묶음이 있는 상황은 {@code RaidConfigurationRequest.isRaidCardPresentWhenRequired}
@@ -46,7 +47,7 @@ public final class DiskGroupRules {
                 osFixedRuleNo = ruleNo;
             }
             if (rule.buildsRaid()) {
-                validateRaidRule(ruleNo, rule.raidLevel(), rule.count().value(), card);
+                validateRaidRule(ruleNo, rule, card);
             } else if (rule.count().value() < 1) {
                 throw InvalidDiskGroupException.singleDiskCountBelowOne(ruleNo);
             }
@@ -64,6 +65,12 @@ public final class DiskGroupRules {
                 if (rule.diskType() == DiskTypeRequirement.SSD && rule.vdParameters().overridesDriveCache()) {
                     throw InvalidDiskGroupException.driveCacheOnSsd(ruleNo);
                 }
+            }
+            // 규칙 10(R17-1) — 스팬은 그것을 받는 계열 · 레벨(MegaRAID RAID10)에서만. 폼은 스팬 select 를 그 행에서만
+            // 보이고 숨길 때 제출에서 뺀다 — 이 가드는 direct POST 방어다(acceptsSpan SSOT 공유).
+            if (rule.hasDrivesPerSpan()
+                    && (!rule.buildsRaid() || card == null || !card.getChipFamily().acceptsSpan(rule.raidLevel()))) {
+                throw InvalidDiskGroupException.spanNotApplicable(ruleNo);
             }
             if (!rule.capacity().isAuto() && (rule.capacity().size() == null || rule.capacity().size() < 1)) {
                 throw InvalidDiskGroupException.invalidCapacity(ruleNo);
@@ -123,17 +130,21 @@ public final class DiskGroupRules {
         };
     }
 
-    private static void validateRaidRule(int ruleNo, RaidLevel level, int count, RaidCard card) {
+    private static void validateRaidRule(int ruleNo, DiskGroupRuleRequest rule, RaidCard card) {
         if (card == null) {
             return; // 카드 요구 방향은 @AssertTrue 가 이미 보고했다.
         }
+        RaidLevel level = rule.raidLevel();
         String blockReason = card.getSupportedRaidLevels().blockReasonFor(level);
         if (blockReason != null) {
             throw InvalidDiskGroupException.unsupportedLevel(ruleNo, blockReason);
         }
-        int minimum = level.minimumDisks(card.hasCache());
-        if (count < minimum) {
-            throw InvalidDiskGroupException.tooFewDisks(ruleNo, level, minimum, count);
+        // 계열 · 레벨 · 스팬의 디스크 수 규칙(R17-1) — 폼은 카드 메타의 같은 규칙으로 개수 입력을 먼저 잠근다
+        MemberCountRule memberRule = card.getChipFamily()
+                .memberCountRule(level, card.hasCache(), rule.drivesPerSpan());
+        String countReason = rule.count().memberCountBlockReason(memberRule);
+        if (countReason != null) {
+            throw InvalidDiskGroupException.memberCount(ruleNo, countReason);
         }
     }
 

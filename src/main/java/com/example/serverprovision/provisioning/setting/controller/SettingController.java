@@ -12,6 +12,7 @@ import com.example.serverprovision.provisioning.setting.enums.VdWritePolicy;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.management.raidcard.vo.DrivesPerSpan;
 import com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest;
 import com.example.serverprovision.provisioning.setting.enums.CapacityOrder;
 import com.example.serverprovision.provisioning.setting.enums.DiskCapacityUnit;
@@ -120,7 +121,7 @@ public class SettingController {
         model.addAttribute("timezoneOptions", settingQueryService.findTimezoneOptions());
         model.addAttribute("fileSystems", List.of(FileSystem.values()));
         model.addAttribute("sizeUnits", List.of(SizeUnit.values()));
-        // U4-1-1 — 디스크 묶음 규칙 · RAID 카드 선택지. 레벨 최소치(RaidLevel.minimumDisks)는 옵션 data-* 로 폼에 내려간다.
+        // U4-1-1 — 디스크 묶음 규칙 · RAID 카드 선택지. 디스크 수 규칙은 카드 메타의 memberRules 로 폼에 내려간다(R17-1).
         var raidCardOptions = settingQueryService.findRaidCardOptions();
         model.addAttribute("raidCardOptions", raidCardOptions);
         // 판정 재료를 JSON 문자열로도 내린다 — Thymeleaf 의 JS inline 직렬화는 Jackson 2 만 감지해 record 를 {} 로 만들므로
@@ -131,6 +132,7 @@ public class SettingController {
         model.addAttribute("diskTransports", List.of(DiskTransportRequirement.values()));
         model.addAttribute("diskCapacityUnits", List.of(DiskCapacityUnit.values()));
         model.addAttribute("diskCountModes", List.of(DiskCountMode.values()));
+        model.addAttribute("drivesPerSpanOptions", DrivesPerSpan.options());   // R17-1 스팬 select
         // U4-1-2 — 역할 · 우선순위 선택지. 기본 우선순위 행은 파라미터가 없어 endpoint 대신 페이지에 한 번 싣는다(D6) —
         // 폼 첫 채움과 '기본 행으로 되돌리기' 가 같은 값을 읽는다. SSOT = VolumePriorityRuleRequest.defaults().
         model.addAttribute("diskGroupRoles", List.of(DiskGroupRole.values()));

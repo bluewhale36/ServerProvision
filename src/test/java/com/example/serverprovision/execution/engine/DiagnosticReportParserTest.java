@@ -44,6 +44,37 @@ class DiagnosticReportParserTest {
         return body.substring(0, body.length() - 1) + ", \"raid\": " + raidJson + " }";
     }
 
+    // ── R17 — 장치별 커널 드라이버 관측(raidDevices)을 PCIe RAID 행에 슬롯으로 붙인다 ──
+
+    private static String withRaidDevices(String report, String raidDevicesJson) {
+        String body = report.trim();
+        return body.substring(0, body.length() - 1) + ", \"raidDevices\": " + raidDevicesJson + " }";
+    }
+
+    private static com.example.serverprovision.execution.vo.HardwareSpec.PcieDevice deviceAt(
+            DiagnosticReportParser.Parsed parsed, String slot) {
+        return parsed.hardwareSpec().pcieDevices().stream().filter(d -> slot.equals(d.slot())).findFirst().orElseThrow();
+    }
+
+    @Test
+    @DisplayName("R17 — raidDevices 의 드라이버가 같은 슬롯 PCIe 행에 붙는다(sysfs 의 0000: 도메인 접두는 떼고 대조)")
+    void raidDevices_attachDriverBySlot() {
+        var parsed = parser.parse(withRaidDevices(FULL,
+                "[{\"slot\":\"0000:01:00.0\",\"driver\":\"megaraid_sas\"},{\"slot\":\"84:00.0\",\"driver\":\"\"}]"));
+
+        assertThat(deviceAt(parsed, "01:00.0").kernelDriver().driver()).isEqualTo("megaraid_sas");
+        assertThat(deviceAt(parsed, "84:00.0").kernelDriver().isBound()).isFalse();   // 관측했지만 바인딩 없음
+        assertThat(deviceAt(parsed, "02:00.0").kernelDriver()).isNull();                // 관측 대상 아님
+    }
+
+    @Test
+    @DisplayName("R17 — raidDevices 가 없는 옛 보고는 관측 없음(null) 그대로 — 미채집 경고가 종전 문구로 떨어진다")
+    void raidDevices_absent_keepsNull() {
+        assertThat(parser.parse(FULL).hardwareSpec().pcieDevices())
+                .allSatisfy(d -> assertThat(d.kernelDriver()).isNull());
+        assertThat(deviceAt(parser.parse(withRaidDevices(FULL, "\"garbage\"")), "01:00.0").kernelDriver()).isNull();
+    }
+
     @Test
     @DisplayName("E3.5-5-a — raid 객체가 있으면 원문 JSON 그대로 raidEnvelope 로 통과한다(해석 없음)")
     void raidEnvelope_passesThroughVerbatim() {

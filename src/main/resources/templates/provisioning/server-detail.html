@@ -568,14 +568,16 @@
                         <p th:if="${#lists.isEmpty(raid.volumes)}" class="n-detail-empty">기존 볼륨이 없습니다.</p>
                     </th:block>
 
-                    <!-- HF22 — 카드는 보이는데 카드 뒤 인벤토리가 없음(지원하지 않는 칩 · 채집 도구 없음). 조용히 지나가지 않게 경고한다. -->
+                    <!-- HF22 · R17 — 카드는 보이는데 카드 뒤 인벤토리가 없음. 원인(커널 드라이버 관측)별 안내를 카드마다 보인다. -->
                     <th:block th:with="uncollected=${server.inventory == null ? null : server.inventory.uncollectedRaidCards()}">
                         <div th:if="${uncollected != null and !uncollected.isEmpty()}" class="n-banner n-banner-warn" data-raid-uncollected>
                             <div>
-                                <div th:text="#{execution.raid-inventory.uncollected}">RAID 카드가 장착돼 있지만 카드 뒤 디스크 정보를 채집하지 못했습니다.</div>
-                                <div th:each="c : ${uncollected}" class="n-muted">
-                                    <code class="n-mono" th:text="${c.slot}">ae:00.0</code>
-                                    <span th:text="${c.model}">Broadcom / LSI MegaRAID 12GSAS/PCIe Secure SAS39xx</span>
+                                <div th:each="c : ${uncollected}" th:data-raid-notice="${c.notice.name()}">
+                                    <div th:text="${#messages.msgWithParams(c.notice.messageKey(), c.device.kernelDriver == null ? null : c.device.kernelDriver.driver)}">RAID 카드가 장착돼 있지만 카드 뒤 디스크 정보를 채집하지 못했습니다.</div>
+                                    <div class="n-muted">
+                                        <code class="n-mono" th:text="${c.device.slot}">ae:00.0</code>
+                                        <span th:text="${c.device.model}">Broadcom / LSI MegaRAID 12GSAS/PCIe Secure SAS39xx</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
