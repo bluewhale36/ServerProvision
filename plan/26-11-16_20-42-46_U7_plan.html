@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U7 Plan — 프로비저닝 개시의 BMC · NIC IP 대역 판정</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:var(--card); border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); }
+  .muted { color:var(--text-muted); }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-toolbar input[type="text"] { font-family:var(--mono); font-size:12px; padding:5px 8px; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text); width:160px; }
+  .ux-toolbar input[type="text"]:disabled { background:var(--bg); color:var(--text-muted); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:0; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:var(--bg); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; white-space:nowrap; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--border-soft); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); right:0;
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; white-space:pre-line; }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); right:14px; border:6px solid transparent; border-top-color:var(--text); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); } .seq .step.a4 { background:var(--purple-bg); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* 표 칸의 긴 코드(상수 이름 · JSON)가 표를 본문 밖으로 밀어내지 않게: anywhere 는 min-content 를 줄여 표 폭 계산에 반영된다.
+     break-word(명세 §3)는 min-content 불변이라 표에는 효과가 없다. 흐름도도 데스크톱에서 넘치면 가로 스크롤. */
+  td code, th code { overflow-wrap:anywhere; }
+  .seq { overflow-x:auto; }
+
+  /* 반응형 (명세 §3) */
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U7 — 프로비저닝 개시의 BMC · NIC IP 대역 판정 <span class="v2-badge">U3-6 후속</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> U7 (feature · 판정 + 차단)</span>
+    <span><strong>상위</strong> U3-6 개시 가드</span>
+    <span><strong>브랜치</strong> <code>feat/U7_start-ip-range-guard</code> (origin/dev 698162f 기준)</span>
+    <span><strong>개발 단계</strong> 5차</span>
+    <span><strong>생성</strong> 2026-11-16 20:42:46 KST</span>
+    <span><strong>개정</strong> v2 2026-11-16 (사용자 지시) · v3 2026-11-16 (사용자 답변)</span>
+    <span><strong>CP1</strong> 승인 (2026-11-16, Q6 SUPER_ADMIN(MA8 뒤 개정) · Q7 메뉴 노출) · CP6 제출</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT) + 결정</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <div class="callout warn"><b>v3 개정(2026-11-16, 사용자 답변)</b> — Q1 수용, Q2 막힌 이유를 모두 보인다, Q3 입력 검증 문구 확정, Q4 prefix 상한 /26, Q5 배포 때 DML 로 10.1.1.0/24 를 넣는다. 시스템 설정은 나중에 통합할 것이므로 단일 행이 아니라 설정 키마다 한 행으로 만들고, 설정마다 접근 가능 최소 권한을 둔다. 콘솔 문구는 매뉴얼 문체를 따른다.<br>
+      <span class="muted">표시: 본문의 v3 개정분에 <span class="chip mod">개정 v3</span> · <span class="chip new">신규 v3</span> 를 붙였다. 결정 표의 D-5(v1 → v3) · D-8(v2 → v3) · D-10(v2 → v3) 이 바뀐다. 질문 Q1~Q5 는 §8 '답변 반영' 표로 닫고 Q6 · Q7 을 새로 연다.</span></div>
+    <div class="callout warn"><b>v2 개정(2026-11-16, 사용자 지시)</b> — 허용 대역의 원천을 PXE 네트워크 설정의 <code>subnetCidr</code> 에서 <b>새 「시스템 설정」 화면의 입력값</b>으로 바꾼다. 화면은 하나만 간단히 만들고 허용 대역 한 칸만 받는다. 다른 화면에 흩어진 설정을 모으는 일은 범위 밖. 같은 U7 안에서 함께 진행한다.<br>
+      <span class="muted">표시: 본문의 개정분에 <span class="chip mod">개정 v2</span> 를 붙였다. 결정 표의 D-1 이 바뀌고(v1 → v2) D-8 · D-9 · D-10 이 생긴다.</span></div>
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단) — 실측 origin/dev 698162f</summary>
+      <div class="body">
+        <h4>개시 가드는 두 겹이다</h4>
+        <table>
+          <thead><tr><th>겹</th><th>위치</th><th>판정</th><th>UI</th></tr></thead>
+          <tbody>
+            <tr><td>상태</td><td><code>ProvisioningProgress.isStartableWith(decommissionedAt)</code> = 회수 안 됨 · 미개시 · 미실패</td><td><code>GuestServerCommandService.startProvisioning</code> 이 409(<code>ProvisioningStartRejectedException</code> alreadyStarted / decommissioned / failed)</td><td>뷰 플래그 <code>progress.startable</code> — <b>false 면 버튼 자체가 사라진다</b></td></tr>
+            <tr><td>할당(U3-6)</td><td><code>AssignmentStartService.startProvisioning</code> — 활성 스냅샷 없으면 <code>ProvisioningStartRejectedException.unassigned</code> 409</td><td>위와 같은 트랜잭션</td><td><code>startable and !phaseRail.assigned</code> → disabled 버튼 + tooltip(문구는 템플릿에 하드코딩)</td></tr>
+          </tbody>
+        </table>
+        <p>호출 순서: 컨트롤러 <code>POST /provisioning/server/{id}/start</code> → <code>AssignmentStartService</code>(미할당 검사) → <code>GuestServerCommandService.startProvisioning</code>(<code>isStartableWith</code> 검사 → start).</p>
+
+        <h4>판정 재료의 위치</h4>
+        <table>
+          <thead><tr><th>재료</th><th>위치</th><th>갱신</th></tr></thead>
+          <tbody>
+            <tr><td>게스트 서브넷 <span class="chip mod">개정 v2</span><br><span class="muted">v1 에서 허용 대역으로 쓰려던 값. v2 의 허용 대역은 새 「시스템 설정」 값(§4 D-1)</span></td><td><code>PxeNetworkConfig.subnetCidr</code>(<code>SubnetCidr</code> VO, <code>contains(IpAddressVO)</code> 가 서브넷 판정 SSOT(Single Source of Truth, 단일 진실 출처)로 문서화). 테이블은 싱글턴(최대 1 행) — <code>PxeNetworkConfigRepository.findFirstByOrderByIdAsc()</code>, 최초 저장 전이면 empty. 화면 라벨은 "게스트 서브넷 CIDR"(<code>system/pxe-infra/network-form.html</code>)</td><td>운영자가 PXE 인프라 화면에서 저장</td></tr>
+            <tr><td>BMC IP</td><td><code>GuestServerDetail.bmcIp</code>(<code>IpAddressVO</code>) — 진단 리눅스가 게스트 OS 안에서 읽어 보고한 값(<code>DiagnosticReportParser</code> 의 <code>bmc.ip</code>). null 이면 덮지 않는다</td><td>① 진단 수집 보고마다(재부팅으로 진단에 다시 들어오면 HF11-2 규칙으로 다시 수집) ② <code>BmcAddressRediscovery</code> — 펌웨어 · 설정 단계에서 BMC 가 응답하지 않을 때만, <b>자체 DHCP 의 lease 파일</b>에서 같은 MAC 의 현재 주소를 찾아 갱신. proxyDHCP 모드에선 lease 가 비어 작동하지 않는다</td></tr>
+            <tr><td>NIC IP</td><td><code>HostNicBinding.ipAddress</code>(컬럼 lan_ip). <code>isPrimary</code> = 최초 등록 NIC(LAN1). 다른 포트로 부팅하면 non-primary 바인딩이 추가된다</td><td><code>/boot</code> 접촉 때마다 그 포트의 IP 를 <code>refreshIp</code> 로 갱신</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b><code>subnetCidr</code> 의 뜻은 두 DHCP 모드에서 같다.</b> <code>DhcpMode.AUTHORITATIVE</code> 는 <code>dhcp-range</code> 의 netmask 로, <code>DhcpMode.PROXY</code> 는 <code>dhcp-range=&lt;network&gt;,proxy,&lt;netmask&gt;</code>(proxyDHCP 가 응답하는 대역)로 쓴다. 둘 다 "PXE 를 응답하는 게스트 서브넷" 이다.</div>
+        <div class="callout"><b>선례 <code>RetryPolicy</code>(E2-1-b).</b> 화면의 버튼 노출과 서버 409 가드가 함께 부르는 <code>@Component</code>. 엔티티 하나가 판정 재료를 다 갖지 못할 때(원장이 필요) 도메인 메서드 대신 컴포넌트로 둔 선례다.</div>
+
+        <h4>시스템 설정 화면의 선례 <span class="chip mod">개정 v2</span> <span class="chip mod">개정 v3</span></h4>
+        <table>
+          <thead><tr><th>선례</th><th>위치</th><th>이번에 쓰는 것</th></tr></thead>
+          <tbody>
+            <tr><td>설정 엔티티</td><td><code>global/history/entity/AssetHistorySettings</code>(테이블 <code>asset_history_settings</code>: id · created_at · updated_at · 값 컬럼), <code>global/trash/entity/TrashSettings</code></td><td>공통 컬럼(id · created_at · updated_at)과 DDL 모양. <span class="chip mod">개정 v3</span> 단일 행 구조는 쓰지 않는다 — 설정 키마다 한 행(§4 D-8)</td></tr>
+            <tr><td>싱글턴 조회 <span class="chip del">v3 해당 없음</span></td><td><code>PxeNetworkConfigRepository.findFirstByOrderByIdAsc()</code> — 최초 저장 전이면 empty, 저장은 findFirst 기반 upsert</td><td><span class="muted">v2 에서 쓰려던 방식. v3 는 키마다 한 행이라 <code>findBySettingKey</code> 로 찾고, 행이 없으면 저장 때 만든다(upsert)</span></td></tr>
+            <tr><td>JSON 값 컬럼 <span class="chip new">신규 v3</span></td><td><code>SettingProcess.payload</code>(<code>ProcessPayloadConverter</code>, sealed + 판별자 JSON). 저장소에 같은 방식의 JSON 컬럼이 이미 7 곳 있다(<code>hardware_spec</code>, <code>status_meta</code>, <code>payload_json</code> 등. 엔티티는 <code>columnDefinition = "json"</code>)</td><td><code>value_json</code> 컬럼과 <code>SystemSettingValueConverter</code></td></tr>
+            <tr><td>권한 enum <span class="chip new">신규 v3</span></td><td><code>global/security/springsecurity/domain/Role</code> — SUPER_ADMIN, ADMIN, USER(MA8 에서 SUPER_ADMIN 추가). <code>Role.expand</code> 가 포함 관계로 닫는다(ADMIN 은 USER 를 포함, <code>Role.implied</code>). <code>description</code> = "관리자" / "사용자"</td><td><code>min_role</code> 컬럼과 <code>isAccessibleBy</code></td></tr>
+            <tr><td>VO 생성자 재사용 검증</td><td><code>PxeNetworkConfigValidator</code>(<code>ConstraintValidator</code>) — VO 생성자의 <code>IllegalArgumentException</code> 메시지를 필드 위반으로 바꾼다</td><td>같은 방식</td></tr>
+            <tr><td>설정 화면 골격</td><td><code>templates/system/asset/settings.html</code> — <code>n-page-md</code> · <code>n-card</code> · <code>n-form-group</code> · <code>n-hint</code> · <code>n-error</code> · <code>data-native-submit</code> · PRG flash</td><td>같은 골격</td></tr>
+            <tr><td>메뉴</td><td><code>fragments/layout.html</code> 의 시스템 묶음(시스템 자산 · proxy DHCP)</td><td>「시스템 설정」 링크 추가, activePage <code>system-settings</code></td></tr>
+            <tr><td>인가</td><td><code>/system/**</code> 는 <code>anyRequest().authenticated()</code> — 로그인한 사용자</td><td>URL 인가는 변경 없음. <span class="chip mod">개정 v3</span> 설정마다의 접근은 <code>min_role</code> 로 판정(§4)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b><code>SubnetCidr</code>(<code>execution/pxeinfra/vo</code>)</b>는 형식 · prefix 0~32 · IPv4 · host bit 0 을 검사하지만 메시지가 개발자용("prefix 는 정수여야 합니다 : 값")이고 사설망 검사가 없다. 포함 판정 계산(<code>contains</code>)만 재사용한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <p><b>출처</b>: Notion DB 'Provisioning Server 패치 내역' — "프로비저닝 개시의 BMC, NIC IP 대역 제한"(2026-11-16 등록, 우선순위 높음). BMC 와 연결된 NIC 의 IP 대역이 PXE 서버의 프로비저닝 허용 대역(현 10.1.1.X)이 아니면 서버 상세의 [프로비저닝 개시] 를 비활성화한다. 의도: PXE 전용망이 아닌 곳(예: 사내망)에 물린 서버를 실수로 프로비저닝하지 않게 막는다.</p>
+        <div class="callout success"><b>사용자 확정(2026-11-16)</b>: <s>허용 대역 = <code>subnetCidr</code> 하나 재사용</s> → <b>허용 대역 = 새 「시스템 설정」 화면의 입력값</b> <span class="chip mod">개정 v2</span> · 판정 NIC = primary · 슬라이스 = U7(판정 + 차단) · U8(다시 수집) 둘로 · 개발 단계 5차.<br>
+          <b>사용자 답변(v3)</b> <span class="chip new">신규 v3</span>: 수집 전 개시 불가 수용 · 막힌 이유를 모두 보인다 · 입력 검증 문구 8 종 확정 · prefix 상한 /26 · 배포 때 DML 로 10.1.1.0/24 삽입 · 설정은 키마다 한 행 + 설정마다 접근 가능 최소 권한.</div>
+        <table>
+          <thead><tr><th>요구</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>BMC IP 또는 primary NIC IP 가 프로비저닝 허용 대역 밖이면 [프로비저닝 개시] 를 disabled + tooltip 으로 막는다</td></tr>
+            <tr><td>R2</td><td>값을 모르거나(BMC 미보고 · primary NIC IP 없음) 허용 대역이 설정되지 않았으면 판정할 수 없으므로 같은 방식으로 막는다</td></tr>
+            <tr><td>R3 <span class="chip mod">개정 v3</span></td><td>막힌 이유를 <b>모두</b> 보인다. tooltip 은 이유 문구를 줄바꿈으로 잇고, 안내 줄은 이유마다 한 줄. 미할당(U3-6) 문구도 같은 목록 맨 앞에 함께 보인다. 문구는 관측값과 허용 대역을 함께 적는다</td></tr>
+            <tr><td>R4 <span class="chip mod">개정 v3</span></td><td>direct POST 는 같은 판정으로 409. 409 메시지 = 네트워크 이유 문구들을 공백 하나로 이은 것(미할당은 기존대로 <code>AssignmentStartService</code> 가 먼저 409)</td></tr>
+            <tr><td>R5 <span class="chip mod">개정 v2</span></td><td>허용 대역은 「시스템 설정」 화면에서 운영자가 입력한다. 코드 · 프로퍼티에 대역을 두지 않는다</td></tr>
+            <tr><td>R6 <span class="chip new">신규 v2</span></td><td>입력은 CIDR 표기(예: 10.1.1.0/24) 하나</td></tr>
+            <tr><td>R7 <span class="chip new">신규 v2</span></td><td>RFC 1918 내부망(10.0.0.0/8 · 172.16.0.0/12 · 192.168.0.0/16) 안의 대역만 받는다</td></tr>
+            <tr><td>R8 <span class="chip mod">개정 v3</span></td><td>네트워크 주소만 받는다(host bit 이 0). 사용자 문구에는 계산값 안내를 넣지 않는다(Q3)</td></tr>
+            <tr><td>R9 <span class="chip new">신규 v2</span></td><td>prefix 가 내부망 블록의 prefix 이상이어야 한다(예: 10.x 는 /8 이상, 172.16.x 는 /12 이상, 192.168.x 는 /16 이상) — 대역이 내부망 밖까지 넓어지지 않게</td></tr>
+            <tr><td>R10 <span class="chip new">신규 v3</span></td><td>prefix 는 /26 이하(Q4)</td></tr>
+            <tr><td>R11 <span class="chip new">신규 v3</span></td><td>설정은 키마다 한 행으로 저장하고, 설정마다 접근 가능 최소 권한을 둔다. 최소 권한에 못 미치는 사용자에게는 그 설정 카드를 보이지 않는다</td></tr>
+            <tr><td>R12 <span class="chip new">신규 v3</span></td><td>배포 때 DML 로 프로비저닝 허용 대역 10.1.1.0/24 를 넣는다(Q5)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>콘솔 문구 규칙</b> <span class="chip new">신규 v3</span> (사용자 지시 2026-11-16, 불가침. 개발 중인 관리 화면을 '콘솔' 이라 부른다):
+          <ul>
+            <li>em dash 를 쓰지 않는다(창 · 모달 · tooltip · 안내 · 오류 · flash 전부).</li>
+            <li>문체는 ServerProvision-docs 의 매뉴얼(<code>src/main/resources/static/manual/</code>)을 따른다: 합니다체 평서형("~합니다", "~해야 합니다", "~할 수 있습니다"). 하십시오체를 쓰지 않는다. 가운뎃점 나열 대신 쉼표로 나열한다.</li>
+            <li>콘솔에는 아이콘(이모지 · 기호 아이콘)을 쓰지 않는다(매뉴얼은 예외).</li>
+          </ul>
+          🎬 데모가 보여 주는 콘솔 문구는 이 규칙을 따른 §4 표의 문구와 글자 그대로 같다.</div>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>다른 화면에 흩어진 설정(PXE 네트워크 · 휴지통 · 자산 이력 보존 등)을 시스템 설정으로 모으는 것 <span class="chip mod">개정 v2</span></li>
+            <li>허용 대역과 PXE 게스트 서브넷이 겹치는지 대조하는 것 <span class="chip mod">개정 v2</span></li>
+            <li>설정의 최소 권한을 바꾸는 화면 (DB 로만 바꾼다) <span class="chip new">신규 v3</span></li>
+            <li>[다시 수집] → U8</li>
+            <li>BMC 대역 별도 설정 (사용자 확인으로 채택 안 함)</li>
+            <li>이미 개시된 서버 중단</li>
+            <li>재시도 경로 가드</li>
+            <li>서버 상세 재편 (디자인 S22-3)</li>
+            <li>목록 화면 표시</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 서버 상세 "다음 행동" + 시스템 설정 화면 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">패널 1 의 입력을 바꾸면 서버 상세 "다음 행동" 영역의 [프로비저닝 개시] 버튼 상태(활성 / disabled / 숨김), tooltip, 안내 줄이 라이브로 바뀐다. [요청 보내기] 는 화면을 거치지 않은 요청(direct POST)이 서버에서 받는 응답을 보인다. 판정 JS 는 §4 의 <code>StartNetworkBlocks.judge</code> 와 같은 모으는 규칙 · 같은 문구다. CIDR 포함 판정은 네트워크 주소 + prefix 비트 마스크(<code>SubnetCidr.contains</code> 와 같은 식)다.</p>
+        <p>패널 2 <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span> 는 「시스템 설정」 화면이다. [저장] 을 누르면 <code>ProvisioningAllowedCidr.parse</code> 와 같은 순서 · 같은 문구로 검증하고, 통과한 값은 패널 1 의 허용 대역으로 들어간다(체험용 연결). '현재 사용자 권한' 을 USER 로 바꾸면 카드가 사라지고 빈 안내가 보이며, direct POST 저장은 403 이 된다(최소 권한 = 관리자).</p>
+
+        <div class="callout"><b>판정 순서(화면)</b> <span class="chip mod">개정 v3</span>: 상태가 미개시가 아니면 버튼 숨김. 미개시면 이유를 모두 모은다 — 미할당 문구(맨 앞) + 네트워크 이유(설정 → BMC → LAN). 하나라도 있으면 disabled, 없으면 활성. 서버는 미할당을 <code>AssignmentStartService</code> 가 먼저 409 로 거절하므로 direct POST 의 409 는 미할당이면 그 메시지, 아니면 네트워크 이유 문구의 공백 연결이다.</div>
+
+        <h4>패널 1 — 서버 상세 "다음 행동" (개시 판정)</h4>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">원클릭 시나리오 :</span>
+            <button class="seg" data-sc="0" onclick="demoScenario(0)">1 정상</button>
+            <button class="seg" data-sc="1" onclick="demoScenario(1)">2 BMC 가 사내망</button>
+            <button class="seg" data-sc="2" onclick="demoScenario(2)">3 LAN 이 사내망</button>
+            <button class="seg" data-sc="3" onclick="demoScenario(3)">4 BMC 미보고</button>
+            <button class="seg" data-sc="4" onclick="demoScenario(4)">5 허용 대역 없음 + BMC 미보고</button>
+            <button class="seg" data-sc="5" onclick="demoScenario(5)">6 미할당 + BMC 밖</button>
+            <button class="seg" data-sc="6" onclick="demoScenario(6)">7 보조 NIC 만 밖</button>
+            <button class="seg" data-sc="7" onclick="demoScenario(7)">8 BMC 밖 + LAN 밖</button>
+          </div>
+          <div class="ux-message" id="demo-scenario"></div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-toolbar">
+              <span class="group-label">프로비저닝 허용 대역 :</span>
+              <input type="text" id="in-subnet" oninput="demoInput()" aria-label="프로비저닝 허용 대역">
+              <button class="seg" id="tg-subnet" onclick="demoToggle('subnetUnset')">설정 없음</button>
+            </div>
+            <div class="ux-toolbar">
+              <span class="group-label">BMC IP :</span>
+              <input type="text" id="in-bmc" oninput="demoInput()" aria-label="BMC IP">
+              <button class="seg" id="tg-bmc" onclick="demoToggle('bmcUnreported')">미보고</button>
+            </div>
+            <div class="ux-toolbar">
+              <span class="group-label">primary NIC IP :</span>
+              <input type="text" id="in-nic" oninput="demoInput()" aria-label="primary NIC IP">
+              <span class="muted" style="font-size:11px;">비우면 IP 없음</span>
+            </div>
+            <div class="ux-toolbar">
+              <span class="group-label">보조 NIC IP :</span>
+              <input type="text" id="in-nic2" oninput="demoInput()" aria-label="보조 NIC IP">
+              <span class="muted" style="font-size:11px;">판정에 쓰지 않음</span>
+            </div>
+            <div class="ux-toolbar">
+              <span class="group-label">할당 :</span>
+              <button class="seg" data-assigned="1" onclick="demoSetAssigned(true)">할당됨</button>
+              <button class="seg" data-assigned="0" onclick="demoSetAssigned(false)">미할당</button>
+            </div>
+            <div class="ux-toolbar">
+              <span class="group-label">상태 :</span>
+              <button class="seg" data-status="NEW" onclick="demoSetStatus('NEW')">미개시</button>
+              <button class="seg" data-status="STARTED" onclick="demoSetStatus('STARTED')">개시됨</button>
+              <button class="seg" data-status="FAILED" onclick="demoSetStatus('FAILED')">실패</button>
+              <button class="seg" data-status="DECOMMISSIONED" onclick="demoSetStatus('DECOMMISSIONED')">회수</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row" id="demo-action"></div>
+            <div id="demo-hint"></div>
+            <div class="ux-row" id="demo-post-row">
+              <strong>direct POST</strong><span class="label mono" style="font-size:12px;overflow-wrap:anywhere;">POST /provisioning/server/{id}/start</span>
+              <span class="tip" data-tip="화면의 차단을 거치지 않은 요청(direct POST, stale 화면)이 서버 가드에서 받는 응답을 봅니다."><button class="n-demo-btn" onclick="demoPost()">요청 보내기</button></span>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <h4>패널 2 — 시스템 설정 화면 (입력 검증기 + 접근 권한) <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></h4>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">원클릭 프리셋 :</span>
+            <button class="seg" data-vp="0" onclick="valPreset(0)">10.1.1.0/24</button>
+            <button class="seg" data-vp="1" onclick="valPreset(1)">8.8.8.0/24</button>
+            <button class="seg" data-vp="2" onclick="valPreset(2)">10.1.1.5/24</button>
+            <button class="seg" data-vp="3" onclick="valPreset(3)">10.0.0.0/7</button>
+            <button class="seg" data-vp="4" onclick="valPreset(4)">172.15.0.0/16</button>
+            <button class="seg" data-vp="5" onclick="valPreset(5)">172.16.0.0/11</button>
+            <button class="seg" data-vp="6" onclick="valPreset(6)">10.1.1.0</button>
+            <button class="seg" data-vp="7" onclick="valPreset(7)">192.168.1.0/27</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">현재 사용자 권한 :</span>
+            <button class="seg" data-role="SUPER_ADMIN" onclick="valSetRole('SUPER_ADMIN')">SUPER_ADMIN</button>
+            <button class="seg" data-role="ADMIN" onclick="valSetRole('ADMIN')">ADMIN</button>
+            <button class="seg" data-role="USER" onclick="valSetRole('USER')">USER</button>
+          </div>
+          <div class="ux-message" id="val-scenario"></div>
+
+          <div style="margin-top:12px;">
+            <div id="val-card">
+              <div class="ux-row" id="val-stored"></div>
+              <div class="ux-toolbar" style="margin-top:10px;">
+                <span class="group-label">프로비저닝 허용 대역 :</span>
+                <input type="text" id="in-val" oninput="valInput()" aria-label="프로비저닝 허용 대역 입력">
+                <span class="tip" data-tip="POST /system/settings/provisioning-allowed-range. @Valid ProvisioningAllowedRangeRequest 의 검증기가 ProvisioningAllowedCidr.parse 를 부릅니다."><button class="n-demo-btn" onclick="valSave(null)">저장</button></span>
+              </div>
+              <div class="ux-message" id="val-result"></div>
+            </div>
+            <div class="ux-row hidden" id="val-empty"><span class="label">이 계정으로 볼 수 있는 설정이 없습니다.</span></div>
+            <div class="ux-row" id="val-post-row" style="margin-top:10px;">
+              <strong>direct POST</strong><span class="label mono" style="font-size:12px;overflow-wrap:anywhere;">POST /system/settings/provisioning-allowed-range</span>
+              <span class="tip" data-tip="카드가 보이지 않는 계정도 요청은 보낼 수 있습니다. 서버 가드가 isAccessibleBy 로 다시 판정합니다."><button class="n-demo-btn" onclick="valPost(null)">요청 보내기</button></span>
+            </div>
+            <div class="ux-message" id="val-post-result"></div>
+          </div>
+          <div class="ux-caps" id="val-caps"></div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> — tooltip · 안내 줄 · 409 메시지가 모두 <code>StartNetworkBlock.message()</code> 문자열에서 나온다(뷰는 <code>StartNetworkPolicy.verdictOf(allowedCidr, bmcIp, primaryNicIp)</code>, 가드는 <code>StartNetworkPolicy.verdictOf(serverId)</code> — 둘 다 <code>StartNetworkBlocks.judge</code> 로 위임). 입력 검증은 폼 검증기 · 엔티티 변환 · 이 데모가 모두 <code>ProvisioningAllowedCidr.parse</code> 한 규칙이다(§4 D-9). 화면의 카드 노출과 저장 가드는 같은 <code>SystemSetting.isAccessibleBy</code> 를 부른다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>변화</th></tr></thead>
+          <tbody>
+            <tr><td>GET <span class="chip mod">개정 v3</span></td><td><code>/provisioning/server/{id}</code></td><td>뷰모델 <code>progress.startNetworkBlockReasons</code>(<code>List&lt;String&gt;</code>, 빈 목록 = 막지 않음) 추가. 템플릿이 미할당 문구와 합쳐 그린다</td></tr>
+            <tr><td>POST <span class="chip mod">개정 v3</span></td><td><code>/provisioning/server/{id}/start</code></td><td>네트워크 판정 실패 시 409 <code>ProvisioningStartRejectedException</code>(메시지 = 네트워크 이유 문구들을 공백 하나로 이은 것)</td></tr>
+            <tr><td>GET <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td><code>/system/settings</code></td><td>시스템 설정 화면. 현재 사용자가 접근할 수 있는 설정 카드만 보인다(키 라벨 · 현재 값(없으면 "설정되지 않음") · 접근 권한 라벨 · 마지막 변경 시각). 하나도 없으면 "이 계정으로 볼 수 있는 설정이 없습니다."</td></tr>
+            <tr><td>POST <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td><code>/system/settings/provisioning-allowed-range</code></td><td><code>@Valid ProvisioningAllowedRangeRequest</code> + <code>BindingResult</code>. 실패 = 같은 화면 재렌더 + 필드 오류(<code>data-native-submit</code>) · 권한 미달 = 403 <code>SystemSettingAccessDeniedException</code> · 성공 = PRG <code>redirect:/system/settings</code> + flash "프로비저닝 허용 대역을 저장했습니다." 키마다 요청 모양이 달라 키별 엔드포인트로 둔다</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>흐름 변경</b> <span class="chip mod">개정 v3</span>: <code>StartNetworkPolicy</code> 는 <code>SystemSettingService.provisioningAllowedRange()</code>(→ <code>Optional&lt;ProvisioningAllowedCidr&gt;</code>, 시스템 내부 읽기라 권한 판정을 거치지 않는다)에서 허용 대역을 읽는다.</div>
+
+        <h4>시스템 설정 저장 (POST /system/settings/provisioning-allowed-range) <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></h4>
+        <div class="pkg-tree">SystemSettingController            (@Valid ProvisioningAllowedRangeRequest + BindingResult)
+├─ ProvisioningAllowedCidrFormatValidator
+│  └─ ProvisioningAllowedCidr.parse(raw)   ← 위반이면 IllegalArgumentException 메시지 → 필드 오류
+│     └─ 실패: 같은 화면 재렌더 (저장 안 됨)
+└─ 통과: SystemSettingService.saveProvisioningAllowedRange(cidr, roles)   (@Transactional)
+   ├─ SystemSetting.isAccessibleBy(roles)   ← 행이 없으면 SystemSettingKey.defaultMinRole() 로 같은 판정
+   │  └─ 미달: SystemSettingAccessDeniedException → 403 (DB 불변)
+   └─ upsert: findBySettingKey(PROVISIONING_ALLOWED_RANGE), 없으면 defaultMinRole() 로 행 생성
+      └─ SystemSetting.changeValue(new ProvisioningAllowedRange(cidr))
+         └─ PRG redirect:/system/settings + flash</div>
+
+        <h4>화면 (GET 상세)</h4>
+        <div class="pkg-tree">GuestServerQueryService            (detail · NIC 목록을 이미 로드)
+└─ StartNetworkPolicy.verdictOf(allowedCidr, bmcIp, primaryNicIp)   ← allowedCidr = SystemSettingService.provisioningAllowedRange()
+   └─ StartNetworkBlocks.judge → List&lt;StartNetworkBlock&gt;
+      └─ 문구 목록을 Progress 뷰에 (startNetworkBlockReasons)
+         └─ 템플릿: 미할당 문구 + 이유 목록 → disabled + title(줄바꿈 연결) + 안내 줄(이유마다 한 줄)</div>
+
+        <h4>개시 (POST start)</h4>
+        <div class="seq">
+          <div class="actor a1">Controller</div><div class="actor a2">AssignmentStartService</div><div class="actor a3">GuestServerCommandService</div><div class="actor a4">StartNetworkPolicy</div>
+          <div class="step a1"><code>POST …/start</code></div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">미할당 → 409</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>startProvisioning</code> → <code>isStartableWith</code>(상태 409)</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"></div><div class="step a4"><code>verdictOf(serverId)</code> → <code>List&lt;StartNetworkBlock&gt;</code></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">비어 있지 않으면 <code>ProvisioningStartRejectedException.outsideAllowedRange(id, blocks)</code> 409 → 비면 start</div><div class="step a4"></div>
+        </div>
+
+        <h4>화면 갱신</h4>
+        <ul>
+          <li>BMC IP 가 진단 보고로 바뀌면 기존 SSE(<code>GuestServerChangedEvent</code>)가 상세를 다시 불러 버튼이 저절로 바뀐다.</li>
+          <li>허용 대역 변경(시스템 설정 저장)은 이벤트가 없어 새로 고침해야 반영 (§8 에 기록). <span class="chip mod">개정 v2</span></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) — 엔티티 1 · DDL 1 · DML 1 + 결정</summary>
+      <div class="body">
+        <h4>개시 판정 <span class="chip mod">개정 v3</span></h4>
+        <table>
+          <thead><tr><th>타입</th><th>위치</th><th>책임</th></tr></thead>
+          <tbody>
+            <tr><td><code>StartNetworkBlockKind</code> <span class="chip new">신규 enum</span></td><td><code>execution/enums</code></td><td>막는 이유 5 종, 상수별 문구 메서드 <code>message(IpAddressVO observed, ProvisioningAllowedCidr allowedCidr)</code></td></tr>
+            <tr><td><code>StartNetworkBlock</code> <span class="chip new">신규 record</span> <span class="chip mod">개정 v3</span></td><td><code>execution/vo</code></td><td>결과 항목 하나: <code>(kind, observed, allowedCidr)</code> + <code>message()</code>. v2 의 <code>StartNetworkVerdict</code> 를 대체</td></tr>
+            <tr><td><code>StartNetworkBlocks</code> <span class="chip new">신규 v3</span></td><td><code>execution/vo</code> (§10 확정 필요)</td><td><b>static <code>judge(Optional&lt;ProvisioningAllowedCidr&gt; allowedCidr, IpAddressVO bmcIp, IpAddressVO primaryNicIp)</code> → <code>List&lt;StartNetworkBlock&gt;</code>(빈 목록 = 막지 않음)가 판정 SSOT</b>(순수 함수, 의존성 0)</td></tr>
+            <tr><td><code>StartNetworkPolicy</code> <span class="chip new">신규 @Component</span></td><td><code>execution/service</code></td><td>재료 로드만: <code>SystemSettingService.provisioningAllowedRange()</code> <span class="chip mod">개정 v3</span> · <code>GuestServerDetailRepository</code> · <code>HostNicBindingRepository</code>(primary 고르기). <code>verdictOf(UUID serverId)</code>(가드용) + <code>verdictOf(allowedCidr, bmcIp, primaryNicIp)</code>(이미 로드한 조회 서비스용) — 둘 다 <code>judge</code> 로 위임해 <code>List&lt;StartNetworkBlock&gt;</code> 를 돌려준다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>시스템 설정 <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></h4>
+        <table>
+          <thead><tr><th>타입</th><th>위치</th><th>책임</th></tr></thead>
+          <tbody>
+            <tr><td><code>SystemSetting</code> <span class="chip new">@Entity</span> <span class="chip mod">개정 v3</span></td><td><code>global/systemsetting/entity</code></td><td><code>BaseTimeEntity</code> 상속, 설정 키마다 한 행. 필드 <code>settingKey</code>(<code>SystemSettingKey</code>, UNIQUE) · <code>value</code>(<code>SystemSettingValue</code>, <code>@Convert</code>, <code>columnDefinition = "json"</code>, null 허용) · <code>minRole</code>(<code>Role</code>). <code>changeValue(SystemSettingValue)</code> · <code>isAccessibleBy(Collection&lt;Role&gt;)</code></td></tr>
+            <tr><td><code>SystemSettingKey</code> <span class="chip new">신규 v3 enum</span></td><td><code>global/systemsetting/enums</code></td><td>상수 <code>PROVISIONING_ALLOWED_RANGE</code>. 상수별 <code>label()</code>("프로비저닝 허용 대역") · <code>valueType()</code> · <code>defaultMinRole()</code></td></tr>
+            <tr><td><code>SystemSettingValue</code> <span class="chip new">신규 v3 sealed interface</span></td><td><code>global/systemsetting/vo</code></td><td><code>@JsonTypeInfo(property = "type")</code> 판별자. 구현 1 개</td></tr>
+            <tr><td><code>ProvisioningAllowedRange</code> <span class="chip new">신규 v3 record</span></td><td><code>global/systemsetting/vo</code></td><td><code>implements SystemSettingValue</code>. 필드 <code>cidr</code>(<code>ProvisioningAllowedCidr</code>)</td></tr>
+            <tr><td><code>ProvisioningAllowedCidr</code> <span class="chip new">record VO</span></td><td><code>global/systemsetting/vo</code></td><td>내부에 <code>SubnetCidr</code> 를 갖는다. <b>static <code>parse(String raw)</code> 가 검증 SSOT</b> — 위반이면 <code>IllegalArgumentException</code>(메시지 = 아래 문구). <code>contains(IpAddressVO)</code> 는 <code>SubnetCidr.contains</code> 로 위임. <span class="chip mod">개정 v3</span> 문구 · 상한만 바뀐다</td></tr>
+            <tr><td><code>PrivateAddressBlock</code> · <code>AllowedCidrViolation</code> <span class="chip new">enum</span></td><td><code>global/systemsetting/enums</code></td><td>RFC 1918 블록 3 개(<code>10.0.0.0/8</code> · <code>172.16.0.0/12</code> · <code>192.168.0.0/16</code>, <code>containsAddress(String ipv4)</code> · <code>prefixLength()</code>) · 위반 8 종(상수별 문구). <span class="chip mod">개정 v3</span> 문구</td></tr>
+            <tr><td><code>SystemSettingValueConverter</code> <span class="chip new">신규 v3</span></td><td><code>global/systemsetting/converter</code></td><td>JSON ↔ <code>SystemSettingValue</code>(JPA <code>AttributeConverter</code>, Jackson 3 <code>tools.jackson</code>). v2 의 <code>ProvisioningAllowedCidrConverter</code> 를 대체</td></tr>
+            <tr><td><code>SystemSettingRepository</code> <span class="chip mod">개정 v3</span></td><td><code>global/systemsetting/repository</code></td><td><code>findBySettingKey(SystemSettingKey)</code> · <code>findAll()</code></td></tr>
+            <tr><td><code>SystemSettingService</code> <span class="chip mod">개정 v3</span></td><td><code>global/systemsetting/service</code></td><td><code>accessibleSettings(roles)</code>(화면) · <code>saveProvisioningAllowedRange(cidr, roles)</code>(권한 가드 + upsert) · <code>provisioningAllowedRange()</code> → <code>Optional&lt;ProvisioningAllowedCidr&gt;</code>(내부 읽기). <code>@Transactional</code> 경계</td></tr>
+            <tr><td><code>ProvisioningAllowedRangeRequest</code>(record) + <code>@ProvisioningAllowedCidrFormat</code> · 검증기 <code>ProvisioningAllowedCidrFormatValidator</code> <span class="chip mod">개정 v3</span></td><td><code>global/systemsetting/dto/request</code> · <code>validation</code></td><td>v2 의 <code>SystemSettingRequest</code> 를 이 이름으로 바꾼다(키마다 요청 모양이 다르므로). 검증기는 <code>ProvisioningAllowedCidr.parse</code> 를 불러 메시지를 필드 위반으로</td></tr>
+            <tr><td><code>SystemSettingResponse</code> <span class="chip mod">개정 v3</span></td><td><code>global/systemsetting/dto/response</code></td><td>카드 하나: 키 라벨 · 현재 값 표시 문자열(없으면 "설정되지 않음") · 최소 권한 라벨 · 마지막 변경 시각</td></tr>
+            <tr><td><code>SystemSettingController</code></td><td><code>global/systemsetting/controller</code></td><td><code>GET /system/settings</code> · <code>POST /system/settings/provisioning-allowed-range</code> <span class="chip mod">개정 v3</span></td></tr>
+            <tr><td><code>SystemSettingAccessDeniedException</code> <span class="chip new">신규 v3</span></td><td><code>global/systemsetting/exception</code></td><td><code>extends ForbiddenException</code> → 403 (§7)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>시스템 설정 DB 설계 (<code>system_setting</code>) <span class="chip new">신규 v3</span></h4>
+        <p>키 1 개 = 행 1 개. 값은 JSON, 코드에서는 키별 타입. 대안 비교는 "D-8 안 비교".</p>
+
+        <h4>① 테이블 (<code>ddl/U7_system_setting.sql</code>)</h4>
+        <pre>CREATE TABLE `system_setting` (
+  `id`          bigint(20)  NOT NULL AUTO_INCREMENT,
+  `created_at`  datetime(6) NOT NULL,
+  `updated_at`  datetime(6) NOT NULL,
+  `setting_key` varchar(64) NOT NULL,
+  `value_json`  longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+                CHECK (json_valid(`value_json`)),
+  `min_role`    varchar(16) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_system_setting_key` (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;</pre>
+
+        <h4>② 컬럼</h4>
+        <table>
+          <thead><tr><th>컬럼</th><th>타입 · 제약</th><th>값</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>BIGINT AI, PK</td><td>대리 키</td><td>엔티티 관례. 키 이름 변경이 PK 변경이 되지 않게</td></tr>
+            <tr><td><code>created_at</code> · <code>updated_at</code></td><td>DATETIME(6)</td><td>감사 시각</td><td><code>BaseTimeEntity</code>. <code>updated_at</code> = 화면 "마지막 변경 시각"</td></tr>
+            <tr><td><code>setting_key</code></td><td>VARCHAR(64), UNIQUE</td><td><code>SystemSettingKey</code> 이름</td><td>키당 1 행 보장 + 조회 인덱스. 이름 저장(<code>STRING</code>)이라 enum 순서 무관</td></tr>
+            <tr><td><code>value_json</code></td><td>LONGTEXT bin, NULL, <code>CHECK json_valid</code></td><td>키별 JSON 객체</td><td>기존 JSON 컬럼 7 곳과 같은 모양. NULL = 미저장(CHECK 통과)</td></tr>
+            <tr><td><code>min_role</code></td><td>VARCHAR(16)</td><td><code>Role</code> 이름</td><td>DB CHECK 없음(권한 추가 때 DDL 회피). 모르는 값은 JPA 읽기 실패</td></tr>
+          </tbody>
+        </table>
+
+        <h4>③ 값 JSON (키별)</h4>
+        <table>
+          <thead><tr><th>키</th><th>값 타입</th><th>JSON</th><th>읽을 때</th></tr></thead>
+          <tbody>
+            <tr><td><code>PROVISIONING_ALLOWED_RANGE</code></td><td><code>ProvisioningAllowedRange</code></td><td><code>{"type":"PROVISIONING_ALLOWED_RANGE","cidr":"10.1.1.0/24"}</code></td><td><code>ProvisioningAllowedCidr.parse</code> 재검증. 규칙 위반 값은 읽기 실패</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><code>type</code> = sealed <code>SystemSettingValue</code> 판별자. 변환기는 다른 컬럼(<code>setting_key</code>)을 못 보므로 JSON 안에 둔다(선례 <code>ProcessPayloadConverter</code>).</li>
+          <li>판별자 = 키 이름. 엔티티 불변식 <code>settingKey.valueType().isInstance(value)</code> 로 묶는다.</li>
+          <li>문자열이 아닌 객체: 필드가 늘어도 기존 행 모양 유지.</li>
+        </ul>
+
+        <h4>④ 엔티티 매핑</h4>
+        <pre>@Entity @Table(name = "system_setting")
+public class SystemSetting extends BaseTimeEntity {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "setting_key", nullable = false, unique = true, length = 64)
+    private SystemSettingKey settingKey;
+    @Convert(converter = SystemSettingValueConverter.class)
+    @Column(name = "value_json", columnDefinition = "json")
+    private SystemSettingValue value;          // null = 미저장
+    @Enumerated(EnumType.STRING)
+    @Column(name = "min_role", nullable = false, length = 16)
+    private Role minRole;
+}</pre>
+
+        <h4>⑤ 키 상태</h4>
+        <table>
+          <thead><tr><th>상태</th><th>발생</th><th>화면</th><th>개시 판정</th><th>최소 권한</th></tr></thead>
+          <tbody>
+            <tr><td>행 없음</td><td>DML 미실행 DB</td><td>설정되지 않음</td><td><code>RANGE_UNSET</code></td><td><code>defaultMinRole()</code></td></tr>
+            <tr><td>행 + NULL</td><td>DB 직접 수정 때만</td><td>설정되지 않음</td><td><code>RANGE_UNSET</code></td><td><code>min_role</code></td></tr>
+            <tr><td>행 + 값</td><td>DML · 화면 저장</td><td>값</td><td>값으로 판정</td><td><code>min_role</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>⑥ 읽기 · 쓰기</h4>
+        <table>
+          <thead><tr><th>경로</th><th>쿼리</th><th>처리</th></tr></thead>
+          <tbody>
+            <tr><td>설정 화면 GET</td><td><code>findAll()</code></td><td>행 없는 키는 기본값으로 채움 → <code>isAccessibleBy</code> 로 거름</td></tr>
+            <tr><td>설정 저장 POST</td><td><code>findBySettingKey</code> + INSERT · UPDATE</td><td>1 트랜잭션: 조회 → 없으면 생성 → 권한 가드(403) → <code>changeValue</code></td></tr>
+            <tr><td>개시 판정</td><td><code>findBySettingKey</code></td><td>권한 판정 없음(내부 읽기). 캐시 없음</td></tr>
+          </tbody>
+        </table>
+
+        <h4>⑦ 무결성</h4>
+        <table>
+          <thead><tr><th>규칙</th><th>지키는 곳</th></tr></thead>
+          <tbody>
+            <tr><td>키당 1 행</td><td>DB UNIQUE</td></tr>
+            <tr><td>JSON 형식</td><td>DB CHECK</td></tr>
+            <tr><td>키 ↔ 값 타입</td><td>엔티티 불변식</td></tr>
+            <tr><td>RFC 1918 · 네트워크 주소 · prefix</td><td>VO <code>parse</code> (폼 · 읽기)</td></tr>
+            <tr><td>접근 권한</td><td><code>isAccessibleBy</code> (화면 · 저장)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>⑧ 감수하는 것</h4>
+        <ul>
+          <li>동시 저장: 나중 저장이 이긴다(<code>@Version</code> 없음).</li>
+          <li>행 없는 DB 의 동시 최초 저장: UNIQUE 로 한쪽 500. 운영은 DML 로 행이 있어 해당 없음.</li>
+          <li>변경 이력 없음(<code>updated_at</code> 만).</li>
+        </ul>
+
+        <h4>⑨ 설정 추가 절차 (DDL 불요)</h4>
+        <ol>
+          <li><code>SystemSettingKey</code> 상수 추가</li>
+          <li>값 record + sealed permits · 판별자 등록</li>
+          <li>요청 DTO · 저장 엔드포인트 · 카드</li>
+          <li>(선택) 배포 DML 행</li>
+        </ol>
+
+        <h4>⑩ 배포 DML (<code>sql/U7_system_setting_seed.sql</code>)</h4>
+        <pre>INSERT IGNORE INTO system_setting (created_at, updated_at, setting_key, value_json, min_role)
+VALUES (NOW(6), NOW(6), 'PROVISIONING_ALLOWED_RANGE',
+        '{"type":"PROVISIONING_ALLOWED_RANGE","cidr":"10.1.1.0/24"}', 'SUPER_ADMIN');</pre>
+        <p><code>INSERT IGNORE</code>: 행이 있으면 건너뜀. 재실행해도 화면에서 바꾼 값 유지. 최소 권한 변경은 DB <code>UPDATE</code>.</p>
+
+        <h4>접근 가능 최소 권한 <span class="chip new">신규 v3</span></h4>
+        <table>
+          <thead><tr><th>항목</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>컬럼</td><td><code>min_role</code> VARCHAR(16) NOT NULL — <code>Role</code> enum(<code>global/security/springsecurity/domain/Role</code>: SUPER_ADMIN, ADMIN, USER) 의 이름, <code>@Enumerated(EnumType.STRING)</code></td></tr>
+            <tr><td>판정 SSOT</td><td>도메인 메서드 <code>SystemSetting.isAccessibleBy(Collection&lt;Role&gt; roles)</code> = <code>Role.expand(roles).contains(minRole)</code>. ADMIN 은 USER 를 포함한다(<code>Role.implied</code>)</td></tr>
+            <tr><td>행이 없는 키</td><td><code>SystemSettingKey.defaultMinRole()</code> 로 같은 판정(서비스가 행 없는 키를 같은 규칙으로 다룬다)</td></tr>
+            <tr><td>화면(UI 1 차 차단)</td><td><code>/system/settings</code> 는 현재 사용자가 접근할 수 있는 설정 카드만 보인다. 하나도 없으면 "이 계정으로 볼 수 있는 설정이 없습니다." 를 보인다. 카드에는 "접근 권한: 관리자" 처럼 최소 권한 라벨(<code>Role.description</code>)을 읽기 전용으로 보인다</td></tr>
+            <tr><td>서버 가드(안전망)</td><td>저장 POST 에서 같은 <code>isAccessibleBy</code> 를 부르고 아니면 <b>신규 예외 <code>SystemSettingAccessDeniedException</code></b>(extends <code>ForbiddenException</code>, 보안 계층 → 403). 정상 UI 에서는 카드가 보이지 않으므로 direct POST 에서만 닿는다</td></tr>
+            <tr><td>프로비저닝 허용 대역의 최소 권한</td><td><code>SUPER_ADMIN</code> (기본값 · 배포 DML 같은 값). Q6 답 ADMIN → MA8(SUPER_ADMIN 신설) 병합 뒤 사용자 지시로 개정(2026-11-16)</td></tr>
+            <tr><td>최소 권한을 바꾸는 화면</td><td>범위 밖(DB 로만 바꾼다)</td></tr>
+            <tr><td>판정 엔진의 읽기</td><td>개시 판정(<code>StartNetworkPolicy</code>)은 시스템 내부 읽기라 권한 판정을 거치지 않는다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>입력 검증 순서 (처음 걸린 하나를 필드 오류로) <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span> 문구 · 사용자 확정(Q3)</h4>
+        <table>
+          <thead><tr><th>순서</th><th>kind</th><th>조건</th><th>문구 (글자 그대로)</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>EMPTY</code></td><td>빈 값</td><td>프로비저닝 허용 대역은 필수 값입니다.</td></tr>
+            <tr><td>2</td><td><code>FORMAT</code></td><td><code>a.b.c.d/n</code> 모양이 아님(각 자리 <code>\d+</code>)</td><td>'네트워크주소/prefix' 형식으로 입력해야 합니다. 예: 10.1.1.0/24</td></tr>
+            <tr><td>3</td><td><code>ADDRESS_INVALID</code></td><td>각 자리가 0~255 밖</td><td>유효한 주소 값을 입력해야 합니다.</td></tr>
+            <tr><td>4</td><td><code>PREFIX_OUT_OF_RANGE</code></td><td>prefix 가 0~32 밖</td><td>유효한 prefix 값을 입력해야 합니다.</td></tr>
+            <tr><td>5</td><td><code>NOT_PRIVATE</code></td><td>RFC 1918 블록 어디에도 없음</td><td>RFC 1918 내부망 대역만 입력해야 합니다: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16</td></tr>
+            <tr><td>6</td><td><code>WIDER_THAN_BLOCK</code></td><td>prefix &lt; 그 블록의 prefix</td><td>네트워크 주소가 prefix 범위를 초과하지 않아야 합니다.</td></tr>
+            <tr><td>7</td><td><code>TOO_NARROW</code> <span class="chip mod">개정 v3</span></td><td>prefix &gt; 26</td><td>prefix 는 26 이하여야 합니다.</td></tr>
+            <tr><td>8</td><td><code>NOT_NETWORK_ADDRESS</code></td><td>host bit 이 0 이 아님</td><td>유효한 네트워크 주소가 아닙니다.</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">5 번의 블록 나열은 사용자 문구의 "(후략)" 을 매뉴얼 문체대로 쉼표로 채운 것. 사용자 문구에는 계산값 안내가 없다(v2 NOT_NETWORK_ADDRESS 의 "네트워크 주소는 … 입니다" 삭제). 입력 검증은 앞 단계가 통과해야 뒤 단계를 계산할 수 있으므로 <b>처음 걸린 하나</b>를 보인다(Q2 는 개시 사유에 대한 답). 저장 시 입력 앞뒤 공백은 지운다.</p>
+
+        <h4>개시 판정 — 이유를 모두 모은다 <span class="chip mod">개정 v3</span></h4>
+        <p>모으는 규칙(순서 = 표시 순서):</p>
+        <ol>
+          <li>허용 대역이 없으면 <code>RANGE_UNSET</code> 을 넣는다. 이때 BMC · LAN 은 '모름' 만 판정한다(밖인지는 계산할 수 없다).</li>
+          <li>BMC: IP 없음 → <code>BMC_UNKNOWN</code>, 대역이 있고 밖 → <code>BMC_OUTSIDE</code>.</li>
+          <li>LAN: primary NIC IP 없음 → <code>LAN_UNKNOWN</code>, 대역이 있고 밖 → <code>LAN_OUTSIDE</code>.</li>
+        </ol>
+        <table>
+          <thead><tr><th>kind</th><th>문구 (매뉴얼 문체, 글자 그대로)</th></tr></thead>
+          <tbody>
+            <tr><td><code>RANGE_UNSET</code></td><td>프로비저닝 허용 대역이 설정되지 않아 주소를 확인할 수 없습니다. 시스템 설정에서 프로비저닝 허용 대역을 먼저 저장해야 합니다.</td></tr>
+            <tr><td><code>BMC_UNKNOWN</code></td><td>BMC 주소를 아직 알 수 없습니다. 하드웨어 수집이 끝나 BMC 주소가 보고된 뒤 개시할 수 있습니다.</td></tr>
+            <tr><td><code>BMC_OUTSIDE</code></td><td>BMC 주소가 프로비저닝 허용 대역 밖에 있습니다(BMC {ip}, 허용 대역 {cidr}). BMC 가 프로비저닝 네트워크에 연결돼 있는지 확인해야 합니다.</td></tr>
+            <tr><td><code>LAN_UNKNOWN</code></td><td>LAN 주소를 아직 알 수 없습니다. 서버가 PXE 부팅으로 주소를 보고한 뒤 개시할 수 있습니다.</td></tr>
+            <tr><td><code>LAN_OUTSIDE</code></td><td>LAN 주소가 프로비저닝 허용 대역 밖에 있습니다(LAN {ip}, 허용 대역 {cidr}). 서버의 LAN 이 프로비저닝 네트워크에 연결돼 있는지 확인해야 합니다.</td></tr>
+            <tr><td>미할당(U3-6) <span class="chip mod">개정 v3</span></td><td>세팅 정의서가 할당되지 않았습니다. 정의서를 할당한 뒤 개시할 수 있습니다.<br><span class="muted">기존 tooltip 의 em dash 를 걷어 낸 문장. 같은 tooltip 을 고치므로 이번 범위. 같은 목록 맨 앞에 함께 보인다</span></td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>화면 표시</th><th>규칙</th></tr></thead>
+          <tbody>
+            <tr><td>버튼</td><td>이유가 하나라도 있으면 disabled</td></tr>
+            <tr><td>tooltip</td><td>이유 문구들을 줄바꿈으로 이은 것</td></tr>
+            <tr><td>안내 줄</td><td>이유마다 한 줄. 기존 안내 "세팅 정의서를 할당한 뒤 개시할 수 있습니다." 줄은 이 목록이 대신한다(중복 제거)</td></tr>
+            <tr><td>서버 409</td><td>네트워크 이유 문구들을 공백 하나로 이은 것(미할당은 기존대로 <code>AssignmentStartService</code> 가 먼저 409)</td></tr>
+            <tr><td>뷰모델</td><td><code>progress.startNetworkBlockReasons</code>(<code>List&lt;String&gt;</code>, 빈 목록 = 막지 않음). 템플릿이 미할당 문구와 합쳐 그린다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>결정 (대안 비교)</h4>
+        <table>
+          <thead><tr><th>축</th><th>채택</th><th>비채택 대안 · 탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1 허용 대역의 원천 <span class="chip mod">v1 → v2</span></td><td>새 「시스템 설정」 화면의 입력값(사용자 지시)</td><td>① v1 채택안 <code>PxeNetworkConfig.subnetCidr</code> 재사용: "PXE 가 응답하는 서브넷" 과 "개시를 허락하는 대역" 은 뜻이 다르다 — 운영자가 개시 허용 범위를 따로 정할 수 있어야 한다<br>② 애플리케이션 프로퍼티: 바꾸려면 재배포가 필요하다<br>③ 흩어진 설정을 한 화면에 모으기: 사용자 지시로 범위 밖</td></tr>
+            <tr><td>D-2 판정 대상</td><td>BMC IP + primary NIC IP</td><td>② IP 있는 NIC 전부: 의도적으로 다른 망에 물린 보조 포트가 있으면 영영 막힌다<br>③ 하나라도 안이면 통과: primary 가 사내망이어도 통과해 요구를 못 지킨다<br>④ BMC 만: 요구 문장이 "BMC 와 연결된 NIC" 까지 말한다</td></tr>
+            <tr><td>D-3 판정의 자리</td><td>순수 판정 <code>StartNetworkBlocks.judge</code> + 재료 로드 <code>StartNetworkPolicy</code>(<code>RetryPolicy</code> 선례) — 가드와 뷰가 같은 판정 호출</td><td>② <code>isStartableWith</code> 인자 확장: startable 이 false 면 버튼이 <b>숨겨져</b> 이유를 보일 자리가 없고, 상태(진행 여부) 판정에 환경(네트워크) 판정이 섞인다<br>③ 미할당(U3-6)까지 흡수한 통합 "개시 차단 사유": 할당은 provisioning, 네트워크는 execution 소유라 합치려면 패키지 경계를 넘고(R7 순환 위험), 앵커 R20 · S22-3 와 템플릿 충돌이 커진다 — 수동 처리 · 집행인 기록이 개시 영역에 들어올 때(사유가 셋 이상) 다시 본다. <span class="muted">v3 각주: 화면에서는 미할당 문구를 같은 목록에 함께 보이지만 합치는 자리는 템플릿이다 — 판정 소유는 그대로 둘로 나뉜다</span></td></tr>
+            <tr><td>D-4 값을 모를 때</td><td>막는다 (판정 불가 = 차단). <span class="chip mod">v3</span> Q1 수용으로 확정</td><td>② 통과: 막으려는 사고(사내망 서버 개시)를 수집 전엔 그대로 통과시킨다<br>③ 수집 전엔 허용하고 엔진이 진단 뒤로 전진할 때 다시 판정: 엔진 쪽 가드 · 실패 처리가 새로 필요해 범위가 두 배</td></tr>
+            <tr><td>D-5 사유 표시 <span class="chip mod">v1 → v3</span></td><td><b>막힌 이유를 모두 보인다</b>(사용자 답변 Q2). 미할당(U3-6) 사유도 같은 목록 맨 앞. tooltip 은 줄바꿈 연결, 안내 줄은 이유마다 한 줄, 409 는 공백 연결</td><td>① v1 채택안 첫 실패 하나(순서: 설정 → BMC → LAN): 사용자 답변으로 기각 — 둘 다 보이도록<br><span class="muted">입력 검증(시스템 설정 폼)은 앞 단계가 통과해야 뒤 단계를 계산할 수 있어 처음 걸린 하나를 유지한다</span></td></tr>
+            <tr><td>D-6 문구 소유</td><td>Java enum(<code>StartNetworkBlockKind</code>) — 409 와 tooltip 이 같은 문자열</td><td>② MessageSource 키: Java 예외 키화는 S16-2 일괄 이관 범위(<code>new-user-copy.md</code>). 지금은 문체 규칙 준수가 최소선</td></tr>
+            <tr><td>D-7 판정 위치 (호출 순서)</td><td><code>isStartableWith</code> 다음, start 직전</td><td>상태 409(이미 개시 등)가 먼저 나와야 stale 화면에서 정확한 이유가 보인다</td></tr>
+            <tr><td>D-8 설정 저장 구조 <span class="chip mod">v2 → v3</span></td><td><b>A</b>: 설정 키마다 한 행 + 값은 JSON(sealed interface <code>SystemSettingValue</code> 로 타입화) + 행마다 접근 가능 최소 권한. 배포 DML 로 10.1.1.0/24 시드(Q5)</td><td>v2 채택안(단일 행 엔티티 + findFirst upsert, 시드 없음): 사용자 지시 — 나중에 통합할 것이므로 단일 행이 아닌 구성. 아래 A~D 비교의 C 와 같은 구조다<br>v2 가 기각한 "키-값 범용 설정 테이블"(VO 타입화 상실): 값을 sealed interface 구현으로 타입화하고 변환기가 JSON ↔ 객체를 맡아 사유가 해소된다<br>v2 가 기각한 "시드로 10.1.1.0/24": 사용자 답변 Q5 로 배포 DML 시드를 채택 — 코드가 아니라 배포 데이터에 둔다</td></tr>
+            <tr><td>D-9 검증의 SSOT <span class="chip new">신규 v2</span></td><td><code>ProvisioningAllowedCidr.parse</code> 하나 — 폼 검증기 · 엔티티 변환 · 데모 JS 가 같은 규칙</td><td>① <code>SubnetCidr</code> 에 사설망 검사 추가: PXE 서브넷 폼까지 사설망만 받게 바뀐다(다른 기능 동작 변경)<br>② 정규식 <code>@Pattern</code>: host bit · 블록 prefix 계산을 못 한다</td></tr>
+            <tr><td>D-10 prefix 상한 <span class="chip mod">v2 → v3</span></td><td>/26 (사용자 답변 Q4)</td><td>① v2 채택안 /30: 사용자 답변으로 /26 으로 바꾼다<br>② /32 까지 허용 · 상한 없음: /31 · /32 는 BMC 와 LAN 두 주소를 담을 대역이 아니다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>D-8 안 비교 — 설정 저장 구조 (DB 설계) <span class="chip new">신규 v3</span></h4>
+        <table>
+          <thead><tr><th>안</th><th>구조</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><b>A 채택</b></td><td>설정 키마다 한 행: <code>system_setting(id, setting_key UNIQUE, value_json JSON NULL, min_role, created_at, updated_at)</code>. 값은 sealed interface <code>SystemSettingValue</code> 의 구현으로 타입화하고, JSON ↔ 객체 변환은 <code>SystemSettingValueConverter</code>(JPA <code>AttributeConverter</code>)가 맡는다</td><td>키가 늘어나도 DDL 없이 행만 추가. 값 모양이 키마다 달라도 JSON 이 담는다. 선례: <code>SettingProcess.payload</code>(<code>ProcessPayloadConverter</code>, sealed + 판별자 JSON)</td></tr>
+            <tr><td>B</td><td>키별 행 + 타입별 컬럼(value_string · value_int …, EAV)</td><td>목록 · 객체 같은 구조형 값을 못 담고, 키마다 쓰지 않는 컬럼이 비어 남는다</td></tr>
+            <tr><td>C</td><td>설정마다 컬럼(넓은 단일 행)</td><td>사용자 기각. 설정을 하나 늘릴 때마다 DDL 이 필요하다</td></tr>
+            <tr><td>D</td><td>설정 묶음별 테이블</td><td>한 화면으로 모으려는 통합 목적과 반대</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout danger"><b>배포 영향 (명시)</b> <span class="chip mod">개정 v3</span>: 배포 때 DML <code>sql/U7_system_setting_seed.sql</code> 을 실행하므로 운영 DB 는 배포 직후부터 허용 대역(10.1.1.0/24)이 있다. DML 을 빠뜨리면 모든 서버의 개시가 <code>RANGE_UNSET</code> 으로 막힌다 → 배포 절차 체크 항목.</div>
+        <div class="callout warn"><b>행동 변화 (명시)</b> <span class="chip mod">v3 Q1 수용</span>: 종전엔 수집이 끝나기 전에도 [프로비저닝 개시] 를 누를 수 있었다(R13 — 개시 뒤 수집 완주 때 소급 전진). D-4 로 BMC 주소가 보고되기 전에는 개시할 수 없게 된다. 정상 운용(수집이 끝나면 멈춰 기다림)에는 영향이 작다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>뷰(서버 상세 템플릿의 개시 버튼 · tooltip · 안내 줄 목록 · <code>templates/system/settings.html</code> 추가 <span class="chip mod">개정 v2</span>) · Controller(<code>SystemSettingController</code> 포함) · DTO(<code>ProvisioningAllowedRangeRequest</code> · <code>SystemSettingResponse</code> <span class="chip mod">개정 v3</span>) · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7 <span class="chip mod">개정 v3</span></td><td>Step 6 <code>SystemSettingRepository</code>(<code>findBySettingKey</code>) · Step 7 <code>SystemSetting</code> + <code>SystemSettingKey</code> · <code>SystemSettingValue</code> · <code>ProvisioningAllowedRange</code> · <code>ProvisioningAllowedCidr</code> · enum 2 · <code>SystemSettingValueConverter</code> (v1 의 N/A 아님 — 엔티티가 생긴다)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9 <span class="chip mod">개정 v3</span></td><td>Service 본체 (테스트 코드 제외, 빌드 통과) · Step 9 DDL <code>ddl/U7_system_setting.sql</code>: CREATE TABLE <code>system_setting</code> — id BIGINT AUTO_INCREMENT PK · created_at DATETIME(6) NOT NULL · updated_at DATETIME(6) NOT NULL · setting_key VARCHAR(64) NOT NULL UNIQUE · value_json LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL CHECK (json_valid(value_json)) · min_role VARCHAR(16) NOT NULL · InnoDB utf8mb4_unicode_ci → 샌드박스 적용 → <code>SHOW CREATE TABLE</code> 확인. <code>ddl/schema.sql</code> 반영.<br>DML <code>sql/U7_system_setting_seed.sql</code>(배포 때 실행): <code>PROVISIONING_ALLOWED_RANGE</code> 행 1 개 — value_json <code>{"type":"PROVISIONING_ALLOWED_RANGE","cidr":"10.1.1.0/24"}</code>, min_role <code>SUPER_ADMIN</code>. 이미 있으면 덮지 않는다(INSERT … ON DUPLICATE KEY UPDATE 없이 <code>INSERT IGNORE</code>)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 / 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (항목 계획 + 항목별 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 — 테스트 제외 main 구현 + 빌드 통과) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출).</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>층</th><th>대상</th><th>케이스</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td><code>StartNetworkBlocksTest</code> <span class="chip new">신규</span> <span class="chip mod">개정 v3</span></td><td>v2 의 <code>StartNetworkVerdictTest</code> 개명. 5 kind 각 1 + 경계(네트워크 주소 · 브로드캐스트 · /32) + 모으는 규칙(둘 다 밖 → 2 개 · 대역 없음 + BMC 없음 → 2 개 · 대역 없음 + 다 있음 → 1 개 · 정상 → 0 개)</td><td>12</td></tr>
+            <tr><td>단위</td><td><code>StartNetworkPolicyTest</code> <span class="chip new">신규</span> <span class="chip mod">개정 v3</span></td><td>허용 대역 없음 · primary 고르기(보조 NIC 무시) · primary 없음 — 허용 대역 출처가 <code>SystemSettingService.provisioningAllowedRange()</code></td><td>3</td></tr>
+            <tr><td>단위</td><td><code>GuestServerCommandServiceTest</code> <span class="chip mod">추가</span></td><td>네트워크 판정 실패 → 409 예외 · startedAt null 유지 / 통과 → start</td><td>2</td></tr>
+            <tr><td>통합</td><td><code>GuestServerControllerStartFlowTest</code> <span class="chip mod">추가</span> <span class="chip mod">개정 v3</span></td><td>POST start → 409 + 메시지 본문 = 이유 문구들의 공백 연결(이유 2 개) (서비스 mock 이 팩토리 예외를 던지고 advice 매핑은 실제 실행)</td><td>1</td></tr>
+            <tr><td>통합</td><td>서버 상세 뷰 테스트 (기존 상세 렌더 테스트 파일에 추가) <span class="chip mod">추가</span> <span class="chip mod">개정 v3</span></td><td>이유 1 개 → disabled 버튼 + title + 안내 줄 1 / 이유 여러 개 → title 줄바꿈 + 안내 줄 여러 개 / 이유 없음 → form 버튼 / 미할당 + 네트워크 이유 → 미할당 문구 맨 앞에 함께</td><td>4</td></tr>
+            <tr><td>단위</td><td><code>ProvisioningAllowedCidrTest</code> <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td>위반 8 종 각 1(TOO_NARROW 는 /27) + 통과(블록 3 개 각 1: 10.1.1.0/24 · 172.16.0.0/12 · 192.168.0.0/16 + 상한 경계 /26) + 공백 정리 + <code>contains</code>. 문구 v3</td><td>14</td></tr>
+            <tr><td>단위</td><td><code>SystemSettingTest</code> <span class="chip new">신규 v3</span></td><td><code>isAccessibleBy</code>: ADMIN 행 ↔ ADMIN 통과 · USER 거절, USER 행 ↔ USER · ADMIN 통과 / 키-값 타입 불일치 거절</td><td>5</td></tr>
+            <tr><td>단위</td><td><code>SystemSettingValueConverterTest</code> <span class="chip new">신규 v3</span></td><td>JSON 왕복 · 판별자</td><td>2</td></tr>
+            <tr><td>단위</td><td><code>SystemSettingServiceTest</code> <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td>최초 저장(행 없음 → 기본 최소 권한으로 생성) · 갱신(행 있음 → 값 교체) · 내부 읽기 empty · 접근 가능한 카드만 · 권한 미달 저장 → 예외</td><td>5</td></tr>
+            <tr><td>통합</td><td><code>SystemSettingControllerTest</code>(<code>@WebMvcTest</code>) <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td>GET 200(ADMIN: 카드 1 · USER: 빈 안내) · POST 성공 302 + flash · POST 위반 200 + 필드 오류(대표 4: EMPTY · NOT_PRIVATE · WIDER_THAN_BLOCK · NOT_NETWORK_ADDRESS) · <b>POST 권한 미달 403</b>(<code>SystemSettingAccessDeniedException</code> 시나리오)</td><td>8</td></tr>
+            <tr><td>규약</td><td><code>FormSubmissionConventionTest</code> <span class="chip mod">개정 v2</span></td><td><code>BindingResult</code> 받는 핸들러 +1 · <code>data-native-submit</code> 폼 +1 — 기대값을 사유와 함께 올린다</td><td>기대값 2</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">수 = 케이스 열의 나열 개수(합계 56, <code>FormSubmissionConventionTest</code> 의 기대값 조정 2 는 케이스 수에서 뺐다).</p>
+        <div class="callout"><b>범주</b> <span class="chip mod">개정 v3</span>: 성공 2xx = GET 200 · POST 302(PRG). 입력 오류 = 시스템 설정 폼 위반은 400 이 아니라 <code>BindingResult</code> 재렌더(200 + 필드 오류 문구) — 대표 4 종을 통합 테스트가 확인한다. 403 = 신규 <code>SystemSettingAccessDeniedException</code> 을 통합 테스트가 트리거한다. 404 = 새 조회 없음 — 기존 404(없는 서버) 회귀만 확인. 409 = <code>outsideAllowedRange</code> 팩토리 예외를 통합 테스트가 트리거한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층 — 신규 1 · 팩토리 추가 1</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>클래스 / 팩토리</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>SystemSettingAccessDeniedException</code> (<code>global/systemsetting/exception</code>, extends <code>ForbiddenException</code> — 보안 계층) — 발생 = 최소 권한 미달 사용자의 저장 direct POST. 통합 테스트 <code>SystemSettingControllerTest</code> "POST 권한 미달 403" 이 트리거</td><td>403</td><td><span class="chip new">신규 v3</span></td></tr>
+            <tr><td><code>ProvisioningStartRejectedException.outsideAllowedRange(UUID id, List&lt;StartNetworkBlock&gt; blocks)</code> — 메시지 = 문구들을 공백으로 이은 것. 통합 테스트 <code>GuestServerControllerStartFlowTest</code> 가 트리거</td><td>409</td><td><span class="chip new">추가</span> <span class="chip mod">개정 v3</span> 인자</td></tr>
+            <tr><td><code>alreadyStarted</code> · <code>decommissioned</code> · <code>failed</code> · <code>unassigned</code></td><td>409</td><td><span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+        <p><code>ProvisioningStartRejectedException</code>(extends <code>ConflictException</code> → 409, advice 등록 불요) 클래스 Javadoc 의 "사유 4종" → 5 종. <code>ForbiddenException</code> 은 <code>httpStatus()</code> 를 <code>HttpStatus.FORBIDDEN</code> 으로 돌려준다.</p>
+        <div class="callout"><b>시스템 설정 폼 검증</b> <span class="chip mod">개정 v2</span>: 폼 검증 실패는 <code>BindingResult</code> 필드 오류(예외 아님). <code>ProvisioningAllowedCidr.parse</code> 의 <code>IllegalArgumentException</code> 은 검증기 안에서만 잡힌다 — 검증을 통과한 값만 엔티티에 들어간다. 엔티티의 키-값 타입 불일치 <code>IllegalArgumentException</code> 은 프로그램 오류다(§4 행 모양).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / Open Questions</summary>
+      <div class="body">
+        <ul>
+          <li><b>템플릿 충돌</b>: 앵커 R20(<code>refactor/R20_assignment-picker</code>) · 디자인 S22-3 이 <code>server-detail.html</code> 을 만진다 → 변경을 개시 버튼 영역(버튼 두 줄 + 이유 목록 블록 하나)으로 제한. 병합 순서는 사용자와 조정.</li>
+          <li><b>세션 판정 (v3 검수, 2026-11-16)</b> <span class="chip new">신규 v3</span>
+            <ul>
+              <li>기존 409 메시지 두 개의 em dash · 하십시오체를 이번 범위에서 함께 고친다(같은 예외 클래스를 고치므로). <code>unassigned</code> → "세팅 정의서가 할당되지 않은 서버는 개시할 수 없습니다. 정의서를 할당한 뒤 개시해야 합니다. id={id}", <code>failed</code> → "실패 상태의 서버는 개시할 수 없습니다. 재시도로 회복해야 합니다. id={id}". 나머지 두 메시지(<code>alreadyStarted</code> · <code>decommissioned</code>)는 규칙에 이미 맞는다.</li>
+              <li><code>SystemSettingAccessDeniedException</code> 메시지 = "이 설정을 변경할 권한이 없습니다."</li>
+              <li>권한 판정을 입력 검증보다 먼저 한다. 컨트롤러는 <code>BindingResult</code> 를 보기 전에 서비스의 권한 판정을 부른다. 그래서 권한이 모자란 사용자의 direct POST 는 값이 틀려도 재렌더가 아니라 403 이 된다(카드가 없는 화면에 오류를 그릴 자리가 없기 때문).</li>
+              <li><code>StartNetworkBlock</code> · <code>StartNetworkBlocks</code> 는 <code>execution/vo</code> 에 둔다. <code>StartNetworkPolicy.verdictOf</code> 는 <code>List&lt;StartNetworkBlock&gt;</code> 을 돌려주고, 허용 대역은 <code>SystemSettingService.provisioningAllowedRange()</code> 로 읽는다.</li>
+            </ul>
+          </li>
+          <li><b>판정 값은 스냅샷</b>: BMC 주소가 바뀌어도 진단을 다시 밟기 전까지 옛 값으로 판정한다 → U8.</li>
+          <li>BMC 를 보고하지 못하는 서버(진단이 BMC 를 못 읽음)는 개시할 수 없다 → U8 로 다시 수집, 그래도 없으면 장비 점검 대상.</li>
+          <li>허용 대역 변경(시스템 설정 저장)은 SSE 신호가 없어 열린 상세 화면은 새로 고침해야 반영된다(서버 가드는 항상 최신 값으로 판정). <span class="chip mod">개정 v2</span></li>
+          <li><span class="chip del">v2 해당 없음</span> PXE 설정 행은 저장값(desired)이다. 적용 실패 기록이 있어도 판정은 저장값으로 한다 — 화면이 보여 주는 값과 같은 것을 쓰기 위해. <span class="muted">(v2 에서는 허용 대역을 PXE 네트워크 설정에서 읽지 않으므로 이 항목은 판정과 무관하다.)</span></li>
+          <li><b>배포 영향</b> <span class="chip mod">개정 v3</span>: 배포 때 DML <code>sql/U7_system_setting_seed.sql</code> 을 실행해 운영 DB 는 배포 직후부터 허용 대역이 있다. DML 을 빠뜨리면 모든 서버의 개시가 <code>RANGE_UNSET</code> 으로 막힌다 → 배포 절차 체크 항목(§4 결정 표 아래). 허용 대역과 PXE 게스트 서브넷의 대조는 하지 않는다(서로 다른 뜻).</li>
+          <li><b>인가</b> <span class="chip mod">개정 v3</span>: URL 인가(<code>/system/**</code> = 로그인한 사용자)는 그대로다. 설정마다의 접근은 <code>min_role</code> 로 화면(카드 노출)과 서버 가드(403)가 같은 <code>isAccessibleBy</code> 로 판정한다(§4). 최소 권한을 바꾸는 화면은 범위 밖.</li>
+          <li><b>화면의 호스트 IP 와 판정 NIC</b>: 개요 탭 "호스트 IP" 는 primary NIC 이 없으면 첫 NIC 으로 대신 보여 준다. 판정은 primary 만 본다. 등록 서비스가 최초 등록 NIC 을 항상 primary 로 만들기 때문에(<code>GuestServerRegistrationService</code>) 정상 데이터에서 둘은 같다. primary 가 없는 행은 데이터 손상으로 보고 LAN_UNKNOWN 으로 막는다 — 대신 보여 주는 값으로 판정하지 않는다.</li>
+          <li><b>안내 줄 겹침 정리(CP2)</b> <span class="chip mod">개정 v3</span>: 할당 · 접촉 중인 미개시 서버에는 이미 "수집이 끝난 뒤 [프로비저닝 개시] 를 눌러야 진행됩니다" 안내가 나온다. 막힌 이유가 있을 때 이 줄이 함께 보이면 누를 수 없는 버튼을 누르라고 말하게 된다. 그래서 이유가 있을 때는 이 줄 대신 이유 목록만 보인다(템플릿 조건에 <code>startNetworkBlockReasons</code> 가 비어 있음을 더한다). 미할당 때의 안내 "세팅 정의서를 할당한 뒤 개시할 수 있습니다." 줄도 이유 목록이 대신한다 — 이유 목록이 안내를 대신한다.</li>
+          <li><b>관문 문서 충돌</b> <span class="chip new">신규 v3</span>: 콘솔 문구 규칙(매뉴얼 문체 · em dash 금지 · 아이콘 금지)과 <code>.claude/domain-conventions/new-user-copy.md</code> 의 "요청 · 명령은 하십시오체" 규칙이 충돌 → 관문 문서 갱신 필요(앵커 소관).</li>
+          <li>샌드박스(CP5): 이 홈의 7898(DB 3399) 재사용. 7868(앵커) · 7797(디자인) 회피.</li>
+        </ul>
+
+        <h4>답변 반영 (Q1~Q5 닫음) <span class="chip new">신규 v3</span></h4>
+        <table>
+          <thead><tr><th>Q</th><th>답</th><th>plan 반영</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>수용</td><td>행동 변화(BMC 보고 전 개시 불가) 확정 — §4 D-4 · 행동 변화</td></tr>
+            <tr><td>Q2</td><td>둘 다 보이도록</td><td>D-5 개정: 막힌 이유를 모두 보인다(첫 실패 하나 → 전부). 미할당(U3-6) 사유도 같은 목록에 함께 보인다</td></tr>
+            <tr><td>Q3</td><td>입력 검증 문구 8 종 확정</td><td>§4 입력 검증 순서 표 교체. 사용자 문구에는 계산값 안내가 없다</td></tr>
+            <tr><td>Q4</td><td>/26 상한</td><td>D-10 개정: prefix ≤ 26</td></tr>
+            <tr><td>Q5</td><td>배포 때 DML 로 10.1.1.0/24 삽입</td><td>D-8 개정 · 배포 영향 해소: DML 파일 <code>sql/U7_system_setting_seed.sql</code>(배포 때 실행). 운영 DB 는 배포 직후부터 대역이 있다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>Open Questions (CP1 결정) <span class="chip new">신규 v3</span></h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>관련</th></tr></thead>
+          <tbody>
+            <tr><td>Q6</td><td>프로비저닝 허용 대역의 접근 가능 최소 권한 = 관리자(ADMIN) 로 두는가 → <b>답: 최고 관리자(SUPER_ADMIN)</b> (MA8 병합 뒤 개정)</td><td>§4 접근 가능 최소 권한</td></tr>
+            <tr><td>Q7</td><td>최소 권한 미달 사용자에게 「시스템 설정」 메뉴 링크 자체는 보이게 두는가(제안: 보이게 두고 화면에서 "볼 수 있는 설정이 없습니다" 안내. 메뉴를 숨기려면 레이아웃이 권한을 알아야 해 범위가 커진다)</td><td>§4 화면(UI 1 차 차단) · 메뉴</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification (CP5 계획 — 식별자)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A0 <span class="chip new">신규 v2</span></td><td>메뉴 「시스템 설정」 → 허용 대역 <code>10.1.1.0/24</code> 저장</td><td>flash · 값 표시 · DB 1 행</td></tr>
+            <tr><td>A1</td><td>대역 안 서버(BMC · LAN 모두 허용 대역 안, 할당됨) 상세 → [프로비저닝 개시]</td><td>버튼 활성 · 개시됨</td></tr>
+            <tr><td>A2 <span class="chip mod">개정 v2</span></td><td>시스템 설정에서 허용 대역을 다른 대역으로 저장 → 서버 상세 새로 고침 → 원복</td><td>disabled ↔ 활성 전환</td></tr>
+            <tr><td>A3</td><td>보조 NIC 만 대역 밖(primary 는 안)</td><td>활성</td></tr>
+            <tr><td>B1</td><td>BMC IP 를 대역 밖으로(샌드박스 DB)</td><td>disabled · tooltip · 안내 줄 = BMC_OUTSIDE 문구</td></tr>
+            <tr><td>B2</td><td>primary NIC IP 를 대역 밖으로</td><td>LAN_OUTSIDE</td></tr>
+            <tr><td>B3</td><td>BMC IP 없음</td><td>BMC_UNKNOWN</td></tr>
+            <tr><td>B4 <span class="chip mod">개정 v2</span></td><td>허용 대역이 비어 있을 때(행 없음) 서버 상세</td><td>RANGE_UNSET</td></tr>
+            <tr><td>B5</td><td>막힌 서버에 direct POST start(브라우저 fetch)</td><td>409 · 메시지 = 문구 · started_at 그대로</td></tr>
+            <tr><td>B6 <span class="chip mod">개정 v3</span></td><td>미할당 + BMC 밖</td><td>두 이유가 함께 보인다(미할당 문구가 맨 앞)</td></tr>
+            <tr><td>B7 <span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td>시스템 설정에 <code>8.8.8.0/24</code> · <code>10.1.1.5/24</code> · <code>10.0.0.0/7</code> · <code>172.16.0.0/11</code> · <code>10.1.1.0</code> · <code>192.168.1.0/27</code> · 빈 값</td><td>각각 해당 필드 오류 문구 · 저장 안 됨(DB 불변)</td></tr>
+            <tr><td>B8 <span class="chip new">신규 v2</span></td><td>시스템 설정 direct POST(브라우저 fetch)로 <code>8.8.8.0/24</code></td><td>저장 안 됨 · 재렌더 HTML 에 오류 문구</td></tr>
+            <tr><td>B9 <span class="chip new">신규 v3</span></td><td>BMC 밖 + LAN 밖</td><td>두 이유가 함께(tooltip 줄바꿈 · 안내 두 줄)</td></tr>
+            <tr><td>B10 <span class="chip new">신규 v3</span></td><td>USER 권한 계정으로 <code>/system/settings</code> → 저장 direct POST</td><td>카드 없음 안내 · direct POST → 403 · DB 불변. (USER 계정이 샌드박스에 없으면 DB 로 만들 수 있는지 CP5 에서 판단, 비밀번호는 문서에 남기지 않는다.)</td></tr>
+            <tr><td>C1 <span class="chip mod">개정 v3</span></td><td>막힌 이유 · 다음 행동이 읽히는가. 콘솔 문구에 em dash · 아이콘이 없는가, 매뉴얼 문체인가</td><td>한 줄 평가</td></tr>
+            <tr><td>C2</td><td>앱 로그 ERROR 0 · 콘솔 오류 0</td><td></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>샌드박스 데이터</b> <span class="chip new">신규 v3</span>: DDL 은 적용하고, DML 은 CP5 에서 화면 저장(A0)과 비교하기 위해 적용하지 않고 시작한다(B4 = 행 없음 상태를 먼저 본다).</div>
+        <ul class="check-list" data-storage="U7-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span><code>ddl/U7_system_setting.sql</code> 샌드박스 적용 + <code>SHOW CREATE TABLE system_setting</code> 확인 (<code>ddl-auto=validate</code> 기동 통과)</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 브라우저 검증 (CP5, A0~A3 · B1~B10 · C1~C2, 항목별 스크린샷)</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files — 신규 30 · 수정 11 · 유지 3 · 이번에 쓰지 않음 1</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/enums/StartNetworkBlockKind.java</code></td><td>막는 이유 5 종 + 문구 <span class="chip mod">개정 v3</span> 문구</td></tr>
+            <tr><td><span class="chip new">신규</span> <span class="chip mod">개정 v3</span></td><td><code>execution/vo/StartNetworkBlock.java</code> · <code>execution/vo/StartNetworkBlocks.java</code></td><td>결과 항목 · 판정 SSOT <code>judge</code> (파일 2, v2 <code>StartNetworkVerdict</code> 대체)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/service/StartNetworkPolicy.java</code></td><td>재료 로드 + <code>verdictOf</code> 2 벌. 허용 대역 출처 <code>SystemSettingService.provisioningAllowedRange()</code> <span class="chip mod">개정 v3</span></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>StartNetworkBlocksTest</code> · <code>StartNetworkPolicyTest</code></td><td>테스트 2</td></tr>
+            <tr><td><span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td><code>global/systemsetting/entity/SystemSetting.java</code></td><td>키마다 한 행 엔티티</td></tr>
+            <tr><td><span class="chip new">신규 v3</span></td><td><code>global/systemsetting/enums/SystemSettingKey.java</code></td><td>키 enum</td></tr>
+            <tr><td><span class="chip new">신규 v3</span></td><td><code>global/systemsetting/vo/SystemSettingValue.java</code> · <code>ProvisioningAllowedRange.java</code></td><td>sealed interface · 구현 record (파일 2)</td></tr>
+            <tr><td><span class="chip new">신규 v2</span></td><td><code>global/systemsetting/vo/ProvisioningAllowedCidr.java</code></td><td>검증 SSOT <code>parse</code> · <code>contains</code></td></tr>
+            <tr><td><span class="chip new">신규 v2</span></td><td><code>global/systemsetting/enums/PrivateAddressBlock.java</code> · <code>AllowedCidrViolation.java</code></td><td>RFC 1918 블록 3 · 위반 8 종 (파일 2)</td></tr>
+            <tr><td><span class="chip new">신규 v3</span></td><td><code>global/systemsetting/converter/SystemSettingValueConverter.java</code></td><td>JSON ↔ <code>SystemSettingValue</code> (v2 <code>ProvisioningAllowedCidrConverter</code> 대체)</td></tr>
+            <tr><td><span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td><code>global/systemsetting/repository/SystemSettingRepository.java</code></td><td><code>findBySettingKey</code> · <code>findAll</code></td></tr>
+            <tr><td><span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td><code>global/systemsetting/service/SystemSettingService.java</code></td><td>카드 목록 · 권한 가드 + upsert · 내부 읽기</td></tr>
+            <tr><td><span class="chip new">신규 v3</span></td><td><code>global/systemsetting/dto/request/ProvisioningAllowedRangeRequest.java</code> · <code>dto/response/SystemSettingResponse.java</code></td><td>요청(v2 <code>SystemSettingRequest</code> 대체) · 응답 카드 (파일 2)</td></tr>
+            <tr><td><span class="chip new">신규 v2</span></td><td><code>global/systemsetting/validation/ProvisioningAllowedCidrFormat.java</code> · <code>ProvisioningAllowedCidrFormatValidator.java</code></td><td>어노테이션 · 검증기 (파일 2)</td></tr>
+            <tr><td><span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td><code>global/systemsetting/controller/SystemSettingController.java</code></td><td><code>GET /system/settings</code> · <code>POST /system/settings/provisioning-allowed-range</code></td></tr>
+            <tr><td><span class="chip new">신규 v3</span></td><td><code>global/systemsetting/exception/SystemSettingAccessDeniedException.java</code></td><td>403</td></tr>
+            <tr><td><span class="chip new">신규 v2</span></td><td><code>templates/system/settings.html</code></td><td>시스템 설정 화면(접근 가능한 카드만 · 빈 안내)</td></tr>
+            <tr><td><span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td><code>ddl/U7_system_setting.sql</code></td><td>CREATE TABLE <code>system_setting</code> (키별 행 · JSON · min_role)</td></tr>
+            <tr><td><span class="chip new">신규 v3</span></td><td><code>sql/U7_system_setting_seed.sql</code></td><td>배포 DML (<code>INSERT IGNORE</code> 1 행)</td></tr>
+            <tr><td><span class="chip new">신규 v2</span> <span class="chip mod">개정 v3</span></td><td><code>ProvisioningAllowedCidrTest</code> · <code>SystemSettingServiceTest</code> · <code>SystemSettingControllerTest</code> · <code>SystemSettingTest</code> · <code>SystemSettingValueConverterTest</code></td><td>테스트 5</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/exception/ProvisioningStartRejectedException.java</code></td><td>팩토리 <code>outsideAllowedRange(UUID, List&lt;StartNetworkBlock&gt;)</code> + Javadoc 5 종</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/service/GuestServerCommandService.java</code></td><td><code>isStartableWith</code> 다음 · start 직전 판정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/service/GuestServerQueryService.java</code></td><td>Progress 뷰에 문구 목록 적재</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/dto/response/GuestServerDetailResponse.java</code></td><td>Progress 에 <code>startNetworkBlockReasons</code> <span class="chip mod">개정 v3</span></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/server-detail.html</code></td><td>개시 버튼 disabled 조건 · tooltip(이유 줄바꿈 연결, U3-6 tooltip em dash 제거) · 안내 줄을 이유 목록으로 <span class="chip mod">개정 v3</span></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestServerCommandServiceTest</code> · <code>GuestServerControllerStartFlowTest</code> · 상세 뷰 테스트</td><td>테스트 3</td></tr>
+            <tr><td><span class="chip mod">수정 v2</span></td><td><code>templates/fragments/layout.html</code></td><td>메뉴 「시스템 설정」 1 줄 + activePage 주석</td></tr>
+            <tr><td><span class="chip mod">수정 v2</span></td><td><code>ddl/schema.sql</code></td><td><code>system_setting</code> 반영</td></tr>
+            <tr><td><span class="chip mod">수정 v2</span></td><td><code>FormSubmissionConventionTest</code></td><td>기대값 +1 · +1 (사유 함께)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>ProvisioningProgress.isStartableWith</code> · <code>AssignmentStartService</code> · <code>SubnetCidr</code></td><td>변경 0 (<code>SubnetCidr.contains</code> 는 재사용)</td></tr>
+            <tr><td><span class="chip keep">이번에 쓰지 않음</span> <span class="chip mod">개정 v2</span></td><td><code>PxeNetworkConfig</code></td><td>v1 의 "유지" 에서 옮김 — 허용 대역을 여기서 읽지 않는다</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">개수: 신규 30 = 개시 판정 6(클래스 4 · 테스트 2) + 시스템 설정 24(Java 16 · 템플릿 1 · DDL 1 · DML 1 · 테스트 5). 수정 11 = v1 8 + v2 3.</p>
+        <div class="callout warn"><b>확정 필요</b>: <code>StartNetworkBlocks</code>(static <code>judge</code>)의 패키지는 v3 에 정해져 있지 않다 — 종전 <code>StartNetworkVerdict</code> 의 자리(<code>execution/vo</code>)에 적었다. CP2 착수 시 확정한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U7-milestone">
+          <li><label><input type="checkbox" data-key="cp1-cp4"> <span>CP1 승인 → CP2~CP4 구현(무중단) → CP4 중간 승인</span></label></li>
+          <li><label><input type="checkbox" data-key="test-cp6"> <span>테스트 → CP5 샌드박스 → CP6 report</span></label></li>
+          <li><label><input type="checkbox" data-key="u3-8"> <span>U8 다시 수집 CP1 (진단 리눅스 WAIT 상주 서버는 커서를 수집 전으로 되돌려 COLLECT, 접촉 끊긴 서버는 재부팅으로 진단 재진입 — HF11-2 재수집 규칙 재사용, HF24 부트 순서 불간섭 유지)</span></label></li>
+          <li><label><input type="checkbox" data-key="d3-revisit"> <span>수동 처리 · 집행인 기록이 개시 영역에 들어올 때 D-3 ③ 통합 사유 재검토</span></label></li>
+          <li><label><input type="checkbox" data-key="dpl-range"> <span>배포 절차에 "<code>sql/U7_system_setting_seed.sql</code> 실행" 체크 항목 추가 (DPL 문서) — 빠뜨리면 모든 개시가 RANGE_UNSET <span class="chip mod">개정 v3</span></span></label></li>
+          <li><label><input type="checkbox" data-key="copy-gate"> <span>관문 문서 <code>new-user-copy.md</code> 를 콘솔 문구 규칙(매뉴얼 문체 · em dash 금지 · 아이콘 금지)에 맞춰 갱신 (앵커 소관) <span class="chip new">신규 v3</span></span></label></li>
+          <li><label><input type="checkbox" data-key="settings-gather"> <span>다른 화면에 흩어진 설정을 시스템 설정으로 모으기 — 별도 단계 후보 (사용자 지시로 이번 범위 밖, v3 의 키별 행 구조가 그 통합의 바탕) <span class="chip new">신규 v2</span></span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) { /* 저장 불가 환경 */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — StartNetworkBlocks.judge 와 같은 모으는 규칙 · 같은 문구 (드리프트 0)
+  //  데모 모사 UI(.ux-wrap) 가 그리는 글자에는 em dash, 가운뎃점, 아이콘을 넣지 않는다 (v3 콘솔 문구 규칙)
+  // ─────────────────────────────────────────────────────────────
+
+  // IpAddressVO 대응 (IPv4 점 표기만). 빈 값 = null(값 없음), 형식 오류 = { error }.
+  function parseIp(raw) {
+    const s = (raw || '').trim();
+    if (!s) return null;
+    const m = s.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (!m) return { error: s };
+    const o = m.slice(1).map(Number);
+    if (o.some(n => n > 255)) return { error: s };
+    return { value: o.join('.'), n: (((o[0] << 24) | (o[1] << 16) | (o[2] << 8) | o[3]) >>> 0) };
+  }
+  function maskOf(prefix) { return prefix === 0 ? 0 : ((0xFFFFFFFF << (32 - prefix)) >>> 0); }
+  function toDotted(n) { return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.'); }
+  // SubnetCidr.contains : (ip & mask) == 네트워크 주소. 네트워크 주소 , 브로드캐스트 포함.
+  function cidrContains(cidr, ip) { return ((ip.n & maskOf(cidr.prefix)) >>> 0) === cidr.net; }
+
+  // PrivateAddressBlock : RFC 1918 블록 3 개. containsAddress(ipv4) , prefixLength()
+  const PRIVATE_BLOCKS = [
+    { cidr: '10.0.0.0/8',     net: 0x0A000000, prefix: 8 },
+    { cidr: '172.16.0.0/12',  net: 0xAC100000, prefix: 12 },
+    { cidr: '192.168.0.0/16', net: 0xC0A80000, prefix: 16 }
+  ];
+  function blockContaining(n) { return PRIVATE_BLOCKS.find(b => ((n & maskOf(b.prefix)) >>> 0) === b.net) || null; }
+
+  // AllowedCidrViolation : 위반 8 종, 상수별 문구 (§4 입력 검증 순서 표와 글자 그대로, v3 사용자 확정)
+  const MAX_PREFIX = 26;   // D-10 (v3)
+  const VIOLATION = {
+    EMPTY:               '프로비저닝 허용 대역은 필수 값입니다.',
+    FORMAT:              "'네트워크주소/prefix' 형식으로 입력해야 합니다. 예: 10.1.1.0/24",
+    ADDRESS_INVALID:     '유효한 주소 값을 입력해야 합니다.',
+    PREFIX_OUT_OF_RANGE: '유효한 prefix 값을 입력해야 합니다.',
+    NOT_PRIVATE:         'RFC 1918 내부망 대역만 입력해야 합니다: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16',
+    WIDER_THAN_BLOCK:    '네트워크 주소가 prefix 범위를 초과하지 않아야 합니다.',
+    TOO_NARROW:          'prefix 는 26 이하여야 합니다.',
+    NOT_NETWORK_ADDRESS: '유효한 네트워크 주소가 아닙니다.'
+  };
+  const VIOLATION_ORDER = ['EMPTY', 'FORMAT', 'ADDRESS_INVALID', 'PREFIX_OUT_OF_RANGE', 'NOT_PRIVATE', 'WIDER_THAN_BLOCK', 'TOO_NARROW', 'NOT_NETWORK_ADDRESS'];
+
+  // ProvisioningAllowedCidr.parse(raw) : 검증 SSOT. 처음 걸린 하나에서 멈춘다(= IllegalArgumentException).
+  function parseAllowed(raw) {
+    const input = (raw || '').trim();            // 앞뒤 공백 정리
+    const trace = [];
+    const pass = (k, note) => trace.push({ kind: k, ok: true, note: note || '' });
+    const fail = (k, note) => { trace.push({ kind: k, ok: false, note: note || '' });
+      return { ok: false, kind: k, message: VIOLATION[k], input: input, trace: trace }; };
+
+    if (!input) return fail('EMPTY', '빈 값');
+    pass('EMPTY');
+    const m = input.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)\/(\d+)$/);
+    if (!m) return fail('FORMAT', 'a.b.c.d/n 모양 아님');
+    pass('FORMAT', 'a.b.c.d/n');
+    const o = m.slice(1, 5).map(Number);
+    if (o.some(x => x > 255)) return fail('ADDRESS_INVALID', o.join('.'));
+    pass('ADDRESS_INVALID', o.join('.'));
+    const prefix = Number(m[5]);
+    if (prefix > 32) return fail('PREFIX_OUT_OF_RANGE', '/' + prefix);
+    pass('PREFIX_OUT_OF_RANGE', '/' + prefix);
+    const n = (((o[0] << 24) | (o[1] << 16) | (o[2] << 8) | o[3]) >>> 0);
+    const block = blockContaining(n);
+    if (!block) return fail('NOT_PRIVATE', o.join('.') + ' 은 블록 3 개 어디에도 없음');
+    pass('NOT_PRIVATE', 'PrivateAddressBlock = ' + block.cidr);
+    if (prefix < block.prefix) return fail('WIDER_THAN_BLOCK', prefix + ' < ' + block.prefix);
+    pass('WIDER_THAN_BLOCK', prefix + ' >= ' + block.prefix);
+    if (prefix > MAX_PREFIX) return fail('TOO_NARROW', prefix + ' > ' + MAX_PREFIX);
+    pass('TOO_NARROW', prefix + ' <= ' + MAX_PREFIX);
+    const network = (n & maskOf(prefix)) >>> 0;
+    const calc = o.join('.') + ' & ' + toDotted(maskOf(prefix)) + ' = ' + toDotted(network);
+    if (network !== n) return fail('NOT_NETWORK_ADDRESS', calc + ' != ' + o.join('.'));
+    pass('NOT_NETWORK_ADDRESS', calc);
+    // 저장값 = SubnetCidr 가 정규화한 "네트워크 주소/prefix"
+    return { ok: true, value: input.slice(0, input.indexOf('/')) + '/' + prefix, net: n, prefix: prefix, input: input, trace: trace };
+  }
+
+  // StartNetworkBlockKind : 상수별 message(observed, allowedCidr) (§4 표와 글자 그대로, v3 매뉴얼 문체)
+  const KIND = {
+    RANGE_UNSET: (ip, c) => '프로비저닝 허용 대역이 설정되지 않아 주소를 확인할 수 없습니다. 시스템 설정에서 프로비저닝 허용 대역을 먼저 저장해야 합니다.',
+    BMC_UNKNOWN: (ip, c) => 'BMC 주소를 아직 알 수 없습니다. 하드웨어 수집이 끝나 BMC 주소가 보고된 뒤 개시할 수 있습니다.',
+    BMC_OUTSIDE: (ip, c) => 'BMC 주소가 프로비저닝 허용 대역 밖에 있습니다(BMC ' + ip.value + ', 허용 대역 ' + c.value + '). BMC 가 프로비저닝 네트워크에 연결돼 있는지 확인해야 합니다.',
+    LAN_UNKNOWN: (ip, c) => 'LAN 주소를 아직 알 수 없습니다. 서버가 PXE 부팅으로 주소를 보고한 뒤 개시할 수 있습니다.',
+    LAN_OUTSIDE: (ip, c) => 'LAN 주소가 프로비저닝 허용 대역 밖에 있습니다(LAN ' + ip.value + ', 허용 대역 ' + c.value + '). 서버의 LAN 이 프로비저닝 네트워크에 연결돼 있는지 확인해야 합니다.'
+  };
+  // StartNetworkBlock(kind, observed, allowedCidr) + message()
+  function block(kind, observed, allowedCidr) {
+    return { kind: kind, observed: observed, allowedCidr: allowedCidr, message: () => KIND[kind](observed, allowedCidr) };
+  }
+  // StartNetworkBlocks.judge(Optional<ProvisioningAllowedCidr>, bmcIp, primaryNicIp) : 이유를 모두 모은다(빈 목록 = 막지 않음)
+  function judge(allowedCidr, bmcIp, primaryNicIp) {
+    const out = [];
+    if (allowedCidr === null) out.push(block('RANGE_UNSET', null, null));        // 1. 대역 없음: BMC , LAN 은 '모름' 만 판정
+    if (bmcIp === null) out.push(block('BMC_UNKNOWN', null, allowedCidr));        // 2. BMC
+    else if (allowedCidr !== null && !cidrContains(allowedCidr, bmcIp)) out.push(block('BMC_OUTSIDE', bmcIp, allowedCidr));
+    if (primaryNicIp === null) out.push(block('LAN_UNKNOWN', null, allowedCidr)); // 3. LAN
+    else if (allowedCidr !== null && !cidrContains(allowedCidr, primaryNicIp)) out.push(block('LAN_OUTSIDE', primaryNicIp, allowedCidr));
+    return out;
+  }
+
+  // U3-6 미할당 문구 (v3: tooltip 의 em dash 를 걷어 낸 문장. 이유 목록 맨 앞에 함께 보인다)
+  const U36_TIP = '세팅 정의서가 할당되지 않았습니다. 정의서를 할당한 뒤 개시할 수 있습니다.';
+  // 기존 409 메시지(ProvisioningStartRejectedException). unassigned , failed 의 기존 문장은 v3 범위 밖이라 옮기지 않고 팩토리 이름으로만 보인다.
+  const REJECT = {
+    unassigned:     { factory: 'unassigned',     msg: '세팅 정의서가 할당되지 않은 서버는 개시할 수 없습니다. 정의서를 할당한 뒤 개시해야 합니다. id={id}' },
+    decommissioned: { factory: 'decommissioned', msg: '회수된 서버는 프로비저닝을 개시할 수 없습니다. id={id}' },
+    failed:         { factory: 'failed',         msg: '실패 상태의 서버는 개시할 수 없습니다. 재시도로 회복해야 합니다. id={id}' },
+    alreadyStarted: { factory: 'alreadyStarted', msg: '이미 개시된 서버입니다. id={id}' }
+  };
+  const STATUS_LABEL = { NEW: '미개시', STARTED: '개시됨', FAILED: '실패', DECOMMISSIONED: '회수' };
+
+  const BASE = { subnet: '10.1.1.0/24', subnetUnset: false, bmc: '10.1.1.21', bmcUnreported: false,
+                 nic: '10.1.1.101', nic2: '', assigned: true, status: 'NEW' };
+  const SCENARIOS = [
+    { title: '1 정상', patch: {}, expect: '활성, 이유 0 개' },
+    { title: '2 BMC 가 사내망', patch: { bmc: '192.168.10.21' }, expect: 'disabled, 이유 1 개 (BMC_OUTSIDE)' },
+    { title: '3 LAN 이 사내망', patch: { nic: '172.16.3.40' }, expect: 'disabled, 이유 1 개 (LAN_OUTSIDE)' },
+    { title: '4 BMC 미보고(수집 전)', patch: { bmcUnreported: true }, expect: 'disabled, 이유 1 개 (BMC_UNKNOWN)' },
+    { title: '5 허용 대역 없음 + BMC 미보고', patch: { subnetUnset: true, bmcUnreported: true }, expect: 'disabled, 이유 2 개 (RANGE_UNSET, BMC_UNKNOWN). LAN 은 주소가 있어 밖인지 계산할 수 없으므로 넣지 않음' },
+    { title: '6 미할당 + BMC 밖', patch: { assigned: false, bmc: '192.168.10.21' }, expect: 'disabled, 이유 2 개 (미할당 문구가 맨 앞, BMC_OUTSIDE). direct POST 는 미할당 409 가 먼저' },
+    { title: '7 보조 NIC 만 밖', patch: { nic2: '192.168.0.9' }, expect: '활성 (판정 대상은 primary)' },
+    { title: '8 BMC 밖 + LAN 밖', patch: { bmc: '192.168.10.21', nic: '172.16.3.40' }, expect: 'disabled, 이유 2 개 (BMC_OUTSIDE, LAN_OUTSIDE). 409 메시지 = 두 문구의 공백 연결' }
+  ];
+  let demo = null;
+
+  function demoApply(i) {
+    demo = Object.assign({}, BASE, SCENARIOS[i].patch, { sc: i, post: null });
+    document.getElementById('in-subnet').value = demo.subnet;
+    document.getElementById('in-bmc').value = demo.bmc;
+    document.getElementById('in-nic').value = demo.nic;
+    document.getElementById('in-nic2').value = demo.nic2;
+  }
+  function demoScenario(i) { demoApply(i); demoRender(); }
+  function demoInput() {
+    demo.subnet = document.getElementById('in-subnet').value;
+    demo.bmc = document.getElementById('in-bmc').value;
+    demo.nic = document.getElementById('in-nic').value;
+    demo.nic2 = document.getElementById('in-nic2').value;
+    demo.sc = null; demo.post = null; demoRender();
+  }
+  function demoToggle(key) { demo[key] = !demo[key]; demo.sc = null; demo.post = null; demoRender(); }
+  function demoSetAssigned(v) { demo.assigned = v; demo.sc = null; demo.post = null; demoRender(); }
+  function demoSetStatus(s) { demo.status = s; demo.sc = null; demo.post = null; demoRender(); }
+
+  // StartNetworkPolicy 대응 : 재료를 VO 로 만든다(형식 오류는 데모 입력 오류로만 표시).
+  function demoMaterials() {
+    const errors = [];
+    let subnet = null;   // allowedCidr = SystemSettingService.provisioningAllowedRange() (ProvisioningAllowedCidr.parse 통과값만)
+    if (!demo.subnetUnset) {
+      const p = parseAllowed(demo.subnet);
+      if (p.ok) subnet = p; else errors.push('프로비저닝 허용 대역 "' + p.input + '" (' + p.kind + ')');
+    }
+    const bmc = demo.bmcUnreported ? null : parseIp(demo.bmc);
+    if (bmc && bmc.error !== undefined) errors.push('BMC IP "' + bmc.error + '"');
+    const nic = parseIp(demo.nic);
+    if (nic && nic.error !== undefined) errors.push('primary NIC IP "' + nic.error + '"');
+    const nic2 = parseIp(demo.nic2);
+    if (nic2 && nic2.error !== undefined) errors.push('보조 NIC IP "' + nic2.error + '"');
+    return { subnet, bmc, nic, nic2, errors };
+  }
+
+  // 서버 가드 순서: AssignmentStartService(미할당) , isStartableWith(회수, 실패, 이미 개시) , judge , start
+  function serverPost(blocks) {
+    const rej = r => ({ ok: false, factory: r.factory, msg: r.msg });
+    if (!demo.assigned) return rej(REJECT.unassigned);
+    if (demo.status === 'DECOMMISSIONED') return rej(REJECT.decommissioned);
+    if (demo.status === 'FAILED') return rej(REJECT.failed);
+    if (demo.status === 'STARTED') return rej(REJECT.alreadyStarted);
+    if (blocks.length) return { ok: false, factory: 'outsideAllowedRange', msg: blocks.map(b => b.message()).join(' ') };
+    return { ok: true, msg: '통과. progress.start(now) 실행, startedAt 기록 (상태: 미개시에서 개시됨으로)' };
+  }
+  function demoPost() {
+    const m = demoMaterials();
+    if (m.errors.length) { demo.post = null; demoRender(); return; }
+    const r = serverPost(judge(m.subnet, m.bmc, m.nic));
+    demo.post = r;
+    if (r.ok) demo.status = 'STARTED';
+    demoRender();
+  }
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function demoBtn(label, blocked, tip) {
+    const t = tip ? ' data-tip="' + esc(tip) + '"' : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + (blocked ? ' disabled' : '') +
+      ' onclick="demoPost()">' + label + '</button></span>';
+  }
+  function hintRow(text, muted) {
+    return '<div class="ux-row child"><span class="label' + (muted ? ' muted' : '') + '">' + esc(text) + '</span></div>';
+  }
+
+  // ── 패널 2: 시스템 설정 화면 (GET /system/settings , POST /system/settings/provisioning-allowed-range 재현) ──
+  const VAL_PRESETS = [
+    { input: '10.1.1.0/24',    expect: '통과, 저장됨' },
+    { input: '8.8.8.0/24',     expect: 'NOT_PRIVATE' },
+    { input: '10.1.1.5/24',    expect: 'NOT_NETWORK_ADDRESS' },
+    { input: '10.0.0.0/7',     expect: 'WIDER_THAN_BLOCK' },
+    { input: '172.15.0.0/16',  expect: 'NOT_PRIVATE' },
+    { input: '172.16.0.0/11',  expect: 'WIDER_THAN_BLOCK' },
+    { input: '10.1.1.0',       expect: 'FORMAT' },
+    { input: '192.168.1.0/27', expect: 'TOO_NARROW' }
+  ];
+  const FLASH = '프로비저닝 허용 대역을 저장했습니다.';
+  const EMPTY_NOTICE = '이 계정으로 볼 수 있는 설정이 없습니다.';
+  // SystemSettingKey.PROVISIONING_ALLOWED_RANGE.defaultMinRole() = 배포 DML 의 min_role
+  const MIN_ROLE = 'SUPER_ADMIN';
+  // Role.implied (선언 순 SUPER_ADMIN, ADMIN, USER) , Role.description
+  const ROLE_IMPLIED = { SUPER_ADMIN: ['SUPER_ADMIN', 'ADMIN', 'USER'], ADMIN: ['ADMIN', 'USER'], USER: ['USER'] };
+  const ROLE_DESC = { SUPER_ADMIN: '최고 관리자', ADMIN: '관리자', USER: '사용자' };
+  // SystemSetting.isAccessibleBy(roles) = Role.expand(roles).contains(minRole)
+  function isAccessibleBy(roles) {
+    const ex = [];
+    ['SUPER_ADMIN', 'ADMIN', 'USER'].forEach(r => { if (roles.some(q => ROLE_IMPLIED[q].includes(r))) ex.push(r); });
+    return { expanded: ex, ok: ex.includes(MIN_ROLE) };
+  }
+  const val = { input: '10.1.1.0/24', role: 'SUPER_ADMIN', result: null, post: null, vp: null };
+
+  function valInput() { val.input = document.getElementById('in-val').value; val.result = null; val.post = null; val.vp = null; demoRender(); }
+  function valSetRole(r) { val.role = r; val.result = null; val.post = null; val.vp = null; demoRender(); }
+  // 프리셋: 카드가 보이면 화면의 [저장], 카드가 없으면(USER) direct POST 로 보낸다
+  function valPreset(i) {
+    val.input = VAL_PRESETS[i].input;
+    document.getElementById('in-val').value = val.input;
+    if (isAccessibleBy([val.role]).ok) valSave(i); else valPost(i);
+  }
+  // 통과값을 SystemSetting 행에 반영(upsert) , 패널 1 의 허용 대역도 이 값이 된다
+  function valCommit(r) {
+    demo.subnet = r.value; demo.subnetUnset = false; demo.sc = null; demo.post = null;
+    document.getElementById('in-subnet').value = demo.subnet;
+  }
+  // [저장] (화면 폼): 카드가 보이는 계정만 누를 수 있다
+  function valSave(vp) {
+    val.vp = vp; val.post = null;
+    val.result = parseAllowed(val.input);
+    if (val.result.ok) valCommit(val.result);
+    demoRender();
+  }
+  // direct POST: @Valid 검증이 먼저(BindingResult), 통과하면 서비스가 isAccessibleBy 로 가드
+  function valPost(vp) {
+    val.vp = vp; val.result = null;
+    const acc = isAccessibleBy([val.role]);
+    const r = parseAllowed(val.input);
+    if (!r.ok) val.post = { code: 200, r: r, acc: acc };
+    else if (!acc.ok) val.post = { code: 403, r: r, acc: acc };
+    else { valCommit(r); val.post = { code: 302, r: r, acc: acc }; }
+    demoRender();
+  }
+  function traceLines(r) {
+    return VIOLATION_ORDER.map((k, i) => {
+      const t = r.trace[i];
+      const head = '  ' + (i + 1) + ' ' + (k + '                    ').slice(0, 20) + ' ';
+      if (!t) return head + '(검사하지 않음)';
+      return head + (t.ok ? '<span class="f">통과</span>' : '<span class="t">걸림</span>') + '   ' + esc(t.note);
+    }).join('\n');
+  }
+  function valRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-vp]').forEach(b => b.classList.toggle('active', String(val.vp) === b.dataset.vp));
+    document.querySelectorAll('.ux-toolbar .seg[data-role]').forEach(b => b.classList.toggle('active', b.dataset.role === val.role));
+    const acc = isAccessibleBy([val.role]);
+
+    const sc = document.getElementById('val-scenario');
+    sc.className = 'ux-message';
+    const via = acc.ok ? '화면의 [저장]' : 'direct POST (USER 는 카드가 없으므로)';
+    sc.innerHTML = val.vp === null
+      ? '프리셋을 누르면 그 값을 입력해 ' + esc(via) + ' 로 보냅니다. 직접 입력해도 됩니다.'
+      : '<b>프리셋 ' + esc(VAL_PRESETS[val.vp].input) + '</b>, 기대: ' + esc(VAL_PRESETS[val.vp].expect) + '. 보낸 경로: ' + esc(via);
+
+    // UI 1 차 차단: 접근할 수 있는 카드만 보이고, 하나도 없으면 빈 안내
+    document.getElementById('val-card').classList.toggle('hidden', !acc.ok);
+    document.getElementById('val-empty').classList.toggle('hidden', acc.ok);
+
+    const stored = demo.subnetUnset ? null : demo.subnet;
+    document.getElementById('val-stored').innerHTML =
+      '<strong>프로비저닝 허용 대역</strong><span class="label mono" style="overflow-wrap:anywhere;">' +
+      esc(stored ? stored : '설정되지 않음') + '</span><span class="muted">접근 권한: ' + ROLE_DESC[MIN_ROLE] + '</span>';
+
+    const res = document.getElementById('val-result');
+    if (val.result === null) {
+      res.className = 'ux-message';
+      res.textContent = '[저장] 을 누르면 결과가 여기에 나옵니다. 위반이면 필드 아래 오류, 통과면 flash 입니다.';
+    } else if (val.result.ok) {
+      res.className = 'ux-message success'; res.textContent = FLASH;
+    } else {
+      res.className = 'ux-message error'; res.textContent = val.result.message;
+    }
+
+    const pr = document.getElementById('val-post-result');
+    const p = val.post;
+    if (p === null) {
+      pr.className = 'ux-message';
+      pr.textContent = '[요청 보내기] 를 누르면 direct POST 의 응답이 여기에 나옵니다.';
+    } else if (p.code === 302) {
+      pr.className = 'ux-message success'; pr.innerHTML = '<b>302</b> redirect:/system/settings, flash: ' + esc(FLASH);
+    } else if (p.code === 403) {
+      pr.className = 'ux-message error'; pr.innerHTML = '<b>403</b> SystemSettingAccessDeniedException. 저장되지 않았습니다.';
+    } else if (p.acc.ok) {
+      pr.className = 'ux-message error'; pr.innerHTML = '<b>200</b> 재렌더, 필드 오류: ' + esc(p.r.message);
+    } else {
+      pr.className = 'ux-message error'; pr.innerHTML = '<b>200</b> 재렌더. 이 계정의 화면에는 카드가 없어 필드 오류가 보이지 않습니다. 저장되지 않았습니다.';
+    }
+
+    const json = stored ? '{"type":"PROVISIONING_ALLOWED_RANGE","cidr":"' + esc(stored) + '"}' : 'NULL (행 없음)';
+    let caps =
+      '현재 사용자 권한 = [' + val.role + ']   Role.expand = [' + acc.expanded.join(', ') + ']\n' +
+      'PROVISIONING_ALLOWED_RANGE.minRole = ' + MIN_ROLE + '   (Role.description = ' + ROLE_DESC[MIN_ROLE] + ')\n' +
+      'SystemSetting.isAccessibleBy = ' + (acc.ok ? '<span class="f">true</span>' : '<span class="t">false</span>') +
+      '   화면 카드 = ' + (acc.ok ? '1 개' : '0 개, 빈 안내') + '\n' +
+      'system_setting.value_json = ' + json + '\n';
+    const r = val.result || (val.post && val.post.r);
+    if (!r) {
+      caps += 'ProvisioningAllowedCidr.parse: 아직 실행하지 않음';
+    } else {
+      caps += '입력(앞뒤 공백 제거) = "' + esc(r.input) + '"\n' +
+        'ProvisioningAllowedCidr.parse 검증 순서 (처음 걸린 하나에서 멈춤)\n' + traceLines(r) + '\n';
+      if (val.result) {
+        caps += r.ok ? '결과 = ProvisioningAllowedRange(' + esc(r.value) + '), saveProvisioningAllowedRange (upsert), PRG'
+                     : '결과 = IllegalArgumentException(' + r.kind + '), 필드 오류, 저장 안 됨 (저장값 불변)';
+      } else if (p.code === 302) {
+        caps += '결과 = 검증 통과, isAccessibleBy 통과, upsert, PRG';
+      } else if (p.code === 403) {
+        caps += '결과 = 검증 통과, saveProvisioningAllowedRange 가 isAccessibleBy 거절: SystemSettingAccessDeniedException (403), 저장값 불변';
+      } else {
+        caps += '결과 = @Valid 검증이 서비스보다 먼저 돈다: BindingResult 재렌더 (200), 서비스 가드에 닿지 않음, 저장값 불변';
+      }
+    }
+    document.getElementById('val-caps').innerHTML = caps;
+  }
+
+  function show(ip) { return ip === null ? 'null' : ip.value; }
+  function tf(b) { return b ? '<span class="f">true</span>' : '<span class="t">false</span>'; }
+
+  function demoRender() {
+    valRender();   // 패널 2 (패널 1 의 입력 오류 분기가 일찍 return 하므로 먼저 그린다)
+    // 조작부 상태
+    document.querySelectorAll('.ux-toolbar .seg[data-sc]').forEach(b => b.classList.toggle('active', String(demo.sc) === b.dataset.sc));
+    document.querySelectorAll('.ux-toolbar .seg[data-assigned]').forEach(b => b.classList.toggle('active', (b.dataset.assigned === '1') === demo.assigned));
+    document.querySelectorAll('.ux-toolbar .seg[data-status]').forEach(b => b.classList.toggle('active', b.dataset.status === demo.status));
+    document.getElementById('tg-subnet').classList.toggle('active', demo.subnetUnset);
+    document.getElementById('tg-bmc').classList.toggle('active', demo.bmcUnreported);
+    document.getElementById('in-subnet').disabled = demo.subnetUnset;
+    document.getElementById('in-bmc').disabled = demo.bmcUnreported;
+
+    const sc = document.getElementById('demo-scenario');
+    sc.className = 'ux-message';
+    sc.innerHTML = demo.sc === null ? '직접 조작 중입니다. 시나리오 버튼을 누르면 그 장면으로 돌아갑니다.'
+      : '<b>시나리오 ' + esc(SCENARIOS[demo.sc].title) + '</b>, 기대: ' + esc(SCENARIOS[demo.sc].expect);
+
+    const m = demoMaterials();
+    const action = document.getElementById('demo-action');
+    const hint = document.getElementById('demo-hint');
+    const caps = document.getElementById('demo-caps');
+    const msg = document.getElementById('demo-message');
+
+    if (m.errors.length) {
+      action.innerHTML = '<strong>다음 행동</strong><span class="label">판정 보류</span><span class="badge off">입력 오류</span>' +
+        '<span class="tip" data-tip="데모 입력 형식 오류입니다. 이 값으로는 판정하지 않습니다."><span class="chip keep">판정 보류</span></span>';
+      hint.innerHTML = hintRow('데모 입력 형식 오류: ' + m.errors.join(', '), false);
+      caps.innerHTML = '입력 형식 오류, 판정하지 않음\n  ' + esc(m.errors.join('\n  ')) +
+        '\n  (허용 대역 = ProvisioningAllowedCidr.parse 통과값, IP = IPv4 점 표기)';
+      msg.className = 'ux-message'; msg.textContent = '입력을 고치거나 시나리오 버튼을 누릅니다.';
+      return;
+    }
+
+    const startable = demo.status === 'NEW';
+    const blocks = judge(m.subnet, m.bmc, m.nic);
+    const networkReasons = blocks.map(b => b.message());          // progress.startNetworkBlockReasons
+    const reasons = (demo.assigned ? [] : [U36_TIP]).concat(networkReasons);   // 템플릿이 미할당 문구와 합친다
+
+    let screen;
+    if (!startable) {
+      screen = '숨김 (startable = false)';
+      action.innerHTML = '<strong>다음 행동</strong><span class="label">상태: ' + STATUS_LABEL[demo.status] + '</span>' +
+        '<span class="badge off">버튼 숨김</span>' +
+        '<span class="tip" data-tip="이 상태에서는 [프로비저닝 개시] 를 그리지 않습니다. progress.startable = false (isStartableWith)."><span class="chip keep">버튼 없음</span></span>';
+      hint.innerHTML = hintRow('안내 줄 없음 (개시 버튼 영역이 그려지지 않음)', true);
+    } else if (reasons.length) {
+      screen = '막음 (이유 ' + reasons.length + ' 개)';
+      const badges = (demo.assigned ? '' : '<span class="badge dep">U3-6</span>') +
+        blocks.map(b => '<span class="badge del">' + b.kind + '</span>').join('');
+      action.innerHTML = '<strong>다음 행동</strong><span class="label">막힌 이유 ' + reasons.length + ' 개</span>' +
+        badges + demoBtn('프로비저닝 개시', true, reasons.join('\n'));
+      hint.innerHTML = reasons.map(t => hintRow(t, false)).join('');
+    } else {
+      screen = '활성';
+      action.innerHTML = '<strong>다음 행동</strong><span class="label">막지 않음</span>' +
+        '<span class="badge on">활성</span>' + demoBtn('프로비저닝 개시', false, '');
+      hint.innerHTML = hintRow('안내 줄 없음 (startNetworkBlockReasons 가 빈 목록)', true);
+    }
+
+    const contains = ip => (m.subnet === null || ip === null) ? '계산 안 함' : tf(cidrContains(m.subnet, ip));
+    caps.innerHTML =
+      '판정 재료 (StartNetworkPolicy 가 로드)\n' +
+      '  allowedCidr    = ' + (m.subnet === null ? 'Optional.empty  (SystemSetting 행 없음 또는 value_json NULL)' : m.subnet.value + '  (SystemSettingService.provisioningAllowedRange(), mask=/' + m.subnet.prefix + ')') + '\n' +
+      '  bmcIp          = ' + show(m.bmc) + '   contains = ' + contains(m.bmc) + '\n' +
+      '  primaryNicIp   = ' + show(m.nic) + '   contains = ' + contains(m.nic) + '\n' +
+      '  보조 NIC IP    = ' + show(m.nic2) + '   contains = ' + contains(m.nic2) + '   (판정에 쓰지 않음)\n' +
+      'StartNetworkBlocks.judge(...) = [' + blocks.map(b => b.kind).join(', ') + ']\n' +
+      'progress.startNetworkBlockReasons = ' + networkReasons.length + ' 개\n' +
+      'progress.startable = ' + (startable ? 'true' : 'false') + '   phaseRail.assigned = ' + (demo.assigned ? 'true' : 'false') + '\n' +
+      '화면 이유 목록 = 미할당 ' + (demo.assigned ? 0 : 1) + ' + 네트워크 ' + networkReasons.length + '\n' +
+      '화면 판정: ' + screen +
+      (demo.post && !demo.post.ok ? '\n마지막 direct POST: ProvisioningStartRejectedException.' + demo.post.factory + ' (409)' : '');
+
+    if (demo.post === null) {
+      msg.className = 'ux-message';
+      msg.textContent = '[요청 보내기] 또는 활성 [프로비저닝 개시] 를 누르면 서버 응답이 여기에 나옵니다. 막힌 버튼에 마우스를 올리면 tooltip 이 뜹니다.';
+    } else if (demo.post.ok) {
+      msg.className = 'ux-message success';
+      msg.textContent = demo.post.msg;
+    } else if (demo.post.msg === null) {
+      msg.className = 'ux-message error';
+      msg.innerHTML = '<b>409</b> ProvisioningStartRejectedException.' + demo.post.factory + ' 의 기존 메시지 (이번 범위 밖이라 여기에 옮기지 않습니다)';
+    } else {
+      msg.className = 'ux-message error';
+      msg.innerHTML = '<b>409</b> ' + esc(demo.post.msg);
+    }
+  }
+
+  demoApply(0);   // 초기 장면 = 시나리오 1 (렌더 없이 상태 , 입력만 세팅)
+  document.getElementById('in-val').value = val.input;
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

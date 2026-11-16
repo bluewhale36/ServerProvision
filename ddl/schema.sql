@@ -639,6 +639,16 @@ CREATE TABLE `subprogram_variant` (
   UNIQUE KEY `uk_subprogram_variant_entry` (`subprogram_id`,`os_version`,`entrypoint_relative_path`),
   CONSTRAINT `fk_subprogram_variant_subprogram` FOREIGN KEY (`subprogram_id`) REFERENCES `subprogram` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE `system_setting` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `setting_key` varchar(64) NOT NULL,
+  `value_json` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`value_json`)),
+  `min_role` varchar(16) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_system_setting_key` (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `trash_settings` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `created_at` datetime(6) NOT NULL,

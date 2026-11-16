@@ -38,6 +38,11 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class GuestServerCommandServiceTest {
 
+    @Mock
+
+    StartNetworkPolicy startNetworkPolicy;   // U7 — 기본 빈 목록(막지 않음)
+
+
     @Mock GuestServerRepository guestServerRepository;
     @Mock ProvisioningProgressRepository provisioningProgressRepository;
     @Mock com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder provisioningHistoryRecorder;   // ES-2 D-5 — 수동 전환 원장 표식
@@ -157,6 +162,24 @@ class GuestServerCommandServiceTest {
         // 수집 완주 표식(INFORMATION_PERSISTING)이 아니면 소급 완주 판정은 없다(R13)
         verify(phaseCursorAdvancer, never()).advanceOrComplete(any(), any(), any());
         verify(eventPublisher).publishEvent(new GuestServerChangedEvent(id));
+    }
+
+    @Test
+    @DisplayName("startProvisioning(U7) — 허용 대역 밖이면 409 예외(사유 문구) · 개시 안 됨")
+    void start_outsideAllowedRange_rejected() {
+        UUID id = UUID.randomUUID();
+        ProvisioningProgress progress = seedProgress();
+        given(guestServerRepository.findById(id)).willReturn(Optional.of(server(id)));
+        given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
+        given(startNetworkPolicy.blocksOf(id)).willReturn(java.util.List.of(
+                new com.example.serverprovision.execution.vo.StartNetworkBlock(
+                        com.example.serverprovision.execution.enums.StartNetworkBlockKind.BMC_UNKNOWN, null, null)));
+
+        assertThatThrownBy(() -> service.startProvisioning(id))
+                .isInstanceOf(ProvisioningStartRejectedException.class)
+                .hasMessage("BMC 주소를 아직 알 수 없습니다. 하드웨어 수집이 끝나 BMC 주소가 보고된 뒤 개시할 수 있습니다.");
+        assertThat(progress.isStarted()).isFalse();
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

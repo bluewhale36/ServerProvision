@@ -41,6 +41,20 @@ public enum Role {
 	/** 이 권한이 함께 뜻하는 권한 집합(자기 자신 포함). */
 	public abstract Set<Role> implied();
 
+	/** 인증 정보의 authority 이름(ROLE_*)을 권한으로 되돌린다. 모르는 이름은 무시한다. */
+	public static Set<Role> fromAuthorityNames(Collection<String> authorityNames) {
+		EnumSet<Role> result = EnumSet.noneOf(Role.class);
+		if (authorityNames == null) {
+			return result;
+		}
+		for (Role r : values()) {
+			if (authorityNames.contains(r.roleName)) {
+				result.add(r);
+			}
+		}
+		return result;
+	}
+
 	/** 요청된 권한을 포함 관계로 닫는다 — null · 빈 입력은 빈 집합. 순서는 선언 순(높은 등급부터). */
 	public static Set<Role> expand(Collection<Role> requested) {
 		EnumSet<Role> result = EnumSet.noneOf(Role.class);

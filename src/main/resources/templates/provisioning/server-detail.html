@@ -200,14 +200,15 @@
                                 정의서 할당
                             </button>
 
-                            <!-- 개시(DEC-26) — startable SSOT. U3-6 — 미할당 개시는 즉시 종단 함정이라 disabled + tooltip -->
-                            <form th:if="${server.progress != null and server.progress.startable and phaseRail.assigned}"
+                            <!-- 개시(DEC-26) — startable SSOT. 막는 이유(U3-6 미할당 · U7 네트워크)가 하나라도 있으면 disabled + tooltip -->
+                            <form th:if="${server.progress != null and server.progress.startable and #lists.isEmpty(startBlockReasons)}"
                                   th:action="@{/provisioning/server/{id}/start(id=${server.id})}" method="post">
                                 <button type="submit" class="n-btn n-btn-primary">프로비저닝 개시</button>
                             </form>
-                            <button th:if="${server.progress != null and server.progress.startable and !phaseRail.assigned}"
-                                    type="button" class="n-btn n-btn-secondary" disabled
-                                    title="세팅 정의서가 할당되지 않았습니다 — 정의서를 할당한 뒤 개시할 수 있습니다.">프로비저닝 개시</button>
+                            <span th:if="${server.progress != null and server.progress.startable and !#lists.isEmpty(startBlockReasons)}"
+                                  class="n-btn-tooltip-wrap" th:data-tooltip="${startBlockTooltip}">
+                                <button type="button" class="n-btn n-btn-secondary" disabled>프로비저닝 개시</button>
+                            </span>
 
                             <!-- 재할당(U3-2-a) — 미개시 활성일 때만 -->
                             <button th:if="${phaseRail.assigned and phaseRail.reassignBlockReason == null and assignmentForm.hasSelectable}"
@@ -241,12 +242,13 @@
                         <p class="n-next-hint" th:if="${server.decommissionedAt != null}">
                             회수된 서버는 프로비저닝 대상이 아닙니다. 다시 프로비저닝하려면 물리 서버를 PXE 로 재등록하십시오.</p>
                         <!-- E1-2 (UC-3) → R13 — 진단(수집)은 자동 진행이므로 개시 안내는 "수집 이후 단계" 로 한정. -->
-                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active}">
+                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active and #lists.isEmpty(server.progress.startNetworkBlockReasons)}">
                             <span th:if="${phaseRail.assigned}">하드웨어 수집은 자동으로 진행됩니다. 수집이 끝난 뒤 다음 단계는 <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.</span>
                             <span th:unless="${phaseRail.assigned}">하드웨어 수집은 자동으로 진행되며, 수집이 끝나면 이 자리에서 멈춰 기다립니다. 다음 단계로 가려면 <strong>세팅 정의서를 할당</strong>한 뒤 [프로비저닝 개시] 를 누르십시오.</span>
                         </p>
-                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable and !phaseRail.assigned}">
-                            세팅 정의서를 할당한 뒤 개시할 수 있습니다.</p>
+                        <!-- U7 — 막는 이유마다 한 줄(미할당 안내도 이 목록이 대신한다). -->
+                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable}"
+                           th:each="reason : ${startBlockReasons}" th:text="${reason}">막는 이유</p>
                         <p class="n-next-hint" th:if="${phaseRail.assigned and phaseRail.reassignBlockReason == null and server.decommissionedAt == null}">
                             재할당하면 지금 정의서로 새 스냅샷을 만들고 기존 할당은 이력으로 종료됩니다. 프로비저닝 개시 전까지만 가능합니다.</p>
                         <!-- E2-4 Q3 — 펌웨어 단계 재시도의 전원 사이클은 의도다. 미리 알린다. -->

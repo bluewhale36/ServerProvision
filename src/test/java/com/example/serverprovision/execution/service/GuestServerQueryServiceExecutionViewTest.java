@@ -77,7 +77,7 @@ class GuestServerQueryServiceExecutionViewTest {
         given(recorder.openRunning(any(), any(), any(), any())).willAnswer(inv -> ProvisioningHistory.openRunning(
                 inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)));
         service = new GuestServerQueryService(guestServerRepository, raidConfigurationResolutionProvider,
-                raidVolumeRepository, detailRepository, nicRepository,
+                raidVolumeRepository, detailRepository, nicRepository, org.mockito.Mockito.mock(com.example.serverprovision.execution.service.StartNetworkPolicy.class),
                 progressRepository, historyRepository, firmwareResolutionProvider, holdTtlPolicy, retryPolicy,
                 new FlashTimeoutPolicy(new MockEnvironment()), settingLedger, observations, new ObjectMapper(),
                 org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.windows.WindowsInstallReadinessResolver.class),   // E4-1-a-3 — 창 밖(empty)
