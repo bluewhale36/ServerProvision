@@ -12,13 +12,13 @@
     {
       "title": "자원 관리",
       "pages": [
-        { "title": "자원의 상태와 삭제", "path": "management/lifecycle.html", "status": "planned" },
-        { "title": "OS 버전과 ISO", "path": "management/os.html", "status": "planned" },
+        { "title": "자원의 상태와 삭제", "path": "management/lifecycle.html" },
+        { "title": "OS 버전과 ISO", "path": "management/os.html" },
         { "title": "메인보드", "path": "management/board.html" },
-        { "title": "BIOS 펌웨어", "path": "management/bios.html", "status": "planned" },
-        { "title": "BMC 펌웨어", "path": "management/bmc.html", "status": "planned" },
-        { "title": "RAID 카드", "path": "management/raidcard.html", "status": "planned" },
-        { "title": "드라이버와 유틸리티", "path": "management/subprogram.html", "status": "planned" }
+        { "title": "BIOS 펌웨어", "path": "management/bios.html" },
+        { "title": "BMC 펌웨어", "path": "management/bmc.html" },
+        { "title": "RAID 카드", "path": "management/raidcard.html" },
+        { "title": "드라이버와 유틸리티", "path": "management/subprogram.html" }
       ]
     },
     {

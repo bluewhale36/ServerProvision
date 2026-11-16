@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="manual-reviewed" content="2026-11-16">
+    <title>드라이버와 유틸리티 | ServerProvision 사용 매뉴얼</title>
+    <link rel="stylesheet" href="../../global/reset.css">
+    <link rel="stylesheet" href="../../global/style.css">
+    <link rel="stylesheet" href="../manual.css">
+    <script src="../manual.js" defer></script>
+</head>
+<body class="m-body">
+<main class="m-main">
+    <h1>드라이버와 유틸리티</h1>
+    <p class="m-lead">드라이버는 Windows Server 를 설치한 뒤 서버에 함께 설치할 장치 드라이버 패키지입니다. 유틸리티는 RAID 관리 도구나 진단 프로그램처럼 운영자가 쓰는 보조 도구를 보관하는 자원입니다. 두 자원은 화면과 등록 방식이 같고 종류만 다릅니다.</p>
+
+    <h2 id="role">프로비저닝에서의 용도</h2>
+    <ul>
+        <li>드라이버는 정의서의 OS 설치 단계에서 Windows Server 를 설치할 때 자동으로 함께 설치됩니다. 정의서에서 드라이버를 따로 고르지는 않습니다.</li>
+        <li>유틸리티는 현재 프로비저닝 과정에서 자동으로 설치되거나 실행되지 않습니다.</li>
+    </ul>
+
+    <h3 id="driver-selection">설치할 드라이버가 골라지는 방식</h3>
+    <ol>
+        <li>먼저 <span class="m-path"><span>운영</span><span>시스템 자산</span></span> 화면의 Windows 설치 소스 영역에서 <span class="m-ui">드라이버 페이로드 조립</span> 을 누릅니다. 삭제되지 않은 활성 드라이버가 Windows 설치 소스로 복사됩니다. 폴더가 없거나, 변형도 INF 도 없는 드라이버는 제외됩니다.</li>
+        <li>서버마다 Windows 를 설치할 때 조립된 드라이버 중 다음 조건을 모두 만족하는 것을 고릅니다.
+            <ul>
+                <li>적용 범위가 공용이거나 서버의 메인보드와 같은 드라이버</li>
+                <li>OS 가 OS 무관이거나 정의서의 설치 대상 OS 와 같은 드라이버</li>
+            </ul>
+        </li>
+        <li>고른 드라이버마다 <a href="#variants">변형</a>에 따라 설치할 항목을 정합니다.</li>
+    </ol>
+    <div class="m-callout m-warn">
+        <span class="m-callout-title">주의</span>
+        <p>드라이버를 새로 등록했거나 이름을 바꿨다면 시스템 자산 화면에서 <span class="m-ui">드라이버 페이로드 조립</span> 을 다시 눌러야 다음 설치부터 반영됩니다. 다시 조립하지 않으면 그 드라이버는 "조립 미반영" 으로 제외됩니다. 변형과 OS 수정은 다시 조립하지 않아도 반영됩니다.</p>
+    </div>
+    <p>OS 의 Windows 와 Windows Server 는 서로 다른 값입니다. Windows Server 에 설치할 드라이버를 OS Windows 로 등록하면 후보에서 빠집니다.</p>
+    <p>설치 결과는 서버 상세의 Windows 설치 영역에서 확인합니다. 고른 드라이버 목록, 제외된 드라이버와 사유, 항목별 설치 결과, 설치 뒤에도 드라이버가 잡히지 않은 문제 장치가 표시됩니다.</p>
+
+    <h2 id="screen">화면 구성</h2>
+    <p>사이드바에서 <span class="m-path"><span>자원 관리</span><span>Driver/Utility</span></span> 를 엽니다. 한 화면에 Driver 구역과 Utility 구역이 있고, 위쪽의 조회 띠는 두 구역에 함께 적용됩니다. 각 구역은 세 열로 나뉩니다. 왼쪽 열의 첫 줄은 공용이고 그 아래에 메인보드 모델이 나옵니다. 범위를 고르면 가운데 열에 항목이 나타나고, 항목을 고르면 오른쪽 열에 상세가 나타납니다.</p>
+    <p>상세에는 ID, 분류(공용 또는 메인보드), 이름, 버전, 트리 루트, OS, 변형, manifest 해시, 번들 크기, 무결성, 설명, 상태, 사용 중단 권고가 표시됩니다.</p>
+
+    <h2 id="register">등록</h2>
+    <ol class="m-steps">
+        <li>구역의 <span class="m-ui">+ 신규 드라이버 등록</span> 또는 <span class="m-ui">+ 신규 유틸리티 등록</span> 을 누릅니다. 가운데 열 아래의 등록 버튼으로 시작하면 적용 범위가 미리 선택됩니다.</li>
+        <li><strong>적용 범위</strong>에서 공용 (보드 무관) 또는 특정 메인보드를 고릅니다. 기본값은 공용입니다.</li>
+        <li><strong>이름</strong>(128자 이하)과 <strong>버전</strong>(64자 이하)을 입력합니다.</li>
+        <li><strong>OS</strong>를 고릅니다. 특정 OS 에만 쓰는 패키지가 아니면 OS 무관으로 둡니다.</li>
+        <li><strong>번들 등록 방식</strong>을 고르고 <strong>대상 디렉토리</strong>를 입력합니다.</li>
+        <li>필요하면 <strong>설명</strong>을 입력하고 <span class="m-ui">번들 등록</span> 을 누릅니다. 업로드하는 동안 화면을 떠나지 않습니다.</li>
+    </ol>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>번들 등록 방식</th><th>올리는 것</th><th>대상 디렉토리</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>폴더 업로드(기본)</td><td>드라이버 패키지 폴더 전체</td><td>비어 있거나 아직 없는 폴더</td></tr>
+            <tr><td>Zip 업로드</td><td>배포용 .zip 파일. PXE 서버가 대상 폴더에 압축 해제</td><td>비어 있거나 아직 없는 폴더</td></tr>
+            <tr><td>단일 파일 업로드</td><td>파일 하나</td><td>비어 있거나 아직 없는 폴더</td></tr>
+            <tr><td>기존 디렉토리 등록</td><td>업로드 불필요. 버튼 이름도 기존 디렉토리 등록으로 변경</td><td>PXE 서버에 이미 내용이 들어 있는 폴더. 다른 자원의 마커가 있으면 거절</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>대상 디렉토리의 상위 폴더가 없으면 <strong>상위 디렉토리 생성 허용</strong>을 켭니다. 등록이 끝나면 목록으로 돌아갑니다. 방금 등록한 항목은 자동으로 선택되지 않으므로 목록에서 찾아 엽니다.</p>
+    <p>종류, 적용 범위, 이름, 버전이 모두 같은 자원이 이미 있으면 휴지통에 있는 것까지 포함해 등록되지 않고 "같은 드라이버 가 이미 등록되어 있습니다" 오류가 표시됩니다. 종류, 적용 범위, 버전이 같은 자원이 휴지통이나 Deprecated 에 있으면 업로드 전에 중복 확인 창이 먼저 열립니다. 이때 이름까지 같은 자원이라면 <span class="m-ui">그래도 등록</span> 대신 <span class="m-ui">기존 영구 삭제 후 등록</span> 을 쓰거나, 기존 자원을 복구하거나 Deprecated 를 해제합니다.</p>
+    <p>같은 대상 디렉토리를 다른 자원이 쓰고 있으면 "이 디렉토리는 이미 다른 등록 소유로 marker 가 있습니다" 오류가 표시됩니다.</p>
+    <div class="m-callout m-danger">
+        <span class="m-callout-title">경고</span>
+        <p>기존 디렉토리 등록 중에 중복 확인 창이 열리면 <span class="m-ui">취소</span> 를 누르지 않습니다. 취소하면 지정한 기존 폴더가 통째로 지워집니다. 창 바깥을 누르는 것도 취소와 같습니다. 기존 자원을 정리하는 <span class="m-ui">기존 영구 삭제 후 등록</span> 을 고릅니다.</p>
+    </div>
+
+    <h2 id="variants">변형</h2>
+    <p>변형은 한 패키지 안에서 OS 버전마다 무엇을 설치할지 정하는 표입니다. 등록할 때는 입력하지 않고, 등록한 뒤 <span class="m-ui">수정</span> 화면에서 정합니다. 변형이 없으면 패키지 폴더 안의 모든 INF 를 하나씩 설치합니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>열</th><th>내용</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>OS 버전</td><td>예: 2025. OS 버전 화면에 등록한 버전과 같은 표기. 입력할 때 제안되는 값 사용 권장. 비우면 맞는 버전 행이 없을 때 쓰는 기본 행</td></tr>
+            <tr><td>진입점</td><td>패키지 폴더 안의 상대 경로. 설치 방식을 결정</td></tr>
+            <tr><td>인자</td><td>예: /norestart. 실행 파일에 넘길 인자</td></tr>
+            <tr><td>재부팅</td><td>설치 뒤 재부팅 필요 여부</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>진입점</th><th>설치 방식</th></tr>
+            </thead>
+            <tbody>
+            <tr><td><code>.inf</code> 파일</td><td>pnputil 로 설치</td></tr>
+            <tr><td><code>.msi</code> 파일</td><td>msiexec 로 조용히 설치</td></tr>
+            <tr><td><code>.exe</code> 파일</td><td>인자와 함께 직접 실행</td></tr>
+            <tr><td>폴더(끝이 <code>/</code>)</td><td>그 폴더 아래의 INF 를 하나씩 pnputil 로 설치</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>설치할 때는 대상 OS 버전과 정확히 같은 행을 모두 쓰고, 없으면 OS 버전을 비운 행을 씁니다. 둘 다 없으면 그 드라이버는 "해당 버전 변형 없음" 으로 제외됩니다. 진입점이나 인자에 한글 같은 비 ASCII 문자나 <code>|</code> 가 있으면 그 행은 "비 ASCII 경로" 로 제외되고, 같은 패키지의 다른 행은 설치됩니다. 한 OS 버전에 행을 여러 개 둘 수 있으며 맞는 행은 모두 설치됩니다. 파일 진입점은 저장할 때 실제로 있는지 확인하지 않으므로 경로를 정확히 입력합니다.</p>
+    <div class="m-callout">
+        <span class="m-callout-title">참고</span>
+        <p>서명이 없는 INF 는 설치 중 거절될 수 있습니다. 서버 상세의 실패한 INF 에 <code>0xE000024B</code> 나 <code>0xE000022F</code> 가 보이면 서명 검증 실패입니다. 변형의 진입점을 패키지 안의 대상 OS 폴더로 좁히면 대부분 해결됩니다.</p>
+    </div>
+
+    <h2 id="edit">정보 수정</h2>
+    <p>수정 화면에서는 이름, 버전, OS, 변형, 설명을 바꿀 수 있습니다. 종류, 적용 범위, 패키지 파일은 바꿀 수 없습니다. 파일을 바꾸려면 삭제하고 다시 등록합니다.</p>
+
+    <h2 id="lifecycle">상태 변경과 삭제</h2>
+    <p>일반적인 동작은 <a href="lifecycle.html">자원의 상태와 삭제</a>에서 설명합니다. 특정 메인보드용 자원은 메인보드가 비활성이거나 삭제되면 함께 영향을 받고, 공용 자원은 영향을 받지 않습니다. 영구 삭제할 때 입력할 자원명은 이름입니다. 패키지 폴더는 삭제할 때 이미 휴지통 폴더로 옮겨지며, 휴지통 화면에서 영구 삭제해야 휴지통 폴더의 파일까지 지워집니다.</p>
+</main>
+</body>
+</html>

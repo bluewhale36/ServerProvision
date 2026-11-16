@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="manual-reviewed" content="2026-11-16">
+    <title>RAID 카드 | ServerProvision 사용 매뉴얼</title>
+    <link rel="stylesheet" href="../../global/reset.css">
+    <link rel="stylesheet" href="../../global/style.css">
+    <link rel="stylesheet" href="../manual.css">
+    <script src="../manual.js" defer></script>
+</head>
+<body class="m-body">
+<main class="m-main">
+    <h1>RAID 카드</h1>
+    <p class="m-lead">RAID 카드 자원은 서버에 장착된 RAID 카드의 사양 정보입니다. 세팅 정의서의 RAID 구성 단계에서 카드를 지정하면, PXE 서버가 그 사양으로 만들 수 있는 구성을 판정하고 실행할 때 실제 카드와 대조합니다. RAID 카드는 메인보드에 속하지 않는 독립 자원이며 파일이 없습니다.</p>
+
+    <h2 id="role">프로비저닝에서의 용도</h2>
+    <ul>
+        <li>정의서의 RAID 구성 단계는 RAID 카드를 이용한 구성만 지원합니다. 메인보드에 내장된 RAID 는 지원하지 않습니다.</li>
+        <li>정의서 작성 화면은 카드의 지원 RAID 레벨, 캐시 용량, 칩 계열로 디스크 묶음 표의 선택지를 정합니다. 카드가 지원하지 않는 레벨은 고를 수 없습니다. 정의서에서 고를 수 있는 레벨은 RAID0, RAID1, RAID5, RAID6, RAID10 다섯 가지입니다.</li>
+        <li>실행할 때 진단 리눅스가 감지한 카드의 PCI Subsystem ID 와 정의서가 지정한 카드의 값을 비교합니다. 다르거나 카드가 감지되지 않으면 RAID 구성 단계가 실패합니다.</li>
+        <li>정의서를 서버에 할당할 때도 같은 비교를 합니다. 카드가 맞지 않는 정의서는 할당 창에서 잠김으로 표시됩니다. 서버의 RAID 카드 정보를 아직 수집하지 않았거나, 카드의 PCI Subsystem ID 가 미확인이거나, 정의서가 지정한 카드가 영구 삭제됐으면 대조 전으로 표시됩니다.</li>
+    </ul>
+    <div class="m-callout m-warn">
+        <span class="m-callout-title">주의</span>
+        <p>PCI Subsystem ID 가 비어 있는(미확인) 카드는 실물 대조를 건너뜁니다. 다른 카드가 장착된 서버에서도 RAID 구성 단계가 진행될 수 있으므로, 카드를 정의서에 쓰기 전에 PCI Subsystem ID 를 확정해 둡니다.</p>
+    </div>
+
+    <h2 id="screen">화면 구성</h2>
+    <p>사이드바에서 <span class="m-path"><span>자원 관리</span><span>RAID 카드</span></span> 를 엽니다. 왼쪽 열에서 제조사를 고르면 가운데 열에 카드가 나타나고, 카드를 고르면 오른쪽 열에 상세가 나타납니다.</p>
+    <p>상세에는 ID, 제조사, 모델명, 지원 RAID 레벨, 캐시, PCI Subsystem ID, 설명, 상태, 사용 중단 권고가 표시됩니다. 칩 계열은 상세에 표시되지 않고 수정 화면에서 확인할 수 있습니다.</p>
+
+    <h2 id="register">RAID 카드 등록</h2>
+    <ol class="m-steps">
+        <li><span class="m-ui">+ 신규 RAID 카드 등록</span> 을 누릅니다. 가운데 열 아래의 <span class="m-ui">+ RAID 카드 등록</span> 으로 시작하면 제조사가 미리 선택됩니다.</li>
+        <li>아래 표를 참고해 각 칸을 입력합니다.</li>
+        <li><span class="m-ui">등록</span> 을 누릅니다. 목록으로 돌아가고 새 카드가 선택된 상태로 열립니다.</li>
+    </ol>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>입력 칸</th><th>내용</th><th>용도</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>제조사</td><td>GIGABYTE, AVAGO 중 선택. 필수</td><td>카드 식별</td></tr>
+            <tr><td>칩 계열</td><td>MPT IR (sas3ircu 계열), MegaRAID (storcli 계열) 중 선택. 필수</td><td>볼륨 수 상한, 레벨별 디스크 수 규칙, 볼륨 세부 설정 지원 여부</td></tr>
+            <tr><td>모델명</td><td>예: CRA3338. 필수, 128자 이하</td><td>카드 식별</td></tr>
+            <tr><td>지원 RAID 레벨</td><td>RAID0, RAID1, RAID5, RAID6, RAID10, RAID00, RAID50, RAID60 중 카드 사양서의 지원 레벨. 하나 이상. 칩 계열에 따라 일부 잠김</td><td>정의서에서 만들 수 있는 레벨 판정. RAID00, RAID50, RAID60 은 기록용(정의서 선택 불가)</td></tr>
+            <tr><td>캐시 용량 (GB)</td><td>0 이상 1024 이하. 캐시가 없는 모델은 0</td><td>캐시가 있는 카드는 디스크 1개짜리 RAID0 허용</td></tr>
+            <tr><td>PCI Subsystem ID (선택)</td><td>예: 1458:0011. 비우면 미확인</td><td>실물 카드 대조</td></tr>
+            <tr><td>설명 (선택)</td><td>자유 기재</td><td>참고</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>칩 계열을 먼저 고르면 그 칩 계열이 만들 수 없는 레벨 칸이 잠기고, 이미 체크한 칸은 체크가 풀립니다. 지원 RAID 레벨 아래에 "MPT IR (sas3ircu 계열)은 RAID0 · RAID1 · RAID10 만 만들 수 있습니다" 같은 안내가 표시되고, 체크가 풀린 레벨이 있으면 그 목록이 뒤에 붙습니다. <span class="m-ui">전체 선택</span> 은 잠긴 칸을 건너뜁니다.</p>
+
+    <h3 id="chip-family">칩 계열</h3>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>칩 계열</th><th>카드 예</th><th>등록할 수 있는 레벨</th><th>볼륨 수 상한</th><th>볼륨 세부 설정</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>MPT IR (sas3ircu 계열)</td><td>GIGABYTE CRA3338</td><td>RAID0, RAID1, RAID10</td><td>2개</td><td>미지원</td></tr>
+            <tr><td>MegaRAID (storcli 계열)</td><td>AVAGO MegaRAID 9361-8i</td><td>8가지 전부</td><td>64개</td><td>지원(쓰기 정책 등)</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>등록 화면은 고른 칩 계열이 실제 카드와 맞는지 확인하지 않습니다. 카드 사양을 확인하고 고릅니다.</p>
+
+    <h2 id="subsystem">PCI Subsystem ID 확정</h2>
+    <p>PCI Subsystem ID 를 비워 두고 등록한 카드는 상세에 <span class="n-badge n-badge-gray">미확인</span> 으로 표시됩니다. 이 카드를 지정한 정의서가 할당된 서버가 진단을 마치면, 그 서버가 감지한 카드의 값이 상세의 관측 영역에 나타납니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>관측 영역 표시</th><th>뜻과 조치</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>이 카드를 지정한 서버의 진단 결과가 아직 없습니다.</td><td>관측 부재</td></tr>
+            <tr><td>관측 값과 <span class="m-ui">관측값으로 확정</span> 버튼</td><td>서버들이 한 값을 관측. 버튼을 누르면 그 값으로 확정</td></tr>
+            <tr><td>관측이 확정값과 일치합니다</td><td>정상</td></tr>
+            <tr><td>관측 ... 이 확정값 ... 과 다릅니다</td><td>정의서의 카드 지정 또는 확정값의 오류. 수정 화면에서 정정</td></tr>
+            <tr><td>관측이 서로 다릅니다</td><td>서버마다 다른 카드 감지. 관측값으로 확정 버튼 잠김. 정의서의 카드 지정을 확인하고 수정 화면에서 직접 입력</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>값을 이미 알고 있다면 수정 화면에서 직접 입력해도 됩니다. <code>1458:0011</code>, <code>0x1458:0x0011</code>, <code>[1458:0011]</code> 형식을 받으며(각 쪽 16진수 1자리에서 4자리), 화면에는 소문자 네 자리 쌍으로 표시됩니다. 확정된 값은 관측값으로 덮어쓰지 않으므로 바꾸려면 수정 화면을 씁니다.</p>
+
+    <h2 id="duplicate">같은 카드가 이미 있을 때</h2>
+    <p>제조사와 모델명이 같은 카드가 삭제되지 않았고 Deprecated 도 아닌 상태로 있으면 모델명 칸 아래에 "이미 등록된 RAID 카드입니다. GIGABYTE CRA3338" 처럼 오류가 표시됩니다. 휴지통이나 Deprecated 상태로 있으면 중복 확인 창이 열리며, 처리 방법은 <a href="lifecycle.html#duplicate">같은 자원이 이미 있을 때</a>를 따릅니다.</p>
+
+    <h2 id="edit">정보 수정</h2>
+    <p>상세의 <span class="m-ui">수정</span> 을 누르면 제조사를 뺀 모든 항목을 바꿀 수 있습니다. 지원 RAID 레벨을 바꾸면 정의서 작성 화면의 카드 판정에도 바로 반영됩니다. 제조사를 바꾸려면 삭제하고 다시 등록합니다.</p>
+    <p>칩 계열이 MPT IR 인 카드의 수정 화면을 열면 등록할 수 없는 레벨 칸이 잠깁니다. 예전에 이 카드에 RAID5 나 RAID6 을 등록해 두었다면 수정 화면을 여는 순간 그 체크가 풀리고, 저장하면 지원 레벨에서 빠집니다.</p>
+
+    <h2 id="lifecycle">상태 변경과 삭제</h2>
+    <p>일반적인 동작은 <a href="lifecycle.html">자원의 상태와 삭제</a>에서 설명합니다. RAID 카드는 하위 자원과 부모가 없으므로 상태 변경이 다른 자원에 퍼지지 않습니다.</p>
+    <ul>
+        <li>비활성화한 카드는 정의서의 RAID 카드 선택지에서 빠집니다. 이미 저장한 정의서를 수정할 때는 카드를 다시 고르거나 RAID 묶음을 비워야 저장됩니다.</li>
+        <li>같은 제조사와 모델명의 카드가 Deprecated 가 아닌 상태로 휴지통 밖에 있으면 복구할 수 없습니다. 복구하려는 카드가 Deprecated 상태로 삭제된 것이라면 막히지 않습니다.</li>
+        <li>휴지통에서 자동으로 영구 삭제되지 않고 보존 기간 연장 대상도 아닙니다. 필요 없으면 직접 영구 삭제합니다.</li>
+        <li>Deprecated 해제는 확인 창 없이 바로 적용됩니다.</li>
+        <li>영구 삭제할 때 입력할 자원명은 제조사와 모델명입니다(예: GIGABYTE CRA3338).</li>
+    </ul>
+</main>
+</body>
+</html>

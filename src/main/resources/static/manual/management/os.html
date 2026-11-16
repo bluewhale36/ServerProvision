@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="manual-reviewed" content="2026-11-16">
+    <title>OS 버전과 ISO | ServerProvision 사용 매뉴얼</title>
+    <link rel="stylesheet" href="../../global/reset.css">
+    <link rel="stylesheet" href="../../global/style.css">
+    <link rel="stylesheet" href="../manual.css">
+    <script src="../manual.js" defer></script>
+</head>
+<body class="m-body">
+<main class="m-main">
+    <h1>OS 버전과 ISO</h1>
+    <p class="m-lead">OS 버전은 설치할 운영체제의 이름과 버전이고, ISO 는 그 OS 버전에 속한 설치 이미지 파일입니다. 세팅 정의서의 OS 설치 단계에서 OS 버전과 ISO 를 고릅니다.</p>
+    <div class="m-callout m-warn">
+        <span class="m-callout-title">주의</span>
+        <p><strong>현재 설치할 수 있는 OS 는 Windows Server 뿐입니다.</strong> Rocky Linux, CentOS, Ubuntu 는 OS 버전과 ISO 를 등록할 수 있지만 세팅 정의서의 OS 설치 단계에서 고를 수 없으므로 서버에 설치되지 않습니다.</p>
+    </div>
+
+    <h2 id="role">프로비저닝에서의 용도</h2>
+    <ul>
+        <li>정의서의 OS 설치 단계는 활성 상태이고 사용할 수 있는 ISO 가 하나 이상 있는 OS 버전만 선택지로 보여 줍니다. ISO 를 등록하지 않은 OS 버전은 선택지에 나타나지 않습니다.</li>
+        <li>정의서의 OS 선택지에서 Rocky Linux, CentOS, Ubuntu 는 "Windows Server 계열만 설치할 수 있습니다. 리눅스 설치 자동화는 추후 지원 예정입니다." 라는 이유와 함께 고를 수 없게 표시됩니다.</li>
+        <li>Windows Server 를 실제로 설치할 때는 정의서에서 고른 설치 이미지(에디션)와 시스템 자산 화면에 준비된 Windows 설치 소스를 씁니다. 정의서에서 ISO 를 고르는 것은 필수지만, 설치할 때 그 ISO 파일을 읽지는 않습니다. 어떤 ISO 를 기준으로 정의했는지 남기는 기록입니다.</li>
+        <li>Windows 설치 소스가 준비되지 않았으면 Windows Server 도 정의서에서 고를 수 없습니다.</li>
+    </ul>
+
+    <h2 id="screen">화면 구성</h2>
+    <p>사이드바에서 <span class="m-path"><span>자원 관리</span><span>OS 버전</span></span> 을 엽니다. 화면은 세 열로 나뉩니다. 왼쪽 열에서 OS 이름을 고르면 가운데 열에 버전이 나타나고, 버전을 고르면 오른쪽 열에 상세와 ISO 목록이 나타납니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>영역</th><th>내용</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>상세 표</td><td>ID, OS 이름, OS 버전, 설명, 상태, 사용 중단 권고</td></tr>
+            <tr><td>ISO 목록</td><td>ISO 마다 접이식 항목. 머리에 전체 경로와 상태 배지, 펼치면 상태, 무결성, 추출 정보와 조작 버튼</td></tr>
+            <tr><td>설치 환경, 패키지 그룹</td><td>리눅스 계열 ISO 에서 추출한 정보</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2 id="register-os">OS 버전 등록</h2>
+    <ol class="m-steps">
+        <li><span class="m-ui">+ 신규 OS 버전 등록</span> 을 누릅니다.</li>
+        <li><strong>OS 이름</strong>을 고릅니다. 선택지는 Rocky Linux, CentOS, Ubuntu, Windows Server 입니다.</li>
+        <li><strong>OS 버전</strong>을 입력합니다. 64자까지 입력할 수 있습니다.</li>
+        <li>필요하면 <strong>설명</strong>을 입력하고 <span class="m-ui">등록</span> 을 누릅니다. 목록으로 돌아가고 새 버전이 선택된 상태로 열립니다.</li>
+    </ol>
+    <p>같은 OS 이름과 버전이 휴지통 밖에 있고 Deprecated 도 아니면(비활성 포함) "이미 등록된 OS 버전입니다. Rocky Linux 9.6" 처럼 오류가 표시됩니다. 같은 버전이 휴지통에 있거나 Deprecated 로 표시돼 있으면 중복 확인 창이 열립니다. 이때의 처리는 <a href="lifecycle.html#duplicate">같은 자원이 이미 있을 때</a>를 따릅니다.</p>
+    <p>수정 화면에서는 설명만 바꿀 수 있습니다. OS 이름이나 버전을 바꾸려면 삭제하고 다시 등록합니다.</p>
+
+    <h2 id="add-iso">ISO 추가</h2>
+    <p>목록에서 OS 버전을 고르고 상세 열의 <span class="m-ui">ISO 추가</span> 를 누릅니다. ISO 등록 화면 위쪽에 대상 OS 가 표시됩니다. ISO 를 등록하는 방법은 두 가지입니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>방법</th><th>입력</th><th>결과</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>경로만 지정</td><td>PXE 서버에 이미 있는 ISO 파일의 경로만 입력, 파일 칸은 비움</td><td>파일은 그 자리에 둔 채 등록</td></tr>
+            <tr><td>파일 업로드</td><td>저장할 경로와 업로드할 .iso 파일 지정</td><td>업로드한 파일을 지정 경로에 저장한 뒤 등록</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <ol class="m-steps">
+        <li><strong>ISO 경로</strong>를 입력하거나 <span class="m-ui">탐색</span> 으로 고릅니다. 업로드할 때 탐색 창에서 <span class="m-ui">이 디렉토리에 저장</span> 을 누르면 업로드할 파일 이름이 경로 뒤에 자동으로 붙습니다.</li>
+        <li>경로의 상위 폴더가 아직 없다면 <strong>상위 디렉토리 생성 허용</strong>을 켭니다.</li>
+        <li>업로드할 때는 <strong>ISO 파일 업로드 (선택)</strong>에서 파일을 고릅니다.</li>
+        <li>필요하면 <strong>설명</strong>을 입력하고 <span class="m-ui">등록</span> 을 누릅니다.</li>
+    </ol>
+    <p>업로드하는 동안 진행률, 전송 속도, 남은 시간이 표시됩니다. 업로드 중에는 입력칸과 메뉴 링크가 잠기고 <span class="m-ui">취소</span> 버튼이 <span class="m-ui">업로드 취소</span> 로 바뀝니다. 탭을 닫거나 새로 고치면 업로드가 끊기므로 전송이 끝날 때까지 화면을 떠나지 않습니다.</p>
+    <p>전송이 끝나면 화면이 목록으로 이동하고, 이후의 처리는 배경 작업으로 이어집니다. 이때부터는 다른 화면으로 이동해도 됩니다.</p>
+
+    <h3 id="iso-background">등록 후처리</h3>
+    <p>배경 작업은 해시 계산, 중복 검사, 메타데이터 저장 순서로 진행됩니다. 큰 ISO 는 해시 계산에 몇 분이 걸립니다. 진행 중인 ISO 는 ISO 목록에 <span class="n-badge n-badge-blue">등록 중</span> 으로 표시되고, 진행 상황은 사이드바 맨 아래의 배경 작업 버튼에서 "ISO 등록" 작업으로 확인합니다. 끝나면 "ISO 등록이 완료되었습니다." 알림과 함께 목록이 갱신됩니다. 등록이 끝나기 전의 ISO 는 정의서에서 고를 수 없습니다.</p>
+    <p>후처리 중 다음 경우에는 등록이 실패합니다.</p>
+    <ul>
+        <li>내용이 같은 ISO 가 휴지통 밖에 이미 있으면 어느 OS 버전이든, 비활성이나 Deprecated 여도 "이미 등록된 ISO 와 내용이 동일합니다." 로 실패하고 업로드한 파일은 지워집니다. 경로만 지정해 등록한 경우에는 운영자의 파일이 그대로 남습니다.</li>
+        <li>저장 공간이나 일시적인 오류로 중단되면 업로드한 파일을 지우지 않고 격리합니다. 목록 화면에 "ISO 등록이 중단되었습니다" 창이 열리고 <span class="m-ui">재시도</span>, <span class="m-ui">폐기…</span>, <span class="m-ui">나중에</span> 중에서 고릅니다. 나중에 처리하는 방법은 <a href="../maintenance/quarantine.html">업로드 실패 복구</a>에서 설명합니다.</li>
+    </ul>
+
+    <h3 id="iso-precheck">업로드 전 확인</h3>
+    <p><span class="m-ui">등록</span> 을 누르면 업로드를 시작하기 전에 경로를 확인합니다. 다음 경우에는 업로드가 시작되지 않고 폼 위쪽이나 해당 칸 아래에 오류가 표시됩니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>오류 문구</th><th>원인</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>같은 경로에 이미 등록된 ISO 가 있습니다</td><td>같은 경로의 ISO 가 이미 등록된 상태</td></tr>
+            <tr><td>해당 경로에 이미 같은 이름의 파일이 존재합니다</td><td>업로드할 경로에 같은 이름의 파일 존재</td></tr>
+            <tr><td>경로가 디렉토리입니다</td><td>파일명 없이 폴더까지만 입력</td></tr>
+            <tr><td>상위 디렉토리가 존재하지 않습니다</td><td>상위 폴더 부재. 상위 디렉토리 생성 허용을 켜면 해결</td></tr>
+            <tr><td>디스크 공간이 부족합니다</td><td>저장 공간 부족. 파일 크기에 여유분(10% 또는 256MB 중 큰 값)을 더한 공간 필요</td></tr>
+            <tr><td>ISO 파일이 해당 경로에 존재하지 않습니다</td><td>경로만 지정했는데 그 경로에 파일 부재</td></tr>
+            <tr><td>sidecar 마커 파일이 이미 존재합니다</td><td>경로 옆에 마커 파일이 이미 존재</td></tr>
+            <tr><td>경로가 '/' 로 끝나면 업로드할 파일이 필요합니다</td><td>폴더 경로만 입력하고 파일 미선택</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>같은 OS 버전 안에 같은 경로의 ISO 가 휴지통에 있거나, 같은 내용의 ISO 가 휴지통에 있거나 Deprecated 로 표시돼 있으면 업로드 전에 중복 확인 창이 열립니다. 같은 경로의 ISO 가 Deprecated 이면 창이 아니라 "같은 경로에 이미 등록된 ISO 가 있습니다" 오류입니다. 그 OS 버전에 휴지통이나 Deprecated ISO 가 하나라도 있으면 브라우저가 먼저 파일 지문을 계산하므로 "fingerprint 계산 중" 이 표시되고, 큰 ISO 는 몇 분이 걸립니다. 내용이 같아서 열린 창에서는 <span class="m-ui">그래도 등록</span> 을 고르지 않습니다. 업로드가 끝난 뒤 실패합니다.</p>
+
+    <h2 id="edit-iso">ISO 수정</h2>
+    <p>ISO 를 펼치고 <span class="m-ui">수정</span> 을 누르면 ISO 경로와 설명을 바꿀 수 있습니다.</p>
+    <div class="m-callout m-warn">
+        <span class="m-callout-title">주의</span>
+        <p>ISO 경로를 바꿔도 파일은 옮겨지지 않고, 새 경로에 파일이 있는지도 확인하지 않습니다. 파일을 이미 옮긴 뒤 기록을 맞출 때만 씁니다. 파일을 옮긴 경우에는 <a href="../maintenance/reconciliation.html">자원 무결성 점검</a>으로 기록을 맞추는 방법도 있습니다.</p>
+    </div>
+
+    <h2 id="badges">ISO 상태 표시</h2>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>배지</th><th>뜻</th></tr>
+            </thead>
+            <tbody>
+            <tr><td><span class="n-badge n-badge-blue">등록 중</span></td><td>등록 후처리 진행 중. 이 동안 다른 배지와 조작 버튼은 미표시</td></tr>
+            <tr><td><span class="n-badge n-badge-green">활성</span>, <span class="n-badge n-badge-off">비활성</span></td><td>활성 여부</td></tr>
+            <tr><td><span class="n-badge n-badge-yellow">Deprecated</span></td><td>사용 중단 권고. 활성 배지와 함께 표시</td></tr>
+            <tr><td><span class="n-badge n-badge-gray">삭제됨</span></td><td>휴지통에 있는 ISO</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>ISO 를 펼치면 <strong>무결성</strong> 행과 <span class="m-ui">검증</span> 버튼이 있습니다. 표시의 뜻은 <a href="lifecycle.html#integrity">무결성 상태</a>에서 설명합니다.</p>
+
+    <h2 id="extract">설치 환경과 패키지 그룹 추출</h2>
+    <p>Rocky Linux, CentOS ISO 는 등록이 끝나면 설치 환경과 패키지 그룹 정보 추출이 자동으로 시작됩니다. ISO 의 <span class="m-ui">추출</span> 버튼으로 직접 시작할 수도 있으며, 이미 추출한 ISO 는 버튼이 <strong>추출됨</strong>으로 표시됩니다. 추출할 수 있는 것은 Rocky Linux, CentOS ISO 뿐입니다. Ubuntu, Windows Server ISO 에도 추출 버튼이 보이지만 누르면 실패합니다. 추출한 정보는 상세 아래의 설치 환경, 패키지 그룹 영역에 표시됩니다.</p>
+
+    <h2 id="lifecycle">상태 변경과 삭제</h2>
+    <p>활성, 사용 중단 권고, 삭제, 복구, 영구 삭제의 일반적인 동작은 <a href="lifecycle.html">자원의 상태와 삭제</a>에서 설명합니다. OS 버전에만 해당하는 내용은 다음과 같습니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>동작</th><th>OS 버전과 ISO 에 미치는 영향</th></tr>
+            </thead>
+            <tbody>
+            <tr><td><span class="m-ui">비활성화</span></td><td>그 아래 ISO 전부 비활성. 정의서 선택지에서 이 OS 버전 제외</td></tr>
+            <tr><td><span class="m-ui">Deprecated 표시</span></td><td>그 아래 ISO 전부 Deprecated 표시. 확인 창에는 이 전파에 대한 안내 부재</td></tr>
+            <tr><td><span class="m-ui">삭제</span></td><td>그 아래 ISO 도 함께 삭제, ISO 파일은 휴지통 폴더로 이동</td></tr>
+            <tr><td><span class="m-ui">복구</span></td><td>"하위 ISO N건도 함께 복구"(기본 선택) 또는 "이 자원만 복구". 함께 복구할 하위 ISO 중 기록만 남은 것이 있으면 복구 전체 실패, 이때는 "이 자원만 복구" 선택 후 ISO 개별 처리</td></tr>
+            <tr><td><span class="m-ui">영구 삭제</span></td><td>휴지통에 ISO 가 남아 있어도 진행, ISO 기록도 함께 삭제. 입력할 자원명은 OS 이름과 버전(예: Rocky Linux 9.6)</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>ISO 를 영구 삭제할 때 입력할 자원명은 OS 이름, 버전, ISO 파일명을 이은 것입니다(예: Rocky Linux 9.6 Rocky-9.6-x86_64-dvd.iso). 화면에 보이는 ISO 이름과 다르므로 확인 창에 표시된 자원명을 그대로 입력합니다.</p>
+</main>
+</body>
+</html>

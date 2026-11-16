@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="manual-reviewed" content="2026-11-16">
+    <title>BIOS 펌웨어 | ServerProvision 사용 매뉴얼</title>
+    <link rel="stylesheet" href="../../global/reset.css">
+    <link rel="stylesheet" href="../../global/style.css">
+    <link rel="stylesheet" href="../manual.css">
+    <script src="../manual.js" defer></script>
+</head>
+<body class="m-body">
+<main class="m-main">
+    <h1>BIOS 펌웨어</h1>
+    <p class="m-lead">BIOS 펌웨어는 세팅 정의서의 펌웨어 업데이트 단계에서 서버에 기록할 BIOS 이미지 파일입니다. BIOS 펌웨어는 반드시 메인보드 모델 하나에 속하므로, 메인보드 모델을 먼저 등록해야 합니다.</p>
+
+    <h2 id="role">프로비저닝에서의 용도</h2>
+    <p>정의서의 펌웨어 업데이트 단계에서 <strong>업데이트할 BIOS 버전</strong>을 고릅니다. 기본값인 <strong>최신 버전</strong>은 실행할 때 그 서버의 보드에 등록된 BIOS 펌웨어 중 순위가 가장 높은 활성 펌웨어를 뜻합니다. 버전 숫자를 비교하지 않으므로 <a href="#rank">순위</a>를 올바르게 정해 두어야 합니다.</p>
+    <ul>
+        <li>PXE 서버는 서버의 BMC 에 펌웨어 파일을 내려받게 해서 기록합니다(Redfish 업데이트). BIOS 기록의 기본 제한 시간은 15분입니다.</li>
+        <li>서버의 BIOS 가 이미 같은 버전이어도 다시 기록합니다. 같은 버전 번호의 수정 이미지(로고 변경본 등)를 쓸 수 있도록 하기 위해서입니다.</li>
+        <li>기록이 끝나면 BMC 가 보고하는 BIOS 버전과 등록한 버전을 비교해 반영을 확인합니다. 앞뒤 공백과 대소문자만 무시하고 비교하므로, <strong>버전</strong> 칸에는 BMC 웹 화면에 보이는 BIOS 버전 표기를 그대로 적습니다. 다르면 그 업데이트는 실패로 기록됩니다.</li>
+        <li>순위 1위인 활성 펌웨어의 파일이 사라졌거나 쓸 수 있는 펌웨어가 없으면 2위로 내려가지 않고 BIOS 업데이트를 건너뜁니다. 정의서에서 특정 버전을 골랐는데 그 펌웨어를 끄거나 삭제한 경우에도 건너뜁니다.</li>
+        <li>펌웨어의 마커 파일이 없거나 서명이 맞지 않으면, 또는 정의서가 지정한 보드가 서버의 보드와 다르면 건너뛰지 않고 차단합니다.</li>
+    </ul>
+
+    <h2 id="screen">화면 구성</h2>
+    <p>사이드바에서 <span class="m-path"><span>자원 관리</span><span>BIOS</span></span> 를 엽니다. 화면 제목은 "BIOS 파일 관리" 입니다. 왼쪽 열에서 메인보드 모델을 고르면 가운데 열에 그 보드의 BIOS 버전이 순위 순으로 나타나고, 버전을 고르면 오른쪽 열에 상세가 나타납니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>가운데 열 표시</th><th>뜻</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>☰</td><td>끌어서 순위를 바꾸는 아이콘</td></tr>
+            <tr><td>latest</td><td>최신 버전으로 선택될 펌웨어. 순위 순으로 처음 나오는 삭제되지 않은 활성 펌웨어</td></tr>
+            <tr><td>노란 점</td><td>Deprecated 표시. Deprecated 펌웨어도 latest 대상</td></tr>
+            <tr><td>활성, 비활성</td><td>활성 여부</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>상세에는 ID, 메인보드, 이름, 버전, 트리 루트(펌웨어 파일이 있는 폴더), manifest 해시, 무결성, 설명, 상태, 사용 중단 권고가 표시됩니다. 무결성 표시의 뜻은 <a href="lifecycle.html#integrity">무결성 상태</a>에서 설명합니다.</p>
+
+    <h2 id="file-rule">펌웨어 파일 규칙</h2>
+    <p>펌웨어 하나는 파일 하나이며, 그 파일만 들어 있는 폴더에 둡니다. 등록하면 같은 폴더에 마커 파일 <code>.provision.json</code> 이 함께 기록됩니다. 다른 파일이 함께 있는 폴더나 이미 다른 자원의 마커가 있는 폴더는 거절됩니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>메인보드 제조사</th><th>허용 파일</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>Gigabyte</td><td>확장자 <code>.RBU</code> 파일만. <code>PFR1.RBU</code>, <code>PFR2.RBU</code> 는 등록 대상이 아니며 벤더 패키지의 <code>image.RBU</code> 사용</td></tr>
+            <tr><td>Asus, Fujitsu</td><td>파일 형식 무제한</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2 id="register">BIOS 펌웨어 등록</h2>
+    <ol class="m-steps">
+        <li>가운데 열 아래의 <span class="m-ui">+ BIOS 등록</span> 을 누릅니다. 메인보드 페이지의 <span class="m-ui">BIOS 등록</span> 으로 시작해도 됩니다. 두 경우 모두 보드가 미리 선택됩니다. 화면 오른쪽 위의 <span class="m-ui">+ 신규 BIOS 등록</span> 으로 시작하면 <strong>메인보드 모델</strong>부터 고릅니다.</li>
+        <li><strong>이름</strong>을 입력합니다. 화면에서 알아보기 쉬운 이름이며 128자까지 입력할 수 있습니다.</li>
+        <li><strong>버전</strong>을 입력합니다. BMC 웹 화면에 보이는 BIOS 버전 표기와 같게 적습니다. 같은 메인보드 안에서 버전은 겹칠 수 없습니다.</li>
+        <li><strong>펌웨어 파일 경로</strong>를 입력하거나 <span class="m-ui">탐색</span> 으로 고릅니다.</li>
+        <li>파일을 업로드하려면 <strong>펌웨어 파일 업로드 (선택)</strong>에서 파일을 고릅니다. 비워 두면 경로에 이미 있는 파일을 그대로 등록합니다.</li>
+        <li>필요하면 <strong>설명</strong>을 입력하고 <span class="m-ui">등록</span> 을 누릅니다. 등록이 끝날 때까지 화면을 떠나지 않습니다. 끝나면 목록으로 돌아가고 새 펌웨어가 선택된 상태로 열립니다.</li>
+    </ol>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>방법</th><th>경로 입력</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>파일 업로드</td><td>저장할 폴더 경로 또는 저장할 파일 이름까지 넣은 경로. 끝에 <code>/</code> 를 붙이면 확실히 폴더로 처리되고 업로드 파일명 자동 추가. 그 폴더는 비어 있거나 아직 없어야 하고, 상위 폴더가 없으면 상위 디렉토리 생성 허용 필요</td></tr>
+            <tr><td>기존 파일 등록</td><td>PXE 서버에 이미 있는 펌웨어 파일 자체의 경로. 그 파일만 있는 폴더여야 함</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>새로 등록한 펌웨어는 언제나 순위 1위로 들어가고 기존 펌웨어는 한 칸씩 내려갑니다. 예전 버전을 나중에 등록했다면 등록한 뒤 <a href="#rank">순위</a>를 내립니다.</p>
+
+    <h3 id="register-errors">등록 오류</h3>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>오류 문구</th><th>원인과 조치</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>같은 메인보드에 이미 같은 버전의 BIOS 가 등록되어 있습니다</td><td>같은 보드에 같은 버전이 이미 존재(비활성, Deprecated 포함)</td></tr>
+            <tr><td>GIGABYTE BIOS 펌웨어는 .RBU 형식 파일만 등록할 수 있습니다.</td><td>허용되지 않는 파일 형식</td></tr>
+            <tr><td>PFR1.RBU · PFR2.RBU 는 PFR 사본 경로 전용 파일로, 등록 대상이 아닙니다.</td><td>금지 파일명. 벤더 패키지의 image.RBU 사용</td></tr>
+            <tr><td>경로의 마지막 이름 ... 이 저장할 파일명으로 해석됐습니다.</td><td>폴더에 저장하려던 경로의 파일명 해석. 경로 끝에 <code>/</code> 추가</td></tr>
+            <tr><td>펌웨어 파일이 있는 디렉토리에 다른 파일이 함께 있습니다.</td><td>기존 파일 등록 시 폴더에 다른 파일 존재. 펌웨어 파일만 있는 폴더로 정리</td></tr>
+            <tr><td>대상 디렉토리가 비어있지 않습니다.</td><td>업로드할 폴더에 다른 파일 존재</td></tr>
+            <tr><td>이 디렉토리는 이미 다른 등록 소유로 marker 가 있습니다</td><td>다른 자원이 쓰는 폴더</td></tr>
+            <tr><td>펌웨어 파일이 해당 경로에 존재하지 않습니다</td><td>기존 파일 등록 시 경로에 파일 부재</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>파일을 업로드할 때 같은 버전이 휴지통에 있으면 업로드 전에, 파일 내용이 휴지통이나 Deprecated 펌웨어와 같으면 업로드 뒤에 중복 확인 창이 열립니다. 처리 방법은 <a href="lifecycle.html#duplicate">같은 자원이 이미 있을 때</a>를 따릅니다.</p>
+
+    <h2 id="rank">순위</h2>
+    <p>가운데 열의 위에서 아래 순서가 순위이며, 맨 위가 1위입니다. 펌웨어 업데이트의 최신 버전은 이 순위로 정해집니다.</p>
+    <ol class="m-steps">
+        <li>가운데 열에서 펌웨어 왼쪽의 ☰ 아이콘을 눌러 원하는 위치로 끌어다 놓습니다.</li>
+        <li>놓는 즉시 저장됩니다. latest 표시가 새 순위에 맞게 옮겨집니다.</li>
+    </ol>
+    <ul>
+        <li>저장에 실패하면 원래 순서로 돌아가고 "순서 저장에 실패했습니다" 가 잠시 표시됩니다. 화면을 새로 고친 뒤 다시 시도합니다.</li>
+        <li>조회 조건이 걸려 있거나 삭제된 항목 포함 보기에서는 순위를 바꿀 수 없습니다. 조건을 초기화하면 다시 바꿀 수 있습니다.</li>
+        <li>삭제된 펌웨어도 순위 자리를 유지하므로 복구하면 원래 위치로 돌아옵니다.</li>
+    </ul>
+
+    <h2 id="edit">정보 수정</h2>
+    <p>상세의 <span class="m-ui">수정</span> 을 누르면 이름, 버전, 설명을 바꿀 수 있습니다. 메인보드와 펌웨어 파일은 바꿀 수 없습니다. 파일을 바꾸려면 펌웨어를 삭제하고 다시 등록합니다.</p>
+
+    <h2 id="lifecycle">상태 변경과 삭제</h2>
+    <p>일반적인 동작은 <a href="lifecycle.html">자원의 상태와 삭제</a>에서 설명합니다. BIOS 펌웨어에만 해당하는 내용은 다음과 같습니다.</p>
+    <ul>
+        <li>부모 메인보드가 비활성이거나 삭제된 동안에는 활성화할 수 없고, 메인보드가 Deprecated 이거나 삭제된 동안에는 Deprecated 를 해제할 수 없습니다.</li>
+        <li>비활성화한 펌웨어는 최신 버전 후보와 정의서 선택지에서 빠집니다.</li>
+        <li>같은 보드에 같은 버전의 펌웨어가 살아 있으면 복구할 수 없습니다.</li>
+        <li>영구 삭제할 때 입력할 자원명은 펌웨어의 이름입니다. 펌웨어 폴더는 삭제할 때 이미 휴지통 폴더로 옮겨지며, 휴지통 화면에서 영구 삭제해야 휴지통 폴더의 파일까지 지워집니다.</li>
+    </ul>
+</main>
+</body>
+</html>

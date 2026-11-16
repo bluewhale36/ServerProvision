@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="manual-reviewed" content="2026-11-16">
+    <title>BMC 펌웨어 | ServerProvision 사용 매뉴얼</title>
+    <link rel="stylesheet" href="../../global/reset.css">
+    <link rel="stylesheet" href="../../global/style.css">
+    <link rel="stylesheet" href="../manual.css">
+    <script src="../manual.js" defer></script>
+</head>
+<body class="m-body">
+<main class="m-main">
+    <h1>BMC 펌웨어</h1>
+    <p class="m-lead">BMC 펌웨어는 세팅 정의서의 펌웨어 업데이트 단계에서 서버의 BMC 에 기록할 이미지 파일입니다. 화면 구성, 등록 절차, 순위는 <a href="bios.html">BIOS 펌웨어</a>와 같습니다. 이 페이지는 BIOS 펌웨어와 다른 점만 설명합니다.</p>
+
+    <h2 id="role">프로비저닝에서의 용도</h2>
+    <p>정의서의 펌웨어 업데이트 단계에서 <strong>업데이트할 BMC 버전</strong>을 고릅니다. 최신 버전은 BIOS 와 같이 순위가 가장 높은 활성 펌웨어입니다.</p>
+    <ul>
+        <li>BMC 기록의 기본 제한 시간은 30분입니다. 기록이 끝나면 BMC 가 스스로 다시 시작하므로 5분에서 10분 동안 BMC 에 접속할 수 없는 것이 정상입니다.</li>
+        <li>반영 확인은 BMC 가 보고하는 자기 펌웨어 버전과 등록한 버전을 비교합니다. <strong>버전</strong> 칸에는 BMC 웹 화면에 보이는 BMC 펌웨어 버전 표기를 그대로 적습니다.</li>
+        <li>BIOS 와 BMC 를 함께 업데이트하면 BIOS, BMC 순서로 하나씩 기록하고, 둘 다 기록한 뒤 BIOS, BMC 순서로 반영을 확인합니다. BIOS 확인이 실패하면 BMC 는 확인하지 않습니다.</li>
+    </ul>
+
+    <h2 id="screen">화면</h2>
+    <p>사이드바에서 <span class="m-path"><span>자원 관리</span><span>BMC</span></span> 를 엽니다. 화면 제목은 "BMC 펌웨어 관리" 이고, 구성은 <a href="bios.html#screen">BIOS 펌웨어 화면</a>과 같습니다. 등록은 가운데 열 아래의 <span class="m-ui">+ BMC 등록</span>, 메인보드 페이지의 <span class="m-ui">BMC 등록</span>, 오른쪽 위의 <span class="m-ui">+ 신규 BMC 등록</span> 중 하나로 시작합니다.</p>
+
+    <h2 id="differences">BIOS 펌웨어와 다른 점</h2>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>항목</th><th>BMC 펌웨어</th><th>BIOS 펌웨어</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>Gigabyte 허용 파일</td><td>확장자 <code>.ima_enc</code> 파일만</td><td>확장자 <code>.RBU</code> 파일만</td></tr>
+            <tr><td>금지 파일명</td><td>미지정</td><td><code>PFR1.RBU</code>, <code>PFR2.RBU</code></td></tr>
+            <tr><td>펌웨어 파일 경로 길이</td><td>255자까지</td><td>1024자까지</td></tr>
+            <tr><td>기록 제한 시간</td><td>30분</td><td>15분</td></tr>
+            <tr><td>반영 확인 기준</td><td>BMC 가 보고하는 BMC 펌웨어 버전</td><td>BMC 가 보고하는 BIOS 버전</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>같은 메인보드에 같은 버전의 BMC 펌웨어가 이미 있으면 "같은 메인보드에 이미 같은 버전의 BMC 펌웨어가 등록되어 있습니다" 오류가 표시됩니다. 그 밖의 등록 오류, 순위, 수정, 상태 변경은 <a href="bios.html">BIOS 펌웨어</a>의 설명을 따릅니다.</p>
+</main>
+</body>
+</html>
