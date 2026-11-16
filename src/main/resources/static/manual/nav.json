@@ -60,10 +60,16 @@
       ]
     },
     {
-      "title": "서버 관리자",
+      "title": "서버 관리",
       "pages": [
+        { "title": "PXE 서버 구성", "path": "admin/architecture.html", "status": "planned" },
+        { "title": "하드웨어와 디스크", "path": "admin/hardware-disk.html", "status": "planned" },
+        { "title": "디렉토리 구조", "path": "admin/directories.html", "status": "planned" },
+        { "title": "네트워크", "path": "admin/network.html", "status": "planned" },
+        { "title": "계정과 권한", "path": "admin/accounts.html", "status": "planned" },
         { "title": "설치와 배포", "path": "admin/install.html", "status": "planned" },
-        { "title": "로그 확인", "path": "admin/logs.html", "status": "planned" }
+        { "title": "서비스와 로그", "path": "admin/service-logs.html", "status": "planned" },
+        { "title": "정기 점검", "path": "admin/maintenance.html", "status": "planned" }
       ]
     },
     {
