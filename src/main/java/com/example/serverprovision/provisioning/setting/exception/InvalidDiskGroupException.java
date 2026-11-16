@@ -1,6 +1,9 @@
 package com.example.serverprovision.provisioning.setting.exception;
 
 import com.example.serverprovision.global.exception.FieldBoundBadRequestException;
+import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+
+import java.util.stream.Collectors;
 
 /**
  * 디스크 묶음 규칙 위반 (400, field-bound=diskGroups) — U4-1-1.
@@ -38,6 +41,14 @@ public class InvalidDiskGroupException extends FieldBoundBadRequestException {
     /** 카드가 만들 수 없는 RAID 레벨 — 사유 문구는 {@code SupportedRaidLevels.blockReasonFor} 그대로. */
     public static InvalidDiskGroupException unsupportedLevel(int ruleNo, String blockReason) {
         return new InvalidDiskGroupException(ruleNo + "번 묶음: " + blockReason);
+    }
+
+    /** 세팅 정의서가 고를 수 없는 레벨(R17-2 — 카드 등록 정보로만 남는 RAID00 · 50 · 60). */
+    public static InvalidDiskGroupException levelNotDefinable(int ruleNo, RaidLevel level) {
+        return new InvalidDiskGroupException(ruleNo + "번 묶음: 세팅 정의서에서는 " + level.getDisplayName() + " "
+                + level.getObjectParticle() + " 구성할 수 없습니다 — "
+                + RaidLevel.definableLevels().stream().map(RaidLevel::getDisplayName).collect(Collectors.joining(" · "))
+                + " 중에서 고르십시오.");
     }
 
     /** 카드 계열 · 레벨 · 스팬의 디스크 수 규칙 위반(R17-1) — 사유 문구는 {@code MemberCountRule} 그대로. */

@@ -2,6 +2,7 @@ package com.example.serverprovision.management.raidcard.dto.request;
 
 import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -40,4 +41,9 @@ public record RaidCardUpdateRequest(
 		String description
 ) {
 
+	/** 등록 요청과 같은 판정(R17-2) — 계열을 바꾸며 만들 수 없는 레벨이 남는 direct POST 안전망. */
+	@AssertTrue(message = RaidCardCreateRequest.LEVELS_NOT_CREATABLE)
+	public boolean isSupportedRaidLevelsCreatable() {
+		return RaidCardCreateRequest.levelsCreatable(chipFamily, supportedRaidLevels);
+	}
 }

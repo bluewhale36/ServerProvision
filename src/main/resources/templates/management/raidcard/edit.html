@@ -30,8 +30,7 @@
                   th:object="${raidCardForm}"
                   method="post"
                   novalidate
-                  data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다"
-                  data-cache-warning-native="">
+                  data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다">
 
                 <!-- S4 폼 배너 슬롯 -->
                 <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
@@ -50,9 +49,12 @@
                             data-error-field="chipFamily"
                             th:classappend="${#fields.hasErrors('chipFamily')} ? 'is-invalid'">
                         <option value="">선택하세요</option>
+                        <!-- R17-2 — 계열이 만들 수 있는 레벨과 안내를 option 에 싣는다(SSOT = RaidChipFamily.creatableLevels · creatableLevelsHint). -->
                         <option th:each="cf : ${chipFamilyOptions}"
                                 th:value="${cf.name()}"
-                                th:text="${cf.displayName}"></option>
+                                th:text="${cf.displayName}"
+                                th:data-creatable-levels="${#strings.setJoin(cf.creatableLevels(), ' ')}"
+                                th:data-lock-hint="${cf.creatableLevelsHint()}"></option>
                     </select>
                     <div class="n-hint">제어 계열(storcli / sas3ircu)을 정합니다 — 세팅 정의서의 VD 파라미터 지원 여부가 이 값에 걸립니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('chipFamily')}"
@@ -79,14 +81,17 @@
                             <span>전체 선택</span>
                         </label>
                         <label class="n-checkbox" th:each="lvl : ${levelOptions}">
-                            <input type="checkbox" th:field="*{supportedRaidLevels}" th:value="${lvl.name()}"
-                                   th:data-requires-cache="${lvl.typicallyRequiresCache}">
+                            <input type="checkbox" th:field="*{supportedRaidLevels}" th:value="${lvl.name()}">
                             <span th:text="${lvl.displayName}">RAID0</span>
                         </label>
                     </div>
                     <div class="n-hint">이 값을 고치면 세팅 정의서 작성 화면의 카드 선택 판정이 다음 렌더부터 새 값으로 적용됩니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('supportedRaidLevels')}"
                          th:errors="*{supportedRaidLevels}"></div>
+                    <!-- R17-2 — 고른 칩 계열이 만들 수 없는 레벨을 잠근 이유. 서버 교차 검증(supportedRaidLevelsCreatable) 오류도 여기 붙는다. -->
+                    <div class="n-hint" data-level-lock-hint data-error-field="supportedRaidLevelsCreatable" hidden></div>
+                    <div class="n-error" th:if="${#fields.hasErrors('supportedRaidLevelsCreatable')}"
+                         th:errors="*{supportedRaidLevelsCreatable}"></div>
                 </div>
 
                 <div class="n-form-group">
@@ -133,10 +138,6 @@
     </div>
 </div>
 
-<!-- CP6 개정 — 캐시 0 + RAID5 이상 조합 경고 modal. 네이티브 폼은 data-cache-warning-native 마커로 자동 바인딩. -->
-<div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('cacheWarn')}"></div>
-<script th:src="@{/management/common/confirm-modal-base.js}"></script>
 <script th:src="@{/management/raidcard/raidcard-level-select.js}"></script>
-<script th:src="@{/management/raidcard/raidcard-cache-warning.js}"></script>
 </body>
 </html>

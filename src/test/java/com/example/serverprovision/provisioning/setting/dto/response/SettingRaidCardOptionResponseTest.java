@@ -54,4 +54,14 @@ class SettingRaidCardOptionResponseTest {
         assertThat(option.memberRules().get(RaidLevel.RAID0).min()).isEqualTo(2);
         assertThat(option.spanMemberRules()).isEmpty();
     }
+
+    @Test
+    @DisplayName("R17-2 — 카드가 RAID50 · RAID60 을 지원해도 정의서 폼 재료(규칙 · 차단 사유)에는 실리지 않는다")
+    void spannedLevels_notInFormMaterial() {
+        var option = SettingRaidCardOptionResponse.of(
+                card(RaidChipFamily.MEGARAID, 2, RaidLevel.RAID1, RaidLevel.RAID50, RaidLevel.RAID60), null);
+
+        assertThat(option.memberRules()).containsOnlyKeys(RaidLevel.RAID1);
+        assertThat(option.blockReasons().keySet()).allMatch(RaidLevel::isDefinable);
+    }
 }
