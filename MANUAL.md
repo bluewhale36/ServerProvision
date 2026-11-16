@@ -105,3 +105,233 @@
 2. 앵커가 결함을 고치고 커밋 해시를 알려 오면 해당 매뉴얼 문장을 갱신한다.
 3. 진행 상황은 Notion 의 DOC-7 단계 페이지와 묶음별 하위 페이지의 진행 기록 절에 이어 적는다.
 4. 커밋은 묶음 단위로 한다. push 와 PR 은 사용자 지시가 있을 때만 한다.
+
+## 10. 사이트 디자인과 구현
+
+매뉴얼 사이트의 파일 구성, 공통 스크립트의 동작, 상황별 DOM 구조, CSS 규칙이다. 지금의 골격은 사용자가 검수해 승인한 형태다(2026-11-16). 새 페이지나 새 표현이 필요하면 이 절의 구조를 먼저 쓰고, 없는 구조가 필요하면 이 절에 먼저 추가한 뒤 쓴다.
+
+### 10-1. 파일 구성
+
+```
+src/main/resources/static/manual/
+  index.html            첫 화면. 처음 사용하는 사람과 하려는 일별 안내 카드
+  nav.json              목차의 단일 원본
+  manual.css            매뉴얼 전용 시트
+  manual.js             공통 틀을 그리는 스크립트
+  img/<묶음>/<이름>.png   스크린샷
+  <묶음>/<페이지>.html     본문만 담은 페이지
+```
+
+애플리케이션은 이 폴더를 `/manual/**` 로 서빙하고, 이 경로는 로그인한 사용자만 열 수 있다(SecurityConfig 의 permitAll 목록에 넣지 않는다). 관리 화면 사이드바의 도움말 묶음에 있는 사용 매뉴얼 링크가 `/manual/index.html` 을 새 탭으로 연다.
+
+### 10-2. 페이지 골격
+
+모든 페이지는 다음 골격을 쓴다. 깊이가 다른 페이지(`index.html`)는 상대 경로의 `../` 개수만 다르다.
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="manual-reviewed" content="YYYY-MM-DD">
+    <title>페이지 제목 | ServerProvision 사용 매뉴얼</title>
+    <link rel="stylesheet" href="../../global/reset.css">
+    <link rel="stylesheet" href="../../global/style.css">
+    <link rel="stylesheet" href="../manual.css">
+    <script src="../manual.js" defer></script>
+</head>
+<body class="m-body">
+<main class="m-main">
+    <h1>페이지 제목</h1>
+    <p class="m-lead">이 페이지의 대상이 무엇이고 프로비저닝에서 어떤 구실을 하는지 한두 문장.</p>
+    <h2 id="영문-식별자">절 제목</h2>
+    ...
+</main>
+</body>
+</html>
+```
+
+1. `reset.css` 와 `style.css` 는 관리 화면의 것을 그대로 싣는다. 색, 글꼴, 반지름 토큰과 `n-badge` 같은 관리 화면 클래스를 함께 쓰기 위해서다. 관리 화면 디자인이 바뀌면 매뉴얼도 함께 바뀐다.
+2. `manual.js` 는 `defer` 로 싣는다. 스크립트가 자기 위치(`document.currentScript.src`)를 기준으로 `nav.json` 과 관리 화면 루트를 찾으므로 다른 위치에서 복사해 실으면 안 된다.
+3. `<main class="m-main">` 밖에는 아무것도 두지 않는다. 머리줄, 사이드 목차, 페이지 내 목차는 스크립트가 만든다.
+4. `<title>` 은 `페이지 제목 | ServerProvision 사용 매뉴얼` 형식이다.
+
+### 10-3. nav.json
+
+```json
+{
+  "title": "ServerProvision 사용 매뉴얼",
+  "groups": [
+    {
+      "title": "자원 관리",
+      "pages": [
+        { "title": "메인보드", "path": "management/board.html" },
+        { "title": "BIOS 펌웨어", "path": "management/bios.html", "status": "planned" }
+      ]
+    }
+  ]
+}
+```
+
+1. `path` 는 `manual/` 기준 상대 경로다.
+2. `"status": "planned"` 는 아직 쓰지 않은 페이지다. 페이지를 다 쓰면 이 속성만 지운다.
+3. 묶음과 페이지의 순서가 곧 사이드 목차의 순서이자 이전과 다음 버튼의 순서다. 이전과 다음은 작성된 페이지만 잇는다.
+
+### 10-4. manual.js 의 동작과 DOM 조건
+
+스크립트는 `nav.json` 을 읽은 뒤 다음을 차례로 한다.
+
+| 동작 | 결과 | 페이지가 지켜야 할 조건 |
+|---|---|---|
+| 머리줄 | `header.m-top` 에 목차 버튼(좁은 화면), 사이트 제목, 검색칸, 관리 화면으로 링크 | 없음 |
+| 사이드 목차 | `nav.m-side` 에 묶음과 페이지. 현재 페이지는 `is-current`, 쓰지 않은 페이지는 `is-planned` 와 "준비 중" | 페이지 경로가 nav.json 의 `path` 와 같아야 현재 페이지로 인식 |
+| 위치 표시 | h1 바로 위에 묶음 이름(`.m-crumb`) | `main` 안에 h1 이 하나 |
+| 준비 중 링크 | 본문에서 planned 페이지로 가는 링크에 `m-link-planned` 를 붙이고 클릭을 막음 | 링크는 최종 경로로 건다 |
+| 페이지 내 목차 | `aside.m-toc` 에 h2, h3 목록. 화면에 보이는 절을 강조 | h2, h3 이 둘 이상일 때만 생긴다. 절 이동 주소를 고정하려면 h2, h3 에 `id` 를 직접 준다(없으면 순번 id 가 붙어 절을 추가할 때 주소가 바뀐다) |
+| 이전과 다음 | main 끝에 `.m-pager` | 없음 |
+| 마지막 확인 | main 끝에 `.m-reviewed` | `<meta name="manual-reviewed">` |
+| 주소의 절 이동 | `#id` 가 있으면 그 절로 스크롤 | 이미지에 `width`, `height` 를 줘 스크롤 뒤 위치가 밀리지 않게 한다 |
+
+**검색**은 다음과 같이 동작한다.
+
+1. 검색칸에 처음 초점이 가면 nav.json 의 작성된 페이지를 모두 받아 브라우저에서 색인한다. 색인 파일을 따로 두지 않으므로 페이지를 고쳐도 색인이 어긋나지 않는다.
+2. 색인은 `main.m-main` 의 **직계 자식**을 h1, h2, h3 기준으로 절로 나눈다. 그래서 h2, h3 은 반드시 `main` 의 직계 자식으로 둔다. 제목을 `div` 로 감싸면 그 절이 검색 결과에서 사라지고 앞 절에 합쳐진다.
+3. 검색어를 공백으로 나눈 낱말이 모두 들어 있는 절만 결과가 된다. 페이지 제목에 들어 있으면 10점, 절 제목 5점, 본문 1점으로 순서를 매기고 12개까지 보여 준다. 결과는 그 절로 바로 이동한다.
+4. `/` 키는 검색칸으로 이동, 위아래 화살표는 결과 이동, Enter 는 열기, Esc 는 닫기다.
+
+`nav.json` 을 받지 못하면(로그인이 끝난 경우 등) 본문 자리에 "목차를 불러오지 못했습니다" 와 다시 로그인 링크가 나온다.
+
+### 10-5. 상황별 DOM 구조
+
+본문에서 쓰는 구조는 다음뿐이다. 이 밖의 구조를 새로 만들지 않는다.
+
+**도입 문단**: 페이지마다 h1 바로 아래 하나.
+
+```html
+<p class="m-lead">…</p>
+```
+
+**절과 하위 절**: h2 는 큰 주제, h3 는 그 안의 세부 주제. h4 는 쓰지 않는다. 절 id 는 짧은 영문 소문자와 하이픈으로 짓는다.
+
+```html
+<h2 id="register">메인보드 모델 등록</h2>
+<h3 id="duplicate">같은 모델이 이미 있을 때</h3>
+```
+
+**따라 하기 절차**: 운영자가 순서대로 누르는 단계. 번호 원이 자동으로 붙는다. 순서가 없는 나열은 `ul` 을 쓴다.
+
+```html
+<ol class="m-steps">
+    <li><span class="m-path"><span>자원 관리</span><span>메인보드</span></span> 에서 <span class="m-ui">+ 신규 메인보드 모델 등록</span> 을 누릅니다.</li>
+    <li><strong>모델명</strong>을 입력합니다.</li>
+</ol>
+```
+
+**순서는 있으나 조작이 아닌 목록**(전체 흐름 소개 등): 일반 `ol`.
+
+**표**: 반드시 `.m-table-wrap` 으로 감싼다. 좁은 화면에서 표만 가로로 스크롤하게 하기 위해서다. 첫 열은 짧은 항목 이름으로 두며 줄바꿈되지 않는다. 셀 내용은 수직 가운데 정렬이다.
+
+```html
+<div class="m-table-wrap">
+    <table class="m-table">
+        <thead>
+        <tr><th>항목</th><th>내용</th></tr>
+        </thead>
+        <tbody>
+        <tr><td>호환 자원</td><td>이 모델 아래에 등록된 펌웨어의 개수</td></tr>
+        </tbody>
+    </table>
+</div>
+```
+
+표를 쓰는 상황: 입력 칸과 규칙, 오류 문구와 원인, 동작과 영향, 두 대상의 차이처럼 같은 형식의 항목이 셋 이상 나란할 때. 항목이 둘 이하면 문장이나 목록으로 쓴다.
+
+**참고, 주의, 경고 상자**: 제목은 참고, 주의, 경고 셋만 쓴다.
+
+```html
+<div class="m-callout">            <!-- 참고: 알아 두면 좋은 정보 -->
+<div class="m-callout m-warn">     <!-- 주의: 실수하면 작업이 실패하거나 다시 해야 하는 것 -->
+<div class="m-callout m-danger">   <!-- 경고: 데이터 손실, 서버 등록 실패처럼 되돌리기 어려운 것 -->
+    <span class="m-callout-title">주의</span>
+    <p>…</p>
+</div>
+```
+
+특히 강조할 문장은 상자 안 첫 문장을 `<strong>` 으로 감싼다(예: "현재 설치할 수 있는 OS 는 Windows Server 뿐입니다"). 상자는 한 절에 하나를 넘기지 않는다.
+
+**스크린샷**:
+
+```html
+<figure class="m-shot">
+    <img src="../img/management/board-list.png" alt="화면에 무엇이 보이는지" width="1116" height="781" loading="lazy">
+    <figcaption>무엇을 보여 주는지, 예시와 다른 점이 있으면 그 차이.</figcaption>
+</figure>
+```
+
+촬영은 장치 배율 2배로 하고 `width`, `height` 에는 실제 픽셀의 절반을 적는다. 그래야 선명하면서 본문보다 넓어지지 않는다.
+
+**명령과 출력 예**:
+
+```html
+<pre><code>lspci -nn -vv</code></pre>
+```
+
+긴 줄은 줄바꿈되어 전체가 보인다. 문장 안의 짧은 경로, 파일명, 값은 `<code>` 를 쓴다.
+
+**화면 요소와 배지**: 3절의 표기를 따른다. 배지는 관리 화면의 클래스를 그대로 쓴다(`n-badge-green` 활성, `n-badge-off` 비활성, `n-badge-yellow` Deprecated, `n-badge-gray` 삭제됨, `n-badge-blue` 진행 중, `n-badge-teal` 완료, `n-badge-red` 실패, `n-badge-orange` 주의). 관리 화면과 같은 색이어야 운영자가 화면에서 같은 것을 찾는다.
+
+**첫 화면 카드**(`index.html` 전용):
+
+```html
+<div class="m-cards">
+    <a class="m-card" href="start/first-provisioning.html">
+        <span class="m-card-title">처음 프로비저닝하기</span>
+        <span class="m-card-desc">한 문장 설명.</span>
+    </a>
+</div>
+```
+
+### 10-6. CSS 규칙
+
+1. 색, 반지름, 글꼴은 `style.css` 의 `:root` 토큰(`--n-*`)만 쓴다. 색 값을 직접 적지 않는다.
+2. 매뉴얼 클래스는 `m-` 접두사를 쓴다. 관리 화면 클래스(`n-`)는 배지처럼 화면과 같아야 하는 것만 빌려 쓰고, 그 규칙을 매뉴얼 시트에서 덮어쓰지 않는다.
+3. 페이지에 `<style>` 이나 `style` 속성을 두지 않는다. 모든 규칙은 `manual.css` 에 있다.
+4. 골격은 `body.m-body` 의 그리드다. 열은 사이드 목차(`--m-side-width`, 228px), 본문(`minmax(0, 1fr)`), 페이지 내 목차(232px) 셋이고, 행은 머리줄과 본문 둘이다. `minmax(0, …)` 의 0 은 긴 코드나 표가 본문 열을 밀어내지 않게 한다.
+5. 머리줄(56px)과 사이드 목차, 페이지 내 목차는 `position: sticky` 로 고정된다. 절 제목에 `scroll-margin-top: 72px` 가 있어 절 이동 뒤 제목이 머리줄에 가리지 않는다.
+6. 본문 글자는 15px, 줄 간격 1.75, `word-break: keep-all` 이다. 한국어가 음절 중간에서 끊기지 않는다. 긴 영문 경로는 `overflow-wrap: anywhere` 로 넘친다.
+7. 크기 위계: h1 26px 700, h2 18px 600(위에 구분선), h3 15px 600, 본문 15px, 표 14px, 그림 설명 13px. 새 크기를 만들지 않는다.
+
+### 10-7. 반응형
+
+| 화면 폭 | 거동 |
+|---|---|
+| 1200px 초과 | 사이드 목차, 본문, 페이지 내 목차 세 열 |
+| 900px 초과 1200px 이하 | 페이지 내 목차를 숨기고 본문이 오른쪽 끝까지 |
+| 900px 이하 | 사이드 목차를 접고 머리줄의 목차 버튼으로 연다. 관리 화면으로 링크를 숨긴다. 이전과 다음 버튼을 세로로 쌓는다 |
+
+모든 페이지는 390px 폭에서도 가로 넘침이 없어야 한다. 넓은 내용은 표(`.m-table-wrap`)와 명령 예(`pre`)만 각자 스크롤하거나 줄바꿈한다.
+
+### 10-8. 새 페이지 추가 순서
+
+1. nav.json 에 해당 항목이 `planned` 로 있는지 확인한다. 없으면 묶음과 순서를 정해 추가한다.
+2. 10-2 골격으로 파일을 만들고 `manual-reviewed` 를 오늘 날짜로 둔다.
+3. 7절의 집필 절차대로 본문을 쓴다.
+4. nav.json 에서 `"status": "planned"` 를 지운다.
+5. 1360px, 820px, 390px 에서 렌더와 가로 넘침을 확인하고 검색으로 새 절이 찾아지는지 본다.
+
+### 10-9. 새 표현이 필요할 때
+
+10-5 에 없는 표현(예: 단계별 탭, 접는 상자)이 필요하면 먼저 기존 구조로 쓸 수 있는지 본다. 꼭 필요하면 `manual.css` 에 `m-` 클래스로 규칙을 추가하고, 이 절에 DOM 구조와 쓰는 상황을 적은 뒤 페이지에 쓴다. 페이지에서 먼저 쓰고 나중에 정리하지 않는다.
+
+### 10-10. 확인 도구
+
+샌드박스는 `sbx-docs/run.sh`(앱 7880, DB 3380)로 띄운다. 정적 자원과 템플릿을 소스 폴더에서 직접 읽으므로 매뉴얼 파일은 재빌드 없이 바로 반영된다. 촬영과 렌더 확인은 `sbx-docs/shot.py` 로 한다.
+
+```
+python shot.py login                                   로그인 상태 저장
+python shot.py page /manual/<경로>.html <출력> <폭> <높이>   뷰포트 촬영과 가로 넘침 측정
+python shot.py el <화면 경로> <CSS 선택자> <출력> <폭>       요소 단위 촬영(장치 배율 2배)
+```
+
+`sbx-docs/` 는 저장소에 올라가지 않는 작업 폴더다. 앱 jar 를 바꿀 때는 실행 중인 프로세스를 먼저 내린 뒤 복사한다. 실행 중인 jar 를 덮어쓰면 실행 중인 앱이 깨진다.
