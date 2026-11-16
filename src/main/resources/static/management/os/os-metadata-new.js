@@ -1,11 +1,11 @@
 /**
- * MK2 WAVE 1 — OSMetadata 신규 등록 폼의 XHR 제출 + nudge modal 연결.
+ * MK2 WAVE 1 — OSMetadata 신규 등록 폼의 XHR 제출.
  *
  * 흐름:
  *  - submit → fetch POST /management/os (Accept: application/json)
  *  - 200 + { redirect } → 그 URL 로 navigate
  *  - 400 + ApiErrorResponse + fieldErrors → FormError.renderResponse 로 inline 메시지
- *  - 409 + { code: NUDGE_REQUIRED, nudgeId, conflicts } → NudgeModal.handle
+ *  - 409 → 배너에 상태별 다음 행동 안내(HF30-1 — 같은 OS 버전이 휴지통 · Deprecated 에 있으면 복구 · 해제 안내, 중복 확인 창은 없앴다)
  */
 (function () {
     'use strict';
@@ -45,17 +45,6 @@
                         } else {
                             window.location.href = '/management/os';
                         }
-                        return;
-                    }
-                    // 409 + NUDGE_REQUIRED
-                    if (status === 409 && body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
-                        window.NudgeModal.handle(body, {
-                            baseUrl: '/management/os/metadata-nudge',
-                            listUrl: '/management/os',
-                            toastKey: 'os.image.toast',
-                            onError: showBanner,
-                            afterCancel: () => showBanner('등록을 취소했습니다.')
-                        });
                         return;
                     }
                     // 400 fieldErrors
