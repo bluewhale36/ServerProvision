@@ -70,7 +70,10 @@ public class ProvisioningHistory extends BaseTimeEntity {
      * 시한은 나중에 파생할 수 없으므로 사건 시점에 적는다. 값은 ASCII 코드 요약이라 이스케이프가 필요 없다.
      */
     public static String holdTtlMeta(String wireSummary, java.time.Duration ttl) {
-        return "{\"origin\":\"hold-ttl\",\"ttl\":\"" + ttl + "\",\"shortage\":\"" + wireSummary + "\"}";
+        // detail(S22-3) — 화면 사유 칸이 원인 코드("hold-ttl") 대신 읽을 문장. 코드 요약(shortage)은 원문 그대로 남긴다.
+        String detail = "자원 대기 시한(" + ttl.toHours() + "시간)이 지나 실패했습니다. 자원을 되살린 뒤 재시도하십시오.";
+        return "{\"origin\":\"hold-ttl\",\"ttl\":\"" + ttl + "\",\"shortage\":\"" + wireSummary
+                + "\",\"detail\":\"" + detail + "\"}";
     }
 
     /** 이 행이 자원 결손 시한 만료의 기록인가(E2-1-b) — 재시도 차단 판정이 이 사실을 읽는다. */

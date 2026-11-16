@@ -68,9 +68,13 @@ public record GuestServerDetailResponse(
         if (firmwareFlash != null && firmwareFlash.running()) {
             for (AxisFlash axis : firmwareFlash.axes()) {
                 if (axis.state() == AxisFlashState.RUNNING) {
-                    StringBuilder text = new StringBuilder(axis.label()).append(' ').append(axis.state().getLabel());
-                    if (firmwareFlash.stageText() != null) {
-                        text.append(" · ").append(firmwareFlash.stageText());
+                    // 구간 문장이 이미 축 이름으로 시작하면 그것만 쓴다 — "BIOS 굽는 중 · BIOS 굽는 중" 반복 제거(S22-3 SD-103).
+                    String stage = firmwareFlash.stageText();
+                    StringBuilder text = stage != null && stage.startsWith(axis.label())
+                            ? new StringBuilder(stage)
+                            : new StringBuilder(axis.label()).append(' ').append(axis.state().getLabel());
+                    if (stage != null && !stage.startsWith(axis.label())) {
+                        text.append(", ").append(stage);
                     }
                     appendRemaining(text, firmwareFlash.stageRemainingMinutes());
                     return text.toString();
@@ -83,12 +87,11 @@ public record GuestServerDetailResponse(
         if (firmwareSetting != null) {
             for (AxisSetting axis : firmwareSetting.axes()) {
                 if (axis.state() == AxisFlashState.RUNNING) {
-                    StringBuilder text = new StringBuilder(axis.label()).append(" 적용 중");
+                    // "BIOS 설정 값을 쓰는 중" 처럼 축 이름 뒤에 구간 문장을 바로 잇는다(S22-3 SD-104 · 106).
+                    StringBuilder text = new StringBuilder(axis.label()).append(' ')
+                            .append(axis.stageText() != null ? axis.stageText() : "적용 중");
                     if (axis.itemsProgress() != null) {
-                        text.append(" · ").append(axis.itemsProgress());
-                    }
-                    if (axis.stageText() != null) {
-                        text.append(" · ").append(axis.stageText());
+                        text.append(", ").append(axis.itemsProgress());
                     }
                     appendRemaining(text, axis.stageRemainingMinutes());
                     return text.toString();
@@ -96,10 +99,10 @@ public record GuestServerDetailResponse(
             }
         }
         if (windowsInstall != null && windowsInstall.served()) {
-            StringBuilder text = new StringBuilder("설치 중 · 재진입 ")
+            StringBuilder text = new StringBuilder("설치 중, 재부팅 ")
                     .append(windowsInstall.reentries()).append('/').append(windowsInstall.maxReentries());
             if (windowsInstall.remainingMinutes() != null) {
-                text.append(" · 잔여 ").append(windowsInstall.remainingMinutes()).append('분');
+                text.append(", 남은 시간 ").append(windowsInstall.remainingMinutes()).append('분');
             }
             return text.toString();
         }
@@ -112,11 +115,20 @@ public record GuestServerDetailResponse(
         }
     }
 
-    /** 실패 사유(S21-1) — 원장에서 가장 최근의 실패 행이 적은 사유. 없으면 null. */
+    /**
+     * 실패 사유(S21-1) — 실패한 세부 단계의 원장 행 가운데 가장 최근 것이 적은 사유. 운영자 실패 처리처럼 실패 세부
+     * 단계가 없으면 null. 단계를 가리지 않고 마지막 실패 행을 고르면, 운영자가 RAID 에서 실패 처리한 서버에 앞선
+     * BMC 계정 실패 문장이 사유로 뜬다(S22-2 collect2 O-A1b-1) — 경보 띠가 이 값을 크게 보이므로 단계를 맞춘다.
+     */
     public String failedStepNote() {
+        ProvisioningPhaseStep failedStep = progress == null ? null : progress.failedStepCode();
+        if (failedStep == null) {
+            return null;
+        }
         for (int i = steps.size() - 1; i >= 0; i--) {
-            if (steps.get(i).status() == ProvisioningStatus.FAILED) {
-                return steps.get(i).note();
+            Step step = steps.get(i);
+            if (step.status() == ProvisioningStatus.FAILED && step.step() == failedStep) {
+                return step.note();
             }
         }
         return null;

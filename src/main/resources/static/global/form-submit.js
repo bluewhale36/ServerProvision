@@ -35,11 +35,11 @@
     const defaultResult = {
         onSuccess: () => window.location.reload(),
         onRejected: (_form, status, payload) => {
-            const msg = (payload && payload.message) || ('요청이 거절되었어요. (HTTP ' + status + ')');
+            const msg = (payload && payload.message) || '요청이 거절되었습니다.';
             if (window.ErrorModal) ErrorModal.show({message: msg, status: status});
         },
         onNetworkError: () => {
-            if (window.ErrorModal) ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
+            if (window.ErrorModal) ErrorModal.show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도하십시오.', status: 0});
         }
     };
 

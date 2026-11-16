@@ -201,7 +201,7 @@ public class AssignmentQueryService {
         }
         if (server == null) {
             return new MemberOutcomeResponse(member, MemberApplyOutcome.BLOCKED,
-                    "이 서버를 찾을 수 없습니다 — 목록을 만든 뒤 삭제된 것으로 보입니다.");
+                    "이 서버를 찾을 수 없습니다: 목록을 만든 뒤 삭제된 것으로 보입니다.");
         }
         AssignmentBlock block = AssignmentBlockKind.evaluate(
                 new AssignmentEligibility(server, detail, required,

@@ -9,7 +9,13 @@
 (function () {
     'use strict';
 
-    const STATE_LABEL = {ON: 'On', OFF: 'Off', POWERING_ON: '켜는 중', POWERING_OFF: '끄는 중', UNKNOWN: '불명'};
+    const STATE_LABEL = {ON: '켜짐', OFF: '꺼짐', POWERING_ON: '켜는 중', POWERING_OFF: '끄는 중', UNKNOWN: '미확인'};
+    // 확인 창 본문 — 명령마다 무엇이 일어나는지 사람 말로 적는다(S22-3, 상수 원문 노출 제거).
+    const CONFIRM_MESSAGE = {
+        FORCE_OFF: '이 서버를 강제로 끕니다. 실행 중인 작업이 중단될 수 있습니다.',
+        FORCE_RESTART: '이 서버를 강제로 다시 시작합니다. 실행 중인 작업이 중단될 수 있습니다.',
+        GRACEFUL_SHUTDOWN: '이 서버에 정상 종료를 요청합니다. 실행 중인 작업이 중단될 수 있습니다.'
+    };
     const RESET_LABEL = {ON: '켜기', FORCE_OFF: '강제 끄기', FORCE_RESTART: '재시작', GRACEFUL_SHUTDOWN: '정상 종료'};
 
     function section() { return document.getElementById('powerControlSection'); }
@@ -38,7 +44,7 @@
         s.querySelectorAll('button').forEach(function (btn) { btn.disabled = on; });
         if (on && m) {
             // BMC 무응답이면 연결 타임아웃(약 10초)까지 침묵하므로 진행 중임을 말한다(CP5 F-3). 결과가 오면 paint 가 덮는다.
-            m.textContent = '요청 중 — BMC 응답을 기다립니다…';
+            m.textContent = 'BMC 응답을 기다리는 중입니다.';
             m.classList.remove('is-danger');
         }
     }
@@ -54,12 +60,12 @@
             if (!resp.ok) {
                 const err = await resp.json().catch(function () { return null; });
                 paint({kind: 'FAILED', powerState: null,
-                    message: (err && err.message) ? err.message : ('요청 실패 (HTTP ' + resp.status + ')')});
+                    message: (err && err.message) ? err.message : '요청을 처리하지 못했습니다.'});
                 return;
             }
             paint(await resp.json());
         } catch (e) {
-            paint({kind: 'FAILED', powerState: null, message: '서버와 통신할 수 없습니다: ' + e.message});
+            paint({kind: 'FAILED', powerState: null, message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도하십시오.'});
         } finally {
             busy(false);
         }
@@ -92,13 +98,13 @@
             try { state = await fetchState(); } catch (e) { /* 다음 주기 */ }
             if (gen !== watchGen) return;   // 조회하는 사이 다른 조작이 감시를 끝냈다 — 이 사슬은 여기서 죽는다
             if (state && state.powerState === 'OFF') {
-                paint({kind: 'SENT', powerState: 'OFF', message: '정상 종료가 완료됐습니다 (PowerState Off 확인).'});
+                paint({kind: 'SENT', powerState: 'OFF', message: '정상 종료가 끝났습니다(전원 꺼짐 확인).'});
                 stopWatch();
                 return;
             }
             if (Date.now() - sentAt >= GRACEFUL_WATCH_MS) {
                 paint({kind: 'FAILED', powerState: state ? state.powerState : null,
-                    message: '호스트가 정상 종료 요청에 응답하지 않습니다 — 전원 버튼을 처리하는 OS 가 없는 상태(진단 리눅스 · 설치 화면 · UEFI 셸)일 수 있습니다. [강제 끄기] 로 종료하십시오.'});
+                    message: '서버가 정상 종료 요청에 응답하지 않습니다. 전원 버튼을 처리할 OS 가 없는 상태(진단 리눅스, 설치 화면, UEFI 셸)일 수 있으니 [강제 끄기] 로 끄십시오.'});
                 const f = forceOffBtn();
                 if (f) f.classList.replace('n-btn-outline-danger', 'n-btn-danger');   // 기존 클래스 재사용 — 채움 빨강으로 강조
                 watchTimer = null;
@@ -106,7 +112,7 @@
             }
             // 문구만 바꾸지 않고 배지까지 다시 칠한다 — 영역이 교체되면 배지가 서버 초기값(미조회)으로 돌아가 있기 때문(CP5 F-1)
             paint({kind: 'SENT', powerState: state && state.powerState ? state.powerState : lastPower,
-                message: '정상 종료 요청 전달 — 호스트 응답을 기다립니다 (' + Math.round((Date.now() - sentAt) / 1000) + '초)…'});
+                message: '정상 종료를 요청했습니다. 서버 응답을 기다리는 중(' + Math.round((Date.now() - sentAt) / 1000) + '초)…'});
             watchGraceful(sentAt, gen);
         }, GRACEFUL_STEP_MS);
     }
@@ -131,8 +137,8 @@
         if (type === 'ON') { reset(type); return; }     // destructive() 아님 — confirm 없이 발행
         if (!window.ConfirmModal) { reset(type); return; } // base 미적재 폴백(정상 경로에선 항상 적재됨)
         window.ConfirmModal.open('powerConfirm', {
-            title: '전원 제어 — ' + RESET_LABEL[type],
-            message: '이 게스트에 "' + RESET_LABEL[type] + '"(' + type + ') 명령을 보낼까요? 실행 중인 작업이 중단될 수 있습니다.',
+            title: '전원 제어: ' + RESET_LABEL[type],
+            message: CONFIRM_MESSAGE[type],
             confirmLabel: RESET_LABEL[type] + ' 실행',
             onConfirm: function () { reset(type); }
         });

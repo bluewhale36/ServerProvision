@@ -310,7 +310,7 @@ class RaidPlannerTest {
             assertThat(plan.volumes()).isEmpty();
             assertThat(plan.ruleOutcomes().get(0).consumedNothing()).isTrue();
             assertThat(plan.unassigned()).allSatisfy(u ->
-                    assertThat(u.reason()).contains("2개씩 조건에 5대(배수 아님)라 미소비"));
+                    assertThat(u.reason()).contains("2개씩 조건인데 디스크 5대가 2의 배수가 아니라 쓰지 않았습니다"));
         }
     }
 
@@ -351,7 +351,7 @@ class RaidPlannerTest {
             RaidPlan plan = planWithPool(1, ssd(RaidLevel.RAID1, DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
             assertThat(plan.ruleOutcomes().get(0).consumedNothing()).isTrue();
             assertThat(plan.unassigned()).singleElement()
-                    .satisfies(u -> assertThat(u.reason()).contains("2개 조건에 1대(2장에 못 미침)라 미소비"));
+                    .satisfies(u -> assertThat(u.reason()).contains("2개 조건인데 디스크가 1대뿐이라 쓰지 않았습니다"));
         }
 
         @Test
@@ -359,7 +359,7 @@ class RaidPlannerTest {
         void exact_leftoverCarriesReason() {
             RaidPlan plan = planWithPool(4, ssd(RaidLevel.RAID1, DiskCountMode.EXACT, 2, DiskGroupRole.DATA));
             assertThat(plan.unassigned()).hasSize(2).allSatisfy(u ->
-                    assertThat(u.reason()).contains("규칙 1 · 2개는 한 묶음만 가져갑니다"));
+                    assertThat(u.reason()).contains("규칙 1, 2개는 한 묶음만 가져가므로"));
         }
 
         @Test
@@ -372,7 +372,7 @@ class RaidPlannerTest {
             assertThat(plan.volumes()).singleElement()
                     .satisfies(v -> assertThat(v.memberSlots()).containsExactly("s:0", "s:1"));
             assertThat(plan.unassigned()).extracting(u -> u.slot()).containsExactly("m:0", "m:1");
-            assertThat(plan.unassigned()).allSatisfy(u -> assertThat(u.reason()).contains("이미 소비"));
+            assertThat(plan.unassigned()).allSatisfy(u -> assertThat(u.reason()).contains("이미 사용했습니다"));
         }
 
         @Test
@@ -409,7 +409,7 @@ class RaidPlannerTest {
             assertThat(asGiven.volumes()).singleElement()
                     .satisfies(v -> assertThat(v.level()).isEqualTo(RaidLevel.RAID1));
             assertThat(asGiven.unassigned()).hasSize(2).allSatisfy(u ->
-                    assertThat(u.reason()).contains("3개 이상 조건에 2대(3장 미만)라 미소비"));
+                    assertThat(u.reason()).contains("3개 이상 조건인데 디스크가 2대뿐이라 쓰지 않았습니다"));
 
             RaidPlan reversed = planWithPool(4,
                     ssd(RaidLevel.RAID5, DiskCountMode.AT_LEAST, 3, DiskGroupRole.BY_PRIORITY),
@@ -673,7 +673,7 @@ class RaidPlannerTest {
                             disk("p:2", "SSD", "SATA", S480)),
                     RaidExistingConfigPolicy.DESTROY);
             assertThat(threeMember).isInstanceOf(RaidPlanRejection.class);
-            assertThat(((RaidPlanRejection) threeMember).detail()).contains("2~32대 · 2대 단위");
+            assertThat(((RaidPlanRejection) threeMember).detail()).contains("2~32대, 2대 단위");
 
             RaidPlan threeVolumes = plan(
                     mega(disk("1:0", "SSD", "SATA", S480), disk("1:1", "SSD", "SATA", S480),

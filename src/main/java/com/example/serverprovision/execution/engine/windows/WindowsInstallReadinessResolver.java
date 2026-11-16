@@ -134,15 +134,15 @@ public class WindowsInstallReadinessResolver {
     /** 계획의 OS 영역이 곧 미래의 설치 디스크다 — 계획에도 없으면 정의서를 고쳐야 하므로 미리 막는다. */
     private DiskSelection deferredByPlan(UUID guestServerId, RaidInventory inventory) {
         if (inventory == null) {
-            return DiskSelection.deferred("RAID 구성 뒤 확정 — 진단이 RAID 인벤토리를 채집하면 계획의 OS 영역을 보입니다");
+            return DiskSelection.deferred("RAID 구성 뒤 정해집니다");
         }
         RaidExistingConfigPolicy policy = raidResolutionProvider.policyOf(guestServerId).orElse(RaidExistingConfigPolicy.DESTROY);
         Optional<RaidPlanOutcome> outcome = raidResolutionProvider.planFor(guestServerId, inventory, policy);
         if (outcome.isEmpty()) {
-            return DiskSelection.deferred("RAID 구성 뒤 확정");
+            return DiskSelection.deferred("RAID 구성 뒤 정해집니다");
         }
         if (outcome.get() instanceof RaidPlanRejection rejection) {
-            return DiskSelection.deferred("RAID 구성 뒤 확정 — 지금 계획은 거절 상태(" + rejection.code() + ")");
+            return DiskSelection.deferred("RAID 계획이 거절돼 아직 정할 수 없습니다");
         }
         RaidPlan plan = (RaidPlan) outcome.get();
         Optional<String> osName = plan.volumes().stream()
@@ -153,9 +153,9 @@ public class WindowsInstallReadinessResolver {
             String why = plan.osAbsenceReason() == null ? "" : " (" + plan.osAbsenceReason() + ")";
             return new DiskSelection(WindowsDiskSelection.Confidence.BLOCKED, -1, null, 0L, null,
                     "os volume missing in plan",
-                    "RAID 계획에 OS 영역 볼륨이 없습니다" + why + " — 정의서의 디스크 묶음 규칙에서 OS 영역을 지정하세요");
+                    "RAID 계획에 OS 영역 볼륨이 없습니다" + why + ": 정의서의 디스크 묶음 규칙에서 OS 영역을 지정하십시오");
         }
-        return DiskSelection.deferred("RAID 구성 뒤 확정 — 계획의 OS 영역 " + osName.get());
+        return DiskSelection.deferred("RAID 구성 뒤 정해집니다(OS 영역 " + osName.get() + ")");
     }
 
     /** base 준비도와 디스크 선택 결과를 합친다 — BLOCKED 만 막고(DEFERRED 는 통과), 사유(note · wire)는 합집합이다. */

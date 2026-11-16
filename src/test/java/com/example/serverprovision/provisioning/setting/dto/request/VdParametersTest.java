@@ -84,7 +84,7 @@ class VdParametersTest {
     void toDisplay_listsAllAxes() {
         VdParameters p = of(VdWritePolicy.WRITE_BACK, null, null, null, null,
                 VdDriveCache.OFF, VdBackgroundInit.OFF, null);
-        assertThat(p.toDisplay()).isEqualTo("Strip 256 KB · Read Ahead · Write Back · Direct IO · Access Read Write"
-                + " · Drive Cache Disable · Disable BGI Yes (BGI 끔) · Init No (초기화 안 함)");
+        assertThat(p.toDisplay()).isEqualTo("Strip 256 KB, Read Ahead, Write Back, Direct IO, Access Read Write"
+                + ", Drive Cache Disable, Disable BGI Yes (BGI 미사용), Init No (초기화 생략)");
     }
 }

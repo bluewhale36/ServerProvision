@@ -138,7 +138,7 @@ class BiosControllerUploadFlowTest {
             mvc.perform(post("/management/bios/999/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(intentReq("/mnt/x/"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.message").value(containsString("999")));
+                    .andExpect(jsonPath("$.message").value("메인보드 모델을 찾을 수 없습니다."));   // S22-3 — 응답에는 내부 식별자를 싣지 않는다
         }
 
         @Test

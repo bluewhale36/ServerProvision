@@ -95,7 +95,7 @@ class GuestServerControllerActionTest {
         mvc.perform(post("/provisioning/server/{id}/retry-boot", id))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/provisioning/server/" + id))
-                .andExpect(flash().attribute("flashMessage", org.hamcrest.Matchers.containsString("재시도 접수")));
+                .andExpect(flash().attribute("flashMessage", org.hamcrest.Matchers.containsString("재시도")));
         org.mockito.InOrder order = org.mockito.Mockito.inOrder(commandService, redfishPowerService);
         order.verify(commandService).retry(id);
         order.verify(redfishPowerService).networkBoot(target);

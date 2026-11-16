@@ -73,16 +73,15 @@
             <!--/* 잠긴 사유는 라벨이 아니라 패널 머리에 둔다 — <select> 시절에는 옵션 라벨에 이어붙어
                    길면 잘렸다. 자리를 주면 문장이 그대로 읽힌다. 문구는 AssignmentBlockKind 가 만든
                    것으로, direct POST 를 409 로 거절하는 서버 가드의 메시지와 같은 문자열이다. */-->
-            <div th:if="${item.blocked}" class="n-alert n-alert-danger" role="alert">
+            <div th:if="${item.blocked}" class="n-alert n-alert-warning" role="alert">
                 <b>이 서버에는 할당할 수 없습니다.</b>
                 <div class="n-block-gap-sm" th:text="${item.blockReason}">
-                    이 정의서는 메인보드 MS03-CE0 전용입니다 — 이 서버는 ASUS-Z13PE 입니다.</div>
+                    이 정의서는 메인보드 MS03-CE0 전용이지만 이 서버는 ASUS-Z13PE 입니다.</div>
             </div>
             <div th:if="${!item.blocked and item.unverified}" class="n-alert n-alert-warning" role="alert">
                 <b>하드웨어를 대조하지 못했습니다.</b>
                 <div class="n-section-hint n-block-gap-sm">
                     이 정의서는 특정 메인보드를 요구하는데 이 서버의 하드웨어는 아직 수집 전입니다.
-                    할당은 막지 않되, 수집 후 맞지 않으면 개시할 때 경고가 뜹니다.
                 </div>
             </div>
             <div th:if="${item.deprecated}" class="n-alert n-alert-warning" role="alert">

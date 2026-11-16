@@ -200,7 +200,7 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
         RaidPlan frozen = loadFrozenPlan(server.getId());
         if (frozen == null) {
             raidLedger.failInstant(server, progress, ProvisioningPhaseStep.RAID_VERIFYING,
-                    RaidLedger.RESULT_MISMATCH, "동결 계획(PLANNED)이 원장에 없습니다 — 집행 이력 손상", now);
+                    RaidLedger.RESULT_MISMATCH, "집행할 때 고정한 RAID 계획을 찾지 못했습니다. 집행 기록이 손상됐을 수 있습니다.", now);
             return;
         }
         String mismatch = RaidResultVerifier.mismatchReason(frozen, observed);
@@ -321,8 +321,8 @@ public class RaidConfigurationExecutor implements ProvisioningPhaseExecutor {
             case MISMATCH -> {
                 raidLedger.failInstant(server, progress, ProvisioningPhaseStep.RAID_INVENTORY_COLLECTING,
                         RaidLedger.CARD_MISMATCH,
-                        "지정 " + target.cardModelName() + "(" + target.pciSubsystemId() + ") ≠ 감지 "
-                                + inventory.card().pciSubsystemId(), now);
+                        "지정한 카드 " + target.cardModelName() + "(" + target.pciSubsystemId() + ")와 감지한 카드("
+                                + inventory.card().pciSubsystemId() + ")가 다릅니다.", now);
                 yield false;
             }
             case MATCH, NOT_APPLICABLE -> true;

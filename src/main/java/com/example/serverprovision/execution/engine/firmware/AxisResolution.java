@@ -53,9 +53,9 @@ public record AxisResolution(AxisOutcome outcome, Long firmwareId, String resour
     /** 화면 · 스크립트가 쓰는 한 줄 — 선택이면 "이름 (버전)" 표기(E2-4 R7). */
     public String message(String axisLabel) {
         if (!isSelected()) {
-            return axisLabel + " — " + reason.getUserMessage();
+            return axisLabel + ": " + reason.getUserMessage();
         }
-        String board = boardModelName == null || boardModelName.isBlank() ? "" : " (" + boardModelName.trim() + ")";
-        return axisLabel + " " + displayLabel() + board + " 적용 예정";
+        // S22-3 — 보드 이름은 서버 정보 카드가 이미 말하므로 이 줄에서는 뺐다(SD-190).
+        return axisLabel + " " + displayLabel() + " 적용 예정";
     }
 }

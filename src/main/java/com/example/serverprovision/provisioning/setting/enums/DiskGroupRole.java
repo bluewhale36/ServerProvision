@@ -17,7 +17,7 @@ public enum DiskGroupRole {
     BY_PRIORITY("우선순위에 따름"),
     OS("OS 영역"),
     DATA("Data 영역"),
-    NONE("영역 할당 없음");
+    NONE("영역 미할당");
 
     private final String displayName;
 

@@ -139,7 +139,7 @@ class DiskGroupRulesTest {
                 .isInstanceOf(InvalidDiskGroupException.class)
                 .hasMessageContaining("1번 묶음")
                 .hasMessageContaining("RAID5 를 만들 수 없는 카드입니다")
-                .hasMessageContaining("RAID0 · RAID1");
+                .hasMessageContaining("RAID0, RAID1");
     }
 
     // ==== 규칙 2 — 최소 디스크 수(카드 캐시 유무 반영) ======================================
@@ -388,7 +388,7 @@ class DiskGroupRulesTest {
                 .doesNotThrowAnyException();
         assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 6, 4)), AVAGO_9361))
                 .isInstanceOf(InvalidDiskGroupException.class)
-                .hasMessageContaining("1번 묶음: RAID10 을 스팬당 4대로 만들려면 8~32대 · 4대 단위여야 합니다");
+                .hasMessageContaining("1번 묶음: RAID10 을 스팬당 4대로 만들려면 8~32대, 4대 단위여야 합니다");
         assertThatCode(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 8, 4)), AVAGO_9361))
                 .doesNotThrowAnyException();
     }

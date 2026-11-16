@@ -339,7 +339,7 @@ class GuestServerQueryServiceTest {
 
         var volumes = service.findDetail(id).raidPlan().branches().get(0).volumes();
 
-        assertThat(volumes.get(0).level()).isEqualTo("RAID10 · 스팬 3 × 2대");
+        assertThat(volumes.get(0).level()).isEqualTo("RAID10, 스팬 3 × 2대");
         assertThat(volumes.get(1).level()).isEqualTo("RAID1");
     }
 
@@ -452,9 +452,9 @@ class GuestServerQueryServiceTest {
         var os = response.raidVolumes().get(0);
         assertThat(os.name()).isEqualTo("spvR1V1");
         assertThat(os.level()).isEqualTo("RAID1");
-        assertThat(os.members()).isEqualTo("252:0 · 252:1");
+        assertThat(os.members()).isEqualTo("252:0, 252:1");
         assertThat(os.role()).isEqualTo(com.example.serverprovision.execution.engine.raid.PlannedVolumeRole.OS);
         assertThat(os.wwn()).isEqualTo("600605b00d18aa1e322807f9084a72aa");
-        assertThat(response.raidVolumes().get(1).level()).isEqualTo("RAID 없음");
+        assertThat(response.raidVolumes().get(1).level()).isEqualTo("RAID 미구성");
     }
 }

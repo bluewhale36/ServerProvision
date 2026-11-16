@@ -174,10 +174,10 @@ class GuestServerControllerTest {
                 com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.MISMATCH, "1000:9361", "1458:3008")));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("CARD_MISMATCH 로 실패합니다")))
+                .andExpect(content().string(containsString("이대로 개시하면 RAID 구성 단계에서 실패합니다")))
                 .andExpect(content().string(containsString("1458:3008")))
-                .andExpect(content().string(containsString("class=\"n-alert n-alert-danger\"")))   // CP5 O-1 — 위험은 채워진 배너
-                .andExpect(content().string(containsString("카드 자원의 Subsystem 을 정정하십시오")))
+                .andExpect(content().string(containsString("class=\"n-alert n-alert-warning\"")))   // S22-3 — 진행을 막지 않는 예고라 노랑
+                .andExpect(content().string(containsString("카드 자원의 Subsystem 을 고치십시오")))
                 .andExpect(content().string(containsString("href=\"/management/raidcard?selectId=7\"")));   // CP5 F-3 — 다음 행동의 자리로
 
         UUID id2 = UUID.randomUUID();
@@ -185,7 +185,7 @@ class GuestServerControllerTest {
                 com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict.NOT_DETECTED, "1000:9361", null)));
         mvc.perform(get("/provisioning/server/{id}", id2))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("CARD_NOT_DETECTED 로 실패합니다")));
+                .andExpect(content().string(containsString("감지하지 못했습니다. 이대로 개시하면 RAID 구성 단계에서 실패합니다")));
     }
 
     @Test
@@ -204,7 +204,7 @@ class GuestServerControllerTest {
         mvc.perform(get("/provisioning/server/{id}", id2))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Subsystem 이 확정되지 않아 대조할 수 없습니다")))
-                .andExpect(content().string(containsString("class=\"n-alert n-alert-warning\"")))            // CP5 F-3 · O-1 — 주의 배너
+                .andExpect(content().string(containsString("class=\"n-hint\"")))            // S22-3 — 대조 불가는 진행을 막지 않는 관리 안내라 판 대신 보통 안내
                 .andExpect(content().string(containsString("href=\"/management/raidcard?selectId=7\"")));
 
         UUID id3 = UUID.randomUUID();
@@ -224,7 +224,7 @@ class GuestServerControllerTest {
         given(queryService.findDetail(id)).willReturn(detail(id));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("카드가 없는 서버는 비어 있는 것이 정상입니다")))
+                .andExpect(content().string(containsString("RAID 카드 정보가 없습니다.")))
                 .andExpect(content().string(not(containsString("RAID 구성 단계에 진입하면 수집됩니다"))));   // 디스크 표 헤더는 hardwareSpec 이 있는 픽스처에서만 그려진다(CP5 A1 로 확인)
     }
 
@@ -253,9 +253,9 @@ class GuestServerControllerTest {
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-raid-uncollected")))
-                .andExpect(content().string(containsString("카드 뒤 디스크 정보를 채집하지 못했습니다")))
+                .andExpect(content().string(containsString("카드 뒤 디스크 정보를 모으지 못했습니다")))
                 .andExpect(content().string(containsString("Secure SAS39xx")))
-                .andExpect(content().string(not(containsString("카드가 없는 서버는 비어 있는 것이 정상입니다"))));
+                .andExpect(content().string(not(containsString("RAID 카드 정보가 없습니다."))));
     }
 
     private com.example.serverprovision.execution.vo.HardwareSpec.PcieDevice raidCard(String driver, boolean observed) {
@@ -269,10 +269,10 @@ class GuestServerControllerTest {
     void detail_uncollectedNotice_perCause() throws Exception {
         record Case(String driver, boolean observed, String notice, String copy) {}
         for (Case c : List.of(
-                new Case(null, false, "UNKNOWN", "지원하지 않는 RAID 칩이거나 채집 도구가 없습니다"),
+                new Case(null, false, "UNKNOWN", "지원하지 않는 RAID 칩이거나 수집 도구가 없습니다"),
                 new Case("megaraid_sas", true, "SUPPORTED_NOT_COLLECTED", "지원하는 RAID 카드이지만"),
                 new Case("mpi3mr", true, "UNSUPPORTED_CONTROLLER", "RAID 를 지원하지 않는 컨트롤러(mpi3mr)입니다"),
-                new Case("", true, "DRIVER_NOT_BOUND", "진단 이미지의 커널이 이 RAID 칩을 인식하지 못했습니다"))) {
+                new Case("", true, "DRIVER_NOT_BOUND", "진단 이미지가 이 RAID 칩을 인식하지 못해"))) {
             UUID id = UUID.randomUUID();
             given(queryService.findDetail(id)).willReturn(detailWithPcie(id, List.of(raidCard(c.driver(), c.observed()))));
 
@@ -295,7 +295,7 @@ class GuestServerControllerTest {
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("data-raid-uncollected"))))
-                .andExpect(content().string(containsString("카드가 없는 서버는 비어 있는 것이 정상입니다")));
+                .andExpect(content().string(containsString("RAID 카드 정보가 없습니다.")));
     }
 
     // ==== 성공 2xx ====================================================
@@ -439,7 +439,7 @@ class GuestServerControllerTest {
         var failedStep = new GuestServerDetailResponse.Step(ProvisioningPhase.RAID_CONFIGURATION,
                 com.example.serverprovision.execution.enums.ProvisioningPhaseStep.RAID_APPLYING,
                 com.example.serverprovision.execution.enums.ProvisioningStatus.FAILED,
-                failedAt.minusMinutes(1), failedAt, "지정 카드 불일치 — 집행 전 대조에서 거절됨");
+                failedAt.minusMinutes(1), failedAt, "지정 카드 불일치: 집행 전 대조에서 거절됨");
         given(queryService.findDetail(id)).willReturn(new GuestServerDetailResponse(
                 id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "464331aabbcc", null, "memo",
                 GuestServerStatus.FAILED, null, LocalDateTime.now(), LocalDateTime.now(),
@@ -456,9 +456,11 @@ class GuestServerControllerTest {
                 .andExpect(status().isOk())
                 .andReturn());
         org.assertj.core.api.Assertions.assertThat(html)
-                .contains("실패 · RAID 구성")
-                .contains("class=\"n-tab-dot\"")
-                .contains("지정 카드 불일치 — 집행 전 대조에서 거절됨")
+                .contains("RAID 구성 실패")
+                .contains("data-live=\"alert-band\"")                 // S22-3 경보 띠 — 실패 단계와 사유
+                .contains("RAID 구성 실패")
+                .contains("<a href=\"#provisioning\">실패한 단계 보기</a>")
+                .contains("지정 카드 불일치: 집행 전 대조에서 거절됨")
                 .contains("id=\"phase-RAID_CONFIGURATION\" class=\"n-card n-phase-panel is-failed\" open=\"open\"")
                 .contains("/provisioning/server/" + id + "/retry\"");
     }
@@ -486,14 +488,13 @@ class GuestServerControllerTest {
                 .andExpect(status().isOk())
                 .andReturn());
         org.assertj.core.api.Assertions.assertThat(html)
-                .contains("회수되어 프로비저닝 대상이 아닙니다")
                 .contains("id=\"phase-DIAGNOSE_LINUX\" class=\"n-card n-phase-panel is-stopped\"")
                 .contains("class=\"n-step is-stopped\"")
-                .contains("회수된 서버입니다 — 진행이 멈춘 자리만 남습니다")
-                .doesNotContain("class=\"n-tab-dot\"")
+                .doesNotContain("회수된 서버입니다: 진행이 멈춘 자리만 남습니다")   // S22-3 SD-148 제거
+                .doesNotContain("<a href=\"#provisioning\">실패한 단계 보기</a>")   // 회수된 서버에는 경보 띠가 없다
                 .doesNotContain("is-current")
                 .doesNotContain("정의서를 할당하면 이 서버가 밟을 단계가 여기에 정해집니다")
-                .doesNotContain("실패 · 진단 리눅스");
+                .doesNotContain("실패, 진단 리눅스");
     }
 
     @Test
@@ -592,7 +593,7 @@ class GuestServerControllerTest {
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-bmc-detected=\"false\"")))
-                .andExpect(content().string(containsString("BMC 미검출 — 원격 전원 제어를 쓸 수 없습니다")))
+                .andExpect(content().string(containsString("BMC 미검출: 원격 전원 제어를 쓸 수 없습니다")))
                 .andExpect(content().string(not(containsString("data-power-reset="))));
     }
 
@@ -613,13 +614,13 @@ class GuestServerControllerTest {
                 .willAnswer(invocation -> new AssignmentFormResponse(null,
                         invocation.<java.util.List<SettingSummaryResponse>>getArgument(1).stream()
                                 .map(summary -> new DefinitionOptionResponse(summary,
-                                        "BIOS 템플릿 'T' 의 값이 보드 레지스트리(F44)와 어긋납니다 — Whitley0000", false))
+                                        "BIOS 템플릿 'T' 의 값이 보드 레지스트리(F44)와 어긋납니다: Whitley0000", false))
                                 .toList()));
 
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"openAssignPicker\"")))
-                .andExpect(content().string(containsString("정의서마다 잠긴 사유를 목록에서 확인하십시오")))
+                .andExpect(content().string(containsString("잠긴 사유는 정의서 목록에서 확인하십시오")))
                 .andExpect(content().string(not(containsString("모두 다른 메인보드를 요구합니다"))));
     }
 }

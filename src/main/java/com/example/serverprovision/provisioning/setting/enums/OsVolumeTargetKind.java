@@ -18,7 +18,7 @@ public enum OsVolumeTargetKind {
     /** 고정은 없고 '우선순위에 따름' 묶음이 있다. */
     BY_PRIORITY("볼륨 우선순위 1 순위 볼륨이 OS 영역입니다"),
     /** 묶음은 있는데 OS 후보가 없다(전부 Data / 영역 할당 없음) — OS 설치 단계와는 저장되지 않는다(isOsVolumeDeterminable). */
-    NO_CANDIDATE("OS 영역이 될 묶음이 없습니다 — OS 설치 단계와 함께 저장할 수 없습니다");
+    NO_CANDIDATE("OS 영역이 될 묶음이 없어 OS 설치 단계와 함께 저장할 수 없습니다");
 
     private final String messageTemplate;
 }

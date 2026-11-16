@@ -59,7 +59,7 @@ class GuestServerControllerEligibilityTest {
 
     private static final Long DEF_ID = 5L;
     private static final String BOARD_MISMATCH =
-            "이 정의서는 메인보드 MS03-CE0 전용입니다 — 이 서버는 X11SPM 입니다.";
+            "이 정의서는 메인보드 MS03-CE0 전용입니다: 이 서버는 X11SPM 입니다.";
     private static final String DECOMMISSIONED = "회수된 서버에는 세팅 정의서를 할당할 수 없습니다.";
 
     private String assignUrl(UUID id) {
@@ -138,7 +138,7 @@ class GuestServerControllerEligibilityTest {
     @DisplayName("POST /assignment — 레지스트리와 어긋난 템플릿의 정의서를 직접 실어 보내면 409 + 어긋난 속성을 알린다")
     void assign_templateStale_returns409() throws Exception {
         UUID id = UUID.randomUUID();
-        String reason = "BIOS 템플릿 'MD72-HB3 공장 표준 세팅' 의 값이 보드 레지스트리(F44 · 2026-08-27 채집 · 192.168.1.130)와 어긋납니다 — Whitley0000 = Disabled — 허용 {Disable, Enable}";
+        String reason = "BIOS 템플릿 'MD72-HB3 공장 표준 세팅' 의 값이 보드 레지스트리(F44, 2026-08-27 채집, 192.168.1.130)와 어긋납니다: Whitley0000 = Disabled(허용 값: Disable, Enable)";
         given(assignmentCommandService.assign(eq(id), eq(DEF_ID)))
                 .willThrow(new com.example.serverprovision.provisioning.assignment.exception.BiosTemplateStaleException(id, reason));
 

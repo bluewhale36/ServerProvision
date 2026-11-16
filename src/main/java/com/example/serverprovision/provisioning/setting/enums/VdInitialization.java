@@ -7,7 +7,7 @@ package com.example.serverprovision.provisioning.setting.enums;
  */
 public enum VdInitialization {
     /** HII "Default Initialization: No"(기본) — 집행이 init 을 생략해 디스크의 기존 데이터가 남는다. */
-    NONE("none", "No (초기화 안 함)"),
+    NONE("none", "No (초기화 생략)"),
     /** 선두 · 말미 메타데이터만 지운다 — 2026-09-01 실기의 데이터 소거는 이 값(force 동반)으로 한다. */
     FAST("fast", "Fast Initialization"),
     /** 전 영역 0 기록 — 대용량 HDD 배열은 수 시간, 완료 전 VD 사용 가능 여부는 실기 확인 대상. */

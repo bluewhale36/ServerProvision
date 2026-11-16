@@ -93,7 +93,7 @@ class RaidCardMetadataServiceTest {
 		assertThat(groups).hasSize(2);
 		assertThat(groups.get(0).items().get(0).supportedRaidLevels())
 				.containsExactly(RaidLevel.RAID0, RaidLevel.RAID1);
-		assertThat(groups.get(0).items().get(0).supportedRaidLevelsDisplay()).isEqualTo("RAID0 · RAID1");
+		assertThat(groups.get(0).items().get(0).supportedRaidLevelsDisplay()).isEqualTo("RAID0, RAID1");
 	}
 
 	// ==== create =====================================================

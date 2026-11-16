@@ -63,8 +63,8 @@ public class RedfishPowerService {
         return guarded(target, credentials -> {
             Settlement settlement = settle(policy, target, credentials);
             return settlement.failed()
-                    ? PowerControlResult.failed(RedfishPowerState.UNKNOWN, policy.label() + " — " + settlement.detail())
-                    : PowerControlResult.sent(RedfishPowerState.UNKNOWN, policy.label() + " — " + settlement.detail());
+                    ? PowerControlResult.failed(RedfishPowerState.UNKNOWN, policy.label() + ": " + settlement.detail())
+                    : PowerControlResult.sent(RedfishPowerState.UNKNOWN, policy.label() + ": " + settlement.detail());
         });
     }
 
@@ -118,7 +118,7 @@ public class RedfishPowerService {
     public PowerControlResult powerState(RedfishTarget target) {
         return guarded(target, credentials -> {
             RedfishPowerState state = readPowerState(target, credentials);
-            return PowerControlResult.sent(state, "현재 전원 상태 : " + state.name());
+            return PowerControlResult.sent(state, "현재 전원 상태: " + state.getDescription());
         });
     }
 
@@ -134,7 +134,7 @@ public class RedfishPowerService {
             issueReset(target, credentials, type);
             RedfishPowerState after = readPowerStateQuietly(target, credentials);
             return PowerControlResult.sent(after, outcome.prefix(nextBoot.label())
-                    + type.getDisplayName() + "(" + type.getWireValue() + ") 명령이 전달되었습니다 — [상태 조회] 로 결과를 확인하세요.");
+                    + type.getDisplayName() + " 명령을 보냈습니다. 결과는 [상태 조회] 로 확인하십시오.");
         });
     }
 
@@ -165,7 +165,7 @@ public class RedfishPowerService {
             issueReset(target, credentials, type);
             RedfishPowerState after = readPowerStateQuietly(target, credentials);
             return PowerControlResult.sent(after, outcome.prefix(NextBoot.PXE_ONCE.label())
-                    + type.getDisplayName() + "(" + type.getWireValue() + ") 발행 — 게스트가 PXE 로 돌아오면 이어서 진행합니다.");
+                    + type.getDisplayName() + "(" + type.getWireValue() + ") 발행: 게스트가 PXE 로 돌아오면 이어서 진행합니다.", outcome);
         });
     }
 
@@ -178,7 +178,7 @@ public class RedfishPowerService {
             BootOverrideOutcome first = arm(nextBoot, target, credentials);
             issueReset(target, credentials, RedfishResetType.ON);
             if (pollUntilOn(target, credentials)) {
-                return PowerControlResult.verified(first.prefix(nextBoot.label()) + "전원이 켜졌습니다 (Reset(On) → PowerState 폴링 확인).");
+                return PowerControlResult.verified(first.prefix(nextBoot.label()) + "전원을 켰습니다.");
             }
             log.warn("[redfish] {} — On 발행 후 {}초 동안 전원 불변(실측 실패 모드) → PowerCycle 폴백",
                     target.bmcIp(), pollTimeout.toSeconds());
@@ -190,7 +190,7 @@ public class RedfishPowerService {
             }
             log.warn("[redfish] {} — PowerCycle 폴백 후에도 전원 불변 — 수동 개입 필요", target.bmcIp());
             return PowerControlResult.failed(RedfishPowerState.OFF,
-                    "전원을 켜지 못했습니다 — PowerCycle 폴백까지 전원이 켜지지 않았습니다. 수동 개입이 필요합니다 (서버 로그에 기록됨).");
+                    "전원을 켜지 못했습니다. 전원을 껐다 켜도 켜지지 않아 직접 확인해야 합니다.");
         });
     }
 
@@ -222,7 +222,7 @@ public class RedfishPowerService {
         }
         if (credentialsResolver.candidates(target.boardSerial()).isEmpty()) {
             return PowerControlResult.failed(null,
-                    "BMC 자격증명이 없습니다 — 표준 비밀번호(provision.bmc.password)가 비어 있고 보드 시리얼도 수집되지 않았습니다.");
+                    "BMC 자격증명이 없습니다. 표준 비밀번호 설정과 진단에서 모은 보드 시리얼이 모두 없습니다.");
         }
         try {
             // 후보 순회와 401 폴백 규칙은 펌웨어 집행(E2-2)과 공유한다 — 규칙이 갈라지면 한쪽만 고쳐지는 사고가 난다.

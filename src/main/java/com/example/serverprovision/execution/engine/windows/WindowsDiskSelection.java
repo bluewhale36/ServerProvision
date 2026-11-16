@@ -108,15 +108,15 @@ public final class WindowsDiskSelection {
                 .orElse(null);
         if (osVolume == null) {
             return DiskSelection.blocked("os volume missing",
-                    "OS 영역 RAID 볼륨이 없습니다 — RAID 구성을 먼저 완료하세요");
+                    "OS 를 설치할 RAID 볼륨이 없습니다. RAID 구성을 먼저 마치십시오");
         }
         if (inventory == null || inventory.volumes().isEmpty()) {
             return DiskSelection.blocked("raid inventory missing",
-                    "RAID 인벤토리가 없습니다 — 진단이 먼저 필요합니다");
+                    "RAID 인벤토리가 없습니다: 진단이 먼저 필요합니다");
         }
         if (hasPassthrough(allVolumes)) {
             return DiskSelection.blocked("passthrough not supported",
-                    "물리 디스크 직결 구성은 아직 지원하지 않습니다 — 실측 후 지원 예정");
+                    "물리 디스크 직결 구성은 지원하지 않습니다");
         }
         RaidChipFamily family = inventory.card() == null ? null : inventory.card().chipFamily();
         String expected = uniqueIdOf(family, osVolume.getWwn());
@@ -126,7 +126,7 @@ public final class WindowsDiskSelection {
             return DiskSelection.confident(byOrder, expected, osVolume.getUsableBytes(), Basis.INVENTORY_ORDER);
         }
         return DiskSelection.blocked("os volume not in inventory",
-                "OS 볼륨을 디스크 목록에서 찾지 못했습니다 — 재구성이 필요할 수 있습니다");
+                "OS 볼륨을 디스크 목록에서 찾지 못했습니다: 재구성이 필요할 수 있습니다");
     }
 
     /** 계열 순서 규칙으로 재배열한 인벤토리에서 OS 볼륨을 식별자(우선) · 이름으로 찾은 인덱스. */

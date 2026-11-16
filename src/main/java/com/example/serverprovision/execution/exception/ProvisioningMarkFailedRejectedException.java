@@ -17,6 +17,6 @@ public class ProvisioningMarkFailedRejectedException extends ConflictException {
 
     public static ProvisioningMarkFailedRejectedException notProvisioning(UUID id) {
         return new ProvisioningMarkFailedRejectedException(
-                "진행 중(PROVISIONING) 상태의 서버만 수동 실패 전환이 가능합니다. id=" + id);
+                "진행 중인 서버만 실패로 처리할 수 있습니다.");
     }
 }

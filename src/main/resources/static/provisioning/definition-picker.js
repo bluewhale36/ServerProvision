@@ -79,7 +79,7 @@
                 return;
             }
             choice.value = id;
-            status.textContent = '고른 정의서 — ' + name;
+            status.textContent = '고른 정의서: ' + name;
             status.classList.remove('n-picker-count-blocked');
             submit.disabled = false;
             submit.removeAttribute('title');

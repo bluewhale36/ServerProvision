@@ -35,7 +35,7 @@ class SettingRaidCardOptionResponseTest {
                 card(RaidChipFamily.MEGARAID, 2, RaidLevel.RAID1, RaidLevel.RAID10), null);
 
         assertThat(option.memberRules()).containsOnlyKeys(RaidLevel.RAID1, RaidLevel.RAID10);
-        assertThat(option.memberRules().get(RaidLevel.RAID1).display()).isEqualTo("2~32대 · 2대 단위");
+        assertThat(option.memberRules().get(RaidLevel.RAID1).display()).isEqualTo("2~32대, 2대 단위");
         assertThat(option.spanMemberRules()).containsOnlyKeys(RaidLevel.RAID10);
         assertThat(option.spanMemberRules().get(RaidLevel.RAID10)).hasSize(16);
         var p4 = option.spanMemberRules().get(RaidLevel.RAID10).get(4);

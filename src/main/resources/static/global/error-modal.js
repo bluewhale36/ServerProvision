@@ -17,10 +17,6 @@
 (function () {
     'use strict';
 
-    const STATUS_LABEL = {
-        400: '잘못된 요청', 401: '인증 필요', 403: '권한 부족', 404: '대상 없음',
-        409: '충돌', 422: '검증 실패', 423: '잠금', 500: '서버 오류', 502: '서버 응답 없음'
-    };
 
     function ensureModalRoot() {
         let root = document.getElementById('global-error-modal');
@@ -32,8 +28,7 @@
         root.innerHTML = '' +
             '<div class="gem-backdrop" data-close></div>' +
             '<div class="gem-card" role="alertdialog" aria-modal="true">' +
-            '  <h2 class="gem-title" data-title>오류가 발생했어요</h2>' +
-            '  <div class="gem-status" data-status></div>' +
+            '  <h2 class="gem-title" data-title>오류가 발생했습니다</h2>' +
             '  <p class="gem-message" data-message></p>' +
             '  <div class="gem-actions">' +
             '    <button type="button" class="n-btn n-btn-primary" data-close>확인</button>' +
@@ -51,18 +46,11 @@
 
     function show({title, message, status}) {
         const root = ensureModalRoot();
-        root.querySelector('[data-title]').textContent = title || '오류가 발생했어요';
-        const statusEl = root.querySelector('[data-status]');
-        if (status) {
-            statusEl.textContent = 'HTTP ' + status + (STATUS_LABEL[status] ? ' · ' + STATUS_LABEL[status] : '');
-            statusEl.hidden = false;
-        } else {
-            statusEl.textContent = '';
-            statusEl.hidden = true;
-        }
+        root.querySelector('[data-title]').textContent = title || '오류가 발생했습니다';
+        // HTTP 상태 줄은 운영자에게 뜻이 없어 보이지 않는다(S22-3 SD-032) — status 는 호출 호환을 위해 받기만 한다.
         // HF5 — 서버가 보낸 문구에도 병기형 조사가 남아 있을 수 있다(예: 부모 자원 가드 메시지).
         // 표시 직전 한 곳에서 해소한다. korean-particle.js 가 없으면 원문 그대로 표시.
-        const shown = message || '요청을 처리하지 못했어요.';
+        const shown = message || '요청을 처리하지 못했습니다.';
         root.querySelector('[data-message]').textContent =
             window.KoreanParticle ? window.KoreanParticle.resolve(shown) : shown;
         root.hidden = false;
@@ -88,7 +76,7 @@
         } else {
             message = (await resp.text().catch(() => '')).slice(0, 500) || opts.fallback;
         }
-        show({title: opts.title, message: message || '요청을 처리하지 못했어요.', status: resp.status});
+        show({title: opts.title, message: message || '요청을 처리하지 못했습니다.', status: resp.status});
     }
 
     // confirm-modal-base 의 submitAsync 가 호출하는 AsyncSubmitResult 통합 핸들러.
@@ -97,11 +85,11 @@
         window.AsyncSubmitResult = {
             onSuccess: () => window.location.reload(),
             onRejected: (_form, status, payload) => {
-                const msg = (payload && payload.message) || '요청이 거절되었어요.';
+                const msg = (payload && payload.message) || '요청이 거절되었습니다.';
                 show({message: msg, status: status});
             },
             onNetworkError: () => {
-                show({message: '서버와 통신할 수 없어요. 잠시 후 다시 시도해주세요.', status: 0});
+                show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도하십시오.', status: 0});
             }
         };
     }

@@ -91,7 +91,7 @@ class WindowsInstallReadinessTest {
         PhaseReadiness r = judge(Optional.of(WindowsInstallTarget.windows(null, null)));
         assertThat(r.isBlocked()).isTrue();
         assertThat(r.wire()).isEqualTo("image not chosen; administrator password missing");
-        assertThat(r.notes()).allMatch(n -> n.endsWith("정의서를 수정하세요"));
+        assertThat(r.notes()).allMatch(n -> n.endsWith("정의서를 수정하십시오"));
     }
 
     @Test
@@ -126,7 +126,7 @@ class WindowsInstallReadinessTest {
     void row8_eachMissingFileListed() {
         PhaseReadiness r = WindowsInstallReadiness.judge(windows(), source(), props(), assets(false, false, false));
         assertThat(r.wire()).isEqualTo("boot.wim missing; setup.exe missing; wimboot missing");
-        assertThat(r.notes()).hasSize(3).anyMatch(n -> n.startsWith("wimboot 없음 — 소스 루트에 배치하세요"));
+        assertThat(r.notes()).hasSize(3).anyMatch(n -> n.startsWith("wimboot 미배치: 소스 루트에 배치하십시오"));
     }
 
     @Test
@@ -152,7 +152,7 @@ class WindowsInstallReadinessTest {
         Optional<WindowsInstallTarget> datacenter = Optional.of(WindowsInstallTarget.windows(DATACENTER, "P@ss"));
         PhaseReadiness r = judge(datacenter);   // props: Standard 키만 있다
         assertThat(r.wire()).isEqualTo("product key missing for ServerDatacenter");
-        assertThat(r.notes()).singleElement().isEqualTo("제품 키 ServerDatacenter 미설정 — 환경변수");
+        assertThat(r.notes()).singleElement().isEqualTo("제품 키 ServerDatacenter 미설정: 환경변수");
     }
 
     @Test

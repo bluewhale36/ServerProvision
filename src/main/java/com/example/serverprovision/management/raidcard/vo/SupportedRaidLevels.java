@@ -52,12 +52,12 @@ public record SupportedRaidLevels(SortedSet<RaidLevel> levels) {
 			return null;
 		}
 		return wanted.getDisplayName() + " " + wanted.getObjectParticle()
-				+ " 만들 수 없는 카드입니다 — 지원하는 RAID 레벨은 " + toDisplay() + " 입니다.";
+				+ " 만들 수 없는 카드입니다. 지원하는 RAID 레벨은 " + toDisplay() + " 입니다.";
 	}
 
 	/** 화면 표시용 — {@code RAID0 · RAID1} 형태(선언 순). */
 	public String toDisplay() {
-		return levels.stream().map(RaidLevel::getDisplayName).collect(Collectors.joining(" · "));
+		return levels.stream().map(RaidLevel::getDisplayName).collect(Collectors.joining(", "));
 	}
 
 	/** 불변 정렬 집합(선언 순). 조회 응답이 그대로 실어 나른다. */

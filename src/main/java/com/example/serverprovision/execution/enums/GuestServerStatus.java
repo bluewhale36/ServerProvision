@@ -14,11 +14,11 @@ import java.time.LocalDateTime;
 @Getter
 public enum GuestServerStatus {
 
-    REGISTERED("등록됨"),
+    REGISTERED("등록"),
     PROVISIONING("프로비저닝 중"),
     PROVISIONED("완료"),
     FAILED("실패"),
-    DECOMMISSIONED("회수됨");
+    DECOMMISSIONED("회수");
 
     private final String description;
 

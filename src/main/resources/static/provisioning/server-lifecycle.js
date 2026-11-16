@@ -25,11 +25,11 @@
             },
             onRejected: function (form, status, payload) {
                 if (base && base.onRejected) { base.onRejected(form, status, payload); return; }
-                ErrorModal.show({message: (payload && payload.message) || ('요청이 거절되었어요. (HTTP ' + status + ')'), status: status});
+                ErrorModal.show({message: (payload && payload.message) || '요청이 거절되었습니다.', status: status});
             },
             onNetworkError: function (form, err) {
                 if (base && base.onNetworkError) { base.onNetworkError(form, err); return; }
-                ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
+                ErrorModal.show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도하십시오.', status: 0});
             }
         };
 
@@ -40,7 +40,7 @@
                 // .cm-message 는 white-space: pre-line — 문장마다 줄을 바꿔 네 가지 영향이 한눈에 읽히게 한다.
                 message: '이 서버를 회수하면 다음과 같이 됩니다.\n'
                     + '① 목록에서 숨겨집니다 (\'회수된 서버 보기\' 로만 확인할 수 있습니다)\n'
-                    + '② 세팅 정의서 할당 · 전원 조작 등이 막힙니다 (이름 · 메모 수정은 그대로 가능)\n'
+                    + '② 세팅 정의서 할당과 전원 조작이 막힙니다(이름과 메모는 수정할 수 있습니다)\n'
                     + '③ 이 서버가 다시 PXE 부팅하면 새 서버로 등록됩니다\n'
                     + '④ 회수를 되돌리는 기능은 없습니다',
                 confirmLabel: '회수',
@@ -54,8 +54,8 @@
             const expected = form.getAttribute('data-typed-suffix') || '';
             ConfirmModal.open('serverPurge', {
                 title: '서버 영구 삭제',
-                message: '이 서버의 모든 기록(상세 · 이력 · 할당 · 그룹 소속)이 함께 삭제되며 되돌릴 수 없습니다. '
-                    + '확인을 위해 systemUUID 의 마지막 \'-\' 다음 값을 입력하세요.',
+                message: '이 서버의 모든 기록(상세, 이력, 할당, 그룹 소속)이 함께 삭제되며 되돌릴 수 없습니다. '
+                    + '확인을 위해 SMBIOS UUID 의 마지막 ' + expected.length + '자리를 입력하십시오.',
                 confirmLabel: '영구 삭제',
                 confirmClass: 'n-btn-danger',
                 startDisabled: true,

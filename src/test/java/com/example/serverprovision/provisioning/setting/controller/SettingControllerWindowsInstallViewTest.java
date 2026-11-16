@@ -125,20 +125,20 @@ class SettingControllerWindowsInstallViewTest {
                 .andExpect(content().string(containsString(STANDARD)))
                 .andExpect(content().string(containsString("Windows Server 2025 Standard (데스크톱 환경)")))
                 .andExpect(content().string(containsString("설치 소스 일치")))
-                .andExpect(content().string(containsString(">설정됨<")))
+                .andExpect(content().string(containsString(">설정 완료<")))
                 .andExpect(content().string(not(containsString("Qw3rty!Edit1"))));
     }
 
     @Test
-    @DisplayName("GET /{id} — 소스에 없는 이미지는 '설치 소스에 없음' 배지 + 다음 행동 안내")
+    @DisplayName("GET /{id} — 소스에 없는 이미지는 '설치 소스 누락' 배지 + 다음 행동 안내")
     void detail_rendersNotInSource() throws Exception {
         given(queryService.findDetail(1L)).willReturn(detail(windows(STANDARD, "Qw3rty!Edit1"),
                 Map.of(STANDARD, new ReferenceNamesResponse.WindowsImageReference(STANDARD, WindowsImagePresence.NOT_IN_SOURCE))));
 
         mvc.perform(get("/provisioning/setting/{id}", 1L))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("설치 소스에 없음")))
-                .andExpect(content().string(containsString("운영자가 설치 소스를 확인한 뒤 정의서를 수정 · 저장하십시오.")));
+                .andExpect(content().string(containsString("설치 소스 누락")))
+                .andExpect(content().string(containsString("운영자가 설치 소스를 확인한 뒤 정의서를 수정해 저장하십시오.")));
     }
 
     @Test

@@ -22,7 +22,7 @@
             <tr>
                 <th>추가 패키지 그룹</th>
                 <td>
-                    <span th:if="${#lists.isEmpty(inst.packageGroupIds)}" class="n-muted">없음</span>
+                    <span th:if="${#lists.isEmpty(inst.packageGroupIds)}" class="n-muted">미지정</span>
                     <span th:unless="${#lists.isEmpty(inst.packageGroupIds)}" class="n-badge-list">
                         <span class="n-badge n-badge-gray"
                               th:each="pkgId : ${inst.packageGroupIds}"

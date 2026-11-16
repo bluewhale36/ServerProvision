@@ -90,7 +90,7 @@ class RaidCardObservationControllerTest {
 				.given(observationService).confirmObserved(3L);
 		mvc.perform(post("/management/raidcard/3/confirm-observed").accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.message").value(RaidCardObservationStatus.CONFLICTING.blockReason()));
+				.andExpect(jsonPath("$.message").value(com.example.serverprovision.global.exception.UserFacingMessage.punctuate(RaidCardObservationStatus.CONFLICTING.blockReason())));   // S22-3 — 응답 경계의 표기 규칙
 	}
 
 	@Test

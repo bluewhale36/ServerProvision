@@ -33,54 +33,54 @@ public final class WindowsInstallReadiness {
         List<String> wire = new ArrayList<>();
 
         if (!t.windows()) {
-            add(notes, wire, t.unsupportedFamily() + " 설치는 지원하지 않습니다 — Windows 정의서로 교체하세요",
+            add(notes, wire, t.unsupportedFamily() + " 설치는 지원하지 않습니다: Windows 정의서로 교체하십시오",
                     "linux install not supported");
         } else {
             if (!t.hasImage()) {
-                add(notes, wire, "설치 이미지 미지정 — 정의서를 수정하세요", "image not chosen");
+                add(notes, wire, "설치 이미지 미지정: 정의서를 수정하십시오", "image not chosen");
             }
             if (!t.hasPassword()) {
-                add(notes, wire, "Administrator 비밀번호 미지정 — 정의서를 수정하세요", "administrator password missing");
+                add(notes, wire, "Administrator 비밀번호 미지정: 정의서를 수정하십시오", "administrator password missing");
             }
         }
 
         Optional<WindowsImage> image = Optional.empty();
         if (!props.configured()) {
-            add(notes, wire, "설치 소스 미설정 — " + DASHBOARD, "install source not configured");
+            add(notes, wire, "설치 소스 미설정: " + DASHBOARD, "install source not configured");
         } else {
             if (snapshot.condition() == InstallSourceCondition.UNREADABLE) {
-                add(notes, wire, "install.wim 읽기 실패 — " + DASHBOARD, "install.wim unreadable");
+                add(notes, wire, "install.wim 읽기 실패: " + DASHBOARD, "install.wim unreadable");
             } else if (!snapshot.ready()) {
-                add(notes, wire, "install.wim 없음 — " + DASHBOARD, "install.wim missing");
+                add(notes, wire, "install.wim 미배치: " + DASHBOARD, "install.wim missing");
             } else if (t.hasImage()) {
                 image = snapshot.find(t.imageName());
                 if (image.isEmpty()) {
-                    add(notes, wire, "선택한 이미지가 소스 install.wim 에 없습니다 — " + DASHBOARD, "image not in source");
+                    add(notes, wire, "선택한 이미지가 소스 install.wim 에 없습니다: " + DASHBOARD, "image not in source");
                 }
             }
             if (!assets.bootWimPresent()) {
-                add(notes, wire, "boot.wim 없음 — " + DASHBOARD, "boot.wim missing");
+                add(notes, wire, "boot.wim 미배치: " + DASHBOARD, "boot.wim missing");
             }
             if (!assets.setupExePresent()) {
-                add(notes, wire, "setup.exe 없음 — " + DASHBOARD, "setup.exe missing");
+                add(notes, wire, "setup.exe 미배치: " + DASHBOARD, "setup.exe missing");
             }
             if (!assets.wimbootPresent()) {
-                add(notes, wire, "wimboot 없음 — 소스 루트에 배치하세요", "wimboot missing");
+                add(notes, wire, "wimboot 미배치: 소스 루트에 배치하십시오", "wimboot missing");
             }
             // 12행(E4-1-a-4) — 스크립트가 없으면 설치는 끝나도 완료 보고가 오지 않는다. 드라이버 갱신 필요는 차단이 아니다(chip 경고).
             if (!assets.oemScriptsPresent()) {
-                add(notes, wire, "설치 후 스크립트 미조립 — " + DASHBOARD + "에서 [드라이버 페이로드 조립]", "oem scripts not assembled");
+                add(notes, wire, "설치 후 스크립트 미조립: " + DASHBOARD + "에서 [드라이버 페이로드 조립]", "oem scripts not assembled");
             }
         }
 
         if (!props.shareConfigured()) {
-            add(notes, wire, "공유 접속 정보 미설정 — 환경변수", "share credentials missing");
+            add(notes, wire, "공유 접속 정보 미설정: 환경변수", "share credentials missing");
         } else if (!InstallBatRenderer.isBatchSafe(props.sharePassword())) {
-            add(notes, wire, "공유 비밀번호에 배치 금지 문자가 있습니다 — 환경변수", "share password has batch-unsafe chars");
+            add(notes, wire, "공유 비밀번호에 배치 금지 문자가 있습니다: 환경변수", "share password has batch-unsafe chars");
         }
 
         if (image.isPresent() && props.productKeysOrEmpty().forEdition(image.get().editionId()).isEmpty()) {
-            add(notes, wire, "제품 키 " + image.get().editionId() + " 미설정 — 환경변수",
+            add(notes, wire, "제품 키 " + image.get().editionId() + " 미설정: 환경변수",
                     "product key missing for " + image.get().editionId());
         }
 
