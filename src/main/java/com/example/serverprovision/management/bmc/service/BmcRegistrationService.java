@@ -235,7 +235,7 @@ public class BmcRegistrationService {
 	 */
 	@Transactional
 	public void cleanupNudgeCancelled(ContentNudgePayload payload) {
-		if (Boolean.parseBoolean(payload.attributes().getOrDefault("claimExisting", "false"))) {
+		if (payload.claimsExistingTree()) {
 			log.info("[nudgeCancel.bmc] claim 경로 — 사용자 기존 파일 보존. path={}", payload.tempFilePath());
 			return;
 		}
@@ -276,7 +276,7 @@ public class BmcRegistrationService {
 								"totalBytes", String.valueOf(manifest.totalBytes()),
 								"description", description != null ? description : "",
 								// R12-2 — cancel 시 트리 보존 여부의 SSOT (claim = 사용자 기존 파일).
-								"claimExisting", String.valueOf(claimExisting)
+								ContentNudgePayload.CLAIM_EXISTING, String.valueOf(claimExisting)
 						)
 				)
 		);
