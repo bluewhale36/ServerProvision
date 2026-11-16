@@ -74,7 +74,6 @@ class OSMetadataControllerUploadFlowTest {
     @MockitoBean IsoRegistrationLauncher isoRegistrationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
     @MockitoBean OSNudgeService osNudgeService;
-    @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataNudgeService osMetadataNudgeService;
     @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
     // @EnableJpaAuditing 이 main class 에 있어 WebMvcTest 부팅 시 jpaMappingContext 를 요구한다.
     // 실제 JPA metamodel 은 slice 에서 필요 없으므로 mock 으로 대체.

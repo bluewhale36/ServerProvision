@@ -3,9 +3,10 @@
 <!--
   A1. OS 메타데이터 신규 등록 폼
   ─────────────────────────────────────────────────────────
-  MK2 WAVE 1 — XHR JSON 제출 + nudge modal.
-    · POST /management/os 가 200/{redirect} 또는 409/NUDGE_REQUIRED JSON 으로 응답.
-    · soft-deleted 또는 deprecated 동일 (OSName, osVersion) 충돌 시 NudgeModal.handle 위임.
+  MK2 WAVE 1 — XHR JSON 제출.
+    · POST /management/os 가 200/{redirect} 또는 409 JSON 으로 응답.
+    · HF30-1 — 같은 (OSName, osVersion) 이 어느 상태로든 있으면 409 가 상태별 다음 행동(복구 · 영구 삭제 · Deprecated 해제)을
+      안내하고 배너에 뜬다. 중복 확인 창은 없앴다(메인보드 HF26 과 같은 규칙).
 
   Model:
     osMetadataForm : OSMetadataCreateRequest   @ModelAttribute (BindingResult 대상)
@@ -79,11 +80,8 @@
     </div>
 </div>
 
-<!-- MK2 WAVE 1 — nudge modal (메타 단독 충돌용). -->
-<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/os/metadata-nudge')}"></div>
 
 <script th:src="@{/global/form-error.js}"></script>
-<script th:src="@{/global/nudge-modal.js}"></script>
 <script th:src="@{/management/os/os-metadata-new.js}"></script>
 </body>
 </html>

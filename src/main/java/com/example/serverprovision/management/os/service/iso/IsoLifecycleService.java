@@ -257,7 +257,7 @@ public class IsoLifecycleService implements LifecycleService {
 	 *   <li>{@code OSMetadataLifecycleService.purge} (R1-3) — 부모 purge 시 자식 ISO sidecar 정리</li>
 	 *   <li>{@code IsoRegistrationService.purgeForNudge} (R1-4-2) — nudge replace 의 충돌 후보 정리</li>
 	 * </ul>
-	 * <p>R1-6 — {@code OSMetadataNudgeService.purgeForNudge} (부모 OSMetadata nudge replace) 는 본 helper 를
+	 * <p>R1-6 — (HF30-1 에서 제거된) 부모 OSMetadata nudge replace 는 본 helper 를
 	 * 호출하지 않는다 (부모 자체는 디스크 파일 없는 메타 자원 + 자식 ISO row 는 DB FK cascade 처리).</p>
 	 * 단방향 cycle 없음 — IsoRegistrationService → IsoLifecycleService (본 helper) → 외부 의존 없음.</p>
 	 */
