@@ -245,6 +245,7 @@ kbd {
 .n-nav-locked-note {
     margin: 0;
     font-size: 12px;
+    word-break: keep-all;   /* 228px 사이드바에서 어절 중간 줄바꿈 방지(HF28 CP5 관찰 5) */
     color: #cbd5e1;
     padding: 6px 18px 2px;
 }
