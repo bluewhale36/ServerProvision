@@ -1,5 +1,8 @@
 package com.example.serverprovision.global.security.springsecurity.controller;
 
+import com.example.serverprovision.global.security.springsecurity.authorization.ReasonedAccessDeniedHandler;
+import com.example.serverprovision.global.security.springsecurity.authorization.SuperAdminOnlyPolicy;
+import com.example.serverprovision.global.exception.ErrorReason;
 import com.example.serverprovision.global.security.springsecurity.audit.AuthLogCapture;
 import com.example.serverprovision.global.security.springsecurity.audit.AuthenticationEventLogger;
 import com.example.serverprovision.global.security.springsecurity.authorization.MustChangePasswordSuccessHandler;
@@ -36,6 +39,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -43,7 +47,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 초기 비밀번호 계정의 로그인 목적지를 본다. 인증 판정 자체(UserDetailsService · 인코더)는 실물 인코더 + mock 사용자다.
  */
 @WebMvcTest(controllers = LoginController.class)
-@Import({SecurityConfig.class, PasswordEncoderConfig.class, SignupAccessPolicy.class, MustChangePasswordSuccessHandler.class,
+@Import({SecurityConfig.class, PasswordEncoderConfig.class, SignupAccessPolicy.class,
+		SuperAdminOnlyPolicy.class, ReasonedAccessDeniedHandler.class,   // HF29 — 웹 체인의 거절 사유
+		 MustChangePasswordSuccessHandler.class,
 		AuthenticationEventLogger.class})   // S20 — 인증 이벤트가 실제 체인에서 로그로 닿는지
 class LoginPageSecurityTest {
 
@@ -112,7 +118,10 @@ class LoginPageSecurityTest {
 	@DisplayName("/signup 인가 — 닫힘 + ROLE_USER 는 403")
 	void signup_userForbidden() throws Exception {
 		given(usersService.bootstrapOpen()).willReturn(false);
-		mvc.perform(get("/signup").accept(MediaType.TEXT_HTML)).andExpect(status().isForbidden());
+		mvc.perform(get("/signup").accept(MediaType.TEXT_HTML))
+				.andExpect(status().isForbidden())
+				.andExpect(request().attribute(ErrorReason.REQUEST_ATTRIBUTE,   // HF29 — 닫힌 이유
+						"최초 관리자 등록은 관리자 계정이 하나도 없을 때만 열립니다. 계정 추가는 최고 관리자가 사용자 관리에서 합니다."));
 	}
 
 	@Test

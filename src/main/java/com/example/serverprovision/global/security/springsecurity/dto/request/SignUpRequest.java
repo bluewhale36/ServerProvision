@@ -29,11 +29,11 @@ public class SignUpRequest {
 	@Size(max = 64, message = "아이디는 64자 이하로 입력하십시오.")
 	private String username;
 
-	@NotBlank(message = "비밀번호를 입력하십시오.")
+	@NotBlank(message = PasswordRule.BLANK)
 	@Pattern(regexp = PasswordRule.REGEX, message = PasswordRule.MESSAGE)
 	private String password;
 
-	@NotBlank(message = "비밀번호를 한 번 더 입력하십시오.")
+	@NotBlank(message = PasswordRule.RETYPE_BLANK)
 	private String retypedPassword;
 
 	@NotBlank(message = "이름을 입력하십시오.")
@@ -43,7 +43,7 @@ public class SignUpRequest {
 	private Role role;
 
 	/** 두 값이 모두 있을 때만 판정한다 — 빈 값은 {@code @NotBlank} 의 몫이라 메시지가 겹치지 않는다. */
-	@AssertTrue(message = "비밀번호가 일치하지 않습니다.")
+	@AssertTrue(message = PasswordRule.MISMATCH)
 	public boolean isPasswordConfirmed() {
 		if (password == null || password.isBlank() || retypedPassword == null || retypedPassword.isBlank()) {
 			return true;
