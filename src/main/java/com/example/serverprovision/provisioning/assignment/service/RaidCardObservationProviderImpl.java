@@ -10,10 +10,8 @@ import com.example.serverprovision.provisioning.assignment.entity.SettingAssignm
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,14 +26,13 @@ import java.util.UUID;
  * 그 게스트의 저장 인벤토리({@code guest_server_detail.raid_inventory_json})에서 감지 카드를 읽는다. 저장하지 않으므로
  * 재할당 · 재진단이 곧 관측의 갱신이다. 인벤토리 없음 · 카드 미감지 · JSON 손상은 관측 없음으로 건너뛴다(관용).
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RaidCardObservationProviderImpl implements RaidCardObservationProvider {
 
     private final SettingAssignmentSnapshotRepository assignmentRepository;
     private final GuestServerDetailRepository guestServerDetailRepository;
-    private final ObjectMapper objectMapper;
+    private final RaidCardRequirementReader requirementReader;
 
     @Override
     @Transactional(readOnly = true)
@@ -60,7 +57,7 @@ public class RaidCardObservationProviderImpl implements RaidCardObservationProvi
         Map<Long, List<RaidCardObservation>> byCard = new HashMap<>();
         for (GuestServerDetail detail : guestServerDetailRepository.findAllByServerIdInWithBoardModel(List.copyOf(cardByGuest.keySet()))) {
             UUID guestId = detail.getGuestServer().getId();
-            String observed = detectedSubsystemOf(guestId, detail.getRaidInventoryJson());
+            String observed = detectedSubsystemOf(detail);
             if (observed == null) {
                 continue;
             }
@@ -70,17 +67,9 @@ public class RaidCardObservationProviderImpl implements RaidCardObservationProvi
         return byCard;
     }
 
-    private String detectedSubsystemOf(UUID guestId, String raidInventoryJson) {
-        if (raidInventoryJson == null || raidInventoryJson.isBlank()) {
-            return null;
-        }
-        try {
-            RaidInventory inventory = objectMapper.readValue(raidInventoryJson, RaidInventory.class);
-            return inventory.card() == null ? null : inventory.card().pciSubsystemId();
-        } catch (RuntimeException e) {
-            log.warn("저장 RAID 인벤토리 해석 불가 — 관측에서 제외 : guestServerId={}", guestId, e);
-            return null;
-        }
+    private String detectedSubsystemOf(GuestServerDetail detail) {
+        RaidInventory inventory = requirementReader.inventoryOf(detail);
+        return inventory == null || inventory.card() == null ? null : inventory.card().pciSubsystemId();
     }
 
     /**

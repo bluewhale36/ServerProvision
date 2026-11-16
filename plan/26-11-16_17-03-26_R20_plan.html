@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R20 Plan — 세팅 정의서 할당 · 재할당 선택을 검색 표 모달로</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:12px; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge, .ux-wrap .badge { display:inline-block; font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .ux-row .badge.on, .ux-wrap .badge.on { background:var(--green-bg); color:var(--green); }
+  .ux-row .badge.off, .ux-wrap .badge.off { background:var(--border-soft); color:var(--text-muted); }
+  .ux-row .badge.dep, .ux-wrap .badge.dep { background:var(--yellow-bg); color:var(--yellow); }
+  .ux-row .badge.del, .ux-wrap .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--border-soft); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); right:0;
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); right:14px; border:6px solid transparent; border-top-color:var(--text); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq / .pkg-tree ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* ── 반응형 (명세 §3) — 데스크톱 무변경 ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>R20 세팅 정의서 할당 · 재할당 선택을 검색 표 모달로 <span class="v2-badge">서버 상세 · 그룹 상세</span></h1>
+  <div class="meta">
+    <span><strong>인벤토리</strong> R20 (refactor)</span>
+    <span><strong>브랜치</strong> <code>refactor/R20_assignment-picker</code> (dev 698162f 기준)</span>
+    <span><strong>개발 단계</strong> 5차 개발</span>
+    <span><strong>작성</strong> 2026-11-16 17:03 KST</span>
+    <span><strong>상태</strong> <span class="chip cp1">CP1 재승인 대기</span></span>
+    <span><strong>개정</strong> v2 — 2026-11-16 범위 확장: RAID 카드 일치를 할당 판정에 추가 (사용자 지시 '본 단계에서 진행')</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 계기와 요약</a></li>
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 판정 규칙과 설계 결정</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 열린 질문</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+      <li><a href="#s12">§12 v2 · RAID 카드 판정</a></li>
+      <li><a href="#s12-demo" class="preview">🎬 RAID 카드 판정 체험</a></li>
+      <li><a href="#s13">§13 v1 승인 뒤 반영된 변경</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 계기와 요약 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 계기와 요약</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>항목</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>계기</td><td>Notion 'Provisioning Server 패치 내역' 의 우선순위 높음 항목 "서버 상세에서 세팅 정의서 할당 화면 수정"</td></tr>
+            <tr><td>요청 원문</td><td>"서버 목록의 검색 &gt; 메인보드 검색과 같이 Ecount 모양의 검색 모달로 디자인 및 조회 로직 수정"</td></tr>
+            <tr><td>사용자 결정 (11-16, CP1 전 질문)</td><td>① 모달은 두고 <b>모달 안을 검색 표로</b><br>② <b>그룹 상세도 함께</b></td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>한 줄</b> : 정의서 고르기 모달 두 벌(서버 단건 · 그룹 일괄)의 왼쪽 이름 목록 + 오른쪽 상세(2 단 Miller)를, S8-6 검색 팝업과 같은 "검색칸 · Search · 표" 로 바꾸고, 고른 행의 내용은 표 아래에 펼친다.</div>
+        <div class="callout warn"><span class="chip mod">v2</span> 정의서의 RAID 구성 단계가 지정한 카드와 서버의 감지 카드가 다르면 할당을 잠근다 — 집행 시점 대조(<code>RaidCardMatch.judge</code>)를 할당 시점으로 앞당긴다. 상세는 <a href="#s12">§12</a>.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <h4>두 모달의 지금 모양</h4>
+        <table>
+          <thead><tr><th>화면</th><th>여는 곳</th><th>모달 내용</th><th>고르기</th><th>제출</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>서버 상세</td>
+              <td>[정의서 할당] · [다른 정의서로 재할당] (개요의 다음 행동, 계획 판)</td>
+              <td>왼쪽 정의서 이름 목록 (잠김 · 사용 중단 · 대조 전 태그) + 오른쪽 정의서 내용 · 잠김 사유</td>
+              <td>이름 클릭 (잠긴 것도 클릭되고 사유가 뜸, 제출은 막힘)</td>
+              <td>XHR (<code>server-assignment.js</code>)</td>
+            </tr>
+            <tr>
+              <td>그룹 상세</td>
+              <td>[정의서 골라 할당] · [표준 정의서 지정] 두 모드</td>
+              <td>왼쪽 정의서 이름 목록 + 오른쪽 멤버별 적용 미리보기 · 정의서 내용</td>
+              <td>이름 클릭</td>
+              <td>브라우저 제출 (redirect + flash, <code>data-native-submit</code>)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>내용 조각과 스크립트</h4>
+        <table>
+          <thead><tr><th>대상</th><th>지금</th></tr></thead>
+          <tbody>
+            <tr><td>서버 내용 조각</td><td><code>GET /provisioning/server/{id}/assignment/picker</code> · 처음 열 때 한 번 받는다</td></tr>
+            <tr><td>그룹 내용 조각</td><td><code>GET /provisioning/server-group/{id}/assignment/picker</code> (<code>GuestServerGroupController</code>) · 처음 열 때 한 번 받는다</td></tr>
+            <tr><td>서버 스크립트</td><td><code>static/provisioning/definition-picker.js</code> (139 줄)</td></tr>
+            <tr><td>그룹 스크립트</td><td><code>static/provisioning/group-definition-picker.js</code> (209 줄)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>진단</b> :
+          <ul>
+            <li>두 스크립트가 "목록 클릭 위임 → 선택 표시 → 오른쪽 패널 전환 → 잠김이면 제출 막기" 를 각자 갖고 있다.</li>
+            <li>검색이 없다. 정의서가 늘면 이름 목록을 눈으로 훑어야 한다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <h4>바뀐 뒤 사용자에게 보이는 것</h4>
+        <ol>
+          <li>모달 맨 위에 S8-6 과 같은 검색 줄: 입력칸 (placeholder "입력 후 [Enter]", 키 <code>common.list.search-placeholder</code>) + [Search] 버튼 (키 <code>common.list.search-open</code>).</li>
+          <li>그 아래 표 (S8-6 <code>.n-lookup-table</code> 모양). 열은 아래 표와 같다.</li>
+          <li>행 클릭 = 그 정의서를 고른다 (하나만). 고른 행은 강조하고, 표 아래에 지금 오른쪽 패널에 있던 내용을 그대로 펼친다.</li>
+          <li>잠긴 행도 고를 수 있다 (사유를 읽어야 하므로). 고르면 사유가 상태줄과 제출 버튼 tooltip 에 뜨고 제출은 닫힌다. 지금 규칙 그대로.</li>
+          <li>검색 결과 0 건: 표 자리에 "검색 결과가 없습니다." (키 <code>common.lookup.empty</code>). 고른 것이 풀리고 제출이 닫힌다.</li>
+          <li>제출 경로는 바꾸지 않는다 (서버 XHR · 그룹 브라우저 제출 그대로).</li>
+        </ol>
+        <table>
+          <thead><tr><th>모달</th><th>표 열</th><th>표 아래 펼침</th></tr></thead>
+          <tbody>
+            <tr><td>서버</td><td>정의서 · 대상 보드 (없으면 "보드 무관") · 단계 구성 (processTypes 를 순서대로 짧은 이름으로) · 상태 (가능 / 잠김 / 사용 중단 / 대조 전 배지)</td><td>정의서 내용 · 잠김 사유</td></tr>
+            <tr><td>그룹</td><td>정의서 · 대상 보드 · 단계 구성 · 적용 대상 ("n / m 대" — 멤버 m 대 중 붙는 n 대)</td><td>멤버별 적용 미리보기 · 정의서 내용</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>다른 화면의 선택 모달 (서버 넣기 등) 은 이번에 바꾸지 않는다.</li>
+            <li>제출 경로와 도메인 규칙 (할당 가능 판정, 재할당 차단, 그룹 미리보기) 은 바꾸지 않는다 (D-6). <span class="chip mod">v2 개정</span> v2 에서 RAID 카드 축만 개정 — <a href="#s12">§12</a></li>
+            <li>엔티티 · DDL 변경 없음 (Step 6 · 7 · 9 N/A).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">같은 가짜 데이터로 <b>[지금]</b> 과 <b>[바뀐 뒤]</b> 를 번갈아 본다. 화면 탭은 모달을 여는 네 버튼이며, 탭마다 제목과 제출 문구가 바뀐다. 바뀐 뒤 모양에서는 검색칸 Enter 또는 [Search] 로 표를 거르고, 행을 눌러 고르면 표 아래에 내용이 펼쳐진다. 시나리오 버튼은 누를 곳을 주황 테두리로 짚으며 재생하고, 끝난 뒤 이어서 직접 조작할 수 있다. 가짜 서버의 메인보드는 MS74-HB0, 가짜 그룹의 멤버는 3 대다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar" data-demo-keep>
+            <span class="group-label">시나리오 :</span>
+            <button class="n-demo-btn" onclick="demoPreset(1)">① 가능한 정의서 고르기</button>
+            <button class="n-demo-btn" onclick="demoPreset(2)">② 잠긴 정의서 사유 보기</button>
+            <button class="n-demo-btn" onclick="demoPreset(3)">③ 이름 "ms04" 검색</button>
+            <button class="n-demo-btn" onclick="demoPreset(4)">④ 결과 0 건 "zzz"</button>
+            <button class="n-demo-btn" onclick="demoPreset(5)">⑤ 그룹 적용 대상 0 / 3</button>
+            <button class="n-demo-btn" onclick="demoPreset(6)">⑥ 등록 기간 넓히기</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">모양 :</span>
+            <button class="seg" data-view="before" onclick="demoSetView('before')">지금</button>
+            <button class="seg" data-view="after" onclick="demoSetView('after')">바뀐 뒤</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">화면 :</span>
+            <button class="seg" data-tab="srvAssign" onclick="demoSetTab('srvAssign')">서버 상세 — 할당</button>
+            <button class="seg" data-tab="srvReassign" onclick="demoSetTab('srvReassign')">서버 상세 — 재할당</button>
+            <button class="seg" data-tab="grpAssign" onclick="demoSetTab('grpAssign')">그룹 상세 — 골라 할당</button>
+            <button class="seg" data-tab="grpStandard" onclick="demoSetTab('grpStandard')">그룹 상세 — 표준 지정</button>
+          </div>
+
+          <div id="demo-modal" role="dialog" aria-labelledby="demo-title"
+               style="margin-top:12px; background:var(--card); border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 24px var(--border-soft); overflow:hidden;">
+            <div style="padding:14px 16px 0;">
+              <div id="demo-title" style="font-size:16px; font-weight:700;"></div>
+              <p id="demo-hint" style="margin:6px 0 10px; font-size:12.5px; color:var(--text-muted);"></p>
+            </div>
+            <div style="padding:0 16px;">
+              <div id="demo-search"></div>
+              <div id="demo-results"></div>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; padding:10px 16px; border-top:1px solid var(--border-soft); margin-top:12px; background:var(--bg);">
+              <span id="demo-status" style="font-size:12.5px; min-width:0; flex:1 1 220px;"></span>
+              <span style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="n-demo-btn" style="border-color:var(--border); color:var(--text-muted);" onclick="demoCancel()">취소</button>
+                <span id="demo-submit-wrap"></span>
+              </span>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <h4>데모가 재현하는 동작</h4>
+        <table>
+          <thead><tr><th>조작</th><th>지금</th><th>바뀐 뒤</th></tr></thead>
+          <tbody>
+            <tr><td>모달 열기</td><td>왼쪽 이름 목록 + 오른쪽 빈 안내</td><td>검색 줄 + 전체 행 표 + 빈 펼침 자리</td></tr>
+            <tr><td>Enter · [Search]</td><td>없음</td><td>이름에 글자가 들어 있고 등록 시각이 기간 안(기본 최근 1 년)인 행만 (대소문자 무시)</td></tr>
+            <tr><td>행 클릭</td><td>오른쪽 패널 전환</td><td>행 강조 + 표 아래 펼침 + 상태줄 · 제출 버튼 갱신</td></tr>
+            <tr><td>잠긴 행 클릭</td><td>사유 표시 · 제출 닫힘</td><td>같음</td></tr>
+            <tr><td>결과 0 건</td><td>해당 없음</td><td>"검색 결과가 없습니다." · 선택 해제 · 제출 닫힘</td></tr>
+            <tr><td>검색을 바꿈</td><td>해당 없음</td><td>고른 것이 결과에 없으면 선택 해제, 있으면 유지</td></tr>
+            <tr><td>[제출]</td><td colspan="2">서버: XHR 그대로 · 그룹: 브라우저 제출 그대로 (데모는 보낼 곳만 알린다)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>판정 규칙이 서버와 같다</b> : 검색 일치 (이름 포함 · 대소문자 무시 · 등록 시각 기간 안, 기본 최근 1 년) · 잠김이면 제출 닫힘 · 그룹 assign 은 적용 대상 0 이면 닫힘 · standard 는 0 이어도 열림. 데모는 <code>demoMatches()</code> 와 <code>demoSubmitState()</code> 두 함수로 이 규칙을 재현하며, 서버 쪽 자리는 §4 판정 규칙 표에 있다.</div>
+        <div class="callout">데모의 행 데이터와 멤버별 결과는 예시값이다. 바뀐 뒤 모양의 안내문 · 빈 펼침 안내 · 처음 상태줄 문구는 자리 표시이며, 실제 문구는 CP2 에서 <code>new-user-copy.md</code> 규약으로 정한다. 단계 카드는 실제 화면에서 정의서 상세와 같은 단계 카드 조각이 그린다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>순서</th><th>요청</th><th>응답</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>여는 버튼 클릭</td><td>모달 표시, 내용 조각 요청</td><td>지금과 같음</td></tr>
+            <tr><td>2</td><td><code>GET .../assignment/picker?q=&amp;from=&amp;to=</code> (서버)<br><code>GET .../{groupId}/assignment/picker?q=&amp;from=&amp;to=</code> (그룹)</td><td>검색 줄 아래 표 + 행마다의 펼침 패널 (HTML 조각)</td><td><code>q</code> 비면 전체(이름만). <code>from</code> · <code>to</code> 비면 최근 1 년. 새 파라미터</td></tr>
+            <tr><td>3</td><td>검색칸 Enter · [Search]</td><td>같은 엔드포인트를 <code>q</code> 로 다시 요청, 표 영역만 교체</td><td>겹친 요청은 마지막 응답만 쓴다 (S8-6 CP5 O-1 과 같은 규칙)</td></tr>
+            <tr><td>4</td><td>행 클릭</td><td>서버 요청 없음</td><td>펼침 패널 전환, 제출 값 · 상태 갱신</td></tr>
+            <tr><td>5</td><td>제출</td><td>지금과 같은 경로</td><td>서버: <code>POST /{id}/assignment</code> · <code>/assignment/reassign</code> (XHR JSON)<br>그룹: 지금 폼 제출</td></tr>
+          </tbody>
+        </table>
+
+        <div class="seq">
+          <div class="actor a1">브라우저 (공용 스크립트)</div><div class="actor a2">Controller</div><div class="actor a3">응답 조립</div>
+          <div class="step a1">① 여는 버튼 → 모달 표시</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">② 내용 조각 요청 (<code>q</code> 빈 값)</div><div class="step a2"><code>@RequestParam(defaultValue = "") String q</code></div><div class="step a3"><code>AssignmentPickerResponse.of</code> / <code>GroupPickerResponse.of</code> 가 일치 판정으로 행을 거름 → 전체 조각 (검색 줄 + 결과 영역)</div>
+          <div class="step a1">③ Enter · [Search] → 같은 엔드포인트 재요청 · 마지막 응답만 반영</div><div class="step a2">결과 조각 구분 (같은 엔드포인트 + 요청 헤더 또는 별도 경로)</div><div class="step a3">같은 일치 판정 → 결과 조각 (표 + 펼침 패널)</div>
+          <div class="step a1">④ 행 클릭 → 펼침 패널 전환 · 제출 값 · 상태 (서버 요청 없음)</div><div class="step a2"></div><div class="step a3"></div>
+          <div class="step a1">⑤ 제출 → 지금과 같은 경로</div><div class="step a2">지금 POST 그대로</div><div class="step a3">도메인 규칙 그대로 (D-6)</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 판정 규칙과 설계 결정 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 판정 규칙과 설계 결정 (SSOT)</summary>
+      <div class="body">
+        <h4>판정 규칙 (데모 = 서버)</h4>
+        <table>
+          <thead><tr><th>규칙</th><th>서버 쪽 자리</th><th>데모 함수</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>검색 일치: 이름 포함 · 대소문자 무시 · 빈 <code>q</code> 는 전체 · 등록 시각(<code>createdAt</code>)이 <code>DateRange</code> 안(빈 값이면 최근 1 년 = <code>DateRange.DEFAULT_SPAN</code>)</td><td><code>SettingSummaryResponse</code> 를 받는 정적 메서드 하나. <code>AssignmentPickerResponse.of</code> · <code>GroupPickerResponse.of</code> 가 함께 쓴다</td><td><code>demoMatches()</code></td><td><span class="chip new">신규</span></td></tr>
+            <tr><td>서버: 잠긴 정의서를 고르면 제출 닫힘</td><td>지금 규칙 (잠김 사유가 있으면 값을 싣지 않음)</td><td><code>demoSubmitState()</code></td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>그룹 assign: 적용 대상 0 이면 제출 닫힘</td><td><code>MODES.assign.allowsEmptyTarget = false</code></td><td><code>demoSubmitState()</code></td><td><span class="chip keep">유지</span></td></tr>
+            <tr><td>그룹 standard: 적용 대상 0 이어도 열림</td><td><code>MODES.standard.allowsEmptyTarget = true</code></td><td><code>demoSubmitState()</code></td><td><span class="chip keep">유지</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">엔티티 · VO · Enum 변경 없음. 도메인 규칙은 손대지 않고, 새로 생기는 판정은 검색 일치 하나다. 일치 판정은 Java 한 곳에만 두어 JS 와 Java 두 곳에 규칙이 생기지 않게 한다 (D-3).</div>
+
+        <h4>설계 결정</h4>
+        <table>
+          <thead><tr><th>#</th><th>채택</th><th>비채택</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1</td><td>모달은 두고 안을 검색 표로 (사용자 결정)</td><td>S8-6 의 "돋보기 · 입력칸 · 칩" 줄을 할당 자리에 두기</td><td>정의서 내용과 잠김 사유를 보고 고르는 지금의 장점이 표 열 몇 개로 줄어든다</td></tr>
+            <tr><td rowspan="2">D-2</td><td rowspan="2">고른 행의 내용은 표 아래 전체 폭으로 펼친다. 내용 = 지금 상세 화면 · 오른쪽 패널과 같은 단계 카드 전체(<code>setting-process-cards :: processCards</code> 재사용). 잠긴 행 · 0 대 행도 고르면 내용이 펼쳐진다(사용자 요구 11-16: 이름만 보고 고르지 않게)</td><td>오른쪽 2 단 유지</td><td>표 열이 좁아져 대상 보드 · 단계 구성 열이 잘린다</td></tr>
+            <tr><td>행을 펼치는 아코디언</td><td>내용 패널이 길어 (단계 카드) 표가 밀리고 다른 행을 비교하기 어렵다</td></tr>
+            <tr><td>D-3</td><td>검색은 서버에서 (<code>q</code> · <code>from</code> · <code>to</code> 파라미터). 다른 검색 입력과 같이 <b>이름만</b> 보고(대소문자 무시), 검색 줄 안에 <b>등록 시각 기간</b>을 두며 기본은 최근 1 년이다(사용자 결정 11-16). 기간은 S8-5 의 <code>DateRange</code> · <code>ListDateRangeDefaults</code> · <code>fragments/ui/date-range-row</code> 를 재사용한다. 일치 판정은 두 모달이 함께 부르는 Java 메서드 하나</td><td>브라우저에서 이미 받은 행 걸러 내기</td><td>즉시 반응은 좋지만 "조회 로직 수정" 요구와 S8-6 의 서버 조회 방식에서 벗어나고, 일치 규칙이 JS 와 Java 두 곳에 생긴다</td></tr>
+            <tr><td>D-4</td><td>공통 동작 (검색 요청 · 마지막 응답만 쓰기 · 행 선택 강조 · 펼침 패널 전환 · 0 건 처리) 은 새 공용 스크립트 하나로. 각 모달 스크립트는 자기 몫만</td><td>S8-6 의 <code>list-lookup.js</code> 를 그대로 재사용</td><td>그것은 조회 조건 창의 칩 · 여러 개 고르기 · popover 용이라 단건 선택 · 모달 · 펼침 패널과 맞지 않는다</td></tr>
+            <tr><td>D-5</td><td>잠긴 행도 고를 수 있다 (U3-5-b 이래 요구). 행은 S8-6 비활성 행처럼 흐리게, 상태 열에 배지</td><td>—</td><td>사유를 보려면 눌러야 한다</td></tr>
+            <tr><td>D-6</td><td>제출 경로 · 도메인 규칙 (할당 가능 판정, 재할당 차단, 그룹 미리보기) 은 바꾸지 않는다 <span class="chip mod">v2 개정</span> 할당 가능 판정은 RAID 카드 축만 개정 — §12</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">D-4 의 근거: 지금 두 파일에 같은 선택 로직이 복사돼 있어 공통화한다 (CLAUDE.md 중복 금지). CSS 는 <code>.n-lookup-search</code> · <code>.n-lookup-table</code> · <code>.n-lookup-row-disabled</code> 를 재사용하고, 새 클래스는 선택 강조와 펼침 영역만 둔다. 그 이름은 구현 때 DESIGN.md 와 명세에 맞춘다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td>두 picker 조각 재구성 · 모달 안내 문구 · 공용 스크립트와 두 모달 스크립트</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3~4</td><td>두 picker 엔드포인트에 <code>q</code> · 결과 조각 구분 · 두 응답 조립에 일치 판정</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td>Service 시그니처: 거름은 응답 조립에서 하므로 손댈 곳은 CP2 에서 확인</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>N/A (엔티티 · Repository 변경 없음)</td><td><span class="chip cp3">CP3</span></td><td>—</td></tr>
+            <tr><td>8 · 9</td><td>main 구현 마무리 + 빌드 통과 (테스트 코드 제외). Step 9 N/A (DDL 없음)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 작성 + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (§9 A · B · C 항목 + 요소 단위 스크린샷)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4 (중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘: ① CP1 승인 → CP4 게이트 지점 (main 구현, 경계 보고만) ② CP4 승인 → CP6 제출 (테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+
+        <h4>화면 · 마크업 계획 (CP2)</h4>
+        <ul>
+          <li><code>fragments/provisioning/definition-picker.html</code> 과 <code>group-definition-picker.html</code> 의 <code>picker</code> 조각을 "검색 줄 + 결과 영역 (표 + 펼침 패널)" 으로 바꾼다.</li>
+          <li>검색 줄은 모달이 처음 그릴 때만 있고, 재검색 응답은 결과 영역만 돌려준다 (조각 두 개: 전체 · 결과).</li>
+          <li>모달 껍데기 (<code>server-detail.html</code> 의 <code>#definitionPicker</code>, 그룹 상세의 모달) 는 안내 문구만 "위에서 검색해 고르면 아래에 내용이 펼쳐집니다" 결로 고친다 (문구는 <code>new-user-copy.md</code> 규약).</li>
+        </ul>
+
+        <h4>컨트롤러 · 응답 조립 (CP2 · CP4)</h4>
+        <ul>
+          <li>두 picker 엔드포인트에 <code>@RequestParam(defaultValue = "") String q</code> 추가.</li>
+          <li>결과 조각을 돌려주는 경로는 <code>fragment</code> 구분 (같은 엔드포인트 + 요청 헤더 또는 별도 경로). 구현 때 S8-6 의 <code>/lookup/*</code> 선례에 맞춘다.</li>
+          <li>일치 판정: <code>SettingSummaryResponse</code> 를 받는 정적 메서드 하나 (이름 포함 여부 · 등록 시각이 기간 안인지) 를 <code>AssignmentPickerResponse.of</code> 와 <code>GroupPickerResponse.of</code> 가 함께 쓴다. 입력은 두 경로 모두 이미 들고 있다: 서버는 <code>DefinitionOptionResponse.definition()</code>, 그룹은 <code>GroupApplyPreviewResponse.definition()</code> 이 <code>SettingSummaryResponse</code> 다(<code>requiredBoardModelName</code> 포함).</li>
+        </ul>
+
+        <h4>JS</h4>
+        <table>
+          <thead><tr><th>파일</th><th>맡는 것</th></tr></thead>
+          <tbody>
+            <tr><td>새 공용 스크립트 (예: <code>static/provisioning/definition-search-picker.js</code>)</td><td>모달 루트를 받아 검색 · 선택 · 펼침 · 0 건을 다룸. 선택이 바뀔 때 콜백 (선택된 행의 data-*) 호출</td></tr>
+            <tr><td><code>definition-picker.js</code></td><td>여는 버튼별 제목 · 제출 대상 · 문구 갈아끼우기 + 콜백에서 잠김이면 제출 닫기</td></tr>
+            <tr><td><code>group-definition-picker.js</code></td><td>MODES 표 유지 + 콜백에서 모드 규칙 (assign 은 적용 대상 0 이면 닫힘)</td></tr>
+          </tbody>
+        </table>
+        <div class="pkg-tree">브라우저
+├── definition-search-picker.js   (신규 · 공용)
+│     검색 요청 → 마지막 응답만 반영 → 결과 영역 교체
+│     행 클릭 → 선택 강조 · 펼침 패널 전환 · 0 건 처리
+│     └── onSelect(행의 data-*) ──┬──▶ definition-picker.js        잠김이면 제출 닫기
+│                                  └──▶ group-definition-picker.js  MODES · 적용 대상 0 규칙
+└── 제출 (변경 없음)
+      서버: server-assignment.js XHR  ·  그룹: 브라우저 제출</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <h4>단위 (일치 판정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>U1</td><td>이름에 들어 있으면 일치</td></tr>
+            <tr><td>U2</td><td>대상 보드 이름에만 들어 있으면 불일치(이름만 검색)</td></tr>
+            <tr><td>U3</td><td>대소문자가 달라도 일치</td></tr>
+            <tr><td>U4</td><td>빈 <code>q</code> 는 모두 일치</td></tr>
+            <tr><td>U5</td><td>대상 보드가 없는 정의서는 이름으로만 판정</td></tr>
+            <tr><td>U6</td><td>등록 시각이 기간 밖이면 불일치, 양 끝 날짜는 포함</td></tr>
+            <tr><td>U7</td><td>기간 값이 없으면 최근 1 년(<code>DateRange.DEFAULT_SPAN</code>)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>통합 (<code>@WebMvcTest</code>, 두 picker 엔드포인트 각각)</h4>
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td><code>q</code> 없음 = 전체 행</td><td>2</td></tr>
+            <tr><td>성공 2xx</td><td><code>q</code> 일치 = 걸러진 행</td><td>2</td></tr>
+            <tr><td>성공 2xx</td><td>0 건 = 빈 안내</td><td>2</td></tr>
+            <tr><td>성공 2xx</td><td><code>from</code> · <code>to</code> 로 기간을 넓히면 최근 1 년 밖의 정의서도 나온다</td><td>2</td></tr>
+            <tr><td>성공 2xx</td><td>잠긴 행이 표에 남고 사유를 들고 있음</td><td>2</td></tr>
+            <tr><td>404</td><td>없는 서버 · 그룹</td><td>2</td></tr>
+            <tr><td>400</td><td>해당 없음. <code>q</code> 는 기본값이 빈 문자열인 자유 문자열이라 검증 실패 경로가 없다</td><td>0</td></tr>
+            <tr><td>409</td><td>해당 없음. 조회 엔드포인트이고 제출 경로는 바꾸지 않는다 (D-6)</td><td>0</td></tr>
+            <tr><td>500</td><td>해당 없음</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">합계: 단위 5 + 통합 10. 신규 예외가 없으므로 새 예외 트리거 시나리오는 없다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td>신규</td><td>—</td><td>없음</td></tr>
+            <tr><td>없는 서버 · 그룹 (picker 엔드포인트가 지금 쓰는 404 예외, 클래스명은 CP2 착수 시 실측)</td><td>404</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">잠긴 정의서는 예외가 아니라 화면에서 먼저 막는다 (제출 닫힘 + tooltip). direct POST 를 거절하는 서버 가드는 지금 그대로 둔다 (D-6).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 열린 질문</summary>
+      <div class="body">
+        <h4>주의</h4>
+        <ul>
+          <li>새 CSS 클래스는 선택 강조와 펼침 영역 두 가지만. 이름은 구현 때 DESIGN.md 와 명세에 맞춘다 (D-4).</li>
+          <li>새 문구가 생기면 <code>messages.properties</code> 에 더하고 <code>new-user-copy.md</code> 규약을 따른다.</li>
+          <li>Step 6 · 7 · 9 N/A (엔티티 · DDL 변경 없음).</li>
+        </ul>
+
+        <h4>열린 질문 (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>제안</th></tr></thead>
+          <tbody>
+            <tr><td>Q-1</td><td>표의 단계 구성 열: processTypes 를 표시명(<code>SettingProcessType</code> 의 "펌웨어 업데이트", "BIOS 설정", "RAID 구성", "OS 설치", "OS 후처리 설정")으로 모두 나열할지, 단계 수만 보일지. 짧은 이름은 지금 코드에 없다</td><td><b>사용자 답(11-16)</b>: 표에는 단계를 전부 나열하고, 그와 별도로 <b>정의서의 내용 상세를 확인할 수 있어야 한다</b>(이름 검색 후 선택만으로는 부족). → 단계 구성 열은 기존 표시명 전부 나열, 고른 행의 내용은 실제 단계 카드 전체(메인보드 모델 · BIOS · BMC 펌웨어, BIOS 세팅 템플릿, RAID 카드 · 기존 구성 처리 · 볼륨별 레벨과 디스크 조건, 대상 OS · 설치 ISO 등)를 표 아래 전체 폭으로 펼친다(D-2)</td></tr>
+            <tr><td>Q-2</td><td>검색 대상: 이름과 대상 보드 이름. 단계 이름 (예: "RAID") 까지 넣을지</td><td><b>사용자 답(11-16)</b>: 다른 검색 입력과 같이 기본은 <b>이름만</b>. 검색 줄 안에 <b>등록 시각 기준 기간</b>을 고를 수 있게 하고 기본값은 <b>최근 1 년</b>. 대상 보드 이름 · 단계 이름은 검색 대상이 아니다(D-3)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>범위 밖</b> : 다른 화면의 선택 모달 (서버 넣기 등) 은 이번에 바꾸지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="R20-verify-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (단위 5 + 통합 10 포함)</span></label></li>
+        </ul>
+
+        <h4>기능 (CP5 샌드박스 브라우저 검증 계획)</h4>
+        <table>
+          <thead><tr><th>#</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>서버 할당 모달 열기 · 표 · 검색</td></tr>
+            <tr><td>A2</td><td>가능한 정의서 고르고 할당 성공</td></tr>
+            <tr><td>A3</td><td>재할당 모달 제목 · 제출</td></tr>
+            <tr><td>A4</td><td>그룹 골라 할당</td></tr>
+            <tr><td>A5</td><td>그룹 표준 지정</td></tr>
+            <tr><td>B1</td><td>잠긴 정의서 고르기 → 제출 막힘 · 사유</td></tr>
+            <tr><td>B2</td><td>결과 0 건</td></tr>
+            <tr><td>B3</td><td>연타 검색 (마지막 응답만)</td></tr>
+            <tr><td>B4</td><td>그룹 적용 대상 0 정의서로 assign 시도</td></tr>
+            <tr><td>B5</td><td>고른 뒤 검색으로 그 행이 사라짐</td></tr>
+            <tr><td>C1</td><td>잠김 사유가 상태줄 · tooltip 에 같은 문장</td></tr>
+            <tr><td>C2</td><td>0 건 안내 문구</td></tr>
+            <tr><td>C3</td><td>회수된 서버는 모달 자체가 없음 (지금 규칙 유지)</td></tr>
+          </tbody>
+        </table>
+        <ul class="check-list" data-storage="R20-verify-func">
+          <li><label><input type="checkbox" data-key="a"> <span>A1~A5 수행 + 항목마다 요소 단위 스크린샷 (<code>.claude/cp5-verification-spec.md</code>)</span></label></li>
+          <li><label><input type="checkbox" data-key="b"> <span>B1~B5 수행 + 스크린샷</span></label></li>
+          <li><label><input type="checkbox" data-key="c"> <span>C1~C3 수행 + 스크린샷</span></label></li>
+        </ul>
+
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="R20-verify-regress">
+          <li><label><input type="checkbox" data-key="xhr"> <span>서버 제출은 지금 XHR 경로 그대로 (<code>POST /{id}/assignment</code> · <code>/assignment/reassign</code>)</span></label></li>
+          <li><label><input type="checkbox" data-key="native"> <span>그룹 제출은 지금 브라우저 제출 그대로 (redirect + flash)</span></label></li>
+          <li><label><input type="checkbox" data-key="rules"> <span>할당 가능 판정 · 재할당 차단 · 그룹 미리보기 결과가 바뀌지 않음 <span class="chip mod">v2 개정</span> v2 에서 RAID 카드 축만 개정 — §12</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/fragments/provisioning/definition-picker.html</code></td><td>검색 줄 + 결과 영역, 조각 전체 · 결과 둘</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/fragments/provisioning/group-definition-picker.html</code></td><td>같음</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/server-detail.html</code></td><td><code>#definitionPicker</code> 안내 문구</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/server-group-detail.html</code></td><td>모달 안내 문구</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/provisioning/definition-picker.js</code></td><td>자기 몫만 남김 (D-4)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/provisioning/group-definition-picker.js</code></td><td>자기 몫만 남김 (D-4)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/global/style.css</code></td><td>선택 강조 · 펼침 영역 클래스</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/controller/GuestServerController.java</code></td><td><code>q</code> · 결과 조각 구분</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/group/controller/GuestServerGroupController.java</code></td><td><code>q</code> · 결과 조각 구분</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/assignment/dto/response/AssignmentPickerResponse.java</code></td><td>일치 판정으로 거름</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>.../GroupPickerResponse.java</code></td><td>일치 판정으로 거름</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td>새 문구가 있으면</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>공용 스크립트 1 개 (예: <code>static/provisioning/definition-search-picker.js</code>)</td><td>검색 · 선택 · 펼침 · 0 건</td></tr>
+            <tr><td><span class="chip opt">테스트</span></td><td>일치 판정 단위 테스트</td><td>U1~U5</td></tr>
+            <tr><td><span class="chip opt">테스트</span></td><td>두 컨트롤러의 picker 통합 테스트</td><td>§6 통합 10</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>static/provisioning/server-assignment.js</code></td><td>서버 제출 XHR 그대로 (D-6)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>static/global/list-lookup.js</code></td><td>재사용하지 않음 (D-4)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td>엔티티 · DDL</td><td>변경 없음</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">수정 12 · 신규 1 · 테스트 2 묶음 · 유지 3.</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="R20-milestone">
+          <li><label><input type="checkbox" data-key="cp1"> <span>CP1 승인 (Q-1 · Q-2 결정 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp2"> <span>CP2 조각 · 스크립트 · 컨트롤러 (보고)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp4"> <span>CP4 중간 승인 (main 구현 + 빌드 통과)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp4t"> <span>테스트 작성 + 전체 green</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 샌드박스 검증 (A1~A5 · B1~B5 · C1~C3)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp6"> <span>CP6 report 승인</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7 사용자 E2E</span></label></li>
+        </ul>
+        <div class="callout">범위 밖으로 남는 것: 다른 화면의 선택 모달 (서버 넣기 등).</div>
+      </div>
+    </details>
+
+    <!-- ===== §12 v2 · RAID 카드 판정 ===== -->
+    <details class="section" id="s12" open>
+      <summary>§12. v2 · RAID 카드 판정 <span class="chip mod">v2</span></summary>
+      <div class="body">
+        <h4>12-1 배경</h4>
+        <p>사용자 질문(2026-11-16): "'할당 가능' 판정에서 RAID 구성 단계가 있으면 RAID 카드 일치도 보는가?" — 실측 답: <b>보지 않는다.</b> 현행 할당 판정(<code>AssignmentBlockKind</code>)의 차단 사유는 셋뿐이다: <code>DECOMMISSIONED</code>(회수) · <code>BOARD_MISMATCH</code>(메인보드) · <code>TEMPLATE_STALE</code>(BIOS 템플릿 값이 레지스트리와 어긋남).</p>
+        <p>카드 일치는 <b>집행 시점에만</b> 본다: RAID 구성 phase 진입 시 <code>RaidConfigurationExecutor.cardMatches</code> 가 <code>RaidCardMatch.judge(지정 카드, 감지 인벤토리)</code> 로 대조해 다르면 원장 <code>CARD_MISMATCH</code> · 감지 못 하면 <code>CARD_NOT_DETECTED</code> 로 실패한다. 그래서 지금은 카드가 맞지 않는 정의서도 모달에서 "가능"으로 보이고 할당 · 개시가 되며, <b>개시 뒤 RAID 단계에서야 실패가 드러난다.</b> 서버 상세의 RAID 계획 미리보기에 같은 판정의 "개시 전 예고" 한 줄(E3.5-5-a)이 있지만 할당을 막지는 않는다.</p>
+        <div class="callout warn"><b>사용자 결정</b> : R20 범위에 포함("본 단계에서 진행"). → plan 비 목표였던 "할당 가능 판정은 바꾸지 않는다"를 이 항목에 한해 개정한다(§2 비 목표 · §4 D-6 · §9 회귀 항목에 개정 표시).</div>
+
+        <h4>12-2 결정 (채택 · 비채택 · 탈락 사유)</h4>
+        <table>
+          <thead><tr><th>ID</th><th>결정</th><th>채택안</th><th>비채택 대안</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-R1</td><td>판정 위치</td><td><code>AssignmentBlockKind</code> 에 상수 <code>RAID_CARD_MISMATCH</code> 추가 (순서: DECOMMISSIONED → BOARD_MISMATCH → <b>RAID_CARD_MISMATCH</b> → TEMPLATE_STALE)</td><td>(a) BIOS 템플릿처럼 차단 문구를 미리 계산해 문자열로 넘김 (b) 조회 단계에서 맞지 않는 정의서를 걸러 냄</td><td>(a) "대조 전" 표식과 문구가 따로 다녀야 하고 판정이 enum 밖으로 나간다 (b) 잠긴 정의서와 사유를 보여 줄 수 없다 — UI 1차 차단 원칙은 잠근 채 사유를 안내하는 것</td></tr>
+            <tr><td>D-R2</td><td>진리표</td><td>집행과 같은 <code>RaidCardMatch.judge</code> 를 그대로 호출 — 할당 쪽만의 차이는 <b>"카드 지정 · Subsystem 있음 · 인벤토리 미수집" 일 때만 judge 를 부르지 않고 "대조 전"으로 분기</b>하는 것 하나 (카드 미지정이면 미수집이어도 NOT_APPLICABLE, Subsystem 이 없으면 미수집이어도 UNVERIFIABLE 이 먼저)</td><td>할당 전용 진리표를 새로 작성</td><td>집행 · 개시 전 예고 · 할당이 같은 판정을 써야 화면 예고와 실제 실패가 어긋나지 않는다(SSOT). judge 는 인벤토리 없음을 "감지 못 함"으로 보지만, 할당 시점의 미수집은 "아직 모름"이다</td></tr>
+            <tr><td>D-R3</td><td>재료 조립</td><td><code>AssignmentEligibility</code> 에 요구 카드(<code>RaidConfigurationTarget</code>)와 관측 인벤토리(<code>RaidInventory</code>, 미수집이면 null)를 싣는다. 조립은 assignment 패키지의 새 컴포넌트 <code>RaidCardRequirementReader</code> 하나: 정의서 id 목록 → 요구 카드 맵(일괄 조회), <code>GuestServerDetail</code> → 인벤토리(관용 해석)</td><td>판정마다 정의서 · 인벤토리를 다시 읽음</td><td>그룹 모달은 정의서 × 멤버 조합마다 판정한다 — 정의서마다 1 회, 멤버마다 1 회만 읽어야 질의가 곱으로 늘지 않는다</td></tr>
+            <tr><td>D-R4</td><td>중복 정리</td><td>같은 일을 하던 두 곳을 이 컴포넌트로 모은다: <code>RaidConfigurationResolutionProviderImpl.resolveFor</code> 의 "RAID 요청 → 지정 카드" 변환(사라진 카드 표기 "(사라진 카드 #id)" 포함), <code>RaidCardObservationProviderImpl</code> 의 인벤토리 관용 해석</td><td>새 컴포넌트에 같은 코드를 한 벌 더 둠</td><td>중복 금지(불가침) — 같은 패키지 안의 같은 변환이 세 벌이 된다</td></tr>
+            <tr><td>D-R5</td><td>이미 든 할당의 경고</td><td>서버 상세 경고 배너("이대로 개시하면 실행 단계에서 실패합니다")가 카드 불일치도 알린다 — <code>snapshotHardwareMismatch</code> 가 보드만 직접 보던 것을 <code>hardwareIncompatible()</code> 상수(보드 · 카드)만 순회하는 판정으로 바꾼다</td><td>배너는 보드만 두고 카드는 RAID 미리보기의 예고 한 줄에 맡김</td><td>R20 이전에 만들어진 할당에 카드 불일치가 있을 수 있다. 같은 "실행 단계에서 실패" 사유인데 보드는 빨간 배너, 카드는 미리보기 한 줄이면 심각도가 어긋난다. <code>hardwareIncompatible()</code> 은 지금 외부 호출자가 없는 채로 있었다 — 그 쓰임새가 여기다</td></tr>
+            <tr><td>D-R6</td><td>"대조 전" 표식</td><td><code>DefinitionOptionResponse.unverified</code>(boolean) → <code>unverifiedReason</code>(문구 · null 이면 대조 완료). 펼침의 경고 상자는 이 문구를 그린다</td><td>불리언 유지 + 고정 문구</td><td>대조하지 못한 축이 둘(보드 · 카드)이 됐다. 고정 문구 "특정 메인보드를 요구하는데 하드웨어가 수집 전" 은 보드는 알지만 RAID 인벤토리만 없는 서버에서 사실과 다르다</td></tr>
+            <tr><td>D-R7</td><td>모달 표 · 조건 창</td><td>열 · 조건 칩을 추가하지 않는다. 잠김 사유 문구와 펼침의 RAID 구성 단계 카드(지정 카드 이름이 이미 보임)로 안내</td><td>"RAID 카드" 열 또는 조건 칩 추가</td><td>'할당 가능한 것만'이 이미 카드 잠김을 걸러 낸다. 곧 들어올 패치 '보드 무관 → 복수 보드'가 보드 축을 다시 짜므로 하드웨어 열 구성은 그때 함께 본다</td></tr>
+            <tr><td>D-R8</td><td>예외</td><td>새 예외 없음 — <code>DefinitionHardwareMismatchException</code>(409) 재사용, <code>hardwareIncompatible() = true</code></td><td>카드 전용 예외 신설</td><td>서버 가드가 던지는 의미(하드웨어 부적합)가 보드와 같다. 문구가 사유를 구분한다</td></tr>
+          </tbody>
+        </table>
+
+        <h4>12-3 진리표 (데모와 같은 표)</h4>
+        <table>
+          <thead><tr><th>정의서의 RAID 단계</th><th>카드 자원의 PCI Subsystem</th><th>서버 RAID 인벤토리</th><th>judge 결과</th><th>할당 판정</th><th>화면</th></tr></thead>
+          <tbody>
+            <tr><td>없음 · 카드 미지정</td><td>—</td><td>—</td><td><code>NOT_APPLICABLE</code></td><td>통과</td><td>가능</td></tr>
+            <tr><td>카드 지정</td><td>Subsystem 미등록</td><td>—</td><td><code>UNVERIFIABLE</code></td><td>통과</td><td>대조 전 (사유: Subsystem 미등록)</td></tr>
+            <tr><td>카드 지정</td><td>카드 자원 영구 삭제됨</td><td>—</td><td><code>UNVERIFIABLE</code></td><td>통과</td><td>대조 전 (사유: 카드 없음)</td></tr>
+            <tr><td>카드 지정</td><td>있음</td><td>미수집</td><td>(judge 전 분기)</td><td>통과</td><td>대조 전 (사유: RAID 카드 미확인)</td></tr>
+            <tr><td>카드 지정</td><td>있음</td><td>수집됨 · 카드 없음</td><td><code>NOT_DETECTED</code></td><td><b>잠김</b></td><td>잠김 + 사유</td></tr>
+            <tr><td>카드 지정</td><td>있음</td><td>다른 Subsystem</td><td><code>MISMATCH</code></td><td><b>잠김</b></td><td>잠김 + 사유</td></tr>
+            <tr><td>카드 지정</td><td>있음</td><td>같은 Subsystem</td><td><code>MATCH</code></td><td>통과</td><td>가능</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">집행은 <code>UNVERIFIABLE</code> 을 막지 않고 경고 로그만 남긴다 — 할당도 막지 않되 화면에 "대조 전"으로 드러낸다. 보드가 이미 잠갔으면 카드 사유는 보이지 않는다(판정 순서 = 상수 선언 순서, 첫 사유만 표시).</div>
+
+        <h4>12-4 문구 (서버 가드 409 사유 = 화면 문구, 같은 문자열)</h4>
+        <table>
+          <thead><tr><th>상황</th><th>문구</th></tr></thead>
+          <tbody>
+            <tr><td><code>MISMATCH</code></td><td>이 정의서는 RAID 카드 {지정 모델}({지정 Subsystem}) 전용입니다 — 이 서버의 RAID 카드는 {감지 모델}({감지 Subsystem}) 입니다.</td></tr>
+            <tr><td><code>NOT_DETECTED</code></td><td>이 정의서는 RAID 카드 {지정 모델}({지정 Subsystem}) 전용입니다 — 이 서버에서는 RAID 카드가 감지되지 않았습니다.</td></tr>
+            <tr><td>대조 전 · 인벤토리 미수집</td><td>이 정의서는 RAID 카드 {지정 모델} 을 요구하는데 이 서버의 RAID 카드는 아직 확인되지 않았습니다.</td></tr>
+            <tr><td>대조 전 · Subsystem 미등록</td><td>RAID 카드 {지정 모델} 에 PCI Subsystem 이 등록되지 않아 이 서버의 카드와 대조할 수 없습니다.</td></tr>
+            <tr><td>대조 전 · 카드 자원 영구 삭제</td><td>정의서가 지정한 RAID 카드(#{id})를 찾을 수 없어 이 서버의 카드와 대조할 수 없습니다.</td></tr>
+            <tr><td>대조 전 · 보드 미수집(현행 유지)</td><td>이 정의서는 특정 메인보드를 요구하는데 이 서버의 하드웨어는 아직 수집 전입니다.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">경고 상자 꼬리 문장은 기존 그대로: "할당은 막지 않되, 수집 후 맞지 않으면 개시할 때 경고가 뜹니다." (D-R5 로 카드도 이 경고에 포함되므로 사실과 맞는다.) 대조 전 사유가 둘이면 두 문장을 잇는다. 기존 보드 문구 "이 정의서는 메인보드 X 전용입니다 — 이 서버는 Y 입니다." 와 같은 틀이다.</div>
+
+        <h4>12-5 바뀌는 파일</h4>
+        <table>
+          <thead><tr><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>AssignmentBlockKind</code></td><td>상수 <code>RAID_CARD_MISMATCH</code></td></tr>
+            <tr><td><code>AssignmentEligibility</code></td><td>요구 카드 · 인벤토리 component, <code>unverifiedReason()</code> (보드 · 카드 합성)</td></tr>
+            <tr><td><code>RaidCardRequirementReader</code> <span class="chip new">신규</span></td><td>정의서 → 요구 카드 맵 · 상세 → 인벤토리</td></tr>
+            <tr><td><code>RaidConfigurationResolutionProviderImpl</code></td><td>지정 카드 변환을 위 컴포넌트에 위임</td></tr>
+            <tr><td><code>RaidCardObservationProviderImpl</code></td><td>인벤토리 해석을 위 컴포넌트에 위임</td></tr>
+            <tr><td><code>AssignmentQueryService</code></td><td>서버 폼 · 그룹 미리보기 · 스냅샷 경고에 카드 재료</td></tr>
+            <tr><td><code>AssignmentCommandService</code></td><td>할당 · 재할당 가드에 카드 재료</td></tr>
+            <tr><td><code>DefinitionOptionResponse</code> · <code>DefinitionPickerItemResponse</code></td><td><code>unverified</code> → <code>unverifiedReason</code></td></tr>
+            <tr><td><code>definition-picker.html</code></td><td>대조 전 상자가 사유 문구를 그림</td></tr>
+          </tbody>
+        </table>
+
+        <h4>12-6 테스트 · CP5 추가분</h4>
+        <table>
+          <thead><tr><th>구분</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td><code>AssignmentBlockKind</code> 진리표 7 행 · <code>RaidCardRequirementReader</code>(사라진 카드 · JSON 손상 관용) · 판정 순서(보드가 먼저)</td></tr>
+            <tr><td>통합</td><td>카드 불일치 정의서 할당 POST → 409 + 사유 · 재할당 409 · 그룹 일괄 할당에서 카드 불일치 멤버 건너뜀 · 모달 렌더(잠김 · 대조 전 사유) · 서버 상세 경고 배너(카드)</td></tr>
+            <tr><td>CP5 데이터</td><td>샌드박스 카드 2 종: CRA3338 = 1458:3008 · MegaRAID 9361-8i = 1000:9361. 서버 인벤토리 분포: 1000:9361 26 대 · 1458:3008 1 대(이미 개시됨) · 미수집 다수 → 미할당 서버 몇 대의 인벤토리를 샌드박스 DB 에서만 바꿔 MISMATCH · NOT_DETECTED · 미수집을 고루 만든다. 정의서도 카드별로 나눠 넣는다</td></tr>
+            <tr><td>CP5 항목</td><td>카드 잠김 · '할당 가능한 것만'에서 사라짐 · 대조 전 두 사유 · 그룹 적용 대상 수 · direct POST 409 · 기존 할당의 경고 배너</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 RAID 카드 판정 체험 ===== -->
+    <details class="section preview" id="s12-demo" open>
+      <summary>🎬 RAID 카드 판정 체험 — 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">정의서의 RAID 단계 · 서버 RAID 인벤토리 · 메인보드 일치 여부를 바꾸면 판정 순서 4 칸이 차례로 켜지고 첫 차단에서 멈춘다. 판정 JS 는 §12-3 진리표를 그대로 구현한다(서버 <code>RaidCardMatch.judge</code> + 미수집 분기와 같은 순서). 회수 · BIOS 템플릿 축은 이 데모에서 통과로 고정한다. 메인보드 이름은 §2 미리보기와 같은 가짜 값이다(서버 MS74-HB0 · 다름일 때 정의서 요구 MS04-CE0).</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="n-demo-btn" data-raid-preset="1" onclick="raidPreset(1)">① 카드 일치 — MegaRAID 정의서 × MegaRAID 서버</button>
+            <button class="n-demo-btn" data-raid-preset="2" onclick="raidPreset(2)">② 카드 다름 — CRA3338 정의서 × MegaRAID 서버</button>
+            <button class="n-demo-btn" data-raid-preset="3" onclick="raidPreset(3)">③ 카드 없음 — MegaRAID 정의서 × 카드 미감지 서버</button>
+            <button class="n-demo-btn" data-raid-preset="4" onclick="raidPreset(4)">④ 아직 모름 — 인벤토리 미수집 서버</button>
+            <button class="n-demo-btn" data-raid-preset="5" onclick="raidPreset(5)">⑤ 삭제된 카드를 지정한 정의서</button>
+            <button class="n-demo-btn" data-raid-preset="6" onclick="raidPreset(6)">⑥ 보드가 먼저 — 보드도 카드도 다름</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">정의서 RAID 단계 :</span>
+            <button class="seg" data-raid-def="none" onclick="raidSet('def','none')">없음</button>
+            <button class="seg" data-raid-def="cra3338" onclick="raidSet('def','cra3338')">CRA3338 지정</button>
+            <button class="seg" data-raid-def="mega9361" onclick="raidSet('def','mega9361')">MegaRAID 9361-8i 지정</button>
+            <button class="seg" data-raid-def="deleted" onclick="raidSet('def','deleted')">삭제된 카드 지정(Subsystem 없음)</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">서버 RAID 인벤토리 :</span>
+            <button class="seg" data-raid-inv="uncollected" onclick="raidSet('inv','uncollected')">미수집</button>
+            <button class="seg" data-raid-inv="nocard" onclick="raidSet('inv','nocard')">수집됨 · 카드 없음</button>
+            <button class="seg" data-raid-inv="sas3008" onclick="raidSet('inv','sas3008')">SAS3008(1458:3008)</button>
+            <button class="seg" data-raid-inv="avago9361" onclick="raidSet('inv','avago9361')">AVAGO MegaRAID SAS 9361-8i(1000:9361)</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">메인보드 :</span>
+            <button class="seg" data-raid-board="same" onclick="raidSet('board','same')">같음</button>
+            <button class="seg" data-raid-board="diff" onclick="raidSet('board','diff')">다름</button>
+          </div>
+
+          <div style="font-size:12px; font-weight:600; margin:12px 0 6px;">판정 순서 (<code>AssignmentBlockKind</code> 상수 선언 순서)</div>
+          <div id="raid-order"></div>
+
+          <div style="display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; margin:10px 0 0; font-size:12.5px;">
+            <span>judge 결과 <span id="raid-judge"></span></span>
+            <span>모달 상태 열 <span id="raid-status"></span></span>
+            <span>[할당] <span id="raid-submit-wrap"></span></span>
+          </div>
+
+          <div style="font-size:12px; font-weight:600; margin:12px 0 4px;">펼침에 보일 문구</div>
+          <div id="raid-expand"></div>
+
+          <div class="ux-caps" id="raid-caps"></div>
+          <div class="ux-message" id="raid-message"></div>
+        </div>
+
+        <div class="callout success">집행(RAID 구성 phase) · 서버 상세 개시 전 예고 · 할당이 같은 판정 함수를 쓴다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §13 v1 승인 뒤 반영된 변경 ===== -->
+    <details class="section" id="s13" open>
+      <summary>§13. v1 승인 뒤 반영된 변경 (기록)</summary>
+      <div class="body">
+        <p style="margin-top:0;">v1 CP1 승인 뒤 사용자 검수(샌드박스)로 바뀐 것을 plan 에 남긴다.</p>
+        <table>
+          <thead><tr><th>변경</th><th>계기</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>조회 조건 창</td><td>사용자: [Search] 가 상세 조건을 띄우지 않음</td><td>목록 화면과 같은 popover 조건 창 — 대상 보드 · 단계 구성 · 할당 가능 · 등록 시각</td></tr>
+            <tr><td>기존 조회 구현 재사용</td><td>사용자: 세팅 정의서 목록의 검색 · 필터 클래스를 재활용하는가</td><td>이름 · 단계 · 등록 시각은 <code>SettingListQuery</code> → <code>SettingSpecifications</code> 로 DB 에서 거름(파라미터 이름도 목록과 같음). 모달 전용 축(대상 보드 · 할당 가능)만 <code>DefinitionPickerQuery</code> 가 거름</td></tr>
+            <tr><td>'최근 1년' 칩 눌림</td><td>사용자: 기본 기간인데 칩이 눌려 보이지 않음</td><td>list-query.js 의 칩 표시 함수를 모달에서도 호출</td></tr>
+            <tr><td>하단 "고른 정의서" 중복 제거</td><td>사용자</td><td>펼침 머리만 남김</td></tr>
+            <tr><td>모달 안내 문구 제거</td><td>사용자</td><td>삭제</td></tr>
+            <tr><td>검색 띠 높이</td><td>사용자: 다른 화면 입력칸과 모양이 다름</td><td>목록과 같은 높이(입력 31.5px · 버튼 22.8px 실측)</td></tr>
+            <tr><td>390 폭 넘침(D1)</td><td>CP5</td><td>검색칸이 남는 폭만큼 줄어듦(넓은 화면 260px 유지)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — 판정은 demoMatches() · demoSubmitState() 두 함수가 맡는다 (§4 판정 규칙 표와 1:1)
+  // ─────────────────────────────────────────────────────────────
+  const SERVER_BOARD = 'MS74-HB0';
+  const MEMBERS = [
+    { name: 'srv-01', board: 'MS74-HB0' },
+    { name: 'srv-02', board: 'MS74-HB0' },
+    { name: 'srv-03', board: 'MS04-CE0' }
+  ];
+  const boardReason = (have, want) => '이 서버의 메인보드(' + have + ')와 정의서가 요구하는 메인보드(' + want + ')가 다릅니다.';
+  // 가짜 정의서 7 개 (예시값). blockReason · unverified 는 서버가 이 서버 기준으로 계산해 내려준 값으로 본다.
+  const DEFS = [
+    { id: 1, name: 'web-standard', board: 'MS74-HB0', steps: ['펌웨어', '설정', 'RAID', 'Windows'], created: '2026-10-02' },
+    { id: 2, name: 'db-raid10',    board: 'MS04-CE0', steps: ['설정', 'RAID', 'Windows'], blockReason: boardReason(SERVER_BOARD, 'MS04-CE0'), created: '2026-09-14' },
+    { id: 3, name: 'diag-only',    board: null,       steps: ['진단'], created: '2026-08-20' },
+    { id: 4, name: 'legacy-win',   board: null,       steps: ['Windows'], deprecated: true, created: '2025-06-10' },
+    { id: 5, name: 'new-board',    board: 'MS73-HB1', steps: ['펌웨어', '설정'], unverified: true, created: '2026-11-05' },
+    { id: 6, name: 'raid-only',    board: 'MS74-HB0', steps: ['RAID'], created: '2026-03-03' },
+    { id: 7, name: 'win-ms04',     board: 'MS04-CE0', steps: ['Windows'], blockReason: boardReason(SERVER_BOARD, 'MS04-CE0'), created: '2025-11-30' }
+  ];
+  // 그룹 멤버별 결과 (예시값 — 서버의 그룹 미리보기가 내려주는 자리)
+  function demoMemberOutcomes(def) {
+    return MEMBERS.map(m => (def.board == null || def.board === m.board)
+      ? { member: m, outcome: '할당됨', badge: 'on', reason: null }
+      : { member: m, outcome: '막힘', badge: 'del', reason: boardReason(m.board, def.board) });
+  }
+  // 요약 문구 — GroupApplyPreviewResponse.summary() 와 같은 모양
+  function demoSummary(def) {
+    const outs = demoMemberOutcomes(def);
+    const will = outs.filter(o => o.outcome === '할당됨').length;
+    if (MEMBERS.length === 0) return '이 그룹에는 아직 서버가 없습니다.';
+    if (will === 0) return '이 그룹의 어떤 서버에도 붙일 수 없습니다.';
+    const head = MEMBERS.length + ' 대 중 ' + will + ' 대에 할당됩니다.';
+    const skipped = MEMBERS.length - will;
+    return skipped === 0 ? head : head + ' ' + skipped + ' 대는 건너뜁니다(막힘 ' + skipped + ').';
+  }
+  const willAssign = def => demoMemberOutcomes(def).filter(o => o.outcome === '할당됨').length;
+
+  const TABS = {
+    srvAssign:   { kind: 'server', title: '세팅 정의서 할당', submit: '이 서버에 할당', target: 'POST /provisioning/server/{id}/assignment (XHR JSON)' },
+    srvReassign: { kind: 'server', title: '다른 정의서로 재할당', submit: '재할당', target: 'POST /provisioning/server/{id}/assignment/reassign (XHR JSON)' },
+    grpAssign:   { kind: 'group', mode: 'assign', title: '정의서 골라 할당', submit: '선택한 정의서 할당', target: '지금 폼 그대로 브라우저 제출 (redirect + flash)' },
+    grpStandard: { kind: 'group', mode: 'standard', title: '표준 정의서 지정', submit: '표준으로 지정', target: '지금 폼 그대로 브라우저 제출 (redirect + flash)' }
+  };
+  // 그룹 모드 표 — group-definition-picker.js 의 MODES 값 그대로
+  const MODES = {
+    assign: {
+      message: '정의서를 고르면 이 그룹의 각 서버에 어떻게 적용되는지 먼저 보여 드립니다. 이미 정의서가 있는 서버는 갈아엎지 않고 건너뜁니다.',
+      allowsEmptyTarget: false,
+      status: (name, count, summary) => name + ' — ' + summary
+    },
+    standard: {
+      message: '이 그룹이 기억할 정의서를 고릅니다. 지정해도 서버에 자동으로 붙지 않습니다 — 아직 적용받지 않은 서버가 있으면 그룹 상세에서 한 번에 붙일 수 있습니다.',
+      allowsEmptyTarget: true,
+      status: (name, count) => count > 0
+        ? name + ' — 표준으로 지정합니다. 지정 뒤 ' + count + ' 대에 적용할 수 있습니다.'
+        : name + ' — 표준으로 지정합니다. 지금 적용할 서버는 없습니다.'
+    }
+  };
+  const HINT_BEFORE_SERVER = '왼쪽에서 정의서를 고르면 오른쪽에 그 내용이 펼쳐집니다. 이 서버에 맞지 않는 정의서도 목록에 남으며, 눌러 보면 왜 맞지 않는지와 무엇을 하려던 정의서인지를 함께 확인할 수 있습니다.';
+  const HINT_AFTER_SERVER = '위에서 검색해 고르면 아래에 내용이 펼쳐집니다. (자리 표시 — 문구는 CP2 에서 확정)';
+  const PROMPT_BEFORE = '왼쪽에서 정의서를 고르세요';
+  const PROMPT_AFTER = '표에서 정의서를 고르세요 (자리 표시)';
+
+  const TODAY = '2026-11-16', DEFAULT_FROM = '2025-11-16';   // 기본 기간 = 최근 1 년 (DateRange.DEFAULT_SPAN)
+  const demo = { view: 'after', tab: 'srvAssign', qInput: '', q: '', sel: null, reqNo: 0, fromInput: DEFAULT_FROM, toInput: TODAY, from: DEFAULT_FROM, to: TODAY };
+  let demoTimer = 0;
+
+  // ── 판정 1: 검색 일치 (서버의 정적 일치 메서드와 같은 규칙) ──
+  function demoMatches(def, q, from, to) {
+    // 이름만 본다(다른 검색 입력과 같은 규칙, 사용자 결정 11-16) + 등록 시각이 기간 안(양 끝 포함)
+    const key = (q || '').trim().toLowerCase();
+    if (key && !def.name.toLowerCase().includes(key)) return false;
+    return (!from || def.created >= from) && (!to || def.created <= to);
+  }
+  // ── 판정 2: 제출 가능 (서버: 잠김이면 닫힘 · 그룹: MODES.allowsEmptyTarget) ──
+  function demoSubmitState(tabKey, def, isAfter) {
+    const tab = TABS[tabKey];
+    if (!def) return { open: false, status: isAfter ? PROMPT_AFTER : PROMPT_BEFORE, tip: null, blocked: false, why: '고른 것 없음' };
+    if (tab.kind === 'server') {
+      if (def.blockReason) return { open: false, status: def.blockReason, tip: def.blockReason, blocked: true, why: 'blocked = true' };
+      return { open: true, status: '고른 정의서 — ' + def.name, tip: null, blocked: false, why: 'blocked = false' };
+    }
+    const mode = MODES[tab.mode];
+    const count = willAssign(def);
+    const summary = demoSummary(def);
+    if (count === 0 && !mode.allowsEmptyTarget) {
+      return { open: false, status: summary, tip: summary, blocked: true, why: 'willAssign = 0 · allowsEmptyTarget = false' };
+    }
+    return { open: true, status: mode.status(def.name, count, summary), tip: null, blocked: false,
+      why: 'willAssign = ' + count + ' · allowsEmptyTarget = ' + mode.allowsEmptyTarget };
+  }
+
+  function demoRows() {
+    return demo.view === 'after' ? DEFS.filter(d => demoMatches(d, demo.q, demo.from, demo.to)) : DEFS.slice();
+  }
+  const byId = id => DEFS.find(d => d.id === id) || null;
+  function demoSay(text, kind) {
+    const m = document.getElementById('demo-message');
+    m.className = 'ux-message' + (kind ? ' ' + kind : '');
+    m.textContent = text;
+  }
+
+  // ── 액션 ──
+  function demoSetView(v) { demo.view = v; demoSyncSelection(); demoRender(); }
+  function demoSetTab(t) { demo.tab = t; demo.qInput = ''; demo.q = ''; demo.sel = null; demoRender(); }
+  function demoSearch() {
+    demo.q = demo.qInput; demo.from = demo.fromInput; demo.to = demo.toInput;
+    demo.reqNo++;
+    const dropped = demoSyncSelection();
+    demoRenderResults(); demoRenderFoot(); demoRenderCaps();
+    const n = demoRows().length;
+    if (n === 0) demoSay('검색 결과 0 건 — 표 자리에 빈 안내가 뜨고, 고른 것이 풀리며 제출이 닫힙니다.', 'error');
+    else if (dropped) demoSay('고른 정의서가 새 결과에 없어 선택이 풀렸습니다. 제출도 닫힙니다.', '');
+    else demoSay('"' + demo.q.trim() + '" · ' + demo.from + ' ~ ' + demo.to + ' 로 ' + n + ' 행을 받았습니다 (이름 포함 · 대소문자 무시 · 등록 시각 기간 안).', '');
+  }
+  // 고른 것이 지금 결과에 없으면 해제. 해제했으면 true
+  function demoSyncSelection() {
+    if (demo.sel == null) return false;
+    if (demoRows().some(d => d.id === demo.sel)) return false;
+    demo.sel = null;
+    return true;
+  }
+  function demoPick(id) {
+    demo.sel = id;
+    demoRenderResults(); demoRenderFoot(); demoRenderCaps();
+    const st = demoSubmitState(demo.tab, byId(id), demo.view === 'after');
+    if (st.blocked) demoSay('고를 수는 있지만 제출은 닫힙니다 — ' + st.status, 'error');
+    else demoSay('골랐습니다. 제출 버튼이 열렸습니다.', 'success');
+  }
+  function demoSubmit() {
+    const tab = TABS[demo.tab];
+    demoSay('(데모) 제출 — ' + tab.target + ' · definitionId=' + demo.sel + '. 제출 경로는 바꾸지 않습니다.', 'success');
+  }
+  function demoCancel() { demo.sel = null; demo.qInput = ''; demo.q = ''; demoRender(); demoSay('취소 — 다시 열면 고른 것이 없는 상태로 시작합니다.', ''); }
+
+  // ── 렌더 ──
+  const TH = 'background:var(--bg); color:var(--text-muted); font-size:12px; font-weight:600; padding:7px 10px; border-bottom:1px solid var(--border); min-width:0; text-align:left;';
+  const TD = 'padding:7px 10px; border-bottom:1px solid var(--border-soft); min-width:0; vertical-align:top;';
+  /* 정의서 내용 = 실제 화면의 단계 카드(fragments/provisioning/setting-process-cards :: processCards)와 같은 항목.
+     값은 예시다. 실제로는 정의서 상세(SettingDetailResponse)가 그린다. */
+  const CARD_ROWS = {
+    '펌웨어': { title: '펌웨어 업데이트', rows: [['메인보드 모델', '지정 · MS74-HB0'], ['BIOS 펌웨어', '최신'], ['BMC 펌웨어', '지정 · 13.06.15']] },
+    '설정': { title: 'BIOS 설정', rows: [['메인보드 모델', '자동'], ['BIOS 세팅 템플릿', 'Birch Stream 표준 전력(5 항목)']] },
+    'RAID': { title: 'RAID 구성', rows: [['RAID 카드', '지정 · MegaRAID 9560-8i'], ['기존 구성 처리', '삭제 후 새로 구성'], ['볼륨 1', 'RAID 1 · SSD · SATA · 2 개 · 부팅'], ['볼륨 2', 'RAID 10 · HDD · SAS · 4 개 · 데이터']] },
+    'Windows': { title: 'OS 설치', rows: [['대상 OS', 'Windows Server 2025 Standard'], ['설치 ISO', 'WS2025_x64_2026-09.iso'], ['설치 디스크', '첫 번째 RAID 볼륨'], ['드라이버', '보드 공용 12 개']] },
+    '진단': { title: '진단', rows: [['수집', '하드웨어 인벤토리 · RAID 사전 파악']] }
+  };
+  function stepCards(def) {
+    return '<div style="font-size:12px; font-weight:600; margin:10px 0 6px;">정의서 내용 (' + def.steps.length + ' 단계)</div>' +
+      '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:8px;">' +
+      def.steps.map((s, i) => {
+        const c = CARD_ROWS[s] || { title: s, rows: [] };
+        return '<div style="border:1px solid var(--border); border-radius:8px; background:var(--card); padding:8px 10px; min-width:0;">' +
+          '<div style="font-size:12px; font-weight:700; margin-bottom:4px;">' + (i + 1) + '. ' + c.title + '</div>' +
+          '<table style="margin:0; display:table; width:100%; font-size:12px;"><tbody>' +
+          c.rows.map(r => '<tr><th style="' + TH + ' width:42%;">' + r[0] + '</th><td style="' + TD + ' overflow-wrap:anywhere;">' + r[1] + '</td></tr>').join('') +
+          '</tbody></table></div>';
+      }).join('') +
+      '</div>';
+  }
+  function serverPanel(def) {
+    let h = '';
+    if (def.blockReason) h += '<div class="callout danger" style="margin-top:0;"><b>이 서버에는 할당할 수 없습니다.</b><div>' + def.blockReason + '</div></div>';
+    if (!def.blockReason && def.unverified) h += '<div class="callout warn"><b>하드웨어를 대조하지 못했습니다.</b><div style="font-size:12px;">이 정의서는 특정 메인보드를 요구하는데 이 서버의 하드웨어는 아직 수집 전입니다. 할당은 막지 않되, 수집 후 맞지 않으면 개시할 때 경고가 뜹니다.</div></div>';
+    if (def.deprecated) h += '<div class="callout warn"><b>사용 중단이 권고된 정의서입니다.</b><div style="font-size:12px;">할당은 가능하지만 대체할 정의서가 있는지 확인해 주세요.</div></div>';
+    return h + stepCards(def);
+  }
+  function groupPanel(def) {
+    const blocked = willAssign(def) === 0;
+    let h = '<div class="callout ' + (blocked ? 'danger' : 'success') + '" style="margin-top:0;"><b>' + demoSummary(def) + '</b></div>';
+    if (def.deprecated) h += '<div class="callout warn"><b>사용 중단이 권고된 정의서입니다.</b><div style="font-size:12px;">할당은 가능하지만 대체할 정의서가 있는지 확인해 주세요.</div></div>';
+    h += '<div style="font-size:12px; font-weight:600; margin:8px 0 4px;">멤버별 적용</div>' +
+      '<div style="overflow-x:auto;"><table style="margin:0; display:table; min-width:440px;"><thead><tr>' +
+      ['서버', '보드 모델', '결과', '사유'].map(t => '<th style="' + TH + '">' + t + '</th>').join('') +
+      '</tr></thead><tbody>' +
+      demoMemberOutcomes(def).map(o => '<tr><td style="' + TD + '">' + o.member.name + '</td><td style="' + TD + '">' + o.member.board +
+        '</td><td style="' + TD + '"><span class="badge ' + o.badge + '">' + o.outcome + '</span></td><td style="' + TD + ' color:var(--text-muted); font-size:12px;">' + (o.reason || '—') + '</td></tr>').join('') +
+      '</tbody></table></div>';
+    return h + stepCards(def);
+  }
+  function statusBadge(def) {
+    if (def.blockReason) return '<span class="badge del">잠김</span>';
+    if (def.deprecated) return '<span class="badge dep">사용 중단</span>';
+    if (def.unverified) return '<span class="badge dep">대조 전</span>';
+    return '<span class="badge on">가능</span>';
+  }
+  function rowDimmed(def) {
+    const tab = TABS[demo.tab];
+    if (tab.kind === 'server') return !!def.blockReason;
+    return tab.mode === 'assign' && willAssign(def) === 0;   // 표준 모드는 잠긴 모양을 보이지 않는다(지금 규칙)
+  }
+
+  function demoRenderSearch() {
+    const box = document.getElementById('demo-search');
+    if (demo.view !== 'after') { box.innerHTML = ''; return; }
+    box.innerHTML =
+      '<div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:4px 0 10px;">' +
+      '<input id="demo-q" type="text" autocomplete="off" placeholder="입력 후 [Enter]" aria-label="세팅 정의서 검색" ' +
+      'style="width:220px; max-width:100%; padding:5px 10px; font-size:13px; border:1px solid var(--border); border-radius:5px; background:var(--card); color:var(--text);">' +
+      '<span style="font-size:12px; color:var(--text-muted);">등록 시각</span>' +
+      '<input id="demo-from" type="date" aria-label="등록 시각 시작" style="padding:4px 6px; font-size:12px; border:1px solid var(--border); border-radius:5px; background:var(--card); color:var(--text);">' +
+      '<span style="font-size:12px;">~</span>' +
+      '<input id="demo-to" type="date" aria-label="등록 시각 끝" style="padding:4px 6px; font-size:12px; border:1px solid var(--border); border-radius:5px; background:var(--card); color:var(--text);">' +
+      '<button id="demo-search-btn" class="n-demo-btn" style="background:var(--blue); color:var(--card);">Search</button>' +
+      '</div>';
+    const input = document.getElementById('demo-q');
+    input.value = demo.qInput;
+    input.addEventListener('input', e => { demo.qInput = e.target.value; });
+    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); demoSearch(); } });
+    document.getElementById('demo-search-btn').addEventListener('click', demoSearch);
+    const f = document.getElementById('demo-from'), t = document.getElementById('demo-to');
+    f.value = demo.fromInput; t.value = demo.toInput;
+    f.addEventListener('change', e => { demo.fromInput = e.target.value; });
+    t.addEventListener('change', e => { demo.toInput = e.target.value; });
+  }
+
+  function demoRenderResults() {
+    const box = document.getElementById('demo-results');
+    const tab = TABS[demo.tab];
+    const rows = demoRows();
+    const sel = byId(demo.sel);
+    const panel = sel ? (tab.kind === 'server' ? serverPanel(sel) : groupPanel(sel)) : null;
+
+    if (demo.view === 'before') {
+      // 지금: 2 단 Miller — 왼쪽 이름 목록 + 오른쪽 패널
+      const items = rows.map(d => {
+        const chosen = d.id === demo.sel;
+        const dim = rowDimmed(d);
+        let tag;
+        if (tab.kind === 'server') {
+          tag = d.blockReason ? '<span class="badge del">잠김</span>'
+            : d.deprecated ? '<span class="badge dep">사용 중단</span>'
+            : d.unverified ? '<span class="badge dep">대조 전</span>' : '';
+        } else {
+          const c = willAssign(d);
+          tag = c > 0 ? '<span class="badge on">' + c + ' 대</span>' : '<span class="badge del">0 대</span>';
+        }
+        return '<button type="button" data-row="' + d.id + '" onclick="demoPick(' + d.id + ')" ' +
+          'style="display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; border:none; border-bottom:1px solid var(--border-soft); ' +
+          'background:' + (chosen ? 'var(--blue-bg)' : 'var(--card)') + '; color:' + (dim ? 'var(--text-muted)' : 'var(--text)') + '; ' +
+          'box-shadow:' + (chosen ? 'inset 3px 0 0 var(--blue)' : 'none') + '; font:inherit; font-size:13px; text-align:left; cursor:pointer;">' +
+          '<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;">' + d.name + '</span>' + tag + '</button>';
+      }).join('');
+      const emptyRight = tab.kind === 'server' ? '왼쪽에서 정의서를 고르면 내용이 여기에 나타납니다.' : '왼쪽에서 정의서를 고르면 이 그룹에 어떻게 적용되는지 나타납니다.';
+      box.innerHTML =
+        '<div style="display:flex; flex-wrap:wrap; border:1px solid var(--border); border-radius:6px; overflow:hidden;">' +
+          '<div style="flex:1 1 170px; min-width:0; border-right:1px solid var(--border);">' +
+            '<div style="' + TH + '">세팅 정의서</div>' + items +
+          '</div>' +
+          '<div style="flex:2 1 260px; min-width:0; padding:10px 12px; background:var(--card);">' +
+            (panel || '<div style="color:var(--text-muted); font-size:12.5px; padding:20px 0; text-align:center;">' + emptyRight + '</div>') +
+          '</div>' +
+        '</div>';
+      return;
+    }
+
+    // 바뀐 뒤: 검색 표 + 표 아래 펼침
+    const heads = tab.kind === 'server'
+      ? ['정의서', '대상 보드', '단계 구성', '상태']
+      : ['정의서', '대상 보드', '단계 구성', '적용 대상'];
+    let body;
+    if (rows.length === 0) {
+      body = '<tr><td colspan="4" style="' + TD + ' text-align:center; color:var(--text-muted); padding:22px 10px;">검색 결과가 없습니다.</td></tr>';
+    } else {
+      body = rows.map(d => {
+        const chosen = d.id === demo.sel;
+        const dim = rowDimmed(d);
+        const bg = chosen ? 'var(--blue-bg)' : (dim ? 'var(--bg)' : 'var(--card)');
+        const color = dim ? 'var(--text-muted)' : 'var(--text)';
+        const last = tab.kind === 'server' ? statusBadge(d) : (willAssign(d) + ' / ' + MEMBERS.length + ' 대');
+        const cell = (inner, extra) => '<td style="' + TD + ' background:' + bg + '; color:' + color + ';' + (extra || '') + '">' + inner + '</td>';
+        return '<tr data-row="' + d.id + '" onclick="demoPick(' + d.id + ')" style="cursor:pointer; box-shadow:' + (chosen ? 'inset 3px 0 0 var(--blue)' : 'none') + ';">' +
+          cell('<span style="color:' + (dim ? 'var(--text-muted)' : 'var(--blue)') + '; font-weight:' + (chosen ? '700' : '500') + ';">' + d.name + '</span>') +
+          cell(d.board || '보드 무관') +
+          cell(d.steps.join(' · '), ' font-size:12px;') +
+          cell(last, ' white-space:nowrap;') +
+          '</tr>';
+      }).join('');
+    }
+    const emptyBelow = '표에서 정의서를 고르면 내용이 여기에 펼쳐집니다. (자리 표시)';
+    box.innerHTML =
+      '<div style="overflow-x:auto; border:1px solid var(--border); border-radius:6px;">' +
+        '<table style="margin:0; display:table; min-width:460px;"><thead><tr>' +
+        heads.map(t => '<th style="' + TH + '">' + t + '</th>').join('') +
+        '</tr></thead><tbody>' + body + '</tbody></table>' +
+      '</div>' +
+      '<div id="demo-expand" style="margin-top:10px; border:1px solid var(--border-soft); border-top:3px solid ' + (sel ? 'var(--blue)' : 'var(--border-soft)') + '; border-radius:6px; padding:10px 12px; background:var(--card);">' +
+        (sel ? '<div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">고른 정의서 <b style="color:var(--text);">' + sel.name + '</b></div>' + panel
+             : '<div style="color:var(--text-muted); font-size:12.5px; text-align:center; padding:10px 0;">' + emptyBelow + '</div>') +
+      '</div>';
+  }
+
+  function demoRenderFoot() {
+    const st = demoSubmitState(demo.tab, byId(demo.sel), demo.view === 'after');
+    const status = document.getElementById('demo-status');
+    status.textContent = st.status;
+    status.style.color = st.blocked ? 'var(--red)' : 'var(--text)';
+    status.style.fontWeight = st.blocked ? '600' : '400';
+    const label = TABS[demo.tab].submit;
+    const tipAttr = (!st.open && st.tip) ? ' data-tip="' + st.tip + '"' : '';
+    document.getElementById('demo-submit-wrap').innerHTML =
+      '<span class="tip"' + tipAttr + '><button id="demo-submit" class="n-demo-btn"' + (st.open ? ' style="background:var(--blue); color:var(--card);"' : ' disabled') +
+      ' onclick="demoSubmit()">' + label + '</button></span>';
+  }
+
+  function demoRenderCaps() {
+    const tab = TABS[demo.tab];
+    const isAfter = demo.view === 'after';
+    const sel = byId(demo.sel);
+    const st = demoSubmitState(demo.tab, sel, isAfter);
+    const path = tab.kind === 'server' ? 'GET /provisioning/server/{id}/assignment/picker' : 'GET …/{groupId}/assignment/picker';
+    const req = isAfter
+      ? path + '?q=' + encodeURIComponent(demo.q.trim()) + '&from=' + demo.from + '&to=' + demo.to + '   → ' + demoRows().length + ' / ' + DEFS.length + ' 행'
+      : path + '   (q 없음 · 처음 한 번) → ' + DEFS.length + ' 행';
+    const tf = v => v ? '<span class="f">열림</span>' : '<span class="t">닫힘</span>';
+    document.getElementById('demo-caps').innerHTML =
+      '화면     = ' + tab.title + (tab.mode ? '  (mode=' + tab.mode + ')' : '') + '   모양 = ' + (isAfter ? '바뀐 뒤' : '지금') + '\n' +
+      '요청     = ' + req + '\n' +
+      (isAfter ? 'matches  = 이름 ⊇ "' + demo.q.trim().toLowerCase() + '"  (대소문자 무시 · 빈 q 는 전체) · 등록 시각 ' + demo.from + ' ~ ' + demo.to + '\n' : '') +
+      '선택     = ' + (sel ? sel.name : '없음') + '\n' +
+      '판정     = ' + st.why + '\n' +
+      '제출     = ' + tf(st.open);
+  }
+
+  function demoRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-view]').forEach(s => s.classList.toggle('active', s.dataset.view === demo.view));
+    document.querySelectorAll('.ux-toolbar .seg[data-tab]').forEach(s => s.classList.toggle('active', s.dataset.tab === demo.tab));
+    const tab = TABS[demo.tab];
+    document.getElementById('demo-title').textContent = tab.title;
+    document.getElementById('demo-hint').textContent = tab.kind === 'group'
+      ? MODES[tab.mode].message
+      : (demo.view === 'after' ? HINT_AFTER_SERVER : HINT_BEFORE_SERVER);
+    demoRenderSearch();
+    demoRenderResults();
+    demoRenderFoot();
+    demoRenderCaps();
+  }
+
+  // ── 시나리오 — 누를 곳을 짚은 뒤 같은 액션 함수를 부른다 ──
+  function demoPlay(steps) {
+    const token = demoTimer;
+    let i = 0;
+    const next = () => {
+      if (token !== demoTimer || i >= steps.length) return;
+      const s = steps[i++];
+      const el = s.sel ? document.querySelector(s.sel) : null;
+      if (el) { el.style.outline = '3px solid var(--orange)'; el.style.outlineOffset = '2px'; }
+      if (s.say) demoSay(s.say, '');
+      setTimeout(() => {
+        if (token !== demoTimer) return;
+        if (el) { el.style.outline = ''; el.style.outlineOffset = ''; }
+        if (s.act) s.act();
+        setTimeout(next, 700);
+      }, 1000);
+    };
+    setTimeout(next, 300);
+  }
+  function typeQuery(text) { demo.qInput = text; const i = document.getElementById('demo-q'); if (i) i.value = text; }
+  const DEMO_PRESETS = {
+    1: { tab: 'srvAssign', steps: [
+      { sel: '#demo-q', say: '① 서버 상세 [정의서 할당] 모달. 검색 줄 아래에 정의서 7 개가 표로 나옵니다.' },
+      { sel: '#demo-results [data-row="1"]', act: () => demoPick(1), say: 'web-standard 행을 누릅니다. 대상 보드가 이 서버와 같아 상태가 "가능" 입니다.' },
+      { sel: '#demo-expand', say: '표 아래에 정의서 내용(단계 카드)이 펼쳐졌습니다.' },
+      { sel: '#demo-submit', say: '상태줄에 고른 정의서가 적히고 [이 서버에 할당] 이 열렸습니다.' }
+    ] },
+    2: { tab: 'srvAssign', steps: [
+      { sel: '#demo-results [data-row="2"]', act: () => demoPick(2), say: '② 흐린 db-raid10 행을 누릅니다. 잠긴 행도 고를 수 있습니다.' },
+      { sel: '#demo-expand', say: '펼침 머리에 잠김 사유가 문장으로 뜨고, 그 아래 정의서 내용이 함께 보입니다.' },
+      { sel: '#demo-status', say: '상태줄에 같은 사유. 제출 버튼에 마우스를 올리면 tooltip 도 같은 문장입니다.' },
+      { sel: '#demo-submit', say: '제출은 닫혀 있습니다. 지금 규칙 그대로입니다.' }
+    ] },
+    3: { tab: 'srvAssign', steps: [
+      { sel: '#demo-results [data-row="1"]', act: () => demoPick(1), say: '③ 먼저 web-standard 를 골라 둡니다.' },
+      { sel: '#demo-q', act: () => typeQuery('ms04'), say: '검색칸에 "ms04" 를 적습니다(소문자).' },
+      { sel: '#demo-search-btn', act: demoSearch, say: '[Search] — 이름에 "ms04" 가 든 win-ms04 만 걸립니다. 대상 보드가 MS04-CE0 인 db-raid10 은 걸리지 않습니다(이름만 검색).' },
+      { sel: '#demo-status', say: 'web-standard 는 결과에 없어 선택이 풀렸고 제출이 닫혔습니다.' }
+    ] },
+    4: { tab: 'srvAssign', steps: [
+      { sel: '#demo-results [data-row="3"]', act: () => demoPick(3), say: '④ diag-only 를 골라 둡니다.' },
+      { sel: '#demo-q', act: () => typeQuery('zzz'), say: '검색칸에 "zzz".' },
+      { sel: '#demo-search-btn', act: demoSearch, say: 'Enter 와 같은 [Search] — 일치하는 행이 없습니다.' },
+      { sel: '#demo-results', say: '표 자리에 "검색 결과가 없습니다.", 고른 것이 풀리고 제출이 닫혔습니다.' }
+    ] },
+    5: { tab: 'grpAssign', steps: [
+      { sel: '#demo-results [data-row="5"]', act: () => demoPick(5), say: '⑤ 그룹 [정의서 골라 할당]. 적용 대상 0 / 3 대인 new-board 를 누릅니다.' },
+      { sel: '#demo-expand', say: '멤버 3 대가 모두 막힘. 멤버별 사유가 표 아래에 펼쳐집니다.' },
+      { sel: '#demo-submit', say: 'assign 모드는 allowsEmptyTarget=false — 제출이 닫힙니다.' },
+      { sel: '.ux-toolbar .seg[data-tab="grpStandard"]', act: () => demoSetTab('grpStandard'), say: '비교: 같은 그룹의 [표준 정의서 지정] 으로 엽니다.' },
+      { sel: '#demo-results [data-row="5"]', act: () => demoPick(5), say: 'new-board 를 다시 고릅니다.' },
+      { sel: '#demo-submit', say: 'standard 모드는 0 이어도 열립니다(allowsEmptyTarget=true).' }
+    ] },
+    6: { tab: 'srvAssign', steps: [
+      { sel: '#demo-results', say: '⑥ 처음 표에는 최근 1 년(2025-11-16 ~ 2026-11-16)에 등록된 6 개만 있습니다. legacy-win(2025-06-10 등록)은 기간 밖입니다.' },
+      { sel: '#demo-from', act: () => { demo.fromInput = '2025-01-01'; document.getElementById('demo-from').value = '2025-01-01'; }, say: '등록 시각 시작을 2025-01-01 로 넓힙니다.' },
+      { sel: '#demo-search-btn', act: demoSearch, say: '[Search] — legacy-win 이 나타나 7 개가 됩니다.' }
+    ] }
+  };
+  function demoPreset(n) {
+    demoTimer++;
+    const p = DEMO_PRESETS[n];
+    demo.view = 'after'; demo.tab = p.tab; demo.qInput = ''; demo.q = ''; demo.sel = null;
+    demo.fromInput = demo.from = DEFAULT_FROM; demo.toInput = demo.to = TODAY;
+    demoRender();
+    demoPlay(p.steps);
+  }
+
+  demoSay('위 시나리오 버튼으로 재생하거나, [지금] / [바뀐 뒤] 와 화면 탭을 바꿔 직접 눌러 보세요. 바뀐 뒤 모양에서는 검색칸에 글자를 넣고 Enter 또는 [Search].', '');
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 v2 RAID 카드 판정 데모 (§12-3 진리표와 1:1)
+  //  raidJudge = RaidCardMatch.judge 복제 · raidCardVerdict = 할당 쪽 미수집 분기 + judge
+  //  raidEvaluate = AssignmentBlockKind.evaluate (상수 선언 순서로 첫 차단)
+  // ─────────────────────────────────────────────────────────────
+  const RAID_SERVER_BOARD = 'MS74-HB0', RAID_REQUIRED_BOARD_DIFF = 'MS04-CE0';   // §2 미리보기와 같은 가짜 보드
+  // 정의서 RAID 단계 → 요구 카드(RaidConfigurationTarget). 없음 = RAID 단계 없음(null)
+  const RAID_DEFS = {
+    none:     { label: '없음', target: null },
+    cra3338:  { label: 'CRA3338 지정', target: { raidCardId: 'cra3338', pciSubsystemId: '1458:3008', cardModelName: 'CRA3338' } },
+    mega9361: { label: 'MegaRAID 9361-8i 지정', target: { raidCardId: 'mega9361', pciSubsystemId: '1000:9361', cardModelName: 'MegaRAID 9361-8i' } },
+    deleted:  { label: '삭제된 카드 지정', target: { raidCardId: 'deleted', pciSubsystemId: null, cardModelName: '(사라진 카드 #id)' } }
+  };
+  // 서버 RAID 인벤토리(RaidInventory). 미수집 = null
+  const RAID_INVS = {
+    uncollected: { label: '미수집', inventory: null },
+    nocard:      { label: '수집됨 · 카드 없음', inventory: { card: null } },
+    sas3008:     { label: 'SAS3008(1458:3008)', inventory: { card: { model: 'SAS3008', pciSubsystemId: '1458:3008' } } },
+    avago9361:   { label: 'AVAGO MegaRAID SAS 9361-8i(1000:9361)', inventory: { card: { model: 'AVAGO MegaRAID SAS 9361-8i', pciSubsystemId: '1000:9361' } } }
+  };
+  const RAID_TAIL = '할당은 막지 않되, 수집 후 맞지 않으면 개시할 때 경고가 뜹니다.';
+
+  // ── RaidCardMatch.judge 와 같은 순서 ──
+  function raidJudge(target, inventory) {
+    if (target == null || target.raidCardId == null) return 'NOT_APPLICABLE';
+    if (target.pciSubsystemId == null) return 'UNVERIFIABLE';
+    if (inventory == null || inventory.card == null || inventory.card.pciSubsystemId == null) return 'NOT_DETECTED';
+    return target.pciSubsystemId.toLowerCase() === inventory.card.pciSubsystemId.toLowerCase() ? 'MATCH' : 'MISMATCH';
+  }
+  // ── 할당 쪽: 인벤토리 미수집은 judge 전에 "대조 전" (진리표 3 행 — 카드 지정 · Subsystem 있음일 때만 닿는다) ──
+  function raidCardVerdict(target, inventory) {
+    if (target != null && target.raidCardId != null && target.pciSubsystemId != null && inventory == null) return 'UNCOLLECTED';
+    return raidJudge(target, inventory);
+  }
+  // ── 문구 (§12-4 — 서버 가드 409 사유 = 화면 문구) ──
+  function raidBlockReason(target, inventory, verdict) {
+    if (verdict === 'MISMATCH') return '이 정의서는 RAID 카드 ' + target.cardModelName + '(' + target.pciSubsystemId + ') 전용입니다 — 이 서버의 RAID 카드는 '
+      + inventory.card.model + '(' + inventory.card.pciSubsystemId + ') 입니다.';
+    if (verdict === 'NOT_DETECTED') return '이 정의서는 RAID 카드 ' + target.cardModelName + '(' + target.pciSubsystemId + ') 전용입니다 — 이 서버에서는 RAID 카드가 감지되지 않았습니다.';
+    return null;
+  }
+  function raidUnverifiedCardReason(target, verdict) {
+    if (verdict === 'UNCOLLECTED') return '이 정의서는 RAID 카드 ' + target.cardModelName + ' 을 요구하는데 이 서버의 RAID 카드는 아직 확인되지 않았습니다.';
+    if (verdict === 'UNVERIFIABLE') return target.raidCardId === 'deleted' ? '정의서가 지정한 RAID 카드(#7)를 찾을 수 없어 이 서버의 카드와 대조할 수 없습니다.' : 'RAID 카드 ' + target.cardModelName + ' 에 PCI Subsystem 이 등록되지 않아 이 서버의 카드와 대조할 수 없습니다.';
+    return null;
+  }
+  // ── AssignmentBlockKind — 상수 선언 순서 = 판정 순서 ──
+  const RAID_KINDS = [
+    { key: 'DECOMMISSIONED', label: '회수', reasonFor: () => null },   // 데모에서 통과 고정
+    { key: 'BOARD_MISMATCH', label: '보드', reasonFor: ctx => ctx.board === 'diff'
+        ? '이 정의서는 메인보드 ' + RAID_REQUIRED_BOARD_DIFF + ' 전용입니다 — 이 서버는 ' + RAID_SERVER_BOARD + ' 입니다.' : null },
+    { key: 'RAID_CARD_MISMATCH', label: 'RAID 카드', reasonFor: ctx => raidBlockReason(ctx.target, ctx.inventory, raidCardVerdict(ctx.target, ctx.inventory)) },
+    { key: 'TEMPLATE_STALE', label: 'BIOS 템플릿', reasonFor: () => null }   // 데모에서 통과 고정
+  ];
+  function raidEvaluate(ctx) {
+    for (let i = 0; i < RAID_KINDS.length; i++) {
+      const reason = RAID_KINDS[i].reasonFor(ctx);
+      if (reason != null) return { index: i, kind: RAID_KINDS[i].key, reason: reason };
+    }
+    return null;
+  }
+  // ── AssignmentEligibility.unverifiedReason() — 보드 · 카드 합성 (데모는 보드를 늘 알고 있어 보드 몫은 null) ──
+  function raidUnverifiedReason(ctx) {
+    const parts = [null, raidUnverifiedCardReason(ctx.target, raidCardVerdict(ctx.target, ctx.inventory))].filter(p => p != null);
+    return parts.length ? parts.join(' ') : null;
+  }
+  function raidBlocks(state) {
+    const ctx = { target: RAID_DEFS[state.def].target, inventory: RAID_INVS[state.inv].inventory, board: state.board };
+    const block = raidEvaluate(ctx);
+    const verdict = raidCardVerdict(ctx.target, ctx.inventory);
+    const unverified = block ? null : raidUnverifiedReason(ctx);
+    const screen = block ? 'locked' : (unverified ? 'unverified' : 'ok');
+    return { ctx, block, verdict, unverified, screen };
+  }
+
+  const raid = { def: 'mega9361', inv: 'avago9361', board: 'same', anim: 0 };
+  const RAID_SCREEN = { ok: ['on', '가능'], unverified: ['dep', '대조 전'], locked: ['del', '잠김'] };
+  const RAID_VERDICT_BADGE = { NOT_APPLICABLE: 'off', UNVERIFIABLE: 'dep', UNCOLLECTED: 'dep', NOT_DETECTED: 'del', MISMATCH: 'del', MATCH: 'on' };
+  const RAID_PRESETS = {
+    1: { def: 'mega9361', inv: 'avago9361', board: 'same', expect: 'MATCH · 가능' },
+    2: { def: 'cra3338',  inv: 'avago9361', board: 'same', expect: 'MISMATCH · 잠김' },
+    3: { def: 'mega9361', inv: 'nocard',    board: 'same', expect: 'NOT_DETECTED · 잠김' },
+    4: { def: 'mega9361', inv: 'uncollected', board: 'same', expect: '대조 전(미수집 사유)' },
+    5: { def: 'deleted',  inv: 'avago9361', board: 'same', expect: 'UNVERIFIABLE · 대조 전(Subsystem 사유)' },
+    6: { def: 'cra3338',  inv: 'avago9361', board: 'diff', expect: '보드 사유만 표시' }
+  };
+  function raidSay(text, kind) {
+    const m = document.getElementById('raid-message');
+    m.className = 'ux-message' + (kind ? ' ' + kind : '');
+    m.textContent = text;
+  }
+  function raidSet(axis, value) { raid[axis] = value; raidRender(); raidSay('입력을 바꿨습니다 — 판정 순서가 처음부터 다시 켜집니다.', ''); }
+  function raidPreset(n) {
+    const p = RAID_PRESETS[n];
+    raid.def = p.def; raid.inv = p.inv; raid.board = p.board;
+    raidRender();
+    const r = raidBlocks(raid);
+    const shown = r.block ? r.block.kind + ' — ' + r.block.reason : (r.unverified ? '대조 전 — ' + r.unverified : '가능');
+    raidSay('시나리오 ' + n + ' · 기대: ' + p.expect + ' · 결과: ' + shown, r.screen === 'locked' ? 'error' : (r.screen === 'ok' ? 'success' : ''));
+  }
+  function raidPost() {
+    const r = raidBlocks(raid);
+    if (r.block) raidSay('(데모) direct POST → 409 Conflict — ' + r.block.reason, 'error');
+    else raidSay('(데모) direct POST → 200 OK — 할당됩니다.' + (r.unverified ? ' (대조 전: ' + r.unverified + ')' : ''), 'success');
+  }
+  function raidAssign() { raidSay('(데모) [할당] → 200 OK — 할당됩니다.', 'success'); }
+
+  function raidRenderOrder(r) {
+    const box = document.getElementById('raid-order');
+    const stopAt = r.block ? r.block.index : RAID_KINDS.length;
+    box.innerHTML = RAID_KINDS.map((k, i) =>
+      '<div class="ux-row muted" data-raid-step="' + i + '"><span class="label"><b>' + (i + 1) + '. ' + k.label + '</b> <code>' + k.key + '</code></span>' +
+      '<span class="badge off">대기</span></div>').join('');
+    const token = ++raid.anim;
+    RAID_KINDS.forEach((k, i) => setTimeout(() => {
+      if (token !== raid.anim) return;
+      const row = box.querySelector('[data-raid-step="' + i + '"]');
+      const badge = row.querySelector('.badge');
+      if (i < stopAt) { row.classList.remove('muted'); badge.className = 'badge on'; badge.textContent = '통과'; }
+      else if (i === stopAt) { row.classList.remove('muted'); badge.className = 'badge del'; badge.textContent = '차단 — 여기서 멈춤'; }
+      else { badge.className = 'badge off'; badge.textContent = '평가 안 함'; }
+    }, 160 * (i + 1)));
+  }
+  function raidRender() {
+    document.querySelectorAll('.ux-toolbar .seg[data-raid-def]').forEach(s => s.classList.toggle('active', s.dataset.raidDef === raid.def));
+    document.querySelectorAll('.ux-toolbar .seg[data-raid-inv]').forEach(s => s.classList.toggle('active', s.dataset.raidInv === raid.inv));
+    document.querySelectorAll('.ux-toolbar .seg[data-raid-board]').forEach(s => s.classList.toggle('active', s.dataset.raidBoard === raid.board));
+    const r = raidBlocks(raid);
+    raidRenderOrder(r);
+
+    // judge 결과 — 보드가 먼저 잠그면 카드 축까지 가지 않는다
+    const reached = !r.block || r.block.index >= 2;
+    const judgeText = !reached ? '평가 안 함 (보드에서 멈춤)' : (r.verdict === 'UNCOLLECTED' ? '(judge 전 분기) 미수집' : r.verdict);
+    const judgeEl = document.getElementById('raid-judge');
+    judgeEl.dataset.value = reached ? r.verdict : 'SKIPPED';
+    judgeEl.innerHTML = '<span class="badge ' + (reached ? RAID_VERDICT_BADGE[r.verdict] : 'off') + '">' + judgeText + '</span>';
+
+    const sc = RAID_SCREEN[r.screen];
+    const statusEl = document.getElementById('raid-status');
+    statusEl.dataset.value = sc[1];
+    statusEl.innerHTML = '<span class="badge ' + sc[0] + '">' + sc[1] + '</span>';
+
+    const tipAttr = r.block ? ' data-tip="' + r.block.reason + '"' : '';
+    document.getElementById('raid-submit-wrap').innerHTML =
+      '<span class="tip"' + tipAttr + '><button id="raid-submit" class="n-demo-btn"' + (r.block ? ' disabled' : ' style="background:var(--blue); color:var(--card);"') +
+      ' onclick="raidAssign()">할당</button></span> <button class="n-demo-btn" id="raid-post" onclick="raidPost()">direct POST</button>';
+
+    let expand;
+    if (r.block) expand = '<div class="callout danger" style="margin-top:0;"><b>이 서버에는 할당할 수 없습니다.</b><div>' + r.block.reason + '</div></div>';
+    else if (r.unverified) expand = '<div class="callout warn" style="margin-top:0;"><b>하드웨어를 대조하지 못했습니다.</b><div style="font-size:12px;">' + r.unverified + ' ' + RAID_TAIL + '</div></div>';
+    else expand = '<div class="callout success" style="margin-top:0;">경고 상자 없음 — 단계 카드만 펼쳐진다.</div>';
+    document.getElementById('raid-expand').innerHTML = expand;
+
+    const t = r.ctx.target, inv = r.ctx.inventory;
+    const tf = v => v ? '<span class="f">열림</span>' : '<span class="t">닫힘</span>';
+    document.getElementById('raid-caps').innerHTML =
+      '입력       = 정의서 ' + RAID_DEFS[raid.def].label + ' · 인벤토리 ' + RAID_INVS[raid.inv].label + ' · 메인보드 ' + (raid.board === 'same' ? '같음' : '다름') + '\n' +
+      'target     = ' + (t ? 'RaidConfigurationTarget(pciSubsystemId=' + t.pciSubsystemId + ', cardModelName=' + t.cardModelName + ')' : 'null (RAID 단계 없음)') + '\n' +
+      'inventory  = ' + (inv == null ? 'null (미수집)' : (inv.card ? 'RaidInventory(card=' + inv.card.model + ' · ' + inv.card.pciSubsystemId + ')' : 'RaidInventory(card=null)')) + '\n' +
+      'verdict    = ' + (r.verdict === 'UNCOLLECTED' ? '미수집 → judge 전 분기 (대조 전)' : 'RaidCardMatch.judge → ' + r.verdict) + '\n' +
+      'evaluate   = ' + (r.block ? r.block.kind + ' 에서 멈춤' : '차단 없음') + '\n' +
+      'unverifiedReason = ' + (r.unverified || 'null') + '\n' +
+      '[할당]     = ' + tf(!r.block) + '   direct POST = ' + (r.block ? '<span class="t">409</span>' : '<span class="f">200</span>');
+  }
+
+  raidSay('위 시나리오 버튼으로 재생하거나, 세 입력 줄을 바꿔 직접 판정을 확인하세요.', '');
+  demoRender(); raidRender();   // 파일 끝에서 1회 호출 (데모 두 벌)
+</script>
+</body>
+</html>

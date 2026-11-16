@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.controller;
 
 import com.example.serverprovision.global.web.list.ListDateRangeDefaults;
+import com.example.serverprovision.provisioning.assignment.dto.request.DefinitionPickerQuery;
 import com.example.serverprovision.global.web.list.dto.LookupChip;
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
 import com.example.serverprovision.execution.dto.request.ServerListQuery;
@@ -34,6 +35,7 @@ import com.example.serverprovision.provisioning.assignment.service.AssignmentSta
 import com.example.serverprovision.provisioning.group.dto.response.GroupBadgeResponse;
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
 import com.example.serverprovision.execution.dto.request.PurgeGuestServerRequest;
 import jakarta.validation.Valid;
@@ -249,12 +251,18 @@ public class GuestServerController {
      * 자체는 아무것도 바꾸지 않는다. 없는 게스트는 {@code assignmentForm} 이 404 로 끊는다.</p>
      */
     @GetMapping("/{id}/assignment/picker")
-    public String assignmentPicker(@PathVariable("id") UUID id, Model model) {
-        AssignmentFormResponse form =
-                assignmentQueryService.assignmentForm(id, settingQueryService.findAssignable());
+    public String assignmentPicker(@PathVariable("id") UUID id,
+                                   @ModelAttribute DefinitionPickerQuery query, Model model) {
+        // R20 — 이름 · 단계 · 등록 시각(비면 최근 1 년)은 세팅 정의서 목록과 같은 조건 · 같은 Specification 으로 거른다.
+        // 재검색도 같은 조각을 받고 화면은 결과 영역만 갈아끼운다.
+        DefinitionPickerQuery filled = query.withDefaultRange(rangeDefaults.addTo(model));
+        List<SettingSummaryResponse> universe = settingQueryService.findAssignable();
+        AssignmentFormResponse form = assignmentQueryService.assignmentForm(id,
+                settingQueryService.findAssignable(filled.toListQuery()));
         List<SettingDetailResponse> details = settingQueryService.findDetailsOf(
                 form.options().stream().map(DefinitionOptionResponse::id).toList());
-        model.addAttribute("picker", AssignmentPickerResponse.of(form, details));
+        model.addAttribute("pickerQuery", filled);
+        model.addAttribute("picker", AssignmentPickerResponse.of(form, details, filled, universe));
         return "fragments/provisioning/definition-picker :: picker";
     }
 

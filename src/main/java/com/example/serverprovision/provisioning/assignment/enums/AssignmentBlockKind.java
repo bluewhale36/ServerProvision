@@ -7,6 +7,7 @@ import com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibil
 import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
 
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
  * 세팅 정의서를 이 서버에 붙일 수 없게 만드는 것들 (U3-5-a) — 판정 순서가 곧 상수 선언 순서다.
@@ -60,6 +61,27 @@ public enum AssignmentBlockKind {
             return true;
         }
     },
+
+    /**
+     * 정의서의 RAID 구성 단계가 지정한 카드와 서버의 감지 카드가 다르거나 카드가 감지되지 않았다(R20) — 그대로 개시하면
+     * RAID 구성 phase 의 카드 대조(같은 {@code RaidCardMatch.judge})에서 실패한다.
+     */
+    RAID_CARD_MISMATCH {
+        @Override
+        public String reasonFor(AssignmentEligibility context) {
+            return context.raidCardBlockReason();
+        }
+
+        @Override
+        public RuntimeException toException(UUID guestServerId, String reason) {
+            return new DefinitionHardwareMismatchException(guestServerId, reason);
+        }
+
+        @Override
+        public boolean hardwareIncompatible() {
+            return true;
+        }
+    },
     /** 정의서의 BIOS 템플릿 값이 서버 보드의 레지스트리와 어긋난다(E3-3) — 그대로 집행하면 PATCH 가 거절된다. */
     TEMPLATE_STALE {
         @Override
@@ -98,7 +120,22 @@ public enum AssignmentBlockKind {
      * 운영자에게 보여줄 사유가 "지금 무엇 때문에 아무것도 할 수 없는가" 여야 하기 때문이다.</p>
      */
     public static AssignmentBlock evaluate(AssignmentEligibility context) {
+        return firstBlock(context, kind -> true);
+    }
+
+    /**
+     * 하드웨어 축({@link #hardwareIncompatible()})만 훑는다 — 이미 든 할당이 이 서버에서 실행 단계까지 갈 수 있는가(R20).
+     * 회수는 폼을 닫는 다른 사유이고, BIOS 템플릿 정합은 할당 시점의 데이터 품질이라 이 질문에 들지 않는다.
+     */
+    public static AssignmentBlock evaluateHardware(AssignmentEligibility context) {
+        return firstBlock(context, AssignmentBlockKind::hardwareIncompatible);
+    }
+
+    private static AssignmentBlock firstBlock(AssignmentEligibility context, Predicate<AssignmentBlockKind> considered) {
         for (AssignmentBlockKind kind : values()) {
+            if (!considered.test(kind)) {
+                continue;
+            }
             String reason = kind.reasonFor(context);
             if (reason != null) {
                 return new AssignmentBlock(kind, reason);

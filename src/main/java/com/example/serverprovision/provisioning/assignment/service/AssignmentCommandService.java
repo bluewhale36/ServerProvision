@@ -27,6 +27,7 @@ import com.example.serverprovision.provisioning.assignment.vo.OwnedPhases;
 import com.example.serverprovision.provisioning.assignment.vo.SourceDefinitionRef;
 import com.example.serverprovision.provisioning.biossetting.entity.BiosSettingTemplate;
 import com.example.serverprovision.provisioning.biossetting.repository.BiosSettingTemplateRepository;
+import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.BasicSettingRequest;
 import com.example.serverprovision.provisioning.setting.entity.SettingDefinition;
 import com.example.serverprovision.provisioning.setting.entity.SettingProcess;
@@ -76,6 +77,7 @@ public class AssignmentCommandService {
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final BoardModelRepository boardModelRepository;
     private final BiosTemplateStaleInspector staleInspector;
+    private final RaidCardRequirementReader raidCardReader;
 
     @Transactional
     public AssignmentResponse assign(UUID guestId, Long definitionId) {
@@ -149,20 +151,26 @@ public class AssignmentCommandService {
                 guest,
                 detail,
                 requiredBoardOf(definition),
-                staleInspector.reasonFor(definition.getId(), detail != null ? detail.getBoardModel().getId() : null));
+                staleInspector.reasonFor(definition.getId(), detail != null ? detail.getBoardModel().getId() : null),
+                raidCardReader.requiredOf(requestsOf(definition)),
+                raidCardReader.inventoryOf(detail));
         AssignmentBlock block = AssignmentBlockKind.evaluate(eligibility);
         if (block != null) {
             throw block.toException(guest.getId());
         }
     }
 
+    private static List<AbstractProcessRequest> requestsOf(SettingDefinition definition) {
+        return definition.getProcesses().stream()
+                .map(SettingProcess::getPayload)
+                .map(ProcessPayload::request)
+                .toList();
+    }
+
     /** 정의서가 요구하는 메인보드 — 보드명은 표시 문구에만 쓰이므로 필요할 때만 조회한다. */
     private RequiredBoardModel requiredBoardOf(SettingDefinition definition) {
-        List<ProcessPayload> payloads = definition.getProcesses().stream()
-                .map(SettingProcess::getPayload)
-                .toList();
         return RequiredBoardModel.from(
-                payloads.stream().map(ProcessPayload::request).toList(),
+                requestsOf(definition),
                 boardModelId -> boardModelRepository.findById(boardModelId)
                         .map(BoardModel::getModelName)
                         .orElse("등록되지 않은 보드"));

@@ -1,8 +1,14 @@
 package com.example.serverprovision.provisioning.assignment.vo;
 
+import com.example.serverprovision.execution.engine.raid.RaidCardMatch;
+import com.example.serverprovision.execution.engine.raid.RaidCardMatchVerdict;
+import com.example.serverprovision.execution.engine.raid.RaidInventory;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 할당 가능성 판정의 입력 묶음 (U3-5-a) — "이 서버" 와 "이 정의서가 요구하는 것" 을 나란히 든다.
@@ -20,17 +26,27 @@ import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
  * @param detail        서버가 실제로 가진 하드웨어. 아직 수집 전이면 {@code null}
  * @param requiredBoard 정의서가 요구하는 메인보드. 요구하지 않으면(AUTO 또는 해당 단계 없음) {@code null}
  * @param templateStaleReason 정의서의 BIOS 템플릿이 서버 보드 레지스트리와 어긋날 때의 문구(E3-3) — 정합이면 {@code null}
+ * @param requiredRaidCard 정의서의 RAID 구성 단계가 지정한 카드(R20) — 그 단계가 없으면 {@code null}
+ * @param raidInventory    서버에 저장된 RAID 인벤토리 — 수집 전이면 {@code null}
  */
 public record AssignmentEligibility(
         GuestServer server,
         GuestServerDetail detail,
         RequiredBoardModel requiredBoard,
-        String templateStaleReason
+        String templateStaleReason,
+        RequiredRaidCard requiredRaidCard,
+        RaidInventory raidInventory
 ) {
 
-    /** 레지스트리 대조가 없는 호출자(그룹 분류 등 U3-5-b 이전 시그니처)용. */
+    /** 레지스트리 · 카드 대조가 없는 호출자용. */
     public AssignmentEligibility(GuestServer server, GuestServerDetail detail, RequiredBoardModel requiredBoard) {
-        this(server, detail, requiredBoard, null);
+        this(server, detail, requiredBoard, null, null, null);
+    }
+
+    /** 카드 대조가 없는 호출자용. */
+    public AssignmentEligibility(GuestServer server, GuestServerDetail detail, RequiredBoardModel requiredBoard,
+                                 String templateStaleReason) {
+        this(server, detail, requiredBoard, templateStaleReason, null, null);
     }
 
     /** 서버가 보고한 메인보드 id — 수집 전이면 {@code null}. */
@@ -49,5 +65,67 @@ public record AssignmentEligibility(
      */
     public boolean boardUnverified() {
         return requiredBoard != null && serverBoardModelId() == null;
+    }
+
+    /**
+     * 카드 축 판정(R20) — 집행 · 개시 전 예고와 같은 {@link RaidCardMatch#judge}. 단 카드를 지정했고 Subsystem 도
+     * 있는데 인벤토리만 없으면 judge 를 부르지 않고 {@code null} 을 돌려준다. judge 는 인벤토리 없음을 "감지 못 함" 으로
+     * 보지만, 할당 시점의 미수집은 "아직 모름" 이라 막을 근거가 아니다.
+     */
+    public RaidCardMatchVerdict raidCardVerdict() {
+        if (raidCardUncollected()) {
+            return null;
+        }
+        return RaidCardMatch.judge(requiredRaidCard == null ? null : requiredRaidCard.toTarget(), raidInventory);
+    }
+
+    /** 카드가 맞지 않아 막을 문구 — 맞거나 대조할 수 없으면 {@code null}. 화면 잠김 사유이자 서버 409 사유. */
+    public String raidCardBlockReason() {
+        RaidCardMatchVerdict verdict = raidCardVerdict();
+        if (verdict == RaidCardMatchVerdict.MISMATCH) {
+            return "본 게스트 서버의 RAID 카드(" + detectedCardPhrase() + ")와 정의서의 RAID 카드("
+                    + requiredCardPhrase() + ")가 호환되지 않습니다.";
+        }
+        if (verdict == RaidCardMatchVerdict.NOT_DETECTED) {
+            return "본 게스트 서버에서 RAID 카드가 감지되지 않아 정의서의 RAID 카드(" + requiredCardPhrase()
+                    + ")와 호환되지 않습니다.";
+        }
+        return null;
+    }
+
+    /**
+     * 대조하지 못한 축의 문구 — 막지는 않되 조용히 넘어가지 않도록 화면이 표식을 단다. 모두 대조했으면 {@code null}.
+     * 축이 보드 · 카드 둘이라 고정 문구 대신 사유를 잇는다(보드는 알지만 RAID 인벤토리만 없는 서버가 있다).
+     */
+    public String unverifiedReason() {
+        List<String> reasons = new ArrayList<>();
+        if (boardUnverified()) {
+            reasons.add("이 정의서는 특정 메인보드를 요구하는데 이 서버의 하드웨어는 아직 수집 전입니다.");
+        }
+        if (raidCardUncollected()) {
+            reasons.add("이 정의서는 RAID 카드 " + requiredRaidCard.displayName()
+                    + " 전용인데 이 서버의 RAID 카드는 아직 확인되지 않았습니다.");
+        } else if (raidCardVerdict() == RaidCardMatchVerdict.UNVERIFIABLE) {
+            reasons.add(requiredRaidCard.registered()
+                    ? "RAID 카드 " + requiredRaidCard.modelName() + " 에 PCI Subsystem 이 등록되지 않아 이 서버의 카드와 대조할 수 없습니다."
+                    : "정의서가 지정한 RAID 카드(#" + requiredRaidCard.raidCardId() + ")를 찾을 수 없어 이 서버의 카드와 대조할 수 없습니다.");
+        }
+        return reasons.isEmpty() ? null : String.join(" ", reasons);
+    }
+
+    private boolean raidCardUncollected() {
+        return requiredRaidCard != null && requiredRaidCard.specified()
+                && requiredRaidCard.pciSubsystemId() != null && raidInventory == null;
+    }
+
+    /** 괄호 안에 들어갈 "모델, Subsystem" — 문장 틀은 보드 문구와 같다("본 게스트 서버의 …와 정의서의 …가 호환되지 않습니다"). */
+    private String requiredCardPhrase() {
+        return requiredRaidCard.displayName() + ", " + requiredRaidCard.pciSubsystemId();
+    }
+
+    private String detectedCardPhrase() {
+        String model = raidInventory.card().model();
+        String subsystem = raidInventory.card().pciSubsystemId();
+        return model == null || model.isBlank() ? subsystem : model + ", " + subsystem;
     }
 }
