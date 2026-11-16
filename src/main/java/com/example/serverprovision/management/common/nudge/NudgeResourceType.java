@@ -8,7 +8,7 @@ package com.example.serverprovision.management.common.nudge;
  * nudgeId 인가" 를 식별한다 — confirm 엔드포인트가 nudgeId 만으로 자기 자신의 도메인을 검증할
  * 수 있게 한다.</p>
  *
- * <p>WAVE 1 — 메타 단독 (file 없음) 도메인을 위해 {@link #OS_IMAGE} / {@link #BOARD_MODEL} 추가
+ * <p>WAVE 1 — 메타 단독 (file 없음) 도메인을 위해 {@link #OS_IMAGE} 추가(BOARD_MODEL 은 HF26 에서 메인보드 nudge 제거와 함께 삭제)
  * (MA7 에서 {@link #RAID_CARD} 합류). 이 타입들은 {@link NudgeSession.PendingPayload#tempFilePath()} /
  * {@code manifestHash()} 가 모두 null 이며, 도메인 메타는 {@code attributes} 맵으로 운반된다.</p>
  */
@@ -18,6 +18,5 @@ public enum NudgeResourceType {
 	SUBPROGRAM,
 	OS_ISO,
 	OS_IMAGE,
-	BOARD_MODEL,
 	RAID_CARD
 }

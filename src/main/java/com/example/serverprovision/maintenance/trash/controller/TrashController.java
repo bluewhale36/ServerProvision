@@ -245,7 +245,9 @@ public class TrashController {
 				ttlExtendable,
 				trashPolicy.getTtlDays(),
 				restoreBlock,
-				driftId
+				driftId,
+				// HF26 — 영구삭제 사전 차단. 서버 가드(scanner.purgeFromTrash → 도메인 purge)와 같은 판정을 SPI 로 공유
+				!ghost && scanner != null ? scanner.purgeBlockReason(m.getResourceId()) : null
 		);
 	}
 

@@ -70,7 +70,7 @@ class GuestServerControllerWindowsInstallViewTest {
         given(assignmentQueryService.assignmentForm(any(UUID.class), anyList()))
                 .willAnswer(invocation -> new AssignmentFormResponse(null,
                         invocation.<List<SettingSummaryResponse>>getArgument(1).stream()
-                                .map(summary -> new DefinitionOptionResponse(summary, null, false))
+                                .map(summary -> new DefinitionOptionResponse(summary, null, null))
                                 .toList()));
     }
 

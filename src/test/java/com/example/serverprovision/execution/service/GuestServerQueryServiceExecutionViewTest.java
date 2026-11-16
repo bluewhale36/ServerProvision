@@ -210,7 +210,7 @@ class GuestServerQueryServiceExecutionViewTest {
     @DisplayName("설정 축 국면 — 재부팅 뒤 접촉이 살아나면 'readback 대기', 원장 meta 가 유일한 재료다")
     void settingAxisReadbackStage() {
         ProvisioningHistory row = settingLedger.open(server, new BiosSettingTarget(Map.of("A", "B")), now.minusMinutes(3));
-        settingLedger.markRebooted(row, now.minusMinutes(2), "다음 부팅 PXE 강제 : 반영 확인, 재시작");
+        settingLedger.markRebooted(row, now.minusMinutes(2));
         server.touchSeen(now.minusMinutes(1));
 
         GuestServerDetailResponse detail = detailWith(

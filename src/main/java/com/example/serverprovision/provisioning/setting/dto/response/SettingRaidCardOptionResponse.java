@@ -5,7 +5,6 @@ import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import com.example.serverprovision.management.raidcard.vo.DrivesPerSpan;
 import com.example.serverprovision.management.raidcard.vo.MemberCountRule;
 
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +53,7 @@ public record SettingRaidCardOptionResponse(
 
     public static SettingRaidCardOptionResponse of(RaidCard card, String deprecatedAtDisplay) {
         Map<RaidLevel, String> blockReasons = new LinkedHashMap<>();
-        Arrays.stream(RaidLevel.values()).forEach(level -> {
+        RaidLevel.definableLevels().forEach(level -> {
             String reason = card.getSupportedRaidLevels().blockReasonFor(level);
             if (reason != null) {
                 blockReasons.put(level, reason);
@@ -80,8 +79,10 @@ public record SettingRaidCardOptionResponse(
 
     private static Map<RaidLevel, MemberRuleView> memberRulesOf(RaidCard card) {
         Map<RaidLevel, MemberRuleView> rules = new LinkedHashMap<>();
-        card.getSupportedRaidLevels().asSet().forEach(level -> rules.put(level, MemberRuleView.of(
-                card.getChipFamily().memberCountRule(level, card.hasCache(), null))));
+        card.getSupportedRaidLevels().asSet().stream()
+                .filter(RaidLevel::isDefinable)   // 정의서가 고르지 못하는 레벨(R17-2)은 규칙도 없다
+                .forEach(level -> rules.put(level, MemberRuleView.of(
+                        card.getChipFamily().memberCountRule(level, card.hasCache(), null))));
         return Map.copyOf(rules);
     }
 

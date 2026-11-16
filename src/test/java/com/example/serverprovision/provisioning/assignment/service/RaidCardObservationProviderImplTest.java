@@ -47,7 +47,8 @@ class RaidCardObservationProviderImplTest {
 
 	@BeforeEach
 	void setUp() {
-		provider = new RaidCardObservationProviderImpl(assignmentRepository, detailRepository, mapper);
+		provider = new RaidCardObservationProviderImpl(assignmentRepository, detailRepository,
+				new RaidCardRequirementReader(null, null, mapper));
 	}
 
 	private static GuestServer guest(UUID id, String name, String serial) {

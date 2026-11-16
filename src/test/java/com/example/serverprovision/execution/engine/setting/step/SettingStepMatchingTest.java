@@ -43,12 +43,12 @@ class SettingStepMatchingTest {
 
     private final SettingLedger ledger = new SettingLedger(null, JSON);
     private final SettingStepRegistry registry = new SettingStepRegistry(List.of(
-            new BeginBmcSettingStep(null, null, null, null, null, null),
-            new BeginSettingStep(null, null, null, null, null, null),
+            new BeginBmcSettingStep(null, null, null, null, null, null, null),
+            new BeginSettingStep(null, null, null, null, null, null, null, null),
             new FailNoBmcStep(null),
             new SkipNoTargetStep(null, null),
             new SkipOutOfSettingWindowStep(),
-            new ReconnectReadbackStep(ledger, null, null, null, null, null),
+            new ReconnectReadbackStep(ledger, null, null, null, null, null, null),
             new ReturnReadbackStep(ledger, null, null, null, null, null)));
 
     @Test

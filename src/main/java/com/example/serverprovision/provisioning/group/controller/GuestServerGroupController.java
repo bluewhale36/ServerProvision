@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.group.controller;
 
 import com.example.serverprovision.global.web.list.ListDateRangeDefaults;
+import com.example.serverprovision.provisioning.assignment.dto.request.DefinitionPickerQuery;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.provisioning.assignment.dto.response.BatchAssignResult;
 import com.example.serverprovision.provisioning.assignment.dto.response.GroupApplyPreviewResponse;
@@ -152,14 +153,18 @@ public class GuestServerGroupController {
      * 참조하지 않으며, 멤버 목록은 그룹 쪽에서 · 정의서는 setting 쪽에서 받아 판정에 넘긴다.</p>
      */
     @GetMapping("/{id}/assignment/picker")
-    public String assignmentPicker(@PathVariable Long id, Model model) {
+    public String assignmentPicker(@PathVariable Long id, @ModelAttribute DefinitionPickerQuery query, Model model) {
         GroupDetailResponse group = queryService.findDetail(id);
         List<GuestServerSummaryResponse> members = memberSummariesOf(group);
-        List<SettingSummaryResponse> assignable = settingQueryService.findAssignable();
-        List<GroupApplyPreviewResponse> previews = assignmentQueryService.groupPreview(members, assignable);
+        // R20 — 단건 모달과 같은 검색 조건. 이름 · 단계 · 등록 시각은 세팅 정의서 목록과 같은 Specification 으로 거른다.
+        DefinitionPickerQuery filled = query.withDefaultRange(rangeDefaults.addTo(model));
+        List<SettingSummaryResponse> universe = settingQueryService.findAssignable();
+        List<GroupApplyPreviewResponse> previews = assignmentQueryService.groupPreview(members,
+                settingQueryService.findAssignable(filled.toListQuery()));
         List<SettingDetailResponse> details = settingQueryService.findDetailsOf(
                 previews.stream().map(GroupApplyPreviewResponse::definitionId).toList());
-        model.addAttribute("picker", GroupPickerResponse.of(members.size(), previews, details));
+        model.addAttribute("pickerQuery", filled);
+        model.addAttribute("picker", GroupPickerResponse.of(members.size(), previews, details, filled, universe));
         return "fragments/provisioning/group-definition-picker :: picker";
     }
 

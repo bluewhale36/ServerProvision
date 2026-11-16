@@ -102,7 +102,7 @@ class GroupAssignmentServiceTest {
     void oneRejectionDoesNotStopTheRest() {
         given(assignmentCommandService.assign(eq(A), eq(DEFINITION))).willReturn(ok());
         willThrow(new DefinitionHardwareMismatchException(B,
-                "이 정의서는 메인보드 MS03-CE0 전용입니다 — 이 서버는 ASUS-Z13PE 입니다."))
+                "본 게스트 서버의 메인보드(ASUS-Z13PE)와 정의서의 메인보드(MS03-CE0)가 호환되지 않습니다."))
                 .given(assignmentCommandService).assign(eq(B), eq(DEFINITION));
         given(assignmentCommandService.assign(eq(C), eq(DEFINITION))).willReturn(ok());
 
@@ -126,7 +126,7 @@ class GroupAssignmentServiceTest {
     @Test
     @DisplayName("경합으로 빠진 멤버는 수로 집계한다 — 사유 문장을 나열하지 않는다")
     void raceSkipsAreCountedNotListed() {
-        String reason = "이 정의서는 메인보드 MS03-CE0 전용입니다 — 이 서버는 ASUS-Z13PE 입니다.";
+        String reason = "본 게스트 서버의 메인보드(ASUS-Z13PE)와 정의서의 메인보드(MS03-CE0)가 호환되지 않습니다.";
         willThrow(new DefinitionHardwareMismatchException(A, reason))
                 .given(assignmentCommandService).assign(eq(A), eq(DEFINITION));
         willThrow(new DuplicateActiveAssignmentException(B))

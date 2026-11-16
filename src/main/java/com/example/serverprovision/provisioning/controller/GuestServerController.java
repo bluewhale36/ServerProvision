@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.controller;
 
 import com.example.serverprovision.global.web.list.ListDateRangeDefaults;
+import com.example.serverprovision.provisioning.assignment.dto.request.DefinitionPickerQuery;
 import com.example.serverprovision.global.web.list.dto.LookupChip;
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
 import com.example.serverprovision.execution.dto.request.ServerListQuery;
@@ -34,6 +35,7 @@ import com.example.serverprovision.provisioning.assignment.service.AssignmentSta
 import com.example.serverprovision.provisioning.group.dto.response.GroupBadgeResponse;
 import com.example.serverprovision.provisioning.group.service.GuestServerGroupQueryService;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
 import com.example.serverprovision.execution.dto.request.PurgeGuestServerRequest;
 import jakarta.validation.Valid;
@@ -80,7 +82,7 @@ public class GuestServerController {
 
     private final GuestServerQueryService guestServerQueryService;
     private final GuestServerCommandService guestServerCommandService;
-    private final com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 — 재시도 후 네트워크 부팅
+    private final com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 · HF24 — 재시도 후 전원 켜기
     private final AssignmentCommandService assignmentCommandService;
     private final AssignmentQueryService assignmentQueryService;
     private final AssignmentStartService assignmentStartService;
@@ -249,12 +251,18 @@ public class GuestServerController {
      * 자체는 아무것도 바꾸지 않는다. 없는 게스트는 {@code assignmentForm} 이 404 로 끊는다.</p>
      */
     @GetMapping("/{id}/assignment/picker")
-    public String assignmentPicker(@PathVariable("id") UUID id, Model model) {
-        AssignmentFormResponse form =
-                assignmentQueryService.assignmentForm(id, settingQueryService.findAssignable());
+    public String assignmentPicker(@PathVariable("id") UUID id,
+                                   @ModelAttribute DefinitionPickerQuery query, Model model) {
+        // R20 — 이름 · 단계 · 등록 시각(비면 최근 1 년)은 세팅 정의서 목록과 같은 조건 · 같은 Specification 으로 거른다.
+        // 재검색도 같은 조각을 받고 화면은 결과 영역만 갈아끼운다.
+        DefinitionPickerQuery filled = query.withDefaultRange(rangeDefaults.addTo(model));
+        List<SettingSummaryResponse> universe = settingQueryService.findAssignable();
+        AssignmentFormResponse form = assignmentQueryService.assignmentForm(id,
+                settingQueryService.findAssignable(filled.toListQuery()));
         List<SettingDetailResponse> details = settingQueryService.findDetailsOf(
                 form.options().stream().map(DefinitionOptionResponse::id).toList());
-        model.addAttribute("picker", AssignmentPickerResponse.of(form, details));
+        model.addAttribute("pickerQuery", filled);
+        model.addAttribute("picker", AssignmentPickerResponse.of(form, details, filled, universe));
         return "fragments/provisioning/definition-picker :: picker";
     }
 
@@ -319,16 +327,16 @@ public class GuestServerController {
     }
 
     /**
-     * 재시도 + 네트워크 부팅(HF15-1 · 실기 3호 O-10) — 재시도는 커서를 되돌릴 뿐 전원을 움직이지 않는데, 운영자가 그 뒤에
-     * 예외 없이 하는 일이 네트워크 부팅이다. 기본 [재시도] 는 전원 중립으로 두고(그 사이 배선이 바뀌었을 수 있다 — 사용자
-     * 판단), 이 액션만 재시도 뒤 PXE 보장 무장 + On/ForceRestart 를 잇는다. 전원 결과는 flash 로 알린다(실패도 결과).
+     * 재시도 + 전원 켜기(HF15-1 · 실기 3호 O-10, HF24 에서 무장 제거) — 재시도는 커서를 되돌릴 뿐 전원을 움직이지 않는데,
+     * 운영자가 그 뒤에 예외 없이 하는 일이 전원 넣기다. 기본 [재시도] 는 전원 중립으로 두고(그 사이 배선이 바뀌었을 수 있다 —
+     * 사용자 판단), 이 액션만 재시도 뒤 On/ForceRestart 를 잇는다. 전원 결과는 flash 로 알린다(실패도 결과).
      */
     @PostMapping("/{id}/retry-boot")
-    public String retryAndNetworkBoot(@PathVariable("id") UUID id,
+    public String retryAndPowerOn(@PathVariable("id") UUID id,
                                       org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
         guestServerCommandService.retry(id);
         com.example.serverprovision.global.redfish.PowerControlResult power =
-                redfishPowerService.networkBoot(guestServerQueryService.findDetail(id).redfishTarget());
+                redfishPowerService.powerOnOrRestart(guestServerQueryService.findDetail(id).redfishTarget());
         redirectAttributes.addFlashAttribute("flashMessage", power.retryBootNotice());
         redirectAttributes.addFlashAttribute("flashTone", power.retryBootTone().getCssClass());
         return "redirect:/provisioning/server/" + id;

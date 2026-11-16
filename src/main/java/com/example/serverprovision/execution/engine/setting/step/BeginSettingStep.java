@@ -7,9 +7,7 @@ import com.example.serverprovision.execution.engine.setting.BiosRegistryCaptureP
 import com.example.serverprovision.execution.engine.setting.RegistryCheck;
 import com.example.serverprovision.execution.engine.setting.SettingLedger;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
-import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.service.BmcIdentityProbe;
-import com.example.serverprovision.global.redfish.NextBoot;
 import com.example.serverprovision.global.redfish.PowerControlResult;
 import com.example.serverprovision.global.redfish.RedfishBiosService;
 import com.example.serverprovision.global.redfish.RedfishPowerService;
@@ -22,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
@@ -41,6 +41,8 @@ public class BeginSettingStep implements SettingStep {
     private final RedfishPowerService powerService;
     private final FlashTimeoutPolicy timeoutPolicy;
     private final BiosRegistryCapturePort registryPort;
+    private final SettingFailure failure;
+    private final Clock clock;
 
     @Override
     public int order() {
@@ -61,13 +63,12 @@ public class BeginSettingStep implements SettingStep {
         BmcIdentity identity = identityProbe.probe(context.provider(), target,
                 context.detail().getBoardSerial(), context.detail(), "setting");
         if (identity == BmcIdentity.MISMATCHED) {
-            fail(context, resumed, SettingLedger.IDENTITY_MISMATCH, "응답한 장비의 보드 시리얼이 이 서버와 다릅니다");
+            failure.fail(context, resumed, SettingLedger.IDENTITY_MISMATCH, "응답한 장비의 보드 시리얼이 이 서버와 다릅니다");
             return;
         }
         if (identity == BmcIdentity.UNREACHABLE) {
-            if (timeoutPolicy.isExpired(context.progress().getLastTransitionAt(), timeoutPolicy.returnLimit(),
-                    context.now())) {
-                fail(context, resumed, SettingLedger.BMC_UNREACHABLE, "BMC 에 닿지 못했고 새 주소도 찾지 못했습니다");
+            if (timeoutPolicy.isExpired(context.attemptSince(), timeoutPolicy.returnLimit(), context.now())) {
+                failure.fail(context, resumed, SettingLedger.BMC_UNREACHABLE, "BMC 에 닿지 못했고 새 주소도 찾지 못했습니다");
                 return;
             }
             // 침묵 대기의 흔적(E2-4 R6) — 원장 행 없이 기다리는 구간이 로그에도 안 남아 20분이 통째로 어두웠다.
@@ -83,17 +84,13 @@ public class BeginSettingStep implements SettingStep {
         RegistryCheck check = registryPort.captureAndCheck(context.server().getId(), target, attributes);
         if (check.hasViolations()) {
             String detail = "BIOS 설정 템플릿이 이 보드의 BIOS(" + check.biosVersion() + ")와 맞지 않습니다: " + String.join(", ", check.violations());
-            ledger.close(row, ProvisioningStatus.FAILED, SettingLedger.VALUE_NOT_IN_REGISTRY, detail, context.now());
-            context.progress().markFailed(context.now());
-            log.warn("[setting] {} — 레지스트리 대조 실패, PATCH 생략 : {}", context.server().getId(), detail);
+            failure.close(context, row, SettingLedger.VALUE_NOT_IN_REGISTRY, detail);   // PATCH 없이 닫는다
             return;
         }
         try {
             biosService.patchPending(target, attributes);
         } catch (RedfishRequestException e) {
-            ledger.close(row, ProvisioningStatus.FAILED, SettingLedger.PATCH_REJECTED, e.getMessage(), context.now());
-            context.progress().markFailed(context.now());
-            log.warn("[setting] {} — PATCH 거절 : {}", context.server().getId(), e.getMessage());
+            failure.close(context, row, SettingLedger.PATCH_REJECTED, e.getMessage());
             return;
         }
         boolean pendingSeen = biosService.pending(target)
@@ -103,27 +100,20 @@ public class BeginSettingStep implements SettingStep {
 
         RedfishResetType reset = powerService.powerState(target).powerState() == RedfishPowerState.OFF
                 ? RedfishResetType.ON : RedfishResetType.FORCE_RESTART;
-        // 재부팅 직전 다음 부팅을 PXE 로 무장한다(E2.5 · HF17 Once 회귀). 설정 적용의 내부 재시작이 이 Once 를 소비하면(F-2)
-        // 게스트가 돌아오지 않는데, 그 경우는 ReturnReadbackStep 의 미도착 재무장이 한 번 더 세워 켠다.
-        PowerControlResult result = powerService.reset(target, reset, NextBoot.PXE_ONCE);
+        // HF24 — 다음 부팅을 무장하지 않는다. 설정 적용의 내부 재시작까지 끝나면 공장 부트 순서대로 네트워크로 돌아온다.
+        PowerControlResult result = powerService.reset(target, reset);
         if (result.kind() == PowerControlResult.Kind.FAILED) {
             log.info("[setting] {} — 재부팅 명령 실패, 다음 주기 재시도 : {}", context.server().getId(), result.message());
             return;   // 행은 rebootAt 없이 남는다 — 다음 주기가 이 행을 이어 다시 한다
         }
-        ledger.markRebooted(row, context.now(), result.message());   // 무장 결과를 같은 행 meta 가 든다(E2-4 Q4)
+        // HF25 — 주기 시작 시각이 아니라 재시작 명령이 성공한 뒤의 시각을 적는다. 그 전에 iPXE 대기 루프가 보낸 /boot 가
+        // 재부팅 복귀로 읽히던 것(10~11 월 READBACK_MISMATCH 7 건, 36~48 초 만의 가짜 복귀)을 막는다.
+        ledger.markRebooted(row, LocalDateTime.now(clock));
         log.info("[setting] {} — BIOS 설정 {}개 PATCH(pending {}), {} 발행 : {}", context.server().getId(),
                 attributes.size(), pendingSeen ? "확인" : "미확인", reset.name(), result.message());
     }
 
     private static boolean covers(JsonNode pending, Map<String, Object> attributes) {
         return attributes.entrySet().stream().allMatch(e -> ReadbackValues.same(pending.get(e.getKey()), e.getValue()));
-    }
-
-    private void fail(SettingContext context, Optional<ProvisioningHistory> row, String reason, String detail) {
-        row.ifPresentOrElse(
-                r -> { ledger.close(r, ProvisioningStatus.FAILED, reason, detail, context.now());
-                       context.progress().markFailed(context.now()); },
-                () -> ledger.failAtCursor(context.server(), context.progress(), reason, detail, context.now()));
-        log.warn("[setting] {} — {} : {}", context.server().getId(), reason, detail);
     }
 }

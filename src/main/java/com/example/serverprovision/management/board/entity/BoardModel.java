@@ -19,7 +19,10 @@ import lombok.experimental.SuperBuilder;
  * 도메인 cascade 가 다르므로 Service 레이어가 처리한다 (super 의 {@code softDelete} override 하지 않음).</p>
  */
 @Entity
-@Table(name = "board_model")
+// HF26 — (제조사, 모델명) 이 메인보드의 정체다. 제조사가 다르면 같은 모델명을 허용하고, 휴지통 행도 정체를 점유한다
+// (같은 모델은 새로 등록하지 않고 복구한다). PXE 등록의 단건 조회가 이 유일성에 기댄다.
+@Table(name = "board_model",
+		uniqueConstraints = @UniqueConstraint(name = "uk_board_model_vendor_model_name", columnNames = {"vendor", "model_name"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SuperBuilder

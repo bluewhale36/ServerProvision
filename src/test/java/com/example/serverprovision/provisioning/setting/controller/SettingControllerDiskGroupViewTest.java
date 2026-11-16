@@ -203,6 +203,8 @@ class SettingControllerDiskGroupViewTest {
                 .andExpect(content().string(containsString("memberRules")))
                 .andExpect(content().string(containsString("dgSpan")))
                 .andExpect(content().string(containsString("<option value=\"32\">32</option>")))
+                // R17-2 — 정의서 레벨 선택지는 RAID0 · 1 · 5 · 6 · 10 만(RAID00 · 50 · 60 은 카드 정보로만)
+                .andExpect(model().attribute("raidLevels", RaidLevel.definableLevels()))
                 .andExpect(content().string(containsString("tplDiskGroupRow")))
                 // E3.5-6 — VD 파라미터 서브 행 템플릿 · 8축 select · 메타의 supportsVdParameters 렌더
                 .andExpect(content().string(containsString("tplVdParamsRow")))

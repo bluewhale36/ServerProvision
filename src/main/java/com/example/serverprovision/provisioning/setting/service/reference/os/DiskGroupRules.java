@@ -131,6 +131,10 @@ public final class DiskGroupRules {
     }
 
     private static void validateRaidRule(int ruleNo, DiskGroupRuleRequest rule, RaidCard card) {
+        // 카드 등록 정보로만 남는 레벨(RAID00 · 50 · 60 — R17-2) — 폼은 선택지에 내지 않는다. 카드 유무와 무관하게 거른다
+        if (!rule.raidLevel().isDefinable()) {
+            throw InvalidDiskGroupException.levelNotDefinable(ruleNo, rule.raidLevel());
+        }
         if (card == null) {
             return; // 카드 요구 방향은 @AssertTrue 가 이미 보고했다.
         }

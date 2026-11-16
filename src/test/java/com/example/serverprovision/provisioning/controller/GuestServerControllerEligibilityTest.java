@@ -59,7 +59,7 @@ class GuestServerControllerEligibilityTest {
 
     private static final Long DEF_ID = 5L;
     private static final String BOARD_MISMATCH =
-            "이 정의서는 메인보드 MS03-CE0 전용입니다: 이 서버는 X11SPM 입니다.";
+            "본 게스트 서버의 메인보드(X11SPM)와 정의서의 메인보드(MS03-CE0)가 호환되지 않습니다.";
     private static final String DECOMMISSIONED = "회수된 서버에는 세팅 정의서를 할당할 수 없습니다.";
 
     private String assignUrl(UUID id) {
@@ -130,6 +130,41 @@ class GuestServerControllerEligibilityTest {
                         .accept(MediaType.APPLICATION_JSON)
                         .content("{\"definitionId\":5}"))
                 .andExpect(status().isConflict());
+    }
+
+    // ==== 409 — RAID 카드 불일치(R20) ==================================
+
+    private static final String RAID_CARD_MISMATCH =
+            "본 게스트 서버의 RAID 카드(SAS3008, 1458:3008)와 정의서의 RAID 카드(MegaRAID 9361-8i, 1000:9361)가 호환되지 않습니다.";
+
+    @Test
+    @DisplayName("R20 POST /assignment — 카드가 맞지 않는 정의서를 직접 실어 보내면 409 + 지정 · 감지 카드를 함께 알린다")
+    void assign_raidCardMismatch_returns409() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(assignmentCommandService.assign(eq(id), eq(DEF_ID)))
+                .willThrow(new DefinitionHardwareMismatchException(id, RAID_CARD_MISMATCH));
+
+        mvc.perform(post(assignUrl(id))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .content("{\"definitionId\":5}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(RAID_CARD_MISMATCH));
+    }
+
+    @Test
+    @DisplayName("R20 POST /assignment/reassign — 카드 불일치 direct POST → 409 + 같은 사유")
+    void reassign_raidCardMismatch_returns409() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(assignmentCommandService.reassign(eq(id), eq(DEF_ID)))
+                .willThrow(new DefinitionHardwareMismatchException(id, RAID_CARD_MISMATCH));
+
+        mvc.perform(post(reassignUrl(id))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .content("{\"definitionId\":5}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(RAID_CARD_MISMATCH));
     }
 
     // ==== 409 — BIOS 템플릿 드리프트(E3-3 신규 예외 시나리오) ==========================

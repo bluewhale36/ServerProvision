@@ -82,7 +82,7 @@ class GuestServerGroupControllerBatchAssignTest {
     private static final UUID SRV_OK = UUID.randomUUID();
     private static final UUID SRV_BLOCKED = UUID.randomUUID();
     private static final String MISMATCH =
-            "이 정의서는 메인보드 MS03-CE0 전용입니다 — 이 서버는 ASUS-Z13PE 입니다.";
+            "본 게스트 서버의 메인보드(ASUS-Z13PE)와 정의서의 메인보드(MS03-CE0)가 호환되지 않습니다.";
 
     @BeforeEach
     void stubAssignedDefinitions() {
@@ -107,7 +107,7 @@ class GuestServerGroupControllerBatchAssignTest {
 
     private static SettingSummaryResponse summary(long id, String name) {
         return new SettingSummaryResponse(id, name, List.of(SettingProcessType.BASIC_UPDATE),
-                false, true, false, LocalDateTime.now(), null, null);
+                false, true, false, com.example.serverprovision.support.FixedClockTestConfig.TODAY.atTime(9, 0), null, null);   // R20 — 기본 기간(최근 1 년) 안
     }
 
     /** 단계 하나를 실은 상세 — 우측 패널이 카드 조각을 실제로 그리는지 보려면 빈 목록으로는 안 된다. */
@@ -172,9 +172,41 @@ class GuestServerGroupControllerBatchAssignTest {
                 .andExpect(status().isOk())
                 // 목록에서 지우지 않는다 — 사라지면 왜 안 되는지 알 수 없다
                 .andExpect(content().string(containsString(">bios-ms03<")))
-                .andExpect(content().string(containsString("n-miller-item-disabled")))
+                .andExpect(content().string(containsString("n-lookup-row-disabled")))
                 .andExpect(content().string(containsString("이 그룹의 어떤 서버에도 할당할 수 없습니다")))
                 .andExpect(content().string(containsString(MISMATCH)));
+    }
+
+    @Test
+    @DisplayName("R20 · 그룹 picker — 검색칸 · 조회 조건 창 · 적용 대상 열 머리(멤버 수), 목록 조건을 서비스에 넘긴다")
+    void picker_bandPanelAndListQuery() throws Exception {
+        givenTwoMemberGroup();
+        givenTwoDefinitions();
+
+        mvc.perform(get("/provisioning/server-group/{id}/assignment/picker", GROUP).param("q", "bios"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-picker-q")))
+                .andExpect(content().string(containsString("popovertarget=\"definitionPickerFilter\"")))
+                .andExpect(content().string(containsString("할당 가능한 것만")))
+                .andExpect(content().string(containsString("적용 대상 (멤버 2 대)")));
+
+        org.mockito.ArgumentCaptor<com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery> captor =
+                org.mockito.ArgumentCaptor.forClass(com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery.class);
+        org.mockito.Mockito.verify(settingQueryService).findAssignable(captor.capture());
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().q()).isEqualTo("bios");
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().from()).isEqualTo(java.time.LocalDate.of(2025, 10, 11));
+    }
+
+    @Test
+    @DisplayName("R20 · 그룹 picker — 할당 가능한 것만 켜면 아무에게도 안 붙는 정의서가 빠진다")
+    void picker_assignableOnlyHidesNobodyDefinitions() throws Exception {
+        givenTwoMemberGroup();
+        givenTwoDefinitions();
+
+        mvc.perform(get("/provisioning/server-group/{id}/assignment/picker", GROUP).param("assignableOnly", "true"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(">os-only-auto<")))
+                .andExpect(content().string(not(containsString(">bios-ms03<"))));
     }
 
     @Test

@@ -4,15 +4,12 @@ import com.example.serverprovision.execution.engine.firmware.BmcIdentityGuard;
 import com.example.serverprovision.execution.engine.firmware.FirmwareAxis;
 import com.example.serverprovision.execution.engine.firmware.FlashLedger;
 import com.example.serverprovision.execution.engine.firmware.FlashTimeoutPolicy;
-import com.example.serverprovision.global.redfish.NextBoot;
 import com.example.serverprovision.global.redfish.PowerControlResult;
 import com.example.serverprovision.global.redfish.RedfishPowerService;
 import com.example.serverprovision.global.redfish.RedfishPowerState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
-import java.time.Duration;
 
 /**
  * 6 · 7행 — 축이 전부 끝났고 게스트가 아직 돌아오지 않았다(E2-2 §5). 전원을 넣고 기다린다.
@@ -25,8 +22,8 @@ import java.time.Duration;
  * 재기동하며 5~10분 사라졌다 돌아온다 — 이 시퀀스에서 주소가 바뀔 가능성이 가장 높은 순간이다.
  * 전원 투입은 되돌릴 수 없는 조작이므로 신원을 먼저 확인한다(D-11).</p>
  *
- * <p>HF17 — 켜졌는데 {@link FlashTimeoutPolicy#pxeRearmDelay()} 안에 {@code /boot} 가 없으면 Once 를 다시 세워 한 번 더
- * 켠다(복귀 대기 한 번에 한 번). BIOS flash 뒤 첫 POST 가 내부 재시작을 하는지는 미실측이라 설정 step 과 같은 규칙을 둔다.</p>
+ * <p>HF24 — 다음 부팅을 무장하지 않고 전원만 넣는다. 빈 디스크의 서버는 공장 부트 순서대로 네트워크로 부팅해 돌아오고,
+ * 굽기 뒤 BIOS 가 스스로 하는 재시작도 끊지 않고 기다린다. 복귀 시한을 넘기면 실패로 닫는다.</p>
  */
 @Slf4j
 @Component
@@ -59,39 +56,14 @@ public class PowerOnStep implements FlashStep {
             return;
         }
         if (powerService.powerState(context.target()).powerState() == RedfishPowerState.ON) {
-            rearmIfOverdue(context);   // 이미 켜져 있다 — 돌아오기를 기다리되, 너무 오래 없으면 한 번 다시 세운다(HF17).
-            return;
+            return;   // 이미 켜져 있다 — 복귀 시한까지 돌아오기를 기다린다
         }
-        // 전원 투입 직전 다음 부팅을 PXE 로 무장한다(E2.5 · HF17 Once) — 부트 순서가 디스크 1순위여도 게스트가 돌아온다.
-        PowerControlResult result = powerService.powerOnAndVerify(context.target(), NextBoot.PXE_ONCE);
+        PowerControlResult result = powerService.powerOnAndVerify(context.target());
         if (result.kind() == PowerControlResult.Kind.VERIFIED) {
-            // 되돌릴 수 없는 일회 사건의 감사 기록(E2-4 Q4) — detail 에 무장(BootSourceOverride) 결과가 실린다.
+            // 되돌릴 수 없는 일회 사건의 감사 기록(E2-4 Q4).
             ledger.instantPower(context.server(), context.progress().getCurrentStep(),
                     FlashLedger.POWER_ON, result.message(), context.now());
         }
         log.info("[flash] {} — 굽기 완료, 전원 투입 : {}", context.server().getId(), result.message());
-    }
-
-    /**
-     * 미도착 재무장(HF17) — 복귀 기점 뒤 재무장 지연이 지났고 이번 대기에서 아직 재무장하지 않았으면 Once 를 다시 세워
-     * 재시작한다. 사건 행({@link FlashLedger#PXE_REARM})이 그 사실과 새 복귀 기점을 함께 든다. 명령 실패는 다음 주기가 다시 시도한다.
-     */
-    private void rearmIfOverdue(FlashContext context) {
-        if (context.pxeRearmedSinceWait()) {
-            return;
-        }
-        Duration delay = timeoutPolicy.pxeRearmDelay();
-        if (!timeoutPolicy.isExpired(context.returnWaitSince(), delay, context.now())) {
-            return;
-        }
-        PowerControlResult result = powerService.networkBoot(context.target());
-        if (result.kind() == PowerControlResult.Kind.FAILED) {
-            log.info("[flash] {} — PXE 미도착 재무장 실패, 다음 주기 재시도 : {}", context.server().getId(), result.message());
-            return;
-        }
-        ledger.instantPower(context.server(), context.progress().getCurrentStep(),
-                FlashLedger.PXE_REARM, result.message(), context.now());
-        log.info("[flash] {} — 전원 투입 뒤 {}분 동안 PXE 미도착 → Once 재무장 + 재시작 : {}",
-                context.server().getId(), delay.toMinutes(), result.message());
     }
 }

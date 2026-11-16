@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -28,10 +29,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 /**
- * S18 — 가입 화면 · 제출의 HTTP 계층. 인가(SignupAccessPolicy)는 필터 몫이라 여기 없다 — 모드 선택 · 검증 재렌더 · 중복 1차 차단 ·
+ * S18 · MA8 — 최초 계정 등록(/signup) 화면 · 제출의 HTTP 계층. MA8 부터 /signup 은 부트스트랩 전용이다(관리 생성은
+ * {@code UserManagementControllerTest}). 인가(SignupAccessPolicy)는 필터 몫이라 여기 없다 — 검증 재렌더 · 중복 1차 차단 ·
  * 안전망 예외의 필드 매핑 · 성공 이동을 본다. Mocking 은 서비스까지.
  */
 @WebMvcTest(controllers = UsersController.class)
+@Import(SignupSubmission.class)
 class UsersControllerTest {
 
 	@Autowired MockMvc mvc;
@@ -41,43 +44,34 @@ class UsersControllerTest {
 	// ==== 화면 ====================================================
 
 	@Test
-	@DisplayName("GET /signup — 관리자 부재면 부트스트랩 뷰(역할 없음 · 관리자 등록) · 있으면 관리자 모드 뷰(역할 · 초기 비밀번호)")
-	void form_byMode() throws Exception {
-		given(usersService.bootstrapOpen()).willReturn(true);
+	@DisplayName("GET /signup — 부트스트랩 뷰(등급 선택 없음 · 최고 관리자 안내 · 제출 대상 /signup)")
+	void form_bootstrap() throws Exception {
 		mvc.perform(get("/signup"))
 				.andExpect(status().isOk())
 				.andExpect(view().name("security/signup-bootstrap"))
-				.andExpect(model().attribute("signupMode", SignupMode.BOOTSTRAP_ADMIN))
+				.andExpect(model().attribute("signupMode", SignupMode.BOOTSTRAP))
 				.andExpect(content().string(containsString("최초 관리자 등록")))
+				.andExpect(content().string(containsString("최고 관리자가 됩니다")))
+				.andExpect(content().string(containsString("action=\"/signup\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("role-ADMIN"))));
-
-		given(usersService.bootstrapOpen()).willReturn(false);
-		mvc.perform(get("/signup"))
-				.andExpect(status().isOk())
-				.andExpect(view().name("security/signup"))
-				.andExpect(content().string(containsString("role-ADMIN")))
-				.andExpect(content().string(containsString("초기 비밀번호")));
 	}
 
 	// ==== 400 — 검증 재렌더 ====================================================
 
 	@Test
-	@DisplayName("400 — 빈 제출(관리자 모드): 아이디 · 비밀번호 · 확인 · 이름 · 역할 5 필드에 각 1 메시지 · 서비스 미호출")
-	void submit_blank_fiveFieldErrors() throws Exception {
-		given(usersService.bootstrapOpen()).willReturn(false);
+	@DisplayName("400 — 빈 제출: 아이디 · 비밀번호 · 확인 · 이름 4 필드에 각 1 메시지(부트스트랩은 등급을 묻지 않는다) · 서비스 미호출")
+	void submit_blank_fourFieldErrors() throws Exception {
 		mvc.perform(post("/signup").param("username", "").param("password", "").param("retypedPassword", "").param("name", ""))
 				.andExpect(status().isBadRequest())
-				.andExpect(view().name("security/signup"))
-				.andExpect(model().attributeHasFieldErrors("signUpForm", "username", "password", "retypedPassword", "name", "roles"))
-				.andExpect(model().attributeErrorCount("signUpForm", 5))
-				.andExpect(content().string(containsString("역할을 하나 이상 골라야 합니다.")));
+				.andExpect(view().name("security/signup-bootstrap"))
+				.andExpect(model().attributeHasFieldErrors("signUpForm", "username", "password", "retypedPassword", "name"))
+				.andExpect(model().attributeErrorCount("signUpForm", 4));
 		verify(usersService, never()).signup(any(), any());
 	}
 
 	@Test
 	@DisplayName("400 — 비밀번호 규칙 위반(한글) · 불일치(passwordConfirmed) · 아이디 65자")
 	void submit_ruleViolations() throws Exception {
-		given(usersService.bootstrapOpen()).willReturn(true);
 		mvc.perform(post("/signup").param("username", "a".repeat(65)).param("password", "한글비밀번호1!")
 						.param("retypedPassword", "Other1234!").param("name", "홍길동"))
 				.andExpect(status().isBadRequest())
@@ -88,9 +82,8 @@ class UsersControllerTest {
 	}
 
 	@Test
-	@DisplayName("400 — 중복 아이디는 컨트롤러가 usernameTaken 으로 먼저 막는다(UI 1차 차단) · 서비스 미호출")
+	@DisplayName("400 — 중복 아이디는 usernameTaken 으로 먼저 막는다(UI 1차 차단) · 서비스 미호출")
 	void submit_duplicate_blockedBeforeService() throws Exception {
-		given(usersService.bootstrapOpen()).willReturn(true);
 		given(usersService.usernameTaken("admin")).willReturn(true);
 		mvc.perform(post("/signup").param("username", "admin").param("password", "Passw0rd!")
 						.param("retypedPassword", "Passw0rd!").param("name", "관리자"))
@@ -100,27 +93,13 @@ class UsersControllerTest {
 		verify(usersService, never()).signup(any(), any());
 	}
 
-	@Test
-	@DisplayName("400 — 역할값 위조(roles=NOPE) 는 바인딩 단계에서 끊긴다")
-	void submit_forgedRole() throws Exception {
-		given(usersService.bootstrapOpen()).willReturn(false);
-		mvc.perform(post("/signup").param("username", "hong").param("password", "Init1234!")
-						.param("retypedPassword", "Init1234!").param("name", "홍길동").param("roles", "NOPE"))
-				.andExpect(status().isBadRequest())
-				.andExpect(model().attributeHasFieldErrors("signUpForm", "roles"))
-				.andExpect(model().attributeErrorCount("signUpForm", 1))   // typeMismatch 하나만 — 역할 미선택 문구를 겹치지 않는다(CP5 B7)
-				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("역할을 하나 이상 골라야 합니다."))));
-		verify(usersService, never()).signup(any(), any());
-	}
-
 	// ==== 409 — 안전망 ====================================================
 
 	@Test
 	@DisplayName("409 — 레이스로 서비스가 DuplicateUsernameException 을 내면 username 필드 오류로 재렌더")
 	void submit_raceDuplicate_409() throws Exception {
-		given(usersService.bootstrapOpen()).willReturn(true);
 		given(usersService.usernameTaken("admin")).willReturn(false);
-		given(usersService.signup(any(), eq(SignupMode.BOOTSTRAP_ADMIN))).willThrow(new DuplicateUsernameException("admin"));
+		given(usersService.signup(any(), eq(SignupMode.BOOTSTRAP))).willThrow(new DuplicateUsernameException("admin"));
 		mvc.perform(post("/signup").param("username", "admin").param("password", "Passw0rd!")
 						.param("retypedPassword", "Passw0rd!").param("name", "관리자"))
 				.andExpect(status().isConflict())
@@ -131,23 +110,14 @@ class UsersControllerTest {
 	// ==== 성공 ====================================================
 
 	@Test
-	@DisplayName("302 — 부트스트랩 가입은 /login 으로 · 관리자 모드 가입은 /signup 으로 · flash 문구")
-	void submit_success_byMode() throws Exception {
+	@DisplayName("302 — 부트스트랩 가입은 /login 으로 · flash 문구")
+	void submit_success() throws Exception {
 		Users saved = Users.builder().id(1L).username("admin").name("관리자").build();
-		given(usersService.bootstrapOpen()).willReturn(true);
-		given(usersService.signup(any(), eq(SignupMode.BOOTSTRAP_ADMIN))).willReturn(saved);
+		given(usersService.signup(any(), eq(SignupMode.BOOTSTRAP))).willReturn(saved);
 		mvc.perform(post("/signup").param("username", "admin").param("password", "Passw0rd!")
 						.param("retypedPassword", "Passw0rd!").param("name", "관리자"))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/login"))
 				.andExpect(flash().attribute("flashMessage", containsString("최초 관리자")));
-
-		given(usersService.bootstrapOpen()).willReturn(false);
-		given(usersService.signup(any(), eq(SignupMode.ADMIN_CREATES_USER))).willReturn(saved);
-		mvc.perform(post("/signup").param("username", "hong.gildong").param("password", "Init1234!")
-						.param("retypedPassword", "Init1234!").param("name", "홍길동").param("roles", "USER"))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("/signup"))
-				.andExpect(flash().attribute("flashMessage", containsString("hong.gildong")));
 	}
 }

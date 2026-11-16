@@ -50,7 +50,7 @@ import java.util.Optional;
  *   <li>{@link #addSubprogram} — 업로드 본체. 검증 → 트리 전개 → manifest 계산 → 해시 충돌 nudge → 2-phase save + marker.</li>
  *   <li>{@link #registerExisting} — 업로드 없이 이미 있는 트리를 claim. {@code addSubprogram} 와 검증/nudge/save 흐름 공유(추출만 생략).</li>
  *   <li>{@link #persistFromNudge} — nudge proceed/replace 후 임시 트리를 ACTIVE 자원으로 영속화.</li>
- *   <li>{@link #purgeNudgeTempTree} — nudge cancel 시 임시 트리 정리.</li>
+ *   <li>{@link #cleanupNudgeCancelled} — nudge cancel 시 임시 트리 정리.</li>
  * </ul>
  *
  * <p>중복 제거(불가침) — addSubprogram/registerExisting 에 복붙돼 있던 활성/soft-deleted 중복키 검사는
@@ -117,7 +117,7 @@ public class SubprogramRegistrationService {
 
 			// MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated, 같은 scope) 탐지 시 nudge throw.
 			issueHashNudge(kind, scope, request.name(), request.version(), request.description(), request.osName(),
-					targetDir, manifest, "addSubprogram");
+					targetDir, manifest, "addSubprogram", false);
 
 			Subprogram saved = persistBundle(kind, scope, parent, request.name(), request.version(),
 					request.description(), request.osName(), targetDir, manifest);
@@ -160,8 +160,9 @@ public class SubprogramRegistrationService {
 
 		ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
+		// HF27 — claim(운영자의 기존 폴더)임을 nudge 에 적는다. 창의 [취소] 가 이 폴더를 지우지 않게 하는 유일한 근거다.
 		issueHashNudge(kind, scope, request.name(), request.version(), request.description(), request.osName(),
-				targetDir, manifest, "registerExistingSubprogram");
+				targetDir, manifest, "registerExistingSubprogram", true);
 
 		Subprogram saved = persistBundle(kind, scope, parent, request.name(), request.version(),
 				request.description(), request.osName(), targetDir, manifest);
@@ -201,11 +202,18 @@ public class SubprogramRegistrationService {
 	}
 
 	/**
-	 * MK2 — nudge cancel 시 임시 트리 cleanup.
+	 * MK2 — nudge cancel 시 업로드 트리 정리.
+	 *
+	 * <p>HF27 — 기존 디렉토리 등록(claim)에서 발급된 nudge 의 트리는 업로드한 내용이 아니라 <b>운영자의 기존 폴더</b>라 지우지 않는다
+	 * (BIOS R12-1 · BMC R12-2 와 같은 처리). 종전에는 구분 없이 지워 운영자 폴더가 통째로 사라졌다(docs C-16).</p>
 	 */
 	@Transactional
-	public void purgeNudgeTempTree(Path tempPath) {
-		bundleTreeCleanupService.purgeExistingTree(tempPath, "purgeNudgeTempTree.subprogram");
+	public void cleanupNudgeCancelled(ContentNudgePayload payload) {
+		if (payload.claimsExistingTree()) {
+			log.info("[nudgeCancel.subprogram] claim 경로 — 운영자 기존 폴더 보존. path={}", payload.tempFilePath());
+			return;
+		}
+		bundleTreeCleanupService.purgeExistingTree(Path.of(payload.tempFilePath()), "nudgeCancel.subprogram");
 	}
 
 	// ==== private helpers (복붙 dedup) =================================
@@ -243,7 +251,7 @@ public class SubprogramRegistrationService {
 	 */
 	private void issueHashNudge(
 			SubprogramKind kind, BoardScope scope, String name, String version, String description, OSName osName,
-			Path targetDir, ManifestSummary manifest, String logContext
+			Path targetDir, ManifestSummary manifest, String logContext, boolean claimExisting
 	) {
 		List<Subprogram> hashCandidates = subprogramRepository.findHashConflictCandidates(
 						kind, scope.isCommon() ? null : scope.boardId(), manifest.manifestHash())
@@ -269,7 +277,9 @@ public class SubprogramRegistrationService {
 								"fileCount", String.valueOf(manifest.fileCount()),
 								"totalBytes", String.valueOf(manifest.totalBytes()),
 								"description", description != null ? description : "",
-								"osName", osName == null ? "" : osName.name()
+								"osName", osName == null ? "" : osName.name(),
+								// HF27 — [취소] 시 트리 보존 여부의 단일 근거(claim = 운영자 기존 폴더)
+								ContentNudgePayload.CLAIM_EXISTING, String.valueOf(claimExisting)
 						)
 				)
 		);

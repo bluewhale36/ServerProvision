@@ -149,14 +149,14 @@ class SettingLedgerTest {
     }
 
     @Test
-    @DisplayName("markRebooted(arm) — 무장 요약이 meta 에 남고 목표와 함께 닫힘을 살아남는다(E2-4 Q4)")
-    void markRebootedWithArmSurvivesClose() {
+    @DisplayName("markRebooted — 재부팅 시각이 목표와 함께 닫힘을 살아남는다(HF24 — 무장 요약은 더 남기지 않는다)")
+    void markRebootedSurvivesClose() {
         ProvisioningHistory row = ledger.open(server, new BiosSettingTarget(TARGET), T);
 
-        ledger.markRebooted(row, T.plusMinutes(1), "다음 부팅 PXE 강제 : 반영 확인 · 재시작(ForceRestart)");
+        ledger.markRebooted(row, T.plusMinutes(1));
         ledger.close(row, ProvisioningStatus.SUCCEEDED, SettingLedger.APPLIED, "1개 적용", T.plusMinutes(9));
 
-        assertThat(row.getStatusMeta()).contains("\"arm\"").contains("반영 확인");
+        assertThat(row.getStatusMeta()).doesNotContain("\"arm\"");
         assertThat(ledger.rebootAtOf(row)).isEqualTo(T.plusMinutes(1));
         assertThat(ledger.targetOf(row)).isEqualTo(TARGET);
     }

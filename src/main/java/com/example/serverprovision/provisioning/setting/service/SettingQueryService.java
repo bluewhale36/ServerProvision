@@ -37,6 +37,12 @@ public interface SettingQueryService {
     List<SettingSummaryResponse> findAssignable();
 
     /**
+     * 할당 가능한 정의서 중 목록 조회 조건에 맞는 것(R20) — 정의서 고르기 모달의 검색. 이름 · 단계 · 생성 일시는 목록 화면과 같은
+     * {@code SettingSpecifications} 로 DB 에서 거르고, 그 위에 {@link #findAssignable()} 과 같은 차단 판정을 얹는다.
+     */
+    List<SettingSummaryResponse> findAssignable(SettingListQuery query);
+
+    /**
      * @throws SettingNotFoundException 해당 id 의 정의서가 없을 때 (advice 404)
      */
     SettingDetailResponse findDetail(Long id);

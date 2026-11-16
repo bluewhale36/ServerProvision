@@ -6,8 +6,6 @@ import com.example.serverprovision.execution.engine.raid.RaidInventory;
 import com.example.serverprovision.execution.engine.raid.RaidPlanOutcome;
 import com.example.serverprovision.provisioning.assignment.service.plan.RaidPlanner;
 import com.example.serverprovision.execution.engine.raid.RaidConfigurationTarget;
-import com.example.serverprovision.management.raidcard.entity.RaidCard;
-import com.example.serverprovision.management.raidcard.repository.RaidCardRepository;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +25,7 @@ import java.util.UUID;
 public class RaidConfigurationResolutionProviderImpl implements RaidConfigurationResolutionProvider {
 
     private final SettingAssignmentSnapshotRepository assignmentRepository;
-    private final RaidCardRepository raidCardRepository;
+    private final RaidCardRequirementReader requirementReader;
 
     @Override
     @Transactional(readOnly = true)
@@ -40,20 +38,9 @@ public class RaidConfigurationResolutionProviderImpl implements RaidConfiguratio
     @Override
     @Transactional(readOnly = true)
     public Optional<RaidConfigurationTarget> resolveFor(UUID guestServerId) {
-        Optional<RaidConfigurationRequest> raid = activeRaidRequest(guestServerId);
-        if (raid.isEmpty()) {
-            return Optional.empty();   // 활성 할당이 없거나 정의서에 RAID 구성 단계가 없다 — 창 밖
-        }
-        Long raidCardId = raid.get().getRaidCardId();
-        if (raidCardId == null) {
-            return Optional.of(new RaidConfigurationTarget(null, null, null));
-        }
-        Optional<RaidCard> card = raidCardRepository.findById(raidCardId);
-        return Optional.of(new RaidConfigurationTarget(
-                raidCardId,
-                card.map(RaidCard::getPciSubsystemId)
-                        .map(id -> id == null ? null : id.toDisplay()).orElse(null),
-                card.map(RaidCard::getModelName).orElse("(사라진 카드 #" + raidCardId + ")")));
+        // 창 밖(활성 할당 없음 · RAID 구성 단계 없음)이면 empty. 지정 카드 해석은 할당 판정과 같은 변환(R20)
+        return activeRaidRequest(guestServerId)
+                .map(raid -> requirementReader.requiredOf(raid).toTarget());
     }
 
     @Override

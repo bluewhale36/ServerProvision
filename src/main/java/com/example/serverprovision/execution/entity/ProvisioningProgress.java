@@ -236,7 +236,8 @@ public class ProvisioningProgress extends BaseTimeEntity {
 
     /**
      * 운영자 재시도(E1-2, DEC-4) — 실패 신호 해제. 전진 전용 가드 체계의 <b>유일한 명시 예외</b>다
-     * (자동 재시도는 없다 — 운영자 액션만). 커서는 실패 지점 step 을 그대로 가리키므로 다음 /boot 폴링이
+     * (실패 해제는 운영자 액션만이다 — 설정 축의 자동 재시도(HF25)는 실패 상태를 거치지 않고 축 안에서 다시 한다).
+     * 커서는 실패 지점 step 을 그대로 가리키므로 다음 /boot 폴링이
      * 그 phase 의 스크립트를 재발급한다. 가능 판정은 {@code RetryPolicy} 가 원장 사실과 함께 내린다.
      */
     public void clearFailed(LocalDateTime now) {

@@ -92,7 +92,7 @@ class GuestServerGroupControllerStandardTest {
 
     private static SettingSummaryResponse summary(String name) {
         return new SettingSummaryResponse(DEFINITION, name, List.of(SettingProcessType.OS_INSTALLATION),
-                false, true, false, LocalDateTime.now(), null, null);
+                false, true, false, com.example.serverprovision.support.FixedClockTestConfig.TODAY.atTime(9, 0), null, null);   // R20 — 기본 기간(최근 1 년) 안
     }
 
     private static SettingDetailResponse detail(String name) {

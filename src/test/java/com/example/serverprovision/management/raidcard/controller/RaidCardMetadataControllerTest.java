@@ -150,7 +150,7 @@ class RaidCardMetadataControllerTest {
 		mvc.perform(post("/management/raidcard/3/edit")
 						.param("modelName", "CRA3338")
 						.param("chipFamily", "MPT_IR")
-						.param("supportedRaidLevels", "RAID0", "RAID1", "RAID5")
+						.param("supportedRaidLevels", "RAID0", "RAID1", "RAID10")   // R17-2 — IR 은 RAID5 를 만들지 못한다
 						.param("cacheCapacityGb", "2")
 						.param("pciSubsystemId", "")
 						.param("description", "new desc"))
@@ -267,5 +267,66 @@ class RaidCardMetadataControllerTest {
 						.accept("application/json"))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("modelName"));
+	}
+
+	// ==== R17-2 — 칩 계열이 만들 수 있는 레벨 ==================================
+
+	@Test
+	@DisplayName("R17-2 POST (JSON) — MPT IR 계열에 RAID5(direct POST) → 400 fieldErrors[supportedRaidLevelsCreatable] · 서비스 미호출")
+	void create_levelNotCreatable_returns400() throws Exception {
+		mvc.perform(post("/management/raidcard")
+						.param("vendor", "GIGABYTE")
+						.param("modelName", "CRA3338")
+						.param("chipFamily", "MPT_IR")
+						.param("supportedRaidLevels", "RAID0", "RAID5")
+						.param("cacheCapacityGb", "0"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("supportedRaidLevelsCreatable"))
+				.andExpect(jsonPath("$.fieldErrors[0].message").value(containsString("고른 칩 계열이 만들 수 없는 RAID 레벨")));
+		org.mockito.Mockito.verifyNoInteractions(raidCardService);
+	}
+
+	@Test
+	@DisplayName("R17-2 POST (JSON) — MegaRAID 에 RAID00 · RAID50 · RAID60 지원 등록 → 200 (카드 정보로 기록)")
+	void create_megaRaidSpannedLevels_returns200() throws Exception {
+		given(raidCardService.create(any())).willReturn(7L);
+
+		mvc.perform(post("/management/raidcard")
+						.param("vendor", "AVAGO")
+						.param("modelName", "9361-8i")
+						.param("chipFamily", "MEGARAID")
+						.param("supportedRaidLevels", "RAID0", "RAID1", "RAID5", "RAID6", "RAID10", "RAID00", "RAID50", "RAID60")
+						.param("cacheCapacityGb", "2"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(7));
+	}
+
+	@Test
+	@DisplayName("R17-2 POST 수정 — 계열을 MPT IR 로 바꾸며 RAID6 이 남은 direct POST → edit 재렌더 + 오류 · 서비스 update 미호출")
+	void update_levelNotCreatable_rerenders() throws Exception {
+		given(raidCardService.findById(3L)).willReturn(activeCard("1458:0011"));
+
+		mvc.perform(post("/management/raidcard/3/edit")
+						.param("modelName", "CRA3338")
+						.param("chipFamily", "MPT_IR")
+						.param("supportedRaidLevels", "RAID1", "RAID6")
+						.param("cacheCapacityGb", "0"))
+				.andExpect(status().isOk())
+				.andExpect(view().name("management/raidcard/edit"))
+				.andExpect(model().attributeHasFieldErrors("raidCardForm", "supportedRaidLevelsCreatable"))
+				.andExpect(content().string(containsString("고른 칩 계열이 만들 수 없는 RAID 레벨")));
+		org.mockito.Mockito.verify(raidCardService, org.mockito.Mockito.never()).update(any(), any());
+	}
+
+	@Test
+	@DisplayName("R17-2 GET 신규 폼 — 계열 option 에 만들 수 있는 레벨 · 안내, 레벨에 RAID60, 캐시 경고 모달 없음")
+	void newForm_carriesCreatableLevels_noCacheWarning() throws Exception {
+		mvc.perform(get("/management/raidcard/new"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("data-creatable-levels=\"RAID0 RAID1 RAID10\"")))
+				.andExpect(content().string(containsString("MPT IR (sas3ircu 계열)은 RAID0, RAID1, RAID10 만 만들 수 있습니다")))
+				.andExpect(content().string(containsString("value=\"RAID60\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("cacheWarn"))))
+				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("data-requires-cache"))));
 	}
 }

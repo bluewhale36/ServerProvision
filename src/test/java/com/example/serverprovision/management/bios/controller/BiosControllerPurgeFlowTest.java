@@ -160,7 +160,7 @@ class BiosControllerPurgeFlowTest {
         var board = new com.example.serverprovision.management.board.dto.response.BoardModelResponse(
                 3L, com.example.serverprovision.management.board.enums.Vendor.GIGABYTE, "MS73-HB1",
                 "desc", 0, 0, 0, true, false, false,
-                com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE);
+                com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE, null);
         given(boardModelService.findById(3L)).willReturn(board);
 
         mvc.perform(get("/management/bios/3/new").header("X-Requested-With", "XMLHttpRequest"))

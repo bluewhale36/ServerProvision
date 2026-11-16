@@ -511,4 +511,17 @@ class SettingRestControllerDiskGroupTest {
                         .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString(
                                 "스팬당 디스크 수는 MegaRAID 카드의 RAID10 묶음에서만 지정합니다"))));
     }
+
+    @Test
+    @DisplayName("R17-2 POST — 정의서가 고르지 못하는 레벨(RAID50 · direct POST) → 400 fieldErrors[diskGroups]")
+    void create_levelNotDefinable_returns400() throws Exception {
+        given(commandService.create(any())).willThrow(InvalidDiskGroupException.levelNotDefinable(1,
+                com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID50));
+
+        send(body(raid("1", raid10Rule("null").replace("RAID10", "RAID50"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'diskGroups')].message")
+                        .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString(
+                                "세팅 정의서에서는 RAID50 을 구성할 수 없습니다"))));
+    }
 }

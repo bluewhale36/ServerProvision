@@ -107,7 +107,7 @@ class GroupPickerResponseTest {
     @Test
     @DisplayName("미리보기마다 제 상세가 붙는다 — 상세가 온 순서에 기대지 않는다")
     void ofPairsPreviewWithItsOwnDetail() {
-        GroupPickerResponse picker = GroupPickerResponse.of(4,
+        GroupPickerResponse picker = pickerOf(4,
                 List.of(preview(1L, "os-only-auto", outcome("srv-01", MemberApplyOutcome.WILL_ASSIGN, null)),
                         preview(2L, "bios-ms03", outcome("srv-01", MemberApplyOutcome.BLOCKED, "막힘"))),
                 List.of(detail(2L, "bios-ms03"), detail(1L, "os-only-auto")));
@@ -124,7 +124,7 @@ class GroupPickerResponseTest {
     @Test
     @DisplayName("상세가 오지 않은 정의서는 떨군다 — 두 재료를 읽는 사이에 삭제된 것이다")
     void ofDropsPreviewWithoutDetail() {
-        GroupPickerResponse picker = GroupPickerResponse.of(1,
+        GroupPickerResponse picker = pickerOf(1,
                 List.of(preview(1L, "os-only-auto", outcome("srv-01", MemberApplyOutcome.WILL_ASSIGN, null)),
                         preview(2L, "bios-ms03", outcome("srv-01", MemberApplyOutcome.WILL_ASSIGN, null))),
                 List.of(detail(1L, "os-only-auto")));
@@ -135,7 +135,7 @@ class GroupPickerResponseTest {
     @Test
     @DisplayName("전부 잠겼으면 고를 것이 없다 — 목록은 그대로 남는다")
     void hasSelectableFalseWhenEveryDefinitionBlocked() {
-        GroupPickerResponse picker = GroupPickerResponse.of(1,
+        GroupPickerResponse picker = pickerOf(1,
                 List.of(preview(1L, "a", outcome("srv-01", MemberApplyOutcome.BLOCKED, "막힘")),
                         preview(2L, "b", outcome("srv-01", MemberApplyOutcome.ALREADY_ASSIGNED, "이미"))),
                 List.of(detail(1L, "a"), detail(2L, "b")));
@@ -158,5 +158,14 @@ class GroupPickerResponseTest {
                 .isEqualTo("세팅 정의서 'os-only-auto' 를 2 대에 할당했습니다. 1 대는 건너뛰었습니다(할당 불가 1).");
         // 건너뛴 것이 없으면 뒷절 없음 — 미리보기 요약과 같은 규칙이다
         assertThat(full.message()).isEqualTo("세팅 정의서 'os-only-auto' 를 3 대에 할당했습니다.");
+    }
+
+    /** 거르지 않는 조건 — 이 테스트는 상세 짝맞춤 · 차단 규칙만 본다(R20 검색 조건은 DefinitionPickerQueryTest · 컨트롤러 picker 테스트). */
+    private static final com.example.serverprovision.provisioning.assignment.dto.request.DefinitionPickerQuery NO_FILTER =
+            com.example.serverprovision.provisioning.assignment.dto.request.DefinitionPickerQuery.none();
+
+    private static GroupPickerResponse pickerOf(int memberCount, List<GroupApplyPreviewResponse> previews, List<SettingDetailResponse> details) {
+        return GroupPickerResponse.of(memberCount, previews, details, NO_FILTER,
+                previews.stream().map(GroupApplyPreviewResponse::definition).toList());
     }
 }

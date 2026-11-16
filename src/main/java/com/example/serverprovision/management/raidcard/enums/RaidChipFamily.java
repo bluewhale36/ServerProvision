@@ -3,6 +3,11 @@ package com.example.serverprovision.management.raidcard.enums;
 import com.example.serverprovision.management.raidcard.vo.DrivesPerSpan;
 import com.example.serverprovision.management.raidcard.vo.MemberCountRule;
 
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 
 /**
  * RAID 카드 칩 계열(E3.5-1) — 제어 계열(드라이버 · CLI · 파서)을 정하는 축이다(사전 조사 §2).
@@ -24,10 +29,16 @@ public enum RaidChipFamily {
             return 2;   // IR 펌웨어의 볼륨 상한(사전 조사 §2)
         }
 
+        /** IR 펌웨어 = RAID 0 · 1 · 1E · 10(CRA3338 스펙 · sas3ircu create 의 레벨 인자). 1E 는 RAID10 홀수 구성으로 받는다. */
+        @Override
+        public Set<RaidLevel> creatableLevels() {
+            return EnumSet.of(RaidLevel.RAID0, RaidLevel.RAID1, RaidLevel.RAID10);
+        }
+
         /**
          * IR 펌웨어의 볼륨 대수(GIGABYTE CRA3338 스펙 — RAID 0 · 1E · 10 은 볼륨당 10대, RAID 1 은 2대). RAID10 은 홀수를
          * 허용하는 IR 방식이라 하한이 3 이다. 스팬 개념이 없어 span 은 읽지 않는다. RAID5 · RAID6 은 IR 이 만들지 못해
-         * 지원 레벨 검증이 먼저 거르므로 레벨 하한만 둔다.
+         * 카드 등록이 지원 레벨로 받지 않으므로({@link #creatableLevels()} · R17-2) 레벨 하한만 둔다.
          */
         @Override
         public MemberCountRule memberCountRule(RaidLevel level, boolean cardHasCache, DrivesPerSpan span) {
@@ -36,6 +47,7 @@ public enum RaidChipFamily {
                 case RAID1 -> MemberCountRule.of(level, 2, 2);
                 case RAID10 -> MemberCountRule.of(level, 3, 10);
                 case RAID5, RAID6 -> MemberCountRule.of(level, level.minimumDisks(cardHasCache), null);
+                case RAID00, RAID50, RAID60 -> throw notDefinable(level);
             };
         }
 
@@ -87,6 +99,12 @@ public enum RaidChipFamily {
             return 64;   // VD 상한(사전 조사 §2)
         }
 
+        /** storcli 는 우리가 다루는 레벨 전부를 만든다(9361 실측: RAID0 · 1 · 5 · 6 · 00 · 10 · 50 · 60). 모델별 차이는 카드 지원 레벨이 좁힌다. */
+        @Override
+        public Set<RaidLevel> creatableLevels() {
+            return EnumSet.allOf(RaidLevel.class);
+        }
+
         /**
          * Broadcom MegaRAID Tri-Mode SW UG — 단일 스팬 최대 32대 · RAID1 은 짝수 2~32대 · RAID10 은 스팬 2~8개 × 스팬당
          * 짝수 대(storcli {@code pdperarray}). RAID6 은 문서상 3대부터지만 레벨 하한(4)을 그대로 둔다(R17-1 비목표).
@@ -100,6 +118,7 @@ public enum RaidChipFamily {
                     DrivesPerSpan p = span == null ? DrivesPerSpan.DEFAULT : span;
                     yield new MemberCountRule(level, p.value() * MIN_SPANS, p.value() * MAX_SPANS, p.value(), p);
                 }
+                case RAID00, RAID50, RAID60 -> throw notDefinable(level);
             };
         }
 
@@ -134,6 +153,34 @@ public enum RaidChipFamily {
     static final String IR_NAA_PREFIX = "600508e000000000";
 
     private final String displayName;
+
+    /** 이 계열의 제어 도구가 만들 수 있는 레벨(R17-2) — 카드 등록 폼의 레벨 잠금과 등록 · 수정 요청 검증이 같이 본다. */
+    public abstract Set<RaidLevel> creatableLevels();
+
+    public boolean canCreate(RaidLevel level) {
+        return creatableLevels().contains(level);
+    }
+
+    /** 고른 레벨이 모두 이 계열로 만들 수 있는가 — 빈 목록은 참(필수 여부는 요청의 @NotEmpty 몫). */
+    public boolean canCreateAll(Collection<RaidLevel> levels) {
+        return levels.stream().allMatch(this::canCreate);
+    }
+
+    /** 등록 폼 안내 · 잠긴 레벨의 title — 모든 레벨을 만들 수 있으면 null. */
+    public String creatableLevelsHint() {
+        if (creatableLevels().containsAll(EnumSet.allOf(RaidLevel.class))) {
+            return null;
+        }
+        String levels = EnumSet.copyOf(creatableLevels()).stream()
+                .map(RaidLevel::getDisplayName)
+                .collect(Collectors.joining(", "));
+        return displayName + "은 " + levels + " 만 만들 수 있습니다";   // 표시명이 "… 계열)" 로 끝난다 — 받침 ㄹ
+    }
+
+    /** 정의서 판정(디스크 수 규칙)은 정의서가 고를 수 있는 레벨만 받는다 — 저장 가드가 먼저 거르므로 여기 닿으면 프로그램 오류다. */
+    private static IllegalArgumentException notDefinable(RaidLevel level) {
+        return new IllegalArgumentException(level + " 는 세팅 정의서에서 고를 수 없는 레벨입니다");
+    }
 
     RaidChipFamily(String displayName) {
         this.displayName = displayName;

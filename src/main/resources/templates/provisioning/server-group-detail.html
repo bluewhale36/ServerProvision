@@ -359,11 +359,11 @@
                   th:data-assign-action="@{/provisioning/server-group/{id}/assignment(id=${group.id})}"
                   th:data-standard-action="@{/provisioning/server-group/{id}/standard-definition(id=${group.id})}">
                 <input type="hidden" name="definitionId" id="groupDefinitionPickerChoice">
-                <div class="n-picker-body n-picker-body-miller" id="groupDefinitionPickerBody">
+                <div class="n-picker-body n-picker-body-search" id="groupDefinitionPickerBody">
                     <p class="n-detail-empty">불러오는 중…</p>
                 </div>
                 <div class="n-picker-footer">
-                    <span class="n-picker-count" id="groupDefinitionPickerStatus">왼쪽에서 정의서 선택</span>
+                    <span class="n-picker-count" id="groupDefinitionPickerStatus">표에서 정의서 선택</span>
                     <span class="n-picker-actions">
                         <!--/* 고르는 김에 표준으로도 두기(OQ-3) — 같은 정의서를 다시 찾아 지정하는 왕복을
                                없앤다. 표준 지정 모드에서는 이미 그것이 목적이므로 JS 가 감춘다. */-->
@@ -389,6 +389,9 @@
 <script th:src="@{/management/common/confirm-modal-base.js}"></script>
 <script th:src="@{/provisioning/server-group-detail.js}"></script>
 <!-- U3-5-c — 정의서 일괄 할당 모달의 열기 · 고르기 (제출은 네이티브라 스크립트가 관여하지 않는다) -->
+<!-- R20 — 정의서 고르기 공용(검색 · 고르기 · 펼침) + 기간 빠른 칩(list-query.js ⑬) -->
+<script th:src="@{/global/list-query.js}"></script>
+<script th:src="@{/provisioning/definition-search-picker.js}"></script>
 <script th:src="@{/provisioning/group-definition-picker.js}"></script>
 </body>
 </html>

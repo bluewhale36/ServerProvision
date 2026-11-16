@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  정의서 고르기 모달의 검색칸 + 조회 조건 창 (R20)
+  ─────────────────────────────────────────────────────────
+  서버 단건(definition-picker) · 그룹 일괄(group-definition-picker) 두 모달이 같은 한 벌을 쓴다. 모양은 목록 화면의 조회 띠
+  (fragments/ui/list-filter)와 같다 — 검색칸은 이름만 · Enter 로 검색, 옆 [Search] 는 조건 창(popover)을 연다. 창 하단 [검색] 이
+  적용한다. 목록과 다른 점은 적용이 페이지 이동이 아니라 결과 영역 갈아끼우기라는 것뿐이다(definition-search-picker.js).
+
+  모델: pickerQuery — DefinitionPickerQuery(기간은 기본 범위로 채운 값) · picker — 응답(boardOptions · hasBoardless)
+        rangeDefaultFrom · rangeDefaultTo · rangeToday — ListDateRangeDefaults(기간 줄 조각이 읽는다)
+  창은 검색 뒤에도 갈아끼우지 않는다 — 고른 조건이 그대로 남는다. 모달을 다시 열면 처음 상태로 새로 받는다.
+-->
+<body>
+<th:block th:fragment="band">
+    <div class="n-filter-search n-picker-filter-search">
+        <input class="n-input" type="text" data-picker-q autocomplete="off" th:value="${pickerQuery.q}"
+               th:placeholder="#{common.list.search-placeholder}" aria-label="세팅 정의서 이름">
+        <button type="button" class="n-btn n-btn-primary n-btn-sm n-filter-open" popovertarget="definitionPickerFilter"
+                th:text="#{common.list.search-open}">Search</button>
+    </div>
+
+    <div id="definitionPickerFilter" class="n-filter-panel" popover="auto" data-picker-filter role="dialog"
+         th:aria-label="#{common.list.panel-label}">
+        <div class="n-filter-rows">
+            <div class="n-filter-row" data-filter-row>
+                <span class="n-filter-row-label">대상 보드</span>
+                <div class="n-filter-row-field n-filter-group" role="group" aria-label="대상 보드">
+                    <label class="n-chip" th:each="board : ${picker.boardOptions}">
+                        <input type="checkbox" name="board" th:value="${board.id}"
+                               th:checked="${pickerQuery.boards.contains(board.id)}">
+                        <span th:text="${board.name}">MS74-HB0</span>
+                    </label>
+                    <label class="n-chip" th:if="${picker.hasBoardless}">
+                        <input type="checkbox" name="boardless" value="true" th:checked="${pickerQuery.isBoardless()}">
+                        <span>보드 무관</span>
+                    </label>
+                    <span class="n-muted n-small" th:if="${picker.boardOptions.isEmpty() and !picker.hasBoardless}">고를 보드가 없습니다.</span>
+                </div>
+            </div>
+            <div class="n-filter-row" data-filter-row>
+                <span class="n-filter-row-label">단계 구성</span>
+                <div class="n-filter-row-field n-filter-group" role="group" aria-label="단계 구성">
+                    <label class="n-chip" th:each="type : ${pickerQuery.processOptions()}">
+                        <input type="checkbox" name="processType" th:value="${type.name()}"
+                               th:checked="${pickerQuery.processTypes.contains(type)}">
+                        <span th:text="${type.displayName}">펌웨어 업데이트</span>
+                    </label>
+                </div>
+            </div>
+            <div class="n-filter-row" data-filter-row>
+                <span class="n-filter-row-label">할당 가능</span>
+                <div class="n-filter-row-field n-filter-group" role="group" aria-label="할당 가능">
+                    <label class="n-chip">
+                        <input type="checkbox" name="assignableOnly" value="true" th:checked="${pickerQuery.isAssignableOnly()}">
+                        <span>할당 가능한 것만</span>
+                    </label>
+                </div>
+            </div>
+            <div th:replace="~{fragments/ui/date-range-row :: row('등록 시각', ${pickerQuery})}"></div>
+        </div>
+        <div class="n-filter-panel-actions">
+            <button type="button" class="n-btn n-btn-primary n-btn-sm" data-picker-search th:text="#{action.search}">검색</button>
+            <button type="button" class="n-btn n-btn-secondary n-btn-sm" popovertarget="definitionPickerFilter"
+                    popovertargetaction="hide" th:text="#{action.close}">닫기</button>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>

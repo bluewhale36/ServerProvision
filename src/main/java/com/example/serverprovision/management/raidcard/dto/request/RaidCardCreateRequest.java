@@ -3,6 +3,7 @@ package com.example.serverprovision.management.raidcard.dto.request;
 import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -48,4 +49,20 @@ public record RaidCardCreateRequest(
 		String description
 ) {
 
+	/** 등록 · 수정 요청이 같이 쓰는 안내(애너테이션 값이라 상수). */
+	static final String LEVELS_NOT_CREATABLE =
+			"고른 칩 계열이 만들 수 없는 RAID 레벨이 선택돼 있습니다. 칩 계열 아래 안내를 확인해야 합니다.";
+
+	/**
+	 * 칩 계열이 만들 수 없는 레벨(예: MPT IR 의 RAID5)은 등록 폼이 잠그고(1차 차단) 여기는 direct POST 안전망이다(R17-2).
+	 * 계열 · 레벨이 비면 참 — 그 누락은 @NotNull · @NotEmpty 가 알린다.
+	 */
+	@AssertTrue(message = LEVELS_NOT_CREATABLE)
+	public boolean isSupportedRaidLevelsCreatable() {
+		return levelsCreatable(chipFamily, supportedRaidLevels);
+	}
+
+	static boolean levelsCreatable(RaidChipFamily chipFamily, List<RaidLevel> levels) {
+		return chipFamily == null || levels == null || chipFamily.canCreateAll(levels);
+	}
 }

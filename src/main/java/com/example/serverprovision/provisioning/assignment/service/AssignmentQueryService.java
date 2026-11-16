@@ -2,6 +2,7 @@ package com.example.serverprovision.provisioning.assignment.service;
 
 import com.example.serverprovision.provisioning.biossetting.service.BiosTemplateStaleInspector;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
+import com.example.serverprovision.execution.engine.raid.RaidInventory;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
@@ -23,6 +24,7 @@ import com.example.serverprovision.provisioning.assignment.enums.MemberApplyOutc
 import com.example.serverprovision.provisioning.assignment.mapper.SettingProcessPhaseMapper;
 import com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibility;
 import com.example.serverprovision.provisioning.assignment.vo.OwnedPhases;
+import com.example.serverprovision.provisioning.assignment.vo.RequiredRaidCard;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.vo.RequiredBoardModel;
@@ -31,11 +33,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -52,6 +56,7 @@ public class AssignmentQueryService {
     private final GuestServerDetailRepository guestServerDetailRepository;
     private final BoardModelRepository boardModelRepository;
     private final BiosTemplateStaleInspector staleInspector;
+    private final RaidCardRequirementReader raidCardReader;
 
     /**
      * 정의서 선택지에 <b>이 서버에 붙일 수 있는가</b>를 덧댄다 (U3-5-a).
@@ -69,14 +74,17 @@ public class AssignmentQueryService {
                 .orElseThrow(() -> new GuestServerNotFoundException(guestId));
         GuestServerDetail detail = guestServerDetailRepository.findByServerIdWithBoardModel(guestId).orElse(null);
 
+        Map<Long, RequiredRaidCard> requiredCards = raidCardReader.requiredByDefinition(
+                assignable.stream().map(SettingSummaryResponse::id).toList());
+        RaidInventory inventory = raidCardReader.inventoryOf(detail);
+
         List<DefinitionOptionResponse> options = assignable.stream().map(summary -> {
-            AssignmentEligibility eligibility = new AssignmentEligibility(server, detail, requiredBoardOf(summary),
-                    staleInspector.reasonFor(summary.id(), detail != null ? detail.getBoardModel().getId() : null));
+            AssignmentEligibility eligibility = eligibilityOf(server, detail, summary, requiredCards, inventory);
             AssignmentBlock block = AssignmentBlockKind.evaluate(eligibility);
             return new DefinitionOptionResponse(
                     summary,
                     block != null ? block.reason() : null,
-                    block == null && eligibility.boardUnverified());
+                    block == null ? eligibility.unverifiedReason() : null);
         }).toList();
 
         // 폼 자체를 닫을 사유는 엔티티가 답한다 — 화면과 서버 가드가 같은 문자열을 쓰게 하는 유일한 방법이다.
@@ -115,11 +123,17 @@ public class AssignmentQueryService {
                 .map(assignment -> assignment.getGuestServer().getId())
                 .collect(Collectors.toSet());
 
+        // 재료는 조합 전에 한 번씩 — 정의서 쪽 지정 카드 1 회, 멤버 쪽 저장 인벤토리 해석 멤버당 1 회(R20)
+        Map<Long, RequiredRaidCard> requiredCards = raidCardReader.requiredByDefinition(
+                assignable.stream().map(SettingSummaryResponse::id).toList());
+        Map<UUID, RaidInventory> inventoryByServerId = new HashMap<>();
+        detailByServerId.forEach((id, detail) -> inventoryByServerId.put(id, raidCardReader.inventoryOf(detail)));
+
         return assignable.stream().map(summary -> {
-            RequiredBoardModel required = requiredBoardOf(summary);
             List<MemberOutcomeResponse> outcomes = members.stream()
-                    .map(member -> classify(member, serverById.get(member.id()),
-                            detailByServerId.get(member.id()), alreadyAssigned, required, summary.id()))
+                    .map(member -> classify(member, serverById.get(member.id()), alreadyAssigned,
+                            () -> eligibilityOf(serverById.get(member.id()), detailByServerId.get(member.id()), summary,
+                                    requiredCards, inventoryByServerId.get(member.id()))))
                     .toList();
             return new GroupApplyPreviewResponse(summary, outcomes);
         }).toList();
@@ -191,24 +205,29 @@ public class AssignmentQueryService {
      */
     private MemberOutcomeResponse classify(GuestServerSummaryResponse member,
                                            GuestServer server,
-                                           GuestServerDetail detail,
                                            Set<UUID> alreadyAssigned,
-                                           RequiredBoardModel required,
-                                           Long definitionId) {
+                                           Supplier<AssignmentEligibility> eligibility) {
         if (alreadyAssigned.contains(member.id())) {
             return new MemberOutcomeResponse(member, MemberApplyOutcome.ALREADY_ASSIGNED,
                     "이미 세팅 정의서가 할당되어 있습니다.");
         }
         if (server == null) {
             return new MemberOutcomeResponse(member, MemberApplyOutcome.BLOCKED,
-                    "이 서버를 찾을 수 없습니다: 목록을 만든 뒤 삭제된 것으로 보입니다.");
+                    "이 서버를 찾을 수 없습니다. 목록을 만든 뒤 삭제된 것으로 보입니다.");
         }
-        AssignmentBlock block = AssignmentBlockKind.evaluate(
-                new AssignmentEligibility(server, detail, required,
-                        staleInspector.reasonFor(definitionId, detail != null ? detail.getBoardModel().getId() : null)));
+        AssignmentBlock block = AssignmentBlockKind.evaluate(eligibility.get());
         return block == null
                 ? new MemberOutcomeResponse(member, MemberApplyOutcome.WILL_ASSIGN, null)
                 : new MemberOutcomeResponse(member, MemberApplyOutcome.BLOCKED, block.reason());
+    }
+
+    /** 정의서 하나 × 서버 하나의 판정 입력 — 서버 폼 · 그룹 미리보기가 같은 조립을 쓴다. */
+    private AssignmentEligibility eligibilityOf(GuestServer server, GuestServerDetail detail,
+                                                SettingSummaryResponse summary,
+                                                Map<Long, RequiredRaidCard> requiredCards, RaidInventory inventory) {
+        return new AssignmentEligibility(server, detail, requiredBoardOf(summary),
+                staleInspector.reasonFor(summary.id(), detail != null ? detail.getBoardModel().getId() : null),
+                requiredCards.get(summary.id()), inventory);
     }
 
     /** 요약이 싣고 온 요구 보드를 값 객체로 되돌린다 — 요구하지 않으면 null. */
@@ -252,13 +271,14 @@ public class AssignmentQueryService {
         if (detail == null) {
             return null;   // 아직 수집 전 — 대조할 것이 없다(막지 않는다는 규칙과 같은 결)
         }
-        RequiredBoardModel required = RequiredBoardModel.from(
-                assignment.getProcesses().stream().map(p -> p.getPayload().request()).toList(),
+        var requests = assignment.getProcesses().stream().map(p -> p.getPayload().request()).toList();
+        RequiredBoardModel required = RequiredBoardModel.from(requests,
                 boardModelId -> boardModelRepository.findById(boardModelId)
                         .map(BoardModel::getModelName)
                         .orElse("등록되지 않은 보드"));
-        return required == null ? null
-                : required.blockReasonFor(detail.getBoardModel().getId(), detail.getBoardModel().getModelName());
+        AssignmentBlock block = AssignmentBlockKind.evaluateHardware(new AssignmentEligibility(
+                server, detail, required, null, raidCardReader.requiredOf(requests), raidCardReader.inventoryOf(detail)));
+        return block == null ? null : block.reason();
     }
 
     /** 진단 리눅스(무조건 phase) + 소유 phase 를 선언 순으로 나열. */

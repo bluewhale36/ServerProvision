@@ -10,13 +10,13 @@ import com.example.serverprovision.global.ui.enums.FlashTone;
 public record PowerControlResult(
         Kind kind,
         RedfishPowerState powerState,
-        String message,
-        /** 다음 부팅 지정(무장)의 관찰 — 무장하지 않은 결과는 NONE. 알림 문장을 고르는 재료다(S22-3). */
-        BootOverrideOutcome bootOverride
+        String message
 ) {
 
+    private static final String RETRY_SENT =
+            "재시도를 접수했습니다. 서버가 네트워크로 부팅하면 이어서 진행합니다.";
     private static final String RETRY_POWER_FAILED =
-            "재시도는 접수했지만 전원 제어에 실패해 서버가 스스로 다시 부팅하지 않습니다. %s 서버를 직접 네트워크 부팅하거나 원인을 고친 뒤 [재시도 후 네트워크 부팅] 을 다시 눌러야 합니다.";
+            "재시도는 접수했지만 전원 제어에 실패해 서버가 스스로 다시 부팅하지 않습니다. %s 서버를 직접 켜거나 원인을 고친 뒤 [재시도 후 전원 켜기] 를 다시 눌러야 합니다.";
 
     public enum Kind {
         /** 대상 게스트에 BMC 가 없다(bmcIp null) — 제어 자체가 성립하지 않음. */
@@ -31,24 +31,19 @@ public record PowerControlResult(
 
     public static PowerControlResult unsupported() {
         return new PowerControlResult(Kind.UNSUPPORTED, null,
-                "BMC 미검출: 원격 전원 제어를 쓸 수 없습니다.", BootOverrideOutcome.none());
+                "BMC 미검출: 원격 전원 제어를 쓸 수 없습니다.");
     }
 
     public static PowerControlResult sent(RedfishPowerState state, String message) {
-        return new PowerControlResult(Kind.SENT, state, message, BootOverrideOutcome.none());
-    }
-
-    /** 무장과 함께 발행한 결과 — {@code networkBoot} 가 관찰을 싣는다. */
-    public static PowerControlResult sent(RedfishPowerState state, String message, BootOverrideOutcome bootOverride) {
-        return new PowerControlResult(Kind.SENT, state, message, bootOverride);
+        return new PowerControlResult(Kind.SENT, state, message);
     }
 
     public static PowerControlResult verified(String message) {
-        return new PowerControlResult(Kind.VERIFIED, RedfishPowerState.ON, message, BootOverrideOutcome.none());
+        return new PowerControlResult(Kind.VERIFIED, RedfishPowerState.ON, message);
     }
 
     public static PowerControlResult failed(RedfishPowerState state, String message) {
-        return new PowerControlResult(Kind.FAILED, state, message, BootOverrideOutcome.none());
+        return new PowerControlResult(Kind.FAILED, state, message);
     }
 
     /** 전원 명령이 전달되지 않았다 — BMC 미검출이거나 실패. */
@@ -56,13 +51,13 @@ public record PowerControlResult(
         return kind == Kind.UNSUPPORTED || kind == Kind.FAILED;
     }
 
-    /** [재시도 후 네트워크 부팅] 의 페이지 맨 위 알림 문장(S22-3). */
+    /** [재시도 후 전원 켜기] 의 페이지 맨 위 알림 문장(S22-3, HF24 병합 뒤 부트 지정 관찰 제거). */
     public String retryBootNotice() {
-        return powerFailed() ? RETRY_POWER_FAILED.formatted(message) : bootOverride.retryNotice();
+        return powerFailed() ? RETRY_POWER_FAILED.formatted(message) : RETRY_SENT;
     }
 
-    /** 위 알림의 색 — 전원 실패는 빨강, 부팅 지정 미확인 · 거절은 노랑. */
+    /** 위 알림의 색 — 전원 실패는 빨강, 전달은 초록. */
     public FlashTone retryBootTone() {
-        return powerFailed() ? FlashTone.DANGER : bootOverride.retryTone();
+        return powerFailed() ? FlashTone.DANGER : FlashTone.SUCCESS;
     }
 }

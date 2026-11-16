@@ -56,9 +56,12 @@
                             data-error-field="chipFamily"
                             th:classappend="${#fields.hasErrors('chipFamily')} ? 'is-invalid'">
                         <option value="">선택</option>
+                        <!-- R17-2 — 계열이 만들 수 있는 레벨과 안내를 option 에 싣는다(SSOT = RaidChipFamily.creatableLevels · creatableLevelsHint). -->
                         <option th:each="cf : ${chipFamilyOptions}"
                                 th:value="${cf.name()}"
-                                th:text="${cf.displayName}"></option>
+                                th:text="${cf.displayName}"
+                                th:data-creatable-levels="${#strings.setJoin(cf.creatableLevels(), ' ')}"
+                                th:data-lock-hint="${cf.creatableLevelsHint()}"></option>
                     </select>
                     <div class="n-error" th:if="${#fields.hasErrors('chipFamily')}"
                          th:errors="*{chipFamily}"></div>
@@ -86,14 +89,17 @@
                             <span>전체 선택</span>
                         </label>
                         <label class="n-checkbox" th:each="lvl : ${levelOptions}">
-                            <input type="checkbox" th:field="*{supportedRaidLevels}" th:value="${lvl.name()}"
-                                   th:data-requires-cache="${lvl.typicallyRequiresCache}">
+                            <input type="checkbox" th:field="*{supportedRaidLevels}" th:value="${lvl.name()}">
                             <span th:text="${lvl.displayName}">RAID0</span>
                         </label>
                     </div>
                     <div class="n-hint">카드 데이터시트의 지원 레벨을 그대로 골라야 합니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('supportedRaidLevels')}"
                          th:errors="*{supportedRaidLevels}"></div>
+                    <!-- R17-2 — 고른 칩 계열이 만들 수 없는 레벨을 잠근 이유. 서버 교차 검증(supportedRaidLevelsCreatable) 오류도 여기 붙는다. -->
+                    <div class="n-hint" data-level-lock-hint data-error-field="supportedRaidLevelsCreatable" hidden></div>
+                    <div class="n-error" th:if="${#fields.hasErrors('supportedRaidLevelsCreatable')}"
+                         th:errors="*{supportedRaidLevelsCreatable}"></div>
                 </div>
 
                 <div class="n-form-group">
@@ -140,14 +146,10 @@
 <!-- nudge modal (메타 단독 충돌용 — MK2 WAVE 1). -->
 <div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/raidcard/nudge')}"></div>
 
-<!-- CP6 개정 — 캐시 0 + RAID5 이상 조합 경고 modal (deprecatedUse 선례 — fragment 재사용 + open 오버라이드). -->
-<div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('cacheWarn')}"></div>
-<script th:src="@{/management/common/confirm-modal-base.js}"></script>
 
 <script th:src="@{/global/form-error.js}"></script>
 <script th:src="@{/global/nudge-modal.js}"></script>
 <script th:src="@{/management/raidcard/raidcard-level-select.js}"></script>
-<script th:src="@{/management/raidcard/raidcard-cache-warning.js}"></script>
 <script th:src="@{/management/raidcard/raidcard-new.js}"></script>
 </body>
 </html>

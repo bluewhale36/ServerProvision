@@ -46,7 +46,7 @@
      th:data-server-id="${server.id}" th:data-stream-url="@{/provisioning/server/stream}"
      th:with="activeTabName=${activeTab != null ? activeTab : 'overview'}">
 
-    <!-- PRG flash(HF15-1 CP5 F-1) — [재시도 후 네트워크 부팅] 의 전원 결과(실패도 결과)를 리다이렉트 뒤 한 번 보인다. -->
+    <!-- PRG flash(HF15-1 CP5 F-1) — [재시도 후 전원 켜기] 의 전원 결과(실패도 결과)를 리다이렉트 뒤 한 번 보인다. -->
     <div th:if="${flashMessage}" class="n-alert" th:classappend="${flashTone != null} ? ${flashTone} : 'n-alert-success'" role="status"
          th:text="${flashMessage}">재시도를 접수했습니다.</div>
 
@@ -250,11 +250,11 @@
                                       th:action="@{/provisioning/server/{id}/retry(id=${server.id})}" method="post">
                                     <button type="submit" class="n-btn n-btn-primary">재시도</button>
                                 </form>
-                                <!-- HF15-1 (O-10) — 재시도는 전원 중립. BMC 가 있으면 "재시도 + PXE 보장 무장 + On/ForceRestart" 를 한 번에 잇는 선택지를 준다. -->
+                                <!-- HF15-1 (O-10) · HF24 — 재시도는 전원 중립. BMC 가 있으면 "재시도 + On/ForceRestart" 를 한 번에 잇는 선택지를 준다(다음 부팅 무장 없음). -->
                                 <form th:if="${server.progress.retryable and server.inventory != null and server.inventory.bmcIp != null}"
                                       th:action="@{/provisioning/server/{id}/retry-boot(id=${server.id})}" method="post">
                                     <button type="submit" class="n-btn n-btn-secondary"
-                                            title="재시도를 접수한 뒤 BMC 로 네트워크 부팅합니다. 꺼져 있으면 켜고, 켜져 있으면 다시 시작합니다.">재시도 후 네트워크 부팅</button>
+                                            title="재시도를 접수한 뒤 BMC 로 전원을 켭니다. 꺼져 있으면 켜고, 켜져 있으면 재시작합니다.">재시도 후 전원 켜기</button>
                                 </form>
                                 <button th:if="${server.progress.retryBlocked}" type="button" class="n-btn n-btn-secondary" disabled
                                         th:title="#{provisioning.retry.blocked.tooltip}">재시도(차단)</button>
@@ -688,7 +688,7 @@
                     <div th:if="${phaseRail.hardwareMismatchReason != null}" class="n-alert n-alert-danger" role="alert">
                         <b>이대로 개시하면 실행 단계에서 실패합니다.</b>
                         <div class="n-block-gap-sm" th:text="${phaseRail.hardwareMismatchReason}">
-                            이 정의서는 메인보드 MS03-CE0 전용이지만 이 서버는 X11SPM 입니다.</div>
+                            본 게스트 서버의 메인보드(X11SPM)와 정의서의 메인보드(MS03-CE0)가 호환되지 않습니다.</div>
                         <div class="n-section-hint n-block-gap-sm">
                             개시는 막지 않습니다. 이 서버에 맞는 정의서로 재할당한 뒤 개시해야 합니다.
                         </div>
@@ -1448,11 +1448,11 @@
             <form id="definition-picker-form" data-action="">
                 <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
                 <input type="hidden" name="definitionId" id="definitionPickerChoice">
-                <div class="n-picker-body n-picker-body-miller" id="definitionPickerBody">
+                <div class="n-picker-body n-picker-body-search" id="definitionPickerBody">
                     <p class="n-detail-empty">불러오는 중…</p>
                 </div>
                 <div class="n-picker-footer">
-                    <span class="n-picker-count" id="definitionPickerStatus">왼쪽에서 정의서 선택</span>
+                    <span class="n-picker-count" id="definitionPickerStatus">표에서 정의서 선택</span>
                     <span>
                         <button type="button" class="n-btn n-btn-secondary" data-picker-close>취소</button>
                         <button type="submit" class="n-btn n-btn-primary" id="definitionPickerSubmit" disabled>
@@ -1471,6 +1471,9 @@
 <!-- U3-1 — 세팅 정의서 할당 XHR 제출 -->
 <script th:src="@{/provisioning/server-assignment.js}"></script>
 <!-- U3-5-b — 정의서 선택 모달의 열기 · 고르기 (제출은 위 파일이 맡는다) -->
+<!-- R20 — 정의서 고르기 공용(검색 · 고르기 · 펼침) + 기간 빠른 칩(list-query.js ⑬) -->
+<script th:src="@{/global/list-query.js}"></script>
+<script th:src="@{/provisioning/definition-search-picker.js}"></script>
 <script th:src="@{/provisioning/definition-picker.js}"></script>
 <!-- E1.5 — 파괴적 전원 액션 confirm 모달(RedfishResetType.destructive) + base opener + 전원 XHR.
      confirm-soft-delete 의 id-prefix 골격을 그대로 따른다({prefix}Modal/Backdrop/Title/Message/ConfirmBtn/CancelBtn). -->

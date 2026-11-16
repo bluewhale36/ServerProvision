@@ -175,7 +175,13 @@
                               th:data-resource-id="${item.resourceId}"
                               th:data-resource-label="${item.displayName}"
                               data-resource-extra="휴지통에서 제거되며 복구할 수 없습니다.">
-                            <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">영구 삭제</button>
+                            <!--/* HF26 — 참조가 남은 메인보드는 영구삭제를 먼저 막는다. 사유는 서버 가드와 같은 문자열(BoardModelPurgeGuard). */-->
+                            <span class="n-btn-tooltip-wrap"
+                                  data-tooltip-align="right"
+                                  th:attr="data-tooltip=${item.purgeBlocked} ? ${item.purgeBlockReason} : null">
+                            <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger"
+                                    th:disabled="${item.purgeBlocked}">영구 삭제</button>
+                            </span>
                         </form>
                     </th:block>
                 </div>

@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AssignmentPickerResponseTest {
 
     private static final String BLOCK_REASON =
-            "이 정의서는 메인보드 MS03-CE0 전용입니다 — 이 서버는 ASUS-Z13PE 입니다.";
+            "본 게스트 서버의 메인보드(ASUS-Z13PE)와 정의서의 메인보드(MS03-CE0)가 호환되지 않습니다.";
 
     private SettingSummaryResponse summary(long id, String name) {
         return new SettingSummaryResponse(id, name,
@@ -39,11 +39,11 @@ class AssignmentPickerResponseTest {
     @DisplayName("선택지마다 제 상세가 붙는다 — 잠긴 것도 상세를 갖는다 (DEC-C)")
     void of_pairsEveryOptionWithItsOwnDetail() {
         AssignmentFormResponse form = new AssignmentFormResponse(null, List.of(
-                new DefinitionOptionResponse(summary(1L, "os-only-auto"), null, false),
-                new DefinitionOptionResponse(summary(2L, "bios-ms03"), BLOCK_REASON, false),
-                new DefinitionOptionResponse(summary(3L, "fw-asus-z13"), null, true)));
+                new DefinitionOptionResponse(summary(1L, "os-only-auto"), null, null),
+                new DefinitionOptionResponse(summary(2L, "bios-ms03"), BLOCK_REASON, null),
+                new DefinitionOptionResponse(summary(3L, "fw-asus-z13"), null, "이 정의서는 특정 메인보드를 요구하는데 이 서버의 하드웨어는 아직 수집 전입니다.")));
 
-        AssignmentPickerResponse picker = AssignmentPickerResponse.of(form, List.of(
+        AssignmentPickerResponse picker = pickerOf(form, List.of(
                 // 상세가 선택지와 다른 순서로 와도 id 로 맞춘다 — 두 서비스의 정렬이 같다고 가정하지 않는다
                 detail(3L, "fw-asus-z13"), detail(1L, "os-only-auto"), detail(2L, "bios-ms03")));
 
@@ -69,11 +69,11 @@ class AssignmentPickerResponseTest {
     @DisplayName("상세가 오지 않은 선택지는 떨군다 — 두 재료를 읽는 사이에 삭제된 것이다")
     void of_dropsOptionWhoseDetailIsMissing() {
         AssignmentFormResponse form = new AssignmentFormResponse(null, List.of(
-                new DefinitionOptionResponse(summary(1L, "os-only-auto"), null, false),
-                new DefinitionOptionResponse(summary(2L, "bios-ms03"), null, false)));
+                new DefinitionOptionResponse(summary(1L, "os-only-auto"), null, null),
+                new DefinitionOptionResponse(summary(2L, "bios-ms03"), null, null)));
 
         AssignmentPickerResponse picker =
-                AssignmentPickerResponse.of(form, List.of(detail(1L, "os-only-auto")));
+                pickerOf(form, List.of(detail(1L, "os-only-auto")));
 
         assertThat(picker.items()).extracting(DefinitionPickerItemResponse::id).containsExactly(1L);
     }
@@ -82,10 +82,10 @@ class AssignmentPickerResponseTest {
     @DisplayName("전부 잠겼으면 고를 수 있는 것이 없다 — 목록은 그대로 남는다")
     void hasSelectable_falseWhenEveryOptionBlocked() {
         AssignmentFormResponse form = new AssignmentFormResponse(null, List.of(
-                new DefinitionOptionResponse(summary(1L, "bios-ms03"), BLOCK_REASON, false),
-                new DefinitionOptionResponse(summary(2L, "bios-ms03-b"), BLOCK_REASON, false)));
+                new DefinitionOptionResponse(summary(1L, "bios-ms03"), BLOCK_REASON, null),
+                new DefinitionOptionResponse(summary(2L, "bios-ms03-b"), BLOCK_REASON, null)));
 
-        AssignmentPickerResponse picker = AssignmentPickerResponse.of(form,
+        AssignmentPickerResponse picker = pickerOf(form,
                 List.of(detail(1L, "bios-ms03"), detail(2L, "bios-ms03-b")));
 
         assertThat(picker.hasSelectable()).isFalse();
@@ -96,10 +96,19 @@ class AssignmentPickerResponseTest {
     @Test
     @DisplayName("선택지가 없으면 빈 판 — 상세만 있어도 항목이 생기지 않는다")
     void of_emptyWhenNoOptions() {
-        AssignmentPickerResponse picker = AssignmentPickerResponse.of(
+        AssignmentPickerResponse picker = pickerOf(
                 new AssignmentFormResponse(null, List.of()), List.of(detail(1L, "os-only-auto")));
 
         assertThat(picker.items()).isEmpty();
         assertThat(picker.hasSelectable()).isFalse();
+    }
+
+    /** 거르지 않는 조건 — 이 테스트는 상세 짝맞춤 · 차단 규칙만 본다(R20 검색 조건은 DefinitionPickerQueryTest · 컨트롤러 picker 테스트). */
+    private static final com.example.serverprovision.provisioning.assignment.dto.request.DefinitionPickerQuery NO_FILTER =
+            com.example.serverprovision.provisioning.assignment.dto.request.DefinitionPickerQuery.none();
+
+    private static AssignmentPickerResponse pickerOf(AssignmentFormResponse form, List<SettingDetailResponse> details) {
+        return AssignmentPickerResponse.of(form, details, NO_FILTER,
+                form.options().stream().map(DefinitionOptionResponse::definition).toList());
     }
 }

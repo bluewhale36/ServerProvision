@@ -10,7 +10,11 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 @ControllerAdvice
 public class CurrentUserModelAdvice {
 
-	public record CurrentUser(String username, String name, boolean admin) {
+	/**
+	 * @param mustChangePassword 초기 비밀번호 강제 변경 중인가(HF28) — 사이드바가 메뉴를 잠그는 근거. 강제 변경 인터셉터 · 변경 화면과
+	 *                           같은 값(세션 principal 의 {@code mustChangePassword()})이라 화면과 서버 가드가 어긋나지 않는다
+	 */
+	public record CurrentUser(String username, String name, boolean superAdmin, boolean mustChangePassword) {
 	}
 
 	@ModelAttribute("currentUser")
@@ -19,6 +23,7 @@ public class CurrentUserModelAdvice {
 		if (authentication == null || !(authentication.getPrincipal() instanceof UserDetails_Impl principal)) {
 			return null;
 		}
-		return new CurrentUser(principal.getUsername(), principal.displayName(), principal.isAdmin());
+		return new CurrentUser(principal.getUsername(), principal.displayName(), principal.isSuperAdmin(),
+				principal.mustChangePassword());
 	}
 }

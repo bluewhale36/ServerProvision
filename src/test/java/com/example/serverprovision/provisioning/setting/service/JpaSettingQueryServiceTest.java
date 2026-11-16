@@ -198,6 +198,28 @@ class JpaSettingQueryServiceTest {
         assertThat(options).extracting(SettingSummaryResponse::deprecated).containsExactly(false, true);
     }
 
+    @Test
+    @DisplayName("R20 · findAssignable(query) — 목록과 같은 Specification 으로 조회하고, 같은 차단 판정으로 비활성을 뺀다")
+    @SuppressWarnings("unchecked")
+    void findAssignable_withListQuery_reusesSpecificationAndBlockRule() {
+        SettingDefinition assignable = reversedDefinition();
+        SettingDefinition disabled = reversedDefinition();
+        disabled.toggleEnabled();
+        given(repository.findAll(org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<SettingDefinition>>any(),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Sort.class)))
+                .willReturn(List.of(assignable, disabled));
+
+        List<SettingSummaryResponse> options = service.findAssignable(
+                new com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery(
+                        "raid", null, null, null, false, null, null, null, null));
+
+        assertThat(options).hasSize(1);
+        assertThat(options).extracting(SettingSummaryResponse::enabled).containsOnly(true);
+        org.mockito.Mockito.verify(repository).findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<SettingDefinition>>any(),
+                org.mockito.ArgumentMatchers.eq(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "id")));
+    }
+
     /* ═══════════ 소프트참조 해석 (U3-5-d) ═══════════ */
 
     @Test

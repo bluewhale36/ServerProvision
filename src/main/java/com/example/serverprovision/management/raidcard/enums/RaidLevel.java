@@ -3,6 +3,10 @@ package com.example.serverprovision.management.raidcard.enums;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * RAID 카드가 만들 수 있는 RAID 레벨.
  *
@@ -14,22 +18,31 @@ import lombok.RequiredArgsConstructor;
  * (write-back 캐시 이점을 단일 디스크에 씌우는 구성). 그래서 판정은 {@link #minimumDisks(boolean)} 로
  * 카드의 캐시 유무를 받고, 캐시가 규칙을 바꾸는 상수(RAID0)만 method-per-constant 로 override 한다
  * ({@code Vendor.canonicalizeReportedModel} 선례). U4-1-1 의 정의서 작성 폼이 디스크 개수 판정에 쓴다.</p>
+ *
+ * <p>RAID00 · RAID50 · RAID60 은 카드 등록에서 지원 레벨로 기록만 하고 세팅 정의서에서는 고르지 못한다(R17-2) —
+ * {@link #isDefinable()}. 이 셋의 최소 디스크 · 유효 디스크 계수는 2 스팬 기준 값이며 정의서 판정에 쓰이지 않는다.</p>
  */
 @Getter
 @RequiredArgsConstructor
 public enum RaidLevel {
 
-	RAID0("RAID0", 2, "을", false, 1.0, 0) {
+	RAID0("RAID0", 2, "을", 1.0, 0) {
 		/** 캐시 보유 카드는 단일 디스크 RAID0 구성이 실무에 존재한다 — 캐시가 최소치를 1로 낮춘다. */
 		@Override
 		public int minimumDisks(boolean cardHasCache) {
 			return cardHasCache ? 1 : getBaseMinimumDisks();
 		}
 	},
-	RAID1("RAID1", 2, "을", false, 0.0, 1),
-	RAID5("RAID5", 3, "를", true, 1.0, -1),
-	RAID6("RAID6", 4, "을", true, 1.0, -2),
-	RAID10("RAID10", 4, "을", true, 0.5, 0);
+	RAID1("RAID1", 2, "을", 0.0, 1),
+	RAID5("RAID5", 3, "를", 1.0, -1),
+	RAID6("RAID6", 4, "을", 1.0, -2),
+	RAID10("RAID10", 4, "을", 0.5, 0),
+	RAID00("RAID00", 2, "을", 1.0, 0),
+	RAID50("RAID50", 6, "을", 1.0, -2),
+	RAID60("RAID60", 6, "을", 1.0, -4);
+
+	/** 세팅 정의서의 디스크 묶음이 고를 수 있는 레벨(R17-2) — 나머지는 카드 등록 정보로만 남는다. */
+	private static final Set<RaidLevel> DEFINABLE = EnumSet.of(RAID0, RAID1, RAID5, RAID6, RAID10);
 
 	private final String displayName;
 
@@ -42,13 +55,6 @@ public enum RaidLevel {
 	 */
 	private final String objectParticle;
 
-	/**
-	 * 이 레벨을 지원하는 컨트롤러가 일반적으로 캐시를 동반하는가(CP6 개정). 업무 관례 "같은 스펙 디스크
-	 * 3개 이상이면 캐시 있는 카드" 의 실제 이유가 이것이다 — RAID5 이상을 만들 수 있는 컨트롤러가 대개
-	 * 캐시를 갖는다. 등록 · 수정 폼이 캐시 0 + 이 레벨 선택 조합에 <b>경고 모달</b>을 띄우는 근거이며,
-	 * 차단이 아니라 확인 후 진행을 허용한다(실물이 실제로 그런 사양일 수 있으므로 서버 가드는 두지 않는다).
-	 */
-	private final boolean typicallyRequiresCache;
 
 	/**
 	 * 유효 디스크 수 = {@code usableA × n + usableB}(n = 멤버 디스크 수) 의 계수(U4-1-3 D7) — RAID0 n · RAID1 1 ·
@@ -57,6 +63,15 @@ public enum RaidLevel {
 	 */
 	private final double usableA;
 	private final int usableB;
+
+	/** 세팅 정의서의 디스크 묶음에서 고를 수 있는 레벨 — 정의서 폼 선택지 · 저장 가드가 같은 집합을 본다. */
+	public static List<RaidLevel> definableLevels() {
+		return List.copyOf(DEFINABLE);
+	}
+
+	public boolean isDefinable() {
+		return DEFINABLE.contains(this);
+	}
 
 	/**
 	 * 이 레벨을 구성하는 데 필요한 최소 디스크 수 — 카드의 캐시 유무가 규칙에 관여한다.

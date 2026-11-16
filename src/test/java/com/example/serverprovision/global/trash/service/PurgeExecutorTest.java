@@ -52,7 +52,7 @@ class PurgeExecutorTest {
     @BeforeEach
     void setUp() {
         // 본 테스트의 PurgeExecutor 는 단일 도메인 (OS_ISO) 만 등록.
-        executor = new PurgeExecutorImpl(List.of(isoScanner), settings, purgeLogRepository, trashPolicy);
+        executor = new PurgeExecutorImpl(List.of(isoScanner), settings, purgeLogRepository, trashPolicy, org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class));
         // HF6 — 실물 정리 가드가 루트를 조회한다. 본 테스트의 관심사가 아니므로 존재하지 않는 경로로 격리.
         given(trashPolicy.getTrashRoot()).willReturn(java.nio.file.Path.of("/nonexistent-trash-root-for-test"));
         given(isoScanner.supportedType()).willReturn(ResourceType.OS_ISO);
@@ -209,5 +209,36 @@ class PurgeExecutorTest {
         verify(purgeLogRepository).save(captor.capture());
         PurgeLogDetails.Failed details = (PurgeLogDetails.Failed) captor.getValue().getDetails();
         assertThat(details.tickAttemptCount()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("HF26 CP5 D-1 — 도메인 purge 는 시도마다 REQUIRES_NEW 트랜잭션에서 돈다. 거절되면 그 시도만 rollback, 원인 예외가 Failed 로 전달된다")
+    void domainPurgeRunsInIsolatedTransaction_andRejectionCauseIsKept() {
+        stubSnapshot();
+        stubSettings(1, 0L);
+        stubLogSaveEcho();
+        org.springframework.transaction.PlatformTransactionManager txManager =
+                org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class);
+        org.springframework.transaction.TransactionStatus attemptStatus =
+                org.mockito.Mockito.mock(org.springframework.transaction.TransactionStatus.class);
+        given(txManager.getTransaction(any())).willReturn(attemptStatus);
+        PurgeExecutorImpl isolated = new PurgeExecutorImpl(List.of(isoScanner), settings, purgeLogRepository, trashPolicy, txManager);
+        RuntimeException rejection = new com.example.serverprovision.management.board.exception.IllegalBoardModelStateException(
+                "이 메인보드 모델을 참조하는 다음 항목이 남아 있어 영구 삭제할 수 없습니다: 등록된 서버 2 대.");
+        org.mockito.BDDMockito.willThrow(rejection).given(isoScanner).purgeFromTrash(27L);
+
+        PurgeResult result = isolated.execute(
+                PurgeRequest.forUserDirect(ResourceType.OS_ISO, 27L, "admin", "Rocky Linux 9.5 dvd.iso"));
+
+        ArgumentCaptor<org.springframework.transaction.TransactionDefinition> definition =
+                ArgumentCaptor.forClass(org.springframework.transaction.TransactionDefinition.class);
+        verify(txManager).getTransaction(definition.capture());
+        assertThat(definition.getValue().getPropagationBehavior())
+                .isEqualTo(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        verify(txManager).rollback(attemptStatus);                       // 그 시도만 되돌린다
+        verify(txManager, org.mockito.Mockito.never()).commit(attemptStatus);
+        assertThat(result).isInstanceOf(PurgeResult.Failed.class);
+        assertThat(((PurgeResult.Failed) result).cause()).isSameAs(rejection);   // 컨트롤러가 다시 던져 advice 가 409 로
+        verify(purgeLogRepository).save(any(PurgeLog.class));            // FAILED 감사 기록은 남는다
     }
 }

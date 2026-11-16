@@ -21,13 +21,6 @@
 
         form.addEventListener('submit', evt => {
             evt.preventDefault();
-
-            // CP6 개정 — 캐시 0 + RAID5 이상 조합은 전송 전에 경고 modal 로 확인받는다 (차단 아님).
-            const warn = window.RaidCardCacheWarning;
-            if (warn && warn.needsWarning(form)) {
-                warn.confirm(form, send);
-                return;
-            }
             send();
         });
 

@@ -40,6 +40,7 @@ import static org.mockito.Mockito.mock;
 class AssignmentQueryServiceFormTest {
 
     @Mock com.example.serverprovision.provisioning.biossetting.service.BiosTemplateStaleInspector staleInspector;   // E3-3 — 기본 mock = 정합(null)
+    @Mock RaidCardRequirementReader raidCardReader;   // R20 — 기본 mock = RAID 단계 없음 · 인벤토리 미수집
 
     @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @Mock GuestServerRepository guestServerRepository;
@@ -134,5 +135,73 @@ class AssignmentQueryServiceFormTest {
         assertThat(form.serverBlockReason()).isEqualTo(decommissioned.assignBlockReason());
         // 옵션도 전부 잠긴다 — 화면은 폼을 닫으므로 쓰이지 않지만 판정은 일관되어야 한다.
         assertThat(form.hasSelectable()).isFalse();
+    }
+
+    // ── R20 — RAID 카드 축 ──────────────────────────────────────────────────
+
+    private static final com.example.serverprovision.provisioning.assignment.vo.RequiredRaidCard MEGARAID =
+            new com.example.serverprovision.provisioning.assignment.vo.RequiredRaidCard(2L, "1000:9361", "MegaRAID 9361-8i", true);
+
+    private static com.example.serverprovision.execution.engine.raid.RaidInventory inventory(String subsystem, String model) {
+        return new com.example.serverprovision.execution.engine.raid.RaidInventory(
+                new com.example.serverprovision.execution.engine.raid.DetectedRaidCard(null, subsystem, model, "1.0"),
+                List.of(), List.of());
+    }
+
+    @Test
+    @DisplayName("R20 — 카드가 다르면 그 정의서만 잠기고 사유가 지정 · 감지 카드를 함께 알린다")
+    void form_raidCardMismatch_locksOnlyThatOption() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(server(false)));
+        givenServerBoard(3L, "MS03-CE0");
+        given(raidCardReader.requiredByDefinition(List.of(1L, 2L))).willReturn(java.util.Map.of(1L, MEGARAID));
+        given(raidCardReader.inventoryOf(org.mockito.ArgumentMatchers.any())).willReturn(inventory("1458:3008", "SAS3008"));
+
+        AssignmentFormResponse form = service.assignmentForm(GUEST, twoDefinitions());
+
+        DefinitionOptionResponse cardLocked = form.options().get(0);
+        assertThat(cardLocked.blocked()).isTrue();
+        assertThat(cardLocked.blockReason()).isEqualTo(
+                "본 게스트 서버의 RAID 카드(SAS3008, 1458:3008)와 정의서의 RAID 카드(MegaRAID 9361-8i, 1000:9361)가 호환되지 않습니다.");
+        assertThat(form.options().get(1).blocked()).isFalse();   // RAID 단계가 없는 정의서는 카드와 무관
+    }
+
+    @Test
+    @DisplayName("R20 — RAID 인벤토리만 없으면 막지 않되 카드 미확인 사유로 대조 전 표식")
+    void form_raidInventoryUncollected_marksUnverifiedWithReason() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(server(false)));
+        givenServerBoard(3L, "MS03-CE0");
+        given(raidCardReader.requiredByDefinition(List.of(1L, 2L))).willReturn(java.util.Map.of(1L, MEGARAID));
+
+        AssignmentFormResponse form = service.assignmentForm(GUEST, twoDefinitions());
+
+        DefinitionOptionResponse option = form.options().get(0);
+        assertThat(option.blocked()).isFalse();
+        assertThat(option.unverifiedReason())
+                .isEqualTo("이 정의서는 RAID 카드 MegaRAID 9361-8i 전용인데 이 서버의 RAID 카드는 아직 확인되지 않았습니다.");
+    }
+
+    @Test
+    @DisplayName("R20 — 이미 든 할당의 카드가 서버와 다르면 경고 배너 사유가 나온다(보드만 보던 것을 하드웨어 축 전부로)")
+    void plannedPhases_raidCardMismatch_warns() {
+        GuestServer server = server(false);
+        givenServerBoard(3L, "MS03-CE0");
+        var raid = new com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest(
+                2L, List.of(), com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest.defaults(), null);
+        var process = mock(com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot.class);
+        given(process.getPayload()).willReturn(new com.example.serverprovision.provisioning.setting.vo.ProcessPayload(raid));
+        var snapshot = mock(com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot.class);
+        var ref = mock(com.example.serverprovision.provisioning.assignment.vo.SourceDefinitionRef.class);
+        given(ref.getDefinitionName()).willReturn("db-raid");
+        given(snapshot.getSourceDefinitionRef()).willReturn(ref);
+        given(snapshot.getGuestServer()).willReturn(server);
+        given(snapshot.getProcesses()).willReturn(List.of(process));
+        given(snapshot.getOwnedPhases()).willReturn(com.example.serverprovision.provisioning.assignment.vo.OwnedPhases.empty());
+        given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST)).willReturn(Optional.of(snapshot));
+        given(raidCardReader.requiredOf(org.mockito.ArgumentMatchers.<List<com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest>>any()))
+                .willReturn(MEGARAID);
+        given(raidCardReader.inventoryOf(org.mockito.ArgumentMatchers.any())).willReturn(inventory("1458:3008", "SAS3008"));
+
+        assertThat(service.plannedPhasesOf(GUEST).hardwareMismatchReason()).isEqualTo(
+                "본 게스트 서버의 RAID 카드(SAS3008, 1458:3008)와 정의서의 RAID 카드(MegaRAID 9361-8i, 1000:9361)가 호환되지 않습니다.");
     }
 }

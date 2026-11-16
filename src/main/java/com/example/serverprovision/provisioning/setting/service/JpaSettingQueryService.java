@@ -136,6 +136,18 @@ public class JpaSettingQueryService implements SettingQueryService {
     }
 
     /**
+     * 조건으로 거른 할당 선택지(R20) — 목록 화면의 Specification 을 그대로 쓰고(이름 · 단계 · 생성 일시), 차단 판정은
+     * {@link #findAssignable()} 과 같은 도메인 SSOT 다. 정렬 · 쪽 나눔은 쓰지 않는다(모달은 한 번에 보여 준다).
+     */
+    @Override
+    public List<SettingSummaryResponse> findAssignable(SettingListQuery query) {
+        return repository.findAll(SettingSpecifications.of(query), Sort.by(Sort.Direction.ASC, "id")).stream()
+                .filter(d -> d.assignBlockReason() == null)
+                .map(this::toAssignableSummary)
+                .toList();
+    }
+
+    /**
      * 선택지 행 조립 — 목록 행에 <b>요구 메인보드</b>를 덧댄다(U3-5-a).
      *
      * <p>전체 목록({@code findAll})에는 싣지 않는다. 요구 보드는 "이 서버에 붙일 수 있는가" 를 따질 때만

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  S18 — 최초 관리자 등록(부트스트랩 모드). 관리자가 하나도 없을 때만 열리며(SignupAccessPolicy), 만드는 계정은 ADMIN 으로 고정된다.
-  폼은 fragments/security/signup-form 하나를 관리자 모드 화면과 공유한다.
+  S18 — 최초 관리자 등록(부트스트랩 모드). 관리자가 하나도 없을 때만 열리며(SignupAccessPolicy), 만드는 계정은 최고 관리자(SUPER_ADMIN)로
+  고정된다(MA8). 폼은 fragments/security/signup-form 하나를 사용자 관리의 사용자 추가 화면과 공유한다.
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('최초 관리자 등록')}"></th:block>
@@ -14,7 +14,7 @@
         <div class="n-card-body">
             <p class="n-auth-brand">Provision Portal</p>
             <h1 class="n-auth-title">최초 관리자 등록</h1>
-            <p class="n-auth-lead">지금 만드는 계정이 관리자가 됩니다.</p>
+            <p class="n-auth-lead">관리자 계정이 아직 없습니다. 지금 만드는 계정이 최고 관리자가 됩니다.</p>
             <th:block th:replace="~{fragments/security/signup-form :: signupForm}"></th:block>
             <p class="n-auth-foot"><a th:href="@{/login}">로그인으로</a></p>
         </div>

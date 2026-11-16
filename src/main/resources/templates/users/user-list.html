@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  MA8 — 사용자 관리 목록 (최고 관리자 전용)
+  ─────────────────────────────────────────────────────────
+  Model:
+    page         : Page<UserSummaryResponse> — 조회 조건으로 거른 한 쪽(기본 등록 일시 최신순)
+    query        : UserListQuery — 조회 띠의 현재 상태(q · enabled · level · from · to · sort · dir)
+    links        : ListLinks — 쪽 이동 · 초기화 링크
+    sortFields   : UserSortField[] · sortDefault : UserSortField
+    levelOptions : Role[] — 권한 등급 칩
+
+  조회 띠의 규칙은 서버 그룹 목록과 같다(S8 인프라 재사용) — GET 폼 · 상태는 URL · 검색은 이름만 · 등록 일시 기본 1 년.
+  비활성 계정도 기본으로 보인다(상태 '전체' — 집행인 기록 등 이력 확인에 필요, Q6).
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('사용자 관리')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('users')}"></nav>
+
+<div class="n-page n-page-fill">
+    <div class="n-page-header">
+        <h1 class="n-page-title">사용자 관리</h1>
+        <div class="n-header-actions">
+            <span class="n-hint">이 서버에 접근하는 모든 계정입니다. 계정은 지우지 않고 비활성화합니다.</span>
+            <a class="n-btn n-btn-primary" th:href="@{/users/new}">사용자 추가</a>
+        </div>
+    </div>
+
+    <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status" th:text="${flashMessage}">등록을 마쳤습니다.</div>
+
+    <form id="listQuery" class="n-filter-bar" method="get" th:action="@{/users}" data-list-query>
+        <th:block th:replace="~{fragments/ui/list-filter :: search(${query.q}, '사용자 이름 검색', ~{::#listFilterRows})}">
+            <div id="listFilterRows" class="n-filter-rows">
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">권한 등급</span>
+                    <div class="n-filter-row-field n-filter-group" role="group" aria-label="권한 등급">
+                        <label class="n-chip"><input type="radio" name="level" value="" th:checked="${query.level == null}">전체</label>
+                        <label class="n-chip" th:each="option : ${levelOptions}">
+                            <input type="radio" name="level" th:value="${option.name()}" th:checked="${query.level == option}"><th:block th:text="${option.description}">관리자</th:block>
+                        </label>
+                    </div>
+                </div>
+                <div class="n-filter-row" data-filter-row>
+                    <span class="n-filter-row-label">상태</span>
+                    <div class="n-filter-row-field n-filter-group" role="group" aria-label="상태">
+                        <label class="n-chip"><input type="radio" name="enabled" value="" th:checked="${query.enabled == null}">전체</label>
+                        <label class="n-chip"><input type="radio" name="enabled" value="true" th:checked="${query.enabled == true}">활성</label>
+                        <label class="n-chip"><input type="radio" name="enabled" value="false" th:checked="${query.enabled == false}">비활성</label>
+                    </div>
+                </div>
+                <div th:replace="~{fragments/ui/date-range-row :: row('등록 일시', ${query})}"></div>
+            </div>
+        </th:block>
+
+        <div th:replace="~{fragments/ui/sort-selects :: selects(${sortFields}, ${query}, ${sortDefault})}"></div>
+
+        <div class="n-filter-summary">
+            <span>결과 <b th:text="${page.totalElements}">0</b>건</span>
+            <a th:if="${filtered}" th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>
+        </div>
+    </form>
+
+    <div th:if="${page.totalElements == 0}" class="n-card">
+        <div class="n-empty">
+            <th:block th:if="${query.rangeReversed}">
+                <th:block th:replace="~{fragments/ui/date-range-row :: reversedNotice(${links.reset()})}"></th:block>
+            </th:block>
+            <th:block th:if="${!query.rangeReversed and filtered}">
+                <div class="n-empty-title">조건에 맞는 사용자가 없습니다.</div>
+                <div class="n-empty-desc">조건을 바꾸거나 <a th:href="${links.reset()}" th:text="#{action.reset}">초기화</a>하면 전체 목록이 보입니다.</div>
+            </th:block>
+            <th:block th:unless="${filtered}">
+                <div class="n-empty-title">최근 1 년 안에 등록된 사용자가 없습니다.</div>
+                <div class="n-empty-desc">등록 일시 조건을 넓히거나 <a th:href="@{/users/new}">사용자를 추가</a>할 수 있습니다.</div>
+            </th:block>
+        </div>
+    </div>
+
+    <div th:if="${page.totalElements > 0 and page.content.isEmpty()}" class="n-card">
+        <div class="n-empty">
+            <div class="n-empty-title">이 페이지에는 항목이 없습니다.</div>
+            <div class="n-empty-desc"><a th:href="${links.page(0)}">첫 페이지</a>로 돌아가면 목록이 보입니다.</div>
+        </div>
+    </div>
+
+    <div th:if="${!page.content.isEmpty()}" class="n-card">
+        <div th:replace="~{fragments/ui/pagination :: pager(${page}, ${links})}"></div>
+        <div class="n-table-scroll">
+            <table class="n-table">
+                <thead>
+                <tr>
+                    <th>이름</th>
+                    <th>아이디</th>
+                    <th>권한 등급</th>
+                    <th>상태</th>
+                    <th>등록 일시</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="u : ${page.content}" class="n-row-hover">
+                    <td>
+                        <a class="n-row-link" th:href="@{/users/{id}(id=${u.id})}" th:text="${u.name}">홍길동</a>
+                        <span th:if="${u.mustChangePassword}" class="n-badge n-badge-yellow n-tooltip"
+                              data-tooltip="다음 로그인에서 비밀번호를 바꿔야 하는 계정입니다">비밀번호 변경 대기</span>
+                    </td>
+                    <td th:text="${u.username}">hong.gildong</td>
+                    <td><span class="n-badge" th:classappend="${u.level != null and u.level.name() == 'SUPER_ADMIN'} ? 'n-badge-blue' : 'n-badge-gray'"
+                              th:text="${u.level != null} ? ${u.level.description} : '권한 없음'">사용자</span></td>
+                    <td><span class="n-badge" th:classappend="${u.enabled} ? 'n-badge-green' : 'n-badge-off'"
+                              th:text="${u.enabled} ? '활성' : '비활성'">활성</span></td>
+                    <td th:text="${#temporals.format(u.createdAt, 'yyyy-MM-dd HH:mm')}">2026-11-16 21:00</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/global/list-query.js}"></script>
+</body>
+</html>
