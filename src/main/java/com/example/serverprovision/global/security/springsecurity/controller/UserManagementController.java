@@ -9,6 +9,7 @@ import com.example.serverprovision.global.security.springsecurity.dto.request.Ro
 import com.example.serverprovision.global.security.springsecurity.dto.request.SignUpRequest;
 import com.example.serverprovision.global.security.springsecurity.dto.request.UserListQuery;
 import com.example.serverprovision.global.security.springsecurity.enums.UserSortField;
+import com.example.serverprovision.global.security.springsecurity.exception.UserManagementBlockedException;
 import com.example.serverprovision.global.security.springsecurity.service.UserManagementService;
 import com.example.serverprovision.global.security.springsecurity.service.UsersQueryService;
 import com.example.serverprovision.global.web.list.ListDateRangeDefaults;
@@ -126,6 +127,13 @@ public class UserManagementController {
 			response.setStatus(HttpStatus.BAD_REQUEST.value());
 			model.addAttribute("passwordFailed", true);
 			return renderDetail(id, principal, model, request);
+		} catch (UserManagementBlockedException ex) {
+			// HF29 — 네이티브 제출 폼이라 advice 로 흘리면 공통 오류 화면이 되어 상세를 잃는다(docs C-26 · 실측 M2).
+			// 최신 상태로 상세를 다시 그리고(예: 그새 비활성이 됐으면 지정 버튼이 disabled), 카드 안 실패 안내에 사유를 싣는다.
+			response.setStatus(HttpStatus.CONFLICT.value());
+			model.addAttribute("passwordFailed", true);
+			model.addAttribute("passwordFailedReason", ex.getMessage());
+			return renderDetail(id, principal, model, new InitialPasswordRequest());
 		}
 		redirectAttributes.addFlashAttribute("flashMessage",
 				"초기 비밀번호를 지정했습니다. 그 사용자는 다음 로그인에서 새 비밀번호로 바꿔야 합니다.");
@@ -139,9 +147,9 @@ public class UserManagementController {
 		// CP7 — 제출 전 확인이 쓸 규칙 · 문구. 규칙의 주인은 서버 상수이고 화면은 내려받아 쓰기만 한다(복사본 없음).
 		model.addAttribute("passwordRuleRegex", PasswordRule.REGEX);
 		model.addAttribute("passwordRuleMessage", PasswordRule.MESSAGE);
-		model.addAttribute("passwordRequiredMessage", InitialPasswordRequest.REQUIRED);
-		model.addAttribute("passwordRetypeRequiredMessage", InitialPasswordRequest.RETYPE_REQUIRED);
-		model.addAttribute("passwordMismatchMessage", InitialPasswordRequest.MISMATCH);
+		model.addAttribute("passwordRequiredMessage", PasswordRule.BLANK);
+		model.addAttribute("passwordRetypeRequiredMessage", PasswordRule.RETYPE_BLANK);
+		model.addAttribute("passwordMismatchMessage", PasswordRule.MISMATCH);
 		return "users/user-detail";
 	}
 
