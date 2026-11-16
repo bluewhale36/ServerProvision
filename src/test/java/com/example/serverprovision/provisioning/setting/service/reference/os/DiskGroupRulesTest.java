@@ -433,4 +433,17 @@ class DiskGroupRulesTest {
         assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 4, 2)), ir10))
                 .hasMessageContaining("스팬당 디스크 수는");
     }
+
+    @Test
+    @DisplayName("R17-2 — 카드가 지원해도 정의서는 RAID00 · RAID50 · RAID60 을 고르지 못한다(카드 유무 무관)")
+    void levelNotDefinable() {
+        for (RaidLevel level : List.of(RaidLevel.RAID00, RaidLevel.RAID50, RaidLevel.RAID60)) {
+            assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(level, DiskCountMode.EXACT, 8, null)), AVAGO_9361))
+                    .isInstanceOf(InvalidDiskGroupException.class)
+                    .hasMessageContaining("1번 묶음: 세팅 정의서에서는 " + level.getDisplayName() + " 을 구성할 수 없습니다")
+                    .hasMessageContaining("RAID0 · RAID1 · RAID5 · RAID6 · RAID10 중에서 고르십시오");
+            assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(level, DiskCountMode.EXACT, 8, null)), null))
+                    .isInstanceOf(InvalidDiskGroupException.class);
+        }
+    }
 }
