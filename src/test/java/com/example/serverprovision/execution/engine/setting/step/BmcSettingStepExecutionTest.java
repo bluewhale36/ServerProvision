@@ -108,11 +108,11 @@ class BmcSettingStepExecutionTest {
     }
 
     private BeginBmcSettingStep begin() {
-        return new BeginBmcSettingStep(ledger, probe, webClient, fallback, timeoutPolicy, settingCursor);
+        return new BeginBmcSettingStep(ledger, probe, webClient, fallback, timeoutPolicy, settingCursor, new SettingFailure(ledger));
     }
 
     private ReconnectReadbackStep reconnect() {
-        return new ReconnectReadbackStep(ledger, probe, webClient, fallback, timeoutPolicy, settingCursor);
+        return new ReconnectReadbackStep(ledger, probe, webClient, fallback, timeoutPolicy, settingCursor, new SettingFailure(ledger));
     }
 
     // ---- 7행 착수 --------------------------------------------------------------
@@ -157,7 +157,7 @@ class BmcSettingStepExecutionTest {
     }
 
     @Test
-    @DisplayName("착수 — 어느 항목이 거절되면 그 자리에서 WRITE_REJECTED 로 닫고 뒤 항목(Bond)은 쓰지 않는다")
+    @DisplayName("착수 — 어느 항목이 거절되면 그 자리에서 WRITE_REJECTED 로 닫고 뒤 항목(Bond)은 쓰지 않는다(HF25 — 첫 거절은 자동 재시도 1/3)")
     void begin_rejectionStopsSequence() {
         BmcSettingTarget target = bmcTarget(profile());
         api.applied(target, "FAN_PROFILE").fail("POST /api/settings/fanprofile", AmiWebError.DATA_REJECTED, 1);
@@ -170,7 +170,8 @@ class BmcSettingStepExecutionTest {
         assertThat(row.getStatusMeta()).contains(SettingLedger.WRITE_REJECTED).contains("FAN_PROFILE");
         assertThat(ledger.itemsOf(row)).containsEntry("DATE_TIME", "APPLIED").doesNotContainKey("NETWORK_BOND");
         assertThat(api.writes()).doesNotContain("PUT /api/settings/network-bond");
-        assertThat(progress.isFailed()).isTrue();
+        assertThat(row.getStatusMeta()).contains("\"autoRetry\":1");
+        assertThat(progress.isFailed()).isFalse();
         verify(webClient).logout(session);
         verify(cursorAdvancer, never()).advanceOrComplete(any(), any(), any());
     }
@@ -365,6 +366,25 @@ class BmcSettingStepExecutionTest {
         reconnect().execute(context(server, progress, List.of(row), bmcTarget(profile()), T.plusMinutes(30)));
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
         assertThat(row.getStatusMeta()).contains(SettingLedger.BMC_UNREACHABLE);
+    }
+
+    // ---- HF25 — 자동 재시도 뒤 시한 기점 -------------------------------------------
+
+    @Test
+    @DisplayName("HF25 · 착수 — 자동 재시도한 시도의 BMC 미응답 시한은 마지막으로 닫힌 행 시각부터 다시 잰다")
+    void begin_unreachableWindowRestartsAfterAutoRetry() {
+        given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.UNREACHABLE);
+        GuestServer server = server();
+        ProvisioningHistory retried = ProvisioningHistory.openRunning(server, ProvisioningPhaseStep.BMC_SETTING,
+                T.plusMinutes(20), "{\"origin\":\"setting\"}");
+        retried.close(ProvisioningStatus.FAILED, "{\"origin\":\"WRITE_REJECTED\",\"autoRetry\":1}", T.plusMinutes(25));
+        ProvisioningProgress progress = bmcAxis();            // 축 진입 T — 진입 기준이면 T+30 은 이미 만료
+
+        begin().execute(context(server, progress, List.of(retried), bmcTarget(profile()), T.plusMinutes(30)));
+        assertThat(progress.isFailed()).isFalse();             // 기점 T+25 — 5 분째라 기다린다
+
+        begin().execute(context(server, progress, List.of(retried), bmcTarget(profile()), T.plusMinutes(46)));
+        assertThat(progress.isFailed()).isTrue();              // 기점 T+25 에서 21 분 — 만료
     }
 
     // ---- 픽스처 --------------------------------------------------------------

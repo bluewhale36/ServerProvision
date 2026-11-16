@@ -38,6 +38,7 @@ public class ReconnectReadbackStep implements SettingStep {
     private final BmcCredentialsFallback credentialsFallback;
     private final FlashTimeoutPolicy timeoutPolicy;
     private final SettingCursor settingCursor;
+    private final SettingFailure failure;
 
     @Override
     public int order() {
@@ -59,7 +60,7 @@ public class ReconnectReadbackStep implements SettingStep {
         BmcIdentity identity = identityProbe.probe(context.provider(), target,
                 context.detail().getBoardSerial(), context.detail(), "setting");
         if (identity == BmcIdentity.MISMATCHED) {
-            close(context, row, SettingLedger.IDENTITY_MISMATCH, "응답한 장비의 보드 시리얼이 이 서버와 다릅니다");
+            failure.close(context, row, SettingLedger.IDENTITY_MISMATCH, "응답한 장비의 보드 시리얼이 이 서버와 다릅니다");
             return;
         }
         if (identity == BmcIdentity.UNREACHABLE) {
@@ -72,7 +73,7 @@ public class ReconnectReadbackStep implements SettingStep {
             session = credentialsFallback.attempt(target, c -> webClient.login(target.bmcIp(), c));
         } catch (BmcRequestException e) {
             if (e.authFailure()) {
-                close(context, row, SettingLedger.AUTH_REJECTED, e.getMessage());
+                failure.close(context, row, SettingLedger.AUTH_REJECTED, e.getMessage());
             } else {
                 waitOrExpire(context, row, bondAt, e.getMessage());
             }
@@ -89,15 +90,15 @@ public class ReconnectReadbackStep implements SettingStep {
                 }
                 case MISMATCH -> {
                     ledger.markItem(row, BmcSettingItem.NETWORK_BOND, outcome);
-                    close(context, row, SettingLedger.READBACK_MISMATCH, BmcSettingItem.NETWORK_BOND.name() + " — " + outcome.detail());
+                    failure.close(context, row, SettingLedger.READBACK_MISMATCH, BmcSettingItem.NETWORK_BOND.name() + " — " + outcome.detail());
                 }
                 case RECONNECT_PENDING -> waitOrExpire(context, row, bondAt, "Bond 적용 뒤 아직 닿지 않습니다");
-                case SKIPPED, REJECTED -> close(context, row, SettingLedger.WRITE_REJECTED,
+                case SKIPPED, REJECTED -> failure.close(context, row, SettingLedger.WRITE_REJECTED,
                         BmcSettingItem.NETWORK_BOND.name() + " — " + outcome.detail());
             }
         } catch (AmiWebRequestException e) {
             if (e.getError() == AmiWebError.AUTH_FAILED) {
-                close(context, row, SettingLedger.AUTH_REJECTED, e.getMessage());
+                failure.close(context, row, SettingLedger.AUTH_REJECTED, e.getMessage());
             } else {
                 waitOrExpire(context, row, bondAt, e.getMessage());
             }
@@ -108,15 +109,9 @@ public class ReconnectReadbackStep implements SettingStep {
 
     private void waitOrExpire(SettingContext context, ProvisioningHistory row, LocalDateTime bondAt, String detail) {
         if (timeoutPolicy.isExpired(bondAt, timeoutPolicy.returnLimit(), context.now())) {
-            close(context, row, SettingLedger.BMC_UNREACHABLE, detail);
+            failure.close(context, row, SettingLedger.BMC_UNREACHABLE, detail);
         } else {
             log.info("[setting] {} — Bond 재접속 대기 : {}", context.server().getId(), detail);
         }
-    }
-
-    private void close(SettingContext context, ProvisioningHistory row, String reason, String detail) {
-        ledger.close(row, ProvisioningStatus.FAILED, reason, detail, context.now());
-        context.progress().markFailed(context.now());
-        log.warn("[setting] {} — {} : {}", context.server().getId(), reason, detail);
     }
 }

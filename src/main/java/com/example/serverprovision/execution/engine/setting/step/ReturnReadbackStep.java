@@ -38,6 +38,7 @@ public class ReturnReadbackStep implements SettingStep {
     private final RedfishBiosService biosService;
     private final FlashTimeoutPolicy timeoutPolicy;
     private final SettingCursor settingCursor;
+    private final SettingFailure failure;
 
     @Override
     public int order() {
@@ -54,13 +55,14 @@ public class ReturnReadbackStep implements SettingStep {
     public void execute(SettingContext context) {
         ProvisioningHistory row = context.runningRow().orElseThrow();
         LocalDateTime rebootAt = ledger.rebootAtOf(row);
-        // 복귀 증거 = 재부팅 발행 뒤의 /boot 도착(HF15-1 · 실기 3호 F-4). 진단 리눅스의 30초 체크인 폴링은 접촉이지 재부팅이
-        // 아니다 — BMC 리셋이 늦은 서버에서 그 폴링을 복귀로 읽어 미반영 판독(READBACK_MISMATCH)을 냈다.
+        // 복귀 증거 = 재부팅 발행 뒤의 /boot 도착(HF15-1 · 실기 3호 F-4) — 진단 리눅스의 체크인은 접촉이지 재부팅이 아니다.
+        // 설정 단계 동안 게스트는 iPXE 대기 루프에서 30초마다 /boot 를 부른다. 재시작 명령 전의 그 /boot 가 복귀로 읽히지
+        // 않도록 rebootAt 은 재시작 명령이 성공한 뒤의 시각이다(HF25 — BeginSettingStep). 재시작 뒤 POST 동안에는 /boot 가 없다.
         LocalDateTime lastBoot = context.server().getLastBootAt();
         boolean returned = lastBoot != null && lastBoot.isAfter(rebootAt);
         if (!returned) {
             if (timeoutPolicy.isExpired(rebootAt, timeoutPolicy.returnLimit(), context.now())) {
-                fail(context, row, SettingLedger.RETURN_TIMEOUT, "재부팅 뒤 시한 안에 게스트가 돌아오지 않았습니다");
+                failure.close(context, row, SettingLedger.RETURN_TIMEOUT, "재부팅 뒤 시한 안에 게스트가 돌아오지 않았습니다");
             }
             return;
         }
@@ -68,12 +70,12 @@ public class ReturnReadbackStep implements SettingStep {
         BmcIdentity identity = identityProbe.probe(context.provider(), target,
                 context.detail().getBoardSerial(), context.detail(), "setting");
         if (identity == BmcIdentity.MISMATCHED) {
-            fail(context, row, SettingLedger.IDENTITY_MISMATCH, "응답한 장비의 보드 시리얼이 이 서버와 다릅니다");
+            failure.close(context, row, SettingLedger.IDENTITY_MISMATCH, "응답한 장비의 보드 시리얼이 이 서버와 다릅니다");
             return;
         }
         if (identity == BmcIdentity.UNREACHABLE) {
             if (timeoutPolicy.isExpired(rebootAt, timeoutPolicy.returnLimit(), context.now())) {
-                fail(context, row, SettingLedger.BMC_UNREACHABLE, "BMC 에 닿지 못했고 새 주소도 찾지 못했습니다");
+                failure.close(context, row, SettingLedger.BMC_UNREACHABLE, "BMC 에 닿지 못했고 새 주소도 찾지 못했습니다");
             }
             return;
         }
@@ -96,12 +98,6 @@ public class ReturnReadbackStep implements SettingStep {
             log.info("[setting] {} — BIOS 설정 {}개 반영 확인, 다음 축으로", context.server().getId(), expected.size());
             return;
         }
-        fail(context, row, SettingLedger.READBACK_MISMATCH, "반영되지 않은 속성: " + String.join(", ", mismatched));
-    }
-
-    private void fail(SettingContext context, ProvisioningHistory row, String reason, String detail) {
-        ledger.close(row, ProvisioningStatus.FAILED, reason, detail, context.now());
-        context.progress().markFailed(context.now());
-        log.warn("[setting] {} — {} : {}", context.server().getId(), reason, detail);
+        failure.close(context, row, SettingLedger.READBACK_MISMATCH, "반영되지 않은 속성: " + String.join(", ", mismatched));
     }
 }

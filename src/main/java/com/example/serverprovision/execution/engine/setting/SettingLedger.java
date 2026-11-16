@@ -155,6 +155,19 @@ public class SettingLedger {
         row.close(status, write(meta), now);
     }
 
+    /**
+     * 자동 재시도로 닫는다(HF25) — 행은 FAILED 로 남지만 진행은 실패가 아니다. 회차는 meta {@code autoRetry} 와 detail 끝에 남겨
+     * 화면 이력에서 "실패 뒤 다시 하는 중" 임을 읽을 수 있게 한다.
+     */
+    public void closeForAutoRetry(ProvisioningHistory row, String reason, String detail, int attempt, int max,
+                                  LocalDateTime now) {
+        Map<String, Object> meta = read(row);
+        meta.put("origin", reason);
+        meta.put("detail", (detail == null ? "" : detail) + " (자동 재시도 " + attempt + "/" + max + ")");
+        meta.put("autoRetry", attempt);
+        row.close(ProvisioningStatus.FAILED, write(meta), now);
+    }
+
     /** 착수 전 판정(목표 없음 · BMC 없음) — 열린 행이 없으므로 그 축의 step 에 단발 기록. */
     public void instant(GuestServer server, ProvisioningPhaseStep step, ProvisioningStatus status, String reason,
                         String detail, LocalDateTime now) {

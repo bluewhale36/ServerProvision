@@ -69,6 +69,9 @@ import static org.mockito.Mockito.verify;
 class SettingStepExecutionTest {
 
     private static final LocalDateTime T = LocalDateTime.of(2026, 8, 25, 12, 0);
+    /** 재부팅 시각은 재시작 명령 뒤의 실제 시각이다(HF25) — 기존 시나리오는 그 시각을 T 로 고정해 기대값을 그대로 둔다. */
+    private static final java.time.Clock CLOCK_AT_T = java.time.Clock.fixed(
+            T.atZone(java.time.ZoneId.systemDefault()).toInstant(), java.time.ZoneId.systemDefault());
     private static final String SERIAL = "QG260700082";
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Map<String, Object> TARGET = Map.of("BootMode", "UEFI", "NumLock", "On");
@@ -110,11 +113,12 @@ class SettingStepExecutionTest {
     }
 
     private BeginSettingStep begin() {
-        return new BeginSettingStep(ledger, probe, biosService, powerService, timeoutPolicy, registryPort);
+        return new BeginSettingStep(ledger, probe, biosService, powerService, timeoutPolicy, registryPort,
+                new SettingFailure(ledger), CLOCK_AT_T);
     }
 
     private ReturnReadbackStep readback() {
-        return new ReturnReadbackStep(ledger, probe, biosService, timeoutPolicy, settingCursor);
+        return new ReturnReadbackStep(ledger, probe, biosService, timeoutPolicy, settingCursor, new SettingFailure(ledger));
     }
 
     // ---- 5행 착수 ------------------------------------------------------------
@@ -208,7 +212,7 @@ class SettingStepExecutionTest {
 
         verify(recorder, never()).openRunning(any(), any(), any(), any());
         verify(biosService).patchPending(any(), eq(TARGET));
-        assertThat(ledger.rebootAtOf(row)).isEqualTo(T.plusMinutes(2));
+        assertThat(ledger.rebootAtOf(row)).isEqualTo(T);   // HF25 — 주기 시각(T+2)이 아니라 재시작 명령 뒤의 Clock 시각
     }
 
     @Test
@@ -347,7 +351,7 @@ class SettingStepExecutionTest {
     }
 
     @Test
-    @DisplayName("readback — 하나라도 어긋나면 그 속성 이름을 적어 실패로 닫고 전진하지 않는다")
+    @DisplayName("readback — 하나라도 어긋나면 그 속성 이름을 적어 행을 닫고 전진하지 않는다(HF25 — 첫 불일치는 자동 재시도 1/3)")
     void readback_mismatchFailsNamingAttribute() {
         GuestServer server = returned();
         ProvisioningHistory row = openRow(server, T);
@@ -358,9 +362,9 @@ class SettingStepExecutionTest {
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
         assertThat(row.getStatusMeta()).contains(SettingLedger.READBACK_MISMATCH)
-                .contains("\"detail\":\"반영되지 않은 속성: NumLock\"");
+                .contains("\"detail\":\"반영되지 않은 속성: NumLock (자동 재시도 1/3)\"");
         verify(cursorAdvancer, never()).advanceOrComplete(any(), any(), any());
-        assertThat(progress.isFailed()).isTrue();
+        assertThat(progress.isFailed()).isFalse();
     }
 
     @Test
@@ -465,6 +469,77 @@ class SettingStepExecutionTest {
 
         assertThat(progress.isFailed()).isTrue();
         assertThat(metaOf(ProvisioningStatus.FAILED)).contains(SettingLedger.BMC_REQUIRED);
+    }
+
+    // ---- HF25 — 가짜 복귀 정정 · 자동 재시도 -------------------------------------
+
+    @Test
+    @DisplayName("HF25 · 착수 — rebootAt 은 주기 시각이 아니라 재시작 명령 뒤의 Clock 시각이다(대기 루프 /boot 의 가짜 복귀 차단)")
+    void begin_rebootAtComesFromClockAfterReset() {
+        begin().execute(context(server(), started(), List.of(), target(), T.plusMinutes(5)));
+
+        assertThat(ledger.rebootAtOf(opened.get())).isEqualTo(T);   // CLOCK_AT_T — 주기 시각 T+5 가 아니다
+    }
+
+    @Test
+    @DisplayName("HF25 · 자동 재시도 — 이번 시도에서 이미 3 번 다시 했으면 네 번째 불일치는 진행을 실패로 바꾼다")
+    void readback_mismatchAfterThreeAutoRetriesFails() {
+        GuestServer server = returned();
+        List<ProvisioningHistory> history = new java.util.ArrayList<>(autoRetriedRows(server, 3));
+        ProvisioningHistory row = openRow(server, T);
+        history.add(row);
+        given(biosService.bios(any())).willReturn(resource(Map.of("BootMode", "UEFI", "NumLock", "Off")));
+        ProvisioningProgress progress = started();
+
+        readback().execute(context(server, progress, history, target(), T.plusMinutes(4)));
+
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
+        assertThat(row.getStatusMeta()).contains(SettingLedger.READBACK_MISMATCH).doesNotContain("자동 재시도");
+        assertThat(progress.isFailed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("HF25 · 자동 재시도 — 운영자 재시도(clearFailed) 뒤에는 회차를 0 부터 다시 센다")
+    void readback_operatorRetryResetsAutoRetryCount() {
+        GuestServer server = server();
+        server.touchBoot(T.plusMinutes(8));
+        List<ProvisioningHistory> history = new java.util.ArrayList<>(autoRetriedRows(server, 3));
+        ProvisioningProgress progress = started();
+        progress.markFailed(T.plusMinutes(4));
+        progress.clearFailed(T.plusMinutes(5));               // 운영자 재시도 — lastTransitionAt 이 옛 재시도 행들 뒤로
+        ProvisioningHistory row = openRow(server, T.plusMinutes(6));
+        history.add(row);
+        given(biosService.bios(any())).willReturn(resource(Map.of("BootMode", "UEFI", "NumLock", "Off")));
+
+        readback().execute(context(server, progress, history, target(), T.plusMinutes(9)));
+
+        assertThat(row.getStatusMeta()).contains("(자동 재시도 1/3)").contains("\"autoRetry\":1");
+        assertThat(progress.isFailed()).isFalse();
+    }
+
+    @Test
+    @DisplayName("HF25 · 자동 재시도 대상 아님 — 복귀 시한 만료는 회차가 남아도 첫 번에 진행을 실패로 바꾼다")
+    void readback_returnTimeoutIsNotAutoRetried() {
+        GuestServer server = server();
+        ProvisioningHistory row = openRow(server, T);
+        ProvisioningProgress progress = started();
+
+        readback().execute(context(server, progress, List.of(row), target(), T.plusMinutes(30)));
+
+        assertThat(row.getStatusMeta()).contains(SettingLedger.RETURN_TIMEOUT).doesNotContain("autoRetry");
+        assertThat(progress.isFailed()).isTrue();
+    }
+
+    /** 이번 시도 안에서 자동 재시도로 닫힌 BIOS 행 n 개 — T+1분부터 1분 간격으로 닫혔다(lastTransitionAt=T 뒤). */
+    private static List<ProvisioningHistory> autoRetriedRows(GuestServer server, int n) {
+        List<ProvisioningHistory> rows = new java.util.ArrayList<>();
+        for (int i = 1; i <= n; i++) {
+            ProvisioningHistory r = ProvisioningHistory.openRunning(server, ProvisioningPhaseStep.BIOS_SETTING,
+                    T.plusSeconds(i * 60L - 30), "{\"origin\":\"setting\"}");
+            r.close(ProvisioningStatus.FAILED, "{\"origin\":\"READBACK_MISMATCH\",\"autoRetry\":" + i + "}", T.plusMinutes(i));
+            rows.add(r);
+        }
+        return rows;
     }
 
     // ---- 픽스처 --------------------------------------------------------------

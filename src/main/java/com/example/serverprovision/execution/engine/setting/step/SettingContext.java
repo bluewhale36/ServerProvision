@@ -44,6 +44,40 @@ public record SettingContext(
                 detail == null ? null : detail.getBoardSerial());
     }
 
+    /**
+     * 이번 시도 안에서 쓴 자동 재시도 횟수(HF25) — 이 축의 FAILED 행 중 마지막 진행 전이 뒤에 닫힌 것. 자동 재시도는 진행 전이를
+     * 만들지 않아 회차가 쌓이고, 축 진입 · 운영자 재시도 · 최종 실패는 {@code lastTransitionAt} 을 옮겨 셈을 새로 시작한다.
+     */
+    public int autoRetriesUsed() {
+        SettingAxis axis = axis();
+        LocalDateTime since = progress.getLastTransitionAt();
+        if (axis == null) {
+            return 0;
+        }
+        return (int) history.stream()
+                .filter(h -> h.getStepCode() == axis.getStep() && h.getStatus() == ProvisioningStatus.FAILED)
+                .filter(h -> h.getFinishedAt() != null && (since == null || h.getFinishedAt().isAfter(since)))
+                .count();
+    }
+
+    /**
+     * 이번 시도의 시한 기점(HF25) — 마지막 진행 전이와 이 축의 마지막 닫힌 행 중 늦은 쪽. 자동 재시도한 시도도 BMC 미응답 시한을
+     * 새로 받는다({@code FlashContext.returnWaitSince} 와 같은 결).
+     */
+    public LocalDateTime attemptSince() {
+        SettingAxis axis = axis();
+        LocalDateTime transition = progress.getLastTransitionAt();
+        if (axis == null) {
+            return transition;
+        }
+        return history.stream()
+                .filter(h -> h.getStepCode() == axis.getStep() && h.getFinishedAt() != null)
+                .map(ProvisioningHistory::getFinishedAt)
+                .filter(at -> transition == null || at.isAfter(transition))
+                .max(java.util.Comparator.naturalOrder())
+                .orElse(transition);
+    }
+
     /** 현재 축의 열린 행 — 있으면 착수 뒤(재부팅 · 재접속 전이거나 후)다. 최신 행 하나만 의미가 있다. */
     public Optional<ProvisioningHistory> runningRow() {
         SettingAxis axis = axis();
