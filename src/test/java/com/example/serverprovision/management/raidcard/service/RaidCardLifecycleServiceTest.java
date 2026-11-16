@@ -236,25 +236,4 @@ class RaidCardLifecycleServiceTest {
 
 	// ==== purgeWithTypedNameCheck ====================================
 
-	@Test
-	@DisplayName("purgeWithTypedNameCheck : typedName = displayName 일치 → 삭제")
-	void purgeTypedName_match_deletes() {
-		RaidCard card = deletedCard(false);
-		given(raidCardRepository.findByIdAndIsDeletedTrue(7L)).willReturn(Optional.of(card));
-
-		raidCardService.purgeWithTypedNameCheck(7L, "GIGABYTE CRA3338");
-
-		verify(raidCardRepository).delete(card);
-	}
-
-	@Test
-	@DisplayName("purgeWithTypedNameCheck : typedName 불일치 → TypedNameMismatchException (400), 삭제 미수행")
-	void purgeTypedName_mismatch_throws400() {
-		RaidCard card = deletedCard(false);
-		given(raidCardRepository.findByIdAndIsDeletedTrue(7L)).willReturn(Optional.of(card));
-
-		assertThatThrownBy(() -> raidCardService.purgeWithTypedNameCheck(7L, "GIGABYTE 9361-8i"))
-				.isInstanceOf(TypedNameMismatchException.class);
-		verify(raidCardRepository, never()).delete(org.mockito.ArgumentMatchers.any(RaidCard.class));
-	}
 }

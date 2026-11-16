@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.os.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.web.list.ListLinks;
 import com.example.serverprovision.global.exception.ApiErrorResponse;
@@ -59,6 +61,7 @@ public class OSMetadataController {
 	);
 
 	private final OSMetadataService osMetadataService;
+	private final UserPurgeService userPurgeService;   // HF31
 	// R1-3 — lifecycle 명령은 별도 service 가 전담. Controller 가 두 service 를 직접 의존.
 	private final OSMetadataLifecycleService osMetadataLifecycleService;
 
@@ -214,7 +217,8 @@ public class OSMetadataController {
 			@RequestParam("typedName") String typedName,
 			@RequestParam(name = "selectKey", required = false) String selectKey
 	) {
-		osMetadataLifecycleService.purgeWithTypedNameCheck(id, typedName);
+		// HF31 — 휴지통 화면과 같은 단일 진입점(자원명 확인 → PurgeExecutor: 휴지통 실물 정리 · 감사 기록)
+		userPurgeService.purge(ResourceType.OS_IMAGE, id, typedName);
 		// 영구 삭제 후 row 자체가 사라짐 → selectId 보존 의미 없음. selectKey 와 휴지통 모드는 유지.
 		return OSControllerSupport.redirectToList(null, selectKey, true);
 	}

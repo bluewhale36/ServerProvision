@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.lifecycle.DeleteIntentRegistry;
 import com.example.serverprovision.global.lifecycle.DeleteIntentToken;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 public class IsoLifecycleController {
 
 	private final OSMetadataService osMetadataService;
+	private final UserPurgeService userPurgeService;   // HF31
 	private final com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
 	private final DeleteIntentRegistry deleteIntentRegistry;
 
@@ -163,7 +165,8 @@ public class IsoLifecycleController {
 			@RequestParam(name = "includeDeleted", defaultValue = "false") boolean includeDeleted
 	) {
 		isoLifecycleService.assertBelongsToOs(isoId, osId);
-		isoLifecycleService.purgeWithTypedNameCheck(isoId, typedName);
+		// HF31 — 휴지통 화면과 같은 단일 진입점(자원명 확인 → PurgeExecutor: 휴지통 실물 정리 · 감사 기록)
+		userPurgeService.purge(ResourceType.OS_ISO, isoId, typedName);
 		return OSControllerSupport.redirectToList(osId, selectKey, includeDeleted);
 	}
 

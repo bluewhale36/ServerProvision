@@ -15,9 +15,11 @@ class BundleTreeCleanupServiceTest {
     /** S3.1 — purgeExistingTree 가 PathPolicy 가드를 통과해야 함. 단위 테스트는 mock 으로 통과. */
     private final com.example.serverprovision.global.security.PathPolicyService pathPolicyService =
             org.mockito.Mockito.mock(com.example.serverprovision.global.security.PathPolicyService.class);
+    private final com.example.serverprovision.global.marker.service.ProvisionMarkerService markerService =
+            org.mockito.Mockito.mock(com.example.serverprovision.global.marker.service.ProvisionMarkerService.class);
     private final com.example.serverprovision.global.security.config.FileSystemSecurityProperties fsProps =
             new com.example.serverprovision.global.security.config.FileSystemSecurityProperties(2000, 8);
-    private final BundleTreeCleanupService service = new BundleTreeCleanupService(pathPolicyService, fsProps);
+    private final BundleTreeCleanupService service = new BundleTreeCleanupService(pathPolicyService, fsProps, markerService);
 
     {
         // 모든 path 통과 시키는 default mock — 본 단위 테스트는 가드 동작 자체가 아니라 walk/delete 검증.
@@ -46,5 +48,42 @@ class BundleTreeCleanupServiceTest {
         assertThatCode(() -> service.cleanupFailedUpload(
                 missing, "test-purge", "addBios", new IllegalStateException("boom")))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("HF31 purgeOwnedTree : 원래 경로의 마커가 이 자원을 가리키면 트리를 지운다")
+    void purgeOwnedTree_owned_removesTree(@TempDir Path tmp) throws Exception {
+        Path root = tmp.resolve("bios-a");
+        Files.createDirectories(root);
+        Files.writeString(root.resolve("flash.nsh"), "echo");
+        com.example.serverprovision.global.marker.Markable resource = resourceAt(root);
+        org.mockito.Mockito.when(markerService.isMarkedAs(resource)).thenReturn(true);
+
+        service.purgeOwnedTree(resource, "test-purge");
+
+        assertThat(Files.exists(root)).isFalse();
+    }
+
+    @Test
+    @DisplayName("HF31 purgeOwnedTree : 원래 경로가 다른 자원의 트리면(마커 불일치 · 없음) 하나도 지우지 않는다")
+    void purgeOwnedTree_notOwned_keepsTree(@TempDir Path tmp) throws Exception {
+        Path root = tmp.resolve("bios-a");
+        Files.createDirectories(root);
+        Files.writeString(root.resolve("flash.nsh"), "echo");
+        com.example.serverprovision.global.marker.Markable resource = resourceAt(root);
+        org.mockito.Mockito.when(markerService.isMarkedAs(resource)).thenReturn(false);
+
+        service.purgeOwnedTree(resource, "test-purge");
+
+        assertThat(root.resolve("flash.nsh")).exists();
+    }
+
+    private static com.example.serverprovision.global.marker.Markable resourceAt(Path path) {
+        com.example.serverprovision.global.marker.Markable m =
+                org.mockito.Mockito.mock(com.example.serverprovision.global.marker.Markable.class);
+        org.mockito.Mockito.when(m.getResourcePath()).thenReturn(path);
+        org.mockito.Mockito.when(m.getResourceType()).thenReturn(com.example.serverprovision.global.marker.ResourceType.BIOS_BUNDLE);
+        org.mockito.Mockito.when(m.getResourceId()).thenReturn(5L);
+        return m;
     }
 }

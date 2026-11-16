@@ -218,7 +218,7 @@ class BmcLifecycleServiceTest {
 
         bmcLifecycleService.purge(5L);
 
-        verify(bundleTreeCleanupService).purgeExistingTree(Path.of(softDeleted.getTreeRootPath()), "purgeBmc");
+        verify(bundleTreeCleanupService).purgeOwnedTree(softDeleted, "purgeBmc");   // HF31 — 소유 확인은 정리 서비스가
         verify(bmcRepository).delete(softDeleted);
     }
 
@@ -231,40 +231,6 @@ class BmcLifecycleServiceTest {
 
         assertThatThrownBy(() -> bmcLifecycleService.purge(5L))
                 .isInstanceOf(IllegalBmcStateException.class);
-        verify(bmcRepository, never()).delete(any());
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(happy) : 입력명이 BMC displayName 과 일치 → purge 진행")
-    void purgeWithTypedNameCheck_nameMatches_purges() {
-        BoardModel parent = parent(2L, true, false, false);
-        BoardBMC softDeleted = bmc(5L, parent, false, false, true);   // soft-deleted, displayName = "AST2600"
-        given(bmcRepository.findById(5L)).willReturn(Optional.of(softDeleted));
-
-        bmcLifecycleService.purgeWithTypedNameCheck(5L, "AST2600");
-
-        verify(bmcRepository).delete(softDeleted);
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(mismatch) : 입력명 불일치 → TypedNameMismatchException + 삭제 미호출")
-    void purgeWithTypedNameCheck_nameMismatch_propagatesAndNoDelete() {
-        BoardModel parent = parent(2L, true, false, false);
-        BoardBMC softDeleted = bmc(5L, parent, false, false, true);
-        given(bmcRepository.findById(5L)).willReturn(Optional.of(softDeleted));
-
-        assertThatThrownBy(() -> bmcLifecycleService.purgeWithTypedNameCheck(5L, "wrong"))
-                .isInstanceOf(TypedNameMismatchException.class);
-        verify(bmcRepository, never()).delete(any());
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(상태위반) : BMC 부재 → BmcNotFoundException (검증 진입 전 차단)")
-    void purgeWithTypedNameCheck_bmcMissing_throwsBeforeCheck() {
-        given(bmcRepository.findById(404L)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> bmcLifecycleService.purgeWithTypedNameCheck(404L, "anything"))
-                .isInstanceOf(BmcNotFoundException.class);
         verify(bmcRepository, never()).delete(any());
     }
 

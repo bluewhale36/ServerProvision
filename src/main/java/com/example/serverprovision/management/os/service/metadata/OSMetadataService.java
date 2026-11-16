@@ -141,7 +141,7 @@ public class OSMetadataService {
 		image.update(request.description());
 	}
 
-	// R1-3 — toggleEnabled / softDelete / restore (×2) / deprecate / undeprecate / purgeWithTypedNameCheck / purge
+	// R1-3 — toggleEnabled / softDelete / restore (×2) / deprecate / undeprecate / purge
 	//        는 {@link OSMetadataLifecycleService} 로 이동.
 	// R1-4-1 — purgeIsoWithTypedNameCheck / purgeIso 도 {@link IsoLifecycleService} 로 이동. ISO lifecycle 책임 전부 분리.
 	// R1-4-2 — addISO / prepareIsoRegistration (×2) / finalizePreparedIsoRegistration / completePendingIsoFromNudge /

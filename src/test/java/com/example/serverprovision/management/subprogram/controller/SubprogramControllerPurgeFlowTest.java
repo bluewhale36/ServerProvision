@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.subprogram.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
@@ -31,6 +33,7 @@ class SubprogramControllerPurgeFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean SubprogramService subprogramService;
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 영구 삭제 단일 진입점
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService subprogramLifecycleService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramIntegrityService subprogramIntegrityService;
     @MockitoBean SubprogramUploadIntentService subprogramUploadIntentService;
@@ -44,8 +47,8 @@ class SubprogramControllerPurgeFlowTest {
     @Test
     @DisplayName("Subprogram purge — typedName 일치 → 302 redirect")
     void purge_typedNameMatches_returns302() throws Exception {
-        willDoNothing().given(subprogramLifecycleService)
-                .purgeWithTypedNameCheck(eq(7L), eq("ASPEED_1-15-03_MS03-CE0"));
+        willDoNothing().given(userPurgeService)
+                .purge(eq(ResourceType.SUBPROGRAM), eq(7L), eq("ASPEED_1-15-03_MS03-CE0"));
 
         mvc.perform(post("/management/subprogram/7/purge")
                         .param("typedName", "ASPEED_1-15-03_MS03-CE0"))
@@ -58,8 +61,8 @@ class SubprogramControllerPurgeFlowTest {
     @DisplayName("Subprogram purge — typedName 불일치 → 400")
     void purge_typedNameMismatch_returns400() throws Exception {
         willThrow(new TypedNameMismatchException("ASPEED_1-15-03_MS03-CE0", "wrong"))
-                .given(subprogramLifecycleService)
-                .purgeWithTypedNameCheck(eq(7L), eq("wrong"));
+                .given(userPurgeService)
+                .purge(eq(ResourceType.SUBPROGRAM), eq(7L), eq("wrong"));
 
         mvc.perform(post("/management/subprogram/7/purge").param("typedName", "wrong"))
                 .andExpect(status().isBadRequest());

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bmc.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.lifecycle.DeleteIntentRegistry;
 import com.example.serverprovision.global.lifecycle.DeleteIntentToken;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class BmcLifecycleController {
 
 	private final BmcLifecycleService bmcLifecycleService;
+	private final UserPurgeService userPurgeService;   // HF31
 	private final DeleteIntentRegistry deleteIntentRegistry;
 
 	@PostMapping("/{boardId}/bmc/{bmcId}/toggle")
@@ -110,7 +112,8 @@ public class BmcLifecycleController {
 			@RequestParam("typedName") String typedName
 	) {
 		bmcLifecycleService.assertBelongsToBoard(bmcId, boardId);
-		bmcLifecycleService.purgeWithTypedNameCheck(bmcId, typedName);
+		// HF31 — 휴지통 화면과 같은 단일 진입점(자원명 확인 → PurgeExecutor: 휴지통 실물 정리 · 감사 기록)
+		userPurgeService.purge(ResourceType.BMC_FIRMWARE, bmcId, typedName);
 		return "redirect:/management/bmc?selectBoardId=" + boardId + "&includeDeleted=true";
 	}
 }

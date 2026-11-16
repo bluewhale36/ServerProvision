@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.raidcard.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,7 @@ class RaidCardListQueryFlowTest {
 
     @Autowired MockMvc mvc;
 
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
     @MockitoBean com.example.serverprovision.management.raidcard.service.RaidCardMetadataService raidCardService;
     @MockitoBean com.example.serverprovision.management.raidcard.service.RaidCardObservationService observationService;
     @MockitoBean com.example.serverprovision.management.raidcard.service.RaidCardLifecycleService raidCardLifecycleService;

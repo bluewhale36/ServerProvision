@@ -10,8 +10,8 @@ import com.example.serverprovision.global.marker.Markable;
  * <ul>
  *   <li>{@link TypedNameVerifier} (빈) — (resourceType, id) 만 가진 호출부(nudge 교체 / 모달 컨트롤러)가
  *       scanner 로 자원을 <b>조회한 뒤</b> 검증. id → 엔티티 lookup 이 필요해 빈으로 주입.</li>
- *   <li>{@code TypedNameGuard} (static) — 엔티티를 <b>이미 손에 든</b> 호출부(각 도메인의
- *       {@code purgeWithTypedNameCheck} 는 직전에 자원을 로딩함)가 재조회 없이 검증. 의존성이 0 이라 어떤
+ *   <li>{@code TypedNameGuard} (static) — 엔티티를 <b>이미 손에 든</b> 호출부(해시 수락 {@code HashAcceptService} 등)가
+ *       재조회 없이 검증. 영구 삭제도 HF31 부터 {@code UserPurgeService} 가 휴지통 자원을 조회한 뒤 본 가드로 확인한다. 의존성이 0 이라 어떤
  *       빈도 주입하지 않으며, 그래서 도메인 service 가 본 가드를 써도 {@code service → TypedNameVerifier → scanner → service}
  *       순환이 형성되지 않는다(R7-2 가 OS/Board/Iso scanner 의 {@code ObjectProvider} 를 제거하는 근거).</li>
  * </ul>

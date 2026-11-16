@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.os.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.os.service.OSNudgeService;
@@ -35,6 +37,7 @@ class OSMetadataControllerPurgeFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean OSMetadataService osMetadataService;
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 영구 삭제 단일 진입점
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService osMetadataLifecycleService;
     @MockitoBean com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
     @MockitoBean OSNudgeService osNudgeService;
@@ -49,8 +52,8 @@ class OSMetadataControllerPurgeFlowTest {
     @Test
     @DisplayName("OS purge — typedName 일치 → 302 redirect, includeDeleted 보존")
     void purgeOs_typedNameMatches_returns302() throws Exception {
-        willDoNothing().given(osMetadataLifecycleService)
-                .purgeWithTypedNameCheck(eq(1L), eq("Rocky Linux 9.6"));
+        willDoNothing().given(userPurgeService)
+                .purge(eq(ResourceType.OS_IMAGE), eq(1L), eq("Rocky Linux 9.6"));
 
         mvc.perform(post("/management/os/1/purge").param("typedName", "Rocky Linux 9.6"))
                 .andExpect(status().is3xxRedirection())
@@ -61,8 +64,8 @@ class OSMetadataControllerPurgeFlowTest {
     @DisplayName("OS purge — typedName 불일치 → 400 (TypedNameMismatchException)")
     void purgeOs_typedNameMismatch_returns400() throws Exception {
         willThrow(new TypedNameMismatchException("Rocky Linux 9.6", "wrong"))
-                .given(osMetadataLifecycleService)
-                .purgeWithTypedNameCheck(eq(1L), eq("wrong"));
+                .given(userPurgeService)
+                .purge(eq(ResourceType.OS_IMAGE), eq(1L), eq("wrong"));
 
         mvc.perform(post("/management/os/1/purge").param("typedName", "wrong"))
                 .andExpect(status().isBadRequest());
@@ -71,8 +74,8 @@ class OSMetadataControllerPurgeFlowTest {
     @Test
     @DisplayName("ISO purge — typedName 일치 → 302 redirect, selectId 보존")
     void purgeIso_typedNameMatches_returns302() throws Exception {
-        willDoNothing().given(isoLifecycleService)
-                .purgeWithTypedNameCheck(eq(7L), eq("Rocky Linux 9.6 dvd.iso"));
+        willDoNothing().given(userPurgeService)
+                .purge(eq(ResourceType.OS_ISO), eq(7L), eq("Rocky Linux 9.6 dvd.iso"));
 
         mvc.perform(post("/management/os/1/iso/7/purge")
                         .param("typedName", "Rocky Linux 9.6 dvd.iso"))
@@ -84,8 +87,8 @@ class OSMetadataControllerPurgeFlowTest {
     @DisplayName("ISO purge — typedName 불일치 → 400")
     void purgeIso_typedNameMismatch_returns400() throws Exception {
         willThrow(new TypedNameMismatchException("Rocky Linux 9.6 dvd.iso", "x"))
-                .given(isoLifecycleService)
-                .purgeWithTypedNameCheck(eq(7L), eq("x"));
+                .given(userPurgeService)
+                .purge(eq(ResourceType.OS_ISO), eq(7L), eq("x"));
 
         mvc.perform(post("/management/os/1/iso/7/purge").param("typedName", "x"))
                 .andExpect(status().isBadRequest());

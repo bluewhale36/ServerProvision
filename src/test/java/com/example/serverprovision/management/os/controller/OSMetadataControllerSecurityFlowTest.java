@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.security.exception.PathOutsideAllowedRootsException;
 import com.example.serverprovision.global.security.exception.UploadLimitExceededException;
@@ -53,6 +54,7 @@ class OSMetadataControllerSecurityFlowTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper om;
 
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
     @MockitoBean OSMetadataService osMetadataService;
     @MockitoBean IsoRegistrationService isoRegistrationService;
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService osMetadataLifecycleService;

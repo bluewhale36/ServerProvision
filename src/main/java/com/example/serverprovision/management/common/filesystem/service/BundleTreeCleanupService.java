@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.common.filesystem.service;
 
+import com.example.serverprovision.global.marker.Markable;
+import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.global.security.config.FileSystemSecurityProperties;
 import com.example.serverprovision.global.security.exception.PathOutsideAllowedRootsException;
@@ -30,6 +32,21 @@ public class BundleTreeCleanupService {
 
 	private final PathPolicyService pathPolicyService;
 	private final FileSystemSecurityProperties fileSystemSecurityProperties;
+	private final ProvisionMarkerService provisionMarkerService;
+
+	/**
+	 * 영구 삭제용 원래 트리 정리(HF31) — 트리 안 마커가 이 자원을 가리킬 때만 지운다. 휴지통으로 옮긴 자원의 원래 경로는 보통
+	 * 비어 있고, 그 사이 같은 경로에 다른 자원이 등록됐을 수 있다(그 트리의 마커는 그 자원을 가리킨다). 마커가 없는 잔여물도
+	 * 이 자원의 것이라 단정할 수 없어 남긴다.
+	 */
+	public void purgeOwnedTree(Markable resource, String warnContext) {
+		if (!provisionMarkerService.isMarkedAs(resource)) {
+			log.info("[{}] 원래 경로에 이 자원의 트리가 없어(비었거나 다른 자원의 것) 남김. resource={} path={}",
+					warnContext, resource.getResourceType() + " #" + resource.getResourceId(), resource.getResourcePath());
+			return;
+		}
+		purgeExistingTree(resource.getResourcePath(), warnContext);
+	}
 
 	public void purgeExistingTree(Path treeRoot, String warnContext) {
 		if (treeRoot == null) return;

@@ -106,6 +106,18 @@ public class OSMetadataMarkableScanner implements MarkableScanner {
 	/**
 	 * 휴지통 cascade preview — soft-deleted 자식 ISO 의 파일명 list.
 	 */
+	/** HF31 — OS 버전 영구 삭제가 FK cascade 로 함께 지우는 휴지통 하위 ISO 의 실물 경로(docs C-1). */
+	@Override
+	@Transactional(readOnly = true)
+	public List<String> dependentTrashedPaths(Long resourceId) {
+		return osMetadataRepository.findById(resourceId)
+				.map(image -> image.getIsos().stream()
+						.filter(iso -> iso.isDeleted() && iso.getTrashedPath() != null)
+						.map(iso -> iso.getTrashedPath())
+						.collect(Collectors.toList()))
+				.orElse(Collections.emptyList());
+	}
+
 	@Override
 	@Transactional(readOnly = true)
 	public List<String> findDeletedChildLabels(Long resourceId) {

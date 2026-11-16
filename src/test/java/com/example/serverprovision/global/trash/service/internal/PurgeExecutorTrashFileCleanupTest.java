@@ -58,6 +58,7 @@ class PurgeExecutorTrashFileCleanupTest {
     }
 
     private com.example.serverprovision.global.trash.TrashPolicy trashPolicy;
+    private PurgeLogRepository purgeLogRepository;
     private Path trashRoot;
 
     @BeforeEach
@@ -66,7 +67,7 @@ class PurgeExecutorTrashFileCleanupTest {
         given(isoScanner.supportedType()).willReturn(ResourceType.OS_ISO);
         TrashSettingsService settings = mock(TrashSettingsService.class);
         given(settings.getRetryBackoffBaseMs()).willReturn(0L);
-        PurgeLogRepository purgeLogRepository = mock(PurgeLogRepository.class);
+        purgeLogRepository = mock(PurgeLogRepository.class);
         given(purgeLogRepository.save(any(PurgeLog.class))).willAnswer(inv -> inv.getArgument(0));
         // HF6 — 재귀 삭제의 안전 경계. 실제 레이아웃(루트/자원종류/ID/실물)을 @TempDir 로 재현한다.
         trashRoot = tmp.resolve("soft-deleted");
@@ -190,5 +191,54 @@ class PurgeExecutorTrashFileCleanupTest {
         assertThat(result).isInstanceOf(PurgeResult.Success.class);
         assertThat(Files.exists(bundle)).isFalse();
         assertThat(Files.exists(precious)).isTrue(); // 링크 타깃 무사
+    }
+
+    @Test
+    @DisplayName("HF31 — 함께 지워지는 하위 자원(OS 버전의 휴지통 ISO)의 실물도 성공 뒤 같은 가드로 정리된다(docs C-1)")
+    void purge_alsoDeletesDependentTrashedFiles(@TempDir Path tmp) throws Exception {
+        Path parentTrashed = trashedFile(42L, "meta.json", "x");
+        Path childA = trashedFile(101L, "dvd_a.iso", "a");
+        Path childB = trashedFile(102L, "dvd_b.iso", "b");
+        given(isoScanner.findTrashedById(42L)).willReturn(
+                Optional.of(new DeletedIso(42L, tmp.resolve("iso/dvd.iso"), parentTrashed.toString())));
+        given(isoScanner.dependentTrashedPaths(42L)).willReturn(List.of(childA.toString(), childB.toString()));
+
+        PurgeResult result = executor.execute(PurgeRequest.forUserDirect(ResourceType.OS_ISO, 42L, "tester", "dvd"));
+
+        assertThat(result).isInstanceOf(PurgeResult.Success.class);
+        assertThat(Files.exists(childA)).isFalse();
+        assertThat(Files.exists(childB)).isFalse();
+        assertThat(Files.exists(childA.getParent())).isFalse();   // ID 디렉토리 껍데기까지
+    }
+
+    @Test
+    @DisplayName("HF31 — 도메인 purge 가 실패하면 하위 자원 실물도 지우지 않는다(행이 남아 복구 가능)")
+    void purge_failed_keepsDependentTrashedFiles(@TempDir Path tmp) throws Exception {
+        Path childA = trashedFile(101L, "dvd_a.iso", "a");
+        given(isoScanner.findTrashedById(42L)).willReturn(
+                Optional.of(new DeletedIso(42L, tmp.resolve("iso/dvd.iso"), null)));
+        given(isoScanner.dependentTrashedPaths(42L)).willReturn(List.of(childA.toString()));
+        org.mockito.BDDMockito.willThrow(new IllegalStateException("domain reject")).given(isoScanner).purgeFromTrash(42L);
+
+        PurgeResult result = executor.execute(PurgeRequest.forUserDirect(ResourceType.OS_ISO, 42L, "tester", "dvd"));
+
+        assertThat(result).isInstanceOf(PurgeResult.Failed.class);
+        assertThat(Files.exists(childA)).isTrue();
+    }
+
+    @Test
+    @DisplayName("HF31 CP5 O-1 — 성공 감사 기록의 trashedPath 는 실제 휴지통 경로, originalPath 는 원래 경로")
+    void purge_successLogRecordsActualTrashedPath(@TempDir Path tmp) throws Exception {
+        Path trashed = trashedFile(42L, "dvd_x.iso", "body");
+        Path original = tmp.resolve("iso/dvd.iso");
+        given(isoScanner.findTrashedById(42L)).willReturn(Optional.of(new DeletedIso(42L, original, trashed.toString())));
+
+        executor.execute(PurgeRequest.forUserDirect(ResourceType.OS_ISO, 42L, "tester", "dvd"));
+
+        org.mockito.ArgumentCaptor<PurgeLog> captor = org.mockito.ArgumentCaptor.forClass(PurgeLog.class);
+        org.mockito.Mockito.verify(purgeLogRepository).save(captor.capture());
+        var details = (com.example.serverprovision.global.trash.PurgeLogDetails.Success) captor.getValue().getDetails();
+        assertThat(details.trashedPath()).isEqualTo(trashed.toString());
+        assertThat(details.originalPath()).isEqualTo(original.toString());
     }
 }
