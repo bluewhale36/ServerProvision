@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="manual-reviewed" content="2026-11-16">
+    <title>정의서 작성 | ServerProvision 사용 매뉴얼</title>
+    <link rel="stylesheet" href="../../global/reset.css">
+    <link rel="stylesheet" href="../../global/style.css">
+    <link rel="stylesheet" href="../manual.css">
+    <script src="../manual.js" defer></script>
+</head>
+<body class="m-body">
+<main class="m-main">
+    <h1>정의서 작성</h1>
+    <p class="m-lead">세팅 정의서는 서버에 진행할 단계와 단계별 설정을 모은 문서입니다. 한 정의서를 여러 서버에 할당할 수 있으며, 서버는 할당받은 정의서의 단계를 차례로 진행합니다.</p>
+
+    <h2 id="snapshot">할당과 정의서의 관계</h2>
+    <p>정의서를 서버에 할당하면 그 순간의 정의서 내용이 복사되어 서버의 할당에 고정됩니다. 그래서 이미 할당한 뒤에는 정의서를 수정, 비활성화, 삭제, 영구 삭제해도 그 서버가 진행할 내용은 바뀌지 않습니다. 고친 내용을 서버에 반영하려면 개시 전에 그 서버에 다시 할당합니다. 개시한 뒤에는 다시 할당할 수 없습니다.</p>
+    <p>단, 정의서가 고른 펌웨어, ISO, RAID 카드 같은 자원은 실행할 때 그 자원의 현재 상태로 다시 확인합니다. 최신 버전은 그때의 순위 1위 펌웨어로 정해지고, 직접 고른 펌웨어가 그사이 비활성화되었으면 그 업데이트를 건너뜁니다. 할당할 때 값이 복사되어 고정되는 것은 BIOS 세팅 템플릿의 값입니다.</p>
+
+    <h2 id="list">목록</h2>
+    <p>사이드바에서 <span class="m-path"><span>프로비저닝</span><span>세팅 정의서</span></span> 를 엽니다. 표에는 #(정의서 ID), 정의서 명칭, 활성, 사용 중단, 포함 단계, 생성 일시가 표시되고, 행을 누르면 상세가 열립니다. 목록은 자동으로 갱신되지 않으므로 다른 사람이 만든 정의서를 보려면 새로 고칩니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>조회 조건</th><th>선택지</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>검색</td><td>정의서 이름(부분 일치, 대소문자 무시)</td></tr>
+            <tr><td>활성</td><td>전체, 활성, 비활성</td></tr>
+            <tr><td>사용 중단</td><td>전체, 권고, 정상</td></tr>
+            <tr><td>포함 단계</td><td>단계 종류 여러 개 선택 가능. 고른 단계를 모두 포함한 정의서만 표시</td></tr>
+            <tr><td>생성 일시</td><td>기간 직접 지정 또는 오늘, 최근 7일, 최근 30일, 최근 1년, 올해. 기본은 최근 1년</td></tr>
+            <tr><td>삭제된 항목</td><td>포함 여부. 기본은 미포함</td></tr>
+            <tr><td>정렬</td><td>번호(기본, 오름차순), 이름, 생성 일시</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>생성 일시의 기본 범위가 최근 1년이므로, 1년보다 전에 만든 정의서는 생성 일시 조건을 넓혀야 보입니다.</p>
+
+    <h2 id="create">작성</h2>
+    <ol class="m-steps">
+        <li><span class="m-ui">새 정의서 작성</span> 을 누릅니다.</li>
+        <li><strong>정의서 명칭</strong>을 입력합니다.</li>
+        <li><strong>단계 추가</strong>에서 넣을 단계의 버튼(<span class="m-ui">+ 펌웨어 업데이트</span>, <span class="m-ui">+ BIOS 설정</span>, <span class="m-ui">+ RAID 구성</span>, <span class="m-ui">+ OS 설치</span>)을 누릅니다. 누른 단계의 설정 카드가 펼쳐집니다.</li>
+        <li>단계마다 설정을 입력합니다. 단계별 입력 칸은 <a href="process-types.html">단계 종류별 설정</a>에서 설명합니다.</li>
+        <li><span class="m-ui">정의서 생성</span> 을 누릅니다. 저장되면 정의서 상세가 열립니다.</li>
+    </ol>
+    <ul>
+        <li>단계는 하나 이상 넣어야 합니다. 같은 종류의 단계는 한 번만 넣을 수 있으며, 넣은 종류의 버튼은 눌리지 않습니다.</li>
+        <li>단계는 누른 순서와 상관없이 펌웨어 업데이트, BIOS 설정, RAID 구성, OS 설치 순서로 놓이고 그 순서로 실행됩니다.</li>
+        <li>카드 머리의 <span class="m-ui">단계 제거</span> 는 확인 창 없이 그 단계를 뺍니다.</li>
+        <li>입력 중 다른 화면으로 이동하거나 <span class="m-ui">취소</span> 를 누르면 입력한 내용이 경고 없이 사라집니다.</li>
+        <li>비활성 자원은 선택지에 나오지 않습니다. Deprecated 자원을 고르면 "지원 중단(Deprecated) 자원" 확인 창이 열리며, <span class="m-ui">그래도 적용</span> 을 누르면 선택이 유지됩니다.</li>
+    </ul>
+    <div class="m-callout m-warn">
+        <span class="m-callout-title">주의</span>
+        <p>OS 설치 단계를 넣는다면 RAID 구성 단계도 함께 넣고, 디스크 묶음 하나를 OS 영역으로 정합니다. Windows 는 RAID 구성 단계가 만든 OS 영역 볼륨에 설치되므로, RAID 구성 단계가 없는 정의서는 저장되더라도 실행할 때 OS 설치 단계에서 막힙니다. RAID 구성 단계에 묶음이 하나도 없거나 RAID 없음 묶음이 디스크를 가져가는 경우에도 막힙니다.</p>
+    </div>
+
+    <h3 id="name-rule">명칭 규칙</h3>
+    <p>정의서 명칭은 필수 입력이며 128자 이하입니다. 삭제되지 않은 다른 정의서와 같은 이름은 쓸 수 없어 "이미 사용 중인 정의서 명칭입니다" 오류가 표시됩니다. 삭제된 정의서의 이름은 다시 쓸 수 있습니다.</p>
+
+    <h3 id="save-errors">저장되지 않을 때</h3>
+    <p>필요한 칸을 비웠거나 규칙에 맞지 않는 값이 있으면 저장되지 않습니다. 잘못된 칸은 그 칸 아래에 빨간 글자로 표시됩니다. 단계를 하나도 넣지 않았을 때와 명칭 중복처럼 특정 칸에 속하지 않는 오류는 폼 위쪽에 표시됩니다. 오류가 있는 카드는 자동으로 펼쳐지고, 서버가 거절한 경우에는 첫 오류 위치로 화면이 이동합니다.</p>
+
+    <h2 id="detail">상세</h2>
+    <p>상세의 기본 정보에는 사용 여부, 사용 중단 권고, 정의서 ID, 생성일시, 수정일시가 있고, 그 아래 단계마다 카드가 표시됩니다. 단계 카드 머리에는 다음 배지가 붙을 수 있습니다. 배지는 상세를 열 때마다 다시 판정됩니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>배지</th><th>조건</th><th>조치</th></tr>
+            </thead>
+            <tbody>
+            <tr><td><span class="n-badge n-badge-yellow">지원 중단 자원 사용</span></td><td>단계가 Deprecated 자원을 사용. 마우스를 올리면 자원 이름 표시</td><td>필요하면 다른 자원으로 수정</td></tr>
+            <tr><td><span class="n-badge n-badge-yellow">실행 시 건너뜀 가능</span></td><td>펌웨어 업데이트에서 메인보드를 직접 지정하고 최신 버전으로 두었는데 그 보드에 활성 펌웨어가 하나도 없는 경우</td><td>펌웨어 등록 또는 활성화</td></tr>
+            <tr><td><span class="n-badge n-badge-red">실행 불가</span></td><td>OS 설치 단계의 ISO 가 삭제되었거나 비활성인 경우</td><td>ISO 활성화 또는 다른 ISO 로 수정</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>OS 설치 카드의 설치 이미지 옆에는 설치 소스와 대조한 결과가 표시됩니다. "설치 소스 미준비" 는 시스템 자산 화면에서 Windows 설치 소스를 준비하면 사라집니다. "설치 소스에 없음" 이 보이면 정의서를 수정해 설치 이미지를 다시 고르고 저장합니다. Administrator 비밀번호는 값을 보여 주지 않고 설정됨 또는 미설정으로만 표시됩니다.</p>
+
+    <h2 id="edit">수정</h2>
+    <p>상세의 <span class="m-ui">수정</span> 을 누르면 작성 화면과 같은 폼이 열립니다. 명칭과 단계 전부를 바꿀 수 있고, <span class="m-ui">변경 사항 저장</span> 을 누르면 정의서 전체가 새 내용으로 바뀝니다. 할당 중이거나 개시한 서버가 있어도 수정할 수 있으며, 그 서버에는 반영되지 않습니다(<a href="#snapshot">할당과 정의서의 관계</a>).</p>
+    <ul>
+        <li>Administrator 비밀번호는 수정 화면에 값이 실리지 않고 <strong>기존 비밀번호 유지</strong>가 켜진 채 열립니다. 비밀번호를 바꾸려면 이 체크를 풀고 새 비밀번호를 입력합니다.</li>
+        <li>저장 당시 고른 자원이 삭제되었거나 비활성화되었으면 그 칸이 선택에서 빠진 채 열리고, 경우에 따라 안내 문구가 표시됩니다. BIOS 세팅 템플릿, RAID 카드, 설치 이미지는 안내가 표시됩니다. 펌웨어 업데이트 단계의 메인보드와 펌웨어는 안내 없이 자동 감지와 최신 버전으로 돌아가고, BIOS 설정 단계의 메인보드, OS 버전, ISO 는 빈칸으로 열립니다. 저장하기 전에 각 칸을 확인합니다.</li>
+    </ul>
+
+    <h2 id="lifecycle">상태와 삭제</h2>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>동작</th><th>결과</th></tr>
+            </thead>
+            <tbody>
+            <tr><td><span class="m-ui">비활성화</span></td><td>새 할당과 다시 할당만 차단. 이미 할당된 서버는 영향 없음. 확인 창 없이 즉시 적용</td></tr>
+            <tr><td><span class="m-ui">사용 중단 권고</span></td><td>할당은 계속 가능, 할당 창에서 경고 표시. 확인 창 없이 즉시 적용</td></tr>
+            <tr><td><span class="m-ui">삭제</span></td><td>확인 창을 거쳐 삭제됨 상태로 변경. 할당 중인 정의서도 삭제 가능하며 이미 할당된 서버는 영향 없음. 목록과 할당 창에서 제외</td></tr>
+            <tr><td><span class="m-ui">복구</span></td><td>확인 창 없이 즉시 복구, 삭제 전의 활성과 사용 중단 상태 유지. 같은 이름의 활성 정의서가 그사이 생겼으면 거절되므로 그 정의서의 이름을 바꾼 뒤 다시 복구</td></tr>
+            <tr><td><span class="m-ui">영구 삭제</span></td><td>삭제된 정의서에서만 가능. 정의서 이름을 그대로 입력해야 버튼 활성화. 되돌릴 수 없음</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>새 정의서는 활성 상태로 시작합니다. 삭제된 정의서는 휴지통 화면에 나오지 않고 자동으로 지워지지도 않으므로, 필요 없으면 정의서 상세에서 직접 영구 삭제합니다.</p>
+</main>
+</body>
+</html>

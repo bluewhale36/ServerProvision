@@ -25,6 +25,7 @@
         <li>정의서의 OS 선택지에서 Rocky Linux, CentOS, Ubuntu 는 "Windows Server 계열만 설치할 수 있습니다. 리눅스 설치 자동화는 추후 지원 예정입니다." 라는 이유와 함께 고를 수 없게 표시됩니다.</li>
         <li>Windows Server 를 실제로 설치할 때는 정의서에서 고른 설치 이미지(에디션)와 시스템 자산 화면에 준비된 Windows 설치 소스를 씁니다. 정의서에서 ISO 를 고르는 것은 필수지만, 설치할 때 그 ISO 파일을 읽지는 않습니다. 어떤 ISO 를 기준으로 정의했는지 남기는 기록입니다.</li>
         <li>Windows 설치 소스가 준비되지 않았으면 Windows Server 도 정의서에서 고를 수 없습니다.</li>
+        <li>Windows 는 정의서의 RAID 구성 단계가 만든 OS 영역 볼륨에 설치됩니다. RAID 구성 단계가 없으면 실행할 때 OS 설치 단계에서 막힙니다.</li>
     </ul>
 
     <h2 id="screen">화면 구성</h2>

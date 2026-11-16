@@ -24,9 +24,9 @@
     {
       "title": "세팅 정의서",
       "pages": [
-        { "title": "정의서 작성", "path": "setting/definition.html", "status": "planned" },
-        { "title": "단계 종류별 설정", "path": "setting/process-types.html", "status": "planned" },
-        { "title": "BIOS 세팅 템플릿", "path": "setting/bios-setting.html", "status": "planned" },
+        { "title": "정의서 작성", "path": "setting/definition.html" },
+        { "title": "단계 종류별 설정", "path": "setting/process-types.html" },
+        { "title": "BIOS 세팅 템플릿", "path": "setting/bios-setting.html" },
         { "title": "BMC 비밀번호", "path": "setting/bmc-password.html", "status": "planned" }
       ]
     },
