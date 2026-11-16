@@ -465,7 +465,7 @@ table.m-table td {
     padding: 8px 12px;
     border: 1px solid var(--n-border-row);
     text-align: left;
-    vertical-align: top;
+    vertical-align: middle;
 }
 
 table.m-table th {
