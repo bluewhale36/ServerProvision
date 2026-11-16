@@ -332,11 +332,11 @@
      같은 표가 첫 화면과 이력 화면에서 함께 쓰이기 때문이다. */-->
 <div th:fragment="pagination(basePath)" class="n-pagination">
     <a th:if="${page > 0}" class="n-btn n-btn-sm n-btn-outline"
-       th:href="@{__${basePath}__(page=${page - 1}, size=${size})}">← 이전</a>
+       th:href="@{__${basePath}__(page=${page - 1}, size=${size})}"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>이전</a>
     <span th:unless="${page > 0}" class="n-text-muted">← 이전</span>
     <span th:text="|${page + 1} / ${totalPages}|">1 / 5</span>
     <a th:if="${page + 1 < totalPages}" class="n-btn n-btn-sm n-btn-outline"
-       th:href="@{__${basePath}__(page=${page + 1}, size=${size})}">다음 →</a>
+       th:href="@{__${basePath}__(page=${page + 1}, size=${size})}">다음<svg th:replace="~{fragments/icon :: icon('arrow-right')}"></svg></a>
     <span th:unless="${page + 1 < totalPages}" class="n-text-muted">다음 →</span>
 </div>
 

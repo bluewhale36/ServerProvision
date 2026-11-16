@@ -35,7 +35,7 @@
 <div class="n-page-lg">
     <div class="n-page-header">
         <div>
-            <a th:href="@{/provisioning/setting/{id}(id=${setting.id})}" class="n-back-link">← 상세로</a>
+            <a th:href="@{/provisioning/setting/{id}(id=${setting.id})}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>상세로</a>
             <h1 class="n-page-title n-page-title-stacked">
                 세팅 정의서 수정 — <span th:text="${setting.name}">정의서 명칭</span>
             </h1>

@@ -259,8 +259,67 @@ plan/report html 제출 전 자체 점검:
 
 - [ ] 자체 완결(외부 참조 0), 색은 `:root` 토큰만
 - [ ] 골격(header/layout/toc/main) + 섹션 id 체계 + ToC + filter + 펴고접기
-- [ ] plan 은 11섹션, 🎬 미리보기가 §2 직후이고 진짜 인터랙티브(상태 바꿔 규칙 체험)
+- [ ] plan 은 11섹션(화면 디자인 슬라이스는 7장 변형), 🎬 미리보기가 §2 직후이고 진짜 인터랙티브(상태 바꿔 규칙 체험)
 - [ ] 디자인 객체는 2장 카탈로그의 정본만 사용(새 class 임의 생성 금지)
 - [ ] 반응형 3장 블록 포함(헤더 비고정, 표/스윔레인/코드 처리, 자동확대 차단). 데스크톱 무변경
 - [ ] JS 4 동작 + 데모 `demoRender()` 1회 호출, 데모 판정 = 서버 도메인 메서드
 - [ ] 5장 폐기 class(`.ux-btn`/`.compare-card`/`.ok`/`.pill`/`.dim`/`.seq-*` 변형) 미사용
+
+## 7. 디자인 plan 변형 (화면 디자인 슬라이스 전용)
+
+2026-11-08 S22 우산 CP1 에서 정했다. 화면 디자인만 바꾸는 슬라이스(URL · 컨트롤러 · 도메인 · DB 변화 없음)는 1-2 의 11 섹션 대신 이 변형을 쓴다. 화면 변경은 글로 판정할 수 없으므로 **데모가 문서의 몸통**이고, 그 데모가 실제로 쓰는 CSS · JS 를 같은 파일의 설계 절로 보인다. 0장 기본 규약(자체 완결 · `:root` 토큰 · KST 파일명)과 3 · 4장(반응형 · JS 4 동작)은 그대로 적용한다. 파일명도 같다(`plan/YY-MM-DD_HH-MM-SS_<인벤토리코드>_plan.html`).
+
+### 7-1. 섹션 체계
+
+| id | 섹션 | 비고 |
+|---|---|---|
+| `s1` | 범위와 진단 | 이 슬라이스가 다루는 표식과 실측 수치, 요구 · 비목표를 한 절에 |
+| `s2-preview` | 🎬 무대 | **문서의 몸통. 기본 펼침**. 7-2 의 무대 객체 |
+| `s3` | CSS 설계 | 토큰 표(전 → 후) + 규칙 diff. 코드 블록은 무대가 적용하는 CSS 텍스트를 그대로 보인다(7-3) |
+| `s4` | JS 설계 | 해당 시. 모듈 구성 · 호출 순서 · 실패 경로. 없으면 "JS 변경 없음" 한 줄 |
+| `s5` | 적용 범위 | 파일과 건수, `DESIGN.md` 개정 문장 |
+| `s6` | CP 와 검증 | Step ↔ CP 축약 표 + CP5 검증 항목 A · B · C |
+| `s8` | 결정 | 채택 · 비채택 · 사유, Open Questions |
+| `s10` | Critical Files | |
+| `s11` | 다음 마일스톤 | `check-list` |
+
+`s7`(예외) · `s9`(Verification)는 두지 않는다. 화면 디자인 슬라이스에 예외 변화가 없고, 검증은 `s6` 에 모은다.
+
+### 7-2. 무대 객체 (카탈로그 추가)
+
+| class / 요소 | 용도 |
+|---|---|
+| `.stage` | 무대 전체 컨테이너. 툴바 + 화면 + 판정 · 검사 패널 |
+| `.stage-toolbar` | 화면 탭 · 전후 · 폭 · 시나리오 줄. 버튼은 `.seg` · `.n-demo-btn` 재사용 |
+| `.stage-screen` | 스냅숏을 담는 상자. 안에 **Shadow DOM 호스트**를 두어 제품 CSS 와 문서 CSS 를 격리한다 |
+| `.stage-wipe` | 전후 와이프 비교. 같은 스냅숏의 현행 · 제안 호스트 둘을 겹치고, 위쪽을 `clip-path: inset()` 으로 자른다. 손잡이는 `input[type=range]` |
+| `.stage-inspect` | 요소 검사 패널. 무대 안 요소를 누르면 그 요소에 맞는 제안 CSS 규칙(`element.matches(selector)`)과 쓰인 토큰 이름, 주요 계산값을 보인다 |
+| `.stage-panel` | 판정 패널. `.ux-caps` 규칙(`.t` 남음 · `.f` 해소)에 "결정으로 유지"(muted + 결정 번호)를 더한다 |
+| `pre.css-src[data-from][data-file][data-select]` | CSS 설계 절의 코드 블록. 무대 CSS 저장소(7-3)의 텍스트에서 선택자 규칙을 뽑아 JS 가 채운다. 현행 · 제안을 나란히 둘 때는 `.split-grid` 의 `.split-card.before` · `.after` 안에 하나씩 |
+
+격리 규칙:
+- 스냅숏은 Shadow DOM 에 넣는다. `iframe srcdoc` 은 Notion 임베드의 sandbox 아래에서 부모 스크립트가 안을 조작하지 못할 수 있어 쓰지 않는다.
+- 제품 CSS 의 `:root` 는 `:host` 로, `html` · `body` 선택자는 무대 루트 래퍼로 바꿔 shadow 안에 싣는다. 제품 CSS 의 media query 는 창 폭에 반응하므로, 폭 전환(1440 · 1024)은 호스트 폭을 고정하고 `transform: scale()` 로 맞춰 보인다.
+- `@font-face` 는 shadow 안에서 등록되지 않는다. 글꼴은 문서 최상위 `<style>` 에 선언한다.
+
+### 7-3. 드리프트 0 규칙
+
+- 무대 CSS 는 제품 파일 단위로 한 번씩만 싣는다: `<script type="text/plain" class="stage-css" data-state="current|proposed" data-file="global/style.css">`(비 JS type 이라 실행되지 않는 텍스트 저장소). JS 가 파일마다 `CSSStyleSheet` 를 만들어 화면별 순서대로 shadow root 의 `adoptedStyleSheets` 에 붙인다. 설계 절의 코드 블록(`pre.css-src[data-from="proposed|current"][data-file][data-select]`)은 같은 텍스트에서 `data-select` 의 선택자 규칙만 뽑아 보일 뿐 따로 적지 않는다. 화면과 설계 절이 같은 텍스트를 쓰므로 어긋날 수 없다.
+- 무대가 제품 CSS 를 shadow 안에 옮기며 생기는 차이(사이드바 `position: sticky` · `100vh`, `position: fixed` 패널)는 **무대 어댑터** 시트 하나(`.stage-adapter`, 두 상태 공통)로 맞추고, 어댑터 규칙은 설계 절에 별도로 밝힌다. 제안 CSS 자체에는 손대지 않는다.
+- 제안 CSS 는 refine 실험 브랜치에서 실화면에 적용해 확인한 CSS 를 옮긴 것이다. 승격(CP2)은 이 CSS 를 원본 파일에 반영하는 일이다.
+- 판정 패널의 판정식은 우산 plan 진단표의 판정식과 1:1 이다.
+
+### 7-4. 스냅숏 · 글꼴 · 크기
+
+- 스냅숏 = 샌드박스에서 렌더한 화면의 DOM. `<script>` 와 이벤트 속성을 지우고, 이미지는 data URI 로 넣는다. 샌드박스 데이터만 쓴다.
+- 글꼴은 스냅숏에 쓰인 글자만 남긴 부분 글꼴(subset)을 base64 `woff2` 로 넣어 실제 모양을 보인다.
+- 파일은 정본 하나이고 수 MB 까지 허용한다(Notion 임베드 1.8 MB 실증).
+- 밀도 상한(태그 제외 본문 13,000 자 · `<table>` 7 개)은 서술 절에 적용한다. 스냅숏 DOM 과 CSS 텍스트는 세지 않는다.
+- 원클릭 시나리오 4~6 개는 그대로 필수다(무대의 `.stage-toolbar` 에 둔다).
+
+### 7-5. 체크리스트 추가
+
+- [ ] 무대가 기본 펼침이고, 화면 탭 · 전후 전환 · 와이프 · 폭 전환 · 요소 검사 · 시나리오가 모두 동작
+- [ ] 스냅숏이 Shadow DOM 안에 있고 문서 CSS 가 새지 않음(문서 쪽 `.n-*` 규칙 0)
+- [ ] `pre.css-src` 가 무대 CSS 저장소 텍스트에서 뽑힘(직접 적은 CSS 코드 블록 0)
+- [ ] 1360 · 820 · 390 폭에서 가로 넘침 0, 콘솔 오류 0

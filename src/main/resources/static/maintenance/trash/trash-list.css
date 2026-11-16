@@ -35,7 +35,7 @@
    차단 배지(--n-red)와 나란히 놓이면 두 빨강이 보였다. 실재하는 토큰을 직접 쓴다. */
 .trash-parent-deleted {
     background: var(--n-red);
-    color: #fff;
+    color: var(--n-on-accent);
     font-size: 10px;
     padding: 1px 6px;
 }

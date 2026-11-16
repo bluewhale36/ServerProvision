@@ -27,7 +27,7 @@
     <div class="n-page-header">
         <h1 class="n-page-title">BIOS 세팅 템플릿 작성</h1>
         <div class="n-header-actions">
-            <a th:href="@{/provisioning/bios-setting}" class="n-back-link">← 목록으로</a>
+            <a th:href="@{/provisioning/bios-setting}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
         </div>
     </div>
     <p class="n-hint n-lead">management 에 등록된 메인보드 모델 중 템플릿을 작성할 보드를 선택하세요.</p>
@@ -60,7 +60,7 @@
     </th:block>
 
     <p class="n-hint n-block-gap">
-        <a th:href="@{/provisioning/bmc-password}">BMC 비밀번호 변경 ›</a>
+        <a th:href="@{/provisioning/bmc-password}">BMC 비밀번호 변경<svg th:replace="~{fragments/icon :: icon('caret-right')}"></svg></a>
     </p>
 </div>
 </body>

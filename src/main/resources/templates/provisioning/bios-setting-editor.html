@@ -73,7 +73,7 @@
 			<a class="bios-brand-back"
 			   th:href="${editTemplate != null} ? @{/provisioning/bios-setting/{id}(id=${editTemplate.id})} : @{/provisioning/bios-setting/new}"
 			   th:title="${editTemplate != null ? '템플릿 상세로' : '보드 선택으로'}"
-			   th:text="${editTemplate != null ? '‹ 상세' : '‹ 보드 선택'}">‹ 보드 선택</a>
+			   ><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg><span th:text="${editTemplate != null ? '상세' : '보드 선택'}">보드 선택</span></a>
 			<span class="bios-brand-name">Aptio Setup Utility</span>
 			<!-- 벤더 하드코딩 제거 — FK 전환으로 보드 벤더가 데이터가 되었으므로 서버가 주는 보드 표기만 렌더 -->
 			<span class="bios-brand-sub" th:text="${editTemplate != null ? editTemplate.boardModelName : bios.boardKey}">MS74-HB0</span>

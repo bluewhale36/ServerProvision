@@ -119,10 +119,8 @@
 .n-tbl-list thead th {
     background: var(--n-thead);
     color: var(--n-text-sec);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 500;
     padding: 10px 12px;
     border-bottom: 1px solid var(--n-border);
     text-align: center;
@@ -149,11 +147,9 @@
    다른 폼 페이지의 .n-label 에는 영향을 주지 않는다. */
 /* .strong 섹션 헤더는 제외하고, 값 위의 필드 설명 레이블에만 적용 */
 .n-detail-fields .n-label:not(.strong) {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--n-text-muted);
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--n-text-sec);
 }
 
 /* 페이지네이션 줄(.n-pagination)은 style.css §16 으로 올렸다(S8-1 — 조회 띠 · 쪽 이동 공통). */
@@ -246,7 +242,7 @@ td.n-tl-cell::before {
     height: 11px;
     margin: -6px 0 0 -6px;
     border-radius: 50%;
-    background: #fff;
+    background: var(--n-surface);
     border: 2px solid var(--n-text-muted);
     box-sizing: border-box;
 }
@@ -260,7 +256,7 @@ td.n-tl-cell::before {
 /* 열린 것 — 붉은 테두리에 속을 비운다. 채우지 않는 이유는 아직 끝나지 않았음을 형태로도
    말하기 위해서다(빈 자리 = 해야 할 일이 남음). */
 .n-tl-node.is-open {
-    background: #fff;
+    background: var(--n-surface);
     border-color: var(--n-red);
 }
 
@@ -424,7 +420,7 @@ td.n-tl-cell::before {
 
 @keyframes n-row-returned {
     0% {
-        background-color: rgba(37, 87, 214, 0.18);
+        background-color: color-mix(in srgb, var(--n-blue) 18%, transparent);
     }
     100% {
         background-color: transparent;

@@ -174,11 +174,9 @@
 
 .bios-help-title {
     margin: 0 0 10px;
-    font-size: 11px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 500;
     color: var(--n-text-sec);
-    text-transform: uppercase;
-    letter-spacing: .5px;
 }
 
 .bios-help-text {
@@ -278,7 +276,7 @@
 .bios-input:focus {
     outline: none;
     border-color: var(--n-blue);
-    box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--n-blue) 14%, transparent);
 }
 
 /* 기본값으로 되돌리기 — 주의 색(주황) */

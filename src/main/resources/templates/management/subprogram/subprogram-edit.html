@@ -12,7 +12,7 @@
             <span th:text="${kindDisplayName}">드라이버</span> 편집
         </h1>
         <div class="n-header-actions">
-            <a th:href="@{/management/subprogram(selectId=${subprogram.id})}" class="n-back-link">← 목록으로</a>
+            <a th:href="@{/management/subprogram(selectId=${subprogram.id})}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
         </div>
     </div>
 

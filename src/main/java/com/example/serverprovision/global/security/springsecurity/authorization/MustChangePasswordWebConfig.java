@@ -19,7 +19,7 @@ public class MustChangePasswordWebConfig implements WebMvcConfigurer {
 				.excludePathPatterns(
 						MustChangePasswordSuccessHandler.CHANGE_PASSWORD_PATH,
 						"/login", "/logout", "/error",
-						"/global/**", "/css/**", "/fonts/**", "/vendor/**", "/favicon.ico",
+						"/global/**", "/css/**", "/fonts/**", "/icons/**", "/vendor/**", "/favicon.ico",
 						"/api/pxe/**",
 						"/jobs", "/jobs/**");
 	}

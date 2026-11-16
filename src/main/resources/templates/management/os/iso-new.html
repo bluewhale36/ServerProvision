@@ -24,7 +24,7 @@
             <!-- 업로드 중엔 JS 가 pointer-events:none + aria-disabled 로 잠근다 -->
             <a id="backLink"
                th:href="@{/management/os(selectId=${osId})}"
-               class="n-back-link">← 목록으로</a>
+               class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
         </div>
     </div>
 

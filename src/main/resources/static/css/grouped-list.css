@@ -65,14 +65,14 @@
 /* ---- 안쪽 판 ----
    접힘이 필요 없는 목록(그룹 상세의 멤버)은 아코디언 대신 이것을 쓴다. */
 .n-glist-panel {
-    background: #fff;
+    background: var(--n-surface);
     border-radius: var(--n-radius-lg);
     overflow: hidden;
 }
 
 /* 아코디언을 안쪽 묶음으로 쓸 때도 같은 흰 판이 된다 */
 .n-glist > .n-accordion > .n-accordion-item {
-    background: #fff;
+    background: var(--n-surface);
 }
 
 /* ---- 안쪽 묶음 제목 옆의 요약 ----

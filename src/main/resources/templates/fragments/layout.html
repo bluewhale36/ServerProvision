@@ -28,7 +28,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title th:text="'유니와이드 - ' + ${pageTitle}">유니와이드</title>
         <!-- S17-5 — 외부 CDN 0. 브라우저 기본값 정돈은 reset.css(종전 Bootstrap reboot 의 실사용 39 규칙),
-             Inter 는 style.css 의 @font-face 가 /fonts/inter/ 에서 싣는다. 인터넷 없는 배포 환경 전제. -->
+             글꼴은 IBM Plex Sans KR · Mono(S22-1)를 /fonts/ 의 @font-face 시트 두 개가 싣는다. 인터넷 없는 배포 환경 전제. -->
+        <link rel="stylesheet" th:href="@{/fonts/ibm-plex-sans-kr/ibm-plex-sans-kr.css}">
+        <link rel="stylesheet" th:href="@{/fonts/ibm-plex-mono/ibm-plex-mono.css}">
         <link rel="stylesheet" th:href="@{/global/reset.css}">
         <!-- 전역 디자인 시스템 (DESIGN.md) -->
         <link rel="stylesheet" th:href="@{/global/style.css}">
@@ -162,13 +164,7 @@
             aria-label="배경 작업"
             aria-expanded="false"
             aria-controls="bgjobPanel">
-        <!-- 서류가방 아이콘 (Material/Lucide 스타일) -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-             aria-hidden="true">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-        </svg>
+        <svg th:replace="~{fragments/icon :: icon('briefcase')}"></svg>
         <span id="bgjobDot" class="n-nav-bgjob-dot" hidden></span>
     </button>
     <div id="bgjobPanel"

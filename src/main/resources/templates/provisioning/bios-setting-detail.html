@@ -39,7 +39,7 @@
 
     <div class="n-page-header">
         <div>
-            <a th:href="@{/provisioning/bios-setting}" class="n-back-link">← 목록으로</a>
+            <a th:href="@{/provisioning/bios-setting}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
             <h1 class="n-page-title n-page-title-stacked" th:text="${template.name}">템플릿 명칭</h1>
             <span class="n-badge n-badge-blue" th:text="${template.boardModelName}">MS74-HB0</span>
             <!-- 레지스트리 출처(E3-3 R3) — 채집본이면 초록, 자료 파일이면 회색(어느 BIOS 버전의 것인지 모른다는 신호) -->

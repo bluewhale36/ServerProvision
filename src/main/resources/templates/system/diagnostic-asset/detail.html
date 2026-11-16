@@ -29,7 +29,7 @@
             <span class="n-mono n-text-muted" th:text="${slot.filename}">vmlinuz-lts</span>
         </div>
         <div class="n-header-actions">
-            <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
+            <a th:href="@{/system/asset}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>시스템 자산</a>
         </div>
     </div>
 

@@ -23,7 +23,7 @@
     <div class="n-page-header">
         <h1 class="n-page-title">영구삭제 감사 로그</h1>
         <div class="n-header-actions">
-            <a th:href="@{/maintenance/trash}" class="n-back-link">← 휴지통으로</a>
+            <a th:href="@{/maintenance/trash}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>휴지통으로</a>
             <a th:href="@{/maintenance/trash/settings}" class="n-btn n-btn-secondary n-btn-sm">운영 설정</a>
             <form th:action="@{/maintenance/trash/retry-failed}" method="post">
                 <button type="submit" class="n-btn n-btn-outline-info n-btn-sm">실패 자원 재시도</button>
@@ -135,7 +135,7 @@
         <a th:if="${page.hasPrevious()}"
            th:href="@{/maintenance/trash/purge-log(page=${page.number - 1}, size=${page.size},
                        resource_type=${filterResourceType}, origin=${filterOrigin}, outcome=${filterOutcome})}"
-           class="n-btn n-btn-secondary n-btn-sm">← 이전</a>
+           class="n-btn n-btn-secondary n-btn-sm"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>이전</a>
         <span class="purge-pager-info">
             <strong th:text="${page.number + 1}"></strong> /
             <span th:text="${page.totalPages}"></span> 페이지
@@ -144,7 +144,7 @@
         <a th:if="${page.hasNext()}"
            th:href="@{/maintenance/trash/purge-log(page=${page.number + 1}, size=${page.size},
                        resource_type=${filterResourceType}, origin=${filterOrigin}, outcome=${filterOutcome})}"
-           class="n-btn n-btn-secondary n-btn-sm">다음 →</a>
+           class="n-btn n-btn-secondary n-btn-sm">다음<svg th:replace="~{fragments/icon :: icon('arrow-right')}"></svg></a>
     </div>
 </div>
 

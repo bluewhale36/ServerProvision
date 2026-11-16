@@ -38,23 +38,23 @@
 .n-accordion-item {
     border: 1px solid var(--n-border);
     border-radius: var(--n-radius-lg);
-    background: #fff;
+    background: var(--n-surface);
     overflow: hidden;
 }
 
 /* 비활성·삭제·선택 불가 등 "흐리게" 처리가 필요한 항목에 붙이는 보조 클래스 */
 .n-accordion-item-muted {
-    background: #fafafa;
+    background: var(--n-sunken);
 }
 
 /* S5-12 — ISO 등록 background job 진행 중 placeholder. DB 영속 전이라 정상 ISO 와 시각 분리. */
 .n-accordion-item-in-progress {
-    background: #fafafa;
+    background: var(--n-sunken);
     opacity: 0.65;
 }
 
 .n-accordion-item-in-progress .n-accordion-title {
-    color: var(--n-text-muted, #6b7280);
+    color: var(--n-text-muted);
     font-style: italic;
 }
 
@@ -78,7 +78,7 @@
 }
 
 .n-accordion-item:hover > .n-accordion-head {
-    background: #f7f7f8;
+    background: var(--n-row-hover);
 }
 
 .n-accordion-chevron {
@@ -110,7 +110,7 @@
 .n-accordion-body {
     border-top: 1px solid var(--n-border);
     padding: 14px 18px 16px;
-    background: #fff;
+    background: var(--n-surface);
 }
 
 /* dl 기반 필드 — grid 로 label/value 정렬 */

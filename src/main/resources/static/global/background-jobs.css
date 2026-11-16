@@ -15,23 +15,22 @@
     border-radius: var(--n-radius);
     padding: 6px;
     cursor: pointer;
-    color: #cbd5e1;
+    color: var(--n-side-text);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     align-self: flex-start;
     margin: 0 12px;
-    flex-shrink: 0;
 }
 
 .n-nav-bgjob:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #ffffff;
+    background: color-mix(in srgb, var(--n-side-on) 8%, transparent);
+    color: var(--n-side-on);
 }
 
 .n-nav-bgjob.is-open {
-    background: rgba(255, 255, 255, 0.12);
-    color: #ffffff;
+    background: color-mix(in srgb, var(--n-side-on) 12%, transparent);
+    color: var(--n-side-on);
 }
 
 .n-nav-bgjob svg {
@@ -219,14 +218,14 @@
     flex: 1 1 0;
     min-width: 0;
     border-radius: var(--n-radius);
-    background: rgba(0, 0, 0, 0.10);
+    background: color-mix(in srgb, var(--n-text) 10%, transparent);
     transition: background-color 0.3s ease;
     position: relative;
     overflow: hidden;
 }
 
 .n-bgjob-stage-chunk.is-pending {
-    background: rgba(0, 0, 0, 0.10);
+    background: color-mix(in srgb, var(--n-text) 10%, transparent);
 }
 
 .n-bgjob-stage-chunk.is-running {
@@ -240,7 +239,7 @@
 }
 
 .n-bgjob-stage-chunk.is-error {
-    background: #dc2626;
+    background: var(--n-red);
 }
 
 .n-bgjob-stage-label {
@@ -305,15 +304,15 @@
 }
 
 .n-bgjob-toast.is-success {
-    background: #e8f6eb;
+    background: color-mix(in srgb, var(--n-green) 10%, var(--n-surface));
     border-color: var(--n-green);
-    color: #156f28;
+    color: var(--n-green);
 }
 
 .n-bgjob-toast.is-error {
-    background: #fef2f2;
-    border-color: #fca5a5;
-    color: #b91c1c;
+    background: var(--n-red-bg);
+    border-color: color-mix(in srgb, var(--n-red) 35%, transparent);
+    color: var(--n-red);
 }
 
 .n-bgjob-card-footer {
@@ -342,13 +341,13 @@
 }
 
 .n-bgjob-card.is-completed .n-bgjob-card-status {
-    color: #156f28;
-    background: #e8f6eb;
+    color: var(--n-green);
+    background: color-mix(in srgb, var(--n-green) 10%, var(--n-surface));
 }
 
 .n-bgjob-card.is-failed .n-bgjob-card-status {
-    color: #8f3600;
-    background: #fdeee2;
+    color: var(--n-orange);
+    background: color-mix(in srgb, var(--n-orange) 10%, var(--n-surface));
 }
 
 /* 완료 시 모든 단계가 DONE 으로 고정되어 자연스럽게 전체 green. 실패 시엔 ERROR 단계만 red. */

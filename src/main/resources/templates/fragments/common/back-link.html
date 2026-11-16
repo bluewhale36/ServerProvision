@@ -17,7 +17,7 @@
 <body>
 
 <div th:fragment="backLink(defaultHref)" class="n-header-actions">
-    <a class="n-back-link" data-nav-back th:href="@{__${defaultHref}__}">← 목록으로</a>
+    <a class="n-back-link" data-nav-back th:href="@{__${defaultHref}__}"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
 </div>
 
 </body>

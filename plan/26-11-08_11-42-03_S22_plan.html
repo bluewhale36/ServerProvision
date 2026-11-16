@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S22 Plan · 디자인 개편</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --on-blue:#fff; --tip-bg:rgba(31,35,40,0.92); --tip-ink:#fff; --tip-shadow:rgba(0,0,0,0.2);
+    --shade-06:rgba(0,0,0,0.06); --shade-07:rgba(0,0,0,0.07);
+
+    /* 🎬 데모 팔레트 후보 (브리프 4-1 값) : 데모 JS 는 토큰 이름만 바꿔 끼운다 */
+    --demo-cur-text:#0f172a; --demo-cur-sec:#475569; --demo-cur-dim:#94a3b8; --demo-cur-bg:#eef1f5;
+    --demo-cur-surface:#ffffff; --demo-cur-line:rgba(15,23,42,.14); --demo-cur-accent:#2557d6; --demo-cur-side:#16202e;
+    --demo-steel-text:#1c2422; --demo-steel-sec:#4e5955; --demo-steel-dim:#8a9490; --demo-steel-bg:#f4f6f5;
+    --demo-steel-surface:#ffffff; --demo-steel-line:rgba(28,36,34,.13); --demo-steel-accent:#1d5c96; --demo-steel-side:#eceeed;
+    --demo-graphite-text:#1b1b1a; --demo-graphite-sec:#545452; --demo-graphite-dim:#8d8d8a; --demo-graphite-bg:#f5f5f4;
+    --demo-graphite-surface:#ffffff; --demo-graphite-line:rgba(27,27,26,.13); --demo-graphite-accent:#2f55a4; --demo-graphite-side:#ececea;
+    --demo-dark-text:#e6e8eb; --demo-dark-sec:#a3a9b1; --demo-dark-dim:#6b7280; --demo-dark-bg:#111418;
+    --demo-dark-surface:#1a1f25; --demo-dark-line:rgba(255,255,255,.12); --demo-dark-accent:#4c8dff; --demo-dark-side:#0c0f12;
+    /* v2 브리프 4-1: 팔레트별 짙은 사이드바 면과 그 위 글자 */
+    --demo-cur-side-dark:#16202e; --demo-steel-side-dark:#1a2321; --demo-graphite-side-dark:#1f1f1e; --demo-dark-side-dark:#0c0f12;
+    --demo-sidedark-ink:#a5a5a1; --demo-sidedark-on:#f0f0ee;
+  }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:var(--card); border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; color:var(--text-muted); }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+
+  /* 🎬 인터랙티브 미리보기 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--on-blue); border-color:var(--blue); }
+  .ux-toolbar .seg[aria-disabled="true"] { opacity:.4; cursor:not-allowed; }
+  .ux-toolbar .seg[aria-disabled="true"]:hover { background:var(--card); }
+  .ux-toolbar .seg.active[aria-disabled="true"]:hover { background:var(--blue); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--shade-07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--tip-bg); color:var(--tip-ink); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px var(--tip-shadow); }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-caps .k { color:var(--text-muted); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S22 · 디자인 개편: 생성형 UI 인상 제거 (plan)</h1>
+  <div class="meta">
+    <span><strong>작성</strong> 2026-11-08 KST</span>
+    <span><strong>브랜치</strong> <code>refactor/S22_design-overhaul</code> (실험은 <code>refine/S22_design-overhaul</code>, 로컬 전용)</span>
+    <span><strong>기준 dev</strong> <code>d2d0307</code></span>
+    <span><strong>상태</strong> CP1 승인 (11-08, v2 + OQ4 · OQ5 권장안 확정)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 진행 흐름과 도구</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 · 주의 · 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태(진단)</summary>
+      <div class="body">
+        <div class="callout" style="margin-top:0;">v2 는 11-08 판정을 반영했다. 팔레트는 흑연, 판 구조와 짙은 사이드바는 유지, 로딩은 측정 뼈대, 상태색 5 는 독립, 슬라이스 plan 은 데모 중심 형식이다. 진단표(표 1)는 그대로 둔다. 진단은 사실이고, 그중 일부를 남기기로 한 것은 결정(§8 표 5)이다.</div>
+        <p>사용자 지시는 "AI 가 만든 티가 나지 않게 디자인을 바꾼다" 이다. 판단 도구는 둘이다. stageshow 스킬(v1.1.1)은 가짜 제품 화면을 만드는 스킬이지만 그 정지 화면 규칙(<code>references/craft.md</code>)과 화면 검사 스크립트가 실화면 진단에 쓰인다. skullet(0.0.3)은 실제 내용의 형태를 재어 그리는 로딩 뼈대(skeleton) 라이브러리다.</p>
+        <p>S17(방향안 C 승격)과 S21-1(서버 상세 탭 4 개)을 거쳐 노골적인 생성형 표식(그라디언트, 반짝이 아이콘, 보라색)은 이미 없다. 남은 표식은 구조와 기본값이다.</p>
+        <table>
+          <thead><tr><th>번호</th><th>stageshow 규칙</th><th>실측</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td><td>Flat: 모든 대상이 같은 테두리 판에 들어가면 눈이 앉을 곳이 없다</td><td>판 class <code>n-card</code> 135 회(<code>n-card-body</code> 등 변형 포함 256) · 63 파일, 소제목 왼쪽 3px 막대 3 곳(<code>style.css</code> 1001 · 1906 파랑, 1914 노랑), <code>border</code> 선언 240</td></tr>
+            <tr><td>D2</td><td>제품 고유의 look 을 쓴다</td><td>Tailwind <code>slate</code> 값 26 곳(텍스트 3 색 <code>#0f172a</code> · <code>#475569</code> · <code>#94a3b8</code> 포함), 글꼴 Inter, 한글은 시스템 글꼴이 그려 라틴과 섞임, 어두운 사이드바 <code>#16202e</code></td></tr>
+            <tr><td>D3</td><td>Say it once: 같은 신호는 한 번</td><td><code>n-badge</code> 437 회 · 41 파일(서버 상세 하나에 88), 개요 한 화면에 "완료" 2 회 · "끊어짐 · 7405분 전" 2 회 · "모든 단계를 마쳤습니다" 2 회</td></tr>
+            <tr><td>D4</td><td>Restraint: 진짜 문자열은 주제에만</td><td><code>n-hint</code> 210 회, 빈 값 괄호 해설 <code>— (…)</code> 13 곳</td></tr>
+            <tr><td>D5</td><td>대문자 소형 라벨 대신 문장형</td><td><code>text-transform: uppercase</code> 9 곳, <code>letter-spacing</code> 21 곳</td></tr>
+            <tr><td>D6</td><td>아이콘은 한 세트에서</td><td>아이콘 세트 0, <code>←</code> · <code>→</code> 글리프 119 회 · 47 파일</td></tr>
+            <tr><td>D7</td><td>Boxed: 모든 것을 상자에 담지 않는다</td><td>표 칸의 식별자를 회색 상자 칩으로(<code>&lt;code&gt;</code> 119 회)</td></tr>
+            <tr><td>D8</td><td>빈 띠와 날 단위 금지</td><td>개요 "지금 상태" 판 아래 빈 띠(두 판 높이 맞춤), "7405분 전" 처럼 분 단위 그대로 노출</td></tr>
+          </tbody>
+        </table>
+        <p>토큰 규약 위반도 함께 나왔다. <code>:root</code> 밖 hex 리터럴이 78 곳이고, 정의되지 않은 토큰을 fallback 으로 쓰는 곳이 있다(<code>confirm-modal.css:136</code> 의 <code>--n-color-danger</code>). DESIGN.md 2절 "규칙 본문에 색 값을 직접 적지 않는다" 와 어긋나므로 S22-1 에서 정리한다. <code>box-shadow</code> 선언도 25 곳 남아 있어(값 none 제외) 함께 확인한다.</p>
+        <p>규모는 템플릿 92 개, CSS 15 파일 6,260 줄(<code>style.css</code> 1,968 · <code>server.css</code> 1,003), JS 62 개다.</p>
+        <div class="callout"><b>이미 규칙에 맞는 점</b>: 그라디언트 0, 반짝이와 보라 없음, 반지름 두 값, 그림자 토큰 none, 고정폭 글꼴은 식별자에만.</div>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 + 비목표</summary>
+      <div class="body">
+        <ul>
+          <li><b>R1</b> 생성형 기본값 제거: 흑연 팔레트(색조 없는 중립 한 계열 + 강조 하나 + 상태색 5 독립), 한글과 라틴을 한 벌로 그리는 글꼴, 아이콘 한 세트. 짙은 사이드바는 slate 남색 대신 흑연 계열 짙은 면.</li>
+          <li><b>R2</b> 구조: 판 구조는 유지한다(11-08 판정). 판 안을 정돈한다: 식별자는 상자 없이 고정폭 글자로 쓰고, 두 판 높이 맞춤으로 생기는 빈 띠와 소제목 막대 3 곳을 걷는다(OQ4 판정).</li>
+          <li><b>R3</b> 절제: 같은 신호는 한 곳에서 한 번. 빈 값은 <code>—</code> 하나, 해설은 구획당 한 줄.</li>
+          <li><b>R4</b> 비동기 상태: 피커 3 곳과 경로 탐색기 3 곳의 로딩을 실제 내용 형태의 뼈대로 바꾼다. 목표는 도착 시 레이아웃 출렁임 0. 방식은 측정 뼈대로 정했다(K5).</li>
+          <li><b>R5</b> 기능 무변경: URL, 폼, 컨트롤러, 도메인 변화 없음. 탭, 모달, SSE(Server-Sent Events) 갱신 동작 보존.</li>
+          <li><b>R6</b> DESIGN.md 를 슬라이스마다 함께 개정해 코드와 문서를 일치시킨다.</li>
+        </ul>
+        <div class="callout warn"><b>비목표</b>
+          <ul>
+            <li>문구 표현의 재작성은 S16-2(문구 정비, 시작 전) 소관이다. S22-2 는 문장의 존재와 자리만 정하고(삭제와 이동), S16-2 가 그 위에서 표현을 다듬는다.</li>
+            <li>1024px 미만 반응형 확장 없음(DESIGN 원칙 7 유지). 다크 모드 없음.</li>
+            <li>로그인과 가입 화면(<code>auth.css</code>)은 S18 이 진행 중이라 S22-1 토큰 교체만 받고 구조 변경은 하지 않는다.</li>
+            <li>SSE 실시간 영역에는 뼈대를 쓰지 않는다. 갱신마다 뼈대가 비치면 데이터가 사라진 것으로 읽힌다.</li>
+            <li>stageshow 로 마케팅 · 문서용 제품 일러스트를 만드는 일은 범위 밖이다(§11 후속 후보).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기: 라이브 데모</summary>
+      <div class="body">
+        <div class="callout" style="margin-top:0;">데모 판정 JS 는 서버 도메인 메서드 대신 §1 표 1 의 진단 판정식과 1:1 로 대응한다. 판정은 <code>demoBlocks(state)</code> 하나에서 나오고, 원클릭 시나리오는 상태 객체만 바꾼 뒤 <code>demoRender()</code> 를 부른다. v2 판정 패널은 남음 · 해소에 더해 '결정으로 유지' 를 따로 보인다. 진단이 표식으로 꼽았지만 11-08 판정으로 남기기로 한 것(K1 판 구조 · K6 짙은 사이드바)이며, 지우지 않고 결정 번호를 달아 둔다.</div>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar"><span class="group-label">원클릭 시나리오</span>
+            <button class="n-demo-btn" onclick="demoScenario(1)">1 현행 그대로</button>
+            <button class="n-demo-btn" onclick="demoScenario(2)">2 색만 흑연</button>
+            <button class="n-demo-btn" onclick="demoScenario(3)">3 선택안 (11-08 판정)</button>
+            <button class="n-demo-btn" onclick="demoScenario(4)">4 확정안 (선택안 + 판 정돈)</button>
+            <button class="n-demo-btn" onclick="demoScenario(5)">5 느린 피커</button>
+            <button class="n-demo-btn" onclick="demoScenario(6)">6 빠른 응답</button>
+          </div>
+          <div class="ux-message" id="demo-banner">시나리오를 누르거나 아래 상태를 직접 바꿔 보세요.</div>
+        </div>
+
+        <h4>화면 데모: 게스트 서버 상세 개요(축소판)</h4>
+        <div class="ux-wrap">
+          <div class="ux-toolbar"><span class="group-label">팔레트</span>
+            <button class="seg" data-group="palette" data-value="cur">현행</button>
+            <button class="seg" data-group="palette" data-value="steel">강철</button>
+            <button class="seg" data-group="palette" data-value="graphite">흑연</button>
+            <button class="seg" data-group="palette" data-value="dark">어두움(C)</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">구조</span>
+            <button class="seg" data-group="structure" data-value="panel">판</button>
+            <button class="seg" data-group="structure" data-value="ledger">대장</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">판 세부</span>
+            <button class="seg" data-group="panelTrim" data-value="cur">현행</button>
+            <button class="seg" data-group="panelTrim" data-value="tidy">정돈</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">절제</span>
+            <button class="seg" data-group="restraint" data-value="off">끔</button>
+            <button class="seg" data-group="restraint" data-value="on">켬</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">라벨</span>
+            <button class="seg" data-group="label" data-value="upper">대문자</button>
+            <button class="seg" data-group="label" data-value="sentence">문장형</button>
+            <button class="seg" data-group="label" data-value="mono">고정폭(C)</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">식별자</span>
+            <button class="seg" data-group="ident" data-value="chip">칩</button>
+            <button class="seg" data-group="ident" data-value="text">글자</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">사이드바</span>
+            <button class="seg" data-group="sidebar" data-value="dark">어두움</button>
+            <button class="seg" data-group="sidebar" data-value="light">밝음</button>
+          </div>
+          <div class="split-grid" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);">
+            <div id="demo-screen" style="min-width:0;"></div>
+            <div style="min-width:0;">
+              <div class="ux-caps" id="demo-caps" style="margin-top:0;"></div>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);">글꼴은 데모에 넣지 않는다. 자체 완결 파일이라 웹폰트를 실을 수 없고, 로컬에 설치된 글꼴에 따라 화면이 달라지기 때문이다. 슬라이스 디자인 plan 에서는 화면에 쓰인 글자만 남긴 부분 글꼴을 파일에 실어 실제 글꼴로 보인다(§3-4).</p>
+
+        <h4>로딩 데모: 정의서 선택 피커(축소판)</h4>
+        <div class="ux-wrap">
+          <div class="ux-toolbar"><span class="group-label">방식</span>
+            <button class="seg" data-group="loadMode" data-value="text">문구만</button>
+            <button class="seg" data-group="loadMode" data-value="css">CSS 뼈대</button>
+            <button class="seg" data-group="loadMode" data-value="measured">측정 뼈대</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">응답</span>
+            <button class="seg" data-group="latency" data-value="120">120ms</button>
+            <button class="seg" data-group="latency" data-value="800">800ms</button>
+            <button class="seg" data-group="latency" data-value="2000">2초</button>
+            <button class="seg" data-group="latency" data-value="fail">실패</button>
+            <button class="n-demo-btn" onclick="demoPickerOpen()">피커 열기</button>
+          </div>
+          <div class="split-grid" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);">
+            <div id="demo-picker" style="min-width:0;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+              <div style="padding:8px 12px;font-weight:600;font-size:13px;border-bottom:1px solid var(--border-soft);">세팅 정의서 할당</div>
+              <div id="demo-picker-body" style="padding:6px 12px;"></div>
+              <div style="padding:8px 12px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border-soft);">왼쪽에서 정의서를 고르세요</div>
+            </div>
+            <div style="min-width:0;"><div class="ux-caps" id="demo-load-caps" style="margin-top:0;"></div></div>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);">측정 뼈대로 정했다(K5). 수단은 skullet 이며 S22-3 의 CP1 실험에서 실화면 동작을 확인한다. 막히면 같은 원리(견본 데이터로 같은 행 렌더 함수를 불러 자리를 재는 방식)를 <code>skeleton.js</code> 에 직접 구현한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §3 진행 흐름과 도구 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 진행 흐름과 도구 사용 계획</summary>
+      <div class="body">
+        <h4>3-1 진행 흐름</h4>
+        <p style="margin-top:0;">URL, 컨트롤러, 응답 모델은 바뀌지 않는다. 정적 자산 경로만 늘어난다: <code>/vendor/skullet/*</code>, <code>/fonts/&lt;선택 글꼴&gt;/*</code>, <code>/icons/sprite.svg</code>.</p>
+<pre>우산 plan 승인 (이 문서)
+      ↓
+슬라이스마다
+  ① 실화면 실험   refine/S22_design-overhaul (로컬 전용, push 안 함) · 샌드박스 7797 · hf11 DB
+  ② 디자인 plan   실험으로 얻은 CSS 를 그대로 실은 데모 중심 plan (§3-4) → CP1 판정
+  ③ 승격          refactor/S22_design-overhaul 에서 원본 CSS · 템플릿 수정 → CP2 ~ CP7
+  S22-1 시각 어휘 → S22-2 정보 절제와 판 정돈 → S22-3 로딩 상태
+  PR(Pull Request)은 S22-1 의 CP4 에서 하나를 열고 슬라이스마다 커밋을 더한다</pre>
+        <p>앞에 Phase 0 를 한 번 몰아서 하던 계획은 버린다. 11-08 판정으로 실험으로 가릴 후보가 글꼴과 아이콘만 남았고 그 둘은 S22-1 의 일이다. 이 우산 plan 의 승인은 각 슬라이스 CP1 을 위한 refine 브랜치 실험까지 허용한다. 승격 브랜치의 구현은 각 슬라이스 CP1 승인 뒤다.</p>
+        <p>승격은 실험 시트를 얹는 것이 아니라 원본 CSS 와 템플릿을 고치는 것이다(S17 원칙 그대로). 순서의 이유: 토큰을 먼저 바꿔야 절제 · 정돈 판정이 새 색 위에서 이뤄지고, 화면 형태가 정해져야 뼈대가 따라 그릴 모양이 고정된다.</p>
+        <table>
+          <thead><tr><th>슬라이스</th><th>내용</th><th>CP5 이야기</th></tr></thead>
+          <tbody>
+            <tr><td>S22-1 시각 어휘</td><td>흑연 팔레트(짙은 사이드바 재색 포함) · 글꼴 · 아이콘 세트, <code>:root</code> 밖 hex 78 → 토큰, 대문자 라벨 9 → 문장형, <code>←</code> · <code>→</code> 119 → 아이콘 조각, 표 칸 식별자 칩 → 고정폭 글자, DESIGN 2 · 3절 개정</td><td>모든 화면이 새 어휘로 일관되고 깨진 곳이 없는가</td></tr>
+            <tr><td>S22-2 정보 절제와 판 정돈</td><td>상태는 머리 한 곳, 빈 값 해설 13 → 구획 안내 한 줄, <code>n-hint</code> 210 감사, 상대 시각 사람 단위, 높이 맞춤 빈 띠와 소제목 막대 3 제거, DESIGN 1절 개정</td><td>정보 손실 없이 말과 빈 자리가 줄었는가</td></tr>
+            <tr><td>S22-3 로딩 상태</td><td>피커 3 · 경로 탐색기 3 에 측정 뼈대(skullet)</td><td>로딩 중과 도착 시 출렁임 0, 느린 응답 · 빠른 응답 · 실패 · 접근성</td></tr>
+          </tbody>
+        </table>
+        <p>판 구조 유지로 옛 판 구조 슬라이스(판 class <code>n-card</code> 135 회의 테두리 제거)의 본체가 사라졌다. 식별자 칩은 시각 어휘라 S22-1 로, 빈 띠와 막대는 정보 절제와 같은 상세 화면이라 S22-2 로 합쳤다(CP5 한 이야기 기준).</p>
+
+        <h4>3-2 stageshow 사용 계획</h4>
+        <p style="margin-top:0;">스킬은 11-08 에 <code>~/.claude/skills/stageshow</code> 로 연결했다. 제품이 Thymeleaf SSR 이라 React kit 은 쓰지 않고 규칙과 검사 도구만 쓴다.</p>
+        <table>
+          <thead><tr><th>쓰임</th><th>stageshow 자산</th><th>시점</th></tr></thead>
+          <tbody>
+            <tr><td>진단 기준</td><td><code>references/craft.md</code> 규칙 → 진단표 D1~D8</td><td>이 plan · 각 CP5</td></tr>
+            <tr><td>자동 화면 검사</td><td><code>scripts/layout-core.mjs</code> 의 <code>auditLayout</code>: 4 규칙(<code>control-block-fit</code> · <code>control-edge-inset</code> · <code>container-block-inset</code> · <code>nested-composition-crop</code>)</td><td>슬라이스 CP1 실험 · 각 CP5</td></tr>
+            <tr><td>독립 검토</td><td><code>references/review.md</code> 절차: 검토자에게 스크린샷과 <code>references/verify.md</code> 만 주고 구현 의도는 주지 않는다</td><td>슬라이스 CP1 실험 · 각 CP5</td></tr>
+            <tr><td>로딩 기준</td><td>gold 예제 <code>examples/loading</code>, <code>references/teaching.md</code> 의 움직임 쌍</td><td>S22-3</td></tr>
+            <tr><td>쓰지 않음</td><td>React kit, <code>Stage</code>, <code>film.mjs</code> · <code>jumps.mjs</code>(검사가 <code>.ss-stage</code> 에 묶임), 가짜 화면 제작</td><td>해당 없음</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>자동 검사는 로그인 뒤 <code>auditLayout</code> 을 부르는 저장소 밖 래퍼(<code>sbx-design/stageshow-layout.mjs</code>)로 돌린다. 박스 맞춤과 안쪽 여백만 보므로 광학 정렬 · 상태 · 움직임은 독립 검토가 맡는다.</li>
+          <li>독립 검토는 Opus 하위 에이전트가 CP5 위임 규칙대로 수행하고, 고치지 않고 순위 소견만 보고한다.</li>
+        </ul>
+
+        <h4>3-3 skullet 사용 계획</h4>
+        <ul>
+          <li><b>하는 일</b>: 실제 내용을 보이지 않게 배치해 상자를 재고 그 자리에 뼈대를 그리므로 도착해도 레이아웃이 밀리지 않는다. 150ms 안의 응답이면 뼈대를 생략하고 그 밖은 위에서 아래로 차례로 드러내며, <code>prefers-reduced-motion</code> · <code>aria-busy</code> 를 스스로 처리한다.</li>
+          <li><b>적용 지점 6</b>: 정의서 선택 피커(<code>provisioning/server-detail.html</code> 의 <code>definitionPickerBody</code>), 그룹 정의서 피커와 서버 넣기 피커(<code>provisioning/server-group-detail.html</code>), 경로 탐색기 3(<code>management/common/path-browser.js</code> · <code>management/common/bundle-upload-bootstrap.js</code> · <code>management/subprogram/subprogram-edit.js</code>). 제외: SSE 실시간 영역(<code>provisioning/server-stream.js</code>).</li>
+          <li><b>들이는 방법</b>: npm 매니페스트 없이(Gradle 단일 빌드) 보존본 <code>sbx-design/vendor/skullet-0.0.3/</code>(sha512 기록)의 <code>dist/index.mjs</code> · <code>styles.css</code> · <code>LICENSE</code> 를 <code>static/vendor/skullet/</code> 로 복사하고(S17-5 방식), 일반 스크립트에서 <code>import()</code> 로 바닐라 <code>Reveal</code> 을 쓴다. 웹 컴포넌트 진입점은 import map 이 필요해 쓰지 않는다.</li>
+          <li><b>공유 헬퍼</b>: <code>static/global/skeleton.js</code> 하나가 6 지점을 맡는다. 각 지점의 행 렌더 함수를 견본 데이터로 불러 뼈대를 만들므로 뼈대와 실제 화면이 어긋나지 않는다. 경로 탐색기는 <code>id</code> 로 직전 모양을 기억한다.</li>
+          <li><b>테마</b>: <code>--skullet-base</code> 는 중립 선 토큰, <code>--skullet-radius</code> 는 <code>--n-radius</code> 에 잇는다. 애니메이션은 <code>pulse</code> 또는 <code>none</code>(화면을 쓸고 가는 shimmer 는 업무 화면에서 소음이다).</li>
+          <li><b>위험 관리</b>: 0.0.3 · 작성자 한 명이라 vendor 로 버전을 고정하고, 적재가 실패하면 지금의 "불러오는 중…" 문구가 남는다. CSP(Content Security Policy) 헤더가 없어 인라인 style 주입은 막히지 않는다(뒤에 CSP 를 들이면 nonce 필요).</li>
+          <li><b>판정</b>: 11-08 에 측정 뼈대로 정했다(K5). S22-3 CP1 실험에서 2 지점(정의서 선택 피커, 경로 탐색기 1)에 붙여 출렁임 0 을 확인하고, 뼈대 출처와 이동을 표시하는 <code>?skullet-debug</code> 오버레이를 CP5 증거로 쓴다. 막히면 같은 원리를 <code>skeleton.js</code> 에 직접 구현한다. 라이브러리는 수단이고 결정은 측정 방식이다.</li>
+        </ul>
+
+        <h4>3-4 슬라이스 디자인 plan 형식 (K10)</h4>
+        <p style="margin-top:0;">화면 변경은 글로 판정할 수 없다. 그래서 슬라이스 plan 은 데모를 문서의 몸통으로 삼고, 데모가 실제로 쓰는 CSS · JS 를 같은 파일 안의 설계 절로 보인다. 이 우산 plan 의 데모는 축소 모형이지만 슬라이스 plan 의 데모는 실화면 스냅숏이다.</p>
+        <ol>
+          <li><b>무대</b>: 샌드박스에서 해당 화면을 렌더한 DOM(스크립트 제거)과 현행 CSS, 제안 CSS 를 파일에 넣는다. 조작은 전후 전환(버튼과 좌우 와이프 비교), 화면 탭(그 슬라이스 CP5 이야기의 목록 · 상세 · 폼 · 모달), 폭 1440 · 1024, 요소를 누르면 적용된 토큰과 규칙 표시, 원클릭 시나리오 4~6.</li>
+          <li><b>판정 패널</b>: 그 슬라이스가 다루는 D 표식의 남음 · 해소 · 결정으로 유지.</li>
+          <li><b>CSS 설계</b>: 토큰 표(전 → 후)와 규칙 diff. 코드 블록은 데모가 실제로 적용하는 <code>&lt;style&gt;</code> 의 텍스트를 그대로 보인다. 화면과 설계 절이 같은 텍스트를 쓰므로 둘이 어긋날 수 없다.</li>
+          <li><b>JS 설계</b>(해당 시): 모듈 구성, 호출 순서, 실패 경로.</li>
+          <li><b>적용 범위와 CP5 항목</b>: 파일과 건수, DESIGN.md 개정 문장, A · B · C 검증 항목, 결정 · OQ, Critical Files.</li>
+        </ol>
+        <p>글꼴은 스냅숏에 쓰인 글자만 남긴 부분 글꼴을 base64 로 넣어 실제 모양을 보인다. 파일은 정본 하나이고 수 MB 까지 허용한다(Notion 임베드 1.8 MB 실증).</p>
+        <p>와이프 비교 · 요소 검사 · 스냅숏 무대는 명세 카탈로그에 없으므로 S22-1 CP1 착수 때 <code>.claude/plan-report-html-spec.md</code> 에 '디자인 plan' 변형 절을 먼저 추가한다. 밀도 상한(본문 13,000 자 · 표 7 개)은 설계 절에 적용하고 데모 코드와 스냅숏은 세지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델(SSOT: Single Source of Truth, 단일 진실 출처)</summary>
+      <div class="body">
+        <p style="margin-top:0;">엔티티, VO, Enum, DB 변화가 없다(12 단계 중 6 · 7 · 9 단계 해당 없음). 이 캠페인의 SSOT 는 시각 규칙 세 곳이다.</p>
+        <ul>
+          <li><code>static/global/style.css</code> 의 <code>:root</code> 토큰(색 · 글꼴 · 반지름). 다른 CSS 는 토큰만 참조한다.</li>
+          <li>아이콘 조각 <code>templates/fragments/icon.html</code> 의 <code>icon(name)</code>. sprite 참조를 이 한 곳에 둔다.</li>
+          <li>로딩 헬퍼 <code>static/global/skeleton.js</code>(S22-3). 로딩 지점 6 이 공유한다.</li>
+        </ul>
+        <table>
+          <thead><tr><th>토큰</th><th>현행</th><th>흑연</th></tr></thead>
+          <tbody>
+            <tr><td><code>--n-text</code></td><td><code>#0f172a</code></td><td><code>#1b1b1a</code></td></tr>
+            <tr><td><code>--n-text-sec</code></td><td><code>#475569</code></td><td><code>#545452</code></td></tr>
+            <tr><td><code>--n-bg</code></td><td><code>#eef1f5</code></td><td><code>#f5f5f4</code></td></tr>
+            <tr><td><code>--n-blue</code>(강조)</td><td><code>#2557d6</code></td><td><code>#2f55a4</code></td></tr>
+            <tr><td>사이드바 면(짙음)</td><td><code>#16202e</code></td><td><code>#1f1f1e</code></td></tr>
+          </tbody>
+        </table>
+        <p>흑연은 색조가 없는 회색이다(11-08 판정, 강철 비채택). 사이드바는 짙은 면을 유지하되 slate 남색 대신 같은 계열의 짙은 흑연 면으로 바꾼다. 값은 출발점이며 S22-1 실험에서 본문 대비와 사이드바 글자 대비(WCAG(Web Content Accessibility Guidelines) AA 4.5:1)를 실측해 확정한다. 상태색 5(green · teal · orange · yellow · red)는 합치지 않고(11-08 판정) 의미를 유지한 채 명도만 새 바탕에 맞춘다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 12 단계 + CP</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>이 캠페인에서</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>이 우산 plan + 슬라이스별 디자인 plan(§3-4)</td><td><span class="chip cp1">CP1</span> 승인</td></tr>
+            <tr><td>2</td><td>템플릿과 CSS</td><td><span class="chip cp2">CP2</span> 보고</td></tr>
+            <tr><td>3~5</td><td>원칙상 무변경. S22-2 의 상대 시각이 응답 모델 메서드에서 나오면 그 1 곳만</td><td><span class="chip cp2">CP2</span> 보고</td></tr>
+            <tr><td>6 · 7 · 9</td><td>해당 없음(엔티티 · DDL 없음)</td><td><span class="chip cp3">CP3</span> 생략 보고</td></tr>
+            <tr><td>8</td><td>기존 테스트 회귀 정정 + §6 의 신규 테스트</td><td><span class="chip cp4">CP4</span> 중간 승인</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 + stageshow 화면 검사 + 독립 검토</td><td><span class="chip cp5">CP5</span> 보고</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span> 승인</td></tr>
+            <tr><td>12</td><td>사용자 브라우저 E2E</td><td><span class="chip cp7">CP7</span> 승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">게이트는 CP1 · CP4(중간) · CP6 · CP7 넷이다. 각 슬라이스 CP1 앞의 refine 실험은 CP 밖이며 승격 브랜치에 들어가지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <ul>
+          <li>새 예외와 새 엔드포인트가 없어 4 범주(2xx · 400 · 409 · 404)의 신규 시나리오는 없다.</li>
+          <li>회귀 위험은 기존 <code>@WebMvcTest</code> 가운데 마크업 문자열이나 class(<code>n-card</code>, 화면 문구)를 단언하는 테스트다. CP2 직후 전수 목록을 만들고 의도한 변경만 기대값을 고친다.</li>
+          <li>S22-2 에서 상대 시각 표현을 만들면 단위 테스트를 쓴다. 경계: 59 초, 59 분, 23 시간, 6 일, 미래 시각. <code>Clock</code> 을 주입해 시각 의존 테스트를 막는다.</li>
+          <li>아이콘 조각은 없는 이름이 들어오면 빈 출력이 아니라 렌더 실패가 나게 하고, 그 경우를 Thymeleaf 렌더 테스트 1 건으로 고정한다(조용한 누락 방지).</li>
+          <li>skullet 헬퍼는 JS 테스트 체계가 없어 CP5 브라우저 검증이 대신한다. 모듈 적재 실패 시 기존 문구 유지 경로는 CP5 의 B 항목으로 둔다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin:0;">신규 예외와 HTTP 매핑 변경이 없다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 · 주의 · 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 · 주의 · 결정</summary>
+      <div class="body">
+        <h4>결정</h4>
+        <table>
+          <thead><tr><th>결정</th><th>채택</th><th>비채택 · 사유</th></tr></thead>
+          <tbody>
+            <tr><td>K1 방향</td><td>B 의 어휘 + 판 구조 유지 (11-08 판정)</td><td>대장(판 제거): 사용자 판정으로 비채택 / A 토큰만: D3 · D4 · D5 · D7 잔존 / C 계기판: 기술 제품 라벨의 고정폭을 stageshow 가 실패로 명시</td></tr>
+            <tr><td>K2 진행</td><td>슬라이스마다 실화면 실험 → 디자인 plan → 승격</td><td>선행 Phase 0 일괄: 가릴 후보가 글꼴 · 아이콘만 남아 S22-1 로 흡수 / 바로 승격: 판정이 PR 마다 흩어져 재작업</td></tr>
+            <tr><td>K3 글꼴(잠정)</td><td>IBM Plex Sans KR + IBM Plex Mono</td><td>Pretendard: 라틴이 Inter 파생이라 D2 인상 일부 잔존 / 시스템 글꼴: OS 마다 다르고 Windows 에서 맑은 고딕과 Segoe 가 섞임</td></tr>
+            <tr><td>K4 아이콘</td><td>Phosphor, 쓰는 것만 추린 SVG sprite 1 파일</td><td>Tabler: 외곽선 2px 뿐이라 작은 크기에서 가늘어짐 / 아이콘 없음: 화살표 글리프가 남아 D6 미해소</td></tr>
+            <tr><td>K5 로딩</td><td>측정 뼈대, 수단 skullet (11-08 판정)</td><td>CSS 고정 뼈대: 도착 시 행 수 차이만큼 출렁임 / 문구만: 높이 변화가 가장 큼</td></tr>
+            <tr><td>K6 사이드바</td><td>짙은 면 유지, 흑연 계열로 재색 (11-08 판정)</td><td>밝은 면: 사용자 판정으로 비채택 / slate 남색 유지: D2 기본값 잔존</td></tr>
+            <tr><td>K7 브랜치</td><td>캠페인 브랜치 한 줄기 + 로컬 실험 브랜치</td><td>슬라이스별 브랜치: S17 도 한 줄기로 PR 하나</td></tr>
+            <tr><td>K8 팔레트</td><td>흑연 (11-08 판정)</td><td>강철: 사용자 판정으로 비채택</td></tr>
+            <tr><td>K9 상태색</td><td>5 색 독립 (11-08 판정)</td><td>teal · green 통합: 완료 · 연결됨과 활성 · 성공의 구분이 사라짐</td></tr>
+            <tr><td>K10 슬라이스 plan</td><td>디자인 plan, 데모 중심 (11-08 판정)</td><td>짧은 plan(데모 생략): 화면 변경을 글로 판정하게 됨</td></tr>
+          </tbody>
+        </table>
+        <p>글꼴 근거: IBM Plex Sans KR(OFL, SIL Open Font License 1.1)은 세 굵기 약 1.6 MB 이나 unicode-range 분할본이면 화면에 나온 글자만 받고, 산스와 고정폭이 한 설계라 식별자 많은 화면에 어울린다. Pretendard(OFL 1.1)는 가변 한 파일 2.06 MB 다. 둘을 S22-1 실험에서 비교한다. 아이콘 근거: Phosphor(MIT)는 regular 와 fill 이 있어 stageshow 의 "14px 이하 아이콘은 채움" 규칙을 한 세트 안에서 지킨다.</p>
+        <div class="callout warn"><b>Open Questions</b>
+          <p style="margin:6px 0 0;">닫힌 질문: OQ1 → K8, OQ2 → K9, OQ3 → K10, OQ4 → 판 정돈 채택, OQ5 → 3 슬라이스 확정 (11-08). 열린 질문은 없다.</p>
+        </div>
+        <h4>주의</h4>
+        <ul>
+          <li>변경 중심은 <code>style.css</code> 1,968 줄 · <code>server.css</code> 1,003 줄이다. 화면 하나의 사정은 그 화면 CSS 에 둔다(DESIGN 원칙 6).</li>
+          <li>다른 스트림(ue 의 R17-2, 앵커의 HF24)과 템플릿이 겹칠 수 있어 슬라이스 착수마다 <code>origin/dev</code> 로 재기준한다.</li>
+          <li>글꼴 첫 적재 1.6~2 MB 는 사내망에서 캐시 뒤 0 이다. <code>font-display: swap</code> 을 쓴다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification</summary>
+      <div class="body">
+        <h4>슬라이스 CP1 실험과 각 슬라이스 CP5</h4>
+        <ul class="check-list" data-storage="S22-plan-verify">
+          <li><label><input type="checkbox" data-key="p1"> <span>P1 대표 화면 3 전후 스크린샷(1440 · 1024) (S22-1)</span></label></li>
+          <li><label><input type="checkbox" data-key="p2"> <span>P2 stageshow 화면 검사 4 규칙의 전후 건수 (각 슬라이스)</span></label></li>
+          <li><label><input type="checkbox" data-key="p3"> <span>P3 독립 검토 소견 순위 목록 (각 슬라이스)</span></label></li>
+          <li><label><input type="checkbox" data-key="p4"> <span>P4 D 판정표 전후 (각 슬라이스)</span></label></li>
+          <li><label><input type="checkbox" data-key="p5-v2"> <span>P5 흑연 본문 대비와 짙은 사이드바 글자 대비 실측, 4.5:1 이상 (S22-1)</span></label></li>
+          <li><label><input type="checkbox" data-key="p6"> <span>P6 글꼴 2 후보의 한글 · 라틴 · 숫자(고정폭 숫자) 비교 샘플 (S22-1)</span></label></li>
+          <li><label><input type="checkbox" data-key="p7-v2"> <span>P7 skullet 2 지점의 도착 시 출렁임 0 과 <code>?skullet-debug</code> 이동 보고 (S22-3)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5-ids"> <span>각 슬라이스 CP5: 검증 항목은 슬라이스 plan 에서 A(정상 흐름) · B(비정상 조작) · C(막는 방식) 식별자로 계획하고 항목마다 스크린샷을 1:1 로 남긴다</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5-stageshow"> <span>각 슬라이스 CP5: 모든 슬라이스 CP5 에 stageshow 화면 검사와 독립 검토를 넣는다</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5-r5"> <span>각 슬라이스 CP5: 기능 무변경(R5) 확인. 탭 전환, 모달, 폼 제출, SSE 갱신</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/global/style.css</code></td><td><code>:root</code> 토큰, 판 · 구획 · 배지 · 사이드바 규칙</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>페이지 CSS 12 개(<code>server.css</code> · <code>confirm-modal.css</code> 외)</td><td>hex → 토큰, 대문자 라벨</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>템플릿(글리프 47 파일, 식별자 칩 · 빈 값 해설 자리), <code>fragments/layout.html</code></td><td>아이콘 조각, 절제 마크업, 글꼴 · 사이드바</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>static/fonts/&lt;선택 글꼴&gt;/</code>, <code>static/icons/sprite.svg</code>, <code>templates/fragments/icon.html</code></td><td>글꼴(OFL 동봉), 아이콘(LICENSE 동봉)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>static/vendor/skullet/</code>(<code>index.mjs</code> · <code>styles.css</code> · <code>LICENSE</code>), <code>static/global/skeleton.js</code></td><td>로딩 뼈대</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>DESIGN.md</code> 1 · 2 · 3 · 6절</td><td>슬라이스마다 함께 개정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>.claude/plan-report-html-spec.md</code></td><td>'디자인 plan' 변형 절 (S22-1 CP1 착수 때)</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>static/fonts/inter/</code></td><td>글꼴 교체 확정 시</td></tr>
+          </tbody>
+        </table>
+        <p>저장소 밖 로컬 도구는 <code>sbx-design/stageshow-layout.mjs</code>(로그인 래퍼)와 스킬 폴더의 <code>playwright-core</code> 설치다. 유지: 컨트롤러, 서비스, 엔티티, <code>messages.properties</code>(S16-2 소관).</p>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="S22-plan-next">
+          <li><label><input type="checkbox" data-key="cp1-v2" checked> <span>CP1 v2 검토와 수정, 승인 (11-08 승인)</span></label></li>
+          <li><label><input type="checkbox" data-key="spec"> <span>규약: 명세에 '디자인 plan' 변형 절 추가</span></label></li>
+          <li><label><input type="checkbox" data-key="s22-1"> <span>S22-1 실험 → 디자인 plan → CP1 → 승격 → CP7</span></label></li>
+          <li><label><input type="checkbox" data-key="s22-2-3"> <span>S22-2 정보 절제와 판 정돈, S22-3 로딩 상태(같은 순서)</span></label></li>
+          <li><label><input type="checkbox" data-key="notion-v2"> <span>Notion: 우산 페이지 개발 단계 = 3차 개발 연결 완료(11-08). 슬라이스 페이지는 각 CP1 진입 때 신설하고 개발 단계를 채운다</span></label></li>
+          <li><label><input type="checkbox" data-key="later"> <span>후속 후보: stageshow 로 로그인 화면이나 README 용 제품 일러스트, S16-2 문구 정비와 연계</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (e) { /* 저장 불가 환경 */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모. 판정은 §1 표 1 의 진단 판정식과 1:1 (demoBlocks 하나)
+  //  시나리오는 상태 객체만 바꾸고 demoRender() 를 부른다. demoRender() 는 파일 끝 1 회 호출.
+  // ─────────────────────────────────────────────────────────────
+  const DEMO_DEFAULT = { palette:'cur', structure:'panel', panelTrim:'cur', restraint:'off', label:'upper', ident:'chip', sidebar:'dark',
+                         loadMode:'measured', latency:'800' };
+  // 진단은 표식으로 꼽았지만 11-08 사용자 판정으로 유지하기로 한 것
+  const DEMO_DECIDED = { D1:'K1', SB:'K6' };
+  let demoState = Object.assign({}, DEMO_DEFAULT);
+  const DEMO_ROLES = ['text','sec','dim','bg','surface','line','accent'];
+  const DEMO_ROW_H = 30;
+  const DEMO_FAST_MS = 150;
+  const DEMO_ROWS = ['정의서 A','정의서 B','정의서 C','정의서 D','정의서 E','정의서 F']
+    .map(n => ({ name:n, board:'MS03-CE0', status:'활성' }));
+  const DEMO_SAMPLE = DEMO_ROWS.map(() => ({ name:'견본 정의서', board:'MS03-CE0', status:'활성' }));
+  let demoLoad = { phase:'idle', token:0, mode:null, plan:null, memory:0, loadH:null, doneH:null, skeletonShown:null };
+
+  // 판정 함수 하나: 화면은 표 1 의 D1~D8 판정식 + SB, 로딩은 방식 · 응답 · 150ms 규칙
+  function demoBlocks(s) {
+    const panel = s.structure === 'panel';
+    const trimCur = panel && s.panelTrim === 'cur';
+    const emptyBand = trimCur;
+    const minuteUnit = s.restraint === 'off';
+    const fail = s.latency === 'fail';
+    const ms = fail ? 800 : Number(s.latency);
+    const usesSkeleton = s.loadMode !== 'text';
+    return {
+      D1: panel, headBar: trimCur,
+      D2: s.palette === 'cur',
+      D3: s.restraint === 'off',
+      D4: s.restraint === 'off',
+      D5: s.label === 'upper',
+      D6: null,
+      D7: s.ident === 'chip',
+      D8: emptyBand || minuteUnit, emptyBand: emptyBand, minuteUnit: minuteUnit,
+      SB: s.sidebar === 'dark' || s.palette === 'cur' || s.palette === 'dark',
+      monoLabel: s.label === 'mono',
+      load: { ms: ms, fail: fail, mode: s.loadMode, showSkeleton: usesSkeleton && ms > DEMO_FAST_MS,
+              skipReason: !usesSkeleton ? '문구 방식' : (ms <= DEMO_FAST_MS ? '150ms 규칙' : null) }
+    };
+  }
+
+  function demoSet(group, value) {
+    if (group === 'panelTrim' && demoState.structure !== 'panel') return;   // 판 세부는 구조가 판일 때만 의미가 있다
+    demoState[group] = value; demoRender();
+  }
+  document.querySelectorAll('.seg[data-group]').forEach(b =>
+    b.addEventListener('click', () => demoSet(b.dataset.group, b.dataset.value)));
+
+  // ── 화면 데모 렌더 ──
+  function demoLabelStyle(s, kind) {
+    if (s.label === 'mono') return 'font-family:var(--mono);font-size:11px;color:var(--m-sec);' + (kind === 'title' ? 'font-weight:600;' : '');
+    if (s.label === 'upper' && kind !== 'row') return 'font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:var(--m-dim);';
+    if (kind === 'title') return 'font-size:13px;font-weight:600;color:var(--m-text);';
+    return 'font-size:12px;color:var(--m-sec);';
+  }
+  function demoIdent(s, v) {
+    return s.ident === 'chip'
+      ? '<span style="font-family:var(--mono);font-size:11.5px;background:var(--m-bg);border:1px solid var(--m-line);border-radius:4px;padding:1px 5px;">' + v + '</span>'
+      : '<span style="font-family:var(--mono);font-size:12px;">' + v + '</span>';
+  }
+  function demoBadge(t) {
+    return '<span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px;background:var(--green-bg);color:var(--green);">' + t + '</span>';
+  }
+  function demoRowHTML(s, label, value) {
+    return '<div style="display:flex;gap:8px;padding:3px 0;font-size:12.5px;align-items:baseline;">' +
+      '<span style="flex:0 0 74px;' + demoLabelStyle(s, 'row') + '">' + label + '</span><span style="min-width:0;">' + value + '</span></div>';
+  }
+  function demoSection(s, title, inner, grow) {
+    const t = '<span style="' + demoLabelStyle(s, 'title') + '">' + title + '</span>';
+    if (s.structure === 'panel') {
+      const bar = s.panelTrim === 'cur' ? 'border-left:3px solid var(--m-accent);padding-left:7px;' : '';
+      return '<div style="border:1px solid var(--m-line);border-radius:6px;background:var(--m-surface);overflow:hidden;display:flex;flex-direction:column;">' +
+        '<div style="background:var(--m-bg);padding:5px 10px;border-bottom:1px solid var(--m-line);"><span style="' + bar + '">' + t + '</span></div>' +
+        '<div style="padding:6px 10px;flex:1;display:flex;flex-direction:column;">' + inner +
+        (grow ? '<div style="flex:1;min-height:36px;margin-top:6px;background:var(--m-bg);border-radius:4px;"></div>' : '') + '</div></div>';
+    }
+    return '<div style="border-top:1px solid var(--m-line);padding-top:6px;">' + t + '<div style="margin-top:4px;">' + inner + '</div></div>';
+  }
+  function demoScreenHTML(s) {
+    const off = s.restraint === 'off';
+    // 현행 · 어두움(C) 팔레트는 밝은 사이드바가 없어 짙은 면 고정
+    const fixedDark = s.palette === 'cur' || s.palette === 'dark';
+    const sideDark = s.sidebar === 'dark' || fixedDark;
+    const sideBg = sideDark ? 'var(--demo-' + s.palette + '-side-dark)' : 'var(--demo-' + s.palette + '-side)';
+    const sideInk = !sideDark ? 'var(--m-sec)' : (fixedDark ? 'var(--demo-dark-sec)' : 'var(--demo-sidedark-ink)');
+    const sideOn = !sideDark ? 'var(--m-text)' : (fixedDark ? 'var(--demo-dark-text)' : 'var(--demo-sidedark-on)');
+    const menu = ['OS 버전','메인보드','세팅 정의서','서버','서버 그룹'].map(m =>
+      '<div style="padding:4px 8px;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + (m === '서버' ? sideOn + ';font-weight:700' : sideInk) + ';">' + m + '</div>').join('');
+    const side = '<div style="flex:0 0 76px;background:' + sideBg + ';padding:8px 0;' + (s.sidebar === 'light' ? 'border-right:1px solid var(--m-line);' : '') + '">' + menu + '</div>';
+    const conn = off ? '끊어짐 · 7405분 전' : '끊어짐 · 5일 전';
+    const empty = off ? '— (진단 단계에서 수집)' : '—';
+    const guide = '모든 단계를 마쳤습니다';
+    const head = '<div style="display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;">' +
+      '<b style="font-size:14px;">(이름 미지정)</b>' + demoBadge('완료') +
+      (off ? '<span style="font-size:12px;color:var(--m-sec);">' + conn + '</span>' : '') + '</div>' +
+      '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;"><span style="' + demoLabelStyle(s, 'id') + '">SMBIOS UUID</span>' + demoIdent(s, 'e4160a01-…a001') + '</div>';
+    const now = (off ? demoRowHTML(s, '운영 상태', demoBadge('완료')) : '') +
+      demoRowHTML(s, '연결', conn) + demoRowHTML(s, '현재 단계', '종단') +
+      demoRowHTML(s, '개시 시각', '2026-09-08 14:39:43') + demoRowHTML(s, '완료 시각', '14:40:58') +
+      demoRowHTML(s, '안내', guide);
+    const srv = demoRowHTML(s, '제조사 · 보드', 'Gigabyte · MS03-CE0') + demoRowHTML(s, '보드 시리얼', empty) +
+      demoRowHTML(s, 'BMC 주소', empty) + demoRowHTML(s, '호스트 IP', demoIdent(s, '192.168.1.150')) +
+      (off ? '' : '<div style="font-size:11.5px;color:var(--m-dim);margin-top:4px;">빈 칸은 진단 단계에서 채워집니다</div>');
+    const steps = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:6px;">' +
+      ['부트스트래핑','진단 리눅스','RAID 구성','OS 설치'].map((n, i) =>
+        '<div style="font-size:12px;"><span style="color:var(--m-dim);">' + (i + 1) + '</span> ' + n + '<br><span style="color:var(--green);font-size:11px;">완료</span></div>').join('') + '</div>' +
+      (off ? '<div style="font-size:12px;color:var(--m-sec);margin-top:6px;">' + guide + '</div>' : '');
+    const panel = s.structure === 'panel';
+    const band = panel && s.panelTrim === 'cur';   // 두 판 높이 맞춤 → "지금 상태" 아래 빈 띠
+    const pair = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:' + (band ? 'stretch' : 'start') + ';">' +
+      demoSection(s, '지금 상태', now, band) + demoSection(s, '이 서버', srv, false) + '</div>';
+    const content = '<div style="flex:1;min-width:0;padding:10px 12px;background:' + (panel ? 'var(--m-bg)' : 'var(--m-surface)') + ';display:flex;flex-direction:column;gap:10px;">' +
+      head + pair + demoSection(s, '진행 경로', steps, false) + '</div>';
+    return '<div style="display:flex;min-height:100%;border:1px solid var(--border);border-radius:8px;overflow:hidden;color:var(--m-text);background:var(--m-surface);">' + side + content + '</div>';
+  }
+  function demoCapsHTML(b) {
+    // 표식 있음 + 결정 있음 → 유지(K#), 표식 있음 → 남음, 표식 없음 → 해소
+    const m = k => !b[k] ? '<span class="f">해소</span>'
+      : (DEMO_DECIDED[k] ? '<span class="k">유지(' + DEMO_DECIDED[k] + ')</span>' : '<span class="t">남음</span>');
+    const keys = ['D1','D2','D3','D4','D5','D7','D8','SB'];
+    const left = keys.filter(k => b[k] && !DEMO_DECIDED[k]).length;
+    const kept = keys.filter(k => b[k] && DEMO_DECIDED[k]).length;
+    return [
+      'D1 ' + m('D1') + '  판 테두리\n           (소제목 막대 ' + (b.headBar ? '있음' : '없음') + ')',
+      'D2 ' + m('D2') + '  기본값 팔레트',
+      'D3 ' + m('D3') + '  같은 신호 중복',
+      'D4 ' + m('D4') + '  괄호 해설',
+      'D5 ' + m('D5') + '  대문자 소형 라벨',
+      '<span style="color:var(--text-muted);">D6 범위밖  화살표 글리프\n           (S22-1 실화면에서 판정)</span>',
+      'D7 ' + m('D7') + '  식별자 상자',
+      'D8 ' + m('D8') + '  빈 띠 · 분 단위\n           (빈 띠 ' + (b.emptyBand ? '있음' : '없음') + ' · 분 단위 ' + (b.minuteUnit ? '있음' : '없음') + ')',
+      'SB ' + m('SB') + '  짙은 사이드바 띠',
+      b.monoLabel ? '<span class="t">stageshow 위반: 기술 제품 라벨의 고정폭</span>' : null,
+      '',
+      '남은 표식 ' + (left ? '<span class="t">' + left + '</span>' : '<span class="f">0</span>') + ' 개 · 결정으로 유지 ' + kept + ' 개 / 데모 범위 8 개'
+    ].filter(x => x !== null).join('\n');
+  }
+
+  // ── 로딩 데모 렌더 ──
+  function demoPickerRow(d, skel) {
+    const ghost = skel ? 'color:transparent;background:var(--border-soft);border-radius:4px;' : '';
+    return '<div style="height:' + DEMO_ROW_H + 'px;display:flex;align-items:center;gap:10px;font-size:12.5px;">' +
+      '<span style="' + ghost + '">' + d.name + '</span>' +
+      '<span style="color:' + (skel ? 'transparent' : 'var(--text-muted)') + ';' + ghost + '">' + d.board + '</span>' +
+      '<span style="margin-left:auto;font-size:11px;font-weight:600;padding:1px 7px;border-radius:8px;' +
+      (skel ? ghost : 'background:var(--green-bg);color:var(--green);') + '">' + d.status + '</span></div>';
+  }
+  function demoCssBones() {
+    let h = '';
+    for (let i = 0; i < 3; i++) {
+      h += '<div style="height:' + DEMO_ROW_H + 'px;display:flex;align-items:center;gap:10px;">' +
+        '<span style="display:inline-block;width:38%;height:10px;background:var(--border-soft);border-radius:4px;"></span>' +
+        '<span style="display:inline-block;width:22%;height:10px;background:var(--border-soft);border-radius:4px;"></span></div>';
+    }
+    return h;
+  }
+  function demoPickerBodyHTML() {
+    const L = demoLoad, reserve = (L.memory || DEMO_SAMPLE.length);
+    if (L.phase === 'idle') return '<div style="height:' + DEMO_ROW_H + 'px;display:flex;align-items:center;font-size:12.5px;color:var(--text-muted);">피커가 닫혀 있습니다. 피커 열기를 누르세요.</div>';
+    if (L.phase === 'error') return '<div class="ux-message error" style="margin:4px 0;">정의서를 불러오지 못했습니다. 다시 열어 보세요.</div>';
+    if (L.phase === 'done') return DEMO_ROWS.map(d => demoPickerRow(d, false)).join('');
+    if (L.mode === 'text') return '<div style="height:' + DEMO_ROW_H + 'px;display:flex;align-items:center;font-size:12.5px;color:var(--text-muted);">불러오는 중…</div>';
+    if (L.mode === 'measured') {
+      const rows = DEMO_SAMPLE.slice(0, reserve).map(d => demoPickerRow(d, L.phase === 'skeleton')).join('');
+      return L.phase === 'skeleton' ? rows : '<div style="visibility:hidden;">' + rows + '</div>';
+    }
+    return L.phase === 'skeleton' ? demoCssBones() : '';
+  }
+  function demoLoadCapsHTML() {
+    const L = demoLoad, px = v => v === null ? '-' : v + 'px';
+    const diff = (L.loadH !== null && L.doneH !== null) ? Math.abs(L.doneH - L.loadH) : null;
+    const d = diff === null ? '-' : (diff ? '<span class="t">' + diff + 'px</span>' : '<span class="f">0px</span>');
+    const sk = L.skeletonShown === null ? '-' : (L.skeletonShown ? '예' : '아니오(' + L.plan.skipReason + ')');
+    return '로딩 중 높이 ' + px(L.loadH) + ' → 도착 후 ' + px(L.doneH) + '\n(변화 ' + d + ')\n뼈대 표시: ' + sk;
+  }
+  function demoPickerRender() {
+    const body = document.getElementById('demo-picker-body');
+    body.setAttribute('aria-busy', String(demoLoad.phase === 'wait' || demoLoad.phase === 'skeleton' || demoLoad.phase === 'loading'));
+    body.innerHTML = demoPickerBodyHTML();
+    if (demoLoad.phase === 'wait' || demoLoad.phase === 'skeleton' || demoLoad.phase === 'loading') demoLoad.loadH = body.offsetHeight;
+    document.getElementById('demo-load-caps').innerHTML = demoLoadCapsHTML();
+  }
+  function demoReveal(body) {
+    const rows = Array.from(body.children);
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    rows.forEach((r, i) => {
+      r.style.opacity = '0'; r.style.transition = 'opacity .18s';
+      setTimeout(() => { r.style.opacity = '1'; }, 40 + i * 45);
+    });
+  }
+  function demoPickerOpen() {
+    const plan = demoBlocks(demoState).load;
+    const token = ++demoLoad.token;
+    Object.assign(demoLoad, { phase: plan.mode === 'text' ? 'loading' : 'wait', mode: plan.mode, plan: plan,
+                              loadH: null, doneH: null, skeletonShown: null });
+    demoPickerRender();
+    if (plan.showSkeleton) {
+      setTimeout(() => {
+        if (token !== demoLoad.token || demoLoad.phase !== 'wait') return;
+        demoLoad.phase = 'skeleton'; demoPickerRender();
+      }, DEMO_FAST_MS);
+    }
+    setTimeout(() => {
+      if (token !== demoLoad.token) return;
+      const body = document.getElementById('demo-picker-body');
+      demoLoad.loadH = body.offsetHeight;
+      demoLoad.skeletonShown = demoLoad.phase === 'skeleton';
+      demoLoad.phase = plan.fail ? 'error' : 'done';
+      if (!plan.fail) demoLoad.memory = DEMO_ROWS.length;
+      body.removeAttribute('aria-busy');
+      body.innerHTML = demoPickerBodyHTML();
+      demoLoad.doneH = body.offsetHeight;
+      if (!plan.fail) demoReveal(body);
+      document.getElementById('demo-load-caps').innerHTML = demoLoadCapsHTML();
+    }, plan.ms);
+  }
+
+  // ── 원클릭 시나리오: 상태 객체만 바꾸고 demoRender() ──
+  const DEMO_SCENARIOS = {
+    1: { set:{ palette:'cur', structure:'panel', panelTrim:'cur', restraint:'off', label:'upper', ident:'chip', sidebar:'dark' },
+         msg:"지금 화면입니다. 남은 표식 6 개, 결정으로 유지 2 개(판 구조 · 짙은 사이드바)입니다. 팔레트를 흑연으로 바꾸면 D2 가 꺼지는 것을 보세요." },
+    2: { set:{ palette:'graphite', structure:'panel', panelTrim:'cur', restraint:'off', label:'upper', ident:'chip', sidebar:'dark' },
+         msg:"색만 흑연으로 바꾼 상태입니다. D2 는 꺼졌지만 절제 · 라벨 · 식별자 · 빈 띠의 표식 5 개가 남습니다. 토큰 교체만으로는 인상이 그대로인 이유입니다." },
+    3: { set:{ palette:'graphite', structure:'panel', panelTrim:'cur', restraint:'on', label:'sentence', ident:'text', sidebar:'dark' },
+         msg:"11-08 에 고르신 조합입니다. 남은 표식은 D8 의 빈 띠 하나입니다. '판 세부' 를 정돈으로 바꾸면 판은 그대로 두고 빈 띠와 소제목 막대만 걷힙니다(OQ4)." },
+    4: { set:{ palette:'graphite', structure:'panel', panelTrim:'tidy', restraint:'on', label:'sentence', ident:'text', sidebar:'dark' },
+         msg:"선택안에 판 정돈을 더한 확정안입니다(OQ4). 테두리와 머리 띠는 남기고 빈 띠와 소제목 막대를 걷어 남은 표식이 0 개입니다. 구조를 '대장' 으로 바꿔 비채택안과 비교해 보세요." },
+    5: { set:{ loadMode:'text', latency:'2000' }, open:true, msg:"문구만 띄우는 지금 방식입니다. 도착할 때의 높이 변화를 캡션에서 보세요. 방식을 '측정 뼈대'(K5 확정)로 바꾸고 다시 열면 변화가 0 이 됩니다." },
+    6: { set:{ loadMode:'measured', latency:'120' }, open:true, msg:"응답이 150ms 안에 오면 뼈대를 띄우지 않습니다. 짧게 번쩍이는 뼈대가 오히려 소음이 되기 때문입니다." }
+  };
+  function demoScenario(n) {
+    const sc = DEMO_SCENARIOS[n];
+    demoState = Object.assign({}, DEMO_DEFAULT, sc.set);
+    demoLoad.token++;
+    Object.assign(demoLoad, { phase:'idle', mode:null, plan:null, loadH:null, doneH:null, skeletonShown:null });
+    const banner = document.getElementById('demo-banner');
+    banner.className = 'ux-message success';
+    banner.textContent = sc.msg;
+    demoRender();
+    if (sc.open) demoPickerOpen();
+  }
+
+  function demoRender() {
+    const s = demoState;
+    document.querySelectorAll('.seg[data-group]').forEach(b => b.classList.toggle('active', s[b.dataset.group] === b.dataset.value));
+    document.querySelectorAll('.seg[data-group="panelTrim"]').forEach(b => b.setAttribute('aria-disabled', String(s.structure !== 'panel')));
+    const screen = document.getElementById('demo-screen');
+    DEMO_ROLES.forEach(r => screen.style.setProperty('--m-' + r, 'var(--demo-' + s.palette + '-' + r + ')'));
+    screen.innerHTML = demoScreenHTML(s);
+    document.getElementById('demo-caps').innerHTML = demoCapsHTML(demoBlocks(s));
+    demoPickerRender();
+  }
+  demoRender();   // 불가침: 파일 끝에서 1 회 호출
+</script>
+</body>
+</html>
