@@ -38,18 +38,41 @@ class PasswordChangeControllerTest {
 	@MockitoBean SessionPrincipalRefresher principalRefresher;
 	@MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
+	/**
+	 * HF28 — 강제 여부는 세션 principal 의 mustChangePassword() 하나로 정한다(인터셉터와 같은 값). 이 슬라이스에는 보안 필터가 없어
+	 * (Boot 4 의 @WebMvcTest) 요청 후처리기 대신 테스트 스레드의 SecurityContext 를 직접 바꾼다 — 컨트롤러 · advice 가 같은 스레드에서 읽는다.
+	 */
+	private static org.springframework.test.web.servlet.request.RequestPostProcessor principal(boolean mustChange) {
+		com.example.serverprovision.global.security.springsecurity.entity.Users u =
+				com.example.serverprovision.global.security.springsecurity.entity.Users.builder()
+						.id(1L).username("hong.gildong").password("$2a$x").name("홍길동")
+						.isEnabled(true).isLocked(false).mustChangePassword(mustChange).build();
+		var details = new com.example.serverprovision.global.security.springsecurity.domain.UserDetails_Impl(u,
+				java.util.List.of(com.example.serverprovision.global.security.springsecurity.domain.Role.USER));
+		return request -> {
+			org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+					org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
+							details, null, details.getAuthorities()));
+			return request;
+		};
+	}
+
 	@Test
-	@DisplayName("GET — ?first=1 이면 강제 안내 배너 · 없으면 배너 없음")
-	void form_forcedBanner() throws Exception {
-		mvc.perform(get("/password/change").param("first", "1"))
+	@DisplayName("HF28 GET — 강제 변경 계정이면 주소에 ?first=1 이 없어도(사이드바 링크) 강제 배너 · 메뉴 잠금, 일반 계정은 ?first=1 이어도 강제 아님")
+	void form_forcedFollowsPrincipalNotQuery() throws Exception {
+		mvc.perform(get("/password/change").with(principal(true)))
 				.andExpect(status().isOk())
 				.andExpect(view().name("security/password-change"))
 				.andExpect(model().attribute("forced", true))
-				.andExpect(content().string(containsString("초기 비밀번호로 로그인했습니다")));
-		mvc.perform(get("/password/change"))
+				.andExpect(content().string(containsString("초기 비밀번호로 로그인했습니다")))
+				.andExpect(content().string(containsString("n-nav-locked")))
+				.andExpect(content().string(containsString("비밀번호를 바꾼 뒤 메뉴를 이용할 수 있습니다.")))
+				.andExpect(content().string(containsString("data-nav-always")));
+		mvc.perform(get("/password/change").param("first", "1").with(principal(false)))
 				.andExpect(status().isOk())
 				.andExpect(model().attribute("forced", false))
-				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("초기 비밀번호로 로그인했습니다"))));
+				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("초기 비밀번호로 로그인했습니다"))))
+				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("n-nav-locked"))));
 	}
 
 	@Test
@@ -69,7 +92,7 @@ class PasswordChangeControllerTest {
 	@DisplayName("400 — 현재 비밀번호 오입력은 서비스 예외가 currentPassword 필드로 매핑돼 재렌더")
 	void submit_currentWrong() throws Exception {
 		willThrow(PasswordMismatchException.current()).given(usersService).changePassword(eq("hong.gildong"), any());
-		mvc.perform(post("/password/change").param("first", "1").param("currentPassword", "wrong").param("newPassword", "NewPass99!").param("retypedPassword", "NewPass99!"))
+		mvc.perform(post("/password/change").with(principal(true)).param("currentPassword", "wrong").param("newPassword", "NewPass99!").param("retypedPassword", "NewPass99!"))
 				.andExpect(status().isBadRequest())
 				.andExpect(model().attributeHasFieldErrors("passwordForm", "currentPassword"))
 				.andExpect(model().attribute("forced", true))

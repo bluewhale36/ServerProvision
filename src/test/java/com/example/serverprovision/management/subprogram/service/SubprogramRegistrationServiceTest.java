@@ -272,4 +272,70 @@ class SubprogramRegistrationServiceTest {
                 SubprogramUploadMode.SINGLE_FILE, null, null, null))
                 .isInstanceOf(SubprogramPathConflictException.class);
     }
+
+    // ==== HF27 — 중복 확인 창 [취소] 가 기존 디렉토리(운영자 폴더)를 지우지 않는다 (docs C-16) ====
+
+    @Test
+    @DisplayName("HF27 cleanupNudgeCancelled : 업로드 트리는 삭제, 기존 디렉토리 등록(claim)은 보존")
+    void cleanupNudgeCancelled_preservesClaimTree(@TempDir Path tmp) {
+        var upload = new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
+                "ixgbe", "5.20", "h", tmp.resolve("up").toString(), java.util.Map.of("claimExisting", "false"));
+        subprogramRegistrationService.cleanupNudgeCancelled(upload);
+        verify(bundleTreeCleanupService).purgeExistingTree(tmp.resolve("up"), "nudgeCancel.subprogram");
+
+        var claim = new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
+                "ixgbe", "5.20", "h", tmp.resolve("operator-folder").toString(), java.util.Map.of("claimExisting", "true"));
+        subprogramRegistrationService.cleanupNudgeCancelled(claim);
+        verify(bundleTreeCleanupService, org.mockito.Mockito.never())
+                .purgeExistingTree(org.mockito.ArgumentMatchers.eq(tmp.resolve("operator-folder")), any());
+    }
+
+    private void stubCommonUtilityNoDuplicate(Path target, String hash) {
+        given(subprogramRepository.findActiveByCommonKey(SubprogramKind.UTILITY, "raid-cli", "1.0")).willReturn(Optional.empty());
+        given(subprogramRepository.findSoftDeletedByCommonKey(SubprogramKind.UTILITY, "raid-cli", "1.0")).willReturn(Optional.empty());
+        given(subprogramRepository.findFirstByTreeRootPathAndIsDeletedFalse(any())).willReturn(Optional.empty());
+        given(bundleManifestService.compute(any())).willReturn(new ManifestSummary(hash, 1, 100L));
+        Subprogram deprecatedSameContent = Subprogram.builder()
+                .id(5L).kind(SubprogramKind.UTILITY).boardModel(null).name("raid-cli").version("0.9")
+                .treeRootPath("/old").manifestHash(hash).fileCount(1).totalBytes(100L)
+                .isEnabled(true).isDeprecated(true).isDeleted(false).build();
+        given(subprogramRepository.findHashConflictCandidates(SubprogramKind.UTILITY, null, hash))
+                .willReturn(java.util.List.of(deprecatedSameContent));
+        given(nudgeRegistry.register(any(), any(), any(), any())).willAnswer(inv -> new com.example.serverprovision.management.common.nudge.NudgeSession(
+                java.util.UUID.randomUUID(), inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3),
+                java.time.Instant.now(), java.time.Instant.now().plusSeconds(600)));
+    }
+
+    private com.example.serverprovision.management.common.nudge.ContentNudgePayload capturedPayload() {
+        org.mockito.ArgumentCaptor<com.example.serverprovision.management.common.nudge.NudgePayload> captor =
+                org.mockito.ArgumentCaptor.forClass(com.example.serverprovision.management.common.nudge.NudgePayload.class);
+        verify(nudgeRegistry).register(any(), any(), any(), captor.capture());
+        return (com.example.serverprovision.management.common.nudge.ContentNudgePayload) captor.getValue();
+    }
+
+    @Test
+    @DisplayName("HF27 registerExisting : 같은 내용의 Deprecated 자원이 있어 창이 열릴 때 payload 에 claim 을 적는다")
+    void registerExisting_nudgeRecordsClaim(@TempDir Path tmp) {
+        Path target = tmp.resolve("operator-folder");
+        stubCommonUtilityNoDuplicate(target, "h-claim");
+        given(pathPolicyService.assertWritablePath(target.toString())).willReturn(target);
+
+        assertThatThrownBy(() -> subprogramRegistrationService.registerExisting(SubprogramKind.UTILITY, BoardScope.COMMON,
+                new com.example.serverprovision.management.subprogram.dto.request.SubprogramRegisterExistingRequest(
+                        "raid-cli", "1.0", target.toString(), "desc", null)))
+                .isInstanceOf(com.example.serverprovision.management.subprogram.exception.SubprogramNudgeRequiredException.class);
+        assertThat(capturedPayload().claimsExistingTree()).isTrue();
+    }
+
+    @Test
+    @DisplayName("HF27 addSubprogram : 업로드 등록의 창 payload 는 claim 이 아니다(취소 시 업로드 트리를 정리)")
+    void addSubprogram_nudgeIsNotClaim(@TempDir Path tmp) {
+        Path target = tmp.resolve("upload-target");
+        stubCommonUtilityNoDuplicate(target, "h-upload");
+
+        assertThatThrownBy(() -> subprogramRegistrationService.addSubprogram(SubprogramKind.UTILITY, BoardScope.COMMON,
+                req("raid-cli", "1.0", target), SubprogramUploadMode.SINGLE_FILE, null, null, null))
+                .isInstanceOf(com.example.serverprovision.management.subprogram.exception.SubprogramNudgeRequiredException.class);
+        assertThat(capturedPayload().claimsExistingTree()).isFalse();
+    }
 }

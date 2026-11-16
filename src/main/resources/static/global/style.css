@@ -234,6 +234,22 @@ kbd {
 
 /* S18 — 사이드바 계정 영역(사용자명 · 비밀번호 변경 · 사용자 등록 · 로그아웃). 로그아웃은 POST 폼이라 버튼을
    링크 모양에 맞춘다. 사용자명은 링크가 아니라 묶음의 값이다. */
+/* HF28 — 초기 비밀번호 강제 변경 중 메뉴 잠금(판정 = currentUser.mustChangePassword, 서버 인터셉터와 같은 값).
+   data-nav-always 링크(비밀번호 변경 · 사용 매뉴얼)와 로그아웃 버튼은 그대로 쓴다. */
+.n-nav-locked a.n-nav-link:not([data-nav-always]),
+.n-nav-locked .n-nav-brand {
+    pointer-events: none;
+    opacity: .4;
+}
+
+.n-nav-locked-note {
+    margin: 0;
+    font-size: 12px;
+    word-break: keep-all;   /* 228px 사이드바에서 어절 중간 줄바꿈 방지(HF28 CP5 관찰 5) */
+    color: #cbd5e1;
+    padding: 6px 18px 2px;
+}
+
 .n-nav-user {
     display: block;
     font-size: 12.5px;

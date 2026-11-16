@@ -75,8 +75,13 @@
 </head>
 
 <body>
-<nav th:fragment="navbar(activePage)" class="n-nav">
+<!--/* HF28 — 초기 비밀번호 강제 변경 중(currentUser.mustChangePassword)에는 메뉴를 잠근 모양으로 그린다. 서버 쪽은
+       MustChangePasswordInterceptor 가 같은 값으로 되돌린다. 잠그지 않을 링크는 data-nav-always(비밀번호 변경 · 사용 매뉴얼),
+       로그아웃은 버튼이라 대상이 아니다. 배경 작업(/jobs)은 인터셉터 제외 경로라 그대로 둔다. */-->
+<nav th:fragment="navbar(activePage)" class="n-nav"
+     th:classappend="${currentUser != null and currentUser.mustChangePassword} ? ' n-nav-locked'">
     <a th:href="@{/management/os}" class="n-nav-brand">Provision Portal</a>
+    <p th:if="${currentUser != null and currentUser.mustChangePassword}" class="n-nav-locked-note">비밀번호를 바꾼 뒤 메뉴를 이용할 수 있습니다.</p>
 
     <span class="n-nav-group">자원 관리</span>
     <a th:href="@{/management/os}"
@@ -151,7 +156,7 @@
         <span class="n-nav-group">계정</span>
         <span class="n-nav-user" th:text="|${currentUser.name} (${currentUser.username})|">홍길동 (hong.gildong)</span>
         <a th:href="@{/password/change}"
-           class="n-nav-link"
+           class="n-nav-link" data-nav-always
            th:classappend="${activePage == 'password'} ? ' active'">비밀번호 변경</a>
         <a th:if="${currentUser.superAdmin}"
            th:href="@{/users}"
