@@ -24,8 +24,6 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 /**
  * BIOS 세팅 정의서(템플릿) — 특정 보드({@link BoardModel} FK)의 BIOS 설정 변경분 스냅샷.
@@ -58,7 +56,7 @@ public class BiosSettingTemplate extends BaseTimeEntity {
 
     /** 검증에 쓰인 보드 — 생성 후 불변(수정 계약에 미포함). 템플릿의 유효 도메인을 규정한다. */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
+    // HF26 — 사용자가 작성한 템플릿이 보드 영구 삭제로 함께 지워지지 않게 DB 는 RESTRICT(ddl/HF26_board_integrity.sql)
     @JoinColumn(name = "board_model_id", nullable = false, updatable = false)
     private BoardModel boardModel;
 

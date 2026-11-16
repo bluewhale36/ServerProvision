@@ -160,6 +160,19 @@ class BoardModelLifecycleControllerTest {
     // ==== 409 ========================================================
 
     @Test
+    @DisplayName("HF26 POST /{id}/purge — 서버 기록 · 템플릿이 남은 보드 direct POST → 409 + 남은 항목을 적은 사유")
+    void purge_referencesRemain_returns409WithReason() throws Exception {
+        String reason = "이 메인보드 모델을 참조하는 다음 항목이 남아 있어 영구 삭제할 수 없습니다: 등록된 서버 2 대, BIOS 세팅 템플릿 1 개.";
+        willThrow(new IllegalBoardModelStateException(reason))
+                .given(boardModelService).purgeWithTypedNameCheck(eq(3L), eq("Asus P13R-E"));
+
+        mvc.perform(post("/management/board/3/purge").param("typedName", "Asus P13R-E")
+                        .accept(org.springframework.http.MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.message").value(reason));
+    }
+
+    @Test
     @DisplayName("POST /{id}/restore — 이미 활성/부재 → IllegalBoardModelState 409 (advice)")
     void restore_illegalState_returns409() throws Exception {
         willThrow(new IllegalBoardModelStateException("이미 활성 상태이거나 존재하지 않는 메인보드 모델입니다. id=3"))

@@ -13,8 +13,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -50,7 +48,7 @@ public class Subprogram extends LifecycleEntity implements Markable {
 	 * {@code null} 이면 공용 자원.
 	 */
 	@ManyToOne(fetch = FetchType.LAZY)
-	@OnDelete(action = OnDeleteAction.CASCADE)
+	// HF26 — 보드 영구 삭제는 자식 잔존 검사 뒤에만 일어난다. DB 는 RESTRICT 로 안전망(ddl/HF26_board_integrity.sql)
 	@JoinColumn(name = "board_model_id")
 	private BoardModel boardModel;
 

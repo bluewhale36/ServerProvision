@@ -7,6 +7,7 @@ import com.example.serverprovision.management.board.exception.DuplicateBoardMode
 import com.example.serverprovision.management.board.exception.IllegalBoardModelStateException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.management.board.service.BoardScopedChildLifecycle;
+import com.example.serverprovision.management.board.service.purge.BoardModelPurgeGuard;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +43,7 @@ public class BoardModelLifecycleService implements LifecycleService {
 	private final BoardModelRepository boardModelRepository;
 	// R3-4 — board-scoped 자식(BIOS/BMC/Subprogram) cascade 어댑터. @Order 로 순회 순서 고정.
 	private final List<BoardScopedChildLifecycle> children;
+	private final BoardModelPurgeGuard purgeGuard;
 
 	/**
 	 * R4-1 — Board 활성/비활성 토글 + 자식 effective 재계산 (양방향).
@@ -162,7 +164,7 @@ public class BoardModelLifecycleService implements LifecycleService {
 
 	/**
 	 * S5-2+ — 휴지통 직진입 영구 삭제 (typed-name 검증 우회). 휴지통 페이지에서 호출.
-	 * <p>제약 : 자식 BIOS / BMC / Subprogram 이 한 건이라도 남아 있으면 거절.</p>
+	 * <p>제약 : {@link BoardModelPurgeGuard} 가 막는 참조(자식 · 서버 하드웨어 기록 · BIOS 세팅 템플릿)가 남아 있으면 거절.</p>
 	 */
 	@Override
 	@Transactional
@@ -174,16 +176,12 @@ public class BoardModelLifecycleService implements LifecycleService {
 	}
 
 	/**
-	 * 공통 hard-delete 본체 — 자식 잔존 검사 + DB row 제거.
-	 * R3-4 — 자식 잔존 검사를 어댑터 다형 순회(anyMatch)로 통일.
+	 * 공통 hard-delete 본체 — 영구 삭제 판정({@link BoardModelPurgeGuard}) 뒤 DB row 제거.
+	 * HF26 — 자식 잔존만 보던 판정에 서버 하드웨어 기록 · BIOS 세팅 템플릿을 더했다. 판정은 [영구 삭제] 버튼 사전 차단과 공유한다.
 	 */
 	private void purge(BoardModel board) {
 		Long id = board.getId();
-		if (children.stream().anyMatch(child -> child.hasAny(id))) {
-			throw new IllegalBoardModelStateException(
-					"자식 BIOS / BMC / Subprogram(드라이버·유틸리티) 자원이 남아 있어 메인보드 모델을 영구 삭제할 수 없습니다. "
-							+ "자식을 먼저 모두 영구 삭제해주세요. id=" + id);
-		}
+		purgeGuard.assertPurgeable(id);
 		boardModelRepository.delete(board);
 		log.info("[lifecycle.purge] resource=BOARD_MODEL#{} outcome=purged", id);
 	}

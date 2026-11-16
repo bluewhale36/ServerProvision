@@ -193,7 +193,13 @@
                                   data-resource-type="BOARD_MODEL"
                                   th:data-resource-id="${board.id}"
                                   th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|">
-                                <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
+                                <!--/* HF26 — 참조가 남은 보드는 영구 삭제를 먼저 막는다. 사유는 서버 가드와 같은 문자열(BoardModelPurgeGuard). */-->
+                                <span class="n-btn-tooltip-wrap"
+                                      data-tooltip-align="right"
+                                      th:attr="data-tooltip=${board.purgeBlocked} ? ${board.purgeBlockReason} : null">
+                                <button type="submit" class="n-btn n-btn-danger"
+                                        th:disabled="${board.purgeBlocked}">영구 삭제</button>
+                                </span>
                             </form>
                         </th:block>
                     </div>

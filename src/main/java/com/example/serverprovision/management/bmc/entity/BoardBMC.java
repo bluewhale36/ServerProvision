@@ -10,8 +10,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -42,7 +40,7 @@ public class BoardBMC extends LifecycleEntity implements Markable {
 	private Long id;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@OnDelete(action = OnDeleteAction.CASCADE)
+	// HF26 — 보드 영구 삭제는 자식 잔존 검사 뒤에만 일어난다. DB 는 RESTRICT 로 안전망(ddl/HF26_board_integrity.sql)
 	@JoinColumn(name = "compatible_model_id", nullable = false)
 	private BoardModel boardModel;
 

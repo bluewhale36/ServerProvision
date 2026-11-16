@@ -57,8 +57,14 @@ public record TrashItemResponse(
 		boolean ttlExtendable,
 		int extendStepDays,
 		RestoreBlockReason restoreBlock,
-		Long driftId
+		Long driftId,
+		String purgeBlockReason
 ) {
+
+	/** HF26 — 영구삭제가 막혔는가(참조가 남은 메인보드). 막혔으면 버튼 disabled + 사유 tooltip. */
+	public boolean purgeBlocked() {
+		return purgeBlockReason != null;
+	}
 
 	/**
 	 * 복원이 막혀 있는가. 템플릿이 {@code restoreBlock != null} 을 직접 쓰지 않게 해 의도를 이름으로 드러낸다.

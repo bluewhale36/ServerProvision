@@ -15,7 +15,11 @@ import com.example.serverprovision.global.trash.service.PurgeExecutor;
 import com.example.serverprovision.global.trash.service.TrashSettingsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.example.serverprovision.global.exception.DomainException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -50,6 +54,8 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 	private final PurgeLogRepository purgeLogRepository;
 	// HF6 — 재귀 삭제의 안전 경계. 실물 정리는 휴지통 루트 안쪽에서만 허용된다.
 	private final TrashPolicy trashPolicy;
+	// HF26 — 시도마다 도메인 purge 를 별도 트랜잭션에서 돌리기 위한 관리자(아래 attemptTransaction).
+	private final PlatformTransactionManager transactionManager;
 
 	/**
 	 * scanner 등록을 ResourceType 으로 색인 — 본 클래스의 단일 lookup 진입점.
@@ -84,7 +90,11 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 		Exception lastError = null;
 		for (int tickAttempt = 1; tickAttempt <= maxAttempts; tickAttempt++) {
 			try {
-				scanner.purgeFromTrash(request.resourceId());
+				// HF26 — 도메인 purge 를 시도마다 새 트랜잭션에서 돌린다. 종전에는 도메인 service 의 @Transactional 이 이 메서드의
+				// 트랜잭션에 합류한 채 예외를 던져 트랜잭션 전체가 rollback-only 가 됐고, 아래의 FAILED 감사 기록을 저장 · 커밋하는
+				// 순간 UnexpectedRollbackException(500)으로 끝났다(감사 기록도 소실 · 재시도도 오염된 트랜잭션 안에서 무의미).
+				// 분리하면 실패는 그 시도만 되돌리고, 감사 기록은 남고, 원인 예외(예: 409 IllegalBoardModelStateException)가 그대로 호출자에 간다.
+				attemptTransaction().executeWithoutResult(status -> scanner.purgeFromTrash(request.resourceId()));
 				// S6-2-3 — 도메인 purge 는 원위치 부산물만 정리한다(soft-delete 가 원위치 경로를 보존하는
 				// 설계라 실물은 휴지통에 있음). 여기서 휴지통 실물을 함께 정리하지 않으면 영구삭제가
 				// 끝나도 파일이 휴지통(점검 수색 제외 구역)에 영원히 남는다 — 세 진입경로가 모두
@@ -140,6 +150,13 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 				maxAttempts, saved.getId(), lastError.toString()
 		);
 		return new PurgeResult.Failed(request, saved.getId(), wrapIfNeeded(lastError));
+	}
+
+	/** 도메인 purge 한 번을 위한 새 트랜잭션(REQUIRES_NEW) — 실패가 감사 트랜잭션을 rollback-only 로 만들지 않게. */
+	private TransactionTemplate attemptTransaction() {
+		TransactionTemplate template = new TransactionTemplate(transactionManager);
+		template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+		return template;
 	}
 
 	/**
@@ -258,7 +275,12 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 		return s.length() <= max ? s : s.substring(0, max);
 	}
 
+	/**
+	 * 호출자(컨트롤러)가 다시 던질 원인. 프로그램이 정의한 도메인 예외(409 영구 삭제 거절 등)는 자기 상태코드를 그대로 갖고 가고,
+	 * 알 수 없는 실패(입출력 등)만 {@link PurgeIoFailedException}(503)으로 감싼다. HF26 CP5 D-1 — 종전에는 전부 감싸서
+	 * 메인보드 영구 삭제 거절 사유가 503 "입출력 실패" 로 바뀌었다.
+	 */
 	private static Throwable wrapIfNeeded(Exception ex) {
-		return ex instanceof PurgeIoFailedException ? ex : new PurgeIoFailedException(ex.getMessage(), ex);
+		return ex instanceof DomainException ? ex : new PurgeIoFailedException(ex.getMessage(), ex);
 	}
 }

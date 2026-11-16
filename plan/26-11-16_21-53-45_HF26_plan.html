@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF26 plan: 메인보드 연쇄 삭제 · 중복 정정</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* 헤더 (top sticky) */
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* 2단 레이아웃 + ToC */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* 검색 */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* 접이식 섹션 */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+
+  /* 타이포 / 표 / 코드 */
+  h4 { margin:18px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  p { margin:8px 0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* pkg-tree : 고정폭 도식 (시간 흐름, 분기) */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* chip (변경 분류) */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add { background:var(--green-bg); color:var(--green); }
+  .chip.mod { background:var(--yellow-bg); color:var(--yellow); }
+  .chip.keep { background:var(--bg); color:var(--text-muted); }
+
+  /* callout 강조 박스 */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+
+  /* 진행 체크리스트 (localStorage 동기화) */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* 반응형 (명세 §3), 데스크톱 무변경 */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .pkg-tree { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF26 메인보드 영구 삭제의 연쇄 삭제 · 같은 모델 활성 중복 <span class="v2-badge">버그 수정</span></h1>
+  <div class="meta">
+    <span><strong>인벤토리 코드</strong> HF26</span>
+    <span><strong>개발 단계</strong> 5차 개발</span>
+    <span><strong>브랜치</strong> <code>fix/HF26_board-integrity</code></span>
+    <span><strong>작성</strong> 2026-11-16 21:53 KST</span>
+    <span><strong>상태</strong> CP1 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 배경</a></li>
+      <li><a href="#s2">§2 실측</a></li>
+      <li><a href="#s3">§3 결정</a></li>
+      <li><a href="#s4">§4 실 서버 확인 · 이관</a></li>
+      <li><a href="#s5">§5 테스트 · CP5</a></li>
+      <li><a href="#s6">§6 범위 밖</a></li>
+      <li><a href="#s7">§7 Critical Files</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 배경 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경</summary>
+      <div class="body">
+        <p style="margin-top:0;">버그 수정 plan 형식이라 표준 11 섹션과 인터랙티브 데모를 두지 않는다.
+          배경, 실측, 결정, 실 서버 확인 · 이관, 테스트 · CP5, 범위 밖, Critical Files 순으로 적는다.</p>
+
+        <div class="callout danger"><b>메인보드를 영구 삭제하면 그 보드로 등록된 서버의 하드웨어 기록과 BIOS 세팅 템플릿이 DB 연쇄 삭제로 함께 지워지고,
+          Deprecated 동명 모델이 있을 때 '그래도 등록' 하면 같은 모델이 활성으로 둘이 되어 그 보드의 서버가 PXE 등록에 실패한다.</b> 둘 다 고친다.</div>
+
+        <h4>1-1. 출처</h4>
+        <ul>
+          <li>docs 스트림(DOC-7 사용자 매뉴얼 집필)이 메인보드 화면을 코드와 대조하다 발견해 앵커에 인계한 결함 9 건 중 중대 2 건(A-7 · A-8).</li>
+          <li>원본 <code>ServerProvision-docs/sbx-docs/facts/defects-for-anchor.md</code>, 기준 커밋 <code>698162f</code>.</li>
+        </ul>
+
+        <h4>1-2. 사용자 결정 (2026-11-16)</h4>
+        <p>R20 을 마친 뒤 HF 로 진행한다.</p>
+
+        <h4>1-3. 같은 목록의 나머지</h4>
+        <ul>
+          <li>A-1~A-6 문구 · UI, A-9 등록 진행 중 분류는 범위 밖(§6).</li>
+          <li>단 A-1 의 "영구 삭제 버튼 사전 차단 없음" 은 이번 가드와 같은 판정을 쓰므로 함께 고친다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §2 실측 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 실측</summary>
+      <div class="body">
+        <h4>2-1. board_model 을 참조하는 FK (샌드박스 information_schema, 2026-11-16)</h4>
+        <table>
+          <thead><tr><th>테이블</th><th>컬럼</th><th>삭제 규칙</th><th>NULL</th><th>영구 삭제 전 검사</th></tr></thead>
+          <tbody>
+            <tr><td><code>board_bios</code></td><td><code>board_model_id</code></td><td>CASCADE</td><td>불가</td><td>있음 (자식 잔존 검사)</td></tr>
+            <tr><td><code>board_bmc</code></td><td><code>compatible_model_id</code></td><td>CASCADE</td><td>불가</td><td>있음</td></tr>
+            <tr><td><code>subprogram</code></td><td><code>board_model_id</code></td><td>CASCADE</td><td>허용</td><td>있음</td></tr>
+            <tr><td><code>guest_server_detail</code></td><td><code>board_model_id</code></td><td>CASCADE</td><td>불가</td><td><b>없음</b></td></tr>
+            <tr><td><code>bios_setting_template</code></td><td><code>board_model_id</code></td><td>CASCADE</td><td>불가</td><td><b>없음</b></td></tr>
+            <tr><td><code>bios_registry_snapshot</code></td><td><code>board_model_id</code></td><td>CASCADE</td><td>불가</td><td><b>없음</b></td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>자식 잔존 검사 = <code>BoardModelLifecycleService.purge</code> 가 <code>BoardScopedChildLifecycle.hasAny</code> 를 BIOS · BMC · 드라이버 어댑터로 순회. 아래 셋은 이 목록에 없다.</li>
+        </ul>
+        <table>
+          <thead><tr><th>테이블</th><th>담는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>guest_server_detail</code></td><td>서버 1 대의 하드웨어 기록(보드 · 인벤토리 · RAID 인벤토리 · BMC 주소)</td></tr>
+            <tr><td><code>bios_setting_template</code></td><td>사용자가 작성한 BIOS 세팅 템플릿</td></tr>
+            <tr><td><code>bios_registry_snapshot</code></td><td>BMC 에서 채집한 BIOS 레지스트리 전문(키 = 보드 · BIOS 버전)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>2-2. 영구 삭제 경로가 둘이다</h4>
+        <table>
+          <thead><tr><th>경로</th><th>호출</th><th>자식 잔존 검사</th></tr></thead>
+          <tbody>
+            <tr><td>목록 · 휴지통의 [영구 삭제]</td><td><code>BoardModelLifecycleService.purge</code> / <code>purgeWithTypedNameCheck</code></td><td>있음</td></tr>
+            <tr><td>등록 중복 확인 창의 [기존 영구 삭제 후 등록]</td><td><code>BoardModelNudgeService.replace</code> → <code>BoardModelMetadataService.purgeBoardForNudge</code></td><td><b>없음</b> (<code>boardModelRepository.delete</code> 직행)</td></tr>
+          </tbody>
+        </table>
+<div class="pkg-tree">목록 · 휴지통 [영구 삭제]          휴지통 TTL 자동 영구 삭제
+  └─ BoardModelLifecycleService.purge ◀──────┘
+        자식 잔존 검사 (BIOS · BMC · 드라이버)
+        서버 기록 · 템플릿 · 스냅샷은 검사 없음 → DB CASCADE
+
+중복 확인 창 [기존 영구 삭제 후 등록]
+  └─ BoardModelNudgeService.replace
+        └─ BoardModelMetadataService.purgeBoardForNudge
+              boardModelRepository.delete 직행 (검사 없음)
+              → 6 개 FK 전부 DB CASCADE</div>
+        <ul>
+          <li>그래서 두 번째 경로로는 BIOS · BMC · 드라이버 자식까지 DB 연쇄로 지워진다(파일은 디스크에 남음). docs 보고 이후 세션이 추가로 찾은 사실.</li>
+          <li>휴지통 TTL 자동 영구 삭제도 첫 번째 경로를 탄다.</li>
+        </ul>
+
+        <h4>2-3. 같은 모델 활성 중복 (A-8)</h4>
+        <ul>
+          <li><code>BoardModelMetadataService.create</code>: 활성 동명이 있어도 그것이 Deprecated 면 막지 않고 중복 확인 창(nudge)을 띄운다.</li>
+          <li>창의 [그래도 등록](<code>completePendingBoardFromNudge</code>)은 "기존 자원 보존 · 새 자원 등록" 이라 같은 (제조사, 모델명) 의 비삭제 행이 둘이 된다.</li>
+          <li><code>board_model</code> 에 (제조사, 모델명) UNIQUE 가 없다. <code>DuplicateBoardModelException</code> javadoc 이 말하는 <code>uk_vendor_model_name</code> 은 실재하지 않는다.</li>
+          <li>PXE 등록 <code>GuestServerRegistrationService.resolveBoardModel</code> 은 <code>findByVendorAndModelNameAndIsDeletedFalse</code> 의 <code>Optional</code> 단건 조회다. 행이 둘이면 조회가 실패해 그 보드의 서버가 등록되지 않는다.</li>
+          <li>파일 자원(ISO · 펌웨어)은 같은 이름의 새 버전이 정상이라 nudge 의 "그래도 등록" 이 맞지만, 메인보드는 (제조사, 모델명) 자체가 정체라 "새 버전" 개념이 없다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §3 결정 ===== -->
+    <details class="section" id="s3" open>
+      <summary>§3. 결정 (채택 · 비채택 · 탈락 사유)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>결정</th><th>채택</th><th>비채택</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1</td><td>보드 영구 삭제를 막는 참조</td>
+                <td>서버 하드웨어 기록 · BIOS 세팅 템플릿이 하나라도 있으면 거절</td>
+                <td>레지스트리 스냅샷까지 막기</td>
+                <td>스냅샷은 그 보드에만 딸린 채집 기록이다. 서버 기록이 남아 있으면 D-1 이 이미 막고, 서버가 모두 사라진 뒤의 스냅샷은 보드와 함께 지워지는 것이 맞다</td></tr>
+            <tr><td>D-2</td><td>판정 위치</td>
+                <td>management.board 에 SPI <code>BoardModelPurgeBlocker</code>(사유 문구 또는 null)를 두고 execution(서버 기록) · provisioning.biossetting(템플릿)이 구현. <code>BoardModelLifecycleService</code> 는 기존 자식 잔존 검사와 함께 목록을 순회</td>
+                <td><code>BoardScopedChildLifecycle</code> 에 어댑터 추가</td>
+                <td>그 SPI 는 soft-delete · 복구 · 라벨까지 함께 따라오는 lifecycle 자식 계약이다. 서버 기록 · 템플릿은 보드를 따라 휴지통에 가지 않는다</td></tr>
+            <tr><td>D-3</td><td>두 영구 삭제 경로</td>
+                <td>하나의 가드(<code>BoardModelLifecycleService</code> 의 판정 메서드)를 목록 · 휴지통 · 중복 확인 창 교체 경로가 모두 호출</td>
+                <td>교체 경로만 따로 검사</td>
+                <td>같은 질문("이 보드를 지워도 되나")이 두 곳에 복제되면 오늘처럼 한쪽이 빠진다</td></tr>
+            <tr><td>D-4</td><td>DB 안전망</td>
+                <td>보드 FK 5 개(<code>board_bios</code> · <code>board_bmc</code> · <code>subprogram</code> · <code>guest_server_detail</code> · <code>bios_setting_template</code>)를 ON DELETE RESTRICT 로. 스냅샷은 CASCADE 유지(D-1). 엔티티의 <code>@OnDelete(CASCADE)</code> 표기도 함께 정리. 수동 DDL <code>ddl/HF26_board_fk_restrict.sql</code></td>
+                <td>애플리케이션 가드만</td>
+                <td>이번 결함 자체가 "가드를 거치지 않는 삭제 경로" 였다. 앞으로 새 경로가 생겨도 DB 가 지우지 않게 한다</td></tr>
+            <tr><td>D-5</td><td>같은 모델 중복</td>
+                <td>(제조사, 모델명) 의 비삭제 행(활성 · Deprecated)이 있으면 등록 거절(409 <code>DuplicateBoardModelException</code>). 문구가 Deprecated 면 "목록에서 Deprecated 를 해제하십시오" 로 안내. 중복 확인 창은 휴지통 후보가 있을 때만 뜬다. 활성 행과 Deprecated 행이 같은 이름으로 함께 있을 때 지금은 창으로 넘어가는 빈틈도 이것으로 함께 막힌다</td>
+                <td>창은 그대로 두고 PXE 조회를 여러 건에 관대하게</td>
+                <td>조회를 관대하게 하면 어느 행에 서버가 붙을지 정할 근거가 없고 중복 자체가 남는다</td></tr>
+            <tr><td>D-6</td><td>DB 유일성 <span class="chip mod">v2 개정</span></td>
+                <td>(제조사, 모델명) 복합 UNIQUE 하나(<code>uk_board_model_vendor_model_name</code>). 같은 모델명이 제조사만 다르면 허용. 메인보드 등록의 중복 확인 창은 없앤다(§3-1)</td>
+                <td>비삭제 행에만 걸리는 UNIQUE(생성 열) · 애플리케이션 가드만</td>
+                <td>§3-1 비교표</td></tr>
+            <tr><td>D-7</td><td>사전 차단(A-1 포함)</td>
+                <td>같은 판정 메서드가 사유를 내고, 메인보드 목록 · 휴지통 목록의 [영구 삭제] 가 disabled + tooltip. 휴지통은 보드 스캐너에 사유 훅(기본 null, 보드만 구현)을 더해 다른 도메인은 그대로</td>
+                <td>서버 거절 + flash 만</td>
+                <td>CLAUDE.md "UX 모순은 UI 1차 차단 · 서버 가드와 SSOT 공유"</td></tr>
+            <tr><td>D-8</td><td>거절 문구</td>
+                <td>"이 메인보드 모델로 등록된 서버 N 대 · BIOS 세팅 템플릿 M 개가 있어 영구 삭제할 수 없습니다." 처럼 남은 것과 개수를 적고, 자식 잔존 문구에서 코드 이름 'Subprogram' · '해주세요' 체를 고친다(화면 문구 em dash 금지 · 하십시오체)</td>
+                <td>기존 문구 유지</td>
+                <td>사용자가 다음에 무엇을 지워야 하는지 알 수 있어야 한다</td></tr>
+          </tbody>
+        </table>
+<h3 id="s3-1">3-1 복합 UNIQUE 검토 (사용자 질문 반영, v2)</h3>
+        <div class="callout">사용자: "메인보드 명에 UNIQUE 를 넣지 않은 이유는 제조사별로 같은 이름을 쓸 수 있기 때문이다. 제조사 명과 메인보드 명을 묶은 UNIQUE 를 검토하라." 세 안 모두 키는 (제조사, 모델명) 이라 제조사가 다르면 같은 모델명을 허용한다. 갈리는 지점은 <b>휴지통에 든 행을 UNIQUE 에 넣느냐</b>다.</div>
+        <table>
+          <thead><tr><th>안</th><th>DB</th><th>휴지통에 같은 모델이 있을 때 새 등록</th><th>중복 확인 창</th><th>평가</th></tr></thead>
+          <tbody>
+            <tr><td><b>A 복합 UNIQUE (채택 권고)</b></td><td>UNIQUE(vendor, model_name) 하나</td><td>거절. "휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오" 안내</td><td>메인보드에서 없앤다</td><td>정체가 (제조사, 모델명) 인 자원에 맞는 표준 제약. 판정을 거치지 않던 [기존 영구 삭제 후 등록] 경로가 통째로 사라진다</td></tr>
+            <tr><td>B 비삭제 행만 복합 UNIQUE</td><td>생성 열 + UNIQUE 인덱스</td><td>허용(현행 '그래도 등록')</td><td>휴지통 후보에만 유지</td><td>현행 흐름 보존. 대신 같은 모델이 활성 · 휴지통에 함께 있는 상태가 남아, 휴지통 쪽은 복구할 수 없고(활성 중복 검사) 자식 BIOS · BMC 와 함께 묶여 있다</td></tr>
+            <tr><td>C 애플리케이션 가드만</td><td>없음</td><td>현행</td><td>휴지통 후보에만 유지</td><td>이번 결함처럼 가드를 거치지 않는 경로가 생기면 다시 뚫린다</td></tr>
+          </tbody>
+        </table>
+        <p>A 를 고르면 함께 바뀌는 것:</p>
+        <ul>
+          <li><b>D-3</b> 영구 삭제 경로가 목록 · 휴지통(· TTL) 둘로 준다. 중복 확인 창 교체 경로(<code>BoardModelNudgeService</code> · <code>BoardModelNudgeController</code> · <code>purgeBoardForNudge</code>)는 제거한다.</li>
+          <li><b>D-5</b> 같은 (제조사, 모델명) 이 어떤 상태로든 있으면 등록을 409 로 거절하고, 상태별로 안내한다: 활성 "이미 등록된 모델입니다" · Deprecated "목록에서 Deprecated 를 해제하십시오" · 휴지통 "휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오". 이름 수정(<code>update</code>)도 같은 검사로.</li>
+          <li>휴지통에 든 보드를 복구할 때의 활성 중복 검사는 그대로 둔다(UNIQUE 상 생기지 않지만 안전망).</li>
+          <li>운영 DB 확인(§4)이 넓어진다: 비삭제 중복뿐 아니라 <b>휴지통 행까지 포함한</b> (제조사, 모델명) 중복이 있으면 UNIQUE 생성이 실패한다.</li>
+          <li>A-2(메인보드 중복 확인 창의 "업로드 취소" 문구)는 창이 사라져 함께 해소된다.</li>
+        </ul>
+        <div class="callout warn">비교 대상 밖으로 둔 것: 휴지통 행을 이름 변경(예: 접미사)으로 비켜 두는 방식. 휴지통 복구 시 원래 이름으로 되돌리는 규칙이 새로 필요해 HF 범위를 넘는다.</div>
+
+<div class="pkg-tree">보드 영구 삭제 요청 (목록 · 휴지통 · TTL · <s>중복 확인 창 교체</s> A 채택 시 제거)
+  └─ BoardModelLifecycleService 판정 메서드 (D-3, 단일 가드)
+        ├─ BoardScopedChildLifecycle.hasAny   BIOS · BMC · 드라이버 (기존)
+        └─ BoardModelPurgeBlocker 목록        (D-2, 신규 SPI)
+              ├─ execution                    서버 하드웨어 기록
+              └─ provisioning.biossetting     BIOS 세팅 템플릿
+        사유 있음 → 거절 (D-8 문구) · 같은 사유로 [영구 삭제] disabled + tooltip (D-7)
+        사유 없음 → 삭제 · 스냅샷만 DB CASCADE (D-1, D-4)</div>
+      </div>
+    </details>
+
+    <!-- ===== §4 실 서버 확인 · 이관 ===== -->
+    <details class="section" id="s4" open>
+      <summary>§4. 실 서버 확인 · 이관 (CP4 에서 수행)</summary>
+      <div class="body">
+        <ul style="margin-top:0;">
+          <li>운영 DB(spv-01)에 (제조사, 모델명) 중복 행이 있는지 읽기 전용으로 먼저 확인한다. §3-1 A 를 채택하면 휴지통 행까지 포함해 본다.
+            <ul>
+              <li>있으면 D-6 의 UNIQUE 생성이 실패한다.</li>
+              <li>어느 행을 남길지(서버 · 자식이 붙은 쪽)를 사용자 판단으로 정한 뒤 이관 SQL 을 따로 낸다.</li>
+            </ul>
+          </li>
+          <li>운영 DB 의 FK 이름 · 규칙이 샌드박스와 같은지 확인한다(DDL 은 이름으로 DROP · ADD). 4 개가 Hibernate 자동 이름(<code>FK…</code>)이라 환경마다 다를 수 있다.</li>
+          <li><code>board_bmc</code> 에는 FK 없는 옛 열 <code>board_model_id</code>(NOT NULL, 엔티티 미매핑)가 샌드박스에 남아 있다. 삭제 연쇄와 무관해 이번 범위 밖이지만, 운영 DB 에도 있는지 함께 본다.</li>
+        </ul>
+        <div class="callout warn">DDL 은 샌드박스와 로컬 DB 에만 적용하고, 운영 적용은 배포 때 사용자 지시로.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 테스트 · CP5 ===== -->
+    <details class="section" id="s5" open>
+      <summary>§5. 테스트 · CP5</summary>
+      <div class="body">
+        <h4>5-1. CP4 테스트</h4>
+        <table>
+          <thead><tr><th>구분</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td>영구 삭제 판정: 서버 기록 · 템플릿 · 자식 각각 있을 때 거절 + 사유, 없을 때 통과</td></tr>
+            <tr><td>단위</td><td>교체 경로도 같은 거절</td></tr>
+            <tr><td>단위</td><td>등록: Deprecated 동명 → 409 + 안내, 휴지통 동명만 → 창</td></tr>
+            <tr><td>통합(HTTP)</td><td>영구 삭제 POST 409(새 거절 사유)</td></tr>
+            <tr><td>통합(HTTP)</td><td>등록 409 세 가지(활성 · Deprecated · 휴지통 동명, 상태별 안내 문구) · 이름 수정 409 · 제조사만 다른 같은 모델명은 등록 성공</td></tr>
+            <tr><td>통합(HTTP)</td><td>등록 409(Deprecated 동명)</td></tr>
+            <tr><td>통합(HTTP)</td><td>목록 렌더에서 [영구 삭제] disabled + tooltip</td></tr>
+            <tr><td>DB</td><td>DDL 적용 후 <code>SHOW CREATE TABLE</code> 로 RESTRICT · UNIQUE 확인</td></tr>
+            <tr><td>DB</td><td>샌드박스에서 직접 DELETE 가 거절되는지</td></tr>
+          </tbody>
+        </table>
+
+        <h4>5-2. CP5 샌드박스 검증</h4>
+        <ul class="check-list" data-storage="HF26-cp5">
+          <li><label><input type="checkbox" data-key="purge-three-paths"> <span>서버가 붙은 보드 영구 삭제 시도(목록 · 휴지통 두 경로, §3-1 A 채택 시 창 교체 경로는 없음) → 버튼 차단과 사유, direct POST 409, 서버 기록 유지 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="deprecated-dup"> <span>Deprecated 동명 등록 → 거절과 안내</span></label></li>
+          <li><label><input type="checkbox" data-key="trash-dup"> <span>휴지통 동명 등록 → 창 정상</span></label></li>
+          <li><label><input type="checkbox" data-key="purge-clean"> <span>서버 · 템플릿을 정리한 보드는 영구 삭제 성공</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §6 범위 밖 ===== -->
+    <details class="section" id="s6" open>
+      <summary>§6. 범위 밖</summary>
+      <div class="body">
+        <ul style="margin-top:0;">
+          <li>A-2~A-6 문구 정비(중복 확인 창의 "업로드 취소" 문구 · 'Vendor' 노출 · 해요체 등), A-9 서버 목록 '등록 진행 중' 분류 → 별도 정비 슬라이스로 적립.</li>
+          <li>다른 자원(BIOS · BMC · OS 등) 영구 삭제의 같은 유형 점검 → 적립(이번 실측은 보드 한정).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §7 Critical Files ===== -->
+    <details class="section" id="s7" open>
+      <summary>§7. Critical Files (예상)</summary>
+      <div class="body">
+        <p style="margin-top:0;">패키지 접두 <code>com.example.serverprovision</code> 는 생략한다. 신규 파일의 정확한 패키지는 구현 때 정한다.</p>
+        <table>
+          <thead><tr><th>구분</th><th>파일</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/board/service/metadata/BoardModelLifecycleService.java</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>BoardModelPurgeBlocker</code> (management.board, SPI)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>서버 기록 쪽 구현체 (execution)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>템플릿 쪽 구현체 (provisioning.biossetting)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/board/service/metadata/BoardModelMetadataService.java</code></td></tr>
+            <tr><td><span class="chip mod">삭제</span></td><td><code>management/board/service/BoardModelNudgeService.java</code> · <code>controller/BoardModelNudgeController.java</code> · <code>exception/BoardModelNudgeRequiredException.java</code> 와 테스트(§3-1 A 채택 시)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/board/exception/DuplicateBoardModelException.java</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/board/repository/BoardModelRepository.java</code> (실재하지 않는 <code>uk_vendor_model_name</code> javadoc 정정)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/board/service/BoardModelMarkableScanner.java</code> (휴지통 사유 훅)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/management/board/list.html</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/maintenance/trash/list.html</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/bios/entity/BoardBIOS.java</code> (@OnDelete 표기)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/bmc/entity/BoardBMC.java</code> (@OnDelete 표기)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/subprogram/entity/Subprogram.java</code> (@OnDelete 표기)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/biossetting/entity/BiosSettingTemplate.java</code> (@OnDelete 표기)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/entity/GuestServerDetail.java</code> (@OnDelete 표기)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ddl/HF26_board_fk_restrict.sql</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // 4 불가침 로직: ToC 클릭 → open + scroll / 전부 펴기, 접기 / filter / check-list localStorage
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) { /* sandboxed iframe 에서는 저장 생략 */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -6,9 +6,8 @@ import com.example.serverprovision.management.board.dto.response.BoardModelRespo
 import com.example.serverprovision.management.board.dto.response.VendorGroupResponse;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
-import com.example.serverprovision.management.board.exception.BoardModelNudgeRequiredException;
+import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
-import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +56,7 @@ class BoardModelMetadataControllerTest {
     private static BoardModelResponse activeBoard() {
         return new BoardModelResponse(
                 3L, Vendor.ASUS, "P13R-E", "desc",
-                0, 0, 0, true, false, false, LifecycleStage.ACTIVE);
+                0, 0, 0, true, false, false, LifecycleStage.ACTIVE, null);
     }
 
     // ==== 성공 2xx ====================================================
@@ -94,7 +93,7 @@ class BoardModelMetadataControllerTest {
     void renders_subprogramCount_inModalAndConnections() throws Exception {
         BoardModelResponse board = new BoardModelResponse(
                 1L, Vendor.GIGABYTE, "MS03-CE0", "",
-                2, 1, 3, true, false, false, LifecycleStage.ACTIVE);
+                2, 1, 3, true, false, false, LifecycleStage.ACTIVE, null);
         given(boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of(
                 VendorGroupResponse.of(Vendor.GIGABYTE, List.of(board))));
 
@@ -204,17 +203,55 @@ class BoardModelMetadataControllerTest {
     // ==== 409 ========================================================
 
     @Test
-    @DisplayName("POST /management/board (JSON) — 메타 충돌(nudge required) → 409 (advice)")
-    void create_metaConflict_returns409() throws Exception {
-        NudgeRequiredResponse payload = NudgeRequiredResponse.of(
-                java.util.UUID.randomUUID(), List.of(), Instant.now().plusSeconds(300));
-        willThrow(new BoardModelNudgeRequiredException(payload))
-                .given(boardModelService).create(any());
+    @DisplayName("HF26 POST /management/board (JSON) — 휴지통에 같은 (제조사, 모델명) → 409 + 모델명 칸에 복구 안내")
+    void create_sameModelInTrash_returns409WithRestoreGuidance() throws Exception {
+        com.example.serverprovision.management.board.entity.BoardModel trashed =
+                com.example.serverprovision.management.board.entity.BoardModel.builder()
+                        .vendor(com.example.serverprovision.management.board.enums.Vendor.ASUS)
+                        .modelName("P13R-E").build();
+        trashed.softDelete();
+        willThrow(DuplicateBoardModelException.againstRegistration(trashed)).given(boardModelService).create(any());
 
         mvc.perform(post("/management/board")
+                        .accept(org.springframework.http.MediaType.APPLICATION_JSON)
                         .param("vendor", "ASUS")
                         .param("modelName", "P13R-E")
                         .param("description", "desc"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("modelName"))
+                .andExpect(jsonPath("$.fieldErrors[0].message").value(
+                        org.hamcrest.Matchers.containsString("휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오")));
+    }
+
+    @Test
+    @DisplayName("HF26 GET /management/board?includeDeleted=true — 참조가 남은 휴지통 보드는 [영구 삭제] disabled + 사유 tooltip")
+    void list_trashedBoardWithReferences_rendersDisabledPurge() throws Exception {
+        String reason = "이 메인보드 모델을 참조하는 다음 항목이 남아 있어 영구 삭제할 수 없습니다: 등록된 서버 2 대.";
+        BoardModelResponse trashed = new BoardModelResponse(
+                7L, Vendor.GIGABYTE, "MS74-HB0", "", 0, 0, 0, false, false, true, LifecycleStage.SOFT_DELETED, reason);
+        given(boardModelService.findAllGrouped(any())).willReturn(List.of(VendorGroupResponse.of(Vendor.GIGABYTE, List.of(trashed))));
+
+        mvc.perform(get("/management/board").param("includeDeleted", "true"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-tooltip=\"" + reason + "\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesPattern(
+                        "(?s).*<button type=\"submit\" class=\"n-btn n-btn-danger\"\\s+disabled=\"disabled\">영구 삭제</button>.*")));
+    }
+
+    @Test
+    @DisplayName("HF26 CP5 D-2 — 이름 수정이 같은 (제조사, 모델명) 과 겹치면 수정 폼을 다시 그리고 모델명 칸에 이름 수정용 안내를 싣는다")
+    void update_renameConflict_rerendersFormWithFieldError() throws Exception {
+        String reason = "휴지통에 같은 이름의 메인보드 모델이 있습니다(Asus P13R-E-rev2). 다른 이름을 쓰거나 휴지통의 모델을 영구 삭제하십시오.";
+        given(boardModelService.renameConflictReason(3L, "P13R-E-rev2")).willReturn(reason);
+        given(boardModelService.findById(3L)).willReturn(activeBoard());
+
+        mvc.perform(post("/management/board/3/edit")
+                        .param("modelName", "P13R-E-rev2")
+                        .param("description", "desc"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("management/board/edit"))
+                .andExpect(model().attributeHasFieldErrors("boardModelForm", "modelName"))
+                .andExpect(content().string(containsString(reason)));
+        org.mockito.Mockito.verify(boardModelService, org.mockito.Mockito.never()).update(any(), any());
     }
 }
