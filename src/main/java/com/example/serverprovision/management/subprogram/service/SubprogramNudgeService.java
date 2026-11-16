@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.nio.file.Path;
 import java.util.UUID;
 
 /**
@@ -53,7 +52,7 @@ public class SubprogramNudgeService {
 	public void cancel(UUID nudgeId) {
 		NudgeSession session = requireSubprogramSession(nudgeId);
 		ContentNudgePayload payload = requireContentPayload(session);
-		subprogramRegistrationService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
+		subprogramRegistrationService.cleanupNudgeCancelled(payload);
 		nudgeRegistry.remove(nudgeId);
 		log.info("[subprogram-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
 	}
