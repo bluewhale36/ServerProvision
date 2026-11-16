@@ -1,11 +1,11 @@
 /**
- * MK2 WAVE 1 — BoardModel 신규 등록 폼의 XHR 제출 + nudge modal 연결.
+ * MK2 WAVE 1 — BoardModel 신규 등록 폼의 XHR 제출.
  *
  * 흐름:
  *  - submit → fetch POST /management/board (Accept: application/json)
  *  - 200 + { redirect } → 그 URL 로 navigate
- *  - 400 + ApiErrorResponse + fieldErrors → FormError.renderResponse 로 inline 메시지
- *  - 409 + { code: NUDGE_REQUIRED, nudgeId, conflicts } → NudgeModal.handle
+ *  - 400 · 409 + ApiErrorResponse → FormError.renderResponse 로 inline 메시지
+ *    (HF26 — 같은 (제조사, 모델명) 이 있으면 409 가 모델명 칸에 "복구 · Deprecated 해제" 안내를 싣는다. 중복 확인 창은 없앴다)
  */
 (function () {
     'use strict';
@@ -41,16 +41,6 @@
                 .then(({status, ok, body}) => {
                     if (ok) {
                         window.location.href = (body && body.redirect) || '/management/board';
-                        return;
-                    }
-                    if (status === 409 && body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
-                        window.NudgeModal.handle(body, {
-                            baseUrl: '/management/board/nudge',
-                            listUrl: '/management/board',
-                            toastKey: 'board.toast',
-                            onError: showBanner,
-                            afterCancel: () => showBanner('등록을 취소했습니다.')
-                        });
                         return;
                     }
                     if (body && window.FormError) {

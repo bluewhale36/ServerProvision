@@ -72,7 +72,7 @@ class PurgeExecutorTrashFileCleanupTest {
         trashRoot = tmp.resolve("soft-deleted");
         trashPolicy = mock(com.example.serverprovision.global.trash.TrashPolicy.class);
         given(trashPolicy.getTrashRoot()).willReturn(trashRoot);
-        executor = new PurgeExecutorImpl(List.of(isoScanner), settings, purgeLogRepository, trashPolicy);
+        executor = new PurgeExecutorImpl(List.of(isoScanner), settings, purgeLogRepository, trashPolicy, org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class));
     }
 
     /** 휴지통 레이아웃대로 실물을 만든다: 루트/OS_ISO/{id}/{name} */

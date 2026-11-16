@@ -12,16 +12,9 @@ import com.example.serverprovision.management.board.dto.response.VendorGroupResp
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
-import com.example.serverprovision.management.board.exception.BoardModelNudgeRequiredException;
 import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
-import com.example.serverprovision.management.board.exception.IllegalBoardModelStateException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
-import com.example.serverprovision.management.common.nudge.ContentNudgePayload;
-import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
-import com.example.serverprovision.management.common.nudge.NudgePayload;
-import com.example.serverprovision.management.common.nudge.NudgeRegistry;
-import com.example.serverprovision.management.common.nudge.NudgeResourceType;
-import com.example.serverprovision.management.common.nudge.NudgeSession;
+import com.example.serverprovision.management.board.service.purge.BoardModelPurgeGuard;
 import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,7 +40,8 @@ import static org.mockito.Mockito.verify;
 /**
  * R3-3 — {@link BoardModelMetadataService} 단위 테스트.
  *
- * <p>구 {@code BoardModelServiceTest} 의 메타 CRUD / 생성 / nudge confirm 시나리오를 흡수했다.
+ * <p>구 {@code BoardModelServiceTest} 의 메타 CRUD / 생성 시나리오를 흡수했다. HF26 에서 등록 중복 확인 창(nudge)을 없애고
+ * (제조사, 모델명) 이 어떤 상태로든 있으면 상태별 안내와 함께 거절하도록 바꿨다.
  * 자식 자원 repository 는 개수 집계용으로만 사용하므로 mock 으로 빈 리스트 stub 한다(실제 DB 접근 없음).</p>
  */
 @ExtendWith(MockitoExtension.class)
@@ -57,7 +51,7 @@ class BoardModelMetadataServiceTest {
     @Mock BiosRepository biosRepository;
     @Mock BmcRepository bmcRepository;
     @Mock SubprogramRepository subprogramRepository;
-    @Mock NudgeRegistry nudgeRegistry;
+    @Mock BoardModelPurgeGuard purgeGuard;
     @InjectMocks BoardModelMetadataService boardModelService;
 
     private BoardModel activeBoard(Long id, Vendor vendor, String modelName) {
@@ -132,74 +126,64 @@ class BoardModelMetadataServiceTest {
         assertThat(asusGroup.items().get(0).bmcCount()).isZero();
     }
 
-    // ==== create ====================================================
+    // ==== create (HF26 — 같은 (제조사, 모델명) 은 상태와 무관하게 거절) ====
+
+    private BoardModel board(Long id, Vendor vendor, String modelName, boolean deprecated, boolean deleted) {
+        return BoardModel.builder()
+                .id(id).vendor(vendor).modelName(modelName)
+                .isEnabled(!deleted).isDeprecated(deprecated).isDeleted(deleted)
+                .build();
+    }
 
     @Test
-    @DisplayName("create(happy) : 동일 (vendor, modelName) 활성/후보 0 → save 후 ID 반환")
+    @DisplayName("create(happy) : 같은 (제조사, 모델명) 이 없으면 save 후 ID 반환")
     void create_whenNotDuplicated_returnsGeneratedId() {
-        BoardModelCreateRequest request = new BoardModelCreateRequest(
-                Vendor.GIGABYTE, "MS03-CE0-000", "AM5 소켓");
-        given(boardModelRepository.existsByVendorAndModelNameAndIsDeletedFalse(Vendor.GIGABYTE, "MS03-CE0-000"))
-                .willReturn(false);
-        given(boardModelRepository.findAllByVendorAndModelNameAndIsDeletedTrue(Vendor.GIGABYTE, "MS03-CE0-000"))
-                .willReturn(List.of());
-        given(boardModelRepository.findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(Vendor.GIGABYTE, "MS03-CE0-000"))
-                .willReturn(List.of());
+        BoardModelCreateRequest request = new BoardModelCreateRequest(Vendor.GIGABYTE, "MS03-CE0-000", "AM5 소켓");
+        given(boardModelRepository.findByVendorAndModelName(Vendor.GIGABYTE, "MS03-CE0-000")).willReturn(Optional.empty());
         given(boardModelRepository.save(any(BoardModel.class)))
                 .willAnswer(invocation -> {
                     BoardModel arg = invocation.getArgument(0);
-                    return BoardModel.builder()
-                            .id(1L)
-                            .vendor(arg.getVendor())
-                            .modelName(arg.getModelName())
-                            .description(arg.getDescription())
-                            .isEnabled(true).isDeleted(false)
-                            .build();
+                    return BoardModel.builder().id(1L).vendor(arg.getVendor()).modelName(arg.getModelName())
+                            .description(arg.getDescription()).isEnabled(true).isDeleted(false).build();
                 });
 
-        Long generatedId = boardModelService.create(request);
-
-        assertThat(generatedId).isEqualTo(1L);
+        assertThat(boardModelService.create(request)).isEqualTo(1L);
         verify(boardModelRepository).save(any(BoardModel.class));
     }
 
     @Test
-    @DisplayName("create(fail) : 동일 (vendor, modelName) 순수 활성 레코드(Deprecated 아님)가 있으면 DuplicateBoardModelException")
-    void create_whenDuplicatedActive_throws() {
-        BoardModelCreateRequest request = new BoardModelCreateRequest(
-                Vendor.FUJITSU, "PRIMERGY RX2530 M6", null);
-        given(boardModelRepository.existsByVendorAndModelNameAndIsDeletedFalse(Vendor.FUJITSU, "PRIMERGY RX2530 M6"))
-                .willReturn(true);
-        given(boardModelRepository.findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(Vendor.FUJITSU, "PRIMERGY RX2530 M6"))
-                .willReturn(List.of());
+    @DisplayName("create(활성 동명) : 이미 등록된 모델 → DuplicateBoardModelException, 저장 없음")
+    void create_whenActiveExists_throws() {
+        given(boardModelRepository.findByVendorAndModelName(Vendor.FUJITSU, "PRIMERGY RX2530 M6"))
+                .willReturn(Optional.of(board(5L, Vendor.FUJITSU, "PRIMERGY RX2530 M6", false, false)));
 
-        assertThatThrownBy(() -> boardModelService.create(request))
-                .isInstanceOf(DuplicateBoardModelException.class);
+        assertThatThrownBy(() -> boardModelService.create(new BoardModelCreateRequest(Vendor.FUJITSU, "PRIMERGY RX2530 M6", null)))
+                .isInstanceOf(DuplicateBoardModelException.class)
+                .hasMessageContaining("이미 등록된 메인보드 모델입니다");
         verify(boardModelRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("create(nudge) : soft-deleted/deprecated 후보가 있으면 nudge 세션 발급 후 BoardModelNudgeRequiredException")
-    void create_whenCandidatesExist_throwsNudgeRequired() {
-        BoardModelCreateRequest request = new BoardModelCreateRequest(
-                Vendor.ASUS, "P13R-E", "재등록 시도");
-        // 순수 활성 충돌은 없으나(existsFalse) soft-deleted 후보가 존재 → nudge.
-        given(boardModelRepository.existsByVendorAndModelNameAndIsDeletedFalse(Vendor.ASUS, "P13R-E"))
-                .willReturn(false);
-        BoardModel softDeleted = BoardModel.builder()
-                .id(8L).vendor(Vendor.ASUS).modelName("P13R-E")
-                .isEnabled(false).isDeprecated(false).isDeleted(true).build();
-        given(boardModelRepository.findAllByVendorAndModelNameAndIsDeletedTrue(Vendor.ASUS, "P13R-E"))
-                .willReturn(List.of(softDeleted));
-        given(boardModelRepository.findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(Vendor.ASUS, "P13R-E"))
-                .willReturn(List.of());
-        given(nudgeRegistry.register(any(), any(), anyList(), any()))
-                .willReturn(boardSession(UUID.randomUUID(),
-                        new IntentMetaNudgePayload(Map.of("modelName", "P13R-E", "vendor", "ASUS", "description", ""))));
+    @DisplayName("create(Deprecated 동명) : 활성 중복을 만들던 경로(A-8) → 거절 + Deprecated 해제 안내")
+    void create_whenDeprecatedExists_throwsWithUndeprecateGuidance() {
+        given(boardModelRepository.findByVendorAndModelName(Vendor.GIGABYTE, "MS74-HB0"))
+                .willReturn(Optional.of(board(6L, Vendor.GIGABYTE, "MS74-HB0", true, false)));
 
-        assertThatThrownBy(() -> boardModelService.create(request))
-                .isInstanceOf(BoardModelNudgeRequiredException.class);
-        // nudge 분기에서는 신규 row 를 영속화하지 않는다.
+        assertThatThrownBy(() -> boardModelService.create(new BoardModelCreateRequest(Vendor.GIGABYTE, "MS74-HB0", null)))
+                .isInstanceOf(DuplicateBoardModelException.class)
+                .hasMessageContaining("목록에서 Deprecated 를 해제하십시오");
+        verify(boardModelRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("create(휴지통 동명) : 거절 + 복구 · 영구 삭제 안내(휴지통 행도 정체를 점유)")
+    void create_whenTrashedExists_throwsWithRestoreGuidance() {
+        given(boardModelRepository.findByVendorAndModelName(Vendor.ASUS, "P13R-E"))
+                .willReturn(Optional.of(board(8L, Vendor.ASUS, "P13R-E", false, true)));
+
+        assertThatThrownBy(() -> boardModelService.create(new BoardModelCreateRequest(Vendor.ASUS, "P13R-E", "재등록")))
+                .isInstanceOf(DuplicateBoardModelException.class)
+                .hasMessageContaining("휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오");
         verify(boardModelRepository, never()).save(any());
     }
 
@@ -210,28 +194,23 @@ class BoardModelMetadataServiceTest {
     void update_appliesChanges() {
         BoardModel board = activeBoard(3L, Vendor.ASUS, "P13R-E");
         given(boardModelRepository.findByIdAndIsDeletedFalse(3L)).willReturn(Optional.of(board));
-        BoardModelUpdateRequest request = new BoardModelUpdateRequest("P13R-E", "새 설명");
 
-        boardModelService.update(3L, request);
+        boardModelService.update(3L, new BoardModelUpdateRequest("P13R-E", "새 설명"));
 
         assertThat(board.getDescription()).isEqualTo("새 설명");
-        // modelName 동일 → 중복 재검증 쿼리 미호출
-        verify(boardModelRepository, never())
-                .existsByVendorAndModelNameAndIsDeletedFalse(any(), any());
+        verify(boardModelRepository, never()).findByVendorAndModelName(any(), any());
     }
 
     @Test
-    @DisplayName("update(중복) : modelName 변경 시 동일 (vendor, modelName) 활성 충돌 → DuplicateBoardModelException")
-    void update_whenRenamedToDuplicate_throws() {
+    @DisplayName("update(중복) : 바꾸려는 이름이 휴지통에 있어도 거절(등록과 같은 규칙) — 엔티티는 그대로")
+    void update_whenRenamedToTrashedName_throws() {
         BoardModel board = activeBoard(3L, Vendor.ASUS, "P13R-E");
         given(boardModelRepository.findByIdAndIsDeletedFalse(3L)).willReturn(Optional.of(board));
-        given(boardModelRepository.existsByVendorAndModelNameAndIsDeletedFalse(Vendor.ASUS, "P13R-E-rev2"))
-                .willReturn(true);
-        BoardModelUpdateRequest request = new BoardModelUpdateRequest("P13R-E-rev2", "new");
+        given(boardModelRepository.findByVendorAndModelName(Vendor.ASUS, "P13R-E-rev2"))
+                .willReturn(Optional.of(board(9L, Vendor.ASUS, "P13R-E-rev2", false, true)));
 
-        assertThatThrownBy(() -> boardModelService.update(3L, request))
+        assertThatThrownBy(() -> boardModelService.update(3L, new BoardModelUpdateRequest("P13R-E-rev2", "new")))
                 .isInstanceOf(DuplicateBoardModelException.class);
-        // 충돌 거절 → 엔티티는 갱신되지 않는다.
         assertThat(board.getModelName()).isEqualTo("P13R-E");
     }
 
@@ -244,109 +223,37 @@ class BoardModelMetadataServiceTest {
                 .isInstanceOf(BoardModelNotFoundException.class);
     }
 
-    // ==== completePendingBoardFromNudge ==============================
-
     @Test
-    @DisplayName("completePendingBoardFromNudge(happy) : intent payload 로 신규 보드 영속화 후 ID 반환")
-    void completePendingBoardFromNudge_persistsNewBoard() {
-        NudgeSession session = boardSession(UUID.randomUUID(),
-                new IntentMetaNudgePayload(Map.of("modelName", "P13R-E", "vendor", "ASUS", "description", "복원 등록")));
-        given(boardModelRepository.existsByVendorAndModelNameAndIsDeletedFalse(Vendor.ASUS, "P13R-E"))
-                .willReturn(false);
-        given(boardModelRepository.save(any(BoardModel.class)))
-                .willAnswer(inv -> {
-                    BoardModel arg = inv.getArgument(0);
-                    return BoardModel.builder().id(50L)
-                            .vendor(arg.getVendor()).modelName(arg.getModelName())
-                            .description(arg.getDescription()).isEnabled(true).isDeleted(false).build();
-                });
-
-        Long newId = boardModelService.completePendingBoardFromNudge(session);
-
-        assertThat(newId).isEqualTo(50L);
-        verify(boardModelRepository).save(any(BoardModel.class));
-    }
-
-    @Test
-    @DisplayName("completePendingBoardFromNudge(payload 타입오류) : IntentMetaNudgePayload 가 아니면 IllegalBoardModelStateException")
-    void completePendingBoardFromNudge_wrongPayloadType_throws() {
-        NudgeSession session = boardSession(UUID.randomUUID(),
-                new ContentNudgePayload("name", "1.0", "hash", "/tmp/x", Map.of()));
-
-        assertThatThrownBy(() -> boardModelService.completePendingBoardFromNudge(session))
-                .isInstanceOf(IllegalBoardModelStateException.class);
-        verify(boardModelRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("completePendingBoardFromNudge(race) : confirm 직전 다른 트랜잭션이 동일 활성 메타 생성 → DuplicateBoardModelException")
-    void completePendingBoardFromNudge_race_throwsDuplicate() {
-        NudgeSession session = boardSession(UUID.randomUUID(),
-                new IntentMetaNudgePayload(Map.of("modelName", "P13R-E", "vendor", "ASUS", "description", "")));
-        given(boardModelRepository.existsByVendorAndModelNameAndIsDeletedFalse(Vendor.ASUS, "P13R-E"))
-                .willReturn(true);
-        given(boardModelRepository.findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(Vendor.ASUS, "P13R-E"))
-                .willReturn(List.of());
-
-        assertThatThrownBy(() -> boardModelService.completePendingBoardFromNudge(session))
-                .isInstanceOf(DuplicateBoardModelException.class);
-        verify(boardModelRepository, never()).save(any());
-    }
-
-    // ==== purgeBoardForNudge =========================================
-
-    @Test
-    @DisplayName("purgeBoardForNudge(happy) : soft-deleted 후보를 영구 삭제(replace 교체)")
-    void purgeBoardForNudge_deletesCandidate() {
-        BoardModel target = BoardModel.builder()
-                .id(8L).vendor(Vendor.ASUS).modelName("P13R-E")
-                .isEnabled(false).isDeprecated(false).isDeleted(true).build();
-
-        boardModelService.purgeBoardForNudge(target);
-
-        verify(boardModelRepository).delete(target);
-    }
-
-    @Test
-    @DisplayName("purgeBoardForNudge(활성 거절) : 활성 자원(not deleted/deprecated)은 replace 대상 불가 → IllegalBoardModelStateException")
-    void purgeBoardForNudge_activeTarget_throws() {
-        BoardModel active = activeBoard(8L, Vendor.ASUS, "P13R-E");
-
-        assertThatThrownBy(() -> boardModelService.purgeBoardForNudge(active))
-                .isInstanceOf(IllegalBoardModelStateException.class);
-        verify(boardModelRepository, never()).delete(any());
-    }
-
-    // ==== helper =====================================================
-
-    private NudgeSession boardSession(UUID nudgeId, NudgePayload payload) {
-        return new NudgeSession(
-                nudgeId,
-                NudgeResourceType.BOARD_MODEL,
-                null,
-                List.of(8L),
-                payload,
-                Instant.now(),
-                Instant.now().plusSeconds(300)
-        );
-    }
-
-    // ==== S8-3 — 조회 조건 =============================================
-
-    @Test
-    @DisplayName("findAllGrouped(S8-3) : 조건은 보드에 걸고 맞는 보드가 없는 제조사는 묶음이 생기지 않는다 · 설명도 검색 대상")
-    void findAllGrouped_filtersBeforeGrouping() {
-        BoardModel asus = activeBoard(1L, Vendor.ASUS, "P13R-E");
-        BoardModel giga = BoardModel.builder().id(2L).vendor(Vendor.GIGABYTE).modelName("MS03")
-                .description("rack 1U").isEnabled(true).isDeleted(false).build();
-        given(boardModelRepository.findAllByIsDeletedFalseOrderByVendorAscCreatedAtDesc()).willReturn(List.of(asus, giga));
+    @DisplayName("HF26 findAllGrouped : 휴지통 행에만 영구 삭제 차단 사유를 묻는다(활성 행은 영구 삭제 버튼이 없다)")
+    void findAllGrouped_purgeReasonOnlyForDeletedRows() {
+        BoardModel active = activeBoard(1L, Vendor.GIGABYTE, "MS04-CE0");
+        BoardModel trashed = board(2L, Vendor.GIGABYTE, "MS74-HB0", false, true);
+        given(boardModelRepository.findAllByOrderByVendorAscCreatedAtDesc()).willReturn(List.of(active, trashed));
         given(biosRepository.findAllByBoardModel_IdIn(anyList())).willReturn(List.of());
         given(bmcRepository.findAllByBoardModel_IdIn(anyList())).willReturn(List.of());
         given(subprogramRepository.findAllByBoardModel_IdIn(anyList())).willReturn(List.of());
+        given(purgeGuard.reasonFor(2L)).willReturn("이 메인보드 모델을 참조하는 다음 항목이 남아 있어 영구 삭제할 수 없습니다: 등록된 서버 1 대.");
 
-        List<VendorGroupResponse> groups = boardModelService.findAllGrouped(new ResourceListQuery("RACK", null, null, false));
+        List<BoardModelResponse> items = boardModelService.findAllGrouped(ResourceListQuery.unfiltered(true)).getFirst().items();
 
-        assertThat(groups).extracting(VendorGroupResponse::vendor).containsExactly(Vendor.GIGABYTE);
-        assertThat(groups.get(0).items()).extracting(r -> r.id()).containsExactly(2L);
+        assertThat(items).filteredOn(BoardModelResponse::isDeleted).singleElement()
+                .satisfies(b -> assertThat(b.purgeBlockReason()).contains("등록된 서버 1 대"));
+        assertThat(items).filteredOn(b -> !b.isDeleted()).singleElement()
+                .satisfies(b -> assertThat(b.purgeBlocked()).isFalse());
+        verify(purgeGuard, never()).reasonFor(1L);
+    }
+
+    @Test
+    @DisplayName("HF26 CP5 D-2 renameConflictReason : 같은 이름이면 null, 휴지통 동명이면 이름 수정용 문구(등록 문구와 다른 다음 행동)")
+    void renameConflictReason_usesRenameCopy() {
+        BoardModel board = activeBoard(3L, Vendor.ASUS, "P13R-E");
+        given(boardModelRepository.findByIdAndIsDeletedFalse(3L)).willReturn(Optional.of(board));
+        given(boardModelRepository.findByVendorAndModelName(Vendor.ASUS, "P13R-E-rev2"))
+                .willReturn(Optional.of(board(9L, Vendor.ASUS, "P13R-E-rev2", false, true)));
+
+        assertThat(boardModelService.renameConflictReason(3L, "P13R-E")).isNull();
+        assertThat(boardModelService.renameConflictReason(3L, "P13R-E-rev2"))
+                .contains("다른 이름을 쓰거나 휴지통의 모델을 영구 삭제하십시오")
+                .doesNotContain("등록하십시오");
     }
 }

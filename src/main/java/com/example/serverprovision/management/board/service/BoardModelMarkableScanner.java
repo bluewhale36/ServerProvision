@@ -3,6 +3,7 @@ package com.example.serverprovision.management.board.service;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
+import com.example.serverprovision.management.board.service.purge.BoardModelPurgeGuard;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.management.board.service.metadata.BoardModelLifecycleService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class BoardModelMarkableScanner implements MarkableScanner {
 	private final BoardModelRepository boardModelRepository;
 	// R7-3 — 구 ObjectProvider lazy 주입 → eager 직접 주입. service→verifier 변 소멸(TypedNameGuard)로 순환 부재(bootRun 실측).
 	private final BoardModelLifecycleService boardModelService;
+	private final BoardModelPurgeGuard purgeGuard;
 
 	@Override
 	public ResourceType supportedType() {
@@ -78,6 +80,12 @@ public class BoardModelMarkableScanner implements MarkableScanner {
 	@Override
 	public void purgeFromTrash(Long resourceId) {
 		boardModelService.purge(resourceId);
+	}
+
+	/** HF26 — 휴지통 [영구삭제] 사전 차단. 서버 가드({@code BoardModelLifecycleService.purge})와 같은 판정. */
+	@Override
+	public String purgeBlockReason(Long resourceId) {
+		return purgeGuard.reasonFor(resourceId);
 	}
 
 	/**

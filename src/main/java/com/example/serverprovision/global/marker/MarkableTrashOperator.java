@@ -68,6 +68,14 @@ public interface MarkableTrashOperator {
 	}
 
 	/**
+	 * HF26 — 영구삭제를 막는 사유(휴지통 [영구삭제] 사전 차단). 막지 않으면 {@code null}. 서버 가드(purgeFromTrash 의 위임 대상)와
+	 * 같은 판정을 써야 한다. default 는 null — 참조 때문에 영구삭제가 막히는 자원(메인보드)만 구현한다.
+	 */
+	default String purgeBlockReason(Long resourceId) {
+		return null;
+	}
+
+	/**
 	 * MK3 — 휴지통 페이지에서 단순 영구삭제 액션. typed-name 검증 없이 service.purge 위임.
 	 * 호출 가능 경로 : ① 본 SPI 의 typed-name 검증 overload 가 위임 (정상 흐름)
 	 * ② TTL 자동 만료 (시스템 진입, S5-2-4 예정)

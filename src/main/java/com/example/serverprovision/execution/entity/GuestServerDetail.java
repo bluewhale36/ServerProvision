@@ -39,7 +39,7 @@ public class GuestServerDetail extends BaseTimeEntity {
     private GuestServer guestServer;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
+    // HF26 — 보드 영구 삭제가 서버 하드웨어 기록을 연쇄로 지우지 않게 DB 는 RESTRICT(ddl/HF26_board_integrity.sql)
     @JoinColumn(name = "board_model_id", nullable = false)
     private BoardModel boardModel;
 
