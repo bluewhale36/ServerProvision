@@ -11,13 +11,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
-
 /**
- * 가입 요청(S18 D-4) — 아이디는 사내 메일 도메인 앞부분을 그대로 쓰므로 형식 규칙이 없다. 역할은 관리자 모드에서만 필요해
- * 어노테이션 대신 컨트롤러가 {@code SignupMode.requiresRoleSelection()} 으로 판정한다.
+ * 가입 요청(S18 D-4) — 아이디는 사내 메일 도메인 앞부분을 그대로 쓰므로 형식 규칙이 없다. 권한 등급은 관리 생성(MA8)에서만 필요해
+ * 어노테이션 대신 컨트롤러가 {@code SignupMode.requiresRoleSelection()} 으로 판정한다. 등급은 하나만 고른다 — 계층이 일렬이라
+ * 상위 등급이 하위 권한을 함께 뜻하므로 여러 개를 고를 이유가 없다(MA8 D-3).
  *
- * <p>record 가 아니라 setter 클래스인 이유: 역할 체크박스 값이 위조되면(예 {@code roles=NOPE}) record 의 생성자 바인딩은 대상 객체를
+ * <p>record 가 아니라 setter 클래스인 이유: 권한 등급 값이 위조되면(예 {@code role=NOPE}) record 의 생성자 바인딩은 대상 객체를
  * 만들지 못해 폼 재렌더가 500 으로 새지만, 프로퍼티 바인딩은 그 필드만 typeMismatch 로 남기고 나머지 입력을 보존한다(R15-1 선례).</p>
  */
 @Getter
@@ -41,7 +40,7 @@ public class SignUpRequest {
 	@Size(max = 20, message = "이름은 20자 이하로 입력하십시오.")
 	private String name;
 
-	private List<Role> roles;
+	private Role role;
 
 	/** 두 값이 모두 있을 때만 판정한다 — 빈 값은 {@code @NotBlank} 의 몫이라 메시지가 겹치지 않는다. */
 	@AssertTrue(message = "비밀번호가 일치하지 않습니다.")
@@ -50,10 +49,6 @@ public class SignUpRequest {
 			return true;
 		}
 		return password.equals(retypedPassword);
-	}
-
-	public List<Role> rolesOrEmpty() {
-		return roles == null ? List.of() : roles;
 	}
 
 	public String username() {

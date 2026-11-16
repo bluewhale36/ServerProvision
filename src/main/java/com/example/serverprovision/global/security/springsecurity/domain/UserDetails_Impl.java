@@ -38,8 +38,9 @@ public class UserDetails_Impl implements UserDetails {
 		return user.getName();
 	}
 
-	public boolean isAdmin() {
-		return roles.contains(Role.ADMIN);
+	/** MA8 — 사용자 관리(사이드바 링크 · /users) 대상인가. */
+	public boolean isSuperAdmin() {
+		return roles.contains(Role.SUPER_ADMIN);
 	}
 
 	/** S18 — 첫 로그인 강제 변경 여부(성공 핸들러 · 인터셉터가 읽는다). */
@@ -55,5 +56,19 @@ public class UserDetails_Impl implements UserDetails {
 	@Override
 	public boolean isEnabled() {
 		return user.getIsEnabled() != null && user.getIsEnabled();
+	}
+
+	/**
+	 * 사용자명으로 같은 사람을 판정한다(MA8) — 세션 등록소가 principal 을 키로 쓰므로, 로그인마다 새로 만들어지는 principal 이
+	 * 같은 사용자로 묶여야 한다(Spring 의 {@code User} 와 같은 규칙).
+	 */
+	@Override
+	public boolean equals(Object o) {
+		return o instanceof UserDetails_Impl other && getUsername().equals(other.getUsername());
+	}
+
+	@Override
+	public int hashCode() {
+		return getUsername().hashCode();
 	}
 }

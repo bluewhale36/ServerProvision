@@ -3,6 +3,8 @@ package com.example.serverprovision.global.security.springsecurity.config;
 import com.example.serverprovision.global.security.springsecurity.authorization.MustChangePasswordSuccessHandler;
 import com.example.serverprovision.global.security.springsecurity.authorization.SignupAccessPolicy;
 import jakarta.servlet.DispatcherType;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.context.annotation.Import;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -20,12 +22,14 @@ import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher
 
 @Configuration
 @EnableWebSecurity
+@Import(SessionRegistryConfig.class)   // MA8 — 이 체인을 가져오는 슬라이스 테스트도 세션 등록소를 함께 받게
 @RequiredArgsConstructor
 @Slf4j
 public class SecurityConfig {
 
 	private final SignupAccessPolicy signupAccessPolicy;
 	private final MustChangePasswordSuccessHandler successHandler;
+	private final SessionRegistry sessionRegistry;   // MA8 D-8 — 다른 사용자의 세션 만료용(UserSessionExpirer)
 
 	@Bean
 	@Order(2)   // S19-1 — 게스트 채널 체인(@Order(1)) 뒤의 웹 화면 체인
@@ -44,7 +48,8 @@ public class SecurityConfig {
 						.requestMatchers("/resources/**").permitAll()
 						// /api/pxe/v1/** 는 S19-1 부터 GuestSecurityConfig(@Order(1)) 의 게스트 체인이 받는다 — 이 체인에는 오지 않는다.
 						.requestMatchers("/login").permitAll()
-						.requestMatchers("/signup").access(signupAccessPolicy)   // S18 D-12 — 관리자 부재면 누구나 · 있으면 ROLE_ADMIN
+						.requestMatchers("/signup").access(signupAccessPolicy)   // MA8 — 부트스트랩(관리자 부재) 중에만 열린다
+						.requestMatchers("/users", "/users/**").hasRole("SUPER_ADMIN")   // MA8 — 사용자 관리는 최고 관리자 전용
 						.anyRequest().authenticated()
 				)
 
@@ -63,6 +68,12 @@ public class SecurityConfig {
 						.usernameParameter("username")
 						.passwordParameter("password")
 				)
+
+				// MA8 D-8 — 동시 세션 수는 제한하지 않고(-1) 등록만 한다. 만료 표시된 세션의 다음 요청은 로그인 화면으로 돌아간다.
+				.sessionManagement(session -> session
+						.maximumSessions(-1)
+						.sessionRegistry(sessionRegistry)
+						.expiredUrl("/login?expired"))
 
 				.logout( logout -> logout
 						.logoutUrl("/logout")

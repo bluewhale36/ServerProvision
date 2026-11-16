@@ -21,11 +21,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
- * 접근 사용자 등록 · 비밀번호 변경(S18). 컨트롤러가 {@code @Valid} 로 형식을 거른 요청만 받되, 불일치 · 중복은 direct 호출과
+ * 접근 사용자 등록 · 비밀번호 변경(S18 · MA8 에서 등록 경로를 부트스트랩과 관리 생성으로 재편). 컨트롤러가 {@code @Valid} 로 형식을 거른 요청만 받되, 불일치 · 중복은 direct 호출과
  * 레이스에 대비해 여기서도 invariant 로 막는다. {@link #bootstrapOpen()} 과 {@link #usernameTaken} 은 화면 1차 차단과 인가 ·
  * 서버 가드가 함께 쓰는 판정(SSOT)이다.
  */
@@ -38,7 +41,11 @@ public class UsersService {
 	private final PasswordEncoder passwordEncoder;
 	private final ApplicationEventPublisher eventPublisher;   // S20 — 계정 사건(가입 · 비밀번호 변경)을 로그로
 
-	/** 관리자가 하나도 없는가 — 그동안만 익명 가입(최초 관리자)이 열린다. */
+	/**
+	 * 관리자가 하나도 없는가 — 그동안만 익명 가입(최초 관리자)이 열린다. 최고 관리자도 관리자 행을 함께 가지므로(권한 펼침)
+	 * 이 판정은 곧 'ADMIN 이상 부재' 다. 기준을 '최고 관리자 부재' 로 바꾸지 않는 이유: 승격 DDL 이 빠진 실 서버에서 익명 가입이
+	 * 다시 열린다(MA8 D-4).
+	 */
 	@Transactional(readOnly = true)
 	public boolean bootstrapOpen() {
 		return !usersRoleRepository.existsByRole(Role.ADMIN);
@@ -66,14 +73,13 @@ public class UsersService {
 				.isLocked(false)
 				.mustChangePassword(mode.mustChangePassword())
 				.build());
-		Set<Role> roles = mode.rolesFor(request.rolesOrEmpty());
+		Set<Role> roles = mode.rolesFor(request.getRole());
 		List<UsersRole> rows = roles.stream()
 				.map(r -> UsersRole.builder().user(saved).role(r).build())
 				.toList();
 		usersRoleRepository.saveAll(rows);
 		eventPublisher.publishEvent(AccountAuditEvent.created(username, currentActor(), mode.name(),
-				roles.stream().map(Role::getRoleName).collect(java.util.stream.Collectors.toCollection(java.util.TreeSet::new)),
-				mode.mustChangePassword()));
+				roleNames(roles), mode.mustChangePassword()));
 		return saved;
 	}
 
@@ -91,6 +97,11 @@ public class UsersService {
 		boolean forced = user.isMustChangePassword();
 		user.changePassword(passwordEncoder.encode(request.newPassword()));
 		eventPublisher.publishEvent(AccountAuditEvent.passwordChanged(username, currentActor(), forced));
+	}
+
+	/** 감사 로그용 권한 이름 집합 — 정렬해 두어 로그 줄이 실행마다 같은 순서로 나온다. */
+	static Set<String> roleNames(Collection<Role> roles) {
+		return roles.stream().map(Role::getRoleName).collect(Collectors.toCollection(TreeSet::new));
 	}
 
 	/** 사건의 행위자 — 로그인된 사용자명, 없으면(부트스트랩 가입) anonymous. */

@@ -19,6 +19,8 @@
 
             <div th:if="${param.error}" class="n-alert n-alert-danger" role="alert">아이디 또는 비밀번호가 올바르지 않습니다.</div>
             <div th:if="${param.logout}" class="n-alert n-alert-info" role="status">로그아웃했습니다.</div>
+            <!--/* MA8 — 최고 관리자가 이 계정의 권한 · 활성 상태 · 비밀번호를 바꿔 세션이 끝났다(ConcurrentSessionFilter → expiredUrl). */-->
+            <div th:if="${param.expired}" class="n-alert n-alert-warning" role="status">계정 정보가 바뀌어 로그인 상태가 끝났습니다. 다시 로그인하십시오.</div>
             <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status" th:text="${flashMessage}">최초 관리자 계정을 만들었습니다.</div>
 
             <form th:action="@{/login}" method="post"
