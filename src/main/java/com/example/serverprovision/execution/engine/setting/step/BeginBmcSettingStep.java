@@ -43,6 +43,7 @@ public class BeginBmcSettingStep implements SettingStep {
     private final BmcCredentialsFallback credentialsFallback;
     private final FlashTimeoutPolicy timeoutPolicy;
     private final SettingCursor settingCursor;
+    private final SettingFailure failure;
 
     /** 항목의 일시 오류(TRANSIENT)를 다음 주기에 다시 시도하는 상한 — 이 횟수째에는 그 항목만 건너뛴다(HF15-7). */
     static final int TRANSIENT_MAX_ATTEMPTS = 3;
@@ -65,12 +66,12 @@ public class BeginBmcSettingStep implements SettingStep {
         BmcIdentity identity = identityProbe.probe(context.provider(), target,
                 context.detail().getBoardSerial(), context.detail(), "setting");
         if (identity == BmcIdentity.MISMATCHED) {
-            fail(context, resumed, SettingLedger.IDENTITY_MISMATCH, "응답한 장비의 보드 시리얼이 이 서버와 다릅니다");
+            failure.fail(context, resumed, SettingLedger.IDENTITY_MISMATCH, "응답한 장비의 보드 시리얼이 이 서버와 다릅니다");
             return;
         }
         if (identity == BmcIdentity.UNREACHABLE) {
             if (expired(context)) {
-                fail(context, resumed, SettingLedger.BMC_UNREACHABLE, "BMC 에 닿지 못했고 새 주소도 찾지 못했습니다");
+                failure.fail(context, resumed, SettingLedger.BMC_UNREACHABLE, "BMC 에 닿지 못했고 새 주소도 찾지 못했습니다");
             }
             return;
         }
@@ -81,9 +82,9 @@ public class BeginBmcSettingStep implements SettingStep {
             session = credentialsFallback.attempt(target, c -> webClient.login(target.bmcIp(), c));
         } catch (BmcRequestException e) {
             if (e.authFailure()) {
-                close(context, row, SettingLedger.AUTH_REJECTED, e.getMessage());
+                failure.close(context, row, SettingLedger.AUTH_REJECTED, e.getMessage());
             } else if (expired(context)) {
-                close(context, row, SettingLedger.BMC_UNREACHABLE, e.getMessage());
+                failure.close(context, row, SettingLedger.BMC_UNREACHABLE, e.getMessage());
             } else {
                 log.info("[setting] {} — 웹 세션 발급 실패, 다음 주기 재시도 : {}", context.server().getId(), e.getMessage());
             }
@@ -98,11 +99,11 @@ public class BeginBmcSettingStep implements SettingStep {
                 switch (outcome.status()) {
                     case APPLIED, SKIPPED -> { }
                     case REJECTED -> {
-                        close(context, row, SettingLedger.WRITE_REJECTED, item.name() + " — " + outcome.detail());
+                        failure.close(context, row, SettingLedger.WRITE_REJECTED, item.name() + " — " + outcome.detail());
                         return;
                     }
                     case MISMATCH -> {
-                        close(context, row, SettingLedger.READBACK_MISMATCH, item.name() + " — " + outcome.detail());
+                        failure.close(context, row, SettingLedger.READBACK_MISMATCH, item.name() + " — " + outcome.detail());
                         return;
                     }
                     case RECONNECT_PENDING -> {
@@ -130,13 +131,13 @@ public class BeginBmcSettingStep implements SettingStep {
             log.info("[setting] {} — BMC 표준 세팅 {} , 축 종결", context.server().getId(), ledger.summaryOf(row));
         } catch (AmiWebRequestException e) {
             if (e.getError() == AmiWebError.AUTH_FAILED) {
-                close(context, row, SettingLedger.AUTH_REJECTED, e.getMessage());
+                failure.close(context, row, SettingLedger.AUTH_REJECTED, e.getMessage());
             } else if (e.getError() == AmiWebError.CONNECT_FAILED && !expired(context)) {
                 log.info("[setting] {} — 연결 끊김, 다음 주기 재개 : {}", context.server().getId(), e.getMessage());
             } else if (e.getError() == AmiWebError.CONNECT_FAILED) {
-                close(context, row, SettingLedger.BMC_UNREACHABLE, e.getMessage());
+                failure.close(context, row, SettingLedger.BMC_UNREACHABLE, e.getMessage());
             } else {
-                close(context, row, SettingLedger.WRITE_REJECTED, e.getMessage());
+                failure.close(context, row, SettingLedger.WRITE_REJECTED, e.getMessage());
             }
         } finally {
             webClient.logout(session);
@@ -144,21 +145,6 @@ public class BeginBmcSettingStep implements SettingStep {
     }
 
     private boolean expired(SettingContext context) {
-        return timeoutPolicy.isExpired(context.progress().getLastTransitionAt(), timeoutPolicy.returnLimit(), context.now());
-    }
-
-    private void close(SettingContext context, ProvisioningHistory row, String reason, String detail) {
-        ledger.close(row, ProvisioningStatus.FAILED, reason, detail, context.now());
-        context.progress().markFailed(context.now());
-        log.warn("[setting] {} — {} : {}", context.server().getId(), reason, detail);
-    }
-
-    private void fail(SettingContext context, Optional<ProvisioningHistory> row, String reason, String detail) {
-        row.ifPresentOrElse(
-                r -> close(context, r, reason, detail),
-                () -> {
-                    ledger.failAtCursor(context.server(), context.progress(), reason, detail, context.now());
-                    log.warn("[setting] {} — {} : {}", context.server().getId(), reason, detail);
-                });
+        return timeoutPolicy.isExpired(context.attemptSince(), timeoutPolicy.returnLimit(), context.now());
     }
 }
