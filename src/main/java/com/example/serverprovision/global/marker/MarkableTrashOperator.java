@@ -76,6 +76,15 @@ public interface MarkableTrashOperator {
 	}
 
 	/**
+	 * HF31 — 이 자원을 영구 삭제하면 DB 에서 함께 사라지는 하위 자원의 휴지통 실물 경로. 실행기(PurgeExecutor)가 도메인 purge 전에
+	 * 모아 두었다가 성공 뒤 자기 실물과 같은 가드로 지운다(행이 지워진 뒤에는 경로를 알 수 없다). default 는 빈 목록 — OS 버전만
+	 * 휴지통 하위 ISO 를 FK cascade 로 함께 지운다(메인보드는 하위가 남으면 영구 삭제가 막힌다).
+	 */
+	default List<String> dependentTrashedPaths(Long resourceId) {
+		return Collections.emptyList();
+	}
+
+	/**
 	 * MK3 — 휴지통 페이지에서 단순 영구삭제 액션. typed-name 검증 없이 service.purge 위임.
 	 * 호출 가능 경로 : ① 본 SPI 의 typed-name 검증 overload 가 위임 (정상 흐름)
 	 * ② TTL 자동 만료 (시스템 진입, S5-2-4 예정)

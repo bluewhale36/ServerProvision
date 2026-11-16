@@ -6,7 +6,6 @@ import com.example.serverprovision.global.lifecycle.LifecycleService;
 import com.example.serverprovision.global.lifecycle.SoftDeleteIntentService;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.exception.BmcNotFoundException;
 import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
@@ -39,8 +38,8 @@ import java.util.Map;
  * <p>URL forging 가드 — controller 가 endpoint 진입 시 {@link #assertBelongsToBoard(Long, Long)} 를
  * lifecycle 메서드 호출 전에 호출. URL 의 boardId 와 entity 의 부모 id 일치 검증.</p>
  *
- * <p>typed-name 검증은 static {@link TypedNameGuard#verify}(의존성 0). TypedNameVerifier 빈·MarkableScanner·
- * ObjectProvider 를 주입하지 않아 {@code service→verifier→scanner→service} 순환을 재생성하지 않는다(R7 산출 보존).</p>
+ * <p>자원명 확인은 이 서비스가 하지 않는다 — 사용자 영구 삭제는 {@code UserPurgeService} 가 확인한 뒤 PurgeExecutor 를 거쳐
+ * {@link #purge} 에 닿는다(HF31). TypedNameVerifier 빈 · scanner 를 주입하지 않으므로 생성자 순환이 생기지 않는다(R7 산출 보존).</p>
  *
  * <p>의존 그래프 — 단방향 : {@code BmcRegistrationService}(REPLACE 시 purge)·{@code BoardBmcMarkableScanner}·
  * {@code BmcBoardScopedChildLifecycle}(cascade)·{@code BmcNudgeService} 가 본 service 를 위임 호출한다.
@@ -220,22 +219,6 @@ public class BmcLifecycleService implements LifecycleService {
 	// ==== purge ========================================================
 
 	/**
-	 * S5-2-2 — BMC typed-name 검증 후 영구 삭제. 합성식 : {@code bmc.name}.
-	 */
-	@Override
-	@Transactional
-	public void purgeWithTypedNameCheck(Long bmcId, String typedName) {
-		BoardBMC bmc = requireExistingBmc(bmcId);
-		if (!bmc.isDeleted()) {
-			throw new IllegalBmcStateException(
-					"영구 삭제는 휴지통(soft-deleted) 상태의 BMC 펌웨어만 가능합니다. bmcId=" + bmcId);
-		}
-		// R7-2 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
-		TypedNameGuard.verify(bmc, typedName);
-		purge(bmcId);
-	}
-
-	/**
 	 * MK2 — SoftDeleted 자원의 영구 삭제. 트리·marker 물리 삭제 후 DB row 제거.
 	 * SoftDeleted 가 아닌 자원에 호출되면 명시적 충돌로 거절 (활성 자원의 우발 영구 삭제 방어).
 	 *
@@ -250,7 +233,7 @@ public class BmcLifecycleService implements LifecycleService {
 			throw new IllegalBmcStateException(
 					"영구 삭제는 휴지통(soft-deleted) 상태의 BMC 펌웨어만 가능합니다. bmcId=" + bmcId);
 		}
-		bundleTreeCleanupService.purgeExistingTree(Path.of(bmc.getTreeRootPath()), "purgeBmc");
+		bundleTreeCleanupService.purgeOwnedTree(bmc, "purgeBmc");   // HF31 — 원래 경로가 이 자원의 트리일 때만
 		bmcRepository.delete(bmc);
 		renumberVersionRanks(bmc.getBoardModel().getId());   // 밀집 순위 유지(E2-1-a)
 		log.info("[lifecycle.purge] resource=BMC_FIRMWARE#{} outcome=purged", bmcId);

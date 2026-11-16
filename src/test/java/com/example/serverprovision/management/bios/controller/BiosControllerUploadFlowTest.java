@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bios.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.global.marker.IntegrityStatus;
@@ -65,6 +66,7 @@ class BiosControllerUploadFlowTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper om;
 
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
     @MockitoBean BiosService biosService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosLifecycleService biosLifecycleService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosRegistrationService biosRegistrationService;

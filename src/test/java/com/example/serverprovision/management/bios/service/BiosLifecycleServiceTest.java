@@ -198,7 +198,7 @@ class BiosLifecycleServiceTest {
 
         biosLifecycleService.purge(5L);
 
-        verify(bundleTreeCleanupService).purgeExistingTree(Path.of(softDeleted.getTreeRootPath()), "purgeBios");
+        verify(bundleTreeCleanupService).purgeOwnedTree(softDeleted, "purgeBios");   // HF31 — 소유 확인은 정리 서비스가
         verify(biosRepository).delete(softDeleted);
         org.assertj.core.api.Assertions.assertThat(remainA.getVersionRank()).isEqualTo(1);
         org.assertj.core.api.Assertions.assertThat(remainB.getVersionRank()).isEqualTo(2);
@@ -213,40 +213,6 @@ class BiosLifecycleServiceTest {
 
         assertThatThrownBy(() -> biosLifecycleService.purge(5L))
                 .isInstanceOf(IllegalBiosStateException.class);
-        verify(biosRepository, never()).delete(any());
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(happy) : 입력명이 BIOS displayName 과 일치 → purge 진행")
-    void purgeWithTypedNameCheck_nameMatches_purges() {
-        BoardModel parent = parent(2L, true, false, false);
-        BoardBIOS softDeleted = bios(5L, parent, true, false, true);   // displayName = name = "BIOS-5"
-        given(biosRepository.findById(5L)).willReturn(Optional.of(softDeleted));
-
-        biosLifecycleService.purgeWithTypedNameCheck(5L, softDeleted.displayName());
-
-        verify(biosRepository).delete(softDeleted);
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(mismatch) : 입력명 불일치 → TypedNameMismatchException + 삭제 미호출")
-    void purgeWithTypedNameCheck_nameMismatch_propagatesAndNoDelete() {
-        BoardModel parent = parent(2L, true, false, false);
-        BoardBIOS softDeleted = bios(5L, parent, true, false, true);
-        given(biosRepository.findById(5L)).willReturn(Optional.of(softDeleted));
-
-        assertThatThrownBy(() -> biosLifecycleService.purgeWithTypedNameCheck(5L, "wrong"))
-                .isInstanceOf(TypedNameMismatchException.class);
-        verify(biosRepository, never()).delete(any());
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(상태위반) : BIOS 부재 → BiosNotFoundException (검증 진입 전 차단)")
-    void purgeWithTypedNameCheck_biosMissing_throwsBeforeCheck() {
-        given(biosRepository.findById(404L)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> biosLifecycleService.purgeWithTypedNameCheck(404L, "anything"))
-                .isInstanceOf(BiosNotFoundException.class);
         verify(biosRepository, never()).delete(any());
     }
 

@@ -9,7 +9,6 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
@@ -218,19 +217,6 @@ public class IsoLifecycleService implements LifecycleService {
 	// ==== purge ========================================================
 
 	/**
-	 * S5-2-2 — ISO typed-name 검증 후 영구 삭제.
-	 */
-	@Override
-	@Transactional
-	public void purgeWithTypedNameCheck(Long isoId, String typedName) {
-		ISO iso = isoRepository.findById(isoId)
-				.orElseThrow(() -> new ISONotFoundException(null, isoId));
-		// R7-2 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
-		TypedNameGuard.verify(iso, typedName);
-		purge(isoId);
-	}
-
-	/**
 	 * ISO 영구 삭제. soft-deleted 상태에서만 호출 가능. sidecar + 본체 파일 모두 정리.
 	 */
 	@Override
@@ -262,6 +248,11 @@ public class IsoLifecycleService implements LifecycleService {
 	 * 단방향 cycle 없음 — IsoRegistrationService → IsoLifecycleService (본 helper) → 외부 의존 없음.</p>
 	 */
 	public void cleanupArtifacts(ISO iso) {
+		// HF31 — 원래 경로의 sidecar 가 이 ISO 를 가리킬 때만 지운다(그 사이 같은 경로에 등록된 다른 ISO 보호).
+		if (!markerService.isMarkedAs(iso)) {
+			log.info("[lifecycle.purge] 원래 경로에 이 ISO 의 파일이 없어(비었거나 다른 ISO 의 것) 남김. isoId={} path={}", iso.getId(), iso.getIsoPath());
+			return;
+		}
 		Path body = Path.of(iso.getIsoPath());
 		deleteQuietly(markerService.resolveMarkerFile(body, MarkerLayout.SIDECAR));
 		deleteQuietly(body);

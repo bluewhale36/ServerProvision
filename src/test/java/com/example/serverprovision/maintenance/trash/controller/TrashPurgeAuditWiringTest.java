@@ -1,5 +1,6 @@
 package com.example.serverprovision.maintenance.trash.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.trash.ResourceKey;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -40,6 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <b>화면 영구삭제</b>({@code TrashController})와 <b>운영자 수동 재시도</b>
  * ({@code TrashRetryController}) — 를 HTTP 계층에서 고정한다.</p>
  */
+@org.springframework.context.annotation.Import(UserPurgeService.class)   // HF31 — 실제 단일 진입점이 mock scanner · PurgeExecutor 를 부른다
 @WebMvcTest(controllers = {TrashController.class, TrashRetryController.class})
 class TrashPurgeAuditWiringTest {
 
@@ -76,12 +78,17 @@ class TrashPurgeAuditWiringTest {
 	void uiPurge_goesThroughExecutorWithUserOrigin() throws Exception {
 		given(purgeExecutor.execute(any())).willAnswer(inv ->
 				new PurgeResult.Success(inv.getArgument(0), 1L));
+		// HF31 — 단일 진입점이 휴지통 자원을 먼저 찾아 자원명을 대조한다
+		com.example.serverprovision.global.marker.Markable trashed =
+				org.mockito.Mockito.mock(com.example.serverprovision.global.marker.Markable.class);
+		given(trashed.displayName()).willReturn("dvd.iso");
+		given(markableScanner.supportedType()).willReturn(ResourceType.OS_ISO);
+		given(markableScanner.findTrashedById(42L)).willReturn(java.util.Optional.of(trashed));
 
 		mvc.perform(post("/maintenance/trash/OS_ISO/42/purge").param("typedName", "dvd.iso"))
 				.andExpect(status().is3xxRedirection());
 
 		ArgumentCaptor<PurgeRequest> captor = ArgumentCaptor.forClass(PurgeRequest.class);
-		then(typedNameVerifier).should().verify(ResourceType.OS_ISO, 42L, "dvd.iso");
 		then(purgeExecutor).should().execute(captor.capture());
 		assertThat(captor.getValue().origin()).isEqualTo(PurgeOrigin.USER_DIRECT);
 		assertThat(captor.getValue().resourceType()).isEqualTo(ResourceType.OS_ISO);

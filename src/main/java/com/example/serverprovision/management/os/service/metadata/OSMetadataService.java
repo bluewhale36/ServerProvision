@@ -164,7 +164,7 @@ public class OSMetadataService {
 	// R1-6 — buildOSMetadataNudgePayload / persistNewOSMetadata / completePendingOSMetadataFromNudge /
 	//        purgeOSMetadataForNudge 는 {@link OSMetadataNudgeService} 로 이동 (nudge 영속화 흡수).
 	//        create() 는 invariant 판단만 잔류하고 발화·persist 를 nudge 서비스로 위임.
-	// R1-3 — toggleEnabled / softDelete / restore (×2) / deprecate / undeprecate / purgeWithTypedNameCheck / purge
+	// R1-3 — toggleEnabled / softDelete / restore (×2) / deprecate / undeprecate / purge
 	//        는 {@link OSMetadataLifecycleService} 로 이동.
 	// R1-4-1 — purgeIsoWithTypedNameCheck / purgeIso 도 {@link IsoLifecycleService} 로 이동. ISO lifecycle 책임 전부 분리.
 	// R1-4-2 — addISO / prepareIsoRegistration (×2) / finalizePreparedIsoRegistration / completePendingIsoFromNudge /

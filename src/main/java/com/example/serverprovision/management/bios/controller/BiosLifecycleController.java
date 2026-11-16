@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bios.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.lifecycle.DeleteIntentRegistry;
 import com.example.serverprovision.global.lifecycle.DeleteIntentToken;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class BiosLifecycleController {
 
 	private final BiosLifecycleService biosLifecycleService;
+	private final UserPurgeService userPurgeService;   // HF31
 	private final DeleteIntentRegistry deleteIntentRegistry;
 
 	// ==== 상태 전이 =====================================================
@@ -116,7 +118,8 @@ public class BiosLifecycleController {
 			@RequestParam("typedName") String typedName
 	) {
 		biosLifecycleService.assertBelongsToBoard(biosId, boardId);
-		biosLifecycleService.purgeWithTypedNameCheck(biosId, typedName);
+		// HF31 — 휴지통 화면과 같은 단일 진입점(자원명 확인 → PurgeExecutor: 휴지통 실물 정리 · 감사 기록)
+		userPurgeService.purge(ResourceType.BIOS_BUNDLE, biosId, typedName);
 		return "redirect:/management/bios?selectBoardId=" + boardId + "&includeDeleted=true";
 	}
 }

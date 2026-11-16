@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.os.dto.request.OSMetadataUpdateRequest;
 import com.example.serverprovision.management.os.service.OSNudgeService;
@@ -46,6 +47,7 @@ class OSMetadataControllerUpdateFlowTest {
 
 	@Autowired MockMvc mvc;
 
+	@MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
 	@MockitoBean OSMetadataService osMetadataService;
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService osMetadataLifecycleService;
 	@MockitoBean OSNudgeService osNudgeService;
