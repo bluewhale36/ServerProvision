@@ -4,9 +4,9 @@
     {
       "title": "시작하기",
       "pages": [
-        { "title": "PXE 서버 개요", "path": "start/overview.html", "status": "planned" },
+        { "title": "PXE 서버 개요", "path": "start/overview.html" },
         { "title": "처음 프로비저닝하기", "path": "start/first-provisioning.html" },
-        { "title": "계정과 로그인", "path": "start/account.html", "status": "planned" }
+        { "title": "계정과 로그인", "path": "start/account.html" }
       ]
     },
     {

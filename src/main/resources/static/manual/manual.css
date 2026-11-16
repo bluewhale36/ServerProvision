@@ -473,6 +473,12 @@ table.m-table th {
     font-weight: 600;
 }
 
+/* 첫 열은 항목 이름이라 꺾지 않는다. 좁은 화면에서는 .m-table-wrap 이 가로로 스크롤한다. */
+table.m-table th:first-child,
+table.m-table td:first-child {
+    white-space: nowrap;
+}
+
 .m-table-wrap {
     overflow-x: auto;
     margin: 0 0 16px;

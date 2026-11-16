@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="manual-reviewed" content="2026-11-16">
+    <title>계정과 로그인 | ServerProvision 사용 매뉴얼</title>
+    <link rel="stylesheet" href="../../global/reset.css">
+    <link rel="stylesheet" href="../../global/style.css">
+    <link rel="stylesheet" href="../manual.css">
+    <script src="../manual.js" defer></script>
+</head>
+<body class="m-body">
+<main class="m-main">
+    <h1>계정과 로그인</h1>
+    <p class="m-lead">관리 화면은 로그인한 사용자만 사용할 수 있습니다. 계정은 관리자가 만들고, 처음 설치한 직후에는 최초 관리자 계정을 먼저 등록합니다.</p>
+
+    <h2 id="roles">역할</h2>
+    <p>계정에는 관리자와 사용자 두 가지 역할이 있습니다. 관리자는 사용자 권한을 함께 가지며, 사용자 권한으로 할 수 있는 일을 모두 할 수 있습니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>역할</th><th>할 수 있는 일</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>사용자</td><td>자원 관리, 세팅 정의서, 서버 프로비저닝, 운영 화면 전체 사용과 자신의 비밀번호 변경</td></tr>
+            <tr><td>관리자</td><td>사용자 권한 전체와 새 계정 등록</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2 id="first-admin">최초 관리자 등록</h2>
+    <p>PXE 서버를 처음 설치하면 계정이 하나도 없습니다. 이때 만드는 첫 계정이 관리자가 되며, 이후의 계정 등록은 관리자 역할을 가진 계정만 할 수 있습니다.</p>
+    <ol class="m-steps">
+        <li>관리 화면 주소로 접속하면 로그인 화면이 열립니다. 관리자 계정이 아직 없으면 화면 아래에 "아직 관리자 계정이 없습니다." 와 함께 <span class="m-ui">최초 관리자 등록</span> 링크가 표시됩니다. 이 링크를 누릅니다.</li>
+        <li><strong>아이디</strong>, <strong>이름</strong>, <strong>비밀번호</strong>, <strong>비밀번호 확인</strong>을 입력합니다. 아이디는 사내 메일 주소에서 @ 앞부분을 그대로 씁니다.</li>
+        <li><span class="m-ui">관리자 등록</span> 을 누릅니다. 로그인 화면으로 돌아가고 "최초 관리자 계정을 만들었습니다. 로그인하십시오." 가 표시됩니다.</li>
+        <li>방금 만든 아이디와 비밀번호로 로그인합니다.</li>
+    </ol>
+    <p>관리자 계정이 한 번 만들어지면 로그인 화면의 최초 관리자 등록 링크는 더 이상 표시되지 않습니다.</p>
+
+    <h2 id="login">로그인과 로그아웃</h2>
+    <p>로그인 화면에서 <strong>아이디</strong>와 <strong>비밀번호</strong>를 입력하고 <span class="m-ui">로그인</span> 을 누릅니다. 아이디는 대소문자를 구분하지 않습니다. 비밀번호 칸 옆의 <span class="m-ui">보기</span> 를 누르면 입력한 비밀번호를 확인할 수 있습니다. 비밀번호 칸에 입력할 때 Caps Lock 이 켜져 있거나 한글이 들어가면 칸 아래에 경고가 표시됩니다.</p>
+    <p>로그인하면 게스트 서버 목록 화면(사이드바의 서버)이 열립니다. 로그인 전에 열려던 화면이 있었다면 그 화면으로 돌아갑니다.</p>
+    <p>아이디나 비밀번호가 틀리면 "아이디 또는 비밀번호가 올바르지 않습니다." 가 표시됩니다. 둘 중 어느 것이 틀렸는지는 알려 주지 않습니다.</p>
+    <p>로그아웃하려면 사이드바 아래쪽 계정 영역의 <span class="m-ui">로그아웃</span> 을 누릅니다. 로그인 화면으로 돌아가고 "로그아웃했습니다." 가 표시됩니다. 계정 영역에는 로그인한 사용자의 이름과 아이디가 함께 표시됩니다.</p>
+
+    <h2 id="password-rule">비밀번호 규칙</h2>
+    <p>비밀번호는 다음 규칙을 따릅니다. 계정 등록과 비밀번호 변경에 같은 규칙이 적용됩니다.</p>
+    <ul>
+        <li>길이: 8자 이상 72자 이하</li>
+        <li>사용할 수 있는 문자: 영문 대문자와 소문자, 숫자, 특수기호 <code>! @ # $ % ^ &amp; * ( ) - _ = + . , ?</code></li>
+    </ul>
+    <p>문자 종류를 반드시 섞어 쓸 필요는 없습니다. 위 목록의 문자만 쓰면 됩니다. 한글과 공백, 목록에 없는 특수기호가 들어가면 등록되지 않습니다.</p>
+
+    <h2 id="add-user">계정 등록</h2>
+    <p>관리자만 할 수 있습니다. 새 계정에는 초기 비밀번호를 정해 주고, 사용자는 첫 로그인에서 자신의 비밀번호로 바꿉니다.</p>
+    <ol class="m-steps">
+        <li>사이드바 계정 영역에서 <span class="m-ui">사용자 등록</span> 을 누릅니다. 관리자에게만 표시되는 메뉴입니다.</li>
+        <li><strong>아이디</strong>, <strong>이름</strong>, <strong>초기 비밀번호</strong>, <strong>초기 비밀번호 확인</strong>을 입력합니다.</li>
+        <li><strong>역할</strong>에서 관리자와 사용자 중 하나 이상에 체크합니다. 관리자에 체크하면 사용자 권한도 함께 부여됩니다.</li>
+        <li><span class="m-ui">사용자 등록</span> 을 누릅니다. "사용자 계정 (아이디) 등록을 마쳤습니다. 첫 로그인에서 비밀번호 변경을 요구합니다." 가 표시됩니다.</li>
+        <li>정한 아이디와 초기 비밀번호를 사용자에게 전달합니다.</li>
+    </ol>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>입력 칸</th><th>규칙</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>아이디</td><td>필수 입력, 64자 이하, 다른 계정과 중복 불가(대소문자 구분 없이 비교)</td></tr>
+            <tr><td>이름</td><td>필수 입력, 20자 이하</td></tr>
+            <tr><td>초기 비밀번호</td><td><a href="#password-rule">비밀번호 규칙</a> 적용</td></tr>
+            <tr><td>역할</td><td>관리자, 사용자 중 하나 이상 선택</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>관리 화면에는 계정 목록을 보거나 계정을 삭제하는 기능과 다른 사람의 비밀번호를 초기화하는 기능이 없습니다.</p>
+
+    <h2 id="first-login">초기 비밀번호로 처음 로그인할 때</h2>
+    <p>관리자가 등록한 계정으로 처음 로그인하면 비밀번호 변경 화면이 열리고 "초기 비밀번호로 로그인했습니다. 계속하려면 비밀번호를 바꾸십시오." 가 표시됩니다. 비밀번호를 바꾸기 전에는 사이드바의 다른 메뉴를 눌러도 이 화면으로 돌아오고, 사용 매뉴얼도 열리지 않습니다. 로그아웃은 할 수 있습니다. 이 화면에는 취소 버튼이 없습니다. 최초 관리자 계정은 직접 정한 비밀번호로 만들었으므로 이 과정을 거치지 않습니다.</p>
+
+    <h2 id="change-password">비밀번호 변경</h2>
+    <ol class="m-steps">
+        <li>사이드바 계정 영역에서 <span class="m-ui">비밀번호 변경</span> 을 누릅니다.</li>
+        <li><strong>현재 비밀번호</strong>, <strong>새 비밀번호</strong>, <strong>새 비밀번호 확인</strong>을 입력합니다. 새 비밀번호는 현재 비밀번호와 달라야 합니다.</li>
+        <li><span class="m-ui">비밀번호 변경</span> 을 누릅니다. 게스트 서버 목록 화면으로 이동하고 "비밀번호를 바꿨습니다." 가 표시됩니다.</li>
+    </ol>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>오류 문구</th><th>원인</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>현재 비밀번호가 올바르지 않습니다.</td><td>현재 비밀번호 입력 오류</td></tr>
+            <tr><td>새 비밀번호가 일치하지 않습니다.</td><td>새 비밀번호와 새 비밀번호 확인의 불일치</td></tr>
+            <tr><td>새 비밀번호는 현재 비밀번호와 달라야 합니다.</td><td>현재 비밀번호와 같은 새 비밀번호</td></tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>
