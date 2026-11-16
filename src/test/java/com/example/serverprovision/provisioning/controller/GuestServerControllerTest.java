@@ -84,7 +84,7 @@ class GuestServerControllerTest {
         given(assignmentQueryService.assignmentForm(any(UUID.class), anyList()))
                 .willAnswer(invocation -> new AssignmentFormResponse(null,
                         invocation.<java.util.List<SettingSummaryResponse>>getArgument(1).stream()
-                                .map(summary -> new DefinitionOptionResponse(summary, null, false))
+                                .map(summary -> new DefinitionOptionResponse(summary, null, null))
                                 .toList()));
     }
 
@@ -641,7 +641,7 @@ class GuestServerControllerTest {
                 .willAnswer(invocation -> new AssignmentFormResponse(null,
                         invocation.<java.util.List<SettingSummaryResponse>>getArgument(1).stream()
                                 .map(summary -> new DefinitionOptionResponse(summary,
-                                        "BIOS 템플릿 'T' 의 값이 보드 레지스트리(F44)와 어긋납니다 — Whitley0000", false))
+                                        "BIOS 템플릿 'T' 의 값이 보드 레지스트리(F44)와 어긋납니다 — Whitley0000", null))
                                 .toList()));
 
         mvc.perform(get("/provisioning/server/{id}", id))

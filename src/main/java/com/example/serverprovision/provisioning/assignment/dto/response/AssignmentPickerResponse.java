@@ -1,6 +1,9 @@
 package com.example.serverprovision.provisioning.assignment.dto.response;
 
+import com.example.serverprovision.provisioning.assignment.dto.request.DefinitionPickerQuery;
+
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -17,7 +20,10 @@ import java.util.stream.Collectors;
  * assignment 를 참조하고 있어 패키지가 양방향이 된다(R7 이 없앤 형태).</p>
  */
 public record AssignmentPickerResponse(
-        List<DefinitionPickerItemResponse> items
+        List<DefinitionPickerItemResponse> items,
+        int totalCount,
+        List<PickerBoardOption> boardOptions,
+        boolean hasBoardless
 ) {
 
     /**
@@ -26,14 +32,22 @@ public record AssignmentPickerResponse(
      * <p>상세가 없는 선택지는 <b>떨군다.</b> 두 재료를 읽는 사이에 그 정의서가 삭제됐다는 뜻이고, 삭제 ·
      * 비활성 정의서를 목록에서 빼는 것은 이미 정해진 규칙이다(U3-2-b DEC-G). 남겨 두면 고를 수는 있는데
      * 우측이 비어 있는 항목이 된다. 억지로 밀어 넣어도 서버 가드가 409 로 거절한다.</p>
+     *
+     * <p>R20 — {@code form} 은 이미 목록과 같은 축(이름 · 단계 · 등록 시각)으로 거른 정의서로 만든 것이고, 여기서는 모달에만 있는
+     * 축(대상 보드 · 할당 가능)을 더 거른다. {@code universe} 는 거르기 전의 할당 가능 정의서 전부 — 결과 0 건이 "정의서가 없다"
+     * 인지 "검색에 안 걸렸다" 인지({@code totalCount})와 대상 보드 칩 후보를 그것으로 정한다.</p>
      */
-    public static AssignmentPickerResponse of(AssignmentFormResponse form, List<SettingDetailResponse> details) {
+    public static AssignmentPickerResponse of(AssignmentFormResponse form, List<SettingDetailResponse> details,
+                                              DefinitionPickerQuery query, List<SettingSummaryResponse> universe) {
         Map<Long, SettingDetailResponse> byId = details.stream()
                 .collect(Collectors.toMap(SettingDetailResponse::id, Function.identity()));
-        return new AssignmentPickerResponse(form.options().stream()
+        List<DefinitionPickerItemResponse> all = form.options().stream()
                 .filter(option -> byId.containsKey(option.id()))
                 .map(option -> new DefinitionPickerItemResponse(option, byId.get(option.id())))
-                .toList());
+                .toList();
+        return new AssignmentPickerResponse(
+                all.stream().filter(item -> query.matchesContext(item.option().definition(), !item.blocked())).toList(),
+                universe.size(), PickerBoardOption.of(universe), PickerBoardOption.anyBoardless(universe));
     }
 
     /** 고를 수 있는 정의서가 하나라도 있는가 — 없으면 모달이 그 사실을 안내한다. */

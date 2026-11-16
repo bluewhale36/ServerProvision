@@ -45,6 +45,7 @@ import static org.mockito.Mockito.mock;
 class AssignmentQueryServiceGroupPreviewTest {
 
     @Mock com.example.serverprovision.provisioning.biossetting.service.BiosTemplateStaleInspector staleInspector;   // E3-3 — 기본 mock = 정합(null)
+    @Mock RaidCardRequirementReader raidCardReader;   // R20 — 기본 mock = RAID 단계 없음 · 인벤토리 미수집
 
     @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @Mock GuestServerRepository guestServerRepository;
@@ -201,5 +202,29 @@ class AssignmentQueryServiceGroupPreviewTest {
             assertThat(preview.willAssignCount()).isZero();
             assertThat(preview.blocked()).isTrue();
         });
+    }
+
+    @Test
+    @DisplayName("R20 — 카드가 다른 멤버는 빠진다 · 인벤토리 미수집 멤버는 막지 않는다(그룹 적용 대상 수에 반영)")
+    void raidCardMismatchMemberBlocked() {
+        givenFourMembers();
+        var megaraid = new com.example.serverprovision.provisioning.assignment.vo.RequiredRaidCard(
+                2L, "1000:9361", "MegaRAID 9361-8i", true);
+        given(raidCardReader.requiredByDefinition(anyList())).willReturn(java.util.Map.of(1L, megaraid));
+        given(raidCardReader.inventoryOf(org.mockito.ArgumentMatchers.any())).willAnswer(invocation -> {
+            GuestServerDetail detail = invocation.getArgument(0);
+            boolean asus = detail.getGuestServer().getId().equals(SRV_ASUS);
+            return new com.example.serverprovision.execution.engine.raid.RaidInventory(
+                    new com.example.serverprovision.execution.engine.raid.DetectedRaidCard(null,
+                            asus ? "1458:3008" : "1000:9361", asus ? "SAS3008" : "AVAGO MegaRAID SAS 9361-8i", "1.0"),
+                    List.of(), List.of());
+        });
+
+        GroupApplyPreviewResponse cardDefinition = service.groupPreview(fourMembers(), twoDefinitions()).get(0);
+
+        assertThat(of(cardDefinition, SRV_MS03).outcome()).isEqualTo(MemberApplyOutcome.WILL_ASSIGN);
+        assertThat(of(cardDefinition, SRV_ASUS).outcome()).isEqualTo(MemberApplyOutcome.BLOCKED);
+        assertThat(of(cardDefinition, SRV_ASUS).reason()).contains("SAS3008, 1458:3008");
+        assertThat(of(cardDefinition, SRV_UNVERIFIED).outcome()).isEqualTo(MemberApplyOutcome.WILL_ASSIGN);
     }
 }

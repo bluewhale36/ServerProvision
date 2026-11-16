@@ -13,6 +13,7 @@
        열 때마다 바뀐다. 바인딩 시점에 고정하면 처음 연 흐름의 URL 로 계속 보내게 된다.
      · 고른 값은 select 또는 hidden input 어느 쪽에서든 읽는다 — 고르는 UI 가 무엇이든
        [name=definitionId] 라는 계약만 지키면 이 파일은 바뀌지 않는다.
+     · 409 를 받으면 form 에 'assignment-rejected' 이벤트를 쏜다 — 고르는 UI 가 판정을 새로 받는 계기(R20).
    ============================================================ */
 (function () {
     'use strict';
@@ -28,6 +29,7 @@
             const raw = field ? field.value : '';
             const definitionId = raw ? Number(raw) : null;
             const submitBtn = form.querySelector('button[type="submit"]');
+            let submitStateHandedOver = false;
             if (submitBtn) {
                 submitBtn.disabled = true;
             }
@@ -44,13 +46,21 @@
                 if (window.FormError) {
                     await window.FormError.renderFromResponse(response, {root: form});
                 }
+                if (response.status === 409) {
+                    // 서버 가드가 거절했다 = 화면이 들고 있던 판정이 낡았을 수 있다(모달을 연 뒤 하드웨어 · 정의서가 바뀜).
+                    // 고르는 UI 가 다시 조회하도록 알린다. 이 파일은 고르는 UI 를 모른다(R20 CP5 O1).
+                    // 받은 쪽이 preventDefault 하면 제출 버튼의 상태도 그쪽이 정한다 — 여기서 먼저 열면
+                    // 재조회가 끝날 때까지 잠깐 열려 같은 409 를 한 번 더 보낼 틈이 생긴다(CP5 O9).
+                    const event = new CustomEvent('assignment-rejected', {bubbles: true, cancelable: true});
+                    submitStateHandedOver = !form.dispatchEvent(event);
+                }
             } catch (err) {
                 if (window.FormError) {
                     window.FormError.renderResponse(
                         {message: '요청을 보내지 못했습니다. 잠시 후 다시 시도해주세요.'}, {root: form});
                 }
             } finally {
-                if (submitBtn) {
+                if (submitBtn && !submitStateHandedOver) {
                     submitBtn.disabled = false;
                 }
             }

@@ -1,6 +1,9 @@
 package com.example.serverprovision.provisioning.assignment.dto.response;
 
+import com.example.serverprovision.provisioning.assignment.dto.request.DefinitionPickerQuery;
+
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -19,7 +22,10 @@ import java.util.stream.Collectors;
  */
 public record GroupPickerResponse(
         int memberCount,
-        List<GroupPickerItemResponse> items
+        List<GroupPickerItemResponse> items,
+        int totalCount,
+        List<PickerBoardOption> boardOptions,
+        boolean hasBoardless
 ) {
 
     /**
@@ -27,16 +33,24 @@ public record GroupPickerResponse(
      *
      * <p>상세가 없는 미리보기는 <b>떨군다</b> — 두 재료를 읽는 사이에 그 정의서가 삭제됐다는 뜻이고,
      * 삭제 · 비활성 정의서를 목록에서 빼는 것은 이미 정해진 규칙이다(U3-2-b DEC-G).</p>
+     *
+     * <p>R20 — 단건 모달({@code AssignmentPickerResponse})과 같은 규칙. {@code previews} 는 이미 목록과 같은 축으로 거른
+     * 정의서의 미리보기이고, 여기서는 대상 보드 · 할당 가능을 더 거른다. {@code universe} 는 거르기 전 전부다.</p>
      */
     public static GroupPickerResponse of(int memberCount,
                                          List<GroupApplyPreviewResponse> previews,
-                                         List<SettingDetailResponse> details) {
+                                         List<SettingDetailResponse> details,
+                                         DefinitionPickerQuery query,
+                                         List<SettingSummaryResponse> universe) {
         Map<Long, SettingDetailResponse> byId = details.stream()
                 .collect(Collectors.toMap(SettingDetailResponse::id, Function.identity()));
-        return new GroupPickerResponse(memberCount, previews.stream()
+        List<GroupPickerItemResponse> all = previews.stream()
                 .filter(preview -> byId.containsKey(preview.definitionId()))
                 .map(preview -> new GroupPickerItemResponse(preview, byId.get(preview.definitionId())))
-                .toList());
+                .toList();
+        return new GroupPickerResponse(memberCount,
+                all.stream().filter(item -> query.matchesContext(item.preview().definition(), !item.blocked())).toList(),
+                universe.size(), PickerBoardOption.of(universe), PickerBoardOption.anyBoardless(universe));
     }
 
     /** 한 대라도 붙일 수 있는 정의서가 있는가 — 없으면 모달이 그 사실을 안내한다. */

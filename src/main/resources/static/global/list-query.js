@@ -381,6 +381,8 @@
         });
     }
     document.querySelectorAll('[data-range-today]').forEach(function (holder) { markPresets(holder.parentElement); });
+    // 나중에 채워지는 기간 줄(정의서 고르기 모달 · R20)은 위 첫 표시에 없으므로, 그 화면이 내용을 받은 뒤 부른다.
+    window.ListRangePresets = {mark: markPresets};
     document.addEventListener('click', function (e) {
         const chip = e.target.closest('[data-range-preset]');
         if (!chip) return;
