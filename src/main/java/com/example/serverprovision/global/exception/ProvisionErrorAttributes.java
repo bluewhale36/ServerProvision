@@ -3,6 +3,7 @@ package com.example.serverprovision.global.exception;
 import org.springframework.boot.web.error.ErrorAttributeOptions;
 import org.springframework.boot.webmvc.error.DefaultErrorAttributes;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.WebRequest;
 
 import java.util.Map;
@@ -26,6 +27,12 @@ public class ProvisionErrorAttributes extends DefaultErrorAttributes {
 	public Map<String, Object> getErrorAttributes(WebRequest webRequest, ErrorAttributeOptions options) {
 		Map<String, Object> attributes = super.getErrorAttributes(webRequest, options);
 		attributes.put("statusLabel", ErrorStatusLabels.of(resolveStatus(attributes.get("status"))));
+		// HF29 — 거절한 쪽이 요청 속성에 둔 사람용 사유(예: 403 의 '사용자 관리는 최고 관리자만 …')를 message 로 싣는다.
+		// 기본 message 는 노출 설정상 비어 있으므로, 사유가 있을 때만 덮는다.
+		Object reason = webRequest.getAttribute(ErrorReason.REQUEST_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
+		if (reason instanceof String text && !text.isBlank()) {
+			attributes.put("message", text);
+		}
 		return attributes;
 	}
 

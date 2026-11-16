@@ -127,6 +127,13 @@ public class RaidCardMetadataController {
 			BindingResult bindingResult,
 			Model model
 	) {
+		// HF30-1 — 같은 (제조사, 모델명) 충돌은 UI 1차 차단으로 모델명 칸 오류를 그린다. 판정은 서버 가드(update)와 같은 메서드다.
+		if (!bindingResult.hasFieldErrors("modelName")) {
+			String conflict = raidCardService.renameConflictReason(id, request.modelName());
+			if (conflict != null) {
+				bindingResult.rejectValue("modelName", "duplicate", conflict);
+			}
+		}
 		if (bindingResult.hasErrors()) {
 			populateEditView(model, id, raidCardService.findById(id));
 			return "management/raidcard/edit";

@@ -16,20 +16,15 @@ import lombok.Setter;
 @AllArgsConstructor
 public class InitialPasswordRequest {
 
-	/** 문구 상수 — 검증 어노테이션과 상세 화면의 제출 전 확인(security/user-detail.js, data 속성으로 전달)이 같은 문장을 쓴다. */
-	public static final String REQUIRED = "초기 비밀번호를 입력하십시오.";
-	public static final String RETYPE_REQUIRED = "초기 비밀번호를 한 번 더 입력하십시오.";
-	public static final String MISMATCH = "비밀번호가 일치하지 않습니다.";
-
-	@NotBlank(message = REQUIRED)
+	@NotBlank(message = PasswordRule.BLANK)   // HF29 — 문구는 PasswordRule 한 벌(사용자 추가 폼과 같은 문장)
 	@Pattern(regexp = PasswordRule.REGEX, message = PasswordRule.MESSAGE)
 	private String password;
 
-	@NotBlank(message = RETYPE_REQUIRED)
+	@NotBlank(message = PasswordRule.RETYPE_BLANK)
 	private String retypedPassword;
 
 	/** 두 값이 모두 있을 때만 판정한다 — 빈 값은 {@code @NotBlank} 의 몫이라 메시지가 겹치지 않는다. */
-	@AssertTrue(message = MISMATCH)
+	@AssertTrue(message = PasswordRule.MISMATCH)
 	public boolean isPasswordConfirmed() {
 		if (password == null || password.isBlank() || retypedPassword == null || retypedPassword.isBlank()) {
 			return true;

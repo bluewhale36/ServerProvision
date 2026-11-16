@@ -8,15 +8,12 @@ package com.example.serverprovision.management.common.nudge;
  * nudgeId 인가" 를 식별한다 — confirm 엔드포인트가 nudgeId 만으로 자기 자신의 도메인을 검증할
  * 수 있게 한다.</p>
  *
- * <p>WAVE 1 — 메타 단독 (file 없음) 도메인을 위해 {@link #OS_IMAGE} 추가(BOARD_MODEL 은 HF26 에서 메인보드 nudge 제거와 함께 삭제)
- * (MA7 에서 {@link #RAID_CARD} 합류). 이 타입들은 {@link NudgeSession.PendingPayload#tempFilePath()} /
- * {@code manifestHash()} 가 모두 null 이며, 도메인 메타는 {@code attributes} 맵으로 운반된다.</p>
+ * <p>메타 단독 자원(메인보드 · OS 버전 · RAID 카드)은 중복 확인 창을 쓰지 않는다 — 키가 곧 정체라 같은 키가 어느 상태로든
+ * 있으면 등록을 거절하고 다음 행동을 안내한다(메인보드 HF26, OS 버전 · RAID 카드 HF30-1). 그래서 남은 상수는 파일 자원뿐이다.</p>
  */
 public enum NudgeResourceType {
 	BIOS,
 	BMC,
 	SUBPROGRAM,
-	OS_ISO,
-	OS_IMAGE,
-	RAID_CARD
+	OS_ISO
 }

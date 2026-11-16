@@ -51,7 +51,6 @@ class OSMetadataControllerUpdateFlowTest {
 	@MockitoBean OSMetadataService osMetadataService;
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService osMetadataLifecycleService;
 	@MockitoBean OSNudgeService osNudgeService;
-	@MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataNudgeService osMetadataNudgeService;
 	@MockitoBean CompsExtractionLauncher compsExtractionLauncher;
 	@MockitoBean IsoUploadIntentService isoUploadIntentService;
 	@MockitoBean IsoVerificationLauncher isoVerificationLauncher;
@@ -90,6 +89,56 @@ class OSMetadataControllerUpdateFlowTest {
 				.andExpect(jsonPath("$.fieldErrors[0].message").value("설명은 1024자 이하로 입력해주세요."));
 
 		verify(osMetadataService, never()).create(any());
+	}
+
+	// ==== HF30-1 — 같은 OS 버전 등록 409 (세 상태) ==========================
+
+	private static com.example.serverprovision.management.os.entity.OSMetadata existingOs(boolean deprecated, boolean deleted) {
+		return com.example.serverprovision.management.os.entity.OSMetadata.builder()
+				.id(7L).osName(com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX).osVersion("9.6")
+				.isEnabled(true).isDeprecated(deprecated).isDeleted(deleted).build();
+	}
+
+	private org.springframework.test.web.servlet.ResultActions postCreateRocky96() throws Exception {
+		return mvc.perform(post("/management/os")
+				.accept(org.springframework.http.MediaType.APPLICATION_JSON)
+				.param("osName", "ROCKY_LINUX")
+				.param("osVersion", "9.6"));
+	}
+
+	@Test
+	@DisplayName("HF30-1 create (JSON) : 활성 OS 버전과 같음 → 409 + '이미 등록된 OS 버전입니다'")
+	void create_sameAsActive_returns409() throws Exception {
+		org.mockito.BDDMockito.willThrow(com.example.serverprovision.management.os.exception.DuplicateOSMetadataException
+				.againstRegistration(existingOs(false, false))).given(osMetadataService).create(any());
+
+		postCreateRocky96()
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value("이미 등록된 OS 버전입니다. Rocky Linux 9.6"));
+	}
+
+	@Test
+	@DisplayName("HF30-1 create (JSON) : Deprecated OS 버전과 같음 → 409 + Deprecated 해제 안내 (종전: 창의 [그래도 등록] 이 항상 실패)")
+	void create_sameAsDeprecated_returns409WithUndeprecateGuidance() throws Exception {
+		org.mockito.BDDMockito.willThrow(com.example.serverprovision.management.os.exception.DuplicateOSMetadataException
+				.againstRegistration(existingOs(true, false))).given(osMetadataService).create(any());
+
+		postCreateRocky96()
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value(
+						"Deprecated 상태로 등록된 같은 OS 버전이 있습니다(Rocky Linux 9.6). 목록에서 Deprecated 를 해제하십시오."));
+	}
+
+	@Test
+	@DisplayName("HF30-1 create (JSON) : 휴지통 OS 버전과 같음 → 409 + 복구 · 영구 삭제 안내")
+	void create_sameAsTrashed_returns409WithRestoreGuidance() throws Exception {
+		org.mockito.BDDMockito.willThrow(com.example.serverprovision.management.os.exception.DuplicateOSMetadataException
+				.againstRegistration(existingOs(false, true))).given(osMetadataService).create(any());
+
+		postCreateRocky96()
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value(
+						"휴지통에 같은 OS 버전이 있습니다(Rocky Linux 9.6). 휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오."));
 	}
 
 	@Test

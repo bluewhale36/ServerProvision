@@ -59,7 +59,6 @@ class OSMetadataControllerSecurityFlowTest {
     @MockitoBean IsoRegistrationService isoRegistrationService;
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService osMetadataLifecycleService;
     @MockitoBean OSNudgeService osNudgeService;
-    @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataNudgeService osMetadataNudgeService;
     @MockitoBean CompsExtractionLauncher compsExtractionLauncher;
     @MockitoBean IsoUploadIntentService isoUploadIntentService;
     @MockitoBean IsoVerificationLauncher isoVerificationLauncher;

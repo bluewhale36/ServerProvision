@@ -112,7 +112,7 @@ class IsoRegistrationServiceTest {
 	@Test
 	@DisplayName("completePendingFromNudge : OS_ISO 아닌 세션 → IllegalOSMetadataStateException")
 	void completePending_nonOsIso_throws() {
-		NudgeSession s = osIsoSession(NudgeResourceType.OS_IMAGE, 1L, new IntentMetaNudgePayload(Map.of()));
+		NudgeSession s = osIsoSession(NudgeResourceType.BIOS, 1L, new IntentMetaNudgePayload(Map.of()));
 
 		assertThatThrownBy(() -> service.completePendingFromNudge(s))
 				.isInstanceOf(IllegalOSMetadataStateException.class);
