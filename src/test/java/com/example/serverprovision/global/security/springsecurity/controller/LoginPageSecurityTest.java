@@ -97,7 +97,7 @@ class LoginPageSecurityTest {
 	}
 
 	@Test
-	@DisplayName("/signup 인가 — 부트스트랩 열림: 익명 통과 / 닫힘: 익명 302 · USER 403 · ADMIN 통과")
+	@DisplayName("/signup 인가 — 부트스트랩 열림: 익명 통과 / 닫힘: 익명 302 (인증 사용자는 아래 두 테스트 — 등급과 무관하게 403)")
 	void signup_authorization() throws Exception {
 		given(usersService.bootstrapOpen()).willReturn(true);
 		mvc.perform(get("/signup").accept(MediaType.TEXT_HTML)).andExpect(status().isNotFound());   // 통과 → 이 슬라이스에 UsersController 가 없어 404
@@ -116,11 +116,11 @@ class LoginPageSecurityTest {
 	}
 
 	@Test
-	@WithMockUser(roles = {"ADMIN", "USER"})
-	@DisplayName("/signup 인가 — 닫힘 + ROLE_ADMIN 은 통과")
-	void signup_adminAllowed() throws Exception {
+	@WithMockUser(roles = {"SUPER_ADMIN", "ADMIN", "USER"})
+	@DisplayName("/signup 인가(MA8) — 닫힘이면 최고 관리자도 403(계정 생성은 /users/new)")
+	void signup_closedEvenForSuperAdmin() throws Exception {
 		given(usersService.bootstrapOpen()).willReturn(false);
-		mvc.perform(get("/signup").accept(MediaType.TEXT_HTML)).andExpect(status().isNotFound());
+		mvc.perform(get("/signup").accept(MediaType.TEXT_HTML)).andExpect(status().isForbidden());
 	}
 
 	@Test

@@ -34,7 +34,14 @@ class RaidConfigurationResolutionProviderImplTest {
 
     @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @Mock RaidCardRepository raidCardRepository;
-    @InjectMocks RaidConfigurationResolutionProviderImpl provider;
+    RaidConfigurationResolutionProviderImpl provider;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        // 지정 카드 해석은 할당 판정과 같은 변환(R20) — 실 reader 에 카드 저장소 mock 만 꽂는다
+        provider = new RaidConfigurationResolutionProviderImpl(assignmentRepository,
+                new RaidCardRequirementReader(null, raidCardRepository, null));
+    }
 
     private void stubSnapshotWithRaid(Long raidCardId) {
         stubSnapshotWithRaid(raidCardId, null);

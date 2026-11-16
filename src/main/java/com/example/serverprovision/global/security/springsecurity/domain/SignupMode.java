@@ -4,16 +4,16 @@ import java.util.Collection;
 import java.util.Set;
 
 /**
- * 가입 화면의 두 모드(S18 D-13). 부트스트랩 = 관리자가 아직 없어 누구나 최초 관리자를 만드는 상태,
- * 관리자 생성 = 관리자가 초기 비밀번호를 정해 사용자를 만드는 상태. 모드가 정하는 것(역할 · 강제 변경 · 뷰 · 성공 이동)은
- * 상수별 메서드로 두어 컨트롤러 · 서비스에 분기가 자라지 않게 한다.
+ * 계정을 만드는 두 경로(S18 D-13 · MA8 개정). 부트스트랩 = 관리자가 아직 없어 누구나 최초 계정(최고 관리자)을 만드는 상태,
+ * 관리 생성 = 최고 관리자가 사용자 관리 화면에서 초기 비밀번호를 정해 계정을 만드는 상태. 경로가 정하는 것(권한 · 강제 변경 ·
+ * 뷰 · 폼 대상 · 성공 이동)은 상수별 메서드로 두어 컨트롤러 · 서비스에 분기가 자라지 않게 한다.
  */
 public enum SignupMode {
 
-	BOOTSTRAP_ADMIN {
+	BOOTSTRAP {
 		@Override
-		public Set<Role> rolesFor(Collection<Role> requested) {
-			return Role.expand(Set.of(Role.ADMIN));
+		public Set<Role> rolesFor(Role requested) {
+			return Role.expand(Set.of(Role.SUPER_ADMIN));
 		}
 
 		@Override
@@ -32,7 +32,12 @@ public enum SignupMode {
 		}
 
 		@Override
-		public String successRedirect() {
+		public String formAction() {
+			return "/signup";
+		}
+
+		@Override
+		public String successRedirect(Long createdId) {
 			return "redirect:/login";
 		}
 
@@ -41,10 +46,10 @@ public enum SignupMode {
 			return "최초 관리자 계정을 만들었습니다. 로그인하십시오.";
 		}
 	},
-	ADMIN_CREATES_USER {
+	MANAGED {
 		@Override
-		public Set<Role> rolesFor(Collection<Role> requested) {
-			return Role.expand(requested);
+		public Set<Role> rolesFor(Role requested) {
+			return Role.expand(requested == null ? Set.of() : Set.of(requested));
 		}
 
 		@Override
@@ -59,12 +64,17 @@ public enum SignupMode {
 
 		@Override
 		public String view() {
-			return "security/signup";
+			return "users/user-new";
 		}
 
 		@Override
-		public String successRedirect() {
-			return "redirect:/signup";
+		public String formAction() {
+			return "/users";
+		}
+
+		@Override
+		public String successRedirect(Long createdId) {
+			return "redirect:/users/" + createdId;
 		}
 
 		@Override
@@ -73,8 +83,8 @@ public enum SignupMode {
 		}
 	};
 
-	/** 저장할 권한 집합 — 부트스트랩은 요청을 무시하고 관리자로 고정한다. */
-	public abstract Set<Role> rolesFor(Collection<Role> requested);
+	/** 저장할 권한 집합 — 부트스트랩은 요청을 무시하고 최고 관리자로 고정한다. */
+	public abstract Set<Role> rolesFor(Role requested);
 
 	public abstract boolean requiresRoleSelection();
 
@@ -83,12 +93,10 @@ public enum SignupMode {
 
 	public abstract String view();
 
-	public abstract String successRedirect();
+	/** 폼 조각이 제출할 경로 — 두 화면이 같은 폼 조각을 쓰므로 대상만 경로가 정한다. */
+	public abstract String formAction();
+
+	public abstract String successRedirect(Long createdId);
 
 	public abstract String successMessage(String username);
-
-	/** 부트스트랩 판정(관리자 부재)에서 모드를 고른다 — 판정 자체는 {@code UsersService.bootstrapOpen()} 이 SSOT. */
-	public static SignupMode of(boolean bootstrapOpen) {
-		return bootstrapOpen ? BOOTSTRAP_ADMIN : ADMIN_CREATES_USER;
-	}
 }

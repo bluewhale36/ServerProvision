@@ -45,6 +45,14 @@ class FormSubmissionConventionTest {
 			"fragments/layout.html", "LogoutFilter 가 로그아웃 POST 를 처리한다");
 
 	/**
+	 * MA8 — 여러 재렌더 핸들러가 함께 쓰는 폼 조각. 마커는 조각에 한 번만 있지만 화면마다 다른 핸들러로 제출되므로, 등식에서는
+	 * 쓰이는 핸들러 수만큼 센다. 사유를 이름과 함께 적어 두어, 조각을 새 화면에 끼울 때 이 수를 의식적으로 고치게 한다.
+	 */
+	private static final Map<String, Integer> SHARED_FORM_FRAGMENTS = Map.of(
+			// 최초 관리자 등록(UsersController#signup)과 사용자 추가(UserManagementController#create)가 같은 가입 폼을 쓴다
+			"fragments/security/signup-form.html", 2);
+
+	/**
 	 * {@code @PostMapping} 부터 파라미터 목록 여는 괄호까지. 사이에 붙는 다른 어노테이션
 	 * ({@code @ResponseBody} 등)을 함께 담아야 XHR 핸들러를 가려낼 수 있다.
 	 */
@@ -123,6 +131,7 @@ class FormSubmissionConventionTest {
 		List<String> reRenderHandlers = reRenderHandlers();
 		List<String> nativeForms = nativeSubmitForms().stream()
 				.filter(form -> !FILTER_HANDLED_FORMS.containsKey(form))
+				.flatMap(form -> java.util.Collections.nCopies(SHARED_FORM_FRAGMENTS.getOrDefault(form, 1), form).stream())
 				.toList();
 		assertThat(nativeForms)
 				.as("""

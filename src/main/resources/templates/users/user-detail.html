@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<!--
+  MA8 — 사용자 상세(사용자 관리 · 최고 관리자 전용)
+  ─────────────────────────────────────────────────────────
+  Model:
+    detail       : UserDetailResponse — 요약 + 동작별 차단 사유(UserAction.blockReason — 서버 가드와 같은 판정)
+    passwordForm : InitialPasswordRequest — 초기 비밀번호 지정 폼(검증 실패 시 값 · 오류 복원)
+    levelOptions : Role[]
+
+  막힌 동작은 버튼을 disabled 로 두고 tooltip 으로 이유를 알린다(UX 모순은 UI 1차 차단). 서버 가드는 direct POST · stale 화면의 안전망.
+  권한 등급 변경 · 비활성화는 대상의 로그인 상태를 끝내므로 확인 모달을 거친다(security/user-detail.js).
+-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('사용자 상세')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('users')}"></nav>
+
+<div class="n-page-md" th:with="u=${detail.user}">
+    <div class="n-page-header">
+        <h1 class="n-page-title" th:text="|${u.name} (${u.username})|">홍길동 (hong.gildong)</h1>
+        <div th:replace="~{fragments/common/back-link :: backLink('/users')}"></div>
+    </div>
+
+    <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status" th:text="${flashMessage}">처리했습니다.</div>
+    <div th:if="${#authentication.name == u.username}" class="n-alert n-alert-info" role="status">
+        본인 계정입니다. 권한 등급 변경 · 비활성화 · 초기 비밀번호 지정은 다른 최고 관리자가 할 수 있습니다.
+    </div>
+
+    <!-- ── 기본 정보 ── -->
+    <section class="n-card">
+        <div class="n-card-body">
+            <h2 class="n-card-title">기본 정보</h2>
+            <table class="n-detail-table">
+                <tbody>
+                <tr><th>아이디</th><td th:text="${u.username}">hong.gildong</td></tr>
+                <tr><th>이름</th><td th:text="${u.name}">홍길동</td></tr>
+                <tr>
+                    <th>권한 등급</th>
+                    <td><span class="n-badge" th:classappend="${u.level != null and u.level.name() == 'SUPER_ADMIN'} ? 'n-badge-blue' : 'n-badge-gray'"
+                              th:text="${u.level != null} ? ${u.level.description} : '권한 없음'">사용자</span></td>
+                </tr>
+                <tr>
+                    <th>상태</th>
+                    <td><span class="n-badge" th:classappend="${u.enabled} ? 'n-badge-green' : 'n-badge-off'"
+                              th:text="${u.enabled} ? '활성' : '비활성'">활성</span></td>
+                </tr>
+                <tr>
+                    <th>비밀번호</th>
+                    <td th:text="${u.mustChangePassword} ? '다음 로그인에서 변경 필요' : '사용자가 정한 비밀번호'">사용자가 정한 비밀번호</td>
+                </tr>
+                <tr><th>등록 일시</th><td th:text="${#temporals.format(u.createdAt, 'yyyy-MM-dd HH:mm')}">2026-11-16 21:00</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ── 권한 등급 변경 ── -->
+    <section class="n-card" th:with="blockRole=${detail.reason('CHANGE_ROLE')}">
+        <div class="n-card-body">
+            <h2 class="n-card-title">권한 등급 변경</h2>
+            <p class="n-section-hint">높은 등급은 낮은 등급의 권한을 함께 가집니다. 바꾸면 그 사용자는 다시 로그인해야 합니다.</p>
+            <form method="post" th:action="@{/users/{id}/role(id=${u.id})}"
+                  data-confirm-user-role th:data-resource-label="${u.name}">
+                <!--/* CP5 D-1 — 현재 등급 선택지는 disabled + tooltip(UserAction.levelChangeBlockReason · 서버 가드와 같은 판정).
+                       미리 체크해 두지 않는다 — 체크된 현재 등급으로 그냥 제출하면 '이미 그 권한 등급' 409 가 정상 클릭에서 났다. */-->
+                <div class="n-form-group">
+                    <div class="n-option-row" th:each="option : ${levelOptions}"
+                         th:with="levelBlock=${detail.levelReason(option.name())}">
+                        <input type="radio" name="level" th:value="${option.name()}" th:id="|level-${option.name()}|"
+                               th:disabled="${blockRole != null or levelBlock != null}">
+                        <label th:for="|level-${option.name()}|">
+                            <span th:if="${levelBlock != null and blockRole == null}" class="n-tooltip" th:data-tooltip="${levelBlock}">
+                                <span class="n-option-title" th:text="|${option.description} (현재 등급)|">관리자 (현재 등급)</span>
+                            </span>
+                            <span th:unless="${levelBlock != null and blockRole == null}" class="n-option-title" th:text="${option.description}">관리자</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="n-form-actions">
+                    <span th:if="${blockRole != null}" class="n-btn-tooltip-wrap" th:data-tooltip="${blockRole}">
+                        <button type="button" class="n-btn n-btn-secondary" disabled>권한 등급 바꾸기</button>
+                    </span>
+                    <!--/* 바꿀 등급을 고르기 전에는 제출할 것이 없다 — 고르면 security/user-detail.js 가 버튼과 tooltip 을 푼다. */-->
+                    <span th:unless="${blockRole != null}" class="n-btn-tooltip-wrap" data-level-submit-wrap
+                          data-tooltip="바꿀 권한 등급을 먼저 고르십시오.">
+                        <button type="submit" class="n-btn n-btn-secondary" data-level-submit disabled>권한 등급 바꾸기</button>
+                    </span>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- ── 계정 상태 ── -->
+    <section class="n-card" th:with="blockDisable=${detail.reason('DISABLE')}, blockEnable=${detail.reason('ENABLE')}">
+        <div class="n-card-body">
+            <h2 class="n-card-title">계정 상태</h2>
+            <p class="n-section-hint" th:if="${u.enabled}">비활성화하면 그 사용자는 즉시 로그아웃되고 다시 로그인할 수 없습니다. 계정과 기록은 그대로 남습니다.</p>
+            <p class="n-section-hint" th:unless="${u.enabled}">비활성화된 계정입니다. 활성화하면 다시 로그인할 수 있습니다.</p>
+            <div class="n-form-actions">
+                <th:block th:if="${u.enabled}">
+                    <span th:if="${blockDisable != null}" class="n-btn-tooltip-wrap" th:data-tooltip="${blockDisable}">
+                        <button type="button" class="n-btn n-btn-outline-danger" disabled>비활성화</button>
+                    </span>
+                    <form th:unless="${blockDisable != null}" method="post" th:action="@{/users/{id}/disable(id=${u.id})}"
+                          data-confirm-user-disable th:data-resource-label="${u.name}">
+                        <button type="submit" class="n-btn n-btn-outline-danger">비활성화</button>
+                    </form>
+                </th:block>
+                <th:block th:unless="${u.enabled}">
+                    <span th:if="${blockEnable != null}" class="n-btn-tooltip-wrap" th:data-tooltip="${blockEnable}">
+                        <button type="button" class="n-btn n-btn-outline-success" disabled>활성화</button>
+                    </span>
+                    <form th:unless="${blockEnable != null}" method="post" th:action="@{/users/{id}/enable(id=${u.id})}">
+                        <button type="submit" class="n-btn n-btn-outline-success">활성화</button>
+                    </form>
+                </th:block>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 초기 비밀번호 지정 ── -->
+    <section class="n-card" th:with="blockPassword=${detail.reason('RESET_PASSWORD')}" data-password-section>
+        <div class="n-card-body">
+            <h2 class="n-card-title">초기 비밀번호 지정</h2>
+            <!--/* CP7 — 서버가 거절해 다시 그린 경우(정상 흐름은 제출 전 확인이 먼저 막는다). 페이지가 새로 그려져 반영된 것처럼
+                   보이지 않도록 이 카드 머리에서 실패를 알리고, user-detail.js 가 이 카드를 화면에 들인다. */-->
+            <div th:if="${passwordFailed}" class="n-alert n-alert-danger" role="alert" data-password-failed>
+                초기 비밀번호를 지정하지 못했습니다. 아래 칸의 안내를 확인하십시오.
+            </div>
+            <p class="n-section-hint">비밀번호를 잊은 사용자에게 새 초기 비밀번호를 정해 줍니다. 그 사용자는 즉시 로그아웃되고, 다음 로그인에서 새 비밀번호로 바꿔야 합니다.</p>
+            <!--/* CP7 — 제출 전 확인(security/user-detail.js): 규칙 · 문구는 서버 상수를 data 속성으로 받는다. 못 맞추면 요청을 보내지 않는다. */-->
+            <form method="post" th:action="@{/users/{id}/password(id=${u.id})}" th:object="${passwordForm}" novalidate
+                  data-native-submit="검증 실패 시 같은 뷰를 다시 렌더한다(BindingResult · 필드 오류)"
+                  data-initial-password-form
+                  th:attr="data-rule-regex=${passwordRuleRegex}, data-rule-message=${passwordRuleMessage},
+                           data-required-message=${passwordRequiredMessage}, data-retype-required-message=${passwordRetypeRequiredMessage},
+                           data-mismatch-message=${passwordMismatchMessage}">
+                    <div class="n-form-group">
+                        <label class="n-label strong" for="password">초기 비밀번호</label>
+                        <div class="n-inline-row">
+                            <input id="password" type="password" name="password" class="n-input" autocomplete="new-password"
+                                   data-error-field="password" data-password-watch th:disabled="${blockPassword != null}"
+                                   th:classappend="${#fields.hasErrors('password')} ? 'is-invalid'">
+                            <button type="button" class="n-btn n-btn-secondary n-btn-sm" data-password-toggle="password"
+                                    aria-pressed="false" title="입력한 비밀번호를 보이게 합니다" th:disabled="${blockPassword != null}">보기</button>
+                        </div>
+                        <div class="n-error" data-password-hint hidden></div>
+                        <div class="n-hint">영문 대소문자 · 숫자 · 특수기호(! @ # $ % ^ &amp; * ( ) - _ = + . , ?)로 8자 이상 72자 이하입니다.</div>
+                        <div class="n-error" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+                        <div class="n-error" data-client-error="password" hidden></div>
+                    </div>
+                    <div class="n-form-group">
+                        <label class="n-label strong" for="retypedPassword">초기 비밀번호 확인</label>
+                        <div class="n-inline-row">
+                            <input id="retypedPassword" type="password" name="retypedPassword" class="n-input" autocomplete="new-password"
+                                   data-error-field="retypedPassword" data-password-watch th:disabled="${blockPassword != null}"
+                                   th:classappend="${#fields.hasErrors('retypedPassword') or #fields.hasErrors('passwordConfirmed')} ? 'is-invalid'">
+                            <button type="button" class="n-btn n-btn-secondary n-btn-sm" data-password-toggle="retypedPassword"
+                                    aria-pressed="false" title="입력한 비밀번호를 보이게 합니다" th:disabled="${blockPassword != null}">보기</button>
+                        </div>
+                        <div class="n-error" data-password-hint hidden></div>
+                        <div class="n-error" th:if="${#fields.hasErrors('retypedPassword')}" th:errors="*{retypedPassword}"></div>
+                        <div class="n-error" th:if="${#fields.hasErrors('passwordConfirmed')}" th:errors="*{passwordConfirmed}"></div>
+                        <div class="n-error" data-client-error="retypedPassword" hidden></div>
+                    </div>
+                <div class="n-form-actions">
+                    <span th:if="${blockPassword != null}" class="n-btn-tooltip-wrap" th:data-tooltip="${blockPassword}">
+                        <button type="button" class="n-btn n-btn-secondary" disabled>초기 비밀번호 지정</button>
+                    </span>
+                    <button th:unless="${blockPassword != null}" type="submit" class="n-btn n-btn-secondary">초기 비밀번호 지정</button>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>
+
+<!--/* 확인 모달 한 벌을 두 동작이 함께 쓴다 — 제목 · 문구 · 버튼은 security/user-detail.js 가 동작마다 채운다. */-->
+<div th:replace="~{fragments/management/confirm-soft-delete :: confirmSoftDeleteModal('confirmUserAction')}"></div>
+<script th:src="@{/management/common/confirm-modal-base.js}"></script>
+<script th:src="@{/security/user-detail.js}"></script>
+<script th:src="@{/global/password-toggle.js}"></script>
+</body>
+</html>

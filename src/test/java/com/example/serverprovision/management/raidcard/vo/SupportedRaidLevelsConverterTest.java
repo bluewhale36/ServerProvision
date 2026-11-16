@@ -53,4 +53,16 @@ class SupportedRaidLevelsConverterTest {
 		assertThatThrownBy(() -> converter.convertToDatabaseColumn(null))
 				.isInstanceOf(IllegalStateException.class);
 	}
+
+	@Test
+	@DisplayName("R17-2 — 레벨 8개 전부의 CSV 가 컬럼 길이(64) 안이고 왕복한다")
+	void roundTrip_allLevelsFitColumn() {
+		SupportedRaidLevels all = SupportedRaidLevels.of(List.of(RaidLevel.values()));
+
+		String column = converter.convertToDatabaseColumn(all);
+
+		assertThat(column).isEqualTo("RAID0,RAID1,RAID5,RAID6,RAID10,RAID00,RAID50,RAID60");
+		assertThat(column.length()).isLessThanOrEqualTo(64);
+		assertThat(converter.convertToEntityAttribute(column)).isEqualTo(all);
+	}
 }

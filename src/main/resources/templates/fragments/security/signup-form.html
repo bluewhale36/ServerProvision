@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
-  S18 — 가입 폼 조각. 부트스트랩(최초 관리자) 화면과 관리자의 사용자 등록 화면이 같은 폼을 쓴다(D-13 · 마크업 복붙 금지).
-  Model: signUpForm(SignUpRequest) · signupMode(SignupMode — requiresRoleSelection 으로 역할 표 · 문구 분기) · roleOptions
-  관리자 모드는 "초기 비밀번호" 를 정하고, 만들어진 계정은 첫 로그인에서 변경을 요구받는다(D-14).
+  S18 — 가입 폼 조각. 부트스트랩(최초 관리자) 화면과 사용자 관리의 사용자 추가 화면(MA8)이 같은 폼을 쓴다(D-13 · 마크업 복붙 금지).
+  Model: signUpForm(SignUpRequest) · signupMode(SignupMode — requiresRoleSelection 으로 등급 선택 · 문구 분기, formAction 으로 제출 대상) · roleOptions
+  관리 생성은 "초기 비밀번호" 를 정하고, 만들어진 계정은 첫 로그인에서 변경을 요구받는다(D-14).
 -->
 <body>
 <th:block th:fragment="signupForm">
-    <form th:action="@{/signup}" th:object="${signUpForm}" method="post" novalidate
+    <form th:action="@{${signupMode.formAction()}}" th:object="${signUpForm}" method="post" novalidate
           data-native-submit="검증 실패 시 같은 뷰를 다시 렌더한다(BindingResult · 필드 오류)">
 
         <div class="n-form-group">
@@ -60,21 +60,22 @@
             <div class="n-error" th:if="${#fields.hasErrors('passwordConfirmed')}" th:errors="*{passwordConfirmed}"></div>
         </div>
 
+        <!--/* MA8 D-3 — 등급은 하나만 고른다. 계층이 일렬이라 높은 등급이 낮은 등급의 권한을 함께 뜻한다. */-->
         <div class="n-form-group" th:if="${signupMode.requiresRoleSelection()}"
-             th:classappend="${#fields.hasErrors('roles')} ? 'has-error'">
-            <span class="n-label strong">역할</span>
-            <div class="n-hint">관리자는 사용자 권한을 함께 가집니다. 관리자를 고르면 사용자 권한도 부여됩니다.</div>
-            <div class="n-option-row" th:each="role : ${roleOptions}">
-                <input type="checkbox" th:field="*{roles}" th:value="${role.name()}" th:id="|role-${role.name()}|">
-                <label th:for="|role-${role.name()}|">
-                    <span class="n-option-title" th:text="${role.description}">관리자</span>
+             th:classappend="${#fields.hasErrors('role')} ? 'has-error'">
+            <span class="n-label strong">권한 등급</span>
+            <div class="n-hint">높은 등급은 낮은 등급의 권한을 함께 가집니다. 최고 관리자만 사용자 관리를 할 수 있습니다.</div>
+            <div class="n-option-row" th:each="option : ${roleOptions}">
+                <input type="radio" th:field="*{role}" th:value="${option.name()}" th:id="|role-${option.name()}|">
+                <label th:for="|role-${option.name()}|">
+                    <span class="n-option-title" th:text="${option.description}">관리자</span>
                 </label>
             </div>
-            <div class="n-error" th:if="${#fields.hasErrors('roles')}" th:errors="*{roles}"></div>
+            <div class="n-error" th:if="${#fields.hasErrors('role')}" th:errors="*{role}"></div>
         </div>
 
         <div class="n-form-actions">
-            <a th:if="${signupMode.requiresRoleSelection()}" th:href="@{/provisioning/server}" class="n-btn n-btn-secondary">취소</a>
+            <a th:if="${signupMode.requiresRoleSelection()}" th:href="@{/users}" class="n-btn n-btn-secondary">취소</a>
             <button type="submit" class="n-btn n-btn-primary"
                     th:classappend="${signupMode.requiresRoleSelection()} ? '' : 'n-btn-block'"
                     th:text="${signupMode.requiresRoleSelection()} ? '사용자 등록' : '관리자 등록'">등록</button>

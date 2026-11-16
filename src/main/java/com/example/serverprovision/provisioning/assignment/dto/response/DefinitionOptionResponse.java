@@ -13,13 +13,13 @@ import com.example.serverprovision.provisioning.setting.dto.response.SettingSumm
  * 거절할 때의 메시지와 같은 문자열이라 화면과 서버가 어긋날 수 없다.</p>
  *
  * @param blockReason 붙일 수 있으면 {@code null}
- * @param unverified  정의서가 보드를 요구하는데 서버 하드웨어가 아직 수집 전이라 대조하지 못했는가.
- *                    막지는 않되 조용히 넘어가지 않도록 화면이 표식을 단다
+ * @param unverifiedReason 정의서가 요구하는 하드웨어(보드 · RAID 카드)를 이 서버에서 대조하지 못한 사유 — 모두 대조했으면
+ *                         {@code null}. 막지는 않되 조용히 넘어가지 않도록 화면이 표식과 이 문구를 단다(R20)
  */
 public record DefinitionOptionResponse(
         SettingSummaryResponse definition,
         String blockReason,
-        boolean unverified
+        String unverifiedReason
 ) {
 
     public Long id() {
@@ -36,5 +36,9 @@ public record DefinitionOptionResponse(
 
     public boolean blocked() {
         return blockReason != null;
+    }
+
+    public boolean unverified() {
+        return unverifiedReason != null;
     }
 }

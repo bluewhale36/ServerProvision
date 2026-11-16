@@ -55,6 +55,7 @@ import static org.mockito.Mockito.verify;
 class AssignmentCommandServiceEligibilityTest {
 
     @Mock com.example.serverprovision.provisioning.biossetting.service.BiosTemplateStaleInspector staleInspector;   // E3-3 — 기본 mock = 정합(null)
+    @Mock RaidCardRequirementReader raidCardReader;   // R20 — 기본 mock = RAID 단계 없음 · 인벤토리 미수집
 
     @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @Mock SettingDefinitionRepository definitionRepository;
@@ -200,5 +201,58 @@ class AssignmentCommandServiceEligibilityTest {
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         assertThat(service.assign(GUEST, DEF_ID).definitionName()).isEqualTo("bios-ms03");
+    }
+
+    // ─────────────────────────── RAID 카드(R20) ───────────────────────────
+
+    /** RAID 구성 단계가 카드 2 번을 지정한 정의서(보드 요구 없음). */
+    private SettingDefinition raidCardDefinition() {
+        var raid = new com.example.serverprovision.provisioning.setting.dto.request.RaidConfigurationRequest(
+                2L, List.of(), com.example.serverprovision.provisioning.setting.dto.request.VolumePriorityRuleRequest.defaults(), null);
+        SettingDefinition definition = SettingDefinition.builder()
+                .name("db-raid")
+                .processes(List.of(new SettingProcess(new ProcessPayload(raid))))
+                .build();
+        ReflectionTestUtils.setField(definition, "id", DEF_ID);
+        return definition;
+    }
+
+    private static com.example.serverprovision.execution.engine.raid.RaidInventory inventory(String subsystem, String model) {
+        return new com.example.serverprovision.execution.engine.raid.RaidInventory(
+                new com.example.serverprovision.execution.engine.raid.DetectedRaidCard(null, subsystem, model, "1.0"),
+                List.of(), List.of());
+    }
+
+    @Test
+    @DisplayName("R20 assign 차단 — 지정 카드와 감지 카드가 다르면 409(DefinitionHardwareMismatchException), 스냅샷 저장 없음")
+    void assign_raidCardMismatch_rejected() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(server(false)));
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(raidCardDefinition()));
+        givenServerBoard(3L, "MS03-CE0");
+        given(raidCardReader.requiredOf(org.mockito.ArgumentMatchers.<List<com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest>>any()))
+                .willReturn(new com.example.serverprovision.provisioning.assignment.vo.RequiredRaidCard(2L, "1000:9361", "MegaRAID 9361-8i", true));
+        given(raidCardReader.inventoryOf(any())).willReturn(inventory("1458:3008", "SAS3008"));
+
+        assertThatThrownBy(() -> service.assign(GUEST, DEF_ID))
+                .isInstanceOf(DefinitionHardwareMismatchException.class)
+                .hasMessageContaining("MegaRAID 9361-8i, 1000:9361")
+                .hasMessageContaining("SAS3008, 1458:3008");
+
+        verify(assignmentRepository, never()).save(any(SettingAssignmentSnapshot.class));
+    }
+
+    @Test
+    @DisplayName("R20 assign 통과 — RAID 인벤토리 미수집이면 막지 않는다(대조 전)")
+    void assign_raidInventoryUncollected_passes() {
+        given(guestServerRepository.findById(GUEST)).willReturn(Optional.of(server(false)));
+        given(definitionRepository.findByIdAndIsDeletedFalse(DEF_ID)).willReturn(Optional.of(raidCardDefinition()));
+        givenServerBoard(3L, "MS03-CE0");
+        given(raidCardReader.requiredOf(org.mockito.ArgumentMatchers.<List<com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest>>any()))
+                .willReturn(new com.example.serverprovision.provisioning.assignment.vo.RequiredRaidCard(2L, "1000:9361", "MegaRAID 9361-8i", true));
+        given(assignmentRepository.save(any(SettingAssignmentSnapshot.class))).willAnswer(inv -> inv.getArgument(0));
+
+        service.assign(GUEST, DEF_ID);
+
+        verify(assignmentRepository).save(any(SettingAssignmentSnapshot.class));
     }
 }

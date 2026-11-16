@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 @ControllerAdvice
 public class CurrentUserModelAdvice {
 
-	public record CurrentUser(String username, String name, boolean admin) {
+	public record CurrentUser(String username, String name, boolean superAdmin) {
 	}
 
 	@ModelAttribute("currentUser")
@@ -19,6 +19,6 @@ public class CurrentUserModelAdvice {
 		if (authentication == null || !(authentication.getPrincipal() instanceof UserDetails_Impl principal)) {
 			return null;
 		}
-		return new CurrentUser(principal.getUsername(), principal.displayName(), principal.isAdmin());
+		return new CurrentUser(principal.getUsername(), principal.displayName(), principal.isSuperAdmin());
 	}
 }

@@ -68,7 +68,7 @@ public record RequiredBoardModel(Long id, String name) {
         if (serverBoardModelId == null || id.equals(serverBoardModelId)) {
             return null;
         }
-        return "이 정의서는 메인보드 " + name + " 전용입니다 — 이 서버는 "
-                + (serverBoardModelName != null ? serverBoardModelName : "다른 보드") + " 입니다.";
+        return "본 게스트 서버의 메인보드(" + (serverBoardModelName != null ? serverBoardModelName : "다른 보드")
+                + ")와 정의서의 메인보드(" + name + ")가 호환되지 않습니다.";
     }
 }

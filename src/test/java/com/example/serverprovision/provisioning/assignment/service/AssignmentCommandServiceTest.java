@@ -62,6 +62,7 @@ import static org.mockito.Mockito.verify;
 class AssignmentCommandServiceTest {
 
     @Mock com.example.serverprovision.provisioning.biossetting.service.BiosTemplateStaleInspector staleInspector;   // E3-3 — 기본 mock = 정합(null)
+    @Mock RaidCardRequirementReader raidCardReader;   // R20 — 기본 mock = RAID 단계 없음 · 인벤토리 미수집
 
     @Mock SettingAssignmentSnapshotRepository assignmentRepository;
     @Mock SettingDefinitionRepository definitionRepository;

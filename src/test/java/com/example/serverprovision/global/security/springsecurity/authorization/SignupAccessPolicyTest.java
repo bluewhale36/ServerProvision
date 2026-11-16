@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-/** S18 D-12 — /signup 인가: 관리자 부재면 누구나, 있으면 ROLE_ADMIN 만. */
+/** S18 D-12 · MA8 — /signup 인가: 관리자 부재면 누구나, 그 뒤에는 아무도(계정 생성은 사용자 관리로 통합). */
 @ExtendWith(MockitoExtension.class)
 class SignupAccessPolicyTest {
 
@@ -43,11 +43,12 @@ class SignupAccessPolicyTest {
 	}
 
 	@Test
-	@DisplayName("부트스트랩 닫힘 — 익명 거부 · ROLE_USER 거부 · ROLE_ADMIN 허용")
-	void closed_adminOnly() {
+	@DisplayName("부트스트랩 닫힘(MA8) — 익명 · ROLE_USER · ROLE_ADMIN · ROLE_SUPER_ADMIN 모두 거부")
+	void closed_nobody() {
 		given(usersService.bootstrapOpen()).willReturn(false);
 		assertThat(policy.authorize(SignupAccessPolicyTest::anonymous, context).isGranted()).isFalse();
 		assertThat(policy.authorize(() -> with("ROLE_USER"), context).isGranted()).isFalse();
-		assertThat(policy.authorize(() -> with("ROLE_ADMIN", "ROLE_USER"), context).isGranted()).isTrue();
+		assertThat(policy.authorize(() -> with("ROLE_ADMIN", "ROLE_USER"), context).isGranted()).isFalse();
+		assertThat(policy.authorize(() -> with("ROLE_SUPER_ADMIN", "ROLE_ADMIN", "ROLE_USER"), context).isGranted()).isFalse();
 	}
 }

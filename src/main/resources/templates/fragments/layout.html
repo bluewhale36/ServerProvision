@@ -14,7 +14,7 @@
         Maintenance  : 'reconciliation' | 'quarantine' | 'trash'
         System       : 'system-asset' | 'pxe-infra'
         Provisioning : 'setting' | 'server'
-        Account      : 'users' | 'password'   (S18 — 사이드바 계정 영역)
+        Account      : 'users' | 'password'   (S18 — 사이드바 계정 영역 · MA8 에서 'users' = 사용자 관리)
     · 구현 완료 메뉴는 <a>, 미구현은 <span aria-disabled="true"> 로 남겨
       페이지가 완성될 때 태그만 교체한다.
     · 오른쪽 끝에는 서류가방 아이콘(.n-nav-bgjob) 과 드롭다운 패널이 있어
@@ -153,10 +153,10 @@
         <a th:href="@{/password/change}"
            class="n-nav-link"
            th:classappend="${activePage == 'password'} ? ' active'">비밀번호 변경</a>
-        <a th:if="${currentUser.admin}"
-           th:href="@{/signup}"
+        <a th:if="${currentUser.superAdmin}"
+           th:href="@{/users}"
            class="n-nav-link"
-           th:classappend="${activePage == 'users'} ? ' active'">사용자 등록</a>
+           th:classappend="${activePage == 'users'} ? ' active'">사용자 관리</a>
         <form th:action="@{/logout}" method="post" class="n-nav-form"
               data-native-submit="Spring Security 의 로그아웃 필터가 서블릿 앞에서 처리한다">
             <button type="submit" class="n-nav-link n-nav-link-button">로그아웃</button>

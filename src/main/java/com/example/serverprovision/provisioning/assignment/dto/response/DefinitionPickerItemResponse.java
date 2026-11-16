@@ -39,8 +39,13 @@ public record DefinitionPickerItemResponse(
         return option.deprecated();
     }
 
-    /** 보드를 요구하는데 서버 하드웨어가 아직 수집 전이라 대조하지 못했는가 — 막지 않되 표식을 단다. */
+    /** 요구 하드웨어(보드 · RAID 카드)를 대조하지 못했는가 — 막지 않되 표식을 단다. */
     public boolean unverified() {
         return option.unverified();
+    }
+
+    /** 대조하지 못한 사유 — 펼침의 경고 상자가 그린다(R20). */
+    public String unverifiedReason() {
+        return option.unverifiedReason();
     }
 }
