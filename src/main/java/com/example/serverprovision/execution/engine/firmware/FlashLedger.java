@@ -34,7 +34,7 @@ public class FlashLedger {
     public static final String POWER_OFF = "power-off";
     /** 전원 투입 사건(E2-4 Q4) — detail 에 무장(BootSourceOverride) 결과가 함께 실린다. */
     public static final String POWER_ON = "power-on";
-    /** PXE 미도착 재무장 사건(HF17) — 켜진 뒤 게스트가 오지 않아 Once 를 다시 세워 재시작했다. 복귀 기점도 이 시각으로 옮긴다. */
+    /** PXE 미도착 재무장 사건(HF17) — HF24 로 재무장을 없애 새로 쓰지 않는다. 이미 남은 과거 행을 phase 수준 사건으로 읽기 위해 둔다. */
     public static final String PXE_REARM = "pxe-rearm";
 
     /**
@@ -63,7 +63,7 @@ public class FlashLedger {
 
     /**
      * 전원 사건의 단발 기록(E2-4 Q4) — 커서 축 step 자리에 남고 사유 코드가 구분한다. 축 결과가
-     * 아니므로 {@link #isPhaseLevel} 이 가린다. detail 에는 전원 결과 메시지(무장 요약 포함)가 실린다.
+     * 아니므로 {@link #isPhaseLevel} 이 가린다. detail 에는 전원 결과 메시지가 실린다.
      */
     public void instantPower(GuestServer server, com.example.serverprovision.execution.enums.ProvisioningPhaseStep step,
                              String reason, String detail, LocalDateTime now) {

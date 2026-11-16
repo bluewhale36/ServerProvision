@@ -177,7 +177,7 @@ public record GuestServerDetailResponse(
     }
 
     /**
-     * BMC 조작 대상(HF15-1) — 전원 제어 REST 와 [재시도 후 네트워크 부팅] 이 같은 조립을 쓴다. 상세 행이 없거나 BMC 미검출이면
+     * BMC 조작 대상(HF15-1) — 전원 제어 REST 와 [재시도 후 전원 켜기] 이 같은 조립을 쓴다. 상세 행이 없거나 BMC 미검출이면
      * 빈 대상(서비스가 "지원 안 함" 으로 답한다).
      */
     public com.example.serverprovision.global.redfish.RedfishTarget redfishTarget() {

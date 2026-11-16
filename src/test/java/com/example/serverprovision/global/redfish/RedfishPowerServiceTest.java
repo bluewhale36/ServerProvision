@@ -127,7 +127,7 @@ class RedfishPowerServiceTest {
     void verifyHappy() {
         given(client.postForTask(anyString(), any(), anyString(), any())).willReturn(Optional.empty());
         given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(system("On"));
-        PowerControlResult result = service.powerOnAndVerify(TARGET, NextBoot.AS_CONFIGURED);
+        PowerControlResult result = service.powerOnAndVerify(TARGET);
         assertThat(result.kind()).isEqualTo(PowerControlResult.Kind.VERIFIED);
         assertThat(result.powerState()).isEqualTo(RedfishPowerState.ON);
     }
@@ -141,7 +141,7 @@ class RedfishPowerServiceTest {
                 .given(client).postForTask(anyString(), any(), eq(RedfishPowerService.RESET_PATH), any());
         given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH)))
                 .willAnswer(inv -> resets.get() >= 2 ? system("On") : system("Off"));
-        PowerControlResult fallback = service.powerOnAndVerify(TARGET, NextBoot.AS_CONFIGURED);
+        PowerControlResult fallback = service.powerOnAndVerify(TARGET);
         assertThat(fallback.kind()).isEqualTo(PowerControlResult.Kind.VERIFIED);
         assertThat(fallback.message()).contains("PowerCycle");
         assertThat(resets.get()).isEqualTo(2); // ON 1회 + PowerCycle 1회 — 폴백은 한 번만
@@ -149,147 +149,49 @@ class RedfishPowerServiceTest {
         // 폴백 실패 — 끝까지 Off
         resets.set(0);
         given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(system("Off"));
-        PowerControlResult failed = service.powerOnAndVerify(TARGET, NextBoot.AS_CONFIGURED);
+        PowerControlResult failed = service.powerOnAndVerify(TARGET);
         assertThat(failed.kind()).isEqualTo(PowerControlResult.Kind.FAILED);
         assertThat(failed.message()).contains("수동 개입");
         assertThat(resets.get()).isEqualTo(2);
     }
 
-    // ---- E2.5 — 다음 부팅 무장 ------------------------------------------------
-
     @Test
-    @DisplayName("PXE_ONCE — 무장 PATCH 가 Reset 보다 먼저 나가고, 되읽기 일치면 '반영 확인' 접두")
-    void pxeOnce_armsBeforeResetApplied() {
-        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(JSON.readTree(
-                "{\"PowerState\":\"On\",\"Boot\":{\"BootSourceOverrideEnabled\":\"Once\",\"BootSourceOverrideTarget\":\"Pxe\"}}"));
-        given(client.postForTask(anyString(), any(), anyString(), any())).willReturn(Optional.empty());
-
-        PowerControlResult result = service.reset(TARGET, RedfishResetType.FORCE_RESTART, NextBoot.PXE_ONCE);
-
-        assertThat(result.kind()).isEqualTo(PowerControlResult.Kind.SENT);
-        assertThat(result.message()).contains("반영 확인");
-        InOrder order = inOrder(client);
-        order.verify(client).patchJsonRefreshingEtag(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH),
-                eq(RedfishPowerService.SYSTEM_PATH), eq(NextBoot.OVERRIDE_BODY));
-        order.verify(client).postForTask(anyString(), any(), eq(RedfishPowerService.RESET_PATH), any());
-    }
-
-    @Test
-    @DisplayName("PXE_ONCE — 리소스 단위 거절은 best effort: Reset 은 나가고 메시지에 '거절' 접두(D-4)")
-    void pxeOnce_rejectedStillResets() {
-        willThrow(new RedfishRequestException(RedfishError.PROTOCOL, "PATCH /redfish/v1/Systems/Self — 거절(400)", null))
-                .given(client).patchJsonRefreshingEtag(anyString(), any(), anyString(), anyString(), any());
-        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(system("Off"));
-        given(client.postForTask(anyString(), any(), anyString(), any())).willReturn(Optional.empty());
-
-        PowerControlResult result = service.reset(TARGET, RedfishResetType.ON, NextBoot.PXE_ONCE);
-
-        assertThat(result.kind()).isEqualTo(PowerControlResult.Kind.SENT);
-        assertThat(result.message()).contains("거절").contains("부트 순서대로");
-        verify(client).postForTask(anyString(), any(), eq(RedfishPowerService.RESET_PATH), any());
-    }
-
-    @Test
-    @DisplayName("PXE_ONCE — 되읽기 불일치는 '미확인(pending 경유 가능)' 접두로 눕고 Reset 은 계속")
-    void pxeOnce_unconfirmed() {
-        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(JSON.readTree(
-                "{\"PowerState\":\"Off\",\"Boot\":{\"BootSourceOverrideEnabled\":\"Disabled\"}}"));
-        given(client.postForTask(anyString(), any(), anyString(), any())).willReturn(Optional.empty());
-
-        PowerControlResult result = service.reset(TARGET, RedfishResetType.ON, NextBoot.PXE_ONCE);
-
-        assertThat(result.message()).contains("미확인");
-    }
-
-    @Test
-    @DisplayName("HF17 · armBootOverride — 전원은 움직이지 않고 Once 본문 PATCH 만 · 라벨은 한 번(O-1) · 거절은 FAILED")
-    void armBootOverride_patchOnly() {
-        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(JSON.readTree(
-                "{\"PowerState\":\"On\",\"Boot\":{\"BootSourceOverrideEnabled\":\"Once\",\"BootSourceOverrideTarget\":\"Pxe\"}}"));
-
-        PowerControlResult armed = service.armBootOverride(TARGET, NextBoot.PXE_ONCE);
-
-        assertThat(armed.kind()).isEqualTo(PowerControlResult.Kind.SENT);
-        assertThat(armed.message()).isEqualTo("다음 부팅 PXE 강제 : 반영 확인 · 전원은 움직이지 않았습니다.");
-        verify(client).patchJsonRefreshingEtag(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH),
-                eq(RedfishPowerService.SYSTEM_PATH), eq(NextBoot.OVERRIDE_BODY));
-        verify(client, never()).postForTask(anyString(), any(), anyString(), any());
-
-        willThrow(new RedfishRequestException(RedfishError.PROTOCOL, "PATCH 거절(400)", null))
-                .given(client).patchJsonRefreshingEtag(anyString(), any(), anyString(), anyString(), any());
-        assertThat(service.armBootOverride(TARGET, NextBoot.PXE_ONCE).kind()).isEqualTo(PowerControlResult.Kind.FAILED);
-    }
-
-    @Test
-    @DisplayName("HF15-1 · HF17 · networkBoot — 꺼져 있으면 On, 켜져 있으면 ForceRestart 를 Once 무장과 함께 발행(Continuous 는 어디에도 없다)")
-    void networkBoot_choosesResetByState() {
-        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(JSON.readTree(
-                "{\"PowerState\":\"Off\",\"Boot\":{\"BootSourceOverrideEnabled\":\"Once\",\"BootSourceOverrideTarget\":\"Pxe\"}}"));
-        given(client.postForTask(anyString(), any(), anyString(), any())).willReturn(Optional.empty());
-
-        PowerControlResult off = service.networkBoot(TARGET);
-        assertThat(off.message()).contains("다음 부팅 PXE 강제 : 반영 확인").contains("켜기(On)");
-        verify(client).postForTask(anyString(), any(), eq(RedfishPowerService.RESET_PATH), eq(java.util.Map.of("ResetType", "On")));
-
-        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(JSON.readTree(
-                "{\"PowerState\":\"On\",\"Boot\":{\"BootSourceOverrideEnabled\":\"Once\",\"BootSourceOverrideTarget\":\"Pxe\"}}"));
-        PowerControlResult on = service.networkBoot(TARGET);
-        assertThat(on.message()).contains("재시작(ForceRestart)");
-        verify(client).postForTask(anyString(), any(), eq(RedfishPowerService.RESET_PATH), eq(java.util.Map.of("ResetType", "ForceRestart")));
-        verify(client, times(2)).patchJsonRefreshingEtag(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH),
-                eq(RedfishPowerService.SYSTEM_PATH), eq(NextBoot.OVERRIDE_BODY));
-    }
-
-    @Test
-    @DisplayName("PXE_ONCE — 무장 중 연결 불가는 FAILED 로 눕고 Reset 을 내지 않는다")
-    void pxeOnce_connectFailureBlocksReset() {
-        willThrow(new RedfishRequestException(RedfishError.CONNECT_FAILED, "연결 불가", null))
-                .given(client).patchJsonRefreshingEtag(anyString(), any(), anyString(), anyString(), any());
-
-        PowerControlResult result = service.reset(TARGET, RedfishResetType.ON, NextBoot.PXE_ONCE);
-
-        assertThat(result.kind()).isEqualTo(PowerControlResult.Kind.FAILED);
-        verify(client, never()).postForTask(anyString(), any(), anyString(), any());
-    }
-
-    @Test
-    @DisplayName("PXE_ONCE — 무장 401 은 다음 자격증명 후보로 폴백해 PATCH · Reset 을 그 후보로 잇는다(P1 공유)")
-    void pxeOnce_authFallbackDuringArm() {
-        willAnswer(inv -> {
-            BmcCredentials credentials = inv.getArgument(1);
-            if ("standard-pw".equals(credentials.password())) {
-                throw new RedfishRequestException(RedfishError.AUTH_FAILED, "401", null);
-            }
-            return null;
-        }).given(client).patchJsonRefreshingEtag(anyString(), any(BmcCredentials.class), anyString(), anyString(), any());
-        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(JSON.readTree(
-                "{\"PowerState\":\"Off\",\"Boot\":{\"BootSourceOverrideEnabled\":\"Once\",\"BootSourceOverrideTarget\":\"Pxe\"}}"));
-        given(client.postForTask(anyString(), any(), anyString(), any())).willReturn(Optional.empty());
-
-        PowerControlResult result = service.reset(TARGET, RedfishResetType.ON, NextBoot.PXE_ONCE);
-
-        assertThat(result.kind()).isEqualTo(PowerControlResult.Kind.SENT);
-        assertThat(result.message()).contains("반영 확인");
-        verify(client, times(2)).patchJsonRefreshingEtag(anyString(), any(), anyString(), anyString(), any());
-    }
-
-    @Test
-    @DisplayName("PXE_ONCE — powerOnAndVerify 는 PowerCycle 폴백 직전 다시 무장한다(Once 소진 대비, D-5)")
-    void pxeOnce_reArmsBeforePowerCycleFallback() {
+    @DisplayName("HF24 · powerOnAndVerify — PowerCycle 폴백까지 가도 BootSourceOverride PATCH 는 0건")
+    void verifyNeverPatchesBootOverride() {
         AtomicInteger resets = new AtomicInteger();
         willAnswer(inv -> { resets.incrementAndGet(); return Optional.empty(); })
                 .given(client).postForTask(anyString(), any(), eq(RedfishPowerService.RESET_PATH), any());
         given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH)))
                 .willAnswer(inv -> resets.get() >= 2 ? system("On") : system("Off"));
 
-        service.powerOnAndVerify(TARGET, NextBoot.PXE_ONCE);
+        PowerControlResult result = service.powerOnAndVerify(TARGET);
 
-        verify(client, times(2)).patchJsonRefreshingEtag(anyString(), any(), anyString(), anyString(), any());
+        assertThat(result.kind()).isEqualTo(PowerControlResult.Kind.VERIFIED);
+        verify(client, never()).patchJsonRefreshingEtag(anyString(), any(), anyString(), anyString(), any());
+    }
+
+    // ---- HF24 — 다음 부팅 무장 없음 ------------------------------------------
+
+    @Test
+    @DisplayName("HF24 · powerOnOrRestart — 꺼져 있으면 On, 켜져 있으면 ForceRestart 만 발행하고 PATCH 는 0건")
+    void powerOnOrRestart_choosesResetByStateWithoutArming() {
+        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(system("Off"));
+        given(client.postForTask(anyString(), any(), anyString(), any())).willReturn(Optional.empty());
+
+        PowerControlResult off = service.powerOnOrRestart(TARGET);
+        assertThat(off.message()).startsWith("켜기(On)");
+        verify(client).postForTask(anyString(), any(), eq(RedfishPowerService.RESET_PATH), eq(java.util.Map.of("ResetType", "On")));
+
+        given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(system("On"));
+        PowerControlResult on = service.powerOnOrRestart(TARGET);
+        assertThat(on.message()).startsWith("재시작(ForceRestart)");
+        verify(client).postForTask(anyString(), any(), eq(RedfishPowerService.RESET_PATH), eq(java.util.Map.of("ResetType", "ForceRestart")));
+        verify(client, never()).patchJsonRefreshingEtag(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test
-    @DisplayName("AS_CONFIGURED — 화면 경로는 PATCH 0건 · 문구 그대로(D-6 · D-9)")
-    void asConfigured_noPatch() {
+    @DisplayName("reset — PATCH 0건 · 문구 그대로(D-6 · D-9, HF24 이후 모든 경로)")
+    void reset_noPatch() {
         given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(system("Off"));
         given(client.postForTask(anyString(), any(), anyString(), any())).willReturn(Optional.empty());
 

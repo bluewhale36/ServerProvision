@@ -55,6 +55,6 @@ public class GuestServerPowerRestController {
     }
 
     private RedfishTarget targetOf(GuestServerDetailResponse server) {
-        return server.redfishTarget();   // 조립 SSOT 는 응답 DTO(HF15-1) — [재시도 후 네트워크 부팅] 과 공유
+        return server.redfishTarget();   // 조립 SSOT 는 응답 DTO(HF15-1) — [재시도 후 전원 켜기] 과 공유
     }
 }

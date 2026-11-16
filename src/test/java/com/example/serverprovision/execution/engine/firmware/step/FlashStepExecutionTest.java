@@ -23,7 +23,6 @@ import com.example.serverprovision.execution.service.BmcIdentityProbe;
 import com.example.serverprovision.execution.service.FirmwareImageTokenRegistry;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.execution.vo.MacAddressVO;
-import com.example.serverprovision.global.redfish.NextBoot;
 import com.example.serverprovision.global.redfish.PowerControlResult;
 import com.example.serverprovision.global.redfish.RedfishPowerService;
 import com.example.serverprovision.global.redfish.RedfishPowerState;
@@ -299,7 +298,7 @@ class FlashStepExecutionTest {
         new PowerOnStep(guard, powerService, timeoutPolicy, ledger)
                 .execute(context(flashing(FirmwareAxis.BMC), closedBoth(), ready()));
 
-        verify(powerService, never()).powerOnAndVerify(any(), any());
+        verify(powerService, never()).powerOnAndVerify(any());
     }
 
     @Test
@@ -449,56 +448,42 @@ class FlashStepExecutionTest {
         verify(registryPort, never()).captureIfAbsent(any(), any());
     }
 
-    // ---- E2.5 — 전원 투입 무장 · 재시도 기점 ------------------------------------
+    // ---- 전원 투입 · 재시도 기점 -------------------------------------------------
 
     @Test
-    @DisplayName("전원 — 꺼져 있으면 다음 부팅을 PXE(Once) 로 무장한 켜기를 낸다(E2.5 D-6 · HF17 Once 회귀)")
-    void powerOn_armsPxeOnce() {
+    @DisplayName("HF24 · 전원 — 꺼져 있으면 무장 없이 켜기만 낸다(재시작 · 재시도 전원 경로는 쓰지 않는다)")
+    void powerOn_offPowersOnWithoutArming() {
         given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.OFF, "Off"));
-        given(powerService.powerOnAndVerify(any(), any())).willReturn(PowerControlResult.verified("켜짐"));
+        given(powerService.powerOnAndVerify(any())).willReturn(PowerControlResult.verified("켜짐"));
 
         new PowerOnStep(guard, powerService, timeoutPolicy, ledger)
                 .execute(context(flashing(FirmwareAxis.BMC), closedBoth(), ready()));
 
-        verify(powerService).powerOnAndVerify(any(), eq(NextBoot.PXE_ONCE));
+        verify(powerService).powerOnAndVerify(any());
+        verify(powerService, never()).powerOnOrRestart(any());
+        verify(powerService, never()).reset(any(), any());
     }
 
-    // ---- HF17 — 전원 투입 뒤 미도착 재무장 ----------------------------------------
-
     @Test
-    @DisplayName("전원 — 켜졌는데 재무장 지연(4분)이 지나도 게스트가 없으면 Once 를 다시 세워 재시작하고 pxe-rearm 사건 행을 남긴다")
-    void powerOn_rearmsWhenOnButNotReturned() {
+    @DisplayName("HF24 · 전원 — 켜진 채 옛 재무장 지연(4분)을 넘겨도 전원 명령 없이 복귀 시한까지 기다린다")
+    void powerOn_onButNotReturnedWaitsWithoutPowerCommand() {
         given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "ON"));
-        given(powerService.networkBoot(any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON,
-                "다음 부팅 PXE 강제 : 반영 확인 · 재시작(ForceRestart) 발행"));
         ProvisioningProgress progress = flashing(FirmwareAxis.BMC);
         FlashContext late = new FlashContext(server(), progress, detail(), closedBoth(), ready(), provider,
-                T.plusMinutes(6));   // 축 종료(T+1) 뒤 5분 — 재무장 지연 4분을 넘었다
+                T.plusMinutes(6));   // 축 종료(T+1) 뒤 5분 — HF17 이었다면 재무장했을 시점
 
         new PowerOnStep(guard, powerService, timeoutPolicy, ledger).execute(late);
 
-        verify(powerService).networkBoot(any());
-        verify(powerService, never()).powerOnAndVerify(any(), any());
-        assertThat(metaOf(ProvisioningStatus.SUCCEEDED)).contains(FlashLedger.PXE_REARM).contains("ForceRestart");
+        verify(powerService, never()).powerOnAndVerify(any());
+        verify(powerService, never()).powerOnOrRestart(any());
+        verify(powerService, never()).reset(any(), any());
+        verify(recorder, never()).recordInstant(any(), any(), any(), any(), any());
         assertThat(progress.isFailed()).isFalse();
     }
 
     @Test
-    @DisplayName("전원 — 켜진 뒤 재무장 지연 전에는 기다리기만 한다")
-    void powerOn_waitsBeforeRearmDelay() {
-        given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "ON"));
-        FlashContext early = new FlashContext(server(), flashing(FirmwareAxis.BMC), detail(), closedBoth(), ready(), provider,
-                T.plusMinutes(3));   // 축 종료(T+1) 뒤 2분
-
-        new PowerOnStep(guard, powerService, timeoutPolicy, ledger).execute(early);
-
-        verify(powerService, never()).networkBoot(any());
-        verify(recorder, never()).recordInstant(any(), any(), any(), any(), any());
-    }
-
-    @Test
-    @DisplayName("전원 — 재무장은 복귀 대기 한 번에 한 번 · 사건 행이 새 복귀 기점이 되고 축 판정을 오염하지 않는다")
-    void powerOn_rearmOnlyOncePerWait() {
+    @DisplayName("전원 — HF24 이전에 남은 재무장 사건 행은 복귀 기점이 되고 축 판정을 오염하지 않는다(과거 행 판독)")
+    void powerOn_legacyRearmRowStillReadAsPhaseLevel() {
         given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "ON"));
         ProvisioningHistory rearm = ProvisioningHistory.instant(server(), FirmwareAxis.BMC.getStep(),
                 ProvisioningStatus.SUCCEEDED,
@@ -506,13 +491,10 @@ class FlashStepExecutionTest {
         java.util.List<ProvisioningHistory> all = new java.util.ArrayList<>(closedBoth());
         all.add(rearm);
         FlashContext afterRearm = new FlashContext(server(), flashing(FirmwareAxis.BMC), detail(), all, ready(), provider,
-                T.plusMinutes(12));   // 재무장(T+6) 뒤 6분 — 지연은 지났지만 이미 한 번 했다
+                T.plusMinutes(12));
 
         assertThat(afterRearm.returnWaitSince()).isEqualTo(T.plusMinutes(6));   // 기점 = 재무장 사건
-        assertThat(afterRearm.pxeRearmedSinceWait()).isTrue();
         assertThat(afterRearm.nextUntouchedAxis()).isEmpty();                   // 축 판정 오염 없음
-        new PowerOnStep(guard, powerService, timeoutPolicy, ledger).execute(afterRearm);
-        verify(powerService, never()).networkBoot(any());
     }
 
     @Test
@@ -522,7 +504,7 @@ class FlashStepExecutionTest {
         progress.markFailed(T.plusMinutes(25));
         progress.clearFailed(T.plusMinutes(25));   // 운영자 재시도 — lastTransitionAt 이 새 기점이 된다
         given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.OFF, "Off"));
-        given(powerService.powerOnAndVerify(any(), any())).willReturn(PowerControlResult.verified("켜짐"));
+        given(powerService.powerOnAndVerify(any())).willReturn(PowerControlResult.verified("켜짐"));
 
         FlashContext late = new FlashContext(server(), progress, detail(), closedBoth(), ready(), provider,
                 T.plusMinutes(30));   // 축 종료(T+1) 뒤 29분 — 종전 기점(축 종료)이면 즉시 만료였다
@@ -530,7 +512,7 @@ class FlashStepExecutionTest {
         new PowerOnStep(guard, powerService, timeoutPolicy, ledger).execute(late);
 
         assertThat(progress.isFailed()).isFalse();
-        verify(powerService).powerOnAndVerify(any(), any());
+        verify(powerService).powerOnAndVerify(any());
     }
 
     // ---- E2-4 — 전원 사건 기록 · 축 오염 방지 ----------------------------------
@@ -550,7 +532,7 @@ class FlashStepExecutionTest {
     @DisplayName("전원 — 투입이 검증되면 무장 결과를 detail 로 남기고, FAILED 면 사건 행이 없다")
     void powerOn_recordsEventOnlyWhenVerified() {
         given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.OFF, "Off"));
-        given(powerService.powerOnAndVerify(any(), any())).willReturn(
+        given(powerService.powerOnAndVerify(any())).willReturn(
                 PowerControlResult.verified("다음 부팅 PXE 강제 : 반영 확인 · 전원이 켜졌습니다"));
 
         new PowerOnStep(guard, powerService, timeoutPolicy, ledger)
@@ -563,7 +545,7 @@ class FlashStepExecutionTest {
 
         // FAILED — 전원이 움직이지 않았으니 사건이 없다(D-4).
         org.mockito.Mockito.reset(recorder);
-        given(powerService.powerOnAndVerify(any(), any())).willReturn(
+        given(powerService.powerOnAndVerify(any())).willReturn(
                 PowerControlResult.failed(RedfishPowerState.OFF, "수동 개입 필요"));
         new PowerOnStep(guard, powerService, timeoutPolicy, ledger)
                 .execute(context(flashing(FirmwareAxis.BMC), closedBoth(), ready()));

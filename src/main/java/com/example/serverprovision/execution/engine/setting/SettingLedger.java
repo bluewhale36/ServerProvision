@@ -141,32 +141,9 @@ public class SettingLedger {
 
     /** 재부팅을 걸었다 — 이 시각 이후의 게스트 접촉이 복귀 신호다. */
     public void markRebooted(ProvisioningHistory row, LocalDateTime at) {
-        markRebooted(row, at, null);
-    }
-
-    /** 무장 요약을 함께 남기는 변형(E2-4 Q4) — 별도 행 대신 이미 열린 행의 meta 가 사건을 든다. */
-    public void markRebooted(ProvisioningHistory row, LocalDateTime at, String armSummary) {
         Map<String, Object> meta = read(row);
         meta.put("rebootAt", at.toString());
-        if (armSummary != null && !armSummary.isBlank()) {
-            meta.put("arm", armSummary);
-        }
         row.updateRunningMeta(write(meta));
-    }
-
-    /** PXE 미도착 재무장(HF17)을 했다 — 행마다 한 번이므로 이 시각이 있으면 다시 세우지 않는다. 결과 요약도 함께 남긴다. */
-    public void markRearmed(ProvisioningHistory row, LocalDateTime at, String summary) {
-        Map<String, Object> meta = read(row);
-        meta.put("rearmAt", at.toString());
-        if (summary != null && !summary.isBlank()) {
-            meta.put("rearm", summary);
-        }
-        row.updateRunningMeta(write(meta));
-    }
-
-    public LocalDateTime rearmAtOf(ProvisioningHistory row) {
-        Object v = read(row).get("rearmAt");
-        return v == null ? null : LocalDateTime.parse(v.toString());
     }
 
     /** 열린 행을 결과로 닫는다 — target · rebootAt · pendingSeen 을 보존한 채 사유를 덧쓴다. */

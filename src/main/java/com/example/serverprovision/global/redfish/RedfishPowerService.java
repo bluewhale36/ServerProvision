@@ -6,9 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 
-import java.util.ArrayList;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -24,8 +22,8 @@ import java.util.Optional;
  * 자격증명은 {@link BmcCredentialsResolver} 후보를 순서대로 쓰고 401 에서만 다음 후보로 넘어간다(P1).
  * 모든 실패는 {@link PowerControlResult} 로 흡수된다 — 밖으로 던지는 예외가 없다(P4).
  *
- * <p>전원을 움직이는 호출은 발행 직전에 다음 부팅 의도({@link NextBoot})를 무장할 수 있다(E2.5) —
- * 무장 → 발행 순서가 서비스 안에 고정되어 호출자가 빠뜨릴 수 없다(D-1).</p>
+ * <p>HF24 — 다음 부팅을 무장하지 않는다(Once 오버라이드 · BootOrder 정착 없음). 오버라이드가 이 AMI BIOS 의 부트 순서를
+ * 흐트러뜨린 원인이었고, 빈 디스크의 서버는 공장 부트 순서대로 네트워크로 부팅한다.</p>
  */
 @Service
 public class RedfishPowerService {
@@ -53,67 +51,6 @@ public class RedfishPowerService {
         this.pollTimeout = Duration.ofMillis(pollTimeoutMs);
     }
 
-    static final String BOOT_OPTIONS_PATH = SYSTEM_PATH + "/BootOptions?$expand=.";
-
-    /**
-     * 부트 순서 정착(HF20) — 정책대로 {@code Boot.BootOrder} 를 PATCH 한다(If-Match 사다리 · 같으면 무동작). 종단 자리가
-     * {@link BootOrderPolicy#DISK_FIRST} 로 부른다. 무장 직전의 {@link BootOrderPolicy#SHELL_LAST} 는 서비스 안에서 자동이다.
-     */
-    public PowerControlResult settleBootOrder(RedfishTarget target, BootOrderPolicy policy) {
-        return guarded(target, credentials -> {
-            Settlement settlement = settle(policy, target, credentials);
-            return settlement.failed()
-                    ? PowerControlResult.failed(RedfishPowerState.UNKNOWN, policy.label() + " — " + settlement.detail())
-                    : PowerControlResult.sent(RedfishPowerState.UNKNOWN, policy.label() + " — " + settlement.detail());
-        });
-    }
-
-    /** 정착 한 번의 결과 — 적용(새 순서) · 무변경 · 실패(사유). 무장 경로는 이 값을 보지 않는다(best effort). */
-    record Settlement(boolean applied, boolean failed, String detail) {
-        static Settlement applied(List<String> order) {
-            return new Settlement(true, false, "BootOrder 를 " + String.join(",", order) + " 로 정착했습니다.");
-        }
-        static Settlement unchanged() {
-            return new Settlement(false, false, "이미 그 순서라 손대지 않았습니다.");
-        }
-        static Settlement failed(String reason) {
-            return new Settlement(false, true, "정착하지 못했습니다 : " + reason);
-        }
-    }
-
-    /**
-     * 정책 적용 한 번. 항목 · 순서를 읽어 정책이 바꾼 순서만 PATCH 한다. 401 은 되던져 자격증명 폴백 사다리가 돌게 하고,
-     * 그 밖의 Redfish 실패(미지원 BMC · 프로토콜)는 실패로 접어 무장 · 종단이 계속되게 한다.
-     */
-    private Settlement settle(BootOrderPolicy policy, RedfishTarget target, BmcCredentials credentials) {
-        try {
-            var system = redfishClient.getJson(target.bmcIp(), credentials, SYSTEM_PATH);
-            var options = redfishClient.getJson(target.bmcIp(), credentials, BOOT_OPTIONS_PATH);
-            if (system == null || options == null) {
-                return Settlement.failed("BMC 가 부트 항목을 내지 않았습니다");
-            }
-            List<BootEntries.Entry> entries = BootEntries.parse(options);
-            List<String> current = new ArrayList<>();
-            for (var node : system.path("Boot").path("BootOrder")) {
-                current.add(node.asText());
-            }
-            Optional<List<String>> arranged = policy.reorder(current, entries);
-            if (arranged.isEmpty()) {
-                return Settlement.unchanged();
-            }
-            redfishClient.patchJsonRefreshingEtag(target.bmcIp(), credentials, SYSTEM_PATH, SYSTEM_PATH,
-                    Map.of("Boot", Map.of("BootOrder", arranged.get())));
-            log.info("[boot-order] {} — {} : {} → {}", target.bmcIp(), policy.label(), current, arranged.get());
-            return Settlement.applied(arranged.get());
-        } catch (BmcRequestException e) {
-            if (e.authFailure()) {
-                throw e;
-            }
-            log.warn("[boot-order] {} — {} 실패(best effort) : {}", target.bmcIp(), policy.label(), e.getMessage());
-            return Settlement.failed(e.getMessage());
-        }
-    }
-
     /** 현재 전원 상태 조회 — 검증 주장이 없는 SENT. */
     public PowerControlResult powerState(RedfishTarget target) {
         return guarded(target, credentials -> {
@@ -122,50 +59,28 @@ public class RedfishPowerService {
         });
     }
 
-    /** 단발 발행 — Reset POST + Task 1 회 판독 + 직후 상태 1 회. 화면 경로 — 무장 없음(문구도 그대로, E2.5 D-6 · D-9). */
+    /** 단발 발행 — Reset POST + Task 1 회 판독 + 직후 상태 1 회. 화면 경로와 엔진의 설정 적용 재시작이 함께 쓴다. */
     public PowerControlResult reset(RedfishTarget target, RedfishResetType type) {
-        return reset(target, type, NextBoot.AS_CONFIGURED);
-    }
-
-    /** 단발 발행 + 다음 부팅 의도(E2.5) — 엔진의 재부팅 경로({@code BeginSettingStep})가 {@link NextBoot#PXE_ONCE} 로 부른다. */
-    public PowerControlResult reset(RedfishTarget target, RedfishResetType type, NextBoot nextBoot) {
         return guarded(target, credentials -> {
-            BootOverrideOutcome outcome = arm(nextBoot, target, credentials);
             issueReset(target, credentials, type);
             RedfishPowerState after = readPowerStateQuietly(target, credentials);
-            return PowerControlResult.sent(after, outcome.prefix(nextBoot.label())
-                    + type.getDisplayName() + "(" + type.getWireValue() + ") 명령이 전달되었습니다 — [상태 조회] 로 결과를 확인하세요.");
+            return PowerControlResult.sent(after,
+                    type.getDisplayName() + "(" + type.getWireValue() + ") 명령이 전달되었습니다 — [상태 조회] 로 결과를 확인하세요.");
         });
     }
 
     /**
-     * 부팅 의도만 세운다(HF15-1 → HF17) — 전원은 움직이지 않는다. 에이전트에게 REBOOT 를 지시하는 자리가 응답 직전에
-     * {@link NextBoot#PXE_ONCE} 로 부른다(에이전트가 스스로 reboot 하므로 전원 명령이 없다). 거절(리소스 단위)은
-     * FAILED 로 돌려 호출자가 best effort 로 넘기게 한다. 메시지는 관찰 접두가 라벨을 이미 들므로 다시 붙이지 않는다(실기 4호 O-1).
+     * 재시도 뒤 전원 넣기(HF15-1 · O-10, HF24 에서 무장 제거) — 꺼져 있으면 On, 켜져 있으면 ForceRestart 를 발행한다.
+     * 운영자의 [재시도 후 전원 켜기] 가 부른다. 게스트는 공장 부트 순서대로 네트워크로 돌아온다.
      */
-    public PowerControlResult armBootOverride(RedfishTarget target, NextBoot nextBoot) {
-        return guarded(target, credentials -> {
-            BootOverrideOutcome outcome = arm(nextBoot, target, credentials);
-            if (outcome.status() == BootOverrideOutcome.Status.REJECTED) {
-                return PowerControlResult.failed(null, outcome.prefix(nextBoot.label()) + "BootSourceOverride 조정을 BMC 가 거절했습니다.");
-            }
-            return PowerControlResult.sent(RedfishPowerState.UNKNOWN, outcome.prefix(nextBoot.label()) + "전원은 움직이지 않았습니다.");
-        });
-    }
-
-    /**
-     * 네트워크 부팅으로 다시 세우기(HF15-1 · O-10 · HF17 Once) — 꺼져 있으면 On, 켜져 있으면 ForceRestart 를
-     * {@link NextBoot#PXE_ONCE} 무장과 함께 발행한다. [재시도 후 네트워크 부팅] 과 미도착 재무장(설정 · 펌웨어 step)의 전원 조작이다.
-     */
-    public PowerControlResult networkBoot(RedfishTarget target) {
+    public PowerControlResult powerOnOrRestart(RedfishTarget target) {
         return guarded(target, credentials -> {
             RedfishResetType type = readPowerStateQuietly(target, credentials) == RedfishPowerState.OFF
                     ? RedfishResetType.ON : RedfishResetType.FORCE_RESTART;
-            BootOverrideOutcome outcome = arm(NextBoot.PXE_ONCE, target, credentials);
             issueReset(target, credentials, type);
             RedfishPowerState after = readPowerStateQuietly(target, credentials);
-            return PowerControlResult.sent(after, outcome.prefix(NextBoot.PXE_ONCE.label())
-                    + type.getDisplayName() + "(" + type.getWireValue() + ") 발행 — 게스트가 PXE 로 돌아오면 이어서 진행합니다.");
+            return PowerControlResult.sent(after,
+                    type.getDisplayName() + "(" + type.getWireValue() + ") 발행 — 게스트가 PXE 로 돌아오면 이어서 진행합니다.");
         });
     }
 
@@ -173,20 +88,17 @@ public class RedfishPowerService {
      * 켜짐 검증 — On 발행 → 폴링 → 불변이면 PowerCycle 1 회 폴백 → 재폴링. 집행 소비처 전용(블로킹 최대
      * 약 2 × 폴링 타임아웃). 실측 실패 모드가 이 경로의 존재 이유다.
      */
-    public PowerControlResult powerOnAndVerify(RedfishTarget target, NextBoot nextBoot) {
+    public PowerControlResult powerOnAndVerify(RedfishTarget target) {
         return guarded(target, credentials -> {
-            BootOverrideOutcome first = arm(nextBoot, target, credentials);
             issueReset(target, credentials, RedfishResetType.ON);
             if (pollUntilOn(target, credentials)) {
-                return PowerControlResult.verified(first.prefix(nextBoot.label()) + "전원이 켜졌습니다 (Reset(On) → PowerState 폴링 확인).");
+                return PowerControlResult.verified("전원이 켜졌습니다 (Reset(On) → PowerState 폴링 확인).");
             }
             log.warn("[redfish] {} — On 발행 후 {}초 동안 전원 불변(실측 실패 모드) → PowerCycle 폴백",
                     target.bmcIp(), pollTimeout.toSeconds());
-            // Once 는 POST 1회에 소진된다 — 첫 On 이 POST 를 지났는지 알 수 없으므로 폴백 직전 다시 무장한다(E2.5 D-5).
-            BootOverrideOutcome second = arm(nextBoot, target, credentials);
             issueReset(target, credentials, RedfishResetType.POWER_CYCLE);
             if (pollUntilOn(target, credentials)) {
-                return PowerControlResult.verified(second.prefix(nextBoot.label()) + "PowerCycle 폴백으로 전원이 켜졌습니다.");
+                return PowerControlResult.verified("PowerCycle 폴백으로 전원이 켜졌습니다.");
             }
             log.warn("[redfish] {} — PowerCycle 폴백 후에도 전원 불변 — 수동 개입 필요", target.bmcIp());
             return PowerControlResult.failed(RedfishPowerState.OFF,
@@ -198,21 +110,6 @@ public class RedfishPowerService {
 
     private interface Attempt {
         PowerControlResult run(BmcCredentials credentials);
-    }
-
-    /** 무장(E2.5) — 전원 발행 직전 1회. 관찰 결과의 로그는 여기서, 메시지 접두는 호출자가 잇는다(D-4 · D-9). */
-    private BootOverrideOutcome arm(NextBoot nextBoot, RedfishTarget target, BmcCredentials credentials) {
-        if (nextBoot.armsOverride()) {
-            // HF20 — 오버라이드가 첫 항목을 PXE 로 두는 POST 앞에서 셸을 맨 뒤로. 실패해도 무장은 계속(best effort).
-            settle(BootOrderPolicy.SHELL_LAST, target, credentials);
-        }
-        BootOverrideOutcome outcome = nextBoot.arm(redfishClient, target.bmcIp(), credentials);
-        if (outcome.status() == BootOverrideOutcome.Status.REJECTED) {
-            log.warn("[redfish] {} — 다음 부팅 PXE 강제 거절(전원 명령은 계속) : {}", target.bmcIp(), outcome.detail());
-        } else if (outcome.status() == BootOverrideOutcome.Status.UNCONFIRMED) {
-            log.info("[redfish] {} — 다음 부팅 PXE 강제 미확인(pending 경유 가능)", target.bmcIp());
-        }
-        return outcome;
     }
 
     /** 공통 가드 — BMC 미검출 · 자격증명 부재 · 401 폴백 · 저수준 실패의 결과화. */
