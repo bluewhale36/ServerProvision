@@ -20,7 +20,6 @@ import com.example.serverprovision.execution.service.BmcAddressRediscovery;
 import com.example.serverprovision.execution.service.BmcIdentityProbe;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import com.example.serverprovision.execution.vo.MacAddressVO;
-import com.example.serverprovision.global.redfish.NextBoot;
 import com.example.serverprovision.global.redfish.PowerControlResult;
 import com.example.serverprovision.global.redfish.RedfishBiosService;
 import com.example.serverprovision.global.redfish.RedfishError;
@@ -104,7 +103,7 @@ class SettingStepExecutionTest {
         });
         given(biosService.pending(any())).willReturn(Optional.of(attributes(TARGET)));
         given(powerService.powerState(any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "On"));
-        given(powerService.reset(any(), any(), any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "sent"));
+        given(powerService.reset(any(), any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON, "sent"));
         // 레지스트리 채집 불가 = 판정 없음 — 종전 시나리오(PATCH → BMC 판정)를 그대로 지난다(E3-3 Q2).
         given(registryPort.captureAndCheck(any(), any(), any()))
                 .willReturn(com.example.serverprovision.execution.engine.setting.RegistryCheck.unavailable());
@@ -115,7 +114,7 @@ class SettingStepExecutionTest {
     }
 
     private ReturnReadbackStep readback() {
-        return new ReturnReadbackStep(ledger, probe, biosService, powerService, timeoutPolicy, settingCursor);
+        return new ReturnReadbackStep(ledger, probe, biosService, timeoutPolicy, settingCursor);
     }
 
     // ---- 5행 착수 ------------------------------------------------------------
@@ -130,7 +129,7 @@ class SettingStepExecutionTest {
         InOrder order = inOrder(recorder, biosService, powerService);
         order.verify(recorder).openRunning(any(), eq(ProvisioningPhaseStep.BIOS_SETTING), eq(T), any());
         order.verify(biosService).patchPending(any(), eq(TARGET));
-        order.verify(powerService).reset(any(), eq(RedfishResetType.FORCE_RESTART), any());
+        order.verify(powerService).reset(any(), eq(RedfishResetType.FORCE_RESTART));
 
         ProvisioningHistory row = opened.get();
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
@@ -147,7 +146,7 @@ class SettingStepExecutionTest {
 
         begin().execute(context(server(), started(), List.of(), target(), T));
 
-        verify(powerService).reset(any(), eq(RedfishResetType.ON), any());
+        verify(powerService).reset(any(), eq(RedfishResetType.ON));
     }
 
     @Test
@@ -164,7 +163,7 @@ class SettingStepExecutionTest {
         assertThat(row.getStatusMeta()).contains(SettingLedger.PATCH_REJECTED).contains("400 Bad Request");
         assertThat(ledger.targetOf(row)).containsExactlyInAnyOrderEntriesOf(TARGET);
         assertThat(progress.isFailed()).isTrue();
-        verify(powerService, never()).reset(any(), any(), any());
+        verify(powerService, never()).reset(any(), any());
         verify(biosService, never()).pending(any());
     }
 
@@ -180,14 +179,14 @@ class SettingStepExecutionTest {
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
         assertThat(row.getStatusMeta()).contains("\"pendingSeen\":false");
         assertThat(ledger.rebootAtOf(row)).isEqualTo(T);
-        verify(powerService).reset(any(), any(), any());
+        verify(powerService).reset(any(), any());
         assertThat(progress.isFailed()).isFalse();
     }
 
     @Test
     @DisplayName("착수 — 재부팅 명령이 실패하면 행을 rebootAt 없이 남겨 다음 주기가 이어받게 한다")
     void begin_resetFailedLeavesRowResumable() {
-        given(powerService.reset(any(), any(), any()))
+        given(powerService.reset(any(), any()))
                 .willReturn(PowerControlResult.failed(RedfishPowerState.UNKNOWN, "연결 불가"));
         ProvisioningProgress progress = started();
 
@@ -295,6 +294,22 @@ class SettingStepExecutionTest {
 
         verify(biosService, never()).bios(any());
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
+    }
+
+    @Test
+    @DisplayName("HF24 · 미도착 — 옛 재무장 지연(4분)을 넘겨도 전원을 움직이지 않고 열린 행 그대로 기다린다")
+    void readback_notReturnedWaitsWithoutPowerCommand() {
+        GuestServer server = server();
+        ProvisioningHistory row = openRow(server, T);
+        ProvisioningProgress progress = started();
+
+        readback().execute(context(server, progress, List.of(row), target(), T.plusMinutes(5)));
+
+        org.mockito.Mockito.verifyNoInteractions(powerService);
+        verify(biosService, never()).bios(any());
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
+        assertThat(row.getStatusMeta()).doesNotContain("rearm");
+        assertThat(progress.isFailed()).isFalse();
     }
 
     @Test
@@ -539,7 +554,7 @@ class SettingStepExecutionTest {
         assertThat(ledger.targetOf(row)).containsExactlyInAnyOrderEntriesOf(TARGET);
         assertThat(progress.isFailed()).isTrue();
         verify(biosService, never()).patchPending(any(), any());
-        verify(powerService, never()).reset(any(), any(), any());
+        verify(powerService, never()).reset(any(), any());
     }
 
     @Test
@@ -552,117 +567,19 @@ class SettingStepExecutionTest {
         begin().execute(context(server(), progress, List.of(), target(), T));
 
         verify(biosService).patchPending(any(), any());
-        verify(powerService).reset(any(), any(), any());
+        verify(powerService).reset(any(), any());
         assertThat(progress.isFailed()).isFalse();
     }
 
-    // ---- E2.5 — 재부팅 무장 ---------------------------------------------------
-
     @Test
-    @DisplayName("착수 — 재부팅은 다음 부팅 PXE(Once) 무장 인자로 나간다(E2.5 D-6 · HF17 Once 회귀)")
-    void begin_armsPxeOnce() {
+    @DisplayName("HF24 · 착수 — 재부팅은 무장 없는 reset 하나이고 행 meta 에 무장 요약(arm)이 남지 않는다")
+    void begin_resetsWithoutArming() {
         begin().execute(context(server(), started(), List.of(), target(), T));
 
-        verify(powerService).reset(any(), any(), eq(NextBoot.PXE_ONCE));
-    }
-
-    // ---- HF17 — 미도착 재무장(설정 적용 이중 POST 대비) ------------------------
-
-    @Test
-    @DisplayName("미도착 — 재부팅 뒤 재무장 지연(4분)이 지나도 /boot 가 없으면 Once 를 다시 세워 켜고 행에 rearmAt 을 적는다")
-    void readback_rearmsOnceWhenOverdue() {
-        GuestServer server = server();
-        ProvisioningHistory row = openRow(server, T);
-        given(powerService.networkBoot(any())).willReturn(PowerControlResult.sent(RedfishPowerState.ON,
-                "다음 부팅 PXE 강제 : 반영 확인 · 재시작(ForceRestart) 발행"));
-
-        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(5)));
-
-        verify(powerService).networkBoot(any());
-        verify(biosService, never()).bios(any());
-        assertThat(ledger.rearmAtOf(row)).isEqualTo(T.plusMinutes(5));
-        assertThat(row.getStatusMeta()).contains("\"rearm\"").contains("ForceRestart");
-        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
-    }
-
-    @Test
-    @DisplayName("미도착 — 재무장 지연 전에는 세우지 않는다(정상 PXE 도착은 3분 안)")
-    void readback_noRearmBeforeDelay() {
-        GuestServer server = server();
-        ProvisioningHistory row = openRow(server, T);
-
-        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(3)));
-
-        verify(powerService, never()).networkBoot(any());
-        assertThat(ledger.rearmAtOf(row)).isNull();
-    }
-
-    @Test
-    @DisplayName("미도착 — 재무장은 행마다 한 번 · 이후는 복귀 시한까지 기다리다 return-timeout")
-    void readback_rearmOnlyOnce() {
-        GuestServer server = server();
-        ProvisioningHistory row = openRow(server, T);
-        ledger.markRearmed(row, T.plusMinutes(5), "재시작");
-        ProvisioningProgress progress = started();
-
-        readback().execute(context(server, progress, List.of(row), target(), T.plusMinutes(12)));
-        verify(powerService, never()).networkBoot(any());
-        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
-
-        readback().execute(context(server, progress, List.of(row), target(), T.plusMinutes(30)));
-        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
-        assertThat(row.getStatusMeta()).contains(SettingLedger.RETURN_TIMEOUT);
-    }
-
-    @Test
-    @DisplayName("미도착 — 재무장 명령이 실패하면 행에 적지 않고 다음 주기가 다시 시도한다")
-    void readback_rearmFailureRetriesNextCycle() {
-        GuestServer server = server();
-        ProvisioningHistory row = openRow(server, T);
-        given(powerService.networkBoot(any())).willReturn(PowerControlResult.failed(null, "BMC 거절"));
-
-        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(5)));
-
-        assertThat(ledger.rearmAtOf(row)).isNull();
-        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.RUNNING);
-    }
-
-    @Test
-    @DisplayName("미도착 — 재무장도 전원 조작이라 신원이 다르면 세우지 않고 identity-mismatch 로 닫는다")
-    void readback_rearmRefusesMismatchedIdentity() {
-        given(provider.verifyIdentity(any(), any())).willReturn(BmcIdentity.MISMATCHED);
-        GuestServer server = server();
-        ProvisioningHistory row = openRow(server, T);
-        ProvisioningProgress progress = started();
-
-        readback().execute(context(server, progress, List.of(row), target(), T.plusMinutes(5)));
-
-        verify(powerService, never()).networkBoot(any());
-        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
-        assertThat(row.getStatusMeta()).contains(SettingLedger.IDENTITY_MISMATCH);
-        assertThat(progress.isFailed()).isTrue();
-    }
-
-    @Test
-    @DisplayName("복귀 — /boot 가 왔으면 재무장 지연이 지났어도 세우지 않고 readback 으로 간다")
-    void readback_returnedSkipsRearm() {
-        GuestServer server = returned();
-        ProvisioningHistory row = openRow(server, T);
-        given(biosService.bios(any())).willReturn(resource(TARGET));
-
-        readback().execute(context(server, started(), List.of(row), target(), T.plusMinutes(6)));
-
-        verify(powerService, never()).networkBoot(any());
-        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
-    }
-
-    @Test
-    @DisplayName("착수 — 무장 결과가 열린 행의 arm 키로 남는다(E2-4 Q4 — 별도 행 없이 meta 가 사건을 든다)")
-    void begin_recordsArmSummaryInMeta() {
-        begin().execute(context(server(), started(), List.of(), target(), T));
-
+        verify(powerService).reset(any(), eq(RedfishResetType.FORCE_RESTART));
+        verify(powerService, never()).powerOnOrRestart(any());
         ProvisioningHistory row = opened.get();
-        assertThat(row.getStatusMeta()).contains("\"arm\"").contains("sent");
+        assertThat(row.getStatusMeta()).doesNotContain("\"arm\"");
         assertThat(ledger.rebootAtOf(row)).isEqualTo(T);
     }
 }

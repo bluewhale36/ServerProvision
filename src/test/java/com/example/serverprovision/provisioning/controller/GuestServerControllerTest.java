@@ -63,7 +63,7 @@ class GuestServerControllerTest {
 
     @MockitoBean GuestServerQueryService queryService;
 
-    @MockitoBean com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 — [재시도 후 네트워크 부팅]
+    @MockitoBean com.example.serverprovision.global.redfish.RedfishPowerService redfishPowerService;   // HF15-1 · HF24 — [재시도 후 전원 켜기]
     @MockitoBean GuestServerCommandService commandService;
     // U3-1 — 컨트롤러 신규 협력자(할당 스냅샷). 상세 렌더가 계획 rail 을 조립하므로 plannedPhasesOf 를 스텁한다.
     @MockitoBean AssignmentCommandService assignmentCommandService;
@@ -461,6 +461,34 @@ class GuestServerControllerTest {
                 .contains("지정 카드 불일치 — 집행 전 대조에서 거절됨")
                 .contains("id=\"phase-RAID_CONFIGURATION\" class=\"n-card n-phase-panel is-failed\" open=\"open\"")
                 .contains("/provisioning/server/" + id + "/retry\"");
+    }
+
+    @Test
+    @DisplayName("HF24 · 상세 — 실패 + BMC 있음: [재시도 후 전원 켜기] 가 보이고 옛 '네트워크 부팅' 문구는 없다")
+    void detail_failedWithBmc_showsRetryPowerOnButton() throws Exception {
+        UUID id = UUID.randomUUID();
+        LocalDateTime failedAt = LocalDateTime.of(2026, 11, 16, 10, 0, 0);
+        given(queryService.findDetail(id)).willReturn(new GuestServerDetailResponse(
+                id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "464331aabbcc", null, "memo",
+                GuestServerStatus.FAILED, null, LocalDateTime.now(), LocalDateTime.now(),
+                null,
+                new GuestServerDetailResponse.Inventory(Vendor.GIGABYTE, 3L, "MS73-HB1-000", "GB-001",
+                        DiscoveryStage.DIAGNOSTIC_ENRICHED, null, null,
+                        com.example.serverprovision.execution.vo.IpAddressVO.of("10.1.1.3"), null, null, null),
+                List.of(),
+                new GuestServerDetailResponse.Progress(ProvisioningPhase.FIRMWARE_SETTING, failedAt, failedAt.minusHours(1),
+                        failedAt, com.example.serverprovision.execution.enums.ProvisioningPhaseStep.BIOS_SETTING, null,
+                        false, false, true, false, false),
+                null, null, null, null, null, List.of(), List.of()));
+
+        String html = normalized(mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andReturn());
+        org.assertj.core.api.Assertions.assertThat(html)
+                .contains("/provisioning/server/" + id + "/retry-boot\"")
+                .contains("재시도 후 전원 켜기")
+                .contains("재시도를 접수한 뒤 BMC 로 전원을 켭니다. 꺼져 있으면 켜고, 켜져 있으면 재시작합니다.")
+                .doesNotContain("네트워크 부팅");
     }
 
     @Test
