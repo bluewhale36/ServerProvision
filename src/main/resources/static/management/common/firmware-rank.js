@@ -88,7 +88,7 @@
         var next = document.createElement('span');
         next.className = 'n-miller-latest';
         next.setAttribute('data-latest-mark', '');
-        next.textContent = 'latest';
+        next.textContent = '최신';
         firstEnabled.querySelector('.n-miller-version-label').appendChild(next);
     }
 })();

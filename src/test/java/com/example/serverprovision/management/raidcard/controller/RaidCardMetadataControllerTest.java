@@ -59,9 +59,9 @@ class RaidCardMetadataControllerTest {
 	private static RaidCardResponse activeCard(String pciDisplay) {
 		return new RaidCardResponse(
 				3L, RaidCardVendor.GIGABYTE, "CRA3338",
-				List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0 · RAID1",
+				List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0, RAID1",
 				RaidChipFamily.MPT_IR,
-				0, "없음", false, pciDisplay, "desc",
+				0, "미탑재", false, pciDisplay, "desc",
 				true, false, false, LifecycleStage.ACTIVE);
 	}
 
@@ -77,7 +77,7 @@ class RaidCardMetadataControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(view().name("management/raidcard/list"))
 				.andExpect(model().attributeExists("raidCardGroups"))
-				.andExpect(content().string(containsString("RAID0 · RAID1")));
+				.andExpect(content().string(containsString("RAID0, RAID1")));
 	}
 
 	@Test
@@ -171,7 +171,7 @@ class RaidCardMetadataControllerTest {
 						.param("description", "desc"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("supportedRaidLevels"))
-				.andExpect(jsonPath("$.fieldErrors[0].message").value("지원 RAID 레벨을 1개 이상 선택하세요."));
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("지원 RAID 레벨을 1개 이상 선택해야 합니다."));
 	}
 
 	/**
@@ -189,7 +189,7 @@ class RaidCardMetadataControllerTest {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("cacheCapacityGb"))
 				.andExpect(jsonPath("$.fieldErrors[0].message")
-						.value("캐시 용량을 입력하세요. 캐시가 없는 모델은 0 을 입력합니다."));
+						.value("캐시 용량을 입력해야 합니다. 캐시가 없는 모델은 0 을 입력합니다."));
 	}
 
 	@Test

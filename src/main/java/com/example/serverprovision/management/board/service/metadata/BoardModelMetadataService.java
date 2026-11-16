@@ -163,7 +163,7 @@ public class BoardModelMetadataService {
 						LifecycleStage.of(c.isDeprecated(), c.isDeleted()),
 						null,
 						c.getModelName(),
-						c.getVendor().name(),
+						c.getVendor().getDisplayName(),
 						Instant.now()
 				))
 				.toList();
@@ -191,7 +191,7 @@ public class BoardModelMetadataService {
 	public Long completePendingBoardFromNudge(NudgeSession session) {
 		if (!(session.payload() instanceof IntentMetaNudgePayload payload)) {
 			throw new IllegalBoardModelStateException(
-					"BoardModel nudge 세션은 IntentMetaNudgePayload 만 허용합니다. nudgeId=" + session.nudgeId());
+					"중복 확인 세션의 내용이 올바르지 않습니다. id=" + session.nudgeId());
 		}
 		Vendor vendor = Vendor.valueOf(payload.attributes().get("vendor"));
 		String modelName = payload.attributes().get("modelName");
@@ -210,7 +210,7 @@ public class BoardModelMetadataService {
 	public void purgeBoardForNudge(BoardModel target) {
 		if (!target.isDeleted() && !target.isDeprecated()) {
 			throw new IllegalBoardModelStateException(
-					"활성 자원은 nudge replace 대상이 될 수 없습니다. id=" + target.getId());
+					"활성 상태인 항목은 교체할 수 없습니다. id=" + target.getId());
 		}
 		boardModelRepository.delete(target);
 		log.info(

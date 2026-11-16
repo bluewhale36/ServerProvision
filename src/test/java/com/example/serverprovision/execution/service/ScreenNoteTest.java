@@ -29,7 +29,7 @@ class ScreenNoteTest {
         assertThat(ScreenNote.of("전송 완료")).isEqualTo("굽기 완료");
         assertThat(ScreenNote.of("목표 F29 · 확인 F27")).isEqualTo("구운 뒤 다시 읽은 버전이 목표와 다릅니다(목표 F29, 읽은 값 F27).");
         assertThat(ScreenNote.of("재진입 6회 — 상한 5회 초과")).isEqualTo("재부팅이 상한(5회)을 넘겨 반복됐습니다");
-        assertThat(ScreenNote.of("hold-ttl")).isEqualTo("자원 대기 시한이 지나 실패했습니다. 자원을 되살린 뒤 재시도하십시오.");
+        assertThat(ScreenNote.of("hold-ttl")).isEqualTo("자원 대기 시한이 지나 실패했습니다. 자원을 되살린 뒤 재시도해야 합니다.");
         assertThat(ScreenNote.of("BIOS F45 레지스트리 허용값 밖 : PCIS007 = Disabled — 허용 {Enabled}"))
                 .isEqualTo("BIOS 설정 템플릿이 이 보드의 BIOS(F45)와 맞지 않습니다: PCIS007 = Disabled(허용 값: Enabled)");
     }

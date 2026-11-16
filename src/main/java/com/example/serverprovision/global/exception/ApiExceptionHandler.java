@@ -215,7 +215,7 @@ public class ApiExceptionHandler {
 		log.warn("OptimisticLockingFailureException : {}", ex.getMessage());
 		return ResponseEntity.status(HttpStatus.CONFLICT)
 				.body(new ApiErrorResponse(
-						"다른 작업이 같은 항목을 동시에 수정했습니다. 페이지를 새로 고친 뒤 다시 시도해주세요."));
+						"다른 작업이 같은 항목을 동시에 수정했습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다."));
 	}
 
 	/**
@@ -249,12 +249,9 @@ public class ApiExceptionHandler {
 		List<ApiErrorResponse.FieldError> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
 				.map(fe -> new ApiErrorResponse.FieldError(fe.getField(), resolveMessage(fe)))
 				.toList();
-		String summary = fieldErrors.isEmpty()
-				? "유효하지 않은 입력입니다."
-				: "입력 값이 유효하지 않습니다 (" + fieldErrors.size() + "개 필드).";
 		log.warn("[validation] MethodArgumentNotValid : {} fields", fieldErrors.size());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-				.body(ApiErrorResponse.ofValidation(summary, fieldErrors));
+				.body(ApiErrorResponse.ofValidation("입력값이 올바르지 않습니다.", fieldErrors));
 	}
 
 	/**
@@ -265,7 +262,7 @@ public class ApiExceptionHandler {
 	private String resolveMessage(org.springframework.validation.FieldError fieldError) {
 		String resolved = messageSource.getMessage(
 				fieldError, org.springframework.context.i18n.LocaleContextHolder.getLocale());
-		return resolved != null ? resolved : "유효하지 않은 값";
+		return resolved != null ? resolved : "올바르지 않은 값입니다.";
 	}
 
 	/**
@@ -279,7 +276,7 @@ public class ApiExceptionHandler {
 		log.warn("[validation] HttpMessageNotReadable : {}", ex.getMessage());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 				.body(ApiErrorResponse.ofCode("MALFORMED_REQUEST_BODY",
-						"요청 본문을 해석할 수 없습니다. JSON 형식과 type/osFamily 판별자 값을 확인해주세요."));
+						"요청 내용을 해석할 수 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다."));
 	}
 
 	/**
@@ -338,6 +335,6 @@ public class ApiExceptionHandler {
 		log.warn("MaxUploadSizeExceededException : {}", ex.getMessage());
 		return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
 				.body(new ApiErrorResponse(
-						"업로드 크기가 서버 설정 한도를 초과했습니다. 관리자에게 문의하세요. (" + ex.getMessage() + ")"));
+						"업로드 크기가 서버 설정 한도를 넘었습니다. 관리자에게 문의해야 합니다."));
 	}
 }

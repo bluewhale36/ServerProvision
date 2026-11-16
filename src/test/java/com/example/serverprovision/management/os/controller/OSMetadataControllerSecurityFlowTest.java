@@ -179,9 +179,9 @@ class OSMetadataControllerSecurityFlowTest {
                 .andExpect(content().string(containsString("data-resource-id=\"12\"")));
     }
 
-    // S5-5 — miller-empty 가 data-empty-before / data-empty-after 2 상태 보유 + 외부 + 신규 OS 버전 등록 버튼.
+    // S5-5 — miller-empty 가 data-empty-before / data-empty-after 2 상태 보유 + 외부 + OS 버전 등록 버튼.
     @Test
-    @DisplayName("GET /management/os — miller-empty 2 상태 (data-empty-before/after) + 외부 '+ 신규 OS 버전 등록' 버튼")
+    @DisplayName("GET /management/os — miller-empty 2 상태 (data-empty-before/after) + 외부 '+ OS 버전 등록' 버튼")
     void miller_empty_has_two_state_data_attrs() throws Exception {
         // 빈 목록이면 miller 자체가 렌더 안 되므로 더미 1 그룹 주입.
         var osGroup = com.example.serverprovision.management.os.dto.response.OSGroupResponse.of(
@@ -194,6 +194,6 @@ class OSMetadataControllerSecurityFlowTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-empty-before")))
                 .andExpect(content().string(containsString("data-empty-after")))
-                .andExpect(content().string(containsString("+ 신규 OS 버전 등록")));
+                .andExpect(content().string(containsString("+ OS 버전 등록")));
     }
 }

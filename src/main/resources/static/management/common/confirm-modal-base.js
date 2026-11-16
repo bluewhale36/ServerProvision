@@ -40,7 +40,7 @@
 
         if (!modal || !confirmBtn || !cancelBtn) {
             console.warn(TAG, 'fragment 누락 — fallback native confirm. prefix=', prefix);
-            if (window.confirm(message || '계속할까요?')) opts.onConfirm();
+            if (window.confirm(message || '계속하시겠습니까?')) opts.onConfirm();
             return;
         }
 
@@ -184,7 +184,7 @@
             html = await resp.text();
         } catch (err) {
             if (opts.onError) opts.onError(err);
-            else ErrorModal.show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도하십시오.', status: 0});
+            else ErrorModal.show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.', status: 0});
             return;
         }
 

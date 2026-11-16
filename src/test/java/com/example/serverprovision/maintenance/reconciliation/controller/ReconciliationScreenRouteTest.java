@@ -216,13 +216,13 @@ class ReconciliationScreenRouteTest {
 		}
 
 		@Test
-		@DisplayName("A9 승계된 드리프트는 「최초 발견」 이 아니라 「이어짐」 으로 표시된다")
+		@DisplayName("A9 승계된 드리프트는 「최초 발견」 이 아니라 「승계」 로 표시된다")
 		void 이어짐_배지() throws Exception {
 			given(reconciliationService.openDrifts()).willReturn(List.of(succeeded()));
 
 			mvc.perform(get("/maintenance/reconciliation"))
 					.andExpect(status().isOk())
-					.andExpect(content().string(org.hamcrest.Matchers.containsString("이어짐")))
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("승계")))
 					// 어디서 이어졌는지를 tooltip 이 말한다 — 배지만으로는 출처를 알 수 없다
 					.andExpect(content().string(org.hamcrest.Matchers.containsString(
 							DriftKind.SIGNATURE_INVALID.getLabel())))
@@ -289,7 +289,7 @@ class ReconciliationScreenRouteTest {
 
 			mvc.perform(get("/maintenance/reconciliation/drifts/1"))
 					.andExpect(status().isOk())
-					.andExpect(content().string(org.hamcrest.Matchers.containsString("이전 34 건은 표시하지 않았습니다")));
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("이전 34건은 표시하지 않았습니다")));
 		}
 
 		@Test

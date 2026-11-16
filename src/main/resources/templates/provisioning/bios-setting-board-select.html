@@ -16,7 +16,7 @@
   본문은 포털 골격(n-page-md · 보드 카드 격자)이다(S17-3 — 콘솔 룩 폐기).
 -->
 <head>
-	<th:block th:replace="~{fragments/layout :: commonHead('BIOS 세팅 템플릿 작성 — 보드 선택')}"></th:block>
+	<th:block th:replace="~{fragments/layout :: commonHead('BIOS 세팅 템플릿 작성: 보드 선택')}"></th:block>
 	<!-- v 쿼리 = 캐시버스터 (스타일 변경 시 증가) -->
 	<link rel="stylesheet" th:href="@{/provisioning/bios-setting.css(v=4)}">
 </head>
@@ -30,7 +30,7 @@
             <a th:href="@{/provisioning/bios-setting}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
         </div>
     </div>
-    <p class="n-hint n-lead">management 에 등록된 메인보드 모델 중 템플릿을 작성할 보드를 선택하세요.</p>
+    <p class="n-hint n-lead">템플릿을 작성할 메인보드 선택</p>
 
     <div class="bios-board-grid" th:unless="${#lists.isEmpty(boards)}">
         <th:block th:each="board : ${boards}">
@@ -45,7 +45,7 @@
                  n-btn-disabled 가 pointer-events 를 제거하므로 hover tooltip 은 wrapper 가 발동한다
                  (detail 페이지 '수정' 버튼과 동일한 S5-3-2 자산 사용법). -->
             <span th:unless="${board.catalogAvailable}" class="n-btn-tooltip-wrap"
-                  data-tooltip="BIOS 카탈로그(registry/SetupData) 미보유 보드입니다">
+                  data-tooltip="BIOS 카탈로그가 없어 템플릿을 작성할 수 없습니다.">
                 <span class="bios-board-card n-btn-disabled" aria-disabled="true">
                     <span class="bios-board-key" th:text="${board.modelName}">MS74-HB0</span>
                     <span class="n-note" th:text="${board.vendor}">GIGABYTE</span>
@@ -56,7 +56,7 @@
     </div>
 
     <th:block th:if="${#lists.isEmpty(boards)}">
-        <div th:replace="~{fragments/ui/empty :: state(title='등록된 메인보드 모델이 없습니다.', desc='management 의 메인보드 관리에서 모델을 먼저 등록하세요.')}"></div>
+        <div th:replace="~{fragments/ui/empty :: state(title='등록된 메인보드 모델이 없습니다.', desc='메인보드 관리에서 모델을 먼저 등록해야 합니다.')}"></div>
     </th:block>
 
     <p class="n-hint n-block-gap">

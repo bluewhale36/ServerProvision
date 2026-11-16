@@ -52,20 +52,20 @@
 
     <!-- 우측 : 고른 정의서의 적용 미리보기 + 내용. 항목마다 미리 그려 두고 .active 만 옮긴다. -->
     <div class="n-miller-col n-miller-col-detail">
-        <div class="n-miller-empty" id="groupPickerEmpty">
-            왼쪽에서 정의서를 고르면 이 그룹에 어떻게 적용되는지 나타납니다.
-        </div>
+        <div class="n-miller-empty" id="groupPickerEmpty">왼쪽에서 정의서 선택</div>
 
         <div th:each="item : ${picker.items}" class="n-miller-detail-panel"
              th:id="'group-definition-panel-' + ${item.id}">
 
-            <div th:class="${item.blocked} ? 'n-alert n-alert-danger' : 'n-alert n-alert-success'" role="alert">
+            <!--/* 붙는 서버가 0 대인 것은 진행을 막는 실패가 아니라 미리보기의 사실이다(표준 지정 모드는 그래도 고를 수
+                   있다). 그래서 빨강이 아니라 노랑으로 그린다(S22-4 심각도). */-->
+            <div th:class="${item.blocked} ? 'n-alert n-alert-warning' : 'n-alert n-alert-success'" role="alert">
                 <b th:text="${item.preview.summary()}">4 대 중 3 대에 할당됩니다.</b>
             </div>
             <div th:if="${item.deprecated}" class="n-alert n-alert-warning" role="alert">
                 <b>사용 중단이 권고된 정의서입니다.</b>
                 <div class="n-section-hint n-block-gap-sm">
-                    할당은 가능하지만 대체할 정의서가 있는지 확인해 주세요.
+                    할당은 가능하지만 대체할 정의서가 있는지 확인해야 합니다.
                 </div>
             </div>
 
@@ -88,12 +88,12 @@
                         MS03-CE0</td>
                     <td>
                         <span class="n-badge" th:classappend="${member.outcome.badgeClass}"
-                              th:text="${member.outcome.displayName}">할당됨</span>
+                              th:text="${member.outcome.displayName}">할당 예정</span>
                     </td>
                     <td>
                         <span th:if="${member.reason != null}" class="n-muted n-small"
                               th:text="${member.reason}">사유</span>
-                        <span th:unless="${member.reason != null}" class="n-muted">—</span>
+                        <span th:unless="${member.reason != null}" class="n-muted">-</span>
                     </td>
                 </tr>
                 </tbody>

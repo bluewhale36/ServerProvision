@@ -171,7 +171,7 @@ public class IsoLifecycleService implements LifecycleService {
 			);
 		}
 		if (!iso.isDeleted()) {
-			throw new IllegalOSMetadataStateException("이미 활성 상태인 ISO 입니다. isoId=" + isoId);
+			throw new IllegalOSMetadataStateException("이미 활성 상태인 ISO 입니다. id=" + isoId);
 		}
 		trashLifecycleService.restoreFromTrash(
 				iso, isoEntity -> Map.of(
@@ -240,7 +240,7 @@ public class IsoLifecycleService implements LifecycleService {
 				.orElseThrow(() -> new ISONotFoundException(null, isoId));
 		if (iso.currentStage() != LifecycleStage.SOFT_DELETED) {
 			throw new IllegalOSMetadataStateException(
-					"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. isoId=" + isoId);
+					"삭제된 항목만 영구 삭제할 수 있습니다. id=" + isoId);
 		}
 		cleanupArtifacts(iso);
 		isoRepository.delete(iso);
@@ -273,7 +273,7 @@ public class IsoLifecycleService implements LifecycleService {
 		ISO iso = isoRepository.findById(isoId)
 				.orElseThrow(() -> new ISONotFoundException(null, isoId));
 		if (iso.isDeleted()) {
-			throw new IllegalOSMetadataStateException("삭제된 ISO 에는 수행할 수 없는 작업입니다. isoId=" + isoId);
+			throw new IllegalOSMetadataStateException("삭제된 ISO 에는 수행할 수 없는 작업입니다. id=" + isoId);
 		}
 		return iso;
 	}

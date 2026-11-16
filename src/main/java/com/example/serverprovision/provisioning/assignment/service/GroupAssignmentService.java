@@ -85,7 +85,7 @@ public class GroupAssignmentService {
         if (raceSkipped == 0) {
             return previewPart;
         }
-        String racePart = "그 사이 상태가 바뀜 " + raceSkipped;
-        return previewPart.isBlank() ? racePart : previewPart + " · " + racePart;
+        String racePart = "상태 변경 " + raceSkipped;
+        return previewPart.isBlank() ? racePart : previewPart + ", " + racePart;
     }
 }

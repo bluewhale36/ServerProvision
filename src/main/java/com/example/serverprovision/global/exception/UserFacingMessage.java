@@ -22,14 +22,19 @@ public final class UserFacingMessage {
         return punctuate(INTERNAL_ID.matcher(message).replaceAll("").strip());
     }
 
+    /** "X하십시오", "X하세요", "X해 주세요": 하다 동사의 요청형. 평서형 "X해야 합니다" 로 바꾼다. */
+    private static final Pattern HADA_REQUEST =
+            Pattern.compile("([가-힣]+)(?:하십시오|하세요|해 ?주세요)");
+
     /**
-     * 화면 문구 표기 규칙(S22-3) — 대시(—)와 가운뎃점(·)을 쓰지 않는다. 엔진 · 예외 문장은 출처가 넓고 원장에 저장된
-     * 옛 문장도 있어, 화면으로 나가는 경계에서 대시는 콜론으로, 가운뎃점은 쉼표로 바꾼다.
+     * 화면 문구 표기 규칙(DESIGN.md 7절). 엔진, 예외 문장은 출처가 넓고 원장에 저장된 옛 문장도 있어, 화면으로 나가는
+     * 경계에서 대시는 콜론으로, 가운뎃점은 쉼표로, 하다 동사의 요청형은 평서형으로 바꾼다. 출처는 따로 고친다.
      */
     public static String punctuate(String text) {
         if (text == null) {
             return null;
         }
-        return text.replace(" — ", ": ").replace("—", ": ").replace(" · ", ", ").replace("·", ", ");
+        String marks = text.replace(" — ", ": ").replace("—", ": ").replace(" · ", ", ").replace("·", ", ");
+        return HADA_REQUEST.matcher(marks).replaceAll("$1해야 합니다");
     }
 }

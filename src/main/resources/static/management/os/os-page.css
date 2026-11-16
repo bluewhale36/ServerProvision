@@ -8,12 +8,6 @@
 
 /* ---- 섹션 구분선 유틸 (기본 info ↔ ISO, ISO ↔ 환경/그룹) ------ */
 
-.n-section-divider {
-    border: 0;
-    border-top: 1px solid var(--n-border);
-    margin: 28px 0;
-}
-
 /* ---- 환경 / 패키지 그룹 섹션 (list.html 상세 패널 하단) ------ */
 
 .n-env-section-header {
@@ -32,7 +26,7 @@
 }
 
 .n-env-section-note {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--n-text-muted);
 }
 
@@ -66,7 +60,7 @@
 
 .n-env-card-desc {
     margin-top: 4px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-muted);
 }
 
@@ -75,18 +69,18 @@
 }
 
 .n-env-card-sub-label {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--n-text-muted);
 }
 
 .n-env-card-sub-value {
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .n-env-card-providers {
     margin: 4px 0 0 0;
     padding-left: 18px;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .n-env-card-providers li {
@@ -110,7 +104,7 @@
 }
 
 .n-upload-progress-text {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-muted);
     margin-bottom: 6px;
 }
@@ -137,7 +131,7 @@
     border-radius: var(--n-radius-lg);
     background: var(--n-red-bg);
     color: var(--n-red);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .n-upload-error.is-visible {

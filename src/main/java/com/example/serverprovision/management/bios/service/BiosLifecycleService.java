@@ -225,7 +225,7 @@ public class BiosLifecycleService implements LifecycleService {
 		BoardBIOS bios = requireExistingBios(biosId);
 		if (!bios.isDeleted()) {
 			throw new IllegalBiosStateException(
-					"활성/Deprecated 자원은 영구 삭제할 수 없습니다. 먼저 휴지통으로 이동하세요. biosId=" + biosId);
+					"휴지통에 있는 BIOS 만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
 		}
 		// R7-2 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
 		TypedNameGuard.verify(bios, typedName);
@@ -242,7 +242,7 @@ public class BiosLifecycleService implements LifecycleService {
 		BoardBIOS bios = requireExistingBios(biosId);
 		if (!bios.isDeleted()) {
 			throw new IllegalBiosStateException(
-					"활성/Deprecated 자원은 영구 삭제할 수 없습니다. 먼저 휴지통으로 이동하세요. biosId=" + biosId);
+					"휴지통에 있는 BIOS 만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
 		}
 		bundleTreeCleanupService.purgeExistingTree(Path.of(bios.getTreeRootPath()), "purgeBios");
 		biosRepository.delete(bios);
@@ -268,7 +268,7 @@ public class BiosLifecycleService implements LifecycleService {
 		BoardBIOS bios = biosRepository.findById(biosId)
 				.orElseThrow(() -> new BiosNotFoundException(null, biosId));
 		if (bios.isDeleted()) {
-			throw new IllegalBiosStateException("삭제된 BIOS 에는 수행할 수 없는 작업입니다. biosId=" + biosId);
+			throw new IllegalBiosStateException("삭제된 BIOS 에는 이 작업을 할 수 없습니다.");
 		}
 		return bios;
 	}

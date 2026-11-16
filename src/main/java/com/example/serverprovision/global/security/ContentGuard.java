@@ -74,7 +74,7 @@ public class ContentGuard {
 			log.warn("[guard.maliciousContent] resource=UPLOAD file={} reason=zip-magic-mismatch outcome=rejected",
 					sanitizeForLog(zipFile.getOriginalFilename()));
 			throw new MaliciousContentSuspectedException(
-					"ZIP magic byte 불일치 — 실제 콘텐츠가 zip 이 아닙니다 : " + zipFile.getOriginalFilename());
+					"실제 내용이 ZIP 파일이 아닙니다 : " + zipFile.getOriginalFilename());
 		}
 	}
 
@@ -94,7 +94,7 @@ public class ContentGuard {
 			head = in.readNBytes(4);
 		} catch (IOException e) {
 			log.warn("[guard.maliciousContent] resource=UPLOAD reason=zip-read-failed outcome=rejected");
-			throw new MaliciousContentSuspectedException("ZIP 파일 읽기 실패 : " + e.getMessage());
+			throw new MaliciousContentSuspectedException("ZIP 파일을 읽지 못했습니다.");
 		}
 		if (head.length < 4) {
 			log.warn("[guard.maliciousContent] resource=UPLOAD reason=zip-too-short outcome=rejected");
@@ -102,7 +102,7 @@ public class ContentGuard {
 		}
 		if (!startsWith(head, PK_LOCAL) && !startsWith(head, PK_EMPTY) && !startsWith(head, PK_SPANNED)) {
 			log.warn("[guard.maliciousContent] resource=UPLOAD reason=zip-magic-mismatch outcome=rejected");
-			throw new MaliciousContentSuspectedException("ZIP magic byte 불일치 — 실제 콘텐츠가 zip 이 아닙니다.");
+			throw new MaliciousContentSuspectedException("실제 내용이 ZIP 파일이 아닙니다.");
 		}
 	}
 
@@ -126,7 +126,7 @@ public class ContentGuard {
 						sanitizeForLog(name), sanitizeForLog(mime)
 				);
 				if (collector != null) {
-					collector.addWarning("실행 가능 binary 가 감지되었습니다.");
+					collector.addWarning("실행 파일이 들어 있습니다.");
 				}
 			}
 			default -> { /* ALLOW — already returned */ }
@@ -203,7 +203,7 @@ public class ContentGuard {
 		if (name.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 255) {
 			log.warn("[guard.maliciousContent] resource=UPLOAD file={} reason=filename-too-long outcome=rejected",
 					sanitizeForLog(name));
-			throw new MaliciousContentSuspectedException("파일명이 255 byte 를 초과했습니다 (UTF-8 기준).");
+			throw new MaliciousContentSuspectedException("파일명이 너무 깁니다(UTF-8 기준 255바이트 초과).");
 		}
 		// K6 — char by char 검사. surrogate pair 도 고려.
 		for (int i = 0; i < name.length(); i++) {
@@ -213,7 +213,7 @@ public class ContentGuard {
 				log.warn("[guard.maliciousContent] resource=UPLOAD file={} reason=filename-control-char outcome=rejected",
 						sanitizeForLog(name));
 				throw new MaliciousContentSuspectedException(
-						"파일명에 제어 문자 또는 null byte 가 포함되었습니다.");
+						"파일명에 제어 문자가 들어 있습니다.");
 			}
 			int type = Character.getType(c);
 			// K6 — Unicode 위험 카테고리
@@ -224,7 +224,7 @@ public class ContentGuard {
 				log.warn("[guard.maliciousContent] resource=UPLOAD file={} reason=filename-unicode-spoof outcome=rejected",
 						sanitizeForLog(name));
 				throw new MaliciousContentSuspectedException(
-						"파일명에 Unicode 위험 코드포인트 (RLO / LRM / BOM / Zero-Width / Surrogate / Line Separator 등) 가 포함되었습니다.");
+						"파일명에 보이지 않는 문자나 글자 방향을 바꾸는 문자가 들어 있습니다.");
 			}
 		}
 		return name;

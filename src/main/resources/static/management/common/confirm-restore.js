@@ -6,9 +6,9 @@
    ============================================================ */
 (function () {
     'use strict';
-    const TEMPLATE_PLAIN = '{resource} 을(를) 복구할까요?';
-    const TEMPLATE_CASCADE = '{resource} 을(를) 복구할까요? 하위 자원도 함께 복구할지 선택해주세요.';
-    const DEFAULT_MSG = '이 자원을 복구할까요?';
+    const TEMPLATE_PLAIN = '{resource} 을(를) 복구하시겠습니까?';
+    const TEMPLATE_CASCADE = '{resource} 을(를) 복구하시겠습니까? 하위 자원도 함께 복구할지 골라야 합니다.';
+    const DEFAULT_MSG = '이 자원을 복구하시겠습니까?';
 
     function lazyUrl(form) {
         const resourceType = form.getAttribute('data-resource-type') || 'OS_IMAGE';

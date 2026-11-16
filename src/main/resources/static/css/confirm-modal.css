@@ -64,7 +64,7 @@
     margin: 0 0 18px 0;
     padding-left: 12px;
     border-left: 3px solid var(--n-border);
-    font-size: 13.5px;
+    font-size: 14.5px;
     line-height: 1.6;
     color: var(--n-text-sec);
 }
@@ -114,7 +114,7 @@
 
 .cm-cascade-option-desc {
     display: block;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-muted);
 }
 
@@ -141,7 +141,7 @@
 
 .cm-warn-title {
     display: block;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--n-red);
     margin-bottom: 5px;
@@ -149,7 +149,7 @@
 
 .cm-warn-desc {
     margin: 0 0 4px;
-    font-size: 12.5px;
+    font-size: 13.5px;
     line-height: 1.55;
     color: var(--n-text);
 }
@@ -166,7 +166,7 @@
 }
 
 .cm-typed-target-label {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--n-text-muted);
     display: block;
     margin-bottom: 4px;
@@ -174,7 +174,7 @@
 }
 
 .cm-typed-target-code {
-    font-size: 13px;
+    font-size: 14px;
     word-break: break-all;
     user-select: all;
 }
@@ -249,7 +249,7 @@
 .cm-ghost-badge { background: var(--n-red); color: var(--n-on-accent); }
 .cm-conflict-list { list-style: none; padding: 0; margin: 0 0 18px; border: 1px solid var(--n-border); border-radius: var(--n-radius); background: var(--n-surface); max-height: 200px; overflow-y: auto; }
 .cm-typed-block { border-top: 1px solid var(--n-border-row); padding-top: 12px; margin-bottom: 12px; }
-.cm-typed-target-code.cm-path { font-size: 12px; margin: 0 0 6px; }
+.cm-typed-target-code.cm-path { font-size: 13px; margin: 0 0 6px; }
 /* 선택지 버튼 — 제목 한 줄 + 설명 한 줄이 세로로 쌓인다. .n-btn 의 inline-flex 는 블록 자식을 가로로
    늘어세우므로(모달 옵션 버튼 텍스트 넘침 결함) 여기서는 block 으로 세운다. */
 .cm-option-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }

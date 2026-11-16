@@ -85,7 +85,7 @@ class OSMetadataControllerUpdateFlowTest {
 						.param("description", "가".repeat(1025)))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("description"))
-				.andExpect(jsonPath("$.fieldErrors[0].message").value("설명은 1024자 이하로 입력해주세요."));
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("설명은 1024자 이하로 입력해야 합니다."));
 
 		verify(osMetadataService, never()).create(any());
 	}

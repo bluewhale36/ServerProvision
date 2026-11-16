@@ -1,5 +1,6 @@
 package com.example.serverprovision.global.trash;
 
+import com.example.serverprovision.global.exception.UserFacingMessage;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
@@ -23,6 +24,12 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 public sealed interface PurgeLogDetails permits PurgeLogDetails.Success, PurgeLogDetails.Failed {
 
 	/**
+	 * S22-4 — 화면(영구 삭제 감사 로그)으로 내보낼 사본. 저장된 문장은 과거 행의 대시와 가운뎃점을 그대로 두고,
+	 * 응답 경계에서만 바꾼다.
+	 */
+	PurgeLogDetails forScreen();
+
+	/**
 	 * SUCCESS 행의 상세. snapshot 값들이 자원 hard-delete 후에도 회고 가능하도록 응집.
 	 *
 	 * @param triggeredBy     사용자 진입 시 호출자 id. TTL_AUTO 는 null
@@ -41,6 +48,10 @@ public sealed interface PurgeLogDetails permits PurgeLogDetails.Success, PurgeLo
 			int attemptCount
 	) implements PurgeLogDetails {
 
+		@Override
+		public PurgeLogDetails forScreen() {
+			return this;
+		}
 	}
 
 
@@ -63,5 +74,10 @@ public sealed interface PurgeLogDetails permits PurgeLogDetails.Success, PurgeLo
 			String stackHash
 	) implements PurgeLogDetails {
 
+		@Override
+		public PurgeLogDetails forScreen() {
+			return new Failed(triggeredBy, attemptNumber, tickAttemptCount, exceptionClass,
+					UserFacingMessage.punctuate(failureReason), stackHash);
+		}
 	}
 }

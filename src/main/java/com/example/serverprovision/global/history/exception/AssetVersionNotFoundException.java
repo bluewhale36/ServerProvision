@@ -16,6 +16,6 @@ public class AssetVersionNotFoundException extends NotFoundException {
 
     public static AssetVersionNotFoundException of(AssetVersionKey key, Long versionId) {
         return new AssetVersionNotFoundException(
-                "버전을 찾을 수 없습니다 : id=" + versionId + ", key=" + key.category() + "/" + key.name());
+                "선택한 버전을 찾을 수 없습니다. 페이지를 새로 고쳐야 합니다.");
     }
 }

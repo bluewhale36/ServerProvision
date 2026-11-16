@@ -10,6 +10,6 @@ import com.example.serverprovision.global.exception.NotFoundException;
 public class BiosCatalogNotFoundException extends NotFoundException {
 
     public BiosCatalogNotFoundException(String boardModelName) {
-        super("BIOS 카탈로그가 없는 보드입니다. board=" + boardModelName);
+        super("BIOS 카탈로그가 없는 보드입니다: " + boardModelName);
     }
 }

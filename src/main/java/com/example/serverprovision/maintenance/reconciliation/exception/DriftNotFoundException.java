@@ -8,6 +8,6 @@ import com.example.serverprovision.global.exception.NotFoundException;
 public class DriftNotFoundException extends NotFoundException {
 
 	public DriftNotFoundException(Long driftId) {
-		super("드리프트를 찾을 수 없습니다 : " + driftId);
+		super("드리프트를 찾을 수 없습니다(#" + driftId + ").");
 	}
 }

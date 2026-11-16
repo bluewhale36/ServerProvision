@@ -9,6 +9,6 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class ManifestHashMismatchException extends ConflictException {
 
 	public ManifestHashMismatchException(String path) {
-		super("트리 내용 해시가 marker 기록값과 일치하지 않습니다. 변조/손상 가능성이 있습니다 : " + path);
+		super("파일 해시가 마커 기록값과 다릅니다. 변조되거나 손상됐을 수 있습니다: " + path);
 	}
 }

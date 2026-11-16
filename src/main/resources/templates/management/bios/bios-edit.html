@@ -13,14 +13,14 @@
   파일 교체는 지원하지 않는다. 파일을 바꾸려면 soft delete 후 재등록.
 -->
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('BIOS 메타 수정')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('BIOS 정보 수정')}"></th:block>
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('bios')}"></nav>
 
 <div class="n-page-md">
     <div class="n-page-header">
-        <h1 class="n-page-title">BIOS 메타 수정</h1>
+        <h1 class="n-page-title">BIOS 정보 수정</h1>
         <div class="n-header-actions">
             <a th:href="@{/management/bios(selectId=${biosId})}"
                class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
@@ -30,7 +30,7 @@
     <div class="n-card">
         <div class="n-card-body">
             <div class="n-alert n-alert-muted">
-                대상 메인보드 : <strong th:text="${contextLabel}"></strong>
+                대상 메인보드: <strong th:text="${contextLabel}"></strong>
             </div>
 
             <form th:action="@{/management/bios/{boardId}/bios/{biosId}/edit(boardId=${boardId},biosId=${biosId})}"
@@ -57,7 +57,7 @@
                            class="n-input"
                            data-error-field="version"
                            th:classappend="${#fields.hasErrors('version')} ? 'is-invalid'">
-                    <div class="n-hint">같은 메인보드 내에서 버전은 유일해야 합니다.</div>
+                    <div class="n-hint">같은 메인보드 안에서 버전은 유일해야 합니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('version')}" th:errors="*{version}"></div>
                 </div>
 
@@ -66,7 +66,7 @@
                     <label class="n-label">펌웨어 파일 경로</label>
                     <input type="text" th:value="${treeRootPath} + '/' + ${entrypointRelativePath}" class="n-input" readonly>
                     <div class="n-hint">
-                        펌웨어 파일을 바꾸려면 이 BIOS 를 삭제한 뒤 재등록하십시오.
+                        펌웨어 파일을 바꾸려면 이 BIOS 를 삭제한 뒤 재등록해야 합니다.
                     </div>
                 </div>
 

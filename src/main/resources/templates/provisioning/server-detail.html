@@ -265,7 +265,7 @@
 
                         <!-- 안내 — 조건별 한 줄. 문구는 종전 화면의 것을 그대로 옮겼다. -->
                         <p class="n-next-hint" th:if="${server.decommissionedAt != null}">
-                            회수된 서버는 프로비저닝 대상이 아닙니다. 다시 프로비저닝하려면 물리 서버를 PXE 로 재등록하십시오.</p>
+                            회수된 서버는 프로비저닝 대상이 아닙니다. 다시 프로비저닝하려면 물리 서버를 PXE 로 재등록해야 합니다.</p>
                         <!-- E1-2 (UC-3) → R13 — 진단(수집)은 자동 진행이므로 개시 안내는 "수집 이후 단계" 로 한정. -->
                         <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active}">
                             <span th:if="${phaseRail.assigned}"><strong>[프로비저닝 개시]</strong> 를 누르면 진행합니다.</span>
@@ -690,7 +690,7 @@
                         <div class="n-block-gap-sm" th:text="${phaseRail.hardwareMismatchReason}">
                             이 정의서는 메인보드 MS03-CE0 전용이지만 이 서버는 X11SPM 입니다.</div>
                         <div class="n-section-hint n-block-gap-sm">
-                            개시는 막지 않습니다. 이 서버에 맞는 정의서로 재할당한 뒤 개시하십시오.
+                            개시는 막지 않습니다. 이 서버에 맞는 정의서로 재할당한 뒤 개시해야 합니다.
                         </div>
                     </div>
 
@@ -742,17 +742,17 @@
                         <div th:if="${assignmentForm.blocked}" class="n-alert n-alert-warning" role="alert">
                             <b th:text="${assignmentForm.serverBlockReason}">회수된 서버에는 세팅 정의서를 할당할 수 없습니다.</b>
                             <div class="n-section-hint n-block-gap-sm">
-                                이 서버를 다시 프로비저닝하려면 물리 서버를 PXE 로 재등록해 주세요.
+                                이 서버를 다시 프로비저닝하려면 물리 서버를 PXE 로 재등록해야 합니다.
                             </div>
                         </div>
                         <p th:if="${!assignmentForm.blocked and #lists.isEmpty(assignmentForm.options)}" class="n-detail-empty">
-                            등록된 세팅 정의서가 없습니다. 먼저 정의서를 만들어 주세요.
+                            등록된 세팅 정의서가 없습니다. 먼저 정의서를 작성해야 합니다.
                         </p>
                         <!--/* E3-3 CP5 F-2 — 잠긴 사유는 정의서마다 다르고 picker 의 잠김 행이 정확한 문장을 들고 있으므로,
                                요약은 중립으로 두고 버튼은 항상 열어 그 문장에 닿게 한다. */-->
                         <p th:if="${!assignmentForm.blocked and !#lists.isEmpty(assignmentForm.options) and !assignmentForm.hasSelectable}"
                            class="n-detail-empty">
-                            지금은 이 서버에 할당할 수 있는 세팅 정의서가 없습니다. 잠긴 사유는 정의서 목록에서 확인하십시오.
+                            지금은 이 서버에 할당할 수 있는 세팅 정의서가 없습니다. 잠긴 사유는 정의서 목록에서 확인할 수 있습니다.
                         </p>
                         <div th:if="${!assignmentForm.blocked and !#lists.isEmpty(assignmentForm.options)}">
                             <button type="button" class="n-btn n-btn-primary" id="openAssignPicker"
@@ -825,7 +825,7 @@
                               th:with="wr=${server.windowsInstall.failedReason}"
                               th:text="${wr == 'INSTALL_TIMEOUT'} ? #{provisioning.windows.install.progress.failed.timeout}
                                        : (${wr == 'REPXE_LOOP'} ? #{provisioning.windows.install.progress.failed.loop}
-                                       : #{provisioning.windows.install.progress.failed.operator})">원인을 확인한 뒤 재시도하십시오.</div>
+                                       : #{provisioning.windows.install.progress.failed.operator})">원인을 확인한 뒤 재시도해야 합니다.</div>
                     </div>
                     </th:block>
                     <th:block th:switch="${phaseName}">
@@ -1114,7 +1114,7 @@
                                             <th:block th:if="${wi.completed()}">
                                                 <span class="n-badge n-badge-teal" th:text="#{provisioning.windows.install.progress.completed}">완료</span>
                                                 <span class="n-meta n-muted"
-                                                      th:text="|#{provisioning.windows.install.progress.completed.at} ${#temporals.format(wi.completedAt, 'yyyy-MM-dd HH:mm:ss')}, #{provisioning.windows.install.progress.completed.computer} ${wi.computerName}, #{provisioning.windows.install.progress.completed.drivers} ${wi.driversAdded}, #{provisioning.windows.install.progress.completed.problems} ${wi.problemDeviceCount}|">완료 2026-09-03 · ComputerName SPV-14174000 · 드라이버 47 · 문제 장치 0</span>
+                                                      th:text="|#{provisioning.windows.install.progress.completed.at} ${#temporals.format(wi.completedAt, 'yyyy-MM-dd HH:mm:ss')}, #{provisioning.windows.install.progress.completed.computer} ${wi.computerName}, #{provisioning.windows.install.progress.completed.drivers} ${wi.driversAdded}, #{provisioning.windows.install.progress.completed.problems} ${wi.problemDeviceCount}|">완료 2026-09-03, ComputerName SPV-14174000, 드라이버 47, 문제 장치 0</span>
                                             </th:block>
                                             <th:block th:if="${wi.failedReason != null}">
                                                 <span class="n-badge n-badge-red" th:text="#{provisioning.windows.install.progress.failed}">실패</span>
@@ -1122,7 +1122,7 @@
                                             <th:block th:if="${wi.served()}">
                                                 <span class="n-badge n-badge-blue" th:text="#{provisioning.windows.install.progress.running}">설치 중</span>
                                                 <span class="n-meta n-muted"
-                                                      th:text="|#{provisioning.windows.install.progress.served} ${#temporals.format(wi.servedAt, 'yyyy-MM-dd HH:mm:ss')}, #{provisioning.windows.install.progress.reentries} ${wi.reentries}/${wi.maxReentries}회, #{provisioning.windows.install.progress.remaining} ${wi.remainingMinutes}분|">설치 파일 전달 · 재부팅 0/5회 · 남은 시간 60분</span>
+                                                      th:text="|#{provisioning.windows.install.progress.served} ${#temporals.format(wi.servedAt, 'yyyy-MM-dd HH:mm:ss')}, #{provisioning.windows.install.progress.reentries} ${wi.reentries}/${wi.maxReentries}회, #{provisioning.windows.install.progress.remaining} ${wi.remainingMinutes}분|">설치 파일 전달, 재부팅 0/5회, 남은 시간 60분</span>
                                             </th:block>
                                             <th:block th:if="${wi.failedReason == null and !wi.served() and !wi.completed()}">
                                                 <span class="n-badge n-badge-gray">예정</span>
@@ -1452,7 +1452,7 @@
                     <p class="n-detail-empty">불러오는 중…</p>
                 </div>
                 <div class="n-picker-footer">
-                    <span class="n-picker-count" id="definitionPickerStatus">왼쪽에서 정의서를 고르세요</span>
+                    <span class="n-picker-count" id="definitionPickerStatus">왼쪽에서 정의서 선택</span>
                     <span>
                         <button type="button" class="n-btn n-btn-secondary" data-picker-close>취소</button>
                         <button type="submit" class="n-btn n-btn-primary" id="definitionPickerSubmit" disabled>

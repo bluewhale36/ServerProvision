@@ -60,18 +60,18 @@ public class BundleExtractionService {
 			String rel = normalize(f.getOriginalFilename());
 			if (rel.isEmpty()) {
 				throw new BundleExtractionException(
-						"개별 파일 여러 개를 한 폴더로 묶지 않고 업로드할 수 없습니다 (케이스 1 거절).");
+						"여러 파일은 한 폴더로 묶어 업로드해야 합니다.");
 			}
 			int slash = rel.indexOf('/');
 			if (slash < 0) {
 				// 단일 파일을 폴더 모드로 보낸 경우도 케이스 1 로 간주하고 거절
 				throw new BundleExtractionException(
-						"파일에 폴더 prefix 가 없습니다. 폴더를 통째로 선택해 업로드하세요 (케이스 1 거절).");
+						"폴더를 통째로 선택해 업로드해야 합니다.");
 			}
 			prefixes.add(rel.substring(0, slash));
 			if (prefixes.size() > 1) {
 				throw new BundleExtractionException(
-						"여러 폴더가 섞여 있습니다. 단일 폴더만 선택해 업로드하세요.");
+						"여러 폴더가 섞여 있습니다. 폴더 하나만 선택해 업로드해야 합니다.");
 			}
 		}
 
@@ -90,7 +90,7 @@ public class BundleExtractionService {
 					Files.copy(in, dest, StandardCopyOption.REPLACE_EXISTING);
 				}
 			} catch (IOException e) {
-				throw new BundleExtractionException("폴더 파일 저장 실패 : " + dest, e);
+				throw new BundleExtractionException("폴더의 파일을 저장하지 못했습니다: " + dest, e);
 			}
 		}
 		// S3 — 추출 후 트리 크기 가드 + POSIX 권한 적용
@@ -117,7 +117,7 @@ public class BundleExtractionService {
 				Files.copy(in, tempZip, StandardCopyOption.REPLACE_EXISTING);
 			}
 		} catch (IOException e) {
-			throw new BundleExtractionException("zip 임시 저장 실패", e);
+			throw new BundleExtractionException("zip 파일을 임시 저장하지 못했습니다.", e);
 		}
 		// 파일 기반 head magic / bomb 검사 (multipart 재 transfer 회피).
 		contentGuard.assertSafeZip(tempZip);
@@ -157,11 +157,11 @@ public class BundleExtractionService {
 						Files.copy(es, dest, StandardCopyOption.REPLACE_EXISTING);
 					}
 				} catch (IOException ioe) {
-					throw new BundleExtractionException("zip 엔트리 저장 실패 : " + dest, ioe);
+					throw new BundleExtractionException("zip 안의 파일을 저장하지 못했습니다: " + dest, ioe);
 				}
 			}
 		} catch (IOException e) {
-			throw new BundleExtractionException("zip 처리 실패", e);
+			throw new BundleExtractionException("zip 파일을 처리하지 못했습니다.", e);
 		} finally {
 			try {
 				Files.deleteIfExists(tempZip);
@@ -181,7 +181,7 @@ public class BundleExtractionService {
 		}
 		String name = singleFile.getOriginalFilename();
 		if (name == null || name.isBlank()) {
-			throw new BundleExtractionException("파일명이 누락되어 있습니다.");
+			throw new BundleExtractionException("파일 이름이 없습니다.");
 		}
 		storeSingleFileAs(singleFile, targetDirectory, name);
 	}
@@ -206,7 +206,7 @@ public class BundleExtractionService {
 		// 파일명만 사용 — 경로 조작 방지
 		Path clean = Path.of(fileName).getFileName();
 		if (clean == null) {
-			throw new BundleExtractionException("파일명 파싱 실패 : " + fileName);
+			throw new BundleExtractionException("파일 이름을 해석하지 못했습니다: " + fileName);
 		}
 		ensureEmptyDir(targetDirectory);
 		Path dest = targetDirectory.resolve(clean);
@@ -215,7 +215,7 @@ public class BundleExtractionService {
 				Files.copy(in, dest, StandardCopyOption.REPLACE_EXISTING);
 			}
 		} catch (IOException e) {
-			throw new BundleExtractionException("단일 파일 저장 실패 : " + dest, e);
+			throw new BundleExtractionException("파일을 저장하지 못했습니다: " + dest, e);
 		}
 		// S3 — POSIX 권한 적용 (단일 파일은 디렉토리도 함께)
 		fileSystemHardener.applyDefaultPermissions(targetDirectory);
@@ -259,7 +259,7 @@ public class BundleExtractionService {
 		Path resolved = base.resolve(relative).normalize();
 		if (!resolved.startsWith(base.normalize())) {
 			throw new BundleExtractionException(
-					"zip/path slip 탐지 — 대상 경로가 지정 디렉토리 밖에 있습니다 : " + relative);
+					"대상 경로가 지정한 디렉토리 밖에 있습니다: " + relative);
 		}
 		return resolved;
 	}
@@ -269,19 +269,19 @@ public class BundleExtractionService {
 			if (Files.exists(targetDirectory)) {
 				if (!Files.isDirectory(targetDirectory)) {
 					throw new BundleExtractionException(
-							"대상 경로가 디렉토리가 아닙니다 : " + targetDirectory);
+							"대상 경로가 디렉토리가 아닙니다: " + targetDirectory);
 				}
 				try (var entries = Files.list(targetDirectory)) {
 					if (entries.anyMatch(p -> !BundleFilePolicy.isIgnorable(p))) {
 						throw new BundleExtractionException(
-								"대상 디렉토리가 비어있지 않습니다 (전개 전 검증) : " + targetDirectory);
+								"대상 디렉토리가 비어 있지 않습니다: " + targetDirectory);
 					}
 				}
 			} else {
 				Files.createDirectories(targetDirectory);
 			}
 		} catch (IOException e) {
-			throw new BundleExtractionException("대상 디렉토리 준비 실패 : " + targetDirectory, e);
+			throw new BundleExtractionException("대상 디렉토리를 준비하지 못했습니다: " + targetDirectory, e);
 		}
 	}
 }

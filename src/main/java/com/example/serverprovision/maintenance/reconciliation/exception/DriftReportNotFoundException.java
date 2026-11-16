@@ -12,6 +12,6 @@ import com.example.serverprovision.global.exception.NotFoundException;
 public class DriftReportNotFoundException extends NotFoundException {
 
 	public DriftReportNotFoundException(Long reportId) {
-		super("점검 회차를 찾을 수 없습니다 : " + reportId);
+		super("점검 회차를 찾을 수 없습니다(#" + reportId + ").");
 	}
 }

@@ -99,7 +99,7 @@
 
 .n-accordion-title {
     flex: 1;
-    font-size: 13px;
+    font-size: 14px;
     word-break: break-all;
 }
 
@@ -127,7 +127,7 @@
 }
 
 .n-accordion-field dt {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-muted);
     padding-top: 3px;
 }
@@ -138,7 +138,7 @@
    min-width 를 0 으로 열어 주고 넘칠 때만 끊게 한다 — 내용이 들어가는 평소에는 아무것도 달라지지 않는다. */
 .n-accordion-field dd {
     margin: 0;
-    font-size: 13px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -177,7 +177,7 @@
     padding: 20px;
     text-align: center;
     color: var(--n-text-muted);
-    font-size: 13px;
+    font-size: 14px;
     border: 1px dashed var(--n-border);
     border-radius: var(--n-radius-lg);
 }

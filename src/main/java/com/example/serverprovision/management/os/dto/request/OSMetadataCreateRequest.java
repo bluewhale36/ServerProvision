@@ -11,14 +11,14 @@ import jakarta.validation.constraints.Size;
  * (osName, osVersion) 조합은 활성 레코드 안에서 유일해야 한다.
  */
 public record OSMetadataCreateRequest(
-		@NotNull(message = "OS 이름을 선택하세요.")
+		@NotNull(message = "OS 이름을 선택해야 합니다.")
 		OSName osName,
 
-		@NotBlank(message = "OS 버전을 입력하세요.")
-		@Size(max = 64, message = "OS 버전은 64자 이하로 입력해주세요.")
+		@NotBlank(message = "OS 버전을 입력해야 합니다.")
+		@Size(max = 64, message = "OS 버전은 64자 이하로 입력해야 합니다.")
 		String osVersion,
 
-		@Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")
+		@Size(max = 1024, message = "설명은 1024자 이하로 입력해야 합니다.")
 		String description
 ) {
 

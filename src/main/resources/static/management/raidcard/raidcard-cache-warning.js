@@ -32,14 +32,14 @@
     function confirm(form, onProceed) {
         if (!window.ConfirmModal) {
             // base 미적재 시 경고 없이 진행하는 대신 native confirm 으로 최소 안내.
-            if (window.confirm('캐시 용량이 0GB(없음)인데 RAID5 이상 지원을 선택했습니다. 카드 사양을 다시 확인해주세요. 그대로 진행할까요?')) onProceed();
+            if (window.confirm('캐시 용량이 0GB 인데 RAID5 이상 지원을 선택했습니다. 카드 사양을 다시 확인해야 합니다. 그대로 진행하시겠습니까?')) onProceed();
             return;
         }
         window.ConfirmModal.open('cacheWarn', {
             title: '캐시 없는 카드의 RAID5 이상 지원',
-            message: '캐시 용량이 0GB(없음)인데 ' + selectedCacheLevels(form).join(', ')
-                + ' 지원을 선택했습니다. 카드 사양을 다시 확인해주세요. '
-                + '사실과 다르게 등록할 경우 프로비저닝 시 문제가 생길 수 있습니다.',
+            message: '캐시 용량이 0GB 인데 ' + selectedCacheLevels(form).join(', ')
+                + ' 지원을 선택했습니다. 카드 사양을 다시 확인해야 합니다. '
+                + '사양과 다르게 등록하면 프로비저닝에서 문제가 생길 수 있습니다.',
             confirmLabel: '사양이 맞습니다: 계속',
             confirmClass: 'n-btn-outline-warning',
             onConfirm: onProceed

@@ -65,7 +65,7 @@
             }
             paint(await resp.json());
         } catch (e) {
-            paint({kind: 'FAILED', powerState: null, message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도하십시오.'});
+            paint({kind: 'FAILED', powerState: null, message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.'});
         } finally {
             busy(false);
         }
@@ -104,7 +104,7 @@
             }
             if (Date.now() - sentAt >= GRACEFUL_WATCH_MS) {
                 paint({kind: 'FAILED', powerState: state ? state.powerState : null,
-                    message: '서버가 정상 종료 요청에 응답하지 않습니다. 전원 버튼을 처리할 OS 가 없는 상태(진단 리눅스, 설치 화면, UEFI 셸)일 수 있으니 [강제 끄기] 로 끄십시오.'});
+                    message: '서버가 정상 종료 요청에 응답하지 않습니다. 전원 버튼을 처리할 OS 가 없는 상태(진단 리눅스, 설치 화면, UEFI 셸)일 수 있으니 [강제 끄기] 로 꺼야 합니다.'});
                 const f = forceOffBtn();
                 if (f) f.classList.replace('n-btn-outline-danger', 'n-btn-danger');   // 기존 클래스 재사용 — 채움 빨강으로 강조
                 watchTimer = null;

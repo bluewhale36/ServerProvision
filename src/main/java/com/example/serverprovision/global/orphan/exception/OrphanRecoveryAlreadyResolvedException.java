@@ -10,6 +10,7 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class OrphanRecoveryAlreadyResolvedException extends ConflictException {
 
 	public OrphanRecoveryAlreadyResolvedException(String recoveryId, String state) {
-		super("이미 처리된 격리 자원입니다. recoveryId=" + recoveryId + ", state=" + state);
+		// 복구 키와 상태 상수는 화면에 내보내지 않는다(S22). 호출부 시그니처는 그대로 둔다.
+		super("이미 처리된 격리 항목입니다.");
 	}
 }

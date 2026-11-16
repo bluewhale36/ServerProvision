@@ -17,12 +17,12 @@ public class SystemAssetAreaNotFoundException extends NotFoundException {
     /** 유효한 enum 상수이나 등록된 영역 구현이 없을 때. */
     public static SystemAssetAreaNotFoundException of(SystemAssetAreaKey areaKey) {
         return new SystemAssetAreaNotFoundException(
-                "등록된 시스템 자산 영역이 아닙니다 : " + areaKey);
+                "등록되지 않은 시스템 자산 영역입니다.");
     }
 
     /** URL 경로 변수 문자열이 enum 상수로 파싱조차 되지 않을 때(forging). */
     public static SystemAssetAreaNotFoundException of(String rawKey) {
         return new SystemAssetAreaNotFoundException(
-                "존재하지 않는 시스템 자산 영역 키입니다 : " + rawKey);
+                "존재하지 않는 시스템 자산 영역입니다.");
     }
 }

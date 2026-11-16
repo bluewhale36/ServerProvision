@@ -176,7 +176,7 @@ class DiskGroupRulesTest {
 
         assertThatThrownBy(() -> DiskGroupRules.validate(List.of(rule(null, 0)), null))
                 .isInstanceOf(InvalidDiskGroupException.class)
-                .hasMessageContaining("RAID 없음 묶음도 디스크 개수는 1 이상");
+                .hasMessageContaining("RAID 미구성 묶음도 디스크 개수는 1 이상");
     }
 
     // ==== 규칙 4 — 동일 규칙 중복 ==============================================================

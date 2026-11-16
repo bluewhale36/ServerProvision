@@ -38,7 +38,7 @@ public enum SignupMode {
 
 		@Override
 		public String successMessage(String username) {
-			return "최초 관리자 계정을 만들었습니다. 로그인하십시오.";
+			return "최초 관리자 계정을 만들었습니다. 로그인할 수 있습니다.";
 		}
 	},
 	ADMIN_CREATES_USER {
@@ -69,7 +69,7 @@ public enum SignupMode {
 
 		@Override
 		public String successMessage(String username) {
-			return "사용자 계정 " + username + " 등록을 마쳤습니다. 첫 로그인에서 비밀번호 변경을 요구합니다.";
+			return "사용자 계정(" + username + ")을 등록했습니다.";
 		}
 	};
 

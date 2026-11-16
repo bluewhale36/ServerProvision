@@ -64,7 +64,7 @@
     <!-- 우측 : 고른 정의서의 상세. 항목마다 한 판씩 미리 그려 두고 .active 만 옮긴다. -->
     <div class="n-miller-col n-miller-col-detail">
         <div class="n-miller-empty" id="definitionPickerEmpty">
-            왼쪽에서 정의서를 고르면 내용이 여기에 나타납니다.
+            왼쪽에서 정의서 선택
         </div>
 
         <div th:each="item : ${picker.items}" class="n-miller-detail-panel"
@@ -87,7 +87,7 @@
             <div th:if="${item.deprecated}" class="n-alert n-alert-warning" role="alert">
                 <b>사용 중단이 권고된 정의서입니다.</b>
                 <div class="n-section-hint n-block-gap-sm">
-                    할당은 가능하지만 대체할 정의서가 있는지 확인해 주세요.
+                    할당은 가능하지만 대체할 정의서가 있는지 확인해야 합니다.
                 </div>
             </div>
 

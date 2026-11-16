@@ -83,7 +83,7 @@ public class DhcpConfigApplyService {
         if (props == null) {
             // 조각 경로 미구성 — 적용을 시도할 전제 자체가 없다(인프라 구성 결함 → 500).
             throw new DhcpServiceControlFailedException(
-                    "dnsmasq 조각 경로가 구성되지 않았습니다(pxe.dnsmasq.fragment-path 미설정). 서버 구성을 확인하세요.");
+                    "dnsmasq 구성 파일 경로가 설정되지 않았습니다. 서버 설정을 확인해야 합니다.");
         }
         Path fragmentPath = props.getFragmentPath();
         Path fragmentDir = fragmentPath.getParent();
@@ -94,14 +94,14 @@ public class DhcpConfigApplyService {
         try {
             staged = renderer.renderToTemp(desired, fragmentDir);
         } catch (IOException e) {
-            throw new DhcpServiceControlFailedException("dnsmasq 조각 임시 파일 생성 실패 : " + e.getMessage());
+            throw new DhcpServiceControlFailedException("dnsmasq 구성 파일을 쓰지 못했습니다: " + e.getMessage());
         }
 
         SwapResult swap;
         try {
             swap = atomicAssetSwap.swap(fragmentPath, staged, key);
         } catch (IOException e) {
-            throw new DhcpServiceControlFailedException("dnsmasq 조각 원자 교체 실패 : " + e.getMessage());
+            throw new DhcpServiceControlFailedException("dnsmasq 구성 파일을 교체하지 못했습니다: " + e.getMessage());
         }
 
         // 게이트 : dnsmasq --test 로 조각을 conf-dir 로 읽는 전체 구성을 검사한다.
@@ -114,8 +114,8 @@ public class DhcpConfigApplyService {
         if (gate.outcome() != CommandOutcome.COMPLETED) {
             // 게이트 자체가 실행 불능(바이너리 부재 · 타임아웃) — 판정할 수 없어 이전으로 되돌린다(500).
             restoreFragment(swap, fragmentPath, fragmentDir, key);
-            return ApplyOutcome.rolledBack("dnsmasq 문법 검사(dnsmasq --test)를 실행할 수 없습니다 : " + gate.outcome()
-                    + ". dnsmasq 바이너리와 구성 파일 읽기 권한을 확인하세요.");
+            return ApplyOutcome.rolledBack("dnsmasq 문법 검사를 실행할 수 없어(" + gate.outcome().description()
+                    + ") 이전 구성으로 되돌렸습니다. dnsmasq 설치 상태와 구성 파일 읽기 권한을 확인해야 합니다.");
         }
 
         // 재기동 : 게이트 통과 → 새 조각으로 서비스를 재기동한다.
@@ -147,11 +147,11 @@ public class DhcpConfigApplyService {
         ServiceState state = serviceInspector.status();
         if (state == ServiceState.ACTIVE) {
             return ApplyOutcome.rolledBack(
-                    "dnsmasq 재기동에 실패해 이전 구성으로 되돌렸습니다. 서비스는 이전 구성으로 동작 중이며 방금 입력한 구성은 반영되지 않았습니다.");
+                    "dnsmasq 재기동에 실패해 이전 구성으로 되돌렸습니다. 입력한 구성은 반영되지 않았습니다.");
         }
         return ApplyOutcome.restoreFailed(
-                "dnsmasq 재기동과 이전 구성 복원이 모두 실패해 서비스가 비활성입니다. 수동 복구가 필요합니다 — "
-                        + "이전 조각(" + fragmentPath + ")을 확인한 뒤 `sudo systemctl restart dnsmasq` 를 실행하세요.");
+                "dnsmasq 재기동과 이전 구성 복원이 모두 실패해 서비스가 정지했습니다. "
+                        + "구성 파일(" + fragmentPath + ")을 확인한 뒤 서버에서 dnsmasq 를 수동으로 복구해야 합니다.");
     }
 
     /**

@@ -201,11 +201,14 @@ class ReconciliationSettingsServiceTest {
 	class Catalog {
 
 		@Test
-		@DisplayName("모든 항목이 뜻과 효과 시점을 갖는다 — 화면이 빈 설명을 그리지 않는다")
+		@DisplayName("모든 항목이 이름과 효과 시점을 갖는다 — 설명은 선택이며, 있으면 비어 있지 않다")
 		void everyItemHasDescription() {
 			for (ReconciliationSettingItem item : ReconciliationSettingItem.values()) {
 				assertThat(item.getLabel()).as("%s.label", item).isNotBlank();
-				assertThat(item.getDescription()).as("%s.description", item).isNotBlank();
+				// S22 — 이름과 입력 요소로 충분한 항목은 설명을 두지 않는다(화면은 설명이 없으면 그 줄을 그리지 않는다).
+				if (item.getDescription() != null) {
+					assertThat(item.getDescription()).as("%s.description", item).isNotBlank();
+				}
 				assertThat(item.getEffectTiming()).as("%s.effectTiming", item).isNotNull();
 				assertThat(item.getEffectTiming().getLabel()).as("%s 효과 시점 문구", item).isNotBlank();
 			}

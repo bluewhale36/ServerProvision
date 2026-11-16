@@ -13,8 +13,8 @@ import java.util.UUID;
  * 엔드포인트를 나누지 않는다.</p>
  */
 public record CreateGroupRequest(
-        @NotBlank(message = "그룹 이름을 입력하세요.")
-        @Size(max = 128, message = "그룹 이름은 128자 이하로 입력해주세요.")
+        @NotBlank(message = "그룹 이름을 입력해야 합니다.")
+        @Size(max = 128, message = "그룹 이름은 128자 이하로 입력해야 합니다.")
         String name,
 
         List<UUID> serverIds

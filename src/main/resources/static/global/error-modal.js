@@ -89,7 +89,7 @@
                 show({message: msg, status: status});
             },
             onNetworkError: () => {
-                show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도하십시오.', status: 0});
+                show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.', status: 0});
             }
         };
     }

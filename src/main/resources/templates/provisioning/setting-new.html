@@ -38,7 +38,7 @@
       확인 modal(deprecatedUse) 과 라벨 옆 '지원 중단' 뱃지로 안내한다 (저장은 막지 않음).
 -->
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('신규 세팅 정의서 작성')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('세팅 정의서 작성')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/accordion.css}">
     <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
 </head>
@@ -47,7 +47,7 @@
 
 <div class="n-page-lg">
     <div class="n-page-header">
-        <h1 class="n-page-title">신규 세팅 정의서 작성</h1>
+        <h1 class="n-page-title">세팅 정의서 작성</h1>
         <div class="n-header-actions">
             <a th:href="@{/provisioning/setting}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
         </div>
@@ -98,11 +98,10 @@
                                     th:data-step-add="${type.name()}"
                                     th:text="'+ ' + ${type.displayName}">+ 단계</button>
                         </div>
-                        <div class="n-hint">추가할 프로비저닝 단계를 선택하세요. 단계 타입은 정의서당 1개씩만 추가할 수 있습니다.</div>
                     </div>
 
                     <div id="stepEmptyNotice" class="n-accordion-empty">
-                        추가된 단계가 없습니다. 위에서 단계를 추가하면 입력 폼이 나타납니다.
+                        추가된 단계가 없습니다.
                     </div>
 
                     <div class="n-accordion">
@@ -126,7 +125,7 @@
                                 <div class="n-form-group" data-error-field="boardModel">
                                     <label class="n-label strong" for="buBoardModel">메인보드 모델</label>
                                     <select id="buBoardModel" class="n-select">
-                                        <option value="AUTO" selected>자동 감지 — 실행 시점에 서버에서 보드 모델을 감지</option>
+                                        <option value="AUTO" selected>자동 감지</option>
                                         <optgroup th:each="group : ${boardOptions}" th:label="${group.vendor}">
                                             <option th:each="board : ${group.boards}"
                                                     th:value="${board.boardModelId}"
@@ -136,7 +135,6 @@
                                                     th:data-description="${board.description}"></option>
                                         </optgroup>
                                     </select>
-                                    <div class="n-hint">자동 감지를 선택하면 BIOS/BMC 는 감지된 보드의 최신 등록 펌웨어로 고정됩니다.</div>
                                 </div>
                                 <div class="n-row" data-error-field="firmwareSelectionCoherent">
                                     <div class="n-form-group" data-error-field="bios">
@@ -145,7 +143,7 @@
                                         <span class="n-btn-tooltip-wrap n-tooltip-block"
                                               data-tooltip="보드 모델 자동 감지 시 BIOS/BMC 는 최신 버전만 선택할 수 있습니다.">
                                             <select id="buBios" class="n-select" disabled>
-                                                <option value="LATEST" selected>최신 버전 — 대상 보드의 최신 등록 펌웨어</option>
+                                                <option value="LATEST" selected>최신 버전</option>
                                                 <th:block th:each="group : ${boardOptions}">
                                                 <th:block th:each="board : ${group.boards}">
                                                     <option th:each="fw : ${board.biosList}"
@@ -162,14 +160,14 @@
                                         </span>
                                         <!-- SPECIFIED 보드에 등록 펌웨어 0개 — 저장은 허용(실행 시 skip), deprecated 와 같은 노란 강조(사용자 지시) -->
                                         <span class="n-hint n-hint-warn-panel" id="buBiosEmptyHint" hidden>
-                                            이 보드에 등록된 BIOS 펌웨어가 없습니다 — 실행 시점까지 등록되지 않으면 이 항목은 건너뜁니다.</span>
+                                            이 보드에 등록된 BIOS 펌웨어가 없습니다. 실행 전까지 등록하지 않으면 BIOS 업데이트를 생략합니다.</span>
                                     </div>
                                     <div class="n-form-group" data-error-field="bmc">
                                         <label class="n-label strong" for="buBmc">업데이트할 BMC 버전</label>
                                         <span class="n-btn-tooltip-wrap n-tooltip-block"
                                               data-tooltip="보드 모델 자동 감지 시 BIOS/BMC 는 최신 버전만 선택할 수 있습니다.">
                                             <select id="buBmc" class="n-select" disabled>
-                                                <option value="LATEST" selected>최신 버전 — 대상 보드의 최신 등록 펌웨어</option>
+                                                <option value="LATEST" selected>최신 버전</option>
                                                 <th:block th:each="group : ${boardOptions}">
                                                 <th:block th:each="board : ${group.boards}">
                                                     <option th:each="fw : ${board.bmcList}"
@@ -186,7 +184,7 @@
                                         </span>
                                         <!-- SPECIFIED 보드에 등록 펌웨어 0개 — 저장은 허용(실행 시 skip), deprecated 와 같은 노란 강조(사용자 지시) -->
                                         <span class="n-hint n-hint-warn-panel" id="buBmcEmptyHint" hidden>
-                                            이 보드에 등록된 BMC 펌웨어가 없습니다 — 실행 시점까지 등록되지 않으면 이 항목은 건너뜁니다.</span>
+                                            이 보드에 등록된 BMC 펌웨어가 없습니다. 실행 전까지 등록하지 않으면 BMC 업데이트를 생략합니다.</span>
                                     </div>
                                 </div>
                             </div>
@@ -212,7 +210,7 @@
                                 <div class="n-form-group" data-error-field="boardModel">
                                     <label class="n-label strong" for="bsBoardModel">메인보드 모델</label>
                                     <select id="bsBoardModel" class="n-select">
-                                        <option value="AUTO" selected>자동 감지 — 실행 시점에 서버에서 보드 모델을 감지</option>
+                                        <option value="AUTO" selected>자동 감지</option>
                                         <optgroup th:each="group : ${boardOptions}" th:label="${group.vendor}">
                                             <option th:each="board : ${group.boards}"
                                                     th:value="${board.boardModelId}"
@@ -222,24 +220,23 @@
                                                     th:data-description="${board.description}"></option>
                                         </optgroup>
                                     </select>
-                                    <div class="n-hint">펌웨어 업데이트 단계가 함께 있으면 그 단계의 보드 선택을 따라 고정됩니다.</div>
+                                    <div class="n-hint">펌웨어 업데이트 단계가 있으면 그 단계의 보드 선택을 따릅니다.</div>
                                 </div>
                                 <!-- 수정 pre-fill 시 저장본의 템플릿이 선택지에서 사라졌으면(삭제 레이스) 경고 — JS 가 표시 -->
-                                <div class="n-hint" id="bsPrefillWarning" hidden>
-                                    저장 당시 선택했던 일부 템플릿이 삭제되어 선택에서 제외되었습니다. 저장 시 현재 체크된 템플릿만 반영됩니다.
+                                <div class="n-hint n-hint-warn" id="bsPrefillWarning" hidden>
+                                    저장 당시 선택한 템플릿 일부가 삭제되어 선택에서 제외했습니다. 저장하면 지금 선택한 템플릿만 반영합니다.
                                 </div>
                                 <div class="n-form-group" data-error-field="biosSettingTemplateIds">
                                     <label class="n-label strong">적용할 BIOS 세팅 템플릿</label>
                                     <div id="bsTemplatePanel" class="n-check-panel">
                                         <span class="n-hint" th:if="${#lists.isEmpty(biosTemplateOptions)}">
-                                            등록된 BIOS 세팅 템플릿이 없습니다 — BIOS 세팅 관리에서 먼저 작성하세요.</span>
+                                            등록된 BIOS 세팅 템플릿이 없습니다. BIOS 세팅 템플릿을 먼저 작성해야 합니다.</span>
                                         <label class="n-checkbox" th:each="tpl : ${biosTemplateOptions}">
                                             <input type="checkbox" th:value="${tpl.id}" th:data-board-model-id="${tpl.boardModelId}">
                                             <span th:text="${tpl.name}">템플릿 명칭</span>
                                             <span class="n-badge n-badge-gray" th:text="${tpl.boardModelName}">MS74-HB0</span>
                                         </label>
                                     </div>
-                                    <div class="n-hint">자동 감지 시 실행 시점에 감지된 보드와 일치하는 템플릿 1개가 적용되고 나머지는 건너뜁니다.</div>
                                 </div>
                             </div>
                         </details>
@@ -254,7 +251,7 @@
                                 <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
                             </summary>
                             <div class="n-accordion-body">
-                                <div class="n-hint">RAID card 를 이용한 RAID 구성만 지원되며, Onboard RAID 는 지원되지 않습니다.</div>
+                                <div class="n-hint">RAID 카드로 구성하는 RAID 만 지원합니다. 온보드 RAID 는 지원하지 않습니다.</div>
                                 <!-- 디스크 구성 (U4-1-1 v2) — RAID 카드 먼저, 그 다음 묶음 규칙(D7). 독립 단계 카드라 OS 선택과 무관하게 항상 보인다. 판정 재료는 서버가 내려주고 JS 는 읽기만 한다:
                                      카드 → raidCardMetaJson(hasCache / supportedLevels / blockReasons / memberRules / spanMemberRules — R17-1).
                                      @AssertTrue(raidCardPresentWhenRequired) 오류는 카드 그룹 컨테이너가 exact-match 로 받는다. -->
@@ -265,16 +262,16 @@
                                         <span class="n-label-with-help">
                                             <label class="n-label strong" for="rcRaidCard">RAID 카드</label>
                                             <span class="n-tooltip n-help-mark" tabindex="0" role="img" aria-label="도움말"
-                                                  data-tooltip="RAID 를 구성하는 묶음이 있으면 카드를 지정해야 합니다. 카드가 만들 수 있는 레벨과 최소 디스크 수가 아래 묶음 표의 선택지를 정합니다.">?</span>
+                                                  data-tooltip="RAID 를 구성하는 묶음이 있으면 카드를 지정해야 합니다.">?</span>
                                         </span>
                                     </div>
                                     <div data-error-field="raidCardId">
                                         <select id="rcRaidCard" class="n-select">
-                                            <option value="" data-none>선택 안 함 — RAID 를 구성하지 않습니다</option>
+                                            <option value="" data-none>미지정</option>
                                             <optgroup th:each="group : ${raidCardOptions}" th:label="${group.vendorDisplay}">
                                                 <option th:each="card : ${group.cards}"
                                                         th:value="${card.id}"
-                                                        th:text="${card.displayName} + ' — 캐시 ' + ${card.cacheDisplay} + ' · ' + ${card.supportedLevelsDisplay}"
+                                                        th:text="${card.displayName} + ' (캐시 ' + ${card.cacheDisplay} + ', ' + ${card.supportedLevelsDisplay} + ')'"
                                                         th:data-deprecated="${card.deprecated}"
                                                         th:data-deprecated-at="${card.deprecatedAtDisplay}"
                                                         th:data-description="${card.description}"></option>
@@ -287,8 +284,8 @@
                                             window.RAID_CARD_META_JSON = /*[[${raidCardMetaJson}]]*/ '[]';
                                         </script>
                                         <!-- 수정 pre-fill 시 저장본의 카드가 선택지에서 사라졌으면(삭제 · 비활성) 경고 — JS 가 표시 -->
-                                        <div class="n-hint" id="rcRaidCardPrefillWarning" hidden>
-                                            저장 당시 선택했던 RAID 카드가 삭제되거나 비활성화되어 선택에서 제외되었습니다. 카드를 다시 고르거나 RAID 묶음을 비워야 저장됩니다.
+                                        <div class="n-hint n-hint-warn" id="rcRaidCardPrefillWarning" hidden>
+                                            저장 당시 선택한 RAID 카드가 삭제되거나 비활성화되어 선택에서 제외했습니다. 카드를 다시 선택하거나 RAID 묶음을 비워야 합니다.
                                         </div>
                                     </div>
                                 </div>
@@ -300,7 +297,7 @@
                                         <span class="n-label-with-help">
                                             <label class="n-label strong">기존 구성 처리</label>
                                             <span class="n-tooltip n-help-mark" tabindex="0" role="img" aria-label="도움말"
-                                                  data-tooltip="집행 시 카드에 남아 있는 기존 RAID 구성을 어떻게 다룰지 정합니다. 보존을 선택하면 외부 기존 구성이 있는 서버에서 집행이 실패로 기록되고, 파괴를 선택하면 전부 삭제한 뒤 이 정의서대로 재구성합니다. RAID 를 구성하는 묶음이 있으면 반드시 선택해야 합니다.">?</span>
+                                                  data-tooltip="보존: 카드에 기존 구성이 있으면 RAID 구성이 실패합니다. 파괴: 기존 구성을 모두 지우고 이 정의서대로 다시 구성합니다.">?</span>
                                         </span>
                                     </div>
                                     <div data-error-field="existingConfigPolicy">
@@ -309,9 +306,9 @@
                                             <label class="n-meta"><input type="radio" name="rcExistingPolicyRadio" value="DESTROY"> 기존 구성 파괴</label>
                                         </div>
                                         <div class="n-hint" id="rcExistingPolicyHint" hidden>RAID 를 구성하는 묶음이 없어 선택이 필요하지 않습니다.</div>
-                                        <div class="n-hint" id="rcExistingPolicyPrefillWarning" hidden>구 저장본이라 기존 구성 처리가 지정되어 있지 않습니다 — 저장하려면 선택해야 합니다.</div>
+                                        <div class="n-hint n-hint-warn" id="rcExistingPolicyPrefillWarning" hidden>기존 구성 처리가 지정되지 않은 정의서입니다. 저장하려면 선택해야 합니다.</div>
                                         <!-- 파괴 선택 시 상시 경고(CP6 검수 반영) — tooltip 은 열어야 보이지만 데이터 소실은 열지 않아도 알아야 한다. -->
-                                        <div class="n-hint-warn-panel" id="rcDestroyWarning" hidden>집행 시 기존 볼륨을 전부 지웁니다. 디스크에 저장된 데이터는 삭제되며, 복구할 수 없습니다.</div>
+                                        <div class="n-hint-warn-panel" id="rcDestroyWarning" hidden>RAID 구성 시 기존 볼륨을 모두 지웁니다. 디스크의 데이터는 복구할 수 없습니다.</div>
                                     </div>
                                 </div>
 
@@ -319,12 +316,8 @@
                                     <div class="n-group-head">
                                         <span class="n-label-with-help">
                                             <label class="n-label strong">디스크 묶음 규칙</label>
-                                            <span class="n-tooltip n-help-mark" tabindex="0" role="img" aria-label="도움말"
-                                                  data-tooltip="묶음 하나 = {RAID 레벨, 종류, 전송, 용량, 개수}. 개수의 ‘개’ 는 조건에 맞는 첫 그룹에서 슬롯 순 n 장을 한 묶음만 가져가고(남은 디스크는 아래 규칙으로), ‘개씩’ 은 그룹 크기가 n 의 배수일 때 n 개씩 전부(같은 스펙 4장 + RAID1 2개씩 → 볼륨 2개), ‘개 이상’ 은 n 장 이상이면 그룹 전체를 한 볼륨으로 씁니다. 레벨을 ‘RAID 없음’ 으로 두면 그 묶음의 디스크를 RAID 로 묶지 않고 그대로 씁니다. 묶음을 하나도 두지 않으면 설치기가 자동 선택합니다. 행 순서 = 적용 순서이며 맨 앞 ☰ 핸들을 끌어 바꿉니다.">?</span>
                                         </span>
                                     </div>
-                                    <!-- 적용 순서 안내(E3.5-7-a D4) — 상시 노출. 순위 열과 함께 "위 규칙이 먼저 가져간다" 를 화면에서 읽게 한다 -->
-                                    <div class="n-hint">위 규칙부터 순서대로 디스크를 가져가고, 남은 디스크는 아래 규칙으로 흐릅니다. 어느 규칙에도 맞지 않는 디스크는 미배정으로 남습니다.</div>
                                     <!-- 도달 불가 안내(CP6 검수 반영 — 제목 아래로 이동) + 해당 행 색상은 is-unreachable 클래스가 담당 -->
                                     <div class="n-hint is-danger" id="rcUnreachableHint" hidden></div>
                                     <table class="n-tbl-list" id="rcDiskGroupTable">
@@ -351,10 +344,7 @@
                                             <th>
                                                 <!-- 표 맨 오른쪽 열이라 tooltip 을 오른쪽 정렬로 연다(전역 data-tooltip-align="right") — 왼쪽 정렬이면 카드의
                                                      overflow:hidden 경계에서 잘린다(CP5 F-1). -->
-                                                <span class="n-label-with-help">역할
-                                                    <span class="n-tooltip n-help-mark" tabindex="0" role="img" aria-label="도움말" data-tooltip-align="right"
-                                                          data-tooltip="묶음이 만드는 볼륨을 어느 영역에 둘지. ‘우선순위에 따름’ 은 아래 볼륨 우선순위가 OS/Data 를 고릅니다. ‘OS 영역’ 은 한 묶음만 고정할 수 있고 그 볼륨 안에서 우선순위가 하나를 고릅니다. ‘영역 할당 없음’ 은 RAID 구성만 하고 어디에도 마운트하지 않습니다.">?</span>
-                                                </span>
+                                                <span class="n-label-with-help">역할</span>
                                             </th>
                                             <th></th>
                                         </tr>
@@ -373,8 +363,6 @@
                                     <div class="n-group-head">
                                         <span class="n-label-with-help">
                                             <label class="n-label strong">볼륨 우선순위</label>
-                                            <span class="n-tooltip n-help-mark" tabindex="0" role="img" aria-label="도움말"
-                                                  data-tooltip="위 묶음이 만든 볼륨(RAID 볼륨 · 단독 디스크)을 세우는 순서입니다. 볼륨은 종류 · 전송이 같은 첫 행의 순번을 받고, 같은 행 안에서는 그 행의 용량 순서로 섭니다. 1 순위 볼륨이 OS 영역, 나머지는 순위대로 Data 1, 2, … 가 됩니다. 어느 행에도 맞지 않는 볼륨은 맨 뒤(열거 순서)입니다. 순위는 맨 앞 ☰ 핸들을 끌어 바꾸며 순위 열이 따라 바뀝니다.">?</span>
                                         </span>
                                         <!-- '기본 파티션 자동 생성' 과 같은 자리 · 같은 관례 — 기본값은 서버가 내린 defaultVolumePrioritiesJson -->
                                         <button type="button" id="rcResetPriority" class="n-btn n-btn-outline n-btn-sm">기본 행으로 되돌리기</button>
@@ -411,8 +399,8 @@
                                     </script>
                                     <div class="n-hint" id="rcPriorityHint" hidden></div>
                                     <!-- 구 저장본(역할 · 우선순위 없는 payload) 편집 시 기본값을 채웠음을 알린다 — JS 가 표시 -->
-                                    <div class="n-hint" id="rcPriorityPrefillWarning" hidden>
-                                        이 정의서에는 역할 · 볼륨 우선순위가 없어 기본값을 채웠습니다 — 저장하면 확정됩니다.
+                                    <div class="n-hint n-hint-warn" id="rcPriorityPrefillWarning" hidden>
+                                        역할과 볼륨 우선순위가 없는 정의서라 기본값을 채웠습니다. 저장하면 확정합니다.
                                     </div>
                                 </div>
 
@@ -429,20 +417,15 @@
                                 <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
                             </summary>
                             <div class="n-accordion-body">
-                                <!-- 안내 — 정의서가 고르는 것과 운영 설정에서 오는 것을 먼저 가른다(E4-1-a-2 D-11 · Q7) -->
-                                <div class="n-step-guide">
-                                    <div class="n-step-guide-title">Windows Server 설치 단계입니다</div>
-                                    <div>설치할 OS · ISO · 설치 이미지(에디션)를 고르고 Administrator 비밀번호를 입력합니다. 시간대 · 제품 키 · 설치 소스 공유 정보는 정의서가 아니라 운영 설정에서 옵니다(시스템 자산 대시보드 → Windows 설치 소스).</div>
-                                </div>
                                 <div class="n-form-group">
                                     <label class="n-label strong" for="oiOsSelect">설치할 OS</label>
                                     <select id="oiOsSelect" class="n-select" data-error-field="osMetadataId">
-                                        <option value="">OS 를 선택하십시오</option>
+                                        <option value="">OS 선택</option>
                                         <optgroup th:each="group : ${osOptions}" th:label="${group.osLabel}">
                                             <!-- 선택 가능 여부의 SSOT = 서버 정책(installBlockReason = OsInstallTargetPolicy) — disabled + 사유(title)로 1차 차단 -->
                                             <option th:each="os : ${group.osList}"
                                                     th:value="${os.osMetadataId}"
-                                                    th:text="${os.osName} + ' ' + ${os.version} + (${os.installBlockReason != null} ? ' — 선택 불가' : '')"
+                                                    th:text="${os.osName} + ' ' + ${os.version} + (${os.installBlockReason != null} ? ' (선택 불가)' : '')"
                                                     th:disabled="${os.installBlockReason != null}"
                                                     th:title="${os.installBlockReason}"
                                                     th:classappend="${os.installBlockReason != null} ? 'unavailable'"
@@ -460,7 +443,7 @@
                                     <div class="n-form-group" data-error-field="isoId">
                                         <label class="n-label strong" for="oiIsoSelect">설치 ISO</label>
                                         <select id="oiIsoSelect" class="n-select" disabled>
-                                            <option value="" data-placeholder>OS 를 먼저 선택하십시오</option>
+                                            <option value="" data-placeholder>OS 먼저 선택</option>
                                             <th:block th:each="group : ${osOptions}">
                                             <th:block th:each="os : ${group.osList}">
                                                 <option th:each="iso : ${os.isoList}"
@@ -480,14 +463,13 @@
                                         <div class="n-form-group" data-error-field="imageName">
                                             <label class="n-label strong" for="oiWindowsImage">설치 이미지 (에디션)</label>
                                             <select id="oiWindowsImage" class="n-select">
-                                                <option value="" data-placeholder>설치 이미지를 선택하십시오</option>
+                                                <option value="" data-placeholder>설치 이미지 선택</option>
                                                 <option th:each="img : ${windowsImageOptions}"
                                                         th:value="${img.name}"
-                                                        th:text="${img.displayName} + ' — ' + ${img.installationType}"
+                                                        th:text="${img.displayName} + ', ' + ${img.installationType}"
                                                         th:data-edition-id="${img.editionId}"
                                                         th:data-index="${img.index}"></option>
                                             </select>
-                                            <div class="n-hint">이미지 목록은 설치 소스의 install.wim 에서 읽습니다.</div>
                                             <div class="n-hint is-danger" id="oiWindowsImagePrefillWarning" hidden></div>
                                         </div>
                                         <div class="n-form-group" data-error-field="administratorPassword">
@@ -497,7 +479,7 @@
                                             <label class="n-checkbox n-keep-password" id="oiWinAdminKeepWrap" hidden>
                                                 <input type="checkbox" id="oiWinAdminKeep"> 기존 비밀번호 유지
                                             </label>
-                                            <div class="n-hint">Windows 의 비밀번호 정책(길이 · 복잡도)을 만족해야 설치가 완료됩니다. 영문 대소문자 · 숫자 · 특수문자 조합을 권장합니다.</div>
+                                            <div class="n-hint">Windows 비밀번호 정책(길이, 복잡도)을 만족하지 않으면 설치가 완료되지 않습니다. 영문 대소문자, 숫자, 특수문자를 섞어 입력해야 합니다.</div>
                                         </div>
                                     </div>
                                 </div>
@@ -547,7 +529,7 @@
                 <td class="n-td-center"><span class="n-rank dgRank">1</span></td>
                 <td>
                     <select class="n-select dgLevel">
-                        <option value="">RAID 없음</option>
+                        <option value="">RAID 미구성</option>
                         <option th:each="lv : ${raidLevels}"
                                 th:value="${lv.name()}"
                                 th:text="${lv.displayName}"
@@ -568,7 +550,7 @@
                 <td>
                     <!-- 용량: 방식 select 한 줄 + '지정' 일 때만 아래 줄에 값 · 단위(열 폭을 좁게 유지 — CP7 검수) -->
                     <div class="n-cell-stack">
-                        <select class="n-select dgCapacityMode" title="자동 탐지 또는 직접 지정">
+                        <select class="n-select dgCapacityMode">
                             <option value="AUTO">자동 탐지</option>
                             <option value="SPECIFIED">직접 지정</option>
                         </select>
@@ -715,8 +697,8 @@
                 <td>
                     <!-- 값은 ServiceAction enum 상수명과 일치해야 한다 (Model 미제공 — 계약 드리프트 시 통합 테스트에서 검출) -->
                     <select class="n-select svcAction">
-                        <option value="ENABLE" selected>활성화 (enable)</option>
-                        <option value="DISABLE">비활성화 (disable)</option>
+                        <option value="ENABLE" selected>활성화</option>
+                        <option value="DISABLE">비활성화</option>
                     </select>
                 </td>
                 <td class="n-td-center">
@@ -730,7 +712,7 @@
             <a class="n-btn n-btn-secondary"
                th:href="${isEdit} ? @{/provisioning/setting/{id}(id=${setting.id})} : @{/provisioning/setting}">취소</a>
             <button type="submit" class="n-btn n-btn-primary"
-                    th:text="${isEdit} ? '변경 사항 저장' : '정의서 생성'">정의서 생성</button>
+                    th:text="${isEdit} ? '변경 사항 저장' : '정의서 작성'">정의서 작성</button>
         </div>
     </form>
 </div>

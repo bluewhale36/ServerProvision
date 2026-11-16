@@ -6,8 +6,8 @@
    ============================================================ */
 (function () {
     'use strict';
-    const TEMPLATE = '{resource} 을(를) +{days}일 연장할까요?';
-    const DEFAULT_MSG = '이 자원의 보존기간을 연장할까요?';
+    const TEMPLATE = '{resource} 의 보존 기간을 {days}일 연장하시겠습니까?';
+    const DEFAULT_MSG = '이 자원의 보존 기간을 연장하시겠습니까?';
 
     function lazyUrl(form) {
         const resourceType = form.getAttribute('data-resource-type') || 'OS_ISO';

@@ -42,11 +42,10 @@
     <span class="n-header-divider" aria-hidden="true"></span>
 
     <button type="button" id="scanDeepBtn" class="n-btn n-btn-secondary"
-            title="파일 내용까지 검사합니다 — 용량에 따라 수 분이 걸릴 수 있어요."
+            title="파일 내용까지 검사합니다. 용량에 따라 수 분이 걸릴 수 있습니다."
             th:data-scan-url="@{/maintenance/reconciliation/scan(deep=true)}">정밀 점검
     </button>
     <button type="button" id="scanBtn" class="n-btn n-btn-primary"
-            title="등록 정보와 디스크 상태의 불일치를 바로 점검합니다."
             th:data-scan-url="@{/maintenance/reconciliation/scan}">지금 점검
     </button>
 </div>
@@ -62,7 +61,7 @@
          멈추는 비상 차단기라, 끈 사실을 잊으면 시스템이 조용히 아무것도 고치지 않는 상태로 남는다. */-->
     <div th:if="${!resolutionEnabled}" class="n-banner n-banner-warn">
         <strong>시스템 해결이 꺼져 있습니다.</strong>
-        점검은 계속하지만 발견된 드리프트를 고치지 않습니다 — 수동 [해결] 과 점검 중 자동 처리가 모두 멈춥니다.
+        수동 [해결] 과 점검 중 자동 처리가 모두 멈춥니다.
         <a th:href="@{/maintenance/reconciliation/settings}">점검 운영 설정</a> 에서 다시 켤 수 있습니다.
     </div>
 
@@ -75,10 +74,9 @@
          시각이 사실이고 나머지는 그 사실을 읽는 법이라, 시각만 따로 모아야 눈이 바로 찾는다. */-->
     <div th:if="${scanCoverage != null and !scanCoverage.contentChecked}"
          class="n-banner n-banner-warn n-banner-stack">
-        <strong>이번 점검은 파일 내용을 확인하지 않습니다</strong>
+        <strong>이번 점검은 파일 내용을 확인하지 않았습니다.</strong>
         <div>
-            파일 내용의 변동 여부는 정밀 점검에서 나타납니다.
-            필요 시 상단의 <strong>[정밀 점검]</strong> 을 이용할 수 있습니다.
+            파일 내용 변경을 확인하려면 상단의 <strong>[정밀 점검]</strong> 을 실행해야 합니다.
         </div>
         <dl class="n-banner-facts">
             <div>
@@ -87,7 +85,7 @@
                     th:text="${#temporals.format(scanCoverage.lastDeepScanAt, 'yyyy-MM-dd HH:mm')}">2026-08-13 08:35</dd>
                 <!--/* 보관 개수를 줄이면 오래된 회차가 정리되어 정밀 점검 기록도 함께 사라진다.
                      그때 "한 번도 하지 않았다" 고 말하면 사실이 아니다 — 없는 것은 기록이지 점검이 아니다. */-->
-                <dd th:if="${scanCoverage.neverDeepScanned()}">남아 있는 기록 없음</dd>
+                <dd th:if="${scanCoverage.neverDeepScanned()}">기록 미보존</dd>
             </div>
             <div>
                 <dt>다음 정밀 점검 예정</dt>
@@ -117,14 +115,13 @@
 <section th:fragment="reportTable(reports, pageBasePath)" class="n-card n-glist">
     <div class="n-glist-head">
         <strong class="n-glist-title">점검 이력</strong>
-        <span class="n-glist-hint">회차를 열면 그 점검이 무엇을 어디까지 봤는지 확인할 수 있습니다</span>
         <span class="n-badge n-badge-gray" th:text="|${totalElements} 회|">12 회</span>
     </div>
 
     <div class="n-glist-panel">
         <div th:if="${#lists.isEmpty(reports)}" class="n-empty">
             <div class="n-empty-title">아직 보고된 점검 이력이 없습니다.</div>
-            <div class="n-empty-desc">상단의 <strong>지금 점검</strong> 으로 첫 점검을 시작하세요.</div>
+            <div class="n-empty-desc">상단의 <strong>[지금 점검]</strong> 으로 첫 점검을 시작할 수 있습니다.</div>
         </div>
 
         <table th:unless="${#lists.isEmpty(reports)}" class="n-table">
@@ -153,8 +150,8 @@
                 <td>
                     <span th:text="|${report.population.total()} 건|">16 건</span>
                     <div th:if="${report.population.hasNonActive()}" class="n-spec-cell"
-                         th:text="|활성 ${report.population.activeCount} · 삭제 ${report.population.deletedCount} · 짝없는 마커 ${report.population.unmatchedMarkerCount}|">
-                        활성 9 · 삭제 6 · 짝없는 마커 1
+                         th:text="|활성 ${report.population.activeCount}, 삭제 ${report.population.deletedCount}, 짝 없는 마커 ${report.population.unmatchedMarkerCount}|">
+                        활성 9, 삭제 6, 짝 없는 마커 1
                     </div>
                 </td>
                 <td>
@@ -178,7 +175,7 @@
 <div th:fragment="driftTable(drifts, emptyTitle, emptyDesc)">
     <div th:if="${#lists.isEmpty(drifts)}" class="n-empty">
         <div class="n-empty-title" th:text="${emptyTitle}">남아 있는 문제가 없습니다.</div>
-        <div class="n-empty-desc" th:text="${emptyDesc}"></div>
+        <div class="n-empty-desc" th:if="${emptyDesc != null}" th:text="${emptyDesc}"></div>
     </div>
 
     <table th:unless="${#lists.isEmpty(drifts)}" class="n-table">
@@ -202,13 +199,13 @@
             <td>
                 <a class="n-row-link"
                    th:href="@{/maintenance/reconciliation/drifts/{id}(id=${drift.id})}"
-                   th:text="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">Rocky Linux 9.6</a>
-                <div class="n-spec-cell" th:text="${drift.resourceType}">OS_ISO</div>
+                   th:text="${drift.displayName != null ? drift.displayName : drift.resourceType.displayName + ' #' + drift.resourceId}">Rocky Linux 9.6</a>
+                <div class="n-spec-cell" th:text="${drift.resourceType.displayName}">OS ISO</div>
             </td>
             <!--/* 종류는 글자로만 둔다. 배지 색으로 또 나누면 눈이 색부터 좇는데, 정작 순서를
                  정하는 것은 옆의 위험도와 사용 중이고 목록은 이미 그 순서로 놓여 있다. 종류마다
                  다른 색은 그 순서와 무관한 축이라 읽는 사람을 헷갈리게 한다. */-->
-            <td th:text="${drift.kind.label}">경로 이동됨</td>
+            <td th:text="${drift.kind.label}">경로 이동</td>
             <td>
                 <span class="n-badge"
                       th:classappend="${drift.kind.severity.name() == 'IMMEDIATE'} ? 'n-badge-red' : (${drift.kind.severity.name() == 'ATTENTION'} ? 'n-badge-yellow' : 'n-badge-gray')"
@@ -216,8 +213,8 @@
             </td>
             <td>
                 <span th:if="${drift.hasUsage()}" class="n-badge n-badge-orange"
-                      th:text="${drift.usage.label}">할당됨</span>
-                <span th:unless="${drift.hasUsage()}" class="n-text-muted">—</span>
+                      th:text="${drift.usage.label}">서버 할당</span>
+                <span th:unless="${drift.hasUsage()}" class="n-text-muted">-</span>
             </td>
             <!--/* MK4-4-2 — 「최초 발견」 과 「이어짐」 을 가른다. 같은 자원의 문제가 종류를 바꿔
                  나타나면 새 기록이라 관측 횟수가 1 이고, 종전에는 그것도 최초 발견으로 표시됐다 —
@@ -227,7 +224,7 @@
                 <span th:text="${#temporals.format(drift.firstDetectedAt, 'yyyy-MM-dd HH:mm')}">2026-08-12 10:30</span>
                 <span th:if="${drift.isNew()}" class="n-badge n-badge-red">최초 발견</span>
                 <span th:if="${drift.succeeded()}" class="n-badge n-badge-teal n-tooltip"
-                      th:data-tooltip="|「${drift.predecessor.kindLabel()}」 문제가 닫힌 자리에서 이어졌습니다|">이어짐</span>
+                      th:data-tooltip="|「${drift.predecessor.kindLabel()}」 드리프트에서 이어졌습니다.|">승계</span>
             </td>
             <td>
                 <span class="n-badge" th:classappend="'n-badge-' + ${drift.status.badgeColor}"
@@ -240,7 +237,7 @@
             <td class="n-th-center">
                 <div th:replace="~{fragments/maintenance/reconciliation-parts :: resolveForms(${drift}, 'n-btn n-btn-sm n-btn-primary')}"></div>
                 <span th:unless="${drift.kind.manuallyResolvable or drift.kind.name() == 'HASH_MISMATCH' or drift.kind.name() == 'RESOURCE_REPLICA'}"
-                      class="n-tooltip n-text-muted" th:data-tooltip="${drift.kind.mode.description}">—</span>
+                      class="n-tooltip n-text-muted" th:data-tooltip="${drift.kind.mode.description}">-</span>
             </td>
         </tr>
         </tbody>
@@ -257,7 +254,7 @@
     <th:block th:with="blocked=${drift.resolveBlockReason != null or !resolutionEnabled},
                        reason=${drift.resolveBlockReason != null
                                ? drift.resolveBlockReason
-                               : '시스템 해결이 꺼져 있어요. 점검 운영 설정에서 켠 뒤 다시 시도하세요.'}">
+                               : '시스템 해결이 꺼져 있습니다. 점검 운영 설정에서 켠 뒤 다시 시도해야 합니다.'}">
 
         <form th:if="${drift.kind.manuallyResolvable}"
               th:action="@{/maintenance/reconciliation/drifts/{driftId}/apply(driftId=${drift.id})}"
@@ -315,8 +312,8 @@
       th:with="blocked=${count == 0 or !resolutionEnabled}"
       th:data-tooltip="${blocked}
                        ? (${count == 0}
-                          ? '지금 해결할 수 있는 문제가 없습니다.'
-                          : '시스템 해결이 꺼져 있어요. 점검 운영 설정에서 켠 뒤 다시 시도하세요.')
+                          ? '지금 해결할 수 있는 드리프트가 없습니다.'
+                          : '시스템 해결이 꺼져 있습니다. 점검 운영 설정에서 켠 뒤 다시 시도해야 합니다.')
                        : null"
       th:attr="data-tooltip-active=${blocked} ? 'true' : 'false'">
     <button type="button" class="n-btn n-btn-sm n-btn-primary"
@@ -325,7 +322,7 @@
             th:data-bulk-count="${count}"
             th:data-bulk-scope="${scopeText}"
             th:disabled="${blocked}"
-            th:text="|전체 해결 (${count}건)|">전체 해결 (0건)</button>
+            th:text="|전체 해결(${count}건)|">전체 해결(0건)</button>
 </span>
 
 <!--/* 페이지네이션. 쪽 이동이 어느 화면의 것인지는 호출부가 basePath 로 알린다 —
@@ -354,14 +351,8 @@
                  이 화면만의 클래스를 새로 만들지 않는 것이 요점이다. */-->
             <div class="n-form-group">
                 <label class="n-label strong">마커 서명 재발급</label>
-                <p class="n-hint">
-                    모든 자원의 마커 서명을 현재 키로 다시 계산합니다.
-                    다음 점검에서 전 자원이 '마커 서명 불일치'로 오탐되는 것을 막습니다.
-                </p>
-                <p class="n-hint">
-                    파일 내용 해시는 그대로 두므로, 실제로 변조된 자원은 이후 정밀 점검에서 여전히 잡힙니다.
-                </p>
-                <p class="n-form-meta">쓰는 때 <span>서명 키(secret)를 교체한 직후 1 회</span></p>
+                <p class="n-hint">모든 자원의 마커 서명을 현재 서명 키로 다시 계산합니다.</p>
+                <p class="n-form-meta">쓰는 때 <span>서명 키를 교체한 직후 1회</span></p>
                 <button type="button" id="reissueBtn" class="n-btn n-btn-sm n-btn-outline-danger"
                         th:data-scan-url="@{/maintenance/reconciliation/reissue-all-markers}">마커 서명 재발급
                 </button>

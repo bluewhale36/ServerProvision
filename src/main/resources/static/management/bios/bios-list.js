@@ -54,14 +54,15 @@
         const resp = await fetch(statusUrl, {headers: {'Accept': 'application/json'}});
         const body = await resp.json().catch(() => ({}));
         if (!resp.ok) {
-            throw new Error(body.message || ('HTTP ' + resp.status));
+            throw new Error(body.message || '무결성 상태를 불러오지 못했습니다.');
         }
 
         BADGE_CLASSES.forEach(cls => badge.classList.remove(cls));
         if (body.badgeClass) {
             badge.classList.add(body.badgeClass);
         }
-        badge.textContent = body.integrityStatus || 'NOT_VERIFIED';
+        // 화면 이름은 서버가 소유한다(IntegrityStatusResponse.label = IntegrityStatus.displayMessage). 상수 원문은 화면에 쓰지 않는다.
+        badge.textContent = body.label || '미검증';
     }
 
     /**
@@ -90,7 +91,7 @@
             // 성공 시에는 disabled 유지. bgjob:completed/failed 도착 시 restoreButton 으로 풀린다.
         } catch (err) {
             console.error(TAG, err);
-            ErrorModal.show({message: '검증 요청 중 오류 : ' + err.message, status: 0});
+            ErrorModal.show({message: '검증을 요청하지 못했습니다. 다시 시도해야 합니다.', status: 0});
             setButtonIdle(btn);
         }
     });
@@ -101,7 +102,7 @@
         try {
             await refreshBadge(d.metadata || {});
             if (window.bgjobToast) {
-                window.bgjobToast('무결성 검증이 완료되었습니다.', {variant: 'success'});
+                window.bgjobToast('무결성 검증을 마쳤습니다.', {variant: 'success'});
             }
         } catch (err) {
             console.error(TAG, err);
@@ -147,12 +148,12 @@
             onRejected: function (form, status, payload) {
                 if (base && base.onRejected) { base.onRejected(form, status, payload); return; }
                 if (window.ErrorModal) {
-                    window.ErrorModal.show({message: (payload && payload.message) || ('요청이 거절되었어요. (HTTP ' + status + ')'), status: status});
+                    window.ErrorModal.show({message: (payload && payload.message) || '요청이 거절되었습니다.', status: status});
                 }
             },
             onNetworkError: function () {
                 if (base && base.onNetworkError) { base.onNetworkError(); return; }
-                if (window.ErrorModal) { window.ErrorModal.show({message: '서버와 통신할 수 없어요. 잠시 후 다시 시도해주세요.', status: 0}); }
+                if (window.ErrorModal) { window.ErrorModal.show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.', status: 0}); }
             }
         };
     });

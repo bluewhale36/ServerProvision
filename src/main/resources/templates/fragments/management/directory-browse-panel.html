@@ -28,7 +28,7 @@
         <button type="button"
                 th:id="${prefix} + 'UpBtn'"
                 class="n-btn n-btn-sm n-btn-outline"
-                th:title="${mode == 'file' ? '상위 디렉토리로 (트리 루트 밖으로는 이동 불가)' : '상위 디렉토리로'}">↑ 상위
+                th:title="${mode == 'file' ? '상위 디렉토리로 이동(트리 루트 밖으로는 불가)' : '상위 디렉토리로 이동'}">↑ 상위
         </button>
         <code class="n-browse-path" th:id="${prefix} + 'CurrentPath'"
              ></code>

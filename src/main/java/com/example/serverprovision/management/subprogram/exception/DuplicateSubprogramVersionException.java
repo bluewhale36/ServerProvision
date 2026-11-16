@@ -12,8 +12,7 @@ public class DuplicateSubprogramVersionException extends FieldBoundConflictExcep
 
 	public DuplicateSubprogramVersionException(SubprogramKind kind, BoardScope scope, String name, String version) {
 		super(
-				"같은 " + kind.getDisplayName() + " 가 이미 등록되어 있습니다. scope=" + scope.pathToken()
-						+ ", name=" + name + ", version=" + version, "version"
+				"같은 적용 범위에 이름과 버전이 같은 " + kind.getDisplayName() + "가 이미 있습니다.", "version"
 		);
 	}
 }

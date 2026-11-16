@@ -179,7 +179,7 @@ class AssignmentQueryServiceStandardBannerTest {
         assertThat(banner.memberCount()).isEqualTo(3);
         assertThat(banner.skippedCount()).isEqualTo(2);
         // 사유별 내역은 모달의 미리보기 요약과 같은 어휘를 쓴다 — 두 화면을 대조할 수 있어야 한다
-        assertThat(banner.skipBreakdown()).contains("이미 있음").contains("막힘");
+        assertThat(banner.skipBreakdown()).contains("이미 할당").contains("할당 불가");
     }
 
     @Test

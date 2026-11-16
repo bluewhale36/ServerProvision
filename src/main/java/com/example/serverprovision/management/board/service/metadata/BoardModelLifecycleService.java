@@ -154,7 +154,7 @@ public class BoardModelLifecycleService implements LifecycleService {
 	public void purgeWithTypedNameCheck(Long id, String typedName) {
 		BoardModel board = boardModelRepository.findByIdAndIsDeletedTrue(id)
 				.orElseThrow(() -> new IllegalBoardModelStateException(
-						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+						"삭제된 항목만 영구 삭제할 수 있습니다. id=" + id));
 		// R7-3 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
 		TypedNameGuard.verify(board, typedName);
 		purge(board);
@@ -169,7 +169,7 @@ public class BoardModelLifecycleService implements LifecycleService {
 	public void purge(Long id) {
 		BoardModel board = boardModelRepository.findByIdAndIsDeletedTrue(id)
 				.orElseThrow(() -> new IllegalBoardModelStateException(
-						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+						"삭제된 항목만 영구 삭제할 수 있습니다. id=" + id));
 		purge(board);
 	}
 
@@ -181,8 +181,8 @@ public class BoardModelLifecycleService implements LifecycleService {
 		Long id = board.getId();
 		if (children.stream().anyMatch(child -> child.hasAny(id))) {
 			throw new IllegalBoardModelStateException(
-					"자식 BIOS / BMC / Subprogram(드라이버·유틸리티) 자원이 남아 있어 메인보드 모델을 영구 삭제할 수 없습니다. "
-							+ "자식을 먼저 모두 영구 삭제해주세요. id=" + id);
+					"하위 BIOS, BMC, 드라이버, 유틸리티가 남아 있어 메인보드 모델을 영구 삭제할 수 없습니다. "
+							+ "하위 항목을 먼저 영구 삭제해야 합니다. id=" + id);
 		}
 		boardModelRepository.delete(board);
 		log.info("[lifecycle.purge] resource=BOARD_MODEL#{} outcome=purged", id);

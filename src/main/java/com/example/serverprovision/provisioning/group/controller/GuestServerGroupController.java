@@ -192,13 +192,14 @@ public class GuestServerGroupController {
         String standardNote = "";
         if (alsoSetStandard) {
             commandService.setStandardDefinition(id, definitionId);
-            standardNote = " 이 정의서를 이 그룹의 표준으로 두었습니다.";
+            standardNote = " 이 정의서를 이 그룹의 표준으로 지정했습니다.";
         }
 
         // 미리보기를 통째로 넘긴다 — 고를 때 빠진 멤버와 실행 중 거절된 멤버를 한 결과에 함께 세기 위해서다.
         // 대상 목록만 넘기면 "2 대에 붙는다" 를 보고 승인한 사용자가 "1 대에 할당했습니다" 만 읽게 된다.
         BatchAssignResult result = groupAssignmentService.assignToMembers(preview, definitionId);
         redirectAttributes.addFlashAttribute("flashMessage", result.message() + standardNote);
+        redirectAttributes.addFlashAttribute("flashTone", result.tone().getCssClass());
         return "redirect:/provisioning/server-group/" + id;
     }
 
@@ -218,7 +219,7 @@ public class GuestServerGroupController {
         String name = commandService.setStandardDefinition(id, definitionId);
         redirectAttributes.addFlashAttribute("flashMessage",
                 "세팅 정의서 '" + name + "' 를 이 그룹의 표준으로 지정했습니다."
-                        + " 표준은 기억만 하며 서버에 자동으로 붙지 않습니다.");
+                        + " 서버에는 자동으로 할당되지 않습니다.");
         return "redirect:/provisioning/server-group/" + id;
     }
 

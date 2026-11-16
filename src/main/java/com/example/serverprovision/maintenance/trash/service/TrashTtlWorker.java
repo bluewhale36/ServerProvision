@@ -76,8 +76,8 @@ public class TrashTtlWorker {
 						notificationDispatcher.dispatch(
 								JobType.TRASH_PURGE_FAILED,
 								settingsService.getNotificationChannels(),
-								"영구삭제 실패 — " + m.displayName(),
-								"다음 cron 자동 재시도 예정 (또는 운영자 수동 retry)."
+								"영구 삭제 실패: " + m.displayName(),
+								"다음 점검 주기에 자동으로 다시 시도합니다. 감사 로그에서 바로 재시도할 수 있습니다."
 						);
 					}
 				} catch (Exception ex) {
@@ -124,8 +124,8 @@ public class TrashTtlWorker {
 					notificationDispatcher.dispatch(
 							JobType.TTL_NOTIFY,
 							settingsService.getNotificationChannels(),
-							d + "일 후 영구삭제 예정 — " + m.displayName(),
-							"필요하다면 휴지통에서 복원하거나 보존기간을 연장하세요."
+							d + "일 후 영구 삭제 예정: " + m.displayName(),
+							"휴지통에서 복구하거나 보존 기간을 연장할 수 있습니다."
 					);
 				}
 			}

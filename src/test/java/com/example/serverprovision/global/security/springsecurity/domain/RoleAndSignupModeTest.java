@@ -43,7 +43,7 @@ class RoleAndSignupModeTest {
 		assertThat(mode.mustChangePassword()).isTrue();
 		assertThat(mode.requiresRoleSelection()).isTrue();
 		assertThat(mode.successRedirect()).isEqualTo("redirect:/signup");
-		assertThat(mode.successMessage("hong.gildong")).contains("hong.gildong").contains("비밀번호 변경");
+		assertThat(mode.successMessage("hong.gildong")).isEqualTo("사용자 계정(hong.gildong)을 등록했습니다.");
 	}
 
 	@Test

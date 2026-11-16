@@ -16,7 +16,7 @@ public record PowerControlResult(
 ) {
 
     private static final String RETRY_POWER_FAILED =
-            "재시도는 접수했지만 전원 제어에 실패해 서버가 스스로 다시 부팅하지 않습니다. %s 서버를 직접 네트워크 부팅하거나 원인을 고친 뒤 [재시도 후 네트워크 부팅] 을 다시 누르십시오.";
+            "재시도는 접수했지만 전원 제어에 실패해 서버가 스스로 다시 부팅하지 않습니다. %s 서버를 직접 네트워크 부팅하거나 원인을 고친 뒤 [재시도 후 네트워크 부팅] 을 다시 눌러야 합니다.";
 
     public enum Kind {
         /** 대상 게스트에 BMC 가 없다(bmcIp null) — 제어 자체가 성립하지 않음. */

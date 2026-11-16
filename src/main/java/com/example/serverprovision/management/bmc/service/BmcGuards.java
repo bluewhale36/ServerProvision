@@ -40,7 +40,7 @@ final class BmcGuards {
 		BoardBMC bmc = bmcRepository.findByIdAndBoardModel_Id(bmcId, boardId)
 				.orElseThrow(() -> new BmcNotFoundException(boardId, bmcId));
 		if (bmc.isDeleted()) {
-			throw new IllegalBmcStateException("삭제된 BMC 펌웨어에는 수행할 수 없는 작업입니다. bmcId=" + bmcId);
+			throw new IllegalBmcStateException("삭제된 BMC 펌웨어에는 이 작업을 할 수 없습니다.");
 		}
 		return bmc;
 	}

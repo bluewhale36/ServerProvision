@@ -24,11 +24,11 @@ public enum SubprogramKind {
 	 * URL path variable 의 소문자 표기 ({@code driver} / {@code utility}) 를 enum 으로 변환.
 	 */
 	public static SubprogramKind fromPathToken(String token) {
-		if (token == null) throw new IllegalArgumentException("kind 토큰이 null 입니다.");
+		if (token == null) throw new IllegalArgumentException("자원 종류가 지정되지 않았습니다.");
 		return switch (token.toLowerCase()) {
 			case "driver" -> DRIVER;
 			case "utility" -> UTILITY;
-			default -> throw new IllegalArgumentException("알 수 없는 subprogram kind 토큰 : " + token);
+			default -> throw new IllegalArgumentException("알 수 없는 자원 종류입니다: " + token);
 		};
 	}
 

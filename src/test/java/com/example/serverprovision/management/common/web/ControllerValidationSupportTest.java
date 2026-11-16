@@ -21,38 +21,38 @@ class ControllerValidationSupportTest {
 	@DisplayName("toValidationError — 필드 에러 2건 → fieldErrors 2건 + 요약 메시지")
 	void toValidationError_mapsFieldErrors() {
 		BindingResult br = newBindingResult();
-		br.addError(fieldError("modelName", "모델명을 입력하세요."));
-		br.addError(fieldError("vendor", "제조사를 선택하세요."));
+		br.addError(fieldError("modelName", "모델명을 입력해야 합니다."));
+		br.addError(fieldError("vendor", "제조사를 선택해야 합니다."));
 
 		ApiErrorResponse response = ControllerValidationSupport.toValidationError(br);
 
 		assertThat(response.fieldErrors()).hasSize(2);
-		assertThat(response.message()).contains("2개 필드");
+		assertThat(response.message()).isEqualTo("입력값이 올바르지 않습니다.");
 	}
 
 	@Test
 	@DisplayName("toValidationError — 단일 필드 에러 → field/message 정확히 매핑")
 	void toValidationError_singleFieldError() {
 		BindingResult br = newBindingResult();
-		br.addError(fieldError("modelName", "모델명을 입력하세요."));
+		br.addError(fieldError("modelName", "모델명을 입력해야 합니다."));
 
 		ApiErrorResponse response = ControllerValidationSupport.toValidationError(br);
 
 		assertThat(response.fieldErrors()).hasSize(1);
 		assertThat(response.fieldErrors().get(0).field()).isEqualTo("modelName");
-		assertThat(response.fieldErrors().get(0).message()).isEqualTo("모델명을 입력하세요.");
-		assertThat(response.message()).contains("1개 필드");
+		assertThat(response.fieldErrors().get(0).message()).isEqualTo("모델명을 입력해야 합니다.");
+		assertThat(response.message()).isEqualTo("입력값이 올바르지 않습니다.");
 	}
 
 	@Test
-	@DisplayName("toValidationError — 에러 없는 BindingResult → fieldErrors 빈 목록 + 0개 요약")
+	@DisplayName("toValidationError — 에러 없는 BindingResult → fieldErrors 빈 목록 + 요약 문장")
 	void toValidationError_noErrors() {
 		BindingResult br = newBindingResult();
 
 		ApiErrorResponse response = ControllerValidationSupport.toValidationError(br);
 
 		assertThat(response.fieldErrors()).isEmpty();
-		assertThat(response.message()).contains("0개 필드");
+		assertThat(response.message()).isEqualTo("입력값이 올바르지 않습니다.");
 	}
 
 	@Test
@@ -65,7 +65,7 @@ class ControllerValidationSupportTest {
 		ApiErrorResponse response = ControllerValidationSupport.toValidationError(br);
 
 		assertThat(response.fieldErrors()).hasSize(1);
-		assertThat(response.fieldErrors().get(0).message()).isEqualTo("유효하지 않은 값");
+		assertThat(response.fieldErrors().get(0).message()).isEqualTo("올바르지 않은 값입니다.");
 	}
 
 	private static BindingResult newBindingResult() {

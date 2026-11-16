@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('Subprogram 등록')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('드라이버, 유틸리티 등록')}"></th:block>
     <link rel="stylesheet" th:href="@{/management/os/os-page.css}">
 </head>
 <body>
@@ -10,7 +10,7 @@
 <div class="n-page-md">
     <div class="n-page-header">
         <h1 class="n-page-title">
-            <span th:text="${kindDisplayName}">드라이버</span> 번들 등록
+            <span th:text="${kindDisplayName}">드라이버</span> 등록
         </h1>
         <div class="n-header-actions">
             <a id="backLink" th:href="@{/management/subprogram}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
@@ -19,13 +19,6 @@
 
     <div class="n-card">
         <div class="n-card-body">
-            <div class="n-alert n-alert-muted">
-                자원 종류 : <strong th:text="${kindDisplayName}">드라이버</strong>
-                <span class="n-note">
-                    (등록 시점에는 진입점을 입력하지 않습니다. 등록 후 수정 화면에서 설정하세요.)
-                </span>
-            </div>
-
             <form id="subprogramForm"
                   th:data-base-url="@{/management/subprogram}"
                   th:data-kind-token="${kindToken}"
@@ -44,7 +37,7 @@
                             <input type="radio" name="boardScopeMode" value="common"
                                    data-error-field="boardScopeMode"
                                    th:checked="${prefillScopeMode == 'common'}">
-                            <span>공용 (보드 무관)</span>
+                            <span>공용(메인보드 무관)</span>
                         </label>
                         <label class="n-check">
                             <input type="radio" name="boardScopeMode" value="board"
@@ -57,7 +50,7 @@
                     <select id="boardId" name="boardId" class="n-input n-block-gap-sm"
                             data-error-field="boardId"
                             th:disabled="${prefillScopeMode != 'board'}">
-                        <option value="">— 메인보드 선택 —</option>
+                        <option value="">메인보드 선택</option>
                         <th:block th:each="vg : ${vendorGroups}">
                             <optgroup th:label="${vg.displayName}">
                                 <option th:each="b : ${vg.items}"
@@ -68,7 +61,7 @@
                         </th:block>
                     </select>
                     <div class="n-hint">
-                        공용 자원은 RAID utility · 진단 프로그램처럼 보드 종속이 없는 도구에 사용합니다.
+                        공용은 RAID 유틸리티, 진단 프로그램처럼 메인보드와 무관한 도구에 씁니다.
                     </div>
                 </div>
 
@@ -94,7 +87,7 @@
                         <option value="" th:text="#{management.subprogram.os.any}">OS 무관</option>
                         <option th:each="os : ${osNames}" th:value="${os.name()}" th:text="${os.displayName}">Windows Server</option>
                     </select>
-                    <div class="n-hint">이 패키지가 적용되는 OS 입니다. 버전별 실행 파일(변형)은 등록 뒤 수정 화면에서 선언합니다.</div>
+                    <div class="n-hint">진입점(변형)은 등록 뒤 수정 화면에서 설정합니다.</div>
                 </div>
 
                 <div class="n-form-group">
@@ -103,13 +96,12 @@
                         <input id="targetDirectory" type="text" th:field="*{targetDirectory}" class="n-input"
                               
                                data-error-field="targetDirectory"
-                               placeholder="/opt/subprogram/.../1.2.0/"
+                               placeholder="예: /opt/subprogram/.../1.2.0/"
                                th:data-browse-url="@{/management/browse}">
                         <button type="button" id="browseBtn" class="n-btn n-btn-outline">탐색</button>
                     </div>
                     <div class="n-hint">
-                        번들 등록 방식에 따라 의미가 달라집니다 — 업로드 모드에서는 "전개 대상 (비어있어야 함)",
-                        기존 디렉토리 등록 모드에서는 "이미 콘텐츠가 차 있는 디렉토리".
+                        업로드할 때는 빈 디렉토리를, 기존 디렉토리를 등록할 때는 파일이 들어 있는 디렉토리를 지정해야 합니다.
                     </div>
                     <div class="n-error" th:if="${#fields.hasErrors('targetDirectory')}"
                          th:errors="*{targetDirectory}"></div>
@@ -120,11 +112,10 @@
                         <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
                         <span>상위 디렉토리 생성 허용</span>
                     </label>
-                    <div class="n-hint">대상 경로의 상위(부모) 디렉토리가 없을 때 함께 생성합니다. 대상 디렉토리 자체는 업로드 시 생성됩니다.</div>
                 </div>
 
                 <div class="n-form-group">
-                    <label class="n-label strong">번들 등록 방식</label>
+                    <label class="n-label strong">등록 방식</label>
                     <div class="n-check-row n-lead" role="tablist">
                         <button type="button" id="modeTabFolder" class="n-btn n-btn-sm" role="tab"
                                 aria-selected="true" data-mode="FOLDER">폴더 업로드
@@ -144,26 +135,19 @@
 
                     <div id="folderPane">
                         <input id="folderFiles" type="file" name="folderFiles" webkitdirectory multiple class="n-input">
-                        <div class="n-hint">
-                            드라이버 패키지 폴더 / 유틸리티 디스트리뷰션 폴더를 그대로 올립니다.
-                        </div>
                     </div>
 
                     <div id="zipPane" hidden>
                         <input id="zipFile" type="file" name="zipFile" accept=".zip" class="n-input">
-                        <div class="n-hint">배포 zip 을 서버가 대상 디렉토리에 전개합니다.</div>
                     </div>
 
                     <div id="singlePane" hidden>
                         <input id="singleFile" type="file" name="singleFile" class="n-input">
-                        <div class="n-hint">단일 파일 형태의 자원도 등록할 수 있습니다.</div>
                     </div>
 
                     <div id="existingPane" hidden>
                         <div class="n-alert n-alert-muted">
-                            <strong>대상 디렉토리</strong> 에 이미 자원이 존재한다는 전제로 등록합니다.
-                            업로드 없이 서버가 트리를 직접 스캔해 manifest · marker 를 생성합니다.
-                            기존에 다른 등록의 <code>.provision.json</code> 마커가 있으면 거절됩니다.
+                            다른 자원으로 이미 등록된 디렉토리는 등록할 수 없습니다.
                         </div>
                     </div>
                 </div>
@@ -178,11 +162,11 @@
 
                 <div class="n-form-actions">
                     <a id="cancelLink" th:href="@{/management/subprogram}" class="n-btn n-btn-secondary">취소</a>
-                    <button type="submit" id="submitBtn" class="n-btn n-btn-primary">번들 등록</button>
+                    <button type="submit" id="submitBtn" class="n-btn n-btn-primary">등록</button>
                 </div>
 
                 <div class="n-hint n-block-gap">
-                    업로드 중에는 페이지를 떠나지 마세요. 완료 시 목록으로 자동 이동합니다.
+                    등록이 끝날 때까지 페이지를 떠나면 안 됩니다.
                 </div>
 
                 <div id="uploadProgress" class="n-upload-progress">

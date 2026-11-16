@@ -108,7 +108,7 @@ public final class WindowsDiskSelection {
                 .orElse(null);
         if (osVolume == null) {
             return DiskSelection.blocked("os volume missing",
-                    "OS 를 설치할 RAID 볼륨이 없습니다. RAID 구성을 먼저 마치십시오");
+                    "OS 를 설치할 RAID 볼륨이 없습니다. RAID 구성을 먼저 마쳐야 합니다");
         }
         if (inventory == null || inventory.volumes().isEmpty()) {
             return DiskSelection.blocked("raid inventory missing",

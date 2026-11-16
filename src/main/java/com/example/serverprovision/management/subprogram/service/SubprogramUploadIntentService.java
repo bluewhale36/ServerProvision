@@ -67,7 +67,7 @@ public class SubprogramUploadIntentService {
 		List<Subprogram> metaCandidates = collectMetaNudgeCandidates(kind, scope, request.version());
 		if (!metaCandidates.isEmpty()) {
 			throw new SubprogramNudgeRequiredException(
-					"동일한 (kind, scope, version) 의 Subprogram 이 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+					"종류, 적용 범위, 버전이 같은 자원이 휴지통에 있거나 사용 중단 상태입니다. 진행 방법을 선택해야 합니다.",
 					registerIntentNudge(kind, scope, request, metaCandidates),
 					toConflictEntries(metaCandidates)
 			);
@@ -100,10 +100,10 @@ public class SubprogramUploadIntentService {
 
 		List<String> warnings = new ArrayList<>();
 		if (request.totalBytes() == 0) {
-			warnings.add("총 바이트가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+			warnings.add("전체 크기가 0 바이트로 보고되었습니다. 업로드 전 파일 상태를 확인해야 합니다.");
 		}
 		if (request.uploadMode() == SubprogramUploadMode.FOLDER && request.fileCount() == 0) {
-			warnings.add("파일 수가 0 으로 보고되었습니다. 폴더가 비어있을 수 있습니다.");
+			warnings.add("파일 수가 0 으로 보고되었습니다. 폴더가 비어 있을 수 있습니다.");
 		}
 
 		String token = UUID.randomUUID().toString();
@@ -196,20 +196,20 @@ public class SubprogramUploadIntentService {
 
 	public Intent consume(SubprogramKind kind, BoardScope scope, String token) {
 		if (token == null || token.isBlank()) {
-			throw new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로고침 후 다시 시도하세요.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		Intent intent = intents.remove(token);
 		if (intent == null) {
-			throw new InvalidUploadTokenException("만료되었거나 유효하지 않은 업로드 토큰입니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 만료되었거나 올바르지 않습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (intent.kind() != kind) {
-			throw new InvalidUploadTokenException("토큰의 kind 와 요청이 일치하지 않습니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보의 자원 종류가 요청과 다릅니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (!equalsScope(intent.scope(), scope)) {
-			throw new InvalidUploadTokenException("토큰의 scope 와 요청이 일치하지 않습니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보의 적용 범위가 요청과 다릅니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (Duration.between(intent.issuedAt(), Instant.now()).compareTo(TTL) > 0) {
-			throw new InvalidUploadTokenException("업로드 토큰이 만료되었습니다. 다시 시도해주세요.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 만료되었습니다. 다시 시도해야 합니다.");
 		}
 		return intent;
 	}

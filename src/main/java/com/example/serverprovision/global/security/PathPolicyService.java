@@ -45,19 +45,19 @@ public class PathPolicyService {
 
 	private Path assertPath(String input) {
 		if (input == null || input.isBlank()) {
-			throw new PathTraversalException("경로 입력이 비어있습니다.");
+			throw new PathTraversalException("빈 경로");
 		}
 		for (int i = 0; i < input.length(); i++) {
 			char c = input.charAt(i);
 			if (c == '\0' || (c < 0x20 && c != '\t')) {
-				throw new PathTraversalException("제어 문자 또는 null byte 포함");
+				throw new PathTraversalException("제어 문자 포함");
 			}
 		}
 		// S3.4 (K10) — `~` 는 첫 글자에 한해 거절 (홈 디렉토리 표현으로 오인 가능).
 		// 경로 중간의 `~` (예: /opt/iso/dell~r750/) 와 `$` (예: /opt/firmware/$arch/) 는 합법적인 디렉토리명으로 통과.
 		// Path.of 는 메타문자를 literal 로 처리하므로 추가 거절은 운영자 의도와 충돌한다.
 		if (input.startsWith("~")) {
-			throw new PathTraversalException("쉘 메타문자 (~) 로 시작하는 경로는 허용되지 않습니다.");
+			throw new PathTraversalException("~ 로 시작하는 경로");
 		}
 		// OS 무관 절대경로 + 정규형 검증. 구분자(`/` vs `\`) 하드코딩 대신 Path 가 분해한 결과로 판별한다.
 		// (이전: startsWith("/") + "/../" 문자열 검사 → POSIX 전용이라 Windows 절대경로 C:\... 를 거절했다.)
@@ -65,20 +65,20 @@ public class PathPolicyService {
 		try {
 			raw = Path.of(input);
 		} catch (InvalidPathException e) {
-			throw new PathTraversalException("경로 파싱 실패 : " + e.getMessage());
+			throw new PathTraversalException("경로 형식 오류");
 		}
 		// 상대경로 거절 — POSIX `/...`, Windows `C:\...` / `\\server\share` 모두 isAbsolute=true.
 		// `..` 시그먼트 입력은 normalize() 가 cwd 기준으로 silent 변형해 allowedRoots 안으로 통과되는 사고를
 		// 차단해야 하므로, isAbsolute 가 false 면 fail-fast (normalize 가 cwd 를 끌어들이기 전에).
 		if (!raw.isAbsolute()) {
-			throw new PathTraversalException("절대경로만 허용됩니다 : " + input);
+			throw new PathTraversalException("절대 경로만 허용(입력: " + input + ")");
 		}
 		// `..` / `.` 시그먼트 거절 — normalize() 전에 raw 의 name element 를 직접 검사 (구분자 무관).
 		// 정규형이 깨진 입력을 normalize() 가 silent 하게 collapse 하기 전에 fail-fast.
 		for (Path segment : raw) {
 			String seg = segment.toString();
 			if (seg.equals("..") || seg.equals(".")) {
-				throw new PathTraversalException("정규형 경로만 허용 (`..` / `.` 시그먼트 금지) : " + input);
+				throw new PathTraversalException("상위 경로(..)나 현재 경로(.) 표기 금지(입력: " + input + ")");
 			}
 		}
 		Path target = raw.toAbsolutePath().normalize();

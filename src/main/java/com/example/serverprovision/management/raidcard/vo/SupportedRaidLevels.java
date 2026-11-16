@@ -55,7 +55,7 @@ public record SupportedRaidLevels(SortedSet<RaidLevel> levels) {
 				+ " 만들 수 없는 카드입니다. 지원하는 RAID 레벨은 " + toDisplay() + " 입니다.";
 	}
 
-	/** 화면 표시용 — {@code RAID0 · RAID1} 형태(선언 순). */
+	/** 화면 표시용 — {@code RAID0, RAID1} 형태(선언 순). */
 	public String toDisplay() {
 		return levels.stream().map(RaidLevel::getDisplayName).collect(Collectors.joining(", "));
 	}

@@ -18,14 +18,14 @@ import java.nio.file.Path;
  */
 public enum TftpAsset {
 
-    IPXE_EFI("ipxe.efi", MarkerLayout.SIDECAR, "iPXE 부트 (ipxe.efi)", Category.NETBOOT, "패키지 업데이트 시"),
+    IPXE_EFI("ipxe.efi", MarkerLayout.SIDECAR, "iPXE 부트로더", Category.NETBOOT, "패키지 업데이트 시"),
 
     /**
      * iPXE 둘째 단 스크립트(2026-09-17) — ROM 이 받은 ipxe.efi 가 이것을 받아 {@code /api/pxe/v1/boot} 로 체인한다.
      * 런북이 손으로 쓰는 파일(서버 주소 · PXE 부팅 계정이 든다)이라 앱은 만들지 않지만, 대시보드가 존재 · 무결성을
      * 보여야 주소 이전 뒤 옛 서버를 가리키는 사고를 눈으로 잡는다.
      */
-    BOOT_IPXE("boot.ipxe", MarkerLayout.SIDECAR, "iPXE 체인 스크립트 (boot.ipxe)", Category.NETBOOT, "서버 주소 · 부팅 계정 변경 시");
+    BOOT_IPXE("boot.ipxe", MarkerLayout.SIDECAR, "iPXE 체인 스크립트", Category.NETBOOT, "서버 주소, 부팅 계정 변경 시");
 
     private final String filename;
     private final MarkerLayout layout;

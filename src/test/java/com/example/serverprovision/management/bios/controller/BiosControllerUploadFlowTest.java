@@ -126,7 +126,7 @@ class BiosControllerUploadFlowTest {
             mvc.perform(post("/management/bios/1/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value(containsString("firmwarePath")));
+                    .andExpect(jsonPath("$.message").value(containsString("펌웨어 파일 경로")));   // S22-4 — 필드 이름(firmwarePath)은 화면에 싣지 않는다
         }
 
         @Test
@@ -192,7 +192,7 @@ class BiosControllerUploadFlowTest {
             mvc.perform(post("/management/bios/1/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(intentReq("/mnt/claimed/"))))
                     .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.message").value(containsString("marker")));
+                    .andExpect(jsonPath("$.message").value(containsString("다른 자원의 마커가 있습니다")));
         }
     }
 

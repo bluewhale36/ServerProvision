@@ -89,6 +89,10 @@ body {
     min-height: 100vh;
     font-variant-numeric: tabular-nums;
     overscroll-behavior-y: none;
+    /* 한국어는 어절 단위로만 줄을 바꾼다. 기본값(normal)은 음절 사이에서 끊어 '있 / 습니다' 처럼 갈랐다(S22-4 실측).
+       끊을 자리가 없는 긴 낱말(경로, 해시)은 넘칠 때만 아무 곳에서나 끊는다. */
+    word-break: keep-all;
+    overflow-wrap: break-word;
 }
 
 /* 맨 링크도 팔레트의 파랑이다 — S17-1 CP5 F-5 때는 Bootstrap 의 --bs-link-color(#0d6efd)가 남아 한 화면에
@@ -132,7 +136,7 @@ kbd {
     padding: 14px 16px;
     margin: 0;
     font-family: var(--n-font-mono);
-    font-size: 12.5px;
+    font-size: 13.5px;
     line-height: 1.55;
     color: var(--n-text);
     white-space: pre;
@@ -432,7 +436,7 @@ kbd {
 }
 
 .n-btn-sm {
-    font-size: 12px;
+    font-size: 13px;
     padding: 3px 9px;
 }
 
@@ -444,7 +448,7 @@ kbd {
 .n-glist-head .n-btn,
 .n-detail-table .n-actions .n-btn,
 .n-accordion-field .n-actions .n-btn {
-    font-size: 12px;
+    font-size: 13px;
     padding: 3px 9px;
 }
 
@@ -488,7 +492,7 @@ kbd {
     color: var(--n-side-on);
     padding: 6px 10px;
     border-radius: var(--n-radius);
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.4;
     /* 핵심 — width: max-content 로 shrink-to-fit 회피 + max-width 로 긴 한국어 wrap. */
     width: max-content;
@@ -769,7 +773,7 @@ kbd {
 .n-table thead th {
     background: var(--n-thead);
     color: var(--n-text-sec);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
     padding: 10px 14px;
     border-bottom: 1px solid var(--n-border);
@@ -813,7 +817,7 @@ kbd {
 .n-table-mono {
     font-family: var(--n-font-mono);
     font-feature-settings: "tnum";
-    font-size: 13px;
+    font-size: 14px;
     color: var(--n-text);
     font-weight: 400;
 }
@@ -834,7 +838,7 @@ kbd {
 .n-mono {
     font-family: var(--n-font-mono);
     font-feature-settings: "tnum";
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .n-table-muted {
@@ -865,14 +869,14 @@ kbd {
 
 .n-label {
     display: block;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--n-text);
     margin-bottom: 6px;
 }
 
 .n-label.strong {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
 }
 
@@ -958,23 +962,23 @@ kbd {
 }
 
 .n-error {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-error);
     margin-top: 4px;
 }
 
-/* 힌트는 입력에 딸린 주석이다 — 읽기 폭을 제한해 카드 폭을 다 쓰는 본문 문단처럼 보이지 않게 한다.
+/* 힌트는 입력에 딸린 주석이라 그 입력의 폭을 따른다. 종전의 68ch 제한은 넓은 입력 아래에서 힌트를 가운데쯤에서
+   꺾어 짧은 문장도 두 줄로 만들었다(S22-4 사용자 지적).
    <p> 로 쓰이므로 Bootstrap 의 p { margin-bottom: 1rem } 을 끊어야 표 셀 안에서 내용이 위로 치우치지
    않는다(상태 배지가 라벨보다 위에 떠 보이던 원인). */
 /* 항목의 뜻을 적는 자리. 조작 요소의 위(설정 화면 — 라벨 → 설명 → 조작 순, MK4-4-4 CP7 의 위계)에도
    아래(입력 폼 — 형식 안내)에도 선다. S17-3 에서 form-validation.css 의 .n-form-hint 를 여기로 접었다 —
    같은 뜻의 클래스가 둘이면 화면마다 갈린다. */
 .n-hint {
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.55;
     color: var(--n-text-sec);
     margin: 4px 0 6px;
-    max-width: 68ch;
 }
 
 /* 힌트가 연달아 오면 위 여백을 지운다 — 한 항목의 설명이 여러 줄로 갈린 것뿐이다. */
@@ -1006,7 +1010,7 @@ kbd {
 /* ---- 10. 섹션 구분자 -------------------------------------- */
 /* 구획 — 대문자 라벨을 유지하되 밑줄이 아니라 판의 머리(꺼진 면 + 왼쪽 파란 선)로 올린다 */
 .n-section {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--n-text);
     background: var(--n-sunken);
@@ -1062,8 +1066,8 @@ kbd {
    값이 아니라 역할로 이름을 붙인다. margin-top: 16px 이 아니라 "앞 블록과 띄운다"(n-block-gap) 다.
    간격은 두 단(16 · 8)뿐이다 — 종전 인라인은 4 · 6 · 8 · 12 · 14 · 16 · 20 · 32 여덟 값이 흩어져 있었고,
    같은 자리끼리도 달랐다. */
-.n-note { font-size: 12px; color: var(--n-text-muted); }      /* 값 옆의 부연 · 작은 안내 */
-.n-small { font-size: 12px; }                                   /* 코드 · 식별자를 한 단 작게 */
+.n-note { font-size: 13px; color: var(--n-text-muted); }      /* 값 옆의 부연 · 작은 안내 */
+.n-small { font-size: 13px; }                                   /* 코드 · 식별자를 한 단 작게 */
 .n-strong { font-weight: 600; }
 .n-meta { margin-left: 8px; }                                   /* 배지 · 라벨 뒤에 붙는 부연 */
 .n-text-right { text-align: right; }
@@ -1112,12 +1116,22 @@ kbd {
     border-top: none;
 }
 
+/* 판 밖에 선 form-actions 는 선을 긋지 않는다. 판의 테두리가 이미 경계를 그었으므로 그 아래 32px 에 선이 하나 더
+   서면 빈 칸을 두 줄이 감싼다(DESIGN.md 5절 구분선 규칙, 정의서 작성 · 상세와 드리프트 설정에서 실측). 판 아래 여백
+   (.n-card 의 margin-bottom)이 간격을 맡는다. 사이에 <template> 같은 보이지 않는 형제가 끼어도 걸리도록 ~ 로 잇는다
+   (판과 같은 층의 뒤쪽 형제는 정의상 판 밖이다). */
+:is(.n-card, .n-glist, .n-alert, .n-miller) ~ .n-form-actions {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
 /* '목록으로' — 제목 줄(.n-page-header) 안에서 제목 오른쪽에 서는 되돌아가기. 버튼이 아니라 경로다. */
 .n-back-link {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--n-text-sec);
     text-decoration: none;
@@ -1194,7 +1208,7 @@ kbd {
 .n-detail-table th {
     width: 180px;
     padding: 13px 16px 13px 0;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--n-text-sec);
     text-align: left;
@@ -1231,7 +1245,7 @@ kbd {
 }
 
 .n-detail-section > .n-section-hint {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--n-text-muted);
     margin-bottom: 12px;
 }
@@ -1239,7 +1253,7 @@ kbd {
 /* 판 안의 작은 "데이터 없음" 한 줄 — 화면 단위 빈 상태(.n-empty)와 뜻이 다르다(표의 빈 행) */
 .n-detail-empty {
     color: var(--n-text-muted);
-    font-size: 13px;
+    font-size: 14px;
     margin: 0;
     padding: 4px 0;
 }
@@ -1249,7 +1263,7 @@ kbd {
 /* 서버 디렉터리 찾아보기 패널(fragments/management/directory-browse-panel) */
 .n-browse-panel { margin-top: 10px; border: 1px solid var(--n-border); border-radius: var(--n-radius-lg); padding: 12px; background: var(--n-sunken); }
 .n-browse-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
-.n-browse-path { flex: 1; font-size: 12px; word-break: break-all; }
+.n-browse-path { flex: 1; font-size: 13px; word-break: break-all; }
 .n-browse-list { list-style: none; padding: 0; margin: 0 0 8px; max-height: 240px; overflow-y: auto; border: 1px solid var(--n-border); border-radius: var(--n-radius); background: var(--n-surface); }
 .n-browse-actions { display: flex; justify-content: flex-end; gap: 6px; }
 
@@ -1295,7 +1309,7 @@ kbd {
 
 .n-filter-search .n-input {
     width: 260px;
-    font-size: 13px;
+    font-size: 14px;
     padding: 5px 10px;
 }
 
@@ -1308,14 +1322,14 @@ kbd {
 }
 
 .n-filter-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-muted);
     margin-right: 2px;
 }
 
 .n-filter-sort .n-select {
     width: auto;
-    font-size: 13px;
+    font-size: 14px;
     padding: 4px 8px;
 }
 
@@ -1327,7 +1341,7 @@ kbd {
     border: 1px solid var(--n-border);
     border-radius: var(--n-radius);
     font-family: inherit;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.4;
     color: var(--n-text);
     background: var(--n-surface);
@@ -1367,7 +1381,7 @@ kbd {
 .n-filter-group .n-select,
 .n-filter-range .n-input {
     width: auto;
-    font-size: 13px;
+    font-size: 14px;
     padding: 4px 8px;
 }
 
@@ -1448,7 +1462,7 @@ kbd {
     padding: 6px 10px;
     border-radius: var(--n-radius);
     background: var(--n-sunken);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--n-text-sec);
 }
@@ -1533,7 +1547,7 @@ kbd {
     width: 120px;
     flex: 0 0 auto;
     padding: 3px 8px;
-    font-size: 12px;
+    font-size: 13px;
     border-radius: 999px;
 }
 
@@ -1553,7 +1567,7 @@ kbd {
     border-radius: 999px;
     background: var(--n-blue-badge-bg);
     color: var(--n-blue-badge-text);
-    font-size: 12px;
+    font-size: 13px;
     white-space: nowrap;
 }
 
@@ -1601,7 +1615,7 @@ kbd {
     padding: 8px 12px;
     background: var(--n-blue);
     color: var(--n-surface);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .n-lookup-head .n-lookup-x {
@@ -1624,7 +1638,7 @@ kbd {
 .n-lookup-search .n-input {
     width: 220px;
     padding: 5px 10px;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .n-lookup-results {
@@ -1695,7 +1709,7 @@ kbd {
 
 .n-lookup-status {
     margin-right: auto;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-sec);
 }
 
@@ -1717,7 +1731,7 @@ kbd {
     border-radius: var(--n-radius);
     background: var(--n-blue-badge-bg);
     color: var(--n-blue-badge-text);
-    font-size: 12px;
+    font-size: 13px;
     white-space: nowrap;
 }
 
@@ -1751,7 +1765,7 @@ kbd {
 /* 결과 건수 한 줄 — 실시간 갱신 영역 안에 두어 교체 때 함께 바뀐다(S8-2) */
 .n-list-count {
     margin: 0 0 10px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-sec);
 }
 
@@ -1760,7 +1774,7 @@ kbd {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-sec);
 }
 
@@ -1776,7 +1790,7 @@ kbd {
     padding: 6px 12px;
     border-bottom: 1px solid var(--n-border);
     background: var(--n-surface);
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .n-pagination-nav {
@@ -1796,7 +1810,7 @@ kbd {
     padding: 0 6px;
     border-radius: 999px;
     color: var(--n-text-sec);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     font-feature-settings: "tnum";
     text-decoration: none;
@@ -1828,7 +1842,7 @@ a.n-page-arrow:hover {
 .n-page-jump .n-input {
     width: 56px;
     padding: 2px 8px;
-    font-size: 12px;
+    font-size: 13px;
     border-radius: 999px;
 }
 
@@ -1841,7 +1855,7 @@ a.n-page-arrow:hover {
 
 .n-pagination-size .n-select {
     width: auto;
-    font-size: 12px;
+    font-size: 13px;
     padding: 2px 6px;
 }
 
@@ -1914,7 +1928,7 @@ a.n-page-arrow:hover {
     margin-bottom: 12px;
     padding: 10px 14px;
     border-radius: var(--n-radius);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .n-banner-info {

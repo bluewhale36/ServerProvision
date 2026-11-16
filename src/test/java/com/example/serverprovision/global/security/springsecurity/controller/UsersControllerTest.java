@@ -70,7 +70,7 @@ class UsersControllerTest {
 				.andExpect(view().name("security/signup"))
 				.andExpect(model().attributeHasFieldErrors("signUpForm", "username", "password", "retypedPassword", "name", "roles"))
 				.andExpect(model().attributeErrorCount("signUpForm", 5))
-				.andExpect(content().string(containsString("역할을 하나 이상 고르십시오.")));
+				.andExpect(content().string(containsString("역할을 하나 이상 골라야 합니다.")));
 		verify(usersService, never()).signup(any(), any());
 	}
 
@@ -84,7 +84,7 @@ class UsersControllerTest {
 				.andExpect(view().name("security/signup-bootstrap"))
 				.andExpect(model().attributeHasFieldErrors("signUpForm", "username", "password", "passwordConfirmed"))
 				.andExpect(content().string(containsString("비밀번호가 일치하지 않습니다.")))
-				.andExpect(content().string(containsString("아이디는 64자 이하로 입력하십시오.")));
+				.andExpect(content().string(containsString("아이디는 64자 이하로 입력해야 합니다.")));
 	}
 
 	@Test
@@ -109,7 +109,7 @@ class UsersControllerTest {
 				.andExpect(status().isBadRequest())
 				.andExpect(model().attributeHasFieldErrors("signUpForm", "roles"))
 				.andExpect(model().attributeErrorCount("signUpForm", 1))   // typeMismatch 하나만 — 역할 미선택 문구를 겹치지 않는다(CP5 B7)
-				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("역할을 하나 이상 고르십시오."))));
+				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("역할을 하나 이상 골라야 합니다."))));
 		verify(usersService, never()).signup(any(), any());
 	}
 

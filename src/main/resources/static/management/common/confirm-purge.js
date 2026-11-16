@@ -9,8 +9,8 @@
    ============================================================ */
 (function () {
     'use strict';
-    const TEMPLATE = '{resource} 을(를) 영구 삭제하려면 자원명을 정확히 입력하세요.';
-    const DEFAULT_MSG = '아래 자원을 영구 삭제하려면 자원명을 정확히 입력하세요.';
+    const TEMPLATE = '{resource} 을(를) 영구 삭제하려면 자원명을 정확히 입력해야 합니다.';
+    const DEFAULT_MSG = '아래 자원을 영구 삭제하려면 자원명을 정확히 입력해야 합니다.';
 
     function writeHiddenTypedName(form, value) {
         let hidden = form.querySelector('input[name="typedName"]');

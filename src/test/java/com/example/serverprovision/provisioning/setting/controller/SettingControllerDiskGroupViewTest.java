@@ -154,7 +154,7 @@ class SettingControllerDiskGroupViewTest {
         org.assertj.core.api.Assertions.assertThat(html)
                 .contains("<th>순위</th>")
                 .contains("n-rank dgRank")
-                .contains("위 규칙부터 순서대로 디스크를 가져가고, 남은 디스크는 아래 규칙으로 흐릅니다.")
+                .doesNotContain("위 규칙부터 순서대로 디스크를 가져가고")   // S22-4 — 동작 설명은 문서 몫
                 .contains("행 순서 = 적용 순서");
     }
 
@@ -185,7 +185,7 @@ class SettingControllerDiskGroupViewTest {
     @DisplayName("GET /new — 카드 선택지 optgroup · 판정 재료 JSON(raidCardMetaJson) · 카드 메타 memberRules · 스팬 select 렌더(R17-1)")
     void newForm_rendersRaidCardOptionsAndJudgmentMaterial() throws Exception {
         given(queryService.findRaidCardOptions()).willReturn(List.of(new SettingRaidCardOptionGroupResponse("GIGABYTE",
-                List.of(new SettingRaidCardOptionResponse(1L, "CRA3338", "GIGABYTE CRA3338", false, "없음",
+                List.of(new SettingRaidCardOptionResponse(1L, "CRA3338", "GIGABYTE CRA3338", false, "미탑재",
                         List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0, RAID1",
                         Map.of(RaidLevel.RAID5, "RAID5 를 만들 수 없는 카드입니다: 지원하는 RAID 레벨은 RAID0, RAID1 입니다."),
                         false, null, null, "MPT_IR", false,
@@ -196,7 +196,7 @@ class SettingControllerDiskGroupViewTest {
                 .andExpect(status().isOk())
                 .andExpect(model().attributeExists("raidCardOptions", "raidCardMetaJson", "raidLevels",
                         "diskTypes", "diskTransports", "diskCapacityUnits", "diskCountModes"))
-                .andExpect(content().string(containsString("GIGABYTE CRA3338 — 캐시 없음 · RAID0, RAID1")))
+                .andExpect(content().string(containsString("GIGABYTE CRA3338 (캐시 미탑재, RAID0, RAID1)")))
                 .andExpect(content().string(containsString("RAID_CARD_META_JSON")))
                 .andExpect(content().string(containsString("blockReasons")))
                 // R17-1 — 디스크 수 규칙은 카드 메타(memberRules)로 · 스팬 select 선택지는 행 템플릿에(2 · 4 … 32)

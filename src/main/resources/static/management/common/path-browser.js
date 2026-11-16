@@ -86,14 +86,14 @@
         }
 
         async function load(pathStr) {
-            statusEl.textContent = '로딩…';
+            statusEl.textContent = '불러오는 중…';
             entriesEl.innerHTML = '';
             try {
                 const url = browseUrl + '?includeFiles=' + includeFiles + '&path=' + encodeURIComponent(pathStr);
                 const resp = await fetch(url, {headers: {'Accept': 'application/json'}});
                 if (!resp.ok) {
                     const body = await resp.json().catch(() => ({}));
-                    statusEl.textContent = '오류 : ' + (body.message || ('HTTP ' + resp.status));
+                    statusEl.textContent = '오류: ' + (body.message || '목록을 불러오지 못했습니다.');
                     return;
                 }
                 const data = await resp.json();
@@ -108,14 +108,14 @@
                     upBtn.dataset.atTop = atTop ? 'true' : 'false';
                     upBtn.style.opacity = atTop ? '0.4' : '';
                     upBtn.style.cursor = atTop ? 'not-allowed' : '';
-                    upBtn.title = atTop ? '더이상 상위 디렉토리로 진입할 수 없습니다.' : '상위 디렉토리로';
+                    upBtn.title = atTop ? '더 이상 상위 디렉토리로 이동할 수 없습니다.' : '상위 디렉토리로 이동';
                 }
                 renderEntries(data);
                 const dirCount = data.entries.filter(e => e.type === 'DIR').length;
                 const fileCount = data.entries.length - dirCount;
-                statusEl.textContent = `${dirCount} 개 디렉토리, ${fileCount} 개 파일`;
+                statusEl.textContent = `디렉토리 ${dirCount}개, 파일 ${fileCount}개`;
             } catch (err) {
-                statusEl.textContent = '요청 실패 : ' + err.message;
+                statusEl.textContent = '오류: 서버와 통신할 수 없습니다.';
             }
         }
 
@@ -126,7 +126,7 @@
                 li.style.padding = '8px 12px';
                 li.style.color = 'var(--n-text-muted)';
                 li.style.fontSize = '12px';
-                li.textContent = '(비어있음)';
+                li.textContent = '항목 0개';
                 entriesEl.appendChild(li);
                 return;
             }
@@ -142,7 +142,7 @@
                 // highlight 와 동시 발생 시 hidden 우선 (시스템/메타 파일을 자원으로 오인하지 않도록).
                 const isHidden = e.hidden === true;
                 const icon = isDir ? '📁' : (highlight ? '💿' : '📄');
-                const sizeText = !isDir && typeof e.size === 'number' && e.size >= 0 ? '  · ' + UiUtil.formatBytes(e.size) : '';
+                const sizeText = !isDir && typeof e.size === 'number' && e.size >= 0 ? ' (' + UiUtil.formatBytes(e.size) + ')' : '';
                 li.innerHTML = `${icon} ${UiUtil.escapeHtml(e.name)}<span style="color: var(--n-text-muted); font-size: 11px;">${UiUtil.escapeHtml(sizeText)}</span>`;
                 if (isHidden) {
                     li.style.color = 'var(--n-text-muted)';

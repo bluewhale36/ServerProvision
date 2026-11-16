@@ -128,7 +128,7 @@
         }
 
         async function loadDirectory(pathStr) {
-            browseStatus.textContent = '로딩…';
+            browseStatus.textContent = '불러오는 중…';
             browseEntries.innerHTML = '';
             try {
                 const query = includeFiles ? `?path=${encodeURIComponent(pathStr)}&includeFiles=true`
@@ -136,7 +136,7 @@
                 const resp = await fetch(browseUrl + query, {headers: {'Accept': 'application/json'}});
                 if (!resp.ok) {
                     const body = await resp.json().catch(() => ({}));
-                    browseStatus.textContent = '오류 : ' + (body.message || ('HTTP ' + resp.status));
+                    browseStatus.textContent = '오류: ' + (body.message || '목록을 불러오지 못했습니다.');
                     return;
                 }
                 const data = await resp.json();
@@ -148,15 +148,15 @@
                     browseUpBtn.dataset.atTop = atTop ? 'true' : 'false';
                     browseUpBtn.style.opacity = atTop ? '0.4' : '';
                     browseUpBtn.style.cursor = atTop ? 'not-allowed' : '';
-                    browseUpBtn.title = atTop ? '더이상 상위 디렉토리로 진입할 수 없습니다.' : '상위 디렉토리로';
+                    browseUpBtn.title = atTop ? '더 이상 상위 디렉토리로 이동할 수 없습니다.' : '상위 디렉토리로 이동';
                 }
                 renderEntries(data.entries || []);
                 const visibleCount = includeFiles
                     ? (data.entries || []).length
                     : (data.entries || []).filter(entry => entry.type === 'DIR').length;
-                browseStatus.textContent = visibleCount + ' 개 항목';
+                browseStatus.textContent = visibleCount + '개 항목';
             } catch (err) {
-                browseStatus.textContent = '요청 실패 : ' + err.message;
+                browseStatus.textContent = '오류: 서버와 통신할 수 없습니다.';
             }
         }
 
@@ -168,7 +168,7 @@
                 li.style.padding = '8px 12px';
                 li.style.color = 'var(--n-text-muted)';
                 li.style.fontSize = '12px';
-                li.textContent = includeFiles ? '(비어있음)' : '(하위 디렉토리 없음)';
+                li.textContent = includeFiles ? '항목 0개' : '하위 디렉토리 0개';
                 browseEntries.appendChild(li);
                 return;
             }

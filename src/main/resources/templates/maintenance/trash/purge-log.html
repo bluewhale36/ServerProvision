@@ -13,7 +13,7 @@
     select option 은 enum 의 displayName 으로 사용자 친화 표시.
 -->
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('영구삭제 감사 로그')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('영구 삭제 감사 로그')}"></th:block>
     <link rel="stylesheet" th:href="@{/maintenance/trash/trash-list.css}">
 </head>
 <body>
@@ -21,7 +21,7 @@
 
 <div class="n-page">
     <div class="n-page-header">
-        <h1 class="n-page-title">영구삭제 감사 로그</h1>
+        <h1 class="n-page-title">영구 삭제 감사 로그</h1>
         <div class="n-header-actions">
             <a th:href="@{/maintenance/trash}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>휴지통으로</a>
             <a th:href="@{/maintenance/trash/settings}" class="n-btn n-btn-secondary n-btn-sm">운영 설정</a>
@@ -77,7 +77,7 @@
 
     <!--/* 빈 상태 */-->
     <th:block th:if="${page.totalElements == 0}">
-        <div th:replace="~{fragments/ui/empty :: state(title='감사 로그가 없어요.', desc='사용자 직접 / 충돌 교체 / 자동 (TTL 만료) 영구삭제 사건이 발생하면 여기에 시간순으로 기록돼요.')}"></div>
+        <div th:replace="~{fragments/ui/empty :: state(title='감사 로그가 없습니다.', desc=null)}"></div>
     </th:block>
 
     <!--/* 로그 테이블 */-->
@@ -118,7 +118,7 @@
                 <code class="n-small"
                       th:if="${row.purgedAt != null}"
                       th:text="${#temporals.format(row.purgedAt, 'yyyy-MM-dd HH:mm:ss.SSS')}"></code>
-                <span class="n-text-muted" th:if="${row.purgedAt == null}">—</span>
+                <span class="n-text-muted" th:if="${row.purgedAt == null}">-</span>
             </td>
             <td>
                 <details>

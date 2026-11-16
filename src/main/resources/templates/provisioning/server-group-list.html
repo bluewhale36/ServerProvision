@@ -29,7 +29,6 @@
     <div class="n-page-header">
         <h1 class="n-page-title">서버 그룹</h1>
         <div class="n-header-actions">
-            <span class="n-hint">여러 대를 하나로 묶어 함께 다루기 위한 이름입니다. 멤버는 언제든 넣고 뺄 수 있습니다.</span>
             <a class="n-btn n-btn-primary" th:href="@{/provisioning/server-group/new}">새 그룹</a>
         </div>
     </div>
@@ -43,7 +42,7 @@
                     <span class="n-filter-row-label">표준 정의서</span>
                     <div class="n-filter-row-field n-filter-group" role="group" aria-label="표준 정의서">
                         <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="" th:checked="${query.hasStandardDefinition == null}">전체</label>
-                        <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="true" th:checked="${query.hasStandardDefinition == true}">지정됨</label>
+                        <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="true" th:checked="${query.hasStandardDefinition == true}">지정</label>
                         <label class="n-chip"><input type="radio" name="hasStandardDefinition" value="false" th:checked="${query.hasStandardDefinition == false}">미지정</label>
                     </div>
                 </div>
@@ -73,8 +72,8 @@
             <th:block th:unless="${filtered}">
                 <div class="n-empty-title">만들어진 그룹이 없습니다.</div>
                 <div class="n-empty-desc">
-                    <a th:href="@{/provisioning/server}">게스트 서버 목록</a> 의 스펙 묶음에서 그대로 만들거나,
-                    <a th:href="@{/provisioning/server-group/new}">빈 그룹</a> 을 먼저 만들고 나중에 채울 수 있습니다.
+                    <a th:href="@{/provisioning/server}">게스트 서버 목록</a>의 스펙 묶음이나
+                    <a th:href="@{/provisioning/server-group/new}">새 그룹</a>에서 그룹을 만들 수 있습니다.
                 </div>
             </th:block>
         </div>
@@ -111,7 +110,7 @@
                                목록에서 열어보기 전에 손볼 것이 있는지 보이게. 문장이 아니라 표식이라
                                행이 늘어도 목록이 시끄러워지지 않는다. */-->
                         <span th:if="${g.specDiverged}" class="n-deprecated-dot n-tooltip"
-                              data-tooltip="구성 혼재 — 하드웨어 구성이 다른 서버가 섞여 있습니다"></span>
+                              data-tooltip="구성 혼재: 하드웨어 구성이 다른 서버가 섞여 있습니다"></span>
                     </td>
                     <td th:text="${g.memberCount} + '대'">3대</td>
                     <!--/* 구성 혼재 여부는 여기 두지 않는다 — 판정에는 멤버와 서버 상세가 필요한데(N+1), 그 안내가

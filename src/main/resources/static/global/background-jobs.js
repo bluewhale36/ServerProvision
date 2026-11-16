@@ -100,7 +100,7 @@
     const RELOAD_GRACE_MS = readIntAttr('data-bgjob-fail-grace-ms', 1500);
     const RELOAD_LOOP_GUARD_MS = 30 * 1000; // 30초 내 직전 reload 가 있으면 보류
     const RELOAD_TS_KEY = 'bgjob:lastReloadAt';
-    const PERMA_NOTICE_MSG = '서버와 연결이 끊어졌습니다. 잠시 후 다시 시도해주세요.';
+    const PERMA_NOTICE_MSG = '서버와 연결이 끊어졌습니다. 잠시 후 다시 시도해야 합니다.';
     const RELOAD_NOTICE_MSG = '서버 응답이 없어 페이지를 새로고침합니다.';
 
     let consecutiveFailures = 0;
@@ -230,6 +230,20 @@
         return status || '';
     }
 
+    // 실패 사유 칸 문구(S22-4). 'NUDGE_REQUIRED:' · 'ORPHAN_RECOVERY:' 표식은 화면 핸들러가 후속 창을 여는 신호라
+    // 원문(표식 + 내부 식별자)을 그대로 보이지 않고 사람 말로 바꾼다. 이벤트 detail 에는 원문을 그대로 싣는다.
+    const MARKER_TEXT = {
+        NUDGE_REQUIRED: '같은 자원이 이미 있어 진행 방법을 기다립니다.',
+        ORPHAN_RECOVERY: '등록이 중단되어 업로드한 파일을 격리했습니다.'
+    };
+
+    function cardErrorText(message) {
+        if (!message) return '';
+        const marker = /^([A-Z_]+):/.exec(message);
+        if (marker && MARKER_TEXT[marker[1]]) return MARKER_TEXT[marker[1]];
+        return message;
+    }
+
     // ---- 렌더 ---------------------------------------------------
     function render(jobs) {
         const active = jobs.filter(j => j.status === 'PENDING' || j.status === 'RUNNING');
@@ -266,8 +280,9 @@
         const isTerminal = job.status === 'COMPLETED' || job.status === 'FAILED';
         const subtitle = job.subtitle ? `<div class="n-bgjob-card-subtitle">${UiUtil.escapeHtml(job.subtitle)}</div>` : '';
         const time = isTerminal ? formatTime(job.completedAt) : formatTime(job.createdAt);
-        const errorMsg = job.errorMessage
-            ? `<div class="n-bgjob-card-message">${UiUtil.escapeHtml(job.errorMessage)}</div>` : '';
+        const shownError = cardErrorText(job.errorMessage);
+        const errorMsg = shownError
+            ? `<div class="n-bgjob-card-message">${UiUtil.escapeHtml(shownError)}</div>` : '';
 
         // chunk progress bar — 단계별 라벨 + 색상.
         // PENDING(grey) / RUNNING(blue) / DONE(green) / ERROR(red)

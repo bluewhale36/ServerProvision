@@ -106,7 +106,7 @@ public class RaidCard extends LifecycleEntity implements Markable {
 			throw new IllegalArgumentException("확정할 관측값이 없습니다.");
 		}
 		if (this.pciSubsystemId != null) {
-			throw new IllegalRaidCardStateException("이미 확정된 카드입니다 — 정정은 수정에서 하십시오. id=" + id);
+			throw new IllegalRaidCardStateException("이미 확정된 카드입니다. 정정은 수정에서 해야 합니다.");
 		}
 		this.pciSubsystemId = observed;
 	}

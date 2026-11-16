@@ -18,7 +18,7 @@ public class TypedNameMismatchException extends DomainException {
 	private final String typed;
 
 	public TypedNameMismatchException(String expected, String typed) {
-		this("자원명이 일치하지 않습니다. (입력값='" + typed + "', 기대='" + expected + "')", expected, typed);
+		this("입력한 자원명이 일치하지 않습니다.", expected, typed);
 	}
 
 	private TypedNameMismatchException(String message, String expected, String typed) {

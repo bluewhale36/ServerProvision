@@ -41,10 +41,10 @@ class RestoreBlockReasonTest {
 	@DisplayName("안내 문구가 왜 막혔는지에서 끝나지 않고 다음에 무엇을 할지까지 말한다")
 	void guidanceTellsWhatToDoNext() {
 		for (RestoreBlockReason reason : RestoreBlockReason.values()) {
-			// 거절만 하고 갈 곳을 말하지 않으면 막다른 길이 된다. 권유형 종결이 그 신호다.
+			// 거절만 하고 갈 곳을 말하지 않으면 막다른 길이 된다. "~해야 합니다.", "~지워야 합니다." 같은 "~야 합니다." 종결(합니다체 평서, S22)이 그 신호다.
 			assertThat(reason.getGuidance())
 					.as("%s — 다음 행동을 말하지 않는다", reason)
-					.containsAnyOf("주세요", "있습니다");
+					.containsPattern("야 합니다\\.$");
 		}
 	}
 

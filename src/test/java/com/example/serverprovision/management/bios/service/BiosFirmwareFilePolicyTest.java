@@ -47,7 +47,7 @@ class BiosFirmwareFilePolicyTest {
         BiosFirmwareFilePolicy empty = new BiosFirmwareFilePolicy(List.of());
         assertThatThrownBy(() -> empty.assertAllowed(Vendor.GIGABYTE, "image.RBU", "firmwareFile"))
                 .isInstanceOf(FirmwareFilePolicyMissingException.class)
-                .hasMessageContaining("GIGABYTE");
+                .hasMessageContaining("Gigabyte BIOS 펌웨어");
     }
 
     @Test

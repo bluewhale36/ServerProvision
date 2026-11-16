@@ -172,7 +172,7 @@ class BiosSettingTemplateControllerTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("레지스트리 F44 · 2026-08-27 채집 · 192.168.1.130")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("허용 {Disable, Enable}")))
+                        .string(org.hamcrest.Matchers.containsString("허용 값: Disable, Enable")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("레지스트리와 어긋난 저장 속성")));
     }

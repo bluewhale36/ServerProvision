@@ -58,7 +58,7 @@ public class CompsExtractionLauncher {
 			throw new AlreadyExtractedException(isoId);
 		}
 
-		String title = osMetadata.getOsName().getDisplayName() + " " + osMetadata.getOsVersion() + " — 환경·패키지 그룹 추출";
+		String title = osMetadata.getOsName().getDisplayName() + " " + osMetadata.getOsVersion() + " 설치 환경, 패키지 그룹 추출";
 		String jobId = backgroundJobService.register(
 				JobType.COMPS_EXTRACTION, title, isoPath,
 				BackgroundJobService.stagesOf(CompsExtractionService.Stage.values())

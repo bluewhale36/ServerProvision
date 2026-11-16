@@ -14,7 +14,7 @@ public record DeleteIntentToken(UUID value) {
 
 	public static DeleteIntentToken parse(String prefixed) {
 		if (prefixed == null || !prefixed.startsWith("del-")) {
-			throw new IllegalArgumentException("올바른 DeleteIntentToken 형식이 아닙니다 : " + prefixed);
+			throw new IllegalArgumentException("삭제 확인 정보가 올바르지 않습니다. 다시 삭제해야 합니다.");
 		}
 		return new DeleteIntentToken(UUID.fromString(prefixed.substring(4)));
 	}

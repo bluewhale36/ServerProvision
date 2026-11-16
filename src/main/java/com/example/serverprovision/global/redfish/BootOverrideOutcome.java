@@ -18,7 +18,7 @@ public record BootOverrideOutcome(Status status, String detail) {
         /** PATCH 수락 + 되읽기에서 Once · Pxe 확인. */
         APPLIED("재시도를 접수했습니다. 서버를 네트워크 부팅으로 다시 시작했습니다.", FlashTone.SUCCESS),
         /** PATCH 는 2xx 인데 되읽기가 불일치 — pending(SD) 경유 가능성(K1-d 미실측). */
-        UNCONFIRMED("재시도를 접수했지만 네트워크 부팅 지정을 확인하지 못했습니다. 서버가 디스크로 부팅하면 다시 시도하십시오.", FlashTone.WARNING),
+        UNCONFIRMED("재시도를 접수했지만 네트워크 부팅 지정을 확인하지 못했습니다. 서버가 디스크로 부팅하면 다시 시도해야 합니다.", FlashTone.WARNING),
         /** 리소스 단위 거절(400 · 404 · 412 재시도 실패 등) — 게스트가 부트 순서대로 부팅될 수 있다. */
         REJECTED("재시도를 접수했지만 BMC 가 네트워크 부팅 지정을 거절했습니다(%s). 서버가 디스크로 부팅할 수 있습니다.", FlashTone.WARNING);
 

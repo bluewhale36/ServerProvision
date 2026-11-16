@@ -102,7 +102,7 @@
             </th:block>
             <th:block th:unless="${filtered}">
                 <div class="n-empty-title">등록된 세팅 정의서가 없습니다.</div>
-                <div class="n-empty-desc">새 정의서 작성 버튼을 눌러 첫 번째 정의서를 만드십시오.</div>
+                <div class="n-empty-desc">새 정의서 작성 버튼을 눌러 첫 번째 정의서를 만들 수 있습니다.</div>
             </th:block>
         </div>
     </div>
@@ -143,15 +143,14 @@
                         <a class="n-row-link"
                            th:href="@{/provisioning/setting/{id}(id=${setting.id})}"
                            th:text="${setting.name}">정의서 명칭</a>
-                        <span th:if="${setting.deleted}" class="n-badge n-badge-red">삭제됨</span>
+                        <span th:if="${setting.deleted}" class="n-badge n-badge-red">삭제</span>
                     </td>
                     <!-- U3-2-b DEC-G — 활성 축: 비활성이면 신규 할당만 차단되고 이미 만들어진 할당 스냅샷은 무영향.
                          삭제된 정의서는 두 축이 의미를 잃으므로 '-' 로 비운다. -->
                     <td class="n-td-center">
                         <span th:if="${setting.deleted}" class="n-table-muted">-</span>
                         <span th:if="${!setting.deleted and setting.enabled}"
-                              class="n-badge n-badge-green"
-                              title="서버에 새로 할당할 수 있는 정의서입니다.">활성</span>
+                              class="n-badge n-badge-green">활성</span>
                         <span th:if="${!setting.deleted and !setting.enabled}"
                               class="n-badge n-badge-off"
                               title="비활성 정의서는 서버에 새로 할당할 수 없습니다.">비활성</span>
@@ -161,7 +160,7 @@
                         <span th:if="${setting.deleted or !setting.deprecated}" class="n-table-muted">-</span>
                         <span th:if="${!setting.deleted and setting.deprecated}"
                               class="n-badge n-badge-yellow"
-                              title="사용 중단이 권고된 정의서입니다. 할당은 가능하지만 다른 정의서 사용을 권장합니다.">사용 중단 권고</span>
+                              title="할당은 가능하지만 다른 정의서를 권장합니다.">사용 중단 권고</span>
                     </td>
                     <td>
                         <span th:if="${#lists.isEmpty(setting.processTypes)}" class="n-table-muted">-</span>

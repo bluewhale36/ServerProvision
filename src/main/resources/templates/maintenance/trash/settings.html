@@ -46,8 +46,7 @@
 
                 <!-- ① TTL -->
                 <div class="n-form-group">
-                    <label class="n-label strong" for="ttlDays">TTL (보관 기간)</label>
-                    <p class="n-hint">휴지통에서 자동 영구삭제까지의 보관 기간이에요.</p>
+                    <label class="n-label strong" for="ttlDays">보존 기간(TTL)</label>
                     <div class="n-input-group">
                         <input id="ttlDays" type="number" th:field="*{ttlDays}"
                                class="n-input" min="1"
@@ -64,8 +63,7 @@
 
                 <!-- ② 자동 영구삭제 활성화 — radio 2택 -->
                 <div class="n-form-group">
-                    <label class="n-label strong">자동 영구삭제</label>
-                    <p class="n-hint">'사용 안 함' 으로 두면 TTL 만료 자원이 휴지통에 그대로 남고 알림만 발송돼요.</p>
+                    <label class="n-label strong">자동 영구 삭제</label>
                     <div class="n-check-row">
                         <label class="n-check">
                             <input type="radio" th:field="*{autoPurgeEnabled}" th:value="true"
@@ -75,27 +73,26 @@
                         <label class="n-check">
                             <input type="radio" th:field="*{autoPurgeEnabled}" th:value="false"
                                    data-error-field="autoPurgeEnabled">
-                            <span class="n-note">사용 안 함 <span
-                                   >(만료 자원 식별 + 알림만)</span></span>
+                            <span class="n-note">미사용 <span
+                                   >(만료 자원은 알림만)</span></span>
                         </label>
                     </div>
                 </div>
 
                 <!-- ③ 영구삭제 점검 주기 — preset select + 직접 입력 -->
                 <div class="n-form-group">
-                    <label class="n-label strong" for="purgeCronPreset">영구삭제 점검 주기</label>
-                    <p class="n-hint">자동 영구삭제 후보를 점검하는 cron 주기예요. 대부분 '매시 정각' 으로 충분해요.</p>
+                    <label class="n-label strong" for="purgeCronPreset">영구 삭제 점검 주기</label>
                     <select id="purgeCronPreset" class="n-select" data-cron-target="#purgeCronExpression">
-                        <option value="0 0 * * * *">매시 정각 — 1시간마다 (권장)</option>
+                        <option value="0 0 * * * *">매시 정각(권장)</option>
                         <option value="0 */30 * * * *">매 30분</option>
-                        <option value="0 */10 * * * *">매 10분 (테스트용)</option>
-                        <option value="0 0 0 * * *">매일 자정 (1일 1회)</option>
+                        <option value="0 */10 * * * *">매 10분(테스트용)</option>
+                        <option value="0 0 0 * * *">매일 자정</option>
                         <option value="0 0 */6 * * *">6시간마다</option>
-                        <option value="__custom__">직접 입력 (cron 식)</option>
+                        <option value="__custom__">직접 입력(cron 식)</option>
                     </select>
 
                     <div class="n-block-gap-sm" data-cron-advanced hidden>
-                        <p class="n-hint">Spring scheduler 6 필드 형식 (초 분 시 일 월 요일).</p>
+                        <p class="n-hint">6 필드 형식(초 분 시 일 월 요일)으로 입력해야 합니다.</p>
                         <input id="purgeCronExpression" type="text" th:field="*{purgeCronExpression}"
                                class="n-input"
                                data-error-field="purgeCronExpression"
@@ -109,17 +106,16 @@
                 <!-- ④ 사전 알림 점검 주기 — preset select + 직접 입력 -->
                 <div class="n-form-group">
                     <label class="n-label strong" for="notifyCronPreset">사전 알림 점검 주기</label>
-                    <p class="n-hint">TTL 임박 자원을 작업 조회 아이콘에 알림으로 등록하는 주기예요.</p>
                     <select id="notifyCronPreset" class="n-select" data-cron-target="#notifyCronExpression">
-                        <option value="0 0 * * * *">매시 정각 — 1시간마다 (권장)</option>
+                        <option value="0 0 * * * *">매시 정각(권장)</option>
                         <option value="0 */30 * * * *">매 30분</option>
-                        <option value="0 0 0 * * *">매일 자정 (1일 1회)</option>
+                        <option value="0 0 0 * * *">매일 자정</option>
                         <option value="0 0 */6 * * *">6시간마다</option>
-                        <option value="__custom__">직접 입력 (cron 식)</option>
+                        <option value="__custom__">직접 입력(cron 식)</option>
                     </select>
 
                     <div class="n-block-gap-sm" data-cron-advanced hidden>
-                        <p class="n-hint">Spring scheduler 6 필드 형식 (초 분 시 일 월 요일).</p>
+                        <p class="n-hint">6 필드 형식(초 분 시 일 월 요일)으로 입력해야 합니다.</p>
                         <input id="notifyCronExpression" type="text" th:field="*{notifyCronExpression}"
                                class="n-input"
                                data-error-field="notifyCronExpression"
@@ -132,13 +128,13 @@
 
                 <!-- ⑤ 사전 알림 D-day -->
                 <div class="n-form-group">
-                    <label class="n-label strong" for="notifyDaysBefore">사전 알림 시점 (D-day)</label>
-                    <p class="n-hint">콤마 구분 일수. 예 : <code>7,1</code> 입력 → 만료 7일 전 + 1일 전 알림 발송.</p>
+                    <label class="n-label strong" for="notifyDaysBefore">사전 알림 시점(만료 며칠 전)</label>
+                    <p class="n-hint">쉼표로 구분한 일수를 입력해야 합니다.</p>
                     <input id="notifyDaysBefore" type="text" th:field="*{notifyDaysBefore}"
                            class="n-input"
                            data-error-field="notifyDaysBefore"
                            th:classappend="${#fields.hasErrors('notifyDaysBefore')} ? 'is-invalid'"
-                           placeholder="7,1">
+                           placeholder="예: 7,1">
                     <div class="n-error" th:if="${#fields.hasErrors('notifyDaysBefore')}"
                          th:errors="*{notifyDaysBefore}"></div>
                 </div>
@@ -146,16 +142,13 @@
                 <!-- ⑥ 고급 설정 — retry 정책 접기 -->
                 <details class="n-form-group trash-advanced">
                     <summary>
-                        고급 설정 (retry 정책)
+                        고급 설정(재시도)
                     </summary>
                     <div class="n-block-gap">
-                        <p class="n-hint n-lead">
-                            TTL 자동 영구삭제 진입에만 적용돼요. 일시 I/O 장애 (read-only fs 등) 시 cron tick 안에서
-                            지정된 횟수만큼 exponential backoff 로 재시도합니다.
-                        </p>
+                        <p class="n-hint n-lead">자동 영구 삭제가 실패했을 때만 적용합니다.</p>
 
                         <div class="n-form-group">
-                            <label class="n-label strong" for="retryMaxAttempts">retry 최대 횟수 (cron tick 당)</label>
+                            <label class="n-label strong" for="retryMaxAttempts">재시도 최대 횟수(점검 1회당)</label>
                             <div class="n-input-group">
                                 <input id="retryMaxAttempts" type="number" th:field="*{retryMaxAttempts}"
                                        class="n-input" min="1"
@@ -171,8 +164,8 @@
                         </div>
 
                         <div class="n-form-group n-flush">
-                            <label class="n-label strong" for="retryBackoffBaseMs">retry backoff base</label>
-                            <p class="n-hint">exponential — 1차 base, 2차 ×2, 3차 ×4. 예 : <code>1000ms</code> → 1s · 2s · 4s.</p>
+                            <label class="n-label strong" for="retryBackoffBaseMs">재시도 대기 시간(첫 회)</label>
+                            <p class="n-hint">재시도마다 두 배로 늘어납니다.</p>
                             <div class="n-input-group">
                                 <input id="retryBackoffBaseMs" type="number" th:field="*{retryBackoffBaseMs}"
                                        class="n-input" min="100" step="100"
@@ -201,21 +194,21 @@
     <div class="n-card n-block-gap">
         <div class="n-card-body">
             <h2 class="n-card-title">현재 적용된 값</h2>
-            <table class="n-table">
+            <table class="n-detail-table">
                 <tbody>
                 <tr>
-                    <th>TTL</th>
+                    <th>보존 기간</th>
                     <td><strong th:text="${settings.ttlDays}"></strong> 일</td>
                 </tr>
                 <tr>
-                    <th>자동 영구삭제</th>
+                    <th>자동 영구 삭제</th>
                     <td>
                         <span th:if="${settings.autoPurgeEnabled}" class="n-badge n-badge-green">사용</span>
-                        <span th:unless="${settings.autoPurgeEnabled}" class="n-badge n-badge-gray">사용 안 함</span>
+                        <span th:unless="${settings.autoPurgeEnabled}" class="n-badge n-badge-gray">미사용</span>
                     </td>
                 </tr>
                 <tr>
-                    <th>영구삭제 점검 주기</th>
+                    <th>영구 삭제 점검 주기</th>
                     <td><code th:text="${settings.purgeCronExpression}"></code></td>
                 </tr>
                 <tr>
@@ -223,17 +216,13 @@
                     <td><code th:text="${settings.notifyCronExpression}"></code></td>
                 </tr>
                 <tr>
-                    <th>알림 D-day</th>
+                    <th>사전 알림 시점</th>
                     <td><code th:text="${settings.notifyDaysBefore}"></code></td>
                 </tr>
                 <tr>
-                    <th>알림 채널</th>
-                    <td class="n-small"><code th:text="${settings.notificationChannels}"></code></td>
-                </tr>
-                <tr>
-                    <th>retry 최대 / backoff</th>
+                    <th>재시도 최대 횟수, 대기 시간</th>
                     <td>
-                        <strong th:text="${settings.retryMaxAttempts}"></strong> 회 /
+                        <strong th:text="${settings.retryMaxAttempts}"></strong> 회,
                         <strong th:text="${settings.retryBackoffBaseMs}"></strong> ms
                     </td>
                 </tr>
@@ -243,7 +232,7 @@
                     <span class="n-mono" th:if="${settings.updatedAt != null}"
                           th:text="${#temporals.format(settings.updatedAt, 'yyyy-MM-dd HH:mm:ss')}"
                          ></span>
-                        <span class="n-text-muted" th:if="${settings.updatedAt == null}">—</span>
+                        <span class="n-text-muted" th:if="${settings.updatedAt == null}">-</span>
                     </td>
                 </tr>
                 </tbody>

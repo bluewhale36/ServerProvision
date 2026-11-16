@@ -232,16 +232,17 @@
                     }
                     return;
                 }
-                throw new Error('요청 실패 (HTTP ' + resp.status + ')');
+                throw new Error('extract request rejected: ' + resp.status);
             }
             await resp.json();
             if (window.bgjobToast) {
-                window.bgjobToast('ISO 추출 진행 확인…', {variant: 'info'});
+                window.bgjobToast('ISO 추출을 시작했습니다.', {variant: 'info'});
             }
             // 버튼은 이 상태로 유지. 완료 / 실패 감지 시 mark/restore 가 정리.
         } catch (err) {
+            console.error('[os-list] 추출 시작 실패', err);
             if (window.bgjobToast) {
-                window.bgjobToast('추출 시작 실패: ' + err.message, {variant: 'error'});
+                window.bgjobToast('ISO 추출을 시작하지 못했습니다. 다시 시도해야 합니다.', {variant: 'error'});
             }
             restoreExtractButton(btn);
         }
@@ -278,7 +279,7 @@
             const extractBtn = item.querySelector('.n-btn-extract');
             if (!extractBtn) continue;
             extractBtn.disabled = true;
-            extractBtn.textContent = '추출됨';
+            extractBtn.textContent = '추출 완료';
             extractBtn.classList.remove('n-btn-primary');
             extractBtn.classList.add('n-btn-outline-success');
             delete extractBtn.dataset.originalLabel;
@@ -372,9 +373,9 @@
             const span = document.createElement('span');
             if (envCodes.length === 0) {
                 span.className = 'n-accordion-muted';
-                span.textContent = '—';
+                span.textContent = '-';
             } else {
-                span.textContent = envCodes.join(' · ');
+                span.textContent = envCodes.join(', ');
             }
             envDd.appendChild(span);
         }
@@ -385,9 +386,9 @@
             const span = document.createElement('span');
             if (groupCount === 0) {
                 span.className = 'n-accordion-muted';
-                span.textContent = '—';
+                span.textContent = '-';
             } else {
-                span.textContent = groupCount + ' 개';
+                span.textContent = groupCount + '개';
             }
             grpDd.appendChild(span);
         }

@@ -15,6 +15,6 @@ public class WindowsOemAssemblyRejectedException extends ConflictException {
     }
 
     public static WindowsOemAssemblyRejectedException of(String reason) {
-        return new WindowsOemAssemblyRejectedException("드라이버 페이로드를 조립할 수 없습니다 — " + reason);
+        return new WindowsOemAssemblyRejectedException("드라이버 페이로드를 조립할 수 없습니다. " + reason);
     }
 }

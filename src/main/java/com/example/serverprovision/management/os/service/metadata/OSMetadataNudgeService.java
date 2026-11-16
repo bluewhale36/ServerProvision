@@ -93,7 +93,7 @@ public class OSMetadataNudgeService {
 	public Long completePendingFromNudge(NudgeSession session) {
 		if (!(session.payload() instanceof IntentMetaNudgePayload payload)) {
 			throw new IllegalOSMetadataStateException(
-					"OSMetadata nudge 세션은 IntentMetaNudgePayload 만 허용합니다. nudgeId=" + session.nudgeId());
+					"중복 확인 세션의 내용이 올바르지 않습니다. id=" + session.nudgeId());
 		}
 		OSName osName = OSName.valueOf(payload.attributes().get("osName"));
 		String osVersion = payload.attributes().get("osVersion");
@@ -113,7 +113,7 @@ public class OSMetadataNudgeService {
 	public void purgeForNudge(OSMetadata target) {
 		if (!target.isDeleted() && !target.isDeprecated()) {
 			throw new IllegalOSMetadataStateException(
-					"활성 자원은 nudge replace 대상이 될 수 없습니다. id=" + target.getId());
+					"활성 상태인 항목은 교체할 수 없습니다. id=" + target.getId());
 		}
 		osMetadataRepository.delete(target);
 		log.info(
@@ -143,7 +143,7 @@ public class OSMetadataNudgeService {
 						c.getId(),
 						LifecycleStage.of(c.isDeprecated(), c.isDeleted()),
 						null,
-						c.getOsName().name(),
+						c.getOsName().getDisplayName(),
 						c.getOsVersion(),
 						Instant.now()
 				))

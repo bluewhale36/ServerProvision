@@ -31,7 +31,7 @@
 
 <div th:fragment="statusActions(deleted, enabled, toggleUrl, blockEnable, blockTip, toggleTitle, selectKey, includeDeleted)"
      class="n-actions">
-    <span th:if="${deleted}" class="n-badge n-badge-gray">삭제됨</span>
+    <span th:if="${deleted}" class="n-badge n-badge-gray">삭제</span>
     <th:block th:unless="${deleted}">
         <span class="n-badge"
               th:classappend="${enabled} ? 'n-badge-green' : 'n-badge-off'"
@@ -55,17 +55,17 @@
      class="n-actions">
     <span class="n-badge"
           th:classappend="${deprecated} ? 'n-badge-yellow' : 'n-badge-gray'"
-          th:text="${deprecated} ? ${badgeOn} : '해당 없음'"></span>
+          th:text="${deprecated} ? ${badgeOn} : '정상'"></span>
     <form th:unless="${deprecated}" th:action="${deprecateUrl}" method="post"
           th:attr="data-confirm-deprecate=${deprecateConfirm} ? 'true' : null,
                    data-resource-label=${deprecateConfirm} ? ${label} : null,
                    data-resource-extra=${deprecateConfirm} ? ${extra} : null">
         <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
         <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
-        <button type="submit" class="n-btn n-btn-outline-warning" th:text="${btnOn}">Deprecated 표시</button>
+        <button type="submit" class="n-btn n-btn-outline-warning" th:text="${btnOn}">사용 중단 권고</button>
     </form>
     <span th:if="${deprecated and blockUndeprecate}" class="n-btn-tooltip-wrap" th:data-tooltip="${blockTip}">
-        <button type="button" class="n-btn n-btn-outline" disabled th:text="${btnOff}">Deprecated 해제</button>
+        <button type="button" class="n-btn n-btn-outline" disabled th:text="${btnOff}">사용 중단 권고 해제</button>
     </span>
     <form th:if="${deprecated and !blockUndeprecate}" th:action="${undeprecateUrl}" method="post"
           th:attr="data-confirm-undeprecate=${undeprecateConfirm} ? 'true' : null,
@@ -74,7 +74,7 @@
                    data-resource-label=${undeprecateConfirm} ? ${label} : null">
         <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
         <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
-        <button type="submit" class="n-btn n-btn-outline" th:text="${btnOff}">Deprecated 해제</button>
+        <button type="submit" class="n-btn n-btn-outline" th:text="${btnOff}">사용 중단 권고 해제</button>
     </form>
 </div>
 

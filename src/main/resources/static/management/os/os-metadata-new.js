@@ -54,7 +54,7 @@
                             listUrl: '/management/os',
                             toastKey: 'os.image.toast',
                             onError: showBanner,
-                            afterCancel: () => showBanner('등록을 취소했습니다.')
+                            afterCancel: () => UiUtil.toast('등록을 취소했습니다.', 'info')
                         });
                         return;
                     }
@@ -63,11 +63,11 @@
                         window.FormError.renderResponse(body, {root: form});
                         return;
                     }
-                    showBanner((body && body.message) || ('HTTP ' + status));
+                    showBanner((body && body.message) || '요청을 처리하지 못했습니다. 다시 시도해야 합니다.');
                 })
                 .catch(err => {
                     console.error(TAG, err);
-                    showBanner(err.message || '요청 처리 중 오류가 발생했습니다.');
+                    showBanner('요청을 처리하지 못했습니다. 다시 시도해야 합니다.');
                 });
         });
     });

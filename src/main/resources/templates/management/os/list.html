@@ -25,7 +25,7 @@
         <h1 class="n-page-title">OS 버전 관리</h1>
         <div class="n-header-actions">
             <a th:href="@{/management/os/new}"
-               class="n-btn n-btn-primary">+ 신규 OS 버전 등록</a>
+               class="n-btn n-btn-primary">+ OS 버전 등록</a>
         </div>
     </div>
 
@@ -39,10 +39,9 @@
 
     <div th:if="${#lists.isEmpty(osGroups) and !query.filtered}" class="n-card">
         <div class="n-empty">
-            <div class="n-empty-title" th:text="${includeDeleted} ? '등록된 OS 버전이 없습니다 (휴지통 포함).' : '등록된 OS 버전이 없습니다.'">
+            <div class="n-empty-title" th:text="${includeDeleted} ? '등록된 OS 버전이 없습니다(휴지통 포함).' : '등록된 OS 버전이 없습니다.'">
                 등록된 OS 버전이 없습니다.
             </div>
-            <div class="n-empty-desc">"OS 버전 등록" 버튼으로 OS 버전을 추가하세요.</div>
         </div>
     </div>
 
@@ -79,8 +78,8 @@
                         <span th:text="${os.osVersion}">9.6</span>
                         <span th:if="${os.isDeprecated and !os.isDeleted}"
                               class="n-deprecated-dot"
-                              title="Deprecated"></span>
-                        <span class="n-note" th:if="${os.isDeleted}">(삭제됨)</span>
+                              title="사용 중단"></span>
+                        <span class="n-note" th:if="${os.isDeleted}">(삭제)</span>
                     </span>
                     <span th:unless="${os.isDeleted}"
                           class="n-miller-status-tag"
@@ -99,10 +98,9 @@
         <div class="n-miller-col n-miller-col-detail">
             <!-- S5-5 — C3 안내 텍스트 2 상태. JS 가 C1 선택 시 textContent 를 data-empty-after 로 교체. -->
             <div class="n-miller-empty" id="millerEmpty"
-                 data-empty-before="OS 이름을 선택하여 버전 보기"
-                 data-empty-after="버전을 선택하여 상세 보기"
-                 th:text="${selectKey != null or selectId != null} ? '버전을 선택하여 상세 보기' : 'OS 이름을 선택하여 버전 보기'">OS 이름을 선택하여
-                버전 보기
+                 data-empty-before="OS 이름 선택"
+                 data-empty-after="버전 선택"
+                 th:text="${selectKey != null or selectId != null} ? '버전 선택' : 'OS 이름 선택'">OS 이름 선택
             </div>
             <!-- S8-3 — 주소의 선택이 조건에 걸려 그려지지 않았을 때(os-list.js 가 연다). -->
             <th:block th:replace="~{fragments/ui/resource-filter :: selectionFiltered(${query}, ${links.without('q','enabled','deprecated')})}"></th:block>
@@ -129,12 +127,12 @@
                                 <span th:text="${os.osVersion}"></span>
                                 <span th:if="${os.isDeprecated}"
                                       class="n-badge n-badge-yellow n-meta"
-                                     >Deprecated</span>
+                                     >사용 중단</span>
                             </td>
                         </tr>
                         <tr>
                             <th>설명</th>
-                            <td th:text="${os.description != null and !#strings.isEmpty(os.description)} ? ${os.description} : '—'"></td>
+                            <td th:text="${os.description != null and !#strings.isEmpty(os.description)} ? ${os.description} : '-'"></td>
                         </tr>
                         <tr>
                             <th>상태</th>
@@ -147,7 +145,7 @@
                         <tr th:unless="${os.isDeleted}">
                             <th>사용 중단 권고</th>
                             <td>
-                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${os.isDeprecated}, deprecateUrl=@{/management/os/{id}/deprecate(id=${os.id})}, undeprecateUrl=@{/management/os/{id}/undeprecate(id=${os.id})}, deprecateConfirm=true, label=|OS 버전 '${group.displayName} ${os.osVersion}'|, extra=null, blockUndeprecate=false, blockTip=null, undeprecateConfirm=true, resourceType=null, resourceId=null, selectKey=${selectKey}, includeDeleted=${includeDeleted}, badgeOn='Deprecated', btnOn='Deprecated 표시', btnOff='Deprecated 해제')}"></div>
+                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${os.isDeprecated}, deprecateUrl=@{/management/os/{id}/deprecate(id=${os.id})}, undeprecateUrl=@{/management/os/{id}/undeprecate(id=${os.id})}, deprecateConfirm=true, label=|OS 버전 '${group.displayName} ${os.osVersion}'|, extra=null, blockUndeprecate=false, blockTip=null, undeprecateConfirm=true, resourceType=null, resourceId=null, selectKey=${selectKey}, includeDeleted=${includeDeleted}, badgeOn='사용 중단', btnOn='사용 중단 권고', btnOff='사용 중단 권고 해제')}"></div>
                             </td>
                         </tr>
                         </tbody>
@@ -165,7 +163,7 @@
                                   method="post"
                                   data-confirm-soft-delete=""
                                   th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
-                                  data-resource-extra="포함된 ISO 도 함께 삭제돼요.">
+                                  data-resource-extra="포함된 ISO 도 함께 삭제합니다.">
                                 <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
                                 <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
@@ -177,7 +175,7 @@
                                   data-confirm-restore=""
                                   th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
                                   th:data-cascade-true-title="|하위 ISO ${os.isos.?[isDeleted].size()}건도 함께 복구|"
-                                  th:data-cascade-true-desc="${#strings.listJoin(os.isos.?[isDeleted].![isoPath.replaceAll('.*/', '')], ' · ')}">
+                                  th:data-cascade-true-desc="${#strings.listJoin(os.isos.?[isDeleted].![isoPath.replaceAll('.*/', '')], ', ')}">
                                 <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
                                 <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
@@ -189,7 +187,7 @@
                                   data-resource-type="OS_IMAGE"
                                   th:data-resource-id="${os.id}"
                                   th:data-resource-label="|OS 버전 '${group.displayName} ${os.osVersion}'|"
-                                  data-resource-extra="포함된 ISO 의 sidecar 와 본체 파일도 모두 정리돼요.">
+                                  data-resource-extra="포함된 ISO 의 파일과 마커 파일도 모두 삭제합니다.">
                                 <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
                                 <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                 <button type="submit" class="n-btn n-btn-danger">영구 삭제</button>
@@ -198,7 +196,7 @@
                     </div>
 
                     <!-- OS 메타데이터 ↔ ISO 영역 구분선 -->
-                    <hr class="n-section-divider">
+                    <hr class="n-divider">
 
                     <!--
                       ISO 목록 블록.
@@ -224,9 +222,9 @@
                                     <span th:if="${iso.inProgress}"
                                           class="n-badge n-badge-blue n-accordion-badge">등록 중</span>
                                     <span th:if="${!iso.inProgress and iso.isDeprecated and !iso.isDeleted}"
-                                          class="n-badge n-badge-yellow n-accordion-badge">Deprecated</span>
+                                          class="n-badge n-badge-yellow n-accordion-badge">사용 중단</span>
                                     <span th:if="${!iso.inProgress and iso.isDeleted}"
-                                          class="n-badge n-badge-gray n-accordion-badge">삭제됨</span>
+                                          class="n-badge n-badge-gray n-accordion-badge">삭제</span>
                                     <span th:if="${!iso.inProgress and !iso.isDeleted}"
                                           class="n-badge n-accordion-badge"
                                           th:classappend="${iso.isEnabled} ? 'n-badge-green' : 'n-badge-off'"
@@ -235,7 +233,7 @@
 
                                 <!--/* S5-12 — 등록 중 placeholder : body 단순화. ID / 액션 / 무결성 모두 부재 — 안내만 노출 */-->
                                 <div th:if="${iso.inProgress}" class="n-accordion-body">
-                                    <p class="n-hint">파일 업로드 후 해시 계산 / 중복 검사 / DB 영속 진행 중입니다. 완료되면 자동으로 갱신됩니다.</p>
+                                    <p class="n-hint">끝나면 자동으로 갱신됩니다.</p>
                                 </div>
 
                                 <div th:unless="${iso.inProgress}" class="n-accordion-body">
@@ -246,37 +244,37 @@
                                         </div>
                                         <div class="n-accordion-field">
                                             <dt>설명</dt>
-                                            <dd th:text="${iso.description != null and !#strings.isEmpty(iso.description)} ? ${iso.description} : '—'"></dd>
+                                            <dd th:text="${iso.description != null and !#strings.isEmpty(iso.description)} ? ${iso.description} : '-'"></dd>
                                         </div>
                                         <div class="n-accordion-field">
                                             <dt>상태</dt>
                                             <dd>
-                                                <div th:replace="~{fragments/ui/lifecycle-actions :: statusActions(deleted=${iso.isDeleted}, enabled=${iso.isEnabled}, toggleUrl=@{/management/os/{osId}/iso/{isoId}/toggle(osId=${os.id},isoId=${iso.id})}, blockEnable=${iso.parentBlocksEnable}, blockTip='부모 OS 버전이 비활성 / 삭제 상태입니다. 부모를 먼저 정상화해주세요.', toggleTitle=null, selectKey=${selectKey}, includeDeleted=${includeDeleted})}"></div>
+                                                <div th:replace="~{fragments/ui/lifecycle-actions :: statusActions(deleted=${iso.isDeleted}, enabled=${iso.isEnabled}, toggleUrl=@{/management/os/{osId}/iso/{isoId}/toggle(osId=${os.id},isoId=${iso.id})}, blockEnable=${iso.parentBlocksEnable}, blockTip='OS 버전이 비활성 또는 삭제 상태입니다. OS 버전을 먼저 활성화하거나 복구해야 합니다.', toggleTitle=null, selectKey=${selectKey}, includeDeleted=${includeDeleted})}"></div>
                                             </dd>
                                         </div>
                                         <!--/* 사용 중단 권고는 활성 여부와 다른 축이다(Deprecated ≠ 비활성). 종전에는 이 조작이 액션 줄에 있어 다른 자원과 자리가 달랐다(S17-2). */-->
                                         <div class="n-accordion-field" th:unless="${iso.isDeleted}">
                                             <dt>사용 중단 권고</dt>
                                             <dd>
-                                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${iso.isDeprecated}, deprecateUrl=@{/management/os/{osId}/iso/{isoId}/deprecate(osId=${os.id},isoId=${iso.id})}, undeprecateUrl=@{/management/os/{osId}/iso/{isoId}/undeprecate(osId=${os.id},isoId=${iso.id})}, deprecateConfirm=true, label=|ISO '${iso.isoPath.replaceAll('.*/', '')}'|, extra=null, blockUndeprecate=${iso.parentBlocksUndeprecate}, blockTip='부모 OS 버전이 Deprecated / 삭제 상태입니다. 부모를 먼저 해제 / 복구해주세요.', undeprecateConfirm=true, resourceType='OS_ISO', resourceId=${iso.id}, selectKey=${selectKey}, includeDeleted=${includeDeleted}, badgeOn='Deprecated', btnOn='Deprecated 표시', btnOff='Deprecated 해제')}"></div>
+                                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${iso.isDeprecated}, deprecateUrl=@{/management/os/{osId}/iso/{isoId}/deprecate(osId=${os.id},isoId=${iso.id})}, undeprecateUrl=@{/management/os/{osId}/iso/{isoId}/undeprecate(osId=${os.id},isoId=${iso.id})}, deprecateConfirm=true, label=|ISO '${iso.isoPath.replaceAll('.*/', '')}'|, extra=null, blockUndeprecate=${iso.parentBlocksUndeprecate}, blockTip='OS 버전이 사용 중단 권고 또는 삭제 상태입니다. OS 버전의 권고를 먼저 해제하거나 복구해야 합니다.', undeprecateConfirm=true, resourceType='OS_ISO', resourceId=${iso.id}, selectKey=${selectKey}, includeDeleted=${includeDeleted}, badgeOn='사용 중단', btnOn='사용 중단 권고', btnOff='사용 중단 권고 해제')}"></div>
                                             </dd>
                                         </div>
                                         <div class="n-accordion-field">
                                             <dt>설치 환경</dt>
                                             <dd data-field="env-codes">
                                                 <span th:if="${#lists.isEmpty(iso.providedEnvironmentCodes)}"
-                                                      class="n-accordion-muted">—</span>
+                                                      class="n-accordion-muted">-</span>
                                                 <span th:unless="${#lists.isEmpty(iso.providedEnvironmentCodes)}"
-                                                      th:text="${#strings.listJoin(iso.providedEnvironmentCodes, ' · ')}"></span>
+                                                      th:text="${#strings.listJoin(iso.providedEnvironmentCodes, ', ')}"></span>
                                             </dd>
                                         </div>
                                         <div class="n-accordion-field">
                                             <dt>패키지 그룹</dt>
                                             <dd data-field="package-group-count">
                                                 <span th:if="${iso.providedPackageGroupCount == 0}"
-                                                      class="n-accordion-muted">—</span>
+                                                      class="n-accordion-muted">-</span>
                                                 <span th:unless="${iso.providedPackageGroupCount == 0}"
-                                                      th:text="${iso.providedPackageGroupCount} + ' 개'"></span>
+                                                      th:text="${iso.providedPackageGroupCount} + '개'"></span>
                                             </dd>
                                         </div>
                                         <!-- 무결성 — sidecar 마커 검증. BIOS list.html 의 동일 패턴 (data-verify-url + 뱃지 + 재발급 폼). -->
@@ -284,11 +282,11 @@
                                             <dt>무결성</dt>
                                             <dd>
                                                 <span class="n-badge"
-                                                      th:classappend="${T(com.example.serverprovision.management.common.view.IntegrityStatusView).badgeClass(iso.integrityStatus)}"
+                                                      th:classappend="${(iso.integrityStatus ?: T(com.example.serverprovision.global.marker.IntegrityStatus).NOT_VERIFIED).badgeClass()}"
                                                       th:data-iso-id="${iso.id}"
                                                       th:data-verify-url="@{/management/os/{osId}/iso/{isoId}/verify(osId=${os.id},isoId=${iso.id})}"
                                                       th:data-status-url="@{/management/os/{osId}/iso/{isoId}/integrity-status(osId=${os.id},isoId=${iso.id})}"
-                                                      th:text="${iso.integrityStatus != null ? iso.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
+                                                      th:text="${iso.integrityStatus != null ? iso.integrityStatus.displayMessage : T(com.example.serverprovision.global.marker.IntegrityStatus).NOT_VERIFIED.displayMessage}">미검증</span>
                                                 <button type="button" class="n-btn n-btn-sm n-btn-outline"
                                                         th:data-verify-url="@{/management/os/{osId}/iso/{isoId}/verify(osId=${os.id},isoId=${iso.id})}">
                                                     검증
@@ -310,7 +308,7 @@
                                                     class="n-btn n-btn-sm n-btn-extract"
                                                     th:classappend="${iso.extracted} ? ' n-btn-outline-success' : (${iso.extractionInProgress} ? ' n-btn-outline' : ' n-btn-outline-info')"
                                                     th:disabled="${iso.extracted or iso.extractionInProgress}"
-                                                    th:text="${iso.extracted} ? '추출됨' : (${iso.extractionInProgress} ? '추출 중…' : '추출')"
+                                                    th:text="${iso.extracted} ? '추출 완료' : (${iso.extractionInProgress} ? '추출 중' : '추출')"
                                                     th:attr="data-os-id=${os.id},data-iso-id=${iso.id}"></button>
                                             <a th:href="@{/management/os/{osId}/iso/{isoId}/edit(osId=${os.id},isoId=${iso.id})}"
                                                class="n-btn n-btn-sm n-btn-secondary">수정</a>
@@ -328,7 +326,7 @@
                                         <th:block th:if="${iso.isDeleted}">
                                             <!-- 부모 OS 가 deleted 면 자식 단독 restore 가 거절되므로 disabled + tooltip 안내. -->
                                             <span th:if="${iso.parentBlocksRestore}" class="n-btn-tooltip-wrap"
-                                                  data-tooltip="부모 OS 버전이 삭제 상태입니다. 부모부터 복구해주세요.">
+                                                  data-tooltip="OS 버전이 삭제 상태입니다. OS 버전을 먼저 복구해야 합니다.">
                                                 <button type="button" class="n-btn n-btn-sm n-btn-outline-info" disabled>복구</button>
                                             </span>
                                             <form th:unless="${iso.parentBlocksRestore}"
@@ -348,7 +346,7 @@
                                                   data-resource-type="OS_ISO"
                                                   th:data-resource-id="${iso.id}"
                                                   th:data-resource-label="|ISO '${iso.isoPath.replaceAll('.*/', '')}'|"
-                                                  data-resource-extra="sidecar 와 본체 파일이 모두 정리돼요.">
+                                                  data-resource-extra="ISO 파일과 마커 파일을 모두 삭제합니다.">
                                                 <input type="hidden" name="selectKey" th:if="${selectKey != null}" th:value="${selectKey}"/>
                                                 <input type="hidden" name="includeDeleted" th:if="${includeDeleted}" value="true"/>
                                                 <button type="submit" class="n-btn n-btn-sm n-btn-danger">영구 삭제</button>
@@ -378,7 +376,7 @@
                       fragment envGroups — GET /{osId}/env-groups-fragment 에서 재사용된다.
                     -->
                     <div class="n-env-groups-wrap" th:fragment="envGroups">
-                        <hr class="n-section-divider">
+                        <hr class="n-divider">
 
                         <div class="n-env-section-header">
                             <h3 class="n-label strong">
@@ -386,12 +384,11 @@
                                 <span class="n-note"
                                       th:text="'(' + ${os.environments != null ? #lists.size(os.environments) : 0} + ')'">(0)</span>
                             </h3>
-                            <span class="n-env-section-note">임시 노출용 · A1-3 에서 UI 개선 예정</span>
                         </div>
 
                         <div th:if="${os.environments == null or #lists.isEmpty(os.environments)}"
                              class="n-empty-desc n-env-empty">
-                            추출된 환경이 없습니다. 위 ISO 목록의 "추출" 버튼으로 실행하세요.
+                            추출된 설치 환경이 없습니다.
                         </div>
 
                         <div th:if="${os.environments != null and !#lists.isEmpty(os.environments)}"
@@ -399,7 +396,7 @@
                             <div th:each="env : ${os.environments}" class="n-card n-env-card">
                                 <div class="n-env-card-header">
                                     <code class="n-env-card-code" th:text="${env.environmentCode}"></code>
-                                    <span th:if="${env.isDefault}" class="n-badge n-badge-gray">default</span>
+                                    <span th:if="${env.isDefault}" class="n-badge n-badge-gray">기본</span>
                                 </div>
                                 <div class="n-env-card-title" th:text="${env.displayName}"></div>
                                 <div th:if="${env.description != null and !#strings.isEmpty(env.description)}"
@@ -416,7 +413,6 @@
                                     <ul class="n-env-card-providers">
                                         <li th:each="p : ${env.providers}">
                                             <span th:text="${p.osVersion}"></span>
-                                            <span> — </span>
                                             <code th:text="${p.isoPath}"></code>
                                         </li>
                                     </ul>
@@ -430,7 +426,6 @@
                                 <span class="n-note"
                                       th:text="'(' + ${os.packageGroups != null ? #lists.size(os.packageGroups) : 0} + ')'">(0)</span>
                             </h3>
-                            <span class="n-env-section-note">임시 노출용 · A1-3 에서 UI 개선 예정</span>
                         </div>
 
                         <div th:if="${os.packageGroups == null or #lists.isEmpty(os.packageGroups)}"
@@ -443,7 +438,7 @@
                             <div th:each="grp : ${os.packageGroups}" class="n-card n-env-card">
                                 <div class="n-env-card-header">
                                     <code class="n-env-card-code" th:text="${grp.groupCode}"></code>
-                                    <span th:if="${grp.isDefault}" class="n-badge n-badge-gray">default</span>
+                                    <span th:if="${grp.isDefault}" class="n-badge n-badge-gray">기본</span>
                                 </div>
                                 <div class="n-env-card-title" th:text="${grp.displayName}"></div>
                                 <div th:if="${grp.description != null and !#strings.isEmpty(grp.description)}"
@@ -454,7 +449,6 @@
                                     <ul class="n-env-card-providers">
                                         <li th:each="p : ${grp.providers}">
                                             <span th:text="${p.osVersion}"></span>
-                                            <span> — </span>
                                             <code th:text="${p.isoPath}"></code>
                                         </li>
                                     </ul>

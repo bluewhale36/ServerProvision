@@ -210,7 +210,7 @@ public class SubprogramLifecycleService implements LifecycleService {
 		Subprogram sp = SubprogramGuards.requireExisting(subprogramRepository, subprogramId);
 		if (!sp.isDeleted()) {
 			throw new IllegalSubprogramStateException(
-					"활성 상태에서는 영구 삭제할 수 없습니다. 먼저 삭제(soft-delete)를 수행하세요. id=" + subprogramId);
+					"휴지통에 있는 자원만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
 		}
 		// 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
 		TypedNameGuard.verify(sp, typedName);
@@ -229,7 +229,7 @@ public class SubprogramLifecycleService implements LifecycleService {
 		Subprogram sp = SubprogramGuards.requireExisting(subprogramRepository, subprogramId);
 		if (!sp.isDeleted()) {
 			throw new IllegalSubprogramStateException(
-					"활성 상태에서는 영구 삭제할 수 없습니다. 먼저 삭제(soft-delete)를 수행하세요. id=" + subprogramId);
+					"휴지통에 있는 자원만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
 		}
 		bundleTreeCleanupService.purgeExistingTree(Path.of(sp.getTreeRootPath()), "purgeSubprogram");
 		subprogramRepository.delete(sp);

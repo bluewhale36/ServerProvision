@@ -17,17 +17,17 @@ public record BoardScope(Long boardId) {
 
 	public static BoardScope ofBoard(Long boardId) {
 		if (boardId == null)
-			throw new IllegalArgumentException("boardId 가 null 일 수 없습니다. 공용은 BoardScope.COMMON 을 사용하세요.");
+			throw new IllegalArgumentException("메인보드가 지정되지 않았습니다.");
 		return new BoardScope(boardId);
 	}
 
 	public static BoardScope fromPathToken(String token) {
-		if (token == null) throw new IllegalArgumentException("boardScope 토큰이 null 입니다.");
+		if (token == null) throw new IllegalArgumentException("적용 범위가 지정되지 않았습니다.");
 		if (COMMON_TOKEN.equalsIgnoreCase(token)) return COMMON;
 		try {
 			return new BoardScope(Long.parseLong(token));
 		} catch (NumberFormatException e) {
-			throw new IllegalArgumentException("boardScope 토큰이 올바르지 않습니다 : " + token);
+			throw new IllegalArgumentException("적용 범위가 올바르지 않습니다: " + token);
 		}
 	}
 

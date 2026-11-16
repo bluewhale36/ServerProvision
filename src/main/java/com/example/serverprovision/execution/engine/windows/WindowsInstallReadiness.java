@@ -33,14 +33,14 @@ public final class WindowsInstallReadiness {
         List<String> wire = new ArrayList<>();
 
         if (!t.windows()) {
-            add(notes, wire, t.unsupportedFamily() + " 설치는 지원하지 않습니다: Windows 정의서로 교체하십시오",
+            add(notes, wire, t.unsupportedFamily() + " 설치는 지원하지 않습니다: Windows 정의서로 교체해야 합니다",
                     "linux install not supported");
         } else {
             if (!t.hasImage()) {
-                add(notes, wire, "설치 이미지 미지정: 정의서를 수정하십시오", "image not chosen");
+                add(notes, wire, "설치 이미지 미지정: 정의서를 수정해야 합니다", "image not chosen");
             }
             if (!t.hasPassword()) {
-                add(notes, wire, "Administrator 비밀번호 미지정: 정의서를 수정하십시오", "administrator password missing");
+                add(notes, wire, "Administrator 비밀번호 미지정: 정의서를 수정해야 합니다", "administrator password missing");
             }
         }
 
@@ -65,7 +65,7 @@ public final class WindowsInstallReadiness {
                 add(notes, wire, "setup.exe 미배치: " + DASHBOARD, "setup.exe missing");
             }
             if (!assets.wimbootPresent()) {
-                add(notes, wire, "wimboot 미배치: 소스 루트에 배치하십시오", "wimboot missing");
+                add(notes, wire, "wimboot 미배치: 소스 루트에 배치해야 합니다", "wimboot missing");
             }
             // 12행(E4-1-a-4) — 스크립트가 없으면 설치는 끝나도 완료 보고가 오지 않는다. 드라이버 갱신 필요는 차단이 아니다(chip 경고).
             if (!assets.oemScriptsPresent()) {

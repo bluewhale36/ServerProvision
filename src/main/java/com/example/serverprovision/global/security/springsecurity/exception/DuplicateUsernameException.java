@@ -9,6 +9,6 @@ import com.example.serverprovision.global.exception.FieldBoundConflictException;
 public class DuplicateUsernameException extends FieldBoundConflictException {
 
 	public DuplicateUsernameException(String username) {
-		super("이미 사용 중인 아이디입니다. username=" + username, "username");
+		super("이미 사용 중인 아이디입니다.", "username");
 	}
 }

@@ -150,7 +150,7 @@ class DiagnosticSystemAssetAreaTest {
 
         AssetSlotStatus agent = inspect(DiagnosticAsset.AGENT);
         assertThat(agent.present()).isFalse();
-        assertThat(agent.condition().label()).isEqualTo("자산 없음");
+        assertThat(agent.condition().label()).isEqualTo("자산 미배치");
     }
 
     // ── 서빙 비활성 ─────────────────────────────────────────────────────────

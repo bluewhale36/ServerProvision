@@ -113,7 +113,7 @@ public class RaidConfigurationRequest extends AbstractProcessRequest {
      * 오류 경로는 {@code processList[i].volumePriorityDistinct}. 폼은 두 번째 행을 강조해 먼저 막는다.
      */
     @JsonIgnore
-    @AssertTrue(message = "우선순위 행의 종류 · 전송 조합이 중복됩니다.")
+    @AssertTrue(message = "우선순위 행의 종류와 전송 조합이 중복됩니다.")
     public boolean isVolumePriorityDistinct() {
         if (volumePriorities == null) return true;  // @NotNull 위반이 이미 보고된다.
         Set<String> seen = new HashSet<>();

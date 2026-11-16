@@ -13,17 +13,17 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum JobType {
 	ISO_REGISTRATION("ISO 등록"),
-	COMPS_EXTRACTION("환경·패키지 추출"),
+	COMPS_EXTRACTION("환경, 패키지 추출"),
 	REPO_INDEXING("저장소 인덱싱"),
 	PATH_RECONCILIATION("자원 무결성 점검"),
 	MARKER_REISSUE("마커 서명 재발급"),
 	INTEGRITY_VERIFICATION("무결성 검증"),
 	// S5-2-4 — 휴지통 자동 hard-delete + 사전 알림 + 실패 알림 3 종
-	TTL_NOTIFY("영구삭제 임박 알림"),
-	TRASH_AUTO_PURGE("자동 영구삭제"),
-	TRASH_PURGE_FAILED("영구삭제 실패 (재시도 대기)"),
+	TTL_NOTIFY("영구 삭제 임박 알림"),
+	TRASH_AUTO_PURGE("자동 영구 삭제"),
+	TRASH_PURGE_FAILED("영구 삭제 실패(재시도 대기)"),
 	// S6-3-4 — 내용 변경 수용 (지문 재계산이 대용량에서 수 분이라 비동기)
-	HASH_ACCEPT("내용 수용 (정본 갱신)");
+	HASH_ACCEPT("내용 수용(정본 갱신)");
 
 	private final String displayName;
 }

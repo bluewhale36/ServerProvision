@@ -11,11 +11,11 @@ import jakarta.validation.constraints.Pattern;
  * @param newPassword 새 비밀번호. 길이 정책은 BMC 가 판정하므로 여기선 공백만 차단
  */
 public record BmcPasswordChangeRequest(
-		@NotBlank(message = "계정 ID 는 필수입니다.")
-		@Pattern(regexp = "\\d+", message = "계정 ID 는 숫자여야 합니다.")
+		@NotBlank(message = "계정 ID 를 입력해야 합니다.")
+		@Pattern(regexp = "\\d+", message = "계정 ID 는 숫자로 입력해야 합니다.")
 		String accountId,
 		String userName,
-		@NotBlank(message = "새 비밀번호는 필수입니다.")
+		@NotBlank(message = "새 비밀번호를 입력해야 합니다.")
 		String newPassword
 ) {
 }

@@ -30,7 +30,7 @@ public class BundleManifestService {
 
 	public ManifestSummary compute(Path treeRoot) {
 		if (!Files.isDirectory(treeRoot)) {
-			throw new BundleExtractionException("트리 루트가 디렉토리가 아닙니다 : " + treeRoot);
+			throw new BundleExtractionException("저장 경로가 디렉토리가 아닙니다: " + treeRoot);
 		}
 		List<Entry> entries = new ArrayList<>();
 		long totalBytes = 0L;
@@ -48,7 +48,7 @@ public class BundleManifestService {
 				totalBytes += size;
 			}
 		} catch (IOException e) {
-			throw new BundleExtractionException("트리 스캔 실패 : " + treeRoot, e);
+			throw new BundleExtractionException("저장 경로의 파일을 읽지 못했습니다: " + treeRoot, e);
 		}
 
 		entries.sort(Comparator.comparing(Entry::relPath));
@@ -62,7 +62,7 @@ public class BundleManifestService {
 			String manifestHash = HexFormat.of().formatHex(outer.digest());
 			return new ManifestSummary(manifestHash, entries.size(), totalBytes);
 		} catch (NoSuchAlgorithmException e) {
-			throw new BundleExtractionException("SHA-256 계산 실패", e);
+			throw new BundleExtractionException("해시를 계산하지 못했습니다.", e);
 		}
 	}
 
@@ -80,7 +80,7 @@ public class BundleManifestService {
 			}
 			return HexFormat.of().formatHex(md.digest());
 		} catch (IOException | NoSuchAlgorithmException e) {
-			throw new BundleExtractionException("파일 SHA-256 계산 실패 : " + file, e);
+			throw new BundleExtractionException("파일 해시를 계산하지 못했습니다: " + file, e);
 		}
 	}
 

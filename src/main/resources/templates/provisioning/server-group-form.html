@@ -44,18 +44,18 @@
             <input id="name" type="text" th:field="*{name}" class="n-input"
                    data-error-field="name" maxlength="128" autocomplete="off"
                    th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
-                   placeholder="예: MS03-CE0 · 8월 11일 입고">
+                   placeholder="예: MS03-CE0 8월 11일 입고">
             <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
-            <div class="n-hint">운영자가 이 묶음을 부를 이름입니다. 시스템 안에서 유일해야 합니다.</div>
+            <div class="n-hint">다른 그룹과 같은 이름은 쓸 수 없습니다.</div>
         </div>
 
         <!--/* 씨앗 — 넘어온 서버를 그대로 보여준다. 이미 다른 그룹에 속한 서버는 체크가 풀린 채
                사유와 함께 남는다(숨기지 않는다 — 왜 빠지는지 보이는 편이 낫다). */-->
         <div class="n-form-group" th:if="${!candidates.isEmpty()}">
             <label class="n-label">묶을 서버</label>
-            <p class="n-hint" th:if="${blockedCount > 0}">
+            <p class="n-hint n-hint-warn" th:if="${blockedCount > 0}">
                 <b th:text="${blockedCount}">3</b>대는 이미 다른 그룹에 속해 있어 선택할 수 없습니다.
-                옮기려면 그 그룹에서 먼저 뺀 뒤 이 그룹에 넣어주세요.
+                옮기려면 그 그룹에서 먼저 빼야 합니다.
             </p>
             <table class="n-table">
                 <thead>
@@ -76,8 +76,8 @@
                     <td>
                         <span th:if="${c.server.status != null}" class="n-badge"
                               th:classappend="${c.server.status.name() == 'DECOMMISSIONED'} ? ' n-badge-gray' : ' n-badge-blue'"
-                              th:text="${c.server.status.description}">등록됨</span>
-                        <span th:unless="${c.server.status != null}" class="n-muted">—</span>
+                              th:text="${c.server.status.description}">등록</span>
+                        <span th:unless="${c.server.status != null}" class="n-muted">-</span>
                     </td>
                     <td>
                         <a th:if="${c.currentGroup != null}" class="n-group-badge"
@@ -91,10 +91,7 @@
         </div>
 
         <div class="n-form-group" th:if="${candidates.isEmpty()}">
-            <p class="n-hint">
-                멤버 없이 만듭니다. 만든 뒤 상세 화면에서 무소속 서버를 넣어 채울 수 있습니다 —
-                물량이 순차로 들어올 때 자리를 먼저 잡아두는 방식입니다.
-            </p>
+            <p class="n-hint">멤버 없이 만듭니다. 서버는 만든 뒤 그룹 상세에서 넣을 수 있습니다.</p>
         </div>
 
         <div class="n-form-actions">

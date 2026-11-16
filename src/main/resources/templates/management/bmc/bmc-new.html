@@ -36,12 +36,12 @@
     <div class="n-card" th:if="${boardId == null}">
         <div class="n-card-body">
             <div class="n-alert n-alert-muted">
-                BMC 펌웨어를 등록할 메인보드 모델을 선택하십시오.
+                BMC 펌웨어를 등록할 메인보드 모델 선택
             </div>
             <div class="n-form-group">
                 <label class="n-label strong" for="boardSelector">메인보드 모델</label>
                 <select id="boardSelector" class="n-select" data-bmc-board-redirect>
-                    <option value="">— 메인보드 모델 선택 —</option>
+                    <option value="">메인보드 모델 선택</option>
                     <th:block th:each="vg : ${vendorGroups}">
                         <optgroup th:label="${vg.displayName}">
                             <option th:each="b : ${vg.items}"
@@ -50,7 +50,6 @@
                         </optgroup>
                     </th:block>
                 </select>
-                <div class="n-hint">선택 즉시 아래에 해당 모델의 BMC 펌웨어 등록 폼이 표시됩니다. 보드를 다시 바꿀 수 있습니다.</div>
             </div>
         </div>
     </div>
@@ -62,7 +61,7 @@
     <div class="n-card" th:if="${boardId != null}" th:fragment="formCard">
         <div class="n-card-body">
             <div class="n-alert n-alert-muted">
-                대상 메인보드 : <strong th:text="${contextLabel}"></strong>
+                대상 메인보드: <strong th:text="${contextLabel}"></strong>
             </div>
 
             <form id="bmcForm"
@@ -88,7 +87,6 @@
                            data-error-field="name"
                            th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'"
                            placeholder="예: Gigabyte MS03-CE0 BMC">
-                    <div class="n-hint">사람이 식별하기 쉬운 레이블.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
                 </div>
 
@@ -115,27 +113,19 @@
                                th:data-browse-url="@{/management/browse}">
                         <button type="button" id="browseBtn" class="n-btn n-btn-outline">탐색</button>
                     </div>
-                    <div class="n-hint">
-                        서버 파일시스템상의 펌웨어 파일 경로. 디렉토리를 지정하면 업로드 파일명이 자동으로 이어 붙습니다.
-                        아래에서 파일을 첨부하면 이 경로에 저장하고, 비우면 이 경로의 기존 파일을 그대로 등록합니다.
-                        펌웨어 파일은 자기만의 디렉토리에 하나씩 두어야 합니다 — 다른 파일이 함께 있는 디렉토리는 거절됩니다.
-                    </div>
+                    <div class="n-hint">펌웨어 파일은 다른 파일이 없는 디렉토리에 하나씩 두어야 합니다.</div>
                     <!-- R12-2 Q4 — 경로 길이 제한을 사전에 알린다. legacy 컬럼(file_path VARCHAR(255)) 미러링이 실효 제약이다. -->
-                    <div class="n-hint"><strong>경로는 255자까지 입력할 수 있습니다.</strong></div>
+                    <div class="n-hint">경로는 255자까지 입력할 수 있습니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('firmwarePath')}"
                          th:errors="*{firmwarePath}"></div>
 
                     <!-- 경로 브라우저 패널 : 기본 숨김. 탐색 버튼 토글 -->
                     <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('browse', 'directory', '이 디렉토리에 저장')}"></div>
-                    <div class="n-hint n-block-gap-sm">
-                        <strong>이 디렉토리에 저장</strong>: 현재 디렉토리를 펌웨어 파일 경로로 적용 — 파일 업로드 시 파일명이 자동 추가됩니다.
-                    </div>
 
                     <label class="n-check n-block-gap-sm">
                         <input type="checkbox" id="allowCreateDirectory" th:field="*{allowCreateDirectory}">
                         <span>상위 디렉토리 생성 허용</span>
                     </label>
-                    <div class="n-hint">대상 경로의 상위(부모) 디렉토리가 없을 때 함께 생성합니다.</div>
                 </div>
 
                 <div class="n-form-group">
@@ -145,8 +135,7 @@
                            data-error-field="firmwareFile"
                            th:accept="${#strings.isEmpty(firmwareAcceptAttribute)} ? null : ${firmwareAcceptAttribute}">
                     <div class="n-hint">
-                        비워두면 파일 전송 없이 위 경로의 기존 파일을 등록합니다.
-                        <span th:if="${#strings.isEmpty(firmwareAllowedExtensions)}">파일 형식(확장자)은 제한하지 않습니다.</span>
+                        비우면 위 경로의 기존 파일을 등록합니다.
                         <span th:if="${not #strings.isEmpty(firmwareInvalidExtensionMessage)}"
                               th:text="${firmwareInvalidExtensionMessage}"></span>
                     </div>
@@ -174,7 +163,7 @@
                 </div>
 
                 <div class="n-hint n-block-gap">
-                    등록이 끝날 때까지 페이지를 떠나지 마십시오. 완료되면 자동으로 목록 페이지로 이동합니다.
+                    등록이 끝날 때까지 페이지를 떠나면 안 됩니다.
                 </div>
 
                 <div id="uploadProgress" class="n-upload-progress">

@@ -260,7 +260,7 @@ public class OSMetadataService {
 		ISO iso = isoRepository.findByIdAndOsMetadata_Id(isoId, osMetadataId)
 				.orElseThrow(() -> new ISONotFoundException(osMetadataId, isoId));
 		if (iso.isDeleted()) {
-			throw new IllegalOSMetadataStateException("삭제된 ISO 에는 수행할 수 없는 작업입니다. isoId=" + isoId);
+			throw new IllegalOSMetadataStateException("삭제된 ISO 에는 수행할 수 없는 작업입니다. id=" + isoId);
 		}
 		return iso;
 	}

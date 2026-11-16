@@ -32,7 +32,7 @@ public class GigabyteFirmwareFilePolicyStrategy implements BiosFirmwareFilePolic
 
 	/** 거절 문구 정본 — 서버 예외와 화면(JavaScript 사전 검사)이 같은 문장을 쓴다. */
 	private static final String FORBIDDEN_MESSAGE =
-			"PFR1.RBU · PFR2.RBU 는 PFR 사본 경로 전용 파일로, 등록 대상이 아닙니다. 벤더 패키지의 image.RBU 를 선택하십시오.";
+			"PFR1.RBU, PFR2.RBU 는 등록 대상이 아닙니다. 벤더 패키지의 image.RBU 를 선택해야 합니다.";
 
 	private static final String INVALID_EXTENSION_MESSAGE =
 			"GIGABYTE BIOS 펌웨어는 .RBU 형식 파일만 등록할 수 있습니다.";

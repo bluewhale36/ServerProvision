@@ -448,7 +448,7 @@ class SecurityPenetrationS31Test {
             String name = "evil‮txt.exe";
             assertThatThrownBy(() -> cg.sanitizeFilenameOrThrow(name))
                     .isInstanceOf(MaliciousContentSuspectedException.class)
-                    .hasMessageContaining("Unicode");
+                    .hasMessageContaining("보이지 않는 문자");
         }
 
         @Test
@@ -458,7 +458,7 @@ class SecurityPenetrationS31Test {
             String name = "﻿readme.txt";
             assertThatThrownBy(() -> cg.sanitizeFilenameOrThrow(name))
                     .isInstanceOf(MaliciousContentSuspectedException.class)
-                    .hasMessageContaining("Unicode");
+                    .hasMessageContaining("보이지 않는 문자");
         }
 
         @org.junit.jupiter.api.Disabled("S3.2 patches 후 의도와 raw-byte 정합화 필요 — 후속") @Test
@@ -485,7 +485,7 @@ class SecurityPenetrationS31Test {
             String name = "a​b.txt";
             assertThatThrownBy(() -> cg.sanitizeFilenameOrThrow(name))
                     .isInstanceOf(MaliciousContentSuspectedException.class)
-                    .hasMessageContaining("Unicode");
+                    .hasMessageContaining("보이지 않는 문자");
         }
 
         @Test
@@ -624,7 +624,7 @@ class SecurityPenetrationS31Test {
             MockMultipartFile zip = new MockMultipartFile("zip", "many.zip", "application/zip", zipWithEntries(10));
             assertThatThrownBy(() -> guard.assertSafeZip(zip))
                     .isInstanceOf(ZipBombSuspectedException.class)
-                    .hasMessageContaining("entry 갯수");
+                    .hasMessageContaining("파일 수 한도");
         }
 
         @Test

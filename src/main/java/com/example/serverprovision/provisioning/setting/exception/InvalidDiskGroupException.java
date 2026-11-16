@@ -20,13 +20,13 @@ public class InvalidDiskGroupException extends FieldBoundBadRequestException {
     /** VD 파라미터를 지원하지 않는 카드 계열(E3.5-6 규칙 9) — UI 잠금과 같은 supportsVdParameters 판정. */
     public static InvalidDiskGroupException vdParametersNotSupported(int ruleNo, String familyDisplay) {
         return new InvalidDiskGroupException(ruleNo + "번 묶음: " + familyDisplay
-                + " 계열 카드는 VD 파라미터를 지원하지 않습니다 — 이 묶음에서는 지정할 수 없습니다.");
+                + " 계열 카드는 VD 파라미터를 지원하지 않습니다. 이 묶음에서는 지정할 수 없습니다.");
     }
 
     /** SSD 묶음의 Drive Cache 지정(E3.5-6 규칙 9) — SSD 볼륨은 카드가 Unchanged 로 고정한다. */
     public static InvalidDiskGroupException driveCacheOnSsd(int ruleNo) {
         return new InvalidDiskGroupException(ruleNo
-                + "번 묶음: SSD 로 구성하는 볼륨의 Drive Cache 는 카드가 Unchanged 로 고정합니다 — Unchanged 로 두십시오.");
+                + "번 묶음: SSD 로 구성하는 볼륨의 Drive Cache 는 카드가 Unchanged 로 고정합니다. Unchanged 로 두어야 합니다.");
     }
 
     /** RAID 를 구성하지 않는 묶음의 VD 파라미터 지정(E3.5-6 규칙 9) — 볼륨이 없어 적용할 대상이 없다. */
@@ -53,7 +53,7 @@ public class InvalidDiskGroupException extends FieldBoundBadRequestException {
 
     /** RAID 없음 묶음의 개수가 1 미만 — {@code @Min(1)} 의 안전망. */
     public static InvalidDiskGroupException singleDiskCountBelowOne(int ruleNo) {
-        return new InvalidDiskGroupException(ruleNo + "번 묶음: RAID 없음 묶음도 디스크 개수는 1 이상이어야 합니다.");
+        return new InvalidDiskGroupException(ruleNo + "번 묶음: RAID 미구성 묶음도 디스크 개수는 1 이상이어야 합니다.");
     }
 
     /** 다섯 축이 전부 같은 규칙 둘 — 매칭이 두 번 적용돼 뜻이 없다. */
@@ -74,12 +74,12 @@ public class InvalidDiskGroupException extends FieldBoundBadRequestException {
     /** 선행 묶음에 완전히 포섭되어 영원히 도달할 수 없는 후행 묶음(E3.5-4 규칙 8 — E3.5-2 결정 7 이행). */
     public static InvalidDiskGroupException unreachableRule(int ruleNo, int coveringRuleNo) {
         return new InvalidDiskGroupException(ruleNo + "번 묶음은 " + coveringRuleNo
-                + "번 묶음에 가려 도달할 수 없습니다 — 순서를 바꾸거나 조건을 좁히십시오.");
+                + "번 묶음에 가려 도달할 수 없습니다. 순서를 바꾸거나 조건을 좁혀야 합니다.");
     }
 
     /** OS 영역으로 고정한 묶음이 둘 이상 — OS 유일성(E7)은 규칙 하나가 고정하고 우선순위가 그 안에서 고른다(U4-1-2 규칙 7). */
     public static InvalidDiskGroupException multipleOsRules(int ruleNo, int firstOsRuleNo) {
         return new InvalidDiskGroupException(ruleNo + "번 묶음: " + firstOsRuleNo
-                + "번 묶음이 이미 OS 영역으로 고정되어 있습니다 — OS 영역은 한 묶음만 고정할 수 있습니다.");
+                + "번 묶음이 이미 OS 영역으로 고정되어 있습니다. OS 영역은 한 묶음만 고정할 수 있습니다.");
     }
 }

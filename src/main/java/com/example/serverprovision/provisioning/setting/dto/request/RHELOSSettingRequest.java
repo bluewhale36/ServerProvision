@@ -26,12 +26,12 @@ public class RHELOSSettingRequest extends OSSettingRequest {
     private final String selinuxMode;
 
     /** systemd 서비스 지시 목록. 빈 리스트 허용. */
-    @NotNull(message = "서비스 지시 목록은 null일 수 없습니다.")
+    @NotNull(message = "서비스 지시 목록은 필수 값입니다.")
     @Valid
     private final List<ServiceDirectiveRequest> services;
 
     /** {@code dnf install} 추가 패키지 목록. 빈 리스트 허용. */
-    @NotNull(message = "추가 패키지 목록은 null일 수 없습니다.")
+    @NotNull(message = "추가 패키지 목록은 필수 값입니다.")
     private final List<@jakarta.validation.constraints.Pattern(
             regexp = "^[A-Za-z0-9][A-Za-z0-9._+-]*$",
             message = "패키지명은 영숫자로 시작하고 . _ + - 만 쓸 수 있습니다.") String> additionalPackages;

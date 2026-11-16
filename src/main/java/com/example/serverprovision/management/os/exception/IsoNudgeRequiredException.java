@@ -19,7 +19,7 @@ import com.example.serverprovision.management.common.nudge.exception.NudgeRequir
 public class IsoNudgeRequiredException extends NudgeRequiredException implements RegistrationFailure {
 
 	public IsoNudgeRequiredException(NudgeRequiredResponse payload) {
-		super("동일한 해시의 자원이 휴지통/Deprecated 에 존재합니다. (nudgeId=" + payload.nudgeId() + ")", payload);
+		super("같은 내용의 ISO 가 휴지통에 있거나 사용 중단 권고 상태입니다.", payload);
 	}
 
 	/**

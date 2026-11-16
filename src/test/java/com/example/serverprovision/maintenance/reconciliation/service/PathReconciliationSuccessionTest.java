@@ -330,9 +330,9 @@ class PathReconciliationSuccessionTest {
 	}
 
 	@Test
-	@DisplayName("U8 SUPERSEDED 계약 : 라벨 '재분류로 이어짐', 어떤 종류에도 되돌리기 불가")
+	@DisplayName("U8 SUPERSEDED 계약 : 라벨 '재분류(승계)', 어떤 종류에도 되돌리기 불가")
 	void supersededActionContract() {
-		assertThat(DriftHandlingAction.SUPERSEDED.getLabel()).isEqualTo("재분류로 이어짐");
+		assertThat(DriftHandlingAction.SUPERSEDED.getLabel()).isEqualTo("재분류(승계)");
 		for (DriftKind kind : DriftKind.values()) {
 			assertThat(DriftHandlingAction.SUPERSEDED.reversibleFor(kind))
 					.as("SUPERSEDED.reversibleFor(%s)", kind).isFalse();

@@ -30,4 +30,13 @@ class UserFacingMessageTest {
     void apiErrorResponseStrips() {
         assertThat(new ApiErrorResponse("세팅 정의서를 찾을 수 없습니다. id=7").message()).isEqualTo("세팅 정의서를 찾을 수 없습니다.");
     }
+
+    @Test
+    @DisplayName("하다 동사의 요청형(하십시오, 하세요)은 평서형으로 바꾼다. 원장에 저장된 옛 문장 대응")
+    void hadaRequestBecomesDeclarative() {
+        assertThat(UserFacingMessage.punctuate("자원을 되살린 뒤 재시도하십시오."))
+                .isEqualTo("자원을 되살린 뒤 재시도해야 합니다.");
+        assertThat(UserFacingMessage.punctuate("결과를 확인하세요."))
+                .isEqualTo("결과를 확인해야 합니다.");
+    }
 }

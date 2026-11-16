@@ -134,7 +134,7 @@ public class RedfishPowerService {
             issueReset(target, credentials, type);
             RedfishPowerState after = readPowerStateQuietly(target, credentials);
             return PowerControlResult.sent(after, outcome.prefix(nextBoot.label())
-                    + type.getDisplayName() + " 명령을 보냈습니다. 결과는 [상태 조회] 로 확인하십시오.");
+                    + type.getDisplayName() + " 명령을 보냈습니다. 결과는 [상태 조회] 로 확인할 수 있습니다.");
         });
     }
 

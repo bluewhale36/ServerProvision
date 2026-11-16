@@ -137,7 +137,7 @@ class OSMetadataControllerUploadFlowTest {
             mvc.perform(post("/management/os/1/iso/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value(containsString("isoPath")));
+                    .andExpect(jsonPath("$.message").value(containsString("ISO 경로")));
         }
 
         @Test
@@ -273,7 +273,7 @@ class OSMetadataControllerUploadFlowTest {
         @Test
         @DisplayName("토큰 없음 → 409 Conflict (InvalidUploadTokenException)")
         void missingToken_returns409() throws Exception {
-            willThrow(new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로고침 후 다시 시도하세요."))
+            willThrow(new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다."))
                     .given(isoUploadIntentService).consume(eq(1L), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
@@ -536,7 +536,7 @@ class OSMetadataControllerUploadFlowTest {
                                     {"isoPath":"/opt/iso/x.iso","filename":"x.iso","size":1024,"allowCreateDirectory":false,"clientHash":"not-a-hash"}
                                     """))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value(containsString("clientHash")));
+                    .andExpect(jsonPath("$.message").value(containsString("해시 값의 형식")));
         }
 
         @Test
@@ -564,7 +564,7 @@ class OSMetadataControllerUploadFlowTest {
                             .param("allowCreateDirectory", "false")
                             .header("X-Upload-Token", "tok"))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value(containsString("fingerprint")));
+                    .andExpect(jsonPath("$.message").value(containsString("사전 검증 값과 다릅니다")));
         }
     }
 }

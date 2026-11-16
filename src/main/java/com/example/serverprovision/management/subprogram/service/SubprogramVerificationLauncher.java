@@ -47,7 +47,7 @@ public class SubprogramVerificationLauncher {
 		String jobId = backgroundJobService.register(
 				JobType.INTEGRITY_VERIFICATION,
 				sp.getKind().getDisplayName() + " 무결성 검증",
-				sp.getName() + " · " + sp.getVersion(),
+				sp.getName() + " " + sp.getVersion(),
 				BackgroundJobService.stagesOf(IntegrityVerificationStage.values()),
 				metadata
 		);
@@ -63,7 +63,7 @@ public class SubprogramVerificationLauncher {
 			integrityJobReporter.report(jobId, status);
 		} catch (RuntimeException e) {
 			log.error("[verify] Subprogram 검증 실패. id={}", subprogramId, e);
-			backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
+			backgroundJobService.fail(jobId, "검증 실패: " + e.getMessage());
 		}
 	}
 }

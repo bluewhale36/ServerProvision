@@ -10,9 +10,20 @@ package com.example.serverprovision.global.lifecycle;
  * @see LifecycleManageable#currentStage()
  */
 public enum LifecycleStage {
-	ACTIVE,
-	DEPRECATED,
-	SOFT_DELETED;
+	ACTIVE("정상"),
+	DEPRECATED("사용 중단"),
+	SOFT_DELETED("휴지통");
+
+	/** 화면 이름(S22-4) — 중복 확인 창이 상수 원문 대신 이 이름을 보인다. '사용 중단' 은 자원 화면 배지와 같은 말이다. */
+	private final String description;
+
+	LifecycleStage(String description) {
+		this.description = description;
+	}
+
+	public String description() {
+		return description;
+	}
 
 	/**
 	 * 두 boolean 조합을 단일 lifecycle 어휘로 환산한다.

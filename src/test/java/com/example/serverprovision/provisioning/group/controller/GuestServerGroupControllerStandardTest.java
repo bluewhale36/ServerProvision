@@ -78,7 +78,7 @@ class GuestServerGroupControllerStandardTest {
     private static final long GROUP = 7L;
     private static final long DEFINITION = 11L;
     private static final String DISABLED_REASON =
-            "비활성화된 정의서는 신규 할당이 차단됩니다(활성화 후 재시도)";
+            "비활성화된 정의서는 할당할 수 없습니다. 활성화한 뒤 다시 시도하십시오.";
 
     @BeforeEach
     void stubAssignedDefinitions() {
@@ -123,7 +123,7 @@ class GuestServerGroupControllerStandardTest {
         given(assignmentQueryService.standardApplyBanner(anyList(), any()))
                 // 멤버 2 대 그룹 기준 — 대상 외 수와 사유 내역도 배너가 함께 싣는다(개정)
                 .willReturn(new StandardApplyBannerResponse(
-                        DEFINITION, name, targetCount, 2, targetCount < 2 ? "이미 있음 " + (2 - targetCount) : ""));
+                        DEFINITION, name, targetCount, 2, targetCount < 2 ? "이미 할당 " + (2 - targetCount) : ""));
     }
 
     // ==== 상세 렌더 : 표준의 세 상태 ==================================
@@ -136,7 +136,7 @@ class GuestServerGroupControllerStandardTest {
         mvc.perform(get("/provisioning/server-group/{id}", GROUP))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("표준 세팅 정의서")))
-                .andExpect(content().string(containsString("아직 정하지 않았습니다")))
+                .andExpect(content().string(containsString("class=\"n-section-hint\">미지정</p>")))
                 .andExpect(content().string(containsString("openGroupStandardPicker")))
                 .andExpect(content().string(containsString("표준 정하기")));
 
@@ -214,7 +214,7 @@ class GuestServerGroupControllerStandardTest {
                 .willReturn(new ReferencedDefinitionResponse(DEFINITION, summary("web-standard"), null));
         // 멤버 2 대 중 1 대만 붙고 1 대는 이미 다른 정의서가 있다
         given(assignmentQueryService.standardApplyBanner(anyList(), any()))
-                .willReturn(new StandardApplyBannerResponse(DEFINITION, "web-standard", 1, 2, "이미 있음 1"));
+                .willReturn(new StandardApplyBannerResponse(DEFINITION, "web-standard", 1, 2, "이미 할당 1"));
 
         mvc.perform(get("/provisioning/server-group/{id}", GROUP))
                 .andExpect(status().isOk())
@@ -223,7 +223,7 @@ class GuestServerGroupControllerStandardTest {
                 .andExpect(content().string(containsString(">2</b>대 중")))
                 .andExpect(content().string(containsString(">1</b>대에 표준 정의서")))
                 .andExpect(content().string(containsString("대상이 아닙니다")))
-                .andExpect(content().string(containsString("이미 있음 1")));
+                .andExpect(content().string(containsString("이미 할당 1")));
     }
 
     @Test
@@ -292,7 +292,7 @@ class GuestServerGroupControllerStandardTest {
     // ==== 지정 · 해제 실행 ============================================
 
     @Test
-    @DisplayName("지정 302 — flash 가 이름과 '자동으로 붙지 않는다' 를 함께 알린다")
+    @DisplayName("지정 302 — flash 가 이름과 '자동으로 할당되지 않는다' 를 함께 알린다")
     void setStandard_redirectsWithFlash() throws Exception {
         given(commandService.setStandardDefinition(GROUP, DEFINITION)).willReturn("web-standard");
 
@@ -301,7 +301,7 @@ class GuestServerGroupControllerStandardTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(header().string("Location", "/provisioning/server-group/" + GROUP))
                 .andExpect(flash().attribute("flashMessage", containsString("web-standard")))
-                .andExpect(flash().attribute("flashMessage", containsString("자동으로 붙지 않습니다")));
+                .andExpect(flash().attribute("flashMessage", containsString("자동으로 할당되지 않습니다")));
 
         // 표준은 기억일 뿐이다 — 지정만으로 아무 서버에도 붙지 않는다(DEC-C)
         verify(groupAssignmentService, never()).assignToMembers(any(), any());
@@ -406,7 +406,7 @@ class GuestServerGroupControllerStandardTest {
                         .param("alsoSetStandard", "true"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("flashMessage", containsString("2 대에 할당했습니다")))
-                .andExpect(flash().attribute("flashMessage", containsString("표준으로 두었습니다")));
+                .andExpect(flash().attribute("flashMessage", containsString("표준으로 지정했습니다")));
 
         verify(commandService).setStandardDefinition(GROUP, DEFINITION);
     }

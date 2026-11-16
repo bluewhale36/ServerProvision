@@ -7,14 +7,14 @@ import jakarta.validation.constraints.Pattern;
 
 /** 비밀번호 변경 요청(S18 D-15). 현재 비밀번호 대조는 서비스가 한다(인코더 비교). */
 public record PasswordChangeRequest(
-		@NotBlank(message = "현재 비밀번호를 입력하십시오.")
+		@NotBlank(message = "현재 비밀번호를 입력해야 합니다.")
 		String currentPassword,
 
-		@NotBlank(message = "새 비밀번호를 입력하십시오.")
+		@NotBlank(message = "새 비밀번호를 입력해야 합니다.")
 		@Pattern(regexp = PasswordRule.REGEX, message = PasswordRule.MESSAGE)
 		String newPassword,
 
-		@NotBlank(message = "새 비밀번호를 한 번 더 입력하십시오.")
+		@NotBlank(message = "새 비밀번호를 한 번 더 입력해야 합니다.")
 		String retypedPassword
 ) {
 	@AssertTrue(message = "새 비밀번호가 일치하지 않습니다.")

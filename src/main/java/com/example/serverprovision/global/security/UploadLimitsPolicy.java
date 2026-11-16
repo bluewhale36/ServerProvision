@@ -29,7 +29,7 @@ public class UploadLimitsPolicy {
 		if (files == null) return;
 		int max = uploadSecurityProperties.maxFolderFiles();
 		if (files.length > max) {
-			throw new UploadLimitExceededException("파일 갯수 " + files.length + " > 한도 " + max);
+			throw new UploadLimitExceededException("파일 수 한도 초과(" + files.length + "개 > " + max + "개)");
 		}
 	}
 
@@ -37,7 +37,7 @@ public class UploadLimitsPolicy {
 		if (file == null || file.isEmpty()) return;
 		long max = uploadSecurityProperties.maxFileSize().toBytes();
 		if (file.getSize() > max) {
-			throw new UploadLimitExceededException("단일 파일 크기 " + file.getSize() + " bytes > 한도 " + max);
+			throw new UploadLimitExceededException("단일 파일 크기 한도 초과(" + file.getSize() + " > " + max + " 바이트)");
 		}
 	}
 
@@ -54,10 +54,10 @@ public class UploadLimitsPolicy {
 				}
 			});
 		} catch (IOException e) {
-			throw new UploadLimitExceededException("트리 크기 측정 실패 : " + e.getMessage());
+			throw new UploadLimitExceededException("폴더 전체 크기를 측정하지 못했습니다.");
 		}
 		if (total.get() > max) {
-			throw new UploadLimitExceededException("트리 byte 합 " + total.get() + " > 한도 " + max);
+			throw new UploadLimitExceededException("폴더 전체 크기 한도 초과(" + total.get() + " > " + max + " 바이트)");
 		}
 	}
 }

@@ -19,27 +19,25 @@
 (function () {
     'use strict';
 
-    const PROMPT = '왼쪽에서 정의서를 고르세요';
+    const PROMPT = '왼쪽에서 정의서 선택';
 
     const MODES = {
         assign: {
             key: 'assign',
             title: '정의서 골라 할당',
-            message: '정의서를 고르면 이 그룹의 각 서버에 어떻게 적용되는지 먼저 보여 드립니다. '
-                + '이미 정의서가 있는 서버는 갈아엎지 않고 건너뜁니다.',
+            message: '이미 정의서가 할당된 서버는 건너뜁니다.',
             submitLabel: '선택한 정의서 할당',
             actionAttr: 'data-assign-action',
             /* 붙는 대상이 0 이면 확정을 열지 않는다 — 아무 일도 일어나지 않을 제출이다. */
             allowsEmptyTarget: false,
             /* '고르는 김에 표준으로도 두기'(OQ-3) 는 할당 모드에서만 뜻이 있다. */
             showStandardOption: true,
-            status: (name, count, summary) => name + ' — ' + summary
+            status: (name, count, summary) => name + ': ' + summary
         },
         standard: {
             key: 'standard',
             title: '표준 정의서 지정',
-            message: '이 그룹이 기억할 정의서를 고릅니다. 지정해도 서버에 자동으로 붙지 않습니다 — '
-                + '아직 적용받지 않은 서버가 있으면 그룹 상세에서 한 번에 붙일 수 있습니다.',
+            message: '표준으로 지정해도 서버에 자동으로 할당되지 않습니다.',
             submitLabel: '표준으로 지정',
             actionAttr: 'data-standard-action',
             /* 지금 붙는 서버가 없어도 표준은 정할 수 있다 — 빈 그룹에 정책부터 정해 두는 것이
@@ -47,8 +45,8 @@
             allowsEmptyTarget: true,
             showStandardOption: false,
             status: (name, count) => count > 0
-                ? name + ' — 표준으로 지정합니다. 지정 뒤 ' + count + ' 대에 적용할 수 있습니다.'
-                : name + ' — 표준으로 지정합니다. 지금 적용할 서버는 없습니다.'
+                ? name + ': 표준으로 지정합니다. 지정 뒤 ' + count + ' 대에 적용할 수 있습니다.'
+                : name + ': 표준으로 지정합니다. 지금 적용할 서버는 없습니다.'
         }
     };
 
@@ -112,7 +110,7 @@
             submit.disabled = true;
             submit.removeAttribute('title');
             // 아직 고른 것이 없으면 '이 정의서를' 이 가리킬 대상도 없다 — 확정 버튼과 같이 잠가 둔다
-            setStandardOption(false, '먼저 왼쪽에서 정의서를 고르세요.');
+            setStandardOption(false, '먼저 왼쪽에서 정의서를 선택해야 합니다.');
         }
 
         function select(item) {
@@ -153,7 +151,7 @@
                    대개 표준이 이미 있는 그룹이라, 이름을 박아 두면 화면에 없는 버튼을 찾게 된다.
                    상태와 무관하게 고정인 것 — 절 제목 — 을 가리킨다. */
                 setStandardOption(false,
-                    '지금 붙일 서버가 없어 함께 지정할 수 없습니다 — 표준만 정하려면 위 \'표준 세팅 정의서\' 절에서 지정하세요.');
+                    '할당할 서버가 없어 함께 지정할 수 없습니다. 표준만 정하려면 위 \'표준 세팅 정의서\'에서 지정해야 합니다.');
                 return;
             }
             choice.value = id;
@@ -181,7 +179,7 @@
                 const resp = await fetch(url, {headers: {'Accept': 'text/html'}, credentials: 'same-origin'});
                 body.innerHTML = resp.ok
                     ? await resp.text()
-                    : '<p class="n-detail-empty">정의서를 불러오지 못했습니다. 다시 시도해주세요.</p>';
+                    : '<p class="n-detail-empty">정의서를 불러오지 못했습니다. 다시 시도해야 합니다.</p>';
                 loaded = resp.ok;
             } catch (e) {
                 body.innerHTML = '<p class="n-detail-empty">서버와 통신할 수 없습니다.</p>';

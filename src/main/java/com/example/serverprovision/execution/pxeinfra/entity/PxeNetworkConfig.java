@@ -161,11 +161,11 @@ public class PxeNetworkConfig extends BaseTimeEntity {
         }
         if (rangeStart == null || rangeEnd == null || routers == null || primaryDns == null || leaseSeconds == null) {
             throw new IllegalArgumentException(
-                    "자체 DHCP 모드는 리스 범위 · 라우터 · 주 DNS · 임대 시간이 필수입니다.");
+                    "자체 DHCP 모드는 리스 범위, 라우터, 주 DNS, 임대 시간이 필수입니다.");
         }
         if (!subnetCidr.containsRange(rangeStart, rangeEnd)) {
             throw new IllegalArgumentException(
-                    "리스 범위가 서브넷 경계를 벗어나거나 start > end 입니다 : " + rangeStart.value() + " ~ " + rangeEnd.value());
+                    "리스 범위가 서브넷 경계를 벗어나거나 시작이 끝보다 큽니다: " + rangeStart.value() + " ~ " + rangeEnd.value());
         }
     }
 

@@ -60,7 +60,7 @@ class GroupPickerResponseTest {
                 outcome("srv-04", MemberApplyOutcome.BLOCKED, "회수된 서버에는 세팅 정의서를 할당할 수 없습니다."));
 
         assertThat(p.summary())
-                .isEqualTo("4 대 중 2 대에 할당됩니다. 2 대는 건너뜁니다(이미 있음 1 · 막힘 1).");
+                .isEqualTo("4 대 중 2 대에 할당됩니다. 2 대는 건너뜁니다(이미 할당 1, 할당 불가 1).");
         assertThat(p.willAssignCount()).isEqualTo(2);
         assertThat(p.skippedCount()).isEqualTo(2);
         assertThat(p.blocked()).isFalse();
@@ -84,7 +84,7 @@ class GroupPickerResponseTest {
                 outcome("srv-02", MemberApplyOutcome.BLOCKED, "메인보드가 다릅니다."));
 
         assertThat(p.blocked()).isTrue();
-        assertThat(p.summary()).isEqualTo("이 그룹의 어떤 서버에도 붙일 수 없습니다.");
+        assertThat(p.summary()).isEqualTo("이 그룹의 어떤 서버에도 할당할 수 없습니다.");
         assertThat(p.targetServerIds()).isEmpty();
     }
 
@@ -150,12 +150,12 @@ class GroupPickerResponseTest {
     @Test
     @DisplayName("실행 결과 문구가 미리보기와 같은 어휘를 쓴다 — 두 화면을 대조할 수 있어야 한다")
     void batchResultMessageSharesVocabulary() {
-        BatchAssignResult partial = new BatchAssignResult("os-only-auto", 2, 1, "막힘 1");
+        BatchAssignResult partial = new BatchAssignResult("os-only-auto", 2, 1, "할당 불가 1");
         BatchAssignResult full = new BatchAssignResult("os-only-auto", 3, 0, "");
 
-        // 미리보기가 쓰는 어휘("막힘 1")를 그대로 쓴다 — 두 화면을 같은 말로 대조할 수 있어야 한다
+        // 미리보기가 쓰는 어휘("할당 불가 1")를 그대로 쓴다 — 두 화면을 같은 말로 대조할 수 있어야 한다
         assertThat(partial.message())
-                .isEqualTo("세팅 정의서 'os-only-auto' 를 2 대에 할당했습니다. 1 대는 건너뛰었습니다(막힘 1).");
+                .isEqualTo("세팅 정의서 'os-only-auto' 를 2 대에 할당했습니다. 1 대는 건너뛰었습니다(할당 불가 1).");
         // 건너뛴 것이 없으면 뒷절 없음 — 미리보기 요약과 같은 규칙이다
         assertThat(full.message()).isEqualTo("세팅 정의서 'os-only-auto' 를 3 대에 할당했습니다.");
     }

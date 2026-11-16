@@ -12,8 +12,8 @@ import jakarta.validation.constraints.*;
  */
 public record SubprogramUploadIntentRequest(
 
-		@NotBlank(message = "대상 디렉토리 경로를 입력해주세요.")
-		@Size(max = 1024, message = "대상 디렉토리 경로는 1024자 이하로 입력해주세요.")
+		@NotBlank(message = "대상 디렉토리 경로를 입력해야 합니다.")
+		@Size(max = 1024, message = "대상 디렉토리 경로는 1024자 이하로 입력해야 합니다.")
 		String targetDirectory,
 
 		@NotNull(message = "업로드 방식을 지정해야 합니다.")
@@ -25,7 +25,7 @@ public record SubprogramUploadIntentRequest(
 		@PositiveOrZero(message = "총 바이트는 0 이상이어야 합니다.")
 		long totalBytes,
 
-		@NotBlank(message = "버전은 필수입니다.")
+		@NotBlank(message = "버전을 입력해야 합니다.")
 		@Size(max = 64)
 		String version,
 

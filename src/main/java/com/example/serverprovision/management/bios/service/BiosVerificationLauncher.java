@@ -39,7 +39,7 @@ public class BiosVerificationLauncher {
 		String jobId = backgroundJobService.register(
 				JobType.INTEGRITY_VERIFICATION,
 				"BIOS 무결성 검증",
-				bios.getName() + " · " + bios.getVersion(),
+				bios.getName() + " " + bios.getVersion(),
 				BackgroundJobService.stagesOf(IntegrityVerificationStage.values()),
 				Map.of(
 						"resourceType", ResourceType.BIOS_BUNDLE.name(),
@@ -59,7 +59,7 @@ public class BiosVerificationLauncher {
 			integrityJobReporter.report(jobId, status);
 		} catch (RuntimeException e) {
 			log.error("[verify] BIOS 검증 실패. biosId={}", biosId, e);
-			backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
+			backgroundJobService.fail(jobId, "검증 실패: " + e.getMessage());
 		}
 	}
 }

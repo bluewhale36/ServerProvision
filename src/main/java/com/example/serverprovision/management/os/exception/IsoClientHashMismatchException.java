@@ -22,8 +22,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 public class IsoClientHashMismatchException extends DomainException implements RegistrationFailure {
 
 	public IsoClientHashMismatchException(String clientHash, String serverHash) {
-		super("업로드 파일의 fingerprint 가 일치하지 않습니다. 파일 손상 또는 client 변조 의심. "
-					  + "client=" + abbr(clientHash) + ", server=" + abbr(serverHash));
+		// 두 해시 값은 던지는 쪽(IsoRegistrationService.finalize)이 로그에 남긴다 — 화면 문장에는 싣지 않는다.
+		super("업로드한 파일의 해시가 사전 검증 값과 다릅니다. 전송 중 파일이 손상되었을 수 있으니 다시 업로드해야 합니다.");
 	}
 
 	/** 콘텐츠/영구 실패 — finalize 가 이미 업로드 파일을 정리했으므로 격리하지 않는다. */
@@ -32,8 +32,4 @@ public class IsoClientHashMismatchException extends DomainException implements R
 		return FailureDisposition.CLEANUP;
 	}
 
-	private static String abbr(String hash) {
-		if (hash == null) return "<null>";
-		return hash.length() > 16 ? hash.substring(0, 16) + "…" : hash;
-	}
 }

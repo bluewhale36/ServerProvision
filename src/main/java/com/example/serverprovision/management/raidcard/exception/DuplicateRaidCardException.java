@@ -11,6 +11,6 @@ import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
 public class DuplicateRaidCardException extends FieldBoundConflictException {
 
 	public DuplicateRaidCardException(RaidCardVendor vendor, String modelName) {
-		super("이미 등록된 RAID 카드입니다. %s %s".formatted(vendor.getDisplayName(), modelName), "modelName");
+		super("이미 등록된 RAID 카드입니다: %s %s".formatted(vendor.getDisplayName(), modelName), "modelName");
 	}
 }

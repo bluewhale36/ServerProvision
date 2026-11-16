@@ -30,7 +30,7 @@
         </div>
 
         <!-- 단계별 카드 (다형 렌더) -->
-        <div class="n-card n-process-card" th:each="process : ${setting.processList}">
+        <div class="n-card" th:each="process : ${setting.processList}">
             <div class="n-process-card-head">
                 <span class="n-badge n-badge-blue" th:text="${process.processType().displayName}">단계명</span>
                 <!-- 계열 배지 — OS 단계만. null 가드는 방어용(E4-1-a-2 이후 판별자 없는 저장본은 해석 단계에서 거절된다) -->
@@ -40,7 +40,7 @@
                 <th:block th:each="usage : ${setting.deprecatedUsages}">
                     <span th:if="${usage.processType.name() == process.processType().name()}"
                           class="n-badge n-badge-yellow"
-                          th:title="${#strings.listJoin(usage.resourceNames, ', ')}">지원 중단 자원 사용</span>
+                          th:title="${#strings.listJoin(usage.resourceNames, ', ')}">사용 중단 권고 자원 사용</span>
                 </th:block>
                 <!-- 실행 시 건너뜀 가능(사용자 확정 2026-07-06) — 예: SPECIFIED 보드+최신 버전인데 등록 펌웨어 0개.
                      저장을 막지 않는 안내(정의서=재사용 템플릿) — 실행 의미론은 skip+PARTIAL_SUCCESS(Stage 4). -->
@@ -224,9 +224,9 @@
                             <tbody>
                             <tr th:each="row, it : ${process.volumePriorities}">
                                 <td><span class="n-rank" th:text="${it.count}">1</span></td>
-                                <td th:text="${row.diskType != null ? row.diskType.displayName : '?'}">SSD</td>
-                                <td th:text="${row.transport != null ? row.transport.displayName : '?'}">NVMe</td>
-                                <td th:text="${row.capacityOrder != null ? row.capacityOrder.displayName : '?'}">작은 용량부터</td>
+                                <td th:text="${row.diskType != null ? row.diskType.displayName : '-'}">SSD</td>
+                                <td th:text="${row.transport != null ? row.transport.displayName : '-'}">NVMe</td>
+                                <td th:text="${row.capacityOrder != null ? row.capacityOrder.displayName : '-'}">작은 용량부터</td>
                             </tr>
                             </tbody>
                         </table>
@@ -261,9 +261,9 @@
                             <td>
                                 <span th:text="${process.timezone != null} ? ${process.timezone.timezone} : '-'">Asia/Seoul</span>
                                 <span th:if="${process.timezone != null and process.timezone.isUTC()}"
-                                      class="n-badge n-badge-blue">RTC=UTC</span>
+                                      class="n-badge n-badge-blue">RTC: UTC</span>
                                 <span th:if="${process.timezone != null and !process.timezone.isUTC()}"
-                                      class="n-badge n-badge-gray">RTC=로컬</span>
+                                      class="n-badge n-badge-gray">RTC: 로컬</span>
                             </td>
                         </tr>
                         <tr>
@@ -373,7 +373,7 @@
                                                 <code class="n-mono" th:text="${svc.name}">nginx</code>
                                                 <span class="n-badge"
                                                       th:classappend="${svc.action.name() == 'ENABLE'} ? 'n-badge-green' : 'n-badge-gray'"
-                                                      th:text="${svc.action.name() == 'ENABLE'} ? 'enable' : 'disable'">enable</span>
+                                                      th:text="${svc.action.name() == 'ENABLE'} ? '활성화' : '비활성화'">활성화</span>
                                             </span>
                                         </span>
                                     </td>

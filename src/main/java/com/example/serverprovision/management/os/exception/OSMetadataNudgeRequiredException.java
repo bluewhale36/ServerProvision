@@ -13,6 +13,6 @@ import com.example.serverprovision.management.common.nudge.exception.NudgeRequir
 public class OSMetadataNudgeRequiredException extends NudgeRequiredException {
 
 	public OSMetadataNudgeRequiredException(NudgeRequiredResponse payload) {
-		super("동일한 OS 버전이 휴지통/Deprecated 에 존재합니다. (nudgeId=" + payload.nudgeId() + ")", payload);
+		super("같은 OS 버전이 휴지통에 있거나 사용 중단 권고 상태입니다.", payload);
 	}
 }

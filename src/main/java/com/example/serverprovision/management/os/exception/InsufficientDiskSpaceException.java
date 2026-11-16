@@ -10,7 +10,7 @@ public class InsufficientDiskSpaceException extends ConflictException {
 
 	public InsufficientDiskSpaceException(String path, long required, long available) {
 		super(String.format(
-				"디스크 공간이 부족합니다. path=%s, 필요=%s, 가용=%s",
+				"디스크 공간이 부족합니다: %s (필요 %s, 남은 공간 %s)",
 				path, formatBytes(required), formatBytes(available)
 		));
 	}

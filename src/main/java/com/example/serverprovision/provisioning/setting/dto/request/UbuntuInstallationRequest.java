@@ -18,11 +18,11 @@ import java.util.List;
 public class UbuntuInstallationRequest extends LinuxInstallationRequest {
 
     /** 설치 후 시스템 hostname. autoinstall {@code identity.hostname} 에 대응 — 필수(U2-4 승격). */
-    @jakarta.validation.constraints.NotBlank(message = "hostname 은 필수 값입니다.")
-    @jakarta.validation.constraints.Size(max = 253, message = "hostname 은 253자를 넘을 수 없습니다.")
+    @jakarta.validation.constraints.NotBlank(message = "호스트명은 필수 값입니다.")
+    @jakarta.validation.constraints.Size(max = 253, message = "호스트명은 253자를 넘을 수 없습니다.")
     @jakarta.validation.constraints.Pattern(
             regexp = "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$",
-            message = "hostname 은 RFC 1123 형식(소문자·숫자·하이픈)이어야 합니다.")
+            message = "호스트명은 RFC 1123 형식(소문자, 숫자, 하이픈)이어야 합니다.")
     private final String hostname;
 
     /** 설치 시 포함할 패키지명 목록. autoinstall {@code packages} 에 대응 — RHEL 의 그룹 ID 와 성격이 다르다. */

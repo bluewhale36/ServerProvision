@@ -19,6 +19,6 @@ class DhcpModeTest {
     @DisplayName("표기 — 자체 DHCP · proxyDHCP (Q-4 권장안)")
     void labels() {
         assertThat(DhcpMode.AUTHORITATIVE.label()).isEqualTo("자체 DHCP");
-        assertThat(DhcpMode.PROXY.label()).isEqualTo("proxyDHCP");
+        assertThat(DhcpMode.PROXY.label()).isEqualTo("proxy DHCP");
     }
 }

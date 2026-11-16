@@ -19,7 +19,7 @@
 (function () {
     'use strict';
 
-    const PROMPT = '왼쪽에서 정의서를 고르세요';
+    const PROMPT = '왼쪽에서 정의서 선택';
 
     function wire() {
         const overlay = document.getElementById('definitionPicker');
@@ -117,7 +117,7 @@
                     });
                     body.innerHTML = resp.ok
                         ? await resp.text()
-                        : '<p class="n-detail-empty">정의서를 불러오지 못했습니다. 다시 시도해주세요.</p>';
+                        : '<p class="n-detail-empty">정의서를 불러오지 못했습니다. 다시 시도해야 합니다.</p>';
                     loaded = resp.ok;
                 } catch (e) {
                     body.innerHTML = '<p class="n-detail-empty">서버와 통신할 수 없습니다.</p>';

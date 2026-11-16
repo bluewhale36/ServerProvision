@@ -8,7 +8,7 @@ package com.example.serverprovision.global.security.springsecurity.domain;
 public final class PasswordRule {
 
 	public static final String REGEX = "^$|^[A-Za-z0-9!@#$%^&*()\\-_=+.,?]{8,72}$";
-	public static final String MESSAGE = "비밀번호는 영문 대소문자 · 숫자 · 특수기호(! @ # $ % ^ & * ( ) - _ = + . , ?)로 8자 이상 72자 이하로 입력하십시오.";
+	public static final String MESSAGE = "비밀번호는 영문 대소문자, 숫자, 특수기호(! @ # $ % ^ & * ( ) - _ = + . , ?)로 8자 이상 72자 이하로 입력해야 합니다.";
 
 	private PasswordRule() {
 	}

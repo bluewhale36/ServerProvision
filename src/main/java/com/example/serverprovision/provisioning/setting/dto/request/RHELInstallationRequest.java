@@ -24,7 +24,7 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
     private final RootPasswordRequest rootPassword;
 
     /** 설치할 패키지 환경 그룹의 DB 기본키. Kickstart {@code %packages} 의 {@code @^environment} 에 대응. */
-    @NotNull(message = "설치 환경 ID는 필수 값입니다.")
+    @NotNull(message = "설치 환경은 필수 선택입니다.")
     private final Long environmentId;
 
     /** 추가 패키지 그룹의 DB 기본키 목록. 선택 사항이므로 null/빈 리스트 모두 허용. */

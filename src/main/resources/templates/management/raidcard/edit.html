@@ -40,7 +40,7 @@
                 <div class="n-form-group">
                     <label class="n-label strong">제조사</label>
                     <input type="text" class="n-input" th:value="${vendorLabel}" readonly>
-                    <div class="n-hint">제조사는 변경할 수 없습니다. 바꾸려면 삭제 후 재등록하세요.</div>
+                    <div class="n-hint">제조사를 바꾸려면 삭제한 뒤 다시 등록해야 합니다.</div>
                 </div>
 
 
@@ -49,12 +49,11 @@
                     <select id="chipFamily" th:field="*{chipFamily}" class="n-select"
                             data-error-field="chipFamily"
                             th:classappend="${#fields.hasErrors('chipFamily')} ? 'is-invalid'">
-                        <option value="">선택하세요</option>
+                        <option value="">선택</option>
                         <option th:each="cf : ${chipFamilyOptions}"
                                 th:value="${cf.name()}"
                                 th:text="${cf.displayName}"></option>
                     </select>
-                    <div class="n-hint">제어 계열(storcli / sas3ircu)을 정합니다 — 세팅 정의서의 VD 파라미터 지원 여부가 이 값에 걸립니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('chipFamily')}"
                          th:errors="*{chipFamily}"></div>
                 </div>
@@ -84,7 +83,7 @@
                             <span th:text="${lvl.displayName}">RAID0</span>
                         </label>
                     </div>
-                    <div class="n-hint">이 값을 고치면 세팅 정의서 작성 화면의 카드 선택 판정이 다음 렌더부터 새 값으로 적용됩니다.</div>
+                    <div class="n-hint">고친 값은 세팅 정의서의 카드 선택에 바로 반영됩니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('supportedRaidLevels')}"
                          th:errors="*{supportedRaidLevels}"></div>
                 </div>
@@ -108,7 +107,7 @@
                            data-error-field="pciSubsystemId"
                            th:classappend="${#fields.hasErrors('pciSubsystemId')} ? 'is-invalid'"
                            placeholder="예: 1458:0011">
-                    <div class="n-hint"><code>lspci -nn</code> 출력의 대괄호 쌍입니다. 비워 두면 '미확인' 으로 돌아갑니다.</div>
+                    <div class="n-hint">비워 두면 미확인으로 돌아갑니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('pciSubsystemId')}"
                          th:errors="*{pciSubsystemId}"></div>
                 </div>

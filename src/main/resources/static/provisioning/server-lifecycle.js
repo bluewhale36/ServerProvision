@@ -29,7 +29,7 @@
             },
             onNetworkError: function (form, err) {
                 if (base && base.onNetworkError) { base.onNetworkError(form, err); return; }
-                ErrorModal.show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도하십시오.', status: 0});
+                ErrorModal.show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.', status: 0});
             }
         };
 
@@ -55,7 +55,7 @@
             ConfirmModal.open('serverPurge', {
                 title: '서버 영구 삭제',
                 message: '이 서버의 모든 기록(상세, 이력, 할당, 그룹 소속)이 함께 삭제되며 되돌릴 수 없습니다. '
-                    + '확인을 위해 SMBIOS UUID 의 마지막 ' + expected.length + '자리를 입력하십시오.',
+                    + '확인을 위해 SMBIOS UUID 의 마지막 ' + expected.length + '자리를 입력해야 합니다.',
                 confirmLabel: '영구 삭제',
                 confirmClass: 'n-btn-danger',
                 startDisabled: true,

@@ -167,7 +167,7 @@ public class BmcLifecycleService implements LifecycleService {
 			);
 		}
 		if (!bmc.isDeleted()) {
-			throw new IllegalBmcStateException("이미 활성 상태인 BMC 펌웨어입니다. bmcId=" + bmcId);
+			throw new IllegalBmcStateException("이미 활성 상태인 BMC 펌웨어입니다.");
 		}
 		if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, bmc.getVersion())) {
 			throw new DuplicateBmcVersionException(boardId, bmc.getVersion());
@@ -228,7 +228,7 @@ public class BmcLifecycleService implements LifecycleService {
 		BoardBMC bmc = requireExistingBmc(bmcId);
 		if (!bmc.isDeleted()) {
 			throw new IllegalBmcStateException(
-					"영구 삭제는 휴지통(soft-deleted) 상태의 BMC 펌웨어만 가능합니다. bmcId=" + bmcId);
+					"휴지통에 있는 BMC 펌웨어만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
 		}
 		// R7-2 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
 		TypedNameGuard.verify(bmc, typedName);
@@ -248,7 +248,7 @@ public class BmcLifecycleService implements LifecycleService {
 		BoardBMC bmc = requireExistingBmc(bmcId);
 		if (!bmc.isDeleted()) {
 			throw new IllegalBmcStateException(
-					"영구 삭제는 휴지통(soft-deleted) 상태의 BMC 펌웨어만 가능합니다. bmcId=" + bmcId);
+					"휴지통에 있는 BMC 펌웨어만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
 		}
 		bundleTreeCleanupService.purgeExistingTree(Path.of(bmc.getTreeRootPath()), "purgeBmc");
 		bmcRepository.delete(bmc);
@@ -274,7 +274,7 @@ public class BmcLifecycleService implements LifecycleService {
 		BoardBMC bmc = bmcRepository.findById(bmcId)
 				.orElseThrow(() -> new BmcNotFoundException(null, bmcId));
 		if (bmc.isDeleted()) {
-			throw new IllegalBmcStateException("삭제된 BMC 펌웨어에는 수행할 수 없는 작업입니다. bmcId=" + bmcId);
+			throw new IllegalBmcStateException("삭제된 BMC 펌웨어에는 이 작업을 할 수 없습니다.");
 		}
 		return bmc;
 	}

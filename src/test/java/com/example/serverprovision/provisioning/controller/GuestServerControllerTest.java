@@ -177,7 +177,7 @@ class GuestServerControllerTest {
                 .andExpect(content().string(containsString("이대로 개시하면 RAID 구성 단계에서 실패합니다")))
                 .andExpect(content().string(containsString("1458:3008")))
                 .andExpect(content().string(containsString("class=\"n-alert n-alert-warning\"")))   // S22-3 — 진행을 막지 않는 예고라 노랑
-                .andExpect(content().string(containsString("카드 자원의 Subsystem 을 고치십시오")))
+                .andExpect(content().string(containsString("카드 자원의 Subsystem 을 고쳐야 합니다")))
                 .andExpect(content().string(containsString("href=\"/management/raidcard?selectId=7\"")));   // CP5 F-3 — 다음 행동의 자리로
 
         UUID id2 = UUID.randomUUID();
@@ -620,7 +620,7 @@ class GuestServerControllerTest {
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"openAssignPicker\"")))
-                .andExpect(content().string(containsString("잠긴 사유는 정의서 목록에서 확인하십시오")))
+                .andExpect(content().string(containsString("잠긴 사유는 정의서 목록에서 확인할 수 있습니다")))
                 .andExpect(content().string(not(containsString("모두 다른 메인보드를 요구합니다"))));
     }
 }

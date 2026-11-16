@@ -18,6 +18,6 @@ public class InvalidVersionRankRequestException extends FieldBoundBadRequestExce
 	}
 
 	public static InvalidVersionRankRequestException incomplete() {
-		return new InvalidVersionRankRequestException("순서 목록이 살아있는 버전 전체를 담고 있지 않습니다 — 화면을 새로 고친 뒤 다시 시도하십시오.");
+		return new InvalidVersionRankRequestException("순서 목록에 빠진 버전이 있습니다. 화면을 새로 고친 뒤 다시 시도해야 합니다.");
 	}
 }

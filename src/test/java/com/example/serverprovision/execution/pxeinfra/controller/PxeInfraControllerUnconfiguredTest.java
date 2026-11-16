@@ -45,6 +45,6 @@ class PxeInfraControllerUnconfiguredTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("system/pxe-infra/overview"))
                 .andExpect(model().attributeExists("overview"))
-                .andExpect(content().string(containsString("dnsmasq 관측이 구성되지 않았습니다")));
+                .andExpect(content().string(containsString("dnsmasq 구성 파일 경로가 설정되지 않아")));
     }
 }

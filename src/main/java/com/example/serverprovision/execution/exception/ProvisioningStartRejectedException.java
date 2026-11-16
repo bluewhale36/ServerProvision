@@ -25,7 +25,7 @@ public class ProvisioningStartRejectedException extends ConflictException {
 
     /** R13 — 미개시 진단 창의 게스트 실패 보고로 생기는 "미개시 실패" 상태. 회복 경로는 재시도다. */
     public static ProvisioningStartRejectedException failed(UUID id) {
-        return new ProvisioningStartRejectedException("실패 상태의 서버는 개시할 수 없습니다 — 재시도로 회복하세요. id=" + id);
+        return new ProvisioningStartRejectedException("실패 상태의 서버는 개시할 수 없습니다. 재시도해야 합니다. id=" + id);
     }
 
     /**
@@ -34,6 +34,6 @@ public class ProvisioningStartRejectedException extends ConflictException {
      */
     public static ProvisioningStartRejectedException unassigned(UUID id) {
         return new ProvisioningStartRejectedException(
-                "세팅 정의서가 할당되지 않은 서버는 개시할 수 없습니다 — 정의서를 할당한 뒤 개시하십시오. id=" + id);
+                "세팅 정의서가 할당되지 않은 서버는 개시할 수 없습니다. 정의서를 할당한 뒤 개시해야 합니다. id=" + id);
     }
 }

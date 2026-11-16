@@ -22,10 +22,10 @@ public record BiosSettingTemplateCreateRequest(
         @Size(max = 1024, message = "설명은 1024자 이하여야 합니다.")
         String description,
 
-        @NotNull(message = "보드 모델 ID는 필수 값입니다.")
+        @NotNull(message = "보드 모델은 필수 값입니다.")
         Long boardModelId,
 
-        @NotNull(message = "속성 변경분은 null일 수 없습니다.")
+        @NotNull(message = "속성 변경분은 필수 값입니다.")
         Map<String, String> attributes
 ) {
 }

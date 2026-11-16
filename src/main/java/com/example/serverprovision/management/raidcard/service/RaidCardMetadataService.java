@@ -152,7 +152,7 @@ public class RaidCardMetadataService {
 	public Long completePendingCardFromNudge(NudgeSession session) {
 		if (!(session.payload() instanceof IntentMetaNudgePayload payload)) {
 			throw new IllegalRaidCardStateException(
-					"RAID 카드 nudge 세션은 IntentMetaNudgePayload 만 허용합니다. nudgeId=" + session.nudgeId());
+					"중복 확인 정보가 올바르지 않습니다. 다시 등록해야 합니다.");
 		}
 		Map<String, String> attrs = payload.attributes();
 		RaidCardVendor vendor = RaidCardVendor.valueOf(attrs.get(ATTR_VENDOR));
@@ -175,7 +175,7 @@ public class RaidCardMetadataService {
 	public void purgeCardForNudge(RaidCard target) {
 		if (!target.isDeleted() && !target.isDeprecated()) {
 			throw new IllegalRaidCardStateException(
-					"살아 있는 자원은 nudge replace 대상이 될 수 없습니다. id=" + target.getId());
+					"사용 중인 RAID 카드는 교체할 수 없습니다.");
 		}
 		raidCardRepository.delete(target);
 		log.info(

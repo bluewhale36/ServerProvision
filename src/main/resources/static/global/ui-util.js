@@ -51,11 +51,11 @@
 
     /**
      * 폼 배너(.n-form-banner 등)에 문장을 띄운다. lines 는 문자열 하나 또는 배열이고, 빈 값은 걸러
-     * ' · ' 로 잇는다. 이을 것이 없으면 배너를 숨긴다. 배너 요소가 없으면 console 에만 남긴다.
+     * 공백으로 잇는다(화면 문구에 가운뎃점을 쓰지 않는다, S22-4). 이을 것이 없으면 배너를 숨긴다. 배너 요소가 없으면 console 에만 남긴다.
      * opts.scroll 이 참이면 배너가 보이도록 문서 맨 위로 올린다(상세 화면의 삭제 실패 안내).
      */
     function showBanner(banner, lines, opts) {
-        const text = (Array.isArray(lines) ? lines : [lines]).filter(Boolean).join(' · ');
+        const text = (Array.isArray(lines) ? lines : [lines]).filter(Boolean).join(' ');
         if (!banner) {
             if (text) console.warn('[UiUtil.banner]', text);
             return;

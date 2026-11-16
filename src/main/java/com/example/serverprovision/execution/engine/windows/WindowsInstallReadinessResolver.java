@@ -153,7 +153,7 @@ public class WindowsInstallReadinessResolver {
             String why = plan.osAbsenceReason() == null ? "" : " (" + plan.osAbsenceReason() + ")";
             return new DiskSelection(WindowsDiskSelection.Confidence.BLOCKED, -1, null, 0L, null,
                     "os volume missing in plan",
-                    "RAID 계획에 OS 영역 볼륨이 없습니다" + why + ": 정의서의 디스크 묶음 규칙에서 OS 영역을 지정하십시오");
+                    "RAID 계획에 OS 영역 볼륨이 없습니다" + why + ": 정의서의 디스크 묶음 규칙에서 OS 영역을 지정해야 합니다");
         }
         return DiskSelection.deferred("RAID 구성 뒤 정해집니다(OS 영역 " + osName.get() + ")");
     }

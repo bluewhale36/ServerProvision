@@ -18,7 +18,7 @@ import lombok.Getter;
 public abstract class OSSettingRequest extends AbstractProcessRequest {
 
     /** 후처리 대상 OS 메타데이터의 DB 기본키. */
-    @NotNull(message = "OS 메타데이터 ID는 필수 값입니다.")
+    @NotNull(message = "OS 는 필수 선택입니다.")
     protected final Long osMetadataId;
 
     protected OSSettingRequest(Long osMetadataId) {

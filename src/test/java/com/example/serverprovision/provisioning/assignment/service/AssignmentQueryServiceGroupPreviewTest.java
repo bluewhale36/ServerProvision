@@ -186,8 +186,8 @@ class AssignmentQueryServiceGroupPreviewTest {
         assertThat(boardOnly.targetServerIds()).containsExactlyInAnyOrder(SRV_MS03, SRV_UNVERIFIED);
         assertThat(boardOnly.summary())
                 .contains("4 대 중 2 대에 할당됩니다")
-                .contains("이미 있음 1")
-                .contains("막힘 1");
+                .contains("이미 할당 1")
+                .contains("할당 불가 1");
     }
 
     @Test

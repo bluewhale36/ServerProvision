@@ -41,8 +41,8 @@
             <tr th:if="${inst.allowSshRoot != null}">
                 <th>root SSH 로그인</th>
                 <td>
-                    <span th:if="${inst.allowSshRoot}" class="n-badge n-badge-blue">허용 (--allow-ssh)</span>
-                    <span th:unless="${inst.allowSshRoot}" class="n-badge n-badge-gray">차단 (기본)</span>
+                    <span th:if="${inst.allowSshRoot}" class="n-badge n-badge-blue">허용</span>
+                    <span th:unless="${inst.allowSshRoot}" class="n-badge n-badge-gray">차단(기본값)</span>
                 </td>
             </tr>
             </tbody>
