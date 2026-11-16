@@ -1,5 +1,7 @@
 package com.example.serverprovision.global.security.springsecurity.guest;
 
+import com.example.serverprovision.global.security.springsecurity.authorization.ReasonedAccessDeniedHandler;
+import com.example.serverprovision.global.security.springsecurity.authorization.SuperAdminOnlyPolicy;
 import com.example.serverprovision.global.security.springsecurity.guest.authentication.GuestPrincipalResolver;
 import com.example.serverprovision.global.security.springsecurity.guest.web.GuestAccessDeniedHandler;
 import com.example.serverprovision.global.security.springsecurity.guest.web.GuestAuthenticationEntryPoint;
@@ -63,7 +65,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 출발지 대역 밖은 credential 과 무관하게 403 PXE_LAN_FORBIDDEN.</p>
  */
 @WebMvcTest(controllers = {GuestAgentRestController.class, WindowsInstallAssetRestController.class, ExecutionRestController.class, LoginController.class})
-@Import({GuestSecurityConfig.class, SecurityConfig.class, PasswordEncoderConfig.class, SignupAccessPolicy.class, MustChangePasswordSuccessHandler.class,
+@Import({GuestSecurityConfig.class, SecurityConfig.class, PasswordEncoderConfig.class, SignupAccessPolicy.class,
+		SuperAdminOnlyPolicy.class, ReasonedAccessDeniedHandler.class,   // HF29 — 웹 체인의 거절 사유
+		 MustChangePasswordSuccessHandler.class,
 		GuestPrincipalResolver.class, GuestAuthenticationEntryPoint.class, GuestAccessDeniedHandler.class,
 		// S19-2 — 첫 접촉 credential · LAN 정책 · URL 조립
 		com.example.serverprovision.execution.config.PxeBootProperties.class, com.example.serverprovision.execution.engine.boot.PxeBootUrls.class,

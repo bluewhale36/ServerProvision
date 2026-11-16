@@ -110,7 +110,13 @@ public class UserManagementService {
 		}
 	}
 
-	/** 잠근 최고 관리자 중 대상을 뺀 수 + (대상이 여전히 활성 최고 관리자면 1) ≥ 1. 예외는 트랜잭션을 되돌린다. */
+	/**
+	 * 잠근 최고 관리자 중 대상을 뺀 수 + (대상이 여전히 활성 최고 관리자면 1) ≥ 1. 예외는 트랜잭션을 되돌린다.
+	 *
+	 * <p>HF29 — 지금의 동작들로는 <b>구조상 도달하지 않는다</b>: 행위자는 잠근 목록 안에 있어야 진행되고(위 재확인), 수를 줄이는
+	 * 동작(권한 변경 · 비활성화 · 비밀번호 지정)은 자기 자신을 대상으로 못 하므로 '대상을 뺀 수' 에 행위자가 늘 들어간다. 앞으로
+	 * 자기 대상 금지가 풀리는 동작이 생길 때의 마지막 방어선으로 둔다. 사용자 문서는 이 문구를 보일 수 있는 것처럼 적지 않는다.</p>
+	 */
 	private void ensureSuperAdminRemains(List<Users> lockedSuperAdmins, Users target) {
 		long others = lockedSuperAdmins.stream().filter(u -> !u.getId().equals(target.getId())).count();
 		boolean targetStillSuperAdmin = target.enabled() && usersRoleRepository.findByUserIs(target).stream()
