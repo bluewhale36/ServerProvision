@@ -13,7 +13,7 @@
 <body class="m-body">
 <main class="m-main">
     <h1>자원의 상태와 삭제</h1>
-    <p class="m-lead">OS 버전, ISO, 메인보드, BIOS 펌웨어, BMC 펌웨어, RAID 카드, 드라이버와 유틸리티는 모두 같은 방식으로 상태를 바꾸고 삭제합니다. 이 페이지는 그 공통 동작을 설명합니다. 자원마다 다른 점은 각 자원 페이지에 있습니다.</p>
+    <p class="m-lead">OS 버전, ISO, 메인보드, BIOS 펌웨어, BMC 펌웨어, RAID 카드, 드라이버와 유틸리티는 모두 같은 방식으로 상태를 바꾸고 삭제합니다. 자원마다 다른 점은 각 자원 페이지에 있습니다.</p>
 
     <h2 id="axes">두 가지 상태</h2>
     <p>자원 상세의 <strong>상태</strong> 행은 활성 여부를, <strong>사용 중단 권고</strong> 행은 Deprecated 표시 여부를 보여 줍니다. 두 상태는 서로 독립입니다. Deprecated 로 표시해도 자원은 활성 상태 그대로이고, 비활성화해도 Deprecated 표시는 바뀌지 않습니다.</p>
@@ -80,6 +80,10 @@
             <tr><td><span class="m-ui">취소</span></td><td>삭제 중단</td></tr>
             </tbody>
         </table>
+    </div>
+    <div class="m-callout m-warn">
+        <span class="m-callout-title">주의</span>
+        <p>강제 정리는 휴지통을 거치지 않고, 자원명 입력 확인도 없으며, 감사 기록도 남기지 않습니다. 브라우저 확인 창 한 번으로 기록이 영구 삭제되므로 파일이 실제로 사라졌는지 확인한 뒤에만 고릅니다.</p>
     </div>
 
     <h3 id="retention">휴지통 보존 기간</h3>

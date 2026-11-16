@@ -67,9 +67,12 @@
         { "title": "디렉토리 구조", "path": "admin/directories.html", "status": "planned" },
         { "title": "네트워크", "path": "admin/network.html", "status": "planned" },
         { "title": "계정과 권한", "path": "admin/accounts.html", "status": "planned" },
+        { "title": "설정 파일과 비밀값", "path": "admin/config-secrets.html", "status": "planned" },
         { "title": "설치와 배포", "path": "admin/install.html", "status": "planned" },
         { "title": "서비스와 로그", "path": "admin/service-logs.html", "status": "planned" },
-        { "title": "정기 점검", "path": "admin/maintenance.html", "status": "planned" }
+        { "title": "정기 점검", "path": "admin/maintenance.html", "status": "planned" },
+        { "title": "백업과 복원", "path": "admin/backup-restore.html", "status": "planned" },
+        { "title": "장애 대응", "path": "admin/incident.html", "status": "planned" }
       ]
     },
     {
