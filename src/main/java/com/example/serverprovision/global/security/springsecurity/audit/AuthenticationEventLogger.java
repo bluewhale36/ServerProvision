@@ -32,7 +32,7 @@ import java.util.function.Supplier;
  *   <li>{@code [auth.login.failed]} WARN — 사유 코드(BAD_CREDENTIALS · DISABLED · LOCKED …)는 이벤트 클래스 이름에서 기계적으로 뽑는다. 사용자 부재는
  *       Spring Security 가 BAD_CREDENTIALS 로 감추므로(계정 열거 방지) 그대로 둔다.</li>
  *   <li>{@code [auth.logout]} INFO · {@code [authz.denied]} WARN(인증된 사용자 또는 프로비저닝 LAN 밖) / DEBUG(익명 — 로그인 유도가 정상 UX).</li>
- *   <li>{@code [auth.account.created]} · {@code [auth.password.changed]} INFO — {@link AccountAuditEvent}.</li>
+ *   <li>{@code [auth.account.*]} · {@code [auth.password.*]} INFO — {@link AccountAuditEvent}(가입 · 비밀번호 변경 · MA8 의 권한 등급 변경 · 비활성화 · 활성화 · 초기 비밀번호 지정).</li>
  * </ul>
  * <p>비밀값은 절대 싣지 않는다 — 게스트 토큰은 {@code Authentication.getName()} 이 게스트 id 또는 "guest" 만 주고, 비밀번호 · secret 은 이벤트에 없다.
  * logback 의 {@code MASK_PATTERN} 은 그 위의 안전망이다.</p>
@@ -89,12 +89,7 @@ public class AuthenticationEventLogger {
 
     @EventListener
     public void onAccountEvent(AccountAuditEvent event) {
-        switch (event.kind()) {
-            case CREATED -> log.info("[auth.account.created] user={} by={} mode={} roles={} mustChangePassword={}",
-                    event.username(), event.actor(), event.mode(), event.roles(), event.mustChangePassword());
-            case PASSWORD_CHANGED -> log.info("[auth.password.changed] user={} by={} mode={}",
-                    event.username(), event.actor(), event.mode());
-        }
+        event.logTo(log);   // MA8 — 문장은 사건 종류(Kind)가 소유한다. 종류가 늘어도 여기는 그대로다
     }
 
     /** {@code AuthenticationFailureBadCredentialsEvent} → {@code BAD_CREDENTIALS} — 이름 규칙에서 뽑으므로 사유가 늘어도 표가 없다. */

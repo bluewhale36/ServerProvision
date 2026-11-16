@@ -116,7 +116,14 @@ table.has-error {
     border-bottom: 1px solid var(--n-border);
 }
 
-.n-option-row > input[type="checkbox"] {
+/* MA8 CP7 — 폼 그룹 안 마지막 옵션 행은 아랫선을 그리지 않는다. 바로 뒤 .n-form-actions 의 윗선과 겹쳐 두 줄이 되던 것.
+   :last-child 가 아니라 '뒤에 옵션 행이 없는 행' 으로 고른다 — 행 뒤에 오류 문구 칸(.n-error)이 오는 폼(가입 폼)이 있다. */
+.n-form-group > .n-option-row:not(:has(~ .n-option-row)) {
+    border-bottom: none;
+}
+
+.n-option-row > input[type="checkbox"],
+.n-option-row > input[type="radio"] {   /* MA8 CP7 — 라디오도 첫 줄 글자 가운데에 맞춘다(체크박스와 같은 보정) */
     margin-top: 3px;
 }
 

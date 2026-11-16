@@ -179,13 +179,22 @@ class AuthenticationEventLoggerTest {
 	}
 
 	@Test
-	@DisplayName("계정 사건 — 가입은 mode · 역할 · 초기 비밀번호 여부, 비밀번호 변경은 강제/자발 · 비밀번호 자체는 이벤트에 없다")
+	@DisplayName("계정 사건 — 가입은 mode · 역할 · 초기 비밀번호 여부, 비밀번호 변경은 강제/자발 · MA8 관리 동작 4 종 · 비밀번호 자체는 이벤트에 없다")
 	void accountEvents() {
-		logger.onAccountEvent(AccountAuditEvent.created("probe1", "hong.gildong", "ADMIN_CREATES_USER", Set.of("ROLE_USER"), true));
+		logger.onAccountEvent(AccountAuditEvent.created("probe1", "hong.gildong", "MANAGED", Set.of("ROLE_USER"), true));
 		logger.onAccountEvent(AccountAuditEvent.passwordChanged("probe1", "probe1", true));
+		logger.onAccountEvent(AccountAuditEvent.roleChanged("probe1", "kim.sa",
+				new java.util.TreeSet<>(Set.of("ROLE_USER")), new java.util.TreeSet<>(Set.of("ROLE_ADMIN", "ROLE_USER"))));
+		logger.onAccountEvent(AccountAuditEvent.disabled("probe1", "kim.sa"));
+		logger.onAccountEvent(AccountAuditEvent.enabled("probe1", "kim.sa"));
+		logger.onAccountEvent(AccountAuditEvent.passwordAssigned("probe1", "kim.sa"));
 
 		assertThat(capture.lines()).containsExactly(
-				"[auth.account.created] user=probe1 by=hong.gildong mode=ADMIN_CREATES_USER roles=[ROLE_USER] mustChangePassword=true",
-				"[auth.password.changed] user=probe1 by=probe1 mode=FORCED");
+				"[auth.account.created] user=probe1 by=hong.gildong mode=MANAGED roles=[ROLE_USER] mustChangePassword=true",
+				"[auth.password.changed] user=probe1 by=probe1 mode=FORCED",
+				"[auth.account.role-changed] user=probe1 by=kim.sa from=[ROLE_USER] to=[ROLE_ADMIN, ROLE_USER]",
+				"[auth.account.disabled] user=probe1 by=kim.sa",
+				"[auth.account.enabled] user=probe1 by=kim.sa",
+				"[auth.password.assigned] user=probe1 by=kim.sa");
 	}
 }
