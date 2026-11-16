@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="manual-reviewed" content="2026-11-16">
+    <title>ServerProvision 사용 매뉴얼</title>
+    <link rel="stylesheet" href="../global/reset.css">
+    <link rel="stylesheet" href="../global/style.css">
+    <link rel="stylesheet" href="manual.css">
+    <script src="manual.js" defer></script>
+</head>
+<body class="m-body">
+<main class="m-main">
+    <h1>ServerProvision 사용 매뉴얼</h1>
+    <p class="m-lead">ServerProvision 은 데이터센터의 베어메탈 서버에 펌웨어 업데이트, BIOS 설정, RAID 구성, 운영체제 설치를 자동으로 진행하는 PXE 서버입니다. 운영자는 설치에 쓸 자원을 등록하고, 진행할 단계를 세팅 정의서로 묶은 뒤, PXE 부팅으로 등록된 서버에 정의서를 할당해 프로비저닝을 시작합니다.</p>
+
+    <h2 id="start">처음 사용한다면</h2>
+    <div class="m-cards">
+        <a class="m-card" href="start/first-provisioning.html">
+            <span class="m-card-title">처음 프로비저닝하기</span>
+            <span class="m-card-desc">자원 등록부터 프로비저닝 완료까지 서버 한 대를 처음부터 끝까지 진행합니다.</span>
+        </a>
+        <a class="m-card" href="start/overview.html">
+            <span class="m-card-title">PXE 서버 개요</span>
+            <span class="m-card-desc">PXE 서버가 하는 일과 관리 화면의 구성을 알아봅니다.</span>
+        </a>
+    </div>
+
+    <h2 id="tasks">하려는 일</h2>
+    <div class="m-cards">
+        <a class="m-card" href="management/board.html">
+            <span class="m-card-title">자원 등록</span>
+            <span class="m-card-desc">OS 와 ISO, 메인보드, BIOS 와 BMC 펌웨어, RAID 카드, 드라이버를 등록합니다.</span>
+        </a>
+        <a class="m-card" href="setting/definition.html">
+            <span class="m-card-title">세팅 정의서 작성</span>
+            <span class="m-card-desc">서버에 진행할 단계를 순서대로 정의합니다.</span>
+        </a>
+        <a class="m-card" href="server/assignment.html">
+            <span class="m-card-title">서버 프로비저닝</span>
+            <span class="m-card-desc">등록된 서버에 정의서를 할당하고 진행 상황을 확인합니다.</span>
+        </a>
+        <a class="m-card" href="failure/overview.html">
+            <span class="m-card-title">실패 대응</span>
+            <span class="m-card-desc">단계가 실패했을 때 원인을 확인하고 조치합니다.</span>
+        </a>
+        <a class="m-card" href="maintenance/reconciliation.html">
+            <span class="m-card-title">운영과 점검</span>
+            <span class="m-card-desc">자원 무결성 점검, 업로드 실패 복구, 휴지통을 다룹니다.</span>
+        </a>
+        <a class="m-card" href="admin/install.html">
+            <span class="m-card-title">설치와 배포</span>
+            <span class="m-card-desc">PXE 서버를 설치하고 운영 환경에 배포합니다.</span>
+        </a>
+    </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="manual-reviewed" content="2026-11-16">
+    <title>메인보드 | ServerProvision 사용 매뉴얼</title>
+    <link rel="stylesheet" href="../../global/reset.css">
+    <link rel="stylesheet" href="../../global/style.css">
+    <link rel="stylesheet" href="../manual.css">
+    <script src="../manual.js" defer></script>
+</head>
+<body class="m-body">
+<main class="m-main">
+    <h1>메인보드</h1>
+    <p class="m-lead">메인보드 모델은 서버가 PXE 부팅으로 등록될 때 기준이 되는 자원입니다. BIOS 펌웨어와 BMC 펌웨어, 특정 보드 전용 드라이버와 유틸리티는 모두 메인보드 모델 아래에 등록합니다.</p>
+
+    <h2 id="why">메인보드 모델이 먼저 필요한 이유</h2>
+    <p>서버가 PXE 부팅하면 자신의 제조사와 보드 모델명을 PXE 서버에 보고합니다. PXE 서버는 이 값을 등록된 메인보드 모델과 비교하고, 일치하는 모델이 있을 때만 서버를 등록합니다. 일치하는 모델이 없으면 서버는 <a href="../server/list-detail.html">서버 목록</a>에 나타나지 않습니다.</p>
+    <p>따라서 새 기종의 서버를 처음 연결하기 전에 그 서버의 메인보드 모델을 먼저 등록해야 합니다.</p>
+
+    <h3 id="matching">모델명 비교 규칙</h3>
+    <ul>
+        <li>제조사가 같고 모델명의 철자가 같아야 일치합니다. 일부만 같은 이름은 일치로 보지 않습니다. 대소문자는 구분하지 않습니다.</li>
+        <li>Gigabyte 보드는 모델명 끝에 <code>-000</code>, <code>-00</code> 같은 숫자 접미사를 붙여 보고합니다. 보고된 이름 그대로 일치하는 모델이 없으면 PXE 서버가 이 접미사를 떼고 한 번 더 비교합니다. 그래서 <code>MS03-CE0-000</code> 으로 보고하는 서버는 <code>MS03-CE0</code> 으로 등록한 모델과도 일치합니다.</li>
+        <li>비교 대상은 휴지통에 있지 않은 모델 전부입니다. 모델을 비활성화하거나 Deprecated 로 표시해도 서버 등록은 막히지 않습니다. 다만 비활성화하면 하위 펌웨어도 함께 비활성이 되어 펌웨어 업데이트 단계가 실행되지 않습니다(<a href="#lifecycle">상태 변경과 삭제</a>).</li>
+    </ul>
+
+    <h2 id="screen">화면 구성</h2>
+    <p>사이드바에서 <span class="m-path"><span>자원 관리</span><span>메인보드</span></span> 를 엽니다. 화면은 세 개의 열로 나뉩니다. 왼쪽 열에서 제조사를 고르면 가운데 열에 그 제조사의 모델이 나타나고, 모델을 고르면 오른쪽 열에 상세 정보가 나타납니다.</p>
+    <figure class="m-shot">
+        <img src="../img/management/board-list.png" alt="메인보드 모델 관리 화면. 제조사 Gigabyte 아래 모델 세 개, 오른쪽에 MD72-HB3 의 상세" width="1116" height="781" loading="lazy">
+        <figcaption>제조사, 모델, 상세의 세 열. 가운데 열의 배지가 모델의 활성 상태입니다.</figcaption>
+    </figure>
+    <p>상세 열의 주요 항목은 다음과 같습니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>항목</th><th>내용</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>제조사, 모델명</td><td>등록할 때 입력한 값. Deprecated 로 표시된 모델은 모델명 옆에 <span class="n-badge n-badge-yellow">Deprecated</span> 배지</td></tr>
+            <tr><td>호환 자원</td><td>이 모델 아래에 등록된 BIOS 펌웨어와 BMC 펌웨어의 개수. 드라이버와 유틸리티의 개수는 상세 열 아래쪽의 현재 연결 줄에 표시</td></tr>
+            <tr><td>상태</td><td>활성 여부와 <span class="m-ui">비활성화</span> 또는 <span class="m-ui">활성화</span> 버튼</td></tr>
+            <tr><td>사용 중단 권고</td><td>Deprecated 표시 여부와 <span class="m-ui">Deprecated 표시</span> 또는 <span class="m-ui">Deprecated 해제</span> 버튼</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p>화면 위쪽의 조회 띠에서 제조사, 모델명, 설명으로 검색할 수 있습니다. 활성(전체, 활성, 비활성), 사용 중단(전체, 권고, 정상), 삭제된 항목 포함 조건으로 목록을 좁힐 수도 있습니다.</p>
+
+    <h2 id="register">메인보드 모델 등록</h2>
+    <ol class="m-steps">
+        <li><span class="m-path"><span>자원 관리</span><span>메인보드</span></span> 에서 <span class="m-ui">+ 신규 메인보드 모델 등록</span> 을 누릅니다.</li>
+        <li><strong>제조사</strong>를 고릅니다. 고를 수 있는 제조사는 Gigabyte, Asus, Fujitsu 이지만, 프로비저닝은 Gigabyte 메인보드에서만 진행할 수 있습니다.</li>
+        <li><strong>모델명</strong>을 입력합니다. 128자까지 입력할 수 있습니다. 서버가 보고하는 모델명과 같게 입력합니다. Gigabyte 보드라면 숫자 접미사를 뺀 이름으로 입력해도 됩니다(<a href="#matching">모델명 비교 규칙</a>).</li>
+        <li>필요하면 <strong>설명</strong>을 입력합니다. 1024자까지 입력할 수 있습니다.</li>
+        <li><span class="m-ui">등록</span> 을 누릅니다. 등록이 끝나면 목록으로 돌아가고 방금 등록한 모델이 선택된 상태로 열립니다.</li>
+    </ol>
+    <div class="m-callout">
+        <span class="m-callout-title">참고</span>
+        <p>목록에 없는 제조사는 화면에서 추가할 수 없습니다. 새 제조사를 추가하려면 프로그램을 변경해야 하므로 PXE 서버 관리자에게 요청합니다.</p>
+    </div>
+
+    <h3 id="duplicate">같은 모델이 이미 있을 때</h3>
+    <p>같은 제조사와 모델명을 가진 모델이 이미 있으면 기존 모델의 상태에 따라 화면이 다르게 안내합니다.</p>
+    <ul>
+        <li>기존 모델이 삭제되지 않았고 Deprecated 도 아니면(비활성 포함) 등록되지 않고, 모델명 칸 아래에 "이미 등록된 메인보드 모델입니다. Gigabyte MS03-CE0" 처럼 제조사와 모델명이 붙은 오류가 표시됩니다.</li>
+        <li>기존 모델이 휴지통에 있거나 Deprecated 로 표시돼 있으면 "동일한 자원이 이미 존재합니다" 창이 열립니다. 이 창에서 <span class="m-ui">그래도 등록</span>, <span class="m-ui">기존 영구 삭제 후 등록</span>, <span class="m-ui">취소</span> 중 하나를 고릅니다.</li>
+    </ul>
+    <p>휴지통에 있는 모델을 다시 쓰려면 새로 등록하지 않고 <a href="#lifecycle">복구</a>합니다. 복구하면 그 모델 아래에 있던 펌웨어도 함께 되살릴 수 있습니다.</p>
+    <div class="m-callout m-danger">
+        <span class="m-callout-title">경고</span>
+        <p>기존 모델이 Deprecated 로 표시돼 있을 때 <span class="m-ui">그래도 등록</span> 을 고르면 같은 제조사와 모델명의 모델이 두 개가 됩니다. 이 상태에서는 그 보드를 가진 서버가 PXE 부팅해도 등록되지 않습니다. Deprecated 모델을 다시 쓰려면 새로 등록하지 않고 기존 모델의 <span class="m-ui">Deprecated 해제</span> 를 누릅니다.</p>
+    </div>
+
+    <h2 id="edit">정보 수정</h2>
+    <p>상세 열에서 <span class="m-ui">수정</span> 을 누르면 모델명과 설명을 바꿀 수 있습니다. 바꾼 뒤 <span class="m-ui">저장</span> 을 누릅니다.</p>
+    <ul>
+        <li>제조사는 바꿀 수 없습니다. 제조사를 잘못 골랐다면 모델을 삭제하고 다시 등록합니다.</li>
+        <li>모델명을 바꿔도 이미 등록된 서버와의 연결은 그대로이고, 서버 화면에 보이는 보드 이름만 새 이름으로 바뀝니다. 이후에 PXE 부팅하는 서버는 바뀐 모델명으로 비교합니다.</li>
+    </ul>
+
+    <h2 id="children">펌웨어 등록으로 이어가기</h2>
+    <p>상세 열 아래쪽의 <span class="m-ui">BIOS 등록</span>, <span class="m-ui">BMC 등록</span> 버튼을 누르면 이 모델이 미리 선택된 상태로 펌웨어 등록 화면이 열립니다. 등록 방법은 <a href="bios.html">BIOS 펌웨어</a>와 <a href="bmc.html">BMC 펌웨어</a>에서 설명합니다.</p>
+
+    <h2 id="lifecycle">상태 변경과 삭제</h2>
+    <p>메인보드 모델의 상태 변경은 아래에 등록된 자원에도 영향을 줍니다. 활성, 사용 중단 권고, 삭제와 복구의 일반적인 의미는 <a href="lifecycle.html">자원의 상태와 삭제</a>에서 설명합니다. 여기서는 메인보드 모델에만 해당하는 내용을 다룹니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>동작</th><th>하위 자원에 미치는 영향</th></tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><span class="m-ui">비활성화</span></td>
+                <td>이 모델 아래의 BIOS 펌웨어, BMC 펌웨어, 드라이버와 유틸리티 전부 비활성. 그동안 이 보드의 펌웨어 업데이트는 사용할 펌웨어 부재로 생략, 정의서 작성 화면의 메인보드 선택지에서도 제외. 다시 <span class="m-ui">활성화</span> 하면 하위 자원 중 개별적으로 활성이던 것만 활성으로 복귀</td>
+            </tr>
+            <tr>
+                <td><span class="m-ui">Deprecated 표시</span></td>
+                <td>확인 창을 거친 뒤 하위 자원도 함께 Deprecated 표시. 해제해도 하위 자원 중 직접 Deprecated 로 표시해 둔 것은 유지</td>
+            </tr>
+            <tr>
+                <td><span class="m-ui">삭제</span></td>
+                <td>확인 창을 거친 뒤 하위 자원과 함께 휴지통으로 이동</td>
+            </tr>
+            <tr>
+                <td><span class="m-ui">복구</span></td>
+                <td>조회 띠의 삭제된 항목 포함을 켜면 삭제된 모델에 버튼 표시. 확인 창의 기본 선택 "하위 BIOS / BMC / 드라이버·유틸리티 도 함께 복구" 를 그대로 두면 휴지통의 하위 자원도 함께 복구, "이 자원만 복구" 를 고르면 모델만 복구</td>
+            </tr>
+            <tr>
+                <td><span class="m-ui">영구 삭제</span></td>
+                <td>확인 창에 표시된 자원명(제조사와 모델명, 예: Gigabyte MS03-CE0)을 그대로 입력한 뒤 삭제. 하위 자원이 휴지통을 포함해 하나라도 남아 있으면 불가(하위 자원을 먼저 영구 삭제)</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="m-callout m-warn">
+        <span class="m-callout-title">주의</span>
+        <p>영구 삭제는 되돌릴 수 없습니다. 이 모델로 이미 등록된 서버의 하드웨어 정보와 이 보드용 BIOS 세팅 템플릿도 함께 삭제됩니다. 이 모델을 쓰는 서버와 템플릿이 더 이상 필요 없는지 확인한 뒤 진행합니다.</p>
+    </div>
+</main>
+</body>
+</html>

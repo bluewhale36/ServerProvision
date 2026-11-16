@@ -1,0 +1,78 @@
+{
+  "title": "ServerProvision 사용 매뉴얼",
+  "groups": [
+    {
+      "title": "시작하기",
+      "pages": [
+        { "title": "PXE 서버 개요", "path": "start/overview.html", "status": "planned" },
+        { "title": "처음 프로비저닝하기", "path": "start/first-provisioning.html" },
+        { "title": "계정과 로그인", "path": "start/account.html", "status": "planned" }
+      ]
+    },
+    {
+      "title": "자원 관리",
+      "pages": [
+        { "title": "자원의 상태와 삭제", "path": "management/lifecycle.html", "status": "planned" },
+        { "title": "OS 버전과 ISO", "path": "management/os.html", "status": "planned" },
+        { "title": "메인보드", "path": "management/board.html" },
+        { "title": "BIOS 펌웨어", "path": "management/bios.html", "status": "planned" },
+        { "title": "BMC 펌웨어", "path": "management/bmc.html", "status": "planned" },
+        { "title": "RAID 카드", "path": "management/raidcard.html", "status": "planned" },
+        { "title": "드라이버와 유틸리티", "path": "management/subprogram.html", "status": "planned" }
+      ]
+    },
+    {
+      "title": "세팅 정의서",
+      "pages": [
+        { "title": "정의서 작성", "path": "setting/definition.html", "status": "planned" },
+        { "title": "단계 종류별 설정", "path": "setting/process-types.html", "status": "planned" },
+        { "title": "BIOS 세팅 템플릿", "path": "setting/bios-setting.html", "status": "planned" },
+        { "title": "BMC 비밀번호", "path": "setting/bmc-password.html", "status": "planned" }
+      ]
+    },
+    {
+      "title": "서버 프로비저닝",
+      "pages": [
+        { "title": "서버 등록", "path": "server/registration.html", "status": "planned" },
+        { "title": "서버 목록과 상세", "path": "server/list-detail.html", "status": "planned" },
+        { "title": "정의서 할당", "path": "server/assignment.html", "status": "planned" },
+        { "title": "개시와 진행 확인", "path": "server/start-progress.html", "status": "planned" },
+        { "title": "전원 제어", "path": "server/power.html", "status": "planned" },
+        { "title": "서버 그룹", "path": "server/group.html", "status": "planned" },
+        { "title": "회수와 재투입", "path": "server/reintake.html", "status": "planned" }
+      ]
+    },
+    {
+      "title": "실패 대응",
+      "pages": [
+        { "title": "실패 확인과 조치", "path": "failure/overview.html", "status": "planned" },
+        { "title": "자동 재시도", "path": "failure/auto-retry.html", "status": "planned" },
+        { "title": "부팅 문제", "path": "failure/boot.html", "status": "planned" }
+      ]
+    },
+    {
+      "title": "운영",
+      "pages": [
+        { "title": "자원 무결성 점검", "path": "maintenance/reconciliation.html", "status": "planned" },
+        { "title": "업로드 실패 복구", "path": "maintenance/quarantine.html", "status": "planned" },
+        { "title": "휴지통", "path": "maintenance/trash.html", "status": "planned" },
+        { "title": "시스템 자산", "path": "system/asset.html", "status": "planned" },
+        { "title": "proxy DHCP", "path": "system/proxy-dhcp.html", "status": "planned" }
+      ]
+    },
+    {
+      "title": "서버 관리자",
+      "pages": [
+        { "title": "설치와 배포", "path": "admin/install.html", "status": "planned" },
+        { "title": "로그 확인", "path": "admin/logs.html", "status": "planned" }
+      ]
+    },
+    {
+      "title": "참고",
+      "pages": [
+        { "title": "용어집", "path": "reference/glossary.html", "status": "planned" },
+        { "title": "자주 묻는 질문", "path": "reference/faq.html", "status": "planned" }
+      ]
+    }
+  ]
+}

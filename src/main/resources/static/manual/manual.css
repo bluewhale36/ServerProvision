@@ -1,0 +1,647 @@
+/*
+ * 사용 매뉴얼 전용 시트.
+ * 색, 반지름, 글꼴은 /global/style.css 의 :root 토큰만 쓴다. 관리 화면의 디자인이 바뀌면 매뉴얼도 함께 바뀐다.
+ * 머리줄, 사이드 목차, 페이지 내 목차, 이전/다음은 manual.js 가 nav.json 을 읽어 그린다. 페이지 파일은 <main> 본문만 가진다.
+ */
+
+/* ── 골격 ─────────────────────────────────────────── */
+
+/* 사이드바 폭은 관리 화면 사이드바(style.css 의 .n-nav, 228px)와 같게 둔다. */
+body.m-body {
+    --m-side-width: 228px;
+    display: grid;
+    grid-template-columns: var(--m-side-width) minmax(0, 1fr) 232px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+        "top  top  top"
+        "side main toc";
+    align-items: start;
+    min-height: 100vh;
+    background: var(--n-surface);
+}
+
+.m-top {
+    grid-area: top;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 56px;
+    padding: 0 20px;
+    background: var(--n-warm-dark);
+    color: var(--n-surface);
+}
+
+.m-side {
+    grid-area: side;
+    position: sticky;
+    top: 56px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+    padding: 20px 12px 40px 16px;
+    border-right: 1px solid var(--n-border);
+    background: var(--n-sunken);
+}
+
+.m-main {
+    grid-area: main;
+    min-width: 0;
+    padding: 28px 48px 64px;
+    line-height: 1.75;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}
+
+.m-toc {
+    grid-area: toc;
+    position: sticky;
+    top: 56px;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+    padding: 32px 16px 32px 0;
+    font-size: 13px;
+}
+
+/* ── 머리줄 ───────────────────────────────────────── */
+
+.m-brand {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--n-surface);
+    font-weight: 700;
+    font-size: 15px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.m-brand:hover {
+    color: var(--n-surface);
+    text-decoration: underline;
+}
+
+.m-side-toggle {
+    display: none;
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 4px 10px;
+    border: 1px solid var(--n-text-sec);
+    border-radius: var(--n-radius);
+    background: transparent;
+    color: var(--n-surface);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.m-search {
+    position: relative;
+    flex: 0 1 420px;
+    margin-left: auto;
+}
+
+.m-search input {
+    width: 100%;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--n-text-sec);
+    border-radius: var(--n-radius);
+    background: var(--n-surface);
+    color: var(--n-text);
+    font: inherit;
+    font-size: 14px;
+}
+
+.m-search input:focus {
+    outline: 2px solid var(--n-blue);
+    outline-offset: 0;
+}
+
+.m-search-panel {
+    position: absolute;
+    top: 40px;
+    right: 0;
+    width: min(560px, calc(100vw - 32px));
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    background: var(--n-surface);
+    color: var(--n-text);
+}
+
+.m-search-status {
+    padding: 14px 16px;
+    color: var(--n-text-sec);
+    font-size: 13px;
+}
+
+.m-search-result {
+    display: block;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--n-border-row);
+    color: var(--n-text);
+    text-decoration: none;
+}
+
+.m-search-result:last-child {
+    border-bottom: 0;
+}
+
+.m-search-result:hover,
+.m-search-result.is-active {
+    background: var(--n-row-hover);
+    color: var(--n-text);
+}
+
+.m-search-result-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.m-search-result-where {
+    color: var(--n-text-sec);
+    font-size: 12px;
+}
+
+.m-search-result-snippet {
+    margin-top: 2px;
+    color: var(--n-text-sec);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.m-search mark,
+.m-search-panel mark {
+    background: var(--n-yellow-bg);
+    color: inherit;
+    padding: 0;
+}
+
+.m-app-link {
+    color: var(--n-surface);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.m-app-link:hover {
+    color: var(--n-surface);
+}
+
+/* ── 사이드 목차 ──────────────────────────────────── */
+
+.m-side-group + .m-side-group {
+    margin-top: 18px;
+}
+
+.m-side-title {
+    padding: 0 8px 6px;
+    color: var(--n-text);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.m-side ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.m-side-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-left: 3px solid transparent;
+    border-radius: 0 var(--n-radius) var(--n-radius) 0;
+    color: var(--n-text-sec);
+    font-size: 13.5px;
+    line-height: 1.45;
+    text-decoration: none;
+}
+
+a.m-side-link:hover {
+    background: var(--n-row-hover);
+    color: var(--n-text);
+}
+
+.m-side-link.is-current {
+    border-left-color: var(--n-blue);
+    background: var(--n-surface);
+    color: var(--n-blue);
+    font-weight: 600;
+}
+
+.m-side-link.is-planned {
+    color: var(--n-text-muted);
+    cursor: default;
+}
+
+.m-soon {
+    margin-left: auto;
+    color: var(--n-text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+/* ── 페이지 내 목차 ───────────────────────────────── */
+
+.m-toc-title {
+    margin-bottom: 8px;
+    color: var(--n-text);
+    font-weight: 700;
+}
+
+.m-toc ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 1px solid var(--n-border);
+}
+
+.m-toc a {
+    display: block;
+    margin-left: -1px;
+    padding: 3px 0 3px 12px;
+    border-left: 2px solid transparent;
+    color: var(--n-text-sec);
+    line-height: 1.45;
+    text-decoration: none;
+}
+
+.m-toc a.is-sub {
+    padding-left: 24px;
+}
+
+.m-toc a:hover {
+    color: var(--n-text);
+}
+
+.m-toc a.is-active {
+    border-left-color: var(--n-blue);
+    color: var(--n-blue);
+}
+
+/* ── 본문 ─────────────────────────────────────────── */
+
+.m-crumb {
+    margin-bottom: 6px;
+    color: var(--n-text-sec);
+    font-size: 13px;
+}
+
+.m-main h1 {
+    margin: 0 0 12px;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.35;
+    word-break: keep-all;
+}
+
+.m-main h2 {
+    margin: 44px 0 12px;
+    padding-top: 20px;
+    border-top: 1px solid var(--n-border);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.4;
+    word-break: keep-all;
+}
+
+.m-main h3 {
+    margin: 28px 0 8px;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.m-main h2,
+.m-main h3 {
+    scroll-margin-top: 72px;
+}
+
+.m-main p,
+.m-main ul,
+.m-main ol,
+.m-main table,
+.m-main figure {
+    margin: 0 0 16px;
+}
+
+.m-main ul,
+.m-main ol {
+    padding-left: 22px;
+}
+
+.m-main li + li {
+    margin-top: 4px;
+}
+
+.m-lead {
+    color: var(--n-text-sec);
+    font-size: 16px;
+}
+
+.m-main code {
+    font-family: var(--n-font-mono);
+    font-size: 0.85em;
+}
+
+/* 화면에 보이는 버튼, 링크, 입력 칸의 이름. 독자가 화면에서 같은 글자를 찾는다. */
+.m-ui {
+    display: inline-block;
+    padding: 0 6px;
+    border: 1px solid var(--n-border-form);
+    border-radius: var(--n-radius);
+    background: var(--n-surface);
+    font-size: 0.9em;
+    font-weight: 600;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+/* 사이드바 메뉴 경로. 예: 프로비저닝 › 서버 */
+.m-path {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.m-path > span + span::before {
+    content: "›";
+    margin: 0 6px;
+    color: var(--n-text-muted);
+    font-weight: 400;
+}
+
+/* 따라 하기 절차 */
+ol.m-steps {
+    list-style: none;
+    counter-reset: m-step;
+    padding-left: 0;
+}
+
+ol.m-steps > li {
+    position: relative;
+    counter-increment: m-step;
+    padding-left: 38px;
+}
+
+ol.m-steps > li + li {
+    margin-top: 12px;
+}
+
+ol.m-steps > li::before {
+    content: counter(m-step);
+    position: absolute;
+    top: 2px;
+    left: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--n-blue-badge-bg);
+    color: var(--n-blue);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 24px;
+    text-align: center;
+}
+
+/* 참고, 주의, 경고 */
+.m-callout {
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    border-left: 3px solid var(--n-blue);
+    border-radius: 0 var(--n-radius-lg) var(--n-radius-lg) 0;
+    background: var(--n-blue-badge-bg);
+}
+
+.m-callout > :last-child {
+    margin-bottom: 0;
+}
+
+.m-callout-title {
+    display: block;
+    margin-bottom: 2px;
+    font-weight: 700;
+}
+
+.m-callout.m-warn {
+    border-left-color: var(--n-orange);
+    background: var(--n-yellow-bg);
+}
+
+.m-callout.m-danger {
+    border-left-color: var(--n-red);
+    background: var(--n-red-bg);
+}
+
+/* 스크린샷 */
+figure.m-shot img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+}
+
+figure.m-shot figcaption {
+    margin-top: 6px;
+    color: var(--n-text-sec);
+    font-size: 13px;
+}
+
+/* 표 */
+table.m-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+table.m-table th,
+table.m-table td {
+    padding: 8px 12px;
+    border: 1px solid var(--n-border-row);
+    text-align: left;
+    vertical-align: top;
+}
+
+table.m-table th {
+    background: var(--n-thead);
+    font-weight: 600;
+}
+
+.m-table-wrap {
+    overflow-x: auto;
+    margin: 0 0 16px;
+}
+
+.m-table-wrap table.m-table {
+    margin: 0;
+}
+
+/* 첫 화면의 할 일 안내 */
+.m-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 0 0 16px;
+}
+
+.m-card {
+    display: block;
+    padding: 14px 16px;
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    color: var(--n-text);
+    text-decoration: none;
+    line-height: 1.55;
+}
+
+a.m-card:hover {
+    border-color: var(--n-blue);
+    color: var(--n-text);
+}
+
+.m-card-title {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--n-blue);
+    font-weight: 600;
+}
+
+.m-card-desc {
+    color: var(--n-text-sec);
+    font-size: 13px;
+}
+
+/* 아직 쓰이지 않은 페이지로 가는 본문 링크 */
+.m-link-planned,
+.m-link-planned:hover {
+    color: var(--n-text-muted);
+    text-decoration: underline dotted;
+    cursor: default;
+}
+
+.m-card.m-link-planned,
+.m-card.m-link-planned:hover {
+    border-color: var(--n-border);
+    text-decoration: none;
+}
+
+.m-card.m-link-planned .m-card-title,
+.m-card.m-link-planned .m-card-desc {
+    color: var(--n-text-muted);
+}
+
+/* 이전/다음과 확인 일자 */
+.m-pager {
+    display: flex;
+    gap: 12px;
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--n-border);
+}
+
+.m-pager a {
+    flex: 1 1 0;
+    padding: 10px 14px;
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    color: var(--n-text);
+    text-decoration: none;
+    line-height: 1.45;
+}
+
+.m-pager a:hover {
+    border-color: var(--n-blue);
+}
+
+.m-pager a.is-next {
+    text-align: right;
+}
+
+.m-pager-label {
+    display: block;
+    color: var(--n-text-sec);
+    font-size: 12px;
+}
+
+.m-pager-title {
+    color: var(--n-blue);
+    font-weight: 600;
+}
+
+.m-reviewed {
+    margin-top: 16px;
+    color: var(--n-text-muted);
+    font-size: 12px;
+}
+
+.m-load-error {
+    grid-area: main;
+    padding: 12px 16px;
+    color: var(--n-text-sec);
+    font-size: 13px;
+}
+
+/* ── 좁은 화면 ────────────────────────────────────── */
+
+@media (max-width: 1200px) {
+    body.m-body {
+        grid-template-columns: var(--m-side-width) minmax(0, 1fr);
+        grid-template-areas:
+            "top  top"
+            "side main";
+    }
+
+    .m-toc {
+        display: none;
+    }
+}
+
+@media (max-width: 900px) {
+    body.m-body {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "top"
+            "main";
+    }
+
+    .m-top {
+        gap: 10px;
+        padding: 0 12px;
+    }
+
+    .m-side-toggle {
+        display: inline-block;
+    }
+
+    .m-app-link {
+        display: none;
+    }
+
+    .m-side {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        z-index: 15;
+        width: min(300px, 85vw);
+        transform: translateX(-100%);
+        transition: transform 0.15s ease-out;
+    }
+
+    body.m-side-open .m-side {
+        transform: none;
+    }
+
+    .m-main {
+        padding: 20px 16px 48px;
+    }
+
+    .m-pager {
+        flex-direction: column;
+    }
+}
