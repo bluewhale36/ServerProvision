@@ -13,6 +13,9 @@ import java.util.UUID;
 @Repository
 public interface GuestServerDetailRepository extends JpaRepository<GuestServerDetail, UUID> {
 
+    /** 메인보드 영구 삭제 판정(HF26) — 그 보드로 등록된 서버 하드웨어 기록 수(회수 포함). */
+    long countByBoardModel_Id(Long boardModelId);
+
     /**
      * 보드 검색 팝업의 행(S8-6) — 등록된(삭제되지 않은) 보드 모델 전부와 그 보드를 가진 서버 수(없으면 0) · 활성 · 사용 중단 여부.
      * 서버가 아직 없는 보드도 고를 수 있다(CP4 사용자 지시). 검색어 거르기는 서비스가 한다(보드는 수십 개 규모).

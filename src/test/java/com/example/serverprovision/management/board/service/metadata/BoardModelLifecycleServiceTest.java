@@ -8,6 +8,7 @@ import com.example.serverprovision.management.board.exception.DuplicateBoardMode
 import com.example.serverprovision.management.board.exception.IllegalBoardModelStateException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.management.board.service.BoardScopedChildLifecycle;
+import com.example.serverprovision.management.board.service.purge.BoardModelPurgeGuard;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,8 +55,10 @@ class BoardModelLifecycleServiceTest {
         // @Order 순회 순서(BIOS → BMC → Subprogram)를 리스트 순서로 고정해 주입.
         // R7-3 — service→verifier 변 절단: typed-name 검증이 static TypedNameGuard 로 이동해
         // verifier 빈 주입이 사라졌다(생성자 2-arg).
+        // HF26 — 영구 삭제 판정은 BoardModelPurgeGuard(자식 + 참조 SPI). 여기서는 참조 SPI 없이 자식 순회만 재현한다.
+        List<BoardScopedChildLifecycle> children = List.of(biosChild, bmcChild, subprogramChild);
         boardModelService = new BoardModelLifecycleService(
-                boardModelRepository, List.of(biosChild, bmcChild, subprogramChild));
+                boardModelRepository, children, new BoardModelPurgeGuard(children, List.of()));
     }
 
     // ==== helper =====================================================
@@ -354,5 +357,23 @@ class BoardModelLifecycleServiceTest {
         given(subprogramChild.deletedLabels(7L)).willReturn(List.of());
 
         assertThat(boardModelService.findDeletedChildLabels(7L)).isEmpty();
+    }
+
+    // ==== HF26 — 참조가 남으면 자식이 없어도 영구 삭제 거절 ====
+
+    @Test
+    @DisplayName("HF26 purge : 자식은 없지만 서버 하드웨어 기록이 남으면 거절(연쇄 삭제 차단), delete 미호출")
+    void purge_blockedWhenServerRecordsRemain() {
+        BoardModel deleted = BoardModel.builder().id(7L).vendor(com.example.serverprovision.management.board.enums.Vendor.GIGABYTE)
+                .modelName("MS74-HB0").isEnabled(false).isDeprecated(false).isDeleted(true).build();
+        org.mockito.BDDMockito.given(boardModelRepository.findByIdAndIsDeletedTrue(7L)).willReturn(java.util.Optional.of(deleted));
+        List<BoardScopedChildLifecycle> children = List.of(biosChild, bmcChild, subprogramChild);
+        BoardModelLifecycleService service = new BoardModelLifecycleService(boardModelRepository, children,
+                new BoardModelPurgeGuard(children, List.of(id -> "등록된 서버 3 대")));
+
+        assertThatThrownBy(() -> service.purge(7L))
+                .isInstanceOf(IllegalBoardModelStateException.class)
+                .hasMessageContaining("등록된 서버 3 대");
+        org.mockito.Mockito.verify(boardModelRepository, org.mockito.Mockito.never()).delete(org.mockito.ArgumentMatchers.any());
     }
 }

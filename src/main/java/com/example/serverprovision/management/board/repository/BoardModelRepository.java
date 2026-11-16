@@ -34,18 +34,10 @@ public interface BoardModelRepository extends JpaRepository<BoardModel, Long> {
 	Optional<BoardModel> findByIdAndIsDeletedTrue(Long id);
 
 	/**
-	 * 중복 등록 방지 — 활성 상태(is_deleted=false) 에서 (vendor, modelName) 조합 유일성 검사.
-	 * DB 레이어의 {@code uk_vendor_model_name (vendor, model_name)} 과 이중 가드를 이룬다.
-	 * 삭제된 동일 조합을 재등록하려 하면 DB 유니크 제약으로 실패하므로 복구 경로를 사용해야 한다.
+	 * 복구 가드 — 휴지통 행을 되살리려는 (vendor, modelName) 이 활성으로 이미 있는가.
+	 * HF26 의 복합 UNIQUE 이후로는 생기지 않는 상황이지만 복구 경로의 안전망으로 둔다.
 	 */
 	boolean existsByVendorAndModelNameAndIsDeletedFalse(Vendor vendor, String modelName);
-
-	/**
-	 * MK2 WAVE 1 — 메타 nudge 후보 (soft-deleted ∪ active+deprecated). 중복 등록 시도 시 충돌 후보 회수용.
-	 */
-	List<BoardModel> findAllByVendorAndModelNameAndIsDeletedTrue(Vendor vendor, String modelName);
-
-	List<BoardModel> findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(Vendor vendor, String modelName);
 
 	/**
 	 * S5-2-3+ — soft-deleted Board (메타 자원). 휴지통 표시용.
@@ -57,4 +49,10 @@ public interface BoardModelRepository extends JpaRepository<BoardModel, Long> {
 	 * 정확 일치 + soft-delete 제외로, 폐기/미등록 모델에 서버를 매핑하는 사고를 차단한다.
 	 */
 	Optional<BoardModel> findByVendorAndModelNameAndIsDeletedFalse(Vendor vendor, String modelName);
+
+	/**
+	 * HF26 — (제조사, 모델명) 단건. 복합 UNIQUE({@code uk_board_model_vendor_model_name})라 상태(활성 · Deprecated · 휴지통)와 무관하게
+	 * 최대 한 행이다. 등록 · 이름 수정의 중복 판정이 쓴다.
+	 */
+	Optional<BoardModel> findByVendorAndModelName(Vendor vendor, String modelName);
 }

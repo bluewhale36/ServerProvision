@@ -19,8 +19,14 @@ public record BoardModelResponse(
 		boolean isEnabled,
 		boolean isDeprecated,
 		boolean isDeleted,
-		LifecycleStage lifecycleStage
+		LifecycleStage lifecycleStage,
+		/** HF26 — 휴지통 행의 [영구 삭제] 를 막는 사유(서버 가드와 같은 판정). 막지 않거나 활성 행이면 {@code null}. */
+		String purgeBlockReason
 ) {
+
+	public boolean purgeBlocked() {
+		return purgeBlockReason != null;
+	}
 
 	public static BoardModelResponse of(BoardModel entity) {
 		return new BoardModelResponse(
@@ -34,7 +40,8 @@ public record BoardModelResponse(
 				entity.isEnabled(),
 				entity.isDeprecated(),
 				entity.isDeleted(),
-				LifecycleStage.of(entity.isDeprecated(), entity.isDeleted())
+				LifecycleStage.of(entity.isDeprecated(), entity.isDeleted()),
+				null
 		);
 	}
 }
