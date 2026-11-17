@@ -3,6 +3,7 @@
 > **목적**: 확보한 실 기기에 Rocky Linux 9 를 설치해 `docs/staging-vm-bootstrap.md` §2 부터 이어 갈 수 있는 상태로 만든다. 이 문서는 RAID 구성부터 첫 부팅과 파일시스템 확인까지를 다루고, 그 뒤는 스테이징 런북이 실서버에도 그대로 적용된다.
 > **근거 결정**: `discussion/26-08-02_15-11-33_OPS-2-filesystem-layout_discussion.md`(D5~D10) — 다만 실 기기가 설계의 전제와 달라 아래 §1 에서 세 항목을 개정한다. 사내 공통 설치 표준(Notion `유니와이드 개발제조 › 세팅 — Rocky Linux 설치`)에서는 언어 · 시간대 · swap 16 GB · KDUMP 해제를 따르고, GUI 설치와 Standard Partition 은 따르지 않는다(런북이 minimal 설치와 LVM 을 전제한다).
 > **기기**: Intel Xeon E5 계열 2 소켓(DDR3 세대) · 메모리 96 GB(16 GB × 6) · 온보드 NIC 4 + PCIe NIC 2 · SAS 600 GB × 4(베이 8 개 중 4 개 장착) · RAID 카드 Broadcom(LSI) MegaRAID SAS 2108 — BIOS 설정에는 안 보이고 POST 중 WebBIOS(Ctrl+H)로 들어간다. 2026-09-16 실측. DDR3 세대 CPU 는 x86-64-v2 라 Rocky 9 는 되지만 Rocky 10(x86-64-v3 · AVX2 필수)은 올릴 수 없다 — 이 기기의 OS 수명은 Rocky 9 지원 종료(2032-05)까지다.
+> **문서 역할**: 이 문서는 PXE 서버를 구축하거나 복구할 때의 정본이다. 운영 중 유지보수(정기 점검, 배포 뒤 확인, 장애 대응 등)의 정본은 사용 매뉴얼의 서버 관리 묶음(`/manual/admin/`, 원본 `src/main/resources/static/manual/admin/`)이다. 두 문서에 겹치는 사실(경로, 서비스 이름, 환경변수)은 이 문서를 기준으로 맞춘다(2026-11-17 사용자 확정).
 
 ## 1. OPS-2 개정 — 이 기기에서 달라지는 결정
 
