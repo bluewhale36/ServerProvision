@@ -59,18 +59,19 @@
             headers: {'Accept': 'application/json'}
         }).then(res => {
             if (res.ok) return res.json();
-            // 409 동시 실행 / 5xx 에러
-            return res.text().then(txt => {
-                throw new Error('스캔 시작 실패 (HTTP ' + res.status + ') : ' + txt);
-            });
+            // 409 동시 실행 / 5xx 에러 — 서버 문구를 보이고 HTTP 상태 줄 · 원문 바디는 내보내지 않는다(S22).
+            ErrorModal.fromResponse(res, {fallback: '점검을 시작하지 못했습니다.'});
+            restore(btn);
+            return null;
         }).then(data => {
+            if (!data) return;
             // 이벤트 detail 의 식별자 필드는 id — 트리거 응답(jobId)과 이름이 다름에 주의.
             selfJobs.set(data.jobId, btn);
-            btn.textContent = isReissue ? '재서명 중…' : '스캔 중…';
+            btn.textContent = isReissue ? '재발급 중…' : '점검 중…';
             UiUtil.toast(isReissue ? '마커 서명 재발급을 시작했습니다.' : '자원 점검을 시작했습니다.');
             // 버튼 원복은 완료/실패 이벤트 수신 시 — 실제 완료와 무관한 고정 타이머는 폐기(R9-1).
-        }).catch(err => {
-            ErrorModal.show({message: err.message || '스캔 시작 실패', status: 0});
+        }).catch(() => {
+            ErrorModal.show({message: '서버와 통신할 수 없습니다.', status: 0});
             restore(btn);
         });
     }
@@ -79,7 +80,7 @@
         if (btn.id === 'scanDeepBtn') {
             confirmThen({
                 title: '정밀 점검',
-                message: '모든 자원의 파일 내용 해시를 다시 계산합니다. 용량이 큰 ISO 는 수십 초에서 수 분이 걸릴 수 있어요. 계속할까요?',
+                message: '모든 자원의 파일 내용을 다시 검사합니다. 용량이 큰 ISO 는 수 분이 걸릴 수 있습니다. 계속하시겠습니까?',
                 confirmLabel: '시작'
             }, () => requestStart(btn));
             return;
@@ -87,8 +88,7 @@
         if (btn.id === 'reissueBtn') {
             confirmThen({
                 title: '마커 서명 재발급',
-                message: '서명 키(secret) 회전 직후에만 실행하세요. 모든 자원의 마커 서명이 현재 키로 다시 계산됩니다. '
-                    + '파일 내용 해시는 유지되어, 변조된 자원은 이후 정밀 점검에서 그대로 감지됩니다. 계속할까요?',
+                message: '서명 키를 교체한 직후에만 실행해야 합니다. 모든 자원의 마커 서명을 현재 서명 키로 다시 계산합니다. 계속하시겠습니까?',
                 confirmLabel: '재발급',
                 confirmClass: 'n-btn-outline-danger'
             }, () => requestStart(btn));
@@ -109,7 +109,7 @@
                 const count = d.metadata ? d.metadata.driftCount : null;
                 sessionStorage.setItem(
                     TOAST_KEY,
-                    count != null ? ('점검 완료 — 드리프트 ' + count + '건') : '점검 완료 — 보고서가 갱신되었습니다.'
+                    count != null ? ('점검 완료: 드리프트 ' + count + '건') : '점검을 마쳤습니다.'
                 );
                 window.location.reload();
             } else {
@@ -120,7 +120,7 @@
         if (d.type === 'HASH_ACCEPT' && selfJobs.has(d.id)) {
             const m = d.metadata || {};
             sessionStorage.setItem(TOAST_KEY,
-                '수용 완료 — ' + (m.acceptedResource || '자원') + ' 의 등록 지문을 현재 내용으로 갱신했습니다.');
+                '수용 완료: ' + (m.acceptedResource || '자원') + ' 의 등록 지문을 현재 내용으로 갱신했습니다.');
             window.location.reload();
             return;
         }
@@ -128,9 +128,9 @@
             // 재발급은 DriftReport 를 만들지 않으므로 reload 무의미 — 결과(부분 실패 포함)만 토스트.
             const m = d.metadata || {};
             const failed = parseInt(m.reissueFailed || '0', 10);
-            const msg = '마커 재서명 완료 — 성공 ' + (m.reissueSucceeded != null ? m.reissueSucceeded : '?')
-                + '건, 실패 ' + (m.reissueFailed != null ? m.reissueFailed : '?') + '건'
-                + (failed > 0 ? ' — 실패 자원 확인을 위한 점검이 자동으로 이어집니다' : '');
+            const msg = '마커 서명 재발급 완료: 성공 ' + (m.reissueSucceeded != null ? m.reissueSucceeded : '-')
+                + '건, 실패 ' + (m.reissueFailed != null ? m.reissueFailed : '-') + '건'
+                + (failed > 0 ? '. 실패 자원을 확인하는 점검을 이어서 실행합니다.' : '');
             UiUtil.toast(msg, failed > 0 ? {variant: 'error', duration: 8000} : {});
             restore(selfJobs.get(d.id));
             selfJobs.delete(d.id);
@@ -140,8 +140,9 @@
     document.addEventListener('bgjob:failed', ev => {
         const d = ev.detail || {};
         if (!selfJobs.has(d.id)) return;
-        const prefix = ({MARKER_REISSUE: '마커 재서명 실패', HASH_ACCEPT: '내용 수용 실패'})[d.type] || '점검 실패';
-        UiUtil.toast(prefix + (d.errorMessage ? ' : ' + d.errorMessage : ''), {variant: 'error', duration: 8000});
+        // 서버의 실패 문구가 이미 "점검 실패: …" 처럼 머리를 달고 온다. 없을 때만 머리말을 쓴다.
+        const prefix = ({MARKER_REISSUE: '마커 서명 재발급 실패', HASH_ACCEPT: '내용 수용 실패'})[d.type] || '점검 실패';
+        UiUtil.toast(d.errorMessage || prefix, {variant: 'error', duration: 8000});
         restore(selfJobs.get(d.id));
         selfJobs.delete(d.id);
     });
@@ -189,20 +190,23 @@
                 btn.disabled = true;
                 fetch(btn.dataset.recheckUrl, {method: 'POST', headers: {'Accept': 'application/json'}})
                     .then(res => {
-                        if (!res.ok) return res.text().then(txt => { throw new Error('다시 점검 실패 (HTTP ' + res.status + ')'); });
-                        return res.json();
+                        if (res.ok) return res.json();
+                        ErrorModal.fromResponse(res, {fallback: '다시 점검하지 못했습니다.'});
+                        btn.disabled = false;
+                        return null;
                     })
                     .then(data => {
+                        if (!data) return;
                         if (data.resolved) {
-                            sessionStorage.setItem(TOAST_KEY, '해결 확인 — 목록에서 정리했습니다.');
+                            sessionStorage.setItem(TOAST_KEY, '해결을 확인해 목록에서 정리했습니다.');
                             window.location.reload();
                         } else {
-                            UiUtil.toast('아직 해결되지 않았습니다 — 안내된 조치 후 다시 시도하세요.', {duration: 6000});
+                            UiUtil.toast('아직 해결되지 않았습니다. 안내된 조치를 한 뒤 다시 시도해야 합니다.', {duration: 6000});
                             btn.disabled = false;
                         }
                     })
-                    .catch(err => {
-                        ErrorModal.show({message: err.message || '다시 점검 실패', status: 0});
+                    .catch(() => {
+                        ErrorModal.show({message: '서버와 통신할 수 없습니다.', status: 0});
                         btn.disabled = false;
                     });
             });
@@ -247,7 +251,7 @@
         }).then(res => {
             if (!res.ok) {
                 // R2-6 공용 파서 재사용 — raw JSON 노출 방지 (거절 사유를 정제된 문구로)
-                ErrorModal.fromResponse(res, {fallback: '수용을 시작하지 못했어요.'});
+                ErrorModal.fromResponse(res, {fallback: '수용을 시작하지 못했습니다.'});
                 btn.disabled = false;
                 return null;
             }
@@ -256,9 +260,9 @@
             if (!data) return;
             selfJobs.set(data.jobId, btn);
             btn.textContent = '지문 재계산 중…';
-            UiUtil.toast('내용 수용 작업을 시작했습니다 — 완료되면 알려드립니다.');
+            UiUtil.toast('내용 수용 작업을 시작했습니다. 완료되면 알립니다.');
         }).catch(() => {
-            ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
+            ErrorModal.show({message: '서버와 통신할 수 없습니다.', status: 0});
             btn.disabled = false;
         });
     }
@@ -312,8 +316,8 @@
         ConfirmModal.bindFormSubmit('data-duplicate-resolve', form => {
             ConfirmModal.open('dupResolve', {
                 title: form.getAttribute('data-resolve-title') || '자원 중복 해결',
-                message: (form.getAttribute('data-resource-label') || '이 자원')
-                    + ' 이(가) 두 위치에 존재합니다. 남길 위치를 선택하세요 — 선택하지 않은 쪽 파일은 삭제됩니다.',
+                message: (form.getAttribute('data-resource-label') || '이')
+                    + ' 자원이 두 위치에 있습니다. 남길 위치를 선택해야 합니다. 선택하지 않은 쪽 파일은 삭제됩니다.',
                 confirmLabel: '해결',
                 confirmClass: 'n-btn-outline-danger',
                 afterOpen: () => {
@@ -348,7 +352,7 @@
                 confirmThen({
                     title: '전체 해결',
                     message: btn.dataset.bulkScope + ' ' + count + '건을 한꺼번에 해결합니다. '
-                        + '파일을 옮기거나 기록을 정리하는 작업이 건별로 실행되며, 되돌릴 수 없습니다. 계속할까요?',
+                        + '건별로 실행되며 되돌릴 수 없습니다. 계속하시겠습니까?',
                     confirmLabel: '전체 해결'
                 }, () => runBulkApply(btn));
             });
@@ -363,16 +367,17 @@
         fetch(btn.dataset.bulkUrl, {method: 'POST', headers: {'Accept': 'application/json'}})
             .then(res => {
                 if (res.ok) return res.json();
-                return res.text().then(txt => {
-                    throw new Error('전체 해결 실패 (HTTP ' + res.status + ') : ' + txt);
-                });
+                ErrorModal.fromResponse(res, {fallback: '전체 해결을 진행하지 못했습니다.'});
+                restore(btn);
+                return null;
             })
             .then(result => {
+                if (!result) return;
                 // 실패가 있으면 그 사실과 사유를 보여 준다. 토스트로 흘리면 읽기 전에 사라진다.
                 if (result.failures && result.failures.length > 0) {
                     ErrorModal.show({
                         message: result.requested + '건 중 ' + result.applied + '건을 해결했습니다. '
-                            + '남은 ' + result.failures.length + '건 :\n' + result.failures.join('\n'),
+                            + '남은 ' + result.failures.length + '건:\n' + result.failures.join('\n'),
                         status: 0
                     });
                     restore(btn);
@@ -381,8 +386,8 @@
                 sessionStorage.setItem(TOAST_KEY, result.applied + '건을 해결했습니다.');
                 window.location.reload();
             })
-            .catch(err => {
-                ErrorModal.show({message: err.message || '전체 해결 실패', status: 0});
+            .catch(() => {
+                ErrorModal.show({message: '서버와 통신할 수 없습니다.', status: 0});
                 restore(btn);
             });
     }
@@ -410,13 +415,13 @@
             // 문구 끝의 '{resource}' 는 항상 '… 드리프트' 로 끝나므로 조사가 정해져 있다 —
             // '을(를)' 병기는 사용자에게 미완성 문장으로 읽힌다 (MK4-1 CP5 실측).
             bindDriftForm('data-confirm-drift-apply', 'DRIFT_APPLY',
-                '{resource}를 해결할까요?', '이 드리프트를 해결할까요?');
+                '{resource}를 해결하시겠습니까?', '이 드리프트를 해결하시겠습니까?');
             // MK4-1 — 두고 보기는 기간과 사유를 함께 받는다. modal 의 입력값을 form 의 hidden 으로
             // 옮겨 실어 보낸다 — 사유가 비어 있으면 서버가 400 으로 돌려주므로 여기서 먼저 막는다.
             bindSnoozeForms();
             // MK4-4-3 — 보관 해제. 상태만 되돌리는 일이라 입력이 없어 표준 확인 창을 그대로 쓴다.
             bindDriftForm('data-confirm-drift-unsnooze', 'DRIFT_APPLY',
-                '{resource}의 보관을 해제할까요?', '이 드리프트의 보관을 해제할까요?');
+                '{resource}의 보관을 해제하시겠습니까?', '이 드리프트의 보관을 해제하시겠습니까?');
             // 내용 변경 수용도 확인 창(자원명 입력)을 거치므로 같은 가드 안에서 바인딩한다.
             bindAcceptHashForms();
         }
@@ -431,7 +436,7 @@
                 } else if (form && form.hasAttribute('data-confirm-drift-snooze')) {
                     sessionStorage.setItem(TOAST_KEY, '드리프트를 보관했습니다.');
                 } else if (form && form.hasAttribute('data-confirm-drift-unsnooze')) {
-                    sessionStorage.setItem(TOAST_KEY, '보관을 해제했습니다 — 처리 대기로 돌아왔습니다.');
+                    sessionStorage.setItem(TOAST_KEY, '보관을 해제했습니다.');
                 } else if (form && form.hasAttribute('data-duplicate-resolve')) {
                     // HF4-5 — 택일 해소 성공. 어느 갈래였는지는 서버 [AUDIT] 로그가 보존.
                     sessionStorage.setItem(TOAST_KEY, '자원 중복을 해결했습니다.');
@@ -440,11 +445,11 @@
             },
             onRejected: (form, status, payload) => {
                 if (base && base.onRejected) { base.onRejected(form, status, payload); return; }
-                ErrorModal.show({message: (payload && payload.message) || ('요청이 거절되었어요. (HTTP ' + status + ')'), status: status});
+                ErrorModal.show({message: (payload && payload.message) || '요청이 거절되었습니다.', status: status});
             },
             onNetworkError: (form, err) => {
                 if (base && base.onNetworkError) { base.onNetworkError(form, err); return; }
-                ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
+                ErrorModal.show({message: '서버와 통신할 수 없습니다.', status: 0});
             }
         };
     });

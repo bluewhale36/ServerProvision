@@ -10,7 +10,7 @@ import com.example.serverprovision.execution.pxeinfra.command.CommandResult;
 public enum ConfigFileCondition implements AssetCondition {
 
     NOT_CONFIGURED("서빙 비활성", "n-badge-gray"),
-    ABSENT("조각 파일 없음", "n-badge-gray"),
+    ABSENT("구성 파일 미배치", "n-badge-gray"),
     SYNTAX_ERROR("구성 문법 오류", "n-badge-red"),   // dnsmasq --test 는 조각이 아닌 메인 구성 전체 검사 — 조각 무관 오류도 포함
     UNKNOWN("문법 미검사", "n-badge-orange"),
     SYNTAX_OK("구성 유효", "n-badge-green");

@@ -184,7 +184,7 @@ class GuestServerControllerAssignmentTest {
         // UI 는 비활성 정의서를 드롭다운에서 빼 1차 차단한다 — 이 경로는 direct POST · stale 화면 안전망.
         given(assignmentCommandService.assign(eq(id), eq(DEF_ID)))
                 .willThrow(new DefinitionNotAssignableException(
-                        DEF_ID, "비활성화된 정의서는 신규 할당이 차단됩니다(활성화 후 재시도)"));
+                        DEF_ID, "비활성화된 정의서는 할당할 수 없습니다. 활성화한 뒤 다시 시도하십시오."));
 
         mvc.perform(post(url(id))
                         .contentType(MediaType.APPLICATION_JSON)

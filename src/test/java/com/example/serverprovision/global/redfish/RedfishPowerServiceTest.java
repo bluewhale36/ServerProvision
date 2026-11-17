@@ -151,7 +151,7 @@ class RedfishPowerServiceTest {
         given(client.getJson(anyString(), any(), eq(RedfishPowerService.SYSTEM_PATH))).willReturn(system("Off"));
         PowerControlResult failed = service.powerOnAndVerify(TARGET);
         assertThat(failed.kind()).isEqualTo(PowerControlResult.Kind.FAILED);
-        assertThat(failed.message()).contains("수동 개입");
+        assertThat(failed.message()).contains("직접 확인");
         assertThat(resets.get()).isEqualTo(2);
     }
 

@@ -105,7 +105,7 @@ public class IsoUploadController {
 		if (bindingResult.hasErrors()) {
 			String msg = bindingResult.getFieldErrors().stream()
 					.findFirst()
-					.map(err -> err.getField() + ": " + err.getDefaultMessage())
+					.map(err -> err.getDefaultMessage())
 					.orElse("입력값이 올바르지 않습니다.");
 			return ResponseEntity.badRequest().body(new ApiErrorResponse(msg));
 		}
@@ -134,7 +134,7 @@ public class IsoUploadController {
 		if (bindingResult.hasErrors()) {
 			String msg = bindingResult.getFieldErrors().stream()
 					.findFirst()
-					.map(err -> err.getField() + ": " + err.getDefaultMessage())
+					.map(err -> err.getDefaultMessage())
 					.orElse("입력값이 올바르지 않습니다.");
 			return ResponseEntity.badRequest().body(new ApiErrorResponse(msg));
 		}

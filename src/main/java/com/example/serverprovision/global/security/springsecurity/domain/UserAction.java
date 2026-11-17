@@ -48,12 +48,12 @@ public enum UserAction {
 	RESET_PASSWORD(true) {
 		@Override
 		protected String stateBlockReason(Users target) {
-			return target.enabled() ? null : "비활성화된 계정입니다. 먼저 활성화하십시오.";
+			return target.enabled() ? null : "비활성화된 계정입니다. 먼저 활성화해야 합니다.";
 		}
 
 		@Override
 		protected String selfBlockReason() {
-			return "본인 비밀번호는 비밀번호 변경 화면에서 바꾸십시오.";
+			return "본인 비밀번호는 비밀번호 변경 화면에서 바꿔야 합니다.";
 		}
 	};
 

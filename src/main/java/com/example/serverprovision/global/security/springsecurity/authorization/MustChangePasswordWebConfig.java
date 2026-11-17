@@ -19,7 +19,7 @@ public class MustChangePasswordWebConfig implements WebMvcConfigurer {
 				.excludePathPatterns(
 						MustChangePasswordSuccessHandler.CHANGE_PASSWORD_PATH,
 						"/login", "/logout", "/error",
-						"/global/**", "/css/**", "/fonts/**", "/vendor/**", "/favicon.ico",
+						"/global/**", "/css/**", "/fonts/**", "/icons/**", "/vendor/**", "/favicon.ico",
 						"/api/pxe/**",
 						"/jobs", "/jobs/**",
 						// HF28 — 사용 매뉴얼은 첫 로그인 안내를 담은 정적 문서라 비밀번호를 바꾸기 전에도 읽을 수 있어야 한다(docs B-1)

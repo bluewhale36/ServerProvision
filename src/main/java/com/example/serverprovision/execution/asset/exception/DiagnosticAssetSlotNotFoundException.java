@@ -13,6 +13,6 @@ public class DiagnosticAssetSlotNotFoundException extends NotFoundException {
     }
 
     public static DiagnosticAssetSlotNotFoundException of(String slotKey) {
-        return new DiagnosticAssetSlotNotFoundException("존재하지 않는 진단 자산 슬롯입니다 : " + slotKey);
+        return new DiagnosticAssetSlotNotFoundException("존재하지 않는 진단 자산입니다.");
     }
 }

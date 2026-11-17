@@ -39,19 +39,19 @@
 
     <div class="n-page-header">
         <div>
-            <a th:href="@{/provisioning/bios-setting}" class="n-back-link">← 목록으로</a>
+            <a th:href="@{/provisioning/bios-setting}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
             <h1 class="n-page-title n-page-title-stacked" th:text="${template.name}">템플릿 명칭</h1>
             <span class="n-badge n-badge-blue" th:text="${template.boardModelName}">MS74-HB0</span>
             <!-- 레지스트리 출처(E3-3 R3) — 채집본이면 초록, 자료 파일이면 회색(어느 BIOS 버전의 것인지 모른다는 신호) -->
             <span th:if="${template.registryLabel != null}" class="n-badge"
                   th:classappend="${template.registryFromSnapshot} ? 'n-badge-green' : 'n-badge-gray'"
-                  th:text="'레지스트리 ' + ${template.registryLabel}">레지스트리 파일 · 버전 미상</span>
+                  th:text="'레지스트리 ' + ${template.registryLabel}">레지스트리 파일(버전 미상)</span>
         </div>
         <div class="n-header-actions">
             <!-- 수정 UI 차단 판정 = template.catalogMissing — 서버 editorViewFor 의 카탈로그 로드
                  404 안전망과 같은 SSOT. 두 곳에 별도 조건을 복붙하지 않고 이 단일 판정만 소비한다. -->
             <span th:if="${template.catalogMissing}" class="n-btn-tooltip-wrap"
-                  data-tooltip="보드 카탈로그가 없어 편집기를 열 수 없습니다">
+                  data-tooltip="보드 카탈로그가 없어 수정할 수 없습니다.">
                 <a class="n-btn n-btn-secondary n-btn-disabled" aria-disabled="true">수정</a>
             </span>
             <a th:unless="${template.catalogMissing}"
@@ -61,7 +61,7 @@
                  활성 상태의 tooltip noise 회피는 data-tooltip-active 토글(S5-3-2 관례). -->
             <span class="n-btn-tooltip-wrap"
                   th:data-tooltip-active="${template.inUse} ? 'true' : 'false'"
-                  data-tooltip="정의서에서 사용 중인 템플릿은 삭제할 수 없습니다">
+                  data-tooltip="정의서에서 사용 중인 템플릿은 삭제할 수 없습니다.">
                 <button type="button" id="templateDeleteBtn" class="n-btn n-btn-danger"
                         th:disabled="${template.inUse}"
                         th:data-delete-url="@{/provisioning/bios-setting/{id}(id=${template.id})}"
@@ -73,8 +73,8 @@
     </div>
 
     <!-- degraded 배너 — 카탈로그 미보유 시 groups 는 비고 모든 저장 속성이 아래 stale(원시 값)로 내려간다 -->
-    <div th:if="${template.catalogMissing}" class="n-alert n-alert-danger" role="alert">
-        이 보드의 BIOS 카탈로그가 등록되어 있지 않아 재조인 렌더가 불가합니다 — 저장 속성을 원시 값으로 표시합니다.
+    <div th:if="${template.catalogMissing}" class="n-alert n-alert-warning" role="status">
+        이 보드의 BIOS 카탈로그가 없어 저장된 속성을 원래 값 그대로 표시합니다.
     </div>
 
     <!-- 기본 정보 -->
@@ -90,15 +90,15 @@
                     </tr>
                     <tr>
                         <th>설명</th>
-                        <td th:text="${template.description != null and !#strings.isEmpty(template.description)} ? ${template.description} : '—'">—</td>
+                        <td th:text="${template.description != null and !#strings.isEmpty(template.description)} ? ${template.description} : '-'">-</td>
                     </tr>
                     <tr>
                         <th>생성일시</th>
-                        <td th:text="${template.createdAt != null} ? ${#temporals.format(template.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                        <td th:text="${template.createdAt != null} ? ${#temporals.format(template.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">-</td>
                     </tr>
                     <tr>
                         <th>수정일시</th>
-                        <td th:text="${template.updatedAt != null} ? ${#temporals.format(template.updatedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                        <td th:text="${template.updatedAt != null} ? ${#temporals.format(template.updatedAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">-</td>
                     </tr>
                     </tbody>
                 </table>
@@ -112,18 +112,17 @@
         <div class="n-card">
             <div class="n-card-body">
                 <p th:if="${#lists.isEmpty(template.groups)}" class="n-detail-empty">
-                    카탈로그와 재조인된 변경 속성이 없습니다.</p>
+                    변경 속성이 없습니다.</p>
                 <div class="bsd-group" th:each="group : ${template.groups}">
                     <div class="bsd-group-title" th:text="${group.menuPath}">Advanced › CPU Configuration</div>
                     <ul class="bsd-rows">
                         <li class="bsd-row" th:each="entry : ${group.entries}">
                             <span class="bsd-row-label" th:text="${entry.displayName}">속성 라벨</span>
-                            <span th:if="${entry.resetRequired}" class="n-badge n-badge-orange"
-                                  title="변경 시 재부팅 필요">⟳ 재부팅 필요</span>
+                            <span th:if="${entry.resetRequired}" class="n-badge n-badge-orange">⟳ 재부팅 필요</span>
                             <code class="bsd-attr-name" th:text="${entry.attributeName}">AttributeName</code>
                             <span class="bsd-values">
                                 <span class="bsd-value-default"
-                                      th:text="${entry.defaultDisplay != null ? entry.defaultDisplay : '—'}">기본값</span>
+                                      th:text="${entry.defaultDisplay != null ? entry.defaultDisplay : '-'}">기본값</span>
                                 <span class="bsd-value-arrow">→</span>
                                 <span class="bsd-value-stored" th:text="${entry.storedDisplay}">저장값</span>
                             </span>
@@ -140,15 +139,15 @@
         <div class="n-card">
             <div class="n-card-body">
                 <p class="bsd-stale-note">
-                    현재 레지스트리에 없는 속성이거나 허용값 밖의 저장값입니다 — 이대로 할당하면 집행이 거절되므로
-                    편집기에서 다시 선택해 저장하십시오.</p>
+                    현재 레지스트리에 없는 속성이거나 허용값 밖의 값입니다. 이대로 할당하면 BIOS 설정이 거절되므로
+                    수정 화면에서 다시 선택해 저장해야 합니다.</p>
                 <ul class="bsd-rows">
                     <li class="bsd-row bsd-row-stale" th:each="staleEntry : ${template.stale}">
                         <code class="bsd-attr-name" th:text="${staleEntry.attributeName}">AttributeName</code>
                         <span class="bsd-values">
                             <span class="bsd-value-stored" th:text="${staleEntry.storedRaw}">raw 값</span>
                             <span class="n-muted" th:if="${!#lists.isEmpty(staleEntry.allowed)}"
-                                  th:text="'허용 {' + ${#strings.listJoin(staleEntry.allowed, ', ')} + '}'">허용 {…}</span>
+                                  th:text="'허용 값: ' + ${#strings.listJoin(staleEntry.allowed, ', ')}">허용 값: …</span>
                             <span class="n-muted" th:if="${#lists.isEmpty(staleEntry.allowed)}">레지스트리에 없는 속성</span>
                         </span>
                     </li>
@@ -159,7 +158,7 @@
 
     <!-- Redfish Request Body — 실행 시 전송될 계획 (서버가 조회 시점 조립, pretty JSON) -->
     <div class="n-detail-section">
-        <div class="n-section-title">Redfish Request Body</div>
+        <div class="n-section-title">Redfish 요청</div>
         <div class="n-card">
             <div class="n-card-body">
                 <div class="bsd-redfish-head">
@@ -169,7 +168,7 @@
                 <pre class="n-code-block" th:text="${template.redfish.bodyJson}">{ "Attributes": {} }</pre>
                 <div th:if="${template.redfish.resetRequired}" class="bsd-redfish-reset">
                     <p class="bsd-redfish-reset-note">
-                        재부팅 필요 속성이 포함되어 적용 후 아래 reset 액션이 함께 전송됩니다.</p>
+                        재부팅이 필요한 속성이 있어 적용 뒤 아래 재시작 요청을 함께 보냅니다.</p>
                     <div class="bsd-redfish-head">
                         <code class="bsd-redfish-target" th:text="${template.redfish.resetTarget}">/redfish/v1/Systems/1/Actions/ComputerSystem.Reset</code>
                     </div>

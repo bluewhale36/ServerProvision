@@ -17,16 +17,16 @@ public final class SubprogramVariantRules {
 
     public enum Violation {
         ENTRYPOINT_REQUIRED("entrypointRelativePath", "management.subprogram.variant.entrypoint-required",
-                "진입점을 입력하십시오."),
+                "진입점을 입력해야 합니다."),
         /** 종류 판정은 트리 안 실제 경로(파일 · 폴더)를 봐야 해서 SubprogramService 의 검사가 붙인다(HF23). */
         ENTRYPOINT_KIND("entrypointRelativePath", "management.subprogram.variant.entrypoint-kind",
-                "진입점은 .inf · .msi · .exe 파일 또는 폴더여야 합니다."),
+                "진입점은 .inf, .msi, .exe 파일 또는 폴더여야 합니다."),
         /** HF23 — 한 OS 버전에 여러 행을 허용하므로 막는 것은 같은 버전 + 같은 진입점의 반복뿐이다. */
         ENTRY_DUPLICATE("entrypointRelativePath", "management.subprogram.variant.entry-duplicate",
                 "같은 OS 버전에 같은 진입점이 이미 있습니다."),
         /** 경로 보안 정책 위반(절대경로 · `..` · 트리 밖 · 제어문자) — 판정은 EntrypointPolicyService, 표기는 여기서(CP5 F-2). */
         ENTRYPOINT_PATH("entrypointRelativePath", "management.subprogram.variant.entrypoint-path",
-                "진입점은 트리 안의 상대 경로여야 합니다.");
+                "진입점은 저장 디렉토리 안의 상대 경로여야 합니다.");
 
         private final String field;
         private final String code;
@@ -63,7 +63,7 @@ public final class SubprogramVariantRules {
 
         public String message() {
             return detail == null || detail.isBlank() ? violation.defaultMessage()
-                    : violation.defaultMessage() + " — " + detail;
+                    : violation.defaultMessage() + " (" + detail + ")";
         }
     }
 

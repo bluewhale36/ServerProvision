@@ -107,8 +107,8 @@ class GuestServerControllerWindowsInstallViewTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Windows 설치")))
                 .andExpect(content().string(containsString(DISPLAY + " (" + IMAGE + ")")))
-                .andExpect(content().string(containsString("문제 없음")))
-                .andExpect(content().string(containsString("서빙 전")));
+                .andExpect(content().string(containsString("정상")))
+                .andExpect(content().string(containsString("설치 전")));
     }
 
     @Test
@@ -119,9 +119,9 @@ class GuestServerControllerWindowsInstallViewTest {
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("설치 중")))
-                .andExpect(content().string(containsString("서빙 2026-09-03 13:05:09 · 재진입 2/5 · 잔여 42분")))
-                .andExpect(content().string(containsString("첫 로그온 스크립트가 완료를 보고합니다")))
-                .andExpect(content().string(not(containsString("설치 시한이 지났습니다"))))
+                .andExpect(content().string(containsString("설치 파일 전달 2026-09-03 13:05:09, 재부팅 2/5회, 남은 시간 42분")))
+                .andExpect(content().string(not(containsString("첫 로그온 스크립트가 완료를 보고합니다"))))
+                .andExpect(content().string(not(containsString("설치가 시한을 넘겼습니다"))))
                 .andExpect(content().string(not(containsString("다음 부팅에서 설치를 시작할 수 있습니다"))));   // CP5 O-2 — 서빙 뒤 시제
     }
 
@@ -131,8 +131,8 @@ class GuestServerControllerWindowsInstallViewTest {
         UUID id = detailWith(card(ReadinessGrade.READY, List.of(), LocalDateTime.now().minusHours(2), 0, 0L, null, false, 0));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("설치 시한이 지났습니다")))
-                .andExpect(content().string(containsString("유예가 지나면 자동으로 실패 처리됩니다")));
+                .andExpect(content().string(containsString("설치가 시한을 넘겼습니다")))
+                .andExpect(content().string(containsString("유예 시간이 지난 뒤 실패로 처리됩니다")));
     }
 
     @Test
@@ -141,7 +141,7 @@ class GuestServerControllerWindowsInstallViewTest {
         UUID id = detailWith(card(ReadinessGrade.READY, List.of(), null, 0, null, "REPXE_LOOP", false, 0));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("실패 · REPXE_LOOP")))
+                .andExpect(content().string(not(containsString("실패, REPXE_LOOP"))))   // S22-3 SD-349 — 사유 코드는 보이지 않는다
                 .andExpect(content().string(containsString("재부팅이 상한을 넘겨 반복됐습니다")));
     }
 
@@ -149,11 +149,12 @@ class GuestServerControllerWindowsInstallViewTest {
     @DisplayName("결손 대기 — BLOCKED 사유 목록(어디를 고칠지) + 대기 잔여 분")
     void holding() throws Exception {
         UUID id = detailWith(card(ReadinessGrade.BLOCKED,
-                List.of("install.wim 없음 — 대시보드 Windows 설치 소스 영역", "제품 키 ServerStandard 미설정 — 환경변수"),
+                List.of("install.wim 미배치: 대시보드 Windows 설치 소스 영역", "제품 키 ServerStandard 미설정: 환경변수"),
                 null, 0, null, null, true, 100));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("install.wim 없음 — 대시보드 Windows 설치 소스 영역 · 제품 키 ServerStandard 미설정 — 환경변수")))
+                .andExpect(content().string(containsString("install.wim 미배치: 대시보드 Windows 설치 소스 영역")))   // S22-3 — 사유는 한 줄에 하나씩
+                .andExpect(content().string(containsString("제품 키 ServerStandard 미설정: 환경변수")))
                 .andExpect(content().string(containsString("자원이 갖춰지기를 기다리는 중입니다")))
                 .andExpect(content().string(containsString("대기 잔여 100분")));
     }
@@ -173,7 +174,7 @@ class GuestServerControllerWindowsInstallViewTest {
         UUID id = detailWith(card(ReadinessGrade.READY, List.of(), null, 0, null, "OPERATOR", false, 0));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("실패 · OPERATOR")))
+                .andExpect(content().string(not(containsString("실패, OPERATOR"))))
                 .andExpect(content().string(containsString("운영자가 수동으로 실패 전환했습니다")))
                 .andExpect(content().string(not(containsString("다음 부팅에서 설치를 시작할 수 있습니다"))));
     }
@@ -197,13 +198,13 @@ class GuestServerControllerWindowsInstallViewTest {
     @DisplayName("HF23 — 실패한 INF 가 있으면 펼친 목록(건수 · 폴더 · 경로 · 16진 종료 코드)과 안내 · 없으면 행 자체가 없다")
     void completedWithFailedInfs() throws Exception {
         UUID id = detailWith(completedCard(0, List.of(), true, null,
-                List.of("7_intel-lan · PRO1000\\Winx64\\NDIS65\\v1q65x64.inf · 종료 코드 0xE000024B")));
+                List.of("7_intel-lan, PRO1000\\Winx64\\NDIS65\\v1q65x64.inf, 종료 코드 0xE000024B")));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-failed-infs")))
                 .andExpect(content().string(containsString("실패한 INF (1)")))
-                .andExpect(content().string(containsString("v1q65x64.inf · 종료 코드 0xE000024B")))
-                .andExpect(content().string(containsString("서명 검증 실패로 묻지 않고 거절된 것")));
+                .andExpect(content().string(containsString("v1q65x64.inf, 종료 코드 0xE000024B")))
+                .andExpect(content().string(not(containsString("서명 검증 실패로 묻지 않고 거절된 것"))));   // S22-3 SD-373 기술 설명 제거
 
         UUID clean = detailWith(completedCard(0, List.of(), true, null));
         mvc.perform(get("/provisioning/server/{id}", clean))
@@ -217,9 +218,9 @@ class GuestServerControllerWindowsInstallViewTest {
         UUID id = detailWith(completedCard(0, List.of(), true, null));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("완료 2026-09-03 13:21:40 · ComputerName SPV-14174000 · 드라이버(게시 패키지) 47 · 문제 장치 0")))   // HF11-1 — 라벨 뜻 정의
-                .andExpect(content().string(containsString("문제 장치 없음")))
-                .andExpect(content().string(containsString("프로비저닝이 종단됐고")))
+                .andExpect(content().string(containsString("완료 2026-09-03 13:21:40, 컴퓨터 이름 SPV-14174000, 설치된 드라이버 47, 문제 장치 0")))   // HF11-1 — 라벨 뜻 정의
+                .andExpect(content().string(containsString("문제 장치 0개")))
+                .andExpect(content().string(containsString("프로비저닝이 끝났고")))
                 .andExpect(content().string(not(containsString("다음 부팅에서 설치를 시작할 수 있습니다"))))   // CP5 F-2 — 종단 뒤 시제
                 .andExpect(content().string(not(containsString("설치 중"))))
                 .andExpect(content().string(not(containsString("첫 로그온 스크립트가 완료를 보고합니다"))))
@@ -233,11 +234,11 @@ class GuestServerControllerWindowsInstallViewTest {
                 false, ProvisioningPhase.TESTING));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("다음 단계로 넘어갔습니다 — 테스트")))
+                .andExpect(content().string(containsString("다음 단계로 넘어갔습니다: 테스트")))
                 .andExpect(content().string(containsString("문제 장치 목록 (2)")))
                 .andExpect(content().string(containsString("Unknown device (ACPI\\INT34C6)")))
                 .andExpect(content().string(containsString("페이로드를 다시 조립하면")))
-                .andExpect(content().string(not(containsString("문제 장치 없음"))))
+                .andExpect(content().string(not(containsString("문제 장치 0개"))))
                 .andExpect(content().string(not(containsString("프로비저닝이 종단됐고"))));
     }
 }

@@ -24,7 +24,7 @@ public class DefaultTargetDirectoryPolicyService implements TargetDirectoryPolic
 	public void validateForIntent(Path targetDirectory, boolean allowCreateDirectory) {
 		if (Files.exists(targetDirectory)) {
 			if (!Files.isDirectory(targetDirectory)) {
-				throw new TargetDirectoryNotEmptyException(targetDirectory + " (디렉토리가 아닌 파일 점유)");
+				throw new TargetDirectoryNotEmptyException(targetDirectory + "(같은 이름의 파일)");
 			}
 			try (Stream<Path> children = Files.list(targetDirectory)) {
 				if (children.anyMatch(path -> !BundleFilePolicy.isIgnorable(path))) {
@@ -85,7 +85,7 @@ public class DefaultTargetDirectoryPolicyService implements TargetDirectoryPolic
 	private void verifyTargetNotOccupied(Path targetDirectory) {
 		if (!Files.exists(targetDirectory)) return;
 		if (!Files.isDirectory(targetDirectory)) {
-			throw new TargetDirectoryNotEmptyException(targetDirectory + " (디렉토리가 아닌 파일 점유)");
+			throw new TargetDirectoryNotEmptyException(targetDirectory + "(같은 이름의 파일)");
 		}
 		try (Stream<Path> children = Files.list(targetDirectory)) {
 			List<Path> occupied = children.filter(path -> !BundleFilePolicy.isIgnorable(path)).toList();

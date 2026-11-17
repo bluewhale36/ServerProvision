@@ -203,6 +203,9 @@ class PurgeExecutorTest {
         PurgeResult result = executor.execute(PurgeRequest.forTtlAuto(ResourceType.OS_ISO, 99L));
 
         assertThat(result).isInstanceOf(PurgeResult.Failed.class);
+        // HF31 — 휴지통에 없는 자원은 상태 충돌(409)로 돌려준다(입출력 실패 503 이 아니다)
+        assertThat(((PurgeResult.Failed) result).cause())
+                .isInstanceOf(com.example.serverprovision.global.trash.exception.PurgeTargetNotInTrashException.class);
         verify(isoScanner, atLeastOnce()).findTrashedById(99L);
         // scanner.purgeFromTrash 호출 0회
         ArgumentCaptor<PurgeLog> captor = ArgumentCaptor.forClass(PurgeLog.class);

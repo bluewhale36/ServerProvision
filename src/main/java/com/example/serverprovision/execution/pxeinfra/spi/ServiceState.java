@@ -14,7 +14,7 @@ import static com.example.serverprovision.execution.asset.spi.ObservationSeverit
  */
 public enum ServiceState {
 
-    ACTIVE("실행 중"), INACTIVE("정지됨"), FAILED("실패"), UNKNOWN("알 수 없음");
+    ACTIVE("실행 중"), INACTIVE("정지"), FAILED("실패"), UNKNOWN("미확인");
 
     private final String label;
 

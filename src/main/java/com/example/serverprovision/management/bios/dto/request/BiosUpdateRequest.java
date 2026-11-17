@@ -10,15 +10,15 @@ import jakarta.validation.constraints.Size;
  */
 public record BiosUpdateRequest(
 
-		@NotBlank(message = "이름을 입력해주세요.")
-		@Size(max = 128, message = "이름은 128자 이하로 입력해주세요.")
+		@NotBlank(message = "이름을 입력해야 합니다.")
+		@Size(max = 128, message = "이름은 128자 이하로 입력해야 합니다.")
 		String name,
 
-		@NotBlank(message = "버전을 입력해주세요.")
-		@Size(max = 64, message = "버전은 64자 이하로 입력해주세요.")
+		@NotBlank(message = "버전을 입력해야 합니다.")
+		@Size(max = 64, message = "버전은 64자 이하로 입력해야 합니다.")
 		String version,
 
-		@Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")
+		@Size(max = 1024, message = "설명은 1024자 이하로 입력해야 합니다.")
 		String description
 ) {
 

@@ -8,6 +8,6 @@ import com.example.serverprovision.global.exception.NotFoundException;
 public class ISONotFoundException extends NotFoundException {
 
 	public ISONotFoundException(Long osMetadataId, Long isoId) {
-		super("ISO 를 찾을 수 없습니다. osMetadataId=" + osMetadataId + ", isoId=" + isoId);
+		super("ISO 를 찾을 수 없습니다. id=" + isoId);
 	}
 }

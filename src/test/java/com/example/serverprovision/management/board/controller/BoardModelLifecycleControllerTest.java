@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.board.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.management.board.enums.Vendor;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
@@ -47,6 +49,7 @@ class BoardModelLifecycleControllerTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean BoardModelLifecycleService boardModelService;
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 영구 삭제 단일 진입점
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     // ==== 성공 2xx ====================================================
@@ -94,8 +97,8 @@ class BoardModelLifecycleControllerTest {
     @Test
     @DisplayName("POST /{id}/purge — typedName 일치 → 302 redirect (includeDeleted 보존)")
     void purge_typedNameMatches_returns302() throws Exception {
-        willDoNothing().given(boardModelService)
-                .purgeWithTypedNameCheck(eq(3L), eq("Asus P13R-E"));
+        willDoNothing().given(userPurgeService)
+                .purge(eq(ResourceType.BOARD_MODEL), eq(3L), eq("Asus P13R-E"));
 
         mvc.perform(post("/management/board/3/purge").param("typedName", "Asus P13R-E"))
                 .andExpect(status().is3xxRedirection())
@@ -138,8 +141,8 @@ class BoardModelLifecycleControllerTest {
     @DisplayName("POST /{id}/purge — typedName 불일치 → TypedNameMismatch 400 (advice)")
     void purge_typedNameMismatch_returns400() throws Exception {
         willThrow(new TypedNameMismatchException("Asus P13R-E", "wrong"))
-                .given(boardModelService)
-                .purgeWithTypedNameCheck(eq(3L), eq("wrong"));
+                .given(userPurgeService)
+                .purge(eq(ResourceType.BOARD_MODEL), eq(3L), eq("wrong"));
 
         mvc.perform(post("/management/board/3/purge").param("typedName", "wrong"))
                 .andExpect(status().isBadRequest());
@@ -164,7 +167,7 @@ class BoardModelLifecycleControllerTest {
     void purge_referencesRemain_returns409WithReason() throws Exception {
         String reason = "이 메인보드 모델을 참조하는 다음 항목이 남아 있어 영구 삭제할 수 없습니다: 등록된 서버 2 대, BIOS 세팅 템플릿 1 개.";
         willThrow(new IllegalBoardModelStateException(reason))
-                .given(boardModelService).purgeWithTypedNameCheck(eq(3L), eq("Asus P13R-E"));
+                .given(userPurgeService).purge(eq(ResourceType.BOARD_MODEL), eq(3L), eq("Asus P13R-E"));
 
         mvc.perform(post("/management/board/3/purge").param("typedName", "Asus P13R-E")
                         .accept(org.springframework.http.MediaType.APPLICATION_JSON))

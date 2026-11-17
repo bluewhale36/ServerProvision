@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.subprogram.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.web.list.ListLinks;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
@@ -45,6 +47,7 @@ import org.springframework.web.bind.annotation.*;
 public class SubprogramController {
 
 	private final SubprogramService subprogramService;
+	private final UserPurgeService userPurgeService;   // HF31
 	private final SubprogramLifecycleService subprogramLifecycleService;
 	private final SubprogramIntegrityService subprogramIntegrityService;
 	private final BoardModelMetadataService boardModelService;
@@ -194,7 +197,8 @@ public class SubprogramController {
 			@PathVariable("id") Long id,
 			@RequestParam("typedName") String typedName
 	) {
-		subprogramLifecycleService.purgeWithTypedNameCheck(id, typedName);
+		// HF31 — 휴지통 화면과 같은 단일 진입점(자원명 확인 → PurgeExecutor: 휴지통 실물 정리 · 감사 기록)
+		userPurgeService.purge(ResourceType.SUBPROGRAM, id, typedName);
 		return "redirect:/management/subprogram?includeDeleted=true";
 	}
 

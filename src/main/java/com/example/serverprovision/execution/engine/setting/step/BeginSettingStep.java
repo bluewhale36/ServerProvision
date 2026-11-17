@@ -83,7 +83,7 @@ public class BeginSettingStep implements SettingStep {
         // 판정 없음이지 정합이 아니므로 종전 경로(PATCH → BMC 400 사유)로 간다(Q2).
         RegistryCheck check = registryPort.captureAndCheck(context.server().getId(), target, attributes);
         if (check.hasViolations()) {
-            String detail = "BIOS " + check.biosVersion() + " 레지스트리 허용값 밖 : " + String.join(" / ", check.violations());
+            String detail = "BIOS 설정 템플릿이 이 보드의 BIOS(" + check.biosVersion() + ")와 맞지 않습니다: " + String.join(", ", check.violations());
             failure.close(context, row, SettingLedger.VALUE_NOT_IN_REGISTRY, detail);   // PATCH 없이 닫는다
             return;
         }

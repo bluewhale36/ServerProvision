@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.subprogram.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.exception.ChildLifecycleBlockedByParentException;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
@@ -49,6 +50,7 @@ class SubprogramControllerLifecycleFlowTest {
 
     @Autowired MockMvc mvc;
 
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
     @MockitoBean SubprogramService subprogramService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService subprogramLifecycleService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramIntegrityService subprogramIntegrityService;
@@ -170,6 +172,6 @@ class SubprogramControllerLifecycleFlowTest {
         mvc.perform(get("/management/subprogram").param("includeDeleted", "true"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("n-btn-tooltip-wrap")))
-                .andExpect(content().string(containsString("부모 메인보드가 삭제 상태입니다")));
+                .andExpect(content().string(containsString("메인보드가 삭제 상태입니다. 메인보드부터 복구해야 합니다.")));
     }
 }

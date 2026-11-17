@@ -33,7 +33,7 @@ public final class SubprogramControllerSupport {
 	public static String firstFieldError(BindingResult bindingResult) {
 		return bindingResult.getFieldErrors().stream()
 				.findFirst()
-				.map(err -> err.getField() + ": " + err.getDefaultMessage())
+				.map(err -> err.getDefaultMessage())
 				.orElse("입력값이 올바르지 않습니다.");
 	}
 

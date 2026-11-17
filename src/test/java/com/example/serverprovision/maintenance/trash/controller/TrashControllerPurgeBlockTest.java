@@ -1,5 +1,6 @@
 package com.example.serverprovision.maintenance.trash.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -33,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * HF26 — 휴지통의 [영구삭제] 사전 차단. 참조가 남은 메인보드는 버튼이 disabled 이고 tooltip 에 서버 가드와 같은 사유가 실린다.
  * 사유는 scanner SPI({@code purgeBlockReason})가 내며, 서버 가드(도메인 purge)와 같은 판정을 공유한다.
  */
+@org.springframework.context.annotation.Import(UserPurgeService.class)   // HF31 — 실제 단일 진입점이 mock scanner · PurgeExecutor 를 부른다
 @WebMvcTest(controllers = TrashController.class)
 class TrashControllerPurgeBlockTest {
 
@@ -76,7 +78,7 @@ class TrashControllerPurgeBlockTest {
 		mvc.perform(get("/maintenance/trash"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("data-tooltip=\"" + REASON + "\"")))
-				.andExpect(content().string(matchesPattern("(?s).*<button type=\"submit\" class=\"n-btn n-btn-sm n-btn-outline-danger\"\\s+disabled=\"disabled\">영구삭제</button>.*")));
+				.andExpect(content().string(matchesPattern("(?s).*<button type=\"submit\" class=\"n-btn n-btn-sm n-btn-outline-danger\"\\s+disabled=\"disabled\">영구 삭제</button>.*")));
 	}
 
 	@Test
@@ -86,7 +88,7 @@ class TrashControllerPurgeBlockTest {
 
 		mvc.perform(get("/maintenance/trash"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(matchesPattern("(?s).*<button type=\"submit\" class=\"n-btn n-btn-sm n-btn-outline-danger\"\\s*>영구삭제</button>.*")));
+				.andExpect(content().string(matchesPattern("(?s).*<button type=\"submit\" class=\"n-btn n-btn-sm n-btn-outline-danger\"\\s*>영구 삭제</button>.*")));
 	}
 
 	@Test
@@ -94,6 +96,11 @@ class TrashControllerPurgeBlockTest {
 	void trashPurge_blockedBoard_returns409WithReason() throws Exception {
 		var request = com.example.serverprovision.global.trash.PurgeRequest.forUserDirect(
 				ResourceType.BOARD_MODEL, 6L, null, "Gigabyte HF26-REF");
+		// HF31 — 단일 진입점이 휴지통 자원을 먼저 찾아 자원명을 대조한다
+		Markable trashed = org.mockito.Mockito.mock(Markable.class);
+		given(trashed.displayName()).willReturn("Gigabyte HF26-REF");
+		given(markableScanner.supportedType()).willReturn(ResourceType.BOARD_MODEL);
+		given(markableScanner.findTrashedById(6L)).willReturn(java.util.Optional.of(trashed));
 		given(purgeExecutor.execute(any())).willReturn(new com.example.serverprovision.global.trash.PurgeResult.Failed(
 				request, 46L, new com.example.serverprovision.management.board.exception.IllegalBoardModelStateException(REASON)));
 

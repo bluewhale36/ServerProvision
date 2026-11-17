@@ -93,8 +93,8 @@ class ReconciliationSettingsControllerTest {
 			if (!kind.isAutoApplicable()) continue;
 			result.andExpect(content().string(containsString(kind.getLabel())));
 		}
-		result.andExpect(content().string(containsString("되돌릴 수 없음")))
-				.andExpect(content().string(containsString("되돌릴 수 있음")));
+		result.andExpect(content().string(containsString("되돌리기 불가")))
+				.andExpect(content().string(containsString("되돌리기 가능")));
 	}
 
 	@Test
@@ -109,8 +109,10 @@ class ReconciliationSettingsControllerTest {
 			result.andExpect(content().string(containsString(item.getLabel())));
 			// 설명에 작은따옴표가 들어가면 화면에서는 HTML 로 이스케이프된다. 같은 이스케이프를 거쳐
 			// 비교해야 문구 전체를 그대로 고정할 수 있다(일부만 잘라 비교하면 뒤가 바뀌어도 통과한다).
-			result.andExpect(content().string(containsString(
-					org.springframework.web.util.HtmlUtils.htmlEscape(item.getDescription()))));
+			if (item.getDescription() != null) {
+				result.andExpect(content().string(containsString(
+						org.springframework.web.util.HtmlUtils.htmlEscape(item.getDescription()))));
+			}
 		}
 	}
 
@@ -166,7 +168,7 @@ class ReconciliationSettingsControllerTest {
 		mvc.perform(get("/maintenance/reconciliation/settings"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("4분 12초")))
-				.andExpect(content().string(containsString("일부 회차가 건너뛰어집니다")));
+				.andExpect(content().string(containsString("일부 회차를 건너뜁니다")));
 	}
 
 	@Test
@@ -177,7 +179,7 @@ class ReconciliationSettingsControllerTest {
 
 		mvc.perform(get("/maintenance/reconciliation/settings"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("알 수 없는 항목")))
+				.andExpect(content().string(containsString("알 수 없는 드리프트 종류")))
 				.andExpect(content().string(containsString("NOT_A_KIND")));
 	}
 
@@ -213,7 +215,7 @@ class ReconciliationSettingsControllerTest {
 						.param("scanIntervalMinutes", "60")
 						.param("deepScanIntervalMinutes", "1440"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("보고서는 최소 1 회분은 남겨야 해요.")));
+				.andExpect(content().string(containsString("보고서는 1회분 이상 남겨야 합니다.")));
 	}
 
 	@Test
@@ -229,7 +231,7 @@ class ReconciliationSettingsControllerTest {
 						.param("scanIntervalMinutes", "60")
 						.param("deepScanIntervalMinutes", "1440"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("절대 경로로 입력해주세요")));
+				.andExpect(content().string(containsString("절대 경로로 입력해야 합니다")));
 	}
 
 	@Test
@@ -246,6 +248,6 @@ class ReconciliationSettingsControllerTest {
 						.param("scanIntervalMinutes", "60")
 						.param("deepScanIntervalMinutes", "1440"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("알 수 없는 종류가 섞여 있어요")));
+				.andExpect(content().string(containsString("알 수 없는 종류가 있습니다")));
 	}
 }

@@ -19,10 +19,10 @@ class RaidChipFamilyMemberCountTest {
             "MPT_IR, RAID10, false, 3~10대",
             "MEGARAID, RAID0, true, 1~32대",
             "MEGARAID, RAID0, false, 2~32대",
-            "MEGARAID, RAID1, true, 2~32대 · 2대 단위",
+            "MEGARAID, RAID1, true, '2~32대, 2대 단위'",
             "MEGARAID, RAID5, true, 3~32대",
             "MEGARAID, RAID6, true, 4~32대",
-            "MEGARAID, RAID10, true, 4~16대 · 2대 단위"
+            "MEGARAID, RAID10, true, '4~16대, 2대 단위'"
     })
     @DisplayName("규칙 표 — 스팬 미지정이면 MegaRAID RAID10 은 기본 스팬 2")
     void table(RaidChipFamily family, RaidLevel level, boolean cache, String display) {
@@ -35,7 +35,7 @@ class RaidChipFamilyMemberCountTest {
         assertThat(rule(2).blockReasonFor(36)).isNotNull();
         assertThat(rule(4).blockReasonFor(36)).isNotNull();
         assertThat(rule(6).blockReasonFor(36)).isNull();
-        assertThat(rule(4).blockReasonFor(6)).contains("8~32대 · 4대 단위");
+        assertThat(rule(4).blockReasonFor(6)).contains("8~32대, 4대 단위");
     }
 
     @Test

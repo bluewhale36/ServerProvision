@@ -29,7 +29,8 @@ import lombok.experimental.SuperBuilder;
  * null = '미확인'(정밀 등록 슬라이스가 실측 대조로 채운다 — D3).</p>
  */
 @Entity
-@Table(name = "raid_card")
+@Table(name = "raid_card",
+		uniqueConstraints = @UniqueConstraint(name = "uk_raid_card_vendor_model_name", columnNames = {"vendor", "model_name"}))   // HF30-1 — 휴지통 · Deprecated 행도 정체를 점유
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SuperBuilder
@@ -106,7 +107,7 @@ public class RaidCard extends LifecycleEntity implements Markable {
 			throw new IllegalArgumentException("확정할 관측값이 없습니다.");
 		}
 		if (this.pciSubsystemId != null) {
-			throw new IllegalRaidCardStateException("이미 확정된 카드입니다 — 정정은 수정에서 하십시오. id=" + id);
+			throw new IllegalRaidCardStateException("이미 확정된 카드입니다. 정정은 수정에서 해야 합니다.");
 		}
 		this.pciSubsystemId = observed;
 	}

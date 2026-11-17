@@ -52,7 +52,7 @@ public enum DhcpMode {
      * IP 는 사내 DHCP 가 주고 이 서버는 부팅 위치만 답한다(사내망 · PXE 규격의 proxyDHCP). 주소 배정 필드는 쓰지 않는다.
      * proxy 응답에서 ROM 은 PXE 메뉴 프로토콜(option 43 · 포트 4011)을 쓰므로 {@code pxe-service} 로 답한다(D-5).
      */
-    PROXY("proxyDHCP") {
+    PROXY("proxy DHCP") {
         @Override
         public boolean requiresAddressing() {
             return false;

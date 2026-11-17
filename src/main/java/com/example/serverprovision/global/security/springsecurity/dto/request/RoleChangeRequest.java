@@ -15,6 +15,6 @@ import lombok.Setter;
 @NoArgsConstructor
 public class RoleChangeRequest {
 
-	@NotNull(message = "권한 등급을 고르십시오.")
+	@NotNull(message = "권한 등급을 골라야 합니다.")
 	private Role level;
 }

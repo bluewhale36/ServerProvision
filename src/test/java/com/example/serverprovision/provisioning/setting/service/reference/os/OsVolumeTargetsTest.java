@@ -56,10 +56,10 @@ class OsVolumeTargetsTest {
                 rule(RaidLevel.RAID1, gb(480), new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.OS)));
         assertThat(t.kind()).isEqualTo(OsVolumeTargetKind.FIXED);
         assertThat(t.ruleNo()).isEqualTo(2);
-        assertThat(t.ruleSummary()).isEqualTo("RAID1 · SSD · SATA · 480 GB · 2개");
+        assertThat(t.ruleSummary()).isEqualTo("RAID1, SSD, SATA, 480 GB, 2개");
         assertThat(t.capacityLowerBoundBytes()).isEqualTo(480_000_000_000L);
-        assertThat(t.toDisplay()).isEqualTo("RAID 구성 2번 묶음(RAID1 · SSD · SATA · 480 GB · 2개)이 OS 영역입니다");
-        assertThat(t.capacityDisplay()).isEqualTo("OS 영역 최소 용량 480 GB · 고정 파티션 합 0 GiB");
+        assertThat(t.toDisplay()).isEqualTo("RAID 구성 2번 묶음(RAID1, SSD, SATA, 480 GB, 2개)이 OS 영역입니다");
+        assertThat(t.capacityDisplay()).isEqualTo("OS 영역 최소 용량 480 GB, 고정 파티션 합 0 GiB");
     }
 
     @Test
@@ -73,7 +73,7 @@ class OsVolumeTargetsTest {
                 rule(RaidLevel.RAID1, gb(480), new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.DATA)));
         assertThat(t.kind()).isEqualTo(OsVolumeTargetKind.BY_PRIORITY);
         assertThat(t.capacityLowerBoundBytes()).isEqualTo(960_000_000_000L);
-        assertThat(t.capacityDisplay()).isEqualTo("OS 영역 최소 용량 960 GB · 고정 파티션 합 0 GiB");
+        assertThat(t.capacityDisplay()).isEqualTo("OS 영역 최소 용량 960 GB, 고정 파티션 합 0 GiB");
 
         OsVolumeTarget unknown = OsVolumeTargets.describe(raid(
                 rule(RaidLevel.RAID1, AUTO, new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.BY_PRIORITY)));
@@ -83,7 +83,7 @@ class OsVolumeTargetsTest {
     }
 
     @Test
-    @DisplayName("전부 Data / 영역 할당 없음 → NO_CANDIDATE — 용량 줄 없음")
+    @DisplayName("전부 Data / 영역 미할당 → NO_CANDIDATE — 용량 줄 없음")
     void noCandidate() {
         OsVolumeTarget t = OsVolumeTargets.describe(raid(
                 rule(RaidLevel.RAID1, gb(480), new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.DATA),
@@ -111,7 +111,7 @@ class OsVolumeTargetsTest {
                         new com.example.serverprovision.provisioning.setting.dto.request.PartitionRequest("/", com.example.serverprovision.provisioning.setting.enums.FileSystem.XFS, 0L, com.example.serverprovision.provisioning.setting.enums.SizeUnit.GB, true)),
                 new com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest("pw", false, false), List.of(), 1L, List.of(), true, null);
         OsVolumeTarget t = OsVolumeTargets.describe(raid, install);
-        assertThat(t.capacityDisplay()).isEqualTo("OS 영역 최소 용량 480 GB · 고정 파티션 합 16 GiB(+ grow)");
+        assertThat(t.capacityDisplay()).isEqualTo("OS 영역 최소 용량 480 GB, 고정 파티션 합 16 GiB(+ grow)");
         assertThat(t.over()).isFalse();
 
         var big = new com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest(1L, 1L,
@@ -120,7 +120,7 @@ class OsVolumeTargetsTest {
                 new com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest("pw", false, false), List.of(), 1L, List.of(), true, null);
         OsVolumeTarget o = OsVolumeTargets.describe(raid, big);
         assertThat(o.over()).isTrue();
-        assertThat(o.capacityDisplay()).isEqualTo("OS 영역 최소 용량 480 GB · 고정 파티션 합 500 GiB — 최소 용량을 넘습니다");
+        assertThat(o.capacityDisplay()).isEqualTo("OS 영역 최소 용량 480 GB, 고정 파티션 합 500 GiB: 최소 용량을 넘습니다");
         assertThat(OsVolumeTarget.messageTemplates()).containsKeys("NONE", "FIXED", "BY_PRIORITY", "NO_CANDIDATE", "CAPACITY_FORMAT");
     }
 }

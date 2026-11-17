@@ -22,13 +22,13 @@
     · data-definition-name : 하단 상태줄에 "고른 것" 을 적을 이름
     · data-block-reason    : 잠긴 경우의 사유 — [할당] tooltip 과 상태줄이 같은 문자열을 쓴다
 -->
-<div class="n-picker-search" th:fragment="picker" data-picker-root>
+<div th:fragment="picker" data-picker-root>
     <!--/* 검색칸 + 조회 조건 창 — 두 모달 공용(R20). 목록 화면의 조회 띠와 같은 모양 */-->
     <th:block th:replace="~{fragments/provisioning/definition-picker-filter :: band}"></th:block>
     <div th:replace="~{:: results}"></div>
 </div>
 
-<div class="n-picker-results" th:fragment="results" data-picker-results>
+<div th:fragment="results" data-picker-results>
     <div class="n-lookup-results n-picker-table-wrap">
         <table class="n-table n-lookup-table n-picker-table">
             <thead>
@@ -40,7 +40,7 @@
                 th:attr="data-definition-id=${item.id},data-definition-name=${item.name},data-block-reason=${item.blockReason}">
                 <td><button type="button" class="n-lookup-pick" tabindex="-1" th:text="${item.name}">web-standard</button></td>
                 <td th:text="${item.option.definition.requiredBoardModelName} ?: '보드 무관'">MS74-HB0</td>
-                <td th:text="${#strings.listJoin(item.option.definition.processTypes.![displayName], ' · ')}">펌웨어 업데이트 · BIOS 설정</td>
+                <td th:text="${#strings.listJoin(item.option.definition.processTypes.![displayName], ', ')}">펌웨어 업데이트, BIOS 설정</td>
                 <td class="center">
                     <span th:if="${item.blocked}" class="n-badge n-badge-red">잠김</span>
                     <span th:if="${!item.blocked and item.deprecated}" class="n-badge n-badge-yellow">사용 중단</span>
@@ -61,7 +61,7 @@
         <p class="n-detail-empty" data-picker-detail-empty>표에서 정의서를 고르면 내용이 여기에 펼쳐집니다.</p>
         <div th:each="item : ${picker.items}" class="n-picker-detail-panel" hidden
              th:attr="data-picker-panel=${item.id}">
-            <div class="n-picker-detail-title">고른 정의서 · <b th:text="${item.name}">web-standard</b></div>
+            <div class="n-picker-detail-title">고른 정의서: <b th:text="${item.name}">web-standard</b></div>
 
             <!--/* 잠긴 사유는 라벨이 아니라 패널 머리에 둔다 — <select> 시절에는 옵션 라벨에 이어붙어
                    길면 잘렸다. 자리를 주면 문장이 그대로 읽힌다. 문구는 AssignmentBlockKind 가 만든
@@ -74,12 +74,12 @@
             <div th:if="${!item.blocked and item.unverified}" class="n-alert n-alert-warning" role="alert">
                 <b>하드웨어를 대조하지 못했습니다.</b>
                 <div class="n-section-hint n-block-gap-sm">
-                    본 게스트 서버의 하드웨어 수집이 완료된 이후 일부 하드웨어가 불일치 할 수 있으며, 이에 따라 프로비저닝 단계 일부가 미집행 될 수 있습니다.</div>
+                    본 게스트 서버의 하드웨어 수집이 끝난 뒤 일부 하드웨어가 불일치할 수 있으며, 이에 따라 프로비저닝 단계 일부가 미집행될 수 있습니다.</div>
             </div>
             <div th:if="${item.deprecated}" class="n-alert n-alert-warning" role="alert">
                 <b>사용 중단이 권고된 정의서입니다.</b>
                 <div class="n-section-hint n-block-gap-sm">
-                    할당은 가능하지만 대체할 정의서가 있는지 확인해 주세요.
+                    할당은 가능하지만 대체할 정의서가 있는지 확인해야 합니다.
                 </div>
             </div>
 

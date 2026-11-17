@@ -14,6 +14,6 @@ import com.example.serverprovision.global.marker.ResourceType;
 public class TtlExtensionUnsupportedException extends ConflictException {
 
 	public TtlExtensionUnsupportedException(ResourceType resourceType) {
-		super(resourceType.getDisplayName() + " 자원은 보존기간 연장을 지원하지 않습니다.");
+		super(resourceType.getDisplayName() + " 자원은 보존 기간을 연장할 수 없습니다.");
 	}
 }

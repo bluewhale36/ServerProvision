@@ -20,7 +20,7 @@ class MemberCountRuleTest {
     @Test
     @DisplayName("표기 — 범위 · 단일값 · 상한 없음 · 단위는 2 이상일 때만")
     void display() {
-        assertThat(RAID10_P2.display()).isEqualTo("4~16대 · 2대 단위");
+        assertThat(RAID10_P2.display()).isEqualTo("4~16대, 2대 단위");
         assertThat(MemberCountRule.of(RaidLevel.RAID1, 2, 2).display()).isEqualTo("2대");
         assertThat(MemberCountRule.of(RaidLevel.RAID5, 3, null).display()).isEqualTo("3대 이상");
         assertThat(MemberCountRule.of(RaidLevel.RAID10, 3, 10).display()).isEqualTo("3~10대");
@@ -37,9 +37,9 @@ class MemberCountRuleTest {
     @DisplayName("거절 문구 — 스팬 규칙은 스팬을 말하고, 그 밖은 구성 대수를 말한다")
     void rejectionWording() {
         assertThat(RAID10_P2.blockReasonFor(7))
-                .isEqualTo("RAID10 을 스팬당 2대로 만들려면 4~16대 · 2대 단위여야 합니다 — 7대는 만들 수 없습니다");
+                .isEqualTo("RAID10 을 스팬당 2대로 만들려면 4~16대, 2대 단위여야 합니다. 7대는 만들 수 없습니다");
         assertThat(MemberCountRule.of(RaidLevel.RAID1, 2, 2).blockReasonFor(3))
-                .isEqualTo("RAID1 의 구성 대수는 2대입니다 — 3대는 만들 수 없습니다");
+                .isEqualTo("RAID1 의 구성 대수는 2대입니다. 3대는 만들 수 없습니다");
     }
 
     @Test

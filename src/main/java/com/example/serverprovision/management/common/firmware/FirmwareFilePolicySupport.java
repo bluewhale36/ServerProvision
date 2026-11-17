@@ -48,7 +48,7 @@ public abstract class FirmwareFilePolicySupport<S extends FirmwareFilePolicyStra
 		} catch (InvalidFirmwareFileException e) {
 			throw new InvalidFirmwareFileException(
 					"경로의 마지막 이름 '" + fileName + "' 이 저장할 파일명으로 해석됐습니다. " + e.getMessage()
-							+ " 디렉토리 안에 저장하려면 경로 끝에 / 를 붙이십시오.",
+							+ " 디렉토리 안에 저장하려면 경로 끝에 / 를 붙여야 합니다.",
 					"firmwarePath"
 			);
 		}

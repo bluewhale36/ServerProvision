@@ -8,6 +8,6 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class EmptyBundleException extends ConflictException {
 
 	public EmptyBundleException() {
-		super("업로드된 번들이 비어 있습니다. 최소 하나 이상의 파일이 필요합니다.");
+		super("업로드한 폴더가 비어 있습니다. 파일이 하나 이상 있어야 합니다.");
 	}
 }

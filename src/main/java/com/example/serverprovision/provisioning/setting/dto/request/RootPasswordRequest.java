@@ -14,7 +14,7 @@ public class RootPasswordRequest {
 
     /** 평문 또는 사전 암호화된 비밀번호. 수정 폼 pre-fill 에는 절대 포함되지 않는다. */
     // Kickstart 스크립트 주입 방지 — ASCII printable 비공백만 (legacy INVALID_ROOT_PASSWORD 이관).
-    @Pattern(regexp = "^[\\x21-\\x7E]+$", message = "root 비밀번호에는 공백·제어문자를 쓸 수 없습니다.")
+    @Pattern(regexp = "^[\\x21-\\x7E]+$", message = "root 비밀번호에는 공백이나 제어문자를 쓸 수 없습니다.")
     private final String password;
 
     /** {@code password} 가 이미 암호화된 값인지 여부. */

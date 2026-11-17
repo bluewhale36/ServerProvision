@@ -18,9 +18,18 @@ public class TypedNameMismatchException extends DomainException {
 	private final String typed;
 
 	public TypedNameMismatchException(String expected, String typed) {
-		super("자원명이 일치하지 않습니다. (입력값='" + typed + "', 기대='" + expected + "')");
+		this("입력한 자원명이 일치하지 않습니다.", expected, typed);
+	}
+
+	private TypedNameMismatchException(String message, String expected, String typed) {
+		super(message);
 		this.expected = expected;
 		this.typed = typed;
+	}
+
+	/** 게스트 서버 영구 삭제의 UUID 끝자리 대조(S22-3) — 화면에 기대값을 되비추지 않는다. */
+	public static TypedNameMismatchException uuidSuffix(String expected, String typed) {
+		return new TypedNameMismatchException("입력한 값이 UUID 끝자리와 다릅니다.", expected, typed);
 	}
 
 	public String getExpected() {

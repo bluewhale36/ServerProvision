@@ -21,9 +21,9 @@ public record OsVolumeTarget(
 
     public static final String CAPACITY_UNKNOWN = "OS 영역 용량은 실행 시 확인됩니다(자동 탐지)";
     /** %s = 하한(십진) · %s = 고정 파티션 합(이진) · %s = grow 접미사(빈 문자열 가능) */
-    public static final String CAPACITY_FORMAT = "OS 영역 최소 용량 %s · 고정 파티션 합 %s%s";
+    public static final String CAPACITY_FORMAT = "OS 영역 최소 용량 %s, 고정 파티션 합 %s%s";
     public static final String GROW_SUFFIX = "(+ grow)";
-    public static final String OVER_SUFFIX = " — 최소 용량을 넘습니다";
+    public static final String OVER_SUFFIX = ": 최소 용량을 넘습니다";
 
     public static OsVolumeTarget none() {
         return new OsVolumeTarget(OsVolumeTargetKind.NONE, 0, null, null, 0L, false);

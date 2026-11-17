@@ -14,6 +14,6 @@ public class RetainedPasswordUnavailableException extends FieldBoundBadRequestEx
 
     /** 리눅스 root · 사용자 등 — 직결 필드와 대상 이름을 받아 같은 문장으로(HF12). */
     public RetainedPasswordUnavailableException(String fieldName, String subject) {
-        super("유지할 기존 " + subject + " 비밀번호가 없습니다. 비밀번호를 입력하십시오.", fieldName);
+        super("유지할 기존 " + subject + " 비밀번호가 없습니다. 비밀번호를 입력해야 합니다.", fieldName);
     }
 }

@@ -93,7 +93,7 @@ class WindowsDriverSelectionTest {
         WindowsDriverSelection.Entry e = sel.entries().get(0);
         assertThat(e.mode()).isEqualTo(WindowsDriverSelection.Mode.TREE);
         assertThat(e.line()).isEqualTo("TREE|" + WindowsOemPayloadAssembler.folderOf(s) + "|-|-|0");
-        assertThat(e.label()).isEqualTo("Chipset · 트리 전체 INF");
+        assertThat(e.label()).isEqualTo("Chipset, 트리 전체 INF");
     }
 
     @Test
@@ -129,7 +129,7 @@ class WindowsDriverSelectionTest {
         assertThat(sel.skipped()).singleElement().satisfies(sk -> {
             assertThat(sk.id()).isEqualTo(7L);
             assertThat(sk.reason()).isEqualTo(WindowsDriverSelection.SKIP_NO_VARIANT_FOR_VERSION);
-            assertThat(sk.label()).isEqualTo("NVMe — 해당 버전 변형 없음");
+            assertThat(sk.label()).isEqualTo("NVMe: 대상 버전용 변형 미등록");
         });
 
         WindowsDriverSelection.Selection unknown = WindowsDriverSelection.select(BOARD,
@@ -151,7 +151,7 @@ class WindowsDriverSelectionTest {
         assertThat(sel.entries()).isEmpty();
         assertThat(sel.skipped()).extracting(WindowsDriverSelection.Skipped::reason).containsExactly(
                 WindowsDriverSelection.SKIP_NOT_ASSEMBLED, WindowsDriverSelection.SKIP_NON_ASCII, WindowsDriverSelection.SKIP_NON_ASCII);
-        assertThat(sel.summary()).isEqualTo("드라이버 0(변형 0 · 트리 0) · 제외 3");
+        assertThat(sel.summary()).isEqualTo("드라이버 0개, 제외 3개");
     }
 
     @Test
@@ -169,7 +169,7 @@ class WindowsDriverSelectionTest {
                 "TREE|" + WindowsOemPayloadAssembler.folderOf(a1) + "|-|-|0\r\n"
                 + "TREE|" + WindowsOemPayloadAssembler.folderOf(a2) + "|-|-|0\r\n"
                 + "TREE|" + WindowsOemPayloadAssembler.folderOf(b) + "|-|-|0\r\n");
-        assertThat(sel.summary()).isEqualTo("드라이버 3(변형 0 · 트리 3)");
+        assertThat(sel.summary()).isEqualTo("드라이버 3개");
         assertThat(WindowsDriverSelection.Selection.EMPTY.toListText()).isEmpty();
     }
 
@@ -188,8 +188,8 @@ class WindowsDriverSelectionTest {
         WindowsDriverSelection.Entry e = sel.entries().get(0);
         assertThat(e.mode()).isEqualTo(WindowsDriverSelection.Mode.FOLDER);
         assertThat(e.line()).isEqualTo("FOLDER|" + WindowsOemPayloadAssembler.folderOf(s) + "|PRO1000\\Winx64\\WS2025\\|-|0");
-        assertThat(e.label()).isEqualTo("Intel LAN · 폴더 PRO1000\\Winx64\\WS2025\\ · 2025");
-        assertThat(sel.summary()).startsWith("드라이버 2(변형 2 · 트리 0)");
+        assertThat(e.label()).isEqualTo("Intel LAN, 폴더 PRO1000\\Winx64\\WS2025\\, 2025");
+        assertThat(sel.summary()).startsWith("드라이버 2개");
     }
 
     @Test

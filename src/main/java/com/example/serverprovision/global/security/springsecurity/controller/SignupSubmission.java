@@ -29,7 +29,7 @@ public class SignupSubmission {
 	                     HttpServletResponse response, RedirectAttributes redirectAttributes) {
 		// 위조값(role=NOPE)은 바인딩이 이미 typeMismatch 를 남겼다 — 같은 칸에 두 메시지를 겹치지 않는다(S18 CP5 B7).
 		if (mode.requiresRoleSelection() && request.getRole() == null && !bindingResult.hasFieldErrors("role")) {
-			bindingResult.rejectValue("role", "selection-required", "권한 등급을 고르십시오.");   // 코드 "required" 는 messages 의 일반 문구가 이긴다
+			bindingResult.rejectValue("role", "selection-required", "권한 등급을 골라야 합니다.");   // 코드 "required" 는 messages 의 일반 문구가 이긴다
 		}
 		if (!bindingResult.hasErrors() && usersService.usernameTaken(request.username())) {
 			bindingResult.rejectValue("username", "duplicate", "이미 사용 중인 아이디입니다.");   // UI 1차 차단 — 서비스와 같은 판정

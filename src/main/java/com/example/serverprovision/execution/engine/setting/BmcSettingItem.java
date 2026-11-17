@@ -23,7 +23,7 @@ import java.util.Map;
 public enum BmcSettingItem {
 
     /** 시간대 · NTP — PUT 바디는 GET(8 필드)보다 넓은 22 필드(id 포함 · UI 가 ptp_* 를 덧붙인다, HAR 정본). */
-    DATE_TIME(1, false) {
+    DATE_TIME(1, false, "시간 설정") {
         static final String PATH = "/api/settings/date-time";
 
         @Override
@@ -70,7 +70,7 @@ public enum BmcSettingItem {
         }
     },
 
-    COLD_REDUNDANT(2, false) {
+    COLD_REDUNDANT(2, false, "전원 이중화") {
         static final String PATH = "/api/cold_redundant-status";
 
         @Override
@@ -95,7 +95,7 @@ public enum BmcSettingItem {
     },
 
     /** 보드별 단일행 JSON 을 그대로 싣는다 — 재직렬화도 키 순서 · 값을 보존한다(JsonNode). */
-    FAN_PROFILE(3, false) {
+    FAN_PROFILE(3, false, "팬 프로파일") {
         static final String PATH = "/api/settings/fanprofile";
         static final String MODE_PATH = "/api/settings/fanprofile/mode";
 
@@ -118,7 +118,7 @@ public enum BmcSettingItem {
     },
 
     /** 재구성으로 연결이 잠시 끊길 수 있어 마지막이고, 되읽기 연결 실패는 실패가 아니라 재접속 대기다(D-8). */
-    NETWORK_BOND(4, true) {
+    NETWORK_BOND(4, true, "네트워크 Bond") {
         static final String PATH = "/api/settings/network-bond";
 
         @Override
@@ -163,6 +163,8 @@ public enum BmcSettingItem {
     private final int order;
     /** 쓰기 뒤 연결이 끊길 수 있는가 — 되읽기 실패를 재접속 대기로 다룰 항목. */
     private final boolean disruptive;
+    /** 화면에 보이는 항목 이름(S22-3) — 원장 사유의 상수 원문을 화면에서 이 이름으로 바꾼다. */
+    private final String description;
 
     /** 쓰기 — 건너뛸 이유가 있으면 SKIPPED 를 돌려주고, 썼으면 null(되읽기는 호출자가 잇는다). */
     abstract BmcItemOutcome write(AmiWebApi api, BmcSettingTarget target, Instant now);

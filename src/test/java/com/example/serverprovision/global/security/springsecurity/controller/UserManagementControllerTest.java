@@ -190,7 +190,7 @@ class UserManagementControllerTest {
 						.param("password", "Init1234!").param("retypedPassword", "Init1234!"))
 				.andExpect(status().isBadRequest())
 				.andExpect(model().attributeHasFieldErrors("signUpForm", "role"))
-				.andExpect(content().string(containsString("권한 등급을 고르십시오.")));
+				.andExpect(content().string(containsString("권한 등급을 골라야 합니다.")));
 
 		given(usersService.signup(any(), eq(SignupMode.MANAGED))).willThrow(new DuplicateUsernameException("dup"));
 		mvc.perform(post("/users").with(SUPER).param("username", "dup").param("name", "중복")
@@ -208,7 +208,7 @@ class UserManagementControllerTest {
 				.andExpect(status().isBadRequest())
 				.andExpect(model().attributeHasFieldErrors("signUpForm", "role"))
 				.andExpect(model().attributeErrorCount("signUpForm", 1))
-				.andExpect(content().string(not(containsString("권한 등급을 고르십시오."))));
+				.andExpect(content().string(not(containsString("권한 등급을 골라야 합니다."))));
 		verify(usersService, never()).signup(any(), any());
 	}
 
@@ -219,14 +219,14 @@ class UserManagementControllerTest {
 	void detail_blockedAndAllowed() throws Exception {
 		given(queryService.detail(2L, "kim")).willReturn(detail(summary(2, "park", Role.ADMIN, false), Map.of(
 				UserAction.DISABLE, "이미 비활성화된 계정입니다.",
-				UserAction.RESET_PASSWORD, "비활성화된 계정입니다. 먼저 활성화하십시오.")));
+				UserAction.RESET_PASSWORD, "비활성화된 계정입니다. 먼저 활성화해야 합니다.")));
 
 		mvc.perform(get("/users/2").with(SUPER).accept(MediaType.TEXT_HTML))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("data-nav-back")))   // CP7 — 공용 '← 목록으로' 조각
 				.andExpect(content().string(not(containsString("초기 비밀번호를 지정하지 못했습니다."))))
 				.andExpect(view().name("users/user-detail"))
-				.andExpect(content().string(containsString("data-tooltip=\"비활성화된 계정입니다. 먼저 활성화하십시오.\"")))
+				.andExpect(content().string(containsString("data-tooltip=\"비활성화된 계정입니다. 먼저 활성화해야 합니다.\"")))
 				.andExpect(content().string(containsString("action=\"/users/2/enable\"")))   // 비활성 → 활성화 폼
 				.andExpect(content().string(containsString("data-confirm-user-role")))
 				.andExpect(content().string(containsString("관리자 (현재 등급)")))   // CP5 D-1 — 현재 등급 선택지는 tooltip 과 함께
@@ -242,7 +242,7 @@ class UserManagementControllerTest {
 		given(queryService.detail(99L, "kim")).willThrow(new UserNotFoundException(99L));
 		mvc.perform(get("/users/99").with(SUPER).accept(MediaType.TEXT_HTML))
 				.andExpect(status().isNotFound())
-				.andExpect(content().string(containsString("사용자를 찾을 수 없습니다. 목록에서 다시 고르십시오.")))   // HF29 — id 미노출
+				.andExpect(content().string(containsString("사용자를 찾을 수 없습니다. 목록에서 다시 골라야 합니다.")))   // HF29 — id 미노출
 				.andExpect(content().string(not(containsString("id=99"))));
 	}
 
@@ -310,14 +310,14 @@ class UserManagementControllerTest {
 				.andExpect(content().string(containsString("data-mismatch-message=\"비밀번호가 일치하지 않습니다.\"")));
 
 		// HF29 — 서버 거절(409)은 공통 오류 화면이 아니라 상세 재렌더 + 카드 안 사유 · 폼은 비운다
-		willThrow(new UserManagementBlockedException("비활성화된 계정입니다. 먼저 활성화하십시오."))
+		willThrow(new UserManagementBlockedException("비활성화된 계정입니다. 먼저 활성화해야 합니다."))
 				.given(managementService).assignInitialPassword(eq("kim"), eq(4L), any());
 		given(queryService.detail(4L, "kim")).willReturn(detail(summary(4, "choi", Role.USER, false),
-				Map.of(UserAction.RESET_PASSWORD, "비활성화된 계정입니다. 먼저 활성화하십시오.")));
+				Map.of(UserAction.RESET_PASSWORD, "비활성화된 계정입니다. 먼저 활성화해야 합니다.")));
 		mvc.perform(post("/users/4/password").with(SUPER).param("password", "Init5678!").param("retypedPassword", "Init5678!"))
 				.andExpect(status().isConflict())
 				.andExpect(view().name("users/user-detail"))
-				.andExpect(content().string(containsString("초기 비밀번호를 지정하지 못했습니다. 비활성화된 계정입니다. 먼저 활성화하십시오.")))
+				.andExpect(content().string(containsString("초기 비밀번호를 지정하지 못했습니다. 비활성화된 계정입니다. 먼저 활성화해야 합니다.")))
 				.andExpect(model().attribute("passwordForm", org.hamcrest.Matchers.hasProperty("password", nullValue())));
 
 		willThrow(PasswordMismatchException.retyped()).given(managementService).assignInitialPassword(eq("kim"), eq(3L), any());

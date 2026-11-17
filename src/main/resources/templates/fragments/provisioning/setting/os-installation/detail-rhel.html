@@ -22,7 +22,7 @@
             <tr>
                 <th>추가 패키지 그룹</th>
                 <td>
-                    <span th:if="${#lists.isEmpty(inst.packageGroupIds)}" class="n-muted">없음</span>
+                    <span th:if="${#lists.isEmpty(inst.packageGroupIds)}" class="n-muted">미지정</span>
                     <span th:unless="${#lists.isEmpty(inst.packageGroupIds)}" class="n-badge-list">
                         <span class="n-badge n-badge-gray"
                               th:each="pkgId : ${inst.packageGroupIds}"
@@ -41,8 +41,8 @@
             <tr th:if="${inst.allowSshRoot != null}">
                 <th>root SSH 로그인</th>
                 <td>
-                    <span th:if="${inst.allowSshRoot}" class="n-badge n-badge-blue">허용 (--allow-ssh)</span>
-                    <span th:unless="${inst.allowSshRoot}" class="n-badge n-badge-gray">차단 (기본)</span>
+                    <span th:if="${inst.allowSshRoot}" class="n-badge n-badge-blue">허용</span>
+                    <span th:unless="${inst.allowSshRoot}" class="n-badge n-badge-gray">차단(기본값)</span>
                 </td>
             </tr>
             </tbody>

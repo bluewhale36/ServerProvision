@@ -93,7 +93,7 @@ public class ReconciliationRestController {
 	public RedirectView apply(@PathVariable Long driftId, RedirectAttributes redirectAttributes) {
 		reconciliationService.apply(driftId);
 		// R9-3 — JS 경로는 async 제출(토스트+reload)이라 flash 미소비. 이 flash 는 JS 불능 native submit fallback 용.
-		redirectAttributes.addFlashAttribute("flashMessage", "드리프트 적용 완료");
+		redirectAttributes.addFlashAttribute("flashMessage", "드리프트를 해결했습니다.");
 		return new RedirectView("/maintenance/reconciliation");
 	}
 
@@ -157,7 +157,7 @@ public class ReconciliationRestController {
 			RedirectAttributes redirectAttributes
 	) {
 		duplicateResolveService.resolve(driftId, survivor);
-		redirectAttributes.addFlashAttribute("flashMessage", "자원 중복을 해결했습니다");
+		redirectAttributes.addFlashAttribute("flashMessage", "자원 중복을 해결했습니다.");
 		return new RedirectView("/maintenance/reconciliation");
 	}
 
@@ -176,7 +176,7 @@ public class ReconciliationRestController {
 	) {
 		reconciliationService.snooze(driftId, request.window(), request.reason());
 		redirectAttributes.addFlashAttribute("flashMessage",
-				request.window().getLabel() + " 보관했습니다");
+				request.window().getLabel() + " 보관했습니다.");
 		return new RedirectView("/maintenance/reconciliation");
 	}
 
@@ -189,7 +189,7 @@ public class ReconciliationRestController {
 	@PostMapping("/drifts/{driftId}/unsnooze")
 	public RedirectView unsnooze(@PathVariable Long driftId, RedirectAttributes redirectAttributes) {
 		reconciliationService.unsnooze(driftId);
-		redirectAttributes.addFlashAttribute("flashMessage", "보관을 해제했습니다");
+		redirectAttributes.addFlashAttribute("flashMessage", "보관을 해제했습니다.");
 		return new RedirectView("/maintenance/reconciliation/snoozed");
 	}
 }

@@ -21,10 +21,10 @@ public final class ControllerValidationSupport {
 		List<ApiErrorResponse.FieldError> fields = bindingResult.getFieldErrors().stream()
 				.map(fe -> new ApiErrorResponse.FieldError(
 						fe.getField(),
-						fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "유효하지 않은 값"
+						fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "올바르지 않은 값입니다."
 				))
 				.toList();
 		return ApiErrorResponse.ofValidation(
-				"입력 값이 유효하지 않습니다 (" + fields.size() + "개 필드).", fields);
+				"입력값이 올바르지 않습니다.", fields);
 	}
 }

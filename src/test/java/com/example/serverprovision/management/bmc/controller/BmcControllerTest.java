@@ -109,7 +109,7 @@ class BmcControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value(containsString("firmwarePath")));
+                    .andExpect(jsonPath("$.message").value(containsString("펌웨어 파일 경로")));   // S22-4 — 필드 이름(firmwarePath)은 화면에 싣지 않는다
         }
     }
 
@@ -195,6 +195,7 @@ class BmcControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resourceId").value(2))
                 .andExpect(jsonPath("$.integrityStatus").value("TAMPERED"))
+                .andExpect(jsonPath("$.label").value("변조 감지(해시 불일치)"))
                 .andExpect(jsonPath("$.badgeClass").value("n-badge-red"));
     }
 

@@ -23,7 +23,7 @@ public final class WindowsDriverSelection {
         TREE, INF, MSI, EXE, FOLDER
     }
 
-    public static final String SKIP_NO_VARIANT_FOR_VERSION = "해당 버전 변형 없음";
+    public static final String SKIP_NO_VARIANT_FOR_VERSION = "대상 버전용 변형 미등록";
     public static final String SKIP_NOT_ASSEMBLED = "조립 미반영";
     public static final String SKIP_NON_ASCII = "비 ASCII 경로";
 
@@ -45,19 +45,19 @@ public final class WindowsDriverSelection {
         /** 카드 목록 한 줄 — "이름 · 트리 전체 INF" 또는 "이름 · MSI WDDM\\Win2025.msi · 2025(전 버전)". */
         public String label() {
             if (mode == Mode.TREE) {
-                return name + " · 트리 전체 INF";
+                return name + ", 트리 전체 INF";
             }
             if (mode == Mode.FOLDER) {
-                return name + " · 폴더 " + entrypoint + " · " + (osVersion == null ? "전 버전" : osVersion);
+                return name + ", 폴더 " + entrypoint + ", " + (osVersion == null ? "전 버전" : osVersion);
             }
-            return name + " · " + mode.name() + " " + entrypoint + " · " + (osVersion == null ? "전 버전" : osVersion)
-                    + (rebootRequired ? " · 재부팅" : "");
+            return name + ", " + mode.name() + " " + entrypoint + ", " + (osVersion == null ? "전 버전" : osVersion)
+                    + (rebootRequired ? ", 재부팅" : "");
         }
     }
 
     public record Skipped(long id, String name, String reason) {
         public String label() {
-            return name + " — " + reason;
+            return name + ": " + reason;
         }
     }
 
@@ -84,8 +84,8 @@ public final class WindowsDriverSelection {
         /** 카드 문구 — "드라이버 N(변형 M · 트리 K) · 제외 J". */
         public String summary() {
             long variants = entries.size() - countOf(Mode.TREE);
-            return "드라이버 " + entries.size() + "(변형 " + variants + " · 트리 " + countOf(Mode.TREE) + ")"
-                    + (skipped.isEmpty() ? "" : " · 제외 " + skipped.size());
+            // S22-3 — 변형 · 트리 개수는 조립 내부 구분이라 화면에서 뺐다.
+            return "드라이버 " + entries.size() + "개" + (skipped.isEmpty() ? "" : ", 제외 " + skipped.size() + "개");
         }
     }
 

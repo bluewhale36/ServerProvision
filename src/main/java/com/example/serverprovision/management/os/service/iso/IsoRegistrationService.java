@@ -110,7 +110,7 @@ public class IsoRegistrationService {
 		String resolvedPath = UploadPathResolver.resolve(
 				request.isoPath(),
 				originalFilename,
-				path -> new InvalidIsoPathException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + path)
+				path -> new InvalidIsoPathException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + path)
 		);
 
 		log.info(
@@ -130,7 +130,7 @@ public class IsoRegistrationService {
 
 		isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(osMetadataId, resolvedPath)
 				.ifPresent(existing -> {
-					throw new IsoUploadIntentConflictException("같은 경로에 이미 등록된 ISO 가 있습니다 : " + existing.getIsoPath());
+					throw new IsoUploadIntentConflictException("같은 경로에 이미 등록된 ISO 가 있습니다: " + existing.getIsoPath());
 				});
 
 		Path sidecar = markerService.resolveMarkerFile(target, MarkerLayout.SIDECAR);
@@ -146,7 +146,7 @@ public class IsoRegistrationService {
 			// S3.1 (B1) — 저장 직후 POSIX 권한 0644 강제 (의도치 않은 실행 권한 차단).
 			fileSystemHardener.applyDefaultPermissionsForFile(target);
 		} else if (!Files.isRegularFile(target)) {
-			throw new InvalidIsoPathException("ISO 파일이 해당 경로에 존재하지 않습니다 : " + resolvedPath);
+			throw new InvalidIsoPathException("해당 경로에 ISO 파일이 없습니다: " + resolvedPath);
 		}
 
 		String originalName = hasFile
@@ -186,7 +186,7 @@ public class IsoRegistrationService {
 
 		isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(prepared.osMetadataId(), prepared.resolvedPath())
 				.ifPresent(existing -> {
-					throw new IsoUploadIntentConflictException("같은 경로에 이미 등록된 ISO 가 있습니다 : " + existing.getIsoPath());
+					throw new IsoUploadIntentConflictException("같은 경로에 이미 등록된 ISO 가 있습니다: " + existing.getIsoPath());
 				});
 
 		// 활성 ISO 와의 해시 충돌 → fail-fast.
@@ -243,13 +243,13 @@ public class IsoRegistrationService {
 	@Transactional
 	public Long completePendingFromNudge(NudgeSession session) {
 		if (session.resourceType() != NudgeResourceType.OS_ISO) {
-			throw new IllegalOSMetadataStateException("OS_ISO 세션이 아닙니다.");
+			throw new IllegalOSMetadataStateException("ISO 중복 확인 세션이 아닙니다.");
 		}
 		Long osMetadataId = session.boardId();
 		OSMetadata parent = requireActiveImage(osMetadataId);
 		if (!(session.payload() instanceof com.example.serverprovision.management.common.nudge.ContentNudgePayload p)) {
 			throw new IllegalOSMetadataStateException(
-					"OS_ISO nudge 세션은 ContentNudgePayload 만 허용합니다. nudgeId=" + session.nudgeId());
+					"중복 확인 세션의 내용이 올바르지 않습니다. id=" + session.nudgeId());
 		}
 		Path target = Path.of(p.tempFilePath());
 		String manifestHash = p.manifestHash();
@@ -385,7 +385,7 @@ public class IsoRegistrationService {
 		try {
 			markerService.write(target, MarkerLayout.SIDECAR, unsigned.withSignature(signature));
 		} catch (RuntimeException e) {
-			throw new IsoMarkerWriteFailedException("ISO 마커(sidecar) 기록 실패. path=" + target, e);
+			throw new IsoMarkerWriteFailedException("ISO 마커 파일을 기록하지 못했습니다: " + target, e);
 		}
 		// S3.1 (B1) + S3.2 (K12) — sidecar 경로는 ProvisionMarkerService 의 resolveMarkerFile 로 계산.
 		fileSystemHardener.applyDefaultPermissionsForFile(
@@ -405,7 +405,7 @@ public class IsoRegistrationService {
 			}
 			return HexFormat.of().formatHex(md.digest());
 		} catch (IOException | NoSuchAlgorithmException e) {
-			throw new ISOFileStorageException("ISO 파일 hash 계산 실패. path=" + file, e);
+			throw new ISOFileStorageException("ISO 파일의 해시를 계산하지 못했습니다: " + file, e);
 		}
 	}
 
@@ -414,7 +414,7 @@ public class IsoRegistrationService {
 		try {
 			target = Path.of(targetPath);
 		} catch (java.nio.file.InvalidPathException e) {
-			throw new ISOFileStorageException("ISO 경로 형식이 올바르지 않습니다 : " + targetPath, e);
+			throw new ISOFileStorageException("ISO 경로 형식이 올바르지 않습니다: " + targetPath, e);
 		}
 		Path parent = target.getParent();
 		if (parent == null || Files.exists(parent)) {
@@ -428,7 +428,7 @@ public class IsoRegistrationService {
 			Files.createDirectories(parent);
 			log.info("[prepare] 상위 디렉토리 자동 생성. parent={}", parent);
 		} catch (IOException e) {
-			throw new ISOFileStorageException("디렉토리 생성에 실패했습니다. path=" + parent, e);
+			throw new ISOFileStorageException("디렉토리를 만들지 못했습니다: " + parent, e);
 		}
 	}
 
@@ -440,7 +440,7 @@ public class IsoRegistrationService {
 			}
 		} catch (IOException e) {
 			String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-			throw new ISOFileStorageException("ISO 파일 저장에 실패했습니다. path=" + targetPath + " (" + reason + ")", e);
+			throw new ISOFileStorageException("ISO 파일을 저장하지 못했습니다: " + targetPath + " (" + reason + ")", e);
 		}
 	}
 

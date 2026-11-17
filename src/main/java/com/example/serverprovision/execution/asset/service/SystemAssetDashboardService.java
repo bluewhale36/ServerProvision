@@ -106,7 +106,7 @@ public class SystemAssetDashboardService {
         return new SystemAssetSlotResponse(
                 slot.slotKey(), slot.label(), slot.category(), slot.filename(), slot.layoutLabel(),
                 status.present(), slot.replaceable(),
-                status.present() ? FileSize.format(status.sizeBytes()) : "—", status.modifiedAt(),
+                status.present() ? FileSize.format(status.sizeBytes()) : "-", status.modifiedAt(),
                 condition.label(), condition.badgeClass(), slot.replaceCadence());
     }
 }

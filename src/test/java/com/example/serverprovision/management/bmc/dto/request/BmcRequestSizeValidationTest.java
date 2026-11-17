@@ -55,7 +55,7 @@ class BmcRequestSizeValidationTest {
 		assertThat(violations).hasSize(1);
 		ConstraintViolation<BmcCreateRequest> violation = violations.iterator().next();
 		assertThat(violation.getPropertyPath().toString()).isEqualTo("firmwarePath");
-		assertThat(violation.getMessage()).isEqualTo("펌웨어 파일 경로는 255자 이하로 입력해주세요.");
+		assertThat(violation.getMessage()).isEqualTo("펌웨어 파일 경로는 255자 이하로 입력해야 합니다.");
 	}
 
 	@Test

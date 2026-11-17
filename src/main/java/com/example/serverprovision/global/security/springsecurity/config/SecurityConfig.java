@@ -45,7 +45,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests( req -> req
 						// S18 D-8 — 비인증 화면(로그인 · 최초 관리자 등록)이 디자인 시스템 자산을 받아야 한다. 페이지 스크립트 디렉토리
 						// (/management/** 등)는 컨트롤러 경로와 겹치므로 열지 않는다 — 인증 뒤에만 쓰인다.
-						.requestMatchers("/global/**", "/css/**", "/fonts/**", "/vendor/**", "/favicon.ico").permitAll()
+						.requestMatchers("/global/**", "/css/**", "/fonts/**", "/icons/**", "/vendor/**", "/favicon.ico").permitAll()
 						// ERROR: 비인증 404 · 500 이 로그인으로 튀지 않게. ASYNC: SSE 처럼 첫 요청에서 이미 인가된 스트림의 비동기 디스패치가
 						// 로그아웃 뒤 다시 인가에 걸려 "response already committed" ERROR 를 남기지 않게(CP5 F-4) — ASYNC 는 원 요청이 통과한 뒤에만 온다.
 						.dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.ASYNC).permitAll()

@@ -5,8 +5,8 @@
    ============================================================ */
 (function () {
     'use strict';
-    const TEMPLATE = '{resource} 의 Deprecated 표시를 해제할까요?';
-    const DEFAULT_MSG = '이 자원의 Deprecated 표시를 해제할까요?';
+    const TEMPLATE = '{resource} 의 사용 중단 권고를 해제하시겠습니까?';
+    const DEFAULT_MSG = '이 자원의 사용 중단 권고를 해제하시겠습니까?';
 
     function lazyUrl(form) {
         const resourceType = form.getAttribute('data-resource-type') || 'OS_IMAGE';

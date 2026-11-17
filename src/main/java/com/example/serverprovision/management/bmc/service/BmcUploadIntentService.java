@@ -62,7 +62,7 @@ public class BmcUploadIntentService {
 		List<BoardBMC> metaCandidates = collectMetaNudgeCandidates(boardId, request.version());
 		if (!metaCandidates.isEmpty()) {
 			throw new BmcNudgeRequiredException(
-					"동일한 (보드, 버전) 의 BMC 자원이 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+					"같은 메인보드와 버전의 BMC 펌웨어가 휴지통에 있거나 사용 중단 상태입니다. 진행 방법을 선택해야 합니다.",
 					registerIntentNudge(boardId, request, metaCandidates),
 					toConflictEntries(metaCandidates)
 			);
@@ -89,7 +89,7 @@ public class BmcUploadIntentService {
 				request.fileName(),
 				bmcFirmwareFilePolicy.allowedExtensions(board.getVendor()),
 				path -> new InvalidFirmwareFileException(
-						"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + path, "firmwarePath")
+						"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + path, "firmwarePath")
 		);
 		bmcFirmwareFilePolicy.assertAllowed(board.getVendor(), request.fileName(), "firmwareFile");
 
@@ -99,7 +99,7 @@ public class BmcUploadIntentService {
 
 		List<String> warnings = new ArrayList<>();
 		if (request.fileSize() == 0) {
-			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인해야 합니다.");
 		}
 
 		String token = UUID.randomUUID().toString();
@@ -169,17 +169,17 @@ public class BmcUploadIntentService {
 
 	public Intent consume(Long boardId, String token) {
 		if (token == null || token.isBlank()) {
-			throw new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로고침 후 다시 시도하세요.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		Intent intent = intents.remove(token);
 		if (intent == null) {
-			throw new InvalidUploadTokenException("만료되었거나 유효하지 않은 업로드 토큰입니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 만료되었거나 올바르지 않습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (!intent.boardId().equals(boardId)) {
-			throw new InvalidUploadTokenException("토큰과 요청 메인보드가 일치하지 않습니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보의 메인보드가 요청과 다릅니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (Duration.between(intent.issuedAt(), Instant.now()).compareTo(TTL) > 0) {
-			throw new InvalidUploadTokenException("업로드 토큰이 만료되었습니다. 다시 시도해주세요.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 만료되었습니다. 다시 시도해야 합니다.");
 		}
 		return intent;
 	}

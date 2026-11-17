@@ -42,7 +42,7 @@ final class SubprogramGuards {
 	static Subprogram requireLive(SubprogramRepository subprogramRepository, Long subprogramId) {
 		Subprogram sp = requireExisting(subprogramRepository, subprogramId);
 		if (sp.isDeleted()) {
-			throw new IllegalSubprogramStateException("삭제된 자원에는 수행할 수 없는 작업입니다. id=" + subprogramId);
+			throw new IllegalSubprogramStateException("삭제된 자원에는 이 작업을 할 수 없습니다.");
 		}
 		return sp;
 	}

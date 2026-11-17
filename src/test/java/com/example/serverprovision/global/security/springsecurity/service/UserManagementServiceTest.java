@@ -182,6 +182,6 @@ class UserManagementServiceTest {
 
 		park.disable();
 		assertThatThrownBy(() -> service.assignInitialPassword("kim", 3L, new InitialPasswordRequest("Init5678!", "Init5678!")))
-				.isInstanceOf(UserManagementBlockedException.class).hasMessage("비활성화된 계정입니다. 먼저 활성화하십시오.");
+				.isInstanceOf(UserManagementBlockedException.class).hasMessage("비활성화된 계정입니다. 먼저 활성화해야 합니다.");
 	}
 }

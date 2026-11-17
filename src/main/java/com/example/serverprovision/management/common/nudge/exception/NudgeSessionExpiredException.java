@@ -13,6 +13,6 @@ public class NudgeSessionExpiredException extends ConflictException {
 	public static final String CODE = "NUDGE_SESSION_EXPIRED";
 
 	public NudgeSessionExpiredException(UUID nudgeId) {
-		super("nudge 세션이 만료되었습니다. 다시 업로드해주세요. (nudgeId=" + nudgeId + ")");
+		super("중복 확인이 만료되었습니다. 다시 업로드해야 합니다.");
 	}
 }

@@ -58,7 +58,7 @@ class RaidCardObservationControllerTest {
 
 	private static RaidCardResponse card(boolean deleted, String pci) {
 		return new RaidCardResponse(3L, RaidCardVendor.GIGABYTE, "CRA3338",
-				List.of(RaidLevel.RAID0), "RAID0", RaidChipFamily.MPT_IR, 0, "없음", false, pci, null,
+				List.of(RaidLevel.RAID0), "RAID0", RaidChipFamily.MPT_IR, 0, "미탑재", false, pci, null,
 				true, false, deleted, LifecycleStage.of(false, deleted));
 	}
 
@@ -90,7 +90,7 @@ class RaidCardObservationControllerTest {
 				.given(observationService).confirmObserved(3L);
 		mvc.perform(post("/management/raidcard/3/confirm-observed").accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.message").value(RaidCardObservationStatus.CONFLICTING.blockReason()));
+				.andExpect(jsonPath("$.message").value(com.example.serverprovision.global.exception.UserFacingMessage.punctuate(RaidCardObservationStatus.CONFLICTING.blockReason())));   // S22-3 — 응답 경계의 표기 규칙
 	}
 
 	@Test
@@ -137,29 +137,31 @@ class RaidCardObservationControllerTest {
 		mvc.perform(get("/management/raidcard"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("n-badge-green")))
-				.andExpect(content().string(containsString("관측이 확정값과 일치합니다 (1000:9361 · 서버 1대)")))
+				.andExpect(content().string(containsString("관측이 확정값과 일치합니다")))
+				.andExpect(content().string(containsString("1000:9361")))
 				.andExpect(content().string(not(containsString("confirm-observed"))));
 	}
 
 	@Test
-	@DisplayName("DIFFERS_FROM_CONFIRMED — 위험 배너 · 버튼 없음")
+	@DisplayName("DIFFERS_FROM_CONFIRMED — 주의 배너 · 버튼 없음")
 	void list_differs() throws Exception {
 		stubList(false, card(false, "1000:9361"), summary("1000:9361", new RaidCardObservation(G1, "srv-01", "1000:00ce")));
 		mvc.perform(get("/management/raidcard"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("n-alert-danger")))
+				.andExpect(content().string(containsString("n-alert-warning")))   // S22-4 — 진행을 막지 않는 불일치라 노랑
 				.andExpect(content().string(containsString("관측 1000:00ce 이 확정값 1000:9361 과 다릅니다")))
 				.andExpect(content().string(not(containsString("confirm-observed"))));
 	}
 
 	@Test
-	@DisplayName("CONFLICTING — 위험 배너 · 값별 게스트 목록 · 잠긴 버튼 + tooltip 사유")
+	@DisplayName("CONFLICTING — 주의 배너 · 값별 게스트 목록 · 잠긴 버튼 + tooltip 사유")
 	void list_conflicting() throws Exception {
 		stubList(false, card(false, null), summary(null,
 				new RaidCardObservation(G1, "srv-01", "1000:9361"), new RaidCardObservation(G2, "srv-02", "1000:00ce")));
 		mvc.perform(get("/management/raidcard"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("관측이 서로 다릅니다 (1000:9361 · 1000:00ce)")))
+				.andExpect(content().string(containsString("관측이 서로 다릅니다")))
+				.andExpect(content().string(containsString("1000:9361, 1000:00ce")))
 				.andExpect(content().string(containsString("srv-01")))
 				.andExpect(content().string(containsString("srv-02")))
 				.andExpect(content().string(containsString("disabled=\"disabled\"")))
@@ -173,7 +175,8 @@ class RaidCardObservationControllerTest {
 				new RaidCardObservation(G1, "srv-01", "1000:9361"), new RaidCardObservation(G2, "srv-02", "1458:3008")));
 		mvc.perform(get("/management/raidcard"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("관측이 서로 다릅니다 (1000:9361 · 1458:3008)")))
+				.andExpect(content().string(containsString("관측이 서로 다릅니다")))
+				.andExpect(content().string(containsString("1000:9361, 1458:3008")))
 				.andExpect(content().string(containsString("srv-02")))
 				.andExpect(content().string(not(containsString("confirm-observed"))));
 	}

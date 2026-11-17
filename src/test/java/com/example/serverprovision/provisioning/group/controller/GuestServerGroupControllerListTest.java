@@ -194,7 +194,7 @@ class GuestServerGroupControllerListTest {
         willAnswer(inv -> new PageImpl<>(List.of(), (Pageable) inv.getArgument(1), 0)).given(queryService).search(any(), any());
         mvc.perform(get("/provisioning/server-group").param("from", "2026-12-01"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("시작일이 종료일보다 늦습니다. 기간을 다시 고르십시오.")));
+                .andExpect(content().string(containsString("시작일이 종료일보다 늦습니다. 기간을 다시 골라야 합니다.")));
     }
 
 }

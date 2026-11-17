@@ -1,0 +1,25 @@
+/* 드라이버, 유틸리티 목록 화면 — 두 Miller 위의 구획 머리(제목 + 등록 버튼).
+   종전에는 템플릿 안 <style> 에 있었다(DESIGN.md 8절: 화면 규칙은 그 화면의 CSS 파일에 둔다). */
+.n-subprogram-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+/* 구획 제목은 페이지 제목(26px)보다 작은 상세 절 제목(.n-detail-section > .n-section-title)과 같은 크기다. */
+.n-subprogram-section-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    line-height: 1.3;
+    color: var(--n-text);
+}
+
+.n-subprogram-section-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}

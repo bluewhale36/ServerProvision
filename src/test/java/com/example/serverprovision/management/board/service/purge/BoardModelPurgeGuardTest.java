@@ -53,7 +53,7 @@ class BoardModelPurgeGuardTest {
         BoardModelPurgeGuard guard = new BoardModelPurgeGuard(List.of(child), List.of(blocker("등록된 서버 1 대")));
 
         String reason = guard.reasonFor(7L);
-        assertThat(reason).startsWith("이 메인보드 모델을 참조하는 다음 항목이 남아 있어 영구 삭제할 수 없습니다: 하위 BIOS · BMC · 드라이버 · 유틸리티 자원, 등록된 서버 1 대");
+        assertThat(reason).startsWith("이 메인보드 모델을 참조하는 다음 항목이 남아 있어 영구 삭제할 수 없습니다: 하위 BIOS, BMC, 드라이버, 유틸리티 자원, 등록된 서버 1 대");
         assertThat(reason).doesNotContain("Subprogram").doesNotContain("해주세요").doesNotContain("—");
         assertThatThrownBy(() -> guard.assertPurgeable(7L))
                 .isInstanceOf(IllegalBoardModelStateException.class)

@@ -65,7 +65,7 @@ public class DiagnosticAssetController {
         DiagnosticAsset slot = parseSlot(slotKey);   // 없는 슬롯 이름 → 404
         activationService.replace(slot, file);       // 서빙(409)·대상(409)·빈파일(400)·스왑(500) 가드
         redirectAttributes.addFlashAttribute("flashMessage",
-                slot.label() + " 교체 완료 — 새 파일로 갱신하고 무결성을 재봉인했습니다.");
+                slot.label() + " 교체를 완료했습니다.");
         return "redirect:/system/diagnostic-asset/" + slot.name();
     }
 
@@ -76,7 +76,7 @@ public class DiagnosticAssetController {
         DiagnosticAsset slot = parseSlot(slotKey);   // 없는 슬롯 이름 → 404
         activationService.rollback(slot, versionId); // 서빙(409)·대상(409)·없는·타슬롯 버전(404)·스왑(500) 가드
         redirectAttributes.addFlashAttribute("flashMessage",
-                slot.label() + " 롤백 완료 — 선택한 버전으로 되돌리고 무결성을 재봉인했습니다.");
+                slot.label() + " 되돌리기를 완료했습니다.");
         return "redirect:/system/diagnostic-asset/" + slot.name();
     }
 

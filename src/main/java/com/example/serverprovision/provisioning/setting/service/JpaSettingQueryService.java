@@ -243,12 +243,12 @@ public class JpaSettingQueryService implements SettingQueryService {
             if (firmware.getBios().isLatest()
                     && biosRepository.findAllByBoardModel_IdAndIsDeletedFalse(boardId).stream()
                             .noneMatch(LifecycleEntity::isEnabled)) {
-                warnings.add("이 보드에 등록된 BIOS 펌웨어가 없어 실행 시 BIOS 업데이트를 건너뜁니다.");
+                warnings.add("이 보드에 등록된 BIOS 펌웨어가 없어 실행 시 BIOS 업데이트를 생략합니다.");
             }
             if (firmware.getBmc().isLatest()
                     && bmcRepository.findAllByBoardModel_IdAndIsDeletedFalse(boardId).stream()
                             .noneMatch(LifecycleEntity::isEnabled)) {
-                warnings.add("이 보드에 등록된 BMC 펌웨어가 없어 실행 시 BMC 업데이트를 건너뜁니다.");
+                warnings.add("이 보드에 등록된 BMC 펌웨어가 없어 실행 시 BMC 업데이트를 생략합니다.");
             }
             if (!warnings.isEmpty()) {
                 result.add(new ExecutionWarningResponse(process.processType(), List.copyOf(warnings), false));

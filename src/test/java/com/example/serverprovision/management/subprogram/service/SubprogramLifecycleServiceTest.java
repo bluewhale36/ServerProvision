@@ -217,7 +217,7 @@ class SubprogramLifecycleServiceTest {
 
         subprogramLifecycleService.purge(20L);
 
-        verify(bundleTreeCleanupService).purgeExistingTree(any(), anyString());
+        verify(bundleTreeCleanupService).purgeOwnedTree(any(), anyString());   // HF31
         verify(subprogramRepository).delete(s);
     }
 
@@ -234,46 +234,4 @@ class SubprogramLifecycleServiceTest {
 
     // ==== purgeWithTypedNameCheck — static TypedNameGuard ===============
 
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(match) : 입력명이 displayName(=name) 과 일치 → purge 진행")
-    void purgeWithTypedNameCheck_nameMatches_purges() {
-        Subprogram s = sp(21L, board(true, false, false), false, false, true);  // displayName() = "a"
-        given(subprogramRepository.findById(21L)).willReturn(Optional.of(s));
-
-        subprogramLifecycleService.purgeWithTypedNameCheck(21L, "a");
-
-        verify(subprogramRepository).delete(s);
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(mismatch) : 입력명 불일치 → TypedNameMismatchException + 삭제 미호출")
-    void purgeWithTypedNameCheck_nameMismatch_propagatesAndNoDelete() {
-        Subprogram s = sp(21L, board(true, false, false), false, false, true);  // displayName() = "a"
-        given(subprogramRepository.findById(21L)).willReturn(Optional.of(s));
-
-        assertThatThrownBy(() -> subprogramLifecycleService.purgeWithTypedNameCheck(21L, "wrong"))
-                .isInstanceOf(TypedNameMismatchException.class);
-        verify(subprogramRepository, never()).delete(any());
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(active) : 활성 자원 → IllegalSubprogramStateException (검증 전 차단)")
-    void purgeWithTypedNameCheck_active_throwsBeforeCheck() {
-        Subprogram s = sp(21L, board(true, false, false), true, false, false);  // not deleted
-        given(subprogramRepository.findById(21L)).willReturn(Optional.of(s));
-
-        assertThatThrownBy(() -> subprogramLifecycleService.purgeWithTypedNameCheck(21L, "a"))
-                .isInstanceOf(IllegalSubprogramStateException.class);
-        verify(subprogramRepository, never()).delete(any());
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(notfound) : 자원 부재 → SubprogramNotFoundException")
-    void purgeWithTypedNameCheck_missing_throws() {
-        given(subprogramRepository.findById(404L)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> subprogramLifecycleService.purgeWithTypedNameCheck(404L, "anything"))
-                .isInstanceOf(SubprogramNotFoundException.class);
-        verify(subprogramRepository, never()).delete(any());
-    }
 }

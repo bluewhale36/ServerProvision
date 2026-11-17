@@ -61,7 +61,7 @@ public class IsoUploadIntentService {
 		String resolvedPath = UploadPathResolver.resolve(
 				rawPath,
 				filename,
-				p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + p)
+				p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + p)
 		);
 
 		// 하드 블록 : 같은 OS 의 동일 경로에 활성 ISO 가 이미 등록됨 (DB 차원)
@@ -69,7 +69,7 @@ public class IsoUploadIntentService {
 				.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(osMetadataId, resolvedPath);
 		if (existingSamePath.isPresent()) {
 			throw new IsoUploadIntentConflictException(
-					"같은 경로에 이미 등록된 ISO 가 있습니다 : " + resolvedPath);
+					"같은 경로에 이미 등록된 ISO 가 있습니다: " + resolvedPath);
 		}
 
 		// MK2 WAVE 2 — 단계 A path nudge : 같은 (osMetadataId, isoPath) 의 soft-deleted/Deprecated → NUDGE_REQUIRED.
@@ -77,7 +77,7 @@ public class IsoUploadIntentService {
 		if (!pathNudgeCandidates.isEmpty()) {
 			NudgeSession session = registerIntentNudge(osMetadataId, resolvedPath, request, pathNudgeCandidates);
 			throw new IsoNudgeRequiredException(
-					"동일한 경로의 ISO 가 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+					"같은 경로의 ISO 가 휴지통에 있거나 사용 중단 권고 상태입니다. 진행 방법을 선택해야 합니다.",
 					NudgeRequiredResponse.of(session.nudgeId(), toConflictEntries(pathNudgeCandidates), session.expiresAt())
 			);
 		}
@@ -88,7 +88,7 @@ public class IsoUploadIntentService {
 			if (!hashCandidates.isEmpty()) {
 				NudgeSession session = registerIntentNudge(osMetadataId, resolvedPath, request, hashCandidates);
 				throw new IsoNudgeRequiredException(
-						"동일한 내용의 ISO 가 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+						"같은 내용의 ISO 가 휴지통에 있거나 사용 중단 권고 상태입니다. 진행 방법을 선택해야 합니다.",
 						NudgeRequiredResponse.of(session.nudgeId(), toConflictEntries(hashCandidates), session.expiresAt())
 				);
 			}
@@ -114,7 +114,7 @@ public class IsoUploadIntentService {
 		// 소프트 경고 수집
 		List<String> warnings = new ArrayList<>();
 		if (size == 0) {
-			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+			warnings.add("파일 크기가 0입니다. 업로드하기 전에 파일을 확인해야 합니다.");
 		}
 
 		String token = UUID.randomUUID().toString();
@@ -163,24 +163,24 @@ public class IsoUploadIntentService {
 				}
 			}
 		} catch (java.nio.file.InvalidPathException e) {
-			throw new IsoUploadIntentConflictException("ISO 경로 형식이 올바르지 않습니다 : " + resolvedPath);
+			throw new IsoUploadIntentConflictException("ISO 경로 형식이 올바르지 않습니다: " + resolvedPath);
 		}
 	}
 
 	public Intent consume(Long osMetadataId, String token) {
 		if (token == null || token.isBlank()) {
-			throw new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로고침 후 다시 시도하세요.");
+			throw new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		Intent intent = intents.remove(token);
 		if (intent == null) {
 			throw new InvalidUploadTokenException("만료되었거나 유효하지 않은 업로드 토큰입니다.");
 		}
 		if (!intent.osMetadataId().equals(osMetadataId)) {
-			throw new InvalidUploadTokenException("토큰과 요청 OS 가 일치하지 않습니다.");
+			throw new InvalidUploadTokenException("업로드 토큰의 OS 버전이 요청과 다릅니다.");
 		}
 		Duration age = Duration.between(intent.issuedAt(), Instant.now());
 		if (age.compareTo(TTL) > 0) {
-			throw new InvalidUploadTokenException("업로드 토큰이 만료되었습니다. 다시 시도해주세요.");
+			throw new InvalidUploadTokenException("업로드 토큰이 만료되었습니다. 다시 시도해야 합니다.");
 		}
 		return intent;
 	}
@@ -207,18 +207,18 @@ public class IsoUploadIntentService {
 		String resolvedPath = UploadPathResolver.resolve(
 				request.isoPath(),
 				request.filename(),
-				p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + p)
+				p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + p)
 		);
 
 		// 활성 동일 경로 race 방어 재검사
 		if (isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(osMetadataId, resolvedPath).isPresent()) {
 			throw new IsoUploadIntentConflictException(
-					"같은 경로에 이미 등록된 ISO 가 있습니다 : " + resolvedPath);
+					"같은 경로에 이미 등록된 ISO 가 있습니다: " + resolvedPath);
 		}
 
 		List<String> warnings = new ArrayList<>();
 		if (request.size() == 0) {
-			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+			warnings.add("파일 크기가 0입니다. 업로드하기 전에 파일을 확인해야 합니다.");
 		}
 
 		String token = UUID.randomUUID().toString();

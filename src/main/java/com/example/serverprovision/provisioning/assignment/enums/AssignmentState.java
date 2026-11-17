@@ -17,8 +17,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum AssignmentState {
     ACTIVE_UNCONSUMED("개시 전"),
-    ACTIVE_CONSUMED("개시됨"),
-    SUPERSEDED("종료됨");
+    ACTIVE_CONSUMED("개시"),
+    SUPERSEDED("종료");
 
     /** 배지 · 화면 표시용 한국어 라벨. 색상(CSS 배지 클래스) 매핑은 뷰 계층 AssignmentStateView 소관 — CSS 는 도메인에 두지 않는다. */
     private final String description;

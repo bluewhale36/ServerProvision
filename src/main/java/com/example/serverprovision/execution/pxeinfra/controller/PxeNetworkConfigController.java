@@ -70,7 +70,7 @@ public class PxeNetworkConfigController {
         outcome.throwIfNotApplied();
 
         redirectAttributes.addFlashAttribute("flashMessage",
-                pxeNetworkConfigRequest.dhcpMode().label() + " 모드로 dnsmasq 구성을 적용했습니다 — 조각을 갱신하고 dnsmasq 를 재기동했습니다.");
+                pxeNetworkConfigRequest.dhcpMode().label() + " 모드로 dnsmasq 구성을 적용했습니다.");
         return "redirect:/system/pxe-infra/network";
     }
 

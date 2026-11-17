@@ -9,6 +9,7 @@ import com.example.serverprovision.global.exception.NotFoundException;
 public class OrphanRecoveryNotFoundException extends NotFoundException {
 
 	public OrphanRecoveryNotFoundException(String recoveryId) {
-		super("복구 대상 격리 자원을 찾을 수 없습니다. recoveryId=" + recoveryId);
+		// 복구 키는 화면에 내보내지 않는다(S22). 호출부 시그니처는 그대로 둔다.
+		super("복구할 격리 항목을 찾을 수 없습니다.");
 	}
 }

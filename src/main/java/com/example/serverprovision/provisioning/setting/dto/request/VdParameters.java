@@ -76,7 +76,7 @@ public record VdParameters(
     /** 상세 화면 한 줄 표기 — 8축 전부를 HII 항목 순서로 나열(집행에 실리는 값 그대로). */
     @JsonIgnore
     public String toDisplay() {
-        return String.join(" · ",
+        return String.join(", ",
                 "Strip " + stripSize.getDisplayName(),
                 readPolicy.getDisplayName(),
                 writePolicy.getDisplayName(),

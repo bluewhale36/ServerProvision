@@ -34,10 +34,9 @@
 
     <!--/* 저장돼 있으나 코드에 없는 종류 — 조용히 버리지 않고 드러낸다. 저장하면 정리된다. */-->
     <div th:if="${!settings.unknownKinds.isEmpty()}" class="n-banner n-banner-warn">
-        <strong>알 수 없는 항목이 설정에 남아 있습니다.</strong>
-        지금 코드에 없는 드리프트 종류라 자동 처리에서 제외되고 있습니다 —
-        <span th:text="${#strings.listJoin(settings.unknownKinds, ', ')}"></span>.
-        아래에서 저장하면 정리됩니다.
+        <strong>알 수 없는 드리프트 종류가 설정에 남아 있습니다.</strong>
+        자동 처리에서 제외됩니다(<span th:text="${#strings.listJoin(settings.unknownKinds, ', ')}"></span>).
+        저장하면 정리됩니다.
     </div>
 
     <form id="reconciliationSettingsForm"
@@ -63,7 +62,7 @@
                     <div class="n-form-group" th:each="item : ${settings.items}"
                          th:if="${item.name == 'STARTUP_SCAN_ENABLED'}">
                         <label class="n-label strong" th:text="${item.label}"></label>
-                        <p class="n-hint" th:text="${item.description}"></p>
+                        <p class="n-hint" th:if="${item.description != null}" th:text="${item.description}"></p>
                         <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
                         <label class="n-toggle-row">
                             <input type="checkbox" th:field="*{startupScanEnabled}">
@@ -81,7 +80,7 @@
                     */-->
                     <div class="n-form-group" th:each="d : ${settings.schedule.depths}">
                         <label class="n-label strong" th:for="${d.fieldName}" th:text="${d.item.label}"></label>
-                        <p class="n-hint" th:text="${d.item.description}"></p>
+                        <p class="n-hint" th:if="${d.item.description != null}" th:text="${d.item.description}"></p>
                         <p class="n-form-meta">효과 시점 <span th:text="${d.item.effectTiming.label}"></span></p>
 
                         <div class="n-inline-row">
@@ -99,14 +98,14 @@
                         <!--/* 기준이 될 기록이 없으면 예정이 아니라 밀린 상태다 — 그렇게 말해야 사실이다. */-->
                         <p class="n-hint">
                             <span th:if="${d.lastScanAt != null}">
-                                마지막 <span th:text="${d.depth.label}"></span> :
-                                <strong th:text="${#temporals.format(d.lastScanAt, 'yyyy-MM-dd HH:mm')}"></strong> ·
+                                마지막 <span th:text="${d.depth.label}"></span>:
+                                <strong th:text="${#temporals.format(d.lastScanAt, 'yyyy-MM-dd HH:mm')}"></strong>,
                             </span>
                             <span th:if="${d.nextDueAt != null}">
-                                다음 예정 :
+                                다음 예정:
                                 <strong th:text="${#temporals.format(d.nextDueAt, 'yyyy-MM-dd HH:mm')}"></strong>
                             </span>
-                            <span th:if="${d.nextDueAt == null}">기록이 없어 곧 한 번 돕니다.</span>
+                            <span th:if="${d.nextDueAt == null}">기록이 없어 곧 실행합니다.</span>
                         </p>
 
                         <!--/* 막지 않고 알리기만 한다. 겹친 회차는 건너뛰어질 뿐 무엇도 깨지지 않으므로
@@ -115,7 +114,7 @@
                         <p class="n-hint n-hint-warn" th:if="${d.warning}">
                             지난 <span th:text="${d.depth.label}"></span>은
                             <strong th:text="${d.lastDurationText}"></strong> 걸렸습니다.
-                            주기를 그보다 짧게 두면 일부 회차가 건너뛰어집니다.
+                            주기를 그보다 짧게 두면 일부 회차를 건너뜁니다.
                         </p>
                     </div>
                 </div>
@@ -132,8 +131,8 @@
                     <div class="n-form-group" th:each="item : ${settings.items}"
                          th:if="${item.name == 'EXTRA_SCAN_ROOTS'}">
                         <label class="n-label strong" for="extraScanRoots" th:text="${item.label}"></label>
-                        <p class="n-hint" th:text="${item.description}"></p>
-                        <p class="n-hint">한 줄에 한 경로씩 절대 경로로 입력합니다. 존재하지 않는 경로도 미리 등록할 수 있습니다.</p>
+                        <p class="n-hint" th:if="${item.description != null}" th:text="${item.description}"></p>
+                        <p class="n-hint">한 줄에 하나씩 절대 경로로 입력해야 합니다.</p>
                         <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
                         <textarea id="extraScanRoots" class="n-input" rows="4"
                                   th:field="*{extraScanRoots}"
@@ -162,7 +161,7 @@
                     <div class="n-form-group" th:each="item : ${settings.items}"
                          th:if="${item.name == 'RESOLUTION_ENABLED'}">
                         <label class="n-label strong" th:text="${item.label}"></label>
-                        <p class="n-hint" th:text="${item.description}"></p>
+                        <p class="n-hint" th:if="${item.description != null}" th:text="${item.description}"></p>
                         <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
                         <label class="n-toggle-row">
                             <input type="checkbox" th:field="*{resolutionEnabled}">
@@ -180,13 +179,13 @@
                          th:classappend="${!settingsForm.resolutionEnabled} ? 'n-group-inert'"
                          data-auto-apply-group>
                         <label class="n-label strong" th:text="${item.label}"></label>
-                        <p class="n-hint" th:text="${item.description}"></p>
+                        <p class="n-hint" th:if="${item.description != null}" th:text="${item.description}"></p>
                         <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
 
                         <p class="n-hint n-hint-warn" data-auto-apply-inert-note
                            th:classappend="${settingsForm.resolutionEnabled} ? 'n-hidden'">
                             <strong>시스템 해결이 꺼져 있어 자동으로 처리하지 않습니다.</strong>
-                            여기서 고른 종류는 저장되며, 시스템 해결을 다시 켜면 그때부터 적용됩니다.
+                            고른 종류는 저장되며 시스템 해결을 켜면 적용됩니다.
                         </p>
 
                         <p class="n-error" th:if="${#fields.hasErrors('autoApplyKindsKnown')}"
@@ -200,11 +199,11 @@
                             <label th:for="'kind-' + ${candidate.name}">
                                 <span class="n-option-title" th:text="${candidate.label}"></span>
                                 <span class="n-badge"
-                                      th:classappend="${candidate.reversible} ? 'n-badge-gray' : 'n-badge-red'"
-                                      th:text="${candidate.reversible} ? '되돌릴 수 있음' : '되돌릴 수 없음'"></span>
+                                      th:classappend="${candidate.reversible} ? 'n-badge-gray' : 'n-badge-yellow'"
+                                      th:text="${candidate.reversible} ? '되돌리기 가능' : '되돌리기 불가'"></span>
                                 <span class="n-option-desc" th:text="${candidate.resolveAction}"></span>
                                 <span class="n-option-desc n-option-warn"
-                                      th:if="${!candidate.reversible}">되돌릴 수 없는 처리를 무인으로 맡기게 됩니다.</span>
+                                      th:if="${!candidate.reversible}">되돌릴 수 없는 처리를 확인 없이 맡깁니다.</span>
                             </label>
                         </div>
                     </div>
@@ -222,7 +221,7 @@
                     <div class="n-form-group" th:each="item : ${settings.items}"
                          th:if="${item.name == 'REPORT_RETENTION_COUNT'}">
                         <label class="n-label strong" for="reportRetentionCount" th:text="${item.label}"></label>
-                        <p class="n-hint" th:text="${item.description}"></p>
+                        <p class="n-hint" th:if="${item.description != null}" th:text="${item.description}"></p>
                         <p class="n-form-meta">효과 시점 <span th:text="${item.effectTiming}"></span></p>
                         <input type="number" id="reportRetentionCount" class="n-input n-input-narrow"
                                min="1" max="10000" th:field="*{reportRetentionCount}">

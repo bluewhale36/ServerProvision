@@ -21,14 +21,14 @@ import jakarta.validation.constraints.Size;
 public record IsoUploadIntentRequest(
 		// HF4-2 — 합성 결과가 iso.iso_path VARCHAR(1024) 에 저장되므로 핸드셰이크 단계에서 선차단.
 		// rawPath+filename 합성이 1024 를 넘는 교차 필드 엣지는 DB_CONSTRAINT 격리 안전망이 받는다.
-		@NotBlank
-		@Size(max = 1024, message = "ISO 경로는 1024자 이하로 입력해주세요.")
+		@NotBlank(message = "ISO 경로를 입력해야 합니다.")
+		@Size(max = 1024, message = "ISO 경로는 1024자 이하로 입력해야 합니다.")
 		String isoPath,
 
-		@NotBlank
-		@Size(max = 255, message = "파일명은 255자 이하로 입력해주세요.")
+		@NotBlank(message = "업로드할 파일을 선택해야 합니다.")
+		@Size(max = 255, message = "파일명은 255자 이하로 입력해야 합니다.")
 		String filename,
-		@NotNull @Min(0) Long size,
+		@NotNull(message = "파일 크기가 올바르지 않습니다.") @Min(value = 0, message = "파일 크기가 올바르지 않습니다.") Long size,
 		boolean allowCreateDirectory,
 
 		/**
@@ -36,7 +36,7 @@ public record IsoUploadIntentRequest(
 		 * server 는 단계 B (업로드 후) 에서 정식 SHA-256 재계산 후 본 값과 비교 → 불일치 시
 		 * {@code IsoClientHashMismatchException} fail-fast (변조 / corruption 방어).
 		 */
-		@Pattern(regexp = "^[0-9a-f]{64}$", message = "clientHash 는 64자 lowercase hex 여야 합니다.")
+		@Pattern(regexp = "^[0-9a-f]{64}$", message = "파일 해시 값의 형식이 올바르지 않습니다.")
 		String clientHash
 ) {
 

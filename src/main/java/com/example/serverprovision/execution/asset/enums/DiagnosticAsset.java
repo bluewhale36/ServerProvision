@@ -23,12 +23,12 @@ import java.nio.file.Path;
  */
 public enum DiagnosticAsset {
 
-    VMLINUZ  ("vmlinuz-lts",        MarkerLayout.SIDECAR, "커널 (vmlinuz-lts)",             Category.NETBOOT, "Alpine 버전 업그레이드 시", true),
-    INITRAMFS("initramfs-lts",      MarkerLayout.SIDECAR, "초기 램디스크 (initramfs-lts)",  Category.NETBOOT, "Alpine 버전 업그레이드 시", true),
-    MODLOOP  ("modloop-lts",        MarkerLayout.SIDECAR, "커널 모듈 (modloop-lts)",        Category.NETBOOT, "Alpine 버전 업그레이드 시", true),
-    APKOVL   ("diag.apkovl.tar.gz", MarkerLayout.SIDECAR, "설정 가방 (diag.apkovl.tar.gz)", Category.CONFIG,  "부팅 구성 변경 시",       false),
-    REPO     ("repo",               MarkerLayout.IN_TREE, "부분 apk 저장소 (repo/)",         Category.CONFIG,  "패키지 구성 변경 시",       false),
-    AGENT    ("agent.sh",           MarkerLayout.SIDECAR, "진단 에이전트 (agent.sh)",        Category.AGENT,   "에이전트 수정 시",         true);
+    VMLINUZ  ("vmlinuz-lts",        MarkerLayout.SIDECAR, "커널",                          Category.NETBOOT, "Alpine 버전 업그레이드 시", true),
+    INITRAMFS("initramfs-lts",      MarkerLayout.SIDECAR, "초기 램디스크",                Category.NETBOOT, "Alpine 버전 업그레이드 시", true),
+    MODLOOP  ("modloop-lts",        MarkerLayout.SIDECAR, "커널 모듈",                    Category.NETBOOT, "Alpine 버전 업그레이드 시", true),
+    APKOVL   ("diag.apkovl.tar.gz", MarkerLayout.SIDECAR, "설정 가방",                    Category.CONFIG,  "부팅 구성 변경 시",       false),
+    REPO     ("repo",               MarkerLayout.IN_TREE, "부분 apk 저장소",              Category.CONFIG,  "패키지 구성 변경 시",       false),
+    AGENT    ("agent.sh",           MarkerLayout.SIDECAR, "진단 에이전트",                Category.AGENT,   "에이전트 수정 시",         true);
 
     private final String filename;
     private final MarkerLayout layout;

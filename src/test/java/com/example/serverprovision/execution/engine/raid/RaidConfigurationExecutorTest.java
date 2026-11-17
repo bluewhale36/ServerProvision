@@ -541,7 +541,7 @@ class RaidConfigurationExecutorTest {
             executor.onStepClosed(g, p, verifyStep(g));
 
             verify(raidLedger).failInstant(eq(g), eq(p), eq(ProvisioningPhaseStep.RAID_VERIFYING),
-                    eq(RaidLedger.RESULT_MISMATCH), contains("동결 계획"), any());
+                    eq(RaidLedger.RESULT_MISMATCH), contains("고정한 RAID 계획을 찾지 못했습니다"), any());
         }
 
         @Test

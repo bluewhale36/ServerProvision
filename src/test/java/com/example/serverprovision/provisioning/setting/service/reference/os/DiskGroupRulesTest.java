@@ -139,7 +139,7 @@ class DiskGroupRulesTest {
                 .isInstanceOf(InvalidDiskGroupException.class)
                 .hasMessageContaining("1번 묶음")
                 .hasMessageContaining("RAID5 를 만들 수 없는 카드입니다")
-                .hasMessageContaining("RAID0 · RAID1");
+                .hasMessageContaining("RAID0, RAID1");
     }
 
     // ==== 규칙 2 — 최소 디스크 수(카드 캐시 유무 반영) ======================================
@@ -176,7 +176,7 @@ class DiskGroupRulesTest {
 
         assertThatThrownBy(() -> DiskGroupRules.validate(List.of(rule(null, 0)), null))
                 .isInstanceOf(InvalidDiskGroupException.class)
-                .hasMessageContaining("RAID 없음 묶음도 디스크 개수는 1 이상");
+                .hasMessageContaining("RAID 미구성 묶음도 디스크 개수는 1 이상");
     }
 
     // ==== 규칙 4 — 동일 규칙 중복 ==============================================================
@@ -388,7 +388,7 @@ class DiskGroupRulesTest {
                 .doesNotThrowAnyException();
         assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 6, 4)), AVAGO_9361))
                 .isInstanceOf(InvalidDiskGroupException.class)
-                .hasMessageContaining("1번 묶음: RAID10 을 스팬당 4대로 만들려면 8~32대 · 4대 단위여야 합니다");
+                .hasMessageContaining("1번 묶음: RAID10 을 스팬당 4대로 만들려면 8~32대, 4대 단위여야 합니다");
         assertThatCode(() -> DiskGroupRules.validate(List.of(spanRule(RaidLevel.RAID10, DiskCountMode.EXACT, 8, 4)), AVAGO_9361))
                 .doesNotThrowAnyException();
     }
@@ -441,7 +441,7 @@ class DiskGroupRulesTest {
             assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(level, DiskCountMode.EXACT, 8, null)), AVAGO_9361))
                     .isInstanceOf(InvalidDiskGroupException.class)
                     .hasMessageContaining("1번 묶음: 세팅 정의서에서는 " + level.getDisplayName() + " 을 구성할 수 없습니다")
-                    .hasMessageContaining("RAID0 · RAID1 · RAID5 · RAID6 · RAID10 중에서 고르십시오");
+                    .hasMessageContaining("RAID0, RAID1, RAID5, RAID6, RAID10 중에서 골라야 합니다");
             assertThatThrownBy(() -> DiskGroupRules.validate(List.of(spanRule(level, DiskCountMode.EXACT, 8, null)), null))
                     .isInstanceOf(InvalidDiskGroupException.class);
         }

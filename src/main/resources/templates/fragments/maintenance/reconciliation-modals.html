@@ -22,7 +22,7 @@
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
             <h2 class="cm-title" data-modal-title>드리프트 해결</h2>
-            <p class="cm-message-tight" data-modal-message>이 드리프트를 해결할까요?</p>
+            <p class="cm-message-tight" data-modal-message>이 드리프트를 해결하시겠습니까?</p>
             <p class="cm-message-hint" data-modal-note></p>
             <div class="cm-actions">
                 <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
@@ -82,12 +82,11 @@
                  되어 이후 점검에서 영영 잡히지 않는다. 자원명 확인은 실수로 누르지 못하게 하는
                  장치인데, 왜 신중해야 하는지를 그 자리에서 말하지 않으면 타이핑이 요식이 된다. */-->
             <div class="cm-warn-box">
-                <strong class="cm-warn-title">의도한 교체가 아니라면 원본을 다시 업로드하세요.</strong>
+                <strong class="cm-warn-title">의도한 교체가 아니라면 원본을 다시 업로드해야 합니다.</strong>
                 <p class="cm-warn-desc">
-                    재업로드는 검증을 다시 통과하므로 안전합니다. 수용은 <strong>변조된 내용도 정본으로
-                    굳히며</strong>, 그 뒤로는 이 자원에서 같은 변조가 감지되지 않습니다.
+                    수용하면 <strong>변조된 내용도 정본이 되며</strong>, 이후 이 자원에서 같은 변조를 감지하지 않습니다.
                 </p>
-                <p class="cm-warn-desc">의도한 교체가 확실할 때만 진행하세요 — 감사 기록에 남습니다.</p>
+                <p class="cm-warn-desc">의도한 교체가 확실할 때만 진행해야 합니다. 감사 기록에 남습니다.</p>
             </div>
 
             <div class="cm-typed-wrap">
@@ -115,7 +114,7 @@
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
             <h2 th:id="${prefix} + 'Title'" class="cm-title">확인</h2>
-            <p th:id="${prefix} + 'Message'" class="cm-message">계속할까요?</p>
+            <p th:id="${prefix} + 'Message'" class="cm-message">계속하시겠습니까?</p>
             <div class="cm-actions">
                 <button type="button" th:id="${prefix} + 'CancelBtn'"
                         class="n-btn n-btn-secondary">취소
@@ -139,12 +138,12 @@
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
             <h2 id="dupResolveTitle" class="cm-title">자원 중복 해결</h2>
-            <p id="dupResolveMessage" class="cm-message cm-message-tight">남길 위치를 선택하세요 — 선택하지 않은 쪽 파일은 삭제됩니다.</p>
+            <p id="dupResolveMessage" class="cm-message cm-message-tight">남길 위치를 선택해야 합니다. 선택하지 않은 쪽 파일은 삭제됩니다.</p>
             <div class="cm-cascade-wrap">
                 <label class="cm-cascade-option">
                     <input type="radio" name="dupResolveSurvivor" value="ORIGINAL" checked>
                     <span>
-                        <span class="cm-cascade-option-title">원본 유지 (DB 기록 경로)</span>
+                        <span class="cm-cascade-option-title">원본 유지(DB 기록 경로)</span>
                         <span class="cm-cascade-option-desc"><code id="dupResolveOriginalPath"></code></span>
                         <span class="cm-cascade-option-desc">복제본 파일을 삭제합니다. 등록 정보(DB)는 그대로 둡니다.</span>
                     </span>

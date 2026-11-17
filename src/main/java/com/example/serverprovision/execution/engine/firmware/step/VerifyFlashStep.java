@@ -59,7 +59,7 @@ public class VerifyFlashStep implements FlashStep {
             if (actual.isEmpty() || !FlashAxisStep.sameVersion(actual.get(), expected)) {
                 context.progress().positionAt(axis.getStep(), context.now());
                 ledger.failAxis(context.server(), context.progress(), axis, FlashLedger.VERIFY_MISMATCH,
-                        "목표 " + expected + " · 확인 " + actual.orElse("읽지 못함"), context.now());
+                        "구운 뒤 다시 읽은 버전이 목표와 다릅니다(목표 " + expected + ", 읽은 값 " + actual.orElse("읽지 못함") + ").", context.now());
                 return;
             }
         }

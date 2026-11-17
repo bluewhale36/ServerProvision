@@ -25,7 +25,8 @@ import java.util.List;
  * 의도치 않은 재노출을 부를 수 있기 때문.</p>
  */
 @Entity
-@Table(name = "os_metadata")
+@Table(name = "os_metadata",
+		uniqueConstraints = @UniqueConstraint(name = "uk_os_metadata_name_version", columnNames = {"os_name", "os_version"}))   // HF30-1 — 휴지통 행도 정체를 점유
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SuperBuilder

@@ -9,7 +9,7 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class DirectoryMissingException extends ConflictException {
 
 	public DirectoryMissingException(String parentPath) {
-		super("상위 디렉토리가 존재하지 않습니다 : " + parentPath
-					  + " · '디렉토리 생성 허용' 옵션을 체크하면 자동으로 생성됩니다.");
+		super("상위 디렉토리가 없습니다: " + parentPath
+					  + ". '상위 디렉토리 생성 허용'을 선택하면 함께 만듭니다.");
 	}
 }

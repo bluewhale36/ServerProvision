@@ -33,20 +33,17 @@
     <div class="n-page-header">
         <h1 class="n-page-title">휴지통</h1>
         <div class="n-header-actions">
-            <span class="n-hint trash-header-hint">soft-delete 자원이 격리되며, 30일 후 자동 영구삭제됩니다. 자원별로 보존기간을 연장할 수 있습니다.</span>
             <!-- S5-2-4 — 운영 설정 / 감사 로그 페이지 진입점. S5-5 — 이모지 제거. -->
             <a th:href="@{/maintenance/trash/settings}"
-               class="n-btn n-btn-secondary n-btn-sm"
-               title="휴지통 운영 설정 (TTL · cron · 알림 채널 · retry 정책)">운영 설정</a>
+               class="n-btn n-btn-secondary n-btn-sm">운영 설정</a>
             <a th:href="@{/maintenance/trash/purge-log}"
-               class="n-btn n-btn-secondary n-btn-sm"
-               title="영구삭제 감사 로그 — 자원별 시간순 이력">감사 로그</a>
+               class="n-btn n-btn-secondary n-btn-sm">감사 로그</a>
         </div>
     </div>
 
     <!--/* 빈 상태 */-->
     <th:block th:if="${#lists.isEmpty(trashItems)}">
-        <div th:replace="~{fragments/ui/empty :: state(title='휴지통이 비어있습니다.', desc='soft-delete 한 자원이 여기에 보관됩니다.')}"></div>
+        <div th:replace="~{fragments/ui/empty :: state(title='휴지통이 비어 있습니다.', desc=null)}"></div>
     </th:block>
 
     <!--/* 자원 목록 */-->
@@ -58,8 +55,8 @@
             <th>자원 이름</th>
             <th>원래 경로</th>
             <th>휴지통 이동 시각</th>
-            <th>잔여 TTL</th>
-            <th>액션</th>
+            <th>보존 만료 시각</th>
+            <th>처리</th>
         </tr>
         </thead>
         <tbody>
@@ -69,10 +66,9 @@
                휴지통에서 들어갔는데 점검 목록으로 나오던 것이 그 때문이었다.
                키는 이 목록의 좌표계다. 자원 종류와 번호의 조합이 행을 유일하게 짚는다. */-->
         <tr th:each="item : ${trashItems}"
-            th:data-nav-key="|${item.resourceType}#${item.resourceId}|"
-            th:classappend="${item.ttlWarning} ? 'n-row-warning' : ''">
+            th:data-nav-key="|${item.resourceType}#${item.resourceId}|">
             <td>
-                <span class="n-badge n-badge-gray" th:text="${item.resourceType}"></span>
+                <span class="n-badge n-badge-gray" th:text="${item.resourceType.displayName}"></span>
                 <!--/* MK4-5-1 — 복원이 막힌 행은 왼쪽에서 바로 보인다. 라벨 · 색 · 안내 문구를
                        RestoreBlockReason 이 함께 들고 있어 여기에 사유별 분기도 문구도 없다.
                        종전에는 유령 기록만 배지가 있었고 그 색이 인라인 스타일이었다. */-->
@@ -84,9 +80,8 @@
                        점검이 아직 못 본 상태는 그 사실을 그대로 말한다. */-->
                 <a th:if="${item.hasDriftLink()}"
                    th:href="@{/maintenance/reconciliation/drifts/{id}(id=${item.driftId})}"
-                   class="trash-block-link"
-                   th:title="|${item.displayName} 의 '${item.restoreBlock.label}' 문제로 이동합니다|">자세히 보기</a>
-                <span th:if="${item.awaitingScan()}" class="trash-block-hint">다음 점검에서 확인됩니다</span>
+                   class="trash-block-link">자세히 보기</a>
+                <span th:if="${item.awaitingScan()}" class="trash-block-hint">다음 점검에서 확인 예정</span>
             </td>
             <td th:text="${item.resourceId}"></td>
             <td>
@@ -94,11 +89,11 @@
                 <div th:if="${item.parentResourceId != null}" class="trash-parent-line">
                     <span class="trash-parent-arrow">↳</span>
                     <span class="trash-parent-label">
-                        <span th:text="${item.parentResourceType}"
+                        <span th:text="${item.parentResourceType.displayName}"
                               class="n-badge n-badge-gray trash-parent-badge"></span>
                         <code class="trash-parent-name" th:text="${item.parentDisplayName}"></code>
                         <span th:if="${item.parentDeleted}" class="n-badge trash-parent-deleted"
-                              title="부모 자원이 삭제 상태입니다. 자식만 단독 복구할 수 없으니 부모부터 복구해 주세요.">부모 삭제 상태</span>
+                              title="부모 자원이 삭제 상태입니다. 부모부터 복구해야 합니다.">부모 삭제 상태</span>
                     </span>
                 </div>
                 <code class="trash-resource-name"
@@ -111,13 +106,13 @@
             <td>
                 <span th:if="${item.trashedAt != null}"
                       th:text="${#temporals.format(item.trashedAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
-                <span th:if="${item.trashedAt == null}" class="trash-empty-value">—</span>
+                <span th:if="${item.trashedAt == null}" class="trash-empty-value">-</span>
             </td>
             <td>
                 <span th:if="${item.expiresAt != null}"
                       th:text="${#temporals.format(item.expiresAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
-                <span th:if="${item.expiresAt == null}" class="trash-empty-value">—</span>
-                <strong th:if="${item.ttlWarning}" class="trash-expiry-warning">곧 영구삭제</strong>
+                <span th:if="${item.expiresAt == null}" class="trash-empty-value">-</span>
+                <strong th:if="${item.ttlWarning}" class="trash-expiry-warning">곧 영구 삭제</strong>
             </td>
             <td class="trash-action-cell">
                 <div class="trash-action-group">
@@ -127,8 +122,8 @@
                           th:action="@{/maintenance/trash/{rt}/{rid}/clear-ghost(rt=${item.resourceType}, rid=${item.resourceId})}"
                           method="post"
                           data-confirm-soft-delete=""
-                          th:data-resource-label="|${item.resourceType} #${item.resourceId} (ghost row)|"
-                          data-resource-extra="복구 가능한 자원이 없으므로 안전한 작업이에요.">
+                          th:data-resource-label="|${item.resourceType.displayName} #${item.resourceId} 유령 기록|"
+                          data-resource-extra="복구할 파일이 없는 기록만 지웁니다.">
                         <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger">정리</button>
                     </form>
 
@@ -138,7 +133,7 @@
                               method="post"
                               data-confirm-restore=""
                               th:data-resource-label="${item.displayName}"
-                              th:data-resource-extra="${item.resourceType.metadata} ? null : '원래 경로로 복원돼요.'"
+                              th:data-resource-extra="${item.resourceType.metadata} ? null : '원래 경로로 복구합니다.'"
                               th:attr="data-cascade-true-title=${item.childPreview != null ? '하위 자원도 함께 복구' : null},
                                    data-cascade-true-desc=${item.childPreview}">
                             <!-- MK4-5-1 — 차단 사유가 셋으로 늘었고, 판정과 문구를 모두
@@ -150,7 +145,7 @@
                                   data-tooltip-align="right"
                                   th:attr="data-tooltip=${item.restoreBlocked()} ? ${item.restoreBlock.guidance} : null">
                             <button type="submit" class="n-btn n-btn-sm n-btn-primary"
-                                    th:disabled="${item.restoreBlocked()}">복원</button>
+                                    th:disabled="${item.restoreBlocked()}">복구</button>
                         </span>
                         </form>
                         <!-- HF4-1 — 연장 전용 modal 마커(data-confirm-extend) + step 라벨 동적화. -->
@@ -161,12 +156,12 @@
                               data-confirm-extend=""
                               th:data-resource-type="${item.resourceType}"
                               th:data-resource-id="${item.resourceId}"
-                              th:data-resource-label="|${item.displayName} 의 보존기간|"
+                              th:data-resource-label="|${item.displayName} 의 보존 기간|"
                               th:data-extend-step-days="${item.extendStepDays}"
-                              data-resource-extra="만료일 기준으로 가산돼요.">
+                              data-resource-extra="만료일에 더합니다.">
                             <span class="n-btn-tooltip-wrap"
                                   data-tooltip-align="right"
-                                  th:attr="data-tooltip=${!item.ttlExtendable} ? '이 자원 종류는 보존기간 연장을 지원하지 않아요.' : null">
+                                  th:attr="data-tooltip=${!item.ttlExtendable} ? '이 자원 종류는 보존 기간을 연장할 수 없습니다.' : null">
                             <button type="submit" class="n-btn n-btn-sm n-btn-outline"
                                     th:disabled="${!item.ttlExtendable}"
                                     th:text="|+${item.extendStepDays}일 연장|">+30일 연장</button>
@@ -179,13 +174,13 @@
                               th:data-resource-type="${item.resourceType}"
                               th:data-resource-id="${item.resourceId}"
                               th:data-resource-label="${item.displayName}"
-                              data-resource-extra="휴지통에서 제거되며 복구 불가능해요.">
+                              data-resource-extra="휴지통에서 제거되며 복구할 수 없습니다.">
                             <!--/* HF26 — 참조가 남은 메인보드는 영구삭제를 먼저 막는다. 사유는 서버 가드와 같은 문자열(BoardModelPurgeGuard). */-->
                             <span class="n-btn-tooltip-wrap"
                                   data-tooltip-align="right"
                                   th:attr="data-tooltip=${item.purgeBlocked} ? ${item.purgeBlockReason} : null">
                             <button type="submit" class="n-btn n-btn-sm n-btn-outline-danger"
-                                    th:disabled="${item.purgeBlocked}">영구삭제</button>
+                                    th:disabled="${item.purgeBlocked}">영구 삭제</button>
                             </span>
                         </form>
                     </th:block>

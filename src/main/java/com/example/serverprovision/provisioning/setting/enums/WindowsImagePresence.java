@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 public enum WindowsImagePresence {
 
     MATCHED("설치 소스 일치", "n-badge-green"),
-    NOT_IN_SOURCE("설치 소스에 없음", "n-badge-orange"),
+    NOT_IN_SOURCE("설치 소스 누락", "n-badge-orange"),
     SOURCE_NOT_READY("설치 소스 미준비", "n-badge-gray"),
     /** 구 저장본(식별 전용 → WINDOWS 치환) — 이미지가 없다. 정의서를 수정해 고르면 해소된다. */
     UNSPECIFIED("설치 이미지 미지정", "n-badge-orange");

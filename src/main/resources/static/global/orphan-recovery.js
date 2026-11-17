@@ -29,6 +29,12 @@
             .then(body => ({ok: resp.ok, status: resp.status, body: body}));
     }
 
+    // 통신 자체가 실패하면 브라우저의 영문 원문(TypeError) 대신 사람 말로 보인다(S22-4).
+    function reasonOf(err) {
+        if (err instanceof TypeError) return '서버와 통신할 수 없습니다.';
+        return (err && err.message) || '요청을 처리하지 못했습니다.';
+    }
+
     function open(recoveryId, options) {
         options = options || {};
         const prefix = options.prefix || 'orphan';
@@ -47,7 +53,7 @@
                     // 404 = 이미 해소(복구/폐기)됐거나 TTL reaper 가 정리한 경우.
                     const msg = status === 404
                         ? '이미 처리되었거나 만료된 격리 항목입니다.'
-                        : (body && body.message) || ('격리 정보를 불러오지 못했습니다 (HTTP ' + status + ')');
+                        : (body && body.message) || '격리 정보를 불러오지 못했습니다.';
                     if (options.onError) options.onError(msg);
                     else UiUtil.toast(msg, 'error');
                     return;
@@ -55,7 +61,7 @@
                 render(prefix, modal, recoveryId, body, options);
             })
             .catch(err => {
-                const msg = '격리 정보를 불러오지 못했습니다: ' + (err.message || err);
+                const msg = '격리 정보를 불러오지 못했습니다: ' + reasonOf(err);
                 if (options.onError) options.onError(msg);
                 else UiUtil.toast(msg, 'error');
             });
@@ -63,7 +69,7 @@
 
     function render(prefix, modal, recoveryId, data, options) {
         const expectedName = data.originalFilename || '';
-        setText(el(prefix, 'Filename'), expectedName || '(이름 없음)');
+        setText(el(prefix, 'Filename'), expectedName || '-');
         setText(el(prefix, 'Path'), data.resolvedPath || '');
         setText(el(prefix, 'Reason'), data.failureReason || '알 수 없는 오류');
 
@@ -111,7 +117,7 @@
                 {method: 'POST', headers: {'Accept': 'application/json'}})
                 .then(readResponse)
                 .then(({ok, status, body}) => {
-                    if (!ok) throw new Error((body && body.message) || ('HTTP ' + status));
+                    if (!ok) throw new Error((body && body.message) || '요청을 처리하지 못했습니다.');
                     close();
                     UiUtil.toast('등록을 다시 시작했습니다.', 'info');
                     if (options.afterRetry) options.afterRetry(body);
@@ -119,7 +125,7 @@
                 })
                 .catch(err => {
                     lockButtons(false);
-                    UiUtil.toast('재시도 실패: ' + (err.message || err), 'error');
+                    UiUtil.toast('재시도 실패: ' + reasonOf(err), 'error');
                 });
         };
 
@@ -142,14 +148,14 @@
             fetch(url, {method: 'POST', headers: {'Accept': 'application/json'}})
                 .then(readResponse)
                 .then(({ok, status, body}) => {
-                    if (!ok) throw new Error((body && body.message) || ('HTTP ' + status));
+                    if (!ok) throw new Error((body && body.message) || '요청을 처리하지 못했습니다.');
                     close();
                     UiUtil.toast('격리된 파일을 폐기했습니다.', 'success');
                     if (options.afterDiscard) options.afterDiscard();
                 })
                 .catch(err => {
                     lockButtons(false);
-                    UiUtil.toast('폐기 실패: ' + (err.message || err), 'error');
+                    UiUtil.toast('폐기 실패: ' + reasonOf(err), 'error');
                 });
         };
 

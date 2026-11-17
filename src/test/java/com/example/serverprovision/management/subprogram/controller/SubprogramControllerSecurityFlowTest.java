@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.subprogram.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.security.exception.EntrypointInvalidException;
 import com.example.serverprovision.global.security.exception.PathOutsideAllowedRootsException;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
@@ -50,6 +51,7 @@ class SubprogramControllerSecurityFlowTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper om;
 
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
     @MockitoBean SubprogramService subprogramService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService subprogramLifecycleService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramIntegrityService subprogramIntegrityService;
@@ -94,7 +96,7 @@ class SubprogramControllerSecurityFlowTest {
     void edit_entrypointTraversal_400() throws Exception {
         // findSubprogram 은 binding 실패 분기에서만 호출되므로 잡지 않아도 무방하지만, 안전하게 stub 한다.
         given(subprogramService.findSubprogram(anyLong())).willReturn(stubResponse());
-        willThrow(new EntrypointInvalidException(".. 시그먼트 금지"))
+        willThrow(new EntrypointInvalidException("상위 경로(..) 금지"))
                 .given(subprogramService).update(eq(7L), any());
 
         // SubprogramUpdateRequest : name, version, description, entrypointRelativePath

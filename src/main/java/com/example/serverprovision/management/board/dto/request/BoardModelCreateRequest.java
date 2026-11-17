@@ -10,14 +10,14 @@ import jakarta.validation.constraints.Size;
  * 일부 제조사는 서버 모델명을 기준으로 기재할 수 있으므로 {@code modelName} 은 자유 문자열로 둔다.
  */
 public record BoardModelCreateRequest(
-		@NotNull(message = "제조사를 선택하세요.")
+		@NotNull(message = "제조사를 선택해야 합니다.")
 		Vendor vendor,
 
-		@NotBlank(message = "모델명을 입력하세요.")
-		@Size(max = 128, message = "모델명은 128자 이하로 입력해주세요.")
+		@NotBlank(message = "모델명을 입력해야 합니다.")
+		@Size(max = 128, message = "모델명은 128자 이하로 입력해야 합니다.")
 		String modelName,
 
-		@Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")
+		@Size(max = 1024, message = "설명은 1024자 이하로 입력해야 합니다.")
 		String description
 ) {
 

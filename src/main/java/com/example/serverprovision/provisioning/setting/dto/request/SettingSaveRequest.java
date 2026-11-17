@@ -19,7 +19,7 @@ import java.util.Objects;
 public record SettingSaveRequest(
 
         @NotBlank(message = "정의서 명칭은 필수 입력값입니다.")
-        @Size(max = 128, message = "정의서 명칭은 128자 이하로 입력해주세요.")
+        @Size(max = 128, message = "정의서 명칭은 128자 이하로 입력해야 합니다.")
         String name,
 
         /**
@@ -122,7 +122,7 @@ public record SettingSaveRequest(
      * RAID 구성 단계 혼자서는 OS 설치 단계의 유무를 모르므로 단계 간 정합인 여기서 본다(위 셋과 같은 층).
      * 폼은 OS 설치 카드가 있을 때 우선순위 표 아래 안내와 제출 차단으로 먼저 막는다 — 여기는 direct POST 안전망.
      */
-    @AssertTrue(message = "OS 설치 단계가 있으면 OS 영역이 될 수 있는 묶음(OS 고정 또는 우선순위에 따름 + 우선순위 행)이 있어야 합니다.")
+    @AssertTrue(message = "OS 설치 단계가 있으면 OS 영역이 될 수 있는 묶음(OS 영역 고정, 또는 우선순위에 따름과 우선순위 행)이 있어야 합니다.")
     public boolean isOsVolumeDeterminable() {
         if (processList == null) {
             return true;
@@ -143,7 +143,7 @@ public record SettingSaveRequest(
      * 최종 검사), grow 파티션이 있으면 고정 합이 하한보다 작아야 grow 가 자리를 갖는다. RAID 메타 · 파일시스템 오버헤드는
      * 계산하지 않는 1 차 관문이다. 폼은 안내 줄에 하한과 합을 실시간으로 보이고 초과 시 제출을 막는다.
      */
-    @AssertTrue(message = "OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다 — RAID 구성 묶음의 용량 · 개수와 파티션 크기를 맞추세요.")
+    @AssertTrue(message = "OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다. RAID 구성 묶음의 용량, 개수와 파티션 크기를 맞춰야 합니다.")
     public boolean isPartitionsWithinOsVolume() {
         if (processList == null) {
             return true;

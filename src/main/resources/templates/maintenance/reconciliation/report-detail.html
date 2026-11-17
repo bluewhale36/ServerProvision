@@ -35,7 +35,6 @@
     <section class="n-card n-glist">
         <div class="n-glist-head">
             <strong class="n-glist-title">이 점검이 한 일</strong>
-            <span class="n-glist-hint">회차가 남긴 사실이며 이후의 설정 변경에 영향받지 않습니다</span>
         </div>
 
         <div class="n-glist-panel">
@@ -51,8 +50,8 @@
                             <span th:text="${report.deep} ? '정밀 점검' : '일반 점검'"></span>
                             <div class="n-text-muted"
                                  th:text="${report.deep}
-                                          ? '마커와 위치에 더해 파일 내용의 지문까지 다시 계산했습니다.'
-                                          : '마커와 위치를 확인했습니다. 파일 내용은 다시 계산하지 않았습니다.'"></div>
+                                          ? '마커, 위치, 파일 내용을 확인했습니다.'
+                                          : '마커와 위치를 확인했습니다. 파일 내용은 확인하지 않았습니다.'"></div>
                         </dd>
                     </div>
                     <!--/* MK4-4-2 — 세 모집단. 각각을 밝혀야 탐지 건수와의 관계가 성립한다. */-->
@@ -61,7 +60,7 @@
                         <dd>
                             <span th:text="|모두 ${report.population.total()} 건|">16 건</span>
                             <div class="n-text-muted"
-                                 th:text="|활성 자원 ${report.population.activeCount} · 삭제 상태 자원 ${report.population.deletedCount} · 데이터베이스에 짝이 없는 마커 ${report.population.unmatchedMarkerCount}|"></div>
+                                 th:text="|활성 자원 ${report.population.activeCount}, 삭제 상태 자원 ${report.population.deletedCount}, DB에 짝이 없는 마커 ${report.population.unmatchedMarkerCount}|"></div>
                         </dd>
                     </div>
                     <div class="n-accordion-field">
@@ -70,7 +69,6 @@
                             <span class="n-badge"
                                   th:classappend="${report.detectedDriftCount > 0} ? 'n-badge-yellow' : 'n-badge-gray'"
                                   th:text="|${report.detectedDriftCount} 건|">0 건</span>
-                            <div class="n-text-muted">이 회차에 보인 드리프트의 수입니다 — 이후 해결해도 줄지 않습니다.</div>
                         </dd>
                     </div>
                     <div class="n-accordion-field">
@@ -82,7 +80,7 @@
                         <dt>점검한 디렉토리</dt>
                         <dd>
                             <span th:if="${report.scanScopeUnknown()}" class="n-text-muted">
-                                기록이 없습니다 — 점검 범위를 남기기 시작한 것보다 앞선 회차입니다.
+                                기록이 없습니다.
                             </span>
                             <ul th:unless="${report.scanScopeUnknown()}" class="n-path-list">
                                 <li th:each="root : ${report.scannedRoots}">
@@ -92,11 +90,11 @@
                         </dd>
                     </div>
                     <div class="n-accordion-field" th:if="${not #lists.isEmpty(report.failedScanRoots)}">
-                        <dt>뒤지지 못한 디렉토리</dt>
+                        <dt>열지 못한 디렉토리</dt>
                         <dd>
                             <div class="n-banner n-banner-warn">
-                                일부 경로를 열지 못해 이 회차는 <strong>부분 결과</strong>입니다 —
-                                여기에 있던 자원의 드리프트는 이번에 보이지 않았을 수 있습니다.
+                                일부 경로를 열지 못해 이 회차는 <strong>부분 결과</strong>입니다.
+                                이 경로에 있는 자원의 드리프트는 빠졌을 수 있습니다.
                             </div>
                             <ul class="n-path-list">
                                 <li th:each="failed : ${report.failedScanRoots}">
@@ -113,7 +111,6 @@
     <section class="n-card n-glist">
         <div class="n-glist-head">
             <strong class="n-glist-title">이 회차에서 나온 드리프트</strong>
-            <span class="n-glist-hint">급한 순 — 이미 해결된 것도 그때 보였던 사실로 남습니다</span>
             <span class="n-badge n-badge-gray" th:text="|${report.drifts.size()} 건|">4 건</span>
             <!--/* 후보 A 의 [전체 해결] — 대상은 이 회차에서 보인 것 중 지금 해결할 수 있는 것이다.
                  이미 닫힌 것과 시스템이 손댈 수 없는 종류는 대상에서 빠지므로 표의 건수와 다를 수 있고,
@@ -127,8 +124,8 @@
         <div class="n-glist-panel">
             <div th:replace="~{fragments/maintenance/reconciliation-parts
                                :: driftTable(${report.drifts},
-                                             '이 회차에서는 아무 드리프트도 나오지 않았습니다.',
-                                             '점검한 대상이 모두 등록 정보와 일치했습니다.')}"></div>
+                                             '이 회차에서는 드리프트가 나오지 않았습니다.',
+                                             null)}"></div>
         </div>
     </section>
 </div>

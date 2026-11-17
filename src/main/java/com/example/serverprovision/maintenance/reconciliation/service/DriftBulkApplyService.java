@@ -91,7 +91,7 @@ public class DriftBulkApplyService {
 				applied++;
 			} catch (RuntimeException e) {
 				log.warn("[reconciliation] 일괄 해결 중 1 건 실패 — driftId={}", driftId, e);
-				failures.add("#" + driftId + " — " + e.getMessage());
+				failures.add("#" + driftId + ": " + e.getMessage());
 			}
 		}
 		return new BulkApplyResponse(driftIds.size(), applied, List.copyOf(failures));

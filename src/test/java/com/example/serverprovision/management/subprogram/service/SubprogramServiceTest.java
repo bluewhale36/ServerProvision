@@ -246,7 +246,7 @@ class SubprogramServiceTest {
                 .name("n").version("v").treeRootPath("/p").manifestHash("h")
                 .fileCount(1).totalBytes(1L).isDeleted(false).build();
         given(subprogramRepository.findById(11L)).willReturn(Optional.of(sp));
-        org.mockito.Mockito.doThrow(new com.example.serverprovision.global.security.exception.EntrypointInvalidException(".. 시그먼트 금지"))
+        org.mockito.Mockito.doThrow(new com.example.serverprovision.global.security.exception.EntrypointInvalidException("상위 경로(..) 금지"))
                 .when(entrypointPolicyService).validateAndNormalize(any(), org.mockito.ArgumentMatchers.eq("../x.msi"));
 
         java.util.List<SubprogramVariantRules.Finding> findings = subprogramService.checkVariants(11L, java.util.List.of(
@@ -256,7 +256,7 @@ class SubprogramServiceTest {
         assertThat(findings).hasSize(1);
         assertThat(findings.getFirst().field()).isEqualTo("variants[1].entrypointRelativePath");
         assertThat(findings.getFirst().violation()).isEqualTo(SubprogramVariantRules.Violation.ENTRYPOINT_PATH);
-        assertThat(findings.getFirst().message()).contains("트리 안의 상대 경로").contains(".. 시그먼트 금지");
+        assertThat(findings.getFirst().message()).contains("저장 디렉토리 안의 상대 경로").contains("상위 경로(..) 금지");
 
         assertThatThrownBy(() -> subprogramService.update(11L, new SubprogramUpdateRequest("n", "v", "d", null, java.util.List.of(
                 new SubprogramVariantRequest("2022", "../x.msi", null, false)))))

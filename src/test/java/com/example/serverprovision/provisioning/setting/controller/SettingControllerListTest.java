@@ -239,7 +239,7 @@ class SettingControllerListTest {
         willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0)).given(queryService).search(any(), any());
         mvc.perform(get("/provisioning/setting").param("from", "2026-05-01").param("to", "2026-01-01"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("시작일이 종료일보다 늦습니다. 기간을 다시 고르십시오.")))
+                .andExpect(content().string(containsString("시작일이 종료일보다 늦습니다. 기간을 다시 골라야 합니다.")))
                 .andExpect(content().string(not(containsString("조건에 맞는 세팅 정의서가 없습니다."))));
     }
 

@@ -64,7 +64,7 @@ class TrashTtlExtensionServiceTest {
 		// supportsTrashTtlExtension default(false) — 별도 stub 없이 mock 기본값 그대로.
 		assertThatThrownBy(() -> service.extend(ResourceType.OS_IMAGE, 2L))
 				.isInstanceOf(TtlExtensionUnsupportedException.class)
-				.hasMessageContaining("보존기간 연장을 지원하지 않습니다");
+				.hasMessageContaining("보존 기간을 연장할 수 없습니다");
 
 		then(metaOperator).should(never()).extendTrashTtl(anyLong(), anyInt());
 	}

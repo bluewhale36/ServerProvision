@@ -16,61 +16,63 @@ public enum ProvisioningPhaseStep {
     /**
      * Provisioning Server 내 DHCP 에 의해 LAN, Mgmt LAN 이 주소를 할당받는 단계.
      */
-    NETWORK_ALLOCATING(ProvisioningPhase.BOOTSTRAPPING),
+    NETWORK_ALLOCATING(ProvisioningPhase.BOOTSTRAPPING, "네트워크 주소 할당"),
     /**
      * 감지된 게스트 서버가 DB 에 최초 등록되는 단계.
      */
-    INIT_PERSISTING(ProvisioningPhase.BOOTSTRAPPING),
+    INIT_PERSISTING(ProvisioningPhase.BOOTSTRAPPING, "최초 등록"),
 
     /**
      * 진단 리눅스가 게스트에서 실제 부팅되어 에이전트가 기동한 단계(E1-1) — "체인로드를 줬다"(서버 관점)와
      * "진짜 부팅됐다"(게스트 사실)를 원장에서 구분하는 부팅 마일스톤. agent.sh 가 체크인 직후 보고한다.
      */
-    DIAGNOSTIC_BOOTING(ProvisioningPhase.DIAGNOSE_LINUX),
+    DIAGNOSTIC_BOOTING(ProvisioningPhase.DIAGNOSE_LINUX, "진단 리눅스 부팅"),
     /**
      * {@code dmidecode} 등의 명령으로 메인보드 시리얼번호 등의 2차 정보를 수집하는 단계.
      */
-    INFORMATION_COLLECTING(ProvisioningPhase.DIAGNOSE_LINUX),
+    INFORMATION_COLLECTING(ProvisioningPhase.DIAGNOSE_LINUX, "정보 수집"),
     /**
      * 수집된 2차 정보를 DB 에 추가 등록하는 단계.
      */
-    INFORMATION_PERSISTING(ProvisioningPhase.DIAGNOSE_LINUX),
+    INFORMATION_PERSISTING(ProvisioningPhase.DIAGNOSE_LINUX, "정보 저장"),
     /**
      * 진단 중 BMC(IPMI) 측 설정 작업. 원 용도({@code ipmitool} 커스텀 정보 저장)는 DEC-11(2026-07-12)로
      * 보류됐고(소비자 없음 — 재진입 자동화 불성립 · 운영자 최종 점검 프로세스 존재), <b>E1.6 의 BMC 계정
      * 표준화가 첫 실소비자</b>다 — 최초 전환 성공과 운영자 개입 필요 실패를 instant 행으로 남긴다.
      * 원 용도가 재개되면 같은 step 아래 공존한다(원장 이력 호환 · DB ENUM 값 재사용으로 DDL 0).
      */
-    IPMI_SETTING(ProvisioningPhase.DIAGNOSE_LINUX),
+    IPMI_SETTING(ProvisioningPhase.DIAGNOSE_LINUX, "BMC 계정 설정"),
 
 
-    BIOS_UPDATING(ProvisioningPhase.FIRMWARE_UPDATING),
-    BMC_UPDATING(ProvisioningPhase.FIRMWARE_UPDATING),
+    BIOS_UPDATING(ProvisioningPhase.FIRMWARE_UPDATING, "BIOS 굽기"),
+    BMC_UPDATING(ProvisioningPhase.FIRMWARE_UPDATING, "BMC 굽기"),
 
-    BIOS_SETTING(ProvisioningPhase.FIRMWARE_SETTING),
-    BMC_SETTING(ProvisioningPhase.FIRMWARE_SETTING),
+    BIOS_SETTING(ProvisioningPhase.FIRMWARE_SETTING, "BIOS 설정"),
+    BMC_SETTING(ProvisioningPhase.FIRMWARE_SETTING, "BMC 설정"),
 
     /**
      * RAID 카드 · 물리 디스크 · 기존 볼륨 인벤토리 수집(E3.5-1) — phase 진입 step. 에이전트가 계열 CLI
      * 원문을 보고하고 서버가 파싱 · 카드 대조 · 적재한다. U4-1-1 v2 의 단일 {@code RAID_CONFIGURATION}
      * step 을 셋으로 분할하며 교체(0-3 결정 D-10 — 적재 행 0 확인 후 상수 제거, DDL 동반).
      */
-    RAID_INVENTORY_COLLECTING(ProvisioningPhase.RAID_CONFIGURATION),
+    RAID_INVENTORY_COLLECTING(ProvisioningPhase.RAID_CONFIGURATION, "RAID 정보 수집"),
     /** 계획(볼륨 생성 명령)의 집행 — E3.5-3 이 소비자. */
-    RAID_APPLYING(ProvisioningPhase.RAID_CONFIGURATION),
+    RAID_APPLYING(ProvisioningPhase.RAID_CONFIGURATION, "RAID 구성 적용"),
     /** 집행 결과를 계획과 대조 — E3.5-3 이 소비자. */
-    RAID_VERIFYING(ProvisioningPhase.RAID_CONFIGURATION),
+    RAID_VERIFYING(ProvisioningPhase.RAID_CONFIGURATION, "RAID 구성 확인"),
 
-    OS_INSTALLING(ProvisioningPhase.OS_INSTALLING),
+    OS_INSTALLING(ProvisioningPhase.OS_INSTALLING, "OS 설치"),
 
-    OS_SETTING(ProvisioningPhase.OS_SETTING),
+    OS_SETTING(ProvisioningPhase.OS_SETTING, "OS 설정"),
 
     /**
      * 기본 세팅이 완료된 게스트 서버를 테스트 하는 단계.
      */
-    TESTING(ProvisioningPhase.TESTING);
+    TESTING(ProvisioningPhase.TESTING, "테스트");
 
     private final ProvisioningPhase phaseType;
+    /** 화면에 보이는 세부 단계 이름(S22-3) — 원장 · 실패 행 · 레일이 상수 원문 대신 이 이름을 쓴다. */
+    private final String description;
 
     /**
      * phase 의 진입 step — 선언 순서상 그 phase 의 첫 상수(ES-2 D-1). phase 완주 후 커서를 다음 보유

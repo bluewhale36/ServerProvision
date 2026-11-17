@@ -3,22 +3,13 @@ package com.example.serverprovision.management.raidcard.service;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
-import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
-import com.example.serverprovision.management.common.nudge.NudgeRegistry;
-import com.example.serverprovision.management.common.nudge.NudgeResourceType;
-import com.example.serverprovision.management.common.nudge.NudgeSession;
-import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
-import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.raidcard.dto.request.RaidCardCreateRequest;
 import com.example.serverprovision.management.raidcard.dto.request.RaidCardUpdateRequest;
 import com.example.serverprovision.management.raidcard.dto.response.RaidCardResponse;
 import com.example.serverprovision.management.raidcard.dto.response.RaidCardVendorGroupResponse;
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
-import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import com.example.serverprovision.management.raidcard.exception.DuplicateRaidCardException;
-import com.example.serverprovision.management.raidcard.exception.IllegalRaidCardStateException;
-import com.example.serverprovision.management.raidcard.exception.RaidCardNudgeRequiredException;
 import com.example.serverprovision.management.raidcard.repository.RaidCardRepository;
 import com.example.serverprovision.management.raidcard.vo.CacheCapacity;
 import com.example.serverprovision.management.raidcard.vo.PciSubsystemId;
@@ -29,23 +20,21 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * RAID 카드 메타 CRUD · 조회 + nudge confirm 의 실제 자원 생성 · 교체 (MA7).
+ * RAID 카드 메타 CRUD · 조회 (MA7).
  *
  * <ul>
  *   <li>findById / findAllGrouped — 조회. 응답은 지원 RAID 레벨을 동봉한다(D6 — U4-1-1 의
  *       정의서 작성 폼이 목록 조회만으로 disabled 판정을 만들 수 있어야 한다).</li>
- *   <li>create / update — 메타 쓰기. create 는 충돌 시 nudge 세션 발급.</li>
- *   <li>completePendingCardFromNudge / purgeCardForNudge — nudge confirm 의 실제 생성 · 교체.
- *       {@code RaidCardNudgeService} 가 세션 orchestration 후 본 서비스로 위임(단방향 의존).</li>
+ *   <li>create / update — 메타 쓰기. 같은 (제조사, 모델명) 이 어느 상태로든 있으면 거절하고 상태별 다음 행동을 안내한다
+ *       (HF30-1 — 메인보드 HF26 과 같은 규칙. 종전 중복 확인 창은 Deprecated 카드 옆에 같은 이름의 카드를 하나 더 만들었다).</li>
  * </ul>
  *
  * <p>lifecycle 상태 전이는 {@code RaidCardLifecycleService}. 본 서비스는 다른 raidcard service 에
@@ -57,17 +46,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class RaidCardMetadataService {
 
-	// nudge payload attributes 의 키 어휘 — completePendingCardFromNudge 와 buildNudgePayload 가 공유.
-	private static final String ATTR_VENDOR = "vendor";
-	private static final String ATTR_MODEL_NAME = "modelName";
-	private static final String ATTR_LEVELS = "supportedRaidLevels";
-	private static final String ATTR_CACHE_GB = "cacheCapacityGb";
-	private static final String ATTR_CHIP_FAMILY = "chipFamily";
-	private static final String ATTR_PCI = "pciSubsystemId";
-	private static final String ATTR_DESCRIPTION = "description";
-
 	private final RaidCardRepository raidCardRepository;
-	private final NudgeRegistry nudgeRegistry;
 
 	// ==== 조회 ========================================================
 
@@ -101,20 +80,15 @@ public class RaidCardMetadataService {
 
 	// ==== 쓰기 연산 ====================================================
 
+	/**
+	 * 등록 — 같은 (제조사, 모델명) 이 활성 · Deprecated · 휴지통 어느 상태로든 있으면 거절하고 상태별 다음 행동을 안내한다(HF30-1).
+	 * DB UNIQUE({@code uk_raid_card_vendor_model_name})가 같은 규칙의 안전망이다.
+	 */
 	@Transactional
 	public Long create(RaidCardCreateRequest request) {
-		// 1) "살아 있는"(비삭제 · 비 Deprecated) 동일키 충돌 — fail-fast (D7 유일성 어휘).
-		if (raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-				request.vendor(), request.modelName())) {
-			throw new DuplicateRaidCardException(request.vendor(), request.modelName());
-		}
-
-		// 2) soft-deleted / deprecated 후보 → nudge 세션 발급 (MK2 선례).
-		List<RaidCard> candidates = collectMetaNudgeCandidates(request.vendor(), request.modelName());
-		if (!candidates.isEmpty()) {
-			throw new RaidCardNudgeRequiredException(buildNudgePayload(request, candidates));
-		}
-
+		findExisting(request.vendor(), request.modelName()).ifPresent(existing -> {
+			throw DuplicateRaidCardException.againstRegistration(existing);
+		});
 		return persistNewCard(
 				request.vendor(), request.modelName(),
 				SupportedRaidLevels.of(request.supportedRaidLevels()),
@@ -126,11 +100,12 @@ public class RaidCardMetadataService {
 	@Transactional
 	public void update(Long id, RaidCardUpdateRequest request) {
 		RaidCard card = RaidCardGuards.requireActiveCard(raidCardRepository, id);
-		// modelName 이 바뀔 때만 살아 있는 동일키 중복 재검증 (BoardModel 선례 + D7 어휘).
-		if (!card.getModelName().equals(request.modelName())
-				&& raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-						card.getVendor(), request.modelName())) {
-			throw new DuplicateRaidCardException(card.getVendor(), request.modelName());
+		// HF30-1 — 휴지통 · Deprecated 행도 정체를 점유한다(등록과 같은 규칙). 종전처럼 살아 있는 카드만 보면 휴지통 카드의 이름으로
+		// 바꿀 때 DB UNIQUE 에 걸려 500 이 된다. 정상 흐름에서는 수정 폼이 renameConflictReason 으로 먼저 칸 오류를 그리므로,
+		// 여기는 레이스 · direct POST 의 안전망이다(메인보드 HF26 CP5 D-2 와 같은 구조).
+		Optional<DuplicateRaidCardException> conflict = renameConflict(card, request.modelName());
+		if (conflict.isPresent()) {
+			throw conflict.get();
 		}
 		card.update(
 				request.modelName(),
@@ -140,105 +115,50 @@ public class RaidCardMetadataService {
 				request.description(),
 				parsePci(request.pciSubsystemId())
 		);
+		try {
+			// flush 로 UNIQUE 위반을 이 자리에서 드러낸다 — 커밋 시점까지 미루면 번역할 곳 없이 500 으로 샌다(HF30-1 CP5 B12).
+			raidCardRepository.flush();
+		} catch (DataIntegrityViolationException e) {
+			// 두 카드를 동시에 같은 새 이름으로 바꾼 경합 — 위 검사를 함께 통과한 뒤 DB UNIQUE 가 뒤늦은 쪽을 거절했다.
+			// 경합 상대는 방금 그 이름이 된 활성 카드라 활성 문구가 맞다.
+			log.info("[raidCard] 동시 이름 수정 경합 — DB 유일성 인덱스가 거절. id={}, modelName={}", id, request.modelName());
+			throw new DuplicateRaidCardException(card.getVendor(), request.modelName());
+		}
 	}
-
-	// ==== nudge confirm 위임 수신 ======================================
 
 	/**
-	 * PROCEED — 충돌 후보 보존, 신규 자원만 살아 있는 카드로 등록.
-	 * {@code RaidCardNudgeService.proceed / replace} 가 세션 orchestration 후 위임.
+	 * 이름 수정 폼의 사전 판정 — {@link #update} 의 서버 가드와 같은 판정을 칸 오류 문구로 돌려준다. 충돌이 없으면 {@code null}.
 	 */
-	@Transactional
-	public Long completePendingCardFromNudge(NudgeSession session) {
-		if (!(session.payload() instanceof IntentMetaNudgePayload payload)) {
-			throw new IllegalRaidCardStateException(
-					"RAID 카드 nudge 세션은 IntentMetaNudgePayload 만 허용합니다. nudgeId=" + session.nudgeId());
-		}
-		Map<String, String> attrs = payload.attributes();
-		RaidCardVendor vendor = RaidCardVendor.valueOf(attrs.get(ATTR_VENDOR));
-		String modelName = attrs.get(ATTR_MODEL_NAME);
-		// race — 다른 트랜잭션이 같은 메타로 살아 있는 자원을 만든 경우 (DB 유니크 인덱스가 최종 판정).
-		if (raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(vendor, modelName)) {
-			throw new DuplicateRaidCardException(vendor, modelName);
-		}
-		SupportedRaidLevels levels = SupportedRaidLevels.of(
-				Arrays.stream(attrs.get(ATTR_LEVELS).split(",")).map(RaidLevel::valueOf).toList());
-		String pci = attrs.get(ATTR_PCI);
-		return persistNewCard(vendor, modelName, levels,
-				CacheCapacity.ofGigabytes(Integer.parseInt(attrs.get(ATTR_CACHE_GB))),
-				RaidChipFamily.valueOf(attrs.get(ATTR_CHIP_FAMILY)),
-				(pci == null || pci.isBlank()) ? null : PciSubsystemId.parse(pci),
-				attrs.get(ATTR_DESCRIPTION));
-	}
-
-	@Transactional
-	public void purgeCardForNudge(RaidCard target) {
-		if (!target.isDeleted() && !target.isDeprecated()) {
-			throw new IllegalRaidCardStateException(
-					"살아 있는 자원은 nudge replace 대상이 될 수 없습니다. id=" + target.getId());
-		}
-		raidCardRepository.delete(target);
-		log.info(
-				"[raidCard] purge for nudge replace : id={}, vendor={}, modelName={}",
-				target.getId(), target.getVendor(), target.getModelName()
-		);
+	public String renameConflictReason(Long id, String newModelName) {
+		RaidCard card = RaidCardGuards.requireActiveCard(raidCardRepository, id);
+		return renameConflict(card, newModelName).map(DuplicateRaidCardException::getMessage).orElse(null);
 	}
 
 	// ==== 내부 헬퍼 ====================================================
 
-	private List<RaidCard> collectMetaNudgeCandidates(RaidCardVendor vendor, String modelName) {
-		List<RaidCard> softDeleted = raidCardRepository.findAllByVendorAndModelNameAndIsDeletedTrue(vendor, modelName);
-		List<RaidCard> deprecated = raidCardRepository.findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(vendor, modelName);
-		List<RaidCard> merged = new ArrayList<>(softDeleted.size() + deprecated.size());
-		merged.addAll(softDeleted);
-		merged.addAll(deprecated);
-		return merged;
-	}
-
-	private NudgeRequiredResponse buildNudgePayload(RaidCardCreateRequest request, List<RaidCard> candidates) {
-		NudgeSession session = nudgeRegistry.register(
-				NudgeResourceType.RAID_CARD,
-				null,
-				candidates.stream().map(RaidCard::getId).toList(),
-				new IntentMetaNudgePayload(
-						Map.of(
-								ATTR_VENDOR, request.vendor().name(),
-								ATTR_MODEL_NAME, request.modelName(),
-								ATTR_LEVELS, request.supportedRaidLevels().stream()
-										.map(Enum::name).collect(Collectors.joining(",")),
-								ATTR_CACHE_GB, String.valueOf(request.cacheCapacityGb()),
-								ATTR_CHIP_FAMILY, request.chipFamily().name(),
-								ATTR_PCI, request.pciSubsystemId() != null ? request.pciSubsystemId() : "",
-								ATTR_DESCRIPTION, request.description() != null ? request.description() : ""
-						)
-				)
-		);
-		// CP5 발견 — 공용 modal 이 (name, version) 을 "name version" 순으로 붙여 렌더하므로, 자원명 기준인
-		// displayName()("GIGABYTE CRA3338")과 같은 어순이 되도록 vendor 를 name 자리에 둔다. 역순으로 넘기면
-		// 모달만 "CRA3338 GIGABYTE" 가 되어, 영구삭제 자원명 입력 · 삭제 확인 · 휴지통 표기와 어긋난다.
-		List<NudgeConflictEntry> entries = candidates.stream()
-				.map(c -> new NudgeConflictEntry(
-						c.getId(),
-						LifecycleStage.of(c.isDeprecated(), c.isDeleted()),
-						null,
-						c.getVendor().getDisplayName(),
-						c.getModelName(),
-						Instant.now()
-				))
-				.toList();
-		log.info(
-				"[raidCard] nudge required : vendor={}, modelName={}, candidates={}",
-				request.vendor(), request.modelName(), candidates.size()
-		);
-		return NudgeRequiredResponse.of(session.nudgeId(), entries, session.expiresAt());
+	/** 이름을 바꿀 때만 같은 (제조사, 모델명) 을 찾는다 — 같은 이름 그대로면 충돌이 아니다. */
+	private Optional<DuplicateRaidCardException> renameConflict(RaidCard card, String newModelName) {
+		if (card.getModelName().equals(newModelName)) {
+			return Optional.empty();
+		}
+		return findExisting(card.getVendor(), newModelName).map(DuplicateRaidCardException::againstRename);
 	}
 
 	/**
-	 * 신규 카드 영속. 등록(create)과 nudge 확정(completePendingCardFromNudge) 두 경로가 공유한다.
+	 * 같은 (제조사, 모델명) 의 기존 행 — UNIQUE 이전의 옛 데이터에 같은 키가 여럿 남아 있으면 가장 살아 있는 상태
+	 * (활성 → Deprecated → 휴지통)를 기준으로 안내한다.
+	 */
+	private Optional<RaidCard> findExisting(RaidCardVendor vendor, String modelName) {
+		return raidCardRepository.findAllByVendorAndModelName(vendor, modelName).stream()
+				.min(Comparator.comparing(c -> LifecycleStage.of(c.isDeprecated(), c.isDeleted())));
+	}
+
+	/**
+	 * 신규 카드 영속.
 	 *
 	 * <p><b>CP5 발견 결함 수정</b> — 앞선 {@code existsBy...} 검사와 INSERT 사이에는 점검-사용 시점
 	 * 사이의 창(TOCTOU)이 있다. 등록 버튼을 빠르게 두 번 누르면 두 요청이 모두 검사를 통과한 뒤 뒤늦은
-	 * 쪽이 DB 유니크 인덱스({@code uk_raid_card_active_identity})에 걸리는데, 그때 발생하는
+	 * 쪽이 DB 유니크 인덱스(HF30-1 부터 {@code uk_raid_card_vendor_model_name})에 걸리는데, 그때 발생하는
 	 * {@link DataIntegrityViolationException} 은 도메인 예외가 아니라 advice 의 계층 탐색에 걸리지 않아
 	 * 처리되지 않은 500 으로 샜다(실측 : 동시 요청 2건 중 1건이 {@code http.request.unhandled}).
 	 * 전역 폼 가로채기가 승자의 리다이렉트를 렌더하므로 사용자 화면에는 성공으로 보이던, CLAUDE.md 가
@@ -268,7 +188,7 @@ public class RaidCardMetadataService {
 					"[raidCard] 동시 등록 경합 — DB 유일성 인덱스가 거절. vendor={}, modelName={}",
 					vendor, modelName
 			);
-			throw new DuplicateRaidCardException(vendor, modelName);
+			throw new DuplicateRaidCardException(vendor, modelName);   // 경합 상대는 방금 생긴 활성 카드 — 활성 문구가 맞다
 		}
 	}
 

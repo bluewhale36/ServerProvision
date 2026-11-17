@@ -119,44 +119,4 @@ class OSMetadataLifecycleServiceTest {
 
 	// ==== purgeWithTypedNameCheck =====================================
 
-	@Test
-	@DisplayName("purgeWithTypedNameCheck(mismatch) : 입력명이 displayName 과 불일치 → TypedNameMismatchException 전파 + entity 삭제 안 됨")
-	void purgeWithTypedNameCheck_nameMismatch_propagatesAndNoDelete() {
-		OSMetadata image = OSMetadata.builder()
-				.id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
-				.isEnabled(false).isDeprecated(false).isDeleted(true).build();
-		given(osMetadataRepository.findByIdAndIsDeletedTrue(1L)).willReturn(Optional.of(image));
-
-		// R7-2 — static TypedNameGuard 가 로딩한 image 의 displayName 과 입력("wrong") 불일치를 판정해 예외를 던진다.
-		// service 는 흡수하지 않고 그대로 전파해야 하고, purge 본체 진입 전이라 delete 미호출.
-		assertThatThrownBy(() -> osMetadataLifecycleService.purgeWithTypedNameCheck(1L, "wrong"))
-				.isInstanceOf(TypedNameMismatchException.class);
-		verify(osMetadataRepository, never()).delete(any());
-	}
-
-	@Test
-	@DisplayName("purgeWithTypedNameCheck(happy) : 입력명이 displayName 과 일치 → purge 본체 호출, row 삭제")
-	void purgeWithTypedNameCheck_nameMatches_purges() {
-		OSMetadata image = OSMetadata.builder()
-				.id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
-				.isEnabled(false).isDeprecated(false).isDeleted(true).build();
-		// purgeWithTypedNameCheck 가 내부에서 findByIdAndIsDeletedTrue 를 2 번 호출 (자기 + purge 위임).
-		given(osMetadataRepository.findByIdAndIsDeletedTrue(1L)).willReturn(Optional.of(image));
-
-		// R7-2 — typedName = image.displayName() → static guard no-op → purge 진행.
-		osMetadataLifecycleService.purgeWithTypedNameCheck(1L, image.displayName());
-
-		verify(osMetadataRepository, times(1)).delete(image);
-	}
-
-	@Test
-	@DisplayName("purgeWithTypedNameCheck(상태위반) : soft-deleted 가 아니면 IllegalOSMetadataStateException (검증 진입 전 차단)")
-	void purgeWithTypedNameCheck_notSoftDeleted_throwsBeforeCheck() {
-		// soft-deleted 자원이 없음 → 상태 가드가 typed-name 검증 진입 전에 차단.
-		given(osMetadataRepository.findByIdAndIsDeletedTrue(1L)).willReturn(Optional.empty());
-
-		assertThatThrownBy(() -> osMetadataLifecycleService.purgeWithTypedNameCheck(1L, "anything"))
-				.isInstanceOf(IllegalOSMetadataStateException.class);
-		verify(osMetadataRepository, never()).delete(any());
-	}
 }

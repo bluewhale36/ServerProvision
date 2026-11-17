@@ -31,16 +31,15 @@
     <div class="n-card cm-card cm-card-md" role="dialog" aria-modal="true">
         <div class="n-card-body">
             <h2 class="cm-title cm-title-split">
-                <span>동일한 자원이 이미 존재합니다</span>
+                <span>같은 자원이 이미 있습니다</span>
                 <!-- MK2 — TTL countdown. JS (NudgeTimer) 가 expiresAt 으로부터 mm:ss 갱신.
                      0:00 도달 시 modal 자동 닫힘 + onExpire 호출. -->
                 <span class="cm-title-meta" data-nudge-timer
                      
-                      title="이 시간 안에 결정하지 않으면 nudge 세션이 만료됩니다."></span>
+                      title="이 시간 안에 정하지 않으면 중복 확인이 만료됩니다."></span>
             </h2>
             <div class="n-alert n-alert-warning">
-                동일한 자원이 휴지통 또는 Deprecated 상태로 다음과 같이 발견되었습니다.
-                계속 진행할 방법을 선택하세요.
+                같은 자원이 휴지통 또는 사용 중단 상태로 있습니다. 진행 방법을 골라야 합니다.
             </div>
 
             <ul class="cm-conflict-list" th:id="${prefix} + 'ConflictsList'">
@@ -48,9 +47,9 @@
             </ul>
 
             <div class="n-hint n-lead">
-                <strong>그래도 등록</strong> : 새 자원으로 등록 (기존 자원은 그대로 보존)<br>
-                <strong>기존 영구 삭제 후 등록</strong> : 기존 자원을 영구 삭제하고 새 자원을 등록<br>
-                <strong>취소</strong> : 업로드를 취소하고 임시 파일 정리
+                <strong>그래도 등록</strong>: 새 자원으로 등록(기존 자원 보존)<br>
+                <strong>기존 영구 삭제 후 등록</strong>: 기존 자원을 영구 삭제하고 새 자원 등록<br>
+                <strong>취소</strong>: 업로드 취소, 임시 파일 정리
             </div>
 
             <!--
@@ -61,7 +60,7 @@
             <div class="cm-typed-block" th:id="${prefix} + 'TypedNameWrap'"
                  hidden>
                 <label class="cm-typed-target-label" th:for="${prefix} + 'TypedName'">
-                    영구삭제를 확정하려면 아래 자원명을 정확히 입력하세요 :
+                    영구 삭제를 확정하려면 아래 자원명을 정확히 입력해야 합니다.
                 </label>
                 <code class="cm-typed-target-code cm-path" th:id="${prefix} + 'TypedNameExpected'"
                      ></code>
@@ -81,7 +80,7 @@
                 <!-- S5-3-2 — disabled 상태에서도 hover/focus tooltip 표시. wrapper 의 ::after 가 렌더. -->
                 <span th:id="${prefix} + 'ReplaceBtnWrap'"
                       class="n-btn-tooltip-wrap"
-                      data-tooltip="대체할 기존 자원을 목록에서 선택 후 자원명을 정확히 입력하세요">
+                      data-tooltip="대체할 기존 자원을 목록에서 고른 뒤 자원명을 정확히 입력해야 합니다.">
                     <button type="button"
                             th:id="${prefix} + 'ReplaceBtn'"
                             class="n-btn n-btn-danger"

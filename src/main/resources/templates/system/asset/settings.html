@@ -26,7 +26,7 @@
     <div class="n-page-header">
         <h1 class="n-page-title">시스템 자산 운영 설정</h1>
         <div class="n-header-actions">
-            <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
+            <a th:href="@{/system/asset}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>시스템 자산</a>
         </div>
     </div>
 
@@ -42,7 +42,7 @@
                   data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다">
                 <div class="n-form-group">
                     <label class="n-label strong" for="retentionCount">자산별 보존 버전 수</label>
-                    <p class="n-hint">교체·롤백 시 자산별로 최근 이 개수만큼만 버전을 보존합니다(초과분은 오래된 것부터 삭제). 1~20.</p>
+                    <p class="n-hint">1~20. 초과한 버전은 오래된 것부터 삭제합니다.</p>
                     <input id="retentionCount" type="number" th:field="*{retentionCount}"
                            class="n-input n-input-narrow" min="1" max="20"
                            th:classappend="${#fields.hasErrors('retentionCount')} ? 'is-invalid'">
@@ -59,7 +59,7 @@
     <div class="n-card n-block-gap">
         <div class="n-card-body">
             <h2 class="n-card-title">무결성 봉인</h2>
-            <p class="n-hint n-lead">존재하는 모든 자산의 현재 해시를 무결성 기준으로 기록/갱신합니다. 교체 가능한 자산은 교체 시 자동 재봉인되지만, 빌드 스크립트·패키지로 관리되는 자산의 기준선은 여기서(또는 대시보드에서) 확립합니다. 변조·손상 상태를 봉인하면 그 상태가 기준선이 되니 대시보드에서 무결성을 먼저 확인하세요.</p>
+            <p class="n-hint n-hint-warn n-lead">변조되거나 손상된 상태로 봉인하면 그 상태가 기준이 됩니다. 봉인 전에 대시보드에서 무결성을 확인해야 합니다.</p>
             <table class="n-table">
                 <thead>
                 <tr>
@@ -81,7 +81,7 @@
                             <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning"
                                     th:disabled="${area.availability != 'CONFIGURED'}"
                                     th:title="${area.availability == 'CONFIGURED'}
-                                              ? '존재하는 자산의 현재 해시를 무결성 기준으로 기록합니다.'
+                                              ? '현재 파일을 무결성 기준으로 기록합니다.'
                                               : '서빙이 비활성이라 봉인할 수 없습니다.'">봉인</button>
                         </form>
                     </td>
@@ -95,7 +95,7 @@
     <div class="n-card n-block-gap">
         <div class="n-card-body">
             <h2 class="n-card-title">현재 적용된 값</h2>
-            <table class="n-table">
+            <table class="n-detail-table">
                 <tbody>
                 <tr>
                     <th>이력 보존 개수</th>

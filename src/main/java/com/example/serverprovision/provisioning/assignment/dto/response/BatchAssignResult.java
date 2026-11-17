@@ -1,5 +1,7 @@
 package com.example.serverprovision.provisioning.assignment.dto.response;
 
+import com.example.serverprovision.global.ui.enums.FlashTone;
+
 /**
  * 그룹 일괄 할당의 실행 결과 (U3-5-c) — 몇 대에 붙었고 몇 대를 왜 건너뛰었는가.
  *
@@ -8,7 +10,7 @@ package com.example.serverprovision.provisioning.assignment.dto.response;
  * <b>왜 한 대가 빠졌는지 알 수 없다</b> — CP5 에서 드러난 구멍이다.</p>
  *
  * @param skipDetail 건너뛴 내역을 <b>미리보기와 같은 어휘</b>로 적은 한 조각
- *                   (예: {@code "이미 있음 1 · 막힘 1"}). 사유 문장을 통째로 나열하지 않는 이유는
+ *                   (예: {@code "이미 할당 1, 할당 불가 1"}). 사유 문장을 통째로 나열하지 않는 이유는
  *                   멤버가 늘수록 문구가 화면을 덮기 때문이고, 자세한 사유는 방금 읽은 미리보기와
  *                   되돌아온 멤버 표에 그대로 있다
  */
@@ -32,5 +34,10 @@ public record BatchAssignResult(
         return skipDetail == null || skipDetail.isBlank()
                 ? head + tail + "."
                 : head + tail + "(" + skipDetail + ").";
+    }
+
+    /** flash 판의 색 — 일부라도 건너뛰었으면 부분 성공이라 노랑이다(S22-4, 결과에 맞는 색). */
+    public FlashTone tone() {
+        return skipped == 0 ? FlashTone.SUCCESS : FlashTone.WARNING;
     }
 }

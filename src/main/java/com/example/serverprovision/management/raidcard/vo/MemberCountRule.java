@@ -34,7 +34,7 @@ public record MemberCountRule(RaidLevel level, int min, Integer max, int step, D
         String range = max == null ? min + "대 이상"
                 : min == max ? min + "대"
                 : min + "~" + max + "대";
-        return step > 1 ? range + " · " + step + "대 단위" : range;
+        return step > 1 ? range + ", " + step + "대 단위" : range;
     }
 
     /** 확정된 멤버 수 판정 — 계획 시점, 또는 '개' · '개씩' 처럼 n 이 곧 볼륨 멤버 수일 때. */
@@ -57,6 +57,6 @@ public record MemberCountRule(RaidLevel level, int min, Integer max, int step, D
                 ? level.getDisplayName() + " 의 구성 대수는 " + display() + "입니다"
                 : level.getDisplayName() + " " + level.getObjectParticle() + " 스팬당 " + span.value()
                         + "대로 만들려면 " + display() + "여야 합니다";
-        return head + " — " + n + "대는 만들 수 없습니다";
+        return head + ". " + n + "대는 만들 수 없습니다";
     }
 }

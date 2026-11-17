@@ -10,6 +10,6 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class AlreadyExtractedException extends ConflictException {
 
 	public AlreadyExtractedException(Long isoId) {
-		super("이미 추출이 완료된 ISO 입니다. isoId=" + isoId);
+		super("이미 추출을 마친 ISO 입니다. id=" + isoId);
 	}
 }

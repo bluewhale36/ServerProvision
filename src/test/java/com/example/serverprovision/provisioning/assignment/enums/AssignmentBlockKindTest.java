@@ -142,7 +142,7 @@ class AssignmentBlockKindTest {
     @Test
     @DisplayName("TEMPLATE_STALE — 사유가 있으면 옵션을 잠그고 409 예외로 매핑된다, 보드 요구가 없어도 성립")
     void templateStale_blocksWithOwnException() {
-        String reason = "BIOS 템플릿 'MD72-HB3 공장 표준 세팅' 의 값이 보드 레지스트리(F44 · 2026-08-27 채집 · 192.168.1.130)와 어긋납니다 — Whitley0000 = Disabled — 허용 {Disable, Enable}";
+        String reason = "BIOS 템플릿 'MD72-HB3 공장 표준 세팅' 의 값이 보드 레지스트리(F44 · 2026-08-27 채집 · 192.168.1.130)와 어긋납니다 — Whitley0000 = Disabled(허용 값: Disable, Enable)";
 
         AssignmentBlock block = AssignmentBlockKind.evaluate(
                 new com.example.serverprovision.provisioning.assignment.vo.AssignmentEligibility(server(false), null, null, reason));

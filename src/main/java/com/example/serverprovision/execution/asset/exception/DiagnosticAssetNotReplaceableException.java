@@ -15,6 +15,6 @@ public class DiagnosticAssetNotReplaceableException extends ConflictException {
 
     public static DiagnosticAssetNotReplaceableException of(DiagnosticAsset slot) {
         return new DiagnosticAssetNotReplaceableException(
-                slot.label() + " 는 조립 자산이라 UI 교체 대상이 아닙니다 — build-assets.sh 로 교체합니다.");
+                "빌드 스크립트로 관리하는 자산이라 화면에서 교체할 수 없습니다(" + slot.label() + ").");
     }
 }

@@ -29,7 +29,7 @@ public final class BiosControllerSupport {
 	}
 
 	/**
-	 * BIOS 폼 (신규 / 수정) 의 보조 모델 채움. boardId 와 contextLabel (예: "Gigabyte · MS73-HB1") 은
+	 * BIOS 폼 (신규 / 수정) 의 보조 모델 채움. boardId 와 contextLabel (예: "Gigabyte MS73-HB1") 은
 	 * 두 폼 모두 필요하고, biosId 는 수정 폼에만 필요해 nullable 로 처리.
 	 */
 	public static void populateFormContext(Model model, Long boardId, Long biosId, BoardModelResponse board) {
@@ -39,7 +39,7 @@ public final class BiosControllerSupport {
 		}
 		model.addAttribute(
 				"contextLabel",
-				board.vendor().getDisplayName() + " · " + board.modelName()
+				board.vendor().getDisplayName() + " " + board.modelName()
 		);
 	}
 
@@ -57,7 +57,7 @@ public final class BiosControllerSupport {
 	public static ResponseEntity<?> badRequestFromBinding(BindingResult bindingResult) {
 		String msg = bindingResult.getFieldErrors().stream()
 				.findFirst()
-				.map(err -> err.getField() + ": " + err.getDefaultMessage())
+				.map(err -> err.getDefaultMessage())
 				.orElse("입력값이 올바르지 않습니다.");
 		return ResponseEntity.badRequest().body(new ApiErrorResponse(msg));
 	}

@@ -337,7 +337,8 @@ public class GuestServerController {
         guestServerCommandService.retry(id);
         com.example.serverprovision.global.redfish.PowerControlResult power =
                 redfishPowerService.powerOnOrRestart(guestServerQueryService.findDetail(id).redfishTarget());
-        redirectAttributes.addFlashAttribute("flashMessage", "재시도 접수 · " + power.message());
+        redirectAttributes.addFlashAttribute("flashMessage", power.retryBootNotice());
+        redirectAttributes.addFlashAttribute("flashTone", power.retryBootTone().getCssClass());
         return "redirect:/provisioning/server/" + id;
     }
 

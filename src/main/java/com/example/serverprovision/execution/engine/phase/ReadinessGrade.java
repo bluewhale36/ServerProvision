@@ -13,10 +13,10 @@ import lombok.RequiredArgsConstructor;
 public enum ReadinessGrade {
 
     /** 재료가 온전하다 — 정상 phase 스크립트. */
-    READY("준비됨"),
+    READY("준비 완료"),
 
     /** 일부 축이 결손이라 그 축만 건너뛰고 진행한다. */
-    DEGRADED("일부 건너뜀"),
+    DEGRADED("일부 생략"),
 
     /** 본체 재료가 결손이라 진입할 수 없다 — 대기 후 시한이 지나면 실패(D1 사다리). */
     BLOCKED("자원 결손");

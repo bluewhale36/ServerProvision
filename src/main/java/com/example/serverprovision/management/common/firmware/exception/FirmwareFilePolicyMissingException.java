@@ -16,7 +16,6 @@ import com.example.serverprovision.management.board.enums.Vendor;
 public class FirmwareFilePolicyMissingException extends DomainException {
 
 	public FirmwareFilePolicyMissingException(String resourceLabel, Vendor vendor) {
-		super(resourceLabel + " 펌웨어 파일 정책 구현체가 없습니다 (개발 규칙 위반). vendor=" + vendor.name()
-				+ " — 새 vendor 를 추가했으면 해당 자원의 FirmwareFilePolicyStrategy 구현체도 함께 등록하세요.");
+		super(vendor.getDisplayName() + " " + resourceLabel + " 펌웨어는 등록할 수 없습니다. 관리자에게 문의해야 합니다.");
 	}
 }

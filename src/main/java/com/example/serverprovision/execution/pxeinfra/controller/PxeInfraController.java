@@ -84,18 +84,18 @@ public class PxeInfraController {
                 entry.ip().value(),
                 macDisplay(entry.mac()),
                 formatEnds(entry.ends()),
-                active ? LeaseBindingState.ACTIVE.name() : LeaseBindingState.EXPIRED.name(),
+                active ? "활성" : "만료",
                 active ? "n-badge-green" : "n-badge-gray");
     }
 
     private static String macDisplay(MacAddressVO mac) {
-        return mac != null ? mac.value() : "—";
+        return mac != null ? mac.value() : "-";
     }
 
     /** 무만료(만료 epoch 0)는 파서가 Instant.MAX 로 담으므로 표시 문자열로 되돌린다. */
     private static String formatEnds(Instant ends) {
         if (ends == null) {
-            return "—";
+            return "-";
         }
         if (ends.equals(Instant.MAX)) {
             return "무만료";

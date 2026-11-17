@@ -51,7 +51,7 @@ class WindowsAdministratorPasswordRequestTest {
     @DisplayName("공백 · 제어문자 → 패턴 위반, 128자 → 길이 위반")
     void patternAndSize() {
         assertThat(messages(new WindowsAdministratorPasswordRequest("has space", false)))
-                .contains("비밀번호에는 공백 · 제어문자를 쓸 수 없습니다.");
+                .contains("비밀번호에는 공백이나 제어문자를 쓸 수 없습니다.");
         assertThat(messages(new WindowsAdministratorPasswordRequest("A".repeat(128), false)))
                 .contains("Administrator 비밀번호는 127자를 넘을 수 없습니다.");
     }

@@ -10,7 +10,7 @@ public record LeaseSeconds(long value) {
 
     public LeaseSeconds {
         if (value <= 0) {
-            throw new IllegalArgumentException("리스 시간(초)은 양수여야 합니다 : " + value);
+            throw new IllegalArgumentException("임대 시간(초)은 양수여야 합니다.");
         }
     }
 

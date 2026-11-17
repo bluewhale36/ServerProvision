@@ -91,7 +91,7 @@ public class WebExceptionHandler {
 		response.setStatus(HttpStatus.CONFLICT.value());
 		populate(
 				model, 409,
-				"다른 작업이 같은 항목을 동시에 수정했습니다. 페이지를 새로 고친 뒤 다시 시도해주세요."
+				"다른 작업이 같은 항목을 동시에 수정했습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다."
 		);
 		return "error";
 	}
@@ -121,6 +121,7 @@ public class WebExceptionHandler {
 	private static void populate(Model model, int status, String message) {
 		model.addAttribute("status", status);
 		model.addAttribute("statusLabel", ErrorStatusLabels.of(status));
-		model.addAttribute("message", message);
+		// S22-4 — JSON 응답(ApiErrorResponse)과 같은 화면 경계 다듬기를 오류 화면에도 적용한다(내부 식별자 제거, 대시와 가운뎃점 변환).
+		model.addAttribute("message", UserFacingMessage.withoutInternalIds(message));
 	}
 }

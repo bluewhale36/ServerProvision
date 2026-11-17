@@ -101,7 +101,7 @@
         folderBtn.addEventListener('click', function () {
             const rel = toRelative(currentAbs, treeRoot);
             if (rel === null || rel === '') {
-                statusEl.textContent = '트리 루트 전체는 변형 없이 설치됩니다 — 하위 폴더로 들어가 고르십시오.';
+                statusEl.textContent = '최상위 폴더는 진입점으로 고를 수 없습니다. 하위 폴더로 들어가 골라야 합니다.';
                 return;
             }
             if (activeInput) activeInput.value = rel + '/';
@@ -129,12 +129,12 @@
             });
             data = await resp.json().catch(function () { return {}; });
             if (!resp.ok) {
-                statusEl.textContent = '오류 : ' + (data.message || ('HTTP ' + resp.status));
+                statusEl.textContent = data.message || '목록을 불러오지 못했습니다.';
                 return;
             }
         } catch (err) {
             console.error(TAG, err);
-            statusEl.textContent = '네트워크 오류 : ' + err.message;
+            statusEl.textContent = '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.';
             return;
         }
 
@@ -147,7 +147,7 @@
         if (entries.length === 0) {
             const li = document.createElement('li');
             li.className = 'n-empty-desc';
-            li.textContent = '비어있는 디렉토리입니다.';
+            li.textContent = '빈 디렉토리입니다.';
             entriesEl.appendChild(li);
             return;
         }
@@ -175,7 +175,7 @@
                 } else {
                     const rel = toRelative(child, treeRoot);
                     if (rel === null) {
-                        statusEl.textContent = '트리 루트 밖의 파일은 진입점으로 사용할 수 없습니다.';
+                        statusEl.textContent = '저장 디렉토리 밖의 파일은 진입점으로 쓸 수 없습니다.';
                         return;
                     }
                     if (activeInput) activeInput.value = rel;
@@ -199,7 +199,7 @@
     }
     function displayRelative(absPath) {
         const rel = toRelative(absPath, treeRoot);
-        return rel === null || rel === '' ? '<트리 루트>' : rel;
+        return rel === null || rel === '' ? '(저장 디렉토리)' : rel;
     }
     function parentOf(absPath) {
         const p = normalizeAbs(absPath);

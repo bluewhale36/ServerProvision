@@ -40,7 +40,7 @@
 
         if (!modal || !confirmBtn || !cancelBtn) {
             console.warn(TAG, 'fragment 누락 — fallback native confirm. prefix=', prefix);
-            if (window.confirm(message || '계속할까요?')) opts.onConfirm();
+            if (window.confirm(message || '계속하시겠습니까?')) opts.onConfirm();
             return;
         }
 
@@ -178,13 +178,13 @@
             });
             if (!resp.ok) {
                 if (opts.onError) opts.onError(new Error('HTTP ' + resp.status));
-                else ErrorModal.show({message: 'modal 을 불러오지 못했어요. (HTTP ' + resp.status + ')', status: resp.status});
+                else ErrorModal.show({message: '확인 창을 불러오지 못했습니다.', status: resp.status});
                 return;
             }
             html = await resp.text();
         } catch (err) {
             if (opts.onError) opts.onError(err);
-            else ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
+            else ErrorModal.show({message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.', status: 0});
             return;
         }
 

@@ -15,7 +15,7 @@ import jakarta.validation.constraints.Size;
 @ValidPxeNetworkConfig
 public record PxeNetworkConfigRequest(
 
-        @NotNull(message = "DHCP 모드를 선택하세요.")
+        @NotNull(message = "DHCP 모드를 선택해야 합니다.")
         DhcpMode dhcpMode,
 
         @NotBlank(message = "서브넷 CIDR 은 필수입니다.")

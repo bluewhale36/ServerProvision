@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('Subprogram 편집')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('드라이버, 유틸리티 수정')}"></th:block>
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('subprogram')}"></nav>
@@ -9,17 +9,17 @@
 <div class="n-page-md">
     <div class="n-page-header">
         <h1 class="n-page-title">
-            <span th:text="${kindDisplayName}">드라이버</span> 편집
+            <span th:text="${kindDisplayName}">드라이버</span> 수정
         </h1>
         <div class="n-header-actions">
-            <a th:href="@{/management/subprogram(selectId=${subprogram.id})}" class="n-back-link">← 목록으로</a>
+            <a th:href="@{/management/subprogram(selectId=${subprogram.id})}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
         </div>
     </div>
 
     <div class="n-card">
         <div class="n-card-body">
             <div class="n-alert n-alert-muted">
-                트리 루트 : <code th:text="${subprogram.treeRootPath}"></code>
+                저장 디렉토리: <code th:text="${subprogram.treeRootPath}"></code>
             </div>
 
             <form id="subprogramEditForm"
@@ -54,23 +54,18 @@
                         <option value="" th:text="#{management.subprogram.os.any}">OS 무관</option>
                         <option th:each="os : ${osNames}" th:value="${os.name()}" th:text="${os.displayName}">Windows Server</option>
                     </select>
-                    <div class="n-hint">이 패키지가 적용되는 OS 입니다. 버전은 아래 변형 표에서 행마다 적습니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('osName')}" th:errors="*{osName}"></div>
                 </div>
 
                 <!-- R15-1 — 변형 표. 행마다 OS 버전(비우면 전 버전) · 진입점(.inf · .msi · .exe 파일 또는 폴더 — HF23) · 인자 · 재부팅. 폼이 표 전체를 제출한다(교체). -->
                 <div class="n-form-group" id="variantsGroup">
                     <label class="n-label strong">변형</label>
-                    <div class="n-hint">
-                        같은 패키지 안의 OS 버전별 설치 대상을 선언합니다. 설치 방식은 진입점이 정합니다 —
-                        .inf 는 pnputil, .msi 는 msiexec, .exe 는 직접 실행, 폴더(끝이 /)는 그 아래 INF 를 하나씩 pnputil.
-                        한 OS 버전에 여러 행을 둘 수 있습니다(예: 제품군별 WS2025 폴더). OS 버전을 비운 행은 정확히 맞는 버전 행이 없을 때 쓰입니다.
-                    </div>
+                    <div class="n-hint">OS 버전을 비운 행은 맞는 버전 행이 없을 때 쓰입니다.</div>
                     <div class="n-error" th:if="${#fields.hasErrors('variants')}" th:errors="*{variants}"></div>
-                    <div class="n-table-wrap">
+                    <div>
                         <table class="n-table" id="variantsTable">
                             <thead>
-                            <tr><th>OS 버전</th><th>진입점(트리 안 파일 또는 폴더)</th><th>인자</th><th>재부팅</th><th></th></tr>
+                            <tr><th>OS 버전</th><th>진입점(파일 또는 폴더)</th><th>인자</th><th>재부팅</th><th></th></tr>
                             </thead>
                             <tbody id="variantsBody">
                             <tr th:each="v, stat : *{variants}" class="variant-row" th:data-index="${stat.index}">
@@ -85,7 +80,7 @@
                                     <div class="n-field-row">
                                         <input type="text" class="n-input variant-entrypoint" th:field="*{variants[__${stat.index}__].entrypointRelativePath}"
                                                th:attr="data-error-field='variants[' + ${stat.index} + '].entrypointRelativePath'"
-                                               placeholder="예: WDDM Installer/Win2025.msi · PRO1000/Winx64/WS2025/">
+                                               placeholder="예: WDDM Installer/Win2025.msi, PRO1000/Winx64/WS2025/">
                                         <button type="button" class="n-btn n-btn-sm n-btn-outline variant-browse">탐색</button>
                                     </div>
                                     <div class="n-error" th:if="${#fields.hasErrors('variants[__${stat.index}__].entrypointRelativePath')}"
@@ -96,10 +91,10 @@
                                            th:attr="data-error-field='variants[' + ${stat.index} + '].arguments'"
                                            placeholder="예: /norestart">
                                 </td>
-                                <td class="n-center">
+                                <td class="n-td-center">
                                     <input type="checkbox" th:field="*{variants[__${stat.index}__].rebootRequired}">
                                 </td>
-                                <td class="n-center">
+                                <td class="n-td-center">
                                     <button type="button" class="n-btn n-btn-sm n-btn-outline-danger variant-remove" th:text="#{action.delete}">삭제</button>
                                 </td>
                             </tr>
@@ -107,7 +102,7 @@
                         </table>
                     </div>
                     <p class="n-detail-empty" id="variantsEmpty" th:hidden="${not #lists.isEmpty(subprogramForm.variants)}"
-                       th:text="#{management.subprogram.variant.none}">변형 없음 — 트리 전체를 현행대로 다룹니다(INF 일괄).</p>
+                       th:text="#{management.subprogram.variant.none}">변형 미지정: 저장 디렉토리의 INF 를 모두 설치합니다.</p>
                     <div class="n-block-gap-sm">
                         <button type="button" id="variantAddBtn" class="n-btn n-btn-sm n-btn-outline" th:text="#{action.add-row}">행 추가</button>
                     </div>
@@ -120,13 +115,13 @@
                             <td><input type="text" class="n-input" name="variants[__INDEX__].osVersion" placeholder="예: 2025" list="osVersionSuggestions"></td>
                             <td>
                                 <div class="n-field-row">
-                                    <input type="text" class="n-input variant-entrypoint" name="variants[__INDEX__].entrypointRelativePath" placeholder="예: WDDM Installer/Win2025.msi · PRO1000/Winx64/WS2025/">
+                                    <input type="text" class="n-input variant-entrypoint" name="variants[__INDEX__].entrypointRelativePath" placeholder="예: WDDM Installer/Win2025.msi, PRO1000/Winx64/WS2025/">
                                     <button type="button" class="n-btn n-btn-sm n-btn-outline variant-browse">탐색</button>
                                 </div>
                             </td>
                             <td><input type="text" class="n-input" name="variants[__INDEX__].arguments" placeholder="예: /norestart"></td>
-                            <td class="n-center"><input type="checkbox" name="variants[__INDEX__].rebootRequired" value="true"></td>
-                            <td class="n-center"><button type="button" class="n-btn n-btn-sm n-btn-outline-danger variant-remove">삭제</button></td>
+                            <td class="n-td-center"><input type="checkbox" name="variants[__INDEX__].rebootRequired" value="true"></td>
+                            <td class="n-td-center"><button type="button" class="n-btn n-btn-sm n-btn-outline-danger variant-remove">삭제</button></td>
                         </tr>
                     </template>
                     <div th:replace="~{fragments/management/directory-browse-panel :: browsePanel('entrypointBrowse', 'file', null)}"></div>

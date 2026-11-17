@@ -52,24 +52,31 @@ public class ChildLifecycleBlockedByParentException extends ConflictException {
 
 	/**
 	 * 사용자 안내 메시지 합성. 부모 자원명 + 상태 + 권유 액션 1 문장.
-	 * 예: "부모 OS 버전 'Rocky Linux 9.5' 이(가) 삭제 상태입니다. 부모부터 복구해주세요."
+	 * 예: "부모 자원 'Rocky Linux 9.5' 이(가) 삭제 상태라 복구할 수 없습니다. 부모부터 복구해야 합니다."
+	 * 상태 · 동작 코드(DELETED · restore 등)는 화면 말로 바꿔 쓴다(S22-4 — 코드 원문 비노출).
 	 */
 	private static String composeMessage(String parentDisplayName, String parentState, String requestedAction) {
 		String parentStateKor = switch (parentState) {
 			case "DISABLED" -> "비활성";
-			case "DEPRECATED" -> "Deprecated";
+			case "DEPRECATED" -> "사용 중단";
 			case "DELETED" -> "삭제";
-			default -> parentState;
+			default -> "다른";
+		};
+		String actionKor = switch (requestedAction) {
+			case "enable" -> "활성화할";
+			case "restore" -> "복구할";
+			case "undeprecate" -> "사용 중단 권고를 해제할";
+			default -> "이 작업을 할";
 		};
 		String suggestion = switch (parentState) {
-			case "DISABLED" -> "부모를 먼저 활성화해주세요.";
-			case "DEPRECATED" -> "부모를 먼저 Deprecated 해제해주세요.";
-			case "DELETED" -> "부모부터 복구해주세요.";
-			default -> "부모 상태를 먼저 정합화해주세요.";
+			case "DISABLED" -> "부모를 먼저 활성화해야 합니다.";
+			case "DEPRECATED" -> "부모의 사용 중단 권고를 먼저 해제해야 합니다.";
+			case "DELETED" -> "부모부터 복구해야 합니다.";
+			default -> "부모 상태를 먼저 확인해야 합니다.";
 		};
 		return String.format(
-				"부모 자원 '%s' 이(가) %s 상태라 자식의 %s 액션이 거절됐어요. %s",
-				parentDisplayName, parentStateKor, requestedAction, suggestion
+				"부모 자원 '%s' 이(가) %s 상태라 %s 수 없습니다. %s",
+				parentDisplayName, parentStateKor, actionKor, suggestion
 		);
 	}
 

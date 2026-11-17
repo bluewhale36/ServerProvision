@@ -1,8 +1,10 @@
 package com.example.serverprovision.management.os.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.web.list.ListLinks;
-import com.example.serverprovision.global.exception.ApiErrorResponse;
+import com.example.serverprovision.management.common.web.ControllerValidationSupport;
 import com.example.serverprovision.management.os.dto.request.OSMetadataCreateRequest;
 import com.example.serverprovision.management.os.dto.request.OSMetadataUpdateRequest;
 import com.example.serverprovision.management.os.dto.response.OSMetadataCreateResponse;
@@ -29,7 +31,6 @@ import java.util.List;
  *   <li>ISO 업로드 : {@link IsoUploadController}</li>
  *   <li>ISO lifecycle : {@link IsoLifecycleController}</li>
  *   <li>ISO nudge (content / intent path) : {@link IsoNudgeController}</li>
- *   <li>OS 메타데이터 nudge (메타) : {@link OSMetadataNudgeController}</li>
  *   <li>무결성 검증 / comps 추출 : {@link IsoJobController}</li>
  *   <li>서버 경로 탐색 : {@link com.example.serverprovision.management.common.filesystem.controller.DirectoryBrowseController} (R8-2 통합)</li>
  * </ul>
@@ -60,6 +61,7 @@ public class OSMetadataController {
 	);
 
 	private final OSMetadataService osMetadataService;
+	private final UserPurgeService userPurgeService;   // HF31
 	// R1-3 — lifecycle 명령은 별도 service 가 전담. Controller 가 두 service 를 직접 의존.
 	private final OSMetadataLifecycleService osMetadataLifecycleService;
 
@@ -103,15 +105,8 @@ public class OSMetadataController {
 			BindingResult bindingResult
 	) {
 		if (bindingResult.hasErrors()) {
-			List<ApiErrorResponse.FieldError> fields = bindingResult.getFieldErrors().stream()
-					.map(fe -> new ApiErrorResponse.FieldError(
-							fe.getField(),
-							fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "유효하지 않은 값"
-					))
-					.toList();
-			return ResponseEntity.badRequest().body(
-					ApiErrorResponse.ofValidation(
-							"입력 값이 유효하지 않습니다 (" + fields.size() + "개 필드).", fields));
+			// 검증 응답 문장은 메인보드 · RAID 카드 폼과 같은 단일 소스를 쓴다(종전에는 같은 변환이 여기 복붙돼 있었다).
+			return ResponseEntity.badRequest().body(ControllerValidationSupport.toValidationError(bindingResult));
 		}
 		Long id = osMetadataService.create(request);
 		return ResponseEntity.ok(new OSMetadataCreateResponse(id, "/management/os?selectId=" + id));
@@ -215,7 +210,8 @@ public class OSMetadataController {
 			@RequestParam("typedName") String typedName,
 			@RequestParam(name = "selectKey", required = false) String selectKey
 	) {
-		osMetadataLifecycleService.purgeWithTypedNameCheck(id, typedName);
+		// HF31 — 휴지통 화면과 같은 단일 진입점(자원명 확인 → PurgeExecutor: 휴지통 실물 정리 · 감사 기록)
+		userPurgeService.purge(ResourceType.OS_IMAGE, id, typedName);
 		// 영구 삭제 후 row 자체가 사라짐 → selectId 보존 의미 없음. selectKey 와 휴지통 모드는 유지.
 		return OSControllerSupport.redirectToList(null, selectKey, true);
 	}

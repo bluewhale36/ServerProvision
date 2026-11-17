@@ -24,7 +24,7 @@ public enum AxisFlashState {
     SUCCEEDED("완료"),
 
     /** 판정이 굽지 않기로 했다 — 그 축만 건너뛰고 나머지는 진행한다. */
-    SKIPPED("건너뜀"),
+    SKIPPED("생략"),
 
     /** 이 축에서 실패했다. */
     FAILED("실패");

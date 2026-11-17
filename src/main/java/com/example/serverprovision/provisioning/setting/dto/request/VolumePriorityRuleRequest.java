@@ -81,7 +81,7 @@ public record VolumePriorityRuleRequest(
     /** 화면 표기 — {@code SSD · NVMe · 작은 용량부터}. null 축은 이미 400 이라 표기에서는 그대로 비운다. */
     public String toDisplay() {
         return (diskType == null ? "?" : diskType.getDisplayName())
-                + " · " + (transport == null ? "?" : transport.getDisplayName())
-                + " · " + (capacityOrder == null ? "?" : capacityOrder.getDisplayName());
+                + ", " + (transport == null ? "?" : transport.getDisplayName())
+                + ", " + (capacityOrder == null ? "?" : capacityOrder.getDisplayName());
     }
 }

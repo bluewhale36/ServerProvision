@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.bios.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.global.marker.IntegrityStatus;
@@ -65,6 +66,7 @@ class BiosControllerUploadFlowTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper om;
 
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
     @MockitoBean BiosService biosService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosLifecycleService biosLifecycleService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosRegistrationService biosRegistrationService;
@@ -126,7 +128,7 @@ class BiosControllerUploadFlowTest {
             mvc.perform(post("/management/bios/1/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value(containsString("firmwarePath")));
+                    .andExpect(jsonPath("$.message").value(containsString("펌웨어 파일 경로")));   // S22-4 — 필드 이름(firmwarePath)은 화면에 싣지 않는다
         }
 
         @Test
@@ -138,7 +140,7 @@ class BiosControllerUploadFlowTest {
             mvc.perform(post("/management/bios/999/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(intentReq("/mnt/x/"))))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.message").value(containsString("999")));
+                    .andExpect(jsonPath("$.message").value("메인보드 모델을 찾을 수 없습니다."));   // S22-3 — 응답에는 내부 식별자를 싣지 않는다
         }
 
         @Test
@@ -192,7 +194,7 @@ class BiosControllerUploadFlowTest {
             mvc.perform(post("/management/bios/1/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(intentReq("/mnt/claimed/"))))
                     .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.message").value(containsString("marker")));
+                    .andExpect(jsonPath("$.message").value(containsString("다른 자원의 마커가 있습니다")));
         }
     }
 

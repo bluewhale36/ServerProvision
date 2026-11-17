@@ -84,7 +84,7 @@ class ReconciliationCoverageRenderTest {
 				.andExpect(status().isOk())
 				.andExpect(model().attributeExists("scanCoverage"))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
-						"이번 점검은 파일 내용을 확인하지 않습니다")))
+						"이번 점검은 파일 내용을 확인하지 않았습니다")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("마지막 정밀 점검")));
 		// '확인 안 됨' 표시는 드리프트 상세의 필드다. MK4-4-2 개편으로 상세가 별도 화면이 되면서
 		// 이 목록에서는 확인할 수 없게 됐다 — 그 검증은 상세 화면 테스트가 맡는다.
@@ -98,7 +98,7 @@ class ReconciliationCoverageRenderTest {
 		mvc.perform(get("/maintenance/reconciliation"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.not(
-						org.hamcrest.Matchers.containsString("이번 점검은 파일 내용을 확인하지 않습니다"))));
+						org.hamcrest.Matchers.containsString("이번 점검은 파일 내용을 확인하지 않았습니다"))));
 	}
 
 	@Test
@@ -110,7 +110,7 @@ class ReconciliationCoverageRenderTest {
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						// MK4-4-2 — 라벨(마지막 정밀 점검)과 값이 갈리면서 값 쪽 문구가 짧아졌다.
-						"남아 있는 기록 없음")));
+						"기록 미보존")));
 	}
 
 	@Test

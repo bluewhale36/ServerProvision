@@ -36,8 +36,8 @@ public class CompsExtractionService {
 	public enum Stage implements JobStage {
 		PREPARE_ISO("ISO 이미지 준비"),
 		SCAN_REPO("저장소 탐색"),
-		PARSE_COMPS("comps.xml 파싱"),
-		MERGE_SAVE("환경·패키지 그룹 저장");
+		PARSE_COMPS("패키지 그룹 정보 해석"),
+		MERGE_SAVE("설치 환경, 패키지 그룹 저장");
 
 		private final String label;
 

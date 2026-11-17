@@ -94,7 +94,7 @@ public class PurgeLogServiceImpl implements PurgeLogService {
 				log.getOutcome(),
 				log.getOccurredAt(),
 				log.getPurgedAt(),
-				log.getDetails()
+				log.getDetails() == null ? null : log.getDetails().forScreen()
 		);
 	}
 }
