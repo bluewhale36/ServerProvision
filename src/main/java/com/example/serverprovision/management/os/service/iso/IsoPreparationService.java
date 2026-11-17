@@ -83,6 +83,32 @@ public class IsoPreparationService {
 		throw new ExtractionFailedException("인식할 수 없는 경로입니다: " + isoPath + ". ISO 파일이나 디렉토리만 지정할 수 있습니다.");
 	}
 
+	/**
+	 * E4-1-b-1 — ISO 파일을 지정한 빈 디렉터리에 푼다(RHEL 설치 작업 트리). mount 는 root 가 필요해 쓰지 않는다.
+	 * bsdtar 를 먼저 쓴다: libarchive 는 Rock Ridge 의 긴 파일 이름을 읽고, 운영 런북도 bsdtar 만 설치한다.
+	 * 정리는 호출자 몫이다.
+	 *
+	 * @throws ExtractionFailedException 두 도구가 모두 없거나 실패한 경우
+	 */
+	public void extractInto(Path isoFile, Path targetDir) {
+		try {
+			boolean extracted = runExtractBsdtar(isoFile, targetDir) || runExtract7z(isoFile, targetDir);
+			if (!extracted) {
+				throw new ExtractionFailedException("ISO 압축을 풀지 못했습니다: " + isoFile + ". bsdtar 또는 7z 설치 상태를 확인해야 합니다.");
+			}
+		} catch (IOException e) {
+			throw new ExtractionFailedException("ISO 압축을 풀지 못했습니다: " + isoFile, e);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new ExtractionFailedException("ISO 압축 풀기가 중단되었습니다: " + isoFile, e);
+		}
+	}
+
+	/** {@link #extractInto} 가 쓸 도구(bsdtar 또는 7z)가 하나라도 있는가. */
+	public boolean extractionToolAvailable() {
+		return isCommandAvailable("bsdtar") || isCommandAvailable("7z");
+	}
+
 	private PreparedIsoPath prepareFromIsoFile(Path isoFile) {
 		try {
 			return mountIso(isoFile);
@@ -139,6 +165,7 @@ public class IsoPreparationService {
 		if (!isCommandAvailable("7z")) return false;
 		Process proc = new ProcessBuilder("7z", "x", isoFile.toString(), "-o" + extractDir, "-y")
 				.redirectErrorStream(true)
+				.redirectOutput(ProcessBuilder.Redirect.DISCARD)
 				.start();
 		return proc.waitFor() == 0;
 	}
@@ -147,6 +174,7 @@ public class IsoPreparationService {
 		if (!isCommandAvailable("bsdtar")) return false;
 		Process proc = new ProcessBuilder("bsdtar", "-xf", isoFile.toString(), "-C", extractDir.toString())
 				.redirectErrorStream(true)
+				.redirectOutput(ProcessBuilder.Redirect.DISCARD)
 				.start();
 		return proc.waitFor() == 0;
 	}
@@ -155,6 +183,7 @@ public class IsoPreparationService {
 		try {
 			return new ProcessBuilder("which", command)
 					.redirectErrorStream(true)
+					.redirectOutput(ProcessBuilder.Redirect.DISCARD)
 					.start()
 					.waitFor() == 0;
 		} catch (Exception e) {

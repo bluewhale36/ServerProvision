@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-1-b-1 Plan — 설치 작업 트리 (설치 때 임시 추출 · 마지막 설치가 끝나면 삭제)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  td code, th code { overflow-wrap:anywhere; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  p { margin:0 0 8px; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; white-space:nowrap; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:4px 0 0; }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── state-flow ── */
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  /* ── 🎬 데모 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:0; overflow-wrap:break-word; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:var(--border-soft); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--border-soft); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--text); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq 스윔레인 (4 레인) ── */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:color-mix(in srgb, var(--blue) 4%, transparent); } .seq .step.a2 { background:color-mix(in srgb, var(--green) 4%, transparent); }
+  .seq .step.a3 { background:color-mix(in srgb, var(--orange) 4%, transparent); } .seq .step.a4 { background:color-mix(in srgb, var(--purple) 4%, transparent); }
+
+  /* ── .pkg-tree ── */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .ux-wrap .pkg-tree { background:var(--card); margin-top:10px; }
+
+  /* ── 클래스 구조 도식 (class 없는 figure + 인라인 SVG) ── */
+  main figure { margin:12px 0; padding:10px; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; overflow-x:auto; }
+  main figure svg { display:block; width:100%; min-width:900px; height:auto; }
+  main figcaption { font-size:12px; color:var(--text-muted); margin-top:6px; }
+
+  /* ── 반응형 (명세 §3) ── */
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    .ux-row { flex-wrap:wrap; }
+    .ux-row .label { flex:1 1 55%; }
+    .ux-row.child { margin-left:12px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E4-1-b-1 — 설치 작업 트리 <span class="v2-badge">v2</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E4-1-b-1 (feature)</span>
+    <span><strong>상위</strong> E4-1-b RHEL 계열 Linux 자동 설치</span>
+    <span><strong>scope</strong> 설치 때 ISO 를 임시 작업 디렉터리에 풀고, 그 ISO 로 설치 중인 서버가 없어지면 지운다</span>
+    <span><strong>브랜치</strong> feat/E4-1-b_rhel-install</span>
+    <span><strong>생성</strong> 2026-11-17 KST (v2 재작성)</span>
+    <span><strong>상태</strong> CP1 재승인 대기 (v2)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 도메인 흐름</a></li>
+      <li><a href="#s1">§1 진단 (실측)</a></li>
+      <li><a href="#s1-b">§1-b 기존 코드 재활용</a></li>
+      <li><a href="#s2">§2 요구 · 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (작업 트리 시뮬레이터)</a></li>
+      <li><a href="#s3">§3 흐름</a></li>
+      <li><a href="#s4">§4 클래스 구조</a></li>
+      <li><a href="#s5">§5 디스크 위 모양 · DB</a></li>
+      <li><a href="#s5-b">§5-b 운영 배치</a></li>
+      <li><a href="#s6">§6 결정 D-1~D-9</a></li>
+      <li><a href="#s7">§7 접근 통제 (b-4 계약)</a></li>
+      <li><a href="#s8">§8 테스트 · CP5</a></li>
+      <li><a href="#s9">§9 Open Questions · Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+      <li><a href="#s12">§12 12 단계 · CP</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 도메인 흐름 — 설치 트리가 왜 필요한가</summary>
+      <div class="body">
+        <div class="callout warn" style="margin-top:0;"><b>v1 → v2</b> : 2026-11-17 사용자 결정 B: 미리 풀어 두면 디스크를 두 배로 쓰므로, 설치를 시도할 때 임시 작업 디렉터리에 풀고 그 ISO 로 설치 중인 서버가 없어지면 지운다.</div>
+        <div class="callout warn"><b>개정 1</b> (2026-11-17, 세션 검수 판정 · CP1 승인 전) :
+          <ul>
+            <li>신규 예외 클래스 없음 확정 (§4)</li>
+            <li>확보 실패 = 대기 대신 OS 설치 단계 실패, 다시 시도는 운영자 [재시도] 의 새 acquire (§3 · D-10)</li>
+            <li><code>EXTRACTION_FAILED</code> 문구 확정 · 즉시 실패와 추출 단계 실패 구분 · 추출 중 보유자 0 처리 확정</li>
+            <li>패키지 세분 <code>execution/installtree/{config, service, vo, enums}</code> (§4 · §10)</li>
+            <li><code>AsyncConfig</code> = 고쳐서 · HF6 선례 실명</li>
+          </ul>
+        </div>
+        <p>네트워크 설치에서 설치기(anaconda)는 설치 원본을 <b>HTTP 로 파일 단위</b>로 읽는다. ISO 는 10 GB 파일 하나라 그 안의 파일을 경로로 내줄 수 없다 → ISO 를 폴더로 펼친 "설치 트리" 가 필요하다.</p>
+        <h4>설치기가 트리에서 읽는 것</h4>
+        <table>
+          <thead><tr><th>설치기가 받는 것</th><th>트리 안 위치 (Rocky 8 · 9 기준)</th><th>언제</th></tr></thead>
+          <tbody>
+            <tr><td>설치 커널</td><td><code>images/pxeboot/vmlinuz</code></td><td>iPXE 가 받아 부팅</td></tr>
+            <tr><td>초기 램디스크</td><td><code>images/pxeboot/initrd.img</code></td><td>커널과 함께</td></tr>
+            <tr><td>트리 설명서</td><td><code>.treeinfo</code></td><td>설치기가 먼저 읽음 (배포판 · 버전 · 본체 · 저장소 위치)</td></tr>
+            <tr><td>설치기 본체</td><td><code>images/install.img</code> (<code>.treeinfo</code> 가 위치를 알려 줌)</td><td>설치 화면 · 로직</td></tr>
+            <tr><td>패키지 저장소</td><td><code>BaseOS/</code> · <code>AppStream/</code> (<code>repodata/</code> + <code>Packages/</code> RPM)</td><td>설치 내내</td></tr>
+            <tr><td>응답 파일</td><td>트리 밖, 서버가 정의서로 렌더한 kickstart</td><td>설치 시작</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><code>.treeinfo</code> 항목 · <code>images/install.img</code> 위치는 저장소에 실측 기록이 없어 CP5 에서 실제 Rocky ISO 로 확인.</div>
+
+        <h4>전체 흐름 ①~⑩ (굵게 = b-1 이 맡는 자리)</h4>
+        <table>
+          <thead><tr><th>#</th><th>누가</th><th>무엇을</th><th>하위 단계</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td>관리자</td><td>ISO 등록 (comps 추출)</td><td>기존</td></tr>
+            <tr><td>②</td><td>사용자</td><td>정의서 작성 (RHEL)</td><td>b-2</td></tr>
+            <tr><td>③</td><td>사용자 · 엔진</td><td>할당 · 개시 → 진단 · 펌웨어 · RAID → OS 설치 단계 도달</td><td>기존</td></tr>
+            <tr><td>④</td><td>게스트 · 실행기</td><td><code>/boot</code> → 실행기가 RHEL 설치기 선택 → <b>작업 트리 확보</b> → 준비 중이면 대기 iPXE, 준비되면 토큰 발급 + iPXE (kernel · initrd · <code>inst.repo</code> · <code>inst.ks</code> 모두 토큰 경로)</td><td><b>b-1</b> · b-4</td></tr>
+            <tr><td>⑤</td><td>iPXE</td><td>커널 · initrd 받아 부팅 (<b>b-1 트리</b>에서 서빙)</td><td>b-4</td></tr>
+            <tr><td>⑥</td><td>설치기</td><td>kickstart 받음</td><td>b-3 렌더 · b-4 서빙</td></tr>
+            <tr><td>⑦</td><td>설치기</td><td><code>.treeinfo</code> → 본체 → repodata → RPM 받아 OS 영역 디스크에 설치</td><td><b>b-1 트리</b> · b-6</td></tr>
+            <tr><td>⑧</td><td><code>%post</code></td><td>첫 부팅 보고 유닛 심고 재부팅</td><td>b-3 · b-5</td></tr>
+            <tr><td>⑨</td><td>게스트</td><td>PXE 재진입 → 디스크 부팅 → 유닛이 완료 보고</td><td>b-4 · b-5</td></tr>
+            <tr><td>⑩</td><td>실행기</td><td>원장 닫기 · 토큰 회수 · <b>작업 트리 반납</b> · 다음 단계</td><td><b>b-1</b> · b-5</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 진단 (실측)</summary>
+      <div class="body">
+        <p>ISO 를 풀어 둘 자리도, 버전별 설치 원본도 지금은 없다.</p>
+        <table>
+          <thead><tr><th>사실</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>ISO 를 풀 영속 · 공유 장치 없음. <code>IsoPreparationService.prepare()</code> 는 임시 폴더 · close 때 삭제 · mount 는 root 필요 · 7z → bsdtar · 도구 출력을 읽지 않아 출력이 많으면 멈출 위험</td><td><code>IsoPreparationService</code></td></tr>
+            <tr><td>1차 구현은 전역 외부 URL <code>pxe.server.install-source-url</code> 하나 (운영자가 앱 밖에서 풀어 웹 서버로 냄). 정의서의 ISO 와 실제 원본이 어긋날 수 있고 버전 여럿을 못 다룸. 지금 Java 참조 0</td><td><code>application.properties</code> · <code>archive/legacy/…/OSInstallationStrategy</code></td></tr>
+            <tr><td>동시 설치: 실기에서 5 대 동시 진행</td><td>메모리 '실기 3호 5대 동시'</td></tr>
+            <tr><td>설치기는 커널을 받은 뒤에도 설치 내내 패키지를 받음 → 삭제 기준은 설치 종료 (완료 · 실패 · 시한)</td><td>anaconda 동작</td></tr>
+            <tr><td>무결성 스캐너는 살아 있는 자원의 부모 폴더를 깊이 8 까지 훑음 → 작업 트리는 허용 루트 밖</td><td><code>PathReconciliationService</code></td></tr>
+            <tr><td>서빙 토큰 · 게스트 체인: 토큰은 메모리 (재기동 시 소멸) · <code>/boot</code> = LAN ∧ PXE 부팅 계정 · 그 밖 = LAN ∧ 게스트 인증 · LAN 제한은 <code>pxe.guest.allowed-cidrs</code> 설정 시에만</td><td><code>WindowsInstallTokenRegistry</code> · <code>GuestSecurityConfig</code> · <code>ProvisioningLanPolicy</code></td></tr>
+            <tr><td>큰 파일 서빙 선례: <code>FileSystemResource</code> (Range 206) · 경로 이탈 방어 <code>PathResourceResolver</code> 계열</td><td><code>WindowsInstallAssetRestController</code> · <code>PxeAssetsConfig</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §1-b ===== -->
+    <details class="section" id="s1-b" open>
+      <summary>§1-b. 기존 코드 재활용</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>대상</th><th>분류</th><th>쓰는 법</th></tr></thead>
+          <tbody>
+            <tr><td><code>IsoPreparationService</code></td><td><span class="chip mod">고쳐서</span></td><td>7z · bsdtar 실행부를 <code>extractInto(isoFile, targetDir)</code> 로 공개 (출력 DISCARD). 기존 <code>prepare()</code> 불변</td></tr>
+            <tr><td><code>AsyncConfig</code> · <code>@Async</code> 관례</td><td><span class="chip mod">고쳐서</span> <span class="chip mod">개정 1</span></td><td>전용 실행기 <code>installTreeExecutor</code> 빈 추가 (1~2 스레드)</td></tr>
+            <tr><td>대기 iPXE 루프 <code>IpxeScripts.waitAndChain</code></td><td><span class="chip keep">그대로</span></td><td>b-4 가 사용. "설치 원본 준비 중" 대기</td></tr>
+            <tr><td><code>PxeAssetsConfig</code> · <code>MarkerHiddenResourceResolver</code></td><td><span class="chip opt">참고</span></td><td>b-4 트리 서빙의 경로 이탈 방어</td></tr>
+            <tr><td><code>CompsExtractionService</code> 모양</td><td><span class="chip opt">참고</span></td><td>@Async · 실패 처리</td></tr>
+            <tr><td>1차 구현 kickstart · iPXE</td><td><span class="chip opt">참고만</span></td><td>b-3 · b-4 의 커널 인자 규약</td></tr>
+            <tr><td><code>pxe.server.install-source-url</code></td><td><span class="chip del">정리</span></td><td>삭제</td></tr>
+            <tr><td>정의서 <code>LinuxInstallationRequest.isoId</code></td><td><span class="chip keep">그대로</span></td><td>작업 트리를 찾는 키</td></tr>
+            <tr><td>(v1 에서 쓰려던) <code>BackgroundJobService</code> 알림 패널</td><td><span class="chip keep">쓰지 않음</span></td><td>운영자 작업이 아니라 설치 내부 동작. 진행은 서버 상세 대기 사유 (b-5) 로 보인다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구 · 비목표</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>요구</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>설치가 그 ISO 를 처음 필요로 할 때 작업 트리를 푼다</td></tr>
+            <tr><td>R2</td><td>같은 ISO 동시 설치는 한 번만 풀어 공유</td></tr>
+            <tr><td>R3</td><td>그 ISO 로 설치 중인 서버가 0 대가 되면 삭제</td></tr>
+            <tr><td>R4</td><td>풀기 실패 (공간 부족 · RHEL 설치 ISO 아님) 는 사유와 함께</td></tr>
+            <tr><td>R5</td><td>앱 기동 때 남은 작업 트리 정리</td></tr>
+            <tr><td>R6</td><td>디렉터리로 등록된 ISO 는 풀지 않고 그 디렉터리를 그대로</td></tr>
+            <tr><td>R7</td><td>root 불필요</td></tr>
+            <tr><td>R8</td><td>b-4 가 쓸 API</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>서빙 · 토큰 · 접근 통제 구현 → b-4 (계약만 §7 에)</li>
+            <li>kickstart → b-3</li>
+            <li>화면 표시 → b-5</li>
+            <li>HTTP URL 로 등록된 ISO (차단 사유만)</li>
+            <li>Ubuntu</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 작업 트리 관리자 시뮬레이터</summary>
+      <div class="body">
+        <p>서버 버튼은 서버와 설치 원장이 하는 일을 대신 누른다. 운영자가 누르는 버튼은 없다. 판정은 <code>InstallTreeManager.acquire</code> 와 <code>release</code> 를 재현한다.</p>
+        <div class="callout">데모 가정: 추출에 3분, ISO 하나 10 GB, 자원 볼륨 여유 574 GB, 공간 부족 환경은 여유 8 GB. 유예 10분은 <code>release-grace</code> 기본값.</div>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">장면</span>
+            <button class="seg" data-sc="1" onclick="demoScenario(1)">1 한 대 설치</button>
+            <button class="seg" data-sc="2" onclick="demoScenario(2)">2 같은 ISO 세 대</button>
+            <button class="seg" data-sc="3" onclick="demoScenario(3)">3 다른 ISO 두 개</button>
+            <button class="seg" data-sc="4" onclick="demoScenario(4)">4 유예 중 재시도</button>
+            <button class="seg" data-sc="5" onclick="demoScenario(5)">5 공간 부족</button>
+            <button class="seg" data-sc="6" onclick="demoScenario(6)">6 앱 재기동</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">작업 디렉터리</span>
+            <button class="seg" data-env="OK" onclick="demoEnv('OK')">정상</button>
+            <button class="seg" data-env="NOT_CONFIGURED" onclick="demoEnv('NOT_CONFIGURED')">미설정</button>
+            <button class="seg" data-env="TOOL_MISSING" onclick="demoEnv('TOOL_MISSING')">도구 없음</button>
+            <button class="seg" data-env="LOW_SPACE" onclick="demoEnv('LOW_SPACE')">공간 부족</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">ISO-12 원본</span>
+            <button class="seg" data-src12="OK" onclick="demoSrc(12,'OK')">RHEL 설치 ISO</button>
+            <button class="seg" data-src12="NOT_RHEL" onclick="demoSrc(12,'NOT_RHEL')">RHEL 트리 아님</button>
+            <button class="seg" data-src12="HTTP" onclick="demoSrc(12,'HTTP')">웹 주소 등록</button>
+            <button class="seg" data-src12="EXTRACT_FAIL" onclick="demoSrc(12,'EXTRACT_FAIL')">풀기 실패</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">ISO-13 원본</span>
+            <button class="seg" data-src13="OK" onclick="demoSrc(13,'OK')">RHEL 설치 ISO</button>
+            <button class="seg" data-src13="NOT_RHEL" onclick="demoSrc(13,'NOT_RHEL')">RHEL 트리 아님</button>
+            <button class="seg" data-src13="HTTP" onclick="demoSrc(13,'HTTP')">웹 주소 등록</button>
+            <button class="seg" data-src13="EXTRACT_FAIL" onclick="demoSrc(13,'EXTRACT_FAIL')">풀기 실패</button>
+          </div>
+
+          <div style="margin-top:12px;" id="demo-clock"></div>
+          <div id="demo-iso"></div>
+          <div id="demo-srv"></div>
+          <div id="demo-disk"></div>
+          <div class="pkg-tree" id="demo-folders"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-caps" id="demo-log"></div>
+          <div class="ux-message" id="demo-message"></div>
+        </div>
+
+        <h4>서버 상세 › 프로비저닝 탭 (대기 사유 모사, b-5 에서 구현)</h4>
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">서버</span>
+            <button class="seg" data-srv="G1" onclick="demoSel('G1')">G1</button>
+            <button class="seg" data-srv="G2" onclick="demoSel('G2')">G2</button>
+            <button class="seg" data-srv="G3" onclick="demoSel('G3')">G3</button>
+            <button class="seg" data-srv="G4" onclick="demoSel('G4')">G4</button>
+          </div>
+          <div style="margin-top:12px;" id="demo-detail"></div>
+        </div>
+        <div class="callout">확보에 실패한 서버는 기다리지 않고 OS 설치 단계가 "실패" 로 닫힌다. [재시도] 는 서버 상세의 기존 재시도를 대신 누르는 것이고, 새 acquire 로 다시 추출한다 (D-10).</div>
+        <div class="callout warn">서버 상태 배지 (시작 전, 원본 대기, 설치 중, 완료, 실패, 실패 예정) 와 비활성 버튼 안내는 데모 표시용이다. 실제 문구는 b-5 에서 정한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 흐름</summary>
+      <div class="body">
+        <p>URL 은 없다 (서빙 URL 은 b-4, 계약은 §7). 실행기가 부르는 Java API 와 디스크 동작만 다룬다.</p>
+        <h4>A. 확보 — <code>InstallTreeManager.acquire(isoId, guestId)</code></h4>
+        <div class="seq">
+          <div class="actor a1">실행기 (b-4)</div><div class="actor a2">InstallTreeManager</div><div class="actor a3">추출 실행기</div><div class="actor a4">디스크</div>
+          <div class="step a1"><code>acquire(isoId, guestId)</code></div><div class="step a2">ISO 단위 잠금 · 상태 확인</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"><code>Failed(reason)</code> 받음 → OS 설치 단계 실패로 닫음 (원장 사유 = 실패 사유 코드)</div><div class="step a2">미설정 · 도구 없음 · HTTP ISO: 즉시 <code>Failed(reason)</code></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"><code>Ready(InstallTree)</code> 받음</div><div class="step a2">READY: 보유자 등록 · 트리 반환</div><div class="step a3"></div><div class="step a4"><code>iso-{id}/</code> 있음</div>
+          <div class="step a1"><code>Preparing</code> 받음 → 대기 iPXE</div><div class="step a2">PREPARING: 이미 푸는 중 · 보유자 등록</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"><code>Preparing</code> 받음 → 대기 iPXE</div><div class="step a2">ABSENT: 보유자 등록 · 추출 시작</div><div class="step a3">추출 접수 (B)</div><div class="step a4"></div>
+          <div class="step a1">운영자 [재시도] 뒤 새 <code>acquire</code> → <code>Preparing</code></div><div class="step a2">FAILED: 실패 표시를 지우고 다시 추출 · 보유자 등록</div><div class="step a3">추출 접수 (B)</div><div class="step a4"></div>
+        </div>
+        <div class="callout"><b>실패 처리</b> <span class="chip mod">개정 1</span> : <code>Failed</code> 를 받은 실행기는 대기하지 않고 그 서버의 OS 설치 단계를 실패로 닫는다. 그래서 대기 iPXE 가 30 초마다 재추출을 되풀이하는 일이 없다. 다시 시도는 운영자가 서버 상세의 기존 [재시도] 를 누를 때뿐이다 (D-10).</div>
+        <h4>B. 추출 — 전용 실행기 <code>installTreeExecutor</code></h4>
+        <div class="seq">
+          <div class="actor a1">실행기 (b-4)</div><div class="actor a2">InstallTreeManager</div><div class="actor a3">추출 실행기</div><div class="actor a4">디스크</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">여유 공간 확인 (ISO 크기 × 1.2)</div><div class="step a4"><code>{TREE_ROOT}</code> 여유 조회</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>extractInto</code></div><div class="step a4"><code>{TREE_ROOT}/.staging/&lt;uuid&gt;/</code> 에 풀기</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">필수 파일 확인 + <code>.treeinfo</code> 릴리스 읽기</div><div class="step a4"></div>
+          <div class="step a1">다음 <code>acquire</code> 에서 <code>Ready</code></div><div class="step a2">READY</div><div class="step a3">원자적 rename</div><div class="step a4"><code>.staging/&lt;uuid&gt;/</code> → <code>iso-{isoId}/</code></div>
+          <div class="step a1">대기 중이던 보유자: 다음 <code>/boot</code> 에서 <code>Failed(reason)</code> → 단계 실패</div><div class="step a2">FAILED (사유) · [재시도] 의 새 acquire 에서 다시 추출</div><div class="step a3">실패 (공간 · RHEL 아님 · 도구 실패) 시 staging 삭제</div><div class="step a4"><code>.staging/&lt;uuid&gt;/</code> 삭제</div>
+        </div>
+        <div class="callout">추출 중 보유자가 0 이 되어도 추출은 끝까지 하고, 준비 완료 시점에 유예를 시작한다 <span class="chip mod">개정 1</span>.</div>
+        <h4>C. 반납 — <code>release(isoId, guestId)</code></h4>
+        <div class="seq">
+          <div class="actor a1">실행기 (b-4)</div><div class="actor a2">InstallTreeManager</div><div class="actor a3">추출 실행기</div><div class="actor a4">디스크</div>
+          <div class="step a1">설치 종료 (원장 완료 · 실패 · 시한 · 운영자 실패 · 교체) → <code>release</code></div><div class="step a2">보유자 제거 · 0 이면 유예 예약 (기본 10 분)</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">유예 중 새 <code>acquire</code></div><div class="step a2">삭제 취소 · <code>Ready</code></div><div class="step a3"></div><div class="step a4">그대로</div>
+          <div class="step a1"></div><div class="step a2">유예 만료 → 삭제</div><div class="step a3"></div><div class="step a4"><code>iso-{isoId}/</code> 삭제</div>
+        </div>
+        <div class="callout">유예를 두는 이유: 곧바로 재시도하는 서버가 다시 풀지 않게.</div>
+        <h4>D · E. 기동 정리 · 디렉터리 ISO</h4>
+        <table>
+          <thead><tr><th>갈래</th><th>동작</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td>D 기동 정리</td><td>앱 기동 시 <code>{TREE_ROOT}</code> 의 <b>직계 자식 중 이름 규칙 (<code>iso-&lt;숫자&gt;</code> · <code>.staging</code>) 에 맞는 것만</b>, 심볼릭 링크를 따라가지 않고 (<code>walkFileTree</code>, HF6 선례 <code>global/trash/service/internal/PurgeExecutorImpl.deleteRecursively</code> · 심볼릭 링크 미추적 · 커밋 d9c9fe8) 삭제</td><td>토큰이 메모리라 재기동 전 진행 중이던 설치는 어차피 이어질 수 없음 → 그 설치는 시한으로 실패 처리되고, 재시도 때 다시 푼다</td></tr>
+            <tr><td>E 디렉터리 ISO</td><td>isoPath 가 디렉터리면 그 디렉터리를 트리로 바로 READY (필수 파일 확인만) · 삭제하지 않음</td><td>앱 소유 아님</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 클래스 구조 (패키지 <code>execution/installtree/{config, service, vo, enums}</code>)</summary>
+      <div class="body">
+        <p>실행 쪽 부품이다. 실행기 (b-4) 는 <code>InstallTreeManager</code> 하나만 부른다.</p>
+        <figure>
+          <svg viewBox="0 0 1110 500" role="img" aria-label="설치 작업 트리 클래스 구조도">
+            <defs>
+              <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" style="fill:var(--text-muted)"/>
+              </marker>
+            </defs>
+
+            <!-- 본류 박스 -->
+            <rect x="20" y="40" width="200" height="64" rx="8" style="fill:var(--card);stroke:var(--text-muted);stroke-width:1.5;stroke-dasharray:6 4"/>
+            <text x="120" y="66" text-anchor="middle" style="font:600 13px var(--mono);fill:var(--text)">RhelInstaller</text>
+            <text x="120" y="88" text-anchor="middle" style="font:12px sans-serif;fill:var(--text-muted)">b-4 설치 실행기 (범위 밖)</text>
+
+            <rect x="340" y="40" width="260" height="64" rx="8" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:2.5"/>
+            <text x="470" y="66" text-anchor="middle" style="font:700 13px var(--mono);fill:var(--blue)">InstallTreeManager</text>
+            <text x="470" y="88" text-anchor="middle" style="font:12px sans-serif;fill:var(--text-muted)">상태 · 보유자 · 유예 (메모리)</text>
+
+            <rect x="690" y="40" width="200" height="64" rx="8" style="fill:var(--bg);stroke:var(--border);stroke-width:1.5"/>
+            <text x="790" y="66" text-anchor="middle" style="font:600 13px var(--mono);fill:var(--text)">ISORepository</text>
+            <text x="790" y="88" text-anchor="middle" style="font:12px sans-serif;fill:var(--text-muted)">기존 · isoPath 조회</text>
+
+            <rect x="340" y="180" width="260" height="64" rx="8" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:1.5"/>
+            <text x="470" y="206" text-anchor="middle" style="font:600 13px var(--mono);fill:var(--blue)">InstallTreeExtractor</text>
+            <text x="470" y="228" text-anchor="middle" style="font:12px sans-serif;fill:var(--text-muted)">@Async installTreeExecutor</text>
+
+            <rect x="20" y="320" width="250" height="64" rx="8" style="fill:var(--yellow-bg);stroke:var(--yellow);stroke-width:1.5"/>
+            <text x="145" y="346" text-anchor="middle" style="font:600 13px var(--mono);fill:var(--text)">IsoPreparationService</text>
+            <text x="145" y="368" text-anchor="middle" style="font:12px sans-serif;fill:var(--text-muted)">extractInto() 공개 (수정)</text>
+
+            <rect x="340" y="320" width="260" height="64" rx="8" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:1.5"/>
+            <text x="470" y="346" text-anchor="middle" style="font:600 13px var(--mono);fill:var(--blue)">InstallTreeInspector</text>
+            <text x="470" y="368" text-anchor="middle" style="font:12px sans-serif;fill:var(--text-muted)">필수 파일 · .treeinfo 릴리스</text>
+
+            <rect x="670" y="320" width="220" height="64" rx="8" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:1.5"/>
+            <text x="780" y="346" text-anchor="middle" style="font:600 13px var(--mono);fill:var(--blue)">InstallTreeStore</text>
+            <text x="780" y="368" text-anchor="middle" style="font:12px sans-serif;fill:var(--text-muted)">경로 규칙 · 게시 · 삭제</text>
+
+            <rect x="640" y="430" width="280" height="56" rx="8" style="fill:var(--purple-bg);stroke:var(--purple);stroke-width:1.5"/>
+            <text x="780" y="453" text-anchor="middle" style="font:600 13px var(--mono);fill:var(--purple)">{TREE_ROOT}</text>
+            <text x="780" y="474" text-anchor="middle" style="font:12px sans-serif;fill:var(--text-muted)">served/install-trees</text>
+
+            <!-- 화살표 -->
+            <line x1="220" y1="62" x2="338" y2="62" style="stroke:var(--text-muted);stroke-width:1.5" marker-end="url(#arr)"/>
+            <text x="280" y="54" text-anchor="middle" style="font:11px sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4">acquire · release</text>
+            <line x1="340" y1="88" x2="222" y2="88" style="stroke:var(--text-muted);stroke-width:1.5;stroke-dasharray:4 3" marker-end="url(#arr)"/>
+            <text x="280" y="104" text-anchor="middle" style="font:11px var(--mono);fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4">TreeAcquisition</text>
+
+            <line x1="600" y1="72" x2="688" y2="72" style="stroke:var(--text-muted);stroke-width:1.5" marker-end="url(#arr)"/>
+            <text x="644" y="64" text-anchor="middle" style="font:11px sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4">isoPath</text>
+
+            <line x1="470" y1="104" x2="470" y2="178" style="stroke:var(--text-muted);stroke-width:1.5" marker-end="url(#arr)"/>
+            <text x="478" y="146" style="font:11px sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4">추출 요청 (@Async)</text>
+
+            <line x1="400" y1="244" x2="200" y2="318" style="stroke:var(--text-muted);stroke-width:1.5" marker-end="url(#arr)"/>
+            <text x="282" y="272" text-anchor="middle" style="font:11px sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4">풀기</text>
+
+            <line x1="470" y1="244" x2="470" y2="318" style="stroke:var(--text-muted);stroke-width:1.5" marker-end="url(#arr)"/>
+            <text x="478" y="286" style="font:11px sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4">확인</text>
+
+            <line x1="560" y1="244" x2="730" y2="318" style="stroke:var(--text-muted);stroke-width:1.5" marker-end="url(#arr)"/>
+            <text x="630" y="300" text-anchor="middle" style="font:11px sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4">게시 · staging 삭제</text>
+
+            <line x1="590" y1="104" x2="830" y2="318" style="stroke:var(--text-muted);stroke-width:1.5" marker-end="url(#arr)"/>
+            <text x="738" y="196" style="font:11px sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4">유예 삭제 · 기동 정리</text>
+
+            <line x1="780" y1="384" x2="780" y2="428" style="stroke:var(--text-muted);stroke-width:1.5" marker-end="url(#arr)"/>
+            <text x="788" y="411" style="font:11px sans-serif;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4">rename · 삭제</text>
+
+            <!-- 하위 패키지 태그 (본류) -->
+            <text x="340" y="33" style="font:600 10.5px var(--mono);fill:var(--text-muted)">service/</text>
+            <text x="340" y="173" style="font:600 10.5px var(--mono);fill:var(--text-muted)">service/</text>
+            <text x="340" y="313" style="font:600 10.5px var(--mono);fill:var(--text-muted)">service/</text>
+            <text x="890" y="313" text-anchor="end" style="font:600 10.5px var(--mono);fill:var(--text-muted)">service/</text>
+
+            <!-- 설정 · 값 타입 열 (하위 패키지별) -->
+            <text x="935" y="20" style="font:600 10.5px var(--mono);fill:var(--text-muted)">config/</text>
+            <rect x="935" y="26" width="160" height="48" rx="6" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:1"/>
+            <text x="1015" y="46" text-anchor="middle" style="font:600 11px var(--mono);fill:var(--blue)">InstallTreeProperties</text>
+            <text x="1015" y="64" text-anchor="middle" style="font:11px sans-serif;fill:var(--text-muted)">설정 · 기동 fail-fast</text>
+            <text x="935" y="92" style="font:600 10.5px var(--mono);fill:var(--text-muted)">service/</text>
+            <rect x="935" y="98" width="160" height="48" rx="6" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:1"/>
+            <text x="1015" y="118" text-anchor="middle" style="font:600 11px var(--mono);fill:var(--blue)">InstallTreeToolProbe</text>
+            <text x="1015" y="136" text-anchor="middle" style="font:11px sans-serif;fill:var(--text-muted)">bsdtar · 7z 확인</text>
+            <text x="935" y="164" style="font:600 10.5px var(--mono);fill:var(--text-muted)">vo/</text>
+            <rect x="935" y="170" width="160" height="48" rx="6" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:1"/>
+            <text x="1015" y="190" text-anchor="middle" style="font:600 11px var(--mono);fill:var(--blue)">TreeAcquisition</text>
+            <text x="1015" y="208" text-anchor="middle" style="font:11px sans-serif;fill:var(--text-muted)">Ready · Preparing · Failed</text>
+            <rect x="935" y="226" width="160" height="48" rx="6" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:1"/>
+            <text x="1015" y="246" text-anchor="middle" style="font:600 11px var(--mono);fill:var(--blue)">InstallTree</text>
+            <text x="1015" y="264" text-anchor="middle" style="font:11px sans-serif;fill:var(--text-muted)">record · resolve()</text>
+            <text x="935" y="292" style="font:600 10.5px var(--mono);fill:var(--text-muted)">enums/</text>
+            <rect x="935" y="298" width="160" height="48" rx="6" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:1"/>
+            <text x="1015" y="318" text-anchor="middle" style="font:600 11px var(--mono);fill:var(--blue)">TreeFailureReason</text>
+            <text x="1015" y="336" text-anchor="middle" style="font:11px sans-serif;fill:var(--text-muted)">enum 6 상수 · 문구</text>
+            <rect x="935" y="354" width="160" height="48" rx="6" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:1"/>
+            <text x="1015" y="374" text-anchor="middle" style="font:600 11px var(--mono);fill:var(--blue)">TreeState</text>
+            <text x="1015" y="392" text-anchor="middle" style="font:11px sans-serif;fill:var(--text-muted)">enum 4 상수 (메모리)</text>
+          </svg>
+          <figcaption>파랑 = 신규 · 노랑 = 기존 수정 · 회색 = 기존 그대로 · 점선 = b-4 (이번 범위 밖) · 보라 = 디스크. 점선 화살표 = 반환 값. 회색 태그 = <code>execution/installtree/</code> 아래 하위 패키지 <span class="chip mod">개정 1</span>.</figcaption>
+        </figure>
+
+        <h4>책임</h4>
+        <table>
+          <thead><tr><th>타입</th><th>패키지</th><th>종류</th><th>책임</th></tr></thead>
+          <tbody>
+            <tr><td><code>InstallTreeProperties</code></td><td><code>config</code></td><td>@ConfigurationProperties</td><td><code>provision.rhel-install.tree-root</code> (env <code>RHEL_INSTALL_TREE_ROOT</code>, 기본 빈 값 = 기능 꺼짐) · <code>release-grace</code> (기본 10m). <b>기동 fail-fast</b>: 절대경로가 아니거나, allowed-roots · pxe.assets.root · trash.root · quarantine root · asset history root 와 같거나 서로 포함하면 기동 실패 (같으면 기동 정리가 자원을 지우는 사고, 선례 <code>PxeBootProperties</code>)</td></tr>
+            <tr><td><code>InstallTreeManager</code></td><td><code>service</code></td><td>@Component</td><td>ISO 별 상태 · 보유자 집합 (메모리, 동시성 = ISO 단위 잠금) · <code>acquire</code> · <code>release</code> · 유예 삭제 예약 · 기동 정리 (<code>ApplicationReadyEvent</code>)</td></tr>
+            <tr><td><code>InstallTreeExtractor</code></td><td><code>service</code></td><td>@Component · @Async (<code>installTreeExecutor</code>)</td><td>공간 확인 → 풀기 → 확인 → 게시</td></tr>
+            <tr><td><code>InstallTreeInspector</code></td><td><code>service</code></td><td>@Component</td><td>필수 파일 · <code>.treeinfo</code> 릴리스</td></tr>
+            <tr><td><code>InstallTreeStore</code></td><td><code>service</code></td><td>@Component</td><td>경로 규칙 <code>iso-{id}</code> · <code>.staging/&lt;uuid&gt;</code> · 원자적 게시 · 삭제 · 기동 정리 (직계 자식 · 이름 규칙 · 링크 미추적)</td></tr>
+            <tr><td><code>InstallTreeToolProbe</code></td><td><code>service</code></td><td>@Component</td><td>기동 때 <code>bsdtar</code> · <code>7z</code> 존재 확인 → 준비도 (둘 다 없으면 TOOL_MISSING). 운영 spv-01 에 둘 다 없음 (앵커 실측)</td></tr>
+            <tr><td><code>TreeAcquisition</code></td><td><code>vo</code></td><td>sealed interface</td><td><code>Ready(InstallTree)</code> · <code>Preparing</code> · <code>Failed(reason)</code> — 실행기가 분기 없이 다형으로 대기 · 진행 · 단계 실패를 고른다</td></tr>
+            <tr><td><code>InstallTree</code></td><td><code>vo</code></td><td>record</td><td>root · release · <code>kernelPath()</code> · <code>initrdPath()</code> · <code>resolve(relativePath)</code> (트리 밖이면 empty — b-4 서빙의 경로 가드)</td></tr>
+            <tr><td><code>TreeFailureReason</code></td><td><code>enums</code></td><td>enum (상수별 문구)</td><td>NOT_CONFIGURED · TOOL_MISSING · NOT_ENOUGH_SPACE · NOT_RHEL_TREE · HTTP_ISO_UNSUPPORTED · EXTRACTION_FAILED</td></tr>
+            <tr><td><code>TreeState</code></td><td><code>enums</code></td><td>enum</td><td>ABSENT · PREPARING · READY · FAILED (메모리)</td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>실패 사유</th><th>걸리는 곳</th></tr></thead>
+          <tbody>
+            <tr><td>NOT_CONFIGURED · TOOL_MISSING · HTTP_ISO_UNSUPPORTED</td><td><code>acquire</code> 즉시 <code>Failed</code> <span class="chip mod">개정 1</span></td></tr>
+            <tr><td>NOT_ENOUGH_SPACE · NOT_RHEL_TREE · EXTRACTION_FAILED (도구 실패)</td><td>추출 단계 (B) <span class="chip mod">개정 1</span></td></tr>
+          </tbody>
+        </table>
+        <div class="state-flow">TreeState (메모리) :  ABSENT ──acquire──▶ PREPARING ──게시──▶ READY ──보유자 0 + 유예 만료──▶ ABSENT
+                                      └──실패──▶ FAILED ──[재시도] 의 새 acquire──▶ PREPARING</div>
+        <div class="callout"><b>예외 계층</b> <span class="chip mod">개정 1</span> : <b>신규 예외 클래스 없음.</b> 확보 실패는 예외가 아니라 값 (<code>TreeAcquisition.Failed(TreeFailureReason)</code>). 기동 설정 오류만 <code>IllegalStateException</code> fail-fast (선례 <code>PxeBootProperties</code>).</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 디스크 위 모양 · DB</summary>
+      <div class="body">
+        <p>위치 <code>{TREE_ROOT}</code> = <b><code>/var/lib/serverprovision/served/install-trees</code></b> (운영 · 스테이징, 앵커 자문 11-17 — §5-b).</p>
+        <div class="pkg-tree">/var/lib/serverprovision/served/
+├── resources/          allowed-roots (무결성 스캐너가 훑음)
+├── pxe/                PXE 자산
+└── install-trees/      {TREE_ROOT}  ← 이번 슬라이스
+    ├── iso-12/                         완성 트리
+    │   ├── .treeinfo
+    │   ├── images/
+    │   │   ├── install.img
+    │   │   └── pxeboot/
+    │   │       ├── vmlinuz
+    │   │       └── initrd.img
+    │   ├── BaseOS/                     repodata/ · Packages/
+    │   └── AppStream/                  repodata/ · Packages/
+    └── .staging/
+        └── &lt;uuid&gt;/                      추출 중 → 완료 시 iso-{isoId}/ 로 rename</div>
+        <div class="callout">rename 은 같은 파일 시스템이라 원자적이다. 반쯤 풀린 트리가 서빙될 틈이 없다.</div>
+
+        <h4>디스크 사용 시간표 (데모와 같은 예)</h4>
+        <table>
+          <thead><tr><th>순서</th><th>사건</th><th><code>install-trees/</code></th><th>사용량</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>G1 · G2 · G3 가 ISO-12 로 동시 설치 시작</td><td><code>.staging/&lt;uuid&gt;/</code> → <code>iso-12/</code> (추출 1 회)</td><td>10 GB</td></tr>
+            <tr><td>2</td><td>G4 가 ISO-13 로 설치 시작</td><td><code>iso-12/</code> · <code>iso-13/</code></td><td>20 GB</td></tr>
+            <tr><td>3</td><td>ISO-12 마지막 설치 종료</td><td>유예 10 분 뒤 <code>iso-12/</code> 삭제</td><td>10 GB</td></tr>
+            <tr><td>4</td><td>ISO-13 마지막 설치 종료</td><td>유예 10 분 뒤 <code>iso-13/</code> 삭제</td><td>0 GB</td></tr>
+          </tbody>
+        </table>
+
+        <h4>DB</h4>
+        <div class="callout success"><b>DB 변경 없음</b> : 작업 트리 상태는 설치가 진행되는 동안만 의미가 있어 메모리로 둔다. 무엇이 일어났는지는 b-4 설치 원장 meta (쓴 ISO · 릴리스 · 대기 사유) 에 남긴다. 이유: 재기동하면 토큰 · 보유자가 사라져 DB 상태가 거짓이 된다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5-b ===== -->
+    <details class="section" id="s5-b">
+      <summary>§5-b. 운영 배치 (앵커 자문 11-17)</summary>
+      <div class="body">
+        <p>근거: OPS-2 discussion · OPS-4 런북 <code>docs/staging-vm-bootstrap.md</code> · <code>docs/pxe-server-install.md</code> · spv-01 읽기 전용 실측.</p>
+        <table>
+          <thead><tr><th>항목</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>자리</td><td><code>/var/lib/serverprovision/served/install-trees</code> — 자원 볼륨 (590 G 중 574 G 남음, VG 여유 198 G). <code>/</code> (71 G) · <code>/var</code> (112 G, DB · 로그) · <code>/var/tmp</code> (PrivateTmp, 재기동 때 지워짐) 는 피함</td></tr>
+            <tr><td>served 인 이유</td><td>OPS-2 D2 "서빙되는 것과 아닌 것을 부모 디렉터리로 가른다". 트리는 Anaconda 가 HTTP 로 받아 가는 서빙 대상. 실제 서빙은 nginx → 앱 컨트롤러 (등록 ISO 기준 완성 트리만). 원시 경로를 여는 정적 매핑은 두지 않음</td></tr>
+            <tr><td>쓰지 않는 곳</td><td><code>internal/work</code> (OPS-2 D4, IsoPreparationService 열람용 임시 공간 · 서빙 대상 아님)</td></tr>
+            <tr><td>형제 관계</td><td>allowed-roots (<code>served/resources</code>) · PXE 자산 (<code>served/pxe</code>) 의 형제 → 무결성 스캐너가 훑지 않고 자산 이력과 섞이지 않음</td></tr>
+            <tr><td>권한</td><td>provisioning:provisioning · 0755 (운영자가 손으로 쓰는 자리 아님 — spvadmin · setgid 안 줌). 유닛 <code>ProtectSystem=strict</code> · <code>ReadWritePaths=/var/lib/serverprovision</code> 아래라 drop-in 불필요. 자원 볼륨 noexec 는 서빙 전용이라 무관</td></tr>
+            <tr><td>도구</td><td><b>spv-01 에 7z · 7za · bsdtar 없음</b>. EL9 AppStream 의 <code>bsdtar</code> 패키지 설치 필요 (EPEL 불필요, 이름 · 저장소는 dnf info 로 확정). 앱은 비특권이라 mount 불가 → 7z · bsdtar 설계가 맞음</td></tr>
+            <tr><td>관찰 (범위 밖)</td><td>같은 이유로 지금 운영의 <code>IsoPreparationService</code> 압축 해제 대체 경로도 동작하지 않을 것</td></tr>
+            <tr><td>런북 반영 (이번 슬라이스 문서 변경)</td><td><code>docs/staging-vm-bootstrap.md</code>: 디렉터리 생성 블록에 <code>served/install-trees</code> · env 블록에 <code>RHEL_INSTALL_TREE_ROOT=/var/lib/serverprovision/served/install-trees</code> · 패키지 설치 절에 <code>bsdtar</code>. <code>docs/pxe-server-install.md</code>: 파티션 표 자원 볼륨 비고에 "RHEL 설치 트리 (ISO 당 약 10 GB, 동시 2~3 개)"</td></tr>
+            <tr><td>운영 반영</td><td>배포 때 앵커가 사용자 지시로 (폴더 생성 · 패키지 설치 · env 추가)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 결정 D-1~D-9 (채택 · 비채택 · 사유)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>축</th><th>채택</th><th>비채택 · 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1 언제 푸나</td><td>설치가 처음 필요로 할 때 (B)</td><td>미리 준비 (A): 디스크 상시 두 배 · ISO 직접 읽기 (C): 라이브러리 · Rock Ridge 실측 필요 (후속 후보) · sudo mount (D): 권한 위임</td></tr>
+            <tr><td>D-2 공유</td><td>ISO 하나에 트리 하나, 보유자 집합으로 공유</td><td>서버마다 풀기: 10 GB × 대수</td></tr>
+            <tr><td>D-3 삭제 시점</td><td>보유자 0 + 유예 10 분</td><td>서빙 직후: 설치 내내 패키지를 받음 · 즉시: 재시도가 다시 풂</td></tr>
+            <tr><td>D-4 상태 저장</td><td>메모리 + 원장 meta</td><td>DB 컬럼: 재기동 뒤 거짓 상태</td></tr>
+            <tr><td>D-5 기동 정리</td><td>전부 삭제</td><td>진행 중 ISO 보존: 토큰이 사라져 그 설치는 이어질 수 없음</td></tr>
+            <tr><td>D-6 위치</td><td>전용 루트 (허용 루트 밖)</td><td>ISO 옆: 스캐너 비용</td></tr>
+            <tr><td>D-7 진행 표시</td><td>서버 상세 대기 사유 (b-5)</td><td>알림 패널 잡: 운영자 작업이 아님</td></tr>
+            <tr><td>D-8 디렉터리 ISO</td><td>그대로 트리 (삭제 안 함)</td><td>복사: 10 GB 중복</td></tr>
+            <tr><td>D-9 동시성</td><td>ISO 단위 잠금 (같은 ISO 추출 1 회) · 추출 실행기 1~2 스레드</td><td>전역 잠금: 다른 ISO 를 막음</td></tr>
+            <tr><td>D-10 실패 시 <span class="chip mod">개정 1</span></td><td>대기 대신 OS 설치 단계 실패 (원장 사유 = 실패 사유 코드). 다시 시도는 운영자 [재시도] 의 새 acquire (재추출 반복 방지)</td><td>대기 + 매 요청 재시도: 공간 부족에서 무한 반복 · 쿨다운 대기: 운영자가 원인을 모른 채 기다림</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 접근 통제 — b-4 가 구현할 계약</summary>
+      <div class="body">
+        <p>사용자 질문 (11-17) 반영. b-1 은 <code>InstallTree.resolve</code> 만 만들고, 나머지 겹은 b-4 가 구현한다.</p>
+        <table>
+          <thead><tr><th>겹</th><th>장치</th></tr></thead>
+          <tbody>
+            <tr><td>① 경로에 추측 가능한 값 없음</td><td>URL <code>/api/pxe/v1/rhel/{토큰}/…</code>, 토큰 = 서버마다 무작위 UUID. ISO id · 서버 id 는 경로에 없고 서버 안에서 토큰 → 게스트 → 활성 정의서 → isoId</td></tr>
+            <tr><td>② 모르는 토큰 거절</td><td>게스트 인증 필터 (<code>GuestCredentialConverter</code> 에 <code>rhel</code> 종류 추가)</td></tr>
+            <tr><td>③ 토큰은 PXE 부팅으로만</td><td><code>/boot</code> (LAN ∧ PXE 부팅 계정) 를 통과해 OS 설치 단계에 도달한 RHEL 서버에만 발급</td></tr>
+            <tr><td>④ 짧은 수명</td><td>완료 · 실패 · 시한 때 회수 · 메모리</td></tr>
+            <tr><td>⑤ LAN 제한</td><td>게스트 채널 전체 LAN ∧ 게스트 인증. <b>운영 서버에 <code>PXE_GUEST_ALLOWED_CIDRS</code> 설정 필요</b> (비면 제한 없음 · WARN)</td></tr>
+            <tr><td>⑥ 파일 범위</td><td>요청 경로를 그 ISO 작업 트리 안으로만 해석 (<code>InstallTree.resolve</code>) · <code>..</code> · 트리 밖 · 숨김 파일 (<code>.treeinfo</code> 제외) 거절</td></tr>
+            <tr><td>⑦ kickstart</td><td>비밀번호 해시가 들어가므로 그 서버 설치가 진행 중 (원장 RUNNING) 일 때만 서빙</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>관리 요청과 게스트 서빙의 구분</b> : v2 에는 관리 요청 (<code>POST /management/…/install-tree</code>) 이 없다 (v1 폐기). 작업 트리는 설치 내부에서만 다룬다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 테스트 · CP5</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>대상</th><th>확인할 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>InstallTreeManager</code></td><td>상태 전이 전부 (acquire · release · 유예 · 취소) · 동시 acquire 경쟁 → 추출 1 회 · 즉시 <code>Failed</code> 3 갈래 · FAILED 뒤 새 acquire 재추출 · 추출 중 보유자 0 → 준비 완료 시 유예 <span class="chip mod">개정 1</span></td></tr>
+            <tr><td><code>InstallTreeExtractor</code></td><td>실패 갈래: 공간 · 필수 파일 · 도구 실패</td></tr>
+            <tr><td><code>InstallTreeStore</code></td><td>원자 게시</td></tr>
+            <tr><td>경로 해석 가드</td><td><code>..</code> · 심볼릭 링크 · 숨김 파일</td></tr>
+            <tr><td><code>InstallTreeProperties</code></td><td>검증 (기동 fail-fast)</td></tr>
+            <tr><td>디렉터리 ISO</td><td>풀지 않고 그대로</td></tr>
+            <tr><td><code>IsoPreparationService.extractInto</code></td><td>bsdtar 있을 때</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (Spring 컨텍스트 + 실제 bsdtar + 가짜 Rocky ISO)</h4>
+        <div class="state-flow">acquire → PREPARING → READY · 보유자 2 → release 1 → 유지 → release 2 → 유예 뒤 삭제 · 기동 정리</div>
+        <table>
+          <thead><tr><th>자산</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>fixture</td><td><code>scripts/installtree-fixture/make-fake-rocky-iso.sh</code> (macOS <code>hdiutil makehybrid -iso</code> / Linux <code>xorriso</code>)</td></tr>
+            <tr><td>CP5 하네스</td><td><code>scripts/installtree-fixture/verify-install-tree.sh</code> — 통합 시험을 샌드박스 경로로 돌려 시나리오 6 개를 실행하고 디스크 · 로그를 채증</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>CP5 (E 단계 예외 · 화면 없음)</b> : b-1 만으로는 실행기가 없어 게스트 흐름을 탈 수 없다 → <b>시험 하네스로 검증</b>. 게스트 흐름 위의 실제 검증은 b-4 CP5 에서. b-1 을 b-4 에 합칠지는 Q3.</div>
+        <div class="callout warn">HTTP 엔드포인트가 없어 사용자 액션 통합 테스트 범주 (2xx · 400 · 404 · 409) 는 이 슬라이스에 대상이 없다. 서빙 경로의 범주 시험은 b-4 에서.</div>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Open Questions · Verification</summary>
+      <div class="body">
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>제안</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>설치 트리 위치 <code>/var/lib/serverprovision/served/install-trees</code> (앵커 자문)</td><td>그대로</td></tr>
+            <tr><td>Q2</td><td>유예 시간 10 분</td><td>10 분</td></tr>
+            <tr><td>Q3</td><td>b-1 은 화면이 없고 실행기 없이는 게스트 흐름을 못 탄다 — b-4 에 합칠지, 시험 하네스 검증으로 따로 둘지</td><td>따로 두고 시험 하네스 (작게 먼저 끝내 b-4 의 위험을 줄임)</td></tr>
+            <tr><td>Q4</td><td>앱 재기동 시 진행 중 RHEL 설치는 이어질 수 없다 (토큰 메모리) — 받아들일지</td><td>받아들임 (Windows 와 같음, 시한으로 정리 · 재시도 가능)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="E4-1-b-1-v2-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
+        </ul>
+        <h4>기능</h4>
+        <ul class="check-list" data-storage="E4-1-b-1-v2-func">
+          <li><label><input type="checkbox" data-key="share"> <span>같은 ISO 동시 acquire → 추출 1 회 (R2)</span></label></li>
+          <li><label><input type="checkbox" data-key="grace"> <span>보유자 0 + 유예 만료 → 삭제 · 유예 중 acquire → 삭제 취소 (R3)</span></label></li>
+          <li><label><input type="checkbox" data-key="fail"> <span>실패 사유 반환 · staging 삭제 · [재시도] 의 새 acquire 가 다시 추출 (R4 · D-10)</span></label></li>
+          <li><label><input type="checkbox" data-key="startup"> <span>기동 정리: 직계 자식 · 이름 규칙만 · 링크 미추적 (R5)</span></label></li>
+          <li><label><input type="checkbox" data-key="dir"> <span>디렉터리 ISO 는 풀지 않고 삭제하지 않음 (R6)</span></label></li>
+          <li><label><input type="checkbox" data-key="harness"> <span>시험 하네스 시나리오 6 개 채증 (CP5)</span></label></li>
+        </ul>
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="E4-1-b-1-v2-regress">
+          <li><label><input type="checkbox" data-key="prepare"> <span><code>IsoPreparationService.prepare()</code> 불변 (기존 테스트 green)</span></label></li>
+          <li><label><input type="checkbox" data-key="srcurl"> <span><code>pxe.server.install-source-url</code> 삭제 뒤 참조 0</span></label></li>
+          <li><label><input type="checkbox" data-key="off"> <span><code>tree-root</code> 빈 값이면 기능 꺼짐 · 기존 기동 영향 없음</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <p>신규 12 · 수정 5 · 유지 6 (테스트 파일 제외).</p>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/config/InstallTreeProperties.java</code></td><td>설정 · 기동 fail-fast</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/service/InstallTreeManager.java</code></td><td>상태 · 보유자 · acquire · release · 유예 · 기동 정리</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/service/InstallTreeExtractor.java</code></td><td>@Async 추출</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/service/InstallTreeInspector.java</code></td><td>필수 파일 · <code>.treeinfo</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/service/InstallTreeStore.java</code></td><td>경로 규칙 · 게시 · 삭제</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/service/InstallTreeToolProbe.java</code></td><td>도구 확인</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/vo/TreeAcquisition.java</code></td><td>sealed: Ready · Preparing · Failed</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/vo/InstallTree.java</code></td><td>record · <code>resolve</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/enums/TreeFailureReason.java</code></td><td>enum 6 · 상수별 문구</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/enums/TreeState.java</code></td><td>enum 4</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>scripts/installtree-fixture/make-fake-rocky-iso.sh</code></td><td>가짜 Rocky ISO</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>scripts/installtree-fixture/verify-install-tree.sh</code></td><td>CP5 하네스</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/iso/IsoPreparationService.java</code></td><td><code>extractInto</code> 공개 · <code>prepare()</code> 불변</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>global/config/AsyncConfig.java</code></td><td><code>installTreeExecutor</code> 빈 (1~2 스레드)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>src/main/resources/application.properties</code></td><td><code>install-source-url</code> 삭제 · <code>provision.rhel-install.*</code> 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>docs/staging-vm-bootstrap.md</code></td><td>디렉터리 · env · <code>bsdtar</code> (§5-b)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>docs/pxe-server-install.md</code></td><td>자원 볼륨 비고 (§5-b)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>management/os/repository/ISORepository.java</code></td><td>isoPath 조회</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>provisioning/setting/dto/request/LinuxInstallationRequest.java</code></td><td><code>isoId</code> = 찾는 키</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>execution/engine/boot/IpxeScripts.java</code></td><td>b-4 가 사용</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>execution/config/PxeAssetsConfig.java</code></td><td>b-4 참고</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>management/os/service/comps/CompsExtractionService.java</code></td><td>모양 참고</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>global/security/springsecurity/guest/authentication/GuestCredentialConverter.java</code></td><td>b-4 에서 수정</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">경로는 <code>src/main/java/com/example/serverprovision/</code> 아래 (스크립트 · 문서 · properties 제외). 테스트 파일명은 CP4 에서 확정. 하위 패키지 세분 <span class="chip mod">개정 1</span>.</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E4-1-b-1-v2-next">
+          <li><label><input type="checkbox" data-key="b2"> <span><b>b-2</b> 정의서 RHEL 활성화</span></label></li>
+          <li><label><input type="checkbox" data-key="b3"> <span><b>b-3</b> kickstart 생성기 (§0 ⑥ · ⑧)</span></label></li>
+          <li><label><input type="checkbox" data-key="b4"> <span><b>b-4</b> 설치 실행기: <code>acquire</code> · <code>release</code> 호출 · <code>Failed</code> 를 받으면 OS 설치 단계 실패로 닫기 (D-10) · 트리 서빙 · 토큰 · §7 접근 통제 구현 · 게스트 흐름 위 CP5</span></label></li>
+          <li><label><input type="checkbox" data-key="b5"> <span><b>b-5</b> 완료 보고 · 서버 상세 대기 사유 표시 (데모 패널 2)</span></label></li>
+          <li><label><input type="checkbox" data-key="b6"> <span><b>b-6</b> 디스크 선택 계약 (§0 ⑦)</span></label></li>
+          <li><label><input type="checkbox" data-key="ops"> <span>배포: 앵커가 사용자 지시로 폴더 생성 · <code>bsdtar</code> 설치 · env 추가 (§5-b)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §12 ===== -->
+    <details class="section" id="s12">
+      <summary>§12. 수직 슬라이스 12 단계 + CP</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td>N/A — 화면 없음 (대기 사유 표시는 b-5)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>3~4</td><td>N/A — HTTP 엔드포인트 없음 (서빙은 b-4)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>5</td><td><code>InstallTreeManager.acquire</code> · <code>release</code> 시그니처 · <code>TreeAcquisition</code></td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>N/A — DB 변경 없음 (<code>ISORepository</code> 재사용 · 값 타입 · enum 은 Step 5 와 함께)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8</td><td>본체 (Extractor · Inspector · Store · Probe · Properties) + <code>extractInto</code> · 테스트 코드 제외 · 빌드 통과</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>9</td><td>N/A — DB 변경 없음</td><td><span class="chip cp4">CP4</span></td><td>—</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 + fixture + 전체 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>시험 하네스 시나리오 6 개 · 디스크 · 로그 채증 (E 단계 예외)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>사용자 단독 (E 단계 예외 — 하네스 확인 · 게스트 흐름은 b-4)</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4 (중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점 ② CP4 승인 → CP6 제출.</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ── 4 불가침 로직 ──
+  // ① ToC 클릭 → 섹션 open + smooth scroll
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (e) {}
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ── 🎬 작업 트리 관리자 시뮬레이터 ──
+  // acquire · release · tick 은 InstallTreeManager (§3 A~D) 의 판정을 재현한다.
+  const DEMO_EXTRACT_MIN = 3, DEMO_GRACE_MIN = 10, DEMO_ISO_GB = 10, DEMO_FREE_GB = 574, DEMO_LOW_FREE_GB = 8, DEMO_SCALE_GB = 30;
+  const TREE_ROOT = '/var/lib/serverprovision/served/install-trees';
+  const REASON_MSG = {
+    PREPARING: '설치 원본을 준비하고 있습니다. 준비가 끝나면 설치를 이어 갑니다.',
+    NOT_ENOUGH_SPACE: '설치 원본을 준비하지 못했습니다. 작업 디렉터리의 디스크 공간이 부족합니다.',
+    NOT_RHEL_TREE: '설치 원본을 준비하지 못했습니다. RHEL 계열 설치 ISO 인지 확인해야 합니다.',
+    NOT_CONFIGURED: '설치 트리 디렉터리가 설정되지 않았습니다. 관리자에게 확인해야 합니다.',
+    TOOL_MISSING: '설치 원본을 풀 도구(bsdtar)가 서버에 없습니다. 관리자에게 확인해야 합니다.',
+    HTTP_ISO_UNSUPPORTED: '웹 주소로 등록된 ISO 는 설치 원본으로 쓸 수 없습니다.',
+    EXTRACTION_FAILED: '설치 원본을 준비하지 못했습니다. 원인을 확인한 뒤 재시도해야 합니다.'
+  };
+  const ISO_LABEL = { ABSENT: ['없음', 'off'], PREPARING: ['준비 중', 'dep'], READY: ['준비됨', 'on'], FAILED: ['실패', 'del'] };
+  const SRV_LABEL = { IDLE: ['시작 전', 'off'], WAITING: ['원본 대기', 'dep'], INSTALLING: ['설치 중', 'on'], DONE: ['완료', 'on'],
+                      FAILED: ['실패', 'del'], LOST: ['실패 예정', 'del'] };
+  const SERVERS = ['G1', 'G2', 'G3', 'G4'];
+  let D;
+
+  function demoFresh() {
+    const iso = name => ({ name, state: 'ABSENT', holders: [], grace: null, readyAt: null, staging: null, reason: null, tries: 0 });
+    const srv = k => ({ iso: k, st: 'IDLE', reason: null });
+    D = { t: 0, env: 'OK', src: { 12: 'OK', 13: 'OK' }, sel: 'G1', seq: 0, log: [], sc: null, msg: '',
+          iso: { 12: iso('Rocky 9'), 13: iso('Rocky 8') },
+          srv: { G1: srv(12), G2: srv(12), G3: srv(12), G4: srv(13) } };
+  }
+  function demoLog(s) { D.log.push('t=' + D.t + '  ' + s); }
+  function usedGb() {
+    let u = 0;
+    for (const k of [12, 13]) { const I = D.iso[k]; if (I.state === 'READY') u += DEMO_ISO_GB; if (I.staging) u += DEMO_ISO_GB; }
+    return u;
+  }
+  function freeGb() { return D.env === 'LOW_SPACE' ? DEMO_LOW_FREE_GB : DEMO_FREE_GB - usedGb(); }
+
+  // InstallTreeManager.acquire(isoId, guestId)
+  function acquire(k, g) {
+    if (D.env === 'NOT_CONFIGURED') return { kind: 'Failed', reason: 'NOT_CONFIGURED' };
+    if (D.src[k] === 'HTTP') return { kind: 'Failed', reason: 'HTTP_ISO_UNSUPPORTED' };
+    if (D.env === 'TOOL_MISSING') return { kind: 'Failed', reason: 'TOOL_MISSING' };
+    const I = D.iso[k];
+    let note = '';
+    if (I.grace !== null) { I.grace = null; note = ', 유예 취소'; }
+    if (!I.holders.includes(g)) I.holders.push(g);
+    if (I.state === 'READY') return { kind: 'Ready', note: note + ', 보유자 ' + I.holders.length };
+    if (I.state === 'PREPARING') return { kind: 'Preparing', note: ', 이미 추출 중이라 보유자만 추가' };
+    const wasFailed = I.state === 'FAILED';
+    const r = extract(k);   // ABSENT 또는 FAILED: 추출 시작 (FAILED 는 실패 표시를 지우고 다시 추출)
+    if (wasFailed) r.note = ', FAILED 를 지우고 다시 추출' + (r.note || '');
+    return r;
+  }
+  // InstallTreeExtractor: 공간 확인, staging 에 풀기 (완료는 tick 에서)
+  function extract(k) {
+    const I = D.iso[k];
+    I.tries++;
+    if (freeGb() < DEMO_ISO_GB * 1.2) {
+      failIso(k, 'NOT_ENOUGH_SPACE');
+      return { kind: 'Failed', reason: 'NOT_ENOUGH_SPACE', note: ', 여유 공간 확인에서 실패' };
+    }
+    D.seq++;
+    I.staging = 'u' + D.seq; I.state = 'PREPARING'; I.readyAt = D.t + DEMO_EXTRACT_MIN; I.reason = null;
+    return { kind: 'Preparing', note: ', 추출 시작 (.staging/' + I.staging + '/)' };
+  }
+  function failIso(k, reason) {
+    const I = D.iso[k];
+    I.state = 'FAILED'; I.reason = reason; I.staging = null; I.readyAt = null;
+    // 대기 중이던 보유자는 다음 /boot 에서 Failed 를 받아 OS 설치 단계 실패로 닫힌다 (데모는 즉시 반영)
+    I.holders.forEach(g => { D.srv[g].st = 'FAILED'; D.srv[g].reason = reason; });
+    I.holders = [];
+  }
+  function startServer(g) {
+    const S = D.srv[g];
+    const verb = (S.st === 'FAILED' || S.st === 'LOST') ? ' 재시도' : ' 설치 시작';
+    const r = acquire(S.iso, g);
+    if (r.kind === 'Ready') { S.st = 'INSTALLING'; S.reason = null; }
+    else if (r.kind === 'Preparing') { S.st = 'WAITING'; S.reason = null; }
+    else { S.st = 'FAILED'; S.reason = r.reason; }
+    const res = r.kind === 'Failed' ? 'Failed(' + r.reason + ')' : r.kind;
+    demoLog(g + verb + ': acquire(' + S.iso + ', ' + g + ') 결과 ' + res + (r.note || '')
+      + (r.kind === 'Failed' ? ', OS 설치 단계 실패로 닫음' : ''));
+  }
+  // InstallTreeManager.release(isoId, guestId)
+  function releaseServer(g, newSt) {
+    const S = D.srv[g], I = D.iso[S.iso];
+    const held = I.holders.includes(g);
+    S.st = newSt; S.reason = null;
+    const what = newSt === 'DONE' ? ' 완료' : ' 실패';
+    if (!held) { demoLog(g + what + ': 보유 중인 트리 없음'); return; }
+    I.holders = I.holders.filter(x => x !== g);
+    let note = ', 보유자 ' + I.holders.length;
+    if (I.holders.length === 0 && I.state === 'READY') { I.grace = D.t + DEMO_GRACE_MIN; note += ', 유예 ' + DEMO_GRACE_MIN + '분 시작'; }
+    demoLog(g + what + ': release(' + S.iso + ', ' + g + ')' + note);
+  }
+  function tick(n) {
+    for (let i = 0; i < n; i++) {
+      D.t++;
+      for (const k of [12, 13]) {
+        const I = D.iso[k];
+        if (I.state === 'PREPARING' && D.t >= I.readyAt) {
+          const fail = D.src[k] === 'NOT_RHEL' ? ['필수 파일 확인 실패', 'NOT_RHEL_TREE']
+                     : D.src[k] === 'EXTRACT_FAIL' ? ['풀기 도구 실패', 'EXTRACTION_FAILED'] : null;
+          if (fail) {
+            demoLog('ISO-' + k + ' ' + fail[0] + ': .staging/' + I.staging + '/ 삭제, Failed(' + fail[1] + ')'
+              + (I.holders.length ? ', 대기 중이던 ' + I.holders.join(', ') + ' 는 OS 설치 단계 실패' : ''));
+            failIso(k, fail[1]);
+          } else {
+            demoLog('ISO-' + k + ' 추출 완료: .staging/' + I.staging + '/ 를 iso-' + k + '/ 로 rename'
+              + (I.holders.length ? ', ' + I.holders.join(', ') + ' 설치 진행' : ''));
+            I.state = 'READY'; I.staging = null; I.readyAt = null;
+            I.holders.forEach(g => { D.srv[g].st = 'INSTALLING'; });
+            if (I.holders.length === 0) { I.grace = D.t + DEMO_GRACE_MIN; demoLog('ISO-' + k + ' 보유자 0, 유예 ' + DEMO_GRACE_MIN + '분 시작'); }
+          }
+        }
+        if (I.grace !== null && D.t >= I.grace) {
+          demoLog('ISO-' + k + ' 유예 만료: iso-' + k + '/ 삭제');
+          I.state = 'ABSENT'; I.grace = null;
+        }
+      }
+    }
+  }
+  function folders() {
+    const out = [];
+    for (const k of [12, 13]) {
+      const I = D.iso[k];
+      if (I.state === 'READY') out.push({ name: 'iso-' + k + '/', k, kind: 'tree' });
+      if (I.staging) out.push({ name: '.staging/' + I.staging + '/', k, kind: 'staging' });
+    }
+    return out;
+  }
+  // 기동 정리: 메모리 상태 소멸 + 이름 규칙에 맞는 직계 자식 삭제
+  function restartApp() {
+    const removed = folders().map(f => f.name);
+    const lost = SERVERS.filter(g => D.srv[g].st === 'WAITING' || D.srv[g].st === 'INSTALLING');
+    for (const k of [12, 13]) {
+      const I = D.iso[k];
+      I.state = 'ABSENT'; I.holders = []; I.grace = null; I.staging = null; I.readyAt = null; I.reason = null;
+    }
+    lost.forEach(g => { D.srv[g].st = 'LOST'; D.srv[g].reason = null; });
+    demoLog('앱 재기동: 메모리 상태 소멸, 기동 정리로 ' + (removed.length ? removed.join(', ') + ' 삭제' : '지울 폴더 없음')
+      + (lost.length ? ', 진행 중이던 ' + lost.join(', ') + ' 는 시한으로 실패 처리' : ''));
+  }
+
+  // ── 조작 핸들러 ──
+  function manual(fn) { D.sc = null; D.msg = ''; fn(); demoRender(); }
+  function demoEnv(v) { manual(() => { D.env = v; }); }
+  function demoSrc(k, v) { manual(() => { D.src[k] = v; }); }
+  function demoStart(g) { manual(() => { D.sel = g; startServer(g); }); }
+  function demoDone(g) { manual(() => { D.sel = g; releaseServer(g, 'DONE'); }); }
+  function demoFail(g) { manual(() => { D.sel = g; releaseServer(g, 'FAILED'); }); }
+  function demoTick(n) { manual(() => tick(n)); }
+  function demoRestart() { manual(restartApp); }
+  function demoReset() { demoFresh(); demoRender(); }
+  function demoSel(g) { D.sel = g; demoRender(); }
+
+  function demoScenario(n) {
+    demoFresh(); D.sc = n;
+    if (n === 1) {
+      startServer('G1'); tick(DEMO_EXTRACT_MIN); releaseServer('G1', 'DONE'); tick(DEMO_GRACE_MIN);
+      D.sel = 'G1';
+      D.msg = 'G1 한 대가 ISO-12 를 처음 쓰므로 추출하고, 완료 뒤 유예 10분이 지나 삭제했습니다. 기록에서 순서를 확인합니다.';
+    } else if (n === 2) {
+      startServer('G1'); startServer('G2'); startServer('G3'); tick(DEMO_EXTRACT_MIN);
+      D.sel = 'G2';
+      D.msg = '같은 ISO-12 로 세 대가 동시에 시작해도 추출 시도는 1회입니다. 세 대 모두 같은 iso-12/ 를 씁니다.';
+    } else if (n === 3) {
+      startServer('G1'); startServer('G4'); tick(DEMO_EXTRACT_MIN);
+      D.sel = 'G4';
+      D.msg = 'ISO 가 다르면 트리도 따로 풉니다. 디스크 사용량이 20 GB 가 됩니다.';
+    } else if (n === 4) {
+      startServer('G1'); tick(DEMO_EXTRACT_MIN); releaseServer('G1', 'FAILED'); tick(4); startServer('G1');
+      D.sel = 'G1';
+      D.msg = 'G1 이 실패한 뒤 유예 중에 다시 시작하면 삭제를 취소하고 이미 풀린 트리를 그대로 씁니다. 추출 시도는 1회로 남습니다.';
+    } else if (n === 5) {
+      D.env = 'LOW_SPACE'; startServer('G1');
+      D.sel = 'G1';
+      D.msg = '작업 디렉터리 여유 공간이 ISO 크기의 1.2배보다 작아 추출을 시작하지 않았습니다. G1 은 기다리지 않고 OS 설치 단계가 실패로 닫히며, 서버 상세에 사유가 보입니다. 공간을 확보한 뒤 재시도를 누르면 다시 추출합니다.';
+    } else if (n === 6) {
+      startServer('G1'); startServer('G2'); startServer('G4'); tick(DEMO_EXTRACT_MIN); restartApp();
+      D.sel = 'G1';
+      D.msg = '재기동하면 토큰과 보유자가 메모리에서 사라지므로 남은 트리를 전부 지웁니다. 진행 중이던 설치는 시한으로 실패 처리되고, 다시 시작하면 다시 풉니다.';
+    }
+    demoRender();
+  }
+
+  function demoBtn(fn, label, disabled, tip) {
+    return '<span class="tip"' + (disabled ? ' data-tip="' + tip + '"' : '') + '><button class="n-demo-btn"'
+      + (disabled ? ' disabled' : '') + ' onclick="' + fn + '">' + label + '</button></span>';
+  }
+  function badge(pair) { return '<span class="badge ' + pair[1] + '">' + pair[0] + '</span>'; }
+  function graceLeft(I) { return I.grace === null ? '-' : (I.grace - D.t) + '분 남음'; }
+
+  function demoRender() {
+    const segs = (attr, val) => document.querySelectorAll('.seg[' + attr + ']').forEach(s => s.classList.toggle('active', s.getAttribute(attr) === String(val)));
+    segs('data-sc', D.sc); segs('data-env', D.env); segs('data-src12', D.src[12]); segs('data-src13', D.src[13]); segs('data-srv', D.sel);
+
+    document.getElementById('demo-clock').innerHTML =
+      '<div class="ux-row"><strong>시계</strong><span class="label">t = ' + D.t + '분</span>'
+      + demoBtn('demoTick(1)', '+1분', false, '') + demoBtn('demoTick(5)', '+5분', false, '')
+      + demoBtn('demoRestart()', '앱 재기동', false, '') + demoBtn('demoReset()', '초기화', false, '') + '</div>';
+
+    document.getElementById('demo-iso').innerHTML = [12, 13].map(k => {
+      const I = D.iso[k];
+      const reason = I.state === 'FAILED' ? ', 사유 ' + I.reason : '';
+      return '<div class="ux-row"><strong>ISO-' + k + '</strong><span class="label">' + I.name
+        + ', 보유자 ' + (I.holders.length ? I.holders.join(', ') : '없음') + ', 유예 ' + graceLeft(I) + reason + '</span>'
+        + badge(ISO_LABEL[I.state]) + '</div>';
+    }).join('');
+
+    document.getElementById('demo-srv').innerHTML = SERVERS.map(g => {
+      const S = D.srv[g], I = D.iso[S.iso];
+      const busy = S.st === 'WAITING' || S.st === 'INSTALLING';
+      return '<div class="ux-row child"><strong>' + g + '</strong><span class="label">ISO-' + S.iso + ' ' + I.name + '</span>'
+        + badge(SRV_LABEL[S.st])
+        + demoBtn("demoStart('" + g + "')", (S.st === 'FAILED' || S.st === 'LOST') ? '재시도' : '설치 시작', busy, '이 서버는 이미 설치 원본을 확보했습니다.')
+        + demoBtn("demoDone('" + g + "')", '완료', S.st !== 'INSTALLING', '설치가 진행 중일 때만 완료할 수 있습니다.')
+        + demoBtn("demoFail('" + g + "')", '실패', !busy, '진행 중인 설치가 없습니다.')
+        + '</div>';
+    }).join('');
+
+    const fs = folders();
+    const used = usedGb();
+    const segColor = f => f.kind === 'staging' ? 'var(--yellow)' : (f.k === 12 ? 'var(--blue)' : 'var(--purple)');
+    const bar = fs.map(f => '<span style="display:block;height:100%;width:' + (DEMO_ISO_GB / DEMO_SCALE_GB * 100) + '%;background:' + segColor(f) + '"></span>').join('');
+    document.getElementById('demo-disk').innerHTML =
+      '<div class="ux-row"><strong>디스크</strong><div class="label"><div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--border-soft)">'
+      + bar + '</div></div><span>' + used + ' GB</span></div>';
+
+    const lines = [TREE_ROOT + '/'];
+    if (D.env === 'NOT_CONFIGURED') lines.push('  (tree-root 가 비어 있어 기능이 꺼져 있습니다)');
+    if (!fs.length) lines.push('  (비어 있음)');
+    fs.forEach(f => {
+      const I = D.iso[f.k];
+      const desc = f.kind === 'staging'
+        ? DEMO_ISO_GB + ' GB, ISO-' + f.k + ' 추출 중 (남은 ' + (I.readyAt - D.t) + '분)'
+        : DEMO_ISO_GB + ' GB, ' + (I.grace !== null ? '유예 중 (남은 ' + (I.grace - D.t) + '분)' : '보유자 ' + I.holders.join(', '));
+      lines.push('  ' + (f.name + '                    ').slice(0, 20) + desc);
+    });
+    document.getElementById('demo-folders').textContent = lines.join('\n');
+
+    const pad = (s, w) => (s + '            ').slice(0, w);
+    const caps = ['t = ' + D.t + '분'];
+    [12, 13].forEach(k => {
+      const I = D.iso[k];
+      caps.push('ISO-' + k + '  state=' + pad(I.state, 10) + 'holders=' + pad('[' + I.holders.join(',') + ']', 12)
+        + 'grace=' + pad(graceLeft(I), 8) + '  추출 시도=<span class="' + (I.tries > 1 ? 't' : 'f') + '">' + I.tries + '</span>');
+    });
+    caps.push('여유 공간 = ' + freeGb() + ' GB, 추출에 필요한 여유 = ' + (DEMO_ISO_GB * 1.2) + ' GB (ISO ' + DEMO_ISO_GB + ' GB x 1.2)');
+    caps.push('tree-root = ' + (D.env === 'NOT_CONFIGURED' ? '(빈 값, 기능 꺼짐)' : TREE_ROOT));
+    caps.push('bsdtar = ' + (D.env === 'TOOL_MISSING' ? '없음, 7z = 없음' : '있음'));
+    document.getElementById('demo-caps').innerHTML = caps.join('\n');
+
+    document.getElementById('demo-log').textContent = '기록\n' + (D.log.length ? D.log.join('\n') : '(아직 없음)');
+
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message' + (D.sc === 5 ? ' error' : (D.sc ? ' success' : ''));
+    msg.textContent = D.msg || '장면 버튼을 누르거나 서버 버튼을 직접 누릅니다. 시계로 시간을 보내면 추출 완료와 유예 만료가 일어납니다.';
+
+    // 패널 2: 서버 상세 › 프로비저닝 탭 대기 사유
+    const S = D.srv[D.sel], I = D.iso[S.iso];
+    const reasonText = S.st === 'WAITING' ? REASON_MSG.PREPARING : (S.st === 'FAILED' && S.reason ? REASON_MSG[S.reason] : '없음');
+    const showReason = S.st === 'WAITING' || (S.st === 'FAILED' && S.reason);
+    document.getElementById('demo-detail').innerHTML =
+      '<div class="ux-row"><strong>OS 설치</strong><span class="label">' + D.sel + ', ISO-' + S.iso + ' ' + I.name + '</span>' + badge(SRV_LABEL[S.st]) + '</div>'
+      + '<div class="ux-row child' + (showReason ? '' : ' muted') + '"><span class="label">대기 사유: ' + reasonText + '</span></div>';
+  }
+
+  demoFresh();
+  demoRender();   // 불가침: 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

@@ -77,10 +77,18 @@ sudo dnf -y install acl
 sudo mkdir -p /opt/serverprovision
 sudo mkdir -p /var/lib/serverprovision/served/resources
 sudo mkdir -p /var/lib/serverprovision/served/pxe
+sudo mkdir -p /var/lib/serverprovision/served/install-trees
 sudo mkdir -p /var/lib/serverprovision/internal/{uploads,upload-tmp,work,trash,quarantine,history}
 sudo mkdir -p /var/log/serverprovision
 sudo mkdir -p /etc/serverprovision
 sudo ln -s /var/lib/serverprovision /opt/serverprovision/data
+```
+
+served/install-trees 는 RHEL 계열 설치 때 앱이 등록 ISO 를 풀어 두는 작업 트리 자리다(E4-1-b-1). 운영자가 손으로 쓰는 자리가 아니므로 아래 기본값(provisioning:provisioning, 0755)을 그대로 받는다. ISO 하나에 약 10 GB 를 쓰고, 그 ISO 로 설치 중인 서버가 없어지면 유예 시간 뒤 지워진다. 앱은 비특권이라 mount 를 쓸 수 없어 ISO 를 bsdtar 로 푼다. bsdtar 는 AppStream 의 bsdtar 패키지에 있다(EPEL 불필요).
+
+```bash
+sudo dnf -y install bsdtar
+bsdtar --version
 ```
 
 권한은 OPS-1 D5(setgid 와 기본 ACL 병용)와 D6(운영자 공유 영역과 애플리케이션 단독 영역 구분)을 따른다.
@@ -147,6 +155,7 @@ PROVISION_TRASH_ROOT=/var/lib/serverprovision/internal/trash
 PROVISION_ISO_QUARANTINE_ROOT=/var/lib/serverprovision/internal/quarantine
 PROVISION_ASSET_HISTORY_ROOT=/var/lib/serverprovision/internal/history
 PROVISION_ALLOWED_ROOTS=/var/lib/serverprovision/served/resources
+RHEL_INSTALL_TREE_ROOT=/var/lib/serverprovision/served/install-trees
 RECONCILIATION_SCAN_EXTRA_ROOTS=
 EOF
 sudo chmod 0600 /etc/serverprovision/env
