@@ -5,7 +5,7 @@
 | 도구 | 보는 것 | 규약 |
 |---|---|---|
 | `copy-scan.mjs` | 화면 글자와 title, placeholder, aria-label 의 대시, 가운뎃점, '~음/~함/~됨' 꼴, 해요체, '축' | DESIGN.md 7절 표기 |
-| `line-scan.mjs` | 2.5px 안에 포갠 선, 사이에 글자 없이 나란한 두 선 | DESIGN.md 5절 구분선 |
+| `line-scan.mjs` | 폭마다(기본 1440, 1024) 2.5px 안에 포갠 선, 사이에 글자 없이 나란한 두 선 | DESIGN.md 5절 구분선 |
 | `overflow-scan.mjs` | 폭마다(기본 1440, 1024) 페이지 가로 넘침과 칸 밖으로 나간 표 칸, 배지, 버튼 | DESIGN.md 3절, 4절 |
 | `snippet-check.mjs` | 앱 없이 마크업 조각과 제안 CSS 를 앱 시트 위에 렌더해 폭마다 스크린샷과 위 세 검사를 한 번에 | 위와 같음 |
 
@@ -24,7 +24,7 @@ npm install            # playwright-core 만 받는다. 브라우저는 설치�
 
 ```bash
 SPV_BASE=http://localhost:7797 SPV_USER=<계정> SPV_PASS=<비밀번호> node copy-scan.mjs urls.txt out/copy.json
-SPV_BASE=http://localhost:7797 SPV_USER=<계정> SPV_PASS=<비밀번호> node line-scan.mjs urls.txt out/lines.json
+SPV_BASE=http://localhost:7797 SPV_USER=<계정> SPV_PASS=<비밀번호> node line-scan.mjs urls.txt out/lines.json 1440,1024
 SPV_BASE=http://localhost:7797 SPV_USER=<계정> SPV_PASS=<비밀번호> node overflow-scan.mjs urls.txt out/overflow.json 1440,1024
 ```
 
@@ -41,5 +41,6 @@ node snippet-check.mjs 조각.html out/snippet 1440,1024,390 --sheets css/miller
 ## 결과 읽기
 
 - `copy-scan` 은 사용자 입력 데이터(정의서 이름, 메모)도 잡는다. 화면 문구인지 사람이 가른다.
+- `line-scan` 의 결과 줄은 폭으로 시작한다. 1024 이하에서 열이 쌓이는 컴포넌트(Miller)는 그 폭에서만 선이 겹치므로 1440 만 보고 끝내지 않는다. 빈 구분선 판정 간격은 네 번째 인자(기본 44px)다.
 - `line-scan` 의 `겹침` 은 거의 항상 결함이다. `빈 구분선` 은 판정이 필요하다. 탭 줄 아래에 판이 떨어져 서는 것, 묶음 머리 선 아래에 상자 항목이 줄지어 서는 것은 정상 간격으로 본다(2026-11-16 판정).
 - 결과는 `out/` 에 쌓인다(git 제외).
