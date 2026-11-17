@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="manual-reviewed" content="2026-11-16">
+    <meta name="manual-reviewed" content="2026-11-17">
     <title>정의서 작성 | ServerProvision 사용 매뉴얼</title>
     <link rel="stylesheet" href="../../global/reset.css">
     <link rel="stylesheet" href="../../global/style.css">
@@ -45,18 +45,18 @@
         <li><strong>정의서 명칭</strong>을 입력합니다.</li>
         <li><strong>단계 추가</strong>에서 넣을 단계의 버튼(<span class="m-ui">+ 펌웨어 업데이트</span>, <span class="m-ui">+ BIOS 설정</span>, <span class="m-ui">+ RAID 구성</span>, <span class="m-ui">+ OS 설치</span>)을 누릅니다. 누른 단계의 설정 카드가 펼쳐집니다.</li>
         <li>단계마다 설정을 입력합니다. 단계별 입력 칸은 <a href="process-types.html">단계 종류별 설정</a>에서 설명합니다.</li>
-        <li><span class="m-ui">정의서 생성</span> 을 누릅니다. 저장되면 정의서 상세가 열립니다.</li>
+        <li><span class="m-ui">정의서 작성</span> 을 누릅니다. 저장되면 정의서 상세가 열립니다.</li>
     </ol>
     <ul>
         <li>단계는 하나 이상 넣어야 합니다. 같은 종류의 단계는 한 번만 넣을 수 있으며, 넣은 종류의 버튼은 눌리지 않습니다.</li>
         <li>단계는 누른 순서와 상관없이 펌웨어 업데이트, BIOS 설정, RAID 구성, OS 설치 순서로 놓이고 그 순서로 실행됩니다.</li>
         <li>카드 머리의 <span class="m-ui">단계 제거</span> 는 확인 창 없이 그 단계를 뺍니다.</li>
         <li>입력 중 다른 화면으로 이동하거나 <span class="m-ui">취소</span> 를 누르면 입력한 내용이 경고 없이 사라집니다.</li>
-        <li>비활성 자원은 선택지에 나오지 않습니다. Deprecated 자원을 고르면 "지원 중단(Deprecated) 자원" 확인 창이 열리며, <span class="m-ui">그래도 적용</span> 을 누르면 선택이 유지됩니다.</li>
+        <li>비활성 자원은 선택지에 나오지 않습니다. 사용 중단이 권고된 자원을 고르면 "사용 중단 권고 자원" 확인 창이 열리며, <span class="m-ui">그래도 적용</span> 을 누르면 선택이 유지됩니다. 고른 자원의 라벨 옆에는 <span class="n-badge n-badge-yellow">사용 중단</span> 배지가 붙습니다.</li>
     </ul>
     <div class="m-callout m-warn">
         <span class="m-callout-title">주의</span>
-        <p>OS 설치 단계를 넣는다면 RAID 구성 단계도 함께 넣고, 디스크 묶음 하나를 OS 영역으로 정합니다. Windows 는 RAID 구성 단계가 만든 OS 영역 볼륨에 설치되므로, RAID 구성 단계가 없는 정의서는 저장되더라도 실행할 때 OS 설치 단계에서 막힙니다. RAID 구성 단계에 묶음이 하나도 없거나 RAID 없음 묶음이 디스크를 가져가는 경우에도 막힙니다.</p>
+        <p>Windows 는 RAID 구성 단계가 만든 OS 영역 볼륨에 설치됩니다. OS 설치 단계를 넣는다면 RAID 구성 단계도 함께 넣고, OS 영역이 될 RAID 묶음을 정해야 저장됩니다(<a href="#os-volume">OS 영역 볼륨</a>). RAID 미구성 묶음은 저장은 되지만 실행하면 설치 단계에서 멈추므로 두지 않습니다.</p>
     </div>
 
     <h3 id="name-rule">명칭 규칙</h3>
@@ -64,6 +64,15 @@
 
     <h3 id="save-errors">저장되지 않을 때</h3>
     <p>필요한 칸을 비웠거나 규칙에 맞지 않는 값이 있으면 저장되지 않습니다. 잘못된 칸은 그 칸 아래에 빨간 글자로 표시됩니다. 단계를 하나도 넣지 않았을 때와 명칭 중복처럼 특정 칸에 속하지 않는 오류는 폼 위쪽에 표시됩니다. 오류가 있는 카드는 자동으로 펼쳐지고, 서버가 거절한 경우에는 첫 오류 위치로 화면이 이동합니다.</p>
+
+    <h3 id="os-volume">OS 영역 볼륨</h3>
+    <p>OS 설치 단계를 넣은 정의서는 RAID 구성 단계에서 OS 영역이 될 RAID 묶음을 정해야 저장됩니다. 묶음 하나의 역할을 OS 영역으로 정하거나, 역할을 우선순위에 따름으로 두고 볼륨 우선순위 행을 둡니다. 다음 경우에는 저장되지 않습니다.</p>
+    <ul>
+        <li>RAID 구성 단계가 없거나 묶음이 하나도 없는 경우: OS 설치 카드에 "OS 설치 단계가 있으면 RAID 구성 단계에서 OS 영역 볼륨을 정해야 합니다." 가 빨간 글씨로 표시</li>
+        <li>OS 영역이 될 수 있는 묶음이 없는 경우: RAID 구성 카드에 안내 표시</li>
+        <li>OS 영역이 될 수 있는 묶음이 모두 RAID 미구성인 경우: "OS 영역 묶음이 RAID 미구성이면 설치 디스크를 정할 수 없습니다. OS 영역 묶음은 RAID 레벨을 골라야 합니다."</li>
+    </ul>
+    <p>OS 영역 밖에 RAID 미구성 묶음이 있으면 저장은 되지만 "Windows 설치는 RAID 미구성 묶음이 있으면 설치 디스크를 정하지 못해 설치 단계에서 멈춥니다." 가 표시되고, 실행하면 그대로 멈춥니다. OS 를 설치하는 정의서에는 RAID 미구성 묶음을 두지 않습니다.</p>
 
     <h2 id="detail">상세</h2>
     <p>상세의 기본 정보에는 사용 여부, 사용 중단 권고, 정의서 ID, 생성일시, 수정일시가 있고, 그 아래 단계마다 카드가 표시됩니다. 단계 카드 머리에는 다음 배지가 붙을 수 있습니다. 배지는 상세를 열 때마다 다시 판정됩니다.</p>
@@ -73,13 +82,13 @@
             <tr><th>배지</th><th>조건</th><th>조치</th></tr>
             </thead>
             <tbody>
-            <tr><td><span class="n-badge n-badge-yellow">지원 중단 자원 사용</span></td><td>단계가 Deprecated 자원을 사용. 마우스를 올리면 자원 이름 표시</td><td>필요하면 다른 자원으로 수정</td></tr>
-            <tr><td><span class="n-badge n-badge-yellow">실행 시 건너뜀 가능</span></td><td>펌웨어 업데이트에서 메인보드를 직접 지정하고 최신 버전으로 두었는데 그 보드에 활성 펌웨어가 하나도 없는 경우</td><td>펌웨어 등록 또는 활성화</td></tr>
+            <tr><td><span class="n-badge n-badge-yellow">사용 중단 권고 자원 사용</span></td><td>단계가 사용 중단 권고 자원을 사용. 마우스를 올리면 자원 이름 표시</td><td>필요하면 다른 자원으로 수정</td></tr>
+            <tr><td><span class="n-badge n-badge-yellow">실행 시 생략 가능</span></td><td>펌웨어 업데이트에서 메인보드를 직접 지정하고 최신 버전으로 두었는데 그 보드에 활성 펌웨어가 하나도 없는 경우</td><td>펌웨어 등록 또는 활성화</td></tr>
             <tr><td><span class="n-badge n-badge-red">실행 불가</span></td><td>OS 설치 단계의 ISO 가 삭제되었거나 비활성인 경우</td><td>ISO 활성화 또는 다른 ISO 로 수정</td></tr>
             </tbody>
         </table>
     </div>
-    <p>OS 설치 카드의 설치 이미지 옆에는 설치 소스와 대조한 결과가 표시됩니다. "설치 소스 미준비" 는 시스템 자산 화면에서 Windows 설치 소스를 준비하면 사라집니다. "설치 소스에 없음" 이 보이면 정의서를 수정해 설치 이미지를 다시 고르고 저장합니다. Administrator 비밀번호는 값을 보여 주지 않고 설정됨 또는 미설정으로만 표시됩니다.</p>
+    <p>OS 설치 카드의 설치 이미지 옆에는 설치 소스와 대조한 결과가 표시됩니다. "설치 소스 미준비" 는 시스템 자산 화면에서 Windows 설치 소스를 준비하면 사라집니다. "설치 소스 누락" 이 보이면 정의서를 수정해 설치 이미지를 다시 고르고 저장합니다. Administrator 비밀번호는 값을 보여 주지 않고 설정됨 또는 미설정으로만 표시됩니다.</p>
 
     <h2 id="edit">수정</h2>
     <p>상세의 <span class="m-ui">수정</span> 을 누르면 작성 화면과 같은 폼이 열립니다. 명칭과 단계 전부를 바꿀 수 있고, <span class="m-ui">변경 사항 저장</span> 을 누르면 정의서 전체가 새 내용으로 바뀝니다. 할당 중이거나 개시한 서버가 있어도 수정할 수 있으며, 그 서버에는 반영되지 않습니다(<a href="#snapshot">할당과 정의서의 관계</a>).</p>
@@ -97,7 +106,7 @@
             <tbody>
             <tr><td><span class="m-ui">비활성화</span></td><td>새 할당과 다시 할당만 차단. 이미 할당된 서버와는 무관. 확인 창 없이 즉시 적용</td></tr>
             <tr><td><span class="m-ui">사용 중단 권고</span></td><td>할당은 계속 가능, 할당 창에서 경고 표시. 확인 창 없이 즉시 적용</td></tr>
-            <tr><td><span class="m-ui">삭제</span></td><td>확인 창을 거쳐 삭제됨 상태로 변경. 할당 중인 정의서도 삭제 가능하며 이미 할당된 서버와는 무관. 목록과 할당 창에서 제외</td></tr>
+            <tr><td><span class="m-ui">삭제</span></td><td>확인 창을 거쳐 삭제 상태로 변경. 할당 중인 정의서도 삭제 가능하며 이미 할당된 서버와는 무관. 목록과 할당 창에서 제외</td></tr>
             <tr><td><span class="m-ui">복구</span></td><td>확인 창 없이 즉시 복구, 삭제 전의 활성과 사용 중단 상태 유지. 같은 이름의 활성 정의서가 그사이 생겼으면 거절되므로 그 정의서의 이름을 바꾼 뒤 다시 복구</td></tr>
             <tr><td><span class="m-ui">영구 삭제</span></td><td>삭제된 정의서에서만 가능. 정의서 이름을 그대로 입력해야 버튼 활성화. 복구 불가</td></tr>
             </tbody>

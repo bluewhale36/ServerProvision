@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="manual-reviewed" content="2026-11-16">
+    <meta name="manual-reviewed" content="2026-11-17">
     <title>처음 프로비저닝하기 | ServerProvision 사용 매뉴얼</title>
     <link rel="stylesheet" href="../../global/reset.css">
     <link rel="stylesheet" href="../../global/style.css">
@@ -52,7 +52,7 @@
     <h3 id="board">메인보드 모델</h3>
     <p>프로비저닝할 서버의 메인보드 모델을 먼저 등록합니다. 서버가 PXE 부팅할 때 보고하는 보드 모델과 일치하는 모델이 없으면 서버가 등록되지 않습니다. 이때 관리 화면에는 아무 표시도 나타나지 않고, 서버 콘솔에만 <code>[provision] server error. retrying...</code> 메시지가 반복됩니다.</p>
     <ol class="m-steps">
-        <li><span class="m-path"><span>자원 관리</span><span>메인보드</span></span> 에서 <span class="m-ui">+ 신규 메인보드 모델 등록</span> 을 누릅니다.</li>
+        <li><span class="m-path"><span>자원 관리</span><span>메인보드</span></span> 에서 <span class="m-ui">+ 메인보드 모델 등록</span> 을 누릅니다.</li>
         <li>제조사를 고르고 모델명을 입력한 뒤 <span class="m-ui">등록</span> 을 누릅니다.</li>
     </ol>
     <p>모델명을 입력하는 규칙은 <a href="../management/board.html#matching">메인보드의 모델명 비교 규칙</a>에서 설명합니다.</p>
@@ -65,15 +65,15 @@
     </div>
 
     <h3 id="raidcard">RAID 카드</h3>
-    <p>OS 를 설치하려면 정의서에 RAID 구성 단계가 있어야 하므로, 서버에 장착된 RAID 카드를 등록합니다. <span class="m-path"><span>자원 관리</span><span>RAID 카드</span></span> 에서 <span class="m-ui">+ 신규 RAID 카드 등록</span> 을 누르고 제조사, 칩 계열, 모델명, 지원 RAID 레벨, 캐시 용량을 입력해 등록합니다. 정의서를 할당할 때와 실행할 때 서버의 실제 카드와 대조하려면 PCI Subsystem ID 도 입력합니다. 자세한 내용은 <a href="../management/raidcard.html">RAID 카드</a>에서 설명합니다.</p>
+    <p>OS 를 설치하려면 정의서에 RAID 구성 단계가 있어야 하므로, 서버에 장착된 RAID 카드를 등록합니다. <span class="m-path"><span>자원 관리</span><span>RAID 카드</span></span> 에서 <span class="m-ui">+ RAID 카드 등록</span> 을 누르고 제조사, 칩 계열, 모델명, 지원 RAID 레벨, 캐시 용량을 입력해 등록합니다. 정의서를 할당할 때와 실행할 때 서버의 실제 카드와 대조하려면 PCI Subsystem ID 도 입력합니다. 자세한 내용은 <a href="../management/raidcard.html">RAID 카드</a>에서 설명합니다.</p>
 
     <h3 id="drivers">드라이버</h3>
-    <p>설치할 서버의 NIC 나 RAID 카드처럼 Windows 기본 드라이버로 잡히지 않는 장치가 있으면 드라이버를 등록합니다. <span class="m-path"><span>자원 관리</span><span>Driver/Utility</span></span> 에서 드라이버를 등록한 뒤, <span class="m-path"><span>운영</span><span>시스템 자산</span></span> 의 Windows 설치 소스 영역에서 <span class="m-ui">드라이버 페이로드 조립</span> 을 누릅니다. 조립하지 않으면 새로 등록한 드라이버는 설치되지 않습니다. 자세한 내용은 <a href="../management/subprogram.html">드라이버와 유틸리티</a>에서 설명합니다.</p>
+    <p>설치할 서버의 NIC 나 RAID 카드처럼 Windows 기본 드라이버로 잡히지 않는 장치가 있으면 드라이버를 등록합니다. <span class="m-path"><span>자원 관리</span><span>드라이버, 유틸리티</span></span> 에서 드라이버를 등록한 뒤, <span class="m-path"><span>운영</span><span>시스템 자산</span></span> 의 Windows 설치 소스 영역에서 <span class="m-ui">드라이버 페이로드 조립</span> 을 누릅니다. 조립하지 않으면 새로 등록한 드라이버는 설치되지 않습니다. 자세한 내용은 <a href="../management/subprogram.html">드라이버와 유틸리티</a>에서 설명합니다.</p>
 
     <h3 id="os">OS 버전과 ISO</h3>
     <p>OS 설치 단계에서 고를 OS 버전을 등록하고, 그 OS 버전에 ISO 를 하나 이상 추가합니다. 정의서 작성 화면은 사용할 수 있는 ISO 가 있는 OS 버전만 선택지로 보여 줍니다.</p>
     <ol class="m-steps">
-        <li><span class="m-path"><span>자원 관리</span><span>OS 버전</span></span> 에서 <span class="m-ui">+ 신규 OS 버전 등록</span> 을 누릅니다.</li>
+        <li><span class="m-path"><span>자원 관리</span><span>OS 버전</span></span> 에서 <span class="m-ui">+ OS 버전 등록</span> 을 누릅니다.</li>
         <li><strong>OS 이름</strong>에서 Windows Server 를 고르고 <strong>OS 버전</strong>을 입력한 뒤 <span class="m-ui">등록</span> 을 누릅니다.</li>
         <li>목록에서 등록한 OS 버전을 고르고 상세 열의 <span class="m-ui">ISO 추가</span> 를 누릅니다.</li>
         <li>ISO 경로를 입력하거나 파일을 업로드하고 <span class="m-ui">등록</span> 을 누릅니다. 파일을 업로드하는 동안에는 화면을 떠나지 않습니다. 업로드가 끝나면 화면이 목록으로 돌아가고, 해시 계산은 배경 작업으로 이어집니다.</li>
@@ -93,11 +93,11 @@
         <li><span class="m-ui">+ RAID 구성</span> 을 누릅니다. <strong>RAID 카드</strong>에서 등록한 카드를 고릅니다.</li>
         <li><strong>디스크 묶음 규칙</strong>에서 <span class="m-ui">+ 묶음 추가</span> 를 누르고 OS 를 설치할 볼륨의 RAID 레벨, 디스크 종류, 전송 방식, 개수를 정합니다. 그 묶음의 <strong>역할</strong>은 OS 영역으로 정합니다. RAID 레벨을 정하면 <strong>기존 구성 처리</strong>를 고를 수 있게 되므로 기존 구성 보존 또는 기존 구성 파괴를 고릅니다. 기존 구성 파괴는 카드에 남아 있던 볼륨과 그 디스크의 데이터를 모두 지웁니다.</li>
         <li><span class="m-ui">+ OS 설치</span> 를 누르고 <strong>설치할 OS</strong>, <strong>설치 ISO</strong>, <strong>설치 이미지 (에디션)</strong>를 차례로 고릅니다. <strong>Administrator 비밀번호</strong>를 입력합니다. 이 비밀번호는 Windows 의 비밀번호 정책을 만족해야 설치가 끝납니다.</li>
-        <li><span class="m-ui">정의서 생성</span> 을 누릅니다. 저장되면 정의서 상세 화면이 열립니다.</li>
+        <li><span class="m-ui">정의서 작성</span> 을 누릅니다. 저장되면 정의서 상세 화면이 열립니다.</li>
     </ol>
     <div class="m-callout m-warn">
         <span class="m-callout-title">주의</span>
-        <p><strong>OS 설치 단계는 RAID 구성 단계가 만든 OS 영역 볼륨에 Windows 를 설치합니다.</strong> RAID 구성 단계가 없는 정의서도 저장은 되지만 실행할 때 OS 설치 단계에서 막힙니다. RAID 없음 묶음이 디스크를 가져가거나 묶음을 하나도 두지 않아도 막힙니다. 디스크를 RAID 없이 바로 쓰는 구성은 아직 지원하지 않습니다.</p>
+        <p><strong>OS 설치 단계는 RAID 구성 단계가 만든 OS 영역 볼륨에 Windows 를 설치합니다.</strong> RAID 구성 단계가 없거나 OS 영역이 될 RAID 묶음이 없으면 정의서가 저장되지 않습니다. RAID 미구성 묶음은 저장은 되지만 설치 단계에서 멈추므로 두지 않습니다. 디스크를 RAID 없이 바로 쓰는 구성은 아직 지원하지 않습니다.</p>
     </div>
     <p>새로 만든 정의서는 활성 상태이므로 바로 서버에 할당할 수 있습니다. 단계는 추가한 순서와 상관없이 펌웨어 업데이트, BIOS 설정, RAID 구성, OS 설치 순서로 진행됩니다. 단계 종류마다의 설정 항목은 <a href="../setting/process-types.html">단계 종류별 설정</a>에서 설명합니다.</p>
 
@@ -131,15 +131,15 @@
     <h2 id="progress">5. 진행 확인</h2>
     <p>서버 상세 화면은 진행에 따라 자동으로 갱신됩니다. <strong>개요</strong> 탭의 자동화 계획에서 단계별 진행을 확인합니다. 앞의 부트스트래핑과 진단 리눅스는 모든 서버가 거치는 단계이고, 그 뒤로 정의서에 넣은 단계가 이어집니다.</p>
     <figure class="m-shot">
-        <img src="../img/start/plan-stepper-done.png" alt="자동화 계획 카드. 부트스트래핑부터 OS 설치까지 여섯 단계가 모두 완료 표시, 카드 머리에 종단 배지" width="1016" height="198" loading="lazy">
+        <img src="../img/start/plan-stepper-done.png" alt="자동화 계획 카드. 부트스트래핑부터 OS 설치까지 여섯 단계가 모두 완료 표시, 카드 머리에 종단 배지" width="1016" height="169" loading="lazy">
         <figcaption>모든 단계를 마친 서버의 자동화 계획. 펌웨어 설정 단계까지 들어간 정의서의 예이며, 이 페이지의 예시 정의서라면 부트스트래핑, 진단 리눅스, 펌웨어 업데이트, RAID 구성, OS 설치 다섯 단계가 표시됩니다.</figcaption>
     </figure>
     <p>단계 안에서 무엇을 하고 있는지는 <strong>프로비저닝</strong> 탭의 단계별 패널에서 확인합니다. 펌웨어를 기록하는 동안에는 서버가 PXE 서버와 통신하지 않는 시간이 있습니다. 이때 연결 표시가 "집행 중" 으로 바뀌며 정상입니다. 펌웨어를 기록하는 동안에는 전원 제어, 회수, 실패 전환이 잠깁니다. 펌웨어 기록이 끝날 때까지 서버의 전원을 끄지 않습니다.</p>
-    <p>모든 단계가 끝나면 운영 상태가 <span class="n-badge n-badge-teal">완료</span> 로 바뀝니다. 개요 탭의 현재 단계에는 <span class="n-badge n-badge-teal">종단</span> 배지와 "모든 단계를 마쳤습니다" 가 표시됩니다. 종단은 진행할 단계가 더 없다는 뜻입니다.</p>
+    <p>모든 단계가 끝나면 운영 상태가 <span class="n-badge n-badge-teal">완료</span> 로 바뀝니다. 개요 탭의 현재 단계 행에는 <span class="n-badge n-badge-teal">완료</span> 배지가, 그 아래에는 "모든 단계를 마쳤습니다. 회수는 관리 탭에서 합니다." 가 표시됩니다. 자동화 계획 카드 머리에는 <span class="n-badge n-badge-teal">종단</span> 배지가 붙습니다. 종단은 진행할 단계가 더 없다는 뜻입니다.</p>
 
     <h3 id="failed">단계가 실패했다면</h3>
     <p>BIOS 설정이나 BMC 표준 설정이 적용 확인에서 실패하면 PXE 서버가 자동으로 최대 3번까지 다시 시도합니다. 그동안 진행 화면에 실패 기록이 보여도 운영 상태가 실패가 아니면 재시도를 누르지 않고 기다립니다.</p>
-    <p>단계가 끝내 실패하면 운영 상태가 <span class="n-badge n-badge-red">실패</span> 로 바뀌고 <strong>프로비저닝</strong> 탭 이름 옆에 빨간 점이 표시됩니다. 개요 탭의 <span class="m-ui">실패한 단계 보기</span> 로 실패 사유를 확인한 뒤 원인을 해결하고 <span class="m-ui">재시도</span> 를 누르면 실패한 단계부터 다시 진행합니다. 펌웨어 업데이트 단계가 아닌 단계의 재시도는 서버의 전원을 조작하지 않으므로 서버가 다시 PXE 부팅해야 진행이 이어집니다. 펌웨어 업데이트 단계의 재시도는 전원을 껐다 켠 뒤 PXE 로 다시 부팅합니다. BMC 정보가 수집된 서버에는 <span class="m-ui">재시도 후 전원 켜기</span> 버튼도 있어, 재시도와 함께 BMC 로 전원을 켜거나 재시작합니다. 펌웨어 기록 중에 실패한 경우에는 장비가 부팅하지 못하는 상태가 될 수 있어 버튼이 <span class="m-ui">재시도 (차단됨)</span> 으로 바뀌고 눌리지 않습니다. 단계별 조치 방법은 <a href="../failure/overview.html">실패 확인과 조치</a>에서 설명합니다.</p>
+    <p>단계가 끝내 실패하면 운영 상태가 <span class="n-badge n-badge-red">실패</span> 로 바뀌고 <strong>프로비저닝</strong> 탭 이름 옆에 빨간 점이 표시됩니다. 개요 탭의 <span class="m-ui">실패한 단계 보기</span> 로 실패 사유를 확인한 뒤 원인을 해결하고 <span class="m-ui">재시도</span> 를 누르면 실패한 단계부터 다시 진행합니다. 펌웨어 업데이트 단계가 아닌 단계의 재시도는 서버의 전원을 조작하지 않으므로 서버가 다시 PXE 부팅해야 진행이 이어집니다. 펌웨어 업데이트 단계의 재시도는 전원을 껐다 켠 뒤 PXE 로 다시 부팅합니다. BMC 정보가 수집된 서버에는 <span class="m-ui">재시도 후 전원 켜기</span> 버튼도 있어, 재시도와 함께 BMC 로 전원을 켜거나 재시작합니다. 펌웨어 기록 중에 실패한 경우에는 장비가 부팅하지 못하는 상태가 될 수 있어 버튼이 <span class="m-ui">재시도(차단)</span> 으로 바뀌고 눌리지 않습니다. 단계별 조치 방법은 <a href="../failure/overview.html">실패 확인과 조치</a>에서 설명합니다.</p>
 
     <h2 id="next">다음 단계</h2>
     <ul>
