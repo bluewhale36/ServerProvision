@@ -5,6 +5,7 @@ import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
+import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import com.example.serverprovision.management.raidcard.exception.IllegalRaidCardStateException;
 import com.example.serverprovision.management.raidcard.vo.CacheCapacity;
 import com.example.serverprovision.management.raidcard.vo.CacheCapacityConverter;
@@ -115,6 +116,35 @@ public class RaidCard extends LifecycleEntity implements Markable {
 	/** 캐시 보유 여부 — {@code RaidLevel.minimumDisks(cardHasCache)} 판정의 입력 (U4-1-1 계약). */
 	public boolean hasCache() {
 		return cacheCapacity.isPresent();
+	}
+
+	/**
+	 * 세팅 정의서가 이 카드로 이 레벨을 만들 수 있는가(HF32) — 칩 계열이 만들 수 있고(R17-2) 카드 등록 정보에도 있어야 한다.
+	 * R17-2 이전에 등록한 카드에는 계열이 못 만드는 레벨이 남아 있을 수 있어 등록 정보만으로는 판정하지 않는다.
+	 * null = 가능, 아니면 차단 사유 — 정의서 폼의 레벨 잠금과 저장 가드({@code DiskGroupRules})가 이 메서드 하나를 부른다.
+	 */
+	public String definableLevelBlockReason(RaidLevel level) {
+		if (!chipFamily.canCreate(level)) {
+			return chipFamily.creatableLevelsHint() + ".";
+		}
+		return supportedRaidLevels.blockReasonFor(level, definableLevels());
+	}
+
+	/**
+	 * 정의서가 이 카드로 만들 수 있는 레벨 — 등록 정보 중 칩 계열이 만들 수 있는 것(선언 순). 옛 카드가 계열이 못 만드는 레벨만
+	 * 등록했다면 빈 집합일 수 있어 {@link SupportedRaidLevels}(1 개 이상 불변식)가 아니라 집합으로 낸다.
+	 */
+	public java.util.SortedSet<RaidLevel> definableLevels() {
+		java.util.SortedSet<RaidLevel> levels = new java.util.TreeSet<>();
+		supportedRaidLevels.asSet().stream().filter(chipFamily::canCreate).forEach(levels::add);
+		return java.util.Collections.unmodifiableSortedSet(levels);
+	}
+
+	/** 등록 정보에 남은, 칩 계열이 만들 수 없는 레벨(R17-2 이전 등록분) — 카드 상세의 주의 안내 재료. 없으면 빈 집합. */
+	public java.util.Set<RaidLevel> uncreatableRegisteredLevels() {
+		java.util.Set<RaidLevel> levels = java.util.EnumSet.noneOf(RaidLevel.class);
+		supportedRaidLevels.asSet().stream().filter(level -> !chipFamily.canCreate(level)).forEach(levels::add);
+		return levels;
 	}
 
 	// ==== Markable 구현 (메타 자원) ===================================

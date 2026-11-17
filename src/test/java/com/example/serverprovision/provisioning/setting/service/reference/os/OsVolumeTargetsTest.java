@@ -22,7 +22,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * U4-1-3 CP4 — OS 설치 파티션의 대상 볼륨 판정({@link OsVolumeTargets#describe}) 네 분기 · 묶음 요약 · 용량 하한 표기.
+ * U4-1-3 CP4 — OS 설치 파티션의 대상 볼륨 판정({@link OsVolumeTargets#describe}) 다섯 분기(HF32 NO_RAID_CANDIDATE 추가) · 묶음 요약 · 용량 하한 표기.
  * 폼 JS 와 데모가 같은 분기를 재현하므로 여기가 드리프트의 기준이다.
  */
 class OsVolumeTargetsTest {
@@ -39,12 +39,13 @@ class OsVolumeTargetsTest {
     }
 
     @Test
-    @DisplayName("RAID 구성 null · 묶음 0 → NONE (설치기 자동 선택), 용량 줄 없음")
+    @DisplayName("RAID 구성 null · 묶음 0 → NONE(HF32: OS 설치와 함께 저장 불가 · blocksOsInstall), 용량 줄 없음")
     void none() {
         assertThat(OsVolumeTargets.describe(null).kind()).isEqualTo(OsVolumeTargetKind.NONE);
         OsVolumeTarget empty = OsVolumeTargets.describe(raid());
         assertThat(empty.kind()).isEqualTo(OsVolumeTargetKind.NONE);
-        assertThat(empty.toDisplay()).isEqualTo("RAID 구성 단계가 없어 설치기가 디스크를 자동 선택합니다");
+        assertThat(empty.toDisplay()).isEqualTo("OS 설치 단계가 있으면 RAID 구성 단계에서 OS 영역 볼륨을 정해야 합니다.");
+        assertThat(empty.kind().isBlocksOsInstall()).isTrue();
         assertThat(empty.capacityDisplay()).isNull();
     }
 
@@ -58,7 +59,7 @@ class OsVolumeTargetsTest {
         assertThat(t.ruleNo()).isEqualTo(2);
         assertThat(t.ruleSummary()).isEqualTo("RAID1, SSD, SATA, 480 GB, 2개");
         assertThat(t.capacityLowerBoundBytes()).isEqualTo(480_000_000_000L);
-        assertThat(t.toDisplay()).isEqualTo("RAID 구성 2번 묶음(RAID1, SSD, SATA, 480 GB, 2개)이 OS 영역입니다");
+        assertThat(t.toDisplay()).isEqualTo("RAID 구성 2번 묶음(RAID1, SSD, SATA, 480 GB, 2개)이 OS 영역입니다.");
         assertThat(t.capacityDisplay()).isEqualTo("OS 영역 최소 용량 480 GB, 고정 파티션 합 0 GiB");
     }
 
@@ -89,7 +90,27 @@ class OsVolumeTargetsTest {
                 rule(RaidLevel.RAID1, gb(480), new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.DATA),
                 rule(null, AUTO, new DiskCountRequirement(DiskCountMode.EXACT, 1), DiskGroupRole.NONE)));
         assertThat(t.kind()).isEqualTo(OsVolumeTargetKind.NO_CANDIDATE);
+        assertThat(t.kind().isBlocksOsInstall()).isTrue();
         assertThat(t.capacityDisplay()).isNull();
+    }
+
+    @Test
+    @DisplayName("HF32 — OS 후보가 전부 RAID 없음 → NO_RAID_CANDIDATE(막힘) · RAID 후보가 하나라도 섞이면 BY_PRIORITY(통과)")
+    void noRaidCandidate() {
+        DiskCountRequirement one = new DiskCountRequirement(DiskCountMode.EXACT, 1);
+        OsVolumeTarget t = OsVolumeTargets.describe(raid(
+                rule(null, AUTO, one, DiskGroupRole.OS),
+                rule(RaidLevel.RAID1, gb(480), new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.DATA)));
+        assertThat(t.kind()).isEqualTo(OsVolumeTargetKind.NO_RAID_CANDIDATE);
+        assertThat(t.kind().isBlocksOsInstall()).isTrue();
+        assertThat(t.toDisplay()).isEqualTo("OS 영역 묶음이 RAID 미구성이면 설치 디스크를 정할 수 없습니다. OS 영역 묶음은 RAID 레벨을 골라야 합니다.");
+        assertThat(t.capacityDisplay()).isNull();
+
+        OsVolumeTarget mixed = OsVolumeTargets.describe(raid(
+                rule(null, AUTO, one, DiskGroupRole.BY_PRIORITY),
+                rule(RaidLevel.RAID1, gb(480), new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.BY_PRIORITY)));
+        assertThat(mixed.kind()).isEqualTo(OsVolumeTargetKind.BY_PRIORITY);
+        assertThat(mixed.kind().isBlocksOsInstall()).isFalse();
     }
 
     @Test
@@ -121,6 +142,7 @@ class OsVolumeTargetsTest {
         OsVolumeTarget o = OsVolumeTargets.describe(raid, big);
         assertThat(o.over()).isTrue();
         assertThat(o.capacityDisplay()).isEqualTo("OS 영역 최소 용량 480 GB, 고정 파티션 합 500 GiB: 최소 용량을 넘습니다");
-        assertThat(OsVolumeTarget.messageTemplates()).containsKeys("NONE", "FIXED", "BY_PRIORITY", "NO_CANDIDATE", "CAPACITY_FORMAT");
+        assertThat(OsVolumeTarget.messageTemplates()).containsKeys("NONE", "FIXED", "BY_PRIORITY", "NO_CANDIDATE", "NO_RAID_CANDIDATE", "CAPACITY_FORMAT");
+        assertThat(OsVolumeTarget.messageTemplates().get("BLOCKING_KINDS")).isEqualTo("NONE,NO_CANDIDATE,NO_RAID_CANDIDATE");
     }
 }

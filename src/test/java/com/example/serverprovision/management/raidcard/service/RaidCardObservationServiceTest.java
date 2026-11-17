@@ -58,7 +58,7 @@ class RaidCardObservationServiceTest {
 	private static RaidCardResponse response(Long id, boolean deleted, String pci) {
 		return new RaidCardResponse(id, RaidCardVendor.GIGABYTE, "CRA3338",
 				List.of(RaidLevel.RAID0), "RAID0", RaidChipFamily.MPT_IR, 0, "미탑재", false, pci, null,
-				true, false, deleted, LifecycleStage.of(false, deleted));
+				true, false, deleted, LifecycleStage.of(false, deleted), null);
 	}
 
 	private static RaidCardObservation obs(String value) {

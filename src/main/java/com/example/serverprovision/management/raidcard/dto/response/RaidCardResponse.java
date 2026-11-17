@@ -5,6 +5,7 @@ import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
+import com.example.serverprovision.management.raidcard.vo.SupportedRaidLevels;
 
 import java.util.List;
 
@@ -20,6 +21,7 @@ import java.util.List;
  * @param cacheCapacityDisplay  화면 표기 — {@code 없음} 또는 {@code 2GB}
  * @param hasCache              캐시 보유 파생값 — U4-1-1 의 {@code RaidLevel.minimumDisks(cardHasCache)} 판정 재료
  * @param pciSubsystemIdDisplay 정규 표기(예: {@code 1458:0011}) 또는 null(미확인 — 화면이 표식 처리)
+ * @param uncreatableLevelsNotice 등록 정보에 남은, 칩 계열이 만들 수 없는 레벨의 주의 안내(R17-2 이전 등록분 · HF32) 또는 null
  */
 public record RaidCardResponse(
 		Long id,
@@ -36,8 +38,17 @@ public record RaidCardResponse(
 		boolean isEnabled,
 		boolean isDeprecated,
 		boolean isDeleted,
-		LifecycleStage lifecycleStage
+		LifecycleStage lifecycleStage,
+		String uncreatableLevelsNotice
 ) {
+
+	/** 판정은 {@code RaidCard.uncreatableRegisteredLevels}(정의서 폼 · 저장 가드와 같은 계열 판정) — 화면 문구만 여기서 짓는다. */
+	static String uncreatableLevelsNoticeOf(RaidCard entity) {
+		java.util.Set<RaidLevel> levels = entity.uncreatableRegisteredLevels();
+		return levels.isEmpty() ? null
+				: "등록 정보의 " + SupportedRaidLevels.display(levels)
+						+ ": 이 칩 계열이 만들 수 없어 정의서에서 고를 수 없습니다. 수정 화면에서 정리할 수 있습니다.";
+	}
 
 	public static RaidCardResponse of(RaidCard entity) {
 		return new RaidCardResponse(
@@ -55,7 +66,8 @@ public record RaidCardResponse(
 				entity.isEnabled(),
 				entity.isDeprecated(),
 				entity.isDeleted(),
-				LifecycleStage.of(entity.isDeprecated(), entity.isDeleted())
+				LifecycleStage.of(entity.isDeprecated(), entity.isDeleted()),
+				uncreatableLevelsNoticeOf(entity)
 		);
 	}
 }

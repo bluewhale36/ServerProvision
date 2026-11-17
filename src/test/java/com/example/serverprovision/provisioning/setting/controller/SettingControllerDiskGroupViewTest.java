@@ -169,14 +169,16 @@ class SettingControllerDiskGroupViewTest {
     }
 
     @Test
-    @DisplayName("GET /{id} — 카드 · 묶음이 없는 구 형식 정의서는 '지정 안 함' · '설정 안 함' 문구")
+    @DisplayName("GET /{id} — 카드 · 묶음이 없는 구 형식 정의서는 카드 '미지정' · 묶음 '미지정(RAID 구성 유지)' 문구(HF32)")
     void detail_rendersUnsetState() throws Exception {
         given(queryService.findDetail(1L)).willReturn(detail(raid(null, List.of()), Map.of()));
 
         mvc.perform(get("/provisioning/setting/{id}", 1L))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("미지정")))
-                .andExpect(content().string(containsString("미설정")));
+                .andExpect(content().string(containsString("미지정(RAID 구성 유지)")))
+                // 묶음이 없으면 기존 구성 처리는 선택 대상이 아니라 '-'(구 저장본 안내 없음, HF32 CP5 O-7)
+                .andExpect(content().string(not(containsString("구 저장본입니다"))));
     }
 
     // ==== 작성 · 수정 폼 =======================================================================
@@ -190,13 +192,13 @@ class SettingControllerDiskGroupViewTest {
                         Map.of(RaidLevel.RAID5, "RAID5 를 만들 수 없는 카드입니다: 지원하는 RAID 레벨은 RAID0, RAID1 입니다."),
                         false, null, null, "MPT_IR", false,
                         Map.of(RaidLevel.RAID0, new SettingRaidCardOptionResponse.MemberRuleView(2, 10, 1, "2~10대")),
-                        Map.of())))));
+                        Map.of(), 2)))));
 
         mvc.perform(get("/provisioning/setting/new"))
                 .andExpect(status().isOk())
                 .andExpect(model().attributeExists("raidCardOptions", "raidCardMetaJson", "raidLevels",
                         "diskTypes", "diskTransports", "diskCapacityUnits", "diskCountModes"))
-                .andExpect(content().string(containsString("GIGABYTE CRA3338 (캐시 미탑재, RAID0, RAID1)")))
+                .andExpect(content().string(containsString("GIGABYTE CRA3338 (캐시 미탑재, RAID0, RAID1, 볼륨 최대 2개)")))
                 .andExpect(content().string(containsString("RAID_CARD_META_JSON")))
                 .andExpect(content().string(containsString("blockReasons")))
                 // R17-1 — 디스크 수 규칙은 카드 메타(memberRules)로 · 스팬 select 선택지는 행 템플릿에(2 · 4 … 32)
@@ -319,13 +321,13 @@ class SettingControllerDiskGroupViewTest {
     }
 
     @Test
-    @DisplayName("GET /{id} — RAID 구성 없이 OS 설치만: 안내 'RAID 구성 단계가 없어 설치기가 디스크를 자동 선택' · 용량 줄 없음")
+    @DisplayName("GET /{id} — RAID 구성 없이 OS 설치만(HF32 이전 저장본): OS 설치 카드에 막힘 안내(is-danger) · 용량 줄 없음")
     void detail_osVolumeTargetNone() throws Exception {
         given(queryService.findDetail(2L)).willReturn(detail(List.of(rhel()), Map.of()));
 
         mvc.perform(get("/provisioning/setting/{id}", 2L))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("RAID 구성 단계가 없어 설치기가 디스크를 자동 선택합니다")))
+                .andExpect(content().string(containsString("n-hint is-danger\">OS 설치 단계가 있으면 RAID 구성 단계에서 OS 영역 볼륨을 정해야 합니다.")))
                 .andExpect(content().string(not(containsString("OS 영역 최소 용량"))));
     }
 

@@ -130,16 +130,40 @@ class DiskGroupRulesTest {
     // ==== 규칙 1 — 카드가 만들 수 없는 레벨 =================================================
 
     @Test
-    @DisplayName("규칙 1 — 카드가 지원하는 레벨은 통과, 못 만드는 레벨은 blockReasonFor 문구로 400")
+    @DisplayName("규칙 1 — 칩 계열이 만들 수 있고 카드 등록 정보에도 있는 레벨만 통과(HF32 · RaidCard.definableLevelBlockReason)")
     void unsupportedLevel() {
         assertThatCode(() -> DiskGroupRules.validate(List.of(rule(RaidLevel.RAID1, 2)), CRA3338))
                 .doesNotThrowAnyException();
 
+        // 칩 계열이 못 만드는 레벨은 계열 문구가 먼저(MPT IR 은 RAID5 불가)
         assertThatThrownBy(() -> DiskGroupRules.validate(List.of(rule(RaidLevel.RAID5, 3)), CRA3338))
                 .isInstanceOf(InvalidDiskGroupException.class)
                 .hasMessageContaining("1번 묶음")
+                .hasMessageContaining("MPT IR (sas3ircu 계열)은 RAID0, RAID1, RAID10 만 만들 수 있습니다");
+
+        // 계열은 만들 수 있지만 카드 등록 정보에 없는 레벨은 카드 문구(MegaRAID 인데 RAID0 · RAID1 만 등록)
+        RaidCard megaraidTwoLevels = RaidCard.builder()
+                .id(2L).vendor(RaidCardVendor.AVAGO).modelName("9361-4i")
+                .supportedRaidLevels(SupportedRaidLevels.of(List.of(RaidLevel.RAID0, RaidLevel.RAID1)))
+                .cacheCapacity(CacheCapacity.ofGigabytes(1)).chipFamily(RaidChipFamily.MEGARAID)
+                .ownEnabled(true).ownDeprecated(false).isDeleted(false).build();
+        megaraidTwoLevels.recomputeEffective();
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(rule(RaidLevel.RAID5, 3)), megaraidTwoLevels))
+                .isInstanceOf(InvalidDiskGroupException.class)
                 .hasMessageContaining("RAID5 를 만들 수 없는 카드입니다")
                 .hasMessageContaining("RAID0, RAID1");
+    }
+
+    @Test
+    @DisplayName("규칙 1 · C-23 — R17-2 이전에 RAID5 까지 등록한 MPT IR 카드도 RAID5 는 막힌다(등록 정보만으로 판정하지 않는다)")
+    void legacyCardWithUncreatableRegisteredLevel() {
+        RaidCard legacyMptIr = card(List.of(RaidLevel.RAID0, RaidLevel.RAID1, RaidLevel.RAID5), 0);
+
+        assertThatThrownBy(() -> DiskGroupRules.validate(List.of(rule(RaidLevel.RAID5, 3)), legacyMptIr))
+                .isInstanceOf(InvalidDiskGroupException.class)
+                .hasMessageContaining("MPT IR (sas3ircu 계열)은 RAID0, RAID1, RAID10 만 만들 수 있습니다");
+        assertThatCode(() -> DiskGroupRules.validate(List.of(rule(RaidLevel.RAID1, 2)), legacyMptIr))
+                .doesNotThrowAnyException();
     }
 
     // ==== 규칙 2 — 최소 디스크 수(카드 캐시 유무 반영) ======================================
