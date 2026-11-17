@@ -169,16 +169,47 @@
         ]);
         main.after(toc);
 
+        /* 읽는 중 표시. 화면 위쪽 30% 선을 지난 마지막 제목을 읽는 중으로 본다.
+         * 페이지 끝에서는 마지막 절들의 제목이 그 선까지 올라오지 못하므로, 끝까지 내렸으면 마지막 제목을 고른다.
+         * 목차나 주소의 #으로 이동하면 도착할 제목을 고정한다. 끝 근처의 절로 이동하면 선 판정과 어긋나기 때문이다.
+         * 이동은 부드러운 스크롤(reset.css)이라 도착 시점을 알기 어려우므로, 사용자가 직접 스크롤을 시작할 때 고정을 푼다. */
         const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
-        const visible = new Set();
-        const observer = new IntersectionObserver(entries => {
-            entries.forEach(e => (e.isIntersecting ? visible.add(e.target.id) : visible.delete(e.target.id)));
-            const first = headings.find(h => visible.has(h.id));
-            if (!first) return;
-            links.forEach(a => a.classList.remove('is-active'));
-            byId.get(first.id).classList.add('is-active');
-        }, { rootMargin: '-64px 0px -60% 0px' });
-        headings.forEach(h => observer.observe(h));
+        const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' ']);
+        let pinned = null;
+        const setActive = id => links.forEach(a => a.classList.toggle('is-active', a === byId.get(id)));
+        const update = () => {
+            if (pinned) return setActive(pinned);
+            const doc = document.documentElement;
+            if (window.innerHeight + window.scrollY >= doc.scrollHeight - 2) return setActive(headings[headings.length - 1].id);
+            const line = window.innerHeight * 0.3;
+            let current = headings[0];
+            for (const h of headings) {
+                if (h.getBoundingClientRect().top > line) break;
+                current = h;
+            }
+            setActive(current.id);
+        };
+        const pinToHash = () => {
+            const id = decodeURIComponent(location.hash.slice(1));
+            if (!byId.has(id)) return;
+            pinned = id;
+            update();
+        };
+        const release = () => { if (pinned) { pinned = null; update(); } };
+        let ticking = false;
+        window.addEventListener('scroll', () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => { ticking = false; update(); });
+        }, { passive: true });
+        ['wheel', 'touchstart', 'mousedown'].forEach(type => window.addEventListener(type, release, { passive: true }));
+        window.addEventListener('keydown', e => { if (SCROLL_KEYS.has(e.key)) release(); });
+        window.addEventListener('resize', update);
+        window.addEventListener('hashchange', pinToHash);
+        // 이미 같은 #이 주소에 있으면 hashchange 가 오지 않으므로 목차를 누를 때도 고정한다
+        links.forEach(a => a.addEventListener('click', () => setTimeout(pinToHash)));
+        update();
+        pinToHash();
     }
 
     /* ── 검색 ──

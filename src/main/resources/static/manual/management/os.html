@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="manual-reviewed" content="2026-11-16">
+    <meta name="manual-reviewed" content="2026-11-17">
     <title>OS 버전과 ISO | ServerProvision 사용 매뉴얼</title>
     <link rel="stylesheet" href="../../global/reset.css">
     <link rel="stylesheet" href="../../global/style.css">
@@ -50,7 +50,19 @@
         <li><strong>OS 버전</strong>을 입력합니다. 64자까지 입력할 수 있습니다.</li>
         <li>필요하면 <strong>설명</strong>을 입력하고 <span class="m-ui">등록</span> 을 누릅니다. 목록으로 돌아가고 새 버전이 선택된 상태로 열립니다.</li>
     </ol>
-    <p>같은 OS 이름과 버전이 휴지통 밖에 있고 Deprecated 도 아니면(비활성 포함) "이미 등록된 OS 버전입니다. Rocky Linux 9.6" 처럼 오류가 표시됩니다. 같은 버전이 휴지통에 있거나 Deprecated 로 표시돼 있으면 중복 확인 창이 열립니다. 이때의 처리는 <a href="lifecycle.html#duplicate">같은 자원이 이미 있을 때</a>를 따릅니다.</p>
+    <p>같은 OS 이름과 버전의 OS 버전은 활성, Deprecated, 휴지통 중 어느 상태로든 하나만 있을 수 있습니다. 이미 있으면 등록되지 않고, 폼 위에 기존 OS 버전의 상태에 맞는 안내가 표시됩니다.</p>
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+            <tr><th>기존 OS 버전의 상태</th><th>표시되는 안내</th><th>조치</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>휴지통 밖(비활성 포함)</td><td>"이미 등록된 OS 버전입니다. Rocky Linux 9.6"</td><td>기존 OS 버전 사용</td></tr>
+            <tr><td>Deprecated</td><td>"Deprecated 상태로 등록된 같은 OS 버전이 있습니다(...). 목록에서 Deprecated 를 해제하십시오."</td><td>기존 OS 버전의 <span class="m-ui">Deprecated 해제</span></td></tr>
+            <tr><td>휴지통</td><td>"휴지통에 같은 OS 버전이 있습니다(...). 휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오."</td><td>기존 OS 버전을 <a href="lifecycle.html#restore">복구</a>하거나 영구 삭제 후 다시 등록</td></tr>
+            </tbody>
+        </table>
+    </div>
     <p>수정 화면에서는 설명만 바꿀 수 있습니다. OS 이름이나 버전을 바꾸려면 삭제하고 다시 등록합니다.</p>
 
     <h2 id="add-iso">ISO 추가</h2>
@@ -142,7 +154,7 @@
             <tr><td><span class="m-ui">Deprecated 표시</span></td><td>그 아래 ISO 전부 Deprecated 표시. 확인 창에는 이 전파에 대한 안내 부재</td></tr>
             <tr><td><span class="m-ui">삭제</span></td><td>그 아래 ISO 도 함께 삭제, ISO 파일은 휴지통 폴더로 이동</td></tr>
             <tr><td><span class="m-ui">복구</span></td><td>"하위 ISO N건도 함께 복구"(기본 선택) 또는 "이 자원만 복구". 함께 복구할 하위 ISO 중 기록만 남은 것이 있으면 복구 전체 실패, 이때는 "이 자원만 복구" 선택 후 ISO 개별 처리</td></tr>
-            <tr><td><span class="m-ui">영구 삭제</span></td><td>휴지통에 ISO 가 남아 있어도 진행, ISO 기록도 함께 삭제. 입력할 자원명은 OS 이름과 버전(예: Rocky Linux 9.6)</td></tr>
+            <tr><td><span class="m-ui">영구 삭제</span></td><td>휴지통에 ISO 가 남아 있어도 진행, 그 ISO 의 기록과 휴지통 폴더의 파일도 함께 삭제. 감사 기록은 OS 버전 1건만 유지. 입력할 자원명은 OS 이름과 버전(예: Rocky Linux 9.6)</td></tr>
             </tbody>
         </table>
     </div>
