@@ -1,12 +1,16 @@
 package com.example.serverprovision.management.bmc.service;
 
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.exception.BmcNotFoundException;
+import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
 import com.example.serverprovision.management.bmc.exception.IllegalBmcStateException;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+
+import java.util.Comparator;
 
 /**
  * R5-3 — BmcService 5분할 시 분할 클래스들이 공유하는 조회 가드를 정적 헬퍼로 단일화한다.
@@ -52,5 +56,17 @@ final class BmcGuards {
 	static BoardBMC requireExistingBmc(BmcRepository bmcRepository, Long boardId, Long bmcId) {
 		return bmcRepository.findByIdAndBoardModel_Id(bmcId, boardId)
 				.orElseThrow(() -> new BmcNotFoundException(boardId, bmcId));
+	}
+
+	/**
+	 * 같은 (메인보드, 버전)의 살아 있는 BMC(활성 · Deprecated)가 있으면 그 상태에 맞는 안내로 409(HF30-2). 업로드 전 판정 ·
+	 * 창 진행 뒤 재발급 · 등록 본체가 함께 써 기준이 갈라지지 않게 한다. 휴지통 행은 막지 않는다(창이 묻는다).
+	 */
+	static void assertVersionAvailable(BmcRepository repository, Long boardId, String version) {
+		repository.findAllByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, version).stream()
+				.min(Comparator.comparing((BoardBMC existing) -> LifecycleStage.of(existing.isDeprecated(), existing.isDeleted())))
+				.ifPresent(existing -> {
+					throw DuplicateBmcVersionException.againstRegistration(existing);
+				});
 	}
 }

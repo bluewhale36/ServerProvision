@@ -53,8 +53,9 @@ public class SubprogramUploadIntentService {
 	private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
 	/**
-	 * MK2 WAVE 2 — intent 단계 메타 nudge. Subprogram 폼은 name 이 intent 단계에 없으므로
-	 * (kind, scope, version) 단위로 후보 검출. 후보가 있으면 SubprogramNudgeRequiredException throw.
+	 * 업로드 전 판정 — 등록 본체와 같은 키 (종류, 범위, 이름, 버전)로 본다(HF30-2). 살아 있는 같은 키는 상태별 안내로 막고, 휴지통의
+	 * 같은 키만 중복 확인 창으로 묻는다. 종전에는 이 단계가 이름 없이 (종류, 범위, 버전)으로 판정해, 창의 [그래도 등록] 뒤에도 등록 본체가
+	 * 휴지통의 같은 키를 거절하며 업로드가 끝난 뒤 409 로 실패했다(docs C-10).
 	 */
 	public SubprogramUploadIntentResponse issue(SubprogramKind kind, BoardScope scope, SubprogramUploadIntentRequest request) {
 		if (!scope.isCommon()) {
@@ -62,12 +63,13 @@ public class SubprogramUploadIntentService {
 					.orElseThrow(() -> new BoardModelNotFoundException(scope.boardId()));
 		}
 
-		// intent 단계 메타 충돌 사전 검출 — (kind, scope, version) 단위. name 미포함이라 일부 false-positive 가능하지만
-		// 사용자가 modal 에서 후보 확인 후 proceed/cancel 결정 가능.
-		List<Subprogram> metaCandidates = collectMetaNudgeCandidates(kind, scope, request.version());
+		SubprogramGuards.assertKeyAvailable(subprogramRepository, kind, scope, request.name(), request.version());
+
+		List<Subprogram> metaCandidates = subprogramRepository.findIntentNudgeCandidates(
+				kind, scope.isCommon() ? null : scope.boardId(), request.name(), request.version());
 		if (!metaCandidates.isEmpty()) {
 			throw new SubprogramNudgeRequiredException(
-					"종류, 적용 범위, 버전이 같은 자원이 휴지통에 있거나 사용 중단 상태입니다. 진행 방법을 선택해야 합니다.",
+					"종류, 적용 범위, 이름, 버전이 같은 자원이 휴지통에 있습니다. 진행 방법을 선택해야 합니다.",
 					registerIntentNudge(kind, scope, request, metaCandidates),
 					toConflictEntries(metaCandidates)
 			);
@@ -77,13 +79,15 @@ public class SubprogramUploadIntentService {
 	}
 
 	/**
-	 * MK2 WAVE 2 — nudge proceed/replace 후 호출. 메타 검사 skip.
+	 * MK2 WAVE 2 — nudge proceed/replace 후 호출. 휴지통 후보 판정은 건너뛰고 살아 있는 같은 키만 다시 본다.
 	 */
 	public SubprogramUploadIntentResponse issueAfterNudge(SubprogramKind kind, BoardScope scope, SubprogramUploadIntentRequest request) {
 		if (!scope.isCommon()) {
 			boardModelRepository.findByIdAndIsDeletedFalse(scope.boardId())
 					.orElseThrow(() -> new BoardModelNotFoundException(scope.boardId()));
 		}
+		// 창 진행 사이에 다른 사용자가 같은 키를 등록했을 수 있어 다시 본다.
+		SubprogramGuards.assertKeyAvailable(subprogramRepository, kind, scope, request.name(), request.version());
 
 		Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
 		targetDirectoryPolicyService.validateForIntent(targetDir, request.allowCreateDirectory());
@@ -124,18 +128,6 @@ public class SubprogramUploadIntentService {
 		return new SubprogramUploadIntentResponse(token, warnings, null);
 	}
 
-	private List<Subprogram> collectMetaNudgeCandidates(SubprogramKind kind, BoardScope scope, String version) {
-		// intent 단계엔 name 이 없으므로 wildcard 검색. (kind, scope, version) 일치하는 모든 후보를 모은다.
-		Long boardId = scope.isCommon() ? null : scope.boardId();
-		// findIntentNudgeCandidates 는 name 도 받으므로 임시로 list 직접 필터링.
-		List<Subprogram> all = scope.isCommon()
-				? subprogramRepository.findByKindAndCommonScope(kind)
-				: subprogramRepository.findByKindAndBoardId(kind, scope.boardId());
-		return all.stream()
-				.filter(s -> version != null && version.equals(s.getVersion()))
-				.filter(s -> s.isDeleted() || s.isDeprecated())
-				.toList();
-	}
 
 	private NudgeSession registerIntentNudge(
 			SubprogramKind kind, BoardScope scope,
@@ -147,6 +139,7 @@ public class SubprogramUploadIntentService {
 		if (!scope.isCommon()) {
 			attributes.put("boardId", String.valueOf(scope.boardId()));
 		}
+		attributes.put("name", request.name());
 		attributes.put("version", request.version());
 		attributes.put("targetDirectory", request.targetDirectory());
 		attributes.put("uploadMode", request.uploadMode().name());
@@ -183,6 +176,7 @@ public class SubprogramUploadIntentService {
 		boolean common = Boolean.parseBoolean(attributes.getOrDefault("scopeCommon", "false"));
 		BoardScope scope = common ? BoardScope.COMMON : BoardScope.ofBoard(Long.parseLong(attributes.get("boardId")));
 		SubprogramUploadIntentRequest request = new SubprogramUploadIntentRequest(
+				attributes.get("name"),
 				attributes.get("targetDirectory"),
 				SubprogramUploadMode.valueOf(attributes.get("uploadMode")),
 				Integer.parseInt(attributes.get("fileCount")),

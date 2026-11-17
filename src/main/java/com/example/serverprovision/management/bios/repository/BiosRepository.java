@@ -107,26 +107,25 @@ public interface BiosRepository extends JpaRepository<BoardBIOS, Long> {
 	Optional<BoardBIOS> findFirstByBoardModel_IdAndVersion(Long boardModelId, String version);
 
 	/**
-	 * MK2 WAVE 2 — 단계 A intent nudge 후보 수집 (soft-deleted).
+	 * 업로드 전 중복 확인 창 후보 — 같은 (메인보드, 버전)의 휴지통 행(HF30-2 부터 창 후보는 휴지통뿐).
 	 */
 	List<BoardBIOS> findAllByBoardModel_IdAndVersionAndIsDeletedTrue(Long boardModelId, String version);
 
 	/**
-	 * MK2 WAVE 2 — 단계 A intent nudge 후보 수집 (Deprecated 활성).
+	 * 같은 (메인보드, 버전)의 살아 있는 행(활성 · Deprecated) — 등록 충돌 안내가 상태를 고르려고 모두 읽는다(HF30-2).
 	 */
-	List<BoardBIOS> findAllByBoardModel_IdAndVersionAndIsDeprecatedTrueAndIsDeletedFalse(Long boardModelId, String version);
+	List<BoardBIOS> findAllByBoardModel_IdAndVersionAndIsDeletedFalse(Long boardModelId, String version);
 
 	// ---- MK2 (단계 B · 해시 충돌 후보) --------------------------------
 
 	/**
-	 * MK2 — 단계 B. 해시가 같은 SoftDeleted 또는 Deprecated 자원 후보 (보드 scope).
-	 * ACTIVE 자원의 해시 일치는 동일 (board, version) 활성 거절 흐름과 별개로 본 슬라이스에서는 conflict
-	 * 후보에서 제외 — 사용자 결정 의미가 없다 (운영 정책).
+	 * 업로드 뒤 중복 확인 창 후보 — 내용(해시)이 같은 휴지통 자원 (보드 scope). HF30-2 부터 Deprecated 는 후보가 아니다 —
+	 * 버전이 다르면 활성 자원과 같은 내용이 허용되듯 Deprecated 와도 공존한다.
 	 */
 	@Query(
 			"select b from BoardBIOS b where b.boardModel.id = :boardModelId "
 					+ "and b.manifestHash = :manifestHash "
-					+ "and (b.isDeleted = true or b.isDeprecated = true)"
+					+ "and b.isDeleted = true"
 	)
 	List<BoardBIOS> findHashConflictCandidates(
 			@org.springframework.data.repository.query.Param("boardModelId") Long boardModelId,

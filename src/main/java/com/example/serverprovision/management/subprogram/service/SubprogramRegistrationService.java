@@ -38,7 +38,6 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * R6-3 — Subprogram 등록 흐름 전담 service. R6-3 이전 {@code SubprogramService} 에 잔류하던 등록 책임
@@ -53,13 +52,13 @@ import java.util.Optional;
  *   <li>{@link #cleanupNudgeCancelled} — nudge cancel 시 임시 트리 정리.</li>
  * </ul>
  *
- * <p>중복 제거(불가침) — addSubprogram/registerExisting 에 복붙돼 있던 활성/soft-deleted 중복키 검사는
- * {@link #assertNoDuplicateKey}, nudge 발급 블록은 {@link #issueHashNudge}, 3 경로에 반복되던 entity save + marker
+ * <p>중복 제거(불가침) — 등록 세 경로의 살아 있는 중복키 검사는
+ * {@link SubprogramGuards#assertKeyAvailable}, nudge 발급 블록은 {@link #issueHashNudge}, 3 경로에 반복되던 entity save + marker
  * write 골격은 {@link #persistBundle} 단일 helper 로 모은다. marker 4-step 은 {@link SubprogramMarkerWriter}(신규)에
  * 위임한다. 중복키 검사는 공용(common key)·board(board key) 두 축을 모두 보존한다.</p>
  *
  * <p>의존 그래프 — 단방향. lifecycle/scanner/verifier 를 역참조하지 않는다(순환 토대 깨끗).
- * REPLACE 시 purge 는 {@link SubprogramLifecycleService} 에 위임한다.</p>
+ * REPLACE 시 영구 삭제는 nudge 서비스가 NudgeReplacer(UserPurgeService) 로 처리한다.</p>
  */
 @Slf4j
 @Service
@@ -91,8 +90,8 @@ public class SubprogramRegistrationService {
 	) {
 		BoardModel parent = scope.isCommon() ? null : SubprogramGuards.requireActiveBoard(boardModelRepository, scope.boardId());
 
-		// 1) 활성 + soft-deleted 중복키 검사 (공용/board 두 축).
-		assertNoDuplicateKey(kind, scope, request.name(), request.version());
+		// 1) 살아 있는 같은 키 — 상태별 안내로 409. 휴지통의 같은 키와는 공존한다(창이 업로드 전에 물었다, HF30-2).
+		SubprogramGuards.assertKeyAvailable(subprogramRepository, kind, scope, request.name(), request.version());
 
 		// S3 — allowlist 검증
 		Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
@@ -115,7 +114,7 @@ public class SubprogramRegistrationService {
 
 			ManifestSummary manifest = bundleManifestService.compute(targetDir);
 
-			// MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated, 같은 scope) 탐지 시 nudge throw.
+			// MK2 단계 B — 해시 충돌 후보 (휴지통 · 같은 scope, HF30-2) 탐지 시 nudge throw.
 			issueHashNudge(kind, scope, request.name(), request.version(), request.description(), request.osName(),
 					targetDir, manifest, "addSubprogram", false);
 
@@ -148,7 +147,7 @@ public class SubprogramRegistrationService {
 	) {
 		BoardModel parent = scope.isCommon() ? null : SubprogramGuards.requireActiveBoard(boardModelRepository, scope.boardId());
 
-		assertNoDuplicateKey(kind, scope, request.name(), request.version());
+		SubprogramGuards.assertKeyAvailable(subprogramRepository, kind, scope, request.name(), request.version());
 
 		Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
 		targetDirectoryPolicyService.prepareForExistingDirectoryRegistration(targetDir);
@@ -193,6 +192,8 @@ public class SubprogramRegistrationService {
 		String osNameAttr = payload.attributes().getOrDefault("osName", "");
 		OSName osName = osNameAttr.isBlank() ? null : OSName.valueOf(osNameAttr);
 		BoardScope scope = common ? BoardScope.COMMON : BoardScope.ofBoard(parent.getId());
+		// 창 진행 사이에 다른 사용자가 같은 키를 등록했을 수 있어 다시 본다(HF30-2 — 종전에는 검사가 없었다).
+		SubprogramGuards.assertKeyAvailable(subprogramRepository, kind, scope, payload.name(), payload.version());
 
 		Subprogram saved = persistBundle(kind, scope, parent, payload.name(), payload.version(), description, osName,
 				targetDir, payload.manifestHash(), fileCount, totalBytes);
@@ -219,31 +220,7 @@ public class SubprogramRegistrationService {
 	// ==== private helpers (복붙 dedup) =================================
 
 	/**
-	 * 활성 + soft-deleted 동일 키 충돌 검사. 공용(common key)·board(board key) 두 축을 모두 보존한다.
-	 *
-	 * <p>MK2 — soft-deleted 동일 키 자동 hard-delete 폐지. 충돌 후보가 있으면 호출자가 nudge 흐름을 거쳐야 하며,
-	 * 본 메서드에 도달하면(= nudge 미경유) 정책 위반이므로 명시적 conflict 로 차단.</p>
-	 */
-	private void assertNoDuplicateKey(SubprogramKind kind, BoardScope scope, String name, String version) {
-		Optional<Subprogram> active = scope.isCommon()
-				? subprogramRepository.findActiveByCommonKey(kind, name, version)
-				: subprogramRepository.findActiveByBoardKey(kind, scope.boardId(), name, version);
-		if (active.isPresent()) {
-			throw new DuplicateSubprogramVersionException(kind, scope, name, version);
-		}
-
-		Optional<Subprogram> staleHolder = scope.isCommon()
-				? subprogramRepository.findSoftDeletedByCommonKey(kind, name, version)
-				: subprogramRepository.findSoftDeletedByBoardKey(kind, scope.boardId(), name, version);
-		if (staleHolder.isPresent()) {
-			Subprogram existing = staleHolder.get();
-			BoardScope sc = existing.isCommonScope() ? BoardScope.COMMON : BoardScope.ofBoard(existing.getBoardId());
-			throw new DuplicateSubprogramVersionException(existing.getKind(), sc, existing.getName(), existing.getVersion());
-		}
-	}
-
-	/**
-	 * MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated, 같은 scope) 탐지 시 nudge 세션 발급 +
+	 * MK2 단계 B — 해시 충돌 후보 (휴지통 · 같은 scope, HF30-2) 탐지 시 nudge 세션 발급 +
 	 * {@link SubprogramNudgeRequiredException}. 임시 트리는 호출자 targetDir 에 그대로 남겨두고 사용자
 	 * 결정(proceed / replace / cancel) 대기. MK3-1 — ghost 후보는 사전 필터링.
 	 *

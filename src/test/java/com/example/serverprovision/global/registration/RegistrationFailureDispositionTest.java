@@ -1,21 +1,16 @@
 package com.example.serverprovision.global.registration;
 
 import com.example.serverprovision.global.orphan.enums.OrphanFailureClass;
-import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.os.exception.DuplicateFilenameException;
 import com.example.serverprovision.management.os.exception.DuplicateISOContentException;
 import com.example.serverprovision.management.os.exception.ISOFileStorageException;
 import com.example.serverprovision.management.os.exception.IsoClientHashMismatchException;
 import com.example.serverprovision.management.os.exception.IsoMarkerWriteFailedException;
-import com.example.serverprovision.management.os.exception.IsoNudgeRequiredException;
 import com.example.serverprovision.management.os.exception.IsoUploadIntentConflictException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,7 +25,7 @@ class RegistrationFailureDispositionTest {
 	void contentFailures_areCleanup() {
 		assertThat(new IsoClientHashMismatchException("a", "b").disposition())
 				.isInstanceOf(FailureDisposition.Cleanup.class);
-		assertThat(new DuplicateISOContentException("/opt/iso/x.iso").disposition())
+		assertThat(com.example.serverprovision.management.os.exception.DuplicateISOContentException.againstRegistration(com.example.serverprovision.management.os.entity.ISO.builder().isoPath("/opt/iso/x.iso").isDeleted(false).isDeprecated(false).build()).disposition())
 				.isInstanceOf(FailureDisposition.Cleanup.class);
 		assertThat(new DuplicateFilenameException("/opt/iso/x.iso").disposition())
 				.isInstanceOf(FailureDisposition.Cleanup.class);
@@ -52,17 +47,5 @@ class RegistrationFailureDispositionTest {
 		FailureDisposition d = new IsoMarkerWriteFailedException("marker", new RuntimeException()).disposition();
 		assertThat(d).isInstanceOf(FailureDisposition.Quarantine.class);
 		assertThat(((FailureDisposition.Quarantine) d).failureClass()).isEqualTo(OrphanFailureClass.MARKER_WRITE);
-	}
-
-	@Test
-	@DisplayName("nudge 필요 → NUDGE(nudgeId), nudgeId 는 payload 의 UUID 를 lossless 전달")
-	void nudge_isNudgeWithUuid() {
-		UUID nudgeId = UUID.randomUUID();
-		NudgeRequiredResponse payload = NudgeRequiredResponse.of(nudgeId, List.of(), Instant.now());
-
-		FailureDisposition d = new IsoNudgeRequiredException(payload).disposition();
-
-		assertThat(d).isInstanceOf(FailureDisposition.Nudge.class);
-		assertThat(((FailureDisposition.Nudge) d).nudgeId()).isEqualTo(nudgeId);
 	}
 }

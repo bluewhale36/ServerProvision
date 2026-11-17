@@ -56,7 +56,6 @@ class IsoUploadIntentServiceTest {
 		String path = dir.resolve("dvd.iso").toString();
 		given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent(1L)));
 		given(isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(1L, path)).willReturn(Optional.empty());
-		given(isoRepository.findIntentPathNudgeCandidates(1L, path)).willReturn(List.of());
 		given(isoRepository.findIntentHashCheckCandidates(1L)).willReturn(List.of());
 
 		IsoUploadIntentResponse response = service.issue(1L, new IsoUploadIntentRequest(path, "dvd.iso", 0L, false));
@@ -71,12 +70,71 @@ class IsoUploadIntentServiceTest {
 		String path = dir.toString();
 		given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent(1L)));
 		given(isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(1L, path)).willReturn(Optional.empty());
-		given(isoRepository.findIntentPathNudgeCandidates(1L, path)).willReturn(List.of());
 		given(isoRepository.findIntentHashCheckCandidates(1L)).willReturn(List.of());
 
 		assertThatThrownBy(() -> service.issue(1L, new IsoUploadIntentRequest(path, "dvd.iso", 0L, false)))
 				.isInstanceOf(IsoPathIsDirectoryException.class)
 				.hasMessageContaining("디렉토리");
 		assertThat(service.size()).isZero();
+	}
+
+	// ==== HF30-2 D8 — 지문을 경로 창보다 먼저, 같은 경로 · 같은 내용 휴지통 후보는 한 창, 같은 OS 범위 ====
+
+	private com.example.serverprovision.management.os.entity.ISO iso(Long id, String path, boolean deprecated, boolean deleted) {
+		return com.example.serverprovision.management.os.entity.ISO.builder()
+				.id(id).osMetadata(parent(1L)).isoPath(path).checksum("h").manifestHash("h")
+				.isEnabled(!deleted).isDeprecated(deprecated).isDeleted(deleted).build();
+	}
+
+	@Test
+	@DisplayName("HF30-2 지문 없음 + 같은 OS 에 휴지통 ISO → 경로 창보다 먼저 지문을 요청한다(HashCheckRequired)")
+	void issue_noHash_trashedExists_requestsHashBeforePathNudge(@TempDir Path dir) {
+		String path = dir.resolve("dvd.iso").toString();
+		given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent(1L)));
+		given(isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(1L, path)).willReturn(Optional.empty());
+		given(isoRepository.findIntentHashCheckCandidates(1L)).willReturn(List.of(iso(5L, path, false, true)));
+
+		IsoUploadIntentResponse response = service.issue(1L, new IsoUploadIntentRequest(path, "dvd.iso", 0L, false));
+
+		assertThat(response).isInstanceOf(IsoUploadIntentResponse.HashCheckRequired.class);
+		org.mockito.Mockito.verify(isoRepository, org.mockito.Mockito.never()).findIntentPathNudgeCandidates(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+		org.mockito.Mockito.verifyNoInteractions(nudgeRegistry);
+	}
+
+	@Test
+	@DisplayName("HF30-2 지문 + 같은 OS 에 같은 내용 사용 중단 권고 → 창 없이 409, 사용 중단 권고 해제 안내")
+	void issue_hash_deprecatedSameContent_guides(@TempDir Path dir) {
+		String path = dir.resolve("dvd.iso").toString();
+		given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent(1L)));
+		given(isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(1L, path)).willReturn(Optional.empty());
+		given(isoRepository.findAllByOsMetadata_IdAndManifestHashAndIsDeletedFalse(1L, "h"))
+				.willReturn(List.of(iso(3L, "/opt/iso/old.iso", true, false)));
+
+		assertThatThrownBy(() -> service.issue(1L, new IsoUploadIntentRequest(path, "dvd.iso", 0L, false, "h")))
+				.isInstanceOf(com.example.serverprovision.management.os.exception.DuplicateISOContentException.class)
+				.hasMessage("사용 중단 권고 상태인 같은 ISO 내용이 있습니다(/opt/iso/old.iso). 목록에서 사용 중단 권고를 해제해야 합니다.");
+		org.mockito.Mockito.verifyNoInteractions(nudgeRegistry);
+	}
+
+	@Test
+	@DisplayName("HF30-2 지문 + 같은 경로 휴지통(5) · 같은 내용 휴지통(5, 6) → 한 창, 후보는 중복 없이 5 · 6")
+	void issue_hash_trashedPathAndContent_singleNudge(@TempDir Path dir) {
+		String path = dir.resolve("dvd.iso").toString();
+		given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(parent(1L)));
+		given(isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(1L, path)).willReturn(Optional.empty());
+		given(isoRepository.findIntentPathNudgeCandidates(1L, path)).willReturn(List.of(iso(5L, path, false, true)));
+		given(isoRepository.findIntentHashNudgeCandidates(1L, "h"))
+				.willReturn(List.of(iso(6L, "/opt/iso/other.iso", false, true), iso(5L, path, false, true)));
+		given(nudgeRegistry.register(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+				org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+				.willAnswer(inv -> new com.example.serverprovision.management.common.nudge.NudgeSession(java.util.UUID.randomUUID(),
+						inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3),
+						java.time.Instant.now(), java.time.Instant.now().plusSeconds(300)));
+
+		assertThatThrownBy(() -> service.issue(1L, new IsoUploadIntentRequest(path, "dvd.iso", 0L, false, "h")))
+				.isInstanceOf(com.example.serverprovision.management.os.exception.IsoNudgeRequiredException.class)
+				.hasMessage("같은 경로나 같은 내용의 ISO 가 휴지통에 있습니다. 진행 방법을 선택해야 합니다.")
+				.satisfies(e -> assertThat(((com.example.serverprovision.management.os.exception.IsoNudgeRequiredException) e)
+						.payload().conflicts()).extracting(c -> c.id()).containsExactly(5L, 6L));
 	}
 }
