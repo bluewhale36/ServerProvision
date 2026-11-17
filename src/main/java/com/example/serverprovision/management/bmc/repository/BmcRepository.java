@@ -52,21 +52,21 @@ public interface BmcRepository extends JpaRepository<BoardBMC, Long> {
 	// ---- MK2 (단계 A · 메타) ------------------------------------------
 
 	/**
-	 * WAVE 2 — 단계 A intent nudge 후보 수집 (soft-deleted).
+	 * 업로드 전 중복 확인 창 후보 — 같은 (메인보드, 버전)의 휴지통 행(HF30-2 부터 창 후보는 휴지통뿐).
 	 */
 	List<BoardBMC> findAllByBoardModel_IdAndVersionAndIsDeletedTrue(Long boardModelId, String version);
 
 	/**
-	 * WAVE 2 — 단계 A intent nudge 후보 수집 (Deprecated 활성).
+	 * 같은 (메인보드, 버전)의 살아 있는 행(활성 · Deprecated) — 등록 충돌 안내가 상태를 고르려고 모두 읽는다(HF30-2).
 	 */
-	List<BoardBMC> findAllByBoardModel_IdAndVersionAndIsDeprecatedTrueAndIsDeletedFalse(Long boardModelId, String version);
+	List<BoardBMC> findAllByBoardModel_IdAndVersionAndIsDeletedFalse(Long boardModelId, String version);
 
 	// ---- MK2 (단계 B · 해시 충돌) -------------------------------------
 
 	/**
-	 * WAVE 2 — 단계 B hash nudge 후보 (해시 동일 + soft-deleted/Deprecated).
+	 * 업로드 뒤 중복 확인 창 후보 — 내용(해시)이 같은 휴지통 자원 (보드 scope). HF30-2 부터 Deprecated 는 후보가 아니다.
 	 */
-	@Query("select b from BoardBMC b where b.boardModel.id = :boardModelId and b.manifestHash = :manifestHash and (b.isDeleted = true or b.isDeprecated = true)")
+	@Query("select b from BoardBMC b where b.boardModel.id = :boardModelId and b.manifestHash = :manifestHash and b.isDeleted = true")
 	List<BoardBMC> findHashConflictCandidates(
 			@org.springframework.data.repository.query.Param("boardModelId") Long boardModelId,
 			@org.springframework.data.repository.query.Param("manifestHash") String manifestHash

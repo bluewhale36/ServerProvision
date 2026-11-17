@@ -416,7 +416,7 @@ class BiosControllerUploadFlowTest {
         @DisplayName("17. intent-nudge replace : 200 + 새 uploadToken (targetId purge 후)")
         void intentNudgeReplace() throws Exception {
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
-            given(biosNudgeService.replaceIntent(eq(nudgeId), eq(42L)))
+            given(biosNudgeService.replaceIntent(eq(nudgeId), eq(42L), any()))
                     .willReturn(new BiosUploadIntentResponse("token-after-replace", List.of(), null));
 
             mvc.perform(post("/management/bios/intent-nudge/" + nudgeId + "/replace?targetId=42"))
@@ -431,6 +431,59 @@ class BiosControllerUploadFlowTest {
 
             mvc.perform(post("/management/bios/intent-nudge/" + nudgeId + "/cancel"))
                     .andExpect(status().isNoContent());
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("HF30-2 — 상태별 409 안내 · [기존 영구 삭제 후 등록] 실패 응답")
+    class Hf30_2 {
+
+        @Test
+        @DisplayName("upload-intent : 같은 정체가 사용 중단 권고 → 409 + 해제 안내 문구")
+        void intent_deprecated_409() throws Exception {
+            willThrow(com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException.againstRegistration(com.example.serverprovision.management.bios.entity.BoardBIOS.builder().name("R13").version("2.03").isDeprecated(true).isDeleted(false).build()))
+                    .given(biosUploadIntentService).issue(eq(1L), any());
+
+            mvc.perform(post("/management/bios/1/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(intentReq("/mnt/x/"))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("사용 중단 권고 상태인 같은 BIOS 버전이 있습니다(R13 2.03). 목록에서 사용 중단 권고를 해제해야 합니다."))
+                    .andExpect(jsonPath("$.fieldErrors[0].field").value("version"));
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 자원명을 서비스로 넘긴다(자원명 확인은 영구 삭제 경로가 한다)")
+        void intentNudgeReplace_passesTypedName() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(biosNudgeService.replaceIntent(eq(nudgeId), eq(42L), eq("typed")))
+                    .willReturn(new com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse("t", List.of(), null));
+
+            mvc.perform(post("/management/bios/intent-nudge/" + nudgeId + "/replace?targetId=42&typedName=typed"))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 후보가 이미 휴지통에 없음 → 409(PurgeTargetNotInTrash)")
+        void intentNudgeReplace_notInTrash_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(new com.example.serverprovision.global.trash.exception.PurgeTargetNotInTrashException())
+                    .given(biosNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/bios/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 영구 삭제 뒤 등록 실패 → 409 + 영구 삭제 사실과 실패 사유")
+        void intentNudgeReplace_registrationFailedAfterPurge_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(com.example.serverprovision.management.common.nudge.exception.NudgeReplaceRegistrationFailedException
+                    .wrapIfUserFacing(new com.example.serverprovision.management.board.exception.BoardModelNotFoundException(1L)))
+                    .given(biosNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/bios/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("기존 자원은 영구 삭제했지만 새 자원 등록에 실패했습니다. ")));
         }
     }
 }

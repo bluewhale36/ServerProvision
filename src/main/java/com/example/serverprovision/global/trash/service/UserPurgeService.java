@@ -30,11 +30,33 @@ public class UserPurgeService {
 	private final PurgeExecutor purgeExecutor;
 
 	public void purge(ResourceType resourceType, Long resourceId, String typedName) {
-		Markable trashed = inventoryFor(resourceType).findTrashedById(resourceId)
-				.orElseThrow(PurgeTargetNotInTrashException::new);
+		Markable trashed = requireTrashed(resourceType, resourceId);
 		TypedNameGuard.verify(trashed, typedName);
-		PurgeResult result = purgeExecutor.execute(PurgeRequest.forUserDirect(resourceType, resourceId, null, typedName));
-		log.info("[user-purge] type={} id={} result={}", resourceType, resourceId, result.getClass().getSimpleName());
+		execute(PurgeRequest.forUserDirect(resourceType, resourceId, null, typedName));
+	}
+
+	/**
+	 * 중복 확인 창의 [기존 영구 삭제 후 등록](HF30-2) — {@link #purge} 와 같은 순서로 휴지통 후보를 영구 삭제하고 감사 기록의
+	 * 진입경로를 NUDGE_REPLACE 로 남긴다. 창 후보가 휴지통 행뿐이라 실행기의 '휴지통 자원만' 전제와 맞는다.
+	 * 자원명이 비어 있으면 확인을 건너뛴다 — 창의 자원명 입력이 아직 연결되지 않았기 때문이며, HF30-3 이 입력을 살리고 빈 값을 거절한다.
+	 */
+	public void purgeForNudgeReplace(ResourceType resourceType, Long resourceId, String typedName) {
+		Markable trashed = requireTrashed(resourceType, resourceId);
+		if (typedName != null && !typedName.isBlank()) {
+			TypedNameGuard.verify(trashed, typedName);
+		}
+		execute(PurgeRequest.forNudgeReplace(resourceType, resourceId, null, typedName));
+	}
+
+	private Markable requireTrashed(ResourceType resourceType, Long resourceId) {
+		return inventoryFor(resourceType).findTrashedById(resourceId)
+				.orElseThrow(PurgeTargetNotInTrashException::new);
+	}
+
+	private void execute(PurgeRequest request) {
+		PurgeResult result = purgeExecutor.execute(request);
+		log.info("[user-purge] origin={} type={} id={} result={}",
+				request.origin(), request.resourceType(), request.resourceId(), result.getClass().getSimpleName());
 		if (result instanceof PurgeResult.Failed failed) {
 			Throwable cause = failed.cause();
 			if (cause instanceof RuntimeException runtime) {

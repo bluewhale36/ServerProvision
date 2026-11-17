@@ -6,7 +6,6 @@ import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentR
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException;
-import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.common.firmware.exception.InvalidFirmwareFileException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
@@ -31,7 +30,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Stream;
 
 /**
  * BIOS 펌웨어 업로드 Intent 핸드셰이크. 파일 바이트 전송 이전에 하드 조건을 검증하고 1회용 토큰을 발급.
@@ -57,7 +55,7 @@ public class BiosUploadIntentService {
 	private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
 	/**
-	 * MK2 WAVE 2 — intent 시점에 (board, version) 메타 키로 SoftDeleted/Deprecated 자원 사전 검출.
+	 * MK2 WAVE 2 — intent 시점에 (board, version) 메타 키 사전 검출. 살아 있는 자원은 상태별 안내로 막고 휴지통 자원만 창으로 묻는다(HF30-2).
 	 *
 	 * <p>충돌 발견 시 {@link BiosNudgeRequiredException} (단계 A) 으로 throw 해 클라이언트가 파일
 	 * 업로드 자체를 시작하지 않도록 한다. proceed/replace 시 {@link #issueAfterNudge}
@@ -67,16 +65,13 @@ public class BiosUploadIntentService {
 		boardModelRepository.findByIdAndIsDeletedFalse(boardId)
 				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
 
-		// 활성 동일 (board, version) 중복 — 하드 거절
-		if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBiosVersionException(boardId, request.version());
-		}
+		BiosGuards.assertVersionAvailable(biosRepository, boardId, request.version());
 
-		// MK2 WAVE 2 (단계 A) — 메타 충돌 사전 검출. SoftDeleted / Deprecated 모두 conflicts 에 포함.
-		List<BoardBIOS> metaCandidates = collectMetaNudgeCandidates(boardId, request.version());
+		// 같은 (메인보드, 버전)의 휴지통 행만 창으로 묻는다(HF30-2). 살아 있는 행은 위 가드가 상태별 안내로 막았다.
+		List<BoardBIOS> metaCandidates = biosRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, request.version());
 		if (!metaCandidates.isEmpty()) {
 			throw new BiosNudgeRequiredException(
-					"같은 메인보드와 버전의 BIOS 가 휴지통에 있거나 사용 중단 상태입니다. 진행 방법을 선택해야 합니다.",
+					"같은 메인보드와 버전의 BIOS 가 휴지통에 있습니다. 진행 방법을 선택해야 합니다.",
 					registerIntentNudge(boardId, request, metaCandidates),
 					toConflictEntries(metaCandidates)
 			);
@@ -94,9 +89,7 @@ public class BiosUploadIntentService {
 		BoardModel board = boardModelRepository.findByIdAndIsDeletedFalse(boardId)
 				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
 
-		if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBiosVersionException(boardId, request.version());
-		}
+		BiosGuards.assertVersionAvailable(biosRepository, boardId, request.version());
 
 		// R12-1 — 경로 해석 + 파일명 정책 하드 검증 (파일 바이트 전송 전 조기 차단). 정책은 vendor 별 strategy.
 		//         intent 는 업로드 전용이므로 디렉토리 추론(끝 슬래시 또는 점 없는 마지막 세그먼트)을 적용한다.
@@ -138,13 +131,6 @@ public class BiosUploadIntentService {
 		return new BiosUploadIntentResponse(token, warnings, null);
 	}
 
-	private List<BoardBIOS> collectMetaNudgeCandidates(Long boardId, String version) {
-		return Stream.concat(
-						biosRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, version).stream(),
-						biosRepository.findAllByBoardModel_IdAndVersionAndIsDeprecatedTrueAndIsDeletedFalse(boardId, version).stream()
-				)
-				.toList();
-	}
 
 	private NudgeSession registerIntentNudge(Long boardId, BiosUploadIntentRequest request, List<BoardBIOS> candidates) {
 		Map<String, String> attributes = new HashMap<>();

@@ -10,7 +10,6 @@ import com.example.serverprovision.management.bios.service.BundleManifestService
 import com.example.serverprovision.management.bmc.dto.request.BmcCreateRequest;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.exception.BmcNudgeRequiredException;
-import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -85,10 +84,8 @@ public class BmcRegistrationService {
 	public Long addBmc(Long boardId, BmcCreateRequest request, MultipartFile firmwareFile) {
 		BoardModel parent = BmcGuards.requireActiveBoard(boardModelRepository, boardId);
 
-		// 1) 활성 (board, version) 중복 검사
-		if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBmcVersionException(boardId, request.version());
-		}
+		// 1) 같은 (메인보드, 버전)의 살아 있는 자원 — 상태별 안내로 409. 휴지통 행과는 공존한다(HF30-2).
+		BmcGuards.assertVersionAvailable(bmcRepository, boardId, request.version());
 
 		// 2) 경로 해석 — 업로드는 디렉토리 추론(허용 확장자 기준) 후 파일명 append,
 		//    업로드 없는 등록(claim)은 경로 자체가 대상 파일이므로 추론하지 않는다.
@@ -210,9 +207,7 @@ public class BmcRegistrationService {
 	@Transactional
 	public Long persistFromNudge(Long boardId, ContentNudgePayload payload) {
 		BoardModel parent = BmcGuards.requireActiveBoard(boardModelRepository, boardId);
-		if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, payload.version())) {
-			throw new DuplicateBmcVersionException(boardId, payload.version());
-		}
+		BmcGuards.assertVersionAvailable(bmcRepository, boardId, payload.version());
 		Path targetDir = pathPolicyService.assertWritablePath(payload.tempFilePath());
 		String entrypoint = payload.attributes().getOrDefault("entrypointRelativePath", "");
 		int fileCount = Integer.parseInt(payload.attributes().getOrDefault("fileCount", "0"));
@@ -245,7 +240,7 @@ public class BmcRegistrationService {
 	// ==== private helpers (복붙 dedup) =================================
 
 	/**
-	 * MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + {@link BmcNudgeRequiredException}.
+	 * MK2 단계 B — 해시 충돌 후보 (휴지통, HF30-2) 탐지 시 nudge 세션 발급 + {@link BmcNudgeRequiredException}.
 	 * 임시 트리는 호출자 treeRoot 에 그대로 남겨두고 사용자 결정(proceed / replace / cancel) 대기.
 	 * MK3-1 — ghost (DB-only soft-deleted, FS 부재) 후보는 사전 필터링.
 	 */

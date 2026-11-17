@@ -6,7 +6,6 @@ import com.example.serverprovision.management.bmc.dto.request.BmcUploadIntentReq
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.exception.BmcNudgeRequiredException;
-import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -30,7 +29,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -55,14 +53,13 @@ public class BmcUploadIntentService {
 		boardModelRepository.findByIdAndIsDeletedFalse(boardId)
 				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
 
-		if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBmcVersionException(boardId, request.version());
-		}
+		BmcGuards.assertVersionAvailable(bmcRepository, boardId, request.version());
 
-		List<BoardBMC> metaCandidates = collectMetaNudgeCandidates(boardId, request.version());
+		// 같은 (메인보드, 버전)의 휴지통 행만 창으로 묻는다(HF30-2). 살아 있는 행은 위 가드가 상태별 안내로 막았다.
+		List<BoardBMC> metaCandidates = bmcRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, request.version());
 		if (!metaCandidates.isEmpty()) {
 			throw new BmcNudgeRequiredException(
-					"같은 메인보드와 버전의 BMC 펌웨어가 휴지통에 있거나 사용 중단 상태입니다. 진행 방법을 선택해야 합니다.",
+					"같은 메인보드와 버전의 BMC 펌웨어가 휴지통에 있습니다. 진행 방법을 선택해야 합니다.",
 					registerIntentNudge(boardId, request, metaCandidates),
 					toConflictEntries(metaCandidates)
 			);
@@ -78,9 +75,7 @@ public class BmcUploadIntentService {
 		BoardModel board = boardModelRepository.findByIdAndIsDeletedFalse(boardId)
 				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
 
-		if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBmcVersionException(boardId, request.version());
-		}
+		BmcGuards.assertVersionAvailable(bmcRepository, boardId, request.version());
 
 		// R12-2 — 경로 해석 + 파일명 정책 하드 검증 (파일 바이트 전송 전 조기 차단). 정책은 vendor 별 strategy.
 		//         intent 는 업로드 전용이므로 디렉토리 추론(허용 확장자 기준)을 적용한다.
@@ -117,13 +112,6 @@ public class BmcUploadIntentService {
 		return new BmcUploadIntentResponse(token, warnings, null);
 	}
 
-	private List<BoardBMC> collectMetaNudgeCandidates(Long boardId, String version) {
-		return Stream.concat(
-						bmcRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, version).stream(),
-						bmcRepository.findAllByBoardModel_IdAndVersionAndIsDeprecatedTrueAndIsDeletedFalse(boardId, version).stream()
-				)
-				.toList();
-	}
 
 	private NudgeSession registerIntentNudge(Long boardId, BmcUploadIntentRequest request, List<BoardBMC> candidates) {
 		Map<String, String> attributes = new HashMap<>();

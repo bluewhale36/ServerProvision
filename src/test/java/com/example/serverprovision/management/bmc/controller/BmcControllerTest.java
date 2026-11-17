@@ -329,7 +329,7 @@ class BmcControllerTest {
         @DisplayName("intent-nudge replace : 200 + 새 uploadToken")
         void intentNudgeReplace() throws Exception {
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
-            given(bmcNudgeService.replaceIntent(eq(nudgeId), eq(77L)))
+            given(bmcNudgeService.replaceIntent(eq(nudgeId), eq(77L), any()))
                     .willReturn(new BmcUploadIntentResponse("token-after-replace", List.of(), null));
 
             mvc.perform(post("/management/bmc/intent-nudge/" + nudgeId + "/replace?targetId=77"))
@@ -344,6 +344,59 @@ class BmcControllerTest {
 
             mvc.perform(post("/management/bmc/intent-nudge/" + nudgeId + "/cancel"))
                     .andExpect(status().isNoContent());
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("HF30-2 — 상태별 409 안내 · [기존 영구 삭제 후 등록] 실패 응답")
+    class Hf30_2 {
+
+        @Test
+        @DisplayName("upload-intent : 같은 정체가 사용 중단 권고 → 409 + 해제 안내 문구")
+        void intent_deprecated_409() throws Exception {
+            willThrow(com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException.againstRegistration(com.example.serverprovision.management.bmc.entity.BoardBMC.builder().name("fw").version("13.06.25").isDeprecated(true).isDeleted(false).build()))
+                    .given(bmcUploadIntentService).issue(eq(1L), any());
+
+            mvc.perform(post("/management/bmc/1/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(new com.example.serverprovision.management.bmc.dto.request.BmcUploadIntentRequest("/mnt/bmc/x/", "bmc.ima_enc", 1024L, "13.06.25", false))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("사용 중단 권고 상태인 같은 BMC 버전이 있습니다(fw 13.06.25). 목록에서 사용 중단 권고를 해제해야 합니다."))
+                    .andExpect(jsonPath("$.fieldErrors[0].field").value("version"));
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 자원명을 서비스로 넘긴다(자원명 확인은 영구 삭제 경로가 한다)")
+        void intentNudgeReplace_passesTypedName() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(bmcNudgeService.replaceIntent(eq(nudgeId), eq(42L), eq("typed")))
+                    .willReturn(new com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse("t", List.of(), null));
+
+            mvc.perform(post("/management/bmc/intent-nudge/" + nudgeId + "/replace?targetId=42&typedName=typed"))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 후보가 이미 휴지통에 없음 → 409(PurgeTargetNotInTrash)")
+        void intentNudgeReplace_notInTrash_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(new com.example.serverprovision.global.trash.exception.PurgeTargetNotInTrashException())
+                    .given(bmcNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/bmc/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 영구 삭제 뒤 등록 실패 → 409 + 영구 삭제 사실과 실패 사유")
+        void intentNudgeReplace_registrationFailedAfterPurge_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(com.example.serverprovision.management.common.nudge.exception.NudgeReplaceRegistrationFailedException
+                    .wrapIfUserFacing(new com.example.serverprovision.management.board.exception.BoardModelNotFoundException(1L)))
+                    .given(bmcNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/bmc/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("기존 자원은 영구 삭제했지만 새 자원 등록에 실패했습니다. ")));
         }
     }
 }

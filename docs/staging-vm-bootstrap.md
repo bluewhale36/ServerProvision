@@ -3,6 +3,7 @@
 > **목적**: 개발 맥북 위 Rocky Linux 9.6 aarch64 가상머신을 ServerProvision 스테이징 환경으로 세운다. 실 배포 기기 확보 전까지 이 VM 이 OPS 계열 결정의 리허설 무대이며, 여기서 실측으로 검증된 절차가 OPS-4(설치, 기동, 업그레이드 절차)의 초안 입력이 된다.
 > **전제**: VM 생성 완료, sudo 가능한 운영자 계정, 맥북과의 네트워크 연결.
 > **근거 결정**: `discussion/26-08-02_13-16-50_OPS-1-access-control_discussion.md`(계정과 권한), `discussion/26-08-02_15-11-33_OPS-2-filesystem-layout_discussion.md`(경로 배치), `discussion/26-08-05_01-30-41_OPS-3-security-enforcement_discussion.md`(보안 강제). 이 런북은 그 결정들의 첫 실사화다.
+> **문서 역할**: 이 문서는 PXE 서버를 구축하거나 복구할 때의 정본이다. 운영 중 유지보수(정기 점검, 배포 뒤 확인, 장애 대응 등)의 정본은 사용 매뉴얼의 서버 관리 묶음(`/manual/admin/`, 원본 `src/main/resources/static/manual/admin/`)이다. 두 문서에 겹치는 사실(경로, 서비스 이름, 환경변수)은 이 문서를 기준으로 맞춘다(2026-11-17 사용자 확정).
 
 ## 1. 이 환경의 성격과 실서버와의 차이
 

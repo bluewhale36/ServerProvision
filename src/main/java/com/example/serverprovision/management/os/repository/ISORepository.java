@@ -18,10 +18,10 @@ public interface ISORepository extends JpaRepository<ISO, Long> {
 	Optional<ISO> findByIdAndOsMetadata_Id(Long id, Long osMetadataId);
 
 	/**
-	 * 동일 checksum 을 가진 활성 ISO 중 가장 먼저 발견되는 것을 돌려준다.
-	 * 중복 업로드 방지에서 "이미 등록된 경로" 를 사용자에게 안내하기 위해 사용한다.
+	 * 같은 OS 에서 내용(해시)이 같은 살아 있는 ISO(활성 · Deprecated) — 같은 내용은 OS 버전마다 하나만 둔다(HF30-2 · U4).
+	 * 등록 충돌 안내가 상태를 고르려고 모두 읽는다.
 	 */
-	Optional<ISO> findFirstByChecksumAndIsDeletedFalse(String checksum);
+	List<ISO> findAllByOsMetadata_IdAndManifestHashAndIsDeletedFalse(Long osMetadataId, String manifestHash);
 
 	/**
 	 * 업로드 intent 사전 검사용 — 같은 OS 내 동일 isoPath 로 등록된 활성 ISO 조회.
@@ -38,9 +38,9 @@ public interface ISORepository extends JpaRepository<ISO, Long> {
 	Optional<ISO> findFirstByOsMetadata_IdAndIsoPathAndIsDeletedTrue(Long osMetadataId, String isoPath);
 
 	/**
-	 * MK2 WAVE 2 — intent path nudge 후보 수집 (soft-deleted + Deprecated, 같은 OS + 같은 isoPath).
+	 * 업로드 전 중복 확인 창 후보 — 같은 OS · 같은 isoPath 의 휴지통 ISO(HF30-2 부터 휴지통뿐).
 	 */
-	@Query("select i from ISO i where i.osMetadata.id = :osMetadataId and i.isoPath = :isoPath and (i.isDeleted = true or i.isDeprecated = true)")
+	@Query("select i from ISO i where i.osMetadata.id = :osMetadataId and i.isoPath = :isoPath and i.isDeleted = true")
 	List<ISO> findIntentPathNudgeCandidates(
 			@org.springframework.data.repository.query.Param("osMetadataId") Long osMetadataId,
 			@org.springframework.data.repository.query.Param("isoPath") String isoPath
@@ -54,24 +54,14 @@ public interface ISORepository extends JpaRepository<ISO, Long> {
 	List<ISO> findIntentHashCheckCandidates(@org.springframework.data.repository.query.Param("osMetadataId") Long osMetadataId);
 
 	/**
-	 * MK2 WAVE 3 — Phase 2 hash match : client 가 보낸 SHA-256 과 일치하는 휴지통 / Deprecated ISO 후보.
-	 * 일치 시 IsoNudgeRequiredException (NUDGE_REQUIRED) — 사용자 3택.
+	 * 업로드 전 중복 확인 창 후보 — client 가 보낸 SHA-256 과 일치하는 같은 OS 의 휴지통 ISO(HF30-2 부터 휴지통뿐).
+	 * 같은 내용의 살아 있는 ISO 는 창 없이 상태별 안내로 막는다.
 	 */
-	@Query("select i from ISO i where i.osMetadata.id = :osMetadataId and i.manifestHash = :manifestHash and (i.isDeleted = true or i.isDeprecated = true)")
+	@Query("select i from ISO i where i.osMetadata.id = :osMetadataId and i.manifestHash = :manifestHash and i.isDeleted = true")
 	List<ISO> findIntentHashNudgeCandidates(
 			@org.springframework.data.repository.query.Param("osMetadataId") Long osMetadataId,
 			@org.springframework.data.repository.query.Param("manifestHash") String manifestHash
 	);
-
-	// ---- MK2 — 해시 충돌 후보 (단계 B) -------------------------------
-
-	/**
-	 * 동일 manifestHash 를 가진 soft-deleted 또는 deprecated ISO 후보들.
-	 * <p>활성 ISO 와의 해시 충돌은 그대로 hard conflict ({@code DuplicateISOContentException}) 이지만,
-	 * 휴지통/Deprecated 자원과의 충돌은 사용자가 confirm 하면 등록을 진행할 수 있는 nudge 흐름으로 분기한다.</p>
-	 */
-	@Query("select i from ISO i where i.manifestHash = :hash and (i.isDeleted = true or i.isDeprecated = true)")
-	List<ISO> findByManifestHashAndIsDeletedTrueOrIsDeprecatedTrue(String hash);
 
 	// ---- MK1 reconciliation 인벤토리 -------------------------------
 

@@ -1,12 +1,18 @@
 package com.example.serverprovision.management.subprogram.service;
 
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
 import com.example.serverprovision.management.subprogram.entity.Subprogram;
+import com.example.serverprovision.management.subprogram.enums.SubprogramKind;
+import com.example.serverprovision.management.subprogram.exception.DuplicateSubprogramVersionException;
 import com.example.serverprovision.management.subprogram.exception.IllegalSubprogramStateException;
 import com.example.serverprovision.management.subprogram.exception.SubprogramNotFoundException;
 import com.example.serverprovision.management.subprogram.repository.SubprogramRepository;
+import com.example.serverprovision.management.subprogram.vo.BoardScope;
+
+import java.util.Comparator;
 
 /**
  * R6-3 — SubprogramService 5분할 시 분할 클래스들이 공유하는 조회 가드를 정적 헬퍼로 단일화한다
@@ -53,5 +59,18 @@ final class SubprogramGuards {
 	static Subprogram requireExisting(SubprogramRepository subprogramRepository, Long subprogramId) {
 		return subprogramRepository.findById(subprogramId)
 				.orElseThrow(() -> new SubprogramNotFoundException(subprogramId));
+	}
+
+	/**
+	 * 같은 (종류, 범위, 이름, 버전)의 살아 있는 자원(활성 · Deprecated)이 있으면 그 상태에 맞는 안내로 409(HF30-2). 업로드 전 판정 ·
+	 * 창 진행 뒤 재발급 · 등록 본체(업로드 · 기존 폴더 · 창 진행)가 함께 써 기준이 갈라지지 않게 한다. 휴지통 행은 막지 않는다(창이 묻는다).
+	 */
+	static void assertKeyAvailable(SubprogramRepository subprogramRepository, SubprogramKind kind, BoardScope scope,
+								   String name, String version) {
+		subprogramRepository.findLivingByKey(kind, scope.isCommon() ? null : scope.boardId(), name, version).stream()
+				.min(Comparator.comparing((Subprogram existing) -> LifecycleStage.of(existing.isDeprecated(), existing.isDeleted())))
+				.ifPresent(existing -> {
+					throw DuplicateSubprogramVersionException.againstRegistration(existing);
+				});
 	}
 }
