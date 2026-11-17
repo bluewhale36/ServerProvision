@@ -4,10 +4,8 @@ import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.global.orphan.OrphanQuarantineRequest;
 import com.example.serverprovision.global.orphan.enums.OrphanFailureClass;
 import com.example.serverprovision.global.orphan.service.OrphanQuarantineService;
-import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.os.exception.DuplicateISOContentException;
 import com.example.serverprovision.management.os.exception.ISOFileStorageException;
-import com.example.serverprovision.management.os.exception.IsoNudgeRequiredException;
 import com.example.serverprovision.management.os.service.iso.IsoRegistrationService.PreparedIsoRegistration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,9 +19,6 @@ import org.mockito.quality.Strictness;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,31 +46,17 @@ class IsoRegistrationRunnerDispatchTest {
 			new PreparedIsoRegistration(7L, "/opt/iso/rocky.iso", "rocky", "rocky.iso", true, "hash123");
 
 	@Test
-	@DisplayName("CLEANUP — 콘텐츠 실패는 격리 없이 fail (record 미호출, ORPHAN/NUDGE prefix 없음)")
+	@DisplayName("CLEANUP — 콘텐츠 실패는 격리 없이 fail (record 미호출, ORPHAN prefix 없음)")
 	void cleanup_failsWithoutQuarantine() throws Exception {
 		given(isoRegistrationService.finalize(eq("job1"), any()))
-				.willThrow(new DuplicateISOContentException("/opt/iso/existing.iso"));
+				.willThrow(com.example.serverprovision.management.os.exception.DuplicateISOContentException.againstRegistration(com.example.serverprovision.management.os.entity.ISO.builder().isoPath("/opt/iso/existing.iso").isDeleted(false).isDeprecated(false).build()));
 
 		runner.runAsync("job1", PREPARED);
 
 		verify(orphanQuarantineService, never()).record(any());
 		ArgumentCaptor<String> msg = ArgumentCaptor.forClass(String.class);
 		verify(backgroundJobService).fail(eq("job1"), msg.capture());
-		assertThat(msg.getValue()).doesNotStartWith("ORPHAN_RECOVERY:").doesNotStartWith("NUDGE_REQUIRED:");
-	}
-
-	@Test
-	@DisplayName("NUDGE — nudge 예외는 NUDGE_REQUIRED:{nudgeId} marker, record 미호출")
-	void nudge_failsWithNudgeMarker() throws Exception {
-		UUID nudgeId = UUID.randomUUID();
-		NudgeRequiredResponse payload = NudgeRequiredResponse.of(nudgeId, List.of(), Instant.now());
-		given(isoRegistrationService.finalize(eq("job1"), any()))
-				.willThrow(new IsoNudgeRequiredException(payload));
-
-		runner.runAsync("job1", PREPARED);
-
-		verify(backgroundJobService).fail("job1", "NUDGE_REQUIRED:" + nudgeId);
-		verify(orphanQuarantineService, never()).record(any());
+		assertThat(msg.getValue()).doesNotStartWith("ORPHAN_RECOVERY:");
 	}
 
 	@Test

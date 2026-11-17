@@ -228,8 +228,8 @@ class OSMetadataServiceTest {
                 .willReturn(Optional.of(parent));
         given(isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(1L, target.toString()))
                 .willReturn(Optional.empty());
-        given(isoRepository.findFirstByChecksumAndIsDeletedFalse(expectedHash))
-                .willReturn(Optional.empty());
+        given(isoRepository.findAllByOsMetadata_IdAndManifestHashAndIsDeletedFalse(any(), eq(expectedHash)))
+                .willReturn(List.of());
         stubMarkerService();
 
         ArgumentCaptor<ISO> captor = ArgumentCaptor.forClass(ISO.class);
@@ -277,8 +277,8 @@ class OSMetadataServiceTest {
                 .willReturn(Optional.of(parent));
         given(isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(1L, target.toString()))
                 .willReturn(Optional.empty());
-        given(isoRepository.findFirstByChecksumAndIsDeletedFalse(hash))
-                .willReturn(Optional.of(existing));
+        given(isoRepository.findAllByOsMetadata_IdAndManifestHashAndIsDeletedFalse(any(), eq(hash)))
+                .willReturn(List.of(existing));
         // duplicate 케이스는 sidecar 충돌 사전 검사까지만 markerService 가 호출됨 — resolve 만 stub
         given(markerService.resolveMarkerFile(any(), any(MarkerLayout.class)))
                 .willAnswer(inv -> {
@@ -352,8 +352,8 @@ class OSMetadataServiceTest {
                 .willReturn(Optional.of(parent));
         given(isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(1L, target.toString()))
                 .willReturn(Optional.empty());
-        given(isoRepository.findFirstByChecksumAndIsDeletedFalse(hash))
-                .willReturn(Optional.empty());
+        given(isoRepository.findAllByOsMetadata_IdAndManifestHashAndIsDeletedFalse(any(), eq(hash)))
+                .willReturn(List.of());
         stubMarkerService();
         given(isoRepository.save(any(ISO.class)))
                 .willAnswer(inv -> ISO.builder()
@@ -387,8 +387,8 @@ class OSMetadataServiceTest {
                 .willReturn(Optional.of(parent));
         given(isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(1L, target.toString()))
                 .willReturn(Optional.empty());
-        given(isoRepository.findFirstByChecksumAndIsDeletedFalse(hash))
-                .willReturn(Optional.empty());
+        given(isoRepository.findAllByOsMetadata_IdAndManifestHashAndIsDeletedFalse(any(), eq(hash)))
+                .willReturn(List.of());
         stubMarkerService();
         given(isoRepository.save(any(ISO.class)))
                 .willAnswer(inv -> ISO.builder()

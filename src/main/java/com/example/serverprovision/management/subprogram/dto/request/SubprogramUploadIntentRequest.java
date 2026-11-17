@@ -12,6 +12,11 @@ import jakarta.validation.constraints.*;
  */
 public record SubprogramUploadIntentRequest(
 
+		// HF30-2 — 등록 본체와 같은 키 (종류, 범위, 이름, 버전)로 업로드 전에 판정하려고 받는다. 제약은 SubprogramCreateRequest 와 같다.
+		@NotBlank(message = "이름을 입력해야 합니다.")
+		@Size(max = 128, message = "이름은 128자 이하로 입력해야 합니다.")
+		String name,
+
 		@NotBlank(message = "대상 디렉토리 경로를 입력해야 합니다.")
 		@Size(max = 1024, message = "대상 디렉토리 경로는 1024자 이하로 입력해야 합니다.")
 		String targetDirectory,

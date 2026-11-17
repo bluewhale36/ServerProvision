@@ -30,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,10 +84,8 @@ class SubprogramRegistrationServiceTest {
     void addDriver_board_happy(@TempDir Path tmp) {
         Path target = tmp.resolve("driver-board");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(subprogramRepository.findActiveByBoardKey(SubprogramKind.DRIVER, 10L, "ixgbe", "5.20"))
-                .willReturn(Optional.empty());
-        given(subprogramRepository.findSoftDeletedByBoardKey(SubprogramKind.DRIVER, 10L, "ixgbe", "5.20"))
-                .willReturn(Optional.empty());
+        given(subprogramRepository.findLivingByKey(SubprogramKind.DRIVER, 10L, "ixgbe", "5.20"))
+                .willReturn(List.of());
         given(subprogramRepository.findFirstByTreeRootPathAndIsDeletedFalse(any()))
                 .willReturn(Optional.empty());
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("hash1", 5, 2048L));
@@ -118,10 +117,8 @@ class SubprogramRegistrationServiceTest {
     void addDriver_board_happy_withOsName(@TempDir Path tmp) {
         Path target = tmp.resolve("driver-board");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(subprogramRepository.findActiveByBoardKey(SubprogramKind.DRIVER, 10L, "ixgbe", "5.20"))
-                .willReturn(Optional.empty());
-        given(subprogramRepository.findSoftDeletedByBoardKey(SubprogramKind.DRIVER, 10L, "ixgbe", "5.20"))
-                .willReturn(Optional.empty());
+        given(subprogramRepository.findLivingByKey(SubprogramKind.DRIVER, 10L, "ixgbe", "5.20"))
+                .willReturn(List.of());
         given(subprogramRepository.findFirstByTreeRootPathAndIsDeletedFalse(any()))
                 .willReturn(Optional.empty());
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("hash1", 5, 2048L));
@@ -156,10 +153,8 @@ class SubprogramRegistrationServiceTest {
     @DisplayName("addSubprogram(happy) : Utility 공용 등록 → boardModel 없이 save")
     void addUtility_common_happy(@TempDir Path tmp) {
         Path target = tmp.resolve("util-common");
-        given(subprogramRepository.findActiveByCommonKey(SubprogramKind.UTILITY, "raid-cli", "1.0"))
-                .willReturn(Optional.empty());
-        given(subprogramRepository.findSoftDeletedByCommonKey(SubprogramKind.UTILITY, "raid-cli", "1.0"))
-                .willReturn(Optional.empty());
+        given(subprogramRepository.findLivingByKey(SubprogramKind.UTILITY, null, "raid-cli", "1.0"))
+                .willReturn(List.of());
         given(subprogramRepository.findFirstByTreeRootPathAndIsDeletedFalse(any()))
                 .willReturn(Optional.empty());
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("h2", 1, 100L));
@@ -193,8 +188,8 @@ class SubprogramRegistrationServiceTest {
                 .id(1L).kind(SubprogramKind.DRIVER).boardModel(activeBoard())
                 .name("ixgbe").version("5.20").treeRootPath("/whatever")
                 .manifestHash("x").fileCount(1).totalBytes(1L).build();
-        given(subprogramRepository.findActiveByBoardKey(SubprogramKind.DRIVER, 10L, "ixgbe", "5.20"))
-                .willReturn(Optional.of(existing));
+        given(subprogramRepository.findLivingByKey(SubprogramKind.DRIVER, 10L, "ixgbe", "5.20"))
+                .willReturn(List.of(existing));
 
         assertThatThrownBy(() -> subprogramRegistrationService.addSubprogram(
                 SubprogramKind.DRIVER, BoardScope.ofBoard(10L),
@@ -211,8 +206,8 @@ class SubprogramRegistrationServiceTest {
                 .id(2L).kind(SubprogramKind.UTILITY).boardModel(null)
                 .name("raid").version("1.0").treeRootPath("/x")
                 .manifestHash("y").fileCount(1).totalBytes(1L).build();
-        given(subprogramRepository.findActiveByCommonKey(SubprogramKind.UTILITY, "raid", "1.0"))
-                .willReturn(Optional.of(existing));
+        given(subprogramRepository.findLivingByKey(SubprogramKind.UTILITY, null, "raid", "1.0"))
+                .willReturn(List.of(existing));
 
         assertThatThrownBy(() -> subprogramRegistrationService.addSubprogram(
                 SubprogramKind.UTILITY, BoardScope.COMMON,
@@ -222,32 +217,28 @@ class SubprogramRegistrationServiceTest {
     }
 
     @Test
-    @DisplayName("addSubprogram : soft-deleted 동일 키 존재 → DuplicateSubprogramVersionException (MK2 — 자동 purge 폐기)")
-    void softDeleted_blocked_by_dupcheck(@TempDir Path tmp) {
-        // MK2 결정 #5 — 자동 purge 인라인 로직 폐기. soft-deleted 동일 키는 사용자 명시 액션
-        // (UI nudge replace 또는 purge endpoint) 으로만 정리 가능. addSubprogram 은 차단.
+    @DisplayName("addSubprogram : 휴지통에 같은 키가 있어도 막지 않는다(HF30-2 — 업로드 전 창이 이미 물었다, docs C-10)")
+    void trashedSameKey_doesNotBlock(@TempDir Path tmp) {
         Path target = tmp.resolve("revive");
         BoardModel board = activeBoard();
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(board));
-        given(subprogramRepository.findActiveByBoardKey(SubprogramKind.DRIVER, 10L, "n", "v"))
-                .willReturn(Optional.empty());
-        Subprogram stale = Subprogram.builder()
-                .id(50L).kind(SubprogramKind.DRIVER).boardModel(board)
-                .name("n").version("v").treeRootPath("/old")
-                .manifestHash("h").fileCount(1).totalBytes(1L)
-                .isDeleted(true).build();
-        given(subprogramRepository.findSoftDeletedByBoardKey(SubprogramKind.DRIVER, 10L, "n", "v"))
-                .willReturn(Optional.of(stale));
+        // 살아 있는 같은 키만 조회한다 — 휴지통 행은 판정에 들어오지 않는다.
+        given(subprogramRepository.findLivingByKey(SubprogramKind.DRIVER, 10L, "n", "v")).willReturn(List.of());
+        given(subprogramRepository.findFirstByTreeRootPathAndIsDeletedFalse(any())).willReturn(Optional.empty());
+        given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("h2", 1, 1L));
+        given(subprogramRepository.save(any(Subprogram.class))).willAnswer(inv -> {
+            Subprogram s = inv.getArgument(0);
+            return Subprogram.builder().id(51L).kind(s.getKind()).boardModel(s.getBoardModel())
+                    .name(s.getName()).version(s.getVersion()).treeRootPath(s.getTreeRootPath())
+                    .manifestHash(s.getManifestHash()).fileCount(1).totalBytes(1L).isEnabled(true).isDeleted(false).build();
+        });
 
-        assertThatThrownBy(() -> subprogramRegistrationService.addSubprogram(
+        Long id = subprogramRegistrationService.addSubprogram(
                 SubprogramKind.DRIVER, BoardScope.ofBoard(10L),
                 req("n", "v", target),
-                SubprogramUploadMode.SINGLE_FILE, null, null, null))
-                .isInstanceOf(DuplicateSubprogramVersionException.class);
+                SubprogramUploadMode.SINGLE_FILE, null, null, null);
 
-        // 자동 purge 가 호출되지 않음을 검증.
-        verify(bundleTreeCleanupService, never()).purgeExistingTree(any(), anyString());
-        verify(subprogramRepository, never()).delete(stale);
+        assertThat(id).isEqualTo(51L);
     }
 
     @Test
@@ -255,10 +246,8 @@ class SubprogramRegistrationServiceTest {
     void path_conflict(@TempDir Path tmp) {
         Path target = tmp.resolve("conflict");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(subprogramRepository.findActiveByBoardKey(any(), any(), any(), any()))
-                .willReturn(Optional.empty());
-        given(subprogramRepository.findSoftDeletedByBoardKey(any(), any(), any(), any()))
-                .willReturn(Optional.empty());
+        given(subprogramRepository.findLivingByKey(any(), any(), any(), any()))
+                .willReturn(List.of());
         Subprogram occupant = Subprogram.builder()
                 .id(7L).kind(SubprogramKind.DRIVER).boardModel(activeBoard())
                 .name("other").version("0.1").treeRootPath(target.toString())
@@ -291,8 +280,7 @@ class SubprogramRegistrationServiceTest {
     }
 
     private void stubCommonUtilityNoDuplicate(Path target, String hash) {
-        given(subprogramRepository.findActiveByCommonKey(SubprogramKind.UTILITY, "raid-cli", "1.0")).willReturn(Optional.empty());
-        given(subprogramRepository.findSoftDeletedByCommonKey(SubprogramKind.UTILITY, "raid-cli", "1.0")).willReturn(Optional.empty());
+        given(subprogramRepository.findLivingByKey(SubprogramKind.UTILITY, null, "raid-cli", "1.0")).willReturn(List.of());
         given(subprogramRepository.findFirstByTreeRootPathAndIsDeletedFalse(any())).willReturn(Optional.empty());
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary(hash, 1, 100L));
         Subprogram deprecatedSameContent = Subprogram.builder()

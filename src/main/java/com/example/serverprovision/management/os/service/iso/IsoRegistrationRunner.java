@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>R1-4-4 — 실패-종류별 multi-catch 를 <b>예외 다형성 {@link RegistrationFailure#disposition()} dispatch</b> 로
  * 대체(분기문 무분별 확장 회피). 등록 실패 예외가 자기 처분을 선언하고, 본 실행기는 단일 catch 에서 sealed
- * {@link FailureDisposition}(Cleanup / Nudge / Quarantine)을 <b>exhaustive switch</b> 한다 — 새 실패 예외는 정의 시점에
+ * {@link FailureDisposition}(Cleanup / Quarantine)을 <b>exhaustive switch</b> 한다 — 새 실패 예외는 정의 시점에
  * 처분을 선언해야 하므로 분류 누락이 구조적으로 불가능하다. 외부 클래스인 {@link DataIntegrityViolationException} 만
  * disposition 을 구현할 수 없어 프레임워크-경계 어댑터 catch 1곳을 유지한다(유일 허용 잔존 분기).</p>
  */
@@ -28,8 +28,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class IsoRegistrationRunner {
 
-	/** UI 가 fail 메시지에서 nudge 흐름임을 인식하는 prefix. */
-	public static final String NUDGE_FAIL_PREFIX = "NUDGE_REQUIRED:";
 	/** UI 가 fail 메시지에서 오펀 복구 흐름임을 인식하는 prefix. */
 	public static final String ORPHAN_FAIL_PREFIX = "ORPHAN_RECOVERY:";
 
@@ -69,12 +67,6 @@ public class IsoRegistrationRunner {
 				// CONTENT/PERMANENT — finalize 가 이미 우리 업로드 파일을 정리. 격리하지 않고 fail.
 				log.warn("[IsoRegistrationRunner] 콘텐츠 실패 — 격리 없이 fail. jobId={}, reason={}", jobId, ex.getMessage());
 				backgroundJobService.fail(jobId, messageOf(ex));
-			}
-			case FailureDisposition.Nudge nudge -> {
-				// nudge — 임시 파일은 confirm 시 정식 등록될 수 있으므로 정리하지 않는다.
-				backgroundJobService.fail(jobId, NUDGE_FAIL_PREFIX + nudge.nudgeId());
-				log.info("[IsoRegistrationRunner] nudge 필요 — job 일시 fail 표시. jobId={}, nudgeId={}",
-						jobId, nudge.nudgeId());
 			}
 			case FailureDisposition.Quarantine q -> quarantineAndFail(jobId, prepared, q.failureClass(), ex);
 		}

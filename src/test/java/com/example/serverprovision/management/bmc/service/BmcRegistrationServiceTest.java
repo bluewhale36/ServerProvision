@@ -94,7 +94,6 @@ class BmcRegistrationServiceTest {
     void addBmc_happy_upload(@TempDir Path tmp) {
         Path target = tmp.resolve("target");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(false);
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 2048L));
         given(bmcRepository.findHashConflictCandidates(10L, "abc123")).willReturn(List.of());
         given(bmcRepository.save(any(BoardBMC.class))).willAnswer(inv -> echoSaved(inv.getArgument(0), 77L));
@@ -114,7 +113,6 @@ class BmcRegistrationServiceTest {
     void addBmc_versionNumberDirectory_inferred(@TempDir Path tmp) {
         Path target = tmp.resolve("13.06.25");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(false);
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 2048L));
         given(bmcRepository.findHashConflictCandidates(10L, "abc123")).willReturn(List.of());
         given(bmcRepository.save(any(BoardBMC.class))).willAnswer(inv -> echoSaved(inv.getArgument(0), 78L));
@@ -131,7 +129,8 @@ class BmcRegistrationServiceTest {
     @DisplayName("addBmc(fail) : 활성 (board, version) 중복 → DuplicateBmcVersionException")
     void addBmc_duplicateActive_throws(@TempDir Path tmp) {
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(true);
+        given(bmcRepository.findAllByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(java.util.List.of(
+                com.example.serverprovision.management.bmc.entity.BoardBMC.builder().name("live").version("13.06.25").isDeleted(false).isDeprecated(false).build()));
 
         assertThatThrownBy(() -> bmcRegistrationService.addBmc(10L,
                 new BmcCreateRequest("x", "13.06.25", tmp.resolve("t") + "/", null, true),
@@ -145,7 +144,6 @@ class BmcRegistrationServiceTest {
     void addBmc_markerConflict_throws(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
         org.mockito.BDDMockito.willThrow(new MarkerConflictException(target.toString()))
                 .given(targetDirectoryPolicyService).prepareForUpload(any(), org.mockito.ArgumentMatchers.anyBoolean());
 
@@ -160,7 +158,6 @@ class BmcRegistrationServiceTest {
     void addBmc_targetNotEmpty_throws(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
         org.mockito.BDDMockito.willThrow(new TargetDirectoryNotEmptyException(target.toString()))
                 .given(targetDirectoryPolicyService).prepareForUpload(any(), org.mockito.ArgumentMatchers.anyBoolean());
 
@@ -175,7 +172,6 @@ class BmcRegistrationServiceTest {
     void addBmc_cleanupTargetDirWhenSaveFails(@TempDir Path tmp) {
         Path target = tmp.resolve("target");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "13.06.25")).willReturn(false);
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 10L));
         given(bmcRepository.findHashConflictCandidates(10L, "abc123")).willReturn(List.of());
         given(bmcRepository.save(any(BoardBMC.class))).willThrow(new IllegalStateException("db fail"));
@@ -200,7 +196,6 @@ class BmcRegistrationServiceTest {
         Files.writeString(firmware, "enc");
 
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 3L));
         given(bmcRepository.findHashConflictCandidates(10L, "abc123")).willReturn(List.of());
         given(bmcRepository.save(any(BoardBMC.class))).willAnswer(inv -> echoSaved(inv.getArgument(0), 88L));
@@ -219,7 +214,6 @@ class BmcRegistrationServiceTest {
         Path treeRoot = tmp.resolve("t");
         Files.createDirectories(treeRoot);
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
 
         assertThatThrownBy(() -> bmcRegistrationService.addBmc(10L,
                 new BmcCreateRequest("x", "1.0", treeRoot.resolve("missing.ima_enc").toString(), null, false), null))
@@ -237,7 +231,6 @@ class BmcRegistrationServiceTest {
         Files.writeString(firmware, "enc");
         Files.writeString(treeRoot.resolve("other.bin"), "x");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
 
         assertThatThrownBy(() -> bmcRegistrationService.addBmc(10L,
                 new BmcCreateRequest("x", "1.0", firmware.toString(), null, false), null))
@@ -249,7 +242,6 @@ class BmcRegistrationServiceTest {
     @DisplayName("addBmc(fail) : 경로가 / 로 끝나는데 업로드 파일 없음 → InvalidFirmwareFileException")
     void addBmc_directoryPathWithoutFile_throws(@TempDir Path tmp) {
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
 
         assertThatThrownBy(() -> bmcRegistrationService.addBmc(10L,
                 new BmcCreateRequest("x", "1.0", tmp.resolve("t") + "/", null, false), null))

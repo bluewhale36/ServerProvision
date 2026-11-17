@@ -1,7 +1,5 @@
 package com.example.serverprovision.management.bmc.controller;
 
-import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.global.trash.service.TypedNameVerifier;
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
 import com.example.serverprovision.management.bmc.service.BmcNudgeService;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +15,7 @@ import java.util.UUID;
  *
  * <p>R5-1 분할 — 단일 {@code BmcController} 에서 nudge 책임을 분리.
  * 각 분기마다 proceed / replace / cancel 3 액션이라 총 6 endpoint.
- * 의존성: {@link BmcNudgeService}, {@link TypedNameVerifier}.</p>
+ * 의존성: {@link BmcNudgeService}. 자원명 확인은 서비스 쪽 영구 삭제 경로(UserPurgeService)가 한다.</p>
  */
 @Controller
 @RequestMapping("/management/bmc")
@@ -25,7 +23,6 @@ import java.util.UUID;
 public class BmcNudgeController {
 
 	private final BmcNudgeService bmcNudgeService;
-	private final TypedNameVerifier typedNameVerifier;
 
 	// ==== MK2 nudge confirm (3택) — JSON, advice 가 예외 → 응답 매핑 =====
 
@@ -43,8 +40,7 @@ public class BmcNudgeController {
 			@RequestParam("replaceTargetId") Long replaceTargetId,
 			@RequestParam(value = "typedName", required = false) String typedName
 	) {
-		BmcControllerSupport.typedNameGuard(typedNameVerifier, ResourceType.BMC_FIRMWARE, replaceTargetId, typedName);
-		bmcNudgeService.replace(nudgeId, replaceTargetId);
+		bmcNudgeService.replace(nudgeId, replaceTargetId, typedName);
 		return ResponseEntity.noContent().build();
 	}
 
@@ -72,8 +68,7 @@ public class BmcNudgeController {
 			@RequestParam("targetId") Long targetId,
 			@RequestParam(value = "typedName", required = false) String typedName
 	) {
-		BmcControllerSupport.typedNameGuard(typedNameVerifier, ResourceType.BMC_FIRMWARE, targetId, typedName);
-		return bmcNudgeService.replaceIntent(nudgeId, targetId);
+		return bmcNudgeService.replaceIntent(nudgeId, targetId, typedName);
 	}
 
 	@PostMapping(path = "/intent-nudge/{nudgeId}/cancel")

@@ -7,7 +7,6 @@ import com.example.serverprovision.global.trash.GhostEvaluator;
 import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException;
-import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.common.firmware.exception.InvalidFirmwareFileException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
@@ -86,10 +85,8 @@ public class BiosRegistrationService {
 	public Long addBios(Long boardId, BiosCreateRequest request, MultipartFile firmwareFile) {
 		BoardModel parent = BiosGuards.requireActiveBoard(boardModelRepository, boardId);
 
-		// 1) 활성 (board, version) 중복 검사
-		if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBiosVersionException(boardId, request.version());
-		}
+		// 1) 같은 (메인보드, 버전)의 살아 있는 자원 — 상태별 안내로 409. 휴지통 행과는 공존한다(HF30-2).
+		BiosGuards.assertVersionAvailable(biosRepository, boardId, request.version());
 
 		// 2) 경로 해석 — 업로드는 디렉토리 추론(끝 슬래시 또는 점 없는 마지막 세그먼트) 후 파일명 append,
 		//    업로드 없는 등록(claim)은 경로 자체가 대상 파일이므로 추론하지 않는다.
@@ -167,7 +164,7 @@ public class BiosRegistrationService {
 	) {
 		ManifestSummary manifest = bundleManifestService.compute(treeRoot);
 
-		// MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + 409.
+		// MK2 단계 B — 해시 충돌 후보 (휴지통, HF30-2) 탐지 시 nudge 세션 발급 + 409.
 		issueHashNudge(parent.getId(), request.name(), request.version(), request.description(),
 				treeRoot, firmwareFileName, manifest, logContext, claimExisting);
 
@@ -220,9 +217,7 @@ public class BiosRegistrationService {
 	public Long persistFromNudge(Long boardId, ContentNudgePayload payload) {
 		BoardModel parent = BiosGuards.requireActiveBoard(boardModelRepository, boardId);
 		// 활성 (board, version) 재검증 — replace 트랜잭션이 외부에서 별도 commit 됐을 수 있으므로.
-		if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, payload.version())) {
-			throw new DuplicateBiosVersionException(boardId, payload.version());
-		}
+		BiosGuards.assertVersionAvailable(biosRepository, boardId, payload.version());
 		Path targetDir = pathPolicyService.assertWritablePath(payload.tempFilePath());
 		String entrypoint = payload.attributes().getOrDefault("entrypointRelativePath", "");
 		int fileCount = Integer.parseInt(payload.attributes().getOrDefault("fileCount", "0"));
@@ -255,7 +250,7 @@ public class BiosRegistrationService {
 	// ==== private helpers (복붙 dedup) =================================
 
 	/**
-	 * MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + {@link BiosNudgeRequiredException}.
+	 * MK2 단계 B — 해시 충돌 후보 (휴지통, HF30-2) 탐지 시 nudge 세션 발급 + {@link BiosNudgeRequiredException}.
 	 * 임시 트리는 호출자 treeRoot 에 그대로 남겨두고 사용자 결정(proceed / replace / cancel) 대기.
 	 * MK3-1 — ghost (DB-only soft-deleted, FS 부재) 후보는 사전 필터링.
 	 */
