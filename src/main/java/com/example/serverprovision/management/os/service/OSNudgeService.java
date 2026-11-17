@@ -1,42 +1,27 @@
 package com.example.serverprovision.management.os.service;
 
-import com.example.serverprovision.management.os.service.iso.IsoRegistrationService;
-import com.example.serverprovision.management.os.service.iso.IsoUploadIntentService;
-
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
+import com.example.serverprovision.management.common.nudge.NudgeReplacer;
 import com.example.serverprovision.management.common.nudge.NudgeResourceType;
 import com.example.serverprovision.management.common.nudge.NudgeSession;
-import com.example.serverprovision.management.common.nudge.exception.InvalidReplaceTargetException;
 import com.example.serverprovision.management.common.nudge.exception.NudgeAlreadyResolvedException;
+import com.example.serverprovision.management.common.nudge.exception.NudgeNotFoundException;
 import com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse;
-import com.example.serverprovision.management.os.entity.ISO;
-import com.example.serverprovision.management.os.exception.ISONotFoundException;
-import com.example.serverprovision.management.os.repository.ISORepository;
+import com.example.serverprovision.management.os.service.iso.IsoUploadIntentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.UUID;
 
 /**
- * MK2 — OS_ISO 도메인의 nudge confirm 처리.
+ * ISO 업로드 전 중복 확인 창(같은 OS 의 같은 경로 · 같은 내용 휴지통 후보)의 3택 핸들러.
  *
- * <p>업로드 단계 B (해시 검증 후) 에서 충돌이 발견되어 {@link NudgeRegistry} 에 세션이 등록된 경우,
- * 사용자 modal 의 3택 (proceed / replace / cancel) 입력을 본 서비스가 처리한다.</p>
- *
- * <ul>
- *   <li>{@link #proceed} — 임시 파일이 가리키는 신규 자원을 ACTIVE 로 영속화 (기존 충돌 후보 보존).</li>
- *   <li>{@link #replace} — 사용자가 지목한 충돌 후보를 명시적 purge 후 신규 자원을 ACTIVE 로 영속화.</li>
- *   <li>{@link #cancel}  — 임시 파일 cleanup 만 수행하고 nudge 세션을 폐기.</li>
- * </ul>
- *
- * <p>각 종결 액션 후 {@link NudgeRegistry#remove} 로 세션을 회수해 동일 nudgeId 의 두 번째 confirm
- * 호출을 {@link NudgeAlreadyResolvedException} 으로 거절한다 (멱등 X — 명시적 충돌).</p>
+ * <p>HF30-2 — 배경 등록 단계의 휴지통 창(업로드 뒤 내용 창)과 그 proceed · replace · cancel 은 없앴다. 그 창은 화면에 연결되지 않아
+ * [그래도 등록] 이 항상 실패했고(docs C-17), 업로드 전 판정이 같은 내용의 휴지통 후보를 함께 묻게 되어 더는 필요 없다.
+ * [기존 영구 삭제 후 등록] 은 {@link NudgeReplacer}(휴지통 조회 → 자원명 확인 → 실행기)로 처리해 휴지통 실물 정리와 감사 기록을 남긴다.</p>
  */
 @Slf4j
 @Service
@@ -44,63 +29,10 @@ import java.util.UUID;
 public class OSNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
-	private final IsoRegistrationService isoRegistrationService;
-	private final ISORepository isoRepository;
+	private final NudgeReplacer nudgeReplacer;
 	private final IsoUploadIntentService isoUploadIntentService;
 
-	/**
-	 * PROCEED — 기존 충돌 후보를 그대로 두고 신규 자원만 ACTIVE 로 등록한다.
-	 */
-	@Transactional
-	public Long proceed(UUID nudgeId) {
-		NudgeSession session = requireOsIsoSession(nudgeId);
-		Long isoId = isoRegistrationService.completePendingFromNudge(session);
-		consumeSession(nudgeId);
-		log.info("[osNudge] proceed 완료. nudgeId={}, newIsoId={}", nudgeId, isoId);
-		return isoId;
-	}
-
-	/**
-	 * REPLACE — 지목된 충돌 후보를 명시적 purge 후 신규 자원을 ACTIVE 로 등록한다.
-	 */
-	@Transactional
-	public Long replace(UUID nudgeId, Long targetId) {
-		NudgeSession session = requireOsIsoSession(nudgeId);
-		if (targetId == null || !session.conflictTargetIds().contains(targetId)) {
-			throw new InvalidReplaceTargetException(targetId);
-		}
-		// 1) 충돌 후보 명시적 purge — 별도 트랜잭션 경계가 필요한 경우 OSMetadataService 의 purge 메서드를 호출.
-		ISO target = isoRepository.findById(targetId)
-				.orElseThrow(() -> new ISONotFoundException(session.boardId(), targetId));
-		isoRegistrationService.purgeForNudge(target);
-
-		// 2) 신규 자원을 ACTIVE 로 영속화.
-		Long newIsoId = isoRegistrationService.completePendingFromNudge(session);
-		consumeSession(nudgeId);
-		log.info(
-				"[osNudge] replace 완료. nudgeId={}, purgedTargetId={}, newIsoId={}",
-				nudgeId, targetId, newIsoId
-		);
-		return newIsoId;
-	}
-
-	/**
-	 * CANCEL — 임시 파일 정리하고 세션을 폐기한다. 신규 자원은 영속화되지 않는다.
-	 */
-	public void cancel(UUID nudgeId) {
-		NudgeSession session = requireOsIsoSession(nudgeId);
-		if (session.payload() instanceof com.example.serverprovision.management.common.nudge.ContentNudgePayload p) {
-			cleanupTempFile(p.tempFilePath());
-		}
-		consumeSession(nudgeId);
-		log.info("[osNudge] cancel 완료. nudgeId={}", nudgeId);
-	}
-
-	// ---- WAVE 2 (intent path nudge) -----------------------------------
-
-	/**
-	 * 단계 A intent path nudge proceed — 새 intent token 발급 후 클라이언트에 반환.
-	 */
+	/** [그래도 등록] — 휴지통 후보는 그대로 두고 업로드 토큰을 다시 발급한다. */
 	public IsoUploadIntentResponse proceedIntent(UUID nudgeId) {
 		NudgeSession session = requireOsIsoSession(nudgeId);
 		IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
@@ -111,31 +43,26 @@ public class OSNudgeService {
 		return response;
 	}
 
-	/**
-	 * 단계 A intent path nudge replace — targetId purge 후 새 intent token 발급.
-	 */
-	public IsoUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId) {
+	/** [기존 영구 삭제 후 등록] — 고른 휴지통 후보를 영구 삭제한 뒤 업로드 토큰을 다시 발급한다. */
+	public IsoUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId, String typedName) {
 		NudgeSession session = requireOsIsoSession(nudgeId);
 		IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
-		if (targetId == null || !session.conflictTargetIds().contains(targetId)) {
-			throw new InvalidReplaceTargetException(targetId);
-		}
-		ISO target = isoRepository.findById(targetId)
-				.orElseThrow(() -> new ISONotFoundException(session.boardId(), targetId));
-		isoRegistrationService.purgeForNudge(target);
 		var reissue = isoUploadIntentService.reconstructFromAttributes(payload.attributes());
-		IsoUploadIntentResponse response = isoUploadIntentService.issueAfterNudge(reissue.osMetadataId(), reissue.request());
+		IsoUploadIntentResponse response = nudgeReplacer.replace(session, ResourceType.OS_ISO, targetId, typedName,
+				() -> isoUploadIntentService.issueAfterNudge(reissue.osMetadataId(), reissue.request()));
 		consumeSession(nudgeId);
-		log.info(
-				"[osNudge.intent.replace] nudgeId={}, replacedTarget={}, response={}",
-				nudgeId, targetId, summarize(response)
-		);
+		log.info("[osNudge.intent.replace] nudgeId={}, replacedTarget={}, response={}",
+				nudgeId, targetId, summarize(response));
 		return response;
 	}
 
-	/**
-	 * WAVE 3 — sealed IsoUploadIntentResponse 의 phase 별 요약 (logging 용). Java 17 호환 instanceof 패턴.
-	 */
+	public void cancelIntent(UUID nudgeId) {
+		NudgeSession session = requireOsIsoSession(nudgeId);
+		requireIntentMetaPayload(session);
+		consumeSession(nudgeId);
+		log.info("[osNudge.intent.cancel] nudgeId={}", nudgeId);
+	}
+
 	private static String summarize(IsoUploadIntentResponse response) {
 		if (response instanceof IsoUploadIntentResponse.IntentTokenIssued) {
 			// 마스킹 — upload token 평문 로깅 금지 (phase 만 요약).
@@ -147,24 +74,12 @@ public class OSNudgeService {
 		return "<unknown>";
 	}
 
-	/**
-	 * 단계 A intent path nudge cancel — 임시 파일 없으니 세션만 회수.
-	 */
-	public void cancelIntent(UUID nudgeId) {
-		NudgeSession session = requireOsIsoSession(nudgeId);
-		requireIntentMetaPayload(session);
-		consumeSession(nudgeId);
-		log.info("[osNudge.intent.cancel] nudgeId={}", nudgeId);
-	}
-
 	private IntentMetaNudgePayload requireIntentMetaPayload(NudgeSession session) {
 		if (!(session.payload() instanceof IntentMetaNudgePayload p)) {
-			throw new com.example.serverprovision.management.common.nudge.exception.NudgeNotFoundException(session.nudgeId());
+			throw new NudgeNotFoundException(session.nudgeId());
 		}
 		return p;
 	}
-
-	// ---- 내부 헬퍼 -----------------------------------------------------
 
 	private NudgeSession requireOsIsoSession(UUID nudgeId) {
 		NudgeSession session = nudgeRegistry.require(nudgeId);
@@ -179,16 +94,6 @@ public class OSNudgeService {
 		if (!nudgeRegistry.remove(nudgeId)) {
 			// 동시성 race — 두 번째 confirm. require() 로 통과했어도 remove() 결과가 false 이면 이미 처리됨.
 			throw new NudgeAlreadyResolvedException(nudgeId);
-		}
-	}
-
-	private void cleanupTempFile(String tempFilePath) {
-		if (tempFilePath == null || tempFilePath.isBlank()) return;
-		try {
-			Files.deleteIfExists(Path.of(tempFilePath));
-		} catch (IOException e) {
-			// 임시 파일 정리 실패는 흐름을 막지 않는다 — 운영자가 별도 정리.
-			log.warn("[osNudge] 임시 파일 정리 실패. path={}, msg={}", tempFilePath, e.getMessage());
 		}
 	}
 }

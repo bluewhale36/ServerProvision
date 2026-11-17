@@ -301,7 +301,7 @@ class OSMetadataControllerUploadFlowTest {
         @Test
         @DisplayName("체크섬 중복 → 409 DuplicateISOContentException")
         void duplicateContent_returns409() throws Exception {
-            doThrow(new DuplicateISOContentException("/mnt/iso/existing.iso"))
+            doThrow(com.example.serverprovision.management.os.exception.DuplicateISOContentException.againstRegistration(com.example.serverprovision.management.os.entity.ISO.builder().isoPath("/mnt/iso/existing.iso").isDeleted(false).isDeprecated(false).build()))
                     .when(isoRegistrationService).prepare(eq(1L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
@@ -439,7 +439,7 @@ class OSMetadataControllerUploadFlowTest {
         @DisplayName("intent-nudge replace : 200 + 새 uploadToken (targetId purge 후)")
         void intentNudgeReplace() throws Exception {
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
-            given(osNudgeService.replaceIntent(eq(nudgeId), eq(55L)))
+            given(osNudgeService.replaceIntent(eq(nudgeId), eq(55L), any()))
                     .willReturn(new IsoUploadIntentResponse.IntentTokenIssued("token-after-replace", java.util.List.of()));
 
             mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/replace?targetId=55"))
@@ -564,6 +564,58 @@ class OSMetadataControllerUploadFlowTest {
                             .header("X-Upload-Token", "tok"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message").value(containsString("사전 검증 값과 다릅니다")));
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("HF30-2 — 상태별 409 안내 · [기존 영구 삭제 후 등록] 실패 응답")
+    class Hf30_2 {
+
+        @Test
+        @DisplayName("upload-intent : 같은 정체가 사용 중단 권고 → 409 + 해제 안내 문구")
+        void intent_deprecated_409() throws Exception {
+            willThrow(com.example.serverprovision.management.os.exception.DuplicateISOContentException.againstRegistration(com.example.serverprovision.management.os.entity.ISO.builder().isoPath("/mnt/iso/old.iso").isDeprecated(true).isDeleted(false).build()))
+                    .given(isoUploadIntentService).issue(eq(1L), any());
+
+            mvc.perform(post("/management/os/1/iso/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(new com.example.serverprovision.management.os.dto.request.IsoUploadIntentRequest("/mnt/iso/dvd.iso", "dvd.iso", 1024L, false, "a".repeat(64)))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("사용 중단 권고 상태인 같은 ISO 내용이 있습니다(/mnt/iso/old.iso). 목록에서 사용 중단 권고를 해제해야 합니다."));
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 자원명을 서비스로 넘긴다(자원명 확인은 영구 삭제 경로가 한다)")
+        void intentNudgeReplace_passesTypedName() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(osNudgeService.replaceIntent(eq(nudgeId), eq(42L), eq("typed")))
+                    .willReturn(new com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse.IntentTokenIssued("t", java.util.List.of()));
+
+            mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/replace?targetId=42&typedName=typed"))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 후보가 이미 휴지통에 없음 → 409(PurgeTargetNotInTrash)")
+        void intentNudgeReplace_notInTrash_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(new com.example.serverprovision.global.trash.exception.PurgeTargetNotInTrashException())
+                    .given(osNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 영구 삭제 뒤 등록 실패 → 409 + 영구 삭제 사실과 실패 사유")
+        void intentNudgeReplace_registrationFailedAfterPurge_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(com.example.serverprovision.management.common.nudge.exception.NudgeReplaceRegistrationFailedException
+                    .wrapIfUserFacing(new com.example.serverprovision.management.board.exception.BoardModelNotFoundException(1L)))
+                    .given(osNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("기존 자원은 영구 삭제했지만 새 자원 등록에 실패했습니다. ")));
         }
     }
 }

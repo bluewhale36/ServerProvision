@@ -123,7 +123,7 @@ class SubprogramControllerTest {
     @Test
     @DisplayName("POST /{kind}/{boardScope}/upload-intent (정상) : 200 + uploadToken")
     void intent_success() throws Exception {
-        var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null);
+        var req = new SubprogramUploadIntentRequest("r8169", "/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null);
         given(subprogramUploadIntentService.issue(eq(SubprogramKind.DRIVER), any(BoardScope.class), any()))
                 .willReturn(new SubprogramUploadIntentResponse("tok-1", List.of(), null));
 
@@ -157,7 +157,7 @@ class SubprogramControllerTest {
     @Test
     @DisplayName("POST /upload-intent (활성 동일 트리 점유) : 409")
     void intent_conflict_409() throws Exception {
-        var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null);
+        var req = new SubprogramUploadIntentRequest("r8169", "/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null);
         willThrow(new DuplicateSubprogramVersionException(SubprogramKind.DRIVER, BoardScope.COMMON, "n", "1.0"))
                 .given(subprogramUploadIntentService).issue(any(), any(), any());
 
@@ -232,7 +232,7 @@ class SubprogramControllerTest {
         @Test
         @DisplayName("intent : 메타 충돌 → 409 NUDGE_REQUIRED (Driver, common scope)")
         void intentMetaNudge() throws Exception {
-            var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024, "1.0.0", false, null);
+            var req = new SubprogramUploadIntentRequest("r8169", "/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024, "1.0.0", false, null);
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
             var session = new com.example.serverprovision.management.common.nudge.NudgeSession(
                     nudgeId,
@@ -273,7 +273,7 @@ class SubprogramControllerTest {
         @DisplayName("intent-nudge replace : 200 + 새 uploadToken")
         void intentNudgeReplace() throws Exception {
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
-            given(subprogramNudgeService.replaceIntent(eq(nudgeId), eq(99L)))
+            given(subprogramNudgeService.replaceIntent(eq(nudgeId), eq(99L), any()))
                     .willReturn(new SubprogramUploadIntentResponse("token-after-replace", List.of(), null));
 
             mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/replace?targetId=99"))
@@ -400,5 +400,58 @@ class SubprogramControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("상위 경로(..) 금지")));
 
         org.mockito.Mockito.verify(subprogramService, org.mockito.Mockito.never()).update(any(), any());
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("HF30-2 — 상태별 409 안내 · [기존 영구 삭제 후 등록] 실패 응답")
+    class Hf30_2 {
+
+        @Test
+        @DisplayName("upload-intent : 같은 정체가 사용 중단 권고 → 409 + 해제 안내 문구")
+        void intent_deprecated_409() throws Exception {
+            willThrow(com.example.serverprovision.management.subprogram.exception.DuplicateSubprogramVersionException.againstRegistration(com.example.serverprovision.management.subprogram.entity.Subprogram.builder().kind(com.example.serverprovision.management.subprogram.enums.SubprogramKind.DRIVER).name("r8169").version("1.0").isDeprecated(true).isDeleted(false).build()))
+                    .given(subprogramUploadIntentService).issue(eq(com.example.serverprovision.management.subprogram.enums.SubprogramKind.DRIVER), any(), any());
+
+            mvc.perform(post("/management/subprogram/driver/common/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(new com.example.serverprovision.management.subprogram.dto.request.SubprogramUploadIntentRequest("r8169", "/mnt/x", com.example.serverprovision.management.subprogram.enums.SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("사용 중단 권고 상태인 같은 드라이버가 있습니다(r8169 1.0). 목록에서 사용 중단 권고를 해제해야 합니다."))
+                    .andExpect(jsonPath("$.fieldErrors[0].field").value("version"));
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 자원명을 서비스로 넘긴다(자원명 확인은 영구 삭제 경로가 한다)")
+        void intentNudgeReplace_passesTypedName() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(subprogramNudgeService.replaceIntent(eq(nudgeId), eq(42L), eq("typed")))
+                    .willReturn(new com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse("t", List.of(), null));
+
+            mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/replace?targetId=42&typedName=typed"))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 후보가 이미 휴지통에 없음 → 409(PurgeTargetNotInTrash)")
+        void intentNudgeReplace_notInTrash_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(new com.example.serverprovision.global.trash.exception.PurgeTargetNotInTrashException())
+                    .given(subprogramNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 영구 삭제 뒤 등록 실패 → 409 + 영구 삭제 사실과 실패 사유")
+        void intentNudgeReplace_registrationFailedAfterPurge_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(com.example.serverprovision.management.common.nudge.exception.NudgeReplaceRegistrationFailedException
+                    .wrapIfUserFacing(new com.example.serverprovision.management.board.exception.BoardModelNotFoundException(1L)))
+                    .given(subprogramNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("기존 자원은 영구 삭제했지만 새 자원 등록에 실패했습니다. ")));
+        }
     }
 }

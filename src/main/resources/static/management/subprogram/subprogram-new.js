@@ -165,6 +165,7 @@
             const intent = await shell.requestIntent({
                 intentUrl,
                 body: {
+                    name: commonFields.name.trim(),
                     targetDirectory: commonFields.targetDirectory.trim(),
                     uploadMode: mode,
                     fileCount,

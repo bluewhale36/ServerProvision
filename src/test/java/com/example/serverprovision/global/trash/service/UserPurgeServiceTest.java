@@ -92,4 +92,48 @@ class UserPurgeServiceTest {
 		assertThatThrownBy(() -> userPurgeService.purge(ResourceType.BIOS_BUNDLE, 7L, "dvd.iso"))
 				.isInstanceOf(IllegalStateException.class).hasCause(cause);
 	}
+
+	// ==== HF30-2 — 중복 확인 창 [기존 영구 삭제 후 등록] ====
+
+	@Test
+	@DisplayName("HF30-2 성공 : 휴지통 후보면 NUDGE_REPLACE 진입경로로 PurgeExecutor 를 부른다(감사 기록 진입경로 구분)")
+	void purgeForNudgeReplace_executesNudgeReplace() {
+		givenTrashed(5L, "R23_MS73-HB1_Uni");
+		given(purgeExecutor.execute(any())).willAnswer(inv -> new PurgeResult.Success(inv.getArgument(0), 1L));
+
+		userPurgeService.purgeForNudgeReplace(ResourceType.BIOS_BUNDLE, 5L, "R23_MS73-HB1_Uni");
+
+		verify(purgeExecutor).execute(PurgeRequest.forNudgeReplace(ResourceType.BIOS_BUNDLE, 5L, null, "R23_MS73-HB1_Uni"));
+	}
+
+	@Test
+	@DisplayName("HF30-2 F-1 순서 : 휴지통에 없는 후보는 자원명보다 먼저 409 — 실행기를 부르지 않는다")
+	void purgeForNudgeReplace_notInTrash_throws409First() {
+		given(biosInventory.findTrashedById(5L)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> userPurgeService.purgeForNudgeReplace(ResourceType.BIOS_BUNDLE, 5L, "wrong"))
+				.isInstanceOf(PurgeTargetNotInTrashException.class);
+		verify(purgeExecutor, never()).execute(any());
+	}
+
+	@Test
+	@DisplayName("HF30-2 자원명 불일치 : 400, 실행기를 부르지 않는다")
+	void purgeForNudgeReplace_typedNameMismatch_doesNotExecute() {
+		givenTrashed(5L, "R23_MS73-HB1_Uni");
+
+		assertThatThrownBy(() -> userPurgeService.purgeForNudgeReplace(ResourceType.BIOS_BUNDLE, 5L, "wrong"))
+				.isInstanceOf(TypedNameMismatchException.class);
+		verify(purgeExecutor, never()).execute(any());
+	}
+
+	@Test
+	@DisplayName("HF30-2 자원명 빈 값 : 확인을 건너뛰고 실행한다(창의 입력 연결 전 · HF30-3 D12 가 400 으로 바꾼다)")
+	void purgeForNudgeReplace_blankTypedName_skipsCheck() {
+		givenTrashed(5L, "R23_MS73-HB1_Uni");
+		given(purgeExecutor.execute(any())).willAnswer(inv -> new PurgeResult.Success(inv.getArgument(0), 1L));
+
+		userPurgeService.purgeForNudgeReplace(ResourceType.BIOS_BUNDLE, 5L, null);
+
+		verify(purgeExecutor).execute(PurgeRequest.forNudgeReplace(ResourceType.BIOS_BUNDLE, 5L, null, null));
+	}
 }

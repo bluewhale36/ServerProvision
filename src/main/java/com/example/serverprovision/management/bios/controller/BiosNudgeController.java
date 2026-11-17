@@ -1,7 +1,5 @@
 package com.example.serverprovision.management.bios.controller;
 
-import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.global.trash.service.TypedNameVerifier;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadResponse;
 import com.example.serverprovision.management.bios.service.BiosNudgeService;
@@ -27,7 +25,6 @@ import java.util.UUID;
 public class BiosNudgeController {
 
 	private final BiosNudgeService biosNudgeService;
-	private final TypedNameVerifier typedNameVerifier;
 
 	// ==== MK2 — Nudge confirm 엔드포인트 ===============================
 
@@ -45,11 +42,7 @@ public class BiosNudgeController {
 			@RequestParam("targetId") Long targetId,
 			@RequestParam(value = "typedName", required = false) String typedName
 	) {
-		// S5-2-4 — nudge REPLACE 의 typed-name 검증. typedName 누락 시 점진 마이그레이션 (구 클라이언트 호환).
-		if (typedName != null && !typedName.isBlank()) {
-			typedNameVerifier.verify(ResourceType.BIOS_BUNDLE, targetId, typedName);
-		}
-		Long id = biosNudgeService.replace(nudgeId, targetId);
+		Long id = biosNudgeService.replace(nudgeId, targetId, typedName);
 		return new BiosUploadResponse(id, "/management/bios?selectId=" + id);
 	}
 
@@ -77,11 +70,7 @@ public class BiosNudgeController {
 			@RequestParam("targetId") Long targetId,
 			@RequestParam(value = "typedName", required = false) String typedName
 	) {
-		// S5-2-4 — intent nudge REPLACE 의 typed-name 검증.
-		if (typedName != null && !typedName.isBlank()) {
-			typedNameVerifier.verify(ResourceType.BIOS_BUNDLE, targetId, typedName);
-		}
-		return biosNudgeService.replaceIntent(nudgeId, targetId);
+		return biosNudgeService.replaceIntent(nudgeId, targetId, typedName);
 	}
 
 	@PostMapping(path = "/intent-nudge/{nudgeId}/cancel")
