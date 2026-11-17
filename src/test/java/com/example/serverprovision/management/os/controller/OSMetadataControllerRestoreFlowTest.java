@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.common.filesystem.service.DirectoryBrowseService;
 import com.example.serverprovision.management.os.exception.DuplicateOSMetadataException;
@@ -36,10 +37,10 @@ class OSMetadataControllerRestoreFlowTest {
 
     @Autowired MockMvc mvc;
 
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
     @MockitoBean OSMetadataService osMetadataService;
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService osMetadataLifecycleService;
     @MockitoBean OSNudgeService osNudgeService;
-    @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataNudgeService osMetadataNudgeService;
     @MockitoBean CompsExtractionLauncher compsExtractionLauncher;
     @MockitoBean IsoUploadIntentService isoUploadIntentService;
     @MockitoBean IsoVerificationLauncher isoVerificationLauncher;

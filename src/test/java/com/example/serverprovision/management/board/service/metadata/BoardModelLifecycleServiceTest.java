@@ -299,42 +299,6 @@ class BoardModelLifecycleServiceTest {
 
     // ==== purgeWithTypedNameCheck — typed-name 검증 + 자식 잔존 ====
 
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(happy) : typedName 일치(static guard 통과) + 자식 없음 → 영구 삭제")
-    void purgeWithTypedNameCheck_match_deletes() {
-        BoardModel p = deletedParent();   // displayName = "Asus P13R-E"
-        given(boardModelRepository.findByIdAndIsDeletedTrue(7L)).willReturn(Optional.of(p));
-        given(biosChild.hasAny(7L)).willReturn(false);
-        given(bmcChild.hasAny(7L)).willReturn(false);
-        given(subprogramChild.hasAny(7L)).willReturn(false);
-
-        // R7-3 — 이름 일치 검증은 이미 로딩한 엔티티로 static TypedNameGuard.verify(board, typedName) 수행.
-        boardModelService.purgeWithTypedNameCheck(7L, "Asus P13R-E");
-
-        verify(boardModelRepository).delete(p);
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck(mismatch) : static guard 가 TypedNameMismatchException → 전파, 자식 검사·delete 전 거절")
-    void purgeWithTypedNameCheck_mismatch_throws() {
-        BoardModel p = deletedParent();   // displayName = "Asus P13R-E"
-        given(boardModelRepository.findByIdAndIsDeletedTrue(7L)).willReturn(Optional.of(p));
-
-        // R7-3 — typedName 이 displayName 과 다르면 static guard 가 직접 예외를 던지고 서비스를 통과한다.
-        assertThatThrownBy(() -> boardModelService.purgeWithTypedNameCheck(7L, "wrong"))
-                .isInstanceOf(TypedNameMismatchException.class);
-        verify(boardModelRepository, never()).delete(p);
-    }
-
-    @Test
-    @DisplayName("purgeWithTypedNameCheck : soft-deleted 가 아니면 IllegalBoardModelStateException")
-    void purgeWithTypedNameCheck_notSoftDeleted_throws() {
-        given(boardModelRepository.findByIdAndIsDeletedTrue(7L)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> boardModelService.purgeWithTypedNameCheck(7L, "Asus P13R-E"))
-                .isInstanceOf(IllegalBoardModelStateException.class);
-    }
-
     // ==== findDeletedChildLabels — flatMap 순서 보존 수집 ====
 
     @Test

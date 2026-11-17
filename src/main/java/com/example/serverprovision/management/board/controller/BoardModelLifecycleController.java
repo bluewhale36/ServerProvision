@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.board.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.board.service.metadata.BoardModelLifecycleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class BoardModelLifecycleController {
 
 	private final BoardModelLifecycleService boardModelService;
+	private final UserPurgeService userPurgeService;   // HF31
 
 	// ==== 상태 전이 ===================================================
 
@@ -55,7 +58,8 @@ public class BoardModelLifecycleController {
 			@PathVariable Long id,
 			@RequestParam("typedName") String typedName
 	) {
-		boardModelService.purgeWithTypedNameCheck(id, typedName);
+		// HF31 — 휴지통 화면과 같은 단일 진입점(자원명 확인 → PurgeExecutor: 휴지통 실물 정리 · 감사 기록)
+		userPurgeService.purge(ResourceType.BOARD_MODEL, id, typedName);
 		return "redirect:/management/board?includeDeleted=true";
 	}
 

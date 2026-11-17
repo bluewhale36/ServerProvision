@@ -2,6 +2,8 @@ package com.example.serverprovision.management.board.exception;
 
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.global.exception.FieldBoundConflictException;
+import com.example.serverprovision.global.lifecycle.IdentityConflictSubject;
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.board.enums.Vendor;
 
 /**
@@ -20,34 +22,28 @@ public class DuplicateBoardModelException extends FieldBoundConflictException {
 		super(message, "modelName");
 	}
 
-	/** 등록 충돌(HF26) — 기존 행이 휴지통 · Deprecated · 활성 중 어디에 있느냐에 따라 다음 행동을 안내한다. */
+	/**
+	 * 등록 충돌(HF26) — 기존 행이 휴지통 · Deprecated · 활성 중 어디에 있느냐에 따라 다음 행동을 안내한다.
+	 * 문장은 HF30 부터 {@link LifecycleStage#registrationConflict} 가 소유한다(OS 버전 · RAID 카드와 같은 SSOT, 문구는 HF26 그대로).
+	 */
 	public static DuplicateBoardModelException againstRegistration(BoardModel existing) {
-		String name = existing.getVendor().getDisplayName() + " " + existing.getModelName();
-		if (existing.isDeleted()) {
-			return new DuplicateBoardModelException(
-					"휴지통에 같은 메인보드 모델이 있습니다(" + name + "). 휴지통에서 복구하거나 영구 삭제한 뒤 등록해야 합니다.");
-		}
-		if (existing.isDeprecated()) {
-			return new DuplicateBoardModelException(
-					"사용 중단 권고 상태인 같은 메인보드 모델이 있습니다(" + name + "). 목록에서 사용 중단 권고를 해제해야 합니다.");
-		}
-		return new DuplicateBoardModelException(existing.getVendor(), existing.getModelName());
+		return new DuplicateBoardModelException(stageOf(existing).registrationConflict(subjectOf(existing)));
 	}
 
 	/**
 	 * 이름 수정 충돌(HF26 CP5 D-2) — 등록과 같은 판정이지만 다음 행동이 다르다(복구 · Deprecated 해제가 아니라 다른 이름).
-	 * 수정 폼은 이 문구를 모델명 칸 오류로 그린다.
+	 * 수정 폼은 이 문구를 모델명 칸 오류로 그린다. 문장은 {@link LifecycleStage#renameConflict}.
 	 */
 	public static DuplicateBoardModelException againstRename(BoardModel existing) {
-		String name = existing.getVendor().getDisplayName() + " " + existing.getModelName();
-		if (existing.isDeleted()) {
-			return new DuplicateBoardModelException(
-					"휴지통에 같은 이름의 메인보드 모델이 있습니다(" + name + "). 다른 이름을 쓰거나 휴지통의 모델을 영구 삭제해야 합니다.");
-		}
-		if (existing.isDeprecated()) {
-			return new DuplicateBoardModelException(
-					"사용 중단 권고 상태인 같은 이름의 메인보드 모델이 있습니다(" + name + "). 다른 이름을 써야 합니다.");
-		}
-		return new DuplicateBoardModelException(existing.getVendor(), existing.getModelName());
+		return new DuplicateBoardModelException(stageOf(existing).renameConflict(subjectOf(existing)));
+	}
+
+	private static LifecycleStage stageOf(BoardModel board) {
+		return LifecycleStage.of(board.isDeprecated(), board.isDeleted());
+	}
+
+	private static IdentityConflictSubject subjectOf(BoardModel board) {
+		return new IdentityConflictSubject("메인보드 모델", "메인보드 모델이", "모델을",
+				board.getVendor().getDisplayName() + " " + board.getModelName());
 	}
 }

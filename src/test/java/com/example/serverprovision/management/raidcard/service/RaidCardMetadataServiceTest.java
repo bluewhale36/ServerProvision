@@ -2,10 +2,6 @@ package com.example.serverprovision.management.raidcard.service;
 
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
-import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
-import com.example.serverprovision.management.common.nudge.NudgeRegistry;
-import com.example.serverprovision.management.common.nudge.NudgeResourceType;
-import com.example.serverprovision.management.common.nudge.NudgeSession;
 import com.example.serverprovision.management.raidcard.dto.request.RaidCardCreateRequest;
 import com.example.serverprovision.management.raidcard.dto.request.RaidCardUpdateRequest;
 import com.example.serverprovision.management.raidcard.dto.response.RaidCardVendorGroupResponse;
@@ -14,7 +10,6 @@ import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import com.example.serverprovision.management.raidcard.exception.DuplicateRaidCardException;
 import com.example.serverprovision.management.raidcard.exception.IllegalRaidCardStateException;
-import com.example.serverprovision.management.raidcard.exception.RaidCardNudgeRequiredException;
 import com.example.serverprovision.management.raidcard.repository.RaidCardRepository;
 import com.example.serverprovision.management.raidcard.vo.CacheCapacity;
 import com.example.serverprovision.management.raidcard.vo.SupportedRaidLevels;
@@ -41,22 +36,21 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * MA7 — {@link RaidCardMetadataService} 단위 테스트 (조회 · 등록 · 수정 · nudge 완결).
+ * MA7 · HF30-1 — {@link RaidCardMetadataService} 단위 테스트 (조회 · 등록 · 수정).
  *
- * <p>등록의 3 분기(살아 있는 동일키 fail-fast / 휴지통 · Deprecated 후보 nudge / 정상 저장)와
- * PCI 선택 입력의 null 왕복이 핵심이다.</p>
+ * <p>등록은 같은 (제조사, 모델명) 이 어느 상태로든 있으면 상태별 안내로 거절하고(HF30-1 — 중복 확인 창 제거), 없으면 저장한다.
+ * PCI 선택 입력의 null 왕복도 본다.</p>
  */
 @ExtendWith(MockitoExtension.class)
 class RaidCardMetadataServiceTest {
 
 	@Mock RaidCardRepository raidCardRepository;
-	@Mock NudgeRegistry nudgeRegistry;
 
 	RaidCardMetadataService raidCardService;
 
 	@BeforeEach
 	void initService() {
-		raidCardService = new RaidCardMetadataService(raidCardRepository, nudgeRegistry);
+		raidCardService = new RaidCardMetadataService(raidCardRepository);
 	}
 
 	// ==== helper =====================================================
@@ -70,6 +64,20 @@ class RaidCardMetadataServiceTest {
 				.build();
 		card.recomputeEffective();
 		return card;
+	}
+
+	private static RaidCard cardIn(Long id, String modelName, boolean deprecated, boolean deleted) {
+		RaidCard card = RaidCard.builder()
+				.id(id).vendor(RaidCardVendor.GIGABYTE).modelName(modelName)
+				.supportedRaidLevels(SupportedRaidLevels.of(List.of(RaidLevel.RAID0)))
+				.cacheCapacity(CacheCapacity.NONE).ownEnabled(true).ownDeprecated(deprecated).isDeleted(deleted)
+				.build();
+		card.recomputeEffective();
+		return card;
+	}
+
+	private static java.util.Optional<RaidCard> OptionalOf(RaidCard card) {
+		return java.util.Optional.of(card);
 	}
 
 	private static RaidCardCreateRequest createRequest(String pci) {
@@ -101,12 +109,7 @@ class RaidCardMetadataServiceTest {
 	@Test
 	@DisplayName("create : 충돌 없음 + PCI 입력 → 저장 (VO 정규화 왕복)")
 	void create_success_withPci() {
-		given(raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(false);
-		given(raidCardRepository.findAllByVendorAndModelNameAndIsDeletedTrue(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(List.of());
-		given(raidCardRepository.findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(List.of());
+		given(raidCardRepository.findAllByVendorAndModelName(RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(List.of());
 		given(raidCardRepository.saveAndFlush(any(RaidCard.class)))
 				.willReturn(savedCard(42L, RaidCardVendor.GIGABYTE, "CRA3338"));
 
@@ -118,12 +121,7 @@ class RaidCardMetadataServiceTest {
 	@Test
 	@DisplayName("create : PCI 빈 문자열 → null(미확인)로 저장")
 	void create_blankPci_storesNull() {
-		given(raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-				any(), any())).willReturn(false);
-		given(raidCardRepository.findAllByVendorAndModelNameAndIsDeletedTrue(any(), any()))
-				.willReturn(List.of());
-		given(raidCardRepository.findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(any(), any()))
-				.willReturn(List.of());
+		given(raidCardRepository.findAllByVendorAndModelName(any(), any())).willReturn(List.of());
 		given(raidCardRepository.saveAndFlush(any(RaidCard.class)))
 				.willAnswer(inv -> {
 					RaidCard toSave = inv.getArgument(0);
@@ -137,38 +135,50 @@ class RaidCardMetadataServiceTest {
 	}
 
 	@Test
-	@DisplayName("create : 살아 있는 동일키 존재 → DuplicateRaidCardException (fail-fast, nudge 후보 미조회)")
+	@DisplayName("create : 살아 있는 동일키 → DuplicateRaidCardException '이미 등록된 RAID 카드입니다' (저장 안 함)")
 	void create_liveDuplicate_throws409() {
-		given(raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(true);
+		given(raidCardRepository.findAllByVendorAndModelName(RaidCardVendor.GIGABYTE, "CRA3338"))
+				.willReturn(List.of(cardIn(5L, "CRA3338", false, false)));
 
 		assertThatThrownBy(() -> raidCardService.create(createRequest("")))
-				.isInstanceOf(DuplicateRaidCardException.class);
-		verify(raidCardRepository, never()).findAllByVendorAndModelNameAndIsDeletedTrue(any(), any());
+				.isInstanceOf(DuplicateRaidCardException.class)
+				.hasMessage("이미 등록된 RAID 카드입니다. GIGABYTE CRA3338");
 		verify(raidCardRepository, never()).saveAndFlush(any(RaidCard.class));
 	}
 
 	@Test
-	@DisplayName("create : 휴지통 동일키 존재 → RaidCardNudgeRequiredException + 세션 발급 (저장 안 함)")
-	void create_trashedCandidate_throwsNudgeRequired() {
-		RaidCard trashed = RaidCard.builder()
-				.id(9L).vendor(RaidCardVendor.GIGABYTE).modelName("CRA3338")
-				.supportedRaidLevels(SupportedRaidLevels.of(List.of(RaidLevel.RAID0)))
-				.cacheCapacity(CacheCapacity.NONE).ownEnabled(true).ownDeprecated(false).isDeleted(true)
-				.build();
-		given(raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(false);
-		given(raidCardRepository.findAllByVendorAndModelNameAndIsDeletedTrue(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(List.of(trashed));
-		given(raidCardRepository.findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(List.of());
-		given(nudgeRegistry.register(
-				org.mockito.ArgumentMatchers.eq(NudgeResourceType.RAID_CARD), isNull(), anyList(), any()))
-				.willReturn(session(Map.of()));
+	@DisplayName("create(HF30-1) : Deprecated 동일키 → 'Deprecated 를 해제' 안내 409 (종전에는 창이 떠 같은 이름 카드가 하나 더 생겼다)")
+	void create_deprecatedDuplicate_guidesUndeprecate() {
+		given(raidCardRepository.findAllByVendorAndModelName(RaidCardVendor.GIGABYTE, "CRA3338"))
+				.willReturn(List.of(cardIn(6L, "CRA3338", true, false)));
+
+		assertThatThrownBy(() -> raidCardService.create(createRequest("")))
+				.isInstanceOf(DuplicateRaidCardException.class)
+				.hasMessage("사용 중단 권고 상태인 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 목록에서 사용 중단 권고를 해제해야 합니다.");
+		verify(raidCardRepository, never()).saveAndFlush(any(RaidCard.class));
+	}
+
+	@Test
+	@DisplayName("create(HF30-1) : 휴지통 동일키 → '복구하거나 영구 삭제한 뒤 등록' 안내 409")
+	void create_trashedDuplicate_guidesRestoreOrPurge() {
+		given(raidCardRepository.findAllByVendorAndModelName(RaidCardVendor.GIGABYTE, "CRA3338"))
+				.willReturn(List.of(cardIn(9L, "CRA3338", false, true)));
 
 		assertThatThrownBy(() -> raidCardService.create(createRequest("1458:0011")))
-				.isInstanceOf(RaidCardNudgeRequiredException.class);
+				.isInstanceOf(DuplicateRaidCardException.class)
+				.hasMessage("휴지통에 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 휴지통에서 복구하거나 영구 삭제한 뒤 등록해야 합니다.");
 		verify(raidCardRepository, never()).saveAndFlush(any(RaidCard.class));
+	}
+
+	@Test
+	@DisplayName("create(HF30-1) : UNIQUE 이전 옛 데이터의 다건(휴지통 + Deprecated) → 가장 살아 있는 Deprecated 기준 안내")
+	void create_legacyMultipleRows_guidesByMostAlive() {
+		given(raidCardRepository.findAllByVendorAndModelName(RaidCardVendor.GIGABYTE, "CRA3338"))
+				.willReturn(List.of(cardIn(9L, "CRA3338", false, true), cardIn(6L, "CRA3338", true, false)));
+
+		assertThatThrownBy(() -> raidCardService.create(createRequest("")))
+				.isInstanceOf(DuplicateRaidCardException.class)
+				.hasMessageStartingWith("사용 중단 권고 상태인 같은 RAID 카드가 있습니다");
 	}
 
 	/**
@@ -180,34 +190,15 @@ class RaidCardMetadataServiceTest {
 	@Test
 	@DisplayName("create : 동시 등록 경합으로 DB 유일성 위반 → DuplicateRaidCardException 으로 번역 (D1 회귀 가드)")
 	void create_concurrentRace_translatesToDuplicate() {
-		given(raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(false);   // 경합 상대가 아직 커밋 전 — 검사 통과
-		given(raidCardRepository.findAllByVendorAndModelNameAndIsDeletedTrue(any(), any()))
-				.willReturn(List.of());
-		given(raidCardRepository.findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(any(), any()))
-				.willReturn(List.of());
+		given(raidCardRepository.findAllByVendorAndModelName(RaidCardVendor.GIGABYTE, "CRA3338"))
+				.willReturn(List.of());   // 경합 상대가 아직 커밋 전 — 검사 통과
 		given(raidCardRepository.saveAndFlush(any(RaidCard.class)))
 				.willThrow(new DataIntegrityViolationException(
-						"Duplicate entry 'GIGABYTE:CRA3338' for key 'uk_raid_card_active_identity'"));
+						"Duplicate entry 'GIGABYTE-CRA3338' for key 'uk_raid_card_vendor_model_name'"));
 
 		assertThatThrownBy(() -> raidCardService.create(createRequest("")))
 				.isInstanceOf(DuplicateRaidCardException.class)
 				.hasMessageContaining("이미 등록된 RAID 카드입니다");
-	}
-
-	@Test
-	@DisplayName("completePendingCardFromNudge : 경합으로 DB 유일성 위반 → DuplicateRaidCardException (같은 번역 경로 공유)")
-	void completeFromNudge_concurrentRace_translatesToDuplicate() {
-		given(raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(false);
-		given(raidCardRepository.saveAndFlush(any(RaidCard.class)))
-				.willThrow(new DataIntegrityViolationException("Duplicate entry"));
-
-		assertThatThrownBy(() -> raidCardService.completePendingCardFromNudge(session(Map.of(
-				"vendor", "GIGABYTE", "modelName", "CRA3338",
-				"supportedRaidLevels", "RAID0", "cacheCapacityGb", "0", "chipFamily", "MPT_IR",
-				"pciSubsystemId", "", "description", ""))))
-				.isInstanceOf(DuplicateRaidCardException.class);
 	}
 
 	// ==== update =====================================================
@@ -226,8 +217,7 @@ class RaidCardMetadataServiceTest {
 		assertThat(card.getCacheCapacity()).isEqualTo(CacheCapacity.ofGigabytes(2));
 		assertThat(card.hasCache()).isTrue();
 		assertThat(card.getPciSubsystemId()).isNull();
-		verify(raidCardRepository, never())
-				.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(any(), any());
+		verify(raidCardRepository, never()).findAllByVendorAndModelName(any(), any());
 	}
 
 	@Test
@@ -235,8 +225,8 @@ class RaidCardMetadataServiceTest {
 	void update_renameToOccupied_throws409() {
 		RaidCard card = savedCard(7L, RaidCardVendor.GIGABYTE, "CRA3338");
 		given(raidCardRepository.findByIdAndIsDeletedFalse(7L)).willReturn(OptionalOf(card));
-		given(raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-				RaidCardVendor.GIGABYTE, "CRA4448")).willReturn(true);
+		given(raidCardRepository.findAllByVendorAndModelName(RaidCardVendor.GIGABYTE, "CRA4448"))
+				.willReturn(List.of(cardIn(8L, "CRA4448", false, false)));
 
 		assertThatThrownBy(() -> raidCardService.update(7L, new RaidCardUpdateRequest(
 				"CRA4448", RaidChipFamily.MPT_IR, List.of(RaidLevel.RAID0), 0, "", "")))
@@ -244,67 +234,50 @@ class RaidCardMetadataServiceTest {
 		assertThat(card.getModelName()).isEqualTo("CRA3338");   // 갱신 미수행
 	}
 
-	// ==== nudge confirm 위임 =========================================
-
 	@Test
-	@DisplayName("completePendingCardFromNudge : attributes 왕복 → 살아 있는 카드로 저장")
-	void completeFromNudge_persistsFromAttributes() {
-		given(raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(false);
-		given(raidCardRepository.saveAndFlush(any(RaidCard.class)))
-				.willAnswer(inv -> {
-					RaidCard toSave = inv.getArgument(0);
-					assertThat(toSave.getSupportedRaidLevels().supports(RaidLevel.RAID1)).isTrue();
-					assertThat(toSave.getCacheCapacity()).isEqualTo(CacheCapacity.ofGigabytes(2));
-					assertThat(toSave.getPciSubsystemId().toDisplay()).isEqualTo("1458:0011");
-					return savedCard(50L, toSave.getVendor(), toSave.getModelName());
-				});
+	@DisplayName("update(HF30-1) : 휴지통 카드의 이름으로 변경 → 이름 수정 안내 409 (종전에는 살아 있는 카드만 봐서 DB UNIQUE 500)")
+	void update_renameToTrashed_guidesRename() {
+		RaidCard card = savedCard(7L, RaidCardVendor.GIGABYTE, "CRA3338");
+		given(raidCardRepository.findByIdAndIsDeletedFalse(7L)).willReturn(OptionalOf(card));
+		given(raidCardRepository.findAllByVendorAndModelName(RaidCardVendor.GIGABYTE, "CRA4448"))
+				.willReturn(List.of(cardIn(8L, "CRA4448", false, true)));
 
-		Long id = raidCardService.completePendingCardFromNudge(session(Map.of(
-				"vendor", "GIGABYTE", "modelName", "CRA3338",
-				"supportedRaidLevels", "RAID0,RAID1", "cacheCapacityGb", "2", "chipFamily", "MPT_IR",
-				"pciSubsystemId", "1458:0011", "description", "d")));
-
-		assertThat(id).isEqualTo(50L);
+		assertThatThrownBy(() -> raidCardService.update(7L, new RaidCardUpdateRequest(
+				"CRA4448", RaidChipFamily.MPT_IR, List.of(RaidLevel.RAID0), 0, "", "")))
+				.isInstanceOf(DuplicateRaidCardException.class)
+				.hasMessage("휴지통에 같은 이름의 RAID 카드가 있습니다(GIGABYTE CRA4448). 다른 이름을 쓰거나 휴지통의 카드를 영구 삭제해야 합니다.");
+		assertThat(card.getModelName()).isEqualTo("CRA3338");
 	}
 
 	@Test
-	@DisplayName("completePendingCardFromNudge : race 로 살아 있는 동일키 생김 → DuplicateRaidCardException")
-	void completeFromNudge_race_throws409() {
-		given(raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
-				RaidCardVendor.GIGABYTE, "CRA3338")).willReturn(true);
+	@DisplayName("update(HF30-1 CP5 B12) : 두 카드를 동시에 같은 새 이름으로 바꾼 경합 → flush 의 DB UNIQUE 위반을 Duplicate(활성 문구)로 번역 — 500 으로 새지 않는다")
+	void update_concurrentRenameRace_translatesToDuplicate() {
+		RaidCard card = savedCard(5L, RaidCardVendor.GIGABYTE, "CRA7777");
+		given(raidCardRepository.findByIdAndIsDeletedFalse(5L)).willReturn(OptionalOf(card));
+		given(raidCardRepository.findAllByVendorAndModelName(RaidCardVendor.GIGABYTE, "CRA6666"))
+				.willReturn(List.of());   // 경합 상대가 아직 커밋 전 — 검사 통과
+		org.mockito.BDDMockito.willThrow(new DataIntegrityViolationException(
+						"Duplicate entry 'GIGABYTE-CRA6666' for key 'uk_raid_card_vendor_model_name'"))
+				.given(raidCardRepository).flush();
 
-		assertThatThrownBy(() -> raidCardService.completePendingCardFromNudge(session(Map.of(
-				"vendor", "GIGABYTE", "modelName", "CRA3338",
-				"supportedRaidLevels", "RAID0", "cacheCapacityGb", "0", "chipFamily", "MPT_IR",
-				"pciSubsystemId", "", "description", ""))))
-				.isInstanceOf(DuplicateRaidCardException.class);
+		assertThatThrownBy(() -> raidCardService.update(5L, new RaidCardUpdateRequest(
+				"CRA6666", RaidChipFamily.MPT_IR, List.of(RaidLevel.RAID0), 0, "", "")))
+				.isInstanceOf(DuplicateRaidCardException.class)
+				.hasMessage("이미 등록된 RAID 카드입니다. GIGABYTE CRA6666");
 	}
 
 	@Test
-	@DisplayName("purgeCardForNudge : 살아 있는 자원은 replace 대상 불가 → IllegalRaidCardStateException")
-	void purgeForNudge_liveTarget_throws409() {
-		RaidCard live = savedCard(9L, RaidCardVendor.GIGABYTE, "CRA3338");
+	@DisplayName("renameConflictReason(HF30-1) : 수정 폼 사전 판정 — 같은 이름 그대로면 null, 휴지통 이름이면 update 와 같은 문구")
+	void renameConflictReason_sharesUpdateGuard() {
+		RaidCard card = savedCard(7L, RaidCardVendor.GIGABYTE, "CRA3338");
+		given(raidCardRepository.findByIdAndIsDeletedFalse(7L)).willReturn(OptionalOf(card));
+		given(raidCardRepository.findAllByVendorAndModelName(RaidCardVendor.GIGABYTE, "CRA4448"))
+				.willReturn(List.of(cardIn(8L, "CRA4448", false, true)));
 
-		assertThatThrownBy(() -> raidCardService.purgeCardForNudge(live))
-				.isInstanceOf(IllegalRaidCardStateException.class);
-		verify(raidCardRepository, never()).delete(any(RaidCard.class));
+		assertThat(raidCardService.renameConflictReason(7L, "CRA3338")).isNull();
+		assertThat(raidCardService.renameConflictReason(7L, "CRA4448"))
+				.isEqualTo("휴지통에 같은 이름의 RAID 카드가 있습니다(GIGABYTE CRA4448). 다른 이름을 쓰거나 휴지통의 카드를 영구 삭제해야 합니다.");
 	}
-
-	// ==== fixture ====================================================
-
-	private static NudgeSession session(Map<String, String> attributes) {
-		return new NudgeSession(
-				UUID.randomUUID(), NudgeResourceType.RAID_CARD, null, List.of(9L),
-				new IntentMetaNudgePayload(attributes),
-				Instant.now(), Instant.now().plusSeconds(300));
-	}
-
-	private static java.util.Optional<RaidCard> OptionalOf(RaidCard card) {
-		return java.util.Optional.of(card);
-	}
-
-	// ==== S8-3 — 조회 조건 ============================================
 
 	@Test
 	@DisplayName("findAllGrouped(S8-3) : PCI Subsystem ID(표시형)로 찾는다 · 맞는 카드가 없는 제조사는 묶음이 없다")

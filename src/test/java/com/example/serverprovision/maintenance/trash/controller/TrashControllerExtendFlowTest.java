@@ -1,5 +1,6 @@
 package com.example.serverprovision.maintenance.trash.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.TrashPolicy;
@@ -40,6 +41,7 @@ class TrashControllerExtendFlowTest {
 	@Autowired
 	MockMvc mvc;
 
+	@MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
 	@MockitoBean
 	TrashTtlExtensionService trashTtlExtensionService;
 

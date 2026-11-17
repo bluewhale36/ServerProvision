@@ -1,5 +1,7 @@
 package com.example.serverprovision.global.exception;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.board.controller.BoardModelLifecycleController;
 import com.example.serverprovision.management.board.controller.BoardModelMetadataController;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
@@ -53,6 +55,7 @@ class ErrorResponseChannelTest {
 	@Autowired MockMvc mvc;
 
 	@MockitoBean BoardModelLifecycleService boardModelLifecycleService;
+	@MockitoBean UserPurgeService userPurgeService;   // HF31 — 영구 삭제 단일 진입점
 	@MockitoBean BoardModelMetadataService boardModelMetadataService;
 	@MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
@@ -99,7 +102,7 @@ class ErrorResponseChannelTest {
 		@DisplayName("네이티브 폼 제출 400 — typed-name 불일치")
 		void nativeForm_badRequest_rendersHtml() throws Exception {
 			willThrow(new TypedNameMismatchException("Asus P13R-E", "wrong"))
-					.given(boardModelLifecycleService).purgeWithTypedNameCheck(eq(3L), eq("wrong"));
+					.given(userPurgeService).purge(eq(ResourceType.BOARD_MODEL), eq(3L), eq("wrong"));
 
 			mvc.perform(post("/management/board/3/purge").param("typedName", "wrong")
 							.header("Accept", BROWSER_ACCEPT)

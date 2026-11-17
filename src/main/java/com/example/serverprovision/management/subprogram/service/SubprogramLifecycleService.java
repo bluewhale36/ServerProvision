@@ -6,7 +6,6 @@ import com.example.serverprovision.global.lifecycle.LifecycleService;
 import com.example.serverprovision.global.lifecycle.SoftDeleteIntentService;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.common.filesystem.service.BundleTreeCleanupService;
@@ -41,8 +40,8 @@ import java.util.Optional;
  * (controller 가 {@code /{id}/toggle} 형태로 subprogramId 만 전달) BMC 의 {@code assertBelongsToBoard}
  * 같은 scope 검증 차원이 존재하지 않는다. 분리 전 동작을 그대로 보존한다.</p>
  *
- * <p>typed-name 검증은 static {@link TypedNameGuard#verify}(의존성 0). TypedNameVerifier 빈·MarkableScanner·
- * ObjectProvider 를 주입하지 않아 {@code service→verifier→scanner→service} 순환을 재생성하지 않는다.</p>
+ * <p>자원명 확인은 이 서비스가 하지 않는다 — 사용자 영구 삭제는 {@code UserPurgeService} 가 확인한 뒤 PurgeExecutor 를 거쳐
+ * {@link #purge} 에 닿는다(HF31). TypedNameVerifier 빈 · scanner 를 주입하지 않으므로 생성자 순환이 생기지 않는다.</p>
  *
  * <p>의존 그래프 — 단방향 : {@code SubprogramRegistrationService}(REPLACE 시 purge)·{@code SubprogramMarkableScanner}·
  * {@code SubprogramBoardScopedChildLifecycle}(cascade)·{@code SubprogramNudgeService} 가 본 service 를 위임
@@ -202,22 +201,6 @@ public class SubprogramLifecycleService implements LifecycleService {
 	// ==== purge ========================================================
 
 	/**
-	 * S5-2-2 — Subprogram typed-name 검증 후 영구 삭제. 합성식 : {@code sp.name}.
-	 */
-	@Override
-	@Transactional
-	public void purgeWithTypedNameCheck(Long subprogramId, String typedName) {
-		Subprogram sp = SubprogramGuards.requireExisting(subprogramRepository, subprogramId);
-		if (!sp.isDeleted()) {
-			throw new IllegalSubprogramStateException(
-					"휴지통에 있는 자원만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
-		}
-		// 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
-		TypedNameGuard.verify(sp, typedName);
-		purge(subprogramId);
-	}
-
-	/**
 	 * MK2 — 영구 삭제 (hard-delete). SoftDeleted 자원에 한해 허용. 디스크 트리 + DB row 모두 제거.
 	 *
 	 * <p>nudge REPLACE 결정의 사후 호출 경로이기도 하다 (별도 트랜잭션). 트리 cleanup 은 Service 책임이며
@@ -231,7 +214,7 @@ public class SubprogramLifecycleService implements LifecycleService {
 			throw new IllegalSubprogramStateException(
 					"휴지통에 있는 자원만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
 		}
-		bundleTreeCleanupService.purgeExistingTree(Path.of(sp.getTreeRootPath()), "purgeSubprogram");
+		bundleTreeCleanupService.purgeOwnedTree(sp, "purgeSubprogram");   // HF31 — 원래 경로가 이 자원의 트리일 때만
 		subprogramRepository.delete(sp);
 		log.info("[lifecycle.purge] resource=SUBPROGRAM#{} outcome=purged", sp.getId());
 	}

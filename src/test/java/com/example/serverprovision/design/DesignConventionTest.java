@@ -55,8 +55,8 @@ class DesignConventionTest {
     private static final Pattern N_CLASS = Pattern.compile("(?<![\\w-])(n-[a-z0-9][\\w-]*)");
     private static final Pattern VISIBLE_TEXT = Pattern.compile(
             ">([^<>]+)<|\\s(?:title|placeholder|aria-label|th:text|th:title|th:placeholder|th:utext"
-                    + "|data-[\\w-]*(?:message|title|label|confirm|text|reason|hint)[\\w-]*"
-                    + "|th:data-[\\w-]*(?:message|title|label|confirm|text|reason|hint)[\\w-]*)=\"([^\"]*)\"");
+                    + "|data-[\\w-]*(?:message|title|label|confirm|text|reason|hint|tooltip)[\\w-]*"
+                    + "|th:data-[\\w-]*(?:message|title|label|confirm|text|reason|hint|tooltip)[\\w-]*)=\"([^\"]*)\"");
     private static final Pattern HANGUL = Pattern.compile("[가-힣]");
     private static final Pattern BANNED_PUNCT = Pattern.compile("[—·]");
     /** 콘솔 문구는 합니다체 평서형만 쓴다(DESIGN.md 7절 문체, 사용자 지시 2026-11-16). */

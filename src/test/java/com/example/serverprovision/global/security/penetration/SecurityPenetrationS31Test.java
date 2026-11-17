@@ -270,7 +270,8 @@ class SecurityPenetrationS31Test {
         @DisplayName("C-S31-1: allowed-roots 밖의 path 직접 호출 → PathOutsideAllowedRootsException")
         void purgeOutsideAllowedRootsRejected(@TempDir Path tmp) {
             PathPolicyService pps = new PathPolicyService(new PathSecurityProperties(List.of(tmp.toString())));
-            BundleTreeCleanupService svc = new BundleTreeCleanupService(pps, new FileSystemSecurityProperties(2000, 8));
+            BundleTreeCleanupService svc = new BundleTreeCleanupService(pps, new FileSystemSecurityProperties(2000, 8),
+                    org.mockito.Mockito.mock(com.example.serverprovision.global.marker.service.ProvisionMarkerService.class));
             // tmp 외부의 임의 path → 거절. (실제 /etc 는 권한상 못 만들어 simulate)
             assertThatThrownBy(() -> svc.purgeExistingTree(Path.of("/etc"), "test"))
                     .isInstanceOf(PathOutsideAllowedRootsException.class);
@@ -285,7 +286,8 @@ class SecurityPenetrationS31Test {
             //   trigger 해도 사용자 응답에 흔적이 안 남음 — silent 시스템 디렉토리 접근 시도.
             // 따라서 K1 패치는 침투 가시성을 높임. 본 테스트가 이를 회귀로 보장.
             PathPolicyService pps = new PathPolicyService(new PathSecurityProperties(List.of(tmp.toString())));
-            BundleTreeCleanupService svc = new BundleTreeCleanupService(pps, new FileSystemSecurityProperties(2000, 8));
+            BundleTreeCleanupService svc = new BundleTreeCleanupService(pps, new FileSystemSecurityProperties(2000, 8),
+                    org.mockito.Mockito.mock(com.example.serverprovision.global.marker.service.ProvisionMarkerService.class));
             assertThatThrownBy(() -> svc.cleanupFailedUpload(
                     Path.of("/etc"), "test", "label", new RuntimeException("orig")))
                     .isInstanceOf(PathOutsideAllowedRootsException.class);
@@ -295,7 +297,8 @@ class SecurityPenetrationS31Test {
         @DisplayName("C-S31-3: null treeRoot → no-op (NPE 방어)")
         void nullPath(@TempDir Path tmp) {
             PathPolicyService pps = new PathPolicyService(new PathSecurityProperties(List.of(tmp.toString())));
-            BundleTreeCleanupService svc = new BundleTreeCleanupService(pps, new FileSystemSecurityProperties(2000, 8));
+            BundleTreeCleanupService svc = new BundleTreeCleanupService(pps, new FileSystemSecurityProperties(2000, 8),
+                    org.mockito.Mockito.mock(com.example.serverprovision.global.marker.service.ProvisionMarkerService.class));
             assertThatCode(() -> svc.purgeExistingTree(null, "test")).doesNotThrowAnyException();
         }
 
@@ -305,7 +308,8 @@ class SecurityPenetrationS31Test {
             Path target = Files.createDirectory(tmp.resolve("victim"));
             Files.writeString(target.resolve("a.txt"), "x");
             PathPolicyService pps = new PathPolicyService(new PathSecurityProperties(List.of(tmp.toString())));
-            BundleTreeCleanupService svc = new BundleTreeCleanupService(pps, new FileSystemSecurityProperties(2000, 8));
+            BundleTreeCleanupService svc = new BundleTreeCleanupService(pps, new FileSystemSecurityProperties(2000, 8),
+                    org.mockito.Mockito.mock(com.example.serverprovision.global.marker.service.ProvisionMarkerService.class));
             svc.purgeExistingTree(target, "test");
             assertThat(Files.exists(target)).isFalse();
         }

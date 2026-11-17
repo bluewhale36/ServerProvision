@@ -191,16 +191,32 @@ class IsoLifecycleServiceTest {
 	// ==== purge ========================================================
 
 	@Test
-	@DisplayName("purge(happy) : soft-deleted ISO 영구 삭제 + sidecar 정리")
-	void purge_whenSoftDeleted_deletesEntity() {
+	@DisplayName("purge(happy) : 원래 경로의 sidecar 가 이 ISO 를 가리키면 원래 경로 파일 정리 + 행 삭제")
+	void purge_whenSoftDeletedAndOwned_cleansOriginalPathAndDeletes() {
 		OSMetadata parent = buildParent(1L, true, false, false);
 		ISO softDeletedIso = buildChild(101L, parent, false, false, true);  // deleted=true
 		given(isoRepository.findById(101L)).willReturn(Optional.of(softDeletedIso));
+		given(markerService.isMarkedAs(softDeletedIso)).willReturn(true);
 		given(markerService.resolveMarkerFile(any(), eq(MarkerLayout.SIDECAR)))
 				.willReturn(Path.of("/var/trash/iso/dvd.iso.provision.json"));
 
 		isoLifecycleService.purge(101L);
 
+		verify(markerService).resolveMarkerFile(any(), eq(MarkerLayout.SIDECAR));
+		verify(isoRepository).delete(softDeletedIso);
+	}
+
+	@Test
+	@DisplayName("HF31 purge : 원래 경로가 이 ISO 의 것이 아니면(그사이 다른 ISO 가 들어옴 · 비어 있음) 파일을 건드리지 않고 행만 삭제")
+	void purge_whenOriginalPathNotOwned_leavesFilesAndDeletesRow() {
+		OSMetadata parent = buildParent(1L, true, false, false);
+		ISO softDeletedIso = buildChild(101L, parent, false, false, true);
+		given(isoRepository.findById(101L)).willReturn(Optional.of(softDeletedIso));
+		given(markerService.isMarkedAs(softDeletedIso)).willReturn(false);
+
+		isoLifecycleService.purge(101L);
+
+		verify(markerService, never()).resolveMarkerFile(any(), any());
 		verify(isoRepository).delete(softDeletedIso);
 	}
 
@@ -213,45 +229,6 @@ class IsoLifecycleServiceTest {
 
 		assertThatThrownBy(() -> isoLifecycleService.purge(101L))
 				.isInstanceOf(IllegalOSMetadataStateException.class);
-		verify(isoRepository, never()).delete(any());
-	}
-
-	@Test
-	@DisplayName("purgeWithTypedNameCheck(happy) : 입력명이 ISO displayName 과 일치 → purge 진행 (soft-deleted ISO row 삭제)")
-	void purgeWithTypedNameCheck_nameMatches_purges() {
-		OSMetadata parent = buildParent(1L, true, false, false);
-		ISO softDeletedIso = buildChild(101L, parent, false, false, true);  // soft-deleted
-		given(isoRepository.findById(101L)).willReturn(Optional.of(softDeletedIso));
-		given(markerService.resolveMarkerFile(any(), eq(MarkerLayout.SIDECAR)))
-				.willReturn(Path.of("/var/trash/iso/dvd.iso.provision.json"));
-
-		// R7-2 — typedName = ISO.displayName() ("Rocky Linux 9.6 dvd.iso") → static guard no-op → purge 진행.
-		isoLifecycleService.purgeWithTypedNameCheck(101L, "Rocky Linux 9.6 dvd.iso");
-
-		verify(isoRepository).delete(softDeletedIso);
-	}
-
-	@Test
-	@DisplayName("purgeWithTypedNameCheck(mismatch) : 입력명이 displayName 과 불일치 → TypedNameMismatchException 전파 + 삭제 미호출")
-	void purgeWithTypedNameCheck_nameMismatch_propagatesAndNoDelete() {
-		OSMetadata parent = buildParent(1L, true, false, false);
-		ISO softDeletedIso = buildChild(101L, parent, false, false, true);  // displayName = "Rocky Linux 9.6 dvd.iso"
-		given(isoRepository.findById(101L)).willReturn(Optional.of(softDeletedIso));
-
-		// R7-2 — static TypedNameGuard 가 로딩한 ISO 의 displayName 과 입력("wrong") 불일치를 판정해 예외를 던진다.
-		// purge 본체 진입 전이라 delete 미호출.
-		assertThatThrownBy(() -> isoLifecycleService.purgeWithTypedNameCheck(101L, "wrong"))
-				.isInstanceOf(TypedNameMismatchException.class);
-		verify(isoRepository, never()).delete(any());
-	}
-
-	@Test
-	@DisplayName("purgeWithTypedNameCheck(상태위반) : ISO 부재 → ISONotFoundException (검증 진입 전 차단)")
-	void purgeWithTypedNameCheck_isoMissing_throwsBeforeCheck() {
-		given(isoRepository.findById(404L)).willReturn(Optional.empty());
-
-		assertThatThrownBy(() -> isoLifecycleService.purgeWithTypedNameCheck(404L, "anything"))
-				.isInstanceOf(ISONotFoundException.class);
 		verify(isoRepository, never()).delete(any());
 	}
 

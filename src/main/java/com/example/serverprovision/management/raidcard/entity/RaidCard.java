@@ -29,7 +29,8 @@ import lombok.experimental.SuperBuilder;
  * null = '미확인'(정밀 등록 슬라이스가 실측 대조로 채운다 — D3).</p>
  */
 @Entity
-@Table(name = "raid_card")
+@Table(name = "raid_card",
+		uniqueConstraints = @UniqueConstraint(name = "uk_raid_card_vendor_model_name", columnNames = {"vendor", "model_name"}))   // HF30-1 — 휴지통 · Deprecated 행도 정체를 점유
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SuperBuilder

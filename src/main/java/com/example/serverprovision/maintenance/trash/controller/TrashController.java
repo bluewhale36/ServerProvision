@@ -4,14 +4,11 @@ import com.example.serverprovision.global.marker.DriftKind;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.global.trash.PurgeRequest;
-import com.example.serverprovision.global.trash.PurgeResult;
 import com.example.serverprovision.global.trash.ResourceKey;
 import com.example.serverprovision.global.trash.RestoreBlockReason;
 import com.example.serverprovision.global.trash.TrashPolicy;
 import com.example.serverprovision.global.trash.TrashRestoreEvaluator;
-import com.example.serverprovision.global.trash.service.PurgeExecutor;
-import com.example.serverprovision.global.trash.service.TypedNameVerifier;
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.maintenance.reconciliation.service.PathReconciliationService;
 import com.example.serverprovision.maintenance.trash.dto.response.TrashItemResponse;
 import com.example.serverprovision.maintenance.trash.service.TrashTtlExtensionService;
@@ -47,8 +44,7 @@ public class TrashController {
 	private final TrashTtlExtensionService trashTtlExtensionService;
 	private final List<MarkableScanner> scanners;
 	private final TrashPolicy trashPolicy;
-	private final PurgeExecutor purgeExecutor;
-	private final TypedNameVerifier typedNameVerifier;
+	private final UserPurgeService userPurgeService;   // HF31 — 사용자 영구 삭제 단일 진입점
 	/**
 	 * MK4-5-1 — 링크 대상 조회 전용. 복원 차단 판정에는 쓰지 않는다(그쪽은 파일시스템이 근거다).
 	 */
@@ -140,20 +136,8 @@ public class TrashController {
 			@PathVariable("resourceId") Long resourceId,
 			@org.springframework.web.bind.annotation.RequestParam("typedName") String typedName
 	) {
-		// S5-2-4 — typed-name 검증을 단일 진입점으로 응집 + PurgeExecutor 통과 (audit_log 자동 INSERT).
-		typedNameVerifier.verify(resourceType, resourceId, typedName);
-		PurgeResult result = purgeExecutor.execute(
-				PurgeRequest.forUserDirect(resourceType, resourceId, null, typedName));
-		log.info(
-				"[trash] purge type={} id={} result={}", resourceType, resourceId,
-				result.getClass().getSimpleName()
-		);
-		if (result instanceof PurgeResult.Failed failed) {
-			// 실패 시 호출자에게 예외 전파 — ControllerAdvice 가 흡수.
-			Throwable cause = failed.cause();
-			if (cause instanceof RuntimeException re) throw re;
-			throw new IllegalStateException(cause);
-		}
+		// HF31 — 자원 화면과 같은 단일 진입점(자원명 확인 → PurgeExecutor: 감사 기록 · 휴지통 실물 정리). 실패 원인은 그대로 전파.
+		userPurgeService.purge(resourceType, resourceId, typedName);
 		return "redirect:/maintenance/trash";
 	}
 

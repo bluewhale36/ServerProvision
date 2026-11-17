@@ -1,7 +1,6 @@
 package com.example.serverprovision.management.os.service.metadata;
 
 import com.example.serverprovision.global.trash.TrashLifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
@@ -152,21 +151,6 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	}
 
 	// ==== purge ========================================================
-
-	/**
-	 * S5-2-2 — OS 메타데이터 typed-name 검증 후 영구 삭제.
-	 * <p>합성식은 {@link OSMetadata#displayName()} 에 응집 — service 가 entity 합성 책임을 갖지 않는다.</p>
-	 */
-	@Override
-	@Transactional
-	public void purgeWithTypedNameCheck(Long id, String typedName) {
-		OSMetadata image = osMetadataRepository.findByIdAndIsDeletedTrue(id)
-				.orElseThrow(() -> new IllegalOSMetadataStateException(
-						"삭제된 항목만 영구 삭제할 수 있습니다. id=" + id));
-		// R7-2 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
-		TypedNameGuard.verify(image, typedName);
-		purge(id);
-	}
 
 	/**
 	 * OSMetadata 영구 삭제. soft-deleted 상태에서만 호출 가능.

@@ -7,12 +7,50 @@ package com.example.serverprovision.global.lifecycle;
  * 조합을 사람이 읽을 수 있게 매핑한 enum 이다. {@code PURGED} 는 row 부재 상태이므로 enum 값으로
  * 표현하지 않는다.</p>
  *
+ * <p>HF30 D2 — 정체(메인보드 (제조사, 모델명) · OS 버전 (이름, 버전) · RAID 카드 (제조사, 모델명))가 겹칠 때 기존 행의 상태에 따라
+ * 사용자가 할 다음 행동이 갈린다. 그 문장을 자원마다 if 세 갈래로 복제하지 않고 상태 상수가 소유한다. 등록과 이름 수정은
+ * 다음 행동이 달라(복구 · 해제 대 다른 이름) 메서드를 둘로 둔다.</p>
+ *
  * @see LifecycleManageable#currentStage()
  */
 public enum LifecycleStage {
-	ACTIVE("정상"),
-	DEPRECATED("사용 중단"),
-	SOFT_DELETED("휴지통");
+	ACTIVE("정상") {
+		@Override
+		public String registrationConflict(IdentityConflictSubject s) {
+			return "이미 등록된 %s입니다. %s".formatted(s.noun(), s.identity());
+		}
+
+		@Override
+		public String renameConflict(IdentityConflictSubject s) {
+			return registrationConflict(s);
+		}
+	},
+	DEPRECATED("사용 중단") {
+		@Override
+		public String registrationConflict(IdentityConflictSubject s) {
+			return "사용 중단 권고 상태인 같은 %s 있습니다(%s). 목록에서 사용 중단 권고를 해제해야 합니다."
+					.formatted(s.nounAsSubject(), s.identity());
+		}
+
+		@Override
+		public String renameConflict(IdentityConflictSubject s) {
+			return "사용 중단 권고 상태인 같은 이름의 %s 있습니다(%s). 다른 이름을 써야 합니다."
+					.formatted(s.nounAsSubject(), s.identity());
+		}
+	},
+	SOFT_DELETED("휴지통") {
+		@Override
+		public String registrationConflict(IdentityConflictSubject s) {
+			return "휴지통에 같은 %s 있습니다(%s). 휴지통에서 복구하거나 영구 삭제한 뒤 등록해야 합니다."
+					.formatted(s.nounAsSubject(), s.identity());
+		}
+
+		@Override
+		public String renameConflict(IdentityConflictSubject s) {
+			return "휴지통에 같은 이름의 %s 있습니다(%s). 다른 이름을 쓰거나 휴지통의 %s 영구 삭제해야 합니다."
+					.formatted(s.nounAsSubject(), s.identity(), s.shortAsObject());
+		}
+	};
 
 	/** 화면 이름(S22-4) — 중복 확인 창이 상수 원문 대신 이 이름을 보인다. '사용 중단' 은 자원 화면 배지와 같은 말이다. */
 	private final String description;
@@ -24,6 +62,12 @@ public enum LifecycleStage {
 	public String description() {
 		return description;
 	}
+
+	/** 같은 정체로 새로 등록하려 할 때 — 기존 행이 이 상태면 무엇을 하라고 안내할지. */
+	public abstract String registrationConflict(IdentityConflictSubject subject);
+
+	/** 이름을 바꾸다 다른 행의 정체와 겹칠 때 — 기존 행이 이 상태면 무엇을 하라고 안내할지. */
+	public abstract String renameConflict(IdentityConflictSubject subject);
 
 	/**
 	 * 두 boolean 조합을 단일 lifecycle 어휘로 환산한다.

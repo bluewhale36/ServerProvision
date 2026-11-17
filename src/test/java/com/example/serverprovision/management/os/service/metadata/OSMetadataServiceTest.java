@@ -7,11 +7,8 @@ import com.example.serverprovision.management.os.dto.request.OSMetadataUpdateReq
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.management.os.enums.OSName;
-import com.example.serverprovision.management.common.nudge.NudgeRegistry;
-import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.os.exception.DuplicateISOContentException;
 import com.example.serverprovision.management.os.exception.DuplicateOSMetadataException;
-import com.example.serverprovision.management.os.exception.OSMetadataNudgeRequiredException;
 import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSEnvironmentRepository;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
@@ -64,9 +61,6 @@ class OSMetadataServiceTest {
     @Mock com.example.serverprovision.global.security.PathPolicyService pathPolicyService;
     @Mock com.example.serverprovision.global.security.FileSystemHardener fileSystemHardener;
     @Mock com.example.serverprovision.global.trash.TrashLifecycleService trashLifecycleService;
-    @Mock NudgeRegistry nudgeRegistry;
-    // R1-6 — create() 가 nudge payload 조립 + persist 를 OSMetadataNudgeService 로 위임하므로 mock 으로 위임 검증.
-    @Mock OSMetadataNudgeService osMetadataNudgeService;
     @Mock com.example.serverprovision.management.os.service.iso.IsoLifecycleService isoLifecycleService;
     @InjectMocks OSMetadataService osMetadataService;
     // R1-4-2 — ISO 등록 흐름이 IsoRegistrationService 로 이동했으므로 등록 시나리오는 본 인스턴스에 위임.
@@ -116,26 +110,45 @@ class OSMetadataServiceTest {
     }
 
     @Test
-    @DisplayName("create(정상 등록 위임) : 동일 (osName, osVersion) 자원이 0 건이면 OSMetadataNudgeService.persistNew 로 위임한다 (R1-6)")
-    void create_whenNotDuplicated_delegatesPersistNew() {
-        // given
-        OSMetadataCreateRequest request = new OSMetadataCreateRequest(
-                OSName.ROCKY_LINUX, "9.6", "최신 마이너"
-        );
+    @DisplayName("create(happy) : 동일 (osName, osVersion) 자원이 0 건이면 새 행을 저장한다 (HF30-1 — 중복 확인 창 제거)")
+    void create_whenNotDuplicated_saves() {
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, "9.6", "최신 마이너");
+        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6")).willReturn(List.of());
+        given(osMetadataRepository.saveAndFlush(any(OSMetadata.class)))
+                .willAnswer(inv -> OSMetadata.builder().id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6").build());
+
+        assertThat(osMetadataService.create(request)).isEqualTo(1L);
+        verify(osMetadataRepository).saveAndFlush(argThat(m -> m.getOsName() == OSName.ROCKY_LINUX
+                && "9.6".equals(m.getOsVersion()) && "최신 마이너".equals(m.getDescription())));
+    }
+
+    @Test
+    @DisplayName("create(HF30-1) : 동시 등록 경합으로 DB UNIQUE 위반 → DuplicateOSMetadataException(활성 문구)으로 번역 — 500 으로 새지 않는다")
+    void create_concurrentRace_translatesToDuplicate() {
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, "9.6", null);
         given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
-                .willReturn(List.of());
-        // R1-6 — 신규 row 영속화는 nudge 서비스 위임. 부모 서비스는 직접 save 하지 않는다.
-        given(osMetadataNudgeService.persistNew(OSName.ROCKY_LINUX, "9.6", "최신 마이너"))
-                .willReturn(1L);
+                .willReturn(List.of());   // 경합 상대가 아직 커밋 전 — 검사 통과
+        given(osMetadataRepository.saveAndFlush(any(OSMetadata.class)))
+                .willThrow(new org.springframework.dao.DataIntegrityViolationException(
+                        "Duplicate entry 'ROCKY_LINUX-9.6' for key 'uk_os_metadata_name_version'"));
 
-        // when
-        Long generatedId = osMetadataService.create(request);
+        assertThatThrownBy(() -> osMetadataService.create(request))
+                .isInstanceOf(DuplicateOSMetadataException.class)
+                .hasMessage("이미 등록된 OS 버전입니다. Rocky Linux 9.6");
+    }
 
-        // then
-        assertThat(generatedId).isEqualTo(1L);
-        verify(osMetadataNudgeService).persistNew(OSName.ROCKY_LINUX, "9.6", "최신 마이너");
-        // 부모 서비스는 직접 save 하지 않고 nudge 서비스로 위임 (중복 0)
-        verify(osMetadataRepository, never()).save(any(OSMetadata.class));
+    @Test
+    @DisplayName("create(HF30-1) : Deprecated 동일키 → 'Deprecated 를 해제' 안내 (종전에는 창의 [그래도 등록] 이 항상 실패)")
+    void create_deprecatedDuplicate_guidesUndeprecate() {
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, "9.6", null);
+        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
+                .willReturn(List.of(OSMetadata.builder().id(7L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
+                        .isEnabled(true).isDeprecated(true).isDeleted(false).build()));
+
+        assertThatThrownBy(() -> osMetadataService.create(request))
+                .isInstanceOf(DuplicateOSMetadataException.class)
+                .hasMessage("사용 중단 권고 상태인 같은 OS 버전이 있습니다(Rocky Linux 9.6). 목록에서 사용 중단 권고를 해제해야 합니다.");
+        verify(osMetadataRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -179,12 +192,9 @@ class OSMetadataServiceTest {
     }
 
     @Test
-    @DisplayName("create(nudge 위임) : ACTIVE + SOFT_DELETED 혼합 시 OSMetadataNudgeService.buildNudgePayload 로 위임 후 Nudge 발화한다 (R1-6)")
-    void create_whenActiveAndSoftDeletedCoexist_delegatesNudgePayload() {
-        // given
-        OSMetadataCreateRequest request = new OSMetadataCreateRequest(
-                OSName.ROCKY_LINUX, "9.6", null
-        );
+    @DisplayName("create(fail) : ACTIVE + SOFT_DELETED 혼재면 가장 살아 있는 ACTIVE 기준으로 Duplicate 409 (HF30-1 — 종전 창 대신)")
+    void create_whenActiveAndSoftDeletedCoexist_throwsDuplicateForActive() {
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, "9.6", null);
         OSMetadata activeRow = OSMetadata.builder()
                 .id(7L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
                 .isEnabled(true).isDeprecated(false).isDeleted(false).build();
@@ -192,17 +202,11 @@ class OSMetadataServiceTest {
                 .id(8L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
                 .isEnabled(false).isDeprecated(false).isDeleted(true).build();
         given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
-                .willReturn(List.of(activeRow, softDeletedRow));
-        // R1-6 — payload 조립 + 세션 등록은 nudge 서비스 위임. 부모 서비스는 후보 합성 + 발화만 담당.
-        given(osMetadataNudgeService.buildNudgePayload(eq(request), any()))
-                .willReturn(NudgeRequiredResponse.of(UUID.randomUUID(), List.of(), Instant.now().plusSeconds(300)));
+                .willReturn(List.of(softDeletedRow, activeRow));
 
-        // when / then
         assertThatThrownBy(() -> osMetadataService.create(request))
-                .isInstanceOf(OSMetadataNudgeRequiredException.class);
-        // SOFT_DELETED 후보가 buildNudgePayload 로 전달되는지 위임 검증
-        verify(osMetadataNudgeService).buildNudgePayload(eq(request), argThat(c -> c.contains(softDeletedRow)));
-        verify(osMetadataNudgeService, never()).persistNew(any(), any(), any());
+                .isInstanceOf(DuplicateOSMetadataException.class)
+                .hasMessageStartingWith("이미 등록된 OS 버전입니다.");
         verify(osMetadataRepository, never()).save(any());
     }
 

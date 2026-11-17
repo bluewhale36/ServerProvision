@@ -37,6 +37,7 @@ class OSMetadataListCopyRenderTest {
     @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService osMetadataLifecycleService;
 
     @MockitoBean com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
+    @MockitoBean com.example.serverprovision.global.trash.service.UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private static ISOResponse iso(long id, String path, boolean deleted, boolean deprecated, boolean extracted,

@@ -1,7 +1,6 @@
 package com.example.serverprovision.management.raidcard.service;
 
 import com.example.serverprovision.global.lifecycle.LifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.management.raidcard.exception.DuplicateRaidCardException;
@@ -94,14 +93,6 @@ public class RaidCardLifecycleService implements LifecycleService {
 		card.clearTrashed();
 		log.info("[lifecycle.restore] resource=RAID_CARD#{} outcome=restored", id);
 		return RestoreResponse.none();   // 자식 없음 — cascade 무관 0 건
-	}
-
-	@Override
-	@Transactional
-	public void purgeWithTypedNameCheck(Long id, String typedName) {
-		RaidCard card = requireTrashedCard(id);
-		TypedNameGuard.verify(card, typedName);
-		purge(card);
 	}
 
 	@Override

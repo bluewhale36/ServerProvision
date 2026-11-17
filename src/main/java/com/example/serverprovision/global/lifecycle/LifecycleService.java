@@ -71,8 +71,4 @@ public interface LifecycleService {
 	 */
 	void purge(Long id);
 
-	/**
-	 * typed-name 검증 후 purge. 사용자가 자원 이름을 직접 입력해 의도를 재확인하는 경로.
-	 */
-	void purgeWithTypedNameCheck(Long id, String typedName);
 }

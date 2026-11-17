@@ -6,7 +6,6 @@ import com.example.serverprovision.global.lifecycle.LifecycleService;
 import com.example.serverprovision.global.lifecycle.SoftDeleteIntentService;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
 import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
@@ -39,8 +38,8 @@ import java.util.Map;
  * <p>URL forging 가드 — controller 가 endpoint 진입 시 {@link #assertBelongsToBoard(Long, Long)} 를
  * lifecycle 메서드 호출 전에 호출. URL 의 boardId 와 entity 의 부모 id 일치 검증.</p>
  *
- * <p>typed-name 검증은 static {@link TypedNameGuard#verify}(의존성 0). TypedNameVerifier 빈·MarkableScanner·
- * ObjectProvider 를 주입하지 않아 {@code service→verifier→scanner→service} 순환을 재생성하지 않는다(R7 산출 보존).</p>
+ * <p>자원명 확인은 이 서비스가 하지 않는다 — 사용자 영구 삭제는 {@code UserPurgeService} 가 확인한 뒤 PurgeExecutor 를 거쳐
+ * {@link #purge} 에 닿는다(HF31). TypedNameVerifier 빈 · scanner 를 주입하지 않으므로 생성자 순환이 생기지 않는다(R7 산출 보존).</p>
  *
  * <p>의존 그래프 — 단방향 : {@code BiosRegistrationService}(REPLACE 시 purge)·{@code BoardBiosMarkableScanner}·
  * {@code BiosBoardScopedChildLifecycle}(cascade) 가 본 service 를 위임 호출한다. 본 service 는 그들을 역참조하지 않는다.</p>
@@ -217,22 +216,6 @@ public class BiosLifecycleService implements LifecycleService {
 	// ==== purge ========================================================
 
 	/**
-	 * S5-2-2 — BIOS typed-name 검증 후 영구 삭제. 합성식 : {@code bios.name}.
-	 */
-	@Override
-	@Transactional
-	public void purgeWithTypedNameCheck(Long biosId, String typedName) {
-		BoardBIOS bios = requireExistingBios(biosId);
-		if (!bios.isDeleted()) {
-			throw new IllegalBiosStateException(
-					"휴지통에 있는 BIOS 만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
-		}
-		// R7-2 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
-		TypedNameGuard.verify(bios, typedName);
-		purge(biosId);
-	}
-
-	/**
 	 * MK2 — SoftDeleted 자원의 영구 삭제. 트리·marker 물리 삭제 후 DB row 제거.
 	 * SoftDeleted 가 아닌 자원에 호출되면 명시적 충돌로 거절 (활성 자원의 우발 영구 삭제 방어).
 	 */
@@ -244,7 +227,7 @@ public class BiosLifecycleService implements LifecycleService {
 			throw new IllegalBiosStateException(
 					"휴지통에 있는 BIOS 만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
 		}
-		bundleTreeCleanupService.purgeExistingTree(Path.of(bios.getTreeRootPath()), "purgeBios");
+		bundleTreeCleanupService.purgeOwnedTree(bios, "purgeBios");   // HF31 — 원래 경로가 이 자원의 트리일 때만
 		biosRepository.delete(bios);
 		renumberVersionRanks(bios.getBoardModel().getId());   // 밀집 순위 유지(E2-1-a)
 		log.info("[lifecycle.purge] resource=BIOS_BUNDLE#{} outcome=purged", biosId);

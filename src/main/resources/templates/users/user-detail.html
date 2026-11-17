@@ -84,7 +84,7 @@
                     </span>
                     <!--/* 바꿀 등급을 고르기 전에는 제출할 것이 없다 — 고르면 security/user-detail.js 가 버튼과 tooltip 을 푼다. */-->
                     <span th:unless="${blockRole != null}" class="n-btn-tooltip-wrap" data-level-submit-wrap
-                          data-tooltip="바꿀 권한 등급을 먼저 고르십시오.">
+                          data-tooltip="바꿀 권한 등급을 먼저 골라야 합니다.">
                         <button type="submit" class="n-btn n-btn-secondary" data-level-submit disabled>권한 등급 바꾸기</button>
                     </span>
                 </div>
