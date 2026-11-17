@@ -15,4 +15,6 @@ public record RaidPlanRejection(
     public static final String VOLUME_LIMIT = "VOLUME_LIMIT";
     /** 볼륨의 멤버 수가 칩 계열의 레벨별 제약에 맞지 않는다. */
     public static final String MEMBER_COUNT = "MEMBER_COUNT";
+    /** 볼륨의 레벨을 칩 계열이 만들 수 없다(HF32 — 저장 가드 이전에 저장된 정의서의 안전망). */
+    public static final String LEVEL_NOT_CREATABLE = "LEVEL_NOT_CREATABLE";
 }

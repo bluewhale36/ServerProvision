@@ -381,6 +381,30 @@ class SettingRestControllerDiskGroupTest {
         send(body(raidWithPriorities("1", RAID1_RULE, "[]"))).andExpect(status().isCreated());
     }
 
+    @Test
+    @DisplayName("HF32 — OS 설치 단계에 RAID 단계 없음 · 묶음 없음 · OS 후보 전부 RAID 없음 → 400 fieldErrors[osVolumeDeterminable] · RAID 후보가 하나라도 있으면 201")
+    void create_osInstallRequiresRaidOsVolume() throws Exception {
+        given(commandService.create(any())).willReturn(new SettingSaveResponse(15L, "디스크 세팅"));
+        String osOnlyNoRaid = NO_RAID_NVME_RULE.replace("\"role\": \"BY_PRIORITY\"", "\"role\": \"OS\"");
+
+        send(body(RHEL_INSTALL))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osVolumeDeterminable')].message")
+                        .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("OS 영역이 될 RAID 묶음"))));
+        send(body("{\"type\": \"RAID_CONFIGURATION\", \"volumePriorities\": []}," + RHEL_INSTALL))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osVolumeDeterminable')]").exists());
+        send(body(raid("1", osOnlyNoRaid) + "," + RHEL_INSTALL))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osVolumeDeterminable')]").exists());
+        verify(commandService, never()).create(any());
+
+        // RAID 없음 묶음이 있어도 RAID 레벨이 있는 OS 후보가 함께 있으면 저장된다(Data 직결 차단은 Windows 폼 안내만).
+        send(body(raid("1", NO_RAID_NVME_RULE + "," + RAID1_RULE) + "," + RHEL_INSTALL)).andExpect(status().isCreated());
+        send(body(raid("1", ruleWithRole("OS") + "," + NO_RAID_NVME_RULE.replace("\"role\": \"BY_PRIORITY\"", "\"role\": \"DATA\""))
+                + "," + RHEL_INSTALL)).andExpect(status().isCreated());
+    }
+
     // ==== U4-1-3 — OS 영역 용량 사전 제한(partitionsWithinOsVolume) ===============================
 
     /** RHEL 설치 단계 — 파티션 목록만 갈아 끼운다(/ 는 grow). */
@@ -419,8 +443,10 @@ class SettingRestControllerDiskGroupTest {
 
         send(body(raid("1", OS_RAID1_480) + "," + rhelWith(fixed("/boot", 1) + "," + fixed("swap", 16) + "," + ROOT_GROW)))
                 .andExpect(status().isCreated());
-        // 자동 탐지 묶음(RAID1_RULE 은 480 GB 지정: NO_RAID_NVME_RULE 이 자동) 을 OS 후보로 두면 하한을 모른다 → 검사 없음
-        send(body(raid("1", NO_RAID_NVME_RULE) + "," + rhelWith(fixed("swap", 5000) + "," + ROOT_GROW)))
+        // 용량 자동 탐지 RAID 묶음을 OS 후보로 두면 하한을 모른다 → 검사 없음(HF32 이후 OS 후보는 RAID 레벨이 있어야 한다)
+        send(body(raid("1", OS_RAID1_480.replace("\"mode\": \"SPECIFIED\", \"size\": 480, \"unit\": \"GB\"",
+                        "\"mode\": \"AUTO\", \"size\": null, \"unit\": null"))
+                + "," + rhelWith(fixed("swap", 5000) + "," + ROOT_GROW)))
                 .andExpect(status().isCreated());
     }
 
@@ -429,14 +455,14 @@ class SettingRestControllerDiskGroupTest {
     void create_singleGrowAndLegacyDiskNameIgnored() throws Exception {
         given(commandService.create(any()))
                 .willThrow(com.example.serverprovision.provisioning.setting.exception.InvalidPartitionException.multipleGrow());
-        send(body(rhelWith(ROOT_GROW + "," + ROOT_GROW.replace("\"/\"", "\"/data\""))))
+        send(body(raid("1", OS_RAID1_480) + "," + rhelWith(ROOT_GROW + "," + ROOT_GROW.replace("\"/\"", "\"/data\""))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'partitions')].message")
                         .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("grow 파티션은 하나만"))));
 
         org.mockito.BDDMockito.willReturn(new SettingSaveResponse(14L, "디스크 세팅")).given(commandService).create(any());
         String legacy = "{\"mountPoint\": \"/\", \"fileSystem\": \"XFS\", \"diskName\": \"sda\", \"size\": 0, \"sizeUnit\": \"GB\", \"isGrow\": true}";
-        send(body(rhelWith(legacy))).andExpect(status().isCreated());
+        send(body(raid("1", OS_RAID1_480) + "," + rhelWith(legacy))).andExpect(status().isCreated());
     }
 
     // ==== E3.5-4 — 기존 구성 처리 축 · 사각 규칙(규칙 8) ====

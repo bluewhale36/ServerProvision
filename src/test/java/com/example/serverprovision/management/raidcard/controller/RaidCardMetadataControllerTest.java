@@ -60,7 +60,7 @@ class RaidCardMetadataControllerTest {
 				List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0, RAID1",
 				RaidChipFamily.MPT_IR,
 				0, "미탑재", false, pciDisplay, "desc",
-				true, false, false, LifecycleStage.ACTIVE);
+				true, false, false, LifecycleStage.ACTIVE, null);
 	}
 
 	// ==== 성공 2xx ====================================================

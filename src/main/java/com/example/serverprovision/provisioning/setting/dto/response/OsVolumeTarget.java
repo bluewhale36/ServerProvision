@@ -55,10 +55,13 @@ public record OsVolumeTarget(
                 hasGrow ? GROW_SUFFIX : "") + (over() ? OVER_SUFFIX : "");
     }
 
-    /** 폼 JS 에 내리는 문구 템플릿 — 분기 4 + 용량 4. */
+    /** 폼 JS 에 내리는 문구 템플릿 — 분기마다 문구 + 용량 4 + OS 설치를 막는 분기 목록(HF32 · 쉼표 구분, 차단 판정의 SSOT 를 JS 가 그대로 읽는다). */
     public static Map<String, String> messageTemplates() {
         Map<String, String> m = new LinkedHashMap<>();
         for (OsVolumeTargetKind k : OsVolumeTargetKind.values()) m.put(k.name(), k.getMessageTemplate());
+        m.put("BLOCKING_KINDS", java.util.Arrays.stream(OsVolumeTargetKind.values())
+                .filter(OsVolumeTargetKind::isBlocksOsInstall).map(Enum::name)
+                .collect(java.util.stream.Collectors.joining(",")));
         m.put("CAPACITY_UNKNOWN", CAPACITY_UNKNOWN);
         m.put("CAPACITY_FORMAT", CAPACITY_FORMAT);
         m.put("GROW_SUFFIX", GROW_SUFFIX);

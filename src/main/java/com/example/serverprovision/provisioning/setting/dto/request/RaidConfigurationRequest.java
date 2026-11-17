@@ -2,6 +2,7 @@ package com.example.serverprovision.provisioning.setting.dto.request;
 
 import com.example.serverprovision.provisioning.setting.enums.DiskGroupRole;
 import com.example.serverprovision.provisioning.setting.enums.ExistingRaidConfigPolicy;
+import com.example.serverprovision.provisioning.setting.enums.OsVolumeTargetKind;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -20,8 +21,9 @@ import java.util.Set;
  *
  * <p>정의서가 적는 것은 <b>규칙과 전제</b>다: 어떤 디스크를 어떤 RAID 로 묶는가(디스크 묶음 규칙 목록)와
  * 어떤 RAID 카드를 전제하는가. 규칙을 실제로 거는 것(집행)은 실행(E)의 몫이며, 그 phase 는
- * {@code ProvisioningPhase.RAID_CONFIGURATION}(BIOS 설정 다음 · OS 설치 전)이다. OS 설치 단계와 결합 규칙은
- * 없다 — RAID 구성만 있는 정의서 · OS 설치만 있는 정의서 모두 유효하다(v2 D14).</p>
+ * {@code ProvisioningPhase.RAID_CONFIGURATION}(BIOS 설정 다음 · OS 설치 전)이다. RAID 구성만 있는 정의서는 유효하다.
+ * OS 설치 단계는 이 단계의 OS 영역 RAID 볼륨을 전제한다 — 실행이 그 볼륨의 인벤토리 WWN 으로 설치 디스크를 정하기 때문이다
+ * (HF32 가 v2 D14 "결합 규칙 없음" 을 개정 · 판정은 {@link #osVolumeTargetKind}).</p>
  */
 @Getter
 public class RaidConfigurationRequest extends AbstractProcessRequest {
@@ -34,7 +36,7 @@ public class RaidConfigurationRequest extends AbstractProcessRequest {
      */
     private final Long raidCardId;
 
-    /** 디스크 묶음 규칙 목록. 비어 있으면 디스크 구성을 정하지 않는 것 — 설치기 자동 선택(구 동작). */
+    /** 디스크 묶음 규칙 목록. 비어 있으면 디스크 구성을 정하지 않는 것 — 실행은 카드의 RAID 구성을 바꾸지 않는다. */
     @Valid
     private final List<DiskGroupRuleRequest> diskGroups;
 
@@ -138,14 +140,33 @@ public class RaidConfigurationRequest extends AbstractProcessRequest {
 
     /**
      * 실행 시 어느 볼륨이 OS 인지 정의서만으로 정해지는가(U4-1-2 OQ2 · OQ3 확정 2026-08-19) —
-     * OS 고정 규칙이 있거나, 우선순위에 맡긴 규칙이 있고 우선순위 행이 하나 이상이다. 묶음 규칙이 없으면 볼륨
-     * 자체가 없어 판정 대상이 아니다(설치기 자동 — U4-1-1 그대로).
+     * OS 고정 규칙이 있거나, 우선순위에 맡긴 규칙이 있고 우선순위 행이 하나 이상이다. 묶음 유무 · 직결 후보는
+     * {@link #osVolumeTargetKind} 가 먼저 가른다(HF32) — 여기는 '우선순위에 따름' 의 우선순위 행 조건만 남은 재료다.
      */
     @JsonIgnore
     public boolean isOsVolumeDeterminable() {
         if (diskGroups.isEmpty()) return true;
         if (hasOsFixedRule()) return true;
         return hasByPriorityRule() && volumePriorities != null && !volumePriorities.isEmpty();
+    }
+
+    /**
+     * 정의서만으로 본 OS 영역 볼륨의 정해짐 방식(U4-1-3 D4 · HF32) — 저장 가드({@code SettingSaveRequest.isOsVolumeDeterminable}) ·
+     * 폼 안내 줄 · 상세가 같은 분기를 쓴다. OS 후보가 전부 RAID 없음이면 직결 디스크라 설치 디스크로 지목할 수 없다
+     * ({@link OsVolumeTargetKind#NO_RAID_CANDIDATE}). 후보에 RAID 와 직결이 섞이면 어느 쪽이 OS 가 될지는 서버가 정하므로 막지 않는다.
+     */
+    @JsonIgnore
+    public OsVolumeTargetKind osVolumeTargetKind() {
+        if (diskGroups.isEmpty()) return OsVolumeTargetKind.NONE;
+        List<DiskGroupRuleRequest> candidates = osCandidateRules();
+        if (candidates.isEmpty()) return OsVolumeTargetKind.NO_CANDIDATE;
+        if (candidates.stream().noneMatch(DiskGroupRuleRequest::buildsRaid)) return OsVolumeTargetKind.NO_RAID_CANDIDATE;
+        return hasOsFixedRule() ? OsVolumeTargetKind.FIXED : OsVolumeTargetKind.BY_PRIORITY;
+    }
+
+    /** RAID 구성 단계가 없는 정의서도 같은 분기로 — 단계가 없으면 {@link OsVolumeTargetKind#NONE}. */
+    public static OsVolumeTargetKind osVolumeTargetKindOf(RaidConfigurationRequest raidOrNull) {
+        return raidOrNull == null ? OsVolumeTargetKind.NONE : raidOrNull.osVolumeTargetKind();
     }
 
     /**

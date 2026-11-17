@@ -73,6 +73,18 @@ class SettingRestControllerSaveFlowTest {
         return "{\"name\": \"표준 세팅\", \"processList\": [" + processItems + "]}";
     }
 
+    /** HF32 — OS 설치 단계는 OS 영역 RAID 묶음을 정하는 RAID 구성 단계가 있어야 저장된다. 설치 단계 뒤에 붙여 processList[0] 을 유지한다. */
+    private static final String OS_RAID_STEP = """
+            {"type": "RAID_CONFIGURATION", "raidCardId": 1, "existingConfigPolicy": "DESTROY", "volumePriorities": [],
+             "diskGroups": [{"raidLevel": "RAID1", "diskType": "SSD", "transport": "SATA",
+                             "capacity": {"mode": "AUTO", "size": null, "unit": null},
+                             "count": {"mode": "EXACT", "value": 2}, "role": "OS"}]}
+            """;
+
+    private static String withOsVolume(String osInstallProcess) {
+        return osInstallProcess + "," + OS_RAID_STEP;
+    }
+
     private SettingSaveResponse saved(long id) {
         return new SettingSaveResponse(id, "표준 세팅");
     }
@@ -318,9 +330,9 @@ class SettingRestControllerSaveFlowTest {
 
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
-                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osFamily\": \"RHEL_BASED\","
+                        .content(body(withOsVolume("{\"type\": \"OS_INSTALLATION\", \"osFamily\": \"RHEL_BASED\","
                                 + LINUX_COMMON
-                                + ", \"environmentId\": 1, \"packageGroupIds\": [1, 2], \"isKDumpEnabled\": true, \"allowSshRoot\": null}")))
+                                + ", \"environmentId\": 1, \"packageGroupIds\": [1, 2], \"isKDumpEnabled\": true, \"allowSshRoot\": null}"))))
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<SettingSaveRequest> captor = ArgumentCaptor.forClass(SettingSaveRequest.class);
@@ -344,9 +356,9 @@ class SettingRestControllerSaveFlowTest {
 
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
-                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osFamily\": \"DEBIAN_BASED\","
+                        .content(body(withOsVolume("{\"type\": \"OS_INSTALLATION\", \"osFamily\": \"DEBIAN_BASED\","
                                 + LINUX_COMMON
-                                + ", \"hostname\": \"node-01\", \"packages\": [\"openssh-server\"]}")))
+                                + ", \"hostname\": \"node-01\", \"packages\": [\"openssh-server\"]}"))))
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<SettingSaveRequest> captor = ArgumentCaptor.forClass(SettingSaveRequest.class);
@@ -496,7 +508,7 @@ class SettingRestControllerSaveFlowTest {
 
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
-                        .content(body(WINDOWS_PROCESS)))
+                        .content(body(withOsVolume(WINDOWS_PROCESS))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(11));
 
@@ -584,7 +596,7 @@ class SettingRestControllerSaveFlowTest {
 
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
-                        .content(body(WINDOWS_PROCESS)))
+                        .content(body(withOsVolume(WINDOWS_PROCESS))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osMetadataId')]").exists());
     }
@@ -596,7 +608,7 @@ class SettingRestControllerSaveFlowTest {
 
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
-                        .content(body(WINDOWS_PROCESS)))
+                        .content(body(withOsVolume(WINDOWS_PROCESS))))
                 .andExpect(status().isNotFound());
     }
 
@@ -611,7 +623,7 @@ class SettingRestControllerSaveFlowTest {
 
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
-                        .content(body(WINDOWS_PROCESS)))
+                        .content(body(withOsVolume(WINDOWS_PROCESS))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'imageName')]").exists());
     }
@@ -624,11 +636,11 @@ class SettingRestControllerSaveFlowTest {
 
         mvc.perform(put("/provisioning/setting/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
-                        .content(body("""
+                        .content(body(withOsVolume("""
                                 {"type": "OS_INSTALLATION", "osFamily": "WINDOWS", "osMetadataId": 2, "isoId": 60,
                                  "imageName": "Windows Server 2025 SERVERSTANDARD",
                                  "administratorPassword": {"password": null, "keepExistingPassword": true}}
-                                """)))
+                                """))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'administratorPassword')]").exists());
     }
@@ -641,10 +653,10 @@ class SettingRestControllerSaveFlowTest {
 
         mvc.perform(put("/provisioning/setting/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
-                        .content(body("{\"type\": \"OS_INSTALLATION\", \"osFamily\": \"RHEL_BASED\","
+                        .content(body(withOsVolume("{\"type\": \"OS_INSTALLATION\", \"osFamily\": \"RHEL_BASED\","
                                 + LINUX_COMMON.replace("\"rootPassword\": {\"password\": \"pw\", \"isPasswordEncrypted\": false, \"keepExistingPassword\": false}",
                                                        "\"rootPassword\": {\"password\": null, \"isPasswordEncrypted\": false, \"keepExistingPassword\": true}")
-                                + ", \"environmentId\": 1, \"packageGroupIds\": [1], \"isKDumpEnabled\": false, \"allowSshRoot\": null}")))
+                                + ", \"environmentId\": 1, \"packageGroupIds\": [1], \"isKDumpEnabled\": false, \"allowSshRoot\": null}"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'rootPassword')].message").value(
                         org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("root"))));

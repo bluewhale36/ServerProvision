@@ -131,7 +131,11 @@
                         </tr>
                         <tr>
                             <th>지원 RAID 레벨</th>
-                            <td th:text="${card.supportedRaidLevelsDisplay}">RAID0, RAID1</td>
+                            <td>
+                                <span th:text="${card.supportedRaidLevelsDisplay}">RAID0, RAID1</span>
+                                <!-- HF32 — R17-2 이전 등록분의 계열이 만들 수 없는 레벨(정의서 폼에서 잠기는 이유) -->
+                                <div class="n-hint n-hint-warn" th:if="${card.uncreatableLevelsNotice != null}" th:text="${card.uncreatableLevelsNotice}"></div>
+                            </td>
                         </tr>
                         <tr>
                             <th>캐시</th>
