@@ -2,6 +2,8 @@
 
 관리자 화면 `/system/pxe-infra/network` 는 DHCP 모드(자체 DHCP 또는 proxyDHCP)와 그 값으로 dnsmasq 조각을 렌더해서 실제 dnsmasq 에 적용한다. 이 문서는 그 적용이 동작하려면 호스트에 미리 갖춰야 할 것을 설명한다. 애플리케이션은 비특권 계정 `provisioning` 으로 돈다고 전제한다. 종전의 dhcpd 배선 안내(E1-I-3-c)는 이 문서가 대체한다.
 
+> **문서 역할**: 이 문서는 PXE 서버를 구축하거나 복구할 때의 정본이다. 운영 중 유지보수(정기 점검, 배포 뒤 확인, 장애 대응 등)의 정본은 사용 매뉴얼의 서버 관리 묶음(`/manual/admin/`, 원본 `src/main/resources/static/manual/admin/`)이다. 두 문서에 겹치는 사실(경로, 서비스 이름, 환경변수)은 이 문서를 기준으로 맞춘다(2026-11-17 사용자 확정).
+
 ## 1. 왜 dnsmasq 인가
 
 사내망에서는 자체 DHCP 를 쓸 수 없고 사내 DHCP 도 고칠 수 없다. PXE 규격은 "IP 를 주는 DHCP" 와 "부팅 위치를 알려 주는 응답" 을 따로 받을 수 있게 되어 있고(proxyDHCP), ISC dhcpd 는 이것을 하지 못한다. dnsmasq 는 같은 데몬으로 두 모드를 다 낸다. 실습 LAN 처럼 IP 까지 배정해야 하는 곳은 자체 DHCP 모드로, 사내망은 proxyDHCP 모드로 쓴다. 모드는 화면에서 고르고 조각 한 벌이 통째로 다시 써진다.
