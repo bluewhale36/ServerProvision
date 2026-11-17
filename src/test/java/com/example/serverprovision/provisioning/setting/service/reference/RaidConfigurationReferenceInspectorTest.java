@@ -98,7 +98,7 @@ class RaidConfigurationReferenceInspectorTest {
     }
 
     @Test
-    @DisplayName("실 카드로 DiskGroupRules 판정 — RAID1 2개 통과 · RAID5 는 InvalidDiskGroupException(field=diskGroups)")
+    @DisplayName("실 카드로 DiskGroupRules 판정 — RAID1 2개 통과 · MPT IR 카드의 RAID5 는 칩 계열 문구로 InvalidDiskGroupException(field=diskGroups)")
     void cardDrivesRules() {
         var inspector = build();
         var enabledCard = card(true, false);
@@ -107,7 +107,7 @@ class RaidConfigurationReferenceInspectorTest {
         assertThatCode(() -> inspector.validateReferences(request(5L, RaidLevel.RAID1, 2), CTX)).doesNotThrowAnyException();
         assertThatThrownBy(() -> inspector.validateReferences(request(5L, RaidLevel.RAID5, 3), CTX))
                 .isInstanceOf(InvalidDiskGroupException.class)
-                .hasMessageContaining("RAID5 를 만들 수 없는 카드");
+                .hasMessageContaining("MPT IR (sas3ircu 계열)은 RAID0, RAID1, RAID10 만 만들 수 있습니다");
     }
 
     @Test

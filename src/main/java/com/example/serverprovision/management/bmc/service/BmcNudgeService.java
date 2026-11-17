@@ -1,8 +1,8 @@
 package com.example.serverprovision.management.bmc.service;
 
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
 import com.example.serverprovision.management.common.nudge.*;
-import com.example.serverprovision.management.common.nudge.exception.InvalidReplaceTargetException;
 import com.example.serverprovision.management.common.nudge.exception.NudgeNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ public class BmcNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
 	private final BmcRegistrationService bmcRegistrationService;
-	private final BmcLifecycleService bmcLifecycleService;
+	private final NudgeReplacer nudgeReplacer;
 	private final BmcUploadIntentService bmcUploadIntentService;
 
 	// ============================================================
@@ -37,14 +37,11 @@ public class BmcNudgeService {
 		return bmcId;
 	}
 
-	public Long replace(UUID nudgeId, Long targetId) {
+	public Long replace(UUID nudgeId, Long targetId, String typedName) {
 		NudgeSession session = requireBmcSession(nudgeId);
 		ContentNudgePayload payload = requireContentPayload(session);
-		if (!session.conflictTargetIds().contains(targetId)) {
-			throw new InvalidReplaceTargetException(targetId);
-		}
-		bmcLifecycleService.purge(targetId);
-		Long bmcId = bmcRegistrationService.persistFromNudge(session.boardId(), payload);
+		Long bmcId = nudgeReplacer.replace(session, ResourceType.BMC_FIRMWARE, targetId, typedName,
+				() -> bmcRegistrationService.persistFromNudge(session.boardId(), payload));
 		nudgeRegistry.remove(nudgeId);
 		log.info("[bmc-nudge.replace] nudgeId={}, replacedTarget={}, bmcId={}", nudgeId, targetId, bmcId);
 		return bmcId;
@@ -76,17 +73,14 @@ public class BmcNudgeService {
 		return response;
 	}
 
-	public BmcUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId) {
+	public BmcUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId, String typedName) {
 		NudgeSession session = requireBmcSession(nudgeId);
 		IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
-		if (!session.conflictTargetIds().contains(targetId)) {
-			throw new InvalidReplaceTargetException(targetId);
-		}
-		bmcLifecycleService.purge(targetId);
-		BmcUploadIntentResponse response = bmcUploadIntentService.issueAfterNudge(
-				session.boardId(),
-				bmcUploadIntentService.reconstructRequestFromAttributes(payload.attributes())
-		);
+		BmcUploadIntentResponse response = nudgeReplacer.replace(session, ResourceType.BMC_FIRMWARE, targetId, typedName,
+				() -> bmcUploadIntentService.issueAfterNudge(
+						session.boardId(),
+						bmcUploadIntentService.reconstructRequestFromAttributes(payload.attributes())
+				));
 		nudgeRegistry.remove(nudgeId);
 		// 마스킹 — upload token 평문 로깅 금지.
 		log.info("[bmc-nudge.intent.replace] nudgeId={}, replacedTarget={}", nudgeId, targetId);

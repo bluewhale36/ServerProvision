@@ -144,17 +144,19 @@
                             <th>기존 구성 처리</th>
                             <td th:switch="${process.existingConfigPolicy != null}">
                                 <span th:case="true" th:text="${process.existingConfigPolicy.displayName}">기존 구성 파괴</span>
-                                <span th:case="false" class="n-muted">미지정(구 저장본입니다. 편집해 저장할 때 선택해야 합니다)</span>
+                                <!-- 묶음이 없으면 처리할 구성이 없어 선택 대상이 아니다(existingPolicyPresentWhenRequired) — 구 저장본 안내는 묶음이 있을 때만(HF32 CP5 O-7) -->
+                                <span th:case="false" class="n-muted"
+                                      th:text="${#lists.isEmpty(process.diskGroups)} ? '-' : '미지정(구 저장본입니다. 편집해 저장할 때 선택해야 합니다)'">미지정(구 저장본입니다. 편집해 저장할 때 선택해야 합니다)</span>
                             </td>
                         </tr>
                         </tbody>
                     </table>
 
-                    <!-- 디스크 묶음 규칙(U4-1-1) — 규칙 목록. 비어 있으면 디스크 구성을 정하지 않은 것(설치기 자동 선택).
+                    <!-- 디스크 묶음 규칙(U4-1-1) — 규칙 목록. 비어 있으면 디스크 구성을 정하지 않은 것(실행은 카드의 RAID 구성을 바꾸지 않는다 · HF32).
                          행 순서 = 적용 순서(E3.5-7-a): 위 규칙부터 디스크를 가져가고 남은 디스크가 아래로 흐른다. -->
                     <div class="n-process-subsection">
                         <div class="n-label strong">디스크 구성</div>
-                        <span th:if="${#lists.isEmpty(process.diskGroups)}" class="n-muted">미설정: 설치기가 자동으로 고릅니다</span>
+                        <span th:if="${#lists.isEmpty(process.diskGroups)}" class="n-muted">미지정(RAID 구성 유지)</span>
                         <table class="n-table" th:unless="${#lists.isEmpty(process.diskGroups)}">
                             <thead>
                             <tr>
@@ -238,6 +240,11 @@
                 <th:block th:case="'OS_INSTALLATION'">
                     <!-- 계열별 상세 — Windows 는 리눅스 공통 표(타임존 · root · 파티션)를 갖지 않으므로 계열 switch 가 먼저 갈린다(E4-1-a-2).
                          판별자 없는 저장본은 해석기가 거절하므로 osFamily() 는 여기서 null 이 아니다(R11 식별 전용 분기 퇴역). -->
+                    <!-- HF32 — OS 설치가 전제하는 OS 영역 RAID 볼륨이 정의서에서 정해지지 않은 저장본(가드 이전 저장분)은 실행에서 막힌다.
+                         판정 · 문구 SSOT = OsVolumeTargetKind(blocksOsInstall) · 폼과 저장 가드가 같은 분기를 쓴다. -->
+                    <th:block th:with="osTarget=${setting.osVolumeTarget()}">
+                        <div class="n-hint is-danger" th:if="${osTarget.kind.blocksOsInstall}" th:text="${osTarget.toDisplay()}">OS 설치 단계가 있으면 RAID 구성 단계에서 OS 영역 볼륨을 정해야 합니다</div>
+                    </th:block>
                     <th:block th:switch="${process.osFamily().name()}">
                     <th:block th:case="'WINDOWS'"
                               th:insert="~{fragments/provisioning/setting/os-installation/detail-windows :: body(inst=${process})}"></th:block>
@@ -282,7 +289,8 @@
                         <!-- U4-1-3 — 파티션은 OS 영역 볼륨 하나에 놓인다. 어느 볼륨인지 · 용량 하한은 RAID 구성 단계가 정하므로 여기서는
                              그 결정을 안내한다(SettingDetailResponse.osVolumeTarget → OsVolumeTargets.describe). 구 '디스크' 열은 없다. -->
                         <div class="n-os-volume-target" th:with="target=${setting.osVolumeTarget()}">
-                            <div class="n-hint" th:classappend="${target.kind.name() == 'NO_CANDIDATE'} ? 'is-danger'" th:text="${target.toDisplay()}">RAID 구성 2번 묶음이 OS 영역입니다</div>
+                            <!-- 막히는 분기(HF32 · blocksOsInstall)는 카드 첫머리 안내가 이미 말하므로 여기서 되풀이하지 않는다 -->
+                            <div class="n-hint" th:unless="${target.kind.blocksOsInstall}" th:text="${target.toDisplay()}">RAID 구성 2번 묶음이 OS 영역입니다</div>
                             <div class="n-hint" th:if="${target.capacityDisplay() != null}" th:text="${target.capacityDisplay()}">OS 영역 최소 용량 480 GB</div>
                         </div>
                         <table class="n-table">

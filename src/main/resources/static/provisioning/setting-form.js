@@ -244,6 +244,7 @@
             filterIsoOptions(osId);
             syncWindowsBlock();
             syncOsSelectionLock();
+            refreshOsVolumeTargetHint();   // HF32 — Windows 설치 + RAID 없음 묶음 주의는 계열이 재료
         }
 
         /** 선택된 설치 OS 의 계열(옵션 data-os-family) — 미선택이면 ''. 판별자와 Windows 블록 노출의 단일 출처. */
@@ -539,7 +540,7 @@
                 selectedOption(row.querySelector('.dgType')).textContent,
                 selectedOption(row.querySelector('.dgTransport')).textContent, cap, cnt].join(', ');
         }
-        /** 네 분기 판정 — {kind, ruleNo, summary, bound}. bound null = 모름. */
+        /** 다섯 분기 판정(HF32) — {kind, ruleNo, summary, bound}. bound null = 모름. */
         function describeOsVolumeTarget() {
             if (!raidCardActive() || !rcDiskGroupTbody) return {kind: 'NONE'};
             const rows = diskGroupRows();
@@ -547,6 +548,8 @@
             const fixedIdx = rows.findIndex(r => r.querySelector('.dgRole').value === 'OS');
             const candidates = fixedIdx >= 0 ? [rows[fixedIdx]] : rows.filter(r => r.querySelector('.dgRole').value === 'BY_PRIORITY');
             if (!candidates.length) return {kind: 'NO_CANDIDATE'};
+            // HF32 — 후보가 전부 RAID 없음(직결)이면 설치 디스크를 지목할 수 없다(RaidConfigurationRequest.osVolumeTargetKind 와 같은 분기)
+            if (!candidates.some(rowBuildsRaid)) return {kind: 'NO_RAID_CANDIDATE'};
             let bound = Infinity;
             for (const r of candidates) {
                 const b = diskGroupLowerBound(r);
@@ -584,14 +587,50 @@
             const fixed = fixedPartitionBytes();
             return hasGrowPartition() ? fixed >= target.bound : fixed > target.bound;
         }
+        /** OS 설치를 막는 분기(서버 OsVolumeTargetKind.blocksOsInstall 의 목록 · HF32) — JS 는 판정 목록을 짓지 않고 받아 쓴다. */
+        const OS_INSTALL_BLOCKING_KINDS = String(OS_VOLUME_TARGET_MESSAGES.BLOCKING_KINDS || '').split(',').filter(Boolean);
+        function osInstallBlockedBy(kind) {
+            return OS_INSTALL_BLOCKING_KINDS.indexOf(kind) >= 0;
+        }
+        const oiOsVolumeRequirementHint = document.getElementById('oiOsVolumeRequirementHint');
+        const rcWindowsPassthroughHint = document.getElementById('rcWindowsPassthroughHint');
+        const rcVolumeLimitHint = document.getElementById('rcVolumeLimitHint');
+
+        /**
+         * HF32 — OS 설치 카드의 전제 안내(RAID 단계 없음 · 묶음 0 = NONE 만, OS 후보 문제는 RAID 카드의 rcNoOsCandidateHint 가 말한다)와
+         * RAID 카드의 주의 둘(Windows + RAID 없음 묶음 · 규칙 수 > 카드 볼륨 상한). 주의 둘은 저장을 막지 않는다.
+         */
+        function refreshOsInstallPrerequisiteHints() {
+            const target = describeOsVolumeTarget();
+            if (oiOsVolumeRequirementHint) {
+                const show = osInstallCardActive() && target.kind === 'NONE';
+                oiOsVolumeRequirementHint.textContent = show ? (OS_VOLUME_TARGET_MESSAGES.NONE || '') : '';
+                oiOsVolumeRequirementHint.hidden = !show;
+            }
+            const rows = raidCardActive() ? diskGroupRows() : [];
+            if (rcWindowsPassthroughHint) {
+                rcWindowsPassthroughHint.hidden = !(osInstallCardActive() && installOsFamily() === 'WINDOWS'
+                    && rows.some(row => !rowBuildsRaid(row)));
+            }
+            if (rcVolumeLimitHint) {
+                const card = selectedRaidCard();
+                const raidRuleCount = rows.filter(rowBuildsRaid).length;
+                const over = !!card && card.maxVolumes > 0 && raidRuleCount > card.maxVolumes;
+                rcVolumeLimitHint.textContent = over
+                    ? '규칙이 한 서버에서 모두 맞으면 볼륨이 ' + card.maxVolumes + '개를 넘어 실행 계획에서 거절됩니다.' : '';
+                rcVolumeLimitHint.hidden = !over;
+            }
+        }
+
         function refreshOsVolumeTargetHint() {
+            refreshOsInstallPrerequisiteHints();
             if (!oiOsVolumeTargetKind) return;
             const target = describeOsVolumeTarget();
             const M = OS_VOLUME_TARGET_MESSAGES;
             oiOsVolumeTargetKind.textContent = target.kind === 'FIXED'
                 ? fillTemplate(M.FIXED, [target.ruleNo, target.summary])
                 : (M[target.kind] || '');
-            oiOsVolumeTargetKind.classList.toggle('is-danger', target.kind === 'NO_CANDIDATE');
+            oiOsVolumeTargetKind.classList.toggle('is-danger', osInstallBlockedBy(target.kind));
             const hasTarget = target.kind === 'FIXED' || target.kind === 'BY_PRIORITY';
             oiOsVolumeTargetCapacity.hidden = !hasTarget;
             if (hasTarget) {
@@ -661,7 +700,7 @@
         // SettingSaveRequest.isOsVolumeDeterminable 과 같은 뜻.
         const MSG_OS_FIXED_ELSEWHERE = '번 묶음이 이미 OS 영역으로 고정되어 있습니다. OS 영역은 한 묶음만 고정할 수 있습니다.';
         const MSG_NO_OS_CANDIDATE_WITH_INSTALL = 'OS 영역이 될 수 있는 묶음(OS 영역 고정 또는 우선순위에 따름)이 없어 OS 설치 단계와 함께 저장할 수 없습니다.';
-        const MSG_NO_OS_CANDIDATE = 'OS 영역이 될 수 있는 묶음이 없습니다. OS 영역은 설치기가 자동 선택합니다.';
+        const MSG_NO_OS_CANDIDATE = 'OS 영역이 될 수 있는 묶음이 없습니다. OS 설치 단계가 없으면 정하지 않아도 됩니다.';
         const MSG_PRIORITY_DUPLICATE = '이미 있는 조합';
         const MSG_PRIORITY_EXHAUSTED = '종류와 전송의 조합 5가지를 모두 썼습니다. 행을 지운 뒤 추가해야 합니다.';
         const MSG_PRIORITY_EMPTY_WITH_INSTALL = 'OS 설치 단계가 있으면 OS 영역이 될 수 있는 묶음(OS 영역 고정, 또는 우선순위에 따름과 우선순위 행)이 있어야 합니다.';
@@ -858,12 +897,16 @@
                 const osOpt = roleSel.querySelector('option[value="OS"]');
                 if (osOpt) setOptionState(osOpt, osRow && row !== osRow ? osRowNo + MSG_OS_FIXED_ELSEWHERE : null);
             });
-            // OS 후보(OS 고정 · 우선순위에 따름)가 하나도 없으면 안내 — OS 설치 카드가 있으면 저장이 막힌다(isOsVolumeDeterminable).
+            // OS 후보(OS 고정 · 우선순위에 따름)가 하나도 없거나(NO_CANDIDATE) 후보가 전부 RAID 없음이면(NO_RAID_CANDIDATE · HF32) 안내 —
+            // OS 설치 카드가 있으면 저장이 막힌다(isOsVolumeDeterminable). 문구는 서버 OsVolumeTargetKind 가 SSOT.
             if (rcNoOsCandidateHint) {
-                const rows = diskGroupRows();
-                const noCandidate = rows.length > 0 && !rows.some(row => ['OS', 'BY_PRIORITY'].indexOf(row.querySelector('.dgRole').value) >= 0);
-                rcNoOsCandidateHint.textContent = noCandidate ? (osInstallCardActive() ? MSG_NO_OS_CANDIDATE_WITH_INSTALL : MSG_NO_OS_CANDIDATE) : '';
-                rcNoOsCandidateHint.hidden = !noCandidate;
+                const kind = describeOsVolumeTarget().kind;
+                const text = kind === 'NO_CANDIDATE'
+                    ? (osInstallCardActive() ? MSG_NO_OS_CANDIDATE_WITH_INSTALL : MSG_NO_OS_CANDIDATE)
+                    : (kind === 'NO_RAID_CANDIDATE' && osInstallCardActive() ? (OS_VOLUME_TARGET_MESSAGES.NO_RAID_CANDIDATE || '') : '');
+                rcNoOsCandidateHint.textContent = text;
+                rcNoOsCandidateHint.classList.toggle('is-danger', !!text && osInstallCardActive());
+                rcNoOsCandidateHint.hidden = !text;
             }
             applyPriorityConstraints();
 
@@ -1937,6 +1980,19 @@
                     if (container) paintFieldError(container, first.no + '번 묶음이 ' + first.sameAsNo + '번 묶음과 같은 규칙입니다. 조건 하나를 바꾸거나 행을 지워야 합니다.');
                     ok = false;
                 }
+                // HF32 CP5 N-1 · N-2 — markDuplicateDiskGroups 가 중복 아닌 행의 레벨 강조를 지우므로 그 뒤에 둔다. 저장본의 레벨이 지금 잠긴 선택지면(옛 MPT IR 카드의 RAID5 등) 서버보다 먼저 막는다. 사유는 잠금 title 그대로다
+                // (blockReasons = RaidCard.definableLevelBlockReason, 서버 DiskGroupRules 와 같은 문장).
+                const lockedLevelRow = rows.find(row => {
+                    const opt = selectedOption(row.querySelector('.dgLevel'));
+                    return opt && opt.value && opt.disabled;
+                });
+                if (lockedLevelRow) {
+                    const levelSel = lockedLevelRow.querySelector('.dgLevel');
+                    levelSel.classList.add('has-error');
+                    const container = form.querySelector('[data-error-field="diskGroups"]');
+                    if (container) paintFieldError(container, (rows.indexOf(lockedLevelRow) + 1) + '번 묶음: ' + (selectedOption(levelSel).title || ''));
+                    ok = false;
+                }
                 // 규칙 8 — 도달 불가 행이 있으면 제출하지 않는다(UI 1차 차단 · CP5 F-5). 문구는 서버 unreachableRule 의 400 문장과 같다.
                 const unreachable = unreachableDiskGroupFindings();
                 if (unreachable.message) {
@@ -1964,15 +2020,34 @@
                     ok = false;
                 }
                 // OS 설치 단계가 있으면 OS 볼륨이 정의서만으로 정해져야 한다(SettingSaveRequest.isOsVolumeDeterminable 의 1차 차단).
+                // 묶음 0(NONE)은 아래 카드 바깥 검사가 OS 설치 카드에서 막는다. 후보 문제(NO_CANDIDATE · NO_RAID_CANDIDATE · HF32)와
+                // '우선순위에 따름' 의 우선순위 행 부재는 원인이 보이는 이 카드에서 막는다.
                 if (stepTypeByIndex.includes('OS_INSTALLATION') && rows.length > 0) {
-                    const osFixed = osRows.length > 0;
-                    const byPriority = rows.some(row => row.querySelector('.dgRole').value === 'BY_PRIORITY');
-                    if (!osFixed && !(byPriority && priorityRows().length > 0)) {
+                    const kind = describeOsVolumeTarget().kind;
+                    const byPriority = kind === 'BY_PRIORITY';
+                    if (osInstallBlockedBy(kind)) {
+                        // 원인은 묶음 표다. 사유는 묶음 표 아래 안내 줄(rcNoOsCandidateHint, is-danger)이 이미 말하므로 문장을 덧붙이지 않고
+                        // 묶음 표만 강조한다(HF32 CP5 O-4: 같은 사실은 한 번, 강조는 원인 자리에).
+                        const container = form.querySelector('[data-error-field="diskGroups"]');
+                        if (container) container.classList.add('has-error');
+                        ok = false;
+                    } else if (byPriority && priorityRows().length === 0) {
                         const container = form.querySelector('[data-error-field="osVolumeDeterminable"]');
                         if (container) paintFieldError(container, MSG_PRIORITY_EMPTY_WITH_INSTALL);
                         ok = false;
                     }
                 }
+            }
+            // HF32 — OS 설치 단계가 있는데 RAID 구성 단계가 없거나 묶음이 없으면(NONE) OS 설치 카드에서 막는다(isOsVolumeDeterminable 의 1차 차단).
+            if (stepTypeByIndex.includes('OS_INSTALLATION') && describeOsVolumeTarget().kind === 'NONE') {
+                // 안내 줄(oiOsVolumeRequirementHint)이 이미 같은 문장을 보이므로 오류 문장을 덧붙이지 않고 강조만 한다(같은 사실은 한 번).
+                const container = form.querySelector('[data-error-field="osVolumeRequirement"]');
+                if (container) {
+                    container.hidden = false;
+                    container.textContent = OS_VOLUME_TARGET_MESSAGES.NONE || '';
+                    container.classList.add('has-error');
+                }
+                ok = false;
             }
             if (stepTypeByIndex.includes('OS_INSTALLATION') && oiPartitionTbody) {
                 let sizeError = false;

@@ -35,6 +35,7 @@ class BiosUploadIntentServiceTest {
     @Mock TargetDirectoryPolicyService targetDirectoryPolicyService;
     @Mock com.example.serverprovision.global.security.PathPolicyService pathPolicyService;
     @Mock BiosFirmwareFilePolicy biosFirmwareFilePolicy;
+    @Mock com.example.serverprovision.management.common.nudge.NudgeRegistry nudgeRegistry;
     @InjectMocks BiosUploadIntentService service;
 
     @org.junit.jupiter.api.BeforeEach
@@ -60,7 +61,6 @@ class BiosUploadIntentServiceTest {
     void issue_happy(@TempDir Path tmp) {
         Path target = tmp.resolve("target");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(false);
 
         var resp = service.issue(10L, req(target.toString()));
 
@@ -82,7 +82,8 @@ class BiosUploadIntentServiceTest {
     @DisplayName("issue(fail) : 활성 (board, version) 중복 → DuplicateBiosVersion")
     void issue_versionConflict(@TempDir Path tmp) {
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(true);
+        given(biosRepository.findAllByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(java.util.List.of(
+                com.example.serverprovision.management.bios.entity.BoardBIOS.builder().name("live").version("2.03").isDeleted(false).isDeprecated(false).build()));
 
         assertThatThrownBy(() -> service.issue(10L, req(tmp.resolve("t").toString())))
                 .isInstanceOf(DuplicateBiosVersionException.class);
@@ -93,7 +94,6 @@ class BiosUploadIntentServiceTest {
     void issue_targetNotEmpty(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(false);
         org.mockito.BDDMockito.willThrow(new TargetDirectoryNotEmptyException(target.toString()))
                 .given(targetDirectoryPolicyService).validateForIntent(any(Path.class), org.mockito.ArgumentMatchers.eq(false));
 
@@ -106,7 +106,6 @@ class BiosUploadIntentServiceTest {
     void issue_markerConflict(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(false);
         org.mockito.BDDMockito.willThrow(new MarkerConflictException(target.toString()))
                 .given(targetDirectoryPolicyService).validateForIntent(any(Path.class), org.mockito.ArgumentMatchers.eq(false));
 
@@ -118,7 +117,6 @@ class BiosUploadIntentServiceTest {
     @DisplayName("consume(happy) : 발급 직후 1회용 소비")
     void consume_happy(@TempDir Path tmp) {
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(false);
         String token = service.issue(10L, req(tmp.resolve("t").toString())).uploadToken();
 
         var intent = service.consume(10L, token);
@@ -140,7 +138,6 @@ class BiosUploadIntentServiceTest {
     @DisplayName("issue(fail) : vendor 파일 정책 위반 → InvalidFirmwareFileException 전파 + 토큰 미발급")
     void issue_policyViolation_propagates(@TempDir Path tmp) {
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(false);
         org.mockito.BDDMockito.willThrow(
                         new com.example.serverprovision.management.common.firmware.exception.InvalidFirmwareFileException(
                                 "허용되지 않는 파일", "firmwareFile"))
@@ -170,5 +167,54 @@ class BiosUploadIntentServiceTest {
         assertThat(reconstructed.fileSize()).isEqualTo(1024L);
         assertThat(reconstructed.version()).isEqualTo("2.03");
         assertThat(reconstructed.allowCreateDirectory()).isTrue();
+    }
+
+    // ==== HF30-2 — 상태별 안내 · 창 후보는 휴지통뿐 ====
+
+    private static com.example.serverprovision.management.bios.entity.BoardBIOS bios(Long id, boolean deprecated, boolean deleted) {
+        return com.example.serverprovision.management.bios.entity.BoardBIOS.builder()
+                .id(id).name("R13").version("2.03").isDeprecated(deprecated).isDeleted(deleted).build();
+    }
+
+    @Test
+    @DisplayName("HF30-2 issue : 같은 버전이 사용 중단 권고 → 창 없이 409, 사용 중단 권고 해제 안내(version 칸)")
+    void issue_deprecatedSameVersion_guides() {
+        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
+        given(biosRepository.findAllByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03")).willReturn(java.util.List.of(bios(3L, true, false)));
+
+        assertThatThrownBy(() -> service.issue(10L, req("/opt/bios/x")))
+                .isInstanceOf(DuplicateBiosVersionException.class)
+                .hasMessage("사용 중단 권고 상태인 같은 BIOS 버전이 있습니다(R13 2.03). 목록에서 사용 중단 권고를 해제해야 합니다.")
+                .extracting(e -> ((DuplicateBiosVersionException) e).fieldName()).isEqualTo("version");
+        org.mockito.Mockito.verifyNoInteractions(nudgeRegistry);
+    }
+
+    @Test
+    @DisplayName("HF30-2 issue : 활성과 사용 중단 권고가 함께 있으면 가장 살아 있는 활성 기준으로 안내한다")
+    void issue_activeAndDeprecated_guidesByActive() {
+        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
+        given(biosRepository.findAllByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "2.03"))
+                .willReturn(java.util.List.of(bios(3L, true, false), bios(4L, false, false)));
+
+        assertThatThrownBy(() -> service.issue(10L, req("/opt/bios/x")))
+                .hasMessage("이미 등록된 BIOS 버전입니다. R13 2.03");
+    }
+
+    @Test
+    @DisplayName("HF30-2 issue : 같은 버전이 휴지통에만 있으면 창(NUDGE_REQUIRED)으로 묻고 후보는 휴지통 행뿐")
+    void issue_trashedSameVersion_nudges() {
+        given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
+        given(biosRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(10L, "2.03")).willReturn(java.util.List.of(bios(5L, false, true)));
+        given(nudgeRegistry.register(any(), any(), any(), any())).willAnswer(inv -> new com.example.serverprovision.management.common.nudge.NudgeSession(
+                java.util.UUID.randomUUID(), inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3),
+                java.time.Instant.now(), java.time.Instant.now().plusSeconds(300)));
+
+        assertThatThrownBy(() -> service.issue(10L, req("/opt/bios/x")))
+                .isInstanceOf(com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException.class)
+                .satisfies(e -> {
+                    var nudge = (com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException) e;
+                    assertThat(nudge.getMessage()).isEqualTo("같은 메인보드와 버전의 BIOS 가 휴지통에 있습니다. 진행 방법을 선택해야 합니다.");
+                    assertThat(nudge.conflicts()).extracting(c -> c.id()).containsExactly(5L);
+                });
     }
 }

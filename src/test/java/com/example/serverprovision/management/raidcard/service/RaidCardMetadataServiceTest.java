@@ -59,7 +59,7 @@ class RaidCardMetadataServiceTest {
 		RaidCard card = RaidCard.builder()
 				.id(id).vendor(vendor).modelName(modelName)
 				.supportedRaidLevels(SupportedRaidLevels.of(List.of(RaidLevel.RAID0, RaidLevel.RAID1)))
-				.cacheCapacity(CacheCapacity.NONE)
+				.cacheCapacity(CacheCapacity.NONE).chipFamily(com.example.serverprovision.management.raidcard.enums.RaidChipFamily.MEGARAID)
 				.ownEnabled(true).ownDeprecated(false).isDeleted(false)
 				.build();
 		card.recomputeEffective();
@@ -70,7 +70,7 @@ class RaidCardMetadataServiceTest {
 		RaidCard card = RaidCard.builder()
 				.id(id).vendor(RaidCardVendor.GIGABYTE).modelName(modelName)
 				.supportedRaidLevels(SupportedRaidLevels.of(List.of(RaidLevel.RAID0)))
-				.cacheCapacity(CacheCapacity.NONE).ownEnabled(true).ownDeprecated(deprecated).isDeleted(deleted)
+				.cacheCapacity(CacheCapacity.NONE).chipFamily(com.example.serverprovision.management.raidcard.enums.RaidChipFamily.MEGARAID).ownEnabled(true).ownDeprecated(deprecated).isDeleted(deleted)
 				.build();
 		card.recomputeEffective();
 		return card;
@@ -287,7 +287,7 @@ class RaidCardMetadataServiceTest {
 				.id(2L).vendor(RaidCardVendor.AVAGO).modelName("9361-8i")
 				.pciSubsystemId(com.example.serverprovision.management.raidcard.vo.PciSubsystemId.parse("1000:9361"))
 				.supportedRaidLevels(SupportedRaidLevels.of(List.of(RaidLevel.RAID0)))
-				.cacheCapacity(CacheCapacity.NONE)
+				.cacheCapacity(CacheCapacity.NONE).chipFamily(com.example.serverprovision.management.raidcard.enums.RaidChipFamily.MEGARAID)
 				.ownEnabled(true).ownDeprecated(false).isDeleted(false)
 				.build();
 		avago.recomputeEffective();

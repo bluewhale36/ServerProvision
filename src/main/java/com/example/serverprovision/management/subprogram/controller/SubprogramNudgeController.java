@@ -21,7 +21,6 @@ import java.util.UUID;
 public class SubprogramNudgeController {
 
 	private final SubprogramNudgeService subprogramNudgeService;
-	private final com.example.serverprovision.global.trash.service.TypedNameVerifier typedNameVerifier;
 
 	/* ─────────────────────────── REST: nudge confirm (MK2) ─────────────────────────── */
 
@@ -39,10 +38,7 @@ public class SubprogramNudgeController {
 			@RequestParam("targetId") Long targetId,
 			@RequestParam(value = "typedName", required = false) String typedName
 	) {
-		if (typedName != null && !typedName.isBlank()) {
-			typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, targetId, typedName);
-		}
-		subprogramNudgeService.replace(nudgeId, targetId);
+		subprogramNudgeService.replace(nudgeId, targetId, typedName);
 		return ResponseEntity.noContent().build();
 	}
 
@@ -70,10 +66,7 @@ public class SubprogramNudgeController {
 			@RequestParam("targetId") Long targetId,
 			@RequestParam(value = "typedName", required = false) String typedName
 	) {
-		if (typedName != null && !typedName.isBlank()) {
-			typedNameVerifier.verify(com.example.serverprovision.global.marker.ResourceType.SUBPROGRAM, targetId, typedName);
-		}
-		return subprogramNudgeService.replaceIntent(nudgeId, targetId);
+		return subprogramNudgeService.replaceIntent(nudgeId, targetId, typedName);
 	}
 
 	@PostMapping("/intent-nudge/{nudgeId}/cancel")

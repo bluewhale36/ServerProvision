@@ -639,6 +639,33 @@ class RaidPlannerTest {
         }
 
         @Test
+        @DisplayName("HF32 — 칩 계열이 못 만드는 레벨(MPT_IR RAID5)은 LEVEL_NOT_CREATABLE 거절 · 규칙 번호와 정의서 수정 안내")
+        void ir_raid5_levelNotCreatable() {
+            RaidPlanOutcome outcome = RaidPlanner.plan(
+                    List.of(rule(RaidLevel.RAID5, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
+                            auto(), DiskCountMode.EXACT, 3, DiskGroupRole.DATA)),
+                    VolumePriorityRuleRequest.defaults(),
+                    inv(RaidChipFamily.MPT_IR, List.of(
+                            disk("1:0", "SSD", "SATA", S480), disk("1:1", "SSD", "SATA", S480),
+                            disk("1:2", "SSD", "SATA", S480)), List.of()),
+                    RaidExistingConfigPolicy.DESTROY);
+
+            assertThat(outcome).isInstanceOf(RaidPlanRejection.class);
+            RaidPlanRejection rejection = (RaidPlanRejection) outcome;
+            assertThat(rejection.code()).isEqualTo(RaidPlanRejection.LEVEL_NOT_CREATABLE);
+            assertThat(rejection.detail()).startsWith("1번 규칙: ").contains("RAID5").contains("만들 수 없습니다. 정의서를 수정해야 합니다.");
+
+            // 같은 규칙이 MegaRAID 에서는 계획된다(계열 판정만의 차이).
+            assertThat(RaidPlanner.plan(
+                    List.of(rule(RaidLevel.RAID5, DiskTypeRequirement.SSD, DiskTransportRequirement.AUTO,
+                            auto(), DiskCountMode.EXACT, 3, DiskGroupRole.DATA)),
+                    VolumePriorityRuleRequest.defaults(),
+                    mega(disk("1:0", "SSD", "SATA", S480), disk("1:1", "SSD", "SATA", S480),
+                            disk("1:2", "SSD", "SATA", S480)),
+                    RaidExistingConfigPolicy.DESTROY)).isInstanceOf(RaidPlan.class);
+        }
+
+        @Test
         @DisplayName("T7 — MPT_IR 볼륨 3개 계획은 VOLUME_LIMIT 거절(한계 2)")
         void ir_threeVolumes_rejected() {
             RaidPlanOutcome outcome = RaidPlanner.plan(

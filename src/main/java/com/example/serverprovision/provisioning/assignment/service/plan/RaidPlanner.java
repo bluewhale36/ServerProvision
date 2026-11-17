@@ -129,6 +129,13 @@ public final class RaidPlanner {
         List<Entry> volumes = entries.stream().filter(e -> e.volume).toList();
         if (family != null) {
             for (Entry v : volumes) {
+                // 레벨 — 정의서 저장 가드(RaidCard.definableLevelBlockReason)와 같은 계열 판정. 가드 이전에 저장된 정의서가
+                // 집행(sas3ircu create)에서 실패하지 않고 진단 뒤 계획에서 보류로 드러나게 한다(HF32 · C-23).
+                if (!family.canCreate(v.level)) {
+                    return new RaidPlanRejection(RaidPlanRejection.LEVEL_NOT_CREATABLE,
+                            v.ruleNo + "번 규칙: 이 칩 계열은 " + v.level.getDisplayName() + " " + v.level.getObjectParticle()
+                                    + " 만들 수 없습니다. 정의서를 수정해야 합니다.");
+                }
                 // 계획은 카드 캐시를 모른다 — 하한은 저장 가드가 이미 보장했으므로 가장 느슨한 하한(캐시 있음)으로
                 // 규칙을 받고, 여기서 새로 잡는 것은 상한 · 단위다('개 이상' 그룹의 홀수 등 · R17-1 축 5).
                 String reason = family.memberCountRule(v.level, true, v.rule.drivesPerSpan()).blockReasonFor(v.members.size());
