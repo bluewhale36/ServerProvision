@@ -22,7 +22,7 @@
     <div class="n-filter-row-field n-lookup-field" data-lookup-field
          th:attr="data-lookup-url=${lookupUrl},data-lookup-name=${name},data-lookup-remove-label=#{common.lookup.remove},data-lookup-chosen-label=#{common.lookup.chosen}">
         <button type="button" class="n-lookup-open" data-lookup-open th:aria-label="#{common.lookup.open(${label})}">
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <svg th:replace="~{fragments/icon :: icon('magnifying-glass')}"></svg>
         </button>
         <input type="text" class="n-input n-lookup-input" data-lookup-input autocomplete="off"
                th:placeholder="#{common.list.search-placeholder}" th:aria-label="#{common.lookup.open(${label})}">
@@ -45,7 +45,7 @@
             <input type="text" class="n-input" data-lookup-search autocomplete="off"
                    th:placeholder="#{common.list.search-placeholder}" th:aria-label="#{common.lookup.open(${label})}">
             <button type="button" class="n-btn n-btn-primary n-btn-sm" data-lookup-search-btn th:text="#{common.list.search-open}">Search</button>
-            <label th:if="${disabledToggle}" class="n-chip n-lookup-disabled">
+            <label th:if="${disabledToggle}" class="n-chip">
                 <input type="checkbox" data-lookup-disabled><span th:text="#{common.lookup.include-disabled}">비활성 포함</span>
             </label>
         </div>

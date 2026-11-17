@@ -389,7 +389,7 @@ class SubprogramControllerTest {
         given(subprogramService.findSubprogram(7L)).willReturn(driverResponse());
         given(subprogramService.checkVariants(eq(7L), any())).willReturn(java.util.List.of(
                 new com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Finding(0,
-                        com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRYPOINT_PATH, ".. 시그먼트 금지")));
+                        com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRYPOINT_PATH, "상위 경로(..) 금지")));
 
         mvc.perform(post("/management/subprogram/7/edit")
                         .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER")
@@ -397,7 +397,7 @@ class SubprogramControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("management/subprogram/subprogram-edit"))
                 .andExpect(model().attributeHasFieldErrors("subprogramForm", "variants[0].entrypointRelativePath"))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString(".. 시그먼트 금지")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("상위 경로(..) 금지")));
 
         org.mockito.Mockito.verify(subprogramService, org.mockito.Mockito.never()).update(any(), any());
     }

@@ -49,7 +49,7 @@ public class StrayMarkerCleanupResolution implements DriftResolution {
 		try {
 			Files.deleteIfExists(strayMarker);
 		} catch (IOException e) {
-			throw new IllegalStateException("미아 마커 정리 실패 — 디스크 상태 점검 필요 : " + strayMarker, e);
+			throw new IllegalStateException("미아 마커를 정리하지 못했습니다. 디스크 상태를 점검해야 합니다: " + strayMarker, e);
 		}
 		log.info("[reconciliation] 미아 마커 정리 완료. {}#{} marker={}",
 				drift.getResourceType(), drift.getResourceId(), strayMarker);

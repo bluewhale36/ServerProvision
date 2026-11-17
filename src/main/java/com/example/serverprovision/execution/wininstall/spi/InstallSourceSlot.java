@@ -12,20 +12,20 @@ import java.nio.file.Path;
  */
 public enum InstallSourceSlot implements SystemAssetSlot {
 
-    BOOT_WIM("WinPE 부팅 이미지 (boot.wim)", "sources/boot.wim", "netboot 아티팩트", Cadence.SOURCE),
-    INSTALL_WIM("설치 이미지 (install.wim)", "sources/install.wim", "설치 소스", Cadence.SOURCE),
-    SETUP_EXE("Windows Setup (setup.exe)", "sources/setup.exe", "설치 소스", Cadence.SOURCE),
-    WIMBOOT("wimboot 부트로더 (wimboot)", "wimboot", "netboot 아티팩트", Cadence.SOURCE),
+    BOOT_WIM("WinPE 부팅 이미지", "sources/boot.wim", "네트워크 부팅 파일", Cadence.SOURCE),
+    INSTALL_WIM("설치 이미지", "sources/install.wim", "설치 소스", Cadence.SOURCE),
+    SETUP_EXE("Windows Setup", "sources/setup.exe", "설치 소스", Cadence.SOURCE),
+    WIMBOOT("wimboot 부트로더", "wimboot", "네트워크 부팅 파일", Cadence.SOURCE),
     /** E4-1-a-4 — 조립 액션이 만든다. Setup 이 {@code $$} → {@code %WINDIR%} 로 복사해 첫 로그온 전에 실행한다. */
-    OEM_SETUPCOMPLETE("설치 후 스크립트 (SetupComplete.cmd)", "sources/$OEM$/$$/Setup/Scripts/SetupComplete.cmd",
+    OEM_SETUPCOMPLETE("설치 후 스크립트", "sources/$OEM$/$$/Setup/Scripts/SetupComplete.cmd",
             "설치 후 페이로드", Cadence.OEM),
     /** E4-1-a-4 — 조립 액션이 만든다. Setup 이 {@code $1} → 시스템 드라이브 루트로 복사해 첫 로그온이 실행한다. */
-    OEM_REPORT("완료 보고 스크립트 (spv-report.ps1)", "sources/$OEM$/$1/SPV/spv-report.ps1", "설치 후 페이로드", Cadence.OEM);
+    OEM_REPORT("완료 보고 스크립트", "sources/$OEM$/$1/SPV/spv-report.ps1", "설치 후 페이로드", Cadence.OEM);
 
     /** enum 상수는 자기 클래스의 static 필드를 앞서 참조할 수 없어(forward reference) 홀더에 둔다. */
     private static final class Cadence {
-        static final String SOURCE = "Windows 버전 교체 시 (런북 §14-1 추출 절차)";
-        static final String OEM = "드라이버 자원 변경 시 (대시보드 [드라이버 페이로드 조립])";
+        static final String SOURCE = "Windows 버전 교체 시";
+        static final String OEM = "드라이버 자원 변경 시(드라이버 페이로드 조립)";
     }
 
     private final String label;

@@ -171,7 +171,7 @@ class GuestServerControllerListTest {
         mvc.perform(get("/provisioning/server").param("includeDecommissioned", "true"))
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("pendingOpen", false))
-                .andExpect(content().string(containsString("부팅 · 네트워크 점검 대상")))
+                .andExpect(content().string(containsString("부팅과 네트워크를 점검해야 합니다")))
                 .andExpect(content().string(not(containsString("srv-a"))))
                 .andExpect(content().string(containsString("href=\"/provisioning/server?includeDecommissioned=true&amp;pending=open\"")));
     }

@@ -10,7 +10,7 @@ package com.example.serverprovision.execution.asset.enums;
  */
 public enum Category {
 
-    NETBOOT("netboot 아티팩트"),
+    NETBOOT("네트워크 부팅 파일"),
     CONFIG("구성 자산"),
     AGENT("진단 에이전트");
 

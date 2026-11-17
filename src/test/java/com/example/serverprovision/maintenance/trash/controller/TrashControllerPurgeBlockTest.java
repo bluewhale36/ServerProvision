@@ -78,7 +78,7 @@ class TrashControllerPurgeBlockTest {
 		mvc.perform(get("/maintenance/trash"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("data-tooltip=\"" + REASON + "\"")))
-				.andExpect(content().string(matchesPattern("(?s).*<button type=\"submit\" class=\"n-btn n-btn-sm n-btn-outline-danger\"\\s+disabled=\"disabled\">영구삭제</button>.*")));
+				.andExpect(content().string(matchesPattern("(?s).*<button type=\"submit\" class=\"n-btn n-btn-sm n-btn-outline-danger\"\\s+disabled=\"disabled\">영구 삭제</button>.*")));
 	}
 
 	@Test
@@ -88,7 +88,7 @@ class TrashControllerPurgeBlockTest {
 
 		mvc.perform(get("/maintenance/trash"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(matchesPattern("(?s).*<button type=\"submit\" class=\"n-btn n-btn-sm n-btn-outline-danger\"\\s*>영구삭제</button>.*")));
+				.andExpect(content().string(matchesPattern("(?s).*<button type=\"submit\" class=\"n-btn n-btn-sm n-btn-outline-danger\"\\s*>영구 삭제</button>.*")));
 	}
 
 	@Test

@@ -73,7 +73,7 @@ public class PollFlashTaskStep implements FlashStep {
         if (timeoutPolicy.isExpired(row.getStartedAt(), timeoutPolicy.limitFor(axis), context.now())) {
             tokenRegistry.revoke(context.server().getId(), axis);
             ledger.close(row, ProvisioningStatus.FAILED, state.getReasonCode(),
-                    "시한 " + timeoutPolicy.limitFor(axis) + " 초과", context.now());
+                    "펌웨어 업데이트가 실패했습니다.", context.now());   // S22-3 사용자 판정(SD-074) — 시한 값은 로그가 남긴다
             context.progress().markFailed(context.now());
         }
     }

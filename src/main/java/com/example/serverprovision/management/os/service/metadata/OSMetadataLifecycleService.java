@@ -162,7 +162,7 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	public void purge(Long id) {
 		OSMetadata image = osMetadataRepository.findByIdAndIsDeletedTrue(id)
 				.orElseThrow(() -> new IllegalOSMetadataStateException(
-						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+						"삭제된 항목만 영구 삭제할 수 있습니다. id=" + id));
 		for (ISO iso : image.getIsos()) {
 			isoLifecycleService.cleanupArtifacts(iso);   // R1-4-1 — IsoLifecycleService 로 위임
 		}

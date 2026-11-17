@@ -147,7 +147,7 @@ class OSMetadataServiceTest {
 
         assertThatThrownBy(() -> osMetadataService.create(request))
                 .isInstanceOf(DuplicateOSMetadataException.class)
-                .hasMessage("Deprecated 상태로 등록된 같은 OS 버전이 있습니다(Rocky Linux 9.6). 목록에서 Deprecated 를 해제하십시오.");
+                .hasMessage("사용 중단 권고 상태인 같은 OS 버전이 있습니다(Rocky Linux 9.6). 목록에서 사용 중단 권고를 해제해야 합니다.");
         verify(osMetadataRepository, never()).saveAndFlush(any());
     }
 

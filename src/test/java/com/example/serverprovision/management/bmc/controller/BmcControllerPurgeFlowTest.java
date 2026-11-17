@@ -116,7 +116,7 @@ class BmcControllerPurgeFlowTest {
 
         mvc.perform(get("/management/bmc"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("+ 신규 BMC 등록")));
+                .andExpect(content().string(containsString("class=\"n-btn n-btn-primary\">+ BMC 등록")));
     }
 
     // S5-6-1 — purge form 에 typed-name expected value 부재 + 자원 식별 마커만 존재.

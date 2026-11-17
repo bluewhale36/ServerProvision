@@ -31,29 +31,29 @@ public record ReconciliationSettingsRequest(
 
 		List<String> autoApplyKinds,
 
-		@NotNull(message = "시스템 해결 허용 여부를 선택해주세요.")
+		@NotNull(message = "시스템 해결 허용 여부를 선택해야 합니다.")
 		Boolean resolutionEnabled,
 
-		@NotNull(message = "보고서 보관 개수를 입력해주세요.")
-		@Min(value = 1, message = "보고서는 최소 1 회분은 남겨야 해요.")
-		@Max(value = 10000, message = "보고서 보관 개수는 10000 이하로 입력해주세요.")
+		@NotNull(message = "보고서 보관 개수를 입력해야 합니다.")
+		@Min(value = 1, message = "보고서는 1회분 이상 남겨야 합니다.")
+		@Max(value = 10000, message = "보고서 보관 개수는 10000 이하로 입력해야 합니다.")
 		Integer reportRetentionCount,
 
 		String extraScanRoots,
 
-		@NotNull(message = "기동 직후 점검 여부를 선택해주세요.")
+		@NotNull(message = "기동 직후 점검 여부를 선택해야 합니다.")
 		Boolean startupScanEnabled,
 
 		/*
 		 * 경계값은 ScanInterval 이 SSOT 다. 컴파일 상수라 어노테이션에 그대로 쓸 수 있고, 메시지의
 		 * {value} 가 그 상수를 그대로 찍으므로 숫자를 두 곳에 적어 어긋날 여지가 없다.
 		 */
-		@NotNull(message = "일반 점검 주기를 입력해주세요.")
+		@NotNull(message = "일반 점검 주기를 입력해야 합니다.")
 		@Min(value = ScanInterval.MIN_MINUTES, message = "점검 주기는 최소 {value} 분입니다.")
 		@Max(value = ScanInterval.MAX_MINUTES, message = "점검 주기는 최대 {value} 분(30일)입니다.")
 		Integer scanIntervalMinutes,
 
-		@NotNull(message = "정밀 점검 주기를 입력해주세요.")
+		@NotNull(message = "정밀 점검 주기를 입력해야 합니다.")
 		@Min(value = ScanInterval.MIN_MINUTES, message = "점검 주기는 최소 {value} 분입니다.")
 		@Max(value = ScanInterval.MAX_MINUTES, message = "점검 주기는 최대 {value} 분(30일)입니다.")
 		Integer deepScanIntervalMinutes
@@ -80,7 +80,7 @@ public record ReconciliationSettingsRequest(
 	}
 
 	/** 보낸 이름이 전부 실재하는 자동 처리 후보인가. 화면은 후보만 렌더하므로 정상 흐름에서는 늘 참이다. */
-	@AssertTrue(message = "자동 처리 대상에 알 수 없는 종류가 섞여 있어요. 화면을 새로 고친 뒤 다시 선택해주세요.")
+	@AssertTrue(message = "자동 처리 대상에 알 수 없는 종류가 있습니다. 화면을 새로 고친 뒤 다시 선택해야 합니다.")
 	public boolean isAutoApplyKindsKnown() {
 		if (autoApplyKinds == null) return true;
 		for (String name : autoApplyKinds) {
@@ -101,7 +101,7 @@ public record ReconciliationSettingsRequest(
 	 * 달라질 수 있기 때문이다. 존재 여부는 보지 않는다 — 아직 마운트되지 않은 백업 경로를 미리
 	 * 등록하는 것이 정당한 운영이라 화면이 경고로만 알린다.</p>
 	 */
-	@AssertTrue(message = "추가 점검 경로는 한 줄에 하나씩, 절대 경로로 입력해주세요.")
+	@AssertTrue(message = "추가 점검 경로는 한 줄에 하나씩 절대 경로로 입력해야 합니다.")
 	public boolean isExtraScanRootsValid() {
 		if (extraScanRoots == null || extraScanRoots.isBlank()) return true;
 		for (String line : extraScanRoots.split("\\R")) {

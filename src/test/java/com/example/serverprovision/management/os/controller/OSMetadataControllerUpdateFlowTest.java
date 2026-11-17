@@ -86,7 +86,7 @@ class OSMetadataControllerUpdateFlowTest {
 						.param("description", "가".repeat(1025)))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("description"))
-				.andExpect(jsonPath("$.fieldErrors[0].message").value("설명은 1024자 이하로 입력해주세요."));
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("설명은 1024자 이하로 입력해야 합니다."));
 
 		verify(osMetadataService, never()).create(any());
 	}
@@ -126,7 +126,7 @@ class OSMetadataControllerUpdateFlowTest {
 		postCreateRocky96()
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.message").value(
-						"Deprecated 상태로 등록된 같은 OS 버전이 있습니다(Rocky Linux 9.6). 목록에서 Deprecated 를 해제하십시오."));
+						"사용 중단 권고 상태인 같은 OS 버전이 있습니다(Rocky Linux 9.6). 목록에서 사용 중단 권고를 해제해야 합니다."));
 	}
 
 	@Test
@@ -138,7 +138,7 @@ class OSMetadataControllerUpdateFlowTest {
 		postCreateRocky96()
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.message").value(
-						"휴지통에 같은 OS 버전이 있습니다(Rocky Linux 9.6). 휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오."));
+						"휴지통에 같은 OS 버전이 있습니다(Rocky Linux 9.6). 휴지통에서 복구하거나 영구 삭제한 뒤 등록해야 합니다."));
 	}
 
 	@Test

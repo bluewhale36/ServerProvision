@@ -53,7 +53,7 @@ public class TrashService {
 		try {
 			Files.createDirectories(trashDir);
 		} catch (IOException e) {
-			throw new TrashMoveFailedException("trash 디렉토리 생성 실패 : " + trashDir, e);
+			throw new TrashMoveFailedException("휴지통 폴더를 만들지 못했습니다: " + trashDir, e);
 		}
 
 		Path trashedPath = trashDir.resolve(generateTrashedFileName(resourcePath));
@@ -94,7 +94,7 @@ public class TrashService {
 		try {
 			Files.createDirectories(trashedPath.getParent());
 		} catch (IOException e) {
-			throw new TrashMoveFailedException("역보상 대상 휴지통 디렉토리 재생성 실패 : " + trashedPath.getParent(), e);
+			throw new TrashMoveFailedException("휴지통 폴더를 다시 만들지 못했습니다: " + trashedPath.getParent(), e);
 		}
 		moveWithRetry(originalPath, trashedPath);
 		log.info("[trash] moveBackReverse (역보상) from={} to={}", originalPath, trashedPath);
@@ -173,7 +173,7 @@ public class TrashService {
 			}
 		}
 		throw new TrashMoveFailedException(
-				"trash 이동 " + MAX_MOVE_RETRY + "회 retry 실패 — 운영자 즉시 점검 필요 : " + source + " → " + target,
+				"휴지통으로 옮기지 못했습니다(" + MAX_MOVE_RETRY + "회 시도). 디스크 상태를 점검해야 합니다: " + source + " → " + target,
 				lastError
 		);
 	}

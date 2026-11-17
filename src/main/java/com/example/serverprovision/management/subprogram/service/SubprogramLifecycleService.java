@@ -212,7 +212,7 @@ public class SubprogramLifecycleService implements LifecycleService {
 		Subprogram sp = SubprogramGuards.requireExisting(subprogramRepository, subprogramId);
 		if (!sp.isDeleted()) {
 			throw new IllegalSubprogramStateException(
-					"활성 상태에서는 영구 삭제할 수 없습니다. 먼저 삭제(soft-delete)를 수행하세요. id=" + subprogramId);
+					"휴지통에 있는 자원만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다.");
 		}
 		bundleTreeCleanupService.purgeOwnedTree(sp, "purgeSubprogram");   // HF31 — 원래 경로가 이 자원의 트리일 때만
 		subprogramRepository.delete(sp);

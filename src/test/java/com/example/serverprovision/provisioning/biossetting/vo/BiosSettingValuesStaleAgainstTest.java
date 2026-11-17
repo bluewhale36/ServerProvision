@@ -63,7 +63,7 @@ class BiosSettingValuesStaleAgainstTest {
         assertThat(stale).singleElement().satisfies(v -> {
             assertThat(v.kind()).isEqualTo(BiosStaleKind.VALUE_NOT_ALLOWED);
             assertThat(v.allowed()).containsExactly("Disable", "Enable");
-            assertThat(v.message()).isEqualTo("Whitley0000 = Disabled — 허용 {Disable, Enable}");
+            assertThat(v.message()).isEqualTo("Whitley0000 = Disabled(허용 값: Disable, Enable)");
         });
     }
 

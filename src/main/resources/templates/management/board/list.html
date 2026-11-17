@@ -26,7 +26,7 @@
         <h1 class="n-page-title">메인보드 모델 관리</h1>
         <div class="n-header-actions">
             <a th:href="@{/management/board/new}"
-               class="n-btn n-btn-primary">+ 신규 메인보드 모델 등록</a>
+               class="n-btn n-btn-primary">+ 메인보드 모델 등록</a>
         </div>
     </div>
 
@@ -41,9 +41,8 @@
     <div th:if="${#lists.isEmpty(boardGroups) and !query.filtered}" class="n-card">
         <div class="n-empty">
             <div class="n-empty-title"
-                 th:text="${includeDeleted} ? '등록된 메인보드 모델이 없습니다 (휴지통 포함).' : '등록된 메인보드 모델이 없습니다.'">등록된 메인보드 모델이 없습니다.
+                 th:text="${includeDeleted} ? '등록된 메인보드 모델이 없습니다(휴지통 포함).' : '등록된 메인보드 모델이 없습니다.'">등록된 메인보드 모델이 없습니다.
             </div>
-            <div class="n-empty-desc">"신규 모델 등록" 버튼으로 메인보드 모델을 추가하세요.</div>
         </div>
     </div>
 
@@ -80,9 +79,9 @@
                         <span th:text="${board.modelName}">MS03-CE0-000</span>
                         <span th:if="${board.isDeprecated and !board.isDeleted}"
                               class="n-deprecated-dot"
-                              title="Deprecated"></span>
+                              title="사용 중단"></span>
                         <span class="n-note" th:if="${board.isDeleted}"
-                             >(삭제됨)</span>
+                             >(삭제)</span>
                     </span>
                     <span th:unless="${board.isDeleted}"
                           class="n-miller-status-tag"
@@ -101,10 +100,9 @@
         <div class="n-miller-col n-miller-col-detail">
             <!-- S5-5 — C3 안내 텍스트 2 상태. -->
             <div class="n-miller-empty" id="millerEmpty"
-                 data-empty-before="제조사를 선택하여 모델 보기"
-                 data-empty-after="모델을 선택하여 상세 보기"
-                 th:text="${selectKey != null or selectId != null} ? '모델을 선택하여 상세 보기' : '제조사를 선택하여 모델 보기'">제조사를 선택하여 모델
-                보기
+                 data-empty-before="제조사 선택"
+                 data-empty-after="모델 선택"
+                 th:text="${selectKey != null or selectId != null} ? '모델 선택' : '제조사 선택'">제조사 선택
             </div>
             <!-- S8-3 — 주소의 선택이 조건에 걸려 그려지지 않았을 때(os-list.js 가 연다). -->
             <th:block th:replace="~{fragments/ui/resource-filter :: selectionFiltered(${query}, ${links.without('q','enabled','deprecated')})}"></th:block>
@@ -131,17 +129,17 @@
                                 <span th:text="${board.modelName}"></span>
                                 <span th:if="${board.isDeprecated}"
                                       class="n-badge n-badge-yellow n-meta"
-                                     >Deprecated</span>
+                                     >사용 중단</span>
                             </td>
                         </tr>
                         <tr>
                             <th>설명</th>
-                            <td th:text="${board.description != null and !#strings.isEmpty(board.description)} ? ${board.description} : '—'"></td>
+                            <td th:text="${board.description != null and !#strings.isEmpty(board.description)} ? ${board.description} : '-'"></td>
                         </tr>
                         <tr>
                             <th>호환 자원</th>
                             <td>
-                                <span th:text="'BIOS ' + ${board.biosCount} + '건 · BMC ' + ${board.bmcCount} + '건'">BIOS 0건 · BMC 0건</span>
+                                <span th:text="|BIOS ${board.biosCount}건, BMC ${board.bmcCount}건, 드라이버와 유틸리티 ${board.subprogramCount}건|">BIOS 0건, BMC 0건, 드라이버와 유틸리티 0건</span>
                             </td>
                         </tr>
                         <tr>
@@ -155,7 +153,7 @@
                         <tr th:unless="${board.isDeleted}">
                             <th>사용 중단 권고</th>
                             <td>
-                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${board.isDeprecated}, deprecateUrl=@{/management/board/{id}/deprecate(id=${board.id})}, undeprecateUrl=@{/management/board/{id}/undeprecate(id=${board.id})}, deprecateConfirm=true, label=|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|, extra=|하위 BIOS · BMC · 드라이버·유틸리티 도 함께 Deprecated 표시돼요.|, blockUndeprecate=false, blockTip=null, undeprecateConfirm=false, resourceType=null, resourceId=null, selectKey=null, includeDeleted=null, badgeOn='Deprecated', btnOn='Deprecated 표시', btnOff='Deprecated 해제')}"></div>
+                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${board.isDeprecated}, deprecateUrl=@{/management/board/{id}/deprecate(id=${board.id})}, undeprecateUrl=@{/management/board/{id}/undeprecate(id=${board.id})}, deprecateConfirm=true, label=|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|, extra=|하위 BIOS, BMC, 드라이버, 유틸리티에도 함께 사용 중단을 권고합니다.|, blockUndeprecate=false, blockTip=null, undeprecateConfirm=false, resourceType=null, resourceId=null, selectKey=null, includeDeleted=null, badgeOn='사용 중단', btnOn='사용 중단 권고', btnOff='사용 중단 권고 해제')}"></div>
                             </td>
                         </tr>
                         </tbody>
@@ -173,7 +171,7 @@
                                   method="post"
                                   data-confirm-soft-delete=""
                                   th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
-                                  th:data-resource-extra="|하위 BIOS ${board.biosCount} · BMC ${board.bmcCount} · 드라이버·유틸리티 ${board.subprogramCount} 도 함께 삭제돼요.|">
+                                  th:data-resource-extra="|하위 BIOS ${board.biosCount}건, BMC ${board.bmcCount}건, 드라이버와 유틸리티 ${board.subprogramCount}건도 함께 삭제합니다.|">
                                 <button type="submit" class="n-btn n-btn-outline-danger">삭제</button>
                             </form>
                         </th:block>
@@ -182,8 +180,8 @@
                                   method="post"
                                   data-confirm-restore=""
                                   th:data-resource-label="|메인보드 모델 '${board.vendor.displayName} ${board.modelName}'|"
-                                  data-cascade-true-title="하위 BIOS / BMC / 드라이버·유틸리티 도 함께 복구"
-                                  data-cascade-true-desc="이 보드에 종속된 휴지통의 BIOS / BMC / 드라이버·유틸리티 자원을 일괄 복구해요.">
+                                  data-cascade-true-title="하위 BIOS, BMC, 드라이버, 유틸리티도 함께 복구"
+                                  data-cascade-true-desc="이 보드에 속한 휴지통의 BIOS, BMC, 드라이버, 유틸리티를 함께 복구합니다.">
                                 <button type="submit" class="n-btn n-btn-outline-info">복구</button>
                             </form>
                             <!-- S5-2-2 — 영구 삭제. S5-6-1 — typed-name expected 는 BE 가 modal trigger 시 응답. -->
@@ -207,18 +205,13 @@
                     <!-- 구분선 -->
                     <hr class="n-divider">
 
-                    <h3 class="n-label strong n-lead">호환 BIOS · BMC · Driver</h3>
+                    <h3 class="n-label strong n-lead">호환 BIOS, BMC, 드라이버, 유틸리티</h3>
                     <div class="n-empty n-empty-sm">
                         <div class="n-empty-desc n-actions">
                             <a th:href="@{/management/bios/{boardId}/new(boardId=${board.id})}"
                                class="n-btn n-btn-sm n-btn-secondary">BIOS 등록</a>
                             <a th:href="@{/management/bmc/{boardId}/new(boardId=${board.id})}"
                                class="n-btn n-btn-sm n-btn-secondary">BMC 등록</a>
-                            <span>
-                                현재 연결: <strong th:text="${board.biosCount}">0</strong> BIOS,
-                                <strong th:text="${board.bmcCount}">0</strong> BMC,
-                                <strong th:text="${board.subprogramCount}">0</strong> 드라이버·유틸리티
-                            </span>
                         </div>
                     </div>
 

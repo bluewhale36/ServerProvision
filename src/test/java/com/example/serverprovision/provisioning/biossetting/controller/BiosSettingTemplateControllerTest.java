@@ -163,7 +163,7 @@ class BiosSettingTemplateControllerTest {
                 "F44 · 2026-08-27 채집 · 192.168.1.130", true,
                 base.groups(),
                 List.of(new BiosSettingTemplateDetailResponse.StaleEntry("Whitley0000", "Disabled", "VALUE_NOT_ALLOWED",
-                        List.of("Disable", "Enable"), "Whitley0000 = Disabled — 허용 {Disable, Enable}")),
+                        List.of("Disable", "Enable"), "Whitley0000 = Disabled(허용 값: Disable, Enable)")),
                 base.redfish());
         given(queryService.findDetail(1L)).willReturn(withStale);
 
@@ -172,7 +172,7 @@ class BiosSettingTemplateControllerTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("레지스트리 F44 · 2026-08-27 채집 · 192.168.1.130")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(org.hamcrest.Matchers.containsString("허용 {Disable, Enable}")))
+                        .string(org.hamcrest.Matchers.containsString("허용 값: Disable, Enable")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
                         .string(org.hamcrest.Matchers.containsString("레지스트리와 어긋난 저장 속성")));
     }

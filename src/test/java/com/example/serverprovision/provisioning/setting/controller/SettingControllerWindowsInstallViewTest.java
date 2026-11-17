@@ -87,12 +87,12 @@ class SettingControllerWindowsInstallViewTest {
         mvc.perform(get("/provisioning/setting/new"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-os-family=\"WINDOWS\"")))
-                .andExpect(content().string(not(containsString("— 선택 불가"))))
+                .andExpect(content().string(not(containsString("(선택 불가)"))))
                 .andExpect(content().string(containsString("id=\"oiWindowsImage\"")))
-                .andExpect(content().string(containsString("Windows Server 2025 Standard (데스크톱 환경) — Server")))
+                .andExpect(content().string(containsString("Windows Server 2025 Standard (데스크톱 환경), Server")))
                 .andExpect(content().string(containsString("value=\"" + STANDARD + "\"")))
                 .andExpect(content().string(containsString("id=\"oiWinAdminPassword\"")))
-                .andExpect(content().string(containsString("Windows Server 설치 단계입니다")));
+                .andExpect(content().string(not(containsString("Windows Server 설치 단계입니다"))));   // S22-4 — 사용법 안내는 문서 몫
     }
 
     @Test
@@ -103,7 +103,7 @@ class SettingControllerWindowsInstallViewTest {
 
         mvc.perform(get("/provisioning/setting/new"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("WINDOWS_SERVER 2025 — 선택 불가")))
+                .andExpect(content().string(containsString("WINDOWS_SERVER 2025 (선택 불가)")))
                 // 옵션 title = 정책 문장(SSOT). 따옴표는 Thymeleaf 가 이스케이프하므로 문장 앞부분으로 대조한다.
                 .andExpect(content().string(containsString("title=\"Windows 설치 소스가 준비되지 않았습니다.")))
                 .andExpect(content().string(containsString("disabled")));
@@ -125,20 +125,20 @@ class SettingControllerWindowsInstallViewTest {
                 .andExpect(content().string(containsString(STANDARD)))
                 .andExpect(content().string(containsString("Windows Server 2025 Standard (데스크톱 환경)")))
                 .andExpect(content().string(containsString("설치 소스 일치")))
-                .andExpect(content().string(containsString(">설정됨<")))
+                .andExpect(content().string(containsString(">설정 완료<")))
                 .andExpect(content().string(not(containsString("Qw3rty!Edit1"))));
     }
 
     @Test
-    @DisplayName("GET /{id} — 소스에 없는 이미지는 '설치 소스에 없음' 배지 + 다음 행동 안내")
+    @DisplayName("GET /{id} — 소스에 없는 이미지는 '설치 소스 누락' 배지 + 다음 행동 안내")
     void detail_rendersNotInSource() throws Exception {
         given(queryService.findDetail(1L)).willReturn(detail(windows(STANDARD, "Qw3rty!Edit1"),
                 Map.of(STANDARD, new ReferenceNamesResponse.WindowsImageReference(STANDARD, WindowsImagePresence.NOT_IN_SOURCE))));
 
         mvc.perform(get("/provisioning/setting/{id}", 1L))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("설치 소스에 없음")))
-                .andExpect(content().string(containsString("운영자가 설치 소스를 확인한 뒤 정의서를 수정 · 저장하십시오.")));
+                .andExpect(content().string(containsString("설치 소스 누락")))
+                .andExpect(content().string(containsString("설치 소스를 확인한 뒤 정의서를 수정해 저장해야 합니다.")));
     }
 
     @Test
@@ -149,9 +149,9 @@ class SettingControllerWindowsInstallViewTest {
         mvc.perform(get("/provisioning/setting/{id}", 1L))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("설치 이미지 미지정")))
-                .andExpect(content().string(containsString("정의서를 수정해 설치 이미지를 선택하십시오.")))
+                .andExpect(content().string(containsString("정의서를 수정해 설치 이미지를 선택해야 합니다.")))
                 .andExpect(content().string(containsString(">미설정<")))
-                .andExpect(content().string(containsString("정의서를 수정해 비밀번호를 입력하십시오.")));
+                .andExpect(content().string(containsString("정의서를 수정해 비밀번호를 입력해야 합니다.")));
     }
 
     // ==== 수정 폼 ================================================================================

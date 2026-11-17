@@ -36,7 +36,7 @@
 }
 
 .n-auth-lead {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--n-text-sec);
     margin: 0 0 22px;
 }
@@ -51,7 +51,7 @@
 
 .n-auth-foot {
     margin: 18px 0 0;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--n-text-sec);
     text-align: center;
 }

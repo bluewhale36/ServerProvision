@@ -112,7 +112,7 @@
 			meta.push('범위 ' + input.min + '~' + input.max + ' (증분 ' + input.step + ')');
 		}
 		if (row.dataset.reset === 'true') meta.push('변경 시 재부팅 필요');
-		helpMeta.textContent = meta.join('  ·  ');
+		helpMeta.textContent = meta.join(', ');
 	}
 
 	items.addEventListener('focusin', e => showHelp(e.target.closest('.bios-row')));
@@ -239,7 +239,7 @@
 	   UI 는 같은 조건을 disabled + tooltip 으로 선차단하고, 서버 검증은 direct POST 안전망으로 남는다. */
 	function saveBlockReasons() {
 		const reasons = [];
-		if (!nameInput || !nameInput.value.trim()) reasons.push('템플릿 명칭을 입력하세요.');
+		if (!nameInput || !nameInput.value.trim()) reasons.push('템플릿 명칭을 입력해야 합니다.');
 		if (Object.keys(collectChanged()).length === 0) reasons.push('기본값에서 변경된 속성이 없습니다.');
 		return reasons;
 	}
@@ -249,7 +249,7 @@
 		const blocked = reasons.length > 0;
 		if (saveButton) saveButton.disabled = blocked;
 		if (saveWrap) {
-			saveWrap.dataset.tooltip = reasons.join(' · ');
+			saveWrap.dataset.tooltip = reasons.join(' ');
 			saveWrap.dataset.tooltipActive = String(blocked);
 		}
 	}
@@ -282,9 +282,9 @@
 				return;
 			}
 			const body = await res.json().catch(() => null);
-			renderError(body || { message: '요청을 처리할 수 없습니다 (HTTP ' + res.status + ').' });
+			renderError(body || { message: '요청을 처리하지 못했습니다. 다시 시도해야 합니다.' });
 		} catch (err) {
-			renderError({ message: '서버와 통신하지 못했습니다: ' + String(err) });
+			renderError({ message: '서버와 통신할 수 없습니다.' });
 		} finally {
 			updateSaveGate(); // 실패 시 게이트 재산정으로 버튼 복원 (성공 시엔 페이지 이탈).
 		}
@@ -313,7 +313,7 @@
 
 		if (window.FormError) {
 			// field 없는 항목은 FormError 가 배너로 폴백한다 — 위젯 에러를 displayName 라벨로 변환해 동봉.
-			const bannerFallbacks = widgetErrors.map(fe => ({ message: widgetLabel(fe.field) + ' — ' + (fe.message || '') }));
+			const bannerFallbacks = widgetErrors.map(fe => ({ message: widgetLabel(fe.field) + ': ' + (fe.message || '') }));
 			window.FormError.renderResponse({
 				message: body && body.message,
 				fieldErrors: metaErrors.concat(bannerFallbacks)

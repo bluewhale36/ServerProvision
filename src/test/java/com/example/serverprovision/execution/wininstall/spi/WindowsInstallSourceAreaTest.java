@@ -91,14 +91,14 @@ class WindowsInstallSourceAreaTest {
         List<AssetContextItem> chips = area.context();
         assertThat(chips).extracting(AssetContextItem::label).containsExactly(
                 "설치 이미지", "wimboot SHA-256", "공유 UNC", "공유 계정", "시간대", "드라이버 페이로드",
-                "제품 키 · ServerStandard", "제품 키 · ServerDatacenter");
-        assertThat(chips.get(0).value()).isEqualTo("4종 · 빌드 10.0.26100.1742 · ko-KR");
+                "제품 키(ServerStandard)", "제품 키(ServerDatacenter)");
+        assertThat(chips.get(0).value()).isEqualTo("4종, 빌드 10.0.26100.1742, ko-KR");
         assertThat(chips.get(1).value()).hasSize(12).matches("[0-9a-f]{12}");   // 런북 §14-4 해시와 눈으로 대조하는 앞자리
         assertThat(chips.get(2).value()).isEqualTo("\\\\10.0.0.5\\win2025");
-        assertThat(chips.get(3).value()).isEqualTo("설정됨");
+        assertThat(chips.get(3).value()).isEqualTo("설정 완료");
         assertThat(chips.get(4).value()).isEqualTo("Korea Standard Time");
         assertThat(chips.get(5).value()).isEqualTo("미조립");   // E4-1-a-4 — 매니페스트 없음(스크립트 파일만 있어도 미조립)
-        assertThat(chips.get(6).value()).isEqualTo("설정됨");
+        assertThat(chips.get(6).value()).isEqualTo("설정 완료");
         assertThat(chips.get(7).value()).isEqualTo("미설정");
         // 비밀값은 어떤 chip 에도 실리지 않는다.
         assertThat(chips).extracting(AssetContextItem::value).noneMatch(v -> v.contains(SHARE_PASSWORD) || v.contains(STANDARD_KEY));
@@ -117,10 +117,10 @@ class WindowsInstallSourceAreaTest {
         assertThat(wim.present()).isTrue();
         assertThat(wim.condition()).isEqualTo(InstallSourceCondition.UNREADABLE);
         assertThat(area.inspect(slot(area, InstallSourceSlot.SETUP_EXE)).condition()).isEqualTo(InstallSourceCondition.PRESENT);
-        assertThat(area.context().get(0).value()).isEqualTo("없음");
+        assertThat(area.context().get(0).value()).isEqualTo("미배치");
         assertThat(area.context().get(1)).satisfies(chip -> {   // wimboot 부재 — 해시 대신 '없음' 경고
             assertThat(chip.label()).isEqualTo("wimboot");
-            assertThat(chip.value()).isEqualTo("없음");
+            assertThat(chip.value()).isEqualTo("미배치");
         });
         // 소스에 에디션이 없으므로 제품 키 chip 도 없다.
         assertThat(area.context()).extracting(AssetContextItem::label).noneMatch(l -> l.startsWith("제품 키"));
@@ -138,7 +138,7 @@ class WindowsInstallSourceAreaTest {
         WindowsInstallSourceArea area = area(props);
 
         AssetContextItem chip = area.context().stream().filter(c -> c.label().equals("드라이버 페이로드")).findFirst().orElseThrow();
-        assertThat(chip.value()).isEqualTo("최신 · 0종");
+        assertThat(chip.value()).isEqualTo("최신(0종)");
         assertThat(chip.severity()).isEqualTo(com.example.serverprovision.execution.asset.spi.ObservationSeverity.OK);
         assertThat(area.inspect(slot(area, InstallSourceSlot.OEM_SETUPCOMPLETE)).present()).isTrue();
         assertThat(area.inspect(slot(area, InstallSourceSlot.OEM_REPORT)).present()).isTrue();
@@ -146,7 +146,7 @@ class WindowsInstallSourceAreaTest {
         Path manifest = root.resolve("sources").resolve("$OEM$").resolve("spv-oem-manifest.json");
         Files.writeString(manifest, Files.readString(manifest).replaceFirst("\"scriptsHash\":\"[0-9a-f]+\"", "\"scriptsHash\":\"old\""));
         AssetContextItem stale = area.context().stream().filter(c -> c.label().equals("드라이버 페이로드")).findFirst().orElseThrow();
-        assertThat(stale.value()).isEqualTo("갱신 필요 — 설치 후 스크립트 변경");
+        assertThat(stale.value()).isEqualTo("갱신 필요(설치 후 스크립트 변경)");
         assertThat(stale.severity()).isEqualTo(com.example.serverprovision.execution.asset.spi.ObservationSeverity.WARN);
     }
 
@@ -154,7 +154,7 @@ class WindowsInstallSourceAreaTest {
     @DisplayName("actionBlockReason — 조립기의 blockReason 그대로(미설정 → 사유 · 구성 + sources 있음 → empty) — 버튼 disabled 와 409 가 같은 판정")
     void actionBlockReason_delegates() throws IOException {
         assertThat(area(new WindowsInstallProperties("", null, null, null, null, null)).actionBlockReason())
-                .hasValueSatisfying(r -> assertThat(r).contains("설치 소스 미설정"));
+                .hasValueSatisfying(r -> assertThat(r).contains("설치 소스"));
         FakeWim.writeSource(root, FakeWim.fixtureXml());
         assertThat(area(configured(null)).actionBlockReason()).isEmpty();
     }

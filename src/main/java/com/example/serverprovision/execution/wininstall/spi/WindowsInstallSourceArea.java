@@ -36,7 +36,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class WindowsInstallSourceArea implements SystemAssetArea {
 
-    private static final String SET = "설정됨";
+    private static final String SET = "설정 완료";
     private static final String UNSET = "미설정";
 
     private static final int SHA_PREFIX = 12;
@@ -105,13 +105,13 @@ public class WindowsInstallSourceArea implements SystemAssetArea {
         InstallSourceSnapshot snapshot = catalog.snapshot();
         List<AssetContextItem> items = new ArrayList<>();
         items.add(snapshot.ready()
-                ? new AssetContextItem("설치 이미지", snapshot.images().size() + "종 · 빌드 "
-                        + snapshot.build().orElse("?") + " · " + snapshot.language().orElse("?"), ObservationSeverity.INFO)
-                : new AssetContextItem("설치 이미지", "없음", ObservationSeverity.WARN));
+                ? new AssetContextItem("설치 이미지", snapshot.images().size() + "종, 빌드 "
+                        + snapshot.build().orElse("-") + ", " + snapshot.language().orElse("-"), ObservationSeverity.INFO)
+                : new AssetContextItem("설치 이미지", "미배치", ObservationSeverity.WARN));
         // wimboot 해시 앞 12자 — 런북 §14-4 의 서명 릴리스 해시와 눈으로 대조한다(E4-1-a-3 D-5 · Authenticode 검증은 비목표).
         items.add(source.wimbootSha256()
                 .map(sha -> new AssetContextItem("wimboot SHA-256", sha.substring(0, SHA_PREFIX), ObservationSeverity.INFO))
-                .orElseGet(() -> new AssetContextItem("wimboot", "없음", ObservationSeverity.WARN)));
+                .orElseGet(() -> new AssetContextItem("wimboot", "미배치", ObservationSeverity.WARN)));
         items.add(isSet(properties.shareUnc())
                 ? new AssetContextItem("공유 UNC", properties.shareUnc().trim(), ObservationSeverity.INFO)
                 : new AssetContextItem("공유 UNC", UNSET, ObservationSeverity.WARN));
@@ -123,8 +123,8 @@ public class WindowsInstallSourceArea implements SystemAssetArea {
         WindowsInstallProperties.ProductKeys keys = properties.productKeysOrEmpty();
         for (String editionId : snapshot.editionIds()) {
             items.add(keys.forEdition(editionId).isPresent()
-                    ? new AssetContextItem("제품 키 · " + editionId, SET, ObservationSeverity.OK)
-                    : new AssetContextItem("제품 키 · " + editionId, UNSET, ObservationSeverity.WARN));
+                    ? new AssetContextItem("제품 키(" + editionId + ")", SET, ObservationSeverity.OK)
+                    : new AssetContextItem("제품 키(" + editionId + ")", UNSET, ObservationSeverity.WARN));
         }
         return List.copyOf(items);
     }
@@ -141,15 +141,15 @@ public class WindowsInstallSourceArea implements SystemAssetArea {
      */
     private AssetContextItem oemPayloadChip() {
         WindowsOemPayloadAssembler.OemPayloadStatus st = oemAssembler.status();
-        String excluded = st.excludedCount() > 0 ? " · 제외 " + st.excludedCount() : "";
+        String excluded = st.excludedCount() > 0 ? ", 제외 " + st.excludedCount() + "건" : "";
         if (st.state() == OemPayloadState.NOT_ASSEMBLED) {
             return new AssetContextItem("드라이버 페이로드", "미조립" + excluded, ObservationSeverity.WARN);
         }
         if (st.state() == OemPayloadState.STALE) {
             return new AssetContextItem("드라이버 페이로드",
-                    "갱신 필요 — " + String.join(", ", st.changes()) + excluded, ObservationSeverity.WARN);
+                    "갱신 필요(" + String.join(", ", st.changes()) + ")" + excluded, ObservationSeverity.WARN);
         }
-        return new AssetContextItem("드라이버 페이로드", "최신 · " + st.driverCount() + "종" + excluded,
+        return new AssetContextItem("드라이버 페이로드", "최신(" + st.driverCount() + "종)" + excluded,
                 st.excludedCount() > 0 ? ObservationSeverity.WARN : ObservationSeverity.OK);
     }
 

@@ -4,7 +4,7 @@ import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.web.list.ListLinks;
-import com.example.serverprovision.global.exception.ApiErrorResponse;
+import com.example.serverprovision.management.common.web.ControllerValidationSupport;
 import com.example.serverprovision.management.os.dto.request.OSMetadataCreateRequest;
 import com.example.serverprovision.management.os.dto.request.OSMetadataUpdateRequest;
 import com.example.serverprovision.management.os.dto.response.OSMetadataCreateResponse;
@@ -105,15 +105,8 @@ public class OSMetadataController {
 			BindingResult bindingResult
 	) {
 		if (bindingResult.hasErrors()) {
-			List<ApiErrorResponse.FieldError> fields = bindingResult.getFieldErrors().stream()
-					.map(fe -> new ApiErrorResponse.FieldError(
-							fe.getField(),
-							fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "유효하지 않은 값"
-					))
-					.toList();
-			return ResponseEntity.badRequest().body(
-					ApiErrorResponse.ofValidation(
-							"입력 값이 유효하지 않습니다 (" + fields.size() + "개 필드).", fields));
+			// 검증 응답 문장은 메인보드 · RAID 카드 폼과 같은 단일 소스를 쓴다(종전에는 같은 변환이 여기 복붙돼 있었다).
+			return ResponseEntity.badRequest().body(ControllerValidationSupport.toValidationError(bindingResult));
 		}
 		Long id = osMetadataService.create(request);
 		return ResponseEntity.ok(new OSMetadataCreateResponse(id, "/management/os?selectId=" + id));

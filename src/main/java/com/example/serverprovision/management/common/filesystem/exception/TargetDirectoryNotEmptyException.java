@@ -9,6 +9,6 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class TargetDirectoryNotEmptyException extends ConflictException {
 
 	public TargetDirectoryNotEmptyException(String path) {
-		super("대상 디렉토리가 비어있지 않습니다. 수동 정리 후 다시 시도하세요 : " + path);
+		super("대상 디렉토리가 비어있지 않습니다. 직접 정리한 뒤 다시 시도해야 합니다 : " + path);
 	}
 }

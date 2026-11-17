@@ -71,7 +71,7 @@ public record GroupApplyPreviewResponse(
             return "이 그룹에는 아직 서버가 없습니다.";
         }
         if (blocked()) {
-            return "이 그룹의 어떤 서버에도 붙일 수 없습니다.";
+            return "이 그룹의 어떤 서버에도 할당할 수 없습니다.";
         }
         String head = memberCount() + " 대 중 " + willAssignCount() + " 대에 할당됩니다.";
         return skippedCount() == 0 ? head : head + " " + skippedCount() + " 대는 건너뜁니다(" + skipBreakdown() + ").";
@@ -86,10 +86,10 @@ public record GroupApplyPreviewResponse(
                         Collectors.counting()));
         return counts.entrySet().stream()
                 .map(entry -> entry.getKey().getDisplayName() + " " + entry.getValue())
-                .collect(Collectors.joining(" · "));
+                .collect(Collectors.joining(", "));
     }
 
-    /** 화면이 분류별로 묶어 그릴 때 쓴다 — 선언 순(할당됨 → 이미 있음 → 막힘)을 유지한다. */
+    /** 화면이 분류별로 묶어 그릴 때 쓴다 — 선언 순(할당 예정 → 이미 할당 → 할당 불가)을 유지한다. */
     public Map<MemberApplyOutcome, List<MemberOutcomeResponse>> byOutcome() {
         return members.stream().collect(Collectors.groupingBy(
                 MemberOutcomeResponse::outcome,

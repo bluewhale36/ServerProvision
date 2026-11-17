@@ -17,13 +17,13 @@ import lombok.Setter;
 @AllArgsConstructor
 public class SubprogramVariantRequest {
 
-	@Size(max = 64, message = "OS 버전은 64자 이하로 입력하십시오.")
+	@Size(max = 64, message = "OS 버전은 64자 이하로 입력해야 합니다.")
 	private String osVersion;
 
-	@Size(max = 512, message = "진입점 경로는 512자 이하로 입력하십시오.")
+	@Size(max = 512, message = "진입점 경로는 512자 이하로 입력해야 합니다.")
 	private String entrypointRelativePath;
 
-	@Size(max = 512, message = "인자는 512자 이하로 입력하십시오.")
+	@Size(max = 512, message = "인자는 512자 이하로 입력해야 합니다.")
 	private String arguments;
 
 	private boolean rebootRequired;

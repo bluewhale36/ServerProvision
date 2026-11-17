@@ -59,7 +59,7 @@ table.has-error {
    않는다(굵히면 그것대로 또 한 층이 생긴다). */
 .n-form-meta {
     margin: 0 0 8px;
-    font-size: 11.5px;
+    font-size: 12.5px;
     line-height: 1.5;
     color: var(--n-text-muted);
     opacity: 0.85;
@@ -143,7 +143,7 @@ table.has-error {
 .n-option-desc {
     display: block;
     margin: 2px 0 0;
-    font-size: 12.5px;
+    font-size: 13.5px;
     line-height: 1.55;
     color: var(--n-text-muted);
 }

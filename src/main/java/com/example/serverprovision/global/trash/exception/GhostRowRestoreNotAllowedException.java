@@ -18,7 +18,7 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class GhostRowRestoreNotAllowedException extends ConflictException {
 
 	public GhostRowRestoreNotAllowedException(String displayName) {
-		super("복구할 파일이 없습니다 — " + displayName
-					  + " · 이 자원은 기록만 남은 상태입니다. 휴지통 목록의 [정리] 로 기록을 지울 수 있습니다.");
+		super("복구할 파일이 없습니다(" + displayName
+					  + "). 기록만 남은 자원입니다. 휴지통 목록의 [정리] 로 기록을 지워야 합니다.");
 	}
 }

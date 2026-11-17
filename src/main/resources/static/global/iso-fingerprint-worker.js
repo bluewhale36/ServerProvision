@@ -28,7 +28,7 @@ self.addEventListener('message', async (event) => {
         return;
     }
     if (typeof self.hashwasm === 'undefined' || !self.hashwasm.createSHA256) {
-        self.postMessage({requestId, error: 'hash-wasm 라이브러리를 싣지 못했습니다. /vendor/hash-wasm/ 배포를 확인하십시오.'});
+        self.postMessage({requestId, error: '파일 지문 계산 도구를 불러오지 못했습니다. 서버 배포 상태를 확인해야 합니다.'});
         return;
     }
 

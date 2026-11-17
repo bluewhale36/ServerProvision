@@ -134,7 +134,7 @@ class RaidCardLifecycleServiceTest {
 
 		assertThatThrownBy(() -> raidCardService.undeprecate(7L))
 				.isInstanceOf(IllegalRaidCardStateException.class)
-				.hasMessageContaining("이미 살아 있어");
+				.hasMessageContaining("이미 사용 중이라");
 		assertThat(card.isDeprecated()).isTrue();   // 전이 미수행
 	}
 

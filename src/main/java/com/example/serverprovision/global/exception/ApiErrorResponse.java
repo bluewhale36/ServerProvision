@@ -20,6 +20,11 @@ public record ApiErrorResponse(
 		String code
 ) {
 
+	/** 화면으로 나가는 문장에서 내부 식별자를 걷어낸다(S22-3) — 예외 원문은 로그에 남는다. */
+	public ApiErrorResponse {
+		message = UserFacingMessage.withoutInternalIds(message);
+	}
+
 	/**
 	 * 단일 메시지만 보내는 기존 호환 생성자. fieldErrors / code 는 null 로 직렬화에서 생략된다.
 	 */

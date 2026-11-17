@@ -32,7 +32,7 @@
         <div class="n-header-actions">
             <!-- S5-5 — 외부 우상단 + 신규 BIOS 등록. boardId 없는 진입점이라 폼에서 board 선택 단계. -->
             <a th:href="@{/management/bios/new}"
-               class="n-btn n-btn-primary">+ 신규 BIOS 등록</a>
+               class="n-btn n-btn-primary">+ BIOS 등록</a>
         </div>
     </div>
 
@@ -48,9 +48,8 @@
         <div class="n-empty">
             <div class="n-empty-title">등록된 메인보드 모델이 없습니다.</div>
             <div class="n-empty-desc">
-                BIOS 는 메인보드 모델에 귀속됩니다.
-                <a th:href="@{/management/board}">메인보드 모델 관리</a> 페이지에서
-                모델을 먼저 등록하세요.
+                <a th:href="@{/management/board}">메인보드 모델 관리</a>에서
+                모델을 먼저 등록해야 합니다.
             </div>
         </div>
     </div>
@@ -75,16 +74,15 @@
                 <span class="n-miller-version-label">
                     <span th:text="${board.modelName}">MS03-CE0-000</span>
                     <span class="n-note"
-                          th:text="' · ' + ${board.vendorDisplayName}"> · Gigabyte</span>
-                    <span class="n-note" th:if="${board.isDeleted}">(삭제됨)</span>
+                          th:text="${board.vendorDisplayName}">Gigabyte</span>
+                    <span class="n-note" th:if="${board.isDeleted}">(삭제)</span>
                     <span class="n-note" th:if="${query.filtered}" th:text="|(${board.biosList.size()})|">(1)</span>
                 </span>
             </button>
             <!-- C1 하단 안내 : 신규 BoardModel 은 A2 에서만 등록 가능 -->
             <div class="n-miller-col-note">
-                신규 메인보드 모델은
-                <a th:href="@{/management/board}">메인보드 모델 관리</a>
-                페이지에서 등록하세요.
+                메인보드 모델은
+                <a th:href="@{/management/board}">메인보드 모델 관리</a>에서 등록합니다.
             </div>
         </div>
 
@@ -119,12 +117,11 @@
                               th:attr="data-tooltip=#{management.firmware.rank.disabled-filtered},aria-label=#{management.firmware.rank.disabled-filtered}">☰</span>
                         <span th:text="${bios.version}">2.03</span>
                         <span th:if="${board.latestBiosId != null and bios.id == board.latestBiosId}"
-                              class="n-miller-latest" data-latest-mark>latest</span>
+                              class="n-miller-latest" data-latest-mark>최신</span>
                         <span th:if="${bios.isDeprecated and !bios.isDeleted}"
                               class="n-deprecated-dot"
-                              title="Deprecated"></span>
-                        <span class="n-note" th:if="${bios.isDeleted}"
-                             >(삭제됨)</span>
+                              title="사용 중단"></span>
+                        <span class="n-note" th:if="${bios.isDeleted}">(삭제)</span>
                     </span>
                     <span th:unless="${bios.isDeleted}"
                           class="n-miller-status-tag"
@@ -166,16 +163,13 @@
                         <div class="n-accordion-field">
                             <dt>메인보드</dt>
                             <dd>
-                                <span th:text="${board.vendorDisplayName + ' · ' + board.modelName}"></span>
+                                <span th:text="${board.vendorDisplayName + ' ' + board.modelName}"></span>
                             </dd>
                         </div>
                         <div class="n-accordion-field">
                             <dt>이름</dt>
                             <dd>
                                 <span th:text="${bios.name}"></span>
-                                <span th:if="${bios.isDeprecated}"
-                                      class="n-badge n-badge-yellow n-meta"
-                                     >Deprecated</span>
                             </dd>
                         </div>
                         <div class="n-accordion-field">
@@ -185,14 +179,14 @@
                             </dd>
                         </div>
                         <div class="n-accordion-field">
-                            <dt>트리 루트</dt>
+                            <dt>저장 디렉토리</dt>
                             <dd>
                                 <code th:text="${bios.treeRootPath}"></code>
                             </dd>
                         </div>
                         <!-- R12-1 — 진입점 · 파일 수 표기는 화면에서 제거 (구조는 유지 — 단일 펌웨어 파일 모델에서 표시 가치가 없다). -->
                         <div class="n-accordion-field">
-                            <dt>manifest 해시</dt>
+                            <dt>해시</dt>
                             <dd>
                                 <code class="n-small" th:text="${bios.manifestHash}"></code>
                             </dd>
@@ -202,11 +196,11 @@
                             <dd>
                                 <!-- data-verify-url 을 통해 JS 가 POST 로 실시간 검증을 요청. 기본 표시는 '미검증' -->
                                 <span class="n-badge"
-                                      th:classappend="${T(com.example.serverprovision.management.common.view.IntegrityStatusView).badgeClass(bios.integrityStatus)}"
+                                      th:classappend="${(bios.integrityStatus ?: T(com.example.serverprovision.global.marker.IntegrityStatus).NOT_VERIFIED).badgeClass()}"
                                       th:data-bios-id="${bios.id}"
                                       th:data-verify-url="@{/management/bios/{boardId}/bios/{biosId}/verify(boardId=${board.id},biosId=${bios.id})}"
                                       th:data-status-url="@{/management/bios/{boardId}/bios/{biosId}/integrity-status(boardId=${board.id},biosId=${bios.id})}"
-                                      th:text="${bios.integrityStatus != null ? bios.integrityStatus.name() : 'NOT_VERIFIED'}">NOT_VERIFIED</span>
+                                      th:text="${bios.integrityStatus != null ? bios.integrityStatus.displayMessage : '미검증'}">미검증</span>
                                 <button type="button" class="n-btn n-btn-sm n-btn-outline"
                                         th:data-verify-url="@{/management/bios/{boardId}/bios/{biosId}/verify(boardId=${board.id},biosId=${bios.id})}">
                                     검증
@@ -219,12 +213,12 @@
                         </div>
                         <div class="n-accordion-field">
                             <dt>설명</dt>
-                            <dd th:text="${bios.description != null and !#strings.isEmpty(bios.description)} ? ${bios.description} : '—'"></dd>
+                            <dd th:text="${bios.description != null and !#strings.isEmpty(bios.description)} ? ${bios.description} : '-'"></dd>
                         </div>
                         <div class="n-accordion-field">
                             <dt>상태</dt>
                             <dd>
-                                    <div th:replace="~{fragments/ui/lifecycle-actions :: statusActions(deleted=${bios.isDeleted}, enabled=${bios.isEnabled}, toggleUrl=@{/management/bios/{boardId}/bios/{biosId}/toggle(boardId=${board.id},biosId=${bios.id})}, blockEnable=${bios.parentBlocksEnable}, blockTip='부모 메인보드가 비활성 / 삭제 상태입니다. 부모를 먼저 정상화해주세요.', toggleTitle=null, selectKey=null, includeDeleted=null)}"></div>
+                                    <div th:replace="~{fragments/ui/lifecycle-actions :: statusActions(deleted=${bios.isDeleted}, enabled=${bios.isEnabled}, toggleUrl=@{/management/bios/{boardId}/bios/{biosId}/toggle(boardId=${board.id},biosId=${bios.id})}, blockEnable=${bios.parentBlocksEnable}, blockTip='메인보드가 비활성 또는 삭제 상태입니다. 메인보드를 먼저 활성화하거나 복구해야 합니다.', toggleTitle=null, selectKey=null, includeDeleted=null)}"></div>
                                 </dd>
                         </div>
                         <!--/* 사용 중단 권고는 활성 여부와 다른 축이다(Deprecated ≠ 비활성).
@@ -232,7 +226,7 @@
                         <div class="n-accordion-field" th:unless="${bios.isDeleted}">
                             <dt>사용 중단 권고</dt>
                             <dd>
-                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${bios.isDeprecated}, deprecateUrl=@{/management/bios/{boardId}/bios/{biosId}/deprecate(boardId=${board.id},biosId=${bios.id})}, undeprecateUrl=@{/management/bios/{boardId}/bios/{biosId}/undeprecate(boardId=${board.id},biosId=${bios.id})}, deprecateConfirm=true, label=|BIOS '${bios.name}'|, extra=null, blockUndeprecate=${bios.parentBlocksUndeprecate}, blockTip='부모 메인보드가 Deprecated / 삭제 상태입니다. 부모를 먼저 해제 / 복구해주세요.', undeprecateConfirm=true, resourceType='BIOS_BUNDLE', resourceId=${bios.id}, selectKey=null, includeDeleted=null, badgeOn='Deprecated', btnOn='Deprecated 표시', btnOff='Deprecated 해제')}"></div>
+                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${bios.isDeprecated}, deprecateUrl=@{/management/bios/{boardId}/bios/{biosId}/deprecate(boardId=${board.id},biosId=${bios.id})}, undeprecateUrl=@{/management/bios/{boardId}/bios/{biosId}/undeprecate(boardId=${board.id},biosId=${bios.id})}, deprecateConfirm=true, label=|BIOS '${bios.name}'|, extra=null, blockUndeprecate=${bios.parentBlocksUndeprecate}, blockTip='메인보드가 사용 중단 또는 삭제 상태입니다. 메인보드의 사용 중단 권고를 먼저 해제하거나 메인보드를 복구해야 합니다.', undeprecateConfirm=true, resourceType='BIOS_BUNDLE', resourceId=${bios.id}, selectKey=null, includeDeleted=null, badgeOn='사용 중단', btnOn='사용 중단 권고', btnOff='사용 중단 권고 해제')}"></div>
                             </dd>
                         </div>
                     </dl>
@@ -253,7 +247,7 @@
                         <th:block th:if="${bios.isDeleted}">
                             <!-- R2-2 — 부모 메인보드가 삭제면 restore 차단 -->
                             <span th:if="${bios.parentBlocksRestore}" class="n-btn-tooltip-wrap"
-                                  data-tooltip="부모 메인보드가 삭제 상태입니다. 부모부터 복구해주세요.">
+                                  data-tooltip="메인보드가 삭제 상태입니다. 메인보드부터 복구해야 합니다.">
                                 <button type="button" class="n-btn n-btn-outline-info" disabled>복구</button>
                             </span>
                             <form th:unless="${bios.parentBlocksRestore}"

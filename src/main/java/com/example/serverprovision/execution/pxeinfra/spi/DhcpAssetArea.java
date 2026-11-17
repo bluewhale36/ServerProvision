@@ -43,8 +43,8 @@ import java.util.List;
 public class DhcpAssetArea implements SystemAssetArea {
 
     /** 조각 파일명을 알 수 없는 미구성 상태에서 슬롯 표에 노출할 대체 표기. */
-    private static final String FRAGMENT_LABEL = "dnsmasq 조각";
-    private static final String UNCONFIGURED_FILENAME = "(미구성)";
+    private static final String FRAGMENT_LABEL = "dnsmasq 구성 파일";
+    private static final String UNCONFIGURED_FILENAME = "미구성";
     private static final String MODE_UNSAVED = "미저장";
 
     private final ObjectProvider<PxeInfraProperties> propertiesProvider;
@@ -186,7 +186,7 @@ public class DhcpAssetArea implements SystemAssetArea {
 
         @Override
         public String replaceCadence() {
-            return "세팅 반영 시(PXE 네트워크 구성)";
+            return "PXE 네트워크 구성 저장 시";
         }
     }
 }

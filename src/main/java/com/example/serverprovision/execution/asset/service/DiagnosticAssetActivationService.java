@@ -61,7 +61,7 @@ public class DiagnosticAssetActivationService {
         try (InputStream source = file.getInputStream()) {
             activate(slot, root, source);
         } catch (IOException e) {
-            throw new DiagnosticAssetReplaceFailedException("업로드 스트림 열기 실패 : " + slot.filename(), e);   // 500
+            throw new DiagnosticAssetReplaceFailedException("업로드한 파일을 읽지 못했습니다: " + slot.filename(), e);   // 500
         }
         log.info("[diagnostic-asset] 교체 완료 — slot={}", slot.name());
     }
@@ -80,7 +80,7 @@ public class DiagnosticAssetActivationService {
         try (InputStream source = Files.newInputStream(versionPath)) {
             activate(slot, root, source);
         } catch (IOException e) {
-            throw new DiagnosticAssetReplaceFailedException("버전 열기 실패 : " + versionPath, e);   // 500
+            throw new DiagnosticAssetReplaceFailedException("보관된 버전 파일을 열지 못했습니다: " + versionPath, e);   // 500
         }
         historyService.remove(key, versionId);                 // 되살린 버전을 이력에서 제거(승격, 멱등)
         log.info("[diagnostic-asset] 롤백 완료 — slot={}, versionId={}", slot.name(), versionId);
@@ -104,7 +104,7 @@ public class DiagnosticAssetActivationService {
             atomicAssetSwap.swap(target, temp, key);           // ②③④ archive → 원자적 스왑 → 권한(부품 위임)
         } catch (IOException e) {
             deleteQuietly(temp);
-            throw new DiagnosticAssetReplaceFailedException("자산 활성화 스왑 실패 : " + target, e);   // 500
+            throw new DiagnosticAssetReplaceFailedException("자산 파일을 교체하지 못했습니다: " + target, e);   // 500
         } catch (RuntimeException e) {
             deleteQuietly(temp);                               // 아카이브 실패(500) 등 — temp 정리 후 전파
             throw e;

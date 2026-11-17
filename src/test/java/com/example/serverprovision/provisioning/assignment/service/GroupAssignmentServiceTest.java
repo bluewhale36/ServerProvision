@@ -113,10 +113,10 @@ class GroupAssignmentServiceTest {
         assertThat(result.assigned()).isEqualTo(2);
         assertThat(result.skipped()).isEqualTo(1);
         // 경합으로 빠진 것은 미리보기에 없던 일이라 따로 밝힌다
-        assertThat(result.skipDetail()).isEqualTo("그 사이 상태가 바뀜 1");
+        assertThat(result.skipDetail()).isEqualTo("상태 변경 1");
         assertThat(result.message())
                 .contains("2 대에 할당했습니다")
-                .contains("1 대는 건너뛰었습니다(그 사이 상태가 바뀜 1)");
+                .contains("1 대는 건너뛰었습니다(상태 변경 1)");
     }
 
     /**
@@ -137,7 +137,7 @@ class GroupAssignmentServiceTest {
         assertThat(result.assigned()).isZero();
         assertThat(result.skipped()).isEqualTo(2);
         // 사유가 서로 달라도 한 항목으로 집계된다 — 화면이 읽히는 길이를 유지한다
-        assertThat(result.skipDetail()).isEqualTo("그 사이 상태가 바뀜 2");
+        assertThat(result.skipDetail()).isEqualTo("상태 변경 2");
         assertThat(result.message()).doesNotContain("ASUS-Z13PE");
     }
 
@@ -161,7 +161,7 @@ class GroupAssignmentServiceTest {
         assertThat(result.skipped()).isEqualTo(1);
         // 미리보기와 같은 어휘로 적는다 — 사용자가 방금 읽은 문장과 대조할 수 있어야 한다
         assertThat(result.message())
-                .isEqualTo("세팅 정의서 'web-standard' 를 1 대에 할당했습니다. 1 대는 건너뛰었습니다(막힘 1).");
+                .isEqualTo("세팅 정의서 'web-standard' 를 1 대에 할당했습니다. 1 대는 건너뛰었습니다(할당 불가 1).");
     }
 
     @Test
@@ -176,7 +176,7 @@ class GroupAssignmentServiceTest {
         assertThat(result.assigned()).isZero();
         assertThat(result.skipped()).isEqualTo(2);   // 미리보기 1 + 경합 1
         assertThat(result.skipped()).isEqualTo(2);
-        assertThat(result.skipDetail()).isEqualTo("막힘 1 · 그 사이 상태가 바뀜 1");
+        assertThat(result.skipDetail()).isEqualTo("할당 불가 1, 상태 변경 1");
     }
 
     @Test

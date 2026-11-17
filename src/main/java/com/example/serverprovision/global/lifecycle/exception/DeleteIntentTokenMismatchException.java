@@ -9,7 +9,6 @@ import com.example.serverprovision.global.exception.DomainException;
 public class DeleteIntentTokenMismatchException extends DomainException {
 
 	public DeleteIntentTokenMismatchException(String tokenAsString, String expected, String actual) {
-		super("DeleteIntent token 이 다른 자원에 발급되었습니다 : " + tokenAsString
-					  + " expected=" + expected + " actual=" + actual);
+		super("다른 자원의 삭제 확인입니다. 페이지를 새로 고친 뒤 다시 삭제해야 합니다.");
 	}
 }

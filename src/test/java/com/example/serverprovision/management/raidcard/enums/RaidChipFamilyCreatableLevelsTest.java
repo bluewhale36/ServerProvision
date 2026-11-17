@@ -37,7 +37,7 @@ class RaidChipFamilyCreatableLevelsTest {
     @DisplayName("안내 — 잠그는 레벨이 있는 계열만 문장, MegaRAID 는 null")
     void hint() {
         assertThat(RaidChipFamily.MPT_IR.creatableLevelsHint())
-                .isEqualTo("MPT IR (sas3ircu 계열)은 RAID0 · RAID1 · RAID10 만 만들 수 있습니다");
+                .isEqualTo("MPT IR (sas3ircu 계열)은 RAID0, RAID1, RAID10 만 만들 수 있습니다");
         assertThat(RaidChipFamily.MEGARAID.creatableLevelsHint()).isNull();
     }
 

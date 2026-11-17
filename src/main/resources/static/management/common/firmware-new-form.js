@@ -226,7 +226,7 @@
 
                 // R12-1 — 1차 차단 (UI). 서버 가드(intent · 등록 본체)와 같은 SSOT 목록을 쓴다.
                 if (fields.firmwarePath.endsWith('/') && !file) {
-                    showError('경로가 / 로 끝나면 업로드할 파일이 필요합니다. 파일을 첨부하거나 파일 경로를 지정하십시오.');
+                    showError('경로가 / 로 끝나면 업로드할 파일이 필요합니다. 파일을 첨부하거나 파일 경로를 지정해야 합니다.');
                     return;
                 }
                 const finalName = resolveFinalFileName(fields.firmwarePath, file);
@@ -242,7 +242,7 @@
                 // 첨부 파일은 정상인데 경로 때문에 막히면 무엇을 고쳐야 할지 알 수 없기 때문.
                 if (violatesExtensionPolicy(finalName)) {
                     showError('경로의 마지막 이름 \'' + finalName + '\' 이 저장할 파일명으로 해석됐습니다. '
-                        + invalidExtensionMessage + ' 디렉토리 안에 저장하려면 경로 끝에 / 를 붙이십시오.');
+                        + invalidExtensionMessage + ' 디렉토리 안에 저장하려면 경로 끝에 / 를 붙여야 합니다.');
                     return;
                 }
 
@@ -321,13 +321,13 @@
                         if (window.FormError && body) {
                             window.FormError.renderResponse(body, {root: form});
                         } else {
-                            showError(body.message || ('등록 실패 (HTTP ' + resp.status + ')'));
+                            showError(body.message || '등록에 실패했습니다.');
                         }
                         return;
                     }
                     window.location.href = body.redirect || listUrl;
                 } catch (err) {
-                    showError('네트워크 오류 : ' + err.message);
+                    showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                 } finally {
                     submitBtn.disabled = false;
                     submitBtn.textContent = originalLabel;
@@ -337,15 +337,15 @@
             function intentFallbackMessage(status) {
                 switch (status) {
                     case 400:
-                        return '입력값이 올바르지 않습니다. 펌웨어 파일 경로와 파일을 다시 확인하십시오.';
+                        return '입력값이 올바르지 않습니다. 펌웨어 파일 경로와 파일을 다시 확인해야 합니다.';
                     case 404:
-                        return '대상 메인보드 모델을 찾을 수 없습니다. 목록에서 다시 선택하십시오.';
+                        return '대상 메인보드 모델을 찾을 수 없습니다. 목록에서 다시 선택해야 합니다.';
                     case 409:
-                        return '사전 검증 조건에 어긋났습니다 (디렉토리 점유 · marker 충돌 · 버전 중복 등).';
+                        return '사전 검증 조건에 맞지 않습니다(디렉토리 점유, 마커 충돌, 버전 중복 등).';
                     case 500:
-                        return '서버 내부 오류로 사전 검증에 실패했습니다. 잠시 후 다시 시도하십시오.';
+                        return '서버 내부 오류로 사전 검증에 실패했습니다. 잠시 후 다시 시도해야 합니다.';
                     default:
-                        return '사전 검증 실패 (HTTP ' + status + ')';
+                        return '사전 검증에 실패했습니다.';
                 }
             }
 
@@ -386,7 +386,7 @@
                             const elapsedSec = (Date.now() - tweenStart) / 1000;
                             const r = 1 - Math.exp(-elapsedSec / 3);
                             const pct = UPLOAD_END_PCT + (SERVER_END_PCT - UPLOAD_END_PCT) * Math.min(1, r);
-                            showProgress(`${Math.floor(pct)}%  서버 저장 · marker 기록 중…`, pct);
+                            showProgress(`${Math.floor(pct)}%  서버 저장, 마커 기록 중…`, pct);
                         }, 150);
                     },
                     onSuccess() {
@@ -442,7 +442,7 @@
                             clearInterval(serverTimer);
                             serverTimer = null;
                         }
-                        showError('업로드를 취소했습니다.');
+                        showNotice('업로드를 취소했습니다.');
                         hideProgress();
                         lockPage(false);
                     }
@@ -536,6 +536,11 @@
                 errorBox.classList.add('is-visible');
             }
 
+            // 취소처럼 실패가 아닌 결과는 빨간 오류 상자 대신 알림으로 보인다(S22-4).
+            function showNotice(msg) {
+                if (window.UiUtil) UiUtil.toast(msg, 'info');
+            }
+
             function resetError() {
                 if (!errorBox) return;
                 errorBox.textContent = '';
@@ -551,7 +556,7 @@
                 const replaceBtn = nudgeEl('ReplaceBtn');
                 const cancelBtn = nudgeEl('CancelBtn');
                 if (!modal || !conflicts || !proceedBtn || !replaceBtn || !cancelBtn) {
-                    showError('중복 확인 창을 찾을 수 없습니다. 페이지를 새로고침 하십시오.');
+                    showError('중복 확인 창을 찾을 수 없습니다. 페이지를 새로 고쳐야 합니다.');
                     return;
                 }
                 const baseUrl = modal.dataset.confirmBaseUrl;
@@ -567,8 +572,8 @@
                     li.innerHTML =
                         '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
                         '  <input type="radio" name="' + cfg.nudgePrefix + 'Target" value="' + entry.id + '">' +
-                        '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> · v' + UiUtil.escapeHtml(entry.version) +
-                        '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">[' + entry.state + ' · #' + entry.id + ']</span></span>' +
+                        '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> v' + UiUtil.escapeHtml(entry.version) +
+                        '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">(' + UiUtil.escapeHtml(entry.stateLabel || '') + ')</span></span>' +
                         '</label>';
                     conflicts.appendChild(li);
                 });
@@ -583,7 +588,7 @@
                 // MK2 — TTL countdown.
                 if (window.NudgeTimer) {
                     window.NudgeTimer.start(modal, body.expiresAt, () => {
-                        showError('중복 확인 세션이 만료되었습니다. 다시 등록하십시오.');
+                        showError('중복 확인이 만료되었습니다. 다시 등록해야 합니다.');
                     });
                 }
 
@@ -604,14 +609,14 @@
                         const respBody = await resp.json().catch(() => ({}));
                         if (!resp.ok) {
                             if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
-                            showError(respBody.message || ('중복 확인 진행 실패 (HTTP ' + resp.status + ')'));
+                            showError(respBody.message || '그래도 등록을 처리하지 못했습니다.');
                             disableNudgeButtons(false);
                             return;
                         }
                         closeModal();
                         window.location.href = respBody.redirect || listUrl;
                     } catch (err) {
-                        showError('네트워크 오류 : ' + err.message);
+                        showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                         disableNudgeButtons(false);
                     }
                 };
@@ -627,14 +632,14 @@
                         const respBody = await resp.json().catch(() => ({}));
                         if (!resp.ok) {
                             if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
-                            showError(respBody.message || ('중복 확인 교체 실패 (HTTP ' + resp.status + ')'));
+                            showError(respBody.message || '기존 영구 삭제 후 등록을 처리하지 못했습니다.');
                             disableNudgeButtons(false);
                             return;
                         }
                         closeModal();
                         window.location.href = respBody.redirect || listUrl;
                     } catch (err) {
-                        showError('네트워크 오류 : ' + err.message);
+                        showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                         disableNudgeButtons(false);
                     }
                 };
@@ -649,7 +654,7 @@
                         console.warn(TAG, 'cancel 호출 실패 (무시) :', err);
                     } finally {
                         closeModal();
-                        showError('등록을 취소했습니다.');
+                        showNotice('등록을 취소했습니다.');
                     }
                 };
             }
@@ -666,7 +671,7 @@
                 const replaceBtn = nudgeEl('ReplaceBtn');
                 const cancelBtn = nudgeEl('CancelBtn');
                 if (!modal || !conflicts || !proceedBtn || !replaceBtn || !cancelBtn) {
-                    showError('중복 확인 창을 찾을 수 없습니다. 페이지를 새로고침 하십시오.');
+                    showError('중복 확인 창을 찾을 수 없습니다. 페이지를 새로 고쳐야 합니다.');
                     return;
                 }
                 // 단계 B 의 baseUrl (`.../nudge`) 을 단계 A 용 `.../intent-nudge` 로 치환.
@@ -683,8 +688,8 @@
                     li.innerHTML =
                         '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
                         '  <input type="radio" name="' + cfg.nudgePrefix + 'IntentTarget" value="' + entry.id + '">' +
-                        '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> · v' + UiUtil.escapeHtml(entry.version) +
-                        '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">[' + entry.state + ' · #' + entry.id + ']</span></span>' +
+                        '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> v' + UiUtil.escapeHtml(entry.version) +
+                        '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">(' + UiUtil.escapeHtml(entry.stateLabel || '') + ')</span></span>' +
                         '</label>';
                     conflicts.appendChild(li);
                 });
@@ -700,7 +705,7 @@
                 // MK2 — TTL countdown.
                 if (window.NudgeTimer) {
                     window.NudgeTimer.start(modal, body.expiresAt, () => {
-                        showError('중복 확인 세션이 만료되었습니다. 다시 등록하십시오.');
+                        showError('중복 확인이 만료되었습니다. 다시 등록해야 합니다.');
                     });
                 }
 
@@ -718,7 +723,7 @@
                     if (intent.warnings && intent.warnings.length) {
                         const msg = intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?';
                         if (!confirm(msg)) {
-                            showError('등록을 취소했습니다.');
+                            showNotice('등록을 취소했습니다.');
                             return;
                         }
                     }
@@ -734,13 +739,13 @@
                         const respBody = await resp.json().catch(() => ({}));
                         if (!resp.ok) {
                             if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
-                            showError(respBody.message || ('중복 확인 진행 실패 (HTTP ' + resp.status + ')'));
+                            showError(respBody.message || '그래도 등록을 처리하지 못했습니다.');
                             disableNudgeButtons(false);
                             return;
                         }
                         handleIntentReissued(respBody);
                     } catch (err) {
-                        showError('네트워크 오류 : ' + err.message);
+                        showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                         disableNudgeButtons(false);
                     }
                 };
@@ -756,13 +761,13 @@
                         const respBody = await resp.json().catch(() => ({}));
                         if (!resp.ok) {
                             if (handleExpiredIfAny(closeModal, resp.status, respBody)) return;
-                            showError(respBody.message || ('중복 확인 교체 실패 (HTTP ' + resp.status + ')'));
+                            showError(respBody.message || '기존 영구 삭제 후 등록을 처리하지 못했습니다.');
                             disableNudgeButtons(false);
                             return;
                         }
                         handleIntentReissued(respBody);
                     } catch (err) {
-                        showError('네트워크 오류 : ' + err.message);
+                        showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                         disableNudgeButtons(false);
                     }
                 };
@@ -777,7 +782,7 @@
                         console.warn(TAG, 'intent cancel 호출 실패 (무시) :', err);
                     } finally {
                         closeModal();
-                        showError('등록을 취소했습니다.');
+                        showNotice('등록을 취소했습니다.');
                     }
                 };
             }
@@ -785,7 +790,7 @@
             function handleExpiredIfAny(closeModal, status, body) {
                 if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
                     closeModal();
-                    showError('중복 확인 세션이 만료되었습니다. 다시 등록하십시오.');
+                    showError('중복 확인이 만료되었습니다. 다시 등록해야 합니다.');
                     return true;
                 }
                 return false;

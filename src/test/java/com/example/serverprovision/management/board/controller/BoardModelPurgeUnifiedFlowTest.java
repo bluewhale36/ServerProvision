@@ -74,7 +74,7 @@ class BoardModelPurgeUnifiedFlowTest {
 		mvc.perform(post("/management/board/3/purge").param("typedName", "Asus P13R-E")
 						.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.message").value("휴지통에 있는 자원만 영구 삭제할 수 있습니다. 목록을 새로 고친 뒤 다시 확인하십시오."));
+				.andExpect(jsonPath("$.message").value("휴지통에 있는 자원만 영구 삭제할 수 있습니다. 목록을 새로 고친 뒤 다시 확인해야 합니다."));
 
 		then(purgeExecutor).should(never()).execute(any());
 	}

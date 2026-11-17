@@ -49,10 +49,10 @@ class GuestServerDetailResponseStageTextTest {
         var flash = new GuestServerDetailResponse.FirmwareFlash(true, List.of(
                 new GuestServerDetailResponse.AxisFlash("BIOS", AxisFlashState.SUCCEEDED, "F29", null),
                 new GuestServerDetailResponse.AxisFlash("BMC", AxisFlashState.RUNNING, "13.06.26", null)),
-                "전원 투입 — 게스트 복귀 대기", 12L, null, true);
+                "전원 투입: 게스트 복귀 대기", 12L, null, true);
 
         assertThat(detail(flash, null, null, List.of()).currentStageText())
-                .isEqualTo("BMC 굽는 중 · 전원 투입 — 게스트 복귀 대기 (잔여 12분)");
+                .isEqualTo("BMC 굽는 중, 전원 투입: 게스트 복귀 대기 (잔여 12분)");
     }
 
     @Test
@@ -62,18 +62,18 @@ class GuestServerDetailResponseStageTextTest {
                 new GuestServerDetailResponse.AxisFlash("BIOS", AxisFlashState.SUCCEEDED, "F29", null)), null, null, null, false);
         var setting = new GuestServerDetailResponse.FirmwareSetting(List.of(
                 new GuestServerDetailResponse.AxisSetting("BIOS", AxisFlashState.SUCCEEDED, null, null, null, null),
-                new GuestServerDetailResponse.AxisSetting("BMC", AxisFlashState.RUNNING, "재부팅 — 게스트 복귀 대기", 3L, "2/4 적용", null)),
+                new GuestServerDetailResponse.AxisSetting("BMC", AxisFlashState.RUNNING, "재부팅: 게스트 복귀 대기", 3L, "2/4 적용", null)),
                 null);
 
         assertThat(detail(flash, setting, null, List.of()).currentStageText())
-                .isEqualTo("BMC 적용 중 · 2/4 적용 · 재부팅 — 게스트 복귀 대기 (잔여 3분)");
+                .isEqualTo("BMC 재부팅: 게스트 복귀 대기, 2/4 적용 (잔여 3분)");
     }
 
     @Test
     @DisplayName("Windows 설치 중 — 서빙된 행만 '설치 중', 완료 뒤에는 null")
     void windows_servedOnly() {
         assertThat(detail(null, null, windows(T0, 58L, null), List.of()).currentStageText())
-                .isEqualTo("설치 중 · 재진입 2/5 · 잔여 58분");
+                .isEqualTo("설치 중, 재부팅 2/5, 남은 시간 58분");
         assertThat(detail(null, null, windows(T0, null, T0.plusHours(1)), List.of()).currentStageText()).isNull();
     }
 
@@ -84,15 +84,28 @@ class GuestServerDetailResponseStageTextTest {
     }
 
     @Test
-    @DisplayName("failedStepNote — 가장 최근 실패 행의 사유, 없으면 null")
-    void failedStepNote_latestFailedRow() {
+    @DisplayName("failedStepNote — 실패한 세부 단계의 가장 최근 실패 행 사유, 다른 단계의 실패 행은 보지 않는다")
+    void failedStepNote_matchesFailedStep() {
         List<GuestServerDetailResponse.Step> steps = List.of(
                 new GuestServerDetailResponse.Step(ProvisioningPhase.RAID_CONFIGURATION, ProvisioningPhaseStep.RAID_APPLYING,
                         ProvisioningStatus.FAILED, T0, T0.plusMinutes(1), "지정 카드 불일치"),
                 new GuestServerDetailResponse.Step(ProvisioningPhase.RAID_CONFIGURATION, ProvisioningPhaseStep.RAID_APPLYING,
-                        ProvisioningStatus.FAILED, T0.plusMinutes(5), T0.plusMinutes(6), "재시도 뒤 다시 불일치"));
+                        ProvisioningStatus.FAILED, T0.plusMinutes(5), T0.plusMinutes(6), "재시도 뒤 다시 불일치"),
+                new GuestServerDetailResponse.Step(ProvisioningPhase.DIAGNOSE_LINUX, ProvisioningPhaseStep.IPMI_SETTING,
+                        ProvisioningStatus.FAILED, T0.plusMinutes(7), T0.plusMinutes(7), "BMC 계정 표준화 실패"));
 
-        assertThat(detail(null, null, null, steps).failedStepNote()).isEqualTo("재시도 뒤 다시 불일치");
-        assertThat(detail(null, null, null, List.of()).failedStepNote()).isNull();
+        assertThat(failedAt(ProvisioningPhaseStep.RAID_APPLYING, steps).failedStepNote()).isEqualTo("재시도 뒤 다시 불일치");
+        assertThat(failedAt(ProvisioningPhaseStep.RAID_APPLYING, List.of()).failedStepNote()).isNull();
+        assertThat(failedAt(null, steps).failedStepNote()).isNull();   // 운영자 실패 처리 — 실패 세부 단계 없음
+    }
+
+    private static GuestServerDetailResponse failedAt(ProvisioningPhaseStep failedStep, List<GuestServerDetailResponse.Step> steps) {
+        return new GuestServerDetailResponse(
+                UUID.randomUUID(), "web-01", null, null, UUID.randomUUID(), "aabbcc", null, null,
+                GuestServerStatus.FAILED, null, T0, T0,
+                null, null, List.of(),
+                new GuestServerDetailResponse.Progress(ProvisioningPhase.RAID_CONFIGURATION, T0, T0,
+                        T0.plusMinutes(8), failedStep, null, false, false, true, false, false),
+                null, null, null, null, null, List.of(), steps);
     }
 }

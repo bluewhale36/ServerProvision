@@ -34,7 +34,7 @@
             <h2 class="cm-title">ISO 등록이 중단되었습니다</h2>
 
             <div class="n-alert n-alert-warning">
-                업로드한 파일은 <strong>삭제되지 않고 격리</strong> 되었습니다. 같은 파일로 다시 등록하거나, 더 이상 필요 없으면 폐기할 수 있습니다.
+                업로드한 파일은 <strong>삭제되지 않고 격리</strong>되었습니다.
             </div>
 
             <table class="n-detail-table">
@@ -54,17 +54,11 @@
                 </tbody>
             </table>
 
-            <div class="n-hint n-lead">
-                <strong>재시도</strong> : 격리 파일을 원래 경로로 되돌리고 등록을 다시 시작<br>
-                <strong>폐기</strong> : 격리 파일을 영구 삭제 (파일명 입력으로 확정)<br>
-                <strong>나중에</strong> : 닫기만 함 — 격리는 유지되어 [업로드 실패 복구] 페이지에서 다시 처리 가능
-            </div>
-
             <!-- 폐기 확정용 typed-name. [폐기…] 클릭 시 JS 가 노출 + 파일명 일치 시 [폐기 확정] 활성화. -->
             <div class="cm-typed-block" th:id="${prefix} + 'TypedNameWrap'"
                  hidden>
                 <label class="cm-typed-target-label" th:for="${prefix} + 'TypedName'">
-                    폐기를 확정하려면 아래 파일명을 정확히 입력하세요 :
+                    폐기를 확정하려면 아래 파일명을 정확히 입력해야 합니다.
                 </label>
                 <code class="cm-typed-target-code cm-path" th:id="${prefix} + 'TypedNameExpected'"
                      ></code>

@@ -25,8 +25,8 @@ import lombok.Setter;
 @AllArgsConstructor
 public class SignUpRequest {
 
-	@NotBlank(message = "아이디를 입력하십시오.")
-	@Size(max = 64, message = "아이디는 64자 이하로 입력하십시오.")
+	@NotBlank(message = "아이디를 입력해야 합니다.")
+	@Size(max = 64, message = "아이디는 64자 이하로 입력해야 합니다.")
 	private String username;
 
 	@NotBlank(message = PasswordRule.BLANK)
@@ -36,8 +36,8 @@ public class SignUpRequest {
 	@NotBlank(message = PasswordRule.RETYPE_BLANK)
 	private String retypedPassword;
 
-	@NotBlank(message = "이름을 입력하십시오.")
-	@Size(max = 20, message = "이름은 20자 이하로 입력하십시오.")
+	@NotBlank(message = "이름을 입력해야 합니다.")
+	@Size(max = 20, message = "이름은 20자 이하로 입력해야 합니다.")
 	private String name;
 
 	private Role role;

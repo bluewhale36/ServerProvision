@@ -16,13 +16,13 @@ import lombok.RequiredArgsConstructor;
 @Getter
 public enum DiscoveryStage {
 
-    IPXE_REGISTERED("iPXE 등록") {
+    IPXE_REGISTERED("진단 수집 전") {
         @Override
         public boolean isSpecAvailable() {
             return false;
         }
     },
-    DIAGNOSTIC_ENRICHED("진단 정보 보강") {
+    DIAGNOSTIC_ENRICHED("진단 수집 완료") {
         @Override
         public boolean isSpecAvailable() {
             return true;

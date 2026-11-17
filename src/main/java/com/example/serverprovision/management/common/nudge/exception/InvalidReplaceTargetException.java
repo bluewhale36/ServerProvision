@@ -10,6 +10,6 @@ import com.example.serverprovision.global.exception.FieldBoundBadRequestExceptio
 public class InvalidReplaceTargetException extends FieldBoundBadRequestException {
 
 	public InvalidReplaceTargetException(Long targetId) {
-		super("replace 대상이 nudge 세션의 충돌 후보 목록에 없습니다 : " + targetId, "targetId");
+		super("고른 기존 자원이 중복 확인 목록에 없습니다. 다시 골라야 합니다.", "targetId");
 	}
 }

@@ -59,7 +59,7 @@ public class BiosTemplateStaleInspector {
             List<BiosStaleValue> stale = template.staleAgainst(resolved.registry());
             if (!stale.isEmpty()) {
                 return "BIOS 템플릿 '" + template.getName() + "' 의 값이 보드 레지스트리(" + resolved.label()
-                        + ")와 어긋납니다 — " + String.join(" / ", stale.stream().map(BiosStaleValue::message).toList());
+                        + ")와 어긋납니다: " + String.join(" / ", stale.stream().map(BiosStaleValue::message).toList());
             }
         }
         return null;

@@ -108,7 +108,7 @@ public class GuestServerGroup extends BaseTimeEntity {
             return null;
         }
         return "이미 다른 그룹(" + currentGroup.getName() + ")에 속해 있습니다."
-                + " 옮기려면 그 그룹에서 먼저 빼주세요.";
+                + " 옮기려면 그 그룹에서 먼저 빼야 합니다.";
     }
 
     /** 멤버 장착 — 양방향 연관을 함께 세팅한다. 차단 판정은 호출 전에 {@link #addBlockReason} 이 한다. */

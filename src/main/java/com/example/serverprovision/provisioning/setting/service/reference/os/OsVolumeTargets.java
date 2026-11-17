@@ -40,11 +40,11 @@ public final class OsVolumeTargets {
 
     /** 묶음 요약 — {@code RAID1 · SSD · SATA · 480 GB · 2개} · 스팬 지정 묶음은 {@code RAID10(스팬당 4대) · …}(R17-1). */
     public static String summarize(DiskGroupRuleRequest rule) {
-        String level = !rule.buildsRaid() ? "RAID 없음"
+        String level = !rule.buildsRaid() ? "RAID 미구성"
                 : rule.hasDrivesPerSpan()
                 ? rule.raidLevel().getDisplayName() + "(" + rule.drivesPerSpan().toDisplay() + ")"
                 : rule.raidLevel().getDisplayName();
-        return String.join(" · ",
+        return String.join(", ",
                 level,
                 rule.diskType() == null ? "?" : rule.diskType().getDisplayName(),
                 rule.transport() == null ? "?" : rule.transport().getDisplayName(),

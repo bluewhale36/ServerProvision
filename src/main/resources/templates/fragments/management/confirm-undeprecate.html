@@ -12,14 +12,14 @@
     <div th:id="${prefix} + 'Backdrop'" class="cm-backdrop"></div>
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
-            <h2 th:id="${prefix} + 'Title'" class="cm-title">Deprecated 해제</h2>
+            <h2 th:id="${prefix} + 'Title'" class="cm-title">사용 중단 권고 해제</h2>
             <p th:id="${prefix} + 'Message'" class="cm-message">메시지</p>
             <div class="cm-actions">
                 <button type="button" th:id="${prefix} + 'CancelBtn'"
                         class="n-btn n-btn-secondary">취소
                 </button>
                 <button type="button" th:id="${prefix} + 'ConfirmBtn'"
-                        class="n-btn n-btn-outline-info">Deprecated 해제
+                        class="n-btn n-btn-outline-info">사용 중단 권고 해제
                 </button>
             </div>
         </div>
@@ -31,11 +31,11 @@
     <div class="cm-backdrop" data-modal-cancel></div>
     <div class="n-card cm-card" role="dialog" aria-modal="true">
         <div class="n-card-body">
-            <h2 class="cm-title">Deprecated 해제</h2>
-            <p class="cm-message" data-modal-message>이 자원의 Deprecated 표시를 해제할까요?</p>
+            <h2 class="cm-title">사용 중단 권고 해제</h2>
+            <p class="cm-message" data-modal-message>이 자원의 사용 중단 권고를 해제하시겠습니까?</p>
             <div class="cm-actions">
                 <button type="button" class="n-btn n-btn-secondary" data-modal-cancel>취소</button>
-                <button type="button" class="n-btn n-btn-outline-info" data-modal-confirm>Deprecated 해제</button>
+                <button type="button" class="n-btn n-btn-outline-info" data-modal-confirm>사용 중단 권고 해제</button>
             </div>
         </div>
     </div>

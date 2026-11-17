@@ -12,21 +12,21 @@ import jakarta.validation.constraints.Size;
  */
 public record BmcCreateRequest(
 
-		@NotBlank(message = "이름을 입력해주세요.")
-		@Size(max = 128, message = "이름은 128자 이하로 입력해주세요.")
+		@NotBlank(message = "이름을 입력해야 합니다.")
+		@Size(max = 128, message = "이름은 128자 이하로 입력해야 합니다.")
 		String name,
 
-		@NotBlank(message = "버전을 입력해주세요.")
-		@Size(max = 64, message = "버전은 64자 이하로 입력해주세요.")
+		@NotBlank(message = "버전을 입력해야 합니다.")
+		@Size(max = 64, message = "버전은 64자 이하로 입력해야 합니다.")
 		String version,
 
 		// HF4-2 — firmware_path(1024) 외에 legacy 컬럼 file_path VARCHAR(255) NOT NULL 에도 동일 값이
 		// 미러링되므로(BoardBMC.legacyFilePath) effective DB 제약인 255 로 정렬. legacy 컬럼 제거 시 1024 복원.
-		@NotBlank(message = "펌웨어 파일 경로를 입력해주세요.")
-		@Size(max = 255, message = "펌웨어 파일 경로는 255자 이하로 입력해주세요.")
+		@NotBlank(message = "펌웨어 파일 경로를 입력해야 합니다.")
+		@Size(max = 255, message = "펌웨어 파일 경로는 255자 이하로 입력해야 합니다.")
 		String firmwarePath,
 
-		@Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")
+		@Size(max = 1024, message = "설명은 1024자 이하로 입력해야 합니다.")
 		String description,
 
 		/**

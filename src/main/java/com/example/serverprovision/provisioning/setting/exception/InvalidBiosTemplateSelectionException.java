@@ -19,8 +19,8 @@ public class InvalidBiosTemplateSelectionException extends FieldBoundBadRequestE
     }
 
     /** SPECIFIED — 지정 보드와 다른 보드의 템플릿. */
-    public static InvalidBiosTemplateSelectionException boardMismatch(Long templateId) {
+    public static InvalidBiosTemplateSelectionException boardMismatch(String templateName) {
         return new InvalidBiosTemplateSelectionException(
-                "지정한 메인보드의 템플릿이 아닙니다: #" + templateId);
+                "지정한 메인보드의 템플릿이 아닙니다: " + templateName);
     }
 }

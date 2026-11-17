@@ -57,9 +57,9 @@ class RaidCardMetadataControllerTest {
 	private static RaidCardResponse activeCard(String pciDisplay) {
 		return new RaidCardResponse(
 				3L, RaidCardVendor.GIGABYTE, "CRA3338",
-				List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0 · RAID1",
+				List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0, RAID1",
 				RaidChipFamily.MPT_IR,
-				0, "없음", false, pciDisplay, "desc",
+				0, "미탑재", false, pciDisplay, "desc",
 				true, false, false, LifecycleStage.ACTIVE);
 	}
 
@@ -75,7 +75,7 @@ class RaidCardMetadataControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(view().name("management/raidcard/list"))
 				.andExpect(model().attributeExists("raidCardGroups"))
-				.andExpect(content().string(containsString("RAID0 · RAID1")));
+				.andExpect(content().string(containsString("RAID0, RAID1")));
 	}
 
 	@Test
@@ -169,7 +169,7 @@ class RaidCardMetadataControllerTest {
 						.param("description", "desc"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("supportedRaidLevels"))
-				.andExpect(jsonPath("$.fieldErrors[0].message").value("지원 RAID 레벨을 1개 이상 선택하세요."));
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("지원 RAID 레벨을 1개 이상 선택해야 합니다."));
 	}
 
 	/**
@@ -187,7 +187,7 @@ class RaidCardMetadataControllerTest {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("cacheCapacityGb"))
 				.andExpect(jsonPath("$.fieldErrors[0].message")
-						.value("캐시 용량을 입력하세요. 캐시가 없는 모델은 0 을 입력합니다."));
+						.value("캐시 용량을 입력해야 합니다. 캐시가 없는 모델은 0 을 입력합니다."));
 	}
 
 	@Test
@@ -295,7 +295,7 @@ class RaidCardMetadataControllerTest {
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("modelName"))
 				.andExpect(jsonPath("$.fieldErrors[0].message").value(
-						"Deprecated 상태로 등록된 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 목록에서 Deprecated 를 해제하십시오."));
+						"사용 중단 권고 상태인 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 목록에서 사용 중단 권고를 해제해야 합니다."));
 	}
 
 	@Test
@@ -307,13 +307,13 @@ class RaidCardMetadataControllerTest {
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("modelName"))
 				.andExpect(jsonPath("$.fieldErrors[0].message").value(
-						"휴지통에 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오."));
+						"휴지통에 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 휴지통에서 복구하거나 영구 삭제한 뒤 등록해야 합니다."));
 	}
 
 	@Test
 	@DisplayName("HF30-1 POST /{id}/edit — 휴지통 카드의 이름으로 수정 → 수정 폼 재렌더 + 모델명 칸에 이름 수정 안내 · update 미호출")
 	void update_renameToTrashed_rerendersFormWithFieldError() throws Exception {
-		String reason = "휴지통에 같은 이름의 RAID 카드가 있습니다(GIGABYTE CRA4448). 다른 이름을 쓰거나 휴지통의 카드를 영구 삭제하십시오.";
+		String reason = "휴지통에 같은 이름의 RAID 카드가 있습니다(GIGABYTE CRA4448). 다른 이름을 쓰거나 휴지통의 카드를 영구 삭제해야 합니다.";
 		given(raidCardService.renameConflictReason(3L, "CRA4448")).willReturn(reason);
 		given(raidCardService.findById(3L)).willReturn(activeCard("1458:0011"));
 
@@ -401,7 +401,7 @@ class RaidCardMetadataControllerTest {
 		mvc.perform(get("/management/raidcard/new"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("data-creatable-levels=\"RAID0 RAID1 RAID10\"")))
-				.andExpect(content().string(containsString("MPT IR (sas3ircu 계열)은 RAID0 · RAID1 · RAID10 만 만들 수 있습니다")))
+				.andExpect(content().string(containsString("MPT IR (sas3ircu 계열)은 RAID0, RAID1, RAID10 만 만들 수 있습니다")))
 				.andExpect(content().string(containsString("value=\"RAID60\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("cacheWarn"))))
 				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("data-requires-cache"))));

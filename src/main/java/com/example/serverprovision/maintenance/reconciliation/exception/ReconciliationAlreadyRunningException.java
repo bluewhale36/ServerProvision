@@ -8,6 +8,6 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class ReconciliationAlreadyRunningException extends ConflictException {
 
 	public ReconciliationAlreadyRunningException() {
-		super("이전 스캔이 아직 진행 중입니다. 작업 조회 아이콘에서 진행 상태를 확인하세요.");
+		super("이전 점검이 아직 진행 중입니다. 작업 조회 아이콘에서 진행 상태를 확인할 수 있습니다.");
 	}
 }

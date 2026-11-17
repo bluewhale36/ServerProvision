@@ -23,20 +23,20 @@ public enum RaidCardObservationStatus {
 			return true;
 		}
 	},
-	MATCHES_CONFIRMED(false, "n-badge-green", "이미 확정된 카드입니다 — 정정은 수정에서 하십시오.") {
+	MATCHES_CONFIRMED(false, "n-badge-green", "이미 확정된 카드입니다. 정정은 수정에서 해야 합니다.") {
 		@Override
 		public boolean showsButton(boolean confirmed) {
 			return false;
 		}
 	},
-	DIFFERS_FROM_CONFIRMED(false, "n-badge-red", "이미 확정된 카드입니다 — 정정은 수정에서 하십시오.") {
+	DIFFERS_FROM_CONFIRMED(false, "n-badge-red", "이미 확정된 카드입니다. 정정은 수정에서 해야 합니다.") {
 		@Override
 		public boolean showsButton(boolean confirmed) {
 			return false;
 		}
 	},
 	/** 잠긴 버튼 + tooltip 은 미확인 카드에서만 — 확정된 카드에 "확인한 뒤 확정하십시오" 는 성립하지 않는다(CP5 F-2). */
-	CONFLICTING(false, "n-badge-red", "관측이 서로 다릅니다 — 정의서의 카드 지정을 확인한 뒤 확정하십시오.") {
+	CONFLICTING(false, "n-badge-red", "관측이 서로 다릅니다. 정의서의 카드 지정을 확인한 뒤 확정해야 합니다.") {
 		@Override
 		public boolean showsButton(boolean confirmed) {
 			return !confirmed;

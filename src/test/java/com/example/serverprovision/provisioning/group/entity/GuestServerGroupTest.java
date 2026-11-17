@@ -43,7 +43,7 @@ class GuestServerGroupTest {
         assertThat(reason)
                 .isNotNull()
                 .contains("8월 2차")          // 어디에 묶여 있는지
-                .contains("먼저 빼주세요");     // 다음에 무엇을 해야 하는지
+                .contains("먼저 빼야 합니다");     // 다음에 무엇을 해야 하는지
     }
 
     @Test

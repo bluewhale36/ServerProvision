@@ -136,13 +136,13 @@ class GuestServerQueryServiceExecutionViewTest {
     }
 
     @Test
-    @DisplayName("진리표 1b행 — 한 축만 닫히고 다음 축이 아직이면 '다음 축 착수 대기'")
+    @DisplayName("진리표 1b행 — 한 축만 닫히고 다음 축이 아직이면 'BMC 굽기를 곧 시작합니다'")
     void stageRow1b_gapBetweenAxes() {
         GuestServerDetailResponse detail = detailWith(
                 progressAt(ProvisioningPhaseStep.BIOS_UPDATING, now.minusMinutes(10)),
                 List.of(closedAxis(ProvisioningPhaseStep.BIOS_UPDATING, "BIOS 표준", "F29", now.minusMinutes(2))));
 
-        assertThat(detail.firmwareFlash().stageText()).isEqualTo("다음 축 착수 대기(다음 워커 주기)");
+        assertThat(detail.firmwareFlash().stageText()).isEqualTo("BMC 굽기를 곧 시작합니다");
         assertThat(detail.firmwareFlash().stageRemainingMinutes()).isNull();
     }
 
@@ -155,13 +155,13 @@ class GuestServerQueryServiceExecutionViewTest {
                 closedAxis(ProvisioningPhaseStep.BMC_UPDATING, "BMC 표준", "13.06.27", now.minusMinutes(18)));
 
         assertThat(detailWith(progress, closed).firmwareFlash().stageText())
-                .isEqualTo("전원 투입 대기(다음 워커 주기)");   // 2행
+                .isEqualTo("전원을 곧 켭니다");   // 2행
 
         List<ProvisioningHistory> withPowerOn = List.of(closed.get(0), closed.get(1),
                 powerEvent(ProvisioningPhaseStep.BMC_UPDATING, FlashLedger.POWER_ON,
                         "다음 부팅 PXE 강제 : 반영 확인 · 전원이 켜졌습니다", now.minusMinutes(5)));
         GuestServerDetailResponse detail = detailWith(progress, withPowerOn);
-        assertThat(detail.firmwareFlash().stageText()).isEqualTo("전원 투입 — 게스트 복귀 대기");   // 3행
+        assertThat(detail.firmwareFlash().stageText()).isEqualTo("전원을 켰습니다. 서버 복귀를 기다리는 중");   // 3행
         // 복귀 시한 20분 · 기점 = 전원 사건 행(5분 전) — 축 종료(18분 전)가 기점이면 2분 이하로 떨어진다.
         assertThat(detail.firmwareFlash().stageRemainingMinutes()).isBetween(14L, 15L);
     }
@@ -177,7 +177,7 @@ class GuestServerQueryServiceExecutionViewTest {
                 closedAxis(ProvisioningPhaseStep.BMC_UPDATING, "BMC 표준", "13.06.27", now.minusMinutes(18)),
                 powerEvent(ProvisioningPhaseStep.BMC_UPDATING, FlashLedger.POWER_ON, "전원 투입", now.minusMinutes(5))));
 
-        assertThat(detail.firmwareFlash().stageText()).isEqualTo("게스트 복귀 — 반영 확인 대기(다음 워커 주기)");
+        assertThat(detail.firmwareFlash().stageText()).isEqualTo("버전을 곧 확인합니다");
     }
 
     @Test
@@ -187,7 +187,7 @@ class GuestServerQueryServiceExecutionViewTest {
                 progressAt(ProvisioningPhaseStep.BIOS_SETTING, now.minusMinutes(30)),
                 List.of(closedAxis(ProvisioningPhaseStep.BIOS_UPDATING, "BIOS 표준", "F29", now.minusMinutes(18))));
 
-        assertThat(detail.firmwareFlash().stageText()).startsWith("반영 확인 완료 — ");
+        assertThat(detail.firmwareFlash().stageText()).isEqualTo("반영 확인 완료");
     }
 
     @Test
@@ -201,9 +201,9 @@ class GuestServerQueryServiceExecutionViewTest {
         GuestServerDetailResponse detail = detailWith(
                 progressAt(ProvisioningPhaseStep.BIOS_UPDATING, now.minusMinutes(5)), List.of(failed));
 
-        assertThat(detail.steps()).anySatisfy(step -> assertThat(step.note()).isEqualTo("목표 F29 · 확인 F27"));
+        assertThat(detail.steps()).anySatisfy(step -> assertThat(step.note()).isEqualTo("구운 뒤 다시 읽은 버전이 목표와 다릅니다(목표 F29, 읽은 값 F27)."));
         assertThat(detail.firmwareFlash()).isNotNull();
-        assertThat(detail.firmwareFlash().lastObservation()).endsWith("확인 — BMC Task 확인 — 굽는 중");
+        assertThat(detail.firmwareFlash().lastObservation()).endsWith("BMC Task 확인 — 굽는 중");
     }
 
     @Test
@@ -220,7 +220,7 @@ class GuestServerQueryServiceExecutionViewTest {
         assertThat(detail.firmwareSetting().axes())
                 .anySatisfy(axis -> {
                     assertThat(axis.label()).isEqualTo("BIOS");
-                    assertThat(axis.stageText()).isEqualTo("게스트 복귀 — 값 확인(readback) 대기(다음 워커 주기)");
+                    assertThat(axis.stageText()).isEqualTo("재부팅 뒤 설정 값을 확인하는 중");
                 });
         assertThat(detail.firmwareSetting().waitingReason()).isNull();   // 열린 행이 있으니 침묵 대기가 아니다
     }
@@ -233,7 +233,7 @@ class GuestServerQueryServiceExecutionViewTest {
 
         assertThat(detail.firmwareSetting()).isNotNull();
         assertThat(detail.firmwareSetting().waitingReason())
-                .contains("축 착수 대기")
+                .contains("BMC 신원을 확인하는 중")
                 .contains("보드 시리얼이 없어");   // detail 미적재 게스트 — E3-3 O-1 의 재연
     }
 
@@ -261,7 +261,7 @@ class GuestServerQueryServiceExecutionViewTest {
         assertThat(detail.firmwareFlash()).isNotNull();
         assertThat(detail.firmwareFlash().axes()).hasSize(2);
         assertThat(detail.firmwareFlash().stageText())
-                .contains("축 착수 대기")
+                .contains("BMC 신원을 확인하는 중")
                 .contains("보드 시리얼이 없어");   // detail 미적재 — F-2 의 재연 상태
     }
 }

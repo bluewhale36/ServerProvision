@@ -68,14 +68,14 @@ class GigabyteFirmwareFilePolicyStrategyTest {
     @DisplayName("검사 순서 : 금지 파일명이 확장자보다 먼저 — PFR1.RBU 는 확장자가 유효해도 금지 사유로 거절")
     void forbiddenName_checkedBeforeExtension() {
         assertThatThrownBy(() -> strategy.assertAllowed("PFR1.RBU", "firmwareFile"))
-                .hasMessageContaining("PFR 사본");
+                .hasMessageContaining("등록 대상이 아닙니다");
     }
 
     @Test
     @DisplayName("뷰 데이터 : 금지 CSV · 문구 정본 · 허용 확장자")
     void viewData() {
         assertThat(strategy.forbiddenNamesCsv()).isEqualTo("PFR1.RBU,PFR2.RBU");
-        assertThat(strategy.forbiddenMessage()).contains("PFR 사본");
+        assertThat(strategy.forbiddenMessage()).contains("등록 대상이 아닙니다");
         assertThat(strategy.allowedExtensions()).containsExactly("rbu");
         assertThat(strategy.invalidExtensionMessage()).contains(".RBU");
     }

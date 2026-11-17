@@ -1,44 +1,17 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <th:block th:replace="~{fragments/layout :: commonHead('Subprogram (Driver / Utility) 관리')}"></th:block>
+    <th:block th:replace="~{fragments/layout :: commonHead('드라이버, 유틸리티 관리')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/miller.css}">
     <link rel="stylesheet" th:href="@{/css/accordion.css}">
-    <style>
-        .n-subprogram-section-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-
-        /*
-         * Bootstrap 5 가 h2 를 2rem (32px) 으로 키우므로 .n-page-title (26px) 보다
-         * 커 보이는 문제가 발생. 섹션 제목은 페이지 제목보다 작게 명시적으로 잡는다.
-         */
-        .n-subprogram-section-title {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 600;
-            letter-spacing: -0.3px;
-            line-height: 1.3;
-            color: var(--n-text);
-        }
-
-        .n-subprogram-section-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-    </style>
+    <link rel="stylesheet" th:href="@{/management/subprogram/subprogram-list.css}">
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: navbar('subprogram')}"></nav>
 
 <div class="n-page">
     <div class="n-page-header">
-        <h1 class="n-page-title">Subprogram (Driver · Utility)</h1>
+        <h1 class="n-page-title">드라이버, 유틸리티</h1>
     </div>
 
     <!-- S8-3 — 조회 띠 하나가 Driver · Utility 두 Miller 에 함께 걸린다(삭제 포함이 원래 페이지 전역이었던 것과 같게). -->
@@ -46,9 +19,9 @@
 
     <section class="n-subprogram-section">
         <div class="n-subprogram-section-header">
-            <h2 class="n-subprogram-section-title">Driver</h2>
+            <h2 class="n-subprogram-section-title">드라이버</h2>
             <div class="n-subprogram-section-actions">
-                <a th:href="@{/management/subprogram/new(kind='DRIVER')}" class="n-btn n-btn-primary">+ 신규 드라이버 등록</a>
+                <a th:href="@{/management/subprogram/new(kind='DRIVER')}" class="n-btn n-btn-primary">+ 드라이버 등록</a>
             </div>
         </div>
         <!-- S8-3 — 조건에 맞는 항목이 없으면 Miller 대신 안내(조건이 없으면 공용 행이 늘 있어 Miller 를 그린다). -->
@@ -62,9 +35,9 @@
 
     <section class="n-subprogram-section">
         <div class="n-subprogram-section-header">
-            <h2 class="n-subprogram-section-title">Utility</h2>
+            <h2 class="n-subprogram-section-title">유틸리티</h2>
             <div class="n-subprogram-section-actions">
-                <a th:href="@{/management/subprogram/new(kind='UTILITY')}" class="n-btn n-btn-primary">+ 신규 유틸리티 등록</a>
+                <a th:href="@{/management/subprogram/new(kind='UTILITY')}" class="n-btn n-btn-primary">+ 유틸리티 등록</a>
             </div>
         </div>
         <!-- S8-3 — 조건에 맞는 항목이 없으면 Miller 대신 안내(조건이 없으면 공용 행이 늘 있어 Miller 를 그린다). -->

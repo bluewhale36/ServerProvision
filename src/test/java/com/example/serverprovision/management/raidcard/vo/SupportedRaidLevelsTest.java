@@ -40,7 +40,7 @@ class SupportedRaidLevelsTest {
 		assertThat(reason)
 				.contains("RAID5")
 				.contains("만들 수 없는")
-				.contains("RAID0 · RAID1");
+				.contains("RAID0, RAID1");
 		assertThat(cra3338.supports(RaidLevel.RAID5)).isFalse();
 	}
 
@@ -62,7 +62,7 @@ class SupportedRaidLevelsTest {
 		SupportedRaidLevels levels = SupportedRaidLevels.of(
 				List.of(RaidLevel.RAID5, RaidLevel.RAID0, RaidLevel.RAID1));
 
-		assertThat(levels.toDisplay()).isEqualTo("RAID0 · RAID1 · RAID5");
+		assertThat(levels.toDisplay()).isEqualTo("RAID0, RAID1, RAID5");
 	}
 
 	// ==== invariant ==================================================

@@ -1,6 +1,7 @@
 package com.example.serverprovision.management.common.nudge.dto;
 
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
 
@@ -19,4 +20,9 @@ public record NudgeConflictEntry(
 		Instant registeredAt
 ) {
 
+	/** 중복 확인 창에 보이는 상태 이름(S22-4). {@code state} 상수 원문은 JS 판정용으로만 남긴다. */
+	@JsonProperty("stateLabel")
+	public String stateLabel() {
+		return state == null ? "" : state.description();
+	}
 }

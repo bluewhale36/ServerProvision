@@ -17,6 +17,6 @@ public class BoardModelNotFoundException extends NotFoundException {
 	 * PXE 등록 — iPXE 가 보고한 (vendor, modelName) 조합의 활성 보드 모델이 없을 때.
 	 */
 	public BoardModelNotFoundException(Vendor vendor, String modelName) {
-		super("메인보드 모델을 찾을 수 없습니다. vendor=" + vendor + ", modelName=" + modelName);
+		super("메인보드 모델을 찾을 수 없습니다: " + (vendor != null ? vendor.getDisplayName() : "-") + " " + modelName);
 	}
 }

@@ -18,7 +18,7 @@ class CacheCapacityTest {
 		CacheCapacity none = CacheCapacity.ofGigabytes(0);
 
 		assertThat(none.isPresent()).isFalse();
-		assertThat(none.toDisplay()).isEqualTo("없음");
+		assertThat(none.toDisplay()).isEqualTo("미탑재");
 		assertThat(none).isEqualTo(CacheCapacity.NONE);
 	}
 

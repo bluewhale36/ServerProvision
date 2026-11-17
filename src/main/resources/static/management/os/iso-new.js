@@ -30,6 +30,9 @@
     let activeXhr = null;
     let uploading = false;
 
+    const RETRY_MSG = '요청을 처리하지 못했습니다. 다시 시도해야 합니다.';
+    const NUDGE_EXPIRED_MSG = '중복 확인이 만료되었습니다. 다시 업로드해야 합니다.';
+
     // ---- 서버 경로 탐색 — PathBrowser 공통 헬퍼에 위임 (iso-edit 와 동일 진입점). ------
     if (window.PathBrowser) {
         window.PathBrowser.attach({
@@ -101,15 +104,16 @@
         // sealed sum type — type discriminator 로 분기
         if (intent && intent.type === 'HASH_CHECK_REQUIRED') {
             // Phase 1.5 — Web Worker SHA-256 계산
-            submitBtn.textContent = 'fingerprint 계산 중… 0%';
+            submitBtn.textContent = '해시 계산 중… 0%';
             let clientHash;
             try {
                 clientHash = await computeFingerprint(file, (progress, processedBytes, totalBytes) => {
                     const pct = Math.floor(progress * 100);
-                    submitBtn.textContent = `fingerprint 계산 중… ${pct}%`;
+                    submitBtn.textContent = `해시 계산 중… ${pct}%`;
                 });
             } catch (err) {
-                showError('fingerprint 계산 실패 : ' + (err.message || err));
+                console.error(TAG, 'fingerprint 계산 실패', err);
+                showError('파일의 해시를 계산하지 못했습니다. 다시 시도해야 합니다.');
                 submitBtn.disabled = false;
                 submitBtn.textContent = '등록';
                 return;
@@ -125,7 +129,8 @@
             }
             // Phase 2 응답이 또 HashCheckRequired 면 안 됨 (이론상)
             if (intent.type !== 'INTENT_TOKEN_ISSUED') {
-                showError('intent 응답 형식 오류 : type=' + intent.type);
+                console.error(TAG, 'intent 응답 형식 오류', intent.type);
+                showError(RETRY_MSG);
                 submitBtn.disabled = false;
                 submitBtn.textContent = '등록';
                 return;
@@ -228,15 +233,15 @@
     function intentFallbackMessage(status) {
         switch (status) {
             case 400:
-                return '입력값이 올바르지 않습니다. ISO 경로와 파일을 다시 확인해주세요.';
+                return '입력값이 올바르지 않습니다. ISO 경로와 파일을 다시 확인해야 합니다.';
             case 404:
-                return '대상 OS 메타데이터를 찾을 수 없습니다. 목록에서 다시 선택해주세요.';
+                return '대상 OS 버전을 찾을 수 없습니다. 목록에서 다시 선택해야 합니다.';
             case 409:
-                return '같은 경로에 이미 등록된 ISO 가 있거나 사전 검증 조건에 어긋났습니다.';
+                return '같은 경로에 이미 등록된 ISO 가 있거나 사전 검증 조건에 맞지 않습니다.';
             case 500:
-                return '서버 내부 오류로 사전 검증에 실패했습니다. 잠시 후 다시 시도해주세요.';
+                return '서버 오류로 사전 검증에 실패했습니다. 잠시 후 다시 시도해야 합니다.';
             default:
-                return '사전 검증 실패 (HTTP ' + status + ')';
+                return '사전 검증에 실패했습니다. 다시 시도해야 합니다.';
         }
     }
 
@@ -245,7 +250,7 @@
 
         resetError();
         lockPage(true);
-        showProgress('기존 ISO 경로 확인 후 등록 작업 시작 중…', null);
+        showProgress('경로를 확인하고 등록을 시작하는 중…', null);
 
         const xhr = new XMLHttpRequest();
         activeXhr = xhr;
@@ -256,7 +261,7 @@
 
         xhr.addEventListener('load', () => handleUploadResponse(xhr, false));
         xhr.addEventListener('error', () => handleUploadNetworkError('네트워크 오류로 등록 요청이 중단되었습니다.'));
-        xhr.addEventListener('abort', () => handleUploadNetworkError('등록 요청을 취소했습니다.'));
+        xhr.addEventListener('abort', () => handleUploadAborted('등록 요청을 취소했습니다.'));
         xhr.send(fd);
     }
 
@@ -315,8 +320,8 @@
             const etaSec = speedBps > 0 ? Math.round((ev.total - ev.loaded) / speedBps) : -1;
 
             const msg = `${UiUtil.formatBytes(ev.loaded)} / ${UiUtil.formatBytes(ev.total)}` +
-                (speedBps > 0 ? ` · ${UiUtil.formatBytes(speedBps)}/s` : '') +
-                (etaSec >= 0 ? ` · 약 ${formatDuration(etaSec)} 남음` : '');
+                (speedBps > 0 ? `, ${UiUtil.formatBytes(speedBps)}/s` : '') +
+                (etaSec >= 0 ? `, 남은 시간 약 ${formatDuration(etaSec)}` : '');
             showProgress(`${displayPct}%  ${msg}`, displayPct);
         });
 
@@ -330,7 +335,7 @@
                 const ratio = 1 - Math.exp(-elapsed / (estimatedSec * 0.6));
                 const pct = UPLOAD_END_PCT + (CHECKSUM_END_PCT - UPLOAD_END_PCT) * Math.min(1, ratio);
                 showProgress(
-                    `${Math.floor(pct)}%  서버 수신 완료 · 등록 작업 시작 중…`,
+                    `${Math.floor(pct)}%  서버 수신 완료, 등록 시작 중…`,
                     pct
                 );
             }, 150);
@@ -338,7 +343,7 @@
 
         xhr.addEventListener('load', () => handleUploadResponse(xhr, true, checksumTimer));
         xhr.addEventListener('error', () => handleUploadNetworkError('네트워크 오류로 업로드가 중단되었습니다.', checksumTimer));
-        xhr.addEventListener('abort', () => handleUploadNetworkError('업로드를 취소했습니다.', checksumTimer));
+        xhr.addEventListener('abort', () => handleUploadAborted('업로드를 취소했습니다.', checksumTimer));
 
         xhr.send(fd);
     }
@@ -358,13 +363,13 @@
             }
             const redirect = body.redirect || listUrl;
             const msg = hadFile
-                ? 'ISO 업로드가 끝났고 등록 후처리가 background 에서 계속됩니다.'
-                : 'ISO 등록 후처리가 background 에서 시작되었습니다.';
+                ? 'ISO 업로드를 마쳤습니다. 등록을 이어서 진행합니다.'
+                : 'ISO 등록을 시작했습니다.';
             try {
                 sessionStorage.setItem('os.isoRegistration.toast', msg);
             } catch (_) { /* ignore */
             }
-            showProgress('100%  등록 작업 시작됨', 100);
+            showProgress('100%  등록 시작', 100);
             window.location.href = redirect;
             return;
         }
@@ -382,7 +387,7 @@
             showNudgeModal(body);
             return;
         }
-        const msg = (body && body.message) || ('HTTP ' + xhr.status);
+        const msg = (body && body.message) || '업로드에 실패했습니다. 다시 시도해야 합니다.';
         console.error(TAG, 'upload 실패', msg);
         if (window.FormError && body) {
             window.FormError.renderResponse(body, {root: form});
@@ -403,7 +408,7 @@
         const modal = document.getElementById('nudgeModal');
         if (!modal) {
             console.error(TAG, 'nudge modal element 가 페이지에 없습니다.');
-            showError(payload.message || '동일한 자원이 이미 존재합니다.');
+            showError(payload.message || '같은 자원이 이미 있습니다.');
             return;
         }
         const baseUrl = modal.dataset.confirmBaseUrl || '/management/os/nudge';
@@ -425,7 +430,7 @@
             li.innerHTML =
                 '<div style="font-weight: 600;">' + UiUtil.escapeHtml(c.name || '') + ' ' + UiUtil.escapeHtml(c.version || '') + '</div>' +
                 '<div style="font-size: 12px; color: var(--n-text-muted);">' +
-                'id=' + c.id + ' · ' + UiUtil.escapeHtml(c.state || '') + ' · ' + UiUtil.escapeHtml((c.hash || '').slice(0, 16)) + '…</div>';
+                UiUtil.escapeHtml(c.stateLabel || '') + '</div>';
             li.addEventListener('click', () => {
                 Array.from(list.children).forEach(el => el.style.background = '');
                 li.style.background = 'var(--n-bg-soft, #eef)';
@@ -440,7 +445,7 @@
         // MK2 — TTL countdown.
         if (window.NudgeTimer) {
             window.NudgeTimer.start(modal, payload.expiresAt, () => {
-                showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                showError(NUDGE_EXPIRED_MSG);
             });
         }
 
@@ -472,29 +477,29 @@
                 if (!ok) {
                     if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
                         hideNudgeModal();
-                        showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                        showError(NUDGE_EXPIRED_MSG);
                         return;
                     }
-                    throw new Error((body && body.message) || ('HTTP ' + status));
+                    throw new Error((body && body.message) || RETRY_MSG);
                 }
                 hideNudgeModal();
                 if (action === 'cancel') {
-                    showError('업로드를 취소했습니다.');
+                    showNotice('업로드를 취소했습니다.');
                     return;
                 }
                 const redirect = (body && body.redirect) || listUrl;
                 try {
                     sessionStorage.setItem('os.isoRegistration.toast',
                         action === 'replace'
-                            ? '기존 자원을 영구 삭제하고 신규 ISO 를 등록했습니다.'
-                            : '신규 ISO 를 등록했습니다.');
+                            ? '기존 ISO 를 영구 삭제하고 새 ISO 를 등록했습니다.'
+                            : 'ISO 를 등록했습니다.');
                 } catch (_) { /* ignore */
                 }
                 window.location.href = redirect;
             })
             .catch(err => {
                 hideNudgeModal();
-                showError(err.message || 'nudge 처리에 실패했습니다.');
+                showError(err.message || RETRY_MSG);
             });
     }
 
@@ -511,7 +516,8 @@
     function openIntentNudgeModal(payload, file) {
         const modal = document.getElementById('nudgeModal');
         if (!modal) {
-            showError('nudge modal element 가 페이지에 없습니다.');
+            console.error(TAG, 'nudge modal element 가 페이지에 없습니다.');
+            showError('화면을 새로 고친 뒤 다시 시도해야 합니다.');
             return;
         }
         const intentBase = '/management/os/intent-nudge';
@@ -521,7 +527,8 @@
         const cancelBtn = document.getElementById('nudgeCancelBtn');
         const backdrop = document.getElementById('nudgeBackdrop');
         if (!list || !proceedBtn || !replaceBtn || !cancelBtn) {
-            showError('nudge modal 구성 요소가 없습니다.');
+            console.error(TAG, 'nudge modal 구성 요소가 없습니다.');
+            showError('화면을 새로 고친 뒤 다시 시도해야 합니다.');
             return;
         }
 
@@ -534,8 +541,8 @@
             li.innerHTML =
                 '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
                 '  <input type="radio" name="isoIntentNudgeTarget" value="' + entry.id + '">' +
-                '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> · v' + UiUtil.escapeHtml(entry.version) +
-                '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">[' + entry.state + ' · #' + entry.id + ']</span></span>' +
+                '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> ' + UiUtil.escapeHtml(entry.version) +
+                '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">(' + UiUtil.escapeHtml(entry.stateLabel || '') + ')</span></span>' +
                 '</label>';
             list.appendChild(li);
         });
@@ -551,7 +558,7 @@
         // MK2 — TTL countdown.
         if (window.NudgeTimer) {
             window.NudgeTimer.start(modal, payload.expiresAt, () => {
-                showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                showError(NUDGE_EXPIRED_MSG);
             });
         }
 
@@ -559,7 +566,7 @@
             hideNudgeModal();
             if (intent.warnings && intent.warnings.length) {
                 if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
-                    showError('업로드를 취소했습니다.');
+                    showNotice('업로드를 취소했습니다.');
                     return;
                 }
             }
@@ -576,16 +583,17 @@
                 if (!resp.ok) {
                     if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(resp.status, body)) {
                         hideNudgeModal();
-                        showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                        showError(NUDGE_EXPIRED_MSG);
                         return;
                     }
-                    showError(body.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')'));
+                    showError(body.message || RETRY_MSG);
                     disableIntentBtns(false);
                     return;
                 }
                 reissue(body);
             } catch (e) {
-                showError('네트워크 오류 : ' + e.message);
+                console.error(TAG, 'intent nudge 네트워크 오류', e);
+                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                 disableIntentBtns(false);
             }
         };
@@ -601,16 +609,17 @@
                 if (!resp.ok) {
                     if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(resp.status, body)) {
                         hideNudgeModal();
-                        showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                        showError(NUDGE_EXPIRED_MSG);
                         return;
                     }
-                    showError(body.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')'));
+                    showError(body.message || RETRY_MSG);
                     disableIntentBtns(false);
                     return;
                 }
                 reissue(body);
             } catch (e) {
-                showError('네트워크 오류 : ' + e.message);
+                console.error(TAG, 'intent nudge 네트워크 오류', e);
+                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                 disableIntentBtns(false);
             }
         };
@@ -623,7 +632,7 @@
             } catch (_) { /* ignore */
             }
             hideNudgeModal();
-            showError('업로드를 취소했습니다.');
+            showNotice('업로드를 취소했습니다.');
         };
         if (backdrop) backdrop.onclick = cancelBtn.onclick;
     }
@@ -636,13 +645,23 @@
     }
 
     function handleUploadNetworkError(message, checksumTimer) {
+        endUpload(checksumTimer);
+        showError(message);
+    }
+
+    // 사용자가 직접 취소한 것은 실패가 아니므로 오류 상자 대신 알림으로 보인다(S22-4).
+    function handleUploadAborted(message, checksumTimer) {
+        endUpload(checksumTimer);
+        showNotice(message);
+    }
+
+    function endUpload(checksumTimer) {
         uploading = false;
         document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
         activeXhr = null;
         if (checksumTimer) {
             clearInterval(checksumTimer);
         }
-        showError(message);
         hideProgress();
         lockPage(false);
     }
@@ -741,6 +760,11 @@
         }
         errorBox.textContent = msg;
         errorBox.classList.add('is-visible');
+    }
+
+    // 취소처럼 실패가 아닌 결과는 빨간 오류 상자 대신 알림으로 보인다(S22-4).
+    function showNotice(msg) {
+        if (window.UiUtil) UiUtil.toast(msg, 'info');
     }
 
     function resetError() {

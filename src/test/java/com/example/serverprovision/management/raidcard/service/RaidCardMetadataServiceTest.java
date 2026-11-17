@@ -101,7 +101,7 @@ class RaidCardMetadataServiceTest {
 		assertThat(groups).hasSize(2);
 		assertThat(groups.get(0).items().get(0).supportedRaidLevels())
 				.containsExactly(RaidLevel.RAID0, RaidLevel.RAID1);
-		assertThat(groups.get(0).items().get(0).supportedRaidLevelsDisplay()).isEqualTo("RAID0 · RAID1");
+		assertThat(groups.get(0).items().get(0).supportedRaidLevelsDisplay()).isEqualTo("RAID0, RAID1");
 	}
 
 	// ==== create =====================================================
@@ -154,7 +154,7 @@ class RaidCardMetadataServiceTest {
 
 		assertThatThrownBy(() -> raidCardService.create(createRequest("")))
 				.isInstanceOf(DuplicateRaidCardException.class)
-				.hasMessage("Deprecated 상태로 등록된 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 목록에서 Deprecated 를 해제하십시오.");
+				.hasMessage("사용 중단 권고 상태인 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 목록에서 사용 중단 권고를 해제해야 합니다.");
 		verify(raidCardRepository, never()).saveAndFlush(any(RaidCard.class));
 	}
 
@@ -166,7 +166,7 @@ class RaidCardMetadataServiceTest {
 
 		assertThatThrownBy(() -> raidCardService.create(createRequest("1458:0011")))
 				.isInstanceOf(DuplicateRaidCardException.class)
-				.hasMessage("휴지통에 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오.");
+				.hasMessage("휴지통에 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 휴지통에서 복구하거나 영구 삭제한 뒤 등록해야 합니다.");
 		verify(raidCardRepository, never()).saveAndFlush(any(RaidCard.class));
 	}
 
@@ -178,7 +178,7 @@ class RaidCardMetadataServiceTest {
 
 		assertThatThrownBy(() -> raidCardService.create(createRequest("")))
 				.isInstanceOf(DuplicateRaidCardException.class)
-				.hasMessageStartingWith("Deprecated 상태로 등록된 같은 RAID 카드가 있습니다");
+				.hasMessageStartingWith("사용 중단 권고 상태인 같은 RAID 카드가 있습니다");
 	}
 
 	/**
@@ -245,7 +245,7 @@ class RaidCardMetadataServiceTest {
 		assertThatThrownBy(() -> raidCardService.update(7L, new RaidCardUpdateRequest(
 				"CRA4448", RaidChipFamily.MPT_IR, List.of(RaidLevel.RAID0), 0, "", "")))
 				.isInstanceOf(DuplicateRaidCardException.class)
-				.hasMessage("휴지통에 같은 이름의 RAID 카드가 있습니다(GIGABYTE CRA4448). 다른 이름을 쓰거나 휴지통의 카드를 영구 삭제하십시오.");
+				.hasMessage("휴지통에 같은 이름의 RAID 카드가 있습니다(GIGABYTE CRA4448). 다른 이름을 쓰거나 휴지통의 카드를 영구 삭제해야 합니다.");
 		assertThat(card.getModelName()).isEqualTo("CRA3338");
 	}
 
@@ -276,7 +276,7 @@ class RaidCardMetadataServiceTest {
 
 		assertThat(raidCardService.renameConflictReason(7L, "CRA3338")).isNull();
 		assertThat(raidCardService.renameConflictReason(7L, "CRA4448"))
-				.isEqualTo("휴지통에 같은 이름의 RAID 카드가 있습니다(GIGABYTE CRA4448). 다른 이름을 쓰거나 휴지통의 카드를 영구 삭제하십시오.");
+				.isEqualTo("휴지통에 같은 이름의 RAID 카드가 있습니다(GIGABYTE CRA4448). 다른 이름을 쓰거나 휴지통의 카드를 영구 삭제해야 합니다.");
 	}
 
 	@Test

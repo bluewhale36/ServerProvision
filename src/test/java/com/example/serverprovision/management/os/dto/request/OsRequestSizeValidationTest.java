@@ -50,7 +50,7 @@ class OsRequestSizeValidationTest {
 		assertThat(violations).hasSize(1);
 		ConstraintViolation<ISOCreateRequest> violation = violations.iterator().next();
 		assertThat(violation.getPropertyPath().toString()).isEqualTo("description");
-		assertThat(violation.getMessage()).isEqualTo("설명은 1024자 이하로 입력해주세요.");
+		assertThat(violation.getMessage()).isEqualTo("설명은 1024자 이하로 입력해야 합니다.");
 	}
 
 	@Test
@@ -83,7 +83,7 @@ class OsRequestSizeValidationTest {
 		assertThat(violations).hasSize(1);
 		ConstraintViolation<OSMetadataCreateRequest> violation = violations.iterator().next();
 		assertThat(violation.getPropertyPath().toString()).isEqualTo("osVersion");
-		assertThat(violation.getMessage()).isEqualTo("OS 버전은 64자 이하로 입력해주세요.");
+		assertThat(violation.getMessage()).isEqualTo("OS 버전은 64자 이하로 입력해야 합니다.");
 	}
 
 	@Test

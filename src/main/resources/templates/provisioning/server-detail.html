@@ -10,6 +10,7 @@
     phaseRail      : PlannedPhaseRailResponse    (단계 rail — 암시 단계 2 + 계획 phase + 원장 phase, 상태 · 원장 행 · 시각)
     groupBadge / groupStandard : 소속 그룹과 그 표준 정의서 (U3-4 · U3-5-d)
     flashMessage   : PRG flash (optional)
+    flashTone      : flash 판의 색 class (optional, 없으면 성공 초록 — S22-3)
     activeTab      : 재렌더 때 열어 둘 탭 (검증 실패 재렌더 = 'manage'). 없으면 개요.
 
   구획 규칙 (S21-1) — 구획은 구현 슬라이스가 아니라 운영자의 질문으로 나눈다:
@@ -46,8 +47,8 @@
      th:with="activeTabName=${activeTab != null ? activeTab : 'overview'}">
 
     <!-- PRG flash(HF15-1 CP5 F-1) — [재시도 후 전원 켜기] 의 전원 결과(실패도 결과)를 리다이렉트 뒤 한 번 보인다. -->
-    <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status"
-         th:text="${flashMessage}">재시도 접수 · 재시작(ForceRestart) 발행 — 게스트가 PXE 로 돌아오면 이어서 진행합니다.</div>
+    <div th:if="${flashMessage}" class="n-alert" th:classappend="${flashTone != null} ? ${flashTone} : 'n-alert-success'" role="status"
+         th:text="${flashMessage}">재시도를 접수했습니다.</div>
 
     <!-- ① 머리 띠 — 탭과 무관하게 항상 보이는 신원 · 상태 (실시간 교체) -->
     <div class="n-page-header" data-live="header">
@@ -61,11 +62,12 @@
             <span class="n-meta" th:if="${server.progress != null and server.progress.currentPhase != null
                                           and server.progress.completedAt == null and server.decommissionedAt == null}">
                 <span th:if="${server.progress.failedAt != null}" class="n-badge n-badge-red"
-                      th:text="'실패 · ' + ${server.progress.currentPhase.description}">실패 · RAID 구성</span>
+                      th:text="${server.progress.currentPhase.description} + ' 실패'">RAID 구성 실패</span>
                 <span th:unless="${server.progress.failedAt != null}" class="n-badge n-badge-blue"
                       th:text="${server.progress.currentPhase.description}">펌웨어 업데이트</span>
             </span>
-            <span th:replace="~{fragments/provisioning/server-badges :: contactBadge(${server})}"></span>
+            <!-- S22-3 — 끊어짐은 현재 상황 표의 연결 행에만 둔다(머리 띠는 연결 중 · 집행 중만). -->
+            <span th:replace="~{fragments/provisioning/server-badges :: contactBadge(${server}, true)}"></span>
             <!-- 소속 그룹(U3-4) — 그룹 상세로 가는 칩 -->
             <a th:if="${groupBadge != null}" class="n-group-badge n-meta"
                th:href="@{/provisioning/server-group/{gid}(gid=${groupBadge.id})}"
@@ -73,6 +75,30 @@
         </div>
         <!--/* '목록으로' 는 조각이 만든다 — 실제 목적지는 화면 이력 스택이 정한다. */-->
         <div th:replace="~{fragments/common/back-link :: backLink('/provisioning/server')}"></div>
+    </div>
+
+    <!-- S22-3 경보 띠(탭 밖) — 긴급 실패만, 어느 탭에서도 보인다. 실시간 갱신(server-stream.js)은 있던 영역만 바꿔 끼우므로
+         실패가 나중에 생겨도 띠가 나타나도록 틀은 늘 그린다(경보가 없으면 빈 틀이라 자리를 차지하지 않는다). -->
+    <div data-live="alert-band">
+        <div th:if="${server.decommissionedAt == null and server.progress != null and server.progress.failedAt != null}"
+             class="n-alert n-alert-danger" role="alert">
+            <strong th:text="${server.progress.currentPhase != null} ? |${server.progress.currentPhase.description} 실패| : '프로비저닝 실패'">OS 설치 실패</strong>
+            <div class="n-block-gap-sm" th:text="${server.failedStepNote() != null} ? ${server.failedStepNote()} : '운영자가 실패 처리했습니다.'">재부팅이 상한을 넘겨 반복됐습니다.</div>
+            <div class="n-block-gap-sm" th:if="${server.progress.retryBlocked}" th:text="#{provisioning.retry.blocked.tooltip}">재시도 차단 안내</div>
+            <div class="n-block-gap-sm"><a href="#provisioning">실패한 단계 보기</a></div>
+        </div>
+        <!-- 자원 결손 대기 — 사람이 자원을 되살려야 풀리고 시한이 지나면 실패한다(S22-3 SD-198 ~ 200 · 356). -->
+        <div th:with="fwHold=${server.firmwarePlan != null and server.firmwarePlan.holding},
+                      winHold=${server.windowsInstall != null and server.windowsInstall.holding}">
+            <div th:if="${fwHold or winHold}" th:with="remain=${fwHold ? server.firmwarePlan.holdRemainingMinutes : server.windowsInstall.holdRemainingMinutes}"
+                 class="n-alert n-alert-warning" role="status">
+                <strong th:text="${fwHold} ? '펌웨어 자원 대기' : 'Windows 설치 자원 대기'">자원 대기</strong>
+                <div class="n-block-gap-sm" th:if="${remain > 0}"
+                     th:text="|#{provisioning.firmware.plan.holding} #{provisioning.firmware.plan.remaining} ${remain}분|">자원이 갖춰지기를 기다리는 중입니다.</div>
+                <div class="n-block-gap-sm" th:unless="${remain > 0}" th:text="#{provisioning.firmware.plan.expired}">대기 시한이 지났습니다.</div>
+                <div class="n-block-gap-sm"><a href="#provisioning">대기 중인 단계 보기</a></div>
+            </div>
+        </div>
     </div>
 
     <!-- ② 탭 — 활성 탭은 n-tab.js 가 hash 로 기억 · 복원한다. 스트립은 교체 영역이 아니다(aria-selected 가 화면 상태). -->
@@ -83,8 +109,8 @@
                 th:aria-selected="${activeTabName == 'hardware'}">하드웨어</button>
         <button type="button" class="n-tab" role="tab" data-panel="provisioning"
                 th:aria-selected="${activeTabName == 'provisioning'}">프로비저닝
-            <span class="n-tab-dot" title="실패한 단계가 있습니다"
-                  th:if="${server.progress != null and server.progress.failedAt != null and server.decommissionedAt == null}"></span>
+            <span class="n-badge n-badge-red"
+                  th:if="${server.progress != null and server.progress.failedAt != null and server.decommissionedAt == null}">실패</span>
         </button>
         <button type="button" class="n-tab" role="tab" data-panel="manage"
                 th:aria-selected="${activeTabName == 'manage'}">관리</button>
@@ -97,7 +123,7 @@
             <div class="n-card n-overview-status" data-live="overview-status">
                 <div class="n-card-head">
                     <div class="n-card-head-group"><h2 class="n-card-head-title">현재 상황</h2></div>
-                    <a class="n-card-head-link" href="#provisioning">단계별 상세 →</a>
+                    <a class="n-card-head-link" href="#provisioning">단계별 상세<svg th:replace="~{fragments/icon :: icon('arrow-right')}"></svg></a>
                 </div>
                 <div class="n-card-body">
                     <table class="n-detail-table">
@@ -113,10 +139,8 @@
                         <tr>
                             <th>연결</th>
                             <td>
-                                <span th:replace="~{fragments/provisioning/server-badges :: contactBadge(${server})}"></span>
-                                <span th:if="${server.contact == null}" class="n-muted">— (아직 접촉이 없습니다)</span>
-                                <span th:if="${server.contact != null and !server.contact.active and server.progress != null and server.progress.disruptionBlocked}"
-                                      class="n-meta n-muted">굽는 창의 침묵은 정상입니다</span>
+                                <span th:replace="~{fragments/provisioning/server-badges :: contactBadge(${server}, false)}"></span>
+                                <span th:if="${server.contact == null}" class="n-muted">미접촉</span>
                             </td>
                         </tr>
                         <!-- 현재 단계 — 회수 · 미시작 · 실패 · 종단 · 진행 중 가운데 하나. 회수가 맨 앞이다(CP5 F-1 — 회수된 서버는 진행 중일 수 없다) -->
@@ -124,12 +148,11 @@
                             <th>현재 단계</th>
                             <td>
                                 <span class="n-badge n-badge-gray">중단</span>
-                                <span class="n-meta n-muted">회수되어 프로비저닝 대상이 아닙니다 — 멈춘 자리는 자동화 계획에 남습니다</span>
                             </td>
                         </tr>
                         <tr th:if="${server.decommissionedAt == null and server.progress == null}">
                             <th>현재 단계</th>
-                            <td><span class="n-muted"><strong>프로비저닝 미시작</strong> — 이 서버는 아직 프로비저닝 단계에 진입하지 않았습니다.</span></td>
+                            <td><span class="n-muted"><strong>프로비저닝 미시작</strong></span></td>
                         </tr>
                         <tr th:if="${server.decommissionedAt == null and server.progress != null and server.progress.failedAt != null}">
                             <th>실패</th>
@@ -137,14 +160,17 @@
                                 <span class="n-badge n-badge-red"
                                       th:text="${server.progress.currentPhase != null} ? ${server.progress.currentPhase.description} : '실패'">RAID 구성</span>
                                 <!-- failedStepCode null = 운영자 수동 전환 (E1-2, plan Q6) -->
-                                <code class="n-mono" th:text="${server.progress.failedStepCode != null} ? ${server.progress.failedStepCode} : '운영자 전환'">RAID_APPLYING</code>
-                                <span class="n-meta n-muted" th:text="${#temporals.format(server.progress.failedAt, 'yyyy-MM-dd HH:mm:ss')}">—</span>
-                                <div class="n-hint n-hint-warn" th:if="${server.failedStepNote() != null}" th:text="${server.failedStepNote()}">사유</div>
+                                <!-- 세부 단계 이름이 단계 이름과 같으면(OS 설치) 되풀이하지 않는다 -->
+                                <span th:if="${server.progress.failedStepCode == null or server.progress.currentPhase == null
+                                               or server.progress.failedStepCode.description != server.progress.currentPhase.description}"
+                                      th:text="${server.progress.failedStepCode != null} ? ${server.progress.failedStepCode.description} : '운영자가 실패 처리'">RAID 구성 적용</span>
+                                <span class="n-meta n-muted" th:text="${#temporals.format(server.progress.failedAt, 'yyyy-MM-dd HH:mm:ss')}">-</span>
+                                <!-- 실패 사유는 경보 띠로 옮겼다(S22-3) — 이 행은 어느 단계 · 어디서 · 언제만 말한다. -->
                             </td>
                         </tr>
                         <tr th:if="${server.decommissionedAt == null and server.progress != null and server.progress.failedAt == null and server.progress.completedAt != null}">
                             <th>현재 단계</th>
-                            <td><span class="n-badge n-badge-teal">종단</span> <span class="n-meta n-muted">모든 단계를 마쳤습니다</span></td>
+                            <td><span class="n-badge n-badge-teal">완료</span></td>
                         </tr>
                         <tr th:if="${server.decommissionedAt == null and server.progress != null and server.progress.failedAt == null and server.progress.completedAt == null}"
                             th:with="currents=${phaseRail.entries.?[runState.name() == 'CURRENT']},
@@ -154,22 +180,22 @@
                             <td>
                                 <span th:if="${server.progress.currentPhase != null}" class="n-badge n-badge-blue"
                                       th:text="${server.progress.currentPhase.description}">펌웨어 업데이트</span>
-                                <span th:unless="${server.progress.currentPhase != null}" class="n-muted">—</span>
-                                <code class="n-mono" th:if="${openStep != null}" th:text="${openStep.step}">BMC_UPDATING</code>
-                                <span class="n-meta n-muted" th:if="${stage != null}" th:text="${stage}">BMC 굽는 중 · 잔여 12분</span>
+                                <span th:unless="${server.progress.currentPhase != null}" class="n-muted">-</span>
+                                <span th:if="${openStep != null}" th:text="${openStep.step.description}">BMC 굽기</span>
+                                <span class="n-meta n-muted" th:if="${stage != null}" th:text="${stage}">BMC 굽는 중(남은 시간 12분)</span>
                             </td>
                         </tr>
                         <tr>
                             <th>개시 시각</th>
-                            <td th:text="${server.progress != null and server.progress.startedAt != null} ? ${#temporals.format(server.progress.startedAt, 'yyyy-MM-dd HH:mm:ss')} : '— (개시 전)'">— (개시 전)</td>
+                            <td th:text="${server.progress != null and server.progress.startedAt != null} ? ${#temporals.format(server.progress.startedAt, 'yyyy-MM-dd HH:mm:ss')} : '개시 전'">개시 전</td>
                         </tr>
                         <tr th:if="${server.progress != null and server.progress.completedAt != null}">
                             <th>완료 시각</th>
-                            <td th:text="${#temporals.format(server.progress.completedAt, 'yyyy-MM-dd HH:mm:ss')}">—</td>
+                            <td th:text="${#temporals.format(server.progress.completedAt, 'yyyy-MM-dd HH:mm:ss')}">-</td>
                         </tr>
                         <tr th:if="${server.progress != null}">
                             <th>마지막 전이</th>
-                            <td th:text="${server.progress.lastTransitionAt != null} ? ${#temporals.format(server.progress.lastTransitionAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                            <td th:text="${server.progress.lastTransitionAt != null} ? ${#temporals.format(server.progress.lastTransitionAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">-</td>
                         </tr>
                         </tbody>
                     </table>
@@ -186,7 +212,7 @@
                                             or (phaseRail.assigned and phaseRail.reassignBlockReason == null and assignmentForm.hasSelectable)}">
                         <th:block th:if="${hasNext}">
                         <div class="n-next-title"
-                             th:text="${server.progress != null and server.progress.disruptionBlocked} ? '집행 중' : (${server.progress != null and server.progress.completedAt != null} ? '더 할 일 없음' : '다음 행동')">다음 행동</div>
+                             th:text="${server.progress != null and server.progress.disruptionBlocked} ? '집행 중' : (${server.progress != null and server.progress.completedAt != null} ? '작업 완료' : '다음 행동')">다음 행동</div>
                         <div class="n-next-actions">
                             <!-- 회수됨 → 영구 삭제는 관리 탭 -->
                             <a th:if="${server.decommissionedAt != null}" class="n-btn n-btn-outline" href="#manage">관리 탭에서 영구 삭제</a>
@@ -207,7 +233,7 @@
                             </form>
                             <button th:if="${server.progress != null and server.progress.startable and !phaseRail.assigned}"
                                     type="button" class="n-btn n-btn-secondary" disabled
-                                    title="세팅 정의서가 할당되지 않았습니다 — 정의서를 할당한 뒤 개시할 수 있습니다.">프로비저닝 개시</button>
+                                    title="세팅 정의서를 할당한 뒤 개시할 수 있습니다.">프로비저닝 개시</button>
 
                             <!-- 재할당(U3-2-a) — 미개시 활성일 때만 -->
                             <button th:if="${phaseRail.assigned and phaseRail.reassignBlockReason == null and assignmentForm.hasSelectable}"
@@ -231,7 +257,7 @@
                                             title="재시도를 접수한 뒤 BMC 로 전원을 켭니다. 꺼져 있으면 켜고, 켜져 있으면 재시작합니다.">재시도 후 전원 켜기</button>
                                 </form>
                                 <button th:if="${server.progress.retryBlocked}" type="button" class="n-btn n-btn-secondary" disabled
-                                        th:title="#{provisioning.retry.blocked.tooltip}">재시도 (차단됨)</button>
+                                        th:title="#{provisioning.retry.blocked.tooltip}">재시도(차단)</button>
                                 <a class="n-btn n-btn-outline" href="#provisioning">실패한 단계 보기</a>
                             </th:block>
 
@@ -239,24 +265,26 @@
 
                         <!-- 안내 — 조건별 한 줄. 문구는 종전 화면의 것을 그대로 옮겼다. -->
                         <p class="n-next-hint" th:if="${server.decommissionedAt != null}">
-                            회수된 서버는 프로비저닝 대상이 아닙니다. 다시 프로비저닝하려면 물리 서버를 PXE 로 재등록하십시오.</p>
+                            회수된 서버는 프로비저닝 대상이 아닙니다. 다시 프로비저닝하려면 물리 서버를 PXE 로 재등록해야 합니다.</p>
                         <!-- E1-2 (UC-3) → R13 — 진단(수집)은 자동 진행이므로 개시 안내는 "수집 이후 단계" 로 한정. -->
                         <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active}">
-                            <span th:if="${phaseRail.assigned}">하드웨어 수집은 자동으로 진행됩니다. 수집이 끝난 뒤 다음 단계는 <strong>[프로비저닝 개시]</strong> 를 눌러야 진행됩니다.</span>
-                            <span th:unless="${phaseRail.assigned}">하드웨어 수집은 자동으로 진행되며, 수집이 끝나면 이 자리에서 멈춰 기다립니다. 다음 단계로 가려면 <strong>세팅 정의서를 할당</strong>한 뒤 [프로비저닝 개시] 를 누르십시오.</span>
+                            <span th:if="${phaseRail.assigned}"><strong>[프로비저닝 개시]</strong> 를 누르면 진행합니다.</span>
                         </p>
+                        <p class="n-next-hint" th:if="${!phaseRail.assigned and groupStandard != null and server.decommissionedAt == null}">
+                            이 서버가 속한 <a th:href="@{/provisioning/server-group/{gid}(gid=${groupBadge.id})}" th:text="${groupBadge.name}">8월 2차</a>
+                            그룹의 표준 정의서는 <b th:text="${groupStandard.name}">web-standard</b> 입니다.
+                            <span th:unless="${groupStandard.usable}" class="n-badge n-badge-yellow">사용 불가</span></p>
                         <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable and !phaseRail.assigned}">
                             세팅 정의서를 할당한 뒤 개시할 수 있습니다.</p>
-                        <p class="n-next-hint" th:if="${phaseRail.assigned and phaseRail.reassignBlockReason == null and server.decommissionedAt == null}">
-                            재할당하면 지금 정의서로 새 스냅샷을 만들고 기존 할당은 이력으로 종료됩니다. 프로비저닝 개시 전까지만 가능합니다.</p>
                         <!-- E2-4 Q3 — 펌웨어 단계 재시도의 전원 사이클은 의도다. 미리 알린다. -->
-                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.failedAt != null}"
-                           th:text="${server.progress.retryBlocked} ? '펌웨어 실패는 원인 확인 전 재시도할 수 없습니다.'
-                                  : (${server.progress.failedStepCode != null and server.progress.failedStepCode.phaseType.name() == 'FIRMWARE_UPDATING'}
-                                     ? '실패 신호를 해제하고 같은 단계부터 재개합니다. 펌웨어 단계의 재시도는 전원을 껐다 켠 뒤 PXE 로 다시 세웁니다.'
-                                     : '실패 신호를 해제하고 같은 단계부터 재개합니다.')">재시도 안내</p>
+                        <!-- S22-3 — 막힘과, 재시도가 전원을 움직인다는 사실만 남긴다(동작 설명은 문서 몫). -->
+                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.failedAt != null and server.progress.retryBlocked}">
+                            펌웨어 실패는 원인 확인 전 재시도할 수 없습니다.</p>
+                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.failedAt != null and !server.progress.retryBlocked
+                                                      and server.progress.failedStepCode != null and server.progress.failedStepCode.phaseType.name() == 'FIRMWARE_UPDATING'}">
+                            재시도하면 서버 전원을 껐다 켭니다.</p>
                         <p class="n-next-hint" th:if="${server.progress != null and server.progress.disruptionBlocked}">
-                            기다리십시오. 굽는 동안에는 전원 · 회수 · 실패 전환이 모두 잠깁니다(벽돌 위험).</p>
+                            펌웨어를 굽는 중입니다. 끝날 때까지 전원, 회수, 실패 처리가 잠깁니다.</p>
                         <p class="n-next-hint" th:if="${server.progress != null and server.progress.completedAt != null and server.decommissionedAt == null}">
                             모든 단계를 마쳤습니다. 회수는 관리 탭에서 합니다.</p>
                         </th:block>
@@ -267,7 +295,6 @@
                             <form th:action="@{/provisioning/server/{id}/mark-failed(id=${server.id})}" method="post">
                                 <button type="submit" class="n-btn n-btn-danger">수동 실패 전환</button>
                             </form>
-                            <p class="n-next-hint">게스트와의 연결이 끊어졌을 때 운영자 판단으로 실패 처리합니다.</p>
                         </div>
                     </div>
                 </div>
@@ -277,7 +304,7 @@
             <div class="n-card" data-live="overview-identity">
                 <div class="n-card-head">
                     <div class="n-card-head-group"><h2 class="n-card-head-title">서버 정보</h2></div>
-                    <a class="n-card-head-link" href="#hardware">하드웨어 전체 →</a>
+                    <a class="n-card-head-link" href="#hardware">하드웨어 전체<svg th:replace="~{fragments/icon :: icon('arrow-right')}"></svg></a>
                 </div>
                 <div class="n-card-body"
                      th:with="primaryNics=${server.nics.?[primary]},
@@ -285,43 +312,43 @@
                     <table class="n-detail-table">
                         <tbody>
                         <tr>
-                            <th>제조사 · 보드</th>
+                            <th>제조사, 보드</th>
                             <td th:if="${server.inventory != null}"
-                                th:text="${server.inventory.vendor.displayName} + ' · ' + ${server.inventory.boardModelName}">Gigabyte · MD72-HB3</td>
-                            <td th:unless="${server.inventory != null}" class="n-muted">— (인벤토리 없음)</td>
+                                th:text="${server.inventory.vendor.displayName} + ' ' + ${server.inventory.boardModelName}">Gigabyte MD72-HB3</td>
+                            <td th:unless="${server.inventory != null}" class="n-muted">미수집</td>
                         </tr>
                         <tr>
                             <th>보드 시리얼</th>
                             <td>
                                 <code class="n-mono" th:if="${server.inventory != null and server.inventory.boardSerial != null}" th:text="${server.inventory.boardSerial}">GJ24A100123</code>
-                                <span class="n-muted" th:unless="${server.inventory != null and server.inventory.boardSerial != null}">— (진단 단계에서 수집)</span>
+                                <span class="n-muted" th:unless="${server.inventory != null and server.inventory.boardSerial != null}">-</span>
                             </td>
                         </tr>
                         <tr>
                             <th>BMC 주소</th>
                             <td>
                                 <code class="n-mono" th:if="${server.inventory != null and server.inventory.bmcIp != null}" th:text="${server.inventory.bmcIp.value}">192.168.0.201</code>
-                                <span class="n-muted" th:unless="${server.inventory != null and server.inventory.bmcIp != null}">— (미검출)</span>
+                                <span class="n-meta n-hint-warn" th:unless="${server.inventory != null and server.inventory.bmcIp != null}">미검출: 전원 제어, 펌웨어 업데이트, BIOS 설정을 쓸 수 없습니다</span>
                             </td>
                         </tr>
                         <tr>
                             <th>호스트 IP</th>
                             <td>
                                 <th:block th:if="${hostNic != null}">
-                                    <code class="n-mono" th:text="${hostNic.ipAddress != null} ? ${hostNic.ipAddress.value} : '—'">192.168.1.150</code>
+                                    <code class="n-mono" th:text="${hostNic.ipAddress != null} ? ${hostNic.ipAddress.value} : '-'">192.168.1.150</code>
                                     <span th:if="${hostNic.primary}" class="n-badge n-badge-green">Primary</span>
                                 </th:block>
-                                <span class="n-muted" th:unless="${hostNic != null}">— (NIC 없음)</span>
+                                <span class="n-muted" th:unless="${hostNic != null}">NIC 미등록</span>
                             </td>
                         </tr>
                         <tr>
                             <th>사내 식별자</th>
                             <td>
                                 <th:block th:if="${server.modelName != null or server.serialNumber != null}">
-                                    <code class="n-mono" th:text="${server.modelName != null} ? ${server.modelName} : '—'">RE2108</code> /
-                                    <code class="n-mono" th:text="${server.serialNumber != null} ? ${server.serialNumber} : '—'">RE210826510512</code>
+                                    <code class="n-mono" th:text="${server.modelName != null} ? ${server.modelName} : '-'">RE2108</code> /
+                                    <code class="n-mono" th:text="${server.serialNumber != null} ? ${server.serialNumber} : '-'">RE210826510512</code>
                                 </th:block>
-                                <span class="n-muted" th:unless="${server.modelName != null or server.serialNumber != null}">— (관리 탭에서 입력)</span>
+                                <span class="n-muted" th:unless="${server.modelName != null or server.serialNumber != null}">미입력</span>
                             </td>
                         </tr>
                         <tr>
@@ -329,12 +356,12 @@
                             <td>
                                 <a th:if="${groupBadge != null}" class="n-group-badge"
                                    th:href="@{/provisioning/server-group/{gid}(gid=${groupBadge.id})}" th:text="${groupBadge.name}">8월 2차</a>
-                                <span class="n-muted" th:unless="${groupBadge != null}">— (소속 없음)</span>
+                                <span class="n-muted" th:unless="${groupBadge != null}">미소속</span>
                             </td>
                         </tr>
                         <tr>
                             <th>등록 시각</th>
-                            <td th:text="${server.createdAt != null} ? ${#temporals.format(server.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">2026-06-26 12:00:00</td>
+                            <td th:text="${server.createdAt != null} ? ${#temporals.format(server.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">2026-06-26 12:00:00</td>
                         </tr>
                         </tbody>
                     </table>
@@ -349,7 +376,7 @@
                     <h2 class="n-card-head-title">자동화 계획</h2>
                     <!-- 판의 배지는 진행의 결말을 말한다(CP5 O-1 — 할당 상태 '개시됨' 은 완료 서버에서 시제가 어긋났다).
                          결말이 나지 않았을 때만 할당 상태(개시 전 · 개시됨 · 미할당)를 보인다. -->
-                    <span th:if="${server.decommissionedAt != null}" class="n-badge n-badge-gray">회수됨</span>
+                    <span th:if="${server.decommissionedAt != null}" class="n-badge n-badge-gray">회수</span>
                     <span th:if="${server.decommissionedAt == null and server.progress != null and server.progress.completedAt != null}" class="n-badge n-badge-teal">종단</span>
                     <span th:if="${server.decommissionedAt == null and server.progress != null and server.progress.completedAt == null and server.progress.failedAt != null}" class="n-badge n-badge-red">실패</span>
                     <th:block th:if="${server.decommissionedAt == null and (server.progress == null or (server.progress.completedAt == null and server.progress.failedAt == null))}">
@@ -359,7 +386,7 @@
                     </th:block>
                 </div>
                 <span class="n-phase-time"
-                      th:text="${phaseRail.assigned} ? '정의서 · ' + ${phaseRail.definitionName} : '앞 두 단계는 할당 없이도 진행됩니다'">정의서 · web-standard</span>
+                      th:text="${phaseRail.assigned} ? '정의서: ' + ${phaseRail.definitionName} : ''">정의서: web-standard</span>
             </div>
             <div class="n-card-body">
                 <ol class="n-steps">
@@ -372,10 +399,10 @@
                         <span class="n-step-no" th:text="${entry.runState.name() == 'DONE'} ? '✓' : ${it.count}">1</span>
                         <span class="n-step-name" th:text="${entry.description}">부트스트래핑</span>
                         <span class="n-step-sub" th:switch="${entry.runState.name()}">
-                            <th:block th:case="'DONE'" th:text="${startHm != null} ? |${startHm} → ${endHm != null ? endHm : '—'}| : '완료'">09:21 → 09:21</th:block>
-                            <th:block th:case="'CURRENT'" th:text="${stage != null} ? ${stage} : (${openStep != null} ? ${openStep.step} : '진행 중')">진행 중</th:block>
-                            <th:block th:case="'FAILED'" th:text="${server.progress != null and server.progress.failedStepCode != null} ? ${server.progress.failedStepCode} + ' 실패' : '실패'">실패</th:block>
-                            <th:block th:case="'STOPPED'" th:text="${startHm != null} ? '회수로 중단' : '밟지 않음'">회수로 중단</th:block>
+                            <th:block th:case="'DONE'" th:text="${startHm != null} ? |${startHm} → ${endHm != null ? endHm : '-'}| : '완료'">09:21 → 09:21</th:block>
+                            <th:block th:case="'CURRENT'" th:text="${stage != null} ? ${stage} : (${openStep != null} ? ${openStep.step.description} : '진행 중')">진행 중</th:block>
+                            <th:block th:case="'FAILED'" th:text="${server.progress != null and server.progress.failedStepCode != null} ? ${server.progress.failedStepCode.description} + ' 실패' : '실패'">실패</th:block>
+                            <th:block th:case="'STOPPED'" th:text="${startHm != null} ? '회수로 중단' : '미진행'">회수로 중단</th:block>
                             <th:block th:case="*">예정</th:block>
                         </span>
                     </li>
@@ -385,10 +412,7 @@
                         <span class="n-step-sub">정의서를 할당하면 정해집니다</span>
                     </li>
                 </ol>
-                <p class="n-hint n-block-gap-sm"
-                   th:text="${server.decommissionedAt != null} ? '회수된 서버입니다 — 진행이 멈춘 자리만 남습니다.'
-                          : (${phaseRail.assigned} ? '단계마다 무엇을 하기로 했고 어디까지 갔는지는 프로비저닝 탭의 단계 패널에서 봅니다.'
-                                                   : '하드웨어 수집은 자동으로 진행되며, 수집이 끝나면 이 자리에서 멈춰 기다립니다.')">안내</p>
+                <p class="n-hint n-block-gap-sm" th:if="${server.decommissionedAt == null and !phaseRail.assigned}">하드웨어 수집은 자동으로 진행되며, 수집이 끝나면 이 자리에서 멈춰 기다립니다.</p>
             </div>
         </div>
     </div>
@@ -411,11 +435,11 @@
                         </tr>
                         <tr>
                             <th>보드 시리얼</th>
-                            <td th:text="${server.inventory.boardSerial != null} ? ${server.inventory.boardSerial} : '— (진단 단계에서 수집)'">—</td>
+                            <td th:text="${server.inventory.boardSerial != null} ? ${server.inventory.boardSerial} : '-'">-</td>
                         </tr>
                         <tr>
                             <th>BIOS 버전</th>
-                            <td th:text="${server.inventory.softwareSpec != null and server.inventory.softwareSpec.biosVersion != null} ? ${server.inventory.softwareSpec.biosVersion} : '— (진단 단계에서 수집)'">—</td>
+                            <td th:text="${server.inventory.softwareSpec != null and server.inventory.softwareSpec.biosVersion != null} ? ${server.inventory.softwareSpec.biosVersion} : '-'">-</td>
                         </tr>
                         <tr>
                             <th>CPU</th>
@@ -423,13 +447,13 @@
                             <td th:with="sockets=${server.inventory.hardwareSpec != null} ? ${server.inventory.hardwareSpec.cpuSockets} : null">
                                 <div th:if="${sockets != null and !sockets.isEmpty()}">
                                     <div th:each="c : ${sockets}">
-                                        <span th:if="${c.slot != null}" class="n-muted" th:text="${c.slot} + ' · '">CPU1 · </span>
+                                        <span th:if="${c.slot != null}" class="n-muted" th:text="${c.slot} + ' '">CPU1 </span>
                                         <span th:text="${(c.manufacturer != null ? c.manufacturer + ' ' : '') + (c.model != null ? c.model : '')}">Intel Xeon Gold 6338</span>
                                     </div>
                                     <span class="n-badge n-badge-gray" th:text="'소켓 ' + ${sockets.size()} + '개'">소켓 2개</span>
                                 </div>
                                 <span th:unless="${sockets != null and !sockets.isEmpty()}"
-                                      class="n-muted">— (진단 단계에서 수집)</span>
+                                      class="n-muted">-</span>
                             </td>
                         </tr>
                         <tr>
@@ -447,9 +471,9 @@
                                 <thead><tr><th>슬롯</th><th>제조사</th><th>용량</th></tr></thead>
                                 <tbody>
                                 <tr th:each="m : ${server.inventory.hardwareSpec.memoryModules}">
-                                    <td><code class="n-mono" th:text="${m.slot != null} ? ${m.slot} : '—'">DIMM_A1</code></td>
-                                    <td th:text="${m.manufacturer != null} ? ${m.manufacturer} : '—'">Samsung</td>
-                                    <td th:text="${m.size != null} ? ${m.size} : '—'">32 GB</td>
+                                    <td><code class="n-mono" th:text="${m.slot != null} ? ${m.slot} : '-'">DIMM_A1</code></td>
+                                    <td th:text="${m.manufacturer != null} ? ${m.manufacturer} : '-'">Samsung</td>
+                                    <td th:text="${m.size != null} ? ${m.size} : '-'">32 GB</td>
                                 </tr>
                                 </tbody>
                             </table>
@@ -463,18 +487,18 @@
                                 <thead><tr><th>PCI 주소</th><th>장착</th><th>종류</th><th>제조사</th><th>모델</th></tr></thead>
                                 <tbody>
                                 <tr th:each="pc : ${server.inventory.hardwareSpec.pcieDevices}">
-                                    <td><code class="n-mono" th:text="${pc.slot != null} ? ${pc.slot} : '—'">01:00.0</code></td>
+                                    <td><code class="n-mono" th:text="${pc.slot != null} ? ${pc.slot} : '-'">01:00.0</code></td>
                                     <td>
                                         <span th:if="${pc.mount != null and pc.mount.name() == 'ONBOARD'}" class="n-badge n-badge-gray"
                                               th:text="${pc.mount.label}">온보드</span>
                                         <code th:if="${pc.mount != null and pc.mount.name() == 'ADD_IN'}" class="n-mono"
                                               th:text="${pc.slotDesignation != null} ? ${pc.slotDesignation} : ${pc.mount.label}">PCIE_1</code>
                                         <span th:if="${pc.mount == null or pc.mount.name() == 'UNKNOWN'}" class="n-muted"
-                                              title="BMC 시스템 인벤토리에서 확인되지 않았습니다 — 미조회 · 미준비로 포기 · BMC 목록에 없는 장치">—</span>
+>-</span>
                                     </td>
                                     <td><span class="n-badge n-badge-gray" th:text="${pc.kind != null} ? ${pc.kind} : 'ETC'">RAID</span></td>
-                                    <td th:text="${pc.vendor != null} ? ${pc.vendor} : '—'">Broadcom</td>
-                                    <td th:text="${pc.model != null} ? ${pc.model} : '—'">MegaRAID 9560-8i</td>
+                                    <td th:text="${pc.vendor != null} ? ${pc.vendor} : '-'">Broadcom</td>
+                                    <td th:text="${pc.model != null} ? ${pc.model} : '-'">MegaRAID 9560-8i</td>
                                 </tr>
                                 </tbody>
                             </table>
@@ -502,11 +526,11 @@
                                 <td><code class="n-mono" th:text="${d.device}">nvme0n1</code></td>
                                 <td>
                                     <span th:if="${d.raidVolumeName != null}" class="n-badge n-badge-gray"
-                                          th:text="'RAID 볼륨 · ' + ${d.raidVolumeName}">RAID 볼륨 · spvR1V1</span>
-                                    <span th:if="${d.raidVolumeName == null}" th:text="${d.type != null} ? ${d.type} : '—'">SSD</span>
+                                          th:text="'RAID 볼륨 ' + ${d.raidVolumeName}">RAID 볼륨 spvR1V1</span>
+                                    <span th:if="${d.raidVolumeName == null}" th:text="${d.type != null} ? ${d.type} : '-'">SSD</span>
                                 </td>
-                                <td th:text="${d.transport != null} ? ${d.transport} : '—'">NVME</td>
-                                <td th:text="${d.size != null} ? ${d.size} : '—'">1.9T</td>
+                                <td th:text="${d.transport != null} ? ${d.transport} : '-'">NVME</td>
+                                <td th:text="${d.size != null} ? ${d.size} : '-'">1.9T</td>
                             </tr>
                             </tbody>
                         </table>
@@ -542,10 +566,10 @@
                                 <tbody>
                                 <tr th:each="d : ${raid.disks}">
                                     <td><code class="n-mono" th:text="${d.slot}">252:0</code></td>
-                                    <td th:text="${d.type != null} ? ${d.type} : '—'">SSD</td>
-                                    <td th:text="${d.transport != null} ? ${d.transport} : '—'">SATA</td>
-                                    <td th:text="${d.size != null} ? ${d.size} : '—'">446.625 GB</td>
-                                    <td th:text="${d.state != null} ? ${d.state} : '—'">Onln</td>
+                                    <td th:text="${d.type != null} ? ${d.type} : '-'">SSD</td>
+                                    <td th:text="${d.transport != null} ? ${d.transport} : '-'">SATA</td>
+                                    <td th:text="${d.size != null} ? ${d.size} : '-'">446.625 GB</td>
+                                    <td th:text="${d.state != null} ? ${d.state} : '-'">Onln</td>
                                     <td th:text="${d.volumeRef != null} ? ${d.volumeRef} : '미소속'">DG0</td>
                                 </tr>
                                 </tbody>
@@ -558,9 +582,9 @@
                             <tbody>
                             <tr th:each="v : ${raid.volumes}">
                                 <td><code class="n-mono" th:text="${v.id}">VD0</code></td>
-                                <td th:text="${v.level != null} ? ${v.level} : '—'">RAID1</td>
-                                <td th:text="${v.size != null} ? ${v.size} : '—'">446.625 GB</td>
-                                <td th:text="${v.state != null} ? ${v.state} : '—'">Optl</td>
+                                <td th:text="${v.level != null} ? ${v.level} : '-'">RAID1</td>
+                                <td th:text="${v.size != null} ? ${v.size} : '-'">446.625 GB</td>
+                                <td th:text="${v.state != null} ? ${v.state} : '-'">Optl</td>
                                 <td th:text="${v.name != null and !#strings.isEmpty(v.name)} ? ${v.name} : '(빈 값)'">(빈 값)</td>
                             </tr>
                             </tbody>
@@ -600,12 +624,12 @@
                             <th>IP / MAC</th>
                             <td>
                                 <span th:if="${server.inventory != null and (server.inventory.bmcIp != null or server.inventory.bmcMac != null)}">
-                                    <code class="n-mono" th:text="${server.inventory.bmcIp != null} ? ${server.inventory.bmcIp.value} : '—'">192.168.0.201</code>
+                                    <code class="n-mono" th:text="${server.inventory.bmcIp != null} ? ${server.inventory.bmcIp.value} : '-'">192.168.0.201</code>
                                     /
-                                    <code class="n-mono" th:text="${server.inventory.bmcMac != null} ? ${server.inventory.bmcMac.value} : '—'">b4:2e:99:aa:bb:cc</code>
+                                    <code class="n-mono" th:text="${server.inventory.bmcMac != null} ? ${server.inventory.bmcMac.value} : '-'">b4:2e:99:aa:bb:cc</code>
                                 </span>
                                 <span th:unless="${server.inventory != null and (server.inventory.bmcIp != null or server.inventory.bmcMac != null)}"
-                                      class="n-muted">— (진단 단계에서 수집 · BMC 미검출 시 비어 있음)</span>
+                                      class="n-muted">미검출</span>
                             </td>
                         </tr>
                         </tbody>
@@ -627,15 +651,15 @@
                         <tbody>
                         <tr th:each="nic : ${server.nics}">
                             <td><code class="n-mono" th:text="${nic.macAddress.value}">00:11:22:33:44:55</code></td>
-                            <td><code class="n-mono" th:text="${nic.ipAddress != null} ? ${nic.ipAddress.value} : '—'">192.168.1.1</code></td>
-                            <td th:text="${nic.ipSource != null} ? ${nic.ipSource} : '—'">DHCP</td>
-                            <td th:text="${nic.hostname != null} ? ${nic.hostname} : '—'">—</td>
+                            <td><code class="n-mono" th:text="${nic.ipAddress != null} ? ${nic.ipAddress.value} : '-'">192.168.1.1</code></td>
+                            <td th:text="${nic.ipSource != null} ? ${nic.ipSource} : '-'">DHCP</td>
+                            <td th:text="${nic.hostname != null} ? ${nic.hostname} : '-'">-</td>
                             <td>
                                 <span th:if="${nic.primary}" class="n-badge n-badge-green">Primary</span>
-                                <span th:unless="${nic.primary}" class="n-muted">—</span>
+                                <span th:unless="${nic.primary}" class="n-muted">-</span>
                             </td>
-                            <td th:text="${nic.bondGroup != null} ? ${nic.bondGroup} : '—'">—</td>
-                            <td th:text="${nic.createdAt != null} ? ${#temporals.format(nic.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">2026-06-26 12:00:00</td>
+                            <td th:text="${nic.bondGroup != null} ? ${nic.bondGroup} : '-'">-</td>
+                            <td th:text="${nic.createdAt != null} ? ${#temporals.format(nic.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">2026-06-26 12:00:00</td>
                         </tr>
                         </tbody>
                     </table>
@@ -656,13 +680,7 @@
                     <!--/* U3-5-d R6 — 소속 그룹이 표준 정의서를 두고 있으면 알린다. 강제하지 않는다 : 선택지를 잠그지도,
                            기본값을 바꾸지도 않고 사실만 한 줄로 놓는다. 그룹명 뒤에 조사가 아니라 명사('그룹의')를 놓는다 —
                            그룹명은 한글로 끝날 수도 영문으로 끝날 수도 있어 조사를 이으면 띄어쓰기 규칙이 값에 따라 갈린다. */-->
-                    <div th:if="${groupStandard != null}" class="n-alert n-alert-muted">
-                        이 서버가 속한
-                        <a th:href="@{/provisioning/server-group/{gid}(gid=${groupBadge.id})}"
-                           th:text="${groupBadge.name}">8월 2차</a>
-                        그룹의 표준 세팅 정의서는 <b th:text="${groupStandard.name}">web-standard</b> 입니다.
-                        <span th:unless="${groupStandard.usable}" class="n-badge n-badge-red">사용 불가</span>
-                    </div>
+                    <!-- 그룹 표준 정의서 알림은 개요 다음 행동 칸으로 옮겼다(S22-3 SD-167). -->
 
                     <!--/* U3-5-a — 이미 든 스냅샷이 이 서버의 하드웨어와 맞지 않을 때의 경고. 소급 무효화는 하지 않는다.
                            개시(start)는 이 경고와 무관하게 통과한다 — 그래서 문구가 "진행할 수 없습니다" 가 아니라
@@ -672,7 +690,7 @@
                         <div class="n-block-gap-sm" th:text="${phaseRail.hardwareMismatchReason}">
                             본 게스트 서버의 메인보드(X11SPM)와 정의서의 메인보드(MS03-CE0)가 호환되지 않습니다.</div>
                         <div class="n-section-hint n-block-gap-sm">
-                            개시 자체는 막지 않습니다. 이 서버에 맞는 정의서로 재할당한 뒤 개시하십시오.
+                            개시는 막지 않습니다. 이 서버에 맞는 정의서로 재할당한 뒤 개시해야 합니다.
                         </div>
                     </div>
 
@@ -705,16 +723,13 @@
                                         th:data-submit-url="@{/provisioning/server/{id}/assignment/reassign(id=${server.id})}">
                                     다른 정의서로 재할당
                                 </button>
-                                <div class="n-section-hint n-block-gap-sm">
-                                    재할당하면 지금 정의서로 새 스냅샷을 만들고 기존 할당은 이력으로 종료됩니다. 프로비저닝 개시 전까지만 가능합니다.
-                                </div>
                             </div>
                         </div>
 
                         <!-- 재할당 차단(개시된 활성) — disabled + 사유 tooltip(reassignBlockReason SSOT = 서버 가드와 동일). -->
                         <div class="n-block-gap" th:if="${phaseRail.reassignBlockReason != null}">
                             <button type="button" class="n-btn n-btn-secondary" disabled
-                                    th:title="${phaseRail.reassignBlockReason}">재할당 (차단됨)</button>
+                                    th:title="${phaseRail.reassignBlockReason}">재할당(차단)</button>
                             <span class="n-muted n-note n-meta"
                                   th:text="${phaseRail.reassignBlockReason}">이미 개시되어 재할당할 수 없습니다(회수 후 재등록 필요)</span>
                         </div>
@@ -727,17 +742,17 @@
                         <div th:if="${assignmentForm.blocked}" class="n-alert n-alert-warning" role="alert">
                             <b th:text="${assignmentForm.serverBlockReason}">회수된 서버에는 세팅 정의서를 할당할 수 없습니다.</b>
                             <div class="n-section-hint n-block-gap-sm">
-                                이 서버를 다시 프로비저닝하려면 물리 서버를 PXE 로 재등록해 주세요.
+                                이 서버를 다시 프로비저닝하려면 물리 서버를 PXE 로 재등록해야 합니다.
                             </div>
                         </div>
                         <p th:if="${!assignmentForm.blocked and #lists.isEmpty(assignmentForm.options)}" class="n-detail-empty">
-                            등록된 세팅 정의서가 없습니다. 먼저 정의서를 만들어 주세요.
+                            등록된 세팅 정의서가 없습니다. 먼저 정의서를 작성해야 합니다.
                         </p>
                         <!--/* E3-3 CP5 F-2 — 잠긴 사유는 정의서마다 다르고 picker 의 잠김 행이 정확한 문장을 들고 있으므로,
                                요약은 중립으로 두고 버튼은 항상 열어 그 문장에 닿게 한다. */-->
                         <p th:if="${!assignmentForm.blocked and !#lists.isEmpty(assignmentForm.options) and !assignmentForm.hasSelectable}"
                            class="n-detail-empty">
-                            지금은 이 서버에 할당할 수 있는 세팅 정의서가 없습니다 — 정의서마다 잠긴 사유를 목록에서 확인하십시오.
+                            지금은 이 서버에 할당할 수 있는 세팅 정의서가 없습니다. 잠긴 사유는 정의서 목록에서 확인할 수 있습니다.
                         </p>
                         <div th:if="${!assignmentForm.blocked and !#lists.isEmpty(assignmentForm.options)}">
                             <button type="button" class="n-btn n-btn-primary" id="openAssignPicker"
@@ -746,9 +761,6 @@
                                     th:data-submit-url="@{/provisioning/server/{id}/assignment(id=${server.id})}">
                                 정의서 할당
                             </button>
-                            <div class="n-section-hint n-block-gap-sm">
-                                정의서를 고르면 그 내용을 스냅샷으로 복사해 이 서버가 밟을 phase 를 확정합니다.
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -793,12 +805,29 @@
                           th:text="${startText != null}
                                    ? (${state == 'CURRENT'} ? |${startText} → 진행 중|
                                       : (${state == 'STOPPED'} ? |${startText} → 회수로 중단|
-                                         : |${startText} → ${endText != null ? endText : '—'}|))
-                                   : (${state == 'DONE'} ? '원장 행 없음'
-                                      : (${state == 'STOPPED'} ? '밟지 않음'
-                                         : (${state == 'PENDING'} ? '' : '기록 없음')))">기록 없음</span>
+                                         : |${startText} → ${endText != null ? endText : '-'}|))
+                                   : (${state == 'DONE'} ? '기록 누락'
+                                      : (${state == 'STOPPED'} ? '미진행'
+                                         : (${state == 'PENDING'} ? '' : '미기록')))">미기록</span>
                 </summary>
                 <div class="n-card-body">
+                    <!-- S22-3 패널 상단 경보 — 실패한 단계 패널의 맨 위에 사유와 다음 행동을 한 판으로. -->
+                    <!-- OS 설치 패널은 Windows 설치 원장이 실패를 적었으면(패널 상태와 별개로) 그 안내를 띄운다. -->
+                    <!-- th:if 가 th:with 보다 먼저 평가되므로 변수는 바깥 블록에서 정한다. -->
+                    <th:block th:with="winFailed=${phaseName == 'OS_INSTALLING' and server.windowsInstall != null and server.windowsInstall.failedReason != null},
+                                       panelFailed=${entry.runState.name() == 'FAILED'}">
+                    <div th:if="${panelFailed or winFailed}" class="n-alert n-alert-danger" role="alert">
+                        <strong th:text="${server.progress != null and server.progress.failedStepCode != null}
+                                         ? |${server.progress.failedStepCode.description} 실패|
+                                         : (${panelFailed} ? '운영자가 실패 처리했습니다' : |${entry.description} 실패|)">OS 설치 실패</strong>
+                        <div class="n-block-gap-sm" th:if="${panelFailed and server.failedStepNote() != null}" th:text="${server.failedStepNote()}">사유</div>
+                        <div class="n-block-gap-sm" th:if="${winFailed}"
+                              th:with="wr=${server.windowsInstall.failedReason}"
+                              th:text="${wr == 'INSTALL_TIMEOUT'} ? #{provisioning.windows.install.progress.failed.timeout}
+                                       : (${wr == 'REPXE_LOOP'} ? #{provisioning.windows.install.progress.failed.loop}
+                                       : #{provisioning.windows.install.progress.failed.operator})">원인을 확인한 뒤 재시도해야 합니다.</div>
+                    </div>
+                    </th:block>
                     <th:block th:switch="${phaseName}">
 
                         <!-- 진단 리눅스 — 수집 결과는 하드웨어 탭이 원본이다 -->
@@ -807,8 +836,7 @@
                                 <div class="n-section">수집 결과</div>
                                 <p class="n-hint n-flush">
                                     <span class="n-badge n-badge-blue" th:text="${server.inventory.discoveryStage.description}">진단 정보 보강</span>
-                                    <span th:if="${server.inventory.discoveryStage.name() == 'IPXE_REGISTERED'}">— 하드웨어 탭은 iPXE 등록 시점의 값만 담고 있습니다. 진단이 끝나면 보드 시리얼 · BIOS 버전 · BMC 신원 · CPU · 메모리 · 디스크 · PCIe 가 채워집니다.</span>
-                                    <span th:unless="${server.inventory.discoveryStage.name() == 'IPXE_REGISTERED'}">— 보드 시리얼 · BIOS 버전 · BMC 신원 · CPU · 메모리 · 디스크 · PCIe 를 수집했습니다. 값은 <a href="#hardware">하드웨어 탭</a>에 있습니다.</span>
+                                    <span th:unless="${server.inventory.discoveryStage.name() == 'IPXE_REGISTERED'}">수집한 값은 <a href="#hardware">하드웨어 탭</a>에 있습니다.</span>
                                 </p>
                             </th:block>
                         </th:block>
@@ -818,26 +846,16 @@
                             <!-- 저장된 값이 아니라 조회 시점의 판정이라, 자원이 되살아나면 새로고침만으로 내용이 바뀐다. -->
                             <th:block th:if="${server.firmwarePlan != null}">
                                 <div class="n-section" th:text="#{provisioning.firmware.plan.title}">펌웨어 갱신 계획</div>
-                                <div class="n-section-hint" th:text="#{provisioning.firmware.plan.hint}">이 서버가 펌웨어 갱신 단계에 들어갈 때 적용할 대상입니다.</div>
                                 <ul class="n-firmware-axes">
                                     <li th:classappend="${server.firmwarePlan.bios.selected} ? 'is-selected' : 'is-blocked-or-skipped'"
                                         th:text="${server.firmwarePlan.bios.message}">BIOS F27 적용 예정</li>
                                     <li th:classappend="${server.firmwarePlan.bmc.selected} ? 'is-selected' : 'is-blocked-or-skipped'"
                                         th:text="${server.firmwarePlan.bmc.message}">BMC 13.06.26 적용 예정</li>
                                 </ul>
-                                <p th:if="${server.firmwarePlan.holding}" class="n-firmware-hold">
-                                    <!-- 시한이 남았는지에 따라 안내가 갈린다 — 0 분인데 "남은 시간 안에" 라고 하면 사실과 어긋난다(CP5 F-4). -->
-                                    <span th:if="${server.firmwarePlan.holdRemainingMinutes > 0}">
-                                        <span th:text="#{provisioning.firmware.plan.holding}">자원이 갖춰지기를 기다리는 중입니다.</span>
-                                        <span th:text="|#{provisioning.firmware.plan.remaining} ${server.firmwarePlan.holdRemainingMinutes}분|">대기 잔여 120분</span>
-                                    </span>
-                                    <span th:unless="${server.firmwarePlan.holdRemainingMinutes > 0}"
-                                          th:text="#{provisioning.firmware.plan.expired}">대기 시한이 지났습니다.</span>
-                                </p>
+                                <!-- 자원 결손 대기 안내는 경보 띠로 옮겼다(S22-3 SD-198 ~ 200). -->
                             </th:block>
                             <th:block th:if="${server.firmwareFlash != null}">
                                 <div class="n-section" th:text="#{provisioning.firmware.flash.title}">펌웨어 집행</div>
-                                <div class="n-section-hint" th:text="#{provisioning.firmware.flash.hint}">축마다 따로 굽고 따로 확인합니다.</div>
                                 <!-- 축마다 한 줄 — 한 축이 실패해도 다른 축이 어떻게 됐는지가 그대로 읽힌다(E2-2 D-2). -->
                                 <ul class="n-firmware-axes">
                                     <li th:each="axis : ${server.firmwareFlash.axes}"
@@ -857,14 +875,12 @@
                                 </ul>
                                 <!-- E2-4 R3 — 구간 문구(§3 진리표) · 잔여 분 · 워커 하트비트. 기점 · 시한은 엔진과 같은 식(D-3). -->
                                 <p th:if="${server.firmwareFlash.stageText != null}" class="n-firmware-hold">
-                                    <span th:text="${server.firmwareFlash.stageText}">전원 투입 — 게스트 복귀 대기</span>
+                                    <span th:text="${server.firmwareFlash.stageText}">전원을 곧 켭니다</span>
                                     <span th:if="${server.firmwareFlash.stageRemainingMinutes != null and server.firmwareFlash.stageRemainingMinutes > 0}"
                                           th:text="|(잔여 ${server.firmwareFlash.stageRemainingMinutes}분)|">(잔여 12분)</span>
                                 </p>
-                                <p th:if="${server.firmwareFlash.lastObservation != null}" class="n-section-hint"
-                                   th:text="${server.firmwareFlash.lastObservation}">13:05:30 확인 — 굽는 중</p>
-                                <p th:if="${server.firmwareFlash.poweredOff}" class="n-firmware-hold"
-                                   th:text="#{provisioning.firmware.flash.powered-off}">이 서버는 지금 꺼져 있습니다.</p>
+                                <div th:if="${server.firmwareFlash.poweredOff}" class="n-alert n-alert-warning"
+                                     th:text="#{provisioning.firmware.flash.powered-off}">이 서버는 지금 꺼져 있습니다.</div>
                             </th:block>
                         </th:block>
 
@@ -872,7 +888,6 @@
                         <th:block th:case="'FIRMWARE_SETTING'">
                             <th:block th:if="${server.firmwareSetting != null}">
                                 <div class="n-section" th:text="#{provisioning.firmware.setting.title}">펌웨어 설정 적용</div>
-                                <div class="n-section-hint" th:text="#{provisioning.firmware.setting.hint}">BIOS · BMC 표준 설정을 축마다 따로 적용하고 따로 확인합니다.</div>
                                 <ul class="n-firmware-axes">
                                     <li th:each="axis : ${server.firmwareSetting.axes}"
                                         th:classappend="${axis.state.name() == 'SUCCEEDED'} ? 'is-selected'
@@ -884,7 +899,7 @@
                                               th:text="${axis.state.name() == 'RUNNING'} ? '적용 중' : ${axis.state.label}">적용 중</span>
                                         <span th:if="${axis.itemsProgress != null}" th:text="${axis.itemsProgress}">2/4 적용</span>
                                         <span th:if="${axis.stageText != null}" class="n-firmware-detail">
-                                            <span th:text="${axis.stageText}">재부팅 — 게스트 복귀 대기</span>
+                                            <span th:text="${axis.stageText}">재부팅 뒤 복귀를 기다리는 중</span>
                                             <span th:if="${axis.stageRemainingMinutes != null and axis.stageRemainingMinutes > 0}"
                                                   th:text="|(잔여 ${axis.stageRemainingMinutes}분)|">(잔여 12분)</span>
                                         </span>
@@ -892,44 +907,42 @@
                                     </li>
                                 </ul>
                                 <p th:if="${server.firmwareSetting.waitingReason != null}" class="n-firmware-hold"
-                                   th:text="${server.firmwareSetting.waitingReason}">축 착수 대기 — 다음 워커 주기가 BMC 신원을 확인합니다.</p>
+                                   th:text="${server.firmwareSetting.waitingReason}">BMC 신원을 확인하는 중입니다.</p>
                             </th:block>
                         </th:block>
 
                         <!-- RAID 구성 — 계획(E3.5-2 · 저장 없는 미리보기) · 결과(E3.5-4 · raid_volume 실물) -->
                         <th:block th:case="'RAID_CONFIGURATION'">
                             <th:block th:if="${server.raidPlan != null}" th:with="rp=${server.raidPlan}">
-                                <div class="n-section" th:text="${entry.runState.name() == 'DONE'} ? '계획 (집행 당시 재산출)' : '계획'">계획</div>
+                                <div class="n-section">계획</div>
                                 <!-- 카드 대조 예고(E3.5-5-a D5) — 집행 대조(RaidCardMatch.judge)와 같은 판정을 개시 전에 보인다.
                                      세 등급이 세 시각으로(CP5 F-3 · O-1): 일치 = 안내 · 대조 불가 = 주의 배너 · 불일치 · 미감지 = 위험 배너. -->
                                 <th:block th:if="${rp.cardCheck != null}" th:with="cc=${rp.cardCheck}">
                                     <div th:if="${cc.verdict.name() == 'MATCH'}" class="n-hint"
                                          th:text="#{execution.raid-card-check.match(${cc.cardModelName}, ${cc.specifiedSubsystem}, ${cc.observedSubsystem})}">일치</div>
-                                    <div th:if="${cc.verdict.name() == 'MISMATCH'}" class="n-alert n-alert-danger">
+                                    <div th:if="${cc.verdict.name() == 'MISMATCH'}" class="n-alert n-alert-warning">
                                         <span th:text="#{execution.raid-card-check.mismatch(${cc.cardModelName}, ${cc.specifiedSubsystem}, ${cc.observedSubsystem})}">불일치</span>
                                         <a class="n-meta" th:if="${cc.raidCardId != null}" th:href="@{/management/raidcard(selectId=${cc.raidCardId})}">카드 자원 열기</a>
                                     </div>
-                                    <div th:if="${cc.verdict.name() == 'NOT_DETECTED'}" class="n-alert n-alert-danger">
+                                    <div th:if="${cc.verdict.name() == 'NOT_DETECTED'}" class="n-alert n-alert-warning">
                                         <span th:text="#{execution.raid-card-check.not-detected(${cc.cardModelName}, ${cc.specifiedSubsystem}, ${cc.observedSubsystem})}">미감지</span>
                                         <a class="n-meta" th:if="${cc.raidCardId != null}" th:href="@{/management/raidcard(selectId=${cc.raidCardId})}">카드 자원 열기</a>
                                     </div>
-                                    <div th:if="${cc.verdict.name() == 'UNVERIFIABLE'}" class="n-alert n-alert-warning">
+                                    <div th:if="${cc.verdict.name() == 'UNVERIFIABLE' and entry.runState.name() != 'DONE'}" class="n-hint">
                                         <span th:text="#{execution.raid-card-check.unverifiable(${cc.cardModelName}, ${cc.specifiedSubsystem}, ${cc.observedSubsystem})}">대조 불가</span>
                                         <a class="n-meta" th:if="${cc.raidCardId != null}" th:href="@{/management/raidcard(selectId=${cc.raidCardId})}">카드 자원에서 확정</a>
                                     </div>
                                 </th:block>
-                                <p th:if="${rp.policyUndecided}" class="n-muted">
-                                    기존 볼륨이 남아 있고 "기존 구성 : 보존 / 파괴" 선택 축은 아직 정의서에 없어(E3.5-4 예정)
-                                    두 갈래를 나란히 보입니다.</p>
                                 <div th:each="b, bit : ${rp.branches}" class="n-raid-branch">
                                     <div class="n-strong n-lead" th:if="${rp.policyUndecided}"
                                          th:text="${b.label}">파괴 시</div>
-                                    <p th:if="${b.rejectionCode != null}">
-                                        <span class="n-badge n-badge-gray" th:text="${b.rejectionCode}">EXISTING_CONFIG</span>
-                                        <span class="n-muted" th:text="${b.rejectionDetail}">사유</span></p>
+                                    <!-- S22-3 — 계획 거절은 단계에 들어서는 순간 대기로 빠뜨리는 사유라 판으로 보인다(내부 코드는 뺐다). -->
+                                    <div th:if="${b.rejectionCode != null}" class="n-alert n-alert-warning">
+                                        <strong>이 정의서로는 RAID 를 구성할 수 없습니다</strong>
+                                        <div class="n-block-gap-sm" th:text="${b.rejectionDetail}">사유</div></div>
                                     <th:block th:if="${b.rejectionCode == null}">
-                                        <p th:if="${b.deleteExistingFirst}" class="n-muted">선행 명령 — 카드의 기존 볼륨 전부 삭제 후 재구성</p>
-                                        <p th:if="${b.osAbsenceReason != null}" class="n-muted" th:text="${b.osAbsenceReason}">OS 지정 없음 사유</p>
+                                        <p th:if="${b.deleteExistingFirst}" class="n-hint n-hint-warn">카드의 기존 볼륨을 모두 지운 뒤 다시 구성합니다</p>
+                                        <p th:if="${b.osAbsenceReason != null}" class="n-hint n-hint-warn" th:text="${b.osAbsenceReason}">OS 영역 미지정 사유</p>
                                         <table th:if="${not #lists.isEmpty(b.volumes)}" class="n-table">
                                             <thead>
                                             <tr><th colspan="5">계획 볼륨</th></tr>
@@ -939,7 +952,7 @@
                                             <tr th:each="v : ${b.volumes}">
                                                 <td><code class="n-mono" th:text="${v.name}">spvR1V1</code></td>
                                                 <td th:text="${v.level}">RAID1</td>
-                                                <td><code class="n-mono" th:text="${v.members}">252:0 · 252:1</code></td>
+                                                <td><code class="n-mono" th:text="${v.members}">252:0, 252:1</code></td>
                                                 <td th:text="${v.capacity}">479.6 GB</td>
                                                 <td>
                                                     <span th:if="${v.role.name() == 'OS'}" class="n-badge n-badge-green"
@@ -951,7 +964,7 @@
                                         </table>
                                         <table th:if="${not #lists.isEmpty(b.passthroughs)}" class="n-table n-block-gap">
                                             <thead>
-                                            <tr><th colspan="3">단독 디스크 보장 (RAID 없음)</th></tr>
+                                            <tr><th colspan="3">단독 디스크 보장(RAID 미구성)</th></tr>
                                             <tr><th>슬롯</th><th>용량</th><th>역할</th></tr>
                                             </thead>
                                             <tbody>
@@ -967,7 +980,7 @@
                                             </tbody>
                                         </table>
                                         <p th:if="${#lists.isEmpty(b.volumes) and #lists.isEmpty(b.passthroughs)}" class="n-muted">
-                                            만들 볼륨이 없습니다 — 묶음 규칙이 없거나 어느 규칙도 디스크를 소비하지 못했습니다.</p>
+                                            만들 볼륨이 없습니다. 디스크 묶음 규칙이 없거나 어느 규칙에도 맞는 디스크가 없습니다.</p>
                                         <table th:if="${not #lists.isEmpty(b.ruleOutcomes)}" class="n-table n-block-gap">
                                             <thead>
                                             <tr><th colspan="5">규칙 소비</th></tr>
@@ -976,10 +989,10 @@
                                             <tbody>
                                             <tr th:each="r : ${b.ruleOutcomes}">
                                                 <td th:text="${r.ruleNo}">1</td>
-                                                <td th:text="${r.label}">RAID1 · SSD · SATA · 480 GB · 2개</td>
+                                                <td th:text="${r.label}">RAID1, SSD, SATA, 480 GB, 2개</td>
                                                 <td th:text="${r.matchedDisks} + '대'">2대</td>
                                                 <td>
-                                                    <span th:if="${r.consumedNothing}" class="n-badge n-badge-gray">소비 0</span>
+                                                    <span th:if="${r.consumedNothing}" class="n-badge n-badge-orange">소비 0</span>
                                                     <span th:unless="${r.consumedNothing}" th:text="${r.consumedDisks} + '대'">2대</span>
                                                 </td>
                                                 <td th:text="${r.volumeCount} + '개'">1개</td>
@@ -994,7 +1007,7 @@
                                             <tbody>
                                             <tr th:each="u : ${b.unassigned}">
                                                 <td><code class="n-mono" th:text="${u.slot}">252:7</code></td>
-                                                <td th:text="${u.size != null} ? ${u.size} : '—'">446.625 GB</td>
+                                                <td th:text="${u.size != null} ? ${u.size} : '-'">446.625 GB</td>
                                                 <td class="n-muted" th:text="${u.reason}">어느 규칙의 조건에도 맞지 않습니다</td>
                                             </tr>
                                             </tbody>
@@ -1003,7 +1016,7 @@
                                 </div>
                             </th:block>
                             <th:block th:if="${not #lists.isEmpty(server.raidVolumes)}">
-                                <div class="n-section">결과 — 검증 통과 볼륨</div>
+                                <div class="n-section">결과</div>
                                 <table class="n-table">
                                     <thead>
                                     <tr><th>이름</th><th>레벨</th><th>멤버 슬롯</th><th>유효 용량</th><th>역할</th><th>상태</th><th>WWN</th></tr>
@@ -1012,21 +1025,21 @@
                                     <tr th:each="v : ${server.raidVolumes}">
                                         <td><code class="n-mono" th:text="${v.name}">spvR1V1</code></td>
                                         <td th:text="${v.level}">RAID1</td>
-                                        <td><code class="n-mono" th:text="${v.members}">252:0 · 252:1</code></td>
+                                        <td><code class="n-mono" th:text="${v.members}">252:0, 252:1</code></td>
                                         <td th:text="${v.capacity}">479.6 GB</td>
                                         <td>
                                             <span th:if="${v.role.name() == 'OS'}" class="n-badge n-badge-green"
                                                   th:text="${v.role.displayName}">OS 영역</span>
                                             <span th:unless="${v.role.name() == 'OS'}" th:text="${v.role.displayName}">Data 영역</span>
                                         </td>
-                                        <td th:text="${v.state != null} ? ${v.state} : '—'">Optl</td>
-                                        <td><code class="n-mono" th:text="${v.wwn != null} ? ${v.wwn} : '—'">600605b0…</code></td>
+                                        <td th:text="${v.state != null} ? ${v.state} : '-'">Optl</td>
+                                        <td><code class="n-mono" th:text="${v.wwn != null} ? ${v.wwn} : '-'">600605b0…</code></td>
                                     </tr>
                                     </tbody>
                                 </table>
                             </th:block>
                             <p th:if="${server.raidPlan == null and #lists.isEmpty(server.raidVolumes)}" class="n-phase-empty">
-                                계획이 아직 없습니다 — RAID 인벤토리가 수집되고 정의서에 RAID 구성 단계가 있으면 조회 때마다 산출됩니다.</p>
+                                RAID 계획이 아직 없습니다. 진단에서 RAID 카드 정보를 모으면 계획이 보입니다.</p>
                         </th:block>
 
                         <!-- OS 설치 — Windows 설치(E4-1-a-3 · E4-1-a-4 · E4-1-a-6 · R15-2). 준비도는 조회 시점 재판정, 진행은 원장 행의 투영.
@@ -1045,18 +1058,21 @@
                                                   th:text="#{provisioning.windows.install.image.none}">미지정</span>
                                         </td>
                                     </tr>
-                                    <tr th:if="${wi.readinessGrade != null}">
+                                    <tr th:if="${wi.readinessGrade != null and !wi.served() and !wi.completed() and wi.failedReason == null}">
                                         <th th:text="#{provisioning.windows.install.readiness}">준비도</th>
                                         <td>
                                             <!-- 서빙 뒤 · 완료 뒤 · 실패 뒤에는 "다음 부팅에서 시작" 이 시제에 맞지 않는다(E4-1-a-3 CP5 O-2 · E4-1-a-4 CP5 F-2) -->
                                             <th:block th:if="${wi.readinessGrade.name() == 'READY'}">
                                                 <span class="n-badge n-badge-teal" th:text="${wi.readinessGrade.description}">준비됨</span>
                                                 <span class="n-meta n-muted"
-                                                      th:text="${wi.served() or wi.completed() or wi.failedReason != null} ? #{provisioning.windows.install.readiness.ready.short} : #{provisioning.windows.install.readiness.ready}">문제 없음</span>
+                                                      th:text="${wi.served() or wi.completed() or wi.failedReason != null} ? #{provisioning.windows.install.readiness.ready.short} : #{provisioning.windows.install.readiness.ready}">정상</span>
                                             </th:block>
                                             <th:block th:unless="${wi.readinessGrade.name() == 'READY'}">
                                                 <span class="n-badge n-badge-red" th:text="${wi.readinessGrade.description}">자원 결손</span>
-                                                <div class="n-hint n-hint-warn" th:text="${#strings.listJoin(wi.readinessNotes, ' · ')}">install.wim 없음</div>
+                                                <!-- S22-3 — 설치를 막는 결손이라 판으로, 사유는 한 줄에 하나씩. -->
+                                                <div class="n-alert n-alert-warning">
+                                                    <div th:each="note : ${wi.readinessNotes}" th:text="${note}">install.wim 미배치</div>
+                                                </div>
                                             </th:block>
                                         </td>
                                     </tr>
@@ -1067,28 +1083,26 @@
                                                     th:text="|#{provisioning.windows.install.disk.number} ${wi.targetDiskId}|">디스크 0</strong>
                                             <!-- 서빙 뒤에도 번호의 근거를 남긴다(HF15-5 CP5 O-1) — 원장 meta diskBasis. 서빙 전엔 안내(DEFERRED · CONFIDENT)만 -->
                                             <span th:if="${wi.diskSelectionNote != null}" th:classappend="${wi.targetDiskId != null} ? 'n-meta'"
-                                                  class="n-muted" th:text="${wi.diskSelectionNote}">RAID 구성 뒤 확정 — 계획의 OS 영역</span>
+                                                  class="n-muted" th:text="${wi.diskSelectionNote}">RAID 구성 뒤 정해집니다</span>
                                         </td>
                                     </tr>
                                     <!-- R15-2 — 서빙 시점 드라이버 선택(보드 · 대상 OS · 버전). 서빙 뒤에는 원장 meta 의 그때 목록 -->
                                     <tr th:if="${wi.driverSummary != null}">
                                         <th th:text="#{provisioning.windows.install.drivers}">드라이버</th>
                                         <td>
-                                            <span th:text="${wi.driverSummary}">드라이버 2(변형 1 · 트리 1) · 제외 1</span>
+                                            <span th:text="${wi.driverSummary}">드라이버 2개, 제외 1개</span>
                                             <div class="n-hint" th:if="${#lists.isEmpty(wi.driverEntries) and #lists.isEmpty(wi.driversSkipped)}"
                                                  th:text="#{provisioning.windows.install.drivers.none}">선택된 드라이버가 없습니다.</div>
                                             <details th:if="${not #lists.isEmpty(wi.driverEntries)}">
                                                 <summary th:text="|#{provisioning.windows.install.drivers.list} (${#lists.size(wi.driverEntries)})|">선택 목록 (2)</summary>
-                                                <div class="n-hint" th:text="#{provisioning.windows.install.drivers.hint}">서빙 시점에 고른 목록입니다.</div>
                                                 <ul>
-                                                    <li th:each="d : ${wi.driverEntries}" th:text="${d}">ASPEED Graphics · MSI WDDM Installer\Win2025.msi · 2025</li>
+                                                    <li th:each="d : ${wi.driverEntries}" th:text="${d}">ASPEED Graphics</li>
                                                 </ul>
                                             </details>
                                             <details th:if="${not #lists.isEmpty(wi.driversSkipped)}">
                                                 <summary th:text="|#{provisioning.windows.install.drivers.skipped} (${#lists.size(wi.driversSkipped)})|">제외 (1)</summary>
-                                                <div class="n-hint" th:text="#{provisioning.windows.install.drivers.skipped.hint}">후보였으나 제외된 패키지입니다.</div>
                                                 <ul>
-                                                    <li th:each="d : ${wi.driversSkipped}" th:text="${d}">Intel LAN — 해당 버전 변형 없음</li>
+                                                    <li th:each="d : ${wi.driversSkipped}" th:text="${d}">Intel LAN</li>
                                                 </ul>
                                             </details>
                                         </td>
@@ -1100,19 +1114,15 @@
                                             <th:block th:if="${wi.completed()}">
                                                 <span class="n-badge n-badge-teal" th:text="#{provisioning.windows.install.progress.completed}">완료</span>
                                                 <span class="n-meta n-muted"
-                                                      th:text="|#{provisioning.windows.install.progress.completed.at} ${#temporals.format(wi.completedAt, 'yyyy-MM-dd HH:mm:ss')} · #{provisioning.windows.install.progress.completed.computer} ${wi.computerName} · #{provisioning.windows.install.progress.completed.drivers} ${wi.driversAdded} · #{provisioning.windows.install.progress.completed.problems} ${wi.problemDeviceCount}|">완료 2026-09-03 · ComputerName SPV-14174000 · 드라이버 47 · 문제 장치 0</span>
+                                                      th:text="|#{provisioning.windows.install.progress.completed.at} ${#temporals.format(wi.completedAt, 'yyyy-MM-dd HH:mm:ss')}, #{provisioning.windows.install.progress.completed.computer} ${wi.computerName}, #{provisioning.windows.install.progress.completed.drivers} ${wi.driversAdded}, #{provisioning.windows.install.progress.completed.problems} ${wi.problemDeviceCount}|">완료 2026-09-03, ComputerName SPV-14174000, 드라이버 47, 문제 장치 0</span>
                                             </th:block>
                                             <th:block th:if="${wi.failedReason != null}">
-                                                <span class="n-badge n-badge-red" th:text="|#{provisioning.windows.install.progress.failed} · ${wi.failedReason}|">실패 · REPXE_LOOP</span>
-                                                <div class="n-hint n-hint-warn"
-                                                     th:text="${wi.failedReason == 'INSTALL_TIMEOUT'} ? #{provisioning.windows.install.progress.failed.timeout}
-                                                             : (${wi.failedReason == 'REPXE_LOOP'} ? #{provisioning.windows.install.progress.failed.loop}
-                                                             : #{provisioning.windows.install.progress.failed.operator})">원인을 확인한 뒤 재시도하십시오.</div>
+                                                <span class="n-badge n-badge-red" th:text="#{provisioning.windows.install.progress.failed}">실패</span>
                                             </th:block>
                                             <th:block th:if="${wi.served()}">
                                                 <span class="n-badge n-badge-blue" th:text="#{provisioning.windows.install.progress.running}">설치 중</span>
                                                 <span class="n-meta n-muted"
-                                                      th:text="|#{provisioning.windows.install.progress.served} ${#temporals.format(wi.servedAt, 'yyyy-MM-dd HH:mm:ss')} · #{provisioning.windows.install.progress.reentries} ${wi.reentries}/${wi.maxReentries} · #{provisioning.windows.install.progress.remaining} ${wi.remainingMinutes}분|">서빙 · 재진입 0/5 · 잔여 60분</span>
+                                                      th:text="|#{provisioning.windows.install.progress.served} ${#temporals.format(wi.servedAt, 'yyyy-MM-dd HH:mm:ss')}, #{provisioning.windows.install.progress.reentries} ${wi.reentries}/${wi.maxReentries}회, #{provisioning.windows.install.progress.remaining} ${wi.remainingMinutes}분|">설치 파일 전달, 재부팅 0/5회, 남은 시간 60분</span>
                                             </th:block>
                                             <th:block th:if="${wi.failedReason == null and !wi.served() and !wi.completed()}">
                                                 <span class="n-badge n-badge-gray">예정</span>
@@ -1124,15 +1134,7 @@
                                 </table>
                                 <p th:if="${wi.served() and wi.remainingMinutes != null and wi.remainingMinutes == 0}"
                                    class="n-hint n-hint-warn" th:text="#{provisioning.windows.install.progress.expired}">설치 시한이 지났습니다.</p>
-                                <p th:if="${wi.served()}" class="n-hint"
-                                   th:text="#{provisioning.windows.install.completion}">설치가 끝나면 첫 로그온 스크립트가 완료를 보고합니다.</p>
-                                <p th:if="${wi.holding}" class="n-hint n-hint-warn">
-                                    <span th:if="${wi.holdRemainingMinutes > 0}">
-                                        <span th:text="#{provisioning.windows.install.holding}">자원이 갖춰지기를 기다리는 중입니다.</span>
-                                        <span th:text="|#{provisioning.firmware.plan.remaining} ${wi.holdRemainingMinutes}분|">대기 잔여 120분</span>
-                                    </span>
-                                    <span th:unless="${wi.holdRemainingMinutes > 0}" th:text="#{provisioning.firmware.plan.expired}">대기 시한이 지났습니다.</span>
-                                </p>
+                                <!-- 자원 결손 대기 안내는 경보 띠로 옮겼다(S22-3 SD-356). -->
 
                                 <!-- E4-1-a-4 · E4-1-a-6 · R15-2 — 완료 뒤 결과: 다음 단계 · 문제 장치 · 설치 디스크 확증 · 항목별 설치 결과 -->
                                 <th:block th:if="${wi.completed()}">
@@ -1145,7 +1147,7 @@
                                                 <span th:if="${wi.provisioningCompleted}"
                                                       th:text="#{provisioning.windows.install.progress.completed.terminal}">프로비저닝이 종단됐습니다.</span>
                                                 <span th:if="${!wi.provisioningCompleted and wi.nextPhase != null}"
-                                                      th:text="|#{provisioning.windows.install.progress.completed.next} — ${wi.nextPhase.description}|">다음 단계로 넘어갔습니다</span>
+                                                      th:text="|#{provisioning.windows.install.progress.completed.next}: ${wi.nextPhase.description}|">다음 단계로 넘어갔습니다</span>
                                             </td>
                                         </tr>
                                         <tr>
@@ -1153,7 +1155,7 @@
                                             <td>
                                                 <th:block th:if="${wi.problemDeviceCount == 0}">
                                                     <span class="n-badge n-badge-teal">0</span>
-                                                    <span class="n-meta n-muted" th:text="#{provisioning.windows.install.progress.completed.problems.none}">문제 장치 없음</span>
+                                                    <span class="n-meta n-muted" th:text="#{provisioning.windows.install.progress.completed.problems.none}">문제 장치 0개</span>
                                                 </th:block>
                                                 <th:block th:if="${wi.problemDeviceCount > 0}">
                                                     <span class="n-badge n-badge-orange" th:text="${wi.problemDeviceCount}">2</span>
@@ -1173,11 +1175,10 @@
                                             <td>
                                                 <th:block th:if="${wi.diskConfirmation == 'CONFIRMED'}">
                                                     <span class="n-badge n-badge-teal">일치</span>
-                                                    <span class="n-meta n-muted" th:text="#{provisioning.windows.install.disk.confirmed}">의도한 OS 볼륨에 설치됐습니다.</span>
                                                 </th:block>
                                                 <th:block th:if="${wi.diskConfirmation == 'MISMATCH'}">
                                                     <span class="n-badge n-badge-red">불일치</span>
-                                                    <span class="n-meta n-hint-warn" th:text="#{provisioning.windows.install.disk.mismatch}">경고 — 계획한 OS 볼륨과 다른 디스크에 설치됐습니다.</span>
+                                                    <div class="n-alert n-alert-warning" th:text="#{provisioning.windows.install.disk.mismatch}">계획한 OS 볼륨과 다른 디스크에 설치됐습니다.</div>
                                                 </th:block>
                                                 <th:block th:if="${wi.diskConfirmation == 'UNREPORTED'}">
                                                     <span class="n-badge n-badge-gray">미보고</span>
@@ -1191,9 +1192,8 @@
                                             <td>
                                                 <details>
                                                     <summary th:text="|#{provisioning.windows.install.drivers.installs} (${#lists.size(wi.driverInstalls)})|">설치 결과 (2)</summary>
-                                                    <div class="n-hint" th:text="#{provisioning.windows.install.drivers.installs.hint}">게스트가 항목별로 보고한 종료 코드입니다.</div>
                                                     <ul>
-                                                        <li th:each="d : ${wi.driverInstalls}" th:text="${d}">4_aspeed-driver · MSI · 종료 코드 0</li>
+                                                        <li th:each="d : ${wi.driverInstalls}" th:text="${d}">4_aspeed-driver: 종료 코드 0</li>
                                                     </ul>
                                                 </details>
                                             </td>
@@ -1204,9 +1204,8 @@
                                             <td>
                                                 <details open>
                                                     <summary th:text="|#{provisioning.windows.install.drivers.failed-infs} (${#lists.size(wi.failedInfs)})|">실패한 INF (3)</summary>
-                                                    <div class="n-hint" th:text="#{provisioning.windows.install.drivers.failed-infs.hint}">설치하지 못한 INF 입니다.</div>
                                                     <ul>
-                                                        <li th:each="f : ${wi.failedInfs}" th:text="${f}">7_intel-lan · PRO1000\Winx64\NDIS65\v1q65x64.inf · 종료 코드 0xE000024B</li>
+                                                        <li th:each="f : ${wi.failedInfs}" th:text="${f}">7_intel-lan: 종료 코드 0xE000024B</li>
                                                     </ul>
                                                 </details>
                                             </td>
@@ -1229,17 +1228,17 @@
                             </thead>
                             <tbody>
                             <tr th:each="step : ${entry.steps}">
-                                <td><code class="n-mono" th:text="${step.step != null} ? ${step.step} : '—'">NETWORK_ALLOCATING</code></td>
+                                <td th:text="${step.step != null} ? ${step.step.description} : '-'">네트워크 주소 할당</td>
                                 <td><span th:replace="~{fragments/provisioning/server-badges :: stepStatusBadge(${step.status})}"></span></td>
-                                <td class="n-muted n-ledger-note" th:text="${step.note != null} ? ${step.note} : '—'" th:title="${step.note}">—</td>
-                                <td th:text="${step.startedAt != null} ? ${#temporals.format(step.startedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
-                                <td th:text="${step.finishedAt != null} ? ${#temporals.format(step.finishedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                                <td class="n-muted n-ledger-note" th:text="${step.note != null} ? ${step.note} : '-'" th:title="${step.note}">-</td>
+                                <td th:text="${step.startedAt != null} ? ${#temporals.format(step.startedAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">-</td>
+                                <td th:text="${step.finishedAt != null} ? ${#temporals.format(step.finishedAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">-</td>
                             </tr>
                             </tbody>
                         </table>
                     </th:block>
                     <p th:if="${#lists.isEmpty(entry.steps) and !hasBody}" class="n-phase-empty"
-                       th:text="${entry.runState.name() == 'STOPPED'} ? '회수로 중단 — 이 단계는 밟지 않습니다.' : '예정 — 아직 기록이 없습니다.'">예정 — 아직 기록이 없습니다.</p>
+                       th:text="${entry.runState.name() == 'STOPPED'} ? '회수로 중단되어 이 단계는 진행하지 않습니다.' : '예정 단계입니다.'">예정 단계입니다.</p>
                 </div>
             </details>
 
@@ -1257,7 +1256,7 @@
 
             <!-- 전체 이력 (append-only · 시간순) — 단계 패널이 나눠 보이는 것을 한 표로 -->
             <details class="n-block-gap" id="phase-ledger-all" th:unless="${#lists.isEmpty(server.steps)}">
-                <summary class="n-hint">전체 이력 (시간순 · append-only)</summary>
+                <summary class="n-hint">전체 이력(시간순)</summary>
                 <div class="n-card n-block-gap-sm">
                     <div class="n-card-body">
                         <table class="n-table n-steps-table">
@@ -1266,19 +1265,19 @@
                             </thead>
                             <tbody>
                             <tr th:each="step : ${server.steps}">
-                                <td th:text="${step.phase != null} ? ${step.phase.description} : '—'">부트스트래핑</td>
-                                <td><code class="n-mono" th:text="${step.step != null} ? ${step.step} : '—'">NETWORK_ALLOCATING</code></td>
+                                <td th:text="${step.phase != null} ? ${step.phase.description} : '-'">부트스트래핑</td>
+                                <td th:text="${step.step != null} ? ${step.step.description} : '-'">네트워크 주소 할당</td>
                                 <td><span th:replace="~{fragments/provisioning/server-badges :: stepStatusBadge(${step.status})}"></span></td>
-                                <td class="n-muted n-ledger-note" th:text="${step.note != null} ? ${step.note} : '—'" th:title="${step.note}">—</td>
-                                <td th:text="${step.startedAt != null} ? ${#temporals.format(step.startedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
-                                <td th:text="${step.finishedAt != null} ? ${#temporals.format(step.finishedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                                <td class="n-muted n-ledger-note" th:text="${step.note != null} ? ${step.note} : '-'" th:title="${step.note}">-</td>
+                                <td th:text="${step.startedAt != null} ? ${#temporals.format(step.startedAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">-</td>
+                                <td th:text="${step.finishedAt != null} ? ${#temporals.format(step.finishedAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">-</td>
                             </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </details>
-            <p th:if="${#lists.isEmpty(server.steps)}" class="n-detail-empty n-block-gap">세부 단계 이력은 프로비저닝 엔진이 단계를 실행하면서 기록됩니다.</p>
+            <p th:if="${#lists.isEmpty(server.steps)}" class="n-detail-empty n-block-gap">기록이 없습니다.</p>
         </div>
     </div>
 
@@ -1339,11 +1338,11 @@
                             </tr>
                             <tr>
                                 <th>등록 시각</th>
-                                <td th:text="${server.createdAt != null} ? ${#temporals.format(server.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">2026-06-26 12:00:00</td>
+                                <td th:text="${server.createdAt != null} ? ${#temporals.format(server.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">2026-06-26 12:00:00</td>
                             </tr>
                             <tr>
                                 <th>수정 시각</th>
-                                <td th:text="${server.updatedAt != null} ? ${#temporals.format(server.updatedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">2026-06-26 12:00:00</td>
+                                <td th:text="${server.updatedAt != null} ? ${#temporals.format(server.updatedAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">2026-06-26 12:00:00</td>
                             </tr>
                             </tbody>
                         </table>
@@ -1389,10 +1388,9 @@
                                     th:disabled="${server.powerBlockReason != null}"
                                     th:title="${server.powerBlockReason}">정상 종료</button>
                         </div>
-                        <div class="n-hint">켜기를 포함한 모든 명령은 전달까지만 확인합니다 — 결과는 [상태 조회] 로 확인하세요.</div>
                         <div class="n-hint n-hint-warn" th:if="${server.powerBlockReason != null}" th:text="${server.powerBlockReason}">차단 사유</div>
                     </div>
-                    <span th:unless="${bmcDetected}" class="n-muted">BMC 미검출 — 원격 전원 제어를 쓸 수 없습니다 (진단 수집이 BMC 를 찾지 못했습니다).</span>
+                    <span th:unless="${bmcDetected}" class="n-muted">BMC 미검출: 원격 전원 제어를 쓸 수 없습니다.</span>
                 </div>
             </div>
         </div>
@@ -1404,9 +1402,8 @@
                 <div class="n-card-body">
                     <div class="n-lifecycle-block" data-live="decommission">
                         <div class="n-label strong">서버 회수</div>
-                        <p class="n-hint">회수하면 운영 상태가 <strong>회수됨</strong>으로 표시되어 프로비저닝 대상에서 제외됩니다.</p>
                         <p th:if="${server.decommissionedAt != null}" class="n-detail-empty">이미 회수된 서버입니다.
-                            (<span th:text="${#temporals.format(server.decommissionedAt, 'yyyy-MM-dd HH:mm:ss')}">—</span>)</p>
+                            (<span th:text="${#temporals.format(server.decommissionedAt, 'yyyy-MM-dd HH:mm:ss')}">-</span>)</p>
                         <form th:unless="${server.decommissionedAt != null}"
                               th:action="@{/provisioning/server/{id}/decommission(id=${server.id})}" method="post"
                               data-confirm-decommission
@@ -1421,8 +1418,7 @@
                          GuestServer.purgeBlockReason(비회수 direct POST 는 409) + systemUUIDSuffix 대조(불일치 400). -->
                     <div class="n-lifecycle-block" th:if="${server.decommissionedAt != null}">
                         <div class="n-label strong">서버 영구 삭제</div>
-                        <p class="n-hint">이 서버의 모든 기록이 함께 삭제되며 되돌릴 수 없습니다.
-                            확인을 위해 systemUUID 의 마지막 <code>-</code> 다음 값을 입력합니다.</p>
+                        <p class="n-hint">이 서버의 모든 기록이 함께 삭제되며 되돌릴 수 없습니다.</p>
                         <form th:action="@{/provisioning/server/{id}/purge(id=${server.id})}" method="post"
                               data-confirm-server-purge
                               th:data-typed-suffix="${server.systemUuidSuffix}">
@@ -1456,7 +1452,7 @@
                     <p class="n-detail-empty">불러오는 중…</p>
                 </div>
                 <div class="n-picker-footer">
-                    <span class="n-picker-count" id="definitionPickerStatus">표에서 정의서를 고르세요</span>
+                    <span class="n-picker-count" id="definitionPickerStatus">표에서 정의서 선택</span>
                     <span>
                         <button type="button" class="n-btn n-btn-secondary" data-picker-close>취소</button>
                         <button type="submit" class="n-btn n-btn-primary" id="definitionPickerSubmit" disabled>

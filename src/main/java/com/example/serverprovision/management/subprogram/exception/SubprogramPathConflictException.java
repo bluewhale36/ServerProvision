@@ -9,6 +9,6 @@ import com.example.serverprovision.global.exception.FieldBoundConflictException;
 public class SubprogramPathConflictException extends FieldBoundConflictException {
 
 	public SubprogramPathConflictException(String treeRootPath) {
-		super("대상 트리 경로가 이미 점유되어 있습니다 : " + treeRootPath, "targetDirectory");
+		super("대상 디렉토리를 이미 다른 자원이 쓰고 있습니다: " + treeRootPath, "targetDirectory");
 	}
 }

@@ -64,7 +64,7 @@ public class BasicSettingReferenceInspector implements ProcessReferenceInspector
                     .orElseThrow(() -> new BiosSettingTemplateNotFoundException(templateId));
             Long boardId = template.getBoardModel().getId();
             if (specifiedBoardId != null && !specifiedBoardId.equals(boardId)) {
-                throw InvalidBiosTemplateSelectionException.boardMismatch(templateId);
+                throw InvalidBiosTemplateSelectionException.boardMismatch(template.getName());
             }
             String duplicated = seenBoards.putIfAbsent(boardId, template.getBoardModel().getModelName());
             if (duplicated != null) {

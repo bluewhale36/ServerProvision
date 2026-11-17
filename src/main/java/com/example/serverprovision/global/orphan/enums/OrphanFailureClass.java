@@ -14,19 +14,19 @@ public enum OrphanFailureClass {
 	STORAGE_IO {
 		@Override
 		public String displayReason() {
-			return "디스크 IO / 해시 계산 실패";
+			return "디스크 입출력 또는 해시 계산 실패";
 		}
 	},
 	DB_CONSTRAINT {
 		@Override
 		public String displayReason() {
-			return "DB 저장 실패 (제약 위반 등)";
+			return "DB 저장 실패(제약 위반 등)";
 		}
 	},
 	MARKER_WRITE {
 		@Override
 		public String displayReason() {
-			return "마커(.provision.json) 기록 실패";
+			return "마커 파일 기록 실패";
 		}
 	},
 	UNEXPECTED {

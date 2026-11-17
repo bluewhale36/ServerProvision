@@ -9,14 +9,14 @@ public enum BiosStaleKind {
     MISSING_ATTRIBUTE {
         @Override
         public String message(String attributeName, String storedRaw, List<String> allowed) {
-            return attributeName + " — 레지스트리에 없는 속성";
+            return attributeName + "(이 BIOS 에 없는 항목)";
         }
     },
     /** 속성은 있으나 저장값이 허용 목록 밖이다(표기 변경 · 선택지 제거). */
     VALUE_NOT_ALLOWED {
         @Override
         public String message(String attributeName, String storedRaw, List<String> allowed) {
-            return attributeName + " = " + storedRaw + " — 허용 {" + String.join(", ", allowed) + "}";
+            return attributeName + " = " + storedRaw + "(허용 값: " + String.join(", ", allowed) + ")";
         }
     };
 

@@ -159,7 +159,7 @@ class SettingRestControllerDiskGroupTest {
     @DisplayName("POST — 카드가 못 만드는 레벨(DiskGroupRules 1) → 400 fieldErrors[diskGroups] 에 blockReasonFor 문구")
     void create_unsupportedLevel_returns400_fieldBound() throws Exception {
         given(commandService.create(any())).willThrow(InvalidDiskGroupException.unsupportedLevel(1,
-                "RAID5 를 만들 수 없는 카드입니다 — 지원하는 RAID 레벨은 RAID0 · RAID1 입니다."));
+                "RAID5 를 만들 수 없는 카드입니다: 지원하는 RAID 레벨은 RAID0, RAID1 입니다."));
 
         send(body(raid("1", RAID1_RULE)))
                 .andExpect(status().isBadRequest())
@@ -171,7 +171,7 @@ class SettingRestControllerDiskGroupTest {
     @DisplayName("POST — 디스크 수 규칙 위반(DiskGroupRules 2 · R17-1) · 중복 규칙(4) · HDD×NVMe(6) → 400 fieldErrors[diskGroups]")
     void create_tooFewDisksAndDuplicate_return400() throws Exception {
         given(commandService.create(any())).willThrow(InvalidDiskGroupException.memberCount(1,
-                "RAID0 의 구성 대수는 2~10대입니다 — 1대는 만들 수 없습니다"));
+                "RAID0 의 구성 대수는 2~10대입니다: 1대는 만들 수 없습니다"));
         send(body(raid("1", RAID1_RULE)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field == 'diskGroups')].message")
@@ -289,7 +289,7 @@ class SettingRestControllerDiskGroupTest {
     }
 
     @Test
-    @DisplayName("POST — 역할 4 종 중 '영역 할당 없음' · 기본 5 행 → 201, 계약에 role · volumePriorities 가 그대로 실린다")
+    @DisplayName("POST — 역할 4 종 중 '영역 미할당' · 기본 5 행 → 201, 계약에 role · volumePriorities 가 그대로 실린다")
     void create_withRoleNoneAndDefaultPriorities_returns201() throws Exception {
         given(commandService.create(any())).willReturn(new SettingSaveResponse(11L, "디스크 세팅"));
         String defaults = """
@@ -309,7 +309,7 @@ class SettingRestControllerDiskGroupTest {
         assertThat(raid.getDiskGroups().get(0).role()).isEqualTo(com.example.serverprovision.provisioning.setting.enums.DiskGroupRole.NONE);
         assertThat(raid.getDiskGroups().get(0).isOsFixed()).isFalse();
         assertThat(raid.getVolumePriorities()).hasSize(5);
-        assertThat(raid.getVolumePriorities().get(2).toDisplay()).isEqualTo("SSD · SATA · 큰 용량부터");
+        assertThat(raid.getVolumePriorities().get(2).toDisplay()).isEqualTo("SSD, SATA, 큰 용량부터");
     }
 
     @Test
@@ -419,7 +419,7 @@ class SettingRestControllerDiskGroupTest {
 
         send(body(raid("1", OS_RAID1_480) + "," + rhelWith(fixed("/boot", 1) + "," + fixed("swap", 16) + "," + ROOT_GROW)))
                 .andExpect(status().isCreated());
-        // 자동 탐지 묶음(RAID1_RULE 은 480 GB 지정 — NO_RAID_NVME_RULE 이 자동) 을 OS 후보로 두면 하한을 모른다 → 검사 없음
+        // 자동 탐지 묶음(RAID1_RULE 은 480 GB 지정: NO_RAID_NVME_RULE 이 자동) 을 OS 후보로 두면 하한을 모른다 → 검사 없음
         send(body(raid("1", NO_RAID_NVME_RULE) + "," + rhelWith(fixed("swap", 5000) + "," + ROOT_GROW)))
                 .andExpect(status().isCreated());
     }

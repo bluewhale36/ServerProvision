@@ -12,7 +12,7 @@ import com.example.serverprovision.global.registration.RegistrationFailure;
 public class DuplicateFilenameException extends ConflictException implements RegistrationFailure {
 
 	public DuplicateFilenameException(String path) {
-		super("해당 경로에 이미 같은 이름의 파일이 존재합니다 : " + path);
+		super("해당 경로에 이미 같은 이름의 파일이 있습니다: " + path);
 	}
 
 	/** 콘텐츠/영구 실패 — finalize 가 이미 업로드 파일을 정리했으므로 격리하지 않는다. */

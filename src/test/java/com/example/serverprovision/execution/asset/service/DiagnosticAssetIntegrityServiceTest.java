@@ -87,7 +87,7 @@ class DiagnosticAssetIntegrityServiceTest {
 
         assertThat(slot.key()).isEqualTo("VMLINUZ");
         assertThat(slot.statusLabel()).isEqualTo("서빙 비활성");
-        assertThat(slot.sizeDisplay()).isEqualTo("—");
+        assertThat(slot.sizeDisplay()).isEqualTo("-");
     }
 
     // ── 서빙 게이트 ─────────────────────────────────────────────────────────

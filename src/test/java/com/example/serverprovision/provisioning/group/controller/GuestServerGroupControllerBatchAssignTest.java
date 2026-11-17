@@ -157,8 +157,8 @@ class GuestServerGroupControllerBatchAssignTest {
                 .andExpect(content().string(containsString(">1 대<")))
                 .andExpect(content().string(containsString("2 대 중 1 대에 할당됩니다")))
                 // 멤버별 분류 표가 실제로 그려지는가 — 분류 배지와 사유가 함께
-                .andExpect(content().string(containsString("할당됨")))
-                .andExpect(content().string(containsString("이미 있음")))
+                .andExpect(content().string(containsString("할당 예정")))
+                .andExpect(content().string(containsString("이미 할당")))
                 .andExpect(content().string(containsString("srv-asus")));
     }
 
@@ -173,7 +173,7 @@ class GuestServerGroupControllerBatchAssignTest {
                 // 목록에서 지우지 않는다 — 사라지면 왜 안 되는지 알 수 없다
                 .andExpect(content().string(containsString(">bios-ms03<")))
                 .andExpect(content().string(containsString("n-lookup-row-disabled")))
-                .andExpect(content().string(containsString("이 그룹의 어떤 서버에도 붙일 수 없습니다")))
+                .andExpect(content().string(containsString("이 그룹의 어떤 서버에도 할당할 수 없습니다")))
                 .andExpect(content().string(containsString(MISMATCH)));
     }
 
@@ -230,14 +230,16 @@ class GuestServerGroupControllerBatchAssignTest {
         givenTwoMemberGroup();
         givenTwoDefinitions();
         given(groupAssignmentService.assignToMembers(any(GroupApplyPreviewResponse.class), eq(1L)))
-                .willReturn(new BatchAssignResult("os-only-auto", 1, 1, "이미 있음 1"));
+                .willReturn(new BatchAssignResult("os-only-auto", 1, 1, "이미 할당 1"));
 
         mvc.perform(post("/provisioning/server-group/{id}/assignment", GROUP)
                         .param("definitionId", "1"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(header().string("Location", "/provisioning/server-group/" + GROUP))
                 .andExpect(flash().attribute("flashMessage",
-                        containsString("'os-only-auto' 를 1 대에 할당했습니다")));
+                        containsString("'os-only-auto' 를 1 대에 할당했습니다")))
+                // 한 대를 건너뛴 부분 성공 — 초록이 아니라 노란 판(S22-4)
+                .andExpect(flash().attribute("flashTone", "n-alert-warning"));
 
         // 대상 선별은 서버가 다시 한다 — 화면이 보낸 목록이 아니라 미리보기가 고른 것이 넘어간다
         org.mockito.ArgumentCaptor<GroupApplyPreviewResponse> captor =

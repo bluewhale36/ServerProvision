@@ -9,6 +9,6 @@ import com.example.serverprovision.global.exception.NotFoundException;
 public class UserNotFoundException extends NotFoundException {
 
 	public UserNotFoundException(Long id) {
-		super("사용자를 찾을 수 없습니다. 목록에서 다시 고르십시오.");
+		super("사용자를 찾을 수 없습니다. 목록에서 다시 골라야 합니다.");
 	}
 }

@@ -305,7 +305,7 @@
             const placeholder = oiIsoSelect.querySelector('option[data-placeholder]');
             oiIsoSelect.disabled = !osId;
             if (placeholder) {
-                placeholder.textContent = osId ? 'ISO 를 선택하세요' : 'OS 를 먼저 선택하세요';
+                placeholder.textContent = osId ? 'ISO 선택' : 'OS 먼저 선택';
                 placeholder.selected = true;
             }
             oiIsoSelect.querySelectorAll('option[data-os-id]').forEach(opt => {
@@ -328,7 +328,7 @@
             const placeholder = oiEnvironment.querySelector('option[data-placeholder]');
             oiEnvironment.disabled = !isoId;
             if (placeholder) {
-                placeholder.textContent = isoId ? '환경을 선택하세요' : 'ISO 를 먼저 선택하세요';
+                placeholder.textContent = isoId ? '환경 선택' : 'ISO 먼저 선택';
                 placeholder.selected = true;
             }
             oiEnvironment.querySelectorAll('option[data-iso-id]').forEach(opt => {
@@ -501,7 +501,7 @@
             let i = 0;
             return String(template || '').replace(/%[ds]/g, () => String(args[i++] != null ? args[i - 1] : ''));
         }
-        const MSG_PARTITIONS_OVER = 'OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다 — RAID 구성 묶음의 용량 · 개수와 파티션 크기를 맞추세요.';
+        const MSG_PARTITIONS_OVER = 'OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다. RAID 구성 묶음의 용량, 개수와 파티션 크기를 맞춰야 합니다.';
         const DISK_UNIT_BYTES = {GB: 1e9, TB: 1e12};                                   // DiskCapacityUnit — 십진
         const SIZE_UNIT_BYTES = {MB: 1048576, GB: 1073741824, TB: 1099511627776};      // SizeUnit — 이진(MiB · GiB · TiB)
 
@@ -533,11 +533,11 @@
             // 모드 표기(개 · 개씩 · 개 이상)는 select 옵션 텍스트 = 서버 DiskCountMode.suffix 그대로(E3.5-7-a)
             const cnt = (row.querySelector('.dgCount').value || '?') + selectedOption(row.querySelector('.dgCountMode')).textContent;
             const card = selectedRaidCard();
-            const level = !levelSel.value ? 'RAID 없음'
+            const level = !levelSel.value ? 'RAID 미구성'
                 : selectedOption(levelSel).textContent + (rowAcceptsSpan(row, card) ? '(스팬당 ' + rowSpan(row) + '대)' : '');
             return [level,
                 selectedOption(row.querySelector('.dgType')).textContent,
-                selectedOption(row.querySelector('.dgTransport')).textContent, cap, cnt].join(' · ');
+                selectedOption(row.querySelector('.dgTransport')).textContent, cap, cnt].join(', ');
         }
         /** 네 분기 판정 — {kind, ruleNo, summary, bound}. bound null = 모름. */
         function describeOsVolumeTarget() {
@@ -617,7 +617,7 @@
             try {
                 resp = await fetch(url, {headers: {'Accept': 'application/json'}});
             } catch (e) {
-                if (window.ErrorModal) window.ErrorModal.show({message: '서버와 통신할 수 없습니다: ' + e.message, status: 0});
+                if (window.ErrorModal) window.ErrorModal.show({message: '서버와 통신할 수 없습니다.', status: 0});
                 return;
             }
             if (!resp.ok) {
@@ -653,18 +653,18 @@
                 RAID_CARD_BY_ID[String(card.id)] = card;
             }));
         })();
-        const MSG_PICK_CARD_FIRST = 'RAID 카드를 먼저 선택하세요.';
-        const MSG_CARD_LOCKED = 'RAID 묶음이 있어 해제할 수 없습니다 — 묶음의 레벨을 먼저 비우세요.';
+        const MSG_PICK_CARD_FIRST = 'RAID 카드를 먼저 선택해야 합니다.';
+        const MSG_CARD_LOCKED = 'RAID 묶음이 있어 해제할 수 없습니다. 묶음의 레벨을 먼저 비워야 합니다.';
         const MSG_CARD_REQUIRED = 'RAID 를 구성하는 묶음이 있으므로 RAID 카드를 지정해야 합니다.';
         const MSG_HDD_NO_NVME = 'HDD 에는 NVMe 전송 방식이 없습니다.';
         // U4-1-2 — 역할 · 우선순위 문구. 서버 DiskGroupRules 7 · RaidConfigurationRequest.isVolumePriorityDistinct ·
         // SettingSaveRequest.isOsVolumeDeterminable 과 같은 뜻.
-        const MSG_OS_FIXED_ELSEWHERE = '번 묶음이 이미 OS 영역으로 고정되어 있습니다 — OS 영역은 한 묶음만 고정할 수 있습니다.';
-        const MSG_NO_OS_CANDIDATE_WITH_INSTALL = 'OS 영역이 될 수 있는 묶음(OS 영역 고정 또는 우선순위에 따름)이 없습니다 — OS 설치 단계가 있으면 저장할 수 없습니다.';
-        const MSG_NO_OS_CANDIDATE = 'OS 영역이 될 수 있는 묶음이 없습니다 — OS 영역은 설치기가 자동 선택합니다.';
-        const MSG_PRIORITY_DUPLICATE = '이미 있는 조합입니다';
-        const MSG_PRIORITY_EXHAUSTED = '종류 · 전송의 유효 조합(5)을 모두 썼습니다 — 행을 지운 뒤 추가하세요.';
-        const MSG_PRIORITY_EMPTY_WITH_INSTALL = 'OS 설치 단계가 있으면 OS 영역이 될 수 있는 묶음(OS 고정 또는 우선순위에 따름 + 우선순위 행)이 있어야 합니다.';
+        const MSG_OS_FIXED_ELSEWHERE = '번 묶음이 이미 OS 영역으로 고정되어 있습니다. OS 영역은 한 묶음만 고정할 수 있습니다.';
+        const MSG_NO_OS_CANDIDATE_WITH_INSTALL = 'OS 영역이 될 수 있는 묶음(OS 영역 고정 또는 우선순위에 따름)이 없어 OS 설치 단계와 함께 저장할 수 없습니다.';
+        const MSG_NO_OS_CANDIDATE = 'OS 영역이 될 수 있는 묶음이 없습니다. OS 영역은 설치기가 자동 선택합니다.';
+        const MSG_PRIORITY_DUPLICATE = '이미 있는 조합';
+        const MSG_PRIORITY_EXHAUSTED = '종류와 전송의 조합 5가지를 모두 썼습니다. 행을 지운 뒤 추가해야 합니다.';
+        const MSG_PRIORITY_EMPTY_WITH_INSTALL = 'OS 설치 단계가 있으면 OS 영역이 될 수 있는 묶음(OS 영역 고정, 또는 우선순위에 따름과 우선순위 행)이 있어야 합니다.';
         // 표 아래 상시 안내는 짧게 — 제출 시 붙는 오류(위 전문)와 같은 문장이 두 번 보이지 않게(CP5 O-1).
         const HINT_PRIORITY_EMPTY_WITH_INSTALL = 'OS 설치 단계가 있으므로 우선순위 행을 두거나 묶음 하나를 OS 영역으로 고정해야 저장됩니다.';
         const MSG_PRIORITY_EMPTY = '우선순위 행이 없으면 볼륨은 열거 순서대로 놓입니다.';
@@ -781,7 +781,7 @@
                     if (identities[i] === identities[j]) continue;
                     if (coversRule(groups[i], groups[j])) {
                         unreachable.add(j);
-                        if (!message) message = (j + 1) + '번 묶음은 ' + (i + 1) + '번 묶음에 가려 도달할 수 없습니다 — 순서를 바꾸거나 조건을 좁히십시오.';
+                        if (!message) message = (j + 1) + '번 묶음은 ' + (i + 1) + '번 묶음에 가려 도달할 수 없습니다. 순서를 바꾸거나 조건을 좁혀야 합니다.';
                         break;
                     }
                 }
@@ -925,7 +925,7 @@
                 return value != null && countAdmitted(rule, mode, value)
                     ? '→ 스팬 ' + (value / span) + '개 × ' + span + '대' : '';
             }
-            return row.querySelector('.dgLevel').value === 'RAID10' ? '스팬 지정 없음 · 구성 대수 ' + rule.display : '';
+            return row.querySelector('.dgLevel').value === 'RAID10' ? '스팬 미지정, 구성 대수 ' + rule.display : '';
         }
 
         function diskGroupIdentity(row) {
@@ -1067,8 +1067,8 @@
             if (wrap) {
                 if (usable) delete wrap.dataset.tooltip;
                 else wrap.dataset.tooltip = rowBuildsRaid(row)
-                    ? '이 카드 계열은 VD 파라미터를 지원하지 않습니다'
-                    : 'RAID 를 구성하지 않는 묶음에는 지정할 수 없습니다';
+                    ? '이 카드 계열은 VD 파라미터를 지원하지 않습니다.'
+                    : 'RAID 를 구성하지 않는 묶음에는 지정할 수 없습니다.';
             }
             if (!usable && row._vdRow) row._vdRow.hidden = true;   // 값은 보존 — 전송만 제외(Q1)
             // Drive Cache — SSD 묶음은 카드가 Unchanged 고정(CP6 검수): 기본값(Unchanged)으로 되돌리고 잠근다(서버 규칙 9 와 같은 판정)
@@ -1077,7 +1077,7 @@
                 const ssd = row.querySelector('.dgType').value === 'SSD';
                 dc.disabled = ssd;
                 if (ssd) dc.value = vdDefaultOf(dc);
-                dc.title = ssd ? 'SSD 볼륨의 Drive Cache 는 카드가 Unchanged 로 고정합니다' : '';
+                dc.title = ssd ? 'SSD 볼륨의 Drive Cache 는 카드가 Unchanged 로 고정합니다.' : '';
             }
             const badge = row.querySelector('.dgVdBadge');
             if (badge) {
@@ -1172,7 +1172,7 @@
                 const dup = seen.has(key);
                 if (!dup) seen.set(key, i + 1);
                 transportSel.classList.toggle('has-error', hddNvme || dup);
-                transportSel.title = hddNvme ? MSG_HDD_NO_NVME : dup ? MSG_PRIORITY_DUPLICATE + ' (' + seen.get(key) + '번 행)' : '';
+                transportSel.title = hddNvme ? MSG_HDD_NO_NVME : dup ? MSG_PRIORITY_DUPLICATE + '(' + seen.get(key) + '번 행)' : '';
             });
             if (rcAddPriority) {
                 const exhausted = seen.size >= PRIORITY_VALID_COMBOS && rows.length >= PRIORITY_VALID_COMBOS;
@@ -1410,7 +1410,7 @@
                 badge = document.createElement('span');
                 badge.className = 'n-badge n-badge-yellow'; // 자원 도메인의 Deprecated 뱃지 색과 통일
                 badge.setAttribute('data-deprecated-badge', '');
-                badge.textContent = '지원 중단';
+                badge.textContent = '사용 중단';
                 label.insertAdjacentElement('afterend', badge);
             } else if (!deprecated && badge) {
                 badge.remove();
@@ -1435,10 +1435,9 @@
             const tbody = document.createElement('tbody');
             [
                 ['유형', resourceTypeLabel],
-                ['ID', opt.value],
                 ['이름', (opt.textContent || '').trim()],
-                ['Deprecated 일시', opt.dataset.deprecatedAt || '—'],
-                ['설명', opt.dataset.description || '—']
+                ['사용 중단 권고 일시', opt.dataset.deprecatedAt || '-'],
+                ['설명', opt.dataset.description || '-']
             ].forEach(pair => {
                 const tr = document.createElement('tr');
                 const th = document.createElement('th');
@@ -1476,8 +1475,8 @@
                 const prev = selectEl.dataset.deprecatedPrev || '';
                 let confirmed = false;
                 window.ConfirmModal.open('deprecatedUse', {
-                    title: '지원 중단(Deprecated) 자원',
-                    message: '지원이 중단된 자원입니다. 계속 사용하시겠습니까?',
+                    title: '사용 중단 권고 자원',
+                    message: '사용 중단이 권고된 자원입니다. 계속 사용하시겠습니까?',
                     confirmLabel: '그래도 적용',
                     confirmClass: 'n-btn-outline-warning',
                     afterOpen: function (ctx) {
@@ -1928,14 +1927,14 @@
                 }
                 if (countError) {
                     const container = form.querySelector('[data-error-field="diskGroups"]');
-                    if (container) paintFieldError(container, '디스크 묶음의 개수가 비었거나 카드가 만들 수 있는 구성 대수(빨간 칸 아래 안내)에 맞지 않습니다 — 직접 지정한 용량도 확인하십시오.');
+                    if (container) paintFieldError(container, '디스크 묶음의 개수가 비었거나 카드가 만들 수 있는 구성 대수에 맞지 않습니다. 직접 지정한 용량도 확인해야 합니다.');
                     ok = false;
                 }
                 const duplicates = markDuplicateDiskGroups();
                 if (duplicates.length) {
                     const container = form.querySelector('[data-error-field="diskGroups"]');
                     const first = duplicates[0];
-                    if (container) paintFieldError(container, first.no + '번 묶음이 ' + first.sameAsNo + '번 묶음과 같은 규칙입니다 — 축 하나를 바꾸거나 줄을 지우세요.');
+                    if (container) paintFieldError(container, first.no + '번 묶음이 ' + first.sameAsNo + '번 묶음과 같은 규칙입니다. 조건 하나를 바꾸거나 행을 지워야 합니다.');
                     ok = false;
                 }
                 // 규칙 8 — 도달 불가 행이 있으면 제출하지 않는다(UI 1차 차단 · CP5 F-5). 문구는 서버 unreachableRule 의 400 문장과 같다.
@@ -1955,7 +1954,7 @@
                 const priorityDuplicates = duplicatePriorityRows();
                 if (priorityDuplicates.length) {
                     const container = form.querySelector('[data-error-field="volumePriorityDistinct"]');
-                    if (container) paintFieldError(container, priorityDuplicates[0].no + '번 행이 ' + priorityDuplicates[0].sameAsNo + '번 행과 같은 종류 · 전송 조합입니다 — 하나를 바꾸거나 지우세요.');
+                    if (container) paintFieldError(container, priorityDuplicates[0].no + '번 행이 ' + priorityDuplicates[0].sameAsNo + '번 행과 같은 종류와 전송 조합입니다. 하나를 바꾸거나 지워야 합니다.');
                     ok = false;
                 }
                 const priorityHddNvme = priorityRows().filter(row => row.querySelector('.vpType').value === 'HDD' && row.querySelector('.vpTransport').value === 'NVME');
@@ -2022,7 +2021,7 @@
                     body: JSON.stringify(built.payload)
                 });
             } catch (e) {
-                showBanner('서버와 통신할 수 없습니다: ' + e.message);
+                showBanner('서버와 통신할 수 없습니다.');
                 return;
             }
 
@@ -2038,7 +2037,7 @@
                 return;
             }
 
-            const errBody = await resp.json().catch(() => ({message: '서버 응답 오류 (HTTP ' + resp.status + ')'}));
+            const errBody = await resp.json().catch(() => ({message: '요청을 처리하지 못했습니다. 다시 시도해야 합니다.'}));
             renderServerErrors(errBody, built.stepTypeByIndex);
         }
 
@@ -2146,7 +2145,7 @@
                             oiWindowsImagePrefillWarning.hidden = matched;
                             if (!matched) {
                                 oiWindowsImagePrefillWarning.textContent =
-                                    '저장된 설치 이미지가 현재 설치 소스에 없습니다: ' + proc.imageName + '. 다시 선택하십시오.';
+                                    '저장된 설치 이미지가 현재 설치 소스에 없습니다: ' + proc.imageName + '. 다시 선택해야 합니다.';
                             }
                         }
                     }
@@ -2179,7 +2178,7 @@
                 data = JSON.parse(initial.json);
             } catch (e) {
                 console.warn('[settingForm] initialSettingJson 파싱 실패:', e);
-                showBanner('기존 정의서 데이터를 불러오지 못했습니다. 새로 입력해 주세요.');
+                showBanner('기존 정의서 데이터를 불러오지 못했습니다. 새로 입력해야 합니다.');
                 return;
             }
             if (data.name) document.getElementById('settingName').value = data.name;

@@ -84,7 +84,7 @@ class TrashControllerExtendFlowTest {
 						.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.message")
-						.value(containsString("보존기간 연장을 지원하지 않습니다")));
+						.value(containsString("보존 기간을 연장할 수 없습니다")));
 	}
 
 	@Test

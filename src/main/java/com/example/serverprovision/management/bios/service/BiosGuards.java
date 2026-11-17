@@ -40,7 +40,7 @@ final class BiosGuards {
 		BoardBIOS bios = biosRepository.findByIdAndBoardModel_Id(biosId, boardId)
 				.orElseThrow(() -> new BiosNotFoundException(boardId, biosId));
 		if (bios.isDeleted()) {
-			throw new IllegalBiosStateException("삭제된 BIOS 에는 수행할 수 없는 작업입니다. biosId=" + biosId);
+			throw new IllegalBiosStateException("삭제된 BIOS 에는 이 작업을 할 수 없습니다.");
 		}
 		return bios;
 	}

@@ -77,7 +77,7 @@ public class OrphanMarkerQuarantineResolution implements DriftResolution {
 		try {
 			Files.createDirectories(quarantineDir);
 		} catch (IOException e) {
-			throw new IllegalStateException("격리 구역 생성 실패 : " + quarantineDir, e);
+			throw new IllegalStateException("격리 구역을 만들지 못했습니다: " + quarantineDir, e);
 		}
 		String prefix = "drift" + drift.getId() + "_";
 		// 되돌리기가 찾아갈 곳. 본체가 있으면 본체의 도착지가, 마커만 있으면 마커의 도착지가 앵커다.

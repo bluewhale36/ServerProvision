@@ -18,7 +18,7 @@ public record CacheCapacity(int gigabytes) {
 	public CacheCapacity {
 		if (gigabytes < 0 || gigabytes > MAX_GIGABYTES) {
 			throw new IllegalArgumentException(
-					"캐시 용량은 0~" + MAX_GIGABYTES + "GB 범위여야 합니다 : " + gigabytes);
+					"캐시 용량은 0~" + MAX_GIGABYTES + "GB 범위여야 합니다: " + gigabytes);
 		}
 	}
 
@@ -33,6 +33,6 @@ public record CacheCapacity(int gigabytes) {
 
 	/** 화면 표시용 — {@code 없음} 또는 {@code 2GB}. */
 	public String toDisplay() {
-		return isPresent() ? gigabytes + "GB" : "없음";
+		return isPresent() ? gigabytes + "GB" : "미탑재";
 	}
 }

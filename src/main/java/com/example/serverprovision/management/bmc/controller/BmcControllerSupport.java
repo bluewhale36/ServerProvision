@@ -37,7 +37,7 @@ public final class BmcControllerSupport {
 	public static void populateFormContext(Model model, Long boardId, Long bmcId, BoardModelResponse board) {
 		model.addAttribute("boardId", boardId);
 		model.addAttribute("bmcId", bmcId);
-		model.addAttribute("contextLabel", board.vendor().getDisplayName() + " · " + board.modelName());
+		model.addAttribute("contextLabel", board.vendor().getDisplayName() + " " + board.modelName());
 	}
 
 	/**
@@ -54,7 +54,7 @@ public final class BmcControllerSupport {
 	public static String firstError(BindingResult bindingResult) {
 		return bindingResult.getFieldErrors().stream()
 				.findFirst()
-				.map(err -> err.getField() + ": " + err.getDefaultMessage())
+				.map(err -> err.getDefaultMessage())
 				.orElse("입력값이 올바르지 않습니다.");
 	}
 

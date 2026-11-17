@@ -38,23 +38,23 @@
 .n-accordion-item {
     border: 1px solid var(--n-border);
     border-radius: var(--n-radius-lg);
-    background: #fff;
+    background: var(--n-surface);
     overflow: hidden;
 }
 
 /* 비활성·삭제·선택 불가 등 "흐리게" 처리가 필요한 항목에 붙이는 보조 클래스 */
 .n-accordion-item-muted {
-    background: #fafafa;
+    background: var(--n-sunken);
 }
 
 /* S5-12 — ISO 등록 background job 진행 중 placeholder. DB 영속 전이라 정상 ISO 와 시각 분리. */
 .n-accordion-item-in-progress {
-    background: #fafafa;
+    background: var(--n-sunken);
     opacity: 0.65;
 }
 
 .n-accordion-item-in-progress .n-accordion-title {
-    color: var(--n-text-muted, #6b7280);
+    color: var(--n-text-muted);
     font-style: italic;
 }
 
@@ -78,7 +78,7 @@
 }
 
 .n-accordion-item:hover > .n-accordion-head {
-    background: #f7f7f8;
+    background: var(--n-row-hover);
 }
 
 .n-accordion-chevron {
@@ -99,7 +99,7 @@
 
 .n-accordion-title {
     flex: 1;
-    font-size: 13px;
+    font-size: 14px;
     word-break: break-all;
 }
 
@@ -110,7 +110,7 @@
 .n-accordion-body {
     border-top: 1px solid var(--n-border);
     padding: 14px 18px 16px;
-    background: #fff;
+    background: var(--n-surface);
 }
 
 /* dl 기반 필드 — grid 로 label/value 정렬 */
@@ -127,7 +127,7 @@
 }
 
 .n-accordion-field dt {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-muted);
     padding-top: 3px;
 }
@@ -138,7 +138,7 @@
    min-width 를 0 으로 열어 주고 넘칠 때만 끊게 한다 — 내용이 들어가는 평소에는 아무것도 달라지지 않는다. */
 .n-accordion-field dd {
     margin: 0;
-    font-size: 13px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -177,7 +177,7 @@
     padding: 20px;
     text-align: center;
     color: var(--n-text-muted);
-    font-size: 13px;
+    font-size: 14px;
     border: 1px dashed var(--n-border);
     border-radius: var(--n-radius-lg);
 }

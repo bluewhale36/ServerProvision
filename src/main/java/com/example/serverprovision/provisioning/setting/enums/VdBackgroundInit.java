@@ -8,9 +8,9 @@ package com.example.serverprovision.provisioning.setting.enums;
  */
 public enum VdBackgroundInit {
     /** HII "Disable Background Initialization: No" — BGI 가 돈다(기본). */
-    ON("autobgi=on", "No (BGI 켬)"),
+    ON("autobgi=on", "No (BGI 사용)"),
     /** HII "Disable Background Initialization: Yes" — BGI 를 끈다. */
-    OFF("autobgi=off", "Yes (BGI 끔)");
+    OFF("autobgi=off", "Yes (BGI 미사용)");
 
     public static final VdBackgroundInit DEFAULT = ON;
 

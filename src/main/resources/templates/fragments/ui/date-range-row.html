@@ -38,7 +38,7 @@
 <!--/* 기간이 거꾸로라 비었을 때의 안내(S8-5 · 게스트 서버의 S8-2 안내를 세 화면 공용으로). 주소에 직접 넣은 경우에만 생긴다 —
        창 안에서는 날짜 두 칸의 min/max 가 먼저 막는다. th:replace 는 th:if 보다 먼저 실행되므로 호출부가 th:block 으로 감싼다. */-->
 <th:block th:fragment="reversedNotice(resetUrl)">
-    <div class="n-empty-title" th:text="#{common.list.range-reversed}">시작일이 종료일보다 늦습니다. 기간을 다시 고르십시오.</div>
+    <div class="n-empty-title" th:text="#{common.list.range-reversed}">시작일이 종료일보다 늦습니다. 기간을 다시 골라야 합니다.</div>
     <div class="n-empty-desc">날짜 하나를 고치거나 <a th:href="${resetUrl}" th:text="#{action.reset}">초기화</a>하면 다시 조회됩니다.</div>
 </th:block>
 </body>

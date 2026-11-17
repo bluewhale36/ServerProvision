@@ -15,11 +15,11 @@ public class UserRequest {
 
     @NotBlank(message = "사용자 이름은 필수 입력값입니다.")
     @Pattern(regexp = "^[a-z_][a-z0-9_-]{0,31}$",
-            message = "사용자 이름은 소문자/숫자/밑줄/하이픈(소문자·밑줄 시작, 최대 32자)만 가능합니다.")
+            message = "사용자 이름은 소문자, 숫자, 밑줄, 하이픈만 쓸 수 있으며 소문자나 밑줄로 시작해야 합니다(최대 32자).")
     private final String username;
 
     /** 평문 또는 사전 암호화된 비밀번호. 수정 폼 pre-fill 에는 절대 포함되지 않는다. */
-    @Pattern(regexp = "^[\\x21-\\x7E]+$", message = "비밀번호에는 공백·제어문자를 쓸 수 없습니다.")
+    @Pattern(regexp = "^[\\x21-\\x7E]+$", message = "비밀번호에는 공백이나 제어문자를 쓸 수 없습니다.")
     private final String password;
 
     /** sudo 권한 부여 여부. {@code Boolean} 으로 미전송(null)과 명시적 false 를 구별한다. */

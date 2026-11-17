@@ -147,10 +147,10 @@ public class SettingDefinition extends BaseTimeEntity {
      */
     public String assignBlockReason() {
         if (isDeleted) {
-            return "삭제된 정의서는 할당할 수 없습니다";
+            return "삭제된 정의서는 할당할 수 없습니다.";
         }
         if (!isEnabled) {
-            return "비활성화된 정의서는 신규 할당이 차단됩니다(활성화 후 재시도)";
+            return "비활성화된 정의서는 할당할 수 없습니다. 활성화한 뒤 다시 시도해야 합니다.";
         }
         return null;
     }

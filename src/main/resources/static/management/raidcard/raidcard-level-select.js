@@ -45,7 +45,7 @@
                     cb.closest('label').title = locked ? lockHint : '';
                 });
                 if (hint) {
-                    hint.textContent = lockHint + (released.length ? ' — 선택 해제: ' + released.join(' · ') : '');
+                    hint.textContent = lockHint + (released.length ? '. 선택 해제: ' + released.join(', ') : '');
                     hint.hidden = !lockHint;
                 }
                 sync();

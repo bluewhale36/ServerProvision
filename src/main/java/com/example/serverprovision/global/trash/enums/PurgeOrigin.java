@@ -31,7 +31,7 @@ public enum PurgeOrigin {
 
 		@Override
 		public String jobTitle(String displayName) {
-			return "자원 영구삭제 — " + displayName;
+			return "자원 영구 삭제: " + displayName;
 		}
 
 		@Override
@@ -56,12 +56,12 @@ public enum PurgeOrigin {
 
 		@Override
 		public String jobTitle(String displayName) {
-			return "nudge 교체 — " + displayName;
+			return "중복 교체: " + displayName;
 		}
 
 		@Override
 		public String displayName() {
-			return "충돌 교체";
+			return "중복 교체";
 		}
 	},
 
@@ -81,12 +81,12 @@ public enum PurgeOrigin {
 
 		@Override
 		public String jobTitle(String displayName) {
-			return "🗑 자동 영구삭제 — " + displayName;
+			return "자동 영구 삭제: " + displayName;
 		}
 
 		@Override
 		public String displayName() {
-			return "자동 (TTL 만료)";
+			return "자동(보존 기간 만료)";
 		}
 	},
 
@@ -108,12 +108,12 @@ public enum PurgeOrigin {
 
 		@Override
 		public String jobTitle(String displayName) {
-			return "휴지통 소실 정리 — " + displayName;
+			return "휴지통 소실 정리: " + displayName;
 		}
 
 		@Override
 		public String displayName() {
-			return "점검 — 휴지통 소실 정리";
+			return "점검(휴지통 소실 정리)";
 		}
 	};
 

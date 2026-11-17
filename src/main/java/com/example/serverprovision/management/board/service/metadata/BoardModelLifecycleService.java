@@ -156,7 +156,7 @@ public class BoardModelLifecycleService implements LifecycleService {
 	public void purge(Long id) {
 		BoardModel board = boardModelRepository.findByIdAndIsDeletedTrue(id)
 				.orElseThrow(() -> new IllegalBoardModelStateException(
-						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+						"삭제된 항목만 영구 삭제할 수 있습니다. id=" + id));
 		purge(board);
 	}
 

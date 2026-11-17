@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  아이콘 조각 — sprite 참조를 이 한 곳에 둔다(S22-1). 아이콘은 Phosphor regular 한 세트(/icons/sprite.svg).
+  사용: <svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>
+  글자와 같은 줄에 서므로 크기는 1em, 색은 currentColor 를 따른다. 뜻은 옆 글자가 지므로 aria-hidden.
+  sprite 에 없는 이름은 브라우저가 빈 칸으로 그려 조용히 누락되므로, 허용 목록에 없는 이름은 th:assert 로
+  렌더를 실패시킨다. 목록은 sprite 의 symbol id 와 같아야 한다(IconFragmentRenderTest 가 대조).
+-->
+<svg th:fragment="icon(name)" class="n-icon" aria-hidden="true" focusable="false"
+     th:assert="${ {'arrow-left', 'arrow-right', 'briefcase', 'caret-left', 'caret-right', 'magnifying-glass'}.contains(name) }">
+    <use th:attr="href=@{/icons/sprite.svg} + '#' + ${name}"></use>
+</svg>
+</html>

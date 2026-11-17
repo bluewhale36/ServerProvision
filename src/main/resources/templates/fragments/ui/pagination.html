@@ -27,15 +27,15 @@
               blockEnd=${(page.number / 10) * 10 + 9 < total ? (page.number / 10) * 10 + 9 : total - 1}">
     <nav class="n-pagination-nav" aria-label="쪽 이동">
         <a th:if="${page.hasPrevious()}" class="n-page-arrow" th:href="${links.page(page.number - 1)}"
-           aria-label="이전 쪽">&laquo;</a>
-        <span th:unless="${page.hasPrevious()}" class="n-page-arrow n-page-arrow-hidden" aria-hidden="true">&laquo;</span>
+           aria-label="이전 쪽"><svg th:replace="~{fragments/icon :: icon('caret-left')}"></svg></a>
+        <span th:unless="${page.hasPrevious()}" class="n-page-arrow n-page-arrow-hidden" aria-hidden="true"><svg th:replace="~{fragments/icon :: icon('caret-left')}"></svg></span>
         <th:block th:each="i : ${#numbers.sequence(blockStart, blockEnd)}">
             <span th:if="${i == page.number}" class="n-page-num n-page-current" aria-current="page" th:text="${i + 1}">1</span>
             <a th:unless="${i == page.number}" class="n-page-num" th:href="${links.page(i)}" th:text="${i + 1}">2</a>
         </th:block>
         <a th:if="${page.hasNext()}" class="n-page-arrow" th:href="${links.page(page.number + 1)}"
-           aria-label="다음 쪽">&raquo;</a>
-        <span th:unless="${page.hasNext()}" class="n-page-arrow n-page-arrow-hidden" aria-hidden="true">&raquo;</span>
+           aria-label="다음 쪽"><svg th:replace="~{fragments/icon :: icon('caret-right')}"></svg></a>
+        <span th:unless="${page.hasNext()}" class="n-page-arrow n-page-arrow-hidden" aria-hidden="true"><svg th:replace="~{fragments/icon :: icon('caret-right')}"></svg></span>
         <span class="n-page-jump">
             <input type="number" class="n-input" min="1" th:max="${total}" inputmode="numeric"
                    data-page-jump th:attr="data-page-base=${links.page(0)},data-page-total=${total}"

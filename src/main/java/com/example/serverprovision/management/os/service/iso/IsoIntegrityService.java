@@ -80,7 +80,7 @@ public class IsoIntegrityService {
 		ISO iso = isoRepository.findByIdAndOsMetadata_Id(isoId, osMetadataId)
 				.orElseThrow(() -> new ISONotFoundException(osMetadataId, isoId));
 		if (iso.isDeleted()) {
-			throw new IllegalOSMetadataStateException("삭제된 ISO 는 검증할 수 없습니다. isoId=" + isoId);
+			throw new IllegalOSMetadataStateException("삭제된 ISO 는 검증할 수 없습니다. id=" + isoId);
 		}
 		Path target = Path.of(iso.getIsoPath());
 		MarkerContent marker;
@@ -128,7 +128,7 @@ public class IsoIntegrityService {
 			}
 			return HexFormat.of().formatHex(md.digest());
 		} catch (IOException | NoSuchAlgorithmException e) {
-			throw new ISOFileStorageException("ISO 파일 hash 계산 실패. path=" + file, e);
+			throw new ISOFileStorageException("ISO 파일의 해시를 계산하지 못했습니다: " + file, e);
 		}
 	}
 
@@ -142,7 +142,7 @@ public class IsoIntegrityService {
 		ISO iso = isoRepository.findByIdAndOsMetadata_Id(isoId, osMetadataId)
 				.orElseThrow(() -> new ISONotFoundException(osMetadataId, isoId));
 		if (iso.isDeleted()) {
-			throw new IllegalOSMetadataStateException("삭제된 ISO 에는 수행할 수 없는 작업입니다. isoId=" + isoId);
+			throw new IllegalOSMetadataStateException("삭제된 ISO 에는 수행할 수 없는 작업입니다. id=" + isoId);
 		}
 		return iso;
 	}

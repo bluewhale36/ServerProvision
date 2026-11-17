@@ -69,7 +69,7 @@
             folderInput, zipInput, singleInput,
             tabFolder, tabZip, tabSingle, tabExisting,
             onModeChange(mode) {
-                if (submitBtn) submitBtn.textContent = mode === 'EXISTING_DIRECTORY' ? '기존 디렉토리 등록' : '번들 등록';
+                if (submitBtn) submitBtn.textContent = mode === 'EXISTING_DIRECTORY' ? '기존 디렉토리 등록' : '등록';
             },
             onFilesChange: resetError
         });
@@ -127,7 +127,7 @@
 
         const scopeToken = resolveScopeToken();
         if (!scopeToken) {
-            showError('적용할 메인보드를 선택하거나 공용을 선택하세요.');
+            showError('적용할 메인보드를 고르거나 공용을 선택해야 합니다.');
             return;
         }
 
@@ -177,7 +177,7 @@
             if (intent.warnings && intent.warnings.length) {
                 if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = '번들 등록';
+                    submitBtn.textContent = '등록';
                     return;
                 }
             }
@@ -187,7 +187,7 @@
             if (err.body && err.body.code === 'NUDGE_REQUIRED' && err.body.nudgeId) {
                 openIntentNudgeModal(err.body, uploadUrl, commonFields);
                 submitBtn.disabled = false;
-                submitBtn.textContent = '번들 등록';
+                submitBtn.textContent = '등록';
                 return;
             }
             // S4 — body.fieldErrors 매핑.
@@ -197,7 +197,7 @@
                 showError(err.message);
             }
             submitBtn.disabled = false;
-            submitBtn.textContent = '번들 등록';
+            submitBtn.textContent = '등록';
         }
     });
 
@@ -228,13 +228,13 @@
                 if (window.FormError && body) {
                     window.FormError.renderResponse(body, {root: form});
                 } else {
-                    showError(body.message || ('등록 실패 (HTTP ' + resp.status + ')'));
+                    showError(body.message || '등록하지 못했습니다.');
                 }
                 return;
             }
             window.location.href = body.redirect || listUrl;
         } catch (err) {
-            showError('네트워크 오류 : ' + err.message);
+            showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = originalLabel;
@@ -276,7 +276,7 @@
                 // 네트워크 전송이 100% 에 도달한 뒤에도 서버는 압축 해제 / manifest 계산 / 마커 발급을
                 // 동기 처리한다. 사용자가 "멈춘 것 같다" 고 오해하지 않도록 안내 문구로 전환한다.
                 if (progress.percent >= 100) {
-                    showProgress('서버에서 압축 해제 · 해시 계산 · 마커 발급 중… (잠시만 기다려주세요)', 100);
+                    showProgress('서버에서 압축 해제, 해시 계산, 마커 발급 중…', 100);
                 } else {
                     showProgress(`${progress.percent}%  ${progress.message}`, progress.percent);
                 }
@@ -294,7 +294,7 @@
                 uploading = false;
                 document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
                 lockPage(false);
-                submitBtn.textContent = '번들 등록';
+                submitBtn.textContent = '등록';
                 // MK2 — 단계 B 해시 충돌 nudge.
                 if (body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
                     openContentNudgeModal(body);
@@ -311,8 +311,8 @@
                 uploading = false;
                 document.dispatchEvent(new CustomEvent('bgjob:uploadEnd'));
                 lockPage(false);
-                submitBtn.textContent = '번들 등록';
-                showError('네트워크 오류로 업로드에 실패했습니다.');
+                submitBtn.textContent = '등록';
+                showError('네트워크 오류로 업로드가 중단되었습니다.');
             }
         });
     }
@@ -334,6 +334,11 @@
         errorBox.style.display = 'block';
     }
 
+    // 취소처럼 실패가 아닌 결과는 빨간 오류 상자 대신 알림으로 보인다(S22-4).
+    function showNotice(message) {
+        if (window.UiUtil) UiUtil.toast(message, 'info');
+    }
+
     function resetError() {
         errorBox.textContent = '';
         errorBox.style.display = '';
@@ -349,7 +354,7 @@
         const replaceBtn = document.getElementById('subprogramNudgeReplaceBtn');
         const cancelBtn = document.getElementById('subprogramNudgeCancelBtn');
         if (!modal || !conflicts || !proceedBtn || !replaceBtn || !cancelBtn) {
-            showError('nudge modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
+            showError('중복 확인 창을 찾을 수 없습니다. 페이지를 새로 고쳐야 합니다.');
             return null;
         }
         const nudgeId = body.nudgeId;
@@ -363,8 +368,8 @@
             li.innerHTML =
                 '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
                 '  <input type="radio" name="subprogramNudgeTarget" value="' + entry.id + '">' +
-                '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> · v' + UiUtil.escapeHtml(entry.version) +
-                '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">[' + entry.state + ' · #' + entry.id + ']</span></span>' +
+                '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> v' + UiUtil.escapeHtml(entry.version) +
+                '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">(' + UiUtil.escapeHtml(entry.stateLabel || '') + ')</span></span>' +
                 '</label>';
             conflicts.appendChild(li);
         });
@@ -380,7 +385,7 @@
         // MK2 — TTL countdown.
         if (window.NudgeTimer) {
             window.NudgeTimer.start(modal, body.expiresAt, () => {
-                showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+                showError('중복 확인이 만료되었습니다. 다시 업로드해야 합니다.');
             });
         }
         const closeModal = () => {
@@ -399,7 +404,7 @@
     function handleExpiredIfAny(closeModal, status, body) {
         if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
             closeModal();
-            showError('nudge 세션이 만료되었습니다. 다시 업로드해주세요.');
+            showError('중복 확인이 만료되었습니다. 다시 업로드해야 합니다.');
             return true;
         }
         return false;
@@ -417,14 +422,14 @@
                 if (!resp.ok) {
                     const respBody = await resp.json().catch(() => ({}));
                     if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
-                    showError(respBody.message || ('nudge proceed 실패 (HTTP ' + resp.status + ')'));
+                    showError(respBody.message || '등록을 진행하지 못했습니다.');
                     disableNudgeBtns(false);
                     return;
                 }
                 ctx.closeModal();
                 window.location.href = listUrl;
             } catch (e) {
-                showError('네트워크 오류 : ' + e.message);
+                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                 disableNudgeBtns(false);
             }
         };
@@ -440,14 +445,14 @@
                 if (!resp.ok) {
                     const respBody = await resp.json().catch(() => ({}));
                     if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
-                    showError(respBody.message || ('nudge replace 실패 (HTTP ' + resp.status + ')'));
+                    showError(respBody.message || '기존 자원을 교체하지 못했습니다.');
                     disableNudgeBtns(false);
                     return;
                 }
                 ctx.closeModal();
                 window.location.href = listUrl;
             } catch (e) {
-                showError('네트워크 오류 : ' + e.message);
+                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                 disableNudgeBtns(false);
             }
         };
@@ -460,7 +465,7 @@
             } catch (e) { /* ignore */
             }
             ctx.closeModal();
-            showError('업로드를 취소했습니다.');
+            showNotice('업로드를 취소했습니다.');
         };
     }
 
@@ -471,7 +476,7 @@
             ctx.closeModal();
             if (intent.warnings && intent.warnings.length) {
                 if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
-                    showError('업로드를 취소했습니다.');
+                    showNotice('업로드를 취소했습니다.');
                     return;
                 }
             }
@@ -487,13 +492,13 @@
                 const respBody = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
                     if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
-                    showError(respBody.message || ('intent nudge proceed 실패 (HTTP ' + resp.status + ')'));
+                    showError(respBody.message || '등록을 진행하지 못했습니다.');
                     disableNudgeBtns(false);
                     return;
                 }
                 handleIntentReissued(respBody);
             } catch (e) {
-                showError('네트워크 오류 : ' + e.message);
+                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                 disableNudgeBtns(false);
             }
         };
@@ -509,13 +514,13 @@
                 const respBody = await resp.json().catch(() => ({}));
                 if (!resp.ok) {
                     if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
-                    showError(respBody.message || ('intent nudge replace 실패 (HTTP ' + resp.status + ')'));
+                    showError(respBody.message || '기존 자원을 교체하지 못했습니다.');
                     disableNudgeBtns(false);
                     return;
                 }
                 handleIntentReissued(respBody);
             } catch (e) {
-                showError('네트워크 오류 : ' + e.message);
+                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                 disableNudgeBtns(false);
             }
         };
@@ -528,7 +533,7 @@
             } catch (e) { /* ignore */
             }
             ctx.closeModal();
-            showError('업로드를 취소했습니다.');
+            showNotice('업로드를 취소했습니다.');
         };
     }
 

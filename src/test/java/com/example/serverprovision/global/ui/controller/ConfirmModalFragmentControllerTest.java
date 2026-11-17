@@ -107,7 +107,7 @@ class ConfirmModalFragmentControllerTest {
                         .param("resourceType", "BIOS_BUNDLE")
                         .param("resourceId", "5"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Deprecated")))
+                .andExpect(content().string(containsString("사용 중단 권고")))
                 .andExpect(content().string(containsString("data-modal-active")));
     }
 
@@ -125,13 +125,13 @@ class ConfirmModalFragmentControllerTest {
     // ==== HF4-1 : 휴지통 보존기간 연장 modal (deprecate modal 차용 오배선 F-2 의 해소) ====
 
     @Test
-    @DisplayName("EXTEND_TTL — 자원 lookup 없이 fragment 응답 (제목 '보존기간 연장')")
+    @DisplayName("EXTEND_TTL — 자원 lookup 없이 fragment 응답 (제목 '보존 기간 연장')")
     void renders_extend_ttl_modal() throws Exception {
         mvc.perform(get("/ui/confirm-modal/EXTEND_TTL")
                         .param("resourceType", "OS_ISO")
                         .param("resourceId", "5"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("보존기간 연장")))
+                .andExpect(content().string(containsString("보존 기간 연장")))
                 .andExpect(content().string(containsString("data-modal-active")))
                 .andExpect(content().string(containsString("data-modal-confirm")));
     }

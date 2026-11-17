@@ -48,7 +48,7 @@
         const tick = () => {
             const remaining = expiresAtMs - Date.now();
             if (remaining <= 0) {
-                span.textContent = '만료됨';
+                span.textContent = '만료';
                 stopTimer(modalEl);
                 modalEl.hidden = true;
                 if (typeof onExpire === 'function') onExpire();
@@ -91,7 +91,7 @@
         const modal = el(prefix, 'Modal');
         if (!modal) {
             console.error('[NudgeModal] element 없음:', prefix + 'Modal');
-            if (options.onError) options.onError(payload.message || '동일한 자원이 이미 존재합니다.');
+            if (options.onError) options.onError(payload.message || '같은 자원이 이미 있습니다.');
             return;
         }
 
@@ -115,11 +115,11 @@
             li.style.borderBottom = '1px solid var(--n-border)';
             li.style.cursor = 'pointer';
             li.dataset.targetId = c.id;
-            const hashFragment = c.hash ? (' · ' + UiUtil.escapeHtml(String(c.hash).slice(0, 16)) + '…') : '';
+            const hashFragment = c.hash ? (', ' + UiUtil.escapeHtml(String(c.hash).slice(0, 16)) + '…') : '';
             li.innerHTML =
                 '<div style="font-weight: 600;">' + UiUtil.escapeHtml(c.name || '') + ' ' + UiUtil.escapeHtml(c.version || '') + '</div>' +
                 '<div style="font-size: 12px; color: var(--n-text-muted);">' +
-                'id=' + c.id + ' · ' + UiUtil.escapeHtml(c.state || '') + hashFragment + '</div>';
+                UiUtil.escapeHtml(c.stateLabel || '') + hashFragment + '</div>';
             li.addEventListener('click', () => {
                 Array.from(list.children).forEach(item => item.style.background = '');
                 li.style.background = 'var(--n-bg-soft, #eef)';
@@ -135,7 +135,7 @@
 
         // MK2 — TTL countdown 시작. 0:00 도달 시 modal 자동 닫힘 + 안내.
         startTimer(modal, payload.expiresAt, () => {
-            if (options.onError) options.onError('nudge 세션이 만료되었습니다. 다시 시도해주세요.');
+            if (options.onError) options.onError('중복 확인이 만료되었습니다. 다시 등록해야 합니다.');
         });
 
         proceedBtn.onclick = () => confirmNudge(baseUrl, payload.nudgeId, 'proceed', null, options);
@@ -160,10 +160,10 @@
                     // MK2 — 만료 응답은 modal 강제 닫힘 + 명시적 안내.
                     if (isExpiredResponse(status, body)) {
                         hide(options.prefix || 'nudge');
-                        if (options.onError) options.onError('nudge 세션이 만료되었습니다. 다시 시도해주세요.');
+                        if (options.onError) options.onError('중복 확인이 만료되었습니다. 다시 등록해야 합니다.');
                         return;
                     }
-                    throw new Error((body && body.message) || ('HTTP ' + status));
+                    throw new Error((body && body.message) || '요청을 처리하지 못했습니다.');
                 }
                 hide(options.prefix || 'nudge');
                 if (action === 'cancel') {
@@ -176,8 +176,8 @@
                     try {
                         sessionStorage.setItem(options.toastKey,
                             action === 'replace'
-                                ? '기존 자원을 영구 삭제하고 신규 자원을 등록했습니다.'
-                                : '신규 자원을 등록했습니다.');
+                                ? '기존 자원을 영구 삭제하고 새 자원을 등록했습니다.'
+                                : '자원을 등록했습니다.');
                     } catch (_) { /* ignore */
                     }
                 }
@@ -185,7 +185,7 @@
             })
             .catch(err => {
                 hide(options.prefix || 'nudge');
-                if (options.onError) options.onError(err.message || 'nudge 처리에 실패했습니다.');
+                if (options.onError) options.onError(err instanceof TypeError ? '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.' : (err.message || '중복 확인을 처리하지 못했습니다.'));
             });
     }
 

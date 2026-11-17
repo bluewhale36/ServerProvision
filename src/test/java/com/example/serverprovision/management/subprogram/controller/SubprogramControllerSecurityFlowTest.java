@@ -96,7 +96,7 @@ class SubprogramControllerSecurityFlowTest {
     void edit_entrypointTraversal_400() throws Exception {
         // findSubprogram 은 binding 실패 분기에서만 호출되므로 잡지 않아도 무방하지만, 안전하게 stub 한다.
         given(subprogramService.findSubprogram(anyLong())).willReturn(stubResponse());
-        willThrow(new EntrypointInvalidException(".. 시그먼트 금지"))
+        willThrow(new EntrypointInvalidException("상위 경로(..) 금지"))
                 .given(subprogramService).update(eq(7L), any());
 
         // SubprogramUpdateRequest : name, version, description, entrypointRelativePath

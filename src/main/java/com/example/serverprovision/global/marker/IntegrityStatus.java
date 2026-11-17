@@ -21,15 +21,28 @@ import lombok.Getter;
 public enum IntegrityStatus {
 
 	ORIGINAL("원본 유지"),
-	TAMPERED("변조 감지 (해시 불일치)"),
+	TAMPERED("변조 감지(해시 불일치)"),
 	SIGNATURE_INVALID("서명 무효"),
-	MARKER_MISSING("마커 파일 없음"),
+	MARKER_MISSING("마커 파일 누락"),
 	NOT_VERIFIED("미검증");
 
 	private final String displayMessage;
 
 	IntegrityStatus(String displayMessage) {
 		this.displayMessage = displayMessage;
+	}
+
+	/**
+	 * 배지 색 클래스(DESIGN.md 6절 상태 어휘). 템플릿이 정적 유틸을 T(...) 로 부르면 devtools 의 재시작 클래스로더와
+	 * 타입이 어긋나 렌더가 끊기므로, 화면 이름처럼 enum 이 직접 들고 있다.
+	 */
+	public String badgeClass() {
+		return switch (this) {
+			case ORIGINAL -> "n-badge-green";
+			case TAMPERED -> "n-badge-red";
+			case SIGNATURE_INVALID -> "n-badge-orange";
+			case MARKER_MISSING, NOT_VERIFIED -> "n-badge-gray";
+		};
 	}
 
 }

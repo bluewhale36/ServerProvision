@@ -31,11 +31,11 @@
             },
             onRejected: function (form, status, payload) {
                 if (base && base.onRejected) { base.onRejected(form, status, payload); return; }
-                ErrorModal.show({message: (payload && payload.message) || ('요청이 거절되었어요. (HTTP ' + status + ')'), status: status});
+                ErrorModal.show({message: (payload && payload.message) || '요청을 처리하지 못했습니다. 다시 시도해야 합니다.', status: status});
             },
             onNetworkError: function (form, err) {
                 if (base && base.onNetworkError) { base.onNetworkError(form, err); return; }
-                ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
+                ErrorModal.show({message: '서버와 통신할 수 없습니다.', status: 0});
             }
         };
 
@@ -47,11 +47,11 @@
             const label = form.getAttribute('data-resource-label') || '이 정의서';
             const count = parseInt(form.getAttribute('data-referencing-count') || '0', 10);
             const warn = count > 0
-                ? ' 현재 ' + count + '개 게스트에 활성 할당돼 있지만, 삭제해도 할당 스냅샷은 그대로 유지됩니다(소프트 참조).'
+                ? ' ' + count + '대 서버의 할당은 삭제와 관계없이 유지됩니다.'
                 : '';
             ConfirmModal.open('confirmSoftDelete', {
                 title: '정의서 삭제',
-                message: label + ' 을(를) 삭제할까요?' + warn,
+                message: label + ' 을(를) 삭제하시겠습니까?' + warn,
                 confirmLabel: '삭제',
                 confirmClass: 'n-btn-outline-danger',
                 onConfirm: function () { ConfirmModal.approveAndSubmit(form); }
@@ -64,7 +64,7 @@
             const expected = form.getAttribute('data-typed-name') || '';
             ConfirmModal.open('confirmPurge', {
                 title: '정의서 영구 삭제',
-                message: label + ' 을(를) 영구 삭제하려면 정의서명을 정확히 입력하세요. 되돌릴 수 없습니다.',
+                message: label + ' 을(를) 영구 삭제하려면 정의서 이름을 정확히 입력해야 합니다. 되돌릴 수 없습니다.',
                 confirmLabel: '영구 삭제',
                 confirmClass: 'n-btn-danger',
                 startDisabled: true,

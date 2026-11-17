@@ -11,13 +11,15 @@ import lombok.RequiredArgsConstructor;
 @Getter
 public enum RedfishPowerState {
 
-    ON("On"),
-    OFF("Off"),
-    POWERING_ON("PoweringOn"),
-    POWERING_OFF("PoweringOff"),
-    UNKNOWN(null);
+    ON("On", "켜짐"),
+    OFF("Off", "꺼짐"),
+    POWERING_ON("PoweringOn", "켜는 중"),
+    POWERING_OFF("PoweringOff", "끄는 중"),
+    UNKNOWN(null, "미확인");
 
     private final String wireValue;
+    /** 화면에 보이는 이름(S22-3) — 결과 문장이 상수 원문 대신 이 이름을 쓴다. */
+    private final String description;
 
     public static RedfishPowerState of(String wire) {
         if (wire == null) {

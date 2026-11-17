@@ -172,13 +172,13 @@ public class TrashController {
 		boolean ttlWarning = !ghost && expiresAt != null
 				&& Duration.between(now, expiresAt).compareTo(TTL_WARNING_THRESHOLD) <= 0;
 		java.nio.file.Path resourcePath = m.getResourcePath();
-		String resourcePathStr = resourcePath != null ? resourcePath.toString() : "(메타데이터 — 파일 없음)";
+		String resourcePathStr = resourcePath != null ? resourcePath.toString() : "-";
 		// S5-2+ — 메타 자원의 cascade preview. ghost 가 아닌 정상 trash 만 의미.
 		String childPreview = null;
 		if (!ghost && isMeta && scanner != null) {
 			List<String> labels = scanner.findDeletedChildLabels(m.getResourceId());
 			if (!labels.isEmpty()) {
-				childPreview = String.join(" · ", labels);
+				childPreview = String.join(", ", labels);
 			}
 		}
 		// HF4-1 — 연장 버튼 활성 판정. 서버 가드(TrashTtlExtensionService)와 동일한 SPI 판정 하나를 공유.

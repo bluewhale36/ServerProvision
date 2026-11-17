@@ -52,30 +52,30 @@
         const baseMessage = (payload && payload.message) ? payload.message : null;
         if (status === 409) {
             return {
-                title: '액션이 거절되었어요',
-                message: baseMessage || '현재 상태에서는 이 액션을 수행할 수 없어요.',
+                title: '요청이 거절되었습니다',
+                message: baseMessage || '현재 상태에서는 처리할 수 없습니다.',
                 confirmClass: 'n-btn-outline-info'
             };
         }
         if (status === 400) {
             return {
-                title: '입력을 확인해주세요',
-                message: baseMessage || '요청 형식이 올바르지 않아요.',
+                title: '입력 확인 필요',
+                message: baseMessage || '요청 형식이 올바르지 않습니다.',
                 confirmClass: 'n-btn-outline-info'
             };
         }
         if (status === 404) {
             return {
-                title: '자원을 찾을 수 없어요',
-                message: baseMessage || '대상 자원이 이미 없어졌거나 식별자가 잘못됐어요.',
-                hint: '페이지를 새로고침해보세요.',
+                title: '자원을 찾을 수 없습니다',
+                message: baseMessage || '대상 자원이 이미 없습니다.',
+                hint: '확인을 누르면 화면을 새로 고칩니다.',
                 confirmClass: 'n-btn-primary',
                 onClose: () => window.location.reload()
             };
         }
         return {
             title: '서버 오류',
-            message: baseMessage || ('요청 처리 중 오류가 발생했어요. (HTTP ' + status + ')'),
+            message: baseMessage || '요청을 처리하지 못했습니다.',
             confirmClass: 'n-btn-outline-danger'
         };
     }
@@ -90,7 +90,7 @@
         onNetworkError: () => {
             openResult({
                 title: '연결 오류',
-                message: '서버와 통신할 수 없어요. 네트워크 상태를 확인하고 다시 시도해주세요.',
+                message: '서버와 통신할 수 없습니다. 네트워크 상태를 확인한 뒤 다시 시도해야 합니다.',
                 confirmClass: 'n-btn-outline-danger'
             });
         }

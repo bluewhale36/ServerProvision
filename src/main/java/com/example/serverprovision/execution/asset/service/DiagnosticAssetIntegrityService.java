@@ -92,7 +92,7 @@ public class DiagnosticAssetIntegrityService {
         boolean present = status.present();
         return new SystemAssetSlotResponse(
                 asset.name(), asset.label(), asset.category().label(), asset.filename(), layoutLabel(asset.layout()),
-                present, asset.replaceable(), present ? FileSize.format(status.sizeBytes()) : "—", status.modifiedAt(),
+                present, asset.replaceable(), present ? FileSize.format(status.sizeBytes()) : "-", status.modifiedAt(),
                 status.condition().label(), status.condition().badgeClass(), asset.replaceCadence());
     }
 

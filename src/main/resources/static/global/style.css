@@ -8,45 +8,29 @@
    ============================================================ */
 
 /* ---- 0. 글꼴 ---------------------------------------------
-   Inter 는 자체 호스팅한다(S17-5). 종전 Google Fonts 링크는 인터넷 없는 배포 환경에서 실리지 않았다.
-   Google 이 주는 파일은 굵기별이 아니라 가변 폰트 하나(latin · latin-ext 두 서브셋)라 두 파일이
-   400 · 500 · 600 · 700 을 모두 그린다. 한글은 이 글꼴에 없어 시스템 글꼴이 그린다(종전과 같다).
-   라이선스는 SIL OFL 1.1 — /fonts/inter/OFL.txt. */
-@font-face {
-    font-family: 'Inter';
-    font-style: normal;
-    font-weight: 100 900;
-    font-display: swap;
-    src: url('/fonts/inter/inter-latin-ext.woff2') format('woff2');
-    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-    font-family: 'Inter';
-    font-style: normal;
-    font-weight: 100 900;
-    font-display: swap;
-    src: url('/fonts/inter/inter-latin.woff2') format('woff2');
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
+   IBM Plex Sans KR + IBM Plex Mono 를 자체 호스팅한다(S22-1). 한글과 라틴을 한 설계가 그려 종전의
+   Inter(라틴) + 시스템 글꼴(한글) 섞임이 없어지고, 산스와 고정폭이 같은 계열이라 식별자가 많은 화면에서
+   두 글꼴이 어울린다. @font-face 는 굵기 · 조각 수가 많아(한글 95 조각 × 400 · 500 · 600) 별도 파일
+   /fonts/ibm-plex-sans-kr/ibm-plex-sans-kr.css 에 두고 layout 에서 먼저 싣는다. 700 요청은 600 이 그린다.
+   라이선스는 SIL OFL 1.1 — 각 폴더의 OFL.txt. */
 
 /* ---- 1. CSS 변수 ------------------------------------------ */
 :root {
-    --n-bg: #eef1f5;
+    --n-bg: #f5f5f4;
     --n-surface: #ffffff;
-    --n-sunken: #f7f9fb;          /* 판 안에서 한 단 꺼진 면 — 구획 머리 · 묶음 배경 */
-    --n-thead: #e3e8ef;           /* 표 머리 · Miller 열 머리 — 같은 성격의 머리는 같은 톤 */
-    --n-row-hover: #f1f5fa;
-    --n-text: #0f172a;
-    --n-text-sec: #475569;
-    --n-text-muted: #94a3b8;
-    --n-border: rgba(15, 23, 42, 0.14);
-    --n-border-row: rgba(15, 23, 42, 0.08);
-    --n-border-form: rgba(15, 23, 42, 0.22);
-    --n-blue: #2557d6;
-    --n-blue-hover: #1c44a8;
-    --n-blue-badge-bg: #eaf0fd;
-    --n-blue-badge-text: #2557d6;
+    --n-sunken: #fafaf9;          /* 판 안에서 한 단 꺼진 면 — 구획 머리 · 묶음 배경 */
+    --n-thead: #ededeb;           /* 표 머리 · Miller 열 머리 — 같은 성격의 머리는 같은 톤 */
+    --n-row-hover: #f4f4f2;
+    --n-text: #1b1b1a;
+    --n-text-sec: #545452;
+    --n-text-muted: #8d8d8a;
+    --n-border: rgba(27, 27, 26, 0.13);
+    --n-border-row: rgba(27, 27, 26, 0.07);
+    --n-border-form: rgba(27, 27, 26, 0.24);
+    --n-blue: #2f55a4;
+    --n-blue-hover: #24427f;
+    --n-blue-badge-bg: #edf1f9;
+    --n-blue-badge-text: #2f55a4;
     --n-green: #0f8a4d;
     --n-orange: #c2560a;          /* 주의 — 미설정 · 불일치 · 되돌릴 수 있는 삭제 */
     --n-red: #c02626;             /* 오류 · 되돌릴 수 없는 것 */
@@ -55,7 +39,13 @@
     --n-yellow-bg: #fbf3e2;
     --n-red-bg: #f9eaea;
     --n-teal: #17868c;
-    --n-warm-dark: #16202e;       /* 사이드바 · 어두운 머리 */
+    --n-warm-dark: #1f1f1e;       /* 사이드바 · 어두운 머리 — 흑연 계열 짙은 면(종전 slate 남색 #16202e) */
+    /* 짙은 사이드바 위 글자 세 단 — 종전 slate 리터럴(#cbd5e1 · #64748b · #ffffff)을 흑연 계열 토큰으로 */
+    --n-side-text: #c9c9c5;
+    --n-side-muted: #91918b;
+    --n-side-on: #f4f4f2;
+    --n-on-accent: #ffffff;       /* 채운 버튼 · 배지 위 글자 */
+    --n-overlay: rgba(20, 20, 19, 0.45);  /* 모달 뒤 덮개 */
     --n-shadow-card: none;        /* 격자가 구조를 지므로 그림자는 쓰지 않는다 */
     /* 반지름은 두 값뿐이다 — 낱개로 서는 작은 조각(버튼 · 입력 · 배지 · 코드)은 4px,
        내용을 담는 판(카드 · 알림 · 모달 · 패널)은 6px. 형태가 곧 뜻인 점(50%)만 예외다. */
@@ -63,7 +53,8 @@
     --n-radius-lg: 6px;
     /* mono 는 한 벌이다 — 파일 경로(code) 와 MAC 주소(.n-table-mono) 가 같은 화면에서 다른 폰트로
        보이던 것을 막는다 */
-    --n-font-mono: 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+    --n-font-sans: 'IBM Plex Sans KR', -apple-system, system-ui, 'Segoe UI', sans-serif;
+    --n-font-mono: 'IBM Plex Mono', 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
     /* 오류는 하나의 축이라 색도 하나다 — 배너 · 입력 테두리 · 필드 메시지가 전부 이 값을 본다.
        '삭제' 버튼의 주황(주의)과 갈리는 것이 요점이다 */
     --n-error: var(--n-red);
@@ -87,7 +78,7 @@ html {
 }
 
 body {
-    font-family: 'Inter', -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-family: var(--n-font-sans);
     background: var(--n-bg);
     color: var(--n-text);
     font-size: 15px;
@@ -98,6 +89,10 @@ body {
     min-height: 100vh;
     font-variant-numeric: tabular-nums;
     overscroll-behavior-y: none;
+    /* 한국어는 어절 단위로만 줄을 바꾼다. 기본값(normal)은 음절 사이에서 끊어 '있 / 습니다' 처럼 갈랐다(S22-4 실측).
+       끊을 자리가 없는 긴 낱말(경로, 해시)은 넘칠 때만 아무 곳에서나 끊는다. */
+    word-break: keep-all;
+    overflow-wrap: break-word;
 }
 
 /* 맨 링크도 팔레트의 파랑이다 — S17-1 CP5 F-5 때는 Bootstrap 의 --bs-link-color(#0d6efd)가 남아 한 화면에
@@ -111,17 +106,17 @@ a:hover {
     color: var(--n-blue-hover);
 }
 
-/* 인라인 코드 — 배지와 유사한 형태의 코드 표시 요소 */
+/* 인라인 코드 — 식별자 · 경로 · 주소는 상자 없이 고정폭 글자로만 구분한다(S22-1). 종전의 회색 상자 칩은
+   표 한 칸에 칩이 줄지어 서면 상자가 내용보다 먼저 보였다(stageshow "Boxed" — 모든 것을 상자에 담지 않는다). */
 code {
     font-family: var(--n-font-mono);
     font-feature-settings: "tnum";
-    font-size: 0.85em;
-    font-weight: 500;
+    font-size: 0.9em;
+    font-weight: 400;
     color: var(--n-text);
-    background: rgba(15, 23, 42, 0.06);
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    padding: 2px 6px;
-    border-radius: var(--n-radius);
+    background: none;
+    border: 0;
+    padding: 0;
     vertical-align: baseline;
 }
 
@@ -141,12 +136,26 @@ kbd {
     padding: 14px 16px;
     margin: 0;
     font-family: var(--n-font-mono);
-    font-size: 12.5px;
+    font-size: 13.5px;
     line-height: 1.55;
     color: var(--n-text);
     white-space: pre;
     overflow-x: auto;
 }
+
+/* 아이콘 — Phosphor regular 한 세트(S22-1). 글자 옆에 서는 1em 크기, 색은 글자를 따른다.
+   화살표 글리프(← →) 대신 쓴다. 시간 범위의 → 는 글리프가 아니라 문장 부호라 그대로 둔다. */
+.n-icon {
+    width: 1em;
+    height: 1em;
+    flex-shrink: 0;
+    fill: currentColor;
+    vertical-align: -0.125em;
+}
+/* 아이콘을 품은 링크는 글자와 아이콘을 한 줄 flex 로 세우고 gap 으로 띄운다. :where 로 명시도를 0 으로 두어
+   자기 gap 을 가진 .n-btn(5px) · .n-back-link(6px) 가 이긴다. 종전의 margin 방식은 아이콘이 유일한 요소 자식이라
+   :first-child 와 :last-child 를 동시에 만족해 양쪽에 여백이 붙었다(S22-1 CP5 F-1). */
+:where(a:has(> .n-icon)) { display: inline-flex; align-items: center; gap: 4px; }
 
 /* ---- 3. 사이드바 ------------------------------------------ */
 /* 왼쪽 사이드바가 영역을 진다 — 위치가 계층을 말하므로 본문은 제목 위에 영역명을 반복하지 않는다.
@@ -161,6 +170,10 @@ kbd {
     /* 1024×768 처럼 낮은 뷰포트에서는 링크 열아홉 + 라벨이 100vh 를 넘는다 — 안에서 스크롤해야 맨 아래
        배경 작업 버튼에 닿는다. 그 버튼의 패널은 position: fixed 라 조상 overflow 에 잘리지 않는다. */
     overflow-y: auto;
+    /* 짙은 면 위에 밝은 기본 홈이 뜨지 않게 가는 막대와 투명 홈으로 둔다. scrollbar-color 를 모르는
+       Safari 는 아래 ::-webkit-scrollbar 규칙을 쓴다(둘을 다 아는 Chrome 은 scrollbar-color 를 따른다). */
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--n-side-on) 22%, transparent) transparent;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -170,26 +183,33 @@ kbd {
     border-right: 1px solid var(--n-border);
     z-index: 100;
 }
+.n-nav::-webkit-scrollbar { width: 8px; }
+.n-nav::-webkit-scrollbar-track { background: transparent; }
+.n-nav::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--n-side-on) 22%, transparent);
+    border-radius: 4px;
+}
+/* 사이드바가 넘칠 때 줄어드는 대신 스크롤해야 한다. flex 항목의 최소 높이는 overflow 가 visible 일 때만
+   내용 높이이고, overflow: hidden 인 사용자명(.n-nav-user, 말줄임용)은 0 까지 눌려 글자가 잘렸다.
+   빈 칸(.n-nav-spacer)만 뒤 규칙의 flex: 1 1 auto 로 늘고 줄어든다. */
+.n-nav > * { flex-shrink: 0; }
 
 .n-nav-brand {
     font-size: 14px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--n-side-on);
     text-decoration: none;
     margin: 0 0 14px;
     padding: 0 18px;
     letter-spacing: -0.2px;
-    flex-shrink: 0;
 }
 
 /* 영역 라벨(자원 관리 · 운영 · 프로비저닝) — 링크가 아니라 묶음의 이름이다 */
 .n-nav-group {
     display: block;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: #64748b;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--n-side-muted);
     padding: 16px 18px 6px;
 }
 
@@ -197,7 +217,7 @@ kbd {
     display: block;
     font-size: 13.5px;
     font-weight: 400;
-    color: #cbd5e1;
+    color: var(--n-side-text);
     text-decoration: none;
     padding: 6px 18px;
     border-left: 3px solid transparent;
@@ -206,26 +226,26 @@ kbd {
 }
 
 .n-nav-link:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #ffffff;
+    background: color-mix(in srgb, var(--n-side-on) 6%, transparent);
+    color: var(--n-side-on);
 }
 
 .n-nav-link.active {
-    background: rgba(255, 255, 255, 0.09);
-    color: #ffffff;
+    background: color-mix(in srgb, var(--n-side-on) 9%, transparent);
+    color: var(--n-side-on);
     font-weight: 600;
     border-left-color: var(--n-blue);
 }
 
 /* 미구현 메뉴 : <span class="n-nav-link" aria-disabled="true"> 형태로 렌더링 */
 .n-nav-link[aria-disabled="true"] {
-    color: #64748b;
+    color: var(--n-side-muted);
     cursor: not-allowed;
 }
 
 .n-nav-link[aria-disabled="true"]:hover {
     background: transparent;
-    color: #64748b;
+    color: var(--n-side-muted);
 }
 
 .n-nav-spacer {
@@ -253,7 +273,7 @@ kbd {
 .n-nav-user {
     display: block;
     font-size: 12.5px;
-    color: #cbd5e1;
+    color: var(--n-side-text);
     padding: 0 18px 6px;
     white-space: nowrap;
     overflow: hidden;
@@ -397,7 +417,8 @@ kbd {
     font-family: inherit;
     font-size: 14px;
     font-weight: 600;
-    line-height: 1.4;
+    /* IBM Plex Sans KR 의 줄 상자는 약 1.5em 이다 — 1.4 면 글자 상자가 버튼 높이를 넘는다(S22-1 stageshow 검사) */
+    line-height: 1.5;
     padding: 6px 13px;
     cursor: pointer;
     text-decoration: none;
@@ -417,7 +438,7 @@ kbd {
    새 flavor 의 hover 규칙을 추가할 때 반드시 같은 가드를 단다 (.n-btn-disabled 는 링크형 비활성). */
 .n-btn:disabled,
 .n-btn.n-btn-disabled {
-    background: rgba(15, 23, 42, 0.10);
+    background: color-mix(in srgb, var(--n-text) 10%, transparent);
     color: var(--n-text-muted);
     border-color: transparent;
     opacity: 1;
@@ -431,7 +452,7 @@ kbd {
 }
 
 .n-btn-sm {
-    font-size: 12px;
+    font-size: 13px;
     padding: 3px 9px;
 }
 
@@ -443,7 +464,7 @@ kbd {
 .n-glist-head .n-btn,
 .n-detail-table .n-actions .n-btn,
 .n-accordion-field .n-actions .n-btn {
-    font-size: 12px;
+    font-size: 13px;
     padding: 3px 9px;
 }
 
@@ -483,11 +504,11 @@ kbd {
     bottom: calc(100% + 6px);
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(22, 32, 46, 0.88);
-    color: #fff;
+    background: color-mix(in srgb, var(--n-warm-dark) 88%, transparent);
+    color: var(--n-side-on);
     padding: 6px 10px;
     border-radius: var(--n-radius);
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.4;
     /* 핵심 — width: max-content 로 shrink-to-fit 회피 + max-width 로 긴 한국어 wrap. */
     width: max-content;
@@ -497,7 +518,7 @@ kbd {
     text-align: center;
     pointer-events: none;
     z-index: 1100;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--n-text) 14%, transparent);
 }
 
 /*
@@ -530,21 +551,21 @@ kbd {
 
 .n-btn-primary {
     background: var(--n-blue);
-    color: #ffffff;
+    color: var(--n-on-accent);
 }
 
 .n-btn-primary:hover:not(:disabled):not(.n-btn-disabled) {
     background: var(--n-blue-hover);
-    color: #ffffff;
+    color: var(--n-on-accent);
 }
 
 .n-btn-secondary {
-    background: rgba(15, 23, 42, 0.06);
+    background: color-mix(in srgb, var(--n-text) 6%, transparent);
     color: var(--n-text);
 }
 
 .n-btn-secondary:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(15, 23, 42, 0.10);
+    background: color-mix(in srgb, var(--n-text) 10%, transparent);
     color: var(--n-text);
 }
 
@@ -558,9 +579,9 @@ kbd {
 }
 
 .n-btn-outline:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(15, 23, 42, 0.06);
+    background: color-mix(in srgb, var(--n-text) 6%, transparent);
     color: var(--n-text);
-    border-color: rgba(15, 23, 42, 0.40);
+    border-color: color-mix(in srgb, var(--n-text) 40%, transparent);
 }
 
 
@@ -578,61 +599,61 @@ kbd {
 
 .n-btn-outline-success {
     color: var(--n-green);
-    border: 1px solid rgba(15, 138, 77, 0.32);
+    border: 1px solid color-mix(in srgb, var(--n-green) 32%, transparent);
 }
 
 .n-btn-outline-success:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(15, 138, 77, 0.10);
-    border-color: rgba(15, 138, 77, 0.60);
+    background: color-mix(in srgb, var(--n-green) 10%, transparent);
+    border-color: color-mix(in srgb, var(--n-green) 60%, transparent);
 }
 
 /* 주황 = 되돌릴 수 있는 삭제(휴지통) · 주의. 영구 삭제의 빨강(.n-btn-danger)과 구분 */
 .n-btn-outline-danger {
     color: var(--n-orange);
-    border: 1px solid rgba(194, 86, 10, 0.32);
+    border: 1px solid color-mix(in srgb, var(--n-orange) 32%, transparent);
 }
 
 .n-btn-outline-danger:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(194, 86, 10, 0.10);
-    border-color: rgba(194, 86, 10, 0.60);
+    background: color-mix(in srgb, var(--n-orange) 10%, transparent);
+    border-color: color-mix(in srgb, var(--n-orange) 60%, transparent);
 }
 
 .n-btn-outline-info {
     color: var(--n-blue);
-    border: 1px solid rgba(37, 87, 214, 0.30);
+    border: 1px solid color-mix(in srgb, var(--n-blue) 30%, transparent);
 }
 
 .n-btn-outline-info:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(37, 87, 214, 0.09);
-    border-color: rgba(37, 87, 214, 0.58);
+    background: color-mix(in srgb, var(--n-blue) 9%, transparent);
+    border-color: color-mix(in srgb, var(--n-blue) 58%, transparent);
 }
 
 /* 'Deprecated 표시' — 사용 중단 권고의 노랑 */
 .n-btn-outline-warning {
     color: var(--n-yellow);
-    border: 1px solid rgba(169, 122, 30, 0.34);
+    border: 1px solid color-mix(in srgb, var(--n-yellow) 34%, transparent);
 }
 
 .n-btn-outline-warning:hover:not(:disabled):not(.n-btn-disabled) {
-    background: rgba(169, 122, 30, 0.12);
-    border-color: rgba(169, 122, 30, 0.62);
+    background: color-mix(in srgb, var(--n-yellow) 12%, transparent);
+    border-color: color-mix(in srgb, var(--n-yellow) 62%, transparent);
 }
 
 /* S5-2 — solid danger (영구 삭제 등 파괴적 액션 강조). 빨강 (--n-red) — outline-danger 의 주황과 구분. */
 .n-btn-danger {
     background: var(--n-red);
-    color: #ffffff;
+    color: var(--n-on-accent);
     border: 1px solid var(--n-red);
 }
 
 .n-btn-danger:hover:not(:disabled):not(.n-btn-disabled) {
     background: var(--n-red-hover);
     border-color: var(--n-red-hover);
-    color: #ffffff;
+    color: var(--n-on-accent);
 }
 
 .n-btn-danger:disabled {
-    background: rgba(15, 23, 42, 0.10);
+    background: color-mix(in srgb, var(--n-text) 10%, transparent);
     color: var(--n-text-muted);
     border-color: transparent;
     cursor: not-allowed;
@@ -643,14 +664,14 @@ kbd {
 .n-actions .n-btn-danger {
     background: transparent;
     color: var(--n-red);
-    border: 1px solid rgba(192, 38, 38, 0.55);
+    border: 1px solid color-mix(in srgb, var(--n-red) 55%, transparent);
     font-weight: 600;
 }
 
 .n-actions .n-btn-danger:hover:not(:disabled):not(.n-btn-disabled) {
     background: var(--n-red);
     border-color: var(--n-red);
-    color: #ffffff;
+    color: var(--n-on-accent);
 }
 
 /* ---- 7. 배지 ---------------------------------------------- */
@@ -674,18 +695,18 @@ kbd {
 }
 
 .n-badge-green {
-    background: rgba(15, 138, 77, 0.10);
+    background: color-mix(in srgb, var(--n-green) 10%, transparent);
     color: var(--n-green);
 }
 
 .n-badge-red {
-    background: rgba(192, 38, 38, 0.10);
+    background: color-mix(in srgb, var(--n-red) 10%, transparent);
     color: var(--n-red);
 }
 
 /* 주의 — 미설정 · 불일치 · 정의서 지정(사용 중이라는 정보). 비활성이 아니다(아래 .n-badge-off). */
 .n-badge-orange {
-    background: rgba(194, 86, 10, 0.10);
+    background: color-mix(in srgb, var(--n-orange) 10%, transparent);
     color: var(--n-orange);
 }
 
@@ -698,8 +719,8 @@ kbd {
    '정의서 지정' 같은 주의 배지와 같은 클래스였다(S17-1 결함 ④). Miller 의 .n-miller-status-tag-off 와
    같은 값이다. */
 .n-badge-off {
-    background: rgba(15, 23, 42, 0.07);
-    color: #64748b;
+    background: color-mix(in srgb, var(--n-text) 7%, transparent);
+    color: var(--n-text-sec);
 }
 
 /* 중립(회색 테두리) — 삭제됨 · 상태가 아니라 사실만 알리는 표기. 비활성(채움)과 형태로 가른다. */
@@ -753,7 +774,7 @@ kbd {
 }
 
 .n-badge-teal {
-    background: rgba(23, 134, 140, 0.10);
+    background: color-mix(in srgb, var(--n-teal) 10%, transparent);
     color: var(--n-teal);
 }
 
@@ -768,10 +789,8 @@ kbd {
 .n-table thead th {
     background: var(--n-thead);
     color: var(--n-text-sec);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    font-size: 13px;
+    font-weight: 500;
     padding: 10px 14px;
     border-bottom: 1px solid var(--n-border);
     border-right: 1px solid var(--n-border-row);
@@ -814,9 +833,9 @@ kbd {
 .n-table-mono {
     font-family: var(--n-font-mono);
     font-feature-settings: "tnum";
-    font-size: 13px;
+    font-size: 14px;
     color: var(--n-text);
-    font-weight: 600;
+    font-weight: 400;
 }
 
 /* 행의 이름 · ID 가 상세로 가는 링크일 때 — 표 · 묶음 목록 · 정의서 목록이 같은 모양(S17-2 로 한 벌) */
@@ -835,7 +854,7 @@ kbd {
 .n-mono {
     font-family: var(--n-font-mono);
     font-feature-settings: "tnum";
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .n-table-muted {
@@ -866,14 +885,14 @@ kbd {
 
 .n-label {
     display: block;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--n-text);
     margin-bottom: 6px;
 }
 
 .n-label.strong {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
 }
 
@@ -903,7 +922,7 @@ kbd {
 .n-input:focus, .n-select:focus {
     outline: none;
     border-color: var(--n-blue);
-    box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--n-blue) 14%, transparent);
 }
 
 .n-input::placeholder {
@@ -951,7 +970,7 @@ kbd {
 .n-textarea:focus {
     outline: none;
     border-color: var(--n-blue);
-    box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--n-blue) 14%, transparent);
 }
 
 .n-textarea::placeholder {
@@ -959,23 +978,23 @@ kbd {
 }
 
 .n-error {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-error);
     margin-top: 4px;
 }
 
-/* 힌트는 입력에 딸린 주석이다 — 읽기 폭을 제한해 카드 폭을 다 쓰는 본문 문단처럼 보이지 않게 한다.
+/* 힌트는 입력에 딸린 주석이라 그 입력의 폭을 따른다. 종전의 68ch 제한은 넓은 입력 아래에서 힌트를 가운데쯤에서
+   꺾어 짧은 문장도 두 줄로 만들었다(S22-4 사용자 지적).
    <p> 로 쓰이므로 Bootstrap 의 p { margin-bottom: 1rem } 을 끊어야 표 셀 안에서 내용이 위로 치우치지
    않는다(상태 배지가 라벨보다 위에 떠 보이던 원인). */
 /* 항목의 뜻을 적는 자리. 조작 요소의 위(설정 화면 — 라벨 → 설명 → 조작 순, MK4-4-4 CP7 의 위계)에도
    아래(입력 폼 — 형식 안내)에도 선다. S17-3 에서 form-validation.css 의 .n-form-hint 를 여기로 접었다 —
    같은 뜻의 클래스가 둘이면 화면마다 갈린다. */
 .n-hint {
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.55;
     color: var(--n-text-sec);
     margin: 4px 0 6px;
-    max-width: 68ch;
 }
 
 /* 힌트가 연달아 오면 위 여백을 지운다 — 한 항목의 설명이 여러 줄로 갈린 것뿐이다. */
@@ -1007,11 +1026,9 @@ kbd {
 /* ---- 10. 섹션 구분자 -------------------------------------- */
 /* 구획 — 대문자 라벨을 유지하되 밑줄이 아니라 판의 머리(꺼진 면 + 왼쪽 파란 선)로 올린다 */
 .n-section {
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--n-text);
-    letter-spacing: 0.7px;
-    text-transform: uppercase;
     background: var(--n-sunken);
     border: 1px solid var(--n-border);
     border-left: 3px solid var(--n-blue);
@@ -1065,8 +1082,8 @@ kbd {
    값이 아니라 역할로 이름을 붙인다. margin-top: 16px 이 아니라 "앞 블록과 띄운다"(n-block-gap) 다.
    간격은 두 단(16 · 8)뿐이다 — 종전 인라인은 4 · 6 · 8 · 12 · 14 · 16 · 20 · 32 여덟 값이 흩어져 있었고,
    같은 자리끼리도 달랐다. */
-.n-note { font-size: 12px; color: var(--n-text-muted); }      /* 값 옆의 부연 · 작은 안내 */
-.n-small { font-size: 12px; }                                   /* 코드 · 식별자를 한 단 작게 */
+.n-note { font-size: 13px; color: var(--n-text-muted); }      /* 값 옆의 부연 · 작은 안내 */
+.n-small { font-size: 13px; }                                   /* 코드 · 식별자를 한 단 작게 */
 .n-strong { font-weight: 600; }
 .n-meta { margin-left: 8px; }                                   /* 배지 · 라벨 뒤에 붙는 부연 */
 .n-text-right { text-align: right; }
@@ -1115,12 +1132,22 @@ kbd {
     border-top: none;
 }
 
+/* 판 밖에 선 form-actions 는 선을 긋지 않는다. 판의 테두리가 이미 경계를 그었으므로 그 아래 32px 에 선이 하나 더
+   서면 빈 칸을 두 줄이 감싼다(DESIGN.md 5절 구분선 규칙, 정의서 작성 · 상세와 드리프트 설정에서 실측). 판 아래 여백
+   (.n-card 의 margin-bottom)이 간격을 맡는다. 사이에 <template> 같은 보이지 않는 형제가 끼어도 걸리도록 ~ 로 잇는다
+   (판과 같은 층의 뒤쪽 형제는 정의상 판 밖이다). */
+:is(.n-card, .n-glist, .n-alert, .n-miller) ~ .n-form-actions {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
 /* '목록으로' — 제목 줄(.n-page-header) 안에서 제목 오른쪽에 서는 되돌아가기. 버튼이 아니라 경로다. */
 .n-back-link {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--n-text-sec);
     text-decoration: none;
@@ -1144,8 +1171,8 @@ kbd {
 }
 
 .n-alert-success {
-    background: rgba(15, 138, 77, 0.07);
-    border: 1px solid rgba(15, 138, 77, 0.20);
+    background: color-mix(in srgb, var(--n-green) 7%, transparent);
+    border: 1px solid color-mix(in srgb, var(--n-green) 20%, transparent);
     color: var(--n-green);
 }
 
@@ -1160,13 +1187,13 @@ kbd {
    규칙이 없어 padding 만 먹고 배경 · 테두리가 붙지 않았다(U3-5-a CP5 발견). */
 .n-alert-warning {
     background: var(--n-yellow-bg);
-    border: 1px solid rgba(169, 122, 30, 0.30);
+    border: 1px solid color-mix(in srgb, var(--n-yellow) 30%, transparent);
     color: var(--n-yellow);
 }
 
 .n-alert-info {
     background: var(--n-blue-badge-bg);
-    border: 1px solid rgba(37, 87, 214, 0.20);
+    border: 1px solid color-mix(in srgb, var(--n-blue) 20%, transparent);
     color: var(--n-blue-badge-text);
 }
 
@@ -1197,7 +1224,7 @@ kbd {
 .n-detail-table th {
     width: 180px;
     padding: 13px 16px 13px 0;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: var(--n-text-sec);
     text-align: left;
@@ -1234,7 +1261,7 @@ kbd {
 }
 
 .n-detail-section > .n-section-hint {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--n-text-muted);
     margin-bottom: 12px;
 }
@@ -1242,7 +1269,7 @@ kbd {
 /* 판 안의 작은 "데이터 없음" 한 줄 — 화면 단위 빈 상태(.n-empty)와 뜻이 다르다(표의 빈 행) */
 .n-detail-empty {
     color: var(--n-text-muted);
-    font-size: 13px;
+    font-size: 14px;
     margin: 0;
     padding: 4px 0;
 }
@@ -1252,7 +1279,7 @@ kbd {
 /* 서버 디렉터리 찾아보기 패널(fragments/management/directory-browse-panel) */
 .n-browse-panel { margin-top: 10px; border: 1px solid var(--n-border); border-radius: var(--n-radius-lg); padding: 12px; background: var(--n-sunken); }
 .n-browse-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
-.n-browse-path { flex: 1; font-size: 12px; word-break: break-all; }
+.n-browse-path { flex: 1; font-size: 13px; word-break: break-all; }
 .n-browse-list { list-style: none; padding: 0; margin: 0 0 8px; max-height: 240px; overflow-y: auto; border: 1px solid var(--n-border); border-radius: var(--n-radius); background: var(--n-surface); }
 .n-browse-actions { display: flex; justify-content: flex-end; gap: 6px; }
 
@@ -1298,7 +1325,7 @@ kbd {
 
 .n-filter-search .n-input {
     width: 260px;
-    font-size: 13px;
+    font-size: 14px;
     padding: 5px 10px;
 }
 
@@ -1311,14 +1338,14 @@ kbd {
 }
 
 .n-filter-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-muted);
     margin-right: 2px;
 }
 
 .n-filter-sort .n-select {
     width: auto;
-    font-size: 13px;
+    font-size: 14px;
     padding: 4px 8px;
 }
 
@@ -1330,7 +1357,7 @@ kbd {
     border: 1px solid var(--n-border);
     border-radius: var(--n-radius);
     font-family: inherit;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.4;
     color: var(--n-text);
     background: var(--n-surface);
@@ -1363,14 +1390,14 @@ kbd {
 }
 
 .n-chip:has(input:focus-visible) {
-    box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--n-blue) 14%, transparent);
 }
 
 /* 조회 띠 안의 셀렉트 · 날짜 입력은 내용 폭만 — 전역 .n-input · .n-select 의 width:100% 를 띠 안에서만 푼다(S8-2) */
 .n-filter-group .n-select,
 .n-filter-range .n-input {
     width: auto;
-    font-size: 13px;
+    font-size: 14px;
     padding: 4px 8px;
 }
 
@@ -1399,7 +1426,7 @@ kbd {
     border-radius: var(--n-radius);
     background: var(--n-surface);
     color: var(--n-text);
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--n-text) 16%, transparent);
 }
 
 .n-filter-panel:popover-open {
@@ -1451,7 +1478,7 @@ kbd {
     padding: 6px 10px;
     border-radius: var(--n-radius);
     background: var(--n-sunken);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--n-text-sec);
 }
@@ -1522,6 +1549,9 @@ kbd {
     flex: 0 0 auto;
 }
 
+/* 돋보기는 아이콘 조각(1em)을 쓰되 종전 크기(14px)를 지킨다 */
+.n-lookup-open .n-icon { width: 14px; height: 14px; }
+
 .n-lookup-open:hover,
 .n-lookup-clear:hover,
 .n-lookup-x:hover {
@@ -1533,7 +1563,7 @@ kbd {
     width: 120px;
     flex: 0 0 auto;
     padding: 3px 8px;
-    font-size: 12px;
+    font-size: 13px;
     border-radius: 999px;
 }
 
@@ -1553,7 +1583,7 @@ kbd {
     border-radius: 999px;
     background: var(--n-blue-badge-bg);
     color: var(--n-blue-badge-text);
-    font-size: 12px;
+    font-size: 13px;
     white-space: nowrap;
 }
 
@@ -1586,7 +1616,7 @@ kbd {
     border-radius: var(--n-radius);
     background: var(--n-surface);
     color: var(--n-text);
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--n-text) 22%, transparent);
 }
 
 .n-lookup-panel:popover-open {
@@ -1601,7 +1631,7 @@ kbd {
     padding: 8px 12px;
     background: var(--n-blue);
     color: var(--n-surface);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .n-lookup-head .n-lookup-x {
@@ -1624,7 +1654,7 @@ kbd {
 .n-lookup-search .n-input {
     width: 220px;
     padding: 5px 10px;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .n-lookup-results {
@@ -1695,7 +1725,7 @@ kbd {
 
 .n-lookup-status {
     margin-right: auto;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-sec);
 }
 
@@ -1717,7 +1747,7 @@ kbd {
     border-radius: var(--n-radius);
     background: var(--n-blue-badge-bg);
     color: var(--n-blue-badge-text);
-    font-size: 12px;
+    font-size: 13px;
     white-space: nowrap;
 }
 
@@ -1751,7 +1781,7 @@ kbd {
 /* 결과 건수 한 줄 — 실시간 갱신 영역 안에 두어 교체 때 함께 바뀐다(S8-2) */
 .n-list-count {
     margin: 0 0 10px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-sec);
 }
 
@@ -1760,7 +1790,7 @@ kbd {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-sec);
 }
 
@@ -1776,7 +1806,7 @@ kbd {
     padding: 6px 12px;
     border-bottom: 1px solid var(--n-border);
     background: var(--n-surface);
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .n-pagination-nav {
@@ -1796,7 +1826,7 @@ kbd {
     padding: 0 6px;
     border-radius: 999px;
     color: var(--n-text-sec);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     font-feature-settings: "tnum";
     text-decoration: none;
@@ -1828,7 +1858,7 @@ a.n-page-arrow:hover {
 .n-page-jump .n-input {
     width: 56px;
     padding: 2px 8px;
-    font-size: 12px;
+    font-size: 13px;
     border-radius: 999px;
 }
 
@@ -1841,7 +1871,7 @@ a.n-page-arrow:hover {
 
 .n-pagination-size .n-select {
     width: auto;
-    font-size: 12px;
+    font-size: 13px;
     padding: 2px 6px;
 }
 
@@ -1914,7 +1944,7 @@ a.n-page-arrow:hover {
     margin-bottom: 12px;
     padding: 10px 14px;
     border-radius: var(--n-radius);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .n-banner-info {

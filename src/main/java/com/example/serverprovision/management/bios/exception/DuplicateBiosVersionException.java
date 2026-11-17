@@ -9,6 +9,6 @@ import com.example.serverprovision.global.exception.FieldBoundConflictException;
 public class DuplicateBiosVersionException extends FieldBoundConflictException {
 
 	public DuplicateBiosVersionException(Long boardId, String version) {
-		super("같은 메인보드에 이미 같은 버전의 BIOS 가 등록되어 있습니다. boardId=" + boardId + ", version=" + version, "version");
+		super("같은 메인보드에 같은 버전의 BIOS 가 이미 있습니다: " + version, "version");
 	}
 }

@@ -12,10 +12,10 @@ public final class OsInstallTargetPolicy {
 
     /** 차단 사유 정본 문장 — 옵션 tooltip 과 서버 거절 메시지가 같은 문장을 쓴다(같은 상황 = 같은 문장). */
     public static final String LINUX_BLOCK_REASON =
-            "Windows Server 계열만 설치할 수 있습니다. 리눅스 설치 자동화는 추후 지원 예정입니다.";
+            "Windows Server 계열만 설치할 수 있습니다.";
 
     public static final String SOURCE_BLOCK_REASON =
-            "Windows 설치 소스가 준비되지 않았습니다. 시스템 자산 대시보드의 'Windows 설치 소스' 영역을 확인하십시오.";
+            "Windows 설치 소스가 준비되지 않았습니다. 시스템 자산 대시보드의 'Windows 설치 소스' 영역을 확인해야 합니다.";
 
     private OsInstallTargetPolicy() {
     }

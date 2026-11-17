@@ -26,7 +26,7 @@
         <h1 class="n-page-title">RAID 카드 관리</h1>
         <div class="n-header-actions">
             <a th:href="@{/management/raidcard/new}"
-               class="n-btn n-btn-primary">+ 신규 RAID 카드 등록</a>
+               class="n-btn n-btn-primary">+ RAID 카드 등록</a>
         </div>
     </div>
 
@@ -43,7 +43,7 @@
             <div class="n-empty-title"
                  th:text="${includeDeleted} ? '등록된 RAID 카드가 없습니다 (휴지통 포함).' : '등록된 RAID 카드가 없습니다.'">등록된 RAID 카드가 없습니다.
             </div>
-            <div class="n-empty-desc">"신규 RAID 카드 등록" 버튼으로 카드를 추가하세요.</div>
+            <div class="n-empty-desc">[+ RAID 카드 등록] 으로 카드를 등록할 수 있습니다.</div>
         </div>
     </div>
 
@@ -80,9 +80,8 @@
                         <span th:text="${card.modelName}">CRA3338</span>
                         <span th:if="${card.isDeprecated and !card.isDeleted}"
                               class="n-deprecated-dot"
-                              title="Deprecated"></span>
-                        <span class="n-note" th:if="${card.isDeleted}"
-                             >(삭제됨)</span>
+                              title="사용 중단"></span>
+                        <span class="n-note" th:if="${card.isDeleted}">(삭제)</span>
                     </span>
                     <span th:unless="${card.isDeleted}"
                           class="n-miller-status-tag"
@@ -128,18 +127,15 @@
                             <th>모델명</th>
                             <td>
                                 <span th:text="${card.modelName}"></span>
-                                <span th:if="${card.isDeprecated}"
-                                      class="n-badge n-badge-yellow n-meta"
-                                     >Deprecated</span>
                             </td>
                         </tr>
                         <tr>
                             <th>지원 RAID 레벨</th>
-                            <td th:text="${card.supportedRaidLevelsDisplay}">RAID0 · RAID1</td>
+                            <td th:text="${card.supportedRaidLevelsDisplay}">RAID0, RAID1</td>
                         </tr>
                         <tr>
                             <th>캐시</th>
-                            <td th:text="${card.cacheCapacityDisplay}">없음</td>
+                            <td th:text="${card.cacheCapacityDisplay}">미탑재</td>
                         </tr>
                         <tr>
                             <th>PCI Subsystem ID</th>
@@ -156,7 +152,7 @@
                                 <th:block th:with="obs=${observationByCard != null ? observationByCard[card.id] : null}">
                                     <div th:if="${obs != null}" th:data-observation-status="${obs.status.name()}">
                                         <div th:if="${obs.status.name() == 'NONE'}" class="n-hint"
-                                             th:text="#{management.raid-card.observation.none}">관측 없음</div>
+                                             th:text="#{management.raid-card.observation.none}">이 카드를 지정한 서버의 진단 결과가 아직 없습니다.</div>
                                         <div th:if="${obs.status.name() == 'AGREED_UNCONFIRMED'}" class="n-hint">
                                             <span class="n-badge" th:classappend="${obs.badgeClass}"
                                                   th:text="'관측 ' + ${obs.agreedValue}">관측 1000:9361</span>
@@ -166,14 +162,14 @@
                                             <span class="n-badge" th:classappend="${obs.badgeClass}"
                                                   th:text="#{management.raid-card.observation.matches(${obs.agreedValue}, ${obs.guestCount})}">관측 일치</span>
                                         </div>
-                                        <div th:if="${obs.status.name() == 'DIFFERS_FROM_CONFIRMED'}" class="n-alert n-alert-danger"
+                                        <div th:if="${obs.status.name() == 'DIFFERS_FROM_CONFIRMED'}" class="n-alert n-alert-warning"
                                              th:text="#{management.raid-card.observation.differs(${obs.agreedValue}, ${card.pciSubsystemIdDisplay})}">확정값과 다름</div>
-                                        <div th:if="${obs.status.name() == 'CONFLICTING'}" class="n-alert n-alert-danger"
-                                             th:text="#{management.raid-card.observation.conflicting(${#strings.listJoin(obs.distinctValues, ' · ')})}">관측 상충</div>
+                                        <div th:if="${obs.status.name() == 'CONFLICTING'}" class="n-alert n-alert-warning"
+                                             th:text="#{management.raid-card.observation.conflicting(${#strings.listJoin(obs.distinctValues, ', ')})}">관측 상충</div>
                                         <div th:each="v : ${obs.values}" class="n-hint">
-                                            <code th:text="${v.value}">1000:9361</code> —
+                                            <code th:text="${v.value}">1000:9361</code> 관측 서버:
                                             <th:block th:each="g, st : ${v.guests}">
-                                                <a th:href="@{/provisioning/server/{id}(id=${g.guestServerId})}" th:text="${g.guestLabel}">G1</a><th:block th:unless="${st.last}"> · </th:block>
+                                                <a th:href="@{/provisioning/server/{id}(id=${g.guestServerId})}" th:text="${g.guestLabel}">G1</a><th:block th:unless="${st.last}">, </th:block>
                                             </th:block>
                                         </div>
                                         <form th:if="${obs.showsButton}"
@@ -190,7 +186,7 @@
                         </tr>
                         <tr>
                             <th>설명</th>
-                            <td th:text="${card.description != null and !#strings.isEmpty(card.description)} ? ${card.description} : '—'"></td>
+                            <td th:text="${card.description != null and !#strings.isEmpty(card.description)} ? ${card.description} : '-'"></td>
                         </tr>
                         <tr>
                             <th>상태</th>
@@ -203,7 +199,7 @@
                         <tr th:unless="${card.isDeleted}">
                             <th>사용 중단 권고</th>
                             <td>
-                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${card.isDeprecated}, deprecateUrl=@{/management/raidcard/{id}/deprecate(id=${card.id})}, undeprecateUrl=@{/management/raidcard/{id}/undeprecate(id=${card.id})}, deprecateConfirm=true, label=|RAID 카드 '${group.displayName} ${card.modelName}'|, extra=null, blockUndeprecate=false, blockTip=null, undeprecateConfirm=false, resourceType=null, resourceId=null, selectKey=null, includeDeleted=null, badgeOn='Deprecated', btnOn='Deprecated 표시', btnOff='Deprecated 해제')}"></div>
+                                <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${card.isDeprecated}, deprecateUrl=@{/management/raidcard/{id}/deprecate(id=${card.id})}, undeprecateUrl=@{/management/raidcard/{id}/undeprecate(id=${card.id})}, deprecateConfirm=true, label=|RAID 카드 '${group.displayName} ${card.modelName}'|, extra=null, blockUndeprecate=false, blockTip=null, undeprecateConfirm=false, resourceType=null, resourceId=null, selectKey=null, includeDeleted=null, badgeOn='사용 중단', btnOn='사용 중단 권고', btnOff='사용 중단 권고 해제')}"></div>
                             </td>
                         </tr>
                         </tbody>

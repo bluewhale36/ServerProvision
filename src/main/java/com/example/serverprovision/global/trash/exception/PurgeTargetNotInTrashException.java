@@ -12,6 +12,6 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class PurgeTargetNotInTrashException extends ConflictException {
 
 	public PurgeTargetNotInTrashException() {
-		super("휴지통에 있는 자원만 영구 삭제할 수 있습니다. 목록을 새로 고친 뒤 다시 확인하십시오.");
+		super("휴지통에 있는 자원만 영구 삭제할 수 있습니다. 목록을 새로 고친 뒤 다시 확인해야 합니다.");
 	}
 }

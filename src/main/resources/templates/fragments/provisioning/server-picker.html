@@ -21,8 +21,7 @@
     <div th:if="${candidates.empty}" class="n-empty">
         <div class="n-empty-title">넣을 수 있는 서버가 없습니다.</div>
         <div class="n-empty-desc">
-            모든 서버가 이미 어느 그룹엔가 속해 있습니다. 다른 그룹의 서버를 옮기려면
-            그 그룹 상세에서 먼저 뺀 뒤 여기서 넣어주세요.
+            모든 서버가 이미 그룹에 속해 있습니다. 다른 그룹의 서버를 옮기려면 그 그룹에서 먼저 빼야 합니다.
         </div>
     </div>
 
@@ -58,7 +57,7 @@
                 <summary class="n-accordion-head">
                     <span class="n-accordion-chevron"></span>
                     <span class="n-accordion-title"><strong th:text="'스펙 ' + ${st.count}">스펙 1</strong>
-                        <span class="n-glist-label" th:text="${sg.label}">MS03-CE0 · Xeon Gold 6338 ×2</span></span>
+                        <span class="n-glist-label" th:text="${sg.label}">MS03-CE0, Xeon Gold 6338 ×2</span></span>
                     <span class="n-badge n-badge-blue n-accordion-badge"
                           th:text="${sg.servers.size()} + '대'">2대</span>
                 </summary>
@@ -95,13 +94,13 @@
     </td>
     <td th:text="${s.name != null} ? ${s.name} : '(이름 미지정)'">srv-01</td>
     <td><code class="n-mono" th:text="${s.systemUuid}">uuid</code></td>
-    <td th:text="${s.boardModelName != null} ? ${s.boardModelName} : '—'">MS03-CE0</td>
+    <td th:text="${s.boardModelName != null} ? ${s.boardModelName} : '-'">MS03-CE0</td>
     <!--/* 회수된 서버도 넣을 수 있지만(DEC-H) 고르기 전에 알아야 한다 */-->
     <td>
         <span th:if="${s.status != null}" class="n-badge"
               th:classappend="${s.status.name() == 'DECOMMISSIONED'} ? ' n-badge-gray' : ' n-badge-blue'"
-              th:text="${s.status.description}">등록됨</span>
-        <span th:unless="${s.status != null}" class="n-muted">—</span>
+              th:text="${s.status.description}">등록</span>
+        <span th:unless="${s.status != null}" class="n-muted">-</span>
     </td>
     <td th:text="${#temporals.format(s.createdAt, 'yyyy-MM-dd HH:mm')}">2026-08-11 16:00</td>
 </tr>

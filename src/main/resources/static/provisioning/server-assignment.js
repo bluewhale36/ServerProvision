@@ -57,7 +57,7 @@
             } catch (err) {
                 if (window.FormError) {
                     window.FormError.renderResponse(
-                        {message: '요청을 보내지 못했습니다. 잠시 후 다시 시도해주세요.'}, {root: form});
+                        {message: '요청을 보내지 못했습니다. 잠시 후 다시 시도해야 합니다.'}, {root: form});
                 }
             } finally {
                 if (submitBtn && !submitStateHandedOver) {

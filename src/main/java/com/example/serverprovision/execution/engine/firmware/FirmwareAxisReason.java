@@ -18,13 +18,13 @@ import lombok.RequiredArgsConstructor;
 public enum FirmwareAxisReason {
 
     /** 등록이 아예 없는 경우와 전부 비활성인 경우를 함께 덮는다 — 둘 다 "지금 쓸 수 있는 것이 없다" 이다. */
-    NO_CANDIDATE(AxisOutcome.SKIPPED, "이 보드에 사용할 수 있는 펌웨어가 없어 이 축을 건너뜁니다"),
-    REFERENCE_GONE(AxisOutcome.SKIPPED, "정의서가 지정한 펌웨어가 더 이상 없어 이 축을 건너뜁니다"),
-    DISABLED(AxisOutcome.SKIPPED, "정의서가 지정한 펌웨어가 비활성이라 이 축을 건너뜁니다"),
-    FILE_MISSING(AxisOutcome.SKIPPED, "펌웨어 파일을 찾을 수 없어 이 축을 건너뜁니다"),
+    NO_CANDIDATE(AxisOutcome.SKIPPED, "이 보드에 쓸 수 있는 펌웨어가 없어 건너뜁니다"),
+    REFERENCE_GONE(AxisOutcome.SKIPPED, "정의서가 지정한 펌웨어가 삭제돼 건너뜁니다"),
+    DISABLED(AxisOutcome.SKIPPED, "정의서가 지정한 펌웨어가 비활성이라 건너뜁니다"),
+    FILE_MISSING(AxisOutcome.SKIPPED, "펌웨어 파일을 찾을 수 없어 건너뜁니다"),
 
-    MARKER_MISSING(AxisOutcome.BLOCKED, "펌웨어의 무결성 표식이 없습니다"),
-    SIGNATURE_INVALID(AxisOutcome.BLOCKED, "펌웨어의 무결성 표식이 유효하지 않습니다"),
+    MARKER_MISSING(AxisOutcome.BLOCKED, "펌웨어 파일의 무결성 표식이 없어 쓸 수 없습니다"),
+    SIGNATURE_INVALID(AxisOutcome.BLOCKED, "펌웨어 파일이 변조됐거나 손상돼 쓸 수 없습니다(무결성 표식 불일치)"),
     BOARD_MISMATCH(AxisOutcome.BLOCKED, "정의서가 지정한 메인보드가 이 서버의 보드와 다릅니다");
 
     private final AxisOutcome outcome;

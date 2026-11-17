@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const PROMPT = '표에서 정의서를 고르세요';
+    const PROMPT = '표에서 정의서 선택';
 
     function wire() {
         const overlay = document.getElementById('definitionPicker');

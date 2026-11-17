@@ -27,7 +27,7 @@
     <div class="n-page-header">
         <h1 class="n-page-title">proxy DHCP 임대 (dnsmasq)</h1>
         <div class="n-header-actions">
-            <a th:href="@{/system/asset}" class="n-back-link">← 시스템 자산</a>
+            <a th:href="@{/system/asset}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>시스템 자산</a>
             <a th:href="@{/system/pxe-infra/network}" class="n-btn n-btn-secondary n-btn-sm">네트워크 설정</a>
         </div>
     </div>
@@ -35,8 +35,7 @@
     <!--/* 미구성: 관측 설정(pxe.dnsmasq.fragment-path)이 없으면 임대 표 대신 안내 */-->
     <div th:unless="${overview.configured}" class="n-card">
         <div class="n-empty">
-            <div class="n-empty-title">dnsmasq 관측이 구성되지 않았습니다.</div>
-            <div class="n-empty-desc"><code>pxe.dnsmasq.fragment-path</code> 미설정. 설정하면 임대 목록이 여기 표시됩니다.</div>
+            <div class="n-empty-title">dnsmasq 구성 파일 경로가 설정되지 않아 임대 목록을 표시할 수 없습니다.</div>
         </div>
     </div>
 
@@ -44,8 +43,8 @@
         <!--/* proxyDHCP: 이 서버는 IP 를 배정하지 않으므로 임대가 없다 */-->
         <div th:if="${overview.proxyMode}" class="n-card">
             <div class="n-empty">
-                <div class="n-empty-title">proxyDHCP 모드 — 이 서버는 임대를 만들지 않습니다.</div>
-                <div class="n-empty-desc">IP 는 사내 DHCP 가 배정하고 이 서버는 부팅 위치만 답합니다. 게스트가 어떤 주소로 왔는지는 게스트 서버 목록의 등록 · 접촉 기록에서 봅니다.</div>
+                <div class="n-empty-title">proxy DHCP 모드: 이 서버는 임대를 만들지 않습니다.</div>
+                <div class="n-empty-desc">게스트 주소는 게스트 서버 목록에서 확인할 수 있습니다.</div>
             </div>
         </div>
 
@@ -54,7 +53,6 @@
                 <span class="n-badge n-badge-gray" th:if="${overview.dhcpModeLabel != null}" th:text="${overview.dhcpModeLabel}">자체 DHCP</span>
                 <span class="n-badge n-badge-green" th:text="'활성 ' + ${overview.activeCount} + '건'"></span>
                 <span class="n-badge n-badge-gray" th:text="'전체 ' + ${overview.totalCount} + '건'"></span>
-                <span>만료 시각은 KST 기준입니다.</span>
             </div>
 
             <div class="n-card">

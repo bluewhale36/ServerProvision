@@ -172,6 +172,6 @@ class SubprogramControllerLifecycleFlowTest {
         mvc.perform(get("/management/subprogram").param("includeDeleted", "true"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("n-btn-tooltip-wrap")))
-                .andExpect(content().string(containsString("부모 메인보드가 삭제 상태입니다")));
+                .andExpect(content().string(containsString("메인보드가 삭제 상태입니다. 메인보드부터 복구해야 합니다.")));
     }
 }

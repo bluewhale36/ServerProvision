@@ -1,5 +1,6 @@
 package com.example.serverprovision.maintenance.reconciliation.service;
 
+import com.example.serverprovision.global.exception.UserFacingMessage;
 import com.example.serverprovision.global.trash.ResourceKey;
 import com.example.serverprovision.provisioning.usage.ResourceUsageLevel;
 import com.example.serverprovision.provisioning.usage.ResourceUsageQuery;
@@ -198,7 +199,7 @@ public class PathReconciliationService {
 			));
 		} catch (RuntimeException e) {
 			log.error("[reconciliation] 스캔 실패", e);
-			backgroundJobService.fail(jobId, "스캔 실패 : " + e.getMessage());
+			backgroundJobService.fail(jobId, "점검 실패: " + e.getMessage());
 		} finally {
 			running.set(false);
 		}
@@ -219,7 +220,7 @@ public class PathReconciliationService {
 		String jobId = backgroundJobService.register(
 				JobType.MARKER_REISSUE,
 				"마커 서명 재발급",
-				"현재 secret 으로 모든 자원의 signature 재계산",
+				"현재 서명 키로 모든 자원의 서명을 다시 계산",
 				// R9-1 — 스캔용 3단계 차용(거짓 진행바) 해소. 재발급은 단일 단계.
 				BackgroundJobService.stagesOf(ReissueStage.values())
 		);
@@ -245,7 +246,7 @@ public class PathReconciliationService {
 			));
 		} catch (RuntimeException e) {
 			log.error("[reconciliation] 마커 재발급 실패", e);
-			backgroundJobService.fail(jobId, "재발급 실패 : " + e.getMessage());
+			backgroundJobService.fail(jobId, "마커 서명 재발급 실패: " + e.getMessage());
 		} finally {
 			running.set(false);
 		}
@@ -1400,7 +1401,9 @@ public class PathReconciliationService {
 				d.getFirstDetectedAt(), d.getLastObservedAt(), d.getObservationCount(),
 				d.getStatus(), d.getSnoozeUntil(), d.getSnoozeWindow(), d.getSnoozeReason(),
 				// 화면의 버튼 비활성 사유와 서버 가드가 같은 도메인 메서드를 본다 (UI 1차 차단의 단일 소스).
-				d.snoozeBlockReason(), d.unsnoozeBlockReason(), d.resolveBlockReason(), d.getDetail(), usage,
+				d.snoozeBlockReason(), d.unsnoozeBlockReason(), d.resolveBlockReason(),
+				// S22-4 — detail 은 drifts 행에 저장된 문장이라 과거 행의 대시와 가운뎃점이 남는다. 원문은 두고 화면 경계에서 바꾼다.
+				UserFacingMessage.punctuate(d.getDetail()), usage,
 				originOf(d, loadedPredecessors));
 	}
 
@@ -1516,7 +1519,7 @@ public class PathReconciliationService {
 			 cur != null && seen.add(cur.getId()) && chain.size() < MAX_LINEAGE_DEPTH;
 			 cur = cur.getPredecessor()) {
 			chain.add(successionEntry(cur, DriftTimelineKind.SUCCESSION,
-					"전임 · " + cur.getKind().getLabel(),
+					"전임: " + cur.getKind().getLabel(),
 					cur.getResolvedAt() != null ? cur.getResolvedAt() : cur.getLastObservedAt()));
 		}
 		return chain;
@@ -1537,7 +1540,7 @@ public class PathReconciliationService {
 			Drift cur = queue.poll();
 			if (!seen.add(cur.getId())) continue;
 			chain.add(successionEntry(cur, DriftTimelineKind.SUCCEEDED_BY,
-					"후임 · " + cur.getKind().getLabel(),
+					"후임: " + cur.getKind().getLabel(),
 					cur.getFirstDetectedAt()));
 			queue.addAll(driftRepository.findByPredecessor(cur));
 		}

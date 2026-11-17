@@ -10,6 +10,6 @@ import java.util.UUID;
 public class NudgeNotFoundException extends NotFoundException {
 
 	public NudgeNotFoundException(UUID nudgeId) {
-		super("존재하지 않는 nudgeId 입니다 : " + nudgeId);
+		super("중복 확인이 만료되었거나 없습니다. 다시 등록해야 합니다.");
 	}
 }

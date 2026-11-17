@@ -15,6 +15,6 @@ public class SystemAssetServingDisabledException extends ConflictException {
 
     public static SystemAssetServingDisabledException servingDisabled() {
         return new SystemAssetServingDisabledException(
-                "자산 서빙이 비활성 상태입니다 (PXE_ASSETS_ROOT 미설정) — 자산 위치가 있어야 가능한 작업입니다 (조회는 가능).");
+                "자산 서빙이 비활성이라 이 작업을 할 수 없습니다.");
     }
 }

@@ -10,7 +10,6 @@ import com.example.serverprovision.global.exception.DomainException;
 public class DeleteIntentTokenExpiredException extends DomainException {
 
 	public DeleteIntentTokenExpiredException(String tokenAsString) {
-		super("DeleteIntent token 이 만료되었거나 이미 사용되었습니다 : " + tokenAsString
-					  + " · 다시 삭제 시도해주세요.");
+		super("삭제 확인이 만료되었거나 이미 처리되었습니다. 다시 삭제해야 합니다.");
 	}
 }

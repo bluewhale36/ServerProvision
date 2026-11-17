@@ -156,7 +156,7 @@ class DriftKindTest {
         assertThat(DriftKind.PATH_DRIFT.getNewPathLabel()).isEqualTo("실제 파일 경로");
 
         // 재정의 : 그 뜻이 아닌 종류들.
-        assertThat(DriftKind.RESOURCE_REPLICA.getOldPathLabel()).isEqualTo("원본 경로 (DB 기록)");
+        assertThat(DriftKind.RESOURCE_REPLICA.getOldPathLabel()).isEqualTo("원본 경로(DB 기록)");
         assertThat(DriftKind.RESOURCE_REPLICA.getNewPathLabel()).isEqualTo("복제본 경로");
         // DB 에 주인이 없어 '기록' 이 존재하지 않는다 — 디스크에서 마커를 발견한 자리다.
         assertThat(DriftKind.ORPHAN.getOldPathLabel()).isEqualTo("감지된 실제 파일 경로");
@@ -164,7 +164,7 @@ class DriftKindTest {
         assertThat(DriftKind.TRASH_MARKER_STALE.getOldPathLabel()).isEqualTo("휴지통 보관 경로");
         assertThat(DriftKind.TRASH_LOST.getOldPathLabel()).isEqualTo("휴지통 기록 경로");
         // S11-1 미아 마커 — 이동 전후가 아니라 '있어야 할 자리' 와 '마커가 발견된 자리' 다.
-        assertThat(DriftKind.SOFTDEL_MARKER_STRAY.getOldPathLabel()).isEqualTo("자원 기대 경로 (기록 기준)");
+        assertThat(DriftKind.SOFTDEL_MARKER_STRAY.getOldPathLabel()).isEqualTo("자원 기대 경로(기록 기준)");
         assertThat(DriftKind.SOFTDEL_MARKER_STRAY.getNewPathLabel()).isEqualTo("마커 발견 경로");
     }
 
@@ -172,7 +172,7 @@ class DriftKindTest {
     @DisplayName("실제 파일 경로가 없을 때 : 유령 기록만 '없다' 를 띄우고 나머지는 줄을 감춘다")
     void absentNewPathTextOnlyWhereAbsenceIsThePoint() {
         // 파일이 어디에도 없다는 사실이 문제의 전부인 종류라, 줄을 지우면 그 사실이 화면에서 사라진다.
-        assertThat(DriftKind.GHOST_DB_ROW.getAbsentNewPathText()).isEqualTo("(찾을 수 없습니다.)");
+        assertThat(DriftKind.GHOST_DB_ROW.getAbsentNewPathText()).isEqualTo("미발견");
         for (DriftKind kind : DriftKind.values()) {
             if (kind == DriftKind.GHOST_DB_ROW) continue;
             assertThat(kind.getAbsentNewPathText()).as("%s.absentNewPathText", kind).isNull();

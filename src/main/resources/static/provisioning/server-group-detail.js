@@ -27,7 +27,7 @@
 
         function refreshSelection() {
             var checked = body.querySelectorAll('[data-picker-check]:checked').length;
-            count.textContent = checked === 0 ? '선택한 서버 없음' : '선택한 서버 ' + checked + '대';
+            count.textContent = '선택한 서버 ' + checked + '대';
             submit.disabled = checked === 0;
         }
 
@@ -50,7 +50,7 @@
                 });
                 body.innerHTML = resp.ok
                     ? await resp.text()
-                    : '<p class="n-detail-empty">후보를 불러오지 못했습니다. 다시 시도해주세요.</p>';
+                    : '<p class="n-detail-empty">후보를 불러오지 못했습니다. 다시 시도해야 합니다.</p>';
                 loaded = resp.ok;
             } catch (e) {
                 body.innerHTML = '<p class="n-detail-empty">서버와 통신할 수 없습니다.</p>';
@@ -84,13 +84,13 @@
             onRejected: function (form, status, payload) {
                 if (base && base.onRejected) { base.onRejected(form, status, payload); return; }
                 ErrorModal.show({
-                    message: (payload && payload.message) || ('요청이 거절되었어요. (HTTP ' + status + ')'),
+                    message: (payload && payload.message) || '요청이 거절되었습니다.',
                     status: status
                 });
             },
             onNetworkError: function (form, err) {
                 if (base && base.onNetworkError) { base.onNetworkError(form, err); return; }
-                ErrorModal.show({message: '서버와 통신할 수 없어요.', status: 0});
+                ErrorModal.show({message: '서버와 통신할 수 없습니다.', status: 0});
             }
         };
 
@@ -98,14 +98,15 @@
         // 되돌릴 수 없지만 파괴적이지 않다 — 서버도 할당도 그대로 남고 없어지는 것은 묶음과 이름뿐이다.
         // 그래서 typed-name 까지 요구하지 않고 확인 한 번으로 끝낸다.
         ConfirmModal.bindFormSubmit('data-confirm-group-delete', function (form) {
-            const label = form.getAttribute('data-resource-label') || '이 그룹';
+            const label = form.getAttribute('data-resource-label');
             const count = parseInt(form.getAttribute('data-member-count') || '0', 10);
+            const head = label ? '\'' + label + '\' 그룹을 지우시겠습니까?' : '이 그룹을 지우시겠습니까?';
             const tail = count > 0
-                ? ' 멤버 ' + count + '대는 무소속으로 돌아가며, 서버와 그 서버의 세팅 정의서 할당은 그대로 남습니다.'
-                : ' 멤버가 없으므로 영향을 받는 서버가 없습니다.';
+                ? ' 멤버 ' + count + '대는 무소속이 되며, 서버와 세팅 정의서 할당은 그대로 남습니다.'
+                : '';
             ConfirmModal.open('confirmGroupDelete', {
                 title: '그룹 지우기',
-                message: label + ' 을(를) 지울까요?' + tail,
+                message: head + tail,
                 confirmLabel: '지우기',
                 confirmClass: 'n-btn-outline-danger',
                 onConfirm: function () { ConfirmModal.approveAndSubmit(form); }

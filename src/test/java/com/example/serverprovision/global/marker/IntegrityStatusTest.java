@@ -18,9 +18,9 @@ class IntegrityStatusTest {
 	@ParameterizedTest(name = "{0} → \"{1}\"")
 	@CsvSource({
 			"ORIGINAL,원본 유지",
-			"TAMPERED,변조 감지 (해시 불일치)",
+			"TAMPERED,변조 감지(해시 불일치)",
 			"SIGNATURE_INVALID,서명 무효",
-			"MARKER_MISSING,마커 파일 없음",
+			"MARKER_MISSING,마커 파일 누락",
 			"NOT_VERIFIED,미검증"
 	})
 	void getDisplayMessage_returnsExactLabel(IntegrityStatus status, String expectedLabel) {

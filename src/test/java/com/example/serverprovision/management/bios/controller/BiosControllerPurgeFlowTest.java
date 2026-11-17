@@ -108,13 +108,13 @@ class BiosControllerPurgeFlowTest {
 
     // S5-5 — 외부 우상단 + 신규 BIOS 등록 버튼이 보이는지 확인.
     @Test
-    @DisplayName("GET /management/bios — 외부 우상단 '+ 신규 BIOS 등록' 버튼 노출")
+    @DisplayName("GET /management/bios — 외부 우상단 '+ BIOS 등록' 버튼 노출")
     void renders_external_register_button() throws Exception {
         given(biosService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/bios"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("+ 신규 BIOS 등록")));
+                .andExpect(content().string(containsString("class=\"n-btn n-btn-primary\">+ BIOS 등록")));
     }
 
     // S5-5 — boardId 없는 /new 진입점이 메인보드 선택 dropdown 을 노출.

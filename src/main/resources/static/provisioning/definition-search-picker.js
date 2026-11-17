@@ -16,8 +16,8 @@
 window.DefinitionSearchPicker = (function () {
     'use strict';
 
-    const LOAD_FAILED = '<p class="n-detail-empty">정의서를 불러오지 못했습니다. 다시 시도해주세요.</p>';
-    const SEARCH_FAILED = '<p class="n-detail-empty">검색하지 못했습니다. 다시 시도해주세요.</p>';
+    const LOAD_FAILED = '<p class="n-detail-empty">정의서를 불러오지 못했습니다. 다시 시도해야 합니다.</p>';
+    const SEARCH_FAILED = '<p class="n-detail-empty">검색하지 못했습니다. 다시 시도해야 합니다.</p>';
 
     async function fetchHtml(url) {
         const resp = await fetch(url, {headers: {'Accept': 'text/html'}, credentials: 'same-origin'});

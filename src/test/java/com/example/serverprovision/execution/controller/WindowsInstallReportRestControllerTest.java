@@ -159,7 +159,7 @@ class WindowsInstallReportRestControllerTest {
             given(completionService.complete(eq(GUEST), any())).willThrow(ex);
             mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON).content(BODY))
                     .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.message").value(ex.getMessage()));
+                    .andExpect(jsonPath("$.message").value(com.example.serverprovision.global.exception.UserFacingMessage.withoutInternalIds(ex.getMessage())));   // S22-3 — 응답에서 내부 식별자 제거
         }
     }
 

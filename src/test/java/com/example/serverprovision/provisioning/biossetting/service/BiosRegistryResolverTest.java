@@ -94,7 +94,7 @@ class BiosRegistryResolverTest {
 
         assertThat(resolved.source()).isEqualTo(BiosRegistrySource.SNAPSHOT_TARGET);
         assertThat(resolved.menu()).isSameAs(snapshotMenu);
-        assertThat(resolved.label()).isEqualTo("F44 · 2026-08-27 채집 · 192.168.1.130");
+        assertThat(resolved.label()).isEqualTo("F44, 2026-08-27 채집, 192.168.1.130");
         verify(loader, never()).load(KEY);
     }
 
@@ -111,7 +111,7 @@ class BiosRegistryResolverTest {
         ResolvedBiosRegistry resolved = resolver().resolve(board());
 
         assertThat(resolved.source()).isEqualTo(BiosRegistrySource.SNAPSHOT_LATEST);
-        assertThat(resolved.label()).isEqualTo("최신 채집 F44 · 목표 F45 미채집");
+        assertThat(resolved.label()).isEqualTo("최신 채집 F44, 목표 F45 미채집");
     }
 
     @Test
@@ -125,7 +125,7 @@ class BiosRegistryResolverTest {
 
         assertThat(resolved.source()).isEqualTo(BiosRegistrySource.FILE);
         assertThat(resolved.menu()).isSameAs(fileMenu);
-        assertThat(resolved.label()).isEqualTo("파일 · 버전 미상");
+        assertThat(resolved.label()).isEqualTo("파일(버전 미상)");
         verify(snapshotRepository, never()).findByBoardModel_IdAndBiosVersion(anyLong(), any());
     }
 

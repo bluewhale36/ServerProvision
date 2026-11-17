@@ -96,7 +96,7 @@ public class BiosRegistrationService {
 		boolean hasFile = firmwareFile != null && !firmwareFile.isEmpty();
 		String originalFilename = hasFile ? firmwareFile.getOriginalFilename() : null;
 		Function<String, RuntimeException> onMissingFilename = path -> new InvalidFirmwareFileException(
-				"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + path, "firmwarePath");
+				"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + path, "firmwarePath");
 		String resolvedPathString = hasFile
 				? UploadPathResolver.resolveForUpload(request.firmwarePath(), originalFilename,
 						biosFirmwareFilePolicy.allowedExtensions(parent.getVendor()), onMissingFilename)
@@ -114,7 +114,7 @@ public class BiosRegistrationService {
 		Path treeRoot = resolved.getParent();
 		if (treeRoot == null) {
 			throw new InvalidFirmwareFileException(
-					"경로에서 상위 디렉토리를 확인할 수 없습니다 : " + resolvedPathString, "firmwarePath");
+					"경로에서 상위 디렉토리를 확인할 수 없습니다: " + resolvedPathString, "firmwarePath");
 		}
 
 		if (hasFile) {
@@ -193,7 +193,7 @@ public class BiosRegistrationService {
 	private void assertClaimableFirmwareFile(Path resolved, Path treeRoot, String firmwareFileName) {
 		if (!Files.isRegularFile(resolved)) {
 			throw new InvalidFirmwareFileException(
-					"펌웨어 파일이 해당 경로에 존재하지 않습니다 : " + resolved, "firmwarePath");
+					"펌웨어 파일이 해당 경로에 없습니다: " + resolved, "firmwarePath");
 		}
 		if (Files.exists(treeRoot.resolve(ProvisionMarkerService.MARKER_FILENAME))) {
 			throw new MarkerConflictException(treeRoot.toString());
@@ -204,11 +204,11 @@ public class BiosRegistrationService {
 					.anyMatch(path -> !path.getFileName().toString().equals(firmwareFileName));
 			if (hasOthers) {
 				throw new InvalidFirmwareFileException(
-						"펌웨어 파일이 있는 디렉토리에 다른 파일이 함께 있습니다. 파일 하나만 있는 디렉토리를 지정하십시오 : " + treeRoot,
+						"펌웨어 파일이 있는 디렉토리(" + treeRoot + ")에 다른 파일이 함께 있습니다. 파일 하나만 있는 디렉토리를 지정해야 합니다.",
 						"firmwarePath");
 			}
 		} catch (IOException e) {
-			throw new BundleExtractionException("기존 파일 검증 실패 : " + treeRoot, e);
+			throw new BundleExtractionException("기존 파일을 확인하지 못했습니다: " + treeRoot, e);
 		}
 	}
 

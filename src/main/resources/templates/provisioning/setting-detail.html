@@ -37,11 +37,11 @@
     <!-- soft-deleted 안내 배너 — 삭제분에 접근했을 때 복원/영구삭제 유도(DEC-F). -->
     <div th:if="${setting.deleted}" class="n-card n-detail-section">
         <div class="n-card-body">
-            <p class="n-detail-empty">이 정의서는 삭제되어 활성 목록에서 숨겨져 있습니다.
+            <p class="n-detail-empty">삭제된 정의서입니다.
                 <th:block th:if="${setting.referencingCount > 0}">
-                    <span th:text="|${setting.referencingCount}개 게스트에 활성 할당돼 있지만 할당 스냅샷은 소프트 참조라 삭제·영구삭제와 무관하게 유지됩니다.|"></span>
+                    <span th:text="|${setting.referencingCount}대 서버의 할당은 삭제와 관계없이 유지됩니다.|"></span>
                 </th:block>
-                복원하거나 영구 삭제할 수 있습니다.</p>
+                복구하거나 영구 삭제할 수 있습니다.</p>
         </div>
     </div>
 
@@ -56,20 +56,18 @@
                            옆의 버튼은 그 값을 바꾸는 동작이다. */-->
                     <tr th:if="${setting.deleted}">
                         <th>상태</th>
-                        <td><span class="n-badge n-badge-gray">삭제됨</span></td>
+                        <td><span class="n-badge n-badge-gray">삭제</span></td>
                     </tr>
                     <tr th:unless="${setting.deleted}">
                         <th>사용 여부</th>
                         <td>
-                            <div th:replace="~{fragments/ui/lifecycle-actions :: statusActions(deleted=false, enabled=${setting.enabled}, toggleUrl=@{/provisioning/setting/{id}/toggle(id=${setting.id})}, blockEnable=false, blockTip=null, toggleTitle=${setting.enabled} ? '비활성화하면 이 정의서를 서버에 새로 할당할 수 없습니다(기존 할당은 유지).' : '활성화하면 이 정의서를 다시 할당할 수 있습니다.', selectKey=null, includeDeleted=null)}"></div>
-                            <p class="n-hint">비활성 정의서는 서버에 새로 할당할 수 없습니다. 이미 할당된 스냅샷은 그대로 유지됩니다.</p>
+                            <div th:replace="~{fragments/ui/lifecycle-actions :: statusActions(deleted=false, enabled=${setting.enabled}, toggleUrl=@{/provisioning/setting/{id}/toggle(id=${setting.id})}, blockEnable=false, blockTip=null, toggleTitle=${setting.enabled} ? '비활성화하면 서버에 새로 할당할 수 없습니다. 기존 할당은 유지됩니다.' : '활성화하면 다시 할당할 수 있습니다.', selectKey=null, includeDeleted=null)}"></div>
                         </td>
                     </tr>
                     <tr th:unless="${setting.deleted}">
                         <th>사용 중단 권고</th>
                         <td>
                             <div th:replace="~{fragments/ui/lifecycle-actions :: deprecateActions(deprecated=${setting.deprecated}, deprecateUrl=@{/provisioning/setting/{id}/deprecate(id=${setting.id})}, undeprecateUrl=@{/provisioning/setting/{id}/undeprecate(id=${setting.id})}, deprecateConfirm=false, label=null, extra=null, blockUndeprecate=false, blockTip=null, undeprecateConfirm=false, resourceType=null, resourceId=null, selectKey=null, includeDeleted=null, badgeOn='사용 중단', btnOn='사용 중단 권고', btnOff='사용 중단 권고 해제')}"></div>
-                            <p class="n-hint">사용 중단을 권고해도 할당은 계속 가능합니다. 정의서를 고를 때 경고만 붙습니다.</p>
                         </td>
                     </tr>
                     <tr>
@@ -78,11 +76,11 @@
                     </tr>
                     <tr>
                         <th>생성일시</th>
-                        <td th:text="${setting.createdAt != null} ? ${#temporals.format(setting.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                        <td th:text="${setting.createdAt != null} ? ${#temporals.format(setting.createdAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">-</td>
                     </tr>
                     <tr>
                         <th>수정일시</th>
-                        <td th:text="${setting.updatedAt != null} ? ${#temporals.format(setting.updatedAt, 'yyyy-MM-dd HH:mm:ss')} : '—'">—</td>
+                        <td th:text="${setting.updatedAt != null} ? ${#temporals.format(setting.updatedAt, 'yyyy-MM-dd HH:mm:ss')} : '-'">-</td>
                     </tr>
                     </tbody>
                 </table>

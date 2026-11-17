@@ -52,7 +52,7 @@
             if (res.ok) renderPlan(body);
             else renderApiError(body);
         } catch (err) {
-            showError('서버와 통신하지 못했습니다: ' + String(err));
+            showError('서버와 통신하지 못했습니다.');
         }
     });
 
@@ -62,14 +62,14 @@
         Object.entries(plan.headers || {}).forEach(([k, v]) => lines.push(k + ': ' + v));
         requestLine.textContent = lines.join('\n');
         requestBody.textContent = JSON.stringify(plan.body, null, 2);
-        note.textContent = (plan.userName ? '대상 계정: ' + plan.userName + ' · ' : '') + (plan.note || '');
+        note.textContent = (plan.userName ? '대상 계정: ' + plan.userName + '. ' : '') + (plan.note || '');
         result.hidden = false;
     }
 
     function renderApiError(body) {
         let msg = body && body.message ? body.message : '요청을 처리할 수 없습니다.';
         if (body && body.fieldErrors && body.fieldErrors.length) {
-            msg += ' — ' + body.fieldErrors.map(fe => fe.field + ': ' + fe.message).join(', ');
+            msg = body.fieldErrors.map(fe => fe.message).join(' ');
         }
         showError(msg);
     }

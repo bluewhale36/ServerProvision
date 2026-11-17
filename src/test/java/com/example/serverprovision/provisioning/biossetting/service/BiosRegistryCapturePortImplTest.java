@@ -95,7 +95,7 @@ class BiosRegistryCapturePortImplTest {
         assertThat(saved.getValue().getGuestServerId()).isEqualTo(GUEST);
         assertThat(check.available()).isTrue();
         assertThat(check.captured()).isTrue();
-        assertThat(check.violations()).containsExactly("Whitley0000 = Disabled — 허용 {Disable, Enable}");
+        assertThat(check.violations()).containsExactly("Whitley0000 = Disabled(허용 값: Disable, Enable)");
     }
 
     @Test

@@ -15,11 +15,11 @@ import jakarta.validation.constraints.Size;
  * @param reason 보관 사유
  */
 public record DriftSnoozeRequest(
-		@NotNull(message = "보관 기간을 골라주세요.")
+		@NotNull(message = "보관 기간을 선택해야 합니다.")
 		SnoozeWindow window,
 
-		@NotBlank(message = "보관 사유를 적어주세요. 나중에 이 기록이 판단 근거가 됩니다.")
-		@Size(max = 500, message = "사유는 500자 이내로 적어주세요.")
+		@NotBlank(message = "보관 사유를 입력해야 합니다.")
+		@Size(max = 500, message = "사유는 500자 이내로 입력해야 합니다.")
 		String reason
 ) {
 }

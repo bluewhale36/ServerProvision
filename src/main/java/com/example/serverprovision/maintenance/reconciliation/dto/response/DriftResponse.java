@@ -74,7 +74,7 @@ public record DriftResponse(
 	 * 보관 중이 아니면 비어 있다 — 목록이 그 자리를 다른 값으로 채우지 않게 한다.
 	 */
 	public String snoozeWindowLabel() {
-		return snoozeWindow != null ? snoozeWindow.getLabel() : "—";
+		return snoozeWindow != null ? snoozeWindow.getLabel() : "-";
 	}
 
 	/**

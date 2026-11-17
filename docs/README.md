@@ -39,6 +39,12 @@ ServerProvision의 문서는 두 갈래다. 개발자 매뉴얼은 `dev/` 아래
 | `pxe-server-install.md` | 실 기기 OS 설치 — OPS-2 개정(단일 티어 · 카드 RAID 10 · ext4) · WebBIOS · 증설 절차(두 번째 VD → PV) · 부팅 모드 · 파티션 표 · 정렬 mkfs · 첫 부팅 확인 · RAID 관측 · NIC 역할(web · admin · pxe bond0) · 고정 IP · 방화벽 zone | 개정(OPS-4 · 2026-09-18) |
 | `staging-vm-bootstrap.md` | OS 설치 뒤의 전 절차 — 계정 · JDK · MariaDB · 디렉토리 · 빌드 · 스키마 · env · systemd · 방화벽 · nginx · Windows 기반. 실서버에도 그대로 적용 | 실측(DPL-1) |
 
+### 화면 문구 판정
+
+| 문서 | 내용 | 상태 |
+|---|---|---|
+| `ui-copy/` | 화면 문구를 쓰임새와 심각도로 분류하고 자리와 모양을 판정한 표. 첫 대상은 게스트 서버 상세다 | 사용자 판정 대기(S22-2) |
+
 `T3-checklist.md`는 물리 서버를 확보했을 때 몰아서 검증할 항목의 목록이다.
 
 ## 정보의 기준 출처

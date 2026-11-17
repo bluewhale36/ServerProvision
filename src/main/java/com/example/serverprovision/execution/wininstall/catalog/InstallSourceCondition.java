@@ -12,7 +12,7 @@ public enum InstallSourceCondition implements AssetCondition {
     NOT_CONFIGURED("서빙 비활성", "n-badge-gray"),
 
     /** 루트는 있으나 파일이 없다 — 추출 절차(런북 §14-1)가 아직 안 됐다. */
-    MISSING("파일 없음", "n-badge-red"),
+    MISSING("파일 미배치", "n-badge-red"),
 
     /** 파일은 있으나 WIM 헤더 · XML 을 해석할 수 없다. */
     UNREADABLE("읽기 실패", "n-badge-orange"),
