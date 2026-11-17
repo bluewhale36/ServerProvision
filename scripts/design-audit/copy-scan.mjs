@@ -3,33 +3,15 @@
 // 숨은 모달 본문과 title, placeholder, aria-label, data-*message 류 속성까지 본다.
 // 사용: node copy-scan.mjs urls.txt out/copy.json
 import fs from 'node:fs';
-import { openSession, visit, readUrls } from './lib.mjs';
+import { openSession, visit, readUrls, BAD, NOUN_M, endsWithMieum, copyLinesInPage } from './lib.mjs';
 
 const [urlFile, outFile = 'out/copy.json'] = process.argv.slice(2);
-const BAD = /[—·]|십시오|하세요|해요[.!]?$|주세요|(없음|있음|됨|뜀)(?=[\s.,)]|$)|(?<![가-힣])축(?:을|의|이|은|별|마다)?(?![가-힣])|갈래|렌즈|손잡이/;
-// 받침 ㅁ 으로 끝나는 낱말 가운데 문맥상 명사인 것(검토 목록에서 뺀다). 판정이 끝난 낱말만 더한다.
-const NOUN_M = new Set(['다음','처음','이름','흐름','묶음','시점','지점','시스템','프로그램','지금','요금','마음','사람','그림','기점','관점','장점','단점','문제점','차이점','중점','만점','점','금','품','템','봄','밤','몸','힘','삶','앎','감','남','함','플랫폼','스트림','타임','네임','알림','이름표','바람','걸음','소름','고름','정점','종점','거점','쟁점','허점','논점','초점','점검','포함','볼륨','제품','새로고침','호스트네임','메인스트림','잠금','시스템','프로그램']);
-const endsWithMieum = w => { const c = w.charCodeAt(w.length - 1); return c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 === 16; };
 const { browser, page } = await openSession();
 const hits = new Map(), review = new Map(), broken = [];
 for (const u of readUrls(urlFile)) {
   let v; try { v = await visit(page, u); } catch (e) { broken.push(u + ' timeout'); continue; }
   if (!v.ok) { broken.push(`${u} ${v.status} ${v.title}`); continue; }
-  const lines = await page.evaluate(() => {
-    const out = []; if (!document.body) return out;
-    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    for (let n; (n = w.nextNode());) {
-      const el = n.parentElement; if (!el || el.closest('script,style,noscript')) continue;
-      const t = n.textContent.replace(/\s+/g, ' ').trim(); if (t) out.push(t);
-    }
-    document.querySelectorAll('[title],[placeholder],[aria-label]').forEach(e => {
-      for (const a of ['title', 'placeholder', 'aria-label']) { const v = e.getAttribute(a); if (v) out.push(`[${a}] ${v}`); }
-    });
-    document.querySelectorAll('*').forEach(e => { for (const a of e.attributes) {
-      if (/^data-.*(message|title|label|confirm|text|reason|hint)/.test(a.name) && /[가-힣]/.test(a.value)) out.push(`[${a.name}] ${a.value}`);
-    } });
-    return out;
-  });
+  const lines = await page.evaluate(copyLinesInPage);
   for (const t of lines) {
     if (!/[가-힣]/.test(t)) continue;
     if (BAD.test(t)) { if (!hits.has(t)) hits.set(t, new Set()); hits.get(t).add(u); }
