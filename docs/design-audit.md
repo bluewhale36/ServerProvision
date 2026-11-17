@@ -10,6 +10,8 @@
 | `scripts/design-audit/copy-scan.mjs` | 렌더 화면 글자의 표기 위반(7절) | 화면을 바꾼 슬라이스의 CP5 |
 | `scripts/design-audit/line-scan.mjs` | 겹친 구분선과 빈 구분선(5절) | 같음 |
 | `scripts/design-audit/overflow-scan.mjs` | 폭별 페이지 가로 넘침과 칸 밖으로 나간 표 칸, 배지, 버튼 | 글자 크기, 문구, 열 폭을 바꾼 슬라이스의 CP5 |
+| `scripts/design-audit/snippet-check.mjs` | 앱 없이 마크업 조각과 제안 CSS 를 렌더해 위 세 검사와 폭별 스크린샷 | 새 CSS 변형이나 조각을 제안하기 전 |
+| `.claude/skills/design-review` 스킬 | 점검 순서(원문 열기, 기존 부품 찾기, 같은 커밋 규칙, 렌더 확인, 문구, 보고 확인, 회신 형식) | 화면을 만들거나 고칠 때, 디자인 검수 요청을 받을 때 |
 | CLAUDE.md 'UI 디자인' 절 | 세션이 자동으로 읽는 핵심 규칙과 DESIGN.md 로 가는 길 | 세션 시작 |
 
 `DesignConventionTest` 의 허용 목록(`LEGACY_*`)은 기존 부채다. 줄이기만 하고 늘리지 않는다. 부채를 갚으면 목록에서 지운다.
