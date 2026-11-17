@@ -50,6 +50,12 @@
       ]
     },
     {
+      "title": "상황별 작업",
+      "pages": [
+        { "title": "새 메인보드 도입", "path": "usecase/new-board.html", "status": "planned" }
+      ]
+    },
+    {
       "title": "운영",
       "pages": [
         { "title": "자원 무결성 점검", "path": "maintenance/reconciliation.html", "status": "planned" },
