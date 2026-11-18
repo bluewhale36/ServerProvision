@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-1-b-3 Plan · kickstart 생성기</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:var(--bg); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--bg); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  /* 버전에 따라 달라지는 줄 강조 (카탈로그 class 신설 대신 속성 셀렉터) */
+  #demo-ks span[data-ver] { background:var(--orange-bg); color:var(--orange); font-weight:700; border-radius:3px; padding:0 2px; }
+  #demo-ks { background:var(--card); border:1px solid var(--border-soft); margin:10px 0 0; }
+
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); } .seq .step.a4 { background:var(--purple-bg); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E4-1-b-3 · kickstart 생성기 <span class="v2-badge">E4-1-b 하위</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E4-1-b-3 (feature)</span>
+    <span><strong>상위</strong> E4-1-b RHEL Linux 자동 설치 (<code>plan/26-11-17_00-09-51_E4-1-b_plan.html</code>)</span>
+    <span><strong>브랜치</strong> feat/E4-1-b-3_kickstart-generator</span>
+    <span><strong>선행</strong> af7edec = b-1 · b-2 포함 (PR #118 미병합)</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/41aef0e868f98199b7c2da7c971adccb">단계 페이지</a></span>
+    <span><strong>생성</strong> 2026-11-18 09:59 KST</span>
+    <span><strong>CP1</strong> 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 kickstart 미리보기</a></li>
+      <li><a href="#s3">§3 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 12 단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 · 주의 · Open Questions</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (실측)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>무엇</th><th>지금</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>정의서 RHEL 입력</td><td>저장 · 검증 완료(b-2). payload 는 요청 DTO 원문(<code>ProcessPayload</code>)</td><td><code>RHELInstallationRequest</code> · <code>LinuxInstallationRequest</code></td></tr>
+            <tr><td>비밀번호</td><td>저장 때 SHA-512 crypt. 옛 평문은 <code>LinuxPassword.toCrypt(hasher)</code> 가 그 자리에서 해시</td><td><code>LinuxPassword</code> · <code>LinuxPasswordHasher</code></td></tr>
+            <tr><td>메이저 버전</td><td><code>RhelRelease</code>(ROCKY_8 · 9 · 10, <code>major()</code>, <code>supportsRootSshFlag()</code> = major ≥ 10)</td><td><code>management/os/enums/RhelRelease.java</code></td></tr>
+            <tr><td>환경 · 그룹 코드</td><td>스냅숏엔 id 만. 코드는 <code>OSEnvironment.environmentCode</code>(<code>^</code> 포함 저장, 예 <code>^server-product-environment</code>) · <code>OSPackageGroup.groupCode</code>(접두 없음)</td><td><code>EnvironmentCode.java:9</code></td></tr>
+            <tr><td>할당 스냅숏</td><td>payload 무변환 복사. 환경 · 그룹은 id 로만 동결</td><td><code>AssignedProcessSnapshot</code></td></tr>
+            <tr><td>응답 파일 선례</td><td>Windows = 텍스트 블록 + <code>__KEY__</code> replace(<code>AutounattendRenderer</code>), 비밀 렌더본은 메모리 · toString 가림</td><td><code>engine/windows/</code></td></tr>
+            <tr><td>정의서 읽기 SPI 선례</td><td><code>WindowsInstallationResolutionProvider.resolveFor(UUID)</code> · 구현 provisioning 쪽</td><td></td></tr>
+            <tr><td>kickstart 생성</td><td>없음. 1차 구현(archive/legacy <code>RHELBasedInstallation</code> Template Method)은 레거시 의존이라 컴파일 불가 · 참고만</td><td></td></tr>
+            <tr><td>버전별 차이(레거시 실측)</td><td><code>#version=RHELn</code> 표식, Rocky 10 <code>rootpw --allow-ssh</code> 둘뿐. 나머지 지시어 동일</td><td><code>RockyLinux10Installation.java:70-80</code></td></tr>
+            <tr><td>호출처</td><td>없음. OS_INSTALLING 실행기 슬롯은 Windows 하나(b-4 가 계열 분기)</td><td><code>PhaseExecutorRegistry</code></td></tr>
+            <tr><td>템플릿 리소스</td><td><code>templates/</code> 는 HTML 만, Thymeleaf TEXT 선례 0</td><td></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>어긋남 정리(우산 plan → 현행)</b> :
+          <ul>
+            <li>비밀번호 해시 시점 : 렌더 → 저장(b-2 개정 2)</li>
+            <li><code>RhelRelease</code> 자리 : engine/rhel 신규 → management/os/enums 기존</li>
+            <li>버전 차이 "enum 상수 메서드" : 유지</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>정의서 스냅숏(RHEL) → kickstart 텍스트. 같은 입력이면 같은 출력(결정적).</li>
+          <li>Rocky 8 · 9 · 10 차이는 <code>RhelRelease</code> 능력 메서드로만 가른다.</li>
+          <li>비밀번호는 kickstart 에 해시로만 싣는다(<code>--iscrypted</code>). root 없으면 <code>rootpw --lock</code>.</li>
+          <li>정의서에서 오는 값과 실행 때만 아는 값(설치 원본 URL · 대상 디스크)을 입력 둘로 나눈다.</li>
+          <li>대상 디스크 없이는 렌더하지 않는다(모든 디스크를 지우는 kickstart 를 만들 수 없게).</li>
+          <li>렌더본은 메모리에만 두고 toString 을 가린다.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표(어디로)</b> :
+          <ul>
+            <li>kickstart 서빙 · iPXE 체인 · 트리 주 버전 대조 · 실행 준비도 → b-4</li>
+            <li>대상 디스크 by-id 결정 → b-6(b-3 은 값을 받기만)</li>
+            <li><code>%post</code> 첫 부팅 완료 보고 유닛 · 보고 엔드포인트 → b-5(Q3)</li>
+            <li>화면 변경 없음 · DB 변경 없음 · DDL 없음</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 kickstart 미리보기 (라이브 데모)</summary>
+      <div class="body">
+        <p style="margin-top:0;">왼쪽 입력판을 바꾸면 오른쪽 kickstart 가 다시 렌더됩니다. 판정은 §4 렌더 규칙 표를 그대로 옮긴 JS 입니다(드리프트 0). 버전에 따라 달라지는 줄(<code>#version</code> · <code>--allow-ssh</code>)은 주황으로 강조합니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar" id="demo-scenarios">
+            <span class="group-label">원클릭 시나리오</span>
+            <button class="seg" data-sc="1">1 Rocky 9 기본</button>
+            <button class="seg" data-sc="2">2 Rocky 10 root SSH 허용</button>
+            <button class="seg" data-sc="3">3 Rocky 8 root 잠금</button>
+            <button class="seg" data-sc="4">4 Rocky 9 SSH 저장값 무시</button>
+            <button class="seg" data-sc="5">5 환경 행 사라짐</button>
+            <button class="seg" data-sc="6">6 XFS, KDump 끔, UTC 끔</button>
+          </div>
+
+          <div class="split-grid">
+            <div class="split-card">
+              <h4>입력판</h4>
+              <div class="ux-toolbar"><span class="group-label">메이저</span>
+                <button class="seg" data-k="major" data-v="8">Rocky 8</button><button class="seg" data-k="major" data-v="9">Rocky 9</button><button class="seg" data-k="major" data-v="10">Rocky 10</button></div>
+              <div class="ux-toolbar"><span class="group-label">root 비밀번호</span>
+                <button class="seg" data-k="rootPw" data-v="yes">있음</button><button class="seg" data-k="rootPw" data-v="no">없음</button></div>
+              <div class="ux-toolbar"><span class="group-label">root SSH 허용(저장값)</span>
+                <button class="seg" data-k="rootSsh" data-v="on">켬</button><button class="seg" data-k="rootSsh" data-v="off">끔</button></div>
+              <div class="ux-toolbar"><span class="group-label">사용자</span>
+                <button class="seg" data-k="user" data-v="none">없음</button><button class="seg" data-k="user" data-v="plain">admin(일반)</button><button class="seg" data-k="user" data-v="sudo">admin(sudo)</button></div>
+              <div class="ux-toolbar"><span class="group-label">파티션</span>
+                <button class="seg" data-k="part" data-v="basic">기본 프리셋</button><button class="seg" data-k="part" data-v="xfs">XFS 프리셋</button></div>
+              <div class="ux-toolbar"><span class="group-label">시간대 Asia/Seoul, RTC UTC</span>
+                <button class="seg" data-k="utc" data-v="on">켬</button><button class="seg" data-k="utc" data-v="off">끔</button></div>
+              <div class="ux-toolbar"><span class="group-label">KDump</span>
+                <button class="seg" data-k="kdump" data-v="on">켬</button><button class="seg" data-k="kdump" data-v="off">끔</button></div>
+              <div class="ux-toolbar"><span class="group-label">환경 Server, 그룹</span>
+                <button class="seg" data-k="gDev" data-v="toggle">Development Tools</button><button class="seg" data-k="gSys" data-v="toggle">System Tools</button></div>
+              <div class="ux-toolbar"><span class="group-label">카탈로그 상태</span>
+                <button class="seg" data-k="catalog" data-v="ok">정상</button><button class="seg" data-k="catalog" data-v="env">환경 행 사라짐</button><button class="seg" data-k="catalog" data-v="group">그룹 행 사라짐</button><button class="seg" data-k="catalog" data-v="rel">지원 밖 버전(7.9)</button></div>
+              <div class="ux-toolbar"><span class="group-label">대상 디스크(b-6 이 줄 값)</span>
+                <code>wwn-0x5000c500a1b2c3d4</code></div>
+            </div>
+            <div class="split-card">
+              <h4>해석 결과 + kickstart</h4>
+              <div class="ux-message" id="demo-message"></div>
+              <div class="callout warn" id="demo-note" hidden></div>
+              <pre id="demo-ks"></pre>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+        </div>
+
+        <h4>렌더 순서 (데모와 구현 공통)</h4>
+        <pre><code>#version=RHEL{major}
+url --url={installSourceUrl}
+text
+lang en_US.UTF-8
+keyboard --xlayouts='us'
+network --bootproto=dhcp --activate
+firstboot --disable
+timezone {tz}[ --utc]
+ignoredisk --only-use=disk/by-id/{disk}
+zerombr
+clearpart --all --initlabel --drives=disk/by-id/{disk}
+part {mount} --fstype={fs} --size={MiB}[ --grow] --ondisk=disk/by-id/{disk}   (파티션 순서 = 정의서 순서)
+bootloader
+rootpw --iscrypted[ --allow-ssh] {hash}  |  rootpw --lock
+user --name={name}[ --groups=wheel] --iscrypted --password={hash}   (사용자 순서 = 정의서 순서)
+reboot
+
+%packages
+@{저장 코드}         ← 저장 코드에 '^' 가 들어 있어 '@' + 코드 = @^server-product-environment
+@{groupCode} …
+%end
+
+%addon com_redhat_kdump --enable --reserve-mb='auto'   |   %addon com_redhat_kdump --disable
+%end</code></pre>
+        <div class="callout">데모 고정값 : 해시는 고정 예시 문자열(실제 계산 아님). 설치 원본 URL 은 b-4 가 넘길 값의 예시(우산 plan 의 <code>/api/pxe/v1/rhel/{token}/tree</code>), 호스트 이름 (b) 의 UUID 는 예시 값입니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 데이터 흐름</summary>
+      <div class="body">
+        <div class="callout"><b>URL</b> : b-3 은 엔드포인트를 만들지 않는다. 참고로 b-4 예정 <code>GET /api/pxe/v1/rhel/{token}/ks.cfg</code>(우산 plan).</div>
+        <div class="seq">
+          <div class="actor a1" style="border:1px dashed var(--blue);">실행기(b-4, 아직 없음)</div><div class="actor a2">RhelInstallation<wbr>ResolutionProvider<br>(provisioning 구현)</div><div class="actor a3">DB</div><div class="actor a4">KickstartRenderer</div>
+          <div class="step a1">1. <code>resolveFor(guestServerId)</code></div><div class="step a2">호출 받음</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">2. 조회</div><div class="step a3">활성 스냅숏(<code>findByGuestServer_Id<wbr>AndSupersededAtIsNull</code>) → OS 설치 payload → <code>OSMetadata</code>(→ <code>RhelRelease</code>) → 환경 · 그룹 id 를 코드로</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">3. <code>credential().<wbr>map(c -&gt; c.toCrypt(hasher))</code> 로 root · 사용자 해시, 파티션 MiB 환산 · fs 토큰 → <code>RhelResolution.<wbr>Ready(<wbr>RhelInstallTarget)</code> 또는 <code>Blocked(RhelBlockReason, detail)</code></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">4. <code>KickstartRuntime(<wbr>installSourceUrl[b-4], InstallDisk[b-6])</code> 조립</div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">b-4 가 토큰 경로로 서빙</div><div class="step a2"></div><div class="step a3"></div><div class="step a4">5. <code>KickstartRenderer.<wbr>render(target, runtime)</code> → <code>KickstartDocument</code>(메모리, toString 가림)</div>
+        </div>
+        <p class="mono" style="color:var(--text-muted);font-size:12px;">DB 레인 = 스냅숏 · OSMetadata · OSEnvironment · OSPackageGroup</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델</summary>
+      <div class="body">
+        <h4>타입 배치 (패키지 트리)</h4>
+<pre class="pkg-tree">execution/engine/rhel/
+  RhelInstallationResolutionProvider   SPI  resolveFor(UUID) → Optional&lt;RhelResolution&gt;  (empty = 활성 할당 없음 / OS 설치 단계 없음 / RHEL 아님)
+  RhelResolution                       sealed: Ready(RhelInstallTarget) | Blocked(RhelBlockReason reason, String detail)
+  RhelBlockReason                      enum: OS_METADATA_MISSING · UNSUPPORTED_RELEASE · ENVIRONMENT_MISSING · PACKAGE_GROUP_MISSING  (화면 문구 메서드 message(detail), 7절 문체)
+                                         OS_METADATA_MISSING   "정의서의 설치 OS(id {d})를 찾을 수 없습니다."
+                                         UNSUPPORTED_RELEASE   "{d}(OS 화면 이름) 는 설치할 수 없습니다. Rocky Linux 8, 9, 10 만 설치할 수 있습니다."
+                                         ENVIRONMENT_MISSING   "설치 환경(id {d})을 카탈로그에서 찾을 수 없습니다."
+                                         PACKAGE_GROUP_MISSING "추가 패키지 그룹(id {d})을 카탈로그에서 찾을 수 없습니다." (detail = 처음 못 찾은 그룹 id)
+  RhelInstallTarget                    record: release(RhelRelease) · timezone(String) · utc(boolean) · partitions(List&lt;KickstartPartition&gt;) · rootCrypt(Optional&lt;String&gt;) · allowSshRoot(boolean) · users(List&lt;KickstartUser&gt;) · environmentCode(String) · groupCodes(List&lt;String&gt;) · kdump(boolean). toString 은 해시 가림
+  KickstartPartition                   record: mountPoint · fsType(kickstart 토큰) · sizeMiB(long, grow 이고 0 이면 1) · grow
+  KickstartUser                        record: name · crypt · sudoer. toString 가림
+  kickstart/
+    KickstartRenderer                  final, static render(RhelInstallTarget, KickstartRuntime) → KickstartDocument. 절마다 private 메서드(header · source · locale · network · timezone · storage · auth · packages · kdump)
+    KickstartRuntime                   record: installSourceUrl(String) · disk(InstallDisk, 필수)   ※ 호스트 이름 없음(Q1 결정)
+    InstallDisk                        VO: by-id 이름(예 wwn-0x…), 생성 때 형식 검증 ^[A-Za-z0-9._:-]+$ · byIdPath() = "disk/by-id/" + 이름
+    KickstartDocument                  record(text). toString = "KickstartDocument[****]"
+    KickstartToken                     static check(String) — 공백 · 따옴표 · # · 역슬래시 · 개행이 있으면 IllegalStateException(입력 검증이 이미 막은 값이라 프로그램 오류)
+execution/engine/
+provisioning/assignment/service/
+  RhelInstallationResolutionProviderImpl   스냅숏 · 카탈로그 조회 · 해시 · 환산 (Windows 구현 옆)
+provisioning/setting/enums/FileSystem  kickstartFsType() 상수 메서드 추가</pre>
+
+        <h4>렌더 규칙 표 (데모 판정과 같은 표)</h4>
+        <table>
+          <thead><tr><th>입력</th><th>출력</th><th>규칙의 자리</th></tr></thead>
+          <tbody>
+            <tr><td>메이저</td><td><code>#version=RHEL8/9/10</code></td><td><code>RhelRelease.major()</code></td></tr>
+            <tr><td>root 있음</td><td><code>rootpw --iscrypted &lt;hash&gt;</code></td><td>target.rootCrypt</td></tr>
+            <tr><td>root 없음</td><td><code>rootpw --lock</code>(allowSshRoot 무시)</td><td></td></tr>
+            <tr><td>root SSH 허용 + 10</td><td><code>--allow-ssh</code> 추가</td><td><code>RhelRelease.supportsRootSshFlag()</code></td></tr>
+            <tr><td>root SSH 허용 + 8 · 9</td><td>싣지 않음</td><td>같은 메서드</td></tr>
+            <tr><td>사용자 sudo</td><td><code>--groups=wheel</code></td><td></td></tr>
+            <tr><td>파일시스템</td><td>EXT3 ext3 · EXT4 ext4 · XFS xfs · EFI efi · FAT32 efi · SWAP swap · NTFS 예외</td><td><code>FileSystem.kickstartFsType()</code>. FAT32 는 <code>/boot/efi</code> 전용(LinuxPartitionRules)이라 ESP 형식 efi. NTFS 는 리눅스 저장 규칙이 막아 도달 불가 → IllegalStateException</td></tr>
+            <tr><td>크기</td><td>MiB = size × <code>SizeUnit.toMBFactor</code></td><td>provider</td></tr>
+            <tr><td>grow 이고 size 0</td><td><code>--size=1 --grow</code></td><td>provider</td></tr>
+            <tr><td>UTC</td><td><code>--utc</code></td><td>V-2</td></tr>
+            <tr><td>KDump 켬 / 끔</td><td><code>--enable --reserve-mb='auto'</code> / <code>--disable</code></td><td>V-3</td></tr>
+            <tr><td>환경</td><td><code>@</code> + 저장 코드(<code>^</code> 포함)</td><td></td></tr>
+            <tr><td>그룹</td><td><code>@</code> + 코드, 정의서 순서</td><td></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">DB 변화 없음.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2</td><td>N/A : 화면 없음</td><td><span class="chip cp2">CP2</span></td><td></td></tr>
+            <tr><td>3 · 4</td><td>N/A : 엔드포인트 없음(컨트롤러 · DTO 없음)</td><td><span class="chip cp2">CP2</span></td><td></td></tr>
+            <tr><td>5</td><td>타입 골격(SPI · record · VO)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6 · 7</td><td>N/A : 리포지토리 · 엔티티 변경 없음</td><td><span class="chip cp3">CP3</span></td><td>N/A</td></tr>
+            <tr><td>8</td><td>provider 구현 · 렌더러 · FileSystem 메서드, 빌드 통과</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 : main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 테스트(§6) + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>9</td><td>N/A : 스키마 변경 없음</td><td><span class="chip cp4">CP4</span></td><td></td></tr>
+            <tr><td>10</td><td>하네스(§9, E 단계 예외 : 화면 없음)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>b-4 · b-5 와 일괄 실설치(E 단계 CP7 일괄 규약)</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 : ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 하네스 · report 산출).</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <div class="callout warn"><b>HTTP 4 범주(성공 · 400 · 404 · 409) 해당 없음</b> : b-3 은 엔드포인트를 만들지 않는다. 사용자 액션 통합 테스트는 엔드포인트를 만드는 b-4 몫이다.</div>
+        <table>
+          <thead><tr><th>테스트</th><th>항목</th><th>나열 수</th></tr></thead>
+          <tbody>
+            <tr><td><code>KickstartRendererTest</code></td><td>골든 파일 3 개(<code>src/test/resources/kickstart/rocky8.ks</code> · <code>rocky9.ks</code> · <code>rocky10.ks</code>) 완전 일치 · root 잠금 · 10 에서 <code>--allow-ssh</code> · 9 에서 무시 · sudo · grow · KDump 끔 · UTC 끔 · 호스트 이름 있음/없음 · KickstartToken 위반 시 예외 · toString 에 해시 없음 · <code>__</code> 나 <code>{</code> 같은 미치환 흔적 없음</td><td>15</td></tr>
+            <tr><td><code>RhelInstallationResolutionProviderImplTest</code></td><td>활성 할당 없음 → empty · Windows 정의서 → empty · OSMetadata 없음 · 7.9 → UNSUPPORTED_RELEASE · 환경 행 없음 · 그룹 행 없음 · 정상(해시 저장본 그대로, 옛 평문은 해시됨, MiB 환산, FAT32 → efi)</td><td>7</td></tr>
+            <tr><td><code>FileSystemTest</code></td><td>kickstartFsType 전 상수(NTFS 예외)</td><td>7 상수</td></tr>
+            <tr><td><code>InstallDiskTest</code></td><td>형식 위반 거절</td><td>1</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">새 예외 클래스 없음(IllegalStateException 만, 도달 불가 경로). 나열 수는 위 항목을 센 값이며 메서드 수는 CP4 에서 정한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외 / 값</th><th>어디서</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>RhelResolution.Blocked</code></td><td>provider 막힘(예외 아님, 값)</td><td>없음. 실행 준비도에서 b-4 가 사유를 화면에 낸다</td><td><span class="chip new">신규 값</span></td></tr>
+            <tr><td><code>IllegalStateException</code></td><td><code>KickstartToken.check</code> · <code>FileSystem.NTFS.kickstartFsType()</code></td><td>없음(도달 불가)</td><td><span class="chip keep">JDK 재사용</span></td></tr>
+            <tr><td><code>IllegalArgumentException</code></td><td><code>InstallDisk</code> 형식 검증</td><td>없음(도달 불가)</td><td><span class="chip keep">JDK 재사용</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">신규 예외 클래스 0. 렌더러 · VO 의 IllegalStateException / IllegalArgumentException 은 입력 검증을 거친 값에선 생기지 않는 프로그램 오류다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 · 주의 · Open Questions</summary>
+      <div class="body">
+        <h4>결정</h4>
+        <table>
+          <thead><tr><th>#</th><th>채택</th><th>탈락 · 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1 생성 방식</td><td>렌더러 한 클래스 + StringBuilder 절 메서드 + <code>RhelRelease</code> 능력 메서드</td><td>① 메이저별 렌더러 클래스(Strategy) : 차이가 줄 둘이라 과분리, 갈라질 때 나눈다(관리 포인트 표에 "새 메이저에 문법 차이가 생기면 그때 분리")<br>② Thymeleaf TEXT 템플릿 : 선례 0, 목록 반복 · 조건이 템플릿으로 가면 타입 검사가 없고 비밀값 경로가 엔진을 지난다<br>③ 텍스트 블록 + replace(Windows 방식) : 파티션 · 사용자 · 그룹 같은 가변 목록을 못 담는다</td></tr>
+            <tr><td>D-2 입력 경계</td><td>정의서 몫 <code>RhelInstallTarget</code> + 실행 몫 <code>KickstartRuntime</code> 둘</td><td>① 렌더러가 스냅숏 · 리포지토리를 직접 읽음 : execution 이 provisioning 엔티티에 묶이고 테스트에 DB 가 필요<br>② 하나의 큰 입력 레코드 : b-4 · b-6 이 정의서 값까지 조립해야 해 책임이 번진다</td></tr>
+            <tr><td>D-3 해석 SPI</td><td>Windows 와 같은 역전 구조의 <code>RhelInstallationResolutionProvider</code>(provisioning 구현). 막힘은 sealed 값</td><td>Windows SPI 와 합친 단일 <code>OsInstallationResolutionProvider</code> : 실행기 계열 분기(<code>OsInstallingExecutor</code>)가 b-4 라 지금 합치면 Windows 실행기를 b-3 에서 건드린다. 잔존 비대칭으로 적고 b-4 에서 판단</td></tr>
+            <tr><td>D-4 비밀번호</td><td>provider 가 <code>toCrypt(hasher)</code> 로 해시만 넘긴다. 렌더러는 평문을 모른다</td><td><code>--plaintext</code> 경로 없음</td></tr>
+            <tr><td>D-5 디스크 필수</td><td><code>KickstartRuntime.disk</code> 는 Optional 이 아니다</td><td>디스크 없으면 <code>clearpart --all</code> 만 : 데이터 볼륨까지 지운다</td></tr>
+            <tr><td>D-6 grow 크기</td><td><code>--size=1 --grow</code></td><td><code>--size</code> 생략(레거시) : 유효하지만 명시가 흔한 형태라 읽기 쉽다</td></tr>
+            <tr><td>D-7 <code>%post</code> 보고 유닛</td><td>b-5(Q3 결정). 대상 서버 echo 포함(Q1 결정)</td><td>사유 : 보고 계약(엔드포인트 · 본문)과 유닛을 한 슬라이스에 둬야 어긋나지 않는다</td></tr>
+            <tr><td>D-8 패키지 누락 처리</td><td><code>--ignoremissing</code> 을 쓰지 않는다(Q4 권고)</td><td>사유 : 정의한 것보다 적게 설치하고 조용히 끝나는 것보다 멈추는 편이 낫다. 저장 때 ISO 제공 목록으로 이미 검증</td></tr>
+            <tr><td>D-9 b-2 D-19 의 "b-3 에서 확인" 항목</td><td>기본 환경 · 기본 그룹 · root 기본은 정의서 화면(b-2)이 정하고 kickstart 는 저장값을 그대로 싣는다(기본값을 kickstart 에서 다시 넣지 않는다)</td><td><code>--allow-ssh</code> 의 9 지원은 V-6 으로 확인</td></tr>
+            <tr><td>D-10 고정 줄</td><td>lang en_US.UTF-8 · keyboard us · text · firstboot --disable · bootloader(crashkernel 없음, kdump 애드온이 예약) · reboot</td><td>사유 : 정의서 항목이 없는 값은 설치 프로그램 기본값 또는 사내 표준(<code>docs/pxe-server-install.md</code>)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>확인 항목 (CP5 하네스 · ksvalidator, 실패하면 CP6 전 규칙 수정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td>V-1</td><td><code>#version=RHEL8/9/10</code> 인식</td></tr>
+            <tr><td>V-2</td><td><code>timezone … --utc</code> 세 버전 유효(레거시 주석 "Rocky 9 는 --isUtc" 는 근거 미상)</td></tr>
+            <tr><td>V-3</td><td><code>%addon com_redhat_kdump --reserve-mb='auto'</code> 10 에서 유효(애드온은 ksvalidator 가 깊게 보지 않음 → 실설치 CP7 에서 최종)</td></tr>
+            <tr><td>V-4</td><td><code>part … --size=1 --grow</code></td></tr>
+            <tr><td>V-5</td><td><code>ignoredisk --only-use=disk/by-id/…</code> · <code>clearpart --drives=disk/by-id/…</code> · <code>--ondisk=disk/by-id/…</code></td></tr>
+            <tr><td>V-6</td><td><code>rootpw --allow-ssh</code> 가 RHEL9 에서 거절 · RHEL10 에서 통과(supportsRootSshFlag 근거)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>Open Questions (사용자 결정)</h4>
+        <table>
+          <thead><tr><th>Q</th><th>질문</th><th>안</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>호스트 이름</td><td>(a) 넣지 않음(DHCP · 설치 프로그램 기본)<br>(b) <code>spv-</code> + UUID 뒤 8 hex 소문자, Windows 컴퓨터 이름과 같은 규칙 · 규칙을 <code>GuestComputerName</code> 으로 옮겨 공유</td><td><b>결정(11-18)</b> : (a) 넣지 않음. 대신 b-5 의 첫 부팅 완료 보고 <code>%post</code> 가 어느 서버를 대상으로 프로비저닝했는지 echo 로 표시한다</td></tr>
+            <tr><td>Q2</td><td>CP5 문법 확인 도구</td><td>(a) pykickstart <code>ksvalidator -v RHEL8/9/10</code> 을 샌드박스 폴더 venv 에 설치해 골든 3 개 검사(PyPI 공식 패키지, 저장소에 넣지 않음)<br>(b) 도구 없이 CP7 실설치에서만 확인</td><td><b>결정(11-18)</b> : (a) 권고안 승인</td></tr>
+            <tr><td>Q3</td><td>첫 부팅 완료 보고 <code>%post</code></td><td>(a) b-5 (b) b-3</td><td><b>결정(11-18)</b> : (a) b-5. 대상 서버 echo(Q1) 도 b-5 몫</td></tr>
+            <tr><td>Q4</td><td><code>%packages --ignoremissing</code></td><td>(a) 쓰지 않음 (b) 씀</td><td><b>결정(11-18)</b> : (a) 쓰지 않음</td></tr>
+          </tbody>
+        </table>
+
+        <h4>관리 포인트</h4>
+        <table>
+          <thead><tr><th>계기</th><th>클래스 · 설정</th><th>고칠 내용</th><th>테스트</th><th>생기는 단계</th></tr></thead>
+          <tbody>
+            <tr><td>새 Rocky 메이저 출시</td><td><code>RhelRelease</code> 상수 + <code>KickstartRenderer</code></td><td>새 메이저 문법 차이가 있으면 능력 메서드 추가, 차이가 셋 이상이면 그때 메이저별 분리 검토</td><td>골든 파일 하나 추가 · ksvalidator -v RHEL{n}</td><td>새 메이저 슬라이스</td></tr>
+            <tr><td>파일시스템 선택지 추가</td><td><code>FileSystem.kickstartFsType()</code></td><td>토큰 대응 추가</td><td>FileSystemTest</td><td>그 슬라이스</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>잔존 책임</b> :
+          <ul>
+            <li>b-3 단독 호출처 없음(b-4)</li>
+            <li>Windows SPI 와 병렬(b-4 판단)</li>
+            <li>트리 주 버전 ↔ RhelRelease 대조는 b-4</li>
+            <li>디스크 값은 b-6</li>
+            <li>실설치 확인 CP7 은 b-4 · b-5 와 일괄</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>식별자</th><th>CP5 하네스 항목(Q2 a)</th></tr></thead>
+          <tbody>
+            <tr><td>H1</td><td>골든 <code>rocky8.ks</code> ksvalidator 통과</td></tr>
+            <tr><td>H2</td><td>골든 <code>rocky9.ks</code> ksvalidator 통과</td></tr>
+            <tr><td>H3</td><td>골든 <code>rocky10.ks</code> ksvalidator 통과</td></tr>
+            <tr><td>H4</td><td><code>--allow-ssh</code> 가 RHEL9 에서 거절</td></tr>
+            <tr><td>H5</td><td><code>--allow-ssh</code> 가 RHEL10 에서 통과</td></tr>
+            <tr><td>H6</td><td>렌더 결정성 : 2 회 렌더 동일</td></tr>
+          </tbody>
+        </table>
+        <ul class="check-list" data-storage="E4-1-b-3-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><b>빌드</b> : 전체 테스트 green</span></label></li>
+          <li><label><input type="checkbox" data-key="harness"> <span><b>기능</b> : CP5(E 단계 예외, 화면 없음 → 하네스) 골든 3 개 ksvalidator 검사, V-1 ~ V-6 결과 표, 실패 줄은 규칙 수정 뒤 재검사(H1 ~ H6)</span></label></li>
+          <li><label><input type="checkbox" data-key="regress"> <span><b>회귀</b> : <code>AutounattendRendererTest</code> 회귀(Q1 b)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span><b>CP7</b> : b-4 · b-5 뒤 qemu 실설치 + 실기 일괄</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/rhel/**</code> : <code>RhelInstallationResolutionProvider</code> · <code>RhelResolution</code> · <code>RhelBlockReason</code> · <code>RhelInstallTarget</code> · <code>KickstartPartition</code> · <code>KickstartUser</code> · <code>kickstart/KickstartRenderer</code> · <code>KickstartRuntime</code> · <code>InstallDisk</code> · <code>KickstartDocument</code> · <code>KickstartToken</code></td><td>§4 트리</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/assignment/service/RhelInstallationResolutionProviderImpl</code></td><td>Windows 구현 옆</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>테스트 5 파일 : <code>KickstartRendererTest</code> · <code>RhelInstallationResolutionProviderImplTest</code> · <code>FileSystemTest</code> · <code>InstallDiskTest</code> · <code>GuestComputerNameTest</code></td><td>§6</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>골든 3 파일 : <code>src/test/resources/kickstart/rocky8.ks</code> · <code>rocky9.ks</code> · <code>rocky10.ks</code></td><td>§6</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/enums/FileSystem</code></td><td><code>kickstartFsType()</code></td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>RhelRelease</code> · <code>LinuxPassword</code> · <code>LinuxPasswordHasher</code> · 정의서 DTO 전부 · DB</td><td>변경 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E4-1-b-3-next">
+          <li><label><input type="checkbox" data-key="cp1"> <span>CP1 승인(Q1 ~ Q4)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp24"> <span>CP2 타입 골격 · CP4 구현 + 빌드(중간 승인)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp56"> <span>테스트 · CP5 ksvalidator 하네스 · CP6 report</span></label></li>
+          <li><label><input type="checkbox" data-key="b4b6"> <span>b-4 RHEL 설치 실행기(계열 분기 · 서빙 · 준비도 · 트리 대조) + b-6 디스크 계약</span></label></li>
+          <li><label><input type="checkbox" data-key="b5cp7"> <span>b-5 완료 보고 + <code>%post</code> 유닛 → CP7 실설치 일괄</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) {}
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 kickstart 미리보기 : §4 렌더 규칙 표 + 렌더 순서를 그대로 옮김 (드리프트 0)
+  // ─────────────────────────────────────────────────────────────
+  // 해시 = 고정 예시 문자열 (실제 계산 아님)
+  const DEMO_ROOT_CRYPT = '$6$exRootSalt$exampleRootCryptNotComputed';
+  const DEMO_USER_CRYPT = '$6$exUserSalt$exampleUserCryptNotComputed';
+  // b-4 · b-6 이 넘길 실행 몫 예시값
+  const DEMO_INSTALL_URL = 'http://pxe.example/api/pxe/v1/rhel/TOKEN/tree';
+  const DEMO_DISK = 'wwn-0x5000c500a1b2c3d4';
+  const DEMO_GUEST_UUID = '4c4c4544-0042-3510-8052-b4c04f4e3132';
+
+  // RhelRelease : major() · supportsRootSshFlag() = major >= 10
+  const RELEASE = { 8: { major: 8 }, 9: { major: 9 }, 10: { major: 10 } };
+  const supportsRootSshFlag = r => r.major >= 10;
+  // FileSystem.kickstartFsType()
+  const KS_FS = { EXT3: 'ext3', EXT4: 'ext4', XFS: 'xfs', EFI: 'efi', FAT32: 'efi', SWAP: 'swap' };
+  function kickstartFsType(fs) {
+    if (!(fs in KS_FS)) throw new Error('IllegalStateException: ' + fs);   // NTFS : 도달 불가
+    return KS_FS[fs];
+  }
+  // SizeUnit.toMBFactor
+  const TO_MB = { MB: 1, GB: 1024, TB: 1024 * 1024 };
+  const PRESETS = {
+    basic: [
+      { mount: '/boot/efi', fs: 'EFI',  size: 1,  unit: 'GB', grow: false },
+      { mount: '/boot',     fs: 'EXT4', size: 1,  unit: 'GB', grow: false },
+      { mount: 'swap',      fs: 'SWAP', size: 16, unit: 'GB', grow: false },
+      { mount: '/',         fs: 'EXT4', size: 0,  unit: 'GB', grow: true }
+    ],
+    xfs: [
+      { mount: '/boot/efi', fs: 'FAT32', size: 600, unit: 'MB', grow: false },
+      { mount: '/boot',     fs: 'XFS',   size: 1,   unit: 'GB', grow: false },
+      { mount: 'swap',      fs: 'SWAP',  size: 8,   unit: 'GB', grow: false },
+      { mount: '/',         fs: 'XFS',   size: 0,   unit: 'GB', grow: true },
+      { mount: '/var',      fs: 'XFS',   size: 50,  unit: 'GB', grow: false }
+    ]
+  };
+  const CATALOG_ENV = { id: 12, code: '^server-product-environment' };
+  const CATALOG_GROUPS = { gDev: 'development', gSys: 'system-tools' };
+  const CATALOG_GROUP_IDS = { gDev: 31, gSys: 32 };   // 예시 id
+
+  const DEFAULTS = { major: '9', rootPw: 'yes', rootSsh: 'off', user: 'sudo', part: 'basic', utc: 'on', kdump: 'on', gDev: true, gSys: false, catalog: 'ok' };
+  let st = Object.assign({}, DEFAULTS);
+  let demoSc = 0;
+
+  const SCENARIOS = {
+    1: {},
+    2: { major: '10', rootSsh: 'on' },
+    3: { major: '8', rootPw: 'no' },
+    4: { major: '9', rootSsh: 'on' },
+    5: { catalog: 'env' },
+    6: { part: 'xfs', kdump: 'off', utc: 'off' }
+  };
+
+  // RhelInstallationResolutionProviderImpl 재현 : Ready(target) | Blocked(reason, detail)
+  function demoResolve(s) {
+    if (s.catalog === 'rel') return { blocked: 'UNSUPPORTED_RELEASE', detail: 'CentOS 7.9' };
+    if (s.catalog === 'env') return { blocked: 'ENVIRONMENT_MISSING', detail: String(CATALOG_ENV.id) };
+    const groupKeys = ['gDev', 'gSys'].filter(k => s[k]);
+    if (s.catalog === 'group' && groupKeys.length) return { blocked: 'PACKAGE_GROUP_MISSING', detail: String(CATALOG_GROUP_IDS[groupKeys[0]]) };
+    const partitions = PRESETS[s.part].map(p => {
+      const mib = p.size * TO_MB[p.unit];
+      return { mountPoint: p.mount, fsType: kickstartFsType(p.fs), sizeMiB: (p.grow && mib === 0) ? 1 : mib, grow: p.grow, src: p.fs };
+    });
+    const users = s.user === 'none' ? [] : [{ name: 'admin', crypt: DEMO_USER_CRYPT, sudoer: s.user === 'sudo' }];
+    return { target: {
+      release: RELEASE[s.major], timezone: 'Asia/Seoul', utc: s.utc === 'on', partitions,
+      rootCrypt: s.rootPw === 'yes' ? DEMO_ROOT_CRYPT : null, allowSshRoot: s.rootSsh === 'on',
+      users, environmentCode: CATALOG_ENV.code, groupCodes: groupKeys.map(k => CATALOG_GROUPS[k]), kdump: s.kdump === 'on'
+    } };
+  }
+  // RhelBlockReason.message(detail) : 화면 문구(DESIGN.md 7절 합니다체), detail = 대상 id 또는 버전
+  const BLOCK_MESSAGE = {
+    OS_METADATA_MISSING: d => '정의서의 설치 OS(id ' + d + ')를 찾을 수 없습니다.',
+    UNSUPPORTED_RELEASE: d => d + ' 는 설치할 수 없습니다. Rocky Linux 8, 9, 10 만 설치할 수 있습니다.',
+    ENVIRONMENT_MISSING: d => '설치 환경(id ' + d + ')을 카탈로그에서 찾을 수 없습니다.',
+    PACKAGE_GROUP_MISSING: d => '추가 패키지 그룹(id ' + d + ')을 카탈로그에서 찾을 수 없습니다.'
+  };
+
+  // KickstartToken.check : 공백, 따옴표, #, 역슬래시, 개행 금지 (도달 불가)
+  function ksToken(v) { if (/[\s'"#\\]/.test(v)) throw new Error('IllegalStateException: ' + v); return v; }
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const ver = t => '<span data-ver="1">' + esc(t) + '</span>';
+
+  // KickstartRenderer.render(target, runtime) : 렌더 순서 그대로
+  function demoRenderKs(t, rt) {
+    const disk = 'disk/by-id/' + rt.disk;
+    const L = [];
+    L.push(ver('#version=RHEL' + t.release.major));
+    L.push(esc('url --url=' + ksToken(rt.installSourceUrl)));
+    L.push('text', 'lang en_US.UTF-8', esc("keyboard --xlayouts='us'"));
+    L.push(esc('network --bootproto=dhcp --activate' + ''));
+    L.push('firstboot --disable');
+    L.push(esc('timezone ' + ksToken(t.timezone) + (t.utc ? ' --utc' : '')));
+    L.push(esc('ignoredisk --only-use=' + disk), 'zerombr', esc('clearpart --all --initlabel --drives=' + disk));
+    t.partitions.forEach(p => L.push(esc('part ' + ksToken(p.mountPoint) + ' --fstype=' + p.fsType + ' --size=' + p.sizeMiB + (p.grow ? ' --grow' : '') + ' --ondisk=' + disk)));
+    L.push('bootloader');
+    if (t.rootCrypt) {
+      const allow = t.allowSshRoot && supportsRootSshFlag(t.release);
+      L.push('rootpw --iscrypted' + (allow ? ' ' + ver('--allow-ssh') : '') + ' ' + esc(ksToken(t.rootCrypt)));
+    } else {
+      L.push('rootpw --lock');
+    }
+    t.users.forEach(u => L.push(esc('user --name=' + ksToken(u.name) + (u.sudoer ? ' --groups=wheel' : '') + ' --iscrypted --password=' + ksToken(u.crypt))));
+    L.push('reboot', '', '%packages', esc('@' + t.environmentCode));
+    t.groupCodes.forEach(g => L.push(esc('@' + ksToken(g))));
+    L.push('%end', '');
+    L.push(esc(t.kdump ? "%addon com_redhat_kdump --enable --reserve-mb='auto'" : '%addon com_redhat_kdump --disable'));
+    L.push('%end');
+    return L.join('\n');
+  }
+
+  function demoRender() {
+    document.querySelectorAll('#s2-preview .seg[data-k]').forEach(b => {
+      const k = b.dataset.k;
+      b.classList.toggle('active', b.dataset.v === 'toggle' ? !!st[k] : st[k] === b.dataset.v);
+    });
+    document.querySelectorAll('#s2-preview .seg[data-sc]').forEach(b => b.classList.toggle('active', Number(b.dataset.sc) === demoSc));
+
+    const msg = document.getElementById('demo-message');
+    const note = document.getElementById('demo-note');
+    const ks = document.getElementById('demo-ks');
+    const caps = document.getElementById('demo-caps');
+    const tf = v => v ? '<span class="f">true</span>' : '<span class="t">false</span>';
+    const r = demoResolve(st);
+
+    if (r.blocked) {
+      const text = BLOCK_MESSAGE[r.blocked] ? BLOCK_MESSAGE[r.blocked](r.detail) : r.blocked;
+      msg.className = 'ux-message error';
+      msg.textContent = '막힘: ' + text;
+      note.hidden = true;
+      ks.innerHTML = esc('RhelResolution.Blocked(' + r.blocked + ', "' + r.detail + '")\n\nkickstart 를 만들지 않습니다.\n사유: ' + text);
+      caps.innerHTML =
+        'resolveFor(guestServerId)  = Blocked\n' +
+        'RhelBlockReason            = ' + r.blocked + '\n' +
+        'detail                     = ' + esc(r.detail) + '\n' +
+        'KickstartRenderer.render   = 호출 안 함';
+      return;
+    }
+
+    const t = r.target;
+    const runtime = { installSourceUrl: DEMO_INSTALL_URL, disk: DEMO_DISK };
+    const flag = supportsRootSshFlag(t.release);
+    const ignored = !!t.rootCrypt && t.allowSshRoot && !flag;
+    const lockedIgnored = !t.rootCrypt && t.allowSshRoot;
+    msg.className = 'ux-message success';
+    msg.textContent = '준비됨: RhelResolution.Ready, Rocky ' + t.release.major + ' kickstart';
+    note.hidden = !ignored && !lockedIgnored;
+    note.textContent = lockedIgnored ? 'root 가 잠기므로(rootpw --lock) root SSH 플래그를 싣지 않습니다'
+      : ignored ? 'Rocky ' + t.release.major + (t.release.major === 8 ? ' 은' : ' 는') + ' root SSH 플래그를 싣지 않습니다(supportsRootSshFlag)' : '';
+    ks.innerHTML = demoRenderKs(t, runtime);
+    caps.innerHTML =
+      'release.major()            = ' + t.release.major + '\n' +
+      'supportsRootSshFlag()      = ' + tf(flag) + '\n' +
+      'rootCrypt.isPresent()      = ' + tf(!!t.rootCrypt) + '\n' +
+      'target.allowSshRoot        = ' + tf(t.allowSshRoot) + '\n' +
+      'rendered --allow-ssh       = ' + tf(!!t.rootCrypt && t.allowSshRoot && flag) + '\n' +
+      'kickstartFsType            = ' + t.partitions.map(p => p.src + '=' + p.fsType).join(', ') + '\n' +
+      'sizeMiB                    = ' + t.partitions.map(p => p.mountPoint + '=' + p.sizeMiB + (p.grow ? '(grow)' : '')).join(', ') + '\n' +
+      'hostname                   = ' + (runtime.hostname || '없음') + '\n' +
+      'disk.byIdPath()            = disk/by-id/' + DEMO_DISK + '\n' +
+      'crypt                      = 고정 예시 문자열(실제 계산 아님)';
+  }
+
+  function demoScenario(n) {
+    st = Object.assign({}, DEFAULTS, SCENARIOS[n]);
+    demoSc = n;
+    demoRender();
+  }
+  document.querySelectorAll('#s2-preview .seg[data-sc]').forEach(b =>
+    b.addEventListener('click', () => demoScenario(Number(b.dataset.sc))));
+  document.querySelectorAll('#s2-preview .seg[data-k]').forEach(b =>
+    b.addEventListener('click', () => {
+      const k = b.dataset.k;
+      st[k] = b.dataset.v === 'toggle' ? !st[k] : b.dataset.v;
+      demoSc = 0;
+      demoRender();
+    }));
+
+  demoScenario(1);   // 초기 세팅 : 여기서 demoRender 를 1회 부른다
+</script>
+</body>
+</html>

@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-1-b-3 Report · kickstart 생성기</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+  /* 섹션 안 접는 블록 (골든 전문 등) */
+  .body details { border:1px solid var(--border-soft); border-radius:6px; margin:8px 0; background:var(--card); }
+  .body details > summary { cursor:pointer; padding:7px 12px; font-size:12.5px; font-weight:600; color:var(--text-muted); }
+  .body details > pre { margin:0; border-radius:0 0 6px 6px; }
+  h4 { margin:18px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; white-space:nowrap; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);}
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:6px 0 0; }
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card li { font-size:12.5px; line-height:1.55; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E4-1-b-3 · kickstart 생성기 <span class="v2-badge">CP6 보고</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E4-1-b-3 (feature)</span>
+    <span><strong>상위</strong> E4-1-b RHEL Linux 자동 설치</span>
+    <span><strong>브랜치</strong> <code>feat/E4-1-b-3_kickstart-generator</code></span>
+    <span><strong>테스트</strong> 3,795 통과</span>
+    <span><strong>CP5</strong> 하네스 9 항목 + 보조 1</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/41aef0e868f98199b7c2da7c971adccb">단계 페이지</a></span>
+    <span><strong>작성</strong> 2026-11-18 10:42 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 요약</a></li>
+      <li><a href="#s2">§2 구현</a></li>
+      <li><a href="#s3">§3 강제 장치 (테스트)</a></li>
+      <li><a href="#s4" class="preview">§4 CP5 계획</a></li>
+      <li><a href="#s5" class="preview">§5 CP5 수행 기록</a></li>
+      <li><a href="#s6">§6 발견한 것</a></li>
+      <li><a href="#s7">§7 미수행 · 남은 확인</a></li>
+      <li><a href="#s8">§8 Critical Files</a></li>
+      <li><a href="#s9">§9 남은 일</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 요약</summary>
+      <div class="body">
+        <div class="callout"><b>한 줄 요약</b> : 정의서 스냅숏(RHEL)을 Rocky 8 · 9 · 10 kickstart 로 옮기는 생성기와 정의서 해석 SPI 를 만들었습니다. 세 버전 출력이 Red Hat 문법 검사기(ksvalidator)를 통과했습니다.</div>
+
+        <h4>사용자 결정 기록</h4>
+        <table>
+          <thead><tr><th>결정</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>CP1 Q1</td><td>호스트 이름 없음. b-5 의 <code>%post</code> 가 대상 서버를 echo 로 표시합니다.</td></tr>
+            <tr><td>Q2</td><td>ksvalidator 사용.</td></tr>
+            <tr><td>Q3</td><td><code>%post</code> 는 b-5.</td></tr>
+            <tr><td>Q4</td><td><code>--ignoremissing</code> 을 쓰지 않습니다.</td></tr>
+            <tr><td>CP4</td><td>승인.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>결정이 필요한 것 하나</b> : F-1(§6).</div>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 구현</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>자리</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>execution/<wbr>engine/<wbr>rhel/</code></td><td><code>RhelInstallationResolutionProvider</code>(SPI) · <code>RhelResolution</code>(sealed Ready / Blocked) · <code>RhelBlockReason</code>(사유 4, message) · <code>RhelInstallTarget</code> · <code>KickstartPartition</code> · <code>KickstartUser</code></td></tr>
+            <tr><td><code>execution/<wbr>engine/<wbr>rhel/<wbr>kickstart/</code></td><td><code>KickstartRenderer</code>(정적, 절별 private 메서드) · <code>KickstartRuntime</code>(설치 원본 URL + 디스크 필수) · <code>InstallDisk</code>(by-id 형식 검증) · <code>KickstartDocument</code>(toString 가림) · <code>KickstartToken</code>(공백 · 따옴표 · # · 역슬래시 · 개행 거절)</td></tr>
+            <tr><td><code>provisioning/<wbr>assignment/<wbr>service/<wbr>RhelInstallationResolutionProviderImpl</code></td><td>활성 스냅숏 → 목표. <code>credential().toCrypt(hasher)</code> · 환경 · 그룹 id → 코드(정의서 순서) · MiB 환산 · grow 0 → 1 · 막힘 4 사유</td></tr>
+            <tr><td><code>provisioning/<wbr>setting/<wbr>enums/<wbr>FileSystem</code></td><td><code>kickstartFsType()</code>: FAT32 → efi(<code>/boot/efi</code> 전용), NTFS → IllegalStateException(리눅스 저장 규칙이 막는 값). 화면 이름(displayName)은 그대로</td></tr>
+          </tbody>
+        </table>
+
+        <p>렌더 규칙은 plan s4 표 그대로입니다(골든 파일이 그 기대값). 골든 세 파일의 전문은 아래와 같습니다. 행 번호는 §5 의 행 인용과 맞추려 붙였습니다.</p>
+        <details><summary>골든 <code>src/test/resources/kickstart/rocky8.ks</code> 전문</summary><pre> 1  #version=RHEL8
+ 2  url --url=http://pxe.example/api/pxe/v1/rhel/TOKEN/tree
+ 3  text
+ 4  lang en_US.UTF-8
+ 5  keyboard --xlayouts='us'
+ 6  network --bootproto=dhcp --activate
+ 7  firstboot --disable
+ 8  timezone Asia/Seoul
+ 9  ignoredisk --only-use=disk/by-id/wwn-0x5000c500a1b2c3d4
+10  zerombr
+11  clearpart --all --initlabel --drives=disk/by-id/wwn-0x5000c500a1b2c3d4
+12  part /boot/efi --fstype=efi --size=600 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+13  part /boot --fstype=xfs --size=1024 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+14  part swap --fstype=swap --size=8192 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+15  part / --fstype=xfs --size=1 --grow --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+16  part /var --fstype=xfs --size=51200 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+17  bootloader
+18  rootpw --lock
+19  user --name=admin --groups=wheel --iscrypted --password=$6$exUserSalt$exampleUserCryptNotComputed
+20  user --name=viewer --lock
+21  reboot
+22  
+23  %packages
+24  @^minimal-environment
+25  %end
+26  
+27  %addon com_redhat_kdump --disable
+28  %end</pre></details>
+        <details><summary>골든 <code>src/test/resources/kickstart/rocky9.ks</code> 전문</summary><pre> 1  #version=RHEL9
+ 2  url --url=http://pxe.example/api/pxe/v1/rhel/TOKEN/tree
+ 3  text
+ 4  lang en_US.UTF-8
+ 5  keyboard --xlayouts='us'
+ 6  network --bootproto=dhcp --activate
+ 7  firstboot --disable
+ 8  timezone Asia/Seoul --utc
+ 9  ignoredisk --only-use=disk/by-id/wwn-0x5000c500a1b2c3d4
+10  zerombr
+11  clearpart --all --initlabel --drives=disk/by-id/wwn-0x5000c500a1b2c3d4
+12  part /boot/efi --fstype=efi --size=1024 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+13  part /boot --fstype=ext4 --size=1024 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+14  part swap --fstype=swap --size=16384 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+15  part / --fstype=ext4 --size=1 --grow --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+16  bootloader
+17  rootpw --iscrypted $6$exRootSalt$exampleRootCryptNotComputed
+18  user --name=admin --groups=wheel --iscrypted --password=$6$exUserSalt$exampleUserCryptNotComputed
+19  reboot
+20  
+21  %packages
+22  @^server-product-environment
+23  @development
+24  %end
+25  
+26  %addon com_redhat_kdump --enable --reserve-mb='auto'
+27  %end</pre></details>
+        <details><summary>골든 <code>src/test/resources/kickstart/rocky10.ks</code> 전문</summary><pre> 1  #version=RHEL10
+ 2  url --url=http://pxe.example/api/pxe/v1/rhel/TOKEN/tree
+ 3  text
+ 4  lang en_US.UTF-8
+ 5  keyboard --xlayouts='us'
+ 6  network --bootproto=dhcp --activate
+ 7  firstboot --disable
+ 8  timezone Asia/Seoul --utc
+ 9  ignoredisk --only-use=disk/by-id/wwn-0x5000c500a1b2c3d4
+10  zerombr
+11  clearpart --all --initlabel --drives=disk/by-id/wwn-0x5000c500a1b2c3d4
+12  part /boot/efi --fstype=efi --size=1024 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+13  part /boot --fstype=ext4 --size=1024 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+14  part swap --fstype=swap --size=16384 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+15  part / --fstype=ext4 --size=1 --grow --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+16  bootloader
+17  rootpw --iscrypted --allow-ssh $6$exRootSalt$exampleRootCryptNotComputed
+18  user --name=admin --groups=wheel --iscrypted --password=$6$exUserSalt$exampleUserCryptNotComputed
+19  reboot
+20  
+21  %packages
+22  @^server-product-environment
+23  @development
+24  @system-tools
+25  %end
+26  
+27  %addon com_redhat_kdump --enable --reserve-mb='auto'
+28  %end</pre></details>
+
+        <h4>plan 대비 이탈 1 (CP4 보고 · 승인)</h4>
+        <ul>
+          <li><b>무엇</b> : 비밀번호 없는 사용자를 <code>user --name=… --lock</code> 으로 싣습니다.</li>
+          <li><b>왜</b> : 사용자 비밀번호는 정의서 저장 검증에서 필수가 아닙니다. plan 의 "예외" 로 두면 정상 저장본이 렌더에서 끊깁니다.</li>
+          <li><b>확인</b> : V-7 로 문법을 확인했습니다.</li>
+        </ul>
+        <div class="callout success"><b>DB · 화면 · DDL 변경 없음.</b></div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3" open>
+      <summary>§3. 강제 장치 (테스트)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>테스트</th><th>건수</th><th>보는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>KickstartRendererTest</code></td><td>14</td><td>골든 3 완전 일치 · 결정성 · #version · <code>--allow-ssh</code> 10 만 · root 잠금이면 SSH 무시 · 사용자 wheel / --lock · by-id 저장소 줄 · <code>@^</code> 중복 없음 · UTC / KDump · 위험 값 거절 · 가림 · 디스크 필수</td></tr>
+            <tr><td><code>RhelInstallationResolutionProviderImplTest</code></td><td>8</td><td>할당 없음 · Windows 정의서 → empty · 정상(저장 해시 그대로 · 옛 평문 해시 · 비밀번호 없는 사용자 · MiB · FAT32 → efi · grow 0 → 1 · 그룹 순서) · root 없음 · 막힘 4 사유와 문구</td></tr>
+            <tr><td><code>InstallDiskTest</code></td><td>6</td><td>by-id 경로 · 위험 이름 거절</td></tr>
+            <tr><td><code>FileSystemKickstartTest</code></td><td>3</td><td>토큰 대응 · NTFS 예외 · 화면 이름 불변</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>전체 테스트 3,795 건 통과(실패 0, 건너뜀 6). 기존 3,764 건 + 새 31 건입니다.</li>
+          <li>HTTP 엔드포인트가 없어 통합 테스트 4 범주(2xx · 400 · 409 · 404)는 해당 없습니다. 새 예외 클래스도 없습니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section preview" id="s4" open>
+      <summary>§4. CP5 계획 (항목 식별자)</summary>
+      <div class="body">
+        <ul>
+          <li><b>방식</b> : E 단계 예외입니다. pykickstart 3.78 <code>ksvalidator</code> 하네스를 쓰고, 도구는 <code>sbx-e43/venv</code> 에만 설치했습니다.</li>
+          <li><b>수행</b> : cp5-verifier 에이전트가 2026-11-18 10:36 ~ 10:39 KST 에 수행했습니다.</li>
+          <li><b>저장소 무변경</b> : 시작 · 끝 해시가 같습니다(RESULT.md §1, 아래 표).</li>
+          <li><b>확인 대상</b> : plan s8 의 V-1 ~ V-6 과 CP4 이탈분 V-7 입니다.</li>
+        </ul>
+
+        <h4>도구 기록 (H0-tool.txt 발췌)</h4>
+        <pre># pykickstart 설치 기록 2026-11-18 10:36:34 KST
+Name: pykickstart
+Version: 3.78
+Location: &lt;repo&gt;/sbx-e43/venv/lib/python3.14/site-packages
+
+$ ksvalidator -l
+DEVEL
+…
+RHEL10
+RHEL11
+…
+RHEL8
+RHEL9
+exit=0</pre>
+
+        <h4>저장소 무변경 (RESULT.md §1)</h4>
+        <table>
+          <thead><tr><th>명령</th><th>시작 10:36:12</th><th>끝 10:39:06</th></tr></thead>
+          <tbody>
+            <tr><td><code>git status --short | shasum</code></td><td><code>ce118e7a6b85b5ff0583b00e67b1b541b89950fc</code></td><td><code>ce118e7a6b85b5ff0583b00e67b1b541b89950fc</code></td></tr>
+            <tr><td><code>git status --porcelain | shasum</code></td><td><code>ce118e7a6b85b5ff0583b00e67b1b541b89950fc</code></td><td><code>ce118e7a6b85b5ff0583b00e67b1b541b89950fc</code></td></tr>
+            <tr><td><code>git diff | shasum</code></td><td><code>146d3e9cd934f73579ad74a2df482b1e4457899b</code></td><td><code>146d3e9cd934f73579ad74a2df482b1e4457899b</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>항목 (H1 ~ H9)</h4>
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>H1</td><td><code>ksvalidator -v RHEL8 rocky8.ks</code></td><td>오류 0. 이 파일에 <code>rootpw --lock</code> · <code>user … --lock</code> · XFS · grow 가 있다</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H2</td><td><code>ksvalidator -v RHEL9 rocky9.ks</code></td><td>오류 0</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H3</td><td><code>ksvalidator -v RHEL10 rocky10.ks</code></td><td>오류 0. <code>rootpw --iscrypted --allow-ssh</code> 를 포함한다</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td><b>H4</b></td><td>rocky9.ks 의 rootpw 줄에 <code>--allow-ssh</code> 를 더한 변형, <code>-v RHEL9</code></td><td><b>거절</b>(<code>--allow-ssh</code> 미지원)</td><td><span class="chip force">기대와 다름</span></td></tr>
+            <tr><td>H5</td><td>rocky8.ks 의 rootpw 를 <code>rootpw --iscrypted --allow-ssh &lt;해시&gt;</code> 로 바꾼 변형, <code>-v RHEL8</code></td><td>거절</td><td><span class="chip add">거절(기대대로)</span></td></tr>
+            <tr><td>H6</td><td>rocky8.ks 의 timezone 줄에 <code>--utc</code> 를 더한 변형, <code>-v RHEL8</code>. 그리고 H2 · H3 에서 <code>--utc</code> 가 통과했는지</td><td>세 버전 모두 <code>--utc</code> 유효</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H7</td><td>rocky9.ks · rocky10.ks 의 사용자 줄 아래에 <code>user --name=viewer --lock</code> 을 더한 변형, 각 <code>-v RHEL9</code> · <code>-v RHEL10</code></td><td>오류 0(V-7)</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td><b>H8</b></td><td>rocky10.ks 를 <code>-v RHEL9</code> 로 검사(버전 핸들러 교차)</td><td>거절(H4 와 같은 이유). 핸들러가 버전 차이를 실제로 가른다는 대조군</td><td><span class="chip force">기대와 다름</span></td></tr>
+            <tr><td>H9</td><td><code>./gradlew test --tests "*KickstartRendererTest"</code> 를 두 번 실행하고, 골든 3 개의 md5 를 실행 전후로 비교</td><td>두 번 모두 통과 · md5 불변(결정성)</td><td><span class="chip add">통과</span></td></tr>
+          </tbody>
+        </table>
+        <p>9 항목 중 통과 7(H5 는 기대대로 거절된 것), 기대와 다름 2(H4 · H8 → F-1)입니다. H8 보조(<code>-v RHEL8</code> 거절)는 계획 표 밖의 보조 항목으로, 핸들러가 실제로 검사 기준을 바꾼다는 대조군으로 §5 에 함께 싣습니다.</p>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section preview" id="s5" open>
+      <summary>§5. CP5 수행 기록 (조작과 출력 발췌)</summary>
+      <div class="body">
+        <p>화면이 없는 슬라이스라 스크린샷 대신 항목마다 명령 출력 파일(<code>sbx-e43/cp5/</code>)을 발췌해 싣습니다. 저장소 경로는 <code>&lt;repo&gt;</code>, 장비 이름은 <code>&lt;host&gt;</code> 로 바꿨습니다.</p>
+
+        <h4>H1 · rocky8 골든 / RHEL8</h4>
+        <p><b>조작</b> : <code>ksvalidator -v RHEL8 src/test/resources/kickstart/rocky8.ks</code><br>
+           <b>기대</b> : 오류 0. <code>rootpw --lock</code> · <code>user … --lock</code> · XFS · grow 포함<br>
+           <b>실제</b> : exit 0. "Checking kickstart file …" 만, 오류 · 경고 없음. 파일에 <code>rootpw --lock</code>(18행) · <code>user --name=viewer --lock</code>(20행) · <code>--fstype=xfs</code>(13 · 15 · 16행) · <code>--size=1 --grow</code>(15행) 확인<br>
+           <b>판정</b> : <span class="chip add">통과</span></p>
+        <pre># H1 rocky8 골든 / RHEL8  (2026-11-18 10:37:06 KST)
+
+--- 확인 대상 줄
+1:#version=RHEL8
+8:timezone Asia/Seoul
+9:ignoredisk --only-use=disk/by-id/wwn-0x5000c500a1b2c3d4
+11:clearpart --all --initlabel --drives=disk/by-id/wwn-0x5000c500a1b2c3d4
+12:part /boot/efi --fstype=efi --size=600 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+13:part /boot --fstype=xfs --size=1024 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+14:part swap --fstype=swap --size=8192 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+15:part / --fstype=xfs --size=1 --grow --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+16:part /var --fstype=xfs --size=51200 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+18:rootpw --lock
+19:user --name=admin --groups=wheel --iscrypted --password=$6$exUserSalt$exampleUserCryptNotComputed
+20:user --name=viewer --lock
+27:%addon com_redhat_kdump --disable
+
+$ ksvalidator -v RHEL8 src/test/resources/kickstart/rocky8.ks
+
+Checking kickstart file src/test/resources/kickstart/rocky8.ks
+
+exit=0</pre>
+
+        <h4>H2 · rocky9 골든 / RHEL9</h4>
+        <p><b>조작</b> : <code>ksvalidator -v RHEL9 src/test/resources/kickstart/rocky9.ks</code><br>
+           <b>기대</b> : 오류 0<br>
+           <b>실제</b> : exit 0. 오류 · 경고 없음<br>
+           <b>판정</b> : <span class="chip add">통과</span></p>
+        <pre># H2 rocky9 골든 / RHEL9  (2026-11-18 10:37:06 KST)
+
+--- 확인 대상 줄
+1:#version=RHEL9
+8:timezone Asia/Seoul --utc
+9:ignoredisk --only-use=disk/by-id/wwn-0x5000c500a1b2c3d4
+11:clearpart --all --initlabel --drives=disk/by-id/wwn-0x5000c500a1b2c3d4
+12:part /boot/efi --fstype=efi --size=1024 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+13:part /boot --fstype=ext4 --size=1024 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+14:part swap --fstype=swap --size=16384 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+15:part / --fstype=ext4 --size=1 --grow --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+17:rootpw --iscrypted $6$exRootSalt$exampleRootCryptNotComputed
+18:user --name=admin --groups=wheel --iscrypted --password=$6$exUserSalt$exampleUserCryptNotComputed
+26:%addon com_redhat_kdump --enable --reserve-mb='auto'
+
+$ ksvalidator -v RHEL9 src/test/resources/kickstart/rocky9.ks
+
+Checking kickstart file src/test/resources/kickstart/rocky9.ks
+
+exit=0</pre>
+
+        <h4>H3 · rocky10 골든 / RHEL10</h4>
+        <p><b>조작</b> : <code>ksvalidator -v RHEL10 src/test/resources/kickstart/rocky10.ks</code><br>
+           <b>기대</b> : 오류 0. <code>rootpw --iscrypted --allow-ssh</code> 포함<br>
+           <b>실제</b> : exit 0. 오류 · 경고 없음. 17행 <code>rootpw --iscrypted --allow-ssh $6$…</code> 포함<br>
+           <b>판정</b> : <span class="chip add">통과</span></p>
+        <pre># H3 rocky10 골든 / RHEL10  (2026-11-18 10:37:06 KST)
+
+--- 확인 대상 줄
+1:#version=RHEL10
+8:timezone Asia/Seoul --utc
+9:ignoredisk --only-use=disk/by-id/wwn-0x5000c500a1b2c3d4
+11:clearpart --all --initlabel --drives=disk/by-id/wwn-0x5000c500a1b2c3d4
+12:part /boot/efi --fstype=efi --size=1024 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+13:part /boot --fstype=ext4 --size=1024 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+14:part swap --fstype=swap --size=16384 --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+15:part / --fstype=ext4 --size=1 --grow --ondisk=disk/by-id/wwn-0x5000c500a1b2c3d4
+17:rootpw --iscrypted --allow-ssh $6$exRootSalt$exampleRootCryptNotComputed
+18:user --name=admin --groups=wheel --iscrypted --password=$6$exUserSalt$exampleUserCryptNotComputed
+27:%addon com_redhat_kdump --enable --reserve-mb='auto'
+
+$ ksvalidator -v RHEL10 src/test/resources/kickstart/rocky10.ks
+
+Checking kickstart file src/test/resources/kickstart/rocky10.ks
+
+exit=0</pre>
+
+        <h4>H4 · rocky9 + <code>rootpw --allow-ssh</code> / RHEL9</h4>
+        <p><b>조작</b> : <code>ksvalidator -v RHEL9 variants/H4-rocky9-allow-ssh.ks</code>. 변형한 줄은 17행 <code>rootpw --iscrypted $6$…</code> → <code>rootpw --iscrypted --allow-ssh $6$…</code><br>
+           <b>기대</b> : 거절<br>
+           <b>실제</b> : exit <b>0</b>. 오류 없음. RHEL9 핸들러가 <code>--allow-ssh</code> 를 받아들였다<br>
+           <b>판정</b> : <span class="chip force">기대와 다름</span> → F-1(§6)</p>
+        <pre># H4 rocky9 + rootpw --allow-ssh / RHEL9  (2026-11-18 10:37:06 KST)
+
+--- 바뀐 줄 (diff src/test/resources/kickstart/rocky9.ks sbx-e43/cp5/variants/H4-rocky9-allow-ssh.ks)
+17c17
+&lt; rootpw --iscrypted $6$exRootSalt$exampleRootCryptNotComputed
+---
+&gt; rootpw --iscrypted --allow-ssh $6$exRootSalt$exampleRootCryptNotComputed
+
+$ ksvalidator -v RHEL9 sbx-e43/cp5/variants/H4-rocky9-allow-ssh.ks
+
+Checking kickstart file sbx-e43/cp5/variants/H4-rocky9-allow-ssh.ks
+
+exit=0</pre>
+
+        <h4>H5 · rocky8 + <code>rootpw --iscrypted --allow-ssh</code> / RHEL8</h4>
+        <p><b>조작</b> : <code>ksvalidator -v RHEL8 variants/H5-rocky8-allow-ssh.ks</code>. 변형한 줄은 18행 <code>rootpw --lock</code> → <code>rootpw --iscrypted --allow-ssh $6$exRootSalt$…</code><br>
+           <b>기대</b> : 거절<br>
+           <b>실제</b> : exit 1. <code>line 18 … Unexpected arguments to rootpw command: ['--allow-ssh']</code><br>
+           <b>판정</b> : <span class="chip add">거절(기대대로)</span></p>
+        <pre># H5 rocky8 + rootpw --iscrypted --allow-ssh / RHEL8  (2026-11-18 10:37:06 KST)
+
+--- 바뀐 줄 (diff src/test/resources/kickstart/rocky8.ks sbx-e43/cp5/variants/H5-rocky8-allow-ssh.ks)
+18c18
+&lt; rootpw --lock
+---
+&gt; rootpw --iscrypted --allow-ssh $6$exRootSalt$exampleRootCryptNotComputed
+
+$ ksvalidator -v RHEL8 sbx-e43/cp5/variants/H5-rocky8-allow-ssh.ks
+The following problem occurred on line 18 of the kickstart file:
+
+Unexpected arguments to rootpw command: ['--allow-ssh']
+
+
+Checking kickstart file sbx-e43/cp5/variants/H5-rocky8-allow-ssh.ks
+
+exit=1</pre>
+
+        <h4>H6 · <code>timezone … --utc</code> / RHEL8 · RHEL9 · RHEL10</h4>
+        <p><b>조작</b> : <code>ksvalidator -v RHEL8 variants/H6-rocky8-utc.ks</code>. 변형한 줄은 8행 <code>timezone Asia/Seoul</code> → <code>timezone Asia/Seoul --utc</code>. 골든 rocky9(<code>-v RHEL9</code>) · rocky10(<code>-v RHEL10</code>) 재검사<br>
+           <b>기대</b> : 세 버전 모두 <code>--utc</code> 유효<br>
+           <b>실제</b> : exit 0 / 0 / 0. 세 버전 모두 <code>--utc</code> 에 오류 · 경고 없음<br>
+           <b>판정</b> : <span class="chip add">통과</span></p>
+        <pre># H6 rocky8 + timezone --utc / RHEL8 (H2 · H3 의 --utc 는 골든에 이미 있음)  (2026-11-18 10:37:07 KST)
+
+--- 바뀐 줄 (diff src/test/resources/kickstart/rocky8.ks sbx-e43/cp5/variants/H6-rocky8-utc.ks)
+8c8
+&lt; timezone Asia/Seoul
+---
+&gt; timezone Asia/Seoul --utc
+
+$ ksvalidator -v RHEL8 sbx-e43/cp5/variants/H6-rocky8-utc.ks
+
+Checking kickstart file sbx-e43/cp5/variants/H6-rocky8-utc.ks
+
+exit=0
+
+--- 골든의 timezone 줄
+src/test/resources/kickstart/rocky9.ks:8:timezone Asia/Seoul --utc
+src/test/resources/kickstart/rocky10.ks:8:timezone Asia/Seoul --utc
+
+$ ksvalidator -v RHEL9 src/test/resources/kickstart/rocky9.ks
+
+Checking kickstart file src/test/resources/kickstart/rocky9.ks
+
+exit=0
+
+$ ksvalidator -v RHEL10 src/test/resources/kickstart/rocky10.ks
+
+Checking kickstart file src/test/resources/kickstart/rocky10.ks
+
+exit=0</pre>
+
+        <h4>H7 · <code>user --name=viewer --lock</code> 추가 / RHEL9 · RHEL10</h4>
+        <p><b>조작</b> : <code>ksvalidator -v RHEL9 variants/H7-rocky9-viewer-lock.ks</code>, <code>ksvalidator -v RHEL10 variants/H7-rocky10-viewer-lock.ks</code>. 각 18행 admin 사용자 줄 뒤에 <code>user --name=viewer --lock</code> 삽입<br>
+           <b>기대</b> : 오류 0(V-7)<br>
+           <b>실제</b> : exit 0 / 0. 오류 · 경고 없음<br>
+           <b>판정</b> : <span class="chip add">통과</span></p>
+        <pre># H7 user --name=viewer --lock 추가 / RHEL9 · RHEL10  (2026-11-18 10:37:07 KST)
+
+--- 바뀐 줄 (diff src/test/resources/kickstart/rocky9.ks sbx-e43/cp5/variants/H7-rocky9-viewer-lock.ks)
+18a19
+&gt; user --name=viewer --lock
+
+$ ksvalidator -v RHEL9 sbx-e43/cp5/variants/H7-rocky9-viewer-lock.ks
+
+Checking kickstart file sbx-e43/cp5/variants/H7-rocky9-viewer-lock.ks
+
+exit=0
+
+--- 바뀐 줄 (diff src/test/resources/kickstart/rocky10.ks sbx-e43/cp5/variants/H7-rocky10-viewer-lock.ks)
+18a19
+&gt; user --name=viewer --lock
+
+$ ksvalidator -v RHEL10 sbx-e43/cp5/variants/H7-rocky10-viewer-lock.ks
+
+Checking kickstart file sbx-e43/cp5/variants/H7-rocky10-viewer-lock.ks
+
+exit=0</pre>
+
+        <h4>H8 · rocky10 골든을 RHEL9 핸들러로 교차 검사</h4>
+        <p><b>조작</b> : <code>ksvalidator -v RHEL9 src/test/resources/kickstart/rocky10.ks</code><br>
+           <b>기대</b> : 거절(H4 와 같은 이유). 버전 핸들러가 차이를 가른다는 대조군<br>
+           <b>실제</b> : exit <b>0</b>. 오류 없음. <code>--allow-ssh</code> 를 RHEL9 핸들러가 받아들여 대조군 역할을 못 했다<br>
+           <b>판정</b> : <span class="chip force">기대와 다름</span> → F-1(§6)</p>
+        <pre># H8 rocky10 골든을 RHEL9 핸들러로 교차 검사  (2026-11-18 10:37:07 KST)
+
+$ ksvalidator -v RHEL9 src/test/resources/kickstart/rocky10.ks
+
+Checking kickstart file src/test/resources/kickstart/rocky10.ks
+
+exit=0</pre>
+
+        <h4>H8 보조 · 같은 파일을 RHEL8 핸들러로 (대조군)</h4>
+        <p><b>조작</b> : <code>ksvalidator -v RHEL8 src/test/resources/kickstart/rocky10.ks</code>. 아울러 <code>-v</code> 가 핸들러를 정한다는 근거(<code>bin/ksvalidator</code> 111행)와 핸들러별 rootpw 클래스를 기록<br>
+           <b>기대</b> : 계획 표 밖의 보조 항목. 핸들러가 실제로 검사 기준을 바꾸는지 확인<br>
+           <b>실제</b> : exit 1. <code>line 17 … Unexpected arguments to rootpw command: ['--allow-ssh']</code>. RHEL8 = <code>F18_RootPw</code>, RHEL9 = <code>RHEL9_RootPw</code>(<code>F37_RootPw</code> 상속), RHEL10 = <code>F37_RootPw</code><br>
+           <b>판정</b> : <span class="chip opt">참고</span></p>
+        <pre># H8 보조 : -v 가 핸들러를 실제로 바꾸는지 확인 (2026-11-18 10:38:06 KST)
+
+--- ksvalidator 는 파일의 #version 줄이 아니라 -v 값으로 핸들러를 만든다
+111:                handler = makeVersion(opts.version)
+
+--- 핸들러별 rootpw 클래스 (pykickstart/handlers)
+sbx-e43/venv/lib/python3.14/site-packages/pykickstart/handlers/rhel8.py:81:        "rootpw": commands.rootpw.F18_RootPw,
+sbx-e43/venv/lib/python3.14/site-packages/pykickstart/handlers/rhel9.py:83:        "rootpw": commands.rootpw.RHEL9_RootPw,
+sbx-e43/venv/lib/python3.14/site-packages/pykickstart/handlers/rhel10.py:83:        "rootpw": commands.rootpw.F37_RootPw,
+
+--- commands/rootpw.py
+147:class F37_RootPw(F18_RootPw):
+148-    removedKeywords = F18_RootPw.removedKeywords
+--
+171:class RHEL9_RootPw(F37_RootPw):
+172-    pass
+165:        op.add_argument("--allow-ssh", action="store_true", default=False,
+
+$ ksvalidator -v RHEL8 src/test/resources/kickstart/rocky10.ks
+The following problem occurred on line 17 of the kickstart file:
+
+Unexpected arguments to rootpw command: ['--allow-ssh']
+
+
+Checking kickstart file src/test/resources/kickstart/rocky10.ks
+
+exit=1</pre>
+
+        <h4>H9 · 렌더 결정성</h4>
+        <p><b>조작</b> : <code>./gradlew test --tests "*KickstartRendererTest" --rerun</code> 2 회 + 골든 md5 전후 비교. <code>--rerun</code> 을 더한 사유는 §6 기타 관찰<br>
+           <b>기대</b> : 두 번 모두 통과 · md5 불변<br>
+           <b>실제</b> : exit 0 / 0. 두 번 모두 BUILD SUCCESSFUL, tests=14 · failures=0 · errors=0 · skipped=0(timestamp 01:38:28Z · 01:38:32Z 로 실제 2 회 실행). md5 전후 동일(rocky8 <code>3bc049f6…</code> · rocky9 <code>9fb33714…</code> · rocky10 <code>5e47aa9e…</code>)<br>
+           <b>판정</b> : <span class="chip add">통과</span></p>
+        <pre># H9 렌더 결정성 (2026-11-18 10:38:24 KST)
+
+--- 실행 전 골든 md5
+MD5 (src/test/resources/kickstart/rocky8.ks) = 3bc049f6ed532b02d0db0963ac24c17d
+MD5 (src/test/resources/kickstart/rocky9.ks) = 9fb3371424e57ec19fe51df2d7d55b02
+MD5 (src/test/resources/kickstart/rocky10.ks) = 5e47aa9ec8447c37600b134d91cbb0f5
+
+--- 실행 1: ./gradlew test --tests "*KickstartRendererTest" --rerun  (10:38:24)
+exit=0
+BUILD SUCCESSFUL in 3s
+name="com.example.serverprovision.execution.engine.rhel.kickstart.KickstartRendererTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-11-18T01:38:28.726Z" name="&lt;host&gt;" 
+
+--- 실행 2: ./gradlew test --tests "*KickstartRendererTest" --rerun  (10:38:29)
+exit=0
+BUILD SUCCESSFUL in 3s
+name="com.example.serverprovision.execution.engine.rhel.kickstart.KickstartRendererTest" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-11-18T01:38:32.132Z" name="&lt;host&gt;" 
+
+--- 실행 후 골든 md5
+MD5 (src/test/resources/kickstart/rocky8.ks) = 3bc049f6ed532b02d0db0963ac24c17d
+MD5 (src/test/resources/kickstart/rocky9.ks) = 9fb3371424e57ec19fe51df2d7d55b02
+MD5 (src/test/resources/kickstart/rocky10.ks) = 5e47aa9ec8447c37600b134d91cbb0f5
+
+--- 전후 비교
+md5 동일</pre>
+
+        <h4>V-1 ~ V-7 판정 (RESULT.md §4)</h4>
+        <table>
+          <thead><tr><th>V</th><th>확인</th><th>근거</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>V-1</td><td><code>#version=RHEL8/9/10</code> 인식</td><td>H1 ~ H3 exit=0, 경고 없음. <code>#version</code> 은 도구가 주석으로 지나감 → 오류가 나지 않는다는 데까지만 확인</td><td><span class="chip mod">통과(범위 한정)</span></td></tr>
+            <tr><td>V-2</td><td><code>timezone … --utc</code> 세 버전 유효</td><td>H6: RHEL8(변형) · RHEL9 · RHEL10(골든) 모두 exit=0. RHEL8 은 <code>F25_Timezone</code>, RHEL9 는 <code>F33_Timezone</code>, RHEL10 은 <code>RHEL10_Timezone</code> 이 처리</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>V-3</td><td><code>%addon com_redhat_kdump --reserve-mb='auto'</code> 10 에서 유효</td><td>pykickstart 가 <code>%addon</code> 을 해석하지 않음, 망가뜨린 변형도 통과(<code>V3-addon.txt</code>, 아래 발췌) → CP7 실설치에서 최종</td><td><span class="chip mod">실설치 CP7 에서 최종 확인</span></td></tr>
+            <tr><td>V-4</td><td><code>part … --size=1 --grow</code></td><td>H1(xfs) · H2 · H3(ext4) 15행 모두 exit=0</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>V-5</td><td>by-id 표기(<code>ignoredisk --only-use=disk/by-id/…</code> · <code>clearpart --drives=disk/by-id/…</code> · <code>part --ondisk=disk/by-id/…</code>)</td><td>H1 ~ H3 exit=0. 문법상 허용된다는 뜻이며, 해당 경로의 디스크가 실제로 해석되는지는 정적 검사로 알 수 없다(b-6 · CP7 몫)</td><td><span class="chip mod">통과(문법 한정)</span></td></tr>
+            <tr><td><b>V-6</b></td><td><code>rootpw --allow-ssh</code> 가 RHEL9 거절 · RHEL10 통과</td><td>RHEL10 통과(H3) · RHEL8 거절(H5) 은 기대대로. <b>RHEL9 는 거절되지 않았다</b>(H4 · H8 exit=0). pykickstart 3.78 의 RHEL9 핸들러는 <code>rootpw</code> 에 <code>RHEL9_RootPw</code> 를 쓰고 이것은 <code>F37_RootPw</code> 를 그대로 상속하며 <code>--allow-ssh</code> 를 정의한다(<code>H8-control.txt</code>)</td><td><span class="chip force">기대와 다름</span></td></tr>
+            <tr><td>V-7</td><td><code>user --name=… --lock</code></td><td>H1(rocky8 골든 20행, RHEL8) · H7(RHEL9 · RHEL10 변형) 모두 exit=0</td><td><span class="chip add">통과</span></td></tr>
+          </tbody>
+        </table>
+        <details><summary>V-3 대조 변형 (V3-addon.txt)</summary><pre># V3 보조 : %addon com_redhat_kdump 처리 방식 (2026-11-18 10:38:05 KST)
+
+--- pykickstart 소스 (parser.py)
+886:        self.registerSection(NullSection(self.handler, sectionOpen="%addon"))
+=&gt; %addon 절은 NullSection 으로 등록된다. 머리줄 인자와 본문을 해석하지 않고 건너뛴다.
+
+--- 골든 rocky10.ks 의 addon 절은 H3 에서 오류 0 으로 통과
+
+--- 대조 변형: 애드온 인자와 본문을 일부러 망가뜨림
+27c27,28
+&lt; %addon com_redhat_kdump --enable --reserve-mb='auto'
+---
+&gt; %addon com_redhat_kdump --no-such-option --reserve-mb='not-a-number'
+&gt; this is not kickstart syntax
+
+$ ksvalidator -v RHEL10 sbx-e43/cp5/variants/V3-rocky10-addon-bogus.ks
+
+Checking kickstart file sbx-e43/cp5/variants/V3-rocky10-addon-bogus.ks
+
+exit=0</pre></details>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6" open>
+      <summary>§6. 발견한 것</summary>
+      <div class="body">
+        <h4>F-1. RHEL9 기준이 <code>rootpw --allow-ssh</code> 를 받아들입니다 (H4 · H8 · V-6)</h4>
+        <ul>
+          <li><b>사실</b> : pykickstart 3.78 의 RHEL9 핸들러는 <code>RHEL9_RootPw</code> 이고, <code>--allow-ssh</code> 를 정의한 <code>F37_RootPw</code> 를 물려받습니다(RESULT.md §5 근거 행). RHEL8 은 거절, RHEL10 은 통과합니다.</li>
+          <li><b>무엇이 틀렸나</b> : plan 은 "9 는 문법이 거절한다" 를 <code>RhelRelease.supportsRootSshFlag()</code>(major ≥ 10)의 근거로 삼았습니다. 이 근거가 성립하지 않습니다.</li>
+          <li><b>지금 동작</b> : 렌더러는 9 에서 플래그를 싣지 않고, 정의서 화면(b-2)도 10 에서만 root SSH 칸을 보입니다. 그래서 설치가 깨지지는 않습니다. 코드 결함이 아니라 정책의 근거 문제입니다.</li>
+          <li><b>운영 영향(추측, 실설치 미확인)</b> : Rocky 9 도 기본 sshd 설정이 root 비밀번호 로그인을 막는다면, 9 에 root 비밀번호를 정해도 SSH 로 root 비밀번호 로그인이 되지 않습니다. 이것이 사실이면 9 에도 칸이 필요합니다.</li>
+        </ul>
+        <details><summary>재현 명령 (RESULT.md §5)</summary><pre>cd &lt;repo&gt;
+sbx-e43/venv/bin/ksvalidator -v RHEL9 sbx-e43/cp5/variants/H4-rocky9-allow-ssh.ks   # exit=0
+sbx-e43/venv/bin/ksvalidator -v RHEL9 src/test/resources/kickstart/rocky10.ks        # exit=0
+sbx-e43/venv/bin/ksvalidator -v RHEL8 src/test/resources/kickstart/rocky10.ks        # exit=1, Unexpected arguments to rootpw command: ['--allow-ssh']</pre></details>
+
+        <h4>선택지 (사용자 결정)</h4>
+        <div class="card-grid">
+          <div class="card v-blue"><h4>(a) 10 유지</h4><ul><li>근거 서술만 정정합니다.</li><li>9 에서 root SSH 가 필요하면 후속으로 다룹니다.</li></ul></div>
+          <div class="card v-orange"><h4>(b) 9 로 낮춤</h4><ul><li><code>supportsRootSshFlag()</code> 한 곳만 바꾸면 화면 칸과 렌더가 함께 바뀝니다(SSOT).</li><li>변경 범위는 b-2 화면 문구 · 테스트입니다.</li><li>실설치(CP7)에서 9 의 기본 동작과 플래그 효과를 확인합니다.</li><li>S23-1 의 메이저 능력 정리와 겹칩니다.</li></ul></div>
+        </div>
+        <div class="callout warn"><b>세션 권고</b> : (b) 를 하되 b-3 에서는 하지 않습니다. b-4 · b-5 CP7 실설치에서 Rocky 9 기본 sshd 동작을 먼저 확인한 뒤 바꿉니다. 그때까지 (a) 상태로 둡니다.</div>
+
+        <h4>기타 관찰</h4>
+        <ul>
+          <li>ksvalidator 는 경고와 deprecated 도 오류로 셉니다. 그래서 exit 0 은 경고도 없었다는 뜻입니다.</li>
+          <li>H9 에 <code>--rerun</code> 을 더한 이유 : 붙이지 않으면 두 번째 실행이 UP-TO-DATE 로 건너뜁니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7" open>
+      <summary>§7. 미수행 · 남은 확인 (사유)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>무엇</th><th>사유</th><th>언제</th></tr></thead>
+          <tbody>
+            <tr><td>V-3 KDump 애드온 실효</td><td>ksvalidator 가 <code>%addon</code> 을 해석하지 않음</td><td>CP7 실설치(b-4 · b-5 뒤)</td></tr>
+            <tr><td>V-5 by-id 가 실제 디스크로 해석되는지</td><td>정적 검사의 한계 · 디스크 값은 b-6</td><td>b-6 · CP7</td></tr>
+            <tr><td><code>#version</code> 의 설치 프로그램 쪽 의미</td><td>도구가 주석으로 취급</td><td>CP7</td></tr>
+            <tr><td>실설치 전체</td><td>호출처(실행기 · 서빙)가 b-4</td><td>E 단계 CP7 일괄</td></tr>
+            <tr><td>b-2 D-19 "b-3 에서 확인" 의 설치 기본값</td><td>kickstart 는 저장값만 싣는다(plan D-9). 기본 그룹 설치 범위는 실설치 관찰</td><td>CP7</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/<wbr>engine/<wbr>rhel/</code> 6 파일</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/<wbr>engine/<wbr>rhel/<wbr>kickstart/</code> 5 파일</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/<wbr>assignment/<wbr>service/<wbr>RhelInstallationResolutionProviderImpl</code></td></tr>
+            <tr><td><span class="chip new">신규 테스트</span></td><td>5 파일 : <code>KickstartRendererTest</code> · <code>KickstartFixtures</code> · <code>InstallDiskTest</code> · <code>RhelInstallationResolutionProviderImplTest</code> · <code>FileSystemKickstartTest</code></td></tr>
+            <tr><td><span class="chip new">신규 골든</span></td><td>3 파일</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/<wbr>setting/<wbr>enums/<wbr>FileSystem</code></td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>RhelRelease</code> · <code>LinuxPassword</code> · <code>LinuxPasswordHasher</code> · 정의서 DTO · DB</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. 남은 일</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E4-1-b-3-report-next">
+          <li><label><input type="checkbox" data-key="cp6"> <span>CP6 승인 + F-1 결정</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7 : 이 슬라이스는 호출처가 없어 b-4 · b-5 와 실설치 일괄(E 단계 CP7 일괄 규약)</span></label></li>
+          <li><label><input type="checkbox" data-key="b4"> <span>b-4 RHEL 설치 실행기(계열 분기 · kickstart · 트리 서빙 · 준비도 · 트리 주 버전 대조 · Windows SPI 와 합칠지 판단) + b-6 디스크 계약</span></label></li>
+          <li><label><input type="checkbox" data-key="b5"> <span>b-5 첫 부팅 완료 보고 + <code>%post</code>(대상 서버 echo, Q1)</span></label></li>
+          <li><label><input type="checkbox" data-key="ledger"> <span>관리 포인트 표(plan s8) 원장 반영</span></label></li>
+        </ul>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) {}
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>
