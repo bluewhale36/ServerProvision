@@ -452,17 +452,18 @@ public class JpaSettingQueryService implements SettingQueryService {
                 .toList();
     }
 
-    /** OS 유형(OSName 표시명) 그룹 — 같은 OS 의 버전들이 한 그룹에 묶인다. osName asc 정렬 승계. */
+    /** OS 상수(배포판과 메이저, S23-1) 그룹. "Rocky Linux 9" 의 버전들이 한 그룹에 묶인다. osName asc 정렬 승계. */
     @Override
     public List<SettingOSOptionGroupResponse> findOSOptions() {
         Map<String, List<SettingOSOptionResponse>> groups = new LinkedHashMap<>();
         osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc().stream()
+                .sorted(OSMetadata.CATALOG_ORDER)   // S23-1 — 묶음 순서는 OS 상수 선언 순서
                 .filter(LifecycleEntity::isEnabled)
                 // R11 — Windows 계열도 옵션에 실린다(식별 전용 기록의 대상). 리눅스 계열은 실리되
                 // plannedBlockReason 으로 disabled 표시된다(제외가 아니라 차단 + 사유 — UI 1차 차단 원칙).
                 // 사용 가능한 ISO 가 없는 OS 는 선택 자체가 불가(사용자 확정 2026-07-11) — 옵션에서 제외.
                 .filter(os -> !availableIsos(os).isEmpty())
-                .forEach(os -> groups.computeIfAbsent(os.getOsName().getDisplayName(), k -> new ArrayList<>())
+                .forEach(os -> groups.computeIfAbsent(os.getOsName().label(), k -> new ArrayList<>())
                         .add(toOSOption(os)));
         return groups.entrySet().stream()
                 .map(e -> new SettingOSOptionGroupResponse(e.getKey(), List.copyOf(e.getValue())))

@@ -11,6 +11,7 @@ import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.os.dto.request.ISOCreateRequest;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
+import com.example.serverprovision.management.os.exception.UnsupportedOsIsoRegistrationException;
 import com.example.serverprovision.management.os.exception.*;
 import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
@@ -94,7 +95,11 @@ public class IsoRegistrationService {
 			MultipartFile uploadedFile,
 			String clientHash
 	) {
-		requireActiveImage(osMetadataId);
+		OSMetadata os = requireActiveImage(osMetadataId);
+		// S23-1 — 미지원 OS 상수 아래에는 새 ISO 를 받지 않는다. 화면은 같은 판정으로 [ISO 추가] 를 막는다.
+		if (!os.getOsName().registrable()) {
+			throw new UnsupportedOsIsoRegistrationException(os.getOsName());
+		}
 
 		boolean hasFile = uploadedFile != null && !uploadedFile.isEmpty();
 		String originalFilename = hasFile ? uploadedFile.getOriginalFilename() : null;
@@ -215,9 +220,6 @@ public class IsoRegistrationService {
 	}
 
 	/**
-
-	/**
-=======
 	 * S5-7 — OS family 에 매칭되는 PostCreationTaskStrategy 를 찾아 자동 작업 트리거.
 	 * strategy 실행 중 RuntimeException 발생 시 ISO 등록 트랜잭션은 보존 (D3 정책 B). 실패는
 	 * BackgroundJob 의 FAILED 상태로 알림 패널에 노출되므로 사용자가 인지 가능.

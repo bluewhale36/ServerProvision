@@ -9,6 +9,8 @@ import com.example.serverprovision.provisioning.setting.exception.InvalidWindows
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import com.example.serverprovision.execution.wininstall.catalog.InstallSourceBuildCheck;
+import com.example.serverprovision.execution.wininstall.catalog.InstallSourceSnapshot;
 import java.util.List;
 
 /**
@@ -32,7 +34,11 @@ public class WindowsInstallationFamilyInspector implements OSInstallationFamilyI
 
     @Override
     public String installBlockReason(OSMetadata os) {
-        return catalog.snapshot().ready() ? null : SOURCE_BLOCK_REASON;
+        InstallSourceSnapshot snapshot = catalog.snapshot();
+        if (!snapshot.ready()) {
+            return SOURCE_BLOCK_REASON;
+        }
+        return InstallSourceBuildCheck.blockReason(os.getOsName(), snapshot).orElse(null);   // S23-1 — 빌드가 OS 버전과 맞는가
     }
 
     @Override

@@ -284,6 +284,22 @@ class OSMetadataControllerUploadFlowTest {
         }
 
         @Test
+        @DisplayName("S23-1 — 미지원 OS 상수 아래에 ISO 직접 POST → 409 + 거절 사유(화면은 [ISO 추가] 를 비활성)")
+        void legacyOs_returns409() throws Exception {
+            doThrow(new com.example.serverprovision.management.os.exception.UnsupportedOsIsoRegistrationException(
+                    com.example.serverprovision.management.os.enums.OSName.CENTOS))
+                    .when(isoRegistrationService).prepare(eq(1L), any(), any(), any());
+
+            mvc.perform(multipart("/management/os/1/iso/upload")
+                            .file(buildFile())
+                            .param("isoPath", "/mnt/iso/dvd.iso")
+                            .param("allowCreateDirectory", "false")
+                            .header("X-Upload-Token", "t"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("지원하지 않는 OS 에는 ISO 를 등록할 수 없습니다: CentOS"));
+        }
+
+        @Test
         @DisplayName("경로 형식 오류 (빈 문자열 우회 → InvalidPathException 흐름) → 409")
         void invalidPath_returns409() throws Exception {
             doThrow(new InvalidIsoPathException("ISO 경로 형식이 올바르지 않습니다 : bad"))
@@ -367,6 +383,18 @@ class OSMetadataControllerUploadFlowTest {
 
             mvc.perform(post("/management/os/1/iso/2/extract"))
                     .andExpect(status().isConflict());
+        }
+
+        @Test
+        @DisplayName("S23-1 — 추출 능력이 없는 OS(Windows Server 2025) 직접 POST → 409(작업을 띄우기 전에 거절)")
+        void notExtractable_returns409() throws Exception {
+            given(compsExtractionLauncher.startExtraction(1L, 2L)).willThrow(
+                    new com.example.serverprovision.management.os.exception.UnsupportedExtractionException(
+                            com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER_2025));
+
+            mvc.perform(post("/management/os/1/iso/2/extract"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("이 OS 는 설치 환경, 패키지 그룹 추출을 지원하지 않습니다: Windows Server 2025"));
         }
 
         @Test

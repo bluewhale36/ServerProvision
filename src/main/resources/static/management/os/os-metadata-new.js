@@ -17,23 +17,33 @@
 
         const banner = form.querySelector('.n-form-banner');
 
-        // E4-1-b-2 D-21 — 고른 줄의 지원 메이저를 숨은 rhelRelease 로 싣고, 버전 칸에 앞자리를 채운다.
+        // S23-1 — 고른 OS 의 버전 규칙대로 버전 칸을 채운다. "9." 은 세부 버전을 이어 쓰고, "2025" 는 고칠 수 없게 둔다.
         const osSelect = document.getElementById('osName');
-        const releaseInput = document.getElementById('rhelRelease');
         const versionInput = document.getElementById('osVersion');
         const versionHint = document.getElementById('osVersionHint');
         const versionExample = document.getElementById('osVersionExample');
-        osSelect.addEventListener('change', () => {
+        const applyVersionRule = () => {
             const opt = osSelect.selectedOptions[0];
-            const release = opt ? (opt.getAttribute('data-rhel-release') || '') : '';
-            const prefix = opt ? (opt.getAttribute('data-version-prefix') || '') : '';
-            releaseInput.value = release;
-            versionHint.hidden = !prefix;
-            if (prefix) {
-                versionExample.textContent = prefix + '0';
-                if (!versionInput.value || /^\d+\.$/.test(versionInput.value)) versionInput.value = prefix;
+            const prefill = opt ? (opt.getAttribute('data-version-prefill') || '') : '';
+            const locked = opt ? opt.getAttribute('data-version-locked') === 'true' : false;
+            versionInput.readOnly = locked;
+            if (locked) {
+                versionInput.value = prefill;
+                versionHint.hidden = true;
+                return;
             }
-        });
+            const majorPrefix = /^\d+\.$/.test(prefill);
+            versionHint.hidden = !majorPrefix;
+            if (majorPrefix) {
+                versionExample.textContent = prefill + '0';
+                if (!versionInput.value || /^\d+\.?$/.test(versionInput.value)) versionInput.value = prefill;
+            } else if (/^\d+\.?$/.test(versionInput.value)) {
+                versionInput.value = '';
+            }
+        };
+        osSelect.addEventListener('change', applyVersionRule);
+        // OS 목록의 [+ OS 버전 등록] 으로 들어오면 OS 가 미리 골라져 있다. 그 OS 의 버전 규칙도 처음부터 적용한다.
+        applyVersionRule();
         const showBanner = msg => UiUtil.showBanner(banner, msg);
         const hideBanner = () => UiUtil.hideBanner(banner);
 

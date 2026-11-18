@@ -88,7 +88,7 @@ public class SubprogramController {
 		model.addAttribute("kindDisplayName", kind.getDisplayName());
 		model.addAttribute("vendorGroups", boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false)));
 		model.addAttribute("subprogramForm", new SubprogramCreateRequest("", "", "", "", false, null));
-		model.addAttribute("osNames", com.example.serverprovision.management.os.enums.OSName.values());
+		model.addAttribute("osNames", com.example.serverprovision.management.os.enums.OSName.registrableValues());   // S23-1 — 지원 상수만
 
 		// Miller 에서 사전 선택된 boardScope 가 있으면 폼 라디오/select 초기값 주입.
 		// boardScopeToken 가 "common" 이면 prefillScopeMode=common, 양의 정수면 prefillScopeMode=board.
