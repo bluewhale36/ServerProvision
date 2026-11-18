@@ -39,6 +39,22 @@ public class AsyncConfig {
 	}
 
 	/**
+	 * E4-1-b-1 — RHEL 설치 작업 트리 추출(ISO 하나에 수 분, 디스크 IO 위주). 동시 추출은 2 개까지만 돌려
+	 * 디스크를 나눠 쓰고, 나머지는 큐에서 기다린다. 같은 ISO 의 중복 추출은 매니저가 막는다.
+	 */
+	@Bean("installTreeExecutor")
+	public Executor installTreeExecutor(TaskDecorator taskDecorator) {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(2);
+		executor.setMaxPoolSize(2);
+		executor.setQueueCapacity(16);
+		executor.setThreadNamePrefix("install-tree-");
+		executor.setTaskDecorator(taskDecorator);
+		executor.initialize();
+		return executor;
+	}
+
+	/**
 	 * 호출 스레드의 MDC 컨텍스트를 worker 스레드로 복사하고, 실행 후 원복한다(풀 재사용 누수 방지).
 	 * Boot 의 {@code ThreadPoolTaskExecutorBuilder} 가 단일 {@code TaskDecorator} 빈을 {@code applicationTaskExecutor} 에 자동 적용.
 	 */

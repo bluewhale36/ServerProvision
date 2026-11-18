@@ -81,7 +81,7 @@ class OSMetadataControllerUpdateFlowTest {
 	@DisplayName("HF4-2 create (JSON) : description 1,025자 → 400 + fieldErrors[description] + 한국어 메시지 (F-6)")
 	void create_descriptionOverLimit_returns400WithFieldError() throws Exception {
 		mvc.perform(post("/management/os")
-						.param("osName", "ROCKY_LINUX")
+						.param("osName", "ROCKY_LINUX").param("rhelRelease", "ROCKY_9")
 						.param("osVersion", "9.6")
 						.param("description", "가".repeat(1025)))
 				.andExpect(status().isBadRequest())
@@ -102,7 +102,7 @@ class OSMetadataControllerUpdateFlowTest {
 	private org.springframework.test.web.servlet.ResultActions postCreateRocky96() throws Exception {
 		return mvc.perform(post("/management/os")
 				.accept(org.springframework.http.MediaType.APPLICATION_JSON)
-				.param("osName", "ROCKY_LINUX")
+				.param("osName", "ROCKY_LINUX").param("rhelRelease", "ROCKY_9")
 				.param("osVersion", "9.6"));
 	}
 
@@ -167,5 +167,60 @@ class OSMetadataControllerUpdateFlowTest {
 						.param("description", "가".repeat(1024)))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrlPattern("/management/os**"));
+	}
+
+	// ==== E4-1-b-2 D-21 — Rocky Linux 지원 메이저 =========================================
+
+	@Test
+	@DisplayName("E4-1-b-2 create (JSON) : Rocky Linux 에 메이저 없음 → 400 + fieldErrors[rhelReleaseValid] · 서비스 미호출")
+	void create_rockyWithoutRelease_returns400() throws Exception {
+		mvc.perform(post("/management/os")
+						.param("osName", "ROCKY_LINUX")
+						.param("osVersion", "9.6"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.fieldErrors[?(@.field == 'rhelReleaseValid')].message").value("지원 메이저 버전을 골라야 합니다."));
+		verify(osMetadataService, never()).create(any());
+	}
+
+	@Test
+	@DisplayName("E4-1-b-2 create (JSON) : Rocky Linux 9 에 버전 10.0 → 400 + fieldErrors[osVersionCovered]")
+	void create_rockyVersionOutsideRelease_returns400() throws Exception {
+		mvc.perform(post("/management/os")
+						.param("osName", "ROCKY_LINUX").param("rhelRelease", "ROCKY_9")
+						.param("osVersion", "10.0"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.fieldErrors[?(@.field == 'osVersionCovered')].message").value("OS 버전은 고른 메이저 버전의 세부 버전이어야 합니다."));
+		verify(osMetadataService, never()).create(any());
+	}
+
+	@Test
+	@DisplayName("E4-1-b-2 create (JSON) : 지원 밖 메이저(ROCKY_11) 직접 POST → 400(바인딩 실패) · 서비스 미호출")
+	void create_unsupportedRelease_returns400() throws Exception {
+		mvc.perform(post("/management/os")
+						.param("osName", "ROCKY_LINUX").param("rhelRelease", "ROCKY_11")
+						.param("osVersion", "11.0"))
+				.andExpect(status().isBadRequest());
+		verify(osMetadataService, never()).create(any());
+	}
+
+	@Test
+	@DisplayName("E4-1-b-2 create (JSON) : Rocky Linux 10 + 10.0 → 200 + redirect")
+	void create_rockyWithRelease_returns200() throws Exception {
+		org.mockito.BDDMockito.given(osMetadataService.create(any())).willReturn(5L);
+		mvc.perform(post("/management/os")
+						.param("osName", "ROCKY_LINUX").param("rhelRelease", "ROCKY_10")
+						.param("osVersion", "10.0"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.redirect").value("/management/os?selectId=5"));
+	}
+
+	@Test
+	@DisplayName("E4-1-b-2 GET /new : OS 선택지에 Rocky Linux 8 · 9 · 10 이 메이저별로 보인다(data-rhel-release · data-version-prefix)")
+	void newForm_rendersRockyMajors() throws Exception {
+		mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/management/os/new"))
+				.andExpect(status().isOk())
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("Rocky Linux 10")))
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("data-rhel-release=\"ROCKY_9\"")))
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("data-version-prefix=\"8.\"")));
 	}
 }

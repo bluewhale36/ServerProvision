@@ -589,10 +589,10 @@ class SettingRestControllerSaveFlowTest {
     }
 
     @Test
-    @DisplayName("POST — 리눅스 OS 에 WINDOWS 판별자 위조 → 400 + fieldErrors[osMetadataId] (OsInstallTargetPolicy 가드)")
+    @DisplayName("POST — 리눅스 OS 에 WINDOWS 판별자 위조 → 400 + fieldErrors[osMetadataId] (1단 검사기 계열 일치 가드)")
     void create_windowsOnLinuxTarget_returns400() throws Exception {
         given(commandService.create(any())).willThrow(
-                new UnsupportedOsInstallTargetException(OsInstallTargetPolicy.LINUX_BLOCK_REASON));
+                new UnsupportedOsInstallTargetException(OsInstallTargetPolicy.FAMILY_MISMATCH_REASON));
 
         mvc.perform(post("/provisioning/setting")
                         .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
@@ -675,5 +675,31 @@ class SettingRestControllerSaveFlowTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[?(@.field =~ /.*administratorPassword.*/)]").exists());
         verify(commandService, org.mockito.Mockito.never()).create(any());
+    }
+
+    @Test
+    @DisplayName("POST — 해시 비밀번호 키 직접 주입 → 400 + fieldErrors[rootPassword] (E4-1-b-2 D-18, HashedPasswordInputException)")
+    void create_hashedPasswordInput_returns400() throws Exception {
+        given(commandService.create(any())).willThrow(
+                new com.example.serverprovision.provisioning.setting.exception.HashedPasswordInputException("rootPassword"));
+
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body(withOsVolume(WINDOWS_PROCESS))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'rootPassword')].message").value("비밀번호는 해시가 아닌 원래 값으로 입력해야 합니다."));
+    }
+
+    @Test
+    @DisplayName("POST — 등록에 실패한 ISO 지목 → 400 + fieldErrors[isoId] (E4-1-b-2 D-20, IsoRegistrationFailedException)")
+    void create_registrationFailedIso_returns400() throws Exception {
+        given(commandService.create(any())).willThrow(
+                new com.example.serverprovision.provisioning.setting.exception.IsoRegistrationFailedException("등록에 실패한 ISO 입니다. 사유"));
+
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body(withOsVolume(WINDOWS_PROCESS))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'isoId')].message").value("등록에 실패한 ISO 입니다. 사유"));
     }
 }

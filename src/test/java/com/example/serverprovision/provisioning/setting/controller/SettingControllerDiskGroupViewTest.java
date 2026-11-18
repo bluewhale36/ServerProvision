@@ -71,7 +71,7 @@ class SettingControllerDiskGroupViewTest {
         return new RHELInstallationRequest(1L, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
                 List.of(new PartitionRequest("/", FileSystem.XFS, 0L, SizeUnit.GB, true)),
-                new RootPasswordRequest("root-secret", false, false), List.of(), 1L, List.of(), false, null);
+                new RootPasswordRequest("root-secret", null, false, false), List.of(), 1L, List.of(), false, null);
     }
 
     private static List<DiskGroupRuleRequest> twoRules() {
@@ -332,7 +332,7 @@ class SettingControllerDiskGroupViewTest {
     }
 
     @Test
-    @DisplayName("GET /new — 파티션 행 템플릿에 pDiskName 없음 · 레벨 옵션 data-usable-a/b(RAID5 = 1 · −1). OS 파티션 안내 줄은 R11 축소로 화면 제외")
+    @DisplayName("GET /new — 파티션 행 템플릿에 pDiskName 없음 · 레벨 옵션 data-usable-a/b(RAID5 = 1 · −1). OS 영역 볼륨 안내 줄은 E4-1-b-2 복원으로 다시 보인다")
     void newForm_noDiskNameAndUsableCoefficients() throws Exception {
         given(queryService.findRaidCardOptions()).willReturn(List.of());
 
@@ -340,11 +340,9 @@ class SettingControllerDiskGroupViewTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("pDiskName"))))
                 .andExpect(content().string(not(containsString("<th>디스크명</th>"))))
-                // R11 — OS 설치 카드가 식별 전용으로 축소되어 파티션 UI(대상 안내 줄 · 에러 필드 ·
-                // 메시지 사전)는 화면에서 제외됐다. U4-1-3 의 안내는 E4 부활 시 git 이력으로 복원되며,
-                // 여기서는 부재를 단언해 잔존 마크업의 재유입(CP5 D1 계열)을 막는다.
-                .andExpect(content().string(not(containsString("oiOsVolumeTargetKind"))))
-                .andExpect(content().string(not(containsString("data-error-field=\"partitionsWithinOsVolume\""))))
+                // E4-1-b-2 — 리눅스 입력 복원으로 U4-1-3 의 OS 영역 볼륨 안내(대상 · 용량 줄 · 에러 필드)가 돌아왔다.
+                .andExpect(content().string(containsString("oiOsVolumeTargetKind")))
+                .andExpect(content().string(containsString("data-error-field=\"partitionsWithinOsVolume\"")))
                 .andExpect(content().string(containsString("data-usable-a=\"1.0\"")))
                 .andExpect(content().string(containsString("data-usable-b=\"-1\"")))
                 .andExpect(content().string(containsString("data-usable-a=\"0.5\"")));

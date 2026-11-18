@@ -51,6 +51,7 @@ dependencies {
 
     // S3 — Apache Tika core. magic byte 기반 MIME 검출 (parsers-standard 불필요).
     implementation 'org.apache.tika:tika-core:2.9.2'
+    implementation 'commons-codec:commons-codec' // E4-1-b-2 — 리눅스 비밀번호 SHA-512 crypt(버전은 Boot 가 관리)
 }
 
 tasks.named('test') {

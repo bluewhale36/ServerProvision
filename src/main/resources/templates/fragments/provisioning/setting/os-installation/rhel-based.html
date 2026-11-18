@@ -2,77 +2,75 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <body>
 <!--
-  RHEL 계열 (Rocky Linux 등) OS 설치 폼 전용 입력 블록.
+  RHEL 계열 (Rocky Linux 등) OS 설치 폼 전용 입력 블록 두 조각.
   ─────────────────────────────────────────────────────────
   사용 컨텍스트 : provisioning/setting-new :: settingForm 의 OS_INSTALLATION 카드 내부.
   필요 Model    : osOptions — 환경/패키지 그룹은 ISO 스코프(os.isoList[].environments/packageGroups, U2-4)
 
-  가시성 규칙 :
-    - data-os-family="RHEL_BASED" — setting-form.js 가 선택된 OS 옵션의
-      data-os-family 와 대조해 pane 하나만 표시한다 (계열 분기).
-    - 환경/패키지 그룹 선택지는 osMetadataId 단위(data-os-id)로 flat 렌더 후
-      JS 가 .unavailable 토글로 필터링한다 — 레거시와 같은 서버렌더+클라이언트필터 방식.
-    - allowSshRoot 박스는 data-os-name + data-os-version-prefix 매칭 시에만 표시
-      (Rocky Linux 10 전용 Kickstart rootpw &#45;&#45;allow-ssh).
+  - packages : ISO 바로 아래, 시간대 위. 설치 환경(하나) · 추가 패키지 그룹(여럿)을 나란한 카드 두 장으로 고른다
+               (E4-1-b-2 사용자 지시 — 시간대 대륙 / 도시처럼 상위 하나에 하위가 딸린 관계를 가로로).
+  - form     : 리눅스 블록 끝의 계열 전용 설정(KDump).
+  가시성 : 두 조각 모두 section[data-os-family] — setting-form.js 가 선택 OS 의 계열과 대조해 연다.
+  선택지는 ISO 단위(data-iso-id)로 flat 렌더 후 JS 가 .unavailable 토글로 거른다(서버렌더 + 클라이언트필터).
 -->
+<section th:fragment="packages" class="n-form-group" data-os-family="RHEL_BASED" hidden>
+    <div class="n-row n-row-tight">
+        <!-- 설치 환경 (Kickstart %packages @^environment) — 가용 스코프 = ISO(사용자 확정 2026-07-11, comps.xml 은 ISO 마다 다름) -->
+        <div class="n-card" data-error-field="environmentId">
+            <div class="n-card-head">
+                <div class="n-card-head-group"><h3 class="n-card-head-title" id="oiEnvironmentTitle">설치 환경</h3></div>
+            </div>
+            <div class="n-card-body n-check-list" id="oiEnvironmentList" role="radiogroup" aria-labelledby="oiEnvironmentTitle">
+                <p class="n-detail-empty" id="oiEnvPlaceholder">ISO 를 선택하면 설치 환경이 표시됩니다.</p>
+                <th:block th:each="group : ${osOptions}"><th:block th:each="os : ${group.osList}" th:if="${os.osFamily.name() == 'RHEL_BASED'}">
+                    <th:block th:each="iso : ${os.isoList}">
+                    <label class="n-checkbox unavailable" data-env-option
+                           th:each="env : ${iso.environments}"
+                           th:data-iso-id="${iso.id}"
+                           th:data-group-ids="${#strings.listJoin(env.groupIds, ',')}"
+                           th:data-default="${env.isDefault}">
+                        <input type="radio" name="oiEnvironment" th:value="${env.id}">
+                        <span th:text="${env.name}">Server</span>
+                    </label>
+                    </th:block>
+                </th:block></th:block>
+            </div>
+        </div>
+
+        <!-- 추가 패키지 그룹 (Kickstart %packages @group) — 고른 설치 환경의 허용 목록(env 의 data-group-ids)만 보인다 -->
+        <div class="n-card" data-error-field="packageGroupIds">
+            <div class="n-card-head">
+                <div class="n-card-head-group"><h3 class="n-card-head-title" id="oiPackageGroupsTitle">추가 패키지 그룹</h3></div>
+                <!-- 전체 선택 토글 — 보이는 그룹만 대상. 라벨은 JS 가 상태에 따라 전환. -->
+                <button type="button" id="oiPkgToggleAll" class="n-btn n-btn-outline n-btn-sm" hidden>전체 선택</button>
+            </div>
+            <div class="n-card-body n-check-list" id="oiPackageGroups" role="group" aria-labelledby="oiPackageGroupsTitle">
+                <p class="n-detail-empty" id="oiPkgPlaceholder">설치 환경을 선택하면 선택 가능한 패키지 그룹이 표시됩니다.</p>
+                <th:block th:each="group : ${osOptions}"><th:block th:each="os : ${group.osList}" th:if="${os.osFamily.name() == 'RHEL_BASED'}">
+                    <th:block th:each="iso : ${os.isoList}">
+                    <label class="n-checkbox n-pkg-group unavailable"
+                           th:each="pkg : ${iso.packageGroups}"
+                           th:data-iso-id="${iso.id}">
+                        <input type="checkbox" th:value="${pkg.id}">
+                        <span th:text="${pkg.name}">패키지 그룹</span>
+                    </label>
+                    </th:block>
+                </th:block></th:block>
+            </div>
+        </div>
+    </div>
+</section>
+
 <section th:fragment="form" class="n-os-family-pane" data-os-family="RHEL_BASED" hidden>
     <div class="n-pane-title">RHEL 계열 전용 설정</div>
-
-    <!-- 설치 환경 (Kickstart %packages @^environment) -->
-    <div class="n-form-group">
-        <label class="n-label strong" for="oiEnvironment">설치 환경</label>
-        <select id="oiEnvironment" class="n-select" data-error-field="environmentId" disabled>
-            <option value="" data-placeholder>OS 먼저 선택</option>
-            <!-- 환경 가용 스코프 = ISO (사용자 확정 2026-07-11, comps.xml 은 ISO 마다 다름) — data-iso-id 로 필터 -->
-            <th:block th:each="group : ${osOptions}"><th:block th:each="os : ${group.osList}" th:if="${os.osFamily.name() == 'RHEL_BASED'}">
-                <th:block th:each="iso : ${os.isoList}">
-                <option th:each="env : ${iso.environments}"
-                        th:value="${env.id}"
-                        th:text="${env.name}"
-                        th:data-iso-id="${iso.id}"
-                        th:data-group-ids="${#strings.listJoin(env.groupIds, ',')}"
-                        class="unavailable" disabled></option>
-                </th:block>
-            </th:block></th:block>
-        </select>
-    </div>
-
-    <!-- 추가 패키지 그룹 (Kickstart %packages @group) -->
-    <div class="n-form-group" data-error-field="packageGroupIds">
-        <div class="n-group-head">
-            <label class="n-label strong">추가 패키지 그룹</label>
-            <!-- 전체 선택 토글 — 현재 환경에서 선택 가능한(unavailable 아님) 그룹만 대상. 라벨은 JS 가 상태에 따라 전환. -->
-            <button type="button" id="oiPkgToggleAll" class="n-btn n-btn-outline n-btn-sm" hidden>전체 선택</button>
-        </div>
-        <div id="oiPackageGroups" class="n-check-panel">
-            <span class="n-hint" id="oiPkgPlaceholder">설치 환경을 선택하면 선택 가능한 패키지 그룹이 표시됩니다.</span>
-            <th:block th:each="group : ${osOptions}"><th:block th:each="os : ${group.osList}" th:if="${os.osFamily.name() == 'RHEL_BASED'}">
-                <th:block th:each="iso : ${os.isoList}">
-                <label class="n-checkbox n-pkg-group unavailable"
-                       th:each="pkg : ${iso.packageGroups}"
-                       th:data-iso-id="${iso.id}">
-                    <input type="checkbox" th:value="${pkg.id}">
-                    <span th:text="${pkg.name}">패키지 그룹</span>
-                </label>
-                </th:block>
-            </th:block></th:block>
-        </div>
-    </div>
 
     <!-- KDump (Kickstart %addon com_redhat_kdump) -->
     <div class="n-form-group">
         <label class="n-checkbox">
-            <input type="checkbox" id="oiKdump"> KDump(커널 크래시 덤프) 활성화
+            <input type="checkbox" id="oiKdump" checked> KDump(커널 크래시 덤프) 활성화
         </label>
     </div>
-
-    <!--
-      Rocky Linux 10 전용 옵션 — rootpw &#45;&#45;allow-ssh.
-      data-os-name 은 SettingOSOptionResponse.osName 문자열과 대조된다 (스텁 기준 "ROCKY_LINUX").
-      setting-form.js 가 선택된 OS 의 data-os-name / data-os-version 접두사로 표시 여부를 토글한다.
-    -->
-    <!-- Rocky 10 root SSH 허용은 root 비밀번호 그룹으로 이동(setting-new.html — 사용자 지시 2026-07-05:
-         rootpw --allow-ssh 는 root 비밀번호와 한 묶음의 결정이라 같은 그룹에 배치). -->
+    <!-- Rocky 10 root SSH 허용은 root 비밀번호 그룹에 있다(setting-new.html — 사용자 지시 2026-07-05). -->
 </section>
 </body>
 </html>

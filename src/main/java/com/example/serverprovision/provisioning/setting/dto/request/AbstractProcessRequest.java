@@ -3,6 +3,8 @@ package com.example.serverprovision.provisioning.setting.dto.request;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.util.function.UnaryOperator;
+
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -64,5 +66,22 @@ public abstract class AbstractProcessRequest {
      */
     public AbstractProcessRequest withSecretsRetainedFrom(AbstractProcessRequest existing) {
         return this;
+    }
+
+    /**
+     * 저장 직전 비밀값 처리 — 평문 비밀번호를 해시한다(E4-1-b-2 D-18, 리눅스). Windows Administrator 처럼 평문이
+     * 필요한 비밀값이나 비밀값이 없는 단계 타입은 기본 {@code this}.
+     */
+    public AbstractProcessRequest withHashedSecrets(UnaryOperator<String> hasher) {
+        return this;
+    }
+
+    /**
+     * 요청에 저장 형태(해시) 비밀값이 실렸으면 그 필드 이름, 아니면 {@code null} — 저장 서비스 입구가 위조로 거절한다.
+     * 요청과 저장본이 같은 역직렬화를 타므로 이 판정은 역직렬화가 아니라 API 경계에서 한다.
+     */
+    @JsonIgnore
+    public String storedSecretField() {
+        return null;
     }
 }

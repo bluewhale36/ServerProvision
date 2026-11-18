@@ -89,7 +89,7 @@ WebBIOS 는 레거시 옵션 ROM 이므로 지금 BIOS 는 CSM(레거시)이 켜
 | swap | 16 GiB | LVM `spv-swap` | swap | 사내 표준 |
 | `/` | 80 GiB | LVM `spv-root` | ext4 | OS · 앱 jar |
 | `/var` | 120 GiB | LVM `spv-var` | ext4 | MariaDB 데이터 · 로그 · journal |
-| `/var/lib/serverprovision` | 600 GiB | LVM `spv-provision` | ext4 | 자원 저장소 전부(런북 §6 의 served · internal). 첫 부팅 뒤 §5 에서 정렬 옵션으로 다시 만든다 |
+| `/var/lib/serverprovision` | 600 GiB | LVM `spv-provision` | ext4 | 자원 저장소 전부(런북 §6 의 served · internal). RHEL 설치 트리(served/install-trees, ISO 당 약 10 GB, 동시 2~3 개)도 여기 둔다. 첫 부팅 뒤 §5 에서 정렬 옵션으로 다시 만든다 |
 | `/srv/pxe` | 100 GiB | LVM `spv-pxe` | ext4 | Windows 설치 소스 · Samba 공유(런북 §14). 첫 부팅 뒤 §5 에서 정렬 옵션으로 다시 만든다 |
 | 미할당 | 약 195 GiB | VG 여유 | 없음 | D8 원칙. 어느 쪽이 부족해질지 모르므로 남긴다. 증설분(§2-1)도 여기로 들어온다 |
 

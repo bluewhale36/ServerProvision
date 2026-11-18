@@ -30,7 +30,7 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
     /** 추가 패키지 그룹의 DB 기본키 목록. 선택 사항이므로 null/빈 리스트 모두 허용. */
     private final List<Long> packageGroupIds;
 
-    /** Kickstart {@code %addon com_redhat_kdump} 활성화 여부. */
+    /** Kickstart {@code %addon com_redhat_kdump} 활성화 여부. 키가 없으면 true(설치 프로그램 기본값). */
     private final boolean isKDumpEnabled;
 
     /**
@@ -49,7 +49,7 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
             @JsonProperty("users")           List<UserRequest> users,
             @JsonProperty("environmentId")   Long environmentId,
             @JsonProperty("packageGroupIds") List<Long> packageGroupIds,
-            // boxed + null-coalesce: Jackson 3 FAIL_ON_NULL_FOR_PRIMITIVES 기본 활성 대응 (누락=false).
+            // 누락 = true(E4-1-b-2 D-19 · Q6): 설치 프로그램 기본값과 같게 켜 둔다. 저장 JSON 은 키를 항상 싣는다.
             @JsonProperty("isKDumpEnabled")  Boolean isKDumpEnabled,
             @JsonProperty("allowSshRoot")    Boolean allowSshRoot
     ) {
@@ -57,7 +57,7 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
         this.rootPassword    = rootPassword;
         this.environmentId   = environmentId;
         this.packageGroupIds = packageGroupIds != null ? packageGroupIds : List.of();
-        this.isKDumpEnabled  = isKDumpEnabled != null && isKDumpEnabled;
+        this.isKDumpEnabled  = isKDumpEnabled == null || isKDumpEnabled;
         this.allowSshRoot    = allowSshRoot;
     }
 
@@ -70,6 +70,14 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
     @Override
     public OSFamily osFamily() {
         return OSFamily.RHEL_BASED;
+    }
+
+    @Override
+    public String storedSecretField() {
+        if (rootPassword != null && rootPassword.carriesHash()) {
+            return "rootPassword";
+        }
+        return super.storedSecretField();
     }
 
     @Override

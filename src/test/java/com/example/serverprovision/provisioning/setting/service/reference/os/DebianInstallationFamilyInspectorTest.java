@@ -38,7 +38,7 @@ class DebianInstallationFamilyInspectorTest {
     }
 
     private static List<UserRequest> oneUser() {
-        return List.of(new UserRequest("admin", "user-pw-1", true, false, false));
+        return List.of(new UserRequest("admin", "user-pw-1", null, true, false, false));
     }
 
     @Test

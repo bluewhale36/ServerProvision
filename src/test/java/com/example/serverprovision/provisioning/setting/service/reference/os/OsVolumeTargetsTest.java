@@ -64,7 +64,7 @@ class OsVolumeTargetsTest {
     }
 
     @Test
-    @DisplayName("우선순위에 따름 → BY_PRIORITY, 하한 = 후보 최솟값(RAID5 4 TB × 3 = 8 TB vs RAID 없음 960 GB → 960 GB) · 자동 탐지가 섞이면 실행 시 확인")
+    @DisplayName("우선순위에 따름 → BY_PRIORITY, 하한 = RAID 후보 최솟값(RAID 미구성 960 GB 는 OS 를 받지 않아 제외 → RAID5 8 TB, E4-1-b-2 D-7) · 자동 탐지가 섞이면 실행 시 확인")
     void byPriority() {
         OsVolumeTarget t = OsVolumeTargets.describe(raid(
                 rule(null, new DiskCapacityRequirement(CapacityRequirementMode.SPECIFIED, 960L, DiskCapacityUnit.GB),
@@ -73,8 +73,8 @@ class OsVolumeTargetsTest {
                         new DiskCountRequirement(DiskCountMode.AT_LEAST, 3), DiskGroupRole.BY_PRIORITY),
                 rule(RaidLevel.RAID1, gb(480), new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.DATA)));
         assertThat(t.kind()).isEqualTo(OsVolumeTargetKind.BY_PRIORITY);
-        assertThat(t.capacityLowerBoundBytes()).isEqualTo(960_000_000_000L);
-        assertThat(t.capacityDisplay()).isEqualTo("OS 영역 최소 용량 960 GB, 고정 파티션 합 0 GiB");
+        assertThat(t.capacityLowerBoundBytes()).isEqualTo(8_000_000_000_000L);
+        assertThat(t.capacityDisplay()).isEqualTo("OS 영역 최소 용량 8 TB, 고정 파티션 합 0 GiB");
 
         OsVolumeTarget unknown = OsVolumeTargets.describe(raid(
                 rule(RaidLevel.RAID1, AUTO, new DiskCountRequirement(DiskCountMode.EXACT, 2), DiskGroupRole.BY_PRIORITY)));
@@ -130,7 +130,7 @@ class OsVolumeTargetsTest {
                 new com.example.serverprovision.provisioning.setting.dto.request.TimezoneRequest("Asia/Seoul", true),
                 List.of(new com.example.serverprovision.provisioning.setting.dto.request.PartitionRequest("swap", com.example.serverprovision.provisioning.setting.enums.FileSystem.SWAP, 16L, com.example.serverprovision.provisioning.setting.enums.SizeUnit.GB, false),
                         new com.example.serverprovision.provisioning.setting.dto.request.PartitionRequest("/", com.example.serverprovision.provisioning.setting.enums.FileSystem.XFS, 0L, com.example.serverprovision.provisioning.setting.enums.SizeUnit.GB, true)),
-                new com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest("pw", false, false), List.of(), 1L, List.of(), true, null);
+                new com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest("pw", null, false, false), List.of(), 1L, List.of(), true, null);
         OsVolumeTarget t = OsVolumeTargets.describe(raid, install);
         assertThat(t.capacityDisplay()).isEqualTo("OS 영역 최소 용량 480 GB, 고정 파티션 합 16 GiB(+ grow)");
         assertThat(t.over()).isFalse();
@@ -138,7 +138,7 @@ class OsVolumeTargetsTest {
         var big = new com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest(1L, 1L,
                 new com.example.serverprovision.provisioning.setting.dto.request.TimezoneRequest("Asia/Seoul", true),
                 List.of(new com.example.serverprovision.provisioning.setting.dto.request.PartitionRequest("swap", com.example.serverprovision.provisioning.setting.enums.FileSystem.SWAP, 500L, com.example.serverprovision.provisioning.setting.enums.SizeUnit.GB, false)),
-                new com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest("pw", false, false), List.of(), 1L, List.of(), true, null);
+                new com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest("pw", null, false, false), List.of(), 1L, List.of(), true, null);
         OsVolumeTarget o = OsVolumeTargets.describe(raid, big);
         assertThat(o.over()).isTrue();
         assertThat(o.capacityDisplay()).isEqualTo("OS 영역 최소 용량 480 GB, 고정 파티션 합 500 GiB: 최소 용량을 넘습니다");

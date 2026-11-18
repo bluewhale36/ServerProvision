@@ -13,10 +13,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -47,13 +50,22 @@ class CompsExtractionServiceTest {
     OSMetadata rocky;
     ISO iso;
 
+    // E4-1-b-2 D-20 — Rocky 추출은 ISO 루트의 트리 설명서 버전을 등록 OS(9.5)와 대조한다. 준비된 ISO 루트를 흉내 낸다.
+    @TempDir Path isoRoot;
+    private String rockyRoot;
+
+    @Mock IsoRegistrationFailureRecorder registrationFailureRecorder;
+
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        Files.writeString(isoRoot.resolve(".treeinfo"), "[release]\nname = Rocky Linux\nversion = 9.5\n");
+        rockyRoot = isoRoot.toString();
         service = new CompsExtractionService(
                 List.of(strategy),
                 isoPreparationService,
                 compsMergeService,
-                backgroundJobService
+                backgroundJobService,
+                registrationFailureRecorder
         );
         rocky = OSMetadata.builder()
                 .osName(OSName.ROCKY_LINUX)
@@ -77,9 +89,9 @@ class CompsExtractionServiceTest {
     @DisplayName("happy: 전략이 지원하고 추출이 성공하면 mergeAndSave 후 complete 가 호출된다")
     void happy_callsMergeAndComplete() {
         given(isoPreparationService.prepare("/data/iso/rocky95.iso"))
-                .willReturn(PreparedIsoPath.passthrough("/mnt/rocky"));
+                .willReturn(PreparedIsoPath.passthrough(rockyRoot));
         given(strategy.supports(OSName.ROCKY_LINUX)).willReturn(true);
-        given(strategy.extract("/mnt/rocky"))
+        given(strategy.extract(rockyRoot))
                 .willReturn(new CompsExtractionResult(List.of(), Map.of()));
 
         service.extractAsync(rocky, iso, "job-happy");
@@ -115,7 +127,7 @@ class CompsExtractionServiceTest {
     @DisplayName("실패: 전략 extract 가 예외를 던지면 fail 이 호출되고 mergeAndSave 는 호출되지 않는다")
     void extractorThrows_callsFail() {
         given(isoPreparationService.prepare(anyString()))
-                .willReturn(PreparedIsoPath.passthrough("/mnt/rocky"));
+                .willReturn(PreparedIsoPath.passthrough(rockyRoot));
         given(strategy.supports(OSName.ROCKY_LINUX)).willReturn(true);
         given(strategy.extract(anyString()))
                 .willThrow(new IllegalStateException("comps 데이터를 포함한 repomd.xml 을 찾을 수 없습니다."));
@@ -125,5 +137,75 @@ class CompsExtractionServiceTest {
         verify(backgroundJobService).fail(eq("job-fail"), contains("repomd"));
         verify(compsMergeService, never()).mergeAndSave(anyLong(), anyLong(), any());
         verify(backgroundJobService, never()).complete(anyString());
+    }
+
+    // ==== E4-1-b-2 D-20 — ISO 버전 확인 ==========================================================
+
+    @Test
+    @DisplayName("버전 불일치: ISO 의 실제 버전(11.0)이 등록 OS(9.5)와 다르면 fail(문구) · 저장 · 전략 미호출")
+    void releaseMismatch_callsFail() throws Exception {
+        Files.writeString(isoRoot.resolve(".treeinfo"), "[release]\nname = Rocky Linux\nversion = 11.0\n");
+        given(isoPreparationService.prepare(anyString())).willReturn(PreparedIsoPath.passthrough(rockyRoot));
+
+        service.extractAsync(rocky, iso, "job-mismatch");
+
+        verify(backgroundJobService).fail(eq("job-mismatch"),
+                eq("ISO 의 실제 버전(Rocky Linux 11.0)과 등록한 OS 버전(Rocky Linux 9.5)이 다릅니다. 맞는 OS 아래에 다시 등록해야 합니다."));
+        verify(strategy, never()).extract(anyString());
+        verify(compsMergeService, never()).mergeAndSave(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("트리 설명서 없음: Rocky ISO 루트에 .treeinfo 가 없으면 fail(RHEL 계열 설치 ISO 확인 문구)")
+    void treeinfoMissing_callsFail() throws Exception {
+        Files.delete(isoRoot.resolve(".treeinfo"));
+        given(isoPreparationService.prepare(anyString())).willReturn(PreparedIsoPath.passthrough(rockyRoot));
+
+        service.extractAsync(rocky, iso, "job-notree");
+
+        verify(backgroundJobService).fail(eq("job-notree"), contains("RHEL 계열 설치 ISO 인지 확인해야 합니다"));
+        verify(compsMergeService, never()).mergeAndSave(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("CentOS 는 버전 확인을 건너뛴다(.treeinfo 없어도 추출 진행)")
+    void centosSkipsReleaseCheck() throws Exception {
+        Files.delete(isoRoot.resolve(".treeinfo"));
+        OSMetadata centos = OSMetadata.builder().osName(OSName.CENTOS).osVersion("7.9").isEnabled(true).isDeleted(false).build();
+        ReflectionTestUtils.setField(centos, "id", 3L);
+        given(isoPreparationService.prepare(anyString())).willReturn(PreparedIsoPath.passthrough(rockyRoot));
+        given(strategy.supports(OSName.CENTOS)).willReturn(true);
+        given(strategy.extract(rockyRoot)).willReturn(new CompsExtractionResult(List.of(), Map.of()));
+
+        service.extractAsync(centos, iso, "job-centos");
+
+        verify(compsMergeService).mergeAndSave(eq(3L), eq(2L), any(CompsExtractionResult.class));
+        verify(backgroundJobService).complete("job-centos");
+    }
+
+    @Test
+    @DisplayName("D-20 — 버전 불일치 · 트리 설명서 없음은 ISO 를 '등록 실패' 로 남긴다(사유 = 작업 실패 문장), 성공은 남기지 않는다")
+    void releaseFailure_recordsRegistrationFailure() throws Exception {
+        given(isoPreparationService.prepare(anyString())).willReturn(PreparedIsoPath.passthrough(rockyRoot));
+        Files.writeString(isoRoot.resolve(".treeinfo"), "[release]\nname = Rocky Linux\nversion = 11.0\n");
+        service.extractAsync(rocky, iso, "job-a");
+        verify(registrationFailureRecorder).record(2L,
+                "ISO 의 실제 버전(Rocky Linux 11.0)과 등록한 OS 버전(Rocky Linux 9.5)이 다릅니다. 맞는 OS 아래에 다시 등록해야 합니다.");
+
+        Files.delete(isoRoot.resolve(".treeinfo"));
+        service.extractAsync(rocky, iso, "job-b");
+        verify(registrationFailureRecorder).record(2L, "ISO 에서 배포판 정보를 찾지 못했습니다. RHEL 계열 설치 ISO 인지 확인해야 합니다.");
+    }
+
+    @Test
+    @DisplayName("D-20 — 버전이 맞으면 등록 실패를 남기지 않는다")
+    void releaseMatch_doesNotRecord() {
+        given(isoPreparationService.prepare(anyString())).willReturn(PreparedIsoPath.passthrough(rockyRoot));
+        given(strategy.supports(OSName.ROCKY_LINUX)).willReturn(true);
+        given(strategy.extract(rockyRoot)).willReturn(new CompsExtractionResult(List.of(), Map.of()));
+
+        service.extractAsync(rocky, iso, "job-ok");
+
+        verify(registrationFailureRecorder, never()).record(anyLong(), anyString());
     }
 }

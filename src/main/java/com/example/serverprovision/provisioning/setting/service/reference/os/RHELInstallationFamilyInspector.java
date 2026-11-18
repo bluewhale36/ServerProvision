@@ -1,5 +1,8 @@
 package com.example.serverprovision.provisioning.setting.service.reference.os;
 
+import com.example.serverprovision.management.os.entity.OSMetadata;
+import com.example.serverprovision.management.os.enums.OSName;
+import com.example.serverprovision.management.os.enums.RhelRelease;
 import com.example.serverprovision.management.os.entity.OSEnvironment;
 import com.example.serverprovision.management.os.entity.OSPackageGroup;
 import com.example.serverprovision.management.os.repository.ISORepository;
@@ -28,6 +31,17 @@ public class RHELInstallationFamilyInspector implements OSInstallationFamilyInsp
     @Override
     public OSFamily family() {
         return OSFamily.RHEL_BASED;
+    }
+
+    /** Rocky Linux 8 · 9 · 10 만(E4-1-b-2) — 지원 메이저 목록의 정본은 {@link RhelRelease}. CentOS · 그 밖 메이저는 막는다. */
+    @Override
+    public String installBlockReason(OSMetadata os) {
+        return os.rhelRelease().isPresent() ? null : unsupportedReason();
+    }
+
+    static String unsupportedReason() {
+        return OSName.ROCKY_LINUX.getDisplayName() + " " + RhelRelease.supportedMajors(OSName.ROCKY_LINUX)
+                + " 만 설치할 수 있습니다.";
     }
 
     @Override

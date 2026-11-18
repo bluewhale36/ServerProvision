@@ -13,7 +13,6 @@ import com.example.serverprovision.provisioning.setting.dto.response.WindowsImag
 import com.example.serverprovision.provisioning.setting.enums.OSFamily;
 import com.example.serverprovision.provisioning.setting.enums.WindowsImagePresence;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
-import com.example.serverprovision.provisioning.setting.service.reference.os.OsInstallTargetPolicy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,9 +50,13 @@ class SettingControllerWindowsInstallViewTest {
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
     private static List<SettingOSOptionGroupResponse> windowsOptions(String installBlockReason) {
-        return List.of(new SettingOSOptionGroupResponse("Windows Server", List.of(new SettingOSOptionResponse(
-                2L, "WINDOWS_SERVER", "2025", OSFamily.WINDOWS, installBlockReason, false, null, null,
-                List.of(new SettingOSOptionResponse.IsoOption(60L, "win2025.iso", false, null, List.of(), List.of()))))));
+        return List.of(new SettingOSOptionGroupResponse("Windows Server", List.of(windowsOption(installBlockReason))));
+    }
+
+    private static SettingOSOptionResponse windowsOption(String installBlockReason) {
+        return new SettingOSOptionResponse(
+                2L, "WINDOWS_SERVER", "Windows Server", "2025", OSFamily.WINDOWS, installBlockReason, false, false, null, null,
+                List.of(new SettingOSOptionResponse.IsoOption(60L, "win2025.iso", "/isos/" + "win2025.iso", false, null, null, null, null, List.of(), List.of(), null, null)));
     }
 
     private static List<WindowsImageOptionResponse> imageOptions() {
@@ -79,7 +82,7 @@ class SettingControllerWindowsInstallViewTest {
     // ==== 작성 폼 =================================================================================
 
     @Test
-    @DisplayName("GET /new — Windows 옵션(data-os-family=WINDOWS · 선택 가능) + 설치 이미지 select(표시명 — 설치 형태) + Administrator 비밀번호 입력")
+    @DisplayName("GET /new — Windows 옵션(data-os-family=WINDOWS · 선택 가능 · 화면 이름) + 설치 이미지 select(표시명 — 설치 형태) + Administrator 비밀번호 입력")
     void newForm_rendersWindowsBlock() throws Exception {
         given(queryService.findOSOptions()).willReturn(windowsOptions(null));
         given(queryService.findWindowsImageOptions()).willReturn(imageOptions());
@@ -87,6 +90,7 @@ class SettingControllerWindowsInstallViewTest {
         mvc.perform(get("/provisioning/setting/new"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-os-family=\"WINDOWS\"")))
+                .andExpect(content().string(containsString(">Windows Server 2025</option>")))
                 .andExpect(content().string(not(containsString("(선택 불가)"))))
                 .andExpect(content().string(containsString("id=\"oiWindowsImage\"")))
                 .andExpect(content().string(containsString("Windows Server 2025 Standard (데스크톱 환경), Server")))
@@ -98,12 +102,13 @@ class SettingControllerWindowsInstallViewTest {
     @Test
     @DisplayName("GET /new — 설치 소스 미준비면 Windows 옵션이 disabled + title(정책 문장) 로 1차 차단된다")
     void newForm_blocksWindowsWhenSourceNotReady() throws Exception {
-        given(queryService.findOSOptions()).willReturn(windowsOptions(OsInstallTargetPolicy.SOURCE_BLOCK_REASON));
+        String reason = "Windows 설치 소스가 준비되지 않았습니다. 시스템 자산 대시보드의 'Windows 설치 소스' 영역을 확인해야 합니다.";
+        given(queryService.findOSOptions()).willReturn(windowsOptions(reason));
         given(queryService.findWindowsImageOptions()).willReturn(List.of());
 
         mvc.perform(get("/provisioning/setting/new"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("WINDOWS_SERVER 2025 (선택 불가)")))
+                .andExpect(content().string(containsString("Windows Server 2025 (선택 불가)")))
                 // 옵션 title = 정책 문장(SSOT). 따옴표는 Thymeleaf 가 이스케이프하므로 문장 앞부분으로 대조한다.
                 .andExpect(content().string(containsString("title=\"Windows 설치 소스가 준비되지 않았습니다.")))
                 .andExpect(content().string(containsString("disabled")));

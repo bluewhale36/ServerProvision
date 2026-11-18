@@ -87,6 +87,13 @@ public class ISO extends LifecycleEntity implements Markable {
 	@Column(name = "extracted_at")
 	private Instant extractedAt;
 
+	/**
+	 * E4-1-b-2 D-20 — 등록 뒤 버전 확인에서 실패한 사유(ISO 의 실제 버전이 등록 OS 와 다르거나 트리 설명서가 없음).
+	 * null 이면 정상. 행과 파일은 지우지 않고 남겨 운영자가 사유를 보고 지운다. 실패한 ISO 는 정의서에서 고를 수 없다.
+	 */
+	@Column(name = "registration_failure", length = 512)
+	private String registrationFailure;
+
 	// ---- 제공 관계 (A1-1 추출 결과) ----------------------------------
 	@ManyToMany(fetch = FetchType.LAZY)
 	@OnDelete(action = OnDeleteAction.CASCADE)
@@ -147,6 +154,21 @@ public class ISO extends LifecycleEntity implements Markable {
 	 */
 	public void markExtracted() {
 		this.extractedAt = Instant.now();
+		this.registrationFailure = null;   // E4-1-b-2 — 추출이 끝까지 성공했으면 버전 확인도 통과한 것이다
+	}
+
+	/** E4-1-b-2 D-20 — 버전 확인 실패를 남긴다(행 · 파일은 그대로). */
+	public void markRegistrationFailed(String reason) {
+		this.registrationFailure = reason;
+	}
+
+	public boolean isRegistrationFailed() {
+		return registrationFailure != null;
+	}
+
+	/** 설치 정의서에서 이 ISO 를 고를 수 없는 사유(없으면 null) — 정의서 ISO 목록(Miller 1 열)의 잠금과 1단 검사기 거절이 같은 출처를 쓴다(항목은 본문, 거절은 이 문장). */
+	public String installSelectionBlockReason() {
+		return isRegistrationFailed() ? "등록에 실패한 ISO 입니다. " + registrationFailure : null;
 	}
 
 	/**

@@ -221,6 +221,9 @@
                                     <!--/* S5-12 — 등록 중 placeholder : 다른 상태 배지 대신 "등록 중" 배지만 표시 */-->
                                     <span th:if="${iso.inProgress}"
                                           class="n-badge n-badge-blue n-accordion-badge">등록 중</span>
+                                    <!-- E4-1-b-2 D-20 — 접힌 채로도 보이게 머리줄에 둔다(사유는 펼친 본문의 '등록' 칸). -->
+                                    <span th:if="${!iso.inProgress and iso.registrationFailure != null and !iso.isDeleted}"
+                                          class="n-badge n-badge-red n-accordion-badge">등록 실패</span>
                                     <span th:if="${!iso.inProgress and iso.isDeprecated and !iso.isDeleted}"
                                           class="n-badge n-badge-yellow n-accordion-badge">사용 중단</span>
                                     <span th:if="${!iso.inProgress and iso.isDeleted}"
@@ -275,6 +278,14 @@
                                                       class="n-accordion-muted">-</span>
                                                 <span th:unless="${iso.providedPackageGroupCount == 0}"
                                                       th:text="${iso.providedPackageGroupCount} + '개'"></span>
+                                            </dd>
+                                        </div>
+                                        <!-- E4-1-b-2 D-20 — 등록 뒤 버전 확인에 실패한 ISO. 행과 파일은 남아 있고, 정의서에서는 고를 수 없다. -->
+                                        <div class="n-accordion-field" th:if="${iso.registrationFailure != null}">
+                                            <dt>등록</dt>
+                                            <dd>
+                                                <span class="n-badge n-badge-red">등록 실패</span>
+                                                <span th:text="${iso.registrationFailure}">ISO 의 실제 버전과 등록한 OS 버전이 다릅니다.</span>
                                             </dd>
                                         </div>
                                         <!-- 무결성 — sidecar 마커 검증. BIOS list.html 의 동일 패턴 (data-verify-url + 뱃지 + 재발급 폼). -->

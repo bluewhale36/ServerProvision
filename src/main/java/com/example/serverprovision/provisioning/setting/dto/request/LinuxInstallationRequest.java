@@ -8,6 +8,7 @@ import com.example.serverprovision.provisioning.setting.exception.RetainedPasswo
 import lombok.Getter;
 
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 /**
  * 리눅스 계열 OS 설치 요청의 추상 중간층 (U2-1 plan v2 D9).
@@ -66,12 +67,24 @@ public abstract class LinuxInstallationRequest extends OSInstallationRequest {
     /** 값 제거 + 기존 유지 플래그 — 비밀번호는 서버 밖으로 다시 내보내지 않는다. */
     private static final PasswordPatch STRIP = new PasswordPatch() {
         @Override public UserRequest user(UserRequest u) {
-            return new UserRequest(u.getUsername(), null, u.getIsSudoer(), false, true);
+            return u.withoutPassword();
         }
         @Override public RootPasswordRequest root(RootPasswordRequest r) {
-            return r == null ? null : new RootPasswordRequest(null, false, true);
+            return r == null ? null : RootPasswordRequest.keepExisting();
         }
     };
+
+    /** 평문을 해시로(E4-1-b-2 D-18) — 병합(기존 유지) 뒤에 적용해 이어받은 옛 평문도 함께 해시된다. */
+    private static PasswordPatch hashWith(UnaryOperator<String> hasher) {
+        return new PasswordPatch() {
+            @Override public UserRequest user(UserRequest u) {
+                return u.hashed(hasher);
+            }
+            @Override public RootPasswordRequest root(RootPasswordRequest r) {
+                return r == null ? null : r.hashed(hasher);
+            }
+        };
+    }
 
     /**
      * "기존 유지" 인 항목만 저장본에서 값을 복사한다(keep 해제). 유지할 값이 없으면 400 — 정상 UX 는 값이 있는
@@ -118,6 +131,19 @@ public abstract class LinuxInstallationRequest extends OSInstallationRequest {
     @Override
     public LinuxInstallationRequest withSecretsRetainedFrom(AbstractProcessRequest existing) {
         return withPatchedPasswords(retainFrom(existing));
+    }
+
+    /** 저장 직전 — 평문 비밀번호를 해시한다(E4-1-b-2 D-18). */
+    @Override
+    public LinuxInstallationRequest withHashedSecrets(UnaryOperator<String> hasher) {
+        return withPatchedPasswords(hashWith(hasher));
+    }
+
+    /** 요청에 해시 키가 실렸으면 그 필드 이름(위조 판정 · 400 의 표시 자리). 없으면 null. */
+    @Override
+    public String storedSecretField() {
+        boolean userHash = users != null && users.stream().anyMatch(u -> u != null && u.carriesHash());
+        return userHash ? "users" : null;
     }
 
     /** grow 아닌 파티션 크기의 합(바이트) — OS 영역 볼륨 하한과 대조한다(U4-1-3 D7). 판정 재료라 payload 에 싣지 않는다. */

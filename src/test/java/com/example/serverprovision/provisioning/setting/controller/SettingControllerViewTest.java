@@ -90,8 +90,8 @@ class SettingControllerViewTest {
                 1L, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
                 List.of(new PartitionRequest("/", FileSystem.XFS, 0L, SizeUnit.GB, true)),
-                new RootPasswordRequest("root-secret-pw", false, false),
-                List.of(new UserRequest("admin", "user-secret-pw", true, false, false)),
+                new RootPasswordRequest("root-secret-pw", null, false, false),
+                List.of(new UserRequest("admin", "user-secret-pw", null, true, false, false)),
                 1L, List.of(1L), true, null);
         return new SettingDetailResponse(id, "표준 세팅",
                 false, enabled, deprecated, 0L,
@@ -112,8 +112,8 @@ class SettingControllerViewTest {
                 1L, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
                 List.of(new PartitionRequest("/", FileSystem.XFS, 0L, SizeUnit.GB, true)),
-                new RootPasswordRequest("root-secret-pw", false, false),
-                List.of(new UserRequest("admin", "user-secret-pw", true, false, false)),
+                new RootPasswordRequest("root-secret-pw", null, false, false),
+                List.of(new UserRequest("admin", "user-secret-pw", null, true, false, false)),
                 1L, List.of(1L), true, null);
         return new SettingDetailResponse(id, "전 타입 세팅",
                 false, true, false, 0L,

@@ -192,10 +192,12 @@ public class RaidConfigurationRequest extends AbstractProcessRequest {
     /**
      * OS 영역 볼륨의 용량 하한(바이트) — 후보 규칙 전부가 용량을 직접 지정했을 때만 알 수 있고(최솟값), 하나라도 자동 탐지면
      * empty(실행 시 E 가 확인). 후보가 없어도 empty. (U4-1-3 D7)
+     * RAID 미구성 후보는 빼고 센다(E4-1-b-2 D-7) — 실행은 OS 를 RAID 볼륨에만 설치하므로 그 후보는 OS 를 받지 않는다.
+     * 넣으면 작은 직결 디스크 하나가 맞는 정의서를 거절하거나(거짓 거절), 자동 탐지 직결 후보가 검사를 끈다.
      */
     @JsonIgnore
     public java.util.OptionalLong osVolumeCapacityLowerBoundBytes() {
-        List<DiskGroupRuleRequest> candidates = osCandidateRules();
+        List<DiskGroupRuleRequest> candidates = osCandidateRules().stream().filter(DiskGroupRuleRequest::buildsRaid).toList();
         if (candidates.isEmpty()) return java.util.OptionalLong.empty();
         long min = Long.MAX_VALUE;
         for (DiskGroupRuleRequest rule : candidates) {

@@ -56,7 +56,7 @@ class RHELInstallationFamilyInspectorTest {
                 osMetadataId, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
                 partitions,
-                new RootPasswordRequest("root-pw-1", false, false),
+                new RootPasswordRequest("root-pw-1", null, false, false),
                 List.of(), environmentId, groupIds, true, null);
     }
 

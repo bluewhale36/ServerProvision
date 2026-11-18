@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -42,6 +43,7 @@ class JpaSettingCommandServiceTest {
     @Mock SettingDefinitionRepository repository;
     @Mock ProcessReferenceInspectors referenceInspectors;
     @Mock ProcessReferenceInspector inspector;
+    @org.mockito.Spy LinuxPasswordHasher passwordHasher = new LinuxPasswordHasher();   // E4-1-b-2 D-18 — 실제 해시
     @InjectMocks JpaSettingCommandService service;
 
     private static BasicUpdateRequest autoFirmware() {
@@ -331,8 +333,8 @@ class JpaSettingCommandServiceTest {
     private static com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest rhel(String rootPassword, boolean rootKeep,
                                                                                                              String userPassword, boolean userKeep) {
         return new com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest(1L, 10L, null, null,
-                new com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest(rootPassword, false, rootKeep),
-                List.of(new com.example.serverprovision.provisioning.setting.dto.request.UserRequest("ops", userPassword, true, false, userKeep)),
+                new com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest(rootPassword, null, false, rootKeep),
+                List.of(new com.example.serverprovision.provisioning.setting.dto.request.UserRequest("ops", userPassword, null, true, false, userKeep)),
                 1L, List.of(), false, null);
     }
 
@@ -351,9 +353,12 @@ class JpaSettingCommandServiceTest {
 
         service.update(1L, new SettingSaveRequest("윈도우 세팅", List.of(rhel(null, true, null, true))));
 
-        assertThat(storedRhel(existing).getRootPassword().getPassword()).isEqualTo("R00t!");
+        // 이어받은 값은 저장 직전 해시된다(E4-1-b-2 D-18) — 평문은 남지 않고 해시가 그 값의 것이다.
+        assertThat(storedRhel(existing).getRootPassword().getPassword()).isNull();
+        assertThat(LinuxPasswordHasher.matches("R00t!", storedRhel(existing).getRootPassword().getPasswordHash())).isTrue();
         assertThat(storedRhel(existing).getRootPassword().isKeepExistingPassword()).isFalse();
-        assertThat(storedRhel(existing).getUsers().get(0).getPassword()).isEqualTo("Op5!");
+        assertThat(storedRhel(existing).getUsers().get(0).getPassword()).isNull();
+        assertThat(LinuxPasswordHasher.matches("Op5!", storedRhel(existing).getUsers().get(0).getPasswordHash())).isTrue();
         assertThat(storedRhel(existing).getUsers().get(0).isKeepExistingPassword()).isFalse();
 
         // 구 저장본(root 값 없음)에 root 유지 → 400 · 병합은 clear 전이라 저장본 무변.
@@ -380,5 +385,40 @@ class JpaSettingCommandServiceTest {
 
         assertThat(existing.getName()).isEqualTo("윈도우 세팅");
         assertThat(existing.getUpdatedAt()).isNotNull();   // 자식 교체만으로 멈추던 updated_at 이 부모 dirty 로 움직인다
+    }
+
+    // ==== E4-1-b-2 D-18 — 리눅스 비밀번호 저장 때 해시 ===============================================
+
+    @Test
+    @DisplayName("create — 리눅스 root · 사용자 평문은 저장 직전 SHA-512 crypt 로 해시되고 평문은 남지 않는다")
+    void create_hashesLinuxPasswords() {
+        given(repository.existsByNameAndIsDeletedFalse("리눅스 세팅")).willReturn(false);
+        given(referenceInspectors.inspectorFor(any())).willReturn(inspector);
+        given(repository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        service.create(new SettingSaveRequest("리눅스 세팅", List.of(rhel("R00t!", false, "Op5!", false))));
+
+        ArgumentCaptor<SettingDefinition> captor = ArgumentCaptor.forClass(SettingDefinition.class);
+        verify(repository).save(captor.capture());
+        var stored = storedRhel(captor.getValue());
+        assertThat(stored.getRootPassword().getPassword()).isNull();
+        assertThat(stored.getRootPassword().getPasswordHash()).startsWith("$6$");
+        assertThat(LinuxPasswordHasher.matches("R00t!", stored.getRootPassword().getPasswordHash())).isTrue();
+        assertThat(stored.getUsers().get(0).getPassword()).isNull();
+        assertThat(LinuxPasswordHasher.matches("Op5!", stored.getUsers().get(0).getPasswordHash())).isTrue();
+    }
+
+    @Test
+    @DisplayName("create — 요청에 해시 키(passwordHash)가 실리면 400(HashedPasswordInputException, field=rootPassword) · 저장 안 함")
+    void create_rejectsHashedPasswordInput() {
+        given(repository.existsByNameAndIsDeletedFalse("리눅스 세팅")).willReturn(false);
+        var forged = new com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest(1L, 10L, null, null,
+                new com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest(null, "$6$any$string", null, false),
+                List.of(), 1L, List.of(), null, null);
+
+        assertThatThrownBy(() -> service.create(new SettingSaveRequest("리눅스 세팅", List.of(forged))))
+                .isInstanceOfSatisfying(com.example.serverprovision.provisioning.setting.exception.HashedPasswordInputException.class,
+                        e -> assertThat(e.fieldName()).isEqualTo("rootPassword"));
+        verify(repository, never()).save(any());
     }
 }

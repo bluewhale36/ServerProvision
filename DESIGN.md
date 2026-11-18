@@ -140,7 +140,9 @@
 | 화면 단위 빈 상태 | `empty :: state` 조각(판 안 가운데) | 판 밖 문단 |
 | 표나 판 안의 "데이터 없음" 한 줄 | `n-detail-empty`, 표의 빈 행은 `n-table-empty` | `n-empty` |
 | 오류, 주의, 정보 안내 | `n-alert-danger`, `n-alert-warning`, `n-alert-info`(뜻은 7절 위계) | 색만 바꾼 글자 |
+| 판 안에서 이름만 있는 후보 고르기(하나는 라디오, 여럿은 체크박스) | `n-card-body n-check-list` 안에 `label.n-checkbox` | 판 안의 `n-check-panel`(자기 테두리가 판과 겹쳐 선이 두 겹이 된다) |
 | 입력에 딸린 주석 | `n-hint`, 주의면 `n-hint-warn` | 판 크기의 알림 |
+| 폼 안에서 후보를 상세와 견주며 하나 고르기 | `n-miller` 2 열 + `n-miller-item-choice` | 셀렉트만 두고 상세를 따로 그리기 |
 | 판을 여는 안내 문단 | `n-hint n-lead` | `n-section-hint`(`n-detail-section` 안 전용) |
 | 비활성 버튼의 사유 | `n-btn-tooltip-wrap[data-tooltip]` 로 감싼다 | 버튼의 `title` |
 | 식별자 값(IP, MAC, 경로, 해시) | `code`, 표 칸이면 `n-table-mono`, 그 밖은 `n-mono` | 상자를 두른 코드 |
@@ -233,6 +235,8 @@ Miller 의 상태 태그(`n-miller-status-tag-on`, `-off`, `-warn`)는 같은 �
 
 항목(`n-form-group`) 사이는 30px 이다. 항목 안의 쌓임(라벨 6px, 힌트 4px)보다 확실히 벌려야 힌트가 다음 라벨과 한 덩어리로 읽히지 않는다. 라벨(`n-label`)은 14px, 굵기 600, 본문색으로 항목의 닻이 된다. 폼 안 항목의 라벨은 `n-label strong`(15px)이다. 힌트(`n-hint`)는 13px 이고 딸린 입력의 폭을 따른다. 입력 위아래에 힌트를 겹쳐 붙이지 않는다. 주의를 끌어야 하는 힌트는 `n-hint-warn` 으로 색만 바꾼다.
 
+한 설정이 입력 여럿으로 이루어지면(시간대의 대륙과 도시, 그 아래 딸린 RTC 체크) 전부를 `n-form-group` 하나에 담는다. 나란한 칸은 `n-row n-row-tight` 안의 클래스 없는 `div` 로 세우고, 칸마다 `n-form-group` 을 달지 않는다. 칸에 단 `n-form-group` 의 30px 에 `n-row` 의 18px 가 더해지면 한 설정의 짝이 다른 설정보다 멀어진다. 서로 다른 설정을 나란히 둘 때(BIOS 와 BMC)는 칸마다 `n-form-group` 이다.
+
 운영 설정 화면(휴지통, 시스템 자산, 자원 무결성 점검)은 항목마다 라벨, 힌트, 조작 요소의 순서로 쌓는다. 효과 시점처럼 항목의 부수 성질이 있을 때만 힌트와 조작 사이에 메타(`n-form-meta`)를 한 층 더 둔다. 없는 성질을 규칙 때문에 만들지 않는다. 설명을 읽고 나서 조작하는 순서이고, 층의 크기가 14, 12, 11.5 로 내려가 무엇이 항목 이름이고 무엇이 조작 대상인지 갈린다. 세 화면의 폭은 모두 `n-page-md` 다. 같은 뜻의 두 번째 이름(`n-form-label`, `n-form-hint`)은 두지 않는다.
 
 입력(`n-input`, `n-select`, `n-textarea`)은 `--n-border-form` 테두리, 반지름 4px, 포커스 시 파란 테두리와 옅은 파란 고리다. 오류 상태(`is-invalid`, `has-error`)와 오류 메시지(`n-error`, `field-error-message`)는 `--n-error` 한 색이다. 상태 변경 폼과 입력 폼의 마커 규약은 `.claude/domain-conventions/new-form.md` 를 따른다.
@@ -265,7 +269,9 @@ Miller 의 상태 태그(`n-miller-status-tag-on`, `-off`, `-warn`)는 같은 �
 
 ### Miller
 
-`n-miller` 는 관리 자원 화면의 3열 선택 패널이다. 열 머리(`n-miller-col-header`)는 표 머리와 같은 `--n-thead` 면이고, 항목 위에 올리면 `--n-row-hover` 다. 정의서 선택 모달이 같은 컴포넌트를 쓰며 `server.css` 는 모달 안이라는 자리의 치수만 덮는다. 1024 이하 거동은 4절을 따른다.
+`n-miller` 는 관리 자원 화면의 3열 선택 패널이다. 열 머리(`n-miller-col-header`)는 표 머리와 같은 `--n-thead` 면이고, 항목 위에 올리면 `--n-row-hover` 다. 세팅 정의서 작성 화면의 ISO 고르기가 2 열(목록 + 상세)로 같은 컴포넌트를 쓰고, 화면 CSS 는 폼 안이라는 자리의 치수만 덮는다. 1024 이하 거동은 4절을 따른다.
+
+폼 안에서 값을 고르는 항목은 `n-miller-item-choice` 다. 항목은 div 이고 맨 앞 radio 가 값을 고르며, 나머지 자리(`n-miller-choice` 버튼)는 상세만 연다. 상세를 보는 항목은 `n-miller-selected`, 고른 항목은 radio 와 왼쪽 파랑 띠로 구분한다. 고를 수 없는 항목은 radio disabled 와 `n-miller-item-disabled` 이고, 사유는 항목 안 `n-miller-choice-reason` 에 쓴다. 막는 실패의 표지는 `n-miller-status-tag-danger` 다.
 
 ### 아이콘
 

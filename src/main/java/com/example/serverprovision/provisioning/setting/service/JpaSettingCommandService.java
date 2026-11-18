@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.service;
 
+import com.example.serverprovision.provisioning.setting.exception.HashedPasswordInputException;
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.SettingSaveRequest;
@@ -40,6 +41,7 @@ public class JpaSettingCommandService implements SettingCommandService {
 
     private final SettingDefinitionRepository repository;
     private final ProcessReferenceInspectors referenceInspectors;
+    private final LinuxPasswordHasher passwordHasher;   // E4-1-b-2 D-18 — 저장 직전 리눅스 비밀번호 해시
 
     @Override
     public SettingSaveResponse create(SettingSaveRequest request) {
@@ -48,11 +50,12 @@ public class JpaSettingCommandService implements SettingCommandService {
         if (repository.existsByNameAndIsDeletedFalse(name)) {
             throw new DuplicateSettingDefinitionNameException(name);
         }
+        rejectStoredSecrets(request.processList());
         validateReferences(request.processList());
 
         SettingDefinition saved = repository.save(SettingDefinition.builder()
                 .name(name)
-                .processes(toProcesses(request))
+                .processes(toProcesses(hashSecrets(request.processList())))
                 .build());
         return new SettingSaveResponse(saved.getId(), saved.getName());
     }
@@ -65,6 +68,7 @@ public class JpaSettingCommandService implements SettingCommandService {
         if (repository.existsByNameAndIdNotAndIsDeletedFalse(name, id)) {
             throw new DuplicateSettingDefinitionNameException(name);
         }
+        rejectStoredSecrets(request.processList());
         validateReferences(request.processList());
 
         // E4-1-a-2 D-11 — "기존 유지" 비밀값은 clear 전에 저장본에서 이어받는다(다형 훅 · 타입 분기 없음).
@@ -79,7 +83,7 @@ public class JpaSettingCommandService implements SettingCommandService {
         // clear 를 먼저 flush 해 orphanRemoval DELETE 를 선반영한 뒤 새 행을 장착한다.
         definition.changeNameAndClearProcesses(name);
         repository.flush();
-        definition.attachProcesses(toProcesses(merged));
+        definition.attachProcesses(toProcesses(hashSecrets(merged)));
         return new SettingSaveResponse(definition.getId(), definition.getName());
     }
 
@@ -133,6 +137,22 @@ public class JpaSettingCommandService implements SettingCommandService {
     }
 
     /* ─────────────────────────── 내부 조립 ─────────────────────────── */
+
+    /** 요청에 해시 비밀번호 키가 실렸으면 400(D-18) — 저장본과 같은 역직렬화를 타므로 여기(API 경계)서 가른다. */
+    private static void rejectStoredSecrets(List<AbstractProcessRequest> processList) {
+        processList.stream()
+                .map(AbstractProcessRequest::storedSecretField)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .ifPresent(field -> {
+                    throw new HashedPasswordInputException(field);
+                });
+    }
+
+    /** 저장 직전 평문 비밀번호를 해시한다(D-18) — 기존 유지 병합 뒤라 이어받은 옛 평문도 해시된다. */
+    private List<AbstractProcessRequest> hashSecrets(List<AbstractProcessRequest> processList) {
+        return processList.stream().map(p -> p.withHashedSecrets(passwordHasher)).toList();
+    }
 
     /**
      * enabled/deprecated 축을 다루는 액션의 공통 로드(U3-2-b DEC-G) — soft-deleted 정의서는 상세에서 복원 ·

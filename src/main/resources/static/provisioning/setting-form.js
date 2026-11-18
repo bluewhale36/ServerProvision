@@ -198,13 +198,20 @@
 
         /* ─────────────────────────── OS_INSTALLATION ─────────────────────────── */
 
+        // OS · ISO 셀렉트(OS 는 OSName 별 optgroup). 선택 OS 옵션의 data-*(계열 · root SSH · 사용 중단)가 계열 블록의 재료다.
         const oiOsSelect = document.getElementById('oiOsSelect');
-        const oiGuide = document.getElementById('oiGuide');
+        // 설치 ISO 는 Miller 2 열(E4-1-b-2 사용자 결정) — 1 열 radio 가 값, n-miller-choice 버튼은 2 열 상세만 연다.
+        const oiIsoMiller = document.querySelector('[data-iso-miller]');
+        const oiLinuxBlock = document.getElementById('oiLinuxBlock');
+        function selectedOsOption() {
+            return oiOsSelect && oiOsSelect.value ? selectedOption(oiOsSelect) : null;
+        }
         const oiDetailFields = document.getElementById('oiDetailFields');
         const oiDefaultPartitions = document.getElementById('oiDefaultPartitions');
         const oiPartitionTbody = document.querySelector('#oiPartitionTable tbody');
         const oiUserTbody = document.querySelector('#oiUserTable tbody');
-        const oiEnvironment = document.getElementById('oiEnvironment');
+        const oiEnvironmentList = document.getElementById('oiEnvironmentList');
+        const oiEnvPlaceholder = document.getElementById('oiEnvPlaceholder');
         const oiPkgPlaceholder = document.getElementById('oiPkgPlaceholder');
         const oiAllowSshBox = document.getElementById('oiAllowSshBox');
         const oiRootKeepWrap = document.getElementById('oiRootKeepWrap');
@@ -231,26 +238,46 @@
         const rcNoOsCandidateHint = document.getElementById('rcNoOsCandidateHint');
 
         function osFamilyPanes() {
-            return Array.from(form.querySelectorAll('#oiDetailFields .n-os-family-pane'));
+            return Array.from(form.querySelectorAll('#oiDetailFields section[data-os-family]'));
         }
 
-        /* R11 표적 축소 — OS 설치 카드는 식별(OS · ISO)만 받는다. 이 파일에 남은 상세 입력
-           로직(타임존 · 파티션 · 사용자 · 계열 pane · 환경/패키지)은 마크업 제거로 미호출이며,
-           요소 부재 시 null-guard 로 자연 no-op 이다 — 서버 계약 보존(E4 부활 시 재노출)과
-           한 벌로 남긴다(R11 plan D-R2 · D-R5). */
+        /* E4-1-b-2 — OS 를 고르거나 풀면 ISO 줄을 그 OS 로 다시 걸고(D-14) 계열 블록(Windows · 리눅스 · RHEL)을 바꾼다. */
         function onInstallOsChange() {
             const osId = oiOsSelect ? oiOsSelect.value : '';
             if (oiDetailFields) oiDetailFields.hidden = !osId;
             filterIsoOptions(osId);
             syncWindowsBlock();
-            syncOsSelectionLock();
+            syncLinuxBlock();
             refreshOsVolumeTargetHint();   // HF32 — Windows 설치 + RAID 없음 묶음 주의는 계열이 재료
         }
 
-        /** 선택된 설치 OS 의 계열(옵션 data-os-family) — 미선택이면 ''. 판별자와 Windows 블록 노출의 단일 출처. */
+        /** 선택된 설치 OS 의 계열(옵션 data-os-family) — 미선택이면 ''. 판별자와 계열 블록 노출의 단일 출처. */
         function installOsFamily() {
-            const opt = oiOsSelect ? selectedOption(oiOsSelect) : null;
-            return opt && oiOsSelect.value ? (opt.dataset.osFamily || '') : '';
+            const opt = selectedOsOption();
+            return opt ? (opt.dataset.osFamily || '') : '';
+        }
+
+        /** 리눅스 블록 · 계열 pane · root(RHEL 만) · root SSH 칸 — 계열이 바뀌면 숨는 칸의 값은 보내지 않는다. */
+        function syncLinuxBlock() {
+            const family = installOsFamily();
+            const linux = family === 'RHEL_BASED' || family === 'DEBIAN_BASED';
+            if (oiLinuxBlock) oiLinuxBlock.hidden = !linux;
+            osFamilyPanes().forEach(pane => { pane.hidden = pane.dataset.osFamily !== family; });
+            const rootGroup = document.getElementById('oiRootPasswordGroup');
+            if (rootGroup) rootGroup.hidden = family !== 'RHEL_BASED';
+            syncRootSshBox();
+        }
+
+        /** Rocky 10 root SSH 칸 — 표시 여부 SSOT 는 서버(옵션 data-root-ssh-supported = RhelRelease.supportsRootSshFlag, D-6). */
+        function syncRootSshBox() {
+            if (!oiAllowSshBox) return;
+            const opt = selectedOsOption();
+            const supported = !!opt && opt.dataset.rootSshSupported === 'true';
+            oiAllowSshBox.hidden = !supported;
+            if (!supported) {
+                const chk = document.getElementById('oiAllowSshRoot');
+                if (chk) chk.checked = false;
+            }
         }
 
         /** Windows 블록 노출 — 계열이 바뀌면 이전 입력을 비워 다른 계열 payload 에 섞이지 않게 한다. */
@@ -265,7 +292,6 @@
             }
         }
 
-        const oiIsoSelect = document.getElementById('oiIsoSelect');
         const oiTzRegion = document.getElementById('oiTzRegion');
         const oiTzCity = document.getElementById('oiTzCity');
 
@@ -300,43 +326,171 @@
             filterTzCities(null); // 초기 기본값 — Asia(서버 selected)/Seoul
         }
 
-        /** 설치 ISO 옵션을 선택된 osMetadataId 로 필터링한다(환경 select 와 동일 관용구, U2-4). */
-        function filterIsoOptions(osId) {
-            if (!oiIsoSelect) return;
-            const placeholder = oiIsoSelect.querySelector('option[data-placeholder]');
-            oiIsoSelect.disabled = !osId;
-            if (placeholder) {
-                placeholder.textContent = osId ? 'ISO 선택' : 'OS 먼저 선택';
-                placeholder.selected = true;
-            }
-            oiIsoSelect.querySelectorAll('option[data-os-id]').forEach(opt => {
-                const match = !!osId && opt.dataset.osId === osId;
-                opt.classList.toggle('unavailable', !match);
-                opt.disabled = !match;
+        /* ---- 설치 ISO (Miller 2 열) ---- */
+
+        let chosenIsoValue = '';   // 확인 창 취소 때 되돌릴 기준 — 셀렉트의 data-deprecated-prev 와 같은 몫
+
+        function isoItems() {
+            return oiIsoMiller ? Array.from(oiIsoMiller.querySelectorAll('.n-miller-item-choice')) : [];
+        }
+
+        /** 그 ISO 가 지금 OS 의 묶음 안에 보이는가(묶음 단위로 숨긴다). */
+        function isoVisible(item) {
+            const group = item.closest('[data-iso-group]');
+            return !!group && !group.hidden;
+        }
+
+        function isoItem(isoId) {
+            return isoItems().find(item => item.dataset.isoId === String(isoId)) || null;
+        }
+
+        function chosenIsoId() {
+            const radio = oiIsoMiller ? oiIsoMiller.querySelector('input[name="oiIsoRadio"]:checked') : null;
+            return radio ? radio.value : '';
+        }
+
+        /** 2 열 상세의 '선택 여부' 칸 — 지금 보는 ISO 가 고른 ISO 인지. */
+        function refreshIsoChosenCells() {
+            if (!oiIsoMiller) return;
+            const chosen = chosenIsoId();
+            oiIsoMiller.querySelectorAll('.n-miller-detail-panel').forEach(panel => {
+                const cell = panel.querySelector('[data-iso-chosen-cell]');
+                if (!cell) return;
+                cell.textContent = '';
+                if (panel.dataset.isoId === chosen) {
+                    const badge = document.createElement('span');
+                    badge.className = 'n-badge n-badge-blue';
+                    badge.textContent = '선택';
+                    cell.appendChild(badge);
+                } else {
+                    cell.textContent = '미선택';
+                }
             });
-            // 해당 OS 의 ISO 가 1개뿐이면 자동 선택(서버 제외 규칙상 0개는 도달 불가).
-            const candidates = Array.from(oiIsoSelect.querySelectorAll('option[data-os-id]:not([disabled])'));
+        }
+
+        /** 2 열에 그 ISO 의 상세를 연다(고르기와 별개). 빈 값이면 빈 상태 안내. */
+        function showIsoDetail(isoId) {
+            if (!oiIsoMiller) return;
+            isoItems().forEach(item => {
+                const on = item.dataset.isoId === String(isoId);
+                item.classList.toggle('n-miller-selected', on);
+                const btn = item.querySelector('.n-miller-choice');
+                if (btn) {
+                    if (on) btn.setAttribute('aria-current', 'true');
+                    else btn.removeAttribute('aria-current');
+                }
+            });
+            oiIsoMiller.querySelectorAll('.n-miller-detail-panel').forEach(panel => {
+                panel.classList.toggle('active', !!isoId && panel.dataset.isoId === String(isoId));
+            });
+            const empty = oiIsoMiller.querySelector('[data-iso-empty]');
+            if (empty) empty.classList.toggle('hidden', !!isoId);
+            refreshIsoChosenCells();
+        }
+
+        /** 그 ISO 를 값으로 확정한다(radio checked · 복원 기준 · 환경/그룹 가용 목록). */
+        function setChosenIso(isoId) {
+            const item = isoItem(isoId);
+            const radio = item ? item.querySelector('input[type="radio"]') : null;
+            if (radio) radio.checked = true;
+            chosenIsoValue = radio ? radio.value : '';
+            refreshIsoChosenCells();
+            filterEnvironmentOptions();
+            applyPackageGroupFilter();
+        }
+
+        /** OS 가 바뀌면 그 OS 의 ISO 만 보이고 이전 선택 · 상세를 비운다(U2-4). 고를 수 있는 ISO 가 하나면 자동 선택. */
+        function filterIsoOptions(osId) {
+            if (!oiIsoMiller) return;
+            oiIsoMiller.querySelectorAll('[data-iso-group]').forEach(group => {
+                group.hidden = !osId || group.dataset.osId !== osId;
+            });
+            isoItems().forEach(item => {
+                const radio = item.querySelector('input[type="radio"]');
+                if (radio) radio.checked = false;
+            });
+            chosenIsoValue = '';
+            const candidates = isoItems().filter(item => isoVisible(item) && item.dataset.blocked !== 'true');
             if (candidates.length === 1) {
-                oiIsoSelect.value = candidates[0].value;
-                commitDeprecatedSelection(oiIsoSelect);
+                setChosenIso(candidates[0].dataset.isoId);
+                showIsoDetail(candidates[0].dataset.isoId);
+            } else {
+                showIsoDetail('');
+                filterEnvironmentOptions();
+                applyPackageGroupFilter();
             }
         }
 
-        /** 설치 환경 옵션 필터 — 가용 스코프는 선택된 ISO(data-iso-id, 사용자 확정 2026-07-11). */
+        if (oiIsoMiller) {
+            // 버튼(항목의 radio 밖 자리) = 상세만. radio 는 바뀌지 않는다.
+            oiIsoMiller.addEventListener('click', e => {
+                const btn = e.target.closest('.n-miller-choice');
+                if (!btn) return;
+                showIsoDetail(btn.closest('.n-miller-item-choice').dataset.isoId);
+            });
+            // radio = 고르기. 사용 중단 ISO 면 BIOS · BMC 셀렉트와 같은 확인 창(confirmDeprecatedUse), 취소 시 이전 radio 로 복원.
+            oiIsoMiller.addEventListener('change', e => {
+                const radio = e.target;
+                if (!(radio instanceof HTMLInputElement) || radio.name !== 'oiIsoRadio') return;
+                const item = radio.closest('.n-miller-item-choice');
+                const isoId = item.dataset.isoId;
+                if (item.dataset.deprecated !== 'true') {
+                    setChosenIso(isoId);
+                    showIsoDetail(isoId);
+                    return;
+                }
+                const prev = chosenIsoValue;
+                const label = item.querySelector('.n-miller-version-label');
+                confirmDeprecatedUse('ISO',
+                    {name: label ? label.textContent.trim() : '', deprecatedAt: item.dataset.deprecatedAt, description: item.dataset.description},
+                    function () {
+                        setChosenIso(isoId);
+                        showIsoDetail(isoId);
+                    },
+                    function () {
+                        radio.checked = false;
+                        if (prev) setChosenIso(prev);
+                        else refreshIsoChosenCells();
+                    });
+            });
+        }
+
+        /** 설치 환경 radio 항목(label[data-env-option]) — 고른 것은 radio checked. */
+        function environmentOptions() {
+            return oiEnvironmentList ? Array.from(oiEnvironmentList.querySelectorAll('[data-env-option]')) : [];
+        }
+
+        function chosenEnvironmentOption() {
+            return environmentOptions().find(opt => opt.querySelector('input[type="radio"]').checked) || null;
+        }
+
+        function chooseEnvironment(envId) {
+            environmentOptions().forEach(opt => {
+                const radio = opt.querySelector('input[type="radio"]');
+                radio.checked = !opt.classList.contains('unavailable') && radio.value === String(envId);
+            });
+        }
+
+        /** 설치 환경 항목 필터 — 가용 스코프는 선택된 ISO(data-iso-id, 사용자 확정 2026-07-11). */
         function filterEnvironmentOptions() {
-            if (!oiEnvironment) return;
-            const isoId = oiIsoSelect ? oiIsoSelect.value : '';
-            const placeholder = oiEnvironment.querySelector('option[data-placeholder]');
-            oiEnvironment.disabled = !isoId;
-            if (placeholder) {
-                placeholder.textContent = isoId ? '환경 선택' : 'ISO 먼저 선택';
-                placeholder.selected = true;
-            }
-            oiEnvironment.querySelectorAll('option[data-iso-id]').forEach(opt => {
+            if (!oiEnvironmentList) return;
+            const isoId = chosenIsoId();
+            let visible = 0;
+            environmentOptions().forEach(opt => {
                 const match = !!isoId && opt.dataset.isoId === isoId;
                 opt.classList.toggle('unavailable', !match);
-                opt.disabled = !match;
+                opt.querySelector('input[type="radio"]').checked = false;
+                if (match) visible++;
             });
+            if (oiEnvPlaceholder) {
+                oiEnvPlaceholder.hidden = visible > 0;
+                oiEnvPlaceholder.textContent = isoId
+                    ? '이 ISO 에서 선택할 수 있는 설치 환경이 없습니다.'
+                    : 'ISO 를 선택하면 설치 환경이 표시됩니다.';
+            }
+            // D-19 — ISO 의 기본 환경(comps 기본 표시)이 하나면 미리 고른다(설치 프로그램 기본값과 같게).
+            const defaults = environmentOptions().filter(opt => !opt.classList.contains('unavailable') && opt.dataset.default === 'true');
+            if (defaults.length === 1) defaults[0].querySelector('input[type="radio"]').checked = true;
         }
 
         /**
@@ -345,8 +499,8 @@
          * (그룹 가용성이 환경에 종속 — 서버 정합 가드와 동일 SSOT).
          */
         function applyPackageGroupFilter() {
-            const isoId = oiIsoSelect ? oiIsoSelect.value : '';
-            const envOpt = oiEnvironment ? oiEnvironment.selectedOptions[0] : null;
+            const isoId = chosenIsoId();
+            const envOpt = chosenEnvironmentOption();
             const allowed = envOpt && envOpt.dataset.groupIds != null
                 ? envOpt.dataset.groupIds.split(',').filter(Boolean)
                 : null; // null = 환경 미선택
@@ -397,25 +551,9 @@
             if (pkgPanel) pkgPanel.addEventListener('change', refreshPkgToggleAll);
         }
 
-        /**
-         * 버전 특화 박스(allowSshRoot — Rocky Linux 10 전용) 가시성.
-         * 박스의 data-os-name / data-os-version-prefix 와 선택 OS 옵션의 data-* 를 대조한다.
-         */
-        function dispatchVersionSpecificBox(opt) {
-            if (!oiAllowSshBox) return;
-            const nameMatches = !!opt && opt.dataset.osName === oiAllowSshBox.dataset.osName;
-            const versionMatches = !!opt
-                && String(opt.dataset.osVersion || '').indexOf(oiAllowSshBox.dataset.osVersionPrefix) === 0;
-            oiAllowSshBox.hidden = !(nameMatches && versionMatches);
-            if (oiAllowSshBox.hidden) {
-                const chk = document.getElementById('oiAllowSshRoot');
-                if (chk) chk.checked = false;
-            }
-        }
-
         if (oiOsSelect) oiOsSelect.addEventListener('change', onInstallOsChange);
         // 환경 선택이 바뀌면 허용 패키지 그룹이 달라진다(comps.xml 관계).
-        if (oiEnvironment) oiEnvironment.addEventListener('change', applyPackageGroupFilter);
+        if (oiEnvironmentList) oiEnvironmentList.addEventListener('change', applyPackageGroupFilter);
 
         /* ---- 파티션 행 ---- */
 
@@ -551,7 +689,8 @@
             // HF32 — 후보가 전부 RAID 없음(직결)이면 설치 디스크를 지목할 수 없다(RaidConfigurationRequest.osVolumeTargetKind 와 같은 분기)
             if (!candidates.some(rowBuildsRaid)) return {kind: 'NO_RAID_CANDIDATE'};
             let bound = Infinity;
-            for (const r of candidates) {
+            // E4-1-b-2 D-7 — RAID 미구성 후보는 OS 를 받지 않으므로 하한에서 뺀다(RaidConfigurationRequest.osVolumeCapacityLowerBoundBytes 와 같은 식).
+            for (const r of candidates.filter(rowBuildsRaid)) {
                 const b = diskGroupLowerBound(r);
                 if (b == null) { bound = null; break; }
                 bound = Math.min(bound, b);
@@ -645,13 +784,25 @@
 
         /** 기본 파티션 자동 생성 — GET /provisioning/setting/default-partitions?osName=... */
         async function loadDefaultPartitions() {
-            const opt = selectedOption(oiOsSelect);
-            if (!opt || !oiOsSelect.value) return;
-            if (oiPartitionTbody.children.length > 0
-                && !window.confirm('기존 파티션 구성이 초기화됩니다. 계속하시겠습니까?')) return;
+            const osOpt = selectedOsOption();
+            if (!osOpt) return;
+            if (oiPartitionTbody.children.length > 0 && window.ConfirmModal) {
+                // close(→cleanup) 가 onConfirm 보다 먼저 돌므로 확인 여부는 beforeConfirm 에서 표시한다(watchDeprecatedSelect 와 같은 관용구).
+                const proceed = await new Promise(resolve => {
+                    let confirmed = false;
+                    window.ConfirmModal.open('defaultPartitions', {
+                        title: '기본 파티션 자동 생성',
+                        message: '지금 파티션 구성을 지우고 기본 파티션으로 바꿉니다.',
+                        confirmLabel: '바꾸기',
+                        beforeConfirm: () => { confirmed = true; },
+                        afterOpen: () => () => resolve(confirmed)
+                    });
+                });
+                if (!proceed) return;
+            }
 
             const url = form.dataset.partitionsEndpoint
-                + '?osName=' + encodeURIComponent(opt.dataset.osName || '');
+                + '?osName=' + encodeURIComponent(osOpt.dataset.osFamily || '');
             let resp;
             try {
                 resp = await fetch(url, {headers: {'Accept': 'application/json'}});
@@ -1288,7 +1439,7 @@
             const keeping = !oiRootKeepWrap.hidden && oiRootKeep.checked;
             oiRootPassword.disabled = keeping;
             if (keeping) oiRootPassword.value = '';
-            oiRootPassword.placeholder = keeping ? '기존 비밀번호 유지 중' : '비워두면 root 계정 잠금';
+            oiRootPassword.placeholder = keeping ? '기존 비밀번호 유지 중' : '비워 두면 root 계정 잠금';
         }
 
         /** 수정 pre-fill — 기존 root 비밀번호가 있음을 표시하고 유지 체크를 켠다. */
@@ -1336,7 +1487,6 @@
             const d = data || {};
             row.querySelector('.uUsername').value = d.username || '';
             row.querySelector('.uSudoer').checked = !!d.isSudoer;
-            row.querySelector('.uEncrypted').checked = !!d.isPasswordEncrypted;
 
             const keepWrap = row.querySelector('.uKeepWrap');
             const keepChk = row.querySelector('.uKeep');
@@ -1363,46 +1513,9 @@
 
         // 두 단계가 함께 있으면 같은 OS 여야 한다 — 값이 있는 쪽(설치 우선)이 다른 쪽을 같은 값으로 고정한다.
         // backend 는 SettingSaveRequest @AssertTrue(osSelectionConsistent)가 direct POST 안전망.
-        let syncingOsSelection = false; // 파생 핸들러 재호출로 인한 재귀 방지
+        // E4-1-b-2 — OS 후처리(OS_SETTING) 카드는 R11 이 화면에서 걷었다. 두 카드 동기화는 대상이 없어 비워 둔다
+        // (backend 의 SettingSaveRequest @AssertTrue(osSelectionConsistent) 는 direct POST 안전망으로 남는다).
         function syncOsSelectionLock() {
-            if (syncingOsSelection) return;
-            const osSel = document.getElementById('osOsSelect');
-            if (!oiOsSelect || !osSel) return;
-            const installCard = cardOf('OS_INSTALLATION');
-            const settingCard = cardOf('OS_SETTING');
-            const both = installCard && !installCard.hidden && settingCard && !settingCard.hidden;
-            syncingOsSelection = true;
-            try {
-                if (!both) {
-                    oiOsSelect.disabled = false;
-                    osSel.disabled = false;
-                    return;
-                }
-                if (oiOsSelect.value) {
-                    // 설치 쪽이 선택됨 → 후처리 select 를 같은 OS 로 고정
-                    if (osSel.value !== oiOsSelect.value) {
-                        osSel.value = oiOsSelect.value;
-                        onSettingOsChange();
-                        commitDeprecatedSelection(osSel); // 프로그램적 고정은 change 미발화 — 뱃지·복원 기준만 동기화
-                    }
-                    osSel.disabled = true;
-                    oiOsSelect.disabled = false;
-                } else if (osSel.value) {
-                    // 후처리 쪽만 선택됨 → 설치 select 를 같은 OS 로 고정
-                    if (oiOsSelect.value !== osSel.value) {
-                        oiOsSelect.value = osSel.value;
-                        onInstallOsChange();
-                        commitDeprecatedSelection(oiOsSelect);
-                    }
-                    oiOsSelect.disabled = true;
-                    osSel.disabled = false;
-                } else {
-                    oiOsSelect.disabled = false;
-                    osSel.disabled = false;
-                }
-            } finally {
-                syncingOsSelection = false;
-            }
         }
 
         /* ─────────────────────────── OS_SETTING ─────────────────────────── */
@@ -1472,15 +1585,15 @@
         }
 
         /** modal 본문에 주입할 자원 정보 표 — 기존 n-detail-table 시각 계약 재사용 (인라인 style 0). */
-        function buildDeprecatedInfoTable(resourceTypeLabel, opt) {
+        function buildDeprecatedInfoTable(resourceTypeLabel, info) {
             const table = document.createElement('table');
             table.className = 'n-detail-table';
             const tbody = document.createElement('tbody');
             [
                 ['유형', resourceTypeLabel],
-                ['이름', (opt.textContent || '').trim()],
-                ['사용 중단 권고 일시', opt.dataset.deprecatedAt || '-'],
-                ['설명', opt.dataset.description || '-']
+                ['이름', info.name || '-'],
+                ['사용 중단 권고 일시', info.deprecatedAt || '-'],
+                ['설명', info.description || '-']
             ].forEach(pair => {
                 const tr = document.createElement('tr');
                 const th = document.createElement('th');
@@ -1492,6 +1605,44 @@
             });
             table.appendChild(tbody);
             return table;
+        }
+
+        /** 옵션의 정보 표 재료(이름 · 사용 중단 권고 일시 · 설명). */
+        function optionInfo(opt) {
+            return {name: (opt.textContent || '').trim(), deprecatedAt: opt.dataset.deprecatedAt, description: opt.dataset.description};
+        }
+
+        /**
+         * 사용 중단 권고 자원을 고를 때의 확인 창 — 셀렉트(BIOS · BMC · 메인보드 · RAID 카드)와 ISO 라디오가 같은 창 · 같은 정보 표 ·
+         * 같은 복원 규칙을 쓰도록 한 곳에 둔다(E4-1-b-2 사용자 지시: 경험 동일). '그래도 적용' 외의 모든 종료(취소 · 바깥 · Esc)는 onCancel.
+         */
+        function confirmDeprecatedUse(resourceTypeLabel, info, onConfirm, onCancel) {
+            if (!window.ConfirmModal) {
+                // modal 자산 미로드 방어 — native confirm 금지라 fallback 없이 그대로 적용
+                onConfirm();
+                return;
+            }
+            let confirmed = false;
+            window.ConfirmModal.open('deprecatedUse', {
+                title: '사용 중단 권고 자원',
+                message: '사용 중단이 권고된 자원입니다. 계속 사용하시겠습니까?',
+                confirmLabel: '그래도 적용',
+                confirmClass: 'n-btn-outline-warning',
+                afterOpen: function (ctx) {
+                    const messageEl = ctx.modal.querySelector('.cm-message');
+                    const table = buildDeprecatedInfoTable(resourceTypeLabel, info);
+                    if (messageEl) messageEl.insertAdjacentElement('afterend', table);
+                    // cleanup — base 가 close 모든 경로(확인/취소/backdrop/Escape)에서 호출한다.
+                    return function () {
+                        table.remove();
+                        if (!confirmed) onCancel();
+                    };
+                },
+                beforeConfirm: function () {
+                    confirmed = true; // close(→cleanup) 이 onConfirm 보다 먼저 실행되므로 여기서 마킹
+                },
+                onConfirm: onConfirm
+            });
         }
 
         /**
@@ -1510,39 +1661,18 @@
             commitDeprecatedSelection(selectEl); // 초기 선택을 복원 기준값으로
             selectEl.addEventListener('change', function () {
                 const opt = selectedOption(selectEl);
-                if (!opt || opt.dataset.deprecated !== 'true' || !window.ConfirmModal) {
-                    // 정상 자원 (또는 modal 자산 미로드 방어 — native confirm 금지라 fallback 없이 그대로 적용)
+                if (!opt || opt.dataset.deprecated !== 'true') {
                     commitDeprecatedSelection(selectEl);
                     return;
                 }
                 const prev = selectEl.dataset.deprecatedPrev || '';
-                let confirmed = false;
-                window.ConfirmModal.open('deprecatedUse', {
-                    title: '사용 중단 권고 자원',
-                    message: '사용 중단이 권고된 자원입니다. 계속 사용하시겠습니까?',
-                    confirmLabel: '그래도 적용',
-                    confirmClass: 'n-btn-outline-warning',
-                    afterOpen: function (ctx) {
-                        const messageEl = ctx.modal.querySelector('.cm-message');
-                        const info = buildDeprecatedInfoTable(resourceTypeLabel, opt);
-                        if (messageEl) messageEl.insertAdjacentElement('afterend', info);
-                        // cleanup — base 가 close 모든 경로(확인/취소/backdrop/Escape)에서 호출한다.
-                        // 확인이 아닌 종료는 전부 취소로 간주해 이전 값 복원 + 파생 핸들러 재실행.
-                        return function () {
-                            info.remove();
-                            if (confirmed) return;
-                            selectEl.value = prev;
-                            if (onRevert) onRevert();
-                            commitDeprecatedSelection(selectEl);
-                        };
-                    },
-                    beforeConfirm: function () {
-                        confirmed = true; // close(→cleanup) 이 onConfirm 보다 먼저 실행되므로 여기서 마킹
-                    },
-                    onConfirm: function () {
+                confirmDeprecatedUse(resourceTypeLabel, optionInfo(opt),
+                    function () { commitDeprecatedSelection(selectEl); },
+                    function () {
+                        selectEl.value = prev;
+                        if (onRevert) onRevert();
                         commitDeprecatedSelection(selectEl);
-                    }
-                });
+                    });
             });
         }
 
@@ -1557,15 +1687,7 @@
         watchDeprecatedSelect(buBmc, 'BMC 펌웨어', null);
         watchDeprecatedSelect(oiOsSelect, 'OS', onInstallOsChange);
         watchDeprecatedSelect(rcRaidCard, 'RAID 카드', applyDiskGroupConstraints); // U4-1-1
-        watchDeprecatedSelect(oiIsoSelect, 'ISO', function () {
-            filterEnvironmentOptions();
-            applyPackageGroupFilter();
-        });
-        if (oiIsoSelect) oiIsoSelect.addEventListener('change', function () {
-            // ISO 가 바뀌면 환경/패키지 그룹의 가용 목록이 바뀐다(comps.xml 스코프).
-            filterEnvironmentOptions();
-            applyPackageGroupFilter();
-        });
+
         watchDeprecatedSelect(osOsSelect, 'OS', onSettingOsChange);
 
         // 보드 변경 시 onBoardModelChange 가 BIOS/BMC 를 change 이벤트 없이 LATEST 로 리셋하므로
@@ -1680,15 +1802,13 @@
 
         /* ─────────────────────────── 페이로드 조립 ─────────────────────────── */
 
+        // E4-1-b-2 D-18 — 비밀번호는 항상 평문으로 보내고 서버가 저장 때 해시한다(암호화 여부 체크 없음).
         function buildRootPassword() {
             const keeping = oiRootKeepWrap && !oiRootKeepWrap.hidden && oiRootKeep.checked;
-            const encrypted = document.getElementById('oiRootEncrypted').checked;
-            if (keeping) {
-                return {password: null, isPasswordEncrypted: encrypted, keepExistingPassword: true};
-            }
+            if (keeping) return {password: null, keepExistingPassword: true};
             const value = oiRootPassword.value;
             if (!value) return null; // root 잠금 설치
-            return {password: value, isPasswordEncrypted: encrypted, keepExistingPassword: false};
+            return {password: value, keepExistingPassword: false};
         }
 
         function buildPartitions() {
@@ -1709,7 +1829,6 @@
                     username: row.querySelector('.uUsername').value.trim(),
                     password: keeping ? null : (row.querySelector('.uPassword').value || null),
                     isSudoer: row.querySelector('.uSudoer').checked,
-                    isPasswordEncrypted: row.querySelector('.uEncrypted').checked,
                     keepExistingPassword: !!keeping
                 };
             });
@@ -1767,11 +1886,26 @@
                     type: 'OS_INSTALLATION',
                     osFamily: family || null,
                     osMetadataId: intOrNull(oiOsSelect.value),
-                    isoId: oiIsoSelect ? intOrNull(oiIsoSelect.value) : null
+                    isoId: intOrNull(chosenIsoId())
                 };
                 if (family === 'WINDOWS') {
                     payload.imageName = oiWindowsImage && oiWindowsImage.value ? oiWindowsImage.value : null;
                     payload.administratorPassword = buildWinAdminPassword();
+                }
+                if (family === 'RHEL_BASED' || family === 'DEBIAN_BASED') {
+                    // E4-1-b-2 — 리눅스 공통(시간대 · 파티션 · 사용자)
+                    payload.timezone = {timezone: tzValue(), isUTC: document.getElementById('oiIsUtc').checked};
+                    payload.partitions = buildPartitions();
+                    payload.users = buildUsers();
+                }
+                if (family === 'RHEL_BASED') {
+                    payload.rootPassword = buildRootPassword();
+                    const envOpt = chosenEnvironmentOption();
+                    payload.environmentId = envOpt ? intOrNull(envOpt.querySelector('input[type="radio"]').value) : null;
+                    payload.packageGroupIds = Array.from(form.querySelectorAll('.n-pkg-group:not(.unavailable) input[type="checkbox"]:checked'))
+                        .map(chk => intOrNull(chk.value)).filter(v => v != null);
+                    payload.isKDumpEnabled = document.getElementById('oiKdump').checked;
+                    if (oiAllowSshBox && !oiAllowSshBox.hidden) payload.allowSshRoot = document.getElementById('oiAllowSshRoot').checked;
                 }
                 return payload;
             },
@@ -1899,8 +2033,7 @@
             }
             let ok = true;
             payload.processList.forEach((proc, i) => {
-                // R11(CP5 D6) — osFamily 는 더 이상 필수가 아니다: 판별자 부재는 서버의 식별 전용
-                // 등록 테이블(PlannedOSInstallationRequest)이 해석한다. OS 선택만 본다.
+                // OS · ISO 선택 누락은 줄(검색 선택기)의 오류 자리에 표시한다. 판별자는 고른 OS 의 계열이라 따로 보지 않는다.
                 if ((proc.type === 'OS_INSTALLATION' || proc.type === 'OS_SETTING')
                     && proc.osMetadataId == null) {
                     const card = cardOf(stepTypeByIndex[i]);
@@ -2200,14 +2333,32 @@
                 applyDiskGroupConstraints();
             },
             OS_INSTALLATION: function (proc) {
-                // R11 식별 전용 — 구(상세) 저장본을 열어도 식별만 복원한다(상세는 화면에서 걷힘, D-R6).
+                // 저장된 OS · ISO 를 셀렉트에 대입한다(프로그램적 대입은 change 미발화 → 파생 핸들러 직접 호출).
+                // 지금 고를 수 없는 OS · ISO(비활성 · 삭제 · 지원 밖 · 등록 실패)면 대입이 맞지 않으니 칸에 알린다(E4-1-b-2 D-15).
                 if (proc.osMetadataId != null && oiOsSelect) {
                     oiOsSelect.value = String(proc.osMetadataId);
+                    const osOk = oiOsSelect.value === String(proc.osMetadataId) && !selectedOption(oiOsSelect).disabled;
+                    if (!osOk) {
+                        oiOsSelect.value = '';
+                        paintFieldError(oiOsSelect, '저장된 OS 를 지금 고를 수 없습니다. 다시 골라야 합니다.');
+                    }
                     onInstallOsChange();
+                    commitDeprecatedSelection(oiOsSelect);   // 기존 사용분 deprecated 뱃지 (modal 없음)
                 }
-                if (proc.isoId != null && oiIsoSelect) {
-                    oiIsoSelect.value = String(proc.isoId); // 소실 시 매칭 실패 → placeholder 유지
-                    commitDeprecatedSelection(oiIsoSelect);
+                if (proc.isoId != null && oiIsoMiller && oiOsSelect && oiOsSelect.value) {
+                    // 프로그램적 고르기 — 확인 창 없이(셀렉트 미리 채우기와 같은 규칙). 지금 고를 수 없으면 칸에 알린다.
+                    const item = isoItem(proc.isoId);
+                    const isoOk = !!item && isoVisible(item) && item.dataset.blocked !== 'true';
+                    if (isoOk) {
+                        setChosenIso(proc.isoId);
+                        showIsoDetail(proc.isoId);
+                    } else {
+                        isoItems().forEach(i => { const r = i.querySelector('input[type="radio"]'); if (r) r.checked = false; });
+                        chosenIsoValue = '';
+                        showIsoDetail(item && isoVisible(item) ? proc.isoId : '');
+                        paintFieldError(oiIsoMiller.closest('[data-error-field="isoId"]'),
+                            '저장된 ISO 를 지금 고를 수 없습니다. 다시 골라야 합니다.');
+                    }
                 }
                 // E4-1-a-2 — Windows 계열: 설치 이미지(소스에 없으면 경고) · 비밀번호(서버가 값을 제거하고 keepExistingPassword=true 로 보낸다).
                 if (proc.osFamily === 'WINDOWS') {
@@ -2226,7 +2377,36 @@
                     }
                     if (proc.administratorPassword && proc.administratorPassword.keepExistingPassword) markWinAdminHasExisting();
                 }
-                commitDeprecatedSelection(oiOsSelect); // 기존 사용분 deprecated 뱃지 (modal 없음)
+                // E4-1-b-2 — 리눅스 계열: 시간대 · 파티션 · 사용자(비밀번호는 서버가 제거해 보낸다) · RHEL 고유값.
+                if (proc.osFamily === 'RHEL_BASED' || proc.osFamily === 'DEBIAN_BASED') {
+                    if (proc.timezone && proc.timezone.timezone) {
+                        const tz = proc.timezone.timezone;
+                        const slash = tz.indexOf('/');
+                        if (slash > 0 && oiTzRegion) {
+                            oiTzRegion.value = tz.substring(0, slash);
+                            filterTzCities(tz.substring(slash + 1));
+                        }
+                    }
+                    if (proc.timezone) document.getElementById('oiIsUtc').checked = pickBool(proc.timezone, 'isUTC', 'utc');
+                    if (oiPartitionTbody) oiPartitionTbody.innerHTML = '';
+                    (proc.partitions || []).forEach(p => addPartitionRow(p));
+                    (proc.users || []).forEach(u => addUserRow(u, !!(u && u.keepExistingPassword)));
+                }
+                if (proc.osFamily === 'RHEL_BASED') {
+                    if (proc.rootPassword && proc.rootPassword.keepExistingPassword) markRootHasExisting();
+                    if (oiEnvironmentList && proc.environmentId != null) {
+                        chooseEnvironment(proc.environmentId);
+                        applyPackageGroupFilter();
+                        const chosen = (proc.packageGroupIds || []).map(String);
+                        form.querySelectorAll('.n-pkg-group:not(.unavailable) input[type="checkbox"]').forEach(chk => {
+                            chk.checked = chosen.indexOf(chk.value) >= 0;
+                        });
+                        refreshPkgToggleAll();
+                    }
+                    document.getElementById('oiKdump').checked = pickBool(proc, 'isKDumpEnabled', 'kdumpEnabled');
+                    const ssh = document.getElementById('oiAllowSshRoot');
+                    if (ssh && oiAllowSshBox && !oiAllowSshBox.hidden) ssh.checked = !!proc.allowSshRoot;
+                }
             },
             OS_SETTING: function (proc) {
                 if (proc.osMetadataId != null && osOsSelect) {

@@ -76,7 +76,7 @@ class OsRequestSizeValidationTest {
 	@DisplayName("OSMetadataCreateRequest.osVersion 65자 → @Size 위반 (os_version VARCHAR(64))")
 	void osMetadataCreate_osVersionOverLimit_violates() {
 		var request = new OSMetadataCreateRequest(
-				com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX, chars(65), null);
+				com.example.serverprovision.management.os.enums.OSName.UBUNTU, null, chars(65), null);
 
 		Set<ConstraintViolation<OSMetadataCreateRequest>> violations = validator.validate(request);
 
@@ -95,5 +95,21 @@ class OsRequestSizeValidationTest {
 
 		assertThat(violations).hasSize(1);
 		assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("isoPath");
+	}
+
+	@org.junit.jupiter.api.Test
+	@org.junit.jupiter.api.DisplayName("E4-1-b-2 D-21 — Rocky 는 메이저 필수 · 버전이 그 메이저 안 · 다른 OS 는 메이저를 받지 않는다")
+	void osMetadataCreate_rhelRelease() {
+		var rocky = com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX;
+		var ubuntu = com.example.serverprovision.management.os.enums.OSName.UBUNTU;
+		var r9 = com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9;
+		assertThat(validator.validate(new OSMetadataCreateRequest(rocky, r9, "9.6", null))).isEmpty();
+		assertThat(validator.validate(new OSMetadataCreateRequest(rocky, null, "9.6", null)))
+				.extracting(v -> v.getPropertyPath().toString()).containsExactly("rhelReleaseValid");
+		assertThat(validator.validate(new OSMetadataCreateRequest(rocky, r9, "10.0", null)))
+				.extracting(v -> v.getPropertyPath().toString()).containsExactly("osVersionCovered");
+		assertThat(validator.validate(new OSMetadataCreateRequest(ubuntu, r9, "24.04", null)))
+				.extracting(v -> v.getPropertyPath().toString()).containsExactly("rhelReleaseValid");
+		assertThat(validator.validate(new OSMetadataCreateRequest(ubuntu, null, "24.04", null))).isEmpty();
 	}
 }

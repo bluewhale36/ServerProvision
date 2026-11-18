@@ -23,6 +23,10 @@
    .n-miller-empty           아무것도 선택되지 않았을 때 안내 문구
    .n-rank-handle            버전 순서 드래그 핸들 (E2-1-a, 조작은 global/row-drag.js 공용)
    .n-miller-latest          버전 옆 'latest' 병기 표시 (순위 1위 활성 항목)
+   .n-miller-item-choice     폼 안 고르기 항목(div · 맨 앞 radio 가 값, 나머지 자리는 상세만 엶 · E4-1-b-2)
+     .n-miller-choice          고르기 항목에서 상세를 여는 버튼(radio 의 형제)
+     .n-miller-choice-reason   고를 수 없는 항목의 사유 줄
+   .n-miller-status-tag-danger 막는 실패 표지 (빨강, 전역 .n-badge-red 와 같은 값)
    ============================================================ */
 
 /* ---- 컨테이너 -------------------------------------------- */
@@ -249,6 +253,85 @@
 /* Driver · Utility 두 Miller 를 세로로 쌓는 화면 — 묶음 사이 간격 */
 .n-subprogram-section + .n-subprogram-section { margin-top: 32px; }
 
+/* ---- 고르기 항목 (폼 안 Miller, E4-1-b-2) ----
+   radio 는 값을 고르고, 나머지 자리(.n-miller-choice 버튼)는 상세만 연다. 두 조작이 한 항목에 있어 항목을 button 이 아닌 div 로 두고
+   radio 와 버튼을 형제로 놓는다(조작 요소 중첩 금지). 상세를 보는 중 = .n-miller-selected(파랑 면), 고른 것 = radio checked(왼쪽 파랑 띠). */
+.n-miller-item-choice {
+    display: flex;
+    align-items: flex-start;
+    padding: 0 0 0 18px;
+    white-space: normal;
+    cursor: default;
+}
+
+.n-miller-item-choice > input[type="radio"] {
+    flex-shrink: 0;
+    margin: 16px 10px 0 0;
+    cursor: pointer;
+}
+
+.n-miller-item-choice > input[type="radio"]:disabled {
+    cursor: not-allowed;
+}
+
+.n-miller-choice {
+    flex: 1;
+    min-width: 0;
+    padding: 13px 18px 13px 0;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.n-miller-item-choice:has(> input[type="radio"]:checked) {
+    box-shadow: inset 3px 0 0 var(--n-blue);
+}
+
+.n-miller-item-choice:has(> input[type="radio"]:checked) .n-miller-version-label {
+    font-weight: 600;
+}
+
+.n-miller-item-choice .n-miller-item-split {
+    justify-content: flex-start;
+}
+
+.n-miller-item-choice .n-miller-version-label {
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.n-miller-item-choice .n-deprecated-dot {
+    flex-shrink: 0;
+}
+
+.n-miller-item-choice .n-miller-status-tag {
+    margin-left: auto;
+}
+
+/* 고르기 항목에서 굵은 이름은 '고른 것' 의 표지다 — 상세 보는 중(.n-miller-selected)은 파랑 면과 글자만 */
+.n-miller-item-choice.n-miller-selected {
+    font-weight: 400;
+}
+
+/* 막힌 항목의 사유 — 7절 '차단 사유 | 비활성 버튼 곁 글자'. 항목이 흐려도(.n-miller-item-disabled) 사유는 한 단 진하게 */
+.n-miller-choice-reason {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--n-text-sec);
+}
+
+/* 막는 실패(등록 실패) — 전역 .n-badge-red 와 같은 값 */
+.n-miller-status-tag-danger {
+    background: color-mix(in srgb, var(--n-red) 10%, transparent);
+    color: var(--n-red);
+}
+
 /* ---- 1024 이하 : 상세 열을 아래로 스택한다 (S17-1 D3) ----
    3열이 고정 폭이라 사이드바 옆 796px 안에서는 상세 열이 250px 로 눌려 라벨이 글자 단위로 세로 분해되고
    [수정][삭제] 가 패널 밖으로 잘려 조작이 불가능했다. 열을 좁혀 안쪽 가로 스크롤을 두는 대신 상세를
@@ -285,5 +368,10 @@
     .n-miller-col-detail .n-miller-empty {
         height: auto;
         padding: 48px 0;
+    }
+
+    /* 쌓임 배치에서는 상세 열의 윗선이 목록과의 경계다 — 열 마지막 항목의 아랫선을 지워 경계 하나에 선 하나(DESIGN.md 5절) */
+    .n-miller-col .n-miller-item:last-child {
+        border-bottom: none;
     }
 }
