@@ -77,6 +77,23 @@ else
 fi
 
 say ""
+say "== 배포 대기 항목(docs/deploy/pending)"
+# DDL · SQL 파일이나 새 env 키를 더한 슬라이스는 같은 PR 에 배포 대기 항목 파일을 둔다(CLAUDE.md '배포 대기 · 관리 포인트 등록').
+changed=$( { git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u)
+sqls=$(printf '%s\n' "$changed" | grep -E '^(ddl|sql)/' || true)
+envs=$(git diff "$base" -- src/main/resources/application.properties | grep -E '^\+[^+].*\$\{' || true)
+ledger=$(printf '%s\n' "$changed" | grep -E '^docs/deploy/pending/.+\.md$' || true)
+if [ -n "$sqls$envs" ] && [ -z "$ledger" ]; then
+  printf '[CHECK] %s\n' "DDL · SQL 이나 새 env 키가 있는데 docs/deploy/pending/<코드>.md 가 없습니다:"; check=1
+  [ -n "$sqls" ] && printf '  %s\n' $sqls
+  [ -n "$envs" ] && printf '%s\n' "$envs" | sed 's/^+/  env: /'
+elif [ -n "$ledger" ]; then
+  printf '  %s\n' $ledger
+else
+  say "  해당 없음"
+fi
+
+say ""
 if [ $stop -ne 0 ]; then say "결과: 중단 사유 있음"; exit 1; fi
 if [ $check -ne 0 ]; then say "결과: 판정 필요 항목 있음"; exit 2; fi
 say "결과: 통과"
