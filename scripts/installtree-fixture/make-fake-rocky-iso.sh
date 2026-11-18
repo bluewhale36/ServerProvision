@@ -1,6 +1,7 @@
 #!/bin/sh
 # E4-1-b-1 시험용 가짜 Rocky 설치 ISO 를 만든다. 설치기가 읽는 필수 파일(.treeinfo, 커널, initrd, 설치기 본체,
-# BaseOS 저장소 색인)만 담는다. macOS 는 hdiutil, Linux 는 xorriso 를 쓴다.
+# BaseOS 저장소 색인)와, 관리 화면 comps 추출이 읽는 설치 환경 · 패키지 그룹(E4-1-b-2 CP5)만 담는다.
+# macOS 는 hdiutil, Linux 는 xorriso 를 쓴다.
 # hdiutil 은 Rock Ridge 를 쓰지 않아 64 자가 넘는 이름을 자르므로 파일 이름을 짧게 둔다(긴 이름 확인은 b-4).
 #
 # 사용: make-fake-rocky-iso.sh <출력 디렉터리> [버전(기본 9.5)] [배포판 이름(기본 "Rocky Linux")]
@@ -27,7 +28,24 @@ echo fake > "$SRC/.discinfo"
 printf kernel > "$SRC/images/pxeboot/vmlinuz"
 printf initrd > "$SRC/images/pxeboot/initrd.img"
 printf stage2 > "$SRC/images/install.img"
-printf '<repomd/>' > "$SRC/BaseOS/repodata/repomd.xml"
+cat > "$SRC/BaseOS/repodata/repomd.xml" <<'REPOMD'
+<?xml version="1.0" encoding="UTF-8"?>
+<repomd xmlns="http://linux.duke.edu/metadata/repo">
+  <data type="group"><location href="repodata/comps.xml"/></data>
+</repomd>
+REPOMD
+cat > "$SRC/BaseOS/repodata/comps.xml" <<'COMPS'
+<?xml version="1.0" encoding="UTF-8"?>
+<comps>
+  <group><id>core</id><name>Core</name><description>Smallest possible installation</description><default>true</default></group>
+  <group><id>development</id><name>Development Tools</name><description>Basic development environment</description><default>false</default></group>
+  <group><id>system-tools</id><name>System Tools</name><description>System administration tools</description><default>false</default></group>
+  <environment><id>minimal-environment</id><name>Minimal Install</name><description>Basic functionality</description>
+    <grouplist><groupid>core</groupid></grouplist><optionlist><groupid>system-tools</groupid></optionlist></environment>
+  <environment><id>server-product-environment</id><name>Server</name><description>An integrated, easy-to-manage server</description><default>true</default>
+    <grouplist><groupid>core</groupid></grouplist><optionlist><groupid>development</groupid><groupid>system-tools</groupid></optionlist></environment>
+</comps>
+COMPS
 printf '<repomd/>' > "$SRC/AppStream/repodata/repomd.xml"
 printf rpm > "$SRC/BaseOS/Packages/b/bash-5.1.8-9.el9.x86_64.rpm"
 

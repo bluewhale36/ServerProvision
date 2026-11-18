@@ -45,6 +45,7 @@ class OSInstallationReferenceInspectorTest {
     @Mock com.example.serverprovision.management.os.repository.ISORepository isoRepository;
     @Mock RHELInstallationFamilyInspector rhelFamily;
     @Mock WindowsInstallationFamilyInspector windowsFamily;
+    @Mock OsInstallTargetPolicy targetPolicy;   // 기본 null = 허용(E4-1-b-2 지원 판정은 전용 테스트에서)
 
     private OSInstallationReferenceInspector inspector;
 
@@ -52,7 +53,7 @@ class OSInstallationReferenceInspectorTest {
         given(rhelFamily.family()).willReturn(com.example.serverprovision.provisioning.setting.enums.OSFamily.RHEL_BASED);
         // Debian family 는 의도적으로 미등록 — 2단 맵 미스 = 계열 고유 참조 없음(통과) 의미론 검증.
         return new OSInstallationReferenceInspector(
-                new OsMetadataReferenceChecker(osMetadataRepository), isoRepository, List.of(rhelFamily));
+                new OsMetadataReferenceChecker(osMetadataRepository), isoRepository, targetPolicy, List.of(rhelFamily));
     }
 
     private static RHELInstallationRequest rhel(Long osMetadataId) {
@@ -112,7 +113,7 @@ class OSInstallationReferenceInspectorTest {
     }
 
     @Test
-    @DisplayName("2단 위임 — RHEL 은 family 빈 호출, Debian(미등록 계열)은 공통만으로 통과")
+    @DisplayName("2단 위임 — RHEL 은 family 빈 호출 · Rocky OS 에 Debian 판별자는 계열 불일치 400(E4-1-b-2 D-3)")
     void familyDispatch() {
         inspector = build();
         OSMetadata os = enabledOs(false);
@@ -123,7 +124,11 @@ class OSInstallationReferenceInspectorTest {
         inspector.validateReferences(rhelRequest, CTX);
         verify(rhelFamily).validateReferences(rhelRequest); // 계열 고유 검증 위임
 
-        assertThatCode(() -> inspector.validateReferences(ubuntu(1L), CTX)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> inspector.validateReferences(ubuntu(1L), CTX))
+                .isInstanceOfSatisfying(com.example.serverprovision.provisioning.setting.exception.UnsupportedOsInstallTargetException.class, e -> {
+                    org.assertj.core.api.Assertions.assertThat(e.getMessage()).isEqualTo(OsInstallTargetPolicy.FAMILY_MISMATCH_REASON);
+                    org.assertj.core.api.Assertions.assertThat(e.fieldName()).isEqualTo("osMetadataId");
+                });
     }
 
     @Test
@@ -183,7 +188,7 @@ class OSInstallationReferenceInspectorTest {
         given(rhelFamily.family()).willReturn(com.example.serverprovision.provisioning.setting.enums.OSFamily.RHEL_BASED);
         given(windowsFamily.family()).willReturn(com.example.serverprovision.provisioning.setting.enums.OSFamily.WINDOWS);
         inspector = new OSInstallationReferenceInspector(
-                new OsMetadataReferenceChecker(osMetadataRepository), isoRepository, List.of(rhelFamily, windowsFamily));
+                new OsMetadataReferenceChecker(osMetadataRepository), isoRepository, targetPolicy, List.of(rhelFamily, windowsFamily));
         OSMetadata windowsOs = Mockito.mock(OSMetadata.class);
         Mockito.lenient().when(windowsOs.isEnabled()).thenReturn(true);
         Mockito.lenient().when(windowsOs.getOsName()).thenReturn(OSName.WINDOWS_SERVER);
@@ -194,5 +199,45 @@ class OSInstallationReferenceInspectorTest {
         assertThatCode(() -> inspector.validateReferences(request, CTX)).doesNotThrowAnyException();
         verify(windowsFamily).validateReferences(request);
         verify(rhelFamily, Mockito.never()).validateReferences(any());
+    }
+
+    @Test
+    @DisplayName("E4-1-b-2 D-3 — 계열은 맞아도 지원 밖 OS(정책 사유 있음)면 400(osMetadataId) · 계열 검사기 미호출")
+    void unsupportedTarget_rejected() {
+        inspector = build();
+        OSMetadata os = enabledOs(false);
+        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(os));
+        given(targetPolicy.blockReason(os)).willReturn("Rocky Linux 8, 9, 10 만 설치할 수 있습니다.");
+
+        OSInstallationRequest request = rhel(1L);
+        assertThatThrownBy(() -> inspector.validateReferences(request, CTX))
+                .isInstanceOfSatisfying(com.example.serverprovision.provisioning.setting.exception.UnsupportedOsInstallTargetException.class, e -> {
+                    org.assertj.core.api.Assertions.assertThat(e.getMessage()).isEqualTo("Rocky Linux 8, 9, 10 만 설치할 수 있습니다.");
+                    org.assertj.core.api.Assertions.assertThat(e.fieldName()).isEqualTo("osMetadataId");
+                });
+        org.mockito.Mockito.verify(rhelFamily, org.mockito.Mockito.never()).validateReferences(request);
+    }
+
+    @Test
+    @DisplayName("E4-1-b-2 D-20 — 등록에 실패한 ISO 를 지목하면 400(IsoRegistrationFailedException, field=isoId) · 계열 검사기 미호출")
+    void registrationFailedIso_rejected() {
+        inspector = build();
+        OSMetadata os = enabledOs(false);
+        given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(os));
+        var iso = Mockito.mock(com.example.serverprovision.management.os.entity.ISO.class);
+        Mockito.lenient().when(iso.isDeleted()).thenReturn(false);
+        Mockito.lenient().when(iso.getOsMetadata()).thenReturn(os);
+        Mockito.lenient().when(os.getId()).thenReturn(1L);
+        Mockito.lenient().when(iso.isEnabled()).thenReturn(true);
+        given(iso.installSelectionBlockReason()).willReturn("등록에 실패한 ISO 입니다. 사유");
+        given(isoRepository.findById(100L)).willReturn(Optional.of(iso));
+
+        OSInstallationRequest request = rhel(1L);
+        assertThatThrownBy(() -> inspector.validateReferences(request, CTX))
+                .isInstanceOfSatisfying(com.example.serverprovision.provisioning.setting.exception.IsoRegistrationFailedException.class, e -> {
+                    org.assertj.core.api.Assertions.assertThat(e.getMessage()).isEqualTo("등록에 실패한 ISO 입니다. 사유");
+                    org.assertj.core.api.Assertions.assertThat(e.fieldName()).isEqualTo("isoId");
+                });
+        org.mockito.Mockito.verify(rhelFamily, org.mockito.Mockito.never()).validateReferences(request);
     }
 }

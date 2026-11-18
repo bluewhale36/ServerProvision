@@ -44,7 +44,7 @@ class OSMetadataListCopyRenderTest {
                                    IntegrityStatus status, boolean parentBlocksRestore) {
         return new ISOResponse(id, path, "", !deleted, deleted, deprecated,
                 LifecycleStage.of(deprecated, deleted), extracted, List.of(), 0, status,
-                false, false, false, parentBlocksRestore, false);
+                false, false, false, parentBlocksRestore, false, null);
     }
 
     @Test
@@ -68,5 +68,25 @@ class OSMetadataListCopyRenderTest {
                 .andExpect(content().string(not(containsString(">Deprecated<"))))
                 .andExpect(content().string(containsString("n-accordion-badge\">삭제</span>")))
                 .andExpect(content().string(containsString("OS 버전을 먼저 복구해야 합니다.")));
+    }
+
+    @Test
+    @DisplayName("E4-1-b-2 D-20 — 등록 뒤 버전 확인에 실패한 ISO 는 '등록 실패' 배지와 사유를 보인다(행은 남음)")
+    void isoAccordion_rendersRegistrationFailure() throws Exception {
+        String reason = "ISO 의 실제 버전(Rocky Linux 11.0)과 등록한 OS 버전(Rocky Linux 10.0)이 다릅니다. 맞는 OS 아래에 다시 등록해야 합니다.";
+        ISOResponse failed = new ISOResponse(12L, "/mnt/iso/c.iso", "", true, false, false,
+                LifecycleStage.of(false, false), false, List.of(), 0, IntegrityStatus.NOT_VERIFIED,
+                false, false, false, false, false, reason);
+        OSMetadataResponse os = new OSMetadataResponse(
+                3L, OSName.ROCKY_LINUX, "10.0", "", true, false, false, LifecycleStage.of(false, false),
+                List.of(failed), List.of(), List.of());
+        given(osMetadataService.findAllGrouped(any()))
+                .willReturn(List.of(OSGroupResponse.of(OSName.ROCKY_LINUX, List.of(os))));
+
+        mvc.perform(get("/management/os?selectId=3"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("n-badge-red\">등록 실패</span>")))
+                .andExpect(content().string(containsString("n-badge-red n-accordion-badge\">등록 실패</span>")))   // 접힌 머리줄(CP5 O-r2-2)
+                .andExpect(content().string(containsString("ISO 의 실제 버전(Rocky Linux 11.0)과 등록한 OS 버전(Rocky Linux 10.0)이 다릅니다.")));
     }
 }

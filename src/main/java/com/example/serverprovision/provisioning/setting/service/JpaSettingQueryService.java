@@ -94,14 +94,8 @@ public class JpaSettingQueryService implements SettingQueryService {
     // E4-1-a-2 — Windows 설치 이미지 선택지 · 옵션 차단 판정 · 상세의 소스 대조. setting → execution.wininstall 단방향(RaidPlanner 선례).
     private final WindowsImageCatalog windowsImageCatalog;
 
-    /**
-     * management OSFamily → setting OSFamily 선언적 매핑(2단 판별자 축). WINDOWS 는 E4-1-a-2 에서 실체화됐다.
-     * 계열별 선택 가능 여부는 {@code OsInstallTargetPolicy} 가 판정한다.
-     */
-    private static final Map<com.example.serverprovision.management.os.enums.OSFamily, OSFamily> FAMILY_MAPPING = Map.of(
-            com.example.serverprovision.management.os.enums.OSFamily.RHEL_BASED, OSFamily.RHEL_BASED,
-            com.example.serverprovision.management.os.enums.OSFamily.DEBIAN_BASED, OSFamily.DEBIAN_BASED,
-            com.example.serverprovision.management.os.enums.OSFamily.WINDOWS_BASED, OSFamily.WINDOWS);
+    // E4-1-b-2 — OS 옵션 차단 사유의 SSOT(계열 검사기에 넘긴다). 1단 검사기(서버 가드)와 같은 빈이다.
+    private final OsInstallTargetPolicy osInstallTargetPolicy;
 
     /** deprecatedAt(Instant) 의 화면 표기 — 프로젝트 표기 관례(KST yyyy-MM-dd HH:mm)를 따른다. */
     private static final DateTimeFormatter DEPRECATED_AT_FORMAT =
@@ -507,13 +501,15 @@ public class JpaSettingQueryService implements SettingQueryService {
     }
 
     private SettingOSOptionResponse toOSOption(OSMetadata os) {
-        // 차단 사유의 SSOT = OsInstallTargetPolicy — 계열 검사기(서버 가드)와 같은 판정(E4-1-a-2 D-4).
+        // 차단 사유의 SSOT = OsInstallTargetPolicy — 1단 검사기(서버 가드)와 같은 판정(E4-1-b-2 D-1).
         return new SettingOSOptionResponse(
                 os.getId(),
                 os.getOsName().name(),
+                os.getOsName().getDisplayName(),
                 os.getOsVersion(),
-                FAMILY_MAPPING.get(os.getOsName().getFamily()),
-                OsInstallTargetPolicy.blockReason(os.getOsName(), windowsImageCatalog.snapshot().ready()),
+                OSFamily.of(os.getOsName()),
+                osInstallTargetPolicy.blockReason(os),
+                os.rhelRelease().map(r -> r.supportsRootSshFlag()).orElse(false),
                 os.isDeprecated(),
                 deprecatedAtDisplay(os),
                 os.getDescription(),
@@ -529,17 +525,23 @@ public class JpaSettingQueryService implements SettingQueryService {
                 .map(com.example.serverprovision.management.os.entity.OSPackageGroup::getId)
                 .collect(java.util.stream.Collectors.toSet());
         return new SettingOSOptionResponse.IsoOption(
-                iso.getId(), isoDisplayName(iso), iso.isDeprecated(), deprecatedAtDisplay(iso),
+                iso.getId(), isoDisplayName(iso), iso.getIsoPath(), iso.isDeprecated(), deprecatedAtDisplay(iso),
+                iso.getDescription(),
+                iso.getCreatedAt() == null ? null : DEPRECATED_AT_FORMAT.format(iso.getCreatedAt().atZone(ZoneId.systemDefault())),
+                iso.getLastIntegrityStatus() != null ? iso.getLastIntegrityStatus() : com.example.serverprovision.global.marker.IntegrityStatus.NOT_VERIFIED,
                 iso.getProvidedEnvironments().stream()
                         .map(e -> new SettingOSOptionResponse.EnvironmentOption(
                                 e.getId(), e.getDisplayName(),
                                 e.getGroups().stream()
                                         .map(com.example.serverprovision.management.os.entity.OSPackageGroup::getId)
                                         .filter(providedGroupIds::contains)
-                                        .toList()))
+                                        .toList(),
+                                e.isDefault()))
                         .toList(),
                 iso.getProvidedPackageGroups().stream()
                         .map(g -> new SettingOSOptionResponse.Option(g.getId(), g.getDisplayName()))
-                        .toList());
+                        .toList(),
+                iso.installSelectionBlockReason(),   // E4-1-b-2 D-20 — 1단 검사기와 같은 도메인 메서드
+                iso.getRegistrationFailure());
     }
 }

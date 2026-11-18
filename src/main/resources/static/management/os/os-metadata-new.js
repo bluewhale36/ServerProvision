@@ -16,6 +16,24 @@
         if (!form) return;
 
         const banner = form.querySelector('.n-form-banner');
+
+        // E4-1-b-2 D-21 — 고른 줄의 지원 메이저를 숨은 rhelRelease 로 싣고, 버전 칸에 앞자리를 채운다.
+        const osSelect = document.getElementById('osName');
+        const releaseInput = document.getElementById('rhelRelease');
+        const versionInput = document.getElementById('osVersion');
+        const versionHint = document.getElementById('osVersionHint');
+        const versionExample = document.getElementById('osVersionExample');
+        osSelect.addEventListener('change', () => {
+            const opt = osSelect.selectedOptions[0];
+            const release = opt ? (opt.getAttribute('data-rhel-release') || '') : '';
+            const prefix = opt ? (opt.getAttribute('data-version-prefix') || '') : '';
+            releaseInput.value = release;
+            versionHint.hidden = !prefix;
+            if (prefix) {
+                versionExample.textContent = prefix + '0';
+                if (!versionInput.value || /^\d+\.$/.test(versionInput.value)) versionInput.value = prefix;
+            }
+        });
         const showBanner = msg => UiUtil.showBanner(banner, msg);
         const hideBanner = () => UiUtil.hideBanner(banner);
 

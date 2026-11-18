@@ -4,6 +4,7 @@ import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.os.enums.OSName;
+import com.example.serverprovision.management.os.enums.RhelRelease;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -14,6 +15,7 @@ import lombok.experimental.SuperBuilder;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * OS 메타데이터 — (OSName, osVersion) 조합의 유일한 논리적 단위.
@@ -97,6 +99,11 @@ public class OSMetadata extends LifecycleEntity implements Markable {
 	 */
 	public void update(String description) {
 		this.description = description;
+	}
+
+	/** 설치를 지원하는 RHEL 계열 메이저(E4-1-b-2) — 버전 문자열에서 계산한다. 지원 밖이면 empty. */
+	public Optional<RhelRelease> rhelRelease() {
+		return RhelRelease.of(osName, osVersion);
 	}
 
 	// ==== Markable 구현 (메타 자원) ===================================

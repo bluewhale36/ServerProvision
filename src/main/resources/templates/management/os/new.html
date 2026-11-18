@@ -10,7 +10,7 @@
 
   Model:
     osMetadataForm : OSMetadataCreateRequest   @ModelAttribute (BindingResult 대상)
-    osNameOptions : List<OSName>         MVP 대상 3종 (ROCKY_LINUX, CENTOS, UBUNTU)
+    osOptions     : List<OsRegistrationOption>  OS 선택지. Rocky Linux 는 지원 메이저마다 한 줄(E4-1-b-2 D-21, 정본 RhelRelease)
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('OS 버전 등록')}"></th:block>
@@ -37,30 +37,27 @@
                 <!-- S4 폼 배너 슬롯 -->
                 <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
 
-                <!-- OS 이름 : 신규 등록 시에만 선택 가능 (수정 화면에선 고정) -->
-                <div class="n-form-group">
+                <!-- OS 이름 : 신규 등록 시에만 선택 가능 (수정 화면에선 고정). Rocky Linux 는 지원 메이저별 선택지이고,
+                     고른 줄의 data-rhel-release 를 숨은 rhelRelease 로 보낸다(os-metadata-new.js). -->
+                <div class="n-form-group" data-error-field="rhelReleaseValid">
                     <label class="n-label strong" for="osName">OS 이름</label>
-                    <select id="osName" th:field="*{osName}" class="n-select"
-                            data-error-field="osName"
-                            th:classappend="${#fields.hasErrors('osName')} ? 'is-invalid'">
+                    <select id="osName" name="osName" class="n-select" data-error-field="osName">
                         <option value="">선택</option>
-                        <option th:each="name : ${osNameOptions}"
-                                th:value="${name.name()}"
-                                th:text="${name.displayName}"></option>
+                        <option th:each="opt : ${osOptions}"
+                                th:value="${opt.osName.name()}"
+                                th:text="${opt.label}"
+                                th:attr="data-rhel-release=${opt.release != null ? opt.release.name() : ''},data-version-prefix=${opt.versionPrefix}"></option>
                     </select>
-                    <div class="n-error" th:if="${#fields.hasErrors('osName')}"
-                         th:errors="*{osName}"></div>
+                    <input type="hidden" id="rhelRelease" name="rhelRelease" value="">
                 </div>
 
-                <div class="n-form-group">
+                <div class="n-form-group" data-error-field="osVersionCovered">
                     <label class="n-label strong" for="osVersion">OS 버전</label>
-                    <input id="osVersion" type="text" th:field="*{osVersion}"
+                    <input id="osVersion" type="text" name="osVersion"
                            class="n-input"
                            data-error-field="osVersion"
-                           th:classappend="${#fields.hasErrors('osVersion')} ? 'is-invalid'"
                            placeholder="예: 9.6">
-                    <div class="n-error" th:if="${#fields.hasErrors('osVersion')}"
-                         th:errors="*{osVersion}"></div>
+                    <div class="n-hint" id="osVersionHint" hidden>세부 버전까지 입력합니다. 예: <span id="osVersionExample">9.6</span></div>
                 </div>
 
                 <div class="n-form-group">

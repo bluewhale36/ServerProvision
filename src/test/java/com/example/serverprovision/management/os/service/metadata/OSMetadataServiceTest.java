@@ -112,7 +112,7 @@ class OSMetadataServiceTest {
     @Test
     @DisplayName("create(happy) : 동일 (osName, osVersion) 자원이 0 건이면 새 행을 저장한다 (HF30-1 — 중복 확인 창 제거)")
     void create_whenNotDuplicated_saves() {
-        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, "9.6", "최신 마이너");
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9, "9.6", "최신 마이너");
         given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6")).willReturn(List.of());
         given(osMetadataRepository.saveAndFlush(any(OSMetadata.class)))
                 .willAnswer(inv -> OSMetadata.builder().id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6").build());
@@ -125,7 +125,7 @@ class OSMetadataServiceTest {
     @Test
     @DisplayName("create(HF30-1) : 동시 등록 경합으로 DB UNIQUE 위반 → DuplicateOSMetadataException(활성 문구)으로 번역 — 500 으로 새지 않는다")
     void create_concurrentRace_translatesToDuplicate() {
-        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, "9.6", null);
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9, "9.6", null);
         given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
                 .willReturn(List.of());   // 경합 상대가 아직 커밋 전 — 검사 통과
         given(osMetadataRepository.saveAndFlush(any(OSMetadata.class)))
@@ -140,7 +140,7 @@ class OSMetadataServiceTest {
     @Test
     @DisplayName("create(HF30-1) : Deprecated 동일키 → 'Deprecated 를 해제' 안내 (종전에는 창의 [그래도 등록] 이 항상 실패)")
     void create_deprecatedDuplicate_guidesUndeprecate() {
-        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, "9.6", null);
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9, "9.6", null);
         given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
                 .willReturn(List.of(OSMetadata.builder().id(7L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
                         .isEnabled(true).isDeprecated(true).isDeleted(false).build()));
@@ -156,7 +156,7 @@ class OSMetadataServiceTest {
     void create_whenDuplicatedActive_throws() {
         // given
         OSMetadataCreateRequest request = new OSMetadataCreateRequest(
-                OSName.ROCKY_LINUX, "9.6", null
+                OSName.ROCKY_LINUX, com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9, "9.6", null
         );
         OSMetadata activeRow = OSMetadata.builder()
                 .id(7L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
@@ -194,7 +194,7 @@ class OSMetadataServiceTest {
     @Test
     @DisplayName("create(fail) : ACTIVE + SOFT_DELETED 혼재면 가장 살아 있는 ACTIVE 기준으로 Duplicate 409 (HF30-1 — 종전 창 대신)")
     void create_whenActiveAndSoftDeletedCoexist_throwsDuplicateForActive() {
-        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, "9.6", null);
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9, "9.6", null);
         OSMetadata activeRow = OSMetadata.builder()
                 .id(7L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
                 .isEnabled(true).isDeprecated(false).isDeleted(false).build();

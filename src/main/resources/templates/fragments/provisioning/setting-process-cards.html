@@ -328,7 +328,7 @@
                             <tr>
                                 <th>사용자명</th>
                                 <th>sudo 권한</th>
-                                <th>비밀번호 방식</th>
+                                <th>비밀번호</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -339,8 +339,9 @@
                                     <span th:unless="${user.isSudoer != null and user.isSudoer}" class="n-table-muted">-</span>
                                 </td>
                                 <td>
-                                    <span th:if="${user.isPasswordEncrypted()}" class="n-badge n-badge-gray">암호화</span>
-                                    <span th:unless="${user.isPasswordEncrypted()}" class="n-badge n-badge-gray">평문</span>
+                                    <!-- E4-1-b-2 D-18 — 서버가 항상 해시해 저장하므로 방식이 아니라 유무만 보인다. -->
+                                    <span th:if="${user.hasPassword()}" class="n-badge n-badge-green">설정 완료</span>
+                                    <span th:unless="${user.hasPassword()}" class="n-badge n-badge-off">미설정</span>
                                 </td>
                             </tr>
                             </tbody>

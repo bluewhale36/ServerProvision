@@ -30,8 +30,11 @@ public final class LinuxPartitionRules {
     private static final Set<FileSystem> RESERVED_FS =
             Set.of(FileSystem.EFI, FileSystem.SWAP, FileSystem.FAT32, FileSystem.NTFS);
 
-    /** 리눅스 설치에 반드시 존재해야 하는 마운트포인트 (legacy MISSING_MANDATORY_MOUNT_POINTS 이관). */
-    private static final Set<String> MANDATORY_MOUNT_POINTS = Set.of("/", "/boot", "/boot/efi", "swap");
+    /**
+     * 리눅스 설치에 반드시 존재해야 하는 마운트포인트 (legacy MISSING_MANDATORY_MOUNT_POINTS 이관).
+     * 순서가 오류 문구의 나열 순서라 List 로 고정한다(Set.of 는 실행마다 순서가 바뀐다, E4-1-b-2).
+     */
+    private static final List<String> MANDATORY_MOUNT_POINTS = List.of("/", "/boot", "/boot/efi", "swap");
 
     private LinuxPartitionRules() {
     }

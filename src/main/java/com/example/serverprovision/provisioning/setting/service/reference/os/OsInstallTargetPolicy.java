@@ -1,34 +1,38 @@
 package com.example.serverprovision.provisioning.setting.service.reference.os;
 
-import com.example.serverprovision.management.os.enums.OSFamily;
-import com.example.serverprovision.management.os.enums.OSName;
+import com.example.serverprovision.management.os.entity.OSMetadata;
+import com.example.serverprovision.provisioning.setting.enums.OSFamily;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
- * OS 설치 단계의 대상 정책 — UI 차단(옵션 disabled + tooltip)과 서버 가드(계열 검사기)가 함께 읽는 단일 SSOT
- * (R11 D-R8 의 {@code PlannedInstallTargetPolicy} 를 E4-1-a-2 에서 확장). 판정 두 축: ① 리눅스 계열은 설치 자동화가
- * 없다 ② Windows 는 설치 소스가 준비돼야 이미지를 고를 수 있다. 의존성 0 의 정적 판정({@code TypedNameGuard} 관용구).
+ * OS 설치 단계의 대상 정책 — UI 차단(옵션 disabled + 사유)과 서버 가드(1단 검사기)가 함께 읽는 단일 SSOT.
+ * 판정은 OS 가 속한 계열의 검사기({@link OSInstallationFamilyInspector#installBlockReason})가 맡는다
+ * (E4-1-b-2 — 계열이 늘 때 여기 분기를 늘리지 않게 static 판정을 계열 맵으로 옮겼다).
  */
-public final class OsInstallTargetPolicy {
+@Component
+public class OsInstallTargetPolicy {
 
-    /** 차단 사유 정본 문장 — 옵션 tooltip 과 서버 거절 메시지가 같은 문장을 쓴다(같은 상황 = 같은 문장). */
-    public static final String LINUX_BLOCK_REASON =
-            "Windows Server 계열만 설치할 수 있습니다.";
+    /** 요청 판별자와 OS 의 실제 계열이 다를 때(직접 POST 위조) — 정상 화면에서는 나오지 않는다. */
+    public static final String FAMILY_MISMATCH_REASON = "선택한 OS 와 설치 설정의 계열이 맞지 않습니다.";
 
-    public static final String SOURCE_BLOCK_REASON =
-            "Windows 설치 소스가 준비되지 않았습니다. 시스템 자산 대시보드의 'Windows 설치 소스' 영역을 확인해야 합니다.";
+    private final Map<OSFamily, OSInstallationFamilyInspector> inspectors;
 
-    private OsInstallTargetPolicy() {
+    public OsInstallTargetPolicy(List<OSInstallationFamilyInspector> inspectors) {
+        this.inspectors = inspectors.stream()
+                .collect(Collectors.toUnmodifiableMap(OSInstallationFamilyInspector::family, Function.identity()));
     }
 
-    /**
-     * 설치 허용 판정 — 허용이면 {@code null}, 차단이면 사유 문장.
-     *
-     * @param sourceReady Windows 설치 소스가 이미지를 고를 수 있는 상태인가({@code InstallSourceSnapshot.ready()})
-     */
-    public static String blockReason(OSName osName, boolean sourceReady) {
-        if (osName.getFamily() != OSFamily.WINDOWS_BASED) {
-            return LINUX_BLOCK_REASON;
+    /** 설치 허용 판정 — 허용이면 {@code null}, 차단이면 사유 문장. */
+    public String blockReason(OSMetadata os) {
+        OSInstallationFamilyInspector inspector = inspectors.get(OSFamily.of(os.getOsName()));
+        if (inspector == null) {
+            throw new IllegalStateException("계열 검사기가 없는 OS 계열: " + os.getOsName().getFamily());
         }
-        return sourceReady ? null : SOURCE_BLOCK_REASON;
+        return inspector.installBlockReason(os);
     }
 }

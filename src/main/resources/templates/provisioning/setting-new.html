@@ -40,6 +40,7 @@
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('세팅 정의서 작성')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/accordion.css}">
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
     <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
 </head>
 <body>
@@ -412,8 +413,8 @@
                         </details>
 
                         <!-- ==================== OS_INSTALLATION ==================== -->
-                        <!-- E4-1-a-2 — Windows Server 설치 단계. OS · ISO(식별) + 설치 이미지 · Administrator 비밀번호(Windows 블록).
-                             리눅스 상세 입력(타임존 · 파티션 · 사용자)은 R11 이 걷었고 계약 · fragment 만 보존 중(E4-L 부활 시 재노출). -->
+                        <!-- OS 설치 단계. OS · ISO(셀렉트) + 계열 블록(Windows: 설치 이미지 · Administrator 비밀번호 / 리눅스: 시간대 · 파티션 · root · 사용자,
+                             RHEL: 설치 환경 · 패키지 그룹 · KDump). E4-1-b-2 가 R11 이 걷은 리눅스 입력을 a9a7293 판에서 되살려 DESIGN.md 로 다시 골랐다. -->
                         <details class="n-accordion-item n-step-card" data-process-card="OS_INSTALLATION" hidden>
                             <summary class="n-accordion-head">
                                 <span class="n-accordion-chevron"></span>
@@ -421,26 +422,33 @@
                                 <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
                             </summary>
                             <div class="n-accordion-body">
+                                <!-- 설치할 OS — OSName 별 optgroup. 선택 가능 여부의 SSOT = 서버 정책(installBlockReason = OsInstallTargetPolicy,
+                                     1단 검사기와 같은 판정) — 고를 수 없는 OS 는 disabled + 사유(title)로 1차 차단한다. 이름은 화면 이름(enum 원문 아님). -->
                                 <div class="n-form-group">
                                     <label class="n-label strong" for="oiOsSelect">설치할 OS</label>
                                     <select id="oiOsSelect" class="n-select" data-error-field="osMetadataId">
                                         <option value="">OS 선택</option>
                                         <optgroup th:each="group : ${osOptions}" th:label="${group.osLabel}">
-                                            <!-- 선택 가능 여부의 SSOT = 서버 정책(installBlockReason = OsInstallTargetPolicy) — disabled + 사유(title)로 1차 차단 -->
                                             <option th:each="os : ${group.osList}"
                                                     th:value="${os.osMetadataId}"
-                                                    th:text="${os.osName} + ' ' + ${os.version} + (${os.installBlockReason != null} ? ' (선택 불가)' : '')"
+                                                    th:text="${os.label()} + (${os.installBlockReason != null} ? ' (선택 불가)' : '')"
                                                     th:disabled="${os.installBlockReason != null}"
                                                     th:title="${os.installBlockReason}"
                                                     th:classappend="${os.installBlockReason != null} ? 'unavailable'"
-                                                    th:data-os-family="${os.osFamily != null ? os.osFamily.name() : ''}"
-                                                    th:data-os-name="${os.osName}"
-                                                    th:data-os-version="${os.version}"
+                                                    th:data-os-family="${os.osFamily.name()}"
+                                                    th:data-root-ssh-supported="${os.rootSshSupported}"
                                                     th:data-deprecated="${os.deprecated}"
                                                     th:data-deprecated-at="${os.deprecatedAtDisplay}"
                                                     th:data-description="${os.description}"></option>
                                         </optgroup>
                                     </select>
+                                    <!-- 막힌 OS 의 사유를 보이는 글자로(7절 '차단 사유 | 비활성 버튼 곁 글자'). 셀렉트 안 option title 은
+                                         macOS Chrome · Safari 에서 뜨지 않고 disabled 옵션은 hover 를 받지 않아 여기서 한 줄씩 보인다. -->
+                                    <th:block th:each="group : ${osOptions}">
+                                        <div th:each="os : ${group.osList}" th:if="${os.installBlockReason != null}"
+                                             class="n-hint" data-os-block-reason
+                                             th:text="|${os.label()}: ${os.installBlockReason}|">CentOS 7.9: Rocky Linux 8, 9, 10 만 설치할 수 있습니다.</div>
+                                    </th:block>
                                 </div>
                                 <!-- HF32 — OS 설치는 RAID 구성 단계의 OS 영역 RAID 볼륨을 전제한다(SettingSaveRequest.isOsVolumeDeterminable).
                                      RAID 단계가 없거나 묶음이 없으면 여기서 막는다(문구 · 차단 분기 SSOT = OsVolumeTargetKind, osVolumeTargetMessagesJson).
@@ -450,23 +458,90 @@
                                     window.OS_VOLUME_TARGET_MESSAGES_JSON = /*[[${osVolumeTargetMessagesJson}]]*/ '{}';
                                 </script>
                                 <div id="oiDetailFields" hidden>
-                                    <!-- 설치 ISO (U2-4) — 식별 기록의 나머지 반쪽. ISO 없는 OS 는 서버가 옵션 자체를 제외. -->
+                                    <!-- 설치 ISO (U2-4 · E4-1-b-2 사용자 결정) — OS 를 고르면 그 OS 의 사용 가능 ISO 를 Miller 2 열로 보인다.
+                                         1 열 항목의 radio 가 값을 고르고, 나머지 자리(n-miller-choice 버튼)는 2 열 상세만 연다(고르지 않음).
+                                         등록 뒤 버전 확인에 실패한 ISO 는 radio disabled + 항목 안 사유(SSOT = ISO.installSelectionBlockReason,
+                                         1단 검사기와 같은 판정). 사용 중단 ISO 는 radio 를 누를 때만 확인 창(BIOS · BMC 와 같은 창). -->
                                     <div class="n-form-group" data-error-field="isoId">
-                                        <label class="n-label strong" for="oiIsoSelect">설치 ISO</label>
-                                        <select id="oiIsoSelect" class="n-select" disabled>
-                                            <option value="" data-placeholder>OS 먼저 선택</option>
-                                            <th:block th:each="group : ${osOptions}">
-                                            <th:block th:each="os : ${group.osList}">
-                                                <option th:each="iso : ${os.isoList}"
-                                                        th:value="${iso.id}"
-                                                        th:text="${iso.name}"
-                                                        th:data-os-id="${os.osMetadataId}"
-                                                        th:data-deprecated="${iso.deprecated}"
-                                                        th:data-deprecated-at="${iso.deprecatedAtDisplay}"
-                                                        class="unavailable" disabled></option>
-                                            </th:block>
-                                            </th:block>
-                                        </select>
+                                        <div class="n-miller" data-iso-miller>
+                                            <div class="n-miller-col n-miller-col-names">
+                                                <div class="n-miller-col-header">설치 ISO</div>
+                                                <th:block th:each="group : ${osOptions}">
+                                                <!-- OS 마다 묶음 하나 — 보이는 마지막 항목이 묶음 안 :last-child 가 되어 쌓임 배치의 아랫선 지우기가 걸린다 -->
+                                                <div th:each="os : ${group.osList}" data-iso-group th:attr="data-os-id=${os.osMetadataId}" hidden>
+                                                    <div th:each="iso : ${os.isoList}"
+                                                         class="n-miller-item n-miller-item-choice"
+                                                         th:classappend="${iso.blockReason != null} ? 'n-miller-item-disabled'"
+                                                         th:attr="data-os-id=${os.osMetadataId},data-iso-id=${iso.id},data-blocked=${iso.blockReason != null},data-deprecated=${iso.deprecated},data-deprecated-at=${iso.deprecatedAtDisplay},data-description=${iso.description}">
+                                                        <input type="radio" name="oiIsoRadio" th:value="${iso.id}"
+                                                               th:attr="aria-labelledby=|oiIsoName${iso.id}|"
+                                                               th:disabled="${iso.blockReason != null}">
+                                                        <button type="button" class="n-miller-choice" th:id="|oiIsoName${iso.id}|">
+                                                            <span class="n-miller-item-split">
+                                                                <span class="n-miller-version-label" th:text="${iso.name}">Rocky-9.6-x86_64-dvd.iso</span>
+                                                                <span th:if="${iso.deprecated}" class="n-deprecated-dot" title="사용 중단"></span>
+                                                                <span th:if="${iso.blockReason != null}" class="n-miller-status-tag n-miller-status-tag-danger">등록 실패</span>
+                                                            </span>
+                                                            <span th:if="${iso.blockReason != null}" class="n-miller-choice-reason" th:text="${iso.registrationFailure}">사유</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                </th:block>
+                                            </div>
+                                            <div class="n-miller-col n-miller-col-detail">
+                                                <div class="n-miller-col-header">ISO 정보</div>
+                                                <div class="n-miller-empty" data-iso-empty>ISO 선택</div>
+                                                <th:block th:each="group : ${osOptions}">
+                                                <th:block th:each="os : ${group.osList}">
+                                                    <div th:each="iso : ${os.isoList}" class="n-miller-detail-panel" th:attr="data-iso-id=${iso.id}">
+                                                        <table class="n-detail-table">
+                                                            <tbody>
+                                                            <tr>
+                                                                <th>선택 여부</th>
+                                                                <td data-iso-chosen-cell>미선택</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>경로</th>
+                                                                <td><code class="n-table-mono" th:text="${iso.path}">/srv/iso/Rocky-9.6-x86_64-dvd.iso</code></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>설명</th>
+                                                                <td th:text="${iso.description != null and !#strings.isEmpty(iso.description)} ? ${iso.description} : '-'">-</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>등록일</th>
+                                                                <td th:text="${iso.registeredAtDisplay} ?: '-'">-</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>무결성</th>
+                                                                <td><span class="n-badge" th:if="${iso.integrityStatus != null}"
+                                                                          th:classappend="${iso.integrityStatus.badgeClass()}"
+                                                                          th:text="${iso.integrityStatus.displayMessage}">미검증</span>
+                                                                    <span th:if="${iso.integrityStatus == null}">-</span></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>설치 환경</th>
+                                                                <td th:text="${#lists.isEmpty(iso.environments)} ? '-' : ${#strings.listJoin(iso.environments.![name], ', ')}">-</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>패키지 그룹</th>
+                                                                <td th:text="${#lists.isEmpty(iso.packageGroups)} ? '-' : ${#strings.listJoin(iso.packageGroups.![name], ', ')}">-</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>상태</th>
+                                                                <td>
+                                                                    <span th:if="${iso.blockReason != null}" class="n-badge n-badge-red">등록 실패</span>
+                                                                    <span th:if="${iso.blockReason == null and iso.deprecated}" class="n-badge n-badge-yellow">사용 중단</span>
+                                                                    <span th:if="${iso.blockReason == null and !iso.deprecated}">정상</span>
+                                                                </td>
+                                                            </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </th:block>
+                                                </th:block>
+                                            </div>
+                                        </div>
                                     </div>
                                     <!-- Windows 블록(E4-1-a-2) — 선택 OS 의 data-os-family 가 WINDOWS 일 때만 JS 가 연다.
                                          이미지 목록은 설치 소스(install.wim)에서 채집한 것이라 타이핑이 없다. 소스 미준비면 Windows 옵션 자체가 disabled 다. -->
@@ -492,6 +567,119 @@
                                             </label>
                                             <div class="n-hint">Windows 비밀번호 정책(길이, 복잡도)을 만족하지 않으면 설치가 완료되지 않습니다. 영문 대소문자, 숫자, 특수문자를 섞어 입력해야 합니다.</div>
                                         </div>
+                                    </div>
+                                    <!-- 리눅스 공통(E4-1-b-2 복원) — 선택 OS 가 리눅스 계열일 때만 JS 가 연다. -->
+                                    <div id="oiLinuxBlock" hidden>
+                                        <!-- RHEL 계열 설치 환경 · 추가 패키지 그룹 — ISO 를 고른 바로 아래(ISO 가 고를 수 있는 범위를 정한다) -->
+                                        <div th:replace="~{fragments/provisioning/setting/os-installation/rhel-based :: packages}"></div>
+                                        <!-- 시간대 — 대륙 · 도시 · RTC 기준은 한 설정이라 한 n-form-group 으로 묶는다(묶음 사이 30px, 묶음 안은 붙인다) -->
+                                        <div class="n-form-group" data-error-field="timezone">
+                                            <div class="n-row n-row-tight">
+                                                <div>
+                                                    <label class="n-label strong" for="oiTzRegion">시간대(대륙)</label>
+                                                    <select id="oiTzRegion" class="n-select">
+                                                        <option th:each="tz : ${timezoneOptions}"
+                                                                th:value="${tz.region}"
+                                                                th:text="${tz.region}"
+                                                                th:selected="${tz.region == 'Asia'}"></option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="n-label strong" for="oiTzCity">시간대(도시)</label>
+                                                    <select id="oiTzCity" class="n-select">
+                                                        <th:block th:each="tz : ${timezoneOptions}">
+                                                            <option th:each="city : ${tz.cities}"
+                                                                    th:value="${city}"
+                                                                    th:text="${city}"
+                                                                    th:data-region="${tz.region}"
+                                                                    class="unavailable" disabled></option>
+                                                        </th:block>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <label class="n-checkbox">
+                                                <input type="checkbox" id="oiIsUtc" checked> 하드웨어 시계(RTC) UTC 기준
+                                            </label>
+                                        </div>
+
+                                        <div class="n-form-group" data-error-field="partitions">
+                                            <div class="n-group-head">
+                                                <label class="n-label strong">파티션 구성</label>
+                                                <button type="button" id="oiDefaultPartitions" class="n-btn n-btn-outline n-btn-sm">기본 파티션 자동 생성</button>
+                                            </div>
+                                            <div class="n-hint">필수 마운트포인트: /, /boot, /boot/efi, swap</div>
+                                            <!-- U4-1-3 — 파티션이 놓이는 OS 영역 볼륨과 용량 하한 안내(문구 SSOT = 서버 OsVolumeTargetKind · OsVolumeTarget,
+                                                 위 공통 영역의 OS_VOLUME_TARGET_MESSAGES_JSON). 용량 초과는 isPartitionsWithinOsVolume 의 1 차 차단. -->
+                                            <div class="n-os-volume-target" id="oiOsVolumeTargetHint" data-error-field="partitionsWithinOsVolume">
+                                                <div class="n-hint" id="oiOsVolumeTargetKind"></div>
+                                                <div class="n-hint" id="oiOsVolumeTargetCapacity" hidden></div>
+                                            </div>
+                                            <table class="n-tbl-list" id="oiPartitionTable">
+                                                <colgroup>
+                                                    <col class="n-col-30">
+                                                    <col class="n-col-18">
+                                                    <col class="n-col-18">
+                                                    <col class="n-col-12">
+                                                    <col class="n-col-10">
+                                                    <col class="n-col-12">
+                                                </colgroup>
+                                                <thead>
+                                                <tr>
+                                                    <th>마운트포인트</th>
+                                                    <th>파일시스템</th>
+                                                    <th>크기</th>
+                                                    <th>단위</th>
+                                                    <th>Grow</th>
+                                                    <th></th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="oiPartitionTbody"></tbody>
+                                            </table>
+                                            <button type="button" id="oiAddPartition" class="n-btn n-btn-outline n-btn-sm">+ 파티션 추가</button>
+                                        </div>
+
+                                        <!-- root 계정 비밀번호 — RHEL 계열 전용. 서버가 저장 때 항상 해시한다(D-18, 암호화 여부 체크 없음). -->
+                                        <div class="n-form-group" data-error-field="rootPassword" id="oiRootPasswordGroup">
+                                            <label class="n-label strong" for="oiRootPassword">root 계정 비밀번호</label>
+                                            <label class="n-checkbox n-keep-password" id="oiRootKeepWrap" hidden>
+                                                <input type="checkbox" id="oiRootKeep" checked> 기존 비밀번호 유지
+                                            </label>
+                                            <input type="password" id="oiRootPassword" class="n-input"
+                                                   autocomplete="new-password" placeholder="비워 두면 root 계정 잠금">
+                                            <div class="n-hint">비워 두면 root 계정이 잠긴 채 설치됩니다. 이때는 일반 사용자를 한 명 이상 추가해야 합니다.</div>
+                                            <!-- Rocky 10 root SSH 허용 — 표시 여부 SSOT = 서버(RhelRelease.supportsRootSshFlag → 행의 data-root-ssh-supported, D-6). -->
+                                            <div id="oiAllowSshBox" data-root-ssh-box hidden>
+                                                <label class="n-checkbox">
+                                                    <input type="checkbox" id="oiAllowSshRoot"> root SSH 로그인 허용
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="n-form-group" data-error-field="users">
+                                            <label class="n-label strong">일반 사용자</label>
+                                            <div class="n-hint">root 비밀번호가 없으면 한 명 이상 추가해야 합니다. 저장된 비밀번호는 표시하지 않습니다.</div>
+                                            <table class="n-tbl-list" id="oiUserTable">
+                                                <colgroup>
+                                                    <col class="n-col-30">
+                                                    <col class="n-col-30">
+                                                    <col class="n-col-12">
+                                                    <col class="n-col-12">
+                                                </colgroup>
+                                                <thead>
+                                                <tr>
+                                                    <th>사용자명</th>
+                                                    <th>비밀번호</th>
+                                                    <th>sudo</th>
+                                                    <th></th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="oiUserTbody"></tbody>
+                                            </table>
+                                            <button type="button" id="oiAddUser" class="n-btn n-btn-outline n-btn-sm">+ 사용자 추가</button>
+                                        </div>
+
+                                        <!-- RHEL 계열 전용(KDump) — 선택 OS 의 osFamily 가 RHEL_BASED 일 때만 보인다. -->
+                                        <div th:replace="~{fragments/provisioning/setting/os-installation/rhel-based :: form}"></div>
                                     </div>
                                 </div>
                             </div>
@@ -695,7 +883,6 @@
                     <input type="password" class="n-input uPassword" autocomplete="new-password" placeholder="비밀번호">
                 </td>
                 <td class="n-td-center"><input type="checkbox" class="uSudoer"></td>
-                <td class="n-td-center"><input type="checkbox" class="uEncrypted"></td>
                 <td class="n-td-center">
                     <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-row-remove>삭제</button>
                 </td>

@@ -89,8 +89,9 @@ public class OSMetadataController {
 
 	@GetMapping("/new")
 	public String newForm(Model model) {
-		model.addAttribute("osMetadataForm", new OSMetadataCreateRequest(null, "", ""));
-		model.addAttribute("osNameOptions", MVP_OS_NAMES);
+		model.addAttribute("osMetadataForm", new OSMetadataCreateRequest(null, null, "", ""));
+		// E4-1-b-2 D-21 — Rocky Linux 는 지원 메이저별 선택지(RhelRelease 에서 생성).
+		model.addAttribute("osOptions", com.example.serverprovision.management.os.dto.response.OsRegistrationOption.of(MVP_OS_NAMES));
 		return "management/os/new";
 	}
 

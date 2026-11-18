@@ -37,22 +37,15 @@ class WindowsInstallationFamilyInspectorTest {
     private static final WindowsImage STANDARD_IMAGE = new WindowsImage(2, STANDARD,
             "Windows Server 2025 Standard (데스크톱 환경)", "ServerStandard", "Server", "ko-KR", "10.0.26100.1742");
 
-    @Mock OSMetadataRepository osMetadataRepository;
     @Mock WindowsImageCatalog catalog;
 
     private WindowsInstallationFamilyInspector inspector;
 
     @BeforeEach
     void setUp() {
-        inspector = new WindowsInstallationFamilyInspector(new OsMetadataReferenceChecker(osMetadataRepository), catalog);
+        inspector = new WindowsInstallationFamilyInspector(catalog);
     }
 
-    private void stubOs(OSName osName) {
-        OSMetadata os = Mockito.mock(OSMetadata.class);
-        Mockito.lenient().when(os.isEnabled()).thenReturn(true);
-        Mockito.lenient().when(os.getOsName()).thenReturn(osName);
-        given(osMetadataRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(os));
-    }
 
     private static WindowsInstallationRequest request(WindowsImageName image) {
         return new WindowsInstallationRequest(2L, 60L, image, new WindowsAdministratorPasswordRequest("S3rver!2025", false));
@@ -65,7 +58,6 @@ class WindowsInstallationFamilyInspectorTest {
     @Test
     @DisplayName("family = WINDOWS · Windows OS + 준비된 소스에 있는 이미지 → 통과 · deprecated 서술 없음")
     void happy() {
-        stubOs(OSName.WINDOWS_SERVER);
         given(catalog.snapshot()).willReturn(ready());
 
         assertThat(inspector.family()).isEqualTo(OSFamily.WINDOWS);
@@ -73,34 +65,20 @@ class WindowsInstallationFamilyInspectorTest {
         assertThat(inspector.describeDeprecatedReferences(request(STANDARD))).isEmpty();
     }
 
-    @Test
-    @DisplayName("리눅스 OS 에 WINDOWS 판별자 위조 → 400(osMetadataId) · 사유 = 정책 문장(옵션 tooltip 과 동일)")
-    void linuxTargetForged() {
-        stubOs(OSName.ROCKY_LINUX);
-        given(catalog.snapshot()).willReturn(ready());
-
-        assertThatThrownBy(() -> inspector.validateReferences(request(STANDARD)))
-                .isInstanceOfSatisfying(UnsupportedOsInstallTargetException.class, e -> {
-                    assertThat(e.getMessage()).isEqualTo(OsInstallTargetPolicy.LINUX_BLOCK_REASON);
-                    assertThat(e.fieldName()).isEqualTo("osMetadataId");
-                });
-    }
+    // 리눅스 OS 에 WINDOWS 판별자 위조는 1단 검사기의 계열 일치 가드가 막는다(E4-1-b-2 D-3, OSInstallationReferenceInspectorTest).
 
     @Test
-    @DisplayName("설치 소스 미준비 → 400(osMetadataId) · 사유 = SOURCE_BLOCK_REASON")
+    @DisplayName("설치 소스 미준비 → 지원 판정 사유 = SOURCE_BLOCK_REASON (1단 검사기가 정책을 거쳐 400)")
     void sourceNotReady() {
-        stubOs(OSName.WINDOWS_SERVER);
         given(catalog.snapshot()).willReturn(InstallSourceSnapshot.missing());
 
-        assertThatThrownBy(() -> inspector.validateReferences(request(STANDARD)))
-                .isInstanceOfSatisfying(UnsupportedOsInstallTargetException.class,
-                        e -> assertThat(e.getMessage()).isEqualTo(OsInstallTargetPolicy.SOURCE_BLOCK_REASON));
+        assertThat(inspector.installBlockReason(Mockito.mock(OSMetadata.class)))
+                .isEqualTo(WindowsInstallationFamilyInspector.SOURCE_BLOCK_REASON);
     }
 
     @Test
     @DisplayName("소스에 없는 이미지 → 400(imageName) · 문장에 이미지 이름 포함")
     void imageNotInSource() {
-        stubOs(OSName.WINDOWS_SERVER);
         given(catalog.snapshot()).willReturn(ready());
         WindowsImageName datacenter = new WindowsImageName("Windows Server 2025 SERVERDATACENTER");
 
