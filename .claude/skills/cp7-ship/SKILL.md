@@ -25,7 +25,9 @@ bash .claude/skills/cp7-ship/scripts/preflight.sh
 이 스크립트는 읽기만 한다(`git fetch` 만 예외). 결과는 종료 코드로 갈린다.
 
 - **1 = `[STOP]`**: 진행하지 않고 사유를 사용자에게 보고한다. 앵커 워크트리, dev · main · refine/* 브랜치, detached HEAD 가 여기에 해당한다.
-- **2 = `[CHECK]`**: 비밀값 의심 줄이 있다. 스크립트는 값이 대화와 로그에 남지 않도록 `파일:행` 만 출력한다.
+- **2 = `[CHECK]`**: 판정할 것이 있다. 둘 중 하나다.
+  - 배포 대기 항목 없음: DDL · SQL 파일이나 새 env 키(`application.properties` 의 `${…}`)를 더했는데 `docs/deploy/pending/<코드>.md` 가 없다. `docs/deploy/README.md` '항목 파일 쓰는 법' 대로 만들어 같은 커밋에 넣는다. 같은 캠페인의 기존 파일이 있으면 거기에 절을 더한다.
+  - 비밀값 의심 줄: 스크립트는 값이 대화와 로그에 남지 않도록 `파일:행` 만 출력한다.
   - 커밋할 파일이면 그 행을 Read 로 열어 판정한다. 판정 결과에 값 자체를 인용하지 않는다.
   - `token:` 같은 코드 식별자처럼 오탐이면 판정 근거를 한 줄로 남기고 진행한다.
   - 실제 자격 증명(BMC · DB · SSH · PXE secret · 제품 키 · 비밀번호)이면 멈추고 사용자에게 보고한다.
@@ -104,8 +106,8 @@ git push -u origin "$(git branch --show-current)"
 - CP6 · CP7 사용자 승인.
 
 ## 배포
-- DDL: <파일 경로 또는 "없음">
-- 점검 SQL: <있으면 위치. 실행은 사용자 지시 때>
+- 배포 대기 항목: <`docs/deploy/pending/<코드>.md` 또는 "없음">. DDL · 점검 SQL · env · 서버 준비의 원문은 그 파일에 둔다
+- 지원 대상 관리 포인트: <`docs/dev/maintenance-points.md` 에 더하거나 고친 계기, 또는 "없음">
 - <origin/dev 가 앞서 있으면: "origin/dev 대비 <n> 커밋 뒤처짐. 병합 전 앵커가 dev 를 받아 정리">
 
 <세션 system reminder 가 지정한 PR attribution 줄 그대로>
@@ -121,7 +123,7 @@ PR 을 만든 뒤 `gh pr view <번호> --json mergeable,url` 을 확인한다. `
 [<세션 이름>] <인벤토리코드> CP7 사용자 승인 · PR #<번호> 생성(<url>)
 - 브랜치: <브랜치> · 커밋 <short sha>
 - 테스트: <N> 건 통과
-- 배포 대기: DDL <있음(경로)/없음> · 점검 SQL <있음/없음>
+- 배포 대기: <docs/deploy/pending/<코드>.md 또는 없음> · 관리 포인트: <더한 계기 또는 없음>
 - dev 대비: <n> 커밋 뒤처짐 / 충돌 <있음/없음>
 - 후속: <다른 세션에 알릴 것 · 적립한 후속 항목>
 ```
