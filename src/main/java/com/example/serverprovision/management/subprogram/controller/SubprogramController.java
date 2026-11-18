@@ -72,6 +72,13 @@ public class SubprogramController {
 		model.addAttribute("selectId", selectId);
 		model.addAttribute("selectKind", selectKind);
 		model.addAttribute("selectKey", selectKey);
+		// HF30-3 D11 — 등록 · 상태 변경 뒤 ?selectId= 만 오면 어느 Miller 인지 서버가 찾아 선택을 복원한다.
+		if (selectId != null && selectKind == null) {
+			subprogramService.findSelection(selectId).ifPresent(selection -> {
+				model.addAttribute("selectKind", selection.kind());
+				model.addAttribute("selectKey", selection.scopeKey());
+			});
+		}
 		return "management/subprogram/list";
 	}
 

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.subprogram.controller;
 
+import com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadResponse;
 import com.example.serverprovision.management.subprogram.service.SubprogramNudgeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,20 +27,18 @@ public class SubprogramNudgeController {
 
 	@PostMapping("/nudge/{nudgeId}/proceed")
 	@ResponseBody
-	public ResponseEntity<Void> nudgeProceed(@PathVariable("nudgeId") UUID nudgeId) {
-		subprogramNudgeService.proceed(nudgeId);
-		return ResponseEntity.noContent().build();
+	public SubprogramUploadResponse nudgeProceed(@PathVariable("nudgeId") UUID nudgeId) {
+		return uploaded(subprogramNudgeService.proceed(nudgeId));
 	}
 
 	@PostMapping("/nudge/{nudgeId}/replace")
 	@ResponseBody
-	public ResponseEntity<Void> nudgeReplace(
+	public SubprogramUploadResponse nudgeReplace(
 			@PathVariable("nudgeId") UUID nudgeId,
 			@RequestParam("targetId") Long targetId,
 			@RequestParam(value = "typedName", required = false) String typedName
 	) {
-		subprogramNudgeService.replace(nudgeId, targetId, typedName);
-		return ResponseEntity.noContent().build();
+		return uploaded(subprogramNudgeService.replace(nudgeId, targetId, typedName));
 	}
 
 	@PostMapping("/nudge/{nudgeId}/cancel")
@@ -74,5 +73,10 @@ public class SubprogramNudgeController {
 	public ResponseEntity<Void> intentNudgeCancel(@PathVariable("nudgeId") UUID nudgeId) {
 		subprogramNudgeService.cancelIntent(nudgeId);
 		return ResponseEntity.noContent().build();
+	}
+
+	/** 일반 등록 성공과 같은 응답(HF30-3 D11). 목록은 selectId 만으로 종류와 범위를 찾아 선택을 복원한다. */
+	private static SubprogramUploadResponse uploaded(Long id) {
+		return new SubprogramUploadResponse(id, "/management/subprogram?selectId=" + id);
 	}
 }

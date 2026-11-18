@@ -281,8 +281,6 @@
   추가 도메인 로직(추출 등) 은 BIOS 페이지에서 클래스·데이터가 매칭되지 않아
   자연스럽게 no-op 이 된다. A3 단독 js 는 A4 까지 반복 확보 후 공용화 예정 — 지금은 복제 없이 재사용.
 -->
-<!-- MK2 — nudge modal fragment include. bios-new.js 가 업로드 응답 409 NUDGE_REQUIRED 시 본 modal 을 표시. -->
-<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('biosNudge', @{/management/bios/nudge})}"></div>
 
 <!-- MK3-2 — softDelete reject modal fragment. -->
 <div th:replace="~{fragments/management/delete-reject-modal :: deleteRejectModal('deleteReject')}"></div>

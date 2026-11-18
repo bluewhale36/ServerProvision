@@ -9,6 +9,7 @@ import com.example.serverprovision.management.board.repository.BoardModelReposit
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest;
 import com.example.serverprovision.management.subprogram.dto.response.BoardWithSubprogramListResponse;
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramResponse;
+import com.example.serverprovision.management.subprogram.dto.response.SubprogramSelectionResponse;
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramVariantResponse;
 import com.example.serverprovision.management.subprogram.dto.request.SubprogramVariantRequest;
 import com.example.serverprovision.management.subprogram.entity.SubprogramVariant;
@@ -135,6 +136,12 @@ public class SubprogramService {
 				.filter(s -> includeDeleted || !s.isDeleted())
 				.toList();
 		return BoardWithSubprogramListResponse.common(toResponses(filtered));
+	}
+
+	/** ?selectId= 만 받은 목록이 그 자원의 Miller 와 범위를 찾는다(HF30-3 D11). 휴지통 행도 포함한다. 없으면 비어 있다. */
+	public Optional<SubprogramSelectionResponse> findSelection(Long subprogramId) {
+		return subprogramRepository.findById(subprogramId)
+				.map(s -> new SubprogramSelectionResponse(s.getKind(), new BoardScope(s.getBoardId()).pathToken()));
 	}
 
 	public SubprogramResponse findSubprogram(Long subprogramId) {

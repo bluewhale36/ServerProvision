@@ -74,6 +74,37 @@ class SubprogramServiceTest {
     /* ─────────────────────────── 조회 ─────────────────────────── */
 
     @Test
+    @DisplayName("HF30-3 findSelection : 메인보드 자원 → 종류와 메인보드 id 키(휴지통 행도 찾는다)")
+    void findSelection_boardScope() {
+        Subprogram sp = Subprogram.builder()
+                .id(5L).kind(SubprogramKind.DRIVER).boardModel(activeBoard())
+                .name("n").version("v").treeRootPath("/p").manifestHash("h")
+                .fileCount(1).totalBytes(1L).isDeleted(true).build();
+        given(subprogramRepository.findById(5L)).willReturn(Optional.of(sp));
+
+        var selection = subprogramService.findSelection(5L).orElseThrow();
+
+        assertThat(selection.kind()).isEqualTo(SubprogramKind.DRIVER);
+        assertThat(selection.scopeKey()).isEqualTo("10");
+    }
+
+    @Test
+    @DisplayName("HF30-3 findSelection : 공용 자원 → 'common' 키 / 없는 id → 빈 값")
+    void findSelection_commonAndMissing() {
+        Subprogram sp = Subprogram.builder()
+                .id(6L).kind(SubprogramKind.UTILITY).boardModel(null)
+                .name("u").version("1").treeRootPath("/q").manifestHash("h")
+                .fileCount(1).totalBytes(1L).isDeleted(false).build();
+        given(subprogramRepository.findById(6L)).willReturn(Optional.of(sp));
+        given(subprogramRepository.findById(99L)).willReturn(Optional.empty());
+
+        assertThat(subprogramService.findSelection(6L).orElseThrow().scopeKey()).isEqualTo("common");
+        assertThat(subprogramService.findSelection(6L).orElseThrow().kind()).isEqualTo(SubprogramKind.UTILITY);
+        assertThat(subprogramService.findSelection(99L)).isEmpty();
+    }
+
+
+    @Test
     @DisplayName("findSubprogram(happy) : live 자원 → SubprogramResponse 반환")
     void findSubprogram_happy() {
         Subprogram sp = Subprogram.builder()

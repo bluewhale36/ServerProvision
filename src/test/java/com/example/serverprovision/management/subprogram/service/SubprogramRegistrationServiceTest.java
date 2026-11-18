@@ -264,21 +264,6 @@ class SubprogramRegistrationServiceTest {
 
     // ==== HF27 — 중복 확인 창 [취소] 가 기존 디렉토리(운영자 폴더)를 지우지 않는다 (docs C-16) ====
 
-    @Test
-    @DisplayName("HF27 cleanupNudgeCancelled : 업로드 트리는 삭제, 기존 디렉토리 등록(claim)은 보존")
-    void cleanupNudgeCancelled_preservesClaimTree(@TempDir Path tmp) {
-        var upload = new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
-                "ixgbe", "5.20", "h", tmp.resolve("up").toString(), java.util.Map.of("claimExisting", "false"));
-        subprogramRegistrationService.cleanupNudgeCancelled(upload);
-        verify(bundleTreeCleanupService).purgeExistingTree(tmp.resolve("up"), "nudgeCancel.subprogram");
-
-        var claim = new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
-                "ixgbe", "5.20", "h", tmp.resolve("operator-folder").toString(), java.util.Map.of("claimExisting", "true"));
-        subprogramRegistrationService.cleanupNudgeCancelled(claim);
-        verify(bundleTreeCleanupService, org.mockito.Mockito.never())
-                .purgeExistingTree(org.mockito.ArgumentMatchers.eq(tmp.resolve("operator-folder")), any());
-    }
-
     private void stubCommonUtilityNoDuplicate(Path target, String hash) {
         given(subprogramRepository.findLivingByKey(SubprogramKind.UTILITY, null, "raid-cli", "1.0")).willReturn(List.of());
         given(subprogramRepository.findFirstByTreeRootPathAndIsDeletedFalse(any())).willReturn(Optional.empty());

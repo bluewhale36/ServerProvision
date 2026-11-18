@@ -31,7 +31,6 @@
     let uploading = false;
 
     const RETRY_MSG = '요청을 처리하지 못했습니다. 다시 시도해야 합니다.';
-    const NUDGE_EXPIRED_MSG = '중복 확인이 만료되었습니다. 다시 업로드해야 합니다.';
 
     // ---- 서버 경로 탐색 — PathBrowser 공통 헬퍼에 위임 (iso-edit 와 동일 진입점). ------
     if (window.PathBrowser) {
@@ -379,14 +378,6 @@
             body = JSON.parse(xhr.responseText || '{}');
         } catch (_) { /* ignore */
         }
-        // MK2 단계 B — body.code === 'NUDGE_REQUIRED' 면 modal 표시 후 confirm endpoint 분기.
-        if (body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
-            console.log(TAG, 'NUDGE_REQUIRED 수신 — modal 표시', body);
-            hideProgress();
-            lockPage(false);
-            showNudgeModal(body);
-            return;
-        }
         const msg = (body && body.message) || '업로드에 실패했습니다. 다시 시도해야 합니다.';
         console.error(TAG, 'upload 실패', msg);
         if (window.FormError && body) {
@@ -398,249 +389,23 @@
         lockPage(false);
     }
 
-    // ---- MK2 nudge modal ---------------------------------------------
-
-    /**
-     * NUDGE_REQUIRED 응답 body 를 받아 modal 을 띄우고 사용자 3택 (proceed / replace / cancel) 처리.
-     * fragments/management/nudge-modal.html 에서 만든 element id (prefix='nudge') 를 잡는다.
-     */
-    function showNudgeModal(payload) {
-        const modal = document.getElementById('nudgeModal');
-        if (!modal) {
-            console.error(TAG, 'nudge modal element 가 페이지에 없습니다.');
-            showError(payload.message || '같은 자원이 이미 있습니다.');
-            return;
-        }
-        const baseUrl = modal.dataset.confirmBaseUrl || '/management/os/nudge';
-        const list = document.getElementById('nudgeConflictsList');
-        const proceedBtn = document.getElementById('nudgeProceedBtn');
-        const replaceBtn = document.getElementById('nudgeReplaceBtn');
-        const cancelBtn = document.getElementById('nudgeCancelBtn');
-        const backdrop = document.getElementById('nudgeBackdrop');
-
-        // 충돌 후보 렌더 + 단일 선택 (replace 활성화).
-        list.innerHTML = '';
-        let selectedTargetId = null;
-        (payload.conflicts || []).forEach(c => {
-            const li = document.createElement('li');
-            li.style.padding = '10px 12px';
-            li.style.borderBottom = '1px solid var(--n-border)';
-            li.style.cursor = 'pointer';
-            li.dataset.targetId = c.id;
-            li.innerHTML =
-                '<div style="font-weight: 600;">' + UiUtil.escapeHtml(c.name || '') + ' ' + UiUtil.escapeHtml(c.version || '') + '</div>' +
-                '<div style="font-size: 12px; color: var(--n-text-muted);">' +
-                UiUtil.escapeHtml(c.stateLabel || '') + '</div>';
-            li.addEventListener('click', () => {
-                Array.from(list.children).forEach(el => el.style.background = '');
-                li.style.background = 'var(--n-bg-soft, #eef)';
-                selectedTargetId = c.id;
-                replaceBtn.disabled = false;
-                replaceBtn.removeAttribute('title');
-            });
-            list.appendChild(li);
-        });
-
-        modal.hidden = false;
-        // MK2 — TTL countdown.
-        if (window.NudgeTimer) {
-            window.NudgeTimer.start(modal, payload.expiresAt, () => {
-                showError(NUDGE_EXPIRED_MSG);
-            });
-        }
-
-        const onProceed = () => {
-            confirmNudge(baseUrl, payload.nudgeId, 'proceed', null);
-        };
-        const onReplace = () => {
-            if (selectedTargetId == null) return;
-            confirmNudge(baseUrl, payload.nudgeId, 'replace', selectedTargetId);
-        };
-        const onCancel = () => {
-            confirmNudge(baseUrl, payload.nudgeId, 'cancel', null);
-        };
-        // 1회용 핸들러 — 종결 후 onclick 제거.
-        proceedBtn.onclick = onProceed;
-        replaceBtn.onclick = onReplace;
-        cancelBtn.onclick = onCancel;
-        backdrop.onclick = onCancel;
-    }
-
-    function confirmNudge(baseUrl, nudgeId, action, targetId) {
-        let url = baseUrl + '/' + encodeURIComponent(nudgeId) + '/' + action;
-        if (action === 'replace' && targetId != null) {
-            url += '?targetId=' + encodeURIComponent(targetId);
-        }
-        fetch(url, {method: 'POST', headers: {'Accept': 'application/json'}})
-            .then(resp => resp.json().catch(() => ({})).then(body => ({status: resp.status, ok: resp.ok, body})))
-            .then(({status, ok, body}) => {
-                if (!ok) {
-                    if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
-                        hideNudgeModal();
-                        showError(NUDGE_EXPIRED_MSG);
-                        return;
-                    }
-                    throw new Error((body && body.message) || RETRY_MSG);
-                }
-                hideNudgeModal();
-                if (action === 'cancel') {
-                    showNotice('업로드를 취소했습니다.');
-                    return;
-                }
-                const redirect = (body && body.redirect) || listUrl;
-                try {
-                    sessionStorage.setItem('os.isoRegistration.toast',
-                        action === 'replace'
-                            ? '기존 ISO 를 영구 삭제하고 새 ISO 를 등록했습니다.'
-                            : 'ISO 를 등록했습니다.');
-                } catch (_) { /* ignore */
-                }
-                window.location.href = redirect;
-            })
-            .catch(err => {
-                hideNudgeModal();
-                showError(err.message || RETRY_MSG);
-            });
-    }
-
-    function hideNudgeModal() {
-        const modal = document.getElementById('nudgeModal');
-        if (modal) {
-            if (window.NudgeTimer) window.NudgeTimer.stop(modal);
-            modal.hidden = true;
-        }
-    }
-
-    // ---- MK2 WAVE 2 — intent (단계 A) path nudge modal ----------------
-    //  intent fail 에서 호출됨. proceed/replace 시 새 uploadToken 받아 즉시 업로드 시작.
+    // ---- 중복 확인 창 (처리는 global/nudge-modal.js 한 곳, HF30-3 D14) ----------------
+    //  ISO 는 업로드 전(intent) 창만 있다. 업로드 뒤 창은 HF30-2 에서 서버 경로와 함께 사라졌다.
     function openIntentNudgeModal(payload, file) {
-        const modal = document.getElementById('nudgeModal');
-        if (!modal) {
-            console.error(TAG, 'nudge modal element 가 페이지에 없습니다.');
-            showError('화면을 새로 고친 뒤 다시 시도해야 합니다.');
-            return;
-        }
-        const intentBase = '/management/os/intent-nudge';
-        const list = document.getElementById('nudgeConflictsList');
-        const proceedBtn = document.getElementById('nudgeProceedBtn');
-        const replaceBtn = document.getElementById('nudgeReplaceBtn');
-        const cancelBtn = document.getElementById('nudgeCancelBtn');
-        const backdrop = document.getElementById('nudgeBackdrop');
-        if (!list || !proceedBtn || !replaceBtn || !cancelBtn) {
-            console.error(TAG, 'nudge modal 구성 요소가 없습니다.');
-            showError('화면을 새로 고친 뒤 다시 시도해야 합니다.');
-            return;
-        }
-
-        let selectedTargetId = null;
-        list.innerHTML = '';
-        (payload.conflicts || []).forEach(entry => {
-            const li = document.createElement('li');
-            li.style.padding = '8px 12px';
-            li.style.borderBottom = '1px solid var(--n-border, #e0e0e0)';
-            li.innerHTML =
-                '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
-                '  <input type="radio" name="isoIntentNudgeTarget" value="' + entry.id + '">' +
-                '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> ' + UiUtil.escapeHtml(entry.version) +
-                '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">(' + UiUtil.escapeHtml(entry.stateLabel || '') + ')</span></span>' +
-                '</label>';
-            list.appendChild(li);
-        });
-        replaceBtn.disabled = true;
-        list.querySelectorAll('input[name="isoIntentNudgeTarget"]').forEach(input => {
-            input.addEventListener('change', () => {
-                selectedTargetId = input.value;
-                replaceBtn.disabled = false;
-            });
-        });
-
-        modal.hidden = false;
-        // MK2 — TTL countdown.
-        if (window.NudgeTimer) {
-            window.NudgeTimer.start(modal, payload.expiresAt, () => {
-                showError(NUDGE_EXPIRED_MSG);
-            });
-        }
-
-        const reissue = (intent) => {
-            hideNudgeModal();
-            if (intent.warnings && intent.warnings.length) {
-                if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
-                    showNotice('업로드를 취소했습니다.');
-                    return;
-                }
-            }
-            startXhrUpload(file, intent.uploadToken);
-        };
-
-        proceedBtn.onclick = async () => {
-            disableIntentBtns(true);
-            try {
-                const resp = await fetch(intentBase + '/' + payload.nudgeId + '/proceed', {
-                    method: 'POST', headers: {'Accept': 'application/json'}
-                });
-                const body = await resp.json().catch(() => ({}));
-                if (!resp.ok) {
-                    if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(resp.status, body)) {
-                        hideNudgeModal();
-                        showError(NUDGE_EXPIRED_MSG);
+        NudgeModal.open(payload, {
+            prefix: 'nudge',
+            phase: 'intent',
+            cancelNote: 'beforeUpload',
+            onDone: intent => {
+                if (intent.warnings && intent.warnings.length) {
+                    if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
+                        showNotice('등록을 취소했습니다.');
                         return;
                     }
-                    showError(body.message || RETRY_MSG);
-                    disableIntentBtns(false);
-                    return;
                 }
-                reissue(body);
-            } catch (e) {
-                console.error(TAG, 'intent nudge 네트워크 오류', e);
-                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
-                disableIntentBtns(false);
-            }
-        };
-        replaceBtn.onclick = async () => {
-            if (!selectedTargetId) return;
-            if (!confirm('선택한 기존 자원을 영구 삭제하고 새 자원으로 등록합니다. 진행하시겠습니까?')) return;
-            disableIntentBtns(true);
-            try {
-                const resp = await fetch(intentBase + '/' + payload.nudgeId + '/replace?targetId=' + encodeURIComponent(selectedTargetId), {
-                    method: 'POST', headers: {'Accept': 'application/json'}
-                });
-                const body = await resp.json().catch(() => ({}));
-                if (!resp.ok) {
-                    if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(resp.status, body)) {
-                        hideNudgeModal();
-                        showError(NUDGE_EXPIRED_MSG);
-                        return;
-                    }
-                    showError(body.message || RETRY_MSG);
-                    disableIntentBtns(false);
-                    return;
-                }
-                reissue(body);
-            } catch (e) {
-                console.error(TAG, 'intent nudge 네트워크 오류', e);
-                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
-                disableIntentBtns(false);
-            }
-        };
-        cancelBtn.onclick = async () => {
-            disableIntentBtns(true);
-            try {
-                await fetch(intentBase + '/' + payload.nudgeId + '/cancel', {
-                    method: 'POST', headers: {'Accept': 'application/json'}
-                });
-            } catch (_) { /* ignore */
-            }
-            hideNudgeModal();
-            showNotice('업로드를 취소했습니다.');
-        };
-        if (backdrop) backdrop.onclick = cancelBtn.onclick;
-    }
-
-    function disableIntentBtns(disabled) {
-        ['nudgeProceedBtn', 'nudgeReplaceBtn', 'nudgeCancelBtn'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.disabled = disabled;
+                startXhrUpload(file, intent.uploadToken);
+            },
+            notify: {info: showNotice, error: showError}
         });
     }
 

@@ -223,7 +223,7 @@
             const body = await resp.json().catch(() => ({}));
             if (!resp.ok) {
                 if (body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
-                    openContentNudgeModal(body);
+                    openContentNudgeModal(body, 'existingFolder');
                     return;
                 }
                 if (window.FormError && body) {
@@ -298,7 +298,7 @@
                 submitBtn.textContent = '등록';
                 // MK2 — 단계 B 해시 충돌 nudge.
                 if (body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
-                    openContentNudgeModal(body);
+                    openContentNudgeModal(body, 'afterUpload');
                     return;
                 }
                 if (window.FormError && body) {
@@ -345,203 +345,36 @@
         errorBox.style.display = '';
     }
 
-    // ---- MK2 nudge modal -----------------------------------------------
-    //  modal element id prefix = 'subprogramNudge' (subprogram-new.html 의 fragment include 와 일치).
+    // ---- 중복 확인 창 (처리는 global/nudge-modal.js 한 곳, HF30-3 D14) ----------------
+    //  조각 prefix = 'subprogramNudge' (subprogram-new.html 의 fragment include 와 일치).
 
-    function bindModalCommon(body, baseUrl) {
-        const modal = document.getElementById('subprogramNudgeModal');
-        const conflicts = document.getElementById('subprogramNudgeConflictsList');
-        const proceedBtn = document.getElementById('subprogramNudgeProceedBtn');
-        const replaceBtn = document.getElementById('subprogramNudgeReplaceBtn');
-        const cancelBtn = document.getElementById('subprogramNudgeCancelBtn');
-        if (!modal || !conflicts || !proceedBtn || !replaceBtn || !cancelBtn) {
-            showError('중복 확인 창을 찾을 수 없습니다. 페이지를 새로 고쳐야 합니다.');
-            return null;
-        }
-        const nudgeId = body.nudgeId;
-        let selectedTargetId = null;
-
-        conflicts.innerHTML = '';
-        (body.conflicts || []).forEach(entry => {
-            const li = document.createElement('li');
-            li.style.padding = '8px 12px';
-            li.style.borderBottom = '1px solid var(--n-border, #e0e0e0)';
-            li.innerHTML =
-                '<label style="display:flex; gap:8px; align-items:center; cursor:pointer;">' +
-                '  <input type="radio" name="subprogramNudgeTarget" value="' + entry.id + '">' +
-                '  <span><strong>' + UiUtil.escapeHtml(entry.name) + '</strong> v' + UiUtil.escapeHtml(entry.version) +
-                '    <span style="color: var(--n-text-muted, #777); font-size: 11px;">(' + UiUtil.escapeHtml(entry.stateLabel || '') + ')</span></span>' +
-                '</label>';
-            conflicts.appendChild(li);
+    // 업로드 뒤(해시) 창. 끝나면 일반 등록 성공과 같은 응답의 redirect 로 이동한다(D11).
+    function openContentNudgeModal(body, cancelNote) {
+        NudgeModal.open(body, {
+            prefix: 'subprogramNudge',
+            phase: 'content',
+            cancelNote: cancelNote,
+            onDone: respBody => { window.location.href = respBody.redirect || listUrl; },
+            notify: {info: showNotice, error: showError}
         });
-        replaceBtn.disabled = true;
-        conflicts.querySelectorAll('input[name="subprogramNudgeTarget"]').forEach(input => {
-            input.addEventListener('change', () => {
-                selectedTargetId = input.value;
-                replaceBtn.disabled = false;
-            });
-        });
-
-        modal.hidden = false;
-        // MK2 — TTL countdown.
-        if (window.NudgeTimer) {
-            window.NudgeTimer.start(modal, body.expiresAt, () => {
-                showError('중복 확인이 만료되었습니다. 다시 업로드해야 합니다.');
-            });
-        }
-        const closeModal = () => {
-            if (window.NudgeTimer) window.NudgeTimer.stop(modal);
-            modal.hidden = true;
-            proceedBtn.onclick = null;
-            replaceBtn.onclick = null;
-            cancelBtn.onclick = null;
-        };
-        return {
-            baseUrl, nudgeId, getSelectedTargetId: () => selectedTargetId, closeModal,
-            proceedBtn, replaceBtn, cancelBtn
-        };
     }
 
-    function handleExpiredIfAny(closeModal, status, body) {
-        if (window.NudgeTimer && window.NudgeTimer.isExpiredResponse(status, body)) {
-            closeModal();
-            showError('중복 확인이 만료되었습니다. 다시 업로드해야 합니다.');
-            return true;
-        }
-        return false;
-    }
-
-    function openContentNudgeModal(body) {
-        const ctx = bindModalCommon(body, '/management/subprogram/nudge');
-        if (!ctx) return;
-        ctx.proceedBtn.onclick = async () => {
-            disableNudgeBtns(true);
-            try {
-                const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/proceed', {
-                    method: 'POST', headers: {'Accept': 'application/json'}
-                });
-                if (!resp.ok) {
-                    const respBody = await resp.json().catch(() => ({}));
-                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
-                    showError(respBody.message || '등록을 진행하지 못했습니다.');
-                    disableNudgeBtns(false);
-                    return;
-                }
-                ctx.closeModal();
-                window.location.href = listUrl;
-            } catch (e) {
-                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
-                disableNudgeBtns(false);
-            }
-        };
-        ctx.replaceBtn.onclick = async () => {
-            const targetId = ctx.getSelectedTargetId();
-            if (!targetId) return;
-            if (!confirm('선택한 기존 자원을 영구 삭제하고 새 자원으로 등록합니다. 진행하시겠습니까?')) return;
-            disableNudgeBtns(true);
-            try {
-                const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/replace?targetId=' + encodeURIComponent(targetId), {
-                    method: 'POST', headers: {'Accept': 'application/json'}
-                });
-                if (!resp.ok) {
-                    const respBody = await resp.json().catch(() => ({}));
-                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
-                    showError(respBody.message || '기존 자원을 교체하지 못했습니다.');
-                    disableNudgeBtns(false);
-                    return;
-                }
-                ctx.closeModal();
-                window.location.href = listUrl;
-            } catch (e) {
-                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
-                disableNudgeBtns(false);
-            }
-        };
-        ctx.cancelBtn.onclick = async () => {
-            disableNudgeBtns(true);
-            try {
-                await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/cancel', {
-                    method: 'POST', headers: {'Accept': 'application/json'}
-                });
-            } catch (e) { /* ignore */
-            }
-            ctx.closeModal();
-            showNotice('업로드를 취소했습니다.');
-        };
-    }
-
+    // 업로드 전(intent) 창. 끝나면 새 token 으로 업로드를 시작한다.
     function openIntentNudgeModal(body, uploadUrl, commonFields) {
-        const ctx = bindModalCommon(body, '/management/subprogram/intent-nudge');
-        if (!ctx) return;
-        const handleIntentReissued = (intent) => {
-            ctx.closeModal();
-            if (intent.warnings && intent.warnings.length) {
-                if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
-                    showNotice('업로드를 취소했습니다.');
-                    return;
+        NudgeModal.open(body, {
+            prefix: 'subprogramNudge',
+            phase: 'intent',
+            cancelNote: 'beforeUpload',
+            onDone: intent => {
+                if (intent.warnings && intent.warnings.length) {
+                    if (!confirm(intent.warnings.join('\n') + '\n\n그래도 업로드를 진행하시겠습니까?')) {
+                        showNotice('등록을 취소했습니다.');
+                        return;
+                    }
                 }
-            }
-            startXhrUpload(uploadUrl, intent.uploadToken, commonFields);
-        };
-
-        ctx.proceedBtn.onclick = async () => {
-            disableNudgeBtns(true);
-            try {
-                const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/proceed', {
-                    method: 'POST', headers: {'Accept': 'application/json'}
-                });
-                const respBody = await resp.json().catch(() => ({}));
-                if (!resp.ok) {
-                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
-                    showError(respBody.message || '등록을 진행하지 못했습니다.');
-                    disableNudgeBtns(false);
-                    return;
-                }
-                handleIntentReissued(respBody);
-            } catch (e) {
-                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
-                disableNudgeBtns(false);
-            }
-        };
-        ctx.replaceBtn.onclick = async () => {
-            const targetId = ctx.getSelectedTargetId();
-            if (!targetId) return;
-            if (!confirm('선택한 기존 자원을 영구 삭제하고 새 자원으로 등록합니다. 진행하시겠습니까?')) return;
-            disableNudgeBtns(true);
-            try {
-                const resp = await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/replace?targetId=' + encodeURIComponent(targetId), {
-                    method: 'POST', headers: {'Accept': 'application/json'}
-                });
-                const respBody = await resp.json().catch(() => ({}));
-                if (!resp.ok) {
-                    if (handleExpiredIfAny(ctx.closeModal, resp.status, respBody)) return;
-                    showError(respBody.message || '기존 자원을 교체하지 못했습니다.');
-                    disableNudgeBtns(false);
-                    return;
-                }
-                handleIntentReissued(respBody);
-            } catch (e) {
-                showError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
-                disableNudgeBtns(false);
-            }
-        };
-        ctx.cancelBtn.onclick = async () => {
-            disableNudgeBtns(true);
-            try {
-                await fetch(ctx.baseUrl + '/' + ctx.nudgeId + '/cancel', {
-                    method: 'POST', headers: {'Accept': 'application/json'}
-                });
-            } catch (e) { /* ignore */
-            }
-            ctx.closeModal();
-            showNotice('업로드를 취소했습니다.');
-        };
-    }
-
-    function disableNudgeBtns(disabled) {
-        ['subprogramNudgeProceedBtn', 'subprogramNudgeReplaceBtn', 'subprogramNudgeCancelBtn'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.disabled = disabled;
+                startXhrUpload(uploadUrl, intent.uploadToken, commonFields);
+            },
+            notify: {info: showNotice, error: showError}
         });
     }
 })();
