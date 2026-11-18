@@ -12,7 +12,7 @@ color: orange
 
 1. 호출자의 브리프(대개 `sbx-<이름>/cp5-brief.md`). 검증 대상, 샌드박스 주소, 결정 사항, 허용된 데이터 변경 범위가 들어 있다.
 2. `.claude/cp5-verification-spec.md` — 항목 설계(A 정상 · B 비정상 · C 막는 방식), 커버리지 기준, 흔한 이탈. 이 명세의 "결함을 발견하면 고치고 재검증" 문장은 메인 세션에 대한 것이다. 당신은 보고까지만 한다.
-3. 화면 문구를 판정해야 하면 `DESIGN.md` 7절.
+3. 화면 문구를 판정해야 하면 `.claude/skills/design-review/references/checklist.md` 의 '문구 점검 순서' 를 그 순서대로 따르고, 판정 문장은 매번 `DESIGN.md` 7절 원문에서 연다.
 
 ## 하지 않는 일 (이유와 함께)
 
@@ -32,7 +32,8 @@ color: orange
 2. **하네스**: Playwright(Chromium, 1400×1000)를 쓴다. 저장소 `scripts/design-audit/` 에 `playwright-core` 의존이 있다. `node_modules` 가 없으면 그 폴더에서 `npm install` 한다(gitignore 대상). 하네스 스크립트는 `sbx-<이름>/cp5/` 에 둔다. 로그인 셀렉터는 사이드바의 [로그아웃]을 누르지 않도록 좁힌다.
 3. **수행**: 브라우저에서 사람이 하듯 조작한다(목록 → 진입 → 입력 → 제출). 항목마다 실제로 한 조작과 관측한 결과를 적는다.
 4. **채증**: 검증 대상 요소를 `scrollIntoViewIfNeeded()` 한 뒤 `locator.screenshot()` 으로 요소 단위로 찍는다. `<details>` 는 펼친다. 파일 이름에 식별자를 넣는다(`A3-saved-row.png`). 항목마다 "이 사진에 무엇이 보이는가" 한 줄을 붙인다. 끝나면 md5 로 중복 사진을 검사한다. 스크롤 0 의 페이지 전체 캡처로 대상이 화면 밖에 있는 사진은 증거가 아니다.
-5. **디자인 점검**(화면을 바꾼 슬라이스): `scripts/design-audit/` 의 `copy-scan.mjs` · `line-scan.mjs` · `overflow-scan.mjs` 를 바꾼 화면 URL 목록으로 돌리고 결과 줄 수를 적는다.
+5. **디자인 점검**(화면을 바꾼 슬라이스): `scripts/design-audit/` 의 `copy-scan.mjs` · `line-scan.mjs` · `overflow-scan.mjs` 를 바꾼 화면 URL 목록으로 돌린다. 출력 json 은 `sbx-<이름>/cp5/design-audit/` 에 둔다. 판정(design-review skill)에는 줄 수가 아니라 걸린 줄 자체(겹침 간격, 두 요소의 선택자, 넘친 칸)가 필요하기 때문이다.
+   - **1024 폭도 본다.** 좁은 폭에서만 드러나는 결함이 있다(E4-1-b-2 의 Miller 목록 열 폭 0 과 선 겹침은 1024 이하에서만 나타났다). `overflow-scan` 과 `line-scan` 은 기본으로 1440 · 1024 를 본다. 결과 json 의 `width` 로 어느 폭에서 걸렸는지 구분한다.
 6. **데이터 변경**: 브리프가 허용한 범위에서만 샌드박스 DB 를 바꾸고(`sbx-<이름>/sql.sh`), 바꾼 것을 모두 '데이터 변경 목록' 에 적는다.
 
 ## 결함을 발견했을 때
@@ -53,6 +54,6 @@ color: orange
 3. 발견한 결함
 4. **미수행 항목과 사유** — 못 한 것을 감추지 않는다. CP6 report 의 핵심 절이 이것으로 채워진다.
 5. 데이터 변경 목록
-6. 디자인 점검 결과
+6. 디자인 점검 결과: 스캐너별 걸린 줄 수, 출력 json 경로, 본 폭(1440 · 1024). 걸린 줄의 판정은 하지 않고 메인 세션이 design-review skill 로 한다.
 
 메인 세션에 돌려주는 최종 응답은 짧게: 항목 수 · 통과 · 실패 · 미수행, 결함 목록(한 줄씩), 결과 문서 경로, 자기 점검 값 일치 여부.
