@@ -14,8 +14,8 @@
                        JS 가 `confirmBaseUrl + '/{nudgeId}/proceed'` 로 호출.
 
   생성되는 element id (prefix="nudge" 기준):
-    nudgeModal · nudgeBackdrop · nudgeConflictsList · nudgeTypedNameWrap · nudgeTypedName ·
-    nudgeTypedNameExpected · nudgeError · nudgeProceedBtn · nudgeReplaceBtn · nudgeCancelBtn
+    nudgeModal · nudgeBackdrop · nudgeWarning · nudgeConflictsList · nudgeTypedNameWrap · nudgeTypedName ·
+    nudgeTypedNameExpected · nudgeReplaceNote · nudgeError · nudgeProceedBtn · nudgeReplaceBtn · nudgeCancelBtn
 
   CSS: 기존 .n-alert / .n-btn / .n-card 재사용. 신규 CSS 토큰 0.
 */-->
@@ -31,15 +31,15 @@
     <div class="n-card cm-card cm-card-md" role="dialog" aria-modal="true">
         <div class="n-card-body">
             <h2 class="cm-title cm-title-split">
-                <span>같은 자원이 이미 있습니다</span>
+                <span>중복 확인</span>
                 <!-- MK2 — TTL countdown. JS (NudgeTimer) 가 expiresAt 으로부터 mm:ss 갱신.
                      0:00 도달 시 modal 자동 닫힘 + onExpire 호출. -->
                 <span class="cm-title-meta" data-nudge-timer
                      
                       title="이 시간 안에 정하지 않으면 중복 확인이 만료됩니다."></span>
             </h2>
-            <div class="n-alert n-alert-warning">
-                같은 자원이 휴지통에 있습니다. 진행 방법을 골라야 합니다.
+            <div class="n-alert n-alert-warning" th:id="${prefix} + 'Warning'">
+                같은 자원이 휴지통에 있습니다.
             </div>
 
             <ul class="cm-conflict-list" th:id="${prefix} + 'ConflictsList'">
@@ -48,7 +48,7 @@
 
             <div class="n-hint n-lead">
                 <strong>그래도 등록</strong>: 새 자원으로 등록(기존 자원 보존)<br>
-                <strong>기존 영구 삭제 후 등록</strong>: 기존 자원을 영구 삭제하고 새 자원 등록<br>
+                <span th:id="${prefix} + 'ReplaceNote'"><strong>기존 영구 삭제 후 등록</strong>: 기존 자원을 영구 삭제하고 새 자원 등록<br></span>
                 <strong>취소</strong>: <span data-cancel-note="beforeUpload">등록 취소</span><span data-cancel-note="afterUpload" hidden>등록 취소, 올린 파일 정리</span><span data-cancel-note="existingFolder" hidden>등록 취소, 기존 폴더 보존</span>
             </div>
 
