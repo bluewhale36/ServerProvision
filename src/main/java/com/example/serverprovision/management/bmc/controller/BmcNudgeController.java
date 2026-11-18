@@ -1,6 +1,7 @@
 package com.example.serverprovision.management.bmc.controller;
 
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
+import com.example.serverprovision.management.bmc.dto.response.BmcUploadResponse;
 import com.example.serverprovision.management.bmc.service.BmcNudgeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,20 +29,18 @@ public class BmcNudgeController {
 
 	@PostMapping(path = "/nudge/{nudgeId}/proceed")
 	@ResponseBody
-	public ResponseEntity<Void> nudgeProceed(@PathVariable("nudgeId") UUID nudgeId) {
-		bmcNudgeService.proceed(nudgeId);
-		return ResponseEntity.noContent().build();
+	public BmcUploadResponse nudgeProceed(@PathVariable("nudgeId") UUID nudgeId) {
+		return uploaded(bmcNudgeService.proceed(nudgeId));
 	}
 
 	@PostMapping(path = "/nudge/{nudgeId}/replace")
 	@ResponseBody
-	public ResponseEntity<Void> nudgeReplace(
+	public BmcUploadResponse nudgeReplace(
 			@PathVariable("nudgeId") UUID nudgeId,
-			@RequestParam("replaceTargetId") Long replaceTargetId,
+			@RequestParam("targetId") Long targetId,
 			@RequestParam(value = "typedName", required = false) String typedName
 	) {
-		bmcNudgeService.replace(nudgeId, replaceTargetId, typedName);
-		return ResponseEntity.noContent().build();
+		return uploaded(bmcNudgeService.replace(nudgeId, targetId, typedName));
 	}
 
 	@PostMapping(path = "/nudge/{nudgeId}/cancel")
@@ -76,5 +75,10 @@ public class BmcNudgeController {
 	public ResponseEntity<Void> intentNudgeCancel(@PathVariable("nudgeId") UUID nudgeId) {
 		bmcNudgeService.cancelIntent(nudgeId);
 		return ResponseEntity.noContent().build();
+	}
+
+	/** 일반 등록 성공과 같은 응답(HF30-3 D11). 화면은 redirect 로 이동해 새 자원을 선택한다. */
+	private static BmcUploadResponse uploaded(Long bmcId) {
+		return new BmcUploadResponse(bmcId, "/management/bmc?selectId=" + bmcId);
 	}
 }

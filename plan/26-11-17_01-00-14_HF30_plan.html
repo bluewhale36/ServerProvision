@@ -118,6 +118,7 @@
       <li><a href="#s6">§6 분할 · 순서</a></li>
       <li><a href="#s7">§7 검증 · Critical Files</a></li>
       <li><a href="#s8">§8 앵커 CP1 승인 조건</a></li>
+      <li><a href="#s9">§9 HF30-3 보완(CP1 추가)</a></li>
     </ol>
     <div class="toc-actions">
       <button id="btn-expand">전부 펴기</button>
@@ -369,6 +370,83 @@
           </tbody>
         </table>
         <p>CP4 는 슬라이스마다 앵커에 제출한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 HF30-3 보완 ===== -->
+    <details class="section" id="s9" open>
+      <summary>§9 HF30-3 보완 (CP1 추가, 2026-11-17)</summary>
+      <div class="body">
+        <h4>9-1 배경</h4>
+        <p>HF30-2(PR #111, dev <code>5101a52</code>)가 남는 창을 파일 자원의 휴지통 후보로 확정했다. HF30-3 은 그 창의 화면을 다룬다(D10 · D11 · D12). 앵커가 HF30-2 CP5 의 관찰 O-1 · O-2 · O-3 · O-5 와 결함 D-2 를 HF30-3 으로 넘겼고, D-2 는 "정리를 <code>NudgeRegistry</code> 회수에 둘지 도메인 서비스 훅에 둘지" 비교를 CP1 에서 하라고 했다. 아래는 착수 실측과 그에 따른 추가 결정이다. 화면 문구의 최종 검수는 디자인 세션이 맡으므로 문구는 DESIGN.md 7절을 지키는 선에서 필요한 곳만 고친다.</p>
+
+        <h4>9-2 실측</h4>
+        <table>
+          <thead><tr><th>항목</th><th>사실</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>창 처리 JS</td><td>같은 창 처리 코드가 다섯 벌 복사(BIOS · BMC 공용 폼 2 · 드라이버 2 · ISO 1)</td><td><code>firmware-new-form.js</code> · <code>subprogram-new.js</code> · <code>iso-new.js</code></td></tr>
+            <tr><td>공용 모듈</td><td><code>NudgeModal.handle</code> 은 호출처 0(죽은 코드), <code>NudgeTimer</code> 만 쓰임</td><td><code>global/nudge-modal.js</code></td></tr>
+            <tr><td>자원명 입력 칸</td><td>조각에 있으나 어느 JS 도 열지 않음(O-5 툴팁이 요구만 함)</td><td><code>fragments/management/nudge-modal.html</code></td></tr>
+            <tr><td>영구 삭제 확인</td><td>브라우저 기본 <code>confirm()</code> 한 번뿐, 서버는 자원명이 비면 대조를 건너뜀</td><td><code>firmware-new-form.js</code> · <code>UserPurgeService.purgeForNudgeReplace</code></td></tr>
+            <tr><td>기대 자원명</td><td>창 후보 응답에 <code>displayName</code> 없음(<code>name</code> · <code>version</code> 만)</td><td><code>NudgeConflictEntry</code></td></tr>
+            <tr><td>성공 응답</td><td>BIOS 는 <code>{id, redirect}</code>, BMC · 드라이버 업로드 뒤 창은 204</td><td><code>*NudgeController</code></td></tr>
+            <tr><td>일반 등록 성공</td><td>세 자원 모두 <code>{id, redirect=?selectId=}</code> 만, flash 없음</td><td><code>Bios/Bmc/SubprogramUploadController</code></td></tr>
+            <tr><td>드라이버 선택 복원</td><td>목록은 <code>selectKind</code> · <code>selectKey</code> 가 있어야 복원, <code>?selectId=</code> 만으로는 미복원(D-4 코드로 확인)</td><td><code>SubprogramController.list</code> · <code>subprogram/list.html</code></td></tr>
+            <tr><td>죽은 include</td><td>창 조각을 넣지만 쓰는 JS 가 없는 목록 화면 3</td><td><code>bios/list.html</code> · <code>os/list.html</code> · <code>subprogram/list.html</code></td></tr>
+            <tr><td>ISO 죽은 코드</td><td>업로드 뒤 창(<code>showNudgeModal</code>)은 HF30-2 에서 서버 경로가 사라짐</td><td><code>iso-new.js</code></td></tr>
+            <tr><td>취소 정리</td><td>세 도메인의 <code>cleanupNudgeCancelled</code> 가 글자 그대로 같음(claim 이면 보존, 아니면 <code>BundleTreeCleanupService.purgeExistingTree</code>)</td><td><code>Bios/Bmc/SubprogramRegistrationService</code></td></tr>
+            <tr><td>만료 회수</td><td><code>pruneExpired</code> 는 맵에서 지우기만, <code>require()</code> 도 만료 세션을 지우고 예외 → 임시 트리 잔존(D-2)</td><td><code>NudgeRegistry</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>9-3 결정</h4>
+        <table>
+          <thead><tr><th>#</th><th>채택</th><th>비채택</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td>D10 보완</td>
+              <td>경고 상자 "같은 자원이 휴지통에 있습니다." 로 좁힘 · [취소] 설명을 상황별 셋(업로드 전 = 등록 취소 / 업로드 뒤 = 등록 취소, 올린 파일 정리 / 기존 폴더 등록 = 등록 취소, 기존 폴더 보존) · 취소 뒤 알림은 안내(info)</td>
+              <td>고정 문구 유지</td><td>O-1 · 업로드 전 창에는 임시 파일이 없다</td></tr>
+            <tr><td>D11 보완</td>
+              <td>BMC · 드라이버 업로드 뒤 창의 [그래도 등록] · [기존 영구 삭제 후 등록] 응답을 일반 등록과 같은 <code>{id, redirect}</code> 로 · 드라이버 목록은 selectId 만 오면 서버가 종류와 범위를 찾아 선택 복원 · flash 는 더하지 않음</td>
+              <td>서버 flash 추가(원 D11)</td><td>일반 등록 성공에도 flash 가 없다 · 같은 성공을 두 모양으로 만들지 않음</td></tr>
+            <tr><td>D12 보완</td>
+              <td>후보 응답에 <code>displayName</code> 추가 · 후보를 고르면 자원명 입력 칸을 열고 일치할 때만 버튼 활성 · 칸 안내에 "영구 삭제가 먼저 일어나고 등록은 그 뒤" 를 적음(A3) · 서버는 빈 자원명도 <code>TypedNameGuard</code> 로 대조(400) · 브라우저 <code>confirm()</code> 제거</td>
+              <td><code>confirm()</code> 과 자원명 둘 다</td><td>휴지통 화면 영구 삭제와 같은 방식 하나 · 이중 확인 제거</td></tr>
+            <tr><td>D13 (D-2)</td>
+              <td>회수 한 곳: 만료 세션의 업로드 트리 정리를 새 컴포넌트 <code>NudgeUploadDiscarder</code>(claim 이면 보존) 하나가 맡고 <code>NudgeRegistry</code> 회수와 [취소] 가 함께 부른다 · <code>require()</code> 는 만료 세션을 지우지 않고 거절만, 회수는 만료 뒤 유예 1 분이 지난 세션만</td>
+              <td>도메인 서비스 훅(<code>NudgeExpiryHandler</code> SPI, 도메인마다 구현)</td><td>세 도메인 정리 코드가 같아 훅은 같은 구현 셋 · 훅이 <code>NudgeService</code> 를 부르면 <code>NudgeService</code> → <code>NudgeRegistry</code> → 훅 순환</td></tr>
+            <tr><td>D13 유예</td>
+              <td>만료 직전 시작된 [그래도 등록] 이 트리에 마커를 쓰는 중 회수가 지우지 않도록 유예 1 분</td>
+              <td>유예 없음 · 세션 잠금</td><td><code>require()</code> 가 만료 뒤 새 확인을 막으므로 진행 중인 확인만 지나가면 된다 · 잠금은 실패 뒤 재시도를 막음</td></tr>
+            <tr><td>D14</td>
+              <td>창 처리를 <code>global/nudge-modal.js</code> 의 <code>NudgeModal.open</code> 하나로 모음(후보 목록 · 선택 · 자원명 대조 · 타이머 · 만료 · 창 안 오류). 화면은 끝난 뒤 할 일(이동 · 업로드 시작)만 넘김 · 죽은 <code>handle</code> · ISO <code>showNudgeModal</code> · 목록 3 의 include 제거</td>
+              <td>다섯 벌을 각각 고침</td><td>D12 의 자원명 대조를 다섯 곳에 복사하게 된다(중복 금지 규약)</td></tr>
+            <tr><td>D15 (O-3)</td>
+              <td>창 안 동작 실패를 창 안 오류 상자(<code>n-alert-danger</code>, 조각에 숨김 슬롯)에 보임</td>
+              <td>폼 아래 오류 상자 유지</td><td>창을 보는 사용자가 놓침</td></tr>
+            <tr><td>D16 (O-2)</td>
+              <td>영구 삭제 뒤 등록 실패 응답에 <code>code=NUDGE_REPLACE_REGISTRATION_FAILED</code> 동봉(<code>NUDGE_SESSION_EXPIRED</code> 와 같은 advice 방식) · 창은 그 후보를 목록에서 빼고 선택을 풀며, [그래도 등록] 과 [취소] 는 남김</td>
+              <td>메시지 문자열로 판정 · 창 닫기</td><td>문자열 판정 금지(R2-5) · 닫으면 원인 정리 뒤 같은 창으로 끝내는 길(B3)을 잃음</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><b>앵커 CP1 승인 조건(2026-11-17)</b> : ① D13 유예 1 분 대신 사용 중 표지. 큰 트리는 해시 계산이 1 분을 넘을 수 있어, 확인 처리 동안 표지를 달고(<code>NudgeRegistry.whileInUse</code>) 회수는 만료됐고 표지가 없는 세션만 다룬다. 요청 하나의 수명 동안만 붙어 실패 뒤 재시도를 막지 않는다. ② D16 은 핸들러를 더하지 않고 공용 계약 하나로. <code>CodedConflictException</code>(<code>code()</code>)을 두 예외가 상속하고 advice 핸들러는 하나다. D12 의 <code>confirm()</code> 제거는 앵커가 사용자에게 직접 알린다.</div>
+        <h4>9-4 범위 밖</h4>
+        <ul>
+          <li>창 조각의 시각 개편과 문구 최종 검수: 디자인 세션.</li>
+          <li>O-4(JSON 본문 검증 400 에 fieldErrors 없음): 공통 응답 방식이라 앵커 후속.</li>
+          <li>D-1(같은 키 동시 등록 두 행): 생성 열 UNIQUE DDL, 앵커 후속 · 사용자 결정.</li>
+          <li>호출처 없는 <code>RestoreHashConflictPayload</code>: 이번에 지우지 않고 적립.</li>
+          <li>매뉴얼의 창 설명 갱신: 병합 뒤 docs 세션에 바뀐 문구 전달.</li>
+        </ul>
+
+        <h4>9-5 검증 계획 요약</h4>
+        <ul>
+          <li>단위: <code>NudgeUploadDiscarder</code>(claim 보존 · 업로드 트리 삭제) · <code>NudgeRegistry</code>(유예 전 미회수 · 유예 뒤 회수와 정리 · require 만료 거절) · <code>purgeForNudgeReplace</code>(빈 자원명 400).</li>
+          <li>HTTP: BMC · 드라이버 업로드 뒤 창 성공 응답 <code>{id, redirect}</code> · 빈 자원명 400 · 영구 삭제 뒤 등록 실패 409 의 code · 드라이버 목록 selectId 만으로 선택 복원.</li>
+          <li>CP5 브라우저: 네 자원 창마다 자원명 입력 전 비활성 · 일치 뒤 활성 · 상황별 [취소] 설명 · 창 안 오류 · O-2 후보 제거 · 만료 뒤 임시 트리 정리(유예 포함 약 7 분) · 드라이버 등록 뒤 선택 복원(A9) · DESIGN.md 7절 copy-scan.</li>
+          <li>DDL 없음.</li>
+        </ul>
       </div>
     </details>
   </main>

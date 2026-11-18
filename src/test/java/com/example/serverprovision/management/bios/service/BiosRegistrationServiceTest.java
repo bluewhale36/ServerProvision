@@ -261,19 +261,4 @@ class BiosRegistrationServiceTest {
 
     // ==== R12-1 — nudge cancel 정리의 claim 보존 ====
 
-    @Test
-    @DisplayName("cleanupNudgeCancelled : 업로드 임시 트리는 삭제, claim(사용자 기존 파일)은 보존")
-    void cleanupNudgeCancelled_preservesClaimTree(@TempDir Path tmp) {
-        var uploadPayload = new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
-                "n", "1.0", "abc", tmp.resolve("up").toString(),
-                java.util.Map.of("claimExisting", "false"));
-        biosRegistrationService.cleanupNudgeCancelled(uploadPayload);
-        verify(bundleTreeCleanupService).purgeExistingTree(tmp.resolve("up"), "nudgeCancel");
-
-        var claimPayload = new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
-                "n", "1.0", "abc", tmp.resolve("keep").toString(),
-                java.util.Map.of("claimExisting", "true"));
-        biosRegistrationService.cleanupNudgeCancelled(claimPayload);
-        verify(bundleTreeCleanupService, never()).purgeExistingTree(eq(tmp.resolve("keep")), any());
-    }
 }

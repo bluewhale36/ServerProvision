@@ -9,7 +9,6 @@ import com.example.serverprovision.management.common.dto.response.DeleteRejectRe
 import com.example.serverprovision.management.common.exception.PathCorrectionFailedException;
 import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.common.nudge.exception.NudgeRequiredException;
-import com.example.serverprovision.management.common.nudge.exception.NudgeSessionExpiredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -109,14 +108,14 @@ public class ApiExceptionHandler {
 	}
 
 	/**
-	 * R2-6/R2-5 — nudge_session TTL 만료(409). frontend 가 message 문자열이 아니라 안정 code 로 만료를
-	 * 판정하도록 {@code code="NUDGE_SESSION_EXPIRED"} 동봉. ConflictException 일반 매핑보다 구체적이라 우선 매핑.
+	 * 코드가 필요한 409(R2-5 · HF30-3). 화면이 메시지 문자열이 아니라 안정된 {@code code} 로 갈라 처리하도록 동봉한다.
+	 * ConflictException 일반 매핑보다 구체적이라 우선 매핑. 코드가 필요한 409 는 {@link CodedConflictException} 을 상속하면 되고 핸들러는 늘지 않는다.
 	 */
-	@ExceptionHandler(value = NudgeSessionExpiredException.class, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<ApiErrorResponse> handleNudgeSessionExpired(NudgeSessionExpiredException ex) {
-		log.info("[nudge] session expired : {}", ex.getMessage());
+	@ExceptionHandler(value = CodedConflictException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<ApiErrorResponse> handleCodedConflict(CodedConflictException ex) {
+		log.info("[coded-conflict] code={}", ex.code());
 		return ResponseEntity.status(HttpStatus.CONFLICT)
-				.body(ApiErrorResponse.ofCode(NudgeSessionExpiredException.CODE, ex.getMessage()));
+				.body(ApiErrorResponse.ofCode(ex.code(), ex.getMessage()));
 	}
 
 	/**

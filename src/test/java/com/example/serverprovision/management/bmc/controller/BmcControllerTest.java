@@ -300,7 +300,7 @@ class BmcControllerTest {
             var conflicts = List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                     77L,
                     com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
-                    "hash", "BMC-A", "12.61", Instant.now()));
+                    "hash", "BMC-A", "12.61", "BMC-A", Instant.now()));
             willThrow(new com.example.serverprovision.management.bmc.exception.BmcNudgeRequiredException(
                     "동일 메타", session, conflicts))
                     .given(bmcUploadIntentService).issue(eq(1L), any());
@@ -397,6 +397,83 @@ class BmcControllerTest {
             mvc.perform(post("/management/bmc/intent-nudge/" + nudgeId + "/replace?targetId=42"))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("기존 자원은 영구 삭제했지만 새 자원 등록에 실패했습니다. ")));
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("HF30-3 — 업로드 뒤 창 성공 응답 · targetId · 자원명 · 코드 응답")
+    class Hf30_3 {
+
+        private final java.util.UUID nudgeId = java.util.UUID.randomUUID();
+
+        @Test
+        @DisplayName("nudge proceed : 일반 등록과 같은 {id, redirect}(D11, 종전 204)")
+        void proceed_returnsUploadResponse() throws Exception {
+            given(bmcNudgeService.proceed(nudgeId)).willReturn(31L);
+
+            mvc.perform(post("/management/bmc/nudge/" + nudgeId + "/proceed"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(31))
+                    .andExpect(jsonPath("$.redirect").value("/management/bmc?selectId=31"));
+        }
+
+        @Test
+        @DisplayName("nudge replace : targetId 와 본문의 typedName 을 서비스로 넘긴다(F-1, 종전 replaceTargetId 요구로 항상 400)")
+        void replace_acceptsTargetIdAndBodyTypedName() throws Exception {
+            given(bmcNudgeService.replace(nudgeId, 42L, "fw")).willReturn(32L);
+
+            mvc.perform(post("/management/bmc/nudge/" + nudgeId + "/replace")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("targetId", "42").param("typedName", "fw"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.redirect").value("/management/bmc?selectId=32"));
+        }
+
+        @Test
+        @DisplayName("nudge replace : 자원명 불일치(빈 값 포함) → 400(D12)")
+        void replace_typedNameMismatch_400() throws Exception {
+            willThrow(new com.example.serverprovision.global.exception.TypedNameMismatchException("fw", null))
+                    .given(bmcNudgeService).replace(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/bmc/nudge/" + nudgeId + "/replace").param("targetId", "42"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("입력한 자원명이 일치하지 않습니다."));
+        }
+
+        @Test
+        @DisplayName("nudge replace : 영구 삭제 뒤 등록 실패 → 409 + code NUDGE_REPLACE_REGISTRATION_FAILED(D16)")
+        void replace_registrationFailed_carriesCode() throws Exception {
+            willThrow(com.example.serverprovision.management.common.nudge.exception.NudgeReplaceRegistrationFailedException
+                    .wrapIfUserFacing(new com.example.serverprovision.management.board.exception.BoardModelNotFoundException(1L)))
+                    .given(bmcNudgeService).replace(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/bmc/nudge/" + nudgeId + "/replace").param("targetId", "42").param("typedName", "fw"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("NUDGE_REPLACE_REGISTRATION_FAILED"))
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("기존 자원은 영구 삭제했지만 새 자원 등록에 실패했습니다. ")));
+        }
+
+        @Test
+        @DisplayName("nudge proceed : 만료 응답은 공용 핸들러 뒤에도 같은 모양(409, code, message)")
+        void proceed_expired_sameShape() throws Exception {
+            willThrow(new com.example.serverprovision.management.common.nudge.exception.NudgeSessionExpiredException(nudgeId))
+                    .given(bmcNudgeService).proceed(nudgeId);
+
+            mvc.perform(post("/management/bmc/nudge/" + nudgeId + "/proceed"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("NUDGE_SESSION_EXPIRED"))
+                    .andExpect(jsonPath("$.message").value("중복 확인이 만료되었습니다. 다시 업로드해야 합니다."));
+        }
+
+        @Test
+        @DisplayName("nudge cancel : 같은 창을 다른 요청이 처리 중 → 409(해시 계산 중 트리 보호)")
+        void cancel_inProgress_409() throws Exception {
+            willThrow(new com.example.serverprovision.management.common.nudge.exception.NudgeInProgressException())
+                    .given(bmcNudgeService).cancel(nudgeId);
+
+            mvc.perform(post("/management/bmc/nudge/" + nudgeId + "/cancel"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("이 중복 확인을 다른 요청이 처리하고 있습니다. 잠시 뒤 목록에서 결과를 확인해야 합니다."));
         }
     }
 }

@@ -127,13 +127,12 @@ class UserPurgeServiceTest {
 	}
 
 	@Test
-	@DisplayName("HF30-2 자원명 빈 값 : 확인을 건너뛰고 실행한다(창의 입력 연결 전 · HF30-3 D12 가 400 으로 바꾼다)")
-	void purgeForNudgeReplace_blankTypedName_skipsCheck() {
+	@DisplayName("HF30-3 D12 자원명 빈 값 : 불일치로 거절하고 영구 삭제를 실행하지 않는다")
+	void purgeForNudgeReplace_blankTypedName_rejected() {
 		givenTrashed(5L, "R23_MS73-HB1_Uni");
-		given(purgeExecutor.execute(any())).willAnswer(inv -> new PurgeResult.Success(inv.getArgument(0), 1L));
 
-		userPurgeService.purgeForNudgeReplace(ResourceType.BIOS_BUNDLE, 5L, null);
-
-		verify(purgeExecutor).execute(PurgeRequest.forNudgeReplace(ResourceType.BIOS_BUNDLE, 5L, null, null));
+		assertThatThrownBy(() -> userPurgeService.purgeForNudgeReplace(ResourceType.BIOS_BUNDLE, 5L, null))
+				.isInstanceOf(TypedNameMismatchException.class);
+		verify(purgeExecutor, never()).execute(any());
 	}
 }

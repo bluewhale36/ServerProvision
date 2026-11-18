@@ -2,7 +2,6 @@ package com.example.serverprovision.management.subprogram.service;
 
 import com.example.serverprovision.management.os.enums.OSName;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -157,14 +156,7 @@ public class SubprogramUploadIntentService {
 
 	private List<NudgeConflictEntry> toConflictEntries(List<Subprogram> candidates) {
 		return candidates.stream()
-				.map(s -> new NudgeConflictEntry(
-						s.getId(),
-						LifecycleStage.of(s.isDeprecated(), s.isDeleted()),
-						s.getManifestHash(),
-						s.getName(),
-						s.getVersion(),
-						Instant.now()
-				))
+				.map(s -> NudgeConflictEntry.of(s, s.getName(), s.getVersion()))
 				.toList();
 	}
 

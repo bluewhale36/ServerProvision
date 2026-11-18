@@ -1,6 +1,5 @@
 package com.example.serverprovision.management.os.service.iso;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
 import com.example.serverprovision.management.common.nudge.NudgeResourceType;
@@ -263,14 +262,7 @@ public class IsoUploadIntentService {
 
 	private List<NudgeConflictEntry> toConflictEntries(List<ISO> candidates) {
 		return candidates.stream()
-				.map(c -> new NudgeConflictEntry(
-						c.getId(),
-						LifecycleStage.of(c.isDeprecated(), c.isDeleted()),
-						c.getManifestHash(),
-						c.getOsMetadata().getOsVersion(),
-						c.getIsoPath(),
-						Instant.now()
-				))
+				.map(c -> NudgeConflictEntry.of(c, c.getOsMetadata().getOsVersion(), c.getIsoPath()))
 				.toList();
 	}
 

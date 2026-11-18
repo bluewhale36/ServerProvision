@@ -244,7 +244,7 @@ class SubprogramControllerTest {
             var conflicts = List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                     99L,
                     com.example.serverprovision.global.lifecycle.LifecycleStage.DEPRECATED,
-                    "hash", "Realtek-r8169", "1.0.0", Instant.now()));
+                    "hash", "Realtek-r8169", "1.0.0", "Realtek-r8169", Instant.now()));
             willThrow(new com.example.serverprovision.management.subprogram.exception.SubprogramNudgeRequiredException(
                     "동일 메타", session, conflicts))
                     .given(subprogramUploadIntentService).issue(eq(SubprogramKind.DRIVER), any(BoardScope.class), any());
@@ -452,6 +452,59 @@ class SubprogramControllerTest {
             mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/replace?targetId=42"))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("기존 자원은 영구 삭제했지만 새 자원 등록에 실패했습니다. ")));
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("HF30-3 — 업로드 뒤 창 성공 응답 · 목록 선택 복원")
+    class Hf30_3 {
+
+        @Test
+        @DisplayName("nudge proceed : 일반 등록과 같은 {id, redirect}(D11, 종전 204)")
+        void proceed_returnsUploadResponse() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(subprogramNudgeService.proceed(nudgeId)).willReturn(41L);
+
+            mvc.perform(post("/management/subprogram/nudge/" + nudgeId + "/proceed"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(41))
+                    .andExpect(jsonPath("$.redirect").value("/management/subprogram?selectId=41"));
+        }
+
+        @Test
+        @DisplayName("nudge replace : 본문의 typedName 을 넘기고 {id, redirect} 를 돌려준다")
+        void replace_returnsUploadResponse() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(subprogramNudgeService.replace(nudgeId, 42L, "drv")).willReturn(43L);
+
+            mvc.perform(post("/management/subprogram/nudge/" + nudgeId + "/replace").param("targetId", "42").param("typedName", "drv"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.redirect").value("/management/subprogram?selectId=43"));
+        }
+
+        @Test
+        @DisplayName("GET ?selectId= 만 : 서버가 종류와 범위를 찾아 Miller 선택을 복원한다(D11 · D-4)")
+        void list_selectIdOnly_resolvesSelection() throws Exception {
+            given(subprogramService.findAllGrouped(any(), any())).willReturn(List.of());
+            given(subprogramService.findSelection(41L)).willReturn(java.util.Optional.of(
+                    new com.example.serverprovision.management.subprogram.dto.response.SubprogramSelectionResponse(SubprogramKind.DRIVER, "10")));
+
+            mvc.perform(get("/management/subprogram").param("selectId", "41"))
+                    .andExpect(status().isOk())
+                    .andExpect(model().attribute("selectKind", SubprogramKind.DRIVER))
+                    .andExpect(model().attribute("selectKey", "10"));
+        }
+
+        @Test
+        @DisplayName("GET ?selectKind 가 있으면 : 요청 값을 그대로 쓴다(조회 없음)")
+        void list_withSelectKind_keepsRequest() throws Exception {
+            given(subprogramService.findAllGrouped(any(), any())).willReturn(List.of());
+
+            mvc.perform(get("/management/subprogram").param("selectId", "41").param("selectKind", "UTILITY").param("selectKey", "common"))
+                    .andExpect(status().isOk())
+                    .andExpect(model().attribute("selectKind", SubprogramKind.UTILITY))
+                    .andExpect(model().attribute("selectKey", "common"));
+            org.mockito.Mockito.verify(subprogramService, org.mockito.Mockito.never()).findSelection(any());
         }
     }
 }

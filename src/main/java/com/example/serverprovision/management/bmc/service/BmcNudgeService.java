@@ -20,6 +20,7 @@ import java.util.UUID;
 public class BmcNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
+	private final NudgeUploadDiscarder nudgeUploadDiscarder;
 	private final BmcRegistrationService bmcRegistrationService;
 	private final NudgeReplacer nudgeReplacer;
 	private final BmcUploadIntentService bmcUploadIntentService;
@@ -29,31 +30,37 @@ public class BmcNudgeService {
 	// ============================================================
 
 	public Long proceed(UUID nudgeId) {
-		NudgeSession session = requireBmcSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		Long bmcId = bmcRegistrationService.persistFromNudge(session.boardId(), payload);
-		nudgeRegistry.remove(nudgeId);
-		log.info("[bmc-nudge.proceed] nudgeId={}, bmcId={}", nudgeId, bmcId);
-		return bmcId;
+		return nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireBmcSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			Long bmcId = bmcRegistrationService.persistFromNudge(session.boardId(), payload);
+			nudgeRegistry.remove(nudgeId);
+			log.info("[bmc-nudge.proceed] nudgeId={}, bmcId={}", nudgeId, bmcId);
+			return bmcId;
+		});
 	}
 
 	public Long replace(UUID nudgeId, Long targetId, String typedName) {
-		NudgeSession session = requireBmcSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		Long bmcId = nudgeReplacer.replace(session, ResourceType.BMC_FIRMWARE, targetId, typedName,
-				() -> bmcRegistrationService.persistFromNudge(session.boardId(), payload));
-		nudgeRegistry.remove(nudgeId);
-		log.info("[bmc-nudge.replace] nudgeId={}, replacedTarget={}, bmcId={}", nudgeId, targetId, bmcId);
-		return bmcId;
+		return nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireBmcSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			Long bmcId = nudgeReplacer.replace(session, ResourceType.BMC_FIRMWARE, targetId, typedName,
+					() -> bmcRegistrationService.persistFromNudge(session.boardId(), payload));
+			nudgeRegistry.remove(nudgeId);
+			log.info("[bmc-nudge.replace] nudgeId={}, replacedTarget={}, bmcId={}", nudgeId, targetId, bmcId);
+			return bmcId;
+		});
 	}
 
 	public void cancel(UUID nudgeId) {
-		NudgeSession session = requireBmcSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		// R12-2 — 업로드 임시 트리만 정리. claim 경로(사용자 기존 파일)는 registration service 가 보존 판단.
-		bmcRegistrationService.cleanupNudgeCancelled(payload);
-		nudgeRegistry.remove(nudgeId);
-		log.info("[bmc-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
+		nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireBmcSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			// 업로드 트리만 정리한다. 기존 폴더 등록(claim)이면 payload 가 지울 트리를 내지 않는다.
+			nudgeUploadDiscarder.discard(session, "nudge.cancel");
+			nudgeRegistry.remove(nudgeId);
+			log.info("[bmc-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
+		});
 	}
 
 	// ============================================================

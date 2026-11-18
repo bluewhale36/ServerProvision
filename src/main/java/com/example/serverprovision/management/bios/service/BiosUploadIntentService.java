@@ -1,6 +1,5 @@
 package com.example.serverprovision.management.bios.service;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
@@ -150,14 +149,7 @@ public class BiosUploadIntentService {
 
 	private List<NudgeConflictEntry> toConflictEntries(List<BoardBIOS> candidates) {
 		return candidates.stream()
-				.map(b -> new NudgeConflictEntry(
-						b.getId(),
-						LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
-						b.getManifestHash(),
-						b.getName(),
-						b.getVersion(),
-						Instant.now()
-				))
+				.map(b -> NudgeConflictEntry.of(b, b.getName(), b.getVersion()))
 				.toList();
 	}
 

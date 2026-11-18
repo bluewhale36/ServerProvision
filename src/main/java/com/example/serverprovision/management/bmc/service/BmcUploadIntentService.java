@@ -1,6 +1,5 @@
 package com.example.serverprovision.management.bmc.service;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.bmc.dto.request.BmcUploadIntentRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
@@ -131,14 +130,7 @@ public class BmcUploadIntentService {
 
 	private List<NudgeConflictEntry> toConflictEntries(List<BoardBMC> candidates) {
 		return candidates.stream()
-				.map(b -> new NudgeConflictEntry(
-						b.getId(),
-						LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
-						b.getManifestHash(),
-						b.getName(),
-						b.getVersion(),
-						Instant.now()
-				))
+				.map(b -> NudgeConflictEntry.of(b, b.getName(), b.getVersion()))
 				.toList();
 	}
 

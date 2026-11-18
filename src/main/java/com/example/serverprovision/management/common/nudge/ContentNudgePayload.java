@@ -1,6 +1,8 @@
 package com.example.serverprovision.management.common.nudge;
 
+import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * MK2 — 단계 B (해시 검증 후) nudge payload.
@@ -37,5 +39,10 @@ public record ContentNudgePayload(
 	 */
 	public boolean claimsExistingTree() {
 		return attributes != null && Boolean.parseBoolean(attributes.getOrDefault(CLAIM_EXISTING, "false"));
+	}
+
+	@Override
+	public Optional<Path> uploadedTreeToDiscard() {
+		return claimsExistingTree() ? Optional.empty() : Optional.of(Path.of(tempFilePath));
 	}
 }
