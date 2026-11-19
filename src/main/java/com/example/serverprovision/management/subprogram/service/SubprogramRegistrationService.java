@@ -2,7 +2,6 @@ package com.example.serverprovision.management.subprogram.service;
 
 import com.example.serverprovision.management.os.enums.OSName;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.global.trash.GhostEvaluator;
@@ -35,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -202,20 +200,6 @@ public class SubprogramRegistrationService {
 		return saved.getId();
 	}
 
-	/**
-	 * MK2 — nudge cancel 시 업로드 트리 정리.
-	 *
-	 * <p>HF27 — 기존 디렉토리 등록(claim)에서 발급된 nudge 의 트리는 업로드한 내용이 아니라 <b>운영자의 기존 폴더</b>라 지우지 않는다
-	 * (BIOS R12-1 · BMC R12-2 와 같은 처리). 종전에는 구분 없이 지워 운영자 폴더가 통째로 사라졌다(docs C-16).</p>
-	 */
-	@Transactional
-	public void cleanupNudgeCancelled(ContentNudgePayload payload) {
-		if (payload.claimsExistingTree()) {
-			log.info("[nudgeCancel.subprogram] claim 경로 — 운영자 기존 폴더 보존. path={}", payload.tempFilePath());
-			return;
-		}
-		bundleTreeCleanupService.purgeExistingTree(Path.of(payload.tempFilePath()), "nudgeCancel.subprogram");
-	}
 
 	// ==== private helpers (복붙 dedup) =================================
 
@@ -261,14 +245,7 @@ public class SubprogramRegistrationService {
 				)
 		);
 		List<NudgeConflictEntry> entries = hashCandidates.stream()
-				.map(s -> new NudgeConflictEntry(
-						s.getId(),
-						LifecycleStage.of(s.isDeprecated(), s.isDeleted()),
-						s.getManifestHash(),
-						s.getName(),
-						s.getVersion(),
-						Instant.now()
-				))
+				.map(s -> NudgeConflictEntry.of(s, s.getName(), s.getVersion()))
 				.toList();
 		log.info(
 				"[{}] nudge required : kind={}, scope={}, version={}, candidates={}",

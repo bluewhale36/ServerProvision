@@ -1,23 +1,26 @@
 /**
- * MK2 — nudge modal 공통 처리 모듈.
+ * 중복 확인 창 공통 처리(MK2 · HF30-3 D14).
  *
  * 사용법:
- *   NudgeModal.handle(payload, {
- *       baseUrl: '/management/os/metadata-nudge',  // confirm endpoint prefix
- *       listUrl: '/management/os',              // 종결 후 redirect 기본값
- *       toastKey: 'os.image.toast',             // sessionStorage 키 (선택)
- *       onError: (msg) => { ... },              // 표시 콜백
- *       afterCancel: () => { ... }              // cancel 종결 후 콜백 (선택)
+ *   NudgeModal.open(payload, {
+ *       prefix: 'biosNudge',            // 조각 nudgeModal(prefix, confirmBaseUrl) 의 prefix
+ *       phase: 'content' | 'intent',    // 업로드 뒤 창(.../nudge) 또는 업로드 전 창(.../intent-nudge)
+ *       cancelNote: 'beforeUpload' | 'afterUpload' | 'existingFolder',  // [취소] 설명 줄
+ *       onDone: (body) => { ... },      // [그래도 등록] · [기존 영구 삭제 후 등록] 성공 응답
+ *       notify: {info: fn, error: fn}   // 창이 닫힌 뒤 화면에 남길 알림(취소, 만료)
  *   });
  *
- * 본 함수는 fragments/management/nudge-modal.html (prefix='nudge') 의 element id 를 그대로 잡는다.
- * 다른 prefix 사용 시 options.prefix 로 지정 가능.
- *
- * confirm 엔드포인트 응답이 200 + { redirect } JSON 이면 그 URL 로 이동.
- * 204 No Content (cancel) 면 afterCancel 호출. 실패 시 onError 호출.
+ * 후보 목록, 선택, 자원명 대조, 남은 시간, 만료, 창 안 오류를 여기 한 곳에서 다룬다. 화면은 끝난 뒤 할 일만 넘긴다.
+ * 자원명 대조 기준은 서버와 같은 displayName 이다(UserPurgeService 의 TypedNameGuard).
  */
 (function () {
     'use strict';
+
+    const MSG_EXPIRED = '중복 확인이 만료되었습니다. 다시 등록해야 합니다.';
+    const MSG_CANCELLED = '등록을 취소했습니다.';
+    const MSG_NETWORK = '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.';
+    const MSG_FAILED = '요청을 처리하지 못했습니다.';
+    const CODE_REPLACE_REGISTRATION_FAILED = 'NUDGE_REPLACE_REGISTRATION_FAILED';
 
     function el(prefix, suffix) {
         return document.getElementById(prefix + suffix);
@@ -54,7 +57,7 @@
                 if (typeof onExpire === 'function') onExpire();
                 return;
             }
-            span.textContent = '⏱ ' + _formatRemaining(remaining);
+            span.textContent = _formatRemaining(remaining);
             // 1분 미만일 때 빨간색 강조
             span.style.color = remaining < 60_000 ? 'var(--n-orange)' : 'var(--n-text-muted)';
         };
@@ -85,118 +88,157 @@
         return false;
     }
 
-    function handle(payload, options) {
-        options = options || {};
-        const prefix = options.prefix || 'nudge';
+    function open(payload, options) {
+        const prefix = options.prefix;
+        const notify = options.notify || {};
         const modal = el(prefix, 'Modal');
-        if (!modal) {
-            console.error('[NudgeModal] element 없음:', prefix + 'Modal');
-            if (options.onError) options.onError(payload.message || '같은 자원이 이미 있습니다.');
+        const ui = {
+            list: el(prefix, 'ConflictsList'),
+            proceedBtn: el(prefix, 'ProceedBtn'),
+            replaceBtn: el(prefix, 'ReplaceBtn'),
+            cancelBtn: el(prefix, 'CancelBtn'),
+            typedWrap: el(prefix, 'TypedNameWrap'),
+            typedExpected: el(prefix, 'TypedNameExpected'),
+            typedInput: el(prefix, 'TypedName'),
+            error: el(prefix, 'Error')
+        };
+        if (!modal || Object.values(ui).some(v => !v)) {
+            if (notify.error) notify.error('중복 확인 창을 찾을 수 없습니다. 페이지를 새로 고쳐야 합니다.');
             return;
         }
+        const contentBase = modal.dataset.confirmBaseUrl || '';
+        const base = options.phase === 'intent' ? contentBase.replace(/\/nudge$/, '/intent-nudge') : contentBase;
+        const url = action => base + '/' + encodeURIComponent(payload.nudgeId) + '/' + action;
+        const replaceWrap = ui.replaceBtn.closest('.n-btn-tooltip-wrap');
+        let selected = null;
 
-        const baseUrl = options.baseUrl || modal.dataset.confirmBaseUrl;
-        const list = el(prefix, 'ConflictsList');
-        const proceedBtn = el(prefix, 'ProceedBtn');
-        const replaceBtn = el(prefix, 'ReplaceBtn');
-        const cancelBtn = el(prefix, 'CancelBtn');
-        const backdrop = el(prefix, 'Backdrop');
-
-        list.innerHTML = '';
-        let selectedTargetId = null;
-        replaceBtn.disabled = true;
-        // S5-3-2 — wrapper 의 tooltip 활성 상태 reset (modal 재진입 시 tooltip 다시 보이도록).
-        const replaceBtnWrap = replaceBtn.closest('.n-btn-tooltip-wrap');
-        if (replaceBtnWrap) delete replaceBtnWrap.dataset.tooltipActive;
-
-        (payload.conflicts || []).forEach(c => {
-            const li = document.createElement('li');
-            li.style.padding = '10px 12px';
-            li.style.borderBottom = '1px solid var(--n-border)';
-            li.style.cursor = 'pointer';
-            li.dataset.targetId = c.id;
-            const hashFragment = c.hash ? (', ' + UiUtil.escapeHtml(String(c.hash).slice(0, 16)) + '…') : '';
-            li.innerHTML =
-                '<div style="font-weight: 600;">' + UiUtil.escapeHtml(c.name || '') + ' ' + UiUtil.escapeHtml(c.version || '') + '</div>' +
-                '<div style="font-size: 12px; color: var(--n-text-muted);">' +
-                UiUtil.escapeHtml(c.stateLabel || '') + hashFragment + '</div>';
-            li.addEventListener('click', () => {
-                Array.from(list.children).forEach(item => item.style.background = '');
-                li.style.background = 'var(--n-bg-soft, #eef)';
-                selectedTargetId = c.id;
-                replaceBtn.disabled = false;
-                // S5-3-2 — 자원 선택 후 tooltip 침묵 (활성 버튼에 hint 노이즈 회피).
-                if (replaceBtnWrap) replaceBtnWrap.dataset.tooltipActive = 'false';
-            });
-            list.appendChild(li);
+        modal.querySelectorAll('[data-cancel-note]').forEach(note => {
+            note.hidden = note.dataset.cancelNote !== (options.cancelNote || 'beforeUpload');
         });
-
+        renderCandidates(ui.list, payload.conflicts || [], prefix, entry => {
+            selected = entry;
+            ui.typedExpected.textContent = entry.displayName || '';
+            ui.typedInput.value = '';
+            ui.typedWrap.hidden = false;
+            refreshReplace();
+            ui.typedInput.focus();
+        });
+        selected = null;
+        ui.typedWrap.hidden = true;
+        ui.typedInput.value = '';
+        ui.typedInput.oninput = refreshReplace;
+        hideError();
+        refreshReplace();
+        setBusy(false);
         modal.hidden = false;
 
-        // MK2 — TTL countdown 시작. 0:00 도달 시 modal 자동 닫힘 + 안내.
-        startTimer(modal, payload.expiresAt, () => {
-            if (options.onError) options.onError('중복 확인이 만료되었습니다. 다시 등록해야 합니다.');
-        });
+        startTimer(modal, payload.expiresAt, () => closeWith(notify.error, MSG_EXPIRED));
 
-        proceedBtn.onclick = () => confirmNudge(baseUrl, payload.nudgeId, 'proceed', null, options);
-        replaceBtn.onclick = () => {
-            if (selectedTargetId == null) return;
-            confirmNudge(baseUrl, payload.nudgeId, 'replace', selectedTargetId, options);
+        ui.proceedBtn.onclick = () => submit('proceed', null);
+        ui.replaceBtn.onclick = () => {
+            if (!typedMatches()) return;
+            submit('replace', new URLSearchParams({targetId: String(selected.id), typedName: ui.typedInput.value}));
         };
-        const onCancel = () => confirmNudge(baseUrl, payload.nudgeId, 'cancel', null, options);
-        cancelBtn.onclick = onCancel;
-        backdrop.onclick = onCancel;
-    }
-
-    function confirmNudge(baseUrl, nudgeId, action, targetId, options) {
-        let url = baseUrl + '/' + encodeURIComponent(nudgeId) + '/' + action;
-        if (action === 'replace' && targetId != null) {
-            url += '?targetId=' + encodeURIComponent(targetId);
-        }
-        fetch(url, {method: 'POST', headers: {'Accept': 'application/json'}})
-            .then(resp => resp.json().catch(() => ({})).then(body => ({status: resp.status, ok: resp.ok, body})))
-            .then(({status, ok, body}) => {
-                if (!ok) {
-                    // MK2 — 만료 응답은 modal 강제 닫힘 + 명시적 안내.
-                    if (isExpiredResponse(status, body)) {
-                        hide(options.prefix || 'nudge');
-                        if (options.onError) options.onError('중복 확인이 만료되었습니다. 다시 등록해야 합니다.');
-                        return;
-                    }
-                    throw new Error((body && body.message) || '요청을 처리하지 못했습니다.');
-                }
-                hide(options.prefix || 'nudge');
-                if (action === 'cancel') {
-                    if (options.afterCancel) options.afterCancel();
-                    else if (options.onError) options.onError('등록을 취소했습니다.');
+        ui.cancelBtn.onclick = async () => {
+            setBusy(true);
+            try {
+                const resp = await fetch(url('cancel'), {method: 'POST', headers: {'Accept': 'application/json'}});
+                const body = await resp.json().catch(() => ({}));
+                // 다른 요청이 같은 창을 처리 중이면(409) 취소되지 않았다. 그 결과가 목록에 남으므로 사유를 알리고 닫는다.
+                if (!resp.ok && !isExpiredResponse(resp.status, body)) {
+                    closeWith(notify.error, body.message || MSG_FAILED);
                     return;
                 }
-                const redirect = (body && body.redirect) || options.listUrl || '/';
-                if (options.toastKey) {
-                    try {
-                        sessionStorage.setItem(options.toastKey,
-                            action === 'replace'
-                                ? '기존 자원을 영구 삭제하고 새 자원을 등록했습니다.'
-                                : '자원을 등록했습니다.');
-                    } catch (_) { /* ignore */
-                    }
-                }
-                window.location.href = redirect;
-            })
-            .catch(err => {
-                hide(options.prefix || 'nudge');
-                if (options.onError) options.onError(err instanceof TypeError ? '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.' : (err.message || '중복 확인을 처리하지 못했습니다.'));
-            });
-    }
+            } catch (_) { /* 통신 실패: 세션과 업로드 트리는 만료 회수가 정리한다 */
+            }
+            closeWith(notify.info, MSG_CANCELLED);
+        };
 
-    function hide(prefix) {
-        const modal = el(prefix, 'Modal');
-        if (modal) {
+        function typedMatches() {
+            return selected != null && ui.typedInput.value === (selected.displayName || '');
+        }
+
+        function refreshReplace() {
+            const ready = typedMatches();
+            ui.replaceBtn.disabled = !ready;
+            if (replaceWrap) replaceWrap.dataset.tooltipActive = ready ? 'false' : 'true';
+        }
+
+        function setBusy(busy) {
+            ui.proceedBtn.disabled = busy;
+            ui.cancelBtn.disabled = busy;
+            ui.replaceBtn.disabled = busy || !typedMatches();
+        }
+
+        function showError(msg) {
+            ui.error.textContent = msg;
+            ui.error.hidden = false;
+        }
+
+        function hideError() {
+            ui.error.textContent = '';
+            ui.error.hidden = true;
+        }
+
+        function closeWith(sink, msg) {
             stopTimer(modal);
             modal.hidden = true;
+            ui.proceedBtn.onclick = ui.replaceBtn.onclick = ui.cancelBtn.onclick = ui.typedInput.oninput = null;
+            if (sink && msg) sink(msg);
+        }
+
+        // 영구 삭제는 끝났고 등록만 실패했다(D16). 지워진 후보는 다시 고를 수 없으므로 목록에서 뺀다.
+        function dropPurgedCandidate() {
+            const item = ui.list.querySelector('[data-target-id="' + selected.id + '"]');
+            if (item) item.remove();
+            selected = null;
+            ui.typedWrap.hidden = true;
+            ui.typedInput.value = '';
+        }
+
+        async function submit(action, form) {
+            hideError();
+            setBusy(true);
+            try {
+                const resp = await fetch(url(action), {
+                    method: 'POST', headers: {'Accept': 'application/json'}, body: form
+                });
+                const body = await resp.json().catch(() => ({}));
+                if (resp.ok) {
+                    closeWith(null, null);
+                    options.onDone(body);
+                    return;
+                }
+                if (isExpiredResponse(resp.status, body)) {
+                    closeWith(notify.error, MSG_EXPIRED);
+                    return;
+                }
+                if (body.code === CODE_REPLACE_REGISTRATION_FAILED) dropPurgedCandidate();
+                showError(body.message || MSG_FAILED);
+            } catch (_) {
+                showError(MSG_NETWORK);
+            }
+            setBusy(false);
         }
     }
 
-    window.NudgeModal = {handle: handle, hide: hide};
+    function renderCandidates(list, conflicts, prefix, onSelect) {
+        list.innerHTML = '';
+        conflicts.forEach(entry => {
+            const li = document.createElement('li');
+            li.className = 'cm-conflict-item';
+            li.dataset.targetId = entry.id;
+            li.innerHTML =
+                '<label class="cm-conflict-label">' +
+                '<input type="radio" name="' + prefix + 'Target" value="' + UiUtil.escapeHtml(String(entry.id)) + '">' +
+                '<span><strong>' + UiUtil.escapeHtml(entry.name || '') + '</strong> ' + UiUtil.escapeHtml(entry.version || '') +
+                ' <span class="cm-note">(' + UiUtil.escapeHtml(entry.stateLabel || '') + ')</span></span>' +
+                '</label>';
+            li.querySelector('input').addEventListener('change', () => onSelect(entry));
+            list.appendChild(li);
+        });
+    }
+
+    window.NudgeModal = {open: open};
     window.NudgeTimer = {start: startTimer, stop: stopTimer, isExpiredResponse: isExpiredResponse};
 })();

@@ -474,12 +474,6 @@
     </div>
 </div>
 
-<!--
-  MK2 — nudge modal fragment include. iso-new.html 에서도 동일 fragment 를 사용하지만, 본 list 페이지에서는
-  background job 완료 후 nudge 가 필요한 경우 (UI 가 알림 센터를 통해 nudgeId 를 받았을 때) 활용.
-  prefix=nudge / confirmBaseUrl=/management/os/nudge.
--->
-<div th:replace="~{fragments/management/nudge-modal :: nudgeModal('nudge', '/management/os/nudge')}"></div>
 
 <!-- ISO 오펀(등록 실패 격리) 복구 modal. bgjob:failed 의 ORPHAN_RECOVERY: marker 수신 시 os-list.js 가 띄운다. -->
 <div th:replace="~{fragments/management/orphan-recovery-modal :: orphanModal('orphan')}"></div>

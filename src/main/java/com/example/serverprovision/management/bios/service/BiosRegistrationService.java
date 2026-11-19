@@ -1,6 +1,5 @@
 package com.example.serverprovision.management.bios.service;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.global.trash.GhostEvaluator;
@@ -32,7 +31,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -232,20 +230,6 @@ public class BiosRegistrationService {
 		return saved.getId();
 	}
 
-	/**
-	 * MK2 — nudge cancel 시 임시 트리 정리. allowed-roots 가드는 cleanup 내부에서 수행.
-	 *
-	 * <p>R12-1 — claim 경로(업로드 없는 기존 파일 등록)에서 발급된 nudge 는 트리가 업로드 임시물이
-	 * 아니라 <b>사용자의 기존 파일</b>이므로 삭제하지 않는다. 구분은 {@link #issueHashNudge} 가
-	 * payload attributes 에 기록한 {@code claimExisting} 플래그가 SSOT.</p>
-	 */
-	public void cleanupNudgeCancelled(ContentNudgePayload payload) {
-		if (payload.claimsExistingTree()) {
-			log.info("[nudgeCancel] claim 경로 — 사용자 기존 파일 보존. path={}", payload.tempFilePath());
-			return;
-		}
-		bundleTreeCleanupService.purgeExistingTree(Path.of(payload.tempFilePath()), "nudgeCancel");
-	}
 
 	// ==== private helpers (복붙 dedup) =================================
 
@@ -286,14 +270,7 @@ public class BiosRegistrationService {
 				)
 		);
 		List<NudgeConflictEntry> entries = hashCandidates.stream()
-				.map(b -> new NudgeConflictEntry(
-						b.getId(),
-						LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
-						b.getManifestHash(),
-						b.getName(),
-						b.getVersion(),
-						Instant.now()
-				))
+				.map(b -> NudgeConflictEntry.of(b, b.getName(), b.getVersion()))
 				.toList();
 		log.info(
 				"[{}] nudge required : boardId={}, version={}, candidates={}",

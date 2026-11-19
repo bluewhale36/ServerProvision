@@ -248,6 +248,9 @@
 .cm-path { display: block; word-break: break-all; padding: 6px 8px; background: var(--n-sunken); border-radius: var(--n-radius); margin-top: 4px; font-size: 0.85rem; }
 .cm-ghost-badge { background: var(--n-red); color: var(--n-on-accent); }
 .cm-conflict-list { list-style: none; padding: 0; margin: 0 0 18px; border: 1px solid var(--n-border); border-radius: var(--n-radius); background: var(--n-surface); max-height: 200px; overflow-y: auto; }
+.cm-conflict-item { padding: 8px 12px; border-bottom: 1px solid var(--n-border-row); }
+.cm-conflict-item:last-child { border-bottom: 0; }
+.cm-conflict-label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
 .cm-typed-block { border-top: 1px solid var(--n-border-row); padding-top: 12px; margin-bottom: 12px; }
 .cm-typed-target-code.cm-path { font-size: 13px; margin: 0 0 6px; }
 /* 선택지 버튼 — 제목 한 줄 + 설명 한 줄이 세로로 쌓인다. .n-btn 의 inline-flex 는 블록 자식을 가로로

@@ -19,6 +19,7 @@ import java.util.UUID;
 public class SubprogramNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
+	private final NudgeUploadDiscarder nudgeUploadDiscarder;
 	private final SubprogramRegistrationService subprogramRegistrationService;
 	private final NudgeReplacer nudgeReplacer;
 	private final SubprogramUploadIntentService subprogramUploadIntentService;
@@ -28,30 +29,36 @@ public class SubprogramNudgeService {
 	// ============================================================
 
 	public Long proceed(UUID nudgeId) {
-		NudgeSession session = requireSubprogramSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		Long id = subprogramRegistrationService.persistFromNudge(payload);
-		nudgeRegistry.remove(nudgeId);
-		log.info("[subprogram-nudge.proceed] nudgeId={}, id={}", nudgeId, id);
-		return id;
+		return nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireSubprogramSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			Long id = subprogramRegistrationService.persistFromNudge(payload);
+			nudgeRegistry.remove(nudgeId);
+			log.info("[subprogram-nudge.proceed] nudgeId={}, id={}", nudgeId, id);
+			return id;
+		});
 	}
 
 	public Long replace(UUID nudgeId, Long targetId, String typedName) {
-		NudgeSession session = requireSubprogramSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		Long id = nudgeReplacer.replace(session, ResourceType.SUBPROGRAM, targetId, typedName,
-				() -> subprogramRegistrationService.persistFromNudge(payload));
-		nudgeRegistry.remove(nudgeId);
-		log.info("[subprogram-nudge.replace] nudgeId={}, replacedTarget={}, id={}", nudgeId, targetId, id);
-		return id;
+		return nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireSubprogramSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			Long id = nudgeReplacer.replace(session, ResourceType.SUBPROGRAM, targetId, typedName,
+					() -> subprogramRegistrationService.persistFromNudge(payload));
+			nudgeRegistry.remove(nudgeId);
+			log.info("[subprogram-nudge.replace] nudgeId={}, replacedTarget={}, id={}", nudgeId, targetId, id);
+			return id;
+		});
 	}
 
 	public void cancel(UUID nudgeId) {
-		NudgeSession session = requireSubprogramSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		subprogramRegistrationService.cleanupNudgeCancelled(payload);
-		nudgeRegistry.remove(nudgeId);
-		log.info("[subprogram-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
+		nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireSubprogramSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			nudgeUploadDiscarder.discard(session, "nudge.cancel");
+			nudgeRegistry.remove(nudgeId);
+			log.info("[subprogram-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
+		});
 	}
 
 	// ============================================================

@@ -387,7 +387,7 @@ class BiosControllerUploadFlowTest {
             var conflicts = List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                     42L,
                     com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
-                    "abc", "BIOS-A", "2.03", Instant.now()));
+                    "abc", "BIOS-A", "2.03", "BIOS-A", Instant.now()));
             willThrow(new com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException(
                     "동일 메타", session, conflicts))
                     .given(biosUploadIntentService).issue(eq(1L), any());
@@ -397,7 +397,8 @@ class BiosControllerUploadFlowTest {
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value("NUDGE_REQUIRED"))
                     .andExpect(jsonPath("$.nudgeId").value(nudgeId.toString()))
-                    .andExpect(jsonPath("$.conflicts[0].id").value(42));
+                    .andExpect(jsonPath("$.conflicts[0].id").value(42))
+                    .andExpect(jsonPath("$.conflicts[0].displayName").value("BIOS-A"));   // HF30-3 D12 — 자원명 입력 기준
         }
 
         @Test
