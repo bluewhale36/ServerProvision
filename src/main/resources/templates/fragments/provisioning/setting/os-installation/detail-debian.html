@@ -18,13 +18,13 @@
                 <td>
                     <code class="n-mono" th:if="${!#strings.isEmpty(inst.hostname)}"
                           th:text="${inst.hostname}">node-01</code>
-                    <span class="n-muted" th:if="${#strings.isEmpty(inst.hostname)}">미설정 (기본값: ubuntu-server)</span>
+                    <span class="n-muted" th:if="${#strings.isEmpty(inst.hostname)}">-</span>
                 </td>
             </tr>
             <tr>
-                <th>추가 설치 패키지 (APT)</th>
+                <th>추가 설치 패키지</th>
                 <td>
-                    <span th:if="${#lists.isEmpty(inst.packages)}" class="n-muted">미지정(기본 이미지 그대로 설치)</span>
+                    <span th:if="${#lists.isEmpty(inst.packages)}" class="n-muted">미지정</span>
                     <span th:unless="${#lists.isEmpty(inst.packages)}" class="n-badge-list">
                         <span class="n-badge n-badge-gray n-badge-mono"
                               th:each="pkg : ${inst.packages}"
