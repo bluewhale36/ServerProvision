@@ -22,7 +22,7 @@ public class UbuntuInstallationRequest extends LinuxInstallationRequest {
     @jakarta.validation.constraints.Size(max = 253, message = "호스트명은 253자를 넘을 수 없습니다.")
     @jakarta.validation.constraints.Pattern(
             regexp = "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$",
-            message = "호스트명은 RFC 1123 형식(소문자, 숫자, 하이픈)이어야 합니다.")
+            message = "호스트명은 소문자, 숫자, 하이픈, 마침표만 쓸 수 있습니다.")
     private final String hostname;
 
     /** 설치 시 포함할 패키지명 목록. autoinstall {@code packages} 에 대응 — RHEL 의 그룹 ID 와 성격이 다르다. */

@@ -657,7 +657,7 @@
 
                                         <div class="n-form-group" data-error-field="users">
                                             <label class="n-label strong">일반 사용자</label>
-                                            <div class="n-hint">root 비밀번호가 없으면 한 명 이상 추가해야 합니다. 저장된 비밀번호는 표시하지 않습니다.</div>
+                                            <div class="n-hint">Ubuntu 는 한 명 이상 추가해야 합니다. RHEL 계열은 root 비밀번호가 없으면 한 명 이상 추가해야 합니다. 저장된 비밀번호는 표시하지 않습니다.</div>
                                             <table class="n-tbl-list" id="oiUserTable">
                                                 <colgroup>
                                                     <col class="n-col-30">
@@ -680,6 +680,8 @@
 
                                         <!-- RHEL 계열 전용(KDump) — 선택 OS 의 osFamily 가 RHEL_BASED 일 때만 보인다. -->
                                         <div th:replace="~{fragments/provisioning/setting/os-installation/rhel-based :: form}"></div>
+                                        <!-- Debian 계열 전용(호스트명 · 추가 패키지) — 선택 OS 의 osFamily 가 DEBIAN_BASED 일 때만 보인다(HF33). -->
+                                        <div th:replace="~{fragments/provisioning/setting/os-installation/debian-based :: form}"></div>
                                     </div>
                                 </div>
                             </div>

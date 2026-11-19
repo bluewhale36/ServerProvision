@@ -1,6 +1,7 @@
 package com.example.serverprovision.provisioning.setting.controller;
 
 import com.example.serverprovision.support.FixedClockTestConfig;
+import com.example.serverprovision.support.UbuntuDefinitionFixture;
 import org.springframework.context.annotation.Import;
 import com.example.serverprovision.provisioning.setting.dto.request.BasicSettingRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.BasicUpdateRequest;
@@ -212,6 +213,46 @@ class SettingControllerViewTest {
                 .andExpect(content().string(containsString("MS03-CE0")))
                 // OS_SETTING 고유 필드 — 계열별 하위 조각까지 도달했는가
                 .andExpect(content().string(containsString("enforcing")));
+    }
+
+    /**
+     * HF33 O-2 — 카드의 리눅스 공통 갈래가 RHEL 전용 rootPassword 를 읽어 Ubuntu 정의서에서 렌더가 예외로 끝났다.
+     * Ubuntu 고유값(호스트명 · 패키지)은 Debian 조각이 그리고, root 비밀번호 행은 나오지 않아야 한다.
+     */
+    @Test
+    @DisplayName("HF33 GET /{id} — Ubuntu 설치 단계도 200 · 호스트명과 패키지를 그리고 root 비밀번호 행은 없다")
+    void detail_ubuntuInstallation_rendersDebianDetailWithoutRootPassword() throws Exception {
+        given(queryService.findDetail(1L)).willReturn(UbuntuDefinitionFixture.detail(1L, "ubuntu-standard"));
+
+        mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(UbuntuDefinitionFixture.HOSTNAME)))
+                .andExpect(content().string(containsString(UbuntuDefinitionFixture.PACKAGE)))
+                .andExpect(content().string(not(containsString("<th>root 비밀번호</th>"))));
+    }
+
+    @Test
+    @DisplayName("HF33 GET /{id} — RHEL 설치 단계는 root 비밀번호 행을 RHEL 조각에서 그대로 그린다(회귀)")
+    void detail_rhelInstallation_keepsRootPasswordRow() throws Exception {
+        given(queryService.findDetail(1L)).willReturn(detailWithPasswords(1L));
+
+        mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<th>root 비밀번호</th>")))
+                .andExpect(content().string(containsString("RHEL 계열 설치 옵션")));
+    }
+
+    @Test
+    @DisplayName("HF33 GET /new — 작성 폼에 Debian 계열 패널(호스트명 · 추가 패키지)이 붙어 있다 (O-1)")
+    void newForm_includesDebianHostnamePane() throws Exception {
+        given(queryService.findBoardOptions()).willReturn(List.of());
+        given(queryService.findOSOptions()).willReturn(List.of());
+
+        mvc.perform(get("/provisioning/setting/new"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-os-family=\"DEBIAN_BASED\"")))
+                .andExpect(content().string(containsString("id=\"oiHostname\"")))
+                .andExpect(content().string(containsString("id=\"oiPackages\"")));
     }
 
     @Test
