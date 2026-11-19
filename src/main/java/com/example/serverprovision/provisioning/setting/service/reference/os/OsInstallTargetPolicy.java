@@ -20,6 +20,9 @@ public class OsInstallTargetPolicy {
     /** 요청 판별자와 OS 의 실제 계열이 다를 때(직접 POST 위조) — 정상 화면에서는 나오지 않는다. */
     public static final String FAMILY_MISMATCH_REASON = "선택한 OS 와 설치 설정의 계열이 맞지 않습니다.";
 
+    /** 미지원 OS 상수(S23-1) — 옛 행을 읽기 위해서만 남은 OS 는 어느 계열 검사기보다 먼저 막는다. */
+    public static final String UNSUPPORTED_OS_REASON = "지원하지 않는 OS 입니다.";
+
     private final Map<OSFamily, OSInstallationFamilyInspector> inspectors;
 
     public OsInstallTargetPolicy(List<OSInstallationFamilyInspector> inspectors) {
@@ -29,6 +32,9 @@ public class OsInstallTargetPolicy {
 
     /** 설치 허용 판정 — 허용이면 {@code null}, 차단이면 사유 문장. */
     public String blockReason(OSMetadata os) {
+        if (!os.getOsName().registrable()) {
+            return UNSUPPORTED_OS_REASON;
+        }
         OSInstallationFamilyInspector inspector = inspectors.get(OSFamily.of(os.getOsName()));
         if (inspector == null) {
             throw new IllegalStateException("계열 검사기가 없는 OS 계열: " + os.getOsName().getFamily());

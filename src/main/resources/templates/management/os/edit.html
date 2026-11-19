@@ -6,7 +6,7 @@
   Model:
     osMetadataForm : OSMetadataUpdateRequest   @ModelAttribute (osVersion / repoPath / description)
     osMetadataId   : Long                    경로 파라미터
-    osNameLabel : String                  화면 표시용 ("Rocky Linux" 등, 수정 불가)
+    osNameLabel : String                  화면 표시용 ("Rocky Linux 9" 등 메이저까지, 수정 불가)
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('OS 버전 수정')}"></th:block>

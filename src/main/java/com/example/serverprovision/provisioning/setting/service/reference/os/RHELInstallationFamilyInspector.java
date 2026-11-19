@@ -15,6 +15,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -33,15 +36,28 @@ public class RHELInstallationFamilyInspector implements OSInstallationFamilyInsp
         return OSFamily.RHEL_BASED;
     }
 
-    /** Rocky Linux 8 · 9 · 10 만(E4-1-b-2) — 지원 메이저 목록의 정본은 {@link RhelRelease}. CentOS · 그 밖 메이저는 막는다. */
+    /**
+     * 정의서의 OS 가 지원하는 RHEL 계열 메이저에 속하고 버전도 그 메이저에 맞아야 설치할 수 있다(S23-1).
+     * 미지원 OS 상수는 정책({@code OsInstallTargetPolicy})이 이 검사기보다 먼저 막는다.
+     */
     @Override
     public String installBlockReason(OSMetadata os) {
         return os.rhelRelease().isPresent() ? null : unsupportedReason();
     }
 
+    /** "Rocky Linux 8, 9, 10, Red Hat Enterprise Linux 8, 9, 10 만 설치할 수 있습니다." 처럼 지원 상수를 배포판별로 묶어 적는다. */
     static String unsupportedReason() {
-        return OSName.ROCKY_LINUX.getDisplayName() + " " + RhelRelease.supportedMajors(OSName.ROCKY_LINUX)
-                + " 만 설치할 수 있습니다.";
+        Map<String, List<String>> majorsByDistribution = new LinkedHashMap<>();
+        for (OSName name : OSName.registrableValues()) {
+            if (RhelRelease.of(name).isPresent()) {
+                majorsByDistribution.computeIfAbsent(name.getDisplayName(), k -> new ArrayList<>())
+                        .add(String.valueOf(name.getMajor()));
+            }
+        }
+        String supported = majorsByDistribution.entrySet().stream()
+                .map(e -> e.getKey() + " " + String.join(", ", e.getValue()))
+                .collect(Collectors.joining(", "));
+        return supported + " 만 설치할 수 있습니다.";
     }
 
     @Override

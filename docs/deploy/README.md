@@ -30,6 +30,7 @@ git diff --name-status d2d0307 origin/dev -- ddl/ sql/ src/main/resources/applic
 | HF32 | 점검 SQL | [pending/HF32.md](pending/HF32.md) |
 | E4-1-b | 서버 준비, 환경 변수, DDL, 점검 SQL | [pending/E4-1-b.md](pending/E4-1-b.md) |
 | R17 | 자산 교체 확인 | [pending/R17.md](pending/R17.md) |
+| S23-1 | 점검 SQL, DDL, 사용자 결정 | [pending/S23-1.md](pending/S23-1.md) |
 
 ## 항목 파일 쓰는 법
 

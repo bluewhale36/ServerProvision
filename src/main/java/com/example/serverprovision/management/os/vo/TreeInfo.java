@@ -1,7 +1,6 @@
 package com.example.serverprovision.management.os.vo;
 
 import com.example.serverprovision.management.os.enums.OSName;
-import com.example.serverprovision.management.os.enums.RhelRelease;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -58,13 +57,17 @@ public record TreeInfo(String name, String version, String stage2) {
         return name + " " + version;
     }
 
-    /** 등록한 OS(이름 · 버전)와 같은 배포판 · 같은 주 버전인가. 버전 형식을 못 읽으면 다르다고 본다. */
+    /**
+     * 트리가 등록한 OS 와 같은 배포판, 같은 메이저인가. 배포판은 OS 상수의 배포판 이름과, 메이저는 OS 상수의 메이저와
+     * 비교한다(S23-1). 메이저 없는 상수나 읽을 수 없는 버전 형식은 다르다고 본다. {@code osVersion} 은 상수에 메이저가 없을 때만 쓴다.
+     */
     public boolean matches(OSName osName, String osVersion) {
         if (!name.equalsIgnoreCase(osName.getDisplayName())) {
             return false;
         }
-        Optional<Integer> treeMajor = RhelRelease.majorOf(version);
-        return treeMajor.isPresent() && treeMajor.equals(RhelRelease.majorOf(osVersion));
+        Optional<OsMajorVersion> treeMajor = OsMajorVersion.parse(version);
+        Optional<OsMajorVersion> expected = osName.getMajor() != null ? Optional.of(osName.getMajor()) : OsMajorVersion.parse(osVersion);
+        return treeMajor.isPresent() && treeMajor.equals(expected);
     }
 
     private static String firstNonBlank(String a, String b) {

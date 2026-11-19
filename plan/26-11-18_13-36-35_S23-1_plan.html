@@ -1,0 +1,3770 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S23-1 Plan : OS 카탈로그</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --header-from:#fff; --header-to:#fbfcfd; --tip-bg:rgba(31,35,40,0.92); --tip-text:#fff; --on-accent:#fff;
+    --muted-fill:rgba(0,0,0,0.06); --disabled-fill:rgba(0,0,0,0.07); --tip-shadow:rgba(0,0,0,0.2);
+    --lane-a1:rgba(0,117,222,0.04); --lane-a2:rgba(26,174,57,0.04); --lane-a3:rgba(221,91,0,0.04); --lane-a4:rgba(111,76,221,0.04);
+  }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,var(--header-from) 0%,var(--header-to) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; white-space:nowrap; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:4px 0 0; }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--on-accent); border-color:var(--blue); }
+  .ux-toolbar select, .ux-toolbar input { font-size:12px; padding:4px 6px; border:1px solid var(--border); border-radius:5px; background:var(--card); color:var(--text); font-family:var(--mono); max-width:100%; }
+  .ux-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:0; }
+  .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:var(--muted-fill); color:var(--text-muted); }
+  .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--disabled-fill); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--tip-bg); color:var(--tip-text); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px var(--tip-shadow); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--tip-bg); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; overflow-wrap:anywhere; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step.a1 { background:var(--lane-a1); } .seq .step.a2 { background:var(--lane-a2); } .seq .step.a3 { background:var(--lane-a3); } .seq .step.a4 { background:var(--lane-a4); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-wrap { padding:10px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>S23-1 : OS 카탈로그 <span class="v2-badge">S23</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> S23-1 (feature)</span>
+    <span><strong>상위</strong> <a href="https://app.notion.com/p/41bef0e868f98124afa3dd54b644260f">S23 지원 카탈로그</a></span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/41bef0e868f9812c9135c8db62d53af6">S23-1</a></span>
+    <span><strong>브랜치</strong> <code>feat/S23-1_os-catalog</code> (origin/dev 1ee935a)</span>
+    <span><strong>scope</strong> OS 를 배포판과 메이저 단위로 고정</span>
+    <span><strong>생성</strong> 2026-11-18 13:36 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 한눈에 · 재설계 동기</a></li>
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 · DB</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 · 잔존 책임 · UE</a></li>
+      <li><a href="#s9">§9 Verification · CP5</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색" id="filter">
+
+    <!-- ===== §0 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 한눈에 · 재설계 동기</summary>
+      <div class="body">
+        <div class="callout">OS 를 배포판과 메이저 단위로 고정한다. 등록 화면에는 지원하는 상수만 보이고, 메이저 능력은 <code>RhelRelease</code>(R8 · R9 · R10)와 <code>WindowsServerRelease</code>(W2025) 한 곳에 모인다. 지원 밖 기존 행은 옛 이름 그대로 '미지원' 상수로 읽히며, 배포 직후 정리하고 S23-1-a 로 미지원 상수를 지운다.</div>
+        <div class="split-grid">
+          <div class="split-card before"><h4>지금</h4>
+<pre><code>OSName  = UBUNTU, CENTOS, ROCKY_LINUX,
+          WINDOWS, WINDOWS_SERVER   (배포판만)
+RhelRelease = ROCKY_8 · 9 · 10
+          (OSName.ROCKY_LINUX, major)
+등록 POST osName=ROCKY_LINUX
+          &amp;rhelRelease=ROCKY_9&amp;osVersion=9.6
+지원 목록 = MVP_OS_NAMES · SUPPORTED ·
+          verifyRelease 의 ROCKY_LINUX 조건</code></pre></div>
+          <div class="split-card after"><h4>바뀐 뒤</h4>
+<pre><code>OSName  = 배포판 + 메이저
+          (지원 8 + 미지원 4, status)
+RhelRelease = R8 · R9 · R10 + Set&lt;OSName&gt;
+WindowsServerRelease = W2025 (build 26100)
+등록 POST osName=ROCKY_LINUX_9&amp;osVersion=9.6
+지원 판정 = registrable() · extractable()
+          (세 목록은 능력 메서드로 흡수)</code></pre></div>
+        </div>
+        <p>근거: 토론 아카이브 <code>discussion/26-11-17_20-39-03_S23-support-catalog_discussion.md</code>, 패치 항목 "OSFamily 에 따른 OSName 의 메이저버전 상세화".</p>
+      </div>
+    </details>
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>사실</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td><code>OSName</code> = UBUNTU, CENTOS, ROCKY_LINUX, WINDOWS, WINDOWS_SERVER. 상수는 displayName 과 family 만</td><td><code>OSName.java</code></td></tr>
+            <tr><td>메이저 판정 = <code>RhelRelease</code>(ROCKY_8 · 9 · 10 = (ROCKY_LINUX, 8/9/10)). <code>OSMetadata.rhelRelease()</code> = <code>RhelRelease.of(osName, osVersion)</code></td><td><code>RhelRelease.java</code>, <code>OSMetadata:105</code></td></tr>
+            <tr><td>등록 화면 option 세 줄의 value 가 모두 ROCKY_LINUX, 줄마다 <code>data-rhel-release</code> · <code>data-version-prefix</code>, 숨은 입력 rhelRelease. POST = <code>osName=ROCKY_LINUX&amp;rhelRelease=ROCKY_9&amp;osVersion=9.6</code></td><td><code>management/os/new.html:44-51</code>, <code>os-metadata-new.js:26-36</code></td></tr>
+            <tr><td>등록 가능 목록 <code>MVP_OS_NAMES</code> = ROCKY_LINUX, CENTOS, UBUNTU, WINDOWS_SERVER</td><td><code>OSMetadataController:59</code></td></tr>
+            <tr><td>드라이버 화면 OS 선택지 = <code>OSName.values()</code> 전부(CENTOS, WINDOWS 노출)</td><td><code>SubprogramController:91</code>, <code>SubprogramControllerSupport:47</code></td></tr>
+            <tr><td>OSName 이 이름으로 저장되는 곳 = DB 두 컬럼뿐(<code>os_metadata.os_name</code> NOT NULL, <code>subprogram.os_name</code> NULL), 둘 다 MariaDB ENUM. 정의서 JSON · 할당 스냅숏 · 마커 파일에는 없음</td><td><code>ddl/schema.sql:415, 607</code>, Explore 실측</td></tr>
+            <tr><td>[추출] 버튼이 OS 조건 없이 모든 ISO 에 나옴. Windows ISO 에서 누르면 배경 작업이 <code>UnsupportedExtractionException</code> 으로 실패</td><td><code>list.html:318-323</code>, <code>CompsExtractionService:79</code></td></tr>
+            <tr><td>추출 대상 <code>RHELCompsExtractor.SUPPORTED</code> = ROCKY_LINUX, CENTOS. 버전 대조 <code>verifyRelease</code> 는 ROCKY_LINUX 만</td><td><code>RHELCompsExtractor:37</code>, <code>CompsExtractionService:114-127</code></td></tr>
+            <tr><td><code>TreeInfo.matches</code> = .treeinfo name 과 <code>osName.getDisplayName()</code> 대소문자 무시 비교 + 주 버전 비교</td><td><code>TreeInfo:62</code></td></tr>
+            <tr><td>Windows 설치 이미지는 ISO 가 아니라 환경 변수 소스 디렉터리 하나(<code>&lt;source-root&gt;/sources/install.wim</code>)에서 읽음. ISO 행과 연결 없음. Windows ISO 는 UDF 라 bsdtar 불가, 앱 계정에 마운트 권한 없음</td><td><code>WindowsImageCatalog</code>, <code>WindowsInstallProperties</code></td></tr>
+            <tr><td><code>InstallSourceSnapshot.build()</code> = 첫 이미지 빌드 "10.0.26100.1742" 형식</td><td><code>InstallSourceSnapshot</code>, <code>WimXmlReader:75-80</code></td></tr>
+            <tr><td>로컬 개발 DB <code>os_metadata</code> 0 행. 운영은 미확인(배포 전 점검 SQL)</td><td>2026-11-18 조회</td></tr>
+            <tr><td><code>IsoRegistrationService</code> 217~220 행 javadoc 안에 병합 충돌 잔재(<code>/**</code> 중복, <code>=======</code>)</td><td>HF30-2 88ca06f, 실측</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>진단</b> :
+          <ul>
+            <li>메이저 판정이 OSName 밖(<code>RhelRelease</code>)에 있고 Rocky Linux 만 다룬다. 등록 화면은 숨은 입력으로 메이저를 따로 보낸다.</li>
+            <li>지원 범위가 <code>MVP_OS_NAMES</code> · <code>SUPPORTED</code> · <code>verifyRelease</code> 세 곳에 따로 적혀 있다.</li>
+            <li>[추출] 버튼과 드라이버 OS 선택지가 지원 밖 OS 에도 열려 있다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>요구</th><th>결정</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>OSName = 배포판 + 메이저 상수, 지원 · 미지원 상태</td><td>D-1</td></tr>
+            <tr><td>R2</td><td>메이저 능력: RHEL 계열 = <code>RhelRelease</code>(R8 · R9 · R10), Windows Server = <code>WindowsServerRelease</code>(W2025)</td><td>D-2, D-3</td></tr>
+            <tr><td>R3</td><td>등록 선택지 = <code>registrableValues()</code> 한 줄씩. 숨은 rhelRelease 제거</td><td>D-4</td></tr>
+            <tr><td>R4</td><td>버전 칸: RHEL 계열 "9." 미리 채움, Windows Server 2025 '2025' 고정, Ubuntu 자유</td><td>D-4</td></tr>
+            <tr><td>R5</td><td>서버 등록 검증: registrable 아니면 400, 메이저 일치</td><td>D-4</td></tr>
+            <tr><td>R6</td><td>[추출] 버튼 · 서버 가드 · 추출 대상 · 버전 대조 = <code>extractable()</code> 하나</td><td>D-5</td></tr>
+            <tr><td>R7</td><td>미지원 OS 에 ISO 추가: 버튼 비활성 + 사유, 서버 가드</td><td>D-5</td></tr>
+            <tr><td>R8</td><td>OS 목록 C1 · 정의서 OS 셀렉트 묶음 = OSName(label). 미지원 = 배지 / 비활성 + 사유</td><td>D-6</td></tr>
+            <tr><td>R9</td><td>드라이버 OS 선택지 = <code>registrableValues()</code>, 저장 가드 registrable</td><td>D-6</td></tr>
+            <tr><td>R10</td><td>Windows Server 2025 설치 소스 빌드 확인(실행 게이트 · 대시보드 칩)</td><td>D-3</td></tr>
+            <tr><td>R11</td><td>DB: 두 ENUM 컬럼 합집합 MODIFY + 행 이전, 새 컬럼 없음</td><td>D-7</td></tr>
+            <tr><td>R12</td><td>배포 전 점검 SQL 셋, S23-1-a 미리 준비, <code>docs/deploy/pending/S23-1.md</code></td><td>D-8</td></tr>
+            <tr><td>R13</td><td>관리 포인트 원장 세 절 갱신(같은 PR)</td><td>§8</td></tr>
+            <tr><td>R14</td><td><code>IsoRegistrationService</code> 병합 충돌 잔재 정리</td><td>D-10</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>미지원 상수 4 제거 · ENUM 축소 → S23-1-a (같은 캠페인 브랜치, 배포 직후)</li>
+            <li>Ubuntu 설치 → RHEL 계열 직후 별도 단계. UBUNTU 는 등록 가능, 설치는 계열 검사기가 지금처럼 막는다</li>
+            <li>ISO 마다 Windows 설치 소스를 두는 구조(D-3 의 C안) → 두 버전 병행이 필요할 때 별도 단계</li>
+            <li>메인보드 카탈로그 → S23-2</li>
+            <li>UE 테스트의 RhelRelease 상수 이름 수정 → UE 가 dev 흡수 때(§8 UE 영향)</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 : 라이브 UX 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">시나리오 버튼 하나로 상태가 채워지고, 그 뒤로는 화면 안의 셀렉트 · 입력 · 버튼을 직접 조작할 수 있습니다. <b>지금</b> 화면은 실제 템플릿(<code>management/os/new.html</code>, <code>management/os/list.html</code>, 정의서 OS 설치 카드의 OS 셀렉트) 마크업을 제품 CSS(<code>style.css</code> · <code>miller.css</code> · <code>accordion.css</code> 등) 그대로 그린 것이고, <b>바뀐 뒤</b> 화면은 같은 마크업에 결정을 적용한 것입니다. 판정 JS 는 아래 §4 도메인 규칙(registrable · label · extractable · majorOf · 메이저 일치 · matchesBuild · 행 이전 규칙)과 같은 식입니다. §4 의 OSName 표도 같은 JS 데이터에서 그립니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오 :</span>
+            <button class="seg" data-preset="1">1 Rocky 9 등록</button>
+            <button class="seg" data-preset="2">2 메이저 불일치</button>
+            <button class="seg" data-preset="3">3 행 이전</button>
+            <button class="seg" data-preset="4">4 OS 목록 전후</button>
+            <button class="seg" data-preset="5">5 ISO [추출]</button>
+            <button class="seg" data-preset="6">6 Windows 빌드</button>
+          </div>
+          <div class="ux-toolbar" id="demo-controls"></div>
+          <div id="demo-stage"></div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">시나리오 버튼을 눌러 시작합니다.</div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> : 데모의 버튼 표시 · 비활성 · 거절 판정은 서버 가드가 부를 같은 메서드(<code>OSName.registrable()</code> · <code>extractable()</code> · <code>RhelRelease.majorOf()</code> · <code>WindowsServerRelease.matchesBuild()</code> · <code>OsInstallTargetPolicy.blockReason()</code>)를 JS 로 옮긴 것입니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>바뀌는 엔드포인트 (URL 은 그대로)</h4>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>바뀌는 것</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/management/os/new</code></td><td>선택지 = <code>registrableValues()</code></td><td>200</td></tr>
+            <tr><td>POST</td><td><code>/management/os</code></td><td>rhelRelease 제거, registrable · 메이저 일치 검증</td><td>200 + redirect / 400</td></tr>
+            <tr><td>GET</td><td><code>/management/os</code></td><td>C1 묶음 = OSName(label), 미지원 배지, [추출] 조건, ISO 추가 비활성</td><td>200</td></tr>
+            <tr><td>POST</td><td><code>/management/os/{osId}/iso</code> (업로드 경로 포함)</td><td><code>IsoRegistrationService</code> 진입 가드: 미지원 OS 거절</td><td>§7</td></tr>
+            <tr><td>POST</td><td><code>/management/os/{osId}/iso/{isoId}/extract</code></td><td>작업을 띄우기 전 <code>extractable()</code> 동기 가드</td><td>200 jobId / 409</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/setting/new</code>, <code>/{id}/edit</code></td><td>OS 셀렉트 묶음 키 = OSName, 미지원 비활성 + 사유</td><td>200</td></tr>
+            <tr><td>POST · PUT</td><td><code>/provisioning/setting</code>, <code>/provisioning/setting/{id}</code></td><td>미지원 OS · Windows 빌드 불일치 거절</td><td>201 · 200 / 400</td></tr>
+            <tr><td>GET</td><td><code>/management/subprogram/new</code>, <code>/{id}/edit</code></td><td>OS 선택지 = <code>registrableValues()</code></td><td>200</td></tr>
+            <tr><td>POST</td><td><code>/management/subprogram/…</code> (등록 · 수정)</td><td>저장 가드 registrable</td><td>400</td></tr>
+          </tbody>
+        </table>
+        <h4>등록</h4>
+        <div class="seq" style="grid-template-columns:repeat(4,1fr);">
+          <div class="actor a1">화면</div><div class="actor a2">Controller · Request</div><div class="actor a3">Service</div><div class="actor a4">DB</div>
+          <div class="step a1">OSName 선택(label 한 줄)</div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"><code>osName=ROCKY_LINUX_9&amp;osVersion=9.6</code></div><div class="step a2">registrable · 메이저 검증, 실패 400</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">저장</div><div class="step a4"><code>os_metadata</code> 행</div>
+        </div>
+        <h4>ISO 등록 · 추출</h4>
+        <div class="seq" style="grid-template-columns:repeat(4,1fr);">
+          <div class="actor a1">화면</div><div class="actor a2">IsoRegistrationService</div><div class="actor a3">추출 작업</div><div class="actor a4">DB</div>
+          <div class="step a1">ISO 추가(미지원 OS 는 비활성)</div><div class="step a2">미지원 OS 거절</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">저장, extractable 이면 추출 작업</div><div class="step a3"></div><div class="step a4"><code>iso</code> 행</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>verifyRelease</code> = <code>TreeInfo.matches</code></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">불일치</div><div class="step a4"><code>iso.registration_failure</code></div>
+        </div>
+        <h4>정의서</h4>
+        <div class="seq" style="grid-template-columns:repeat(4,1fr);">
+          <div class="actor a1">화면</div><div class="actor a2">JpaSettingQueryService</div><div class="actor a3">OsInstallTargetPolicy</div><div class="actor a4">계열 검사기</div>
+          <div class="step a1">OS 셀렉트</div><div class="step a2"><code>findOSOptions</code> (OSName 묶음)</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">registrable 선판정</div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"></div><div class="step a4">RHEL 메이저 / Windows 소스 준비 → 빌드</div>
+          <div class="step a1">비활성 + 사유 / 저장 400</div><div class="step a2"></div><div class="step a3">같은 사유</div><div class="step a4"></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT) · DB 변화</summary>
+      <div class="body">
+        <h4>OSName (D-1) : 선언 순서 = 목록 정렬 순서 = DB ENUM 순서</h4>
+        <table>
+          <thead><tr><th>상수</th><th>displayName</th><th>major</th><th>family</th><th>status</th><th>label()</th><th>registrable</th><th>extractable</th></tr></thead>
+          <tbody id="osname-table"></tbody>
+        </table>
+        <pre><code>registrable()       = status == SUPPORTED
+label()             = displayName + (major != null ? " " + major : "")   // "Rocky Linux 9", "Windows Server 2025"
+extractable()       = family == RHEL_BASED &amp;&amp; registrable()
+registrableValues() = 선언 순서의 지원 상수
+OSCatalogStatus     = SUPPORTED, LEGACY        // 새 enum, management/os/enums</code></pre>
+        <div class="callout">displayName 의 뜻(배포판 이름)은 그대로라 22 곳 사용처가 바뀌지 않는다. <code>OSMetadata.displayName()</code> = displayName + " " + osVersion → "Rocky Linux 9.6" 유지(휴지통 이름 직접 입력 확인, UE b-4-2 실패 문구가 이 형식에 기댄다).</div>
+
+        <h4>RhelRelease (D-2) : 메이저 단위 + Set&lt;OSName&gt;</h4>
+        <table>
+          <thead><tr><th>구분</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>상수</td><td><code>R8(8, {ROCKY_LINUX_8, RHEL_8})</code>, <code>R9(9, {ROCKY_LINUX_9, RHEL_9})</code>, <code>R10(10, {ROCKY_LINUX_10, RHEL_10})</code></td></tr>
+            <tr><td><span class="chip keep">유지</span> (UE 계약)</td><td><code>major()</code>, <code>supportsRootSshFlag()</code>(major &gt;= 10), <code>covers(version)</code>, <code>of(OSName, String version)</code>, <code>majorOf(version)</code>(정적)</td></tr>
+            <tr><td><span class="chip new">추가</span></td><td><code>of(OSName)</code> = 속한 release, <code>osNames()</code></td></tr>
+            <tr><td><span class="chip del">제거</span></td><td><code>osName()</code>(→ osNames), <code>displayName()</code>(→ OSName.label), <code>supportedMajors(OSName)</code>(호출처 둘을 OSName 기준으로)</td></tr>
+            <tr><td>불변식 테스트</td><td>RHEL_BASED 이고 registrable 한 OSName 은 정확히 한 release 에 속하고 <code>OSName.major == release.major</code></td></tr>
+          </tbody>
+        </table>
+        <p><code>of(OSName, version)</code> = "그 OSName 의 메이저에 version 이 속하면 그 release, 아니면 empty".</p>
+
+        <h4>WindowsServerRelease (D-3) : 새 enum, management/os/enums</h4>
+        <pre><code>W2025(major 2025, build 26100, {WINDOWS_SERVER_2025})
+of(OSName)
+matchesBuild(String build)   // "10.0.26100.1742" 의 세 번째 마디가 26100 인가</code></pre>
+
+        <h4>OSMetadata</h4>
+        <table>
+          <thead><tr><th>메서드</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>rhelRelease()</code></td><td><span class="chip keep">유지</span> 내부만 <code>of(osName, version)</code></td></tr>
+            <tr><td><code>windowsServerRelease()</code></td><td><span class="chip new">추가</span></td></tr>
+            <tr><td><code>displayName()</code></td><td><span class="chip keep">유지</span> "Rocky Linux 9.6"</td></tr>
+          </tbody>
+        </table>
+
+        <h4>관계 도식</h4>
+<div class="pkg-tree">카탈로그 (OSName, 선언 순서)              능력 (메이저마다 다른 것)
+ROCKY_LINUX_8 ─┐
+RHEL_8 ────────┴──────────────────────▶ RhelRelease.R8   (major 8)
+ROCKY_LINUX_9 ─┐
+RHEL_9 ────────┴──────────────────────▶ RhelRelease.R9   (major 9)
+ROCKY_LINUX_10 ┐
+RHEL_10 ───────┴──────────────────────▶ RhelRelease.R10  (major 10, supportsRootSshFlag)
+WINDOWS_SERVER_2025 ──────────────────▶ WindowsServerRelease.W2025 (build 26100)
+UBUNTU · ROCKY_LINUX · CENTOS · WINDOWS · WINDOWS_SERVER   (능력 없음)
+
+OSMetadata ──osName──▶ OSName
+
+같은 메서드를 부르는 곳 (SSOT 선)
+OSName.registrable() ─┬─ 등록 선택지 · OSMetadataCreateRequest 검증
+                      ├─ ISO 추가 버튼 · IsoRegistrationService 가드
+                      ├─ OsInstallTargetPolicy (정의서 셀렉트 비활성 · 저장 가드)
+                      └─ 드라이버 선택지 · 저장 가드
+OSName.extractable() ─┬─ [추출] 버튼 (ISOResponse) · CompsExtractionLauncher 가드
+                      └─ RHELCompsExtractor.supports · verifyRelease 대상
+WindowsServerRelease.matchesBuild() ─┬─ WindowsInstallationFamilyInspector (셀렉트 · 저장)
+                                     ├─ WindowsInstallReadiness.judge (실행 게이트)
+                                     └─ 대시보드 Windows 설치 소스 칩</div>
+
+        <h4>DB 변화 : <code>ddl/S23-1_os_catalog.sql</code> (D-7, 새 컬럼 없음)</h4>
+<pre><code>-- 1. 두 컬럼 ENUM = 새 값 + 옛 값의 합집합 (선언 순서 = 목록 정렬 순서)
+ALTER TABLE os_metadata MODIFY COLUMN os_name ENUM(
+  'ROCKY_LINUX_8','ROCKY_LINUX_9','ROCKY_LINUX_10','RHEL_8','RHEL_9','RHEL_10',
+  'WINDOWS_SERVER_2025','UBUNTU','ROCKY_LINUX','CENTOS','WINDOWS','WINDOWS_SERVER') NOT NULL;
+ALTER TABLE subprogram MODIFY COLUMN os_name ENUM(
+  'ROCKY_LINUX_8','ROCKY_LINUX_9','ROCKY_LINUX_10','RHEL_8','RHEL_9','RHEL_10',
+  'WINDOWS_SERVER_2025','UBUNTU','ROCKY_LINUX','CENTOS','WINDOWS','WINDOWS_SERVER') DEFAULT NULL;
+
+-- 2. 행 이전 (os_metadata). 다시 적용해도 조건에 맞는 행이 없어 안전하다.
+UPDATE os_metadata
+   SET os_name = CONCAT('ROCKY_LINUX_', SUBSTRING_INDEX(os_version, '.', 1))
+ WHERE os_name = 'ROCKY_LINUX'
+   AND SUBSTRING_INDEX(os_version, '.', 1) IN ('8', '9', '10');
+UPDATE os_metadata
+   SET os_name = 'WINDOWS_SERVER_2025'
+ WHERE os_name = 'WINDOWS_SERVER' AND os_version = '2025';
+
+-- 3. 행 이전 (subprogram). 드라이버는 버전이 없고 지금 지원은 2025 하나라 전부.
+UPDATE subprogram
+   SET os_name = 'WINDOWS_SERVER_2025'
+ WHERE os_name = 'WINDOWS_SERVER';</code></pre>
+        <table>
+          <thead><tr><th>(os_name, os_version)</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>(ROCKY_LINUX, 9.6)</td><td><span class="chip new">이전</span> ROCKY_LINUX_9</td></tr>
+            <tr><td>(ROCKY_LINUX, 7.9)</td><td><span class="chip dep">미지원 유지</span> ROCKY_LINUX</td></tr>
+            <tr><td>(CENTOS, 7.9)</td><td><span class="chip dep">미지원 유지</span> CENTOS</td></tr>
+            <tr><td>(WINDOWS_SERVER, 2025)</td><td><span class="chip new">이전</span> WINDOWS_SERVER_2025</td></tr>
+            <tr><td>(WINDOWS_SERVER, 2022)</td><td><span class="chip dep">미지원 유지</span> WINDOWS_SERVER</td></tr>
+            <tr><td>subprogram WINDOWS_SERVER</td><td><span class="chip new">이전</span> WINDOWS_SERVER_2025</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>옮길 수 없는 행(Rocky 7.x, CentOS, Windows 클라이언트, 2025 가 아닌 Windows Server)은 값이 그대로 남는다. (os_name, os_version) UNIQUE 충돌 없음.</li>
+          <li>적용 시점 = jar 와 같은 순간(<code>ddl-auto=validate</code>).</li>
+          <li><code>ddl-auto=update</code> 로 만든 샌드박스는 enum 컬럼에 CHECK 가 붙어 있을 수 있다(MA8 선례). CP4 Step 9 에서 샌드박스로 확인하고 필요하면 DDL 에 CHECK 정리를 넣는다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>뷰(OS 등록 · 목록, 드라이버 new/edit, 정의서 OS 셀렉트, 대시보드 칩) · Controller(<code>MVP_OS_NAMES</code> 제거, 드라이버 선택지) · DTO(<code>OSMetadataCreateRequest</code>, <code>OsRegistrationOption</code>, <code>ISOResponse.extractable</code>) · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>Repository 변경 없음(<code>OrderByOsNameAsc</code> 그대로, 정렬은 ENUM 순서). 새 엔티티 없음, Enum: <code>OSName</code> · <code>OSCatalogStatus</code> · <code>RhelRelease</code> · <code>WindowsServerRelease</code>, <code>OSMetadata</code> 메서드</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>Service 본체(추출 가드, ISO 가드, 계열 검사기, <code>WindowsInstallReadiness</code>, <code>findOSOptions</code>, 드라이버 저장 가드) + <code>ddl/S23-1_os_catalog.sql</code> 적용 · <code>SHOW CREATE TABLE</code>, 샌드박스 CHECK 확인. 테스트 코드 제외, 빌드 통과</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 : main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 + 기존 테스트 상수 정리, 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증(§9 A · B · C, 사용자 제공 RHEL ISO 8.8 · 9.7 · 10.0)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E, 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘: ① CP1 승인 → CP4 게이트 지점(main 구현, 경계 보고만) ② CP4 승인 → CP6 제출(테스트 작성 · CP5 검증 · report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 계획</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>테스트</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><code>OSNameTest</code></td><td>registrable, label, extractable, 선언 순서</td></tr>
+            <tr><td><code>RhelReleaseTest</code></td><td>불변식, of 두 가지, covers</td></tr>
+            <tr><td><code>WindowsServerReleaseTest</code></td><td>matchesBuild: 10.0.26100.1742 참, 10.0.20348.x 거짓, 빈 값 거짓</td></tr>
+            <tr><td><code>TreeInfoTest</code></td><td>RHEL name</td></tr>
+            <tr><td><code>CompsExtractionServiceTest</code></td><td>RHEL 대조, 미지원 건너뜀 없음</td></tr>
+            <tr><td><code>WindowsInstallationFamilyInspectorTest</code></td><td>빌드 불일치 사유</td></tr>
+            <tr><td><code>WindowsInstallReadinessTest</code></td><td>빌드 판정</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (MockMvc, 4 범주)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 2xx</td><td>OS 등록: Rocky 9 9.6, RHEL 10 10.0, Windows 2025</td><td>3</td></tr>
+            <tr><td>400</td><td>메이저 불일치(8.10 → ROCKY_LINUX_9), Windows 2022, 미지원 osName 직접 POST, 옛 rhelRelease 파라미터는 무시</td><td>4</td></tr>
+            <tr><td>400</td><td>정의서 미지원 OS 저장, Windows 빌드 불일치 저장, 드라이버 미지원 OS 저장</td><td>3</td></tr>
+            <tr><td>409</td><td>Windows ISO 추출 거절(동기, <code>UnsupportedExtractionException</code>)</td><td>1</td></tr>
+            <tr><td>거절 (§7)</td><td>ISO 추가 미지원 OS 거절</td><td>1</td></tr>
+            <tr><td>404</td><td>새 경로 없음</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">기존 테스트의 <code>OSName.ROCKY_LINUX</code>(86) · <code>WINDOWS_SERVER</code>(25) · <code>CENTOS</code>(7) · <code>WINDOWS</code>(1) 참조와 문자열 리터럴 약 20 곳을 새 상수로 고친다(미지원 동작 테스트는 옛 상수 그대로).</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외 / 경로</th><th>HTTP</th><th>구분</th><th>쓰임</th></tr></thead>
+          <tbody>
+            <tr><td><code>UnsupportedExtractionException</code></td><td>409 (<code>ConflictException</code>)</td><td><span class="chip keep">재사용</span></td><td>비동기 작업 안 → <code>CompsExtractionLauncher.startExtraction</code> 동기 경로</td></tr>
+            <tr><td><code>UnsupportedOsInstallTargetException</code></td><td>400 (<code>osMetadataId</code>)</td><td><span class="chip keep">재사용</span></td><td>사유 = <code>OsInstallTargetPolicy</code>: 미지원 OS, Windows 빌드 불일치</td></tr>
+            <tr><td><code>OSMetadataCreateRequest</code> 검증</td><td>400 (fieldErrors)</td><td><span class="chip mod">수정</span></td><td>registrable, 메이저 일치. <code>isRhelReleaseValid</code> 제거</td></tr>
+            <tr><td>ISO 추가 미지원 OS 거절</td><td>CP2 확정</td><td><span class="chip opt">미정</span></td><td>기존 예외 재사용 여부 확인, 새 예외면 <code>new-exception.md</code></td></tr>
+            <tr><td>드라이버 저장 미지원 OS 거절</td><td>400</td><td><span class="chip opt">미정</span></td><td>같은 절차</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">새 예외 클래스를 더하면 그 예외를 일으키는 통합 시나리오를 함께 더한다(테스트 규율).</div>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 · 잔존 책임 · UE 영향</summary>
+      <div class="body">
+        <h4>결정 (채택 · 비채택 · 탈락 사유)</h4>
+        <table>
+          <thead><tr><th>D</th><th>채택</th><th>비채택 · 탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1</td><td>OSName = 배포판 + 메이저, 상태(SUPPORTED · LEGACY) 구분. displayName 뜻 유지</td><td>displayName 에 메이저 넣기: <code>TreeInfo.matches</code>("Rocky Linux" ≠ "Rocky Linux 9"), "Rocky Linux 9 9.6" 이중 표기, 이름 입력 확인 변경. 상수에 메이저 능력 직접: Rocky 9 와 RHEL 9 가 능력 중복(토론 탈락안)</td></tr>
+            <tr><td>D-2</td><td>RhelRelease = 메이저 단위 + Set&lt;OSName&gt;</td><td>(D-1 탈락안과 같음)</td></tr>
+            <tr><td>D-3</td><td>WindowsServerRelease W2025. 등록 D(os_version '2025' 고정) + 설치 소스 확인 B(빌드 대조). 메이저마다 다른 능력(빌드)이 이미 하나 있어 RhelRelease 와 같은 꼴</td><td>A(ISO 등록 때 7z 로 install.wim 대조): ISO 마다 4~5 GB, 실제 설치는 소스 디렉터리라 확인 대상이 다름. C(ISO 마다 설치 소스): 운영 절차 · 설정 · Samba 전면 변경, 병행 필요 시 별도 단계. OSName 에 빌드 넣기: 카탈로그와 능력이 섞임</td></tr>
+            <tr><td>D-4</td><td>등록 선택지 = registrableValues, 서버 registrable · 메이저 검증, <code>OsRegistrationOption</code> = OSName 하나에서</td><td>(숨은 rhelRelease 유지안 없음)</td></tr>
+            <tr><td>D-5</td><td>extractable 하나로 버튼 · 가드 · 대상 · 대조. verifyRelease 대상 = RHEL 계열 지원 상수 전부</td><td>(목록 셋 유지 = 지금)</td></tr>
+            <tr><td>D-6</td><td>목록 C1 · 정의서 셀렉트 묶음 = OSName(label), 미지원 판정은 <code>OsInstallTargetPolicy</code> 가 계열 검사기보다 먼저</td><td></td></tr>
+            <tr><td>D-7</td><td>ENUM 합집합 MODIFY + 행 이전, 새 컬럼 없음</td><td></td></tr>
+            <tr><td>D-8</td><td>미지원 상수를 S23-1 에 두고 배포 직후 정리, S23-1-a 로 제거</td><td>상수와 행 함께 지우기: 참조 ISO · 정의서가 끊김. '미지원' 상수 하나로 몰기: CentOS 7.9 와 Rocky 7.9 가 같은 (상수, 버전) → UNIQUE 충돌</td></tr>
+            <tr><td>D-9</td><td>RHEL 실 ISO 확인은 CP5(사용자 제공 ISO)</td><td></td></tr>
+            <tr><td>D-10</td><td><code>IsoRegistrationService</code> 병합 충돌 잔재 정리</td><td></td></tr>
+          </tbody>
+        </table>
+
+        <h4>잔존 책임 : 배포 직후 해소 (D-8, 사용자 지시)</h4>
+<div class="state-flow">배포 전 점검 SQL ① + ② (os_metadata 와 subprogram 의 미지원 유지 합계)
+  ├─ 합계 = 0 (모든 환경) ──▶ S23-1 + S23-1-a 같은 배포 (잔존 0)
+  └─ 합계 &gt; 0 ──▶ S23-1 배포
+                ──▶ 운영자가 화면에서 그 OS · ISO · 드라이버를 휴지통 → 영구 삭제 (참조 정의서는 사용자 판단)
+                ──▶ 점검 SQL ① + ② 합계 0 확인
+                         ──▶ 미리 만들어 둔 S23-1-a 바로 병합 · 배포</div>
+        <p>판정 기준에 subprogram 을 넣는 이유: S23-1-a 의 가드 DDL 이 두 테이블을 모두 검사하므로, 판정 기준이 os_metadata 만 세면 '같은 배포' 로 판정하고도 가드에서 멈출 수 있다. 미지원 상수를 S23-1 에 두는 이유: 이 정리를 앱 화면(파일 · 마커 처리 포함)으로 하기 위해서다. 둘 다 <code>docs/deploy/pending/S23-1.md</code> 에 등록(점검 SQL 원문, DDL 두 파일, 판단 흐름).</p>
+<pre><code>-- ① os_metadata 를 (os_name, 메이저, is_deleted)별로 세고 분류
+SELECT os_name,
+       SUBSTRING_INDEX(os_version, '.', 1) AS major,
+       is_deleted,
+       CASE
+         WHEN os_name = 'ROCKY_LINUX' AND SUBSTRING_INDEX(os_version, '.', 1) IN ('8', '9', '10') THEN '이전'
+         WHEN os_name = 'WINDOWS_SERVER' AND os_version = '2025' THEN '이전'
+         WHEN os_name IN ('ROCKY_LINUX', 'CENTOS', 'WINDOWS', 'WINDOWS_SERVER') THEN '미지원 유지'
+         ELSE '그대로'
+       END AS bucket,
+       COUNT(*) AS cnt
+  FROM os_metadata
+ GROUP BY os_name, major, is_deleted, bucket
+ ORDER BY os_name, major, is_deleted;
+
+-- ② subprogram.os_name 별 수
+SELECT os_name, COUNT(*) AS cnt FROM subprogram GROUP BY os_name ORDER BY os_name;
+
+-- ③ 미지원으로 남을 OS 를 참조하는 ISO 와 정의서 단계 수
+WITH legacy_os AS (
+  SELECT id FROM os_metadata
+   WHERE (os_name = 'ROCKY_LINUX' AND SUBSTRING_INDEX(os_version, '.', 1) NOT IN ('8', '9', '10'))
+      OR (os_name = 'WINDOWS_SERVER' AND os_version &lt;&gt; '2025')
+      OR os_name IN ('CENTOS', 'WINDOWS')
+)
+SELECT 'iso' AS ref, COUNT(*) AS cnt FROM iso WHERE os_metadata_id IN (SELECT id FROM legacy_os)
+UNION ALL
+SELECT 'setting_process', COUNT(*) FROM setting_process
+ WHERE process_type = 'OS_INSTALLATION'
+   AND JSON_VALUE(payload_json, '$.osMetadataId') IN (SELECT id FROM legacy_os);</code></pre>
+<pre><code>-- ddl/S23-1-a_os_catalog_legacy_drop.sql
+-- ENUM 에서 값을 지우면 그 값의 행이 오류 없이 빈 문자열이 되므로 가드가 먼저다.
+DELIMITER //
+BEGIN NOT ATOMIC
+  IF EXISTS (SELECT 1 FROM os_metadata WHERE os_name IN ('ROCKY_LINUX', 'CENTOS', 'WINDOWS', 'WINDOWS_SERVER'))
+     OR EXISTS (SELECT 1 FROM subprogram WHERE os_name IN ('ROCKY_LINUX', 'CENTOS', 'WINDOWS', 'WINDOWS_SERVER')) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'S23-1-a guard: legacy os_name rows remain';
+  END IF;
+END //
+DELIMITER ;
+ALTER TABLE os_metadata MODIFY COLUMN os_name ENUM(
+  'ROCKY_LINUX_8','ROCKY_LINUX_9','ROCKY_LINUX_10','RHEL_8','RHEL_9','RHEL_10',
+  'WINDOWS_SERVER_2025','UBUNTU') NOT NULL;
+ALTER TABLE subprogram MODIFY COLUMN os_name ENUM(
+  'ROCKY_LINUX_8','ROCKY_LINUX_9','ROCKY_LINUX_10','RHEL_8','RHEL_9','RHEL_10',
+  'WINDOWS_SERVER_2025','UBUNTU') DEFAULT NULL;</code></pre>
+        <p>S23-1-a = 같은 캠페인 브랜치에서 S23-1 뒤 커밋으로 미리 준비: 미지원 상수 넷과 <code>OSCatalogStatus</code> 의 LEGACY 분기 제거 + 위 DDL.</p>
+
+        <h4>UE 영향 (UE 와 합의된 내용)</h4>
+        <table>
+          <thead><tr><th>UE 단계</th><th>쓰는 것</th><th>S23-1 뒤</th></tr></thead>
+          <tbody>
+            <tr><td>b-3 (로컬 503c1e9, 미병합) <code>KickstartRenderer</code></td><td><code>RhelRelease.major()</code> · <code>supportsRootSshFlag()</code></td><td>무변경</td></tr>
+            <tr><td>b-3 <code>RhelInstallationResolutionProviderImpl</code></td><td><code>OSMetadata.rhelRelease()</code>, <code>OSMetadata.displayName()</code></td><td>무변경(rhelRelease 내부만, displayName 형식 유지)</td></tr>
+            <tr><td>b-3 테스트 <code>KickstartFixtures</code>, <code>KickstartRendererTest</code></td><td><code>RhelRelease.ROCKY_8</code> · 9 · 10</td><td>R8 · R9 · R10 으로 고침(UE 가 dev 흡수 때)</td></tr>
+            <tr><td>b-3 테스트 <code>RhelInstallationResolutionProviderImplTest</code></td><td><code>RhelRelease.of(OSName.ROCKY_LINUX, v)</code>, <code>stubOs("7.9")</code></td><td><code>OSName.ROCKY_LINUX_9</code> 등으로 고침. 7.9 는 미지원 ROCKY_LINUX 라 rhelRelease 가 비어 같은 결과</td></tr>
+            <tr><td>b-4-1</td><td>RhelRelease 안 씀</td><td>무변경</td></tr>
+            <tr><td>b-4-2</td><td><code>TreeInfo.matches(osName, osVersion)</code>, <code>OSMetadata.displayName()</code>, RhelRelease major · supportsRootSshFlag · covers · of(osName, version)</td><td>무변경(시그니처 · 형식 유지)</td></tr>
+          </tbody>
+        </table>
+        <p>병합 순서: S23-1 이 먼저 dev, UE 의 RHEL 일괄 PR 이 흡수(UE 동의).</p>
+
+        <h4>관리 포인트 원장 반영 (같은 PR)</h4>
+        <table>
+          <thead><tr><th><code>docs/dev/maintenance-points.md</code> 절</th><th>바뀐 뒤 할 일</th></tr></thead>
+          <tbody>
+            <tr><td>새 Rocky Linux 메이저 출시</td><td>OSName 상수 + RhelRelease 멤버 추가 (<code>MVP_OS_NAMES</code> · <code>SUPPORTED</code> · <code>verifyRelease</code> 행은 능력 메서드로 흡수되어 사라짐)</td></tr>
+            <tr><td>새 RHEL 계열 배포판 지원</td><td>OSName 상수 + RhelRelease 멤버 추가</td></tr>
+            <tr><td>새 Windows Server 버전 또는 에디션</td><td>OSName 상수 + WindowsServerRelease 상수(빌드)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>RHEL 실 ISO 확인 (D-9, Q3 사용자 결정)</h4>
+        <p>사용자 제공 ISO 세 개(2026-11-18): <code>~/Downloads/rhel-8.8-x86_64-dvd.iso</code>, <code>rhel-9.7-x86_64-dvd.iso</code>, <code>rhel-10.0-x86_64-dvd.iso</code>. CP5 에서 이 세 ISO 로 .treeinfo <code>[release] name</code>(예상 "Red Hat Enterprise Linux"), 설치 트리 배치(<code>images/pxeboot</code>, <code>BaseOS/repodata</code>), comps 위치를 확인한다. 예상과 다르면 RHEL 상수의 displayName 또는 대조 규칙을 고친다.</p>
+
+        <h4>Open Questions</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td>Q2</td><td>Windows Server 버전 확인 방식</td><td><span class="chip new">결정</span> B + D (D-3)</td></tr>
+            <tr><td>Q3</td><td>RHEL 실 ISO 확보</td><td><span class="chip new">결정</span> 사용자 제공 8.8 · 9.7 · 10.0 세 ISO (D-9)</td></tr>
+            <tr><td>O-1</td><td>샌드박스 enum 컬럼 CHECK 정리 필요 여부</td><td><span class="chip cp4">CP4</span> Step 9 확인</td></tr>
+            <tr><td>O-2</td><td>Windows 빌드 불일치 사유 문구</td><td><span class="chip opt">design-review</span></td></tr>
+            <tr><td>O-3</td><td>ISO 추가 거절 · 드라이버 저장 거절의 예외 클래스</td><td><span class="chip cp2">CP2</span> <code>new-exception.md</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트 · CP5 계획</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="S23-1-verify">
+          <li><label><input type="checkbox" data-key="build"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="ddl"> <span><code>ddl/S23-1_os_catalog.sql</code> 적용 + <code>SHOW CREATE TABLE</code> (두 컬럼)</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과 (<code>DesignConventionTest</code> 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>샌드박스 브라우저 검증 (CP5, 항목별 스크린샷)</span></label></li>
+          <li><label><input type="checkbox" data-key="design"> <span>화면 문구 · 배지 design-review</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html 산출 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="e2e"> <span>브라우저 E2E (CP7, 사용자 단독)</span></label></li>
+        </ul>
+        <h4>CP5 계획 개요 (식별자는 CP5 계획에서 확정)</h4>
+        <p>샌드박스: <code>sandbox</code> skill 로 새로 띄우고 S23-1 DDL 적용. 미지원 행은 SQL 로 심는다(ROCKY_LINUX 7.9, CENTOS 7.9, WINDOWS_SERVER 2022). Windows 소스는 가짜 install.wim(빌드 26100 과 20348 두 벌). RHEL 은 사용자 제공 ISO 세 개(<code>~/Downloads/rhel-8.8-x86_64-dvd.iso</code>, <code>rhel-9.7-x86_64-dvd.iso</code>, <code>rhel-10.0-x86_64-dvd.iso</code>)로 .treeinfo name · 트리 배치 · comps 위치를 확인한다(D-9).</p>
+        <table>
+          <thead><tr><th>ID</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>A1~A3</td><td>등록: Rocky 9, RHEL 9, Windows 2025</td></tr>
+            <tr><td>A4</td><td>목록 메이저 묶음</td></tr>
+            <tr><td>A5</td><td>사용자 제공 RHEL ISO(8.8 · 9.7 · 10.0) 등록과 추출 성공, .treeinfo name · 트리 배치 · comps 위치 확인</td></tr>
+            <tr><td>A6</td><td>정의서 셀렉트 묶음</td></tr>
+            <tr><td>A7</td><td>드라이버 선택지</td></tr>
+            <tr><td>B1</td><td>Rocky 8 ISO 를 Rocky 9 아래 등록 → 등록 실패</td></tr>
+            <tr><td>B2</td><td>RHEL ISO 를 Rocky 아래 → 등록 실패</td></tr>
+            <tr><td>B3</td><td>미지원 OS 에 ISO 추가 직접 POST</td></tr>
+            <tr><td>B4</td><td>Windows ISO 추출 직접 POST</td></tr>
+            <tr><td>B5</td><td>빌드 20348 소스로 정의서 저장</td></tr>
+            <tr><td>B6</td><td>미지원 OS 정의서 저장</td></tr>
+            <tr><td>C</td><td>막는 방식(비활성 · 사유 · 배지)과 문구</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <p>Java 경로 앞부분 <code>src/main/java/com/example/serverprovision/</code> 생략.</p>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/enums/OSName.java</code></td><td>상수 12(지원 8 + 미지원 4), major · status, registrable · label · extractable · registrableValues</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/os/enums/OSCatalogStatus.java</code></td><td>SUPPORTED, LEGACY</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/enums/RhelRelease.java</code></td><td>R8 · R9 · R10 + Set&lt;OSName&gt;, of(OSName), osName · displayName · supportedMajors 제거</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/os/enums/WindowsServerRelease.java</code></td><td>W2025(2025, 26100), of(OSName), matchesBuild</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/entity/OSMetadata.java</code></td><td>windowsServerRelease() 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/dto/request/OSMetadataCreateRequest.java</code></td><td>rhelRelease · isRhelReleaseValid 제거, registrable · 메이저 일치 검증</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/dto/response/OsRegistrationOption.java</code></td><td>OSName 하나에서 생성</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/controller/OSMetadataController.java</code></td><td>MVP_OS_NAMES 제거</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/vo/TreeInfo.java</code></td><td>matches 시그니처 유지, osName.major 로 비교</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/comps/CompsExtractionService.java</code></td><td>verifyRelease 대상 = 지원 RHEL 계열</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/comps/extractor/RHELCompsExtractor.java</code></td><td>SUPPORTED 제거, supports = extractable()</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/comps/CompsExtractionLauncher.java</code></td><td>동기 가드 extractable()</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/dto/response/ISOResponse.java</code></td><td>extractable 필드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/iso/IsoRegistrationService.java</code></td><td>미지원 OS 거절 가드, 충돌 잔재 정리</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/service/reference/os/OsInstallTargetPolicy.java</code></td><td>registrable 선판정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/service/reference/os/RHELInstallationFamilyInspector.java</code></td><td>unsupportedReason = 지원 RHEL 상수 라벨 목록</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/service/reference/os/WindowsInstallationFamilyInspector.java</code></td><td>소스 준비 다음 빌드 판정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/windows/WindowsInstallReadiness.java</code></td><td>빌드 판정</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/service/JpaSettingQueryService.java</code></td><td>findOSOptions 묶음 키 OSName</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/subprogram/controller/SubprogramController.java</code>, <code>SubprogramControllerSupport.java</code>, Subprogram 저장 서비스</td><td>registrableValues, 서버 가드</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/management/os/new.html</code>, <code>static/management/os/os-metadata-new.js</code></td><td>선택지 한 줄씩, 숨은 입력 · JS 제거, 버전 칸 규칙</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/management/os/list.html</code></td><td>미지원 배지, [추출] 조건, ISO 추가 비활성</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/management/subprogram/subprogram-new.html</code>, <code>subprogram-edit.html</code></td><td>드라이버 OS 선택지</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/system/asset/dashboard.html</code></td><td>Windows 설치 소스 칩 빌드 불일치</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ddl/S23-1_os_catalog.sql</code></td><td>D-7</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>docs/deploy/pending/S23-1.md</code></td><td>점검 SQL, DDL 두 파일, 판단 흐름</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>docs/dev/maintenance-points.md</code></td><td>세 절</td></tr>
+            <tr><td><span class="chip new">신규</span> (S23-1-a)</td><td><code>ddl/S23-1-a_os_catalog_legacy_drop.sql</code></td><td>가드 + ENUM 축소</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>OSMetadataRepository</code></td><td>OrderByOsNameAsc 그대로 (정렬 = ENUM 선언 순서)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤 · 잔존 책임</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="S23-1-next">
+          <li><label><input type="checkbox" data-key="s231a"> <span>미지원 상수 4: D-8 흐름으로 배포 직후 S23-1-a 로 제거</span></label></li>
+          <li><label><input type="checkbox" data-key="rheliso"> <span>RHEL 실 ISO 확인: CP5 (사용자 제공 rhel-8.8 · 9.7 · 10.0 ISO 세 개)</span></label></li>
+          <li><label><input type="checkbox" data-key="ubuntu"> <span>Ubuntu 설치: RHEL 계열 직후 별도 단계 (UBUNTU 는 등록 가능, 설치는 계열 검사기가 지금처럼 막음)</span></label></li>
+          <li><label><input type="checkbox" data-key="s232"> <span>S23-2 (메인보드 카탈로그)로 이어짐</span></label></li>
+          <li><label><input type="checkbox" data-key="ue"> <span>UE 의 RHEL 일괄 PR 이 S23-1 을 흡수 (테스트 상수 R8 · R9 · R10)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script type="text/plain" id="prod-css">
+/* global/reset.css */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+@media (prefers-reduced-motion: no-preference) {
+    :host {
+        scroll-behavior: smooth;
+    }
+}
+[data-shot-root] {
+    margin: 0;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+}
+hr {
+    margin: 1rem 0;
+    color: inherit;
+    border: 0;
+    border-top: 1px solid;
+    opacity: 0.25;
+}
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    line-height: 1.2;
+}
+h1 { font-size: calc(1.375rem + 1.5vw); }
+h2 { font-size: calc(1.325rem + 0.9vw); }
+h3 { font-size: calc(1.3rem + 0.6vw); }
+h4 { font-size: calc(1.275rem + 0.3vw); }
+h5 { font-size: 1.25rem; }
+h6 { font-size: 1rem; }
+@media (min-width: 1200px) {
+    h1 { font-size: 2.5rem; }
+    h2 { font-size: 2rem; }
+    h3 { font-size: 1.75rem; }
+    h4 { font-size: 1.5rem; }
+}
+p {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+ol, ul {
+    padding-left: 2rem;
+}
+dl, ol, ul {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+dt {
+    font-weight: 700;
+}
+dd {
+    margin-bottom: 0.5rem;
+    margin-left: 0;
+}
+b, strong {
+    font-weight: bolder;
+}
+small {
+    font-size: 0.875em;
+}
+a {
+    text-decoration: underline;
+}
+code, kbd, pre, samp {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 1em;
+}
+pre {
+    display: block;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    overflow: auto;
+    font-size: 0.875em;
+}
+code {
+    font-size: 0.875em;
+    overflow-wrap: break-word;
+}
+kbd {
+    padding: 0.1875rem 0.375rem;
+    font-size: 0.875em;
+    color: #fff;
+    background-color: #212529;
+    border-radius: 0.25rem;
+}
+img, svg {
+    vertical-align: middle;
+}
+table {
+    caption-side: bottom;
+    border-collapse: collapse;
+}
+th {
+    text-align: -webkit-match-parent;
+}
+thead, tbody, tfoot, tr, td, th {
+    border-color: inherit;
+    border-style: solid;
+    border-width: 0;
+}
+label {
+    display: inline-block;
+}
+button {
+    border-radius: 0;
+}
+button:focus:not(:focus-visible) {
+    outline: 0;
+}
+input, button, select, optgroup, textarea {
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+button, select {
+    text-transform: none;
+}
+[role="button"] {
+    cursor: pointer;
+}
+select {
+    word-wrap: normal;
+}
+select:disabled {
+    opacity: 1;
+}
+button,
+[type="button"],
+[type="reset"],
+[type="submit"] {
+    -webkit-appearance: button;
+}
+button:not(:disabled),
+[type="button"]:not(:disabled),
+[type="reset"]:not(:disabled),
+[type="submit"]:not(:disabled) {
+    cursor: pointer;
+}
+::-webkit-file-upload-button {
+    font: inherit;
+    -webkit-appearance: button;
+}
+::file-selector-button {
+    font: inherit;
+    -webkit-appearance: button;
+}
+textarea {
+    resize: vertical;
+}
+summary {
+    display: list-item;
+    cursor: pointer;
+}
+[hidden] {
+    display: none !important;
+}
+/* global/style.css */
+:host {
+    --n-bg: #f5f5f4;
+    --n-surface: #ffffff;
+    --n-sunken: #fafaf9;          
+    --n-thead: #ededeb;           
+    --n-row-hover: #f4f4f2;
+    --n-text: #1b1b1a;
+    --n-text-sec: #545452;
+    --n-text-muted: #8d8d8a;
+    --n-border: rgba(27, 27, 26, 0.13);
+    --n-border-row: rgba(27, 27, 26, 0.07);
+    --n-border-form: rgba(27, 27, 26, 0.24);
+    --n-blue: #2f55a4;
+    --n-blue-hover: #24427f;
+    --n-blue-badge-bg: #edf1f9;
+    --n-blue-badge-text: #2f55a4;
+    --n-green: #0f8a4d;
+    --n-orange: #c2560a;          
+    --n-red: #c02626;             
+    --n-red-hover: #951c1c;
+    --n-yellow: #a97a1e;          
+    --n-yellow-bg: #fbf3e2;
+    --n-red-bg: #f9eaea;
+    --n-teal: #17868c;
+    --n-warm-dark: #1f1f1e;       
+    --n-side-text: #c9c9c5;
+    --n-side-muted: #91918b;
+    --n-side-on: #f4f4f2;
+    --n-on-accent: #ffffff;       
+    --n-overlay: rgba(20, 20, 19, 0.45);  
+    --n-shadow-card: none;        
+    --n-radius: 4px;
+    --n-radius-lg: 6px;
+    --n-font-sans: 'IBM Plex Sans KR', -apple-system, system-ui, 'Segoe UI', sans-serif;
+    --n-font-mono: 'IBM Plex Mono', 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+    --n-error: var(--n-red);
+}
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+[data-shot-root] {
+    background: var(--n-bg);
+    overscroll-behavior-y: none;
+}
+[data-shot-root] {
+    font-family: var(--n-font-sans);
+    background: var(--n-bg);
+    color: var(--n-text);
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0;
+    display: flex;
+    align-items: flex-start;
+    min-height: 100vh;
+    font-variant-numeric: tabular-nums;
+    overscroll-behavior-y: none;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+}
+a {
+    color: var(--n-blue);
+}
+a:hover {
+    color: var(--n-blue-hover);
+}
+code {
+    font-family: var(--n-font-mono);
+    font-feature-settings: "tnum";
+    font-size: 0.9em;
+    font-weight: 400;
+    color: var(--n-text);
+    background: none;
+    border: 0;
+    padding: 0;
+    vertical-align: baseline;
+}
+kbd {
+    color: var(--n-surface);
+    background-color: var(--n-warm-dark);
+    border-radius: var(--n-radius);
+}
+.n-code-block {
+    background: var(--n-sunken);
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    padding: 14px 16px;
+    margin: 0;
+    font-family: var(--n-font-mono);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--n-text);
+    white-space: pre;
+    overflow-x: auto;
+}
+.n-icon {
+    width: 1em;
+    height: 1em;
+    flex-shrink: 0;
+    fill: currentColor;
+    vertical-align: -0.125em;
+}
+:where(a:has(> .n-icon)) { display: inline-flex; align-items: center; gap: 4px; }
+.n-nav {
+    flex: 0 0 228px;
+    width: 228px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--n-side-on) 22%, transparent) transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1px;
+    padding: 16px 0;
+    background: var(--n-warm-dark);
+    border-right: 1px solid var(--n-border);
+    z-index: 100;
+}
+.n-nav::-webkit-scrollbar { width: 8px; }
+.n-nav::-webkit-scrollbar-track { background: transparent; }
+.n-nav::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--n-side-on) 22%, transparent);
+    border-radius: 4px;
+}
+.n-nav > * { flex-shrink: 0; }
+.n-nav-brand {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--n-side-on);
+    text-decoration: none;
+    margin: 0 0 14px;
+    padding: 0 18px;
+    letter-spacing: -0.2px;
+}
+.n-nav-group {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--n-side-muted);
+    padding: 16px 18px 6px;
+}
+.n-nav-link {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 400;
+    color: var(--n-side-text);
+    text-decoration: none;
+    padding: 6px 18px;
+    border-left: 3px solid transparent;
+    transition: background .15s, color .15s;
+    white-space: nowrap;
+}
+.n-nav-link:hover {
+    background: color-mix(in srgb, var(--n-side-on) 6%, transparent);
+    color: var(--n-side-on);
+}
+.n-nav-link.active {
+    background: color-mix(in srgb, var(--n-side-on) 9%, transparent);
+    color: var(--n-side-on);
+    font-weight: 600;
+    border-left-color: var(--n-blue);
+}
+.n-nav-link[aria-disabled="true"] {
+    color: var(--n-side-muted);
+    cursor: not-allowed;
+}
+.n-nav-link[aria-disabled="true"]:hover {
+    background: transparent;
+    color: var(--n-side-muted);
+}
+.n-nav-spacer {
+    flex: 1 1 auto;
+}
+.n-nav-locked a.n-nav-link:not([data-nav-always]),
+.n-nav-locked .n-nav-brand {
+    pointer-events: none;
+    opacity: .4;
+}
+.n-nav-locked-note {
+    margin: 0;
+    font-size: 12px;
+    word-break: keep-all;   
+    color: #cbd5e1;
+    padding: 6px 18px 2px;
+}
+.n-nav-user {
+    display: block;
+    font-size: 12.5px;
+    color: var(--n-side-text);
+    padding: 0 18px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.n-nav-form {
+    display: contents;
+}
+.n-nav-link-button {
+    width: 100%;
+    background: none;
+    border: 0;
+    border-left: 3px solid transparent;
+    text-align: left;
+    font-family: inherit;
+    font-size: 13.5px;
+    cursor: pointer;
+}
+.n-page,
+.n-page-md,
+.n-page-lg {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 24px 28px;
+    margin: 0 auto;
+}
+.n-page {
+    max-width: 1440px;
+}
+.n-page-md {
+    max-width: 960px;
+}
+.n-page-lg {
+    max-width: 1200px;
+}
+.n-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.n-page-title {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.625px;
+    line-height: 1.23;
+    margin: 0;
+    flex-shrink: 0;
+    word-break: keep-all;
+}
+.n-page-header .n-back-link {
+    white-space: nowrap;
+}
+.n-card {
+    background: var(--n-surface);
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    box-shadow: var(--n-shadow-card);
+    overflow: clip;
+    overflow-clip-margin: 90px;
+    margin-bottom: 20px;
+}
+.n-card-body {
+    padding: 22px 24px;
+}
+.n-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--n-text);
+    margin: 0 0 16px;
+}
+.n-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--n-sunken);
+    border-bottom: 1px solid var(--n-border);
+}
+.n-card-head-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.n-card-head-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+.n-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: none;
+    border-radius: var(--n-radius);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    padding: 6px 13px;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background .15s, color .15s, transform .1s;
+}
+.n-btn:active {
+    transform: scale(0.95);
+}
+.n-btn:disabled,
+.n-btn.n-btn-disabled {
+    background: color-mix(in srgb, var(--n-text) 10%, transparent);
+    color: var(--n-text-muted);
+    border-color: transparent;
+    opacity: 1;
+    cursor: not-allowed;
+}
+.n-btn.n-btn-disabled {
+    pointer-events: none;
+}
+.n-btn-sm {
+    font-size: 13px;
+    padding: 3px 9px;
+}
+.n-glist-head .n-btn,
+.n-detail-table .n-actions .n-btn,
+.n-accordion-field .n-actions .n-btn {
+    font-size: 13px;
+    padding: 3px 9px;
+}
+.n-btn-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+.n-btn-tooltip-wrap,
+.n-tooltip {
+    position: relative;
+    display: inline-block;
+}
+.n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]):hover::after,
+.n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]):focus-within::after,
+.n-tooltip[data-tooltip]:hover::after,
+.n-tooltip[data-tooltip]:focus-within::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: color-mix(in srgb, var(--n-warm-dark) 88%, transparent);
+    color: var(--n-side-on);
+    padding: 6px 10px;
+    border-radius: var(--n-radius);
+    font-size: 13px;
+    line-height: 1.4;
+    width: max-content;
+    max-width: min(260px, 80vw);
+    word-break: keep-all;
+    white-space: normal;
+    text-align: center;
+    pointer-events: none;
+    z-index: 1100;
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--n-text) 14%, transparent);
+}
+.n-btn-tooltip-wrap[data-tooltip-align="right"][data-tooltip]:not([data-tooltip-active="false"]):hover::after,
+.n-btn-tooltip-wrap[data-tooltip-align="right"][data-tooltip]:not([data-tooltip-active="false"]):focus-within::after,
+.n-tooltip[data-tooltip-align="right"][data-tooltip]:hover::after,
+.n-tooltip[data-tooltip-align="right"][data-tooltip]:focus-within::after {
+    left: auto;
+    right: 0;
+    transform: none;
+}
+.n-tooltip.n-tooltip-float[data-tooltip]:hover::after,
+.n-tooltip.n-tooltip-float[data-tooltip]:focus-within::after {
+    position: fixed;
+    bottom: auto;
+    left: auto;
+    transform: translate(-50%, calc(-100% - 6px));
+}
+.n-btn-primary {
+    background: var(--n-blue);
+    color: var(--n-on-accent);
+}
+.n-btn-primary:hover:not(:disabled):not(.n-btn-disabled) {
+    background: var(--n-blue-hover);
+    color: var(--n-on-accent);
+}
+.n-btn-secondary {
+    background: color-mix(in srgb, var(--n-text) 6%, transparent);
+    color: var(--n-text);
+}
+.n-btn-secondary:hover:not(:disabled):not(.n-btn-disabled) {
+    background: color-mix(in srgb, var(--n-text) 10%, transparent);
+    color: var(--n-text);
+}
+.n-btn-outline {
+    background: transparent;
+    color: var(--n-text-sec);
+    border: 1px solid var(--n-border-form);
+    font-weight: 500;
+}
+.n-btn-outline:hover:not(:disabled):not(.n-btn-disabled) {
+    background: color-mix(in srgb, var(--n-text) 6%, transparent);
+    color: var(--n-text);
+    border-color: color-mix(in srgb, var(--n-text) 40%, transparent);
+}
+.n-btn-outline-success,
+.n-btn-outline-warning,
+.n-btn-outline-info,
+.n-btn-outline-danger {
+    background: transparent;
+    font-weight: 500;
+}
+.n-btn-outline-success {
+    color: var(--n-green);
+    border: 1px solid color-mix(in srgb, var(--n-green) 32%, transparent);
+}
+.n-btn-outline-success:hover:not(:disabled):not(.n-btn-disabled) {
+    background: color-mix(in srgb, var(--n-green) 10%, transparent);
+    border-color: color-mix(in srgb, var(--n-green) 60%, transparent);
+}
+.n-btn-outline-danger {
+    color: var(--n-orange);
+    border: 1px solid color-mix(in srgb, var(--n-orange) 32%, transparent);
+}
+.n-btn-outline-danger:hover:not(:disabled):not(.n-btn-disabled) {
+    background: color-mix(in srgb, var(--n-orange) 10%, transparent);
+    border-color: color-mix(in srgb, var(--n-orange) 60%, transparent);
+}
+.n-btn-outline-info {
+    color: var(--n-blue);
+    border: 1px solid color-mix(in srgb, var(--n-blue) 30%, transparent);
+}
+.n-btn-outline-info:hover:not(:disabled):not(.n-btn-disabled) {
+    background: color-mix(in srgb, var(--n-blue) 9%, transparent);
+    border-color: color-mix(in srgb, var(--n-blue) 58%, transparent);
+}
+.n-btn-outline-warning {
+    color: var(--n-yellow);
+    border: 1px solid color-mix(in srgb, var(--n-yellow) 34%, transparent);
+}
+.n-btn-outline-warning:hover:not(:disabled):not(.n-btn-disabled) {
+    background: color-mix(in srgb, var(--n-yellow) 12%, transparent);
+    border-color: color-mix(in srgb, var(--n-yellow) 62%, transparent);
+}
+.n-btn-danger {
+    background: var(--n-red);
+    color: var(--n-on-accent);
+    border: 1px solid var(--n-red);
+}
+.n-btn-danger:hover:not(:disabled):not(.n-btn-disabled) {
+    background: var(--n-red-hover);
+    border-color: var(--n-red-hover);
+    color: var(--n-on-accent);
+}
+.n-btn-danger:disabled {
+    background: color-mix(in srgb, var(--n-text) 10%, transparent);
+    color: var(--n-text-muted);
+    border-color: transparent;
+    cursor: not-allowed;
+}
+.n-actions .n-btn-danger {
+    background: transparent;
+    color: var(--n-red);
+    border: 1px solid color-mix(in srgb, var(--n-red) 55%, transparent);
+    font-weight: 600;
+}
+.n-actions .n-btn-danger:hover:not(:disabled):not(.n-btn-disabled) {
+    background: var(--n-red);
+    border-color: var(--n-red);
+    color: var(--n-on-accent);
+}
+.n-badge {
+    display: inline-block;
+    border-radius: var(--n-radius);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1px;
+    padding: 2px 7px;
+    white-space: nowrap;
+}
+.n-badge-blue {
+    background: var(--n-blue-badge-bg);
+    color: var(--n-blue-badge-text);
+}
+.n-badge-green {
+    background: color-mix(in srgb, var(--n-green) 10%, transparent);
+    color: var(--n-green);
+}
+.n-badge-red {
+    background: color-mix(in srgb, var(--n-red) 10%, transparent);
+    color: var(--n-red);
+}
+.n-badge-orange {
+    background: color-mix(in srgb, var(--n-orange) 10%, transparent);
+    color: var(--n-orange);
+}
+.n-badge-yellow {
+    background: var(--n-yellow-bg);
+    color: var(--n-yellow);
+}
+.n-badge-off {
+    background: color-mix(in srgb, var(--n-text) 7%, transparent);
+    color: var(--n-text-sec);
+}
+.n-badge-gray {
+    background: transparent;
+    color: var(--n-text-muted);
+    box-shadow: inset 0 0 0 1px var(--n-border-form);
+}
+.n-title-badge {
+    margin-left: 10px;
+    vertical-align: middle;
+}
+.n-deprecated-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--n-yellow);
+    margin-left: 6px;
+    vertical-align: middle;
+}
+.n-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--n-text-sec);
+    cursor: pointer;
+    user-select: none;
+    padding: 6px 4px;
+}
+.n-checkbox input[type="checkbox"],
+.n-checkbox input[type="radio"] {
+    cursor: pointer;
+    accent-color: var(--n-blue);
+    width: 14px;
+    height: 14px;
+    margin: 0;
+}
+.n-checkbox:hover {
+    color: var(--n-text);
+}
+.n-badge-teal {
+    background: color-mix(in srgb, var(--n-teal) 10%, transparent);
+    color: var(--n-teal);
+}
+.n-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.n-table thead th {
+    background: var(--n-thead);
+    color: var(--n-text-sec);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--n-border);
+    border-right: 1px solid var(--n-border-row);
+    white-space: nowrap;
+}
+.n-table thead th:last-child {
+    border-right: 0;
+}
+.n-table thead th.center {
+    text-align: center;
+}
+.n-table tbody td {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--n-border-row);
+    border-right: 1px solid var(--n-border-row);
+    color: var(--n-text);
+    vertical-align: middle;
+    font-size: 14px;
+}
+.n-table tbody td:last-child {
+    border-right: 0;
+}
+.n-table tbody td.center {
+    text-align: center;
+}
+.n-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.n-table tbody tr:hover td {
+    background: var(--n-row-hover);
+}
+.n-table-mono {
+    font-family: var(--n-font-mono);
+    font-feature-settings: "tnum";
+    font-size: 14px;
+    color: var(--n-text);
+    font-weight: 400;
+}
+.n-detail-table .n-table-mono {
+    overflow-wrap: anywhere;
+}
+.n-row-link {
+    font-weight: 600;
+    color: var(--n-text);
+    text-decoration: none;
+    cursor: pointer;
+}
+.n-row-link:hover {
+    text-decoration: underline;
+}
+.n-mono {
+    font-family: var(--n-font-mono);
+    font-feature-settings: "tnum";
+    font-size: 13px;
+}
+.n-table-muted {
+    color: var(--n-text-muted);
+}
+.n-text-muted,
+.n-muted {
+    color: var(--n-text-muted);
+}
+.n-table-empty td {
+    text-align: center;
+    color: var(--n-text-muted);
+    padding: 56px 16px !important;
+    font-size: 14px;
+}
+.n-form-group {
+    margin-bottom: 30px;
+}
+.n-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--n-text);
+    margin-bottom: 6px;
+}
+.n-label.strong {
+    font-size: 15px;
+    font-weight: 600;
+}
+.n-label.blue {
+    color: var(--n-blue);
+    font-weight: 600;
+}
+.n-input,
+.n-select {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--n-border-form);
+    border-radius: var(--n-radius);
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--n-text);
+    background: var(--n-surface);
+    padding: 8px 10px;
+    transition: border-color .15s, box-shadow .15s;
+    appearance: auto;
+    -webkit-appearance: auto;
+}
+.n-input:focus, .n-select:focus {
+    outline: none;
+    border-color: var(--n-blue);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--n-blue) 14%, transparent);
+}
+.n-input::placeholder {
+    color: var(--n-text-muted);
+}
+.n-input[readonly] {
+    background: var(--n-bg);
+    color: var(--n-text-sec);
+    cursor: default;
+}
+.n-input:disabled,
+.n-textarea:disabled,
+.n-select:disabled {
+    background: var(--n-bg);
+    color: var(--n-text-muted);
+    border-color: var(--n-border);
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+.n-input.is-invalid, .n-select.is-invalid {
+    border-color: var(--n-error);
+}
+.n-textarea {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--n-border-form);
+    border-radius: var(--n-radius);
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--n-text);
+    background: var(--n-surface);
+    padding: 8px 10px;
+    resize: vertical;
+    min-height: 100px;
+    transition: border-color .15s, box-shadow .15s;
+}
+.n-textarea:focus {
+    outline: none;
+    border-color: var(--n-blue);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--n-blue) 14%, transparent);
+}
+.n-textarea::placeholder {
+    color: var(--n-text-muted);
+}
+.n-error {
+    font-size: 13px;
+    color: var(--n-error);
+    margin-top: 4px;
+}
+.n-hint {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--n-text-sec);
+    margin: 4px 0 6px;
+}
+.n-hint + .n-hint {
+    margin-top: -2px;
+}
+.n-hint-warn {
+    color: var(--n-yellow);
+}
+.n-input-group {
+    display: flex;
+}
+.n-input-group .n-input {
+    border-radius: var(--n-radius) 0 0 var(--n-radius);
+    border-right: none;
+    flex: 1;
+}
+.n-input-group .n-btn {
+    border-radius: 0 var(--n-radius) var(--n-radius) 0;
+    flex-shrink: 0;
+}
+.n-section {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--n-text);
+    background: var(--n-sunken);
+    border: 1px solid var(--n-border);
+    border-left: 3px solid var(--n-blue);
+    padding: 7px 12px;
+    margin: 26px 0 14px;
+}
+.n-section:first-child {
+    margin-top: 0;
+}
+.n-divider {
+    border: 0;
+    border-top: 1px solid var(--n-border);
+    margin: 28px 0;
+}
+.n-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+.n-row > * {
+    flex: 1;
+    min-width: 0;
+}
+.n-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.n-actions.center {
+    justify-content: center;
+}
+.n-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.n-note { font-size: 13px; color: var(--n-text-muted); }      
+.n-small { font-size: 13px; }                                   
+.n-strong { font-weight: 600; }
+.n-meta { margin-left: 8px; }                                   
+.n-text-right { text-align: right; }
+.n-btn-block { width: 100%; }                                   
+.n-block-gap { margin-top: 16px; }                              
+.n-block-gap-sm { margin-top: 8px; }                            
+.n-lead { margin-bottom: 14px; }                                
+.n-flush { margin-bottom: 0; }                                  
+.n-stack > * + * { margin-top: 16px; }                          
+.n-break { overflow-wrap: anywhere; }                          
+.n-field-row { display: flex; gap: 8px; }
+.n-field-row > .n-input, .n-field-row > .n-select { flex: 1; min-width: 0; }
+.n-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+.n-check input[type="checkbox"], .n-check input[type="radio"] { margin: 0; accent-color: var(--n-blue); }
+.n-check-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.n-check-list { display: flex; flex-direction: column; gap: 2px; }
+.n-check-list .n-checkbox { align-items: flex-start; padding: 3px 2px; }
+.n-check-list .n-checkbox > input { margin-top: 4px; }
+.n-card-body.n-check-list { padding: 10px 14px; }
+.n-actions form,
+.n-form-actions form,
+.n-header-actions form {
+    display: contents;
+}
+.n-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid var(--n-border);
+}
+.n-detail-table + .n-form-actions,
+.n-table + .n-form-actions,
+.n-tbl-list + .n-form-actions {
+    margin-top: 16px;
+    padding-top: 0;
+    border-top: none;
+}
+:is(.n-card, .n-glist, .n-alert, .n-miller) ~ .n-form-actions {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+.n-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--n-text-sec);
+    text-decoration: none;
+    padding: 0 0 2px;
+    background: transparent;
+    border: 0;
+    transition: color .15s;
+}
+.n-back-link:hover {
+    color: var(--n-blue);
+}
+.n-alert {
+    border-radius: var(--n-radius-lg);
+    padding: 11px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+.n-alert-success {
+    background: color-mix(in srgb, var(--n-green) 7%, transparent);
+    border: 1px solid color-mix(in srgb, var(--n-green) 20%, transparent);
+    color: var(--n-green);
+}
+.n-alert-danger {
+    background: color-mix(in srgb, var(--n-error) 7%, transparent);
+    border: 1px solid color-mix(in srgb, var(--n-error) 22%, transparent);
+    color: var(--n-error);
+}
+.n-alert-warning {
+    background: var(--n-yellow-bg);
+    border: 1px solid color-mix(in srgb, var(--n-yellow) 30%, transparent);
+    color: var(--n-yellow);
+}
+.n-alert-info {
+    background: var(--n-blue-badge-bg);
+    border: 1px solid color-mix(in srgb, var(--n-blue) 20%, transparent);
+    color: var(--n-blue-badge-text);
+}
+.n-alert-muted {
+    background: var(--n-bg);
+    border: 1px solid var(--n-border);
+    color: var(--n-text-sec);
+}
+.n-alert-title { font-size: 16px; font-weight: 600; }
+.n-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+}
+.n-detail-table tr {
+    border-bottom: 1px solid var(--n-border-row);
+}
+.n-detail-table tr:last-child {
+    border-bottom: none;
+}
+.n-detail-table th {
+    width: 180px;
+    padding: 13px 16px 13px 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--n-text-sec);
+    text-align: left;
+    vertical-align: middle;
+}
+.n-detail-table td {
+    padding: 13px 0;
+    font-size: 14px;
+    color: var(--n-text);
+    vertical-align: middle;
+}
+.n-detail-table td > .n-meta:first-child {
+    margin-left: 0;
+}
+.n-detail-section {
+    margin-top: 28px;
+}
+.n-detail-section > .n-section-title {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    margin-bottom: 10px;
+    color: var(--n-text);
+}
+.n-detail-section > .n-section-hint {
+    font-size: 14px;
+    color: var(--n-text-muted);
+    margin-bottom: 12px;
+}
+.n-detail-empty {
+    color: var(--n-text-muted);
+    font-size: 14px;
+    margin: 0;
+    padding: 4px 0;
+}
+.n-browse-panel { margin-top: 10px; border: 1px solid var(--n-border); border-radius: var(--n-radius-lg); padding: 12px; background: var(--n-sunken); }
+.n-browse-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+.n-browse-path { flex: 1; font-size: 13px; word-break: break-all; }
+.n-browse-list { list-style: none; padding: 0; margin: 0 0 8px; max-height: 240px; overflow-y: auto; border: 1px solid var(--n-border); border-radius: var(--n-radius); background: var(--n-surface); }
+.n-browse-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.n-empty {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--n-text-muted);
+}
+.n-empty-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--n-text-sec);
+    margin-bottom: 8px;
+}
+.n-empty-desc {
+    font-size: 14px;
+}
+.n-empty.n-empty-sm { padding: 16px 24px; }
+.n-filter-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-bottom: 14px;
+}
+.n-filter-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.n-filter-search .n-input {
+    width: 260px;
+    font-size: 14px;
+    padding: 5px 10px;
+}
+.n-filter-group,
+.n-filter-sort {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;   
+    gap: 6px;
+}
+.n-filter-label {
+    font-size: 13px;
+    color: var(--n-text-muted);
+    margin-right: 2px;
+}
+.n-filter-sort .n-select {
+    width: auto;
+    font-size: 14px;
+    padding: 4px 8px;
+}
+.n-chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 11px;
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius);
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--n-text);
+    background: var(--n-surface);
+    cursor: pointer;
+    user-select: none;
+    text-decoration: none;
+    white-space: nowrap;   
+}
+.n-chip:hover {
+    background: var(--n-sunken);
+}
+.n-chip input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+    pointer-events: none;
+}
+.n-chip:has(input:checked),
+.n-filter-group:not(:has(input:checked)) > .n-chip-all {
+    background: var(--n-text);
+    color: var(--n-surface);
+    border-color: var(--n-text);
+}
+.n-chip:has(input:focus-visible) {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--n-blue) 14%, transparent);
+}
+.n-filter-group .n-select,
+.n-filter-range .n-input {
+    width: auto;
+    font-size: 14px;
+    padding: 4px 8px;
+}
+.n-filter-search {
+    anchor-name: --list-filter-search;
+}
+.n-filter-bar:has(.n-filter-panel:popover-open) .n-filter-open {
+    background: var(--n-blue-hover);
+}
+.n-filter-panel {
+    position-anchor: --list-filter-search;
+    inset: auto;
+    top: anchor(bottom);
+    left: anchor(left);
+    margin: 6px 0 0;
+    width: min(640px, calc(100vw - 32px));
+    max-height: min(70vh, 560px);
+    overflow: auto;
+    padding: 0;
+    border: 1px solid var(--n-blue);
+    border-radius: var(--n-radius);
+    background: var(--n-surface);
+    color: var(--n-text);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--n-text) 16%, transparent);
+}
+.n-filter-panel:popover-open {
+    display: flex;
+    flex-direction: column;
+}
+@supports not (anchor-name: --a) {
+    .n-filter-panel {
+        top: 72px;
+        left: 50%;
+        translate: -50% 0;
+    }
+}
+@media (max-width: 640px) {
+    .n-filter-panel {
+        left: 16px;
+        right: 16px;
+        width: auto;
+    }
+}
+.n-filter-rows {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 12px;
+}
+.n-filter-row {
+    display: grid;
+    grid-template-columns: 112px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--n-border-row);
+}
+.n-filter-row:last-child {
+    border-bottom: none;
+}
+.n-filter-row-label {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: var(--n-radius);
+    background: var(--n-sunken);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--n-text-sec);
+}
+.n-filter-row-field {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+.n-filter-panel-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--n-border-row);
+}
+@media (max-width: 480px) {
+    .n-filter-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+}
+.n-range-presets {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-left: 8px;
+}
+.n-range-presets .n-chip[aria-pressed="true"] {
+    background: var(--n-text);
+    color: var(--n-surface);
+    border-color: var(--n-text);
+}
+.n-lookup-field {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px;
+    border: 1px solid var(--n-border-form);
+    border-radius: var(--n-radius);
+    background: var(--n-surface);
+}
+.n-lookup-open,
+.n-lookup-clear,
+.n-lookup-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: var(--n-radius);
+    background: transparent;
+    color: var(--n-text-sec);
+    font: inherit;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+.n-lookup-open .n-icon { width: 14px; height: 14px; }
+.n-lookup-open:hover,
+.n-lookup-clear:hover,
+.n-lookup-x:hover {
+    background: var(--n-sunken);
+    color: var(--n-text);
+}
+.n-lookup-field .n-lookup-input {
+    width: 120px;
+    flex: 0 0 auto;
+    padding: 3px 8px;
+    font-size: 13px;
+    border-radius: 999px;
+}
+.n-lookup-chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.n-lookup-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 2px 1px 8px;
+    border-radius: 999px;
+    background: var(--n-blue-badge-bg);
+    color: var(--n-blue-badge-text);
+    font-size: 13px;
+    white-space: nowrap;
+}
+.n-lookup-chip button {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: var(--n-blue);
+    color: var(--n-surface);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+}
+.n-lookup-panel {
+    position: fixed;
+    inset: auto;
+    top: 12vh;
+    left: 50%;
+    translate: -50% 0;
+    margin: 0;
+    width: min(720px, calc(100vw - 32px));
+    max-height: 72vh;
+    padding: 0;
+    border: 1px solid var(--n-blue);
+    border-radius: var(--n-radius);
+    background: var(--n-surface);
+    color: var(--n-text);
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--n-text) 22%, transparent);
+}
+.n-lookup-panel:popover-open {
+    display: flex;
+    flex-direction: column;
+}
+.n-lookup-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--n-blue);
+    color: var(--n-surface);
+    font-size: 14px;
+}
+.n-lookup-head .n-lookup-x {
+    color: var(--n-surface);
+}
+.n-lookup-head .n-lookup-x:hover {
+    background: var(--n-blue-hover);
+    color: var(--n-surface);
+}
+.n-lookup-search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+}
+.n-lookup-search .n-input {
+    width: 220px;
+    padding: 5px 10px;
+    font-size: 14px;
+}
+.n-lookup-results {
+    flex: 1 1 auto;
+    min-height: 120px;
+    overflow: auto;
+    border-top: 1px solid var(--n-border-row);
+    border-bottom: 1px solid var(--n-border-row);
+}
+.n-lookup-results .n-lookup-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    box-shadow: inset 0 -1px 0 var(--n-border);
+}
+.n-lookup-check {
+    width: 36px;
+    text-align: center;
+}
+.n-lookup-pick {
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--n-blue);
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+.n-lookup-pick:hover:not(:disabled) {
+    text-decoration: underline;
+}
+.n-lookup-pick:disabled {
+    color: var(--n-text-muted);
+    cursor: default;
+}
+.n-lookup-row-disabled td {
+    background: var(--n-sunken);
+    color: var(--n-text-muted);
+}
+.n-lookup-row-chosen td {
+    color: var(--n-text-muted);
+}
+.n-lookup-chosen {
+    margin-left: 6px;
+}
+.n-lookup-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--n-text-muted);
+}
+.n-lookup-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+}
+.n-lookup-status {
+    margin-right: auto;
+    font-size: 13px;
+    color: var(--n-text-sec);
+}
+.n-filter-tokens {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    order: 99;          
+    flex-basis: 100%;
+}
+.n-filter-token {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px 2px 9px;
+    border-radius: var(--n-radius);
+    background: var(--n-blue-badge-bg);
+    color: var(--n-blue-badge-text);
+    font-size: 13px;
+    white-space: nowrap;
+}
+.n-filter-token-count {
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--n-blue);
+    color: var(--n-surface);
+    font-size: 11px;
+    line-height: 16px;
+    text-align: center;
+}
+.n-filter-token button {
+    padding: 0 5px;
+    border: none;
+    border-radius: var(--n-radius);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1.4;
+    cursor: pointer;
+}
+.n-filter-token button:hover,
+.n-filter-token button:focus-visible {
+    background: var(--n-surface);
+}
+.n-list-count {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--n-text-sec);
+}
+.n-filter-summary {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--n-text-sec);
+}
+.n-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--n-border);
+    background: var(--n-surface);
+    font-size: 13px;
+}
+.n-pagination-nav {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.n-page-num,
+.n-page-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 999px;
+    color: var(--n-text-sec);
+    font-size: 14px;
+    font-weight: 600;
+    font-feature-settings: "tnum";
+    text-decoration: none;
+}
+a.n-page-num:hover,
+a.n-page-arrow:hover {
+    background: var(--n-sunken);
+    color: var(--n-text);
+}
+.n-page-current {
+    background: var(--n-blue);
+    color: var(--n-surface);
+}
+.n-page-arrow-hidden {
+    visibility: hidden;
+}
+.n-page-jump {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    color: var(--n-text-sec);
+}
+.n-page-jump .n-input {
+    width: 56px;
+    padding: 2px 8px;
+    font-size: 13px;
+    border-radius: 999px;
+}
+.n-pagination-size {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--n-text-sec);
+}
+.n-pagination-size .n-select {
+    width: auto;
+    font-size: 13px;
+    padding: 2px 6px;
+}
+.n-page-fill {
+    height: 100vh;
+    height: 100dvh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+.n-page-fill > *,
+.n-page-fill > [data-live] > * {
+    flex-shrink: 0;
+}
+.n-page-fill > [data-live],
+.n-page-fill > .n-card:has(> .n-table-scroll),
+.n-page-fill > [data-live] > .n-card:has(> .n-table-scroll) {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.n-page-fill .n-card:has(> .n-table-scroll) {
+    margin-bottom: 0;
+}
+.n-table-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+.n-table-scroll .n-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    box-shadow: inset 0 -1px 0 var(--n-border);
+}
+@media (max-width: 640px) {
+    .n-page-fill {
+        height: auto;
+        display: block;
+    }
+    .n-table-scroll {
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+    .n-pagination {
+        flex-wrap: wrap;
+    }
+}
+.n-banner {
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    border-radius: var(--n-radius);
+    font-size: 14px;
+}
+.n-banner-info {
+    background: var(--n-sunken);
+    border-left: 3px solid var(--n-blue);
+}
+.n-banner-warn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--n-yellow-bg);
+    border-left: 3px solid var(--n-yellow);
+    color: var(--n-text);
+}
+.n-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    border-bottom: 1px solid var(--n-border);
+    margin-bottom: 20px;
+    overflow: visible;
+}
+.n-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--n-text-sec);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    transition: color 0.12s ease, border-color 0.12s ease;
+}
+.n-tab:hover {
+    color: var(--n-text);
+}
+.n-tab[aria-selected="true"] {
+    color: var(--n-blue);
+    font-weight: 600;
+    border-bottom-color: var(--n-blue);
+}
+.n-tab-panel {
+    display: none;
+}
+.n-tab-panel.is-active {
+    display: block;
+}
+/* css/form-validation.css */
+input.has-error,
+select.has-error,
+textarea.has-error {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--n-error) 55%, transparent) !important;
+    border-color: color-mix(in srgb, var(--n-error) 45%, transparent) !important;
+    background-color: color-mix(in srgb, var(--n-error) 3%, transparent) !important;
+    border-radius: var(--n-radius);
+}
+div.has-error,
+table.has-error {
+    box-shadow: none !important;
+    outline: none !important;
+    border-left: 2px solid color-mix(in srgb, var(--n-error) 65%, transparent) !important;
+    border-radius: 0 var(--n-radius) var(--n-radius) 0 !important;
+    background: color-mix(in srgb, var(--n-error) 3%, transparent) !important;
+    padding-left: 10px;
+}
+.field-error-message {
+    color: var(--n-error);
+    font-size: 0.75rem;
+    margin-top: 6px;
+    font-weight: 500;
+    letter-spacing: 0.025em;
+}
+.n-form-meta {
+    margin: 0 0 8px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--n-text-muted);
+    opacity: 0.85;
+}
+.n-form-meta span {
+    color: var(--n-text);
+}
+.n-group-inert .n-option-row {
+    opacity: 0.5;
+}
+.n-hidden {
+    display: none;
+}
+.n-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.n-inline-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.n-inline-row .n-hint {
+    margin: 0;
+}
+.n-input-narrow {
+    max-width: 140px;
+}
+.n-option-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--n-border);
+}
+.n-form-group > .n-option-row:not(:has(~ .n-option-row)) {
+    border-bottom: none;
+}
+.n-option-row > input[type="checkbox"],
+.n-option-row > input[type="radio"] {   
+    margin-top: 3px;
+}
+.n-option-row > label {
+    flex: 1;
+    cursor: pointer;
+}
+.n-option-title {
+    font-weight: 600;
+}
+.n-option-row .n-badge {
+    margin-left: 6px;
+}
+.n-option-desc {
+    display: block;
+    margin: 2px 0 0;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--n-text-muted);
+}
+.n-option-warn {
+    color: var(--n-red);
+}
+.n-error-list {
+    margin: 0;
+    padding-left: 18px;
+}
+.n-fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+.n-fieldset:disabled {
+    opacity: .55;
+}
+.n-inline-row > .n-input {
+    flex: 1;
+    min-width: 0;
+}
+/* css/miller.css */
+.n-miller {
+    display: flex;
+    background: var(--n-surface);
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    box-shadow: var(--n-shadow-card);
+    overflow: hidden;
+    height: calc(100vh - 220px);
+    min-height: 480px;
+    max-height: 860px;
+}
+.n-miller-col {
+    border-right: 1px solid var(--n-border);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.n-miller-col:last-child {
+    border-right: none;
+}
+.n-miller-col-names {
+    width: 250px;
+    flex-shrink: 0;
+}
+.n-miller-col-versions {
+    width: 280px;
+    flex-shrink: 0;
+}
+.n-miller-col-detail {
+    flex: 1;
+    min-width: 0;
+}
+.n-miller-col-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--n-thead);
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--n-text-sec);
+    border-bottom: 1px solid var(--n-border);
+}
+.n-miller-item {
+    display: block;
+    width: 100%;
+    padding: 13px 18px;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--n-text);
+    cursor: pointer;
+    border-bottom: 1px solid var(--n-border-row);
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.n-miller-item:hover {
+    background: var(--n-row-hover);
+}
+.n-miller-item.n-miller-selected {
+    background: var(--n-blue-badge-bg);
+    color: var(--n-blue-badge-text);
+    font-weight: 600;
+}
+.n-miller-item-disabled {
+    color: var(--n-text-muted);
+}
+.n-miller-item-split {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.n-miller-item-split > .n-miller-version-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.n-miller-status-tag {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: var(--n-radius);
+    letter-spacing: 0.2px;
+}
+.n-miller-status-tag-on {
+    background: color-mix(in srgb, var(--n-green) 10%, transparent);
+    color: var(--n-green);
+}
+.n-miller-status-tag-off {
+    background: color-mix(in srgb, var(--n-text) 7%, transparent);
+    color: var(--n-text-sec);
+}
+.n-miller-status-tag-warn {
+    background: color-mix(in srgb, var(--n-yellow) 12%, transparent);
+    color: var(--n-yellow);
+}
+.n-miller-version-panel {
+    display: none;
+}
+.n-miller-version-panel.active {
+    display: block;
+}
+.n-miller-detail-panel {
+    display: none;
+    padding: 28px 32px;
+}
+.n-miller-detail-panel.active {
+    display: block;
+}
+.n-miller-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--n-text-muted);
+    font-size: 14px;
+}
+.n-miller-empty.hidden {
+    display: none;
+}
+.n-rank-handle {
+    cursor: grab;
+    color: var(--n-text-muted);
+    margin-right: 6px;
+    user-select: none;
+    font-size: 13px;
+}
+.n-rank-handle:active {
+    cursor: grabbing;
+}
+.n-rank-handle.n-rank-handle-disabled {
+    cursor: not-allowed;
+    color: var(--n-border-form);
+}
+.n-miller-item.rd-dragging {
+    opacity: 0.45;
+}
+.n-miller-item.rd-drop-before {
+    box-shadow: inset 0 2px 0 var(--n-blue);
+}
+.n-miller-item.rd-drop-after {
+    box-shadow: inset 0 -2px 0 var(--n-blue);
+}
+.n-miller-col .n-section-hint,
+.n-miller-latest {
+    font-size: 12.5px;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--n-text-muted);
+}
+.n-miller-col .n-section-hint {
+    padding: 7px 18px 8px;
+    border-bottom: 1px solid var(--n-border);
+}
+.n-miller-latest {
+    margin-left: 6px;
+}
+.n-miller-col-foot { padding: 8px 12px; }
+.n-miller-col-note { padding: 10px 12px; font-size: 12px; color: var(--n-text-muted); }
+.n-miller-item .n-note { font-size: 12px; }
+.n-subprogram-section + .n-subprogram-section { margin-top: 32px; }
+.n-miller-item-choice {
+    display: flex;
+    align-items: flex-start;
+    padding: 0 0 0 18px;
+    white-space: normal;
+    cursor: default;
+}
+.n-miller-item-choice > input[type="radio"] {
+    flex-shrink: 0;
+    margin: 16px 10px 0 0;
+    cursor: pointer;
+}
+.n-miller-item-choice > input[type="radio"]:disabled {
+    cursor: not-allowed;
+}
+.n-miller-choice {
+    flex: 1;
+    min-width: 0;
+    padding: 13px 18px 13px 0;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+.n-miller-item-choice:has(> input[type="radio"]:checked) {
+    box-shadow: inset 3px 0 0 var(--n-blue);
+}
+.n-miller-item-choice:has(> input[type="radio"]:checked) .n-miller-version-label {
+    font-weight: 600;
+}
+.n-miller-item-choice .n-miller-item-split {
+    justify-content: flex-start;
+}
+.n-miller-item-choice .n-miller-version-label {
+    white-space: nowrap;
+    min-width: 0;
+}
+.n-miller-item-choice .n-deprecated-dot {
+    flex-shrink: 0;
+}
+.n-miller-item-choice .n-miller-status-tag {
+    margin-left: auto;
+}
+.n-miller-item-choice.n-miller-selected {
+    font-weight: 400;
+}
+.n-miller-choice-reason {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--n-text-sec);
+}
+.n-miller-status-tag-danger {
+    background: color-mix(in srgb, var(--n-red) 10%, transparent);
+    color: var(--n-red);
+}
+@media (max-width: 1024px) {
+    .n-miller {
+        flex-wrap: wrap;
+        height: auto;
+        max-height: none;
+    }
+    .n-miller-col-names,
+    .n-miller-col-versions {
+        width: auto;
+        flex: 1 1 0;
+        min-width: 0;
+        max-height: 340px;
+    }
+    .n-miller-col-versions {
+        border-right: none;
+    }
+    .n-miller-col-detail {
+        flex: 1 1 100%;
+        min-height: 240px;
+        border-top: 1px solid var(--n-border);
+    }
+    .n-miller-col-detail .n-miller-empty {
+        height: auto;
+        padding: 48px 0;
+    }
+    .n-miller-col .n-miller-item:last-child {
+        border-bottom: none;
+    }
+}
+/* css/accordion.css */
+.n-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.n-accordion-item {
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    background: var(--n-surface);
+    overflow: hidden;
+}
+.n-accordion-item-muted {
+    background: var(--n-sunken);
+}
+.n-accordion-item-in-progress {
+    background: var(--n-sunken);
+    opacity: 0.65;
+}
+.n-accordion-item-in-progress .n-accordion-title {
+    color: var(--n-text-muted);
+    font-style: italic;
+}
+.n-accordion-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+.n-accordion-head::-webkit-details-marker {
+    display: none;
+}
+.n-accordion-head::marker {
+    content: "";
+}
+.n-accordion-item:hover > .n-accordion-head {
+    background: var(--n-row-hover);
+}
+.n-accordion-chevron {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid var(--n-text-muted);
+    border-bottom: 2px solid var(--n-text-muted);
+    transform: rotate(-45deg);
+    transition: transform 150ms ease;
+    flex-shrink: 0;
+    margin-left: 2px;
+}
+.n-accordion-item[open] > .n-accordion-head .n-accordion-chevron {
+    transform: rotate(45deg);
+}
+.n-accordion-title {
+    flex: 1;
+    font-size: 14px;
+    word-break: break-all;
+}
+.n-accordion-badge {
+    flex-shrink: 0;
+}
+.n-accordion-body {
+    border-top: 1px solid var(--n-border);
+    padding: 14px 18px 16px;
+    background: var(--n-surface);
+}
+.n-accordion-fields {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    row-gap: 10px;
+    column-gap: 16px;
+}
+.n-accordion-field {
+    display: contents;
+}
+.n-accordion-field dt {
+    font-size: 13px;
+    color: var(--n-text-muted);
+    padding-top: 3px;
+}
+.n-accordion-field dd {
+    margin: 0;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.n-accordion-field dd > * {
+    min-width: 0;
+    max-width: 100%;
+}
+.n-accordion-muted {
+    color: var(--n-text-muted);
+}
+.n-accordion-inline-form {
+    display: inline;
+    margin: 0;
+}
+.n-accordion-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--n-border);
+}
+.n-accordion-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--n-text-muted);
+    font-size: 14px;
+    border: 1px dashed var(--n-border);
+    border-radius: var(--n-radius-lg);
+}
+/* management/os/os-page.css */
+.n-env-section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.n-env-section-header h3 {
+    margin: 0;
+}
+.n-env-section-header + .n-env-section-header {
+    margin-top: 20px;
+}
+.n-env-section-note {
+    font-size: 12px;
+    color: var(--n-text-muted);
+}
+.n-env-empty {
+    padding: 10px 0;
+}
+.n-env-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+}
+.n-env-card {
+    padding: 12px;
+}
+.n-env-card-header {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+.n-env-card-code {
+    font-weight: 600;
+}
+.n-env-card-title {
+    margin-top: 2px;
+}
+.n-env-card-desc {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--n-text-muted);
+}
+.n-env-card-sub {
+    margin-top: 8px;
+}
+.n-env-card-sub-label {
+    font-size: 12px;
+    color: var(--n-text-muted);
+}
+.n-env-card-sub-value {
+    font-size: 13px;
+}
+.n-env-card-providers {
+    margin: 4px 0 0 0;
+    padding-left: 18px;
+    font-size: 13px;
+}
+.n-env-card-providers li {
+    word-break: break-all;
+}
+.n-upload-progress {
+    display: none;
+    margin-top: 16px;
+    border: 1px solid var(--n-border);
+    border-radius: var(--n-radius-lg);
+    padding: 12px;
+    background: var(--n-sunken);
+}
+.n-upload-progress.is-visible {
+    display: block;
+}
+.n-upload-progress-text {
+    font-size: 13px;
+    color: var(--n-text-muted);
+    margin-bottom: 6px;
+}
+.n-upload-progress-bar-wrap {
+    height: 6px;
+    background: color-mix(in srgb, var(--n-text) 10%, transparent);
+    border-radius: var(--n-radius);
+    overflow: hidden;
+}
+.n-upload-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--n-blue);
+    transition: width 200ms ease;
+}
+.n-upload-error {
+    display: none;
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px solid color-mix(in srgb, var(--n-red) 35%, transparent);
+    border-radius: var(--n-radius-lg);
+    background: var(--n-red-bg);
+    color: var(--n-red);
+    font-size: 14px;
+}
+.n-upload-error.is-visible {
+    display: block;
+}
+</script>
+<script type="text/plain" id="prod-adapter">
+[data-shot-root]{display:block;min-height:0;padding:14px;background:var(--n-bg);align-items:initial}
+[data-shot-root] .n-page-md{padding:0;max-width:none;margin:0}
+.n-miller{height:auto;min-height:0;max-height:none;flex-wrap:wrap}
+.n-miller-col-names,.n-miller-col-versions{width:auto;flex:1 1 0;min-width:0;max-height:none}
+.n-miller-col-versions{border-right:none}
+.n-miller-col-detail{flex:1 1 100%;min-height:0;border-top:1px solid var(--n-border)}
+.n-miller-col-detail .n-miller-empty{height:auto;padding:28px 0}
+.n-miller-col .n-miller-item:last-child{border-bottom:none}
+.n-miller-detail-panel{padding:16px}
+</script>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage (저장소를 못 쓰는 환경에서도 나머지 스크립트가 돌게 감싼다)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (_) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (_) { /* 저장 불가 환경 */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 도메인 규칙 (서버 메서드와 같은 식)
+  // ─────────────────────────────────────────────────────────────
+  // 바뀐 뒤 OSName. 배열 순서 = Java 선언 순서 = DB ENUM 순서 = 목록 정렬 순서 (D-6)
+  const OS_NAMES = [
+    { name:'ROCKY_LINUX_8',  displayName:'Rocky Linux', major:8,  family:'RHEL_BASED', status:'SUPPORTED' },
+    { name:'ROCKY_LINUX_9',  displayName:'Rocky Linux', major:9,  family:'RHEL_BASED', status:'SUPPORTED' },
+    { name:'ROCKY_LINUX_10', displayName:'Rocky Linux', major:10, family:'RHEL_BASED', status:'SUPPORTED' },
+    { name:'RHEL_8',  displayName:'Red Hat Enterprise Linux', major:8,  family:'RHEL_BASED', status:'SUPPORTED' },
+    { name:'RHEL_9',  displayName:'Red Hat Enterprise Linux', major:9,  family:'RHEL_BASED', status:'SUPPORTED' },
+    { name:'RHEL_10', displayName:'Red Hat Enterprise Linux', major:10, family:'RHEL_BASED', status:'SUPPORTED' },
+    { name:'WINDOWS_SERVER_2025', displayName:'Windows Server', major:2025, family:'WINDOWS_BASED', status:'SUPPORTED' },
+    { name:'UBUNTU', displayName:'Ubuntu', major:null, family:'DEBIAN_BASED', status:'SUPPORTED' },
+    { name:'ROCKY_LINUX', displayName:'Rocky Linux', major:null, family:'RHEL_BASED', status:'LEGACY' },
+    { name:'CENTOS', displayName:'CentOS', major:null, family:'RHEL_BASED', status:'LEGACY' },
+    { name:'WINDOWS', displayName:'Windows', major:null, family:'WINDOWS_BASED', status:'LEGACY' },
+    { name:'WINDOWS_SERVER', displayName:'Windows Server', major:null, family:'WINDOWS_BASED', status:'LEGACY' }
+  ];
+  const OSN = Object.fromEntries(OS_NAMES.map(o => [o.name, o]));
+  const OSName = {
+    registrable: n => OSN[n].status === 'SUPPORTED',
+    label: n => OSN[n].displayName + (OSN[n].major != null ? ' ' + OSN[n].major : ''),
+    extractable: n => OSN[n].family === 'RHEL_BASED' && OSName.registrable(n),
+    registrableValues: () => OS_NAMES.filter(o => o.status === 'SUPPORTED').map(o => o.name),
+    ordinal: n => OS_NAMES.findIndex(o => o.name === n)
+  };
+  // RhelRelease.majorOf 와 같은 식: 첫 '.' 앞 숫자, 숫자가 아니면 없음
+  function majorOf(version) {
+    if (version == null) return null;
+    let head = String(version).trim();
+    const dot = head.indexOf('.');
+    if (dot >= 0) head = head.substring(0, dot);
+    if (!head || !/^[0-9]+$/.test(head)) return null;
+    const n = parseInt(head, 10);
+    return n > 2147483647 ? null : n;
+  }
+  const RHEL_RELEASES = [
+    { name:'R8',  major:8,  osNames:['ROCKY_LINUX_8', 'RHEL_8'] },
+    { name:'R9',  major:9,  osNames:['ROCKY_LINUX_9', 'RHEL_9'] },
+    { name:'R10', major:10, osNames:['ROCKY_LINUX_10', 'RHEL_10'] }
+  ];
+  const RhelRelease = {
+    ofName: n => RHEL_RELEASES.find(r => r.osNames.includes(n)) || null,
+    of: (n, v) => { const m = majorOf(v); return m == null ? null : (RHEL_RELEASES.find(r => r.osNames.includes(n) && r.major === m) || null); },
+    covers: (r, v) => majorOf(v) === r.major
+  };
+  const WIN_RELEASES = [ { name:'W2025', major:2025, build:26100, osNames:['WINDOWS_SERVER_2025'] } ];
+  const WindowsServerRelease = {
+    ofName: n => WIN_RELEASES.find(r => r.osNames.includes(n)) || null,
+    matchesBuild: (r, build) => {
+      if (build == null || String(build).trim() === '') return false;
+      const parts = String(build).trim().split('.');
+      return parts.length >= 3 && parts[2] === String(r.build);
+    }
+  };
+  // 등록 메이저 일치 (D-4): RHEL = majorOf(version) == major, Windows = version == "2025", 메이저 없으면 자유
+  function majorMatches(n, v) {
+    const o = OSN[n];
+    if (o.major == null) return true;
+    if (o.family === 'WINDOWS_BASED') return v === String(o.major);
+    return majorOf(v) === o.major;
+  }
+
+  // 지금 (현행 코드)
+  const OLD_OS = { UBUNTU:'Ubuntu', CENTOS:'CentOS', ROCKY_LINUX:'Rocky Linux', WINDOWS:'Windows', WINDOWS_SERVER:'Windows Server' };
+  const OLD_FAMILY = { UBUNTU:'DEBIAN_BASED', CENTOS:'RHEL_BASED', ROCKY_LINUX:'RHEL_BASED', WINDOWS:'WINDOWS_BASED', WINDOWS_SERVER:'WINDOWS_BASED' };
+  const OLD_DB_ENUM = ['CENTOS', 'ROCKY_LINUX', 'UBUNTU', 'WINDOWS', 'WINDOWS_SERVER'];   // ddl/schema.sql:415
+  const OLD_RHEL = [ { name:'ROCKY_8', osName:'ROCKY_LINUX', major:8 }, { name:'ROCKY_9', osName:'ROCKY_LINUX', major:9 }, { name:'ROCKY_10', osName:'ROCKY_LINUX', major:10 } ];
+  const MVP_OS_NAMES = ['ROCKY_LINUX', 'CENTOS', 'UBUNTU', 'WINDOWS_SERVER'];
+  const OLD_EXTRACT_SUPPORTED = ['ROCKY_LINUX', 'CENTOS'];   // RHELCompsExtractor.SUPPORTED
+  function oldRhelOf(n, v) { const m = majorOf(v); return m == null ? null : (OLD_RHEL.find(r => r.osName === n && r.major === m) || null); }
+  function oldOptions() {   // OsRegistrationOption.of(MVP_OS_NAMES)
+    return MVP_OS_NAMES.flatMap(n => {
+      const rs = OLD_RHEL.filter(r => r.osName === n);
+      return rs.length ? rs.map(r => ({ osName:n, release:r.name, label:OLD_OS[n] + ' ' + r.major, prefix:r.major + '.' }))
+                       : [{ osName:n, release:'', label:OLD_OS[n], prefix:'' }];
+    });
+  }
+
+  const MSG = {
+    osName: 'OS 이름을 선택해야 합니다.',
+    osVersion: 'OS 버전을 입력해야 합니다.',
+    osVersionLen: 'OS 버전은 64자 이하로 입력해야 합니다.',
+    release: '지원 메이저 버전을 골라야 합니다.',
+    covered: 'OS 버전은 고른 메이저 버전의 세부 버전이어야 합니다.',
+    unsupported: '지원하지 않는 OS 입니다.',
+    source: "Windows 설치 소스가 준비되지 않았습니다. 시스템 자산 대시보드의 'Windows 설치 소스' 영역을 확인해야 합니다.",
+    oldRhel: 'Rocky Linux 8, 9, 10 만 설치할 수 있습니다.'
+  };
+  function buildReason(n, build) {
+    const r = WindowsServerRelease.ofName(n);
+    return '설치 소스의 Windows 빌드(' + build + ')가 ' + OSName.label(n) + '(' + r.build + ')와 다릅니다.';
+  }
+  function newRhelUnsupportedReason() {
+    return OS_NAMES.filter(o => o.family === 'RHEL_BASED' && o.status === 'SUPPORTED').map(o => OSName.label(o.name)).join(', ') + ' 만 설치할 수 있습니다.';
+  }
+
+  // 지금: OSMetadataCreateRequest 검증 (isRhelReleaseValid · isOsVersionCovered)
+  function validateOld(osName, release, version) {
+    const errs = [];
+    if (!osName) errs.push(['osName', MSG.osName]);
+    if (!version || !version.trim()) errs.push(['osVersion', MSG.osVersion]);
+    else if (version.length > 64) errs.push(['osVersion', MSG.osVersionLen]);
+    const rel = OLD_RHEL.find(r => r.name === release) || null;
+    if (osName) {
+      const needs = OLD_RHEL.some(r => r.osName === osName);
+      const ok = needs ? (rel != null && rel.osName === osName) : rel == null;
+      if (!ok) errs.push(['release', MSG.release]);
+    }
+    if (rel && rel.osName === osName && version && version.trim() && majorOf(version) !== rel.major) errs.push(['covered', MSG.covered]);
+    return errs;
+  }
+  // 바뀐 뒤: registrable + 메이저 일치
+  function validateNew(osName, version) {
+    const errs = [];
+    if (!osName) errs.push(['osName', MSG.osName]);
+    if (!version || !version.trim()) errs.push(['osVersion', MSG.osVersion]);
+    else if (version.length > 64) errs.push(['osVersion', MSG.osVersionLen]);
+    if (osName && !OSName.registrable(osName)) errs.push(['registrable', null]);
+    else if (osName && version && version.trim() && !majorMatches(osName, version)) errs.push(['covered', MSG.covered]);
+    return errs;
+  }
+
+  // 행 이전 (ddl/S23-1_os_catalog.sql 과 같은 식)
+  function substringIndex1(v) { return String(v == null ? '' : v).split('.')[0]; }
+  function migrate(table, osName, version) {
+    if (osName == null) return null;
+    if (table === 'os_metadata') {
+      if (osName === 'ROCKY_LINUX' && ['8', '9', '10'].includes(substringIndex1(version))) return 'ROCKY_LINUX_' + substringIndex1(version);
+      if (osName === 'WINDOWS_SERVER' && version === '2025') return 'WINDOWS_SERVER_2025';
+      return osName;
+    }
+    return osName === 'WINDOWS_SERVER' ? 'WINDOWS_SERVER_2025' : osName;
+  }
+  function bucketOf(table, before, after) {
+    if (after == null) return 'keep';
+    if (after !== before) return 'move';
+    return OSName.registrable(after) ? 'keep' : 'legacy';
+  }
+
+  // 정의서 OS 셀렉트 차단 사유
+  function blockReasonOld(os, src) {   // 지금: 계열 검사기만
+    const fam = OLD_FAMILY[os.osName];
+    if (fam === 'RHEL_BASED') return oldRhelOf(os.osName, os.version) ? null : MSG.oldRhel;
+    if (fam === 'WINDOWS_BASED') return src.ready ? null : MSG.source;
+    return null;
+  }
+  function blockReasonNew(os, src) {   // 바뀐 뒤: OsInstallTargetPolicy = registrable 선판정 → 계열 검사기
+    if (!OSName.registrable(os.osName)) return MSG.unsupported;
+    const fam = OSN[os.osName].family;
+    if (fam === 'RHEL_BASED') return RhelRelease.of(os.osName, os.version) ? null : newRhelUnsupportedReason();
+    if (fam === 'WINDOWS_BASED') {
+      if (!src.ready) return MSG.source;
+      return WindowsServerRelease.matchesBuild(WindowsServerRelease.ofName(os.osName), src.build) ? null : buildReason(os.osName, src.build);
+    }
+    return null;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 표본 데이터와 상태
+  // ─────────────────────────────────────────────────────────────
+  const BASE_ROWS = [   // 지금 os_metadata (id = 등록 순서)
+    { id:1, osName:'ROCKY_LINUX', version:'9.6',  iso:'rocky-9.6.iso' },
+    { id:2, osName:'ROCKY_LINUX', version:'8.10', iso:'rocky-8.10.iso' },
+    { id:3, osName:'ROCKY_LINUX', version:'10.0', iso:'rocky-10.0.iso' },
+    { id:4, osName:'ROCKY_LINUX', version:'7.9',  iso:'rocky-7.9.iso' },
+    { id:5, osName:'CENTOS',      version:'7.9',  iso:'centos-7.9.iso' },
+    { id:6, osName:'WINDOWS_SERVER', version:'2025', iso:'windows-server-2025.iso' },
+    { id:7, osName:'WINDOWS_SERVER', version:'2022', iso:'windows-server-2022.iso' }
+  ];
+  const NEW_ROWS = BASE_ROWS.map(r => Object.assign({}, r, { osName: migrate('os_metadata', r.osName, r.version) }))
+    .concat([{ id:8, osName:'RHEL_10', version:'10.0', iso:'rhel-10.0-x86_64-dvd.iso', added:true }]);
+  const MIG_DEFAULT = [
+    { t:'os_metadata', n:'ROCKY_LINUX', v:'9.6' }, { t:'os_metadata', n:'ROCKY_LINUX', v:'7.9' },
+    { t:'os_metadata', n:'CENTOS', v:'7.9' }, { t:'os_metadata', n:'WINDOWS_SERVER', v:'2025' },
+    { t:'os_metadata', n:'WINDOWS_SERVER', v:'2022' }, { t:'subprogram', n:'WINDOWS_SERVER', v:null }
+  ];
+  const S = {
+    preset: 0, screen: null, timer: null,
+    reg: { before: { idx:0, version:'' }, after: { osName:'', version:'' }, res: { before:null, after:null } },
+    mig: { rows: [] },
+    list: { before: { c1:null, id:null }, after: { c1:null, id:null } },
+    def: { ready:true, build:'10.0.26100.1742' },
+    msg: null
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 제품 화면을 Shadow DOM 에 그린다 (제품 CSS 와 문서 CSS 격리)
+  // ─────────────────────────────────────────────────────────────
+  let PROD = null;
+  function prodStyles() {
+    if (PROD) return PROD;
+    const css = document.getElementById('prod-css').textContent;
+    const adapter = document.getElementById('prod-adapter').textContent;
+    try {
+      if ('adoptedStyleSheets' in Document.prototype && 'replaceSync' in CSSStyleSheet.prototype) {
+        const a = new CSSStyleSheet(); a.replaceSync(css);
+        const b = new CSSStyleSheet(); b.replaceSync(adapter);
+        PROD = { sheets:[a, b] };
+        return PROD;
+      }
+    } catch (_) { /* 아래 style 태그로 */ }
+    PROD = { text: css + '\n' + adapter };
+    return PROD;
+  }
+  function paint(host, html) {
+    const root = host.shadowRoot || host.attachShadow({ mode:'open' });
+    const p = prodStyles();
+    if (p.sheets) { root.adoptedStyleSheets = p.sheets; root.innerHTML = '<div data-shot-root>' + html + '</div>'; }
+    else root.innerHTML = '<style>' + p.text + '</style><div data-shot-root>' + html + '</div>';
+    if (!host._bound) {
+      host._bound = true;
+      root.addEventListener('click', e => onShot('click', host.dataset.mode, e));
+      root.addEventListener('change', e => onShot('change', host.dataset.mode, e));
+      root.addEventListener('input', e => onShot('input', host.dataset.mode, e));
+      root.addEventListener('submit', e => { e.preventDefault(); onShot('submit', host.dataset.mode, e); });
+    }
+    return root;
+  }
+  function host(mode) { return document.querySelector('#demo-stage [data-mode="' + mode + '"]'); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+  function tf(v, yes, no) { return v ? '<span class="f">true</span>' + (yes ? ' → ' + yes : '') : '<span class="t">false</span>' + (no ? ' → ' + no : ''); }
+  function splitStage(beforeTitle, afterTitle) {
+    return '<div class="split-grid">' +
+      '<div class="split-card before"><h4>' + beforeTitle + '</h4><div style="overflow-x:auto;"><div data-mode="before"></div></div></div>' +
+      '<div class="split-card after"><h4>' + afterTitle + '</h4><div style="overflow-x:auto;"><div data-mode="after"></div></div></div></div>';
+  }
+  function setMsg(cls, html) { S.msg = { cls, html }; const m = document.getElementById('demo-message'); m.className = 'ux-message' + (cls ? ' ' + cls : ''); m.innerHTML = html; }
+  function seg(label, attrs, active) { return '<button class="seg' + (active ? ' active' : '') + '" ' + attrs + '>' + label + '</button>'; }
+  function demoBtn(label, attrs, blocked, tip) {
+    return '<span class="tip"' + (blocked && tip ? ' data-tip="' + esc(tip) + '"' : '') + '><button class="n-demo-btn" ' + attrs + (blocked ? ' disabled' : '') + '>' + label + '</button></span>';
+  }
+
+  // ── 화면 1 : OS 버전 등록 (new.html) ──
+  function regFormHtml(mode) {
+    const st = S.reg[mode];
+    let options = '<option value="">선택</option>';
+    if (mode === 'before') {
+      oldOptions().forEach((o, i) => {
+        options += '<option value="' + o.osName + '" data-rhel-release="' + o.release + '" data-version-prefix="' + o.prefix + '"' + (st.idx === i + 1 ? ' selected' : '') + '>' + esc(o.label) + '</option>';
+      });
+    } else {
+      OSName.registrableValues().forEach(n => {
+        const o = OSN[n];
+        options += '<option value="' + n + '"' + (st.osName === n ? ' selected' : '') + '>' + esc(OSName.label(n)) + '</option>';
+      });
+    }
+    const hidden = mode === 'before' ? '<input type="hidden" data-f="rhelRelease" value="' + esc(currentOldRelease()) + '">' : '';
+    const pref = mode === 'before' ? (oldOptions()[st.idx - 1] || {}).prefix : versionPrefixNew(st.osName);
+    const readOnly = mode === 'after' && st.osName && OSN[st.osName].family === 'WINDOWS_BASED';
+    return '<div class="n-page-md">' +
+      '<div class="n-page-header"><h1 class="n-page-title">OS 버전 등록</h1><div class="n-header-actions"><a class="n-back-link">목록으로</a></div></div>' +
+      '<div class="n-card"><div class="n-card-body"><form novalidate data-f="form">' +
+      '<div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>' +
+      '<div class="n-form-group" data-g="name"><label class="n-label strong">OS 이름</label>' +
+      '<select class="n-select" data-f="osName">' + options + '</select>' + hidden + '</div>' +
+      '<div class="n-form-group" data-g="version"><label class="n-label strong">OS 버전</label>' +
+      '<input type="text" class="n-input" data-f="osVersion" placeholder="예: 9.6" value="' + esc(st.version) + '"' + (readOnly ? ' readonly' : '') + '>' +
+      '<div class="n-hint" data-f="hint"' + (pref ? '' : ' hidden') + '>세부 버전까지 입력합니다. 예: <span data-f="ex">' + esc((pref || '9.') + '0') + '</span></div></div>' +
+      '<div class="n-form-group"><label class="n-label">설명 (선택)</label><textarea class="n-textarea" rows="2" placeholder="예: Rocky Linux 9 최신 마이너 릴리스"></textarea></div>' +
+      '<div class="n-form-actions"><a class="n-btn n-btn-secondary">취소</a><button type="submit" class="n-btn n-btn-primary">등록</button></div>' +
+      '</form></div></div></div>';
+  }
+  function versionPrefixNew(n) { if (!n) return ''; const o = OSN[n]; return (o.family === 'RHEL_BASED' && o.major != null) ? o.major + '.' : ''; }
+  function currentOldRelease() { const o = oldOptions()[S.reg.before.idx - 1]; return o ? o.release : ''; }
+  function postBody(mode) {
+    const st = S.reg[mode];
+    if (mode === 'before') {
+      const o = oldOptions()[st.idx - 1];
+      return 'osName=' + (o ? o.osName : '') + '&rhelRelease=' + (o ? o.release : '') + '&osVersion=' + st.version;
+    }
+    return 'osName=' + st.osName + '&osVersion=' + st.version;
+  }
+  function regSelectChanged(mode, sel) {
+    const st = S.reg[mode];
+    const root = host(mode).shadowRoot;
+    const input = root.querySelector('[data-f="osVersion"]');
+    const hint = root.querySelector('[data-f="hint"]');
+    const ex = root.querySelector('[data-f="ex"]');
+    let prefix = '';
+    if (mode === 'before') {   // os-metadata-new.js 와 같은 동작
+      st.idx = sel.selectedIndex;
+      const opt = sel.selectedOptions[0];
+      prefix = opt ? (opt.getAttribute('data-version-prefix') || '') : '';
+      root.querySelector('[data-f="rhelRelease"]').value = opt ? (opt.getAttribute('data-rhel-release') || '') : '';
+      hint.hidden = !prefix;
+      if (prefix) { ex.textContent = prefix + '0'; if (!input.value || /^[0-9]+\.$/.test(input.value)) input.value = prefix; }
+    } else {   // 바뀐 뒤: RHEL 메이저 "9." 미리 채움, Windows Server 2025 '2025' 고정, Ubuntu 자유
+      const wasFixed = input.readOnly;
+      st.osName = sel.value;
+      const o = st.osName ? OSN[st.osName] : null;
+      prefix = versionPrefixNew(st.osName);
+      hint.hidden = !prefix;
+      if (o && o.family === 'WINDOWS_BASED') { input.value = String(o.major); input.readOnly = true; }
+      else {
+        input.readOnly = false;
+        if (wasFixed) input.value = '';
+        if (prefix) { ex.textContent = prefix + '0'; if (!input.value || /^[0-9]+\.$/.test(input.value)) input.value = prefix; }
+        else if (/^[0-9]+\.$/.test(input.value)) input.value = '';
+      }
+    }
+    st.version = input.value;
+    clearErrors(root);
+    renderCaps();
+  }
+  function clearErrors(root) {
+    root.querySelectorAll('.has-error').forEach(el => el.classList.remove('has-error'));
+    root.querySelectorAll('.field-error-message').forEach(el => el.remove());
+  }
+  function showErrors(mode, errs) {   // form-error.js 와 같은 표식(has-error + field-error-message)
+    const root = host(mode).shadowRoot;
+    clearErrors(root);
+    errs.forEach(([field, text]) => {
+      if (!text) return;
+      const target = field === 'osName' ? root.querySelector('[data-f="osName"]')
+        : field === 'osVersion' ? root.querySelector('[data-f="osVersion"]')
+        : field === 'release' ? root.querySelector('[data-g="name"]') : root.querySelector('[data-g="version"]');
+      target.classList.add('has-error');
+      const note = document.createElement('div');
+      note.className = 'field-error-message';
+      note.textContent = text;
+      (target.closest('.n-form-group') || target).appendChild(note);
+    });
+  }
+  function submitReg(mode) {
+    const st = S.reg[mode];
+    let errs;
+    if (mode === 'before') { const o = oldOptions()[st.idx - 1]; errs = validateOld(o ? o.osName : '', o ? o.release : '', st.version); }
+    else errs = validateNew(st.osName, st.version);
+    showErrors(mode, errs);
+    S.reg.res[mode] = errs.length ? { ok:false, text:'400 · ' + errs.map(e => e[1] || 'registrable() = false').join(' / ') } : { ok:true, text:'200 · 등록 후 목록으로 이동' };
+    renderRegMessage();
+    renderCaps();
+  }
+  function renderRegMessage() {
+    const r = S.reg.res;
+    const line = (t, x) => '<b>' + t + '</b> ' + (x ? esc(x.text) : '아직 제출 전') ;
+    const cls = (r.after && !r.after.ok) ? 'error' : (r.after && r.after.ok) ? 'success' : '';
+    setMsg(cls, line('[지금]', r.before) + '<br>' + line('[바뀐 뒤]', r.after));
+  }
+  function directPostUnsupported() {
+    const oldErrs = validateOld('CENTOS', '', '7.9');
+    const newErrs = validateNew('CENTOS', '7.9');
+    setMsg(newErrs.length ? 'error' : 'success',
+      '<b>직접 POST osName=CENTOS&amp;osVersion=7.9</b><br>[지금] ' + (oldErrs.length ? '400' : '200 · CENTOS 는 MVP_OS_NAMES 안이라 등록됩니다') +
+      '<br>[바뀐 뒤] ' + (newErrs.length ? '400 · OSName.CENTOS.registrable() = false (화면에는 선택지가 없고, 직접 POST 안전망만 막습니다)' : '200'));
+  }
+
+  // ── 화면 2 : 행 이전 시뮬레이터 ──
+  function migHtml() {
+    return S.mig.rows.map((r, i) => {
+      const after = migrate(r.t, r.n, r.v);
+      const b = bucketOf(r.t, r.n, after);
+      const badge = b === 'move' ? '<span class="badge on">이전 → ' + esc(after) + '</span>'
+        : b === 'legacy' ? '<span class="badge dep">미지원 유지</span>' : '<span class="badge off">그대로</span>';
+      return '<div class="ux-row' + (r.on ? '' : ' muted') + '"><strong>' + r.t + '</strong><span class="label"><code>' + esc(r.n == null ? 'NULL' : r.n) + '</code>' +
+        (r.t === 'os_metadata' ? ' · ' + esc(r.v) : '') + '</span>' + badge + ' ' +
+        demoBtn(r.on ? '빼기' : '넣기', 'data-mig-toggle="' + i + '"', false, '') + '</div>';
+    }).join('');
+  }
+  function migSummary() {
+    const on = S.mig.rows.filter(r => r.on);
+    const om = on.filter(r => r.t === 'os_metadata');
+    const legacyOs = om.filter(r => bucketOf(r.t, r.n, migrate(r.t, r.n, r.v)) === 'legacy').length;
+    const sp = on.filter(r => r.t === 'subprogram');
+    const legacySp = sp.filter(r => bucketOf(r.t, r.n, migrate(r.t, r.n, r.v)) === 'legacy').length;
+    const keys = om.map(r => migrate(r.t, r.n, r.v) + '|' + r.v);
+    const conflicts = keys.length - new Set(keys).size;
+    return { legacyOs, legacySp, conflicts, moved: on.filter(r => bucketOf(r.t, r.n, migrate(r.t, r.n, r.v)) === 'move').length };
+  }
+  function renderMig() {
+    document.getElementById('demo-stage').innerHTML = migHtml();
+    const s = migSummary();
+    const legacyTotal = s.legacyOs + s.legacySp;
+    const parts = ' (os_metadata ' + s.legacyOs + ' · subprogram ' + s.legacySp + ')';
+    if (legacyTotal === 0) setMsg('success', '점검 SQL ① + ② 미지원 유지 합계 = 0 → S23-1 과 S23-1-a 를 같은 배포에 싣습니다 (잔존 0).');
+    else setMsg('error', '점검 SQL ① + ② 미지원 유지 합계 = ' + legacyTotal + ' 건' + parts + ' → S23-1 배포 → 운영자가 화면에서 휴지통 → 영구 삭제 → 합계 0 확인 → S23-1-a 병합 · 배포');
+    renderCaps();
+  }
+  function migAdd() {
+    const t = document.getElementById('mig-t').value;
+    const nRaw = document.getElementById('mig-n').value;
+    const n = nRaw === 'NULL' ? null : nRaw;
+    const v = t === 'os_metadata' ? document.getElementById('mig-v').value.trim() : null;
+    if (t === 'os_metadata' && (!v || n == null)) { setMsg('error', 'os_metadata 행은 os_name 과 os_version 이 필요합니다 (NOT NULL).'); return; }
+    if (t === 'os_metadata' && S.mig.rows.some(r => r.t === t && r.n === n && r.v === v)) { setMsg('error', '이미 있는 (os_name, os_version) 입니다. UNIQUE 라 지금 DB 에도 둘 수 없습니다.'); return; }
+    S.mig.rows.push({ t, n, v, on:true });
+    renderMig();
+  }
+
+  // ── 화면 3 : OS 목록 (list.html Miller) ──
+  function groupsOf(rows, mode) {
+    const keys = [...new Set(rows.map(r => r.osName))];
+    keys.sort((a, b) => mode === 'before' ? OLD_DB_ENUM.indexOf(a) - OLD_DB_ENUM.indexOf(b) : OSName.ordinal(a) - OSName.ordinal(b));
+    return keys.map(k => ({ key:k, label: mode === 'before' ? OLD_OS[k] : OSName.label(k), legacy: mode === 'after' && !OSName.registrable(k),
+      items: rows.filter(r => r.osName === k).sort((x, y) => y.id - x.id) }));
+  }
+  function millerHtml(mode) {
+    const rows = mode === 'before' ? BASE_ROWS : NEW_ROWS;
+    const sel = S.list[mode];
+    const groups = groupsOf(rows, mode);
+    let c1 = '<div class="n-miller-col n-miller-col-names"><div class="n-miller-col-header">OS 이름</div>';
+    groups.forEach(g => {
+      c1 += '<button type="button" class="n-miller-item' + (sel.c1 === g.key ? ' n-miller-selected' : '') + '" data-act="c1" data-key="' + g.key + '"><span>' + esc(g.label) + '</span>' +
+        (g.legacy ? ' <span class="n-badge n-badge-gray">미지원</span>' : '') + '</button>';
+    });
+    c1 += '</div>';
+    let c2 = '<div class="n-miller-col n-miller-col-versions"><div class="n-miller-col-header">버전</div>';
+    groups.forEach(g => {
+      c2 += '<div class="n-miller-version-panel' + (sel.c1 === g.key ? ' active' : '') + '">';
+      g.items.forEach(r => {
+        c2 += '<button type="button" class="n-miller-item n-miller-item-split' + (sel.id === r.id ? ' n-miller-selected' : '') + '" data-act="c2" data-id="' + r.id + '">' +
+          '<span class="n-miller-version-label"><span>' + esc(r.version) + '</span></span><span class="n-miller-status-tag n-miller-status-tag-on">활성</span></button>';
+      });
+      c2 += '<div class="n-miller-col-foot"><a class="n-btn n-btn-sm n-btn-secondary n-btn-block">+ OS 버전 등록</a></div></div>';
+    });
+    c2 += '</div>';
+    let c3 = '<div class="n-miller-col n-miller-col-detail">';
+    const row = rows.find(r => r.id === sel.id && r.osName === sel.c1);
+    if (!row) c3 += '<div class="n-miller-empty">' + (sel.c1 ? '버전 선택' : 'OS 이름 선택') + '</div>';
+    else {
+      const label = mode === 'before' ? OLD_OS[row.osName] : OSName.label(row.osName);
+      const showExtract = mode === 'before' ? true : OSName.extractable(row.osName);
+      const isoAddBlocked = mode === 'after' && !OSName.registrable(row.osName);
+      c3 += '<div class="n-miller-detail-panel active"><table class="n-detail-table"><tbody>' +
+        '<tr><th>ID</th><td>' + row.id + '</td></tr><tr><th>OS 이름</th><td class="n-strong">' + esc(label) + '</td></tr><tr><th>OS 버전</th><td>' + esc(row.version) + '</td></tr>' +
+        '</tbody></table><hr class="n-divider"><div class="n-iso-section-wrap"><h3 class="n-label strong n-lead">ISO 목록</h3>' +
+        '<div class="n-accordion"><details class="n-accordion-item" open><summary class="n-accordion-head"><span class="n-accordion-chevron" aria-hidden="true"></span>' +
+        '<code class="n-accordion-title">' + esc(row.iso) + '</code><span class="n-badge n-accordion-badge n-badge-green">활성</span></summary>' +
+        '<div class="n-accordion-body"><div class="n-accordion-actions">' +
+        (showExtract ? '<button type="button" class="n-btn n-btn-sm n-btn-extract n-btn-outline-info" data-act="extract" data-id="' + row.id + '">추출</button>' : '') +
+        '<a class="n-btn n-btn-sm n-btn-secondary">수정</a><button type="button" class="n-btn n-btn-sm n-btn-outline-danger">삭제</button></div></div></details></div>' +
+        '<div class="n-form-actions n-block-gap">' +
+        (isoAddBlocked ? '<span class="n-btn-tooltip-wrap" data-tooltip="' + esc(MSG.unsupported) + '"><button type="button" class="n-btn n-btn-sm n-btn-secondary" disabled>ISO 추가</button></span>'
+                       : '<a class="n-btn n-btn-sm n-btn-secondary" data-act="isoadd">ISO 추가</a>') +
+        '</div></div></div>';
+    }
+    c3 += '</div>';
+    return '<div class="n-miller">' + c1 + c2 + c3 + '</div>';
+  }
+  function paintList() { paint(host('before'), millerHtml('before')); paint(host('after'), millerHtml('after')); renderCaps(); }
+  function pickRow(id) {
+    const nr = NEW_ROWS.find(r => r.id === id);
+    S.list.after = { c1: nr.osName, id };
+    const br = BASE_ROWS.find(r => r.id === id);
+    S.list.before = br ? { c1: br.osName, id } : { c1: null, id: null };
+    paintList();
+    renderControls();
+  }
+  function extractClick(mode, id) {
+    const rows = mode === 'before' ? BASE_ROWS : NEW_ROWS;
+    const r = rows.find(x => x.id === id);
+    if (mode === 'before') {
+      if (!OLD_EXTRACT_SUPPORTED.includes(r.osName)) setMsg('error', '[지금] 200 jobId 를 돌려준 뒤 배경 작업이 UnsupportedExtractionException 으로 실패합니다 (' + OLD_OS[r.osName] + ').');
+      else setMsg('success', '[지금] 추출 작업 시작. verifyRelease 는 ' + (r.osName === 'ROCKY_LINUX' ? 'ROCKY_LINUX 라 대조합니다.' : 'ROCKY_LINUX 만 보므로 건너뜁니다.'));
+    } else setMsg('success', '[바뀐 뒤] extractable() = true → 추출 작업 시작 → verifyRelease(TreeInfo.matches: name == "' + OSN[r.osName].displayName + '", 주 버전 == ' + OSN[r.osName].major + ')');
+  }
+  function directExtract() {
+    const id = S.list.after.id; if (!id) { setMsg('', '먼저 바뀐 뒤 화면에서 버전을 고릅니다.'); return; }
+    const r = NEW_ROWS.find(x => x.id === id);
+    if (OSName.extractable(r.osName)) setMsg('success', '[바뀐 뒤] 직접 POST /extract → 200 jobId (extractable)');
+    else setMsg('error', '[바뀐 뒤] 직접 POST /management/os/{osId}/iso/{isoId}/extract (' + OSName.label(r.osName) + ') → 409 UnsupportedExtractionException. 작업을 띄우기 전에 동기로 거절합니다.');
+  }
+  function directIsoAdd() {
+    const id = S.list.after.id; if (!id) { setMsg('', '먼저 바뀐 뒤 화면에서 버전을 고릅니다.'); return; }
+    const r = NEW_ROWS.find(x => x.id === id);
+    if (OSName.registrable(r.osName)) setMsg('success', '[바뀐 뒤] 직접 POST ISO 추가 → 진행 (registrable)');
+    else setMsg('error', '[바뀐 뒤] 직접 POST ISO 추가 → IsoRegistrationService 진입 가드가 거절 (registrable() = false, 예외는 §7 O-3)');
+  }
+
+  // ── 화면 4 : 정의서 OS 셀렉트 ──
+  function defHtml(mode) {
+    const rows = mode === 'before' ? BASE_ROWS : NEW_ROWS;
+    const src = S.def;
+    const map = new Map();
+    const sorted = rows.slice().sort((a, b) => {
+      const oa = mode === 'before' ? OLD_DB_ENUM.indexOf(a.osName) : OSName.ordinal(a.osName);
+      const ob = mode === 'before' ? OLD_DB_ENUM.indexOf(b.osName) : OSName.ordinal(b.osName);
+      return oa - ob || b.id - a.id;
+    });
+    sorted.forEach(r => {   // 지금: 묶음 키 = displayName, 바뀐 뒤: 묶음 키 = OSName (label)
+      const key = mode === 'before' ? OLD_OS[r.osName] : r.osName;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(r);
+    });
+    let opts = '<option value="">OS 선택</option>';
+    let hints = '';
+    map.forEach((list, key) => {
+      const glabel = mode === 'before' ? key : OSName.label(key);
+      opts += '<optgroup label="' + esc(glabel) + '">';
+      list.forEach(r => {
+        const dn = mode === 'before' ? OLD_OS[r.osName] : OSN[r.osName].displayName;
+        const reason = mode === 'before' ? blockReasonOld(r, src) : blockReasonNew(r, src);
+        const label = dn + ' ' + r.version;
+        opts += '<option value="' + r.id + '"' + (reason ? ' disabled class="unavailable"' : '') + '>' + esc(label + (reason ? ' (선택 불가)' : '')) + '</option>';
+        if (reason) hints += '<div class="n-hint" data-os-block-reason>' + esc(label + ': ' + reason) + '</div>';
+      });
+      opts += '</optgroup>';
+    });
+    return '<div class="n-accordion"><details class="n-accordion-item n-step-card" open><summary class="n-accordion-head"><span class="n-accordion-chevron"></span>' +
+      '<span class="n-accordion-title n-step-title">OS 설치</span></summary><div class="n-accordion-body"><div class="n-form-group">' +
+      '<label class="n-label strong">설치할 OS</label><select class="n-select">' + opts + '</select>' + hints + '</div></div></details></div>';
+  }
+  function paintDef() { paint(host('before'), defHtml('before')); paint(host('after'), defHtml('after')); renderCaps(); }
+
+  // ── 화면 이벤트 ──
+  function onShot(type, mode, e) {
+    const t = e.target;
+    if (S.screen === 'reg') {
+      if (type === 'change' && t.matches('[data-f="osName"]')) regSelectChanged(mode, t);
+      else if (type === 'input' && t.matches('[data-f="osVersion"]')) { S.reg[mode].version = t.value; renderCaps(); }
+      else if (type === 'submit') submitReg(mode);
+    } else if (S.screen === 'list' && type === 'click') {
+      const el = t.closest('[data-act]');
+      if (!el) return;
+      const act = el.dataset.act;
+      if (act === 'c1') { S.list[mode] = { c1: el.dataset.key, id: null }; paint(host(mode), millerHtml(mode)); renderCaps(); }
+      else if (act === 'c2') { S.list[mode].id = Number(el.dataset.id); paint(host(mode), millerHtml(mode)); renderCaps(); }
+      else if (act === 'extract') extractClick(mode, Number(el.dataset.id));
+      else if (act === 'isoadd') setMsg('success', '[' + (mode === 'before' ? '지금' : '바뀐 뒤') + '] ISO 추가 화면으로 이동');
+    }
+  }
+
+  // ── 툴바 (화면별 조작) ──
+  function renderControls() {
+    const c = document.getElementById('demo-controls');
+    if (S.screen === 'reg') {
+      c.innerHTML = '<span class="group-label">직접 조작 :</span>' + demoBtn('직접 POST osName=CENTOS', 'id="ctl-direct-reg"', false, '') +
+        ' <span class="mono">셀렉트 · 버전 칸 · [등록] 은 화면 안에서 직접</span>';
+      document.getElementById('ctl-direct-reg').onclick = directPostUnsupported;
+    } else if (S.screen === 'mig') {
+      c.innerHTML = '<span class="group-label">행 추가 :</span>' +
+        '<select id="mig-t"><option>os_metadata</option><option>subprogram</option></select>' +
+        '<select id="mig-n"><option>ROCKY_LINUX</option><option>CENTOS</option><option>UBUNTU</option><option>WINDOWS</option><option>WINDOWS_SERVER</option><option>NULL</option></select>' +
+        '<input id="mig-v" type="text" placeholder="os_version" size="7">' +
+        demoBtn('행 추가', 'id="ctl-mig-add"', false, '') + demoBtn('미지원 유지 행 빼기 (정리 뒤)', 'id="ctl-mig-clean"', false, '') + demoBtn('처음 행으로', 'id="ctl-mig-reset"', false, '');
+      document.getElementById('ctl-mig-add').onclick = migAdd;
+      document.getElementById('ctl-mig-clean').onclick = () => { S.mig.rows.forEach(r => { if (bucketOf(r.t, r.n, migrate(r.t, r.n, r.v)) === 'legacy') r.on = false; }); renderMig(); };
+      document.getElementById('ctl-mig-reset').onclick = () => { S.mig.rows = MIG_DEFAULT.map(r => Object.assign({ on:true }, r)); renderMig(); };
+    } else if (S.screen === 'list') {
+      const ids = [[1, 'Rocky Linux 9.6'], [8, 'RHEL 10.0'], [6, 'Windows Server 2025'], [4, 'Rocky Linux 7.9'], [5, 'CentOS 7.9']];
+      c.innerHTML = '<span class="group-label">버전 고르기 :</span>' + ids.map(([id, l]) => seg(l, 'data-pick="' + id + '"', S.list.after.id === id)).join('') +
+        ' ' + demoBtn('직접 POST /extract', 'id="ctl-direct-ext"', false, '') + ' ' + demoBtn('직접 POST ISO 추가', 'id="ctl-direct-iso"', false, '');
+      c.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => pickRow(Number(b.dataset.pick)));
+      document.getElementById('ctl-direct-ext').onclick = directExtract;
+      document.getElementById('ctl-direct-iso').onclick = directIsoAdd;
+    } else if (S.screen === 'def') {
+      const d = S.def;
+      const state = !d.ready ? 'none' : (WindowsServerRelease.matchesBuild(WIN_RELEASES[0], d.build) ? 'ok' : 'bad');
+      c.innerHTML = '<span class="group-label">설치 소스 :</span>' +
+        seg('빌드 26100', 'data-src="ok"', state === 'ok') + seg('빌드 20348', 'data-src="bad"', state === 'bad') + seg('소스 없음', 'data-src="none"', state === 'none') +
+        ' <input id="ctl-build" type="text" size="18" value="' + esc(d.build) + '"' + (d.ready ? '' : ' disabled') + ' aria-label="InstallSourceSnapshot.build()">';
+      c.querySelectorAll('[data-src]').forEach(b => b.onclick = () => {
+        const v = b.dataset.src;
+        S.def = v === 'none' ? { ready:false, build:'' } : { ready:true, build: v === 'ok' ? '10.0.26100.1742' : '10.0.20348' };
+        renderControls(); paintDef(); defMessage();
+      });
+      document.getElementById('ctl-build').oninput = e => { S.def.build = e.target.value; paintDef(); defMessage(); renderControlsSegOnly(); };
+    } else c.innerHTML = '';
+  }
+  function renderControlsSegOnly() {
+    const d = S.def;
+    const state = !d.ready ? 'none' : (WindowsServerRelease.matchesBuild(WIN_RELEASES[0], d.build) ? 'ok' : 'bad');
+    document.querySelectorAll('#demo-controls [data-src]').forEach(b => b.classList.toggle('active', b.dataset.src === state));
+  }
+  function defMessage() {
+    const os = NEW_ROWS.find(r => r.osName === 'WINDOWS_SERVER_2025');
+    const rNew = blockReasonNew(os, S.def);
+    const rOld = blockReasonOld(BASE_ROWS.find(r => r.id === os.id), S.def);
+    setMsg(rNew ? 'error' : 'success', '<b>Windows Server 2025</b><br>[지금] ' + (rOld ? '선택 불가 · ' + esc(rOld) : '선택 가능 (빌드를 보지 않습니다)') +
+      '<br>[바뀐 뒤] ' + (rNew ? '선택 불가 · ' + esc(rNew) + ' (저장 직접 POST 는 400, 실행 게이트 · 대시보드 칩도 같은 판정)' : '선택 가능'));
+  }
+
+  // ── 판정 캡션 ──
+  function renderCaps() {
+    const el = document.getElementById('demo-caps');
+    let s = '';
+    if (S.screen === 'reg') {
+      const b = S.reg.before, a = S.reg.after;
+      const o = oldOptions()[b.idx - 1];
+      const rel = o && o.release ? OLD_RHEL.find(r => r.name === o.release) : null;
+      s += '[지금]    선택 줄 data-rhel-release = ' + (o ? (o.release || '""') : '-') + '  → 숨은 rhelRelease\n';
+      s += '          RhelRelease.majorOf("' + esc(b.version) + '") = ' + majorOf(b.version) + (rel ? '  covers(' + rel.name + ') = ' + tf(RhelRelease.covers(rel, b.version)) : '') + '\n';
+      s += '          POST ' + esc(postBody('before')) + '\n';
+      if (a.osName) {
+        const oo = OSN[a.osName];
+        const rr = RhelRelease.ofName(a.osName), wr = WindowsServerRelease.ofName(a.osName);
+        s += '[바뀐 뒤]  OSName.' + a.osName + '.registrable() = ' + tf(OSName.registrable(a.osName)) + '   label() = "' + esc(OSName.label(a.osName)) + '"   major = ' + oo.major + '\n';
+        s += '          ' + (rr ? 'RhelRelease.of(osName) = ' + rr.name + '   majorOf("' + esc(a.version) + '") = ' + majorOf(a.version) : wr ? 'WindowsServerRelease.of(osName) = ' + wr.name + '   version == "' + wr.major + '"' : '메이저 없음 → 버전 자유') +
+          '   메이저 일치 = ' + tf(majorMatches(a.osName, a.version)) + '\n';
+      } else s += '[바뀐 뒤]  OSName 선택 전\n';
+      s += '          POST ' + esc(postBody('after'));
+    } else if (S.screen === 'mig') {
+      S.mig.rows.forEach(r => {
+        const after = migrate(r.t, r.n, r.v);
+        const head = (r.on ? '  ' : '× ') + (r.t + '            ').slice(0, 12) + ((r.n == null ? 'NULL' : r.n) + '                ').slice(0, 16);
+        if (r.t === 'os_metadata') s += head + (String(r.v) + '      ').slice(0, 6) + ' SUBSTRING_INDEX = \'' + esc(substringIndex1(r.v)) + '\' → ' + esc(after) + '\n';
+        else s += head + '       WINDOWS_SERVER 이면 전부 → ' + esc(after == null ? 'NULL' : after) + '\n';
+      });
+      const m = migSummary();
+      s += '\n이전 ' + m.moved + ' · os_metadata 미지원 유지 ' + (m.legacyOs ? '<span class="t">' + m.legacyOs + '</span>' : '<span class="f">0</span>') + ' · subprogram 미지원 ' + m.legacySp + ' · (os_name, os_version) UNIQUE 충돌 ' + (m.conflicts ? '<span class="t">' + m.conflicts + '</span>' : '<span class="f">0</span>');
+    } else if (S.screen === 'list') {
+      const gb = groupsOf(BASE_ROWS, 'before'), ga = groupsOf(NEW_ROWS, 'after');
+      s += '[지금]    C1 묶음 = ' + gb.map(g => g.label + '(' + g.items.length + ')').join(' · ') + '\n';
+      s += '          [추출] 표시 = 항상 (OS 조건 없음), 추출 대상 SUPPORTED = ROCKY_LINUX, CENTOS\n';
+      s += '[바뀐 뒤]  C1 묶음 = ' + ga.map(g => g.label + (g.legacy ? '[미지원]' : '')).join(' · ') + '\n';
+      const sel = S.list.after;
+      if (sel.id) {
+        const r = NEW_ROWS.find(x => x.id === sel.id);
+        s += '          선택 ' + r.osName + ' ' + r.version + ' : registrable() = ' + tf(OSName.registrable(r.osName)) + '   extractable() = ' + tf(OSName.extractable(r.osName), '[추출] 보임', '[추출] 숨김');
+        s += '\n          ISO 추가 = ' + (OSName.registrable(r.osName) ? '가능' : '<span class="t">비활성 + 사유</span>');
+      } else s += '          버전을 고르면 [추출] · ISO 추가 판정이 보입니다';
+      if (!S.list.before.id && S.list.after.id === 8) s += '\n[지금]    RHEL 은 MVP_OS_NAMES 밖이라 행이 없습니다';
+    } else if (S.screen === 'def') {
+      const d = S.def;
+      s += '설치 소스 ready = ' + tf(d.ready) + '   build = "' + esc(d.build) + '"\n';
+      s += 'WindowsServerRelease.W2025.matchesBuild("' + esc(d.build) + '") = ' + tf(WindowsServerRelease.matchesBuild(WIN_RELEASES[0], d.build)) + '\n';
+      s += '[바뀐 뒤] OsInstallTargetPolicy.blockReason = registrable() 선판정 → 계열 검사기\n';
+      NEW_ROWS.slice().sort((a, b) => OSName.ordinal(a.osName) - OSName.ordinal(b.osName) || b.id - a.id).forEach(r => {
+        const reason = blockReasonNew(r, d);
+        s += '   ' + (OSName.label(r.osName) + '                              ').slice(0, 30) + (r.version + '      ').slice(0, 6) + (reason ? '<span class="t">차단</span> ' + esc(reason) : '<span class="f">허용</span>') + '\n';
+      });
+    }
+    el.innerHTML = s || ' ';
+  }
+
+  // ── 시나리오 6 ──
+  function demoSet(p) {
+    if (S.timer) { clearTimeout(S.timer); S.timer = null; }
+    S.preset = p;
+    document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(b => b.classList.toggle('active', Number(b.dataset.preset) === p));
+    const stage = document.getElementById('demo-stage');
+    if (p === 1 || p === 2) {
+      S.screen = 'reg';
+      const idx9 = oldOptions().findIndex(o => o.release === 'ROCKY_9') + 1;
+      S.reg = { before: { idx: idx9, version:'9.' }, after: { osName:'ROCKY_LINUX_9', version:'9.' }, res: { before:null, after:null } };
+      stage.innerHTML = splitStage('지금 : new.html', '바뀐 뒤');
+      paint(host('before'), regFormHtml('before'));
+      paint(host('after'), regFormHtml('after'));
+      renderControls(); renderCaps();
+      setMsg('', p === 1 ? 'Rocky Linux 9 를 고르면 버전 칸에 "9." 이 채워집니다. 잠시 뒤 9.6 을 넣고 [등록] 합니다.' : 'Rocky Linux 9 에 8.10 을 넣고 [등록] 합니다.');
+      const v = p === 1 ? '9.6' : '8.10';
+      S.timer = setTimeout(() => {
+        ['before', 'after'].forEach(m => { S.reg[m].version = v; host(m).shadowRoot.querySelector('[data-f="osVersion"]').value = v; submitReg(m); });
+        S.timer = null;
+      }, 700);
+    } else if (p === 3) {
+      S.screen = 'mig';
+      S.mig.rows = MIG_DEFAULT.map(r => Object.assign({ on:true }, r));
+      renderControls(); renderMig();
+      stage.onclick = e => { const b = e.target.closest('[data-mig-toggle]'); if (b) { const r = S.mig.rows[Number(b.dataset.migToggle)]; r.on = !r.on; renderMig(); } };
+      return;
+    } else if (p === 4 || p === 5) {
+      S.screen = 'list';
+      stage.innerHTML = splitStage('지금 : list.html', '바뀐 뒤');
+      if (p === 4) { S.list = { before: { c1:'ROCKY_LINUX', id:null }, after: { c1:'ROCKY_LINUX_9', id:null } }; paintList(); renderControls();
+        setMsg('', '지금은 Rocky Linux 한 묶음에 메이저가 섞이고, 바뀐 뒤에는 메이저별 묶음과 미지원 배지가 보입니다. C1 · C2 를 눌러 봅니다.'); }
+      else { pickRow(1); setMsg('', '버전 고르기 버튼으로 OS 를 바꿔 [추출] 버튼 표시를 봅니다. 지금 화면의 [추출] 은 어느 OS 에서나 보입니다.'); }
+    } else if (p === 6) {
+      S.screen = 'def';
+      S.def = { ready:true, build:'10.0.26100.1742' };
+      stage.innerHTML = splitStage('지금 : 정의서 OS 셀렉트', '바뀐 뒤');
+      renderControls(); paintDef(); defMessage();
+    }
+    stage.onclick = null;
+  }
+  document.querySelectorAll('.ux-toolbar .seg[data-preset]').forEach(b => b.addEventListener('click', () => demoSet(Number(b.dataset.preset))));
+
+  // §4 OSName 표 = 데모와 같은 데이터
+  document.getElementById('osname-table').innerHTML = OS_NAMES.map(o =>
+    '<tr><td><code>' + o.name + '</code></td><td>' + o.displayName + '</td><td>' + (o.major == null ? 'null' : o.major) + '</td><td>' + o.family + '</td><td>' +
+    (o.status === 'SUPPORTED' ? '<span class="chip new">SUPPORTED</span>' : '<span class="chip dep">LEGACY</span>') + '</td><td>' + OSName.label(o.name) + '</td><td>' +
+    (OSName.registrable(o.name) ? '예' : '아니오') + '</td><td>' + (OSName.extractable(o.name) ? '예' : '아니오') + '</td></tr>').join('');
+
+  function demoRender() { demoSet(1); }
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

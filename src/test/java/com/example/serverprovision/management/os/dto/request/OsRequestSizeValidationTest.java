@@ -76,7 +76,7 @@ class OsRequestSizeValidationTest {
 	@DisplayName("OSMetadataCreateRequest.osVersion 65자 → @Size 위반 (os_version VARCHAR(64))")
 	void osMetadataCreate_osVersionOverLimit_violates() {
 		var request = new OSMetadataCreateRequest(
-				com.example.serverprovision.management.os.enums.OSName.UBUNTU, null, chars(65), null);
+				com.example.serverprovision.management.os.enums.OSName.UBUNTU, chars(65), null);
 
 		Set<ConstraintViolation<OSMetadataCreateRequest>> violations = validator.validate(request);
 
@@ -98,18 +98,22 @@ class OsRequestSizeValidationTest {
 	}
 
 	@org.junit.jupiter.api.Test
-	@org.junit.jupiter.api.DisplayName("E4-1-b-2 D-21 — Rocky 는 메이저 필수 · 버전이 그 메이저 안 · 다른 OS 는 메이저를 받지 않는다")
-	void osMetadataCreate_rhelRelease() {
-		var rocky = com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX;
+	@org.junit.jupiter.api.DisplayName("S23-1 — 지원 상수만 받고, 버전은 상수의 메이저와 맞아야 한다(RHEL 은 메이저.세부, Windows Server 2025 는 2025, Ubuntu 는 자유)")
+	void osMetadataCreate_catalogRules() {
+		var rocky9 = com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX_9;
+		var rhel10 = com.example.serverprovision.management.os.enums.OSName.RHEL_10;
+		var win2025 = com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER_2025;
 		var ubuntu = com.example.serverprovision.management.os.enums.OSName.UBUNTU;
-		var r9 = com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9;
-		assertThat(validator.validate(new OSMetadataCreateRequest(rocky, r9, "9.6", null))).isEmpty();
-		assertThat(validator.validate(new OSMetadataCreateRequest(rocky, null, "9.6", null)))
-				.extracting(v -> v.getPropertyPath().toString()).containsExactly("rhelReleaseValid");
-		assertThat(validator.validate(new OSMetadataCreateRequest(rocky, r9, "10.0", null)))
-				.extracting(v -> v.getPropertyPath().toString()).containsExactly("osVersionCovered");
-		assertThat(validator.validate(new OSMetadataCreateRequest(ubuntu, r9, "24.04", null)))
-				.extracting(v -> v.getPropertyPath().toString()).containsExactly("rhelReleaseValid");
-		assertThat(validator.validate(new OSMetadataCreateRequest(ubuntu, null, "24.04", null))).isEmpty();
+		var legacy = com.example.serverprovision.management.os.enums.OSName.CENTOS;
+		assertThat(validator.validate(new OSMetadataCreateRequest(rocky9, "9.6", null))).isEmpty();
+		assertThat(validator.validate(new OSMetadataCreateRequest(rhel10, "10.0", null))).isEmpty();
+		assertThat(validator.validate(new OSMetadataCreateRequest(win2025, "2025", null))).isEmpty();
+		assertThat(validator.validate(new OSMetadataCreateRequest(ubuntu, "24.04", null))).isEmpty();
+		assertThat(validator.validate(new OSMetadataCreateRequest(rocky9, "10.0", null)))
+				.extracting(v -> v.getPropertyPath().toString()).containsExactly("osVersionAccepted");
+		assertThat(validator.validate(new OSMetadataCreateRequest(win2025, "2022", null)))
+				.extracting(v -> v.getPropertyPath().toString()).containsExactly("osVersionAccepted");
+		assertThat(validator.validate(new OSMetadataCreateRequest(legacy, "7.9", null)))
+				.extracting(v -> v.getPropertyPath().toString()).containsExactly("osName");
 	}
 }
