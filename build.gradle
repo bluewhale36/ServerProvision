@@ -45,6 +45,9 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     // @DataJpaTest 에서 사용할 인메모리 DB.
     testRuntimeOnly 'com.h2database:h2'
+    // 코딩 규약 기계 검사. 구조 규칙은 컴파일된 클래스(ArchUnit), 소스 규칙은 구문 트리(JavaParser)로 본다.
+    testImplementation 'com.tngtech.archunit:archunit-junit5:1.5.1'
+    testImplementation 'com.github.javaparser:javaparser-core:3.28.2'
 
     implementation 'com.hierynomus:sshj:0.37.0' // SSH 접속 및 제어 라이브러리
     implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -56,4 +59,9 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // 실패한 테스트의 메시지를 콘솔에 그대로 보인다. 규약 검사의 '고칠 방법' 을 보고서를 열지 않고 읽게 한다.
+    testLogging {
+        events 'failed'
+        exceptionFormat = 'full'
+    }
 }

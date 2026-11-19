@@ -1,6 +1,7 @@
 package com.example.serverprovision.management.subprogram.dto.request;
 
 import com.example.serverprovision.management.os.enums.OSName;
+import com.example.serverprovision.management.os.validation.RegistrableOsName;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -26,7 +27,7 @@ public record SubprogramRegisterExistingRequest(
 		@Size(max = 1024, message = "설명은 1024자 이하로 입력해야 합니다.")
 		String description,
 
+		@RegistrableOsName   // S23-1 — 미지원 OS 상수는 새로 고를 수 없다
 		OSName osName
 ) {
-
 }

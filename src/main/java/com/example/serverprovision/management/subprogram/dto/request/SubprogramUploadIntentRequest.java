@@ -1,6 +1,7 @@
 package com.example.serverprovision.management.subprogram.dto.request;
 
 import com.example.serverprovision.management.os.enums.OSName;
+import com.example.serverprovision.management.os.validation.RegistrableOsName;
 
 import com.example.serverprovision.management.subprogram.enums.SubprogramUploadMode;
 import jakarta.validation.constraints.*;
@@ -36,7 +37,7 @@ public record SubprogramUploadIntentRequest(
 
 		boolean allowCreateDirectory,
 
+		@RegistrableOsName   // S23-1 — 미지원 OS 상수는 새로 고를 수 없다
 		OSName osName
 ) {
-
 }

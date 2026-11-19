@@ -6,7 +6,9 @@
   Model:
     osGroups      : List<OSGroupResponse>      Miller C1/C2 데이터 소스
                       · osName        : OSName enum
-                      · displayName   : String ("Rocky Linux" 등)
+                      · displayName   : String ("Rocky Linux" 등, 버전과 이어 쓰는 배포판 이름)
+                      · label         : String ("Rocky Linux 9", C1 이름, S23-1)
+                      · unsupported   : boolean (미지원 OS 상수, S23-1)
                       · items         : List<OSMetadataResponse> (C3 상세 포함 full object)
     selectId      : Long (nullable)            토글/편집 후 리다이렉트 시 초기 선택 복원
     includeDeleted: boolean                    휴지통 모드 여부 (쿼리 ?includeDeleted)
@@ -58,7 +60,8 @@
                     type="button"
                     class="n-miller-item"
                     th:data-os-key="${group.osName.name()}">
-                <span th:text="${group.displayName}">Rocky Linux</span>
+                <span th:text="${group.label}">Rocky Linux 9</span>
+                <span class="n-badge n-badge-gray" th:if="${group.unsupported}">미지원</span>
                 <span class="n-note" th:if="${query.filtered}" th:text="|(${group.items.size()})|">(1)</span>
             </button>
         </div>
@@ -86,9 +89,12 @@
                           th:classappend="${os.isEnabled} ? 'n-miller-status-tag-on' : 'n-miller-status-tag-off'"
                           th:text="${os.isEnabled} ? '활성' : '비활성'">활성</span>
                 </button>
-                <!-- S5-5 — C2 내부 + 등록 버튼 (C1 선택 시에만 active 패널에서 가시). -->
+                <!-- S5-5 — C2 내부 + 등록 버튼 (C1 선택 시에만 active 패널에서 가시).
+                     S23-1 — C1 그룹의 OS 를 등록 화면에 넘겨 미리 고르게 한다. 미지원 그룹은 등록할 수 없으므로 막는다. -->
                 <div class="n-miller-col-foot">
-                    <a th:href="@{/management/os/new}"
+                    <th:block th:if="${group.unsupported}"><th:block th:replace="~{fragments/management/os/unsupported-os :: blockedButton('+ OS 버전 등록', 'n-btn n-btn-sm n-btn-secondary n-btn-block')}"></th:block></th:block>
+                    <a th:unless="${group.unsupported}"
+                       th:href="@{/management/os/new(osName=${group.osName.name()})}"
                        class="n-btn n-btn-sm n-btn-secondary n-btn-block">+ OS 버전 등록</a>
                 </div>
             </div>
@@ -119,7 +125,7 @@
                         </tr>
                         <tr>
                             <th>OS 이름</th>
-                            <td class="n-strong" th:text="${group.displayName}"></td>
+                            <td class="n-strong" th:text="${group.label}"></td>
                         </tr>
                         <tr>
                             <th>OS 버전</th>
@@ -314,8 +320,8 @@
                                         <th:block th:unless="${iso.isDeleted}">
                                             <!-- S5-12 hotfix — RHEL 자동 추출 + 사용자 수동 추출 중복 방지.
                                                  extracted (이미 추출됨) 또는 extractionInProgress (COMPS_EXTRACTION job active) 시 disabled.
-                                                 라벨 : 추출됨 / 추출 중… / 추출 -->
-                                            <button type="button"
+                                                 라벨 : 추출됨 / 추출 중… / 추출. S23-1 — 추출 능력이 있는 OS(지원 RHEL 계열)의 ISO 에만 보인다. -->
+                                            <button type="button" th:if="${iso.extractable}"
                                                     class="n-btn n-btn-sm n-btn-extract"
                                                     th:classappend="${iso.extracted} ? ' n-btn-outline-success' : (${iso.extractionInProgress} ? ' n-btn-outline' : ' n-btn-outline-info')"
                                                     th:disabled="${iso.extracted or iso.extractionInProgress}"
@@ -372,9 +378,11 @@
                             등록된 ISO 가 없습니다.
                         </div>
 
-                        <!-- ISO 추가 : 별도 페이지(파일 업로드 지원)로 이동. 삭제된 OS 에는 노출 안 함. -->
+                        <!-- ISO 추가 : 별도 페이지(파일 업로드 지원)로 이동. 삭제된 OS 에는 노출 안 함.
+                             S23-1 — 미지원 OS 는 비활성 + 사유를 버튼 곁 글자와 tooltip 둘 다로(DESIGN.md 7절 차단 사유, 서버 가드와 같은 registrable 판정). -->
                         <div class="n-form-actions n-block-gap" th:unless="${os.isDeleted}">
-                            <a th:href="@{/management/os/{osId}/iso/new(osId=${os.id})}"
+                            <th:block th:if="${group.unsupported}"><th:block th:replace="~{fragments/management/os/unsupported-os :: blockedButton('ISO 추가', 'n-btn n-btn-sm n-btn-secondary')}"></th:block></th:block>
+                            <a th:unless="${group.unsupported}" th:href="@{/management/os/{osId}/iso/new(osId=${os.id})}"
                                class="n-btn n-btn-sm n-btn-secondary">ISO 추가</a>
                         </div>
                     </div>

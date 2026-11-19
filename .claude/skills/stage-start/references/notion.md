@@ -22,12 +22,53 @@
 ### 만드는 순서 (tabs 때문에 두 번에 나눈다)
 
 1. `create-pages`: parent = data source, `template_id` 와 속성만 넘긴다. tabs 블록은 API 로 직접 만들 수 없어서 템플릿으로 만든다. `template_id` 를 주면 같은 호출에 `content` 를 줄 수 없다.
-2. `update-page`: tabs 아래에 본문을 붙인다(4 항목, 토론이면 `## 토론` 골격까지). 요약 탭 한 줄도 이때 넣는다.
+2. `update-page`: tabs 아래에 본문을 붙인다(4 항목, 토론이면 `## 토론` 골격까지). 요약 탭 한 줄도 이때 넣는다. 요약 탭 쓰는 법은 아래 '탭 안에 쓰는 법' 을 따른다.
+
+### 탭 안에 쓰는 법
+
+`<tab>` 다음 첫 줄은 **탭 제목**이다. 제목 줄에는 `요약` · `plan` · `report` 만 두고, 내용은 빈 줄 하나 뒤 다음 줄부터 쓴다. 그래야 내용이 탭 안의 블록이 된다.
+
+```
+<tab>
+요약
+
+수행 내용 핵심 한 줄.
+</tab>
+```
+
+- `요약<br />내용` 처럼 제목과 같은 줄에 쓰면 내용이 **탭 제목**으로 들어간다. 이 실수가 여러 페이지에서 반복됐다.
+- plan, report 탭의 embed 도 같은 원리다. 제목 줄에 붙이면 `\<embed` 로 이스케이프된다.
+- 쓰고 나서 fetch 해 `<tab>` 다음 줄이 제목 낱말 하나뿐인지 확인한다.
+- tabs 를 고칠 때는 언제나 `<tabs>` 부터 `</tabs>` 까지 전체를 old_str 로 잡는다(아래 '탭 임베드' 4 단계와 같다).
 3. 다시 fetch 해서 tabs 가 남아 있는지, 부모의 `하위 항목` 에 새 페이지가 잡혔는지 확인한다.
 
 ### 부모 상태
 
 자식이 '진행 중'이 되면 부모도 다시 판정한다(notion-sync 에이전트 정의의 계층 규약과 같다). 자식이 모두 '시작 전'이면 부모도 '시작 전', 모두 '완료'면 '완료', 그 밖에는 '진행 중'이다. 부모가 '시작 전'이었다면 '진행 중'으로 바꾸고, 시작 일자가 비어 있으면 오늘로 채운다.
+
+## plan, report 탭 임베드
+
+단계 페이지의 plan 탭과 report 탭에 html 을 붙이는 절차다. 언제 하는지는 CLAUDE.md 'plan / report html 규약' 이 정한다(plan 은 CP1 제출 때, report 는 CP6 제출 때, 고친 판을 낼 때마다 교체). 메인 세션이 직접 한다. notion-sync 에이전트에는 첨부 도구가 없다.
+
+1. `notion-create-file-upload` 에 `filename` 만 넘긴다(파일 이름 그대로). 반환의 `upload_url` 과 `upload_headers.authorization` 을 받는다. URL 은 짧은 시간만 산다.
+2. 스크립트로 보낸다. 커밋 전이어도 되고, 파일 크기가 모델 출력과 상관없다.
+   ```bash
+   bash .claude/skills/stage-start/scripts/notion-upload.sh '<upload_url>' '<authorization>' plan/<파일>.html
+   ```
+   `[STOP]` 이면 embed 하지 않고 사유를 보고한다. `[OK]` 면 마지막 줄 `EMBED …` 의 태그를 쓴다.
+3. 페이지를 fetch 해서 지금 tabs 블록을 읽는다.
+4. `update-page` 의 `update_content` 로 **tabs 블록 전체**(`<tabs>` 부터 `</tabs>` 까지)를 old_str 로 잡아 통째로 바꾼다. 탭 하나의 조각만 잡으면 tabs 가 탭 하나로 무너진다.
+   - embed 태그는 탭 제목 다음 **별도 줄**에 둔다. `plan<br /><embed …>` 처럼 같은 줄에 붙이면 `\<embed` 로 이스케이프되어 글자로 남는다.
+   - 고친 판으로 교체할 때는 그 탭의 옛 embed 줄을 새 태그로 바꾼다. 다른 탭의 내용은 fetch 한 그대로 둔다.
+   ```
+   <tab>
+   report
+   <embed source="file-upload://<id>" />
+   </tab>
+   ```
+5. 다시 fetch 해서 탭이 셋 그대로이고 embed 가 `notion-file-block://` 로 바뀌었는지 확인한다.
+
+업로드 응답이 403 이면 커밋과 push 를 마친 뒤 `notion-create-attachment` 의 `source_url` 에 커밋 SHA 고정 raw URL(`https://raw.githubusercontent.com/bluewhale36/ServerProvision/<SHA>/<경로>`)을 넘긴다. 커밋 지시가 없으면 사용자에게 알리고 기다린다.
 
 ## 패치 내역 DB
 

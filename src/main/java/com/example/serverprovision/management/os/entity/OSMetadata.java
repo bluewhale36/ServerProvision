@@ -101,6 +101,13 @@ public class OSMetadata extends LifecycleEntity implements Markable {
 		this.description = description;
 	}
 
+	/**
+	 * 목록 순서(S23-1). OS 상수의 선언 순서로 묶고, 같은 상수 안에서는 들어온 순서를 지킨다(정렬이 안정적이므로
+	 * 저장소의 created_at 내림차순이 남는다). DB ENUM 의 값 순서는 만든 방식(수동 DDL, Hibernate)마다 달라 기대지 않는다.
+	 */
+	public static final java.util.Comparator<OSMetadata> CATALOG_ORDER =
+			java.util.Comparator.comparing(OSMetadata::getOsName, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()));
+
 	/** 설치를 지원하는 RHEL 계열 메이저(E4-1-b-2) — 버전 문자열에서 계산한다. 지원 밖이면 empty. */
 	public Optional<RhelRelease> rhelRelease() {
 		return RhelRelease.of(osName, osVersion);

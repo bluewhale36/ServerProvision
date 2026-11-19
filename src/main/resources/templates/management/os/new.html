@@ -37,21 +37,21 @@
                 <!-- S4 폼 배너 슬롯 -->
                 <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
 
-                <!-- OS 이름 : 신규 등록 시에만 선택 가능 (수정 화면에선 고정). Rocky Linux 는 지원 메이저별 선택지이고,
-                     고른 줄의 data-rhel-release 를 숨은 rhelRelease 로 보낸다(os-metadata-new.js). -->
-                <div class="n-form-group" data-error-field="rhelReleaseValid">
+                <!-- OS 이름 : 신규 등록 시에만 선택 가능 (수정 화면에선 고정). 지원 OS 상수 하나가 한 줄이고,
+                     고른 줄의 data-version-prefill 을 버전 칸에 채운다(os-metadata-new.js, S23-1). -->
+                <div class="n-form-group">
                     <label class="n-label strong" for="osName">OS 이름</label>
                     <select id="osName" name="osName" class="n-select" data-error-field="osName">
                         <option value="">선택</option>
                         <option th:each="opt : ${osOptions}"
                                 th:value="${opt.osName.name()}"
                                 th:text="${opt.label}"
-                                th:attr="data-rhel-release=${opt.release != null ? opt.release.name() : ''},data-version-prefix=${opt.versionPrefix}"></option>
+                                th:selected="${opt.osName == osMetadataForm.osName}"
+                                th:attr="data-version-prefill=${opt.versionPrefill},data-version-locked=${opt.versionLocked}"></option>
                     </select>
-                    <input type="hidden" id="rhelRelease" name="rhelRelease" value="">
                 </div>
 
-                <div class="n-form-group" data-error-field="osVersionCovered">
+                <div class="n-form-group" data-error-field="osVersionAccepted">
                     <label class="n-label strong" for="osVersion">OS 버전</label>
                     <input id="osVersion" type="text" name="osVersion"
                            class="n-input"

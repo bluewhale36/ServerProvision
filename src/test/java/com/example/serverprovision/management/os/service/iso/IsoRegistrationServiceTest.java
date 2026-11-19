@@ -66,7 +66,7 @@ class IsoRegistrationServiceTest {
 
 	private OSMetadata parent(Long id) {
 		return OSMetadata.builder()
-				.id(id).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+				.id(id).osName(OSName.ROCKY_LINUX_9).osVersion("9.5")
 				.isEnabled(true).isDeleted(false).isDeprecated(false).build();
 	}
 
@@ -145,6 +145,18 @@ class IsoRegistrationServiceTest {
 	}
 
 	// ==== prepare (HF4-3 F-4 — 디렉토리 경로 가드) ======================
+
+	@Test
+	@DisplayName("S23-1 prepare : 부모 OS 가 미지원 상수(CentOS)면 경로를 보기 전에 UnsupportedOsIsoRegistrationException")
+	void prepare_legacyOs_throws() {
+		given(osMetadataRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(OSMetadata.builder()
+				.id(1L).osName(OSName.CENTOS).osVersion("7.9").isEnabled(true).isDeleted(false).isDeprecated(false).build()));
+		var request = new ISOCreateRequest("/opt/iso/c.iso", "desc", false);
+
+		assertThatThrownBy(() -> service.prepare(1L, request, null))
+				.isInstanceOf(com.example.serverprovision.management.os.exception.UnsupportedOsIsoRegistrationException.class);
+		org.mockito.Mockito.verifyNoInteractions(pathPolicyService);
+	}
 
 	@Test
 	@DisplayName("prepare : resolved 경로가 기존 디렉토리 → IsoPathIsDirectoryException (field=isoPath)")

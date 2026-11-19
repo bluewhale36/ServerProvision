@@ -68,7 +68,7 @@ class CompsExtractionServiceTest {
                 registrationFailureRecorder
         );
         rocky = OSMetadata.builder()
-                .osName(OSName.ROCKY_LINUX)
+                .osName(OSName.ROCKY_LINUX_9)
                 .osVersion("9.5")
                 .description("rocky 9.5")
                 .isEnabled(true)
@@ -90,7 +90,7 @@ class CompsExtractionServiceTest {
     void happy_callsMergeAndComplete() {
         given(isoPreparationService.prepare("/data/iso/rocky95.iso"))
                 .willReturn(PreparedIsoPath.passthrough(rockyRoot));
-        given(strategy.supports(OSName.ROCKY_LINUX)).willReturn(true);
+        given(strategy.supports(OSName.ROCKY_LINUX_9)).willReturn(true);
         given(strategy.extract(rockyRoot))
                 .willReturn(new CompsExtractionResult(List.of(), Map.of()));
 
@@ -128,7 +128,7 @@ class CompsExtractionServiceTest {
     void extractorThrows_callsFail() {
         given(isoPreparationService.prepare(anyString()))
                 .willReturn(PreparedIsoPath.passthrough(rockyRoot));
-        given(strategy.supports(OSName.ROCKY_LINUX)).willReturn(true);
+        given(strategy.supports(OSName.ROCKY_LINUX_9)).willReturn(true);
         given(strategy.extract(anyString()))
                 .willThrow(new IllegalStateException("comps 데이터를 포함한 repomd.xml 을 찾을 수 없습니다."));
 
@@ -201,7 +201,7 @@ class CompsExtractionServiceTest {
     @DisplayName("D-20 — 버전이 맞으면 등록 실패를 남기지 않는다")
     void releaseMatch_doesNotRecord() {
         given(isoPreparationService.prepare(anyString())).willReturn(PreparedIsoPath.passthrough(rockyRoot));
-        given(strategy.supports(OSName.ROCKY_LINUX)).willReturn(true);
+        given(strategy.supports(OSName.ROCKY_LINUX_9)).willReturn(true);
         given(strategy.extract(rockyRoot)).willReturn(new CompsExtractionResult(List.of(), Map.of()));
 
         service.extractAsync(rocky, iso, "job-ok");

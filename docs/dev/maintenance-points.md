@@ -3,35 +3,35 @@
 지원 대상(메인보드, OS 릴리스, RAID 칩 등)이 늘거나 바뀔 때 화면 등록만으로는 끝나지 않고 코드나 설정을 고쳐야 하는 자리다. 계기마다 운영자가 겪는 상황 이름으로 절을 나눈다. 이런 자리를 만들거나 옮긴 슬라이스는 같은 PR 에서 이 문서를 고친다(CLAUDE.md 의 등록 규칙).
 
 - 생긴 단계의 A1, A2 는 M0 영역 재구성 이전의 인벤토리 표기다. 미상은 인벤토리 코드 없이 들어온 커밋이다.
-- S23-1(OS 카탈로그)이 병합되면 `OSName` 이 배포판과 메이저 단위 상수로, `RhelRelease` 가 메이저 단위 상수로 바뀐다. 아래 OS 관련 두 절은 S23-1 이 같은 PR 에서 고친다.
+- OS 는 `OSName` 상수(배포판과 메이저)로 고정되어 있고, 메이저마다 다른 설치 능력은 `RhelRelease` 와 `WindowsServerRelease` 가 맡는다(S23-1). 등록 선택지, 추출 대상, ISO 버전 대조는 상수의 판정 메서드(`registrable`, `extractable`)에서 나오므로 목록을 따로 고칠 곳이 없다.
 - RHEL kickstart 생성기(E4-1-b-3)의 자리는 그 코드가 dev 에 병합될 때 E4-1-b 가 더한다.
 
 ## 새 Rocky Linux 메이저 출시
 
-운영자는 OS 메타데이터와 ISO 를 화면에서 등록하지만, 등록 선택지와 정의서 지원 판정이 `RhelRelease` 상수에서 나오므로 상수를 더하고 새 ISO 의 배치가 같은지 확인해야 한다.
+운영자는 OS 메타데이터와 ISO 를 화면에서 등록하지만, 등록 선택지와 설치 판정이 OS 상수에서 나오므로 상수를 더하고 새 ISO 의 배치가 같은지 확인해야 한다.
 
 | 클래스와 설정 | 고칠 내용 | 확인할 테스트 | 생긴 단계 |
 |---|---|---|---|
-| `RhelRelease` | 상수 추가(예: `ROCKY_11`). OS 등록 선택지, 정의서 지원 판정, 지원 문구, ISO 버전 대조가 따라온다 | RhelReleaseTest, OsRegistrationOptionTest, OsInstallTargetPolicyTest | E4-1-b-2 |
+| `OSName` | 상수 추가(예: `ROCKY_LINUX_11`, 배포판 이름 "Rocky Linux", 메이저 11, 버전 규칙 `MAJOR_PREFIX`). 등록 선택지, 추출 대상, 버전 대조가 따라온다. 선언 순서가 목록 정렬 순서다(`OSMetadata.CATALOG_ORDER`) | OSNameTest, OsRegistrationOptionTest | S23-1 |
+| `RhelRelease` | 새 메이저 상수(예: `R11`)를 더하고 `osNames` 에 새 `OSName` 상수를 넣는다. 각 RHEL 계열 상수가 정확히 한 메이저에 속하는지 테스트가 지킨다 | RhelReleaseTest | S23-1 |
 | `RhelRelease.supportsRootSshFlag` (`ROOT_SSH_FLAG_SINCE`) | 새 메이저의 `rootpw --allow-ssh` 사용 여부를 실제 ISO 로 확인 | RhelReleaseTest | E4-1-b-2 |
+| DB `os_metadata.os_name`, `subprogram.os_name` ENUM | 새 상수 이름을 ENUM 에 더하는 DDL(Java 선언 순서와 같게). 배포 대기 원장에 등록한다 | 샌드박스 SHOW CREATE TABLE | S23-1 |
 | `TreeInfo` | `.treeinfo` 의 `[release]` name 이 "Rocky Linux" 그대로인지, version 형식이 같은지 확인. 다르면 대조 규칙 수정 | TreeInfoTest, CompsExtractionServiceTest | E4-1-b-2 |
 | `InstallTree.KERNEL`, `InstallTree.INITRD` | `images/pxeboot/vmlinuz`, `images/pxeboot/initrd.img` 배치 확인 | InstallTreeTest, InstallTreeInspectorTest | E4-1-b-1 |
 | `InstallTreeInspector.BASEOS_REPOMD`, `TreeInfo.DEFAULT_STAGE2` | 필수 파일 `BaseOS/repodata/repomd.xml`, 기본 stage2 `images/install.img` 배치 확인 | InstallTreeInspectorTest(견본 FakeRockyTree) | E4-1-b-1 |
 | `RHELCompsExtractor` 의 `LOCAL_SKIP_DIRS`, 탐색 깊이 3 | comps 를 담은 repodata 가 깊이 3 안, 제외 폴더 밖에 있는지 확인 | 없음 | A1 |
 | `JpaSettingQueryService.findDefaultPartitions` | 고정 프리셋 유지. 설치 프로그램이 `/boot`, `/boot/efi` 최소 크기를 올렸는지만 확인 | 없음 | U2 |
 
-## 새 RHEL 계열 배포판 지원(AlmaLinux, RHEL 등)
+## 새 RHEL 계열 배포판 지원(AlmaLinux 등)
 
-운영자는 OS 이름을 화면 목록에서 고를 뿐이라 새 배포판은 고를 수 없고, 설치 판정과 ISO 대조가 Rocky Linux 이름에 묶여 있으므로 코드를 고쳐야 한다.
+운영자는 OS 이름을 화면 목록에서 고를 뿐이라 새 배포판은 고를 수 없으므로, 배포판마다 메이저별 상수를 더해야 한다. 같은 메이저의 설치 능력은 기존 `RhelRelease` 상수를 그대로 쓴다.
 
 | 클래스와 설정 | 고칠 내용 | 확인할 테스트 | 생긴 단계 |
 |---|---|---|---|
-| `OSName` | 상수 추가. 화면 이름을 `.treeinfo` 의 `[release]` name 과 같게 | TreeInfoTest | A1 |
-| `OSMetadataController.MVP_OS_NAMES` | 등록 가능한 OS 목록에 추가 | 없음 | A1 |
-| `RhelRelease` | 그 배포판의 지원 메이저 상수 추가 | RhelReleaseTest, OsRegistrationOptionTest | E4-1-b-2 |
-| `RHELCompsExtractor.SUPPORTED` | 패키지 그룹 추출 대상에 추가 | 없음 | A1 |
-| `CompsExtractionService.verifyRelease` | ISO 버전 대조 대상(지금은 `ROCKY_LINUX` 만)에 추가 | CompsExtractionServiceTest | E4-1-b-2 |
-| `RHELInstallationFamilyInspector.unsupportedReason` | 차단 문구가 Rocky Linux 만 말하므로 지원 배포판 전체로 | RHELInstallationFamilyInspectorTest | E4-1-b-2 |
+| `OSName` | 메이저마다 상수 추가. 배포판 이름을 실제 ISO 의 `.treeinfo` `[release]` name 과 같게 둔다(ISO 버전 대조의 기준) | OSNameTest, TreeInfoTest | S23-1 |
+| `RhelRelease` | 같은 메이저 상수의 `osNames` 에 새 상수를 더한다 | RhelReleaseTest | S23-1 |
+| DB `os_metadata.os_name`, `subprogram.os_name` ENUM | 새 상수 이름을 ENUM 에 더하는 DDL | 샌드박스 SHOW CREATE TABLE | S23-1 |
+| 실제 ISO 확인 | 트리 배치(`images/pxeboot`, `BaseOS/repodata`), comps 위치가 Rocky 와 같은지 | CP5 실 ISO | S23-1 |
 
 ## 새 Windows Server 버전 또는 에디션
 
@@ -39,6 +39,8 @@
 
 | 클래스와 설정 | 고칠 내용 | 확인할 테스트 | 생긴 단계 |
 |---|---|---|---|
+| `OSName`, `WindowsServerRelease` | 새 버전 상수(예: `WINDOWS_SERVER_2028`, 버전 규칙 `EXACT_MAJOR`)와 그 빌드 번호를 가진 `WindowsServerRelease` 상수를 함께 더한다. 설치 소스의 install.wim 빌드가 이 번호와 달라 설치가 막히는지로 확인한다 | WindowsServerReleaseTest, InstallSourceBuildCheckTest | S23-1 |
+| DB `os_metadata.os_name`, `subprogram.os_name` ENUM | 새 상수 이름을 ENUM 에 더하는 DDL | 샌드박스 SHOW CREATE TABLE | S23-1 |
 | `provision.windows-install.source-root`, `provision.windows-install.share-unc` (`WindowsInstallProperties`) | 새 버전 소스 경로로 교체. 소스를 하나만 가리키므로 두 버전 병행은 코드 변경 | WindowsInstallPropertiesTest, WindowsInstallSourceTest | E4-1-a-2 |
 | `provision.windows-install.product-keys.*`, `WindowsInstallProperties.ProductKeys.forEdition` | 새 EDITIONID 면 필드, switch 분기, 설정 키 추가. 없으면 설치 준비도가 막힌다 | WindowsInstallPropertiesTest, WindowsInstallReadinessTest | E4-1-a-2 |
 | `InstallSourceSlot` | 새 미디어의 `sources/boot.wim`, `sources/install.wim`, `sources/setup.exe` 배치 확인 | WindowsInstallSourceTest, WindowsInstallSourceAreaTest | E4-1-a-2 |

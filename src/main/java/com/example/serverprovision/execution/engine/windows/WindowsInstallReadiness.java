@@ -9,6 +9,7 @@ import com.example.serverprovision.execution.wininstall.config.WindowsInstallPro
 
 import java.util.ArrayList;
 import java.util.List;
+import com.example.serverprovision.execution.wininstall.catalog.InstallSourceBuildCheck;
 import java.util.Optional;
 
 /**
@@ -48,6 +49,8 @@ public final class WindowsInstallReadiness {
             } else if (!snapshot.ready()) {
                 add(notes, wire, "install.wim 미배치: " + DASHBOARD, "install.wim missing");
             } else if (t.hasImage()) {
+                InstallSourceBuildCheck.blockReason(t.osTarget().osName(), snapshot)
+                        .ifPresent(reason -> add(notes, wire, reason, InstallSourceBuildCheck.WIRE));   // S23-1
                 image = snapshot.find(t.imageName());
                 if (image.isEmpty()) {
                     add(notes, wire, "선택한 이미지가 소스 install.wim 에 없습니다: " + DASHBOARD, "image not in source");

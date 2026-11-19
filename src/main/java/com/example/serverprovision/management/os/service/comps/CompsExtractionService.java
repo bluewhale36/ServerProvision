@@ -1,6 +1,5 @@
 package com.example.serverprovision.management.os.service.comps;
 
-import com.example.serverprovision.management.os.enums.OSName;
 import com.example.serverprovision.management.os.exception.ExtractionFailedException;
 import com.example.serverprovision.management.os.vo.TreeInfo;
 import java.nio.file.Path;
@@ -108,11 +107,11 @@ public class CompsExtractionService {
 	 * E4-1-b-2 D-20 — ISO 안 트리 설명서의 배포판 · 주 버전이 등록한 OS 와 같은지. 다르거나 트리 설명서가 없으면 ISO 를
 	 * '등록 실패' 로 남기고(행 · 파일은 그대로, 운영자가 사유를 보고 지운다) 작업을 실패로 끝낸다. 저장(MERGE_SAVE) 앞이라
 	 * 설치 환경이 생기지 않고, 정의서에서는 그 ISO 를 고를 수 없다. 이미 추출이 끝난 ISO 는 [추출] 재실행이 막혀 있어
-	 * 기존 환경이 있는 ISO 가 여기서 실패로 바뀌는 경로는 없다. 대상은 Rocky Linux 만(CentOS 는 표기가 여러 가지이고 설치
-	 * 지원 대상이 아님). 웹 주소 ISO 는 파일을 열지 않으므로 건너뛴다.
+	 * 기존 환경이 있는 ISO 가 여기서 실패로 바뀌는 경로는 없다. 대상은 추출을 지원하는 RHEL 계열 OS 전부다(S23-1, RHEL 포함).
+	 * 웹 주소 ISO 는 파일을 열지 않으므로 건너뛴다.
 	 */
 	private void verifyRelease(OSMetadata osMetadata, ISO iso, String preparedPath) {
-		if (osMetadata.getOsName() != OSName.ROCKY_LINUX
+		if (!osMetadata.getOsName().extractable()
 				|| preparedPath.startsWith("http://") || preparedPath.startsWith("https://")) {
 			return;
 		}

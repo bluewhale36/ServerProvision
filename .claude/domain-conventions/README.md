@@ -19,6 +19,7 @@ S10 의 계기가 된 사고는 이해 부족이 아니라 **빠뜨림**이었�
 |---|---|
 | 새 예외 클래스를 만든다 | [new-exception.md](new-exception.md) |
 | 상태를 바꾸는 폼이나 입력 폼을 추가한다 | [new-form.md](new-form.md) |
+| Javadoc 이나 코드 주석을 쓴다(길이와 금지 패턴은 `CodingConventionTest` 가 잡고, 명료성은 이 문서로 본다) | [javadoc.md](javadoc.md) |
 
 ## 아직 없는 것
 
