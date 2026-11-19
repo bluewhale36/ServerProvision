@@ -300,7 +300,7 @@ class BmcControllerTest {
             var conflicts = List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                     77L,
                     com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
-                    "hash", "BMC-A", "12.61", "BMC-A", Instant.now()));
+                    "hash", "BMC-A", "12.61", "BMC-A", "버전 12.61", Instant.now()));
             willThrow(new com.example.serverprovision.management.bmc.exception.BmcNudgeRequiredException(
                     "동일 메타", session, conflicts))
                     .given(bmcUploadIntentService).issue(eq(1L), any());
