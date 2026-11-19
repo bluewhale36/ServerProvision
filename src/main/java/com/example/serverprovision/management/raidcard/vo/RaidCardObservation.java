@@ -13,7 +13,7 @@ public record RaidCardObservation(UUID guestServerId, String guestLabel, String 
 	public RaidCardObservation {
 		if (guestServerId == null || pciSubsystemId == null || pciSubsystemId.isBlank()
 				|| guestLabel == null || guestLabel.isBlank()) {
-			throw new IllegalArgumentException("관측은 게스트 id · 라벨 · Subsystem 이 모두 있어야 합니다.");
+			throw new IllegalArgumentException("관측에는 게스트 식별자, 라벨, Subsystem 이 모두 있어야 합니다.");
 		}
 	}
 }

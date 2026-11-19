@@ -122,7 +122,7 @@ class GuestServerGroupControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("만들어진 그룹이 없습니다")))
                 .andExpect(content().string(containsString("스펙 묶음")))
-                .andExpect(content().string(containsString("빈 그룹")));
+                .andExpect(content().string(containsString("에서 그룹을 만들 수 있습니다")));
     }
 
     @Test
@@ -138,11 +138,11 @@ class GuestServerGroupControllerTest {
 
         mvc.perform(get("/provisioning/server-group/new")
                         .param("serverIds", free.toString(), taken.toString())
-                        .param("suggested", "MS03-CE0 · 8월 11일 입고"))
+                        .param("suggested", "MS03-CE0, 8월 11일 입고"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/server-group-form"))
                 .andExpect(model().attribute("blockedCount", 1L))
-                .andExpect(content().string(containsString("MS03-CE0 · 8월 11일 입고")))
+                .andExpect(content().string(containsString("MS03-CE0, 8월 11일 입고")))
                 .andExpect(content().string(containsString("이미 다른 그룹에 속해 있어 선택할 수 없습니다")))
                 .andExpect(content().string(containsString("disabled")));
     }
@@ -281,7 +281,7 @@ class GuestServerGroupControllerTest {
         mvc.perform(get("/provisioning/server-group/7"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("구성이 다른 서버")))
-                .andExpect(content().string(containsString("그대로 두셔도 됩니다")))   // 차단이 아님을 문구가 말한다
+                .andExpect(content().string(containsString("노란색으로 표시된 행")))   // 어느 행이 다른지 문구가 가리킨다
                 .andExpect(content().string(containsString("빼기")))                  // 조작은 그대로 열려 있다
                 // 개정 — 문장만으로 알리지 않는다. 제목 표식과 겉도는 행의 표식이 함께 나온다
                 .andExpect(content().string(containsString("n-title-badge")))
@@ -335,7 +335,7 @@ class GuestServerGroupControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("provisioning/server-group-form"))
                 .andExpect(model().attributeHasFieldErrors("form", "name"))
-                .andExpect(content().string(containsString("그룹 이름을 입력하세요")));
+                .andExpect(content().string(containsString("그룹 이름을 입력해야 합니다")));
     }
 
     @Test
@@ -389,7 +389,7 @@ class GuestServerGroupControllerTest {
     @Test
     @DisplayName("멤버 추가 — 이미 다른 그룹 소속이면 409 이고, 사유에 그 그룹 이름이 담긴다")
     void addMembers_alreadyGroupedIs409() throws Exception {
-        willThrow(new ServerAlreadyGroupedException("이미 다른 그룹(8월 1차)에 속해 있습니다. 옮기려면 그 그룹에서 먼저 빼주세요."))
+        willThrow(new ServerAlreadyGroupedException("이미 다른 그룹(8월 1차)에 속해 있습니다. 옮기려면 그 그룹에서 먼저 빼야 합니다."))
                 .given(commandService).addMembers(eq(7L), anyCollection());
 
         mvc.perform(post("/provisioning/server-group/7/members")

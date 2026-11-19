@@ -34,11 +34,11 @@ public class TrashSettingsRequestValidator implements Validator {
 		TrashSettingsRequest req = (TrashSettingsRequest) target;
 		validateCronField(
 				errors, "purgeCronExpression", req.purgeCronExpression(),
-				"영구삭제 점검 주기 cron 식의 형식이 올바르지 않아요. 예 : 0 0 * * * *"
+				"영구 삭제 점검 주기 cron 식의 형식이 올바르지 않습니다. 예: 0 0 * * * *"
 		);
 		validateCronField(
 				errors, "notifyCronExpression", req.notifyCronExpression(),
-				"사전 알림 점검 주기 cron 식의 형식이 올바르지 않아요. 예 : 0 0 * * * *"
+				"사전 알림 점검 주기 cron 식의 형식이 올바르지 않습니다. 예: 0 0 * * * *"
 		);
 	}
 

@@ -10,9 +10,9 @@ import java.util.Optional;
 /**
  * RaidCard 영속 연산.
  *
- * <p>유일성 어휘(MA7 D7) — "살아 있는 카드"(is_deleted=false AND is_deprecated=false)만 (vendor,
- * modelName) 이 유일하다. DB 는 생성 컬럼 {@code active_identity} 의 유니크 인덱스가 같은 조건으로
- * 동시성까지 강제한다(ddl/MA7_raid_card.sql) — 서비스 검사는 친절한 409 안내, DB 는 최종 판정.</p>
+ * <p>유일성 어휘(HF30-1 — MA7 D7 을 뒤집음) — (vendor, modelName) 은 휴지통 · Deprecated 를 포함한 모든 상태에서 유일하다.
+ * DB 는 {@code uk_raid_card_vendor_model_name}(ddl/HF30_meta_identity.sql)이 동시성까지 강제한다 — 서비스 검사는 상태별 409 안내,
+ * DB 는 최종 판정.</p>
  */
 public interface RaidCardRepository extends JpaRepository<RaidCard, Long> {
 
@@ -38,16 +38,15 @@ public interface RaidCardRepository extends JpaRepository<RaidCard, Long> {
 
 	/**
 	 * 중복 등록 방지 — "살아 있는"(비삭제 · 비 Deprecated) 카드 안에서 (vendor, modelName) 유일성 검사.
-	 * DB 생성 컬럼 유니크 인덱스 {@code uk_raid_card_active_identity} 와 이중 가드를 이룬다.
+	 * 복구 · Deprecated 해제의 안전망(HF30-1 이후 DB UNIQUE 가 휴지통까지 점유해 실제로는 겹칠 수 없다).
 	 */
 	boolean existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(RaidCardVendor vendor, String modelName);
 
 	/**
-	 * 메타 nudge 후보 (soft-deleted ∪ active+deprecated). 중복 등록 시도 시 충돌 후보 회수용 (MK2 선례).
+	 * 같은 (vendor, modelName) 의 모든 행(상태 무관) — HF30-1 등록 · 이름 수정 충돌 판정. UNIQUE 이후에는 0 또는 1 행이지만,
+	 * 그 이전 옛 데이터의 다건을 견디도록 목록으로 받는다.
 	 */
-	List<RaidCard> findAllByVendorAndModelNameAndIsDeletedTrue(RaidCardVendor vendor, String modelName);
-
-	List<RaidCard> findAllByVendorAndModelNameAndIsDeprecatedTrueAndIsDeletedFalse(RaidCardVendor vendor, String modelName);
+	List<RaidCard> findAllByVendorAndModelName(RaidCardVendor vendor, String modelName);
 
 	/**
 	 * soft-deleted 카드 (메타 자원). 휴지통 표시용.

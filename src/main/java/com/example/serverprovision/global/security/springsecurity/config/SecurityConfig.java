@@ -1,6 +1,8 @@
 package com.example.serverprovision.global.security.springsecurity.config;
 
 import com.example.serverprovision.global.security.springsecurity.authorization.MustChangePasswordSuccessHandler;
+import com.example.serverprovision.global.security.springsecurity.authorization.ReasonedAccessDeniedHandler;
+import com.example.serverprovision.global.security.springsecurity.authorization.SuperAdminOnlyPolicy;
 import com.example.serverprovision.global.security.springsecurity.authorization.SignupAccessPolicy;
 import jakarta.servlet.DispatcherType;
 import org.springframework.security.core.session.SessionRegistry;
@@ -30,6 +32,8 @@ public class SecurityConfig {
 	private final SignupAccessPolicy signupAccessPolicy;
 	private final MustChangePasswordSuccessHandler successHandler;
 	private final SessionRegistry sessionRegistry;   // MA8 D-8 — 다른 사용자의 세션 만료용(UserSessionExpirer)
+	private final SuperAdminOnlyPolicy superAdminOnlyPolicy;              // HF29 — 의미는 hasRole("SUPER_ADMIN") 그대로 + 거절 사유
+	private final ReasonedAccessDeniedHandler reasonedAccessDeniedHandler;   // HF29 — 거절 사유를 403 화면 · JSON 에 싣는다
 
 	@Bean
 	@Order(2)   // S19-1 — 게스트 채널 체인(@Order(1)) 뒤의 웹 화면 체인
@@ -41,7 +45,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests( req -> req
 						// S18 D-8 — 비인증 화면(로그인 · 최초 관리자 등록)이 디자인 시스템 자산을 받아야 한다. 페이지 스크립트 디렉토리
 						// (/management/** 등)는 컨트롤러 경로와 겹치므로 열지 않는다 — 인증 뒤에만 쓰인다.
-						.requestMatchers("/global/**", "/css/**", "/fonts/**", "/vendor/**", "/favicon.ico").permitAll()
+						.requestMatchers("/global/**", "/css/**", "/fonts/**", "/icons/**", "/vendor/**", "/favicon.ico").permitAll()
 						// ERROR: 비인증 404 · 500 이 로그인으로 튀지 않게. ASYNC: SSE 처럼 첫 요청에서 이미 인가된 스트림의 비동기 디스패치가
 						// 로그아웃 뒤 다시 인가에 걸려 "response already committed" ERROR 를 남기지 않게(CP5 F-4) — ASYNC 는 원 요청이 통과한 뒤에만 온다.
 						.dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.ASYNC).permitAll()
@@ -49,7 +53,7 @@ public class SecurityConfig {
 						// /api/pxe/v1/** 는 S19-1 부터 GuestSecurityConfig(@Order(1)) 의 게스트 체인이 받는다 — 이 체인에는 오지 않는다.
 						.requestMatchers("/login").permitAll()
 						.requestMatchers("/signup").access(signupAccessPolicy)   // MA8 — 부트스트랩(관리자 부재) 중에만 열린다
-						.requestMatchers("/users", "/users/**").hasRole("SUPER_ADMIN")   // MA8 — 사용자 관리는 최고 관리자 전용
+						.requestMatchers("/users", "/users/**").access(superAdminOnlyPolicy)   // MA8 — 사용자 관리는 최고 관리자 전용 · HF29 사유
 						.anyRequest().authenticated()
 				)
 
@@ -57,8 +61,9 @@ public class SecurityConfig {
 				// 보낸다. 302 는 XhrRedirectFilter 가 200 + X-Redirect-Location 으로 바꾸고 form-submit.js 가 브라우저 이동으로 받는다(HF9 경로).
 				// httpBasic 의 entry point 은 X-Requested-With 요청도 자기 것으로 잡으므로 이 매핑을 먼저 둔다.
 				.exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
-						new LoginUrlAuthenticationEntryPoint("/login"),
-						new RequestHeaderRequestMatcher("X-Requested-With", "XMLHttpRequest")))
+								new LoginUrlAuthenticationEntryPoint("/login"),
+								new RequestHeaderRequestMatcher("X-Requested-With", "XMLHttpRequest"))
+						.accessDeniedHandler(reasonedAccessDeniedHandler))
 
 				.formLogin( form -> form
 						.loginPage("/login")

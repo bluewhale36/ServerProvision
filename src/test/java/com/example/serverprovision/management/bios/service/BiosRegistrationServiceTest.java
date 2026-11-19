@@ -73,7 +73,6 @@ class BiosRegistrationServiceTest {
     void addBios_happy_upload(@TempDir Path tmp) {
         Path target = tmp.resolve("target");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 100L));
         // 해시 충돌 후보 없음 → nudge 미발급.
         given(biosRepository.findHashConflictCandidates(eq(10L), eq("abc123"))).willReturn(List.of());
@@ -106,7 +105,8 @@ class BiosRegistrationServiceTest {
     @DisplayName("addBios(fail) : 활성 (board, version) 중복 → DuplicateBiosVersionException")
     void addBios_duplicateActive_throws(@TempDir Path tmp) {
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(true);
+        given(biosRepository.findAllByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(java.util.List.of(
+                com.example.serverprovision.management.bios.entity.BoardBIOS.builder().name("live").version("1.0").isDeleted(false).isDeprecated(false).build()));
 
         assertThatThrownBy(() -> biosRegistrationService.addBios(10L,
                 new BiosCreateRequest("x", "1.0", tmp.resolve("t") + "/", null, true),
@@ -120,7 +120,6 @@ class BiosRegistrationServiceTest {
     void addBios_markerConflict_throws(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
         org.mockito.BDDMockito.willThrow(new MarkerConflictException(target.toString()))
                 .given(targetDirectoryPolicyService).prepareForUpload(target, true);
 
@@ -135,7 +134,6 @@ class BiosRegistrationServiceTest {
     void addBios_targetNotEmpty_throws(@TempDir Path tmp) {
         Path target = tmp.resolve("t");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
         org.mockito.BDDMockito.willThrow(new TargetDirectoryNotEmptyException(target.toString()))
                 .given(targetDirectoryPolicyService).prepareForUpload(target, true);
 
@@ -150,7 +148,6 @@ class BiosRegistrationServiceTest {
     void addBios_directoryInferredWithoutTrailingSlash(@TempDir Path tmp) {
         Path target = tmp.resolve("v310");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "3.10")).willReturn(false);
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 100L));
         given(biosRepository.findHashConflictCandidates(eq(10L), eq("abc123"))).willReturn(List.of());
         given(biosRepository.save(any(BoardBIOS.class))).willAnswer(inv -> {
@@ -184,7 +181,6 @@ class BiosRegistrationServiceTest {
         java.nio.file.Files.writeString(firmware, "rbu");
 
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
         given(bundleManifestService.compute(any())).willReturn(new ManifestSummary("abc123", 1, 3L));
         given(biosRepository.findHashConflictCandidates(eq(10L), eq("abc123"))).willReturn(List.of());
         given(biosRepository.save(any(BoardBIOS.class))).willAnswer(inv -> {
@@ -211,7 +207,6 @@ class BiosRegistrationServiceTest {
         Path treeRoot = tmp.resolve("t");
         java.nio.file.Files.createDirectories(treeRoot);
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
 
         assertThatThrownBy(() -> biosRegistrationService.addBios(10L,
                 new BiosCreateRequest("x", "1.0", treeRoot.resolve("missing.RBU").toString(), null, false), null))
@@ -231,7 +226,6 @@ class BiosRegistrationServiceTest {
         java.nio.file.Files.writeString(firmware, "rbu");
         java.nio.file.Files.writeString(treeRoot.resolve("other.bin"), "x");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
 
         assertThatThrownBy(() -> biosRegistrationService.addBios(10L,
                 new BiosCreateRequest("x", "1.0", firmware.toString(), null, false), null))
@@ -248,7 +242,6 @@ class BiosRegistrationServiceTest {
         java.nio.file.Files.writeString(firmware, "rbu");
         java.nio.file.Files.writeString(treeRoot.resolve(".provision.json"), "{}");
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
 
         assertThatThrownBy(() -> biosRegistrationService.addBios(10L,
                 new BiosCreateRequest("x", "1.0", firmware.toString(), null, false), null))
@@ -259,7 +252,6 @@ class BiosRegistrationServiceTest {
     @DisplayName("addBios(fail) : 경로가 / 로 끝나는데 업로드 파일 없음 → InvalidFirmwareFileException")
     void addBios_directoryPathWithoutFile_throws(@TempDir Path tmp) {
         given(boardModelRepository.findByIdAndIsDeletedFalse(10L)).willReturn(Optional.of(activeBoard()));
-        given(biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(10L, "1.0")).willReturn(false);
 
         assertThatThrownBy(() -> biosRegistrationService.addBios(10L,
                 new BiosCreateRequest("x", "1.0", tmp.resolve("t") + "/", null, false), null))
@@ -269,19 +261,4 @@ class BiosRegistrationServiceTest {
 
     // ==== R12-1 — nudge cancel 정리의 claim 보존 ====
 
-    @Test
-    @DisplayName("cleanupNudgeCancelled : 업로드 임시 트리는 삭제, claim(사용자 기존 파일)은 보존")
-    void cleanupNudgeCancelled_preservesClaimTree(@TempDir Path tmp) {
-        var uploadPayload = new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
-                "n", "1.0", "abc", tmp.resolve("up").toString(),
-                java.util.Map.of("claimExisting", "false"));
-        biosRegistrationService.cleanupNudgeCancelled(uploadPayload);
-        verify(bundleTreeCleanupService).purgeExistingTree(tmp.resolve("up"), "nudgeCancel");
-
-        var claimPayload = new com.example.serverprovision.management.common.nudge.ContentNudgePayload(
-                "n", "1.0", "abc", tmp.resolve("keep").toString(),
-                java.util.Map.of("claimExisting", "true"));
-        biosRegistrationService.cleanupNudgeCancelled(claimPayload);
-        verify(bundleTreeCleanupService, never()).purgeExistingTree(eq(tmp.resolve("keep")), any());
-    }
 }

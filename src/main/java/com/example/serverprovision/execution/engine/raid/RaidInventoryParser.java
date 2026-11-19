@@ -45,7 +45,7 @@ public class RaidInventoryParser {
             JsonNode envelope = objectMapper.readTree(statusMeta);
             String lspci = decode(envelope, "lspci_b64");
             if (lspci == null) {
-                throw new ReportUnparsableException("봉투에 lspci_b64 가 없습니다", null);
+                throw new ReportUnparsableException("진단 보고에 PCI 장치 목록이 없습니다", null);
             }
             RaidChipFamily family = familyOf(envelope);
             String subsystem = subsystemOf(lspci);
@@ -69,8 +69,8 @@ public class RaidInventoryParser {
         String driver = envelope.path("driver").asString(null);
         if (driver != null && !driver.isBlank()) {
             return RaidChipFamily.fromKernelDriver(driver).orElseThrow(() ->
-                    new ReportUnparsableException("계열 밖 드라이버입니다 : " + driver
-                            + " (지원 = " + RaidChipFamily.agentDriverHint() + ")", null));
+                    new ReportUnparsableException("지원하지 않는 RAID 드라이버입니다(" + driver
+                            + "). 지원: " + RaidChipFamily.agentDriverHint(), null));
         }
         String tool = envelope.path("tool").asString("");
         if (tool.startsWith("storcli")) {

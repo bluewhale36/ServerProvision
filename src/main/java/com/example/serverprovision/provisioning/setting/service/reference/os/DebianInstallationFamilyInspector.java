@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.service.reference.os;
 
+import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.provisioning.setting.dto.request.LinuxInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.OSInstallationRequest;
 import com.example.serverprovision.provisioning.setting.exception.InvalidUserAccessException;
@@ -20,6 +21,14 @@ public class DebianInstallationFamilyInspector implements OSInstallationFamilyIn
     public OSFamily family() {
         return OSFamily.DEBIAN_BASED;
     }
+
+    /** Ubuntu 설치 자동화는 아직 없다(E4-1-b-2 비목표). */
+    @Override
+    public String installBlockReason(OSMetadata os) {
+        return UBUNTU_BLOCK_REASON;
+    }
+
+    static final String UBUNTU_BLOCK_REASON = "Ubuntu 는 아직 설치할 수 없습니다.";
 
     @Override
     public void validateReferences(OSInstallationRequest request) {

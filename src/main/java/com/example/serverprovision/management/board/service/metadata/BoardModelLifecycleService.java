@@ -1,7 +1,6 @@
 package com.example.serverprovision.management.board.service.metadata;
 
 import com.example.serverprovision.global.lifecycle.LifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.DuplicateBoardModelException;
 import com.example.serverprovision.management.board.exception.IllegalBoardModelStateException;
@@ -22,7 +21,7 @@ import java.util.List;
  * <ul>
  *   <li>toggle / deprecate / undeprecate — 부모 own flip + 자식 effective 재계산(cascadeRecompute).</li>
  *   <li>softDelete / restore — 자식 BIOS/BMC/Subprogram 동반 trash 이동·복구.</li>
- *   <li>purge / purgeWithTypedNameCheck — 자식 잔존 검사 후 영구 삭제.</li>
+ *   <li>purge — 자식 잔존 검사 후 영구 삭제(자원명 확인은 UserPurgeService, HF31).</li>
  * </ul>
  *
  * <p>R3-4 — 자식 cascade 를 {@link BoardScopedChildLifecycle} 다형 순회로 통일. 기존 자식 BIOS/BMC/Subprogram
@@ -149,20 +148,6 @@ public class BoardModelLifecycleService implements LifecycleService {
 	}
 
 	/**
-	 * S5-2-2 — Board typed-name 검증 후 영구 삭제. 합성식 : {@code vendor.displayName + " " + modelName}.
-	 */
-	@Override
-	@Transactional
-	public void purgeWithTypedNameCheck(Long id, String typedName) {
-		BoardModel board = boardModelRepository.findByIdAndIsDeletedTrue(id)
-				.orElseThrow(() -> new IllegalBoardModelStateException(
-						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
-		// R7-3 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
-		TypedNameGuard.verify(board, typedName);
-		purge(board);
-	}
-
-	/**
 	 * S5-2+ — 휴지통 직진입 영구 삭제 (typed-name 검증 우회). 휴지통 페이지에서 호출.
 	 * <p>제약 : {@link BoardModelPurgeGuard} 가 막는 참조(자식 · 서버 하드웨어 기록 · BIOS 세팅 템플릿)가 남아 있으면 거절.</p>
 	 */
@@ -171,7 +156,7 @@ public class BoardModelLifecycleService implements LifecycleService {
 	public void purge(Long id) {
 		BoardModel board = boardModelRepository.findByIdAndIsDeletedTrue(id)
 				.orElseThrow(() -> new IllegalBoardModelStateException(
-						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+						"삭제된 항목만 영구 삭제할 수 있습니다. id=" + id));
 		purge(board);
 	}
 

@@ -48,16 +48,30 @@ public record SupportedRaidLevels(SortedSet<RaidLevel> levels) {
 	 * 화면 안내(disabled tooltip)이자 서버 거절 사유가 된다 — 두 곳이 이 메서드 하나를 공유한다.
 	 */
 	public String blockReasonFor(RaidLevel wanted) {
+		return blockReasonFor(wanted, levels);
+	}
+
+	/**
+	 * 같은 판정에서 안내에 보일 레벨만 바꾼다(HF32) — 정의서는 칩 계열이 못 만드는 등록 레벨을 고를 수 없으므로
+	 * {@code RaidCard.definableLevelBlockReason} 이 고를 수 있는 레벨만 넘겨 안내와 선택지가 어긋나지 않게 한다.
+	 */
+	public String blockReasonFor(RaidLevel wanted, Collection<RaidLevel> shownLevels) {
 		if (supports(wanted)) {
 			return null;
 		}
 		return wanted.getDisplayName() + " " + wanted.getObjectParticle()
-				+ " 만들 수 없는 카드입니다 — 지원하는 RAID 레벨은 " + toDisplay() + " 입니다.";
+				+ " 만들 수 없는 카드입니다. 지원하는 RAID 레벨은 " + display(shownLevels) + " 입니다.";
 	}
 
-	/** 화면 표시용 — {@code RAID0 · RAID1} 형태(선언 순). */
+	/** 화면 표시용 — {@code RAID0, RAID1} 형태(선언 순). */
 	public String toDisplay() {
-		return levels.stream().map(RaidLevel::getDisplayName).collect(Collectors.joining(" · "));
+		return display(levels);
+	}
+
+	/** 레벨 집합의 화면 표기 — {@link #toDisplay} 와 같은 형태. 빈 집합(정의서가 고를 레벨이 없는 옛 카드 · HF32)은 '-'. */
+	public static String display(Collection<RaidLevel> levels) {
+		return levels.isEmpty() ? "-"
+				: levels.stream().sorted().map(RaidLevel::getDisplayName).collect(Collectors.joining(", "));
 	}
 
 	/** 불변 정렬 집합(선언 순). 조회 응답이 그대로 실어 나른다. */

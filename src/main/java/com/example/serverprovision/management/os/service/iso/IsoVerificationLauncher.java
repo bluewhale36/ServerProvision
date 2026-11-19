@@ -78,7 +78,7 @@ public class IsoVerificationLauncher {
 			integrityJobReporter.report(jobId, status);
 		} catch (RuntimeException e) {
 			log.error("[verify] ISO 검증 실패. isoId={}", isoId, e);
-			backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
+			backgroundJobService.fail(jobId, "검증 실패: " + e.getMessage());
 		}
 	}
 }

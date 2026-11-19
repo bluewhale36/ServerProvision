@@ -230,10 +230,10 @@ class WindowsInstallLedgerTest {
         ledger.markDrivers(row, sel);
 
         assertThat(ledger.driverSelectionOf(row)).contains(sel);
-        assertThat(ledger.driverSelectionOf(row).orElseThrow().summary()).isEqualTo("드라이버 2(변형 1 · 트리 1) · 제외 1");
+        assertThat(ledger.driverSelectionOf(row).orElseThrow().summary()).isEqualTo("드라이버 2개, 제외 1개");
         assertThat(ledger.imageOf(row)).isEqualTo(IMAGE.value());   // 서빙 meta 는 그대로
         assertThat(ledger.driversOf(row)).hasSize(2);
-        assertThat(ledger.driversSkippedOf(row)).singleElement().satisfies(m -> assertThat(m.get("reason")).isEqualTo("해당 버전 변형 없음"));
+        assertThat(ledger.driversSkippedOf(row)).singleElement().satisfies(m -> assertThat(m.get("reason")).isEqualTo("대상 버전용 변형 미등록"));
     }
 
     @Test

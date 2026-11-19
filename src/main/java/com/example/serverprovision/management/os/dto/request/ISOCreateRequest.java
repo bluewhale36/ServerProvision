@@ -8,11 +8,11 @@ import jakarta.validation.constraints.Size;
  * {@code allowCreateDirectory} 가 true 면 isoPath 상위 디렉토리가 없을 때 자동 생성한다.
  */
 public record ISOCreateRequest(
-		@NotBlank(message = "ISO 경로를 입력하세요.")
-		@Size(max = 1024, message = "ISO 경로는 1024자 이하로 입력해주세요.")
+		@NotBlank(message = "ISO 경로를 입력해야 합니다.")
+		@Size(max = 1024, message = "ISO 경로는 1024자 이하로 입력해야 합니다.")
 		String isoPath,
 
-		@Size(max = 1024, message = "설명은 1024자 이하로 입력해주세요.")
+		@Size(max = 1024, message = "설명은 1024자 이하로 입력해야 합니다.")
 		String description,
 
 		boolean allowCreateDirectory

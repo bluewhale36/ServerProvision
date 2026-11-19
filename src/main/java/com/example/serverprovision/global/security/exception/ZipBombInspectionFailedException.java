@@ -17,11 +17,11 @@ import org.springframework.http.HttpStatus;
 public class ZipBombInspectionFailedException extends SecurityException {
 
 	public ZipBombInspectionFailedException(String reason) {
-		super("zip 검사 도중 서버 측 IO 오류가 발생했습니다 : " + reason);
+		super("ZIP 검사 중 서버에서 파일을 읽지 못했습니다. 잠시 후 다시 시도해야 합니다.");
 	}
 
 	public ZipBombInspectionFailedException(String reason, Throwable cause) {
-		super("zip 검사 도중 서버 측 IO 오류가 발생했습니다 : " + reason, cause);
+		super("ZIP 검사 중 서버에서 파일을 읽지 못했습니다. 잠시 후 다시 시도해야 합니다.", cause);
 	}
 
 	@Override

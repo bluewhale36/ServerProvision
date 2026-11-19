@@ -63,7 +63,7 @@ public class IsoPreparationService {
 		}
 
 		if (!Files.exists(path)) {
-			throw new ExtractionFailedException("ISO 경로가 실재하지 않습니다: " + isoPath + " — 파일 또는 디렉토리 경로를 다시 확인하세요.");
+			throw new ExtractionFailedException("ISO 경로가 없습니다: " + isoPath + ". 경로를 다시 확인해야 합니다.");
 		}
 
 		if (Files.isDirectory(path)) {
@@ -73,14 +73,40 @@ public class IsoPreparationService {
 
 		if (Files.isRegularFile(path)) {
 			if (!isoPath.toLowerCase().endsWith(".iso")) {
-				throw new ExtractionFailedException("지정한 경로가 .iso 파일이 아닙니다: " + isoPath + " — ISO 이미지 파일(.iso) 또는 마운트된 디렉토리 경로를 지정하세요.");
+				throw new ExtractionFailedException("지정한 경로가 ISO 파일이 아닙니다: " + isoPath + ". ISO 파일이나 마운트된 디렉토리를 지정해야 합니다.");
 			}
 			log.info("[IsoPreparationService] .iso 파일 — 마운트/압축 해제를 시도합니다. path={}", isoPath);
 			return prepareFromIsoFile(path);
 		}
 
 		// 심볼릭 링크 미해결 / FIFO / 소켓 등 처리 불가 유형
-		throw new ExtractionFailedException("인식할 수 없는 ISO 경로 타입입니다: " + isoPath + " — 일반 파일(.iso) 또는 디렉토리만 지원합니다.");
+		throw new ExtractionFailedException("인식할 수 없는 경로입니다: " + isoPath + ". ISO 파일이나 디렉토리만 지정할 수 있습니다.");
+	}
+
+	/**
+	 * E4-1-b-1 — ISO 파일을 지정한 빈 디렉터리에 푼다(RHEL 설치 작업 트리). mount 는 root 가 필요해 쓰지 않는다.
+	 * bsdtar 를 먼저 쓴다: libarchive 는 Rock Ridge 의 긴 파일 이름을 읽고, 운영 런북도 bsdtar 만 설치한다.
+	 * 정리는 호출자 몫이다.
+	 *
+	 * @throws ExtractionFailedException 두 도구가 모두 없거나 실패한 경우
+	 */
+	public void extractInto(Path isoFile, Path targetDir) {
+		try {
+			boolean extracted = runExtractBsdtar(isoFile, targetDir) || runExtract7z(isoFile, targetDir);
+			if (!extracted) {
+				throw new ExtractionFailedException("ISO 압축을 풀지 못했습니다: " + isoFile + ". bsdtar 또는 7z 설치 상태를 확인해야 합니다.");
+			}
+		} catch (IOException e) {
+			throw new ExtractionFailedException("ISO 압축을 풀지 못했습니다: " + isoFile, e);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new ExtractionFailedException("ISO 압축 풀기가 중단되었습니다: " + isoFile, e);
+		}
+	}
+
+	/** {@link #extractInto} 가 쓸 도구(bsdtar 또는 7z)가 하나라도 있는가. */
+	public boolean extractionToolAvailable() {
+		return isCommandAvailable("bsdtar") || isCommandAvailable("7z");
 	}
 
 	private PreparedIsoPath prepareFromIsoFile(Path isoFile) {
@@ -122,7 +148,7 @@ public class IsoPreparationService {
 			if (!extracted) {
 				deleteDirectory(extractDir);
 				throw new ExtractionFailedException(
-						"ISO 파일을 열 수 없습니다: " + isoFile + " — loop 마운트 실패 후 7z/bsdtar 폴백도 실패했습니다. 마운트 권한 또는 7z/bsdtar 설치 상태를 확인하세요."
+						"ISO 파일을 열 수 없습니다: " + isoFile + ". 마운트 권한과 7z 또는 bsdtar 설치 상태를 확인해야 합니다."
 				);
 			}
 
@@ -131,7 +157,7 @@ public class IsoPreparationService {
 
 		} catch (IOException | InterruptedException e) {
 			throw new ExtractionFailedException(
-					"ISO 압축 해제 중 오류: " + e.getMessage(), e);
+					"ISO 압축을 풀지 못했습니다: " + isoFile, e);
 		}
 	}
 
@@ -139,6 +165,7 @@ public class IsoPreparationService {
 		if (!isCommandAvailable("7z")) return false;
 		Process proc = new ProcessBuilder("7z", "x", isoFile.toString(), "-o" + extractDir, "-y")
 				.redirectErrorStream(true)
+				.redirectOutput(ProcessBuilder.Redirect.DISCARD)
 				.start();
 		return proc.waitFor() == 0;
 	}
@@ -147,6 +174,7 @@ public class IsoPreparationService {
 		if (!isCommandAvailable("bsdtar")) return false;
 		Process proc = new ProcessBuilder("bsdtar", "-xf", isoFile.toString(), "-C", extractDir.toString())
 				.redirectErrorStream(true)
+				.redirectOutput(ProcessBuilder.Redirect.DISCARD)
 				.start();
 		return proc.waitFor() == 0;
 	}
@@ -155,6 +183,7 @@ public class IsoPreparationService {
 		try {
 			return new ProcessBuilder("which", command)
 					.redirectErrorStream(true)
+					.redirectOutput(ProcessBuilder.Redirect.DISCARD)
 					.start()
 					.waitFor() == 0;
 		} catch (Exception e) {

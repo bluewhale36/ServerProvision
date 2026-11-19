@@ -19,7 +19,7 @@ import java.util.Objects;
 public record SettingSaveRequest(
 
         @NotBlank(message = "정의서 명칭은 필수 입력값입니다.")
-        @Size(max = 128, message = "정의서 명칭은 128자 이하로 입력해주세요.")
+        @Size(max = 128, message = "정의서 명칭은 128자 이하로 입력해야 합니다.")
         String name,
 
         /**
@@ -117,12 +117,13 @@ public record SettingSaveRequest(
     }
 
     /**
-     * U4-1-2 (사용자 확정 2026-08-19) — OS 설치 단계가 있으면 RAID 구성 단계는 어느 볼륨이 OS 영역인지 정의서만으로
-     * 정할 수 있어야 한다: OS 로 고정한 묶음이 있거나, 우선순위에 맡긴 묶음이 있고 우선순위 행이 하나 이상.
-     * RAID 구성 단계 혼자서는 OS 설치 단계의 유무를 모르므로 단계 간 정합인 여기서 본다(위 셋과 같은 층).
-     * 폼은 OS 설치 카드가 있을 때 우선순위 표 아래 안내와 제출 차단으로 먼저 막는다 — 여기는 direct POST 안전망.
+     * U4-1-2 (사용자 확정 2026-08-19) · HF32 — OS 설치 단계가 있으면 RAID 구성 단계가 OS 영역 RAID 볼륨을 정의서만으로 정해야 한다.
+     * 실행이 그 볼륨의 인벤토리 WWN 으로 설치 디스크를 정하므로(Windows · RHEL 공통) RAID 단계가 없거나 · 묶음이 없거나 · OS 후보가
+     * 없거나 · 후보가 전부 직결이면 반드시 실패한다({@code OsVolumeTargetKind.blocksOsInstall}). '우선순위에 따름' 은 우선순위 행이
+     * 하나 이상이어야 한다. 단계 간 정합이라 여기서 본다(위 셋과 같은 층). 폼은 같은 분기 · 문구로 제출을 먼저 막는다 — 여기는
+     * direct POST 안전망이라 분기 공통 한 문장이다.
      */
-    @AssertTrue(message = "OS 설치 단계가 있으면 OS 영역이 될 수 있는 묶음(OS 고정 또는 우선순위에 따름 + 우선순위 행)이 있어야 합니다.")
+    @AssertTrue(message = "OS 설치 단계가 있으면 RAID 구성 단계에서 OS 영역이 될 RAID 묶음(OS 영역 고정, 또는 우선순위에 따름과 우선순위 행)을 정해야 합니다.")
     public boolean isOsVolumeDeterminable() {
         if (processList == null) {
             return true;
@@ -131,10 +132,15 @@ public record SettingSaveRequest(
         if (!hasOsInstall) {
             return true;
         }
-        return processList.stream()
+        RaidConfigurationRequest raid = processList.stream()
                 .filter(RaidConfigurationRequest.class::isInstance)
                 .map(RaidConfigurationRequest.class::cast)
-                .allMatch(RaidConfigurationRequest::isOsVolumeDeterminable);
+                .findFirst()
+                .orElse(null);
+        if (RaidConfigurationRequest.osVolumeTargetKindOf(raid).isBlocksOsInstall()) {
+            return false;
+        }
+        return raid.isOsVolumeDeterminable();
     }
 
     /**
@@ -143,7 +149,7 @@ public record SettingSaveRequest(
      * 최종 검사), grow 파티션이 있으면 고정 합이 하한보다 작아야 grow 가 자리를 갖는다. RAID 메타 · 파일시스템 오버헤드는
      * 계산하지 않는 1 차 관문이다. 폼은 안내 줄에 하한과 합을 실시간으로 보이고 초과 시 제출을 막는다.
      */
-    @AssertTrue(message = "OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다 — RAID 구성 묶음의 용량 · 개수와 파티션 크기를 맞추세요.")
+    @AssertTrue(message = "OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다. RAID 구성 묶음의 용량, 개수와 파티션 크기를 맞춰야 합니다.")
     public boolean isPartitionsWithinOsVolume() {
         if (processList == null) {
             return true;

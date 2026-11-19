@@ -1,6 +1,5 @@
 package com.example.serverprovision.management.bmc.service;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.global.trash.GhostEvaluator;
@@ -10,7 +9,6 @@ import com.example.serverprovision.management.bios.service.BundleManifestService
 import com.example.serverprovision.management.bmc.dto.request.BmcCreateRequest;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.exception.BmcNudgeRequiredException;
-import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
 import com.example.serverprovision.management.bmc.repository.BmcRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -35,7 +33,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -85,17 +82,15 @@ public class BmcRegistrationService {
 	public Long addBmc(Long boardId, BmcCreateRequest request, MultipartFile firmwareFile) {
 		BoardModel parent = BmcGuards.requireActiveBoard(boardModelRepository, boardId);
 
-		// 1) 활성 (board, version) 중복 검사
-		if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBmcVersionException(boardId, request.version());
-		}
+		// 1) 같은 (메인보드, 버전)의 살아 있는 자원 — 상태별 안내로 409. 휴지통 행과는 공존한다(HF30-2).
+		BmcGuards.assertVersionAvailable(bmcRepository, boardId, request.version());
 
 		// 2) 경로 해석 — 업로드는 디렉토리 추론(허용 확장자 기준) 후 파일명 append,
 		//    업로드 없는 등록(claim)은 경로 자체가 대상 파일이므로 추론하지 않는다.
 		boolean hasFile = firmwareFile != null && !firmwareFile.isEmpty();
 		String originalFilename = hasFile ? firmwareFile.getOriginalFilename() : null;
 		Function<String, RuntimeException> onMissingFilename = path -> new InvalidFirmwareFileException(
-				"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + path, "firmwarePath");
+				"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + path, "firmwarePath");
 		String resolvedPathString = hasFile
 				? UploadPathResolver.resolveForUpload(request.firmwarePath(), originalFilename,
 				bmcFirmwareFilePolicy.allowedExtensions(parent.getVendor()), onMissingFilename)
@@ -112,7 +107,7 @@ public class BmcRegistrationService {
 		Path treeRoot = resolved.getParent();
 		if (treeRoot == null) {
 			throw new InvalidFirmwareFileException(
-					"경로에서 상위 디렉토리를 확인할 수 없습니다 : " + resolvedPathString, "firmwarePath");
+					"경로에서 상위 디렉토리를 확인할 수 없습니다: " + resolvedPathString, "firmwarePath");
 		}
 
 		if (hasFile) {
@@ -184,7 +179,7 @@ public class BmcRegistrationService {
 	private void assertClaimableFirmwareFile(Path resolved, Path treeRoot, String firmwareFileName) {
 		if (!Files.isRegularFile(resolved)) {
 			throw new InvalidFirmwareFileException(
-					"펌웨어 파일이 해당 경로에 존재하지 않습니다 : " + resolved, "firmwarePath");
+					"펌웨어 파일이 해당 경로에 없습니다: " + resolved, "firmwarePath");
 		}
 		if (Files.exists(treeRoot.resolve(ProvisionMarkerService.MARKER_FILENAME))) {
 			throw new MarkerConflictException(treeRoot.toString());
@@ -195,11 +190,11 @@ public class BmcRegistrationService {
 					.anyMatch(path -> !path.getFileName().toString().equals(firmwareFileName));
 			if (hasOthers) {
 				throw new InvalidFirmwareFileException(
-						"펌웨어 파일이 있는 디렉토리에 다른 파일이 함께 있습니다. 파일 하나만 있는 디렉토리를 지정하십시오 : " + treeRoot,
+						"펌웨어 파일이 있는 디렉토리(" + treeRoot + ")에 다른 파일이 함께 있습니다. 파일 하나만 있는 디렉토리를 지정해야 합니다.",
 						"firmwarePath");
 			}
 		} catch (IOException e) {
-			throw new BundleExtractionException("기존 파일 검증 실패 : " + treeRoot, e);
+			throw new BundleExtractionException("기존 파일을 확인하지 못했습니다: " + treeRoot, e);
 		}
 	}
 
@@ -210,9 +205,7 @@ public class BmcRegistrationService {
 	@Transactional
 	public Long persistFromNudge(Long boardId, ContentNudgePayload payload) {
 		BoardModel parent = BmcGuards.requireActiveBoard(boardModelRepository, boardId);
-		if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, payload.version())) {
-			throw new DuplicateBmcVersionException(boardId, payload.version());
-		}
+		BmcGuards.assertVersionAvailable(bmcRepository, boardId, payload.version());
 		Path targetDir = pathPolicyService.assertWritablePath(payload.tempFilePath());
 		String entrypoint = payload.attributes().getOrDefault("entrypointRelativePath", "");
 		int fileCount = Integer.parseInt(payload.attributes().getOrDefault("fileCount", "0"));
@@ -226,26 +219,11 @@ public class BmcRegistrationService {
 		return saved.getId();
 	}
 
-	/**
-	 * MK2 — nudge cancel 시 임시 트리 정리.
-	 *
-	 * <p>R12-2 — claim 경로(업로드 없는 기존 파일 등록)에서 발급된 nudge 는 트리가 업로드 임시물이
-	 * 아니라 <b>사용자의 기존 파일</b>이므로 삭제하지 않는다(BIOS 와 동일 처리). 구분은
-	 * {@link #issueHashNudge} 가 payload attributes 에 기록한 {@code claimExisting} 플래그가 SSOT.</p>
-	 */
-	@Transactional
-	public void cleanupNudgeCancelled(ContentNudgePayload payload) {
-		if (Boolean.parseBoolean(payload.attributes().getOrDefault("claimExisting", "false"))) {
-			log.info("[nudgeCancel.bmc] claim 경로 — 사용자 기존 파일 보존. path={}", payload.tempFilePath());
-			return;
-		}
-		bundleTreeCleanupService.purgeExistingTree(Path.of(payload.tempFilePath()), "nudgeCancel.bmc");
-	}
 
 	// ==== private helpers (복붙 dedup) =================================
 
 	/**
-	 * MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + {@link BmcNudgeRequiredException}.
+	 * MK2 단계 B — 해시 충돌 후보 (휴지통, HF30-2) 탐지 시 nudge 세션 발급 + {@link BmcNudgeRequiredException}.
 	 * 임시 트리는 호출자 treeRoot 에 그대로 남겨두고 사용자 결정(proceed / replace / cancel) 대기.
 	 * MK3-1 — ghost (DB-only soft-deleted, FS 부재) 후보는 사전 필터링.
 	 */
@@ -276,19 +254,12 @@ public class BmcRegistrationService {
 								"totalBytes", String.valueOf(manifest.totalBytes()),
 								"description", description != null ? description : "",
 								// R12-2 — cancel 시 트리 보존 여부의 SSOT (claim = 사용자 기존 파일).
-								"claimExisting", String.valueOf(claimExisting)
+								ContentNudgePayload.CLAIM_EXISTING, String.valueOf(claimExisting)
 						)
 				)
 		);
 		List<NudgeConflictEntry> entries = hashCandidates.stream()
-				.map(b -> new NudgeConflictEntry(
-						b.getId(),
-						LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
-						b.getManifestHash(),
-						b.getName(),
-						b.getVersion(),
-						Instant.now()
-				))
+				.map(b -> NudgeConflictEntry.of(b, b.getName(), b.getVersion()))
 				.toList();
 		log.info(
 				"[{}] nudge required : boardId={}, version={}, candidates={}",

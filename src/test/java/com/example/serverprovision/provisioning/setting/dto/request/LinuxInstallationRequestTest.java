@@ -21,13 +21,13 @@ class LinuxInstallationRequestTest {
     }
 
     private static UserRequest user(String name, String password, boolean encrypted, boolean keep) {
-        return new UserRequest(name, password, true, encrypted, keep);
+        return new UserRequest(name, password, null, true, encrypted, keep);
     }
 
     @Test
     @DisplayName("withoutSecrets — root · 사용자 값을 지우고 유지 플래그로(root 없던 저장본은 root null 유지) · Ubuntu 는 사용자만")
     void stripped() {
-        RHELInstallationRequest stored = rhel(new RootPasswordRequest("R00t!", true, false),
+        RHELInstallationRequest stored = rhel(new RootPasswordRequest("R00t!", null, true, false),
                 List.of(user("ops", "Op5!", false, false)));
         RHELInstallationRequest stripped = (RHELInstallationRequest) stored.withoutSecrets();
         assertThat(stripped.getRootPassword().getPassword()).isNull();
@@ -46,23 +46,24 @@ class LinuxInstallationRequestTest {
     @Test
     @DisplayName("withSecretsRetainedFrom — root · 사용자(username 매칭) 유지는 저장본 값 · 암호화 여부를 복사(keep 해제) · 유지 아님은 그대로")
     void retained() {
-        RHELInstallationRequest stored = rhel(new RootPasswordRequest("R00t!", true, false),
+        RHELInstallationRequest stored = rhel(new RootPasswordRequest("R00t!", null, true, false),
                 List.of(user("ops", "Op5!", false, false), user("dev", "D3v!", true, false)));
-        RHELInstallationRequest request = rhel(new RootPasswordRequest(null, false, true),
+        RHELInstallationRequest request = rhel(new RootPasswordRequest(null, null, false, true),
                 List.of(user("dev", null, false, true), user("ops", "N3w!", false, false), user("new", "Nw!", false, false)));
 
         RHELInstallationRequest merged = (RHELInstallationRequest) request.withSecretsRetainedFrom(stored);
-        assertThat(merged.getRootPassword().getPassword()).isEqualTo("R00t!");
-        assertThat(merged.getRootPassword().isPasswordEncrypted()).isTrue();
+        // 옛 저장본(isPasswordEncrypted=true)은 해시로 읽혀 해시 칸으로 이어진다(E4-1-b-2 D-18)
+        assertThat(merged.getRootPassword().getPasswordHash()).isEqualTo("R00t!");
+        assertThat(merged.getRootPassword().getPassword()).isNull();
         assertThat(merged.getRootPassword().isKeepExistingPassword()).isFalse();
         assertThat(merged.getUsers()).extracting(UserRequest::getUsername).containsExactly("dev", "ops", "new");
-        assertThat(merged.getUsers().get(0).getPassword()).isEqualTo("D3v!");     // 순서가 달라도 이름으로 찾는다
-        assertThat(merged.getUsers().get(0).isPasswordEncrypted()).isTrue();
+        assertThat(merged.getUsers().get(0).getPasswordHash()).isEqualTo("D3v!"); // 순서가 달라도 이름으로 찾는다
+        assertThat(merged.getUsers().get(0).getPassword()).isNull();
         assertThat(merged.getUsers().get(0).isKeepExistingPassword()).isFalse();
         assertThat(merged.getUsers().get(1).getPassword()).isEqualTo("N3w!");     // 새 값은 그대로
         assertThat(merged.getUsers().get(2).getPassword()).isEqualTo("Nw!");
 
-        RHELInstallationRequest fresh = rhel(new RootPasswordRequest("X!", false, false), List.of(user("ops", "Y!", false, false)));
+        RHELInstallationRequest fresh = rhel(new RootPasswordRequest("X!", null, false, false), List.of(user("ops", "Y!", false, false)));
         RHELInstallationRequest same = (RHELInstallationRequest) fresh.withSecretsRetainedFrom(stored);
         assertThat(same.getRootPassword().getPassword()).isEqualTo("X!");
         assertThat(same.getUsers().get(0).getPassword()).isEqualTo("Y!");
@@ -85,7 +86,7 @@ class LinuxInstallationRequestTest {
     @Test
     @DisplayName("유지할 값이 없으면 RetainedPasswordUnavailableException — root 는 rootPassword, 사용자는 users 직결 · 저장본 없음 · 다른 타입 · 이름 불일치 · 값 없는 저장본")
     void retainedUnavailable() {
-        RHELInstallationRequest rootKeep = rhel(new RootPasswordRequest(null, false, true), List.of());
+        RHELInstallationRequest rootKeep = rhel(new RootPasswordRequest(null, null, false, true), List.of());
         assertThatThrownBy(() -> rootKeep.withSecretsRetainedFrom(null))
                 .isInstanceOf(RetainedPasswordUnavailableException.class)
                 .satisfies(e -> assertThat(((RetainedPasswordUnavailableException) e).fieldName()).isEqualTo("rootPassword"))
@@ -96,7 +97,7 @@ class LinuxInstallationRequestTest {
         assertThatThrownBy(() -> rootKeep.withSecretsRetainedFrom(ubuntu(List.of(user("u", "p", false, false)))))
                 .isInstanceOf(RetainedPasswordUnavailableException.class);
         // 저장본 root 가 값 없이 저장된 구 저장본.
-        assertThatThrownBy(() -> rootKeep.withSecretsRetainedFrom(rhel(new RootPasswordRequest(null, false, true), List.of())))
+        assertThatThrownBy(() -> rootKeep.withSecretsRetainedFrom(rhel(new RootPasswordRequest(null, null, false, true), List.of())))
                 .isInstanceOf(RetainedPasswordUnavailableException.class);
 
         RHELInstallationRequest userKeep = rhel(null, List.of(user("ops", null, false, true)));
@@ -106,5 +107,14 @@ class LinuxInstallationRequestTest {
                 .satisfies(e -> assertThat(((RetainedPasswordUnavailableException) e).fieldName()).isEqualTo("users"))
                 .hasMessageContaining("ops");
         assertThatThrownBy(() -> userKeep.withSecretsRetainedFrom(null)).isInstanceOf(RetainedPasswordUnavailableException.class);
+    }
+
+    @Test
+    @DisplayName("E4-1-b-2 D-19 · Q6 — isKDumpEnabled 키가 없으면 true(설치 프로그램 기본값), 명시 false 는 false")
+    void kdumpDefaultsToTrue() {
+        RHELInstallationRequest missing = new RHELInstallationRequest(1L, 10L, null, null, null, List.of(), 1L, List.of(), null, null);
+        RHELInstallationRequest off = new RHELInstallationRequest(1L, 10L, null, null, null, List.of(), 1L, List.of(), false, null);
+        org.assertj.core.api.Assertions.assertThat(missing.isKDumpEnabled()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(off.isKDumpEnabled()).isFalse();
     }
 }

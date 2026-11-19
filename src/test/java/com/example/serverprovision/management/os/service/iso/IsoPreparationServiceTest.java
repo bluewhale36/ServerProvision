@@ -40,12 +40,12 @@ class IsoPreparationServiceTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 경로는 '실재하지 않습니다' 메시지로 실패한다 (과거의 '디렉토리가 아닙니다' 오해 해소)")
+    @DisplayName("존재하지 않는 경로는 'ISO 경로가 없습니다' 메시지로 실패한다 (과거의 '디렉토리가 아닙니다' 오해 해소)")
     void nonExistentPath_isRejected(@TempDir Path tempDir) {
         Path ghost = tempDir.resolve("rocky/9-6/dvd.iso");
         assertThatThrownBy(() -> service.prepare(ghost.toString()))
                 .isInstanceOf(ExtractionFailedException.class)
-                .hasMessageContaining("실재하지 않습니다")
+                .hasMessageContaining("ISO 경로가 없습니다")
                 .hasMessageContaining(ghost.toString());
     }
 
@@ -57,11 +57,11 @@ class IsoPreparationServiceTest {
     }
 
     @Test
-    @DisplayName(".iso 가 아닌 일반 파일은 '.iso 파일이 아닙니다' 메시지로 실패한다")
+    @DisplayName(".iso 가 아닌 일반 파일은 'ISO 파일이 아닙니다' 메시지로 실패한다")
     void nonIsoFile_isRejected(@TempDir Path tempDir) throws Exception {
         Path txt = Files.createFile(tempDir.resolve("note.txt"));
         assertThatThrownBy(() -> service.prepare(txt.toString()))
                 .isInstanceOf(ExtractionFailedException.class)
-                .hasMessageContaining(".iso 파일이 아닙니다");
+                .hasMessageContaining("ISO 파일이 아닙니다");
     }
 }

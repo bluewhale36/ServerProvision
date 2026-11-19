@@ -9,7 +9,6 @@ import com.example.serverprovision.management.common.dto.response.DeleteRejectRe
 import com.example.serverprovision.management.common.exception.PathCorrectionFailedException;
 import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.common.nudge.exception.NudgeRequiredException;
-import com.example.serverprovision.management.common.nudge.exception.NudgeSessionExpiredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
@@ -109,14 +108,14 @@ public class ApiExceptionHandler {
 	}
 
 	/**
-	 * R2-6/R2-5 — nudge_session TTL 만료(409). frontend 가 message 문자열이 아니라 안정 code 로 만료를
-	 * 판정하도록 {@code code="NUDGE_SESSION_EXPIRED"} 동봉. ConflictException 일반 매핑보다 구체적이라 우선 매핑.
+	 * 코드가 필요한 409(R2-5 · HF30-3). 화면이 메시지 문자열이 아니라 안정된 {@code code} 로 갈라 처리하도록 동봉한다.
+	 * ConflictException 일반 매핑보다 구체적이라 우선 매핑. 코드가 필요한 409 는 {@link CodedConflictException} 을 상속하면 되고 핸들러는 늘지 않는다.
 	 */
-	@ExceptionHandler(value = NudgeSessionExpiredException.class, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<ApiErrorResponse> handleNudgeSessionExpired(NudgeSessionExpiredException ex) {
-		log.info("[nudge] session expired : {}", ex.getMessage());
+	@ExceptionHandler(value = CodedConflictException.class, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<ApiErrorResponse> handleCodedConflict(CodedConflictException ex) {
+		log.info("[coded-conflict] code={}", ex.code());
 		return ResponseEntity.status(HttpStatus.CONFLICT)
-				.body(ApiErrorResponse.ofCode(NudgeSessionExpiredException.CODE, ex.getMessage()));
+				.body(ApiErrorResponse.ofCode(ex.code(), ex.getMessage()));
 	}
 
 	/**
@@ -215,7 +214,7 @@ public class ApiExceptionHandler {
 		log.warn("OptimisticLockingFailureException : {}", ex.getMessage());
 		return ResponseEntity.status(HttpStatus.CONFLICT)
 				.body(new ApiErrorResponse(
-						"다른 작업이 같은 항목을 동시에 수정했습니다. 페이지를 새로 고친 뒤 다시 시도해주세요."));
+						"다른 작업이 같은 항목을 동시에 수정했습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다."));
 	}
 
 	/**
@@ -249,12 +248,9 @@ public class ApiExceptionHandler {
 		List<ApiErrorResponse.FieldError> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
 				.map(fe -> new ApiErrorResponse.FieldError(fe.getField(), resolveMessage(fe)))
 				.toList();
-		String summary = fieldErrors.isEmpty()
-				? "유효하지 않은 입력입니다."
-				: "입력 값이 유효하지 않습니다 (" + fieldErrors.size() + "개 필드).";
 		log.warn("[validation] MethodArgumentNotValid : {} fields", fieldErrors.size());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-				.body(ApiErrorResponse.ofValidation(summary, fieldErrors));
+				.body(ApiErrorResponse.ofValidation("입력값이 올바르지 않습니다.", fieldErrors));
 	}
 
 	/**
@@ -265,7 +261,7 @@ public class ApiExceptionHandler {
 	private String resolveMessage(org.springframework.validation.FieldError fieldError) {
 		String resolved = messageSource.getMessage(
 				fieldError, org.springframework.context.i18n.LocaleContextHolder.getLocale());
-		return resolved != null ? resolved : "유효하지 않은 값";
+		return resolved != null ? resolved : "올바르지 않은 값입니다.";
 	}
 
 	/**
@@ -279,7 +275,7 @@ public class ApiExceptionHandler {
 		log.warn("[validation] HttpMessageNotReadable : {}", ex.getMessage());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 				.body(ApiErrorResponse.ofCode("MALFORMED_REQUEST_BODY",
-						"요청 본문을 해석할 수 없습니다. JSON 형식과 type/osFamily 판별자 값을 확인해주세요."));
+						"요청 내용을 해석할 수 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다."));
 	}
 
 	/**
@@ -338,6 +334,6 @@ public class ApiExceptionHandler {
 		log.warn("MaxUploadSizeExceededException : {}", ex.getMessage());
 		return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
 				.body(new ApiErrorResponse(
-						"업로드 크기가 서버 설정 한도를 초과했습니다. 관리자에게 문의하세요. (" + ex.getMessage() + ")"));
+						"업로드 크기가 서버 설정 한도를 넘었습니다. 관리자에게 문의해야 합니다."));
 	}
 }

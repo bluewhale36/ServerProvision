@@ -24,10 +24,10 @@ public enum FlashTaskState {
     RUNNING(null, FlashLedger.FLASH_TIMEOUT, "굽는 중"),
 
     /** 전송과 굽기가 끝났다({@code Completed}) — 그 축의 step 을 닫는다. */
-    COMPLETED(ProvisioningStatus.SUCCEEDED, FlashLedger.FLASH_COMPLETED, "전송 완료"),
+    COMPLETED(ProvisioningStatus.SUCCEEDED, FlashLedger.FLASH_COMPLETED, "굽기 완료"),
 
     /** BMC 가 실패로 종결했다({@code Exception}) — 그 축을 실패로 닫는다. */
-    FAILED(ProvisioningStatus.FAILED, FlashLedger.FLASH_EXCEPTION, "BMC 가 굽기를 실패로 종결했습니다"),
+    FAILED(ProvisioningStatus.FAILED, FlashLedger.FLASH_EXCEPTION, "펌웨어 업데이트가 실패했습니다."),
 
     /**
      * Task 를 조회하지 못했다. BMC 가 굽기를 마친 직후 스스로 재기동하는 구간이 실측에서 5~10분이라,

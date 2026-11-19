@@ -108,7 +108,7 @@ public class HashAcceptService {
 		try {
 			jobId = backgroundJobService.register(
 					JobType.HASH_ACCEPT,
-					"내용 수용 — " + resource.displayName(),
+					"내용 수용: " + resource.displayName(),
 					"지문 재계산 후 정본 갱신",
 					BackgroundJobService.stagesOf(HashAcceptStage.values())
 			);
@@ -128,7 +128,7 @@ public class HashAcceptService {
 			backgroundJobService.complete(jobId, Map.of("acceptedResource", resourceName));
 		} catch (RuntimeException e) {
 			log.error("[hash-accept] 내용 수용 실패. driftId={}", driftId, e);
-			backgroundJobService.fail(jobId, "수용 실패 : " + e.getMessage());
+			backgroundJobService.fail(jobId, "내용 수용 실패: " + e.getMessage());
 		} finally {
 			inFlight.remove(key);
 		}
@@ -137,18 +137,18 @@ public class HashAcceptService {
 	@Transactional
 	public String performAccept(Long driftId) {
 		Drift drift = driftRepository.findById(driftId)
-				.orElseThrow(() -> new IllegalStateException("카드가 이미 정리되었습니다 — 재점검 후 확인하세요."));
+				.orElseThrow(() -> new IllegalStateException("드리프트가 이미 정리되었습니다. 다시 점검한 뒤 확인해야 합니다."));
 		MarkableScanner scanner = scannerFor(drift.getResourceType());
 		Markable resource = scanner.findActiveMarkableById(drift.getResourceId())
 				.orElseThrow(() -> new IllegalStateException("자원이 더 이상 활성 상태가 아닙니다."));
 
 		Optional<String> recomputed = scanner.recomputeManifestHash(resource);
 		if (recomputed.isEmpty()) {
-			throw new IllegalStateException("본체 파일에 접근할 수 없습니다 — 파일 상태를 확인하세요.");
+			throw new IllegalStateException("본체 파일에 접근할 수 없습니다. 파일 상태를 확인해야 합니다.");
 		}
 		if (!recomputed.get().equals(drift.getObservedHash())) {
 			// 사용자가 카드에서 확인·대조한 그 내용과 다른 것이 정본화되는 사고 차단.
-			throw new IllegalStateException("확인한 내용과 파일이 다시 달라졌습니다 — 재점검 후 새 보고에서 진행하세요.");
+			throw new IllegalStateException("확인한 내용과 파일이 다시 달라졌습니다. 다시 점검한 뒤 새 보고에서 진행해야 합니다.");
 		}
 
 		MarkerContent existing = markerService.read(resource.getResourcePath(), resource.getMarkerLayout());

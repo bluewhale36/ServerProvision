@@ -65,13 +65,13 @@
 
 .bios-brand-sub {
     color: var(--n-text-sec);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .bios-brand-back {
     color: var(--n-text-sec);
     text-decoration: none;
-    font-size: 13px;
+    font-size: 14px;
     margin-right: 4px;
 }
 
@@ -120,7 +120,7 @@
     gap: 8px;
     min-height: 34px;
     padding: 6px 28px;
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--n-text-sec);
     border-bottom: 1px solid var(--n-border-row);
     background: var(--n-sunken);
@@ -132,7 +132,7 @@
     background: transparent;
     color: var(--n-text-sec);
     font-family: inherit;
-    font-size: 12.5px;
+    font-size: 13.5px;
     cursor: pointer;
     padding: 0;
 }
@@ -174,23 +174,21 @@
 
 .bios-help-title {
     margin: 0 0 10px;
-    font-size: 11px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 500;
     color: var(--n-text-sec);
-    text-transform: uppercase;
-    letter-spacing: .5px;
 }
 
 .bios-help-text {
     margin: 0 0 10px;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--n-text);
     white-space: pre-line;
 }
 
 .bios-help-meta {
     margin: 0;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-muted);
 }
 
@@ -252,7 +250,7 @@
     text-align: right;
     font-family: var(--n-font-mono);
     font-feature-settings: "tnum";
-    font-size: 13px;
+    font-size: 14px;
     color: var(--n-text);
 }
 
@@ -264,7 +262,7 @@
     border-radius: var(--n-radius);
     color: var(--n-text);
     font-family: var(--n-font-mono);
-    font-size: 13px;
+    font-size: 14px;
     text-align: right;
     cursor: pointer;
     max-width: 220px;
@@ -278,14 +276,14 @@
 .bios-input:focus {
     outline: none;
     border-color: var(--n-blue);
-    box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.14);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--n-blue) 14%, transparent);
 }
 
 /* 기본값으로 되돌리기 — 주의 색(주황) */
 .bios-reset {
     flex: 0 0 auto;
     color: var(--n-orange);
-    font-size: 12px;
+    font-size: 13px;
     margin-left: 4px;
 }
 
@@ -335,7 +333,7 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-sec);
 }
 
@@ -384,7 +382,7 @@ a.bios-board-card:hover {
 
 .bios-board-go {
     color: var(--n-blue);
-    font-size: 13px;
+    font-size: 14px;
     margin-top: 4px;
 }
 
@@ -398,7 +396,7 @@ a.bios-board-card:hover {
 .bsd-group:last-child { margin-bottom: 0; }
 
 .bsd-group-title {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--n-text-sec);
     letter-spacing: 0.4px;
@@ -424,7 +422,7 @@ a.bios-board-card:hover {
 .bsd-row-label { font-size: 14px; font-weight: 600; color: var(--n-text); }
 
 .bsd-attr-name {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--n-text-muted);
     background: transparent;
     border: none;
@@ -441,17 +439,17 @@ a.bios-board-card:hover {
 }
 
 .bsd-value-default { color: var(--n-text-muted); }
-.bsd-value-arrow { color: var(--n-text-muted); font-size: 12px; }
+.bsd-value-arrow { color: var(--n-text-muted); font-size: 13px; }
 .bsd-value-stored { font-weight: 600; color: var(--n-blue); }
 
 /* stale 행(카탈로그에 없는 저장 속성) — 주의 톤 */
 .bsd-stale-note {
     margin: 0 0 10px;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--n-orange);
 }
 
-.bsd-row-stale .bsd-attr-name { color: var(--n-orange); font-size: 12px; }
+.bsd-row-stale .bsd-attr-name { color: var(--n-orange); font-size: 13px; }
 .bsd-row-stale .bsd-value-stored { color: var(--n-text-sec); font-weight: 500; }
 
 /* Redfish Request Body 프리뷰 */
@@ -463,17 +461,16 @@ a.bios-board-card:hover {
     margin-bottom: 10px;
 }
 
-.bsd-redfish-target { font-size: 13px; word-break: break-all; }
+.bsd-redfish-target { font-size: 14px; word-break: break-all; }
 
+/* 위 요청 본문(pre.n-code-block)이 자기 테두리로 끝나므로 점선을 더 긋지 않는다(DESIGN.md 5절 구분선). 간격만 둔다. */
 .bsd-redfish-reset {
-    margin-top: 18px;
-    padding-top: 14px;
-    border-top: 1px dashed var(--n-border);
+    margin-top: 24px;
 }
 
 .bsd-redfish-reset-note {
     margin: 0 0 10px;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--n-text-sec);
 }
 

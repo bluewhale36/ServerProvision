@@ -4,6 +4,7 @@ import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.os.enums.OSName;
+import com.example.serverprovision.management.os.enums.RhelRelease;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -14,6 +15,7 @@ import lombok.experimental.SuperBuilder;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * OS 메타데이터 — (OSName, osVersion) 조합의 유일한 논리적 단위.
@@ -25,7 +27,8 @@ import java.util.List;
  * 의도치 않은 재노출을 부를 수 있기 때문.</p>
  */
 @Entity
-@Table(name = "os_metadata")
+@Table(name = "os_metadata",
+		uniqueConstraints = @UniqueConstraint(name = "uk_os_metadata_name_version", columnNames = {"os_name", "os_version"}))   // HF30-1 — 휴지통 행도 정체를 점유
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SuperBuilder
@@ -96,6 +99,18 @@ public class OSMetadata extends LifecycleEntity implements Markable {
 	 */
 	public void update(String description) {
 		this.description = description;
+	}
+
+	/**
+	 * 목록 순서(S23-1). OS 상수의 선언 순서로 묶고, 같은 상수 안에서는 들어온 순서를 지킨다(정렬이 안정적이므로
+	 * 저장소의 created_at 내림차순이 남는다). DB ENUM 의 값 순서는 만든 방식(수동 DDL, Hibernate)마다 달라 기대지 않는다.
+	 */
+	public static final java.util.Comparator<OSMetadata> CATALOG_ORDER =
+			java.util.Comparator.comparing(OSMetadata::getOsName, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()));
+
+	/** 설치를 지원하는 RHEL 계열 메이저(E4-1-b-2) — 버전 문자열에서 계산한다. 지원 밖이면 empty. */
+	public Optional<RhelRelease> rhelRelease() {
+		return RhelRelease.of(osName, osVersion);
 	}
 
 	// ==== Markable 구현 (메타 자원) ===================================

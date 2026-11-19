@@ -35,7 +35,7 @@
     <tr th:if="${ungroupedRow}" data-lookup-row th:attr="data-value=${ungroupedValue},data-label=${ungroupedLabel}">
         <td class="n-lookup-check"><input type="checkbox" data-lookup-check th:aria-label="${ungroupedLabel}"></td>
         <td><button type="button" class="n-lookup-pick" data-lookup-pick th:text="${ungroupedLabel}">무소속</button></td>
-        <td class="center">&mdash;</td>
+        <td class="center">-</td>
     </tr>
     <tr th:each="row : ${rows}" data-lookup-row th:attr="data-value=${row.id},data-label=${row.name}">
         <td class="n-lookup-check"><input type="checkbox" data-lookup-check th:aria-label="${row.name}"></td>

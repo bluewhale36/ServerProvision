@@ -8,7 +8,8 @@
     <th:block th:replace="~{fragments/layout :: commonHead('오류')}"></th:block>
 </head>
 <body>
-<nav th:replace="~{fragments/layout :: navbar('os-metadata')}"></nav>
+<!--/* HF29 — 오류 화면은 어느 메뉴에도 속하지 않는다(종전 'os-metadata' 고정이라 403 · 404 에서 'OS 버전' 이 활성으로 보였다). */-->
+<nav th:replace="~{fragments/layout :: navbar('')}"></nav>
 
 <div class="n-page-md">
     <div class="n-page-header">
@@ -36,7 +37,7 @@
                 </div>
             </div>
             <div class="n-form-actions">
-                <a href="javascript:history.back()" class="n-btn n-btn-secondary">← 이전 페이지로</a>
+                <a href="javascript:history.back()" class="n-btn n-btn-secondary"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>이전 페이지로</a>
                 <a th:href="@{/management/os}" class="n-btn n-btn-primary">홈으로</a>
             </div>
         </div>

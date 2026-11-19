@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotBlank;
  */
 public record PurgeGuestServerRequest(
 
-        @NotBlank(message = "확인을 위해 systemUUID 의 마지막 '-' 다음 값을 입력해 주세요.")
+        @NotBlank(message = "확인을 위해 시스템 UUID 의 마지막 '-' 뒤 값을 입력해야 합니다.")
         String typedSuffix
 ) {
 }

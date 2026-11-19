@@ -26,8 +26,8 @@ public class WindowsOemPayloadController {
     @PostMapping("/oem-sync")
     public String sync(RedirectAttributes redirectAttributes) {
         WindowsOemPayloadAssembler.OemAssemblyResult result = assembler.sync();
-        String message = "드라이버 페이로드 조립 완료 — 드라이버 " + result.assembled() + "종 · " + FileSize.format(result.totalBytes())
-                + (result.excluded() > 0 ? " · 제외 " + result.excluded() + "건(INF 없음 · 트리 부재)" : "");
+        String message = "드라이버 페이로드를 조립했습니다. 드라이버 " + result.assembled() + "종(" + FileSize.format(result.totalBytes()) + ")"
+                + (result.excluded() > 0 ? ", 제외 " + result.excluded() + "건(INF 파일 또는 폴더 미발견)" : "") + ".";
         redirectAttributes.addFlashAttribute("flashMessage", message);
         return "redirect:/system/asset";
     }

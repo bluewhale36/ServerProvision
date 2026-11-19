@@ -1,12 +1,16 @@
 package com.example.serverprovision.management.bios.service;
 
+import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.exception.BiosNotFoundException;
+import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.bios.exception.IllegalBiosStateException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
+
+import java.util.Comparator;
 
 /**
  * R4-3 — BiosService 5분할 시 분할 클래스들이 공유하는 조회 가드를 정적 헬퍼로 단일화한다.
@@ -40,8 +44,20 @@ final class BiosGuards {
 		BoardBIOS bios = biosRepository.findByIdAndBoardModel_Id(biosId, boardId)
 				.orElseThrow(() -> new BiosNotFoundException(boardId, biosId));
 		if (bios.isDeleted()) {
-			throw new IllegalBiosStateException("삭제된 BIOS 에는 수행할 수 없는 작업입니다. biosId=" + biosId);
+			throw new IllegalBiosStateException("삭제된 BIOS 에는 이 작업을 할 수 없습니다.");
 		}
 		return bios;
+	}
+
+	/**
+	 * 같은 (메인보드, 버전)의 살아 있는 BIOS(활성 · Deprecated)가 있으면 그 상태에 맞는 안내로 409(HF30-2). 업로드 전 판정 ·
+	 * 창 진행 뒤 재발급 · 등록 본체가 함께 써 기준이 갈라지지 않게 한다. 휴지통 행은 막지 않는다(창이 묻는다).
+	 */
+	static void assertVersionAvailable(BiosRepository repository, Long boardId, String version) {
+		repository.findAllByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, version).stream()
+				.min(Comparator.comparing((BoardBIOS existing) -> LifecycleStage.of(existing.isDeprecated(), existing.isDeleted())))
+				.ifPresent(existing -> {
+					throw DuplicateBiosVersionException.againstRegistration(existing);
+				});
 	}
 }

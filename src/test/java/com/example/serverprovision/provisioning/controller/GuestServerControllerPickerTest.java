@@ -156,7 +156,7 @@ class GuestServerControllerPickerTest {
         mvc.perform(get("/provisioning/server/{id}/assignment/picker", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("대조 전")))
-                .andExpect(content().string(containsString("일부 하드웨어가 불일치 할 수 있으며")))
+                .andExpect(content().string(containsString("일부 하드웨어가 불일치할 수 있으며")))
                 .andExpect(content().string(containsString("하드웨어를 대조하지 못했습니다.")));
     }
 

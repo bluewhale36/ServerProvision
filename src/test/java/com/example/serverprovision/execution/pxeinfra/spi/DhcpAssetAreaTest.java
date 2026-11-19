@@ -169,7 +169,7 @@ class DhcpAssetAreaTest {
         List<AssetContextItem> context = area.context();
         assertThat(context).extracting(AssetContextItem::label).containsExactly("dnsmasq 서비스", "모드");
         assertThat(context.get(0).severity()).isEqualTo(ObservationSeverity.WARN);
-        assertThat(context.get(1).value()).isEqualTo("proxyDHCP");
+        assertThat(context.get(1).value()).isEqualTo("proxy DHCP");
         verify(leaseReader, never()).read();
     }
 
@@ -188,7 +188,7 @@ class DhcpAssetAreaTest {
                 serviceInspector, leaseReader, configService);
 
         List<AssetContextItem> context = area.context();
-        assertThat(context).extracting(AssetContextItem::value).containsExactly("알 수 없음", "미저장", "0건");
+        assertThat(context).extracting(AssetContextItem::value).containsExactly("미확인", "미저장", "0건");
     }
 
     // ── 헬퍼 ─────────────────────────────────────────────────────────────────

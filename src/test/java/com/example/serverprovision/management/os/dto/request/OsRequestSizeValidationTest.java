@@ -50,7 +50,7 @@ class OsRequestSizeValidationTest {
 		assertThat(violations).hasSize(1);
 		ConstraintViolation<ISOCreateRequest> violation = violations.iterator().next();
 		assertThat(violation.getPropertyPath().toString()).isEqualTo("description");
-		assertThat(violation.getMessage()).isEqualTo("설명은 1024자 이하로 입력해주세요.");
+		assertThat(violation.getMessage()).isEqualTo("설명은 1024자 이하로 입력해야 합니다.");
 	}
 
 	@Test
@@ -76,14 +76,14 @@ class OsRequestSizeValidationTest {
 	@DisplayName("OSMetadataCreateRequest.osVersion 65자 → @Size 위반 (os_version VARCHAR(64))")
 	void osMetadataCreate_osVersionOverLimit_violates() {
 		var request = new OSMetadataCreateRequest(
-				com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX, chars(65), null);
+				com.example.serverprovision.management.os.enums.OSName.UBUNTU, chars(65), null);
 
 		Set<ConstraintViolation<OSMetadataCreateRequest>> violations = validator.validate(request);
 
 		assertThat(violations).hasSize(1);
 		ConstraintViolation<OSMetadataCreateRequest> violation = violations.iterator().next();
 		assertThat(violation.getPropertyPath().toString()).isEqualTo("osVersion");
-		assertThat(violation.getMessage()).isEqualTo("OS 버전은 64자 이하로 입력해주세요.");
+		assertThat(violation.getMessage()).isEqualTo("OS 버전은 64자 이하로 입력해야 합니다.");
 	}
 
 	@Test
@@ -95,5 +95,25 @@ class OsRequestSizeValidationTest {
 
 		assertThat(violations).hasSize(1);
 		assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("isoPath");
+	}
+
+	@org.junit.jupiter.api.Test
+	@org.junit.jupiter.api.DisplayName("S23-1 — 지원 상수만 받고, 버전은 상수의 메이저와 맞아야 한다(RHEL 은 메이저.세부, Windows Server 2025 는 2025, Ubuntu 는 자유)")
+	void osMetadataCreate_catalogRules() {
+		var rocky9 = com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX_9;
+		var rhel10 = com.example.serverprovision.management.os.enums.OSName.RHEL_10;
+		var win2025 = com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER_2025;
+		var ubuntu = com.example.serverprovision.management.os.enums.OSName.UBUNTU;
+		var legacy = com.example.serverprovision.management.os.enums.OSName.CENTOS;
+		assertThat(validator.validate(new OSMetadataCreateRequest(rocky9, "9.6", null))).isEmpty();
+		assertThat(validator.validate(new OSMetadataCreateRequest(rhel10, "10.0", null))).isEmpty();
+		assertThat(validator.validate(new OSMetadataCreateRequest(win2025, "2025", null))).isEmpty();
+		assertThat(validator.validate(new OSMetadataCreateRequest(ubuntu, "24.04", null))).isEmpty();
+		assertThat(validator.validate(new OSMetadataCreateRequest(rocky9, "10.0", null)))
+				.extracting(v -> v.getPropertyPath().toString()).containsExactly("osVersionAccepted");
+		assertThat(validator.validate(new OSMetadataCreateRequest(win2025, "2022", null)))
+				.extracting(v -> v.getPropertyPath().toString()).containsExactly("osVersionAccepted");
+		assertThat(validator.validate(new OSMetadataCreateRequest(legacy, "7.9", null)))
+				.extracting(v -> v.getPropertyPath().toString()).containsExactly("osName");
 	}
 }

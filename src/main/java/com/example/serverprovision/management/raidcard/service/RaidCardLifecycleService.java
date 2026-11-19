@@ -1,7 +1,6 @@
 package com.example.serverprovision.management.raidcard.service;
 
 import com.example.serverprovision.global.lifecycle.LifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.raidcard.entity.RaidCard;
 import com.example.serverprovision.management.raidcard.exception.DuplicateRaidCardException;
@@ -60,8 +59,8 @@ public class RaidCardLifecycleService implements LifecycleService {
 		if (raidCardRepository.existsByVendorAndModelNameAndIsDeletedFalseAndIsDeprecatedFalse(
 				card.getVendor(), card.getModelName())) {
 			throw new IllegalRaidCardStateException(
-					"같은 이름의 카드가 이미 살아 있어 Deprecated 를 해제할 수 없습니다. "
-							+ "그 카드를 먼저 삭제하거나 Deprecated 로 표시해주세요. id=" + id);
+					"같은 이름의 카드가 이미 사용 중이라 사용 중단 권고를 해제할 수 없습니다. "
+							+ "그 카드를 먼저 삭제하거나 사용 중단 권고로 표시해야 합니다.");
 		}
 		card.undeprecate();
 		log.info("[lifecycle.undeprecate] resource=RAID_CARD#{} outcome=undeprecated", id);
@@ -82,7 +81,7 @@ public class RaidCardLifecycleService implements LifecycleService {
 	public RestoreResponse restore(Long id, boolean cascade) {
 		RaidCard card = raidCardRepository.findByIdAndIsDeletedTrue(id)
 				.orElseThrow(() -> new IllegalRaidCardStateException(
-						"이미 활성 상태이거나 존재하지 않는 RAID 카드입니다. id=" + id));
+						"이미 활성 상태이거나 없는 RAID 카드입니다."));
 		// 복구로 살아 있는 상태가 되는 경우(own_deprecated=false)만 동일키 충돌 검사 —
 		// Deprecated 로 복귀하는 카드는 유일성 집합 밖이라 충돌하지 않는다 (D7).
 		if (!card.isOwnDeprecated()
@@ -94,14 +93,6 @@ public class RaidCardLifecycleService implements LifecycleService {
 		card.clearTrashed();
 		log.info("[lifecycle.restore] resource=RAID_CARD#{} outcome=restored", id);
 		return RestoreResponse.none();   // 자식 없음 — cascade 무관 0 건
-	}
-
-	@Override
-	@Transactional
-	public void purgeWithTypedNameCheck(Long id, String typedName) {
-		RaidCard card = requireTrashedCard(id);
-		TypedNameGuard.verify(card, typedName);
-		purge(card);
 	}
 
 	@Override
@@ -122,6 +113,6 @@ public class RaidCardLifecycleService implements LifecycleService {
 	private RaidCard requireTrashedCard(Long id) {
 		return raidCardRepository.findByIdAndIsDeletedTrue(id)
 				.orElseThrow(() -> new IllegalRaidCardStateException(
-						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+						"휴지통에 있는 RAID 카드만 영구 삭제할 수 있습니다. 먼저 삭제해야 합니다."));
 	}
 }

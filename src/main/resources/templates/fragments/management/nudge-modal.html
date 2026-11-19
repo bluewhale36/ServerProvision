@@ -2,10 +2,10 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <body>
 <!--/*
-  MK2 — nudge modal fragment.
+  MK2 — 중복 확인 창 조각. 처리는 global/nudge-modal.js 의 NudgeModal.open 한 곳(HF30-3).
   ─────────────────────────────────────────────────────────
-  업로드 단계 B (해시 검증 후) 에서 서버가 409 + NudgeRequiredResponse 를 회신하면
-  본 modal 이 표시된다. 사용자 3택 (proceed / replace / cancel) 으로 confirm endpoint 호출.
+  업로드 전(intent) 또는 업로드 뒤(해시) 서버가 409 + NudgeRequiredResponse 를 회신하면
+  본 창이 표시된다. 후보는 휴지통 자원뿐이다(HF30-2).
 
   파라미터:
     - prefix : modal element id 접두사. 페이지에 여러 modal 이 있을 때 충돌 회피
@@ -14,8 +14,8 @@
                        JS 가 `confirmBaseUrl + '/{nudgeId}/proceed'` 로 호출.
 
   생성되는 element id (prefix="nudge" 기준):
-    nudgeModal · nudgeBackdrop · nudgeConflictsList · nudgeProceedBtn ·
-    nudgeReplaceBtn · nudgeCancelBtn · nudgeCloseBtn
+    nudgeModal · nudgeBackdrop · nudgeWarning · nudgeConflictsList · nudgeTypedNameWrap · nudgeTypedName ·
+    nudgeTypedNameExpected · nudgeReplaceNote · nudgeError · nudgeProceedBtn · nudgeReplaceBtn · nudgeCancelBtn
 
   CSS: 기존 .n-alert / .n-btn / .n-card 재사용. 신규 CSS 토큰 0.
 */-->
@@ -31,16 +31,15 @@
     <div class="n-card cm-card cm-card-md" role="dialog" aria-modal="true">
         <div class="n-card-body">
             <h2 class="cm-title cm-title-split">
-                <span>동일한 자원이 이미 존재합니다</span>
+                <span>중복 확인</span>
                 <!-- MK2 — TTL countdown. JS (NudgeTimer) 가 expiresAt 으로부터 mm:ss 갱신.
                      0:00 도달 시 modal 자동 닫힘 + onExpire 호출. -->
                 <span class="cm-title-meta" data-nudge-timer
                      
-                      title="이 시간 안에 결정하지 않으면 nudge 세션이 만료됩니다."></span>
+                      title="이 시간 안에 정하지 않으면 중복 확인이 만료됩니다."></span>
             </h2>
-            <div class="n-alert n-alert-warning">
-                동일한 자원이 휴지통 또는 Deprecated 상태로 다음과 같이 발견되었습니다.
-                계속 진행할 방법을 선택하세요.
+            <div class="n-alert n-alert-warning" th:id="${prefix} + 'Warning'">
+                같은 자원이 휴지통에 있습니다.
             </div>
 
             <ul class="cm-conflict-list" th:id="${prefix} + 'ConflictsList'">
@@ -48,21 +47,21 @@
             </ul>
 
             <div class="n-hint n-lead">
-                <strong>그래도 등록</strong> : 새 자원으로 등록 (기존 자원은 그대로 보존)<br>
-                <strong>기존 영구 삭제 후 등록</strong> : 기존 자원을 영구 삭제하고 새 자원을 등록<br>
-                <strong>취소</strong> : 업로드를 취소하고 임시 파일 정리
+                <strong>그래도 등록</strong>: 새 자원으로 등록(기존 자원 보존)<br>
+                <span th:id="${prefix} + 'ReplaceNote'"><strong>기존 영구 삭제 후 등록</strong>: 기존 자원을 영구 삭제하고 새 자원 등록<br></span>
+                <strong>취소</strong>: <span data-cancel-note="beforeUpload">등록 취소</span><span data-cancel-note="afterUpload" hidden>등록 취소, 올린 파일 정리</span><span data-cancel-note="existingFolder" hidden>등록 취소, 기존 폴더 보존</span>
             </div>
 
             <!--
-              S5-2-4 v3-1 — nudge REPLACE 의 typed-name 입력 슬롯.
-              자원 선택 시 JS 가 hint 영역에 자원의 displayName 을 노출. 사용자가 동일 문자열을
-              입력해야 ReplaceBtn 이 활성화 (휴지통 영구삭제와 동일 정책 — 우발 삭제 방어).
+              자원명 입력(HF30-3 D12). 후보를 고르면 JS 가 그 자원의 displayName 을 보이고, 같은 문자열을
+              입력해야 [기존 영구 삭제 후 등록] 이 활성화된다(휴지통 영구 삭제와 같은 확인). 서버도 같은 값으로 대조한다.
             -->
             <div class="cm-typed-block" th:id="${prefix} + 'TypedNameWrap'"
                  hidden>
                 <label class="cm-typed-target-label" th:for="${prefix} + 'TypedName'">
-                    영구삭제를 확정하려면 아래 자원명을 정확히 입력하세요 :
+                    영구 삭제를 확정하려면 아래 자원명을 정확히 입력해야 합니다.
                 </label>
+                <p class="n-hint n-hint-warn">기존 자원을 먼저 영구 삭제하고 새 자원을 등록합니다. 등록이 실패해도 영구 삭제는 되돌릴 수 없습니다.</p>
                 <code class="cm-typed-target-code cm-path" th:id="${prefix} + 'TypedNameExpected'"
                      ></code>
                 <input class="cm-typed-input" type="text"
@@ -73,6 +72,8 @@
                        placeholder="자원명 입력">
             </div>
 
+            <div class="n-alert n-alert-danger" th:id="${prefix} + 'Error'" role="alert" hidden></div>
+
             <div class="cm-actions">
                 <button type="button"
                         th:id="${prefix} + 'CancelBtn'"
@@ -81,7 +82,7 @@
                 <!-- S5-3-2 — disabled 상태에서도 hover/focus tooltip 표시. wrapper 의 ::after 가 렌더. -->
                 <span th:id="${prefix} + 'ReplaceBtnWrap'"
                       class="n-btn-tooltip-wrap"
-                      data-tooltip="대체할 기존 자원을 목록에서 선택 후 자원명을 정확히 입력하세요">
+                      data-tooltip="대체할 기존 자원을 목록에서 고른 뒤 자원명을 정확히 입력해야 합니다.">
                     <button type="button"
                             th:id="${prefix} + 'ReplaceBtn'"
                             class="n-btn n-btn-danger"

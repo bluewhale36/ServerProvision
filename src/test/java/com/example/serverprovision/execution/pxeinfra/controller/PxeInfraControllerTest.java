@@ -73,7 +73,7 @@ class PxeInfraControllerTest {
                         containsString("활성 1건"),
                         containsString("전체 2건"),
                         containsString("무만료"),
-                        containsString("EXPIRED"))));
+                        containsString(">만료</span>"))));
     }
 
     @Test
@@ -94,7 +94,7 @@ class PxeInfraControllerTest {
         mvc.perform(get("/system/pxe-infra"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(allOf(
-                        containsString("proxyDHCP 모드"),
+                        containsString("proxy DHCP 모드"),
                         containsString("임대를 만들지 않습니다"),
                         not(containsString("기록된 임대가 없습니다.")))));
         verify(leaseReader, never()).read();

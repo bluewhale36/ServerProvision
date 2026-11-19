@@ -21,10 +21,10 @@
 <div class="n-page">
     <div class="n-page-header">
         <h1 class="n-page-title">
-            <span th:text="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">Rocky Linux 9.6</span>
+            <span th:text="${drift.displayName != null ? drift.displayName : drift.resourceType.displayName + ' #' + drift.resourceId}">Rocky Linux 9.6</span>
             <span class="n-badge n-title-badge"
                   th:classappend="${drift.kind.mode.name() == 'AUTO'} ? 'n-badge-orange' : (${drift.kind.mode.name() == 'MANUAL'} ? 'n-badge-yellow' : 'n-badge-gray')"
-                  th:text="${drift.kind.label}">경로 이동됨</span>
+                  th:text="${drift.kind.label}">경로 이동</span>
             <!--/* 번호를 제목 옆에 둔다. 종전에는 아래 구획의 '자원 종류' 줄에 묻혀 있어, 로그나
                  다른 화면에서 번호로 이 드리프트를 찾아온 사람이 맞게 왔는지 확인하려면 한참
                  내려가야 했다. */-->
@@ -37,7 +37,7 @@
          들어올 수 있으므로, 첫 화면에서만 알리면 그 사실을 모른 채 버튼을 누르게 된다. */-->
     <div th:if="${!resolutionEnabled}" class="n-banner n-banner-warn">
         <strong>시스템 해결이 꺼져 있습니다.</strong>
-        아래 [해결] 은 눌리지 않습니다 —
+        아래 [해결] 은 눌리지 않습니다.
         <a th:href="@{/maintenance/reconciliation/settings}">점검 운영 설정</a> 에서 다시 켤 수 있습니다.
     </div>
 
@@ -81,7 +81,7 @@
                         <div class="n-accordion-field">
                             <dt>자원 종류</dt>
                             <dd>
-                                <span class="n-badge n-badge-gray" th:text="${drift.resourceType}"></span>
+                                <span class="n-badge n-badge-gray" th:text="${drift.resourceType.displayName}"></span>
                                 <span class="n-text-muted" th:text="|자원 ID ${drift.resourceId}|"></span>
                             </dd>
                         </div>
@@ -131,7 +131,7 @@
                                 <span th:text="|${drift.observationCount}회|"></span>
                                 <span th:if="${drift.isNew()}" class="n-badge n-badge-red">최초 발견</span>
                                 <!--/* 승계된 문제는 관측 1 회여도 최초가 아니다. 사슬은 위 구획이 보여 준다. */-->
-                                <span th:if="${drift.succeeded()}" class="n-badge n-badge-teal">이어짐</span>
+                                <span th:if="${drift.succeeded()}" class="n-badge n-badge-teal">승계</span>
                             </dd>
                         </div>
                         <!--/* MK4-4-3 — 내용을 봐야 판정되는 종류에 "이 판정이 언제 것인가" 를 밝힌다.
@@ -150,11 +150,10 @@
                                 <span th:text="|${#temporals.format(contentCheck.lastDeepObservedAt, 'yyyy-MM-dd HH:mm')} 정밀 점검|">2026-08-13 01:26 정밀 점검</span>
                                 <div class="n-text-muted" th:if="${contentCheck.hasUncheckedScansSince()}">
                                     <span th:text="|이후 일반 점검 ${contentCheck.generalScansSince}회는 파일 내용을 확인하지 않았습니다.|"></span>
-                                    내용 변조 여부는 다음 정밀 점검에서 확인됩니다.
                                 </div>
                             </dd>
                             <dd th:unless="${contentCheck.hasBasis()}" class="n-text-muted">
-                                아직 정밀 점검이 이 자원의 내용을 확인한 적이 없습니다.
+                                정밀 점검이 이 자원의 내용을 확인한 기록이 없습니다.
                             </dd>
                         </div>
                         <div class="n-accordion-field">
@@ -210,7 +209,7 @@
                         <div class="n-accordion-field">
                             <dt>보관 사유</dt>
                             <dd th:if="${drift.snoozeReason != null}" th:text="${drift.snoozeReason}">보관 테스트</dd>
-                            <dd th:unless="${drift.snoozeReason != null}" class="n-text-muted">남긴 사유가 없습니다.</dd>
+                            <dd th:unless="${drift.snoozeReason != null}" class="n-text-muted">미입력</dd>
                         </div>
                     </dl>
                 </div>
@@ -254,8 +253,8 @@
                           th:data-resource-type="${drift.resourceType}"
                           th:data-resource-id="${drift.resourceId}"
                           th:data-resource-label="|'${drift.kind.label}' 드리프트|"
-                          data-resolve-title="보관 — 지금은 두고 보기"
-                          data-resource-extra="파일과 자원은 변하지 않으며, 보관 기간 이후 다시 목록에 표출됩니다.">
+                          data-resolve-title="보관"
+                          data-resource-extra="파일과 자원은 바뀌지 않습니다. 보관 기간이 끝나면 목록에 다시 나타납니다.">
                         <!--/* MK4-1 — 이미 해결됐거나 이미 보관 중이면 애초에 누를 수 없게 한다. 사유는
                              서버 가드와 같은 도메인 메서드(Drift.snoozeBlockReason)에서 온다. */-->
                         <span class="n-btn-tooltip-wrap" th:data-tooltip="${drift.snoozeBlockReason}"
@@ -332,7 +331,7 @@
                         </span>
                         <code th:if="${!e.moved() and e.fromPath != null}" class="n-mono n-path"
                               th:text="${e.fromPath}"></code>
-                        <span th:if="${!e.moved() and e.fromPath == null}" class="n-text-muted">—</span>
+                        <span th:if="${!e.moved() and e.fromPath == null}" class="n-text-muted">-</span>
                     </td>
                 </tr>
                 </tbody>
@@ -342,7 +341,7 @@
                  그리는 이유도 같다 — 여기서 끝난 것이 아님을 눈으로 알린다.
                  계보는 이 아래가 아니라 표 안의 마지막 줄들로 이미 들어와 있다. */-->
             <div th:if="${timeline.hidden > 0}" class="n-tl-continue">
-                <span th:text="|이전 ${timeline.hidden} 건은 표시하지 않았습니다 — 오래 남은 드리프트는 점검마다 관측이 쌓입니다.|"></span>
+                <span th:text="|이전 ${timeline.hidden}건은 표시하지 않았습니다.|"></span>
             </div>
         </div>
     </section>

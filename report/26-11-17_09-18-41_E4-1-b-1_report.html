@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-1-b-1 Report — 설치 작업 트리</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'\203A'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 원문 발췌 (섹션 안의 접이식) ── */
+  .body details { border:1px solid var(--border-soft); border-radius:6px; margin:6px 0; background:var(--card); }
+  .body details > summary { cursor:pointer; padding:7px 12px; font-size:12.5px; color:var(--text-muted); overflow-wrap:anywhere; }
+  .body details > summary b { color:var(--text); }
+  .body details[open] > summary { border-bottom:1px solid var(--border-soft); }
+  .body details > p { margin:8px 12px 2px; font-size:12px; color:var(--text-muted); overflow-wrap:anywhere; }
+  .body details > pre { margin:4px 12px 10px; white-space:pre-wrap; overflow-wrap:anywhere; }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  p { margin:6px 0 10px; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  td code, th code { overflow-wrap:anywhere; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; white-space:nowrap; }
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── 구조 도식 (인라인 SVG) ── */
+  figure { margin:10px 0 16px; border:1px solid var(--border-soft); border-radius:8px; background:var(--bg); overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  figure svg { display:block; width:100%; min-width:640px; height:auto; }
+  figcaption { font-size:12px; color:var(--text-muted); padding:8px 12px; border-top:1px solid var(--border-soft); background:var(--card); min-width:0; }
+
+  /* ── 체크리스트 ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    details.section .body { padding:12px 12px 14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E4-1-b-1 — 설치 작업 트리 <span class="v2-badge">CP6 보고</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E4-1-b-1 (feature · E 단계)</span>
+    <span><strong>상위</strong> E4-1-b RHEL 계열 Linux 자동 설치</span>
+    <span><strong>상태</strong> CP6 제출 · 승인 대기</span>
+    <span><strong>브랜치</strong> <code>feat/E4-1-b_rhel-install</code> (미커밋)</span>
+    <span><strong>테스트</strong> 3,687 · 실패 0 · 건너뜀 6</span>
+    <span><strong>CP5</strong> 1 회차 17 / 17 · 2 회차 5 / 5</span>
+    <span><strong>작성</strong> 2026-11-17 09:18 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">&sect;1 요약</a></li>
+      <li><a href="#s2">&sect;2 진단 (실측 근거)</a></li>
+      <li><a href="#s3">&sect;3 구현</a></li>
+      <li><a href="#s4">&sect;4 테스트</a></li>
+      <li><a href="#s5" class="preview">&sect;5 CP5 검증 계획</a></li>
+      <li><a href="#s6" class="preview">&sect;6 CP5 수행 기록</a></li>
+      <li><a href="#s7">&sect;7 미수행 항목과 사유</a></li>
+      <li><a href="#s8">&sect;8 발견한 것</a></li>
+      <li><a href="#s9">&sect;9 Critical Files</a></li>
+      <li><a href="#s10">&sect;10 남은 일</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 요약 ===== -->
+    <details class="section" id="s1" open>
+      <summary>&sect;1. 요약</summary>
+      <div class="body">
+        <div class="callout"><b>한 줄 요약</b> : RHEL 설치가 ISO 를 처음 필요로 할 때 작업 디렉터리에 풀고, 그 ISO 로 설치 중인 서버가 0 대가 된 뒤 유예 10 분이 지나면 지우는 부품을 만들었다(실행기 연결은 b-4).</div>
+        <table>
+          <thead><tr><th>항목</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>새 패키지</td><td><code>execution/installtree/{config, service, vo, enums}</code> 12 파일</td></tr>
+            <tr><td>b-4 가 쓸 API</td><td><code>InstallTreeManager.acquire(isoId, guestId)</code> → <code>TreeAcquisition</code>(Ready · Preparing · Failed) · <code>release(isoId, guestId)</code> · <code>InstallTree.resolve(path)</code>(서빙 경로 가드)</td></tr>
+            <tr><td>DB</td><td>변경 없음(상태는 메모리, D-4)</td></tr>
+            <tr><td>설정</td><td><code>provision.rhel-install.tree-root</code>(<code>RHEL_INSTALL_TREE_ROOT</code>, 비면 꺼짐) · <code>release-grace</code>(10m)</td></tr>
+            <tr><td>테스트</td><td>3,687 · 실패 0 · 건너뜀 6 (origin/dev beb3260 위, 신규 75)</td></tr>
+            <tr><td>CP5</td><td>2 회차 · 1 회차 17 항목(A1~A8 · B1~B6 · C1~C3) 통과 · 결함 0 · 관찰 6 → 3 건 수정 뒤 2 회차 5 항목(R-A1~A5 · B1 = 하네스 1 회 · 시나리오 6, R-A6 · R-B6 · R-C1 · B7) 통과</td></tr>
+            <tr><td>운영 반영</td><td>런북 2 문서 수정(디렉터리 · <code>bsdtar</code> 패키지 · env). 실제 반영은 배포 때</td></tr>
+          </tbody>
+        </table>
+        <p>plan <code>plan/26-11-17_00-41-49_E4-1-b-1_plan.html</code> · 상위 우산 <code>plan/26-11-17_00-09-51_E4-1-b_plan.html</code></p>
+      </div>
+    </details>
+
+    <!-- ===== §2 진단 ===== -->
+    <details class="section" id="s2" open>
+      <summary>&sect;2. 진단 (실측 근거)</summary>
+      <div class="body">
+        <p>plan &sect;1 요약.</p>
+        <table>
+          <thead><tr><th>사실</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>설치기는 원본을 HTTP 로 파일 단위로 읽음 → ISO 를 폴더로 펼친 트리가 필요</td><td>anaconda <code>inst.repo</code></td></tr>
+            <tr><td>ISO 를 풀 영속 장치 없음. <code>IsoPreparationService.prepare()</code> 는 임시 · mount 는 root 필요 · 도구 출력 미소비</td><td><code>IsoPreparationService</code></td></tr>
+            <tr><td>운영 spv-01 에 7z · bsdtar 없음</td><td>앵커 실측(11-17)</td></tr>
+            <tr><td>옛 전역 URL <code>pxe.server.install-source-url</code> 참조 0</td><td>grep</td></tr>
+            <tr><td>ISO 디렉터리는 읽기 전용(0555)으로 풀림</td><td>이번 실측(bsdtar, macOS)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §3 구현 ===== -->
+    <details class="section" id="s3" open>
+      <summary>&sect;3. 구현</summary>
+      <div class="body">
+        <h4>결정 (plan 대비 최종)</h4>
+        <table>
+          <thead><tr><th>결정</th><th>최종</th><th>이력</th></tr></thead>
+          <tbody>
+            <tr><td>언제 푸나</td><td>설치가 처음 필요로 할 때(B)</td><td>사용자 결정 11-17(미리 준비 = 디스크 2 배 탈락)</td></tr>
+            <tr><td>위치</td><td><code>/var/lib/serverprovision/served/install-trees</code></td><td>앵커 자문 · Q1</td></tr>
+            <tr><td>삭제</td><td>보유자 0 + 유예 10 분</td><td>Q2</td></tr>
+            <tr><td>실패</td><td>대기 대신 단계 실패, 재시도가 다시 풂</td><td>D-10</td></tr>
+            <tr><td>재기동</td><td>진행 중 설치 이어지지 않음 · 기동 정리</td><td>Q4</td></tr>
+            <tr><td>b-1 분리</td><td>하네스 검증으로 따로</td><td>Q3</td></tr>
+            <tr><td>사유 <code>ISO_UNAVAILABLE</code> 추가</td><td>ISO 행 없음 · 파일 사라짐</td><td>CP4 승인(구현 중 발견)</td></tr>
+            <tr><td>풀기 도구 순서</td><td><code>extractInto</code> 는 bsdtar 먼저(Rock Ridge 긴 이름), 기존 <code>prepare()</code> 는 그대로</td><td>CP4 승인</td></tr>
+            <tr><td>내주는 숨김 파일</td><td><code>.treeinfo</code> · <code>.discinfo</code></td><td>CP4 승인</td></tr>
+            <tr><td>사라진 READY 트리</td><td>다음 확보에서 다시 풂 · 정리 눈금은 상태만 비움</td><td>테스트 중 발견 · 보강</td></tr>
+            <tr><td>기동 정리 시점</td><td><code>SmartInitializingSingleton</code>(웹 서버 기동 전)</td><td>CP5 O-1: <code>ApplicationReadyEvent</code> 는 "Started" 뒤 실패</td></tr>
+            <tr><td>기동 정리 집계</td><td>removed · failed 따로, 실패 시 WARN</td><td>CP5 O-3</td></tr>
+            <tr><td>긴 파일 이름 확인</td><td>b-4 로 이관</td><td>CP4 사용자 결정</td></tr>
+          </tbody>
+        </table>
+
+        <h4>구조</h4>
+        <figure>
+          <svg viewBox="0 0 900 500" role="img" aria-label="설치 작업 트리 부품 배치">
+            <defs>
+              <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" style="fill:var(--text-muted)"/>
+              </marker>
+            </defs>
+            <g style="font-family:var(--mono);font-size:13px">
+              <!-- RhelInstaller (b-4, 점선) -->
+              <rect x="300" y="18" width="300" height="56" rx="8" style="fill:var(--card);stroke:var(--text-muted);stroke-width:1.5;stroke-dasharray:6 4"/>
+              <text x="450" y="42" text-anchor="middle" style="fill:var(--text-muted);font-weight:700">RhelInstaller</text>
+              <text x="450" y="62" text-anchor="middle" style="fill:var(--text-muted);font-size:11.5px">b-4 · 아직 없음</text>
+
+              <!-- InstallTreeManager -->
+              <rect x="300" y="118" width="300" height="60" rx="8" style="fill:var(--blue-bg);stroke:var(--blue);stroke-width:2"/>
+              <text x="450" y="143" text-anchor="middle" style="fill:var(--blue);font-weight:700">InstallTreeManager</text>
+              <text x="450" y="163" text-anchor="middle" style="fill:var(--text);font-size:11.5px">acquire · release · 기동 정리</text>
+
+              <!-- 오른쪽: ToolProbe · ISORepository -->
+              <rect x="660" y="100" width="220" height="44" rx="8" style="fill:var(--card);stroke:var(--purple);stroke-width:1.5"/>
+              <text x="770" y="127" text-anchor="middle" style="fill:var(--purple);font-weight:700">InstallTreeToolProbe</text>
+              <rect x="660" y="156" width="220" height="44" rx="8" style="fill:var(--card);stroke:var(--purple);stroke-width:1.5"/>
+              <text x="770" y="177" text-anchor="middle" style="fill:var(--purple);font-weight:700">ISORepository</text>
+              <text x="770" y="193" text-anchor="middle" style="fill:var(--text-muted);font-size:11px">isoPath</text>
+
+              <!-- InstallTreeExtractor -->
+              <rect x="300" y="224" width="300" height="60" rx="8" style="fill:var(--green-bg);stroke:var(--green);stroke-width:2"/>
+              <text x="450" y="249" text-anchor="middle" style="fill:var(--green);font-weight:700">InstallTreeExtractor</text>
+              <text x="450" y="269" text-anchor="middle" style="fill:var(--text);font-size:11.5px">@Async installTreeExecutor</text>
+
+              <!-- 3 부품 -->
+              <rect x="40" y="330" width="260" height="56" rx="8" style="fill:var(--card);stroke:var(--orange);stroke-width:1.5"/>
+              <text x="170" y="354" text-anchor="middle" style="fill:var(--orange);font-weight:700">IsoPreparationService</text>
+              <text x="170" y="374" text-anchor="middle" style="fill:var(--text);font-size:11.5px">.extractInto</text>
+              <rect x="320" y="330" width="260" height="56" rx="8" style="fill:var(--card);stroke:var(--orange);stroke-width:1.5"/>
+              <text x="450" y="363" text-anchor="middle" style="fill:var(--orange);font-weight:700">InstallTreeInspector</text>
+              <rect x="600" y="330" width="260" height="56" rx="8" style="fill:var(--card);stroke:var(--orange);stroke-width:1.5"/>
+              <text x="730" y="363" text-anchor="middle" style="fill:var(--orange);font-weight:700">InstallTreeStore</text>
+
+              <!-- 디스크 -->
+              <rect x="40" y="430" width="820" height="50" rx="8" style="fill:var(--yellow-bg);stroke:var(--yellow);stroke-width:1.5"/>
+              <text x="450" y="452" text-anchor="middle" style="fill:var(--text);font-weight:700">디스크 {TREE_ROOT}</text>
+              <text x="450" y="471" text-anchor="middle" style="fill:var(--text-muted);font-size:11.5px">.staging/&lt;uuid&gt; → iso-&lt;id&gt;</text>
+            </g>
+            <g style="stroke:var(--text-muted);stroke-width:1.5;fill:none">
+              <line x1="450" y1="74" x2="450" y2="116" style="stroke-dasharray:6 4" marker-end="url(#arr)"/>
+              <line x1="600" y1="138" x2="658" y2="122" marker-end="url(#arr)"/>
+              <line x1="600" y1="160" x2="658" y2="176" marker-end="url(#arr)"/>
+              <line x1="450" y1="178" x2="450" y2="222" marker-end="url(#arr)"/>
+              <line x1="380" y1="284" x2="200" y2="328" marker-end="url(#arr)"/>
+              <line x1="450" y1="284" x2="450" y2="328" marker-end="url(#arr)"/>
+              <line x1="520" y1="284" x2="700" y2="328" marker-end="url(#arr)"/>
+              <line x1="170" y1="386" x2="170" y2="428" marker-end="url(#arr)"/>
+              <line x1="730" y1="386" x2="730" y2="428" marker-end="url(#arr)"/>
+            </g>
+          </svg>
+          <figcaption>부품 배치. 점선 = 아직 없는 b-4 <code>RhelInstaller</code>. 추출 결과는 future 로 돌아가며 Extractor 가 Manager 를 역호출하지 않는다.</figcaption>
+        </figure>
+
+        <h4>클래스별 책임</h4>
+        <table>
+          <thead><tr><th>타입</th><th>맡는 것</th></tr></thead>
+          <tbody>
+            <tr><td><code>InstallTreeProperties</code></td><td>키 2 개 · 절대경로 · <code>/</code> 금지 · 정규화 검증</td></tr>
+            <tr><td><code>InstallTreeConfig</code></td><td>다른 루트 6 개(허용 루트 · PXE 자산 · 휴지통 · 격리 · 자산 이력 · Windows 원본)와 같거나 포함하면 기동 실패</td></tr>
+            <tr><td><code>InstallTreeManager</code></td><td>ISO 별 상태 · 보유자 · 실패 알림 대상(<code>failedHolders</code>) · ISO 단위 잠금 · 1 분 정리 눈금 · 기동 정리(<code>SmartInitializingSingleton</code>, 웹 서버 기동 전)</td></tr>
+            <tr><td><code>InstallTreeExtractor</code></td><td>공간(ISO × 1.2) → <code>.staging/&lt;uuid&gt;</code> 풀기 → 확인 → <code>iso-&lt;id&gt;</code> 원자적 rename. 결과는 future(매니저 역호출 없음 = 순환 없음)</td></tr>
+            <tr><td><code>InstallTreeStore</code></td><td>경로 규칙 · 게시 · 회수(rename 으로 즉시 서빙 경로에서 뺌) · 링크 미추적 삭제(읽기 전용 디렉터리 쓰기 권한 복구) · 기동 정리(직계 · 이름 규칙)</td></tr>
+            <tr><td><code>InstallTreeInspector</code></td><td>필수 5(<code>.treeinfo</code> · 커널 · initrd · 설치기 본체 · <code>BaseOS/repodata/repomd.xml</code>) · 배포판 · 버전</td></tr>
+            <tr><td><code>InstallTreeToolProbe</code></td><td>bsdtar · 7z 존재(추출이 필요할 때마다)</td></tr>
+            <tr><td><code>InstallTree</code> · <code>TreeRelease</code> · <code>TreeAcquisition</code></td><td>트리 · 경로 가드 / 배포판 · 주 버전(b-3 키) / 확보 결과 sealed</td></tr>
+            <tr><td><code>TreeState</code> · <code>TreeFailureReason</code></td><td>상태 4 / 사유 7(즉시 4 · 추출 3, 콘솔 문구 포함)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>상태 전이 (<code>TreeState</code>)</h4>
+        <table>
+          <thead><tr><th>지금</th><th>사건</th><th>다음</th><th>확보 응답</th></tr></thead>
+          <tbody>
+            <tr><td>ABSENT</td><td>확보(도구 있음)</td><td>PREPARING · 추출 시작</td><td>Preparing</td></tr>
+            <tr><td>PREPARING</td><td>확보</td><td>PREPARING(보유자 추가)</td><td>Preparing</td></tr>
+            <tr><td>PREPARING</td><td>추출 성공</td><td>READY(보유자 0 이면 유예 시작)</td><td>—</td></tr>
+            <tr><td>PREPARING</td><td>추출 실패</td><td>FAILED(보유자 → 알림 대상)</td><td>—</td></tr>
+            <tr><td>READY</td><td>확보</td><td>READY(유예 취소)</td><td>Ready</td></tr>
+            <tr><td>READY</td><td>마지막 반납</td><td>READY + 유예 시작</td><td>—</td></tr>
+            <tr><td>READY</td><td>유예 만료</td><td>ABSENT(회수 · 삭제)</td><td>—</td></tr>
+            <tr><td>FAILED</td><td>알림 대상의 확보</td><td>FAILED(대상에서 뺌)</td><td>Failed(사유)</td></tr>
+            <tr><td>FAILED</td><td>그 밖의 확보(재시도)</td><td>PREPARING · 다시 추출</td><td>Preparing</td></tr>
+          </tbody>
+        </table>
+        <p>즉시 실패(미설정 · 도구 없음 · 웹 주소 ISO · ISO 없음)는 상태를 바꾸지 않는다.</p>
+
+        <h4>함께 고친 것</h4>
+        <ul>
+          <li><code>IsoPreparationService</code>: <code>extractInto</code> · <code>extractionToolAvailable</code> 공개, 7z · bsdtar · which 출력 DISCARD(기존 <code>prepare()</code> 의 멈춤 위험 제거). 예외 문구는 PR #110 문체("ISO 압축을 풀지 못했습니다: …")에 맞춤.</li>
+          <li><code>AsyncConfig</code>: <code>installTreeExecutor</code>(2 스레드 · 큐 16).</li>
+          <li><code>application.properties</code>: <code>pxe.server.install-source-url</code> 삭제 · RHEL 블록 추가.</li>
+          <li>런북: <code>docs/staging-vm-bootstrap.md</code>(디렉터리 · <code>dnf -y install bsdtar</code> · <code>RHEL_INSTALL_TREE_ROOT</code>) · <code>docs/pxe-server-install.md</code>(자원 볼륨 비고).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §4 테스트 ===== -->
+    <details class="section" id="s4" open>
+      <summary>&sect;4. 테스트</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>층</th><th>파일</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td><code>InstallTreeManagerTest</code></td><td>16</td></tr>
+            <tr><td>단위</td><td><code>InstallTreeStoreTest</code>(실제 파일 시스템)</td><td>8</td></tr>
+            <tr><td>단위</td><td><code>InstallTreeExtractorTest</code></td><td>6</td></tr>
+            <tr><td>단위</td><td><code>InstallTreeInspectorTest</code></td><td>9</td></tr>
+            <tr><td>단위</td><td><code>InstallTreeTest</code>(경로 가드 · TreeRelease)</td><td>17</td></tr>
+            <tr><td>단위</td><td><code>InstallTreeConfigTest</code></td><td>11</td></tr>
+            <tr><td>단위</td><td><code>IsoPreparationServiceExtractIntoTest</code>(실제 bsdtar)</td><td>2</td></tr>
+            <tr><td>통합</td><td><code>InstallTreeScenarioTest</code>(Spring @Async · 실제 bsdtar · 가짜 Rocky ISO · 실제 디스크, 시나리오 6)</td><td>6</td></tr>
+            <tr><td>전체</td><td></td><td>3,687 · 실패 0 · 건너뜀 6 (origin/dev beb3260 = 디자인 PR #110 병합 뒤, DesignConventionTest 포함)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">HTTP 통합(4 범주)은 엔드포인트가 없어 해당 없음 — b-4 의 서빙 컨트롤러에서. 신규 예외 클래스 없음.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 CP5 계획 ===== -->
+    <details class="section preview" id="s5" open>
+      <summary>&sect;5. CP5 검증 계획 (항목 식별자)</summary>
+      <div class="body">
+        <div class="callout warn"><b>방법 (E 단계 예외)</b> :
+          <ol>
+            <li>하네스 <code>scripts/installtree-fixture/verify-install-tree.sh</code> = <code>InstallTreeScenarioTest</code> 6 시나리오(실제 Spring <code>@Async</code> · bsdtar 3.5.3 · 가짜 Rocky ISO · 실제 디스크)</li>
+            <li>실제 jar 기동(<code>sbx-e42/boot.sh</code>, DB 3377 validate · 포트 7842)으로 fail-fast · 기동 정리 · 도구 없음 WARN 확인</li>
+          </ol>
+          수행 = Opus 하위 에이전트(결함 수정 금지), 판정 = 세션.
+        </div>
+
+        <h4>1 회차 · A 정상 흐름</h4>
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>하네스 실행 → <code>S1.txt</code></td><td>확보 = 준비 중 → 준비됨, <code>iso-12/</code> 에 커널 · initrd · <code>.treeinfo</code> · BaseOS, 반납 + 9 분엔 남고 + 10 분에 사라짐</td></tr>
+            <tr><td>A2</td><td>같은 실행의 <code>S2.txt</code></td><td>3 대 확보에 트리 하나(<code>iso-12</code> 만), 2 대 반납 뒤에도 G3 가 있어 유지</td></tr>
+            <tr><td>A3</td><td><code>S3.txt</code></td><td>ISO-12 · ISO-13 트리 둘, ISO-13 만 반납 + 10 분 뒤 <code>iso-13</code> 만 사라짐</td></tr>
+            <tr><td>A4</td><td><code>S4.txt</code></td><td>유예 중 재확보 → 준비됨 즉시(다시 풀지 않음), 1 시간 뒤에도 READY</td></tr>
+            <tr><td>A5</td><td><code>S6.txt</code></td><td>재기동 정리 뒤 <code>operator-note.txt</code> 만 남음(트리 · <code>.staging</code> 삭제)</td></tr>
+            <tr><td>A6</td><td>실제 앱: 트리 루트 <code>sbx-e42/cp5/trees-a6</code> 에 미리 <code>iso-5/images/</code>(안쪽 디렉터리를 <code>chmod -R a-w</code> 로 읽기 전용), <code>.staging/half/</code>, <code>iso-abc/</code>, <code>operator-note.txt</code> 를 만들고 <code>TREE=… boot.sh</code></td><td>기동 성공, 로그에 <code>기동 정리 완료. removed=2</code>, 남은 것 = <code>iso-abc</code> · <code>operator-note.txt</code></td></tr>
+            <tr><td>A7</td><td>실제 앱: <code>TREE=</code> (빈 값)</td><td>기동 성공, 로그에 <code>tree-root 미설정</code> 과 <code>꺼짐</code></td></tr>
+            <tr><td>A8</td><td><code>make-fake-rocky-iso.sh sbx-e42/cp5/iso 8.10</code> → <code>bsdtar -tf</code> 로 목록</td><td>ISO 생성, 목록에 <code>.treeinfo</code> · <code>images/pxeboot/vmlinuz</code> · <code>images/install.img</code> · <code>BaseOS/repodata/repomd.xml</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>1 회차 · B 비정상 조작</h4>
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>B1</td><td>하네스 <code>S5.txt</code></td><td>남은 공간 측정값 고정(ISO 크기, 필요 = 1.2 배) → 실패(NOT_ENOUGH_SPACE), 기다리던 G2 의 다음 확보가 실패를 받음, 트리 · staging 없음, 공간 회복 뒤 재시도로 준비됨</td></tr>
+            <tr><td>B2</td><td>실제 앱: <code>TREE=&lt;sbx-e42/storage 절대경로&gt;</code> (허용 루트와 같음)</td><td>기동 실패, 메시지에 <code>provision.path.allowed-roots</code> 와 <code>RHEL_INSTALL_TREE_ROOT</code></td></tr>
+            <tr><td>B3</td><td>실제 앱: <code>TREE=&lt;sbx-e42/storage/trees 절대경로&gt;</code> (허용 루트 안)</td><td>기동 실패, 같은 메시지</td></tr>
+            <tr><td>B4</td><td>실제 앱: <code>TREE=relative/trees</code></td><td>기동 실패, <code>절대경로여야 한다</code></td></tr>
+            <tr><td>B5</td><td>실제 앱: <code>TREE=&lt;…&gt;/sbx-e42/cp5/../cp5/trees-b5</code></td><td>기동 실패, <code>정규화된 경로</code></td></tr>
+            <tr><td>B6</td><td>실제 앱: 트리 루트 자리에 <b>일반 파일</b>을 미리 만들어 두고 <code>TREE=&lt;그 파일 경로&gt;</code></td><td>기동 실패(앱이 뜨다가 멈춤), 메시지 <code>tree-root 를 준비하지 못했다</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>1 회차 · C 막는 방식</h4>
+        <table>
+          <thead><tr><th>ID</th><th>확인</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>C1</td><td>실제 앱: 유효 트리 루트 + <code>APP_PATH=/nonexistent</code> (bsdtar · which 를 못 찾게)</td><td>기동은 성공, 로그에 WARN <code>bsdtar · 7z 가 모두 없다 … bsdtar 패키지를 설치해야 한다</code> (RHEL 설치만 TOOL_MISSING 으로 막힘을 알림)</td></tr>
+            <tr><td>C2</td><td>B2 ~ B6 의 메시지를 운영자 시선으로 평가</td><td>무엇이 잘못됐는지(겹친 키 · 경로), 어느 환경변수를 고칠지가 메시지 한 줄로 보이는가. 스택 트레이스 속에 묻히는가(첫 원인 줄 위치)</td></tr>
+            <tr><td>C3</td><td>하네스 기록 전체를 plan &sect;3 흐름(확보 · 추출 · 반납 · 기동 정리)과 대조</td><td>상태 전이 순서와 디스크 모양(<code>.staging/&lt;uuid&gt;</code> → <code>iso-&lt;id&gt;</code>)이 plan 과 같은가. 다른 점은 관찰로</td></tr>
+          </tbody>
+        </table>
+
+        <h4>2 회차 (수정 뒤 재검증)</h4>
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>R-A1~A5 · B1</td><td>하네스 전체 재실행</td><td>6/6 통과 · 하네스 임시 디렉터리 남지 않음</td></tr>
+            <tr><td>R-A6</td><td>A6 와 같은 준비로 기동</td><td><code>기동 정리 완료. removed=2</code> 가 <code>Tomcat started</code> · <code>Started</code> 보다 앞</td></tr>
+            <tr><td>R-B6</td><td>트리 루트 자리에 일반 파일</td><td>기동 실패, <code>Tomcat started</code> · <code>Started</code> 줄 없음</td></tr>
+            <tr><td>R-C1</td><td>PATH 비움</td><td>도구 없음 WARN · 기동 성공</td></tr>
+            <tr><td>B7</td><td>루트 자체를 쓰기 금지 + <code>iso-4/images</code> · <code>iso-8</code></td><td>기동 성공 · <code>removed=0, failed=2</code> WARN</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §6 CP5 수행 기록 ===== -->
+    <details class="section preview" id="s6" open>
+      <summary>&sect;6. CP5 수행 기록 (조작과 증거)</summary>
+      <div class="body">
+        <p>b-1 은 화면 · HTTP 가 없어(E 단계 예외) 스크린샷 대신 하네스 기록 · 실제 앱 기동 로그 · 디스크 목록을 증거로 싣는다. 원문은 <code>sbx-e42/cp5/</code>(1 회차) · <code>sbx-e42/cp5/r2/</code>(2 회차). 발췌 안의 경로는 <code>&lt;sbx-e42&gt;</code> · <code>&lt;tmp&gt;</code> 로 줄였다.</p>
+
+        <h4>1 회차 (17 / 17 통과)</h4>
+        <table>
+          <thead><tr><th>ID</th><th>결과</th><th>관찰</th><th>원문</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>통과</td><td>준비 중 → READY · 반납 + 9 분 유지 · + 10 분 <code>유예 만료 — 트리 회수. isoId=12</code></td><td><code>harness/S1.txt</code> 전체</td></tr>
+            <tr><td>A2</td><td>통과</td><td>3 대 모두 Preparing, <code>추출 요청</code> 로그 1 줄, 2 대 반납 뒤 유지</td><td><code>harness/S2.txt</code> + <code>harness/harness-app-log.txt</code> 의 <code>추출 요청</code> 줄</td></tr>
+            <tr><td>A3</td><td>통과</td><td>트리 둘 → ISO-13 반납 + 10 분 뒤 iso-12 만</td><td><code>harness/S3.txt</code></td></tr>
+            <tr><td>A4</td><td>통과</td><td>유예 중 재확보 즉시 Ready · 수정 시각 동일 · 추출 1 회</td><td><code>harness/S4.txt</code></td></tr>
+            <tr><td>A5</td><td>통과</td><td>기동 정리 뒤 <code>operator-note.txt</code> 만</td><td><code>harness/S6.txt</code></td></tr>
+            <tr><td>A6</td><td>통과</td><td>실제 앱 <code>removed=2</code> · 읽기 전용 iso-5 삭제 · iso-abc · operator-note 보존</td><td><code>A6_before.txt</code> · <code>A6_after.txt</code> · <code>A6_boot.log</code> 해당 줄</td></tr>
+            <tr><td>A7</td><td>통과</td><td><code>tree-root 미설정 — RHEL 설치 작업 트리 꺼짐</code></td><td><code>A7_boot.log</code> 해당 줄</td></tr>
+            <tr><td>A8</td><td>통과</td><td>ISO 921,600 B · 필수 파일 목록 · <code>version = 8.10</code></td><td><code>A8_iso_listing.txt</code></td></tr>
+            <tr><td>B1</td><td>통과</td><td><code>공간 부족. isoId=12, required=1105920, usable=921600</code> → Failed(NOT_ENOUGH_SPACE) → 공간 회복 뒤 재시도로 READY</td><td><code>harness/S5.txt</code></td></tr>
+            <tr><td>B2</td><td>통과</td><td>종료 1 · <code>… 가 provision.path.allowed-roots(…) 와 같거나 서로 포함한다 … (RHEL_INSTALL_TREE_ROOT)</code></td><td><code>B2.log</code> Caused by 줄 · <code>B2_exit.txt</code></td></tr>
+            <tr><td>B3</td><td>통과</td><td>종료 1 · 같은 메시지(<code>storage/trees</code>) · 디렉터리 생기지 않음</td><td><code>B3.log</code> · <code>B2-B6_side_effects.txt</code></td></tr>
+            <tr><td>B4</td><td>통과</td><td>종료 1 · Reason <code>절대경로여야 한다 … relative/trees</code></td><td><code>B4.log</code> Reason 줄</td></tr>
+            <tr><td>B5</td><td>통과</td><td>종료 1 · Reason <code>정규화된 경로여야 한다('..' 금지)</code></td><td><code>B5.log</code> Reason 줄</td></tr>
+            <tr><td>B6</td><td>통과</td><td>종료 1 · <code>tree-root 를 준비하지 못했다</code> · <code>FileAlreadyExistsException</code> · 단 "Started" 뒤 실패(O-1)</td><td><code>B6.log</code> 52~55 행 · 82 행</td></tr>
+            <tr><td>C1</td><td>통과</td><td>기동 성공 · <code>bsdtar · 7z 가 모두 없다 … bsdtar 패키지를 설치해야 한다</code></td><td><code>C1_boot.log</code> WARN 줄</td></tr>
+            <tr><td>C2</td><td>통과(개선 여지)</td><td>6 경우 모두 키 · 환경변수 · 경로 포함. B4 · B5 = Spring 실패 분석 Reason 한 줄(가장 좋음), B2 · B3 = 28 줄 아래 Caused by(O-2)</td><td><code>C2_message_positions.txt</code></td></tr>
+            <tr><td>C3</td><td>통과(차이 1)</td><td>상태 전이 · <code>.staging/&lt;uuid&gt;</code> → <code>iso-&lt;id&gt;</code> 가 plan &sect;3 과 같음. 회수는 rename 뒤 잠금 밖 삭제(O-4)</td><td><code>C3_flow_compare.txt</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>원문 발췌 (1 회차)</h4>
+        <p><code>harness-app-log.txt</code> 의 시나리오 구간은 <code>junit.xml</code> 의 실행 순서(S4 · S3 · S1 · S6 · S2 · S5)와 시나리오마다 앞서 찍히는 <code>기동 정리 완료</code> 줄로 나눴다.</p>
+        <details><summary><b>A1</b> 원문 · harness/S1.txt · harness/harness-app-log.txt</summary>
+<p><code>harness/S1.txt</code> 전체</p>
+<pre>  G1 확보 → Preparing[]
+  ISO-12 상태 → READY
+  G1 다시 확보 → Ready[tree=InstallTree[root=&lt;tmp&gt;/installtree-scenario-9069068369882766054/install-trees/iso-12, release=TreeRelease[name=Rocky Linux, version=9.5]]]
+  [디스크 · 준비됨] {TREE_ROOT}
+    .staging/
+    iso-12/
+    iso-12/.discinfo
+    iso-12/.treeinfo
+    iso-12/AppStream/
+    iso-12/AppStream/repodata/
+    iso-12/AppStream/repodata/repomd.xml
+    iso-12/BaseOS/
+    iso-12/BaseOS/Packages/
+    iso-12/BaseOS/Packages/b/
+    iso-12/BaseOS/repodata/
+    iso-12/BaseOS/repodata/repomd.xml
+    iso-12/images/
+    iso-12/images/install.img
+    iso-12/images/pxeboot/
+    iso-12/images/pxeboot/initrd.img
+    iso-12/images/pxeboot/vmlinuz
+  [디스크 · 반납 + 9 분] {TREE_ROOT}
+    .staging/
+    iso-12/
+    iso-12/.discinfo
+    iso-12/.treeinfo
+    iso-12/AppStream/
+    iso-12/AppStream/repodata/
+    iso-12/AppStream/repodata/repomd.xml
+    iso-12/BaseOS/
+    iso-12/BaseOS/Packages/
+    iso-12/BaseOS/Packages/b/
+    iso-12/BaseOS/repodata/
+    iso-12/BaseOS/repodata/repomd.xml
+    iso-12/images/
+    iso-12/images/install.img
+    iso-12/images/pxeboot/
+    iso-12/images/pxeboot/initrd.img
+    iso-12/images/pxeboot/vmlinuz
+  [디스크 · 반납 + 10 분] {TREE_ROOT}
+    .staging/</pre>
+<p><code>harness/harness-app-log.txt</code> 21~25 행 (S1 구간)</p>
+<pre>21: 09:05:23.008 [Test worker] INFO InstallTreeManager -- [install-tree] 추출 요청. isoId=12, guestId=00000000-0000-0000-0000-0000000000a1
+22: 09:05:23.009 [install-tree-2] INFO InstallTreeExtractor -- [install-tree] 추출 시작. isoId=12, iso=&lt;tmp&gt;/installtree-scenario-9069068369882766054/Rocky-9.5-fake.iso, staging=&lt;tmp&gt;/installtree-scenario-9069068369882766054/install-trees/.staging/ab995a29-902e-4af2-85b7-0f913b688cb4
+23: 09:05:23.039 [install-tree-2] INFO InstallTreeExtractor -- [install-tree] 추출 완료. isoId=12, release=Rocky Linux 9.5, tree=&lt;tmp&gt;/installtree-scenario-9069068369882766054/install-trees/iso-12, 소요=0s
+24: 09:05:23.070 [Test worker] INFO InstallTreeManager -- [install-tree] 보유자 0 — 유예 시작. isoId=12, grace=PT10M
+25: 09:05:23.072 [Test worker] INFO InstallTreeManager -- [install-tree] 유예 만료 — 트리 회수. isoId=12</pre>
+</details>
+        <details><summary><b>A2</b> 원문 · harness/S2.txt · harness/harness-app-log.txt</summary>
+<p><code>harness/S2.txt</code> 전체</p>
+<pre>  G1 확보 → Preparing[]
+  G2 확보 → Preparing[]
+  G3 확보 → Preparing[]
+  ISO-12 상태 → READY
+  [디스크 · 준비됨(트리 하나)] {TREE_ROOT}
+    .staging/
+    iso-12/
+    iso-12/.discinfo
+    iso-12/.treeinfo
+    iso-12/AppStream/
+    iso-12/AppStream/repodata/
+    iso-12/AppStream/repodata/repomd.xml
+    iso-12/BaseOS/
+    iso-12/BaseOS/Packages/
+    iso-12/BaseOS/Packages/b/
+    iso-12/BaseOS/repodata/
+    iso-12/BaseOS/repodata/repomd.xml
+    iso-12/images/
+    iso-12/images/install.img
+    iso-12/images/pxeboot/
+    iso-12/images/pxeboot/initrd.img
+    iso-12/images/pxeboot/vmlinuz
+  [디스크 · 2 대 반납 + 1 시간(G3 남음)] {TREE_ROOT}
+    .staging/
+    iso-12/
+    iso-12/.discinfo
+    iso-12/.treeinfo
+    iso-12/AppStream/
+    iso-12/AppStream/repodata/
+    iso-12/AppStream/repodata/repomd.xml
+    iso-12/BaseOS/
+    iso-12/BaseOS/Packages/
+    iso-12/BaseOS/Packages/b/
+    iso-12/BaseOS/repodata/
+    iso-12/BaseOS/repodata/repomd.xml
+    iso-12/images/
+    iso-12/images/install.img
+    iso-12/images/pxeboot/
+    iso-12/images/pxeboot/initrd.img
+    iso-12/images/pxeboot/vmlinuz</pre>
+<p><code>harness/harness-app-log.txt</code> 33~37 행 (S2 구간 · 추출 요청은 33 행 1 줄)</p>
+<pre>33: 09:05:23.187 [Test worker] INFO InstallTreeManager -- [install-tree] 추출 요청. isoId=12, guestId=00000000-0000-0000-0000-0000000000a1
+34: 09:05:23.188 [install-tree-2] INFO InstallTreeExtractor -- [install-tree] 추출 시작. isoId=12, iso=&lt;tmp&gt;/installtree-scenario-9069068369882766054/Rocky-9.5-fake.iso, staging=&lt;tmp&gt;/installtree-scenario-9069068369882766054/install-trees/.staging/f88adaa8-eacb-414c-a660-490a23fac6a2
+35: 09:05:23.205 [install-tree-2] INFO InstallTreeExtractor -- [install-tree] 추출 완료. isoId=12, release=Rocky Linux 9.5, tree=&lt;tmp&gt;/installtree-scenario-9069068369882766054/install-trees/iso-12, 소요=0s
+36: 09:05:23.246 [Test worker] INFO InstallTreeManager -- [install-tree] 보유자 0 — 유예 시작. isoId=12, grace=PT10M
+37: 09:05:23.247 [Test worker] INFO InstallTreeManager -- [install-tree] 유예 만료 — 트리 회수. isoId=12</pre>
+</details>
+        <details><summary><b>A3</b> 원문 · harness/S3.txt</summary>
+<p><code>harness/S3.txt</code> 전체</p>
+<pre>  G1 확보(ISO-12) → Preparing[]
+  G4 확보(ISO-13) → Preparing[]
+  ISO-12 상태 → READY
+  ISO-13 상태 → READY
+  G4 다시 확보 → Ready[tree=InstallTree[root=&lt;tmp&gt;/installtree-scenario-9069068369882766054/install-trees/iso-13, release=TreeRelease[name=Rocky Linux, version=8.10]]]
+  [디스크 · 준비됨(트리 둘)] {TREE_ROOT}
+    .staging/
+    iso-12/
+    iso-12/.discinfo
+    iso-12/.treeinfo
+    iso-12/AppStream/
+    iso-12/AppStream/repodata/
+    iso-12/AppStream/repodata/repomd.xml
+    iso-12/BaseOS/
+    iso-12/BaseOS/Packages/
+    iso-12/BaseOS/Packages/b/
+    iso-12/BaseOS/repodata/
+    iso-12/BaseOS/repodata/repomd.xml
+    iso-12/images/
+    iso-12/images/install.img
+    iso-12/images/pxeboot/
+    iso-12/images/pxeboot/initrd.img
+    iso-12/images/pxeboot/vmlinuz
+    iso-13/
+    iso-13/.discinfo
+    iso-13/.treeinfo
+    iso-13/AppStream/
+    iso-13/AppStream/repodata/
+    iso-13/AppStream/repodata/repomd.xml
+    iso-13/BaseOS/
+    iso-13/BaseOS/Packages/
+    iso-13/BaseOS/Packages/b/
+    iso-13/BaseOS/repodata/
+    iso-13/BaseOS/repodata/repomd.xml
+    iso-13/images/
+    iso-13/images/install.img
+    iso-13/images/pxeboot/
+    iso-13/images/pxeboot/initrd.img
+    iso-13/images/pxeboot/vmlinuz
+  [디스크 · ISO-13 반납 + 10 분] {TREE_ROOT}
+    .staging/
+    iso-12/
+    iso-12/.discinfo
+    iso-12/.treeinfo
+    iso-12/AppStream/
+    iso-12/AppStream/repodata/
+    iso-12/AppStream/repodata/repomd.xml
+    iso-12/BaseOS/
+    iso-12/BaseOS/Packages/
+    iso-12/BaseOS/Packages/b/
+    iso-12/BaseOS/repodata/
+    iso-12/BaseOS/repodata/repomd.xml
+    iso-12/images/
+    iso-12/images/install.img
+    iso-12/images/pxeboot/
+    iso-12/images/pxeboot/initrd.img
+    iso-12/images/pxeboot/vmlinuz</pre>
+</details>
+        <details><summary><b>A4</b> 원문 · harness/S4.txt</summary>
+<p><code>harness/S4.txt</code> 전체</p>
+<pre>  ISO-12 상태 → READY
+  [디스크 · 반납 + 5 분(유예 중)] {TREE_ROOT}
+    .staging/
+    iso-12/
+    iso-12/.discinfo
+    iso-12/.treeinfo
+    iso-12/AppStream/
+    iso-12/AppStream/repodata/
+    iso-12/AppStream/repodata/repomd.xml
+    iso-12/BaseOS/
+    iso-12/BaseOS/Packages/
+    iso-12/BaseOS/Packages/b/
+    iso-12/BaseOS/repodata/
+    iso-12/BaseOS/repodata/repomd.xml
+    iso-12/images/
+    iso-12/images/install.img
+    iso-12/images/pxeboot/
+    iso-12/images/pxeboot/initrd.img
+    iso-12/images/pxeboot/vmlinuz
+  G1 재시도 확보 → Ready[tree=InstallTree[root=&lt;tmp&gt;/installtree-scenario-9069068369882766054/install-trees/iso-12, release=TreeRelease[name=Rocky Linux, version=9.5]]]
+  [디스크 · 재확보 + 1 시간] {TREE_ROOT}
+    .staging/
+    iso-12/
+    iso-12/.discinfo
+    iso-12/.treeinfo
+    iso-12/AppStream/
+    iso-12/AppStream/repodata/
+    iso-12/AppStream/repodata/repomd.xml
+    iso-12/BaseOS/
+    iso-12/BaseOS/Packages/
+    iso-12/BaseOS/Packages/b/
+    iso-12/BaseOS/repodata/
+    iso-12/BaseOS/repodata/repomd.xml
+    iso-12/images/
+    iso-12/images/install.img
+    iso-12/images/pxeboot/
+    iso-12/images/pxeboot/initrd.img
+    iso-12/images/pxeboot/vmlinuz</pre>
+</details>
+        <details><summary><b>A5</b> 원문 · harness/S6.txt</summary>
+<p><code>harness/S6.txt</code> 전체</p>
+<pre>  ISO-12 상태 → READY
+  [디스크 · 재기동 전] {TREE_ROOT}
+    .staging/
+    .staging/half-extracted/
+    .staging/half-extracted/images/
+    iso-12/
+    iso-12/.discinfo
+    iso-12/.treeinfo
+    iso-12/AppStream/
+    iso-12/AppStream/repodata/
+    iso-12/AppStream/repodata/repomd.xml
+    iso-12/BaseOS/
+    iso-12/BaseOS/Packages/
+    iso-12/BaseOS/Packages/b/
+    iso-12/BaseOS/repodata/
+    iso-12/BaseOS/repodata/repomd.xml
+    iso-12/images/
+    iso-12/images/install.img
+    iso-12/images/pxeboot/
+    iso-12/images/pxeboot/initrd.img
+    iso-12/images/pxeboot/vmlinuz
+    operator-note.txt
+  [디스크 · 기동 정리 뒤] {TREE_ROOT}
+    operator-note.txt</pre>
+</details>
+        <details><summary><b>A6</b> 원문 · A6_before.txt · A6_after.txt · A6_boot.log</summary>
+<p><code>A6_before.txt</code> 전체</p>
+<pre>트리 루트: sbx-e42/cp5/trees-a6
+$ ls -laR trees-a6
+total 8
+drwxr-xr-x@ 6 &lt;user&gt;  staff  192 11월 17 09:06 .
+drwxr-xr-x@ 7 &lt;user&gt;  staff  224 11월 17 09:06 ..
+drwxr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:06 .staging
+drwxr-xr-x@ 4 &lt;user&gt;  staff  128 11월 17 09:06 iso-5
+drwxr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:06 iso-abc
+-rw-r--r--@ 1 &lt;user&gt;  staff    4 11월 17 09:06 operator-note.txt
+
+trees-a6/.staging:
+total 0
+drwxr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:06 .
+drwxr-xr-x@ 6 &lt;user&gt;  staff  192 11월 17 09:06 ..
+drwxr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:06 half
+
+trees-a6/.staging/half:
+total 0
+drwxr-xr-x@ 3 &lt;user&gt;  staff  96 11월 17 09:06 .
+drwxr-xr-x@ 3 &lt;user&gt;  staff  96 11월 17 09:06 ..
+drwxr-xr-x@ 3 &lt;user&gt;  staff  96 11월 17 09:06 images
+
+trees-a6/.staging/half/images:
+total 8
+drwxr-xr-x@ 3 &lt;user&gt;  staff  96 11월 17 09:06 .
+drwxr-xr-x@ 3 &lt;user&gt;  staff  96 11월 17 09:06 ..
+-rw-r--r--@ 1 &lt;user&gt;  staff   1 11월 17 09:06 part
+
+trees-a6/iso-5:
+total 8
+drwxr-xr-x@ 4 &lt;user&gt;  staff  128 11월 17 09:06 .
+drwxr-xr-x@ 6 &lt;user&gt;  staff  192 11월 17 09:06 ..
+-rw-r--r--@ 1 &lt;user&gt;  staff    1 11월 17 09:06 .treeinfo
+dr-xr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:06 images
+
+trees-a6/iso-5/images:
+total 0
+dr-xr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:06 .
+drwxr-xr-x@ 4 &lt;user&gt;  staff  128 11월 17 09:06 ..
+dr-xr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:06 pxeboot
+
+trees-a6/iso-5/images/pxeboot:
+total 8
+dr-xr-xr-x@ 3 &lt;user&gt;  staff  96 11월 17 09:06 .
+dr-xr-xr-x@ 3 &lt;user&gt;  staff  96 11월 17 09:06 ..
+-r--r--r--@ 1 &lt;user&gt;  staff   6 11월 17 09:06 vmlinuz
+
+trees-a6/iso-abc:
+total 8
+drwxr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:06 .
+drwxr-xr-x@ 6 &lt;user&gt;  staff  192 11월 17 09:06 ..
+-rw-r--r--@ 1 &lt;user&gt;  staff    4 11월 17 09:06 keep.txt</pre>
+<p><code>A6_after.txt</code> 전체</p>
+<pre>$ ls -laR trees-a6 (기동 뒤)
+total 8
+drwxr-xr-x@ 4 &lt;user&gt;  staff  128 11월 17 09:06 .
+drwxr-xr-x@ 9 &lt;user&gt;  staff  288 11월 17 09:07 ..
+drwxr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:06 iso-abc
+-rw-r--r--@ 1 &lt;user&gt;  staff    4 11월 17 09:06 operator-note.txt
+
+trees-a6/iso-abc:
+total 8
+drwxr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:06 .
+drwxr-xr-x@ 4 &lt;user&gt;  staff  128 11월 17 09:06 ..
+-rw-r--r--@ 1 &lt;user&gt;  staff    4 11월 17 09:06 keep.txt</pre>
+<p><code>A6_boot.log</code> 46 행 · 52~54 행</p>
+<pre>46: 09:06:52.900 [main] INFO  [no-req] c.e.s.e.i.config.InstallTreeConfig - [install-tree] 작업 트리 루트=&lt;sbx-e42&gt;/cp5/trees-a6 · 유예=PT10M
+…
+52: 09:06:54.781 [main] INFO  [no-req] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 7842 (http) with context path &#x27;/&#x27;
+53: 09:06:54.827 [main] INFO  [no-req] c.e.s.ServerProvisionApplication - Started ServerProvisionApplication in 11.508 seconds (process running for 12.459)
+54: 09:06:54.832 [main] INFO  [no-req] c.e.s.e.i.service.InstallTreeManager - [install-tree] 기동 정리 완료. removed=2</pre>
+</details>
+        <details><summary><b>A7</b> 원문 · A7_boot.log</summary>
+<p><code>A7_boot.log</code> 46 행 · 52~53 행</p>
+<pre>46: 09:07:16.563 [main] INFO  [no-req] c.e.s.e.i.config.InstallTreeConfig - [install-tree] provision.rhel-install.tree-root 미설정 — RHEL 설치 작업 트리 꺼짐
+…
+52: 09:07:18.431 [main] INFO  [no-req] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 7842 (http) with context path &#x27;/&#x27;
+53: 09:07:18.463 [main] INFO  [no-req] c.e.s.ServerProvisionApplication - Started ServerProvisionApplication in 10.468 seconds (process running for 10.921)</pre>
+</details>
+        <details><summary><b>A8</b> 원문 · A8_iso_listing.txt</summary>
+<p><code>A8_iso_listing.txt</code> 전체</p>
+<pre>$ scripts/installtree-fixture/make-fake-rocky-iso.sh sbx-e42/cp5/iso 8.10
+
+sbx-e42/cp5/iso/Rocky-8.10-fake.iso
+종료 코드: 0
+
+$ ls -l sbx-e42/cp5/iso/Rocky-8.10-fake.iso
+-rw-r--r--@ 1 &lt;user&gt;  staff  921600 11월 17 09:06 sbx-e42/cp5/iso/Rocky-8.10-fake.iso
+
+$ bsdtar -tf sbx-e42/cp5/iso/Rocky-8.10-fake.iso
+.
+.discinfo
+.treeinfo
+AppStream
+AppStream/repodata
+AppStream/repodata/repomd.xml
+BaseOS
+BaseOS/Packages
+BaseOS/Packages/b
+BaseOS/Packages/b/bash-5.1.8-9.el9.x86_64.rpm
+BaseOS/repodata
+BaseOS/repodata/repomd.xml
+images
+images/install.img
+images/pxeboot
+images/pxeboot/initrd.img
+images/pxeboot/vmlinuz
+
+$ bsdtar -xOf ... .treeinfo
+[general]
+family = Rocky Linux
+version = 8.10
+[release]
+name = Rocky Linux
+version = 8.10
+[stage2]
+mainimage = images/install.img</pre>
+</details>
+        <details><summary><b>B1</b> 원문 · harness/S5.txt · harness/harness-app-log.txt</summary>
+<p><code>harness/S5.txt</code> 전체</p>
+<pre>  (남은 공간 측정값을 921600 B 로 고정, 필요 = ISO 921600 B × 1.2)
+  G2 확보(ISO-12) → Preparing[]
+  ISO-12 상태 → FAILED
+  G2 다음 확보 → Failed[reason=NOT_ENOUGH_SPACE]
+  [디스크 · 실패 뒤(트리 · staging 없음)] {TREE_ROOT}
+    (비어 있음)
+  공간 회복 뒤 G2 재시도 확보 → Preparing[]
+  ISO-12 상태 → READY
+  [디스크 · 재시도로 준비됨] {TREE_ROOT}
+    .staging/
+    iso-12/
+    iso-12/.discinfo
+    iso-12/.treeinfo
+    iso-12/AppStream/
+    iso-12/AppStream/repodata/
+    iso-12/AppStream/repodata/repomd.xml
+    iso-12/BaseOS/
+    iso-12/BaseOS/Packages/
+    iso-12/BaseOS/Packages/b/
+    iso-12/BaseOS/repodata/
+    iso-12/BaseOS/repodata/repomd.xml
+    iso-12/images/
+    iso-12/images/install.img
+    iso-12/images/pxeboot/
+    iso-12/images/pxeboot/initrd.img
+    iso-12/images/pxeboot/vmlinuz</pre>
+<p><code>harness/harness-app-log.txt</code> 39~41 행 (S5 구간)</p>
+<pre>39: 09:05:23.275 [Test worker] INFO InstallTreeManager -- [install-tree] 추출 요청. isoId=12, guestId=00000000-0000-0000-0000-0000000000a2
+40: 09:05:23.275 [install-tree-1] WARN InstallTreeExtractor -- [install-tree] 공간 부족. isoId=12, required=1105920, usable=921600
+41: 09:05:23.276 [install-tree-1] WARN InstallTreeManager -- [install-tree] 추출 실패로 닫음. isoId=12, reason=NOT_ENOUGH_SPACE, 알릴 서버=1</pre>
+</details>
+        <details><summary><b>B2</b> 원문 · B2_exit.txt · B2.log</summary>
+<p><code>B2_exit.txt</code> 전체</p>
+<pre>B2 boot.sh 종료 코드: 1</pre>
+<p><code>B2.log</code> 54~55 행 · 82 행</p>
+<pre>54: 09:07:36.896 [main] ERROR [no-req] o.s.boot.SpringApplication - Application run failed
+55: org.springframework.beans.factory.BeanCreationException: Error creating bean with name &#x27;installTreeConfig&#x27;: Invocation of init method failed
+…
+82: Caused by: java.lang.IllegalStateException: provision.rhel-install.tree-root(&lt;sbx-e42&gt;/storage) 가 provision.path.allowed-roots(&lt;sbx-e42&gt;/storage) 와 같거나 서로 포함한다. 전용 디렉터리를 지정해야 한다 (RHEL_INSTALL_TREE_ROOT).</pre>
+</details>
+        <details><summary><b>B3</b> 원문 · B3_exit.txt · B3.log · B2-B6_side_effects.txt</summary>
+<p><code>B3_exit.txt</code> 전체</p>
+<pre>B3 boot.sh 종료 코드: 1</pre>
+<p><code>B3.log</code> 54~55 행 · 82 행</p>
+<pre>54: 09:07:49.332 [main] ERROR [no-req] o.s.boot.SpringApplication - Application run failed
+55: org.springframework.beans.factory.BeanCreationException: Error creating bean with name &#x27;installTreeConfig&#x27;: Invocation of init method failed
+…
+82: Caused by: java.lang.IllegalStateException: provision.rhel-install.tree-root(&lt;sbx-e42&gt;/storage/trees) 가 provision.path.allowed-roots(&lt;sbx-e42&gt;/storage) 와 같거나 서로 포함한다. 전용 디렉터리를 지정해야 한다 (RHEL_INSTALL_TREE_ROOT).</pre>
+<p><code>B2-B6_side_effects.txt</code> 전체</p>
+<pre>B2~B5 부작용 확인 (기동 실패 뒤 디렉터리가 생기지 않았는가)
+$ ls -la storage
+total 0
+drwxr-xr-x@  2 &lt;user&gt;  staff   64 11월 17 09:03 .
+drwxr-xr-x@ 15 &lt;user&gt;  staff  480 11월 17 09:06 ..
+$ ls -d cp5/trees-b5 storage/trees
+ls: cp5/trees-b5: No such file or directory
+ls: storage/trees: No such file or directory
+B6 뒤 일반 파일 유지:
+-rw-r--r--@ 1 &lt;user&gt;  staff  10 11월 17 09:08 cp5/trees-b6-file
+not a dir</pre>
+</details>
+        <details><summary><b>B4</b> 원문 · B4_exit.txt · B4.log</summary>
+<p><code>B4_exit.txt</code> 전체</p>
+<pre>B4 boot.sh 종료 코드: 1</pre>
+<p><code>B4.log</code> 54~64 행</p>
+<pre>54: 09:08:00.391 [main] ERROR [no-req] o.s.b.d.LoggingFailureAnalysisReporter -
+55: 
+56: ***************************
+57: APPLICATION FAILED TO START
+58: ***************************
+59: 
+60: Description:
+61: 
+62: Failed to bind properties under &#x27;provision.rhel-install&#x27; to com.example.serverprovision.execution.installtree.config.InstallTreeProperties:
+63: 
+64:     Reason: java.lang.IllegalStateException: provision.rhel-install.tree-root 는 절대경로여야 한다 (RHEL_INSTALL_TREE_ROOT) : relative/trees</pre>
+</details>
+        <details><summary><b>B5</b> 원문 · B5_exit.txt · B5.log</summary>
+<p><code>B5_exit.txt</code> 전체</p>
+<pre>B5 boot.sh 종료 코드: 1</pre>
+<p><code>B5.log</code> 54~64 행</p>
+<pre>54: 09:08:18.597 [main] ERROR [no-req] o.s.b.d.LoggingFailureAnalysisReporter -
+55: 
+56: ***************************
+57: APPLICATION FAILED TO START
+58: ***************************
+59: 
+60: Description:
+61: 
+62: Failed to bind properties under &#x27;provision.rhel-install&#x27; to com.example.serverprovision.execution.installtree.config.InstallTreeProperties:
+63: 
+64:     Reason: java.lang.IllegalStateException: provision.rhel-install.tree-root 는 정규화된 경로여야 한다(&#x27;..&#x27; 금지) (RHEL_INSTALL_TREE_ROOT) : &lt;sbx-e42&gt;/cp5/../cp5/trees-b5</pre>
+</details>
+        <details><summary><b>B6</b> 원문 · B6_exit.txt · B6_before.txt · B6.log</summary>
+<p><code>B6_exit.txt</code> 전체</p>
+<pre>B6 boot.sh 종료 코드: 1</pre>
+<p><code>B6_before.txt</code> 전체</p>
+<pre>$ ls -la cp5/trees-b6-file (기동 전)
+-rw-r--r--@ 1 &lt;user&gt;  staff  10 11월 17 09:08 cp5/trees-b6-file
+-rw-r--r--@ 1 &lt;user&gt;  staff  10 11월 17 09:08 cp5/trees-b6-file</pre>
+<p><code>B6.log</code> 52~55 행 · 82 행</p>
+<pre>52: 09:09:01.256 [main] INFO  [no-req] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 7842 (http) with context path &#x27;/&#x27;
+53: 09:09:01.274 [main] INFO  [no-req] c.e.s.ServerProvisionApplication - Started ServerProvisionApplication in 19.42 seconds (process running for 19.973)
+54: 09:09:01.289 [main] ERROR [no-req] o.s.boot.SpringApplication - Application run failed
+55: java.lang.IllegalStateException: provision.rhel-install.tree-root 를 준비하지 못했다 (RHEL_INSTALL_TREE_ROOT) : &lt;sbx-e42&gt;/cp5/trees-b6-file
+…
+82: Caused by: java.nio.file.FileAlreadyExistsException: &lt;sbx-e42&gt;/cp5/trees-b6-file</pre>
+</details>
+        <details><summary><b>C1</b> 원문 · C1_exit.txt · C1_boot.log</summary>
+<p><code>C1_exit.txt</code> 전체</p>
+<pre>C1 boot.sh 종료 코드: 0</pre>
+<p><code>C1_boot.log</code> 52~55 행</p>
+<pre>52: 09:09:23.617 [main] INFO  [no-req] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 7842 (http) with context path &#x27;/&#x27;
+53: 09:09:23.631 [main] INFO  [no-req] c.e.s.ServerProvisionApplication - Started ServerProvisionApplication in 7.655 seconds (process running for 8.21)
+54: 09:09:23.633 [main] INFO  [no-req] c.e.s.e.i.service.InstallTreeManager - [install-tree] 기동 정리 완료. removed=0
+55: 09:09:23.640 [main] WARN  [no-req] c.e.s.e.i.service.InstallTreeManager - [install-tree] bsdtar · 7z 가 모두 없다 — RHEL 설치는 TOOL_MISSING 으로 실패한다. bsdtar 패키지를 설치해야 한다.</pre>
+</details>
+        <details><summary><b>C2</b> 원문 · C2_message_positions.txt</summary>
+<p><code>C2_message_positions.txt</code> 전체</p>
+<pre>===== B2 (1 · 로그 총 89 줄)
+54:09:07:36.896 [main] ERROR [no-req] o.s.boot.SpringApplication - Application run failed
+55:org.springframework.beans.factory.BeanCreationException: Error creating bean with name &#x27;installTreeConfig&#x27;: Invocation of init method failed
+82:Caused by: java.lang.IllegalStateException: provision.rhel-install.tree-root(&lt;sbx-e42&gt;/storage) 가 provision.path.allowed-roots(&lt;sbx-e42&gt;/storage) 와 같거나 서로 포함한다. 전용 디렉터리를 지정해야 한다 (RHEL_INSTALL_TREE_ROOT).
+===== B3 (1 · 로그 총 89 줄)
+54:09:07:49.332 [main] ERROR [no-req] o.s.boot.SpringApplication - Application run failed
+55:org.springframework.beans.factory.BeanCreationException: Error creating bean with name &#x27;installTreeConfig&#x27;: Invocation of init method failed
+82:Caused by: java.lang.IllegalStateException: provision.rhel-install.tree-root(&lt;sbx-e42&gt;/storage/trees) 가 provision.path.allowed-roots(&lt;sbx-e42&gt;/storage) 와 같거나 서로 포함한다. 전용 디렉터리를 지정해야 한다 (RHEL_INSTALL_TREE_ROOT).
+===== B4 (1 · 로그 총 69 줄)
+54:09:08:00.391 [main] ERROR [no-req] o.s.b.d.LoggingFailureAnalysisReporter -
+64:    Reason: java.lang.IllegalStateException: provision.rhel-install.tree-root 는 절대경로여야 한다 (RHEL_INSTALL_TREE_ROOT) : relative/trees
+===== B5 (1 · 로그 총 69 줄)
+54:09:08:18.597 [main] ERROR [no-req] o.s.b.d.LoggingFailureAnalysisReporter -
+64:    Reason: java.lang.IllegalStateException: provision.rhel-install.tree-root 는 정규화된 경로여야 한다(&#x27;..&#x27; 금지) (RHEL_INSTALL_TREE_ROOT) : &lt;sbx-e42&gt;/cp5/../cp5/trees-b5
+===== B6 (1 · 로그 총 99 줄)
+52:09:09:01.256 [main] INFO  [no-req] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 7842 (http) with context path &#x27;/&#x27;
+53:09:09:01.274 [main] INFO  [no-req] c.e.s.ServerProvisionApplication - Started ServerProvisionApplication in 19.42 seconds (process running for 19.973)
+54:09:09:01.289 [main] ERROR [no-req] o.s.boot.SpringApplication - Application run failed
+55:java.lang.IllegalStateException: provision.rhel-install.tree-root 를 준비하지 못했다 (RHEL_INSTALL_TREE_ROOT) : &lt;sbx-e42&gt;/cp5/trees-b6-file
+82:Caused by: java.nio.file.FileAlreadyExistsException: &lt;sbx-e42&gt;/cp5/trees-b6-file
+
+===== C2 평가 (운영자 시선)
+B4 · B5: Spring 실패 분석 블록(APPLICATION FAILED TO START)의 Reason 한 줄에 키 · 환경변수(RHEL_INSTALL_TREE_ROOT) · 잘못된 원값이 함께 나온다. ERROR 뒤 10 줄 안, 스택 트레이스 없음. 가장 읽기 쉽다.
+B2 · B3: 메시지 자체는 충분하다(겹친 두 키 provision.rhel-install.tree-root · provision.path.allowed-roots, 두 경로, 고칠 환경변수). 그러나 ERROR 바로 아래 첫 줄은 &quot;Error creating bean with name &#x27;installTreeConfig&#x27;: Invocation of init method failed&quot; 이고, 실제 원인 줄은 26 줄짜리 스택 트레이스 뒤 82 행 &quot;Caused by:&quot; 에 있다(ERROR 기준 28 줄 아래). 실패 분석 블록이 없다.
+B6: 첫 줄(55 행, ERROR 바로 아래)에 키 · 환경변수 · 경로는 있으나 &quot;왜&quot; 준비하지 못했는지(그 경로가 일반 파일)는 없다. 이유는 82 행 &quot;Caused by: java.nio.file.FileAlreadyExistsException&quot; 에서야 보이고, 예외 이름을 해석해야 &quot;파일이 이미 있다&quot; 로 읽힌다. 또 이 실패는 &quot;Tomcat started on port 7842&quot;(52 행) · &quot;Started ServerProvisionApplication&quot;(53 행) 뒤에 나온다. Started 줄을 기동 성공 신호로 보는 사람 · 도구는 오판할 수 있다.</pre>
+</details>
+        <details><summary><b>C3</b> 원문 · C3_flow_compare.txt</summary>
+<p><code>C3_flow_compare.txt</code> 전체</p>
+<pre>C3 하네스 기록(harness/S1~S6.txt · harness/harness-app-log.txt) ↔ plan §3 흐름 대조
+
+A 확보: ABSENT → acquire → Preparing 반환 + 추출 요청(S1 &quot;G1 확보 → Preparing[]&quot;, 로그 &quot;추출 요청. isoId=12&quot;). PREPARING 중 동시 확보는 Preparing 만 돌려주고 추출 요청은 1 회(S2 에서 G1 · G2 · G3 확보 뒤 &quot;추출 요청&quot; 로그 1 줄). READY 뒤 확보 = Ready(tree). plan 과 같음.
+B 추출: 공간 확인(ISO × 1.2) → .staging/&lt;uuid&gt; 에 풀기 → .treeinfo 확인 → rename 으로 iso-&lt;id&gt; 게시. 로그 &quot;추출 시작 … staging=…/.staging/&lt;uuid&gt;&quot; → &quot;추출 완료 … tree=…/iso-12&quot;. 공간 부족은 staging 을 만들기 전에 실패(S5 &quot;공간 부족. required=1105920, usable=921600&quot; · 디스크 &quot;(비어 있음)&quot;). plan 은 &quot;실패 시 staging 삭제&quot; 라 적었으나 공간 실패는 staging 자체가 생기지 않는다 — 결과(트리 · staging 없음)는 같다.
+C 반납: 보유자 0 → 유예 시작(로그 &quot;보유자 0 — 유예 시작 … grace=PT10M&quot;) → 9 분 유지 · 10 분 회수(S1). 유예 중 재확보 = 즉시 Ready, 1 시간 뒤에도 READY, iso-12 수정 시각 불변(S4, 추출 요청 로그 1 회). plan 과 같음.
+   차이: plan §3 C 는 &quot;iso-{isoId}/ 삭제&quot; 로 적지만 구현은 잠금 안에서 .staging/retired-&lt;uuid&gt; 로 rename 한 뒤 잠금 밖에서 지운다(plan §4 클래스 설명 · 매니저 Javadoc 과는 일치). 하네스 스냅숏은 회수가 끝난 뒤라 retired-&lt;uuid&gt; 중간 모양은 기록되지 않는다.
+D 기동 정리: iso-&lt;숫자&gt; · .staging 만 지우고 규칙 밖(operator-note.txt, 실제 앱 A6 의 iso-abc)은 남김(S6 · A6). plan 과 같음.
+디스크 모양: .staging/&lt;uuid&gt; → iso-&lt;id&gt;. 게시 · 회수 뒤 빈 .staging/ 디렉터리는 계속 남는다(S1 &quot;반납 + 10 분&quot; 에 .staging/ 만 남음) — plan §5 그림에도 .staging/ 가 상주하므로 모순 아님.
+하네스가 다루지 않은 plan 갈래: &quot;추출 중 보유자 0 → 준비 완료 시점에 유예 시작&quot;, NOT_RHEL_TREE · EXTRACTION_FAILED(도구 실패), 디렉터리 ISO(E), HTTP ISO. 하네스 시나리오 6 개 밖이다.</pre>
+</details>
+
+        <h4>세션 판정 (1 회차 관찰)</h4>
+        <table>
+          <thead><tr><th>#</th><th>관찰</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>O-1</td><td>기동 정리가 <code>ApplicationReadyEvent</code> 라 실패가 "Started" · 포트 열림 뒤(약 30 ms)</td><td>수정: <code>SmartInitializingSingleton</code> 으로 이동</td></tr>
+            <tr><td>O-2</td><td>B2 · B3 원인 줄이 스택 트레이스 뒤</td><td>유지(<code>PxeBootProperties</code> 선례와 같은 형태) · 기록</td></tr>
+            <tr><td>O-3</td><td><code>removed</code> 가 시도 횟수(삭제 실패도 셈)</td><td>수정: <code>CleanupResult(removed, failed)</code> · 실패 시 WARN</td></tr>
+            <tr><td>O-4</td><td>plan &sect;3 C 글자("iso-{id}/ 삭제")와 구현(rename 뒤 잠금 밖 삭제) 차이</td><td>기록(plan &sect;4 · Javadoc 과는 일치)</td></tr>
+            <tr><td>O-5</td><td>하네스 목록 깊이 4 · S4 기록이 READY 부터</td><td>기록(rpm 은 A8 목록으로 확인)</td></tr>
+            <tr><td>O-6</td><td>하네스가 다루지 않는 갈래 · 임시 디렉터리 잔존</td><td>갈래는 단위 시험이 고정(아래 표) · 임시 디렉터리는 <code>@AfterAll</code> 삭제로 수정</td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>하네스 밖 갈래</th><th>단위 시험</th></tr></thead>
+          <tbody>
+            <tr><td>추출 중 보유자 0</td><td><code>InstallTreeManagerTest.graceStartsAtReadyWhenNoHolders</code></td></tr>
+            <tr><td>NOT_RHEL_TREE</td><td><code>InstallTreeExtractorTest.notRhelTree</code></td></tr>
+            <tr><td>도구 실패</td><td><code>toolFailure</code></td></tr>
+            <tr><td>디렉터리 ISO</td><td><code>InstallTreeManagerTest.directoryIso</code></td></tr>
+            <tr><td>HTTP ISO</td><td><code>immediateFailures</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>2 회차 (5 / 5 통과, origin/dev beb3260 위 jar)</h4>
+        <table>
+          <thead><tr><th>ID</th><th>결과</th><th>관찰</th><th>원문</th></tr></thead>
+          <tbody>
+            <tr><td>R-A1~A5 · B1</td><td>통과</td><td>6/6 · 기록 1 회차와 같음 · 임시 디렉터리: 실행 직후 목록에 하위 경로 한 줄(<code>…/install-trees</code>)이 찍혔으나 곧 사라짐. 세션 재실행(09:4x)에서는 실행 직후 잔존 0. 원인 미확인(목록 시점 추정)</td><td><code>r2/harness/summary.txt</code> · <code>R-harness_tmp_before/after.txt</code></td></tr>
+            <tr><td>R-A6</td><td>통과</td><td>51 행 <code>기동 정리 완료. removed=2</code> &lt; 53 행 Tomcat started &lt; 54 행 Started</td><td><code>r2/R-A6_boot.log</code> 51~54 행</td></tr>
+            <tr><td>R-B6</td><td>통과</td><td>종료 1 · Tomcat started · Started 줄 없음 · 메시지가 WARN(51 행)과 ERROR 아래(60 행) 두 곳</td><td><code>r2/R-B6.log</code> 51 · 59~60 · 78 행</td></tr>
+            <tr><td>R-C1</td><td>통과</td><td>도구 없음 WARN(52 행)이 Tomcat started(54 행) 앞</td><td><code>r2/R-C1_boot.log</code></td></tr>
+            <tr><td>B7</td><td>통과</td><td><code>삭제 실패</code> 2 줄 → <code>기동 정리 중 지우지 못한 항목이 있다. removed=0, failed=2</code> → 기동 성공</td><td><code>r2/B7_before.txt</code> · <code>B7_after.txt</code> · <code>B7_boot.log</code> 51~56 행</td></tr>
+          </tbody>
+        </table>
+
+        <h4>원문 발췌 (2 회차)</h4>
+        <details><summary><b>R-A1~A5 · B1</b> 원문 · r2/harness/summary.txt · r2/R-harness_tmp_before.txt · r2/R-harness_tmp_after.txt</summary>
+<p><code>r2/harness/summary.txt</code> 전체</p>
+<pre>실행 시각: 2026-11-17 09:15:33 KST
+bsdtar: bsdtar 3.5.3 - libarchive 3.7.4 zlib/1.2.12 liblzma/5.4.3 bz2lib/1.0.8
+gradle 종료 코드: 0
+tests=&quot;6&quot; skipped=&quot;0&quot; failures=&quot;0&quot; errors=&quot;0&quot;
+기록: S1.txt
+기록: S2.txt
+기록: S3.txt
+기록: S4.txt
+기록: S5.txt
+기록: S6.txt</pre>
+<p><code>r2/R-harness_tmp_before.txt</code> 전체</p>
+<pre>&lt;tmp&gt;/installtree-scenario-14710872625075097151
+&lt;tmp&gt;/installtree-scenario-5053906337916481278
+&lt;tmp&gt;/installtree-scenario-9069068369882766054</pre>
+<p><code>r2/R-harness_tmp_after.txt</code> 전체</p>
+<pre>&lt;tmp&gt;/installtree-scenario-14710872625075097151
+&lt;tmp&gt;/installtree-scenario-5053906337916481278
+&lt;tmp&gt;/installtree-scenario-9069068369882766054
+&lt;tmp&gt;/installtree-scenario-16661448051120448850/install-trees</pre>
+</details>
+        <details><summary><b>R-A6</b> 원문 · r2/R-A6_exit.txt · r2/R-A6_boot.log</summary>
+<p><code>r2/R-A6_exit.txt</code> 전체</p>
+<pre>R-A6 boot.sh 종료 코드: 0</pre>
+<p><code>r2/R-A6_boot.log</code> 51~54 행</p>
+<pre>51: 09:16:01.889 [main] INFO  [no-req] c.e.s.e.i.service.InstallTreeManager - [install-tree] 기동 정리 완료. removed=2
+52: 09:16:01.928 [main] INFO  [no-req] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler [&quot;http-nio-127.0.0.1-7842&quot;]
+53: 09:16:01.961 [main] INFO  [no-req] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 7842 (http) with context path &#x27;/&#x27;
+54: 09:16:01.980 [main] INFO  [no-req] c.e.s.ServerProvisionApplication - Started ServerProvisionApplication in 8.724 seconds (process running for 9.35)</pre>
+</details>
+        <details><summary><b>R-B6</b> 원문 · r2/R-B6_exit.txt · r2/R-B6.log</summary>
+<p><code>r2/R-B6_exit.txt</code> 전체</p>
+<pre>R-B6 boot.sh 종료 코드: 1</pre>
+<p><code>r2/R-B6.log</code> 51 행 · 59~60 행 · 78 행</p>
+<pre>51: 09:16:19.015 [main] WARN  [no-req] o.s.b.w.s.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: java.lang.IllegalStateException: provision.rhel-install.tree-root 를 준비하지 못했다 (RHEL_INSTALL_TREE_ROOT) : &lt;sbx-e42&gt;/cp5/r2/trees-b6-file
+…
+59: 09:16:19.055 [main] ERROR [no-req] o.s.boot.SpringApplication - Application run failed
+60: java.lang.IllegalStateException: provision.rhel-install.tree-root 를 준비하지 못했다 (RHEL_INSTALL_TREE_ROOT) : &lt;sbx-e42&gt;/cp5/r2/trees-b6-file
+…
+78: Caused by: java.nio.file.FileAlreadyExistsException: &lt;sbx-e42&gt;/cp5/r2/trees-b6-file</pre>
+</details>
+        <details><summary><b>R-C1</b> 원문 · r2/R-C1_exit.txt · r2/R-C1_boot.log</summary>
+<p><code>r2/R-C1_exit.txt</code> 전체</p>
+<pre>R-C1 boot.sh 종료 코드: 0</pre>
+<p><code>r2/R-C1_boot.log</code> 51~55 행</p>
+<pre>51: 09:16:34.801 [main] INFO  [no-req] c.e.s.e.i.service.InstallTreeManager - [install-tree] 기동 정리 완료. removed=0
+52: 09:16:34.808 [main] WARN  [no-req] c.e.s.e.i.service.InstallTreeManager - [install-tree] bsdtar · 7z 가 모두 없다 — RHEL 설치는 TOOL_MISSING 으로 실패한다. bsdtar 패키지를 설치해야 한다.
+53: 09:16:34.816 [main] INFO  [no-req] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler [&quot;http-nio-127.0.0.1-7842&quot;]
+54: 09:16:34.821 [main] INFO  [no-req] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 7842 (http) with context path &#x27;/&#x27;
+55: 09:16:34.838 [main] INFO  [no-req] c.e.s.ServerProvisionApplication - Started ServerProvisionApplication in 6.36 seconds (process running for 6.854)</pre>
+</details>
+        <details><summary><b>B7</b> 원문 · r2/B7_exit.txt · r2/B7_before.txt · r2/B7_after.txt · r2/B7_boot.log</summary>
+<p><code>r2/B7_exit.txt</code> 전체</p>
+<pre>B7 boot.sh 종료 코드: 0</pre>
+<p><code>r2/B7_before.txt</code> 전체</p>
+<pre>$ ls -laR r2/trees-b7 (기동 전 · 루트 자체 a-w)
+total 0
+dr-xr-xr-x@  4 &lt;user&gt;  staff  128 11월 17 09:16 .
+drwxr-xr-x@ 19 &lt;user&gt;  staff  608 11월 17 09:16 ..
+drwxr-xr-x@  3 &lt;user&gt;  staff   96 11월 17 09:16 iso-4
+drwxr-xr-x@  2 &lt;user&gt;  staff   64 11월 17 09:16 iso-8
+
+r2/trees-b7/iso-4:
+total 0
+drwxr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:16 .
+dr-xr-xr-x@ 4 &lt;user&gt;  staff  128 11월 17 09:16 ..
+drwxr-xr-x@ 3 &lt;user&gt;  staff   96 11월 17 09:16 images
+
+r2/trees-b7/iso-4/images:
+total 8
+drwxr-xr-x@ 3 &lt;user&gt;  staff  96 11월 17 09:16 .
+drwxr-xr-x@ 3 &lt;user&gt;  staff  96 11월 17 09:16 ..
+-rw-r--r--@ 1 &lt;user&gt;  staff   1 11월 17 09:16 vmlinuz
+
+r2/trees-b7/iso-8:
+total 0
+drwxr-xr-x@ 2 &lt;user&gt;  staff   64 11월 17 09:16 .
+dr-xr-xr-x@ 4 &lt;user&gt;  staff  128 11월 17 09:16 ..</pre>
+<p><code>r2/B7_after.txt</code> 전체</p>
+<pre>$ ls -laR r2/trees-b7 (기동 뒤 · 권한 복구 전)
+total 0
+dr-xr-xr-x@  4 &lt;user&gt;  staff  128 11월 17 09:16 .
+drwxr-xr-x@ 22 &lt;user&gt;  staff  704 11월 17 09:16 ..
+drwxr-xr-x@  2 &lt;user&gt;  staff   64 11월 17 09:16 iso-4
+drwxr-xr-x@  2 &lt;user&gt;  staff   64 11월 17 09:16 iso-8
+
+r2/trees-b7/iso-4:
+total 0
+drwxr-xr-x@ 2 &lt;user&gt;  staff   64 11월 17 09:16 .
+dr-xr-xr-x@ 4 &lt;user&gt;  staff  128 11월 17 09:16 ..
+
+r2/trees-b7/iso-8:
+total 0
+drwxr-xr-x@ 2 &lt;user&gt;  staff   64 11월 17 09:16 .
+dr-xr-xr-x@ 4 &lt;user&gt;  staff  128 11월 17 09:16 ..
+drwxr-xr-x@ 4 &lt;user&gt;  staff  128 11월 17 09:16 &lt;sbx-e42&gt;/cp5/r2/trees-b7</pre>
+<p><code>r2/B7_boot.log</code> 51~56 행</p>
+<pre>51: 09:16:52.515 [main] WARN  [no-req] c.e.s.e.i.service.InstallTreeStore - [install-tree] 삭제 실패. path=&lt;sbx-e42&gt;/cp5/r2/trees-b7/iso-8, msg=&lt;sbx-e42&gt;/cp5/r2/trees-b7/iso-8
+52: 09:16:52.515 [main] WARN  [no-req] c.e.s.e.i.service.InstallTreeStore - [install-tree] 삭제 실패. path=&lt;sbx-e42&gt;/cp5/r2/trees-b7/iso-4, msg=&lt;sbx-e42&gt;/cp5/r2/trees-b7/iso-4
+53: 09:16:52.515 [main] WARN  [no-req] c.e.s.e.i.service.InstallTreeManager - [install-tree] 기동 정리 중 지우지 못한 항목이 있다. removed=0, failed=2
+54: 09:16:52.532 [main] INFO  [no-req] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler [&quot;http-nio-127.0.0.1-7842&quot;]
+55: 09:16:52.539 [main] INFO  [no-req] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 7842 (http) with context path &#x27;/&#x27;
+56: 09:16:52.552 [main] INFO  [no-req] c.e.s.ServerProvisionApplication - Started ServerProvisionApplication in 6.375 seconds (process running for 6.749)</pre>
+</details>
+
+        <h4>세션 판정 (2 회차 관찰)</h4>
+        <table>
+          <thead><tr><th>#</th><th>관찰</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>P-1</td><td>B6 원인(일반 파일)은 여전히 <code>FileAlreadyExistsException</code> 예외 이름으로만 드러남</td><td>유지 · 기록</td></tr>
+            <tr><td>P-2</td><td><code>삭제 실패</code> WARN 이 이유(권한 거부)를 말하지 않음(getMessage = 경로)</td><td>수정: <code>cause=&lt;예외 이름&gt;: &lt;메시지&gt;</code> 형식(로그 형식만 · 단위 시험 재실행 73/73 통과, 실제 앱 재기동 확인은 하지 않음)</td></tr>
+            <tr><td>P-3</td><td>루트 직계를 못 지울 때 안쪽은 비워지고 빈 디렉터리만 남음</td><td>기록(이름 규칙 대상이라 다음 기동 정리에서 지워짐)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 미수행 ===== -->
+    <details class="section" id="s7" open>
+      <summary>&sect;7. 미수행 항목과 사유</summary>
+      <div class="body">
+        <ul>
+          <li>실제 Rocky ISO(Rock Ridge 긴 이름) 추출: 이 맥에 Rocky ISO · xorriso 없음, hdiutil 은 RR 미지원 → <b>b-4 CP5 로 이관(CP4 사용자 결정)</b>.</li>
+          <li>실제 게스트 흐름(iPXE · anaconda 가 트리를 받는 것): 실행기 · 서빙이 b-4 → b-4 CP5.</li>
+          <li>운영 spv-01 반영(디렉터리 · bsdtar · env): 배포 때 앵커가 사용자 지시로.</li>
+          <li>다이어그램 갱신: b-1 은 게스트 ↔ 서버 상호작용을 새로 만들지 않음 → b-4 에서 갱신.</li>
+          <li>CP5 항목 중 미수행 없음(권한 분류기 차단 0).</li>
+          <li>P-2 수정(로그 형식) 뒤의 실제 앱 재기동 확인은 하지 않음 — 형식 변경뿐이라 단위 시험으로 대체.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §8 발견한 것 ===== -->
+    <details class="section" id="s8" open>
+      <summary>&sect;8. 발견한 것</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>무엇</th><th>처리</th></tr></thead>
+          <tbody>
+            <tr><td>F-1</td><td>macOS APFS 에서 <code>RandomAccessFile.setLength</code> 가 성긴 파일을 만들지 않고 디스크를 실제로 채움(공간 부족 시험이 디스크를 가득 채움)</td><td>시험을 "남은 공간 측정값만 고정" 으로 바꿈. 파일 자동 삭제로 공간 회복 확인</td></tr>
+            <tr><td>F-2</td><td>READY 트리가 디스크에서 사라지면(운영자 삭제 등) 죽은 트리를 계속 내주고 회수도 매번 실패</td><td>확보 때 존재 확인 → 다시 풂 · 정리 눈금은 상태만 비움 · 단위 2 추가</td></tr>
+            <tr><td>F-3</td><td>ISO 에서 풀린 디렉터리는 0555 → 일반 재귀 삭제 실패</td><td>삭제가 들어가기 전 소유자 쓰기 권한 복구 · 단위로 고정</td></tr>
+            <tr><td>F-4</td><td>hdiutil 은 Rock Ridge 없이 ISO 를 만들어 64 자 넘는 이름을 자름</td><td>가짜 ISO 는 짧은 이름 · 긴 이름 확인은 b-4</td></tr>
+            <tr><td>N-1</td><td>트리 재귀 삭제 구현이 세 곳(<code>PurgeExecutorImpl</code> · <code>IsoPreparationService</code> · <code>InstallTreeStore</code>)</td><td>범위 밖 · 공통화 후보로 기록</td></tr>
+            <tr><td>N-2</td><td>운영 <code>IsoPreparationService</code> 대체 경로도 도구 부재로 미동작(앵커 관찰)</td><td>런북 bsdtar 설치로 함께 해소</td></tr>
+            <tr><td>CP5</td><td>결함 0 · 관찰 O-1 ~ O-6 · P-1 ~ P-3 (&sect;6 판정 표)</td><td>O-1 · O-3 · O-6 일부 · P-2 수정</td></tr>
+            <tr><td>협의</td><td>앵커 HF32(정의서 저장 검증) 협의 11-17</td><td>&sect;10 약속 1 건</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Critical Files ===== -->
+    <details class="section" id="s9" open>
+      <summary>&sect;9. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/installtree/**</code> — config <code>InstallTreeProperties</code> · <code>InstallTreeConfig</code> / service <code>InstallTreeManager</code> · <code>InstallTreeExtractor</code> · <code>InstallTreeStore</code> · <code>InstallTreeInspector</code> · <code>InstallTreeToolProbe</code> / vo <code>InstallTree</code> · <code>TreeRelease</code> · <code>TreeAcquisition</code> / enums <code>TreeState</code> · <code>TreeFailureReason</code></td><td>신규 12</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>IsoPreparationService</code> · <code>AsyncConfig</code> · <code>application.properties</code></td><td>&sect;3 함께 고친 것</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>docs/staging-vm-bootstrap.md</code> · <code>docs/pxe-server-install.md</code></td><td>런북 2</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>InstallTreeManagerTest</code> · <code>InstallTreeStoreTest</code> · <code>InstallTreeExtractorTest</code> · <code>InstallTreeInspectorTest</code> · <code>InstallTreeTest</code> · <code>InstallTreeConfigTest</code> · <code>InstallTreeScenarioTest</code> · <code>FakeRockyTree</code> · <code>IsoPreparationServiceExtractIntoTest</code></td><td>시험 9 파일(<code>FakeRockyTree</code> 포함)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>scripts/installtree-fixture/make-fake-rocky-iso.sh</code> · <code>verify-install-tree.sh</code></td><td>하네스</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 남은 일 ===== -->
+    <details class="section" id="s10" open>
+      <summary>&sect;10. 남은 일</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E4-1-b-1-report-next">
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7(사용자) → Notion 종료 경계 · 커밋 · PR(지시 대기).</span></label></li>
+          <li><label><input type="checkbox" data-key="next"> <span>다음 하위 단계: b-2 정의서 RHEL 활성화(앵커 HF32 병합 뒤, 정의서 화면 JS 겹침 확인) → b-3 kickstart → b-4 실행기(+ b-6).</span></label></li>
+          <li><label><input type="checkbox" data-key="b6"> <span>b-6 plan 에 적을 약속(앵커 HF32 협의 11-17): Data 영역 직결 볼륨 판정은 계열별 출력 소관, RHEL 은 막지 않음.</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) {}
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

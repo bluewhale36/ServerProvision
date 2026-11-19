@@ -30,7 +30,7 @@
             const value = input.value || '';
             const messages = [];
             if (capsLock) messages.push('Caps Lock 이 켜져 있습니다.');
-            if (/[^\x20-\x7E]/.test(value)) messages.push('영문이 아닌 글자(한글 등)가 들어 있습니다 — 한/영 전환을 확인하십시오.');
+            if (/[^\x20-\x7E]/.test(value)) messages.push('영문이 아닌 글자(한글 등)가 들어 있습니다. 한/영 전환을 확인해야 합니다.');
             hint.textContent = messages.join(' ');
             hint.hidden = messages.length === 0;
         }

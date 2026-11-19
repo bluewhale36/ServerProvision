@@ -161,7 +161,7 @@ class BmcControllerSecurityFlowTest {
                         .param("description", "").param("allowCreateDirectory", "true")
                         .header("X-Upload-Token", "tok"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value(containsString("점유")))
+                .andExpect(jsonPath("$.message").value(containsString("다른 자원이 쓰고 있습니다")))
                 // 구 컨트롤러가 ApiErrorResponse.ofFieldBound 로 만들던 바디를 advice 가 그대로 낸다.
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("targetDirectory"));
     }

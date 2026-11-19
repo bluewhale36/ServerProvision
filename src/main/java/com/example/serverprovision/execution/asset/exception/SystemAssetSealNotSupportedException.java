@@ -18,6 +18,6 @@ public class SystemAssetSealNotSupportedException extends ConflictException {
 
     public static SystemAssetSealNotSupportedException of(SystemAssetAreaKey areaKey) {
         return new SystemAssetSealNotSupportedException(
-                "이 자산 영역은 무결성 봉인을 지원하지 않습니다 : " + areaKey);
+                "이 자산 영역은 무결성 봉인을 지원하지 않습니다.");
     }
 }

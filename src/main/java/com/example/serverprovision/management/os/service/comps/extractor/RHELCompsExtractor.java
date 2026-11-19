@@ -34,8 +34,6 @@ import java.util.zip.GZIPInputStream;
 @RequiredArgsConstructor
 public class RHELCompsExtractor implements CompsExtractorStrategy {
 
-	private static final List<OSName> SUPPORTED = List.of(OSName.ROCKY_LINUX, OSName.CENTOS);
-
 	/**
 	 * 로컬 재귀 탐색 시 무시할 하위 디렉토리 — 패키지/이미지/부트 자료는 repodata 를 포함하지 않는다.
 	 */
@@ -61,7 +59,7 @@ public class RHELCompsExtractor implements CompsExtractorStrategy {
 
 	@Override
 	public boolean supports(OSName osName) {
-		return SUPPORTED.contains(osName);
+		return osName.extractable();   // S23-1 — 지원 RHEL 계열 상수의 능력 하나로 판정
 	}
 
 	@Override
@@ -78,8 +76,8 @@ public class RHELCompsExtractor implements CompsExtractorStrategy {
 			String detail = isHttp
 					? "시도 경로: " + HTTP_REPODATA_CANDIDATES
 					: "탐색 루트: " + basePath + " (최대 깊이 3), 제외: " + LOCAL_SKIP_DIRS;
-			throw new IllegalStateException(
-					"comps 데이터를 포함한 repomd.xml 을 찾을 수 없습니다. base=" + basePath + " | " + detail);
+			log.warn("[RHELCompsExtractor] comps 를 담은 repomd.xml 미발견. base={}, {}", basePath, detail);
+			throw new IllegalStateException("ISO 에서 패키지 그룹 정보를 찾지 못했습니다: " + basePath);
 		}
 
 		Map<String, CompsExtractionResult.GroupData> mergedGroups = new LinkedHashMap<>();
@@ -117,7 +115,7 @@ public class RHELCompsExtractor implements CompsExtractorStrategy {
 		if (!Files.isDirectory(root)) {
 			// IsoPreparationService 가 사전 체크로 디렉토리 여부를 이미 보장하므로 여기 도달 시 내부 오류.
 			throw new IllegalStateException(
-					"내부 오류: 준비된 경로가 디렉토리가 아닙니다. base=" + basePath);
+					"ISO 를 연 경로가 디렉토리가 아닙니다: " + basePath);
 		}
 
 		try (Stream<Path> stream = Files.walk(root, 3)) {
@@ -135,7 +133,7 @@ public class RHELCompsExtractor implements CompsExtractorStrategy {
 			result.forEach(p -> log.info("[RHELCompsExtractor] 로컬 repo 발견. {}/repodata/repomd.xml", p));
 			return result;
 		} catch (IOException e) {
-			throw new IllegalStateException("로컬 ISO 디렉토리 탐색 실패: " + basePath, e);
+			throw new IllegalStateException("ISO 디렉토리를 탐색하지 못했습니다: " + basePath, e);
 		}
 	}
 
@@ -200,7 +198,7 @@ public class RHELCompsExtractor implements CompsExtractorStrategy {
 				}
 			}
 		}
-		throw new IllegalStateException("repomd.xml 에서 comps 위치를 찾지 못했습니다.");
+		throw new IllegalStateException("ISO 에서 패키지 그룹 정보의 위치를 찾지 못했습니다.");
 	}
 
 	private Map<String, CompsExtractionResult.GroupData> parseGroups(Document doc) {
@@ -286,7 +284,7 @@ public class RHELCompsExtractor implements CompsExtractorStrategy {
 			DocumentBuilder builder = factory.newDocumentBuilder();
 			return builder.parse(input);
 		} catch (Exception e) {
-			throw new IllegalStateException("XML 파싱 실패: " + e.getMessage(), e);
+			throw new IllegalStateException("패키지 그룹 정보를 해석하지 못했습니다.", e);
 		}
 	}
 
@@ -294,7 +292,7 @@ public class RHELCompsExtractor implements CompsExtractorStrategy {
 		try {
 			return new GZIPInputStream(new ByteArrayInputStream(compressed));
 		} catch (Exception e) {
-			throw new IllegalStateException("GZip 압축 해제 실패: " + e.getMessage(), e);
+			throw new IllegalStateException("패키지 그룹 정보의 압축을 풀지 못했습니다.", e);
 		}
 	}
 
@@ -309,7 +307,7 @@ public class RHELCompsExtractor implements CompsExtractorStrategy {
 		try {
 			return Files.readAllBytes(Paths.get(path));
 		} catch (Exception e) {
-			throw new IllegalStateException("로컬 파일 읽기 실패: " + path, e);
+			throw new IllegalStateException("파일을 읽지 못했습니다: " + path, e);
 		}
 	}
 }

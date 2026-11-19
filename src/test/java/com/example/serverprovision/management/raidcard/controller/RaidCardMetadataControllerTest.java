@@ -3,14 +3,12 @@ package com.example.serverprovision.management.raidcard.controller;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.management.raidcard.enums.RaidChipFamily;
 import com.example.serverprovision.global.lifecycle.LifecycleStage;
-import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
 import com.example.serverprovision.management.raidcard.dto.response.RaidCardResponse;
 import com.example.serverprovision.management.raidcard.dto.response.RaidCardVendorGroupResponse;
 import com.example.serverprovision.management.raidcard.enums.RaidCardVendor;
 import com.example.serverprovision.management.raidcard.enums.RaidLevel;
 import com.example.serverprovision.management.raidcard.exception.DuplicateRaidCardException;
 import com.example.serverprovision.management.raidcard.exception.RaidCardNotFoundException;
-import com.example.serverprovision.management.raidcard.exception.RaidCardNudgeRequiredException;
 import com.example.serverprovision.management.raidcard.service.RaidCardMetadataService;
 import com.example.serverprovision.management.raidcard.service.RaidCardObservationService;
 import org.junit.jupiter.api.DisplayName;
@@ -59,10 +57,10 @@ class RaidCardMetadataControllerTest {
 	private static RaidCardResponse activeCard(String pciDisplay) {
 		return new RaidCardResponse(
 				3L, RaidCardVendor.GIGABYTE, "CRA3338",
-				List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0 · RAID1",
+				List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0, RAID1",
 				RaidChipFamily.MPT_IR,
-				0, "없음", false, pciDisplay, "desc",
-				true, false, false, LifecycleStage.ACTIVE);
+				0, "미탑재", false, pciDisplay, "desc",
+				true, false, false, LifecycleStage.ACTIVE, null);
 	}
 
 	// ==== 성공 2xx ====================================================
@@ -77,7 +75,7 @@ class RaidCardMetadataControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(view().name("management/raidcard/list"))
 				.andExpect(model().attributeExists("raidCardGroups"))
-				.andExpect(content().string(containsString("RAID0 · RAID1")));
+				.andExpect(content().string(containsString("RAID0, RAID1")));
 	}
 
 	@Test
@@ -171,7 +169,7 @@ class RaidCardMetadataControllerTest {
 						.param("description", "desc"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("supportedRaidLevels"))
-				.andExpect(jsonPath("$.fieldErrors[0].message").value("지원 RAID 레벨을 1개 이상 선택하세요."));
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("지원 RAID 레벨을 1개 이상 선택해야 합니다."));
 	}
 
 	/**
@@ -189,7 +187,7 @@ class RaidCardMetadataControllerTest {
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("cacheCapacityGb"))
 				.andExpect(jsonPath("$.fieldErrors[0].message")
-						.value("캐시 용량을 입력하세요. 캐시가 없는 모델은 0 을 입력합니다."));
+						.value("캐시 용량을 입력해야 합니다. 캐시가 없는 모델은 0 을 입력합니다."));
 	}
 
 	@Test
@@ -236,23 +234,6 @@ class RaidCardMetadataControllerTest {
 	// ==== 409 ========================================================
 
 	@Test
-	@DisplayName("POST /management/raidcard (JSON) — 메타 충돌(nudge required) → 409 (advice)")
-	void create_metaConflict_returns409() throws Exception {
-		NudgeRequiredResponse payload = NudgeRequiredResponse.of(
-				UUID.randomUUID(), List.of(), Instant.now().plusSeconds(300));
-		willThrow(new RaidCardNudgeRequiredException(payload))
-				.given(raidCardService).create(any());
-
-		mvc.perform(post("/management/raidcard")
-						.param("vendor", "GIGABYTE")
-						.param("modelName", "CRA3338")
-						.param("chipFamily", "MPT_IR")
-						.param("supportedRaidLevels", "RAID0")
-						.param("cacheCapacityGb", "0"))
-				.andExpect(status().isConflict());
-	}
-
-	@Test
 	@DisplayName("POST /management/raidcard (JSON) — 살아 있는 동일키 중복 → Duplicate 409 + fieldErrors[modelName]")
 	void create_liveDuplicate_returns409() throws Exception {
 		willThrow(new DuplicateRaidCardException(RaidCardVendor.GIGABYTE, "CRA3338"))
@@ -267,6 +248,102 @@ class RaidCardMetadataControllerTest {
 						.accept("application/json"))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.fieldErrors[0].field").value("modelName"));
+	}
+
+	// ==== HF30-1 — 같은 (제조사, 모델명) 등록 409 (세 상태) · 이름 수정 칸 오류 ==========
+
+	private static com.example.serverprovision.management.raidcard.entity.RaidCard existingCard(boolean deprecated, boolean deleted) {
+		com.example.serverprovision.management.raidcard.entity.RaidCard card =
+				com.example.serverprovision.management.raidcard.entity.RaidCard.builder()
+						.id(9L).vendor(RaidCardVendor.GIGABYTE).modelName("CRA3338")
+						.supportedRaidLevels(com.example.serverprovision.management.raidcard.vo.SupportedRaidLevels.of(
+								List.of(com.example.serverprovision.management.raidcard.enums.RaidLevel.RAID0)))
+						.cacheCapacity(com.example.serverprovision.management.raidcard.vo.CacheCapacity.NONE)
+						.ownEnabled(true).ownDeprecated(deprecated).isDeleted(deleted)
+						.build();
+		card.recomputeEffective();
+		return card;
+	}
+
+	private org.springframework.test.web.servlet.ResultActions postCreateCra3338() throws Exception {
+		return mvc.perform(post("/management/raidcard")
+				.param("vendor", "GIGABYTE")
+				.param("modelName", "CRA3338")
+				.param("chipFamily", "MPT_IR")
+				.param("supportedRaidLevels", "RAID0")
+				.param("cacheCapacityGb", "0")
+				.accept("application/json"));
+	}
+
+	@Test
+	@DisplayName("HF30-1 POST (JSON) — 활성 카드와 같음 → 409 + 모델명 칸 '이미 등록된 RAID 카드입니다'")
+	void create_sameAsActive_returns409() throws Exception {
+		willThrow(DuplicateRaidCardException.againstRegistration(existingCard(false, false))).given(raidCardService).create(any());
+
+		postCreateCra3338()
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("modelName"))
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("이미 등록된 RAID 카드입니다. GIGABYTE CRA3338"));
+	}
+
+	@Test
+	@DisplayName("HF30-1 POST (JSON) — Deprecated 카드와 같음 → 409 + Deprecated 해제 안내 (종전: 창이 떠 같은 이름 카드가 하나 더 생김)")
+	void create_sameAsDeprecated_returns409WithUndeprecateGuidance() throws Exception {
+		willThrow(DuplicateRaidCardException.againstRegistration(existingCard(true, false))).given(raidCardService).create(any());
+
+		postCreateCra3338()
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("modelName"))
+				.andExpect(jsonPath("$.fieldErrors[0].message").value(
+						"사용 중단 권고 상태인 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 목록에서 사용 중단 권고를 해제해야 합니다."));
+	}
+
+	@Test
+	@DisplayName("HF30-1 POST (JSON) — 휴지통 카드와 같음 → 409 + 복구 · 영구 삭제 안내")
+	void create_sameAsTrashed_returns409WithRestoreGuidance() throws Exception {
+		willThrow(DuplicateRaidCardException.againstRegistration(existingCard(false, true))).given(raidCardService).create(any());
+
+		postCreateCra3338()
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("modelName"))
+				.andExpect(jsonPath("$.fieldErrors[0].message").value(
+						"휴지통에 같은 RAID 카드가 있습니다(GIGABYTE CRA3338). 휴지통에서 복구하거나 영구 삭제한 뒤 등록해야 합니다."));
+	}
+
+	@Test
+	@DisplayName("HF30-1 POST /{id}/edit — 휴지통 카드의 이름으로 수정 → 수정 폼 재렌더 + 모델명 칸에 이름 수정 안내 · update 미호출")
+	void update_renameToTrashed_rerendersFormWithFieldError() throws Exception {
+		String reason = "휴지통에 같은 이름의 RAID 카드가 있습니다(GIGABYTE CRA4448). 다른 이름을 쓰거나 휴지통의 카드를 영구 삭제해야 합니다.";
+		given(raidCardService.renameConflictReason(3L, "CRA4448")).willReturn(reason);
+		given(raidCardService.findById(3L)).willReturn(activeCard("1458:0011"));
+
+		mvc.perform(post("/management/raidcard/3/edit")
+						.param("modelName", "CRA4448")
+						.param("chipFamily", "MPT_IR")
+						.param("supportedRaidLevels", "RAID0")
+						.param("cacheCapacityGb", "0"))
+				.andExpect(status().isOk())
+				.andExpect(view().name("management/raidcard/edit"))
+				.andExpect(model().attributeHasFieldErrors("raidCardForm", "modelName"))
+				.andExpect(content().string(containsString(reason)));
+		org.mockito.Mockito.verify(raidCardService, org.mockito.Mockito.never()).update(any(), any());
+	}
+
+	@Test
+	@DisplayName("HF30-1 CP5 B12 POST /{id}/edit (JSON) — 사전 판정 통과 뒤 동시 이름 수정 경합 → 409 + fieldErrors[modelName] '이미 등록된' (500 아님 · 브라우저 폼 제출은 공통 409 화면)")
+	void update_concurrentRenameRace_returns409() throws Exception {
+		given(raidCardService.renameConflictReason(5L, "CRA6666")).willReturn(null);
+		willThrow(new DuplicateRaidCardException(RaidCardVendor.GIGABYTE, "CRA6666")).given(raidCardService).update(org.mockito.ArgumentMatchers.eq(5L), any());
+
+		mvc.perform(post("/management/raidcard/5/edit")
+						.param("modelName", "CRA6666")
+						.param("chipFamily", "MPT_IR")
+						.param("supportedRaidLevels", "RAID0")
+						.param("cacheCapacityGb", "0")
+						.accept("application/json"))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("modelName"))
+				.andExpect(jsonPath("$.fieldErrors[0].message").value("이미 등록된 RAID 카드입니다. GIGABYTE CRA6666"));
 	}
 
 	// ==== R17-2 — 칩 계열이 만들 수 있는 레벨 ==================================
@@ -324,7 +401,7 @@ class RaidCardMetadataControllerTest {
 		mvc.perform(get("/management/raidcard/new"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("data-creatable-levels=\"RAID0 RAID1 RAID10\"")))
-				.andExpect(content().string(containsString("MPT IR (sas3ircu 계열)은 RAID0 · RAID1 · RAID10 만 만들 수 있습니다")))
+				.andExpect(content().string(containsString("MPT IR (sas3ircu 계열)은 RAID0, RAID1, RAID10 만 만들 수 있습니다")))
 				.andExpect(content().string(containsString("value=\"RAID60\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("cacheWarn"))))
 				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("data-requires-cache"))));

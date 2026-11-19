@@ -20,13 +20,13 @@
     · data-assign-count    : 붙는 멤버 수 — 골라 할당 모드에서 0 이면 확정이 열리지 않는다
     · data-summary         : 하단 상태줄에 그대로 싣는 한 줄 요약(서버가 만든 문구)
 -->
-<div class="n-picker-search" th:fragment="picker" data-picker-root>
+<div th:fragment="picker" data-picker-root>
     <!--/* 검색칸 + 조회 조건 창 — 두 모달 공용(R20). 목록 화면의 조회 띠와 같은 모양 */-->
     <th:block th:replace="~{fragments/provisioning/definition-picker-filter :: band}"></th:block>
     <div th:replace="~{:: results}"></div>
 </div>
 
-<div class="n-picker-results" th:fragment="results" data-picker-results>
+<div th:fragment="results" data-picker-results>
     <div class="n-lookup-results n-picker-table-wrap">
         <table class="n-table n-lookup-table n-picker-table">
             <thead>
@@ -43,7 +43,7 @@
                     <span th:if="${item.deprecated}" class="n-badge n-badge-yellow">사용 중단</span>
                 </td>
                 <td th:text="${item.preview.definition.requiredBoardModelName} ?: '보드 무관'">MS74-HB0</td>
-                <td th:text="${#strings.listJoin(item.preview.definition.processTypes.![displayName], ' · ')}">펌웨어 업데이트 · BIOS 설정</td>
+                <td th:text="${#strings.listJoin(item.preview.definition.processTypes.![displayName], ', ')}">펌웨어 업데이트, BIOS 설정</td>
                 <td class="center"><span class="n-badge n-picker-count" th:classappend="${item.blocked} ? 'n-badge-red' : 'n-badge-green'"
                                          th:text="${item.willAssignCount} + ' 대'">3 대</span></td>
             </tr>
@@ -59,15 +59,17 @@
         <p class="n-detail-empty" data-picker-detail-empty>표에서 정의서를 고르면 이 그룹에 어떻게 적용되는지와 정의서 내용이 펼쳐집니다.</p>
         <div th:each="item : ${picker.items}" class="n-picker-detail-panel" hidden
              th:attr="data-picker-panel=${item.id}">
-            <div class="n-picker-detail-title">고른 정의서 · <b th:text="${item.name}">web-standard</b></div>
+            <div class="n-picker-detail-title">고른 정의서: <b th:text="${item.name}">web-standard</b></div>
 
-            <div th:class="${item.blocked} ? 'n-alert n-alert-danger n-picker-apply-summary' : 'n-alert n-alert-success n-picker-apply-summary'" role="alert">
+            <!--/* 붙는 서버가 0 대인 것은 진행을 막는 실패가 아니라 미리보기의 사실이다(표준 지정 모드는 그래도 고를 수
+                   있다). 그래서 빨강이 아니라 노랑으로 그린다(S22-4 심각도). */-->
+            <div th:class="${item.blocked} ? 'n-alert n-alert-warning n-picker-apply-summary' : 'n-alert n-alert-success n-picker-apply-summary'" role="alert">
                 <b th:text="${item.preview.summary()}">4 대 중 3 대에 할당됩니다.</b>
             </div>
             <div th:if="${item.deprecated}" class="n-alert n-alert-warning" role="alert">
                 <b>사용 중단이 권고된 정의서입니다.</b>
                 <div class="n-section-hint n-block-gap-sm">
-                    할당은 가능하지만 대체할 정의서가 있는지 확인해 주세요.
+                    할당은 가능하지만 대체할 정의서가 있는지 확인해야 합니다.
                 </div>
             </div>
 
@@ -90,12 +92,12 @@
                         MS03-CE0</td>
                     <td>
                         <span class="n-badge" th:classappend="${member.outcome.badgeClass}"
-                              th:text="${member.outcome.displayName}">할당됨</span>
+                              th:text="${member.outcome.displayName}">할당 예정</span>
                     </td>
                     <td>
                         <span th:if="${member.reason != null}" class="n-muted n-small"
                               th:text="${member.reason}">사유</span>
-                        <span th:unless="${member.reason != null}" class="n-muted">—</span>
+                        <span th:unless="${member.reason != null}" class="n-muted">-</span>
                     </td>
                 </tr>
                 </tbody>

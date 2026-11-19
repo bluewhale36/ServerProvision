@@ -87,9 +87,9 @@ class BoardModelMetadataControllerTest {
                 .andExpect(content().string(not(containsString("onchange=\"window.location"))));
     }
 
-    // R3-1 (흡수) — 집계/모달 카피에 board-scoped Subprogram(드라이버·유틸리티) 포함 렌더 검증.
+    // R3-1 (흡수) — 집계/모달 카피에 board-scoped Subprogram(드라이버, 유틸리티) 포함 렌더 검증.
     @Test
-    @DisplayName("GET /management/board — 모달 카피(deprecate 신설 포함) + '현재 연결' 에 드라이버·유틸리티(subprogramCount) 노출")
+    @DisplayName("GET /management/board — 모달 카피(deprecate 신설 포함) + '호환 자원' 에 드라이버와 유틸리티(subprogramCount) 노출")
     void renders_subprogramCount_inModalAndConnections() throws Exception {
         BoardModelResponse board = new BoardModelResponse(
                 1L, Vendor.GIGABYTE, "MS03-CE0", "",
@@ -99,8 +99,8 @@ class BoardModelMetadataControllerTest {
 
         mvc.perform(get("/management/board"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("드라이버·유틸리티")))
-                .andExpect(content().string(containsString("함께 Deprecated 표시돼요")));
+                .andExpect(content().string(containsString("드라이버와 유틸리티 3건")))
+                .andExpect(content().string(containsString("함께 사용 중단을 권고합니다")));
     }
 
     @Test
@@ -172,7 +172,7 @@ class BoardModelMetadataControllerTest {
                         .param("description", "가".repeat(1025)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("description"))
-                .andExpect(jsonPath("$.fieldErrors[0].message").value("설명은 1024자 이하로 입력해주세요."));
+                .andExpect(jsonPath("$.fieldErrors[0].message").value("설명은 1024자 이하로 입력해야 합니다."));
     }
 
     @Test
@@ -220,7 +220,7 @@ class BoardModelMetadataControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.fieldErrors[0].field").value("modelName"))
                 .andExpect(jsonPath("$.fieldErrors[0].message").value(
-                        org.hamcrest.Matchers.containsString("휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오")));
+                        org.hamcrest.Matchers.containsString("휴지통에서 복구하거나 영구 삭제한 뒤 등록해야 합니다")));
     }
 
     @Test
@@ -241,7 +241,7 @@ class BoardModelMetadataControllerTest {
     @Test
     @DisplayName("HF26 CP5 D-2 — 이름 수정이 같은 (제조사, 모델명) 과 겹치면 수정 폼을 다시 그리고 모델명 칸에 이름 수정용 안내를 싣는다")
     void update_renameConflict_rerendersFormWithFieldError() throws Exception {
-        String reason = "휴지통에 같은 이름의 메인보드 모델이 있습니다(Asus P13R-E-rev2). 다른 이름을 쓰거나 휴지통의 모델을 영구 삭제하십시오.";
+        String reason = "휴지통에 같은 이름의 메인보드 모델이 있습니다(Asus P13R-E-rev2). 다른 이름을 쓰거나 휴지통의 모델을 영구 삭제해야 합니다.";
         given(boardModelService.renameConflictReason(3L, "P13R-E-rev2")).willReturn(reason);
         given(boardModelService.findById(3L)).willReturn(activeBoard());
 

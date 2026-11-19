@@ -10,12 +10,12 @@ import jakarta.validation.constraints.NotNull;
  * {@code POWER_CYCLE} 은 켜짐 검증의 폴백 전용 Java API 라 여기서는 거절한다.
  */
 public record PowerResetRequest(
-        @NotNull(message = "resetType 은 필수 값입니다.")
+        @NotNull(message = "전원 동작을 선택해야 합니다.")
         RedfishResetType resetType
 ) {
 
     @JsonIgnore
-    @AssertTrue(message = "PowerCycle 은 화면 · REST 로 쓸 수 없습니다 — 켜짐 검증의 폴백 전용입니다.")
+    @AssertTrue(message = "요청할 수 없는 전원 동작입니다.")
     public boolean isScreenAllowed() {
         return resetType != RedfishResetType.POWER_CYCLE;
     }

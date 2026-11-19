@@ -21,7 +21,7 @@ public class EnvironmentCode {
 
 	public static EnvironmentCode of(String value) {
 		if (value == null || value.isBlank()) {
-			throw new IllegalArgumentException("environmentCode 는 빈 값일 수 없습니다.");
+			throw new IllegalArgumentException("설치 환경 코드가 비어 있습니다.");
 		}
 		return new EnvironmentCode(value);
 	}

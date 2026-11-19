@@ -173,7 +173,7 @@ public enum RaidChipFamily {
         }
         String levels = EnumSet.copyOf(creatableLevels()).stream()
                 .map(RaidLevel::getDisplayName)
-                .collect(Collectors.joining(" · "));
+                .collect(Collectors.joining(", "));
         return displayName + "은 " + levels + " 만 만들 수 있습니다";   // 표시명이 "… 계열)" 로 끝난다 — 받침 ㄹ
     }
 

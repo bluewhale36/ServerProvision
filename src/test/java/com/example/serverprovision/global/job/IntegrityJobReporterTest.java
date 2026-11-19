@@ -49,14 +49,14 @@ class IntegrityJobReporterTest {
 	}
 
 	@Test
-	@DisplayName("TAMPERED: completeStage → startStage(RECOMPUTE_HASH) → fail(\"변조 감지 (해시 불일치)\")")
+	@DisplayName("TAMPERED: completeStage → startStage(RECOMPUTE_HASH) → fail(\"변조 감지(해시 불일치)\")")
 	void report_tampered_advancesToHashStageThenFail() {
 		integrityJobReporter.report(JOB_ID, IntegrityStatus.TAMPERED);
 
 		InOrder order = inOrder(backgroundJobService);
 		order.verify(backgroundJobService).completeStage(JOB_ID);
 		order.verify(backgroundJobService).startStage(JOB_ID, IntegrityVerificationStage.RECOMPUTE_HASH);
-		order.verify(backgroundJobService).fail(JOB_ID, "변조 감지 (해시 불일치)");
+		order.verify(backgroundJobService).fail(JOB_ID, "변조 감지(해시 불일치)");
 		order.verifyNoMoreInteractions();
 	}
 
@@ -71,12 +71,12 @@ class IntegrityJobReporterTest {
 	}
 
 	@Test
-	@DisplayName("MARKER_MISSING: fail(\"마커 파일 없음\") 단일 호출 (stage 미전이)")
+	@DisplayName("MARKER_MISSING: fail(\"마커 파일 누락\") 단일 호출 (stage 미전이)")
 	void report_markerMissing_failsImmediately() {
 		integrityJobReporter.report(JOB_ID, IntegrityStatus.MARKER_MISSING);
 
 		InOrder order = inOrder(backgroundJobService);
-		order.verify(backgroundJobService).fail(JOB_ID, "마커 파일 없음");
+		order.verify(backgroundJobService).fail(JOB_ID, "마커 파일 누락");
 		order.verifyNoMoreInteractions();
 	}
 

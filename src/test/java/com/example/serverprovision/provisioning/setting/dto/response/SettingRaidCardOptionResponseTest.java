@@ -35,7 +35,7 @@ class SettingRaidCardOptionResponseTest {
                 card(RaidChipFamily.MEGARAID, 2, RaidLevel.RAID1, RaidLevel.RAID10), null);
 
         assertThat(option.memberRules()).containsOnlyKeys(RaidLevel.RAID1, RaidLevel.RAID10);
-        assertThat(option.memberRules().get(RaidLevel.RAID1).display()).isEqualTo("2~32대 · 2대 단위");
+        assertThat(option.memberRules().get(RaidLevel.RAID1).display()).isEqualTo("2~32대, 2대 단위");
         assertThat(option.spanMemberRules()).containsOnlyKeys(RaidLevel.RAID10);
         assertThat(option.spanMemberRules().get(RaidLevel.RAID10)).hasSize(16);
         var p4 = option.spanMemberRules().get(RaidLevel.RAID10).get(4);
@@ -63,5 +63,30 @@ class SettingRaidCardOptionResponseTest {
 
         assertThat(option.memberRules()).containsOnlyKeys(RaidLevel.RAID1);
         assertThat(option.blockReasons().keySet()).allMatch(RaidLevel::isDefinable);
+    }
+
+    @Test
+    @DisplayName("HF32 · C-23 — 옛 MPT_IR 카드가 RAID5 를 등록해 뒀어도 폼 재료는 칩 계열 교집합: 선택지 · 규칙에서 빠지고 차단 사유는 계열 문구")
+    void legacyIrCard_uncreatableLevelExcluded() {
+        var option = SettingRaidCardOptionResponse.of(
+                card(RaidChipFamily.MPT_IR, 0, RaidLevel.RAID0, RaidLevel.RAID1, RaidLevel.RAID5), null);
+
+        assertThat(option.supportedLevels()).containsExactly(RaidLevel.RAID0, RaidLevel.RAID1);
+        assertThat(option.supportedLevelsDisplay()).isEqualTo("RAID0, RAID1");
+        assertThat(option.memberRules()).containsOnlyKeys(RaidLevel.RAID0, RaidLevel.RAID1);
+        assertThat(option.blockReasons().get(RaidLevel.RAID5))
+                .isEqualTo("MPT IR (sas3ircu 계열)은 RAID0, RAID1, RAID10 만 만들 수 있습니다.");
+        // 계열은 만들 수 있지만 카드가 등록하지 않은 RAID10 은 카드 문구 · 안내의 레벨 목록도 고를 수 있는 것만(RAID5 없음)
+        assertThat(option.blockReasons().get(RaidLevel.RAID10))
+                .isEqualTo("RAID10 을 만들 수 없는 카드입니다. 지원하는 RAID 레벨은 RAID0, RAID1 입니다.");
+    }
+
+    @Test
+    @DisplayName("HF32 · D-6 — 볼륨 한계(maxVolumes)는 칩 계열 값이 실린다(폼 안내 재료, 저장은 막지 않는다)")
+    void carriesMaxVolumes() {
+        assertThat(SettingRaidCardOptionResponse.of(card(RaidChipFamily.MPT_IR, 0, RaidLevel.RAID1), null).maxVolumes())
+                .isEqualTo(RaidChipFamily.MPT_IR.maxVolumes());
+        assertThat(SettingRaidCardOptionResponse.of(card(RaidChipFamily.MEGARAID, 2, RaidLevel.RAID1), null).maxVolumes())
+                .isEqualTo(RaidChipFamily.MEGARAID.maxVolumes());
     }
 }

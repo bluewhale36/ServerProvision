@@ -21,6 +21,6 @@ public class RestoreTrashLostException extends ConflictException {
 
 	public RestoreTrashLostException(String trashedPath) {
 		super("휴지통에 보관돼 있어야 할 파일이 그 자리에 없습니다 : " + trashedPath
-				+ " · 자원 무결성 점검에서 「휴지통 자원 소실」 로 처리해 주세요.");
+				+ ". 자원 무결성 점검에서 「휴지통 자원 소실」로 처리해야 합니다.");
 	}
 }

@@ -9,6 +9,6 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class MarkerSignatureMismatchException extends ConflictException {
 
 	public MarkerSignatureMismatchException(String path) {
-		super("marker 서명 검증에 실패했습니다. 외부에서 변조됐을 가능성이 있습니다 : " + path);
+		super("마커 서명 검증에 실패했습니다. 외부에서 변조됐을 수 있습니다: " + path);
 	}
 }

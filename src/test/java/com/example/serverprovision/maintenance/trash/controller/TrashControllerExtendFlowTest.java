@@ -1,5 +1,6 @@
 package com.example.serverprovision.maintenance.trash.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.trash.TrashPolicy;
@@ -40,6 +41,7 @@ class TrashControllerExtendFlowTest {
 	@Autowired
 	MockMvc mvc;
 
+	@MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
 	@MockitoBean
 	TrashTtlExtensionService trashTtlExtensionService;
 
@@ -82,7 +84,7 @@ class TrashControllerExtendFlowTest {
 						.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.message")
-						.value(containsString("보존기간 연장을 지원하지 않습니다")));
+						.value(containsString("보존 기간을 연장할 수 없습니다")));
 	}
 
 	@Test

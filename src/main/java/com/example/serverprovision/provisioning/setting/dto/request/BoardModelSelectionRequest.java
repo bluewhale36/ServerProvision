@@ -30,7 +30,7 @@ public record BoardModelSelectionRequest(
     }
 
     /** 방식과 id 의 정합 — SPECIFIED 는 id 필수, AUTO 는 id 없음(모호한 계약 차단). */
-    @AssertTrue(message = "직접 지정은 보드 모델 ID가 필수이며, 자동 감지는 ID를 보낼 수 없습니다.")
+    @AssertTrue(message = "직접 지정하려면 보드 모델을 선택해야 하며, 자동 감지는 보드 모델을 지정할 수 없습니다.")
     public boolean isModeConsistent() {
         if (mode == null) return true;  // mode 자체의 @NotNull 위반이 이미 보고된다 — 중복 오류 방지.
         return (mode == BoardModelSelectionMode.SPECIFIED) == (boardModelId != null);

@@ -1,5 +1,6 @@
 package com.example.serverprovision.global.marker.service;
 
+import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkerContent;
 import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.exception.MarkerMissingException;
@@ -173,6 +174,24 @@ public class ProvisionMarkerService {
 	public boolean verifySignature(MarkerContent content) {
 		String expected = computeSignature(content);
 		return constantTimeEquals(expected, content.signature());
+	}
+
+	/**
+	 * 자원의 원래 경로에 있는 마커가 이 자원(종류 · id)을 가리키는지(HF31). 마커가 없거나 읽을 수 없거나 다른 자원을 가리키면 false.
+	 * 영구 삭제가 원래 경로를 지우기 전에 묻는다 — 휴지통으로 옮긴 뒤 같은 경로에 들어온 다른 자원의 파일을 지우지 않기 위해서다.
+	 */
+	public boolean isMarkedAs(Markable resource) {
+		Path path = resource.getResourcePath();
+		if (path == null) {
+			return false;
+		}
+		try {
+			MarkerContent content = read(path, resource.getMarkerLayout());
+			return resource.getResourceType().name().equals(content.resourceType())
+					&& resource.getResourceId().equals(content.resourceId());
+		} catch (MarkerMissingException | MarkerWriteFailedException e) {
+			return false;
+		}
 	}
 
 	/**

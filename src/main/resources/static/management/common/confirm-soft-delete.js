@@ -7,8 +7,8 @@
    ============================================================ */
 (function () {
     'use strict';
-    const TEMPLATE = '{resource} 을(를) 삭제할까요?';
-    const DEFAULT_MSG = '이 자원을 삭제할까요?';
+    const TEMPLATE = '{resource} 을(를) 삭제하시겠습니까?';
+    const DEFAULT_MSG = '이 자원을 삭제하시겠습니까?';
 
     function lazyUrl(form) {
         // S5-6-2 의 SOFT_DELETE 는 자원 lookup 불요 — dummy 값으로 endpoint signature 만 충족.

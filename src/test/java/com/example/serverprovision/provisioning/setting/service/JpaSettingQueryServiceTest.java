@@ -22,6 +22,7 @@ import com.example.serverprovision.provisioning.setting.dto.response.SettingBoar
 import com.example.serverprovision.provisioning.setting.dto.response.SettingBoardOptionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingDetailResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingOSOptionGroupResponse;
+import com.example.serverprovision.provisioning.setting.dto.response.SettingOSOptionResponse;
 import com.example.serverprovision.provisioning.setting.dto.response.SettingSummaryResponse;
 import com.example.serverprovision.provisioning.setting.entity.SettingDefinition;
 import com.example.serverprovision.provisioning.setting.entity.SettingProcess;
@@ -73,6 +74,7 @@ class JpaSettingQueryServiceTest {
     @Mock com.example.serverprovision.management.raidcard.repository.RaidCardRepository raidCardRepository;
     @Mock com.example.serverprovision.management.os.repository.ISORepository isoRepository;
     @Mock WindowsImageCatalog windowsImageCatalog;
+    @Mock OsInstallTargetPolicy osInstallTargetPolicy;   // E4-1-b-2 — 옵션 차단 사유는 계열 검사기로 가는 정책 빈
     @InjectMocks JpaSettingQueryService service;
 
     /** 저장 순서를 선언 순의 역(BASIC_SETTING → BASIC_UPDATE)으로 구성 — 재조립이 정렬함을 검증한다. */
@@ -381,7 +383,6 @@ class JpaSettingQueryServiceTest {
     @DisplayName("findOSOptions — Windows 계열은 WINDOWS 판별자로 실리고 소스 미준비면 차단 사유, 리눅스는 계열 차단 사유 (E4-1-a-2 D-4)")
     void findOSOptions_includesWindowsAndMarksLinuxBlocked() {
         // 설치 소스 미준비(파일 없음) — Windows 옵션은 실리되 SOURCE_BLOCK_REASON 으로 disabled 된다.
-        given(windowsImageCatalog.snapshot()).willReturn(InstallSourceSnapshot.missing());
         OSMetadata rocky = Mockito.mock(OSMetadata.class);
         given(rocky.getId()).willReturn(1L);
         given(rocky.getOsName()).willReturn(OSName.ROCKY_LINUX);
@@ -429,20 +430,24 @@ class JpaSettingQueryServiceTest {
         given(disabledOs.isEnabled()).willReturn(false);
         given(osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc())
                 .willReturn(List.of(rocky, windows, disabledOs));
+        String sourceReason = "Windows 설치 소스가 준비되지 않았습니다.";
+        Mockito.lenient().when(osInstallTargetPolicy.blockReason(rocky)).thenReturn(null);
+        Mockito.lenient().when(osInstallTargetPolicy.blockReason(windows)).thenReturn(sourceReason);
 
         List<SettingOSOptionGroupResponse> groups = service.findOSOptions();
 
-        // 리눅스는 실리되 계열 차단 사유가 붙고, Windows 는 WINDOWS 판별자 + 소스 미준비 사유로 실린다(E4-1-a-2).
+        // 차단 사유는 정책 빈이 정한 문장 그대로 실린다(E4-1-b-2 — Rocky 는 고를 수 있고 Windows 는 소스 미준비 사유).
         assertThat(groups).hasSize(2);
         assertThat(groups.get(0).osLabel()).isEqualTo("Rocky Linux");
         var rockyOption = groups.get(0).osList().get(0);
         assertThat(rockyOption.osName()).isEqualTo("ROCKY_LINUX");
         assertThat(rockyOption.osFamily()).isEqualTo(OSFamily.RHEL_BASED);
-        assertThat(rockyOption.installBlockReason()).isEqualTo(OsInstallTargetPolicy.LINUX_BLOCK_REASON);
+        assertThat(rockyOption.installBlockReason()).isNull();
+        assertThat(rockyOption.label()).startsWith("Rocky Linux ");
         assertThat(groups.get(1).osLabel()).isEqualTo("Windows Server");
         var windowsOption = groups.get(1).osList().get(0);
         assertThat(windowsOption.osFamily()).isEqualTo(OSFamily.WINDOWS);
-        assertThat(windowsOption.installBlockReason()).isEqualTo(OsInstallTargetPolicy.SOURCE_BLOCK_REASON);
+        assertThat(windowsOption.installBlockReason()).isEqualTo(sourceReason);
         assertThat(windowsOption.isoList()).singleElement().extracting(i -> i.name()).isEqualTo("win2025.iso");
         // ISO 선택지 — 파일명 표시(U2-4) + 환경/그룹은 ISO 제공 스코프.
         var isoOption = groups.get(0).osList().get(0).isoList().get(0);
@@ -558,7 +563,6 @@ class JpaSettingQueryServiceTest {
     @Test
     @DisplayName("findOSOptions — 설치 소스가 준비되면 Windows 옵션은 차단 사유 없이(installBlockReason null) 실린다")
     void findOSOptions_readySource_allowsWindows() {
-        given(windowsImageCatalog.snapshot()).willReturn(readySnapshot());
         OSMetadata windows = windowsOsWithUsableIso(); // 스텁 안에서 스텁하지 않는다(UnfinishedStubbing)
         given(osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()).willReturn(List.of(windows));
 
@@ -620,5 +624,42 @@ class JpaSettingQueryServiceTest {
         given(repository.findById(3L)).willReturn(Optional.of(SettingDefinition.builder().name("구 저장본")
                 .processes(List.of(new SettingProcess(new ProcessPayload(legacy)))).build()));
         assertThat(service.findDetail(3L).references().windowsImages()).isEmpty();
+    }
+
+    // ==== E4-1-b-2 D-12 — OS · ISO 검색 팝업 행 =====================================================
+
+    private static OSMetadata realOs(long id, OSName name, String version, String... isoPaths) {
+        OSMetadata os = OSMetadata.builder().osName(name).osVersion(version).isEnabled(true).isDeleted(false).build();
+        org.springframework.test.util.ReflectionTestUtils.setField(os, "id", id);
+        long isoId = id * 100;
+        for (String path : isoPaths) {
+            var iso = com.example.serverprovision.management.os.entity.ISO.builder()
+                    .osMetadata(os).isoPath(path).isEnabled(true).isDeleted(false).build();
+            org.springframework.test.util.ReflectionTestUtils.setField(iso, "id", isoId++);
+            os.getIsos().add(iso);
+        }
+        return os;
+    }
+
+    @Test
+    @DisplayName("findOSOptions(E4-1-b-2) — 화면 이름 · root SSH(Rocky 10) · 쓸 수 있는 ISO 없는 OS 제외 · 등록 실패 ISO 는 사유(blockReason)")
+    void findOSOptions_rhelDetails() {
+        OSMetadata rocky10 = realOs(2L, OSName.ROCKY_LINUX_10, "10.0", "/isos/Rocky-10.0-x86_64-dvd.iso", "/isos/Rocky-11.0-fake.iso");
+        OSMetadata noIso = realOs(3L, OSName.ROCKY_LINUX_8, "8.10");
+        rocky10.getIsos().get(1).markRegistrationFailed("ISO 의 실제 버전(Rocky Linux 11.0)과 등록한 OS 버전(Rocky Linux 10.0)이 다릅니다.");
+        given(osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()).willReturn(List.of(rocky10, noIso));
+
+        var groups = service.findOSOptions();
+
+        assertThat(groups).singleElement().satisfies(g -> assertThat(g.osLabel()).isEqualTo("Rocky Linux 10"));   // S23-1 — 묶음 = OS 상수(배포판과 메이저)
+        var option = groups.get(0).osList().get(0);
+        assertThat(option.label()).isEqualTo("Rocky Linux 10.0");
+        assertThat(option.rootSshSupported()).isTrue();
+        assertThat(option.osFamily()).isEqualTo(OSFamily.RHEL_BASED);
+        assertThat(option.isoList()).extracting(SettingOSOptionResponse.IsoOption::blockReason)
+                .containsExactly(null, "등록에 실패한 ISO 입니다. ISO 의 실제 버전(Rocky Linux 11.0)과 등록한 OS 버전(Rocky Linux 10.0)이 다릅니다.");
+        assertThat(option.isoList()).extracting(SettingOSOptionResponse.IsoOption::registrationFailure)
+                .containsExactly(null, "ISO 의 실제 버전(Rocky Linux 11.0)과 등록한 OS 버전(Rocky Linux 10.0)이 다릅니다.");
+        assertThat(option.isoList().get(0).path()).isEqualTo("/isos/Rocky-10.0-x86_64-dvd.iso");
     }
 }

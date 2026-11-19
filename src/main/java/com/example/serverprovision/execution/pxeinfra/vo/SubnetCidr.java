@@ -21,7 +21,7 @@ public record SubnetCidr(String value) {
         String trimmed = value.trim();
         int slash = trimmed.indexOf('/');
         if (slash < 0 || trimmed.indexOf('/', slash + 1) >= 0) {
-            throw new IllegalArgumentException("CIDR 형식(네트워크주소/prefix)이 올바르지 않습니다 : " + value);
+            throw new IllegalArgumentException("CIDR 형식(네트워크 주소/prefix)이 올바르지 않습니다.");
         }
         String networkPart = trimmed.substring(0, slash);
         String prefixPart = trimmed.substring(slash + 1);
@@ -30,17 +30,17 @@ public record SubnetCidr(String value) {
         try {
             prefix = Integer.parseInt(prefixPart);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("prefix 는 정수여야 합니다 : " + value);
+            throw new IllegalArgumentException("prefix 는 정수여야 합니다.");
         }
         if (prefix < 0 || prefix > 32) {
-            throw new IllegalArgumentException("prefix 는 0~32 범위여야 합니다 : " + value);
+            throw new IllegalArgumentException("prefix 는 0~32 범위여야 합니다.");
         }
 
         // 네트워크 주소는 유효한 IPv4 여야 하며(IPv6 거절 포함), host bit 이 모두 0 이어야 실제 네트워크 경계다.
         int addr = toInt(IpAddressVO.of(networkPart).value());
         int mask = maskOf(prefix);
         if ((addr & mask) != addr) {
-            throw new IllegalArgumentException("네트워크 경계가 아닙니다(host bit 이 0 이 아님) : " + value);
+            throw new IllegalArgumentException("네트워크 주소가 아닙니다. 호스트 비트를 0 으로 맞춰야 합니다(예: 10.0.2.0/24).");
         }
         value = networkPart + "/" + prefix;
     }

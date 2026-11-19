@@ -10,6 +10,6 @@ import java.util.UUID;
 public class NudgeAlreadyResolvedException extends ConflictException {
 
 	public NudgeAlreadyResolvedException(UUID nudgeId) {
-		super("이미 처리된 nudge 세션입니다. (nudgeId=" + nudgeId + ")");
+		super("이미 처리된 중복 확인입니다.");
 	}
 }

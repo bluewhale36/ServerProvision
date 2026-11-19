@@ -226,7 +226,8 @@ class RaidConfigurationRequestContractTest {
         var data = sized(RaidLevel.RAID1, 100, DiskCapacityUnit.GB, DiskCountMode.EXACT, 2, DiskGroupRole.DATA);
 
         assertThat(rc(1L, List.of(byPriority960, osFixed480, data)).osVolumeCapacityLowerBoundBytes()).hasValue(480_000_000_000L);
-        assertThat(rc(1L, List.of(byPriority960, byPriority8tb, data)).osVolumeCapacityLowerBoundBytes()).hasValue(960_000_000_000L);
+        // E4-1-b-2 D-7 — RAID 미구성 후보(960 GB 직결)는 OS 를 받지 않으므로 하한에서 빠진다 → RAID5 8 TB
+        assertThat(rc(1L, List.of(byPriority960, byPriority8tb, data)).osVolumeCapacityLowerBoundBytes()).hasValue(8_000_000_000_000L);
         assertThat(rc(1L, List.of(byPriority960, noRaidNvme())).osVolumeCapacityLowerBoundBytes()).isEmpty();
         assertThat(rc(1L, List.of(data)).osVolumeCapacityLowerBoundBytes()).isEmpty();
         assertThat(rc(1L, List.of(byPriority960, osFixed480)).osFixedRuleNo()).isEqualTo(2);

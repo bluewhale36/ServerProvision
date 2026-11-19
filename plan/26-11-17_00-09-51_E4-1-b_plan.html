@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-1-b Plan — RHEL 계열 Linux 자동 설치</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  td code, th code, .seq code { overflow-wrap:anywhere; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar .seg:disabled { cursor:not-allowed; background:rgba(0,0,0,0.07); color:var(--text-muted); border-color:transparent; }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:0; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); } .seq .step.a4 { background:rgba(111,76,221,0.04); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* 반응형 (명세 §3) — 데스크톱 무변경 */
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E4-1-b — RHEL 계열 Linux 자동 설치 <span class="v2-badge">E4-1-b</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E4-1-b (feature)</span>
+    <span><strong>상위</strong> E4 : OS 설치 &gt; E4-1 : OS 설치 로직 구현 (E4-1-a Windows 와 나란히)</span>
+    <span><strong>개발 단계</strong> 5차</span>
+    <span><strong>기준</strong> origin/dev 27ec67a</span>
+    <span><strong>생성</strong> 2026-11-17 KST</span>
+    <span><strong>우산 로드맵</strong> 하위 단계 b-1 ~ b-6 으로 분할(2026-11-17) · 상세 설계는 하위 단계 plan</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 설계 결정 · 타입</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 질문</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <p style="margin-top:0;">OS 설치 단계의 실행기는 Windows 하나뿐이라, RHEL 정의서는 그 단계에서 대기한다.</p>
+        <h4>사용자 결정 (2026-11-16)</h4>
+        <table>
+          <thead><tr><th>항목</th><th>결정</th></tr></thead>
+          <tbody>
+            <tr><td>우선순위</td><td>다른 패치 내역보다 최우선</td></tr>
+            <tr><td>범위</td><td>RHEL 계열 먼저, Ubuntu 는 다음 슬라이스</td></tr>
+            <tr><td>코드</td><td>E4-1-b (E4 : OS 설치 &gt; E4-1 : OS 설치 로직 구현 &gt; E4-1-a Windows 와 나란히), 개발 단계 5차</td></tr>
+            <tr><td>진행</td><td>discussion 없이 plan</td></tr>
+            <tr><td>설치 원본</td><td>관리 화면에 등록된 ISO 를 앱이 풀어 서빙</td></tr>
+            <tr><td>버전</td><td>Rocky 8 · 9 · 10</td></tr>
+            <tr><td>비밀번호</td><td>kickstart 렌더 때 SHA-512 해시(<code>--iscrypted</code>)</td></tr>
+          </tbody>
+        </table>
+        <h4>실측 (origin/dev 27ec67a)</h4>
+        <table>
+          <thead><tr><th>사실</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>OS 설치 phase(<code>OS_INSTALLING</code>) 실행기는 Windows 하나. registry 는 phase 당 실행기 하나</td><td><code>PhaseExecutorRegistry</code> · <code>WindowsInstallingExecutor</code></td></tr>
+            <tr><td>RHEL 정의서는 지금 대기(HOLD): readiness 가 비Windows 를 BLOCKED("linux install not supported")</td><td><code>WindowsInstallationResolutionProviderImpl.toTarget</code> · <code>WindowsInstallReadiness.judge</code></td></tr>
+            <tr><td>Windows 시한 스위퍼는 OS_INSTALLING step 의 RUNNING 행을 모두 집는다 → RHEL 서버도 집게 된다</td><td><code>WindowsInstallTimeoutSweeper.sweep</code> · <code>WindowsInstallLedger.latestRunning</code>(origin 미대조)</td></tr>
+            <tr><td>정의서 RHEL 계약 있음: rootPassword · users · timezone · partitions · environmentId · packageGroupIds · isKDumpEnabled · allowSshRoot(Rocky 10)</td><td><code>RHELInstallationRequest</code> · <code>LinuxInstallationRequest</code></td></tr>
+            <tr><td>파티션 규칙: <code>/</code> · <code>/boot</code> · <code>/boot/efi</code>(EFI · FAT32) · swap 필수, grow 1 개 → UEFI 전제</td><td><code>LinuxPartitionRules</code></td></tr>
+            <tr><td>비밀번호는 평문(또는 사전 암호화 값)으로 저장. 해시 라이브러리 없음</td><td><code>RootPasswordRequest</code> · <code>UserRequest</code> · build.gradle</td></tr>
+            <tr><td>RHEL 정의서 저장은 화면 옵션 disabled 로만 막힘(서버 가드 없음)</td><td><code>OsInstallTargetPolicy</code> · <code>JpaSettingQueryService.toOSOption</code></td></tr>
+            <tr><td>ISO 내용을 HTTP 로 서빙하는 경로 없음. <code>IsoPreparationService</code> 는 임시로 풀고 지움(마운트는 root 필요, 7z · bsdtar 는 불필요)</td><td><code>IsoPreparationService</code></td></tr>
+            <tr><td>ISO 등록 뒤 comps 추출을 자동으로 띄우는 훅 있음</td><td><code>RhelPostCreationTaskStrategy</code></td></tr>
+            <tr><td>게스트 경로 토큰은 windows · firmware 두 종류만 정규식에 하드코딩</td><td><code>GuestCredentialConverter</code> · <code>GuestCredential.ServingKind</code></td></tr>
+            <tr><td>anaconda <code>inst.ks=URL</code> · <code>inst.repo=URL</code> 은 헤더를 못 붙인다 → URL 경로 토큰이어야 함</td><td>anaconda 동작(커널 인자 URL)</td></tr>
+            <tr><td>1차 구현 iPXE: <code>kernel …/images/pxeboot/vmlinuz inst.repo=… inst.ks=… ip=dhcp</code> + <code>initrd …/images/pxeboot/initrd.img</code></td><td><code>archive/legacy/…/OSInstallationStrategy</code></td></tr>
+            <tr><td>1차 구현 kickstart 줄(참고만, 구조 답습 금지): <code>url --url</code> · <code>text</code> · <code>zerombr</code> · <code>clearpart --all --initlabel</code> · <code>part … --ondisk</code> · <code>%packages @^env</code> · <code>%addon com_redhat_kdump</code> · <code>rootpw --iscrypted</code> · <code>user … --groups=wheel</code> · <code>timezone</code> · <code>reboot</code>. 완료 보고 없음</td><td><code>archive/legacy/…/RHELBasedInstallation</code></td></tr>
+            <tr><td>Windows 디스크 선택 = RAID OS 영역 볼륨 → WWN 우선 매칭</td><td><code>WindowsDiskSelection</code></td></tr>
+            <tr><td>모의 하네스는 Windows 용만</td><td><code>scripts/mock-guest/windows-install-cycle.sh</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <p style="margin-top:0;">RHEL 정의서가 OS 설치 단계에 이르면 등록 ISO 로 무인 설치하고, 첫 부팅을 보고받아 다음 단계로 넘긴다.</p>
+        <table>
+          <thead><tr><th>#</th><th>요구</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>RHEL 정의서가 <code>OS_INSTALLING</code> 에 이르면 설치가 시작된다</td></tr>
+            <tr><td>R2</td><td>설치 원본은 등록 ISO 에서 앱이 준비</td></tr>
+            <tr><td>R3</td><td>kickstart 를 정의서대로 생성(비밀번호 해시)</td></tr>
+            <tr><td>R4</td><td>OS 영역 볼륨에 설치</td></tr>
+            <tr><td>R5</td><td>설치가 끝나 OS 가 부팅되면 완료 보고 → 다음 phase</td></tr>
+            <tr><td>R6</td><td>Rocky 8 · 9 · 10</td></tr>
+            <tr><td>R7</td><td>Windows 동작 불변</td></tr>
+            <tr><td>R8</td><td>정의서 화면에서 RHEL 계열 선택 가능(Ubuntu 는 계속 막힘)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>Ubuntu(autoinstall)</li>
+            <li>OS 설정 phase(<code>RHELOSSettingRequest</code>)</li>
+            <li>드라이버</li>
+            <li>CentOS 7</li>
+            <li>BIOS(레거시) 부팅</li>
+            <li>부트 순서 조작(HF24)</li>
+            <li>설치 원본 서빙의 외부 웹 서버화</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — kickstart · 설치 준비도</summary>
+      <div class="body">
+        <p style="margin-top:0;">프리셋을 누르거나 입력을 바꾸면 패널 1(<code>KickstartRenderer</code> 렌더 결과)과 패널 2(<code>RhelInstallReadiness</code> 판정 · 서버가 줄 iPXE 요지)가 함께 갱신된다. 공통 입력은 두 패널이 같이 읽는다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar" id="demo-presets">
+            <span class="group-label">원클릭 시나리오</span>
+            <button class="seg" data-sc="0" onclick="demoScenario(0)">1 정상 Rocky 9</button>
+            <button class="seg" data-sc="1" onclick="demoScenario(1)">2 Rocky 10 allowSshRoot</button>
+            <button class="seg" data-sc="2" onclick="demoScenario(2)">3 설치 트리 없음</button>
+            <button class="seg" data-sc="3" onclick="demoScenario(3)">4 CentOS 7 미지원</button>
+            <button class="seg" data-sc="4" onclick="demoScenario(4)">5 디스크 BLOCKED</button>
+            <button class="seg" data-sc="5" onclick="demoScenario(5)">6 root 없음 sudoer 사용자</button>
+          </div>
+          <div class="ux-message" id="demo-banner"></div>
+
+          <div class="ux-row" style="margin-top:12px;"><strong>공통 입력</strong><span class="label">정의서와 게스트 상태</span></div>
+          <div class="ux-toolbar">
+            <span class="group-label">OS 버전</span>
+            <button class="seg" data-k="ver" data-v="8" onclick="demoSet('ver','8')">Rocky 8</button>
+            <button class="seg" data-k="ver" data-v="9" onclick="demoSet('ver','9')">Rocky 9</button>
+            <button class="seg" data-k="ver" data-v="10" onclick="demoSet('ver','10')">Rocky 10</button>
+            <button class="seg" data-k="ver" data-v="c7" onclick="demoSet('ver','c7')">CentOS 7</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">디스크 판정</span>
+            <button class="seg" data-k="disk" data-v="CONFIDENT" onclick="demoSet('disk','CONFIDENT')">CONFIDENT</button>
+            <button class="seg" data-k="disk" data-v="DEFERRED" onclick="demoSet('disk','DEFERRED')">DEFERRED</button>
+            <button class="seg" data-k="disk" data-v="BLOCKED" onclick="demoSet('disk','BLOCKED')">BLOCKED</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">root 비밀번호</span>
+            <button class="seg" data-k="root" data-v="yes" onclick="demoSet('root','yes')">있음</button>
+            <button class="seg" data-k="root" data-v="no" onclick="demoSet('root','no')">없음</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">사용자 1 명</span>
+            <button class="seg" data-k="user" data-v="none" onclick="demoSet('user','none')">없음</button>
+            <button class="seg" data-k="user" data-v="plain" onclick="demoSet('user','plain')">일반</button>
+            <button class="seg" data-k="user" data-v="sudoer" onclick="demoSet('user','sudoer')">sudoer</button>
+          </div>
+
+          <div class="ux-row" style="margin-top:12px;"><strong>패널 1</strong><span class="label">kickstart 미리보기</span></div>
+          <div class="ux-toolbar">
+            <span class="group-label">시간대</span>
+            <button class="seg" data-k="tz" data-v="Asia/Seoul" onclick="demoSet('tz','Asia/Seoul')">Asia/Seoul</button>
+            <button class="seg" data-k="tz" data-v="UTC" onclick="demoSet('tz','UTC')">UTC</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">환경</span>
+            <button class="seg" data-k="env" data-v="server-product-environment" onclick="demoSet('env','server-product-environment')">server-product-environment</button>
+            <button class="seg" data-k="env" data-v="minimal-environment" onclick="demoSet('env','minimal-environment')">minimal-environment</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">그룹</span>
+            <button class="seg" data-k="grp" data-v="none" onclick="demoSet('grp','none')">없음</button>
+            <button class="seg" data-k="grp" data-v="development" onclick="demoSet('grp','development')">development</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">kdump</span>
+            <button class="seg" data-k="kdump" data-v="on" onclick="demoSet('kdump','on')">켬</button>
+            <button class="seg" data-k="kdump" data-v="off" onclick="demoSet('kdump','off')">끔</button>
+          </div>
+          <div class="ux-toolbar" id="demo-ssh-bar">
+            <span class="group-label">allowSshRoot</span>
+            <span class="tip" id="demo-ssh-tip-on"><button class="seg" data-k="ssh" data-v="on" onclick="demoSet('ssh','on')">켬</button></span>
+            <span class="tip" id="demo-ssh-tip-off"><button class="seg" data-k="ssh" data-v="off" onclick="demoSet('ssh','off')">끔</button></span>
+          </div>
+          <table>
+            <thead><tr><th>마운트</th><th>파일 시스템</th><th>크기(MiB)</th><th>grow</th></tr></thead>
+            <tbody>
+              <tr><td><code>/boot/efi</code></td><td><code>efi</code></td><td>600</td><td>아니오</td></tr>
+              <tr><td><code>/boot</code></td><td><code>xfs</code></td><td>1024</td><td>아니오</td></tr>
+              <tr><td><code>swap</code></td><td><code>swap</code></td><td>4096</td><td>아니오</td></tr>
+              <tr><td><code>/</code></td><td><code>xfs</code></td><td>10240</td><td>예</td></tr>
+            </tbody>
+          </table>
+          <div class="ux-message" id="ks-note"></div>
+          <div class="ux-caps" id="ks-caps"></div>
+
+          <div class="ux-row" style="margin-top:12px;"><strong>패널 2</strong><span class="label">설치 준비도</span></div>
+          <div class="ux-toolbar">
+            <span class="group-label">설치 트리</span>
+            <button class="seg" data-k="tree" data-v="none" onclick="demoSet('tree','none')">없음</button>
+            <button class="seg" data-k="tree" data-v="extracting" onclick="demoSet('tree','extracting')">추출 중</button>
+            <button class="seg" data-k="tree" data-v="ready" onclick="demoSet('tree','ready')">준비됨</button>
+          </div>
+          <div class="ux-row" id="ready-row"></div>
+          <div class="ux-message" id="ready-msg"></div>
+          <div class="ux-caps" id="ready-caps"></div>
+          <div class="ux-caps" id="ipxe-caps"></div>
+        </div>
+
+        <div class="callout"><b>판정 배치</b> :
+          <ul>
+            <li>설치 트리 <code>없음</code> = 차단, <code>추출 중</code> = 대기, 디스크 <code>DEFERRED</code> = 대기 (Windows 선례: 설치 소스 없음은 BLOCKED, DEFERRED 는 서빙 직전 보류).</li>
+            <li>root 비밀번호도 sudoer 계정도 없는 정의서는 저장 단계에서 거절(<code>RHELInstallationFamilyInspector</code>) — 실행에 도달하지 않는다.</li>
+            <li>root 없음 + allowSshRoot 켬 = <code>rootpw --lock</code> (allowSshRoot 무시).</li>
+          </ul>
+        </div>
+        <div class="callout warn"><b>CP2 확정</b> : 판정 문구 · 대기 스크립트의 사유 문자열(wire)은 데모용 초안이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <p style="margin-top:0;">게스트용 경로는 모두 URL 경로 토큰으로 인증한다(anaconda 가 헤더를 못 붙이므로). 완료 보고만 영구 게스트 토큰 헤더를 쓴다.</p>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/api/pxe/v1/boot</code></td><td><code>BootScriptDispatcher</code> → <code>OsInstallingExecutor</code> → <code>RhelInstaller.bootScript</code></td><td>iPXE 스크립트</td></tr>
+            <tr><td>GET</td><td><code>/api/pxe/v1/rhel/{token}/ks.cfg</code></td><td>kickstart 렌더</td><td>토큰 무효 404</td></tr>
+            <tr><td>GET</td><td><code>/api/pxe/v1/rhel/{token}/tree/**</code></td><td>설치 트리 정적 서빙</td><td>Range 지원 · 토큰 무효 404 · 트리 밖 404</td></tr>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/rhel/complete</code></td><td>첫 부팅 완료 보고(<code>X-Guest-Token</code>)</td><td>멱등 · 409 게이트</td></tr>
+            <tr><td>(미정)</td><td>(CP2 확정)</td><td>ISO 상세 [설치 트리 준비]</td><td>설치 트리 추출 작업 기동</td></tr>
+          </tbody>
+        </table>
+        <h4>설치 한 사이클</h4>
+        <div class="seq">
+          <div class="actor a1">게스트</div><div class="actor a2">iPXE / anaconda</div><div class="actor a3">서버</div><div class="actor a4">저장소</div>
+          <div class="step a1">PXE 부팅</div><div class="step a2"><code>GET /boot</code></div><div class="step a3"><code>BootScriptDispatcher</code> → <code>OsInstallingExecutor</code> → 활성 스냅샷의 OS 계열 → <code>RhelInstaller.bootScript</code></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"><code>kernel</code> · <code>initrd</code> · <code>boot</code> 수신</div><div class="step a3">readiness 진행 → 서빙 토큰 발급 · iPXE 응답</div><div class="step a4">원장 RUNNING · served</div>
+          <div class="step a1"></div><div class="step a2"><code>GET …/ks.cfg</code> · <code>GET …/tree/**</code></div><div class="step a3">ks.cfg 렌더 · 트리 정적 서빙(Range 지원)</div><div class="step a4"><code>tree-root/{isoId}/</code></div>
+          <div class="step a1"></div><div class="step a2">설치 → <code>%post</code> 가 첫 부팅 보고 유닛(systemd oneshot)을 심음 → <code>reboot</code></div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">재부팅 · PXE 재진입</div><div class="step a2"><code>GET /boot</code></div><div class="step a3"><code>localBootFallthrough</code>(재진입 횟수 기록, HF24: 부트 순서 불간섭)</div><div class="step a4"></div>
+          <div class="step a1">디스크 부팅 · 유닛 실행</div><div class="step a2"></div><div class="step a3"><code>POST …/agent/rhel/complete</code>(영구 게스트 토큰, 재시도) → <code>RhelInstallCompletionService</code></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">토큰 회수 · <code>PhaseCursorAdvancer.advanceOrComplete</code></div><div class="step a4">원장 SUCCEEDED</div>
+        </div>
+        <h4>iPXE 응답 (readiness 진행)</h4>
+        <pre><code>kernel {base}/api/pxe/v1/rhel/{token}/tree/images/pxeboot/vmlinuz inst.repo={base}/api/pxe/v1/rhel/{token}/tree inst.ks={base}/api/pxe/v1/rhel/{token}/ks.cfg ip=dhcp
+initrd {base}/api/pxe/v1/rhel/{token}/tree/images/pxeboot/initrd.img
+boot</code></pre>
+        <h4>설치 트리 준비</h4>
+        <pre><code>[ISO 등록]      RhelPostCreationTaskStrategy → 기존 comps 추출 + 설치 트리 추출 작업(7z · bsdtar, root 불필요)
+                → provision.rhel-install.tree-root/{isoId}/ + 표식 .spv-tree.json (ISO checksum · 시각)
+[이미 등록된 ISO] ISO 상세 [설치 트리 준비] 버튼 → 같은 추출 작업</code></pre>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 설계 결정 · 타입</summary>
+      <div class="body">
+        <p style="margin-top:0;">결정마다 채택안 · 비채택 대안 · 탈락 사유를 함께 둔다.</p>
+        <table>
+          <thead><tr><th>축</th><th>채택</th><th>비채택 대안</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1 OS 설치 phase 분기</td><td><code>OsInstallingExecutor</code>(phase 실행기 1)가 OS 계열별 <code>OsFamilyInstaller</code>(SPI: Windows · RHEL)에 위임. 기존 <code>WindowsInstallingExecutor</code> 본문은 <code>WindowsInstaller</code> 로 이름만 옮김(동작 불변)</td><td>① registry 키를 (phase, 계열)로<br>② Windows 실행기 안 if 분기<br>③ 계열별 phase 신설</td><td>① 모든 phase 의 SPI 를 흔든다<br>② 분기 확장 금지<br>③ phase 는 정의서 계획 계약이라 파급 큼</td></tr>
+            <tr><td>D-2 설치 원본</td><td>등록 ISO 를 7z · bsdtar 로 <code>tree-root/{isoId}</code> 에 한 번 풀어 두고 토큰 경로로 정적 서빙</td><td>① 서빙 때마다 마운트<br>② 임시 준비 후 복사<br>③ 운영자 준비 트리 · 외부 웹 서버</td><td>① root 필요 · 마운트 수명 관리<br>② IO 두 배<br>③ 사용자 결정으로 탈락</td></tr>
+            <tr><td>D-3 토큰</td><td>서빙 토큰(메모리, 게스트당 1, 완료 · 실패 시 회수) + <code>GuestCredentialConverter</code> 에 <code>rhel</code> 종류 추가. Windows 토큰 저장소의 공통부를 <code>GuestServingTokens</code> 로 추출해 Windows · RHEL 이 같이 쓴다</td><td>① 복붙 저장소<br>② firmware 까지 통합</td><td>① 중복 금지 위반<br>② 범위 밖(후속)</td></tr>
+            <tr><td>D-4 kickstart</td><td><code>KickstartRenderer</code> 가 정의서 · 대상 디스크 · 버전 · 보고 URL 로 렌더. 비밀번호 <code>Sha2Crypt.sha512Crypt</code>(commons-codec 의존성 1 추가), <code>isPasswordEncrypted</code> 면 그대로 <code>--iscrypted</code>. root 없으면 <code>rootpw --lock</code></td><td>평문 <code>--plaintext</code></td><td>사용자 결정으로 탈락</td></tr>
+            <tr><td>D-5 버전</td><td>OS 메타(<code>ROCKY_LINUX</code> + 버전 8 · 9 · 10)로 판정. 버전별 차이는 enum <code>RhelRelease</code> 상수 메서드(<code>allowSshRoot</code> 지원 = 10). CentOS · 그 밖 = readiness 차단</td><td>버전마다 렌더러 클래스</td><td>차이가 작아 과분리</td></tr>
+            <tr><td>D-6 디스크</td><td>OS 영역 볼륨 → RAID 인벤토리 WWN → <code>ignoredisk --only-use=disk/by-id/wwn-0x…</code> · <code>clearpart --drives=</code> · <code>part --ondisk=</code>. 볼륨 찾기는 Windows 와 공통부(<code>OsVolumeLocator</code>)로 추출, 출력만 계열별. CONFIDENT / DEFERRED / BLOCKED 규칙은 Windows 와 같게</td><td>디스크 이름(sda)</td><td>열거 순서가 바뀐다(실기 4호 O-3)</td></tr>
+            <tr><td>D-7 완료 보고</td><td>설치 뒤 <b>첫 부팅에서</b> systemd oneshot 유닛이 보고(부팅 가능까지 증명, Windows FirstLogonCommands 와 같은 의미). <code>%post</code> 가 유닛을 심고, 성공하면 스스로 비활성</td><td><code>%post</code> 에서 보고</td><td>설치 완료만 증명, 디스크 부팅 실패를 못 잡는다</td></tr>
+            <tr><td>D-8 원장 · 시한</td><td><code>RhelInstallLedger</code>(ORIGIN <code>rhel-install</code>) · <code>RhelInstallTimeoutPolicy</code>(<code>provision.rhel-install.*</code>). <b>두 스위퍼 모두 자기 origin 행만 집게 수정</b>(Windows 스위퍼가 RHEL 을 실패 처리하는 결함 예방). <code>WindowsInstallLedger.isWindowsInstallRow</code>(origin 판독)가 이미 있어 스위퍼 · <code>latestRunning</code> 의 origin 대조에 재사용</td><td>공용 원장 하나</td><td>사유 코드 · meta 가 계열마다 다름</td></tr>
+            <tr><td>D-9 정의서 화면</td><td><code>OsInstallTargetPolicy</code> 가 RHEL 계열(Rocky 8 · 9 · 10)을 허용. RHEL 계열은 정의서 단계에서 설치 트리 준비 여부를 보지 않는다(실행 준비도가 맡음). <code>LINUX_BLOCK_REASON</code> 은 Debian 계열 전용 문구로: "Ubuntu 계열 설치는 추후 지원 예정입니다."</td><td>—</td><td>—</td></tr>
+            <tr><td>D-10 슬라이스</td><td>하나로 진행(긴급). 단계 순서: 트리 준비 → 분기 · 토큰 · 서빙 → kickstart → 완료 보고</td><td>둘로 분할(트리 / 설치기)</td><td>검증 줄기는 갈리지만 일정상 하나</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><b>kickstart</b> : 필수 지시어(lang · keyboard · timezone · 인증 · 파티션 · bootloader)를 늘 넣는다. 1차 구현과 같은 의미로 <code>text</code> · <code>lang en_US.UTF-8</code> · <code>keyboard --xlayouts='us'</code> · <code>network --bootproto=dhcp --activate</code> · <code>firstboot --disable</code> · <code>bootloader</code> · <code>reboot</code> 을 더한다. <code>bootloader --append="crashkernel=auto"</code> 는 넣지 않는다(kdump 는 <code>%addon</code> 이 맡음).</div>
+
+        <h4>D-1 위임 구조</h4>
+        <div class="pkg-tree">PhaseExecutorRegistry ── OS_INSTALLING ──▶ OsInstallingExecutor
+                                            │  OsInstallFamilyResolver (활성 스냅샷의 OS 계열)
+                                            ├─▶ WindowsInstaller  (구 WindowsInstallingExecutor 본문, 동작 불변)
+                                            └─▶ RhelInstaller     (bootScript)</div>
+
+        <h4>D-5 <code>RhelRelease</code></h4>
+        <table>
+          <thead><tr><th>OS 메타</th><th>allowSshRoot 지원</th><th>readiness</th></tr></thead>
+          <tbody>
+            <tr><td><code>ROCKY_LINUX</code> 8</td><td>아니오</td><td>진행 가능</td></tr>
+            <tr><td><code>ROCKY_LINUX</code> 9</td><td>아니오</td><td>진행 가능</td></tr>
+            <tr><td><code>ROCKY_LINUX</code> 10</td><td>예</td><td>진행 가능</td></tr>
+            <tr><td>CentOS · 그 밖</td><td>—</td><td>차단</td></tr>
+          </tbody>
+        </table>
+
+        <h4>신규 · 수정 타입</h4>
+        <div class="pkg-tree">execution
+├── OsInstallingExecutor · OsFamilyInstaller(SPI) · OsInstallFamilyResolver   (신규)
+├── engine/rhel/                                                              (신규)
+│   ├── RhelInstaller · RhelInstallReadiness · RhelInstallReadinessResolver
+│   ├── KickstartRenderer · RhelRelease(enum) · RhelDiskSelection · RhelInstallChainload
+│   ├── RhelInstallLedger · RhelInstallTimeoutPolicy · RhelInstallTimeoutSweeper
+│   └── RhelInstallCompletionService
+├── controller/: RhelInstallAssetRestController(ks.cfg · tree/**) · RhelInstallReportRestController   (신규, Windows 선례 자리)
+├── 공통: GuestServingTokens · OsVolumeLocator                                (신규)
+└── engine/windows/WindowsInstallingExecutor → WindowsInstaller               (개명)
+management
+└── RhelInstallTreeExtractor(+ BackgroundJob 유형) · ISO 상세 [설치 트리 준비] 버튼 · 트리 상태 표시   (신규)</div>
+        <div class="callout"><b>DB</b> : 엔티티 변경 없음 예상(트리 상태는 파일 표식). CP2 에서 확인.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <p style="margin-top:0;">구현 순서는 D-10 을 따른다: 트리 준비 → 분기 · 토큰 · 서빙 → kickstart → 완료 보고.</p>
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>ISO 상세 버튼 · 트리 상태 표시 · 자산 · 보고 컨트롤러 · 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>엔티티 변경 없음 예상(CP2 에서 확인)</td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>본체 구현 · 스키마 확인(변경 없음 예상) · 빌드 통과(테스트 코드 제외)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인 — main 코드 검수</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 + 전체 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>E 단계 예외: 모의 게스트 하네스 + 화면 확인</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>실기 Rocky 8 · 9 · 10 (사용자 일정)</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘 — ① CP1 승인 → CP4 게이트 지점 ② CP4 승인 → CP6 제출.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 시나리오</summary>
+      <div class="body">
+        <p style="margin-top:0;">단위는 판정 · 렌더를, 통합은 HTTP 상태 코드를 본다.</p>
+        <table>
+          <thead><tr><th>층</th><th>대상</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td><code>KickstartRenderer</code></td><td>버전 3 · 비밀번호 해시 · root 잠금 · sudoer · 파티션 · kdump</td></tr>
+            <tr><td>단위</td><td><code>RhelInstallReadiness</code></td><td>진리표</td></tr>
+            <tr><td>단위</td><td><code>RhelDiskSelection</code></td><td>디스크 선택</td></tr>
+            <tr><td>단위</td><td><code>OsInstallingExecutor</code></td><td>위임</td></tr>
+            <tr><td>단위</td><td>스위퍼 origin 분리</td><td>Windows 스위퍼가 RHEL 행을 건드리지 않음</td></tr>
+            <tr><td>단위</td><td>트리 추출</td><td>표식 · 재실행</td></tr>
+            <tr><td>통합</td><td>자산 컨트롤러</td><td>토큰 404 · 파일 밖 404 · Range</td></tr>
+            <tr><td>통합</td><td>완료 보고</td><td>멱등 · 409 게이트</td></tr>
+            <tr><td>통합</td><td>정의서 저장</td><td>RHEL 허용 · Debian 거절</td></tr>
+          </tbody>
+        </table>
+        <h4>범주 대응</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td>성공</td><td>Range 서빙 · 완료 보고(멱등) · 정의서 RHEL 허용</td></tr>
+            <tr><td>404</td><td>토큰 무효 · 트리 밖 경로</td></tr>
+            <tr><td>409</td><td>완료 보고 게이트</td></tr>
+            <tr><td>400</td><td>Debian 거절(상태 코드 미기재)</td></tr>
+            <tr><td>500</td><td>미기재</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>확정 필요</b> : 시나리오 수, Debian 거절의 상태 코드, 500 범주 시나리오는 이 문서에 없다. CP2 착수 시 확정한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p style="margin-top:0;">신규 예외 클래스 없음 예상. 기존 계열을 재사용한다.</p>
+        <table>
+          <thead><tr><th>사건</th><th>HTTP</th><th>예외 클래스</th></tr></thead>
+          <tbody>
+            <tr><td>완료 보고 게이트</td><td>409</td><td><span class="chip keep">재사용</span> 기존 계열</td></tr>
+            <tr><td>트리 추출 실패</td><td>—</td><td><span class="chip keep">재사용</span> <code>ExtractionFailedException</code></td></tr>
+            <tr><td>서빙 토큰 무효</td><td>404</td><td>CP2 확정</td></tr>
+            <tr><td>트리 밖 경로 요청</td><td>404</td><td>CP2 확정</td></tr>
+            <tr><td>Debian 계열 정의서 저장</td><td>CP2 확정</td><td>CP2 확정</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 예상 부산물 / 주의 / 결정 사항</summary>
+      <div class="body">
+        <p style="margin-top:0;">Windows 쪽 수정이 섞이므로 회귀 확인이 함께 따른다.</p>
+        <table>
+          <thead><tr><th>항목</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>Windows 수정</td><td><code>WindowsInstallingExecutor</code> 개명 · 스위퍼 · 원장 origin 대조. 회귀: <code>windows-install-cycle.sh</code> 1 회</td></tr>
+            <tr><td>의존성</td><td>build.gradle commons-codec 1 추가</td></tr>
+            <tr><td>설정</td><td>application.properties <code>provision.rhel-install.*</code></td></tr>
+            <tr><td>디스크</td><td>설치 트리 ISO 당 약 10 GB (Q3)</td></tr>
+            <tr><td>DB</td><td>엔티티 변경 없음 예상, CP2 확인</td></tr>
+            <tr><td>실기 유보</td><td><code>docs/T3-checklist.md</code> 적립</td></tr>
+          </tbody>
+        </table>
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>제안</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>첫 부팅 보고(D-7) 대신 <code>%post</code> 보고로 단순화할까</td><td>첫 부팅</td></tr>
+            <tr><td>Q2</td><td>이미 등록된 ISO 의 트리를 버튼으로 준비(D-2) — 배포 직후 자동 일괄 준비도 할까</td><td>버튼만</td></tr>
+            <tr><td>Q3</td><td>설치 트리 디스크 사용량(ISO 당 약 10 GB) — tree-root 위치 · 정리 정책</td><td>배포 서버 경로를 정해 주십시오</td></tr>
+            <tr><td>Q4</td><td>슬라이스 하나로 진행(D-10)</td><td>하나</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="E4-1-b-verify-build">
+          <li><label><input type="checkbox" data-key="compile"> <span><code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과</span></label></li>
+        </ul>
+        <h4>기능 (CP5 — E 단계 예외)</h4>
+        <ul class="check-list" data-storage="E4-1-b-verify-func">
+          <li><label><input type="checkbox" data-key="harness"> <span><code>scripts/mock-guest/rhel-install-cycle.sh</code> 신설 · 실행: serve → ks.cfg → tree 파일 → reentry → complete · reject · token</span></label></li>
+          <li><label><input type="checkbox" data-key="iso"> <span>브라우저: ISO 상세 [설치 트리 준비]</span></label></li>
+          <li><label><input type="checkbox" data-key="detail"> <span>브라우저: 서버 상세 준비도</span></label></li>
+          <li><label><input type="checkbox" data-key="setting"> <span>브라우저: 정의서 화면 RHEL 선택</span></label></li>
+        </ul>
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="E4-1-b-verify-reg">
+          <li><label><input type="checkbox" data-key="win"> <span>기존 <code>windows-install-cycle.sh</code> 1 회</span></label></li>
+          <li><label><input type="checkbox" data-key="sweep"> <span>Windows 스위퍼가 RHEL 행을 건드리지 않음(단위)</span></label></li>
+          <li><label><input type="checkbox" data-key="field"> <span>실기(CP7, 사용자 일정): Rocky 8 · 9 · 10 실서버 · <code>docs/T3-checklist.md</code> 적립</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <p style="margin-top:0;">신규 20 · 수정 17 · 유지 2 (테스트 파일 제외).</p>
+        <table>
+          <thead><tr><th>분류</th><th>대상</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>OsInstallingExecutor</code> · <code>OsFamilyInstaller</code> · <code>OsInstallFamilyResolver</code></td><td>D-1 phase 실행기 · SPI · 계열 판정</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>engine/rhel/</code> 11: <code>RhelInstaller</code> · <code>RhelInstallReadiness</code> · <code>RhelInstallReadinessResolver</code> · <code>KickstartRenderer</code> · <code>RhelRelease</code> · <code>RhelInstallLedger</code> · <code>RhelInstallTimeoutPolicy</code> · <code>RhelInstallTimeoutSweeper</code> · <code>RhelInstallCompletionService</code> · <code>RhelDiskSelection</code> · <code>RhelInstallChainload</code></td><td>RHEL 설치기</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>RhelInstallAssetRestController</code> · <code>RhelInstallReportRestController</code></td><td>ks.cfg · tree/** · 완료 보고</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>GuestServingTokens</code> · <code>OsVolumeLocator</code></td><td>D-3 · D-6 공통부</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>RhelInstallTreeExtractor</code> (+ BackgroundJob 유형)</td><td>D-2 설치 트리 추출</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>scripts/mock-guest/rhel-install-cycle.sh</code></td><td>CP5 하네스</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>ISO 상세 화면 (경로 확정 필요)</td><td>[설치 트리 준비] 버튼 · 트리 상태 표시</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>WindowsInstallingExecutor</code> → <code>WindowsInstaller</code></td><td>이름만(동작 불변)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>WindowsInstallTimeoutSweeper</code> · <code>WindowsInstallLedger.latestRunning</code></td><td>origin 대조</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>WindowsInstallTokenRegistry</code></td><td>공통 <code>GuestServingTokens</code> 추출</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>WindowsDiskSelection</code></td><td><code>OsVolumeLocator</code> 추출</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>WindowsInstallReadinessResolver</code> · <code>GuestServerQueryService</code></td><td>서버 상세 준비도를 OS 계열별로</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>WindowsInstallReadiness</code> · <code>WindowsInstallationResolutionProviderImpl</code></td><td>비Windows BLOCKED 지점 → <code>OsInstallingExecutor</code> 의 계열 선택으로 이동</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>IpxeScripts.localBootFallthrough</code></td><td>문구를 계열 중립 "os setup in progress" 로</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestCredentialConverter</code> · <code>GuestCredential.ServingKind</code> · <code>GuestPrincipalResolver</code></td><td><code>rhel</code> 종류</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>OsInstallTargetPolicy</code></td><td>RHEL 계열 허용</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RhelPostCreationTaskStrategy</code></td><td>설치 트리 추출 작업 기동</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>build.gradle · application.properties</td><td>commons-codec · <code>provision.rhel-install.*</code></td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>PhaseExecutorRegistry</code></td><td>D-1 ① 탈락: 키 (phase) 불변</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>ProvisioningPhase</code></td><td>D-1 ③ 탈락: phase 신설 없음</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>CP2 확정</b> : <code>OsInstallingExecutor</code> 계열 · <code>GuestServingTokens</code> · <code>OsVolumeLocator</code> 의 패키지, ISO 상세 화면의 템플릿 · 컨트롤러 경로와 [설치 트리 준비] URL, BackgroundJob 유형을 두는 파일. 두 컨트롤러는 <code>execution/controller/</code>(Windows 선례와 같은 자리). ISO 상세 화면 행은 신규 집계에 넣지 않았다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E4-1-b-next">
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7 실기: Rocky 8 · 9 · 10 실서버 (사용자 일정)</span></label></li>
+          <li><label><input type="checkbox" data-key="ubuntu"> <span>Ubuntu(autoinstall): 다음 슬라이스</span></label></li>
+          <li><label><input type="checkbox" data-key="ossetting"> <span>OS 설정 phase(<code>RHELOSSettingRequest</code>): 비목표, 후속</span></label></li>
+          <li><label><input type="checkbox" data-key="diagram"> <span>E 단계 다이어그램(<code>diagram/</code>) 갱신: RHEL 설치 상호작용 반영</span></label></li>
+          <li><label><input type="checkbox" data-key="firmware"> <span>firmware 서빙 토큰의 <code>GuestServingTokens</code> 통합: 후속(D-3 ②)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 섹션 open + smooth scroll
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // 🎬 데모 — 상태는 demo 한 객체만 진실. 패널 1 = KickstartRenderer, 패널 2 = RhelInstallReadiness.
+  const HASH = '$6$exampleSalt$exampleHashValue';   // 실제 해시 계산 대신 고정 예시 문자열
+  const WWN = 'disk/by-id/wwn-0x600062b2028a9c40';
+  const BASE = '{base}/api/pxe/v1/rhel/{token}';
+  const PARTS = [
+    { m: '/boot/efi', fs: 'efi', size: 600, grow: false },
+    { m: '/boot', fs: 'xfs', size: 1024, grow: false },
+    { m: 'swap', fs: 'swap', size: 4096, grow: false },
+    { m: '/', fs: 'xfs', size: 10240, grow: true }
+  ];
+  const DEFAULTS = { ver: '9', disk: 'CONFIDENT', root: 'yes', user: 'sudoer', tz: 'Asia/Seoul',
+    env: 'server-product-environment', grp: 'none', kdump: 'on', ssh: 'off', tree: 'ready' };
+  const SCENARIOS = [
+    { set: {}, msg: 'Rocky 9 정의서가 설치 단계에 이르렀습니다. 설치 트리와 디스크가 준비되어 설치를 시작합니다.' },
+    { set: { ver: '10', ssh: 'on' }, msg: 'Rocky 10 에서 allowSshRoot 를 켰습니다. rootpw 줄에 --allow-ssh 가 붙습니다.' },
+    { set: { tree: 'none' }, msg: '설치 트리가 없어 설치를 시작하지 않습니다. ISO 상세에서 [설치 트리 준비] 를 실행해야 합니다.' },
+    { set: { ver: 'c7' }, msg: 'CentOS 7 은 지원하지 않습니다. kickstart 를 만들지 않습니다.' },
+    { set: { disk: 'BLOCKED' }, msg: 'passthrough 구성이라 OS 영역 볼륨이 없습니다. 설치 대상 디스크를 정할 수 없습니다.' },
+    { set: { root: 'no', user: 'sudoer' }, msg: 'root 비밀번호가 없으면 root 계정을 잠그고(rootpw --lock), sudoer 사용자 계정을 만듭니다.' }
+  ];
+  let demo = Object.assign({}, DEFAULTS);
+  let demoSc = null;
+
+  // RhelRelease 상수 메서드 재현 (allowSshRoot 지원 = 10)
+  function demoRelease(ver) {
+    if (ver === 'c7') return null;
+    return { name: 'Rocky ' + ver, allowSshRoot: ver === '10' };
+  }
+
+  // 정의서 저장 가드(RHELInstallationFamilyInspector) 재현. 걸리면 실행에 도달하지 않는다.
+  function demoSaveRejected(s) { return s.root === 'no' && s.user !== 'sudoer'; }
+
+  // RhelInstallReadiness 재현 (판정 배치는 데모 아래 callout).
+  function demoReadiness(s) {
+    if (demoSaveRejected(s)) {
+      return { grade: '저장 거절', reasons: ['root 비밀번호와 sudoer 계정이 모두 없는 정의서는 저장 단계에서 거절됩니다. 설치 단계에 도달하지 않습니다.'] };
+    }
+    const block = [], wait = [];
+    if (!demoRelease(s.ver)) block.push('CentOS 7 은 지원하지 않습니다. Rocky Linux 8, 9, 10 정의서로 교체하십시오.');
+    if (s.tree === 'none') block.push('설치 트리가 없습니다. ISO 상세에서 [설치 트리 준비] 를 실행하십시오.');
+    if (s.disk === 'BLOCKED') block.push('OS 영역 볼륨을 찾을 수 없습니다. passthrough 구성에는 설치하지 않습니다.');
+    if (s.tree === 'extracting') wait.push('설치 트리를 추출하는 중입니다. 추출이 끝나면 다음 부팅 확인에서 설치를 시작합니다.');
+    if (s.disk === 'DEFERRED') wait.push('OS 영역 볼륨이 아직 없습니다. RAID 구성 뒤 설치 디스크를 확정합니다.');
+    const grade = block.length ? '차단' : wait.length ? '대기' : '진행';
+    return { grade: grade, reasons: block.concat(wait) };
+  }
+
+  // KickstartRenderer 재현. 필수 지시어(lang, keyboard, timezone, 인증, 파티션, bootloader)를 늘 넣는다.
+  function demoKickstart(s) {
+    const rel = demoRelease(s.ver);
+    if (!rel) return null;
+    const disk = s.disk === 'CONFIDENT' ? WWN : '(미확정)';
+    const L = [];
+    L.push('url --url=' + BASE + '/tree');
+    L.push('text');
+    L.push('lang en_US.UTF-8');
+    L.push("keyboard --xlayouts='us'");
+    L.push('network --bootproto=dhcp --activate');
+    L.push('firstboot --disable');
+    L.push('ignoredisk --only-use=' + disk);
+    L.push('zerombr');
+    L.push('clearpart --all --initlabel --drives=' + disk);
+    PARTS.forEach(p => L.push('part ' + p.m + ' --fstype=' + p.fs + ' --size=' + p.size + (p.grow ? ' --grow' : '') + ' --ondisk=' + disk));
+    L.push('bootloader');
+    if (s.root === 'yes') {
+      const ssh = rel.allowSshRoot && s.ssh === 'on' ? ' <span class="diff-add">--allow-ssh</span>' : '';
+      L.push('rootpw --iscrypted' + ssh + ' ' + HASH);
+    } else {
+      L.push('rootpw --lock');
+    }
+    if (s.user === 'plain') L.push('user --name=admin --iscrypted --password=' + HASH);
+    if (s.user === 'sudoer') L.push('user --name=admin --groups=wheel --iscrypted --password=' + HASH);
+    L.push('timezone ' + s.tz);
+    L.push('reboot');
+    L.push('');
+    L.push('%packages');
+    L.push('@^' + s.env);
+    if (s.grp !== 'none') L.push('@' + s.grp);
+    L.push('%end');
+    L.push('');
+    L.push('%addon com_redhat_kdump ' + (s.kdump === 'on' ? '--enable' : '--disable'));
+    L.push('%end');
+    L.push('');
+    L.push('%post');
+    L.push('# 첫 부팅 보고 유닛(systemd oneshot)을 심습니다. 유닛 내용은 CP2 에서 확정합니다.');
+    L.push('# 보고 대상: POST {base}/api/pxe/v1/agent/rhel/complete (X-Guest-Token)');
+    L.push('%end');
+    return L.join('\n');
+  }
+
+  function demoIpxe(r) {
+    if (r.grade === '진행') {
+      return '#!ipxe\n'
+        + 'kernel ' + BASE + '/tree/images/pxeboot/vmlinuz inst.repo=' + BASE + '/tree inst.ks=' + BASE + '/ks.cfg ip=dhcp\n'
+        + 'initrd ' + BASE + '/tree/images/pxeboot/initrd.img\n'
+        + 'boot';
+    }
+    return '#!ipxe\n'
+      + 'echo [provision] (사유 문자열, CP2 확정)\n'
+      + 'echo [provision] this server: ip=${ip} mac=${mac} uuid=${uuid}\n'
+      + 'sleep 30\n'
+      + 'chain (재진입 URL)';
+  }
+
+  function demoApply(i) {
+    demo = Object.assign({}, DEFAULTS, SCENARIOS[i].set);
+    demoSc = i;
+  }
+  function demoScenario(i) { demoApply(i); demoRender(); }
+  function demoSet(k, v) { demo[k] = v; demoSc = null; demoRender(); }
+
+  function demoRender() {
+    const s = demo, rel = demoRelease(s.ver), r = demoReadiness(s), ks = demoKickstart(s);
+    document.querySelectorAll('#demo-presets .seg').forEach(b => b.classList.toggle('active', String(demoSc) === b.dataset.sc));
+    document.querySelectorAll('.ux-wrap .seg[data-k]').forEach(b => b.classList.toggle('active', s[b.dataset.k] === b.dataset.v));
+
+    const banner = document.getElementById('demo-banner');
+    banner.textContent = demoSc === null ? '입력을 직접 바꿨습니다. 프리셋을 누르면 시나리오 처음 상태로 돌아갑니다.' : SCENARIOS[demoSc].msg;
+
+    // allowSshRoot 는 Rocky 10 에서만 선택 가능 (RhelRelease 지원 여부 = UI 차단 조건)
+    const sshOk = !!(rel && rel.allowSshRoot);
+    ['on', 'off'].forEach(v => {
+      const tip = document.getElementById('demo-ssh-tip-' + v);
+      const btn = tip.querySelector('button');
+      btn.disabled = !sshOk;
+      if (sshOk) tip.removeAttribute('data-tip');
+      else tip.setAttribute('data-tip', 'allowSshRoot 는 Rocky 10 에서만 쓸 수 있습니다.');
+    });
+
+    const note = document.getElementById('ks-note');
+    const caps = document.getElementById('ks-caps');
+    if (demoSaveRejected(s)) {
+      note.className = 'ux-message error';
+      note.textContent = '이 정의서는 저장 단계에서 거절되므로 ks.cfg 를 만들지 않습니다.';
+      caps.textContent = '(렌더하지 않음)';
+    } else if (!ks) {
+      note.className = 'ux-message error';
+      note.textContent = 'CentOS 7 은 렌더 대상이 아닙니다. ks.cfg 를 만들지 않습니다.';
+      caps.textContent = '(렌더하지 않음)';
+    } else {
+      if (r.grade === '진행') {
+        note.className = 'ux-message success';
+        note.textContent = '서빙 토큰을 발급하고 이 ks.cfg 를 서빙합니다.';
+      } else {
+        note.className = 'ux-message';
+        note.textContent = '판정이 진행이 아니면 서빙 토큰을 발급하지 않으므로 이 ks.cfg 는 서빙되지 않습니다. 참고용으로 렌더합니다.';
+      }
+      caps.innerHTML = ks;
+    }
+
+    const badge = { '진행': 'on', '대기': 'dep', '차단': 'del', '저장 거절': 'off' }[r.grade];
+    document.getElementById('ready-row').innerHTML =
+      '<strong>판정</strong><span class="label">' + (rel ? rel.name : 'CentOS 7') + ' 정의서, OS_INSTALLING 진입</span>'
+      + '<span class="badge ' + badge + '">' + r.grade + '</span>';
+    const msg = document.getElementById('ready-msg');
+    msg.className = 'ux-message' + (r.grade === '진행' ? ' success' : r.grade === '차단' ? ' error' : '');
+    msg.innerHTML = r.reasons.length ? r.reasons.join('<br>') : '막는 사유가 없습니다. 설치를 시작합니다.';
+
+    const treeLabel = { none: '없음', extracting: '추출 중', ready: '준비됨(.spv-tree.json 있음)' }[s.tree];
+    const tf = v => v ? '<span class="f">true</span>' : '<span class="t">false</span>';
+    document.getElementById('ready-caps').innerHTML =
+      'OS 메타            = ' + (rel ? 'ROCKY_LINUX ' + s.ver : 'CENTOS 7') + '\n'
+      + 'allowSshRoot 지원  = ' + (rel ? tf(rel.allowSshRoot) : '해당 없음') + '\n'
+      + '설치 트리          = ' + treeLabel + '\n'
+      + '디스크 판정        = ' + s.disk + '\n'
+      + '판정               = ' + r.grade + '\n'
+      + '서빙 토큰          = ' + (r.grade === '진행' ? '발급' : '발급하지 않음');
+    document.getElementById('ipxe-caps').textContent = demoIpxe(r);
+  }
+
+  demoApply(0);
+  demoRender();   // 불가침: 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

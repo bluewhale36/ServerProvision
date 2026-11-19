@@ -122,7 +122,7 @@ class ProcessPayloadConverterTest {
                 .doesNotContain("\"concrete\"").doesNotContain("transportCompatible");
         assertThat(restored.getDiskGroups().get(0).isOsFixed()).isTrue();
         assertThat(restored.getVolumePriorities()).hasSize(5);
-        assertThat(restored.getVolumePriorities().get(0).toDisplay()).isEqualTo("SSD · NVMe · 작은 용량부터");
+        assertThat(restored.getVolumePriorities().get(0).toDisplay()).isEqualTo("SSD, NVMe, 작은 용량부터");
     }
 
     @Test

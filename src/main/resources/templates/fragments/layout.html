@@ -28,7 +28,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title th:text="'유니와이드 - ' + ${pageTitle}">유니와이드</title>
         <!-- S17-5 — 외부 CDN 0. 브라우저 기본값 정돈은 reset.css(종전 Bootstrap reboot 의 실사용 39 규칙),
-             Inter 는 style.css 의 @font-face 가 /fonts/inter/ 에서 싣는다. 인터넷 없는 배포 환경 전제. -->
+             글꼴은 IBM Plex Sans KR · Mono(S22-1)를 /fonts/ 의 @font-face 시트 두 개가 싣는다. 인터넷 없는 배포 환경 전제. -->
+        <link rel="stylesheet" th:href="@{/fonts/ibm-plex-sans-kr/ibm-plex-sans-kr.css}">
+        <link rel="stylesheet" th:href="@{/fonts/ibm-plex-mono/ibm-plex-mono.css}">
         <link rel="stylesheet" th:href="@{/global/reset.css}">
         <!-- 전역 디자인 시스템 (DESIGN.md) -->
         <link rel="stylesheet" th:href="@{/global/style.css}">
@@ -75,8 +77,13 @@
 </head>
 
 <body>
-<nav th:fragment="navbar(activePage)" class="n-nav">
+<!--/* HF28 — 초기 비밀번호 강제 변경 중(currentUser.mustChangePassword)에는 메뉴를 잠근 모양으로 그린다. 서버 쪽은
+       MustChangePasswordInterceptor 가 같은 값으로 되돌린다. 잠그지 않을 링크는 data-nav-always(비밀번호 변경 · 사용 매뉴얼),
+       로그아웃은 버튼이라 대상이 아니다. 배경 작업(/jobs)은 인터셉터 제외 경로라 그대로 둔다. */-->
+<nav th:fragment="navbar(activePage)" class="n-nav"
+     th:classappend="${currentUser != null and currentUser.mustChangePassword} ? ' n-nav-locked'">
     <a th:href="@{/management/os}" class="n-nav-brand">Provision Portal</a>
+    <p th:if="${currentUser != null and currentUser.mustChangePassword}" class="n-nav-locked-note">비밀번호를 바꾼 뒤 메뉴를 이용할 수 있습니다.</p>
 
     <span class="n-nav-group">자원 관리</span>
     <a th:href="@{/management/os}"
@@ -93,7 +100,7 @@
        th:classappend="${activePage == 'bmc'} ? ' active'">BMC</a>
     <a th:href="@{/management/subprogram}"
        class="n-nav-link"
-       th:classappend="${activePage == 'subprogram'} ? ' active'">Driver/Utility</a>
+       th:classappend="${activePage == 'subprogram'} ? ' active'">드라이버, 유틸리티</a>
     <!-- MA7 — RAID 카드 (메타 자원). 세팅 정의서의 RAID 구성 지정(U4-1-1)이 참조한다. -->
     <a th:href="@{/management/raidcard}"
        class="n-nav-link"
@@ -149,7 +156,7 @@
         <span class="n-nav-group">계정</span>
         <span class="n-nav-user" th:text="|${currentUser.name} (${currentUser.username})|">홍길동 (hong.gildong)</span>
         <a th:href="@{/password/change}"
-           class="n-nav-link"
+           class="n-nav-link" data-nav-always
            th:classappend="${activePage == 'password'} ? ' active'">비밀번호 변경</a>
         <a th:if="${currentUser.superAdmin}"
            th:href="@{/users}"
@@ -166,13 +173,7 @@
             aria-label="배경 작업"
             aria-expanded="false"
             aria-controls="bgjobPanel">
-        <!-- 서류가방 아이콘 (Material/Lucide 스타일) -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-             aria-hidden="true">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-        </svg>
+        <svg th:replace="~{fragments/icon :: icon('briefcase')}"></svg>
         <span id="bgjobDot" class="n-nav-bgjob-dot" hidden></span>
     </button>
     <div id="bgjobPanel"

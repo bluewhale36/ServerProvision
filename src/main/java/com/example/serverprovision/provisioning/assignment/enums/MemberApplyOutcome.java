@@ -16,16 +16,16 @@ import lombok.Getter;
 public enum MemberApplyOutcome {
 
     /** 붙는다. */
-    WILL_ASSIGN("할당됨", "n-badge-green"),
+    WILL_ASSIGN("할당 예정", "n-badge-green"),
 
     /**
      * 이미 활성 할당이 있어 건너뛴다. 일괄 재할당은 하지 않는다(DEC-C) — 재할당은 기존 스냅샷을
      * supersede 하는 파괴적 조작이라 여러 대를 한 번에 갈아엎게 된다.
      */
-    ALREADY_ASSIGNED("이미 있음", "n-badge-gray"),
+    ALREADY_ASSIGNED("이미 할당", "n-badge-gray"),
 
     /** 회수됐거나 하드웨어가 맞지 않아 붙일 수 없다. 사유는 {@code AssignmentBlockKind} 가 만든다. */
-    BLOCKED("막힘", "n-badge-red");
+    BLOCKED("할당 불가", "n-badge-red");
 
     private final String displayName;
     private final String badgeClass;

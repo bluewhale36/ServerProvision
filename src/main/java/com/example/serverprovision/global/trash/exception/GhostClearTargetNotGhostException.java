@@ -10,8 +10,8 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class GhostClearTargetNotGhostException extends ConflictException {
 
 	public GhostClearTargetNotGhostException(String resourceTypeAndId) {
-		super("ghost 가 아닌 자원에는 정리 액션을 사용할 수 없습니다 — "
-					  + resourceTypeAndId
-					  + " · 활성 자원은 도메인 페이지에서, soft-deleted 자원은 휴지통에서 영구삭제하세요.");
+		// 인자(자원 종류 상수 + 번호)는 화면에 내보내지 않는다(S22). 호출부 시그니처는 그대로 둔다.
+		super("유령 기록이 아닌 자원은 정리할 수 없습니다. "
+					  + "활성 자원은 관리 화면에서, 삭제 상태 자원은 휴지통에서 영구 삭제해야 합니다.");
 	}
 }

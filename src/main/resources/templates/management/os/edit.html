@@ -6,7 +6,7 @@
   Model:
     osMetadataForm : OSMetadataUpdateRequest   @ModelAttribute (osVersion / repoPath / description)
     osMetadataId   : Long                    경로 파라미터
-    osNameLabel : String                  화면 표시용 ("Rocky Linux" 등, 수정 불가)
+    osNameLabel : String                  화면 표시용 ("Rocky Linux 9" 등 메이저까지, 수정 불가)
 -->
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('OS 버전 수정')}"></th:block>
@@ -18,7 +18,7 @@
     <div class="n-page-header">
         <h1 class="n-page-title">OS 버전 수정</h1>
         <div class="n-header-actions">
-            <a th:href="@{/management/os(selectId=${osMetadataId})}" class="n-back-link">← 목록으로</a>
+            <a th:href="@{/management/os(selectId=${osMetadataId})}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
         </div>
     </div>
 
@@ -37,13 +37,13 @@
                 <div class="n-form-group">
                     <label class="n-label strong">OS 이름</label>
                     <input type="text" class="n-input" th:value="${osNameLabel}" readonly>
-                    <div class="n-hint">OS 이름은 변경할 수 없습니다. 바꾸려면 삭제 후 재등록하세요.</div>
+                    <div class="n-hint">변경할 수 없습니다. 바꾸려면 삭제한 뒤 다시 등록해야 합니다.</div>
                 </div>
 
                 <div class="n-form-group">
                     <label class="n-label strong" for="osVersion">OS 버전</label>
                     <input id="osVersion" type="text" class="n-input" th:value="${osVersionLabel}" readonly>
-                    <div class="n-hint">변경하려면 자원을 삭제 후 다시 생성해주세요.</div>
+                    <div class="n-hint">변경할 수 없습니다. 바꾸려면 삭제한 뒤 다시 등록해야 합니다.</div>
                 </div>
 
                 <div class="n-form-group">

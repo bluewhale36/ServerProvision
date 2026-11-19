@@ -127,9 +127,9 @@ public class SoftDeleteIntentService {
 						.findFirst()
 						.orElse(null);
 				if (pathDrift == null) {
+					log.warn("[softdelete-saga] reconcileThenDelete 새 위치 미발견. type={} id={}", type, resourceId);
 					throw new PathCorrectionFailedException(
-							"자원의 새 위치를 찾지 못했습니다 — " + type + "#" + resourceId
-									+ " · 강제 정리를 사용하시거나 자원을 인벤토리 스캔 범위 내로 복원해주세요.");
+							"자원의 새 위치를 찾지 못했습니다. 강제 정리를 고르거나 파일을 점검 범위 안으로 되돌려야 합니다.");
 				}
 				pathReconciliationService.persistAndForcedApply(pathDrift);
 				normalSoftDelete.run();
@@ -148,8 +148,7 @@ public class SoftDeleteIntentService {
 							RETRY_MAX_ATTEMPTS, type, resourceId, e
 					);
 					throw new PathCorrectionFailedException(
-							"자동 재시도 " + RETRY_MAX_ATTEMPTS + "회 모두 실패했습니다 : " + e.getMessage()
-									+ " · 강제 정리를 사용하시거나 잠시 후 다시 시도해주세요.");
+							"위치 정정을 " + RETRY_MAX_ATTEMPTS + "회 시도했지만 실패했습니다. 강제 정리를 고르거나 잠시 후 다시 시도해야 합니다.");
 				}
 				long delay = RETRY_INITIAL_DELAY_MS * (1L << (attempt - 1));
 				log.warn(
@@ -160,7 +159,7 @@ public class SoftDeleteIntentService {
 					Thread.sleep(delay);
 				} catch (InterruptedException ie) {
 					Thread.currentThread().interrupt();
-					throw new PathCorrectionFailedException("재시도 대기 중 인터럽트 발생");
+					throw new PathCorrectionFailedException("위치 정정 재시도가 중단되었습니다. 다시 시도해야 합니다.");
 				}
 			}
 		}

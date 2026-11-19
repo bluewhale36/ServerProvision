@@ -25,7 +25,7 @@
 
     <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status" th:text="${flashMessage}">처리했습니다.</div>
     <div th:if="${#authentication.name == u.username}" class="n-alert n-alert-info" role="status">
-        본인 계정입니다. 권한 등급 변경 · 비활성화 · 초기 비밀번호 지정은 다른 최고 관리자가 할 수 있습니다.
+        본인 계정입니다. 권한 등급 변경, 비활성화, 초기 비밀번호 지정은 다른 최고 관리자가 할 수 있습니다.
     </div>
 
     <!-- ── 기본 정보 ── -->
@@ -84,7 +84,7 @@
                     </span>
                     <!--/* 바꿀 등급을 고르기 전에는 제출할 것이 없다 — 고르면 security/user-detail.js 가 버튼과 tooltip 을 푼다. */-->
                     <span th:unless="${blockRole != null}" class="n-btn-tooltip-wrap" data-level-submit-wrap
-                          data-tooltip="바꿀 권한 등급을 먼저 고르십시오.">
+                          data-tooltip="바꿀 권한 등급을 먼저 골라야 합니다.">
                         <button type="submit" class="n-btn n-btn-secondary" data-level-submit disabled>권한 등급 바꾸기</button>
                     </span>
                 </div>
@@ -126,8 +126,9 @@
             <h2 class="n-card-title">초기 비밀번호 지정</h2>
             <!--/* CP7 — 서버가 거절해 다시 그린 경우(정상 흐름은 제출 전 확인이 먼저 막는다). 페이지가 새로 그려져 반영된 것처럼
                    보이지 않도록 이 카드 머리에서 실패를 알리고, user-detail.js 가 이 카드를 화면에 들인다. */-->
+            <!--/* HF29 — 서버 거절(409 · 그새 비활성 · 권한 변경 등)은 칸 오류가 아니라 사유 한 문장으로 온다. */-->
             <div th:if="${passwordFailed}" class="n-alert n-alert-danger" role="alert" data-password-failed>
-                초기 비밀번호를 지정하지 못했습니다. 아래 칸의 안내를 확인하십시오.
+                <th:block th:text="${passwordFailedReason != null} ? |초기 비밀번호를 지정하지 못했습니다. ${passwordFailedReason}| : '초기 비밀번호를 지정하지 못했습니다. 아래 칸의 안내를 확인해야 합니다.'">초기 비밀번호를 지정하지 못했습니다. 아래 칸의 안내를 확인해야 합니다.</th:block>
             </div>
             <p class="n-section-hint">비밀번호를 잊은 사용자에게 새 초기 비밀번호를 정해 줍니다. 그 사용자는 즉시 로그아웃되고, 다음 로그인에서 새 비밀번호로 바꿔야 합니다.</p>
             <!--/* CP7 — 제출 전 확인(security/user-detail.js): 규칙 · 문구는 서버 상수를 data 속성으로 받는다. 못 맞추면 요청을 보내지 않는다. */-->
@@ -147,7 +148,7 @@
                                     aria-pressed="false" title="입력한 비밀번호를 보이게 합니다" th:disabled="${blockPassword != null}">보기</button>
                         </div>
                         <div class="n-error" data-password-hint hidden></div>
-                        <div class="n-hint">영문 대소문자 · 숫자 · 특수기호(! @ # $ % ^ &amp; * ( ) - _ = + . , ?)로 8자 이상 72자 이하입니다.</div>
+                        <div class="n-hint">영문 대소문자, 숫자, 특수기호(! @ # $ % ^ &amp; * ( ) - _ = + . , ?)로 8자 이상 72자 이하입니다.</div>
                         <div class="n-error" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
                         <div class="n-error" data-client-error="password" hidden></div>
                     </div>

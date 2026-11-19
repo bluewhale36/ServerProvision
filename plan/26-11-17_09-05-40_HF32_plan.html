@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF32 plan: 정의서 저장 검증을 실행 준비도와 맞추기</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* 헤더 (top sticky) */
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--red-bg); color:var(--red); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* 2단 레이아웃 + ToC */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* 검색 */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* 접이식 섹션 */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+
+  /* 타이포 / 표 / 코드 */
+  h4 { margin:18px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  p { margin:8px 0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* chip (변경 분류 + CP) */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add { background:var(--green-bg); color:var(--green); }
+  .chip.mod { background:var(--yellow-bg); color:var(--yellow); }
+  .chip.keep { background:var(--bg); color:var(--text-muted); }
+  .chip.cp1 { background:var(--blue-bg); color:var(--blue); }
+
+  /* callout 강조 박스 */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+
+  /* 고정폭 도식 (패키지 트리 + 호출 도식) */
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+
+  /* 진행 체크리스트 (localStorage 동기화) */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* 반응형 (명세 §3), 데스크톱 무변경 */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+    /* 표 안 긴 식별자(RaidCard.getSupportedRaidLevels().blockReasonFor 등)가 820 폭에서 표를 섹션 밖으로 밀어 잘리던 것을 막는다 */
+    table code { overflow-wrap:anywhere; }
+    /* 첫 열(결함 · ID)이 글자 단위로 쪼개지지 않게 낱말 단위로만 줄바꿈 */
+    th:first-child, td:first-child { word-break:keep-all; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF32 정의서 저장 검증을 실행 준비도와 맞추기 <span class="v2-badge">버그 수정</span></h1>
+  <div class="meta">
+    <span><span class="chip cp1">CP1 승인 대기</span></span>
+    <span><strong>인벤토리 코드</strong> HF32</span>
+    <span><strong>개발 단계</strong> 5차 개발</span>
+    <span><strong>브랜치</strong> <code>fix/HF32_definition-readiness-validation</code></span>
+    <span><strong>조율</strong> UE 세션과 경계 합의</span>
+    <span><strong>작성</strong> 2026-11-17 09:05 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 배경</a></li>
+      <li><a href="#s2">§2 실측</a></li>
+      <li><a href="#s3">§3 결정</a></li>
+      <li><a href="#s3-b">§3-b 구조</a></li>
+      <li><a href="#s4">§4 테스트 · CP5</a></li>
+      <li><a href="#s5">§5 범위 밖 · 조율</a></li>
+      <li><a href="#s6">§6 Critical Files</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 배경 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경</summary>
+      <div class="body">
+        <p>버그 수정 plan 형식이라 표준 11 섹션과 인터랙티브 데모를 두지 않는다.
+          배경, 실측, 결정, 구조, 테스트와 CP5, 범위 밖과 조율, Critical Files 순으로 적는다.</p>
+
+        <div class="callout danger"><b>한 줄 요약</b> : 세팅 정의서가 저장할 때 보는 조건과 실행할 때 보는 조건이 달라,
+          저장은 되는데 실제 서버에서 막히는 경우가 세 갈래 있었다(C-23, D-1과 D-5, D-6).
+          정의서만으로 실패가 확정되는 경우는 실행 쪽과 같은 판정으로 저장에서 막는다.
+          서버의 디스크 구성을 봐야 정해지는 경우는 폼에 안내만 둔다.</div>
+
+        <h4>1-1. 출처</h4>
+        <ul>
+          <li>docs 스트림(DOC-7 사용자 매뉴얼)이 코드와 대조해 넘긴 결함 C-23(3 차, RAID 카드 R17-2 후속), D-1, D-5, D-6(4 차, 세팅 정의서).</li>
+          <li>원료: <code>ServerProvision-docs/sbx-docs/facts/defects-for-anchor.md</code></li>
+        </ul>
+
+        <h4>1-2. 사용자 결정</h4>
+        <ul>
+          <li>2026-11-17: 앵커의 다음 작업 제안 2 순위(HF32)를 CP1 승인 게이트로 진행하고, 진행 중에 UE 세션과 관련 내용을 토론하라.</li>
+        </ul>
+
+        <h4>1-3. 왜 지금 하는가</h4>
+        <p>세 갈래 모두 서버를 랙에 꽂고 PXE 부팅을 건 뒤에야 드러난다. 운영자는 정의서를 고치고 다시 할당하고 다시 부팅해야 한다.
+          실서버 운용을 앞두고 비용이 가장 큰 실패다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §2 실측 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 실측 (코드 읽기, 2026-11-17)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>결함</th><th>저장 쪽 지금</th><th>실행 쪽 지금</th><th>어긋남</th></tr></thead>
+          <tbody>
+            <tr><td>C-23</td>
+                <td><code>DiskGroupRules.validateRaidRule</code> 이 카드에 저장된 <code>RaidCard.getSupportedRaidLevels().blockReasonFor</code> 만 본다. 폼 재료 <code>SettingRaidCardOptionResponse.of</code> 도 같은 값을 쓴다</td>
+                <td>칩 계열의 생성 가능 레벨 <code>RaidChipFamily.creatableLevels</code>(MPT IR = RAID0, RAID1, RAID10)는 카드 등록과 수정 요청(두 요청 모두 <code>RaidCardCreateRequest.levelsCreatable</code> → <code>canCreateAll</code>)만 본다. <code>RaidPlanner</code> 는 레벨을 검사하지 않는다(<code>MPT_IR.memberCountRule</code> 에 RAID5 · RAID6 분기가 관용으로 남아 있다)</td>
+                <td>R17-2 이전에 등록한 MPT IR 카드의 저장 레벨에 RAID5 · 6 이 남아 있으면 RAID5 묶음이 저장된다. 집행 때 sas3ircu 가 만들지 못해 실패한다</td></tr>
+            <tr><td>D-1 · D-5</td>
+                <td><code>SettingSaveRequest.isOsVolumeDeterminable</code> 은 RAID 구성 단계가 있고 묶음이 있을 때만 OS 후보를 본다. RAID 단계가 없거나 묶음이 0 개면 통과한다(<code>RaidConfigurationRequest.isOsVolumeDeterminable</code> 의 <code>if (diskGroups.isEmpty()) return true</code>). 원래 계약 문서도 "OS 설치 단계와 결합 규칙은 없다(v2 D14)", "묶음이 없으면 설치기 자동 선택(U4-1-1)" 이다</td>
+                <td><code>WindowsDiskSelection.judge</code> 는 OS 영역 RAID 볼륨이 없으면 BLOCKED("OS 를 설치할 RAID 볼륨이 없습니다. RAID 구성을 먼저 마쳐야 합니다"), 계획에 직결 볼륨이 하나라도 있으면 BLOCKED(<code>hasPassthrough</code>, 디스크 번호 순서 미실측)를 낸다. <code>PhaseEntryGate</code> 가 OS 설치 phase 진입 때 이 준비도로 막는다. 펌웨어와 RAID phase 는 이미 다 돈 뒤다</td>
+                <td>실행이 E4-1-a-6(디스크 선택)에서 OS RAID 볼륨을 필수로 만들었는데, 정의서 계약(v2 D14)은 갱신되지 않았다. 폼과 정의서 상세는 아직 "설치기가 자동 선택합니다" 라고 안내한다(<code>OsVolumeTargetKind.NONE</code>, 폼 <code>MSG_NO_OS_CANDIDATE</code>, 상세 조각 <code>setting-process-cards.html</code> 의 "미설정: 설치기가 자동으로 고릅니다")</td></tr>
+            <tr><td>D-6</td>
+                <td>볼륨 수를 보지 않는다</td>
+                <td><code>RaidPlanner</code> 만 <code>family.maxVolumes()</code>(MPT IR = 2)로 VOLUME_LIMIT 거절을 낸다. 진단 뒤 계획 미리보기(E3.5-5, <code>GuestServerQueryService</code>)가 서버 상세에 그 거절을 보이고, RAID phase 는 보류(PLAN_REJECTED)가 된다</td>
+                <td>정의서 작성 때 상한을 알 길이 없다</td></tr>
+            <tr><td>부수 1</td>
+                <td>묶음이 0 개인 RAID 단계: <code>RaidConfigurationExecutor</code> 는 계획이 비면 카드를 건드리지 않고 phase 를 완주한다</td>
+                <td></td>
+                <td>"설치기가 자동 선택" 이라는 문구는 OS 설치가 없을 때도 틀린 말이다. 실제 동작은 "RAID 구성을 바꾸지 않음" 이다</td></tr>
+            <tr><td>부수 2</td>
+                <td>옛 카드 수정 화면: <code>raidcard-level-select.js</code> 는 계열이 못 만드는 레벨의 체크박스를 disabled 로 잠근다</td>
+                <td></td>
+                <td>체크된 채 잠긴 체크박스는 제출되지 않는다. 그래서 거절 없이 RAID5 · 6 이 조용히 빠질 수 있다(미확인, CP5 B5 에서 확인)</td></tr>
+            <tr><td>로컬 데이터</td>
+                <td>로컬 3306 에는 RAID 카드도 RAID 구성 정의서도 없다(읽기 전용 조회)</td>
+                <td></td>
+                <td>운영 데이터는 배포 전 점검 SQL 로 본다(§5)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §3 결정 ===== -->
+    <details class="section" id="s3" open>
+      <summary>§3. 결정 (채택 · 비채택 · 탈락 사유)</summary>
+      <div class="body">
+        <div class="callout"><b>판정 기준</b> (모든 결정의 바탕) : <b>저장에서 막는 것은 "그 요소를 쓰는 실행은 반드시 실패하고, 쓰이지 않으면 아무 효과가 없는" 경우뿐이다.</b>
+          서버의 디스크 구성에 따라 성패가 갈리는 경우는 막지 않고 안내한다.
+          근거: <code>RaidPlanner</code> 는 맞지 않는 규칙을 건너뛴다. 그래서 서로 다른 서버를 위한 대안 규칙을 여러 개 둔 정의서(SSD 서버용 규칙, HDD 서버용 규칙)가 정상이다.
+          규칙 수 같은 단순 비교로 막으면 이런 정상 정의서를 거짓으로 거절한다.</div>
+
+        <table>
+          <thead><tr><th>ID</th><th>결정</th><th>채택</th><th>비채택</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1</td><td>OS 설치의 디스크 전제를 어디서 판정하나</td>
+                <td>지금 4 분기 SSOT 인 <code>OsVolumeTargets.describe</code> · <code>OsVolumeTargetKind</code> 를 넓힌다. 분기마다 "OS 설치를 막는가" 를 enum 상수 메서드로 두고, 저장 가드(<code>SettingSaveRequest</code>), 폼(<code>osVolumeTargetMessagesJson</code> 으로 이미 내려가는 표), 정의서 상세가 같이 쓴다. 계열 공통 규칙이다</td>
+                <td>① provisioning <code>OSFamily</code> 상수마다 디스크 요구를 둔다<br>② 실행 쪽 <code>OsVolumeLocator</code>(UE 신설 예정)를 정의서가 부른다<br>③ 할당 때 막는다</td>
+                <td>① UE 확인: RHEL 도 OS 영역 볼륨을 인벤토리 WWN 으로 지목하므로 이 전제는 계열과 무관하다. 갈라지는 시점(직결 디스크 지원)에 분리한다<br>② 진단 인벤토리가 있어야 판정되고, provisioning 이 execution 에 의존하는 방향이 거꾸로다<br>③ 할당은 저장보다 늦고, 폼 1 차 차단이 생기지 않는다</td></tr>
+            <tr><td>D-2</td><td>막는 분기</td>
+                <td>OS 설치 단계가 있을 때 막는 분기: ① RAID 단계 없음 또는 묶음 0 개(<code>NONE</code>) ② OS 후보 없음(<code>NO_CANDIDATE</code>, 기존) ③ <b>새 분기</b>: OS 후보 묶음이 전부 RAID 없음(직결).<br>막지 않는 분기: OS 고정(<code>FIXED</code>)과 우선순위에 따름(<code>BY_PRIORITY</code>, 우선순위 행 필수는 기존 그대로).<br>OS 설치 단계가 없으면 어느 분기도 막지 않는다</td>
+                <td>후보 중 하나라도 직결이면 막기</td>
+                <td>우선순위에 따른 후보에 RAID 와 직결이 섞이면, 어느 쪽이 OS 가 될지는 서버에 따라 정해진다(판정 기준 밖)</td></tr>
+            <tr><td>D-3</td><td>Data 영역 직결 묶음과 Windows</td>
+                <td>저장은 막지 않는다. OS 설치가 Windows 인 정의서의 폼에만 주의 안내를 둔다(문구를 "Windows 설치" 로 한정)</td>
+                <td>계열 공통 저장 거절</td>
+                <td>UE 확인: Data 직결을 막는 것은 Windows 디스크 번호 순서가 미실측이라는 Windows 쪽 사정이다. RHEL kickstart 는 OS 디스크만 지목해 막을 이유가 없다. 계열별 판정은 RHEL 이 Data 직결을 받는 E4-1-b-6 에서 둔다</td></tr>
+            <tr><td>D-4</td><td>정의서가 고를 수 있는 레벨(C-23)</td>
+                <td>새 도메인 메서드 <code>RaidCard</code> 에 "정의서에서 만들 수 있는 레벨" 판정을 둔다(이름은 CP2 에서 확정, 예: <code>definableLevelBlockReason(RaidLevel)</code>, <code>definableLevels()</code>). 내용은 칩 계열이 못 만드는 레벨이면 계열 사유(<code>RaidChipFamily.creatableLevelsHint</code> 재사용), 아니면 카드 지원 레벨 사유(<code>SupportedRaidLevels.blockReasonFor</code>)다. <code>DiskGroupRules.validateRaidRule</code> 과 <code>SettingRaidCardOptionResponse.of</code>(blockReasons, 지원 레벨 목록과 표시, memberRules, spanMemberRules)가 이것만 부른다</td>
+                <td>① 카드 데이터를 DDL 로 정리<br>② <code>RaidPlanner</code> 에서만 거절</td>
+                <td>① 카드 지원 레벨은 운영자가 등록한 사실이라 앱이 조용히 고치지 않는다(R17-2 판단, UE 추정). 이미 저장된 정의서는 DDL 로 고쳐지지 않는다. 판정을 교집합으로 하면 데이터와 무관하게 저장과 집행이 맞는다<br>② 진단 뒤에야 드러나 늦다</td></tr>
+            <tr><td>D-5</td><td>이미 저장된 정의서의 안전망(C-23)</td>
+                <td><code>RaidPlanner</code> 에 새 거절 <code>RaidPlanRejection.LEVEL_NOT_CREATABLE</code> 을 둔다. <code>RaidChipFamily.canCreate</code>(D-4 와 같은 계열 판정)가 거짓이면 계획 전체를 거절한다. 기존 거절과 같이 진단 뒤 미리보기에 드러나고, RAID phase 는 실패가 아니라 보류가 된다(<code>RaidConfigurationExecutor</code> 의 ④ 분기 그대로)</td>
+                <td>실패 낙인</td>
+                <td>정의서를 고치면 풀리는 문제라 기존 VOLUME_LIMIT 과 같은 보류가 맞다</td></tr>
+            <tr><td>D-6</td><td>카드 상세의 남은 레벨</td>
+                <td>RAID 카드 상세에 주의 안내: 저장 레벨 중 계열이 못 만드는 것이 있으면 그 레벨과 "수정 화면에서 정리" 를 보인다. 판정은 D-4 메서드</td>
+                <td>안내 없음</td>
+                <td>운영자가 정의서 폼에서 레벨이 왜 잠겼는지 카드 쪽에서 확인할 수 있어야 한다</td></tr>
+            <tr><td>D-7</td><td>볼륨 수 상한(D-6)</td>
+                <td>저장에서 막지 않는다. 폼의 카드 선택지 표시에 볼륨 상한을 더하고, RAID 를 만드는 규칙 수가 상한보다 많을 때 묶음 표 곁에 주의 안내를 둔다. 상한 SSOT 는 <code>RaidChipFamily.maxVolumes</code> 그대로이고, <code>SettingRaidCardOptionResponse</code> 에 값을 싣는다</td>
+                <td>① 규칙 수 &gt; 상한이면 저장 거절<br>② 아무것도 안 함</td>
+                <td>① 대안 규칙을 둔 정상 정의서를 거짓 거절한다. '개씩' 규칙은 1 개만으로도 디스크 장수에 따라 넘으므로 규칙 수로는 판정되지 않는다<br>② 작성 때 상한을 알 길이 없다는 docs 지적이 남는다</td></tr>
+            <tr><td>D-8</td><td>문구 정정</td>
+                <td>"설치기가 자동 선택" 류 문구 세 곳을 실제 동작에 맞춘다: OS 설치가 없으면 "RAID 구성을 바꾸지 않습니다", OS 설치가 있으면 D-2 의 차단 문구. 대상은 <code>OsVolumeTargetKind.NONE</code> 문구, 폼 <code>MSG_NO_OS_CANDIDATE</code>, <code>setting-process-cards.html</code> 상세 표시</td>
+                <td></td>
+                <td></td></tr>
+            <tr><td>D-9</td><td>서버 가드 문구</td>
+                <td>저장 가드의 <code>@AssertTrue</code> 문구는 분기 공통 한 문장으로 둔다. 분기별 구체 문구는 폼 1 차 차단이 같은 enum 에서 받는다</td>
+                <td>분기마다 다른 예외</td>
+                <td><code>@AssertTrue</code> 는 문구가 고정이다. 서버 가드는 direct POST 안전망이라 공통 문장으로 충분하다(UX 모순은 UI 1 차 차단 원칙)</td></tr>
+            <tr><td>D-10</td><td>데이터 정리</td>
+                <td>DDL 없음. 배포 전 읽기 전용 점검 SQL 만 둔다(§5). 정리 DML 이 필요하면 배포 때 사용자가 정한다</td>
+                <td></td>
+                <td></td></tr>
+          </tbody>
+        </table>
+
+        <h4>3-1. 화면 문구 초안 (CP2 에서 <code>new-user-copy.md</code> 와 DESIGN.md 7절로 확정)</h4>
+        <p>DESIGN.md 7절을 따른다(PR #110 병합으로 dev 에 들어옴): 합니다체 평서형, 하십시오와 하세요 금지, 대시와 가운뎃점 금지.</p>
+        <table>
+          <thead><tr><th>자리</th><th>쓰임새</th><th>초안</th></tr></thead>
+          <tbody>
+            <tr><td>정의서 폼, OS 설치 카드 대상 볼륨 줄, RAID 단계 없음이나 묶음 0 개 + OS 설치</td><td>차단 사유</td><td>OS 설치 단계가 있으면 RAID 구성 단계에서 OS 영역 볼륨을 정해야 합니다.</td></tr>
+            <tr><td>같은 자리, OS 후보 묶음이 전부 RAID 없음 + OS 설치</td><td>차단 사유</td><td>OS 영역 묶음이 RAID 없음이면 설치 디스크를 정할 수 없습니다. OS 영역 묶음은 RAID 레벨을 골라야 합니다.</td></tr>
+            <tr><td>같은 자리, OS 설치 없음 + 묶음 0 개</td><td>결과</td><td>RAID 구성을 바꾸지 않습니다.</td></tr>
+            <tr><td>정의서 상세 RAID 단계, 묶음 0 개</td><td>빈 값</td><td>미지정(RAID 구성 유지)</td></tr>
+            <tr><td>정의서 폼, Windows 설치 + RAID 없음 묶음</td><td>주의</td><td>Windows 설치는 RAID 없음 묶음이 있으면 설치 디스크를 정하지 못해 설치 단계에서 멈춥니다.</td></tr>
+            <tr><td>정의서 폼, 카드 선택지</td><td>라벨</td><td>(기존 표시) + 볼륨 최대 2개</td></tr>
+            <tr><td>정의서 폼, RAID 규칙 수 &gt; 상한</td><td>주의</td><td>규칙이 한 서버에서 모두 맞으면 볼륨이 2개를 넘어 실행 계획에서 거절됩니다.</td></tr>
+            <tr><td>RAID 카드 상세</td><td>주의</td><td>등록된 RAID5, RAID6 은 이 칩 계열이 만들 수 없어 정의서에서 고를 수 없습니다. 수정 화면에서 정리할 수 있습니다.</td></tr>
+            <tr><td>저장 가드 <code>@AssertTrue</code>(direct POST)</td><td>차단 사유</td><td>OS 설치 단계가 있으면 RAID 구성 단계에서 RAID 로 만드는 OS 영역 볼륨을 정해야 합니다.</td></tr>
+            <tr><td>서버 상세 계획 미리보기, LEVEL_NOT_CREATABLE</td><td>차단 사유</td><td>3번 규칙의 RAID5 는 이 칩 계열이 만들 수 없습니다. 정의서를 수정해야 합니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §3-b 구조 ===== -->
+    <details class="section" id="s3-b" open>
+      <summary>§3-b. 구조 (판정 자리와 부르는 곳)</summary>
+      <div class="body">
+        <h4>3-b-1. 판정 자리와 부르는 세 곳</h4>
+        <p>바뀌는 클래스, 판정이 사는 자리, 그 판정을 부르는 세 곳(폼, 저장 가드, 계획)을 패키지별로 보인다. <span class="diff-add">+</span> 표시는 새로 생기는 메서드 · 분기 · 값이다.</p>
+<div class="pkg-tree">management.raidcard
+  RaidChipFamily (enum, 기존)  creatableLevels() · canCreate() · creatableLevelsHint() · maxVolumes()
+  SupportedRaidLevels (VO, 기존)  blockReasonFor()
+  RaidCard (entity)  + definableLevelBlockReason(level) · definableLevels()   ← 새 도메인 메서드(D-4)
+        ├─ 정의서 폼 재료  SettingRaidCardOptionResponse.of  (blockReasons · 레벨 목록 · memberRules · + maxVolumes)
+        ├─ 저장 가드      DiskGroupRules.validateRaidRule
+        └─ 카드 상세 안내  (RaidCardResponse · 목록 화면 상세 열, D-6)
+  계획 안전망 RaidPlanner  RaidChipFamily.canCreate → RaidPlanRejection.LEVEL_NOT_CREATABLE (D-5)
+
+provisioning.setting
+  OsVolumeTargetKind (enum)  NONE · FIXED · BY_PRIORITY · NO_CANDIDATE · + 새 분기(OS 후보가 전부 직결)
+        + 상수 메서드 blocksOsInstall()  · 차단 문구                     ← 판정 SSOT(D-1 · D-2)
+  OsVolumeTargets.describe(raid, install)  새 분기 판정 추가
+        ├─ 저장 가드   SettingSaveRequest.isOsVolumeDeterminable (이름은 CP2 에서 정정 검토) → describe(...).kind().blocksOsInstall()
+        ├─ 폼         setting-form.js describeOsVolumeTarget (같은 분기 재현, 문구와 차단 여부는 서버 표에서 받음)
+        └─ 정의서 상세 SettingDetailResponse (OS 볼륨 줄)</div>
+
+        <h4>3-b-2. 요청 한 건의 흐름 (정의서 저장)</h4>
+<div class="pkg-tree">SettingController
+  → @Valid SettingSaveRequest
+      (Layer A: isOsVolumeDeterminable 이 OS 설치 × RAID 단계 정합을 본다)
+  → JpaSettingCommandService
+  → ProcessReferenceInspectors
+  → RaidConfigurationReferenceInspector
+  → DiskGroupRules.validate(rules, card)
+      (카드 판정: D-4 메서드)</div>
+
+        <h4>3-b-3. DB 와 엔티티</h4>
+        <ul>
+          <li>DB 변화 없음.</li>
+          <li>엔티티 필드 변화 없음(<code>RaidCard</code> 는 메서드만 늘어난다).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §4 테스트 · CP5 ===== -->
+    <details class="section" id="s4" open>
+      <summary>§4. 테스트 · CP5</summary>
+      <div class="body">
+        <h4>4-1. CP4 테스트</h4>
+        <table>
+          <thead><tr><th>구분</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td><code>RaidCard</code> 새 메서드: 계열이 못 만드는 레벨 · 카드가 지원하지 않는 레벨 · 통과</td></tr>
+            <tr><td>단위</td><td><code>OsVolumeTargets.describe</code> 다섯 분기</td></tr>
+            <tr><td>단위</td><td><code>OsVolumeTargetKind.blocksOsInstall</code></td></tr>
+            <tr><td>단위</td><td><code>SettingSaveRequest</code> 가드: OS 설치 + RAID 없음 / 묶음 0 / 후보 전부 직결 / 고정 / 우선순위, OS 설치 없음</td></tr>
+            <tr><td>단위</td><td><code>DiskGroupRules</code> RAID5 on MPT IR 카드</td></tr>
+            <tr><td>단위</td><td><code>RaidPlanner</code> LEVEL_NOT_CREATABLE</td></tr>
+            <tr><td>단위</td><td><code>SettingRaidCardOptionResponse</code> 레벨 목록과 maxVolumes</td></tr>
+            <tr><td>통합(HTTP)</td><td><code>@WebMvcTest</code>: 정의서 저장 POST 의 400 세 분기(필드 오류 경로) · RAID5 on MPT IR 400(<code>InvalidDiskGroupException</code>) · 성공 2xx</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-2. CP5 샌드박스 검증 (Opus 에이전트, 화면 조작)</h4>
+        <p><b>정상 흐름 A</b></p>
+        <ul class="check-list" data-storage="HF32-cp5">
+          <li><label><input type="checkbox" data-key="A1"> <span><b>A1</b> Windows 정의서를 RAID OS 묶음과 함께 저장 성공</span></label></li>
+          <li><label><input type="checkbox" data-key="A2"> <span><b>A2</b> OS 설치 없는 RAID 단계(묶음 0 개) 저장과 상세 문구</span></label></li>
+          <li><label><input type="checkbox" data-key="A3"> <span><b>A3</b> MegaRAID 카드 정의서에서 RAID5 선택과 저장</span></label></li>
+        </ul>
+        <p><b>비정상 조작 B</b></p>
+        <ul class="check-list" data-storage="HF32-cp5">
+          <li><label><input type="checkbox" data-key="B1"> <span><b>B1</b> Windows + RAID 단계 없음: 폼 차단과 안내</span></label></li>
+          <li><label><input type="checkbox" data-key="B2"> <span><b>B2</b> 묶음 0 개 + OS 설치</span></label></li>
+          <li><label><input type="checkbox" data-key="B3"> <span><b>B3</b> OS 후보 묶음을 RAID 없음으로</span></label></li>
+          <li><label><input type="checkbox" data-key="B4"> <span><b>B4</b> 옛 MPT IR 카드(DB 에 RAID5 를 직접 심음)로 RAID5 선택 시도: 레벨 잠금과 사유</span></label></li>
+          <li><label><input type="checkbox" data-key="B5"> <span><b>B5</b> 그 카드의 수정 화면 저장(RAID5 가 거절되는지, 조용히 빠지는지 관찰, UE 요청)</span></label></li>
+          <li><label><input type="checkbox" data-key="B6"> <span><b>B6</b> direct POST 로 B1 과 B4 우회: 400</span></label></li>
+          <li><label><input type="checkbox" data-key="B7"> <span><b>B7</b> 이미 저장된 RAID5 정의서(DB 에 직접 심음)의 계획 미리보기 LEVEL_NOT_CREATABLE(진단 인벤토리 필요, 어려우면 단위 테스트로 대체하고 사유 기록)</span></label></li>
+        </ul>
+        <p><b>안내 방식 C</b></p>
+        <ul class="check-list" data-storage="HF32-cp5">
+          <li><label><input type="checkbox" data-key="C1"> <span><b>C1</b> Windows + Data 직결 묶음 주의 안내</span></label></li>
+          <li><label><input type="checkbox" data-key="C2"> <span><b>C2</b> RAID 규칙 3 개 + MPT IR 카드 볼륨 상한 안내</span></label></li>
+          <li><label><input type="checkbox" data-key="C3"> <span><b>C3</b> RAID 카드 상세의 남은 레벨 안내</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §5 범위 밖 · 조율 ===== -->
+    <details class="section" id="s5" open>
+      <summary>§5. 범위 밖 · 조율</summary>
+      <div class="body">
+        <h4>5-1. UE 세션(E4-1-b) 합의 (2026-11-17)</h4>
+        <ul>
+          <li>b-1(설치 작업 트리)은 정의서 쪽 파일을 건드리지 않는다.</li>
+          <li>b-2(정의서 RHEL 활성화)는 HF32 가 병합된 뒤 그 위에서 시작한다. b-2 의 대상은 <code>OsInstallTargetPolicy</code>, <code>JpaSettingQueryService.toOSOption</code>, RHEL 요청 계열, rhel 화면 조각이다. HF32 는 이것들을 건드리지 않는다.</li>
+          <li>Data 직결 판정은 계열별 출력 소관이다. RHEL 은 막지 않는다는 결정을 UE 가 b-6 plan 에 적는다.</li>
+          <li>직결 디스크(RAID 카드 없는 서버)는 E4-1-b 와 가까운 후속 범위에 없다. 받게 되면 <code>OsVolumeTargetKind</code> 의 차단 상수 하나를 푼다.</li>
+        </ul>
+
+        <h4>5-2. 범위 밖</h4>
+        <ul>
+          <li>할당 화면의 경고, 정의서 목록의 "실행에서 막힘" 표시: 범위 밖. 서버 상세 준비도가 할당 직후 BLOCKED 를 이미 보인다.</li>
+          <li><code>MPT_IR.memberCountRule</code> 의 RAID5 · 6 관용 분기 정리: 범위 밖(D-5 거절이 먼저 막아 닿지 않는다).</li>
+        </ul>
+
+        <h4>5-3. 배포 전 읽기 전용 점검 SQL (운영과 스테이징, 배포 때 사용자 지시로)</h4>
+<pre><code>-- 계열이 못 만드는 레벨이 남은 카드
+SELECT id, vendor, model_name, supported_raid_levels FROM raid_card
+WHERE chip_family = 'MPT_IR' AND (FIND_IN_SET('RAID5', supported_raid_levels) OR FIND_IN_SET('RAID6', supported_raid_levels));
+-- 그 카드를 RAID5 · 6 묶음으로 쓰는 정의서 단계
+SELECT sp.id, sp.setting_definition_id, JSON_VALUE(sp.payload_json,'$.raidCardId') AS card, JSON_EXTRACT(sp.payload_json,'$.diskGroups[*].raidLevel') AS levels
+FROM setting_process sp JOIN raid_card rc ON rc.id = JSON_VALUE(sp.payload_json,'$.raidCardId')
+WHERE sp.process_type = 'RAID_CONFIGURATION' AND rc.chip_family = 'MPT_IR'
+  AND (JSON_CONTAINS(JSON_EXTRACT(sp.payload_json,'$.diskGroups[*].raidLevel'), '"RAID5"') OR JSON_CONTAINS(JSON_EXTRACT(sp.payload_json,'$.diskGroups[*].raidLevel'), '"RAID6"'));</code></pre>
+        <p>정의서 FK 컬럼 이름은 <code>SettingProcess</code> 엔티티 기준 <code>setting_definition_id</code> 다.</p>
+
+        <h4>5-4. 디자인 스트림 확인</h4>
+        <div class="callout warn">디자인 PR #110(dev beb3260) 병합 뒤라 화면 문구는 DESIGN.md 7절과 <code>DesignConventionTest</code> 를 따른다.
+          재사용할 <code>RaidChipFamily.creatableLevelsHint</code> 와 <code>SupportedRaidLevels.toDisplay</code> 는 레벨 나열을 ' · ' 로 잇는다(Java 문자열이라 <code>DesignConventionTest</code> 검사 밖).
+          7절 표기 2(가운뎃점 금지)와 어긋나므로 CP2 에서 쉼표로 바꿀지 디자인 스트림과 확인한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Critical Files ===== -->
+    <details class="section" id="s6" open>
+      <summary>§6. Critical Files (예상)</summary>
+      <div class="body">
+        <p>Java 경로는 <code>com.example.serverprovision</code> 접두를, 화면 경로는 <code>src/main/resources</code> 접두를 생략한다.</p>
+        <table>
+          <thead><tr><th>구분</th><th>파일</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>management/raidcard/entity/RaidCard.java</code></td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>provisioning/setting/service/reference/os/DiskGroupRules.java</code></td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>provisioning/setting/dto/response/SettingRaidCardOptionResponse.java</code></td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>provisioning/setting/enums/OsVolumeTargetKind.java</code></td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>provisioning/setting/service/reference/os/OsVolumeTargets.java</code></td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>provisioning/setting/dto/response/OsVolumeTarget.java</code></td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>provisioning/setting/dto/request/SettingSaveRequest.java</code></td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>provisioning/setting/dto/request/RaidConfigurationRequest.java</code>(주석과 판정 재료)</td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>provisioning/assignment/service/plan/RaidPlanner.java</code></td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>execution/engine/raid/RaidPlanRejection.java</code></td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>RaidCardResponse</code> 와 <code>templates/management/raidcard/list.html</code> 상세 열(별도 상세 템플릿 없음)</td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>static/provisioning/setting-form.js</code></td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>templates/provisioning/setting-new.html</code>(카드 선택지 표시에 볼륨 상한, D-7)</td></tr>
+            <tr><td><span class="chip mod">수정 main</span></td><td><code>templates/fragments/provisioning/setting-process-cards.html</code></td></tr>
+            <tr><td><span class="chip new">신규 테스트</span></td><td><code>RaidCard</code> 레벨 판정 단위</td></tr>
+            <tr><td><span class="chip new">신규 테스트</span></td><td><code>OsVolumeTargets</code> 분기 단위</td></tr>
+            <tr><td><span class="chip new">신규 테스트</span></td><td>정의서 저장 400 통합(기존 <code>*FlowTest</code> 묶음에 추가할지 CP4 에서 판정)</td></tr>
+            <tr><td><span class="chip mod">수정 테스트</span></td><td><code>DiskGroupRules</code> · <code>RaidPlanner</code> · <code>SettingRaidCardOptionResponse</code> · <code>SettingSaveRequest</code> 기존 테스트</td></tr>
+            <tr><td><span class="chip keep">건드리지 않음</span></td><td>UE 소관: <code>WindowsDiskSelection</code> · <code>WindowsInstallReadinessResolver</code> · <code>OsInstallTargetPolicy</code> · RHEL 요청 계열</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // 4 불가침 로직: ToC 클릭 → open + scroll / 전부 펴기, 접기 / filter / check-list localStorage
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) { /* sandboxed iframe 에서는 저장 생략 */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

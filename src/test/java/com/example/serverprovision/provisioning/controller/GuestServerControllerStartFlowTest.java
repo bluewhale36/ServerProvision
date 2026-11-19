@@ -178,7 +178,7 @@ class GuestServerControllerStartFlowTest {
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(startActionUrl(id))))
-                .andExpect(content().string(containsString("— (개시 전)")));
+                .andExpect(content().string(containsString("개시 전")));
     }
 
     @Test

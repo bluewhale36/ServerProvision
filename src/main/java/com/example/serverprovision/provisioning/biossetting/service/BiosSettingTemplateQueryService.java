@@ -139,7 +139,7 @@ public class BiosSettingTemplateQueryService {
                 stale.add(staleValue == null
                         ? new BiosSettingTemplateDetailResponse.StaleEntry(e.getKey().value(), raw,
                                 BiosStaleKind.MISSING_ATTRIBUTE.name(),
-                                List.of(), e.getKey().value() + " — 레지스트리 없음(카탈로그 미보유)")
+                                List.of(), e.getKey().value() + "(카탈로그 미보유)")
                         : new BiosSettingTemplateDetailResponse.StaleEntry(e.getKey().value(), raw,
                                 staleValue.kind().name(), staleValue.allowed(), staleValue.message()));
                 continue;

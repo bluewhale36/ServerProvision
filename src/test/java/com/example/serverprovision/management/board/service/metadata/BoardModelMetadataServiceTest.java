@@ -171,7 +171,7 @@ class BoardModelMetadataServiceTest {
 
         assertThatThrownBy(() -> boardModelService.create(new BoardModelCreateRequest(Vendor.GIGABYTE, "MS74-HB0", null)))
                 .isInstanceOf(DuplicateBoardModelException.class)
-                .hasMessageContaining("목록에서 Deprecated 를 해제하십시오");
+                .hasMessageContaining("목록에서 사용 중단 권고를 해제해야 합니다");
         verify(boardModelRepository, never()).save(any());
     }
 
@@ -183,7 +183,7 @@ class BoardModelMetadataServiceTest {
 
         assertThatThrownBy(() -> boardModelService.create(new BoardModelCreateRequest(Vendor.ASUS, "P13R-E", "재등록")))
                 .isInstanceOf(DuplicateBoardModelException.class)
-                .hasMessageContaining("휴지통에서 복구하거나 영구 삭제한 뒤 등록하십시오");
+                .hasMessageContaining("휴지통에서 복구하거나 영구 삭제한 뒤 등록해야 합니다");
         verify(boardModelRepository, never()).save(any());
     }
 
@@ -253,7 +253,7 @@ class BoardModelMetadataServiceTest {
 
         assertThat(boardModelService.renameConflictReason(3L, "P13R-E")).isNull();
         assertThat(boardModelService.renameConflictReason(3L, "P13R-E-rev2"))
-                .contains("다른 이름을 쓰거나 휴지통의 모델을 영구 삭제하십시오")
-                .doesNotContain("등록하십시오");
+                .contains("다른 이름을 쓰거나 휴지통의 모델을 영구 삭제해야 합니다")
+                .doesNotContain("등록해야 합니다");
     }
 }

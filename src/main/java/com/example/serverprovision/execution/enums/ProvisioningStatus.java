@@ -11,7 +11,7 @@ public enum ProvisioningStatus {
     RUNNING("작업 중"),
     SUCCEEDED("작업 완료"),
     FAILED("작업 실패"),
-    SKIPPED("작업 건너뜀");
+    SKIPPED("작업 생략");
 
     private final String description;
 }

@@ -105,7 +105,7 @@ public class GuestServerCommandService {
         }
         String expected = server.systemUUIDSuffix();
         if (typedSuffix == null || !expected.equalsIgnoreCase(typedSuffix.trim())) {
-            throw new TypedNameMismatchException(expected, typedSuffix);
+            throw TypedNameMismatchException.uuidSuffix(expected, typedSuffix);
         }
         guestServerRepository.delete(server);
         publishChanged(id);   // SSE 는 fetch 재적재 방식이라 삭제 통지로도 유효하다

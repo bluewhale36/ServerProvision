@@ -31,7 +31,7 @@ class UserActionTest {
 		Users target = user(2, false);
 		assertThat(UserAction.ENABLE.blockReason(target, ACTOR)).isNull();
 		assertThat(UserAction.DISABLE.blockReason(target, ACTOR)).isEqualTo("이미 비활성화된 계정입니다.");
-		assertThat(UserAction.RESET_PASSWORD.blockReason(target, ACTOR)).isEqualTo("비활성화된 계정입니다. 먼저 활성화하십시오.");
+		assertThat(UserAction.RESET_PASSWORD.blockReason(target, ACTOR)).isEqualTo("비활성화된 계정입니다. 먼저 활성화해야 합니다.");
 		assertThat(UserAction.CHANGE_ROLE.blockReason(target, ACTOR)).isNull();
 	}
 
@@ -41,7 +41,7 @@ class UserActionTest {
 		Users me = user(ACTOR, true);
 		assertThat(UserAction.CHANGE_ROLE.blockReason(me, ACTOR)).isEqualTo("자기 자신의 권한 등급은 바꿀 수 없습니다.");
 		assertThat(UserAction.DISABLE.blockReason(me, ACTOR)).isEqualTo("자기 자신은 비활성화할 수 없습니다.");
-		assertThat(UserAction.RESET_PASSWORD.blockReason(me, ACTOR)).isEqualTo("본인 비밀번호는 비밀번호 변경 화면에서 바꾸십시오.");
+		assertThat(UserAction.RESET_PASSWORD.blockReason(me, ACTOR)).isEqualTo("본인 비밀번호는 비밀번호 변경 화면에서 바꿔야 합니다.");
 		assertThat(UserAction.ENABLE.blockReason(me, ACTOR)).isEqualTo("이미 활성 상태인 계정입니다.");   // 자기 보호 없음 → 상태 사유
 	}
 

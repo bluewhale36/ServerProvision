@@ -9,7 +9,6 @@ import com.example.serverprovision.global.marker.MarkerLayout;
 import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.trash.TrashLifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
@@ -171,7 +170,7 @@ public class IsoLifecycleService implements LifecycleService {
 			);
 		}
 		if (!iso.isDeleted()) {
-			throw new IllegalOSMetadataStateException("이미 활성 상태인 ISO 입니다. isoId=" + isoId);
+			throw new IllegalOSMetadataStateException("이미 활성 상태인 ISO 입니다. id=" + isoId);
 		}
 		trashLifecycleService.restoreFromTrash(
 				iso, isoEntity -> Map.of(
@@ -218,19 +217,6 @@ public class IsoLifecycleService implements LifecycleService {
 	// ==== purge ========================================================
 
 	/**
-	 * S5-2-2 — ISO typed-name 검증 후 영구 삭제.
-	 */
-	@Override
-	@Transactional
-	public void purgeWithTypedNameCheck(Long isoId, String typedName) {
-		ISO iso = isoRepository.findById(isoId)
-				.orElseThrow(() -> new ISONotFoundException(null, isoId));
-		// R7-2 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
-		TypedNameGuard.verify(iso, typedName);
-		purge(isoId);
-	}
-
-	/**
 	 * ISO 영구 삭제. soft-deleted 상태에서만 호출 가능. sidecar + 본체 파일 모두 정리.
 	 */
 	@Override
@@ -240,7 +226,7 @@ public class IsoLifecycleService implements LifecycleService {
 				.orElseThrow(() -> new ISONotFoundException(null, isoId));
 		if (iso.currentStage() != LifecycleStage.SOFT_DELETED) {
 			throw new IllegalOSMetadataStateException(
-					"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. isoId=" + isoId);
+					"삭제된 항목만 영구 삭제할 수 있습니다. id=" + isoId);
 		}
 		cleanupArtifacts(iso);
 		isoRepository.delete(iso);
@@ -257,11 +243,16 @@ public class IsoLifecycleService implements LifecycleService {
 	 *   <li>{@code OSMetadataLifecycleService.purge} (R1-3) — 부모 purge 시 자식 ISO sidecar 정리</li>
 	 *   <li>{@code IsoRegistrationService.purgeForNudge} (R1-4-2) — nudge replace 의 충돌 후보 정리</li>
 	 * </ul>
-	 * <p>R1-6 — {@code OSMetadataNudgeService.purgeForNudge} (부모 OSMetadata nudge replace) 는 본 helper 를
+	 * <p>R1-6 — (HF30-1 에서 제거된) 부모 OSMetadata nudge replace 는 본 helper 를
 	 * 호출하지 않는다 (부모 자체는 디스크 파일 없는 메타 자원 + 자식 ISO row 는 DB FK cascade 처리).</p>
 	 * 단방향 cycle 없음 — IsoRegistrationService → IsoLifecycleService (본 helper) → 외부 의존 없음.</p>
 	 */
 	public void cleanupArtifacts(ISO iso) {
+		// HF31 — 원래 경로의 sidecar 가 이 ISO 를 가리킬 때만 지운다(그 사이 같은 경로에 등록된 다른 ISO 보호).
+		if (!markerService.isMarkedAs(iso)) {
+			log.info("[lifecycle.purge] 원래 경로에 이 ISO 의 파일이 없어(비었거나 다른 ISO 의 것) 남김. isoId={} path={}", iso.getId(), iso.getIsoPath());
+			return;
+		}
 		Path body = Path.of(iso.getIsoPath());
 		deleteQuietly(markerService.resolveMarkerFile(body, MarkerLayout.SIDECAR));
 		deleteQuietly(body);
@@ -273,7 +264,7 @@ public class IsoLifecycleService implements LifecycleService {
 		ISO iso = isoRepository.findById(isoId)
 				.orElseThrow(() -> new ISONotFoundException(null, isoId));
 		if (iso.isDeleted()) {
-			throw new IllegalOSMetadataStateException("삭제된 ISO 에는 수행할 수 없는 작업입니다. isoId=" + isoId);
+			throw new IllegalOSMetadataStateException("삭제된 ISO 에는 수행할 수 없는 작업입니다. id=" + isoId);
 		}
 		return iso;
 	}

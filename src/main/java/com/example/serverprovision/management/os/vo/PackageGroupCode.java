@@ -21,7 +21,7 @@ public class PackageGroupCode {
 
 	public static PackageGroupCode of(String value) {
 		if (value == null || value.isBlank()) {
-			throw new IllegalArgumentException("groupCode 는 빈 값일 수 없습니다.");
+			throw new IllegalArgumentException("패키지 그룹 코드가 비어 있습니다.");
 		}
 		return new PackageGroupCode(value);
 	}

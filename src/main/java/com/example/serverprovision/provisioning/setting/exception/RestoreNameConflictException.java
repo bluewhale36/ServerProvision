@@ -12,6 +12,6 @@ import com.example.serverprovision.global.exception.ConflictException;
 public class RestoreNameConflictException extends ConflictException {
 
     public RestoreNameConflictException(String name) {
-        super("같은 이름의 활성 정의서가 있어 복원할 수 없습니다. 이름을 변경한 뒤 다시 시도하세요: " + name);
+        super("같은 이름의 활성 정의서가 있어 복구할 수 없습니다. 이름을 변경한 뒤 다시 시도해야 합니다: " + name);
     }
 }

@@ -1,5 +1,8 @@
 package com.example.serverprovision.management.common.nudge;
 
+import java.nio.file.Path;
+import java.util.Optional;
+
 /**
  * MK2 — nudge 세션의 pending 데이터 공통 super.
  *
@@ -18,4 +21,10 @@ package com.example.serverprovision.management.common.nudge;
  */
 public sealed interface NudgePayload permits ContentNudgePayload, IntentMetaNudgePayload, RestoreHashConflictPayload {
 
+	/**
+	 * 창이 결론 없이 끝날 때(취소 · 만료) 지워야 하는 업로드 트리. 업로드가 없었거나 운영자의 기존 폴더면 비어 있다(HF30-3).
+	 */
+	default Optional<Path> uploadedTreeToDiscard() {
+		return Optional.empty();
+	}
 }

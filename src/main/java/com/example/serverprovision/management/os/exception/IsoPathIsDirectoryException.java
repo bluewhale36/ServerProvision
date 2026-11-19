@@ -13,6 +13,6 @@ import com.example.serverprovision.global.exception.FieldBoundBadRequestExceptio
 public class IsoPathIsDirectoryException extends FieldBoundBadRequestException {
 
 	public IsoPathIsDirectoryException(String resolvedPath) {
-		super("경로가 디렉토리입니다. 저장할 파일명까지 포함한 경로를 입력하세요 : " + resolvedPath, "isoPath");
+		super("경로가 디렉토리입니다. 파일명까지 포함한 경로를 입력해야 합니다: " + resolvedPath, "isoPath");
 	}
 }

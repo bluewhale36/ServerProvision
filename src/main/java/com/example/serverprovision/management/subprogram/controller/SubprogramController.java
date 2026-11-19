@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.subprogram.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.web.list.ListLinks;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
@@ -45,6 +47,7 @@ import org.springframework.web.bind.annotation.*;
 public class SubprogramController {
 
 	private final SubprogramService subprogramService;
+	private final UserPurgeService userPurgeService;   // HF31
 	private final SubprogramLifecycleService subprogramLifecycleService;
 	private final SubprogramIntegrityService subprogramIntegrityService;
 	private final BoardModelMetadataService boardModelService;
@@ -69,6 +72,13 @@ public class SubprogramController {
 		model.addAttribute("selectId", selectId);
 		model.addAttribute("selectKind", selectKind);
 		model.addAttribute("selectKey", selectKey);
+		// HF30-3 D11 — 등록 · 상태 변경 뒤 ?selectId= 만 오면 어느 Miller 인지 서버가 찾아 선택을 복원한다.
+		if (selectId != null && selectKind == null) {
+			subprogramService.findSelection(selectId).ifPresent(selection -> {
+				model.addAttribute("selectKind", selection.kind());
+				model.addAttribute("selectKey", selection.scopeKey());
+			});
+		}
 		return "management/subprogram/list";
 	}
 
@@ -85,7 +95,7 @@ public class SubprogramController {
 		model.addAttribute("kindDisplayName", kind.getDisplayName());
 		model.addAttribute("vendorGroups", boardModelService.findAllGrouped(ResourceListQuery.unfiltered(false)));
 		model.addAttribute("subprogramForm", new SubprogramCreateRequest("", "", "", "", false, null));
-		model.addAttribute("osNames", com.example.serverprovision.management.os.enums.OSName.values());
+		model.addAttribute("osNames", com.example.serverprovision.management.os.enums.OSName.registrableValues());   // S23-1 — 지원 상수만
 
 		// Miller 에서 사전 선택된 boardScope 가 있으면 폼 라디오/select 초기값 주입.
 		// boardScopeToken 가 "common" 이면 prefillScopeMode=common, 양의 정수면 prefillScopeMode=board.
@@ -194,7 +204,8 @@ public class SubprogramController {
 			@PathVariable("id") Long id,
 			@RequestParam("typedName") String typedName
 	) {
-		subprogramLifecycleService.purgeWithTypedNameCheck(id, typedName);
+		// HF31 — 휴지통 화면과 같은 단일 진입점(자원명 확인 → PurgeExecutor: 휴지통 실물 정리 · 감사 기록)
+		userPurgeService.purge(ResourceType.SUBPROGRAM, id, typedName);
 		return "redirect:/management/subprogram?includeDeleted=true";
 	}
 

@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.service.reference.os;
 
+import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.provisioning.setting.dto.request.OSInstallationRequest;
 import com.example.serverprovision.provisioning.setting.enums.OSFamily;
 
@@ -17,6 +18,12 @@ import java.util.List;
 public interface OSInstallationFamilyInspector {
 
     OSFamily family();
+
+    /**
+     * 이 계열의 OS 를 설치 대상으로 고를 수 있는가(E4-1-b-2) — 허용이면 {@code null}, 막히면 사유 문장.
+     * 옵션 조립(UI 차단)과 1단 검사기(서버 가드)가 {@link OsInstallTargetPolicy} 를 거쳐 함께 부른다.
+     */
+    String installBlockReason(OSMetadata os);
 
     /** 계열 고유 참조 검증 — 베이스 공통(osMetadataId)은 1단 inspector 책임. */
     void validateReferences(OSInstallationRequest request);

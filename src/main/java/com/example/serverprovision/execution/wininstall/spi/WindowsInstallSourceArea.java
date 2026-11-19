@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import com.example.serverprovision.management.os.enums.WindowsServerRelease;
 import java.util.Optional;
 
 /**
@@ -36,7 +37,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class WindowsInstallSourceArea implements SystemAssetArea {
 
-    private static final String SET = "설정됨";
+    private static final String SET = "설정 완료";
     private static final String UNSET = "미설정";
 
     private static final int SHA_PREFIX = 12;
@@ -104,14 +105,11 @@ public class WindowsInstallSourceArea implements SystemAssetArea {
         }
         InstallSourceSnapshot snapshot = catalog.snapshot();
         List<AssetContextItem> items = new ArrayList<>();
-        items.add(snapshot.ready()
-                ? new AssetContextItem("설치 이미지", snapshot.images().size() + "종 · 빌드 "
-                        + snapshot.build().orElse("?") + " · " + snapshot.language().orElse("?"), ObservationSeverity.INFO)
-                : new AssetContextItem("설치 이미지", "없음", ObservationSeverity.WARN));
+        items.add(snapshot.ready() ? installImageChip(snapshot) : new AssetContextItem("설치 이미지", "미배치", ObservationSeverity.WARN));
         // wimboot 해시 앞 12자 — 런북 §14-4 의 서명 릴리스 해시와 눈으로 대조한다(E4-1-a-3 D-5 · Authenticode 검증은 비목표).
         items.add(source.wimbootSha256()
                 .map(sha -> new AssetContextItem("wimboot SHA-256", sha.substring(0, SHA_PREFIX), ObservationSeverity.INFO))
-                .orElseGet(() -> new AssetContextItem("wimboot", "없음", ObservationSeverity.WARN)));
+                .orElseGet(() -> new AssetContextItem("wimboot", "미배치", ObservationSeverity.WARN)));
         items.add(isSet(properties.shareUnc())
                 ? new AssetContextItem("공유 UNC", properties.shareUnc().trim(), ObservationSeverity.INFO)
                 : new AssetContextItem("공유 UNC", UNSET, ObservationSeverity.WARN));
@@ -123,10 +121,22 @@ public class WindowsInstallSourceArea implements SystemAssetArea {
         WindowsInstallProperties.ProductKeys keys = properties.productKeysOrEmpty();
         for (String editionId : snapshot.editionIds()) {
             items.add(keys.forEdition(editionId).isPresent()
-                    ? new AssetContextItem("제품 키 · " + editionId, SET, ObservationSeverity.OK)
-                    : new AssetContextItem("제품 키 · " + editionId, UNSET, ObservationSeverity.WARN));
+                    ? new AssetContextItem("제품 키(" + editionId + ")", SET, ObservationSeverity.OK)
+                    : new AssetContextItem("제품 키(" + editionId + ")", UNSET, ObservationSeverity.WARN));
         }
         return List.copyOf(items);
+    }
+
+    /**
+     * chip "설치 이미지" — 이미지 수, 빌드, 언어. 빌드가 지원하는 Windows Server 버전(S23-1 {@link WindowsServerRelease})과
+     * 맞지 않으면 경고로 보인다. 그 소스로는 정의서 선택과 설치가 막히기 때문이다.
+     */
+    private static AssetContextItem installImageChip(InstallSourceSnapshot snapshot) {
+        String build = snapshot.build().orElse("-");
+        String summary = snapshot.images().size() + "종, 빌드 " + build + ", " + snapshot.language().orElse("-");
+        return WindowsServerRelease.ofBuild(build).isPresent()
+                ? new AssetContextItem("설치 이미지", summary, ObservationSeverity.INFO)
+                : new AssetContextItem("설치 이미지", summary + ", 미지원 빌드", ObservationSeverity.WARN);
     }
 
     /** 조립 버튼의 disabled 사유 — {@code WindowsOemPayloadController} 의 409 가드와 같은 판정(SSOT). */
@@ -141,15 +151,15 @@ public class WindowsInstallSourceArea implements SystemAssetArea {
      */
     private AssetContextItem oemPayloadChip() {
         WindowsOemPayloadAssembler.OemPayloadStatus st = oemAssembler.status();
-        String excluded = st.excludedCount() > 0 ? " · 제외 " + st.excludedCount() : "";
+        String excluded = st.excludedCount() > 0 ? ", 제외 " + st.excludedCount() + "건" : "";
         if (st.state() == OemPayloadState.NOT_ASSEMBLED) {
             return new AssetContextItem("드라이버 페이로드", "미조립" + excluded, ObservationSeverity.WARN);
         }
         if (st.state() == OemPayloadState.STALE) {
             return new AssetContextItem("드라이버 페이로드",
-                    "갱신 필요 — " + String.join(", ", st.changes()) + excluded, ObservationSeverity.WARN);
+                    "갱신 필요(" + String.join(", ", st.changes()) + ")" + excluded, ObservationSeverity.WARN);
         }
-        return new AssetContextItem("드라이버 페이로드", "최신 · " + st.driverCount() + "종" + excluded,
+        return new AssetContextItem("드라이버 페이로드", "최신(" + st.driverCount() + "종)" + excluded,
                 st.excludedCount() > 0 ? ObservationSeverity.WARN : ObservationSeverity.OK);
     }
 

@@ -1,14 +1,13 @@
 package com.example.serverprovision.management.subprogram.service;
 
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.common.nudge.*;
-import com.example.serverprovision.management.common.nudge.exception.InvalidReplaceTargetException;
 import com.example.serverprovision.management.common.nudge.exception.NudgeNotFoundException;
 import com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.nio.file.Path;
 import java.util.UUID;
 
 /**
@@ -20,8 +19,9 @@ import java.util.UUID;
 public class SubprogramNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
+	private final NudgeUploadDiscarder nudgeUploadDiscarder;
 	private final SubprogramRegistrationService subprogramRegistrationService;
-	private final SubprogramLifecycleService subprogramLifecycleService;
+	private final NudgeReplacer nudgeReplacer;
 	private final SubprogramUploadIntentService subprogramUploadIntentService;
 
 	// ============================================================
@@ -29,33 +29,36 @@ public class SubprogramNudgeService {
 	// ============================================================
 
 	public Long proceed(UUID nudgeId) {
-		NudgeSession session = requireSubprogramSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		Long id = subprogramRegistrationService.persistFromNudge(payload);
-		nudgeRegistry.remove(nudgeId);
-		log.info("[subprogram-nudge.proceed] nudgeId={}, id={}", nudgeId, id);
-		return id;
+		return nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireSubprogramSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			Long id = subprogramRegistrationService.persistFromNudge(payload);
+			nudgeRegistry.remove(nudgeId);
+			log.info("[subprogram-nudge.proceed] nudgeId={}, id={}", nudgeId, id);
+			return id;
+		});
 	}
 
-	public Long replace(UUID nudgeId, Long targetId) {
-		NudgeSession session = requireSubprogramSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		if (!session.conflictTargetIds().contains(targetId)) {
-			throw new InvalidReplaceTargetException(targetId);
-		}
-		subprogramLifecycleService.purge(targetId);
-		Long id = subprogramRegistrationService.persistFromNudge(payload);
-		nudgeRegistry.remove(nudgeId);
-		log.info("[subprogram-nudge.replace] nudgeId={}, replacedTarget={}, id={}", nudgeId, targetId, id);
-		return id;
+	public Long replace(UUID nudgeId, Long targetId, String typedName) {
+		return nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireSubprogramSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			Long id = nudgeReplacer.replace(session, ResourceType.SUBPROGRAM, targetId, typedName,
+					() -> subprogramRegistrationService.persistFromNudge(payload));
+			nudgeRegistry.remove(nudgeId);
+			log.info("[subprogram-nudge.replace] nudgeId={}, replacedTarget={}, id={}", nudgeId, targetId, id);
+			return id;
+		});
 	}
 
 	public void cancel(UUID nudgeId) {
-		NudgeSession session = requireSubprogramSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		subprogramRegistrationService.purgeNudgeTempTree(Path.of(payload.tempFilePath()));
-		nudgeRegistry.remove(nudgeId);
-		log.info("[subprogram-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
+		nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireSubprogramSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			nudgeUploadDiscarder.discard(session, "nudge.cancel");
+			nudgeRegistry.remove(nudgeId);
+			log.info("[subprogram-nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
+		});
 	}
 
 	// ============================================================
@@ -74,16 +77,12 @@ public class SubprogramNudgeService {
 		return response;
 	}
 
-	public SubprogramUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId) {
+	public SubprogramUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId, String typedName) {
 		NudgeSession session = requireSubprogramSession(nudgeId);
 		IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
-		if (!session.conflictTargetIds().contains(targetId)) {
-			throw new InvalidReplaceTargetException(targetId);
-		}
-		subprogramLifecycleService.purge(targetId);
 		var reissue = subprogramUploadIntentService.reconstructFromAttributes(payload.attributes());
-		SubprogramUploadIntentResponse response = subprogramUploadIntentService.issueAfterNudge(
-				reissue.kind(), reissue.scope(), reissue.request());
+		SubprogramUploadIntentResponse response = nudgeReplacer.replace(session, ResourceType.SUBPROGRAM, targetId, typedName,
+				() -> subprogramUploadIntentService.issueAfterNudge(reissue.kind(), reissue.scope(), reissue.request()));
 		nudgeRegistry.remove(nudgeId);
 		// 마스킹 — upload token 평문 로깅 금지.
 		log.info("[subprogram-nudge.intent.replace] nudgeId={}, replacedTarget={}", nudgeId, targetId);

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF30 : 중복 확인 창 '그래도 등록' 실패 묶음 정정 — plan</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,#fff 0%,#fbfcfd 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.del{background:var(--red-bg);color:var(--red);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF30 : 중복 확인 창 '그래도 등록' 실패 묶음 정정 — plan <span class="v2-badge">버그 수정</span></h1>
+  <div class="meta">
+    <span><strong>단계</strong> HF30</span>
+    <span><strong>브랜치</strong> <code>fix/HF30_nudge-proceed-failures</code> (dev <code>0c13808</code>)</span>
+    <span><strong>작성</strong> 2026-11-17 01:00 KST</span>
+    <span><strong>계기</strong> docs 결함 C-3 · C-10 · C-17 + 앵커 관찰(RAID 카드 · HF27 CP5 ① ②)</span>
+    <span><strong>승인</strong> CP1 · CP4 · CP6 앵커(SPV_DEV), 정책 갈림길 · CP7 · 운영 DDL 사용자</span>
+    <span><strong>사실표</strong> <code>sbx-ma8/HF30_FACTS.md</code> (현재 코드 파일:행 근거)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 배경</a></li>
+      <li><a href="#s2">§2 실측</a></li>
+      <li><a href="#s3">§3 결론</a></li>
+      <li><a href="#s4">§4 사용자 결정</a></li>
+      <li><a href="#s5">§5 수정 방향</a></li>
+      <li><a href="#s6">§6 분할 · 순서</a></li>
+      <li><a href="#s7">§7 검증 · Critical Files</a></li>
+      <li><a href="#s8">§8 앵커 CP1 승인 조건</a></li>
+      <li><a href="#s9">§9 HF30-3 보완(CP1 추가)</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 배경 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경</summary>
+      <div class="body">
+        <ul>
+          <li>자원 등록 중 같은 이름 · 같은 내용이 감지되면 '중복 확인 창'(nudge)이 [그래도 등록] · [기존 영구 삭제 후 등록] · [취소] 를 묻는다. 창 설명은 "그래도 등록 : 새 자원으로 등록 (기존 자원은 그대로 보존)" · "기존 영구 삭제 후 등록 : 기존 자원을 영구 삭제하고 새 자원을 등록".</li>
+          <li>docs 세션(DOC-7 매뉴얼)이 이 버튼들이 실패하거나 설명과 다르게 동작하는 결함을 찾았고(C-3 · C-10 · C-17), 앵커가 RAID 카드와 HF27 CP5 관찰 두 건을 더해 M 홈에 넘겼다. 매뉴얼은 지금 이 버튼들을 쓰지 말라는 경고를 싣고 있다.</li>
+          <li>선례: 앵커 HF26(#103) 메인보드 — 창을 없애고 (제조사, 모델명) 복합 UNIQUE(휴지통 행도 점유) + 상태별 409 안내(<code>DuplicateBoardModelException.againstRegistration</code>).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §2 실측 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 실측 (현재 dev 0c13808 코드 대조 — 사실표 요약)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>자원</th><th>증상</th><th>원인</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>R1</td><td>OS 버전</td>
+              <td>Deprecated 같은 (이름, 버전)이 있으면 [그래도 등록] 항상 409 · 활성 + 휴지통 혼재면 [기존 영구 삭제 후 등록]도 409(대상 삭제 롤백)</td>
+              <td>창 조건(Deprecated · 휴지통이면 창)과 proceed 조건(is_deleted=0 행이 있으면 거절)이 어긋남 · DB UNIQUE 없음 · 휴지통 다건 생성 가능</td>
+              <td><code>OSMetadataService.java:120-151</code> · <code>OSMetadataNudgeService.java:52-106</code></td>
+            </tr>
+            <tr>
+              <td>R2</td><td>OS 버전</td>
+              <td>[기존 영구 삭제 후 등록]이 하위 ISO 파일 · 휴지통 실물을 남기고 감사 기록 없음</td>
+              <td>repository.delete 한 줄 · FK CASCADE 로 행만 사라짐 · PurgeExecutor 미경유</td>
+              <td><code>OSMetadataNudgeService.java:112-123</code></td>
+            </tr>
+            <tr>
+              <td>R3</td><td>RAID 카드</td>
+              <td>Deprecated 같은 (제조사, 모델명)이 있을 때 [그래도 등록]이 같은 키 비삭제 행을 하나 더 만듦 · replace 는 Deprecated 를 휴지통 없이 바로 삭제</td>
+              <td>create 는 살아 있는 키만 막음 · UNIQUE 는 살아 있는 카드만(MA7 결정 D7 의 의도) — 판정 · 집행은 id · PCI Subsystem 으로만 찾아 실행 충돌은 없음</td>
+              <td><code>RaidCardMetadataService.java:104-185</code> · <code>MA7_raid_card.sql:9-17</code></td>
+            </tr>
+            <tr>
+              <td>R4</td><td>드라이버 · 유틸리티</td>
+              <td>같은 이름 후보에 [그래도 등록] → 업로드가 끝난 뒤 409 · 활성 같은 키는 창 없이 업로드 뒤 409 · Deprecated 후보 replace 409</td>
+              <td>사전 검증 키 (종류, 범위, 버전) — 이름 없음 vs 등록 본체 키 (종류, 범위, 이름, 버전) + 휴지통도 거절 · replace 가 lifecycle purge(휴지통만 허용) 직접 호출</td>
+              <td><code>SubprogramUploadIntentService.java:59-77</code> · <code>SubprogramRegistrationService.java:227-243</code> · <code>SubprogramLifecycleService.java:228-237</code></td>
+            </tr>
+            <tr>
+              <td>R5</td><td>ISO</td>
+              <td>업로드 전 내용 일치 창 [그래도 등록] → 업로드 뒤 배경에서 실패(Deprecated 후보 = '내용 동일' · 실재 휴지통 후보 = 화면 미연결 NUDGE_REQUIRED) · 업로드 전(같은 OS)과 배경(모든 OS)의 비교 범위가 다름 · replace 는 상태 가드 없이 Deprecated ISO 파일을 바로 지움</td>
+              <td><code>IsoRegistrationService.finalize</code> 가 같은 해시를 다시 검사 · 배경 nudge 화면 미연결 · <code>purgeForNudge</code> 상태 가드 없음</td>
+              <td><code>IsoRegistrationService.java:165-238</code> · <code>os-list.js:435-463</code></td>
+            </tr>
+            <tr>
+              <td>R6</td><td>BIOS · BMC</td>
+              <td>Deprecated 후보에 [기존 영구 삭제 후 등록] → 409(코드상)</td>
+              <td>창 후보에 Deprecated 포함 · replace 는 lifecycle purge(휴지통만)</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>R7</td><td>공용</td>
+              <td>여섯 replace 경로 모두 PurgeExecutor 를 거치지 않음 → 휴지통 실물 남음 · purge_log 없음</td>
+              <td>각 <code>*NudgeService</code> 가 lifecycle purge · repository.delete 직접 호출</td>
+              <td>E-2</td>
+            </tr>
+            <tr>
+              <td>R8</td><td>공용 · 화면</td>
+              <td>기존 디렉토리 등록 창에도 "취소 : 업로드를 취소하고 임시 파일 정리" · 취소 뒤 오류 상자 "업로드를 취소했습니다."(실제로는 지우지 않음 — HF27 이 삭제는 막음) · BMC · 드라이버 성공 응답 204 → 선택 · 완료 안내 없음 · OS 버전 · RAID 카드 완료 토스트 키는 읽는 곳 없음 · 드라이버 <code>?selectId=</code> 선택 미복원(docs 결함 D-4)</td>
+              <td>조각 고정 문구 · 응답 형식 불일치 · list.html selectKind 의존</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>R9</td><td>공용 · 화면</td>
+              <td>창의 자원명 입력이 죽은 마크업 · 서버도 typedName 이 비면 검증 건너뜀 → 영구 삭제인데 자원명 확인이 한 번도 일어나지 않음</td>
+              <td>조각 hidden 블록을 다루는 JS 없음 · 컨트롤러 required=false 건너뜀</td>
+              <td><code>nudge-modal.html:56-84</code> · <code>*NudgeController</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout">사실표 근거는 코드 대조다. 화면 재현(수정 전 · 후)은 CP5 에서 구 jar 와 새 jar 로 같은 조작을 해 비교한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 결론 ===== -->
+    <details class="section" id="s3" open>
+      <summary>§3. 결론</summary>
+      <div class="body">
+        <ul>
+          <li><b>공통 원인</b>: "창을 띄우는 조건" 과 "[그래도 등록] · [기존 영구 삭제 후 등록] 을 받아 주는 조건" 이 자원마다 다른 코드에 따로 있고 서로 어긋난다. 그리고 영구 삭제 버튼이 영구 삭제 공통 경로를 지나지 않는다.</li>
+          <li><b>자원 성격이 두 갈래다</b>: 메타 자원(OS 버전 · RAID 카드 · 메인보드)은 키가 곧 정체라 '같은 것을 하나 더' 가 성립하지 않고, 파일 자원(ISO · BIOS · BMC · 드라이버)은 같은 이름의 새 버전 · 휴지통의 옛것과 별개인 새 업로드가 정상이다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §4 사용자 결정 ===== -->
+    <details class="section" id="s4" open>
+      <summary>§4. 사용자 결정 (정책 갈림길, 2026-11-17)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>결정</th></tr></thead>
+          <tbody>
+            <tr><td>U1</td><td>OS 버전</td><td>메인보드처럼 창 제거 — 같은 (이름, 버전)이 어떤 상태로든 있으면 등록을 막고 상태별 다음 행동 안내 · (os_name, os_version) UNIQUE</td></tr>
+            <tr><td>U2</td><td>RAID 카드</td><td>메인보드처럼 창 제거 — MA7 의 'Deprecated 공존' 결정을 뒤집음 · (vendor, model_name) UNIQUE 를 휴지통 행까지</td></tr>
+            <tr><td>U3</td><td>파일 자원 창</td><td>창은 휴지통 후보만 — Deprecated · 활성 같은 키는 창 없이 막고 안내 · [기존 영구 삭제 후 등록]은 휴지통 대상만 남아 PurgeExecutor 를 그대로 씀</td></tr>
+            <tr><td>U4</td><td>ISO 범위</td><td>같은 내용은 OS 버전마다 허용 — 업로드 전 · 배경 판정을 같은 OS 범위로</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §5 수정 방향 ===== -->
+    <details class="section" id="s5" open>
+      <summary>§5. 수정 방향 (결정과 탈락 대안)</summary>
+      <div class="body">
+        <h4>HF30-1 메타 자원 (OS 버전 · RAID 카드)</h4>
+        <table>
+          <thead><tr><th>#</th><th>채택</th><th>비채택</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td>D1</td>
+              <td>create 가 같은 키를 상태 무관 1 건이라도 찾으면 409 + 상태별 다음 행동(휴지통 → 복구 또는 영구 삭제 / Deprecated → 해제 / 활성 → 이미 등록됨) · 중복 확인 창 · <code>OSMetadataNudgeService</code> · <code>RaidCardNudgeService</code> · 컨트롤러 · JS 처리 · <code>NudgeResourceType.OS_IMAGE</code> · <code>RAID_CARD</code> 제거</td>
+              <td>창 유지 + 조건 맞춤</td><td>U1 · U2</td></tr>
+            <tr><td>D2</td>
+              <td>상태별 다음 행동 문구는 <code>LifecycleStage</code> 상수별 메서드 한 곳이 소유하고 OS 버전 · RAID 카드 예외가 쓴다(메인보드 <code>againstRegistration</code> 의 if 세 갈래를 자원마다 복제하지 않음). 메인보드의 같은 판정도 이 메서드로 옮길지는 앵커 판단(HF26 소유)</td>
+              <td>자원별 예외에 if 세 갈래 복제</td><td>CLAUDE.md 조건분기 확장 금지 · 같은 문장 SSOT</td></tr>
+            <tr><td>D3</td>
+              <td>DDL <code>ddl/HF30_meta_identity.sql</code>: os_metadata UNIQUE (os_name, os_version) · raid_card 는 생성 컬럼 active_identity UNIQUE 를 (vendor, model_name) UNIQUE 로 교체. 적용 전 같은 키 다건 조회 SELECT 를 같은 파일 머리에 두고, 다건이 있으면 적용을 멈추고 사람에게 넘긴다(자동 삭제 안 함). 이름 · 인덱스 명은 환경마다 다를 수 있어 찾아서 처리(HF26 방식)</td>
+              <td>다건 자동 정리</td><td>어떤 행을 남길지는 사람 판단 · HF26 선례</td></tr>
+            <tr><td>D4</td>
+              <td>복구 · Deprecated 해제 경로: UNIQUE 가 휴지통까지 점유하므로 같은 키 두 행이 생길 수 없다 — 기존 '살아 있는 같은 키면 409' 가드는 안전망으로 둠</td>
+              <td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>운영 DDL</b> : 적용 전 운영(spv-01) · 스테이징의 같은 키 다건 조회가 필요하다 — 읽기 전용이라도 운영 접근이므로 사용자 지시 때 한다(HF26 선례: ssh spv-01 · 자격은 프로세스 안에서 읽기).</div>
+
+        <h4>HF30-2 파일 자원 (ISO · BIOS · BMC · 드라이버)</h4>
+        <table>
+          <thead><tr><th>#</th><th>채택</th><th>비채택</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td>D5</td>
+              <td>창 후보 = 휴지통 행만(업로드 전 intent · 업로드 뒤 내용 창 모두). Deprecated · 활성 같은 키는 창 없이 409 + 상태별 안내(D2 와 같은 문구 SSOT). 단 ISO 의 '활성 같은 내용' 은 범위 밖 callout 대로 업로드 전이 아니라 배경 안전망(ⓑ)에서 막는다</td>
+              <td>Deprecated 를 창에 남기고 replace 때 휴지통을 거쳐 영구 삭제</td><td>U3 — 한 번의 클릭으로 살아 있는 자원이 사라지지 않게</td></tr>
+            <tr><td>D6</td>
+              <td>[기존 영구 삭제 후 등록] = <code>PurgeExecutor</code> + <code>PurgeRequest.forNudgeReplace</code>(NUDGE_REPLACE) — 감사 기록(purge_log) · 휴지통 실물 정리 · 도메인 거절 비감싸기(HF26 정정)를 그대로 얻는다. 대상은 휴지통 행뿐이라 PurgeExecutor 의 '휴지통 자원만' 전제와 맞는다</td>
+              <td>각 <code>*NudgeService</code> 가 lifecycle purge 직접 호출(현행)</td><td>R7 · 앵커 HF31 제안</td></tr>
+            <tr><td>D7</td>
+              <td>드라이버: intent 요청에 이름을 넣어 사전 검증 키를 (종류, 범위, 이름, 버전)으로 등록 본체와 같게 하고, 활성 · Deprecated 같은 키는 업로드 전에 409. 등록 본체는 같은 키 휴지통 행을 거절하지 않는다(휴지통 옛것과 새것의 공존 — 창이 이미 물었다)</td>
+              <td>intent 는 그대로 두고 본체만 완화</td><td>업로드가 끝난 뒤 실패하는 것이 결함의 본체</td></tr>
+            <tr><td>D8</td>
+              <td>ISO: 배경 finalize 의 같은 내용 검사 범위를 같은 OS 로 좁힘(U4). 업로드 전 판정이 같은 OS 의 휴지통 · Deprecated 를 지문으로 보도록 보강한다 — 경로 창 [그래도 등록] 뒤 재발급(issueAfterNudge)이 지문을 버려 내용 판정을 건너뛰던 것을 고쳐, 경로 창 다음에도 내용 판정을 이어 한다. 그래야 배경 단계의 휴지통 nudge(ⓒ)를 제거해도 다른 경로의 같은 내용 휴지통 ISO 를 놓치지 않는다. ⓒ 는 제거 → 화면 미연결(docs 결함 D7)도 함께 사라짐. 배경의 '살아 있는 같은 내용' 검사(ⓑ)는 경합 안전망으로 같은 OS 범위에서 유지</td>
+              <td>배경 nudge 를 화면에 연결</td><td>두 단계 판정이 결함의 원인 — 판정을 업로드 전 한 곳으로</td></tr>
+            <tr><td>D9</td>
+              <td>같은 경로를 다시 쓴 새 업로드 트리를 replace 가 지우는 경로(코드상 성립): 앵커 HF31 의 마커 판정(<code>isMarkedAs</code> · <code>purgeOwnedTree</code>)이 도메인 purge 에 들어오면 막힌다 → <b>HF30-2 는 HF31 병합 뒤 그 위에서 진행</b></td>
+              <td>HF30 이 따로 가드 추가</td><td>같은 판정을 두 번 만들지 않음(HF31 소유)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>HF30-3 공용 창 (화면)</h4>
+        <table>
+          <thead><tr><th>#</th><th>채택</th><th>비채택</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td>D10</td>
+              <td>창 문구를 상황별로: 기존 디렉토리 등록(<code>claimsExistingTree</code>)은 "취소 : 등록을 취소합니다. 기존 폴더는 그대로 둡니다." · 취소 뒤 안내는 오류 상자가 아니라 안내 상자 · HF30-1 뒤 남는 창은 파일 자원뿐이라 경고문을 "휴지통에 같은 자원이 있습니다" 로 좁힘</td>
+              <td>고정 문구 유지</td><td>R8 앵커 관찰 ①</td></tr>
+            <tr><td>D11</td>
+              <td>[그래도 등록] · [기존 영구 삭제 후 등록] 성공 응답을 JSON redirect(<code>?selectId=</code>) + 서버 flash 로 통일(BMC · 드라이버 204 제거 · 읽는 곳 없는 sessionStorage 토스트 키 제거) · 드라이버 목록이 selectId 만으로 종류를 찾아 선택을 복원(docs 결함 D-4 — 앵커 HF27 CP5 서술과 코드 판독이 달라 CP5 에서 화면으로 먼저 확정)</td>
+              <td>자원별 현행 유지</td><td>R8 앵커 관찰 ② · D-4</td></tr>
+            <tr><td>D12</td>
+              <td>[기존 영구 삭제 후 등록]에 자원명 확인을 실제로 건다 — 창의 자원명 입력을 살리고, 서버는 typedName 이 비면 400(현행 '비면 건너뜀' 제거) · <code>TypedNameGuard</code> 재사용(CLAUDE.md 영구 삭제 규약)</td>
+              <td>죽은 마크업 · 툴팁 삭제</td><td>영구 삭제인데 확인이 한 번도 없다 — 규약 위반</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>범위 밖</b> : 휴지통 화면 · 자원 화면의 영구 삭제 경로 통합(앵커 HF31) · 공용 창 조각의 디자인 개편(S22) · ISO 활성 같은 내용의 업로드 전 차단(지문 계산 비용 — 현행처럼 배경 안전망) · 내용 창 만료 시 업로드 파일 정리(docs 결함 N4)는 HF30-3 에 넣을지 CP4 에서 앵커와 판단.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 분할 · 순서 ===== -->
+    <details class="section" id="s6" open>
+      <summary>§6. 분할 · 순서</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>슬라이스</th><th>범위</th><th>검증 줄기</th><th>선행</th><th>DDL</th></tr></thead>
+          <tbody>
+            <tr><td>HF30-1</td><td>메타 자원 D1~D4</td><td>OS 버전 · RAID 카드 등록 충돌 안내 · 창 없음</td><td>없음</td><td>있음(운영 적용은 사용자 지시)</td></tr>
+            <tr><td>HF30-2</td><td>파일 자원 D5~D9</td><td>휴지통 창 · 409 안내 · replace 감사 기록 · ISO 배경 판정</td><td><b>앵커 HF31 병합</b></td><td>없음</td></tr>
+            <tr><td>HF30-3</td><td>공용 창 D10~D12</td><td>문구 · 완료 이동 · 자원명 확인</td><td>HF30-2(남는 창이 확정돼야 문구가 정해짐)</td><td>없음</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>CP1 은 이 plan 하나로 세 슬라이스를 함께 승인받는다. CP4 · CP5 · CP6 · CP7 · PR 은 슬라이스마다 따로(검토 단위를 작게 · DDL 은 HF30-1 에만). 메모리 '슬라이스 분할 = 검증 줄기'.</li>
+          <li>Notion: HF30 아래 하위 항목 HF30-1 · HF30-2 · HF30-3 을 만든다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §7 검증 · Critical Files ===== -->
+    <details class="section" id="s7" open>
+      <summary>§7. 검증 · Critical Files</summary>
+      <div class="body">
+        <h4>테스트</h4>
+        <ul class="check-list" data-storage="HF30-verify">
+          <li><label><input type="checkbox" data-key="conflict409"> <span>자원별 등록 충돌 409 문구(상태 셋)</span></label></li>
+          <li><label><input type="checkbox" data-key="trashOnly"> <span>창이 휴지통 후보에서만 뜨는지</span></label></li>
+          <li><label><input type="checkbox" data-key="purgeLog"> <span>replace 가 PurgeExecutor 로 purge_log 를 남기는지</span></label></li>
+          <li><label><input type="checkbox" data-key="driverKey"> <span>드라이버 사전 검증 키</span></label></li>
+          <li><label><input type="checkbox" data-key="isoScope"> <span>ISO 배경 판정 범위</span></label></li>
+          <li><label><input type="checkbox" data-key="typedName400"> <span>자원명 확인 400</span></label></li>
+          <li><label><input type="checkbox" data-key="redirect"> <span>성공 응답 redirect</span></label></li>
+          <li><label><input type="checkbox" data-key="nudgeTestCleanup"> <span>기존 nudge 테스트 정리(제거되는 창)</span></label></li>
+        </ul>
+        <h4>CP5 · CP7</h4>
+        <ul>
+          <li><b>CP5</b>: 슬라이스마다 구 jar(수정 전)와 새 jar 로 같은 조작을 해 전후를 비교(재현 → 정정 확인). DDL 은 '구 jar 스키마 → DDL → 새 jar validate' 배포 경로 재연(MA8 선례 · enum CHECK 함정 메모리).</li>
+          <li><b>CP7</b> 은 사용자: 결함이 무엇이었는지와 재현 방법을 함께 설명한다(사용자 지시).</li>
+        </ul>
+        <h4>Critical Files (예상)</h4>
+        <table>
+          <thead><tr><th>슬라이스</th><th>파일</th></tr></thead>
+          <tbody>
+            <tr><td>HF30-1</td><td><code>OSMetadataService</code> · <code>OSMetadataNudgeService</code>(제거) · <code>OSMetadataNudgeController</code>(제거) · <code>RaidCardMetadataService</code> · <code>RaidCardNudgeService</code>(제거) · <code>RaidCardNudgeController</code>(제거) · <code>LifecycleStage</code> · <code>DuplicateOSMetadataException</code> · <code>DuplicateRaidCardException</code> · <code>NudgeResourceType</code> · <code>os-metadata-new.js</code> · <code>raidcard-new.js</code> · <code>ddl/HF30_meta_identity.sql</code></td></tr>
+            <tr><td>HF30-2</td><td><code>*UploadIntentService</code>(ISO · BIOS · BMC · 드라이버) · <code>*NudgeService</code> · <code>IsoRegistrationService</code> · <code>SubprogramRegistrationService</code> · <code>SubprogramUploadIntentRequest</code> · <code>subprogram-new.js</code> · <code>PurgeExecutor</code> 호출부</td></tr>
+            <tr><td>HF30-3</td><td><code>nudge-modal.html</code> · <code>nudge-modal.js</code> · <code>firmware-new-form.js</code> · <code>iso-new.js</code> · <code>subprogram-new.js</code> · <code>*NudgeController</code> · subprogram <code>list.html</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="section" id="s8" open>
+      <summary>§8 앵커 CP1 승인 조건 (2026-11-17)</summary>
+      <div class="body">
+        <p>앵커(SPV_DEV)가 사용자 위임에 따라 기술 검수 뒤 승인했다. U1~U4 · 세 슬라이스 · 순서(HF30-1 → HF30-2 → HF30-3)에 동의했고, 아래 조건을 붙였다.</p>
+        <table>
+          <thead><tr><th>#</th><th>조건</th><th>반영</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>HF30-2 는 HF31 병합 뒤 그 위에서 시작(HF31 은 CP6 작성 중 · 병합 시점 미정)</td><td>s6 순서 그대로</td></tr>
+            <tr><td>A2</td><td>[기존 영구 삭제 후 등록](D6 · D12)은 nudge 서비스마다 새로 쓰지 않고 HF31 의 <code>UserPurgeService</code> 에 NUDGE_REPLACE 용 메서드(예: <code>purgeForNudgeReplace(type, id, typedName)</code>)를 더해 재사용. 순서는 "휴지통 자원 조회(없으면 409) → TypedNameGuard → PurgeExecutor"(HF31 CP5 F-1 — 자원명 대조를 먼저 하면 '자원 없음' 이 400 으로 보였다)</td><td>D6 · D12 를 이 방식으로 구현</td></tr>
+            <tr><td>A3</td><td>D6 실행 순서: PurgeExecutor 는 REQUIRES_NEW 로 영구 삭제를 먼저 커밋한다 → 뒤의 새 자원 등록이 실패해도 휴지통의 옛 자원은 이미 사라진다. 대상이 휴지통 행뿐이라 수용한다. 되돌릴 수 없는 단계가 먼저라는 사실을 확인 단계(자원명 입력)에서 알리고, 등록 실패 때 화면은 "기존 자원은 영구 삭제했지만 새 자원 등록에 실패했습니다" 와 실패 사유를 함께 보인다</td><td>HF30-2 · HF30-3 문구</td></tr>
+            <tr><td>A4</td><td>D2: 메인보드도 <code>LifecycleStage</code> 메서드로 옮긴다 — (a) HF26 세 문장은 바이트 그대로(기존 정확 문자열 테스트 green) (b) <code>againstRename</code> 은 다음 행동이 달라 합치지 않는다(등록용만 공용) (c) enum 은 자원 이름을 인자로 받고 자원별 분기를 두지 않는다</td><td>HF30-1</td></tr>
+            <tr><td>A5</td><td>운영 사전 확인은 앵커가 배포 통합 단계에서 사용자 지시로 수행 · DDL 머리 다건 조회 SELECT 는 유지</td><td>HF30-1 DDL</td></tr>
+            <tr><td>A6</td><td>D3 RAID 카드: MA7 공존 의도로 같은 (제조사, 모델명) 다건이 운영에 있을 수 있다 — 멈추면 남길 행은 사용자 판단 · 사전 조회 SELECT 에 정의서 RAID 단계의 카드 id 참조 수를 함께 싣는다</td><td>HF30-1 DDL</td></tr>
+            <tr><td>A7</td><td>새 예외 · 문구는 <code>new-exception.md</code> · <code>new-user-copy.md</code>(하십시오체 · 화면 문구 em dash 금지) · 409 세 상태 각각 HTTP 통합 시나리오</td><td>HF30-1 테스트</td></tr>
+            <tr><td>A8</td><td>HF30-3 착수 전 S22(디자인)가 <code>nudge-modal.html</code> · <code>nudge-modal.js</code> 를 건드렸는지 dev · 디자인 브랜치 확인 · 겹치면 앵커에 알림</td><td>HF30-3 착수 조건</td></tr>
+            <tr><td>A9</td><td>드라이버 selectId 복원은 CP5 화면 결과를 따른다(앵커 HF27 서술이 틀렸을 수 있음)</td><td>HF30-3 CP5</td></tr>
+          </tbody>
+        </table>
+        <p>CP4 는 슬라이스마다 앵커에 제출한다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 HF30-3 보완 ===== -->
+    <details class="section" id="s9" open>
+      <summary>§9 HF30-3 보완 (CP1 추가, 2026-11-17)</summary>
+      <div class="body">
+        <h4>9-1 배경</h4>
+        <p>HF30-2(PR #111, dev <code>5101a52</code>)가 남는 창을 파일 자원의 휴지통 후보로 확정했다. HF30-3 은 그 창의 화면을 다룬다(D10 · D11 · D12). 앵커가 HF30-2 CP5 의 관찰 O-1 · O-2 · O-3 · O-5 와 결함 D-2 를 HF30-3 으로 넘겼고, D-2 는 "정리를 <code>NudgeRegistry</code> 회수에 둘지 도메인 서비스 훅에 둘지" 비교를 CP1 에서 하라고 했다. 아래는 착수 실측과 그에 따른 추가 결정이다. 화면 문구의 최종 검수는 디자인 세션이 맡으므로 문구는 DESIGN.md 7절을 지키는 선에서 필요한 곳만 고친다.</p>
+
+        <h4>9-2 실측</h4>
+        <table>
+          <thead><tr><th>항목</th><th>사실</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>창 처리 JS</td><td>같은 창 처리 코드가 다섯 벌 복사(BIOS · BMC 공용 폼 2 · 드라이버 2 · ISO 1)</td><td><code>firmware-new-form.js</code> · <code>subprogram-new.js</code> · <code>iso-new.js</code></td></tr>
+            <tr><td>공용 모듈</td><td><code>NudgeModal.handle</code> 은 호출처 0(죽은 코드), <code>NudgeTimer</code> 만 쓰임</td><td><code>global/nudge-modal.js</code></td></tr>
+            <tr><td>자원명 입력 칸</td><td>조각에 있으나 어느 JS 도 열지 않음(O-5 툴팁이 요구만 함)</td><td><code>fragments/management/nudge-modal.html</code></td></tr>
+            <tr><td>영구 삭제 확인</td><td>브라우저 기본 <code>confirm()</code> 한 번뿐, 서버는 자원명이 비면 대조를 건너뜀</td><td><code>firmware-new-form.js</code> · <code>UserPurgeService.purgeForNudgeReplace</code></td></tr>
+            <tr><td>기대 자원명</td><td>창 후보 응답에 <code>displayName</code> 없음(<code>name</code> · <code>version</code> 만)</td><td><code>NudgeConflictEntry</code></td></tr>
+            <tr><td>성공 응답</td><td>BIOS 는 <code>{id, redirect}</code>, BMC · 드라이버 업로드 뒤 창은 204</td><td><code>*NudgeController</code></td></tr>
+            <tr><td>일반 등록 성공</td><td>세 자원 모두 <code>{id, redirect=?selectId=}</code> 만, flash 없음</td><td><code>Bios/Bmc/SubprogramUploadController</code></td></tr>
+            <tr><td>드라이버 선택 복원</td><td>목록은 <code>selectKind</code> · <code>selectKey</code> 가 있어야 복원, <code>?selectId=</code> 만으로는 미복원(D-4 코드로 확인)</td><td><code>SubprogramController.list</code> · <code>subprogram/list.html</code></td></tr>
+            <tr><td>죽은 include</td><td>창 조각을 넣지만 쓰는 JS 가 없는 목록 화면 3</td><td><code>bios/list.html</code> · <code>os/list.html</code> · <code>subprogram/list.html</code></td></tr>
+            <tr><td>ISO 죽은 코드</td><td>업로드 뒤 창(<code>showNudgeModal</code>)은 HF30-2 에서 서버 경로가 사라짐</td><td><code>iso-new.js</code></td></tr>
+            <tr><td>취소 정리</td><td>세 도메인의 <code>cleanupNudgeCancelled</code> 가 글자 그대로 같음(claim 이면 보존, 아니면 <code>BundleTreeCleanupService.purgeExistingTree</code>)</td><td><code>Bios/Bmc/SubprogramRegistrationService</code></td></tr>
+            <tr><td>만료 회수</td><td><code>pruneExpired</code> 는 맵에서 지우기만, <code>require()</code> 도 만료 세션을 지우고 예외 → 임시 트리 잔존(D-2)</td><td><code>NudgeRegistry</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>9-3 결정</h4>
+        <table>
+          <thead><tr><th>#</th><th>채택</th><th>비채택</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td>D10 보완</td>
+              <td>경고 상자 "같은 자원이 휴지통에 있습니다." 로 좁힘 · [취소] 설명을 상황별 셋(업로드 전 = 등록 취소 / 업로드 뒤 = 등록 취소, 올린 파일 정리 / 기존 폴더 등록 = 등록 취소, 기존 폴더 보존) · 취소 뒤 알림은 안내(info)</td>
+              <td>고정 문구 유지</td><td>O-1 · 업로드 전 창에는 임시 파일이 없다</td></tr>
+            <tr><td>D11 보완</td>
+              <td>BMC · 드라이버 업로드 뒤 창의 [그래도 등록] · [기존 영구 삭제 후 등록] 응답을 일반 등록과 같은 <code>{id, redirect}</code> 로 · 드라이버 목록은 selectId 만 오면 서버가 종류와 범위를 찾아 선택 복원 · flash 는 더하지 않음</td>
+              <td>서버 flash 추가(원 D11)</td><td>일반 등록 성공에도 flash 가 없다 · 같은 성공을 두 모양으로 만들지 않음</td></tr>
+            <tr><td>D12 보완</td>
+              <td>후보 응답에 <code>displayName</code> 추가 · 후보를 고르면 자원명 입력 칸을 열고 일치할 때만 버튼 활성 · 칸 안내에 "영구 삭제가 먼저 일어나고 등록은 그 뒤" 를 적음(A3) · 서버는 빈 자원명도 <code>TypedNameGuard</code> 로 대조(400) · 브라우저 <code>confirm()</code> 제거</td>
+              <td><code>confirm()</code> 과 자원명 둘 다</td><td>휴지통 화면 영구 삭제와 같은 방식 하나 · 이중 확인 제거</td></tr>
+            <tr><td>D13 (D-2)</td>
+              <td>회수 한 곳: 만료 세션의 업로드 트리 정리를 새 컴포넌트 <code>NudgeUploadDiscarder</code>(claim 이면 보존) 하나가 맡고 <code>NudgeRegistry</code> 회수와 [취소] 가 함께 부른다 · <code>require()</code> 는 만료 세션을 지우지 않고 거절만, 회수는 만료 뒤 유예 1 분이 지난 세션만</td>
+              <td>도메인 서비스 훅(<code>NudgeExpiryHandler</code> SPI, 도메인마다 구현)</td><td>세 도메인 정리 코드가 같아 훅은 같은 구현 셋 · 훅이 <code>NudgeService</code> 를 부르면 <code>NudgeService</code> → <code>NudgeRegistry</code> → 훅 순환</td></tr>
+            <tr><td>D13 유예</td>
+              <td>만료 직전 시작된 [그래도 등록] 이 트리에 마커를 쓰는 중 회수가 지우지 않도록 유예 1 분</td>
+              <td>유예 없음 · 세션 잠금</td><td><code>require()</code> 가 만료 뒤 새 확인을 막으므로 진행 중인 확인만 지나가면 된다 · 잠금은 실패 뒤 재시도를 막음</td></tr>
+            <tr><td>D14</td>
+              <td>창 처리를 <code>global/nudge-modal.js</code> 의 <code>NudgeModal.open</code> 하나로 모음(후보 목록 · 선택 · 자원명 대조 · 타이머 · 만료 · 창 안 오류). 화면은 끝난 뒤 할 일(이동 · 업로드 시작)만 넘김 · 죽은 <code>handle</code> · ISO <code>showNudgeModal</code> · 목록 3 의 include 제거</td>
+              <td>다섯 벌을 각각 고침</td><td>D12 의 자원명 대조를 다섯 곳에 복사하게 된다(중복 금지 규약)</td></tr>
+            <tr><td>D15 (O-3)</td>
+              <td>창 안 동작 실패를 창 안 오류 상자(<code>n-alert-danger</code>, 조각에 숨김 슬롯)에 보임</td>
+              <td>폼 아래 오류 상자 유지</td><td>창을 보는 사용자가 놓침</td></tr>
+            <tr><td>D16 (O-2)</td>
+              <td>영구 삭제 뒤 등록 실패 응답에 <code>code=NUDGE_REPLACE_REGISTRATION_FAILED</code> 동봉(<code>NUDGE_SESSION_EXPIRED</code> 와 같은 advice 방식) · 창은 그 후보를 목록에서 빼고 선택을 풀며, [그래도 등록] 과 [취소] 는 남김</td>
+              <td>메시지 문자열로 판정 · 창 닫기</td><td>문자열 판정 금지(R2-5) · 닫으면 원인 정리 뒤 같은 창으로 끝내는 길(B3)을 잃음</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout"><b>앵커 CP1 승인 조건(2026-11-17)</b> : ① D13 유예 1 분 대신 사용 중 표지. 큰 트리는 해시 계산이 1 분을 넘을 수 있어, 확인 처리 동안 표지를 달고(<code>NudgeRegistry.whileInUse</code>) 회수는 만료됐고 표지가 없는 세션만 다룬다. 요청 하나의 수명 동안만 붙어 실패 뒤 재시도를 막지 않는다. ② D16 은 핸들러를 더하지 않고 공용 계약 하나로. <code>CodedConflictException</code>(<code>code()</code>)을 두 예외가 상속하고 advice 핸들러는 하나다. D12 의 <code>confirm()</code> 제거는 앵커가 사용자에게 직접 알린다.</div>
+        <h4>9-4 범위 밖</h4>
+        <ul>
+          <li>창 조각의 시각 개편과 문구 최종 검수: 디자인 세션.</li>
+          <li>O-4(JSON 본문 검증 400 에 fieldErrors 없음): 공통 응답 방식이라 앵커 후속.</li>
+          <li>D-1(같은 키 동시 등록 두 행): 생성 열 UNIQUE DDL, 앵커 후속 · 사용자 결정.</li>
+          <li>호출처 없는 <code>RestoreHashConflictPayload</code>: 이번에 지우지 않고 적립.</li>
+          <li>매뉴얼의 창 설명 갱신: 병합 뒤 docs 세션에 바뀐 문구 전달.</li>
+        </ul>
+
+        <h4>9-5 검증 계획 요약</h4>
+        <ul>
+          <li>단위: <code>NudgeUploadDiscarder</code>(claim 보존 · 업로드 트리 삭제) · <code>NudgeRegistry</code>(유예 전 미회수 · 유예 뒤 회수와 정리 · require 만료 거절) · <code>purgeForNudgeReplace</code>(빈 자원명 400).</li>
+          <li>HTTP: BMC · 드라이버 업로드 뒤 창 성공 응답 <code>{id, redirect}</code> · 빈 자원명 400 · 영구 삭제 뒤 등록 실패 409 의 code · 드라이버 목록 selectId 만으로 선택 복원.</li>
+          <li>CP5 브라우저: 네 자원 창마다 자원명 입력 전 비활성 · 일치 뒤 활성 · 상황별 [취소] 설명 · 창 안 오류 · O-2 후보 제거 · 만료 뒤 임시 트리 정리(유예 포함 약 7 분) · 드라이버 등록 뒤 선택 복원(A9) · DESIGN.md 7절 copy-scan.</li>
+          <li>DDL 없음.</li>
+        </ul>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -20,10 +20,14 @@ import java.util.function.Supplier;
 @RequiredArgsConstructor
 public class SignupAccessPolicy implements AuthorizationManager<RequestAuthorizationContext> {
 
+	static final String CLOSED_REASON =
+			"최초 관리자 등록은 관리자 계정이 하나도 없을 때만 열립니다. 계정 추가는 최고 관리자가 사용자 관리에서 합니다.";
+
 	private final UsersService usersService;
 
 	@Override
 	public AuthorizationResult authorize(Supplier<? extends Authentication> authentication, RequestAuthorizationContext context) {
-		return new AuthorizationDecision(usersService.bootstrapOpen());
+		// HF29 — 닫혔을 때 사유를 싣는다(인증 사용자에게 403 화면 · JSON 의 message 로 보인다. 익명은 로그인 화면으로 간다).
+		return usersService.bootstrapOpen() ? new AuthorizationDecision(true) : new ReasonedDenial(CLOSED_REASON);
 	}
 }

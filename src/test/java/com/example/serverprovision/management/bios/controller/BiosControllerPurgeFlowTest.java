@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.bios.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
@@ -42,6 +44,7 @@ class BiosControllerPurgeFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean BiosService biosService;
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 영구 삭제 단일 진입점
     @MockitoBean com.example.serverprovision.management.bios.service.BiosFirmwareFilePolicy biosFirmwareFilePolicy;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosLifecycleService biosLifecycleService;
     @MockitoBean com.example.serverprovision.management.bios.service.BiosRegistrationService biosRegistrationService;
@@ -57,8 +60,8 @@ class BiosControllerPurgeFlowTest {
     @Test
     @DisplayName("BIOS purge — typedName 일치 → 302 redirect")
     void purge_typedNameMatches_returns302() throws Exception {
-        willDoNothing().given(biosLifecycleService)
-                .purgeWithTypedNameCheck(eq(5L), eq("R23_MS73-HB1_Uni"));
+        willDoNothing().given(userPurgeService)
+                .purge(eq(ResourceType.BIOS_BUNDLE), eq(5L), eq("R23_MS73-HB1_Uni"));
 
         mvc.perform(post("/management/bios/2/bios/5/purge")
                         .param("typedName", "R23_MS73-HB1_Uni"))
@@ -71,8 +74,8 @@ class BiosControllerPurgeFlowTest {
     @DisplayName("BIOS purge — typedName 불일치 → 400")
     void purge_typedNameMismatch_returns400() throws Exception {
         willThrow(new TypedNameMismatchException("R23_MS73-HB1_Uni", "wrong"))
-                .given(biosLifecycleService)
-                .purgeWithTypedNameCheck(eq(5L), eq("wrong"));
+                .given(userPurgeService)
+                .purge(eq(ResourceType.BIOS_BUNDLE), eq(5L), eq("wrong"));
 
         mvc.perform(post("/management/bios/2/bios/5/purge").param("typedName", "wrong"))
                 .andExpect(status().isBadRequest());
@@ -105,13 +108,13 @@ class BiosControllerPurgeFlowTest {
 
     // S5-5 — 외부 우상단 + 신규 BIOS 등록 버튼이 보이는지 확인.
     @Test
-    @DisplayName("GET /management/bios — 외부 우상단 '+ 신규 BIOS 등록' 버튼 노출")
+    @DisplayName("GET /management/bios — 외부 우상단 '+ BIOS 등록' 버튼 노출")
     void renders_external_register_button() throws Exception {
         given(biosService.findAllGrouped(ResourceListQuery.unfiltered(false))).willReturn(List.of());
 
         mvc.perform(get("/management/bios"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("+ 신규 BIOS 등록")));
+                .andExpect(content().string(containsString("class=\"n-btn n-btn-primary\">+ BIOS 등록")));
     }
 
     // S5-5 — boardId 없는 /new 진입점이 메인보드 선택 dropdown 을 노출.

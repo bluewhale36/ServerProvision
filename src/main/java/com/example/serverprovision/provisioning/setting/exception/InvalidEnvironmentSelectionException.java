@@ -24,6 +24,6 @@ public class InvalidEnvironmentSelectionException extends FieldBoundBadRequestEx
     /** 선택 환경에서 허용되지 않는 패키지 그룹 포함. */
     public static InvalidEnvironmentSelectionException groupNotAllowed(Long packageGroupId) {
         return new InvalidEnvironmentSelectionException(
-                "선택한 ISO·설치 환경에서 선택할 수 없는 패키지 그룹입니다: " + packageGroupId, "packageGroupIds");
+                "선택한 ISO 와 설치 환경에서 선택할 수 없는 패키지 그룹입니다: " + packageGroupId, "packageGroupIds");
     }
 }

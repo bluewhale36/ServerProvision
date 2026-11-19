@@ -45,23 +45,6 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
 			@Param("version") String version
 	);
 
-	@Query(
-			"""
-					select s from Subprogram s
-					where s.kind = :kind
-					  and s.boardModel.id = :boardId
-					  and s.name = :name
-					  and s.version = :version
-					  and s.isDeleted = true
-					"""
-	)
-	Optional<Subprogram> findSoftDeletedByBoardKey(
-			@Param("kind") SubprogramKind kind,
-			@Param("boardId") Long boardId,
-			@Param("name") String name,
-			@Param("version") String version
-	);
-
 	/* ───── 공용 lookup (boardModel IS NULL) ───── */
 
 	@Query(
@@ -75,22 +58,6 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
 					"""
 	)
 	Optional<Subprogram> findActiveByCommonKey(
-			@Param("kind") SubprogramKind kind,
-			@Param("name") String name,
-			@Param("version") String version
-	);
-
-	@Query(
-			"""
-					select s from Subprogram s
-					where s.kind = :kind
-					  and s.boardModel is null
-					  and s.name = :name
-					  and s.version = :version
-					  and s.isDeleted = true
-					"""
-	)
-	Optional<Subprogram> findSoftDeletedByCommonKey(
 			@Param("kind") SubprogramKind kind,
 			@Param("name") String name,
 			@Param("version") String version
@@ -140,9 +107,8 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
 	/* ───── MK2 — nudge 흐름 (소프트 삭제된 동일 키 후보) ───── */
 
 	/**
-	 * MK2 — soft-deleted 충돌 후보 단건 lookup. boardScope 가 nullable 이라 단순 메서드 네임으로 표현 안 되어
-	 * board / common 두 변형을 함께 둔다 ({@link #findSoftDeletedByBoardKey} / {@link #findSoftDeletedByCommonKey}).
-	 * 본 메서드는 두 케이스를 한 번에 처리하기 위한 조회 — boardScope 가 null 이면 공용, 아니면 보드별.
+	 * 같은 (종류, 범위, 이름, 버전)의 살아 있는 행(활성 · Deprecated) — 등록 충돌 안내가 상태를 고르려고 모두 읽는다(HF30-2).
+	 * boardId 가 null 이면 공용, 아니면 보드별.
 	 */
 	@Query(
 			"""
@@ -154,10 +120,10 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
 					  )
 					  and s.name = :name
 					  and s.version = :version
-					  and s.isDeleted = true
+					  and s.isDeleted = false
 					"""
 	)
-	Optional<Subprogram> findSoftDeletedConflictCandidate(
+	List<Subprogram> findLivingByKey(
 			@Param("kind") SubprogramKind kind,
 			@Param("boardId") Long boardId,
 			@Param("name") String name,
@@ -187,7 +153,7 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
 			@Param("version") String version
 	);
 
-	/* ───── MK2 WAVE 2 — intent 메타 nudge 후보 (soft-deleted + Deprecated) ───── */
+	/* ───── 업로드 전 중복 확인 창 후보 — 같은 (종류, 범위, 이름, 버전)의 휴지통 행(HF30-2 부터 휴지통뿐) ───── */
 
 	@Query(
 			"""
@@ -199,7 +165,7 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
 					  )
 					  and s.name = :name
 					  and s.version = :version
-					  and (s.isDeleted = true or s.isDeprecated = true)
+					  and s.isDeleted = true
 					"""
 	)
 	List<Subprogram> findIntentNudgeCandidates(
@@ -209,7 +175,7 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
 			@Param("version") String version
 	);
 
-	/* ───── MK2 WAVE 2 — hash 충돌 후보 (soft-deleted + Deprecated, 같은 scope) ───── */
+	/* ───── 업로드 뒤 중복 확인 창 후보 — 내용(해시)이 같은 휴지통 자원, 같은 scope (HF30-2 부터 Deprecated 제외) ───── */
 
 	@Query(
 			"""
@@ -220,7 +186,7 @@ public interface SubprogramRepository extends JpaRepository<Subprogram, Long> {
 					     or (s.boardModel.id = :boardId)
 					  )
 					  and s.manifestHash = :manifestHash
-					  and (s.isDeleted = true or s.isDeprecated = true)
+					  and s.isDeleted = true
 					"""
 	)
 	List<Subprogram> findHashConflictCandidates(

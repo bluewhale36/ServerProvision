@@ -83,7 +83,7 @@
     text-align: center;
     padding: 28px 16px;
     color: var(--n-text-sec);
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .n-step-guide-title {
@@ -105,7 +105,7 @@
 
 /* n-row 안에서 입력 필드와 나란히 놓이는 체크박스 — 바닥선 정렬 */
 
-/* 입력 + 체크박스 짝 (root 비밀번호 행 등) — 기본 n-row 보다 좁은 하단 여백 */
+/* 한 항목(n-form-group) 안에서 나란한 칸. 항목의 30px 가 아래 간격을 맡으므로 줄 자체의 여백은 없다 */
 .n-row.n-row-tight {
     margin-bottom: 0;
 }
@@ -123,15 +123,13 @@
 }
 
 .n-pane-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--n-text-muted);
-    letter-spacing: 0.7px;
-    text-transform: uppercase;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--n-text-sec);
     margin-bottom: 14px;
 }
 
-/* 패키지 그룹 체크박스 패널 */
+/* 체크박스 패널 (BIOS 세팅 템플릿) */
 .n-check-panel {
     border: 1px solid var(--n-border);
     border-radius: var(--n-radius-lg);
@@ -147,11 +145,22 @@
     padding: 3px 2px;
 }
 
+/* 나란한 두 판(설치 환경 · 추가 패키지 그룹)은 같은 높이로 늘어나고, 판 아래 여백은 감싼 n-form-group 이 맡는다 */
+.n-row > .n-card {
+    margin-bottom: 0;
+}
+
+/* 나란한 판의 머리 높이를 맞춘다. 한쪽에만 작은 버튼(전체 선택)이 서도 두 목록이 같은 줄에서 시작한다.
+   50 = 머리 위아래 여백 20 + 작은 버튼 29 + 아래 선 1 */
+.n-row > .n-card > .n-card-head {
+    min-height: 50px;
+}
+
 /* ---- 폼 인라인 테이블 (파티션/사용자/서비스) ---------------- */
 /* n-tbl-list(고정 레이아웃) 셀 안에서는 축소된 입력 크기를 쓴다 */
 .n-tbl-list .n-input,
 .n-tbl-list .n-select {
-    font-size: 13px;
+    font-size: 14px;
     padding: 4px 8px;
 }
 
@@ -235,7 +244,7 @@
     height: 15px;
     border-radius: 50%;
     background: var(--n-text-sec);
-    color: #fff;
+    color: var(--n-on-accent);
     font-size: 10px;
     font-weight: 700;
     line-height: 1;
@@ -286,7 +295,7 @@
     border-radius: var(--n-radius);
     background: var(--n-bg);
     color: var(--n-text);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 22px;
     text-align: center;
@@ -309,6 +318,8 @@
 
 /* E3.5-6 — VD 파라미터 서브 행(접이식). 8축을 2열로, 600px 이하 1열 */
 #rcDiskGroupTable tr.dgVdRow > td { background: var(--n-bg); }
+/* 마지막 동작 칸(⚙, 삭제)은 8% 라 1024 폭에서 52px 다. 작은 버튼이 13px 가 된 뒤 2px 넘쳐(S22-4 overflow-scan) 칸 여백만 줄인다. */
+#rcDiskGroupTable tbody td:last-child { padding-left: 4px; padding-right: 4px; }
 .n-vd-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -320,7 +331,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    font-size: 12.5px;
+    font-size: 13.5px;
     color: var(--n-text-sec);
 }
 .n-vd-grid .n-select { max-width: 260px; }
@@ -329,7 +340,7 @@
     padding: 0 6px;
     border-radius: var(--n-radius);
     background: var(--n-blue);
-    color: #fff;
+    color: var(--n-on-accent);
     font-size: 11px;
 }
 @media (max-width: 600px) {
@@ -365,4 +376,25 @@
 /* 이름은 공백에서 접는다 — 끊을 자리가 없는 긴 이름만 글자 단위로(DESIGN §5 표 · 셀 값 처리) */
 .n-table-settings td:nth-child(2) {
     overflow-wrap: anywhere;
+}
+
+/* E4-1-b-2 — OS 설치 카드의 ISO 고르기(Miller 2 열). 관리 화면용 뷰포트 높이 고정을 풀고 폼 안 자리의 치수만 덮는다
+   (DESIGN.md Miller 절: 화면 CSS 는 자리의 치수만). 목록 열은 파일 이름이 잘리지 않게 넓힌다. */
+.n-miller[data-iso-miller] {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+}
+
+.n-miller[data-iso-miller] .n-miller-col-names {
+    width: 320px;
+}
+
+.n-miller[data-iso-miller] .n-miller-col-detail {
+    min-height: 240px;
+}
+
+.n-miller[data-iso-miller] .n-miller-empty {
+    height: auto;
+    padding: 48px 0;
 }

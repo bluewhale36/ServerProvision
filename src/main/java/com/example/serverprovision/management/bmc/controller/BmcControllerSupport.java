@@ -1,7 +1,5 @@
 package com.example.serverprovision.management.bmc.controller;
 
-import com.example.serverprovision.global.marker.ResourceType;
-import com.example.serverprovision.global.trash.service.TypedNameVerifier;
 import com.example.serverprovision.management.board.dto.response.BoardModelResponse;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -37,7 +35,7 @@ public final class BmcControllerSupport {
 	public static void populateFormContext(Model model, Long boardId, Long bmcId, BoardModelResponse board) {
 		model.addAttribute("boardId", boardId);
 		model.addAttribute("bmcId", bmcId);
-		model.addAttribute("contextLabel", board.vendor().getDisplayName() + " · " + board.modelName());
+		model.addAttribute("contextLabel", board.vendor().getDisplayName() + " " + board.modelName());
 	}
 
 	/**
@@ -54,17 +52,7 @@ public final class BmcControllerSupport {
 	public static String firstError(BindingResult bindingResult) {
 		return bindingResult.getFieldErrors().stream()
 				.findFirst()
-				.map(err -> err.getField() + ": " + err.getDefaultMessage())
+				.map(err -> err.getDefaultMessage())
 				.orElse("입력값이 올바르지 않습니다.");
-	}
-
-	/**
-	 * typedName 이 비어있지 않으면 검증한다 (nudge replace / intent-nudge replace 공용).
-	 * Support 가 bean 의존을 갖지 않도록 verifier 를 인자로 받는다.
-	 */
-	public static void typedNameGuard(TypedNameVerifier verifier, ResourceType resourceType, Long targetId, String typedName) {
-		if (typedName != null && !typedName.isBlank()) {
-			verifier.verify(resourceType, targetId, typedName);
-		}
 	}
 }

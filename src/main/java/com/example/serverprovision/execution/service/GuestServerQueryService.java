@@ -318,9 +318,9 @@ public class GuestServerQueryService {
             long addIn = spec.pcieDevices().stream()
                     .filter(p -> p == null || p.mount() != com.example.serverprovision.execution.enums.PcieMount.ONBOARD)
                     .count();
-            parts.add(addIn > 0 ? "PCIe " + addIn + "장" : "추가 PCIe 없음");
+            parts.add(addIn > 0 ? "PCIe " + addIn + "장" : "추가 PCIe 미장착");
         }
-        return String.join(" · ", parts);
+        return String.join(", ", parts);
     }
 
     @Transactional(readOnly = true)
@@ -429,7 +429,7 @@ public class GuestServerQueryService {
                         s.getStatus(),
                         s.getStartedAt(),
                         s.getFinishedAt(),
-                        s.displayNote()))                          // E2-4 R5 — detail 우선 · origin 폴백
+                        ScreenNote.of(s.displayNote())))           // E2-4 R5 — detail 우선 · origin 폴백 · S22-3 화면용 다듬기
                 .toList();
 
         return new GuestServerDetailResponse(
@@ -555,7 +555,7 @@ public class GuestServerQueryService {
         return raidVolumeRepository.findAllByGuestServer_Id(serverId).stream()
                 .map(v -> new GuestServerDetailResponse.RaidVolumeView(
                         v.getName(),
-                        v.getRaidLevel() == null ? "RAID 없음" : v.getRaidLevel().getDisplayName(),
+                        v.getRaidLevel() == null ? "RAID 미구성" : v.getRaidLevel().getDisplayName(),
                         memberSlotsDisplay(v.getMemberSlotsJson()),
                         formatDecimalBytes(v.getUsableBytes()),
                         v.getVolumeRole(),
@@ -569,7 +569,7 @@ public class GuestServerQueryService {
             return "";
         }
         try {
-            return String.join(" · ", objectMapper.readValue(memberSlotsJson, String[].class));
+            return String.join(", ", objectMapper.readValue(memberSlotsJson, String[].class));
         } catch (RuntimeException e) {
             return memberSlotsJson;   // 손상 관용 — 원문 그대로
         }
@@ -580,7 +580,7 @@ public class GuestServerQueryService {
         if (v.span() == null) {
             return v.level().getDisplayName();
         }
-        return v.level().getDisplayName() + " · 스팬 " + v.span().spansOf(v.memberSlots().size())
+        return v.level().getDisplayName() + ", 스팬 " + v.span().spansOf(v.memberSlots().size())
                 + " × " + v.span().value() + "대";
     }
 
@@ -593,7 +593,7 @@ public class GuestServerQueryService {
         return new GuestServerDetailResponse.RaidPlanBranch(label, null, null,
                 plan.deleteExistingFirst(),
                 plan.volumes().stream().map(v -> new GuestServerDetailResponse.PlannedVolumeView(
-                        v.name(), plannedLevelDisplay(v), String.join(" · ", v.memberSlots()),
+                        v.name(), plannedLevelDisplay(v), String.join(", ", v.memberSlots()),
                         formatDecimalBytes(v.usableBytes()), v.role())).toList(),
                 plan.passthroughs().stream().map(p -> new GuestServerDetailResponse.PlannedPassthroughView(
                         p.slot(), formatDecimalBytes(p.usableBytes()), p.role())).toList(),
@@ -679,10 +679,9 @@ public class GuestServerQueryService {
      */
     private String identityWaitingReason(GuestServerDetail detail, LocalDateTime since, java.time.Duration limit) {
         long remain = flashTimeoutPolicy.remainingMinutes(since, limit, LocalDateTime.now(clock));
-        StringBuilder reason = new StringBuilder("축 착수 대기 — 다음 워커 주기가 BMC 신원을 확인합니다"
-                + "(응답이 없으면 잔여 " + remain + "분 뒤 실패로 전환됩니다).");
+        StringBuilder reason = new StringBuilder("BMC 신원을 확인하는 중입니다. " + remain + "분 안에 응답이 없으면 실패로 바뀝니다.");
         if (detail == null || detail.getBoardSerial() == null) {
-            reason.append(" 보드 시리얼이 없어 신원 대조가 성립하지 않습니다 — 진단 재수집이 필요합니다.");
+            reason.append(" 보드 시리얼이 없어 신원을 대조할 수 없습니다. 진단을 다시 수집해야 합니다.");
         }
         return reason.toString();
     }
@@ -699,10 +698,8 @@ public class GuestServerQueryService {
         }
         FirmwareAxis cursorAxis = FirmwareAxis.of(progress.getCurrentStep());
         if (cursorAxis == null) {
-            // "단계로" 로 끝맺는 이유 — phase 표시명의 받침 유무에 따라 조사가 갈리는 문제를 피한다(CP5 드리프트).
-            return new StageView("반영 확인 완료 — " + (progress.isCompleted() ? "종단"
-                    : progress.currentPhase() != null ? progress.currentPhase().getDescription() + " 단계로 전진"
-                    : "다음 단계로 전진"), null);   // 5행
+            // S22-3 — 다음 단계가 무엇인지는 레일과 패널 머리가 말하므로 이 줄은 사실만 남긴다(SD-213 · 215 · 216).
+            return new StageView("반영 확인 완료", null);   // 5행
         }
         Optional<ProvisioningHistory> openRow = flashRows.stream()
                 .filter(r -> r.getStatus() == ProvisioningStatus.RUNNING && r.getFinishedAt() == null)
@@ -714,24 +711,24 @@ public class GuestServerQueryService {
         }
         FlashContext context = new FlashContext(server, progress, null, steps, null, null, now);
         if (context.nextUntouchedAxis().isPresent()) {
-            return new StageView("다음 축 착수 대기(다음 워커 주기)", null);   // 1b행 — 축 사이 간극
+            return new StageView("BMC 굽기를 곧 시작합니다", null);   // 1b행 — 축 사이 간극
         }
         if (!context.guestReturned()) {
             boolean powerOnIssued = flashRows.stream()
                     .anyMatch(r -> FlashLedger.POWER_ON.equals(r.flashFailureReason()));
             if (!powerOnIssued) {
-                return new StageView("전원 투입 대기(다음 워커 주기)", null);   // 2행
+                return new StageView("전원을 곧 켭니다", null);   // 2행
             }
-            return new StageView("전원 투입 — 게스트 복귀 대기", flashTimeoutPolicy.remainingMinutes(
+            return new StageView("전원을 켰습니다. 서버 복귀를 기다리는 중", flashTimeoutPolicy.remainingMinutes(
                     context.returnWaitSince(), flashTimeoutPolicy.returnLimit(), now));   // 3행
         }
-        return new StageView("게스트 복귀 — 반영 확인 대기(다음 워커 주기)", null);   // 4행
+        return new StageView("버전을 곧 확인합니다", null);   // 4행
     }
 
     /** 워커 하트비트 문자열(E2-4 Q2) — "HH:mm:ss 확인 — …". 재기동 직후엔 null(다음 주기가 채운다). */
     private String observationTextOf(UUID serverId) {
         return workerObservations.latestOf(serverId)
-                .map(o -> o.at().format(OBSERVATION_TIME) + " 확인 — " + o.note())
+                .map(o -> o.at().format(OBSERVATION_TIME) + " 확인: " + o.note())
                 .orElse(null);
     }
 
@@ -759,7 +756,7 @@ public class GuestServerQueryService {
         // 굽는 중인 축에만 BMC 진행률(인메모리 게시판 · 2026-09-17)을 얹는다 — 축은 한 번에 하나만 굽는다.
         Integer percent = state == AxisFlashState.RUNNING
                 ? flashProgressBoard.latestOf(guestId).map(p -> p.percent()).orElse(null) : null;
-        return new GuestServerDetailResponse.AxisFlash(axis.label(), state, display, last.flashDetail(), percent);
+        return new GuestServerDetailResponse.AxisFlash(axis.label(), state, display, ScreenNote.of(last.flashDetail()), percent);
     }
 
     /**
@@ -806,17 +803,17 @@ public class GuestServerQueryService {
             if (axis == SettingAxis.BIOS) {
                 LocalDateTime rebootAt = settingLedger.rebootAtOf(last);
                 if (rebootAt == null) {
-                    stage = "설정 값 쓰는 중(PATCH)";
+                    stage = "설정 값을 쓰는 중";
                 } else if (lastSeenAt != null && lastSeenAt.isAfter(rebootAt)) {
-                    stage = "게스트 복귀 — 값 확인(readback) 대기(다음 워커 주기)";
+                    stage = "재부팅 뒤 설정 값을 확인하는 중";
                 } else {
-                    stage = "재부팅 — 게스트 복귀 대기";
+                    stage = "재부팅 뒤 서버 복귀를 기다리는 중";
                     remain = flashTimeoutPolicy.remainingMinutes(rebootAt, flashTimeoutPolicy.returnLimit(), now);
                 }
             } else {
                 LocalDateTime bondAt = settingLedger.bondAtOf(last);
                 if (bondAt != null) {
-                    stage = "Bond 재구성 — BMC 재접속 대기";
+                    stage = "Bond 재구성 뒤 BMC 재접속을 기다리는 중";
                     remain = flashTimeoutPolicy.remainingMinutes(bondAt, flashTimeoutPolicy.returnLimit(), now);
                 } else {
                     long applied = settingLedger.itemsOf(last).values().stream()
@@ -827,7 +824,7 @@ public class GuestServerQueryService {
             }
         }
         return new GuestServerDetailResponse.AxisSetting(axis.name(), state, stage, remain,
-                itemsProgress, last.displayNote());
+                itemsProgress, ScreenNote.of(last.displayNote()));
     }
 
     /**
@@ -917,10 +914,10 @@ public class GuestServerQueryService {
                 completed.isPresent() && provisioningCompleted,
                 nextPhase,
                 running.or(() -> completed).map(windowsInstallLedger::targetDiskIdOf).orElse(null),   // E4-1-a-6
-                running.or(() -> completed)
-                        .map(row -> basisLabelOf(windowsInstallLedger.diskBasisOf(row)))                // 서빙 뒤 = 원장 meta 의 근거(CP5 O-1)
-                        .orElseGet(() -> resolved.map(WindowsInstallReadinessResolver.Resolved::diskSelection)
-                                .map(this::diskSelectionNoteOf).orElse(null)),                        // HF15-5 — 서빙 전 안내
+                // HF15-5 — 서빙 전 안내만 둔다. 번호의 근거 규칙 표기는 화면에서 뺐다(S22-3 SD-327, 원장 meta 에는 남는다).
+                running.or(() -> completed).isPresent() ? null
+                        : resolved.map(WindowsInstallReadinessResolver.Resolved::diskSelection)
+                                .map(this::diskSelectionNoteOf).orElse(null),
                 completed.map(windowsInstallLedger::diskConfirmationOf).orElse(null),
                 driverSelection.map(com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Selection::summary).orElse(null),
                 driverSelection.map(sel -> sel.entries().stream()
@@ -937,16 +934,16 @@ public class GuestServerQueryService {
         Object mode = m.get("mode");
         Object entry = m.get("entrypoint");
         Object exit = m.get("exitCode");
-        String head = folder == null || "-".equals(folder) ? String.valueOf(mode) : folder + " · " + mode;
+        String head = folder == null || "-".equals(folder) ? String.valueOf(mode) : folder + ", " + mode;
         if (entry != null && !entry.toString().isBlank() && !"-".equals(entry)) {
             head = head + " " + entry;   // HF23 — 한 패키지에 행이 여럿이면 진입점으로 가른다
         }
-        return head + " · 종료 코드 " + exitCodeLabelOf(exit);
+        return head + ", 종료 코드 " + exitCodeLabelOf(exit);
     }
 
     /** HF23 — 실패한 INF 한 줄 "폴더 · 상대경로 · 종료 코드 0xE000024B". */
     private static String failedInfLabelOf(java.util.Map<String, Object> m) {
-        return m.get("folder") + " · " + m.get("path") + " · 종료 코드 " + exitCodeLabelOf(m.get("exitCode"));
+        return m.get("folder") + ", " + m.get("path") + ", 종료 코드 " + exitCodeLabelOf(m.get("exitCode"));
     }
 
     /** 음수(32비트 부호 있는 표기)인 Windows 오류는 16진으로 — 0xE000024B 처럼 문서 표기와 대조할 수 있게. 그 밖은 10진. */
@@ -969,17 +966,9 @@ public class GuestServerQueryService {
         }
         return switch (sel.confidence()) {
             case DEFERRED -> sel.note();
-            case CONFIDENT -> "디스크 " + sel.diskId()
-                    + (sel.basis() == null ? "" : " · " + sel.basis().label());
+            case CONFIDENT -> "디스크 " + sel.diskId();
             case BLOCKED -> null;
         };
-    }
-
-    /** 번호의 근거 표기 — 서빙 전(판정 결과)과 서빙 뒤(원장 meta) 가 같은 문구를 쓴다. 근거 미상(구 행)은 null. */
-    private static String basisLabelOf(String basisWire) {
-        com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis basis =
-                com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.fromWire(basisWire);
-        return basis == null ? null : basis.label();
     }
 
     private static GuestServerDetailResponse.FirmwarePlan.Axis axisOf(AxisResolution axis, String label) {

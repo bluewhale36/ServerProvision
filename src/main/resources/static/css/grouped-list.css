@@ -53,7 +53,7 @@
 }
 
 .n-glist-hint {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--n-text-muted);
 }
 
@@ -65,14 +65,14 @@
 /* ---- 안쪽 판 ----
    접힘이 필요 없는 목록(그룹 상세의 멤버)은 아코디언 대신 이것을 쓴다. */
 .n-glist-panel {
-    background: #fff;
+    background: var(--n-surface);
     border-radius: var(--n-radius-lg);
     overflow: hidden;
 }
 
 /* 아코디언을 안쪽 묶음으로 쓸 때도 같은 흰 판이 된다 */
 .n-glist > .n-accordion > .n-accordion-item {
-    background: #fff;
+    background: var(--n-surface);
 }
 
 /* ---- 안쪽 묶음 제목 옆의 요약 ----
@@ -81,7 +81,7 @@
 .n-glist-label {
     margin-left: 18px;
     color: var(--n-text-muted);
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-weight: 400;
 }
 
@@ -91,7 +91,7 @@
    여백 있는 셀과 '수집 전' 처럼 여백 없는 셀이 한 열에서 갈렸다). */
 .n-spec-cell {
     color: var(--n-text-muted);
-    font-size: 12.5px;
+    font-size: 13.5px;
 }
 
 /* ---- 링크 머리 아코디언 ----

@@ -42,7 +42,7 @@ public enum DriftHandlingAction {
 	 * [다시 점검] 이 해소를 확인해 닫힘. 시스템이 무언가를 바꾼 것이 아니라 이미 해소된 것을
 	 * 확인한 것이므로 되돌릴 대상이 없다.
 	 */
-	RECHECK_RESOLVED("다시 점검 — 해소 확인") {
+	RECHECK_RESOLVED("다시 점검(해소 확인)") {
 		@Override
 		public boolean reversibleFor(DriftKind kind) {
 			return false;
@@ -94,7 +94,7 @@ public enum DriftHandlingAction {
 	 * 점검이 그 종류를 커버했는데 더 이상 발견되지 않아 자동으로 닫힘. 운영자가 파일을 직접
 	 * 되돌려 놓은 경우가 대표적이다. 시스템이 바꾼 것이 없으므로 되돌릴 대상이 없다.
 	 */
-	SCAN_UNOBSERVED("점검에서 사라짐 — 자동 해소") {
+	SCAN_UNOBSERVED("점검 미관측(자동 해소)") {
 		@Override
 		public boolean reversibleFor(DriftKind kind) {
 			return false;
@@ -108,7 +108,7 @@ public enum DriftHandlingAction {
 	 * 읽히지만, 재분류는 같은 사건이 다른 이름으로 계속되는 것이다. 시스템이 바꾼 것이 없으므로
 	 * 되돌릴 대상은 없다.
 	 */
-	SUPERSEDED("재분류로 이어짐") {
+	SUPERSEDED("재분류(승계)") {
 		@Override
 		public boolean reversibleFor(DriftKind kind) {
 			return false;

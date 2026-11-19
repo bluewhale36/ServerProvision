@@ -1,19 +1,19 @@
 package com.example.serverprovision.management.os.service.iso;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.management.common.nudge.IntentMetaNudgePayload;
 import com.example.serverprovision.management.common.nudge.NudgeRegistry;
 import com.example.serverprovision.management.common.nudge.NudgeResourceType;
 import com.example.serverprovision.management.common.nudge.NudgeSession;
 import com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry;
 import com.example.serverprovision.management.common.nudge.dto.NudgeRequiredResponse;
+import com.example.serverprovision.management.common.util.UploadPathResolver;
 import com.example.serverprovision.management.os.dto.request.IsoUploadIntentRequest;
 import com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.exception.*;
+import com.example.serverprovision.management.os.exception.DuplicateISOContentException;
 import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
-import com.example.serverprovision.management.common.util.UploadPathResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -61,7 +61,7 @@ public class IsoUploadIntentService {
 		String resolvedPath = UploadPathResolver.resolve(
 				rawPath,
 				filename,
-				p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + p)
+				p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + p)
 		);
 
 		// 하드 블록 : 같은 OS 의 동일 경로에 활성 ISO 가 이미 등록됨 (DB 차원)
@@ -69,32 +69,13 @@ public class IsoUploadIntentService {
 				.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(osMetadataId, resolvedPath);
 		if (existingSamePath.isPresent()) {
 			throw new IsoUploadIntentConflictException(
-					"같은 경로에 이미 등록된 ISO 가 있습니다 : " + resolvedPath);
+					"같은 경로에 이미 등록된 ISO 가 있습니다: " + resolvedPath);
 		}
 
-		// MK2 WAVE 2 — 단계 A path nudge : 같은 (osMetadataId, isoPath) 의 soft-deleted/Deprecated → NUDGE_REQUIRED.
-		List<ISO> pathNudgeCandidates = isoRepository.findIntentPathNudgeCandidates(osMetadataId, resolvedPath);
-		if (!pathNudgeCandidates.isEmpty()) {
-			NudgeSession session = registerIntentNudge(osMetadataId, resolvedPath, request, pathNudgeCandidates);
-			throw new IsoNudgeRequiredException(
-					"동일한 경로의 ISO 가 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
-					NudgeRequiredResponse.of(session.nudgeId(), toConflictEntries(pathNudgeCandidates), session.expiresAt())
-			);
-		}
-
-		// MK2 WAVE 3 — Phase 2 (client hash 동봉) : hash 매칭 nudge.
-		if (request.clientHash() != null && !request.clientHash().isBlank()) {
-			List<ISO> hashCandidates = isoRepository.findIntentHashNudgeCandidates(osMetadataId, request.clientHash());
-			if (!hashCandidates.isEmpty()) {
-				NudgeSession session = registerIntentNudge(osMetadataId, resolvedPath, request, hashCandidates);
-				throw new IsoNudgeRequiredException(
-						"동일한 내용의 ISO 가 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
-						NudgeRequiredResponse.of(session.nudgeId(), toConflictEntries(hashCandidates), session.expiresAt())
-				);
-			}
-			// hash 비매칭 — 정상 진행 (아래 token 발급)
-		} else {
-			// MK2 WAVE 3 — Phase 1 (hash 미동봉) : 휴지통 / Deprecated ISO 1건 이상이면 client 에 hash 계산 요청.
+		// HF30-2 — 내용 판정을 경로 창보다 먼저 한다. 같은 OS 에 휴지통 · Deprecated ISO 가 하나라도 있으면 지문(SHA-256)을 먼저 받고,
+		// 지문이 오면 같은 경로 · 같은 내용의 휴지통 후보를 한 창에 묻는다. 종전에는 경로 창 [그래도 등록] 뒤 재발급이 지문을 버려
+		// 내용 판정을 건너뛰었고, 그 공백을 배경 단계의 휴지통 창이 메웠지만 그 창은 화면에 연결되지 않았다(docs C-17).
+		if (request.clientHash() == null || request.clientHash().isBlank()) {
 			List<ISO> hashCheckCandidates = isoRepository.findIntentHashCheckCandidates(osMetadataId);
 			if (!hashCheckCandidates.isEmpty()) {
 				log.info(
@@ -106,6 +87,16 @@ public class IsoUploadIntentService {
 						"SHA-256"
 				);
 			}
+		} else {
+			assertContentAvailable(osMetadataId, request.clientHash());
+			List<ISO> trashCandidates = collectTrashCandidates(osMetadataId, resolvedPath, request.clientHash());
+			if (!trashCandidates.isEmpty()) {
+				NudgeSession session = registerIntentNudge(osMetadataId, resolvedPath, request, trashCandidates);
+				throw new IsoNudgeRequiredException(
+						"같은 경로나 같은 내용의 ISO 가 휴지통에 있습니다. 진행 방법을 선택해야 합니다.",
+						NudgeRequiredResponse.of(session.nudgeId(), toConflictEntries(trashCandidates), session.expiresAt())
+				);
+			}
 		}
 
 		// 하드 블록 : 파일시스템 상 동일 이름 파일이 실재 — 덮어쓰기 방지
@@ -114,7 +105,7 @@ public class IsoUploadIntentService {
 		// 소프트 경고 수집
 		List<String> warnings = new ArrayList<>();
 		if (size == 0) {
-			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+			warnings.add("파일 크기가 0입니다. 업로드하기 전에 파일을 확인해야 합니다.");
 		}
 
 		String token = UUID.randomUUID().toString();
@@ -163,24 +154,24 @@ public class IsoUploadIntentService {
 				}
 			}
 		} catch (java.nio.file.InvalidPathException e) {
-			throw new IsoUploadIntentConflictException("ISO 경로 형식이 올바르지 않습니다 : " + resolvedPath);
+			throw new IsoUploadIntentConflictException("ISO 경로 형식이 올바르지 않습니다: " + resolvedPath);
 		}
 	}
 
 	public Intent consume(Long osMetadataId, String token) {
 		if (token == null || token.isBlank()) {
-			throw new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로고침 후 다시 시도하세요.");
+			throw new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		Intent intent = intents.remove(token);
 		if (intent == null) {
 			throw new InvalidUploadTokenException("만료되었거나 유효하지 않은 업로드 토큰입니다.");
 		}
 		if (!intent.osMetadataId().equals(osMetadataId)) {
-			throw new InvalidUploadTokenException("토큰과 요청 OS 가 일치하지 않습니다.");
+			throw new InvalidUploadTokenException("업로드 토큰의 OS 버전이 요청과 다릅니다.");
 		}
 		Duration age = Duration.between(intent.issuedAt(), Instant.now());
 		if (age.compareTo(TTL) > 0) {
-			throw new InvalidUploadTokenException("업로드 토큰이 만료되었습니다. 다시 시도해주세요.");
+			throw new InvalidUploadTokenException("업로드 토큰이 만료되었습니다. 다시 시도해야 합니다.");
 		}
 		return intent;
 	}
@@ -207,18 +198,18 @@ public class IsoUploadIntentService {
 		String resolvedPath = UploadPathResolver.resolve(
 				request.isoPath(),
 				request.filename(),
-				p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + p)
+				p -> new IsoUploadIntentConflictException("경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + p)
 		);
 
 		// 활성 동일 경로 race 방어 재검사
 		if (isoRepository.findFirstByOsMetadata_IdAndIsoPathAndIsDeletedFalse(osMetadataId, resolvedPath).isPresent()) {
 			throw new IsoUploadIntentConflictException(
-					"같은 경로에 이미 등록된 ISO 가 있습니다 : " + resolvedPath);
+					"같은 경로에 이미 등록된 ISO 가 있습니다: " + resolvedPath);
 		}
 
 		List<String> warnings = new ArrayList<>();
 		if (request.size() == 0) {
-			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+			warnings.add("파일 크기가 0입니다. 업로드하기 전에 파일을 확인해야 합니다.");
 		}
 
 		String token = UUID.randomUUID().toString();
@@ -229,6 +220,25 @@ public class IsoUploadIntentService {
 				)
 		);
 		return new IsoUploadIntentResponse.IntentTokenIssued(token, warnings);
+	}
+
+	/**
+	 * 같은 OS 에 내용이 같은 살아 있는 ISO(활성 · Deprecated)가 있으면 상태별 안내로 409(HF30-2). 배경 등록 단계도 같은 판정을
+	 * 경합 안전망으로 다시 한다({@link IsoRegistrationService#finalize}).
+	 */
+	private void assertContentAvailable(Long osMetadataId, String manifestHash) {
+		IsoGuards.livingSameContent(isoRepository, osMetadataId, manifestHash)
+				.ifPresent(existing -> {
+					throw DuplicateISOContentException.againstRegistration(existing);
+				});
+	}
+
+	/** 같은 OS 의 휴지통 ISO 중 경로가 같거나 내용이 같은 것 — 한 창의 후보(중복 제거, id 순). */
+	private List<ISO> collectTrashCandidates(Long osMetadataId, String resolvedPath, String clientHash) {
+		Map<Long, ISO> byId = new TreeMap<>();
+		isoRepository.findIntentPathNudgeCandidates(osMetadataId, resolvedPath).forEach(iso -> byId.put(iso.getId(), iso));
+		isoRepository.findIntentHashNudgeCandidates(osMetadataId, clientHash).forEach(iso -> byId.put(iso.getId(), iso));
+		return List.copyOf(byId.values());
 	}
 
 	private NudgeSession registerIntentNudge(
@@ -252,14 +262,7 @@ public class IsoUploadIntentService {
 
 	private List<NudgeConflictEntry> toConflictEntries(List<ISO> candidates) {
 		return candidates.stream()
-				.map(c -> new NudgeConflictEntry(
-						c.getId(),
-						LifecycleStage.of(c.isDeprecated(), c.isDeleted()),
-						c.getManifestHash(),
-						c.getOsMetadata().getOsVersion(),
-						c.getIsoPath(),
-						Instant.now()
-				))
+				.map(c -> NudgeConflictEntry.of(c, c.getOsMetadata().getOsVersion(), c.getIsoPath()))
 				.toList();
 	}
 

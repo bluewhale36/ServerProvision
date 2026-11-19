@@ -134,7 +134,7 @@
         try {
             body = await response.clone().json();
         } catch (_) {
-            body = {message: '서버 응답을 해석할 수 없습니다 (HTTP ' + response.status + ').'};
+            body = {message: '서버 응답을 해석할 수 없습니다.'};
         }
         renderResponse(body, opts);
         return body;

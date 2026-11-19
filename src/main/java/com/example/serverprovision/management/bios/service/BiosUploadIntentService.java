@@ -1,12 +1,10 @@
 package com.example.serverprovision.management.bios.service;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.bios.dto.request.BiosUploadIntentRequest;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException;
-import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.common.firmware.exception.InvalidFirmwareFileException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
@@ -31,7 +29,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Stream;
 
 /**
  * BIOS 펌웨어 업로드 Intent 핸드셰이크. 파일 바이트 전송 이전에 하드 조건을 검증하고 1회용 토큰을 발급.
@@ -57,7 +54,7 @@ public class BiosUploadIntentService {
 	private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
 	/**
-	 * MK2 WAVE 2 — intent 시점에 (board, version) 메타 키로 SoftDeleted/Deprecated 자원 사전 검출.
+	 * MK2 WAVE 2 — intent 시점에 (board, version) 메타 키 사전 검출. 살아 있는 자원은 상태별 안내로 막고 휴지통 자원만 창으로 묻는다(HF30-2).
 	 *
 	 * <p>충돌 발견 시 {@link BiosNudgeRequiredException} (단계 A) 으로 throw 해 클라이언트가 파일
 	 * 업로드 자체를 시작하지 않도록 한다. proceed/replace 시 {@link #issueAfterNudge}
@@ -67,16 +64,13 @@ public class BiosUploadIntentService {
 		boardModelRepository.findByIdAndIsDeletedFalse(boardId)
 				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
 
-		// 활성 동일 (board, version) 중복 — 하드 거절
-		if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBiosVersionException(boardId, request.version());
-		}
+		BiosGuards.assertVersionAvailable(biosRepository, boardId, request.version());
 
-		// MK2 WAVE 2 (단계 A) — 메타 충돌 사전 검출. SoftDeleted / Deprecated 모두 conflicts 에 포함.
-		List<BoardBIOS> metaCandidates = collectMetaNudgeCandidates(boardId, request.version());
+		// 같은 (메인보드, 버전)의 휴지통 행만 창으로 묻는다(HF30-2). 살아 있는 행은 위 가드가 상태별 안내로 막았다.
+		List<BoardBIOS> metaCandidates = biosRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, request.version());
 		if (!metaCandidates.isEmpty()) {
 			throw new BiosNudgeRequiredException(
-					"동일한 (보드, 버전) 의 자원이 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+					"같은 메인보드와 버전의 BIOS 가 휴지통에 있습니다. 진행 방법을 선택해야 합니다.",
 					registerIntentNudge(boardId, request, metaCandidates),
 					toConflictEntries(metaCandidates)
 			);
@@ -94,9 +88,7 @@ public class BiosUploadIntentService {
 		BoardModel board = boardModelRepository.findByIdAndIsDeletedFalse(boardId)
 				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
 
-		if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBiosVersionException(boardId, request.version());
-		}
+		BiosGuards.assertVersionAvailable(biosRepository, boardId, request.version());
 
 		// R12-1 — 경로 해석 + 파일명 정책 하드 검증 (파일 바이트 전송 전 조기 차단). 정책은 vendor 별 strategy.
 		//         intent 는 업로드 전용이므로 디렉토리 추론(끝 슬래시 또는 점 없는 마지막 세그먼트)을 적용한다.
@@ -105,7 +97,7 @@ public class BiosUploadIntentService {
 				request.fileName(),
 				biosFirmwareFilePolicy.allowedExtensions(board.getVendor()),
 				path -> new InvalidFirmwareFileException(
-						"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + path, "firmwarePath")
+						"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + path, "firmwarePath")
 		);
 		biosFirmwareFilePolicy.assertAllowed(board.getVendor(), request.fileName(), "firmwareFile");
 
@@ -117,7 +109,7 @@ public class BiosUploadIntentService {
 		// 소프트 경고 수집
 		List<String> warnings = new ArrayList<>();
 		if (request.fileSize() == 0) {
-			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인해야 합니다.");
 		}
 
 		String token = UUID.randomUUID().toString();
@@ -138,13 +130,6 @@ public class BiosUploadIntentService {
 		return new BiosUploadIntentResponse(token, warnings, null);
 	}
 
-	private List<BoardBIOS> collectMetaNudgeCandidates(Long boardId, String version) {
-		return Stream.concat(
-						biosRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, version).stream(),
-						biosRepository.findAllByBoardModel_IdAndVersionAndIsDeprecatedTrueAndIsDeletedFalse(boardId, version).stream()
-				)
-				.toList();
-	}
 
 	private NudgeSession registerIntentNudge(Long boardId, BiosUploadIntentRequest request, List<BoardBIOS> candidates) {
 		Map<String, String> attributes = new HashMap<>();
@@ -164,14 +149,7 @@ public class BiosUploadIntentService {
 
 	private List<NudgeConflictEntry> toConflictEntries(List<BoardBIOS> candidates) {
 		return candidates.stream()
-				.map(b -> new NudgeConflictEntry(
-						b.getId(),
-						LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
-						b.getManifestHash(),
-						b.getName(),
-						b.getVersion(),
-						Instant.now()
-				))
+				.map(b -> NudgeConflictEntry.of(b, b.getName(), b.getVersion()))
 				.toList();
 	}
 
@@ -191,18 +169,18 @@ public class BiosUploadIntentService {
 
 	public Intent consume(Long boardId, String token) {
 		if (token == null || token.isBlank()) {
-			throw new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로고침 후 다시 시도하세요.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		Intent intent = intents.remove(token);
 		if (intent == null) {
-			throw new InvalidUploadTokenException("만료되었거나 유효하지 않은 업로드 토큰입니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 만료되었거나 올바르지 않습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (!intent.boardId().equals(boardId)) {
-			throw new InvalidUploadTokenException("토큰과 요청 메인보드가 일치하지 않습니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보의 메인보드가 요청과 다릅니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		Duration age = Duration.between(intent.issuedAt(), Instant.now());
 		if (age.compareTo(TTL) > 0) {
-			throw new InvalidUploadTokenException("업로드 토큰이 만료되었습니다. 다시 시도해주세요.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 만료되었습니다. 다시 시도해야 합니다.");
 		}
 		return intent;
 	}

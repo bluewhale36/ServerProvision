@@ -20,6 +20,7 @@ import com.example.serverprovision.management.os.repository.OSMetadataRepository
 import com.example.serverprovision.management.os.repository.OSPackageGroupRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,10 +32,9 @@ import java.util.stream.Collectors;
  * A1 페이지의 OSMetadata 부모 도메인 로직 총괄. 조회 + 등록 충돌 invariant 판단을 책임진다.
  * A1-1 에서 환경·패키지 그룹 응답 조립까지 책임을 확장한다.
  *
- * <p>R1-6 — {@link #create(OSMetadataCreateRequest)} 의 등록 충돌 invariant 판단 (ACTIVE 단독 → Duplicate /
- * DEPRECATED|SOFT_DELETED → Nudge / row 0 → save) 만 잔류하고, nudge payload 조립 + 신규 row 영속화는
- * {@link OSMetadataNudgeService} 로 위임한다 (부모 → nudge 단방향). nudge confirm (proceed / replace) 의
- * 영속화 역시 {@link OSMetadataNudgeService} 가 self-contained 로 처리한다.</p>
+ * <p>HF30-1 — {@link #create(OSMetadataCreateRequest)} 는 같은 (OSName, osVersion) 이 어느 상태로든 있으면 거절하고 상태별
+ * 다음 행동을 안내한다(메인보드 HF26 과 같은 규칙). 종전 중복 확인 창(OSMetadataNudgeService)은 창 조건과 [그래도 등록]
+ * 조건이 어긋나 Deprecated 가 끼면 항상 실패했다 — OS 버전은 키가 곧 정체라 '같은 것을 하나 더' 가 성립하지 않아 창을 없앴다.</p>
  */
 @Slf4j
 @Service
@@ -48,12 +48,9 @@ public class OSMetadataService {
 	private final OSPackageGroupRepository grpRepository;
 	private final BackgroundJobService backgroundJobService;
 	private final PathPolicyService pathPolicyService;
-	// R1-6 — nudge 발화 payload 조립 + 신규 row 영속화는 OSMetadataNudgeService 로 위임 (부모 → nudge 단방향).
-	private final OSMetadataNudgeService osMetadataNudgeService;
 	// R1-4-2 — fileSystemHardener / postCreationTaskStrategies / isoLifecycleService 의존은
 	//          IsoRegistrationService 로 이동.
 	// R1-4-3 — markerService 의존은 IsoIntegrityService 로 이동. 본 service 는 OSMetadata 부모 도메인 만 담당.
-	// R1-6 — nudgeRegistry 의존은 OSMetadataNudgeService 로 이동. 본 service 는 등록 충돌 invariant 판단만 담당.
 
 	// ==== 조회 ========================================================
 
@@ -81,6 +78,7 @@ public class OSMetadataService {
 				? osMetadataRepository.findAllByOrderByOsNameAscCreatedAtDesc()
 				: osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()).stream()
 				.filter(img -> query.matches(img, img.getOsName().getDisplayName(), img.getOsVersion(), img.getDescription()))
+				.sorted(OSMetadata.CATALOG_ORDER)   // S23-1 — 묶음 순서는 OS 상수 선언 순서
 				.toList();
 
 		Map<OSName, List<OSMetadata>> byName = images.stream().collect(
@@ -105,49 +103,32 @@ public class OSMetadataService {
 	// ==== OS 메타데이터 쓰기 연산 ==========================================
 
 	/**
-	 * R1-1 — 동일 (OSName, osVersion) row 를 단일 쿼리로 전부 조회 후 {@link LifecycleStage} 로 그룹핑.
-	 * 옛 흐름의 4 round-trip (exists + activeDeprecated + softDeleted + deprecated 재조회) 을 1 round-trip 으로 환원.
-	 *
-	 * <p>분기 정의 (안 B — Duplicate ⇔ 순수 ACTIVE 단독) :
-	 * <ul>
-	 *   <li>ACTIVE 만 존재 (DEPRECATED 0 + SOFT_DELETED 0) → 활성 단순 충돌 fail-fast (Duplicate)</li>
-	 *   <li>DEPRECATED 또는 SOFT_DELETED 회수 후보 ≥ 1 → nudge 분기 (사용자에게 회수 시그널 노출)</li>
-	 *   <li>row 0 → save</li>
-	 * </ul>
-	 * 옛 흐름 대비 의도 변경 : ACTIVE + SOFT_DELETED 혼합 케이스가 Duplicate 가 아닌 Nudge 로 환원.
-	 * 사용자가 같은 키로 새 등록을 시도할 때 "휴지통에 같은 자원이 있다" 는 회수 시그널을 받도록 한다.
+	 * 등록 — 같은 (OSName, osVersion) 이 활성 · Deprecated · 휴지통 어느 상태로든 있으면 거절하고 상태별로 다음 행동을 안내한다(HF30-1).
+	 * DB UNIQUE({@code uk_os_metadata_name_version})가 같은 규칙의 안전망이다. UNIQUE 이전의 옛 데이터에 같은 키가 여럿 남아 있으면
+	 * 가장 살아 있는 상태(활성 → Deprecated → 휴지통)를 기준으로 안내한다.
 	 */
 	@Transactional
 	public Long create(OSMetadataCreateRequest request) {
-		Map<LifecycleStage, List<OSMetadata>> byStage = osMetadataRepository
-				.findAllByOsNameAndOsVersion(request.osName(), request.osVersion())
-				.stream()
-				.collect(Collectors.groupingBy(
-						m -> LifecycleStage.of(m.isDeprecated(), m.isDeleted()),
-						() -> new EnumMap<>(LifecycleStage.class),
-						Collectors.toList()
-				));
-
-		boolean hasActive = byStage.containsKey(LifecycleStage.ACTIVE);
-		boolean hasDeprecated = byStage.containsKey(LifecycleStage.DEPRECATED);
-		boolean hasSoftDeleted = byStage.containsKey(LifecycleStage.SOFT_DELETED);
-
-		if (hasActive && !hasDeprecated && !hasSoftDeleted) {
+		osMetadataRepository.findAllByOsNameAndOsVersion(request.osName(), request.osVersion()).stream()
+				.min(Comparator.comparing(m -> LifecycleStage.of(m.isDeprecated(), m.isDeleted())))
+				.ifPresent(existing -> {
+					throw DuplicateOSMetadataException.againstRegistration(existing);
+				});
+		OSMetadata toSave = OSMetadata.builder()
+				.osName(request.osName())
+				.osVersion(request.osVersion())
+				.description(request.description())
+				.build();
+		try {
+			// flush 로 UNIQUE 위반을 이 자리에서 드러낸다 — 커밋 시점까지 미루면 번역할 곳 없이 500 으로 샌다.
+			return osMetadataRepository.saveAndFlush(toSave).getId();
+		} catch (DataIntegrityViolationException e) {
+			// 이중 제출 · 두 탭의 동시 등록 — 위 검사를 함께 통과한 뒤 DB UNIQUE 가 뒤늦은 쪽을 거절했다.
+			// 경합 상대는 방금 생긴 활성 행이라 활성 문구가 맞다.
+			log.info("[osMetadata] 동시 등록 경합 — DB 유일성 인덱스가 거절. osName={}, osVersion={}",
+					request.osName(), request.osVersion());
 			throw new DuplicateOSMetadataException(request.osName(), request.osVersion());
 		}
-		if (hasDeprecated || hasSoftDeleted) {
-			List<OSMetadata> deprecated = byStage.getOrDefault(LifecycleStage.DEPRECATED, List.of());
-			List<OSMetadata> softDeleted = byStage.getOrDefault(LifecycleStage.SOFT_DELETED, List.of());
-			List<OSMetadata> candidates = new ArrayList<>(deprecated.size() + softDeleted.size());
-			candidates.addAll(deprecated);
-			candidates.addAll(softDeleted);
-			// R1-6 — payload 조립 + 세션 등록은 nudge 서비스로 위임 (부모 → nudge 정방향).
-			throw new OSMetadataNudgeRequiredException(
-					osMetadataNudgeService.buildNudgePayload(request, candidates));
-		}
-		// R1-6 — 정상 등록도 nudge 서비스의 persistNew 를 위임 (create happy-path 와 nudge proceed 가 persist 로직 공유).
-		return osMetadataNudgeService.persistNew(
-				request.osName(), request.osVersion(), request.description());
 	}
 
 	/**
@@ -161,10 +142,7 @@ public class OSMetadataService {
 		image.update(request.description());
 	}
 
-	// R1-6 — buildOSMetadataNudgePayload / persistNewOSMetadata / completePendingOSMetadataFromNudge /
-	//        purgeOSMetadataForNudge 는 {@link OSMetadataNudgeService} 로 이동 (nudge 영속화 흡수).
-	//        create() 는 invariant 판단만 잔류하고 발화·persist 를 nudge 서비스로 위임.
-	// R1-3 — toggleEnabled / softDelete / restore (×2) / deprecate / undeprecate / purgeWithTypedNameCheck / purge
+	// R1-3 — toggleEnabled / softDelete / restore (×2) / deprecate / undeprecate / purge
 	//        는 {@link OSMetadataLifecycleService} 로 이동.
 	// R1-4-1 — purgeIsoWithTypedNameCheck / purgeIso 도 {@link IsoLifecycleService} 로 이동. ISO lifecycle 책임 전부 분리.
 	// R1-4-2 — addISO / prepareIsoRegistration (×2) / finalizePreparedIsoRegistration / completePendingIsoFromNudge /
@@ -260,7 +238,7 @@ public class OSMetadataService {
 		ISO iso = isoRepository.findByIdAndOsMetadata_Id(isoId, osMetadataId)
 				.orElseThrow(() -> new ISONotFoundException(osMetadataId, isoId));
 		if (iso.isDeleted()) {
-			throw new IllegalOSMetadataStateException("삭제된 ISO 에는 수행할 수 없는 작업입니다. isoId=" + isoId);
+			throw new IllegalOSMetadataStateException("삭제된 ISO 에는 수행할 수 없는 작업입니다. id=" + isoId);
 		}
 		return iso;
 	}

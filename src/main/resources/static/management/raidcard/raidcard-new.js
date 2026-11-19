@@ -1,11 +1,11 @@
 /**
- * MA7 — RAID 카드 신규 등록 폼의 XHR 제출 + nudge modal 연결 (board-new.js 선례).
+ * MA7 — RAID 카드 신규 등록 폼의 XHR 제출 (board-new.js 선례).
  *
  * 흐름:
  *  - submit → fetch POST /management/raidcard (Accept: application/json)
  *  - 200 + { redirect } → 그 URL 로 navigate
  *  - 400 + ApiErrorResponse + fieldErrors → FormError.renderResponse 로 inline 메시지
- *  - 409 + { code: NUDGE_REQUIRED, nudgeId, conflicts } → NudgeModal.handle
+ *  - 409 → 모델명 칸에 상태별 다음 행동 안내(HF30-1 — 메인보드 HF26 과 같은 규칙, 중복 확인 창은 없앴다)
  */
 (function () {
     'use strict';
@@ -47,25 +47,15 @@
                         window.location.href = (body && body.redirect) || '/management/raidcard';
                         return;
                     }
-                    if (status === 409 && body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
-                        window.NudgeModal.handle(body, {
-                            baseUrl: '/management/raidcard/nudge',
-                            listUrl: '/management/raidcard',
-                            toastKey: 'raidcard.toast',
-                            onError: showBanner,
-                            afterCancel: () => showBanner('등록을 취소했습니다.')
-                        });
-                        return;
-                    }
                     if (body && window.FormError) {
                         window.FormError.renderResponse(body, {root: form});
                         return;
                     }
-                    showBanner((body && body.message) || ('HTTP ' + status));
+                    showBanner((body && body.message) || '요청을 처리하지 못했습니다.');
                 })
                 .catch(err => {
                     console.error(TAG, err);
-                    showBanner(err.message || '요청 처리 중 오류가 발생했습니다.');
+                    showBanner('서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.');
                 });
         }
     });

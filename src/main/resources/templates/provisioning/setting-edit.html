@@ -20,6 +20,7 @@
 <head>
     <th:block th:replace="~{fragments/layout :: commonHead('세팅 정의서 수정')}"></th:block>
     <link rel="stylesheet" th:href="@{/css/accordion.css}">
+    <link rel="stylesheet" th:href="@{/css/miller.css}">
     <link rel="stylesheet" th:href="@{/provisioning/setting.css}">
     <!-- 기존 데이터 주입 — setting-form.js 의 edit pre-fill 이 JSON.parse 해 사용한다 -->
     <script th:inline="javascript">
@@ -35,9 +36,9 @@
 <div class="n-page-lg">
     <div class="n-page-header">
         <div>
-            <a th:href="@{/provisioning/setting/{id}(id=${setting.id})}" class="n-back-link">← 상세로</a>
+            <a th:href="@{/provisioning/setting/{id}(id=${setting.id})}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>상세로</a>
             <h1 class="n-page-title n-page-title-stacked">
-                세팅 정의서 수정 — <span th:text="${setting.name}">정의서 명칭</span>
+                세팅 정의서 수정: <span th:text="${setting.name}">정의서 명칭</span>
             </h1>
         </div>
     </div>

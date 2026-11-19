@@ -71,7 +71,7 @@ class SettingControllerDiskGroupViewTest {
         return new RHELInstallationRequest(1L, 100L,
                 new TimezoneRequest("Asia/Seoul", true),
                 List.of(new PartitionRequest("/", FileSystem.XFS, 0L, SizeUnit.GB, true)),
-                new RootPasswordRequest("root-secret", false, false), List.of(), 1L, List.of(), false, null);
+                new RootPasswordRequest("root-secret", null, false, false), List.of(), 1L, List.of(), false, null);
     }
 
     private static List<DiskGroupRuleRequest> twoRules() {
@@ -108,7 +108,7 @@ class SettingControllerDiskGroupViewTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("GIGABYTE CRA3338")))
                 .andExpect(content().string(containsString(">RAID1<")))
-                .andExpect(content().string(containsString(">RAID 없음<")))
+                .andExpect(content().string(containsString(">RAID 미구성<")))
                 .andExpect(content().string(containsString("480 GB")))
                 .andExpect(content().string(containsString(">2개<")))
                 .andExpect(content().string(containsString(">1개 이상<")))
@@ -133,7 +133,7 @@ class SettingControllerDiskGroupViewTest {
                 .andExpect(content().string(containsString("<th>순위</th>")))
                 .andExpect(content().string(containsString("class=\"n-rank\">1</span>")))
                 .andExpect(content().string(containsString("class=\"n-rank\">2</span>")))
-                .andExpect(content().string(containsString("위 규칙부터 순서대로 디스크를 가져가고")))
+                .andExpect(content().string(not(containsString("위 규칙부터 순서대로 디스크를 가져가고"))))   // S22-3 — 사용법 설명은 문서 몫
                 .andExpect(content().string(containsString(">2개<")))
                 .andExpect(content().string(containsString(">3개씩<")));
     }
@@ -154,7 +154,7 @@ class SettingControllerDiskGroupViewTest {
         org.assertj.core.api.Assertions.assertThat(html)
                 .contains("<th>순위</th>")
                 .contains("n-rank dgRank")
-                .contains("위 규칙부터 순서대로 디스크를 가져가고, 남은 디스크는 아래 규칙으로 흐릅니다.")
+                .doesNotContain("위 규칙부터 순서대로 디스크를 가져가고")   // S22-4 — 동작 설명은 문서 몫
                 .contains("행 순서 = 적용 순서");
     }
 
@@ -169,14 +169,16 @@ class SettingControllerDiskGroupViewTest {
     }
 
     @Test
-    @DisplayName("GET /{id} — 카드 · 묶음이 없는 구 형식 정의서는 '지정 안 함' · '설정 안 함' 문구")
+    @DisplayName("GET /{id} — 카드 · 묶음이 없는 구 형식 정의서는 카드 '미지정' · 묶음 '미지정(RAID 구성 유지)' 문구(HF32)")
     void detail_rendersUnsetState() throws Exception {
         given(queryService.findDetail(1L)).willReturn(detail(raid(null, List.of()), Map.of()));
 
         mvc.perform(get("/provisioning/setting/{id}", 1L))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("지정 안 함")))
-                .andExpect(content().string(containsString("설정 안 함")));
+                .andExpect(content().string(containsString("미지정")))
+                .andExpect(content().string(containsString("미지정(RAID 구성 유지)")))
+                // 묶음이 없으면 기존 구성 처리는 선택 대상이 아니라 '-'(구 저장본 안내 없음, HF32 CP5 O-7)
+                .andExpect(content().string(not(containsString("구 저장본입니다"))));
     }
 
     // ==== 작성 · 수정 폼 =======================================================================
@@ -185,18 +187,18 @@ class SettingControllerDiskGroupViewTest {
     @DisplayName("GET /new — 카드 선택지 optgroup · 판정 재료 JSON(raidCardMetaJson) · 카드 메타 memberRules · 스팬 select 렌더(R17-1)")
     void newForm_rendersRaidCardOptionsAndJudgmentMaterial() throws Exception {
         given(queryService.findRaidCardOptions()).willReturn(List.of(new SettingRaidCardOptionGroupResponse("GIGABYTE",
-                List.of(new SettingRaidCardOptionResponse(1L, "CRA3338", "GIGABYTE CRA3338", false, "없음",
-                        List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0 · RAID1",
-                        Map.of(RaidLevel.RAID5, "RAID5 를 만들 수 없는 카드입니다 — 지원하는 RAID 레벨은 RAID0 · RAID1 입니다."),
+                List.of(new SettingRaidCardOptionResponse(1L, "CRA3338", "GIGABYTE CRA3338", false, "미탑재",
+                        List.of(RaidLevel.RAID0, RaidLevel.RAID1), "RAID0, RAID1",
+                        Map.of(RaidLevel.RAID5, "RAID5 를 만들 수 없는 카드입니다: 지원하는 RAID 레벨은 RAID0, RAID1 입니다."),
                         false, null, null, "MPT_IR", false,
                         Map.of(RaidLevel.RAID0, new SettingRaidCardOptionResponse.MemberRuleView(2, 10, 1, "2~10대")),
-                        Map.of())))));
+                        Map.of(), 2)))));
 
         mvc.perform(get("/provisioning/setting/new"))
                 .andExpect(status().isOk())
                 .andExpect(model().attributeExists("raidCardOptions", "raidCardMetaJson", "raidLevels",
                         "diskTypes", "diskTransports", "diskCapacityUnits", "diskCountModes"))
-                .andExpect(content().string(containsString("GIGABYTE CRA3338 — 캐시 없음 · RAID0 · RAID1")))
+                .andExpect(content().string(containsString("GIGABYTE CRA3338 (캐시 미탑재, RAID0, RAID1, 볼륨 최대 2개)")))
                 .andExpect(content().string(containsString("RAID_CARD_META_JSON")))
                 .andExpect(content().string(containsString("blockReasons")))
                 // R17-1 — 디스크 수 규칙은 카드 메타(memberRules)로 · 스팬 select 선택지는 행 템플릿에(2 · 4 … 32)
@@ -275,13 +277,13 @@ class SettingControllerDiskGroupViewTest {
         given(queryService.findDetail(1L)).willReturn(detail(new RaidConfigurationRequest(7L, List.of(legacyRule), null), Map.of(7L, "GIGABYTE CRA3338")));
         mvc.perform(get("/provisioning/setting/{id}", 1L))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("미지정 (구 저장본")))
+                .andExpect(content().string(containsString("미지정(구 저장본")))
                 .andExpect(content().string(containsString("n-table-muted\">미지정<")));
 
         given(queryService.findDetail(2L)).willReturn(detail(new RaidConfigurationRequest(7L, twoRules(), List.of()), Map.of(7L, "GIGABYTE CRA3338")));
         mvc.perform(get("/provisioning/setting/{id}", 2L))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("없음 — 볼륨은 열거 순서대로 놓입니다")));
+                .andExpect(content().string(containsString("미지정: 볼륨은 열거 순서대로 놓입니다")));
     }
 
     @Test
@@ -297,7 +299,7 @@ class SettingControllerDiskGroupViewTest {
                 .andExpect(content().string(containsString("tplPriorityRow")))
                 .andExpect(content().string(containsString("vpRank")))
                 .andExpect(content().string(containsString("rcResetPriority")))
-                .andExpect(content().string(containsString(">영역 할당 없음<")))
+                .andExpect(content().string(containsString(">영역 미할당<")))
                 .andExpect(content().string(containsString(">큰 용량부터<")))
                 // 우선순위 행 템플릿의 종류 · 전송 select 는 AUTO 를 내리지 않는다(th:if) — 묶음 행 템플릿엔 남아 있다.
                 .andExpect(content().string(containsString("class=\"n-select vpType\">\n                        <option value=\"SSD\"")))
@@ -313,24 +315,24 @@ class SettingControllerDiskGroupViewTest {
 
         mvc.perform(get("/provisioning/setting/{id}", 1L))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("RAID 구성 1번 묶음(RAID1 · SSD · SATA · 480 GB · 2개)이 OS 영역입니다")))
-                .andExpect(content().string(containsString("OS 영역 최소 용량 480 GB · 고정 파티션 합 0 GiB(+ grow)")))
+                .andExpect(content().string(containsString("RAID 구성 1번 묶음(RAID1, SSD, SATA, 480 GB, 2개)이 OS 영역입니다")))
+                .andExpect(content().string(containsString("OS 영역 최소 용량 480 GB, 고정 파티션 합 0 GiB(+ grow)")))
                 .andExpect(content().string(not(containsString("<th>디스크</th>"))));
     }
 
     @Test
-    @DisplayName("GET /{id} — RAID 구성 없이 OS 설치만: 안내 'RAID 구성 단계가 없어 설치기가 디스크를 자동 선택' · 용량 줄 없음")
+    @DisplayName("GET /{id} — RAID 구성 없이 OS 설치만(HF32 이전 저장본): OS 설치 카드에 막힘 안내(is-danger) · 용량 줄 없음")
     void detail_osVolumeTargetNone() throws Exception {
         given(queryService.findDetail(2L)).willReturn(detail(List.of(rhel()), Map.of()));
 
         mvc.perform(get("/provisioning/setting/{id}", 2L))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("RAID 구성 단계가 없어 설치기가 디스크를 자동 선택합니다")))
+                .andExpect(content().string(containsString("n-hint is-danger\">OS 설치 단계가 있으면 RAID 구성 단계에서 OS 영역 볼륨을 정해야 합니다.")))
                 .andExpect(content().string(not(containsString("OS 영역 최소 용량"))));
     }
 
     @Test
-    @DisplayName("GET /new — 파티션 행 템플릿에 pDiskName 없음 · 레벨 옵션 data-usable-a/b(RAID5 = 1 · −1). OS 파티션 안내 줄은 R11 축소로 화면 제외")
+    @DisplayName("GET /new — 파티션 행 템플릿에 pDiskName 없음 · 레벨 옵션 data-usable-a/b(RAID5 = 1 · −1). OS 영역 볼륨 안내 줄은 E4-1-b-2 복원으로 다시 보인다")
     void newForm_noDiskNameAndUsableCoefficients() throws Exception {
         given(queryService.findRaidCardOptions()).willReturn(List.of());
 
@@ -338,11 +340,9 @@ class SettingControllerDiskGroupViewTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("pDiskName"))))
                 .andExpect(content().string(not(containsString("<th>디스크명</th>"))))
-                // R11 — OS 설치 카드가 식별 전용으로 축소되어 파티션 UI(대상 안내 줄 · 에러 필드 ·
-                // 메시지 사전)는 화면에서 제외됐다. U4-1-3 의 안내는 E4 부활 시 git 이력으로 복원되며,
-                // 여기서는 부재를 단언해 잔존 마크업의 재유입(CP5 D1 계열)을 막는다.
-                .andExpect(content().string(not(containsString("oiOsVolumeTargetKind"))))
-                .andExpect(content().string(not(containsString("data-error-field=\"partitionsWithinOsVolume\""))))
+                // E4-1-b-2 — 리눅스 입력 복원으로 U4-1-3 의 OS 영역 볼륨 안내(대상 · 용량 줄 · 에러 필드)가 돌아왔다.
+                .andExpect(content().string(containsString("oiOsVolumeTargetKind")))
+                .andExpect(content().string(containsString("data-error-field=\"partitionsWithinOsVolume\"")))
                 .andExpect(content().string(containsString("data-usable-a=\"1.0\"")))
                 .andExpect(content().string(containsString("data-usable-b=\"-1\"")))
                 .andExpect(content().string(containsString("data-usable-a=\"0.5\"")));

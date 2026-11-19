@@ -14,6 +14,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 public class DhcpConfigInvalidException extends DomainException {
 
     public DhcpConfigInvalidException(String gateOutput) {
-        super("dnsmasq 구성 검증 실패:\n" + gateOutput);
+        super("dnsmasq 문법 검사에 실패했습니다.\n" + gateOutput);
     }
 }

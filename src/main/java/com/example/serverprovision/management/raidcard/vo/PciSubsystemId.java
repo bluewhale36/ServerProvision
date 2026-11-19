@@ -40,7 +40,7 @@ public record PciSubsystemId(
 		}
 		if (vendorId < 0 || vendorId > MAX_16BIT || deviceId < 0 || deviceId > MAX_16BIT) {
 			throw new IllegalArgumentException(
-					"PCI Subsystem ID 는 16비트 범위(0x0000~0xFFFF)여야 합니다 : " + vendorId + ", " + deviceId);
+					"PCI Subsystem ID 는 16비트 범위(0x0000~0xFFFF)여야 합니다: " + vendorId + ", " + deviceId);
 		}
 	}
 
@@ -49,11 +49,11 @@ public record PciSubsystemId(
 	 */
 	public static PciSubsystemId parse(String raw) {
 		if (raw == null || raw.isBlank()) {
-			throw new IllegalArgumentException("PCI Subsystem ID 가 빈 값입니다. 미확인은 null 로 표현하세요.");
+			throw new IllegalArgumentException("PCI Subsystem ID 가 비어 있습니다.");
 		}
 		Matcher m = PAIR_PATTERN.matcher(raw.trim());
 		if (!m.matches()) {
-			throw new IllegalArgumentException("PCI Subsystem ID 형식이 올바르지 않습니다 : " + raw);
+			throw new IllegalArgumentException("PCI Subsystem ID 형식이 올바르지 않습니다(예: 1458:0011): " + raw);
 		}
 		return new PciSubsystemId(Integer.parseInt(m.group(1), 16), Integer.parseInt(m.group(2), 16));
 	}

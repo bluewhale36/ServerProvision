@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-1-b-2 Plan — 정의서 RHEL 활성화</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  td code, th code { overflow-wrap:anywhere; }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; white-space:nowrap; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+  .muted { color:var(--text-muted); }
+
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* .seq — 4 레인(운영자 · 화면 · 서버 · DB) */
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); } .seq .step.a4 { background:var(--purple-bg); }
+
+  /* 🎬 데모 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row > strong { flex:0 0 auto; min-width:7.5em; }
+  .ux-row .label { flex:1 1 auto; min-width:0; display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:var(--border-soft); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--border-soft); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  [data-error="1"] { color:var(--red); }
+  [hidden] { display:none !important; }
+  .ux-wrap input[type=text], .ux-wrap input[type=password], .ux-wrap input[type=number], .ux-wrap select {
+    font:inherit; font-size:12px; padding:3px 6px; border:1px solid var(--border); border-radius:4px; background:var(--card); color:var(--text); max-width:100%; }
+  .ux-wrap input:disabled, .ux-wrap select:disabled { background:var(--border-soft); color:var(--text-muted); }
+  .ux-wrap input[type=number] { width:6em; }
+  .ux-wrap td input[type=text], .ux-wrap td input[type=password] { width:9em; }
+  .ux-wrap label { white-space:nowrap; }
+  .ux-wrap table { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; }
+  .ux-wrap pre { background:var(--card); border:1px solid var(--border-soft); margin:10px 0 0; }
+
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+    .ux-row { flex-wrap:wrap; }
+    .ux-row.child { margin-left:12px; }
+    .ux-wrap td:not(:first-child) { min-width:0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E4-1-b-2 — 정의서 RHEL 활성화 <span class="v2-badge">E4-1-b 하위</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E4-1-b-2 (feature)</span>
+    <span><strong>상위</strong> E4-1-b RHEL Linux 자동 설치</span>
+    <span><strong>브랜치</strong> feat/E4-1-b_rhel-install</span>
+    <span><strong>선행</strong> b-1 설치 트리 (CP6 승인 · eaa39d0)</span>
+    <span><strong>생성</strong> 2026-11-17 12:26 KST</span>
+    <span><strong>CP1</strong> 승인 대기</span>
+    <span><strong>개정</strong> 1 · 2 · 3 (11-17)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 도메인 흐름</a></li>
+      <li><a href="#s1">§1 진단</a></li>
+      <li><a href="#s2">§2 요구 · 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL · 흐름</a></li>
+      <li><a href="#s4">§4 결정 · 도메인 모델</a></li>
+      <li><a href="#s5">§5 화면 모양 · 저장 JSON</a></li>
+      <li><a href="#s6">§6 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 · Open Questions</a></li>
+      <li><a href="#s8-b">§8-b 관리 포인트</a></li>
+      <li><a href="#s9">§9 CP5 · Verification</a></li>
+      <li><a href="#s10">§10 일정 · 12 단계</a></li>
+      <li><a href="#s11">§11 Critical Files</a></li>
+      <li><a href="#s12">§12 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <div class="callout warn">
+      <b>개정 1</b> : OS · ISO 선택을 셀렉트에서 검색 선택기(조회 화면의 보드 검색과 같은 방식)로 바꾼다(사용자 지시).<br>
+      <b>개정 2</b> : root · 사용자 비밀번호의 '암호화된 값' 체크를 없애고, 서버가 저장 때 항상 해시한다(사용자 지시). kickstart 렌더 때 해시하던 이전 결정을 저장 때로 앞당긴다.<br>
+      <b>개정 3</b> : 새 정의서의 RHEL 입력 기본값을 Rocky 설치 프로그램(anaconda)의 기본값에 맞춘다. KDump 는 켜진 채로 시작한다(사용자 지시).<br>
+      <b>개정 4</b> : 앵커 통합 검토(옛 저장본 해석 · KDump 기본값 영향 · 브랜치 병합 시점 · 배포 전 점검 SQL)를 반영했다.<br>
+      <b>개정 5</b> : 기본 파티션은 현행 그대로 두고(Q7), ISO 등록 때 실제 버전을 대조하며(D-20), OS 등록 화면에서 Rocky Linux 를 지원 메이저 버전별로 고르게 한다(D-21)(사용자 결정).<br>
+      <b>개정 6</b> : 새 Rocky 메이저가 나올 때 고칠 곳(관리 포인트 표)과 D-20 의 재추출 경로 처리를 더했다(앵커 요청).
+    </div>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 도메인 흐름 — 정의서가 RHEL 설치에서 맡는 몫</summary>
+      <div class="body">
+        <p>b-2 가 내놓는 것 = <b>운영자가 화면에서 Rocky Linux 8 · 9 · 10 정의서를 만들고 고칠 수 있고, 서버가 같은 판정으로 잘못된 저장을 막는다.</b> b-3 은 이 정의서(<code>RHELInstallationRequest</code>)를 읽어 kickstart 를 만든다.</p>
+        <table>
+          <thead><tr><th>정의서 입력</th><th>kickstart 에서 쓰는 곳 (b-3)</th><th>지금</th></tr></thead>
+          <tbody>
+            <tr><td>설치할 OS · 설치 ISO</td><td>버전별 차이 · 설치 원본 (b-1 트리)</td><td>화면에 있음 (RHEL 은 선택 불가)</td></tr>
+            <tr><td>시간대 · RTC UTC 여부</td><td><code>timezone</code></td><td>화면에서 빠짐 (R11)</td></tr>
+            <tr><td>파티션 표</td><td><code>part</code> · <code>clearpart</code></td><td>화면에서 빠짐</td></tr>
+            <tr><td>root 비밀번호</td><td><code>rootpw --iscrypted</code> (저장된 해시를 그대로, <span class="chip mod">개정 2</span>)</td><td>화면에서 빠짐</td></tr>
+            <tr><td>Rocky 10 root SSH 허용</td><td><code>rootpw --allow-ssh</code></td><td>화면에서 빠짐</td></tr>
+            <tr><td>사용자 (이름 · 비밀번호 · sudo)</td><td><code>user --groups=wheel</code></td><td>화면에서 빠짐</td></tr>
+            <tr><td>설치 환경 · 추가 패키지 그룹</td><td><code>%packages @^env @group</code></td><td>조각만 남음 (포함 안 됨)</td></tr>
+            <tr><td>KDump</td><td><code>%addon com_redhat_kdump</code></td><td>조각만 남음</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">위치 : b-1 설치 트리 (CP6 승인 · eaa39d0) · <b>b-2 정의서 RHEL 활성화 (이번)</b> · b-3 kickstart 생성기 · b-4 설치 실행기 (+ b-6 디스크 선택) · b-5 완료 보고 · 서버 상세.</div>
+      </div>
+    </details>
+
+    <!-- ===== §1 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 진단 (실측)</summary>
+      <div class="body">
+        <div class="callout"><b>쉬운 말 요약</b> : 지금 정의서 화면은 Rocky Linux 를 고를 수 없고, R11 이 리눅스 입력칸을 걷어 낸 상태다. 그런데 서버에는 RHEL 저장을 막는 가드가 없어 직접 POST 하면 저장된다. b-2 는 걷어 낸 화면을 되살리고, 화면과 서버가 같은 판정 하나로 Rocky 8 · 9 · 10 만 받게 한다.</div>
+        <p class="muted">기준 : 브랜치 <code>feat/E4-1-b_rhel-install</code> = origin/dev <code>beb3260</code> + b-1.</p>
+        <table>
+          <thead><tr><th>사실</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>RHEL 계열 OS 는 정의서 화면에서 선택 불가. 사유 "Windows Server 계열만 설치할 수 있습니다."</td><td><code>OsInstallTargetPolicy.blockReason</code> → <code>JpaSettingQueryService.toOSOption</code></td></tr>
+            <tr><td><b>RHEL 정의서 저장을 막는 서버 가드는 없다.</b> 정책 호출은 옵션 조립과 <code>WindowsInstallationFamilyInspector</code> (WINDOWS 판별자일 때만) 두 곳. RHEL 상세 payload 직접 POST = 201</td><td><code>RHELInstallationFamilyInspector</code> · <code>SettingRestControllerSaveFlowTest</code> ("OS_INSTALLATION/RHEL_BASED → 201")</td></tr>
+            <tr><td>1단 검사기는 OS 사용 가능 · ISO 실존 · OS 소속 · 사용 가능만 본다. <b>판별자 (osFamily) 와 OS 실제 계열의 일치는 안 본다</b></td><td><code>OSInstallationReferenceInspector.validateReferences</code></td></tr>
+            <tr><td>R11 이 리눅스 입력 (시간대 · 파티션 · root 비밀번호 · 사용자 · 계열 조각 포함) 과 JS 호출을 걷음. 계약 DTO · 조각 · JS 함수 정의 · 행 템플릿은 남음</td><td>커밋 <code>056c861</code> · <code>4372ae5</code></td></tr>
+            <tr><td>복원 원본 = <code>a9a7293</code> (4372ae5 의 dev 쪽 부모). U4-1-3 파티션 · OS 볼륨 안내 반영판</td><td><code>git show a9a7293:…/setting-new.html</code></td></tr>
+            <tr><td>setting-form.js 리눅스 함수는 정의만 남고 호출 없음 : <code>filterTzCities</code> · <code>tzValue</code> · <code>filterEnvironmentOptions</code> · <code>applyPackageGroupFilter</code> · <code>dispatchVersionSpecificBox</code> · <code>addPartitionRow</code> · <code>loadDefaultPartitions</code> · <code>addUserRow</code> · <code>buildRootPassword</code> · <code>buildPartitions</code> · <code>buildUsers</code> · 제출 전 파티션 검사</td><td><code>setting-form.js</code></td></tr>
+            <tr><td>컨트롤러는 <code>timezoneOptions</code> · <code>fileSystems</code> · <code>sizeUnits</code> · <code>osVolumeTargetMessagesJson</code> 을 계속 내려줌</td><td><code>SettingController.addFormOptions</code></td></tr>
+            <tr><td>Rocky 10 root SSH 칸 표시는 JS 가 버전 접두사 "10." 로 판정 (서버 판정 없음)</td><td>복원본 <code>#oiAllowSshBox data-os-version-prefix="10."</code></td></tr>
+            <tr><td>OS 버전은 자유 문자열 (예 "9.4"). Rocky 버전 제한 없음. RHEL 계열 OSName = ROCKY_LINUX · CENTOS</td><td><code>OSMetadataCreateRequest</code> · <code>OSName</code></td></tr>
+            <tr><td>복원본에 CSS 정의 없는 클래스 8종 : <code>n-version-specific</code> · <code>n-checkbox-bottom</code> · <code>n-col-11/13/14/22/26/36</code>. 정의된 폭 = <code>n-col-4/8/10/12/18/24/30</code></td><td><code>setting.css</code> · <code>DesignConventionTest.usedClassesAreDefined</code></td></tr>
+            <tr><td>복원본 문구 3건 규약 위반 : "타임존 — 대륙/도시" · 사용자 힌트의 "—" · "선택해 주세요"</td><td><code>DesignConventionTest.visibleCopyHasNoBannedPunctuation</code> · DESIGN.md 7절</td></tr>
+            <tr><td>폼 안 편집 표 = <code>table.n-tbl-list</code></td><td>DESIGN.md 5절 고르기</td></tr>
+            <tr><td>상세 화면은 RHEL 을 이미 다 그림 (대상 OS · ISO · 시간대 · root 배지 · 파티션 · 사용자 · 환경 · 그룹 · KDump · root SSH)</td><td><code>setting-process-cards.html</code> · <code>detail-rhel.html</code></td></tr>
+            <tr><td>수정 화면 : 비밀번호 지운 JSON (<code>withoutSecrets</code>) 으로 미리 채움. 기존 비밀번호 유지 = <code>PasswordPatch</code> (HF12). 지울 때 <code>isPasswordEncrypted</code> 도 false 가 되어 체크박스가 원래 값을 잃음. 저장 때 <code>retaining</code> 이 저장본 플래그를 되살림</td><td><code>LinuxInstallationRequest.STRIP</code> · <code>retainFrom</code></td></tr>
+            <tr><td>비밀번호는 평문 (또는 이미 해시한 값) 으로 JSON 컬럼 저장. 상세 화면은 배지만</td><td><code>ProcessPayloadConverter</code> · <code>RootPasswordRequest</code></td></tr>
+            <tr><td>OS 볼륨 용량 하한 (<code>osVolumeCapacityLowerBoundBytes</code>) = OS 후보 묶음 전부의 최솟값. RAID 미구성 묶음도 포함</td><td><code>RaidConfigurationRequest</code></td></tr>
+            <tr><td>지금 RHEL 정의서를 할당해 개시하면 : OS 설치 단계에서 Windows 준비도가 "RHEL 계열 설치는 지원하지 않습니다: Windows 정의서로 교체해야 합니다" (BLOCKED) → 대기 (HOLD) → 시한 뒤 실패</td><td><code>WindowsInstallReadiness.judge</code> · <code>PhaseEntryGate</code></td></tr>
+            <tr><td>할당 판정에 OS 계열 축 없음 (RHEL 정의서도 할당됨)</td><td><code>SettingDefinition.assignBlockReason</code> · <code>AssignmentBlockKind</code></td></tr>
+            <tr><td><span class="chip mod">개정 1</span> 검색 선택기 (S8-6, ecount '창고검색' 방식) = 줄 (돋보기 · 입력칸 · 고른 값 칩 · 전부 해제) + 검색 팝업 (popover). 팝업 내용은 서버가 그린 행 조각을 fetch (q · includeDisabled). 입력칸 Enter 로 1 건만 맞으면 팝업 없이 바로 칩</td><td><code>fragments/ui/lookup-field.html</code> · <code>static/global/list-lookup.js</code> · <code>GuestServerController.lookupBoards</code> · <code>server-lookup-rows.html</code></td></tr>
+            <tr><td><span class="chip mod">개정 1</span> 지금 검색 선택기는 <b>조회 조건 창 전용 · 다중 선택</b>. JS 가 <code>[data-filter-row]</code> 로 줄을 찾고, 칩은 hidden input (반복 파라미터), 체크 + [적용] 으로 여러 개를 더함</td><td><code>list-lookup.js</code> <code>fieldOf</code> · <code>addChip</code></td></tr>
+            <tr><td><span class="chip mod">개정 1</span> 검색 팝업은 화면 가운데 고정 (<code>position: fixed; top: 12vh</code>) 이라 조건 창 밖에서도 그대로 뜸</td><td><code>style.css .n-lookup-panel</code></td></tr>
+            <tr><td><span class="chip mod">개정 1</span> DESIGN.md 는 "자기 조회 화면이 있는 대상은 셀렉트가 아니라 검색 선택기 줄로 고른다" 를 조회 띠 절에만 둔다. 폼 안 단일 선택 행은 고르기 표에 없음</td><td>DESIGN.md 5절 조회 띠 · 9절 조각 표</td></tr>
+            <tr><td><span class="chip mod">개정 1</span> 정의서 OS 셀렉트는 OS 이름을 enum 원문 (ROCKY_LINUX) 으로 보임 (R11 잔존 책임 ⑶, S13 적립). <code>OSName.displayName</code> 은 "Rocky Linux" 등</td><td><code>setting-new.html</code> · <code>OSName</code></td></tr>
+            <tr><td><span class="chip mod">개정 1</span> 지금 OS 후보 = 사용 가능 + 사용 가능한 ISO 가 있는 OS (사용 중단 포함, 배지 · 확인 창). ISO 후보 = 그 OS 의 사용 가능 ISO</td><td><code>JpaSettingQueryService.findOSOptions</code> · <code>availableIsos</code></td></tr>
+            <tr><td><span class="chip mod">개정 2</span> 지금 비밀번호는 평문 또는 "이미 해시한 값" (체크박스 <code>isPasswordEncrypted</code>) 으로 JSON 컬럼에 그대로 저장</td><td><code>RootPasswordRequest</code> · <code>UserRequest</code> · <code>ProcessPayloadConverter</code></td></tr>
+            <tr><td><span class="chip mod">개정 2</span> 플래그를 쓰는 곳 : <code>RootPasswordRequest</code> · <code>UserRequest</code> · <code>setting-form.js</code> · <code>setting-new.html</code> (복원 대상) · <code>setting-process-cards.html</code> (사용자 "암호화 / 평문" 배지) · 테스트 2</td><td>grep</td></tr>
+            <tr><td><span class="chip mod">개정 2</span> 해시 라이브러리 없음 (commons-codec 미포함)</td><td><code>build.gradle</code></td></tr>
+            <tr><td><span class="chip mod">개정 2</span> 로컬 DB (3306) 의 RHEL 정의서 0 건. 운영 · 스테이징은 모름</td><td><code>setting_process</code> 조회 (읽기 전용)</td></tr>
+            <tr><td><span class="chip mod">개정 4</span> 요청과 저장본은 <b>같은 역직렬화 경로</b>를 탄다 ("저장본과 요청의 해석 SSOT 가 하나")</td><td><code>ProcessPayloadConverter</code></td></tr>
+            <tr><td><span class="chip mod">개정 4</span> 저장 JSON 은 DTO 를 직렬화한 것이라 <code>isKDumpEnabled</code> 키가 항상 실린다. 키가 없는 저장본은 손으로 넣은 경우뿐</td><td><code>RHELInstallationRequest</code> 의 <code>@JsonProperty("isKDumpEnabled")</code> getter · <code>ProcessPayloadConverter.convertToDatabaseColumn</code></td></tr>
+            <tr><td><span class="chip mod">개정 5</span> RHEL 계열 ISO 를 등록하면 comps 추출 작업이 자동으로 뜬다 (ISO 등록 작업과 병렬). 단계 : ISO 이미지 준비 (mount 또는 전체 임시 해제) → 저장소 탐색 → 패키지 그룹 정보 해석 → 저장. 작업 동안 ISO 루트 전체가 열려 있다. 지금은 <code>.treeinfo</code> 를 읽지 않는다</td><td><code>RhelPostCreationTaskStrategy</code> · <code>CompsExtractionService.extractAsync</code> · <code>RHELCompsExtractor</code></td></tr>
+            <tr><td><span class="chip mod">개정 5</span> 추출이 실패하면 ISO 는 등록된 채 설치 환경이 0 개. RHEL 정의서는 설치 환경이 필수이고 ISO 가 제공한 것이어야 하므로 그 ISO 로 정의서를 저장할 수 없다</td><td><code>RHELInstallationRequest.environmentId @NotNull</code> · <code>RHELInstallationFamilyInspector</code></td></tr>
+            <tr><td><span class="chip mod">개정 5</span> Ubuntu ISO 처럼 <code>repodata</code> 가 없으면 지금도 "ISO 에서 패키지 그룹 정보를 찾지 못했습니다" 로 추출 실패</td><td><code>RHELCompsExtractor.extract</code></td></tr>
+            <tr><td><span class="chip mod">개정 5</span> <code>.treeinfo</code> 해석 (<code>[release]</code> name · version, 없으면 <code>[general]</code> family · version) 은 b-1 <code>InstallTreeInspector</code> (execution 패키지) 에 있다</td><td>b-1</td></tr>
+            <tr><td><span class="chip mod">개정 5</span> OS 등록은 OS 이름 셀렉트 (Rocky Linux · CentOS · Ubuntu · Windows Server) + 버전 자유 입력. (OSName, osVersion) 은 등록 뒤 바꿀 수 없다</td><td><code>OSMetadataController.MVP_OS_NAMES</code> · <code>OSMetadataCreateRequest</code> · <code>OSMetadataUpdateRequest</code> · <code>management/os/new.html</code></td></tr>
+            <tr><td><span class="chip mod">개정 5</span> 로컬 DB (3306) 의 OS 메타데이터 0 건</td><td>읽기 전용 조회</td></tr>
+          </tbody>
+        </table>
+
+        <h4>HF32 (앵커, 병합 전) 와의 경계</h4>
+        <ul>
+          <li>HF32 = 정의서 저장 검증을 실행 준비도와 맞추기. CP4 승인 · 테스트 통과, CP5~CP7 남음. <b>b-2 구현 (CP2 이후) 은 HF32 병합 뒤 그 위에서</b> 시작 (앵커 합의).</li>
+          <li>HF32 가 고치는 것 : setting-new.html OS 카드 공통 영역 <code>oiOsVolumeRequirementHint</code> · RAID 카드 안내 둘 · <code>window.OS_VOLUME_TARGET_MESSAGES_JSON</code> 주입 · <code>onInstallOsChange</code> → <code>refreshOsVolumeTargetHint</code> · <code>OsVolumeTargetKind</code> (NO_RAID_CANDIDATE) · <code>OsVolumeTargets.describe</code> · <code>setting-process-cards.html</code>.</li>
+          <li>HF32 가 안 건드림 : <code>OsInstallTargetPolicy</code> · <code>RHELInstallationFamilyInspector</code> · <code>LinuxPartitionRules</code> · <code>toOSOption</code> · <code>rhel-based.html</code> · <code>detail-rhel.html</code> · OS 단계 JSON 조립 · 계열 블록 전환 · 미리 채우기.</li>
+          <li>겹침 : <code>onInstallOsChange</code> 한 곳. CP2 착수 전 HF32 병합본에서 다시 확인.</li>
+          <li>전제 : RHEL 정의서도 HF32 규칙 (OS 영역 RAID 볼륨 필수) 을 받는다. <code>oiOsVolumeRequirementHint</code> 는 계열 블록 밖 공통 영역.</li>
+        </ul>
+
+        <h4>기존 코드 재활용</h4>
+        <table>
+          <thead><tr><th>대상</th><th>분류</th><th>쓰는 법</th></tr></thead>
+          <tbody>
+            <tr><td><code>RHELInstallationRequest</code> · <code>LinuxInstallationRequest</code> · 하위 Request · Layer A 검증</td><td><span class="chip keep">그대로</span></td><td>계약 변경 없음 (비밀번호 부분은 개정 2 D-18 로 바뀜)</td></tr>
+            <tr><td><code>RHELInstallationFamilyInspector</code> (파티션 · 접근 계정 · 환경/그룹)</td><td><span class="chip mod">고쳐서</span></td><td>지원 판정 메서드 추가</td></tr>
+            <tr><td><code>OSInstallationFamilyInspector</code> SPI</td><td><span class="chip mod">고쳐서</span></td><td><code>installBlockReason(OSMetadata)</code> 추가</td></tr>
+            <tr><td><code>OsInstallTargetPolicy</code></td><td><span class="chip mod">고쳐서</span></td><td>static 판정 → 계열 맵에 넘기는 빈</td></tr>
+            <tr><td>화면 마크업</td><td><span class="chip mod">복원 + 정비</span></td><td><code>a9a7293</code> 판을 DESIGN.md 로 다시 고름</td></tr>
+            <tr><td>setting-form.js 리눅스 함수</td><td><span class="chip keep">그대로 + 연결</span></td><td>호출만 되살림. <code>dispatchVersionSpecificBox</code> 는 서버 값 기반으로 교체</td></tr>
+            <tr><td><code>rhel-based.html</code> (환경 · 그룹 · KDump)</td><td><span class="chip keep">그대로 + 포함</span></td><td>null 미보호 (<code>os.osFamily.name()</code>) 정리</td></tr>
+            <tr><td>상세 화면 <code>detail-rhel.html</code> · 공통 표</td><td><span class="chip keep">그대로</span></td><td>변경 없음</td></tr>
+            <tr><td><code>PasswordPatch</code> · <code>withPatchedPasswords</code></td><td><span class="chip keep">그대로</span></td><td>화면 체크박스만 정비</td></tr>
+            <tr><td>옵션 데이터 <code>timezoneOptions</code> · <code>fileSystems</code> · <code>sizeUnits</code> · <code>default-partitions</code></td><td><span class="chip keep">그대로</span></td><td>-</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구 · 비목표</summary>
+      <div class="body">
+        <ol>
+          <li><b>R1</b> 정의서 화면에서 Rocky Linux 8 · 9 · 10 을 고를 수 있다.</li>
+          <li><b>R2</b> RHEL 입력 (시간대 · 파티션 · root 비밀번호 · root SSH (10) · 사용자 · 환경 · 그룹 · KDump) 을 넣고 저장 · 수정 · 상세 확인이 된다.</li>
+          <li><b>R3</b> CentOS · 그 밖 Rocky 버전 · Ubuntu 는 계속 막히고, 막힌 이유가 옵션에 보인다.</li>
+          <li><b>R4</b> 화면이 막는 것은 서버도 같은 판정으로 막는다 (판별자 위조 포함).</li>
+          <li><b>R5</b> Windows 정의서 동작 불변.</li>
+          <li><b>R6</b> 화면 규약 (DESIGN.md · <code>DesignConventionTest</code>) 통과.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>kickstart 생성 → b-3 (비밀번호 해시는 개정 2 로 b-2 의 저장 때로 옮김)</li>
+            <li>실행 · 서빙 → b-4 · 디스크 선택 출력 → b-6</li>
+            <li>Ubuntu · OS 설정 단계 (OS_SETTING, R11 제거 그대로) · CentOS · 레거시 (BIOS) 부팅</li>
+            <li>웹 주소로 등록된 ISO (등록 화면이 파일 경로만 받음. b-1 이 즉시 실패로 처리)</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 정의서 작성 화면 OS 설치 카드</summary>
+      <div class="body">
+        <p style="margin-top:0;">시나리오 버튼 한 번으로 장면에 도달한다. 이후 OS · 입력 · 요청 경로를 직접 바꾸고 [저장] 을 누르면 서버 판정 순서대로 결과가 나온다. 검색 팝업 행 잠금 (패널 1) 과 서버 가드 (패널 2) 는 같은 함수 <code>installBlockReason</code> 을 부른다 (D-1). OS · ISO 칸은 검색 선택기 단일 방식이다 (D-11 ~ D-14) : [검색] 버튼이 돋보기 자리, 입력칸 Enter 는 1 건이면 바로 칩, 막힌 행이면 팝업. 입력칸에 "cent" 를 넣고 Enter 를 눌러 보면 CentOS 행이 막힌 채 열린다. Rocky 9.6 의 "최소 설치 ISO" 는 사용 중단 ISO 예시다. OS · ISO · 환경 · 그룹 이름은 예시 데이터다.</p>
+
+        <h4>패널 1 · OS 설치 카드</h4>
+        <div class="ux-wrap" id="demo-p1">
+          <div class="ux-toolbar">
+            <span class="group-label">시나리오</span>
+            <button class="seg" data-sc="1" onclick="demoScenario(1)">1 Rocky 9 정상 저장</button>
+            <button class="seg" data-sc="2" onclick="demoScenario(2)">2 Rocky 10 root SSH</button>
+            <button class="seg" data-sc="3" onclick="demoScenario(3)">3 CentOS, Ubuntu 선택 불가</button>
+            <button class="seg" data-sc="4" onclick="demoScenario(4)">4 접근 계정 없음</button>
+            <button class="seg" data-sc="5" onclick="demoScenario(5)">5 /boot/efi 누락</button>
+            <button class="seg" data-sc="6" onclick="demoScenario(6)">6 수정 기존 비밀번호 유지</button>
+            <button class="seg" data-sc="7" onclick="demoScenario(7)">7 입력칸 Enter 로 바로 고르기</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">화면</span>
+            <button class="seg" data-mode="new" onclick="demoSetMode('new')">작성</button>
+            <button class="seg" data-mode="edit" onclick="demoSetMode('edit')">수정</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">요청 경로</span>
+            <button class="seg" data-route="ui" onclick="demoSetRoute('ui')">화면에서 저장</button>
+            <button class="seg" data-route="post" onclick="demoSetRoute('post')">direct POST</button>
+          </div>
+          <div class="ux-toolbar" id="d-disc-bar">
+            <span class="group-label">위조 판별자 osFamily</span>
+            <button class="seg" data-disc="RHEL_BASED" onclick="demoSetDisc('RHEL_BASED')">RHEL_BASED</button>
+            <button class="seg" data-disc="WINDOWS" onclick="demoSetDisc('WINDOWS')">WINDOWS</button>
+            <button class="seg" data-disc="DEBIAN_BASED" onclick="demoSetDisc('DEBIAN_BASED')">DEBIAN_BASED</button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-row"><strong>설치할 OS</strong><span class="label">
+              <button class="n-demo-btn" onclick="demoOpenPop('os')">검색</button>
+              <input type="text" id="d-os-q" placeholder="이름 또는 버전, Enter">
+              <span id="d-os-chip"></span></span><span class="badge on" id="d-os-badge"></span></div>
+            <div class="ux-wrap" id="d-os-pop" hidden>
+              <div class="ux-toolbar"><span class="group-label">OS 검색</span><input type="text" id="d-os-pop-q" placeholder="이름 또는 버전"><button class="n-demo-btn" onclick="demoClosePop()">닫기</button></div>
+              <table><thead><tr><th>이름</th><th>버전</th><th>계열</th><th>ISO 수</th><th>선택 불가 사유</th></tr></thead><tbody id="d-os-rows"></tbody></table>
+            </div>
+            <div class="ux-row child" id="d-post-note">direct POST 는 화면의 차단을 거치지 않습니다. 잠긴 OS 도 보낼 수 있습니다.</div>
+            <div class="ux-row child" data-error="1" id="d-err-os" hidden></div>
+            <div class="ux-row"><strong>설치 ISO</strong><span class="label">
+              <span id="d-iso-search"></span>
+              <input type="text" id="d-iso-q" placeholder="ISO 이름, Enter">
+              <span id="d-iso-chip"></span></span></div>
+            <div class="ux-wrap" id="d-iso-pop" hidden>
+              <div class="ux-toolbar"><span class="group-label">ISO 검색</span><input type="text" id="d-iso-pop-q" placeholder="ISO 이름"><button class="n-demo-btn" onclick="demoClosePop()">닫기</button></div>
+              <table><thead><tr><th>이름</th><th>상태</th></tr></thead><tbody id="d-iso-rows"></tbody></table>
+            </div>
+            <div class="callout danger" id="d-dep-confirm" hidden>사용 중단된 ISO 입니다. 기존 사용 중단 확인 창을 그대로 거칩니다.
+              <button class="n-demo-btn" onclick="demoDepConfirm(true)">확인</button> <button class="n-demo-btn" onclick="demoDepConfirm(false)">취소</button></div>
+            <div class="ux-row"><strong>OS 볼륨 안내</strong><span class="label muted">HF32 병합본의 문구를 그대로 표시합니다.</span></div>
+
+            <div id="d-linux">
+              <div class="ux-row"><strong>시간대</strong><span class="label">
+                <select id="d-tz-region"></select><select id="d-tz-city"></select>
+                <label><input type="checkbox" id="d-utc"> RTC 를 UTC 로 사용</label></span></div>
+              <div class="ux-row"><strong>파티션</strong><span class="label">
+                <button class="n-demo-btn" onclick="demoDefaultParts()">기본 파티션 자동 생성</button>
+                <button class="n-demo-btn" onclick="demoPartAdd()">행 추가</button></span></div>
+              <table><thead><tr><th>마운트포인트</th><th>파일시스템</th><th>크기</th><th>단위</th><th>grow</th><th></th></tr></thead><tbody id="d-parts"></tbody></table>
+              <div class="ux-row child" id="d-vol-line"></div>
+              <div class="ux-row child" data-error="1" id="d-err-parts" hidden></div>
+              <div class="ux-row"><strong>root 비밀번호</strong><span class="label">
+                <span class="tip" id="d-root-tip"><input type="password" id="d-root" placeholder="비워 두면 root 잠금"></span>
+                <label id="d-keep-wrap"><input type="checkbox" id="d-keep"> 기존 비밀번호 유지</label></span></div>
+              <div class="ux-row child" id="d-ssh-row"><strong>root SSH</strong><span class="label"><label><input type="checkbox" id="d-ssh"> root 계정 SSH 접속 허용</label></span><span class="badge dep">Rocky 10</span></div>
+              <div class="ux-row child" data-error="1" id="d-err-root" hidden></div>
+              <div class="ux-row"><strong>사용자</strong><span class="label"><button class="n-demo-btn" onclick="demoUserAdd()">행 추가</button></span></div>
+              <table><thead><tr><th>이름</th><th>비밀번호</th><th>sudo</th><th></th></tr></thead><tbody id="d-users"></tbody></table>
+            </div>
+
+            <div id="d-rhel">
+              <div class="ux-row"><strong>설치 환경</strong><span class="label"><select id="d-env"></select></span></div>
+              <div class="ux-row"><strong>추가 패키지 그룹</strong><span class="label" id="d-groups"></span></div>
+              <div class="ux-row child" data-error="1" id="d-err-env" hidden></div>
+              <div class="ux-row"><strong>KDump</strong><span class="label"><label><input type="checkbox" id="d-kdump"> KDump 사용</label></span></div>
+            </div>
+
+            <div id="d-win">
+              <div class="ux-row"><strong>설치 이미지</strong><span class="label"><select disabled><option>Windows 블록 (동작 불변)</option></select></span></div>
+              <div class="ux-row"><strong>Administrator 비밀번호</strong><span class="label"><input type="password" disabled value="xxxxxxxx"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <h4>패널 2 · 저장 판정</h4>
+        <div class="ux-wrap" id="demo-p2">
+          <div class="ux-toolbar">
+            <span class="tip" id="d-save-tip"><button class="n-demo-btn" id="d-save" onclick="demoSave()">저장</button></span>
+            <span class="group-label" id="d-endpoint"></span>
+          </div>
+          <div class="ux-message" id="d-msg"></div>
+          <div class="ux-caps" id="d-ladder"></div>
+          <pre id="d-json" hidden></pre>
+          <div class="ux-caps" id="d-caps"></div>
+        </div>
+
+        <h4>패널 3 · OS 볼륨 용량 하한 (D-7)</h4>
+        <div class="ux-wrap" id="demo-p3">
+          <div class="ux-toolbar">
+            <span class="group-label">하한 계산</span>
+            <button class="seg" data-rule="now" onclick="demoSetRule('now')">지금</button>
+            <button class="seg" data-rule="after" onclick="demoSetRule('after')">바꾼 뒤 (D-7)</button>
+          </div>
+          <div style="margin-top:10px;">
+            <div class="ux-row" id="d-b1"><strong>묶음 1</strong><span class="label">RAID1, SSD 480 GB 2개, RAID 볼륨 480 GB</span><span class="badge on">OS 후보</span><span class="badge on">RAID 구성</span></div>
+            <div class="ux-row" id="d-b2"><strong>묶음 2</strong><span class="label">RAID 미구성, HDD 100 GB 1개</span><span class="badge on">OS 후보</span><span class="badge off" id="d-b2-badge"></span></div>
+            <div class="ux-row"><strong>고정 파티션 합</strong><span class="label"><input type="number" id="d-p3-sum" min="0"> GB, grow 파티션 있음</span></div>
+          </div>
+          <div class="ux-caps" id="d-p3-caps"></div>
+          <div class="ux-message" id="d-p3-msg"></div>
+        </div>
+        <h4>패널 4 · OS 등록 (D-21) 과 ISO 버전 확인 (D-20) <span class="chip mod">개정 5</span></h4>
+        <div class="ux-wrap" id="demo-p4">
+          <div class="ux-row"><strong>OS 이름</strong><span class="label"><select id="r-name"></select></span></div>
+          <div class="ux-row"><strong>OS 버전</strong><span class="label"><input type="text" id="r-ver"><span class="muted" id="r-hint"></span></span></div>
+          <div class="ux-row child" data-error="1" id="r-err" hidden></div>
+          <div class="ux-toolbar"><button class="n-demo-btn" onclick="regSubmit()">등록</button></div>
+          <div class="ux-caps" id="r-caps"></div>
+          <div class="ux-message" id="r-msg"></div>
+          <div class="ux-row" style="margin-top:10px;"><strong>ISO .treeinfo 버전</strong><span class="label"><input type="text" id="r-tree" placeholder="비우면 .treeinfo 없음"><span class="muted" id="r-tree-os"></span></span></div>
+          <div class="ux-message" id="r-tree-msg"></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> : 패널 1 팝업 행 잠금과 패널 2 의 "installBlockReason" 줄은 같은 함수다. 패널 2 의 하한은 패널 3 의 계산 방식을 그대로 쓴다. 거절 문구는 코드의 예외 팩토리 문장 (<code>InvalidPartitionException</code> · <code>InvalidUserAccessException</code> · <code>InvalidEnvironmentSelectionException</code> · <code>SettingSaveRequest</code> 의 <code>@AssertTrue</code>) 과 D-10 문장 그대로다.</div>
+        <div class="callout warn">데모가 단순화한 것 : Layer A 필드 검증 (<code>@Valid</code>) 은 통과로 가정 · Windows 설치 소스는 준비됨으로 고정 · 크기 단위는 GB 고정 · 저장 JSON 의 해시 값은 <code>$6$</code> 로 시작하는 고정 예시 문자열 (실제 계산 안 함), 해시 키 이름은 CP2 확정 (D-18) · 수정 화면의 JSON 은 <code>PasswordPatch</code> 병합 뒤 모습 (저장본 해시) · 수정 화면 미리 채우기 (D-15) 는 데모에 없음.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL · 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/provisioning/setting/new</code></td><td>작성 화면. OS 옵션에 <code>installBlockReason</code> · <code>rootSshSupported</code></td><td>뷰</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/setting/lookup/os?q=</code></td><td><span class="chip new">개정 1</span> OS 검색 팝업 행 (<code>id</code> 를 주면 한 행)</td><td>행 조각</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/setting/lookup/isos?osMetadataId=&amp;q=</code></td><td><span class="chip new">개정 1</span> ISO 검색 팝업 행 (<code>id</code> 를 주면 한 행)</td><td>행 조각</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/setting/default-partitions?osName=…</code></td><td>기본 파티션 (기존)</td><td>JSON</td></tr>
+            <tr><td>POST</td><td><code>/provisioning/setting</code></td><td>저장</td><td>201 · 400</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/setting/{id}/edit</code></td><td>수정 화면 (<code>withoutSecrets</code> 미리 채움)</td><td>뷰</td></tr>
+            <tr><td>PUT</td><td><code>/provisioning/setting/{id}</code></td><td>수정 저장 (<code>PasswordPatch</code> 병합)</td><td>200 (<code>SettingSaveResponse</code>) · 400</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/setting/{id}</code></td><td>상세 (변경 없음)</td><td>뷰</td></tr>
+          </tbody>
+        </table>
+        <div class="seq">
+          <div class="actor a1">운영자</div><div class="actor a2">화면 (JS)</div><div class="actor a3">서버</div><div class="actor a4">DB</div>
+          <div class="step a1">0 OS 등록 → ISO 등록 <span class="chip mod">개정 5</span></div><div class="step a2">OS 등록 셀렉트 "Rocky Linux 8 · 9 · 10" → 버전 칸 미리 채움 (D-21)</div><div class="step a3">comps 추출 (ISO 버전 확인 단계 추가, D-20)</div><div class="step a4">일치하면 설치 환경 저장</div>
+          <div class="step a1">1 작성 화면 진입</div><div class="step a2"></div><div class="step a3"><code>SettingController.addFormOptions</code> → <code>JpaSettingQueryService.toOSOption</code> 이 OS 마다 <code>installBlockReason</code> (D-1) · <code>rootSshSupported</code> (D-6) 적재</div><div class="step a4">OS · ISO 조회</div>
+          <div class="step a1">2 OS 줄 돋보기 또는 입력칸 Enter <span class="chip mod">개정 1</span></div><div class="step a2">팝업 행 (이름 · 버전 · 계열 · ISO 수 · 배지 · 막힌 사유) → 이름 클릭 → 칩 → <code>lookup:change</code> → <code>onInstallOsChange</code> (계열 블록 전환 · ISO 줄 열기 · root SSH 칸 · HF32 안내) → ISO 줄 → 칩 → 환경/그룹 필터</div><div class="step a3"><code>GET /provisioning/setting/lookup/os?q=</code> · <code>GET /provisioning/setting/lookup/isos?osMetadataId=&amp;q=</code></div><div class="step a4">OS · ISO 후보 조회</div>
+          <div class="step a1">3 [저장]</div><div class="step a2">제출 전 검사 (파티션 필수 · grow 1 개 · 용량 하한) → <code>stepBuilders.OS_INSTALLATION</code> 이 RHEL JSON 조립 → POST (수정은 PUT)</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">4 <code>ProcessRequestDeserializer</code> (osFamily → <code>RHELInstallationRequest</code>) → Layer A (<code>@Valid</code> · <code>isOsSelectionConsistent</code> · <code>isOsVolumeDeterminable</code> · <code>isPartitionsWithinOsVolume</code>) → <code>OSInstallationReferenceInspector</code> (OS · ISO · <b>판별자 일치 · 지원 판정</b>, D-3) → <code>RHELInstallationFamilyInspector</code> (파티션 · 접근 계정 · 환경/그룹) → 수정이면 <code>PasswordPatch</code> 병합</div><div class="step a4">JSON 컬럼 저장</div>
+          <div class="step a1">5 상세 확인</div><div class="step a2"></div><div class="step a3"><code>setting-process-cards.html</code> 공통 표 + <code>detail-rhel.html</code></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">JSON 조립은 <code>oiOsSelect.value</code> · <code>oiIsoSelect.value</code> 대신 칩의 <code>data-value</code> 를 읽음 (개정 1)</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">6 수정 화면</div><div class="step a2"><code>stepPrefillers.OS_INSTALLATION</code> 이 시간대 · 파티션 · root (기존 유지 표시) · 사용자 · 환경 · 그룹 · KDump · root SSH 복원</div><div class="step a3"><code>withoutSecrets</code> JSON</div><div class="step a4"></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 결정 · 도메인 모델</summary>
+      <div class="body">
+        <h4>결정 (채택 · 비채택 · 탈락 사유)</h4>
+        <table>
+          <thead><tr><th>축</th><th>채택</th><th>비채택 · 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1 지원 판정 위치</td><td><code>OSInstallationFamilyInspector</code> SPI 에 <code>installBlockReason(OSMetadata)</code> 추가. 계열마다 자기 판정 (Windows = 설치 소스 준비, RHEL = Rocky 8 · 9 · 10, Debian = 아직 불가). <code>OsInstallTargetPolicy</code> 는 static → 빈, 계열 맵에 넘김. 옵션 조립과 1단 검사기가 이 빈 하나를 부름 (UI 차단 = 서버 가드, 단일 SSOT)</td><td>① static <code>blockReason</code> 에 계열 · 버전 분기 추가 : 계열마다 if 증가 (분기 확장 금지) ② 판정 전용 SPI 신설 : 계열 키 축이 검사기와 둘로 갈림</td></tr>
+            <tr><td>D-2 지원 버전</td><td><code>RhelRelease</code> enum (ROCKY_8 · ROCKY_9 · ROCKY_10, <code>management/os/enums</code>) + <code>OSMetadata.rhelRelease()</code> → <code>Optional&lt;RhelRelease&gt;</code>. 버전 문자열 첫 '.' 앞 숫자로 판정. 상수 메서드 <code>supportsRootSshFlag()</code> (10 만 참). b-3 이 같은 enum 사용. <span class="chip mod">개정 4</span> 기존 버전 문자열에서 계산 · 새 컬럼 · DDL · DML 없음</td><td>① JS 접두사 "10." 유지 : 서버 판정 없음 · SSOT 위반 ② 소비처마다 문자열 파싱 : 중복 ③ 버전마다 클래스 : 차이가 작아 과분리</td></tr>
+            <tr><td>D-3 서버 가드</td><td>1단 검사기 (<code>OSInstallationReferenceInspector</code>) 가 계열 위임 전에 ① 판별자와 OS 계열 일치 ② <code>installBlockReason</code> 판정 → <code>UnsupportedOsInstallTargetException</code> (필드 osMetadataId, 400). 불일치 문구 = "선택한 OS 와 설치 설정의 계열이 맞지 않습니다." Windows 검사기 안의 정책 호출은 1단으로 이동. 새 예외 없음</td><td>RHEL 검사기에만 추가 : Ubuntu OS + RHEL 판별자 같은 교차 위조를 못 막음</td></tr>
+            <tr><td>D-4 설치 트리 설정으로 정의서 차단</td><td><b>막지 않음.</b> 환경 · 그룹은 DB (comps) 에서 고르므로 트리 불필요. 트리 루트 미설정 · bsdtar 없음은 실행 준비도 (b-4) 가 b-1 의 NOT_CONFIGURED · TOOL_MISSING 으로 막음</td><td>Windows 처럼 옵션 차단 : Windows 는 이미지 목록을 설치 소스에서 읽어야 해서 막은 것 (기능 의존). RHEL 은 의존 없음 · 환경 설정은 나중에 고칠 수 있어 HF32 기준 ("쓰이면 반드시 실패") 에 안 맞음 → Q1</td></tr>
+            <tr><td>D-5 화면 복원</td><td><code>a9a7293</code> 판 원본 → DESIGN.md 5절로 다시 고름. 편집 표 <code>n-tbl-list</code> · 정의된 <code>n-col-*</code> · 정의 없는 클래스 8종 제거 (표지는 <code>data-*</code>) · 문구 3건 고침 · oiGuide ("OS 를 먼저 선택") 미복원. HF32 안내는 공통 영역 유지. OS_SETTING · Debian 조각 미복원</td><td>새로 설계 : 계약 · JS 함수 · 상세 화면이 이미 있어 churn 만 증가</td></tr>
+            <tr><td>D-6 Rocky 10 root SSH 칸</td><td>옵션에 서버 값 <code>rootSshSupported</code> (= <code>RhelRelease.supportsRootSshFlag</code>) → <code>data-root-ssh-supported</code> → JS 가 칸 표시 · 전송 결정. <code>dispatchVersionSpecificBox</code> 대체</td><td>접두사 대조 유지 : D-2 와 같은 이유</td></tr>
+            <tr><td>D-7 OS 볼륨 용량 하한</td><td>RAID 미구성 OS 후보를 하한 계산에서 제외. 실행은 OS 를 RAID 볼륨에만 설치 (HF32 전제) 하므로 그 후보는 OS 를 안 받음. 지금은 작은 RAID 미구성 디스크 하나가 맞는 정의서를 거절 (거짓 거절). RHEL 이 이 검사를 처음 실제로 쓰므로 b-2 에서 고침 (앵커가 판단 위임)</td><td>HF32 에서 고침 : 앵커는 거짓 통과가 아니라 보류 · 리눅스 정의서가 막혀 있어 영향 없었음</td></tr>
+            <tr class="muted"><td>D-8 수정 화면 비밀번호 <span class="chip del">D-18 로 대체</span></td><td>"기존 비밀번호 유지" 체크 중에는 비밀번호 칸과 "암호화된 값" 칸을 함께 잠금. 서버 변경 없음 (저장 때 <code>retaining</code> 이 저장본 플래그 복원)</td><td><code>withoutSecrets</code> 가 플래그를 남기게 고침 : 계약 쪽 변경인데 화면 거짓 표시만 막으면 됨</td></tr>
+            <tr><td>D-9 b-2 ~ b-4 사이 동작</td><td>임시 차단 코드 없음. 캠페인 브랜치를 b-4 이후 dev 에 한 번에 병합해 이 상태가 배포에 안 나가게 함. 나가더라도 개시 시 "RHEL 계열 설치는 지원하지 않습니다" 로 대기 뒤 실패. <span class="chip mod">개정 4</span> 병합 시점은 Q2 제안이 B (b-2 따로 병합) 로 바뀜, §8 비교 표</td><td>할당 · 개시 차단 임시 코드 : b-4 에서 지울 코드 · 사유 문구 하나 더 생김 → Q2</td></tr>
+            <tr><td>D-10 차단 문구</td><td>Ubuntu : "Ubuntu 는 아직 설치할 수 없습니다." · CentOS 와 그 밖 Rocky 버전 : "Rocky Linux 8, 9, 10 만 설치할 수 있습니다." · Windows 소스 미준비 : 지금 문장 그대로. <code>LINUX_BLOCK_REASON</code> 삭제</td><td>-</td></tr>
+            <tr><td>D-11 검색 선택기를 폼에서 어떻게 쓰나 <span class="chip mod">개정 1</span></td><td>공통 부품에 <b>단일 선택 방식</b>을 더함. <code>lookup-field</code> 조각을 줄 조각 둘 (조회 조건 창용 <code>field</code> · 폼용 <code>picker(label, lookupUrl, errorField)</code>) 과 공용 팝업 조각 <code>panel</code> 로 나눔. <code>list-lookup.js</code> 는 줄을 <code>[data-lookup-host]</code> 로 찾게 일반화하고, <code>data-lookup-mode="single"</code> 이면 칩 하나를 바꿔 끼우고 (체크 · [적용] 없음) 줄에 <code>lookup:change</code> 이벤트 (값 · 행의 data-*) 를 냄. 기존 보드 · 그룹 다중 선택 동작 불변</td><td>① 정의서 전용 팝업 새로 만들기 : 같은 화면 동작의 두 번째 구현 (중복 금지) ② 셀렉트에 검색 입력만 덧붙이기 : 사용자 요구 (보드 검색과 같은 방식) 와 다름</td></tr>
+            <tr><td>D-12 후보 · 검색 규칙 <span class="chip mod">개정 1</span></td><td>팝업 행은 서버 조각. <code>GET /provisioning/setting/lookup/os?q=</code> · <code>GET /provisioning/setting/lookup/isos?osMetadataId=&amp;q=</code> (<code>SettingController</code>, 응답 = 행 조각). 후보 집합은 지금 셀렉트와 같음 (<code>findOSOptions</code> · <code>availableIsos</code> 재사용). 검색 = OS 화면 이름 · 버전 부분 일치, ISO 이름 부분 일치 (대소문자 무시). <code>id</code> 파라미터를 주면 그 한 행만 (수정 화면 미리 채우기)</td><td>화면에 이미 그린 옵션을 JS 로 걸러 팝업 만들기 : 검색 규칙이 JS 로 가고 보드 검색 선례 (서버 조각) 와 갈림</td></tr>
+            <tr><td>D-13 막힌 후보 · 사용 중단 <span class="chip mod">개정 1</span></td><td>선택 불가 OS (CentOS · Ubuntu · 소스 미준비 Windows) 도 행으로 보이고, 이름 버튼은 잠기며 행 안에 사유 문장 (D-10). 입력칸 Enter 의 '1 건이면 바로 고름' 도 막힌 행은 고르지 않고 팝업을 엶. 사용 중단 OS · ISO 는 배지를 달고, 고르면 지금의 사용 중단 확인 창을 그대로 거침</td><td>막힌 OS 를 행에서 빼기 : 운영자가 왜 없는지 모름 (R3 요구 위반)</td></tr>
+            <tr><td>D-14 OS → ISO 의존 <span class="chip mod">개정 1</span></td><td>ISO 줄은 OS 를 고르기 전 잠김. OS 를 바꾸면 ISO 칩이 비워짐. 행 이름은 <code>OSName.displayName</code> + 버전 ("Rocky Linux 9.6") 으로 enum 원문 노출을 없앰 (S13 적립 건 중 이 칸 해소)</td><td>-</td></tr>
+            <tr><td>D-15 수정 화면 미리 채우기 <span class="chip mod">개정 1</span></td><td>저장된 osMetadataId · isoId 로 <code>?id=</code> 를 불러 같은 고르기 경로를 탐 (드리프트 0). 후보에서 사라진 OS · ISO (비활성 · 삭제) 면 칩을 비우고 그 칸 아래 "저장된 OS 를 지금 고를 수 없습니다. 다시 골라야 합니다." 류 경고 (기존 Windows 이미지 미리 채우기 경고와 같은 자리 · 같은 모양). 문구는 CP2 에서 DESIGN.md 7절로 확정</td><td>-</td></tr>
+            <tr><td>D-16 RHEL 환경 · 패키지 그룹 <span class="chip mod">개정 1</span></td><td>지금처럼 화면에 ISO 별로 그려 두고 <code>data-iso-id</code> 로 거름 (<code>rhel-based.html</code> 이 <code>osOptions</code> 를 계속 읽음). ISO 칩이 바뀌면 같은 필터를 부름</td><td>팝업 행으로 내려받기 : 바꿀 이유 없음 · 범위만 늘어남</td></tr>
+            <tr><td>D-17 규약 <span class="chip mod">개정 1</span></td><td>DESIGN.md 5절 고르기 표에 "폼 안에서 자기 조회 대상 하나 고르기 = 검색 선택기 단일 방식 (<code>lookup-field :: picker</code>)" 행, 9절 조각 표에 <code>picker</code> · <code>panel</code> 행을 더함. 디자인 규약은 디자인 스트림 소관이라 CP2 착수 전에 디자인 세션과 확인</td><td>-</td></tr>
+            <tr><td>D-18 비밀번호 해시 <span class="chip mod">개정 2</span></td><td>① 화면 : root · 사용자 행의 "암호화된 값" 체크 제거. 입력은 항상 평문. ② 서버가 <b>저장 때</b> SHA-512 crypt (<code>$6$</code> + 무작위 salt, commons-codec <code>Sha2Crypt.sha512Crypt</code>, 의존성 1 추가) 로 해시해 해시만 저장. DB 에 평문이 남지 않음. kickstart (b-3) 는 저장된 해시를 <code>--iscrypted</code> 로 그대로 씀. ③ 표현 : 비밀번호 값을 VO 로 타입화 (sealed <code>LinuxPassword</code> = <code>Plain</code> (입력 전용) · <code>Hashed</code> (저장 전용), 이름은 CP2 확정). API 입력 JSON 은 평문 <code>password</code> 만 받고, 해시 키가 들어오면 400 (위조 차단). 저장 JSON 은 해시 키. ④ 순서 : <code>PasswordPatch</code> (기존 유지 = 저장본 해시를 옮김, HF12) → 남은 평문을 해시. 해시 단계는 <code>withPatchedPasswords</code> 옆의 다형 훅 (<code>AbstractProcessRequest</code>) 으로 두어 Windows 는 아무것도 안 함 (Administrator 비밀번호는 응답 파일이 평문을 요구해 대상 아님). ⑤ 상세 화면 사용자 표의 "암호화 / 평문" 배지 → "설정 완료 / 미설정". ⑥ 옛 저장본 (<code>isPasswordEncrypted</code> 키) 은 읽을 때 true = 해시, false = 평문으로 해석하고 다음 저장 때 해시. 운영 · 스테이징에 평문 RHEL 정의서가 있는지는 배포 전 읽기 전용 점검 SQL 로 찾고, 있으면 수정 화면에서 비밀번호를 다시 넣어 저장 (사용자 결정 몫). b-3 렌더러는 해시만 받음
+              <br><b>보강 (<span class="chip mod">개정 4</span>)</b>
+              <ul>
+                <li>해시 키를 실은 입력의 400 은 <b>역직렬화가 아니라 API 경계 (저장 · 수정 서비스 입구)</b> 에서 판정. 저장본에는 해시 키가 정상으로 들어 있고, 둘이 같은 역직렬화를 쓰기 때문</li>
+                <li>옛 저장본 : <code>isPasswordEncrypted=true</code> → 해시 VO, <code>false</code> → 평문 VO</li>
+                <li>평문 VO 가 실행에 닿는 경우 : VO 의 한 메서드 (<code>toCrypt(hasher)</code> 류) 가 해시는 그대로, 평문은 그 자리에서 해시해 돌려줌. kickstart (b-3) 는 이 메서드만 부름. kickstart 에 평문이 나가는 일은 없음. 재입력 전까지 막는 방식은 쓰지 않음 (옛 평문 저장본이 0 건일 가능성이 높아 차단 사유 · 문구를 늘릴 이유가 없음)</li>
+                <li>'기존 비밀번호 유지' + 옛 평문 저장본 : <code>PasswordPatch</code> 가 저장본의 평문 VO 를 옮긴 뒤, 이어지는 해시 단계가 남은 평문을 해시하므로 <b>저장되는 값은 해시</b>. 한 번 저장하면 그 정의서는 평문이 없어짐</li>
+                <li>commons-codec 은 Spring Boot 가 버전을 관리하므로 버전 없이 선언 (CP2 에서 BOM 포함 여부 확인)</li>
+                <li>테스트 : salt 가 무작위라 값 비교 대신 검증 (같은 salt 로 다시 계산해 일치) 으로 확인. 결정적 테스트가 필요한 곳은 salt 공급을 주입</li>
+              </ul></td><td>① 렌더 때 해시 (이전 결정) : 평문이 DB 에 남음 · 체크박스를 없애면 "이미 해시한 값" 입력 길이 없어져 서버가 항상 해시하는 쪽이 일관 ② 플래그를 서버가 채우는 내부 필드로 남김 : 직접 POST 로 플래그를 실어 임의 문자열을 해시인 척 저장할 수 있음</td></tr>
+            <tr><td>(D-8 대체) 수정 화면 <span class="chip mod">개정 2</span></td><td>"기존 비밀번호 유지" 체크 중엔 비밀번호 칸만 잠금 (암호화 칸이 없어짐)</td><td>-</td></tr>
+            <tr><td>D-19 기본값 <span class="chip mod">개정 3</span></td><td>새 정의서의 RHEL 입력 기본값을 설치 프로그램 (anaconda) 기본값에 맞춤. KDump 체크됨. 항목별 표는 §5</td><td>-</td></tr>
+            <tr><td>D-20 ISO 등록 때 버전 대조 <span class="chip mod">개정 5</span></td><td>comps 추출 작업에 단계 하나를 더함 (ISO 이미지 준비 뒤 · 저장소 탐색 전, 단계 이름 예 : "ISO 버전 확인"). 루트 <code>.treeinfo</code> 의 배포판 이름 · 주 버전을 등록 OS (Rocky Linux 의 <code>RhelRelease</code>) 와 비교해 다르면 작업 실패. 알림 문구 예 : "ISO 의 실제 버전(Rocky Linux 11.0)과 등록한 OS 버전(Rocky Linux 10.0)이 다릅니다. 맞는 OS 아래에 다시 등록해야 합니다." (DESIGN.md 7절로 CP2 확정). 실패하면 설치 환경이 저장되지 않아 정의서에서 쓸 수 없음 (새 상태 · 컬럼 없음). <code>.treeinfo</code> 가 없으면 실패 ("RHEL 계열 설치 ISO 인지 확인해야 합니다" 류, b-1 NOT_RHEL_TREE 와 같은 판단). 대상은 Rocky Linux (CentOS 는 <code>.treeinfo</code> 이름 표기가 여러 가지이고 설치 지원 대상이 아님 → 지금처럼 대조 없음). <code>.treeinfo</code> 해석은 b-1 에서 떼어 management 쪽 값 객체 (예 : <code>TreeInfo</code>) 로 두고 b-1 <code>InstallTreeInspector</code> 와 추출 작업이 함께 씀 (management 가 execution 을 참조하지 않게)</td><td>① 실행 때만 대조 : 등록한 지 한참 뒤 설치하다 실패해야 알게 됨 ② 정의서 저장 때 대조 : 그때는 ISO 를 열지 않음</td></tr>
+            <tr><td>D-20 보강 (재추출 경로) <span class="chip mod">개정 6</span></td><td>사실 ① comps 추출이 도는 경로는 둘 : ISO 등록 직후 자동 (<code>IsoRegistrationService.triggerPostCreationTask</code> → <code>RhelPostCreationTaskStrategy</code>) 과 ISO 의 [추출] 동작 (<code>POST /management/os/{osId}/iso/{isoId}/extract</code>, <code>IsoJobController.startExtract</code>). 복원 · 드리프트 해결 경로는 추출을 부르지 않음 (근거 : <code>CompsExtractionLauncher.startExtraction</code> 호출처 grep). ② 저장 (<code>CompsMergeService.mergeAndSave</code>) 은 마지막 단계라, 그 전에 실패하면 기존 설치 환경 · 그룹은 그대로 남음 (근거 : <code>CompsExtractionService.extractAsync</code>).<br>결정 : 이미 설치 환경이 저장된 ISO 를 [추출] 로 다시 돌려 버전 확인에 실패해도 <b>기존 환경은 지우지 않음</b> (작업 실패 알림만). 지우면 그 ISO 를 쓰는 기존 정의서의 환경 참조가 끊기는 파괴적 변경이 됨. 그런 ISO 는 b-4 실행 때 대조 (§12 안전망) 가 설치 단계에서 막음</td><td>-</td></tr>
+            <tr><td>D-21 OS 등록 화면의 Rocky 지원 메이저 <span class="chip mod">개정 5</span></td><td>OS 등록 셀렉트에서 Rocky Linux 를 지원 메이저별 선택지로 나눔 : "Rocky Linux 8" · "Rocky Linux 9" · "Rocky Linux 10". 선택지는 <code>RhelRelease</code> 상수에서 만듦 (상수를 더하면 선택지가 따라 늘어남). 고르면 버전 칸에 "9." 을 미리 채우고 힌트 "세부 버전까지 입력합니다. 예: 9.6". 서버 : 등록 요청에 <code>RhelRelease</code> (Rocky 일 때 필수, 다른 OS 면 비어야 함) 를 더하고, 버전의 주 번호가 고른 메이저와 같아야 함 (<code>RhelRelease</code> 의 판정 메서드 하나를 폼 힌트 · Layer A 가 함께 씀). 저장은 지금처럼 (OSName, osVersion), 새 컬럼 없음. 결과 : Rocky 11 은 <code>RhelRelease</code> 에 상수를 더하기 전까지 <b>등록 자체가 안 됨</b> (선택지 없음 · 직접 POST 400). CentOS · Ubuntu · Windows Server 는 지금 그대로</td><td>① 버전 칸 힌트 · 검증만 : 사용자 요구 ("지원 메이저 버전을 명시") 보다 약함 ② 메이저 컬럼 신설 : 버전 문자열과 중복 · DDL</td></tr>
+            <tr><td>D-2 보강 <span class="chip mod">개정 5</span></td><td>정의서의 지원 판정 (D-2) 은 그대로 둠. D-21 이전에 등록된 메타데이터 · 직접 DB 수정에 대한 안전망</td><td>-</td></tr>
+          </tbody>
+        </table>
+
+        <h4>도메인 모델 (SSOT 스케치)</h4>
+        <pre><code>// management/os/enums/RhelRelease  (신규, D-2)
+enum RhelRelease {
+    ROCKY_8, ROCKY_9, ROCKY_10 { boolean supportsRootSshFlag() { return true; } };
+    boolean supportsRootSshFlag() { return false; }
+}
+// OSMetadata (수정) — 버전 문자열 첫 '.' 앞 숫자, ROCKY_LINUX 만
+Optional&lt;RhelRelease&gt; rhelRelease();
+
+// OSInstallationFamilyInspector SPI (수정, D-1) — 반환 관례는 현 정책과 같게 "허용 = null" (CP2 확정)
+String installBlockReason(OSMetadata os);
+
+// OsInstallTargetPolicy (static → @Component) — 계열 맵 dispatch, 옵션 조립 + 1단 검사기가 공유
+String blockReason(OSMetadata os);   // FAMILY_MAPPING → inspectors.get(family).installBlockReason(os)</code></pre>
+        <div class="callout">Primitive Obsession : 지원 버전은 문자열 비교 대신 <code>RhelRelease</code> enum 하나로 판정한다 (서버 가드 · 옵션 값 · b-3 kickstart 공용). Windows 검사기가 설치 소스 준비 여부를 얻는 주입 경로와 <code>FAMILY_MAPPING</code> 의 위치는 CP2 에서 확정.</div>
+
+        <h4>타입 · 파일</h4>
+        <table>
+          <thead><tr><th>분류</th><th>대상</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>management/os/enums/RhelRelease</code></td><td>enum (D-2)</td></tr>
+            <tr><td><span class="chip mod">서버</span></td><td><code>management/os/entity/OSMetadata</code></td><td><code>rhelRelease()</code></td></tr>
+            <tr><td><span class="chip mod">서버</span></td><td><code>…/reference/os/OSInstallationFamilyInspector</code></td><td><code>installBlockReason(OSMetadata)</code></td></tr>
+            <tr><td><span class="chip mod">서버</span></td><td><code>OsInstallTargetPolicy</code></td><td>static → <code>@Component</code>, 계열 맵 dispatch, 문장 상수는 각 검사기로</td></tr>
+            <tr><td><span class="chip mod">서버</span></td><td><code>OSInstallationReferenceInspector</code></td><td>판별자 일치 · 지원 판정 (D-3)</td></tr>
+            <tr><td><span class="chip mod">서버</span></td><td><code>WindowsInstallationFamilyInspector</code></td><td>정책 호출 제거, <code>installBlockReason</code> = 설치 소스 준비</td></tr>
+            <tr><td><span class="chip mod">서버</span></td><td><code>RHELInstallationFamilyInspector</code> · <code>DebianInstallationFamilyInspector</code></td><td><code>installBlockReason</code></td></tr>
+            <tr><td><span class="chip mod">서버</span></td><td><code>LinuxPartitionRules</code></td><td>필수 마운트포인트 순서 고정 (/, /boot, /boot/efi, swap)</td></tr>
+            <tr><td><span class="chip mod">서버</span></td><td><code>SettingOSOptionResponse</code></td><td><code>rootSshSupported</code></td></tr>
+            <tr><td><span class="chip mod">서버</span></td><td><code>JpaSettingQueryService.toOSOption</code></td><td>빈 정책 사용. <code>FAMILY_MAPPING</code> 을 정책과 한 곳으로 (위치 CP2 확정)</td></tr>
+            <tr><td><span class="chip mod">서버</span></td><td><code>RaidConfigurationRequest.osVolumeCapacityLowerBoundBytes</code></td><td>RAID 미구성 후보 제외 (D-7, HF32 병합본 위)</td></tr>
+            <tr><td><span class="chip mod">화면</span></td><td><code>templates/provisioning/setting-new.html</code></td><td>리눅스 공통 블록 (시간대 · 파티션 · OS 볼륨 안내 · root · 사용자) + <code>rhel-based :: form</code> 포함</td></tr>
+            <tr><td><span class="chip mod">화면</span></td><td><code>fragments/…/os-installation/rhel-based.html</code></td><td>null 미보호 정리 · 규약 정비</td></tr>
+            <tr><td><span class="chip mod">화면</span></td><td><code>static/provisioning/setting-form.js</code></td><td><code>onInstallOsChange</code> · <code>stepBuilders.OS_INSTALLATION</code> · <code>stepPrefillers.OS_INSTALLATION</code> · 제출 전 검사 연결, root SSH 칸 서버 값 기반, 비밀번호 유지 잠금</td></tr>
+            <tr><td><span class="chip opt">필요 시</span></td><td><code>static/provisioning/setting.css</code></td><td>새 클래스는 DESIGN.md 표에 먼저</td></tr>
+            <tr><td><span class="chip mod">개정 1</span></td><td><code>templates/fragments/ui/lookup-field.html</code></td><td>field · picker · panel</td></tr>
+            <tr><td><span class="chip mod">개정 1</span></td><td><code>static/global/list-lookup.js</code></td><td>호스트 일반화 · 단일 방식</td></tr>
+            <tr><td><span class="chip mod">개정 1</span></td><td><code>SettingController</code></td><td>lookup 두 개</td></tr>
+            <tr><td><span class="chip mod">개정 1</span></td><td><code>JpaSettingQueryService</code></td><td>lookupOs · lookupIsos (기존 후보 재사용)</td></tr>
+            <tr><td><span class="chip mod">개정 1</span></td><td><code>setting-new.html</code> · <code>setting-form.js</code></td><td>oiOsSelect · oiIsoSelect 참조 전부 : 계열 판정 · 사용 중단 확인 · 미리 채우기 · 제출 전 검사 · JSON 조립</td></tr>
+            <tr><td><span class="chip mod">개정 1</span></td><td><code>style.css</code> (필요 시) · DESIGN.md</td><td>D-17</td></tr>
+            <tr><td><span class="chip new">개정 1</span></td><td><code>templates/fragments/provisioning/setting-lookup-rows.html</code></td><td>os · isos 행 조각</td></tr>
+            <tr><td><span class="chip new">개정 1</span></td><td>행 응답 record (예 : <code>SettingOsLookupRow</code> · <code>SettingIsoLookupRow</code>)</td><td>이름은 CP2 확정</td></tr>
+            <tr><td><span class="chip mod">개정 2</span></td><td><code>build.gradle</code></td><td>commons-codec</td></tr>
+            <tr><td><span class="chip mod">개정 2</span></td><td><code>RootPasswordRequest</code> · <code>UserRequest</code></td><td>플래그 입력 제거 · VO</td></tr>
+            <tr><td><span class="chip mod">개정 2</span></td><td><code>LinuxInstallationRequest</code></td><td>STRIP · retainFrom · 해시 훅</td></tr>
+            <tr><td><span class="chip mod">개정 2</span></td><td><code>AbstractProcessRequest</code></td><td>해시 훅 기본 = 그대로</td></tr>
+            <tr><td><span class="chip mod">개정 2</span></td><td><code>JpaSettingCommandService</code></td><td>병합 뒤 해시</td></tr>
+            <tr><td><span class="chip mod">개정 2</span></td><td><code>setting-process-cards.html</code></td><td>배지</td></tr>
+            <tr><td><span class="chip mod">개정 2</span></td><td><code>setting-form.js</code></td><td><code>buildRootPassword</code> · <code>buildUsers</code> · <code>addUserRow</code> 플래그 제거</td></tr>
+            <tr><td><span class="chip new">개정 2</span></td><td>비밀번호 VO · 해시기 (<code>PasswordHasher</code> 류)</td><td>salt 주입 가능하게 해 테스트 결정적</td></tr>
+            <tr><td><span class="chip mod">개정 5</span></td><td><code>management/os/new.html</code> · <code>OSMetadataController</code></td><td>선택지</td></tr>
+            <tr><td><span class="chip mod">개정 5</span></td><td><code>OSMetadataCreateRequest</code></td><td>RhelRelease · 일치 검증</td></tr>
+            <tr><td><span class="chip mod">개정 5</span></td><td><code>OSMetadataService</code></td><td>등록</td></tr>
+            <tr><td><span class="chip mod">개정 5</span></td><td><code>CompsExtractionService</code></td><td>단계 추가</td></tr>
+            <tr><td><span class="chip mod">개정 5</span></td><td>b-1 <code>InstallTreeInspector</code></td><td>TreeInfo 사용</td></tr>
+            <tr><td><span class="chip new">개정 5</span></td><td><code>TreeInfo</code> (management)</td><td><code>.treeinfo</code> 해석</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">DB : 스키마 변경 없음 (정의서 단계는 JSON 컬럼). DDL 없음.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 화면 모양 · 저장 JSON</summary>
+      <div class="body">
+        <p>데모와 같은 내용의 정적 도식. Windows 를 고르면 리눅스 · RHEL 블록이 닫히고 Windows 블록 (설치 이미지 · Administrator 비밀번호) 이 열린다.</p>
+        <div class="pkg-tree">OS 설치 카드
+├── 설치할 OS            검색 선택기 단일 방식 (개정 1, lookup-field :: picker)
+│   ├── 줄               돋보기 · 입력칸 (Enter, 1 건이면 바로 칩) · 고른 값 칩 · 해제
+│   └── 팝업 (panel)      검색칸 · 닫기 · 행 표 (이름 · 버전 · 계열 · ISO 수 · 배지 · 막힌 사유)
+│                        막힌 행 = 이름 버튼 잠금 + 사유 문장 (D-13)
+├── 설치 ISO             검색 선택기 단일 방식 (OS 를 고르기 전 잠김, OS 를 바꾸면 비워짐, D-14)
+│   └── 팝업             이름 · 사용 중단 배지 (고르면 기존 확인 창)
+├── [공통]  OS 볼륨 안내   HF32 oiOsVolumeRequirementHint
+├── [리눅스]
+│   ├── 시간대            대륙 · 도시 · RTC UTC
+│   ├── 파티션 표         n-tbl-list · [기본 파티션 자동 생성] · 행 추가/삭제
+│   │   └── OS 볼륨 용량 줄   U4-1-3
+│   ├── root 비밀번호     평문 입력 · (수정) 기존 비밀번호 유지 = 비밀번호 칸만 잠금 (개정 2)
+│   │   └── root SSH 허용   rootSshSupported 일 때만 (Rocky 10)
+│   └── 사용자 표         이름 · 비밀번호 · sudo (암호화된 값 칸 없음, 개정 2)
+├── [RHEL]   rhel-based :: form
+│   ├── 설치 환경
+│   ├── 추가 패키지 그룹   환경 ∩ ISO 로 필터
+│   └── KDump
+└── [Windows]  설치 이미지 · Administrator 비밀번호   (동작 불변)</div>
+        <h4>요청 JSON 예시 (Rocky 10 정의서 예시, 개정 2 반영)</h4>
+        <pre><code>{"type":"OS_INSTALLATION","osFamily":"RHEL_BASED","osMetadataId":13,"isoId":41,
+ "timezone":{"timezone":"Asia/Seoul","isUTC":true},
+ "partitions":[{"mountPoint":"/boot/efi","fileSystem":"EFI","size":1,"sizeUnit":"GB","isGrow":false},
+               … ,
+               {"mountPoint":"/","fileSystem":"EXT4","size":0,"sizeUnit":"GB","isGrow":true}],
+ "rootPassword":{"password":"(평문)","keepExistingPassword":false},
+ "users":[{"username":"ops","password":"(평문)","isSudoer":true,"keepExistingPassword":false}],
+ "environmentId":4,"packageGroupIds":[9,11],"isKDumpEnabled":true,"allowSshRoot":true}</code></pre>
+        <div class="callout warn">개정 2 (D-18) : 입력은 평문 <code>password</code> 만 받는다 (<code>isPasswordEncrypted</code> 입력 제거, 해시 키가 오면 400). 저장 JSON 은 <code>password</code> 대신 해시 키 (<code>$6$…</code>) 를 담는다. 해시 키 이름은 CP2 확정.</div>
+
+        <h4>D-19 기본값 표 <span class="chip mod">개정 3</span></h4>
+        <table>
+          <thead><tr><th>항목</th><th>설치 프로그램 기본값</th><th>정의서 기본값</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>KDump</td><td>켜짐 (메모리 자동 예약)</td><td><b>체크됨</b></td><td>사용자 지시. JS 초기값 + 서버 계약 기본값 (누락 시) 도 true 로 맞출지는 Q6</td></tr>
+            <tr><td>시간대</td><td>위치로 추정</td><td>Asia/Seoul</td><td>설치 장소가 국내 (Windows 시간대 기본값도 Korea Standard Time)</td></tr>
+            <tr><td>RTC 를 UTC 로</td><td>켜짐</td><td>체크됨</td><td>-</td></tr>
+            <tr><td>설치 환경</td><td>제품 설정이 정함 (b-3 에서 확인)</td><td>ISO 의 기본 환경 (<code>OSEnvironment.isDefault</code>) 이 하나면 미리 선택, 아니면 비움</td><td>comps 추출이 저장한 기본 표시를 씀. 실제 comps 의 값은 CP2 에서 확인</td></tr>
+            <tr><td>추가 패키지 그룹</td><td>환경이 정한 기본 선택 (b-3 에서 확인)</td><td>비움</td><td>추출한 그룹 기본 표시가 설치 프로그램의 기본 체크와 같은 뜻인지 확인 전이라 미리 체크 안 함</td></tr>
+            <tr><td>root 비밀번호</td><td>(b-3 에서 확인)</td><td>비움</td><td>접근 계정 규칙 (root 또는 사용자 하나 이상) 은 그대로</td></tr>
+            <tr><td>root SSH 허용 (10)</td><td>꺼짐</td><td>체크 안 됨</td><td><code>rootpw --allow-ssh</code> 가 9 에서도 쓰이는지는 b-3 에서 실제 ISO 로 확인 (지금 계약은 10 전용)</td></tr>
+            <tr><td>사용자 sudo</td><td>꺼짐 (관리자 지정 안 함)</td><td>체크 안 됨</td><td>-</td></tr>
+            <tr><td>파티션 (자동)</td><td><code>/boot/efi</code> 600 MiB EFI · <code>/boot</code> 1 GiB XFS · swap 메모리 크기 기준 권장 · <code>/</code> XFS (LVM)</td><td>지금 프리셋 : <code>/boot/efi</code> 1 GB EFI · <code>/boot</code> 1 GB EXT4 · swap 16 GB · <code>/</code> EXT4 grow</td><td>현행 유지 (사용자 결정 11-17, <span class="chip mod">개정 5</span>)</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">데모는 시나리오 입력 (root 비밀번호 · 사용자 ops (sudo) · 그룹 9, 11) 을 미리 넣은 상태로 시작한다. KDump 체크 · Asia/Seoul · RTC UTC 체크는 위 기본값 그대로다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §6 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>대상</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td><code>RhelRelease</code></td><td>"8.10" · "9.6" · "10.0" · "10" → 상수. "7.9" · "11.0" · "abc" · CENTOS → empty. <code>supportsRootSshFlag</code> 10 만</td></tr>
+            <tr><td><code>OsInstallTargetPolicy</code> (빈)</td><td>계열별 위임 · Ubuntu · CentOS · Rocky 7 · Rocky 9 · Windows 소스 미준비 · Windows 준비</td></tr>
+            <tr><td><code>OSInstallationReferenceInspector</code></td><td>판별자 불일치 (Windows OS + RHEL 판별자 · Ubuntu OS + RHEL 판별자) → 400 · CentOS + RHEL 판별자 → 400 · Rocky 9 통과</td></tr>
+            <tr><td><code>RaidConfigurationRequest</code></td><td>RAID 미구성 후보 제외 하한</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (<code>@WebMvcTest</code> + MockMvc)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>성공 201</td><td>저장 Rocky 8 · 9 · 10 (10 은 allowSshRoot)</td><td>3</td></tr>
+            <tr><td>성공 (수정)</td><td>PUT 기존 비밀번호 유지</td><td>1</td></tr>
+            <tr><td>400</td><td>판별자 위조 · CentOS · 필수 마운트 · 접근 계정 없음 · 하한 초과</td><td>5</td></tr>
+            <tr><td>400 (수정)</td><td>유지할 비밀번호 없음</td><td>1</td></tr>
+            <tr><td>뷰</td><td>작성 화면 : RHEL 블록 요소 존재 · Rocky 옵션 선택 가능 · CentOS/Ubuntu disabled + 사유 · <code>data-root-ssh-supported</code></td><td>4</td></tr>
+            <tr><td>404 · 409 · 500</td><td>b-2 가 새로 만드는 경로 없음. 기존 시나리오 유지</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <h4>고칠 기존 테스트</h4>
+        <ul>
+          <li><code>OsInstallTargetPolicyTest</code> · <code>JpaSettingQueryServiceTest</code> (Rocky = LINUX_BLOCK_REASON 단언)</li>
+          <li><code>SettingControllerDiskGroupViewTest</code> (OS 볼륨 안내 부재 단언 → 존재)</li>
+          <li><code>SettingRestControllerSaveFlowTest</code> (위조 문장) · <code>WindowsInstallationFamilyInspectorTest</code> (정책 호출 이동)</li>
+        </ul>
+        <h4>개정 추가</h4>
+        <table>
+          <thead><tr><th>개정</th><th>시나리오</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">개정 1</span> 통합</td><td>lookup/os 행 (막힌 행 사유 · 사용 중단 배지 · q 필터 · id 한 행) · lookup/isos (OS 범위 · 다른 OS 의 ISO 안 나옴 · 없는 OS 빈 결과)</td></tr>
+            <tr><td><span class="chip mod">개정 1</span> 회귀</td><td>게스트 서버 목록의 보드 · 그룹 검색 선택기 뷰 테스트 · <code>DesignConventionTest</code></td></tr>
+            <tr><td><span class="chip mod">개정 2</span></td><td>해시 형식 (<code>$6$</code> · 같은 평문 다른 salt → 다른 값 · 검증 가능) · 저장 JSON 에 평문 없음 · 해시 키 직접 POST 400 · 기존 유지 시 해시 그대로 · 옛 저장본 읽기 (true/false) · Windows 비밀번호는 평문 유지</td></tr>
+            <tr><td><span class="chip mod">개정 5</span></td><td>등록 Rocky 9 + "9.6" 201 · Rocky 9 + "10.0" 400 · Rocky 선택에 RhelRelease 없음 400 · Ubuntu 에 RhelRelease 있음 400 · 추출 버전 일치 통과 · 불일치 실패 (문구) · <code>.treeinfo</code> 없음 실패 · CentOS 대조 없음 · <code>TreeInfo</code> 해석 단위</td></tr>
+          </tbody>
+        </table>
+        <p>전체 테스트 (<code>DesignConventionTest</code> 포함) green.</p>
+      </div>
+    </details>
+
+    <!-- ===== §7 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p>신규 예외 없음 (D-3). 모두 <code>FieldBoundBadRequestException</code> 하위 400.</p>
+        <table>
+          <thead><tr><th>예외</th><th>필드</th><th>b-2 에서의 트리거</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>UnsupportedOsInstallTargetException</code></td><td>osMetadataId</td><td>판별자 불일치 · <code>installBlockReason</code> (CentOS · Ubuntu · 그 밖 Rocky). 통합 400 "판별자 위조 · CentOS"</td><td><span class="chip mod">재사용 · 트리거 추가</span></td></tr>
+            <tr><td><code>InvalidPartitionException</code></td><td>partitions</td><td>필수 마운트 누락 등. 통합 400 "필수 마운트"</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>InvalidUserAccessException.rhelNoAccessibleUser</code></td><td>rootPassword</td><td>root · 사용자 둘 다 없음. 통합 400 "접근 계정 없음"</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>InvalidEnvironmentSelectionException</code></td><td>environmentId · packageGroupIds</td><td>ISO 미제공 환경 · 허용 밖 그룹 (기존 테스트 유지)</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>SettingSaveRequest.isPartitionsWithinOsVolume</code> (<code>@AssertTrue</code>)</td><td>정의서 수준</td><td>하한 초과. 통합 400 "하한 초과" (D-7 이후 기준)</td><td><span class="chip keep">재사용</span></td></tr>
+          </tbody>
+        </table>
+        <p class="muted"><span class="chip mod">개정 2</span> 해시 키가 실린 직접 POST 는 400 (D-18). 어느 예외 · 필드로 받을지는 브리프에 없어 CP2 에서 정한다.</p>
+        <p class="muted">판별자 불일치 문장 ="선택한 OS 와 설치 설정의 계열이 맞지 않습니다." (<code>UnsupportedOsInstallTargetException</code>, 필드 osMetadataId).</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 · 주의 · Open Questions</summary>
+      <div class="body">
+        <ul>
+          <li><b>HF32 겹침</b> : <code>onInstallOsChange</code> 한 곳. CP2 착수 전 HF32 병합본에서 다시 확인.</li>
+          <li><b>b-2 ~ b-4 중간 상태</b> (D-9) : RHEL 정의서 저장 · 할당은 되지만 개시하면 Windows 준비도가 대기 뒤 실패시킨다. 할당 판정에 OS 계열 축은 없다 (그대로).</li>
+          <li><b>비밀번호</b> <span class="chip mod">개정 2</span> : 저장 때 항상 해시 (D-18). 운영 · 스테이징의 옛 평문 RHEL 정의서는 배포 전 읽기 전용 점검 SQL 로 찾는다 (있으면 다시 넣어 저장, 사용자 결정 몫).</li>
+          <li><b>디자인 규약</b> <span class="chip mod">개정 1</span> : DESIGN.md 행 추가 (D-17) 는 디자인 스트림 소관. CP2 착수 전 디자인 세션과 확인.</li>
+          <li><b>기존 테스트 수정</b> : <code>LINUX_BLOCK_REASON</code> 삭제와 정책 호출 이동으로 §6 의 5개 테스트 단언이 바뀐다.</li>
+          <li><b>필수 마운트포인트 순서</b> : <code>LinuxPartitionRules</code> 의 필수 마운트포인트 순서가 <code>Set.of</code> 때문에 실행마다 바뀔 수 있다. b-2 에서 고정 순서 (/, /boot, /boot/efi, swap) 로 고친다.</li>
+          <li><b>D-7 은 정의서 저장 규칙 변경</b> : RAID 미구성 OS 후보가 있는 정의서의 하한이 커진다 (거짓 거절 해소). Windows 정의서는 이 검사 대상이 아니다 (<code>LinuxInstallationRequest</code> 만).</li>
+        </ul>
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>제안</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>RHEL 옵션을 설치 트리 설정 (트리 루트 · bsdtar) 으로 막을까 (D-4)</td><td>막지 않음. 실행 준비도 (b-4) 에서 막음</td></tr>
+            <tr><td>Q2 <span class="chip mod">개정 4</span></td><td>캠페인 브랜치를 언제 dev 에 병합할까 (D-9). 아래 A · B · C 비교 표, 결정은 사용자</td><td><b>B</b> (b-2 따로 병합, 앵커 권고와 같음)</td></tr>
+            <tr><td>Q3</td><td>지원 버전을 Rocky 8 · 9 · 10 으로 고정 (CentOS 제외)</td><td>고정</td></tr>
+            <tr><td>Q4 <span class="chip mod">개정 1</span></td><td>검색 선택기 단일 방식을 공통 부품에 더하고 DESIGN.md 에 행을 추가 (디자인 스트림 확인) 하는 방식으로 갈까 (D-11 · D-17)</td><td>그렇게</td></tr>
+            <tr><td>Q5 <span class="chip mod">개정 1</span></td><td>선택 불가 OS 도 팝업에 사유와 함께 보일까 (D-13)</td><td>보임</td></tr>
+            <tr><td>Q6 <span class="chip mod">개정 3</span></td><td>KDump 기본 켜짐을 화면 초기값만 바꿀까, 계약 기본값 (isKDumpEnabled 누락 시) 도 true 로 바꿀까</td><td>둘 다. 직접 POST 로 키를 빼도 설치 프로그램 기본값과 같게. <span class="chip mod">개정 4</span> 계약 기본값까지 true 로 바꿔도 옛 저장본의 뜻은 바뀌지 않음 (저장 JSON 에는 키가 항상 실림). 영향은 키를 뺀 직접 POST 와 손으로 넣은 저장본뿐. 그래도 배포 전 점검 SQL 로 키 없는 RHEL 저장본 수를 셈 (기대 0)</td></tr>
+            <tr><td>Q7 <span class="chip mod">개정 3</span></td><td>기본 파티션 프리셋을 설치 프로그램처럼 XFS · <code>/boot/efi</code> 600 MiB · swap 권장 크기로 바꿀까. 2026-07-11 의 "ext4 고정" 결정을 뒤집는 것</td><td><b>답 : 현행 유지</b> (<span class="chip mod">개정 5</span> 사용자 결정 : "'기본 파티션'의 현행을 그대로 따른다. XFS 로 하거나 기본 용량을 변경하지 않는다.")</td></tr>
+          </tbody>
+        </table>
+        <h4>Q2 비교 (<span class="chip mod">개정 4</span>, 앵커 의견 반영, 결정은 사용자)</h4>
+        <table>
+          <thead><tr><th>안</th><th>내용</th><th>장점</th><th>단점</th></tr></thead>
+          <tbody>
+            <tr><td>A 캠페인 일괄</td><td>b-4 이후 dev 에 한 번에 병합</td><td>중간 상태가 dev · 배포에 안 나감</td><td>b-2 가 바꾸는 저장 계약 · 공통 부품 (setting-form.js · lookup-field · list-lookup.js) 이 오래 dev 밖에 있어 M · 디자인 스트림과 충돌 비용이 커짐. 점검 SQL 이 한꺼번에 몰림</td></tr>
+            <tr><td><b>B b-2 따로 병합</b></td><td>b-2 CP7 뒤 dev 에 병합. 그 뒤 배포가 b-4 보다 먼저 나가면 RHEL 정의서는 저장 · 할당되고, 개시하면 OS 설치 단계에서 "RHEL 계열 설치는 지원하지 않습니다" 로 대기 뒤 실패</td><td>충돌 비용 · 점검 SQL 분산. 임시 코드 없음</td><td>배포 시점에 따라 중간 상태가 운영에 보일 수 있음 (배포는 사용자가 정하는 시점이라 피할 수 있음)</td></tr>
+            <tr><td>C b-2 따로 병합 + 정책으로 계속 막음</td><td>병합하되 RHEL 옵션은 설정값이 켜질 때까지 막음</td><td>중간 상태가 운영에 안 보임</td><td>b-4 에서 지울 임시 설정 · 분기가 생김</td></tr>
+          </tbody>
+        </table>
+        <p>제안을 <b>B</b> 로 바꾼다 (앵커 권고와 같음). 이유 : 공통 부품과 저장 계약을 바꾸는 슬라이스라 dev 밖에 오래 두는 비용이 크고, 중간 상태는 dev → main 배포 시점을 b-4 뒤로 잡으면 운영에 나가지 않는다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §8-b ===== -->
+    <details class="section" id="s8-b">
+      <summary>§8-b. 관리 포인트 : 새 Rocky 메이저가 나오면 <span class="chip mod">개정 6</span></summary>
+      <div class="body">
+        <p>유지보수 중 도메인 로직을 고쳐야 하는 자리를 앵커가 원장으로 모은다 (사용자 방향 11-17, 매뉴얼 '개발 · 유지보수' 절 예정). b-2 의 D-21 이 첫 사례다.</p>
+        <table>
+          <thead><tr><th>바뀌는 계기</th><th>클래스 · 설정</th><th>고칠 내용</th><th>확인할 테스트</th><th>생기는 단계</th></tr></thead>
+          <tbody>
+            <tr><td>새 Rocky 메이저 출시 (예 : 11)</td><td><code>management/os/enums/RhelRelease</code></td><td>상수 추가 (ROCKY_11). OS 등록 선택지 (D-21) · 정의서 지원 판정 (D-2) · 지원 문구 (D-10, 상수에서 만들면 자동) · ISO 등록 대조 (D-20) 가 따라온다</td><td><code>RhelReleaseTest</code> · <code>OsInstallTargetPolicy</code> 테스트 · OS 등록 요청 테스트</td><td>b-2</td></tr>
+            <tr><td>같음</td><td><code>RhelRelease.supportsRootSshFlag()</code></td><td>새 메이저에서 <code>rootpw --allow-ssh</code> 를 쓰는지 실제 ISO 로 확인해 값 지정</td><td><code>RhelReleaseTest</code></td><td>b-2</td></tr>
+            <tr><td>같음</td><td><code>TreeInfo</code> (management, <code>.treeinfo</code> 해석)</td><td>새 ISO 의 <code>.treeinfo</code> <code>[release] name</code> 이 "Rocky Linux" 그대로인지 · version 형식이 같은지 실제 ISO 로 확인. 다르면 대조 규칙 수정</td><td><code>TreeInfo</code> 테스트 (실제 <code>.treeinfo</code> 견본 추가)</td><td>b-2</td></tr>
+            <tr><td>같음</td><td><code>execution/installtree/vo/InstallTree</code> 상수 <code>KERNEL</code> · <code>INITRD</code> · <code>InstallTreeInspector</code> 필수 파일 (<code>BaseOS/repodata/repomd.xml</code> · <code>[stage2] mainimage</code> 기본 <code>images/install.img</code>)</td><td>새 ISO 의 트리 배치가 같은지 확인. 다르면 상수 · 필수 파일 목록 수정</td><td><code>InstallTreeInspectorTest</code> · <code>make-fake-rocky-iso.sh</code> 견본</td><td>b-1</td></tr>
+            <tr><td>같음</td><td><code>RHELCompsExtractor</code> 의 <code>LOCAL_SKIP_DIRS</code> (로컬 탐색 제외 폴더)</td><td>새 ISO 에서 comps 를 담은 <code>repodata</code> 위치가 탐색 깊이 3 · 제외 폴더 밖에 있는지 확인</td><td>comps 추출 테스트</td><td>기존</td></tr>
+            <tr><td>같음</td><td>kickstart 생성기의 메이저별 차이</td><td>새 메이저의 kickstart 문법 차이 반영 (지금은 없음, b-3 이 만든다)</td><td>b-3 테스트</td><td>b-3</td></tr>
+            <tr><td>같음</td><td>기본 파티션 프리셋 <code>JpaSettingQueryService</code> 기본 파티션 목록</td><td>메이저와 무관한 고정 프리셋 (현행 유지, 사용자 결정). 새 메이저의 설치 프로그램이 <code>/boot</code> · <code>/boot/efi</code> 최소 크기를 올렸는지만 확인</td><td>기본 파티션 테스트</td><td>기존</td></tr>
+            <tr><td>같음</td><td>진단 · 설치 자산의 메이저별 경로</td><td>없음. 설치 원본은 등록 ISO 를 그대로 풀어 쓰고 (b-1), 메이저별 별도 자산 경로가 없다</td><td>-</td><td>-</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">보고 형식 : 앞으로 앵커에 보고하는 관리 포인트도 이 표 칸 (바뀌는 계기 / 클래스 · 설정 / 고칠 내용 / 확인할 테스트) 을 쓴다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §9 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. CP5 (브라우저 검증) · Verification</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>구분</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td>샌드박스</td><td>쓰기 가능한 DB + Rocky OS 메타 3개 (8 · 9 · 10) · CentOS 1 · Ubuntu 1 · Windows 1, Rocky ISO 에 환경 · 패키지 그룹 (comps) 데이터. 만드는 법 (가짜 ISO comps 추출 또는 DB 시드) 은 CP5 브리프에서</td></tr>
+            <tr><td>A 정상</td><td>Rocky 8 · 9 · 10 작성 · 저장 · 상세 · 수정 (비밀번호 유지 · 변경) · root SSH 칸 (10 만) · 환경 바꾸면 그룹 필터 · 기본 파티션 자동 생성 · Windows 정의서 회귀</td></tr>
+            <tr><td>B 비정상</td><td>CentOS · Ubuntu 옵션 · direct POST 판별자 위조 · root/사용자 없음 · 필수 마운트 누락 · grow 2개 · 하한 초과 · 유지할 비밀번호 없음</td></tr>
+            <tr><td>C 막는 방식</td><td>옵션 사유가 보이는가 · 오류가 해당 칸 옆에 붙는가 · 비밀번호 유지 잠금</td></tr>
+            <tr><td>규약</td><td><code>scripts/design-audit/</code> (문구 표기 · 겹친 구분선). 항목마다 요소 단위 스크린샷</td></tr>
+            <tr><td>사전 조건</td><td>HF32 병합 뒤 (OS 영역 RAID 볼륨 필수 규칙 위에서 확인)</td></tr>
+            <tr><td>A <span class="chip mod">개정 1</span></td><td>OS · ISO 를 팝업 이름 클릭으로 고름 · 입력칸 Enter 1 건 바로 고름 · OS 바꾸면 ISO 비워짐 · 수정 화면 미리 채우기</td></tr>
+            <tr><td>B <span class="chip mod">개정 1</span></td><td>막힌 OS 행 클릭 · Enter 로 막힌 OS 1 건 · 사라진 OS 로 저장된 정의서 수정 화면</td></tr>
+            <tr><td>C <span class="chip mod">개정 1</span></td><td>막힌 사유가 행에 보이는가 · 사용 중단 확인 창</td></tr>
+            <tr><td>회귀 <span class="chip mod">개정 1</span></td><td>게스트 서버 목록 보드 · 그룹 검색 선택기 (다중 선택 · [적용] · 칩 해제) 를 <b>브라우저로</b> 확인. 사유 : 같은 파일 (<code>lookup-field.html</code> · <code>list-lookup.js</code>) 을 고치므로 화면 회귀 (<span class="chip mod">개정 4</span>)</td></tr>
+            <tr><td>A <span class="chip mod">개정 2</span></td><td>저장 뒤 DB 의 payload_json 에 평문이 없음 (읽기 전용 조회) · 수정 화면 유지 · 변경</td></tr>
+            <tr><td>A · B <span class="chip mod">개정 5</span></td><td>OS 등록 화면 선택지 · 미리 채움 · 불일치 거절 문구. 가짜 ISO (<code>scripts/installtree-fixture/make-fake-rocky-iso.sh &lt;dir&gt; &lt;버전&gt;</code>) 로 버전 불일치 ISO 를 등록해 추출 실패 알림 확인. 이 하네스는 comps.xml 을 넣지 않으므로 정상 경로 확인에는 comps 를 담은 가짜 ISO 가 필요 (CP5 브리프에서 하네스 보강 여부 결정)</td></tr>
+          </tbody>
+        </table>
+        <ul class="check-list" data-storage="E4-1-b-2-verify">
+          <li><label><input type="checkbox" data-key="build"> <span>빌드 : <code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span>빌드 : <code>./gradlew test</code> 전체 green (<code>DesignConventionTest</code> 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="fn-rocky"> <span>기능 : Rocky 8 · 9 · 10 저장 · 상세 · 수정</span></label></li>
+          <li><label><input type="checkbox" data-key="fn-guard"> <span>기능 : CentOS · Ubuntu 옵션 잠금 + 사유, direct POST 위조 400</span></label></li>
+          <li><label><input type="checkbox" data-key="fn-d7"> <span>기능 : RAID 미구성 후보가 하한에서 빠짐 (D-7)</span></label></li>
+          <li><label><input type="checkbox" data-key="reg-win"> <span>회귀 : Windows 정의서 작성 · 저장 · 수정 불변</span></label></li>
+          <li><label><input type="checkbox" data-key="reg-design"> <span>회귀 : design-audit 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>CP5 A · B · C 항목별 스크린샷</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. 일정 · 순서 · 12 단계</summary>
+      <div class="body">
+        <p>CP1 승인 → (HF32 병합 대기) → CP2~CP4 구현 (HF32 병합본 위) → CP4 중간 승인 → 테스트 · CP5 · CP6. HF32 병합 전 CP1 이 승인되면, 병합 알림까지 b-3 CP1 (kickstart 생성기) 조사를 먼저 할 수 있다 (사용자 판단).</p>
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>setting-new.html 복원 · <code>SettingOSOptionResponse</code> · 정책 빈 · SPI 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>Repository 변경 없음 · <code>RhelRelease</code> · <code>OSMetadata.rhelRelease()</code></td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>검사기 · 하한 · JS 연결 (테스트 제외, 빌드 통과) · 스키마 변경 없음 (DDL 없음)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인</td></tr>
+            <tr><td>8 잔여</td><td>단위 · 통합 테스트 + 전체 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증 (§9)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>브라우저 E2E (사용자 단독)</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트 = <b>CP1 · CP4 (중간) · CP6 · CP7</b>. 무중단 구간 둘 : ① CP1 승인 → CP4 게이트 ② CP4 승인 → CP6 제출.</div>
+        <h4>배포 전 점검 <span class="chip mod">개정 4</span></h4>
+        <p>읽기 전용 점검 SQL 초안 (실제 저장 JSON 모양에 맞는지 CP2 에서 확인) :</p>
+        <pre><code>-- 평문 비밀번호가 남은 RHEL 정의서
+SELECT sd.id, sd.name
+FROM setting_process sp JOIN setting_definition sd ON sd.id = sp.setting_definition_id
+WHERE sp.process_type = 'OS_INSTALLATION'
+  AND sp.payload_json LIKE '%"RHEL_BASED"%'
+  AND sp.payload_json LIKE '%"isPasswordEncrypted":false%';
+
+-- isKDumpEnabled 키가 없는 RHEL 정의서(기대 0)
+SELECT sd.id, sd.name
+FROM setting_process sp JOIN setting_definition sd ON sd.id = sp.setting_definition_id
+WHERE sp.process_type = 'OS_INSTALLATION'
+  AND sp.payload_json LIKE '%"RHEL_BASED"%'
+  AND sp.payload_json NOT LIKE '%"isKDumpEnabled"%';</code></pre>
+        <p>결과가 있으면 : 평문 = 수정 화면에서 비밀번호 재입력 · 저장 (사용자 결정), 키 없음 = 목록을 보고 사용자 결정. DDL 없음.</p>
+        <p><span class="chip mod">개정 5</span> 지원 밖 Rocky 메타데이터 목록 (주 버전 8 · 9 · 10 밖인 것을 사람이 확인. 열 이름은 CP2 에서 확인) :</p>
+        <pre><code>SELECT id, os_version FROM os_metadata WHERE os_name='ROCKY_LINUX' AND is_deleted=false</code></pre>
+        <p><span class="chip mod">개정 6</span> <code>.treeinfo</code> 대조가 실패할 기존 Rocky ISO 는 파일 내용 검사라 <b>SQL 만으로는 찾을 수 없다</b>. 배포 뒤 확인 방법 두 가지 :</p>
+        <ol>
+          <li>ISO 목록 SQL (열 이름은 CP2 확인) 로 경로를 뽑아 서버에서 아래 명령으로 <code>[release]</code> 의 name · version 을 눈으로 대조 (읽기 전용)
+            <pre><code>SELECT i.id, i.iso_path, m.os_version FROM iso i JOIN os_metadata m ON m.id = i.os_metadata_id WHERE m.os_name = 'ROCKY_LINUX' AND i.is_deleted = false</code></pre>
+            <pre><code>bsdtar -xOf &lt;ISO 경로&gt; .treeinfo</code></pre></li>
+          <li>배포 뒤 각 Rocky ISO 에 [추출] 을 다시 돌려 실패 알림을 확인 (기존 환경은 남으므로 안전)</li>
+        </ol>
+      </div>
+    </details>
+
+    <!-- ===== §11 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규 1</span></td><td><code>RhelRelease</code></td></tr>
+            <tr><td><span class="chip mod">수정 13</span></td><td><code>OsInstallTargetPolicy</code> · <code>OSInstallationReferenceInspector</code> · <code>OSInstallationFamilyInspector</code> · <code>RHELInstallationFamilyInspector</code> · <code>WindowsInstallationFamilyInspector</code> · <code>LinuxPartitionRules</code> · <code>JpaSettingQueryService</code> · <code>SettingOSOptionResponse</code> · <code>RaidConfigurationRequest</code> · <code>OSMetadata</code> · <code>setting-new.html</code> · <code>rhel-based.html</code> · <code>setting-form.js</code></td></tr>
+            <tr><td><span class="chip new">신규 (개정)</span></td><td><code>setting-lookup-rows.html</code> · 행 응답 record (이름 CP2) · 비밀번호 VO · 해시기 (이름 CP2) · <code>TreeInfo</code></td></tr>
+            <tr><td><span class="chip mod">수정 (개정)</span></td><td><code>lookup-field.html</code> · <code>list-lookup.js</code> · <code>SettingController</code> · DESIGN.md · <code>build.gradle</code> · <code>RootPasswordRequest</code> · <code>UserRequest</code> · <code>LinuxInstallationRequest</code> · <code>AbstractProcessRequest</code> · <code>JpaSettingCommandService</code> · <code>setting-process-cards.html</code> · <code>style.css</code> (필요 시) · <code>management/os/new.html</code> · <code>OSMetadataController</code> · <code>OSMetadataCreateRequest</code> · <code>OSMetadataService</code> · <code>CompsExtractionService</code> · <code>InstallTreeInspector</code></td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>RHELInstallationRequest</code> · <code>detail-rhel.html</code> · <code>PasswordPatch</code></td></tr>
+            <tr><td><span class="chip opt">참조</span></td><td>복원 원본 <code>a9a7293</code></td></tr>
+          </tbody>
+        </table>
+        <p class="muted">§4 파일 표의 <code>DebianInstallationFamilyInspector</code> · <code>setting.css</code> (필요 시) 는 브리프 Critical Files 목록에 없어 집계에서 뺐다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §12 ===== -->
+    <details class="section" id="s12">
+      <summary>§12. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E4-1-b-2-next">
+          <li><label><input type="checkbox" data-key="hf32"> <span>HF32 병합 → b-2 CP2 착수</span></label></li>
+          <li><label><input type="checkbox" data-key="b3"> <span>b-3 kickstart 생성기 (이 정의서 + <code>RhelRelease</code> 소비 · 저장된 해시를 <code>--iscrypted</code> 로 · D-19 의 "b-3 에서 확인" 항목)</span></label></li>
+          <li><label><input type="checkbox" data-key="b4"> <span>b-4 설치 실행기 (+ b-6 디스크 선택) · 실행 준비도 (트리 · bsdtar)</span></label></li>
+          <li><label><input type="checkbox" data-key="b4-treeinfo"> <span>b-4 (<span class="chip mod">개정 5</span>) : 실행 때 트리 <code>.treeinfo</code> 주 버전과 정의서 OS 의 <code>RhelRelease</code> 를 대조해 다르면 설치 단계 실패 (안전망 : D-20 이전 등록 ISO · 등록 뒤 같은 경로 파일 교체)</span></label></li>
+          <li><label><input type="checkbox" data-key="b5"> <span>b-5 완료 보고 · 서버 상세</span></label></li>
+          <li><label><input type="checkbox" data-key="merge"> <span>b-2 dev 병합 시점 (Q2, 개정 4 제안 = B : b-2 CP7 뒤 따로 병합, 배포는 b-4 뒤)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 섹션 open + smooth scroll
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) { /* sandbox */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 — 판정 = D-1 · D-2 · D-7 · D-10 + 코드의 예외 팩토리 문장
+  // ─────────────────────────────────────────────────────────────
+  const D = {
+    OS: [
+      { id: 11, name: 'Rocky Linux', rocky: true, ver: '8.10', mf: 'RHEL_BASED' },
+      { id: 12, name: 'Rocky Linux', rocky: true, ver: '9.6', mf: 'RHEL_BASED' },
+      { id: 13, name: 'Rocky Linux', rocky: true, ver: '10.0', mf: 'RHEL_BASED' },
+      { id: 14, name: 'CentOS', rocky: false, ver: '7.9', mf: 'RHEL_BASED' },
+      { id: 15, name: 'Ubuntu', rocky: false, ver: '24.04', mf: 'DEBIAN_BASED' },
+      { id: 16, name: 'Windows Server', rocky: false, ver: '2025', mf: 'WINDOWS_BASED' }
+    ],
+    ISOS: [
+      { id: 21, os: 11, label: 'Rocky Linux 8.10 설치 ISO', dep: false },
+      { id: 31, os: 12, label: 'Rocky Linux 9.6 설치 ISO', dep: false },
+      { id: 32, os: 12, label: 'Rocky Linux 9.6 최소 설치 ISO', dep: true },
+      { id: 41, os: 13, label: 'Rocky Linux 10.0 설치 ISO', dep: false },
+      { id: 61, os: 14, label: 'CentOS 7.9 설치 ISO', dep: false },
+      { id: 71, os: 15, label: 'Ubuntu 24.04 설치 ISO', dep: false },
+      { id: 51, os: 16, label: 'Windows Server 2025 설치 ISO', dep: false }
+    ],
+    ENV: [
+      { id: 4, label: 'Server', groups: [9, 11] },
+      { id: 1, label: 'Server with GUI', groups: [9, 11, 12] },
+      { id: 2, label: 'Minimal Install', groups: [11] }
+    ],
+    GROUP: { 9: 'Development Tools', 11: 'System Tools', 12: 'Graphical Administration Tools' },
+    TZ: { Asia: ['Seoul', 'Tokyo'], Europe: ['London'], America: ['New_York'] },
+    FS: ['EXT4', 'EFI', 'FAT32', 'SWAP', 'NTFS'],
+    FIXED: { '/boot/efi': ['EFI', 'FAT32'], 'swap': ['SWAP'] },     // LinuxPartitionRules.FIXED_MOUNT_FS = JS FS_CONSTRAINT.FIXED
+    BLOCKED: ['EFI', 'SWAP', 'FAT32', 'NTFS'],                        // RESERVED_FS
+    MANDATORY: ['/', '/boot', '/boot/efi', 'swap'],                   // 고정 순서 (b-2 에서 고침)
+    DEFAULT_PARTS: [                                                  // JpaSettingQueryService 기본 파티션 (Q7 미결)
+      { mp: '/boot/efi', fs: 'EFI', size: 1, grow: false },
+      { mp: '/boot', fs: 'EXT4', size: 1, grow: false },
+      { mp: 'swap', fs: 'SWAP', size: 16, grow: false },
+      { mp: '/', fs: 'EXT4', size: '', grow: true }
+    ],
+    MAP: { RHEL_BASED: 'RHEL_BASED', DEBIAN_BASED: 'DEBIAN_BASED', WINDOWS_BASED: 'WINDOWS' },  // FAMILY_MAPPING
+    BUNDLES: [ { no: 1, usable: 480, buildsRaid: true }, { no: 2, usable: 100, buildsRaid: false } ],
+    // D-18 해시 예시 (고정 문자열, 실제 계산 아님)
+    HASH_ROOT: '$6$Gq3wZp8LmR1sVt0B$rXyZ0kE9aQ2wL7uN5cH3mP8tJ6vB1dF4gS0hK2jR9eTq',
+    HASH_USER: '$6$Hb7nQ2xWk4LcYp9D$aB3dE5fG7hJ9kL1mN3pQ5rS7tU9vW1xY3zA5bC7dE9fGh',
+    HASH_SAVED: '$6$Sv0dPq5RmT8wXa2C$saVedHashExampleValueFromStoredPayloadOnly01'
+  };
+  const MSG = {
+    RHEL_BLOCK: 'Rocky Linux 8, 9, 10 만 설치할 수 있습니다.',
+    DEBIAN_BLOCK: 'Ubuntu 는 아직 설치할 수 없습니다.',
+    NO_ACCESS: '루트 비밀번호 또는 일반 사용자 중 하나 이상을 입력해야 합니다. 둘 다 없으면 설치 후 시스템에 접근할 수 없습니다.',
+    MISSING: m => '필수 마운트포인트가 누락되었습니다: ' + m.join(', '),
+    FIXED_FS: (mp, a) => mp + ' 파티션의 파일시스템은 ' + a + ' 만 허용됩니다.',
+    RESERVED: (mp, fs) => fs + ' 파일시스템은 ' + mp + ' 파티션에 사용할 수 없습니다.',
+    SIZE: mp => mp + ' 파티션은 grow 가 아니므로 1 이상의 크기가 필요합니다.',
+    GROW: 'grow 파티션은 하나만 둘 수 있습니다. OS 영역 볼륨은 하나입니다.',
+    BOUND: 'OS 설치 파티션 크기 합이 OS 영역 볼륨의 최소 용량을 넘습니다. RAID 구성 묶음의 용량, 개수와 파티션 크기를 맞춰야 합니다.',
+    GROUP: id => '선택한 ISO 와 설치 환경에서 선택할 수 없는 패키지 그룹입니다: ' + id,
+    MISMATCH: '선택한 OS 와 설치 설정의 계열이 맞지 않습니다.',
+    SAVED: '저장되었습니다.'
+  };
+
+  // D-2 RhelRelease + OSMetadata.rhelRelease()
+  function rhelRelease(os) {
+    if (!os.rocky) return null;
+    const head = String(os.ver).split('.')[0];
+    if (!/^\d+$/.test(head)) return null;
+    return ({ 8: 'ROCKY_8', 9: 'ROCKY_9', 10: 'ROCKY_10' })[Number(head)] || null;
+  }
+  const supportsRootSshFlag = rel => rel === 'ROCKY_10';
+  // D-1 계열 맵 dispatch (OsInstallTargetPolicy 빈 -> 각 검사기의 installBlockReason)
+  const INSPECTORS = {
+    WINDOWS: os => null,                                     // 설치 소스 준비 (데모는 준비됨)
+    RHEL_BASED: os => rhelRelease(os) ? null : MSG.RHEL_BLOCK,
+    DEBIAN_BASED: os => MSG.DEBIAN_BLOCK
+  };
+  const familyOf = os => D.MAP[os.mf];
+  const installBlockReason = os => INSPECTORS[familyOf(os)](os);
+  const rootSshSupported = os => supportsRootSshFlag(rhelRelease(os));
+  // D-7 하한 (now = 후보 전부 최솟값, after = RAID 구성 후보만)
+  function lowerBound(rule) {
+    const c = D.BUNDLES.filter(b => rule === 'now' || b.buildsRaid);
+    return c.length ? Math.min.apply(null, c.map(b => b.usable)) : null;
+  }
+  // D-12 검색 규칙 (화면 이름 + 버전, ISO 이름 부분 일치, 대소문자 무시) · D-14 행 이름
+  const osLabel = o => o.name + ' ' + o.ver;
+  const osMatch = (o, q) => !q || osLabel(o).toLowerCase().indexOf(q.trim().toLowerCase()) >= 0;
+  const isosOf = osId => D.ISOS.filter(i => i.os === osId);
+  const isoMatch = (i, q) => !q || i.label.toLowerCase().indexOf(q.trim().toLowerCase()) >= 0;
+
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const osById = id => D.OS.find(o => o.id === id);
+  const isoById = id => D.ISOS.find(i => i.id === id);
+  const envById = id => D.ENV.find(e => e.id === id);
+  function base() {
+    return { sc: 0, mode: 'new', route: 'ui', disc: 'RHEL_BASED', osId: 12, isoId: 31,
+      osQ: '', isoQ: '', pop: null, osPopQ: '', isoPopQ: '', depConfirm: null,
+      tzRegion: 'Asia', tzCity: 'Seoul', utc: true,                                      // D-19
+      parts: clone(D.DEFAULT_PARTS), rootPw: 'secret', keep: false,
+      ssh: false, users: [{ name: 'ops', pw: 'secret', sudo: true }], envId: 4, groups: [9, 11], kdump: true,   // D-19 KDump 켜짐
+      rule: 'after', p3Sum: 200, result: null, note: '', dirty: true };
+  }
+  let st = base();
+  const curOs = () => st.osId === null ? null : osById(st.osId);
+  const effDisc = () => st.route === 'ui' ? (curOs() ? familyOf(curOs()) : null) : st.disc;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function touched() { st.result = null; st.note = ''; st.sc = 0; }
+
+  function keeping() { return st.mode === 'edit' && st.keep; }
+  function buildRoot() {
+    if (keeping()) return { password: null, keepExistingPassword: true };
+    if (!st.rootPw) return null;
+    return { password: st.rootPw, keepExistingPassword: false };
+  }
+  function fixedGb() { return st.parts.filter(p => !p.grow).reduce((s, p) => s + (Number(p.size) || 0), 0); }
+  const hasGrow = () => st.parts.some(p => p.grow);
+
+  // LinuxPartitionRules.validate 순서 그대로
+  function partitionRule(parts) {
+    const mounts = new Set(parts.map(p => p.mp.trim()));
+    const missing = D.MANDATORY.filter(m => !mounts.has(m));
+    if (missing.length) return MSG.MISSING(missing);
+    for (const p of parts) {
+      const mp = p.mp.trim(), allowed = D.FIXED[mp];
+      if (allowed && allowed.indexOf(p.fs) < 0) return MSG.FIXED_FS(mp, allowed.slice().sort().join(', '));
+      if (!allowed && D.BLOCKED.indexOf(p.fs) >= 0) return MSG.RESERVED(mp, p.fs);
+      if (!p.grow && !(Number(p.size) >= 1)) return MSG.SIZE(mp);
+    }
+    if (parts.filter(p => p.grow).length > 1) return MSG.GROW;
+    return null;
+  }
+
+  // 저장될 JSON (D-18: 해시만 저장. 해시 키 이름은 CP2 확정)
+  function buildJson(os) {
+    const root = buildRoot();
+    const j = { type: 'OS_INSTALLATION', osFamily: 'RHEL_BASED', osMetadataId: os.id, isoId: st.isoId,
+      timezone: { timezone: st.tzRegion + '/' + st.tzCity, isUTC: st.utc },
+      partitions: st.parts.map(p => ({ mountPoint: p.mp.trim(), fileSystem: p.fs,
+        size: p.grow ? 0 : (parseInt(p.size, 10) || 0), sizeUnit: 'GB', isGrow: p.grow })),
+      rootPassword: root === null ? null : { passwordHash: root.keepExistingPassword ? D.HASH_SAVED : D.HASH_ROOT },
+      users: st.users.map(u => ({ username: u.name, passwordHash: u.pw ? D.HASH_USER : null, isSudoer: u.sudo })),
+      environmentId: st.envId, packageGroupIds: st.groups.slice(), isKDumpEnabled: st.kdump };
+    if (rootSshSupported(os)) j.allowSshRoot = st.ssh;
+    return j;
+  }
+
+  // 서버 판정 순서 (ProcessRequestDeserializer -> Layer A -> 1단 검사기 -> 계열 검사기 -> PasswordPatch -> 해시 훅)
+  function judge() {
+    const os = curOs(), disc = effDisc(), steps = [];
+    const L = (name, detail, ok) => steps.push({ name, detail, ok });
+    const fail = (field, msg) => ({ steps, fail: { field, msg }, json: null });
+    const type = { RHEL_BASED: 'RHELInstallationRequest', WINDOWS: 'WindowsInstallationRequest', DEBIAN_BASED: 'Debian 계열 Request' }[disc];
+    L('ProcessRequestDeserializer', 'osFamily=' + disc + ', ' + type, true);
+    L('Layer A @Valid', '필드 검증 (데모는 통과로 가정)', true);
+    if (disc !== 'WINDOWS') {
+      const b = lowerBound(st.rule), f = fixedGb(), g = hasGrow();
+      const ok = b === null || (g ? f < b : f <= b);
+      L('isPartitionsWithinOsVolume', '고정 합 ' + f + ' GB, 하한 ' + b + ' GB (' + (st.rule === 'now' ? '지금' : 'D-7') + ')', ok);
+      if (!ok) return fail('parts', MSG.BOUND);
+    } else {
+      L('isPartitionsWithinOsVolume', '리눅스 단계 아님, 검사 안 함', true);
+    }
+    L('OSInstallationReferenceInspector', 'OS 사용 가능, ISO 실존과 소속', true);
+    const fam = familyOf(os);
+    L('  판별자 일치 (D-3)', disc + ' 와 OS 계열 ' + fam, disc === fam);
+    if (disc !== fam) return fail('os', MSG.MISMATCH);
+    const reason = installBlockReason(os);
+    L('  installBlockReason (D-1)', reason === null ? 'null' : reason, reason === null);
+    if (reason !== null) return fail('os', reason);
+    if (disc === 'WINDOWS') {
+      L('WindowsInstallationFamilyInspector', '기존 검사 그대로, 해시 훅 대상 아님', true);
+      return { steps, fail: null, json: null, windows: true };
+    }
+    const pr = partitionRule(st.parts);
+    L('RHELInstallationFamilyInspector', 'LinuxPartitionRules', pr === null);
+    if (pr) return fail('parts', pr);
+    const noAccess = buildRoot() === null && st.users.length === 0;
+    L('  접근 계정', 'root 비밀번호 또는 사용자', !noAccess);
+    if (noAccess) return fail('root', MSG.NO_ACCESS);
+    const allowed = envById(st.envId).groups;
+    const bad = st.groups.find(g => allowed.indexOf(g) < 0);
+    L('  환경과 그룹', '그룹은 환경과 ISO 의 교집합 안', bad === undefined);
+    if (bad !== undefined) return fail('env', MSG.GROUP(bad));
+    if (st.mode === 'edit') {
+      L('PasswordPatch 병합', keeping() ? '저장본 해시를 옮김' : '새 평문 사용', true);
+    }
+    const plain = (buildRoot() && !keeping() ? 1 : 0) + st.users.filter(u => u.pw).length;
+    L('비밀번호 해시 훅 (D-18)', plain ? '평문 ' + plain + '개를 SHA-512 crypt 로 해시' : '해시할 평문 없음', true);
+    return { steps, fail: null, json: buildJson(os) };
+  }
+
+  function demoSave() { if (!curOs() || st.isoId === null) return; st.result = judge(); st.note = ''; demoRender(); }
+
+  // 검색 선택기 (D-11 단일 방식 · D-13 막힌 행 · D-14 OS 바꾸면 ISO 비움)
+  const rowBlocked = o => st.route === 'ui' && installBlockReason(o) !== null;
+  function demoPickOs(id) {
+    const o = osById(id); if (!o || rowBlocked(o)) return;
+    if (st.osId !== id) st.isoId = null;
+    st.osId = id; st.osQ = ''; st.pop = null; st.depConfirm = null;
+    if (!rootSshSupported(o)) st.ssh = false;
+    touched(); demoRender();
+  }
+  function demoPickIso(id) {
+    const i = isoById(id); if (!i) return;
+    st.pop = null; st.isoQ = '';
+    if (i.dep) { st.depConfirm = id; } else { st.isoId = id; st.depConfirm = null; }
+    touched(); demoRender();
+  }
+  function demoDepConfirm(ok) { if (ok) st.isoId = st.depConfirm; st.depConfirm = null; touched(); demoRender(); }
+  function demoClearOs() { st.osId = null; st.isoId = null; st.depConfirm = null; st.ssh = false; touched(); demoRender(); }
+  function demoClearIso() { st.isoId = null; touched(); demoRender(); }
+  function demoOpenPop(which) {
+    if (which === 'iso' && st.osId === null) return;
+    st.pop = which;
+    if (which === 'os') st.osPopQ = st.osQ; else st.isoPopQ = st.isoQ;
+    demoRender();
+  }
+  function demoClosePop() { st.pop = null; demoRender(); }
+  function osEnter() {
+    const hits = D.OS.filter(o => osMatch(o, st.osQ));
+    if (hits.length === 1 && !rowBlocked(hits[0])) { demoPickOs(hits[0].id); return true; }
+    st.pop = 'os'; st.osPopQ = st.osQ; demoRender(); return false;
+  }
+  function isoEnter() {
+    if (st.osId === null) return false;
+    const hits = isosOf(st.osId).filter(i => isoMatch(i, st.isoQ));
+    if (hits.length === 1) { demoPickIso(hits[0].id); return true; }
+    st.pop = 'iso'; st.isoPopQ = st.isoQ; demoRender(); return false;
+  }
+
+  function demoScenario(n) {
+    st = base(); st.sc = n;
+    if (n === 2) { st.osId = 13; st.isoId = 41; st.ssh = true; }
+    if (n === 3) { st.pop = 'os'; st.note = 'CentOS 7.9 와 Ubuntu 24.04 행은 이름 버튼이 잠겨 있고 사유가 행 안에 보입니다. 입력칸에 cent 를 넣고 Enter 를 눌러도 바로 고르지 않고 팝업을 엽니다.'; demoRender(); return; }
+    if (n === 4) { st.rootPw = ''; st.users = []; }
+    if (n === 5) { st.parts = st.parts.filter(p => p.mp !== '/boot/efi'); }
+    if (n === 6) { st.mode = 'edit'; st.keep = true; st.rootPw = ''; st.users = []; }
+    if (n === 7) {
+      st.osId = null; st.isoId = null; st.osQ = '10.0';
+      osEnter();
+      st.sc = 7; st.note = '입력칸에 10.0 을 넣고 Enter 를 눌러 1 건이 바로 칩이 되었습니다. 이어서 설치 ISO 를 고릅니다.';
+      demoRender(); return;
+    }
+    demoSave();
+  }
+  function demoSetMode(m) { st.mode = m; if (m === 'new') st.keep = false; touched(); demoRender(); }
+  function demoSetRoute(r) {
+    st.route = r;
+    if (r === 'ui') {
+      if (curOs() && installBlockReason(curOs()) !== null) { st.osId = 12; st.isoId = 31; }
+      st.parts.forEach(p => applyFsConstraint(p));
+      const allowed = envById(st.envId).groups; st.groups = st.groups.filter(g => allowed.indexOf(g) >= 0);
+      if (st.parts.filter(p => p.grow).length > 1) { let seen = false; st.parts.forEach(p => { if (p.grow) { if (seen) p.grow = false; seen = true; } }); }
+    }
+    if (curOs()) st.disc = familyOf(curOs());
+    st.dirty = true; touched(); demoRender();
+  }
+  function demoSetDisc(d) { st.disc = d; touched(); demoRender(); }
+  function demoSetRule(r) { st.rule = r; if (st.result) st.result = judge(); demoRender(); }
+  function demoDefaultParts() { st.parts = clone(D.DEFAULT_PARTS); st.dirty = true; touched(); demoRender(); }
+  function demoPartAdd() { st.parts.push({ mp: '/data', fs: 'EXT4', size: 10, grow: false }); st.dirty = true; touched(); demoRender(); }
+  function demoPartDel(i) { st.parts.splice(i, 1); st.dirty = true; touched(); demoRender(); }
+  function demoUserAdd() { st.users.push({ name: 'user' + (st.users.length + 1), pw: 'secret', sudo: false }); st.dirty = true; touched(); demoRender(); }
+  function demoUserDel(i) { st.users.splice(i, 1); st.dirty = true; touched(); demoRender(); }
+
+  // 화면 쪽 FS_CONSTRAINT (setting-form.js applyFsConstraint 와 같은 동작). direct POST 는 적용하지 않는다.
+  function applyFsConstraint(p) {
+    const allowed = D.FIXED[p.mp.trim()];
+    if (allowed) { if (allowed.indexOf(p.fs) < 0) p.fs = allowed[0]; }
+    else if (D.BLOCKED.indexOf(p.fs) >= 0) p.fs = 'EXT4';
+  }
+  function fsOptions(p) {
+    const ui = st.route === 'ui', allowed = D.FIXED[p.mp.trim()];
+    return D.FS.map(fs => {
+      const dis = ui && (allowed ? allowed.indexOf(fs) < 0 : D.BLOCKED.indexOf(fs) >= 0);
+      return '<option' + (fs === p.fs ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + fs + '</option>';
+    }).join('');
+  }
+  function renderTables() {
+    const ui = st.route === 'ui';
+    $('d-parts').innerHTML = st.parts.map((p, i) => {
+      const allowed = D.FIXED[p.mp.trim()];
+      const fsLock = ui && allowed && allowed.length === 1;
+      return '<tr><td><input type="text" data-i="' + i + '" data-k="mp" value="' + esc(p.mp) + '"></td>' +
+        '<td><select data-i="' + i + '" data-k="fs"' + (fsLock ? ' disabled' : '') + '>' + fsOptions(p) + '</select></td>' +
+        '<td><input type="number" data-i="' + i + '" data-k="size" value="' + esc(p.grow ? '' : p.size) + '"' + (p.grow ? ' disabled' : '') + '></td>' +
+        '<td>GB</td><td><input type="checkbox" data-i="' + i + '" data-k="grow"' + (p.grow ? ' checked' : '') + '></td>' +
+        '<td><button class="n-demo-btn" onclick="demoPartDel(' + i + ')">삭제</button></td></tr>';
+    }).join('');
+    $('d-users').innerHTML = st.users.length ? st.users.map((u, i) =>
+      '<tr><td><input type="text" data-i="' + i + '" data-k="name" value="' + esc(u.name) + '"></td>' +
+      '<td><input type="password" data-i="' + i + '" data-k="pw" value="' + esc(u.pw) + '"></td>' +
+      '<td><input type="checkbox" data-i="' + i + '" data-k="sudo"' + (u.sudo ? ' checked' : '') + '></td>' +
+      '<td><button class="n-demo-btn" onclick="demoUserDel(' + i + ')">삭제</button></td></tr>').join('')
+      : '<tr><td colspan="4" class="muted">-</td></tr>';
+    st.dirty = false;
+  }
+
+  // 입력 이벤트 (render 가 tbody 와 입력칸을 다시 그리지 않아 타이핑 포커스가 유지된다)
+  $('d-parts').addEventListener('input', e => {
+    const t = e.target, i = Number(t.dataset.i), k = t.dataset.k; if (isNaN(i)) return;
+    if (k === 'mp') st.parts[i].mp = t.value; else if (k === 'size') st.parts[i].size = t.value; else return;
+    touched(); demoRender();
+  });
+  $('d-parts').addEventListener('change', e => {
+    const t = e.target, i = Number(t.dataset.i), k = t.dataset.k; if (isNaN(i)) return;
+    const p = st.parts[i];
+    if (k === 'fs') p.fs = t.value;
+    if (k === 'mp' && st.route === 'ui') applyFsConstraint(p);
+    if (k === 'grow') {
+      p.grow = t.checked;
+      if (p.grow) { p.size = ''; if (st.route === 'ui') st.parts.forEach(o => { if (o !== p) o.grow = false; }); }
+      else if (p.size === '') p.size = 1;
+    }
+    st.dirty = true; touched(); demoRender();
+  });
+  $('d-users').addEventListener('input', e => {
+    const t = e.target, i = Number(t.dataset.i), k = t.dataset.k; if (isNaN(i)) return;
+    if (k === 'name') st.users[i].name = t.value; else if (k === 'pw') st.users[i].pw = t.value; else return;
+    touched(); demoRender();
+  });
+  $('d-users').addEventListener('change', e => {
+    const t = e.target, i = Number(t.dataset.i), k = t.dataset.k; if (isNaN(i)) return;
+    if (k === 'sudo') { st.users[i].sudo = t.checked; touched(); demoRender(); }
+  });
+  $('d-os-q').addEventListener('input', e => { st.osQ = e.target.value; });
+  $('d-os-q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); osEnter(); } });
+  $('d-iso-q').addEventListener('input', e => { st.isoQ = e.target.value; });
+  $('d-iso-q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); isoEnter(); } });
+  $('d-os-pop-q').addEventListener('input', e => { st.osPopQ = e.target.value; demoRender(); });
+  $('d-iso-pop-q').addEventListener('input', e => { st.isoPopQ = e.target.value; demoRender(); });
+  $('d-tz-region').addEventListener('change', e => { st.tzRegion = e.target.value; st.tzCity = D.TZ[st.tzRegion][0]; touched(); demoRender(); });
+  $('d-tz-city').addEventListener('change', e => { st.tzCity = e.target.value; touched(); demoRender(); });
+  $('d-utc').addEventListener('change', e => { st.utc = e.target.checked; touched(); demoRender(); });
+  $('d-root').addEventListener('input', e => { st.rootPw = e.target.value; touched(); demoRender(); });
+  $('d-keep').addEventListener('change', e => { st.keep = e.target.checked; if (st.keep) st.rootPw = ''; touched(); demoRender(); });
+  $('d-ssh').addEventListener('change', e => { st.ssh = e.target.checked; touched(); demoRender(); });
+  $('d-env').addEventListener('change', e => {
+    st.envId = Number(e.target.value);
+    if (st.route === 'ui') { const a = envById(st.envId).groups; st.groups = st.groups.filter(g => a.indexOf(g) >= 0); }
+    touched(); demoRender();
+  });
+  $('d-groups').addEventListener('change', e => {
+    const g = Number(e.target.dataset.g); if (isNaN(g)) return;
+    st.groups = e.target.checked ? st.groups.concat([g]) : st.groups.filter(x => x !== g);
+    touched(); demoRender();
+  });
+  $('d-kdump').addEventListener('change', e => { st.kdump = e.target.checked; touched(); demoRender(); });
+  $('d-p3-sum').addEventListener('input', e => { st.p3Sum = e.target.value; demoRender(); });
+
+  function setErr(id, msg) { const el = $(id); el.hidden = !msg; el.textContent = msg || ''; }
+  function syncInput(id, v) { const el = $(id); if (el.value !== v) el.value = v; }
+  function lockBtn(label, onclick, locked, tip) {
+    return '<span class="tip"' + (locked ? ' data-tip="' + esc(tip) + '"' : '') + '><button class="n-demo-btn"' + (locked ? ' disabled' : '') +
+      ' onclick="' + onclick + '">' + esc(label) + '</button></span>';
+  }
+
+  function renderPickers() {
+    const os = curOs(), ui = st.route === 'ui';
+    // OS 줄
+    syncInput('d-os-q', st.osQ);
+    $('d-os-chip').innerHTML = os ? '<span class="chip move">' + esc(osLabel(os)) + '</span> <button class="n-demo-btn" onclick="demoClearOs()">해제</button>' : '<span class="muted">-</span>';
+    const famLabel = os ? { RHEL_BASED: 'RHEL 계열', DEBIAN_BASED: 'Debian 계열', WINDOWS: 'Windows 계열' }[familyOf(os)] : '';
+    $('d-os-badge').textContent = famLabel; $('d-os-badge').hidden = !os;
+    // OS 팝업
+    $('d-os-pop').hidden = st.pop !== 'os';
+    syncInput('d-os-pop-q', st.osPopQ);
+    const osRows = D.OS.filter(o => osMatch(o, st.osPopQ));
+    $('d-os-rows').innerHTML = osRows.length ? osRows.map(o => {
+      const r = installBlockReason(o), locked = rowBlocked(o);
+      return '<tr><td>' + lockBtn(osLabel(o), 'demoPickOs(' + o.id + ')', locked, '이 OS 는 고를 수 없습니다. ' + (r || '')) + '</td>' +
+        '<td>' + esc(o.ver) + '</td><td>' + { RHEL_BASED: 'RHEL 계열', DEBIAN_BASED: 'Debian 계열', WINDOWS: 'Windows 계열' }[familyOf(o)] + '</td>' +
+        '<td>' + isosOf(o.id).length + '</td><td>' + (r ? '<span data-error="1">' + esc(r) + '</span>' : '-') + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="muted">검색 결과가 없습니다.</td></tr>';
+    // ISO 줄 (D-14: OS 를 고르기 전 잠김)
+    const isoLocked = st.osId === null;
+    $('d-iso-q').disabled = isoLocked; syncInput('d-iso-q', st.isoQ);
+    $('d-iso-search').innerHTML = lockBtn('검색', "demoOpenPop('iso')", isoLocked, '설치할 OS 를 먼저 골라야 합니다.');
+    const iso = st.isoId === null ? null : isoById(st.isoId);
+    $('d-iso-chip').innerHTML = iso ? '<span class="chip move">' + esc(iso.label) + '</span>' + (iso.dep ? ' <span class="chip dep">사용 중단</span>' : '') +
+      ' <button class="n-demo-btn" onclick="demoClearIso()">해제</button>' : '<span class="muted">-</span>';
+    $('d-iso-pop').hidden = st.pop !== 'iso';
+    syncInput('d-iso-pop-q', st.isoPopQ);
+    const isoRows = isoLocked ? [] : isosOf(st.osId).filter(i => isoMatch(i, st.isoPopQ));
+    $('d-iso-rows').innerHTML = isoRows.length ? isoRows.map(i =>
+      '<tr><td>' + lockBtn(i.label, 'demoPickIso(' + i.id + ')', false, '') + '</td><td>' + (i.dep ? '<span class="chip dep">사용 중단</span>' : '-') + '</td></tr>').join('')
+      : '<tr><td colspan="2" class="muted">검색 결과가 없습니다.</td></tr>';
+    $('d-dep-confirm').hidden = st.depConfirm === null;
+  }
+
+  function demoRender() {
+    if (st.dirty) renderTables();
+    const ui = st.route === 'ui';
+    const segs = (attr, val) => document.querySelectorAll('.seg[data-' + attr + ']').forEach(s => s.classList.toggle('active', s.dataset[attr] === String(val)));
+    segs('sc', st.sc); segs('mode', st.mode); segs('route', st.route); segs('disc', st.disc); segs('rule', st.rule);
+    $('d-disc-bar').hidden = ui; $('d-post-note').hidden = ui;
+    renderPickers();
+    const os = curOs(), disc = effDisc();
+    $('d-linux').hidden = !disc || disc === 'WINDOWS';
+    $('d-rhel').hidden = disc !== 'RHEL_BASED';
+    $('d-win').hidden = disc !== 'WINDOWS';
+
+    $('d-tz-region').innerHTML = Object.keys(D.TZ).map(r => '<option' + (r === st.tzRegion ? ' selected' : '') + '>' + r + '</option>').join('');
+    $('d-tz-city').innerHTML = D.TZ[st.tzRegion].map(c => '<option' + (c === st.tzCity ? ' selected' : '') + '>' + c + '</option>').join('');
+    $('d-utc').checked = st.utc;
+
+    const b = lowerBound(st.rule), f = fixedGb();
+    $('d-vol-line').textContent = 'OS 영역 볼륨 최소 용량 ' + b + ' GB, 고정 파티션 합 ' + f + ' GB';
+
+    // root (D-18 대체 규칙: 유지 중엔 비밀번호 칸만 잠금)
+    const keep = keeping();
+    $('d-keep-wrap').hidden = st.mode !== 'edit';
+    $('d-keep').checked = st.keep;
+    $('d-root').disabled = keep; syncInput('d-root', keep ? '' : st.rootPw);
+    if (keep) $('d-root-tip').setAttribute('data-tip', '기존 비밀번호를 유지하는 동안에는 바꿀 수 없습니다. 저장 때 저장본의 해시를 그대로 씁니다.');
+    else $('d-root-tip').removeAttribute('data-tip');
+    // root SSH (D-6 서버 값)
+    $('d-ssh-row').hidden = !os || !rootSshSupported(os);
+    $('d-ssh').checked = st.ssh;
+
+    $('d-env').innerHTML = D.ENV.map(e => '<option value="' + e.id + '"' + (e.id === st.envId ? ' selected' : '') + '>' + e.label + '</option>').join('');
+    const shown = ui ? envById(st.envId).groups : Object.keys(D.GROUP).map(Number);
+    $('d-groups').innerHTML = shown.map(g => '<label><input type="checkbox" data-g="' + g + '"' + (st.groups.indexOf(g) >= 0 ? ' checked' : '') + '> ' + D.GROUP[g] + '</label>').join('');
+    $('d-kdump').checked = st.kdump;
+
+    // 패널 2
+    const canSave = !!os && st.isoId !== null;
+    $('d-save').disabled = !canSave;
+    if (canSave) $('d-save-tip').removeAttribute('data-tip');
+    else $('d-save-tip').setAttribute('data-tip', '설치할 OS 와 설치 ISO 를 골라야 합니다.');
+    $('d-endpoint').textContent = st.mode === 'edit' ? 'PUT /provisioning/setting/{id}' : 'POST /provisioning/setting';
+    const r = st.result, fe = r && r.fail ? r.fail : null;
+    setErr('d-err-os', fe && fe.field === 'os' ? fe.msg : '');
+    setErr('d-err-parts', fe && fe.field === 'parts' ? fe.msg : '');
+    setErr('d-err-root', fe && fe.field === 'root' ? fe.msg : '');
+    setErr('d-err-env', fe && fe.field === 'env' ? fe.msg : '');
+    const msg = $('d-msg');
+    if (!r) { msg.className = 'ux-message'; msg.textContent = st.note || '저장을 누르면 서버 판정 순서대로 결과가 나옵니다.'; }
+    else if (fe) { msg.className = 'ux-message error'; msg.textContent = '400 ' + fe.msg; }
+    else { msg.className = 'ux-message success'; msg.textContent = (st.mode === 'edit' ? '200 ' : '201 ') + MSG.SAVED; }
+    if (r) {
+      $('d-ladder').innerHTML = '서버 판정 순서\n' + r.steps.map((s, i) => {
+        const tag = s.ok ? '<span class="f">통과</span>' : '<span class="t">거절</span>';
+        return String(i + 1).padStart(2) + ' ' + tag + ' ' + esc(s.name) + '  ' + esc(s.detail);
+      }).join('\n');
+    } else {
+      $('d-ladder').textContent = '서버 판정 순서\n(저장 전)';
+    }
+    const js = $('d-json');
+    if (r && !fe) {
+      js.hidden = false;
+      js.textContent = r.windows ? 'Windows 정의서 JSON 은 이 데모에서 생략합니다.'
+        : '저장될 JSON (해시 값은 고정 예시이며 해시 키 이름은 CP2 에서 정합니다)\n' + JSON.stringify(r.json, null, 2);
+    } else { js.hidden = true; js.textContent = ''; }
+    $('d-caps').innerHTML = 'OsInstallTargetPolicy.blockReason(os) 팝업 행 잠금과 서버 가드가 같이 부른다\n' + D.OS.map(o => {
+      const rr = installBlockReason(o), rel = rhelRelease(o);
+      return esc(osLabel(o).padEnd(20)) + ' rhelRelease=' + (o.mf === 'RHEL_BASED' ? (rel || 'empty') : '-').padEnd(9) +
+        ' rootSshSupported=' + String(rootSshSupported(o)).padEnd(6) + ' 사유=' + (rr === null ? '<span class="f">null</span>' : '<span class="t">' + esc(rr) + '</span>');
+    }).join('\n') + (st.mode === 'edit' ? '\n\nPasswordPatch: 기존 비밀번호 유지 = 저장본 해시를 그대로 옮김. 화면은 비밀번호 칸만 잠금' : '');
+
+    // 패널 3
+    syncInput('d-p3-sum', String(st.p3Sum));
+    $('d-b2-badge').textContent = st.rule === 'now' ? '하한 계산에 포함' : '하한 계산에서 제외';
+    $('d-b2').classList.toggle('muted', st.rule === 'after');
+    const pb = lowerBound(st.rule), ps = Number(st.p3Sum) || 0, pok = ps < pb;
+    $('d-p3-caps').innerHTML = 'osVolumeCapacityLowerBoundBytes = ' + pb + ' GB  (' + (st.rule === 'now' ? '묶음 1, 2 최솟값' : 'RAID 구성 묶음 1 만') + ')\n' +
+      'isPartitionsWithinOsVolume     = 고정 합 ' + ps + ' GB < 하한 ' + pb + ' GB (grow 있음) = ' + (pok ? '<span class="f">true</span>' : '<span class="t">false</span>');
+    const pm = $('d-p3-msg');
+    pm.className = 'ux-message ' + (pok ? 'success' : 'error');
+    pm.textContent = pok ? '통과합니다. 하한은 RAID 볼륨 ' + pb + ' GB 입니다.' : '400 ' + MSG.BOUND;
+    regRender();
+  }
+
+  // 패널 4 · D-21 OS 등록 선택지 (RhelRelease 상수에서 생성) + D-20 ISO 버전 확인
+  const REG_RELEASES = [ { rel: 'ROCKY_8', major: 8, ex: '8.10' }, { rel: 'ROCKY_9', major: 9, ex: '9.6' }, { rel: 'ROCKY_10', major: 10, ex: '10.0' } ];
+  const REG_NAMES = REG_RELEASES.map(r => ({ k: r.rel, label: 'Rocky Linux ' + r.major, rel: r })).concat(
+    [ { k: 'CENTOS', label: 'CentOS', rel: null }, { k: 'UBUNTU', label: 'Ubuntu', rel: null }, { k: 'WINDOWS_SERVER', label: 'Windows Server', rel: null } ]);
+  // RhelRelease 의 판정 메서드 하나 (폼 힌트와 Layer A 가 함께 씀)
+  const majorOf = v => { const h = String(v).trim().split('.')[0]; return /^\d+$/.test(h) ? Number(h) : null; };
+  const versionMatches = (rel, v) => majorOf(v) === rel.major;
+  const reg = { name: 'ROCKY_9', ver: '9.', result: null, registered: { label: 'Rocky Linux 10.0', major: 10 }, tree: '11.0' };
+  const regName = () => REG_NAMES.find(n => n.k === reg.name);
+  function regSubmit() {
+    const n = regName();
+    if (n.rel && !versionMatches(n.rel, reg.ver)) {
+      reg.result = { ok: false, msg: 'OS 버전은 Rocky Linux ' + n.rel.major + ' 의 세부 버전이어야 합니다. 예: ' + n.rel.ex };
+    } else {
+      reg.result = { ok: true };
+      reg.registered = { label: (n.rel ? 'Rocky Linux' : n.label) + ' ' + reg.ver.trim(), major: n.rel ? n.rel.major : null };
+    }
+    regRender();
+  }
+  $('r-name').addEventListener('change', e => {
+    reg.name = e.target.value; reg.result = null;
+    const n = regName(); reg.ver = n.rel ? n.rel.major + '.' : '';
+    regRender();
+  });
+  $('r-ver').addEventListener('input', e => { reg.ver = e.target.value; reg.result = null; regRender(); });
+  $('r-tree').addEventListener('input', e => { reg.tree = e.target.value; regRender(); });
+  function regRender() {
+    const n = regName();
+    $('r-name').innerHTML = REG_NAMES.map(o => '<option value="' + o.k + '"' + (o.k === reg.name ? ' selected' : '') + '>' + o.label + '</option>').join('');
+    syncInput('r-ver', reg.ver);
+    $('r-hint').textContent = n.rel ? '세부 버전까지 입력합니다. 예: ' + n.rel.ex : '';
+    const r = reg.result;
+    setErr('r-err', r && !r.ok ? r.msg : '');
+    $('r-caps').innerHTML = 'RhelRelease = ' + (n.rel ? n.rel.rel : '(비어야 함)') + '\n' +
+      (n.rel ? '주 번호(' + esc(reg.ver) + ') = ' + majorOf(reg.ver) + ', 고른 메이저 = ' + n.rel.major + ' 이므로 ' +
+        (versionMatches(n.rel, reg.ver) ? '<span class="f">일치</span>' : '<span class="t">불일치</span>') : '버전 대조 없음 (지금 그대로)');
+    const m = $('r-msg');
+    if (!r) { m.className = 'ux-message'; m.textContent = '등록을 누르면 서버 판정 결과가 나옵니다.'; }
+    else if (!r.ok) { m.className = 'ux-message error'; m.textContent = '400 ' + r.msg; }
+    else { m.className = 'ux-message success'; m.textContent = '201 등록 판정을 통과합니다. 아래 ISO 버전 확인은 이 OS 를 기준으로 합니다.'; }
+    syncInput('r-tree', reg.tree);
+    $('r-tree-os').textContent = '등록 OS ' + reg.registered.label;
+    const t = $('r-tree-msg'), tm = majorOf(reg.tree);
+    if (reg.registered.major === null) { t.className = 'ux-message'; t.textContent = '이 OS 는 ISO 버전을 대조하지 않습니다. 지금 그대로입니다.'; }
+    else if (!reg.tree.trim()) { t.className = 'ux-message error'; t.textContent = '추출 작업 실패 알림 예시: RHEL 계열 설치 ISO 인지 확인해야 합니다.'; }
+    else if (tm === reg.registered.major) { t.className = 'ux-message success'; t.textContent = 'ISO 버전 확인을 통과합니다. 저장소 탐색으로 넘어갑니다.'; }
+    else { t.className = 'ux-message error'; t.textContent = '추출 작업 실패 알림 예시: ISO 의 실제 버전(Rocky Linux ' + reg.tree.trim() + ')과 등록한 OS 버전(' + reg.registered.label + ')이 다릅니다. 맞는 OS 아래에 다시 등록해야 합니다.'; }
+  }
+
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출 (초기 상태 = 시나리오 1 의 입력, 저장 전)
+</script>
+</body>
+</html>

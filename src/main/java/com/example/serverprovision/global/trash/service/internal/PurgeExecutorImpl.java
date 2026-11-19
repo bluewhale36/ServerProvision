@@ -1,5 +1,7 @@
 package com.example.serverprovision.global.trash.service.internal;
 
+import com.example.serverprovision.global.trash.exception.PurgeTargetNotInTrashException;
+import com.example.serverprovision.global.entity.LifecycleEntity;
 import com.example.serverprovision.global.marker.Markable;
 import com.example.serverprovision.global.marker.MarkableScanner;
 import com.example.serverprovision.global.marker.ResourceType;
@@ -82,6 +84,8 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 		}
 		Markable snapshot = snapshotOpt.get();
 		String displayName = snapshot.displayName();
+		// HF31 — 함께 지워질 하위 자원(OS 버전의 휴지통 ISO)의 실물 경로는 도메인 purge 가 행을 지우기 전에 모아 둔다.
+		List<String> dependentTrashedPaths = scanner.dependentTrashedPaths(request.resourceId());
 
 		int maxAttempts = request.origin().retriesAllowed() ? settingsService.getRetryMaxAttempts() : 1;
 		long backoffBaseMs = settingsService.getRetryBackoffBaseMs();
@@ -99,14 +103,17 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 				// 설계라 실물은 휴지통에 있음). 여기서 휴지통 실물을 함께 정리하지 않으면 영구삭제가
 				// 끝나도 파일이 휴지통(점검 수색 제외 구역)에 영원히 남는다 — 세 진입경로가 모두
 				// 지나는 단일 지점이라 이 한 곳 보강으로 전 도메인·전 경로에 적용된다.
-				if (snapshot instanceof com.example.serverprovision.global.entity.LifecycleEntity lifecycle
+				if (snapshot instanceof LifecycleEntity lifecycle
 						&& lifecycle.getTrashedPath() != null) {
 					deleteQuietly(lifecycle.getTrashedPath());
 				}
+				dependentTrashedPaths.forEach(this::deleteQuietly);
 				Instant purgedAt = Instant.now();
 				PurgeLogDetails.Success details = new PurgeLogDetails.Success(
 						request.triggeredBy(),
-						toStringOrNull(snapshot.getResourcePath()),
+						// HF31 CP5 O-1 — trashedPath 칸에 원래 경로가 들어가던 것을 실제 휴지통 경로로(없으면 null)
+						snapshot instanceof LifecycleEntity trashedEntity
+								? trashedEntity.getTrashedPath() : null,
 						toStringOrNull(snapshot.getResourcePath()),
 						snapshot.getManifestHash(),
 						snapshot.getMarkerSignature(),
@@ -182,7 +189,8 @@ public class PurgeExecutorImpl implements PurgeExecutor {
 		);
 		return new PurgeResult.Failed(
 				request, saved.getId(),
-				new PurgeIoFailedException("자원이 휴지통에 없습니다. id=" + request.resourceId())
+				// HF31 — 사용자 경로에서 활성 자원 · 이미 지워진 자원은 상태 충돌(409)이지 입출력 실패(503)가 아니다
+				new PurgeTargetNotInTrashException()
 		);
 	}
 

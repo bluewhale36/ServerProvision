@@ -55,8 +55,8 @@ class VolumePriorityRuleRequestTest {
         List<VolumePriorityRuleRequest> rows = VolumePriorityRuleRequest.defaults();
 
         assertThat(rows).extracting(VolumePriorityRuleRequest::toDisplay).containsExactly(
-                "SSD · NVMe · 작은 용량부터", "SSD · SAS · 작은 용량부터", "SSD · SATA · 작은 용량부터",
-                "HDD · SAS · 작은 용량부터", "HDD · SATA · 작은 용량부터");
+                "SSD, NVMe, 작은 용량부터", "SSD, SAS, 작은 용량부터", "SSD, SATA, 작은 용량부터",
+                "HDD, SAS, 작은 용량부터", "HDD, SATA, 작은 용량부터");
         rows.forEach(r -> assertThat(violatedPaths(r)).isEmpty());
         // 기본 행끼리는 (종류, 전송) 이 겹치지 않는다 — 폼의 '조합 소진' 판정(5) 의 전제.
         assertThat(rows.stream().map(r -> r.diskType() + "|" + r.transport()).distinct()).hasSize(5);
@@ -92,7 +92,7 @@ class VolumePriorityRuleRequestTest {
     @DisplayName("표기 — 큰 용량부터 · matches 는 종류와 전송만 본다(용량 순서 무관)")
     void displayAndMatches() {
         VolumePriorityRuleRequest larger = new VolumePriorityRuleRequest(DiskTypeRequirement.HDD, DiskTransportRequirement.SAS, CapacityOrder.LARGER_FIRST);
-        assertThat(larger.toDisplay()).isEqualTo("HDD · SAS · 큰 용량부터");
+        assertThat(larger.toDisplay()).isEqualTo("HDD, SAS, 큰 용량부터");
         assertThat(larger.matches(DiskTypeRequirement.HDD, DiskTransportRequirement.SAS)).isTrue();
         assertThat(larger.matches(DiskTypeRequirement.HDD, DiskTransportRequirement.SATA)).isFalse();
     }

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.os.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.management.common.exception.RestorePathOccupiedException;
 import com.example.serverprovision.management.common.exception.RestoreTrashLostException;
 import com.example.serverprovision.management.os.service.iso.IsoLifecycleService;
@@ -30,6 +31,7 @@ class IsoLifecycleControllerRestoreFlowTest {
 
     @Autowired MockMvc mvc;
 
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
     @MockitoBean OSMetadataService osMetadataService;
     @MockitoBean IsoLifecycleService isoLifecycleService;
     @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;

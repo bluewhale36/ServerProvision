@@ -150,7 +150,7 @@ class DhcpConfigApplyServiceTest {
         ApplyOutcome outcome = service.apply(desired);
 
         assertThat(outcome.result()).isEqualTo(ApplyResult.ROLLED_BACK);
-        assertThat(outcome.detail()).contains("NOT_FOUND");
+        assertThat(outcome.detail()).contains("실행 파일 미발견");
         assertThat(Files.readString(fragmentPath)).isEqualTo("OLD-FRAGMENT");
         assertThat(restartInvoked()).isFalse();
     }
@@ -164,7 +164,7 @@ class DhcpConfigApplyServiceTest {
         ApplyOutcome outcome = service.apply(desired);
 
         assertThat(outcome.result()).isEqualTo(ApplyResult.ROLLED_BACK);
-        assertThat(outcome.detail()).contains("TIMED_OUT");
+        assertThat(outcome.detail()).contains("시간 초과");
         assertThat(Files.readString(fragmentPath)).isEqualTo("OLD-FRAGMENT");
     }
 
@@ -211,7 +211,7 @@ class DhcpConfigApplyServiceTest {
         ApplyOutcome outcome = service.apply(desired);
 
         assertThat(outcome.result()).isEqualTo(ApplyResult.RESTORE_FAILED);
-        assertThat(outcome.detail()).contains("systemctl restart dnsmasq");   // 수동 복구 안내
+        assertThat(outcome.detail()).contains("수동으로 복구해야 합니다");   // 수동 복구 안내
     }
 
     // ── 최초 적용 게이트 실패 → 빈 조각(삭제 아님) ─────────────────────────────

@@ -21,9 +21,9 @@ public record OsVolumeTarget(
 
     public static final String CAPACITY_UNKNOWN = "OS 영역 용량은 실행 시 확인됩니다(자동 탐지)";
     /** %s = 하한(십진) · %s = 고정 파티션 합(이진) · %s = grow 접미사(빈 문자열 가능) */
-    public static final String CAPACITY_FORMAT = "OS 영역 최소 용량 %s · 고정 파티션 합 %s%s";
+    public static final String CAPACITY_FORMAT = "OS 영역 최소 용량 %s, 고정 파티션 합 %s%s";
     public static final String GROW_SUFFIX = "(+ grow)";
-    public static final String OVER_SUFFIX = " — 최소 용량을 넘습니다";
+    public static final String OVER_SUFFIX = ": 최소 용량을 넘습니다";
 
     public static OsVolumeTarget none() {
         return new OsVolumeTarget(OsVolumeTargetKind.NONE, 0, null, null, 0L, false);
@@ -55,10 +55,13 @@ public record OsVolumeTarget(
                 hasGrow ? GROW_SUFFIX : "") + (over() ? OVER_SUFFIX : "");
     }
 
-    /** 폼 JS 에 내리는 문구 템플릿 — 분기 4 + 용량 4. */
+    /** 폼 JS 에 내리는 문구 템플릿 — 분기마다 문구 + 용량 4 + OS 설치를 막는 분기 목록(HF32 · 쉼표 구분, 차단 판정의 SSOT 를 JS 가 그대로 읽는다). */
     public static Map<String, String> messageTemplates() {
         Map<String, String> m = new LinkedHashMap<>();
         for (OsVolumeTargetKind k : OsVolumeTargetKind.values()) m.put(k.name(), k.getMessageTemplate());
+        m.put("BLOCKING_KINDS", java.util.Arrays.stream(OsVolumeTargetKind.values())
+                .filter(OsVolumeTargetKind::isBlocksOsInstall).map(Enum::name)
+                .collect(java.util.stream.Collectors.joining(",")));
         m.put("CAPACITY_UNKNOWN", CAPACITY_UNKNOWN);
         m.put("CAPACITY_FORMAT", CAPACITY_FORMAT);
         m.put("GROW_SUFFIX", GROW_SUFFIX);

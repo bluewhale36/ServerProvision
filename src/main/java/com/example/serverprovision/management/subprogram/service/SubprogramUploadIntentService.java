@@ -2,7 +2,6 @@ package com.example.serverprovision.management.subprogram.service;
 
 import com.example.serverprovision.management.os.enums.OSName;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -53,8 +52,9 @@ public class SubprogramUploadIntentService {
 	private final ConcurrentMap<String, Intent> intents = new ConcurrentHashMap<>();
 
 	/**
-	 * MK2 WAVE 2 — intent 단계 메타 nudge. Subprogram 폼은 name 이 intent 단계에 없으므로
-	 * (kind, scope, version) 단위로 후보 검출. 후보가 있으면 SubprogramNudgeRequiredException throw.
+	 * 업로드 전 판정 — 등록 본체와 같은 키 (종류, 범위, 이름, 버전)로 본다(HF30-2). 살아 있는 같은 키는 상태별 안내로 막고, 휴지통의
+	 * 같은 키만 중복 확인 창으로 묻는다. 종전에는 이 단계가 이름 없이 (종류, 범위, 버전)으로 판정해, 창의 [그래도 등록] 뒤에도 등록 본체가
+	 * 휴지통의 같은 키를 거절하며 업로드가 끝난 뒤 409 로 실패했다(docs C-10).
 	 */
 	public SubprogramUploadIntentResponse issue(SubprogramKind kind, BoardScope scope, SubprogramUploadIntentRequest request) {
 		if (!scope.isCommon()) {
@@ -62,12 +62,13 @@ public class SubprogramUploadIntentService {
 					.orElseThrow(() -> new BoardModelNotFoundException(scope.boardId()));
 		}
 
-		// intent 단계 메타 충돌 사전 검출 — (kind, scope, version) 단위. name 미포함이라 일부 false-positive 가능하지만
-		// 사용자가 modal 에서 후보 확인 후 proceed/cancel 결정 가능.
-		List<Subprogram> metaCandidates = collectMetaNudgeCandidates(kind, scope, request.version());
+		SubprogramGuards.assertKeyAvailable(subprogramRepository, kind, scope, request.name(), request.version());
+
+		List<Subprogram> metaCandidates = subprogramRepository.findIntentNudgeCandidates(
+				kind, scope.isCommon() ? null : scope.boardId(), request.name(), request.version());
 		if (!metaCandidates.isEmpty()) {
 			throw new SubprogramNudgeRequiredException(
-					"동일한 (kind, scope, version) 의 Subprogram 이 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+					"종류, 적용 범위, 이름, 버전이 같은 자원이 휴지통에 있습니다. 진행 방법을 선택해야 합니다.",
 					registerIntentNudge(kind, scope, request, metaCandidates),
 					toConflictEntries(metaCandidates)
 			);
@@ -77,13 +78,15 @@ public class SubprogramUploadIntentService {
 	}
 
 	/**
-	 * MK2 WAVE 2 — nudge proceed/replace 후 호출. 메타 검사 skip.
+	 * MK2 WAVE 2 — nudge proceed/replace 후 호출. 휴지통 후보 판정은 건너뛰고 살아 있는 같은 키만 다시 본다.
 	 */
 	public SubprogramUploadIntentResponse issueAfterNudge(SubprogramKind kind, BoardScope scope, SubprogramUploadIntentRequest request) {
 		if (!scope.isCommon()) {
 			boardModelRepository.findByIdAndIsDeletedFalse(scope.boardId())
 					.orElseThrow(() -> new BoardModelNotFoundException(scope.boardId()));
 		}
+		// 창 진행 사이에 다른 사용자가 같은 키를 등록했을 수 있어 다시 본다.
+		SubprogramGuards.assertKeyAvailable(subprogramRepository, kind, scope, request.name(), request.version());
 
 		Path targetDir = pathPolicyService.assertWritablePath(request.targetDirectory());
 		targetDirectoryPolicyService.validateForIntent(targetDir, request.allowCreateDirectory());
@@ -100,10 +103,10 @@ public class SubprogramUploadIntentService {
 
 		List<String> warnings = new ArrayList<>();
 		if (request.totalBytes() == 0) {
-			warnings.add("총 바이트가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+			warnings.add("전체 크기가 0 바이트로 보고되었습니다. 업로드 전 파일 상태를 확인해야 합니다.");
 		}
 		if (request.uploadMode() == SubprogramUploadMode.FOLDER && request.fileCount() == 0) {
-			warnings.add("파일 수가 0 으로 보고되었습니다. 폴더가 비어있을 수 있습니다.");
+			warnings.add("파일 수가 0 으로 보고되었습니다. 폴더가 비어 있을 수 있습니다.");
 		}
 
 		String token = UUID.randomUUID().toString();
@@ -124,18 +127,6 @@ public class SubprogramUploadIntentService {
 		return new SubprogramUploadIntentResponse(token, warnings, null);
 	}
 
-	private List<Subprogram> collectMetaNudgeCandidates(SubprogramKind kind, BoardScope scope, String version) {
-		// intent 단계엔 name 이 없으므로 wildcard 검색. (kind, scope, version) 일치하는 모든 후보를 모은다.
-		Long boardId = scope.isCommon() ? null : scope.boardId();
-		// findIntentNudgeCandidates 는 name 도 받으므로 임시로 list 직접 필터링.
-		List<Subprogram> all = scope.isCommon()
-				? subprogramRepository.findByKindAndCommonScope(kind)
-				: subprogramRepository.findByKindAndBoardId(kind, scope.boardId());
-		return all.stream()
-				.filter(s -> version != null && version.equals(s.getVersion()))
-				.filter(s -> s.isDeleted() || s.isDeprecated())
-				.toList();
-	}
 
 	private NudgeSession registerIntentNudge(
 			SubprogramKind kind, BoardScope scope,
@@ -147,6 +138,7 @@ public class SubprogramUploadIntentService {
 		if (!scope.isCommon()) {
 			attributes.put("boardId", String.valueOf(scope.boardId()));
 		}
+		attributes.put("name", request.name());
 		attributes.put("version", request.version());
 		attributes.put("targetDirectory", request.targetDirectory());
 		attributes.put("uploadMode", request.uploadMode().name());
@@ -164,14 +156,7 @@ public class SubprogramUploadIntentService {
 
 	private List<NudgeConflictEntry> toConflictEntries(List<Subprogram> candidates) {
 		return candidates.stream()
-				.map(s -> new NudgeConflictEntry(
-						s.getId(),
-						LifecycleStage.of(s.isDeprecated(), s.isDeleted()),
-						s.getManifestHash(),
-						s.getName(),
-						s.getVersion(),
-						Instant.now()
-				))
+				.map(s -> NudgeConflictEntry.of(s, s.getName(), s.getVersion()))
 				.toList();
 	}
 
@@ -183,6 +168,7 @@ public class SubprogramUploadIntentService {
 		boolean common = Boolean.parseBoolean(attributes.getOrDefault("scopeCommon", "false"));
 		BoardScope scope = common ? BoardScope.COMMON : BoardScope.ofBoard(Long.parseLong(attributes.get("boardId")));
 		SubprogramUploadIntentRequest request = new SubprogramUploadIntentRequest(
+				attributes.get("name"),
 				attributes.get("targetDirectory"),
 				SubprogramUploadMode.valueOf(attributes.get("uploadMode")),
 				Integer.parseInt(attributes.get("fileCount")),
@@ -196,20 +182,20 @@ public class SubprogramUploadIntentService {
 
 	public Intent consume(SubprogramKind kind, BoardScope scope, String token) {
 		if (token == null || token.isBlank()) {
-			throw new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로고침 후 다시 시도하세요.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		Intent intent = intents.remove(token);
 		if (intent == null) {
-			throw new InvalidUploadTokenException("만료되었거나 유효하지 않은 업로드 토큰입니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 만료되었거나 올바르지 않습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (intent.kind() != kind) {
-			throw new InvalidUploadTokenException("토큰의 kind 와 요청이 일치하지 않습니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보의 자원 종류가 요청과 다릅니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (!equalsScope(intent.scope(), scope)) {
-			throw new InvalidUploadTokenException("토큰의 scope 와 요청이 일치하지 않습니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보의 적용 범위가 요청과 다릅니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (Duration.between(intent.issuedAt(), Instant.now()).compareTo(TTL) > 0) {
-			throw new InvalidUploadTokenException("업로드 토큰이 만료되었습니다. 다시 시도해주세요.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 만료되었습니다. 다시 시도해야 합니다.");
 		}
 		return intent;
 	}

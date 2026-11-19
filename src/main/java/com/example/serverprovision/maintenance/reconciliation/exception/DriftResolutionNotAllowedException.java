@@ -26,7 +26,7 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 	public static DriftResolutionNotAllowedException notApplicable(DriftKind kind) {
 		// 시스템이 못 하는 종류이므로 안내할 것은 '사람이 할 일' 쪽이다.
 		return new DriftResolutionNotAllowedException(
-				"'" + kind.getLabel() + "'(" + kind + ") 종류는 시스템이 해결할 수 없습니다. "
+				"'" + kind.getLabel() + "' 드리프트는 시스템이 해결할 수 없습니다. "
 						+ kind.getOperatorAction()
 		);
 	}
@@ -40,10 +40,10 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 	 */
 	public static DriftResolutionNotAllowedException trashCopyConflict(String trashedPath) {
 		return new DriftResolutionNotAllowedException(
-				"휴지통에 이미 이 자원의 사본이 보관되어 있어 회수를 진행할 수 없습니다. "
+				"휴지통에 이미 이 자원의 사본이 있어 휴지통으로 옮길 수 없습니다. "
 						+ "발견 위치의 파일이 불필요한 사본이면 그 파일과 마커를 직접 정리하고, "
-						+ "발견 위치의 파일을 살리려면 휴지통의 기존 사본을 정리한 뒤 다시 점검해 회수하세요. "
-						+ "(휴지통 사본 : " + trashedPath + ")"
+						+ "발견 위치의 파일을 살리려면 휴지통의 기존 사본을 정리한 뒤 다시 점검해야 합니다. "
+						+ "(휴지통 사본: " + trashedPath + ")"
 		);
 	}
 
@@ -53,7 +53,7 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 	 */
 	public static DriftResolutionNotAllowedException escapedFileMissing(String foundPath) {
 		return new DriftResolutionNotAllowedException(
-				"발견 위치에 파일이 더 이상 없습니다. 상태가 바뀐 것 같으니 다시 점검한 뒤 진행하세요. (발견 위치 : "
+				"발견 위치에 파일이 더 이상 없습니다. 다시 점검한 뒤 진행해야 합니다. (발견 위치: "
 						+ foundPath + ")"
 		);
 	}
@@ -64,7 +64,7 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 	 */
 	public static DriftResolutionNotAllowedException staleState() {
 		return new DriftResolutionNotAllowedException(
-				"이미 상태가 바뀌어 이 보고로는 처리할 수 없습니다. 다시 점검한 뒤 새 보고에서 진행하세요."
+				"이미 상태가 바뀌어 이 보고로는 처리할 수 없습니다. 다시 점검한 뒤 새 보고에서 진행해야 합니다."
 		);
 	}
 
@@ -74,7 +74,7 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 	 */
 	public static DriftResolutionNotAllowedException markerUnreadable() {
 		return new DriftResolutionNotAllowedException(
-				"마커가 심하게 손상되어 재서명할 수 없습니다. 파일 경위를 확인하거나 자원을 다시 등록하세요."
+				"마커가 심하게 손상되어 다시 서명할 수 없습니다. 파일 경위를 확인하거나 자원을 다시 등록해야 합니다."
 		);
 	}
 
@@ -84,7 +84,7 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 	 */
 	public static DriftResolutionNotAllowedException duplicateNotPromotable(String reason) {
 		return new DriftResolutionNotAllowedException(
-				"복제본을 정본으로 승격할 수 없습니다 — " + reason + ". 상태를 확인한 뒤 다시 점검하세요."
+				"복제본을 정본으로 승격할 수 없습니다. " + reason + " 상태를 확인한 뒤 다시 점검해야 합니다."
 		);
 	}
 
@@ -93,13 +93,13 @@ public class DriftResolutionNotAllowedException extends ConflictException {
 	 */
 	public static DriftResolutionNotAllowedException acceptInProgress() {
 		return new DriftResolutionNotAllowedException(
-				"이 자원의 수용 작업이 이미 진행 중입니다. 완료 알림을 기다려 주세요."
+				"이 자원의 수용 작업이 이미 진행 중입니다. 완료 알림을 기다려야 합니다."
 		);
 	}
 
 	public static DriftResolutionNotAllowedException globalOff() {
 		return new DriftResolutionNotAllowedException(
-				"시스템 해결이 꺼져 있어 거절되었습니다. 점검 운영 설정에서 켠 뒤 다시 시도하세요."
+				"시스템 해결이 꺼져 있어 거절되었습니다. 점검 운영 설정에서 켠 뒤 다시 시도해야 합니다."
 		);
 	}
 

@@ -157,7 +157,7 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 	public void softDelete() {
 		if (this.isDeleted) {
 			throw new IllegalLifecycleTransitionException(
-					"이미 삭제된 " + resourceLabel() + " 입니다 : " + resourceId());
+					"이미 삭제된 " + resourceLabel() + " 입니다.");
 		}
 		this.isDeleted = true;
 	}
@@ -166,7 +166,7 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 	public void restore() {
 		if (!this.isDeleted) {
 			throw new IllegalLifecycleTransitionException(
-					"삭제 상태가 아닌 " + resourceLabel() + " 는 복구할 수 없습니다 : " + resourceId());
+					"삭제 상태가 아닌 " + resourceLabel() + " 는 복구할 수 없습니다.");
 		}
 		this.isDeleted = false;
 		recomputeEffective();   // R4-1 — 복원 시 현재 부모 기준 effective 재계산 (own 보존)
@@ -176,11 +176,11 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 	public void deprecate() {
 		if (this.isDeleted) {
 			throw new IllegalDeprecationStateException(
-					"삭제된 " + resourceLabel() + " 는 deprecate 할 수 없습니다 : " + resourceId());
+					"삭제된 " + resourceLabel() + " 는 사용 중단을 권고할 수 없습니다.");
 		}
 		if (this.ownDeprecated) {   // R4-1 — own 기준 self-guard
 			throw new IllegalDeprecationStateException(
-					"이미 deprecated 상태입니다 : " + resourceId());
+					"이미 사용 중단 권고 상태입니다.");
 		}
 		this.ownDeprecated = true;
 		this.deprecatedAt = Instant.now();
@@ -191,7 +191,7 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 	public void undeprecate() {
 		if (!this.ownDeprecated) {   // R4-1 — own 기준 self-guard
 			throw new IllegalDeprecationStateException(
-					"deprecated 상태가 아닙니다 : " + resourceId());
+					"사용 중단 권고 상태가 아닙니다.");
 		}
 		this.ownDeprecated = false;
 		this.deprecatedAt = null;
@@ -260,7 +260,7 @@ public abstract class LifecycleEntity implements LifecycleManageable {
 	public void extendTrashTtl(int days) {
 		if (this.trashedAt == null) {
 			throw new IllegalLifecycleTransitionException(
-					"휴지통에 없는 " + resourceLabel() + " 는 보존기간을 연장할 수 없습니다 : " + resourceId());
+					"휴지통에 없는 " + resourceLabel() + " 는 보존 기간을 연장할 수 없습니다.");
 		}
 		this.ttlExtensionDays += days;
 	}

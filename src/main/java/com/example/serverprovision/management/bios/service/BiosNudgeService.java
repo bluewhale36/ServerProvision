@@ -1,8 +1,8 @@
 package com.example.serverprovision.management.bios.service;
 
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.management.bios.dto.response.BiosUploadIntentResponse;
 import com.example.serverprovision.management.common.nudge.*;
-import com.example.serverprovision.management.common.nudge.exception.InvalidReplaceTargetException;
 import com.example.serverprovision.management.common.nudge.exception.NudgeNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,8 +33,9 @@ import java.util.UUID;
 public class BiosNudgeService {
 
 	private final NudgeRegistry nudgeRegistry;
+	private final NudgeUploadDiscarder nudgeUploadDiscarder;
 	private final BiosRegistrationService biosRegistrationService;
-	private final BiosLifecycleService biosLifecycleService;
+	private final NudgeReplacer nudgeReplacer;
 	private final BiosUploadIntentService biosUploadIntentService;
 
 	// ============================================================
@@ -45,41 +46,44 @@ public class BiosNudgeService {
 	 * 사용자 "그래도 등록" — 기존 자원은 그대로 두고 임시 트리를 ACTIVE 자원으로 영속화.
 	 */
 	public Long proceed(UUID nudgeId) {
-		NudgeSession session = requireBiosSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		Long biosId = biosRegistrationService.persistFromNudge(session.boardId(), payload);
-		nudgeRegistry.remove(nudgeId);
-		log.info("[nudge.proceed] nudgeId={}, biosId={}", nudgeId, biosId);
-		return biosId;
+		return nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireBiosSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			Long biosId = biosRegistrationService.persistFromNudge(session.boardId(), payload);
+			nudgeRegistry.remove(nudgeId);
+			log.info("[nudge.proceed] nudgeId={}, biosId={}", nudgeId, biosId);
+			return biosId;
+		});
 	}
 
 	/**
 	 * 사용자 "기존 영구 삭제 후 등록" — targetId 자원을 purge (별도 트랜잭션 내부) 한 후 임시 트리를
 	 * ACTIVE 자원으로 영속화. targetId 가 세션의 conflicts 후보에 없으면 거절 (S4 fieldErrors 매핑).
 	 */
-	public Long replace(UUID nudgeId, Long targetId) {
-		NudgeSession session = requireBiosSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		if (!session.conflictTargetIds().contains(targetId)) {
-			throw new InvalidReplaceTargetException(targetId);
-		}
-		biosLifecycleService.purge(targetId);
-		Long biosId = biosRegistrationService.persistFromNudge(session.boardId(), payload);
-		nudgeRegistry.remove(nudgeId);
-		log.info("[nudge.replace] nudgeId={}, replacedTarget={}, biosId={}", nudgeId, targetId, biosId);
-		return biosId;
+	public Long replace(UUID nudgeId, Long targetId, String typedName) {
+		return nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireBiosSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			Long biosId = nudgeReplacer.replace(session, ResourceType.BIOS_BUNDLE, targetId, typedName,
+					() -> biosRegistrationService.persistFromNudge(session.boardId(), payload));
+			nudgeRegistry.remove(nudgeId);
+			log.info("[nudge.replace] nudgeId={}, replacedTarget={}, biosId={}", nudgeId, targetId, biosId);
+			return biosId;
+		});
 	}
 
 	/**
 	 * 사용자 "취소" — 임시 트리 cleanup 후 세션 제거.
 	 */
 	public void cancel(UUID nudgeId) {
-		NudgeSession session = requireBiosSession(nudgeId);
-		ContentNudgePayload payload = requireContentPayload(session);
-		// R12-1 — 업로드 임시 트리만 정리. claim 경로(사용자 기존 파일)는 registration service 가 보존 판단.
-		biosRegistrationService.cleanupNudgeCancelled(payload);
-		nudgeRegistry.remove(nudgeId);
-		log.info("[nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
+		nudgeRegistry.whileInUse(nudgeId, () -> {
+			NudgeSession session = requireBiosSession(nudgeId);
+			ContentNudgePayload payload = requireContentPayload(session);
+			// 업로드 트리만 정리한다. 기존 폴더 등록(claim)이면 payload 가 지울 트리를 내지 않는다.
+			nudgeUploadDiscarder.discard(session, "nudge.cancel");
+			nudgeRegistry.remove(nudgeId);
+			log.info("[nudge.cancel] nudgeId={}, tempPath={}", nudgeId, payload.tempFilePath());
+		});
 	}
 
 	// ============================================================
@@ -87,7 +91,7 @@ public class BiosNudgeService {
 	// ============================================================
 
 	/**
-	 * MK2 WAVE 2 — intent nudge "그래도 등록". 기존 SoftDeleted/Deprecated 자원은 그대로 두고 메타 검사를
+	 * MK2 WAVE 2 — intent nudge "그래도 등록". 기존 휴지통 자원은 그대로 두고 메타 검사를
 	 * 건너뛴 상태로 새 upload-intent token 을 발급. 클라이언트는 token 으로 정상 업로드 시작.
 	 */
 	public BiosUploadIntentResponse proceedIntent(UUID nudgeId) {
@@ -106,17 +110,14 @@ public class BiosNudgeService {
 	/**
 	 * MK2 WAVE 2 — intent nudge "기존 영구 삭제 후 등록". targetId 자원 purge 후 새 upload-intent token 발급.
 	 */
-	public BiosUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId) {
+	public BiosUploadIntentResponse replaceIntent(UUID nudgeId, Long targetId, String typedName) {
 		NudgeSession session = requireBiosSession(nudgeId);
 		IntentMetaNudgePayload payload = requireIntentMetaPayload(session);
-		if (!session.conflictTargetIds().contains(targetId)) {
-			throw new InvalidReplaceTargetException(targetId);
-		}
-		biosLifecycleService.purge(targetId);
-		BiosUploadIntentResponse response = biosUploadIntentService.issueAfterNudge(
-				session.boardId(),
-				biosUploadIntentService.reconstructRequestFromAttributes(payload.attributes())
-		);
+		BiosUploadIntentResponse response = nudgeReplacer.replace(session, ResourceType.BIOS_BUNDLE, targetId, typedName,
+				() -> biosUploadIntentService.issueAfterNudge(
+						session.boardId(),
+						biosUploadIntentService.reconstructRequestFromAttributes(payload.attributes())
+				));
 		nudgeRegistry.remove(nudgeId);
 		// 마스킹 — upload token 평문 로깅 금지.
 		log.info("[nudge.intent.replace] nudgeId={}, replacedTarget={}", nudgeId, targetId);

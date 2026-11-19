@@ -15,6 +15,6 @@ public class InvalidWindowsImageSelectionException extends FieldBoundBadRequestE
 
     public static InvalidWindowsImageSelectionException notInSource(WindowsImageName imageName) {
         return new InvalidWindowsImageSelectionException(
-                "현재 Windows 설치 소스에 없는 설치 이미지입니다: " + imageName.value() + ". 설치 이미지를 다시 선택하십시오.");
+                "현재 Windows 설치 소스에 없는 설치 이미지입니다: " + imageName.value() + ". 설치 이미지를 다시 선택해야 합니다.");
     }
 }

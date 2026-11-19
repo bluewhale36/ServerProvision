@@ -17,6 +17,6 @@ public class DiagnosticAssetReplaceEmptyException extends DomainException {
     }
 
     public static DiagnosticAssetReplaceEmptyException of(DiagnosticAsset slot) {
-        return new DiagnosticAssetReplaceEmptyException("교체할 파일이 비어 있습니다 : " + slot.label());
+        return new DiagnosticAssetReplaceEmptyException("교체할 파일이 비어 있습니다. 파일을 다시 선택해야 합니다.");
     }
 }

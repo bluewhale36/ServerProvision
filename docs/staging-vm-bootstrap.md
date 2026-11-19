@@ -3,6 +3,7 @@
 > **목적**: 개발 맥북 위 Rocky Linux 9.6 aarch64 가상머신을 ServerProvision 스테이징 환경으로 세운다. 실 배포 기기 확보 전까지 이 VM 이 OPS 계열 결정의 리허설 무대이며, 여기서 실측으로 검증된 절차가 OPS-4(설치, 기동, 업그레이드 절차)의 초안 입력이 된다.
 > **전제**: VM 생성 완료, sudo 가능한 운영자 계정, 맥북과의 네트워크 연결.
 > **근거 결정**: `discussion/26-08-02_13-16-50_OPS-1-access-control_discussion.md`(계정과 권한), `discussion/26-08-02_15-11-33_OPS-2-filesystem-layout_discussion.md`(경로 배치), `discussion/26-08-05_01-30-41_OPS-3-security-enforcement_discussion.md`(보안 강제). 이 런북은 그 결정들의 첫 실사화다.
+> **문서 역할**: 이 문서는 PXE 서버를 구축하거나 복구할 때의 정본이다. 운영 중 유지보수(정기 점검, 배포 뒤 확인, 장애 대응 등)의 정본은 사용 매뉴얼의 서버 관리 묶음(`/manual/admin/`, 원본 `src/main/resources/static/manual/admin/`)이다. 두 문서에 겹치는 사실(경로, 서비스 이름, 환경변수)은 이 문서를 기준으로 맞춘다(2026-11-17 사용자 확정).
 
 ## 1. 이 환경의 성격과 실서버와의 차이
 
@@ -77,10 +78,18 @@ sudo dnf -y install acl
 sudo mkdir -p /opt/serverprovision
 sudo mkdir -p /var/lib/serverprovision/served/resources
 sudo mkdir -p /var/lib/serverprovision/served/pxe
+sudo mkdir -p /var/lib/serverprovision/served/install-trees
 sudo mkdir -p /var/lib/serverprovision/internal/{uploads,upload-tmp,work,trash,quarantine,history}
 sudo mkdir -p /var/log/serverprovision
 sudo mkdir -p /etc/serverprovision
 sudo ln -s /var/lib/serverprovision /opt/serverprovision/data
+```
+
+served/install-trees 는 RHEL 계열 설치 때 앱이 등록 ISO 를 풀어 두는 작업 트리 자리다(E4-1-b-1). 운영자가 손으로 쓰는 자리가 아니므로 아래 기본값(provisioning:provisioning, 0755)을 그대로 받는다. ISO 하나에 약 10 GB 를 쓰고, 그 ISO 로 설치 중인 서버가 없어지면 유예 시간 뒤 지워진다. 앱은 비특권이라 mount 를 쓸 수 없어 ISO 를 bsdtar 로 푼다. bsdtar 는 AppStream 의 bsdtar 패키지에 있다(EPEL 불필요).
+
+```bash
+sudo dnf -y install bsdtar
+bsdtar --version
 ```
 
 권한은 OPS-1 D5(setgid 와 기본 ACL 병용)와 D6(운영자 공유 영역과 애플리케이션 단독 영역 구분)을 따른다.
@@ -147,6 +156,7 @@ PROVISION_TRASH_ROOT=/var/lib/serverprovision/internal/trash
 PROVISION_ISO_QUARANTINE_ROOT=/var/lib/serverprovision/internal/quarantine
 PROVISION_ASSET_HISTORY_ROOT=/var/lib/serverprovision/internal/history
 PROVISION_ALLOWED_ROOTS=/var/lib/serverprovision/served/resources
+RHEL_INSTALL_TREE_ROOT=/var/lib/serverprovision/served/install-trees
 RECONCILIATION_SCAN_EXTRA_ROOTS=
 EOF
 sudo chmod 0600 /etc/serverprovision/env

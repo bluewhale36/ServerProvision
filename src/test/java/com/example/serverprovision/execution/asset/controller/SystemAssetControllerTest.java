@@ -276,11 +276,11 @@ class SystemAssetControllerTest {
     @DisplayName("GET /system/asset — 차단 사유가 있으면 조립 버튼 disabled + 사유 tooltip(서버 409 가드와 같은 판정)")
     void dashboard_windowsArea_assembleBlocked() throws Exception {
         given(dashboardService.loadOverview()).willReturn(new SystemAssetOverviewResponse(
-                List.of(windowsArea("sources/$OEM$ 에 쓰기 권한이 없습니다 — 런북 §14-1")), 1, 1));
+                List.of(windowsArea("sources/$OEM$ 에 쓰기 권한이 없습니다.")), 1, 1));
 
         mvc.perform(get("/system/asset"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("쓰기 권한이 없습니다 — 런북 §14-1")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("sources/$OEM$ 에 쓰기 권한이 없습니다.")))
                 .andExpect(content().string(org.hamcrest.Matchers.matchesRegex("(?s).*<button[^>]*disabled[^>]*>드라이버 페이로드 조립</button>.*")));
     }
 }

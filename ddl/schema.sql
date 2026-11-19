@@ -318,6 +318,7 @@ CREATE TABLE `iso` (
   `iso_path` varchar(1024) NOT NULL,
   `os_metadata_id` bigint(20) NOT NULL,
   `extracted_at` datetime(6) DEFAULT NULL,
+  `registration_failure` varchar(512) DEFAULT NULL,
   `manifest_hash` varchar(64) DEFAULT NULL,
   `marker_signature` varchar(64) DEFAULT NULL,
   `last_integrity_status` enum('MARKER_MISSING','NOT_VERIFIED','ORIGINAL','SIGNATURE_INVALID','TAMPERED') NOT NULL,

@@ -1,5 +1,6 @@
 package com.example.serverprovision.management.subprogram.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.marker.IntegrityStatus;
 import com.example.serverprovision.management.board.service.metadata.BoardModelMetadataService;
@@ -51,6 +52,7 @@ class SubprogramControllerTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper om;
 
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 컨트롤러 의존성(영구 삭제 단일 진입점)
     @MockitoBean SubprogramService subprogramService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramLifecycleService subprogramLifecycleService;
     @MockitoBean com.example.serverprovision.management.subprogram.service.SubprogramIntegrityService subprogramIntegrityService;
@@ -121,7 +123,7 @@ class SubprogramControllerTest {
     @Test
     @DisplayName("POST /{kind}/{boardScope}/upload-intent (정상) : 200 + uploadToken")
     void intent_success() throws Exception {
-        var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null);
+        var req = new SubprogramUploadIntentRequest("r8169", "/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null);
         given(subprogramUploadIntentService.issue(eq(SubprogramKind.DRIVER), any(BoardScope.class), any()))
                 .willReturn(new SubprogramUploadIntentResponse("tok-1", List.of(), null));
 
@@ -155,7 +157,7 @@ class SubprogramControllerTest {
     @Test
     @DisplayName("POST /upload-intent (활성 동일 트리 점유) : 409")
     void intent_conflict_409() throws Exception {
-        var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null);
+        var req = new SubprogramUploadIntentRequest("r8169", "/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null);
         willThrow(new DuplicateSubprogramVersionException(SubprogramKind.DRIVER, BoardScope.COMMON, "n", "1.0"))
                 .given(subprogramUploadIntentService).issue(any(), any(), any());
 
@@ -230,7 +232,7 @@ class SubprogramControllerTest {
         @Test
         @DisplayName("intent : 메타 충돌 → 409 NUDGE_REQUIRED (Driver, common scope)")
         void intentMetaNudge() throws Exception {
-            var req = new SubprogramUploadIntentRequest("/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024, "1.0.0", false, null);
+            var req = new SubprogramUploadIntentRequest("r8169", "/mnt/x", SubprogramUploadMode.FOLDER, 5, 1024, "1.0.0", false, null);
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
             var session = new com.example.serverprovision.management.common.nudge.NudgeSession(
                     nudgeId,
@@ -242,7 +244,7 @@ class SubprogramControllerTest {
             var conflicts = List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                     99L,
                     com.example.serverprovision.global.lifecycle.LifecycleStage.DEPRECATED,
-                    "hash", "Realtek-r8169", "1.0.0", Instant.now()));
+                    "hash", "Realtek-r8169", "1.0.0", "Realtek-r8169", Instant.now()));
             willThrow(new com.example.serverprovision.management.subprogram.exception.SubprogramNudgeRequiredException(
                     "동일 메타", session, conflicts))
                     .given(subprogramUploadIntentService).issue(eq(SubprogramKind.DRIVER), any(BoardScope.class), any());
@@ -271,7 +273,7 @@ class SubprogramControllerTest {
         @DisplayName("intent-nudge replace : 200 + 새 uploadToken")
         void intentNudgeReplace() throws Exception {
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
-            given(subprogramNudgeService.replaceIntent(eq(nudgeId), eq(99L)))
+            given(subprogramNudgeService.replaceIntent(eq(nudgeId), eq(99L), any()))
                     .willReturn(new SubprogramUploadIntentResponse("token-after-replace", List.of(), null));
 
             mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/replace?targetId=99"))
@@ -294,7 +296,7 @@ class SubprogramControllerTest {
     private static SubprogramResponse driverResponse() {
         return new SubprogramResponse(
                 7L, SubprogramKind.DRIVER, "드라이버", 10L, "ASPEED Driver", "1.15.03", "/x",
-                com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER, "Windows Server",
+                com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER_2025, "Windows Server",
                 java.util.List.of(new com.example.serverprovision.management.subprogram.dto.response.SubprogramVariantResponse(
                         1L, "2025", "WDDM Installer/Win2025.msi",
                         com.example.serverprovision.management.subprogram.enums.InstallEntrypointKind.MSI, null, true)),
@@ -309,7 +311,7 @@ class SubprogramControllerTest {
 
         mvc.perform(get("/management/subprogram/7"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.osName").value("WINDOWS_SERVER"))
+                .andExpect(jsonPath("$.osName").value("WINDOWS_SERVER_2025"))
                 .andExpect(jsonPath("$.osLabel").value("Windows Server"))
                 .andExpect(jsonPath("$.variants[0].osVersion").value("2025"))
                 .andExpect(jsonPath("$.variants[0].entrypointKind").value("MSI"));
@@ -333,7 +335,7 @@ class SubprogramControllerTest {
     void edit_withVariants_redirects() throws Exception {
         mvc.perform(post("/management/subprogram/7/edit")
                         .param("name", "ASPEED Driver").param("version", "1.15.03").param("description", "")
-                        .param("osName", "WINDOWS_SERVER")
+                        .param("osName", "WINDOWS_SERVER_2025")
                         .param("variants[0].osVersion", "2025").param("variants[0].entrypointRelativePath", "WDDM Installer/Win2025.msi")
                         .param("variants[0].arguments", "/norestart").param("variants[0].rebootRequired", "true")
                         .param("variants[1].osVersion", "2016").param("variants[1].entrypointRelativePath", "WIN2016/astgrp.inf"))
@@ -342,10 +344,39 @@ class SubprogramControllerTest {
         org.mockito.ArgumentCaptor<com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest> captor =
                 org.mockito.ArgumentCaptor.forClass(com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest.class);
         org.mockito.Mockito.verify(subprogramService).update(eq(7L), captor.capture());
-        assertThat(captor.getValue().getOsName()).isEqualTo(com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER);
+        assertThat(captor.getValue().getOsName()).isEqualTo(com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER_2025);
         assertThat(captor.getValue().getVariants()).hasSize(2);
         assertThat(captor.getValue().getVariants().get(0).isRebootRequired()).isTrue();
         assertThat(captor.getValue().getVariants().get(1).getEntrypointRelativePath()).isEqualTo("WIN2016/astgrp.inf");
+    }
+
+    @Test
+    @DisplayName("S23-1 POST /{id}/edit (400 · 폼 재렌더) : 미지원 OS 상수(CENTOS) → osName 필드 오류 · 서비스 미호출")
+    void edit_legacyOsName_rerendersWithFieldError() throws Exception {
+        given(subprogramService.findSubprogram(7L)).willReturn(driverResponse());
+
+        mvc.perform(post("/management/subprogram/7/edit")
+                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("description", "")
+                        .param("osName", "CENTOS"))
+                .andExpect(status().isOk())
+                .andExpect(model().attributeHasFieldErrors("subprogramForm", "osName"));
+        org.mockito.Mockito.verify(subprogramService, org.mockito.Mockito.never()).update(any(), any());
+    }
+
+    @Test
+    @DisplayName("S23-1 GET /{id}/edit : 지금 OS 가 미지원 상수면 선택지 맨 앞에 '(미지원)' 으로 남는다(조용히 'OS 무관' 으로 바뀌지 않게)")
+    void editForm_keepsLegacyOsVisible() throws Exception {
+        SubprogramResponse legacy = new SubprogramResponse(
+                7L, SubprogramKind.DRIVER, "드라이버", 10L, "ASPEED Driver", "1.15.03", "/x",
+                com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER, "Windows Server",
+                java.util.List.of(), "h", 1, 100L, "d", IntegrityStatus.ORIGINAL, true, false, false,
+                com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE, false, false, false);
+        given(subprogramService.findSubprogram(7L)).willReturn(legacy);
+        given(subprogramService.osVersionSuggestions(any())).willReturn(java.util.List.of());
+
+        mvc.perform(get("/management/subprogram/7/edit"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Windows Server (미지원)")));
     }
 
     @Test
@@ -360,7 +391,7 @@ class SubprogramControllerTest {
                         com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRY_DUPLICATE)));
 
         mvc.perform(post("/management/subprogram/7/edit")
-                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER")
+                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER_2025")
                         .param("variants[0].osVersion", "2025").param("variants[0].entrypointRelativePath", "readme.txt")
                         .param("variants[1].osVersion", "2025").param("variants[1].entrypointRelativePath", "a.msi"))
                 .andExpect(status().isOk())
@@ -387,16 +418,122 @@ class SubprogramControllerTest {
         given(subprogramService.findSubprogram(7L)).willReturn(driverResponse());
         given(subprogramService.checkVariants(eq(7L), any())).willReturn(java.util.List.of(
                 new com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Finding(0,
-                        com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRYPOINT_PATH, ".. 시그먼트 금지")));
+                        com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRYPOINT_PATH, "상위 경로(..) 금지")));
 
         mvc.perform(post("/management/subprogram/7/edit")
-                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER")
+                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER_2025")
                         .param("variants[0].osVersion", "2025").param("variants[0].entrypointRelativePath", "../x.msi"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("management/subprogram/subprogram-edit"))
                 .andExpect(model().attributeHasFieldErrors("subprogramForm", "variants[0].entrypointRelativePath"))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString(".. 시그먼트 금지")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("상위 경로(..) 금지")));
 
         org.mockito.Mockito.verify(subprogramService, org.mockito.Mockito.never()).update(any(), any());
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("HF30-2 — 상태별 409 안내 · [기존 영구 삭제 후 등록] 실패 응답")
+    class Hf30_2 {
+
+        @Test
+        @DisplayName("upload-intent : 같은 정체가 사용 중단 권고 → 409 + 해제 안내 문구")
+        void intent_deprecated_409() throws Exception {
+            willThrow(com.example.serverprovision.management.subprogram.exception.DuplicateSubprogramVersionException.againstRegistration(com.example.serverprovision.management.subprogram.entity.Subprogram.builder().kind(com.example.serverprovision.management.subprogram.enums.SubprogramKind.DRIVER).name("r8169").version("1.0").isDeprecated(true).isDeleted(false).build()))
+                    .given(subprogramUploadIntentService).issue(eq(com.example.serverprovision.management.subprogram.enums.SubprogramKind.DRIVER), any(), any());
+
+            mvc.perform(post("/management/subprogram/driver/common/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(new com.example.serverprovision.management.subprogram.dto.request.SubprogramUploadIntentRequest("r8169", "/mnt/x", com.example.serverprovision.management.subprogram.enums.SubprogramUploadMode.FOLDER, 5, 1024L, "1.0", false, null))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("사용 중단 권고 상태인 같은 드라이버가 있습니다(r8169 1.0). 목록에서 사용 중단 권고를 해제해야 합니다."))
+                    .andExpect(jsonPath("$.fieldErrors[0].field").value("version"));
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 자원명을 서비스로 넘긴다(자원명 확인은 영구 삭제 경로가 한다)")
+        void intentNudgeReplace_passesTypedName() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(subprogramNudgeService.replaceIntent(eq(nudgeId), eq(42L), eq("typed")))
+                    .willReturn(new com.example.serverprovision.management.subprogram.dto.response.SubprogramUploadIntentResponse("t", List.of(), null));
+
+            mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/replace?targetId=42&typedName=typed"))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 후보가 이미 휴지통에 없음 → 409(PurgeTargetNotInTrash)")
+        void intentNudgeReplace_notInTrash_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(new com.example.serverprovision.global.trash.exception.PurgeTargetNotInTrashException())
+                    .given(subprogramNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 영구 삭제 뒤 등록 실패 → 409 + 영구 삭제 사실과 실패 사유")
+        void intentNudgeReplace_registrationFailedAfterPurge_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(com.example.serverprovision.management.common.nudge.exception.NudgeReplaceRegistrationFailedException
+                    .wrapIfUserFacing(new com.example.serverprovision.management.board.exception.BoardModelNotFoundException(1L)))
+                    .given(subprogramNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/subprogram/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("기존 자원은 영구 삭제했지만 새 자원 등록에 실패했습니다. ")));
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("HF30-3 — 업로드 뒤 창 성공 응답 · 목록 선택 복원")
+    class Hf30_3 {
+
+        @Test
+        @DisplayName("nudge proceed : 일반 등록과 같은 {id, redirect}(D11, 종전 204)")
+        void proceed_returnsUploadResponse() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(subprogramNudgeService.proceed(nudgeId)).willReturn(41L);
+
+            mvc.perform(post("/management/subprogram/nudge/" + nudgeId + "/proceed"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(41))
+                    .andExpect(jsonPath("$.redirect").value("/management/subprogram?selectId=41"));
+        }
+
+        @Test
+        @DisplayName("nudge replace : 본문의 typedName 을 넘기고 {id, redirect} 를 돌려준다")
+        void replace_returnsUploadResponse() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(subprogramNudgeService.replace(nudgeId, 42L, "drv")).willReturn(43L);
+
+            mvc.perform(post("/management/subprogram/nudge/" + nudgeId + "/replace").param("targetId", "42").param("typedName", "drv"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.redirect").value("/management/subprogram?selectId=43"));
+        }
+
+        @Test
+        @DisplayName("GET ?selectId= 만 : 서버가 종류와 범위를 찾아 Miller 선택을 복원한다(D11 · D-4)")
+        void list_selectIdOnly_resolvesSelection() throws Exception {
+            given(subprogramService.findAllGrouped(any(), any())).willReturn(List.of());
+            given(subprogramService.findSelection(41L)).willReturn(java.util.Optional.of(
+                    new com.example.serverprovision.management.subprogram.dto.response.SubprogramSelectionResponse(SubprogramKind.DRIVER, "10")));
+
+            mvc.perform(get("/management/subprogram").param("selectId", "41"))
+                    .andExpect(status().isOk())
+                    .andExpect(model().attribute("selectKind", SubprogramKind.DRIVER))
+                    .andExpect(model().attribute("selectKey", "10"));
+        }
+
+        @Test
+        @DisplayName("GET ?selectKind 가 있으면 : 요청 값을 그대로 쓴다(조회 없음)")
+        void list_withSelectKind_keepsRequest() throws Exception {
+            given(subprogramService.findAllGrouped(any(), any())).willReturn(List.of());
+
+            mvc.perform(get("/management/subprogram").param("selectId", "41").param("selectKind", "UTILITY").param("selectKey", "common"))
+                    .andExpect(status().isOk())
+                    .andExpect(model().attribute("selectKind", SubprogramKind.UTILITY))
+                    .andExpect(model().attribute("selectKey", "common"));
+            org.mockito.Mockito.verify(subprogramService, org.mockito.Mockito.never()).findSelection(any());
+        }
     }
 }

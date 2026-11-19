@@ -289,7 +289,7 @@ class DuplicateResolveServiceTest {
 
         assertThatThrownBy(() -> service.resolve(1L, DuplicateSurvivor.ORIGINAL))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("파일 삭제 실패");
+                .hasMessageContaining("파일을 삭제하지 못했습니다");
         // 원본은 손대지 않았다 — 실패는 사본 삭제 단계에서만 발생.
         assertThat(Files.exists(orig)).isTrue();
     }
@@ -312,7 +312,7 @@ class DuplicateResolveServiceTest {
 
         assertThatThrownBy(() -> service.resolve(1L, DuplicateSurvivor.ORIGINAL))
                 .isInstanceOf(DriftResolutionNotAllowedException.class)
-                .hasMessageContaining("경로 이동됨");
+                .hasMessageContaining("경로 이동");
     }
 
     @Test

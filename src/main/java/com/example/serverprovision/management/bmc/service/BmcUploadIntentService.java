@@ -1,12 +1,10 @@
 package com.example.serverprovision.management.bmc.service;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.management.bmc.dto.request.BmcUploadIntentRequest;
 import com.example.serverprovision.management.bmc.dto.response.BmcUploadIntentResponse;
 import com.example.serverprovision.management.bmc.entity.BoardBMC;
 import com.example.serverprovision.management.bmc.exception.BmcNudgeRequiredException;
-import com.example.serverprovision.management.bmc.exception.DuplicateBmcVersionException;
 import com.example.serverprovision.management.board.entity.BoardModel;
 import com.example.serverprovision.management.board.exception.BoardModelNotFoundException;
 import com.example.serverprovision.management.board.repository.BoardModelRepository;
@@ -30,7 +28,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -55,14 +52,13 @@ public class BmcUploadIntentService {
 		boardModelRepository.findByIdAndIsDeletedFalse(boardId)
 				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
 
-		if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBmcVersionException(boardId, request.version());
-		}
+		BmcGuards.assertVersionAvailable(bmcRepository, boardId, request.version());
 
-		List<BoardBMC> metaCandidates = collectMetaNudgeCandidates(boardId, request.version());
+		// 같은 (메인보드, 버전)의 휴지통 행만 창으로 묻는다(HF30-2). 살아 있는 행은 위 가드가 상태별 안내로 막았다.
+		List<BoardBMC> metaCandidates = bmcRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, request.version());
 		if (!metaCandidates.isEmpty()) {
 			throw new BmcNudgeRequiredException(
-					"동일한 (보드, 버전) 의 BMC 자원이 휴지통 또는 Deprecated 상태로 발견됐습니다. 진행 방법을 선택하세요.",
+					"같은 메인보드와 버전의 BMC 펌웨어가 휴지통에 있습니다. 진행 방법을 선택해야 합니다.",
 					registerIntentNudge(boardId, request, metaCandidates),
 					toConflictEntries(metaCandidates)
 			);
@@ -78,9 +74,7 @@ public class BmcUploadIntentService {
 		BoardModel board = boardModelRepository.findByIdAndIsDeletedFalse(boardId)
 				.orElseThrow(() -> new BoardModelNotFoundException(boardId));
 
-		if (bmcRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBmcVersionException(boardId, request.version());
-		}
+		BmcGuards.assertVersionAvailable(bmcRepository, boardId, request.version());
 
 		// R12-2 — 경로 해석 + 파일명 정책 하드 검증 (파일 바이트 전송 전 조기 차단). 정책은 vendor 별 strategy.
 		//         intent 는 업로드 전용이므로 디렉토리 추론(허용 확장자 기준)을 적용한다.
@@ -89,7 +83,7 @@ public class BmcUploadIntentService {
 				request.fileName(),
 				bmcFirmwareFilePolicy.allowedExtensions(board.getVendor()),
 				path -> new InvalidFirmwareFileException(
-						"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + path, "firmwarePath")
+						"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + path, "firmwarePath")
 		);
 		bmcFirmwareFilePolicy.assertAllowed(board.getVendor(), request.fileName(), "firmwareFile");
 
@@ -99,7 +93,7 @@ public class BmcUploadIntentService {
 
 		List<String> warnings = new ArrayList<>();
 		if (request.fileSize() == 0) {
-			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인하세요.");
+			warnings.add("파일 크기가 0 으로 보고되었습니다. 업로드 전 파일 상태를 확인해야 합니다.");
 		}
 
 		String token = UUID.randomUUID().toString();
@@ -117,13 +111,6 @@ public class BmcUploadIntentService {
 		return new BmcUploadIntentResponse(token, warnings, null);
 	}
 
-	private List<BoardBMC> collectMetaNudgeCandidates(Long boardId, String version) {
-		return Stream.concat(
-						bmcRepository.findAllByBoardModel_IdAndVersionAndIsDeletedTrue(boardId, version).stream(),
-						bmcRepository.findAllByBoardModel_IdAndVersionAndIsDeprecatedTrueAndIsDeletedFalse(boardId, version).stream()
-				)
-				.toList();
-	}
 
 	private NudgeSession registerIntentNudge(Long boardId, BmcUploadIntentRequest request, List<BoardBMC> candidates) {
 		Map<String, String> attributes = new HashMap<>();
@@ -143,14 +130,7 @@ public class BmcUploadIntentService {
 
 	private List<NudgeConflictEntry> toConflictEntries(List<BoardBMC> candidates) {
 		return candidates.stream()
-				.map(b -> new NudgeConflictEntry(
-						b.getId(),
-						LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
-						b.getManifestHash(),
-						b.getName(),
-						b.getVersion(),
-						Instant.now()
-				))
+				.map(b -> NudgeConflictEntry.of(b, b.getName(), b.getVersion()))
 				.toList();
 	}
 
@@ -169,17 +149,17 @@ public class BmcUploadIntentService {
 
 	public Intent consume(Long boardId, String token) {
 		if (token == null || token.isBlank()) {
-			throw new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로고침 후 다시 시도하세요.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		Intent intent = intents.remove(token);
 		if (intent == null) {
-			throw new InvalidUploadTokenException("만료되었거나 유효하지 않은 업로드 토큰입니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 만료되었거나 올바르지 않습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (!intent.boardId().equals(boardId)) {
-			throw new InvalidUploadTokenException("토큰과 요청 메인보드가 일치하지 않습니다.");
+			throw new InvalidUploadTokenException("업로드 준비 정보의 메인보드가 요청과 다릅니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.");
 		}
 		if (Duration.between(intent.issuedAt(), Instant.now()).compareTo(TTL) > 0) {
-			throw new InvalidUploadTokenException("업로드 토큰이 만료되었습니다. 다시 시도해주세요.");
+			throw new InvalidUploadTokenException("업로드 준비 정보가 만료되었습니다. 다시 시도해야 합니다.");
 		}
 		return intent;
 	}

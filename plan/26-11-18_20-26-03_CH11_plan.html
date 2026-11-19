@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CH11 Plan · 코딩 규약 기계 검사</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:var(--card); border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; white-space:nowrap; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:4px 0 0; }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* 🎬 데모 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:7px 10px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; }
+  .ux-row .label { flex:1; min-width:0; font-family:var(--mono); font-size:11.5px; overflow-wrap:anywhere; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; white-space:nowrap; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:220px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+  .ux-wrap textarea { width:100%; min-height:300px; font-family:var(--mono); font-size:12px; line-height:1.5; border:1px solid var(--border);
+    border-radius:6px; padding:8px 10px; background:var(--card); color:var(--text); white-space:pre; overflow:auto; resize:vertical; }
+  .ux-wrap .split-card > code { display:block; margin-bottom:8px; overflow-wrap:anywhere; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    table code { overflow-wrap:anywhere; }
+    td:first-child { word-break:keep-all; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>CH11 : 코딩 규약 기계 검사 <span class="v2-badge">CH11</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> CH11 (chore · 화면 없음)</span>
+    <span><strong>브랜치</strong> <code>chore/CH11_coding-convention-test</code> (origin/dev 00091d1)</span>
+    <span><strong>scope</strong> CLAUDE.md 코딩 규약 중 기계 판정 가능한 것을 전체 테스트 안 두 검사로</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/41cef0e868f98196b33bce3fd1434fff">CH11 단계 페이지</a></span>
+    <span><strong>생성</strong> 2026-11-18 20:26 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태 (진단)</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 검사 흐름</a></li>
+      <li><a href="#s4">§4 규칙 목록과 기준선 형식</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트 (규칙의 테스트)</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 · Open Questions</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단)</summary>
+      <div class="body">
+        <div class="callout"><b>한눈에</b> : CLAUDE.md 의 코딩 규약 가운데 기계가 판정할 수 있는 것을 전체 테스트 안의 두 검사로 옮긴다. 구조 규칙은 ArchUnit(컴파일된 클래스), 소스 규칙은 JavaParser(소스 구문 트리)로 본다. 이미 있는 위반은 기준선 파일 한 곳에 적어 두고, 기준선은 줄어들기만 한다. Javadoc 은 길이와 금지 패턴만 기계가 보고, 뜻이 한 번에 전달되는지는 새 점검 문서로 검수한다.</div>
+
+        <table>
+          <thead><tr><th>항목</th><th>사실 · 근거</th></tr></thead>
+          <tbody>
+            <tr><td>계기</td><td>2026-11-18 E4-1-b-4-1 CP4 검수에서 원장 origin 을 String 으로 받는 새 API 를 "관례" 로 통과시켰다. 사용자: "claude.md 에 적어둔 것을 세션마다 제대로 안지키는 경향이 눈에 보였다."</td></tr>
+            <tr><td>선례</td><td><code>DesignConventionTest</code>(전체 테스트 포함)가 화면 규약을 정규식으로 검사, 기존 위반은 <code>LEGACY_*</code> 상수로 허용. 그 뒤 화면 규약 위반 새로 생기지 않음</td></tr>
+            <tr><td>의존성</td><td><code>build.gradle</code> 에 ArchUnit · JavaParser 없음. Spring Boot 4.0.3, Java 21</td></tr>
+            <tr><td>대상</td><td><code>src/main/java</code> 1,263 파일 (2026-11-18 실측)</td></tr>
+            <tr><td>정규식 한계 실측</td><td>정규식 '100 줄 넘는 메서드' 6 건 중 4 건은 record 선언 전체(<code>GuestServerDetailResponse</code> 397 줄 등)를 메서드로 오인. 실제 메서드는 <code>PathReconciliationService.performScan</code>(344 줄), <code>RaidPlanner.plan</code>(148 줄)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>현재 위반 수 실측 (정규식 근사, CP4 에서 정확한 수로 기준선을 만든다)</h4>
+        <table>
+          <thead><tr><th>규칙 후보</th><th>지금 위반</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>컨트롤러 @Transactional</td><td>0</td><td></td></tr>
+            <tr><td>컨트롤러가 repository 에 의존</td><td>0</td><td></td></tr>
+            <tr><td>컨트롤러가 entity 에 의존</td><td>3</td><td><code>PxeInfraController</code>, <code>PxeNetworkConfigController</code>, <code>SignupSubmission</code></td></tr>
+            <tr><td>dto.request 클래스 이름이 Request 로 안 끝남</td><td>10</td><td><code>*Query</code> 4, Validator · Deserializer 같은 도우미, <code>DiskCapacityRequirement</code> 등</td></tr>
+            <tr><td>dto.response 클래스 이름이 Response 로 안 끝남</td><td>10</td><td><code>*View</code>, <code>*Row</code>, <code>*Option</code>, <code>*Result</code> 등</td></tr>
+            <tr><td>DTO · Dto 접미사</td><td>0</td><td></td></tr>
+            <tr><td>management 서비스가 TypedNameVerifier · MarkableScanner · ObjectProvider 에 의존(스캐너 구현체 제외)</td><td>0</td><td>스캐너를 쓰는 곳은 maintenance(reconciliation, 16) 와 스캐너 구현체 7 개. R7 이 순환을 없앤 자리는 management 서비스</td></tr>
+            <tr><td>String 이름 mac · macAddress · ip · ipAddress 필드 · record 성분(entity · dto)</td><td>4</td><td><code>BootIPXEInfoRequest</code> 2, <code>DhcpLeaseView</code> 2</td></tr>
+            <tr><td>패키지 이름 대문자</td><td>0</td><td></td></tr>
+            <tr><td>jackson databind · core import</td><td>0</td><td>클래스패스에 없어 컴파일이 먼저 막음 → 규칙에서 뺌</td></tr>
+            <tr><td>컨트롤러 메서드 안 try</td><td>7 파일</td><td><code>IsoUploadController</code>, <code>IsoLifecycleController</code>, <code>DiagnosticAssetController</code>, <code>PasswordChangeController</code>, <code>SignupSubmission</code>, <code>UserManagementController</code>, <code>TrashRetryController</code></td></tr>
+            <tr><td>100 줄 넘는 메서드</td><td>2</td><td>위 표</td></tr>
+            <tr><td>제어 구조 중첩 5 단계 이상</td><td>약 4</td><td><code>BeginBmcSettingStep.execute</code>, <code>InstallTreeManager.acquire</code>, <code>Cp5MarkerBootstrap.run</code>, <code>ContentGuard.assertNoSuspiciousFilenames</code></td></tr>
+            <tr><td>파일 머리 AI 작성 표지</td><td>0</td><td></td></tr>
+            <tr><td>Javadoc 총수</td><td>4,087</td><td>타입 1,334 · 멤버 2,753</td></tr>
+            <tr><td>멤버 Javadoc 본문 4 줄 초과</td><td>344</td><td></td></tr>
+            <tr><td>타입 Javadoc 본문 8 줄 초과</td><td>330</td><td></td></tr>
+            <tr><td>Javadoc 첫머리가 단계 코드("S23-1 —", "E4-1-b-2 D-21 —")</td><td>507</td><td></td></tr>
+            <tr><td>Javadoc 화살표(→ · -&gt; · =&gt;)</td><td>328</td><td></td></tr>
+            <tr><td>Javadoc 괄호 안 괄호</td><td>75</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <ol>
+          <li>기계로 판정할 수 있는 규칙은 <code>./gradlew test</code> 에서 새 위반이 생기면 실패한다(세션 주의에 기대지 않는다).</li>
+          <li>기존 위반 때문에 착수가 막히지 않는다. 기존 위반은 기준선에 적고, 고치면 기준선에서도 지워야 한다(줄어들기만).</li>
+          <li>실패 메시지는 무엇을 어떻게 고칠지 한국어로 말한다(규칙 이름, 파일, 멤버, CLAUDE.md 의 해당 절).</li>
+          <li>Javadoc 은 길이 · 금지 패턴만 기계가 막고, 명료성(매뉴얼 문장처럼 간단하고 뜻이 한 번에 전달되는가)은 검수 문서로 판정한다.</li>
+        </ol>
+        <div class="callout warn"><b>비 목표</b> :
+          <ul>
+            <li>기존 위반 정리(리팩토링)는 하지 않는다. 기준선을 줄이는 일은 그 코드를 만지는 슬라이스가 한다.</li>
+            <li>판단이 필요한 규칙(중복 로직, "미래 대비 분리", 분기 대신 다형성, 무명 boolean 인자, WHY 없는 주석)은 기계로 막지 않는다. 오탐이 많아 기준선이 무의미해진다. 검수 몫으로 남긴다.</li>
+            <li>화면 규약은 <code>DesignConventionTest</code> 그대로(디자인 스트림 소관).</li>
+            <li>Checkstyle · PMD 같은 별도 정적 분석 도구는 들이지 않는다(§8 D-1 탈락 사유).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 — 라이브 데모 (소스 · 기준선을 바꾸면 테스트가 다시 돈다)</summary>
+      <div class="body">
+        <p>왼쪽 소스 칸을 고치거나 기준선 줄을 지우면 오른쪽 테스트 결과가 다시 판정된다. 판정은 §4 규칙 표와 같은 배열(<code>RULES</code>)을 읽는다. 새 위반 줄의 [기준선에 더하기] 는 테스트를 통과시키지만 cp7-ship preflight 가 [CHECK] 로 알린다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar" id="demo-presets">
+            <span class="group-label">시나리오 :</span>
+            <button class="seg" data-state="1" onclick="demoPreset(1)">1 새 컨트롤러에 @Transactional</button>
+            <button class="seg" data-state="2" onclick="demoPreset(2)">2 dto/request 에 FooDto</button>
+            <button class="seg" data-state="3" onclick="demoPreset(3)">3 120 줄 메서드</button>
+            <button class="seg" data-state="4" onclick="demoPreset(4)">4 Javadoc 'S23-1 — 원장 → 판정'</button>
+            <button class="seg" data-state="5" onclick="demoPreset(5)">5 기준선에 있는 옛 위반</button>
+            <button class="seg" data-state="6" onclick="demoPreset(6)">6 고쳤는데 기준선 줄 남김</button>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">직접 해 보기 :</span>
+            <span id="demo-actions"></span>
+          </div>
+
+          <div class="split-grid">
+            <div class="split-card">
+              <h4>소스 (src/main/java)</h4>
+              <code id="demo-file"></code>
+              <textarea id="demo-src" spellcheck="false" wrap="off" aria-label="Java 소스"></textarea>
+              <h4>기준선 baseline.txt</h4>
+              <div id="demo-baseline"></div>
+            </div>
+            <div class="split-card">
+              <h4>테스트 결과 (./gradlew test)</h4>
+              <div id="demo-result"></div>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">시나리오 버튼을 눌러 시작한다.</div>
+        </div>
+        <div class="callout warn">이 데모는 정규식으로 흉내 낸다. 실제 구현은 ArchUnit(컴파일된 클래스) · JavaParser(소스 구문 트리)이며, 판정 조건은 §4 규칙 표와 같다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 검사 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 검사 흐름</summary>
+      <div class="body">
+        <div class="pkg-tree">./gradlew test
+ ├─ ArchitectureConventionTest (ArchUnit)
+ │    ClassFileImporter: com.example.serverprovision (main 클래스만, 테스트 제외)
+ │    규칙 A1 ~ A7 평가 → 위반 문장(줄 번호 제거) 목록
+ ├─ CodingConventionTest (JavaParser)
+ │    src/main/java/**/*.java 구문 트리 → 규칙 S1 ~ S4, J1 ~ J5 → 위반 목록
+ └─ 두 테스트 공통: ConventionBaseline
+      위반 목록 vs src/test/resources/convention/baseline.txt
+      ├─ 기준선에 없는 위반 → 실패(새 위반, 고칠 방법 출력)
+      └─ 위반이 아닌 기준선 줄 → 실패(지울 줄 출력)</div>
+        <table>
+          <thead><tr><th>항목</th><th>규칙</th></tr></thead>
+          <tbody>
+            <tr><td>위반 키</td><td><code>규칙ID&lt;TAB&gt;파일(소스 루트 기준)&lt;TAB&gt;멤버</code>. 멤버 형식은 아래 표. 줄 번호 없음 → 코드가 위아래로 움직여도 키 불변</td></tr>
+            <tr><td>기준선 쓰기</td><td>테스트는 읽기만(쓰기 경로가 있으면 새 위반을 삼키는 길). 첫 기준선은 CP4 일회용 스크립트로 생성, 스크립트는 커밋 안 함</td></tr>
+            <tr><td>사람 쪽 관문</td><td>cp7-ship preflight 에 [CHECK] 하나 추가: 이 브랜치에서 <code>baseline.txt</code> 에 더해진 줄이 있으면 알림(줄어들기만)</td></tr>
+            <tr><td>시간</td><td>클래스 1,263 개 가져오기 · 파일 1,263 개 구문 분석, 각 수 초 예상(CP4 실측). 전체 테스트 3,795 건에 비해 작음</td></tr>
+          </tbody>
+        </table>
+        <h4>멤버 키 형식</h4>
+        <table>
+          <thead><tr><th>대상</th><th>형식</th><th>예</th></tr></thead>
+          <tbody id="key-forms-s3"></tbody>
+        </table>
+        <p>같은 키가 둘이면(오버로드가 아닌 진짜 충돌) 한 줄로 합쳐 센다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §4 규칙 목록과 기준선 형식 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 규칙 목록과 기준선 형식</summary>
+      <div class="body">
+        <h4>ArchUnit 규칙 (ArchitectureConventionTest)</h4>
+        <table>
+          <thead><tr><th>ID</th><th>규칙</th><th>CLAUDE.md 근거</th><th>지금 위반</th></tr></thead>
+          <tbody id="rules-a"></tbody>
+        </table>
+
+        <h4>소스 규칙 (CodingConventionTest, JavaParser)</h4>
+        <table>
+          <thead><tr><th>ID</th><th>규칙</th><th>근거</th><th>지금 위반</th></tr></thead>
+          <tbody id="rules-c"></tbody>
+        </table>
+        <ul>
+          <li>인라인 <code>//</code> 주석에는 J 규칙을 적용하지 않는다(범위를 좁혀 오탐을 줄인다).</li>
+          <li>숫자 임계값(100 줄, 4 단계, 4 줄, 8 줄)은 테스트의 이름 있는 상수로 둔다.</li>
+        </ul>
+
+        <h4>기준선 파일 <code>src/test/resources/convention/baseline.txt</code></h4>
+        <pre><code># 줄어들기만 한다. 위반을 고치면 그 줄을 지운다. 줄을 더하려면 PR 에 사유를 적는다.
+A3	com/example/serverprovision/execution/pxeinfra/controller/PxeInfraController.java	PxeInfraController
+S2	com/example/serverprovision/maintenance/reconciliation/service/PathReconciliationService.java	PathReconciliationService#performScan()
+J4	...</code></pre>
+        <table>
+          <thead><tr><th>대상</th><th>멤버 키 형식</th><th>예</th></tr></thead>
+          <tbody id="key-forms-s4"></tbody>
+        </table>
+        <p>같은 키가 둘이면(오버로드가 아닌 진짜 충돌) 한 줄로 합쳐 센다. 예상 줄 수: 약 1,600 (J 1,584 + A 27 + S 약 13, 한 Javadoc 이 여러 규칙을 어기면 규칙마다 한 줄). CP4 에서 확정.</p>
+
+        <h4>명료성 검수 (기계 밖)</h4>
+        <table>
+          <thead><tr><th>대상</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>.claude/domain-conventions/javadoc.md</code> <span class="chip new">신규</span></td><td>매뉴얼 문체 규칙(평서 '~한다', 주어와 대상, 무엇 · 왜, 비유 · 설계 어휘 · 약어 금지) + 좋은 예 · 나쁜 예 셋씩</td></tr>
+            <tr><td>CLAUDE.md '작업 전 체크리스트' 표 <span class="chip mod">수정</span></td><td>"Javadoc · 주석 → javadoc.md" 줄 추가</td></tr>
+            <tr><td>CLAUDE.md '코딩 스타일' 절 <span class="chip mod">수정</span></td><td>강제 장치 한 줄: ArchitectureConventionTest · CodingConventionTest 와 기준선(줄어들기만)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인 (Q1 ~ Q3 답)</td></tr>
+            <tr><td>2~4</td><td>해당 없음 (뷰 · 컨트롤러 · DTO 없음)</td><td><span class="chip cp2">CP2</span></td><td>-</td></tr>
+            <tr><td>5</td><td>규칙 인터페이스: <code>ConventionViolation</code>(record: ruleId, file, member, message), <code>ConventionBaseline</code>(읽기 · 대조 · 실패 메시지 조립)</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>해당 없음 (Repository · Entity 없음)</td><td><span class="chip cp3">CP3</span></td><td>-</td></tr>
+            <tr><td>8</td><td>의존성 · 규칙 구현 · 기준선 생성(일회용 스크립트) · 본 검사 두 개(ArchitectureConventionTest · CodingConventionTest, main 전체)</td><td><span class="chip cp4">CP4</span></td><td>중간 승인: 위 넷이 들어가고 전체 테스트 green (기존 위반은 기준선으로 통과)</td></tr>
+            <tr><td>9</td><td>해당 없음 (스키마 변화 없음)</td><td><span class="chip cp4">CP4</span></td><td>-</td></tr>
+            <tr><td>8 잔여</td><td>규칙 고정 예제 테스트 (§6: 규칙마다 위반 1 · 통과 1, ConventionBaseline 3 경우) + 전체 테스트 green</td><td><span class="chip cp4">CP4</span></td><td>승인 후 무중단</td></tr>
+            <tr><td>10</td><td>하네스 검증 H1 ~ H5 (화면 없음, §9)</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>사용자 단독: src/main 에 위반 하나를 심어 <code>./gradlew test</code> 실패 메시지 확인, 기준선 줄 하나를 지워 '지울 줄' 실패 확인 (report 의 하네스 출력으로 갈음할지는 사용자 판단)</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(중간 승인) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘: ① CP1 승인 → CP4 게이트 지점 ② CP4 승인 → CP6 제출. CP5 는 화면이 없으므로 하네스 검증이며 수행 결과를 보고만 하고, 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트 (규칙의 테스트)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
+          <tbody>
+            <tr><td>ArchUnit 규칙 A1 ~ A7</td><td>규칙마다 위반 1 · 통과 1. <code>src/test/java/.../convention/fixture/</code> 의 작은 클래스를 <code>ClassFileImporter().importClasses(...)</code> 로 평가</td><td>14</td></tr>
+            <tr><td>소스 규칙 S1 ~ S4 · J1 ~ J5</td><td>규칙마다 위반 1 · 통과 1. 문자열 소스를 JavaParser 로 읽어 평가</td><td>18</td></tr>
+            <tr><td>ConventionBaseline</td><td>새 위반 → 실패(메시지에 키와 고칠 방법) / 기준선에만 있는 줄 → 실패(메시지에 지울 줄) / 둘 다 없음 → 통과</td><td>3</td></tr>
+            <tr><td>본 검사 (main 전체)</td><td>ArchitectureConventionTest · CodingConventionTest. 고정 예제와 같은 판정 코드 사용</td><td>2</td></tr>
+            <tr><td>HTTP 범주 (성공 · 400 · 404 · 409 · 500)</td><td>해당 없음: 엔드포인트 · 예외 없음</td><td>0</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">고정 예제 클래스는 테스트 소스라 본 검사(main 만 가져옴) 대상이 아니다. 수(14 · 18 · 3 · 2)는 규칙 수 16 × 위반 · 통과 2 와 ConventionBaseline 경우 3 에서 센 값이다. 본 검사 2 는 CP4 게이트, 고정 예제 14 · 18 · 3 은 CP4 승인 뒤 잔여 단계(§5).</div>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <p>해당 없음: 새 예외 · 재사용 예외 · HTTP 매핑 변화가 없다(테스트 코드와 문서만 더하는 슬라이스).</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 (채택 · 비채택 · 탈락 사유) · Open Questions</summary>
+      <div class="body">
+        <h4>D-1 소스 규칙 엔진 = JavaParser</h4>
+        <table>
+          <thead><tr><th>구분</th><th>안</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">채택</span></td><td>JavaParser (javaparser-core, Java 21 문법 지원판)</td><td>메서드 본문 줄 수, 중첩 깊이, 컨트롤러 메서드 안 try, Javadoc 과 그 주인(타입 · 멤버)을 구문 트리로 정확히 앎</td></tr>
+            <tr><td><span class="chip del">탈락</span></td><td>정규식 (DesignConventionTest 방식)</td><td>§1 실측대로 record 를 메서드로 오인, Javadoc 주인 구분 불가. 템플릿 검사에는 맞지만 Java 구조에는 안 맞음</td></tr>
+            <tr><td><span class="chip del">탈락</span></td><td>Checkstyle · PMD</td><td>메서드 길이 · 중첩은 기본 제공이나 <code>test</code> 아닌 별도 Gradle 작업이라 세션이 놓치기 쉬움. 한국어 Javadoc 금지 패턴은 사용자 정의 검사 필요. 기준선(억제 파일) 형식이 ArchUnit 쪽과 둘로 갈림</td></tr>
+          </tbody>
+        </table>
+
+        <h4>D-2 구조 규칙 엔진 = ArchUnit</h4>
+        <table>
+          <thead><tr><th>구분</th><th>안</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">채택</span></td><td>ArchUnit (archunit-junit5)</td><td>의존 방향 · 이름 · 애너테이션 규칙을 컴파일된 클래스에서 봄. import 문이 아니라 실제 참조를 보므로 정규식 import 검사보다 빠짐 없음</td></tr>
+            <tr><td><span class="chip del">탈락</span></td><td>JavaParser 로 구조 규칙까지</td><td>타입 해석(심볼 풀이)을 붙여야 의존을 앎. 느리고 설정이 무거움</td></tr>
+          </tbody>
+        </table>
+
+        <h4>D-3 기존 위반 처리 = 기준선 파일 하나, 줄어들기만, 테스트는 읽기만</h4>
+        <table>
+          <thead><tr><th>구분</th><th>안</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">채택</span></td><td>두 테스트가 같은 <code>baseline.txt</code> 를 읽음</td><td>새 위반과 낡은 줄 모두 실패</td></tr>
+            <tr><td><span class="chip del">탈락</span></td><td>ArchUnit FreezingArchRule (위반 저장소)</td><td>테스트가 실행 중 저장소 파일을 고쳐 작업 트리가 더러워짐. <code>refreeze</code> 설정 하나로 새 위반이 조용히 저장소에 들어감. 소스 규칙 쪽과 형식이 둘로 갈림</td></tr>
+            <tr><td><span class="chip del">탈락</span></td><td>DesignConventionTest 처럼 Java 상수(<code>LEGACY_*</code>)</td><td>약 1,600 줄을 코드에 둘 수 없음</td></tr>
+            <tr><td><span class="chip del">탈락</span></td><td>git diff 로 바뀐 줄만 검사</td><td>테스트가 git 상태에 기대 CI · 로컬 결과가 달라짐</td></tr>
+          </tbody>
+        </table>
+
+        <h4>D-4 Javadoc 범위</h4>
+        <table>
+          <thead><tr><th>구분</th><th>안</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">채택</span></td><td>길이(J1 · J2)와 금지 패턴(J3 ~ J5)만 기계, 명료성은 javadoc.md 로 검수</td><td>기계가 확실히 가를 수 있는 것만</td></tr>
+            <tr><td><span class="chip del">탈락</span></td><td>문장 끝 문체(합니다 · 한다) 검사</td><td>Javadoc 은 '~한다' 평서와 명사형 요약이 섞여 쓰이고 둘 다 허용 → 판정 규칙이 서지 않음</td></tr>
+            <tr><td><span class="chip opt">범위</span></td><td>J4 · J5 는 <code>{@code …}</code> · <code>{@literal …}</code> · <code>&lt;pre&gt;…&lt;/pre&gt;</code> 안 글자 제외</td><td>람다 예시 · 호출식 오탐 제거</td></tr>
+            <tr><td><span class="chip dep">사용자 판정</span></td><td>J3 (단계 코드 첫머리)</td><td>지금 저장소 습관(세션이 Javadoc 을 "S23-1 —" 로 시작)과 정면으로 부딪침 → Open Question Q1</td></tr>
+          </tbody>
+        </table>
+
+        <h4>D-5 범위를 좁힌 규칙</h4>
+        <table>
+          <thead><tr><th>규칙</th><th>좁힌 범위</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td>A5</td><td>management 서비스만</td><td>maintenance(reconciliation)는 스캐너를 쓰는 것이 역할</td></tr>
+            <tr><td>A6</td><td>이름 넷(mac · macAddress · ip · ipAddress)만</td><td>version · path 까지 넓히면 @Version 낙관적 잠금 필드, 상대 경로 문자열처럼 정당한 원시 값이 대량으로 걸림(정규식 실측 47 + 105 건, 대부분 오탐)</td></tr>
+            <tr><td>jackson import</td><td>규칙에서 뺌</td><td>databind · core 가 클래스패스에 없어 컴파일이 먼저 막음</td></tr>
+          </tbody>
+        </table>
+
+        <h4>Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>J3(Javadoc 첫머리 단계 코드 금지)를 넣는가. 넣으면 앞으로 세션이 Javadoc 을 "S23-1 —" 로 시작하지 못하고, 이력은 커밋 · plan 에 둔다</td><td>넣는다 (사용자 11-18 방침 '단계 코드 나열 대신 사실')</td></tr>
+            <tr><td>Q2</td><td>멤버 4 줄 · 타입 8 줄 임계값</td><td>이대로 (메모리 방침 '메서드 1~3 줄 기본' 에 한 줄 여유). 더 조이면 기준선이 커짐</td></tr>
+            <tr><td>Q3</td><td>A4 의 dto.request 안 Query · Validator · Deserializer</td><td>기준선에 두고, 다음에 그 파일을 만지는 슬라이스가 옮기거나 이름을 바꿈</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification 체크리스트 (CP5 = 하네스)</summary>
+      <div class="body">
+        <h4>빌드</h4>
+        <ul class="check-list" data-storage="CH11-verify-build">
+          <li><label><input type="checkbox" data-key="deps"> <span><code>build.gradle</code> testImplementation archunit-junit5 · javaparser-core 추가 후 <code>./gradlew compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="green"> <span><code>./gradlew test</code> 전체 green (기존 위반은 기준선으로 통과)</span></label></li>
+        </ul>
+        <h4>기능 (하네스 H1 ~ H5)</h4>
+        <ul class="check-list" data-storage="CH11-verify-func">
+          <li><label><input type="checkbox" data-key="h1"> <span><b>H1</b> 일회용 워크트리(<code>git worktree add</code>, 끝나면 제거)에서 src/main 에 규칙마다 위반을 하나씩 심고 <code>./gradlew test --tests '*ConventionTest'</code> → 규칙 수만큼 실패, 메시지에 규칙 ID · 파일 · 멤버 · 고칠 방법</span></label></li>
+          <li><label><input type="checkbox" data-key="h2"> <span><b>H2</b> 기준선에 있는 옛 위반 하나를 실제로 고침 → '지울 줄' 실패. 그 줄을 지우면 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="h3"> <span><b>H3</b> 위반을 하나 심은 채 기준선에 그 줄을 더함 → 테스트는 통과, cp7-ship preflight 가 [CHECK] 'baseline 에 더해진 줄' 출력</span></label></li>
+          <li><label><input type="checkbox" data-key="h4"> <span><b>H4</b> 전체 테스트 실행 시간 전후 비교 (두 검사의 추가 시간)</span></label></li>
+          <li><label><input type="checkbox" data-key="h5"> <span><b>H5</b> Javadoc 고정 예제: 좋은 예 · 나쁜 예(javadoc.md 의 예와 같은 문장)가 J 규칙에서 기대대로 갈림</span></label></li>
+        </ul>
+        <h4>회귀</h4>
+        <ul class="check-list" data-storage="CH11-verify-regress">
+          <li><label><input type="checkbox" data-key="all"> <span>기존 전체 테스트 3,795 건 회귀 없음</span></label></li>
+          <li><label><input type="checkbox" data-key="design"> <span><code>DesignConventionTest</code> 변경 없이 통과</span></label></li>
+        </ul>
+        <div class="callout">결과는 report 에 실패 메시지 원문과 함께 싣는다(스크린샷 대신 콘솔 출력).</div>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files (신규 8 · 수정 3 · 유지 2)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>src/test/java/com/example/serverprovision/convention/ArchitectureConventionTest.java</code></td><td>ArchUnit 규칙 A1 ~ A7 본 검사</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>src/test/java/com/example/serverprovision/convention/CodingConventionTest.java</code></td><td>JavaParser 규칙 S1 ~ S4 · J1 ~ J5 본 검사</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>src/test/java/com/example/serverprovision/convention/ConventionBaseline.java</code></td><td>기준선 읽기 · 대조 · 실패 메시지 조립</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>src/test/java/com/example/serverprovision/convention/ConventionViolation.java</code></td><td>record: ruleId, file, member, message</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>src/test/java/com/example/serverprovision/convention/rule/</code></td><td>소스 규칙 구현</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>src/test/java/com/example/serverprovision/convention/fixture/</code></td><td>고정 예제 (위반 · 통과)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>src/test/resources/convention/baseline.txt</code></td><td>기준선, 약 1,600 줄 (CP4 확정)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>.claude/domain-conventions/javadoc.md</code></td><td>Javadoc 명료성 검수 문서</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>build.gradle</code></td><td>testImplementation archunit-junit5, javaparser-core. 판 번호는 CP2 에서 Java 21 지원 최신 안정판으로 확인</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>CLAUDE.md</code></td><td>코딩 스타일 강제 장치 한 줄, 작업 전 체크리스트 표 한 줄</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>.claude/skills/cp7-ship/scripts/preflight.sh</code></td><td>[CHECK] baseline 줄 추가 감지</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>src/test/java/com/example/serverprovision/design/DesignConventionTest.java</code></td><td>변경 0: 화면 규약은 그대로 (디자인 스트림 소관)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>src/main/java/**</code></td><td>변경 0: 기존 위반 정리는 비목표</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="CH11-milestone">
+          <li><label><input type="checkbox" data-key="cp1"> <span>CP1 승인 (Q1 ~ Q3 답)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp24"> <span>CP2 ~ CP4: 의존성, 규칙, 기준선 생성, 문서 두 개</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 하네스 H1 ~ H5</span></label></li>
+          <li><label><input type="checkbox" data-key="cp6"> <span>CP6 report</span></label></li>
+          <li><label><input type="checkbox" data-key="after"> <span>뒤: 기준선 줄이기는 그 코드를 만지는 슬라이스 몫. 큰 덩어리(<code>PathReconciliationService.performScan</code> 344 줄)는 따로 R 단계 후보</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) {}
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  규칙 배열 SSOT: §4 표 두 개와 🎬 데모 판정이 같은 배열을 읽는다.
+  // ─────────────────────────────────────────────────────────────
+  const RULES = [
+    { id:'A1', test:'A', now:'0', basis:'레이어 경계',
+      text:'컨트롤러(<code>..controller..</code> 패키지의 클래스, 이름 무관)에 @Transactional 없음(클래스 · 메서드)',
+      fix:'컨트롤러에는 @Transactional 을 두지 않는다. 트랜잭션은 Service 경계(CLAUDE.md 레이어 경계)' },
+    { id:'A2', test:'A', now:'0', basis:'레이어 경계(Controller ↔ Service 만)',
+      text:'컨트롤러(<code>..controller..</code> 패키지의 클래스, 이름 무관)는 <code>..repository..</code> 에 의존하지 않음',
+      fix:'컨트롤러는 Repository 를 직접 쓰지 않는다. Service 를 거친다(CLAUDE.md 레이어 경계)' },
+    { id:'A3', test:'A', now:'3', basis:'레이어 경계(뷰에 엔티티 노출 금지)',
+      text:'컨트롤러(<code>..controller..</code> 패키지의 클래스, 이름 무관)는 <code>..entity..</code> 에 의존하지 않음',
+      fix:'컨트롤러는 엔티티를 다루지 않는다. *Response 로 받는다(CLAUDE.md 레이어 경계)' },
+    { id:'A4', test:'A', now:'20', basis:'네이밍',
+      text:'<code>..dto.request..</code> 최상위 클래스는 <code>Request</code> 로, <code>..dto.response..</code> 는 <code>Response</code> 로 끝남. 어디서든 <code>DTO</code> · <code>Dto</code> 접미사 없음',
+      fix:'요청 DTO 는 Request, 응답 DTO 는 Response 로 끝낸다. DTO · Dto 접미사는 쓰지 않는다(CLAUDE.md 네이밍)' },
+    { id:'A5', test:'A', now:'0', basis:'핵심 설계 패턴(R7 생성자 순환)',
+      text:'<code>..management..service..</code> 클래스(MarkableScanner 구현체 제외)는 TypedNameVerifier · MarkableScanner · ObjectProvider 에 의존하지 않음',
+      fix:'management 서비스에 TypedNameVerifier · MarkableScanner · ObjectProvider 를 주입하지 않는다(CLAUDE.md 핵심 설계 패턴)' },
+    { id:'A6', test:'A', now:'4', basis:'Primitive Obsession 금지',
+      text:'<code>..entity..</code> · <code>..dto..</code> 의 필드와 record 성분 중 이름이 mac · macAddress · ip · ipAddress 인 것은 String 이 아님',
+      fix:'MAC · IP 는 String 대신 Value Object 로 받는다(CLAUDE.md Primitive Obsession 금지)' },
+    { id:'A7', test:'A', now:'0', basis:'네이밍',
+      text:'패키지 이름은 소문자',
+      fix:'패키지 이름은 전부 소문자로 쓴다(CLAUDE.md 네이밍)' },
+    { id:'S1', test:'C', now:'7 파일(기준선 줄은 메서드 수만큼, CP4 확정)', basis:'조건분기 legacy 확장 금지',
+      text:'컨트롤러(<code>..controller..</code> 패키지의 클래스, 이름 무관) 메서드 안에 try 문 없음(advice · resolver 로 올린다). 단위 = 메서드(키 = 메서드)',
+      fix:'컨트롤러에서 try 로 예외를 잡지 않는다. advice · resolver 로 올린다(CLAUDE.md 조건분기 legacy 확장 금지)' },
+    { id:'S2', test:'C', now:'2', basis:'가독성 저해 신호',
+      text:'메서드 · 생성자 본문 100 줄 이하',
+      fix:'메서드 길이 100 줄 초과. 작은 함수로 나눈다(CLAUDE.md 중복 · 가독성 금지)' },
+    { id:'S3', test:'C', now:'약 4', basis:'가독성 저해 신호(5 단계+)',
+      text:'제어 구조(if · for · while · switch · try · 람다 블록) 중첩 4 단계 이하',
+      fix:'제어 구조 중첩 4 단계 초과. 작은 함수로 나눈다(CLAUDE.md 중복 · 가독성 금지)' },
+    { id:'S4', test:'C', now:'0', basis:'코딩 스타일',
+      text:'주석에 AI 작성 표지 없음(<code>// Claude</code>, <code>@author Claude</code>, <code>Generated by</code>)',
+      fix:'주석의 AI 작성 표지를 지운다(CLAUDE.md 코딩 스타일)' },
+    { id:'J1', test:'C', now:'344', basis:'Javadoc 간결',
+      text:'멤버(메서드 · 필드 · 생성자 · enum 상수) Javadoc 본문 4 줄 이하(빈 줄과 @param · @return · @throws 줄 제외)',
+      fix:'멤버 Javadoc 본문 4 줄 초과. 무엇 · 왜만 남긴다(javadoc.md)' },
+    { id:'J2', test:'C', now:'330', basis:'설계 배경은 타입 doc 한 곳',
+      text:'타입(클래스 · 인터페이스 · enum · record) Javadoc 본문 8 줄 이하(같은 계산)',
+      fix:'타입 Javadoc 본문 8 줄 초과. 줄인다(javadoc.md)' },
+    { id:'J3', test:'C', now:'507', basis:'매뉴얼 문체(사실 서술)',
+      text:'Javadoc 첫 문장이 단계 코드로 시작하지 않음. 이력은 커밋 · plan 몫, Javadoc 은 지금의 사실. 본문 중간의 단계 코드 언급(근거 인용)은 막지 않음',
+      fix:'Javadoc 첫 문장을 단계 코드로 시작하지 않는다. 이력은 커밋 · plan 에 두고 지금의 사실을 쓴다(javadoc.md)' },
+    { id:'J4', test:'C', now:'328 (정규식 근사, 이 제외로 줄어듦)', basis:'매뉴얼 문체(화살표 대신 문장)',
+      text:'Javadoc 에 화살표(→ · -&gt; · =&gt;) 없음. <code>{@code …}</code> · <code>{@literal …}</code> · <code>&lt;pre&gt;…&lt;/pre&gt;</code> 안 글자는 검사 제외(람다 예시 오탐 제거)',
+      fix:'Javadoc 에 화살표를 쓰지 않는다. 문장으로 푼다(javadoc.md)' },
+    { id:'J5', test:'C', now:'75 (정규식 근사, 이 제외로 줄어듦)', basis:'Javadoc 간결(괄호 중첩)',
+      text:'Javadoc 에 괄호 안 괄호 없음. <code>{@code …}</code> · <code>{@literal …}</code> · <code>&lt;pre&gt;…&lt;/pre&gt;</code> 안 글자는 검사 제외(호출식 오탐 제거)',
+      fix:'Javadoc 괄호 안에 괄호를 넣지 않는다. 문장을 나눈다(javadoc.md)' }
+  ];
+  const RULE = Object.fromEntries(RULES.map(r => [r.id, r]));
+  const LIMITS = { METHOD_BODY_LINES:100, MAX_NESTING:4, MEMBER_DOC_LINES:4, TYPE_DOC_LINES:8 };
+  const TEST_NAME = { A:'ArchitectureConventionTest', C:'CodingConventionTest' };
+  const STALE_MSG = '기준선의 이 줄은 더 이상 위반이 아니다. 지워야 한다';
+
+  // 멤버 키 형식 SSOT: §3 · §4 표와 데모 키 조립(memberKey)이 같은 형식을 쓴다.
+  const KEY_FORMS = [
+    ['타입', 'Outer.Inner', '중첩은 점으로', 'BarController'],
+    ['메서드', 'Outer.Inner#name(Type1,Type2)', '매개변수는 단순 타입 이름, 제네릭 인자 제외', 'FooController#save(FooRequest)'],
+    ['생성자', 'Outer#&lt;init&gt;(Type1)', '', 'FooController#&lt;init&gt;(FooService)'],
+    ['필드 · enum 상수 · record 성분', 'Outer#name', '', 'FooRequest#mac']
+  ];
+  function renderRuleTables() {
+    const row = r => '<tr><td>' + r.id + '</td><td>' + r.text + '</td><td>' + r.basis + '</td><td>' + r.now + '</td></tr>';
+    document.getElementById('rules-a').innerHTML = RULES.filter(r => r.test === 'A').map(row).join('');
+    document.getElementById('rules-c').innerHTML = RULES.filter(r => r.test === 'C').map(row).join('');
+    const kf = KEY_FORMS.map(k => '<tr><td>' + k[0] + '</td><td><code>' + k[1] + '</code>' + (k[2] ? ' (' + k[2] + ')' : '') +
+      '</td><td><code>' + k[3] + '</code></td></tr>').join('');
+    document.getElementById('key-forms-s3').innerHTML = kf;
+    document.getElementById('key-forms-s4').innerHTML = kf;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모: 정규식으로 규칙 판정을 흉내 낸다 (실제는 ArchUnit · JavaParser)
+  // ─────────────────────────────────────────────────────────────
+  const CONTROL_KW = ['if','for','while','switch','catch','synchronized','return','new','else','try','do','throw'];
+  const SIG = /^\s*(?:(?:public|protected|private|static|final|synchronized|abstract|default)\s+)*(?:<[^>]+>\s+)?(?:[\w.<>\[\],?]+\s+)?(\w+)\s*\(([^)]*)\)\s*(?:throws\s+[\w.,\s]+)?\{\s*$/;
+  const STAGE_CODE = /^(?:MA|MK|HF|CH|DOC|OPS|DPL|ES|U|E|S|R|M)\d+(?:-[A-Za-z0-9]+)*(?=\s|$|:)/;
+
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const stripStrings = s => s.replace(/"(?:[^"\\\n]|\\.)*"/g, '""').replace(/'(?:[^'\\\n]|\\.)'/g, "''");
+  const stripComments = s => s.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' ')).replace(/\/\/[^\n]*/g, '');
+  const stripAnnotations = l => l.replace(/^\s*(?:@\w+(?:\([^)]*\))?\s*)+/, '');
+
+  // 매개변수 → 단순 타입 이름 목록 (제네릭 인자 제외, 패키지 제외)
+  function paramTypes(params) {
+    if (!params.trim()) return '';
+    const noGen = params.replace(/<[^<>]*>/g, '').replace(/<[^<>]*>/g, '');
+    return noGen.split(',').map(p => {
+      const t = p.replace(/@\w+(?:\([^)]*\))?/g, '').replace(/\bfinal\b/g, '').trim().split(/\s+/);
+      return t.slice(0, -1).join('').split('.').pop();
+    }).join(',');
+  }
+  // 멤버 키 조립 (KEY_FORMS 형식). 데모는 최상위 타입 하나만 다룬다.
+  const memberKey = (typeName, name, params) =>
+    typeName + '#' + (name === typeName ? '<init>' : name) + (params === undefined ? '' : '(' + paramTypes(params) + ')');
+  function isMethodSig(line, typeName) {
+    if (/\b(class|record|interface|enum)\b/.test(line)) return null;
+    const m = SIG.exec(line);
+    if (!m || CONTROL_KW.includes(m[1])) return null;
+    return { name: m[1], member: memberKey(typeName, m[1], m[2]) };
+  }
+  // 주석 · 애너테이션 다음 선언의 종류와 멤버 키
+  function ownerAt(codeLines, from, sameLineRest, typeName) {
+    const cands = [];
+    if (sameLineRest != null) cands.push(sameLineRest);
+    for (let i = from; i < codeLines.length; i++) cands.push(codeLines[i]);
+    for (const raw of cands) {
+      const l = stripAnnotations(raw).trim();
+      if (!l) continue;
+      let m = /\b(class|interface|enum|record)\s+(\w+)/.exec(l);
+      if (m) return { kind:'type', member: m[2] === typeName ? typeName : typeName + '.' + m[2] };
+      m = /^([A-Z_][A-Z0-9_]*)\s*(?:[,;(]|$)/.exec(l);
+      if (m) return { kind:'member', member: memberKey(typeName, m[1]) };
+      m = /(\w+)\s*\(([^)]*)\)/.exec(l);
+      if (m && !CONTROL_KW.includes(m[1]) && !/=/.test(l.slice(0, m.index))) return { kind:'member', member: memberKey(typeName, m[1], m[2]) };
+      m = /(\w+)\s*(?:=|;)/.exec(l);
+      if (m) return { kind:'member', member: memberKey(typeName, m[1]) };
+      return { kind:'member', member: typeName + '#?' };
+    }
+    return { kind:'member', member: typeName + '#?' };
+  }
+
+  function judge(src) {
+    const code = stripComments(stripStrings(src));
+    const codeLines = code.split('\n');
+    const pkgM = /^\s*package\s+([\w.]+)\s*;/m.exec(code);
+    const pkg = pkgM ? pkgM[1] : '';
+    const typeM = /\b(class|interface|enum|record)\s+(\w+)/.exec(code);
+    const typeName = typeM ? typeM[2] : 'Unknown';
+    const file = (pkg ? pkg.replace(/\./g, '/') + '/' : '') + typeName + '.java';
+    const isController = /\.controller(\.|$)/.test(pkg);
+    const imports = (code.match(/^\s*import\s+[\w.*]+\s*;/gm) || []).join('\n');
+    const out = new Map();
+    const add = (id, member, detail) => {
+      const key = id + '\t' + file + '\t' + member;
+      if (!out.has(key)) out.set(key, { id, file, member, key, details: [] });
+      if (detail) out.get(key).details.push(detail);
+    };
+
+    // A 규칙
+    if (isController) {
+      codeLines.forEach((l, i) => {
+        const at = /@Transactional\b/.exec(l);
+        if (at) add('A1', ownerAt(codeLines, i + 1, l.slice(at.index + at[0].length), typeName).member);
+      });
+      if (/\.repository\./.test(imports)) add('A2', typeName);
+      if (/\.entity\./.test(imports)) add('A3', typeName);
+    }
+    if (/\.dto\.request(\.|$)/.test(pkg) && !typeName.endsWith('Request')) add('A4', typeName, 'Request 접미사 없음');
+    if (/\.dto\.response(\.|$)/.test(pkg) && !typeName.endsWith('Response')) add('A4', typeName, 'Response 접미사 없음');
+    (code.match(/\b(?:class|interface|enum|record)\s+\w+/g) || []).forEach(d => {
+      const n = d.split(/\s+/)[1];
+      if (/(DTO|Dto)$/.test(n)) add('A4', n === typeName ? n : typeName + '.' + n, 'DTO · Dto 접미사 금지');
+    });
+    if (/\.management(\.|$)/.test(pkg) && /\.service(\.|$)/.test(pkg)
+        && !/implements[^{]*\bMarkableScanner\b/.test(code)
+        && /\b(TypedNameVerifier|MarkableScanner|ObjectProvider)\b/.test(code)) add('A5', typeName);
+    if (/\.(entity|dto)(\.|$)/.test(pkg)) {
+      let m; const re = /\bString\s+(mac|macAddress|ip|ipAddress)\s*[;=,)]/g;
+      while ((m = re.exec(code))) add('A6', memberKey(typeName, m[1]));
+    }
+    if (/[A-Z]/.test(pkg)) add('A7', typeName);
+
+    // S 규칙: 메서드 · 생성자 본문
+    for (let i = 0; i < codeLines.length; i++) {
+      const sig = isMethodSig(codeLines[i], typeName);
+      if (!sig) continue;
+      let depth = 0, end = -1, stack = [], maxNest = 0, hasTry = false;
+      for (let j = i; j < codeLines.length && end < 0; j++) {
+        const l = codeLines[j];
+        let segStart = 0;
+        for (let k = 0; k < l.length; k++) {
+          const c = l[k];
+          if (c === '{') {
+            const seg = l.slice(segStart, k);
+            const ownBrace = j === i && depth === 0;
+            const ctrl = !ownBrace && (/\b(if|else|for|while|switch|try|catch|finally|do)\b/.test(seg) || /->\s*$/.test(seg));
+            stack.push(ctrl);
+            depth++;
+            maxNest = Math.max(maxNest, stack.filter(Boolean).length);
+            segStart = k + 1;
+          } else if (c === '}') {
+            stack.pop(); depth--; segStart = k + 1;
+            if (depth === 0) { end = j; break; }
+          } else if (c === ';') segStart = k + 1;
+        }
+        if (j > i && /\btry\s*[({]/.test(l)) hasTry = true;
+      }
+      if (end < 0) continue;
+      const bodyLines = end - i - 1;
+      if (bodyLines > LIMITS.METHOD_BODY_LINES) add('S2', sig.member, '본문 ' + bodyLines + ' 줄');
+      if (maxNest > LIMITS.MAX_NESTING) add('S3', sig.member, '중첩 ' + maxNest + ' 단계');
+      if (isController && hasTry) add('S1', sig.member);
+    }
+    if (/\/\/\s*Claude\b|@author\s+Claude\b|Generated by/.test(src)) add('S4', typeName);
+
+    // J 규칙: Javadoc (원문에서 추출, 주인은 다음 선언)
+    let m; const docRe = /\/\*\*([\s\S]*?)\*\//g;
+    while ((m = docRe.exec(src))) {
+      const endLine = src.slice(0, m.index + m[0].length).split('\n').length - 1;
+      const owner = ownerAt(codeLines, endLine + 1, codeLines[endLine], typeName);
+      const body = m[1].split('\n').map(l => l.replace(/^\s*\*?\s?/, '').trim())
+        .filter(l => l && !/^@(param|return|throws)\b/.test(l));
+      const limit = owner.kind === 'type' ? LIMITS.TYPE_DOC_LINES : LIMITS.MEMBER_DOC_LINES;
+      if (body.length > limit) add(owner.kind === 'type' ? 'J2' : 'J1', owner.member, '본문 ' + body.length + ' 줄');
+      if (STAGE_CODE.test(body[0] || '')) add('J3', owner.member, '첫머리 "' + (body[0] || '').split(/\s/)[0] + '"');
+      // J4 · J5 는 {@code …} · {@literal …} · <pre>…</pre> 안 글자를 뺀다(람다 예시 · 호출식 오탐 제거)
+      const prose = m[1].replace(/<pre>[\s\S]*?<\/pre>/g, '').replace(/\{@(?:code|literal)\b(?:[^{}]|\{[^{}]*\})*\}/g, '');
+      if (/→|->|=>/.test(prose)) add('J4', owner.member);
+      let d = 0, nested = false;
+      for (const c of prose) { if (c === '(') { d++; if (d >= 2) nested = true; } else if (c === ')') d = Math.max(0, d - 1); }
+      if (nested) add('J5', owner.member);
+    }
+    return { file, isController, violations: [...out.values()] };
+  }
+
+  // ── 데모 상태 ──
+  const OTHER_FILES = [
+    'A3\tcom/example/serverprovision/execution/pxeinfra/controller/PxeInfraController.java\tPxeInfraController',
+    'S2\tcom/example/serverprovision/maintenance/reconciliation/service/PathReconciliationService.java\tPathReconciliationService#performScan()'
+  ];
+  const BAR_A3 = 'A3\tcom/example/serverprovision/management/bar/controller/BarController.java\tBarController';
+  const BAR_HEAD = [
+    'package com.example.serverprovision.management.bar.controller;',
+    ''
+  ];
+  const BAR_BODY = useLine => [
+    'import com.example.serverprovision.management.bar.service.BarService;',
+    '',
+    '@Controller',
+    '@RequiredArgsConstructor',
+    'public class BarController {',
+    '',
+    '    private final BarService barService;',
+    '',
+    '    @GetMapping("/management/bar/{id}")',
+    '    public String detail(@PathVariable Long id, Model model) {',
+    '        ' + useLine,
+    '        model.addAttribute("bar", bar);',
+    '        return "management/bar/detail";',
+    '    }',
+    '}'
+  ];
+  function longMethodSource() {
+    const body = ['        List<Row> rows = new ArrayList<>();'];
+    for (let n = 1; n < 120; n++) body.push('        rows.add(row(id, ' + n + '));');
+    return [
+      'package com.example.serverprovision.management.foo.service;',
+      '',
+      '@Service',
+      '@RequiredArgsConstructor',
+      'public class FooReportService {',
+      '',
+      '    /** 보고서 행을 다시 만든다. */',
+      '    @Transactional',
+      '    public void rebuild(FooId id) {'
+    ].concat(body, ['    }', '}']).join('\n');
+  }
+  const PRESETS = {
+    1: { msg:'새 컨트롤러 메서드에 @Transactional 이 붙었다. A1 새 위반으로 ArchitectureConventionTest 가 실패한다. 소스에서 @Transactional 줄을 지우면 통과한다.',
+         baseline: OTHER_FILES,
+         src: () => [
+          'package com.example.serverprovision.management.foo.controller;',
+          '',
+          'import com.example.serverprovision.management.foo.dto.request.FooRequest;',
+          'import com.example.serverprovision.management.foo.service.FooService;',
+          'import org.springframework.transaction.annotation.Transactional;',
+          '',
+          '@Controller',
+          '@RequiredArgsConstructor',
+          'public class FooController {',
+          '',
+          '    private final FooService fooService;',
+          '',
+          '    @Transactional',
+          '    @PostMapping("/management/foo")',
+          '    public String save(FooRequest request) {',
+          '        fooService.save(request);',
+          '        return "redirect:/management/foo";',
+          '    }',
+          '}'].join('\n') },
+    2: { msg:'dto/request 에 FooDto 를 만들었다. Request 접미사가 없고 Dto 접미사가 붙어 A4 가 실패한다. 이름을 FooRequest 로 바꾸면 통과한다.',
+         baseline: OTHER_FILES,
+         src: () => [
+          'package com.example.serverprovision.management.foo.dto.request;',
+          '',
+          'public record FooDto(String name, String description) {',
+          '}'].join('\n') },
+    3: { msg:'rebuild 본문이 120 줄이다. S2(100 줄 초과)로 CodingConventionTest 가 실패한다. rows.add 줄을 20 줄 넘게 지우면 통과한다.',
+         baseline: OTHER_FILES, src: longMethodSource },
+    4: { msg:'Javadoc 첫머리가 단계 코드이고 화살표가 들어 있다. J3 · J4 두 위반으로 실패한다. "원장을 읽어 상태를 고른다." 처럼 고치면 통과한다.',
+         baseline: OTHER_FILES,
+         src: () => [
+          'package com.example.serverprovision.management.foo.service;',
+          '',
+          '@Service',
+          'public class FooLedgerService {',
+          '',
+          '    /**',
+          '     * S23-1 — 원장 → 판정 순서로 상태를 고른다.',
+          '     */',
+          '    public FooState judge(FooLedger ledger) {',
+          '        return ledger.latestState();',
+          '    }',
+          '}'].join('\n') },
+    5: { msg:'컨트롤러가 엔티티 Bar 를 쓰지만 기준선에 그 줄(A3)이 있어 통과한다. [위반 하나 더 넣기] 를 누르면 새로 넣은 하나만 실패한다.',
+         baseline: OTHER_FILES.concat([BAR_A3]),
+         src: () => BAR_HEAD.concat(['import com.example.serverprovision.management.bar.entity.Bar;'],
+                    BAR_BODY('Bar bar = barService.find(id);')).join('\n') },
+    6: { msg:'엔티티 대신 BarResponse 로 고쳤지만 기준선의 A3 줄이 남아 실패한다. 기준선에서 그 줄을 [지우기] 하면 통과한다.',
+         baseline: OTHER_FILES.concat([BAR_A3]),
+         src: () => BAR_HEAD.concat(['import com.example.serverprovision.management.bar.dto.response.BarResponse;'],
+                    BAR_BODY('BarResponse bar = barService.find(id);')).join('\n') }
+  };
+
+  const demo = { preset: 0, baseline: [], msg: '', msgKind: '' };
+  const srcEl = () => document.getElementById('demo-src');
+
+  // 서버(두 테스트 + ConventionBaseline) 판정의 재현
+  function demoBlocks() {
+    const j = judge(srcEl().value);
+    const keys = new Set(j.violations.map(v => v.key));
+    const lines = demo.baseline.map(b => {
+      const file = b.key.split('\t')[1];
+      const mine = file === j.file;
+      return Object.assign({}, b, { mine, status: !mine ? 'other' : (keys.has(b.key) ? 'matched' : 'stale') });
+    });
+    const baseKeys = new Set(demo.baseline.map(b => b.key));
+    const fresh = j.violations.filter(v => !baseKeys.has(v.key));
+    const stale = lines.filter(l => l.status === 'stale');
+    const tests = {};
+    ['A', 'C'].forEach(t => {
+      const f = fresh.filter(v => RULE[v.id].test === t);
+      const s = stale.filter(l => RULE[l.key.split('\t')[0]].test === t);
+      tests[t] = { fresh: f, stale: s, failed: f.length + s.length > 0 };
+    });
+    const insert = (!j.isController) ? '컨트롤러가 아닌 파일이라 @Transactional 이 위반이 되지 않는다'
+                 : (/@Transactional\b/.test(stripComments(srcEl().value)) ? '이 파일에는 이미 @Transactional 이 있다' : null);
+    return { j, lines, fresh, stale, tests, insertBlock: insert, added: demo.baseline.filter(b => b.added) };
+  }
+
+  function demoPreset(n) {
+    const p = PRESETS[n];
+    demo.preset = n;
+    demo.baseline = p.baseline.map(k => ({ key: k, added: false }));
+    srcEl().value = p.src();
+    demo.msg = p.msg; demo.msgKind = '';
+    demoRender();
+  }
+  function demoRemoveLine(i) {
+    const k = demo.baseline[i].key.split('\t');
+    demo.baseline.splice(i, 1);
+    demo.msg = '기준선에서 ' + k[0] + ' ' + k[2] + ' 줄을 지웠다.'; demo.msgKind = '';
+    demoRender();
+  }
+  function demoAddLine(key) {
+    demo.baseline.push({ key: key, added: true });
+    demo.msg = '새 위반을 기준선에 더했다. 테스트는 통과하지만 cp7-ship preflight 가 [CHECK] 로 알리고, PR 에 사유를 적어야 한다.'; demo.msgKind = 'error';
+    demoRender();
+  }
+  function demoInsertViolation() {
+    const lines = srcEl().value.split('\n');
+    const codeLines = stripComments(stripStrings(srcEl().value)).split('\n');
+    let at = -1;
+    for (let i = 0; i < codeLines.length; i++) {
+      const s = isMethodSig(codeLines[i]);
+      if (s && !/^[A-Z]/.test(s.name)) { at = i; break; }
+    }
+    if (at < 0) return;
+    while (at > 0 && /^\s*@/.test(codeLines[at - 1])) at--;
+    lines.splice(at, 0, '    @Transactional');
+    srcEl().value = lines.join('\n');
+    demo.msg = '메서드에 @Transactional 한 줄을 넣었다.'; demo.msgKind = '';
+    demoRender();
+  }
+  function demoBtn(onclick, label, blockedTip) {
+    const dis = blockedTip ? ' disabled' : '';
+    const t = blockedTip ? ' data-tip="' + esc(blockedTip) + '"' : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn"' + dis + ' onclick="' + onclick + '">' + label + '</button></span>';
+  }
+
+  function demoRender() {
+    if (!demo.preset) { demoPreset(1); return; }
+    const b = demoBlocks();
+    document.querySelectorAll('#demo-presets .seg').forEach(s => s.classList.toggle('active', +s.dataset.state === demo.preset));
+    document.getElementById('demo-file').textContent = b.j.file;
+    document.getElementById('demo-actions').innerHTML =
+      demoBtn('demoInsertViolation()', '위반 하나 더 넣기 (@Transactional)', b.insertBlock) + ' ' +
+      demoBtn('demoPreset(' + demo.preset + ')', '처음 상태로', null);
+
+    // 기준선 목록
+    const short = k => { const p = k.split('\t'); return esc(p[0]) + '  ' + esc(p[1].split('/').slice(-1)[0]) + '  ' + esc(p[2]); };
+    document.getElementById('demo-baseline').innerHTML = b.lines.map((l, i) => {
+      const badge = l.status === 'matched' ? '<span class="badge on">옛 위반 허용</span>'
+                  : l.status === 'stale' ? '<span class="badge del">지울 줄</span>'
+                  : '<span class="badge off">다른 파일</span>';
+      const addBadge = l.added ? '<span class="badge dep">이번에 더함</span>' : '';
+      const btn = l.mine ? demoBtn('demoRemoveLine(' + i + ')', '지우기', null) : '';
+      return '<div class="ux-row' + (l.mine ? '' : ' muted') + '"><span class="label" title="' + esc(l.key) + '">' + short(l.key) + '</span>' + addBadge + badge + btn + '</div>';
+    }).join('') || '<div class="ux-row muted"><span class="label">(빈 기준선)</span></div>';
+
+    // 테스트 결과
+    let html = '';
+    ['A', 'C'].forEach(t => {
+      const r = b.tests[t];
+      html += '<div class="ux-message ' + (r.failed ? 'error' : 'success') + '"><b>' + TEST_NAME[t] + '</b> ' + (r.failed ? 'FAILED' : 'PASSED') + '</div>';
+      const msgs = [];
+      r.fresh.forEach(v => {
+        msgs.push('[새 위반] ' + v.id + (v.details.length ? ' (' + v.details.join(', ') + ')' : '') +
+          '\n  파일: ' + v.file + '\n  멤버: ' + v.member + '\n  고칠 방법: ' + RULE[v.id].fix);
+      });
+      r.stale.forEach(l => {
+        const p = l.key.split('\t');
+        msgs.push('[지울 줄] ' + p[0] + '\n  파일: ' + p[1] + '\n  멤버: ' + p[2] + '\n  ' + STALE_MSG);
+      });
+      if (msgs.length) html += '<div class="ux-caps">' + esc(msgs.join('\n\n')) + '</div>';
+      r.fresh.forEach(v => {
+        html += '<div class="ux-row"><span class="label">' + esc(v.id + '  ' + v.member) + '</span><span class="badge del">새 위반</span>' +
+          demoBtn("demoAddLine(decodeURIComponent('" + encodeURIComponent(v.key).replace(/'/g, '%27') + "'))", '기준선에 더하기', null) + '</div>';
+      });
+    });
+    const anyFail = b.tests.A.failed || b.tests.C.failed;
+    html += '<div class="ux-message ' + (anyFail ? 'error' : 'success') + '"><b>./gradlew test</b> ' + (anyFail ? 'BUILD FAILED' : 'BUILD SUCCESSFUL') + '</div>';
+    document.getElementById('demo-result').innerHTML = html;
+
+    // 판정 흔적
+    const baseKeys = new Set(demo.baseline.map(x => x.key));
+    let caps = '감지한 위반 (판정 = §4 규칙 표)\n';
+    if (!b.j.violations.length) caps += '  없음\n';
+    b.j.violations.forEach(v => {
+      caps += '  ' + esc(v.id) + '  ' + esc(v.member) + '  → ' + (baseKeys.has(v.key) ? '<span class="f">기준선 일치 · 허용</span>' : '<span class="t">새 위반 · 실패</span>') + '\n';
+    });
+    caps += '기준선 대조 (이 파일)\n  지울 줄 ' + (b.stale.length ? '<span class="t">' + b.stale.length + '</span>' : '<span class="f">0</span>') + '\n';
+    caps += 'cp7-ship preflight\n  ' + (b.added.length
+      ? '<span class="t">[CHECK] baseline.txt 에 더해진 줄 ' + b.added.length + '</span> · PR 에 사유를 적는다'
+      : '<span class="f">baseline.txt 에 더해진 줄 0</span>');
+    document.getElementById('demo-caps').innerHTML = caps;
+
+    const msg = document.getElementById('demo-message');
+    msg.className = 'ux-message' + (demo.msgKind ? ' ' + demo.msgKind : '');
+    msg.textContent = demo.msg;
+  }
+
+  srcEl().addEventListener('input', () => { demo.msg = '소스를 고쳤다. 판정을 다시 돌렸다.'; demo.msgKind = ''; demoRender(); });
+  renderRuleTables();
+  demoRender();   // 파일 끝 1회 호출
+</script>
+</body>
+</html>

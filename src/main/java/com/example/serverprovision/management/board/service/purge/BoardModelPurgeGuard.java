@@ -21,7 +21,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class BoardModelPurgeGuard {
 
-	private static final String CHILD_RESOURCES = "하위 BIOS · BMC · 드라이버 · 유틸리티 자원";
+	private static final String CHILD_RESOURCES = "하위 BIOS, BMC, 드라이버, 유틸리티 자원";
 
 	private final List<BoardScopedChildLifecycle> children;
 	private final List<BoardModelPurgeBlocker> blockers;

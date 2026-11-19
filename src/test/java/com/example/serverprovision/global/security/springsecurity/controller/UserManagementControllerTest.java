@@ -1,5 +1,7 @@
 package com.example.serverprovision.global.security.springsecurity.controller;
 
+import com.example.serverprovision.global.security.springsecurity.authorization.ReasonedAccessDeniedHandler;
+import com.example.serverprovision.global.security.springsecurity.authorization.SuperAdminOnlyPolicy;
 import com.example.serverprovision.global.security.springsecurity.authorization.MustChangePasswordSuccessHandler;
 import com.example.serverprovision.global.security.springsecurity.authorization.SignupAccessPolicy;
 import com.example.serverprovision.global.security.springsecurity.config.PasswordEncoderConfig;
@@ -19,6 +21,7 @@ import com.example.serverprovision.global.security.springsecurity.service.UserMa
 import com.example.serverprovision.global.security.springsecurity.service.UsersQueryService;
 import com.example.serverprovision.global.security.springsecurity.service.UsersService;
 import com.example.serverprovision.support.FixedClockTestConfig;
+import com.example.serverprovision.global.exception.ErrorReason;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,6 +47,8 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -67,7 +72,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * springSecurity() 를 직접 단다 — S18 LoginPageSecurityTest 선례). Mocking 은 서비스까지 — advice 의 예외 → 상태 매핑은 실제로 돈다.
  */
 @WebMvcTest(controllers = UserManagementController.class)
-@Import({SecurityConfig.class, PasswordEncoderConfig.class, SignupAccessPolicy.class, MustChangePasswordSuccessHandler.class,
+@Import({SecurityConfig.class, PasswordEncoderConfig.class, SignupAccessPolicy.class,
+		SuperAdminOnlyPolicy.class, ReasonedAccessDeniedHandler.class,   // HF29 — 웹 체인의 거절 사유
+		 MustChangePasswordSuccessHandler.class,
 		SignupSubmission.class, FixedClockTestConfig.class})
 class UserManagementControllerTest {
 
@@ -118,10 +125,30 @@ class UserManagementControllerTest {
 				.andExpect(view().name("users/user-list"))
 				.andExpect(content().string(containsString("park")))
 				.andExpect(content().string(containsString("사용자 관리")));
-		mvc.perform(get("/users").with(as("park", Role.ADMIN)).accept(MediaType.TEXT_HTML)).andExpect(status().isForbidden());
-		mvc.perform(get("/users").with(as("choi", Role.USER)).accept(MediaType.TEXT_HTML)).andExpect(status().isForbidden());
+		// HF29 — 403 은 의미 그대로(ADMIN · USER 거절) + 거절 사유가 요청 속성에 실린다(/error 가 message 로 그린다 — ErrorPageReasonTest)
+		mvc.perform(get("/users").with(as("park", Role.ADMIN)).accept(MediaType.TEXT_HTML))
+				.andExpect(status().isForbidden())
+				.andExpect(request().attribute(ErrorReason.REQUEST_ATTRIBUTE, "사용자 관리는 최고 관리자만 할 수 있습니다."));
+		mvc.perform(get("/users").with(as("choi", Role.USER)).accept(MediaType.TEXT_HTML))
+				.andExpect(status().isForbidden())
+				.andExpect(request().attribute(ErrorReason.REQUEST_ATTRIBUTE, "사용자 관리는 최고 관리자만 할 수 있습니다."));
+		// 익명은 핸들러가 아니라 인증 진입점(로그인 이동) — 사유를 싣지 않는다
 		mvc.perform(get("/users").accept(MediaType.TEXT_HTML))
-				.andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login"));
+				.andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login"))
+				.andExpect(request().attribute(ErrorReason.REQUEST_ATTRIBUTE, nullValue()));
+	}
+
+	@Test
+	@DisplayName("HF29 — XHR · JSON 요청의 403 도 같은 사유를 싣는다(협상은 /error 가 맡는다) · 익명 XHR 은 진입점")
+	void authorization_xhrJson() throws Exception {
+		mvc.perform(post("/users/2/disable").with(as("park", Role.ADMIN))
+						.header("X-Requested-With", "XMLHttpRequest").accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isForbidden())
+				.andExpect(request().attribute(ErrorReason.REQUEST_ATTRIBUTE, "사용자 관리는 최고 관리자만 할 수 있습니다."));
+		mvc.perform(get("/users").header("X-Requested-With", "XMLHttpRequest").accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/login"))
+				.andExpect(request().attribute(ErrorReason.REQUEST_ATTRIBUTE, nullValue()));
+		verify(managementService, never()).disable(any(), any());
 	}
 
 	@Test
@@ -163,7 +190,7 @@ class UserManagementControllerTest {
 						.param("password", "Init1234!").param("retypedPassword", "Init1234!"))
 				.andExpect(status().isBadRequest())
 				.andExpect(model().attributeHasFieldErrors("signUpForm", "role"))
-				.andExpect(content().string(containsString("권한 등급을 고르십시오.")));
+				.andExpect(content().string(containsString("권한 등급을 골라야 합니다.")));
 
 		given(usersService.signup(any(), eq(SignupMode.MANAGED))).willThrow(new DuplicateUsernameException("dup"));
 		mvc.perform(post("/users").with(SUPER).param("username", "dup").param("name", "중복")
@@ -181,7 +208,7 @@ class UserManagementControllerTest {
 				.andExpect(status().isBadRequest())
 				.andExpect(model().attributeHasFieldErrors("signUpForm", "role"))
 				.andExpect(model().attributeErrorCount("signUpForm", 1))
-				.andExpect(content().string(not(containsString("권한 등급을 고르십시오."))));
+				.andExpect(content().string(not(containsString("권한 등급을 골라야 합니다."))));
 		verify(usersService, never()).signup(any(), any());
 	}
 
@@ -192,14 +219,14 @@ class UserManagementControllerTest {
 	void detail_blockedAndAllowed() throws Exception {
 		given(queryService.detail(2L, "kim")).willReturn(detail(summary(2, "park", Role.ADMIN, false), Map.of(
 				UserAction.DISABLE, "이미 비활성화된 계정입니다.",
-				UserAction.RESET_PASSWORD, "비활성화된 계정입니다. 먼저 활성화하십시오.")));
+				UserAction.RESET_PASSWORD, "비활성화된 계정입니다. 먼저 활성화해야 합니다.")));
 
 		mvc.perform(get("/users/2").with(SUPER).accept(MediaType.TEXT_HTML))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("data-nav-back")))   // CP7 — 공용 '← 목록으로' 조각
 				.andExpect(content().string(not(containsString("초기 비밀번호를 지정하지 못했습니다."))))
 				.andExpect(view().name("users/user-detail"))
-				.andExpect(content().string(containsString("data-tooltip=\"비활성화된 계정입니다. 먼저 활성화하십시오.\"")))
+				.andExpect(content().string(containsString("data-tooltip=\"비활성화된 계정입니다. 먼저 활성화해야 합니다.\"")))
 				.andExpect(content().string(containsString("action=\"/users/2/enable\"")))   // 비활성 → 활성화 폼
 				.andExpect(content().string(containsString("data-confirm-user-role")))
 				.andExpect(content().string(containsString("관리자 (현재 등급)")))   // CP5 D-1 — 현재 등급 선택지는 tooltip 과 함께
@@ -213,7 +240,10 @@ class UserManagementControllerTest {
 	@DisplayName("상세 404 — 없는 id 는 UserNotFoundException → 404")
 	void detail_notFound() throws Exception {
 		given(queryService.detail(99L, "kim")).willThrow(new UserNotFoundException(99L));
-		mvc.perform(get("/users/99").with(SUPER).accept(MediaType.TEXT_HTML)).andExpect(status().isNotFound());
+		mvc.perform(get("/users/99").with(SUPER).accept(MediaType.TEXT_HTML))
+				.andExpect(status().isNotFound())
+				.andExpect(content().string(containsString("사용자를 찾을 수 없습니다. 목록에서 다시 골라야 합니다.")))   // HF29 — id 미노출
+				.andExpect(content().string(not(containsString("id=99"))));
 	}
 
 	// ==== 동작 ====================================================
@@ -278,6 +308,17 @@ class UserManagementControllerTest {
 				.andExpect(content().string(containsString("초기 비밀번호를 지정하지 못했습니다.")))   // CP7 — 맨 위 실패 안내
 				.andExpect(content().string(containsString("data-rule-regex=")))                     // 제출 전 확인이 쓸 서버 규칙
 				.andExpect(content().string(containsString("data-mismatch-message=\"비밀번호가 일치하지 않습니다.\"")));
+
+		// HF29 — 서버 거절(409)은 공통 오류 화면이 아니라 상세 재렌더 + 카드 안 사유 · 폼은 비운다
+		willThrow(new UserManagementBlockedException("비활성화된 계정입니다. 먼저 활성화해야 합니다."))
+				.given(managementService).assignInitialPassword(eq("kim"), eq(4L), any());
+		given(queryService.detail(4L, "kim")).willReturn(detail(summary(4, "choi", Role.USER, false),
+				Map.of(UserAction.RESET_PASSWORD, "비활성화된 계정입니다. 먼저 활성화해야 합니다.")));
+		mvc.perform(post("/users/4/password").with(SUPER).param("password", "Init5678!").param("retypedPassword", "Init5678!"))
+				.andExpect(status().isConflict())
+				.andExpect(view().name("users/user-detail"))
+				.andExpect(content().string(containsString("초기 비밀번호를 지정하지 못했습니다. 비활성화된 계정입니다. 먼저 활성화해야 합니다.")))
+				.andExpect(model().attribute("passwordForm", org.hamcrest.Matchers.hasProperty("password", nullValue())));
 
 		willThrow(PasswordMismatchException.retyped()).given(managementService).assignInitialPassword(eq("kim"), eq(3L), any());
 		mvc.perform(post("/users/3/password").with(SUPER).param("password", "Init5678!").param("retypedPassword", "Init5678!"))

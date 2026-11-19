@@ -147,24 +147,24 @@ public class DuplicateResolveService {
 	) {
 		if (!markerService.verifySignature(duplicateMarker)) {
 			throw DriftResolutionNotAllowedException.duplicateNotPromotable(
-					"복제본 마커의 서명이 유효하지 않습니다");
+					"복제본 마커의 서명이 유효하지 않습니다.");
 		}
 		// 낡은 사본 승격 차단 (O-2 위험의 본질) — 원본 재업로드 전에 떠 둔 구버전 사본은 지문이 다르다.
 		// 그 내용을 정본으로 삼는 올바른 경로는 재업로드(검증 재통과) 또는 HASH_MISMATCH 수용 흐름이다.
 		if (resource.getManifestHash() != null
 				&& !resource.getManifestHash().equals(duplicateMarker.manifestHash())) {
 			throw DriftResolutionNotAllowedException.duplicateNotPromotable(
-					"복제본의 내용 지문이 현재 정본 기록과 다릅니다 — 낡은 사본일 수 있습니다. "
-							+ "그 내용을 쓰려면 재업로드가 올바른 경로입니다");
+					"복제본의 내용 지문이 현재 정본 기록과 다릅니다. 낡은 사본일 수 있습니다. "
+							+ "그 내용을 쓰려면 다시 업로드해야 합니다.");
 		}
 		if (!layout.resourceBodyExists(duplicatePath)) {
 			throw DriftResolutionNotAllowedException.duplicateNotPromotable(
-					"복제본 위치에 본체 파일이 없습니다");
+					"복제본 위치에 본체 파일이 없습니다.");
 		}
 		// 포함 관계 방어 — 사본이 원본 트리 내부(또는 그 반대)면 원본 삭제가 승격된 사본까지 지운다.
 		if (duplicatePath.startsWith(originalPath) || originalPath.startsWith(duplicatePath)) {
 			throw DriftResolutionNotAllowedException.duplicateNotPromotable(
-					"원본과 복제본 경로가 포함 관계라 안전하게 정리할 수 없습니다");
+					"원본과 복제본 경로가 포함 관계라 안전하게 정리할 수 없습니다.");
 		}
 		// HF4-5 검수 반려 반영 — 위의 마커 기록값 대조만으로는 "마커는 최신 정상본 그대로 두고 페이로드
 		// 바이트만 변조한 사본"이 통과한다 (샌드박스 실측 재현). 승격은 원본 삭제 + DB 갱신이 걸린 비가역
@@ -178,12 +178,12 @@ public class DuplicateResolveService {
 				new DuplicatePathView(resource, duplicatePath));
 		if (recomputed.isEmpty()) {
 			throw DriftResolutionNotAllowedException.duplicateNotPromotable(
-					"복제본 내용의 지문을 계산할 수 없습니다 — 파일 상태를 확인하세요");
+					"복제본 내용의 지문을 계산할 수 없습니다. 파일 상태를 확인해야 합니다.");
 		}
 		if (resource.getManifestHash() != null && !recomputed.get().equals(resource.getManifestHash())) {
 			throw DriftResolutionNotAllowedException.duplicateNotPromotable(
-					"복제본 실제 내용의 지문이 현재 정본 기록과 다릅니다 — 마커만 정상이고 내용이 변조된 "
-							+ "사본일 수 있습니다. 그 내용을 쓰려면 재업로드가 올바른 경로입니다");
+					"복제본 실제 내용의 지문이 현재 정본 기록과 다릅니다. 내용이 변조된 사본일 수 있습니다. "
+							+ "그 내용을 쓰려면 다시 업로드해야 합니다.");
 		}
 		Long driftId = drift.getId();
 		scanner.applyDriftedPath(drift.getResourceId(), duplicatePath); // PATH_DRIFT 해결 로직 재사용
@@ -216,7 +216,7 @@ public class DuplicateResolveService {
 				}
 			}
 		} catch (IOException e) {
-			throw new IllegalStateException("파일 삭제 실패 : " + resourcePath + " — " + e.getMessage(), e);
+			throw new IllegalStateException("파일을 삭제하지 못했습니다: " + resourcePath + " (" + e.getMessage() + ")", e);
 		}
 	}
 

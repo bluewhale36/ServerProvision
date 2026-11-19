@@ -21,6 +21,8 @@ public record ISOResponse(
 		boolean isDeprecated,
 		LifecycleStage state,
 		boolean extracted,
+		// S23-1 — [추출] 버튼을 보일지. 런처의 서버 가드와 같은 OSName.extractable() 판정이다.
+		boolean extractable,
 		List<String> providedEnvironmentCodes,
 		int providedPackageGroupCount,
 		IntegrityStatus integrityStatus,
@@ -30,7 +32,9 @@ public record ISOResponse(
 		// 서버 가드와 동일한 LifecycleEntity.blocksChildXxx() 결과를 그대로 캡처 (UI ↔ 서버 드리프트 0).
 		boolean parentBlocksEnable,
 		boolean parentBlocksRestore,
-		boolean parentBlocksUndeprecate
+		boolean parentBlocksUndeprecate,
+		// E4-1-b-2 D-20 — 등록 뒤 버전 확인 실패 사유(null = 정상). 목록의 '등록 실패' 배지와 사유 줄의 재료.
+		String registrationFailure
 ) {
 
 	public static ISOResponse from(ISO entity) {
@@ -52,6 +56,7 @@ public record ISOResponse(
 				entity.isDeprecated(),
 				entity.currentStage(),
 				entity.isExtractionComplete(),
+				parent != null && parent.getOsName().extractable(),
 				envCodes,
 				entity.getProvidedPackageGroups().size(),
 				entity.getLastIntegrityStatus() != null ? entity.getLastIntegrityStatus() : IntegrityStatus.NOT_VERIFIED,
@@ -59,7 +64,8 @@ public record ISOResponse(
 				false,
 				pBlocksEnable,
 				pBlocksRestore,
-				pBlocksUndeprecate
+				pBlocksUndeprecate,
+				entity.getRegistrationFailure()
 		);
 	}
 
@@ -78,6 +84,7 @@ public record ISOResponse(
 				false,
 				LifecycleStage.ACTIVE,
 				false,
+				false,
 				List.of(),
 				0,
 				IntegrityStatus.NOT_VERIFIED,
@@ -85,7 +92,8 @@ public record ISOResponse(
 				false,
 				false,
 				false,
-				false
+				false,
+				null
 		);
 	}
 
@@ -96,9 +104,9 @@ public record ISOResponse(
 	public ISOResponse withExtractionInProgress(boolean value) {
 		return new ISOResponse(
 				id, isoPath, description, isEnabled, isDeleted, isDeprecated,
-				state, extracted, providedEnvironmentCodes, providedPackageGroupCount,
+				state, extracted, extractable, providedEnvironmentCodes, providedPackageGroupCount,
 				integrityStatus, inProgress, value,
-				parentBlocksEnable, parentBlocksRestore, parentBlocksUndeprecate
+				parentBlocksEnable, parentBlocksRestore, parentBlocksUndeprecate, registrationFailure
 		);
 	}
 }

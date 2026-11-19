@@ -9,6 +9,6 @@ import com.example.serverprovision.global.exception.NotFoundException;
 public class RaidCardNotFoundException extends NotFoundException {
 
 	public RaidCardNotFoundException(Long id) {
-		super("RAID 카드를 찾을 수 없습니다. id=" + id);
+		super("RAID 카드를 찾을 수 없습니다.");
 	}
 }

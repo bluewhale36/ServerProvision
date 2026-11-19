@@ -41,15 +41,12 @@
 
     <div class="n-page-header">
         <h1 class="n-page-title">게스트 서버</h1>
-        <div class="n-header-actions">
-            <span class="n-hint">iPXE 부팅으로 등록된 물리 서버를 등록 시각과 하드웨어 스펙으로 묶어 보여줍니다.</span>
-        </div>
     </div>
 
     <!-- 조회 띠 — [data-live] 밖(DEC-E). 상태는 URL 에 남는다(S8-2) -->
     <form id="listQuery" class="n-filter-bar" method="get" th:action="@{/provisioning/server}" data-list-query>
         <!--/* 조건 줄은 조회 조건 창 안에 선다(S8-4 · fragments/ui/list-filter). 보기 · 정렬은 띠에 남아 곧 적용된다. */-->
-        <th:block th:replace="~{fragments/ui/list-filter :: search(${query.q}, '이름 · UUID · 시리얼 · IP · 보드 검색', ~{::#listFilterRows})}">
+        <th:block th:replace="~{fragments/ui/list-filter :: search(${query.q}, '이름, UUID, 시리얼, IP, 보드 검색', ~{::#listFilterRows})}">
             <div id="listFilterRows" class="n-filter-rows">
                 <div class="n-filter-row" data-filter-row>
                     <span class="n-filter-row-label">진행 단계</span>
@@ -67,7 +64,7 @@
                         <button type="button" class="n-chip n-chip-all" data-chip-clear="status">전체</button>
                         <label class="n-chip" th:each="st : ${statuses}">
                             <input type="checkbox" name="status" th:value="${st.name()}" th:checked="${query.statuses.contains(st)}">
-                            <span th:text="${st.description}">등록됨</span>
+                            <span th:text="${st.description}">등록</span>
                         </label>
                     </div>
                 </div>
@@ -125,7 +122,7 @@
             </th:block>
             <th:block th:if="${!filtered}">
                 <div class="n-empty-title">등록된 게스트 서버가 없습니다.</div>
-                <div class="n-empty-desc">서버가 PXE 부팅으로 <code>/api/pxe/v1/boot</code> 에 진입하면 이곳에 표시됩니다.</div>
+                <div class="n-empty-desc">서버를 PXE 부팅하면 이곳에 표시됩니다.</div>
             </th:block>
         </div>
     </div>
@@ -176,8 +173,8 @@
                  class="n-accordion-item" th:classappend="${pendingOpen} ? ' is-open'">
                 <a class="n-accordion-head" th:href="${pendingHref}">
                     <span class="n-accordion-chevron"></span>
-                    <span class="n-accordion-title"><strong>등록만 됨</strong>
-                        <span class="n-glist-label">PXE 는 찍혔으나 진단으로 넘어가지 못했습니다 — 부팅 · 네트워크 점검 대상입니다</span></span>
+                    <span class="n-accordion-title"><strong>진단 미진입</strong>
+                        <span class="n-glist-label">PXE 부팅 후 진단으로 넘어가지 못했습니다. 부팅과 네트워크를 점검해야 합니다.</span></span>
                     <span class="n-badge n-badge-gray n-accordion-badge"
                           th:text="${list.pending.registeredOnly.size()} + '대'">1대</span>
                 </a>
@@ -198,7 +195,7 @@
                 <a class="n-accordion-head" th:href="${pendingHref}">
                     <span class="n-accordion-chevron"></span>
                     <span class="n-accordion-title"><strong>수집 중</strong>
-                        <span class="n-glist-label">진단에 도달했고 아직 보고 전입니다 — 기다리면 되는 대상입니다</span></span>
+                        <span class="n-glist-label">진단에 도달해 보고를 기다리는 중입니다.</span></span>
                     <span class="n-badge n-badge-gray n-accordion-badge"
                           th:text="${list.pending.collecting.size()} + '대'">1대</span>
                 </a>
@@ -230,7 +227,7 @@
                 <summary class="n-accordion-head">
                     <span class="n-accordion-chevron"></span>
                     <span class="n-accordion-title"><strong th:text="'스펙 ' + ${st.count}">스펙 1</strong>
-                        <span class="n-glist-label" th:text="${sg.label}">MS03-CE0 · Xeon Gold 6338 ×2</span></span>
+                        <span class="n-glist-label" th:text="${sg.label}">MS03-CE0, Xeon Gold 6338 ×2</span></span>
                     <span class="n-badge n-badge-blue n-accordion-badge"
                           th:text="${sg.servers.size()} + '대'">2대</span>
                 </summary>

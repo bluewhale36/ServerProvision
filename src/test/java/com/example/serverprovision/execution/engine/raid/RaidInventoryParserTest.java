@@ -167,7 +167,7 @@ class RaidInventoryParserTest {
         String envelope = "{\"driver\":\"mpi3mr\",\"tool\":\"storcli64\",\"lspci_b64\":\"" + b64("c6:00.0 RAID bus controller [0104]: Other [1000:00a5]") + "\"}";
         assertThatThrownBy(() -> parser.parse(envelope))
                 .isInstanceOf(RaidInventoryParser.ReportUnparsableException.class)
-                .hasMessageContaining("계열 밖 드라이버");
+                .hasMessageContaining("지원하지 않는 RAID 드라이버");
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.example.serverprovision.management.bmc.controller;
 
+import com.example.serverprovision.global.trash.service.UserPurgeService;
+import com.example.serverprovision.global.marker.ResourceType;
 import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.exception.TypedNameMismatchException;
 import com.example.serverprovision.management.bmc.exception.BmcNotFoundException;
@@ -42,6 +44,7 @@ class BmcControllerPurgeFlowTest {
     @Autowired MockMvc mvc;
 
     @MockitoBean BmcService bmcService;
+    @MockitoBean UserPurgeService userPurgeService;   // HF31 — 영구 삭제 단일 진입점
     @MockitoBean com.example.serverprovision.management.bmc.service.BmcFirmwareFilePolicy bmcFirmwareFilePolicy;
     @MockitoBean BmcLifecycleService bmcLifecycleService;
     @MockitoBean BmcRegistrationService bmcRegistrationService;
@@ -57,8 +60,8 @@ class BmcControllerPurgeFlowTest {
     @DisplayName("BMC purge — typedName 일치 → 302 redirect")
     void purge_typedNameMatches_returns302() throws Exception {
         willDoNothing().given(bmcLifecycleService).assertBelongsToBoard(eq(5L), eq(2L));
-        willDoNothing().given(bmcLifecycleService)
-                .purgeWithTypedNameCheck(eq(5L), eq("GIGABYTE BMC Firmware 13.06.25"));
+        willDoNothing().given(userPurgeService)
+                .purge(eq(ResourceType.BMC_FIRMWARE), eq(5L), eq("GIGABYTE BMC Firmware 13.06.25"));
 
         mvc.perform(post("/management/bmc/2/bmc/5/purge")
                         .param("typedName", "GIGABYTE BMC Firmware 13.06.25"))
@@ -72,8 +75,8 @@ class BmcControllerPurgeFlowTest {
     void purge_typedNameMismatch_returns400() throws Exception {
         willDoNothing().given(bmcLifecycleService).assertBelongsToBoard(eq(5L), eq(2L));
         willThrow(new TypedNameMismatchException("GIGABYTE BMC Firmware 13.06.25", "x"))
-                .given(bmcLifecycleService)
-                .purgeWithTypedNameCheck(eq(5L), eq("x"));
+                .given(userPurgeService)
+                .purge(eq(ResourceType.BMC_FIRMWARE), eq(5L), eq("x"));
 
         mvc.perform(post("/management/bmc/2/bmc/5/purge").param("typedName", "x"))
                 .andExpect(status().isBadRequest());
@@ -113,7 +116,7 @@ class BmcControllerPurgeFlowTest {
 
         mvc.perform(get("/management/bmc"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("+ 신규 BMC 등록")));
+                .andExpect(content().string(containsString("class=\"n-btn n-btn-primary\">+ BMC 등록")));
     }
 
     // S5-6-1 — purge form 에 typed-name expected value 부재 + 자원 식별 마커만 존재.

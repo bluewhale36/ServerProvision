@@ -18,11 +18,11 @@
         const prefixes = new Set();
         for (const file of files) {
             const rel = file.webkitRelativePath || '';
-            if (!rel) return '여러 개의 개별 파일 업로드는 거절됩니다. 관련 파일들을 하나의 폴더로 묶어 업로드하세요.';
+            if (!rel) return '개별 파일 여러 개는 업로드할 수 없습니다. 관련 파일을 하나의 폴더로 묶어 업로드해야 합니다.';
             const firstSeg = rel.split('/')[0];
             if (!firstSeg) return '파일 상대경로 형식이 올바르지 않습니다.';
             prefixes.add(firstSeg);
-            if (prefixes.size > 1) return '여러 폴더가 섞여 있습니다. 단일 폴더만 선택해 업로드하세요.';
+            if (prefixes.size > 1) return '여러 폴더가 섞여 있습니다. 폴더 하나만 골라 업로드해야 합니다.';
         }
         return null;
     }
@@ -45,7 +45,7 @@
             if (!message && typeof intentFallbackMessage === 'function') {
                 message = intentFallbackMessage(resp.status);
             }
-            const fallback = message || ('사전 검증 실패 (HTTP ' + resp.status + ')');
+            const fallback = message || '사전 검증에 실패했습니다.';
             const finalBody = payload || {message: fallback};
             // payload.message 가 비어있으면 fallback 으로 보강
             if (!finalBody.message) finalBody.message = fallback;
@@ -131,8 +131,8 @@
         }
 
         const message = `${UiUtil.formatBytes(event.loaded)} / ${UiUtil.formatBytes(event.total)}` +
-            (speedBps > 0 ? ` · ${UiUtil.formatBytes(speedBps)}/s` : '') +
-            (etaSec >= 0 ? ` · 약 ${formatDuration(etaSec)} 남음` : '');
+            (speedBps > 0 ? `, ${UiUtil.formatBytes(speedBps)}/s` : '') +
+            (etaSec >= 0 ? `, 남은 시간 약 ${formatDuration(etaSec)}` : '');
 
         return {shouldRender: true, percent, message, speedBps, etaSec};
     }

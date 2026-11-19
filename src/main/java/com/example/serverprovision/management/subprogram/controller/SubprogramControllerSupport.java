@@ -33,7 +33,7 @@ public final class SubprogramControllerSupport {
 	public static String firstFieldError(BindingResult bindingResult) {
 		return bindingResult.getFieldErrors().stream()
 				.findFirst()
-				.map(err -> err.getField() + ": " + err.getDefaultMessage())
+				.map(err -> err.getDefaultMessage())
 				.orElse("입력값이 올바르지 않습니다.");
 	}
 
@@ -44,7 +44,7 @@ public final class SubprogramControllerSupport {
 	public static void addEditModel(org.springframework.ui.Model model, com.example.serverprovision.management.subprogram.dto.response.SubprogramResponse sp) {
 		model.addAttribute("kind", sp.kind());
 		model.addAttribute("kindDisplayName", sp.kind().getDisplayName());
-		model.addAttribute("osNames", com.example.serverprovision.management.os.enums.OSName.values());
+		model.addAttribute("osNames", com.example.serverprovision.management.os.enums.OSName.selectableKeeping(sp.osName()));   // S23-1 — 지원 상수 + 지금 값이 미지원이면 그 값
 		model.addAttribute("entrypointKinds", com.example.serverprovision.management.subprogram.enums.InstallEntrypointKind.values());
 	}
 

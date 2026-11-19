@@ -24,13 +24,13 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
     private final RootPasswordRequest rootPassword;
 
     /** 설치할 패키지 환경 그룹의 DB 기본키. Kickstart {@code %packages} 의 {@code @^environment} 에 대응. */
-    @NotNull(message = "설치 환경 ID는 필수 값입니다.")
+    @NotNull(message = "설치 환경은 필수 선택입니다.")
     private final Long environmentId;
 
     /** 추가 패키지 그룹의 DB 기본키 목록. 선택 사항이므로 null/빈 리스트 모두 허용. */
     private final List<Long> packageGroupIds;
 
-    /** Kickstart {@code %addon com_redhat_kdump} 활성화 여부. */
+    /** Kickstart {@code %addon com_redhat_kdump} 활성화 여부. 키가 없으면 true(설치 프로그램 기본값). */
     private final boolean isKDumpEnabled;
 
     /**
@@ -49,7 +49,7 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
             @JsonProperty("users")           List<UserRequest> users,
             @JsonProperty("environmentId")   Long environmentId,
             @JsonProperty("packageGroupIds") List<Long> packageGroupIds,
-            // boxed + null-coalesce: Jackson 3 FAIL_ON_NULL_FOR_PRIMITIVES 기본 활성 대응 (누락=false).
+            // 누락 = true(E4-1-b-2 D-19 · Q6): 설치 프로그램 기본값과 같게 켜 둔다. 저장 JSON 은 키를 항상 싣는다.
             @JsonProperty("isKDumpEnabled")  Boolean isKDumpEnabled,
             @JsonProperty("allowSshRoot")    Boolean allowSshRoot
     ) {
@@ -57,7 +57,7 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
         this.rootPassword    = rootPassword;
         this.environmentId   = environmentId;
         this.packageGroupIds = packageGroupIds != null ? packageGroupIds : List.of();
-        this.isKDumpEnabled  = isKDumpEnabled != null && isKDumpEnabled;
+        this.isKDumpEnabled  = isKDumpEnabled == null || isKDumpEnabled;
         this.allowSshRoot    = allowSshRoot;
     }
 
@@ -70,6 +70,14 @@ public class RHELInstallationRequest extends LinuxInstallationRequest {
     @Override
     public OSFamily osFamily() {
         return OSFamily.RHEL_BASED;
+    }
+
+    @Override
+    public String storedSecretField() {
+        if (rootPassword != null && rootPassword.carriesHash()) {
+            return "rootPassword";
+        }
+        return super.storedSecretField();
     }
 
     @Override

@@ -18,6 +18,7 @@ ServerProvision의 문서는 두 갈래다. 개발자 매뉴얼은 `dev/` 아래
 | `dev/guides/add-provisioning-phase.md` | 새 실행 단계 추가 절차 | 예정(DOC-4) |
 | `dev/glossary.md` | 용어집 | 예정(DOC-4) |
 | `dev/adr/` | 설계 결정 기록(ADR, Architecture Decision Record) | 초안(S10 에서 개시, 1건) |
+| `dev/maintenance-points.md` | 메인보드, OS 릴리스, RAID 칩 등 지원 대상이 늘 때 고칠 코드와 설정 자리 | 초안(S23-3) |
 
 ### 사용자 가이드
 
@@ -38,6 +39,13 @@ ServerProvision의 문서는 두 갈래다. 개발자 매뉴얼은 `dev/` 아래
 | `pxe-dnsmasq-setup.md` | PXE DHCP 를 dnsmasq 로 배선하는 절차. 패키지, sudoers 한 줄, 조각 디렉토리와 systemd, 환경변수, 모드별 조각 모양, 확인 | 초안(R16) |
 | `pxe-server-install.md` | 실 기기 OS 설치 — OPS-2 개정(단일 티어 · 카드 RAID 10 · ext4) · WebBIOS · 증설 절차(두 번째 VD → PV) · 부팅 모드 · 파티션 표 · 정렬 mkfs · 첫 부팅 확인 · RAID 관측 · NIC 역할(web · admin · pxe bond0) · 고정 IP · 방화벽 zone | 개정(OPS-4 · 2026-09-18) |
 | `staging-vm-bootstrap.md` | OS 설치 뒤의 전 절차 — 계정 · JDK · MariaDB · 디렉토리 · 빌드 · 스키마 · env · systemd · 방화벽 · nginx · Windows 기반. 실서버에도 그대로 적용 | 실측(DPL-1) |
+| `deploy/README.md` | 배포 대기 원장. 환경별 마지막 배포 커밋, 배포 순서, 대기 항목(`deploy/pending/`) | 운영(S23-3) |
+
+### 화면 문구 판정
+
+| 문서 | 내용 | 상태 |
+|---|---|---|
+| `ui-copy/` | 화면 문구를 쓰임새와 심각도로 분류하고 자리와 모양을 판정한 표. 첫 대상은 게스트 서버 상세다 | 사용자 판정 대기(S22-2) |
 
 `T3-checklist.md`는 물리 서버를 확보했을 때 몰아서 검증할 항목의 목록이다.
 

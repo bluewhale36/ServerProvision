@@ -1,11 +1,11 @@
 /**
- * MK2 WAVE 1 — OSMetadata 신규 등록 폼의 XHR 제출 + nudge modal 연결.
+ * MK2 WAVE 1 — OSMetadata 신규 등록 폼의 XHR 제출.
  *
  * 흐름:
  *  - submit → fetch POST /management/os (Accept: application/json)
  *  - 200 + { redirect } → 그 URL 로 navigate
  *  - 400 + ApiErrorResponse + fieldErrors → FormError.renderResponse 로 inline 메시지
- *  - 409 + { code: NUDGE_REQUIRED, nudgeId, conflicts } → NudgeModal.handle
+ *  - 409 → 배너에 상태별 다음 행동 안내(HF30-1 — 같은 OS 버전이 휴지통 · Deprecated 에 있으면 복구 · 해제 안내, 중복 확인 창은 없앴다)
  */
 (function () {
     'use strict';
@@ -16,6 +16,34 @@
         if (!form) return;
 
         const banner = form.querySelector('.n-form-banner');
+
+        // S23-1 — 고른 OS 의 버전 규칙대로 버전 칸을 채운다. "9." 은 세부 버전을 이어 쓰고, "2025" 는 고칠 수 없게 둔다.
+        const osSelect = document.getElementById('osName');
+        const versionInput = document.getElementById('osVersion');
+        const versionHint = document.getElementById('osVersionHint');
+        const versionExample = document.getElementById('osVersionExample');
+        const applyVersionRule = () => {
+            const opt = osSelect.selectedOptions[0];
+            const prefill = opt ? (opt.getAttribute('data-version-prefill') || '') : '';
+            const locked = opt ? opt.getAttribute('data-version-locked') === 'true' : false;
+            versionInput.readOnly = locked;
+            if (locked) {
+                versionInput.value = prefill;
+                versionHint.hidden = true;
+                return;
+            }
+            const majorPrefix = /^\d+\.$/.test(prefill);
+            versionHint.hidden = !majorPrefix;
+            if (majorPrefix) {
+                versionExample.textContent = prefill + '0';
+                if (!versionInput.value || /^\d+\.?$/.test(versionInput.value)) versionInput.value = prefill;
+            } else if (/^\d+\.?$/.test(versionInput.value)) {
+                versionInput.value = '';
+            }
+        };
+        osSelect.addEventListener('change', applyVersionRule);
+        // OS 목록의 [+ OS 버전 등록] 으로 들어오면 OS 가 미리 골라져 있다. 그 OS 의 버전 규칙도 처음부터 적용한다.
+        applyVersionRule();
         const showBanner = msg => UiUtil.showBanner(banner, msg);
         const hideBanner = () => UiUtil.hideBanner(banner);
 
@@ -47,27 +75,16 @@
                         }
                         return;
                     }
-                    // 409 + NUDGE_REQUIRED
-                    if (status === 409 && body && body.code === 'NUDGE_REQUIRED' && body.nudgeId) {
-                        window.NudgeModal.handle(body, {
-                            baseUrl: '/management/os/metadata-nudge',
-                            listUrl: '/management/os',
-                            toastKey: 'os.image.toast',
-                            onError: showBanner,
-                            afterCancel: () => showBanner('등록을 취소했습니다.')
-                        });
-                        return;
-                    }
                     // 400 fieldErrors
                     if (body && window.FormError) {
                         window.FormError.renderResponse(body, {root: form});
                         return;
                     }
-                    showBanner((body && body.message) || ('HTTP ' + status));
+                    showBanner((body && body.message) || '요청을 처리하지 못했습니다. 다시 시도해야 합니다.');
                 })
                 .catch(err => {
                     console.error(TAG, err);
-                    showBanner(err.message || '요청 처리 중 오류가 발생했습니다.');
+                    showBanner('요청을 처리하지 못했습니다. 다시 시도해야 합니다.');
                 });
         });
     });

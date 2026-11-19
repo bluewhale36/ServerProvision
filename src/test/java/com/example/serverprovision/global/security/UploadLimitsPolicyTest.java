@@ -44,7 +44,7 @@ class UploadLimitsPolicyTest {
         }
         assertThatThrownBy(() -> p.assertFileCount(files))
                 .isInstanceOf(UploadLimitExceededException.class)
-                .hasMessageContaining("파일 갯수");
+                .hasMessageContaining("파일 수 한도 초과");
     }
 
     @Test
@@ -55,7 +55,7 @@ class UploadLimitsPolicyTest {
         MultipartFile f = new MockMultipartFile("big", "big.bin", "application/octet-stream", big);
         assertThatThrownBy(() -> p.assertSingleFileSize(f))
                 .isInstanceOf(UploadLimitExceededException.class)
-                .hasMessageContaining("단일 파일");
+                .hasMessageContaining("단일 파일 크기 한도 초과");
     }
 
     @Test
@@ -67,7 +67,7 @@ class UploadLimitsPolicyTest {
         UploadLimitsPolicy p = policy(1000, DataSize.ofMegabytes(10), DataSize.ofKilobytes(4));
         assertThatThrownBy(() -> p.assertTreeBytes(tempDir))
                 .isInstanceOf(UploadLimitExceededException.class)
-                .hasMessageContaining("트리 byte");
+                .hasMessageContaining("폴더 전체 크기 한도 초과");
     }
 
     @Test

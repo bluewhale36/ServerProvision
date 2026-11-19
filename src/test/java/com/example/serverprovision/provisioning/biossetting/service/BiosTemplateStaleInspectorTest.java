@@ -92,8 +92,8 @@ class BiosTemplateStaleInspectorTest {
 
         String reason = inspector.reasonFor(7L, 5L);
 
-        assertThat(reason).isEqualTo("BIOS 템플릿 'MD72-HB3 공장 표준 세팅' 의 값이 보드 레지스트리(F44 · 2026-08-27 채집 · 192.168.1.130)"
-                + "와 어긋납니다 — Whitley0000 = Disabled — 허용 {Disable, Enable}");
+        assertThat(reason).isEqualTo("BIOS 템플릿 'MD72-HB3 공장 표준 세팅' 의 값이 보드 레지스트리(F44, 2026-08-27 채집, 192.168.1.130)"
+                + "와 어긋납니다: Whitley0000 = Disabled(허용 값: Disable, Enable)");
     }
 
     @Test

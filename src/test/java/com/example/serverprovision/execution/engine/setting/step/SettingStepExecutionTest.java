@@ -618,7 +618,7 @@ class SettingStepExecutionTest {
     void begin_registryViolationClosesWithoutPatch() {
         given(registryPort.captureAndCheck(any(), any(), any())).willReturn(
                 new com.example.serverprovision.execution.engine.setting.RegistryCheck(true, "F44", true,
-                        List.of("Whitley0000 = Disabled — 허용 {Disable, Enable}")));
+                        List.of("Whitley0000 = Disabled(허용 값: Disable, Enable)")));
         ProvisioningProgress progress = started();
 
         begin().execute(context(server(), progress, List.of(), target(), T));

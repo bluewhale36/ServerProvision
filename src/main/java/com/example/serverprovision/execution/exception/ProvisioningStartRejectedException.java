@@ -29,7 +29,7 @@ public class ProvisioningStartRejectedException extends ConflictException {
 
     /** R13 — 미개시 진단 창의 게스트 실패 보고로 생기는 "미개시 실패" 상태. 회복 경로는 재시도다. */
     public static ProvisioningStartRejectedException failed(UUID id) {
-        return new ProvisioningStartRejectedException("실패 상태의 서버는 개시할 수 없습니다. 재시도로 회복해야 합니다. id=" + id);
+        return new ProvisioningStartRejectedException("실패 상태의 서버는 개시할 수 없습니다. 재시도해야 합니다. id=" + id);
     }
 
     /**
@@ -41,7 +41,7 @@ public class ProvisioningStartRejectedException extends ConflictException {
                 "세팅 정의서가 할당되지 않은 서버는 개시할 수 없습니다. 정의서를 할당한 뒤 개시해야 합니다. id=" + id);
     }
 
-    /** U7 — BMC · LAN 주소가 프로비저닝 허용 대역 밖이거나 판정할 수 없음. 메시지 = 화면 사유 문구를 공백으로 이은 것. */
+    /** BMC 와 LAN 주소가 프로비저닝 허용 대역 밖이거나 판정할 수 없을 때(U7). 메시지는 화면 사유 문구를 공백으로 이은 것이다. */
     public static ProvisioningStartRejectedException outsideAllowedRange(UUID id, List<StartNetworkBlock> blocks) {
         return new ProvisioningStartRejectedException(
                 blocks.stream().map(StartNetworkBlock::message).collect(Collectors.joining(" ")));

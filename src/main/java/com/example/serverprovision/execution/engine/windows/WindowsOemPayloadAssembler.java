@@ -78,29 +78,28 @@ public class WindowsOemPayloadAssembler {
     public Optional<String> blockReason() {
         Optional<Path> root = properties.sourceRootPath();
         if (root.isEmpty()) {
-            return Optional.of("설치 소스 미설정 — 환경변수 WINDOWS_INSTALL_SOURCE_ROOT");
+            return Optional.of("설치 소스 경로가 설정되지 않았습니다.");
         }
         Path sources = root.get().resolve("sources");
         if (!Files.isDirectory(sources)) {
-            return Optional.of("sources 디렉토리가 없습니다 — 런북 §14-1 추출 절차");
+            return Optional.of("설치 소스에 sources 디렉토리가 없습니다.");
         }
         Path oem = sources.resolve(OEM_DIR);
         if (!Files.isDirectory(oem)) {
             if (!Files.isWritable(sources)) {
-                return Optional.of("sources/$OEM$ 디렉토리가 없습니다 — 런북 §14-1 ($OEM$ 쓰기 권한)");
+                return Optional.of("sources/$OEM$ 디렉토리가 없습니다.");
             }
             return Optional.empty();   // sync 가 만든다
         }
         if (!Files.isWritable(oem)) {
-            return Optional.of("sources/$OEM$ 에 쓰기 권한이 없습니다 — 런북 §14-1 ($OEM$ 쓰기 권한)");
+            return Optional.of("sources/$OEM$ 에 쓰기 권한이 없습니다.");
         }
         // HF11-3 — 기존 항목(손조립 `$$` · `$1`)이 다른 계정 소유면 스왑의 디렉토리 이동이 거부된다(디렉토리 이동은 그 디렉토리
         // 자체의 쓰기 권한을 요구). 실기 2호에서 500 으로 샌 지점 — 여기서 잡아 409 · tooltip 으로 조치를 말한다.
         for (String name : SWAP_ENTRIES) {
             Path existing = oem.resolve(name);
             if (Files.isDirectory(existing) && !Files.isWritable(existing)) {
-                return Optional.of("sources/$OEM$ 안의 기존 항목(" + name + ")에 쓰기 권한이 없습니다 — 런북 §14-1 "
-                        + "(chown -R provisioning:spvadmin)");
+                return Optional.of("sources/$OEM$ 안의 기존 항목(" + name + ")에 쓰기 권한이 없습니다.");
             }
         }
         return Optional.empty();
@@ -154,7 +153,7 @@ public class WindowsOemPayloadAssembler {
             return new OemAssemblyResult(entries.size(), c.excluded().size(), total);
         } catch (IOException e) {
             deleteQuietly(tmp);
-            throw new UncheckedIOException("$OEM$ 조립 실패 — " + e.getMessage(), e);
+            throw new UncheckedIOException("드라이버 페이로드를 조립하지 못했습니다: " + e.getMessage(), e);
         }
     }
 

@@ -51,7 +51,7 @@ class UsersControllerTest {
 				.andExpect(view().name("security/signup-bootstrap"))
 				.andExpect(model().attribute("signupMode", SignupMode.BOOTSTRAP))
 				.andExpect(content().string(containsString("최초 관리자 등록")))
-				.andExpect(content().string(containsString("최고 관리자가 되며")))
+				.andExpect(content().string(containsString("최고 관리자가 됩니다")))
 				.andExpect(content().string(containsString("action=\"/signup\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.not(containsString("role-ADMIN"))));
 	}
@@ -78,7 +78,7 @@ class UsersControllerTest {
 				.andExpect(view().name("security/signup-bootstrap"))
 				.andExpect(model().attributeHasFieldErrors("signUpForm", "username", "password", "passwordConfirmed"))
 				.andExpect(content().string(containsString("비밀번호가 일치하지 않습니다.")))
-				.andExpect(content().string(containsString("아이디는 64자 이하로 입력하십시오.")));
+				.andExpect(content().string(containsString("아이디는 64자 이하로 입력해야 합니다.")));
 	}
 
 	@Test

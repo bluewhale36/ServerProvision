@@ -1,7 +1,6 @@
 package com.example.serverprovision.management.os.service.metadata;
 
 import com.example.serverprovision.global.trash.TrashLifecycleService;
-import com.example.serverprovision.global.trash.service.TypedNameGuard;
 import com.example.serverprovision.management.common.dto.response.RestoreResponse;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
@@ -154,21 +153,6 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	// ==== purge ========================================================
 
 	/**
-	 * S5-2-2 — OS 메타데이터 typed-name 검증 후 영구 삭제.
-	 * <p>합성식은 {@link OSMetadata#displayName()} 에 응집 — service 가 entity 합성 책임을 갖지 않는다.</p>
-	 */
-	@Override
-	@Transactional
-	public void purgeWithTypedNameCheck(Long id, String typedName) {
-		OSMetadata image = osMetadataRepository.findByIdAndIsDeletedTrue(id)
-				.orElseThrow(() -> new IllegalOSMetadataStateException(
-						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
-		// R7-2 — 이미 로딩한 엔티티로 검증(재조회·verifier 빈 미사용 → service→verifier 변 소멸).
-		TypedNameGuard.verify(image, typedName);
-		purge(id);
-	}
-
-	/**
 	 * OSMetadata 영구 삭제. soft-deleted 상태에서만 호출 가능.
 	 * <p>자식 ISO 들의 sidecar 파일 정리 후 row 삭제. cascade 가 ISO 행을 자동 제거하지만, sidecar 파일은
 	 * 어플리케이션이 직접 정리해야 한다 — {@link IsoLifecycleService#cleanupArtifacts(ISO)} 위임 (R1-4-1).</p>
@@ -178,7 +162,7 @@ public class OSMetadataLifecycleService implements com.example.serverprovision.g
 	public void purge(Long id) {
 		OSMetadata image = osMetadataRepository.findByIdAndIsDeletedTrue(id)
 				.orElseThrow(() -> new IllegalOSMetadataStateException(
-						"soft-deleted 상태가 아니어서 영구 삭제할 수 없습니다. id=" + id));
+						"삭제된 항목만 영구 삭제할 수 있습니다. id=" + id));
 		for (ISO iso : image.getIsos()) {
 			isoLifecycleService.cleanupArtifacts(iso);   // R1-4-1 — IsoLifecycleService 로 위임
 		}

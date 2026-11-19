@@ -32,9 +32,9 @@
 			// ApiErrorResponse(message) / ProblemDetail(detail) 모두 수용 — error-modal.fromResponse 와 동일 순서.
 			const body = await res.json().catch(() => null);
 			showBanner((body && (body.detail || body.message))
-				|| ('삭제 요청이 거절되었습니다. (HTTP ' + res.status + ')'));
+				|| '삭제하지 못했습니다. 다시 시도해야 합니다.');
 		} catch (err) {
-			showBanner('서버와 통신하지 못했습니다: ' + String(err));
+			showBanner('서버와 통신할 수 없습니다.');
 		}
 		deleteButton.disabled = false; // 실패 시에만 도달 — 재시도 허용 (성공 시엔 페이지 이탈).
 	}
@@ -43,7 +43,7 @@
 		if (deleteButton.disabled) return; // 사용 중(inUse)/요청 진행 중 — modal 을 열지 않는다 (1차 차단)
 		window.ConfirmModal.open('confirmSoftDelete', {
 			title: '템플릿 삭제',
-			message: "BIOS 세팅 템플릿 '" + resourceLabel + "' 을(를) 삭제할까요? 이 작업은 되돌릴 수 없습니다.",
+			message: "BIOS 세팅 템플릿 '" + resourceLabel + "' 을(를) 삭제하시겠습니까? 되돌릴 수 없습니다.",
 			confirmLabel: '삭제',
 			confirmClass: 'n-btn-danger',
 			onConfirm: requestDelete

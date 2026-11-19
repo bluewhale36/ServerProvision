@@ -67,7 +67,7 @@ class GroupStandardResponseTest {
     @Test
     @DisplayName("비활성 — 정해 두었지만 쓸 수 없고, 사유가 그대로 화면에 실린다")
     void disabledStandardIsPresentButNotUsable() {
-        String reason = "비활성화된 정의서는 신규 할당이 차단됩니다(활성화 후 재시도)";
+        String reason = "비활성화된 정의서는 할당할 수 없습니다. 활성화한 뒤 다시 시도하십시오.";
         GroupStandardResponse standard = GroupStandardResponse.of(
                 new ReferencedDefinitionResponse(1L, summary(1L, "web-standard", false), reason), List.of());
 

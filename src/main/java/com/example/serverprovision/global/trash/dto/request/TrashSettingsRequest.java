@@ -10,24 +10,24 @@ import jakarta.validation.constraints.*;
  */
 public record TrashSettingsRequest(
 
-		@NotNull(message = "TTL 일수를 입력해주세요.")
-		@Min(value = 1, message = "TTL 은 1일 이상이어야 해요.")
+		@NotNull(message = "보존 기간을 입력해야 합니다.")
+		@Min(value = 1, message = "보존 기간은 1일 이상이어야 합니다.")
 		Integer ttlDays,
 
-		@NotNull(message = "자동 영구삭제 사용 여부를 선택해주세요.")
+		@NotNull(message = "자동 영구 삭제 사용 여부를 선택해야 합니다.")
 		Boolean autoPurgeEnabled,
 
-		@NotBlank(message = "영구삭제 점검 주기 cron 식을 입력해주세요.")
+		@NotBlank(message = "영구 삭제 점검 주기 cron 식을 입력해야 합니다.")
 		String purgeCronExpression,
 
-		@NotBlank(message = "사전 알림 점검 주기 cron 식을 입력해주세요.")
+		@NotBlank(message = "사전 알림 점검 주기 cron 식을 입력해야 합니다.")
 		String notifyCronExpression,
 
 		/** 콤마 구분 D-day 리스트. 예: "7,1". @Pattern 으로 형식 1차 검증. */
-		@NotBlank(message = "사전 알림 D-day 를 입력해주세요.")
+		@NotBlank(message = "사전 알림 시점을 입력해야 합니다.")
 		@Pattern(
 				regexp = "\\s*\\d+\\s*(,\\s*\\d+\\s*)*",
-				message = "콤마 구분 양수 리스트로 입력해주세요. 예: 7,1"
+				message = "쉼표로 구분한 양수로 입력해야 합니다. 예: 7,1"
 		)
 		String notifyDaysBefore,
 
@@ -38,12 +38,12 @@ public record TrashSettingsRequest(
 		@NotEmpty
 		String notificationChannels,
 
-		@NotNull(message = "retry 최대 횟수를 입력해주세요.")
-		@Min(value = 1, message = "retry 는 1회 이상이어야 해요.")
+		@NotNull(message = "재시도 최대 횟수를 입력해야 합니다.")
+		@Min(value = 1, message = "재시도는 1회 이상이어야 합니다.")
 		Integer retryMaxAttempts,
 
-		@NotNull(message = "retry backoff base 를 입력해주세요.")
-		@Min(value = 100, message = "backoff base 는 100ms 이상이어야 해요.")
+		@NotNull(message = "재시도 대기 시간을 입력해야 합니다.")
+		@Min(value = 100, message = "재시도 대기 시간은 100ms 이상이어야 합니다.")
 		Long retryBackoffBaseMs
 ) {
 	// 추가 cron 식 문법 검증은 TrashSettingsRequestValidator 에서 — 정확한 field name 에

@@ -43,7 +43,6 @@ public class BmcPasswordService {
 				METHOD, target, request.accountId());
 
 		return new BmcPasswordPlanResponse(METHOD, target, headers, body, request.userName(),
-				"BMC 계정 변경은 재부팅 없이 즉시 적용됩니다. 428 응답 시 If-Match 헤더(* 또는 계정 리소스 ETag)가 필수입니다. "
-						+ "서버 로그에는 비밀번호가 마스킹되어 기록됩니다.");
+				"BMC 계정 변경은 재부팅 없이 바로 적용됩니다. 요청이 거절되면 If-Match 값을 계정의 ETag 로 바꿔 다시 보내야 합니다.");
 	}
 }

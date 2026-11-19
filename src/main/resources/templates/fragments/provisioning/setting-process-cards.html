@@ -30,7 +30,7 @@
         </div>
 
         <!-- 단계별 카드 (다형 렌더) -->
-        <div class="n-card n-process-card" th:each="process : ${setting.processList}">
+        <div class="n-card" th:each="process : ${setting.processList}">
             <div class="n-process-card-head">
                 <span class="n-badge n-badge-blue" th:text="${process.processType().displayName}">단계명</span>
                 <!-- 계열 배지 — OS 단계만. null 가드는 방어용(E4-1-a-2 이후 판별자 없는 저장본은 해석 단계에서 거절된다) -->
@@ -40,7 +40,7 @@
                 <th:block th:each="usage : ${setting.deprecatedUsages}">
                     <span th:if="${usage.processType.name() == process.processType().name()}"
                           class="n-badge n-badge-yellow"
-                          th:title="${#strings.listJoin(usage.resourceNames, ', ')}">지원 중단 자원 사용</span>
+                          th:title="${#strings.listJoin(usage.resourceNames, ', ')}">사용 중단 권고 자원 사용</span>
                 </th:block>
                 <!-- 실행 시 건너뜀 가능(사용자 확정 2026-07-06) — 예: SPECIFIED 보드+최신 버전인데 등록 펌웨어 0개.
                      저장을 막지 않는 안내(정의서=재사용 템플릿) — 실행 의미론은 skip+PARTIAL_SUCCESS(Stage 4). -->
@@ -48,8 +48,8 @@
                     <!-- blocking=true 는 수행 불가(실행 실패 — ISO 소실 등), false 는 해당 축 skip — 의미론 구분(U2-4 D3'). -->
                     <span th:if="${warn.processType.name() == process.processType().name()}"
                           th:class="${warn.blocking} ? 'n-badge n-badge-red' : 'n-badge n-badge-yellow'"
-                          th:text="${warn.blocking} ? '실행 불가' : '실행 시 건너뜀 가능'"
-                          th:title="${#strings.listJoin(warn.warnings, ' / ')}">실행 시 건너뜀 가능</span>
+                          th:text="${warn.blocking} ? '실행 불가' : '실행 시 생략 가능'"
+                          th:title="${#strings.listJoin(warn.warnings, ' / ')}">실행 시 생략 가능</span>
                 </th:block>
             </div>
 
@@ -113,7 +113,7 @@
                     <!-- 선택 템플릿 뱃지 목록 — 명칭 해석은 references.templates(Map<Long,String>).
                          SpEL 대괄호 인덱서는 루프 변수를 문자열 리터럴로 오인하므로 반드시 .get(tplId) 형태를 쓴다. -->
                     <p th:if="${#lists.isEmpty(process.biosSettingTemplateIds)}" class="n-detail-empty">
-                        선택된 템플릿 없음 (구 형식 저장본)</p>
+                        선택된 템플릿이 없습니다(구 형식 저장본).</p>
                     <!-- 뱃지 = 템플릿 상세로 이동하는 링크 (사용자 지시 2026-07-06) -->
                     <div th:unless="${#lists.isEmpty(process.biosSettingTemplateIds)}" class="n-badge-list">
                         <a class="n-badge n-badge-blue"
@@ -131,7 +131,7 @@
                         <tr>
                             <th>RAID 카드</th>
                             <td th:switch="${process.raidCardId != null}">
-                                <span th:case="false" class="n-muted">지정 안 함</span>
+                                <span th:case="false" class="n-muted">미지정</span>
                                 <th:block th:case="true" th:with="cardName=${setting.references.raidCards.get(process.raidCardId)}">
                                     <span th:if="${cardName != null}" th:text="${cardName}">GIGABYTE CRA3338</span>
                                     <span th:if="${cardName == null}" class="n-muted"
@@ -144,18 +144,19 @@
                             <th>기존 구성 처리</th>
                             <td th:switch="${process.existingConfigPolicy != null}">
                                 <span th:case="true" th:text="${process.existingConfigPolicy.displayName}">기존 구성 파괴</span>
-                                <span th:case="false" class="n-muted">미지정 (구 저장본 — 편집해 저장하면 선택이 필요합니다)</span>
+                                <!-- 묶음이 없으면 처리할 구성이 없어 선택 대상이 아니다(existingPolicyPresentWhenRequired) — 구 저장본 안내는 묶음이 있을 때만(HF32 CP5 O-7) -->
+                                <span th:case="false" class="n-muted"
+                                      th:text="${#lists.isEmpty(process.diskGroups)} ? '-' : '미지정(구 저장본입니다. 편집해 저장할 때 선택해야 합니다)'">미지정(구 저장본입니다. 편집해 저장할 때 선택해야 합니다)</span>
                             </td>
                         </tr>
                         </tbody>
                     </table>
 
-                    <!-- 디스크 묶음 규칙(U4-1-1) — 규칙 목록. 비어 있으면 디스크 구성을 정하지 않은 것(설치기 자동 선택).
+                    <!-- 디스크 묶음 규칙(U4-1-1) — 규칙 목록. 비어 있으면 디스크 구성을 정하지 않은 것(실행은 카드의 RAID 구성을 바꾸지 않는다 · HF32).
                          행 순서 = 적용 순서(E3.5-7-a): 위 규칙부터 디스크를 가져가고 남은 디스크가 아래로 흐른다. -->
                     <div class="n-process-subsection">
                         <div class="n-label strong">디스크 구성</div>
-                        <div class="n-hint" th:unless="${#lists.isEmpty(process.diskGroups)}">위 규칙부터 순서대로 디스크를 가져가고, 남은 디스크는 아래 규칙으로 흐릅니다.</div>
-                        <span th:if="${#lists.isEmpty(process.diskGroups)}" class="n-muted">설정 안 함 — 설치기가 자동 선택합니다</span>
+                        <span th:if="${#lists.isEmpty(process.diskGroups)}" class="n-muted">미지정(RAID 구성 유지)</span>
                         <table class="n-table" th:unless="${#lists.isEmpty(process.diskGroups)}">
                             <thead>
                             <tr>
@@ -175,7 +176,7 @@
                                 <td><span class="n-rank" th:text="${it.count}">1</span></td>
                                 <td>
                                     <span th:if="${rule.buildsRaid()}" class="n-badge n-badge-blue" th:text="${rule.raidLevel.displayName}">RAID1</span>
-                                    <span th:unless="${rule.buildsRaid()}" class="n-badge n-badge-gray">RAID 없음</span>
+                                    <span th:unless="${rule.buildsRaid()}" class="n-badge n-badge-gray">RAID 미구성</span>
                                 </td>
                                 <td>
                                     <span th:if="${rule.diskType.name() == 'AUTO'}" class="n-table-muted">자동 탐지</span>
@@ -190,7 +191,7 @@
                                     <span th:unless="${rule.capacity.isAuto()}" th:text="${rule.capacity.toDisplay()}">480 GB</span>
                                 </td>
                                 <!--/* 스팬(R17-1) — 지정한 묶음만 부기. 지정이 없는 구 저장본은 계획이 기본 2 로 본다 — 파서 주석이라 렌더에 남지 않는다 */-->
-                                <td><span th:text="${rule.count.toDisplay()}">2개</span><span th:if="${rule.drivesPerSpan != null}" class="n-table-muted" th:text="' · ' + ${rule.drivesPerSpan.toDisplay()}"> · 스팬당 2대</span></td>
+                                <td><span th:text="${rule.count.toDisplay()}">2개</span><span th:if="${rule.drivesPerSpan != null}" class="n-table-muted" th:text="', ' + ${rule.drivesPerSpan.toDisplay()}">, 스팬당 2대</span></td>
                                 <!-- 역할(U4-1-2) — 구 저장본은 role 이 없을 수 있어 null 안전. OS 고정만 색을 준다. -->
                                 <td>
                                     <span th:if="${rule.role == null}" class="n-table-muted">미지정</span>
@@ -201,7 +202,7 @@
                             <!--/* E3.5-6 — VD 파라미터 부기(8축 전부 — 기본값 포함해 집행에 실리는 값 그대로). 축이 없는 규칙(IR 카드 · 구 저장본)은 행을 내지 않는다 — 파서 주석이라 렌더에 남지 않는다 */-->
                             <tr th:if="${rule.vdParameters != null}">
                                 <td></td>
-                                <td colspan="6" class="n-muted" th:text="'VD 파라미터 — ' + ${rule.vdParameters.toDisplay()}">VD 파라미터</td>
+                                <td colspan="6" class="n-muted" th:text="'VD 파라미터: ' + ${rule.vdParameters.toDisplay()}">VD 파라미터</td>
                             </tr>
                             </th:block>
                             </tbody>
@@ -211,8 +212,8 @@
                     <!-- 볼륨 우선순위(U4-1-2) — 행 순서 = 우선순위. 볼륨은 종류 · 전송이 같은 첫 행의 순번을 받는다. -->
                     <div class="n-process-subsection">
                         <div class="n-label strong">볼륨 우선순위</div>
-                        <span th:if="${process.volumePriorities == null}" class="n-table-muted">미지정 (구 저장본 — 편집해 저장하면 기본값이 채워집니다)</span>
-                        <span th:if="${process.volumePriorities != null and #lists.isEmpty(process.volumePriorities)}" class="n-table-muted">없음 — 볼륨은 열거 순서대로 놓입니다</span>
+                        <span th:if="${process.volumePriorities == null}" class="n-table-muted">미지정(구 저장본입니다. 편집해 저장하면 기본값이 채워집니다)</span>
+                        <span th:if="${process.volumePriorities != null and #lists.isEmpty(process.volumePriorities)}" class="n-table-muted">미지정: 볼륨은 열거 순서대로 놓입니다</span>
                         <table class="n-table" th:if="${process.volumePriorities != null and !#lists.isEmpty(process.volumePriorities)}">
                             <thead>
                             <tr>
@@ -225,9 +226,9 @@
                             <tbody>
                             <tr th:each="row, it : ${process.volumePriorities}">
                                 <td><span class="n-rank" th:text="${it.count}">1</span></td>
-                                <td th:text="${row.diskType != null ? row.diskType.displayName : '?'}">SSD</td>
-                                <td th:text="${row.transport != null ? row.transport.displayName : '?'}">NVMe</td>
-                                <td th:text="${row.capacityOrder != null ? row.capacityOrder.displayName : '?'}">작은 용량부터</td>
+                                <td th:text="${row.diskType != null ? row.diskType.displayName : '-'}">SSD</td>
+                                <td th:text="${row.transport != null ? row.transport.displayName : '-'}">NVMe</td>
+                                <td th:text="${row.capacityOrder != null ? row.capacityOrder.displayName : '-'}">작은 용량부터</td>
                             </tr>
                             </tbody>
                         </table>
@@ -239,6 +240,11 @@
                 <th:block th:case="'OS_INSTALLATION'">
                     <!-- 계열별 상세 — Windows 는 리눅스 공통 표(타임존 · root · 파티션)를 갖지 않으므로 계열 switch 가 먼저 갈린다(E4-1-a-2).
                          판별자 없는 저장본은 해석기가 거절하므로 osFamily() 는 여기서 null 이 아니다(R11 식별 전용 분기 퇴역). -->
+                    <!-- HF32 — OS 설치가 전제하는 OS 영역 RAID 볼륨이 정의서에서 정해지지 않은 저장본(가드 이전 저장분)은 실행에서 막힌다.
+                         판정 · 문구 SSOT = OsVolumeTargetKind(blocksOsInstall) · 폼과 저장 가드가 같은 분기를 쓴다. -->
+                    <th:block th:with="osTarget=${setting.osVolumeTarget()}">
+                        <div class="n-hint is-danger" th:if="${osTarget.kind.blocksOsInstall}" th:text="${osTarget.toDisplay()}">OS 설치 단계가 있으면 RAID 구성 단계에서 OS 영역 볼륨을 정해야 합니다</div>
+                    </th:block>
                     <th:block th:switch="${process.osFamily().name()}">
                     <th:block th:case="'WINDOWS'"
                               th:insert="~{fragments/provisioning/setting/os-installation/detail-windows :: body(inst=${process})}"></th:block>
@@ -260,17 +266,17 @@
                         <tr>
                             <th>타임존</th>
                             <td>
-                                <span th:text="${process.timezone != null} ? ${process.timezone.timezone} : '—'">Asia/Seoul</span>
+                                <span th:text="${process.timezone != null} ? ${process.timezone.timezone} : '-'">Asia/Seoul</span>
                                 <span th:if="${process.timezone != null and process.timezone.isUTC()}"
-                                      class="n-badge n-badge-blue">RTC=UTC</span>
+                                      class="n-badge n-badge-blue">RTC: UTC</span>
                                 <span th:if="${process.timezone != null and !process.timezone.isUTC()}"
-                                      class="n-badge n-badge-gray">RTC=로컬</span>
+                                      class="n-badge n-badge-gray">RTC: 로컬</span>
                             </td>
                         </tr>
                         <tr>
                             <th>root 비밀번호</th>
                             <td>
-                                <span th:if="${process.rootPassword != null}" class="n-badge n-badge-green">설정됨</span>
+                                <span th:if="${process.rootPassword != null}" class="n-badge n-badge-green">설정 완료</span>
                                 <span th:unless="${process.rootPassword != null}" class="n-badge n-badge-orange">미설정 (root 잠금)</span>
                             </td>
                         </tr>
@@ -283,7 +289,8 @@
                         <!-- U4-1-3 — 파티션은 OS 영역 볼륨 하나에 놓인다. 어느 볼륨인지 · 용량 하한은 RAID 구성 단계가 정하므로 여기서는
                              그 결정을 안내한다(SettingDetailResponse.osVolumeTarget → OsVolumeTargets.describe). 구 '디스크' 열은 없다. -->
                         <div class="n-os-volume-target" th:with="target=${setting.osVolumeTarget()}">
-                            <div class="n-hint" th:classappend="${target.kind.name() == 'NO_CANDIDATE'} ? 'is-danger'" th:text="${target.toDisplay()}">RAID 구성 2번 묶음이 OS 영역입니다</div>
+                            <!-- 막히는 분기(HF32 · blocksOsInstall)는 카드 첫머리 안내가 이미 말하므로 여기서 되풀이하지 않는다 -->
+                            <div class="n-hint" th:unless="${target.kind.blocksOsInstall}" th:text="${target.toDisplay()}">RAID 구성 2번 묶음이 OS 영역입니다</div>
                             <div class="n-hint" th:if="${target.capacityDisplay() != null}" th:text="${target.capacityDisplay()}">OS 영역 최소 용량 480 GB</div>
                         </div>
                         <table class="n-table">
@@ -300,13 +307,13 @@
                                 <td class="n-table-mono" th:text="${partition.mountPoint}">/boot</td>
                                 <td th:text="${partition.fileSystem.displayName}">xfs</td>
                                 <td>
-                                    <span th:if="${partition.isGrow()}" class="n-table-muted">—</span>
+                                    <span th:if="${partition.isGrow()}" class="n-table-muted">-</span>
                                     <span th:unless="${partition.isGrow()}"
                                           th:text="${partition.size} + ' ' + ${partition.sizeUnit.symbol}">1 GiB</span>
                                 </td>
                                 <td>
                                     <span th:if="${partition.isGrow()}" class="n-badge n-badge-blue">Yes</span>
-                                    <span th:unless="${partition.isGrow()}" class="n-table-muted">—</span>
+                                    <span th:unless="${partition.isGrow()}" class="n-table-muted">-</span>
                                 </td>
                             </tr>
                             </tbody>
@@ -321,7 +328,7 @@
                             <tr>
                                 <th>사용자명</th>
                                 <th>sudo 권한</th>
-                                <th>비밀번호 방식</th>
+                                <th>비밀번호</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -329,11 +336,12 @@
                                 <td class="n-table-mono" th:text="${user.username}">admin</td>
                                 <td>
                                     <span th:if="${user.isSudoer != null and user.isSudoer}" class="n-badge n-badge-green">Yes</span>
-                                    <span th:unless="${user.isSudoer != null and user.isSudoer}" class="n-table-muted">—</span>
+                                    <span th:unless="${user.isSudoer != null and user.isSudoer}" class="n-table-muted">-</span>
                                 </td>
                                 <td>
-                                    <span th:if="${user.isPasswordEncrypted()}" class="n-badge n-badge-gray">암호화</span>
-                                    <span th:unless="${user.isPasswordEncrypted()}" class="n-badge n-badge-gray">평문</span>
+                                    <!-- E4-1-b-2 D-18 — 서버가 항상 해시해 저장하므로 방식이 아니라 유무만 보인다. -->
+                                    <span th:if="${user.hasPassword()}" class="n-badge n-badge-green">설정 완료</span>
+                                    <span th:unless="${user.hasPassword()}" class="n-badge n-badge-off">미설정</span>
                                 </td>
                             </tr>
                             </tbody>
@@ -368,13 +376,13 @@
                                 <tr>
                                     <th>서비스 지시</th>
                                     <td>
-                                        <span th:if="${#lists.isEmpty(process.services)}" class="n-muted">없음</span>
+                                        <span th:if="${#lists.isEmpty(process.services)}" class="n-muted">미지정</span>
                                         <span th:unless="${#lists.isEmpty(process.services)}" class="n-badge-list">
                                             <span th:each="svc : ${process.services}">
                                                 <code class="n-mono" th:text="${svc.name}">nginx</code>
                                                 <span class="n-badge"
                                                       th:classappend="${svc.action.name() == 'ENABLE'} ? 'n-badge-green' : 'n-badge-gray'"
-                                                      th:text="${svc.action.name() == 'ENABLE'} ? 'enable' : 'disable'">enable</span>
+                                                      th:text="${svc.action.name() == 'ENABLE'} ? '활성화' : '비활성화'">활성화</span>
                                             </span>
                                         </span>
                                     </td>
@@ -382,7 +390,7 @@
                                 <tr>
                                     <th>추가 패키지</th>
                                     <td>
-                                        <span th:if="${#lists.isEmpty(process.additionalPackages)}" class="n-muted">없음</span>
+                                        <span th:if="${#lists.isEmpty(process.additionalPackages)}" class="n-muted">미지정</span>
                                         <span th:unless="${#lists.isEmpty(process.additionalPackages)}"
                                               th:text="${#strings.listJoin(process.additionalPackages, ', ')}">vim, curl</span>
                                     </td>

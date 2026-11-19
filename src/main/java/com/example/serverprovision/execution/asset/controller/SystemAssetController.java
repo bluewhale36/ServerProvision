@@ -78,8 +78,8 @@ public class SystemAssetController {
     @PostMapping("/{area}/seal")
     public String seal(@PathVariable("area") String areaKey, RedirectAttributes redirectAttributes) {
         SealResult result = dashboardService.seal(areaKey);   // 없는 영역 404 / 미지원·미구성 409 (UI 1차 차단의 안전망)
-        String message = "무결성 봉인 완료 — " + result.sealed() + "건 기록"
-                + (result.skipped() > 0 ? ", " + result.skipped() + "건 건너뜀(자산 없음)" : "");
+        String message = "무결성을 봉인했습니다. 기록 " + result.sealed() + "건"
+                + (result.skipped() > 0 ? ", 생략 " + result.skipped() + "건(자산 미배치)" : "") + ".";
         redirectAttributes.addFlashAttribute("flashMessage", message);
         return "redirect:/system/asset";
     }
@@ -89,7 +89,7 @@ public class SystemAssetController {
         // 진입 최적화(해시 캐시)로 평상시 대시보드는 안 바뀐 파일의 해시를 재사용한다. 재검증은 그 캐시를 비워
         // 리다이렉트 후 GET 이 전량 재해시하게 만든다 — mtime 을 보존한 변조까지 강제로 다시 잡는다(비변경 액션).
         sealedFileInspector.invalidateHashCache();
-        redirectAttributes.addFlashAttribute("flashMessage", "재검증 완료 — 캐시를 비우고 현재 디스크 상태로 무결성을 다시 대조했습니다.");
+        redirectAttributes.addFlashAttribute("flashMessage", "무결성을 다시 확인했습니다.");
         return "redirect:/system/asset";
     }
 

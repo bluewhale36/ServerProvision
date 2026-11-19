@@ -23,7 +23,7 @@ public class WindowsAdministratorPasswordRequest {
      * 패턴은 빈 값을 통과시킨다({@code *}) — 빈 값의 거절은 {@link #isProvidedOrKept()} 한 곳이 맡아 문구가 겹치지 않는다(CP5 O-1).
      */
     @Size(max = MAX_LENGTH, message = "Administrator 비밀번호는 127자를 넘을 수 없습니다.")
-    @Pattern(regexp = "^[\\x21-\\x7E]*$", message = "비밀번호에는 공백 · 제어문자를 쓸 수 없습니다.")
+    @Pattern(regexp = "^[\\x21-\\x7E]*$", message = "비밀번호에는 공백이나 제어문자를 쓸 수 없습니다.")
     private final String password;
 
     /** 수정 시 기존 비밀번호를 유지할지 — true 면 {@code password} 는 무시되고 서버가 저장본에서 복사한다. */

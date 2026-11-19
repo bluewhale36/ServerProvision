@@ -74,7 +74,6 @@ class OSMetadataControllerUploadFlowTest {
     @MockitoBean IsoRegistrationLauncher isoRegistrationLauncher;
     @MockitoBean DirectoryBrowseService directoryBrowseService;
     @MockitoBean OSNudgeService osNudgeService;
-    @MockitoBean com.example.serverprovision.management.os.service.metadata.OSMetadataNudgeService osMetadataNudgeService;
     @MockitoBean com.example.serverprovision.global.lifecycle.DeleteIntentRegistry deleteIntentRegistry;
     // @EnableJpaAuditing 이 main class 에 있어 WebMvcTest 부팅 시 jpaMappingContext 를 요구한다.
     // 실제 JPA metamodel 은 slice 에서 필요 없으므로 mock 으로 대체.
@@ -137,7 +136,7 @@ class OSMetadataControllerUploadFlowTest {
             mvc.perform(post("/management/os/1/iso/upload-intent")
                             .contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value(containsString("isoPath")));
+                    .andExpect(jsonPath("$.message").value(containsString("ISO 경로")));
         }
 
         @Test
@@ -273,7 +272,7 @@ class OSMetadataControllerUploadFlowTest {
         @Test
         @DisplayName("토큰 없음 → 409 Conflict (InvalidUploadTokenException)")
         void missingToken_returns409() throws Exception {
-            willThrow(new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로고침 후 다시 시도하세요."))
+            willThrow(new InvalidUploadTokenException("업로드 토큰이 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다."))
                     .given(isoUploadIntentService).consume(eq(1L), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
@@ -282,6 +281,22 @@ class OSMetadataControllerUploadFlowTest {
                             .param("allowCreateDirectory", "false"))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.message").value(containsString("토큰")));
+        }
+
+        @Test
+        @DisplayName("S23-1 — 미지원 OS 상수 아래에 ISO 직접 POST → 409 + 거절 사유(화면은 [ISO 추가] 를 비활성)")
+        void legacyOs_returns409() throws Exception {
+            doThrow(new com.example.serverprovision.management.os.exception.UnsupportedOsIsoRegistrationException(
+                    com.example.serverprovision.management.os.enums.OSName.CENTOS))
+                    .when(isoRegistrationService).prepare(eq(1L), any(), any(), any());
+
+            mvc.perform(multipart("/management/os/1/iso/upload")
+                            .file(buildFile())
+                            .param("isoPath", "/mnt/iso/dvd.iso")
+                            .param("allowCreateDirectory", "false")
+                            .header("X-Upload-Token", "t"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("지원하지 않는 OS 에는 ISO 를 등록할 수 없습니다: CentOS"));
         }
 
         @Test
@@ -302,7 +317,7 @@ class OSMetadataControllerUploadFlowTest {
         @Test
         @DisplayName("체크섬 중복 → 409 DuplicateISOContentException")
         void duplicateContent_returns409() throws Exception {
-            doThrow(new DuplicateISOContentException("/mnt/iso/existing.iso"))
+            doThrow(com.example.serverprovision.management.os.exception.DuplicateISOContentException.againstRegistration(com.example.serverprovision.management.os.entity.ISO.builder().isoPath("/mnt/iso/existing.iso").isDeleted(false).isDeprecated(false).build()))
                     .when(isoRegistrationService).prepare(eq(1L), any(), any(), any());
 
             mvc.perform(multipart("/management/os/1/iso/upload")
@@ -371,6 +386,18 @@ class OSMetadataControllerUploadFlowTest {
         }
 
         @Test
+        @DisplayName("S23-1 — 추출 능력이 없는 OS(Windows Server 2025) 직접 POST → 409(작업을 띄우기 전에 거절)")
+        void notExtractable_returns409() throws Exception {
+            given(compsExtractionLauncher.startExtraction(1L, 2L)).willThrow(
+                    new com.example.serverprovision.management.os.exception.UnsupportedExtractionException(
+                            com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER_2025));
+
+            mvc.perform(post("/management/os/1/iso/2/extract"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("이 OS 는 설치 환경, 패키지 그룹 추출을 지원하지 않습니다: Windows Server 2025"));
+        }
+
+        @Test
         @DisplayName("ISO 없음 → 404")
         void unknownIso_returns404() throws Exception {
             given(compsExtractionLauncher.startExtraction(1L, 99L))
@@ -410,7 +437,7 @@ class OSMetadataControllerUploadFlowTest {
                     java.util.List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                             55L,
                             com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
-                            "hash", "9.4", "/opt/iso/rocky/9/dvd.iso", Instant.now())),
+                            "hash", "9.4", "/opt/iso/rocky/9/dvd.iso", "9.4", Instant.now())),
                     Instant.now().plusSeconds(300));
             willThrow(new com.example.serverprovision.management.os.exception.IsoNudgeRequiredException(
                     "동일 path", payload))
@@ -440,7 +467,7 @@ class OSMetadataControllerUploadFlowTest {
         @DisplayName("intent-nudge replace : 200 + 새 uploadToken (targetId purge 후)")
         void intentNudgeReplace() throws Exception {
             java.util.UUID nudgeId = java.util.UUID.randomUUID();
-            given(osNudgeService.replaceIntent(eq(nudgeId), eq(55L)))
+            given(osNudgeService.replaceIntent(eq(nudgeId), eq(55L), any()))
                     .willReturn(new IsoUploadIntentResponse.IntentTokenIssued("token-after-replace", java.util.List.of()));
 
             mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/replace?targetId=55"))
@@ -486,7 +513,7 @@ class OSMetadataControllerUploadFlowTest {
             var candidate = new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                     77L,
                     com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
-                    "abc", "9.4", "/opt/iso/old.iso", Instant.now());
+                    "abc", "9.4", "/opt/iso/old.iso", "9.4", Instant.now());
             given(isoUploadIntentService.issue(eq(1L), any()))
                     .willReturn(new IsoUploadIntentResponse.HashCheckRequired(
                             java.util.List.of(candidate), "SHA-256"));
@@ -511,7 +538,7 @@ class OSMetadataControllerUploadFlowTest {
                     java.util.List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                             77L,
                             com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
-                            "deadbeef", "9.4", "/opt/iso/old.iso", Instant.now())),
+                            "deadbeef", "9.4", "/opt/iso/old.iso", "9.4", Instant.now())),
                     Instant.now().plusSeconds(300));
             willThrow(new com.example.serverprovision.management.os.exception.IsoNudgeRequiredException(
                     "동일 hash", payload))
@@ -536,7 +563,7 @@ class OSMetadataControllerUploadFlowTest {
                                     {"isoPath":"/opt/iso/x.iso","filename":"x.iso","size":1024,"allowCreateDirectory":false,"clientHash":"not-a-hash"}
                                     """))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value(containsString("clientHash")));
+                    .andExpect(jsonPath("$.message").value(containsString("해시 값의 형식")));
         }
 
         @Test
@@ -564,7 +591,59 @@ class OSMetadataControllerUploadFlowTest {
                             .param("allowCreateDirectory", "false")
                             .header("X-Upload-Token", "tok"))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value(containsString("fingerprint")));
+                    .andExpect(jsonPath("$.message").value(containsString("사전 검증 값과 다릅니다")));
+        }
+    }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("HF30-2 — 상태별 409 안내 · [기존 영구 삭제 후 등록] 실패 응답")
+    class Hf30_2 {
+
+        @Test
+        @DisplayName("upload-intent : 같은 정체가 사용 중단 권고 → 409 + 해제 안내 문구")
+        void intent_deprecated_409() throws Exception {
+            willThrow(com.example.serverprovision.management.os.exception.DuplicateISOContentException.againstRegistration(com.example.serverprovision.management.os.entity.ISO.builder().isoPath("/mnt/iso/old.iso").isDeprecated(true).isDeleted(false).build()))
+                    .given(isoUploadIntentService).issue(eq(1L), any());
+
+            mvc.perform(post("/management/os/1/iso/upload-intent")
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(new com.example.serverprovision.management.os.dto.request.IsoUploadIntentRequest("/mnt/iso/dvd.iso", "dvd.iso", 1024L, false, "a".repeat(64)))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("사용 중단 권고 상태인 같은 ISO 내용이 있습니다(/mnt/iso/old.iso). 목록에서 사용 중단 권고를 해제해야 합니다."));
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 자원명을 서비스로 넘긴다(자원명 확인은 영구 삭제 경로가 한다)")
+        void intentNudgeReplace_passesTypedName() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            given(osNudgeService.replaceIntent(eq(nudgeId), eq(42L), eq("typed")))
+                    .willReturn(new com.example.serverprovision.management.os.dto.response.IsoUploadIntentResponse.IntentTokenIssued("t", java.util.List.of()));
+
+            mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/replace?targetId=42&typedName=typed"))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 후보가 이미 휴지통에 없음 → 409(PurgeTargetNotInTrash)")
+        void intentNudgeReplace_notInTrash_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(new com.example.serverprovision.global.trash.exception.PurgeTargetNotInTrashException())
+                    .given(osNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict());
+        }
+
+        @Test
+        @DisplayName("intent-nudge replace : 영구 삭제 뒤 등록 실패 → 409 + 영구 삭제 사실과 실패 사유")
+        void intentNudgeReplace_registrationFailedAfterPurge_409() throws Exception {
+            java.util.UUID nudgeId = java.util.UUID.randomUUID();
+            willThrow(com.example.serverprovision.management.common.nudge.exception.NudgeReplaceRegistrationFailedException
+                    .wrapIfUserFacing(new com.example.serverprovision.management.board.exception.BoardModelNotFoundException(1L)))
+                    .given(osNudgeService).replaceIntent(eq(nudgeId), eq(42L), any());
+
+            mvc.perform(post("/management/os/intent-nudge/" + nudgeId + "/replace?targetId=42"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("기존 자원은 영구 삭제했지만 새 자원 등록에 실패했습니다. ")));
         }
     }
 }

@@ -166,7 +166,7 @@ class WindowsOemPayloadAssemblerTest {
     @DisplayName("blockReason — 소스 미설정 · sources 없음 · $OEM$ 쓰기 불가는 사유, 정상은 empty · sync 는 같은 사유로 409")
     void blockReason_and409() throws IOException {
         assertThat(new WindowsOemPayloadAssembler(props(null), subprogramRepository, new ObjectMapper()).blockReason())
-                .contains("설치 소스 미설정 — 환경변수 WINDOWS_INSTALL_SOURCE_ROOT");
+                .contains("설치 소스 경로가 설정되지 않았습니다.");
         Path bare = Files.createTempDirectory("spv-bare");
         assertThat(new WindowsOemPayloadAssembler(props(bare), subprogramRepository, new ObjectMapper()).blockReason())
                 .hasValueSatisfying(r -> assertThat(r).contains("sources 디렉토리가 없습니다"));
@@ -206,14 +206,14 @@ class WindowsOemPayloadAssemblerTest {
     // ── HF11-3 — 기존 항목 소유권 · 잔존 정리 ──────────────────────────────────
 
     @Test
-    @DisplayName("HF11-3 blockReason — $OEM$ 안의 기존 $$ · $1 이 쓰기 불가면 사유(항목 이름 · chown 안내) · sync 409 · 정상은 empty")
+    @DisplayName("HF11-3 blockReason — $OEM$ 안의 기존 $$ · $1 이 쓰기 불가면 사유(항목 이름, 셸 명령 비노출) · sync 409 · 정상은 empty")
     void blockReason_existingChildNotWritable() throws IOException {
         Path dollar1 = oem.resolve("$1");
         Files.createDirectories(oem.resolve("$$")); Files.createDirectories(dollar1);
         assertThat(assembler.blockReason()).isEmpty();
         dollar1.toFile().setWritable(false, false);
         try {
-            assertThat(assembler.blockReason()).hasValueSatisfying(r -> assertThat(r).contains("기존 항목($1)").contains("chown -R provisioning:spvadmin"));
+            assertThat(assembler.blockReason()).hasValueSatisfying(r -> assertThat(r).contains("기존 항목($1)").doesNotContain("chown"));
             lenient().when(subprogramRepository.findAllByKindAndIsDeletedFalse(SubprogramKind.DRIVER)).thenReturn(List.of());
             assertThatThrownBy(() -> assembler.sync()).isInstanceOf(WindowsOemAssemblyRejectedException.class).hasMessageContaining("기존 항목");
         } finally {

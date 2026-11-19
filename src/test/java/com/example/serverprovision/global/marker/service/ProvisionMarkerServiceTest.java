@@ -181,4 +181,58 @@ class ProvisionMarkerServiceTest {
         assertThat(service.verifySignature(loaded)).isTrue();
         assertThat(Files.exists(tmp.resolve(".provision.json"))).isTrue();
     }
+
+    // ==== HF31 isMarkedAs — 영구 삭제가 원래 경로를 지워도 되는지 ====
+
+    private static com.example.serverprovision.global.marker.Markable resourceAt(Path path, ResourceType type, Long id) {
+        com.example.serverprovision.global.marker.Markable m =
+                org.mockito.Mockito.mock(com.example.serverprovision.global.marker.Markable.class);
+        org.mockito.Mockito.when(m.getResourcePath()).thenReturn(path);
+        org.mockito.Mockito.when(m.getResourceType()).thenReturn(type);
+        org.mockito.Mockito.when(m.getResourceId()).thenReturn(id);
+        org.mockito.Mockito.when(m.getMarkerLayout()).thenReturn(type.getDefaultLayout());
+        return m;
+    }
+
+    @Test
+    @DisplayName("HF31 isMarkedAs : 마커의 종류 · id 가 자원과 같으면 true")
+    void isMarkedAs_sameResource_true(@TempDir Path tmp) {
+        service.write(tmp, MarkerLayout.IN_TREE, biosSample(null));   // BIOS_BUNDLE #42
+
+        assertThat(service.isMarkedAs(resourceAt(tmp, ResourceType.BIOS_BUNDLE, 42L))).isTrue();
+    }
+
+    @Test
+    @DisplayName("HF31 isMarkedAs : 같은 경로에 다른 자원(id 다름)의 마커 → false (그사이 새로 등록된 자원 보호)")
+    void isMarkedAs_otherResourceAtSamePath_false(@TempDir Path tmp) {
+        service.write(tmp, MarkerLayout.IN_TREE, biosSample(null));   // BIOS_BUNDLE #42
+
+        assertThat(service.isMarkedAs(resourceAt(tmp, ResourceType.BIOS_BUNDLE, 7L))).isFalse();
+    }
+
+    @Test
+    @DisplayName("HF31 isMarkedAs : 종류가 다르면(id 같아도) false")
+    void isMarkedAs_otherType_false(@TempDir Path tmp) {
+        service.write(tmp, MarkerLayout.IN_TREE, biosSample(null));   // BIOS_BUNDLE #42
+
+        assertThat(service.isMarkedAs(resourceAt(tmp, ResourceType.BMC_FIRMWARE, 42L))).isFalse();
+    }
+
+    @Test
+    @DisplayName("HF31 isMarkedAs : 마커가 없거나(휴지통으로 옮겨 비었음) 경로가 없으면 false")
+    void isMarkedAs_noMarkerOrNoPath_false(@TempDir Path tmp) throws Exception {
+        Path iso = tmp.resolve("dvd.iso");
+        Files.writeString(iso, "body");   // sidecar 없음
+
+        assertThat(service.isMarkedAs(resourceAt(iso, ResourceType.OS_ISO, 17L))).isFalse();
+        assertThat(service.isMarkedAs(resourceAt(null, ResourceType.OS_ISO, 17L))).isFalse();
+    }
+
+    @Test
+    @DisplayName("HF31 isMarkedAs : 마커가 깨져 읽을 수 없으면 false (지우지 않는 쪽)")
+    void isMarkedAs_corruptMarker_false(@TempDir Path tmp) throws Exception {
+        Files.writeString(tmp.resolve(".provision.json"), "{not json");
+
+        assertThat(service.isMarkedAs(resourceAt(tmp, ResourceType.BIOS_BUNDLE, 42L))).isFalse();
+    }
 }

@@ -7,9 +7,8 @@ import com.example.serverprovision.provisioning.setting.dto.response.OsVolumeTar
 import com.example.serverprovision.provisioning.setting.enums.OsVolumeTargetKind;
 
 /**
- * OS 설치 파티션의 대상 볼륨 판정 — 의존 0 static ({@link DiskGroupRules} 옆, U4-1-3 D4). 네 분기:
- * RAID 구성 없음 · 묶음 0 → NONE / OS 고정 → FIXED / 우선순위에 따름 → BY_PRIORITY / 그 외 NO_CANDIDATE.
- * {@code SettingSaveRequest.isOsVolumeDeterminable} · 용량 하한과 같은 재료({@link RaidConfigurationRequest} 의 메서드)를 읽는다.
+ * OS 설치 파티션의 대상 볼륨 설명 — 의존 0 static ({@link DiskGroupRules} 옆, U4-1-3 D4). 분기는
+ * {@link RaidConfigurationRequest#osVolumeTargetKind} 가 정하고(저장 가드와 같은 판정 · HF32), 여기서는 묶음 번호 · 요약 · 용량 하한을 붙인다.
  */
 public final class OsVolumeTargets {
 
@@ -24,27 +23,30 @@ public final class OsVolumeTargets {
     public static OsVolumeTarget describe(RaidConfigurationRequest raid, LinuxInstallationRequest install) {
         long fixed = install == null ? 0L : install.fixedPartitionBytes();
         boolean grow = install != null && install.hasGrowPartition();
-        if (raid == null || raid.getDiskGroups().isEmpty()) {
-            return OsVolumeTarget.none();
-        }
-        Long bound = raid.osVolumeCapacityLowerBoundBytes().isPresent() ? raid.osVolumeCapacityLowerBoundBytes().getAsLong() : null;
-        int fixedNo = raid.osFixedRuleNo();
-        if (fixedNo > 0) {
-            return new OsVolumeTarget(OsVolumeTargetKind.FIXED, fixedNo, summarize(raid.getDiskGroups().get(fixedNo - 1)), bound, fixed, grow);
-        }
-        if (raid.hasByPriorityRule()) {
-            return new OsVolumeTarget(OsVolumeTargetKind.BY_PRIORITY, 0, null, bound, fixed, grow);
-        }
-        return new OsVolumeTarget(OsVolumeTargetKind.NO_CANDIDATE, 0, null, null, fixed, grow);
+        OsVolumeTargetKind kind = RaidConfigurationRequest.osVolumeTargetKindOf(raid);
+        return switch (kind) {
+            case NONE -> OsVolumeTarget.none();
+            case FIXED -> {
+                int fixedNo = raid.osFixedRuleNo();
+                yield new OsVolumeTarget(kind, fixedNo, summarize(raid.getDiskGroups().get(fixedNo - 1)), lowerBound(raid), fixed, grow);
+            }
+            case BY_PRIORITY -> new OsVolumeTarget(kind, 0, null, lowerBound(raid), fixed, grow);
+            case NO_CANDIDATE, NO_RAID_CANDIDATE -> new OsVolumeTarget(kind, 0, null, null, fixed, grow);
+        };
+    }
+
+    private static Long lowerBound(RaidConfigurationRequest raid) {
+        java.util.OptionalLong bound = raid.osVolumeCapacityLowerBoundBytes();
+        return bound.isPresent() ? bound.getAsLong() : null;
     }
 
     /** 묶음 요약 — {@code RAID1 · SSD · SATA · 480 GB · 2개} · 스팬 지정 묶음은 {@code RAID10(스팬당 4대) · …}(R17-1). */
     public static String summarize(DiskGroupRuleRequest rule) {
-        String level = !rule.buildsRaid() ? "RAID 없음"
+        String level = !rule.buildsRaid() ? "RAID 미구성"
                 : rule.hasDrivesPerSpan()
                 ? rule.raidLevel().getDisplayName() + "(" + rule.drivesPerSpan().toDisplay() + ")"
                 : rule.raidLevel().getDisplayName();
-        return String.join(" · ",
+        return String.join(", ",
                 level,
                 rule.diskType() == null ? "?" : rule.diskType().getDisplayName(),
                 rule.transport() == null ? "?" : rule.transport().getDisplayName(),

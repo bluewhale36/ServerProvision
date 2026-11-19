@@ -37,7 +37,7 @@ public class BmcVerificationLauncher {
 		String jobId = backgroundJobService.register(
 				JobType.INTEGRITY_VERIFICATION,
 				"BMC 무결성 검증",
-				bmc.getName() + " · " + bmc.getVersion(),
+				bmc.getName() + " " + bmc.getVersion(),
 				BackgroundJobService.stagesOf(IntegrityVerificationStage.values()),
 				Map.of(
 						"resourceType", ResourceType.BMC_FIRMWARE.name(),
@@ -57,7 +57,7 @@ public class BmcVerificationLauncher {
 			integrityJobReporter.report(jobId, status);
 		} catch (RuntimeException e) {
 			log.error("[verify] BMC 검증 실패. bmcId={}", bmcId, e);
-			backgroundJobService.fail(jobId, "검증 실패 : " + e.getMessage());
+			backgroundJobService.fail(jobId, "검증 실패: " + e.getMessage());
 		}
 	}
 }

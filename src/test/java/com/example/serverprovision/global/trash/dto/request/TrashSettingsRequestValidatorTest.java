@@ -51,7 +51,7 @@ class TrashSettingsRequestValidatorTest {
         assertThat(errors.getFieldErrorCount("purgeCronExpression")).isEqualTo(1);
         FieldError fe = errors.getFieldError("purgeCronExpression");
         assertThat(fe).isNotNull();
-        assertThat(fe.getDefaultMessage()).contains("cron 식의 형식이 올바르지 않아요");
+        assertThat(fe.getDefaultMessage()).contains("cron 식의 형식이 올바르지 않습니다");
     }
 
     @Test

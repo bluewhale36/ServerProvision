@@ -1,13 +1,11 @@
 package com.example.serverprovision.management.bios.service;
 
-import com.example.serverprovision.global.lifecycle.LifecycleStage;
 import com.example.serverprovision.global.marker.service.ProvisionMarkerService;
 import com.example.serverprovision.global.security.PathPolicyService;
 import com.example.serverprovision.global.trash.GhostEvaluator;
 import com.example.serverprovision.management.bios.dto.request.BiosCreateRequest;
 import com.example.serverprovision.management.bios.entity.BoardBIOS;
 import com.example.serverprovision.management.bios.exception.BiosNudgeRequiredException;
-import com.example.serverprovision.management.bios.exception.DuplicateBiosVersionException;
 import com.example.serverprovision.management.common.firmware.exception.InvalidFirmwareFileException;
 import com.example.serverprovision.management.bios.repository.BiosRepository;
 import com.example.serverprovision.management.board.entity.BoardModel;
@@ -33,7 +31,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -86,17 +83,15 @@ public class BiosRegistrationService {
 	public Long addBios(Long boardId, BiosCreateRequest request, MultipartFile firmwareFile) {
 		BoardModel parent = BiosGuards.requireActiveBoard(boardModelRepository, boardId);
 
-		// 1) 활성 (board, version) 중복 검사
-		if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, request.version())) {
-			throw new DuplicateBiosVersionException(boardId, request.version());
-		}
+		// 1) 같은 (메인보드, 버전)의 살아 있는 자원 — 상태별 안내로 409. 휴지통 행과는 공존한다(HF30-2).
+		BiosGuards.assertVersionAvailable(biosRepository, boardId, request.version());
 
 		// 2) 경로 해석 — 업로드는 디렉토리 추론(끝 슬래시 또는 점 없는 마지막 세그먼트) 후 파일명 append,
 		//    업로드 없는 등록(claim)은 경로 자체가 대상 파일이므로 추론하지 않는다.
 		boolean hasFile = firmwareFile != null && !firmwareFile.isEmpty();
 		String originalFilename = hasFile ? firmwareFile.getOriginalFilename() : null;
 		Function<String, RuntimeException> onMissingFilename = path -> new InvalidFirmwareFileException(
-				"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다 : " + path, "firmwarePath");
+				"경로가 '/' 로 끝나면 업로드할 파일이 필요합니다: " + path, "firmwarePath");
 		String resolvedPathString = hasFile
 				? UploadPathResolver.resolveForUpload(request.firmwarePath(), originalFilename,
 						biosFirmwareFilePolicy.allowedExtensions(parent.getVendor()), onMissingFilename)
@@ -114,7 +109,7 @@ public class BiosRegistrationService {
 		Path treeRoot = resolved.getParent();
 		if (treeRoot == null) {
 			throw new InvalidFirmwareFileException(
-					"경로에서 상위 디렉토리를 확인할 수 없습니다 : " + resolvedPathString, "firmwarePath");
+					"경로에서 상위 디렉토리를 확인할 수 없습니다: " + resolvedPathString, "firmwarePath");
 		}
 
 		if (hasFile) {
@@ -167,7 +162,7 @@ public class BiosRegistrationService {
 	) {
 		ManifestSummary manifest = bundleManifestService.compute(treeRoot);
 
-		// MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + 409.
+		// MK2 단계 B — 해시 충돌 후보 (휴지통, HF30-2) 탐지 시 nudge 세션 발급 + 409.
 		issueHashNudge(parent.getId(), request.name(), request.version(), request.description(),
 				treeRoot, firmwareFileName, manifest, logContext, claimExisting);
 
@@ -193,7 +188,7 @@ public class BiosRegistrationService {
 	private void assertClaimableFirmwareFile(Path resolved, Path treeRoot, String firmwareFileName) {
 		if (!Files.isRegularFile(resolved)) {
 			throw new InvalidFirmwareFileException(
-					"펌웨어 파일이 해당 경로에 존재하지 않습니다 : " + resolved, "firmwarePath");
+					"펌웨어 파일이 해당 경로에 없습니다: " + resolved, "firmwarePath");
 		}
 		if (Files.exists(treeRoot.resolve(ProvisionMarkerService.MARKER_FILENAME))) {
 			throw new MarkerConflictException(treeRoot.toString());
@@ -204,11 +199,11 @@ public class BiosRegistrationService {
 					.anyMatch(path -> !path.getFileName().toString().equals(firmwareFileName));
 			if (hasOthers) {
 				throw new InvalidFirmwareFileException(
-						"펌웨어 파일이 있는 디렉토리에 다른 파일이 함께 있습니다. 파일 하나만 있는 디렉토리를 지정하십시오 : " + treeRoot,
+						"펌웨어 파일이 있는 디렉토리(" + treeRoot + ")에 다른 파일이 함께 있습니다. 파일 하나만 있는 디렉토리를 지정해야 합니다.",
 						"firmwarePath");
 			}
 		} catch (IOException e) {
-			throw new BundleExtractionException("기존 파일 검증 실패 : " + treeRoot, e);
+			throw new BundleExtractionException("기존 파일을 확인하지 못했습니다: " + treeRoot, e);
 		}
 	}
 
@@ -220,9 +215,7 @@ public class BiosRegistrationService {
 	public Long persistFromNudge(Long boardId, ContentNudgePayload payload) {
 		BoardModel parent = BiosGuards.requireActiveBoard(boardModelRepository, boardId);
 		// 활성 (board, version) 재검증 — replace 트랜잭션이 외부에서 별도 commit 됐을 수 있으므로.
-		if (biosRepository.existsByBoardModel_IdAndVersionAndIsDeletedFalse(boardId, payload.version())) {
-			throw new DuplicateBiosVersionException(boardId, payload.version());
-		}
+		BiosGuards.assertVersionAvailable(biosRepository, boardId, payload.version());
 		Path targetDir = pathPolicyService.assertWritablePath(payload.tempFilePath());
 		String entrypoint = payload.attributes().getOrDefault("entrypointRelativePath", "");
 		int fileCount = Integer.parseInt(payload.attributes().getOrDefault("fileCount", "0"));
@@ -237,25 +230,11 @@ public class BiosRegistrationService {
 		return saved.getId();
 	}
 
-	/**
-	 * MK2 — nudge cancel 시 임시 트리 정리. allowed-roots 가드는 cleanup 내부에서 수행.
-	 *
-	 * <p>R12-1 — claim 경로(업로드 없는 기존 파일 등록)에서 발급된 nudge 는 트리가 업로드 임시물이
-	 * 아니라 <b>사용자의 기존 파일</b>이므로 삭제하지 않는다. 구분은 {@link #issueHashNudge} 가
-	 * payload attributes 에 기록한 {@code claimExisting} 플래그가 SSOT.</p>
-	 */
-	public void cleanupNudgeCancelled(ContentNudgePayload payload) {
-		if (Boolean.parseBoolean(payload.attributes().getOrDefault("claimExisting", "false"))) {
-			log.info("[nudgeCancel] claim 경로 — 사용자 기존 파일 보존. path={}", payload.tempFilePath());
-			return;
-		}
-		bundleTreeCleanupService.purgeExistingTree(Path.of(payload.tempFilePath()), "nudgeCancel");
-	}
 
 	// ==== private helpers (복붙 dedup) =================================
 
 	/**
-	 * MK2 단계 B — 해시 충돌 후보 (SoftDeleted / Deprecated) 탐지 시 nudge 세션 발급 + {@link BiosNudgeRequiredException}.
+	 * MK2 단계 B — 해시 충돌 후보 (휴지통, HF30-2) 탐지 시 nudge 세션 발급 + {@link BiosNudgeRequiredException}.
 	 * 임시 트리는 호출자 treeRoot 에 그대로 남겨두고 사용자 결정(proceed / replace / cancel) 대기.
 	 * MK3-1 — ghost (DB-only soft-deleted, FS 부재) 후보는 사전 필터링.
 	 */
@@ -286,19 +265,12 @@ public class BiosRegistrationService {
 								"totalBytes", String.valueOf(manifest.totalBytes()),
 								"description", description != null ? description : "",
 								// R12-1 — cancel 시 트리 보존 여부의 SSOT (claim = 사용자 기존 파일).
-								"claimExisting", String.valueOf(claimExisting)
+								ContentNudgePayload.CLAIM_EXISTING, String.valueOf(claimExisting)
 						)
 				)
 		);
 		List<NudgeConflictEntry> entries = hashCandidates.stream()
-				.map(b -> new NudgeConflictEntry(
-						b.getId(),
-						LifecycleStage.of(b.isDeprecated(), b.isDeleted()),
-						b.getManifestHash(),
-						b.getName(),
-						b.getVersion(),
-						Instant.now()
-				))
+				.map(b -> NudgeConflictEntry.of(b, b.getName(), b.getVersion()))
 				.toList();
 		log.info(
 				"[{}] nudge required : boardId={}, version={}, candidates={}",

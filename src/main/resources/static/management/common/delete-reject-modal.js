@@ -25,11 +25,11 @@
         const errorEl = document.getElementById(prefix + 'Error');
 
         if (!modal || !correctBtn || !forcedBtn || !cancelBtn) {
-            ErrorModal.show({message: payload.code + ' — modal 요소를 찾을 수 없습니다. 페이지를 새로고침 해주세요.'});
+            ErrorModal.show({message: '처리 방법을 고르는 창을 찾을 수 없습니다. 페이지를 새로 고친 뒤 다시 시도해야 합니다.'});
             return;
         }
 
-        if (missingEl) missingEl.textContent = payload.missingPath || '(unknown)';
+        if (missingEl) missingEl.textContent = payload.missingPath || '-';
         if (ghostBadge) ghostBadge.hidden = !payload.ghostCandidate;
         if (errorEl) {
             errorEl.hidden = true;
@@ -69,12 +69,12 @@
                 }
                 if (errorEl) {
                     errorEl.hidden = false;
-                    errorEl.textContent = (body && body.message) || ('처리 실패 (HTTP ' + resp.status + ')');
+                    errorEl.textContent = (body && body.message) || '요청을 처리하지 못했습니다.';
                 }
             } catch (err) {
                 if (errorEl) {
                     errorEl.hidden = false;
-                    errorEl.textContent = '네트워크 오류 : ' + err.message;
+                    errorEl.textContent = '서버와 통신할 수 없습니다. 잠시 후 다시 시도해야 합니다.';
                 }
             } finally {
                 disableButtons(false);
@@ -83,7 +83,7 @@
 
         correctBtn.onclick = () => callIntent('CORRECT_PATH_THEN_DELETE');
         forcedBtn.onclick = () => {
-            if (!confirm('시스템 등록만 제거됩니다. 디스크 파일은 유지됩니다 (이미 사라진 경우 영향 없음). 계속할까요?')) return;
+            if (!confirm('시스템 등록만 제거하고 디스크 파일은 그대로 둡니다. 계속하시겠습니까?')) return;
             callIntent('FORCED_CLEAR');
         };
         cancelBtn.onclick = close;

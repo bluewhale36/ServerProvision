@@ -74,6 +74,37 @@ class SubprogramServiceTest {
     /* ─────────────────────────── 조회 ─────────────────────────── */
 
     @Test
+    @DisplayName("HF30-3 findSelection : 메인보드 자원 → 종류와 메인보드 id 키(휴지통 행도 찾는다)")
+    void findSelection_boardScope() {
+        Subprogram sp = Subprogram.builder()
+                .id(5L).kind(SubprogramKind.DRIVER).boardModel(activeBoard())
+                .name("n").version("v").treeRootPath("/p").manifestHash("h")
+                .fileCount(1).totalBytes(1L).isDeleted(true).build();
+        given(subprogramRepository.findById(5L)).willReturn(Optional.of(sp));
+
+        var selection = subprogramService.findSelection(5L).orElseThrow();
+
+        assertThat(selection.kind()).isEqualTo(SubprogramKind.DRIVER);
+        assertThat(selection.scopeKey()).isEqualTo("10");
+    }
+
+    @Test
+    @DisplayName("HF30-3 findSelection : 공용 자원 → 'common' 키 / 없는 id → 빈 값")
+    void findSelection_commonAndMissing() {
+        Subprogram sp = Subprogram.builder()
+                .id(6L).kind(SubprogramKind.UTILITY).boardModel(null)
+                .name("u").version("1").treeRootPath("/q").manifestHash("h")
+                .fileCount(1).totalBytes(1L).isDeleted(false).build();
+        given(subprogramRepository.findById(6L)).willReturn(Optional.of(sp));
+        given(subprogramRepository.findById(99L)).willReturn(Optional.empty());
+
+        assertThat(subprogramService.findSelection(6L).orElseThrow().scopeKey()).isEqualTo("common");
+        assertThat(subprogramService.findSelection(6L).orElseThrow().kind()).isEqualTo(SubprogramKind.UTILITY);
+        assertThat(subprogramService.findSelection(99L)).isEmpty();
+    }
+
+
+    @Test
     @DisplayName("findSubprogram(happy) : live 자원 → SubprogramResponse 반환")
     void findSubprogram_happy() {
         Subprogram sp = Subprogram.builder()
@@ -246,7 +277,7 @@ class SubprogramServiceTest {
                 .name("n").version("v").treeRootPath("/p").manifestHash("h")
                 .fileCount(1).totalBytes(1L).isDeleted(false).build();
         given(subprogramRepository.findById(11L)).willReturn(Optional.of(sp));
-        org.mockito.Mockito.doThrow(new com.example.serverprovision.global.security.exception.EntrypointInvalidException(".. 시그먼트 금지"))
+        org.mockito.Mockito.doThrow(new com.example.serverprovision.global.security.exception.EntrypointInvalidException("상위 경로(..) 금지"))
                 .when(entrypointPolicyService).validateAndNormalize(any(), org.mockito.ArgumentMatchers.eq("../x.msi"));
 
         java.util.List<SubprogramVariantRules.Finding> findings = subprogramService.checkVariants(11L, java.util.List.of(
@@ -256,7 +287,7 @@ class SubprogramServiceTest {
         assertThat(findings).hasSize(1);
         assertThat(findings.getFirst().field()).isEqualTo("variants[1].entrypointRelativePath");
         assertThat(findings.getFirst().violation()).isEqualTo(SubprogramVariantRules.Violation.ENTRYPOINT_PATH);
-        assertThat(findings.getFirst().message()).contains("트리 안의 상대 경로").contains(".. 시그먼트 금지");
+        assertThat(findings.getFirst().message()).contains("저장 디렉토리 안의 상대 경로").contains("상위 경로(..) 금지");
 
         assertThatThrownBy(() -> subprogramService.update(11L, new SubprogramUpdateRequest("n", "v", "d", null, java.util.List.of(
                 new SubprogramVariantRequest("2022", "../x.msi", null, false)))))

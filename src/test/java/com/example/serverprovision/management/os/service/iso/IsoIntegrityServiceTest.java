@@ -267,7 +267,7 @@ class IsoIntegrityServiceTest {
 
 		assertThatThrownBy(() -> isoIntegrityService.verify(1L, 2L))
 				.isInstanceOf(IllegalOSMetadataStateException.class)
-				.hasMessageContaining("isoId=2");
+				.hasMessageContaining("id=2");
 	}
 
 	@Test

@@ -1,28 +1,30 @@
 package com.example.serverprovision.provisioning.setting.service.reference.os;
 
-import com.example.serverprovision.execution.wininstall.catalog.InstallSourceSnapshot;
 import com.example.serverprovision.execution.wininstall.catalog.WindowsImageCatalog;
 import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.provisioning.setting.dto.request.OSInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest;
 import com.example.serverprovision.provisioning.setting.enums.OSFamily;
 import com.example.serverprovision.provisioning.setting.exception.InvalidWindowsImageSelectionException;
-import com.example.serverprovision.provisioning.setting.exception.UnsupportedOsInstallTargetException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import com.example.serverprovision.execution.wininstall.catalog.InstallSourceBuildCheck;
+import com.example.serverprovision.execution.wininstall.catalog.InstallSourceSnapshot;
 import java.util.List;
 
 /**
- * Windows 계열 설치 참조 검사(E4-1-a-2) — ① 대상 OS 정책({@link OsInstallTargetPolicy}: Windows 계열 + 소스 준비)
- * ② 설치 이미지가 현재 설치 소스에 실재하는가. OS · ISO 의 실존 · enabled 는 1단 검사기가 이미 보장한다.
- * 설치 소스는 lifecycle 자원이 아니라 deprecated 서술이 없다.
+ * Windows 계열 설치 참조 검사(E4-1-a-2) — ① 대상 OS 판정: 설치 소스가 준비돼야 이미지를 고를 수 있다
+ * ({@link #installBlockReason}, 1단 검사기가 정책을 거쳐 먼저 부른다) ② 설치 이미지가 현재 설치 소스에 실재하는가.
+ * OS · ISO 의 실존 · enabled 와 계열 일치는 1단 검사기가 이미 보장한다. 설치 소스는 lifecycle 자원이 아니라 deprecated 서술이 없다.
  */
 @Component
 @RequiredArgsConstructor
 public class WindowsInstallationFamilyInspector implements OSInstallationFamilyInspector {
 
-    private final OsMetadataReferenceChecker osMetadataChecker;
+    static final String SOURCE_BLOCK_REASON =
+            "Windows 설치 소스가 준비되지 않았습니다. 시스템 자산 대시보드의 'Windows 설치 소스' 영역을 확인해야 합니다.";
+
     private final WindowsImageCatalog catalog;
 
     @Override
@@ -31,16 +33,18 @@ public class WindowsInstallationFamilyInspector implements OSInstallationFamilyI
     }
 
     @Override
+    public String installBlockReason(OSMetadata os) {
+        InstallSourceSnapshot snapshot = catalog.snapshot();
+        if (!snapshot.ready()) {
+            return SOURCE_BLOCK_REASON;
+        }
+        return InstallSourceBuildCheck.blockReason(os.getOsName(), snapshot).orElse(null);   // S23-1 — 빌드가 OS 버전과 맞는가
+    }
+
+    @Override
     public void validateReferences(OSInstallationRequest request) {
         WindowsInstallationRequest windows = (WindowsInstallationRequest) request;
-        OSMetadata os = osMetadataChecker.requireEnabled(windows.getOsMetadataId());
-        InstallSourceSnapshot snapshot = catalog.snapshot();
-        // 정상 흐름은 옵션 disabled 가 먼저 막는다 — 리눅스 OS 에 WINDOWS 판별자를 붙인 위조 · 소스 미준비 direct POST 안전망.
-        String blockReason = OsInstallTargetPolicy.blockReason(os.getOsName(), snapshot.ready());
-        if (blockReason != null) {
-            throw new UnsupportedOsInstallTargetException(blockReason);
-        }
-        if (snapshot.find(windows.getImageName()).isEmpty()) {
+        if (catalog.snapshot().find(windows.getImageName()).isEmpty()) {
             throw InvalidWindowsImageSelectionException.notInSource(windows.getImageName());
         }
     }

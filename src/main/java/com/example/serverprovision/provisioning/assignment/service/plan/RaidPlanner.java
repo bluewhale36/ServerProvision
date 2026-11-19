@@ -67,7 +67,7 @@ public final class RaidPlanner {
             // 아니다(E3.5-4 Q1 확정 · 판별 SSOT = RaidExistingVolume.isProvisionOwned).
             return new RaidPlanRejection(RaidPlanRejection.EXISTING_CONFIG,
                     "카드에 외부 기존 볼륨 " + foreignVolumes
-                            + "개가 남아 있습니다 — 보존 정책에서는 새 구성을 계획할 수 없습니다.");
+                            + "개가 남아 있습니다: 보존 정책에서는 새 구성을 계획할 수 없습니다.");
         }
         // 볼륨이 남아 있으면 정책 불문 선행 삭제 — 보존으로 여기 도달했다면 남은 것은 우리 잔여뿐이다.
         boolean deleteExistingFirst = !inventory.volumes().isEmpty();
@@ -129,17 +129,24 @@ public final class RaidPlanner {
         List<Entry> volumes = entries.stream().filter(e -> e.volume).toList();
         if (family != null) {
             for (Entry v : volumes) {
+                // 레벨 — 정의서 저장 가드(RaidCard.definableLevelBlockReason)와 같은 계열 판정. 가드 이전에 저장된 정의서가
+                // 집행(sas3ircu create)에서 실패하지 않고 진단 뒤 계획에서 보류로 드러나게 한다(HF32 · C-23).
+                if (!family.canCreate(v.level)) {
+                    return new RaidPlanRejection(RaidPlanRejection.LEVEL_NOT_CREATABLE,
+                            v.ruleNo + "번 규칙: 이 칩 계열은 " + v.level.getDisplayName() + " " + v.level.getObjectParticle()
+                                    + " 만들 수 없습니다. 정의서를 수정해야 합니다.");
+                }
                 // 계획은 카드 캐시를 모른다 — 하한은 저장 가드가 이미 보장했으므로 가장 느슨한 하한(캐시 있음)으로
                 // 규칙을 받고, 여기서 새로 잡는 것은 상한 · 단위다('개 이상' 그룹의 홀수 등 · R17-1 축 5).
                 String reason = family.memberCountRule(v.level, true, v.rule.drivesPerSpan()).blockReasonFor(v.members.size());
                 if (reason != null) {
-                    return new RaidPlanRejection(RaidPlanRejection.MEMBER_COUNT, v.name + " — " + reason);
+                    return new RaidPlanRejection(RaidPlanRejection.MEMBER_COUNT, v.name + ": " + reason);
                 }
             }
             if (volumes.size() > family.maxVolumes()) {
                 return new RaidPlanRejection(RaidPlanRejection.VOLUME_LIMIT,
-                        "계획 볼륨 " + volumes.size() + "개가 " + family.name()
-                                + " 계열의 한계 " + family.maxVolumes() + "개를 넘습니다.");
+                        "계획 볼륨 " + volumes.size() + "개가 이 RAID 카드(" + family.getDisplayName()
+                                + ")가 만들 수 있는 " + family.maxVolumes() + "개를 넘습니다.");
             }
         }
 
@@ -211,13 +218,13 @@ public final class RaidPlanner {
                                           List<Candidate> group, boolean bundleTaken) {
         int n = rule.count().value();
         int size = group.size();
-        String prefix = "규칙 " + ruleNo + " · " + rule.count().toDisplay();
+        String prefix = "규칙 " + ruleNo + ", " + rule.count().toDisplay();
         String miss = switch (rule.count().mode()) {
             // 조사: EXACT 표기는 항상 "n개" 로 끝나므로(모음) '는' — 다른 모드는 이 문구를 내지 않는다(CP5 F-4)
-            case EXACT -> bundleTaken ? prefix + "는 한 묶음만 가져갑니다 — 이미 소비"
-                    : size >= n ? null : prefix + " 조건에 " + size + "대(" + n + "장에 못 미침)라 미소비";
-            case EACH -> size % n == 0 ? null : prefix + " 조건에 " + size + "대(배수 아님)라 미소비";
-            case AT_LEAST -> size >= n ? null : prefix + " 조건에 " + size + "대(" + n + "장 미만)라 미소비";
+            case EXACT -> bundleTaken ? prefix + "는 한 묶음만 가져가므로 이미 사용했습니다"
+                    : size >= n ? null : prefix + " 조건인데 디스크가 " + size + "대뿐이라 쓰지 않았습니다";
+            case EACH -> size % n == 0 ? null : prefix + " 조건인데 디스크 " + size + "대가 " + n + "의 배수가 아니라 쓰지 않았습니다";
+            case AT_LEAST -> size >= n ? null : prefix + " 조건인데 디스크가 " + size + "대뿐이라 쓰지 않았습니다";
         };
         if (miss != null) {
             for (Candidate c : group) {
@@ -230,7 +237,7 @@ public final class RaidPlanner {
         }
         // '개' 는 첫 n 장만 — 남은 디스크는 후행으로 흐르되, 끝까지 미배정이면 이 사유가 화면에 남는다
         for (Candidate c : group.subList(n, size)) {
-            c.lastMissReason = prefix + "는 한 묶음만 가져갑니다 — 남은 디스크는 다음 규칙으로";
+            c.lastMissReason = prefix + "는 한 묶음만 가져가므로 남은 디스크는 다음 규칙으로 넘어갑니다";
         }
         return group.subList(0, n);
     }
@@ -315,7 +322,7 @@ public final class RaidPlanner {
                     || state.contains("jbod") || state.contains("ready") || state.contains("optimal"));
             if (!healthy) {
                 return excluded(disk, "상태 " + (disk.state() == null ? "미상" : disk.state())
-                        + " — 가용 상태가 아니라 제외");
+                        + ": 가용 상태가 아니라 제외");
             }
             DiskTypeRequirement type = switch (disk.type() == null ? "" : disk.type().toUpperCase(Locale.ROOT)) {
                 case "SSD" -> DiskTypeRequirement.SSD;

@@ -32,7 +32,7 @@
                 마지막 점검
                 <strong th:text="${#temporals.format(latestReport.scannedAt, 'yyyy-MM-dd HH:mm')}"></strong>
                 <span th:if="${latestReport.deep}">(정밀)</span>
-                <span th:text="|· 점검 대상 ${latestReport.population.total()}건 · 그때 탐지 ${latestReport.detectedDriftCount}건|"></span>
+                <span th:text="|, 점검 대상 ${latestReport.population.total()}건, 탐지 ${latestReport.detectedDriftCount}건|"></span>
             </div>
             <div th:if="${latestReport == null}" class="n-page-subtext n-text-muted">
                 아직 점검한 적이 없습니다.
@@ -62,7 +62,7 @@
             <div th:replace="~{fragments/maintenance/reconciliation-parts
                                :: driftTable(${openDrifts},
                                              '남아 있는 드리프트가 없습니다.',
-                                             '마지막 점검에서 발견된 것이 모두 처리됐거나, 애초에 아무것도 나오지 않았습니다.')}"></div>
+                                             null)}"></div>
         </div>
     </section>
 

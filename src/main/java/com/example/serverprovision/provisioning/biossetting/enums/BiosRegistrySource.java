@@ -13,21 +13,21 @@ public enum BiosRegistrySource {
     SNAPSHOT_TARGET {
         @Override
         public String label(String biosVersion, String targetVersion, LocalDateTime capturedAt, String sourceBmcIp) {
-            return biosVersion + " · " + DATE.format(capturedAt) + " 채집 · " + sourceBmcIp;
+            return biosVersion + ", " + DATE.format(capturedAt) + " 채집, " + sourceBmcIp;
         }
     },
     /** 목표 버전은 아직 채집되지 않아 보드의 최신 채집본으로 대신한다. */
     SNAPSHOT_LATEST {
         @Override
         public String label(String biosVersion, String targetVersion, LocalDateTime capturedAt, String sourceBmcIp) {
-            return "최신 채집 " + biosVersion + " · 목표 " + (targetVersion == null ? "미정" : targetVersion) + " 미채집";
+            return "최신 채집 " + biosVersion + ", 목표 " + (targetVersion == null ? "미정" : targetVersion) + " 미채집";
         }
     },
     /** 채집본이 없어 자료 파일 — 어느 BIOS 버전의 것인지 알 수 없다. */
     FILE {
         @Override
         public String label(String biosVersion, String targetVersion, LocalDateTime capturedAt, String sourceBmcIp) {
-            return "파일 · 버전 미상";
+            return "파일(버전 미상)";
         }
     };
 
