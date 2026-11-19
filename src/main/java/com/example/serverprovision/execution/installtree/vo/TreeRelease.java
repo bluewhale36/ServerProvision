@@ -1,5 +1,8 @@
 package com.example.serverprovision.execution.installtree.vo;
 
+import com.example.serverprovision.management.os.enums.OSName;
+import com.example.serverprovision.management.os.vo.TreeInfo;
+
 import java.util.Objects;
 
 /**
@@ -24,6 +27,11 @@ public record TreeRelease(String name, String version) {
         } catch (NumberFormatException e) {
             return -1;
         }
+    }
+
+    /** 등록 OS 와 같은 배포판 · 같은 주 버전인가 — ISO 등록 때 쓰는 {@link TreeInfo#matches} 를 그대로 쓴다(설치기 본체 위치는 대조와 무관). */
+    public boolean matches(OSName osName, String osVersion) {
+        return new TreeInfo(name, version, TreeInfo.DEFAULT_STAGE2).matches(osName, osVersion);
     }
 
     public String label() {

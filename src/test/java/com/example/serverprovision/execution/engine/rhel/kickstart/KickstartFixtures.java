@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 /** 골든 파일 3 개의 입력. 해시는 고정 예시 문자열(실제 계산 아님). CP5 ksvalidator 하네스도 같은 입력을 쓴다. */
-final class KickstartFixtures {
+public final class KickstartFixtures {
 
     static final String ROOT_CRYPT = "$6$exRootSalt$exampleRootCryptNotComputed";
     static final String USER_CRYPT = "$6$exUserSalt$exampleUserCryptNotComputed";
@@ -37,24 +37,24 @@ final class KickstartFixtures {
     }
 
     /** Rocky 9 기본: root 있음 · sudo 사용자 · 기본 프리셋 · UTC · KDump 켬 · 그룹 하나. */
-    static RhelInstallTarget rocky9() {
-        return new RhelInstallTarget(RhelRelease.ROCKY_9, "Asia/Seoul", true, basicPreset(),
+    public static RhelInstallTarget rocky9() {
+        return new RhelInstallTarget(RhelRelease.R9, "Asia/Seoul", true, basicPreset(),
                 Optional.of(ROOT_CRYPT), false,
                 List.of(new KickstartUser("admin", Optional.of(USER_CRYPT), true)),
                 "^server-product-environment", List.of("development"), true);
     }
 
     /** Rocky 10: root SSH 허용 · 그룹 둘. */
-    static RhelInstallTarget rocky10() {
-        return new RhelInstallTarget(RhelRelease.ROCKY_10, "Asia/Seoul", true, basicPreset(),
+    public static RhelInstallTarget rocky10() {
+        return new RhelInstallTarget(RhelRelease.R10, "Asia/Seoul", true, basicPreset(),
                 Optional.of(ROOT_CRYPT), true,
                 List.of(new KickstartUser("admin", Optional.of(USER_CRYPT), true)),
                 "^server-product-environment", List.of("development", "system-tools"), true);
     }
 
     /** Rocky 8: root 잠금 · sudo 사용자 + 비밀번호 없는 사용자 · XFS 프리셋 · UTC 끔 · KDump 끔 · 그룹 없음. */
-    static RhelInstallTarget rocky8() {
-        return new RhelInstallTarget(RhelRelease.ROCKY_8, "Asia/Seoul", false, xfsPreset(),
+    public static RhelInstallTarget rocky8() {
+        return new RhelInstallTarget(RhelRelease.R8, "Asia/Seoul", false, xfsPreset(),
                 Optional.empty(), false,
                 List.of(new KickstartUser("admin", Optional.of(USER_CRYPT), true),
                         new KickstartUser("viewer", Optional.empty(), false)),

@@ -208,16 +208,6 @@ public class WindowsInstallLedger extends OsInstallLedger {
         return owns(row);
     }
 
-    /** 완료 보고로 닫힌 행인가 — 멱등 판정(중복 보고 no-op)과 카드의 완료 분기가 같은 판독을 쓴다. */
-    public boolean isCompletedRow(ProvisioningHistory row) {
-        return row.getStatus() == ProvisioningStatus.SUCCEEDED && COMPLETED.equals(reasonOf(row));
-    }
-
-    public LocalDateTime completedAtOf(ProvisioningHistory row) {
-        Object v = read(row).get("completedAt");
-        return v == null ? null : LocalDateTime.parse(v.toString());
-    }
-
     public String computerNameOf(ProvisioningHistory row) {
         return stringOf(row, "computerName");
     }

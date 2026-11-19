@@ -69,6 +69,10 @@ class GuestServerQueryServiceWindowsInstallTest {
     @Mock RetryPolicy retryPolicy;
     @Mock ProvisioningHistoryRecorder recorder;
     @Mock WindowsInstallReadinessResolver resolver;
+    @Mock com.example.serverprovision.execution.engine.osinstall.OsInstallingExecutor executor;
+    @Mock com.example.serverprovision.execution.engine.osinstall.OsFamilyInstaller windowsInstaller;
+    @Mock com.example.serverprovision.execution.engine.osinstall.OsFamilyNameProvider familyNames;
+    @Mock com.example.serverprovision.execution.engine.rhel.RhelInstallReadinessResolver rhelResolver;
 
     private final LocalDateTime now = LocalDateTime.now();
     private final GuestServer server = GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID()).build();
@@ -80,17 +84,40 @@ class GuestServerQueryServiceWindowsInstallTest {
         org.mockito.Mockito.lenient().when(recorder.openRunning(any(), any(), any(), any())).thenAnswer(inv -> ProvisioningHistory.openRunning(
                 inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)));
         ledger = new WindowsInstallLedger(recorder, historyRepository, new ObjectMapper());
+        stubWindowsFamily();
         service = new GuestServerQueryService(guestServerRepository, raidConfigurationResolutionProvider,
                 raidVolumeRepository, detailRepository, nicRepository, org.mockito.Mockito.mock(com.example.serverprovision.execution.service.StartNetworkPolicy.class), progressRepository, historyRepository,
                 firmwareResolutionProvider, holdTtlPolicy, retryPolicy, new FlashTimeoutPolicy(new MockEnvironment()),
                 new SettingLedger(recorder, new ObjectMapper()), new WorkerObservations(), new ObjectMapper(),
-                resolver, ledger, new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5, Duration.ofMinutes(30)),
+                executor, familyNames,
+                new OsInstallCardAssemblers(List.of(new WindowsInstallCardAssembler(resolver, ledger))),
                 java.time.Clock.systemDefaultZone(),
                 new com.example.serverprovision.execution.engine.firmware.FlashProgressBoard());
         given(guestServerRepository.findById(server.getId())).willReturn(Optional.of(server));
         given(detailRepository.findByServerIdWithBoardModel(server.getId())).willReturn(Optional.empty());
         given(nicRepository.findAllByServerIdOrderByPrimary(server.getId())).willReturn(List.of());
         given(firmwareResolutionProvider.resolveFor(any())).willReturn(Optional.empty());
+    }
+
+    /**
+     * 실행기를 Windows 계열 하나만 아는 모습으로 세운다 — 행의 주인은 Windows 원장이 판정하고, 정의서를 맡는지 · 준비도는
+     * Windows 조립기(mock)가 정한다. 카드가 실행기와 같은 값을 보는지가 요점이라 판정은 실제 원장 · 시한을 쓴다.
+     */
+    private void stubWindowsFamily() {
+        org.mockito.Mockito.lenient().when(windowsInstaller.ledger()).thenReturn(ledger);
+        org.mockito.Mockito.lenient().when(windowsInstaller.timeoutPolicy())
+                .thenReturn(new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5, Duration.ofMinutes(30)));
+        org.mockito.Mockito.lenient().when(executor.ownerOf(any())).thenAnswer(inv ->
+                ledger.owns(inv.getArgument(0)) ? Optional.of(windowsInstaller) : Optional.empty());
+        org.mockito.Mockito.lenient().when(executor.installerOf(any(), any())).thenAnswer(inv -> {
+            Optional<ProvisioningHistory> latest = inv.getArgument(1);
+            return latest.isPresent() || resolver.resolve(server.getId()).isPresent()
+                    ? Optional.of(windowsInstaller) : Optional.empty();
+        });
+        org.mockito.Mockito.lenient().when(executor.readiness(any(), any())).thenAnswer(inv ->
+                resolver.resolve(server.getId()).map(WindowsInstallReadinessResolver.Resolved::readiness).orElseGet(PhaseReadiness::ready));
+        org.mockito.Mockito.lenient().when(familyNames.familyLabelOf(any())).thenAnswer(inv ->
+                resolver.resolve(server.getId()).map(r -> "Windows 계열"));
     }
 
     private static WindowsImage image() {
@@ -109,10 +136,10 @@ class GuestServerQueryServiceWindowsInstallTest {
         return p;
     }
 
-    private GuestServerDetailResponse.WindowsInstall cardWith(ProvisioningProgress progress, List<ProvisioningHistory> rows) {
+    private GuestServerDetailResponse.OsInstall cardWith(ProvisioningProgress progress, List<ProvisioningHistory> rows) {
         given(progressRepository.findByGuestServer_Id(server.getId())).willReturn(Optional.of(progress));
         given(historyRepository.findAllByServerIdOrderByStartedAt(server.getId())).willReturn(rows);
-        return service.findDetail(server.getId()).windowsInstall();
+        return service.findDetail(server.getId()).osInstall();
     }
 
     @Test
@@ -129,8 +156,8 @@ class GuestServerQueryServiceWindowsInstallTest {
 
         var card = cardWith(progressAt(ProvisioningPhaseStep.OS_INSTALLING), List.of());
 
-        assertThat(card.imageName()).isEqualTo(STANDARD.value());
-        assertThat(card.imageDisplayName()).isEqualTo("Windows Server 2025 Standard (데스크톱 환경)");
+        assertThat(((GuestServerDetailResponse.WindowsInstall) card.detail()).imageName()).isEqualTo(STANDARD.value());
+        assertThat(((GuestServerDetailResponse.WindowsInstall) card.detail()).imageDisplayName()).isEqualTo("Windows Server 2025 Standard (데스크톱 환경)");
         assertThat(card.readinessGrade()).isEqualTo(ReadinessGrade.READY);
         assertThat(card.served()).isFalse();
         assertThat(card.remainingMinutes()).isNull();
@@ -166,7 +193,7 @@ class GuestServerQueryServiceWindowsInstallTest {
         ProvisioningHistory row = ledger.openServed(server, STANDARD, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), now.minusMinutes(30));
         ProvisioningProgress progress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
         progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now.minusMinutes(30));
-        ledger.failRunning(server, progress, row, WindowsInstallLedger.REPXE_LOOP, "재진입 6회", now);
+        ledger.failRunning(server, progress, row, com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.REPXE_LOOP, "재진입 6회", now);
 
         var card = cardWith(progress, List.of(row));
 
@@ -203,7 +230,7 @@ class GuestServerQueryServiceWindowsInstallTest {
         var card = cardWith(progress, List.of(row));
 
         assertThat(card).isNotNull();
-        assertThat(card.imageName()).isEqualTo(STANDARD.value());
+        assertThat(((GuestServerDetailResponse.WindowsInstall) card.detail()).imageName()).isEqualTo(STANDARD.value());
         assertThat(card.readinessGrade()).isNull();
         assertThat(card.served()).isTrue();
     }
@@ -216,7 +243,7 @@ class GuestServerQueryServiceWindowsInstallTest {
         ProvisioningProgress progress = progressAt(ProvisioningPhaseStep.OS_INSTALLING);
         progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now.minusMinutes(10));
         progress.markFailedManually(now);
-        ledger.abortRunning(row, WindowsInstallLedger.OPERATOR, "운영자 수동 실패 전환", now);
+        ledger.abortRunning(row, com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.OPERATOR, "운영자 수동 실패 전환", now);
 
         var card = cardWith(progress, List.of(row));
         assertThat(card.failedReason()).isEqualTo("OPERATOR");
@@ -248,11 +275,11 @@ class GuestServerQueryServiceWindowsInstallTest {
         assertThat(card.completed()).isTrue();
         assertThat(card.servedAt()).isEqualTo(now.minusMinutes(30));
         assertThat(card.completedAt()).isEqualTo(now.minusMinutes(2));
-        assertThat(card.computerName()).isEqualTo("SPV-14174000");
-        assertThat(card.osVersion()).isEqualTo("Windows Server 2025 10.0.26100");
-        assertThat(card.driversAdded()).isEqualTo(47);
-        assertThat(card.problemDeviceCount()).isEqualTo(2);
-        assertThat(card.problemDevices()).hasSize(2);
+        assertThat(((GuestServerDetailResponse.WindowsInstall) card.detail()).computerName()).isEqualTo("SPV-14174000");
+        assertThat(((GuestServerDetailResponse.WindowsInstall) card.detail()).osVersion()).isEqualTo("Windows Server 2025 10.0.26100");
+        assertThat(((GuestServerDetailResponse.WindowsInstall) card.detail()).driversAdded()).isEqualTo(47);
+        assertThat(((GuestServerDetailResponse.WindowsInstall) card.detail()).problemDeviceCount()).isEqualTo(2);
+        assertThat(((GuestServerDetailResponse.WindowsInstall) card.detail()).problemDevices()).hasSize(2);
         assertThat(card.remainingMinutes()).isNull();
         assertThat(card.failedReason()).isNull();
         assertThat(card.provisioningCompleted()).isTrue();

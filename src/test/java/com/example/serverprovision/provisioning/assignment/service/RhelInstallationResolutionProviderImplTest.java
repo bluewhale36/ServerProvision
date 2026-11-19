@@ -78,10 +78,20 @@ class RhelInstallationResolutionProviderImplTest {
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST_ID)).willReturn(Optional.of(snapshot));
     }
 
+    /** S23-1 — OS 이름이 메이저를 품는다(ROCKY_LINUX_9). 지원 밖 메이저(7)는 옛 이름 그대로라 해석이 지원 밖으로 본다. */
+    private static com.example.serverprovision.management.os.enums.OSName rockyOf(String version) {
+        String major = version.split("\\.")[0];
+        return java.util.Arrays.stream(com.example.serverprovision.management.os.enums.OSName.values())
+                .filter(name -> name.name().equals("ROCKY_LINUX_" + major)).findFirst()
+                .orElse(com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX);
+    }
+
     private void stubOs(String version) {
         OSMetadata os = mock(OSMetadata.class);
-        given(os.rhelRelease()).willReturn(RhelRelease.of(com.example.serverprovision.management.os.enums.OSName.ROCKY_LINUX, version));
+        given(os.rhelRelease()).willReturn(RhelRelease.of(rockyOf(version), version));
         given(os.displayName()).willReturn("Rocky Linux " + version);
+        org.mockito.Mockito.lenient().when(os.getOsName()).thenReturn(rockyOf(version));
+        org.mockito.Mockito.lenient().when(os.getOsVersion()).thenReturn(version);
         given(osMetadataRepository.findById(1L)).willReturn(Optional.of(os));
     }
 
@@ -153,7 +163,7 @@ class RhelInstallationResolutionProviderImplTest {
 
         RhelInstallTarget target = ready();
 
-        assertThat(target.release()).isEqualTo(RhelRelease.ROCKY_10);
+        assertThat(target.release()).isEqualTo(RhelRelease.R10);
         assertThat(target.timezone()).isEqualTo("Asia/Seoul");
         assertThat(target.utc()).isTrue();
         assertThat(target.rootCrypt()).contains(STORED_ROOT_CRYPT);
@@ -210,7 +220,7 @@ class RhelInstallationResolutionProviderImplTest {
         RhelResolution.Blocked b = blocked();
 
         assertThat(b.reason()).isEqualTo(RhelBlockReason.UNSUPPORTED_RELEASE);
-        assertThat(b.message()).isEqualTo("Rocky Linux 7.9 는 설치할 수 없습니다. Rocky Linux 8, 9, 10 만 설치할 수 있습니다.");
+        assertThat(b.message()).isEqualTo("Rocky Linux 7.9 는 설치를 지원하는 OS 로 등록되지 않았습니다. 지원하는 OS 버전 아래에 등록한 ISO 를 정의서에서 골라야 합니다.");
     }
 
     @Test

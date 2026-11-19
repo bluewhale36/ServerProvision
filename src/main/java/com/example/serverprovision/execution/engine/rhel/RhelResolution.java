@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.engine.rhel;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * 정의서 해석 결과 — 렌더할 수 있는 목표이거나 막힌 사유다. 정의서 저장 뒤 카탈로그가 바뀌는 일은 정상 운영에서도
@@ -8,9 +9,18 @@ import java.util.Objects;
  */
 public sealed interface RhelResolution {
 
-    record Ready(RhelInstallTarget target) implements RhelResolution {
+    /** 렌더할 수 있으면 그 결과 — 막혔으면 empty. */
+    Optional<Ready> ready();
+
+    record Ready(RhelInstallTarget target, RhelInstallMedia media) implements RhelResolution {
         public Ready {
             Objects.requireNonNull(target, "target");
+            Objects.requireNonNull(media, "media");
+        }
+
+        @Override
+        public Optional<Ready> ready() {
+            return Optional.of(this);
         }
     }
 
@@ -22,6 +32,11 @@ public sealed interface RhelResolution {
 
         public String message() {
             return reason.message(detail);
+        }
+
+        @Override
+        public Optional<Ready> ready() {
+            return Optional.empty();
         }
     }
 }

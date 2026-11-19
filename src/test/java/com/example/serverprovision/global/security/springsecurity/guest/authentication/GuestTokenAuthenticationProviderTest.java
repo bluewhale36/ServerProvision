@@ -36,8 +36,10 @@ class GuestTokenAuthenticationProviderTest {
 	@Mock FirmwareImageTokenRegistry firmwareImageTokenRegistry;
 
 	private GuestTokenAuthenticationProvider provider() {
+		org.mockito.Mockito.lenient().when(windowsInstallTokenRegistry.kind()).thenReturn(GuestCredential.ServingKind.WINDOWS);
+		org.mockito.Mockito.lenient().when(firmwareImageTokenRegistry.kind()).thenReturn(GuestCredential.ServingKind.FIRMWARE);
 		return new GuestTokenAuthenticationProvider(
-				new GuestPrincipalResolver(guestServerRepository, windowsInstallTokenRegistry, firmwareImageTokenRegistry));
+				new GuestPrincipalResolver(guestServerRepository, java.util.List.of(windowsInstallTokenRegistry, firmwareImageTokenRegistry)));
 	}
 
 	private GuestServer guest() {
@@ -88,5 +90,15 @@ class GuestTokenAuthenticationProviderTest {
 	void supports() {
 		assertThat(provider().supports(GuestAuthenticationToken.class)).isTrue();
 		assertThat(provider().supports(org.springframework.security.authentication.UsernamePasswordAuthenticationToken.class)).isFalse();
+	}
+
+	@Test
+	@DisplayName("E4-1-b-4-2 R-2 — 한 종류에 발급소가 둘이면 어느 쪽이 신원을 정할지 모르므로 생성에서 실패한다")
+	void duplicateKind_failsFast() {
+		org.mockito.Mockito.lenient().when(windowsInstallTokenRegistry.kind()).thenReturn(GuestCredential.ServingKind.WINDOWS);
+		org.mockito.Mockito.lenient().when(firmwareImageTokenRegistry.kind()).thenReturn(GuestCredential.ServingKind.WINDOWS);
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> new GuestPrincipalResolver(guestServerRepository,
+						java.util.List.of(windowsInstallTokenRegistry, firmwareImageTokenRegistry)))
+				.isInstanceOf(IllegalStateException.class).hasMessageContaining("WINDOWS");
 	}
 }

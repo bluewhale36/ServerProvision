@@ -62,7 +62,7 @@ class KickstartRendererTest {
     @DisplayName("root SSH 허용은 Rocky 10 에서만 --allow-ssh 로 싣는다")
     void allowSsh_onlyOn10() {
         assertThat(render(KickstartFixtures.rocky10())).contains("rootpw --iscrypted --allow-ssh " + ROOT_CRYPT + "\n");
-        RhelInstallTarget nineWithFlag = withRelease(KickstartFixtures.rocky10(), RhelRelease.ROCKY_9);
+        RhelInstallTarget nineWithFlag = withRelease(KickstartFixtures.rocky10(), RhelRelease.R9);
         assertThat(render(nineWithFlag)).contains("rootpw --iscrypted " + ROOT_CRYPT + "\n").doesNotContain("--allow-ssh");
     }
 

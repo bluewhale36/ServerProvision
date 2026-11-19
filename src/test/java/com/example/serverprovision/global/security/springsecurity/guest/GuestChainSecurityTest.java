@@ -36,6 +36,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -64,11 +65,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>S19-2 — 첫 접촉(/boot · /assets)은 PXE 부팅 계정의 Basic 이 연다(401 text + WWW-Authenticate · 틀린 secret 401 · Basic 만으로 /agent 는 403),
  * 출발지 대역 밖은 credential 과 무관하게 403 PXE_LAN_FORBIDDEN.</p>
  */
-@WebMvcTest(controllers = {GuestAgentRestController.class, WindowsInstallAssetRestController.class, ExecutionRestController.class, LoginController.class})
+@WebMvcTest(controllers = {GuestAgentRestController.class, WindowsInstallAssetRestController.class,
+		com.example.serverprovision.execution.controller.RhelInstallAssetRestController.class, ExecutionRestController.class, LoginController.class})
 @Import({GuestSecurityConfig.class, SecurityConfig.class, PasswordEncoderConfig.class, SignupAccessPolicy.class,
 		SuperAdminOnlyPolicy.class, ReasonedAccessDeniedHandler.class,   // HF29 — 웹 체인의 거절 사유
 		 MustChangePasswordSuccessHandler.class,
-		GuestPrincipalResolver.class, GuestAuthenticationEntryPoint.class, GuestAccessDeniedHandler.class,
+		GuestPrincipalResolver.class, WindowsInstallTokenRegistry.class, FirmwareImageTokenRegistry.class,
+		com.example.serverprovision.execution.engine.rhel.RhelInstallTokenRegistry.class,
+		GuestAuthenticationEntryPoint.class, GuestAccessDeniedHandler.class,
 		// S19-2 — 첫 접촉 credential · LAN 정책 · URL 조립
 		com.example.serverprovision.execution.config.PxeBootProperties.class, com.example.serverprovision.execution.engine.boot.PxeBootUrls.class,
 		com.example.serverprovision.global.security.springsecurity.guest.authorization.ProvisioningLanPolicy.class,
@@ -86,8 +90,11 @@ class GuestChainSecurityTest {
 	@MockitoBean AgentReportService agentReportService;
 	@MockitoBean BootService bootService;
 	@MockitoBean GuestServerRepository guestServerRepository;
-	@MockitoBean WindowsInstallTokenRegistry windowsInstallTokenRegistry;
-	@MockitoBean FirmwareImageTokenRegistry firmwareImageTokenRegistry;
+	// 실제 발급소를 감싼 spy — 인증 체인이 기동 때 발급소의 종류(kind)를 읽으므로 실제 값이 있어야 한다.
+	@MockitoSpyBean WindowsInstallTokenRegistry windowsInstallTokenRegistry;
+	@MockitoSpyBean FirmwareImageTokenRegistry firmwareImageTokenRegistry;
+	@MockitoSpyBean com.example.serverprovision.execution.engine.rhel.RhelInstallTokenRegistry rhelInstallTokenRegistry;
+	@MockitoBean com.example.serverprovision.execution.engine.rhel.RhelInstaller rhelInstaller;
 	@MockitoBean UsersService usersService;
 	@MockitoBean UserDetailsService userDetailsService;
 	@MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
@@ -135,6 +142,21 @@ class GuestChainSecurityTest {
 		given(windowsInstallTokenRegistry.resolve(issued)).willReturn(Optional.empty());   // 체인 통과 뒤 컨트롤러의 해석(404) — 401 이 아님이 요점
 		mvc.perform(get("/api/pxe/v1/windows/" + issued + "/wimboot").header("X-Guest-Token", "bad"))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	@DisplayName("E4-1-b-4-2 RHEL 서빙 경로 — 미발급 · 형식 위반 · 토큰 없는 경로는 401, 발급소가 아는 토큰은 체인을 지나 컨트롤러가 푼다")
+	void rhelServingPath_pathToken() throws Exception {
+		mvc.perform(get("/api/pxe/v1/rhel/" + UUID.randomUUID() + "/ks.cfg")).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/pxe/v1/rhel/not-a-uuid/tree/.treeinfo")).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/pxe/v1/rhel/ks.cfg")).andExpect(status().isUnauthorized());
+
+		UUID issued = UUID.randomUUID();
+		given(rhelInstallTokenRegistry.guestOf(issued)).willReturn(Optional.of(GUEST_ID));
+		given(guestServerRepository.findById(GUEST_ID))
+				.willReturn(Optional.of(GuestServer.builder().id(GUEST_ID).systemUUID(UUID.randomUUID()).build()));
+		given(rhelInstaller.kickstartWhileInstalling(issued)).willReturn(Optional.empty());   // 체인 통과 뒤 컨트롤러가 404 — 401 이 아님이 요점
+		mvc.perform(get("/api/pxe/v1/rhel/" + issued + "/ks.cfg")).andExpect(status().isNotFound());
 	}
 
 	@Test

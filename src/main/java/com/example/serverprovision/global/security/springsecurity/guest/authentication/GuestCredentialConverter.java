@@ -7,18 +7,21 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
- * request 에서 게스트 credential 을 읽는다(S19-1 D-2). 서빙 경로({@code /windows/{token}/…} · {@code /firmware/{token}/…})는 경로 토큰이
+ * request 에서 게스트 credential 을 읽는다(S19-1 D-2). 서빙 경로({@code /<종류>/{token}/…}, 종류는 {@link GuestCredential.ServingKind})는 경로 토큰이
  * credential 이고 헤더는 읽지 않는다. 그 밖은 {@code X-Guest-Token} 헤더. credential 이 없으면 null — filter 가 건너뛰고 authorization 이 401 로 끝낸다.
  */
 public class GuestCredentialConverter implements AuthenticationConverter {
 
 	public static final String TOKEN_HEADER = "X-Guest-Token";
-	private static final Pattern SERVING_PATH = Pattern.compile("^/api/pxe/v1/(windows|firmware)/([^/]+)/");
+	private static final Pattern SERVING_PATH = Pattern.compile("^/api/pxe/v1/(" + Arrays.stream(GuestCredential.ServingKind.values())
+			.map(GuestCredential.ServingKind::segment).collect(Collectors.joining("|")) + ")/([^/]+)/");
 
 	@Override
 	public Authentication convert(HttpServletRequest request) {
@@ -34,9 +37,8 @@ public class GuestCredentialConverter implements AuthenticationConverter {
 	}
 
 	/** 경로 세그먼트가 UUID 가 아니면 위조다 — credential 은 있되 풀리지 않는 값으로 두어 provider 가 401 로 끝내게 한다. */
-	private static GuestCredential.ServingToken servingToken(String kind, String raw) {
-		GuestCredential.ServingKind servingKind = "windows".equals(kind)
-				? GuestCredential.ServingKind.WINDOWS : GuestCredential.ServingKind.FIRMWARE;
+	private static GuestCredential.ServingToken servingToken(String segment, String raw) {
+		GuestCredential.ServingKind servingKind = GuestCredential.ServingKind.ofSegment(segment).orElseThrow();   // 정규식이 종류 세그먼트만 받는다
 		UUID token;
 		try {
 			token = UUID.fromString(raw);

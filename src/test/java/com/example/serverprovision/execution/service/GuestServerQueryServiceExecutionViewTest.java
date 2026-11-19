@@ -80,9 +80,9 @@ class GuestServerQueryServiceExecutionViewTest {
                 raidVolumeRepository, detailRepository, nicRepository, org.mockito.Mockito.mock(com.example.serverprovision.execution.service.StartNetworkPolicy.class),
                 progressRepository, historyRepository, firmwareResolutionProvider, holdTtlPolicy, retryPolicy,
                 new FlashTimeoutPolicy(new MockEnvironment()), settingLedger, observations, new ObjectMapper(),
-                org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.windows.WindowsInstallReadinessResolver.class),   // E4-1-a-3 — 창 밖(empty)
-                new com.example.serverprovision.execution.engine.windows.WindowsInstallLedger(recorder, historyRepository, new ObjectMapper()),
-                new com.example.serverprovision.execution.engine.windows.WindowsInstallTimeoutPolicy(java.time.Duration.ofMinutes(60), 5, java.time.Duration.ofMinutes(30)),
+                org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.osinstall.OsInstallingExecutor.class),   // 계열 설치기 없음 = 카드 없음
+                org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.osinstall.OsFamilyNameProvider.class),
+                new OsInstallCardAssemblers(List.of()),
                 java.time.Clock.systemDefaultZone(),
                 new com.example.serverprovision.execution.engine.firmware.FlashProgressBoard());
         given(guestServerRepository.findById(server.getId())).willReturn(Optional.of(server));

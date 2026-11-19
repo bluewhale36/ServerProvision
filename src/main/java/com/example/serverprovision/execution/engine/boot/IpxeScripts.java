@@ -103,9 +103,17 @@ public final class IpxeScripts {
                 """.formatted(reentry, maxReentries);
     }
 
-    /** Windows 설치 실패 전환 직후의 안내(E4-1-a-3) — 다음 폴링부터는 dispatch 3행(failed)이 받는다. */
-    public static String windowsInstallFailed(String reason, String reentryUrl) {
-        return waitAndChain("windows install FAILED (" + reason + "). waiting for operator...", reentryUrl);
+    /**
+     * OS 설치 실패 전환 직후의 안내(E4-1-a-3, E4-1-b-4-2 에서 계열 공통) — 다음 폴링부터는 dispatch 3행(failed)이 받는다.
+     * {@code installLabel} 은 계열의 콘솔 이름("windows install" · "rhel install")이다.
+     */
+    public static String osInstallFailed(String installLabel, String reason, String reentryUrl) {
+        return waitAndChain(installLabel + " FAILED (" + reason + "). waiting for operator...", reentryUrl);
+    }
+
+    /** RHEL 설치 원본(작업 트리)을 푸는 중(E4-1-b-4-2) — 다 풀리면 다음 폴링이 설치 체인을 받는다. */
+    public static String installTreePreparing(String reentryUrl) {
+        return waitAndChain("rhel install tree preparing. waiting...", reentryUrl);
     }
 
     /** 종단 — iPXE 종료 → 부트 순서 폴스루(로컬 디스크). 실효성은 T2 검증 유보 — dispatch 4행. */

@@ -12,7 +12,13 @@ public enum RhelBlockReason {
     UNSUPPORTED_RELEASE {
         @Override
         public String message(String detail) {
-            return detail + " 는 설치할 수 없습니다. Rocky Linux 8, 9, 10 만 설치할 수 있습니다.";
+            return detail + " 는 설치를 지원하는 OS 로 등록되지 않았습니다. 지원하는 OS 버전 아래에 등록한 ISO 를 정의서에서 골라야 합니다.";
+        }
+    },
+    ISO_NOT_SELECTED {
+        @Override
+        public String message(String detail) {
+            return "정의서에 설치 ISO 가 지정되지 않았습니다. 정의서에서 ISO 를 골라야 합니다.";
         }
     },
     ENVIRONMENT_MISSING {

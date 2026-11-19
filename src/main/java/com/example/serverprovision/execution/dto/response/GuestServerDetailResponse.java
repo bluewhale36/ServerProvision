@@ -50,8 +50,8 @@ public record GuestServerDetailResponse(
         FirmwareFlash firmwareFlash,
         /** 설정 phase 의 집행 현황(E2-4 R1) — 설정 축 원장 행이 생긴 뒤에만. */
         FirmwareSetting firmwareSetting,
-        /** Windows 설치 카드(E4-1-a-3) — 활성 할당에 OS 설치 단계가 있거나 OS_INSTALLING 원장 행이 있을 때만. */
-        WindowsInstall windowsInstall,
+        /** OS 설치 카드(E4-1-a-3, E4-1-b-4-2 에서 계열 공통) — 활성 할당에 OS 설치 단계가 있거나 OS_INSTALLING 원장 행이 있을 때만. */
+        OsInstall osInstall,
         /** RAID 구성 계획 미리보기(E3.5-2) — 저장 없이 조회 때마다 재산출. 창 밖(할당 · 단계 없음)이면 null. */
         RaidPlanPreview raidPlan,
         /** 검증 통과 실물(E3.5-4 — raid_volume). 통과 전이면 빈 목록. */
@@ -98,11 +98,11 @@ public record GuestServerDetailResponse(
                 }
             }
         }
-        if (windowsInstall != null && windowsInstall.served()) {
+        if (osInstall != null && osInstall.served()) {
             StringBuilder text = new StringBuilder("설치 중, 재부팅 ")
-                    .append(windowsInstall.reentries()).append('/').append(windowsInstall.maxReentries());
-            if (windowsInstall.remainingMinutes() != null) {
-                text.append(", 남은 시간 ").append(windowsInstall.remainingMinutes()).append('분');
+                    .append(osInstall.reentries()).append('/').append(osInstall.maxReentries());
+            if (osInstall.remainingMinutes() != null) {
+                text.append(", 남은 시간 ").append(osInstall.remainingMinutes()).append('분');
             }
             return text.toString();
         }
@@ -406,46 +406,31 @@ public record GuestServerDetailResponse(
     }
 
     /**
-     * Windows 설치 카드(E4-1-a-3 R5 · E4-1-a-4 R6) — 준비도는 조회 시점 재계산, 진행은 원장 행의 투영이다.
-     * {@code remainingMinutes} 는 설치 중에만(null 이면 표시 생략), {@code failedReason} 은 이 원장이 적은 실패 행이 최신일 때만,
-     * {@code completedAt} 이하 완료 필드는 완료 보고로 닫힌 행이 최신일 때만. {@code nextPhase} 는 완료 뒤 커서가 넘어간 소유 phase(종단이면 null).
+     * OS 설치 카드의 계열 공통부(E4-1-a-3 R5, E4-1-b-4-2 에서 계열 공통). 준비도는 조회 시점에 설치기와 같은 판정으로 다시 계산하고,
+     * 진행은 마지막 OS 설치 원장 행에서 읽는다. {@code remainingMinutes} 는 설치 중에만(null 이면 표시 생략), {@code failedReason} 은
+     * 실패 행이 최신일 때만, {@code completedAt} 이하 완료 필드는 완료 보고로 닫힌 행이 최신일 때만 채운다. {@code nextPhase} 는 완료 뒤
+     * 커서가 넘어간 소유 phase(종단이면 null). 계열에만 있는 내용은 {@code detail} 이다.
      */
-    public record WindowsInstall(
-            String imageName,
-            String imageDisplayName,
+    public record OsInstall(
+            /** 정의서 OS 계열의 화면 이름("RHEL 계열") — 정의서에 OS 설치 단계가 없으면 null. */
+            String familyLabel,
             ReadinessGrade readinessGrade,
             List<String> readinessNotes,
             LocalDateTime servedAt,
             int reentries,
             int maxReentries,
             Long remainingMinutes,
+            /** 이 단계에서 실패했을 때 원장 사유 코드 — 아니면 null. */
             String failedReason,
+            /** 계열이 화면 문구를 남긴 실패(설치 트리 사유 · 버전 불일치)의 문구 — 그 밖의 실패는 사유 코드로 문구를 고른다. */
+            String failedMessage,
             boolean holding,
             long holdRemainingMinutes,
             LocalDateTime completedAt,
-            String computerName,
-            String osVersion,
-            int driversAdded,
-            int problemDeviceCount,
-            List<String> problemDevices,
             boolean provisioningCompleted,
             ProvisioningPhase nextPhase,
-            /** E4-1-a-6 — 서빙 시점에 계산해 응답 파일에 박은 설치 대상 디스크 번호(원장 서빙 meta 에서 읽는다). 서빙 전 null. */
-            Integer targetDiskId,
-            /** 서빙 전 디스크 선택의 안내(HF15-5 · F-1) — DEFERRED("RAID 구성 뒤 확정 — 계획의 OS 영역 …") · CONFIDENT("디스크 N · 근거"). 서빙 뒤 · BLOCKED 는 null. */
-            String diskSelectionNote,
-            /** E4-1-a-6 — 설치 뒤 C: 디스크 WWN 대조 결과: CONFIRMED · MISMATCH · UNREPORTED. 완료 전 null. */
-            String diskConfirmation,
-            /** R15-2 — 드라이버 선택 요약 "드라이버 N(변형 M · 트리 K) · 제외 J". 서빙 전 = 지금 판정 · 서빙 뒤 = 원장 meta. R15-2 이전 행은 null. */
-            String driverSummary,
-            /** R15-2 — 선택된 항목 라벨(이름 · 모드 진입점 · 버전). */
-            List<String> driverEntries,
-            /** R15-2 — 후보였으나 제외된 패키지 라벨(이름 — 사유). */
-            List<String> driversSkipped,
-            /** R15-2 — 완료 보고의 항목별 설치 결과 "폴더 · 모드 · 종료 코드 N". 완료 전 · 미보고 빈 목록. */
-            List<String> driverInstalls,
-            /** HF23 — 실패한 INF "폴더 · 경로 · 종료 코드 0x…". 완료 전 · HF23 이전 · 실패 없음은 빈 목록. */
-            List<String> failedInfs
+            /** 계열에만 있는 내용 — 카드 조각 이름을 스스로 밝힌다. */
+            OsInstallCardDetail detail
     ) {
         /** 설치 중(열린 서빙 행) — 완료 · 실패 뒤에는 false. */
         public boolean served() {
@@ -454,6 +439,70 @@ public record GuestServerDetailResponse(
 
         public boolean completed() {
             return completedAt != null;
+        }
+    }
+
+    /**
+     * OS 설치 카드의 계열 내용(E4-1-b-4-2). 템플릿은 {@link #fragment()} 가 밝힌 조각을 그린다 — 계열마다 분기하지 않는다.
+     */
+    public sealed interface OsInstallCardDetail permits WindowsInstall, RhelInstall, UnsupportedOsInstall {
+
+        /** fragments/provisioning/os-install 안의 카드 조각 이름. */
+        String fragment();
+    }
+
+    /** 맡을 설치기가 없는 계열 — 카드는 준비도의 막힘 사유만 보인다. */
+    public record UnsupportedOsInstall() implements OsInstallCardDetail {
+        @Override
+        public String fragment() {
+            return "unsupportedCard";
+        }
+    }
+
+    /** Windows 설치에만 있는 카드 내용(E4-1-a-3 · a-4 · a-6 · R15-2 · HF23). */
+    public record WindowsInstall(
+            String imageName,
+            String imageDisplayName,
+            String computerName,
+            String osVersion,
+            int driversAdded,
+            int problemDeviceCount,
+            List<String> problemDevices,
+            /** E4-1-a-6 — 서빙 시점에 계산해 응답 파일에 박은 설치 대상 디스크 번호(원장 서빙 meta 에서 읽는다). 서빙 전 null. */
+            Integer targetDiskId,
+            /** 서빙 전 디스크 선택의 안내(HF15-5 · F-1) — DEFERRED 는 "RAID 구성 뒤 정해집니다", CONFIDENT 는 "디스크 N". 서빙 뒤 · BLOCKED 는 null. */
+            String diskSelectionNote,
+            /** E4-1-a-6 — 설치 뒤 C: 디스크 WWN 대조 결과: CONFIRMED · MISMATCH · UNREPORTED. 완료 전 null. */
+            String diskConfirmation,
+            /** R15-2 — 드라이버 선택 요약. 서빙 전 = 지금 판정, 서빙 뒤 = 원장 meta. R15-2 이전 행은 null. */
+            String driverSummary,
+            /** R15-2 — 선택된 항목 라벨. */
+            List<String> driverEntries,
+            /** R15-2 — 후보였으나 제외된 패키지 라벨. */
+            List<String> driversSkipped,
+            /** R15-2 — 완료 보고의 항목별 설치 결과. 완료 전 · 미보고 빈 목록. */
+            List<String> driverInstalls,
+            /** HF23 — 실패한 INF. 완료 전 · HF23 이전 · 실패 없음은 빈 목록. */
+            List<String> failedInfs
+    ) implements OsInstallCardDetail {
+        @Override
+        public String fragment() {
+            return "windowsCard";
+        }
+    }
+
+    /** RHEL 설치에만 있는 카드 내용(E4-1-b-4-2). */
+    public record RhelInstall(
+            /** 정의서가 고른 ISO 의 등록 OS("Rocky Linux 9.5") — 서빙 뒤에는 원장 meta 의 그때 값. 정의서가 막혔으면 null. */
+            String osLabel,
+            /** 대상 디스크 by-id 이름 — 서빙 뒤에는 kickstart 에 적은 값, 서빙 전에는 정해진 값. 정해지지 않았으면 null. */
+            String disk,
+            /** 디스크가 아직 정해지지 않은 까닭(RAID 구성 전 등). 정해졌거나 막혔으면 null(막힘 사유는 준비도가 보인다). */
+            String diskNote
+    ) implements OsInstallCardDetail {
+        @Override
+        public String fragment() {
+            return "rhelCard";
         }
     }
 

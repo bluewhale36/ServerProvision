@@ -64,8 +64,9 @@ class WindowsInstallReadinessResolverTest {
                 "share-secret-9x", null, new WindowsInstallProperties.ProductKeys("KEY-STD", datacenterKey));
         stubConfidentDisk();
         return new WindowsInstallReadinessResolver(provider, new WindowsImageCatalog(props), props,
-                new WindowsInstallSource(props), raidVolumeRepository, detailRepository, subprogramRepository, oemAssembler,
-                progressRepository, ownedPhasesProvider, raidResolutionProvider, objectMapper);
+                new WindowsInstallSource(props), detailRepository, subprogramRepository, oemAssembler,
+                new com.example.serverprovision.execution.engine.osinstall.OsVolumeLocator(raidVolumeRepository, detailRepository,
+                        progressRepository, ownedPhasesProvider, raidResolutionProvider, objectMapper));
     }
 
     /** OS 볼륨 + 그 볼륨을 담은 RAID 인벤토리를 준비해 디스크 선택이 CONFIDENT 가 되게 한다. */

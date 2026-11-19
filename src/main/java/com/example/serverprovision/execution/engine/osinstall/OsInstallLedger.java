@@ -23,14 +23,6 @@ import java.util.UUID;
  */
 public abstract class OsInstallLedger {
 
-    /** 서빙 시각부터 설치 시한이 지난 뒤의 재진입. */
-    public static final String INSTALL_TIMEOUT = "INSTALL_TIMEOUT";
-    /** 재진입 횟수가 상한을 넘었다 — 재PXE 루프. */
-    public static final String REPXE_LOOP = "REPXE_LOOP";
-    /** 운영자 수동 실패 전환이 열린 서빙 행을 닫았다. */
-    public static final String OPERATOR = "OPERATOR";
-    /** 새 서빙이 시작될 때 아직 열려 있던 옛 행을 닫았다. */
-    public static final String SUPERSEDED = "SUPERSEDED";
     /** 완료 보고가 서빙 행을 SUCCEEDED 로 닫았다. */
     public static final String COMPLETED = "COMPLETED";
 
@@ -85,28 +77,44 @@ public abstract class OsInstallLedger {
     }
 
     /**
-     * 시한 · 상한 초과 — 열린 행을 사유와 함께 닫고 실패로 전환한다. 서빙 meta 는 보존한다. 열린 행이 없으면(비정상)
-     * 단발 기록으로 남긴다.
+     * 열린 행을 사유와 함께 닫고 설치 단계를 실패로 바꾼다. 서빙 meta 는 보존한다. 행이 이미 닫혀 있으면(동시 전환) 단발 실패 행으로
+     * 남긴다.
      */
     public void failRunning(GuestServer server, ProvisioningProgress progress, ProvisioningHistory row,
-                            String reason, String detail, LocalDateTime now) {
-        if (row == null || !abortRunning(row, reason, detail, now)) {
-            Map<String, Object> meta = new LinkedHashMap<>();
-            meta.put("origin", origin().wire());
-            meta.put("reason", reason);
-            meta.put("detail", detail == null ? "" : detail);
-            recorder.recordInstant(server, STEP, ProvisioningStatus.FAILED, write(meta), now);
+                            OsInstallFailureReason reason, String detail, LocalDateTime now) {
+        if (!abortRunning(row, reason, detail, now)) {
+            recordFailure(server, reason, detail, now);
         }
         progress.markFailed(now);
     }
 
+    /** 서빙 전에 정해진 실패 — 열린 행이 없으므로 단발 실패 행을 적고 설치 단계를 실패로 바꾼다. */
+    public void failBeforeServing(GuestServer server, ProvisioningProgress progress, OsInstallFailureReason reason,
+                                  String detail, LocalDateTime now) {
+        recordFailure(server, reason, detail, now);
+        progress.markFailed(now);
+    }
+
     /** 열린 서빙 행을 사유와 함께 FAILED 로 닫는다 — 진행 신호는 건드리지 않는다. 이미 닫힌 행이면 false. */
-    public boolean abortRunning(ProvisioningHistory row, String reason, String detail, LocalDateTime now) {
+    public boolean abortRunning(ProvisioningHistory row, OsInstallFailureReason reason, String detail, LocalDateTime now) {
         Map<String, Object> meta = read(row);
         meta.putIfAbsent("origin", origin().wire());
-        meta.put("reason", reason);
-        meta.put("detail", detail == null ? "" : detail);
+        putFailure(meta, reason, detail);
         return row.close(ProvisioningStatus.FAILED, write(meta), now);
+    }
+
+    private void recordFailure(GuestServer server, OsInstallFailureReason reason, String detail, LocalDateTime now) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("origin", origin().wire());
+        putFailure(meta, reason, detail);
+        recorder.recordInstant(server, STEP, ProvisioningStatus.FAILED, write(meta), now);
+    }
+
+    /** 사유 코드 · 운영 기록(detail) · 화면 문구(사유가 줄 때만)를 meta 에 적는다. */
+    private static void putFailure(Map<String, Object> meta, OsInstallFailureReason reason, String detail) {
+        meta.put("reason", reason.code());
+        meta.put("detail", detail == null ? "" : detail);
+        reason.screenMessage().ifPresentOrElse(message -> meta.put("message", message), () -> meta.remove("message"));
     }
 
     public LocalDateTime servedAtOf(ProvisioningHistory row) {
@@ -122,6 +130,22 @@ public abstract class OsInstallLedger {
     public String reasonOf(ProvisioningHistory row) {
         Object v = read(row).get("reason");
         return v == null ? null : v.toString();
+    }
+
+    /** 완료 보고로 닫힌 행인가 — 멱등 판정(중복 보고 no-op)과 카드의 완료 분기가 같은 판독을 쓴다. */
+    public boolean isCompletedRow(ProvisioningHistory row) {
+        return row.getStatus() == ProvisioningStatus.SUCCEEDED && COMPLETED.equals(reasonOf(row));
+    }
+
+    public LocalDateTime completedAtOf(ProvisioningHistory row) {
+        Object v = read(row).get("completedAt");
+        return v == null ? null : LocalDateTime.parse(v.toString());
+    }
+
+    /** 실패 행에 적힌 화면 문구 — 사유가 문구를 주지 않았으면 empty(화면은 사유 코드로 문구를 고른다). */
+    public Optional<String> failureMessageOf(ProvisioningHistory row) {
+        Object v = read(row).get("message");
+        return v == null ? Optional.empty() : Optional.of(v.toString());
     }
 
     protected static int intOf(Map<String, Object> meta, String key) {

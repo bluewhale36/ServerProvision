@@ -99,7 +99,7 @@ class WindowsInstallLedgerTest {
         ledger.bumpReentry(row, NOW.plusMinutes(5));
         ProvisioningProgress progress = startedProgress();
 
-        ledger.failRunning(guest, progress, row, WindowsInstallLedger.REPXE_LOOP, "재진입 6회 — 상한 5회 초과", NOW.plusMinutes(40));
+        ledger.failRunning(guest, progress, row, com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.REPXE_LOOP, "재진입 6회 — 상한 5회 초과", NOW.plusMinutes(40));
 
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
         assertThat(row.getFinishedAt()).isEqualTo(NOW.plusMinutes(40));
@@ -117,7 +117,7 @@ class WindowsInstallLedgerTest {
     void failRunning_withoutRow_recordsInstant() {
         ProvisioningProgress progress = startedProgress();
 
-        ledger.failRunning(guest, progress, null, WindowsInstallLedger.INSTALL_TIMEOUT, "서빙 후 61분", NOW);
+        ledger.failBeforeServing(guest, progress, com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.INSTALL_TIMEOUT, "서빙 후 61분", NOW);
 
         verify(recorder).recordInstant(eq(guest), eq(ProvisioningPhaseStep.OS_INSTALLING), eq(ProvisioningStatus.FAILED),
                 contains("\"reason\":\"INSTALL_TIMEOUT\""), eq(NOW));
@@ -171,12 +171,12 @@ class WindowsInstallLedgerTest {
     void abortRunning_closesWithoutTouchingProgress() {
         ProvisioningHistory row = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
 
-        assertThat(ledger.abortRunning(row, WindowsInstallLedger.OPERATOR, "운영자 수동 실패 전환", NOW.plusMinutes(3))).isTrue();
+        assertThat(ledger.abortRunning(row, com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.OPERATOR, "운영자 수동 실패 전환", NOW.plusMinutes(3))).isTrue();
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.FAILED);
         assertThat(ledger.reasonOf(row)).isEqualTo("OPERATOR");
         assertThat(ledger.servedAtOf(row)).isEqualTo(NOW);
         assertThat(ledger.isWindowsInstallRow(row)).isTrue();
-        assertThat(ledger.abortRunning(row, WindowsInstallLedger.OPERATOR, "다시", NOW.plusMinutes(4))).isFalse();
+        assertThat(ledger.abortRunning(row, com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.OPERATOR, "다시", NOW.plusMinutes(4))).isFalse();
     }
 
     @Test
@@ -210,7 +210,7 @@ class WindowsInstallLedgerTest {
     @DisplayName("closeSucceeded — 이미 닫힌 행은 false · 실패로 닫힌 행은 완료 행이 아니다 · 로그 꼬리 없으면 키 생략")
     void closeSucceeded_alreadyClosedAndNotCompleted() {
         ProvisioningHistory failed = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);
-        ledger.abortRunning(failed, WindowsInstallLedger.OPERATOR, "운영자", NOW.plusMinutes(1));
+        ledger.abortRunning(failed, com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.OPERATOR, "운영자", NOW.plusMinutes(1));
         WindowsInstallLedger.Completion c = new WindowsInstallLedger.Completion("SPV-1", null, 0, 0, null, " ", null, null);
 
         assertThat(ledger.closeSucceeded(failed, c, NOW.plusMinutes(2))).isFalse();

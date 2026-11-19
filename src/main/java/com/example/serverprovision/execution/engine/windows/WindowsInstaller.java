@@ -3,47 +3,64 @@ package com.example.serverprovision.execution.engine.windows;
 import com.example.serverprovision.execution.engine.boot.IpxeScripts;
 import com.example.serverprovision.execution.engine.phase.PhaseReadiness;
 import com.example.serverprovision.execution.engine.osinstall.OsFamilyInstaller;
+import com.example.serverprovision.execution.engine.osinstall.OsInstallCycle;
+import com.example.serverprovision.execution.engine.osinstall.OsInstallLedger;
+import com.example.serverprovision.execution.engine.osinstall.OsInstallTimeoutPolicy;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
-import com.example.serverprovision.execution.enums.ProvisioningMotion;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.wininstall.WindowsInstallSource;
 import com.example.serverprovision.execution.wininstall.catalog.WindowsImage;
 import com.example.serverprovision.execution.wininstall.config.WindowsInstallProperties;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Windows Server 무인 설치를 맡는 OS 설치 계열 설치기다. E4-1-a-3 의 phase 실행기를 E4-1-b-4-1 에서 이 자리로 옮겼고
- * 동작은 바꾸지 않았다. 게스트가 처음 부팅하면 토큰을 발급하고 응답 파일을 렌더해 wimboot 체인을 낸다. 설치 중에
- * 다시 PXE 로 돌아오면 {@code exit} 로 로컬 디스크 부팅을 넘기고 재진입 수를 하나 올린다. 설치 시한이나 재진입 상한을
- * 넘으면 설치 단계를 실패로 닫는다.
+ * Windows Server 무인 설치를 맡는 OS 설치 계열 설치기다(E4-1-a-3, E4-1-b-4-1 에서 실행기 본문을 옮김). 처음 부팅하면 토큰을
+ * 발급하고 응답 파일을 렌더해 wimboot 체인을 낸다. 설치가 시작된 뒤의 재진입 · 스윕 · 운영자 실패는 {@link OsInstallCycle} 가 판정한다.
  *
- * <p>WinPE 는 보고 수단이 없으므로 <b>스크립트를 내준 사실이 착수</b>다 — 상태 기록은 {@link #onBootScriptServed} 훅이
- * 같은 트랜잭션에서 한다(D-1). {@link #bootScript} 는 DB 상태를 바꾸지 않되(토큰 발급은 메모리), 시한 · 상한 초과의
- * 실패 전환만은 판정과 기록이 한 자리여야 하므로 여기서 한다(RAID 실행기의 directiveFor 와 같은 결).</p>
- *
- * <p>{@code @ConditionalOnProperty} 를 걸지 않는다 — 설정이 비어 있는 상태는 빈의 부재가 아니라 준비도의 BLOCKED 로
- * 드러나야 운영자가 "왜 아무 일도 안 일어나는가" 대신 "무엇이 없는가" 를 읽는다.</p>
+ * <p>WinPE 는 보고 수단이 없어 스크립트를 내준 사실이 착수다. 착수 기록은 같은 트랜잭션의 {@link #onBootScriptServed} 가 한다(D-1).
+ * 설정이 비어 있으면 빈을 끄지 않고 준비도 BLOCKED 로 드러낸다 — 운영자가 무엇이 없는지 읽게 하기 위해서다.</p>
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class WindowsInstaller implements OsFamilyInstaller {
 
     private final WindowsInstallReadinessResolver resolver;
     private final WindowsInstallProperties properties;
     private final WindowsInstallSource source;
     private final WindowsInstallLedger ledger;
-    private final WindowsInstallTimeoutPolicy timeoutPolicy;
     private final WindowsInstallTokenRegistry tokenRegistry;
+    private final WindowsInstallTimeoutPolicy timeoutPolicy;
+    private final OsInstallCycle cycle;
+
+    public WindowsInstaller(WindowsInstallReadinessResolver resolver, WindowsInstallProperties properties,
+                            WindowsInstallSource source, WindowsInstallLedger ledger,
+                            WindowsInstallTimeoutPolicy timeoutPolicy, WindowsInstallTokenRegistry tokenRegistry) {
+        this.resolver = resolver;
+        this.properties = properties;
+        this.source = source;
+        this.ledger = ledger;
+        this.tokenRegistry = tokenRegistry;
+        this.timeoutPolicy = timeoutPolicy;
+        // 실패로 세운 서버의 응답 파일이 계속 열려 있지 않게 토큰을 회수한다(E4-1-a-3 CP5 F-2).
+        this.cycle = new OsInstallCycle(ledger, timeoutPolicy, (server, row) -> tokenRegistry.revoke(server.getId()));
+    }
+
+    @Override
+    public OsInstallLedger ledger() {
+        return ledger;
+    }
+
+    @Override
+    public OsInstallTimeoutPolicy timeoutPolicy() {
+        return timeoutPolicy;
+    }
 
     @Override
     public boolean owns(ProvisioningHistory row) {
@@ -64,9 +81,9 @@ public class WindowsInstaller implements OsFamilyInstaller {
     public String bootScript(GuestServer server, ProvisioningProgress progress, String reentryUrl) {
         UUID id = server.getId();
         LocalDateTime now = LocalDateTime.now();
-        Optional<ProvisioningHistory> running = runningRow(id, progress);
+        Optional<ProvisioningHistory> running = cycle.runningRow(id, progress);
         if (running.isPresent()) {
-            return reentry(server, progress, running.get(), reentryUrl, now);
+            return cycle.reentry(server, progress, running.get(), reentryUrl, now);
         }
         Optional<WindowsInstallReadinessResolver.Resolved> resolved = resolver.resolve(id);
         if (resolved.isEmpty()) {
@@ -84,31 +101,7 @@ public class WindowsInstaller implements OsFamilyInstaller {
         WindowsImage image = r.image().orElseThrow();   // READY 는 이미지 실재를 보장한다(진리표 7번)
         UUID token = UUID.randomUUID();   // R15-2 — autounattend 가 자기 토큰 URL(드라이버 목록)을 품어야 해 먼저 뽑는다
         tokenRegistry.issue(id, token, bundleFor(server, r.target(), image, r.diskSelection(), r.driverSelection(), token));
-        return WindowsInstallChainload.script(tokenRegistry.bundleUrl(token), image.name().value(), reentryUrl);
-    }
-
-    /** 설치 중 재진입 — 두 눈금을 넘으면 실패, 아니면 로컬 부팅으로 돌려보낸다(D-2). */
-    private String reentry(GuestServer server, ProvisioningProgress progress, ProvisioningHistory row,
-                           String reentryUrl, LocalDateTime now) {
-        LocalDateTime served = ledger.servedAtOf(row);
-        int reentries = ledger.reentriesOf(row);
-        int max = timeoutPolicy.maxReentries();
-        if (timeoutPolicy.isExpired(served, now)) {
-            long elapsed = Duration.between(served, now).toMinutes();
-            ledger.failRunning(server, progress, row, WindowsInstallLedger.INSTALL_TIMEOUT,
-                    "서빙 후 " + elapsed + "분 — 설치 시한 " + timeoutPolicy.installTimeout().toMinutes() + "분 초과", now);
-            tokenRegistry.revoke(server.getId());   // 실패로 세운 서버의 응답 파일이 계속 열려 있지 않게(CP5 F-2)
-            log.warn("[wininstall] {} — 설치 시한 초과, 실패 전환 : served={}, reentries={}", server.getId(), served, reentries);
-            return IpxeScripts.windowsInstallFailed(WindowsInstallLedger.INSTALL_TIMEOUT, reentryUrl);
-        }
-        if (reentries + 1 > max) {
-            ledger.failRunning(server, progress, row, WindowsInstallLedger.REPXE_LOOP,
-                    "재진입 " + (reentries + 1) + "회 — 상한 " + max + "회 초과", now);
-            tokenRegistry.revoke(server.getId());
-            log.warn("[wininstall] {} — 재진입 상한 초과, 실패 전환 : reentries={}", server.getId(), reentries + 1);
-            return IpxeScripts.windowsInstallFailed(WindowsInstallLedger.REPXE_LOOP, reentryUrl);
-        }
-        return IpxeScripts.localBootFallthrough(reentries + 1, max);
+        return WindowsInstallChainload.script(tokenRegistry.issuedUrlOf(token), image.name().value(), reentryUrl);
     }
 
     /**
@@ -122,10 +115,9 @@ public class WindowsInstaller implements OsFamilyInstaller {
             return;
         }
         UUID id = server.getId();
-        Optional<ProvisioningHistory> running = runningRow(id, progress);
+        Optional<ProvisioningHistory> running = cycle.runningRow(id, progress);
         if (running.isPresent()) {
-            int n = ledger.bumpReentry(running.get(), now);
-            log.info("[wininstall] {} — 설치 중 재진입 {}회 (exit 로 로컬 부팅)", id, n);
+            cycle.recordReentry(server, running.get(), now);
             return;
         }
         Optional<WindowsInstallReadinessResolver.Resolved> resolved = resolver.resolve(id);
@@ -133,9 +125,7 @@ public class WindowsInstaller implements OsFamilyInstaller {
                 || (resolved.get().diskSelection() != null && !resolved.get().diskSelection().confident())) {
             return;                                    // bootScript 가 대기 스크립트를 냈다 — 착수 아님
         }
-        // 새 사이클이 시작되는데 옛 서빙 행이 아직 열려 있으면(정정 전 데이터) 닫고 간다 — 열린 행은 언제나 하나다.
-        ledger.latestRunning(id).ifPresent(stale ->
-                ledger.abortRunning(stale, WindowsInstallLedger.SUPERSEDED, "새 서빙으로 대체 — 열린 채 남아 있던 행", now));
+        cycle.supersedeStale(server, now);   // 정정 전 데이터처럼 옛 서빙 행이 열려 있으면 닫고 간다
         progress.positionAt(ProvisioningPhaseStep.OS_INSTALLING, now);
         WindowsDiskSelection.DiskSelection selection = resolved.get().diskSelection();   // READY 를 지난 서빙이라 CONFIDENT 가 보장된다
         ProvisioningHistory servedRow = ledger.openServed(server, resolved.get().target().imageName(), selection, now);
@@ -145,36 +135,15 @@ public class WindowsInstaller implements OsFamilyInstaller {
                 selection.basis() == null ? null : selection.basis().wire(), selection.expectedUniqueId());
     }
 
-    /**
-     * 운영자 수동 실패 전환의 뒷정리(CP5 F-1 · F-2) — 열린 서빙 행을 OPERATOR 사유로 닫고 토큰을 회수한다.
-     * 진행 신호는 호출자가 이미 실패로 바꿨다. 게스트가 보고하지 않는 phase 라 서버가 닫지 않으면 행이 영원히 열려 있다.
-     */
+    /** 운영자 수동 실패 전환의 뒷정리(CP5 F-1 · F-2) — 열린 서빙 행을 OPERATOR 사유로 닫고 토큰을 회수한다. */
     @Override
     public void onOperatorFailed(GuestServer server, ProvisioningProgress progress, LocalDateTime now) {
-        ledger.latestRunning(server.getId()).ifPresent(row ->
-                ledger.abortRunning(row, WindowsInstallLedger.OPERATOR, "운영자 수동 실패 전환", now));
-        tokenRegistry.revoke(server.getId());
+        cycle.operatorFailed(server, now);
     }
 
-    /** 재PXE 없는 게스트의 시한 스윕(E4-1-a-4 D-7) — 서빙 + 시한 + 유예가 지났으면 INSTALL_TIMEOUT 으로 닫고 토큰을 회수한다. */
     @Override
     public boolean sweep(GuestServer server, ProvisioningProgress progress, ProvisioningHistory openRow, LocalDateTime now) {
-        LocalDateTime served = ledger.servedAtOf(openRow);
-        if (!timeoutPolicy.isSweepDue(served, now)) {
-            return false;
-        }
-        long elapsed = Duration.between(served, now).toMinutes();
-        ledger.failRunning(server, progress, openRow, WindowsInstallLedger.INSTALL_TIMEOUT,
-                "서빙 후 " + elapsed + "분 — 재진입 · 완료 보고 없음, 스윕(시한 " + timeoutPolicy.installTimeout().toMinutes()
-                        + "분 + 유예 " + timeoutPolicy.sweepGrace().toMinutes() + "분)", now);
-        tokenRegistry.revoke(server.getId());
-        log.warn("[wininstall] {} — 스윕 실패 전환 : served={}, elapsed={}분", server.getId(), served, elapsed);
-        return true;
-    }
-
-    private Optional<ProvisioningHistory> runningRow(UUID guestServerId, ProvisioningProgress progress) {
-        return progress.getMotion() == ProvisioningMotion.STEP_RUNNING
-                ? ledger.latestRunning(guestServerId) : Optional.empty();
+        return cycle.sweep(server, progress, openRow, now);
     }
 
     private WindowsInstallBundle bundleFor(GuestServer server, WindowsInstallTarget target, WindowsImage image,
@@ -188,7 +157,7 @@ public class WindowsInstaller implements OsFamilyInstaller {
                 properties.effectiveTimeZone(), target.administratorPassword(),
                 tokenRegistry.baseUrl(), server.issueTokenIfAbsent().value(),   // E4-1-a-4 — 첫 로그온 완료 보고 인자
                 diskSelection.diskId(),                                         // E4-1-a-6 — 설치 대상 디스크 번호
-                tokenRegistry.bundleUrlOf(token) + "/" + WindowsInstallFile.DRIVERS.fileName()));   // R15-2 — 드라이버 목록 URL
+                tokenRegistry.urlOf(token) + "/" + WindowsInstallFile.DRIVERS.fileName()));   // R15-2 — 드라이버 목록 URL
         String installBat = InstallBatRenderer.render(properties.shareUnc(), properties.shareUser(), properties.sharePassword());
         return new WindowsInstallBundle(assets.wimboot(), assets.bootWim(),
                 WindowsInstallTemplates.WINPESHL_INI, installBat, autounattend,

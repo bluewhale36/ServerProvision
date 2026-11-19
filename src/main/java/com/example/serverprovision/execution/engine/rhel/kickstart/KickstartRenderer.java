@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 정의서 목표 + 실행 재료 → kickstart(E4-1-b-3). 같은 입력이면 같은 출력이다. Rocky 메이저 차이는 {@code RhelRelease} 의
+ * 정의서 목표와 실행 재료로 kickstart 를 만든다(E4-1-b-3). 같은 입력이면 같은 출력이다. Rocky 메이저 차이는 {@code RhelRelease} 의
  * 능력 메서드로만 가른다(지금 차이 = {@code #version} 표식 · Rocky 10 의 {@code rootpw --allow-ssh}). 차이가 늘어 절 단위로
  * 갈라지면 그때 메이저별로 나눈다(plan D-1).
  */

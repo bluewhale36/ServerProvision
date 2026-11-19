@@ -306,8 +306,6 @@ J3	com/example/serverprovision/execution/engine/windows/WindowsInstallLedger.jav
 J3	com/example/serverprovision/execution/exception/ProvisioningStartRejectedException.java	ProvisioningStartRejectedException#failed(UUID)
 J3	com/example/serverprovision/execution/exception/ProvisioningStartRejectedException.java	ProvisioningStartRejectedException#unassigned(UUID)
 J3	com/example/serverprovision/execution/repository/ProvisioningHistoryRepository.java	ProvisioningHistoryRepository#findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(UUID,ProvisioningPhaseStep)
-J3	com/example/serverprovision/execution/service/GuestServerQueryService.java	GuestServerQueryService#failedInfLabelOf(Map)
-J3	com/example/serverprovision/execution/service/GuestServerQueryService.java	GuestServerQueryService#installLabelOf(Map)
 J3	com/example/serverprovision/execution/wininstall/spi/InstallSourceSlot.java	InstallSourceSlot#OEM_REPORT
 J3	com/example/serverprovision/execution/wininstall/spi/InstallSourceSlot.java	InstallSourceSlot#OEM_SETUPCOMPLETE
 J3	com/example/serverprovision/global/config/AsyncConfig.java	AsyncConfig#installTreeExecutor(TaskDecorator)
@@ -800,7 +798,6 @@ J4	com/example/serverprovision/execution/engine/windows/WindowsDriverSelection.j
 J4	com/example/serverprovision/execution/engine/windows/WindowsDriverSelection.java	WindowsDriverSelection#pick(List,OsTarget)
 J4	com/example/serverprovision/execution/engine/windows/WindowsInstallCompletionService.java	WindowsInstallCompletionService#complete(GuestPrincipal,WindowsInstallCompletionRequest)
 J4	com/example/serverprovision/execution/engine/windows/WindowsInstallFile.java	WindowsInstallFile#of(String)
-J4	com/example/serverprovision/execution/engine/windows/WindowsInstallTokenRegistry.java	WindowsInstallTokenRegistry#guestByToken
 J4	com/example/serverprovision/execution/entity/GuestServer.java	GuestServer#name
 J4	com/example/serverprovision/execution/entity/ProvisioningHistory.java	ProvisioningHistory#close(ProvisioningStatus,String,LocalDateTime)
 J4	com/example/serverprovision/execution/entity/ProvisioningProgress.java	ProvisioningProgress

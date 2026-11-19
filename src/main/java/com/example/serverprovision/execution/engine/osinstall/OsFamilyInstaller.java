@@ -15,6 +15,12 @@ import java.util.UUID;
  */
 public interface OsFamilyInstaller {
 
+    /** 이 계열의 원장 — 서버 상세 카드가 서빙 시각 · 재진입 · 실패 사유를 읽는다. */
+    OsInstallLedger ledger();
+
+    /** 이 계열의 시한 — 서버 상세 카드가 잔여 분 · 재진입 상한을 읽는다(설치기와 같은 값). */
+    OsInstallTimeoutPolicy timeoutPolicy();
+
     /** 이 계열의 원장이 적은 행인가(meta 의 origin). */
     boolean owns(ProvisioningHistory row);
 

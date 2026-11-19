@@ -3,6 +3,7 @@ package com.example.serverprovision.provisioning.assignment.service;
 import com.example.serverprovision.execution.engine.rhel.KickstartPartition;
 import com.example.serverprovision.execution.engine.rhel.KickstartUser;
 import com.example.serverprovision.execution.engine.rhel.RhelBlockReason;
+import com.example.serverprovision.execution.engine.rhel.RhelInstallMedia;
 import com.example.serverprovision.execution.engine.rhel.RhelInstallTarget;
 import com.example.serverprovision.execution.engine.rhel.RhelInstallationResolutionProvider;
 import com.example.serverprovision.execution.engine.rhel.RhelResolution;
@@ -64,6 +65,9 @@ public class RhelInstallationResolutionProviderImpl implements RhelInstallationR
         if (release.isEmpty()) {
             return new RhelResolution.Blocked(RhelBlockReason.UNSUPPORTED_RELEASE, os.get().displayName());
         }
+        if (request.getIsoId() == null) {
+            return new RhelResolution.Blocked(RhelBlockReason.ISO_NOT_SELECTED, null);
+        }
         Optional<String> environmentCode = environmentRepository.findById(request.getEnvironmentId())
                 .map(environment -> environment.getEnvironmentCode().getValue());
         if (environmentCode.isEmpty()) {
@@ -89,7 +93,8 @@ public class RhelInstallationResolutionProviderImpl implements RhelInstallationR
                 users(request.getUsers()),
                 environmentCode.get(),
                 orderedGroupCodes,
-                request.isKDumpEnabled()));
+                request.isKDumpEnabled()),
+                new RhelInstallMedia(request.getIsoId(), os.get().getOsName(), os.get().getOsVersion(), os.get().displayName()));
     }
 
     private Optional<String> rootCrypt(RootPasswordRequest root) {

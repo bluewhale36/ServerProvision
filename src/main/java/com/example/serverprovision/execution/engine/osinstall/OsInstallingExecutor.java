@@ -80,6 +80,14 @@ public class OsInstallingExecutor implements ProvisioningPhaseExecutor {
         return owner.get().sweep(server, progress, openRow, now);
     }
 
+    /**
+     * 서버 상세 카드가 읽을 계열 설치기 — 마지막 OS 설치 행을 적은 설치기가 있으면 그것, 없으면 정의서를 맡는 설치기다. 설치가
+     * 끝난 뒤 정의서가 바뀌어도 카드는 실제로 설치한 계열의 기록을 보인다.
+     */
+    public Optional<OsFamilyInstaller> installerOf(UUID guestServerId, Optional<ProvisioningHistory> latestRow) {
+        return latestRow.flatMap(this::ownerOf).or(() -> claimer(guestServerId));
+    }
+
     private Optional<OsFamilyInstaller> installerFor(UUID guestServerId, ProvisioningProgress progress) {
         if (progress.getMotion() == ProvisioningMotion.STEP_RUNNING) {
             Optional<OsFamilyInstaller> owner = openRows.latestOpen(guestServerId).flatMap(this::ownerOf);
@@ -94,7 +102,8 @@ public class OsInstallingExecutor implements ProvisioningPhaseExecutor {
         return installers.stream().filter(installer -> installer.claims(guestServerId)).findFirst();
     }
 
-    private Optional<OsFamilyInstaller> ownerOf(ProvisioningHistory row) {
+    /** 이 행을 적은 계열 설치기 — 표지 없는 행(운영자 전환 등)이면 empty. */
+    public Optional<OsFamilyInstaller> ownerOf(ProvisioningHistory row) {
         return installers.stream().filter(installer -> installer.owns(row)).findFirst();
     }
 

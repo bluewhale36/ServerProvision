@@ -11,10 +11,10 @@ class GuestServerQueryServiceExitCodeLabelTest {
     @Test
     @DisplayName("음수는 0x 8자리 16진(0xE000024B) · 0 이상은 10진 · null 은 ? · 숫자가 아니면 그대로")
     void exitCodeLabel() {
-        assertThat(GuestServerQueryService.exitCodeLabelOf(-536870325)).isEqualTo("0xE000024B");
-        assertThat(GuestServerQueryService.exitCodeLabelOf("-536870353")).isEqualTo("0xE000022F");
-        assertThat(GuestServerQueryService.exitCodeLabelOf(259)).isEqualTo("259");
-        assertThat(GuestServerQueryService.exitCodeLabelOf(null)).isEqualTo("?");
-        assertThat(GuestServerQueryService.exitCodeLabelOf("x")).isEqualTo("x");
+        assertThat(WindowsInstallCardAssembler.exitCodeLabelOf(-536870325)).isEqualTo("0xE000024B");
+        assertThat(WindowsInstallCardAssembler.exitCodeLabelOf("-536870353")).isEqualTo("0xE000022F");
+        assertThat(WindowsInstallCardAssembler.exitCodeLabelOf(259)).isEqualTo("259");
+        assertThat(WindowsInstallCardAssembler.exitCodeLabelOf(null)).isEqualTo("?");
+        assertThat(WindowsInstallCardAssembler.exitCodeLabelOf("x")).isEqualTo("x");
     }
 }

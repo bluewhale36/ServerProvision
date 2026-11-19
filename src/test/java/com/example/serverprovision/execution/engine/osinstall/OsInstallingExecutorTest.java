@@ -153,4 +153,16 @@ class OsInstallingExecutorTest {
         assertThat(executor.sweep(guest, p, orphan, NOW)).isFalse();
         verify(rhel, never()).sweep(any(), any(), any(), any());
     }
+
+    @Test
+    @DisplayName("E4-1-b-4-2 카드 계열 — 마지막 행의 주인이 있으면 그 설치기, 없으면 정의서를 맡는 설치기")
+    void installerOf_ownerThenClaimer() {
+        ProvisioningHistory row = openRow();
+        given(rhel.owns(row)).willReturn(true);
+        given(windows.claims(guest.getId())).willReturn(true);
+
+        assertThat(executor.installerOf(guest.getId(), java.util.Optional.of(row))).contains(rhel);
+        assertThat(executor.ownerOf(row)).contains(rhel);
+        assertThat(executor.installerOf(guest.getId(), java.util.Optional.empty())).contains(windows);
+    }
 }

@@ -67,6 +67,8 @@ class WindowsInstallerTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(ledger.origin())
+                .thenReturn(com.example.serverprovision.execution.engine.osinstall.OsInstallOrigin.WINDOWS_INSTALL);
         executor = new WindowsInstaller(resolver, properties, source, ledger, timeoutPolicy, tokenRegistry);
         lenient().when(source.assets()).thenReturn(new WindowsInstallAssets(
                 Path.of("/srv/pxe/win2025/wimboot"), true, Path.of("/srv/pxe/win2025/sources/boot.wim"), true,
@@ -233,7 +235,7 @@ class WindowsInstallerTest {
         String script = executor.bootScript(guest, progress, "q");
 
         assertThat(script).contains("windows install FAILED (REPXE_LOOP). waiting for operator...");
-        verify(ledger).failRunning(eq(guest), eq(progress), eq(row), eq(WindowsInstallLedger.REPXE_LOOP), contains("6회"), any());
+        verify(ledger).failRunning(eq(guest), eq(progress), eq(row), eq(com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.REPXE_LOOP), contains("6회"), any());
     }
 
     @Test
@@ -245,7 +247,7 @@ class WindowsInstallerTest {
         String script = executor.bootScript(guest, progress, "q");
 
         assertThat(script).contains("windows install FAILED (INSTALL_TIMEOUT)");
-        verify(ledger).failRunning(eq(guest), eq(progress), eq(row), eq(WindowsInstallLedger.INSTALL_TIMEOUT), contains("설치 시한 60분 초과"), any());
+        verify(ledger).failRunning(eq(guest), eq(progress), eq(row), eq(com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.INSTALL_TIMEOUT), contains("설치 시한 60분 초과"), any());
     }
 
     @Test
@@ -300,7 +302,7 @@ class WindowsInstallerTest {
         UUID token = tokenRegistry.issue(GUEST_ID, UUID.randomUUID(), new WindowsInstallBundle(null, null, "", "", "", ""));
 
         assertThat(executor.sweep(guest, p, row, LocalDateTime.now())).isTrue();
-        verify(ledger).failRunning(eq(guest), eq(p), eq(row), eq(WindowsInstallLedger.INSTALL_TIMEOUT), contains("스윕"), any());
+        verify(ledger).failRunning(eq(guest), eq(p), eq(row), eq(com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.INSTALL_TIMEOUT), contains("스윕"), any());
         assertThat(tokenRegistry.guestOf(token)).isEmpty();
     }
 
@@ -339,7 +341,7 @@ class WindowsInstallerTest {
 
         executor.onOperatorFailed(guest, progress, NOW.plusMinutes(1));
 
-        verify(ledger).abortRunning(eq(row), eq(WindowsInstallLedger.OPERATOR), contains("운영자"), eq(NOW.plusMinutes(1)));
+        verify(ledger).abortRunning(eq(row), eq(com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.OPERATOR), contains("운영자"), eq(NOW.plusMinutes(1)));
         assertThat(tokenRegistry.resolve(token)).isEmpty();
 
         given(ledger.latestRunning(GUEST_ID)).willReturn(Optional.empty());
@@ -358,7 +360,7 @@ class WindowsInstallerTest {
         executor.bootScript(guest, progress, "q");
         executor.onBootScriptServed(guest, progress, NOW);
 
-        verify(ledger).abortRunning(eq(stale), eq(WindowsInstallLedger.SUPERSEDED), any(), eq(NOW));
+        verify(ledger).abortRunning(eq(stale), eq(com.example.serverprovision.execution.engine.osinstall.OsInstallFailure.SUPERSEDED), any(), eq(NOW));
         verify(ledger).openServed(org.mockito.ArgumentMatchers.eq(guest), org.mockito.ArgumentMatchers.eq(STANDARD), org.mockito.ArgumentMatchers.argThat(sel -> sel.diskId() == 0), org.mockito.ArgumentMatchers.eq(NOW));
     }
 }
