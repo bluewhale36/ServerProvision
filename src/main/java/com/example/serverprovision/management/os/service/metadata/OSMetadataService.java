@@ -78,6 +78,7 @@ public class OSMetadataService {
 				? osMetadataRepository.findAllByOrderByOsNameAscCreatedAtDesc()
 				: osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()).stream()
 				.filter(img -> query.matches(img, img.getOsName().getDisplayName(), img.getOsVersion(), img.getDescription()))
+				.sorted(OSMetadata.CATALOG_ORDER)   // S23-1 — 묶음 순서는 OS 상수 선언 순서
 				.toList();
 
 		Map<OSName, List<OSMetadata>> byName = images.stream().collect(

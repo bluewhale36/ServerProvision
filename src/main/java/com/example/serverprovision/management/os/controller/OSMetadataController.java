@@ -6,10 +6,11 @@ import com.example.serverprovision.global.lifecycle.dto.ResourceListQuery;
 import com.example.serverprovision.global.web.list.ListLinks;
 import com.example.serverprovision.management.common.web.ControllerValidationSupport;
 import com.example.serverprovision.management.os.dto.request.OSMetadataCreateRequest;
+import com.example.serverprovision.management.os.dto.response.OsRegistrationOption;
+import com.example.serverprovision.management.os.enums.OSName;
 import com.example.serverprovision.management.os.dto.request.OSMetadataUpdateRequest;
 import com.example.serverprovision.management.os.dto.response.OSMetadataCreateResponse;
 import com.example.serverprovision.management.os.dto.response.OSMetadataResponse;
-import com.example.serverprovision.management.os.enums.OSName;
 import com.example.serverprovision.management.os.service.metadata.OSMetadataLifecycleService;
 import com.example.serverprovision.management.os.service.metadata.OSMetadataService;
 import jakarta.validation.Valid;
@@ -20,7 +21,6 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 /**
  * OS 메타데이터 (메타 자원) 의 lifecycle / 목록 / 폼 / fragment 진입점.
@@ -51,15 +51,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OSMetadataController {
 
-	/**
-	 * 등록 가능한 OS 이름. WINDOWS_SERVER 는 R11(설치 예정 기록 — Windows Server 만 허용)이 열었다:
-	 * 정의서의 식별 전용 기록이 성립하려면 그 대상(OS 메타데이터 · ISO)을 등록할 수 있어야 한다.
-	 * WINDOWS(클라이언트)는 대상 아님 — 소비자가 생기는 시점에 연다.
-	 */
-	private static final List<OSName> MVP_OS_NAMES = List.of(
-			OSName.ROCKY_LINUX, OSName.CENTOS, OSName.UBUNTU, OSName.WINDOWS_SERVER
-	);
-
 	private final OSMetadataService osMetadataService;
 	private final UserPurgeService userPurgeService;   // HF31
 	// R1-3 — lifecycle 명령은 별도 service 가 전담. Controller 가 두 service 를 직접 의존.
@@ -88,10 +79,14 @@ public class OSMetadataController {
 	// ==== OS 메타데이터 신규 ==============================================
 
 	@GetMapping("/new")
-	public String newForm(Model model) {
-		model.addAttribute("osMetadataForm", new OSMetadataCreateRequest(null, null, "", ""));
-		// E4-1-b-2 D-21 — Rocky Linux 는 지원 메이저별 선택지(RhelRelease 에서 생성).
-		model.addAttribute("osOptions", com.example.serverprovision.management.os.dto.response.OsRegistrationOption.of(MVP_OS_NAMES));
+	public String newForm(
+			// S23-1 — OS 목록 C2 의 [+ OS 버전 등록] 이 C1 그룹의 OS 를 넘긴다.
+			@RequestParam(name = "osName", required = false) OSName osName,
+			Model model
+	) {
+		model.addAttribute("osMetadataForm", OSMetadataCreateRequest.startingWith(osName));
+		// S23-1 — 선택지는 지원 OS 상수(OSName.registrableValues)에서 나온다.
+		model.addAttribute("osOptions", OsRegistrationOption.registrable());
 		return "management/os/new";
 	}
 
@@ -124,7 +119,7 @@ public class OSMetadataController {
 				)
 		);
 		model.addAttribute("osMetadataId", id);
-		model.addAttribute("osNameLabel", metadata.osName().getDisplayName());
+		model.addAttribute("osNameLabel", metadata.osName().label());   // S23-1 — 메이저까지(미지원 상수와 구분)
 		model.addAttribute("osVersionLabel", metadata.osVersion());
 		return "management/os/edit";
 	}
@@ -140,7 +135,7 @@ public class OSMetadataController {
 			// 검증 실패 시 다시 렌더 — osNameLabel / osVersionLabel 을 보조 속성으로 채워준다 (폼 값은 BindingResult 가 보존).
 			OSMetadataResponse image = osMetadataService.findById(id);
 			model.addAttribute("osMetadataId", id);
-			model.addAttribute("osNameLabel", image.osName().getDisplayName());
+			model.addAttribute("osNameLabel", image.osName().label());
 			model.addAttribute("osVersionLabel", image.osVersion());
 			return "management/os/edit";
 		}

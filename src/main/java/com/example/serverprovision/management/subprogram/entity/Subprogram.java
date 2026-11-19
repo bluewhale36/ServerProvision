@@ -128,7 +128,7 @@ public class Subprogram extends LifecycleEntity implements Markable {
 	}
 
 	public String osLabel() {
-		return osName == null ? "OS 무관" : osName.getDisplayName();
+		return osName == null ? "OS 무관" : osName.label();   // S23-1 — "Windows Server 2025" 처럼 메이저까지
 	}
 
 	public void updateTreeRootPath(String treeRootPath) {

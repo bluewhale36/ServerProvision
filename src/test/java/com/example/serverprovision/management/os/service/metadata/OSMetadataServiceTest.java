@@ -112,21 +112,21 @@ class OSMetadataServiceTest {
     @Test
     @DisplayName("create(happy) : 동일 (osName, osVersion) 자원이 0 건이면 새 행을 저장한다 (HF30-1 — 중복 확인 창 제거)")
     void create_whenNotDuplicated_saves() {
-        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9, "9.6", "최신 마이너");
-        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6")).willReturn(List.of());
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX_9, "9.6", "최신 마이너");
+        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX_9, "9.6")).willReturn(List.of());
         given(osMetadataRepository.saveAndFlush(any(OSMetadata.class)))
-                .willAnswer(inv -> OSMetadata.builder().id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6").build());
+                .willAnswer(inv -> OSMetadata.builder().id(1L).osName(OSName.ROCKY_LINUX_9).osVersion("9.6").build());
 
         assertThat(osMetadataService.create(request)).isEqualTo(1L);
-        verify(osMetadataRepository).saveAndFlush(argThat(m -> m.getOsName() == OSName.ROCKY_LINUX
+        verify(osMetadataRepository).saveAndFlush(argThat(m -> m.getOsName() == OSName.ROCKY_LINUX_9
                 && "9.6".equals(m.getOsVersion()) && "최신 마이너".equals(m.getDescription())));
     }
 
     @Test
     @DisplayName("create(HF30-1) : 동시 등록 경합으로 DB UNIQUE 위반 → DuplicateOSMetadataException(활성 문구)으로 번역 — 500 으로 새지 않는다")
     void create_concurrentRace_translatesToDuplicate() {
-        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9, "9.6", null);
-        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX_9, "9.6", null);
+        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX_9, "9.6"))
                 .willReturn(List.of());   // 경합 상대가 아직 커밋 전 — 검사 통과
         given(osMetadataRepository.saveAndFlush(any(OSMetadata.class)))
                 .willThrow(new org.springframework.dao.DataIntegrityViolationException(
@@ -140,9 +140,9 @@ class OSMetadataServiceTest {
     @Test
     @DisplayName("create(HF30-1) : Deprecated 동일키 → 'Deprecated 를 해제' 안내 (종전에는 창의 [그래도 등록] 이 항상 실패)")
     void create_deprecatedDuplicate_guidesUndeprecate() {
-        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9, "9.6", null);
-        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
-                .willReturn(List.of(OSMetadata.builder().id(7L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX_9, "9.6", null);
+        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX_9, "9.6"))
+                .willReturn(List.of(OSMetadata.builder().id(7L).osName(OSName.ROCKY_LINUX_9).osVersion("9.6")
                         .isEnabled(true).isDeprecated(true).isDeleted(false).build()));
 
         assertThatThrownBy(() -> osMetadataService.create(request))
@@ -156,12 +156,12 @@ class OSMetadataServiceTest {
     void create_whenDuplicatedActive_throws() {
         // given
         OSMetadataCreateRequest request = new OSMetadataCreateRequest(
-                OSName.ROCKY_LINUX, com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9, "9.6", null
+                OSName.ROCKY_LINUX_9, "9.6", null
         );
         OSMetadata activeRow = OSMetadata.builder()
-                .id(7L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
+                .id(7L).osName(OSName.ROCKY_LINUX_9).osVersion("9.6")
                 .isEnabled(true).isDeprecated(false).isDeleted(false).build();
-        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
+        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX_9, "9.6"))
                 .willReturn(List.of(activeRow));
 
         // when / then
@@ -175,7 +175,7 @@ class OSMetadataServiceTest {
     void update_whenDescriptionChanges_appliesEntityUpdate() {
         // given
         OSMetadata image = OSMetadata.builder()
-                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
+                .id(1L).osName(OSName.ROCKY_LINUX_9).osVersion("9.6")
                 .description("옛 설명").isEnabled(true).isDeleted(false).build();
         given(osMetadataRepository.findByIdAndIsDeletedFalse(1L))
                 .willReturn(Optional.of(image));
@@ -194,14 +194,14 @@ class OSMetadataServiceTest {
     @Test
     @DisplayName("create(fail) : ACTIVE + SOFT_DELETED 혼재면 가장 살아 있는 ACTIVE 기준으로 Duplicate 409 (HF30-1 — 종전 창 대신)")
     void create_whenActiveAndSoftDeletedCoexist_throwsDuplicateForActive() {
-        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX, com.example.serverprovision.management.os.enums.RhelRelease.ROCKY_9, "9.6", null);
+        OSMetadataCreateRequest request = new OSMetadataCreateRequest(OSName.ROCKY_LINUX_9, "9.6", null);
         OSMetadata activeRow = OSMetadata.builder()
-                .id(7L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
+                .id(7L).osName(OSName.ROCKY_LINUX_9).osVersion("9.6")
                 .isEnabled(true).isDeprecated(false).isDeleted(false).build();
         OSMetadata softDeletedRow = OSMetadata.builder()
-                .id(8L).osName(OSName.ROCKY_LINUX).osVersion("9.6")
+                .id(8L).osName(OSName.ROCKY_LINUX_9).osVersion("9.6")
                 .isEnabled(false).isDeprecated(false).isDeleted(true).build();
-        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX, "9.6"))
+        given(osMetadataRepository.findAllByOsNameAndOsVersion(OSName.ROCKY_LINUX_9, "9.6"))
                 .willReturn(List.of(softDeletedRow, activeRow));
 
         assertThatThrownBy(() -> osMetadataService.create(request))
@@ -222,7 +222,7 @@ class OSMetadataServiceTest {
         ISOCreateRequest req = new ISOCreateRequest(target.toString(), "신규", false);
 
         OSMetadata parent = OSMetadata.builder()
-                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .id(1L).osName(OSName.ROCKY_LINUX_9).osVersion("9.5")
                 .isEnabled(true).isDeleted(false).build();
         given(osMetadataRepository.findByIdAndIsDeletedFalse(1L))
                 .willReturn(Optional.of(parent));
@@ -264,7 +264,7 @@ class OSMetadataServiceTest {
         ISOCreateRequest req = new ISOCreateRequest(target.toString(), "중복 시도", false);
 
         OSMetadata parent = OSMetadata.builder()
-                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .id(1L).osName(OSName.ROCKY_LINUX_9).osVersion("9.5")
                 .isEnabled(true).isDeleted(false).build();
         ISO existing = ISO.builder()
                 .id(99L)
@@ -313,7 +313,7 @@ class OSMetadataServiceTest {
 
         OSMetadata image = OSMetadata.builder()
                 .id(1L)
-                .osName(OSName.ROCKY_LINUX)
+                .osName(OSName.ROCKY_LINUX_9)
                 .osVersion("9.5")
                 .description("")
                 .isEnabled(true)
@@ -346,7 +346,7 @@ class OSMetadataServiceTest {
         ISOCreateRequest req = new ISOCreateRequest(target.toString(), "신규", false);
 
         OSMetadata parent = OSMetadata.builder()
-                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .id(1L).osName(OSName.ROCKY_LINUX_9).osVersion("9.5")
                 .isEnabled(true).isDeleted(false).build();
         given(osMetadataRepository.findByIdAndIsDeletedFalse(1L))
                 .willReturn(Optional.of(parent));
@@ -381,7 +381,7 @@ class OSMetadataServiceTest {
         ISOCreateRequest req = new ISOCreateRequest(target.toString(), "신규", false);
 
         OSMetadata parent = OSMetadata.builder()
-                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .id(1L).osName(OSName.ROCKY_LINUX_9).osVersion("9.5")
                 .isEnabled(true).isDeleted(false).build();
         given(osMetadataRepository.findByIdAndIsDeletedFalse(1L))
                 .willReturn(Optional.of(parent));
@@ -412,7 +412,7 @@ class OSMetadataServiceTest {
         // restoreISO 는 isDeleted 플래그만 false 로 전환한다. 파일 시스템에 새로 쓰는 자원이 없으므로
         // hardener 호출은 부적절하며, 누가 실수로 파일 쓰기를 추가했을 때 본 테스트가 깨져 알람 역할을 한다.
         OSMetadata parent = OSMetadata.builder()
-                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .id(1L).osName(OSName.ROCKY_LINUX_9).osVersion("9.5")
                 .isEnabled(true).isDeleted(false).build();
         ISO deletedIso = ISO.builder()
                 .id(2L).osMetadata(parent).isoPath("/mnt/iso/x.iso")
@@ -434,7 +434,7 @@ class OSMetadataServiceTest {
         // updateISO 는 isoPath 문자열 / description 만 갱신한다. 파일 교체가 없으므로 hardener 호출이 없어야 하며,
         // 향후 파일 교체 흐름이 추가되면 본 테스트가 실패하여 hardener 호출 누락을 강제로 노출시킨다.
         OSMetadata parent = OSMetadata.builder()
-                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+                .id(1L).osName(OSName.ROCKY_LINUX_9).osVersion("9.5")
                 .isEnabled(true).isDeleted(false).build();
         ISO iso = ISO.builder()
                 .id(3L).osMetadata(parent).isoPath("/mnt/iso/old.iso")
@@ -477,7 +477,7 @@ class OSMetadataServiceTest {
     }
 
     private OSMetadata buildEmptyImage(Long id) {
-        return OSMetadata.builder().id(id).osName(OSName.ROCKY_LINUX).osVersion("9.5")
+        return OSMetadata.builder().id(id).osName(OSName.ROCKY_LINUX_9).osVersion("9.5")
                 .isEnabled(true).isDeleted(false).build();
     }
 
@@ -598,14 +598,14 @@ class OSMetadataServiceTest {
     @DisplayName("findAllGrouped(S8-3) : 조건은 OS 버전에 걸고 맞는 버전이 없는 OS 이름은 묶음이 없다 · OS 이름 표시명도 검색 대상")
     void findAllGrouped_filtersVersionsBeforeGrouping() {
         OSMetadata rocky = OSMetadata.builder()
-                .id(1L).osName(OSName.ROCKY_LINUX).osVersion("9.6").isEnabled(true).isDeleted(false).build();
+                .id(1L).osName(OSName.ROCKY_LINUX_9).osVersion("9.6").isEnabled(true).isDeleted(false).build();
         OSMetadata ubuntu = OSMetadata.builder()
                 .id(2L).osName(OSName.UBUNTU).osVersion("24.04").isEnabled(false).isDeleted(false).build();
         given(osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()).willReturn(List.of(rocky, ubuntu));
 
         var byName = osMetadataService.findAllGrouped(
-                new ResourceListQuery(OSName.ROCKY_LINUX.getDisplayName().toUpperCase(), null, null, false));
-        assertThat(byName).extracting(g -> g.osName()).containsExactly(OSName.ROCKY_LINUX);
+                new ResourceListQuery(OSName.ROCKY_LINUX_9.getDisplayName().toUpperCase(), null, null, false));
+        assertThat(byName).extracting(g -> g.osName()).containsExactly(OSName.ROCKY_LINUX_9);
 
         var disabledOnly = osMetadataService.findAllGrouped(new ResourceListQuery(null, false, null, false));
         assertThat(disabledOnly).extracting(g -> g.osName()).containsExactly(OSName.UBUNTU);

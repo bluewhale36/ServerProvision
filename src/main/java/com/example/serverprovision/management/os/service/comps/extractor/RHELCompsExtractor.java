@@ -34,8 +34,6 @@ import java.util.zip.GZIPInputStream;
 @RequiredArgsConstructor
 public class RHELCompsExtractor implements CompsExtractorStrategy {
 
-	private static final List<OSName> SUPPORTED = List.of(OSName.ROCKY_LINUX, OSName.CENTOS);
-
 	/**
 	 * 로컬 재귀 탐색 시 무시할 하위 디렉토리 — 패키지/이미지/부트 자료는 repodata 를 포함하지 않는다.
 	 */
@@ -61,7 +59,7 @@ public class RHELCompsExtractor implements CompsExtractorStrategy {
 
 	@Override
 	public boolean supports(OSName osName) {
-		return SUPPORTED.contains(osName);
+		return osName.extractable();   // S23-1 — 지원 RHEL 계열 상수의 능력 하나로 판정
 	}
 
 	@Override

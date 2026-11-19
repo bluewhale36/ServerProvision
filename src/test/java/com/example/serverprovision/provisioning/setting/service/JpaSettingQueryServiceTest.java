@@ -644,14 +644,14 @@ class JpaSettingQueryServiceTest {
     @Test
     @DisplayName("findOSOptions(E4-1-b-2) — 화면 이름 · root SSH(Rocky 10) · 쓸 수 있는 ISO 없는 OS 제외 · 등록 실패 ISO 는 사유(blockReason)")
     void findOSOptions_rhelDetails() {
-        OSMetadata rocky10 = realOs(2L, OSName.ROCKY_LINUX, "10.0", "/isos/Rocky-10.0-x86_64-dvd.iso", "/isos/Rocky-11.0-fake.iso");
-        OSMetadata noIso = realOs(3L, OSName.ROCKY_LINUX, "8.10");
+        OSMetadata rocky10 = realOs(2L, OSName.ROCKY_LINUX_10, "10.0", "/isos/Rocky-10.0-x86_64-dvd.iso", "/isos/Rocky-11.0-fake.iso");
+        OSMetadata noIso = realOs(3L, OSName.ROCKY_LINUX_8, "8.10");
         rocky10.getIsos().get(1).markRegistrationFailed("ISO 의 실제 버전(Rocky Linux 11.0)과 등록한 OS 버전(Rocky Linux 10.0)이 다릅니다.");
         given(osMetadataRepository.findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()).willReturn(List.of(rocky10, noIso));
 
         var groups = service.findOSOptions();
 
-        assertThat(groups).singleElement().satisfies(g -> assertThat(g.osLabel()).isEqualTo("Rocky Linux"));
+        assertThat(groups).singleElement().satisfies(g -> assertThat(g.osLabel()).isEqualTo("Rocky Linux 10"));   // S23-1 — 묶음 = OS 상수(배포판과 메이저)
         var option = groups.get(0).osList().get(0);
         assertThat(option.label()).isEqualTo("Rocky Linux 10.0");
         assertThat(option.rootSshSupported()).isTrue();

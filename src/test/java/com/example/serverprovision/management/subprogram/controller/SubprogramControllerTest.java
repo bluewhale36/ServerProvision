@@ -296,7 +296,7 @@ class SubprogramControllerTest {
     private static SubprogramResponse driverResponse() {
         return new SubprogramResponse(
                 7L, SubprogramKind.DRIVER, "드라이버", 10L, "ASPEED Driver", "1.15.03", "/x",
-                com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER, "Windows Server",
+                com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER_2025, "Windows Server",
                 java.util.List.of(new com.example.serverprovision.management.subprogram.dto.response.SubprogramVariantResponse(
                         1L, "2025", "WDDM Installer/Win2025.msi",
                         com.example.serverprovision.management.subprogram.enums.InstallEntrypointKind.MSI, null, true)),
@@ -311,7 +311,7 @@ class SubprogramControllerTest {
 
         mvc.perform(get("/management/subprogram/7"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.osName").value("WINDOWS_SERVER"))
+                .andExpect(jsonPath("$.osName").value("WINDOWS_SERVER_2025"))
                 .andExpect(jsonPath("$.osLabel").value("Windows Server"))
                 .andExpect(jsonPath("$.variants[0].osVersion").value("2025"))
                 .andExpect(jsonPath("$.variants[0].entrypointKind").value("MSI"));
@@ -335,7 +335,7 @@ class SubprogramControllerTest {
     void edit_withVariants_redirects() throws Exception {
         mvc.perform(post("/management/subprogram/7/edit")
                         .param("name", "ASPEED Driver").param("version", "1.15.03").param("description", "")
-                        .param("osName", "WINDOWS_SERVER")
+                        .param("osName", "WINDOWS_SERVER_2025")
                         .param("variants[0].osVersion", "2025").param("variants[0].entrypointRelativePath", "WDDM Installer/Win2025.msi")
                         .param("variants[0].arguments", "/norestart").param("variants[0].rebootRequired", "true")
                         .param("variants[1].osVersion", "2016").param("variants[1].entrypointRelativePath", "WIN2016/astgrp.inf"))
@@ -344,10 +344,39 @@ class SubprogramControllerTest {
         org.mockito.ArgumentCaptor<com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest> captor =
                 org.mockito.ArgumentCaptor.forClass(com.example.serverprovision.management.subprogram.dto.request.SubprogramUpdateRequest.class);
         org.mockito.Mockito.verify(subprogramService).update(eq(7L), captor.capture());
-        assertThat(captor.getValue().getOsName()).isEqualTo(com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER);
+        assertThat(captor.getValue().getOsName()).isEqualTo(com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER_2025);
         assertThat(captor.getValue().getVariants()).hasSize(2);
         assertThat(captor.getValue().getVariants().get(0).isRebootRequired()).isTrue();
         assertThat(captor.getValue().getVariants().get(1).getEntrypointRelativePath()).isEqualTo("WIN2016/astgrp.inf");
+    }
+
+    @Test
+    @DisplayName("S23-1 POST /{id}/edit (400 · 폼 재렌더) : 미지원 OS 상수(CENTOS) → osName 필드 오류 · 서비스 미호출")
+    void edit_legacyOsName_rerendersWithFieldError() throws Exception {
+        given(subprogramService.findSubprogram(7L)).willReturn(driverResponse());
+
+        mvc.perform(post("/management/subprogram/7/edit")
+                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("description", "")
+                        .param("osName", "CENTOS"))
+                .andExpect(status().isOk())
+                .andExpect(model().attributeHasFieldErrors("subprogramForm", "osName"));
+        org.mockito.Mockito.verify(subprogramService, org.mockito.Mockito.never()).update(any(), any());
+    }
+
+    @Test
+    @DisplayName("S23-1 GET /{id}/edit : 지금 OS 가 미지원 상수면 선택지 맨 앞에 '(미지원)' 으로 남는다(조용히 'OS 무관' 으로 바뀌지 않게)")
+    void editForm_keepsLegacyOsVisible() throws Exception {
+        SubprogramResponse legacy = new SubprogramResponse(
+                7L, SubprogramKind.DRIVER, "드라이버", 10L, "ASPEED Driver", "1.15.03", "/x",
+                com.example.serverprovision.management.os.enums.OSName.WINDOWS_SERVER, "Windows Server",
+                java.util.List.of(), "h", 1, 100L, "d", IntegrityStatus.ORIGINAL, true, false, false,
+                com.example.serverprovision.global.lifecycle.LifecycleStage.ACTIVE, false, false, false);
+        given(subprogramService.findSubprogram(7L)).willReturn(legacy);
+        given(subprogramService.osVersionSuggestions(any())).willReturn(java.util.List.of());
+
+        mvc.perform(get("/management/subprogram/7/edit"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Windows Server (미지원)")));
     }
 
     @Test
@@ -362,7 +391,7 @@ class SubprogramControllerTest {
                         com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRY_DUPLICATE)));
 
         mvc.perform(post("/management/subprogram/7/edit")
-                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER")
+                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER_2025")
                         .param("variants[0].osVersion", "2025").param("variants[0].entrypointRelativePath", "readme.txt")
                         .param("variants[1].osVersion", "2025").param("variants[1].entrypointRelativePath", "a.msi"))
                 .andExpect(status().isOk())
@@ -392,7 +421,7 @@ class SubprogramControllerTest {
                         com.example.serverprovision.management.subprogram.service.SubprogramVariantRules.Violation.ENTRYPOINT_PATH, "상위 경로(..) 금지")));
 
         mvc.perform(post("/management/subprogram/7/edit")
-                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER")
+                        .param("name", "ASPEED Driver").param("version", "1.15.03").param("osName", "WINDOWS_SERVER_2025")
                         .param("variants[0].osVersion", "2025").param("variants[0].entrypointRelativePath", "../x.msi"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("management/subprogram/subprogram-edit"))

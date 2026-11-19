@@ -6,6 +6,7 @@ import com.example.serverprovision.global.job.service.BackgroundJobService;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.entity.OSMetadata;
 import com.example.serverprovision.management.os.exception.AlreadyExtractedException;
+import com.example.serverprovision.management.os.exception.UnsupportedExtractionException;
 import com.example.serverprovision.management.os.exception.ISONotFoundException;
 import com.example.serverprovision.management.os.exception.OSMetadataNotFoundException;
 import com.example.serverprovision.management.os.repository.ISORepository;
@@ -38,6 +39,11 @@ public class CompsExtractionLauncher {
 				.orElseThrow(() -> new OSMetadataNotFoundException(osMetadataId));
 		ISO iso = isoRepository.findByIdAndOsMetadata_Id(isoId, osMetadataId)
 				.orElseThrow(() -> new ISONotFoundException(osMetadataId, isoId));
+
+		// S23-1 — 추출 능력이 없는 OS(Windows, Ubuntu, 미지원 상수)는 작업을 띄우기 전에 거절한다. 화면은 같은 판정으로 [추출] 을 숨긴다.
+		if (!osMetadata.getOsName().extractable()) {
+			throw new UnsupportedExtractionException(osMetadata.getOsName());
+		}
 
 		String isoPath = iso.getIsoPath();
 

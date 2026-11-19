@@ -52,7 +52,7 @@
                     <label class="n-label strong" for="osName">OS</label>
                     <select id="osName" th:field="*{osName}" class="n-input" data-error-field="osName">
                         <option value="" th:text="#{management.subprogram.os.any}">OS 무관</option>
-                        <option th:each="os : ${osNames}" th:value="${os.name()}" th:text="${os.displayName}">Windows Server</option>
+                        <option th:each="os : ${osNames}" th:value="${os.name()}" th:text="${os.registrable()} ? ${os.label()} : |${os.label()} (미지원)|">Windows Server</option>
                     </select>
                     <div class="n-error" th:if="${#fields.hasErrors('osName')}" th:errors="*{osName}"></div>
                 </div>
