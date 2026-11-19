@@ -14,7 +14,6 @@ import com.example.serverprovision.management.os.repository.OSMetadataRepository
 import com.example.serverprovision.management.os.repository.OSPackageGroupRepository;
 import com.example.serverprovision.management.os.vo.EnvironmentCode;
 import com.example.serverprovision.management.os.vo.PackageGroupCode;
-import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
 import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
@@ -28,7 +27,6 @@ import com.example.serverprovision.provisioning.setting.dto.request.WindowsInsta
 import com.example.serverprovision.provisioning.setting.enums.FileSystem;
 import com.example.serverprovision.provisioning.setting.enums.SizeUnit;
 import com.example.serverprovision.provisioning.setting.service.LinuxPasswordHasher;
-import com.example.serverprovision.provisioning.setting.vo.ProcessPayload;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,6 +42,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -71,13 +70,11 @@ class RhelInstallationResolutionProviderImplTest {
     }
 
     private void stubSnapshot(AbstractProcessRequest... requests) {
-        List<AssignedProcessSnapshot> processes = Arrays.stream(requests).map(request -> {
-            AssignedProcessSnapshot process = mock(AssignedProcessSnapshot.class);
-            given(process.getPayload()).willReturn(new ProcessPayload(request));
-            return process;
-        }).toList();
         SettingAssignmentSnapshot snapshot = mock(SettingAssignmentSnapshot.class);
-        given(snapshot.getProcesses()).willReturn(processes);
+        given(snapshot.processRequestOf(any())).willAnswer(inv -> {
+            Class<?> type = inv.getArgument(0);
+            return Arrays.stream(requests).filter(type::isInstance).findFirst();
+        });
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST_ID)).willReturn(Optional.of(snapshot));
     }
 

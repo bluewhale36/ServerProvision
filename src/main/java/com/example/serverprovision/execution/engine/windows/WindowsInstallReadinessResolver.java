@@ -71,7 +71,12 @@ public class WindowsInstallReadinessResolver {
                            WindowsDriverSelection.Selection driverSelection) {
     }
 
-    /** empty = 창 밖(활성 할당 없음 · OS 설치 단계 없음). */
+    /** 활성 정의서의 OS 설치 단계가 Windows 인가 — 판정 없이 해석만 본다(설치기 선택용, E4-1-b-4-1). */
+    public boolean claims(UUID guestServerId) {
+        return provider.resolveFor(guestServerId).isPresent();
+    }
+
+    /** empty = 창 밖(활성 할당 없음 · OS 설치 단계 없음 · Windows 정의서 아님). */
     public Optional<Resolved> resolve(UUID guestServerId) {
         Optional<WindowsInstallTarget> target = provider.resolveFor(guestServerId);
         if (target.isEmpty()) {
@@ -81,12 +86,10 @@ public class WindowsInstallReadinessResolver {
         Optional<WindowsImage> image = target.get().hasImage() ? snapshot.find(target.get().imageName()) : Optional.empty();
         PhaseReadiness base = WindowsInstallReadiness.judge(target, snapshot, properties, source.assets());
 
-        // 디스크 선택은 Windows 목표일 때만 의미가 있다(리눅스는 base 가 이미 미지원으로 막는다).
-        DiskSelection selection = target.get().windows() ? selectDisk(guestServerId) : null;
+        DiskSelection selection = selectDisk(guestServerId);
         PhaseReadiness readiness = combine(base, selection);
         // R15-2 — 드라이버 선택은 준비도를 막지 않는다(0 이어도 설치는 진행 · 카드에 안내만).
-        WindowsDriverSelection.Selection drivers = target.get().windows()
-                ? selectDrivers(guestServerId, target.get().osTarget()) : WindowsDriverSelection.Selection.EMPTY;
+        WindowsDriverSelection.Selection drivers = selectDrivers(guestServerId, target.get().osTarget());
         return Optional.of(new Resolved(target.get(), snapshot, image, readiness, selection, drivers));
     }
 

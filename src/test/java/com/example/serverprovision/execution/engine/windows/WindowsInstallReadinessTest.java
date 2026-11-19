@@ -77,15 +77,6 @@ class WindowsInstallReadinessTest {
     }
 
     @Test
-    @DisplayName("2행 — 리눅스 정의서 → BLOCKED · 계열명을 지목 · 정의서 교체 안내")
-    void row2_linuxDefinition_isBlocked() {
-        PhaseReadiness r = judge(Optional.of(WindowsInstallTarget.unsupported("RHEL 계열")));
-        assertThat(r.isBlocked()).isTrue();
-        assertThat(r.wire()).isEqualTo("linux install not supported");
-        assertThat(r.notes()).singleElement().asString().contains("RHEL 계열 설치는 지원하지 않습니다").contains("Windows 정의서로 교체");
-    }
-
-    @Test
     @DisplayName("3 · 4행 — 구 저장본(이미지 · 비밀번호 없음) → 정의서 수정을 지목하는 사유 둘")
     void row3and4_legacyDefinition_pointsToDefinition() {
         PhaseReadiness r = judge(Optional.of(WindowsInstallTarget.windows(null, null)));

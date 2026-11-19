@@ -42,7 +42,7 @@ serve() {
     *"kernel "*"/api/pxe/v1/windows/"*"/wimboot"*) echo "→ OK: wimboot 체인 스크립트";;
     *"waiting for resources:"*) echo "→ HOLD: 준비도 BLOCKED — 사유는 위 wire 줄. 정의서 · 소스 · 환경변수를 확인"; exit 2;;
     *"not implemented yet (HOLD)"*) echo "→ FAIL: 실행기 미등록(구버전 인스턴스?)"; exit 1;;
-    *"windows setup in progress"*) echo "→ 이미 서빙됨(STEP_RUNNING) — mode=reentry 로 진행"; exit 3;;
+    *"os setup in progress"*) echo "→ 이미 서빙됨(STEP_RUNNING) — mode=reentry 로 진행"; exit 3;;
     *) echo "→ FAIL: 기대한 스크립트가 아니다 — 커서가 OS_INSTALLING 인지(진단 완주 · 할당 · 개시) 확인"; exit 1;;
   esac
   absent_check "$STATE_DIR/boot.ipxe" "iPXE 스크립트" 2>/dev/null || true
@@ -121,7 +121,7 @@ complete() {
   step "3. 다음 /boot — 종단(dispatch 4행 exit) 또는 다음 phase 스크립트 기대, 재진입 아님"
   BODY=$(boot); echo "$BODY" | head -4
   case "$BODY" in
-    *"windows setup in progress (reentry"*) echo "→ FAIL: 완료 뒤에도 재진입으로 본다"; exit 1;;
+    *"os setup in progress (reentry"*) echo "→ FAIL: 완료 뒤에도 재진입으로 본다"; exit 1;;
     *"provisioning completed"*|*"exit"*) echo "→ OK: 종단 exit(재진입 카운트 0 유지)";;
     *) echo "→ 다음 phase 스크립트(정의서에 후속 phase 가 있는 경우) — 상세 화면의 '다음 단계' 안내 대조";;
   esac
@@ -164,7 +164,7 @@ reentry() {
   step "재PXE — 설치 중 재진입 = exit 스크립트(principal · 재진입 n/max) 기대"
   BODY=$(boot); echo "$BODY"
   case "$BODY" in
-    *"windows setup in progress (reentry "*")"*"exit"*) echo "→ OK: exit(로컬 부팅 폴스루)"; return 0;;
+    *"os setup in progress (reentry "*")"*"exit"*) echo "→ OK: exit(로컬 부팅 폴스루)"; return 0;;
     *"windows install FAILED (REPXE_LOOP)"*) echo "→ FAILED REPXE_LOOP: 재진입 상한 초과 — 원장 · 상세 카드 확인"; return 10;;
     *"windows install FAILED (INSTALL_TIMEOUT)"*) echo "→ FAILED INSTALL_TIMEOUT: 설치 시한 초과"; return 11;;
     *"provisioning FAILED at OS_INSTALLING"*) echo "→ 이미 실패 상태(dispatch 3행) — 상세 화면에서 재시도"; return 12;;

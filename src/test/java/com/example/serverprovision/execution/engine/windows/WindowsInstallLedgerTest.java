@@ -125,6 +125,18 @@ class WindowsInstallLedgerTest {
     }
 
     @Test
+    @DisplayName("E4-1-b-4-1 — latestRunning 은 origin 으로 거른다: 열린 행이 다른 계열(rhel-install) 것이면 empty")
+    void latestRunning_filtersByOrigin() {
+        ProvisioningHistory rhelRow = ProvisioningHistory.openRunning(guest, ProvisioningPhaseStep.OS_INSTALLING, NOW,
+                "{\"origin\":\"rhel-install\",\"served\":\"" + NOW + "\"}");
+        given(historyRepository.findFirstByGuestServer_IdAndStepCodeAndStatusOrderByCreatedAtDesc(
+                GUEST_ID, ProvisioningPhaseStep.OS_INSTALLING, ProvisioningStatus.RUNNING)).willReturn(Optional.of(rhelRow));
+
+        assertThat(ledger.latestRunning(GUEST_ID)).isEmpty();
+        assertThat(ledger.owns(rhelRow)).isFalse();
+    }
+
+    @Test
     @DisplayName("latestRunning — 상태 조건으로 직접 묻는다(CP5 F-1 재발 원인): 뒤에 운영자 FAILED 행이 쌓여도 열린 행을 찾고, 없으면 empty")
     void latestRunning_asksByStatus() {
         ProvisioningHistory open = ledger.openServed(guest, IMAGE, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection.confident(0, "wwn-os", 480103981056L, com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.Basis.INVENTORY_ORDER), NOW);

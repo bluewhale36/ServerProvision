@@ -2,12 +2,11 @@ package com.example.serverprovision.execution.engine.windows;
 
 import com.example.serverprovision.execution.engine.boot.IpxeScripts;
 import com.example.serverprovision.execution.engine.phase.PhaseReadiness;
-import com.example.serverprovision.execution.engine.phase.ProvisioningPhaseExecutor;
+import com.example.serverprovision.execution.engine.osinstall.OsFamilyInstaller;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningMotion;
-import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.wininstall.WindowsInstallSource;
 import com.example.serverprovision.execution.wininstall.catalog.WindowsImage;
@@ -22,8 +21,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * OS 설치 phase 실행기(E4-1-a-3) — Windows Server 무인 설치의 세 갈래: ① 첫 진입 = 토큰 번들 발급 · 렌더 · wimboot
- * 체인 ② 설치 중 재진입 = {@code exit}(로컬 부팅 폴스루) + 재진입 +1 ③ 시한 · 상한 초과 = 실패 전환.
+ * Windows Server 무인 설치를 맡는 OS 설치 계열 설치기다. E4-1-a-3 의 phase 실행기를 E4-1-b-4-1 에서 이 자리로 옮겼고
+ * 동작은 바꾸지 않았다. 게스트가 처음 부팅하면 토큰을 발급하고 응답 파일을 렌더해 wimboot 체인을 낸다. 설치 중에
+ * 다시 PXE 로 돌아오면 {@code exit} 로 로컬 디스크 부팅을 넘기고 재진입 수를 하나 올린다. 설치 시한이나 재진입 상한을
+ * 넘으면 설치 단계를 실패로 닫는다.
  *
  * <p>WinPE 는 보고 수단이 없으므로 <b>스크립트를 내준 사실이 착수</b>다 — 상태 기록은 {@link #onBootScriptServed} 훅이
  * 같은 트랜잭션에서 한다(D-1). {@link #bootScript} 는 DB 상태를 바꾸지 않되(토큰 발급은 메모리), 시한 · 상한 초과의
@@ -35,7 +36,7 @@ import java.util.UUID;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
+public class WindowsInstaller implements OsFamilyInstaller {
 
     private final WindowsInstallReadinessResolver resolver;
     private final WindowsInstallProperties properties;
@@ -45,8 +46,13 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
     private final WindowsInstallTokenRegistry tokenRegistry;
 
     @Override
-    public ProvisioningPhase phase() {
-        return ProvisioningPhase.OS_INSTALLING;
+    public boolean owns(ProvisioningHistory row) {
+        return ledger.owns(row);
+    }
+
+    @Override
+    public boolean claims(UUID guestServerId) {
+        return resolver.claims(guestServerId);
     }
 
     @Override
@@ -148,6 +154,22 @@ public class WindowsInstallingExecutor implements ProvisioningPhaseExecutor {
         ledger.latestRunning(server.getId()).ifPresent(row ->
                 ledger.abortRunning(row, WindowsInstallLedger.OPERATOR, "운영자 수동 실패 전환", now));
         tokenRegistry.revoke(server.getId());
+    }
+
+    /** 재PXE 없는 게스트의 시한 스윕(E4-1-a-4 D-7) — 서빙 + 시한 + 유예가 지났으면 INSTALL_TIMEOUT 으로 닫고 토큰을 회수한다. */
+    @Override
+    public boolean sweep(GuestServer server, ProvisioningProgress progress, ProvisioningHistory openRow, LocalDateTime now) {
+        LocalDateTime served = ledger.servedAtOf(openRow);
+        if (!timeoutPolicy.isSweepDue(served, now)) {
+            return false;
+        }
+        long elapsed = Duration.between(served, now).toMinutes();
+        ledger.failRunning(server, progress, openRow, WindowsInstallLedger.INSTALL_TIMEOUT,
+                "서빙 후 " + elapsed + "분 — 재진입 · 완료 보고 없음, 스윕(시한 " + timeoutPolicy.installTimeout().toMinutes()
+                        + "분 + 유예 " + timeoutPolicy.sweepGrace().toMinutes() + "분)", now);
+        tokenRegistry.revoke(server.getId());
+        log.warn("[wininstall] {} — 스윕 실패 전환 : served={}, elapsed={}분", server.getId(), served, elapsed);
+        return true;
     }
 
     private Optional<ProvisioningHistory> runningRow(UUID guestServerId, ProvisioningProgress progress) {

@@ -12,7 +12,6 @@ import com.example.serverprovision.management.os.enums.RhelRelease;
 import com.example.serverprovision.management.os.repository.OSEnvironmentRepository;
 import com.example.serverprovision.management.os.repository.OSMetadataRepository;
 import com.example.serverprovision.management.os.repository.OSPackageGroupRepository;
-import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.PartitionRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest;
@@ -52,12 +51,7 @@ public class RhelInstallationResolutionProviderImpl implements RhelInstallationR
     public Optional<RhelResolution> resolveFor(UUID guestServerId) {
         return assignmentRepository
                 .findByGuestServer_IdAndSupersededAtIsNull(guestServerId)
-                .flatMap(snapshot -> snapshot.getProcesses().stream()
-                        .map(AssignedProcessSnapshot::getPayload)
-                        .map(payload -> payload.request())
-                        .filter(RHELInstallationRequest.class::isInstance)
-                        .map(RHELInstallationRequest.class::cast)
-                        .findFirst())
+                .flatMap(snapshot -> snapshot.processRequestOf(RHELInstallationRequest.class))
                 .map(this::resolve);
     }
 

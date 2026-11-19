@@ -90,13 +90,14 @@ public final class IpxeScripts {
     }
 
     /**
-     * Windows 설치 중 재진입(E4-1-a-3 D-2) — Setup 이 스스로 한 재부팅이 네트워크 우선 펌웨어에서 재PXE 로 돌아온 것.
+     * OS 설치 중 재진입(E4-1-a-3 D-2, E4-1-b-4-1 에서 계열 중립 문구) — 설치 프로그램이 스스로 한 재부팅이 네트워크 우선
+     * 펌웨어에서 재PXE 로 돌아온 것.
      * {@code exit} 로 iPXE 를 끝내 부트 순서의 다음(로컬 디스크)으로 넘긴다. principal · 재진입 n/max 를 콘솔에 남긴다.
      */
     public static String localBootFallthrough(int reentry, int maxReentries) {
         return """
                 #!ipxe
-                echo [provision] windows setup in progress (reentry %d/%d). booting local disk...
+                echo [provision] os setup in progress (reentry %d/%d). booting local disk...
                 echo [provision] this server: ip=${ip} mac=${mac} uuid=${uuid}
                 exit
                 """.formatted(reentry, maxReentries);

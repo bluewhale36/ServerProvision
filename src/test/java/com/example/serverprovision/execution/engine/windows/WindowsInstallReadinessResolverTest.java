@@ -209,17 +209,4 @@ class WindowsInstallReadinessResolverTest {
         org.mockito.Mockito.verify(raidResolutionProvider, org.mockito.Mockito.never()).planFor(any(), any(), any());
     }
 
-    @Test
-    @DisplayName("리눅스 목표 → BLOCKED · 이미지 없음(대조할 이름이 없다)")
-    void linuxTarget_blocked() throws IOException {
-        FakeWim.writeSource(root, FakeWim.fixtureXml());
-        FakeWim.writeOemScripts(root);   // E4-1-a-4 — 12행(스크립트 부재)이 판정을 가리지 않게
-        Files.writeString(root.resolve("wimboot"), "FAKE-WIMBOOT");
-        given(provider.resolveFor(GUEST_ID)).willReturn(Optional.of(WindowsInstallTarget.unsupported("RHEL 계열")));
-
-        WindowsInstallReadinessResolver.Resolved r = resolver(null).resolve(GUEST_ID).orElseThrow();
-
-        assertThat(r.readiness().wire()).isEqualTo("linux install not supported");
-        assertThat(r.image()).isEmpty();
-    }
 }
