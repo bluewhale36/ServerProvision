@@ -121,7 +121,6 @@ J1	com/example/serverprovision/management/os/repository/OSMetadataRepository.jav
 J1	com/example/serverprovision/management/os/service/comps/CompsExtractionService.java	CompsExtractionService#verifyRelease(OSMetadata,ISO,String)
 J1	com/example/serverprovision/management/os/service/iso/IsoLifecycleService.java	IsoLifecycleService#cleanupArtifacts(ISO)
 J1	com/example/serverprovision/management/os/service/iso/IsoLifecycleService.java	IsoLifecycleService#restore(Long)
-J1	com/example/serverprovision/management/os/service/iso/IsoRegistrationService.java	IsoRegistrationService#triggerPostCreationTask(OSMetadata,ISO)
 J1	com/example/serverprovision/management/os/service/iso/IsoVerificationLauncher.java	IsoVerificationLauncher#runAsync(String,Long,Long)
 J1	com/example/serverprovision/management/os/service/metadata/OSMetadataLifecycleService.java	OSMetadataLifecycleService#toggleEnabled(Long)
 J1	com/example/serverprovision/management/os/service/metadata/OSMetadataService.java	OSMetadataService#assembleIsoResponses(OSMetadata,boolean)
@@ -968,7 +967,6 @@ J4	com/example/serverprovision/management/common/util/UploadPathResolver.java	Up
 J4	com/example/serverprovision/management/os/controller/IsoJobController.java	IsoJobController
 J4	com/example/serverprovision/management/os/dto/request/IsoUploadIntentRequest.java	IsoUploadIntentRequest
 J4	com/example/serverprovision/management/os/dto/response/OSMetadataResponse.java	OSMetadataResponse#ofAssembled(OSMetadata,List,List,List)
-J4	com/example/serverprovision/management/os/enums/RhelRelease.java	RhelRelease#majorOf(String)
 J4	com/example/serverprovision/management/os/exception/InsufficientDiskSpaceException.java	InsufficientDiskSpaceException
 J4	com/example/serverprovision/management/os/exception/IsoPathIsDirectoryException.java	IsoPathIsDirectoryException
 J4	com/example/serverprovision/management/os/repository/OSMetadataRepository.java	OSMetadataRepository#findAllByIsDeletedFalseOrderByOsNameAscCreatedAtDesc()

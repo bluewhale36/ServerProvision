@@ -220,9 +220,9 @@ public class IsoRegistrationService {
 	}
 
 	/**
-	 * S5-7 — OS family 에 매칭되는 PostCreationTaskStrategy 를 찾아 자동 작업 트리거.
-	 * strategy 실행 중 RuntimeException 발생 시 ISO 등록 트랜잭션은 보존 (D3 정책 B). 실패는
-	 * BackgroundJob 의 FAILED 상태로 알림 패널에 노출되므로 사용자가 인지 가능.
+	 * ISO 등록 뒤 OS 계열에 맞는 PostCreationTaskStrategy 를 찾아 후속 작업을 시작한다.
+	 * 작업이 RuntimeException 으로 실패해도 ISO 등록은 남긴다. 실패는 BackgroundJob 의 FAILED 상태로
+	 * 알림 패널에 보이므로 사용자가 알 수 있다.
 	 */
 	private void triggerPostCreationTask(OSMetadata osMetadata, ISO iso) {
 		// 단위 테스트 @InjectMocks 환경에서 List 자동 주입이 null 인 경우 방어.
