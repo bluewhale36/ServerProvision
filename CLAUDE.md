@@ -25,6 +25,7 @@
 - 코드 주석·커밋 메시지는 **한국어**. 최신 Java(21) 기능과 Spring Boot 4.x 관례를 적극 활용.
 - WHY 가 비자명할 때만 주석. 의미 없는 Javadoc 금지. 파일 헤더에 AI 작성 마커(`// Claude` 등) 금지.
 - 프론트엔드/백엔드 결합이 필요한 기능은 백엔드 구현에 집중하되 과복잡해지지 않게 적절히 분리한다.
+- **강제 장치(CH11)**: `ArchitectureConventionTest`(ArchUnit, 레이어 · 이름 · 의존 규칙)와 `CodingConventionTest`(JavaParser, 메서드 길이 · 중첩 · 컨트롤러 try · AI 표지 · Javadoc 길이와 금지 패턴)가 전체 테스트에 포함된다. 이미 있는 위반은 `src/test/resources/convention/baseline.txt` 에 있고 **기준선은 줄어들기만 한다**(고치면 그 줄을 지우고, 줄을 더하려면 PR 에 사유를 적는다). 규칙 목록과 고칠 방법은 `convention/ConventionRule`. 판단이 필요한 규칙(중복, 다형성, 무명 boolean, Javadoc 명료성)은 기계가 막지 않으므로 검수에서 본다.
 
 ### 중복·가독성 금지 (불가침)
 - 동일 로직이 두 곳 이상 복붙되면 즉시 공통 모듈/유틸/fragment 로 추출한다. 한 함수에 검증/변환/IO/응답조립이 뒤섞이면 작은 함수로 쪼갠다.
@@ -77,6 +78,7 @@
 | 상태 변경 폼 · 입력 폼 | `new-form.md` |
 | 화면 마크업 · CSS 클래스 | `DESIGN.md` 5절 고르기 표 · 구분선, 8절 |
 | 새 안내 문구 · 화면 라벨 · 화면에 나가는 예외 · 검증 메시지 | `DESIGN.md` 7절 + `new-user-copy.md`(어휘 · 키) |
+| Javadoc · 코드 주석 | `javadoc.md`(명료성 점검 순서, 기계 검사 J1 ~ J5) |
 
 해당 문서가 없는 영역(자원 도메인·드리프트·특권 명령·phase)은 그 영역을 실제로 건드릴 때 실측해 추가한다 — 추측으로 채우지 않는다.
 
