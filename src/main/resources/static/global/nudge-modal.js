@@ -93,6 +93,8 @@
         const notify = options.notify || {};
         const modal = el(prefix, 'Modal');
         const ui = {
+            warning: el(prefix, 'Warning'),
+            replaceNote: el(prefix, 'ReplaceNote'),
             list: el(prefix, 'ConflictsList'),
             proceedBtn: el(prefix, 'ProceedBtn'),
             replaceBtn: el(prefix, 'ReplaceBtn'),
@@ -109,8 +111,11 @@
         const contentBase = modal.dataset.confirmBaseUrl || '';
         const base = options.phase === 'intent' ? contentBase.replace(/\/nudge$/, '/intent-nudge') : contentBase;
         const url = action => base + '/' + encodeURIComponent(payload.nudgeId) + '/' + action;
-        const replaceWrap = ui.replaceBtn.closest('.n-btn-tooltip-wrap');
+        const replaceWrap = ui.replaceBtn.closest('.n-btn-tooltip-wrap') || ui.replaceBtn;
         let selected = null;
+        ui.warning.hidden = false;
+        ui.replaceNote.hidden = false;
+        replaceWrap.hidden = false;
 
         modal.querySelectorAll('[data-cancel-note]').forEach(note => {
             note.hidden = note.dataset.cancelNote !== (options.cancelNote || 'beforeUpload');
@@ -161,7 +166,7 @@
         function refreshReplace() {
             const ready = typedMatches();
             ui.replaceBtn.disabled = !ready;
-            if (replaceWrap) replaceWrap.dataset.tooltipActive = ready ? 'false' : 'true';
+            replaceWrap.dataset.tooltipActive = ready ? 'false' : 'true';
         }
 
         function setBusy(busy) {
@@ -188,12 +193,19 @@
         }
 
         // 영구 삭제는 끝났고 등록만 실패했다(D16). 지워진 후보는 다시 고를 수 없으므로 목록에서 뺀다.
+        // 후보가 0 이 되면 영구 삭제할 대상이 없으므로 경고, [기존 영구 삭제 후 등록] 과 그 설명 줄도 숨긴다(HF30-4, 상자는 CSS :empty).
         function dropPurgedCandidate() {
             const item = ui.list.querySelector('[data-target-id="' + selected.id + '"]');
             if (item) item.remove();
             selected = null;
             ui.typedWrap.hidden = true;
             ui.typedInput.value = '';
+            if (!ui.list.children.length) {
+                ui.list.innerHTML = '';
+                ui.warning.hidden = true;
+                ui.replaceNote.hidden = true;
+                replaceWrap.hidden = true;
+            }
         }
 
         async function submit(action, form) {
@@ -222,17 +234,20 @@
         }
     }
 
+    // 후보 줄 = 전역 n-option-row. 이름 칸은 자원명 입력이 맞춰야 하는 displayName 이다(HF30-4, ISO 는 OS 와 파일 이름).
+    // 버전(ISO 는 경로)과 상태는 뒤의 보조 글자로 둔다.
     function renderCandidates(list, conflicts, prefix, onSelect) {
         list.innerHTML = '';
         conflicts.forEach(entry => {
+            const inputId = prefix + 'Target' + entry.id;
             const li = document.createElement('li');
-            li.className = 'cm-conflict-item';
+            li.className = 'n-option-row';
             li.dataset.targetId = entry.id;
             li.innerHTML =
-                '<label class="cm-conflict-label">' +
-                '<input type="radio" name="' + prefix + 'Target" value="' + UiUtil.escapeHtml(String(entry.id)) + '">' +
-                '<span><strong>' + UiUtil.escapeHtml(entry.name || '') + '</strong> ' + UiUtil.escapeHtml(entry.version || '') +
-                ' <span class="cm-note">(' + UiUtil.escapeHtml(entry.stateLabel || '') + ')</span></span>' +
+                '<input type="radio" name="' + prefix + 'Target" id="' + UiUtil.escapeHtml(inputId) + '" value="' + UiUtil.escapeHtml(String(entry.id)) + '">' +
+                '<label for="' + UiUtil.escapeHtml(inputId) + '">' +
+                '<span class="n-option-title">' + UiUtil.escapeHtml(entry.displayName || entry.name || '') + '</span> ' +
+                '<span class="cm-note">' + UiUtil.escapeHtml(entry.version || '') + ' (' + UiUtil.escapeHtml(entry.stateLabel || '') + ')</span>' +
                 '</label>';
             li.querySelector('input').addEventListener('change', () => onSelect(entry));
             list.appendChild(li);
