@@ -94,6 +94,17 @@ else
 fi
 
 say ""
+say "== 코딩 규약 기준선(src/test/resources/convention/baseline.txt)"
+# 기준선은 줄어들기만 한다(CLAUDE.md 코딩 스타일 '강제 장치'). 더해진 줄은 새 위반을 기준선으로 덮었다는 뜻이라 사유를 확인한다.
+added=$(git diff "$base" -- src/test/resources/convention/baseline.txt | grep -E '^\+[^+#]' || true)
+if [ -n "$added" ]; then
+  printf '[CHECK] %s\n' "기준선에 더해진 줄 $(printf '%s\n' "$added" | wc -l | tr -d ' ') 개. 고칠 수 없는 사정인지 확인하고 PR 본문에 사유를 적습니다:"; check=1
+  printf '%s\n' "$added" | head -10 | sed 's/^+/  /'
+else
+  say "  더해진 줄 없음"
+fi
+
+say ""
 if [ $stop -ne 0 ]; then say "결과: 중단 사유 있음"; exit 1; fi
 if [ $check -ne 0 ]; then say "결과: 판정 필요 항목 있음"; exit 2; fi
 say "결과: 통과"

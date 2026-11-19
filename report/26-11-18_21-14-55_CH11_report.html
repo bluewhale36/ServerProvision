@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CH11 : 코딩 규약 기계 검사 report</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--purple-bg); color:var(--purple); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; tab-size:4; margin:0; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  figure { margin:8px 0 14px; min-width:0; }
+  figure figcaption { font-size:12px; color:var(--text-muted); margin-bottom:4px; }
+  figure details > summary { cursor:pointer; font-size:12px; color:var(--blue); padding:6px 10px; background:var(--bg); border-radius:6px; }
+  figure details[open] > summary { margin-bottom:4px; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>CH11 : 코딩 규약 기계 검사 report <span class="v2-badge">CP6 보고</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> CH11 (chore)</span>
+    <span><strong>브랜치</strong> <code>chore/CH11_coding-convention-test</code></span>
+    <span><strong>전체 테스트</strong> 3,813 통과</span>
+    <span><strong>CP5</strong> 1 회차 36 · r1 10 항목</span>
+    <span><strong>작성</strong> 2026-11-18 21:14 KST</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 요약</a></li>
+      <li><a href="#s2">§2 진단</a></li>
+      <li><a href="#s3">§3 구현</a></li>
+      <li><a href="#s4">§4 강제 장치와 문서</a></li>
+      <li><a href="#s5" class="preview">§5 CP5 계획</a></li>
+      <li><a href="#s6" class="preview">§6 CP5 수행 기록</a></li>
+      <li><a href="#s7">§7 미수행 항목과 사유</a></li>
+      <li><a href="#s8">§8 발견한 것과 처리</a></li>
+      <li><a href="#s9">§9 Critical Files</a></li>
+      <li><a href="#s10">§10 남은 일</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 / 식별자 검색 …" id="filter">
+
+    <!-- ===== §1 요약 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 요약</summary>
+      <div class="body">
+        <div class="callout">CLAUDE.md 코딩 규약 가운데 기계가 판정할 수 있는 16 규칙을 전체 테스트 안의 두 검사(ArchUnit · JavaParser)로 옮겼다. 이미 있는 위반 1,086 건은 기준선 파일 하나에 적었고, 기준선은 줄어들기만 한다. Javadoc 명료성은 새 점검 문서로 검수한다.</div>
+        <p>
+          <span class="chip opt">규칙 16 (구조 7 · 소스 4 · Javadoc 5)</span>
+          <span class="chip opt">기준선 1,086 줄 (A 28 · S 10 · J 1,048)</span>
+          <span class="chip opt">두 본 검사 각 약 2 ~ 2.6 초 (전체 테스트의 약 7 %)</span>
+          <span class="chip add">전체 테스트 3,813 통과 · 0 실패 · 6 건너뜀</span>
+          <span class="chip cp5">CP5 1 회차 36 항목 (통과 32 · 실패 2 · 관찰 2)</span>
+          <span class="chip add">재검증 r1 10 항목 모두 통과 (R0 ~ R6, R1-b · R2-b)</span>
+        </p>
+        <div class="callout warn"><b>진행 경위</b> : 사용자 지시는 "승인. CP6 까지 진행 후 보고." 였다. 그래서 CP4 중간 승인 게이트를 따로 두지 않고, CP1 승인 뒤 구현 · 테스트 · CP5 · report 산출까지 무중단으로 진행했다. main 코드 검수는 이 report 와 함께 받는다.</div>
+        <table>
+          <thead><tr><th>항목</th><th>값</th></tr></thead>
+          <tbody>
+            <tr><td>Notion</td><td><a href="https://app.notion.com/p/41cef0e868f98196b33bce3fd1434fff">CH11 단계 페이지</a></td></tr>
+            <tr><td>plan</td><td><code>plan/26-11-18_20-26-03_CH11_plan.html</code></td></tr>
+            <tr><td>브랜치</td><td><code>chore/CH11_coding-convention-test</code> (origin/dev <code>00091d1</code> 기준, 미커밋)</td></tr>
+            <tr><td>증거 형식</td><td>화면 없는 슬라이스라 스크린샷 대신 콘솔 출력 원문. 항목 식별자마다 원문 발췌를 붙임</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 진단 ===== -->
+    <details class="section" id="s2">
+      <summary>§2. 진단</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>사실</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>계기</td><td>2026-11-18 E4-1-b-4-1 CP4 검수에서 원장 origin 을 String 으로 받는 새 API 를 "관례" 로 통과시켰다. 사용자: "claude.md 에 적어둔 것을 세션마다 제대로 안지키는 경향이 눈에 보였다."</td></tr>
+            <tr><td>선례</td><td>DesignConventionTest(전체 테스트 포함)가 화면 규약을 정규식으로 검사하고, 기존 위반은 <code>LEGACY_*</code> 상수로 허용한다. 화면 규약 위반이 그 뒤로 새로 생기지 않았다</td></tr>
+            <tr><td>정규식 한계</td><td>정규식으로 '100 줄 넘는 메서드' 를 세면 6 건이 나오는데 그중 4 건은 record 선언 전체(GuestServerDetailResponse 397 줄 등)를 메서드로 잘못 잡은 것이다. 실제 메서드는 PathReconciliationService.performScan(344 줄), RaidPlanner.plan(148 줄)</td></tr>
+          </tbody>
+        </table>
+        <p>그래서 Java 구조는 정규식이 아니라 구문 트리와 컴파일된 클래스로 본다. plan 의 위반 수는 정규식 근사였고, 구문 트리로 실측한 기준선은 아래와 같다.</p>
+        <h4>예상과 실측 (정규식 근사 → 구문 트리 실측)</h4>
+        <table>
+          <thead><tr><th>규칙</th><th>plan 추정</th><th>실측 기준선</th><th>차이 이유</th></tr></thead>
+          <tbody>
+            <tr><td>A3 컨트롤러 → 엔티티</td><td>3</td><td>4</td><td>import 가 아니라 바이트코드 참조로 보자 TrashController 가 더 잡혔다</td></tr>
+            <tr><td>A4 dto 접미사</td><td>20</td><td>20</td><td>-</td></tr>
+            <tr><td>A6 String mac · ip</td><td>4</td><td>4</td><td>-</td></tr>
+            <tr><td>S1 컨트롤러 try</td><td>7 파일</td><td>7 메서드</td><td>-</td></tr>
+            <tr><td>S2 100 줄+</td><td>2</td><td>2</td><td>-</td></tr>
+            <tr><td>S3 중첩 5+</td><td>약 4</td><td>1</td><td>정규식은 중괄호 깊이(클래스 · 배열 초기화 포함)를 셌고 구문 트리는 제어 구조만 센다</td></tr>
+            <tr><td>J1 멤버 4 줄+</td><td>344</td><td>132</td><td>@param 등 블록 태그 줄을 빼고 센다</td></tr>
+            <tr><td>J2 타입 8 줄+</td><td>330</td><td>138</td><td>같은 이유</td></tr>
+            <tr><td>J3 단계 코드 첫머리</td><td>507</td><td>460</td><td>계열 목록으로 좁힘</td></tr>
+            <tr><td>J4 화살표</td><td>328</td><td>306</td><td>{@code} · {@link} · &lt;pre&gt; 안 제외</td></tr>
+            <tr><td>J5 괄호 중첩</td><td>75</td><td>12</td><td>같은 이유(링크 시그니처의 괄호가 빠짐)</td></tr>
+            <tr><td><b>합</b></td><td>약 1,600</td><td><b>1,086</b></td><td>-</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §3 구현 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 구현</summary>
+      <div class="body">
+        <h4>의존성 (테스트 전용)</h4>
+        <ul>
+          <li><code>com.tngtech.archunit:archunit-junit5:1.5.1</code> : 구조 규칙(컴파일된 클래스)</li>
+          <li><code>com.github.javaparser:javaparser-core:3.28.2</code> : 소스 규칙(구문 트리)</li>
+          <li>build.gradle <code>test</code> 에 testLogging : 실패 메시지를 콘솔에 그대로 출력(r1 에서 더함)</li>
+        </ul>
+
+        <h4>검사 흐름</h4>
+        <div class="pkg-tree">./gradlew test
+ ├─ ArchitectureConventionTest (ArchUnit)
+ │    ClassFileImporter: com.example.serverprovision (main 클래스만, 테스트 제외)
+ │    규칙 A1 ~ A7 평가 → 위반 문장(줄 번호 제거) 목록
+ ├─ CodingConventionTest (JavaParser)
+ │    src/main/java/**/*.java 구문 트리 → 규칙 S1 ~ S4, J1 ~ J5 → 위반 목록
+ └─ 두 테스트 공통: ConventionBaseline
+      위반 목록 vs src/test/resources/convention/baseline.txt
+      ├─ 기준선에 없는 위반 → 실패(새 위반, 고칠 방법 출력)
+      └─ 위반이 아닌 기준선 줄 → 실패(지울 줄 출력)</div>
+
+        <h4>클래스 (convention 패키지)</h4>
+        <table>
+          <thead><tr><th>이름</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>ConventionRule</code></td><td>규칙 16 개의 문장 · 고칠 방법 · 담당 검사(enum)</td></tr>
+            <tr><td><code>ConventionViolation</code></td><td>규칙 · 파일 · 멤버 · 보충. 키는 줄 번호 없음</td></tr>
+            <tr><td><code>ConventionBaseline</code></td><td>읽기 · 대조. 새 위반 · 낡은 줄 · 형식 오류를 실패 사유로</td></tr>
+            <tr><td><code>ArchitectureRules</code></td><td>A1 ~ A7. 클래스 하나를 받는 함수 목록</td></tr>
+            <tr><td><code>SourceFile</code></td><td>구문 트리와 멤버 키</td></tr>
+            <tr><td><code>SourceRules</code></td><td>S1 ~ S4</td></tr>
+            <tr><td><code>JavadocRules</code></td><td>J1 ~ J5</td></tr>
+            <tr><td><code>ArchitectureConventionTest</code> · <code>CodingConventionTest</code></td><td>main 전체 본 검사</td></tr>
+          </tbody>
+        </table>
+
+        <h4>규칙 16 (ConventionRule 원문)</h4>
+        <table>
+          <thead><tr><th>ID</th><th>규칙</th><th>고칠 방법</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>컨트롤러에 @Transactional 을 두지 않는다.</td><td>트랜잭션은 Service 메서드에 둔다(CLAUDE.md 레이어 경계).</td></tr>
+            <tr><td>A2</td><td>컨트롤러는 Repository 를 직접 쓰지 않는다.</td><td>Service 를 거쳐 조회 · 저장한다(CLAUDE.md 레이어 경계).</td></tr>
+            <tr><td>A3</td><td>컨트롤러는 엔티티를 직접 다루지 않는다.</td><td>Service 가 *Response 로 바꿔 넘긴다. 뷰 모델에 엔티티를 넣지 않는다(CLAUDE.md 레이어 경계).</td></tr>
+            <tr><td>A4</td><td>dto.request 클래스는 Request 로, dto.response 클래스는 Response 로 끝나고 DTO 접미사를 쓰지 않는다.</td><td>이름을 바꾸거나, 요청 · 응답이 아닌 도우미는 dto 밖으로 옮긴다(CLAUDE.md 네이밍).</td></tr>
+            <tr><td>A5</td><td>management 서비스는 TypedNameVerifier · MarkableScanner · ObjectProvider 를 주입받지 않는다.</td><td>이름 확인은 컨트롤러가 하고, 스캐너는 reconciliation 쪽에서 쓴다. 주입하면 생성자 순환이 다시 생긴다(CLAUDE.md 핵심 설계 패턴).</td></tr>
+            <tr><td>A6</td><td>엔티티와 DTO 의 mac · ip 값은 String 이 아니다.</td><td>MacAddress · IpAddress 같은 값 객체를 쓴다(CLAUDE.md Primitive Obsession 금지).</td></tr>
+            <tr><td>A7</td><td>패키지 이름은 소문자다.</td><td>패키지 이름을 소문자로 바꾼다(CLAUDE.md 네이밍).</td></tr>
+            <tr><td>S1</td><td>컨트롤러 메서드 안에 try 문을 두지 않는다.</td><td>예외를 HTTP 응답으로 바꾸는 일은 @ControllerAdvice · resolver 로 올린다(CLAUDE.md 조건분기 legacy 확장 금지).</td></tr>
+            <tr><td>S2</td><td>메서드 본문은 100 줄을 넘지 않는다.</td><td>검증 · 변환 · 입출력 · 응답 조립을 작은 메서드로 나눈다(CLAUDE.md 중복 · 가독성 금지).</td></tr>
+            <tr><td>S3</td><td>제어 구조를 5 단계 이상 겹치지 않는다.</td><td>이른 반환이나 작은 메서드로 단계를 줄인다(CLAUDE.md 중복 · 가독성 금지).</td></tr>
+            <tr><td>S4</td><td>주석에 AI 작성 표지를 두지 않는다.</td><td>'// Claude', '@author Claude', 'Generated by' 같은 표지를 지운다. AI 참여는 커밋 메시지에 남긴다(CLAUDE.md 코딩 스타일).</td></tr>
+            <tr><td>J1</td><td>멤버 Javadoc 본문은 4 줄을 넘지 않는다.</td><td>무엇과 왜만 남긴다. 긴 설계 배경은 타입 Javadoc 한 곳에 둔다(.claude/domain-conventions/javadoc.md).</td></tr>
+            <tr><td>J2</td><td>타입 Javadoc 본문은 8 줄을 넘지 않는다.</td><td>지금의 역할과 이유만 남기고, 경위는 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).</td></tr>
+            <tr><td>J3</td><td>Javadoc 첫 문장을 단계 코드로 시작하지 않는다.</td><td>첫 문장은 이 코드가 지금 하는 일을 말한다. 단계 이력은 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).</td></tr>
+            <tr><td>J4</td><td>Javadoc 에 화살표를 쓰지 않는다.</td><td>'A 하면 B 가 된다' 처럼 문장으로 쓴다. 코드 예시는 {@code} 안에 둔다(.claude/domain-conventions/javadoc.md).</td></tr>
+            <tr><td>J5</td><td>Javadoc 에 괄호 안 괄호를 쓰지 않는다.</td><td>괄호 속 설명을 문장 하나로 꺼낸다(.claude/domain-conventions/javadoc.md).</td></tr>
+          </tbody>
+        </table>
+        <p>A1 ~ A7 은 <code>ArchitectureConventionTest</code>, S1 ~ J5 는 <code>CodingConventionTest</code> 가 판정한다. 기준선 대조는 검사마다 자기 규칙의 줄만 본다.</p>
+
+        <h4>기준선 줄과 멤버 키</h4>
+        <p>기준선 한 줄은 <code>규칙ID&lt;TAB&gt;파일(소스 루트 기준)&lt;TAB&gt;멤버</code> 다. 줄 번호를 넣지 않아 코드가 위아래로 움직여도 키가 바뀌지 않는다.</p>
+        <table>
+          <thead><tr><th>대상</th><th>형식</th></tr></thead>
+          <tbody>
+            <tr><td>타입</td><td><code>Outer.Inner</code></td></tr>
+            <tr><td>메서드</td><td><code>Type#name(Param)</code></td></tr>
+            <tr><td>생성자</td><td><code>Type#&lt;init&gt;(Param)</code></td></tr>
+            <tr><td>필드 · enum 상수 · record 성분</td><td><code>Type#name</code></td></tr>
+          </tbody>
+        </table>
+
+        <h4>실패 메시지 예 (CP5 H1 원문)</h4>
+        <p>규칙 ID 와 규칙 문장, 고칠 방법, 파일과 멤버, 보충(줄 수 · 의존 대상)이 한 덩어리로 나온다. 끝에는 기준선 형식 줄이 붙는다.</p>
+        <figure><figcaption><code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[S2] 메서드 본문은 100 줄을 넘지 않는다.
+  고칠 방법: 검증 · 변환 · 입출력 · 응답 조립을 작은 메서드로 나눈다(CLAUDE.md 중복 · 가독성 금지).
+  - com/example/serverprovision/management/board/service/ProbeLongService.java  ProbeLongService#longBody()  (101 줄)</code></pre></figure>
+        <figure><figcaption><code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[A2] 컨트롤러는 Repository 를 직접 쓰지 않는다.
+  고칠 방법: Service 를 거쳐 조회 · 저장한다(CLAUDE.md 레이어 경계).
+  - com/example/serverprovision/management/board/controller/ProbeRepoController.java  ProbeRepoController  (BoardModelRepository)</code></pre></figure>
+      </div>
+    </details>
+
+    <!-- ===== §4 강제 장치와 문서 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 강제 장치와 문서</summary>
+      <div class="body">
+        <h4>고정 예제 테스트 (규칙의 테스트)</h4>
+        <table>
+          <thead><tr><th>테스트</th><th>수</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>ArchitectureRulesTest</code></td><td>6</td><td><code>convention.fixture</code> 패키지의 예제 클래스로 A 규칙 판정</td></tr>
+            <tr><td><code>SourceRulesTest</code></td><td>5</td><td>문자열 소스로 S 규칙 판정</td></tr>
+            <tr><td><code>JavadocRulesTest</code></td><td>6</td><td>javadoc.md 의 좋은 예 · 나쁜 예 문장을 그대로 사용</td></tr>
+            <tr><td><code>ConventionBaselineTest</code></td><td>8</td><td>새 위반 · 낡은 줄 · 형식 오류 · 이름 바꾸기 안내 · 중복 키</td></tr>
+          </tbody>
+        </table>
+        <p>규칙마다 위반 하나와 통과 하나를 함께 본다. 본 검사 두 개(main 전체)는 이 고정 예제와 같은 판정 코드를 쓴다. 고정 예제 클래스는 테스트 소스라 본 검사 대상이 아니다.</p>
+
+        <h4>문서와 관문</h4>
+        <table>
+          <thead><tr><th>대상</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>.claude/domain-conventions/javadoc.md</code> <span class="chip new">신규</span></td><td>기계 규칙 표, 명료성 점검 순서 6, 예 셋, 인라인 주석</td></tr>
+            <tr><td><code>.claude/domain-conventions/README.md</code> <span class="chip mod">수정</span></td><td>트리거 표에 javadoc.md 한 줄</td></tr>
+            <tr><td><code>CLAUDE.md</code> <span class="chip mod">수정</span></td><td>코딩 스타일 절 '강제 장치(CH11)' 한 줄, 작업 전 체크리스트 표 'Javadoc · 코드 주석 → javadoc.md'</td></tr>
+            <tr><td>cp7-ship <code>preflight.sh</code> <span class="chip mod">수정</span></td><td>'코딩 규약 기준선' 절. base 대비 더해진 줄이면 [CHECK]</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">기준선이 줄어들기만 하도록 막는 장치는 둘이다. 테스트는 위반이 아닌 기준선 줄을 실패로 만들어 줄을 지우게 하고(H2), preflight 는 기준선에 더해진 줄을 [CHECK] 로 알려 사람이 사유를 확인하게 한다(H3). 테스트는 기준선을 쓰지 않는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §5 CP5 계획 ===== -->
+    <details class="section preview" id="s5" open>
+      <summary>§5. CP5 검증 계획 (항목 식별자)</summary>
+      <div class="body">
+        <p>화면이 없는 슬라이스라 브라우저 대신 하네스로 검증했다. 일회용 사본에 위반을 실제로 심고 gradle 테스트와 preflight 를 돌려 콘솔 출력을 증거로 남겼다. 계획은 수행 전에 식별자를 붙여 작성했고, §6 의 수행 기록이 같은 식별자로 1:1 대응한다.</p>
+        <table>
+          <thead><tr><th>회차</th><th>확인하려던 것</th></tr></thead>
+          <tbody>
+            <tr><td>1 회차</td><td>일회용 사본에서 16 규칙 위반을 실제로 심어 메시지를 보고, 기준선 줄어들기만(H2) · preflight(H3) · 시간(H4) · 오탐(H5) · 경계(B1 ~ B5)</td></tr>
+            <tr><td>재검증 r1</td><td>D-1 · O-1 · O-2 · O-5 수정과 O-4 안내 확인, 회귀</td></tr>
+          </tbody>
+        </table>
+
+        <h4>1 회차 계획 (cp5-result.md 2절)</h4>
+        <table>
+          <thead><tr><th>식별자</th><th>조작</th><th>기대 결과</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>H0</td><td>사본에서 <code>./gradlew test --tests 'com.example.serverprovision.convention.*'</code> (심기 전)</td><td>6 클래스(본 검사 2 · 고정 예제 4) 전부 green</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-A1</td><td>컨트롤러 메서드에 <code>@Transactional</code></td><td><code>[A1]</code> 새 위반, 멤버 <code>Type#method(Param)</code></td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-A2</td><td>컨트롤러에 <code>BoardModelRepository</code> 필드</td><td><code>[A2]</code> 새 위반, 타입 키 + 의존 대상 이름</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-A3</td><td>컨트롤러가 엔티티 <code>BoardModel</code> 을 반환하는 메서드</td><td><code>[A3]</code> 새 위반, 타입 키 + 의존 대상</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-A4</td><td><code>dto/request</code> 에 <code>FooDto</code> record</td><td><code>[A4]</code> 새 위반</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-A5</td><td>management 서비스에 <code>ObjectProvider</code> 필드</td><td><code>[A5]</code> 새 위반</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-A6</td><td>dto 의 <code>String mac</code> 필드</td><td><code>[A6]</code> 새 위반, 필드 키 <code>Type#mac</code></td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-A7</td><td>대문자 패키지(<code>management.Probe</code>)의 클래스</td><td><code>[A7]</code> 새 위반</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-S1</td><td>컨트롤러 메서드 안 try</td><td><code>[S1]</code> 새 위반</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-S2</td><td>본문 101 줄 메서드</td><td><code>[S2]</code> 새 위반, <code>101 줄</code></td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-S3</td><td>제어 구조 5 단계 중첩</td><td><code>[S3]</code> 새 위반, <code>5 단계</code></td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-S4</td><td><code>// Claude</code> 주석</td><td><code>[S4]</code> 새 위반</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-J1</td><td>멤버 Javadoc 본문 5 줄</td><td><code>[J1]</code> 새 위반, <code>5 줄</code></td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-J2</td><td>타입 Javadoc 본문 9 줄</td><td><code>[J2]</code> 새 위반, <code>9 줄</code></td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-J3</td><td>Javadoc 첫 줄 "S23-1 — ..."</td><td><code>[J3]</code> 새 위반</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-J4</td><td>Javadoc 에 "a → b"</td><td><code>[J4]</code> 새 위반</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-J5</td><td>Javadoc 에 괄호 안 괄호</td><td><code>[J5]</code> 새 위반</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-M</td><td>위 실패 메시지 형식</td><td>규칙 ID · 규칙 문장 · 고칠 방법 · 파일 · 멤버 · 기준선 형식 줄이 모두 보인다</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H1-X</td><td>심은 위반 외 잡음</td><td>새 위반은 심은 16 건뿐, 낡은 줄 0</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H2-1</td><td>기준선 J4 줄 하나의 Javadoc 화살표를 문장으로 고침</td><td>'더 이상 위반이 아닌 기준선 줄 1 건' 실패, 그 키 표시</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H2-2</td><td>그 줄을 baseline.txt 에서 지움</td><td>통과</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H3-1</td><td>git 사본, 브랜치 <code>chore/H3_baseline</code> 에서 위반 1 + 그 키를 기준선에 더함</td><td>두 본 검사 통과</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H3-2</td><td>같은 상태에서 preflight.sh</td><td><code>[CHECK] 기준선에 더해진 줄 1 개</code> + 그 줄</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H3-3</td><td>줄을 지운 상태에서 preflight.sh</td><td><code>더해진 줄 없음</code></td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H3-4 <span class="chip opt">수행 중 추가</span></td><td>미커밋 상태로 기준선 옛 줄 2 개의 키만 바꿈(메서드 이름 변경에 맞춘 재키)</td><td>-</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H3-5 <span class="chip opt">수행 중 추가</span></td><td>연결 워크트리가 아닌 일반 저장소(<code>ch11-h</code>)에서 preflight</td><td>-</td><td><span class="chip mod">관찰</span></td></tr>
+            <tr><td>H4</td><td>두 본 검사의 테스트 보고서 time</td><td>값 기록</td><td><span class="chip add">통과(기록)</span></td></tr>
+            <tr><td>H5-1</td><td>Javadoc <code>{@code a -&gt; b}</code></td><td>J4 아님</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H5-2</td><td>Javadoc 괄호 안 <code>{@link Foo#bar(String)}</code></td><td>J5 아님</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>H5-3</td><td>service 패키지 메서드의 try</td><td>S1 아님</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>B1</td><td>기준선에 형식이 틀린 줄(탭 대신 공백)</td><td>어떻게 다루는지 관측(기대: 낡은 줄 또는 형식 오류로 알림)</td><td><span class="chip del">실패 (D-1)</span></td></tr>
+            <tr><td>B2</td><td>기준선에 옛 위반이 있는 파일을 다른 패키지로 옮김</td><td>새 위반 + 낡은 줄이 함께 나와 무엇을 할지 알 수 있다</td><td><span class="chip add">통과 (O-4)</span></td></tr>
+            <tr><td>B3</td><td>Javadoc 첫 줄이 단계 코드가 아닌 "M2 SSD — ..."</td><td>J3 오탐 여부 관측</td><td><span class="chip del">실패 (O-2)</span></td></tr>
+            <tr><td>B4</td><td>컨트롤러 클래스에 <code>@Transactional</code></td><td><code>[A1]</code> 타입 키</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>B5</td><td>Javadoc 의 <code>&lt;pre&gt;</code> 안 화살표, <code>-&amp;gt;</code> 엔티티 화살표</td><td><code>&lt;pre&gt;</code> 는 J4 아님, <code>-&amp;gt;</code> 는 J4</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>B6 <span class="chip opt">수행 중 추가</span></td><td><code>@param value 바꿀 값. a -&gt; b</code></td><td>-</td><td><span class="chip mod">관찰</span></td></tr>
+          </tbody>
+        </table>
+        <p>계획 33 항목에 수행 중 3 항목(H3-4 · H3-5 · B6)을 더해 36 항목을 수행했다. 계획 B2 는 '다른 패키지로 옮김' 이었으나 실제 조작은 같은 파일 안 메서드 이름 바꾸기였다(§6 B2). 키가 바뀌는 상황이라는 점은 같다.</p>
+
+        <h4>재검증 r1 계획 (cp5-result-r1.md 2절)</h4>
+        <table>
+          <thead><tr><th>식별자</th><th>조작</th><th>기대 결과</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>R0</td><td>사본에서 <code>./gradlew test --tests 'com.example.serverprovision.convention.*'</code> (심기 전)</td><td>전부 green</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>R1</td><td>기준선 끝에 공백 줄(탭 대신 공백) 1 · <code>X9</code> 줄 1 을 더함</td><td>두 본 검사 모두 '형식이 틀린 기준선 줄 2 건' 으로 실패, 두 줄이 메시지에 나온다</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>R1-b <span class="chip opt">추가</span></td><td>규칙 ID 는 맞고 칸이 둘인 줄(<code>J4&lt;TAB&gt;경로</code>)</td><td>형식 오류로 실패. 낡은 줄로도 함께 나오는지 관측</td><td><span class="chip add">통과 (N-2)</span></td></tr>
+            <tr><td>R2</td><td>위반 하나(S1)를 심고 <code>./gradlew test --tests '*ConventionTest'</code></td><td>gradle 콘솔에 규칙 ID · 규칙 문장 · 고칠 방법 · 위치가 그대로 보인다</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>R3</td><td>Javadoc 첫 줄 'M2 SSD — …' 와 'S23-1 — …'</td><td>M2 는 J3 아님, S23-1 은 J3</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>R4</td><td>서로 다른 규칙 · 파일의 위반 셋을 심음</td><td>끝의 기준선 형식 줄이 정렬되어 나온다</td><td><span class="chip add">통과 (N-3)</span></td></tr>
+            <tr><td>R5</td><td>기준선에 있는 메서드 이름 바꾸기</td><td>새 위반 + 지울 줄 + 안내 줄 "옛 위반의 이름만 바뀐 경우라도 …"</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>R5-b <span class="chip opt">추가</span> = 수행 R2-b</td><td>이름 바꾸기 없이 새 위반 1 만</td><td>안내 줄이 나오지 않는다</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>R6-a</td><td>H1 의 16 규칙을 다시 한꺼번에 심음</td><td>16 규칙 전부 잡힘, 잡음 없음</td><td><span class="chip add">통과</span></td></tr>
+            <tr><td>R6-b</td><td>사본 전체 <code>./gradlew test</code></td><td>green</td><td><span class="chip add">통과</span></td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>식별자 한 곳이 계획과 수행에서 다르다.</b> 계획의 R5-b(새 위반만 있고 지울 줄이 없으면 안내 줄이 없다)는 별도 실행 없이 R2 실행 결과로 확인했고, 수행 기록에는 R2-b 로 적혔다. 두 식별자는 같은 항목이다. 그래서 r1 은 10 항목이다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 CP5 수행 기록 ===== -->
+    <details class="section preview" id="s6" open>
+      <summary>§6. CP5 수행 기록 (조작과 증거)</summary>
+      <div class="body">
+        <h4>수행 환경</h4>
+        <ul>
+          <li>수행 주체 : cp5-verifier 하위 에이전트, 2026-11-18 KST. 1 회차 20:50 ~ 21:00, r1 21:03 ~ 21:08</li>
+          <li>원본 워크트리는 git 조회만 했다. gradle 은 원본에서 돌리지 않았다</li>
+          <li>사본 : 원본을 rsync 한 스크래치 사본(build · .gradle · sbx-* · .git · .claude/worktrees 제외). H3 는 이 사본을 git 저장소(dev 커밋 1, bare 복제를 origin 으로 등록)로 만들고 연결 워크트리 <code>ch11-h3</code> 를 붙여 수행했다. r1 은 사본을 지우고 원본에서 다시 rsync 했다(원본 src · build.gradle 과 diff 0 확인)</li>
+          <li>심은 위반은 회차마다 모두 되돌렸고 <code>diff -rq</code> 로 원본 src 와 같음을 확인했다</li>
+          <li>증거 표기 : 원문의 긴 스크래치 경로는 <code>&lt;스크래치&gt;</code> 로 줄였다. 그 밖의 글자는 원문 그대로다. 1 회차의 실패 메시지는 gradle 콘솔에 나오지 않아(O-1) JUnit XML 에서 뽑은 <code>*-failure-messages.txt</code> 가 증거이고, r1 은 testLogging 이 들어가 콘솔 원문이 증거다</li>
+        </ul>
+        <table>
+          <thead><tr><th>원본 자기 점검 값</th><th>시작</th><th>끝</th></tr></thead>
+          <tbody>
+            <tr><td>1 회차 <code>/usr/bin/git status --porcelain | shasum</code></td><td><code>a6448959…6aef</code></td><td><code>a6448959…6aef</code></td></tr>
+            <tr><td>1 회차 <code>/usr/bin/git diff | shasum</code></td><td><code>24459774…7216</code></td><td><code>24459774…7216</code></td></tr>
+            <tr><td>r1 <code>/usr/bin/git status --porcelain | shasum</code></td><td><code>a6448959…6aef</code></td><td><code>a6448959…6aef</code></td></tr>
+            <tr><td>r1 <code>/usr/bin/git diff | shasum</code></td><td><code>7a864a16…f48f</code></td><td><code>7a864a16…f48f</code></td></tr>
+          </tbody>
+        </table>
+        <p>회차마다 시작 값과 끝 값이 일치해 원본을 건드리지 않았다. r1 의 diff 값이 1 회차와 다른 것은 그 사이 메인 세션이 수정을 넣었기 때문이다. rtk 훅 경유 값도 시작 · 끝이 일치했다(원자료 1절).</p>
+
+        <h4>1 회차 · 기준 실행</h4>
+
+        <h4>H0</h4>
+        <p><b>조작</b> : 사본에서 <code>./gradlew test --tests 'com.example.serverprovision.convention.*'</code><br>
+           <b>관측</b> : 6 클래스 24 건 green, BUILD SUCCESSFUL in 22s<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H0-convention-green.txt</code> (클래스별 tests · time 줄 포함), <code>H0-test-results/</code></p>
+        <figure data-ev="H0"><figcaption><b>H0</b> · <code>H0-convention-green.txt</code> 발췌</figcaption><pre><code>BUILD SUCCESSFUL in 22s
+5 actionable tasks: 5 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html
+exit=0
+end 20:52:50
+com.example.serverprovision.convention.ArchitectureConventionTest tests=1 skipped=0 failures=0 errors=0 time=2.043
+com.example.serverprovision.convention.ArchitectureRulesTest tests=6 skipped=0 failures=0 errors=0 time=0.1
+com.example.serverprovision.convention.CodingConventionTest tests=1 skipped=0 failures=0 errors=0 time=2.278
+com.example.serverprovision.convention.ConventionBaselineTest tests=5 skipped=0 failures=0 errors=0 time=0.007
+com.example.serverprovision.convention.JavadocRulesTest tests=6 skipped=0 failures=0 errors=0 time=0.005
+com.example.serverprovision.convention.SourceRulesTest tests=5 skipped=0 failures=0 errors=0 time=0.012</code></pre></figure>
+
+        <h4>1 회차 · 16 규칙 위반 심기 (H1)</h4>
+        <p>사본 main 에 Probe 파일 10 개를 심고 한 번 실행했다. 심은 소스 전체는 H1-M 의 접는 상자에 있다.</p>
+
+        <h4>H1-A1</h4>
+        <p><b>조작</b> : <code>ProbeTxController#save(String)</code> 에 <code>@Transactional</code><br>
+           <b>관측</b> : <code>[A1]</code> 아래 <code>ProbeTxController.java  ProbeTxController#save(String)</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H1-failure-messages.txt</code> A1 절</p>
+        <figure data-ev="H1-A1"><figcaption><b>H1-A1</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[A1] 컨트롤러에 @Transactional 을 두지 않는다.
+  고칠 방법: 트랜잭션은 Service 메서드에 둔다(CLAUDE.md 레이어 경계).
+  - com/example/serverprovision/management/board/controller/ProbeClassTxController.java  ProbeClassTxController
+  - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController#save(String)</code></pre></figure>
+
+        <h4>H1-A2</h4>
+        <p><b>조작</b> : <code>ProbeRepoController</code> 에 <code>BoardModelRepository</code> 필드<br>
+           <b>관측</b> : <code>[A2]</code> <code>ProbeRepoController  (BoardModelRepository)</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 A2 절</p>
+        <figure data-ev="H1-A2"><figcaption><b>H1-A2</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[A2] 컨트롤러는 Repository 를 직접 쓰지 않는다.
+  고칠 방법: Service 를 거쳐 조회 · 저장한다(CLAUDE.md 레이어 경계).
+  - com/example/serverprovision/management/board/controller/ProbeRepoController.java  ProbeRepoController  (BoardModelRepository)</code></pre></figure>
+
+        <h4>H1-A3</h4>
+        <p><b>조작</b> : <code>ProbeEntityController#name(BoardModel)</code><br>
+           <b>관측</b> : <code>[A3]</code> <code>ProbeEntityController  (BoardModel)</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 A3 절</p>
+        <figure data-ev="H1-A3"><figcaption><b>H1-A3</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[A3] 컨트롤러는 엔티티를 직접 다루지 않는다.
+  고칠 방법: Service 가 *Response 로 바꿔 넘긴다. 뷰 모델에 엔티티를 넣지 않는다(CLAUDE.md 레이어 경계).
+  - com/example/serverprovision/management/board/controller/ProbeEntityController.java  ProbeEntityController  (BoardModel)</code></pre></figure>
+
+        <h4>H1-A4</h4>
+        <p><b>조작</b> : <code>management/board/dto/request/FooDto.java</code> record<br>
+           <b>관측</b> : <code>[A4]</code> <code>FooDto</code> 1 건(Dto 접미사와 Request 아님이 한 건으로)<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 A4 절</p>
+        <figure data-ev="H1-A4"><figcaption><b>H1-A4</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[A4] dto.request 클래스는 Request 로, dto.response 클래스는 Response 로 끝나고 DTO 접미사를 쓰지 않는다.
+  고칠 방법: 이름을 바꾸거나, 요청 · 응답이 아닌 도우미는 dto 밖으로 옮긴다(CLAUDE.md 네이밍).
+  - com/example/serverprovision/management/board/dto/request/FooDto.java  FooDto</code></pre></figure>
+
+        <h4>H1-A5</h4>
+        <p><b>조작</b> : <code>management/board/service/ProbeInjectService</code> 에 <code>ObjectProvider&lt;String&gt;</code> 필드<br>
+           <b>관측</b> : <code>[A5]</code> <code>ProbeInjectService  (ObjectProvider)</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 A5 절</p>
+        <figure data-ev="H1-A5"><figcaption><b>H1-A5</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[A5] management 서비스는 TypedNameVerifier · MarkableScanner · ObjectProvider 를 주입받지 않는다.
+  고칠 방법: 이름 확인은 컨트롤러가 하고, 스캐너는 reconciliation 쪽에서 쓴다. 주입하면 생성자 순환이 다시 생긴다(CLAUDE.md 핵심 설계 패턴).
+  - com/example/serverprovision/management/board/service/ProbeInjectService.java  ProbeInjectService  (ObjectProvider)</code></pre></figure>
+
+        <h4>H1-A6</h4>
+        <p><b>조작</b> : <code>dto/request/ProbeMacRequest(String mac)</code><br>
+           <b>관측</b> : <code>[A6]</code> <code>ProbeMacRequest#mac</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 A6 절</p>
+        <figure data-ev="H1-A6"><figcaption><b>H1-A6</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[A6] 엔티티와 DTO 의 mac · ip 값은 String 이 아니다.
+  고칠 방법: MacAddress · IpAddress 같은 값 객체를 쓴다(CLAUDE.md Primitive Obsession 금지).
+  - com/example/serverprovision/management/board/dto/request/ProbeMacRequest.java  ProbeMacRequest#mac</code></pre></figure>
+
+        <h4>H1-A7</h4>
+        <p><b>조작</b> : <code>management/Probe/ProbeUpper.java</code><br>
+           <b>관측</b> : <code>[A7]</code> <code>management/Probe/ProbeUpper.java  ProbeUpper</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 A7 절</p>
+        <figure data-ev="H1-A7"><figcaption><b>H1-A7</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[A7] 패키지 이름은 소문자다.
+  고칠 방법: 패키지 이름을 소문자로 바꾼다(CLAUDE.md 네이밍).
+  - com/example/serverprovision/management/Probe/ProbeUpper.java  ProbeUpper</code></pre></figure>
+
+        <h4>H1-S1</h4>
+        <p><b>조작</b> : <code>ProbeTxController#guarded(String)</code> 안 try/catch<br>
+           <b>관측</b> : <code>[S1]</code> <code>ProbeTxController#guarded(String)</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 S1 절</p>
+        <figure data-ev="H1-S1"><figcaption><b>H1-S1</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[S1] 컨트롤러 메서드 안에 try 문을 두지 않는다.
+  고칠 방법: 예외를 HTTP 응답으로 바꾸는 일은 @ControllerAdvice · resolver 로 올린다(CLAUDE.md 조건분기 legacy 확장 금지).
+  - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController#guarded(String)</code></pre></figure>
+
+        <h4>H1-S2</h4>
+        <p><b>조작</b> : <code>ProbeLongService#longBody()</code> 본문 101 줄(<code>total += n;</code> 100 줄 + 선언 1 줄)<br>
+           <b>관측</b> : <code>[S2]</code> <code>ProbeLongService#longBody()  (101 줄)</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 S2 절, 심은 코드 <code>H1-planted-sources.txt</code></p>
+        <figure data-ev="H1-S2"><figcaption><b>H1-S2</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[S2] 메서드 본문은 100 줄을 넘지 않는다.
+  고칠 방법: 검증 · 변환 · 입출력 · 응답 조립을 작은 메서드로 나눈다(CLAUDE.md 중복 · 가독성 금지).
+  - com/example/serverprovision/management/board/service/ProbeLongService.java  ProbeLongService#longBody()  (101 줄)</code></pre></figure>
+
+        <h4>H1-S3</h4>
+        <p><b>조작</b> : for 안 if 안 while 안 try 안 switch(5 단계)<br>
+           <b>관측</b> : <code>[S3]</code> <code>ProbeLongService#deepNesting(List)  (5 단계)</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 S3 절</p>
+        <figure data-ev="H1-S3"><figcaption><b>H1-S3</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[S3] 제어 구조를 5 단계 이상 겹치지 않는다.
+  고칠 방법: 이른 반환이나 작은 메서드로 단계를 줄인다(CLAUDE.md 중복 · 가독성 금지).
+  - com/example/serverprovision/management/board/service/ProbeLongService.java  ProbeLongService#deepNesting(List)  (5 단계)</code></pre></figure>
+        <figure data-ev="H1-S3"><figcaption><b>H1-S3</b> · <code>H1-planted-sources.txt</code> 발췌</figcaption><pre><code>	public int deepNesting(List&lt;String&gt; items) {
+		int count = 0;
+		for (String item : items) {
+			if (!item.isEmpty()) {
+				while (count &lt; 10) {
+					try {
+						switch (item) {
+							case &quot;a&quot; -&gt; count++;
+							default -&gt; count += 2;
+						}
+					} finally {
+						count++;
+					}
+				}
+			}
+		}
+		return count;
+	}</code></pre></figure>
+
+        <h4>H1-S4</h4>
+        <p><b>조작</b> : 메서드 위 <code>// Claude</code><br>
+           <b>관측</b> : <code>[S4]</code> 타입 키 <code>ProbeTxController</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 S4 절</p>
+        <figure data-ev="H1-S4"><figcaption><b>H1-S4</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[S4] 주석에 AI 작성 표지를 두지 않는다.
+  고칠 방법: &#x27;// Claude&#x27;, &#x27;@author Claude&#x27;, &#x27;Generated by&#x27; 같은 표지를 지운다. AI 참여는 커밋 메시지에 남긴다(CLAUDE.md 코딩 스타일).
+  - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController</code></pre></figure>
+
+        <h4>H1-J1</h4>
+        <p><b>조작</b> : 멤버 Javadoc 본문 5 줄<br>
+           <b>관측</b> : <code>[J1]</code> <code>ProbeJavadoc#j1()  (5 줄)</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 J1 절</p>
+        <figure data-ev="H1-J1"><figcaption><b>H1-J1</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[J1] 멤버 Javadoc 본문은 4 줄을 넘지 않는다.
+  고칠 방법: 무엇과 왜만 남긴다. 긴 설계 배경은 타입 Javadoc 한 곳에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j1()  (5 줄)</code></pre></figure>
+
+        <h4>H1-J2</h4>
+        <p><b>조작</b> : 타입 Javadoc 본문 9 줄<br>
+           <b>관측</b> : <code>[J2]</code> <code>ProbeJavadoc  (9 줄)</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 J2 절</p>
+        <figure data-ev="H1-J2"><figcaption><b>H1-J2</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[J2] 타입 Javadoc 본문은 8 줄을 넘지 않는다.
+  고칠 방법: 지금의 역할과 이유만 남기고, 경위는 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc  (9 줄)</code></pre></figure>
+
+        <h4>H1-J3</h4>
+        <p><b>조작</b> : <code>S23-1 — a → b 로 바꾼다.</code><br>
+           <b>관측</b> : <code>[J3]</code> <code>ProbeJavadoc#j3j4()</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 J3 절</p>
+        <figure data-ev="H1-J3"><figcaption><b>H1-J3</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[J3] Javadoc 첫 문장을 단계 코드로 시작하지 않는다.
+  고칠 방법: 첫 문장은 이 코드가 지금 하는 일을 말한다. 단계 이력은 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b3NotStageCode()</code></pre></figure>
+
+        <h4>H1-J4</h4>
+        <p><b>조작</b> : 같은 Javadoc 의 <code>a → b</code><br>
+           <b>관측</b> : <code>[J4]</code> <code>ProbeJavadoc#j3j4()</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 J4 절</p>
+        <figure data-ev="H1-J4"><figcaption><b>H1-J4</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[J4] Javadoc 에 화살표를 쓰지 않는다.
+  고칠 방법: &#x27;A 하면 B 가 된다&#x27; 처럼 문장으로 쓴다. 코드 예시는 {@code} 안에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b5EntityArrow()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b6ParamArrow(String)</code></pre></figure>
+
+        <h4>H1-J5</h4>
+        <p><b>조작</b> : <code>값을 고른다(보드 이름(카탈로그 기준)을 쓴다).</code><br>
+           <b>관측</b> : <code>[J5]</code> <code>ProbeJavadoc#j5()</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 J5 절</p>
+        <figure data-ev="H1-J5"><figcaption><b>H1-J5</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[J5] Javadoc 에 괄호 안 괄호를 쓰지 않는다.
+  고칠 방법: 괄호 속 설명을 문장 하나로 꺼낸다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j5()</code></pre></figure>
+
+        <h4>H1-M</h4>
+        <p><b>조작</b> : 위 두 실패 메시지의 형식<br>
+           <b>관측</b> : 규칙마다 <code>[ID] 규칙 문장</code> · <code>고칠 방법:</code> · <code>- 파일  멤버  (보충)</code> 이 나오고, 끝에 탭으로 나뉜 기준선 형식 줄 20 줄(구조 8 · 소스 12). 탭 문자 실측 20 줄<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H1-failure-messages.txt</code></p>
+        <figure data-ev="H1-M"><figcaption><b>H1-M</b> · <code>H1-failure-messages.txt</code> 원문 전체</figcaption><details><summary>원문 전체 펼치기 (100 줄)</summary><pre><code>### com.example.serverprovision.convention.ArchitectureConventionTest tests=1 failures=1 errors=0 time=2.642
+org.opentest4j.AssertionFailedError: 구조 규칙 위반
+새 위반 8 건. 코드를 고친다.
+
+[A1] 컨트롤러에 @Transactional 을 두지 않는다.
+  고칠 방법: 트랜잭션은 Service 메서드에 둔다(CLAUDE.md 레이어 경계).
+  - com/example/serverprovision/management/board/controller/ProbeClassTxController.java  ProbeClassTxController
+  - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController#save(String)
+
+[A2] 컨트롤러는 Repository 를 직접 쓰지 않는다.
+  고칠 방법: Service 를 거쳐 조회 · 저장한다(CLAUDE.md 레이어 경계).
+  - com/example/serverprovision/management/board/controller/ProbeRepoController.java  ProbeRepoController  (BoardModelRepository)
+
+[A3] 컨트롤러는 엔티티를 직접 다루지 않는다.
+  고칠 방법: Service 가 *Response 로 바꿔 넘긴다. 뷰 모델에 엔티티를 넣지 않는다(CLAUDE.md 레이어 경계).
+  - com/example/serverprovision/management/board/controller/ProbeEntityController.java  ProbeEntityController  (BoardModel)
+
+[A4] dto.request 클래스는 Request 로, dto.response 클래스는 Response 로 끝나고 DTO 접미사를 쓰지 않는다.
+  고칠 방법: 이름을 바꾸거나, 요청 · 응답이 아닌 도우미는 dto 밖으로 옮긴다(CLAUDE.md 네이밍).
+  - com/example/serverprovision/management/board/dto/request/FooDto.java  FooDto
+
+[A5] management 서비스는 TypedNameVerifier · MarkableScanner · ObjectProvider 를 주입받지 않는다.
+  고칠 방법: 이름 확인은 컨트롤러가 하고, 스캐너는 reconciliation 쪽에서 쓴다. 주입하면 생성자 순환이 다시 생긴다(CLAUDE.md 핵심 설계 패턴).
+  - com/example/serverprovision/management/board/service/ProbeInjectService.java  ProbeInjectService  (ObjectProvider)
+
+[A6] 엔티티와 DTO 의 mac · ip 값은 String 이 아니다.
+  고칠 방법: MacAddress · IpAddress 같은 값 객체를 쓴다(CLAUDE.md Primitive Obsession 금지).
+  - com/example/serverprovision/management/board/dto/request/ProbeMacRequest.java  ProbeMacRequest#mac
+
+[A7] 패키지 이름은 소문자다.
+  고칠 방법: 패키지 이름을 소문자로 바꾼다(CLAUDE.md 네이밍).
+  - com/example/serverprovision/management/Probe/ProbeUpper.java  ProbeUpper
+
+고칠 수 없는 사정이 있어 기준선에 더할 때만 아래 줄을 쓰고, PR 에 사유를 적는다.
+A2	com/example/serverprovision/management/board/controller/ProbeRepoController.java	ProbeRepoController
+A3	com/example/serverprovision/management/board/controller/ProbeEntityController.java	ProbeEntityController
+A4	com/example/serverprovision/management/board/dto/request/FooDto.java	FooDto
+A5	com/example/serverprovision/management/board/service/ProbeInjectService.java	ProbeInjectService
+A6	com/example/serverprovision/management/board/dto/request/ProbeMacRequest.java	ProbeMacRequest#mac
+A1	com/example/serverprovision/management/board/controller/ProbeClassTxController.java	ProbeClassTxController
+A1	com/example/serverprovision/management/board/controller/ProbeTxController.java	ProbeTxController#save(String)
+A7	com/example/serverprovision/management/Probe/ProbeUpper.java	ProbeUpper
+
+
+### com.example.serverprovision.convention.CodingConventionTest tests=1 failures=1 errors=0 time=2.356
+org.opentest4j.AssertionFailedError: 소스 · Javadoc 규칙 위반
+새 위반 12 건. 코드를 고친다.
+
+[S1] 컨트롤러 메서드 안에 try 문을 두지 않는다.
+  고칠 방법: 예외를 HTTP 응답으로 바꾸는 일은 @ControllerAdvice · resolver 로 올린다(CLAUDE.md 조건분기 legacy 확장 금지).
+  - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController#guarded(String)
+
+[S2] 메서드 본문은 100 줄을 넘지 않는다.
+  고칠 방법: 검증 · 변환 · 입출력 · 응답 조립을 작은 메서드로 나눈다(CLAUDE.md 중복 · 가독성 금지).
+  - com/example/serverprovision/management/board/service/ProbeLongService.java  ProbeLongService#longBody()  (101 줄)
+
+[S3] 제어 구조를 5 단계 이상 겹치지 않는다.
+  고칠 방법: 이른 반환이나 작은 메서드로 단계를 줄인다(CLAUDE.md 중복 · 가독성 금지).
+  - com/example/serverprovision/management/board/service/ProbeLongService.java  ProbeLongService#deepNesting(List)  (5 단계)
+
+[S4] 주석에 AI 작성 표지를 두지 않는다.
+  고칠 방법: &#x27;// Claude&#x27;, &#x27;@author Claude&#x27;, &#x27;Generated by&#x27; 같은 표지를 지운다. AI 참여는 커밋 메시지에 남긴다(CLAUDE.md 코딩 스타일).
+  - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController
+
+[J1] 멤버 Javadoc 본문은 4 줄을 넘지 않는다.
+  고칠 방법: 무엇과 왜만 남긴다. 긴 설계 배경은 타입 Javadoc 한 곳에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j1()  (5 줄)
+
+[J2] 타입 Javadoc 본문은 8 줄을 넘지 않는다.
+  고칠 방법: 지금의 역할과 이유만 남기고, 경위는 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc  (9 줄)
+
+[J3] Javadoc 첫 문장을 단계 코드로 시작하지 않는다.
+  고칠 방법: 첫 문장은 이 코드가 지금 하는 일을 말한다. 단계 이력은 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b3NotStageCode()
+
+[J4] Javadoc 에 화살표를 쓰지 않는다.
+  고칠 방법: &#x27;A 하면 B 가 된다&#x27; 처럼 문장으로 쓴다. 코드 예시는 {@code} 안에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b5EntityArrow()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b6ParamArrow(String)
+
+[J5] Javadoc 에 괄호 안 괄호를 쓰지 않는다.
+  고칠 방법: 괄호 속 설명을 문장 하나로 꺼낸다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j5()
+
+고칠 수 없는 사정이 있어 기준선에 더할 때만 아래 줄을 쓰고, PR 에 사유를 적는다.
+S1	com/example/serverprovision/management/board/controller/ProbeTxController.java	ProbeTxController#guarded(String)
+S4	com/example/serverprovision/management/board/controller/ProbeTxController.java	ProbeTxController
+J2	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc
+J1	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#j1()
+J3	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#j3j4()
+J4	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#j3j4()
+J5	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#j5()
+J3	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#b3NotStageCode()
+J4	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#b5EntityArrow()
+J4	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#b6ParamArrow(String)
+S2	com/example/serverprovision/management/board/service/ProbeLongService.java	ProbeLongService#longBody()
+S3	com/example/serverprovision/management/board/service/ProbeLongService.java	ProbeLongService#deepNesting(List)</code></pre></details></figure>
+        <figure data-ev="H1-M"><figcaption><b>H1-M</b> · <code>H1-planted-sources.txt</code> 원문 전체</figcaption><details><summary>원문 전체 펼치기 (316 줄)</summary><pre><code>===== ./com/example/serverprovision/management/board/controller/ProbeClassTxController.java
+package com.example.serverprovision.management.board.controller;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+
+@Controller
+@Transactional
+public class ProbeClassTxController {
+
+	public String hello() {
+		return &quot;hello&quot;;
+	}
+}
+===== ./com/example/serverprovision/management/board/controller/ProbeEntityController.java
+package com.example.serverprovision.management.board.controller;
+
+import com.example.serverprovision.management.board.entity.BoardModel;
+import org.springframework.stereotype.Controller;
+
+@Controller
+public class ProbeEntityController {
+
+	public String name(BoardModel model) {
+		return String.valueOf(model);
+	}
+}
+===== ./com/example/serverprovision/management/board/controller/ProbeRepoController.java
+package com.example.serverprovision.management.board.controller;
+
+import com.example.serverprovision.management.board.repository.BoardModelRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+
+@Controller
+@RequiredArgsConstructor
+public class ProbeRepoController {
+
+	private final BoardModelRepository boardModelRepository;
+
+	public long count() {
+		return boardModelRepository.count();
+	}
+}
+===== ./com/example/serverprovision/management/board/controller/ProbeTxController.java
+package com.example.serverprovision.management.board.controller;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+
+@Controller
+public class ProbeTxController {
+
+	@Transactional
+	public String save(String name) {
+		return name;
+	}
+
+	public String guarded(String name) {
+		try {
+			return name.trim();
+		} catch (RuntimeException e) {
+			return &quot;&quot;;
+		}
+	}
+
+	// Claude
+	public String marked() {
+		return &quot;x&quot;;
+	}
+}
+===== ./com/example/serverprovision/management/board/dto/request/FooDto.java
+package com.example.serverprovision.management.board.dto.request;
+
+public record FooDto(String name) {
+}
+===== ./com/example/serverprovision/management/board/dto/request/ProbeMacRequest.java
+package com.example.serverprovision.management.board.dto.request;
+
+public record ProbeMacRequest(String mac) {
+}
+===== ./com/example/serverprovision/management/board/service/ProbeInjectService.java
+package com.example.serverprovision.management.board.service;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
+
+@RequiredArgsConstructor
+public class ProbeInjectService {
+
+	private final ObjectProvider&lt;String&gt; names;
+
+	public String parse(String raw) {
+		try {
+			return String.valueOf(Integer.parseInt(raw));
+		} catch (NumberFormatException e) {
+			return names.getIfAvailable();
+		}
+	}
+}
+===== ./com/example/serverprovision/management/board/service/ProbeJavadoc.java
+package com.example.serverprovision.management.board.service;
+
+/**
+ * 타입 Javadoc 길이 검사용 첫째 줄이다.
+ * 둘째 줄이다.
+ * 셋째 줄이다.
+ * 넷째 줄이다.
+ * 다섯째 줄이다.
+ * 여섯째 줄이다.
+ * 일곱째 줄이다.
+ * 여덟째 줄이다.
+ * 아홉째 줄이다.
+ */
+public class ProbeJavadoc {
+
+	/**
+	 * 멤버 Javadoc 첫째 줄이다.
+	 * 둘째 줄이다.
+	 * 셋째 줄이다.
+	 * 넷째 줄이다.
+	 * 다섯째 줄이다.
+	 */
+	public void j1() {
+	}
+
+	/**
+	 * S23-1 — a → b 로 바꾼다.
+	 */
+	public void j3j4() {
+	}
+
+	/**
+	 * 값을 고른다(보드 이름(카탈로그 기준)을 쓴다).
+	 */
+	public void j5() {
+	}
+
+	/**
+	 * 값을 바꾼다. 예시는 {@code a -&gt; b} 이다.
+	 */
+	public void h51CodeArrow() {
+	}
+
+	/**
+	 * 값을 돌려준다(목록은 {@link Foo#bar(String)} 가 만든다).
+	 */
+	public void h52LinkInParens() {
+	}
+
+	/**
+	 * M2 SSD — 장치를 고른다.
+	 */
+	public void b3NotStageCode() {
+	}
+
+	/**
+	 * 예시는 아래와 같다.
+	 * &lt;pre&gt;a → b&lt;/pre&gt;
+	 */
+	public void b5PreArrow() {
+	}
+
+	/**
+	 * 값이 a -&amp;gt; b 로 바뀐다.
+	 */
+	public void b5EntityArrow() {
+	}
+
+	/**
+	 * 값을 바꾼다.
+	 *
+	 * @param value 바꿀 값. a -&gt; b
+	 */
+	public void b6ParamArrow(String value) {
+	}
+}
+===== ./com/example/serverprovision/management/board/service/ProbeLongService.java
+package com.example.serverprovision.management.board.service;
+
+import java.util.List;
+
+public class ProbeLongService {
+
+	public void longBody() {
+		int total = 0;
+		total += 1;
+		total += 2;
+		total += 3;
+		total += 4;
+		total += 5;
+		total += 6;
+		total += 7;
+		total += 8;
+		total += 9;
+		total += 10;
+		total += 11;
+		total += 12;
+		total += 13;
+		total += 14;
+		total += 15;
+		total += 16;
+		total += 17;
+		total += 18;
+		total += 19;
+		total += 20;
+		total += 21;
+		total += 22;
+		total += 23;
+		total += 24;
+		total += 25;
+		total += 26;
+		total += 27;
+		total += 28;
+		total += 29;
+		total += 30;
+		total += 31;
+		total += 32;
+		total += 33;
+		total += 34;
+		total += 35;
+		total += 36;
+		total += 37;
+		total += 38;
+		total += 39;
+		total += 40;
+		total += 41;
+		total += 42;
+		total += 43;
+		total += 44;
+		total += 45;
+		total += 46;
+		total += 47;
+		total += 48;
+		total += 49;
+		total += 50;
+		total += 51;
+		total += 52;
+		total += 53;
+		total += 54;
+		total += 55;
+		total += 56;
+		total += 57;
+		total += 58;
+		total += 59;
+		total += 60;
+		total += 61;
+		total += 62;
+		total += 63;
+		total += 64;
+		total += 65;
+		total += 66;
+		total += 67;
+		total += 68;
+		total += 69;
+		total += 70;
+		total += 71;
+		total += 72;
+		total += 73;
+		total += 74;
+		total += 75;
+		total += 76;
+		total += 77;
+		total += 78;
+		total += 79;
+		total += 80;
+		total += 81;
+		total += 82;
+		total += 83;
+		total += 84;
+		total += 85;
+		total += 86;
+		total += 87;
+		total += 88;
+		total += 89;
+		total += 90;
+		total += 91;
+		total += 92;
+		total += 93;
+		total += 94;
+		total += 95;
+		total += 96;
+		total += 97;
+		total += 98;
+		total += 99;
+		total += 100;
+	}
+
+	public int deepNesting(List&lt;String&gt; items) {
+		int count = 0;
+		for (String item : items) {
+			if (!item.isEmpty()) {
+				while (count &lt; 10) {
+					try {
+						switch (item) {
+							case &quot;a&quot; -&gt; count++;
+							default -&gt; count += 2;
+						}
+					} finally {
+						count++;
+					}
+				}
+			}
+		}
+		return count;
+	}
+}
+===== ./com/example/serverprovision/management/Probe/ProbeUpper.java
+package com.example.serverprovision.management.Probe;
+
+public class ProbeUpper {
+
+	public int one() {
+		return 1;
+	}
+}</code></pre></details></figure>
+        <figure data-ev="H1-M"><figcaption><b>H1-M</b> · <code>H1-gradle-console.txt</code> 원문 전체</figcaption><details><summary>원문 전체 펼치기 (33 줄)</summary><pre><code>start 20:54:19
+&gt; Task :compileJava
+&gt; Task :processResources UP-TO-DATE
+&gt; Task :classes
+&gt; Task :compileTestJava UP-TO-DATE
+&gt; Task :processTestResources UP-TO-DATE
+&gt; Task :testClasses UP-TO-DATE
+
+&gt; Task :test
+
+ArchitectureConventionTest &gt; main 코드가 구조 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError at ArchitectureConventionTest.java:26
+
+CodingConventionTest &gt; main 소스가 소스 규칙과 Javadoc 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError at CodingConventionTest.java:31
+
+2 tests completed, 2 failed
+
+&gt; Task :test FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task &#x27;:test&#x27;.
+&gt; There were failing tests. See the report at: file://&lt;스크래치&gt;/ch11-h/build/reports/tests/test/index.html
+
+* Try:
+&gt; Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 7s
+5 actionable tasks: 2 executed, 3 up-to-date
+exit=1
+end 20:54:27</code></pre></details></figure>
+
+        <h4>H1-X</h4>
+        <p><b>조작</b> : 심은 위반 외 잡음<br>
+           <b>관측</b> : 새 위반은 구조 8 건 · 소스 12 건으로 심은 것(16 + B4 · B5 · B6 · B3 각 1)과 정확히 같고 낡은 줄 0<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일(건수 줄)</p>
+        <figure data-ev="H1-X"><figcaption><b>H1-X</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>### com.example.serverprovision.convention.ArchitectureConventionTest tests=1 failures=1 errors=0 time=2.642
+org.opentest4j.AssertionFailedError: 구조 규칙 위반
+새 위반 8 건. 코드를 고친다.</code></pre></figure>
+        <figure data-ev="H1-X"><figcaption><b>H1-X</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>### com.example.serverprovision.convention.CodingConventionTest tests=1 failures=1 errors=0 time=2.356
+org.opentest4j.AssertionFailedError: 소스 · Javadoc 규칙 위반
+새 위반 12 건. 코드를 고친다.</code></pre></figure>
+
+        <h4>1 회차 · 기준선 줄어들기만 (H2)</h4>
+
+        <h4>H2-1</h4>
+        <p><b>조작</b> : <code>Vendor#GIGABYTE</code> Javadoc 의 <code>{@code MS03-CE0} 모델 → {@code MS03-CE0-000}</code> 을 <code>예를 들어 모델 {@code MS03-CE0} 은 {@code MS03-CE0-000} 으로 보고한다</code> 로 고침<br>
+           <b>관측</b> : CodingConventionTest 실패: <code>더 이상 위반이 아닌 기준선 줄 1 건. src/test/resources/convention/baseline.txt 에서 지운다.</code> + 그 키. ArchitectureConventionTest 는 통과<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H2-1-vendor-fix.diff</code>, <code>H2-1-failure-messages.txt</code></p>
+        <figure data-ev="H2-1"><figcaption><b>H2-1</b> · <code>H2-1-vendor-fix.diff</code> 원문 전체</figcaption><pre><code>20c20
+&lt; 	 * (ex. {@code MS03-CE0} 모델 → {@code MS03-CE0-000}). 정규화 시 이 접미사만 제거한다.
+---
+&gt; 	 * (예를 들어 모델 {@code MS03-CE0} 은 {@code MS03-CE0-000} 으로 보고한다). 정규화 시 이 접미사만 제거한다.</code></pre></figure>
+        <figure data-ev="H2-1"><figcaption><b>H2-1</b> · <code>H2-1-failure-messages.txt</code> 원문 전체</figcaption><pre><code>### com.example.serverprovision.convention.ArchitectureConventionTest tests=1 failures=0 errors=0 time=2.363
+
+### com.example.serverprovision.convention.CodingConventionTest tests=1 failures=1 errors=0 time=2.421
+org.opentest4j.AssertionFailedError: 소스 · Javadoc 규칙 위반
+더 이상 위반이 아닌 기준선 줄 1 건. src/test/resources/convention/baseline.txt 에서 지운다.
+J4	com/example/serverprovision/management/board/enums/Vendor.java	Vendor#GIGABYTE</code></pre></figure>
+
+        <h4>H2-2</h4>
+        <p><b>조작</b> : baseline.txt 에서 그 줄(953 행)을 지움<br>
+           <b>관측</b> : 두 본 검사 통과, BUILD SUCCESSFUL<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H2-2-baseline.diff</code>, <code>H2-2-gradle-console.txt</code></p>
+        <figure data-ev="H2-2"><figcaption><b>H2-2</b> · <code>H2-2-baseline.diff</code> 원문 전체</figcaption><pre><code>953d952
+&lt; J4	com/example/serverprovision/management/board/enums/Vendor.java	Vendor#GIGABYTE</code></pre></figure>
+        <figure data-ev="H2-2"><figcaption><b>H2-2</b> · <code>H2-2-gradle-console.txt</code> 발췌</figcaption><pre><code>BUILD SUCCESSFUL in 6s
+5 actionable tasks: 2 executed, 3 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html
+exit=0
+end 20:55:41
+### com.example.serverprovision.convention.ArchitectureConventionTest tests=1 failures=0 errors=0 time=2.349
+
+### com.example.serverprovision.convention.CodingConventionTest tests=1 failures=0 errors=0 time=2.314</code></pre></figure>
+
+        <h4>1 회차 · preflight (H3)</h4>
+
+        <h4>H3-1</h4>
+        <p><b>조작</b> : 사본을 git 저장소(dev 커밋 1, bare 복제를 origin 으로 등록, fetch)로 만들고 연결 워크트리 <code>ch11-h3</code> 에 브랜치 <code>chore/H3_baseline</code>. <code>ProbeH3#run()</code> Javadoc 에 화살표를 심고 그 키를 기준선 끝에 더해 커밋<br>
+           <b>관측</b> : convention 6 클래스 전부 green<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H3-0-git-setup.txt</code>, <code>H3-1-commit.txt</code>, <code>H3-1-gradle-console.txt</code></p>
+        <figure data-ev="H3-1"><figcaption><b>H3-1</b> · <code>H3-0-git-setup.txt</code> 원문 전체</figcaption><pre><code>c976163 H3 기준 dev
++ chore/H3_baseline
+* dev
+  remotes/origin/HEAD -&gt; origin/dev
+  remotes/origin/dev
+&lt;스크래치&gt;/ch11-h  c976163 [dev]
+&lt;스크래치&gt;/ch11-h3 c976163 [chore/H3_baseline]</code></pre></figure>
+        <figure data-ev="H3-1"><figcaption><b>H3-1</b> · <code>H3-1-commit.txt</code> 발췌</figcaption><pre><code>diff --git a/src/test/resources/convention/baseline.txt b/src/test/resources/convention/baseline.txt
+index a40dcf8..6d7606c 100644
+--- a/src/test/resources/convention/baseline.txt
++++ b/src/test/resources/convention/baseline.txt
+@@ -1087,3 +1087,4 @@ S1	com/example/serverprovision/management/os/controller/IsoUploadController.java
+ S2	com/example/serverprovision/maintenance/reconciliation/service/PathReconciliationService.java	PathReconciliationService#performScan(boolean,String)
+ S2	com/example/serverprovision/provisioning/assignment/service/plan/RaidPlanner.java	RaidPlanner#plan(List,List,RaidInventory,RaidExistingConfigPolicy)
+ S3	com/example/serverprovision/maintenance/reconciliation/service/PathReconciliationService.java	PathReconciliationService#collectDiskMarkers(Set,List)
++J4	com/example/serverprovision/management/board/service/ProbeH3.java	ProbeH3#run()</code></pre></figure>
+        <figure data-ev="H3-1"><figcaption><b>H3-1</b> · <code>H3-1-gradle-console.txt</code> 발췌</figcaption><pre><code>BUILD SUCCESSFUL in 19s
+5 actionable tasks: 5 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html
+exit=0
+end 20:57:45
+### com.example.serverprovision.convention.ArchitectureConventionTest tests=1 failures=0 errors=0 time=1.999
+### com.example.serverprovision.convention.ArchitectureRulesTest tests=6 failures=0 errors=0 time=0.119
+### com.example.serverprovision.convention.CodingConventionTest tests=1 failures=0 errors=0 time=2.298
+### com.example.serverprovision.convention.ConventionBaselineTest tests=5 failures=0 errors=0 time=0.009
+### com.example.serverprovision.convention.JavadocRulesTest tests=6 failures=0 errors=0 time=0.006
+### com.example.serverprovision.convention.SourceRulesTest tests=5 failures=0 errors=0 time=0.016</code></pre></figure>
+
+        <h4>H3-2</h4>
+        <p><b>조작</b> : <code>bash .claude/skills/cp7-ship/scripts/preflight.sh</code><br>
+           <b>관측</b> : <code>[CHECK] 기준선에 더해진 줄 1 개. 고칠 수 없는 사정인지 확인하고 PR 본문에 사유를 적습니다:</code> + 그 키, <code>결과: 판정 필요 항목 있음</code>, exit=2<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H3-2-preflight-added.txt</code></p>
+        <figure data-ev="H3-2"><figcaption><b>H3-2</b> · <code>H3-2-preflight-added.txt</code> 원문 전체</figcaption><pre><code>== 위치
+워크트리: &lt;스크래치&gt;/ch11-h3
+브랜치:   chore/H3_baseline
+
+== origin/dev 대비
+앞선 커밋 1 개 · 뒤처진 커밋 0 개
+
+== 작업 트리
+
+== 기존 PR
+[WARN] gh 조회 실패
+
+== 비밀값 의심 줄(추가된 줄만, 값은 출력하지 않음)
+  없음
+
+== 배포 대기 항목(docs/deploy/pending)
+  해당 없음
+
+== 코딩 규약 기준선(src/test/resources/convention/baseline.txt)
+[CHECK] 기준선에 더해진 줄 1 개. 고칠 수 없는 사정인지 확인하고 PR 본문에 사유를 적습니다:
+  J4	com/example/serverprovision/management/board/service/ProbeH3.java	ProbeH3#run()
+
+결과: 판정 필요 항목 있음
+exit=2</code></pre></figure>
+
+        <h4>H3-3</h4>
+        <p><b>조작</b> : 기준선 줄을 지우고 위반도 고쳐 커밋, 테스트와 preflight<br>
+           <b>관측</b> : 테스트 green, preflight <code>더해진 줄 없음</code>, <code>결과: 통과</code>, exit=0<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H3-3-commit.txt</code>, <code>H3-3-gradle-console.txt</code>, <code>H3-3-preflight-none.txt</code></p>
+        <figure data-ev="H3-3"><figcaption><b>H3-3</b> · <code>H3-3-commit.txt</code> 원문 전체</figcaption><pre><code> .../serverprovision/management/board/service/ProbeH3.java      | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+diff --git a/src/main/java/com/example/serverprovision/management/board/service/ProbeH3.java b/src/main/java/com/example/serverprovision/management/board/service/ProbeH3.java
+new file mode 100644
+index 0000000..4d67ed9
+--- /dev/null
++++ b/src/main/java/com/example/serverprovision/management/board/service/ProbeH3.java
+@@ -0,0 +1,10 @@
++package com.example.serverprovision.management.board.service;
++
++public class ProbeH3 {
++
++	/**
++	 * 입력 a 를 출력 b 로 바꾼다.
++	 */
++	public void run() {
++	}
++}</code></pre></figure>
+        <figure data-ev="H3-3"><figcaption><b>H3-3</b> · <code>H3-3-gradle-console.txt</code> 발췌</figcaption><pre><code>BUILD SUCCESSFUL in 6s
+5 actionable tasks: 3 executed, 2 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html
+exit=0
+end 20:58:10</code></pre></figure>
+        <figure data-ev="H3-3"><figcaption><b>H3-3</b> · <code>H3-3-preflight-none.txt</code> 발췌</figcaption><pre><code>== 코딩 규약 기준선(src/test/resources/convention/baseline.txt)
+  더해진 줄 없음
+
+결과: 통과
+exit=0</code></pre></figure>
+
+        <h4>H3-4 (수행 중 추가)</h4>
+        <p><b>조작</b> : 미커밋 상태로 기준선 옛 줄 2 개의 키만 바꿈(메서드 이름 변경에 맞춘 재키)<br>
+           <b>관측</b> : preflight <code>[CHECK] 기준선에 더해진 줄 2 개</code> + 새 키 2 줄. 테스트는 green. 작업 트리 변경도 잡는다<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H3-4-preflight-rekey-uncommitted.txt</code>, <code>H3-4-gradle-console.txt</code></p>
+        <figure data-ev="H3-4"><figcaption><b>H3-4</b> · <code>H3-4-preflight-rekey-uncommitted.txt</code> 발췌</figcaption><pre><code>== 작업 트리
+   M src/main/java/com/example/serverprovision/execution/service/GuestServerRegistrationService.java
+   M src/test/resources/convention/baseline.txt
+
+== 기존 PR
+[WARN] gh 조회 실패
+
+== 비밀값 의심 줄(추가된 줄만, 값은 출력하지 않음)
+  없음
+
+== 배포 대기 항목(docs/deploy/pending)
+  해당 없음
+
+== 코딩 규약 기준선(src/test/resources/convention/baseline.txt)
+[CHECK] 기준선에 더해진 줄 2 개. 고칠 수 없는 사정인지 확인하고 PR 본문에 사유를 적습니다:
+  J1	com/example/serverprovision/execution/service/GuestServerRegistrationService.java	GuestServerRegistrationService#resolveReportedBoardModel(Vendor,String)
+  J4	com/example/serverprovision/execution/service/GuestServerRegistrationService.java	GuestServerRegistrationService#resolveReportedBoardModel(Vendor,String)
+
+결과: 판정 필요 항목 있음
+exit=2</code></pre></figure>
+        <figure data-ev="H3-4"><figcaption><b>H3-4</b> · <code>H3-4-gradle-console.txt</code> 원문 전체</figcaption><pre><code>test exit=0</code></pre></figure>
+
+        <h4>H3-5 (수행 중 추가)</h4>
+        <p><b>조작</b> : 연결 워크트리가 아닌 일반 저장소(<code>ch11-h</code>)에서 preflight<br>
+           <b>관측</b> : <code>[STOP] 앵커 워크트리(ServerProvision-dev)입니다.</code> exit=1. 기준선 절은 그대로 출력<br>
+           <b>판정</b> : <span class="chip mod">관찰</span> · <b>증거</b> : <code>H3-5-preflight-plain-repo.txt</code>, 관찰 O-3</p>
+        <figure data-ev="H3-5"><figcaption><b>H3-5</b> · <code>H3-5-preflight-plain-repo.txt</code> 원문 전체</figcaption><pre><code>== 위치
+워크트리: &lt;스크래치&gt;/ch11-h
+브랜치:   chore/H3_plain
+[STOP] 앵커 워크트리(ServerProvision-dev)입니다. 이 skill 은 다른 스트림 세션용입니다.
+
+== origin/dev 대비
+앞선 커밋 0 개 · 뒤처진 커밋 0 개
+
+== 작업 트리
+
+== 기존 PR
+[WARN] gh 조회 실패
+
+== 비밀값 의심 줄(추가된 줄만, 값은 출력하지 않음)
+  없음
+
+== 배포 대기 항목(docs/deploy/pending)
+  해당 없음
+
+== 코딩 규약 기준선(src/test/resources/convention/baseline.txt)
+  더해진 줄 없음
+
+결과: 중단 사유 있음
+exit=1</code></pre></figure>
+
+        <h4>1 회차 · 시간 (H4)</h4>
+
+        <h4>H4</h4>
+        <p><b>조작</b> : 두 본 검사의 JUnit XML time<br>
+           <b>관측</b> : ArchitectureConventionTest 1.997 ~ 2.642 초, CodingConventionTest 2.198 ~ 2.613 초(8 회 실행). 전체 테스트 1 회 실행에서는 1.997 + 2.613 = 4.61 초, 고정 예제 4 클래스 합 0.117 초<br>
+           <b>판정</b> : <span class="chip add">통과(기록)</span> · <b>증거</b> : 아래 표, <code>H4-full-test-with.txt</code></p>
+        <table>
+          <thead><tr><th>실행</th><th>ArchitectureConventionTest</th><th>CodingConventionTest</th></tr></thead>
+          <tbody>
+            <tr><td>H0</td><td>2.043</td><td>2.278</td></tr>
+            <tr><td>H1(위반 심음)</td><td>2.642</td><td>2.356</td></tr>
+            <tr><td>H2-1</td><td>2.363</td><td>2.421</td></tr>
+            <tr><td>H2-2</td><td>2.349</td><td>2.314</td></tr>
+            <tr><td>B1</td><td>2.382</td><td>2.363</td></tr>
+            <tr><td>B2</td><td>2.227</td><td>2.198</td></tr>
+            <tr><td>H3-1(연결 워크트리, 새 빌드)</td><td>1.999</td><td>2.298</td></tr>
+            <tr><td>전체 테스트 1 회 안</td><td>1.997</td><td>2.613</td></tr>
+          </tbody>
+        </table>
+        <p>단위는 초(JUnit XML testsuite time). 두 본 검사가 전체 테스트에 더하는 시간은 약 4.2 ~ 5.0 초, 전체 테스트 suite time 합 65.8 초의 약 7 % 다. 고정 예제 4 클래스(22 건)는 합 0.1 초 남짓이다.</p>
+        <figure data-ev="H4"><figcaption><b>H4</b> · <code>H4-full-test-with.txt</code> 발췌</figcaption><pre><code>BUILD SUCCESSFUL in 1m 11s
+5 actionable tasks: 3 executed, 2 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html
+exit=
+end 1795003199 20:59:59
+suites=569 tests=3810 failures=0 errors=0 skipped=6 sum_of_suite_time=65.8s
+   (&#x27;ArchitectureConventionTest&#x27;, 1.997, &#x27;1&#x27;)
+   (&#x27;ArchitectureRulesTest&#x27;, 0.092, &#x27;6&#x27;)
+   (&#x27;CodingConventionTest&#x27;, 2.613, &#x27;1&#x27;)
+   (&#x27;ConventionBaselineTest&#x27;, 0.006, &#x27;5&#x27;)
+   (&#x27;JavadocRulesTest&#x27;, 0.005, &#x27;6&#x27;)
+   (&#x27;SourceRulesTest&#x27;, 0.014, &#x27;5&#x27;)
+  convention total=4.727s</code></pre></figure>
+
+        <h4>1 회차 · 오탐 확인 (H5)</h4>
+
+        <h4>H5-1</h4>
+        <p><b>조작</b> : <code>ProbeJavadoc#h51CodeArrow()</code> Javadoc <code>예시는 {@code a -&gt; b} 이다.</code><br>
+           <b>관측</b> : J4 목록에 없음<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H1-failure-messages.txt</code>(J4 절에 h51 없음), <code>H1-planted-sources.txt</code></p>
+        <figure data-ev="H5-1"><figcaption><b>H5-1</b> · <code>H1-planted-sources.txt</code> 발췌</figcaption><pre><code>	/**
+	 * 값을 바꾼다. 예시는 {@code a -&gt; b} 이다.
+	 */
+	public void h51CodeArrow() {
+	}</code></pre></figure>
+        <figure data-ev="H5-1"><figcaption><b>H5-1</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[J4] Javadoc 에 화살표를 쓰지 않는다.
+  고칠 방법: &#x27;A 하면 B 가 된다&#x27; 처럼 문장으로 쓴다. 코드 예시는 {@code} 안에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b5EntityArrow()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b6ParamArrow(String)</code></pre></figure>
+
+        <h4>H5-2</h4>
+        <p><b>조작</b> : <code>ProbeJavadoc#h52LinkInParens()</code> Javadoc <code>값을 돌려준다(목록은 {@link Foo#bar(String)} 가 만든다).</code><br>
+           <b>관측</b> : J5 목록에 없음<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일</p>
+        <figure data-ev="H5-2"><figcaption><b>H5-2</b> · <code>H1-planted-sources.txt</code> 발췌</figcaption><pre><code>	/**
+	 * 값을 돌려준다(목록은 {@link Foo#bar(String)} 가 만든다).
+	 */
+	public void h52LinkInParens() {
+	}</code></pre></figure>
+        <figure data-ev="H5-2"><figcaption><b>H5-2</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[J5] Javadoc 에 괄호 안 괄호를 쓰지 않는다.
+  고칠 방법: 괄호 속 설명을 문장 하나로 꺼낸다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j5()</code></pre></figure>
+
+        <h4>H5-3</h4>
+        <p><b>조작</b> : <code>ProbeInjectService#parse(String)</code> 안 try/catch(service 패키지)<br>
+           <b>관측</b> : S1 목록에 없음(A5 만 걸림)<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일</p>
+        <figure data-ev="H5-3"><figcaption><b>H5-3</b> · <code>H1-planted-sources.txt</code> 발췌</figcaption><pre><code>===== ./com/example/serverprovision/management/board/service/ProbeInjectService.java
+package com.example.serverprovision.management.board.service;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
+
+@RequiredArgsConstructor
+public class ProbeInjectService {
+
+	private final ObjectProvider&lt;String&gt; names;
+
+	public String parse(String raw) {
+		try {
+			return String.valueOf(Integer.parseInt(raw));
+		} catch (NumberFormatException e) {
+			return names.getIfAvailable();
+		}
+	}
+}</code></pre></figure>
+        <figure data-ev="H5-3"><figcaption><b>H5-3</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[S1] 컨트롤러 메서드 안에 try 문을 두지 않는다.
+  고칠 방법: 예외를 HTTP 응답으로 바꾸는 일은 @ControllerAdvice · resolver 로 올린다(CLAUDE.md 조건분기 legacy 확장 금지).
+  - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController#guarded(String)</code></pre></figure>
+
+        <h4>1 회차 · 경계 (B)</h4>
+
+        <h4>B1</h4>
+        <p><b>조작</b> : baseline.txt 끝에 탭 대신 공백으로 쓴 줄 1 개, 없는 규칙 ID <code>X9</code> 줄 1 개를 더함<br>
+           <b>관측</b> : convention 6 클래스 전부 green. 두 줄 모두 아무 알림 없이 무시<br>
+           <b>판정</b> : <span class="chip del">실패(결함 D-1)</span> · <b>증거</b> : <code>B1-added-lines.txt</code>(cat -t), <code>B1-gradle-console.txt</code></p>
+        <p>cat -t 출력에서 <code>^I</code> 가 탭이다. 첫 줄은 기존 기준선의 마지막 줄이고, 둘째 · 셋째 줄이 더한 두 줄이다.</p>
+        <figure data-ev="B1"><figcaption><b>B1</b> · <code>B1-added-lines.txt</code> 원문 전체</figcaption><pre><code>S3^Icom/example/serverprovision/maintenance/reconciliation/service/PathReconciliationService.java^IPathReconciliationService#collectDiskMarkers(Set,List)
+J4 com/example/serverprovision/management/board/enums/Vendor.java Vendor#GIGABYTE
+X9^Icom/example/serverprovision/Nope.java^INope</code></pre></figure>
+        <figure data-ev="B1"><figcaption><b>B1</b> · <code>B1-gradle-console.txt</code> 원문 전체</figcaption><pre><code>start 20:56:09
+&gt; Task :compileJava UP-TO-DATE
+&gt; Task :processResources UP-TO-DATE
+&gt; Task :classes UP-TO-DATE
+&gt; Task :compileTestJava UP-TO-DATE
+&gt; Task :processTestResources
+&gt; Task :testClasses
+&gt; Task :test
+
+BUILD SUCCESSFUL in 6s
+5 actionable tasks: 2 executed, 3 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html
+exit=0
+end 20:56:16
+### com.example.serverprovision.convention.ArchitectureConventionTest tests=1 failures=0 errors=0 time=2.382
+### com.example.serverprovision.convention.ArchitectureRulesTest tests=6 failures=0 errors=0 time=0.141
+### com.example.serverprovision.convention.CodingConventionTest tests=1 failures=0 errors=0 time=2.363
+### com.example.serverprovision.convention.ConventionBaselineTest tests=5 failures=0 errors=0 time=0.009
+### com.example.serverprovision.convention.JavadocRulesTest tests=6 failures=0 errors=0 time=0.006
+### com.example.serverprovision.convention.SourceRulesTest tests=5 failures=0 errors=0 time=0.012</code></pre></figure>
+
+        <h4>B2</h4>
+        <p><b>조작</b> : <code>GuestServerRegistrationService#resolveBoardModel</code> 을 <code>resolveReportedBoardModel</code> 로 이름만 바꿈(기준선 J1 · J4 2 줄 대상)<br>
+           <b>관측</b> : 새 위반 2 건(J1 8 줄, J4) + 더 이상 위반이 아닌 기준선 줄 2 건이 한 메시지에 함께 나온다<br>
+           <b>판정</b> : <span class="chip add">통과(관찰 O-4)</span> · <b>증거</b> : <code>B2-rename.diff</code>, <code>B2-failure-messages.txt</code></p>
+        <figure data-ev="B2"><figcaption><b>B2</b> · <code>B2-rename.diff</code> 원문 전체</figcaption><pre><code>81c81
+&lt;         BoardModel boardModel = resolveBoardModel(vendor, req.boardModel());
+---
+&gt;         BoardModel boardModel = resolveReportedBoardModel(vendor, req.boardModel());
+182c182
+&lt;     private BoardModel resolveBoardModel(Vendor vendor, String reportedModel) {
+---
+&gt;     private BoardModel resolveReportedBoardModel(Vendor vendor, String reportedModel) {</code></pre></figure>
+        <figure data-ev="B2"><figcaption><b>B2</b> · <code>B2-failure-messages.txt</code> 원문 전체</figcaption><pre><code>### com.example.serverprovision.convention.ArchitectureConventionTest tests=1 failures=0 errors=0 time=2.227
+
+### com.example.serverprovision.convention.CodingConventionTest tests=1 failures=1 errors=0 time=2.198
+org.opentest4j.AssertionFailedError: 소스 · Javadoc 규칙 위반
+새 위반 2 건. 코드를 고친다.
+
+[J1] 멤버 Javadoc 본문은 4 줄을 넘지 않는다.
+  고칠 방법: 무엇과 왜만 남긴다. 긴 설계 배경은 타입 Javadoc 한 곳에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/execution/service/GuestServerRegistrationService.java  GuestServerRegistrationService#resolveReportedBoardModel(Vendor,String)  (8 줄)
+
+[J4] Javadoc 에 화살표를 쓰지 않는다.
+  고칠 방법: &#x27;A 하면 B 가 된다&#x27; 처럼 문장으로 쓴다. 코드 예시는 {@code} 안에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/execution/service/GuestServerRegistrationService.java  GuestServerRegistrationService#resolveReportedBoardModel(Vendor,String)
+
+고칠 수 없는 사정이 있어 기준선에 더할 때만 아래 줄을 쓰고, PR 에 사유를 적는다.
+J1	com/example/serverprovision/execution/service/GuestServerRegistrationService.java	GuestServerRegistrationService#resolveReportedBoardModel(Vendor,String)
+J4	com/example/serverprovision/execution/service/GuestServerRegistrationService.java	GuestServerRegistrationService#resolveReportedBoardModel(Vendor,String)
+
+더 이상 위반이 아닌 기준선 줄 2 건. src/test/resources/convention/baseline.txt 에서 지운다.
+J1	com/example/serverprovision/execution/service/GuestServerRegistrationService.java	GuestServerRegistrationService#resolveBoardModel(Vendor,String)
+J4	com/example/serverprovision/execution/service/GuestServerRegistrationService.java	GuestServerRegistrationService#resolveBoardModel(Vendor,String)</code></pre></figure>
+
+        <h4>B3</h4>
+        <p><b>조작</b> : Javadoc 첫 줄 <code>M2 SSD — 장치를 고른다.</code><br>
+           <b>관측</b> : <code>[J3]</code> <code>ProbeJavadoc#b3NotStageCode()</code> 로 걸림<br>
+           <b>판정</b> : <span class="chip del">실패(관찰 O-2, 오탐)</span> · <b>증거</b> : <code>H1-failure-messages.txt</code> J3 절</p>
+        <figure data-ev="B3"><figcaption><b>B3</b> · <code>H1-planted-sources.txt</code> 발췌</figcaption><pre><code>	/**
+	 * M2 SSD — 장치를 고른다.
+	 */
+	public void b3NotStageCode() {
+	}</code></pre></figure>
+        <figure data-ev="B3"><figcaption><b>B3</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[J3] Javadoc 첫 문장을 단계 코드로 시작하지 않는다.
+  고칠 방법: 첫 문장은 이 코드가 지금 하는 일을 말한다. 단계 이력은 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b3NotStageCode()</code></pre></figure>
+
+        <h4>B4</h4>
+        <p><b>조작</b> : <code>ProbeClassTxController</code> 클래스에 <code>@Transactional</code><br>
+           <b>관측</b> : <code>[A1]</code> 타입 키 <code>ProbeClassTxController</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>H1-failure-messages.txt</code> A1 절</p>
+        <figure data-ev="B4"><figcaption><b>B4</b> · <code>H1-planted-sources.txt</code> 발췌</figcaption><pre><code>===== ./com/example/serverprovision/management/board/controller/ProbeClassTxController.java
+package com.example.serverprovision.management.board.controller;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+
+@Controller
+@Transactional
+public class ProbeClassTxController {
+
+	public String hello() {
+		return &quot;hello&quot;;
+	}
+}</code></pre></figure>
+        <figure data-ev="B4"><figcaption><b>B4</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[A1] 컨트롤러에 @Transactional 을 두지 않는다.
+  고칠 방법: 트랜잭션은 Service 메서드에 둔다(CLAUDE.md 레이어 경계).
+  - com/example/serverprovision/management/board/controller/ProbeClassTxController.java  ProbeClassTxController
+  - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController#save(String)</code></pre></figure>
+
+        <h4>B5</h4>
+        <p><b>조작</b> : <code>&lt;pre&gt;a → b&lt;/pre&gt;</code> Javadoc / <code>a -&amp;gt; b</code> Javadoc<br>
+           <b>관측</b> : <code>&lt;pre&gt;</code> 쪽(<code>b5PreArrow</code>)은 걸리지 않고, <code>-&amp;gt;</code> 쪽(<code>b5EntityArrow</code>)은 <code>[J4]</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일 J4 절</p>
+        <figure data-ev="B5"><figcaption><b>B5</b> · <code>H1-planted-sources.txt</code> 발췌</figcaption><pre><code>	/**
+	 * 예시는 아래와 같다.
+	 * &lt;pre&gt;a → b&lt;/pre&gt;
+	 */
+	public void b5PreArrow() {
+	}</code></pre></figure>
+        <figure data-ev="B5"><figcaption><b>B5</b> · <code>H1-planted-sources.txt</code> 발췌</figcaption><pre><code>	/**
+	 * 값이 a -&amp;gt; b 로 바뀐다.
+	 */
+	public void b5EntityArrow() {
+	}</code></pre></figure>
+        <figure data-ev="B5"><figcaption><b>B5</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[J4] Javadoc 에 화살표를 쓰지 않는다.
+  고칠 방법: &#x27;A 하면 B 가 된다&#x27; 처럼 문장으로 쓴다. 코드 예시는 {@code} 안에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b5EntityArrow()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b6ParamArrow(String)</code></pre></figure>
+
+        <h4>B6 (수행 중 추가)</h4>
+        <p><b>조작</b> : <code>@param value 바꿀 값. a -&gt; b</code><br>
+           <b>관측</b> : <code>[J4]</code> <code>ProbeJavadoc#b6ParamArrow(String)</code>. 블록 태그 문장도 J4 대상<br>
+           <b>판정</b> : <span class="chip mod">관찰</span> · <b>증거</b> : 같은 파일 J4 절</p>
+        <figure data-ev="B6"><figcaption><b>B6</b> · <code>H1-planted-sources.txt</code> 발췌</figcaption><pre><code>	/**
+	 * 값을 바꾼다.
+	 *
+	 * @param value 바꿀 값. a -&gt; b
+	 */
+	public void b6ParamArrow(String value) {
+	}</code></pre></figure>
+        <figure data-ev="B6"><figcaption><b>B6</b> · <code>H1-failure-messages.txt</code> 발췌</figcaption><pre><code>[J4] Javadoc 에 화살표를 쓰지 않는다.
+  고칠 방법: &#x27;A 하면 B 가 된다&#x27; 처럼 문장으로 쓴다. 코드 예시는 {@code} 안에 둔다(.claude/domain-conventions/javadoc.md).
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b5EntityArrow()
+  - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b6ParamArrow(String)</code></pre></figure>
+
+        <h4>재검증 r1</h4>
+        <p>1 회차의 D-1 · O-1 · O-2 · O-4 · O-5 를 메인 세션이 고친 뒤 수행했다. testLogging 이 들어가 실패 메시지가 gradle 콘솔에 그대로 나오므로 콘솔 파일이 증거다.</p>
+
+        <h4>R0</h4>
+        <p><b>조작</b> : 새 사본에서 convention 6 클래스 실행<br>
+           <b>관측</b> : 26 건 green(ConventionBaselineTest 5 → 7 건)<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>R0-convention-green.txt</code></p>
+        <figure data-ev="R0"><figcaption><b>R0</b> · <code>R0-convention-green.txt</code> 발췌</figcaption><pre><code>BUILD SUCCESSFUL in 32s
+5 actionable tasks: 5 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html
+exit=0
+end 21:04:53
+### com.example.serverprovision.convention.ArchitectureConventionTest tests=1 failures=0 errors=0 time=2.464
+### com.example.serverprovision.convention.ArchitectureRulesTest tests=6 failures=0 errors=0 time=0.118
+### com.example.serverprovision.convention.CodingConventionTest tests=1 failures=0 errors=0 time=2.576
+### com.example.serverprovision.convention.ConventionBaselineTest tests=7 failures=0 errors=0 time=0.009
+### com.example.serverprovision.convention.JavadocRulesTest tests=6 failures=0 errors=0 time=0.007
+### com.example.serverprovision.convention.SourceRulesTest tests=5 failures=0 errors=0 time=0.019</code></pre></figure>
+
+        <h4>R1</h4>
+        <p><b>조작</b> : 기준선 끝에 <code>J4 …Vendor.java Vendor#GIGABYTE</code>(공백), <code>X9&lt;TAB&gt;…Nope.java&lt;TAB&gt;Nope</code> 를 더함<br>
+           <b>관측</b> : 두 본 검사 모두 실패. 원문: <code>형식이 틀린 기준선 줄 2 건. '규칙ID&lt;TAB&gt;파일&lt;TAB&gt;멤버' 꼴이 아니거나 없는 규칙 ID 다. 고치거나 지운다.</code> 다음 줄에 두 줄 그대로<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>R1-added-lines.txt</code>(cat -t), <code>R1-gradle-console.txt</code></p>
+        <figure data-ev="R1"><figcaption><b>R1</b> · <code>R1-added-lines.txt</code> 원문 전체</figcaption><pre><code>J4 com/example/serverprovision/management/board/enums/Vendor.java Vendor#GIGABYTE
+X9^Icom/example/serverprovision/Nope.java^INope</code></pre></figure>
+        <figure data-ev="R1"><figcaption><b>R1</b> · <code>R1-gradle-console.txt</code> 발췌</figcaption><pre><code>ArchitectureConventionTest &gt; main 코드가 구조 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError: 구조 규칙 위반
+    형식이 틀린 기준선 줄 2 건. &#x27;규칙ID&lt;TAB&gt;파일&lt;TAB&gt;멤버&#x27; 꼴이 아니거나 없는 규칙 ID 다. 고치거나 지운다.
+    J4 com/example/serverprovision/management/board/enums/Vendor.java Vendor#GIGABYTE
+    X9	com/example/serverprovision/Nope.java	Nope
+        at app//org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:42)
+        at app//org.junit.jupiter.api.Assertions.fail(Assertions.java:143)
+        at app//com.example.serverprovision.convention.ArchitectureConventionTest.lambda$mainCodeFollowsArchitectureRules$0(ArchitectureConventionTest.java:26)
+        at java.base@21.0.10/java.util.Optional.ifPresent(Optional.java:178)
+        at app//com.example.serverprovision.convention.ArchitectureConventionTest.mainCodeFollowsArchitectureRules(ArchitectureConventionTest.java:26)
+
+CodingConventionTest &gt; main 소스가 소스 규칙과 Javadoc 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError: 소스 · Javadoc 규칙 위반
+    형식이 틀린 기준선 줄 2 건. &#x27;규칙ID&lt;TAB&gt;파일&lt;TAB&gt;멤버&#x27; 꼴이 아니거나 없는 규칙 ID 다. 고치거나 지운다.
+    J4 com/example/serverprovision/management/board/enums/Vendor.java Vendor#GIGABYTE
+    X9	com/example/serverprovision/Nope.java	Nope
+        at app//org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:42)
+        at app//org.junit.jupiter.api.Assertions.fail(Assertions.java:143)
+        at app//com.example.serverprovision.convention.CodingConventionTest.lambda$mainSourceFollowsCodingRules$1(CodingConventionTest.java:31)
+        at java.base@21.0.10/java.util.Optional.ifPresent(Optional.java:178)
+        at app//com.example.serverprovision.convention.CodingConventionTest.mainSourceFollowsCodingRules(CodingConventionTest.java:31)</code></pre></figure>
+
+        <h4>R1-b (추가)</h4>
+        <p><b>조작</b> : <code>J4&lt;TAB&gt;com/example/serverprovision/Nope.java</code>(칸 둘)<br>
+           <b>관측</b> : 구조 검사: 형식 오류 1 건. 소스 검사: 같은 줄이 <code>더 이상 위반이 아닌 기준선 줄 1 건</code> 과 <code>형식이 틀린 기준선 줄 1 건</code> 에 두 번 나온다<br>
+           <b>판정</b> : <span class="chip add">통과(관찰 N-2)</span> · <b>증거</b> : <code>R1b-added-line.txt</code>, <code>R1b-gradle-console.txt</code></p>
+        <figure data-ev="R1-b"><figcaption><b>R1-b</b> · <code>R1b-added-line.txt</code> 원문 전체</figcaption><pre><code>J4^Icom/example/serverprovision/Nope.java</code></pre></figure>
+        <figure data-ev="R1-b"><figcaption><b>R1-b</b> · <code>R1b-gradle-console.txt</code> 발췌</figcaption><pre><code>ArchitectureConventionTest &gt; main 코드가 구조 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError: 구조 규칙 위반
+    형식이 틀린 기준선 줄 1 건. &#x27;규칙ID&lt;TAB&gt;파일&lt;TAB&gt;멤버&#x27; 꼴이 아니거나 없는 규칙 ID 다. 고치거나 지운다.
+    J4	com/example/serverprovision/Nope.java
+        at app//org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:42)
+        at app//org.junit.jupiter.api.Assertions.fail(Assertions.java:143)
+        at app//com.example.serverprovision.convention.ArchitectureConventionTest.lambda$mainCodeFollowsArchitectureRules$0(ArchitectureConventionTest.java:26)
+        at java.base@21.0.10/java.util.Optional.ifPresent(Optional.java:178)
+        at app//com.example.serverprovision.convention.ArchitectureConventionTest.mainCodeFollowsArchitectureRules(ArchitectureConventionTest.java:26)
+
+CodingConventionTest &gt; main 소스가 소스 규칙과 Javadoc 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError: 소스 · Javadoc 규칙 위반
+    더 이상 위반이 아닌 기준선 줄 1 건. src/test/resources/convention/baseline.txt 에서 지운다.
+    J4	com/example/serverprovision/Nope.java
+
+    형식이 틀린 기준선 줄 1 건. &#x27;규칙ID&lt;TAB&gt;파일&lt;TAB&gt;멤버&#x27; 꼴이 아니거나 없는 규칙 ID 다. 고치거나 지운다.
+    J4	com/example/serverprovision/Nope.java
+        at app//org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:42)
+        at app//org.junit.jupiter.api.Assertions.fail(Assertions.java:143)
+        at app//com.example.serverprovision.convention.CodingConventionTest.lambda$mainSourceFollowsCodingRules$1(CodingConventionTest.java:31)
+        at java.base@21.0.10/java.util.Optional.ifPresent(Optional.java:178)
+        at app//com.example.serverprovision.convention.CodingConventionTest.mainSourceFollowsCodingRules(CodingConventionTest.java:31)</code></pre></figure>
+
+        <h4>R2</h4>
+        <p><b>조작</b> : <code>ProbeTryController#guarded(String)</code> 에 try 를 심고 <code>./gradlew test --tests '*ConventionTest'</code><br>
+           <b>관측</b> : 콘솔에 <code>[S1] 컨트롤러 메서드 안에 try 문을 두지 않는다.</code>, <code>고칠 방법: 예외를 HTTP 응답으로 바꾸는 일은 @ControllerAdvice · resolver 로 올린다(…)</code>, 파일 · 멤버, 기준선 형식 줄이 그대로 나온다. 뒤에 스택 5 줄. 15 건 중 1 실패(<code>*ConventionTest</code> 가 DesignConventionTest 도 잡음)<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>R2-gradle-console.txt</code></p>
+        <figure data-ev="R2"><figcaption><b>R2</b> · <code>R2-gradle-console.txt</code> 발췌</figcaption><pre><code>CodingConventionTest &gt; main 소스가 소스 규칙과 Javadoc 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError: 소스 · Javadoc 규칙 위반
+    새 위반 1 건. 코드를 고친다.
+
+    [S1] 컨트롤러 메서드 안에 try 문을 두지 않는다.
+      고칠 방법: 예외를 HTTP 응답으로 바꾸는 일은 @ControllerAdvice · resolver 로 올린다(CLAUDE.md 조건분기 legacy 확장 금지).
+      - com/example/serverprovision/management/board/controller/ProbeTryController.java  ProbeTryController#guarded(String)
+
+    고칠 수 없는 사정이 있어 기준선에 더할 때만 아래 줄을 쓰고, PR 에 사유를 적는다.
+    S1	com/example/serverprovision/management/board/controller/ProbeTryController.java	ProbeTryController#guarded(String)
+        at app//org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:42)
+        at app//org.junit.jupiter.api.Assertions.fail(Assertions.java:143)
+        at app//com.example.serverprovision.convention.CodingConventionTest.lambda$mainSourceFollowsCodingRules$1(CodingConventionTest.java:31)
+        at java.base@21.0.10/java.util.Optional.ifPresent(Optional.java:178)
+        at app//com.example.serverprovision.convention.CodingConventionTest.mainSourceFollowsCodingRules(CodingConventionTest.java:31)
+
+15 tests completed, 1 failed</code></pre></figure>
+
+        <h4>R2-b (추가, 계획의 R5-b)</h4>
+        <p><b>조작</b> : 같은 실행(새 위반만, 지울 줄 없음)<br>
+           <b>관측</b> : 이름 바꾸기 안내 줄이 나오지 않는다<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : 같은 파일</p>
+        <p>기준선 형식 줄 바로 뒤가 스택 줄이고, R5 에서 나오는 '새 위반과 지울 줄이 함께 있다' 줄이 없다.</p>
+        <figure data-ev="R2-b"><figcaption><b>R2-b</b> · <code>R2-gradle-console.txt</code> 발췌</figcaption><pre><code>    고칠 수 없는 사정이 있어 기준선에 더할 때만 아래 줄을 쓰고, PR 에 사유를 적는다.
+    S1	com/example/serverprovision/management/board/controller/ProbeTryController.java	ProbeTryController#guarded(String)
+        at app//org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:42)
+        at app//org.junit.jupiter.api.Assertions.fail(Assertions.java:143)
+        at app//com.example.serverprovision.convention.CodingConventionTest.lambda$mainSourceFollowsCodingRules$1(CodingConventionTest.java:31)
+        at java.base@21.0.10/java.util.Optional.ifPresent(Optional.java:178)
+        at app//com.example.serverprovision.convention.CodingConventionTest.mainSourceFollowsCodingRules(CodingConventionTest.java:31)</code></pre></figure>
+
+        <h4>R3</h4>
+        <p><b>조작</b> : <code>ProbeJ3#m2()</code> Javadoc <code>M2 SSD — 장치를 고른다.</code>, <code>ProbeJ3#s23()</code> Javadoc <code>S23-1 — 값을 고른다.</code><br>
+           <b>관측</b> : J3 는 <code>ProbeJ3#s23()</code> 1 건만. m2 는 어디에도 없다<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>R3R4-planted-sources.txt</code>, <code>R3R4-gradle-console.txt</code></p>
+        <figure data-ev="R3"><figcaption><b>R3</b> · <code>R3R4-planted-sources.txt</code> 발췌</figcaption><pre><code>===== src/main/java/com/example/serverprovision/management/board/service/ProbeJ3.java
+package com.example.serverprovision.management.board.service;
+
+public class ProbeJ3 {
+
+	/**
+	 * M2 SSD — 장치를 고른다.
+	 */
+	public void m2() {
+	}
+
+	/**
+	 * S23-1 — 값을 고른다.
+	 */
+	public void s23() {
+	}
+}</code></pre></figure>
+        <figure data-ev="R3"><figcaption><b>R3</b> · <code>R3R4-gradle-console.txt</code> 발췌</figcaption><pre><code>    [J3] Javadoc 첫 문장을 단계 코드로 시작하지 않는다.
+      고칠 방법: 첫 문장은 이 코드가 지금 하는 일을 말한다. 단계 이력은 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).
+      - com/example/serverprovision/management/board/service/ProbeJ3.java  ProbeJ3#s23()</code></pre></figure>
+
+        <h4>R4</h4>
+        <p><b>조작</b> : 소스 쪽 S1 · S4 · J4(ProbeSortController) + J3(ProbeJ3), 구조 쪽 A1 · A4(AaDto) · A7(management.Probe)<br>
+           <b>관측</b> : 끝의 기준선 형식 줄이 정렬되어 나온다. 소스: J3 · J4 · S1 · S4 (발견 순서는 S1 · S4 · J4 · J3). 구조: A1 · A4 · A7<br>
+           <b>판정</b> : <span class="chip add">통과(관찰 N-3)</span> · <b>증거</b> : <code>R3R4-gradle-console.txt</code></p>
+        <figure data-ev="R4"><figcaption><b>R4</b> · <code>R3R4-gradle-console.txt</code> 발췌</figcaption><pre><code>    고칠 수 없는 사정이 있어 기준선에 더할 때만 아래 줄을 쓰고, PR 에 사유를 적는다.
+    J3	com/example/serverprovision/management/board/service/ProbeJ3.java	ProbeJ3#s23()
+    J4	com/example/serverprovision/management/board/controller/ProbeSortController.java	ProbeSortController#arrow()
+    S1	com/example/serverprovision/management/board/controller/ProbeSortController.java	ProbeSortController#guarded(String)
+    S4	com/example/serverprovision/management/board/controller/ProbeSortController.java	ProbeSortController
+        at app//org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:42)
+        at app//org.junit.jupiter.api.Assertions.fail(Assertions.java:143)
+        at app//com.example.serverprovision.convention.CodingConventionTest.lambda$mainSourceFollowsCodingRules$1(CodingConventionTest.java:31)
+        at java.base@21.0.10/java.util.Optional.ifPresent(Optional.java:178)
+        at app//com.example.serverprovision.convention.CodingConventionTest.mainSourceFollowsCodingRules(CodingConventionTest.java:31)</code></pre></figure>
+        <figure data-ev="R4"><figcaption><b>R4</b> · <code>R3R4-gradle-console.txt</code> 발췌</figcaption><pre><code>    고칠 수 없는 사정이 있어 기준선에 더할 때만 아래 줄을 쓰고, PR 에 사유를 적는다.
+    A1	com/example/serverprovision/management/board/controller/ProbeSortController.java	ProbeSortController#save(String)
+    A4	com/example/serverprovision/management/board/dto/request/AaDto.java	AaDto
+    A7	com/example/serverprovision/management/Probe/ProbeUpper.java	ProbeUpper
+        at app//org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:42)
+        at app//org.junit.jupiter.api.Assertions.fail(Assertions.java:143)
+        at app//com.example.serverprovision.convention.ArchitectureConventionTest.lambda$mainCodeFollowsArchitectureRules$0(ArchitectureConventionTest.java:26)
+        at java.base@21.0.10/java.util.Optional.ifPresent(Optional.java:178)
+        at app//com.example.serverprovision.convention.ArchitectureConventionTest.mainCodeFollowsArchitectureRules(ArchitectureConventionTest.java:26)</code></pre></figure>
+        <figure data-ev="R4"><figcaption><b>R4</b> · <code>R3R4-planted-sources.txt</code> 원문 전체</figcaption><details><summary>원문 전체 펼치기 (61 줄)</summary><pre><code>===== src/main/java/com/example/serverprovision/management/board/controller/ProbeSortController.java
+package com.example.serverprovision.management.board.controller;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
+
+@Controller
+public class ProbeSortController {
+
+	public String guarded(String name) {
+		try {
+			return name.trim();
+		} catch (RuntimeException e) {
+			return &quot;&quot;;
+		}
+	}
+
+	// Claude
+	public String marked() {
+		return &quot;x&quot;;
+	}
+
+	/**
+	 * 값이 a → b 로 바뀐다.
+	 */
+	public String arrow() {
+		return &quot;y&quot;;
+	}
+
+	@Transactional
+	public String save(String name) {
+		return name;
+	}
+}
+===== src/main/java/com/example/serverprovision/management/board/dto/request/AaDto.java
+package com.example.serverprovision.management.board.dto.request;
+
+public record AaDto(String name) {
+}
+===== src/main/java/com/example/serverprovision/management/board/service/ProbeJ3.java
+package com.example.serverprovision.management.board.service;
+
+public class ProbeJ3 {
+
+	/**
+	 * M2 SSD — 장치를 고른다.
+	 */
+	public void m2() {
+	}
+
+	/**
+	 * S23-1 — 값을 고른다.
+	 */
+	public void s23() {
+	}
+}
+===== src/main/java/com/example/serverprovision/management/Probe/ProbeUpper.java
+package com.example.serverprovision.management.Probe;
+
+public class ProbeUpper {
+}</code></pre></details></figure>
+
+        <h4>R5</h4>
+        <p><b>조작</b> : <code>GuestServerRegistrationService#resolveBoardModel</code> 을 <code>resolveReportedBoardModel</code> 로 이름만 바꿈<br>
+           <b>관측</b> : 새 위반 2(J1 8 줄, J4) + 지울 줄 2 뒤에 <code>새 위반과 지울 줄이 함께 있다. 옛 위반의 이름만 바뀐 경우라도 손댄 김에 고치고 옛 줄을 지운다.</code><br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>R5-rename.diff</code>, <code>R5-gradle-console.txt</code></p>
+        <figure data-ev="R5"><figcaption><b>R5</b> · <code>R5-rename.diff</code> 원문 전체</figcaption><pre><code>81c81
+&lt;         BoardModel boardModel = resolveBoardModel(vendor, req.boardModel());
+---
+&gt;         BoardModel boardModel = resolveReportedBoardModel(vendor, req.boardModel());
+182c182
+&lt;     private BoardModel resolveBoardModel(Vendor vendor, String reportedModel) {
+---
+&gt;     private BoardModel resolveReportedBoardModel(Vendor vendor, String reportedModel) {</code></pre></figure>
+        <figure data-ev="R5"><figcaption><b>R5</b> · <code>R5-gradle-console.txt</code> 발췌</figcaption><pre><code>    새 위반 2 건. 코드를 고친다.
+
+    [J1] 멤버 Javadoc 본문은 4 줄을 넘지 않는다.
+      고칠 방법: 무엇과 왜만 남긴다. 긴 설계 배경은 타입 Javadoc 한 곳에 둔다(.claude/domain-conventions/javadoc.md).
+      - com/example/serverprovision/execution/service/GuestServerRegistrationService.java  GuestServerRegistrationService#resolveReportedBoardModel(Vendor,String)  (8 줄)
+
+    [J4] Javadoc 에 화살표를 쓰지 않는다.
+      고칠 방법: &#x27;A 하면 B 가 된다&#x27; 처럼 문장으로 쓴다. 코드 예시는 {@code} 안에 둔다(.claude/domain-conventions/javadoc.md).
+      - com/example/serverprovision/execution/service/GuestServerRegistrationService.java  GuestServerRegistrationService#resolveReportedBoardModel(Vendor,String)
+
+    고칠 수 없는 사정이 있어 기준선에 더할 때만 아래 줄을 쓰고, PR 에 사유를 적는다.
+    J1	com/example/serverprovision/execution/service/GuestServerRegistrationService.java	GuestServerRegistrationService#resolveReportedBoardModel(Vendor,String)
+    J4	com/example/serverprovision/execution/service/GuestServerRegistrationService.java	GuestServerRegistrationService#resolveReportedBoardModel(Vendor,String)
+
+    더 이상 위반이 아닌 기준선 줄 2 건. src/test/resources/convention/baseline.txt 에서 지운다.
+    J1	com/example/serverprovision/execution/service/GuestServerRegistrationService.java	GuestServerRegistrationService#resolveBoardModel(Vendor,String)
+    J4	com/example/serverprovision/execution/service/GuestServerRegistrationService.java	GuestServerRegistrationService#resolveBoardModel(Vendor,String)
+
+    새 위반과 지울 줄이 함께 있다. 옛 위반의 이름만 바뀐 경우라도 손댄 김에 고치고 옛 줄을 지운다.</code></pre></figure>
+
+        <h4>R6-a</h4>
+        <p><b>조작</b> : 1 차 H1 의 심은 파일 10 개(<code>H1-planted-sources.txt</code>)를 그대로 다시 씀<br>
+           <b>관측</b> : 구조 8 건(A1 2 · A2 ~ A7), 소스 11 건(S1 ~ S4, J1, J2, J3, J4 3, J5). 16 규칙 전부 잡힘. 1 차의 J3 <code>b3NotStageCode</code>(M2 오탐)만 빠졌고 H5 탐침(h51 · h52 · service try · <code>&lt;pre&gt;</code>)은 여전히 걸리지 않는다<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>R6a-gradle-console.txt</code>, <code>R6a-messages.txt</code></p>
+        <figure data-ev="R6-a"><figcaption><b>R6-a</b> · <code>R6a-messages.txt</code> 발췌</figcaption><pre><code>    [J3] Javadoc 첫 문장을 단계 코드로 시작하지 않는다.
+      고칠 방법: 첫 문장은 이 코드가 지금 하는 일을 말한다. 단계 이력은 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).
+      - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()</code></pre></figure>
+        <figure data-ev="R6-a"><figcaption><b>R6-a</b> · <code>R6a-messages.txt</code> 원문 전체</figcaption><details><summary>원문 전체 펼치기 (101 줄)</summary><pre><code>&gt; Task :test
+
+CodingConventionTest &gt; main 소스가 소스 규칙과 Javadoc 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError: 소스 · Javadoc 규칙 위반
+    새 위반 11 건. 코드를 고친다.
+
+    [S1] 컨트롤러 메서드 안에 try 문을 두지 않는다.
+      고칠 방법: 예외를 HTTP 응답으로 바꾸는 일은 @ControllerAdvice · resolver 로 올린다(CLAUDE.md 조건분기 legacy 확장 금지).
+      - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController#guarded(String)
+
+    [S2] 메서드 본문은 100 줄을 넘지 않는다.
+      고칠 방법: 검증 · 변환 · 입출력 · 응답 조립을 작은 메서드로 나눈다(CLAUDE.md 중복 · 가독성 금지).
+      - com/example/serverprovision/management/board/service/ProbeLongService.java  ProbeLongService#longBody()  (101 줄)
+
+    [S3] 제어 구조를 5 단계 이상 겹치지 않는다.
+      고칠 방법: 이른 반환이나 작은 메서드로 단계를 줄인다(CLAUDE.md 중복 · 가독성 금지).
+      - com/example/serverprovision/management/board/service/ProbeLongService.java  ProbeLongService#deepNesting(List)  (5 단계)
+
+    [S4] 주석에 AI 작성 표지를 두지 않는다.
+      고칠 방법: &#x27;// Claude&#x27;, &#x27;@author Claude&#x27;, &#x27;Generated by&#x27; 같은 표지를 지운다. AI 참여는 커밋 메시지에 남긴다(CLAUDE.md 코딩 스타일).
+      - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController
+
+    [J1] 멤버 Javadoc 본문은 4 줄을 넘지 않는다.
+      고칠 방법: 무엇과 왜만 남긴다. 긴 설계 배경은 타입 Javadoc 한 곳에 둔다(.claude/domain-conventions/javadoc.md).
+      - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j1()  (5 줄)
+
+    [J2] 타입 Javadoc 본문은 8 줄을 넘지 않는다.
+      고칠 방법: 지금의 역할과 이유만 남기고, 경위는 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).
+      - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc  (9 줄)
+
+    [J3] Javadoc 첫 문장을 단계 코드로 시작하지 않는다.
+      고칠 방법: 첫 문장은 이 코드가 지금 하는 일을 말한다. 단계 이력은 커밋 · plan 에 둔다(.claude/domain-conventions/javadoc.md).
+      - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()
+
+    [J4] Javadoc 에 화살표를 쓰지 않는다.
+      고칠 방법: &#x27;A 하면 B 가 된다&#x27; 처럼 문장으로 쓴다. 코드 예시는 {@code} 안에 둔다(.claude/domain-conventions/javadoc.md).
+      - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j3j4()
+      - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b5EntityArrow()
+      - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#b6ParamArrow(String)
+
+    [J5] Javadoc 에 괄호 안 괄호를 쓰지 않는다.
+      고칠 방법: 괄호 속 설명을 문장 하나로 꺼낸다(.claude/domain-conventions/javadoc.md).
+      - com/example/serverprovision/management/board/service/ProbeJavadoc.java  ProbeJavadoc#j5()
+
+    고칠 수 없는 사정이 있어 기준선에 더할 때만 아래 줄을 쓰고, PR 에 사유를 적는다.
+    J1	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#j1()
+    J2	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc
+    J3	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#j3j4()
+    J4	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#b5EntityArrow()
+    J4	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#b6ParamArrow(String)
+    J4	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#j3j4()
+    J5	com/example/serverprovision/management/board/service/ProbeJavadoc.java	ProbeJavadoc#j5()
+    S1	com/example/serverprovision/management/board/controller/ProbeTxController.java	ProbeTxController#guarded(String)
+    S2	com/example/serverprovision/management/board/service/ProbeLongService.java	ProbeLongService#longBody()
+    S3	com/example/serverprovision/management/board/service/ProbeLongService.java	ProbeLongService#deepNesting(List)
+    S4	com/example/serverprovision/management/board/controller/ProbeTxController.java	ProbeTxController
+
+ArchitectureConventionTest &gt; main 코드가 구조 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError: 구조 규칙 위반
+    새 위반 8 건. 코드를 고친다.
+
+    [A1] 컨트롤러에 @Transactional 을 두지 않는다.
+      고칠 방법: 트랜잭션은 Service 메서드에 둔다(CLAUDE.md 레이어 경계).
+      - com/example/serverprovision/management/board/controller/ProbeClassTxController.java  ProbeClassTxController
+      - com/example/serverprovision/management/board/controller/ProbeTxController.java  ProbeTxController#save(String)
+
+    [A2] 컨트롤러는 Repository 를 직접 쓰지 않는다.
+      고칠 방법: Service 를 거쳐 조회 · 저장한다(CLAUDE.md 레이어 경계).
+      - com/example/serverprovision/management/board/controller/ProbeRepoController.java  ProbeRepoController  (BoardModelRepository)
+
+    [A3] 컨트롤러는 엔티티를 직접 다루지 않는다.
+      고칠 방법: Service 가 *Response 로 바꿔 넘긴다. 뷰 모델에 엔티티를 넣지 않는다(CLAUDE.md 레이어 경계).
+      - com/example/serverprovision/management/board/controller/ProbeEntityController.java  ProbeEntityController  (BoardModel)
+
+    [A4] dto.request 클래스는 Request 로, dto.response 클래스는 Response 로 끝나고 DTO 접미사를 쓰지 않는다.
+      고칠 방법: 이름을 바꾸거나, 요청 · 응답이 아닌 도우미는 dto 밖으로 옮긴다(CLAUDE.md 네이밍).
+      - com/example/serverprovision/management/board/dto/request/FooDto.java  FooDto
+
+    [A5] management 서비스는 TypedNameVerifier · MarkableScanner · ObjectProvider 를 주입받지 않는다.
+      고칠 방법: 이름 확인은 컨트롤러가 하고, 스캐너는 reconciliation 쪽에서 쓴다. 주입하면 생성자 순환이 다시 생긴다(CLAUDE.md 핵심 설계 패턴).
+      - com/example/serverprovision/management/board/service/ProbeInjectService.java  ProbeInjectService  (ObjectProvider)
+
+    [A6] 엔티티와 DTO 의 mac · ip 값은 String 이 아니다.
+      고칠 방법: MacAddress · IpAddress 같은 값 객체를 쓴다(CLAUDE.md Primitive Obsession 금지).
+      - com/example/serverprovision/management/board/dto/request/ProbeMacRequest.java  ProbeMacRequest#mac
+
+    [A7] 패키지 이름은 소문자다.
+      고칠 방법: 패키지 이름을 소문자로 바꾼다(CLAUDE.md 네이밍).
+      - com/example/serverprovision/management/Probe/ProbeUpper.java  ProbeUpper
+
+    고칠 수 없는 사정이 있어 기준선에 더할 때만 아래 줄을 쓰고, PR 에 사유를 적는다.
+    A1	com/example/serverprovision/management/board/controller/ProbeClassTxController.java	ProbeClassTxController
+    A1	com/example/serverprovision/management/board/controller/ProbeTxController.java	ProbeTxController#save(String)
+    A2	com/example/serverprovision/management/board/controller/ProbeRepoController.java	ProbeRepoController
+    A3	com/example/serverprovision/management/board/controller/ProbeEntityController.java	ProbeEntityController
+    A4	com/example/serverprovision/management/board/dto/request/FooDto.java	FooDto
+    A5	com/example/serverprovision/management/board/service/ProbeInjectService.java	ProbeInjectService
+    A6	com/example/serverprovision/management/board/dto/request/ProbeMacRequest.java	ProbeMacRequest#mac
+    A7	com/example/serverprovision/management/Probe/ProbeUpper.java	ProbeUpper
+
+2 tests completed, 2 failed</code></pre></details></figure>
+
+        <h4>R6-b</h4>
+        <p><b>조작</b> : 사본 전체 <code>./gradlew test</code><br>
+           <b>관측</b> : BUILD SUCCESSFUL in 1m 10s, 3,812 건(건너뜀 6) 실패 0 · 오류 0. suite time 합 66.7 초, 두 본 검사 2.638 + 2.663 초<br>
+           <b>판정</b> : <span class="chip add">통과</span> · <b>증거</b> : <code>R6b-full-test.txt</code>, <code>R6b-full-test-console-tail.txt</code></p>
+        <figure data-ev="R6-b"><figcaption><b>R6-b</b> · <code>R6b-full-test.txt</code> 원문 전체</figcaption><pre><code>start 21:07:24
+exit=0
+end 21:08:35
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+BUILD SUCCESSFUL in 1m 10s
+suites=569 tests=3812 failures=0 errors=0 skipped=6 sum_of_suite_time=66.7s
+   (&#x27;ArchitectureConventionTest&#x27;, 2.638, &#x27;1&#x27;)
+   (&#x27;ArchitectureRulesTest&#x27;, 0.122, &#x27;6&#x27;)
+   (&#x27;CodingConventionTest&#x27;, 2.663, &#x27;1&#x27;)
+   (&#x27;ConventionBaselineTest&#x27;, 0.008, &#x27;7&#x27;)
+   (&#x27;JavadocRulesTest&#x27;, 0.006, &#x27;6&#x27;)
+   (&#x27;SourceRulesTest&#x27;, 0.013, &#x27;5&#x27;)</code></pre></figure>
+      </div>
+    </details>
+
+    <!-- ===== §7 미수행 항목과 사유 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 미수행 항목과 사유</summary>
+      <div class="body">
+        <div class="callout warn">계획 항목 가운데 수행하지 않은 것은 없다. 다만 plan 원문과 다르게 수행한 것, 실행이 아니라 코드 읽기로 확인한 것, 에이전트 재검증 없이 메인 세션이 확인한 것이 있어 사유와 함께 남긴다.</div>
+        <table>
+          <thead><tr><th>항목</th><th>사유</th></tr></thead>
+          <tbody>
+            <tr><td>두 검사를 뺀 전체 테스트 전후 비교(plan §9 H4)</td><td>gradle 실행 시간의 흔들림이 두 검사의 몫과 같은 크기라 비교로 판별할 수 없다. 테스트 보고서의 두 검사 time 값(8 회)으로 갈음했다</td></tr>
+            <tr><td>plan 의 <code>git worktree add</code> 일회용 워크트리</td><td>변경이 미커밋이라 워크트리는 이 변경을 갖지 않는다. rsync 사본으로 바꿨고, H3 의 git 동작은 사본 안에서 만든 별도 저장소와 연결 워크트리로 재현했다</td></tr>
+            <tr><td>O-6 실행 재현</td><td>제네릭 매개변수 표기 차이는 코드로만 확인했다. 지금 영향이 없어 실행 재현은 하지 않았다</td></tr>
+            <tr><td>r1 N-4 실행 재현</td><td>r1 계획 항목의 미수행은 0 이다. N-4(관계없는 새 위반과 지울 줄이 함께 있어도 안내 줄이 나옴)는 코드로만 확인했다</td></tr>
+            <tr><td>r1 뒤 N-1 · N-2 수정의 재검증</td><td>에이전트 재검증 없이 메인 세션이 확인했다. 단위 테스트 1 건 추가(<code>malformedLineReportedOnce</code>), <code>./gradlew test --warning-mode all</code> 에서 사용 중단 경고 0, 전체 3,813 통과</td></tr>
+            <tr><td>DesignConventionTest 단독 기록</td><td>전체 테스트 1 회에 포함되어 green 이지만 따로 기록을 뽑지 않았다(원자료 1 회차 6절)</td></tr>
+            <tr><td>원본에서의 gradle 실행</td><td>원본 보호를 위해 하지 않았다. 모든 실행은 사본 결과이고, 사본은 원본 src 와 diff 0 임을 확인했다(원자료 1 회차 6절)</td></tr>
+            <tr><td>r1 의 preflight 재확인</td><td>r1 수정 목록에 preflight 가 없고 지시 항목(R1 ~ R6)에도 없어 다시 돌리지 않았다(원자료 r1 6절)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 발견한 것과 처리 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 발견한 것과 처리</summary>
+      <div class="body">
+        <p>1 회차에서 결함 1 건(D-1)과 관찰 7 건이 나왔고, 그중 D-1 · O-1 · O-2 · O-4 · O-5 를 고쳐 r1 로 확인했다. r1 에서 나온 N-1 · N-2 는 메인 세션이 고쳐 확인했다.</p>
+        <table>
+          <thead><tr><th>식별</th><th>내용</th><th>원인</th><th>처리</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td>D-1</td><td>기준선에 탭 대신 공백으로 쓴 줄 · 없는 규칙 ID 줄이 조용히 무시되고 영원히 남음</td><td>규칙을 찾지 못한 줄을 어느 검사도 낡은 줄로 보지 않음</td><td>'형식이 틀린 기준선 줄' 로 실패하게 고침 + 테스트</td><td><span class="chip add">r1 R1 · R1-b 로 확인</span></td></tr>
+            <tr><td>O-1</td><td>실패 메시지가 gradle 콘솔에 안 보이고 보고서를 열어야 함</td><td>build.gradle 에 testLogging 없음</td><td>testLogging(events failed, exceptionFormat full)</td><td><span class="chip add">r1 R2 로 확인</span></td></tr>
+            <tr><td>O-2</td><td>'M2 SSD —' 같은 장비 이름 첫머리가 J3 로 오탐</td><td>계열 목록의 M(M0 리네임 하나뿐)</td><td>목록에서 M 을 뺌 + 테스트. main 의 J3 460 건은 모두 실제 단계 코드였다(전수 확인)</td><td><span class="chip add">r1 R3 로 확인</span></td></tr>
+            <tr><td>O-4</td><td>옛 위반 메서드의 이름만 바꿔도 '새 위반, 코드를 고친다'</td><td>설계대로(키가 바뀌면 새 위반)</td><td>유지. 새 위반과 지울 줄이 함께 있을 때 '이름만 바뀐 경우라도 손댄 김에 고친다' 안내 줄을 더함</td><td><span class="chip add">r1 R5 · R2-b 로 확인</span></td></tr>
+            <tr><td>O-5</td><td>기준선 형식 줄이 발견 순서로 나옴</td><td>-</td><td>정렬해서 냄</td><td><span class="chip add">r1 R4 로 확인</span></td></tr>
+            <tr><td>N-1</td><td>r1 수정(testLogging)이 Gradle 사용 중단 경고를 냄('exceptionFormat' 할당 문법)</td><td>Gradle 9 의 할당 문법 요구</td><td><code>exceptionFormat = 'full'</code> 로 고침, <code>--warning-mode all</code> 에서 경고 0</td><td><span class="chip add">정정(메인 세션 확인)</span></td></tr>
+            <tr><td>N-2</td><td>칸 수만 틀리고 규칙 ID 는 맞는 줄이 '지울 줄' 과 '형식 오류' 에 두 번 나옴</td><td>낡은 줄 판정이 형식 오류 줄을 거르지 않음</td><td>형식 오류 줄을 낡은 줄 목록에서 뺌 + 테스트</td><td><span class="chip add">정정(메인 세션 확인)</span></td></tr>
+            <tr><td>N-3 · N-4</td><td>규칙별 목록은 enum 순서, 기준선 줄은 글자 순서 / 안내 줄이 관계없는 경우에도 나옴('~경우라도' 문구라 틀린 안내 아님)</td><td>-</td><td>유지</td><td><span class="chip mod">관찰</span></td></tr>
+            <tr><td>O-3</td><td>preflight 앵커 판정이 디렉터리 이름이 아니라 git-dir 와 common-dir 비교라, 일반 저장소는 이름과 무관하게 [STOP]</td><td>CH11 이전부터 있던 동작. 브리프 전제가 틀렸음</td><td>하네스는 연결 워크트리로 우회. 고치지 않음</td><td><span class="chip mod">관찰</span></td></tr>
+            <tr><td>O-6</td><td>제네릭 매개변수 표기가 두 엔진에서 다름(JavaParser T, ArchUnit 지워진 타입)</td><td>키는 같은 검사 안에서만 비교하므로 지금 영향 없음</td><td>유지</td><td><span class="chip mod">관찰</span></td></tr>
+            <tr><td>O-7</td><td>사본 전체 3,810 건이 plan 의 3,795 와 다름</td><td>3,795 는 S23-1 브랜치 수치. 이 브랜치는 origin/dev 기준이며 규칙 테스트가 더해짐(r1 뒤 3,812)</td><td>해당 없음</td><td><span class="chip keep">설명</span></td></tr>
+            <tr><td>B6 관찰</td><td><code>@param value 바꿀 값. a -&gt; b</code> 가 <code>[J4]</code> <code>ProbeJavadoc#b6ParamArrow(String)</code> 로 잡힘. 블록 태그 문장도 J4 대상</td><td>-</td><td>-</td><td><span class="chip mod">관찰</span></td></tr>
+          </tbody>
+        </table>
+
+        <h4>D-1 재현 (1 회차 원자료 4절)</h4>
+        <p>사본 baseline.txt 끝에 탭 대신 공백으로 쓴 줄과 없는 규칙 ID <code>X9</code> 줄을 더하고 convention 테스트를 돌리면 6 클래스가 전부 green 이었다(B1). 기준선은 줄어들기만 한다는 불변식에 맞으려면 어떤 위반과도 맞지 않는 줄은 실패해야 한다. 탭이 없으면 줄 전체가 규칙 ID 로 읽혀 규칙을 찾지 못하고, <code>X9</code> 도 같다. 그 줄을 어느 검사도 낡은 줄로 보지 않아 죽은 줄로 남았다. 완화 사정으로, preflight 기준선 절은 이런 줄도 '더해진 줄' 로 [CHECK] 를 낸다. 수정 뒤 r1 R1 에서 두 본 검사가 모두 '형식이 틀린 기준선 줄 2 건' 으로 실패했다.</p>
+
+        <h4>O-1 증거 (1 회차 콘솔)</h4>
+        <p>testLogging 이 없던 1 회차 콘솔에는 실패 위치만 나오고 규칙 · 고칠 방법이 없다. r1 R2 콘솔과 비교하면 차이가 보인다.</p>
+        <figure><figcaption><code>H1-gradle-console.txt</code> 발췌</figcaption><pre><code>ArchitectureConventionTest &gt; main 코드가 구조 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError at ArchitectureConventionTest.java:26
+
+CodingConventionTest &gt; main 소스가 소스 규칙과 Javadoc 규칙을 지킨다(기준선에 적힌 옛 위반만 남아 있다) FAILED
+    org.opentest4j.AssertionFailedError at CodingConventionTest.java:31</code></pre></figure>
+
+        <h4>N-1 증거 (r1 관찰)</h4>
+        <figure><figcaption><code>R-obs-gradle-deprecation.txt</code> 발췌</figcaption><pre><code>Build file &#x27;&lt;스크래치&gt;/ch11-h/build.gradle&#x27;: line 65
+Properties should be assigned using the &#x27;propName = value&#x27; syntax. Setting a property via the Gradle-generated &#x27;propName value&#x27; or &#x27;propName(value)&#x27; syntax in Groovy DSL has been deprecated. This is scheduled to be removed in Gradle 10. Use assignment (&#x27;exceptionFormat = &lt;value&gt;&#x27;) instead. Consult the upgrading guide for further information: https://docs.gradle.org/9.3.1/userguide/upgrading_version_8.html#groovy_space_assignment_syntax
+	at build_509ox5qi8c5bdufhh7yj4nvue$_run_closure5$_closure8.doCall$original(&lt;스크래치&gt;/ch11-h/build.gradle:65)</code></pre></figure>
+      </div>
+    </details>
+
+    <!-- ===== §9 Critical Files ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Critical Files</summary>
+      <div class="body">
+        <div class="pkg-tree">src/test/java/com/example/serverprovision/convention/
+  <span class="diff-add">ConventionRule.java</span>                 <span class="chip new">신규</span> 규칙 16 문장 · 고칠 방법 · 담당 검사
+  <span class="diff-add">ConventionViolation.java</span>            <span class="chip new">신규</span> 위반 한 건과 기준선 키
+  <span class="diff-add">ConventionBaseline.java</span>             <span class="chip new">신규</span> 기준선 읽기 · 대조 · 실패 메시지
+  <span class="diff-add">ArchitectureRules.java</span>              <span class="chip new">신규</span> A1 ~ A7
+  <span class="diff-add">SourceFile.java</span>                     <span class="chip new">신규</span> 구문 트리 · 멤버 키
+  <span class="diff-add">SourceRules.java</span>                    <span class="chip new">신규</span> S1 ~ S4
+  <span class="diff-add">JavadocRules.java</span>                   <span class="chip new">신규</span> J1 ~ J5
+  <span class="diff-add">ArchitectureConventionTest.java</span>     <span class="chip new">신규</span> 구조 본 검사
+  <span class="diff-add">CodingConventionTest.java</span>           <span class="chip new">신규</span> 소스 본 검사
+  <span class="diff-add">ArchitectureRulesTest.java</span>          <span class="chip new">신규</span> 고정 예제 6
+  <span class="diff-add">SourceRulesTest.java</span>                <span class="chip new">신규</span> 고정 예제 5
+  <span class="diff-add">JavadocRulesTest.java</span>               <span class="chip new">신규</span> 고정 예제 6
+  <span class="diff-add">ConventionBaselineTest.java</span>         <span class="chip new">신규</span> 기준선 대조 8
+  <span class="diff-add">fixture/</span>                            <span class="chip new">신규</span> 예제 클래스 7 파일
+
+src/test/resources/convention/
+  <span class="diff-add">baseline.txt</span>                        <span class="chip new">신규</span> 기준선 1,086 줄
+
+.claude/domain-conventions/
+  <span class="diff-add">javadoc.md</span>                          <span class="chip new">신규</span> 명료성 점검 순서 · 예
+  README.md                           <span class="chip mod">수정</span> 트리거 표 한 줄
+.claude/skills/cp7-ship/scripts/
+  preflight.sh                        <span class="chip mod">수정</span> 기준선 [CHECK] 절
+build.gradle                          <span class="chip mod">수정</span> ArchUnit · JavaParser · testLogging
+CLAUDE.md                             <span class="chip mod">수정</span> 강제 장치 한 줄 · 체크리스트 한 줄
+plan/26-11-18_20-26-03_CH11_plan.html <span class="chip new">신규</span> CP1 plan
+report/26-11-18_21-14-55_CH11_report.html <span class="chip new">신규</span> 이 문서</div>
+        <p>fixture 7 파일 : <code>sample/controller/SampleControllers</code> · <code>sample/dto/request/SampleDtos</code> · <code>sample/dto/response/NetworkResponses</code> · <code>sample/entity/SampleEntity</code> · <code>sample/repository/SampleRepository</code> · <code>management/sample/service/SampleServices</code> · <code>Upper/UpperPackageHolder</code>. 미커밋 상태이며 <code>git status</code> 의 나머지 미추적 파일(diagram · discussion · 다른 단계 plan 등)은 CH11 과 무관해 넣지 않았다. main 소스는 바꾸지 않았다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §10 남은 일 ===== -->
+    <details class="section" id="s10">
+      <summary>§10. 남은 일</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="ch11-report-remaining">
+          <li><label><input type="checkbox" data-key="cp6"><span><b>CP6</b> : 이 report 와 main 코드 검수(CP4 중간 승인을 이 시점에 함께 받음)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"><span><b>CP7</b> : 사용자가 위반 하나를 심어 콘솔 메시지를 보고, 기준선 줄 하나를 지워 '지울 줄' 실패를 본다(또는 이 report 의 하네스 출력으로 갈음)</span></label></li>
+          <li><label><input type="checkbox" data-key="notify"><span><b>통보</b> : 다른 스트림(ue · 디자인 · docs) 세션에 CH11 강제 장치를 알린다(병합 뒤 앵커 통보)</span></label></li>
+        </ul>
+        <h4>기준선 줄이기</h4>
+        <p>기준선 줄이기는 그 코드를 만지는 슬라이스 몫이다. 큰 덩어리는 R 단계 후보로 둔다.</p>
+        <table>
+          <thead><tr><th>대상</th><th>규칙</th><th>처리 방향</th></tr></thead>
+          <tbody>
+            <tr><td><code>PathReconciliationService.performScan</code></td><td>S2</td><td>작은 메서드로 분할</td></tr>
+            <tr><td><code>RaidPlanner.plan</code></td><td>S2</td><td>작은 메서드로 분할</td></tr>
+            <tr><td>컨트롤러 try 7 메서드</td><td>S1</td><td>advice 로 올리기</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

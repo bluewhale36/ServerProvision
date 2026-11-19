@@ -132,6 +132,17 @@ PR 을 만든 뒤 `gh pr view <번호> --json mergeable,url` 을 확인한다. `
 
 ## 7. Notion 종료 경계
 
+### 탭 임베드 확인 (메인 세션이 직접)
+
+위임하기 전에 단계 페이지를 fetch 해서 plan 탭과 report 탭을 본다. notion-sync 에이전트에는 첨부 도구가 없으므로 이 일은 넘기지 않는다.
+
+- 탭에 embed 가 없으면 이번 커밋에 든 그 html 을 올린다.
+- CP6 에 올린 뒤 report 나 plan 을 고쳤으면(CP7 지적 반영 등) 고친 판으로 embed 를 바꾼다. 마지막 업로드 뒤 파일이 바뀌었는지는 `git log` 와 이 세션의 기록으로 판단한다.
+- 절차는 `.claude/skills/stage-start/references/notion.md` 'plan, report 탭 임베드' 다. 이미 push 했으므로 403 이 나면 거기 적힌 `source_url` 경로로 바로 넘어간다.
+- 결과(올린 파일, 바이트 일치, 교체 여부)를 9 절 보고에 적는다.
+
+### 상태 갱신 위임
+
 CLAUDE.md '체크포인트 ↔ Notion 동기화' 규칙에 따른다. CP7 완료 통보가 있었으므로 지금 처리한다. `notion-sync` 에이전트에 `run_in_background: true` 로 맡기고 결과를 기다리지 않는다. 기본 모델(Sonnet)이면 충분하다.
 
 맡길 내용은 다음과 같다.
@@ -162,5 +173,6 @@ Notion 에 해당 단계가 없으면 위임하지 않는다(임의로 새로 �
 - dev 대비 상태
 - 스테이징하지 않고 남긴 파일과 그 이유
 - 앵커 통보 여부 · Notion 위임 여부
+- Notion plan 탭과 report 탭: 이미 있었는지, 새로 올렸는지, 고친 판으로 바꿨는지(바이트 일치 포함)
 
 병합은 앵커가 한다는 점을 한 줄로 덧붙인다.
