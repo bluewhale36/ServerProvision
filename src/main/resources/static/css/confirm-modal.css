@@ -252,6 +252,9 @@
 /* 후보 줄은 전역 n-option-row(라디오 + 라벨). 상자 안이라는 자리의 치수만 덮는다(HF30-4). 후보가 0 이면 상자를 숨긴다. */
 .cm-conflict-list > li.n-option-row { padding: 8px 12px; border-bottom-color: var(--n-border-row); }
 .cm-conflict-list > li.n-option-row:last-child { border-bottom: 0; }
+/* 후보 줄 보조 글자 — 경로는 끊을 자리가 없는 식별자라 어디서든 끊고, 시각은 한 덩어리로 둔다(DESIGN.md 5절 표, HF30-5) */
+.cm-conflict-list .cm-note { overflow-wrap: anywhere; }
+.cm-conflict-list .cm-note time { white-space: nowrap; }
 .cm-conflict-list:empty { display: none; }
 .cm-typed-block { border-top: 1px solid var(--n-border-row); padding-top: 12px; margin-bottom: 12px; }
 .cm-typed-target-code.cm-path { font-size: 13px; margin: 0 0 6px; }

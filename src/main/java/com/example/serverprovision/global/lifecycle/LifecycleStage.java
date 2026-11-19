@@ -14,7 +14,7 @@ package com.example.serverprovision.global.lifecycle;
  * @see LifecycleManageable#currentStage()
  */
 public enum LifecycleStage {
-	ACTIVE("정상") {
+	ACTIVE {
 		@Override
 		public String registrationConflict(IdentityConflictSubject s) {
 			return "이미 등록된 %s입니다. %s".formatted(s.noun(), s.identity());
@@ -25,7 +25,7 @@ public enum LifecycleStage {
 			return registrationConflict(s);
 		}
 	},
-	DEPRECATED("사용 중단") {
+	DEPRECATED {
 		@Override
 		public String registrationConflict(IdentityConflictSubject s) {
 			return "사용 중단 권고 상태인 같은 %s 있습니다(%s). 목록에서 사용 중단 권고를 해제해야 합니다."
@@ -38,7 +38,7 @@ public enum LifecycleStage {
 					.formatted(s.nounAsSubject(), s.identity());
 		}
 	},
-	SOFT_DELETED("휴지통") {
+	SOFT_DELETED {
 		@Override
 		public String registrationConflict(IdentityConflictSubject s) {
 			return "휴지통에 같은 %s 있습니다(%s). 휴지통에서 복구하거나 영구 삭제한 뒤 등록해야 합니다."
@@ -51,17 +51,6 @@ public enum LifecycleStage {
 					.formatted(s.nounAsSubject(), s.identity(), s.shortAsObject());
 		}
 	};
-
-	/** 화면 이름(S22-4) — 중복 확인 창이 상수 원문 대신 이 이름을 보인다. '사용 중단' 은 자원 화면 배지와 같은 말이다. */
-	private final String description;
-
-	LifecycleStage(String description) {
-		this.description = description;
-	}
-
-	public String description() {
-		return description;
-	}
 
 	/** 같은 정체로 새로 등록하려 할 때 — 기존 행이 이 상태면 무엇을 하라고 안내할지. */
 	public abstract String registrationConflict(IdentityConflictSubject subject);

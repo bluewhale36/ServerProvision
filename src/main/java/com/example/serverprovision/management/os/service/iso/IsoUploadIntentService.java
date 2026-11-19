@@ -262,7 +262,7 @@ public class IsoUploadIntentService {
 
 	private List<NudgeConflictEntry> toConflictEntries(List<ISO> candidates) {
 		return candidates.stream()
-				.map(c -> NudgeConflictEntry.of(c, c.getOsMetadata().getOsVersion(), c.getIsoPath()))
+				.map(c -> NudgeConflictEntry.ofPath(c, c.getOsMetadata().getOsVersion(), c.getIsoPath()))
 				.toList();
 	}
 
