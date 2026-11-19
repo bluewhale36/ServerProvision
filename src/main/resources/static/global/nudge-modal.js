@@ -234,8 +234,13 @@
         }
     }
 
+    function trashedAtHtml(entry) {
+        if (!entry.trashedAt || !entry.trashedAtText) return '-';
+        return '<time datetime="' + UiUtil.escapeHtml(entry.trashedAt) + '">' + UiUtil.escapeHtml(entry.trashedAtText) + '</time>';
+    }
+
     // 후보 줄 = 전역 n-option-row. 이름 칸은 자원명 입력이 맞춰야 하는 displayName 이다(HF30-4, ISO 는 OS 와 파일 이름).
-    // 버전(ISO 는 경로)과 상태는 뒤의 보조 글자로 둔다.
+    // 버전(ISO 는 경로)과 휴지통 이동 시각은 뒤의 보조 글자로 둔다. 시각 글자는 서버가 형식을 맞춰 준 값을 그대로 쓴다.
     function renderCandidates(list, conflicts, prefix, onSelect) {
         list.innerHTML = '';
         conflicts.forEach(entry => {
@@ -247,7 +252,7 @@
                 '<input type="radio" name="' + prefix + 'Target" id="' + UiUtil.escapeHtml(inputId) + '" value="' + UiUtil.escapeHtml(String(entry.id)) + '">' +
                 '<label for="' + UiUtil.escapeHtml(inputId) + '">' +
                 '<span class="n-option-title">' + UiUtil.escapeHtml(entry.displayName || entry.name || '') + '</span> ' +
-                '<span class="cm-note">' + UiUtil.escapeHtml(entry.version || '') + ' (' + UiUtil.escapeHtml(entry.stateLabel || '') + ')</span>' +
+                '<span class="cm-note">' + UiUtil.escapeHtml(entry.detail || '') + ', 휴지통 이동 ' + trashedAtHtml(entry) + '</span>' +
                 '</label>';
             li.querySelector('input').addEventListener('change', () => onSelect(entry));
             list.appendChild(li);

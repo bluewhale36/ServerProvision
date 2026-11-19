@@ -40,6 +40,7 @@ import com.example.serverprovision.execution.exception.GuestServerNotFoundExcept
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.GuestServerRepository;
 import com.example.serverprovision.execution.repository.HostNicBindingRepository;
+import com.example.serverprovision.execution.vo.StartNetworkBlock;
 import com.example.serverprovision.execution.repository.ProvisioningProgressRepository;
 import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import com.example.serverprovision.execution.vo.HardwareSpec;
@@ -90,6 +91,7 @@ public class GuestServerQueryService {
     private final com.example.serverprovision.execution.repository.RaidVolumeRepository raidVolumeRepository;
     private final GuestServerDetailRepository detailRepository;
     private final HostNicBindingRepository nicRepository;
+    private final StartNetworkPolicy startNetworkPolicy;
     private final ProvisioningProgressRepository progressRepository;
     private final ProvisioningHistoryRepository provisioningHistoryRepository;
     private final FirmwareResolutionProvider firmwareResolutionProvider;   // E2-1-b — 조회 시 해석 1회
@@ -413,7 +415,12 @@ public class GuestServerQueryService {
                 progress.isManualFailable(server.getDecommissionedAt()),
                 retryPolicy.isRetryable(progress, steps),
                 retryPolicy.isBlocked(progress, steps),
-                progress.isDisruptionBlocked());
+                progress.isDisruptionBlocked(),
+                // U7 — 개시 409 가드와 같은 판정. 미개시일 때만 의미가 있어 그때만 계산한다.
+                progress.isStartableWith(server.getDecommissionedAt())
+                        ? startNetworkPolicy.blocksOf(detail == null ? null : detail.getBmcIp(), nics).stream()
+                                .map(StartNetworkBlock::message).toList()
+                        : List.of());
 
         List<GuestServerDetailResponse.Step> stepResponses = steps.stream()
                 .map(s -> new GuestServerDetailResponse.Step(

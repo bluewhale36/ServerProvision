@@ -384,5 +384,24 @@ public class GuestServerController {
         // S21-1 — rail 은 계획 phase 에 진행 커서와 원장 행을 겹친 단계 패널 목록이다(암시 단계 2 + 계획 + 원장 + 데이터가 실린 단계).
         AssignmentPlanResponse plan = assignmentQueryService.plannedPhasesOf(id);
         model.addAttribute("phaseRail", PlannedPhaseRailResponse.of(plan, server));
+        populateStartBlockModel(plan.assigned(), server, model);
     }
+
+    /**
+     * 개시를 막는 이유 전부(U3-6 미할당 + U7 네트워크). 버튼 tooltip(n-btn-tooltip-wrap)은 이어 붙이고, 안내는 이유마다 한 줄로 그린다.
+     * 서버 가드는 같은 판정(미할당 = {@code AssignmentStartService}, 네트워크 = {@code StartNetworkBlocks})을 쓴다.
+     */
+    private static void populateStartBlockModel(boolean assigned, GuestServerDetailResponse server, Model model) {
+        List<String> reasons = new java.util.ArrayList<>();
+        if (!assigned) {
+            reasons.add(UNASSIGNED_START_REASON);
+        }
+        if (server.progress() != null) {
+            reasons.addAll(server.progress().startNetworkBlockReasons());
+        }
+        model.addAttribute("startBlockReasons", reasons);
+        model.addAttribute("startBlockTooltip", String.join(" ", reasons));
+    }
+
+    private static final String UNASSIGNED_START_REASON = "세팅 정의서가 할당되지 않았습니다. 정의서를 할당한 뒤 개시할 수 있습니다.";
 }

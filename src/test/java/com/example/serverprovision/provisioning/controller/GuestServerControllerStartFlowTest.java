@@ -231,4 +231,71 @@ class GuestServerControllerStartFlowTest {
                 .andExpect(content().string(not(containsString(startActionUrl(id)))))
                 .andExpect(content().string(containsString("할당한 뒤 개시할 수 있습니다")));
     }
+
+    // ==== U7 — 프로비저닝 허용 대역 판정 ============================
+
+    private static final String BMC_OUTSIDE = "BMC 주소가 프로비저닝 허용 대역 밖에 있습니다(BMC 192.168.10.21, 허용 대역 10.1.1.0/24). "
+            + "BMC 가 프로비저닝 네트워크에 연결돼 있는지 확인해야 합니다.";
+    private static final String LAN_OUTSIDE = "LAN 주소가 프로비저닝 허용 대역 밖에 있습니다(LAN 172.16.3.40, 허용 대역 10.1.1.0/24). "
+            + "서버의 LAN 이 프로비저닝 네트워크에 연결돼 있는지 확인해야 합니다.";
+
+    private GuestServerDetailResponse detailWithNetworkReasons(UUID id, List<String> reasons) {
+        GuestServerDetailResponse base = detail(id, GuestServerStatus.REGISTERED, null, null, true);
+        GuestServerDetailResponse.Progress p = base.progress();
+        GuestServerDetailResponse.Progress blocked = new GuestServerDetailResponse.Progress(
+                p.currentPhase(), p.lastTransitionAt(), p.startedAt(), p.failedAt(), p.failedStepCode(), p.completedAt(),
+                p.startable(), p.markFailable(), p.retryable(), p.retryBlocked(), p.disruptionBlocked(), reasons);
+        return new GuestServerDetailResponse(
+                id, "web-01", null, null, UUID.randomUUID(), "464331aabbcc", null, null,
+                GuestServerStatus.REGISTERED, null, T, T, null, null, List.of(), blocked,
+                null, null, null, null, null, List.of(), List.of());
+    }
+
+    @Test
+    @DisplayName("POST /{id}/start — 허용 대역 밖(direct POST) → 409 + 사유 문구 (U7 안전망)")
+    void start_outsideAllowedRange_returns409WithReasons() throws Exception {
+        UUID id = UUID.randomUUID();
+        com.example.serverprovision.global.systemsetting.vo.ProvisioningAllowedCidr range =
+                com.example.serverprovision.global.systemsetting.vo.ProvisioningAllowedCidr.parse("10.1.1.0/24");
+        willThrow(ProvisioningStartRejectedException.outsideAllowedRange(id, List.of(
+                new com.example.serverprovision.execution.vo.StartNetworkBlock(
+                        com.example.serverprovision.execution.enums.StartNetworkBlockKind.BMC_OUTSIDE,
+                        com.example.serverprovision.execution.vo.IpAddressVO.of("192.168.10.21"), range),
+                new com.example.serverprovision.execution.vo.StartNetworkBlock(
+                        com.example.serverprovision.execution.enums.StartNetworkBlockKind.LAN_OUTSIDE,
+                        com.example.serverprovision.execution.vo.IpAddressVO.of("172.16.3.40"), range))))
+                .given(assignmentStartService).startProvisioning(id);
+
+        mvc.perform(post("/provisioning/server/{id}/start", id).accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(content().string(containsString(BMC_OUTSIDE + " " + LAN_OUTSIDE)));
+    }
+
+    @Test
+    @DisplayName("상세 렌더 — 할당됨 + 네트워크 사유 2 개: 개시 폼 비노출 · 이유마다 안내 한 줄 · tooltip(n-btn-tooltip-wrap)")
+    void detail_networkBlocked_showsAllReasons() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(assignmentQueryService.plannedPhasesOf(id)).willReturn(assignedPlan());
+        given(queryService.findDetail(id)).willReturn(detailWithNetworkReasons(id, List.of(BMC_OUTSIDE, LAN_OUTSIDE)));
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString(startActionUrl(id)))))
+                .andExpect(content().string(containsString("data-tooltip=\"" + BMC_OUTSIDE + " " + LAN_OUTSIDE + "\"")))
+                .andExpect(content().string(containsString(">" + BMC_OUTSIDE + "</p>")))
+                .andExpect(content().string(containsString(">" + LAN_OUTSIDE + "</p>")))
+                .andExpect(content().string(not(containsString("[프로비저닝 개시]</strong> 를 눌러야 진행됩니다"))));
+    }
+
+    @Test
+    @DisplayName("상세 렌더 — 미할당 + 네트워크 사유: 미할당 문구가 맨 앞, 두 이유가 함께")
+    void detail_unassignedAndNetworkBlocked_showsBoth() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(queryService.findDetail(id)).willReturn(detailWithNetworkReasons(id, List.of(BMC_OUTSIDE)));   // 기본 스텁 = 미할당
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "data-tooltip=\"세팅 정의서가 할당되지 않았습니다. 정의서를 할당한 뒤 개시할 수 있습니다. " + BMC_OUTSIDE + "\"")));
+    }
 }

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--/*
+  U7. 시스템 설정. 설정 키마다 카드 하나. 현재 사용자가 접근할 수 있는 설정만 보인다(키별 최소 권한).
+
+  Model:
+    settings     : List<SystemSettingResponse> (접근 가능한 설정)
+    rangeSetting : SystemSettingResponse (프로비저닝 허용 대역, 접근 불가면 null)
+    rangeForm    : ProvisioningAllowedRangeRequest
+    flashMessage : String (저장 후 PRG flash, optional)
+
+  액션:
+    · 프로비저닝 허용 대역 저장 → POST /system/settings/provisioning-allowed-range (성공 시 self-PRG, 실패 시 재렌더)
+*/-->
+<head>
+    <th:block th:replace="~{fragments/layout :: commonHead('시스템 설정')}"></th:block>
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('system-settings')}"></nav>
+
+<div class="n-page-md">
+    <div class="n-page-header">
+        <h1 class="n-page-title">시스템 설정</h1>
+    </div>
+
+    <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status" th:text="${flashMessage}">저장했습니다.</div>
+
+    <!--/* 빈 상태: 이 계정이 접근할 수 있는 설정이 없다(설정마다 최소 권한). */-->
+    <th:block th:if="${#lists.isEmpty(settings)}">
+        <div th:replace="~{fragments/ui/empty :: state(title='이 계정으로 볼 수 있는 설정이 없습니다.', desc='설정마다 접근할 수 있는 권한 등급이 정해져 있습니다.')}"></div>
+    </th:block>
+
+    <!--/* 프로비저닝 허용 대역 */-->
+    <section th:if="${rangeSetting != null}" class="n-card" id="provisioning-allowed-range">
+        <div class="n-card-body">
+            <h2 class="n-card-title" th:text="${rangeSetting.label}">프로비저닝 허용 대역</h2>
+            <p class="n-hint n-lead">서버 상세의 [프로비저닝 개시] 는 BMC 주소와 LAN 주소가 모두 이 대역 안에 있을 때만 누를 수 있습니다.</p>
+            <table class="n-detail-table">
+                <tbody>
+                <tr>
+                    <th>현재 값</th>
+                    <td>
+                        <code th:if="${rangeSetting.value != null}" class="n-mono" th:text="${rangeSetting.value}">10.1.1.0/24</code>
+                        <span th:if="${rangeSetting.value == null}" class="n-badge n-badge-off">설정되지 않음</span>
+                    </td>
+                </tr>
+                <tr>
+                    <th>접근 권한</th>
+                    <!--/* 배지 색은 사용자 상세의 권한 등급 배지와 같은 규칙(최고 관리자 = 파랑, 그 밖 = 회색). */-->
+                    <td><span class="n-badge" th:classappend="${rangeSetting.minRole.name() == 'SUPER_ADMIN'} ? 'n-badge-blue' : 'n-badge-gray'"
+                              th:text="${rangeSetting.minRole.description}">최고 관리자</span></td>
+                </tr>
+                <tr th:if="${rangeSetting.updatedAt != null}">
+                    <th>마지막 변경</th>
+                    <td th:text="${#temporals.format(rangeSetting.updatedAt, 'yyyy-MM-dd HH:mm')}">2026-11-16 21:00</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <form th:action="@{/system/settings/provisioning-allowed-range}" th:object="${rangeForm}" method="post" novalidate
+                  data-native-submit="검증 실패 시 서버가 폼을 다시 렌더한다">
+                <div class="n-form-group">
+                    <label class="n-label strong" for="cidr">프로비저닝 허용 대역</label>
+                    <p class="n-hint">RFC 1918 내부망 대역을 CIDR 로 입력합니다. prefix 는 26 이하여야 합니다.</p>
+                    <input id="cidr" type="text" th:field="*{cidr}" class="n-input" placeholder="예: 10.1.1.0/24"
+                           autocomplete="off" spellcheck="false" data-error-field="cidr"
+                           th:classappend="${#fields.hasErrors('cidr')} ? 'is-invalid'">
+                    <div class="n-error" th:if="${#fields.hasErrors('cidr')}" th:errors="*{cidr}"></div>
+                </div>
+                <div class="n-form-actions">
+                    <button type="submit" class="n-btn n-btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>
+</body>
+</html>

@@ -226,14 +226,15 @@
                                 정의서 할당
                             </button>
 
-                            <!-- 개시(DEC-26) — startable SSOT. U3-6 — 미할당 개시는 즉시 종단 함정이라 disabled + tooltip -->
-                            <form th:if="${server.progress != null and server.progress.startable and phaseRail.assigned}"
+                            <!-- 개시(DEC-26) — startable SSOT. 막는 이유(U3-6 미할당 · U7 네트워크)가 하나라도 있으면 disabled + tooltip -->
+                            <form th:if="${server.progress != null and server.progress.startable and #lists.isEmpty(startBlockReasons)}"
                                   th:action="@{/provisioning/server/{id}/start(id=${server.id})}" method="post">
                                 <button type="submit" class="n-btn n-btn-primary">프로비저닝 개시</button>
                             </form>
-                            <button th:if="${server.progress != null and server.progress.startable and !phaseRail.assigned}"
-                                    type="button" class="n-btn n-btn-secondary" disabled
-                                    title="세팅 정의서를 할당한 뒤 개시할 수 있습니다.">프로비저닝 개시</button>
+                            <span th:if="${server.progress != null and server.progress.startable and !#lists.isEmpty(startBlockReasons)}"
+                                  class="n-btn-tooltip-wrap" th:data-tooltip="${startBlockTooltip}">
+                                <button type="button" class="n-btn n-btn-secondary" disabled>프로비저닝 개시</button>
+                            </span>
 
                             <!-- 재할당(U3-2-a) — 미개시 활성일 때만 -->
                             <button th:if="${phaseRail.assigned and phaseRail.reassignBlockReason == null and assignmentForm.hasSelectable}"
@@ -267,15 +268,16 @@
                         <p class="n-next-hint" th:if="${server.decommissionedAt != null}">
                             회수된 서버는 프로비저닝 대상이 아닙니다. 다시 프로비저닝하려면 물리 서버를 PXE 로 재등록해야 합니다.</p>
                         <!-- E1-2 (UC-3) → R13 — 진단(수집)은 자동 진행이므로 개시 안내는 "수집 이후 단계" 로 한정. -->
-                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active}">
-                            <span th:if="${phaseRail.assigned}"><strong>[프로비저닝 개시]</strong> 를 누르면 진행합니다.</span>
-                        </p>
+                        <!-- U7 — 막는 이유가 없을 때만 개시 안내(미할당도 막는 이유 목록이 대신한다). 문구는 S22-3 정리본. -->
+                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable and server.contact != null and server.contact.active and #lists.isEmpty(startBlockReasons)}">
+                            <strong>[프로비저닝 개시]</strong> 를 누르면 진행합니다.</p>
                         <p class="n-next-hint" th:if="${!phaseRail.assigned and groupStandard != null and server.decommissionedAt == null}">
                             이 서버가 속한 <a th:href="@{/provisioning/server-group/{gid}(gid=${groupBadge.id})}" th:text="${groupBadge.name}">8월 2차</a>
                             그룹의 표준 정의서는 <b th:text="${groupStandard.name}">web-standard</b> 입니다.
                             <span th:unless="${groupStandard.usable}" class="n-badge n-badge-yellow">사용 불가</span></p>
-                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable and !phaseRail.assigned}">
-                            세팅 정의서를 할당한 뒤 개시할 수 있습니다.</p>
+                        <!-- U7 — 막는 이유마다 한 줄. -->
+                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.startable}"
+                           th:each="reason : ${startBlockReasons}" th:text="${reason}">막는 이유</p>
                         <!-- E2-4 Q3 — 펌웨어 단계 재시도의 전원 사이클은 의도다. 미리 알린다. -->
                         <!-- S22-3 — 막힘과, 재시도가 전원을 움직인다는 사실만 남긴다(동작 설명은 문서 몫). -->
                         <p class="n-next-hint" th:if="${server.progress != null and server.progress.failedAt != null and server.progress.retryBlocked}">

@@ -2,12 +2,16 @@ package com.example.serverprovision.execution.exception;
 
 import com.example.serverprovision.global.exception.ConflictException;
 
+import com.example.serverprovision.execution.vo.StartNetworkBlock;
+
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 개시할 수 없는 서버에 대한 개시 요청(E1-0a, DEC-26). 정상 흐름은 UI 가 버튼을 숨겨 차단하므로
  * direct POST · stale 화면에서만 도달하는 안전망이다. (advice 가 base {@link ConflictException} 으로 409 매핑)
- * 사유 4종은 메시지로 구분한다 — 사유별 클래스 분리는 소비 분기가 생기는 시점에(현재는 표시만).
+ * 사유 5종은 메시지로 구분한다 — 사유별 클래스 분리는 소비 분기가 생기는 시점에(현재는 표시만).
  */
 public class ProvisioningStartRejectedException extends ConflictException {
 
@@ -35,5 +39,11 @@ public class ProvisioningStartRejectedException extends ConflictException {
     public static ProvisioningStartRejectedException unassigned(UUID id) {
         return new ProvisioningStartRejectedException(
                 "세팅 정의서가 할당되지 않은 서버는 개시할 수 없습니다. 정의서를 할당한 뒤 개시해야 합니다. id=" + id);
+    }
+
+    /** BMC 와 LAN 주소가 프로비저닝 허용 대역 밖이거나 판정할 수 없을 때(U7). 메시지는 화면 사유 문구를 공백으로 이은 것이다. */
+    public static ProvisioningStartRejectedException outsideAllowedRange(UUID id, List<StartNetworkBlock> blocks) {
+        return new ProvisioningStartRejectedException(
+                blocks.stream().map(StartNetworkBlock::message).collect(Collectors.joining(" ")));
     }
 }

@@ -81,7 +81,7 @@ class GuestServerQueryServiceWindowsInstallTest {
                 inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)));
         ledger = new WindowsInstallLedger(recorder, historyRepository, new ObjectMapper());
         service = new GuestServerQueryService(guestServerRepository, raidConfigurationResolutionProvider,
-                raidVolumeRepository, detailRepository, nicRepository, progressRepository, historyRepository,
+                raidVolumeRepository, detailRepository, nicRepository, org.mockito.Mockito.mock(com.example.serverprovision.execution.service.StartNetworkPolicy.class), progressRepository, historyRepository,
                 firmwareResolutionProvider, holdTtlPolicy, retryPolicy, new FlashTimeoutPolicy(new MockEnvironment()),
                 new SettingLedger(recorder, new ObjectMapper()), new WorkerObservations(), new ObjectMapper(),
                 resolver, ledger, new WindowsInstallTimeoutPolicy(Duration.ofMinutes(60), 5, Duration.ofMinutes(30)),

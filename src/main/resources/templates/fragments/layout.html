@@ -12,7 +12,7 @@
     · activePage 키
         Management   : 'os-metadata' | 'board' | 'bios' | 'bmc' | 'driver' | 'raidcard'
         Maintenance  : 'reconciliation' | 'quarantine' | 'trash'
-        System       : 'system-asset' | 'pxe-infra'
+        System       : 'system-asset' | 'pxe-infra' | 'system-settings'
         Provisioning : 'setting' | 'server'
         Account      : 'users' | 'password'   (S18 — 사이드바 계정 영역 · MA8 에서 'users' = 사용자 관리)
     · 구현 완료 메뉴는 <a>, 미구현은 <span aria-disabled="true"> 로 남겨
@@ -127,6 +127,10 @@
     <a th:href="@{/system/pxe-infra}"
        class="n-nav-link"
        th:classappend="${activePage == 'pxe-infra'} ? ' active'">proxy DHCP</a>
+    <!-- U7 — 시스템 설정(설정 키별 최소 권한). 권한이 없어도 링크는 보이고 화면이 안내한다. -->
+    <a th:href="@{/system/settings}"
+       class="n-nav-link"
+       th:classappend="${activePage == 'system-settings'} ? ' active'">시스템 설정</a>
 
     <span class="n-nav-group">프로비저닝</span>
     <a th:href="@{/provisioning/setting}"
