@@ -24,6 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import com.example.serverprovision.execution.vo.StartNetworkBlock;
+
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -39,6 +42,7 @@ public class GuestServerCommandService {
     private final ProvisioningProgressRepository provisioningProgressRepository;
     private final ProvisioningHistoryRecorder provisioningHistoryRecorder;
     private final RetryPolicy retryPolicy;   // 재시도 차단 판정 — 화면 노출과 같은 지점
+    private final StartNetworkPolicy startNetworkPolicy;   // U7 — 개시 네트워크 판정, 화면 차단과 같은 판정
     private final PhaseCursorAdvancer phaseCursorAdvancer;   // R13 — 개시 시 유보된 완주 판정의 소급 집행
     private final ApplicationEventPublisher eventPublisher;
     private final com.example.serverprovision.execution.engine.WorkerObservations workerObservations;   // E2-4 O-3
@@ -130,6 +134,10 @@ public class GuestServerCommandService {
 
         if (!progress.isStartableWith(server.getDecommissionedAt())) {
             throw rejectionOf(server, progress, id);
+        }
+        List<StartNetworkBlock> networkBlocks = startNetworkPolicy.blocksOf(id);
+        if (!networkBlocks.isEmpty()) {
+            throw ProvisioningStartRejectedException.outsideAllowedRange(id, networkBlocks);
         }
         LocalDateTime now = LocalDateTime.now();
         progress.start(now);
