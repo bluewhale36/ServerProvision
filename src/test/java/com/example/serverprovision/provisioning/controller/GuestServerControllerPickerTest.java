@@ -3,6 +3,7 @@ package com.example.serverprovision.provisioning.controller;
 import com.example.serverprovision.provisioning.setting.dto.request.SettingListQuery;
 
 import com.example.serverprovision.support.FixedClockTestConfig;
+import com.example.serverprovision.support.UbuntuDefinitionFixture;
 import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.service.GuestServerCommandService;
@@ -172,6 +173,26 @@ class GuestServerControllerPickerTest {
                 .andExpect(content().string(containsString("n-process-card")))
                 .andExpect(content().string(containsString(SettingProcessType.BASIC_UPDATE.getDisplayName())))
                 .andExpect(content().string(containsString("MS03-CE0")));
+    }
+
+    /** HF33 O-2 — 활성 Ubuntu 정의서 하나가 창 전체를 500 으로 막아 모든 할당이 멈췄다. */
+    @Test
+    @DisplayName("HF33 GET /{id}/assignment/picker — Ubuntu 정의서가 섞여도 200 · 그 카드도 그린다")
+    void picker_ubuntuDefinitionDoesNotBreakPicker() throws Exception {
+        UUID id = UUID.randomUUID();
+        given(settingQueryService.findAssignable())
+                .willReturn(List.of(summary(1L, "os-only-auto"), summary(2L, "ubuntu-standard")));
+        given(assignmentQueryService.assignmentForm(any(UUID.class), anyList()))
+                .willReturn(new AssignmentFormResponse(null, List.of(
+                        new DefinitionOptionResponse(summary(1L, "os-only-auto"), null, null),
+                        new DefinitionOptionResponse(summary(2L, "ubuntu-standard"), null, null))));
+        given(settingQueryService.findDetailsOf(anyList()))
+                .willReturn(List.of(detail(1L, "os-only-auto"), UbuntuDefinitionFixture.detail(2L, "ubuntu-standard")));
+
+        mvc.perform(get("/provisioning/server/{id}/assignment/picker", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(">ubuntu-standard<")))
+                .andExpect(content().string(containsString(UbuntuDefinitionFixture.HOSTNAME)));
     }
 
     @Test

@@ -1907,6 +1907,11 @@
                     payload.isKDumpEnabled = document.getElementById('oiKdump').checked;
                     if (oiAllowSshBox && !oiAllowSshBox.hidden) payload.allowSshRoot = document.getElementById('oiAllowSshRoot').checked;
                 }
+                if (family === 'DEBIAN_BASED') {
+                    // HF33 — Ubuntu 고유값(호스트명은 필수 · 형식 검증은 서버 @Valid)
+                    payload.hostname = document.getElementById('oiHostname').value.trim();
+                    payload.packages = splitCsv(document.getElementById('oiPackages').value);
+                }
                 return payload;
             },
             OS_SETTING: function () {
@@ -2406,6 +2411,10 @@
                     document.getElementById('oiKdump').checked = pickBool(proc, 'isKDumpEnabled', 'kdumpEnabled');
                     const ssh = document.getElementById('oiAllowSshRoot');
                     if (ssh && oiAllowSshBox && !oiAllowSshBox.hidden) ssh.checked = !!proc.allowSshRoot;
+                }
+                if (proc.osFamily === 'DEBIAN_BASED') {
+                    document.getElementById('oiHostname').value = proc.hostname || '';
+                    document.getElementById('oiPackages').value = (proc.packages || []).join(', ');
                 }
             },
             OS_SETTING: function (proc) {

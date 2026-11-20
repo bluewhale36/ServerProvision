@@ -37,6 +37,14 @@
                     <span th:unless="${inst.isKDumpEnabled()}" class="n-badge n-badge-off">비활성화</span>
                 </td>
             </tr>
+            <!-- root 비밀번호는 RHEL 계약에만 있어 리눅스 공통 표가 아니라 여기서 그린다(HF33). -->
+            <tr>
+                <th>root 비밀번호</th>
+                <td>
+                    <span th:if="${inst.rootPassword != null}" class="n-badge n-badge-green">설정 완료</span>
+                    <span th:unless="${inst.rootPassword != null}" class="n-badge n-badge-orange">미설정 (root 잠금)</span>
+                </td>
+            </tr>
             <!-- allowSshRoot 는 Rocky 10 전용 — 전송되지 않은(null) 정의서에는 행 자체를 표시하지 않는다. -->
             <tr th:if="${inst.allowSshRoot != null}">
                 <th>root SSH 로그인</th>
