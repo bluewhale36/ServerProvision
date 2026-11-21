@@ -181,3 +181,16 @@
     border: 1px dashed var(--n-border);
     border-radius: var(--n-radius-lg);
 }
+
+/* R21-1 — 640 이하에서는 펼친 몸통의 여백을 줄인다. 몸통에 바로 든 목록 표는 카드가 되고(style.css 휴대폰 절),
+   몸통이 이미 좌우 여백을 가지므로 카드 행의 좌우 여백은 두지 않는다(여백이 겹치면 값 칸이 그만큼 좁아진다). */
+@media (max-width: 640px) {
+    .n-accordion-body {
+        padding: 10px 12px 12px;
+    }
+
+    .n-accordion-body > .n-table > tbody > tr {
+        padding-left: 0;
+        padding-right: 0;
+    }
+}

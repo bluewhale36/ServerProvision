@@ -1,6 +1,6 @@
 // 앱이 뜨지 않아도 마크업 조각과 CSS 를 앱 시트 위에 렌더해 본다. 새 CSS 변형이나 화면 조각을 제안하기 전에 쓴다.
 // 폭마다 스크린샷을 남기고, 화면 점검 세 도구와 같은 검사(겹친 구분선, 넘침, 7절 표기)를 돌린다.
-// 사용: node snippet-check.mjs <조각.html> [출력 폴더 = out/snippet] [폭,폭 = 1440,1024,390] [--sheets a.css,b.css] [--css 추가.css]
+// 사용: node snippet-check.mjs <조각.html> [출력 폴더 = out/snippet] [폭,폭 = 1440,1024,360] [--sheets a.css,b.css] [--css 추가.css]
 //   조각.html : body 안에 들어갈 마크업만 쓴다(html, head 없이).
 //   --sheets  : 기본 시트(reset, style, form-validation, table-list) 뒤에 더 얹을 앱 시트. static 기준 경로(예: css/miller.css,provisioning/setting.css)
 //   --css     : 아직 앱에 없는 제안 CSS 파일(로컬 경로). 앱 시트보다 뒤에 얹는다
@@ -13,7 +13,7 @@ const args = process.argv.slice(2);
 const flag = name => { const i = args.indexOf(name); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v; };
 const extraSheets = (flag('--sheets') || '').split(',').filter(Boolean);
 const proposalCss = flag('--css');
-const [snippetFile, outDir = 'out/snippet', widthsArg = '1440,1024,390'] = args;
+const [snippetFile, outDir = 'out/snippet', widthsArg = '1440,1024,360'] = args;
 if (!snippetFile) { console.error('사용: node snippet-check.mjs <조각.html> [출력 폴더] [폭,폭] [--sheets a.css] [--css 제안.css]'); process.exit(2); }
 
 const STATIC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src/main/resources/static');
@@ -25,11 +25,13 @@ const links = [...BASE_SHEETS, ...extraSheets].map(s => {
   return `<link rel="stylesheet" href="${pathToFileURL(f)}">`;
 });
 if (proposalCss) links.push(`<link rel="stylesheet" href="${pathToFileURL(path.resolve(proposalCss))}">`);
+// 화면 공통 머리가 싣는 스크립트 중 렌더 모양을 바꾸는 것: 640 이하 목록 표 카드의 이름표(머리 칸 글자 → 칸의 data-label)
+const scripts = ['global/table-cards.js'].map(s => `<script src="${pathToFileURL(path.join(STATIC, s))}"></script>`);
 
 fs.mkdirSync(outDir, { recursive: true });
 const pageFile = path.resolve(outDir, 'page.html');
 // 본문 자리는 앱의 내용 칸처럼 바탕색 위 여백 24px 이다. 폭은 뷰포트가 정한다
-fs.writeFileSync(pageFile, `<!doctype html><html lang="ko"><head><meta charset="utf-8">${links.join('')}
+fs.writeFileSync(pageFile, `<!doctype html><html lang="ko"><head><meta charset="utf-8">${links.join('')}${scripts.join('')}
 <style>body { padding: 24px; background: var(--n-bg); }</style></head><body>
 ${fs.readFileSync(snippetFile, 'utf8')}
 </body></html>`);

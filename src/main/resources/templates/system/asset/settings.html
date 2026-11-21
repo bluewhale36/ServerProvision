@@ -60,34 +60,36 @@
         <div class="n-card-body">
             <h2 class="n-card-title">무결성 봉인</h2>
             <p class="n-hint n-hint-warn n-lead">변조되거나 손상된 상태로 봉인하면 그 상태가 기준이 됩니다. 봉인 전에 대시보드에서 무결성을 확인해야 합니다.</p>
-            <table class="n-table">
-                <thead>
-                <tr>
-                    <th>영역</th>
-                    <th>서빙</th>
-                    <th class="n-text-right">액션</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="area : ${overview.areas}" th:if="${area.supportsSeal}">
-                    <td><strong th:text="${area.displayName}">영역명</strong></td>
-                    <td>
-                        <span class="n-badge"
-                              th:classappend="${area.availability == 'CONFIGURED'} ? 'n-badge-green' : 'n-badge-off'"
-                              th:text="${area.availability == 'CONFIGURED'} ? '서빙 활성' : '서빙 비활성'"></span>
-                    </td>
-                    <td class="n-text-right">
-                        <form th:action="@{/system/asset/{k}/seal(k=${area.areaKey})}" method="post">
-                            <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning"
-                                    th:disabled="${area.availability != 'CONFIGURED'}"
-                                    th:title="${area.availability == 'CONFIGURED'}
-                                              ? '현재 파일을 무결성 기준으로 기록합니다.'
-                                              : '서빙이 비활성이라 봉인할 수 없습니다.'">봉인</button>
-                        </form>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+            <div class="n-table-scroll">
+                <table class="n-table">
+                    <thead>
+                    <tr>
+                        <th>영역</th>
+                        <th>서빙</th>
+                        <th class="n-text-right">액션</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="area : ${overview.areas}" th:if="${area.supportsSeal}">
+                        <td><strong th:text="${area.displayName}">영역명</strong></td>
+                        <td>
+                            <span class="n-badge"
+                                  th:classappend="${area.availability == 'CONFIGURED'} ? 'n-badge-green' : 'n-badge-off'"
+                                  th:text="${area.availability == 'CONFIGURED'} ? '서빙 활성' : '서빙 비활성'"></span>
+                        </td>
+                        <td class="n-text-right">
+                            <form th:action="@{/system/asset/{k}/seal(k=${area.areaKey})}" method="post">
+                                <span class="n-btn-tooltip-wrap"
+                                      th:attr="data-tooltip=${area.availability != 'CONFIGURED'} ? '서빙이 비활성이라 봉인할 수 없습니다.' : null">
+                                <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning"
+                                        th:disabled="${area.availability != 'CONFIGURED'}">봉인</button>
+                                </span>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 

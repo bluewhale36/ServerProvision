@@ -123,6 +123,19 @@ class ReconciliationScreenRouteTest {
 					.andExpect(content().string(org.hamcrest.Matchers.containsString(">운영 설정</a>")));
 		}
 
+		/** R21-1 — 막힌 사유는 버튼 아래 글자로 늘 보인다. 해결이 꺼진 사실은 배너가 한 번 말하므로 행의 버튼마다 되풀이하지 않는다. */
+		@Test
+		@DisplayName("A11 시스템 해결이 꺼지면 배너만 사유를 말하고 행의 [해결] 은 사유 글자 없이 막힌다")
+		void 해결_꺼짐_사유는_배너_한_번() throws Exception {
+			given(reconciliationService.isResolutionEnabled()).willReturn(false);
+			mvc.perform(get("/maintenance/reconciliation"))
+					.andExpect(status().isOk())
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("<strong>시스템 해결이 꺼져 있습니다.</strong>")))
+					.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(
+							"data-tooltip=\"시스템 해결이 꺼져 있습니다."))))
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("disabled=\"disabled\">해결</button>")));
+		}
+
 		/** 마지막 점검은 배경이라 제목 아래 보조 텍스트로 내려갔다 — 배너 자리를 차지하지 않는다. */
 		@Test
 		@DisplayName("A3 마지막 점검이 제목 아래 보조 텍스트로 나온다")

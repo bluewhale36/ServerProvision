@@ -2,12 +2,12 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <body>
 <!--/* S23-1 — 미지원 OS 그룹에서 막는 버튼. OS 목록의 [ISO 추가] 와 [+ OS 버전 등록] 이 함께 쓴다.
-     막는 조건은 OSGroupResponse.unsupported(= OSName.registrable() 의 반대)이고, 서버 가드도 같은 판정을 쓴다. */-->
+     막는 조건은 OSGroupResponse.unsupported(= OSName.registrable() 의 반대)이고, 서버 가드도 같은 판정을 쓴다.
+     사유는 감싸개가 버튼 아래 글자로 보인다(R21-1). 같은 문장을 곁 안내로 한 번 더 두지 않는다(7절 표기 3). */-->
 <th:block th:fragment="blockedButton(label, buttonClass)">
     <span class="n-btn-tooltip-wrap" data-tooltip="지원하지 않는 OS 입니다.">
         <button type="button" th:class="${buttonClass}" disabled th:text="${label}">버튼</button>
     </span>
-    <span class="n-hint">지원하지 않는 OS 입니다.</span>
 </th:block>
 </body>
 </html>

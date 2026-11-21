@@ -84,8 +84,10 @@
                       th:action="@{/system/diagnostic-asset/{k}/replace(k=${slot.key})}">
                     <input type="file" name="file" required class="n-input">
                     <div class="n-form-actions">
-                        <button type="submit" class="n-btn n-btn-primary" th:disabled="${!servingActive}"
-                                th:title="${servingActive} ? '선택한 파일로 교체합니다. 교체 전 파일은 버전 이력에 보관합니다.' : '서빙이 비활성이라 교체할 수 없습니다.'">교체</button>
+                        <span class="n-btn-tooltip-wrap"
+                              th:attr="data-tooltip=${!servingActive} ? '서빙이 비활성이라 교체할 수 없습니다.' : null">
+                        <button type="submit" class="n-btn n-btn-primary" th:disabled="${!servingActive}">교체</button>
+                        </span>
                     </div>
                 </form>
             </div>
@@ -95,31 +97,34 @@
             <div class="n-card-body">
                 <h2 class="n-card-title">버전 이력 <span th:text="'(' + ${#lists.size(versions)} + ')'">(0)</span></h2>
                 <p th:if="${#lists.isEmpty(versions)}" class="n-empty">보존된 이전 버전이 없습니다.</p>
-                <table th:unless="${#lists.isEmpty(versions)}" class="n-table">
-                        <thead>
-                        <tr>
-                            <th>아카이브 시각</th>
-                            <th>크기</th>
-                            <th>해시</th>
-                            <th></th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:each="v : ${versions}">
-                            <td th:text="${v.archivedAt}">2026-07-25 00:00:00</td>
-                            <td th:text="${v.sizeDisplay}">198.4 MB</td>
-                            <td><code class="n-mono" th:text="${v.shortSha}">abcdef012345</code></td>
-                            <td>
-                                <form method="post"
-                                      th:action="@{/system/diagnostic-asset/{k}/versions/{id}/rollback(k=${slot.key}, id=${v.versionId})}">
-                                    <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning"
-                                            th:disabled="${!servingActive}"
-                                            th:title="${servingActive} ? '이 버전으로 되돌립니다. 현재 파일은 버전 이력에 보관합니다.' : '서빙이 비활성이라 되돌릴 수 없습니다.'">되돌리기</button>
-                                </form>
-                            </td>
-                        </tr>
-                        </tbody>
-                </table>
+                <!--/* R21-1 — 되돌리기를 막는 사유는 모든 행에 같으므로 표 위에 한 번만 말한다(7절 표기 3). */-->
+                <p th:if="${!servingActive and !#lists.isEmpty(versions)}" class="n-hint">서빙이 비활성이라 되돌릴 수 없습니다.</p>
+                <div class="n-table-scroll" th:unless="${#lists.isEmpty(versions)}">
+                    <table class="n-table">
+                            <thead>
+                            <tr>
+                                <th>아카이브 시각</th>
+                                <th>크기</th>
+                                <th>해시</th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="v : ${versions}">
+                                <td th:text="${v.archivedAt}">2026-07-25 00:00:00</td>
+                                <td th:text="${v.sizeDisplay}">198.4 MB</td>
+                                <td><code class="n-mono" th:text="${v.shortSha}">abcdef012345</code></td>
+                                <td>
+                                    <form method="post"
+                                          th:action="@{/system/diagnostic-asset/{k}/versions/{id}/rollback(k=${slot.key}, id=${v.versionId})}">
+                                        <button type="submit" class="n-btn n-btn-sm n-btn-outline-warning"
+                                                th:disabled="${!servingActive}">되돌리기</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </th:block>

@@ -344,14 +344,22 @@
         max-height: none;
     }
 
-    /* 높이는 상한만 둔다 — 고정 340px 이면 데이터가 두 줄뿐인 열도 빈 채로 340px 를 차지해 상세가 첫 화면
-       아래로 밀린다(CP5 C1 단서). 내용만큼 자라다 상한에서 자체 스크롤한다. */
+    /* 목록 열의 높이는 고정이다. 내용만큼 자라면 앞 열에서 다른 항목을 고를 때마다 뒤 열의 항목 수에 따라 판 높이가 바뀌고
+       그 아래 상세가 위아래로 움직인다(R21-1 CP6 사용자 검토). 넘치는 항목은 열 안에서 스크롤한다 */
     .n-miller-col-names,
     .n-miller-col-versions {
         width: auto;
         flex: 1 1 0;
         min-width: 0;
-        max-height: 340px;
+        height: 340px;
+    }
+
+    /* 열 폭이 화면의 절반이라 이름을 말줄임으로 자르면 같은 접두의 항목을 가를 수 없다. 줄을 바꿔 다 보인다(R21-1 CP6 사용자 검토) */
+    .n-miller-item,
+    .n-miller-item-split > .n-miller-version-label {
+        white-space: normal;
+        text-overflow: clip;
+        overflow-wrap: anywhere;
     }
 
     .n-miller-col-versions {

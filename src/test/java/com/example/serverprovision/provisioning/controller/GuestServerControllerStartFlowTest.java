@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -272,7 +273,7 @@ class GuestServerControllerStartFlowTest {
     }
 
     @Test
-    @DisplayName("상세 렌더 — 할당됨 + 네트워크 사유 2 개: 개시 폼 비노출 · 이유마다 안내 한 줄 · tooltip(n-btn-tooltip-wrap)")
+    @DisplayName("상세 렌더 — 할당됨 + 네트워크 사유 2 개: 개시 폼 비노출 · 이유마다 안내 한 줄 · 버튼에 사유를 다시 달지 않음")
     void detail_networkBlocked_showsAllReasons() throws Exception {
         UUID id = UUID.randomUUID();
         given(assignmentQueryService.plannedPhasesOf(id)).willReturn(assignedPlan());
@@ -281,7 +282,7 @@ class GuestServerControllerStartFlowTest {
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString(startActionUrl(id)))))
-                .andExpect(content().string(containsString("data-tooltip=\"" + BMC_OUTSIDE + " " + LAN_OUTSIDE + "\"")))
+                .andExpect(content().string(not(containsString("data-tooltip=\"" + BMC_OUTSIDE))))
                 .andExpect(content().string(containsString(">" + BMC_OUTSIDE + "</p>")))
                 .andExpect(content().string(containsString(">" + LAN_OUTSIDE + "</p>")))
                 .andExpect(content().string(not(containsString("[프로비저닝 개시]</strong> 를 눌러야 진행됩니다"))));
@@ -295,7 +296,7 @@ class GuestServerControllerStartFlowTest {
 
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString(
-                        "data-tooltip=\"세팅 정의서가 할당되지 않았습니다. 정의서를 할당한 뒤 개시할 수 있습니다. " + BMC_OUTSIDE + "\"")));
+                .andExpect(content().string(matchesPattern("(?s).*>세팅 정의서가 할당되지 않았습니다\\. 정의서를 할당한 뒤 개시할 수 있습니다\\.</p>.*>"
+                        + java.util.regex.Pattern.quote(BMC_OUTSIDE) + "</p>.*")));
     }
 }

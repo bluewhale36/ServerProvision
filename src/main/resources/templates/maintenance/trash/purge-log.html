@@ -81,54 +81,56 @@
     </th:block>
 
     <!--/* 로그 테이블 */-->
-    <table th:if="${page.totalElements > 0}" class="n-table">
-        <thead>
-        <tr>
-            <th class="purge-th-id">ID</th>
-            <th>자원 종류</th>
-            <th class="purge-th-rid">자원 ID</th>
-            <th>자원 이름</th>
-            <th>진입 경로</th>
-            <th class="purge-th-result">결과</th>
-            <th>발생 시각</th>
-            <th>완료 시각</th>
-            <th>상세</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="row : ${page.content}">
-            <td class="n-mono n-text-muted" th:text="${row.id}"
-               ></td>
-            <td><span class="n-badge n-badge-gray" th:text="${row.resourceType.displayName}"></span></td>
-            <td class="n-mono" th:text="${row.resourceId}"></td>
-            <td><code th:text="${row.displayName}"></code></td>
-            <td><span class="n-badge n-badge-blue" th:text="${row.origin.displayName}"></span></td>
-            <td>
-                <span th:if="${row.outcome.name() == 'SUCCESS'}"
-                      class="n-badge n-badge-green" th:text="${row.outcome.displayName}"></span>
-                <span th:if="${row.outcome.name() == 'FAILED'}"
-                      class="n-badge n-badge-red" th:text="${row.outcome.displayName}"></span>
-            </td>
-            <td>
-                <code class="n-small"
-                      th:if="${row.occurredAt != null}"
-                      th:text="${#temporals.format(row.occurredAt, 'yyyy-MM-dd HH:mm:ss.SSS')}"></code>
-            </td>
-            <td>
-                <code class="n-small"
-                      th:if="${row.purgedAt != null}"
-                      th:text="${#temporals.format(row.purgedAt, 'yyyy-MM-dd HH:mm:ss.SSS')}"></code>
-                <span class="n-text-muted" th:if="${row.purgedAt == null}">-</span>
-            </td>
-            <td>
-                <details>
-                    <summary class="purge-details-summary">펼치기</summary>
-                    <pre class="purge-details-pre" th:text="${row.details}"></pre>
-                </details>
-            </td>
-        </tr>
-        </tbody>
-    </table>
+    <div class="n-table-scroll" th:if="${page.totalElements > 0}">
+        <table class="n-table">
+            <thead>
+            <tr>
+                <th class="purge-th-id">ID</th>
+                <th>자원 종류</th>
+                <th class="purge-th-rid">자원 ID</th>
+                <th>자원 이름</th>
+                <th>진입 경로</th>
+                <th class="purge-th-result">결과</th>
+                <th>발생 시각</th>
+                <th>완료 시각</th>
+                <th>상세</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${page.content}">
+                <td class="n-mono n-text-muted" th:text="${row.id}"
+                   ></td>
+                <td><span class="n-badge n-badge-gray" th:text="${row.resourceType.displayName}"></span></td>
+                <td class="n-mono" th:text="${row.resourceId}"></td>
+                <td><code th:text="${row.displayName}"></code></td>
+                <td><span class="n-badge n-badge-blue" th:text="${row.origin.displayName}"></span></td>
+                <td>
+                    <span th:if="${row.outcome.name() == 'SUCCESS'}"
+                          class="n-badge n-badge-green" th:text="${row.outcome.displayName}"></span>
+                    <span th:if="${row.outcome.name() == 'FAILED'}"
+                          class="n-badge n-badge-red" th:text="${row.outcome.displayName}"></span>
+                </td>
+                <td>
+                    <code class="n-small"
+                          th:if="${row.occurredAt != null}"
+                          th:text="${#temporals.format(row.occurredAt, 'yyyy-MM-dd HH:mm:ss.SSS')}"></code>
+                </td>
+                <td>
+                    <code class="n-small"
+                          th:if="${row.purgedAt != null}"
+                          th:text="${#temporals.format(row.purgedAt, 'yyyy-MM-dd HH:mm:ss.SSS')}"></code>
+                    <span class="n-text-muted" th:if="${row.purgedAt == null}">-</span>
+                </td>
+                <td>
+                    <details>
+                        <summary class="purge-details-summary">펼치기</summary>
+                        <pre class="purge-details-pre" th:text="${row.details}"></pre>
+                    </details>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
 
     <!--/* 페이지네이션 */-->
     <div class="purge-pager" th:if="${page.totalPages > 1}">

@@ -285,57 +285,59 @@
             <span class="n-badge n-badge-gray" th:text="|${timeline.total()} 건|">7 건</span>
         </div>
         <div class="n-glist-panel">
-            <table class="n-table">
-                <thead>
-                <tr>
-                    <!--/* 그래프 열은 머리글이 없다 — 값이 아니라 줄과 줄의 관계를 그리는 자리다. */-->
-                    <th class="n-tl-cell"></th>
-                    <th class="n-tl-id">번호</th>
-                    <th class="n-tl-at">감지 시각</th>
-                    <th class="n-tl-summary">내역</th>
-                    <th>경로</th>
-                </tr>
-                </thead>
-                <!--/* 감춘 줄이 있으면 마지막 줄의 선을 끊지 않는다 — 사슬이 여기서 끝난 것이
-                     아니라 이어진다는 뜻이기 때문이다. */-->
-                <tbody class="n-tl-body" th:classappend="${timeline.hidden > 0} ? 'is-continued'">
-                <tr th:each="e : ${timeline.entries}" class="n-row-hover">
-                    <!--/* 노드 모양은 종류가 정한다(DriftTimelineKind) — 화면이 조건식으로 고르면
-                         종류가 늘 때마다 그 식이 함께 자란다. 색만이 아니라 모양도 다르게 하는
-                         이유는 색 구별이 어려운 사람에게 종류가 같아 보이지 않게 하기 위해서다. */-->
-                    <td class="n-tl-cell">
-                        <span class="n-tl-node" th:classappend="${e.nodeClass()}"></span>
-                    </td>
-                    <!--/* git 이력에서 해시가 그래프 바로 옆에 오는 자리다. 그 줄이 가리키는
-                         대상의 번호이며, 처리는 가리킬 것이 자기 자신이라 비운다.
-                         이동은 이 번호가 맡는다 — 개요는 문장이라 어디까지가 링크인지 경계가
-                         흐리고, 번호는 가리키는 대상 그 자체라 누를 곳이 분명하다. */-->
-                    <td class="n-tl-id n-spec-cell">
-                        <a th:if="${e.reportId != null}" class="n-row-link"
-                           th:href="@{/maintenance/reconciliation/reports/{id}(id=${e.reportId})}"
-                           th:text="|#${e.reportId}|">#425</a>
-                        <a th:if="${e.driftId != null}" class="n-row-link"
-                           th:href="@{/maintenance/reconciliation/drifts/{id}(id=${e.driftId})}"
-                           th:text="|#${e.driftId}|">#13</a>
-                    </td>
-                    <td class="n-spec-cell"
-                        th:text="${#temporals.format(e.at, 'yyyy-MM-dd HH:mm:ss')}">2026-08-12 13:11:35</td>
-                    <td th:text="${e.label}">정밀 점검에서 관측</td>
-                    <td class="n-spec-cell">
-                        <!--/* 옮긴 일에서만 화살표를 그린다. 옮기지 않았는데 화살표가 있으면
-                             무언가 이동한 것으로 읽힌다. */-->
-                        <span th:if="${e.moved()}">
-                            <code class="n-mono n-path" th:text="${e.fromPath}"></code>
-                            <span> → </span>
-                            <code class="n-mono n-path n-path-found" th:text="${e.toPath}"></code>
-                        </span>
-                        <code th:if="${!e.moved() and e.fromPath != null}" class="n-mono n-path"
-                              th:text="${e.fromPath}"></code>
-                        <span th:if="${!e.moved() and e.fromPath == null}" class="n-text-muted">-</span>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+            <div class="n-table-scroll">
+                <table class="n-table">
+                    <thead>
+                    <tr>
+                        <!--/* 그래프 열은 머리글이 없다 — 값이 아니라 줄과 줄의 관계를 그리는 자리다. */-->
+                        <th class="n-tl-cell"></th>
+                        <th class="n-tl-id">번호</th>
+                        <th class="n-tl-at">감지 시각</th>
+                        <th class="n-tl-summary">내역</th>
+                        <th>경로</th>
+                    </tr>
+                    </thead>
+                    <!--/* 감춘 줄이 있으면 마지막 줄의 선을 끊지 않는다 — 사슬이 여기서 끝난 것이
+                         아니라 이어진다는 뜻이기 때문이다. */-->
+                    <tbody class="n-tl-body" th:classappend="${timeline.hidden > 0} ? 'is-continued'">
+                    <tr th:each="e : ${timeline.entries}" class="n-row-hover">
+                        <!--/* 노드 모양은 종류가 정한다(DriftTimelineKind) — 화면이 조건식으로 고르면
+                             종류가 늘 때마다 그 식이 함께 자란다. 색만이 아니라 모양도 다르게 하는
+                             이유는 색 구별이 어려운 사람에게 종류가 같아 보이지 않게 하기 위해서다. */-->
+                        <td class="n-tl-cell">
+                            <span class="n-tl-node" th:classappend="${e.nodeClass()}"></span>
+                        </td>
+                        <!--/* git 이력에서 해시가 그래프 바로 옆에 오는 자리다. 그 줄이 가리키는
+                             대상의 번호이며, 처리는 가리킬 것이 자기 자신이라 비운다.
+                             이동은 이 번호가 맡는다 — 개요는 문장이라 어디까지가 링크인지 경계가
+                             흐리고, 번호는 가리키는 대상 그 자체라 누를 곳이 분명하다. */-->
+                        <td class="n-tl-id n-spec-cell">
+                            <a th:if="${e.reportId != null}" class="n-row-link"
+                               th:href="@{/maintenance/reconciliation/reports/{id}(id=${e.reportId})}"
+                               th:text="|#${e.reportId}|">#425</a>
+                            <a th:if="${e.driftId != null}" class="n-row-link"
+                               th:href="@{/maintenance/reconciliation/drifts/{id}(id=${e.driftId})}"
+                               th:text="|#${e.driftId}|">#13</a>
+                        </td>
+                        <td class="n-spec-cell"
+                            th:text="${#temporals.format(e.at, 'yyyy-MM-dd HH:mm:ss')}">2026-08-12 13:11:35</td>
+                        <td th:text="${e.label}">정밀 점검에서 관측</td>
+                        <td class="n-spec-cell">
+                            <!--/* 옮긴 일에서만 화살표를 그린다. 옮기지 않았는데 화살표가 있으면
+                                 무언가 이동한 것으로 읽힌다. */-->
+                            <span th:if="${e.moved()}">
+                                <code class="n-mono n-path" th:text="${e.fromPath}"></code>
+                                <span> → </span>
+                                <code class="n-mono n-path n-path-found" th:text="${e.toPath}"></code>
+                            </span>
+                            <code th:if="${!e.moved() and e.fromPath != null}" class="n-mono n-path"
+                                  th:text="${e.fromPath}"></code>
+                            <span th:if="${!e.moved() and e.fromPath == null}" class="n-text-muted">-</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
 
             <!--/* 잘라 놓고 말하지 않으면 보이는 것이 전부인 줄 알게 된다. 선을 그대로 이어
                  그리는 이유도 같다 — 여기서 끝난 것이 아님을 눈으로 알린다.

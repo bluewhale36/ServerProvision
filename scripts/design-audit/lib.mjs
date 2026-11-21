@@ -69,11 +69,14 @@ export function copyLinesInPage() {
 export function lineHitsInPage(GAP) {
   const sel = e => { const c = [...e.classList].slice(0, 3).join('.'); return e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (c ? '.' + c : ''); };
   const path = e => { const a = []; for (let x = e; x && x !== document.body && a.length < 3; x = x.parentElement) a.unshift(sel(x)); return a.join(' > '); };
+  // 닫힌 details 의 몸통은 그려지지 않지만 상자 좌표는 그대로 가진다(content-visibility: hidden). 그 선을 세면 오탐이다.
+  const shown = e => !e.checkVisibility || e.checkVisibility({ contentVisibilityAuto: true });
   const lines = [];
   for (const e of document.querySelectorAll('body *')) {
     const r = e.getBoundingClientRect(); if (r.width < 80 || r.height === 0) continue;
     if (/^(INPUT|SELECT|TEXTAREA|BUTTON|OPTION|IMG|SVG|CODE|KBD)$/.test(e.tagName) || e.matches('.n-btn,.n-badge,.n-group-badge,.n-chip,.n-tab,.n-input,.n-select')) continue;
     const cs = getComputedStyle(e); if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+    if (!shown(e)) continue;
     for (const side of ['top', 'bottom']) {
       const w = parseFloat(cs['border-' + side + '-width']), col = cs['border-' + side + '-color'], st = cs['border-' + side + '-style'];
       if (!w || st === 'none' || /rgba\(\d+, \d+, \d+, 0\)/.test(col)) continue;
@@ -88,7 +91,7 @@ export function lineHitsInPage(GAP) {
   const seen = new Set(), uniq = [];
   for (const l of lines) { const k = `${l.y}|${Math.round(l.x1)}|${Math.round(l.x2)}|${l.el}`; if (!seen.has(k)) { seen.add(k); uniq.push(l); } }
   uniq.sort((a, b) => a.y - b.y);
-  const texts = [...document.querySelectorAll('body *')].filter(t => [...t.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())).map(t => { const r = t.getBoundingClientRect(); return { t: r.top + scrollY, b: r.bottom + scrollY, l: r.left, r: r.right }; });
+  const texts = [...document.querySelectorAll('body *')].filter(t => shown(t) && [...t.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())).map(t => { const r = t.getBoundingClientRect(); return { t: r.top + scrollY, b: r.bottom + scrollY, l: r.left, r: r.right }; });
   const hits = [];
   for (let i = 0; i < uniq.length; i++) for (let j = i + 1; j < uniq.length; j++) {
     const a = uniq[i], c = uniq[j], dy = c.y - a.y; if (dy > GAP) break;
@@ -112,6 +115,14 @@ export function overflowInPage() {
   for (const el of document.querySelectorAll('td, th, .n-badge, .n-btn, .n-chip')) {
     if (!vis(el)) continue;
     if (el.scrollWidth > el.clientWidth + 1) items.push(`${sel(el)}: ${el.textContent.replace(/\s+/g, ' ').trim().slice(0, 40)} (+${el.scrollWidth - el.clientWidth}px)`);
+  }
+  // 표만 가로로 밀려야 한다. 표 곁의 블록까지 함께 미는 스크롤 상자는 라벨을 왼쪽 밖으로 자른다(R21-1 CP6, DESIGN.md 4절 목록 표)
+  for (const el of document.querySelectorAll('body *')) {
+    const cs = getComputedStyle(el);
+    if (!/(auto|scroll)/.test(cs.overflowX) || el.scrollWidth <= el.clientWidth + 1 || !vis(el)) continue;
+    if (!el.querySelector(':scope > table')) continue;
+    const others = [...el.children].filter(k => k.tagName !== 'TABLE' && vis(k));
+    if (others.length) items.push(`${sel(el)}: 표 곁의 ${others.length} 블록까지 함께 가로로 밀린다(${others.slice(0, 2).map(sel).join(', ')})`);
   }
   return { pageOverflow, items: items.slice(0, 15) };
 }

@@ -21,6 +21,9 @@ import static com.example.serverprovision.execution.asset.controller.DiagnosticA
 import static com.example.serverprovision.execution.asset.controller.DiagnosticAssetTestFixtures.vmlinuz;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -62,6 +65,18 @@ class DiagnosticAssetControllerDetailTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("system/diagnostic-asset/detail"))
                 .andExpect(model().attributeExists("slot", "versions", "servingActive"));
+    }
+
+    /** R21-1 — 교체의 막힌 사유는 버튼 아래 글자, 되돌리기는 모든 행이 같은 사유라 표 위에 한 번만 보인다. title 은 없다. */
+    @Test
+    @DisplayName("GET /{slot} — 서빙 비활성: 교체 사유는 감싸개, 되돌리기 사유는 표 위 한 줄, title 없음")
+    void detail_servingInactive_reasonsVisibleOnce() throws Exception {
+        given(integrityService.isServing()).willReturn(false);
+        mvc.perform(get("/system/diagnostic-asset/{slot}", "VMLINUZ"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-tooltip=\"서빙이 비활성이라 교체할 수 없습니다.\"")))
+                .andExpect(content().string(containsString("<p class=\"n-hint\">서빙이 비활성이라 되돌릴 수 없습니다.</p>")))
+                .andExpect(content().string(not(containsString("title=\"서빙이"))));
     }
 
     @Test

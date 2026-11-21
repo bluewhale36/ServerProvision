@@ -47,7 +47,7 @@
     </div>
 
     <!--/* 영역 전환 탭 — 영역이 늘어도(확장점 구현 추가) 이 반복만으로 탭·패널이 렌더된다 */-->
-    <div class="n-tabs" role="tablist" aria-label="시스템 자산 영역">
+    <div class="n-tabs n-tabs-stack" role="tablist" aria-label="시스템 자산 영역">
         <button type="button" class="n-tab" role="tab" th:each="area, iter : ${overview.areas}"
                 th:attr="aria-selected=${iter.first ? 'true' : 'false'},
                          data-panel=${'asset-panel-' + area.areaKey},
@@ -86,62 +86,63 @@
                    브라우저 이동으로 목적지를 열므로 flash 가 남고, 거절 시 오류 모달도 그대로다. */-->
             <form th:if="${area.areaKey == 'WINDOWS_INSTALL'}" method="post"
                   th:action="@{/system/windows-install/oem-sync}">
+                <span class="n-btn-tooltip-wrap" th:attr="data-tooltip=${area.actionBlockReason}">
                 <button type="submit" class="n-btn n-btn-primary n-btn-sm"
-                        th:disabled="${area.actionBlockReason != null}"
-                        th:title="${area.actionBlockReason != null}
-                                  ? ${area.actionBlockReason}
-                                  : '드라이버 자원이 바뀌면 다시 조립해야 합니다.'">드라이버 페이로드 조립</button>
+                        th:disabled="${area.actionBlockReason != null}">드라이버 페이로드 조립</button>
+                </span>
             </form>
             <!--/* 봉인 버튼: 봉인 지원 영역만 렌더(supportsSeal), 서빙 비활성이면 disabled — 서버 가드와 동일 SSOT.
                    테두리형(outline)인 이유 — 채운 노랑은 옆의 상태 배지와 형태가 같아 조작인지 표시인지 알 수 없었다(S17-1 결함 ⑤). */-->
             <form th:if="${area.supportsSeal}" method="post"
                   th:action="@{/system/asset/{k}/seal(k=${area.areaKey})}">
+                <span class="n-btn-tooltip-wrap"
+                      th:attr="data-tooltip=${area.availability != 'CONFIGURED'} ? '서빙이 비활성이라 봉인할 수 없습니다.' : null">
                 <button type="submit" class="n-btn n-btn-outline-warning n-btn-sm"
-                        th:disabled="${area.availability != 'CONFIGURED'}"
-                        th:title="${area.availability == 'CONFIGURED'}
-                                  ? '현재 파일을 무결성 기준으로 기록합니다.'
-                                  : '서빙이 비활성이라 봉인할 수 없습니다.'">봉인</button>
+                        th:disabled="${area.availability != 'CONFIGURED'}">봉인</button>
+                </span>
             </form>
         </div>
 
-        <table class="n-table">
-            <thead>
-            <tr>
-                <th>자산</th>
-                <th>종류</th>
-                <th>구성</th>
-                <th>크기</th>
-                <th>최종 수정</th>
-                <th>무결성</th>
-                <th>교체 주기</th>
-            </tr>
-            </thead>
-            <tbody>
-            <!--/*
-              진단 영역 행만 상세(/system/diagnostic-asset/{slot})로 이동한다 — 그 영역만 교체·롤백·이력 상세를
-              보유한다. TFTP 등 읽기 전용 영역은 링크를 붙이지 않는다. 링크 대상 URL 네임스페이스가 영역마다
-              달라 presentation 층에서 한 번 갈린다(도메인 로직 분기 아님).
-            */-->
-            <tr th:each="slot : ${area.slots}"
-                th:classappend="${area.areaKey == 'DIAGNOSTIC'} ? ' n-row-clickable'"
-                th:attr="data-href=${area.areaKey == 'DIAGNOSTIC'} ? @{/system/diagnostic-asset/{k}(k=${slot.key})}">
-                <td>
-                    <div th:text="${slot.label}"></div>
-                    <div class="n-mono n-text-muted n-break" th:text="${slot.filename}"></div>
-                </td>
-                <td><span class="n-badge n-badge-gray" th:text="${slot.category}"></span></td>
-                <td class="n-note" th:text="${slot.layoutLabel}"></td>
-                <td th:text="${slot.sizeDisplay}"></td>
-                <td>
-                    <span th:if="${slot.modifiedAt != null}"
-                          th:text="${#temporals.format(slot.modifiedAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
-                    <span th:if="${slot.modifiedAt == null}" class="n-text-muted">-</span>
-                </td>
-                <td><span class="n-badge" th:classappend="${slot.badgeClass}" th:text="${slot.statusLabel}"></span></td>
-                <td class="n-note" th:text="${slot.replaceCadence}"></td>
-            </tr>
-            </tbody>
-        </table>
+        <div class="n-table-scroll">
+            <table class="n-table">
+                <thead>
+                <tr>
+                    <th>자산</th>
+                    <th>종류</th>
+                    <th>구성</th>
+                    <th>크기</th>
+                    <th>최종 수정</th>
+                    <th>무결성</th>
+                    <th>교체 주기</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!--/*
+                  진단 영역 행만 상세(/system/diagnostic-asset/{slot})로 이동한다 — 그 영역만 교체·롤백·이력 상세를
+                  보유한다. TFTP 등 읽기 전용 영역은 링크를 붙이지 않는다. 링크 대상 URL 네임스페이스가 영역마다
+                  달라 presentation 층에서 한 번 갈린다(도메인 로직 분기 아님).
+                */-->
+                <tr th:each="slot : ${area.slots}"
+                    th:classappend="${area.areaKey == 'DIAGNOSTIC'} ? ' n-row-clickable'"
+                    th:attr="data-href=${area.areaKey == 'DIAGNOSTIC'} ? @{/system/diagnostic-asset/{k}(k=${slot.key})}">
+                    <td>
+                        <div th:text="${slot.label}"></div>
+                        <div class="n-mono n-text-muted n-break" th:text="${slot.filename}"></div>
+                    </td>
+                    <td><span class="n-badge n-badge-gray" th:text="${slot.category}"></span></td>
+                    <td class="n-note" th:text="${slot.layoutLabel}"></td>
+                    <td th:text="${slot.sizeDisplay}"></td>
+                    <td>
+                        <span th:if="${slot.modifiedAt != null}"
+                              th:text="${#temporals.format(slot.modifiedAt, 'yyyy-MM-dd HH:mm:ss')}"></span>
+                        <span th:if="${slot.modifiedAt == null}" class="n-text-muted">-</span>
+                    </td>
+                    <td><span class="n-badge" th:classappend="${slot.badgeClass}" th:text="${slot.statusLabel}"></span></td>
+                    <td class="n-note" th:text="${slot.replaceCadence}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </section>
 </div>
 

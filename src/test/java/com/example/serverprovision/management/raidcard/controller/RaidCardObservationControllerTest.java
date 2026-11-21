@@ -154,7 +154,7 @@ class RaidCardObservationControllerTest {
 	}
 
 	@Test
-	@DisplayName("CONFLICTING — 주의 배너 · 값별 게스트 목록 · 잠긴 버튼 + tooltip 사유")
+	@DisplayName("CONFLICTING — 주의 배너 · 값별 게스트 목록 · 잠긴 버튼 + 버튼 아래 사유(R21-1)")
 	void list_conflicting() throws Exception {
 		stubList(false, card(false, null), summary(null,
 				new RaidCardObservation(G1, "srv-01", "1000:9361"), new RaidCardObservation(G2, "srv-02", "1000:00ce")));
@@ -165,7 +165,9 @@ class RaidCardObservationControllerTest {
 				.andExpect(content().string(containsString("srv-01")))
 				.andExpect(content().string(containsString("srv-02")))
 				.andExpect(content().string(containsString("disabled=\"disabled\"")))
-				.andExpect(content().string(containsString("title=\"" + RaidCardObservationStatus.CONFLICTING.blockReason() + "\"")));
+				// R21-1 — disabled 버튼의 title 은 브라우저가 띄우지 않는다. 사유는 감싸개의 data-tooltip 이 버튼 아래 글자로 보인다
+				.andExpect(content().string(containsString("data-tooltip=\"" + RaidCardObservationStatus.CONFLICTING.blockReason() + "\"")))
+				.andExpect(content().string(not(containsString("title=\"" + RaidCardObservationStatus.CONFLICTING.blockReason() + "\""))));
 	}
 
 	@Test
