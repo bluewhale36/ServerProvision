@@ -30,6 +30,7 @@ $S sql hf33 -e "SELECT ..."        # 샌드박스 DB 접속
 ```
 
 - 이름은 인벤토리 코드를 소문자로 쓴다(`hf33` · `s23-1`). 디렉토리는 `<워크트리>/sbx-<이름>/` 이고 컨테이너는 `spv-sandbox-db-<이름>` 이다.
+- 세션 쿠키 이름은 샌드박스마다 `SPV_SBX_<이름 대문자>` 다(예: `SPV_SBX_S23_2_1`). 같은 브라우저로 여러 샌드박스에 로그인해도 서로의 세션을 덮어쓰지 않는다. `up` 때 `run.sh` 에 들어가므로 그 전에 만든 샌드박스는 `extra.env` 에 `SERVER_SERVLET_SESSION_COOKIE_NAME` 을 직접 적는다.
 - 슬라이스 고유 env(Windows 설치 소스, mock-redfish 주소 등)는 `sbx-<이름>/extra.env` 에 `export …` 로 적는다. `run.sh` 가 그 파일을 읽는다. 그런 다음 `restart --no-build` 로 반영한다.
 - 공용 자료(BIOS 자료 · PXE 자산 · 보드 목록 덮어쓰기)는 앵커의 `sbx-e33/` 을 기본으로 쓴다. 다른 위치면 `SBX_SHARED=<경로>` 로 넘긴다. 없으면 경고만 내고 띄운다. 이 경우 게스트 상세와 PXE 화면 일부가 동작하지 않는다.
 
