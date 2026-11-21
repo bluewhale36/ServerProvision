@@ -54,9 +54,12 @@
            이 문구가 뜨려면 제출이 네이티브여야 한다(DEC-E) — 전역 폼 가로채기가 fetch 로 리다이렉트를
            따라가면 flash 가 그 안에서 소비되어 화면에 도달하지 못한다(CP1 실측). */-->
     <!--/* 색은 문장을 만든 쪽이 정한다(flashTone, S22-3) — 일부를 건너뛴 일괄 할당은 노란 판이다. */-->
+    <!--/* 결과 문장과 뒤따르는 사실(flashNote)은 줄을 나눈다. 한 줄로 이어 쓰면 좁은 폭에서 둘째 문장이 첫 문장 끝에 붙어 읽힌다(R21-1 CP6). */-->
     <div th:if="${flashMessage}" class="n-alert"
-         th:classappend="${flashTone != null} ? ${flashTone} : 'n-alert-success'"
-         th:text="${flashMessage}">세팅 정의서를 3 대에 할당했습니다.</div>
+         th:classappend="${flashTone != null} ? ${flashTone} : 'n-alert-success'">
+        <div th:text="${flashMessage}">세팅 정의서를 3 대에 할당했습니다.</div>
+        <div th:if="${flashNote}" class="n-block-gap-sm" th:text="${flashNote}">이미 할당된 서버는 그대로입니다.</div>
+    </div>
 
     <!-- ── 구성 혼재 알림 — 차단이 아니라 안내(DEC-I) ── -->
     <div th:if="${group.specDiverged}" class="n-alert n-alert-warning" role="alert">
@@ -241,66 +244,68 @@
                 <div class="n-empty-desc">'서버 넣기'로 무소속 서버를 넣을 수 있습니다.</div>
             </div>
 
-            <table th:unless="${group.members.isEmpty()}" class="n-table">
-                <thead>
-                <tr>
-                    <th>이름</th>
-                    <th>SMBIOS UUID</th>
-                    <th>보드 모델</th>
-                    <th>구성</th>
-                    <th>할당된 정의서</th>
-                    <th>현재 단계</th>
-                    <th>운영 상태</th>
-                    <th class="n-th-center">제외</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="m : ${group.members}" class="n-row-hover" th:data-nav-key="${m.server.id}"
-                    th:classappend="${m.minoritySpec} ? ' n-row-diverged'">
-                    <td>
-                        <a class="n-row-link" th:href="@{/provisioning/server/{id}(id=${m.server.id})}"
-                           th:text="${m.server.name != null} ? ${m.server.name} : '(이름 미지정)'">srv-01</a>
-                        <span th:if="${m.minoritySpec}" class="n-deprecated-dot n-tooltip"
-                              data-tooltip="다수와 구성이 다릅니다"></span>
-                    </td>
-                    <td><code class="n-mono" th:text="${m.server.systemUuid}">uuid</code></td>
-                    <td th:text="${m.server.boardModelName != null} ? ${m.server.boardModelName} : '-'">MS03-CE0</td>
-                    <!--/* 혼재 그룹에서만 어느 서버가 겉도는지 알아야 하므로 소수파를 강조한다.
-                           표 셀에는 여백 없는 n-spec-cell 을 쓴다 — n-glist-label 의 왼쪽 여백을 쓰면
-                           '수집 전' 같은 여백 없는 값과 한 열에서 좌측이 어긋난다. */-->
-                    <td>
-                        <span th:if="${m.specLabel != null}"
-                              th:classappend="${m.minoritySpec} ? ' n-badge n-badge-yellow' : ' n-spec-cell'"
-                              th:text="${m.specLabel}">MS03-CE0, 6338 ×2</span>
-                        <span th:unless="${m.specLabel != null}" class="n-muted">수집 전</span>
-                    </td>
-                    <!--/* U3-5-c — 일괄 할당 결과를 이 열에서 확인한다. flash 문구가 "N 대에 할당했다" 고
-                           알려도 어느 N 대인지는 표에서 봐야 한다(OQ-1). */-->
-                    <td>
-                        <span th:if="${assignedDefinitions.containsKey(m.server.id)}"
-                              th:text="${assignedDefinitions.get(m.server.id)}">web-standard</span>
-                        <span th:unless="${assignedDefinitions.containsKey(m.server.id)}" class="n-muted">-</span>
-                    </td>
-                    <td>
-                        <span th:if="${m.server.currentPhase != null}" class="n-badge n-badge-blue"
-                              th:text="${m.server.currentPhase.description}">진단 리눅스</span>
-                        <span th:unless="${m.server.currentPhase != null}" class="n-muted">-</span>
-                    </td>
-                    <td>
-                        <span th:if="${m.server.status != null}" class="n-badge"
-                              th:classappend="${m.server.status.name() == 'DECOMMISSIONED'} ? ' n-badge-gray' : ' n-badge-blue'"
-                              th:text="${m.server.status.description}">등록</span>
-                        <span th:unless="${m.server.status != null}" class="n-muted">-</span>
-                    </td>
-                    <td class="n-th-center">
-                        <form method="post"
-                              th:action="@{/provisioning/server-group/{id}/members/{sid}/remove(id=${group.id}, sid=${m.server.id})}">
-                            <button type="submit" class="n-btn n-btn-sm n-btn-outline">빼기</button>
-                        </form>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+            <div class="n-table-scroll" th:unless="${group.members.isEmpty()}">
+                <table class="n-table">
+                    <thead>
+                    <tr>
+                        <th>이름</th>
+                        <th>SMBIOS UUID</th>
+                        <th>보드 모델</th>
+                        <th>구성</th>
+                        <th>할당된 정의서</th>
+                        <th>현재 단계</th>
+                        <th>운영 상태</th>
+                        <th class="n-th-center">제외</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="m : ${group.members}" class="n-row-hover" th:data-nav-key="${m.server.id}"
+                        th:classappend="${m.minoritySpec} ? ' n-row-diverged'">
+                        <td>
+                            <a class="n-row-link" th:href="@{/provisioning/server/{id}(id=${m.server.id})}"
+                               th:text="${m.server.name != null} ? ${m.server.name} : '(이름 미지정)'">srv-01</a>
+                            <span th:if="${m.minoritySpec}" class="n-deprecated-dot n-tooltip"
+                                  data-tooltip="다수와 구성이 다릅니다"></span>
+                        </td>
+                        <td><code class="n-mono" th:text="${m.server.systemUuid}">uuid</code></td>
+                        <td th:text="${m.server.boardModelName != null} ? ${m.server.boardModelName} : '-'">MS03-CE0</td>
+                        <!--/* 혼재 그룹에서만 어느 서버가 겉도는지 알아야 하므로 소수파를 강조한다.
+                               표 셀에는 여백 없는 n-spec-cell 을 쓴다 — n-glist-label 의 왼쪽 여백을 쓰면
+                               '수집 전' 같은 여백 없는 값과 한 열에서 좌측이 어긋난다. */-->
+                        <td>
+                            <span th:if="${m.specLabel != null}"
+                                  th:classappend="${m.minoritySpec} ? ' n-badge n-badge-yellow' : ' n-spec-cell'"
+                                  th:text="${m.specLabel}">MS03-CE0, 6338 ×2</span>
+                            <span th:unless="${m.specLabel != null}" class="n-muted">수집 전</span>
+                        </td>
+                        <!--/* U3-5-c — 일괄 할당 결과를 이 열에서 확인한다. flash 문구가 "N 대에 할당했다" 고
+                               알려도 어느 N 대인지는 표에서 봐야 한다(OQ-1). */-->
+                        <td>
+                            <span th:if="${assignedDefinitions.containsKey(m.server.id)}"
+                                  th:text="${assignedDefinitions.get(m.server.id)}">web-standard</span>
+                            <span th:unless="${assignedDefinitions.containsKey(m.server.id)}" class="n-muted">-</span>
+                        </td>
+                        <td>
+                            <span th:if="${m.server.currentPhase != null}" class="n-badge n-badge-blue"
+                                  th:text="${m.server.currentPhase.description}">진단 리눅스</span>
+                            <span th:unless="${m.server.currentPhase != null}" class="n-muted">-</span>
+                        </td>
+                        <td>
+                            <span th:if="${m.server.status != null}" class="n-badge"
+                                  th:classappend="${m.server.status.name() == 'DECOMMISSIONED'} ? ' n-badge-gray' : ' n-badge-blue'"
+                                  th:text="${m.server.status.description}">등록</span>
+                            <span th:unless="${m.server.status != null}" class="n-muted">-</span>
+                        </td>
+                        <td class="n-th-center">
+                            <form method="post"
+                                  th:action="@{/provisioning/server-group/{id}/members/{sid}/remove(id=${group.id}, sid=${m.server.id})}">
+                                <button type="submit" class="n-btn n-btn-sm n-btn-outline">빼기</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </section>
 </div>

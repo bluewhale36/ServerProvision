@@ -170,19 +170,27 @@
                                              th:text="#{management.raid-card.observation.differs(${obs.agreedValue}, ${card.pciSubsystemIdDisplay})}">확정값과 다름</div>
                                         <div th:if="${obs.status.name() == 'CONFLICTING'}" class="n-alert n-alert-warning"
                                              th:text="#{management.raid-card.observation.conflicting(${#strings.listJoin(obs.distinctValues, ', ')})}">관측 상충</div>
-                                        <div th:each="v : ${obs.values}" class="n-hint">
-                                            <code th:text="${v.value}">1000:9361</code> 관측 서버:
-                                            <th:block th:each="g, st : ${v.guests}">
-                                                <a th:href="@{/provisioning/server/{id}(id=${g.guestServerId})}" th:text="${g.guestLabel}">G1</a><th:block th:unless="${st.last}">, </th:block>
-                                            </th:block>
-                                        </div>
+                                        <!--/* R21-1 CP6 — 관측값마다 서버 수만 보이고 서버 목록은 눌러 펼친다. 서버가 수십 대면 이름이 값 칸을 덮었다. */-->
+                                        <details th:each="v : ${obs.values}" class="n-disclosure">
+                                            <summary>
+                                                <code th:text="${v.value}">1000:9361</code>
+                                                <span th:text="#{management.raid-card.observation.value-guests(${#lists.size(v.guests)})}">서버 3대</span>
+                                            </summary>
+                                            <div class="n-disclosure-body">
+                                                <a th:each="g : ${v.guests}"
+                                                   th:href="@{/provisioning/server/{id}(id=${g.guestServerId})}" th:text="${g.guestLabel}">G1</a>
+                                            </div>
+                                        </details>
                                         <form th:if="${obs.showsButton}"
                                               th:action="@{/management/raidcard/{id}/confirm-observed(id=${card.id})}"
                                               method="post">
+                                            <!--/* R21-1 — disabled 버튼의 title 은 브라우저가 띄우지 않는다. 사유는 감싸개가 버튼 아래 글자로 보인다. */-->
+                                            <span class="n-btn-tooltip-wrap"
+                                                  th:attr="data-tooltip=${!obs.confirmable} ? ${obs.blockReason} : null">
                                             <button type="submit" class="n-btn n-btn-sm n-btn-primary"
                                                     th:disabled="${!obs.confirmable}"
-                                                    th:title="${obs.blockReason}"
                                                     th:text="#{action.confirm-observed}">관측값으로 확정</button>
+                                            </span>
                                         </form>
                                     </div>
                                 </th:block>

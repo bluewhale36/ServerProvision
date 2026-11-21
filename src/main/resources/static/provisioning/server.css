@@ -120,6 +120,16 @@
     .n-table-servers th:nth-child(10), .n-table-servers td:nth-child(10) { width: 17%; }   /* 등록 시각 — 날짜 '2026-09-05' 가 한 줄에 들어가는 최소 폭 */
 }
 
+/* 640 이하 — 표가 카드가 되므로(style.css 휴대폰 절) 위의 열 폭 배분과 1024 의 열 숨김을 푼다.
+   카드에는 열 폭이 없고, 1024 에서 숨긴 제조사 · 보드 모델 · 연결도 휴대폰에서는 카드 줄로 보인다(숨긴 정보가 사라지지 않게).
+   폭과 숨김 규칙이 (0,2,1) 이라 같은 깊이로 뒤에 쓴다. */
+@media (max-width: 640px) {
+    .n-table-servers th:nth-child(n), .n-table-servers td:nth-child(n) { width: auto; }
+    .n-table-servers td:nth-child(4),
+    .n-table-servers td:nth-child(5),
+    .n-table-servers td:nth-child(8) { display: flow-root; }
+}
+
 /* ============================================================
    U3-4 — 게스트 서버 그룹
    ============================================================ */
@@ -208,7 +218,13 @@
 /* 그룹 이름은 잘리면 못 읽는다 — 공백에서 접는다 */
 .n-table-groups td:nth-child(1) { white-space: normal; line-height: 1.45; }
 
-@media (max-width: 900px) {
+/* 640 이하 — 표가 카드가 되므로 위의 열 폭 배분을 푼다. 폭 규칙이 (0,2,1) 이라 휴대폰 카드 칸 규칙(0,1,3)을 이겨
+   멤버 칸이 카드 폭의 16% 로 남아 '1 / 대', 날짜가 두 글자씩 꺾였다(R21-1 CP6 사용자 검토). 서버 표(.n-table-servers)와 같은 처리다. */
+@media (max-width: 640px) {
+    .n-table-groups th:nth-child(n), .n-table-groups td:nth-child(n) { width: auto; }
+}
+
+@media (max-width: 640px) {
     .n-inline-form .n-input { width: 100%; }
     .n-group-toolbar { flex-direction: column; align-items: stretch; }
 }
@@ -277,11 +293,14 @@
 /* UUID 는 끊을 자리가 없어 anywhere 로 감싼다(서버 표와 같은 처리) */
 .n-table-picker td:nth-child(3) { white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
 
-@media (max-width: 900px) {
+@media (max-width: 640px) {
     /* 위 규칙과 같은 형태로 겹쳐 쓴다 — 명시도는 미디어 쿼리를 따지지 않으므로, 기본 규칙만 (0,2,0) 으로
        올리고 이쪽을 (0,1,0) 으로 두면 좁은 화면에서도 기본값이 이겨 이 규칙이 죽는다(CP5 재검증에서 확인). */
     .cm-card.cm-card-wide { max-width: 100%; }
     .n-picker-body { max-height: 70vh; }
+    /* 표가 카드가 되므로 열 폭 배분과 첫 칸 가운데 정렬을 푼다(그룹 표와 같은 사정, R21-1 CP6) */
+    .n-table-picker th:nth-child(n), .n-table-picker td:nth-child(n) { width: auto; }
+    .n-table-picker td:nth-child(1) { text-align: left; }
 }
 
 /* ---- 정의서 고르기 모달 — 검색 줄 + 표 + 펼침 (R20, U3-5-b · U3-5-c 의 2 열 miller 를 대체) ----
@@ -364,7 +383,7 @@
     font-weight: 500;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 640px) {
     .n-picker-body.n-picker-body-search { max-height: 74vh; }
     .n-lookup-results.n-picker-table-wrap { max-height: 36vh; }
 }
@@ -559,7 +578,7 @@
     font-weight: 600;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 640px) {
     /* 두 카드를 나란히 두기엔 좁다 — 표준 쪽 단계 배지가 한 칸에 하나씩 떨어진다 */
     .n-group-top { flex-direction: column; }
 
@@ -877,6 +896,44 @@
     color: var(--n-red);
 }
 
+/* 휴대폰 — 진행 경로는 세로로 선다. 한 줄에 단계 넷 이상을 나누면 칸이 70px 남짓이라 '부트스트래핑' 같은 이름이 글자 사이에서
+   꺾인다(R21-1 CP6 사용자 검토). 번호 원 오른쪽에 이름, 그 아래에 시각이 서고, 연결선은 원 아래로 다음 원까지 내려간다 */
+@media (max-width: 640px) {
+    .n-steps {
+        flex-direction: column;
+    }
+
+    .n-step {
+        flex: 0 0 auto;     /* 넓은 폭의 flex-basis 0 은 세로로 뒤집히면 높이가 된다(.n-overview 와 같은 함정) */
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr);
+        column-gap: 10px;
+        align-items: center;
+        padding: 0 0 14px;
+    }
+
+    .n-step:last-child {
+        padding-bottom: 0;
+    }
+
+    .n-step::before {
+        top: 26px;
+        bottom: 2px;
+        left: 11px;
+        right: auto;
+        width: 2px;
+        height: auto;
+    }
+
+    .n-step-name {
+        margin-top: 0;
+    }
+
+    .n-step-sub {
+        grid-column: 2;
+    }
+}
+
 /* ---- 단계 패널 — <details> 아코디언. 완료 단계만 기본 접힘(사용자 결정 2026-09-13) ----
    판 머리(summary)에 번호 · 이름 · 상태 · 시각, 본문에 계획 · 집행 · 결과 · 세부 단계가 n-section 구획으로 선다. */
 .n-phase-panel {
@@ -943,6 +1000,42 @@
 
 .n-phase-panel > .n-card-body {
     padding: 16px 20px 18px;
+}
+
+/* 휴대폰 — 판 머리의 시각과 정의서 이름은 제목 줄 아래 제 줄에 선다. 제목 곁에 이으면 꺾쇠 · 번호 · 이름 · 상태 배지가
+   줄 사이로 갈라지고 배지가 다른 줄에 떨어진다(R21-1 CP6 사용자 검토). 제목 줄은 꺾지 않고 이름만 줄어든다 */
+@media (max-width: 640px) {
+    .n-card > .n-card-head:has(> .n-phase-time) {
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+
+    .n-card > .n-card-head:has(> .n-phase-time) > .n-card-head-group {
+        flex-wrap: nowrap;
+        min-width: 0;
+    }
+
+    .n-card-head-group > .n-badge {
+        flex-shrink: 0;
+    }
+
+    .n-phase-head-name {
+        min-width: 0;
+    }
+
+    .n-card-head > .n-phase-time {
+        flex-basis: 100%;
+        white-space: normal;
+    }
+
+    .n-card-head > .n-phase-time:empty {
+        display: none;
+    }
+
+    /* 단계 패널은 시각을 이름 첫 글자에 맞춘다: 꺾쇠(9px + 좌우 2px) + 틈 8px + 번호 원 24px + 틈 8px */
+    .n-phase-head > .n-phase-time {
+        padding-left: 53px;
+    }
 }
 
 .n-phase-panel.is-pending > .n-card-body {

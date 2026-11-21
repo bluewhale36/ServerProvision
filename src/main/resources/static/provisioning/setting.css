@@ -212,6 +212,13 @@
     display: block;
 }
 
+/* R21-1 — 사유가 select 아래 글자로 설 때(style.css 의 막힌 사유 규칙)도 select 가 폭을 다 쓰게 한다.
+   그 규칙이 (0,3,0) 이라 같은 깊이로 쓴다(이 시트가 뒤에 실려 이긴다). */
+.n-btn-tooltip-wrap.n-tooltip-block[data-tooltip] {
+    display: flex;
+    align-items: stretch;
+}
+
 /* deprecated 자원 뱃지(U2-3 lifecycle) — 라벨 아래 줄에 렌더되므로 select 와의 상하 간격 확보 */
 .n-form-group [data-deprecated-badge] {
     display: inline-block;
@@ -369,7 +376,7 @@
     color: var(--n-on-accent);
     font-size: 11px;
 }
-@media (max-width: 600px) {
+@media (max-width: 640px) {
     .n-vd-grid { grid-template-columns: 1fr; }
 }
 

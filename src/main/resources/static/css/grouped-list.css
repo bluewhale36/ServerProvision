@@ -119,7 +119,7 @@ a.n-accordion-head {
    짝인 global/nav-stack.js 가 전역 스크립트인데 그 스타일만 이 파일에 있어,
    묶음 목록이 아닌 표 화면에서는 클래스가 붙어도 아무 일도 일어나지 않았다. */
 
-@media (max-width: 900px) {
+@media (max-width: 640px) {
     .n-glist {
         padding: 12px 10px 12px;
     }
