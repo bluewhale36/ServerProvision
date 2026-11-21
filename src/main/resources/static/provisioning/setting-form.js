@@ -90,6 +90,48 @@
             if (emptyNotice) emptyNotice.hidden = activeCards().length > 0;
         }
 
+        /* HF34 — 단계 사이 선행 관계는 서버 enum(SettingProcessType.requiredStep)이 추가 버튼의 data-step-requires 로 내려 준다.
+           JS 는 단계 이름을 분기하지 않고, 사유 문구도 폼의 data-step-remove-blocked(MessageSource)를 받아 {0} 만 채운다. */
+        const removeBlockedMessage = form.dataset.stepRemoveBlocked || '';
+
+        function requiredStepOf(type) {
+            const btn = addButtonOf(type);
+            return btn ? (btn.dataset.stepRequires || null) : null;
+        }
+
+        function stepNameOf(type) {
+            const btn = addButtonOf(type);
+            return btn ? btn.dataset.stepName : type;
+        }
+
+        /** 사용자가 고른 단계를 연다. 선행 단계가 닫혀 있으면 먼저 연다. 저장본 pre-fill 은 addStep 을 직접 불러 저장본을 바꾸지 않는다. */
+        function addStepWithRequired(type) {
+            const required = requiredStepOf(type);
+            if (required) addStep(required);
+            addStep(type);
+        }
+
+        /** 열린 단계가 선행으로 둔 단계는 [단계 제거] 를 잠그고 같은 차단 사유를 곁 글자와 tooltip 에 보인다(서버 가드는 HF32). */
+        function syncRemoveLocks() {
+            const openTypes = activeCards().map(card => card.dataset.processCard);
+            form.querySelectorAll('[data-process-card]').forEach(card => {
+                const wrap = card.querySelector('[data-step-remove-wrap]');
+                const btn = wrap ? wrap.querySelector('[data-step-remove]') : null;
+                if (!btn) return;
+                const dependent = openTypes.find(type => requiredStepOf(type) === card.dataset.processCard);
+                const reason = dependent ? removeBlockedMessage.split('{0}').join(stepNameOf(dependent)) : '';
+                btn.disabled = !!dependent;
+                wrap.setAttribute('data-tooltip-active', dependent ? 'true' : 'false');
+                if (dependent) wrap.setAttribute('data-tooltip', reason);
+                else wrap.removeAttribute('data-tooltip');
+                const reasonText = card.querySelector('[data-step-remove-reason]');
+                if (reasonText) {
+                    reasonText.textContent = reason;
+                    reasonText.hidden = !dependent;
+                }
+            });
+        }
+
         function addStep(type) {
             const card = cardOf(type);
             if (!card || !card.hidden) return;
@@ -98,6 +140,7 @@
             const btn = addButtonOf(type);
             if (btn) btn.disabled = true;
             refreshEmptyNotice();
+            syncRemoveLocks();
             syncOsSelectionLock();
             syncBsBoardLock();
             refreshBsTemplateRules(); // BASIC_UPDATE/BASIC_SETTING 카드 유무가 템플릿 선택 규칙에 반영된다
@@ -114,6 +157,7 @@
             const btn = addButtonOf(type);
             if (btn) btn.disabled = false;
             refreshEmptyNotice();
+            syncRemoveLocks();
             syncOsSelectionLock();
             syncBsBoardLock();
             refreshBsTemplateRules(); // 펌웨어 단계 제거 ⇒ AUTO 취급으로 재평가
@@ -121,7 +165,7 @@
         }
 
         form.querySelectorAll('[data-step-add]').forEach(btn => {
-            btn.addEventListener('click', () => addStep(btn.dataset.stepAdd));
+            btn.addEventListener('click', () => addStepWithRequired(btn.dataset.stepAdd));
         });
 
         form.querySelectorAll('[data-step-remove]').forEach(btn => {

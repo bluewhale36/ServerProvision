@@ -1,7 +1,10 @@
 package com.example.serverprovision.provisioning.setting.enums;
 
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+
+import java.util.Optional;
 
 /**
  * 세팅 정의서의 프로비저닝 단계 타입. 상수명 = 요청 JSON 의 1단 판별자({@code "type"}) 문자열.
@@ -14,12 +17,13 @@ import lombok.RequiredArgsConstructor;
 @Getter
 public enum SettingProcessType {
 
-    BASIC_UPDATE("펌웨어 업데이트", true),
-    BASIC_SETTING("BIOS 설정", true),
+    BASIC_UPDATE("펌웨어 업데이트", true, null),
+    BASIC_SETTING("BIOS 설정", true, null),
     /** RAID 카드로 디스크 묶음 규칙을 집행하는 단계(U4-1-1 v2) — 현장 순서(BIOS 설정 → RAID → OS 설치)대로 이 자리다. */
-    RAID_CONFIGURATION("RAID 구성", true),
-    OS_INSTALLATION("OS 설치", true),
-    OS_SETTING("OS 후처리 설정", false);
+    RAID_CONFIGURATION("RAID 구성", true, null),
+    /** 설치 디스크를 RAID 구성의 OS 영역 볼륨으로 정하므로 RAID 구성이 앞서 있어야 한다(HF34). */
+    OS_INSTALLATION("OS 설치", true, RAID_CONFIGURATION),
+    OS_SETTING("OS 후처리 설정", false, null);
 
     private final String displayName;
 
@@ -29,4 +33,15 @@ public enum SettingProcessType {
      * 신규 작성을 차단한다(R11 D-R2) — 계약과 기존 데이터 조회는 보존된다.
      */
     private final boolean paletteExposed;
+
+    @Getter(AccessLevel.NONE)
+    private final SettingProcessType requiredStep;
+
+    /**
+     * 이 단계를 실행하려면 정의서에 먼저 있어야 하는 단계. 작성 폼이 추가할 때 함께 넣고, 이 단계가 있는 동안 그 단계의
+     * 제거를 막는다(HF34). 서버 저장 검증은 {@code SettingSaveRequest.isOsVolumeDeterminable} 이 RAID 구성의 내용까지 본다.
+     */
+    public Optional<SettingProcessType> requiredStep() {
+        return Optional.ofNullable(requiredStep);
+    }
 }

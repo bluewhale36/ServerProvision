@@ -63,9 +63,35 @@
     margin-bottom: 6px;
 }
 
-/* 단계 카드 summary — 제목이 flex:1 이므로 제거 버튼은 자연히 우측 정렬 */
-.n-step-card > .n-accordion-head .n-btn {
+/* 단계 카드 summary — 제목이 flex:1 이므로 제거 버튼(사유 tooltip 래퍼째, HF34)은 자연히 우측 정렬 */
+.n-step-card > .n-accordion-head > .n-btn-tooltip-wrap {
     flex-shrink: 0;
+}
+
+/* HF34 — 제거 차단 사유(버튼 곁 글자). 머리 한 줄의 가운데 정렬을 흐트리지 않게 힌트의 위아래 여백을 지운다. */
+.n-step-card > .n-accordion-head > .n-hint {
+    margin: 0;
+}
+
+/* HF34 — 머리 첫 줄의 [단계 제거] tooltip 이 카드 위로 열린다. 아코디언 공용 규칙의 overflow: hidden 이 그 상자를 잘라
+   단계 카드만 풀고, 잘라내기가 하던 일(배경을 칠하는 직계 자식 둘, 머리와 본문을 둥근 모서리 안에 두기)은 두 자식의
+   모서리 반경이 맡는다. 반경은 inherit 로 받지 못한다(브라우저가 summary 를 details 의 slot 에 넣어 그 slot 의 0 을
+   물려받음). 카드 반경에서 테두리 1px 을 뺀 값을 직접 준다. */
+.n-step-card {
+    overflow: visible;
+}
+
+.n-step-card > .n-accordion-head {
+    border-radius: calc(var(--n-radius-lg) - 1px);
+}
+
+.n-step-card[open] > .n-accordion-head {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.n-step-card > .n-accordion-body {
+    border-radius: 0 0 calc(var(--n-radius-lg) - 1px) calc(var(--n-radius-lg) - 1px);
 }
 
 .n-step-title {

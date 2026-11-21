@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF34 Plan · OS 설치 단계의 RAID 구성 자동 추가</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:var(--card); border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  p { margin:6px 0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  .muted { color:var(--text-muted); }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; white-space:nowrap; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:4px 0; }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card ul { margin:0; padding-left:18px; }
+  .card li { font-size:12.5px; line-height:1.55; }
+
+  /* 반응형 (명세 §3) — 데스크톱(>1024px) 무변경 */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF34 · OS 설치 단계의 RAID 구성 자동 추가 <span class="v2-badge">hotfix</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF34 (hotfix)</span>
+    <span><strong>브랜치</strong> <code>fix/HF34_os-install-requires-raid</code> (origin/dev e3962b9)</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/41fef0e868f981f0a823fd62ac6a3b2d">HF34 단계 페이지</a></span>
+    <span><strong>생성</strong> 2026-11-21 09:19:51 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 배경</a></li>
+      <li><a href="#s2">§2 실측 (코드)</a></li>
+      <li><a href="#s3">§3 결론 (요구사항)</a></li>
+      <li><a href="#s4">§4 설계 · 결정</a></li>
+      <li><a href="#s5">§5 Step 8 테스트</a></li>
+      <li><a href="#s6">§6 CP5 계획</a></li>
+      <li><a href="#s7">§7 Critical Files</a></li>
+      <li><a href="#s8">§8 화면 문구</a></li>
+      <li><a href="#s9">§9 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 배경 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경</summary>
+      <div class="body">
+        <h4>사용자 지시 (2026-11-21)</h4>
+        <p>프로비저닝 단계를 추가할 때 'OS 설치' 를 쓰면, 'RAID 구성' 이 없을 경우 자동으로 추가합니다.</p>
+        <p>이어서 사용자 결정: OS 설치가 있는 동안 RAID 구성의 [단계 제거] 를 비활성 + 사유 tooltip 으로 막습니다(UX 모순은 UI 1차 차단).</p>
+
+        <h4>왜 둘이 묶이는가</h4>
+        <p>OS 설치는 설치 디스크를 RAID 구성의 OS 영역 볼륨(그 볼륨의 인벤토리 WWN)으로 정합니다(Windows · RHEL 공통). 그래서 HF32(PR #112)가 <code>SettingSaveRequest.isOsVolumeDeterminable</code> 로 RAID 구성 없는 OS 설치 정의서를 저장 때 거절합니다.</p>
+
+        <h4>지금 겪는 일</h4>
+        <div class="callout warn">
+          <ul>
+            <li>사용자가 OS 설치만 추가하고 [저장] 을 눌러야 OS 설치 카드의 안내 줄(<code>oiOsVolumeRequirementHint</code>)과 강조로 막혔음을 압니다. RAID 구성을 찾아 다시 추가해야 합니다.</li>
+            <li>RAID 구성을 빼도 아무 표시 없이 빠지고, 저장 때 다시 막힙니다.</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §2 실측 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 실측 (코드)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>자리</th><th>지금 동작</th></tr></thead>
+          <tbody>
+            <tr><td><code>setting-new.html</code> '단계 추가' 줄</td><td><code>th:each="type : ${processTypes}"</code> 버튼, <code>data-step-add=&lt;타입&gt;</code>. 타입당 1 개, 추가된 타입 버튼은 비활성. 수정 화면 <code>setting-edit.html</code> 은 같은 폼 조각 <code>settingForm</code> 을 재사용(한 곳만 고치면 됨)</td></tr>
+            <tr><td>카드 4 개의 <code>&lt;summary&gt;</code></td><td>BASIC_UPDATE · BASIC_SETTING · RAID_CONFIGURATION · OS_INSTALLATION 안 <code>&lt;button data-step-remove&gt;단계 제거&lt;/button&gt;</code>. 같은 마크업이 4 번 복사돼 있음</td></tr>
+            <tr><td><code>setting-form.js</code> <code>addStep(type)</code> · <code>removeStep(type)</code></td><td>카드 표시 · 버튼 비활성 · 규칙 재평가만 함. 단계 사이 의존을 모름. 수정 화면 pre-fill 도 저장본의 단계마다 <code>addStep</code> 을 부름</td></tr>
+            <tr><td>저장 검사 (JS <code>validate</code>)</td><td>OS 설치가 있고 <code>describeOsVolumeTarget().kind === 'NONE'</code>(RAID 카드 없음 또는 묶음 0)이면 OS 설치 카드에서 막음(HF32 1차 차단)</td></tr>
+            <tr><td>서버 <code>SettingSaveRequest.<wbr>isOsVolumeDeterminable</code> (@AssertTrue)</td><td>RAID 없음 · 묶음 없음 · OS 후보 없음 · 후보 전부 직결이면 거절. direct POST 안전망</td></tr>
+            <tr><td><code>SettingProcessType</code> enum</td><td>상수마다 <code>displayName</code> · <code>paletteExposed</code>. 팔레트 노출을 enum 속성으로 정한 선례(R11 D-R4 "하드코딩 목록 금지")</td></tr>
+            <tr><td>비활성 사유 표시 장치</td><td><code>n-btn-tooltip-wrap[data-tooltip]</code> + <code>data-tooltip-active="false"</code> 로 끄고 켬(DESIGN.md 5절 · style.css). JS 단위 테스트 체계는 없음(폼 동작은 화면 테스트 + CP5 브라우저)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §3 결론 ===== -->
+    <details class="section" id="s3" open>
+      <summary>§3. 결론 (요구사항)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>요구</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>사용자가 [+ OS 설치] 를 누르면, RAID 구성 카드가 없을 때 RAID 구성 카드를 먼저 연 뒤 OS 설치 카드를 연다. 둘 다 펼친 상태. RAID 구성은 처음 열 때의 기본값(우선순위 기본 행)을 그대로 채운다</td></tr>
+            <tr><td>R2</td><td>OS 설치 카드가 있는 동안 RAID 구성 카드의 [단계 제거] 는 비활성 + tooltip "OS 설치 단계가 있으면 이 단계를 제거할 수 없습니다. OS 설치 단계를 먼저 제거해야 합니다."</td></tr>
+            <tr><td>R3</td><td>OS 설치를 제거하면 RAID 구성의 [단계 제거] 가 다시 활성. RAID 구성 카드는 남는다(자동으로 빼지 않음)</td></tr>
+            <tr><td>R4</td><td>수정 화면이 저장본을 불러올 때는 자동 추가하지 않는다. 저장본을 조용히 바꾸지 않기 위함. 옛 정의서(OS 설치만)는 지금처럼 저장 때 HF32 안내로 막힌다. 제거 잠금(R2)은 불러온 뒤에도 같은 규칙으로 맞춘다</td></tr>
+            <tr><td>R5</td><td>서버 저장 검증(HF32 가드)은 바꾸지 않는다</td></tr>
+            <tr><td>R6</td><td>묶음 규칙 · OS 볼륨 후보는 채우지 않는다. RAID 구성만 추가된 상태로 저장하면 지금처럼 묶음 안내로 막힌다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §4 설계 · 결정 ===== -->
+    <details class="section" id="s4" open>
+      <summary>§4. 설계 · 결정</summary>
+      <div class="body">
+        <div class="callout success"><b>채택</b> : 선행 단계를 enum 에 선언하고 폼이 그 선언을 읽습니다.</div>
+
+        <div class="card-grid">
+          <div class="card v-blue">
+            <h4>SettingProcessType</h4>
+            <ul>
+              <li>선행 단계 속성 추가: <code>OS_INSTALLATION</code> 의 선행 = <code>RAID_CONFIGURATION</code>, 나머지는 없음.</li>
+              <li>접근자는 <code>Optional&lt;SettingProcessType&gt; requiredStep()</code>.</li>
+              <li>Javadoc 은 "실행이 이 단계를 하려면 앞서 있어야 하는 단계. 폼이 추가 · 제거 때 맞춘다. 서버 저장 검증은 HF32 isOsVolumeDeterminable 이 내용까지 본다." 정도로 짧게.</li>
+            </ul>
+          </div>
+          <div class="card v-green">
+            <h4>템플릿</h4>
+            <ul>
+              <li>단계 추가 버튼에 <code>th:data-step-requires="${type.requiredStep().map(...).orElse(null)}"</code> 류로 선행 타입 이름, <code>data-step-name</code> 에 화면 이름. 정확한 식은 구현 때. 템플릿의 <code>T(...)</code> 정적 호출은 DesignConventionTest 가 막으므로 쓰지 않음.</li>
+              <li>카드 4 개의 [단계 제거] 를 조각 하나 <code>stepRemoveButton</code> 으로 추출(같은 마크업 4 번 복사 해소). 조각은 <code>&lt;span class="n-btn-tooltip-wrap" data-tooltip-active="false" data-step-remove-wrap&gt;</code> 안에 버튼을 둔다.</li>
+              <li>사유 문구는 메시지 키 하나 <code>setting.process.remove.blocked</code> = "{0} 단계가 있으면 이 단계를 제거할 수 없습니다. {0} 단계를 먼저 제거해야 합니다." 를 폼 요소의 data 속성으로 한 번 내리고, JS 가 {0} 을 뒤따르는 단계의 화면 이름으로 채운다.</li>
+            </ul>
+          </div>
+          <div class="card v-orange">
+            <h4>setting-form.js</h4>
+            <ul>
+              <li>추가 버튼 클릭 → <code>addStepWithRequired(type)</code>: 선행 타입이 있고 그 카드가 닫혀 있으면 선행부터 <code>addStep</code>. 클릭 경로만 이 함수를 쓰고 pre-fill 은 지금처럼 <code>addStep</code> 직접(R4).</li>
+              <li><code>syncRemoveLocks()</code>: 열린 카드마다 "열린 카드 중 이 타입을 선행으로 둔 것" 이 있으면 [단계 제거] 비활성 + tooltip 켬, 없으면 해제. <code>addStep</code> · <code>removeStep</code> 끝과 pre-fill 말미에서 부른다.</li>
+              <li>단계 이름 · 선행 관계를 JS 에 적지 않는다(타입 문자열 분기 없음).</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4>비채택 대안</h4>
+        <table>
+          <thead><tr><th>대안</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>B. JS 에 <code>if (type === 'OS_INSTALLATION') addStep('RAID_CONFIGURATION')</code> 하드코딩</td><td>선행 관계가 화면 코드에만 있게 됨. 팔레트 노출을 enum 속성으로 옮긴 R11 D-R4 와 반대. 의존이 늘 때마다 분기가 자람(분기 확장 금지)</td></tr>
+            <tr><td>C. 서버가 저장 때 RAID 구성을 끼워 넣기</td><td>사용자 데이터를 조용히 바꿈. 묶음이 없어 어차피 HF32 에 막힘</td></tr>
+            <tr><td>D. RAID 구성을 빼면 OS 설치도 함께 빼기(연쇄 제거)</td><td>사용자가 입력한 OS 설치 내용을 잃음. 사용자 결정은 막기(R2)</td></tr>
+            <tr><td>E. 수정 화면 pre-fill 에서도 자동 추가</td><td>저장본과 다른 화면을 보여 줌. 옛 정의서는 저장 때 HF32 안내가 원인을 알려 줌</td></tr>
+            <tr><td>F. 서버 가드를 enum 선행 관계로 다시 쓰기</td><td>가드는 RAID 구성의 내용(묶음 · 후보 · 직결)까지 보며 존재 여부는 그 일부. 고칠 이유가 없는 코드를 건드림(R5)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>적대적 점검</h4>
+        <ul>
+          <li><b>SSOT</b>: 폼의 선행 관계는 enum 하나에서 옵니다. 서버 가드는 존재 여부를 포함한 더 강한 조건이라 어긋날 수 없습니다(폼이 RAID 를 넣어도 묶음이 없으면 서버도 폼도 같은 문구로 막음).</li>
+          <li><b>자동 추가가 사용자를 놀라게 하는가</b>: RAID 구성 카드가 OS 설치 카드 바로 위에 펼쳐져 보이고, OS 설치 카드의 기존 안내 줄이 RAID 묶음을 정하라고 말합니다. 새 안내 문구는 더하지 않습니다.</li>
+          <li><b><code>&lt;summary&gt;</code> 안 버튼을 span 으로 감쌀 때</b>: 기존 클릭 처리(<code>preventDefault</code> · <code>stopPropagation</code>)는 버튼에 그대로 걸립니다. 비활성 버튼은 클릭이 오지 않으므로 카드 접힘 토글만 일어나는지 CP5 에서 확인합니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §5 Step 8 테스트 ===== -->
+    <details class="section" id="s5">
+      <summary>§5. Step 8 테스트</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>테스트</th><th>확인 내용</th></tr></thead>
+          <tbody>
+            <tr><td><code>SettingProcessTypeTest</code> <span class="chip new">신규</span></td><td>OS_INSTALLATION 의 선행 = RAID_CONFIGURATION, 나머지는 empty</td></tr>
+            <tr><td><code>SettingControllerViewTest</code> <span class="chip mod">보강</span></td><td>작성 · 수정 화면 모두 [+ OS 설치] 에 <code>data-step-requires="RAID_CONFIGURATION"</code>, 다른 추가 버튼에는 없음 · [단계 제거] 4 개가 tooltip 래퍼 안(<code>data-tooltip-active="false"</code>) · 사유 문구 data 속성</td></tr>
+            <tr><td><code>SettingRestControllerSaveFlowTest</code> <span class="chip keep">회귀</span></td><td>기존 HF32 400 테스트가 그대로 통과(서버 가드 회귀)</td></tr>
+            <tr><td>전체 테스트</td><td>CH11 · DesignConventionTest 포함 green</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">새 예외 · 엔드포인트가 없으므로 HTTP 범주 추가는 없습니다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 CP5 계획 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. CP5 계획 (샌드박스 브라우저)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>새 정의서, 빈 상태에서 [+ OS 설치]</td><td>RAID 구성 · OS 설치 카드 둘 다 열림, 두 추가 버튼 비활성</td></tr>
+            <tr><td>A2</td><td>RAID 구성을 먼저 넣은 뒤 [+ OS 설치]</td><td>OS 설치만 더해짐(RAID 중복 없음)</td></tr>
+            <tr><td>A3</td><td>A1 상태에서 RAID 구성 [단계 제거] 에 마우스</td><td>비활성 · tooltip 사유</td></tr>
+            <tr><td>A4</td><td>OS 설치 [단계 제거] → RAID 구성 [단계 제거]</td><td>잠금 풀림 · 제거됨</td></tr>
+            <tr><td>A5</td><td>묶음 · OS 설정을 채워 저장 → 수정 화면 열기</td><td>두 카드 그대로 · RAID 제거 잠김</td></tr>
+            <tr><td>A6</td><td>옛 정의서(OS 설치만, SQL 로 준비) 수정 화면</td><td>RAID 자동 추가 없음 · 저장 때 HF32 안내로 막힘</td></tr>
+            <tr><td>B1</td><td>RAID 없이 OS 설치만 담은 direct POST</td><td>400 HF32 문구(회귀)</td></tr>
+            <tr><td>B2</td><td>비활성 [단계 제거] 를 키보드(Tab · Enter)로 시도</td><td>동작 없음 · tooltip 은 focus-within 으로 보임</td></tr>
+            <tr><td>C1</td><td>화면 문구 · design-audit(copy · line · overflow, 1440 · 1024)</td><td>걸림 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 Critical Files ===== -->
+    <details class="section" id="s7">
+      <summary>§7. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/<wbr>setting/<wbr>enums/<wbr>SettingProcessType.java</code></td><td>선행 단계</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/<wbr>provisioning/<wbr>setting-new.html</code></td><td>추가 버튼 data 속성 · 제거 버튼 조각 사용 · 사유 data 속성</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>제거 버튼 조각</td><td><code>fragments/<wbr>provisioning/</code> 아래, 위치는 구현 때</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/<wbr>provisioning/<wbr>setting-form.js</code></td><td><code>addStepWithRequired</code> · <code>syncRemoveLocks</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td>키 1</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>SettingProcessTypeTest</code></td><td>선행 단계 단위 테스트</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SettingControllerViewTest</code></td><td>화면 속성 보강</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>SettingSaveRequest.java</code></td><td>서버 저장 검증 그대로(R5)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>templates/<wbr>provisioning/<wbr>setting-edit.html</code></td><td><code>settingForm</code> 조각 재사용으로 자동 반영</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 화면 문구 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 화면 문구 (SPV_Design 검수 대상)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>자리</th><th>문구</th></tr></thead>
+          <tbody>
+            <tr><td>tooltip</td><td>"OS 설치 단계가 있으면 이 단계를 제거할 수 없습니다. OS 설치 단계를 먼저 제거해야 합니다."</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 다음 마일스톤 ===== -->
+    <details class="section" id="s9">
+      <summary>§9. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="HF34-milestone">
+          <li><label><input type="checkbox" data-key="cp1"> <span><span class="chip cp1">CP1</span> 승인</span></label></li>
+          <li><label><input type="checkbox" data-key="cp4"> <span><span class="chip cp4">CP4</span> 구현 · 테스트</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span><span class="chip cp5">CP5</span> 샌드박스(sbx-hf34)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp6"> <span><span class="chip cp6">CP6</span> report</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span><span class="chip cp7">CP7</span> · PR(dev 대상, E4-1-b 와 별도)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}');
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        localStorage.setItem(key, JSON.stringify(stored));
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>
