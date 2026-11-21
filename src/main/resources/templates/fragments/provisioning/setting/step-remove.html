@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<body>
+<!--/* HF34 — 단계 카드 머리의 [단계 제거]. 이 단계를 선행으로 둔 단계가 열려 있으면 setting-form.js syncRemoveLocks 가
+       버튼을 비활성하고 같은 차단 사유를 버튼 곁 글자와 tooltip 에 보인다(DESIGN.md 7절 차단 사유). */-->
+<th:block th:fragment="stepRemoveButton">
+    <span class="n-hint" data-step-remove-reason hidden></span>
+    <span class="n-btn-tooltip-wrap" data-tooltip-align="right" data-tooltip-active="false" data-step-remove-wrap>
+        <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
+    </span>
+</th:block>
+</body>
+</html>
