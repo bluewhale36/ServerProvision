@@ -42,60 +42,62 @@
                 <div class="n-empty-title">보관 중인 드리프트가 없습니다.</div>
             </div>
 
-            <table th:unless="${#lists.isEmpty(snoozedDrifts)}" class="n-table">
-                <thead>
-                <tr>
-                    <th class="n-tl-id">번호</th>
-                    <th>자원</th>
-                    <th>드리프트</th>
-                    <th>보관 기간</th>
-                    <th>보관 만료 일시</th>
-                    <th>보관 사유</th>
-                    <th class="n-th-center">처리</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="drift : ${snoozedDrifts}" class="n-row-hover" th:data-nav-key="${drift.id}">
-                    <td class="n-tl-id n-spec-cell" th:text="|#${drift.id}|">#378</td>
-                    <td>
-                        <a class="n-row-link"
-                           th:href="@{/maintenance/reconciliation/drifts/{id}(id=${drift.id})}"
-                           th:text="${drift.displayName != null ? drift.displayName : drift.resourceType.displayName + ' #' + drift.resourceId}">Rocky Linux 9.6</a>
-                        <div class="n-spec-cell" th:text="${drift.resourceType.displayName}">OS ISO</div>
-                    </td>
-                    <td th:text="${drift.kind.label}">경로 이동</td>
-                    <td class="n-spec-cell" th:text="${drift.snoozeWindowLabel()}">7일 동안</td>
-                    <!--/* 조건형 보관은 시각이 아니라 사건으로 풀린다 — 만료 시각이 없다는 사실을
-                         빈칸으로 두면 값이 빠진 것처럼 읽히므로 언제 풀리는지를 밝힌다. */-->
-                    <td class="n-spec-cell">
-                        <span th:if="${drift.snoozeUntil != null}"
-                              th:text="${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')}">2026-08-20 09:00</span>
-                        <span th:unless="${drift.snoozeUntil != null}">다음 정밀 점검 직전</span>
-                    </td>
-                    <td class="n-spec-cell" th:text="${drift.snoozeReason != null ? drift.snoozeReason : '-'}">-</td>
-                    <!--/* MK4-4-3 — 미룬 것을 앞당겨 되돌린다. reopen() 과 UNSNOOZE 는 MK4-1 이
-                         만들어 두었는데 부르는 곳이 기간 만료 자동 처리뿐이라, "생각이 바뀌었으니
-                         지금 처리하겠다" 를 할 경로가 없었다. */-->
-                    <td class="n-th-center">
-                        <form method="post"
-                              th:action="@{/maintenance/reconciliation/drifts/{id}/unsnooze(id=${drift.id})}"
-                              data-confirm-drift-unsnooze=""
-                              th:data-resource-type="${drift.resourceType}"
-                              th:data-resource-id="${drift.resourceId}"
-                              th:data-resource-label="|'${drift.kind.label}' 드리프트|"
-                              data-resolve-title="보관 해제"
-                              data-confirm-label="보관 해제"
-                              data-resource-extra="보관 사유는 기록에 남습니다.">
-                            <span class="n-btn-tooltip-wrap" th:data-tooltip="${drift.unsnoozeBlockReason}"
-                                  th:attr="data-tooltip-active=${drift.unsnoozeBlockReason != null} ? 'true' : 'false'">
-                                <button type="submit" class="n-btn n-btn-sm n-btn-secondary"
-                                        th:disabled="${drift.unsnoozeBlockReason != null}">보관 해제</button>
-                            </span>
-                        </form>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+            <div class="n-table-scroll" th:unless="${#lists.isEmpty(snoozedDrifts)}">
+                <table class="n-table">
+                    <thead>
+                    <tr>
+                        <th class="n-tl-id">번호</th>
+                        <th>자원</th>
+                        <th>드리프트</th>
+                        <th>보관 기간</th>
+                        <th>보관 만료 일시</th>
+                        <th>보관 사유</th>
+                        <th class="n-th-center">처리</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="drift : ${snoozedDrifts}" class="n-row-hover" th:data-nav-key="${drift.id}">
+                        <td class="n-tl-id n-spec-cell" th:text="|#${drift.id}|">#378</td>
+                        <td>
+                            <a class="n-row-link"
+                               th:href="@{/maintenance/reconciliation/drifts/{id}(id=${drift.id})}"
+                               th:text="${drift.displayName != null ? drift.displayName : drift.resourceType.displayName + ' #' + drift.resourceId}">Rocky Linux 9.6</a>
+                            <div class="n-spec-cell" th:text="${drift.resourceType.displayName}">OS ISO</div>
+                        </td>
+                        <td th:text="${drift.kind.label}">경로 이동</td>
+                        <td class="n-spec-cell" th:text="${drift.snoozeWindowLabel()}">7일 동안</td>
+                        <!--/* 조건형 보관은 시각이 아니라 사건으로 풀린다 — 만료 시각이 없다는 사실을
+                             빈칸으로 두면 값이 빠진 것처럼 읽히므로 언제 풀리는지를 밝힌다. */-->
+                        <td class="n-spec-cell">
+                            <span th:if="${drift.snoozeUntil != null}"
+                                  th:text="${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')}">2026-08-20 09:00</span>
+                            <span th:unless="${drift.snoozeUntil != null}">다음 정밀 점검 직전</span>
+                        </td>
+                        <td class="n-spec-cell" th:text="${drift.snoozeReason != null ? drift.snoozeReason : '-'}">-</td>
+                        <!--/* MK4-4-3 — 미룬 것을 앞당겨 되돌린다. reopen() 과 UNSNOOZE 는 MK4-1 이
+                             만들어 두었는데 부르는 곳이 기간 만료 자동 처리뿐이라, "생각이 바뀌었으니
+                             지금 처리하겠다" 를 할 경로가 없었다. */-->
+                        <td class="n-th-center">
+                            <form method="post"
+                                  th:action="@{/maintenance/reconciliation/drifts/{id}/unsnooze(id=${drift.id})}"
+                                  data-confirm-drift-unsnooze=""
+                                  th:data-resource-type="${drift.resourceType}"
+                                  th:data-resource-id="${drift.resourceId}"
+                                  th:data-resource-label="|'${drift.kind.label}' 드리프트|"
+                                  data-resolve-title="보관 해제"
+                                  data-confirm-label="보관 해제"
+                                  data-resource-extra="보관 사유는 기록에 남습니다.">
+                                <span class="n-btn-tooltip-wrap" th:data-tooltip="${drift.unsnoozeBlockReason}"
+                                      th:attr="data-tooltip-active=${drift.unsnoozeBlockReason != null} ? 'true' : 'false'">
+                                    <button type="submit" class="n-btn n-btn-sm n-btn-secondary"
+                                            th:disabled="${drift.unsnoozeBlockReason != null}">보관 해제</button>
+                                </span>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </section>
 </div>

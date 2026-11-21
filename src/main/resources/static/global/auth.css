@@ -4,6 +4,7 @@
     flex: 1 1 auto;
     min-width: 0;
     min-height: 100vh;
+    min-height: 100dvh;     /* 휴대폰 주소 표시줄을 뺀 높이의 한가운데 */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -35,6 +36,11 @@
     margin: 0 0 6px;
 }
 
+/* 안내 문장이 없는 화면(로그인)은 제목이 안내 문장의 아래 간격을 대신 진다(R21-1 CP6 사용자 검토) */
+.n-auth-title:not(:has(+ .n-auth-lead)) {
+    margin-bottom: 22px;
+}
+
 .n-auth-lead {
     font-size: 14px;
     color: var(--n-text-sec);
@@ -56,10 +62,10 @@
     text-align: center;
 }
 
-@media (max-width: 600px) {
+/* 휴대폰에서도 카드는 화면 한가운데에 선다(R21-1 CP6 사용자 검토) */
+@media (max-width: 640px) {
     .n-auth {
         padding: 16px;
-        align-items: flex-start;
     }
 
     .n-auth-card .n-card-body {

@@ -388,7 +388,7 @@ public class GuestServerController {
     }
 
     /**
-     * 개시를 막는 이유 전부(U3-6 미할당 + U7 네트워크). 버튼 tooltip(n-btn-tooltip-wrap)은 이어 붙이고, 안내는 이유마다 한 줄로 그린다.
+     * 개시를 막는 이유 전부(U3-6 미할당 + U7 네트워크). 화면은 이유마다 안내 한 줄로 그리고, 비활성 버튼에는 사유를 다시 달지 않는다.
      * 서버 가드는 같은 판정(미할당 = {@code AssignmentStartService}, 네트워크 = {@code StartNetworkBlocks})을 쓴다.
      */
     private static void populateStartBlockModel(boolean assigned, GuestServerDetailResponse server, Model model) {
@@ -400,7 +400,6 @@ public class GuestServerController {
             reasons.addAll(server.progress().startNetworkBlockReasons());
         }
         model.addAttribute("startBlockReasons", reasons);
-        model.addAttribute("startBlockTooltip", String.join(" ", reasons));
     }
 
     private static final String UNASSIGNED_START_REASON = "세팅 정의서가 할당되지 않았습니다. 정의서를 할당한 뒤 개시할 수 있습니다.";

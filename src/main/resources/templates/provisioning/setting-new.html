@@ -65,7 +65,8 @@
           th:data-mode="${isEdit ? 'edit' : 'create'}"
           th:data-setting-id="${isEdit ? setting.id : ''}"
           th:data-endpoint="@{/provisioning/setting}"
-          th:data-partitions-endpoint="@{/provisioning/setting/default-partitions}">
+          th:data-partitions-endpoint="@{/provisioning/setting/default-partitions}"
+          th:data-step-remove-blocked="#{provisioning.setting.step.remove-blocked-by-dependent}">
 
         <!-- S4 폼 배너 — 필드 매핑에 실패한 서버 오류/폼 전체 오류 표시 슬롯 -->
         <div class="n-form-banner n-alert n-alert-danger" role="alert" hidden></div>
@@ -89,7 +90,7 @@
                 <div class="n-section">프로비저닝 단계 구성</div>
 
                 <div data-error-field="processList">
-                    <!-- 단계 추가 : 타입당 1개, 이미 추가된 타입은 비활성 -->
+                    <!-- 단계 추가 : 타입당 1개, 이미 추가된 타입은 비활성. data-step-requires = 함께 넣을 선행 단계(HF34, SettingProcessType.requiredStep) -->
                     <div class="n-form-group">
                         <label class="n-label strong">단계 추가</label>
                         <div class="n-step-add-row">
@@ -97,6 +98,8 @@
                                     class="n-btn n-btn-secondary n-btn-sm"
                                     th:each="type : ${processTypes}"
                                     th:data-step-add="${type.name()}"
+                                    th:data-step-name="${type.displayName}"
+                                    th:data-step-requires="${type.requiredStep().orElse(null)?.name()}"
                                     th:text="'+ ' + ${type.displayName}">+ 단계</button>
                         </div>
                     </div>
@@ -112,7 +115,7 @@
                             <summary class="n-accordion-head">
                                 <span class="n-accordion-chevron"></span>
                                 <span class="n-accordion-title n-step-title">펌웨어 업데이트</span>
-                                <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
+                                <span th:replace="~{fragments/provisioning/setting/step-remove :: stepRemoveButton}"></span>
                             </summary>
                             <div class="n-accordion-body">
                                 <!--
@@ -196,7 +199,7 @@
                             <summary class="n-accordion-head">
                                 <span class="n-accordion-chevron"></span>
                                 <span class="n-accordion-title n-step-title">BIOS 설정</span>
-                                <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
+                                <span th:replace="~{fragments/provisioning/setting/step-remove :: stepRemoveButton}"></span>
                             </summary>
                             <div class="n-accordion-body">
                                 <!--
@@ -249,7 +252,7 @@
                             <summary class="n-accordion-head">
                                 <span class="n-accordion-chevron"></span>
                                 <span class="n-accordion-title n-step-title">RAID 구성</span>
-                                <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
+                                <span th:replace="~{fragments/provisioning/setting/step-remove :: stepRemoveButton}"></span>
                             </summary>
                             <div class="n-accordion-body">
                                 <div class="n-hint">RAID 카드로 구성하는 RAID 만 지원합니다. 온보드 RAID 는 지원하지 않습니다.</div>
@@ -419,7 +422,7 @@
                             <summary class="n-accordion-head">
                                 <span class="n-accordion-chevron"></span>
                                 <span class="n-accordion-title n-step-title">OS 설치</span>
-                                <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-step-remove>단계 제거</button>
+                                <span th:replace="~{fragments/provisioning/setting/step-remove :: stepRemoveButton}"></span>
                             </summary>
                             <div class="n-accordion-body">
                                 <!-- 설치할 OS — OSName 별 optgroup. 선택 가능 여부의 SSOT = 서버 정책(installBlockReason = OsInstallTargetPolicy,

@@ -76,32 +76,34 @@
             <!--/* 멤버별 분류 — 확정하기 전에 무엇이 일어날지 이 표가 전부 말한다.
                    사유는 도메인이 만든 문구 그대로라 direct POST 를 거절하는 서버 가드와 같은 말이다. */-->
             <div class="n-label strong n-block-gap-sm">멤버별 적용</div>
-            <table class="n-table">
-                <thead>
-                <tr>
-                    <th>서버</th>
-                    <th>보드 모델</th>
-                    <th>결과</th>
-                    <th>사유</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="member : ${item.preview.members()}">
-                    <td th:text="${member.serverName != null} ? ${member.serverName} : '(이름 미지정)'">srv-01</td>
-                    <td th:text="${member.server.boardModelName != null} ? ${member.server.boardModelName} : '수집 전'">
-                        MS03-CE0</td>
-                    <td>
-                        <span class="n-badge" th:classappend="${member.outcome.badgeClass}"
-                              th:text="${member.outcome.displayName}">할당 예정</span>
-                    </td>
-                    <td>
-                        <span th:if="${member.reason != null}" class="n-muted n-small"
-                              th:text="${member.reason}">사유</span>
-                        <span th:unless="${member.reason != null}" class="n-muted">-</span>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+            <div class="n-table-scroll">
+                <table class="n-table">
+                    <thead>
+                    <tr>
+                        <th>서버</th>
+                        <th>보드 모델</th>
+                        <th>결과</th>
+                        <th>사유</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="member : ${item.preview.members()}">
+                        <td th:text="${member.serverName != null} ? ${member.serverName} : '(이름 미지정)'">srv-01</td>
+                        <td th:text="${member.server.boardModelName != null} ? ${member.server.boardModelName} : '수집 전'">
+                            MS03-CE0</td>
+                        <td>
+                            <span class="n-badge" th:classappend="${member.outcome.badgeClass}"
+                                  th:text="${member.outcome.displayName}">할당 예정</span>
+                        </td>
+                        <td>
+                            <span th:if="${member.reason != null}" class="n-muted n-small"
+                                  th:text="${member.reason}">사유</span>
+                            <span th:unless="${member.reason != null}" class="n-muted">-</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
 
             <div class="n-label strong">정의서 내용</div>
             <!--/* 카드 렌더는 정의서 상세 화면(U2) · 단건 모달(U3-5-b)과 같은 한 벌이다(DEC-A). */-->

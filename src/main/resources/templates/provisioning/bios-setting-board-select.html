@@ -41,16 +41,12 @@
                 <span class="n-note" th:text="${board.vendor}">GIGABYTE</span>
                 <span class="bios-board-go">템플릿 작성 ▶</span>
             </a>
-            <!-- 카탈로그 미보유 — disabled 카드 + tooltip (UI 1차 차단).
-                 n-btn-disabled 가 pointer-events 를 제거하므로 hover tooltip 은 wrapper 가 발동한다
-                 (detail 페이지 '수정' 버튼과 동일한 S5-3-2 자산 사용법). -->
-            <span th:unless="${board.catalogAvailable}" class="n-btn-tooltip-wrap"
-                  data-tooltip="BIOS 카탈로그가 없어 템플릿을 작성할 수 없습니다.">
-                <span class="bios-board-card n-btn-disabled" aria-disabled="true">
-                    <span class="bios-board-key" th:text="${board.modelName}">MS74-HB0</span>
-                    <span class="n-note" th:text="${board.vendor}">GIGABYTE</span>
-                    <span class="bios-board-go">카탈로그 미보유</span>
-                </span>
+            <!-- 카탈로그 미보유 — disabled 카드(UI 1차 차단). 막힌 사유는 카드 안의 '카탈로그 미보유' 가 늘 보이며 말한다.
+                 R21-1 — 종전의 감싸개 말풍선은 걷었다. 사유가 카드 아래 글자로 서면 격자의 카드 높이가 갈리고 같은 사실을 두 번 말한다. -->
+            <span th:unless="${board.catalogAvailable}" class="bios-board-card n-btn-disabled" aria-disabled="true">
+                <span class="bios-board-key" th:text="${board.modelName}">MS74-HB0</span>
+                <span class="n-note" th:text="${board.vendor}">GIGABYTE</span>
+                <span class="bios-board-go">카탈로그 미보유</span>
             </span>
         </th:block>
     </div>

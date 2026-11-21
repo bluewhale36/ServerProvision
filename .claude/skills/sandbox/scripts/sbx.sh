@@ -60,7 +60,8 @@ free_port() { local p=$1 end=$2; while [ "$p" -le "$end" ]; do port_in_use "$p" 
 
 name_ok() { printf '%s' "$1" | grep -Eq '^[a-z0-9][a-z0-9-]{1,30}$' || die "이름은 영문 소문자 · 숫자 · 하이픈입니다(예: hf33, s23-1)."; }
 
-app_pid() { lsof -nP -t -iTCP:"$1" -sTCP:LISTEN 2>/dev/null | head -1; }
+# 포트가 비어 있으면 lsof 가 1 을 낸다. pipefail 아래에서 그대로 두면 pid=$(app_pid …) 대입이 실패해 restart 가 조용히 끝난다.
+app_pid() { lsof -nP -t -iTCP:"$1" -sTCP:LISTEN 2>/dev/null | head -1 || true; }
 
 build_jar() {
   local dir=$1
@@ -86,6 +87,8 @@ write_run_sh() {
     echo "export PROVISION_ALLOWED_ROOTS=\"\$S/storage\" UPLOAD_BASE_DIR=\"\$S/storage\" PROVISION_TRASH_ROOT=\"$trash\""
     echo "export PROVISION_ISO_QUARANTINE_ROOT=\"\$S/.iso-quarantine\" PROVISION_ASSET_HISTORY_ROOT=\"\$S/.asset-history\" MULTIPART_TMP_DIR=\"\$S/multipart-tmp\""
     echo "export PXE_BOOT_SECRET=sbx-$name-boot-secret"
+    # 샌드박스는 모두 localhost 라 쿠키 이름이 같으면 서로의 로그인 세션을 덮어쓴다(UE 실측 11-21). 이름마다 따로 둔다.
+    echo "export SERVER_SERVLET_SESSION_COOKIE_NAME=SPV_SBX_$(printf '%s' "$name" | tr 'a-z-' 'A-Z_')"
     if [ -n "$shared" ]; then
       # 공용 자료(BIOS 자료 · PXE 자산 · 보드 목록 덮어쓰기). PXE_ASSETS_ROOT 를 주면 PXE_SERVER_BASE_URL 도 있어야 기동된다.
       [ -f "$shared/sandbox.properties" ] && echo "export SPRING_CONFIG_ADDITIONAL_LOCATION=file:$shared/sandbox.properties"
