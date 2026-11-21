@@ -14,6 +14,7 @@ import com.example.serverprovision.provisioning.setting.repository.SettingDefini
 import com.example.serverprovision.provisioning.setting.service.reference.ProcessReferenceInspectors;
 import com.example.serverprovision.provisioning.setting.service.reference.ProcessValidationContext;
 import com.example.serverprovision.provisioning.setting.vo.ProcessPayload;
+import com.example.serverprovision.provisioning.setting.vo.SettingCopyName;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import java.util.List;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import java.util.stream.Collectors;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 /**
  * guest 세팅 정의서 쓰기 — JPA 구현 (U2-3, InMemory 스텁 대체).
@@ -85,6 +87,19 @@ public class JpaSettingCommandService implements SettingCommandService {
         repository.flush();
         definition.attachProcesses(toProcesses(hashSecrets(merged)));
         return new SettingSaveResponse(definition.getId(), definition.getName());
+    }
+
+    @Override
+    public Long copy(Long id) {
+        SettingDefinition source = activeDefinition(id);
+        SettingCopyName copyName = new SettingCopyName(source.getName());
+        // 활성 정의서끼리만 이름이 겹치면 안 된다(DEC-B). 1 번 후보부터 빈 이름을 찾는다.
+        String name = IntStream.iterate(1, n -> n + 1)
+                .mapToObj(copyName::candidate)
+                .filter(candidate -> !repository.existsByNameAndIsDeletedFalse(candidate))
+                .findFirst()
+                .orElseThrow();
+        return repository.save(SettingDefinition.copyOf(source, name)).getId();
     }
 
     @Override

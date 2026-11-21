@@ -16,8 +16,11 @@
 <head><title>back-link fragment</title></head>
 <body>
 
-<div th:fragment="backLink(defaultHref)" class="n-header-actions">
-    <a class="n-back-link" data-nav-back th:href="@{__${defaultHref}__}"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
+<div th:fragment="backLink(defaultHref)" th:replace="~{fragments/common/back-link :: backLinkFor(${defaultHref}, null)}"></div>
+
+<!--/* 자기 행 키(selfKey)를 밝히는 판 — 목록을 거치지 않고 들어온 상세(복제 뒤 등)에서도 기본 목록이 이 행을 짚는다(U9 CP7). */-->
+<div th:fragment="backLinkFor(defaultHref, selfKey)" class="n-header-actions">
+    <a class="n-back-link" data-nav-back th:data-nav-self-key="${selfKey}" th:href="@{__${defaultHref}__}"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>목록으로</a>
 </div>
 
 </body>

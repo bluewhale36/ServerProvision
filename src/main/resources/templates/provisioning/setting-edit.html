@@ -34,12 +34,16 @@
 <nav th:replace="~{fragments/layout :: navbar('setting')}"></nav>
 
 <div class="n-page-lg">
+    <!-- U9 — 복제 직후 도착 안내(PRG flash). -->
+    <div th:if="${settingCopied}" class="n-alert n-alert-success" role="status"
+         th:text="#{provisioning.setting.copy.done}">정의서를 복제했습니다.</div>
+    <!-- 다른 화면과 같은 머리 줄: 제목 왼쪽, 되돌아가기 오른쪽 끝(fragments/common/back-link 와 같은 구조, 대상만 상세). -->
     <div class="n-page-header">
-        <div>
+        <h1 class="n-page-title">
+            세팅 정의서 수정: <span th:text="${setting.name}">정의서 명칭</span>
+        </h1>
+        <div class="n-header-actions">
             <a th:href="@{/provisioning/setting/{id}(id=${setting.id})}" class="n-back-link"><svg th:replace="~{fragments/icon :: icon('arrow-left')}"></svg>상세로</a>
-            <h1 class="n-page-title n-page-title-stacked">
-                세팅 정의서 수정: <span th:text="${setting.name}">정의서 명칭</span>
-            </h1>
         </div>
     </div>
 

@@ -108,4 +108,23 @@ class SettingDefinitionTest {
 
         assertThat(definition.assignBlockReason()).isEqualTo(DISABLED_REASON);
     }
+
+    @Test
+    @DisplayName("copyOf — 단계를 새 행으로 옮기되 payload 는 같고, 활성 · 사용 중단 · 삭제는 새 정의서 기본값(U9)")
+    void copyOf_copiesProcessesAndResetsFlags() {
+        SettingDefinition source = definition();
+        source.toggleEnabled();
+        source.deprecate();
+
+        SettingDefinition copy = SettingDefinition.copyOf(source, "표준 세팅 복사본");
+
+        assertThat(copy.getName()).isEqualTo("표준 세팅 복사본");
+        assertThat(copy.getProcesses()).hasSize(source.getProcesses().size());
+        assertThat(copy.getProcesses().get(0)).isNotSameAs(source.getProcesses().get(0));
+        assertThat(copy.getProcesses().get(0).getPayload()).isSameAs(source.getProcesses().get(0).getPayload());
+        assertThat(copy.getProcesses().get(0).getProcessType()).isEqualTo(source.getProcesses().get(0).getProcessType());
+        assertThat(copy.isEnabled()).isTrue();
+        assertThat(copy.isDeprecated()).isFalse();
+        assertThat(copy.isDeleted()).isFalse();
+    }
 }
