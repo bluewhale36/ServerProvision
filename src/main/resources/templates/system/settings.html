@@ -8,6 +8,7 @@
     rangeSetting : SystemSettingResponse (프로비저닝 허용 대역, 접근 불가면 null)
     rangeForm    : ProvisioningAllowedRangeRequest
     flashMessage : String (저장 후 PRG flash, optional)
+    flashWarning : String (허용 대역을 따라가는 설정의 재적용 안내, optional · HF35)
 
   액션:
     · 프로비저닝 허용 대역 저장 → POST /system/settings/provisioning-allowed-range (성공 시 self-PRG, 실패 시 재렌더)
@@ -24,6 +25,10 @@
     </div>
 
     <div th:if="${flashMessage}" class="n-alert n-alert-success" role="status" th:text="${flashMessage}">저장했습니다.</div>
+    <div th:if="${flashWarning}" class="n-alert n-alert-warning" role="status">
+        <span th:text="${flashWarning}">재적용 안내</span>
+        <a th:href="@{/system/pxe-infra/network}">PXE 네트워크 구성</a>
+    </div>
 
     <!--/* 빈 상태: 이 계정이 접근할 수 있는 설정이 없다(설정마다 최소 권한). */-->
     <th:block th:if="${#lists.isEmpty(settings)}">

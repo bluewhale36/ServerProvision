@@ -86,4 +86,13 @@ class PxeNetworkConfigTest {
         assertThat(config.getLeaseSeconds()).isNull();
         assertThat(proxy().getDhcpMode()).isEqualTo(DhcpMode.PROXY);
     }
+
+    @Test
+    @DisplayName("HF35 — 저장된 서브넷과 허용 대역이 다르면 재적용 필요(표기 정규화 뒤 같으면 아님)")
+    void subnetDiffersFrom() {
+        assertThat(proxy().subnetDiffersFrom(SubnetCidr.of("10.1.1.0/24"))).isFalse();
+        assertThat(proxy().subnetDiffersFrom(SubnetCidr.of(" 10.1.1.0/24 "))).isFalse();
+        assertThat(proxy().subnetDiffersFrom(SubnetCidr.of("10.1.2.0/24"))).isTrue();
+        assertThat(proxy().subnetDiffersFrom(SubnetCidr.of("10.1.0.0/16"))).isTrue();
+    }
 }

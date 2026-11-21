@@ -3,7 +3,6 @@ package com.example.serverprovision.execution.pxeinfra.validation;
 import com.example.serverprovision.execution.pxeinfra.dto.request.PxeNetworkConfigRequest;
 import com.example.serverprovision.execution.pxeinfra.enums.DhcpMode;
 import com.example.serverprovision.execution.pxeinfra.vo.LeaseSeconds;
-import com.example.serverprovision.execution.pxeinfra.vo.SubnetCidr;
 import com.example.serverprovision.execution.vo.IpAddressVO;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
@@ -11,7 +10,8 @@ import jakarta.validation.ConstraintValidatorContext;
 /**
  * {@link ValidPxeNetworkConfig} 판정기(R16 · 모드 2). VO 생성자 · 술어를 재사용해 잘못된 값을 필드 단위 위반으로 변환한다.
  * 필수 집합은 모드가 정한다({@link DhcpMode#requiresAddressing()} — 화면 차단 · 엔티티 invariant 와 같은 SSOT):
- * 두 모드 공통 = 서브넷 · 부트 서버, 자체 DHCP 만 = 범위 · 라우터 · 주 DNS · 임대. PROXY 에서 주소 배정 필드에 값이
+ * 두 모드 공통 = 부트 서버, 자체 DHCP 만 = 범위 · 라우터 · 주 DNS · 임대. 리스 범위가 서브넷 안인지는 서브넷(허용 대역)을 아는
+ * 컨트롤러가 본다(HF35). PROXY 에서 주소 배정 필드에 값이
  * 와도 검증하지 않는다 — 서버가 버릴 값이라 사용자를 막을 이유가 없다(직접 POST 도 같은 결).
  */
 public class PxeNetworkConfigValidator
@@ -25,15 +25,6 @@ public class PxeNetworkConfigValidator
         ctx.disableDefaultConstraintViolation();
         boolean valid = true;
 
-        SubnetCidr subnet = null;
-        if (isPresent(req.subnetCidr())) {
-            try {
-                subnet = SubnetCidr.of(req.subnetCidr());
-            } catch (IllegalArgumentException e) {
-                reject(ctx, "subnetCidr", e.getMessage());
-                valid = false;
-            }
-        }
         if (isPresent(req.bootServerIp())) {
             try {
                 IpAddressVO.of(req.bootServerIp());
@@ -75,12 +66,6 @@ public class PxeNetworkConfigValidator
             }
         }
 
-        // 서브넷 · 범위가 모두 파싱된 경우에만 교차 판정(부분 실패 시 개별 필드 에러가 이미 붙는다).
-        if (subnet != null && rangeStart != null && rangeEnd != null
-                && !subnet.containsRange(rangeStart, rangeEnd)) {
-            reject(ctx, "rangeEnd", "리스 범위가 서브넷 경계를 벗어나거나 시작이 끝보다 큽니다.");
-            valid = false;
-        }
         return valid;
     }
 

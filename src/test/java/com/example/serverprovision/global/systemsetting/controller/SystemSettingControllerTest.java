@@ -47,6 +47,7 @@ class SystemSettingControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean SystemSettingService systemSettingService;
     @MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
+    @MockitoBean com.example.serverprovision.global.systemsetting.spi.ProvisioningRangeFollower rangeFollower;
 
     private static final String SAVE = "/system/settings/provisioning-allowed-range";
 
@@ -97,8 +98,33 @@ class SystemSettingControllerTest {
         mvc.perform(post(SAVE).param("cidr", " 10.1.1.0/24 "))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/system/settings"))
-                .andExpect(flash().attribute("flashMessage", "프로비저닝 허용 대역을 저장했습니다."));
+                .andExpect(flash().attribute("flashMessage", "프로비저닝 허용 대역을 저장했습니다."))
+                .andExpect(flash().attributeCount(1));
         verify(systemSettingService).saveProvisioningAllowedRange(eq(ProvisioningAllowedCidr.parse("10.1.1.0/24")), eq(Set.of(Role.SUPER_ADMIN)));
+    }
+
+    @Test
+    @WithMockUser(roles = "SUPER_ADMIN")
+    @DisplayName("GET — 주의 flash 는 노랑 알림으로, PXE 네트워크 구성 링크와 함께 그린다(HF35)")
+    void page_rendersReapplyWarning() throws Exception {
+        given(systemSettingService.accessibleSettings(Set.of(Role.SUPER_ADMIN))).willReturn(List.of());
+        mvc.perform(get("/system/settings").flashAttr("flashWarning", "dnsmasq 에 반영하려면 저장 및 적용을 다시 해야 합니다."))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("n-alert n-alert-warning")))
+                .andExpect(content().string(containsString("href=\"/system/pxe-infra/network\"")));
+    }
+
+    @Test
+    @WithMockUser(roles = "SUPER_ADMIN")
+    @DisplayName("POST — 대역을 따라가는 설정이 재적용을 알리면 성공 flash 와 나눠 주의 flash 로 싣는다(HF35)")
+    void save_appendsReapplyNotice() throws Exception {
+        given(rangeFollower.reapplyNotice(ProvisioningAllowedCidr.parse("10.1.2.0/24")))
+                .willReturn(java.util.Optional.of("dnsmasq 에 반영하려면 저장 및 적용을 다시 해야 합니다."));
+
+        mvc.perform(post(SAVE).param("cidr", "10.1.2.0/24"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("flashMessage", "프로비저닝 허용 대역을 저장했습니다."))
+                .andExpect(flash().attribute("flashWarning", "dnsmasq 에 반영하려면 저장 및 적용을 다시 해야 합니다."));
     }
 
     @ParameterizedTest(name = "{0} → {1}")
