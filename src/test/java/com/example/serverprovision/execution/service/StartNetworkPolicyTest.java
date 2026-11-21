@@ -65,6 +65,15 @@ class StartNetworkPolicyTest {
     }
 
     @Test
+    @DisplayName("HF37 — primary NIC 의 IP 가 비어 있으면 500 이 아니라 LAN 모름")
+    void primaryWithoutIp() {
+        HostNicBinding noIp = HostNicBinding.builder().id(UUID.randomUUID()).macAddress(MacAddressVO.of("aa:bb:cc:dd:ee:01"))
+                .ipSource(IpSource.DHCP).isPrimary(true).build();
+        assertThat(kinds(policy.blocksOf(IN_BMC, List.of(noIp, nic("10.1.1.5", false)))))
+                .containsExactly(StartNetworkBlockKind.LAN_UNKNOWN);
+    }
+
+    @Test
     @DisplayName("가드용: 상세 · NIC 를 저장소에서 읽는다(상세 없음 = BMC 모름)")
     void byServerId() {
         UUID id = UUID.randomUUID();
