@@ -322,8 +322,10 @@ kbd {
     max-width: 1200px;
 }
 
+/* 제목과 오른쪽 요소가 한 줄에 들어가지 않으면 오른쪽 요소가 다음 줄로 내려간다(U9 CP7). 제목을 짓누르지 않는다. */
 .n-page-header {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
     gap: 16px;
@@ -331,7 +333,9 @@ kbd {
 }
 
 /* 제목은 줄어들지 않고 단어 안에서 끊기지 않는다 — 좁은 폭에서 오른쪽 동작 묶음이 제목을 밀어
-   '시스템 자 / 산' 으로 갈랐다(CP5 F-6). 한국어는 기본값이 음절 단위 줄바꿈이라 keep-all 이 필요하다. */
+   '시스템 자 / 산' 으로 갈랐다(CP5 F-6). 한국어는 기본값이 음절 단위 줄바꿈이라 keep-all 이 필요하다.
+   다만 띄어쓰기 없는 긴 이름은 끊을 자리가 없어 화면 밖으로 밀려 가로 스크롤이 생겼다(U9 CP7). 폭을 머리 줄 안으로
+   묶고, 한 낱말이 그 폭보다 길 때만 낱말 안에서 끊는다. */
 .n-page-title {
     font-size: 26px;
     font-weight: 700;
@@ -339,7 +343,9 @@ kbd {
     line-height: 1.23;
     margin: 0;
     flex-shrink: 0;
+    max-width: 100%;
     word-break: keep-all;
+    overflow-wrap: anywhere;
 }
 
 /* 되돌아가기는 두 어절이다 — 제목 아래 칩이 늘어 머리가 좁아져도 '목록으 / 로' 로 갈리지 않는다(S21-1 실측). */

@@ -759,7 +759,7 @@
                             <option value="SPECIFIED">직접 지정</option>
                         </select>
                         <div class="n-cell-pair dgCapacityValue" hidden>
-                            <input type="number" class="n-input dgCapacitySize" min="1" placeholder="480">
+                            <input type="number" class="n-input dgCapacitySize" min="1" placeholder="100">
                             <select class="n-select dgCapacityUnit">
                                 <option th:each="unit : ${diskCapacityUnits}" th:value="${unit.name()}" th:text="${unit.symbol}"></option>
                             </select>

@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
  * 세팅 정의서 lifecycle (SSR form-POST) — U3-2-b. os · board lifecycle 선례의
@@ -29,6 +30,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class SettingLifecycleController {
 
     private final SettingCommandService settingCommandService;
+
+    /** 복제(U9) 뒤 새 정의서의 수정 화면으로 보낸다. 이름을 바로 고칠 수 있게 상세가 아니라 수정 화면이다. */
+    @PostMapping("/{id}/copy")
+    public String copy(@PathVariable("id") Long id, RedirectAttributes redirectAttributes) {
+        Long copiedId = settingCommandService.copy(id);
+        redirectAttributes.addFlashAttribute("settingCopied", true);
+        return "redirect:/provisioning/setting/" + copiedId + "/edit";
+    }
 
     @PostMapping("/{id}/delete")
     public String delete(@PathVariable("id") Long id) {

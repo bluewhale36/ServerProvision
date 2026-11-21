@@ -114,6 +114,13 @@
                 && window.location.pathname === String(top.to).split('?')[0];
         if (!mine) {
             write(STACK_KEY, null);
+            // 흐름이 끊겨 기본 목록으로 갈 때도 이 화면이 자기 행 키를 밝혔으면(data-nav-self-key) 그 목록에서 짚는다.
+            // 복제 뒤처럼 목록을 거치지 않고 들어온 상세가 그 예다(U9 CP7). 기본 목록 첫 쪽에 그 행이 없으면 침묵한다.
+            var selfKey = back.getAttribute('data-nav-self-key');
+            var href = back.getAttribute('href');
+            if (selfKey && isInternal(href)) {
+                write(PENDING_KEY, {path: href.split('?')[0], key: selfKey});
+            }
             return;   // 기본 동작 — <a href> 가 그대로 열린다
         }
 

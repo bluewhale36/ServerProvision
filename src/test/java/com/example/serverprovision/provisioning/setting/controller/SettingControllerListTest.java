@@ -90,8 +90,8 @@ class SettingControllerListTest {
                 .andExpect(content().string(not(containsString("setting-list.js"))));
 
         SettingListQuery q = capturedQuery();
-        assertThat(q.sort()).isEqualTo(SettingSortField.ID);
-        assertThat(q.dir()).isEqualTo(Sort.Direction.ASC);
+        assertThat(q.sort()).isEqualTo(SettingSortField.CREATED_AT);
+        assertThat(q.dir()).isEqualTo(Sort.Direction.DESC);
         assertThat(q.isFiltered(FixedClockTestConfig.TODAY)).isFalse();
         assertThat(capturedPageable().getPageSize()).isEqualTo(20);
     }

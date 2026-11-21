@@ -47,6 +47,19 @@ class SettingLifecycleControllerFlowTest {
     }
 
     @Test
+    @DisplayName("POST /{id}/copy — 복제 후 새 정의서 수정 화면으로 302 + 복제 안내 flash(U9)")
+    void copy_redirectsToNewDefinitionEdit() throws Exception {
+        org.mockito.BDDMockito.given(commandService.copy(1L)).willReturn(41L);
+
+        mvc.perform(post("/provisioning/setting/{id}/copy", 1L))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/provisioning/setting/41/edit"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attribute("settingCopied", true));
+
+        verify(commandService).copy(1L);
+    }
+
+    @Test
     @DisplayName("POST /{id}/restore — 복원 후 상세로 302")
     void restore_redirectsToDetail() throws Exception {
         mvc.perform(post("/provisioning/setting/{id}/restore", 1L))
@@ -110,6 +123,15 @@ class SettingLifecycleControllerFlowTest {
     }
 
     // ==== 404 — 없는/부적절 정의서 (forging) =========================
+
+    @Test
+    @DisplayName("POST /{id}/copy — 삭제됐거나 없는 정의서 → SettingNotFound 404 (direct POST 안전망, U9)")
+    void copy_notFound_returns404() throws Exception {
+        willThrow(new SettingNotFoundException(99L)).given(commandService).copy(99L);
+
+        mvc.perform(post("/provisioning/setting/{id}/copy", 99L).accept(org.springframework.http.MediaType.TEXT_HTML))
+                .andExpect(status().isNotFound());
+    }
 
     @Test
     @DisplayName("POST /{id}/delete — 없는 정의서 → SettingNotFound 404 (advice, forging)")

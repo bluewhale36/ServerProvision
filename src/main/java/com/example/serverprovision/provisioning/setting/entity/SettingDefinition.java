@@ -97,6 +97,16 @@ public class SettingDefinition extends BaseTimeEntity {
     }
 
     /**
+     * 원본의 단계를 그대로 옮겨 담은 새 정의서(U9 복제). 단계 내용(비밀번호 해시 포함)은 payload 째 복사하고,
+     * 활성 · 사용 중단 · 삭제 플래그는 원본을 따르지 않고 새 정의서의 기본값으로 시작한다.
+     */
+    public static SettingDefinition copyOf(SettingDefinition source, String name) {
+        return new SettingDefinition(name, source.getProcesses().stream()
+                .map(process -> new SettingProcess(process.getPayload()))
+                .toList());
+    }
+
+    /**
      * 수정 1/2 — 명칭 갱신 + 기존 단계 행 분리(orphanRemoval 대상화). 전체 교체 의미론(D4)의 전반부.
      * 후반부({@link #attachProcesses}) 사이에 flush 가 필요한 이유는 {@code JpaSettingCommandService} 참고.
      */

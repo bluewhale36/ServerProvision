@@ -27,6 +27,9 @@ public interface SettingDefinitionRepository extends JpaRepository<SettingDefini
     /** 할당 선택지({@code findAssignable}) — 활성 전용(DEC-F). 목록 화면은 S8-1 부터 {@code SettingSpecifications} 로 조회한다. */
     List<SettingDefinition> findAllByIsDeletedFalseOrderByIdAsc();
 
+    /** 활성(삭제 안 된) 정의서를 주어진 정렬로 — 할당 선택지(U9 CP7, 최근 생성 순). */
+    List<SettingDefinition> findAllByIsDeletedFalse(org.springframework.data.domain.Sort sort);
+
     /** BIOS 세팅 템플릿 사용중 판정(U2-2-3) — @ElementCollection 은 JPQL join 으로 질의한다. */
     @Query("select count(p) from SettingProcess p join p.templateRefs ref where ref = :templateId")
     long countProcessesReferencingTemplate(@Param("templateId") Long templateId);

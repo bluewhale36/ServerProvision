@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U9 Plan : 세팅 정의서 복제</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:var(--card); border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+
+  /* 🎬 라이브 데모 */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ux-toolbar input[type="text"] { flex:1 1 220px; min-width:0; padding:5px 9px; font-size:12px; border:1px solid var(--border); border-radius:5px; background:var(--card); font-family:var(--mono); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:0; overflow-wrap:break-word; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:rgba(0,0,0,0.06); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; white-space:nowrap; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:rgba(0,0,0,0.07); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:rgba(31,35,40,0.92); color:#fff; font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; box-shadow:0 4px 14px rgba(0,0,0,0.2); }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:rgba(31,35,40,0.92); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:rgba(0,117,222,0.04); } .seq .step.a2 { background:rgba(26,174,57,0.04); } .seq .step.a3 { background:rgba(221,91,0,0.04); }
+
+  /* 반응형 (명세 §3) */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    .ux-row { flex-wrap:wrap; }
+    .ux-row .label { flex:1 1 55%; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>U9 : 세팅 정의서 복제 <span class="v2-badge">feature</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> U9 (Provisioning · setting)</span>
+    <span><strong>출발</strong> 패치 항목 '세팅 정의서 복제 기능'</span>
+    <span><strong>브랜치</strong> <code>feat/U9_setting-definition-copy</code> (origin/dev 14f2cdf)</span>
+    <span><strong>생성</strong> 2026-11-21 14:01 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 · 부산물 · 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (실측)</summary>
+      <div class="body">
+        <p style="margin-top:0;">세팅 정의서를 비슷한 내용으로 하나 더 만들려면 지금은 작성 화면에서 처음부터 다시 입력해야 합니다. 이 슬라이스는 정의서 상세 화면에 [복제] 버튼을 두어, 정의서와 모든 단계를 그대로 복사한 새 정의서를 만들고 곧바로 그 수정 화면으로 보내 줍니다. 비밀번호는 저장 때 해시로만 남아 있으므로 복사본에도 해시를 그대로 옮기고, 사용자는 비밀번호를 다시 넣지 않습니다. DB 구조는 바뀌지 않습니다.</p>
+        <table>
+          <thead><tr><th>자리</th><th>지금</th></tr></thead>
+          <tbody>
+            <tr><td>정의서 엔티티 <code>SettingDefinition</code></td><td>이름(128 자) · 삭제 · 활성 · 사용 중단 플래그 + 단계 <code>SettingProcess</code> 목록(cascade ALL · orphanRemoval)</td></tr>
+            <tr><td>단계 <code>SettingProcess</code></td><td>다형 payload(JSON 컬럼, 계약 원문) + 파생 판별자 · BIOS 템플릿 참조 파생 행. 생성자 <code>new SettingProcess(payload)</code> 가 파생값을 만듦</td></tr>
+            <tr><td>비밀번호</td><td>저장 때 해시, payload 안 <code>passwordHash</code> 로만 남음(E4-1-b-2 D-18). 평문 저장 없음</td></tr>
+            <tr><td>이름 유일성</td><td>활성 정의서끼리만(<code>existsByNameAndIsDeletedFalse</code>, U3-2-b DEC-B). 삭제된 정의서 이름은 재사용 가능</td></tr>
+            <tr><td>생성 경로 <code>JpaSettingCommandService.create</code></td><td>이름 중복 → 저장된 비밀값 거부 → 참조 자원 검증 → 해시 → 저장</td></tr>
+            <tr><td>상세 화면 동작 줄</td><td>삭제 안 됨: [수정] · [삭제] / 삭제됨: [복구] · [영구 삭제] (<code>setting-detail.html</code> <code>n-form-actions</code>)</td></tr>
+            <tr><td>생명주기 컨트롤러 <code>SettingLifecycleController</code></td><td>SSR form-POST <code>/{id}/delete · restore · purge · toggle · deprecate · undeprecate</code> → 상세로 redirect(PRG)</td></tr>
+            <tr><td>복제</td><td>없음. 패치 내역 '세팅 정의서 복제 기능'(낮음, 본문 없음)</td></tr>
+            <tr><td>flash 알림</td><td><code>redirectAttributes.addFlashAttribute("flashMessage", …)</code> 선례(<code>GuestServerController</code> · <code>GuestServerGroupController</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §2 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>요구</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>정의서 상세(삭제 안 된 정의서) 동작 줄에 [복제] 버튼. [수정] 다음 자리</td></tr>
+            <tr><td>R2</td><td>[복제] → 서버가 정의서와 모든 단계를 그대로 복사해 새 정의서 저장 → 새 정의서 수정 화면으로 이동 + flash "정의서를 복제했습니다."</td></tr>
+            <tr><td>R3</td><td>새 이름 = <code>&lt;원본 이름&gt; 복사본</code>. 활성 정의서에 같은 이름이 있으면 <code>&lt;원본 이름&gt; 복사본 2</code>, <code>… 3</code> 처럼 빈 번호. 128 자를 넘으면 원본 이름 쪽을 잘라 맞춤</td></tr>
+            <tr><td>R4</td><td>비밀번호는 해시 그대로 복사(다시 입력하지 않음)</td></tr>
+            <tr><td>R5</td><td>새 정의서는 활성 · 사용 중단 아님 · 삭제 안 됨으로 시작(원본 상태를 물려받지 않음)</td></tr>
+            <tr><td>R6</td><td>삭제된 정의서는 복제하지 않음. 화면에 버튼 없음, direct POST 는 404(<code>findByIdAndIsDeletedFalse</code> 가 없음 → <code>SettingNotFoundException</code>)</td></tr>
+            <tr><td>R7</td><td>원본은 바뀌지 않음. 할당 스냅숏(U3)은 정의서와 별개라 영향 없음</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>비 목표</b> : 여러 정의서 한꺼번에 복제 · 내보내기 · 가져오기 · 복제 전 이름 입력 창(이름은 수정 화면에서 바꿉니다).</div>
+      </div>
+    </details>
+
+    <!-- 🎬 -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 : 라이브 데모</summary>
+      <div class="body">
+        <p style="margin-top:0;">정의서 상세 화면 모형입니다. [복제] 를 누르면 서버와 같은 이름 규칙(§4 <code>SettingCopyName</code>)으로 새 이름이 정해지고, 수정 화면 모형으로 넘어가며 flash 안내가 보입니다. 맨 아래 "활성 정의서 이름 목록" 에 이름을 더하거나 지우면 다음 복제 이름이 바로 달라집니다. 예를 들어 프리셋 3 에서 '복사본 2' 를 지우면 빈 번호 2 가 다시 쓰입니다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar" id="demo-presets">
+            <span class="group-label">시나리오</span>
+          </div>
+          <div class="ux-toolbar">
+            <span class="group-label">원본 상태</span>
+            <button class="seg" data-status="on" onclick="demoStatus('on')">활성</button>
+            <button class="seg" data-status="off" onclick="demoStatus('off')">비활성</button>
+            <button class="seg" data-status="dep" onclick="demoStatus('dep')">사용 중단</button>
+            <button class="seg" data-status="del" onclick="demoStatus('del')">삭제됨</button>
+          </div>
+
+          <div style="margin-top:12px;" id="demo-screen"></div>
+
+          <div class="ux-message" id="demo-message">시나리오를 고르고 [복제] 를 눌러 봅니다.</div>
+          <div class="ux-caps" id="demo-caps"></div>
+
+          <div style="margin-top:12px;">
+            <div class="ux-toolbar">
+              <span class="group-label">활성 정의서 이름 목록</span>
+              <input type="text" id="demo-new-name" placeholder="더할 이름">
+              <button class="n-demo-btn" onclick="demoAddName()">더하기</button>
+            </div>
+            <div id="demo-names"></div>
+          </div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> : 데모의 이름 결정 JS(<code>copyCandidate(base, n)</code> · <code>firstFreeCopyName</code>)는 서버의 <code>SettingCopyName.candidate(n)</code> 과 서비스의 <code>existsByNameAndIsDeletedFalse</code> 순차 확인을 같은 식으로 옮긴 것입니다.</div>
+      </div>
+    </details>
+
+    <!-- §3 -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>POST <span class="chip new">신규</span></td><td><code>/provisioning/setting/{id}/copy</code></td><td>상세 화면 form(CSRF). 복제 후 수정 화면으로</td><td>302 → <code>/provisioning/setting/{newId}/edit</code> · 없는 · 삭제된 id 404</td></tr>
+            <tr><td>GET <span class="chip keep">기존</span></td><td><code>/provisioning/setting/{id}/edit</code></td><td>새 정의서 수정 폼(flash 표시)</td><td>200</td></tr>
+          </tbody>
+        </table>
+        <div class="seq">
+          <div class="actor a1">브라우저</div><div class="actor a2">SettingLifecycleController</div><div class="actor a3">JpaSettingCommandService</div>
+          <div class="step a1">상세 [복제] form POST</div><div class="step a2"><code>copy(id)</code></div><div class="step a3"></div>
+          <div class="step a1"></div><div class="step a2"><code>settingCommandService.<wbr>copy(id)</code></div><div class="step a3">활성 원본 조회 <code>findByIdAndIsDeletedFalse</code>, 없으면 404</div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">이름 결정 <code>SettingCopyName</code> + <code>existsByNameAndIsDeletedFalse</code></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"><code>SettingDefinition.<wbr>copyOf(원본, 새 이름)</code> → save → 새 id</div>
+          <div class="step a1"></div><div class="step a2">flash "정의서를 복제했습니다." · <code>redirect:/provisioning/<wbr>setting/{newId}/edit</code></div><div class="step a3"></div>
+          <div class="step a1">302 → 수정 화면 + flash</div><div class="step a2"></div><div class="step a3"></div>
+        </div>
+        <p>실패 경로: 없는 · 삭제된 id 는 서비스가 <code>SettingNotFoundException</code> 을 던지고 advice 가 404 로 바꿉니다.</p>
+      </div>
+    </details>
+
+    <!-- §4 -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델</summary>
+      <div class="body">
+        <h4>SettingDefinition 필드와 복사 방식</h4>
+        <table>
+          <thead><tr><th>필드</th><th>복사본에서</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code> (128 자)</td><td><code>SettingCopyName</code> 이 정한 새 이름</td></tr>
+            <tr><td><code>isEnabled</code> · <code>isDeprecated</code> · <code>isDeleted</code></td><td>생성자 기본값(활성 · 사용 중단 아님 · 삭제 안 됨, R5)</td></tr>
+            <tr><td><code>processes</code></td><td>단계마다 <code>new SettingProcess(원본 단계의 payload)</code> 로 새 행</td></tr>
+            <tr><td>payload 안 <code>passwordHash</code></td><td>payload 그대로라 해시 그대로(R4)</td></tr>
+          </tbody>
+        </table>
+        <h4>새 메서드 · 값 객체</h4>
+        <table>
+          <thead><tr><th>이름</th><th>종류</th><th>하는 일</th></tr></thead>
+          <tbody>
+            <tr><td><code>SettingDefinition.copyOf(SettingDefinition source, String name)</code></td><td>정적 팩터리 <span class="chip new">신규</span></td><td>단계마다 새 <code>SettingProcess</code> 행, 플래그는 생성자 기본값</td></tr>
+            <tr><td><code>SettingCopyName</code> (<code>vo/</code>)</td><td>record <span class="chip new">신규</span></td><td><code>of(원본 이름)</code> · <code>candidate(n)</code> · 128 자 맞춤</td></tr>
+            <tr><td><code>SettingCommandService.copy(Long id): Long</code></td><td>서비스 시그니처 <span class="chip new">신규</span></td><td>활성 원본 조회 → 이름 결정 → 저장 → 새 id</td></tr>
+          </tbody>
+        </table>
+        <pre><code>// candidate(n): n = 1 이면 "&lt;원본&gt; 복사본", 2 이상이면 "&lt;원본&gt; 복사본 n"
+//               꼬리를 붙여 128 자를 넘으면 원본 이름 쪽을 잘라 맞춘다
+// 서비스: 첫 빈 후보를 하나씩 확인
+SettingCopyName copyName = SettingCopyName.of(source.getName());
+int n = 1;
+while (repository.existsByNameAndIsDeletedFalse(copyName.candidate(n))) n++;</code></pre>
+        <div class="callout">상한은 두지 않습니다. 실질 상한에 닿을 수 없다고 보고, 예외나 시각 꼬리 대신 그냥 다음 번호를 씁니다. 이름 규칙을 원시 문자열 연산으로 흩뿌리지 않으려고 값 객체 <code>SettingCopyName</code> 으로 묶습니다(Primitive Obsession 금지). 🎬 데모 JS 의 이름 규칙은 이 record 와 같은 식입니다.</div>
+        <div class="callout success"><b>DB 변경 없음</b> : 스키마 · DDL 없음.</div>
+      </div>
+    </details>
+
+    <!-- §5 -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>내용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>이 plan</td><td><span class="chip cp1">CP1</span> 승인</td></tr>
+            <tr><td>2</td><td>상세 화면 [복제] form</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>3</td><td><code>SettingLifecycleController.copy</code></td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>4</td><td>DTO 없음(경로 변수만)</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td><code>SettingCommandService.copy(Long id): Long</code> 시그니처</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6 · 7</td><td>리포지토리 변경 없음 · <code>copyOf</code> · <code>SettingCopyName</code></td><td><span class="chip cp3">CP3</span></td></tr>
+            <tr><td>8</td><td>서비스 본체 + 테스트</td><td><span class="chip cp4">CP4</span> 승인</td></tr>
+            <tr><td>9</td><td>스키마 변경 없음(N/A)</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>샌드박스 브라우저 검증</td><td><span class="chip cp5">CP5</span></td></tr>
+            <tr><td>11</td><td>report</td><td><span class="chip cp6">CP6</span> 승인</td></tr>
+            <tr><td>12</td><td>사용자 E2E</td><td><span class="chip cp7">CP7</span> 승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(테스트까지 끝낸 코드 검수) · CP6 · CP7</b> 넷입니다. 무중단 구간은 둘입니다. ① CP1 승인에서 CP4 게이트 지점까지(main 구현, 테스트 작성, 규약 검사 포함 전체 테스트 green, 경계 보고만) ② CP4 승인에서 CP6 제출까지(CP5 검증, report 산출).</div>
+      </div>
+    </details>
+
+    <!-- §6 -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>파일</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><code>SettingCopyNameTest</code> <span class="chip new">신규</span></td><td>첫 후보 · 번호 후보 · 128 자 자르기 · 앞뒤 공백</td></tr>
+            <tr><td><code>SettingDefinitionTest</code> 또는 서비스 테스트</td><td><code>copyOf</code>: 단계 수 · payload 같음 · 새 행 · 플래그 초기화 · 비밀번호 해시 유지</td></tr>
+            <tr><td><code>JpaSettingCommandServiceTest</code> <span class="chip mod">보강</span></td><td>copy: 빈 번호 찾기 · 삭제된 원본 404</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (<code>@WebMvcTest</code>)</h4>
+        <table>
+          <thead><tr><th>범주</th><th>시나리오</th><th>파일</th></tr></thead>
+          <tbody>
+            <tr><td>성공 302</td><td>Location <code>/provisioning/setting/{newId}/edit</code> + flash</td><td>새 <code>SettingLifecycleControllerCopyFlowTest</code> 또는 기존 <code>SettingLifecycleControllerFlowTest</code> 보강</td></tr>
+            <tr><td>404</td><td>없는 id · 삭제된 id (<code>SettingNotFoundException</code>)</td><td>위와 같음</td></tr>
+            <tr><td>뷰</td><td>[복제] 가 삭제 안 된 정의서에만 렌더</td><td><code>SettingControllerViewTest</code></td></tr>
+            <tr><td>400 · 409</td><td>해당 없음: 입력이 없고, 이름은 서버가 빈 번호로 정해 충돌이 생기지 않음</td><td>-</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">새 예외 클래스 없음. 404 는 기존 <code>SettingNotFoundException</code> 을 실제로 트리거하는 시나리오(없는 id · 삭제된 id)로 확인합니다.</div>
+      </div>
+    </details>
+
+    <!-- §7 -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외</th><th>HTTP</th><th>구분</th><th>발생</th></tr></thead>
+          <tbody>
+            <tr><td><code>SettingNotFoundException</code></td><td>404 (advice)</td><td><span class="chip keep">재사용</span></td><td>없는 · 삭제된 원본</td></tr>
+          </tbody>
+        </table>
+        <p>새 예외는 없습니다.</p>
+      </div>
+    </details>
+
+    <!-- §8 -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 · 부산물 · 주의</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>결정</th><th>비채택 대안</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1</td><td>서버가 통째 복사해 저장한 뒤 수정 화면으로</td><td>(b) 작성 화면을 원본 값으로 미리 채우고 사용자가 저장<br>(c) JS 가 원본을 받아 생성 요청</td><td>(b) 비밀번호가 해시라 화면에 다시 채울 수 없음. 수정 화면의 '기존 유지' 는 같은 정의서 id 를 가리킴. 사용자가 비밀번호를 다시 넣어야 함<br>(c) (b) 와 같은 비밀번호 문제</td></tr>
+            <tr><td>D-2</td><td>복사 때 참조 자원 검증을 다시 하지 않음</td><td>(b) 생성 경로와 같은 검증</td><td>원본이 지금 막힌 자원을 가리키면 복제 자체가 막혀, 복제 뒤 고치려던 사용자가 막힘. 원본과 같은 상태의 사본일 뿐이고 수정 화면 · 저장 검증 · 실행 준비도가 그대로 알려 줌</td></tr>
+            <tr><td>D-3</td><td>이름 = "복사본" 꼬리 + 빈 번호</td><td>(b) 이름 입력 창<br>(c) 시각 꼬리</td><td>(b) 작은 기능에 창 하나가 더 생김. 수정 화면에서 바로 바꿀 수 있음<br>(c) 길고 읽기 어려움</td></tr>
+            <tr><td>D-4</td><td>복사본은 활성 · 사용 중단 아님으로 시작</td><td>(b) 원본 상태 물려받기</td><td>사용 중단 정의서를 고치려고 복제한 사본까지 사용 중단으로 남아 다시 풀어야 함</td></tr>
+            <tr><td>D-5</td><td>버튼은 [수정] 다음, <code>n-btn-secondary</code></td><td>-</td><td>동작 줄의 다른 비파괴 동작과 같은 계열(DESIGN.md 5절 고르기 표 · SPV_Design 검수)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>주의</b> : 버튼 라벨 '복제' 와 flash 문구는 메시지 키로 둡니다(new-user-copy). <code>action.*</code> 사전에 '복제' 가 없으면 <code>action.copy=복제</code> 를 더합니다.</div>
+      </div>
+    </details>
+
+    <!-- §9 -->
+    <details class="section" id="s9">
+      <summary>§9. Verification (CP5 계획)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>정의서 상세 [복제]</td><td>새 정의서 수정 화면 · 이름 "&lt;원본&gt; 복사본" · flash · 단계 내용 같음</td></tr>
+            <tr><td>A2</td><td>같은 원본을 한 번 더 [복제]</td><td>"&lt;원본&gt; 복사본 2"</td></tr>
+            <tr><td>A3</td><td>비밀번호가 있는 RHEL 정의서 복제 → 수정 화면에서 그대로 저장</td><td>저장 성공(비밀번호 '기존 유지')</td></tr>
+            <tr><td>A4</td><td>사본 이름을 바꿔 저장 · 원본 상세 다시 보기</td><td>원본 그대로</td></tr>
+            <tr><td>A5</td><td>사용 중단 · 비활성 원본 복제</td><td>사본은 활성 · 사용 중단 아님</td></tr>
+            <tr><td>B1</td><td>삭제된 정의서 상세</td><td>[복제] 없음</td></tr>
+            <tr><td>B2</td><td>삭제된 · 없는 id 로 direct POST</td><td>404</td></tr>
+            <tr><td>B3</td><td>[복제] 연타</td><td>사본이 클릭 수만큼(이름 번호 이어짐) 또는 한 번(서버 PRG). 관측해 기록</td></tr>
+            <tr><td>C1</td><td>화면 문구 · design-audit · 콘솔</td><td>걸림 0 · pageerror 0</td></tr>
+          </tbody>
+        </table>
+        <ul class="check-list" data-storage="U9-verify">
+          <li><label><input type="checkbox" data-key="build"> <span>빌드: <code>./gradlew compileJava compileTestJava</code> 통과</span></label></li>
+          <li><label><input type="checkbox" data-key="test"> <span>기능 · 회귀: <code>./gradlew test</code> 전체 green(코딩 규약 검사 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="sandbox"> <span>CP5 샌드박스 A1 ~ C1, 항목별 스크린샷</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- §10 -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <p style="margin-top:0;">기준 패키지 <code>com.example.serverprovision.provisioning.setting</code>. 수정 6 · 신규 3(값 객체 1 + 테스트 2) · 유지 1.</p>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>entity/SettingDefinition.java</code></td><td><code>copyOf</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>service/SettingCommandService.java</code></td><td><code>copy(Long id): Long</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>service/JpaSettingCommandService.java</code></td><td>copy 본체</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>controller/SettingLifecycleController.java</code></td><td><code>POST /{id}/copy</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/<wbr>setting-detail.html</code></td><td>[복제] form</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td><code>action.copy</code> · flash 문구</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>vo/SettingCopyName.java</code></td><td>이름 규칙 record</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>SettingCopyNameTest</code></td><td>단위</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>copy flow 테스트</td><td>통합(새 파일 또는 <code>SettingLifecycleControllerFlowTest</code> 보강)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>repository/<wbr>SettingDefinitionRepository.java</code></td><td>기존 쿼리 재사용</td></tr>
+          </tbody>
+        </table>
+        <p>§6 의 보강 대상 <code>JpaSettingCommandServiceTest</code> · <code>SettingControllerViewTest</code> 는 기존 테스트 파일입니다.</p>
+      </div>
+    </details>
+
+    <!-- §11 -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="U9-milestone">
+          <li><label><input type="checkbox" data-key="cp1"> <span>CP1 승인</span></label></li>
+          <li><label><input type="checkbox" data-key="cp4"> <span>구현 · 테스트 · CP4</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 샌드박스</span></label></li>
+          <li><label><input type="checkbox" data-key="cp6"> <span>CP6 report</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7 · PR(dev 대상)</span></label></li>
+          <li><label><input type="checkbox" data-key="next"> <span>이어서 E4-1-b-7 CP1(HF34 PR #128 병합 뒤 구현)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 섹션 open + smooth scroll
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) {}
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 이름 규칙 = SettingCopyName.candidate(n) + 서비스의 existsByNameAndIsDeletedFalse 순차 확인
+  // ─────────────────────────────────────────────────────────────
+  const COPY_MAX_LENGTH = 128;   // SettingDefinition.name 컬럼 길이
+  function copySuffix(n) { return n === 1 ? ' 복사본' : ' 복사본 ' + n; }
+  function copyCandidate(base, n) {
+    const suffix = copySuffix(n);
+    if (base.length + suffix.length > COPY_MAX_LENGTH) return base.substring(0, COPY_MAX_LENGTH - suffix.length) + suffix;
+    return base + suffix;
+  }
+  function firstFreeCopyName(base, activeNames) {
+    const tried = [];
+    for (let n = 1; ; n++) {
+      const name = copyCandidate(base, n);
+      const exists = activeNames.includes(name);
+      tried.push({ n: n, name: name, exists: exists });
+      if (!exists) return { name: name, tried: tried };
+    }
+  }
+
+  const LONG_NAME = 'RHEL 9.4 GPU 노드 표준 구성 '.repeat(6).substring(0, 125);
+  const SRC_PROCESSES = ['BIOS 설정 적용', 'RAID 구성', 'OS 설치 (root 비밀번호 해시 포함)'];
+  const BASE_NAME = 'RHEL 9.4 기본';
+  const OTHER = 'Windows 2025 표준';
+  const PRESETS = [
+    { label: '1 평범한 복제', src: BASE_NAME, status: 'on', active: [BASE_NAME, OTHER] },
+    { label: '2 복사본이 이미 있음', src: BASE_NAME, status: 'on', active: [BASE_NAME, OTHER, BASE_NAME + ' 복사본'] },
+    { label: '3 복사본 2, 3 까지 있음', src: BASE_NAME, status: 'on', active: [BASE_NAME, OTHER, BASE_NAME + ' 복사본', BASE_NAME + ' 복사본 2', BASE_NAME + ' 복사본 3'] },
+    { label: '4 이름이 128 자에 가까움', src: LONG_NAME, status: 'on', active: [LONG_NAME, OTHER] },
+    { label: '5 삭제된 정의서', src: BASE_NAME, status: 'del', active: [OTHER] }
+  ];
+  const SOURCE_ID = 12;
+  const STATUS = { on: ['활성', 'on'], off: ['비활성', 'off'], dep: ['사용 중단', 'dep'], del: ['삭제됨', 'del'] };
+  const st = { preset: 0, src: BASE_NAME, status: 'on', active: [], screen: 'detail', nextId: 40, copy: null, lastPost: null };
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function setMessage(text, kind) {
+    const m = document.getElementById('demo-message');
+    m.className = 'ux-message' + (kind ? ' ' + kind : '');
+    m.textContent = text;
+  }
+
+  function demoScenario(i) {
+    const p = PRESETS[i];
+    st.preset = i; st.src = p.src; st.status = p.status; st.active = p.active.slice();
+    st.screen = 'detail'; st.copy = null; st.lastPost = null; st.nextId = 40;
+    setMessage(p.status === 'del'
+      ? '삭제된 정의서입니다. 동작 줄에 [복제] 가 없습니다. 화면 밖 요청은 [직접 POST 보내기] 로 확인합니다.'
+      : '[복제] 를 눌러 봅니다.', '');
+    demoRender();
+  }
+  function demoStatus(s) {
+    const wasDeleted = st.status === 'del';
+    st.status = s; st.screen = 'detail'; st.copy = null; st.lastPost = null;
+    if (s === 'del') st.active = st.active.filter(n => n !== st.src);
+    else if (wasDeleted && !st.active.includes(st.src)) st.active.push(st.src);
+    setMessage('원본 상태를 ' + STATUS[s][0] + '(으)로 바꿨습니다.', '');
+    demoRender();
+  }
+  function demoCopy(direct) {
+    if (st.status === 'del') {
+      st.lastPost = { found: false };
+      setMessage('404 Not Found. 삭제된 정의서는 활성 조회에서 찾지 못해 SettingNotFoundException 이 납니다.', 'error');
+      demoRender();
+      return;
+    }
+    const r = firstFreeCopyName(st.src, st.active);
+    st.nextId += 1;
+    st.active.push(r.name);
+    st.copy = { id: st.nextId, name: r.name, tried: r.tried, direct: !!direct };
+    st.lastPost = { found: true };
+    st.screen = 'edit';
+    setMessage('정의서를 복제했습니다.', 'success');
+    demoRender();
+  }
+  function demoOther(label) {
+    setMessage('[' + label + '] 는 이 데모에서 재현하지 않습니다. 이 데모는 복제만 보입니다.', '');
+  }
+  function demoBack() { st.screen = 'detail'; setMessage('원본 상세로 돌아왔습니다. [복제] 를 한 번 더 누르면 다음 번호가 붙습니다.', ''); demoRender(); }
+  function demoAddName() {
+    const input = document.getElementById('demo-new-name');
+    const name = input.value;
+    if (!name.trim()) { setMessage('더할 이름을 입력해야 합니다.', 'error'); return; }
+    if (st.active.includes(name)) { setMessage('이미 있는 활성 정의서 이름입니다.', 'error'); return; }
+    st.active.push(name); input.value = '';
+    setMessage('활성 정의서 이름을 더했습니다.', '');
+    demoRender();
+  }
+  function demoRemoveName(i) {
+    st.active.splice(i, 1);
+    setMessage('활성 정의서 이름을 지웠습니다.', '');
+    demoRender();
+  }
+
+  function btn(label, onclick, extra) {
+    return '<button class="n-demo-btn"' + (extra ? ' style="' + extra + '"' : '') + ' onclick="' + onclick + '">' + label + '</button>';
+  }
+  function renderDetail() {
+    const s = STATUS[st.status];
+    const deleted = st.status === 'del';
+    let actions;
+    if (deleted) {
+      actions = '<span class="tip" data-tip="삭제된 정의서에는 복제 버튼을 그리지 않습니다."><span class="chip keep">복제 없음</span></span>'
+        + btn('복구', "demoOther('복구')")
+        + btn('영구 삭제', "demoOther('영구 삭제')", 'border-color:var(--red);color:var(--red)');
+    } else {
+      actions = btn('수정', "demoOther('수정')") + btn('복제', 'demoCopy(false)')
+        + btn('삭제', "demoOther('삭제')", 'border-color:var(--red);color:var(--red)');
+    }
+    let html = '<div class="ux-row' + (deleted ? ' muted' : '') + '"><strong>정의서 상세</strong><span class="label">' + esc(st.src) + '</span>'
+      + '<span class="badge ' + s[1] + '">' + s[0] + '</span></div>';
+    SRC_PROCESSES.forEach((p, i) => {
+      html += '<div class="ux-row child' + (deleted ? ' muted' : '') + '"><span class="label">단계 ' + (i + 1) + ', ' + esc(p) + '</span></div>';
+    });
+    html += '<div class="ux-row"><span class="label">동작 줄</span>' + actions + '</div>';
+    html += '<div class="ux-row"><span class="label">화면 밖 요청 POST /provisioning/setting/' + SOURCE_ID + '/copy</span>'
+      + '<span class="tip" data-tip="화면 버튼을 거치지 않은 요청입니다. 서버 판정만 확인합니다.">' + btn('직접 POST 보내기', 'demoCopy(true)') + '</span></div>';
+    return html;
+  }
+  function renderEdit() {
+    const c = st.copy;
+    let html = '<div class="ux-row"><strong>정의서 수정</strong><span class="label">id ' + c.id + '</span><span class="badge on">활성</span></div>';
+    html += '<div class="ux-row child"><span class="label">이름 칸: ' + esc(c.name) + ' (' + c.name.length + ' 자)</span></div>';
+    SRC_PROCESSES.forEach((p, i) => {
+      html += '<div class="ux-row child"><span class="label">단계 ' + (i + 1) + ', ' + esc(p) + '</span><span class="chip new">새 행</span></div>';
+    });
+    html += '<div class="ux-row child"><span class="label">root 비밀번호: 기존 유지 (해시 그대로 복사)</span></div>';
+    html += '<div class="ux-row"><span class="label">원본 정의서는 바뀌지 않습니다.</span>' + btn('원본 상세로', 'demoBack()') + '</div>';
+    return html;
+  }
+  function renderCaps() {
+    const lines = [];
+    lines.push('POST /provisioning/setting/' + SOURCE_ID + '/copy');
+    if (st.status === 'del') {
+      lines.push('findByIdAndIsDeletedFalse(' + SOURCE_ID + ') = <span class="t">없음</span>');
+      lines.push('결과 = SettingNotFoundException, 404 (advice)');
+      lines.push('화면 = 동작 줄에 복제 버튼 없음 (복구, 영구 삭제)');
+      return lines.join('\n');
+    }
+    lines.push('findByIdAndIsDeletedFalse(' + SOURCE_ID + ') = <span class="f">있음</span>');
+    lines.push('SettingCopyName.of(원본 이름), 원본 길이 = ' + st.src.length + ' 자');
+    const preview = st.screen === 'edit' && st.copy ? null : firstFreeCopyName(st.src, st.active);
+    const tried = preview ? preview.tried : st.copy.tried;
+    lines.push(preview ? '[지금 복제하면]' : '[직전 복제]');
+    tried.forEach(t => {
+      const cut = t.name.length === COPY_MAX_LENGTH && st.src.length + copySuffix(t.n).length > COPY_MAX_LENGTH;
+      lines.push('  candidate(' + t.n + ') = "' + t.name + '" (' + t.name.length + ' 자' + (cut ? ', 원본 이름을 ' + (COPY_MAX_LENGTH - copySuffix(t.n).length) + ' 자로 자름' : '') + ')');
+      lines.push('    existsByNameAndIsDeletedFalse = ' + (t.exists ? '<span class="t">true</span>, 다음 번호' : '<span class="f">false</span>, 채택'));
+    });
+    lines.push('copyOf(원본, 새 이름) = 단계 ' + SRC_PROCESSES.length + ' 행 새로 생성, payload 같음, passwordHash 그대로');
+    lines.push('새 정의서 플래그 = isEnabled true, isDeprecated false, isDeleted false (원본 상태 ' + STATUS[st.status][0] + ' 무관)');
+    if (st.copy && st.screen === 'edit') lines.push('302 Location = /provisioning/setting/' + st.copy.id + '/edit, flash = "정의서를 복제했습니다."');
+    return lines.join('\n');
+  }
+  function renderNames() {
+    if (!st.active.length) return '<div class="ux-row muted"><span class="label">활성 정의서 없음</span></div>';
+    return st.active.map((n, i) =>
+      '<div class="ux-row' + (n === st.src && st.status !== 'del' ? '' : ' child') + '"><span class="label">' + esc(n) + '</span>'
+      + (n === st.src && st.status !== 'del' ? '<span class="badge on">원본</span>' : '')
+      + btn('지우기', 'demoRemoveName(' + i + ')') + '</div>').join('');
+  }
+  function demoRender() {
+    document.getElementById('demo-presets').innerHTML = '<span class="group-label">시나리오</span>'
+      + PRESETS.map((p, i) => '<button class="seg' + (i === st.preset ? ' active' : '') + '" data-sc="' + i + '" onclick="demoScenario(' + i + ')">' + p.label + '</button>').join('');
+    document.querySelectorAll('.ux-toolbar .seg[data-status]').forEach(b => b.classList.toggle('active', b.dataset.status === st.status));
+    document.getElementById('demo-screen').innerHTML = st.screen === 'edit' && st.copy ? renderEdit() : renderDetail();
+    document.getElementById('demo-caps').innerHTML = renderCaps();
+    document.getElementById('demo-names').innerHTML = renderNames();
+  }
+
+  demoScenario(0);   // 초기 세팅. 여기서 demoRender() 를 1회 부른다(불가침 규약)
+</script>
+</body>
+</html>
