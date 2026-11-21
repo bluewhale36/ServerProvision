@@ -31,7 +31,7 @@
 <div class="n-page-lg">
     <div class="n-page-header">
         <h1 class="n-page-title" th:text="${setting.name}">정의서 명칭</h1>
-        <div th:replace="~{fragments/common/back-link :: backLink('/provisioning/setting')}"></div>
+        <div th:replace="~{fragments/common/back-link :: backLinkFor('/provisioning/setting', ${setting.id})}"></div>
     </div>
 
     <!-- soft-deleted 안내 배너 — 삭제분에 접근했을 때 복원/영구삭제 유도(DEC-F). -->
@@ -93,6 +93,11 @@
         <th:block th:unless="${setting.deleted}">
             <a th:href="@{/provisioning/setting/{id}/edit(id=${setting.id})}"
                class="n-btn n-btn-secondary">수정</a>
+            <!-- U9 — 단계째 복사한 새 정의서의 수정 화면으로 간다. 삭제된 정의서에는 이 줄이 [복구] · [영구 삭제] 로 바뀌어 없다. -->
+            <form method="post" class="n-inline-form"
+                  th:action="@{/provisioning/setting/{id}/copy(id=${setting.id})}">
+                <button type="submit" class="n-btn n-btn-secondary" th:text="#{action.copy}">복제</button>
+            </form>
             <form method="post" class="n-inline-form"
                   th:action="@{/provisioning/setting/{id}/delete(id=${setting.id})}"
                   data-confirm-soft-delete=""

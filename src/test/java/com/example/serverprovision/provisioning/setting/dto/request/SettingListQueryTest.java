@@ -16,12 +16,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SettingListQueryTest {
 
     @Test
-    @DisplayName("아무 조건도 없으면 번호 오름차순 · 삭제 제외 · 필터 없음")
+    @DisplayName("아무 조건도 없으면 생성 일시 내림차순(최근이 맨 위, U9 CP7) · 삭제 제외 · 필터 없음")
     void defaults() {
         SettingListQuery q = new SettingListQuery(null, null, null, null, null, null, null, null, null);
 
-        assertThat(q.sort()).isEqualTo(SettingSortField.ID);
-        assertThat(q.dir()).isEqualTo(Sort.Direction.ASC);
+        assertThat(q.sort()).isEqualTo(SettingSortField.CREATED_AT);
+        assertThat(q.dir()).isEqualTo(Sort.Direction.DESC);
         assertThat(q.includeDeleted()).isFalse();
         assertThat(q.processTypes()).isEmpty();
         assertThat(q.isFiltered(FixedClockTestConfig.TODAY)).isFalse();

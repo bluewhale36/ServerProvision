@@ -56,7 +56,8 @@ public class BiosSettingTemplateQueryService {
     private final ObjectMapper objectMapper;
 
     public List<BiosSettingTemplateSummaryResponse> findAll() {
-        return repository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
+        // 최근에 만든 템플릿이 맨 위(U9 CP7, 다른 조회 화면과 같은 기본 정렬).
+        return repository.findAll(Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))).stream()
                 .map(t -> BiosSettingTemplateSummaryResponse.from(t, usageChecker.isInUse(t.getId())))
                 .toList();
     }

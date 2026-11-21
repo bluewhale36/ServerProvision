@@ -21,6 +21,12 @@ public interface SettingCommandService {
     SettingSaveResponse update(Long id, SettingSaveRequest request);
 
     /**
+     * 복제(U9) — 활성 정의서를 단계째 복사해 겹치지 않는 이름의 새 정의서로 저장하고 그 id 를 돌려준다.
+     * @throws SettingNotFoundException 활성 정의서가 없을 때(삭제된 정의서 포함, advice 404)
+     */
+    Long copy(Long id);
+
+    /**
      * soft-delete — 활성 목록에서 감춘다. 멱등. 삭제는 차단이 아니라 경고(DEC-C)라 정상 경로에 예외가 없다.
      *
      * @throws SettingNotFoundException 해당 id 의 정의서가 없을 때 (advice 404)

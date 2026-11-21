@@ -34,7 +34,8 @@ public record SettingListQuery(
         Sort.Direction dir
 ) implements DateRangeQuery {
 
-    public static final SettingSortField DEFAULT_SORT = SettingSortField.ID;
+    /** 최근에 만든 정의서가 1 쪽 맨 위에 온다(U9 CP7, 서버 · 그룹 · 사용자 목록과 같은 기본값). */
+    public static final SettingSortField DEFAULT_SORT = SettingSortField.CREATED_AT;
 
     public SettingListQuery {
         q = (q == null || q.isBlank()) ? null : q.trim();

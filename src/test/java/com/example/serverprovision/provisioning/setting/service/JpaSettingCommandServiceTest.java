@@ -141,6 +141,38 @@ class JpaSettingCommandServiceTest {
     }
 
     @Test
+    @DisplayName("copy — 활성 원본을 복사해 첫 빈 이름(복사본 · 복사본 2 …)으로 저장하고 새 id 를 돌려준다(U9)")
+    void copy_savesUnderFirstFreeName() {
+        SettingDefinition source = definitionNamed("표준 세팅");
+        given(repository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(source));
+        given(repository.existsByNameAndIsDeletedFalse("표준 세팅 복사본")).willReturn(true);
+        given(repository.existsByNameAndIsDeletedFalse("표준 세팅 복사본 2")).willReturn(false);
+        given(repository.save(any(SettingDefinition.class))).willAnswer(invocation -> {
+            SettingDefinition saved = invocation.getArgument(0);
+            org.springframework.test.util.ReflectionTestUtils.setField(saved, "id", 41L);
+            return saved;
+        });
+
+        Long copiedId = service.copy(1L);
+
+        assertThat(copiedId).isEqualTo(41L);
+        org.mockito.ArgumentCaptor<SettingDefinition> captor = org.mockito.ArgumentCaptor.forClass(SettingDefinition.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getName()).isEqualTo("표준 세팅 복사본 2");
+        assertThat(captor.getValue().getProcesses()).hasSameSizeAs(source.getProcesses());
+        assertThat(source.getName()).isEqualTo("표준 세팅");
+    }
+
+    @Test
+    @DisplayName("copy — 삭제됐거나 없는 원본은 404(SettingNotFound), 저장하지 않는다")
+    void copy_rejectsDeletedOrMissing() {
+        given(repository.findByIdAndIsDeletedFalse(7L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.copy(7L)).isInstanceOf(SettingNotFoundException.class);
+        verify(repository, never()).save(any(SettingDefinition.class));
+    }
+
+    @Test
     @DisplayName("softDelete — is_deleted 토글 + 멱등(이미 삭제된 것 재삭제해도 no-op) · 부재 404")
     void softDelete_togglesFlag_idempotent() {
         SettingDefinition def = definitionNamed("삭제 대상");

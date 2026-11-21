@@ -77,6 +77,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class JpaSettingQueryService implements SettingQueryService {
 
+    /** 고르기 창 · 선택지도 목록과 같이 최근에 만든 정의서가 위에 온다(U9 CP7). */
+    private static final Sort RECENT_FIRST = Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"));
+
     private final SettingDefinitionRepository repository;
     private final ProcessReferenceInspectors referenceInspectors;
     // U3-2-b — 정의서 삭제 경고용 역참조 카운트(SPI, 순환 회피 DEC-D). 구현은 assignment 도메인이 제공.
@@ -123,7 +126,7 @@ public class JpaSettingQueryService implements SettingQueryService {
      */
     @Override
     public List<SettingSummaryResponse> findAssignable() {
-        return repository.findAllByIsDeletedFalseOrderByIdAsc().stream()
+        return repository.findAllByIsDeletedFalse(RECENT_FIRST).stream()
                 .filter(d -> d.assignBlockReason() == null)
                 .map(this::toAssignableSummary)
                 .toList();
@@ -131,11 +134,11 @@ public class JpaSettingQueryService implements SettingQueryService {
 
     /**
      * 조건으로 거른 할당 선택지(R20) — 목록 화면의 Specification 을 그대로 쓰고(이름 · 단계 · 생성 일시), 차단 판정은
-     * {@link #findAssignable()} 과 같은 도메인 SSOT 다. 정렬 · 쪽 나눔은 쓰지 않는다(모달은 한 번에 보여 준다).
+     * {@link #findAssignable()} 과 같은 도메인 SSOT 다. 쪽 나눔은 쓰지 않고(모달은 한 번에 보여 준다) 최근에 만든 정의서가 위에 온다.
      */
     @Override
     public List<SettingSummaryResponse> findAssignable(SettingListQuery query) {
-        return repository.findAll(SettingSpecifications.of(query), Sort.by(Sort.Direction.ASC, "id")).stream()
+        return repository.findAll(SettingSpecifications.of(query), RECENT_FIRST).stream()
                 .filter(d -> d.assignBlockReason() == null)
                 .map(this::toAssignableSummary)
                 .toList();

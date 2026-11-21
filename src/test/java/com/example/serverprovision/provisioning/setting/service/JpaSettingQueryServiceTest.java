@@ -189,7 +189,10 @@ class JpaSettingQueryServiceTest {
         deprecated.deprecate();
         SettingDefinition disabled = reversedDefinition();
         disabled.toggleEnabled();
-        given(repository.findAllByIsDeletedFalseOrderByIdAsc())
+        org.springframework.data.domain.Sort recentFirst = org.springframework.data.domain.Sort
+                .by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
+                .and(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
+        given(repository.findAllByIsDeletedFalse(recentFirst))   // U9 CP7 — 최근에 만든 정의서가 위
                 .willReturn(List.of(assignable, deprecated, disabled));
 
         List<SettingSummaryResponse> options = service.findAssignable();
@@ -219,7 +222,8 @@ class JpaSettingQueryServiceTest {
         assertThat(options).extracting(SettingSummaryResponse::enabled).containsOnly(true);
         org.mockito.Mockito.verify(repository).findAll(
                 org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<SettingDefinition>>any(),
-                org.mockito.ArgumentMatchers.eq(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "id")));
+                org.mockito.ArgumentMatchers.eq(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")
+                        .and(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"))));
     }
 
     /* ═══════════ 소프트참조 해석 (U3-5-d) ═══════════ */

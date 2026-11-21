@@ -255,6 +255,43 @@ class SettingControllerViewTest {
                 .andExpect(content().string(containsString("id=\"oiPackages\"")));
     }
 
+    private static SettingDetailResponse deletedCopy(SettingDetailResponse d) {
+        return new SettingDetailResponse(d.id(), d.name(), true, d.enabled(), d.deprecated(), d.referencingCount(),
+                d.processList(), d.deprecatedUsages(), d.executionWarnings(), d.references(), d.createdAt(), d.updatedAt());
+    }
+
+    @Test
+    @DisplayName("U9 GET /{id} — 삭제 안 된 정의서 상세에만 [복제] form(POST /{id}/copy)이 있다")
+    void detail_copyFormOnlyWhenNotDeleted() throws Exception {
+        given(queryService.findDetail(1L)).willReturn(detailWithPasswords(1L));
+        mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("action=\"/provisioning/setting/1/copy\"")))
+                .andExpect(content().string(containsString(">복제</button>")))
+                // U9 CP7 — '목록으로' 가 자기 행 키를 밝혀, 흐름이 끊겨 기본 목록으로 가도 그 행을 짚는다
+                .andExpect(content().string(containsString("data-nav-self-key=\"1\"")));
+
+        given(queryService.findDetail(2L)).willReturn(deletedCopy(detailWithPasswords(2L)));
+        mvc.perform(get("/provisioning/setting/{id}", 2L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("/provisioning/setting/2/copy"))));
+    }
+
+    @Test
+    @DisplayName("U9 GET /{id}/edit — 복제 직후(flash settingCopied)에만 '정의서를 복제했습니다.' 안내")
+    void editForm_showsCopiedNoticeOnlyAfterCopy() throws Exception {
+        given(queryService.findDetail(1L)).willReturn(detailWithPasswords(1L));
+        given(queryService.findBoardOptions()).willReturn(List.of());
+        given(queryService.findOSOptions()).willReturn(List.of());
+
+        mvc.perform(get("/provisioning/setting/{id}/edit", 1L).flashAttr("settingCopied", true))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("정의서를 복제했습니다.")));
+        mvc.perform(get("/provisioning/setting/{id}/edit", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("정의서를 복제했습니다."))));
+    }
+
     private static final String REMOVE_BLOCKED =
             "data-step-remove-blocked=\"{0} 단계가 있으면 제거할 수 없습니다.\"";
 
