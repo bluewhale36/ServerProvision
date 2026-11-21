@@ -80,7 +80,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 		// S20 — 손으로 만든 ProviderManager 와 AuthorizationFilter 가 이벤트를 내는지
 		com.example.serverprovision.global.security.springsecurity.audit.AuthenticationEventLogger.class,
 		com.example.serverprovision.global.security.springsecurity.audit.SecurityEventConfig.class})
-@TestPropertySource(properties = {"pxe.boot.secret=s3cret", "pxe.guest.allowed-cidrs=127.0.0.1/32,10.0.2.0/24"})   // MockMvc 출발지 = 127.0.0.1
+@TestPropertySource(properties = {"pxe.boot.secret=s3cret"})   // 출발지 대역 = 시스템 설정 허용 대역(HF35, 아래 stub) · MockMvc 출발지 127.0.0.1 은 루프백이라 언제나 허용
 class GuestChainSecurityTest {
 
 	private static final UUID GUEST_ID = UUID.randomUUID();
@@ -98,12 +98,15 @@ class GuestChainSecurityTest {
 	@MockitoBean UsersService usersService;
 	@MockitoBean UserDetailsService userDetailsService;
 	@MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
+	@MockitoBean com.example.serverprovision.global.systemsetting.service.SystemSettingService systemSettingService;
 
 	private MockMvc mvc;
 
 	@BeforeEach
 	void setUp() {
 		mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+		given(systemSettingService.provisioningAllowedRange()).willReturn(java.util.Optional.of(
+				com.example.serverprovision.global.systemsetting.vo.ProvisioningAllowedCidr.parse("10.0.2.0/24")));
 		given(guestServerRepository.findByGuestToken(new GuestToken(TOKEN)))
 				.willReturn(Optional.of(GuestServer.builder().id(GUEST_ID).systemUUID(UUID.randomUUID()).build()));
 		given(guestServerRepository.findByGuestToken(new GuestToken("bad"))).willReturn(Optional.empty());

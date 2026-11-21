@@ -10,7 +10,8 @@
 
   Model:
     pxeNetworkConfigRequest : PxeNetworkConfigRequest  @ModelAttribute (프리필 · 재렌더 바인딩)
-    config                  : PxeNetworkConfigResponse  (저장된 구성이 있을 때만 — 적용 결과 · 드리프트 표시)
+    allowedRange            : String  (시스템 설정의 프로비저닝 허용 대역, 없으면 null · HF35)
+    config                  : PxeNetworkConfigResponse  (저장된 구성이 있을 때만 — 적용 결과 · 드리프트 · 재적용 필요 표시)
                                 · dhcpModeLabel    : String  (자체 DHCP · proxyDHCP)
                                 · appliedResult    : String  (APPLIED/REJECTED/ROLLED_BACK/RESTORE_FAILED, nullable)
                                 · appliedAt        : LocalDateTime
@@ -56,6 +57,9 @@
         <div th:if="${config.driftFromServing and config.appliedResult != 'RESTORE_FAILED'}" class="n-alert n-alert-warning" role="status">
             마지막 적용이 실패해 이전 구성으로 서빙 중입니다. 값을 확인하고 다시 저장해야 합니다.
         </div>
+        <div th:if="${config.rangeChanged}" class="n-alert n-alert-warning" role="status">
+            프로비저닝 허용 대역이 바뀌었습니다. 저장 및 적용을 다시 해야 dnsmasq 에 반영됩니다.
+        </div>
         <div th:if="${config.lastGateOutput != null}" class="n-form-group">
             <label class="n-label">dnsmasq 문법 검사 결과</label>
             <pre class="n-code-block" th:text="${config.lastGateOutput}"></pre>
@@ -86,12 +90,12 @@
                     <div class="n-error" th:if="${#fields.hasErrors('dhcpMode')}" th:errors="*{dhcpMode}"></div>
                 </div>
 
+                <!--/* HF35 — 서브넷은 시스템 설정의 프로비저닝 허용 대역이다. 이 화면에서는 고치지 않는다. */-->
                 <div class="n-form-group">
-                    <label class="n-label strong" for="subnetCidr">게스트 서브넷 CIDR</label>
-                    <input id="subnetCidr" type="text" th:field="*{subnetCidr}" class="n-input"
-                           th:classappend="${#fields.hasErrors('subnetCidr')} ? 'is-invalid'"
-                           placeholder="예: 10.0.2.0/24">
-                    <div class="n-error" th:if="${#fields.hasErrors('subnetCidr')}" th:errors="*{subnetCidr}"></div>
+                    <label class="n-label strong">게스트 서브넷</label>
+                    <div th:if="${allowedRange != null}"><code th:text="${allowedRange}">10.1.1.0/24</code></div>
+                    <div th:if="${allowedRange == null}">-</div>
+                    <div class="n-hint">시스템 설정의 프로비저닝 허용 대역입니다. <a th:href="@{/system/settings}">시스템 설정</a></div>
                 </div>
 
                 <div class="n-form-group">
@@ -121,7 +125,7 @@
                         <input id="rangeEnd" type="text" th:field="*{rangeEnd}" class="n-input"
                                th:classappend="${#fields.hasErrors('rangeEnd')} ? 'is-invalid'"
                                placeholder="예: 10.0.2.200">
-                        <div class="n-hint">서브넷 안의 주소여야 하며, 시작 주소가 끝 주소보다 클 수 없습니다.</div>
+                        <div class="n-hint">프로비저닝 허용 대역 안의 주소여야 하며, 시작 주소가 끝 주소보다 클 수 없습니다.</div>
                         <div class="n-error" th:if="${#fields.hasErrors('rangeEnd')}" th:errors="*{rangeEnd}"></div>
                     </div>
 
@@ -168,7 +172,12 @@
 
                 <div class="n-form-actions">
                     <a th:href="@{/system/pxe-infra}" class="n-btn n-btn-secondary">취소</a>
-                    <button type="submit" class="n-btn n-btn-primary">저장 및 적용</button>
+                    <button th:if="${allowedRange != null}" type="submit" class="n-btn n-btn-primary">저장 및 적용</button>
+                    <span th:if="${allowedRange == null}" class="n-btn-tooltip-wrap"
+                          data-tooltip="프로비저닝 허용 대역을 먼저 시스템 설정에서 저장해야 합니다.">
+                        <button type="button" class="n-btn n-btn-primary" disabled>저장 및 적용</button>
+                    </span>
+                    <span th:if="${allowedRange == null}" class="n-hint">프로비저닝 허용 대역을 먼저 시스템 설정에서 저장해야 합니다.</span>
                 </div>
             </form>
         </div>

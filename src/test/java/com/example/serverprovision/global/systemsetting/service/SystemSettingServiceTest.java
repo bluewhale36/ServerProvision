@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 class SystemSettingServiceTest {
 
     @Mock SystemSettingRepository repository;
+    @Mock org.springframework.context.ApplicationEventPublisher eventPublisher;
     @InjectMocks SystemSettingService service;
 
     private static final ProvisioningAllowedCidr RANGE = ProvisioningAllowedCidr.parse("10.1.1.0/24");
@@ -72,6 +73,7 @@ class SystemSettingServiceTest {
         verify(repository).save(captor.capture());
         assertThat(captor.getValue().getMinRole()).isEqualTo(Role.SUPER_ADMIN);
         assertThat(captor.getValue().getValue().display()).isEqualTo("10.1.1.0/24");
+        verify(eventPublisher).publishEvent(new com.example.serverprovision.global.systemsetting.event.ProvisioningAllowedRangeChangedEvent(RANGE));
     }
 
     @Test
@@ -81,6 +83,7 @@ class SystemSettingServiceTest {
         assertThatThrownBy(() -> service.saveProvisioningAllowedRange(RANGE, Set.of(Role.ADMIN, Role.USER)))
                 .isInstanceOf(SystemSettingAccessDeniedException.class);
         verify(repository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test

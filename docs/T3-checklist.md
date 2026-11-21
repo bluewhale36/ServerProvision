@@ -60,7 +60,7 @@ U4-1 은 정의서가 **RAID 구성과 디스크 역할을 적는 것**까지만
 - [ ] **실 iPXE 의 userinfo URL 처리** (S19-2 D-4): 실보드 펌웨어 내장 iPXE(UEFI · 벤더 빌드)가 tftp `boot.ipxe` 의 `chain http://pxe:<secret>@<서버>/api/pxe/v1/boot?…` 에서 Basic credential 을 붙여 보내는지 — QEMU 내장 iPXE ROM 은 랩(CP5)에서 확인했고, 벤더 빌드는 기능 집합이 다를 수 있다. 실패하면 콘솔 "Permission denied" 로 멈추며 앱에는 401 만 남는다(등록 없음).
 - [ ] **커널 · initramfs · modloop · apkovl · apk 저장소의 credential URL 수신** (S19-2 D-4): 실보드에서 iPXE(`kernel` · `initrd`)와 Alpine initramfs 의 busybox wget(`modloop=` · `apkovl=`) · apk(`alpine_repo=`)가 `http://pxe:<secret>@…/assets/…` 를 받아 진단이 완주하는지. 시리얼 콘솔에 `modloop` · `apkovl` 실패가 없어야 한다. firstboot 의 `agent.sh` 수신은 credential 없는 경로(`provision_base`)라 `/assets/agent.sh` 만 대역 제한 아래 열려 있다(CP5 F-1 정정) — 실기에서도 `firstboot` 가 401 없이 에이전트를 띄우는지 시리얼로 확인.
 - [ ] **재진입 chain 의 절대 credential URL** (S19-2 Q4): 대기 스크립트(입고 검수 · HOLD · 실패 · 결손)의 `chain http://pxe:<secret>@…/boot?…` 재진입이 30초 주기로 이어지는지 — 상대 경로 시절의 credential 상속에 기대지 않는 것이 요점.
-- [ ] **프로비저닝 LAN 제한의 실기 판정** (S19-2 D-3): 스테이징 nginx 뒤에서 `PXE_GUEST_ALLOWED_CIDRS=192.168.1.0/24` 로 실기망 게스트가 통과하고, 사무실 대역에서 게스트 채널을 부르면 403 `PXE_LAN_FORBIDDEN` 인지 — `X-Forwarded-For` 가 출발지로 쓰이는지(`SERVER_FORWARD_HEADERS_STRATEGY=native` · internal-proxies 127.0.0.1) 앱 로그 · 응답으로 확인.
+- [ ] **프로비저닝 LAN 제한의 실기 판정** (S19-2 D-3): 스테이징 nginx 뒤에서 시스템 설정의 프로비저닝 허용 대역(HF35, 종전 `PXE_GUEST_ALLOWED_CIDRS`)을 실기망 대역으로 두고 실기망 게스트가 통과하고, 사무실 대역에서 게스트 채널을 부르면 403 `PXE_LAN_FORBIDDEN` 인지 — `X-Forwarded-For` 가 출발지로 쓰이는지(`SERVER_FORWARD_HEADERS_STRATEGY=native` · internal-proxies 127.0.0.1) 앱 로그 · 응답으로 확인.
 - [ ] **secret 노출 범위의 실측** (S19-2 D-4 노출 범위): 게스트 `/proc/cmdline` · iPXE 콘솔 · nginx 접근 로그 · 앱 로그 어디에 secret 이 보이는지 기록 — 앱 로그는 userinfo 를 받지 않는다(브라우저 · iPXE · wget 은 Authorization 헤더로 보낸다).
 
 ## 완료 기록

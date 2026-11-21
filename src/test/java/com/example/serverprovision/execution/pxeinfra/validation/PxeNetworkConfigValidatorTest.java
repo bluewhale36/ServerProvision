@@ -27,11 +27,11 @@ class PxeNetworkConfigValidatorTest {
     }
 
     @Test
-    @DisplayName("PROXY — 서브넷 · 부트 서버만 있으면 유효 · 주소 배정 칸에 쓰레기가 와도 위반 없음(서버가 버린다)")
+    @DisplayName("PROXY — 부트 서버만 있으면 유효 · 주소 배정 칸에 쓰레기가 와도 위반 없음(서버가 버린다)")
     void proxyIgnoresAddressing() {
-        PxeNetworkConfigRequest clean = new PxeNetworkConfigRequest(DhcpMode.PROXY, "10.1.1.0/24",
+        PxeNetworkConfigRequest clean = new PxeNetworkConfigRequest(DhcpMode.PROXY,
                 "", "", "", "", "", "10.1.1.17", null, "");
-        PxeNetworkConfigRequest junk = new PxeNetworkConfigRequest(DhcpMode.PROXY, "10.1.1.0/24",
+        PxeNetworkConfigRequest junk = new PxeNetworkConfigRequest(DhcpMode.PROXY,
                 "not-an-ip", "fe80::1", "x", "y", "z", "10.1.1.17", -5L, "");
         assertThat(validator.validate(clean)).isEmpty();
         assertThat(validator.validate(junk)).isEmpty();
@@ -41,15 +41,14 @@ class PxeNetworkConfigValidatorTest {
     @DisplayName("AUTHORITATIVE — 주소 배정 필드가 비면 필드마다 필수 위반")
     void authoritativeRequiresAddressing() {
         Set<ConstraintViolation<PxeNetworkConfigRequest>> violations = validator.validate(
-                new PxeNetworkConfigRequest(DhcpMode.AUTHORITATIVE, "10.0.2.0/24", "", "", "", "", "", "10.0.2.2", null, ""));
+                new PxeNetworkConfigRequest(DhcpMode.AUTHORITATIVE, "", "", "", "", "", "10.0.2.2", null, ""));
         assertThat(paths(violations)).containsExactlyInAnyOrder("rangeStart", "rangeEnd", "routers", "primaryDns", "leaseSeconds");
     }
 
     @Test
-    @DisplayName("AUTHORITATIVE — 범위 이탈은 rangeEnd 에, IPv6 은 그 필드에, 임대 0 은 leaseSeconds 에")
+    @DisplayName("AUTHORITATIVE — IPv6 은 그 필드에, 임대 0 은 leaseSeconds 에. 범위가 허용 대역 밖인지는 검증기가 보지 않는다(HF35, 컨트롤러 몫)")
     void authoritativeFieldViolations() {
-        assertThat(paths(validator.validate(authoritative("10.0.2.100", "10.0.3.5", "10.0.2.1", "8.8.8.8", 600L))))
-                .containsExactly("rangeEnd");
+        assertThat(validator.validate(authoritative("10.0.2.100", "10.0.3.5", "10.0.2.1", "8.8.8.8", 600L))).isEmpty();
         assertThat(paths(validator.validate(authoritative("fe80::1", "10.0.2.200", "10.0.2.1", "8.8.8.8", 600L))))
                 .containsExactly("rangeStart");
         assertThat(paths(validator.validate(authoritative("10.0.2.100", "10.0.2.200", "10.0.2.1", "8.8.8.8", 0L))))
@@ -57,18 +56,16 @@ class PxeNetworkConfigValidatorTest {
     }
 
     @Test
-    @DisplayName("두 모드 공통 — 모드 누락 · CIDR 형식 · 부트 서버 형식")
+    @DisplayName("두 모드 공통 — 모드 누락 · 부트 서버 형식")
     void commonViolations() {
-        assertThat(paths(validator.validate(new PxeNetworkConfigRequest(null, "10.1.1.0/24",
+        assertThat(paths(validator.validate(new PxeNetworkConfigRequest(null,
                 "", "", "", "", "", "10.1.1.17", null, "")))).containsExactly("dhcpMode");
-        assertThat(paths(validator.validate(new PxeNetworkConfigRequest(DhcpMode.PROXY, "10.1.1.5/24",
-                "", "", "", "", "", "10.1.1.17", null, "")))).containsExactly("subnetCidr");   // host bit ≠ 0
-        assertThat(paths(validator.validate(new PxeNetworkConfigRequest(DhcpMode.PROXY, "10.1.1.0/24",
+        assertThat(paths(validator.validate(new PxeNetworkConfigRequest(DhcpMode.PROXY,
                 "", "", "", "", "", "nope", null, "")))).containsExactly("bootServerIp");
     }
 
     private static PxeNetworkConfigRequest authoritative(String start, String end, String routers, String dns, Long lease) {
-        return new PxeNetworkConfigRequest(DhcpMode.AUTHORITATIVE, "10.0.2.0/24", start, end, routers, dns, "",
+        return new PxeNetworkConfigRequest(DhcpMode.AUTHORITATIVE, start, end, routers, dns, "",
                 "10.0.2.2", lease, "");
     }
 
