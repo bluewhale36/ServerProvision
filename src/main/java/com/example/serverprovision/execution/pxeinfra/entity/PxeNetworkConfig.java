@@ -49,6 +49,7 @@ public class PxeNetworkConfig extends BaseTimeEntity {
     @Column(name = "dhcp_mode", nullable = false, length = 20)
     private DhcpMode dhcpMode;
 
+    /** 마지막 저장 때 쓴 프로비저닝 허용 대역(HF35). 사용자 입력이 아니며, 지금 허용 대역과 다르면 재적용이 필요하다. */
     @Convert(converter = SubnetCidrConverter.class)
     @Column(name = "subnet_cidr", nullable = false, length = 18)
     private SubnetCidr subnetCidr;
@@ -121,6 +122,11 @@ public class PxeNetworkConfig extends BaseTimeEntity {
                               IpAddressVO bootServerIp, LeaseSeconds leaseSeconds, String domainName) {
         assign(dhcpMode, subnetCidr, rangeStart, rangeEnd, routers, primaryDns, secondaryDns, bootServerIp,
                 leaseSeconds, domainName);
+    }
+
+    /** 허용 대역이 바뀌어 저장된 서브넷과 다른가 — 화면의 재적용 경고와 시스템 설정의 안내가 함께 본다(HF35). */
+    public boolean subnetDiffersFrom(SubnetCidr current) {
+        return !subnetCidr.equals(current);
     }
 
     /** 적용 파이프라인 귀결을 기록한다(성공/실패 무관 — 실패도 감사용으로 남긴다). */

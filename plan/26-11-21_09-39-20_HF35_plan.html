@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HF35 : 프로비저닝 대역 단일 정본 (CP1 plan)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* 헤더 (top sticky) */
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* 2단 레이아웃 + ToC */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* 검색 */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* 접이식 섹션 */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+
+  /* 타이포 · 표 · 코드 */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  /* chip */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; white-space:nowrap; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.del{background:var(--red-bg);color:var(--red);} .chip.keep{background:var(--bg);color:var(--text-muted);}
+
+  /* callout */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:4px 0 0; }
+
+  /* 체크리스트 */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* 비교 · 도식 */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .split-card ul { margin:0; font-size:12.5px; }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+
+  /* 반응형 (명세 3장) */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    table code { overflow-wrap:anywhere; }
+    td:first-child { word-break:keep-all; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>HF35 : 프로비저닝 대역 단일 정본 (CP1 plan) <span class="v2-badge">HF</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> HF35 (hotfix)</span>
+    <span><strong>브랜치</strong> <code>fix/HF35_provisioning-range-ssot</code> (origin/dev e3962b9)</span>
+    <span><strong>진행</strong> 앵커에서 진행, 끝나면 dev 복귀</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/41fef0e868f981a19e35ee581734a828">HF35 단계 페이지</a></span>
+    <span><strong>패치 항목</strong> 없음(사용자 지시)</span>
+    <span><strong>생성</strong> 2026-11-21 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 배경</a></li>
+      <li><a href="#s2">§2 실측</a></li>
+      <li><a href="#s3">§3 결론</a></li>
+      <li><a href="#s4">§4 수정 방향</a></li>
+      <li><a href="#s5">§5 결정 · 질문</a></li>
+      <li><a href="#s6">§6 검증 · Critical Files</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- §1 배경 -->
+    <details class="section" id="s1" open>
+      <summary>§1. 배경</summary>
+      <div class="body">
+        <div class="callout"><b>한 줄 요약</b> : 프로비저닝 LAN 대역이 세 곳에 따로 선언돼 어긋날 수 있다. 시스템 설정의 '프로비저닝 허용 대역'(U7)을 정본으로 두고, dnsmasq 조각과 게스트 채널 출발지 제한이 그 값을 읽게 한다(출처: 2026-11-21 사용자 지적, A 안 사용자 선택).</div>
+
+        <h4>1-1. 세 값이 생긴 순서와 각자 풀던 문제</h4>
+        <table>
+          <thead><tr><th>생긴 단계</th><th>값</th><th>저장</th><th>풀던 문제</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>S19-2(09-15)</td>
+              <td>env <code>PXE_GUEST_ALLOWED_CIDRS</code> → <code>pxe.guest.allowed-cidrs</code></td>
+              <td>환경 파일, 쉼표 목록, 비우면 제한 없음</td>
+              <td>게스트 채널 <code>/api/pxe/v1/**</code> 를 프로비저닝 LAN 밖에서 부르지 못하게</td>
+            </tr>
+            <tr>
+              <td>R16(09-16)</td>
+              <td>PXE 네트워크 설정 '게스트 서브넷 CIDR' <code>subnetCidr</code></td>
+              <td>DB <code>pxe_network_config.subnet_cidr</code></td>
+              <td>dnsmasq 가 PXE 응답을 낼 서브넷(AUTHORITATIVE 는 배정 범위 경계, PROXY 는 <code>dhcp-range=네트워크,proxy,넷마스크</code>)</td>
+            </tr>
+            <tr>
+              <td>U7(11-16)</td>
+              <td>시스템 설정 '프로비저닝 허용 대역'</td>
+              <td>DB system_setting(키 <code>PROVISIONING_ALLOWED_RANGE</code>, 최소 권한 SUPER_ADMIN)</td>
+              <td>개시 직전 BMC 주소 · primary NIC 주소가 대역 밖이면 개시를 막음</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>1-2. 어긋나면 생기는 일(예)</h4>
+        <div class="callout danger"><b>어긋남의 결과</b> :
+          <ul>
+            <li>허용 대역 <code>10.1.1.0/24</code>, dnsmasq 서브넷 <code>10.1.2.0/24</code> → 10.1.2.x 서버가 PXE 로 부팅해 등록 · 진단까지 가고 개시에서야 막힌다. 운영자는 왜 막혔는지 PXE 화면에서 알 수 없다.</li>
+            <li>env 를 예전 대역(<code>192.168.1.0/24</code>)으로 남겨 둔 채 사내망으로 옮김 → 게스트 채널 전체가 403(실제로 R16 실기 1차 때 env 세 개가 192.168.1.x 로 남아 있었다는 기록이 있다).</li>
+            <li>문서가 이 분리를 규칙으로 적고 있다: <code>docs/pxe-dnsmasq-setup.md</code> 64 행 "화면의 서브넷과 이 값은 따로 관리한다".</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- §2 실측 -->
+    <details class="section" id="s2" open>
+      <summary>§2. 실측 (11-21, 코드 판독)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>항목</th><th>사실</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>같은 VO</td>
+              <td>U7 의 <code>ProvisioningAllowedCidr</code> 는 R16 의 <code>SubnetCidr</code> 를 감싼다(<code>record ProvisioningAllowedCidr(SubnetCidr subnet)</code>). RFC 1918 · prefix 26 이하 · 네트워크 주소 검증이 더 붙은 것뿐이라, 허용 대역 값은 그대로 dnsmasq 서브넷으로 쓸 수 있다</td>
+            </tr>
+            <tr>
+              <td>허용 대역 읽기</td>
+              <td><code>SystemSettingService.provisioningAllowedRange()</code>(권한 판정 없는 내부 읽기). 소비처는 지금 <code>StartNetworkPolicy</code> 하나</td>
+            </tr>
+            <tr>
+              <td>dnsmasq 렌더</td>
+              <td><code>DhcpMode</code> 상수별 메서드가 <code>config.getSubnetCidr()</code> 의 <code>networkAddress()</code> · <code>netmask()</code> 로 <code>dhcp-range</code> 줄을 만든다(AUTHORITATIVE 22 ~ 24 행, PROXY 64 ~ 65 행)</td>
+            </tr>
+            <tr>
+              <td>PXE 설정 저장</td>
+              <td><code>PxeNetworkConfigController.submit</code> → <code>PxeNetworkConfigMapper.toEntity</code>(desired) → <code>DhcpConfigApplyService.applyAndRecord</code>(락 안에서 렌더 · 검사 · 교체 · 기록) → <code>PxeNetworkConfigService.save</code>. 저장과 적용이 한 동작("저장 및 적용")</td>
+            </tr>
+            <tr>
+              <td>서브넷 검증</td>
+              <td><code>PxeNetworkConfigValidator</code> 가 <code>SubnetCidr.of</code> + AUTHORITATIVE 의 리스 범위가 서브넷 안인지(<code>containsRange</code>). 엔티티 <code>assertInvariants</code> 도 같은 술어</td>
+            </tr>
+            <tr>
+              <td>적용 상태 표시</td>
+              <td><code>appliedResult</code>(APPLIED · REJECTED · ROLLED_BACK · RESTORE_FAILED) · <code>appliedAt</code> · <code>driftFromServing</code>(마지막 적용 실패로 이전 구성 서빙 중). 허용 대역이 바뀌었는지는 보지 않는다</td>
+            </tr>
+            <tr>
+              <td>출발지 제한</td>
+              <td><code>ProvisioningLanPolicy</code>(AuthorizationManager, <code>GuestSecurityConfig</code> 가 게스트 체인에 건다): 생성자에서 env 문자열을 <code>IpAddressMatcher</code> 목록으로 한 번 만든다. 비우면 제한 없음 + 기동 WARN. 거절은 <code>Denied</code> → <code>GuestAccessDeniedHandler</code> 가 403 <code>PXE_LAN_FORBIDDEN</code>, <code>AuthenticationEventLogger</code> 가 로그</td>
+            </tr>
+            <tr>
+              <td>출발지 판정 주소</td>
+              <td><code>request.getRemoteAddr()</code>. nginx 뒤에서는 <code>server.tomcat.remoteip.*</code> 가 <code>X-Forwarded-For</code> 로 바꿔 둔다(같은 호스트 127.0.0.1 프록시만 신뢰)</td>
+            </tr>
+            <tr>
+              <td>env 를 적은 문서</td>
+              <td><code>docs/pxe-dnsmasq-setup.md</code> 64 · <code>docs/staging-vm-bootstrap.md</code> 173 · <code>docs/pxe-server-install.md</code> 262 · 310 · <code>docs/T3-checklist.md</code> 63</td>
+            </tr>
+            <tr>
+              <td>배포 상태</td>
+              <td>U7 은 dev 병합(c1c938d, 11-19)됐지만 운영 · 스테이징 미배포(DDL · 시드 대기, <code>docs/deploy/pending/U7.md</code>). 이 HF 는 U7 과 같은 배포에 실린다</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §3 결론 -->
+    <details class="section" id="s3" open>
+      <summary>§3. 결론</summary>
+      <div class="body">
+        <div class="callout danger">세 값은 같은 사실("프로비저닝 LAN 이 어느 대역인가")을 세 번 선언한 것이다. 각 단계가 자기 문제만 풀며 새로 선언했고, 서로 대조하는 코드가 없다.</div>
+        <p>정본으로 가장 알맞은 것은 U7 의 허용 대역이다.</p>
+        <ul>
+          <li>화면에서 바꿀 수 있다(env 와 달리 재기동 불필요).</li>
+          <li>검증이 가장 엄격하다(사설 대역 · prefix 상한).</li>
+          <li>최고 관리자만 바꿀 수 있다.</li>
+        </ul>
+
+        <div class="split-grid">
+          <div class="split-card before">
+            <h4>지금 : 선언 셋, 대조 없음</h4>
+            <ul>
+              <li>env <code>PXE_GUEST_ALLOWED_CIDRS</code> → 게스트 채널 출발지 제한</li>
+              <li><code>pxe_network_config.subnet_cidr</code>(사용자 입력) → dnsmasq <code>dhcp-range</code></li>
+              <li>system_setting <code>PROVISIONING_ALLOWED_RANGE</code> → 개시 판정</li>
+            </ul>
+          </div>
+          <div class="split-card after">
+            <h4>바뀐 뒤 : 정본 하나, 소비처 셋</h4>
+            <ul>
+              <li>system_setting <code>PROVISIONING_ALLOWED_RANGE</code> → 개시 판정(그대로)</li>
+              <li>같은 값 → "저장 및 적용" 때 dnsmasq 서브넷(<code>subnet_cidr</code> = 마지막 적용 대역)</li>
+              <li>같은 값 → 게스트 채널 출발지 제한(env <span class="diff-del">PXE_GUEST_ALLOWED_CIDRS</span> 삭제)</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="pkg-tree">SystemSettingService.provisioningAllowedRange()        시스템 설정 '프로비저닝 허용 대역'
+├── StartNetworkPolicy                               개시 판정 (지금과 같음)
+├── PxeNetworkConfigMapper.toEntity                  "저장 및 적용" 때 서브넷을 채움
+│   └── DhcpConfigApplyService.applyAndRecord        렌더 · 검사 · 교체 · 기록
+│       └── DhcpMode (AUTHORITATIVE · PROXY)          dhcp-range 줄
+└── ProvisioningLanPolicy                            첫 authorize 때 지연 적재, 저장 커밋 뒤 이벤트로 교체
+    └── GuestSecurityConfig 게스트 체인               대역 밖 → 403 PXE_LAN_FORBIDDEN</div>
+      </div>
+    </details>
+
+    <!-- §4 수정 방향 -->
+    <details class="section" id="s4" open>
+      <summary>§4. 수정 방향</summary>
+      <div class="body">
+        <h4>4-1. dnsmasq 서브넷 = 허용 대역</h4>
+        <ul>
+          <li>PXE 네트워크 설정 화면에서 '게스트 서브넷 CIDR' 입력을 없애고, 그 자리에 허용 대역을 읽기 전용으로 보인다(시스템 설정 화면 링크).</li>
+          <li>"저장 및 적용" 때 서버가 <code>SystemSettingService.provisioningAllowedRange()</code> 로 서브넷을 채운다. 요청 DTO 의 <code>subnetCidr</code> 필드를 지운다(direct POST 로 보내도 무시된다).</li>
+          <li>허용 대역이 비어 있으면 저장 버튼 disabled + 사유 "프로비저닝 허용 대역을 먼저 시스템 설정에서 저장해야 합니다." · 서버 가드도 같은 판정(정상 흐름에서는 UI 가 막고, direct POST 는 409).</li>
+          <li><code>pxe_network_config.subnet_cidr</code> 컬럼은 남기되 뜻을 "마지막 적용에 쓴 대역" 으로 바꾼다(사용자 입력이 아니라 적용 때 서버가 기록). DDL 없음.</li>
+        </ul>
+
+        <h4>4-2. 대역이 바뀌면 재적용 필요를 보인다</h4>
+        <ul>
+          <li>판정 <code>PxeNetworkConfig.rangeChangedSince(ProvisioningAllowedCidr current)</code>: 저장된 적용 대역 ≠ 현재 허용 대역.</li>
+          <li>PXE 네트워크 화면: 경고 "프로비저닝 허용 대역이 바뀌었습니다. 저장 및 적용을 다시 해야 dnsmasq 에 반영됩니다."</li>
+          <li>시스템 설정 화면: 허용 대역을 저장한 뒤 flash 에 같은 안내 + PXE 네트워크 화면 링크(구성이 있을 때만).</li>
+          <li>AUTHORITATIVE 의 리스 범위가 새 대역 밖이면 재적용 때 기존 교차 검증(<code>containsRange</code>)이 rangeEnd 필드 오류로 막는다(새 코드 없음).</li>
+          <li>자동 재적용은 하지 않는다(D3).</li>
+        </ul>
+
+        <h4>4-3. 게스트 채널 출발지 제한 = 허용 대역</h4>
+        <ul>
+          <li><code>ProvisioningLanPolicy</code> 가 env 대신 허용 대역을 읽는다. 매 요청 DB 를 읽지 않도록 정책 안에 현재 값을 담아 둔다(<code>AtomicReference</code>).</li>
+          <li>값은 생성자에서 읽지 않는다. 첫 <code>authorize</code> 때 지연 적재하고(담긴 값이 비어 있으면 읽음), 허용 대역 저장이 커밋된 뒤(<code>@TransactionalEventListener(AFTER_COMMIT)</code> + 새 이벤트 <code>ProvisioningAllowedRangeChangedEvent</code>) 새 값으로 교체한다. 이유: security 빈을 만드는 시점에 DB 를 읽지 않게, 그리고 기동 순서에 기대지 않게.</li>
+          <li>env 문자열 파싱과 기동 fail-fast(잘못된 CIDR 이면 <code>IllegalStateException</code>)는 사라진다. 허용 대역은 이미 검증된 VO(<code>ProvisioningAllowedCidr</code>)라 다시 검사할 것이 없다.</li>
+          <li><code>unrestricted()</code> 는 main 호출처가 없고 테스트에서만 쓰인다. 판정 술어로 남기되 뜻을 "현재 허용 대역 없음" 으로 바꾸고 테스트를 고친다.</li>
+          <li>허용 대역이 비어 있으면 지금 env 가 비었을 때와 같이 제한 없음 + WARN(로그 문구에서 env 이름을 시스템 설정으로 바꿈).</li>
+          <li>루프백(127.0.0.0/8 · ::1)은 언제나 허용한다(Q1).</li>
+          <li><code>pxe.guest.allowed-cidrs</code> 속성 · env 를 삭제한다. 기동 시 env 가 남아 있어도 읽지 않는다(무해).</li>
+        </ul>
+
+        <h4>4-4. 문서</h4>
+        <p>§2 의 env 문서 다섯 곳을 "시스템 설정의 프로비저닝 허용 대역이 dnsmasq 서브넷과 게스트 채널 출발지 제한을 함께 정한다" 로 고친다. <code>docs/pxe-dnsmasq-setup.md</code> 64 행의 <span class="diff-del">"따로 관리한다"</span> 문장은 삭제.</p>
+
+        <h4>4-5. 배포 대기</h4>
+        <p><code>docs/deploy/pending/U7.md</code> 에 절을 더한다(같은 배포).</p>
+        <ol>
+          <li>U7 DDL · 시드</li>
+          <li>jar 교체</li>
+          <li>PXE 네트워크 화면에서 "저장 및 적용" 1 회(서브넷을 허용 대역으로 맞춤, 기존 값과 같으면 조각 변화 없음)</li>
+          <li>env <code>PXE_GUEST_ALLOWED_CIDRS</code> 줄 삭제(남아도 무해)</li>
+        </ol>
+        <div class="callout warn"><b>점검 SQL(읽기 전용)</b> : 지금 서브넷이 시드할 허용 대역과 같은지 먼저 본다.
+          <pre><code>SELECT subnet_cidr, dhcp_mode, applied_result FROM pxe_network_config;</code></pre>
+          <ul>
+            <li>이 HF 는 PXE 서브넷에서 허용 대역을 시드하지 않는다. 허용 대역 값은 U7 배포 때 사용자가 정한다. 기존 PXE 서브넷은 허용 대역 규칙(사설 대역 · prefix 26 이하)에 맞지 않을 수도 있다.</li>
+            <li>지금 <code>subnet_cidr</code> 가 시드할 허용 대역과 다르면, ③ 의 "저장 및 적용" 이 dnsmasq 서브넷을 허용 대역으로 바꾼다.</li>
+            <li><code>dhcp_mode</code> 가 AUTHORITATIVE 면 리스 범위도 새 대역 안으로 고쳐야 저장된다(교차 검증 <code>containsRange</code>).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- §5 결정 · 질문 -->
+    <details class="section" id="s5" open>
+      <summary>§5. 결정 · 질문</summary>
+      <div class="body">
+        <h4>5-1. 결정</h4>
+        <table>
+          <thead><tr><th>D</th><th>채택</th><th>비채택 · 사유</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>D1 정본 위치</td>
+              <td><b>시스템 설정 허용 대역</b></td>
+              <td>PXE 네트워크 설정을 정본으로: 최소 권한 · 검증이 더 느슨하고 U7 개시 판정이 PXE 화면 저장에 끌려감 / env 를 정본으로: 화면에 보이지 않고 재기동이 필요함</td>
+            </tr>
+            <tr>
+              <td>D2 dnsmasq 서브넷 컬럼</td>
+              <td><b>남기고 "마지막 적용 대역" 으로 뜻을 바꿈</b>(재적용 필요 판정 재료)</td>
+              <td>컬럼 삭제: 대역이 바뀐 뒤 적용 전인지 알 길이 없어 경고를 못 냄 · DDL 필요 / 입력 유지 + 허용 대역과 같아야 저장(B 안): 같은 값을 두 번 입력, 사용자가 A 안을 고름</td>
+            </tr>
+            <tr>
+              <td>D3 대역 변경 시</td>
+              <td><b>경고 + 안내만, 재적용은 운영자가</b></td>
+              <td>허용 대역 저장 때 자동 재적용: dnsmasq 재시작(sudo)이 설정 저장의 부작용이 되고, AUTHORITATIVE 리스 범위가 새 대역 밖이면 설정 저장 자체가 실패</td>
+            </tr>
+            <tr>
+              <td>D4 출발지 제한 갱신</td>
+              <td><b>정책 안 값 + 첫 authorize 때 지연 적재 + 저장 커밋 뒤 이벤트로 교체</b>(생성자에서 읽지 않음: security 빈 생성 시점에 DB 를 읽지 않고 기동 순서에 기대지 않게)</td>
+              <td>매 요청 DB 조회: 게스트 체크인 · 보고마다 쿼리 / 재기동 필요(지금 env 방식): 화면 값의 장점이 사라짐</td>
+            </tr>
+            <tr>
+              <td>D5 대역 미설정</td>
+              <td><b>출발지 제한 없음 + WARN</b>(지금 env 미설정과 같음), dnsmasq 저장은 막음</td>
+              <td>미설정이면 게스트 채널 전부 거절: 배포 직후 시드 전 순간에 모든 게스트가 403</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>5-2. 질문 (CP1 에서 답을 받는다)</h4>
+        <table>
+          <thead><tr><th>Q</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Q1</td>
+              <td>루프백 출발지를 늘 허용할까. 같은 호스트의 nginx 는 <code>X-Forwarded-For</code> 로 실제 주소를 넘기므로, 루프백으로 보이는 것은 같은 서버의 프로세스(로컬 샌드박스의 모의 게스트 하네스 등)뿐이다</td>
+              <td>허용. 허용 대역은 사설 대역만 받아 127.0.0.0/8 을 넣을 수 없으므로, 막으면 샌드박스 하네스가 동작하지 않는다</td>
+            </tr>
+            <tr>
+              <td>Q2</td>
+              <td>출발지 제한이 대역 하나로 충분한가. env 는 쉼표 목록이었다(문서와 운영 기록은 모두 한 대역)</td>
+              <td>하나로 충분. 여러 대역이 필요해지면 허용 대역 자체를 목록으로 넓힌다(그때 개시 판정 · dnsmasq 도 함께)</td>
+            </tr>
+            <tr>
+              <td>Q3</td>
+              <td>BMC 망과 LAN 이 다른 대역인 현장이 있는가(U7 은 BMC 와 LAN 을 같은 대역 하나로 검사한다)</td>
+              <td>없다는 전제로 진행. 있으면 별도 단계</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- §6 검증 · Critical Files -->
+    <details class="section" id="s6" open>
+      <summary>§6. 검증 · Critical Files</summary>
+      <div class="body">
+        <h4>6-1. 테스트 (CP4, 전체 green + CH11 규약 검사)</h4>
+        <table>
+          <thead><tr><th>층</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>단위</td>
+              <td>
+                <ul>
+                  <li><code>PxeNetworkConfig.rangeChangedSince</code></li>
+                  <li>매퍼가 허용 대역으로 서브넷을 채움</li>
+                  <li>허용 대역 미설정 시 저장 가드</li>
+                  <li><code>ProvisioningLanPolicy</code>: 대역 안 허용 · 밖 거절 · 루프백 허용 · 미설정 무제한 · 이벤트 뒤 새 값</li>
+                  <li><code>DhcpMode</code> 렌더 골든(서브넷 출처만 바뀌고 출력 동일)</li>
+                </ul>
+              </td>
+            </tr>
+            <tr>
+              <td>통합(<code>@WebMvcTest</code>)</td>
+              <td>
+                <ul>
+                  <li>PXE 네트워크 저장 200(서브넷 = 허용 대역, 요청의 subnetCidr 무시)</li>
+                  <li>대역 미설정 저장 409</li>
+                  <li>리스 범위가 새 대역 밖 400(rangeEnd)</li>
+                  <li>화면에 재적용 경고</li>
+                  <li>시스템 설정 저장 뒤 flash 안내</li>
+                  <li>게스트 채널 대역 밖 403 <code>PXE_LAN_FORBIDDEN</code></li>
+                  <li>허용 대역 바꾼 직후 새 대역 출발지 통과</li>
+                </ul>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout">새 예외가 생기면(대역 미설정 409) 그 시나리오 통합 테스트를 함께 둔다.</div>
+
+        <h4>6-2. CP5 = 실기 (스테이징 VM 사내망 PROXY 모드)</h4>
+        <p>HF 의 CP5 는 샌드박스 대신 실기로 한다. 실기 전 샌드박스에서 화면 두 개와 루프백 하네스만 확인한다.</p>
+        <ul class="check-list" data-storage="HF35-verify">
+          <li><label><input type="checkbox" data-key="sbx-screens"> <span>(실기 전) 샌드박스에서 화면 두 개(PXE 네트워크 설정 · 시스템 설정) 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="sbx-loopback"> <span>(실기 전) 샌드박스에서 루프백 하네스 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-save-range"> <span>실기: 허용 대역 저장</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-warning"> <span>실기: PXE 화면 경고</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-apply"> <span>실기: 저장 및 적용</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-dhcp-range"> <span>실기: 조각의 <code>dhcp-range</code> 확인</span></label></li>
+          <li><label><input type="checkbox" data-key="t3-boot"> <span>실기: 게스트 netboot 가 /boot 까지 도달</span></label></li>
+        </ul>
+
+        <h4>6-3. Critical Files</h4>
+        <table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>PxeNetworkConfig</code></td><td>뜻 주석 · <code>rangeChangedSince</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>PxeNetworkConfigRequest</code></td><td>subnetCidr 삭제</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>PxeNetworkConfigMapper</code></td><td>허용 대역으로 서브넷을 채움</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>PxeNetworkConfigValidator</code></td><td>서브넷 입력 검사 삭제, 교차 검증은 허용 대역으로</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>PxeNetworkConfigService</code></td><td>-</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>PxeNetworkConfigController</code></td><td>-</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>PxeNetworkConfigResponse</code></td><td>-</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/system/pxe-infra/network-form.html</code></td><td>서브넷 입력 → 허용 대역 읽기 전용 · 재적용 경고</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>ProvisioningLanPolicy</code></td><td>env 파싱 · 기동 fail-fast 삭제 · 첫 authorize 때 지연 적재 · 이벤트로 교체 · 루프백 허용 · <code>unrestricted()</code> 뜻 변경</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SystemSettingService</code></td><td>저장 뒤 이벤트 발행</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>SystemSettingController</code></td><td>flash 안내</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>application.properties</code> 21 행</td><td><code>pxe.guest.allowed-cidrs</code> 줄 삭제</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td>문서 다섯 곳</td><td>§2 'env 를 적은 문서' 행의 위치</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>docs/deploy/pending/U7.md</code></td><td>§4-5 의 절 추가</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>ProvisioningAllowedRangeChangedEvent</code></td><td>허용 대역 저장 커밋 뒤 발행</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td>대역 미설정 예외 1</td><td>409 가 필요하면</td></tr>
+            <tr><td><span class="chip mod">테스트</span></td><td><code>PxeNetworkConfig*Test</code> · <code>ProvisioningLanPolicyTest</code> · <code>GuestSecurityConfig</code> 관련 통합 · <code>SystemSettingControllerTest</code> · <code>DnsmasqConfigRendererTest</code></td><td>6-1 의 항목 · <code>unrestricted()</code> 테스트 개정</td></tr>
+          </tbody>
+        </table>
+        <div class="callout success"><b>비고</b> : 규약 검사 위반 없음(A1 ~ A7 확인). <code>ArchitectureConventionTest</code> 의 규칙(<code>ConventionRule</code> A1 ~ A7)에는 패키지 간 의존 금지가 없고, <code>global.security</code> → <code>global.systemsetting</code> 의존은 둘 다 global 인프라라 허용된다.</div>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // 1. ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      var sticky = window.matchMedia('(max-width:1024px)').matches ? 0 : 108;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - sticky, behavior: 'smooth' });
+    });
+  });
+  // 2. 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = true; });
+  });
+  document.getElementById('btn-collapse').addEventListener('click', function () {
+    document.querySelectorAll('details.section').forEach(function (d) { d.open = false; });
+  });
+  // 3. filter 입력 → 매칭 섹션만 표시
+  document.getElementById('filter').addEventListener('input', function (e) {
+    var q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(function (d) {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().indexOf(q) !== -1) { d.classList.remove('hidden'); d.open = true; }
+      else { d.classList.add('hidden'); }
+    });
+  });
+  // 4. check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list[data-storage]').forEach(function (ul) {
+    var key = ul.dataset.storage;
+    var stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', function () {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) { /* sandboxed iframe */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+</script>
+</body>
+</html>

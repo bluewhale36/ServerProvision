@@ -4,11 +4,13 @@ import com.example.serverprovision.global.security.springsecurity.domain.Role;
 import com.example.serverprovision.global.systemsetting.dto.response.SystemSettingResponse;
 import com.example.serverprovision.global.systemsetting.entity.SystemSetting;
 import com.example.serverprovision.global.systemsetting.enums.SystemSettingKey;
+import com.example.serverprovision.global.systemsetting.event.ProvisioningAllowedRangeChangedEvent;
 import com.example.serverprovision.global.systemsetting.exception.SystemSettingAccessDeniedException;
 import com.example.serverprovision.global.systemsetting.repository.SystemSettingRepository;
 import com.example.serverprovision.global.systemsetting.vo.ProvisioningAllowedCidr;
 import com.example.serverprovision.global.systemsetting.vo.ProvisioningAllowedRange;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class SystemSettingService {
 
     private final SystemSettingRepository repository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** 이 권한으로 볼 수 있는 설정 카드(키 선언 순). */
     @Transactional(readOnly = true)
@@ -56,6 +59,7 @@ public class SystemSettingService {
         }
         setting.changeValue(new ProvisioningAllowedRange(cidr));
         repository.save(setting);
+        eventPublisher.publishEvent(new ProvisioningAllowedRangeChangedEvent(cidr));
     }
 
     /** 개시 판정용 내부 읽기. 권한 판정을 거치지 않는다. */

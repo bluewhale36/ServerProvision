@@ -4,6 +4,7 @@ import com.example.serverprovision.execution.pxeinfra.apply.ApplyOutcome;
 import com.example.serverprovision.execution.pxeinfra.dto.request.PxeNetworkConfigRequest;
 import com.example.serverprovision.execution.pxeinfra.entity.PxeNetworkConfig;
 import com.example.serverprovision.execution.pxeinfra.repository.PxeNetworkConfigRepository;
+import com.example.serverprovision.execution.pxeinfra.vo.SubnetCidr;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,13 +37,13 @@ public class PxeNetworkConfigService {
      * 않는다 — 실패도 정상 리턴으로 커밋시키고, 승격은 트랜잭션 밖에서 한다.
      */
     @Transactional
-    public PxeNetworkConfig save(PxeNetworkConfigRequest req, ApplyOutcome outcome) {
+    public PxeNetworkConfig save(PxeNetworkConfigRequest req, SubnetCidr subnet, ApplyOutcome outcome) {
         PxeNetworkConfig config = repository.findFirstByOrderByIdAsc()
                 .map(existing -> {
-                    mapper.applyTo(existing, req);
+                    mapper.applyTo(existing, req, subnet);
                     return existing;
                 })
-                .orElseGet(() -> mapper.toEntity(req));
+                .orElseGet(() -> mapper.toEntity(req, subnet));
         config.recordApply(outcome.result(), outcome.appliedVersionId(), LocalDateTime.now());
         return repository.save(config);
     }

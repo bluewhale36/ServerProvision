@@ -61,7 +61,7 @@ PXE_DNSMASQ_FRAGMENT_PATH=/etc/dnsmasq.d/serverprovision-pxe.conf
 
 메인 구성 경로와 임대 파일 경로는 기본값(`/etc/dnsmasq.conf`, `/var/lib/dnsmasq/dnsmasq.leases`)이 Rocky 와 같아 보통 생략한다. 다르면 `PXE_DNSMASQ_CONF_PATH`, `PXE_DNSMASQ_LEASES_PATH` 로 덮어쓴다.
 
-proxyDHCP 모드로 사내망에 나갈 때는 게스트 채널의 출발지 대역(`PXE_GUEST_ALLOWED_CIDRS`)을 사내 게스트 대역으로 바꾼다. 화면의 서브넷과 이 값은 따로 관리한다.
+조각의 서브넷은 시스템 설정의 프로비저닝 허용 대역이다(HF35). PXE 네트워크 구성 화면에는 서브넷 입력이 없고, 저장 및 적용 때 그 대역을 쓴다. 같은 대역이 게스트 채널의 출발지 제한과 개시 전 주소 판정에도 쓰인다. proxyDHCP 모드로 사내망에 나갈 때는 시스템 설정에서 허용 대역을 사내 게스트 대역으로 바꾼 뒤, PXE 네트워크 구성에서 저장 및 적용을 다시 한다. 대역을 바꾸면 두 화면이 재적용이 필요하다고 알린다.
 
 ## 6. 모드별 조각의 모양
 
