@@ -244,7 +244,7 @@ class SubprogramControllerTest {
             var conflicts = List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                     99L,
                     com.example.serverprovision.global.lifecycle.LifecycleStage.DEPRECATED,
-                    "hash", "Realtek-r8169", "1.0.0", "Realtek-r8169", Instant.now()));
+                    "hash", "Realtek-r8169", "1.0.0", "Realtek-r8169", "버전 1.0.0", Instant.now()));
             willThrow(new com.example.serverprovision.management.subprogram.exception.SubprogramNudgeRequiredException(
                     "동일 메타", session, conflicts))
                     .given(subprogramUploadIntentService).issue(eq(SubprogramKind.DRIVER), any(BoardScope.class), any());

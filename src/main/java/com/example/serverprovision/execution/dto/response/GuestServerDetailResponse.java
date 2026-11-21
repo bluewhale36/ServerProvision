@@ -368,8 +368,22 @@ public record GuestServerDetailResponse(
             boolean retryable,
             boolean retryBlocked,
             /** 펌웨어를 굽는 창 — 중단성 조작(전원 · 회수 등) 버튼 차단 플래그(서버 가드와 SSOT, R13 후속). */
-            boolean disruptionBlocked
+            boolean disruptionBlocked,
+            /** U7 — 개시를 막는 네트워크 사유 문구(빈 목록 = 막지 않음). 개시 409 와 같은 판정 {@code StartNetworkBlocks}. */
+            List<String> startNetworkBlockReasons
     ) {
+        public Progress {
+            startNetworkBlockReasons = startNetworkBlockReasons == null ? List.of() : List.copyOf(startNetworkBlockReasons);
+        }
+
+        /** 네트워크 사유가 없는 진행 상태(U7 이전 호출부 · 테스트 고정물). */
+        public Progress(ProvisioningPhase currentPhase, LocalDateTime lastTransitionAt, LocalDateTime startedAt,
+                        LocalDateTime failedAt, ProvisioningPhaseStep failedStepCode, LocalDateTime completedAt,
+                        boolean startable, boolean markFailable, boolean retryable, boolean retryBlocked,
+                        boolean disruptionBlocked) {
+            this(currentPhase, lastTransitionAt, startedAt, failedAt, failedStepCode, completedAt,
+                    startable, markFailable, retryable, retryBlocked, disruptionBlocked, List.of());
+        }
     }
 
     /**

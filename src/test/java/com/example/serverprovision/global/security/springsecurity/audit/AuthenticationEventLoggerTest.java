@@ -159,7 +159,7 @@ class AuthenticationEventLoggerTest {
 
 		MockHttpServletRequest outsideLan = request("/api/pxe/v1/boot", "172.16.0.5");
 		logger.onAuthorizationDenied(new AuthorizationDeniedEvent<>(() -> anonymous, outsideLan,
-				new ProvisioningLanPolicy(java.util.List.of("10.0.2.0/24")).authorize(() -> anonymous, new RequestAuthorizationContext(outsideLan))));
+				new ProvisioningLanPolicy(() -> java.util.Optional.of(com.example.serverprovision.global.systemsetting.vo.ProvisioningAllowedCidr.parse("10.0.2.0/24"))).authorize(() -> anonymous, new RequestAuthorizationContext(outsideLan))));
 
 		assertThat(capture.events()).satisfiesExactly(
 				e -> {

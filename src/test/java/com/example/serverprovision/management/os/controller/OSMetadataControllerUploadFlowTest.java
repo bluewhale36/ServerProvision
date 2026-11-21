@@ -437,7 +437,7 @@ class OSMetadataControllerUploadFlowTest {
                     java.util.List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                             55L,
                             com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
-                            "hash", "9.4", "/opt/iso/rocky/9/dvd.iso", "9.4", Instant.now())),
+                            "hash", "9.4", "/opt/iso/rocky/9/dvd.iso", "9.4", "/opt/iso/rocky/9/dvd.iso", Instant.now())),
                     Instant.now().plusSeconds(300));
             willThrow(new com.example.serverprovision.management.os.exception.IsoNudgeRequiredException(
                     "동일 path", payload))
@@ -513,7 +513,7 @@ class OSMetadataControllerUploadFlowTest {
             var candidate = new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                     77L,
                     com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
-                    "abc", "9.4", "/opt/iso/old.iso", "9.4", Instant.now());
+                    "abc", "9.4", "/opt/iso/old.iso", "9.4", "/opt/iso/old.iso", Instant.now());
             given(isoUploadIntentService.issue(eq(1L), any()))
                     .willReturn(new IsoUploadIntentResponse.HashCheckRequired(
                             java.util.List.of(candidate), "SHA-256"));
@@ -538,7 +538,7 @@ class OSMetadataControllerUploadFlowTest {
                     java.util.List.of(new com.example.serverprovision.management.common.nudge.dto.NudgeConflictEntry(
                             77L,
                             com.example.serverprovision.global.lifecycle.LifecycleStage.SOFT_DELETED,
-                            "deadbeef", "9.4", "/opt/iso/old.iso", "9.4", Instant.now())),
+                            "deadbeef", "9.4", "/opt/iso/old.iso", "9.4", "/opt/iso/old.iso", Instant.now())),
                     Instant.now().plusSeconds(300));
             willThrow(new com.example.serverprovision.management.os.exception.IsoNudgeRequiredException(
                     "동일 hash", payload))

@@ -6,6 +6,8 @@
   ─────────────────────────────────────────────────────────
   사용 컨텍스트 : ① 정의서 상세 화면(provisioning/setting-detail) 의 '프로비저닝 단계' 절
                  ② 서버 상세의 정의서 선택 모달(fragments/provisioning/definition-picker) 우측 패널
+                 ③ 그룹 정의서 선택 모달(fragments/provisioning/group-definition-picker) 우측 패널
+                 세 곳이 한 조각을 쓰므로 렌더 예외 하나가 세 화면을 함께 막는다(HF33).
   파라미터      : setting — SettingDetailResponse
 
   경계가 '카드 루프 + 빈 상태' 인 이유 (U3-5-b DEC-A)
@@ -252,6 +254,8 @@
                     <th:block th:switch="${process.osFamily().name()}">
                     <th:block th:case="'WINDOWS'"
                               th:insert="~{fragments/provisioning/setting/os-installation/detail-windows :: body(inst=${process})}"></th:block>
+                    <!-- 리눅스 공통 갈래 — 계열 전용 값(root 비밀번호 · 호스트명 등)은 여기서 읽지 않고 아래 계열 조각에 둔다.
+                         공통 표가 RHEL 전용 rootPassword 를 읽어 Ubuntu 정의서 하나가 고르기 창 전체를 500 으로 막았다(HF33). -->
                     <th:block th:case="*">
                     <table class="n-detail-table">
                         <tbody>
@@ -275,13 +279,6 @@
                                       class="n-badge n-badge-blue">RTC: UTC</span>
                                 <span th:if="${process.timezone != null and !process.timezone.isUTC()}"
                                       class="n-badge n-badge-gray">RTC: 로컬</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>root 비밀번호</th>
-                            <td>
-                                <span th:if="${process.rootPassword != null}" class="n-badge n-badge-green">설정 완료</span>
-                                <span th:unless="${process.rootPassword != null}" class="n-badge n-badge-orange">미설정 (root 잠금)</span>
                             </td>
                         </tr>
                         </tbody>

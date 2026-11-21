@@ -259,7 +259,7 @@ sudo firewall-cmd --get-active-zones                                     # web=e
 - dnsmasq — 앱이 렌더하는 설정(런북 · `docs/pxe-dnsmasq-setup.md`)에 `interface=bond0` 와 `bind-interfaces` 가 들어가야 한다. 앱의 proxy DHCP 화면에서 인터페이스를 `bond0` 으로 둔다.
 - Samba — `/etc/samba/smb.conf` `[global]` 에 `interfaces = bond0` · `bind interfaces only = yes`.
 - sshd — 기본값(모든 주소)으로 두고 admin zone 이 22 를 가른다. `ListenAddress <admin IP>` 를 쓰려면 NIC 보다 sshd 가 먼저 뜰 때 bind 에 실패해 sshd 전체가 안 뜨는 문제가 있으므로 `sshd.service` 에 `After=network-online.target` 을 함께 둔다.
-- 앱 환경 파일(런북 §9) — `PXE_SERVER_BASE_URL=http://<pxe IP>:8080` · `PXE_GUEST_ALLOWED_CIDRS=<pxe 대역>` · Windows 공유 UNC 는 `\\<pxe IP>\win2025`. 게스트 쪽은 평문 8080 이어야 한다(iPXE · wimboot · 완료 보고가 base URL 로 만들어지고 게스트는 자체 서명 CA 를 신뢰할 수 없다).
+- 앱 환경 파일(런북 §9) — `PXE_SERVER_BASE_URL=http://<pxe IP>:8080` · Windows 공유 UNC 는 `\\<pxe IP>\win2025`. 게스트 쪽은 평문 8080 이어야 한다(iPXE · wimboot · 완료 보고가 base URL 로 만들어지고 게스트는 자체 서명 CA 를 신뢰할 수 없다).
 - nginx 인증서 — SAN 에 `<web IP>` 를 넣고, admin 경로로도 열 거면 `<admin IP>` 를 더한다. web IP 가 바뀌면 재발급한다.
 
 ### 7-5. 관리 접속은 Tailscale 오버레이로 (2026-09-18 확정)
@@ -307,7 +307,7 @@ ssh <운영자>@<admin IP>
 `docs/staging-vm-bootstrap.md` §2(시스템 기본)부터 그대로 진행한다. 실서버에서 달라지는 값만 적어 둔다.
 
 - 호스트명 · NIC 역할과 고정 IP(§7) · nginx 인증서의 SAN(web IP).
-- 환경 파일(§9)에 PXE 변수 — `PXE_ASSETS_ROOT` · `PXE_TFTP_ROOT` · `PXE_SERVER_BASE_URL` · `PXE_BOOT_SECRET` · `PXE_GUEST_ALLOWED_CIDRS`(S19-2). base-url 과 대역은 첫 접촉 통로(proxyDHCP · 네트워크 관리사 회신 대기)가 정해지면 확정한다.
+- 환경 파일(§9)에 PXE 변수 — `PXE_ASSETS_ROOT` · `PXE_TFTP_ROOT` · `PXE_SERVER_BASE_URL` · `PXE_BOOT_SECRET`(S19-2). 프로비저닝 대역은 env 가 아니라 시스템 설정의 프로비저닝 허용 대역이다(HF35). base-url 과 대역은 첫 접촉 통로(proxyDHCP · 네트워크 관리사 회신 대기)가 정해지면 확정한다.
 - DHCP 는 켜지 않는다(사내망). proxyDHCP 로 가면 dhcpd 대신 dnsmasq 이고, 그 결정은 별도 슬라이스가 앱의 PXE 네트워크 화면과 함께 옮긴다.
 - 실 DB DDL 은 배포 시점 `ddl/` 의 미적용분을 순서대로.
 - **메모리 배분(96 GB)** — 런북과 유닛에는 크기 설정이 없어 기본값으로 뜬다. 이 기기에서는 앱 JVM 힙 `-Xmx8g`(유닛 `Environment=JAVA_OPTS=…` 또는 ExecStart 인자 · 업로드 스트리밍은 힙을 크게 쓰지 않는다), MariaDB `innodb_buffer_pool_size = 16G`(`/etc/my.cnf.d/`) 정도로 잡고 나머지는 페이지 캐시에 맡긴다 — ISO · modloop 같은 큰 파일 서빙은 페이지 캐시가 곧 성능이다. swap 16 GB 는 사내 표준대로 둔다.
