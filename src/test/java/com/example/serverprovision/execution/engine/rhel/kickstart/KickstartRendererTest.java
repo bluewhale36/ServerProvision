@@ -133,10 +133,30 @@ class KickstartRendererTest {
     }
 
     @Test
+    @DisplayName("첫 부팅 보고 절은 맨 끝 %post 하나다. 토큰은 env heredoc 에만 한 번 나오고 heredoc 은 세 번 열고 닫는다")
+    void firstBootReport_section() {
+        String ks = render(KickstartFixtures.rocky9());
+        String post = ks.substring(ks.indexOf("%post --log=/root/spv-post.log --erroronfail"));
+        assertThat(post).startsWith("%post --log=/root/spv-post.log --erroronfail\n").endsWith("systemctl enable spv-report.service\n%end\n");
+        assertThat(ks.lines().filter(l -> l.startsWith("%post")).count()).isEqualTo(1);
+        assertThat(ks.split(KickstartFixtures.GUEST_TOKEN, -1)).hasSize(2);
+        assertThat(post.split("\nSPV_EOF\n", -1)).hasSize(4);
+        assertThat(post).contains("cat > /etc/spv/report.env <<'SPV_EOF'", "cat > /usr/local/sbin/spv-report <<'SPV_EOF'",
+                "cat > /etc/systemd/system/spv-report.service <<'SPV_EOF'", "chmod 0600 /etc/spv/report.env",
+                "SPV_EXPECTED_UUID='4c4c4544-0042-3510-8051-b4c04f4e3332'", "SPV_SERIAL='To_Be_Filled_By_O.E.M.'");
+        assertThat(post.indexOf("/usr/local/sbin/spv-report banner")).isLessThan(post.indexOf("restorecon"));
+        assertThat(post.indexOf("restorecon")).isLessThan(post.indexOf("systemctl enable"));
+    }
+
+    @Test
     @DisplayName("대상 디스크 · 설치 원본 없이는 실행 재료를 만들 수 없다")
     void runtime_requiresDisk() {
-        assertThatThrownBy(() -> new KickstartRuntime("http://x/tree", null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new KickstartRuntime(null, new InstallDisk("wwn-0x1"))).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new KickstartRuntime("http://x/tree", null, KickstartFixtures.REPORT))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new KickstartRuntime(null, new InstallDisk("wwn-0x1"), KickstartFixtures.REPORT))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new KickstartRuntime("http://x/tree", new InstallDisk("wwn-0x1"), null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     private static RhelInstallTarget withRelease(RhelInstallTarget t, RhelRelease release) {

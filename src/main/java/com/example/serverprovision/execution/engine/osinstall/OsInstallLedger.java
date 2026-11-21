@@ -142,6 +142,40 @@ public abstract class OsInstallLedger {
         return v == null ? null : LocalDateTime.parse(v.toString());
     }
 
+    /**
+     * 열린 서빙 행을 완료로 닫는다. 서빙 meta 는 그대로 두고 완료 시각, 계열이 넘긴 사실, 사유 COMPLETED, 운영 기록을 더한다.
+     * 이미 닫힌 행이면 false.
+     */
+    protected boolean closeCompleted(ProvisioningHistory row, Map<String, Object> facts, String detail, LocalDateTime now) {
+        Map<String, Object> meta = read(row);
+        meta.putIfAbsent("origin", origin().wire());
+        meta.put("completedAt", now.toString());
+        meta.putAll(facts);
+        meta.put("reason", COMPLETED);
+        meta.put("detail", detail);
+        return row.close(ProvisioningStatus.SUCCEEDED, write(meta), now);
+    }
+
+    /** 설치 디스크 사후 확증. 완료 행이 아니면(meta 에 키가 없으면) null. */
+    public InstallConfirmation diskConfirmationOf(ProvisioningHistory row) {
+        return confirmationOf(row, "diskConfirmed");
+    }
+
+    /** meta 의 Boolean 확증 값을 옮긴다. 키가 없으면 null, 값이 null 이면 미보고. */
+    protected InstallConfirmation confirmationOf(ProvisioningHistory row, String key) {
+        Map<String, Object> meta = read(row);
+        if (!meta.containsKey(key)) {
+            return null;
+        }
+        return InstallConfirmation.of(meta.get(key) instanceof Boolean confirmed ? confirmed : null);
+    }
+
+    /** meta 의 문자열 값. 없으면 null. */
+    protected String textOf(ProvisioningHistory row, String key) {
+        Object v = read(row).get(key);
+        return v == null ? null : v.toString();
+    }
+
     /** 실패 행에 적힌 화면 문구 — 사유가 문구를 주지 않았으면 empty(화면은 사유 코드로 문구를 고른다). */
     public Optional<String> failureMessageOf(ProvisioningHistory row) {
         Object v = read(row).get("message");

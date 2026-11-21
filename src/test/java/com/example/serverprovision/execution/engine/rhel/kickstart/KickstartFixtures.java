@@ -3,18 +3,25 @@ package com.example.serverprovision.execution.engine.rhel.kickstart;
 import com.example.serverprovision.execution.engine.rhel.KickstartPartition;
 import com.example.serverprovision.execution.engine.rhel.KickstartUser;
 import com.example.serverprovision.execution.engine.rhel.RhelInstallTarget;
+import com.example.serverprovision.execution.vo.GuestToken;
 import com.example.serverprovision.management.os.enums.RhelRelease;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /** 골든 파일 3 개의 입력. 해시는 고정 예시 문자열(실제 계산 아님). CP5 ksvalidator 하네스도 같은 입력을 쓴다. */
 public final class KickstartFixtures {
 
     static final String ROOT_CRYPT = "$6$exRootSalt$exampleRootCryptNotComputed";
     static final String USER_CRYPT = "$6$exUserSalt$exampleUserCryptNotComputed";
+    /** 예시 게스트 토큰(자리표시 값). 골든에서 env heredoc 에만 나와야 한다. */
+    static final String GUEST_TOKEN = "0123456789abcdef0123456789abcdef";
+    static final FirstBootReport REPORT = FirstBootReport.of("http://pxe.example", new GuestToken(GUEST_TOKEN),
+            UUID.fromString("4c4c4544-0042-3510-8051-b4c04f4e3332"), "To Be Filled By O.E.M.",
+            UUID.fromString("00000000-0000-0000-0000-000000000042"));
     static final KickstartRuntime RUNTIME = new KickstartRuntime(
-            "http://pxe.example/api/pxe/v1/rhel/TOKEN/tree", new InstallDisk("wwn-0x5000c500a1b2c3d4"));
+            "http://pxe.example/api/pxe/v1/rhel/TOKEN/tree", new InstallDisk("wwn-0x5000c500a1b2c3d4"), REPORT);
 
     private KickstartFixtures() {
     }

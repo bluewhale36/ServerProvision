@@ -49,6 +49,30 @@
 <p th:fragment="expiredHint(oi)" th:if="${oi.served() and oi.remainingMinutes != null and oi.remainingMinutes == 0}"
    class="n-hint n-hint-warn" th:text="#{provisioning.os.install.progress.expired}">설치가 시한을 넘겼습니다.</p>
 
+<!-- 완료 뒤 '다음' 행(E4-1-a-4) — 종단이면 끝, 아니면 넘어간 phase. -->
+<tr th:fragment="completedNextRow(oi)" th:if="${oi.provisioningCompleted or oi.nextPhase != null}">
+    <th th:text="#{provisioning.os.install.result.next}">다음</th>
+    <td>
+        <span th:if="${oi.provisioningCompleted}"
+              th:text="#{provisioning.os.install.progress.completed.terminal}">프로비저닝이 종단됐습니다.</span>
+        <span th:if="${!oi.provisioningCompleted and oi.nextPhase != null}"
+              th:text="|#{provisioning.os.install.progress.completed.next}: ${oi.nextPhase.description}|">다음 단계로 넘어갔습니다</span>
+    </td>
+</tr>
+
+<!-- 사후 확증 칸 내용(E4-1-a-6 · E4-1-b-5) — 일치는 배지만, 불일치는 경보, 미보고는 안내. 인자 c = InstallConfirmation. -->
+<th:block th:fragment="confirmation(c, mismatchMessage, unreportedMessage)">
+    <span th:if="${c.name() == 'CONFIRMED'}" class="n-badge n-badge-teal" th:text="${c.description}">일치</span>
+    <th:block th:if="${c.name() == 'MISMATCH'}">
+        <span class="n-badge n-badge-red" th:text="${c.description}">불일치</span>
+        <div class="n-alert n-alert-warning" th:text="${mismatchMessage}">계획한 OS 볼륨과 다른 디스크에 설치됐습니다.</div>
+    </th:block>
+    <th:block th:if="${c.name() == 'UNREPORTED'}">
+        <span class="n-badge n-badge-gray" th:text="${c.description}">미보고</span>
+        <span class="n-meta n-muted" th:text="${unreportedMessage}">확인 정보가 없습니다.</span>
+    </th:block>
+</th:block>
+
 <!-- Windows 카드(E4-1-a-3 · a-4 · a-6 · R15-2 · HF23). 준비도는 조회 시점 재판정, 진행은 원장 행의 투영이다. -->
 <th:block th:fragment="windowsCard(oi)" th:with="wi=${oi.detail}">
     <div class="n-section" th:text="#{provisioning.os.install.title('Windows')}">Windows 설치</div>
@@ -114,18 +138,10 @@
 
     <!-- E4-1-a-4 · E4-1-a-6 · R15-2 — 완료 뒤 결과: 다음 단계 · 문제 장치 · 설치 디스크 확증 · 항목별 설치 결과 -->
     <th:block th:if="${oi.completed()}">
-        <div class="n-section">설치 결과</div>
+        <div class="n-section" th:text="#{provisioning.os.install.result}">설치 결과</div>
         <table class="n-detail-table">
             <tbody>
-            <tr th:if="${oi.provisioningCompleted or oi.nextPhase != null}">
-                <th>다음</th>
-                <td>
-                    <span th:if="${oi.provisioningCompleted}"
-                          th:text="#{provisioning.os.install.progress.completed.terminal}">프로비저닝이 종단됐습니다.</span>
-                    <span th:if="${!oi.provisioningCompleted and oi.nextPhase != null}"
-                          th:text="|#{provisioning.os.install.progress.completed.next}: ${oi.nextPhase.description}|">다음 단계로 넘어갔습니다</span>
-                </td>
-            </tr>
+            <tr th:replace="~{fragments/provisioning/os-install :: completedNextRow(${oi})}"></tr>
             <tr>
                 <th>문제 장치</th>
                 <td>
@@ -147,19 +163,9 @@
             </tr>
             <!-- E4-1-a-6 — 설치 디스크 사후 확증: 의도한 OS 볼륨에 들어갔는지 -->
             <tr th:if="${wi.diskConfirmation != null}">
-                <th>설치 디스크</th>
+                <th th:text="#{provisioning.os.install.result.disk}">설치 디스크</th>
                 <td>
-                    <th:block th:if="${wi.diskConfirmation == 'CONFIRMED'}">
-                        <span class="n-badge n-badge-teal">일치</span>
-                    </th:block>
-                    <th:block th:if="${wi.diskConfirmation == 'MISMATCH'}">
-                        <span class="n-badge n-badge-red">불일치</span>
-                        <div class="n-alert n-alert-warning" th:text="#{provisioning.windows.install.disk.mismatch}">계획한 OS 볼륨과 다른 디스크에 설치됐습니다.</div>
-                    </th:block>
-                    <th:block th:if="${wi.diskConfirmation == 'UNREPORTED'}">
-                        <span class="n-badge n-badge-gray">미보고</span>
-                        <span class="n-meta n-muted" th:text="#{provisioning.windows.install.disk.unreported}">설치 디스크 확증 정보가 없습니다.</span>
-                    </th:block>
+                    <th:block th:replace="~{fragments/provisioning/os-install :: confirmation(${wi.diskConfirmation}, #{provisioning.os.install.disk.mismatch}, #{provisioning.os.install.disk.unreported})}"></th:block>
                 </td>
             </tr>
             <!-- R15-2 — 항목별 설치 결과(SetupComplete [SPV-INSTALL] 줄) -->
@@ -191,7 +197,7 @@
     </th:block>
 </th:block>
 
-<!-- RHEL 카드(E4-1-b-4-2) — 대상 OS, 준비도, 설치 대상 디스크, 진행. -->
+<!-- RHEL 카드(E4-1-b-4-2 · b-5) — 대상 OS, 준비도, 설치 대상 디스크, 진행. 완료 뒤에는 첫 부팅 보고의 설치 결과. -->
 <th:block th:fragment="rhelCard(oi)" th:with="rhel=${oi.detail}">
     <div th:replace="~{fragments/provisioning/os-install :: cardTitle(${oi})}"></div>
     <table class="n-detail-table">
@@ -212,12 +218,47 @@
         <tr>
             <th th:text="#{provisioning.os.install.progress}">진행</th>
             <td>
+                <th:block th:if="${oi.completed()}">
+                    <span class="n-badge n-badge-teal" th:text="#{provisioning.os.install.progress.completed}">완료</span>
+                    <span class="n-meta n-muted"
+                          th:text="|#{provisioning.os.install.progress.completed.at} ${#temporals.format(oi.completedAt, 'yyyy-MM-dd HH:mm:ss')}, #{provisioning.rhel.install.progress.completed.hostname} ${rhel.result != null and rhel.result.hostname != null ? rhel.result.hostname : '-'}|">완료 2026-11-19 16:40:12, 호스트 이름 localhost</span>
+                </th:block>
                 <th:block th:replace="~{fragments/provisioning/os-install :: progressStates(${oi})}"></th:block>
             </td>
         </tr>
         </tbody>
     </table>
     <p th:replace="~{fragments/provisioning/os-install :: expiredHint(${oi})}"></p>
+
+    <th:block th:if="${oi.completed() and rhel.result != null}" th:with="result=${rhel.result}">
+        <div class="n-section" th:text="#{provisioning.os.install.result}">설치 결과</div>
+        <table class="n-detail-table">
+            <tbody>
+            <tr th:replace="~{fragments/provisioning/os-install :: completedNextRow(${oi})}"></tr>
+            <tr>
+                <th th:text="#{provisioning.rhel.install.result.os}">설치 OS</th>
+                <td>
+                    <span th:text="${result.osPrettyName != null} ? ${result.osPrettyName} : '-'">Rocky Linux 9.5 (Blue Onyx)</span>
+                    <div class="n-note" th:if="${result.kernel != null}" th:text="${result.kernel}">5.14.0-503.14.1.el9_5.x86_64</div>
+                </td>
+            </tr>
+            <tr>
+                <th th:text="#{provisioning.os.install.result.disk}">설치 디스크</th>
+                <td>
+                    <th:block th:replace="~{fragments/provisioning/os-install :: confirmation(${result.diskConfirmation}, #{provisioning.os.install.disk.mismatch}, #{provisioning.os.install.disk.unreported})}"></th:block>
+                    <div th:if="${result.installedRootDisk != null}"><code class="n-table-mono" th:text="${result.installedRootDisk}">wwn-0x600508e000000000</code></div>
+                </td>
+            </tr>
+            <tr>
+                <th th:text="#{provisioning.rhel.install.result.identity}">대상 서버</th>
+                <td>
+                    <th:block th:replace="~{fragments/provisioning/os-install :: confirmation(${result.identityConfirmation}, #{provisioning.rhel.install.identity.mismatch}, #{provisioning.rhel.install.identity.unreported})}"></th:block>
+                    <div th:if="${result.reportedSystemUuid != null}"><code class="n-table-mono" th:text="${result.reportedSystemUuid}">4c4c4544-0042-3510-8051-b4c04f4e3332</code></div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </th:block>
 </th:block>
 
 <!-- 맡을 설치기가 없는 계열 — 제목과 준비도의 막힘 사유만 보인다. 준비도가 없으면(진행 전) 말할 것이 없어 그리지 않는다. -->

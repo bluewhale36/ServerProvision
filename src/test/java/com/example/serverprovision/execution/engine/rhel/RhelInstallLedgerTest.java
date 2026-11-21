@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.engine.rhel;
 
 import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
+import com.example.serverprovision.execution.engine.osinstall.InstallConfirmation;
 import com.example.serverprovision.execution.engine.osinstall.OsInstallFailure;
 import com.example.serverprovision.execution.engine.rhel.kickstart.InstallDisk;
 import com.example.serverprovision.execution.engine.rhel.kickstart.KickstartDocument;
@@ -78,6 +79,55 @@ class RhelInstallLedgerTest {
         assertThat(ledger.releaseOf(row)).isEqualTo("Rocky Linux 9.5");
         assertThat(ledger.targetDiskOf(row)).isEqualTo("wwn-0x600508e000000000");
         assertThat(ledger.servedAtOf(row)).isEqualTo(NOW);
+    }
+
+    @Test
+    @DisplayName("closeSucceeded — 서빙 meta 를 둔 채 완료 meta · 사유 COMPLETED 를 더하고 SUCCEEDED 로 닫는다. 확증은 Boolean 으로 적는다")
+    void closeSucceeded_keepsServingMeta() {
+        ProvisioningHistory row = ledger.openServed(guest, serving(), NOW);
+
+        boolean closed = ledger.closeSucceeded(row, new RhelInstallLedger.RhelCompletion("rocky", "9.5",
+                "Rocky Linux 9.5 (Blue Onyx)", "5.14.0", "localhost", "wwn-0x600508e000000000",
+                InstallConfirmation.CONFIRMED, "4c4c4544-0042-3510-8051-b4c04f4e3332", InstallConfirmation.MISMATCH),
+                NOW.plusMinutes(30));
+
+        assertThat(closed).isTrue();
+        assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
+        assertThat(ledger.isCompletedRow(row)).isTrue();
+        assertThat(ledger.completedAtOf(row)).isEqualTo(NOW.plusMinutes(30));
+        assertThat(ledger.isoOf(row)).contains(12L);
+        assertThat(ledger.targetDiskOf(row)).isEqualTo("wwn-0x600508e000000000");
+        assertThat(row.getStatusMeta()).contains("\"diskConfirmed\":true", "\"identityConfirmed\":false",
+                "\"reportedSystemUuid\":\"4c4c4544-0042-3510-8051-b4c04f4e3332\"");
+        assertThat(ledger.completionOf(row).orElseThrow().identityConfirmation()).isEqualTo(InstallConfirmation.MISMATCH);
+        assertThat(ledger.closeSucceeded(row, ledger.completionOf(row).orElseThrow(), NOW.plusMinutes(31))).isFalse();
+    }
+
+    @Test
+    @DisplayName("closeSucceeded — 스크립트가 빈 문자열로 보낸 값은 null 로 적고 읽는다(빈 값 · 미보고 구분 없음)")
+    void closeSucceeded_blankReportedValuesBecomeNull() {
+        ProvisioningHistory row = ledger.openServed(guest, serving(), NOW);
+
+        ledger.closeSucceeded(row, new RhelInstallLedger.RhelCompletion("", " ", "", "5.14.0", "", "",
+                InstallConfirmation.UNREPORTED, "", InstallConfirmation.UNREPORTED), NOW.plusMinutes(30));
+
+        assertThat(row.getStatusMeta()).doesNotContain("\"\"").contains("\"installedRootDisk\":null", "\"reportedSystemUuid\":null");
+        RhelInstallLedger.RhelCompletion read = ledger.completionOf(row).orElseThrow();
+        assertThat(read.installedRootDisk()).isNull();
+        assertThat(read.reportedSystemUuid()).isNull();
+        assertThat(read.hostname()).isNull();
+        assertThat(read.osVersion()).isNull();
+        assertThat(read.kernel()).isEqualTo("5.14.0");
+    }
+
+    @Test
+    @DisplayName("completionOf — 완료 행이 아니면(열린 행 · 실패 행) empty")
+    void completionOf_onlyCompletedRows() {
+        ProvisioningHistory row = ledger.openServed(guest, serving(), NOW);
+        assertThat(ledger.completionOf(row)).isEmpty();
+        ledger.abortRunning(row, OsInstallFailure.OPERATOR, "운영자", NOW.plusMinutes(1));
+        assertThat(ledger.completionOf(row)).isEmpty();
+        assertThat(ledger.diskConfirmationOf(row)).isNull();
     }
 
     @Test

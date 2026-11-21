@@ -6,7 +6,6 @@ import com.example.serverprovision.execution.engine.osinstall.OsInstallOrigin;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
-import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import com.example.serverprovision.execution.wininstall.vo.WindowsImageName;
 import org.springframework.stereotype.Component;
@@ -175,28 +174,24 @@ public class WindowsInstallLedger extends OsInstallLedger {
      * (-3 인계 ③). 이미 닫힌 행이면 false.
      */
     public boolean closeSucceeded(ProvisioningHistory row, Completion c, LocalDateTime now) {
-        Map<String, Object> meta = read(row);
-        meta.putIfAbsent("origin", origin().wire());
-        meta.put("completedAt", now.toString());
-        meta.put("computerName", c.computerName());
-        meta.put("osVersion", c.osVersion());
-        meta.put("driversAdded", c.driversAdded());
-        meta.put("problemDeviceCount", c.problemDeviceCount());
-        meta.put("problemDevices", c.problemDevices() == null ? List.of() : c.problemDevices());
+        Map<String, Object> facts = new LinkedHashMap<>();
+        facts.put("computerName", c.computerName());
+        facts.put("osVersion", c.osVersion());
+        facts.put("driversAdded", c.driversAdded());
+        facts.put("problemDeviceCount", c.problemDeviceCount());
+        facts.put("problemDevices", c.problemDevices() == null ? List.of() : c.problemDevices());
         if (c.setupCompleteLogTail() != null && !c.setupCompleteLogTail().isBlank()) {
-            meta.put("setupCompleteLogTail", c.setupCompleteLogTail());
+            facts.put("setupCompleteLogTail", c.setupCompleteLogTail());
         }
         if (c.installedDiskUniqueId() != null) {
-            meta.put("installedDiskUniqueId", c.installedDiskUniqueId());
+            facts.put("installedDiskUniqueId", c.installedDiskUniqueId());
         }
-        meta.put("diskConfirmed", c.diskConfirmed());   // null = 미보고(구 스크립트 · 조회 실패) — 오류 아님
-        meta.put("installs", c.installs() == null ? List.of() : c.installs());   // R15-2 — SetupComplete 의 항목별 실행 결과(exit code)
+        facts.put("diskConfirmed", c.diskConfirmed());   // null = 미보고(구 스크립트 · 조회 실패) — 오류 아님
+        facts.put("installs", c.installs() == null ? List.of() : c.installs());   // R15-2 — SetupComplete 의 항목별 실행 결과(exit code)
         List<Map<String, Object>> failedInfs = c.failedInfs() == null ? List.of() : c.failedInfs();
-        meta.put("failedInfs", failedInfs);   // HF23 — INF 단위 실패(서명 거절 등)
-        meta.put("reason", COMPLETED);
-        meta.put("detail", "설치 완료 · 드라이버 " + c.driversAdded() + " · 문제 장치 " + c.problemDeviceCount()
-                + (failedInfs.isEmpty() ? "" : " · 실패 INF " + failedInfs.size()));
-        return row.close(ProvisioningStatus.SUCCEEDED, write(meta), now);
+        facts.put("failedInfs", failedInfs);   // HF23 — INF 단위 실패(서명 거절 등)
+        return closeCompleted(row, facts, "설치 완료 · 드라이버 " + c.driversAdded() + " · 문제 장치 " + c.problemDeviceCount()
+                + (failedInfs.isEmpty() ? "" : " · 실패 INF " + failedInfs.size()), now);
     }
 
     public String imageOf(ProvisioningHistory row) {
@@ -228,22 +223,6 @@ public class WindowsInstallLedger extends OsInstallLedger {
     public Integer targetDiskIdOf(ProvisioningHistory row) {
         Object v = read(row).get("targetDiskId");
         return v instanceof Number n ? n.intValue() : null;
-    }
-
-    /**
-     * 설치 디스크 WWN 대조 결과(E4-1-a-6) — CONFIRMED · MISMATCH · UNREPORTED. 완료 meta 의 {@code diskConfirmed}
-     * (true · false · null=미보고)를 화면 어휘로 옮긴다. 완료 행이 아니면 null.
-     */
-    public String diskConfirmationOf(ProvisioningHistory row) {
-        Map<String, Object> meta = read(row);
-        if (!meta.containsKey("diskConfirmed")) {
-            return null;
-        }
-        Object v = meta.get("diskConfirmed");
-        if (v == null) {
-            return "UNREPORTED";
-        }
-        return Boolean.TRUE.equals(v) ? "CONFIRMED" : "MISMATCH";
     }
 
     public List<String> problemDevicesOf(ProvisioningHistory row) {

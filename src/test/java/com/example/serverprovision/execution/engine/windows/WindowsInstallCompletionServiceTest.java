@@ -1,8 +1,9 @@
 package com.example.serverprovision.execution.engine.windows;
 
 import com.example.serverprovision.execution.dto.request.WindowsInstallCompletionRequest;
-import com.example.serverprovision.execution.dto.response.WindowsInstallCompletionResponse;
+import com.example.serverprovision.execution.dto.response.OsInstallCompletionResponse;
 import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
+import com.example.serverprovision.execution.engine.osinstall.InstallConfirmation;
 import com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
@@ -71,7 +72,7 @@ class WindowsInstallCompletionServiceTest {
         lenient().when(recorder.openRunning(any(), any(), any(), any())).thenAnswer(inv -> ProvisioningHistory.openRunning(
                 inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3)));
         ledger = new WindowsInstallLedger(recorder, historyRepository, new ObjectMapper());
-        service = new WindowsInstallCompletionService(guestPrincipalLoader, progressRepository, ledger, tokenRegistry, cursorAdvancer, eventPublisher, raidVolumeRepository);
+        service = new WindowsInstallCompletionService(guestPrincipalLoader, progressRepository, cursorAdvancer, eventPublisher, ledger, tokenRegistry, raidVolumeRepository);
         lenient().when(guestPrincipalLoader.require(GUEST)).thenReturn(guest);
     }
 
@@ -112,7 +113,7 @@ class WindowsInstallCompletionServiceTest {
         willAnswer(inv -> { p.markCompleted(inv.getArgument(2)); return null; })
                 .given(cursorAdvancer).advanceOrComplete(eq(p), eq(guest.getId()), any());
 
-        WindowsInstallCompletionResponse res = service.complete(GUEST, report(2));
+        OsInstallCompletionResponse res = service.complete(GUEST, report(2));
 
         assertThat(res.closed()).isTrue();
         assertThat(res.provisioningCompleted()).isTrue();
@@ -138,7 +139,7 @@ class WindowsInstallCompletionServiceTest {
         willAnswer(inv -> { p.advanceToEntry(ProvisioningPhaseStep.entryOf(ProvisioningPhase.TESTING), inv.getArgument(2)); return null; })
                 .given(cursorAdvancer).advanceOrComplete(eq(p), eq(guest.getId()), any());
 
-        WindowsInstallCompletionResponse res = service.complete(GUEST, report(0));
+        OsInstallCompletionResponse res = service.complete(GUEST, report(0));
 
         assertThat(res.closed()).isTrue();
         assertThat(res.provisioningCompleted()).isFalse();
@@ -169,7 +170,7 @@ class WindowsInstallCompletionServiceTest {
 
         service.complete(GUEST, reportWithDisk("600605B0AA11"));
 
-        assertThat(ledger.diskConfirmationOf(row)).isEqualTo("CONFIRMED");
+        assertThat(ledger.diskConfirmationOf(row)).isEqualTo(InstallConfirmation.CONFIRMED);
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
     }
 
@@ -179,10 +180,10 @@ class WindowsInstallCompletionServiceTest {
         installing();
         ProvisioningHistory row = openRow();
 
-        WindowsInstallCompletionResponse res = service.complete(GUEST, reportWithDisk("600605b0dddd"));
+        OsInstallCompletionResponse res = service.complete(GUEST, reportWithDisk("600605b0dddd"));
 
         assertThat(res.closed()).isTrue();                       // 사후라 되돌릴 수 없다 — 완료는 완료
-        assertThat(ledger.diskConfirmationOf(row)).isEqualTo("MISMATCH");
+        assertThat(ledger.diskConfirmationOf(row)).isEqualTo(InstallConfirmation.MISMATCH);
         assertThat(row.getStatus()).isEqualTo(ProvisioningStatus.SUCCEEDED);
     }
 
@@ -195,7 +196,7 @@ class WindowsInstallCompletionServiceTest {
 
         service.complete(GUEST, reportWithDisk("600605B0AA11"));
 
-        assertThat(ledger.diskConfirmationOf(row)).isEqualTo("CONFIRMED");
+        assertThat(ledger.diskConfirmationOf(row)).isEqualTo(InstallConfirmation.CONFIRMED);
     }
 
     @Test
@@ -206,7 +207,7 @@ class WindowsInstallCompletionServiceTest {
 
         service.complete(GUEST, reportWithDisk("600508E0000000002E2FF7379820A800"));
 
-        assertThat(ledger.diskConfirmationOf(row)).isEqualTo("CONFIRMED");
+        assertThat(ledger.diskConfirmationOf(row)).isEqualTo(InstallConfirmation.CONFIRMED);
         verify(raidVolumeRepository, never()).findFirstByGuestServer_IdAndVolumeRole(any(), any());
     }
 
@@ -218,7 +219,7 @@ class WindowsInstallCompletionServiceTest {
 
         service.complete(GUEST, reportWithDisk(null));
 
-        assertThat(ledger.diskConfirmationOf(row)).isEqualTo("UNREPORTED");
+        assertThat(ledger.diskConfirmationOf(row)).isEqualTo(InstallConfirmation.UNREPORTED);
         verify(raidVolumeRepository, never()).findFirstByGuestServer_IdAndVolumeRole(any(), any());
     }
 
@@ -234,7 +235,7 @@ class WindowsInstallCompletionServiceTest {
         given(historyRepository.findFirstByGuestServer_IdAndStepCodeOrderByCreatedAtDesc(guest.getId(), ProvisioningPhaseStep.OS_INSTALLING))
                 .willReturn(Optional.of(done));
 
-        WindowsInstallCompletionResponse res = service.complete(GUEST, report(0));
+        OsInstallCompletionResponse res = service.complete(GUEST, report(0));
 
         assertThat(res.closed()).isFalse();
         assertThat(res.provisioningCompleted()).isTrue();

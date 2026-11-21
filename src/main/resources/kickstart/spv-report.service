@@ -1,0 +1,14 @@
+[Unit]
+Description=ServerProvision first-boot install report
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/spv/report.env
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/spv-report
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

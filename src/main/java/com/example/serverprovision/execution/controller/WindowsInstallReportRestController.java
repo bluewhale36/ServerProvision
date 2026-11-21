@@ -1,7 +1,7 @@
 package com.example.serverprovision.execution.controller;
 
 import com.example.serverprovision.execution.dto.request.WindowsInstallCompletionRequest;
-import com.example.serverprovision.execution.dto.response.WindowsInstallCompletionResponse;
+import com.example.serverprovision.execution.dto.response.OsInstallCompletionResponse;
 import com.example.serverprovision.execution.engine.windows.WindowsInstallCompletionService;
 import jakarta.validation.Valid;
 import com.example.serverprovision.global.security.springsecurity.guest.web.CurrentGuest;
@@ -27,7 +27,7 @@ public class WindowsInstallReportRestController {
     private final WindowsInstallCompletionService completionService;
 
     @PostMapping("/complete")
-    public WindowsInstallCompletionResponse complete(
+    public OsInstallCompletionResponse complete(
             @CurrentGuest GuestPrincipal guest,
             @Valid @RequestBody WindowsInstallCompletionRequest request) {
         return completionService.complete(guest, request);

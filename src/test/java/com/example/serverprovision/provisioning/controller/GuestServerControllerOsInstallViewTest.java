@@ -3,6 +3,7 @@ package com.example.serverprovision.provisioning.controller;
 import com.example.serverprovision.support.FixedClockTestConfig;
 import org.springframework.context.annotation.Import;
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
+import com.example.serverprovision.execution.engine.osinstall.InstallConfirmation;
 import com.example.serverprovision.execution.engine.phase.ReadinessGrade;
 import com.example.serverprovision.execution.enums.DiscoveryStage;
 import com.example.serverprovision.execution.enums.GuestServerStatus;
@@ -100,7 +101,7 @@ class GuestServerControllerOsInstallViewTest {
     @DisplayName("RHEL 서빙 전 — 제목 'RHEL 계열 설치' · 대상 OS · 준비됨 · 정해진 디스크도 고정폭(CP5 F-3) · 예정")
     void rhel_beforeServing() throws Exception {
         UUID id = detailWith(card("RHEL 계열", ReadinessGrade.READY, List.of(), null, null, null, false,
-                new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", "wwn-0x600508e000000000", null)));
+                new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", "wwn-0x600508e000000000", null, null)));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("RHEL 계열 설치")))
@@ -115,7 +116,7 @@ class GuestServerControllerOsInstallViewTest {
     @DisplayName("RHEL 설치 중 — by-id 는 고정폭(code.n-table-mono) · 설치 중 · 재부팅 n/max · 남은 시간")
     void rhel_running() throws Exception {
         UUID id = detailWith(card("RHEL 계열", ReadinessGrade.READY, List.of(), LocalDateTime.of(2026, 11, 19, 10, 0), null, null, false,
-                new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", "wwn-0x600508e000000000", null)));
+                new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", "wwn-0x600508e000000000", null, null)));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("<code class=\"n-table-mono\">wwn-0x600508e000000000</code>")))
@@ -124,12 +125,86 @@ class GuestServerControllerOsInstallViewTest {
                 .andExpect(content().string(containsString("남은 시간 42분")));
     }
 
+    private static GuestServerDetailResponse.OsInstall completedCard(String family, boolean terminal,
+                                                                    GuestServerDetailResponse.OsInstallCardDetail detail) {
+        return new GuestServerDetailResponse.OsInstall(family, ReadinessGrade.READY, List.of(), LocalDateTime.of(2026, 11, 20, 15, 0),
+                1, 5, null, null, null, false, 0L, LocalDateTime.of(2026, 11, 20, 15, 40, 12), terminal,
+                terminal ? null : ProvisioningPhase.OS_SETTING, detail);
+    }
+
+    private static final String REPORTED_UUID = "11111111-2222-3333-4444-555555555555";
+
+    private static GuestServerDetailResponse.RhelInstall rhelCompleted(InstallConfirmation disk, String reportedUuid,
+                                                                       InstallConfirmation identity) {
+        return new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", "wwn-0x600508e000000000", null,
+                new GuestServerDetailResponse.RhelInstall.Result("Rocky Linux 9.5 (Blue Onyx)", "5.14.0-503.14.1.el9_5.x86_64",
+                        "localhost", "wwn-0x600508e000000000", disk, reportedUuid, identity));
+    }
+
+    @Test
+    @DisplayName("RHEL 완료 — 완료 배지 · 완료 시각과 호스트 이름 · 설치 결과 절(다음 · 설치 OS와 커널 · 설치 디스크 · 대상 서버)")
+    void rhel_completed() throws Exception {
+        UUID id = detailWith(completedCard("RHEL 계열", false, rhelCompleted(InstallConfirmation.CONFIRMED, REPORTED_UUID, InstallConfirmation.CONFIRMED)));
+        String html = mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("완료 2026-11-20 15:40:12, 호스트 이름 localhost")))
+                .andExpect(content().string(containsString("설치 결과")))
+                .andExpect(content().string(containsString("다음 단계로 넘어갔습니다: OS 설정")))
+                .andExpect(content().string(containsString("Rocky Linux 9.5 (Blue Onyx)")))
+                .andExpect(content().string(containsString("<div class=\"n-note\">5.14.0-503.14.1.el9_5.x86_64</div>")))
+                .andExpect(content().string(containsString("대상 서버")))
+                .andExpect(content().string(containsString("<code class=\"n-table-mono\">" + REPORTED_UUID + "</code>")))
+                .andExpect(content().string(not(containsString("설치 중"))))
+                .andReturn().getResponse().getContentAsString();
+        org.assertj.core.api.Assertions.assertThat(html.split("<span class=\"n-badge n-badge-teal\">일치</span>", -1)).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("RHEL 완료 · 불일치와 미보고 — 디스크 불일치는 경보, 대상 서버 미보고는 안내 · 종단이면 마지막 단계 문구")
+    void rhel_completedMismatchAndUnreported() throws Exception {
+        UUID id = detailWith(completedCard("RHEL 계열", true, rhelCompleted(InstallConfirmation.MISMATCH, null, InstallConfirmation.UNREPORTED)));
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("불일치")))
+                .andExpect(content().string(containsString("설치된 디스크가 계획한 OS 볼륨과 다릅니다.")))
+                .andExpect(content().string(containsString("미보고")))
+                .andExpect(content().string(containsString("대상 서버 확인 정보가 없습니다.")))
+                .andExpect(content().string(containsString("마지막 단계였습니다.")));
+    }
+
+    @Test
+    @DisplayName("RHEL 완료 · 대상 서버 불일치 — 경보와 함께 보고한 기계의 시스템 UUID 를 보인다")
+    void rhel_identityMismatchShowsReportedUuid() throws Exception {
+        UUID id = detailWith(completedCard("RHEL 계열", true,
+                rhelCompleted(InstallConfirmation.CONFIRMED, REPORTED_UUID, InstallConfirmation.MISMATCH)));
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("보고한 서버의 시스템 UUID 가 이 게스트 서버와 다릅니다.")))
+                .andExpect(content().string(containsString("<code class=\"n-table-mono\">" + REPORTED_UUID + "</code>")));
+    }
+
+    @Test
+    @DisplayName("Windows 완료 — 공통 조각으로 옮긴 다음 행 · 설치 디스크 확증이 전과 같은 문구로 그려진다")
+    void windows_completedUsesSharedRows() throws Exception {
+        UUID id = detailWith(completedCard("Windows", true, new GuestServerDetailResponse.WindowsInstall(
+                "Windows Server 2025 SERVERSTANDARD", null, "SPV-14174000", null, 47, 0, List.of(), 0, null,
+                InstallConfirmation.MISMATCH, null, List.of(), List.of(), List.of(), List.of())));
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("설치 결과")))
+                .andExpect(content().string(containsString("마지막 단계였습니다.")))
+                .andExpect(content().string(containsString("설치 디스크")))
+                .andExpect(content().string(containsString("<span class=\"n-badge n-badge-red\">불일치</span>")))
+                .andExpect(content().string(containsString("설치된 디스크가 계획한 OS 볼륨과 다릅니다.")))
+                .andExpect(content().string(not(containsString("대상 서버"))));
+    }
+
     @Test
     @DisplayName("RHEL 실패 — 계열이 남긴 화면 문구(버전 불일치 + 다음 행동)를 경보에 그대로")
     void rhel_failedWithMessage() throws Exception {
         String message = "설치 트리 버전(Rocky Linux 10.0)과 정의서 버전(Rocky Linux 9.5)이 다릅니다. ISO 를 실제 OS 버전 아래에 다시 등록하거나 정의서에서 다른 ISO 를 골라야 합니다.";
         UUID id = detailWith(card("RHEL 계열", ReadinessGrade.READY, List.of(), null, "TREE_RELEASE_MISMATCH", message, false,
-                new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", null, null)));
+                new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", null, null, null)));
         String html = mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -140,7 +215,7 @@ class GuestServerControllerOsInstallViewTest {
     @DisplayName("F-1 — RHEL 결손 대기도 배너 'OS 설치 자원 대기' 와 카드의 막힘 사유가 선다")
     void rhel_holdingShowsReason() throws Exception {
         UUID id = detailWith(card("RHEL 계열", ReadinessGrade.BLOCKED, List.of("설치 트리 디렉터리가 설정되지 않았습니다. 관리자에게 확인해야 합니다."),
-                null, null, null, true, new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", null, null)));
+                null, null, null, true, new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", null, null, null)));
         mvc.perform(get("/provisioning/server/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("OS 설치 자원 대기")))

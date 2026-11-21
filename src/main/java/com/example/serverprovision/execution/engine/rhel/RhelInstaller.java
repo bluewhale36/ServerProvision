@@ -6,15 +6,18 @@ import com.example.serverprovision.execution.engine.osinstall.OsInstallCycle;
 import com.example.serverprovision.execution.engine.osinstall.OsInstallLedger;
 import com.example.serverprovision.execution.engine.osinstall.OsInstallTimeoutPolicy;
 import com.example.serverprovision.execution.engine.phase.PhaseReadiness;
+import com.example.serverprovision.execution.engine.rhel.kickstart.FirstBootReport;
 import com.example.serverprovision.execution.engine.rhel.kickstart.InstallDisk;
 import com.example.serverprovision.execution.engine.rhel.kickstart.KickstartDocument;
 import com.example.serverprovision.execution.engine.rhel.kickstart.KickstartRenderer;
 import com.example.serverprovision.execution.engine.rhel.kickstart.KickstartRuntime;
 import com.example.serverprovision.execution.entity.GuestServer;
+import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
 import com.example.serverprovision.execution.installtree.service.InstallTreeManager;
+import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.installtree.vo.InstallTree;
 import com.example.serverprovision.execution.installtree.vo.TreeAcquisition;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +32,7 @@ import java.util.UUID;
  * 정의서와 같은 배포판 · 주 버전이면 kickstart 를 렌더해 토큰과 함께 두고 설치 체인을 낸다. 트리를 푸는 중이면 기다리게 하고,
  * 확보에 실패하거나 버전이 다르면 설치 단계를 실패로 닫는다. 착수 뒤 판정은 {@link OsInstallCycle} 가 하고, 행을 닫을 때마다
  * 토큰을 회수하고 트리 보유를 반납한다. 트리 확보는 {@link #bootScript} 에서만 한다 — 조회마다 추출이 시작되면 안 된다(D-5).
- * b-5 전에는 완료 보고가 없어 성공한 설치도 스윕이 시한 실패로 닫는다.
+ * kickstart 끝에는 첫 부팅 완료 보고 유닛을 싣고, 보고가 행을 닫으면 같은 뒷정리를 한다(E4-1-b-5).
  */
 @Slf4j
 @Component
@@ -44,12 +47,15 @@ public class RhelInstaller implements OsFamilyInstaller {
     private final RhelInstallLedger ledger;
     private final RhelInstallTokenRegistry tokenRegistry;
     private final RhelInstallTimeoutPolicy timeoutPolicy;
+    private final GuestServerDetailRepository detailRepository;
     private final OsInstallCycle cycle;
 
     public RhelInstaller(RhelInstallReadinessResolver resolver, RhelInstallationResolutionProvider provider,
                          InstallTreeManager treeManager, RhelInstallLedger ledger,
-                         RhelInstallTimeoutPolicy timeoutPolicy, RhelInstallTokenRegistry tokenRegistry) {
+                         RhelInstallTimeoutPolicy timeoutPolicy, RhelInstallTokenRegistry tokenRegistry,
+                         GuestServerDetailRepository detailRepository) {
         this.resolver = resolver;
+        this.detailRepository = detailRepository;
         this.provider = provider;
         this.treeManager = treeManager;
         this.ledger = ledger;
@@ -123,11 +129,19 @@ public class RhelInstaller implements OsFamilyInstaller {
         }
         UUID token = UUID.randomUUID();   // kickstart 의 url 이 자기 토큰 경로를 품어야 해 먼저 뽑는다
         String treeUrl = tokenRegistry.treeUrlOf(token);
-        RhelServing serving = new RhelServing(
-                KickstartRenderer.render(ready.target(), new KickstartRuntime(treeUrl, disk)), tree, media, disk);
+        RhelServing serving = new RhelServing(KickstartRenderer.render(ready.target(),
+                new KickstartRuntime(treeUrl, disk, firstBootReportOf(server))), tree, media, disk);
         tokenRegistry.issue(server.getId(), token, serving);
         return RhelInstallChainload.script(treeUrl, tokenRegistry.kickstartUrlOf(token), media.osLabel(), media.isoId(),
                 reentryUrl);
+    }
+
+    /** 첫 부팅 보고의 주소와 신원. 토큰은 Windows 완료 보고와 같은 영구 게스트 토큰이고, 시리얼은 콘솔 배너에만 쓴다. */
+    private FirstBootReport firstBootReportOf(GuestServer server) {
+        String boardSerial = detailRepository.findByGuestServer_Id(server.getId())
+                .map(GuestServerDetail::getBoardSerial).orElse(null);
+        return FirstBootReport.of(tokenRegistry.baseUrl(), server.issueTokenIfAbsent(), server.getSystemUUID(), boardSerial,
+                server.getId());
     }
 
     /** 서빙 전에 정해진 실패 — 단발 실패 행을 적고 실패 안내 스크립트를 낸다. */
@@ -185,6 +199,11 @@ public class RhelInstaller implements OsFamilyInstaller {
     @Override
     public boolean sweep(GuestServer server, ProvisioningProgress progress, ProvisioningHistory openRow, LocalDateTime now) {
         return cycle.sweep(server, progress, openRow, now);
+    }
+
+    /** 완료 보고가 행을 닫은 뒤의 뒷정리. 실패로 닫을 때와 같다. */
+    public void releaseAfterCompletion(GuestServer server, ProvisioningHistory closedRow) {
+        releaseServing(server, Optional.of(closedRow));
     }
 
     /**

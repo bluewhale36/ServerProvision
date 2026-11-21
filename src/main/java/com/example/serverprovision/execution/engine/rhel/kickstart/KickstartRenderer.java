@@ -29,6 +29,8 @@ public final class KickstartRenderer {
         packages(lines, target);
         lines.add("");
         kdump(lines, target);
+        lines.add("");
+        firstBootReport(lines, runtime.report());
         return new KickstartDocument(String.join("\n", lines) + "\n");
     }
 
@@ -93,5 +95,38 @@ public final class KickstartRenderer {
                 ? "%addon com_redhat_kdump --enable --reserve-mb='auto'"
                 : "%addon com_redhat_kdump --disable");
         lines.add("%end");
+    }
+
+    /**
+     * 첫 부팅 완료 보고 유닛을 심는다(E4-1-b-5). 앞 절이 끝난 뒤라 맨 끝에 둔다. 유닛을 못 심으면 보고 없이 재부팅하므로
+     * {@code --erroronfail} 로 설치를 세운다. heredoc 구분자를 따옴표로 감싸 셸이 원문을 펼치지 않는다.
+     */
+    private static void firstBootReport(List<String> lines, FirstBootReport report) {
+        lines.add("%post --log=/root/spv-post.log --erroronfail");
+        lines.add("mkdir -p /usr/local/sbin /etc/systemd/system");
+        lines.add("mkdir -p -m 0700 /etc/spv");
+        lines.add("umask 077");
+        heredoc(lines, "/etc/spv/report.env", String.join("\n",
+                "SPV_REPORT_URL='" + report.reportUrl() + "'",
+                "SPV_GUEST_TOKEN='" + report.guestToken().value() + "'",
+                "SPV_EXPECTED_UUID='" + report.expectedSystemUuid() + "'",
+                "SPV_SERIAL='" + report.consoleSerial() + "'",
+                "SPV_DETAIL_URL='" + report.detailUrl() + "'"));
+        heredoc(lines, "/usr/local/sbin/spv-report", FirstBootReportAssets.script());
+        heredoc(lines, "/etc/systemd/system/spv-report.service", FirstBootReportAssets.unit());
+        lines.add("chmod 0600 /etc/spv/report.env");
+        lines.add("chmod 0700 /usr/local/sbin/spv-report");
+        lines.add("chmod 0644 /etc/systemd/system/spv-report.service");
+        lines.add("/usr/local/sbin/spv-report banner");
+        lines.add("if command -v restorecon > /dev/null 2>&1; then restorecon -F -R /etc/spv /usr/local/sbin/spv-report"
+                + " /etc/systemd/system/spv-report.service /etc/issue.d; fi");
+        lines.add("systemctl enable spv-report.service");
+        lines.add("%end");
+    }
+
+    private static void heredoc(List<String> lines, String path, String body) {
+        lines.add("cat > " + path + " <<'" + FirstBootReportAssets.HEREDOC_END + "'");
+        lines.add(body);
+        lines.add(FirstBootReportAssets.HEREDOC_END);
     }
 }

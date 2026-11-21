@@ -1,5 +1,5 @@
 #!/bin/sh
-# E4-1-b-4-2 CP5 하네스 — RHEL 설치 phase 의 게스트 HTTP 행동(iPXE 와 anaconda)을 curl 로 재연한다.
+# E4-1-b-4-2 · b-5 CP5 하네스 — RHEL 설치 phase 의 게스트 HTTP 행동(iPXE · anaconda · 첫 부팅 보고)을 curl 로 재연한다.
 #   첫 진입 /boot = 설치 체인(토큰 트리 URL · ks.cfg) 또는 준비 중 대기 → ks.cfg · 트리 파일 GET → 재PXE ×N = exit(재진입 n/max)
 #   → 상한 초과 = FAILED REPXE_LOOP → 다음 /boot = 실패 안내 → (운영자 재시도 뒤) 새 토큰 · 옛 토큰 401
 #
@@ -13,6 +13,11 @@
 #           loop      상한을 넘길 때까지 재PXE — FAILED REPXE_LOOP · 다음 /boot 의 실패 안내
 #           token     옛 토큰(OLD_TOKEN_URL 환경변수, 마지막 서빙의 토큰 URL 접두)으로 ks.cfg · 트리 GET — 401 기대
 #           boot      /boot 한 번만 보내고 응답을 그대로 보인다(대기 사유 · 실패 안내 확인용)
+#           complete  (E4-1-b-5) 설치된 OS 의 첫 부팅 완료 보고 재연 — GUEST_TOKEN 필수. 1회 = 200 closed:true, 2회 = 200 closed:false
+#           report    완료 보고 한 번만 보내고 응답을 그대로 보인다(409 · 400 확인용)
+#   GUEST_TOKEN="<hex>" — complete · report 모드의 X-Guest-Token(guest_server.guest_token). 값은 문서에 적지 않는다.
+#   ROOT_DISK · REPORT_UUID · KERNEL — 보고 본문 조정(기본: ROOT_DISK 빈 값 · REPORT_UUID=<SYSTEM_UUID> · KERNEL=5.14.0-503.14.1.el9_5.x86_64).
+#     ROOT_DISK 를 서빙 디스크와 다르게 · REPORT_UUID 를 다른 값으로 · 둘 다 빈 값으로 두면 카드의 불일치 · 미보고를 볼 수 있다.
 #   EXPECT_ABSENT="<문자열>" — iPXE 스크립트 · ks.cfg 어디에도 이 값이 평문으로 없어야 한다(예: 정의서의 root 비밀번호)
 #   PXE_BOOT_AUTH=pxe:<secret> — /boot 첫 접촉 credential. 필수. ks.cfg · 트리는 경로 토큰이라 무관.
 set -eu
@@ -111,12 +116,38 @@ token() {
   echo "$(code "$OLD/tree/.treeinfo") ← tree/.treeinfo"
 }
 
+report() {   # stdout = 응답 본문, $STATE_DIR/complete.code = HTTP 코드
+  BODY=$(printf '{"osId":"rocky","osVersion":"9.5","osPrettyName":"Rocky Linux 9.5 (Blue Onyx)","kernel":"%s","hostname":"localhost","rootDisk":"%s","systemUuid":"%s"}' \
+    "${KERNEL-5.14.0-503.14.1.el9_5.x86_64}" "${ROOT_DISK:-}" "${REPORT_UUID-$UUID}")
+  curl -sS -o "$STATE_DIR/complete.body" -w '%{http_code}' -X POST "$BASE/api/pxe/v1/agent/rhel/complete" \
+    -H "X-Guest-Token: ${GUEST_TOKEN:?GUEST_TOKEN 이 필요하다}" -H "Content-Type: application/json" --data "$BODY" \
+    > "$STATE_DIR/complete.code"
+  cat "$STATE_DIR/complete.body"; echo
+  echo "HTTP $(cat "$STATE_DIR/complete.code")"
+}
+
+complete() {
+  step "1. 첫 부팅 완료 보고 — 200 closed:true 기대"
+  report
+  case "$(cat "$STATE_DIR/complete.code")" in
+    200) grep -q '"closed":true' "$STATE_DIR/complete.body" && echo "→ OK: 행 닫힘 · 뒷정리 · 커서 전진/종단" || { echo "→ FAIL: closed 가 true 가 아니다"; exit 1; };;
+    401) echo "→ 401: 토큰 불일치(GUEST_TOKEN 확인)"; exit 1;;
+    409) echo "→ 409: 보고를 받을 상태가 아니다(실패 · 다른 phase · 열린 행 없음)"; exit 1;;
+    *) echo "→ FAIL: 기대하지 않은 응답"; exit 1;;
+  esac
+  step "2. 같은 보고 한 번 더 — 200 closed:false(중복 no-op) 기대"
+  report
+  grep -q '"closed":false' "$STATE_DIR/complete.body" && echo "→ OK: no-op" || { echo "→ FAIL: 중복 보고가 no-op 이 아니다"; exit 1; }
+}
+
 case "$MODE" in
   serve) serve;;
+  complete) complete;;
+  report) step "완료 보고 1회"; report;;
   preparing) preparing;;
   reentry) reentry;;
   loop) loop;;
   token) token;;
   boot) step "/boot"; boot; echo;;
-  *) echo "mode: serve | preparing | reentry | loop | token | boot"; exit 64;;
+  *) echo "mode: serve | preparing | reentry | loop | token | boot | complete | report"; exit 64;;
 esac

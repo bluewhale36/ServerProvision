@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.dto.response;
 
 import com.example.serverprovision.execution.engine.firmware.AxisFlashState;
+import com.example.serverprovision.execution.engine.osinstall.InstallConfirmation;
 import com.example.serverprovision.execution.engine.raid.PlannedVolumeRole;
 import com.example.serverprovision.execution.enums.DiscoveryStage;
 import com.example.serverprovision.execution.engine.phase.ReadinessGrade;
@@ -472,8 +473,8 @@ public record GuestServerDetailResponse(
             Integer targetDiskId,
             /** 서빙 전 디스크 선택의 안내(HF15-5 · F-1) — DEFERRED 는 "RAID 구성 뒤 정해집니다", CONFIDENT 는 "디스크 N". 서빙 뒤 · BLOCKED 는 null. */
             String diskSelectionNote,
-            /** E4-1-a-6 — 설치 뒤 C: 디스크 WWN 대조 결과: CONFIRMED · MISMATCH · UNREPORTED. 완료 전 null. */
-            String diskConfirmation,
+            /** E4-1-a-6 — 설치 뒤 C: 디스크 WWN 대조 결과. 완료 전 null. */
+            InstallConfirmation diskConfirmation,
             /** R15-2 — 드라이버 선택 요약. 서빙 전 = 지금 판정, 서빙 뒤 = 원장 meta. R15-2 이전 행은 null. */
             String driverSummary,
             /** R15-2 — 선택된 항목 라벨. */
@@ -498,11 +499,26 @@ public record GuestServerDetailResponse(
             /** 대상 디스크 by-id 이름 — 서빙 뒤에는 kickstart 에 적은 값, 서빙 전에는 정해진 값. 정해지지 않았으면 null. */
             String disk,
             /** 디스크가 아직 정해지지 않은 까닭(RAID 구성 전 등). 정해졌거나 막혔으면 null(막힘 사유는 준비도가 보인다). */
-            String diskNote
+            String diskNote,
+            /** 첫 부팅 완료 보고의 내용(E4-1-b-5). 완료 전 null. */
+            Result result
     ) implements OsInstallCardDetail {
         @Override
         public String fragment() {
             return "rhelCard";
+        }
+
+        /**
+         * 설치된 OS 가 첫 부팅에서 보고한 사실과 사후 확증. 보고하지 못한 값은 null 이다.
+         *
+         * @param installedRootDisk    설치된 OS 의 루트 디스크 by-id 이름
+         * @param diskConfirmation     루트 디스크가 계획한 대상 디스크인가
+         * @param reportedSystemUuid   보고한 기계의 시스템 UUID
+         * @param identityConfirmation 그 UUID 가 이 게스트 서버의 것인가
+         */
+        public record Result(String osPrettyName, String kernel, String hostname, String installedRootDisk,
+                             InstallConfirmation diskConfirmation, String reportedSystemUuid,
+                             InstallConfirmation identityConfirmation) {
         }
     }
 

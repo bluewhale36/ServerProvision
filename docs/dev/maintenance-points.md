@@ -21,6 +21,7 @@
 | `InstallTreeInspector.BASEOS_REPOMD`, `TreeInfo.DEFAULT_STAGE2` | 필수 파일 `BaseOS/repodata/repomd.xml`, 기본 stage2 `images/install.img` 배치 확인 | InstallTreeInspectorTest(견본 FakeRockyTree) | E4-1-b-1 |
 | `RHELCompsExtractor` 의 `LOCAL_SKIP_DIRS`, 탐색 깊이 3 | comps 를 담은 repodata 가 깊이 3 안, 제외 폴더 밖에 있는지 확인 | 없음 | A1 |
 | `JpaSettingQueryService.findDefaultPartitions` | 고정 프리셋 유지. 설치 프로그램이 `/boot`, `/boot/efi` 최소 크기를 올렸는지만 확인 | 없음 | U2 |
+| `src/main/resources/kickstart/spv-report.sh` | 첫 부팅 보고 스크립트가 쓰는 명령(`curl` 7.55 이상의 `-H @파일`, `findmnt`, `lsblk`, `udevadm`, `systemctl`, `restorecon`, `sed`, `tr`)이 새 메이저의 최소 설치에 있는지, 유닛 `Type=simple` 과 `/etc/issue.d` 배너를 그대로 지원하는지 확인 | SpvReportScriptTest(가짜 명령), CP5 rockylinux 컨테이너, 실기 | E4-1-b-5 |
 
 ## 새 RHEL 계열 배포판 지원(AlmaLinux 등)
 

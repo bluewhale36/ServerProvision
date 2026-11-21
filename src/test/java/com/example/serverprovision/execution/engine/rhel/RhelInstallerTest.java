@@ -6,6 +6,7 @@ import com.example.serverprovision.execution.engine.phase.ReadinessGrade;
 import com.example.serverprovision.execution.engine.rhel.kickstart.InstallDisk;
 import com.example.serverprovision.execution.engine.rhel.kickstart.KickstartFixtures;
 import com.example.serverprovision.execution.entity.GuestServer;
+import com.example.serverprovision.execution.entity.GuestServerDetail;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningMotion;
@@ -16,6 +17,7 @@ import com.example.serverprovision.execution.installtree.service.InstallTreeMana
 import com.example.serverprovision.execution.installtree.vo.InstallTree;
 import com.example.serverprovision.execution.installtree.vo.TreeAcquisition;
 import com.example.serverprovision.execution.installtree.vo.TreeRelease;
+import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import com.example.serverprovision.management.os.enums.OSName;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +64,7 @@ class RhelInstallerTest {
     @Mock InstallTreeManager treeManager;
     @Mock ProvisioningHistoryRecorder recorder;
     @Mock ProvisioningHistoryRepository historyRepository;
+    @Mock GuestServerDetailRepository detailRepository;
 
     private final RhelInstallTokenRegistry tokenRegistry = new RhelInstallTokenRegistry("http://10.0.0.7:8080");
     private final GuestServer guest = GuestServer.builder().id(UUID.randomUUID()).systemUUID(UUID.randomUUID()).build();
@@ -73,7 +76,7 @@ class RhelInstallerTest {
     void setUp() {
         ledger = new RhelInstallLedger(recorder, historyRepository, new ObjectMapper());
         installer = new RhelInstaller(resolver, provider, treeManager, ledger,
-                new RhelInstallTimeoutPolicy(Duration.ofMinutes(60), 5, Duration.ofMinutes(30)), tokenRegistry);
+                new RhelInstallTimeoutPolicy(Duration.ofMinutes(60), 5, Duration.ofMinutes(30)), tokenRegistry, detailRepository);
         given(recorder.openRunning(any(), any(), any(), any())).willAnswer(inv -> {
             openRow = ProvisioningHistory.openRunning(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3));
             return openRow;
@@ -184,6 +187,38 @@ class RhelInstallerTest {
         assertThat(treeUrl).startsWith("http://10.0.0.7:8080/api/pxe/v1/rhel/").endsWith("/tree");
         assertThat(serving.kickstart().text()).contains("ignoredisk --only-use=disk/by-id/wwn-0x600508e000000000");
         assertThat(script).contains("inst.repo=" + treeUrl).contains("inst.ks=" + treeUrl.replace("/tree", "/ks.cfg"));
+    }
+
+    @Test
+    @DisplayName("서빙 — kickstart 끝에 첫 부팅 보고 절. 영구 게스트 토큰 · 시스템 UUID · 보드 시리얼 · 보고 주소가 env 에 실린다")
+    void serve_kickstartCarriesFirstBootReport() {
+        readyToServe("9.5");
+        GuestServerDetail detail = GuestServerDetail.builder().guestServer(guest).build();
+        detail.enrich("To Be Filled By O.E.M.", null, null, null, null);
+        given(detailRepository.findByGuestServer_Id(guest.getId())).willReturn(Optional.of(detail));
+
+        installer.bootScript(guest, awaitingBoot(), REENTRY);
+
+        String ks = tokenRegistry.currentOf(guest.getId()).orElseThrow().kickstart().text();
+        assertThat(ks).contains("%post --log=/root/spv-post.log --erroronfail",
+                "SPV_REPORT_URL='http://10.0.0.7:8080/api/pxe/v1/agent/rhel/complete'",
+                "SPV_GUEST_TOKEN='" + guest.getGuestToken().value() + "'",
+                "SPV_EXPECTED_UUID='" + guest.getSystemUUID() + "'",
+                "SPV_SERIAL='To_Be_Filled_By_O.E.M.'",
+                "SPV_DETAIL_URL='http://10.0.0.7:8080/provisioning/server/" + guest.getId() + "'",
+                "/usr/local/sbin/spv-report banner", "systemctl enable spv-report.service");
+        assertThat(ks.trim()).endsWith("%end");
+    }
+
+    @Test
+    @DisplayName("완료 뒷정리 — 닫힌 행의 ISO 로 트리를 반납하고 토큰을 회수한다(실패로 닫을 때와 같다)")
+    void releaseAfterCompletion_revokesAndReleases() {
+        served(LocalDateTime.now());
+
+        installer.releaseAfterCompletion(guest, openRow);
+
+        assertThat(tokenRegistry.currentOf(guest.getId())).isEmpty();
+        verify(treeManager).release(ISO, guest.getId());
     }
 
     @Test

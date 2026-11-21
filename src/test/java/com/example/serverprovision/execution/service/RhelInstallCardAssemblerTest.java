@@ -2,6 +2,7 @@ package com.example.serverprovision.execution.service;
 
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
 import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
+import com.example.serverprovision.execution.engine.osinstall.InstallConfirmation;
 import com.example.serverprovision.execution.engine.phase.PhaseReadiness;
 import com.example.serverprovision.execution.engine.rhel.RhelDiskSelection;
 import com.example.serverprovision.execution.engine.rhel.RhelInstallLedger;
@@ -51,11 +52,11 @@ class RhelInstallCardAssemblerTest {
     void beforeServing() {
         resolves(new RhelDiskSelection.Selection.Confident(new InstallDisk("wwn-0x600508e000000000")));
         assertThat(assemble(Optional.empty(), Optional.empty()))
-                .isEqualTo(new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", "wwn-0x600508e000000000", null));
+                .isEqualTo(new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", "wwn-0x600508e000000000", null, null));
 
         resolves(new RhelDiskSelection.Selection.Deferred("RAID 구성 뒤 정해집니다"));
         assertThat(assemble(Optional.empty(), Optional.empty()))
-                .isEqualTo(new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", null, "RAID 구성 뒤 정해집니다"));
+                .isEqualTo(new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", null, "RAID 구성 뒤 정해집니다", null));
 
         resolves(new RhelDiskSelection.Selection.Blocked("os volume missing", "n"));
         assertThat(assemble(Optional.empty(), Optional.empty()).disk()).isNull();
@@ -71,6 +72,26 @@ class RhelInstallCardAssemblerTest {
                 "{\"origin\":\"rhel-install\",\"release\":\"Rocky Linux 9.4\",\"targetDisk\":\"wwn-0x600508e000000000\"}");
 
         assertThat(assemble(Optional.of(row), Optional.of(row)))
-                .isEqualTo(new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.4", "wwn-0x600508e000000000", null));
+                .isEqualTo(new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.4", "wwn-0x600508e000000000", null, null));
+    }
+
+    @Test
+    @DisplayName("완료 뒤 — 첫 부팅이 보고한 설치 OS · 커널 · 호스트 이름 · 루트 디스크와 두 확증을 result 에 싣는다. 완료 전은 null")
+    void afterCompletion() {
+        resolves(new RhelDiskSelection.Selection.Confident(new InstallDisk("wwn-0x600508e000000000")));
+        ProvisioningHistory row = ProvisioningHistory.openRunning(GuestServer.builder().id(guestId).build(),
+                ProvisioningPhaseStep.OS_INSTALLING, LocalDateTime.now(),
+                "{\"origin\":\"rhel-install\",\"release\":\"Rocky Linux 9.5\",\"targetDisk\":\"wwn-0x600508e000000000\"}");
+        ledger.closeSucceeded(row, new RhelInstallLedger.RhelCompletion("rocky", "9.5", "Rocky Linux 9.5 (Blue Onyx)",
+                "5.14.0-503.14.1.el9_5.x86_64", "localhost", "wwn-0x5000c500a1b2c3d4", InstallConfirmation.MISMATCH,
+                null, InstallConfirmation.UNREPORTED), LocalDateTime.now());
+
+        GuestServerDetailResponse.RhelInstall card = assembler.assemble(
+                new OsInstallCardAssembler.Context(guestId, Optional.of(row), Optional.of(row), Optional.of(row)));
+
+        assertThat(card.result()).isEqualTo(new GuestServerDetailResponse.RhelInstall.Result("Rocky Linux 9.5 (Blue Onyx)",
+                "5.14.0-503.14.1.el9_5.x86_64", "localhost", "wwn-0x5000c500a1b2c3d4", InstallConfirmation.MISMATCH,
+                null, InstallConfirmation.UNREPORTED));
+        assertThat(assemble(Optional.of(row), Optional.of(row)).result()).isNull();   // completed 문맥이 없으면 결과도 없다
     }
 }

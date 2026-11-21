@@ -31,7 +31,7 @@ class OsInstallCardAssemblersTest {
     @Test
     @DisplayName("origin 의 조립기 결과를 돌려주고, 그 조각 이름이 카드를 정한다")
     void delegatesByOrigin() {
-        var rhel = new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", null, null);
+        var rhel = new GuestServerDetailResponse.RhelInstall("Rocky Linux 9.5", null, null, null);
         var assemblers = new OsInstallCardAssemblers(List.of(
                 assembler(OsInstallOrigin.WINDOWS_INSTALL, mock(GuestServerDetailResponse.WindowsInstall.class)),
                 assembler(OsInstallOrigin.RHEL_INSTALL, rhel)));
