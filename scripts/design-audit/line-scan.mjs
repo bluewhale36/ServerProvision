@@ -3,11 +3,11 @@
 //  - 빈 구분선: 사이에 글자가 없는 두 선이 GAP px 안에 나란하다(한쪽이 판 테두리면 다른 쪽 구분선은 불필요)
 // 판(네 변 테두리 상자)끼리 떨어져 선 것은 정상 간격이라 세지 않는다. border-collapse 표 안의 같은 자리 선은 하나로 그려지므로 세지 않는다.
 // 폭마다 따로 센다. 1024 이하에서 열이 쌓이는 컴포넌트(Miller 등)는 그 폭에서만 선이 겹친다.
-// 사용: node line-scan.mjs urls.txt out/lines.json [폭,폭 = 1440,1024] [GAP=44]
+// 사용: node line-scan.mjs urls.txt out/lines.json [폭,폭 = 1440,1024,360] [GAP=44]
 import fs from 'node:fs';
 import { openSession, visit, readUrls, lineHitsInPage } from './lib.mjs';
 
-const [urlFile, outFile = 'out/lines.json', widthsArg = '1440,1024', gapArg] = process.argv.slice(2);
+const [urlFile, outFile = 'out/lines.json', widthsArg = '1440,1024,360', gapArg] = process.argv.slice(2);
 const GAP = Number(gapArg || 44);
 const out = [];
 for (const width of widthsArg.split(',').map(Number)) {

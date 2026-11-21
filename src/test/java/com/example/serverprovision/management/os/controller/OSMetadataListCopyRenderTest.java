@@ -111,7 +111,8 @@ class OSMetadataListCopyRenderTest {
                 .andExpect(content().string(containsString(">Windows Server 2025</span>")))
                 .andExpect(content().string(containsString("n-badge n-badge-gray\">미지원</span>")))
                 .andExpect(content().string(containsString("data-tooltip=\"지원하지 않는 OS 입니다.\"")))
-                .andExpect(content().string(containsString("<span class=\"n-hint\">지원하지 않는 OS 입니다.</span>")))   // 버튼 곁 글자(7절)
+                // R21-1 — 사유는 감싸개가 버튼 아래 글자로 보인다. 같은 문장의 곁 안내 줄은 두지 않는다(7절 표기 3)
+                .andExpect(content().string(not(containsString("<span class=\"n-hint\">지원하지 않는 OS 입니다.</span>"))))
                 .andExpect(content().string(not(containsString("n-btn n-btn-sm n-btn-extract"))))   // 유일한 ISO(Windows)에 [추출] 버튼이 없다
                 // C2 [+ OS 버전 등록]: 지원 그룹은 그 OS 를 넘기고, 미지원 그룹은 막는다(링크가 없다)
                 .andExpect(content().string(containsString("href=\"/management/os/new?osName=WINDOWS_SERVER_2025\"")))

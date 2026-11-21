@@ -75,14 +75,21 @@
 
                 <div class="n-form-group">
                     <label class="n-label strong">DHCP 모드</label>
-                    <label class="n-toggle-row">
-                        <input type="radio" th:field="*{dhcpMode}" value="AUTHORITATIVE">
-                        <span>자체 DHCP: 이 서버가 IP, 라우터, DNS 를 배정합니다(자체 서브넷)</span>
-                    </label>
-                    <label class="n-toggle-row">
-                        <input type="radio" th:field="*{dhcpMode}" value="PROXY">
-                        <span>proxy DHCP: 사내 DHCP 가 IP 를 배정하고, 이 서버는 부팅 위치만 답합니다(사내망)</span>
-                    </label>
+                    <!--/* R21-1 CP6 — 라벨은 모드 이름만 두고 설명은 그 아래 작은 글자로 흐른다. 이름과 설명을 한 줄에 쓰면 좁은 폭에서 라디오 곁이 문단이 됐다. */-->
+                    <div class="n-option-row">
+                        <input type="radio" id="dhcpModeAuthoritative" th:field="*{dhcpMode}" value="AUTHORITATIVE">
+                        <label for="dhcpModeAuthoritative">
+                            <span class="n-option-title">자체 DHCP</span>
+                            <span class="n-option-desc">이 서버가 IP, 라우터, DNS 를 배정합니다. 자체 서브넷에서 씁니다.</span>
+                        </label>
+                    </div>
+                    <div class="n-option-row">
+                        <input type="radio" id="dhcpModeProxy" th:field="*{dhcpMode}" value="PROXY">
+                        <label for="dhcpModeProxy">
+                            <span class="n-option-title">proxy DHCP</span>
+                            <span class="n-option-desc">사내 DHCP 가 IP 를 배정하고, 이 서버는 부팅 위치만 답합니다. 사내망에서 씁니다.</span>
+                        </label>
+                    </div>
                     <div class="n-error" th:if="${#fields.hasErrors('dhcpMode')}" th:errors="*{dhcpMode}"></div>
                 </div>
 

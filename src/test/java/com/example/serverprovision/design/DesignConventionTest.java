@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 세션마다 규약을 읽었는지와 무관하게 CP4 의 전체 테스트에서 걸리게 하려는 장치다. 실패 메시지가 규약 절을 가리킨다.
  * 렌더해야 보이는 것(겹친 구분선, 저장된 문장)은 scripts/design-audit 가 맡는다.
  */
-@DisplayName("디자인 규약 (DESIGN.md 5, 7, 8, 9절)")
+@DisplayName("디자인 규약 (DESIGN.md 4, 5, 7, 8, 9절)")
 class DesignConventionTest {
 
     private static final Path TEMPLATES = Path.of("src/main/resources/templates");
@@ -47,7 +47,11 @@ class DesignConventionTest {
     /** 두 시트에 같은 단독 선택자가 있는 기존 중복(DESIGN.md 8절). 이 목록은 줄이기만 한다. */
     private static final Set<String> LEGACY_DOUBLE_DEFINITIONS = Set.of();
 
+    /** 앱의 반응형 경계는 이 둘뿐이다(DESIGN.md 4절 반응형, R21 토론 Q2). */
+    private static final Set<Integer> BREAKPOINTS = Set.of(1024, 640);
+
     private static final Pattern COMMENT = Pattern.compile("<!--.*?-->", Pattern.DOTALL);
+    private static final Pattern CSS_COMMENT = Pattern.compile("/\\*.*?\\*/", Pattern.DOTALL);
     private static final Pattern SCRIPT_OR_STYLE = Pattern.compile("<(script|style)\\b.*?</\\1>", Pattern.DOTALL);
     private static final Pattern TAG_ATTRS = Pattern.compile("(?:[^>\"']|\"[^\"]*\"|'[^']*')*");
     private static final Pattern TABLE = Pattern.compile("<table\\b(" + TAG_ATTRS + ")>(.*?)</table>", Pattern.DOTALL);
@@ -165,7 +169,7 @@ class DesignConventionTest {
         Map<String, Set<String>> owners = new TreeMap<>();
         Pattern bare = Pattern.compile("(?:^|[},])\\s*\\.(n-[\\w-]+)(?::[\\w-]+(?:\\([^)]*\\))?)*\\s*(?=[,{])");
         for (Path css : cssFiles()) {
-            String body = Pattern.compile("/\\*.*?\\*/", Pattern.DOTALL).matcher(read(css)).replaceAll("");
+            String body = CSS_COMMENT.matcher(read(css)).replaceAll("");
             body = Pattern.compile("@media[^{]*\\{").matcher(body).replaceAll("");
             // :is(), :where(), :not(), :has() 괄호 안의 선택자는 단독 선택자가 아니다
             String previous;
@@ -217,6 +221,47 @@ class DesignConventionTest {
                 .isEmpty();
     }
 
+    @Test
+    @DisplayName("막힌 버튼에 title 을 달지 않는다 (5절 버튼, 7절 위계 표의 차단 사유 행)")
+    void disabledButtonHasNoTitle() {
+        Pattern button = Pattern.compile("<button\\b(" + TAG_ATTRS + ")>");
+        Pattern disabled = Pattern.compile("\\s(?:th:)?disabled\\b");
+        Pattern title = Pattern.compile("\\s(?:th:)?title=");
+        List<String> violations = new ArrayList<>();
+        templates.forEach((file, html) -> {
+            Matcher m = button.matcher(html);
+            while (m.find()) {
+                String attrs = m.group(1);
+                if (disabled.matcher(attrs).find() && title.matcher(attrs).find()) {
+                    violations.add(file + " : " + attrs.strip().replaceAll("\\s+", " "));
+                }
+            }
+        });
+        assertThat(violations)
+                .as("브라우저는 disabled 버튼의 title 을 띄우지 않는다. 사유는 버튼을 n-btn-tooltip-wrap[data-tooltip] 으로 감싸"
+                        + " 버튼 아래 글자로 보이거나, 곁 글자가 이미 있으면 title 만 지운다. DESIGN.md 5절 버튼")
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("반응형 경계는 max-width 1024 와 640 둘뿐이다 (4절 반응형)")
+    void breakpointsAreOnly1024And640() {
+        Pattern maxWidth = Pattern.compile("@media[^{]*max-width:\\s*(\\d+)px");
+        Map<String, Set<String>> violations = new TreeMap<>();
+        for (Path css : cssFiles()) {
+            Matcher m = maxWidth.matcher(CSS_COMMENT.matcher(read(css)).replaceAll(""));
+            while (m.find()) {
+                if (!BREAKPOINTS.contains(Integer.parseInt(m.group(1)))) {
+                    violations.computeIfAbsent(STATIC.relativize(css).toString(), k -> new TreeSet<>()).add(m.group(1));
+                }
+            }
+        }
+        assertThat(violations)
+                .as("경계가 늘면 화면마다 확인할 폭이 는다. 1024 이하는 사이드바가 머리 줄과 서랍이 되는 폭,"
+                        + " 640 이하는 휴대폰 배치다. 가까운 쪽으로 흡수한다. DESIGN.md 4절 반응형")
+                .isEmpty();
+    }
+
     // ---- 도우미 ----
 
     @FunctionalInterface
@@ -253,7 +298,7 @@ class DesignConventionTest {
         Set<String> defined = new TreeSet<>();
         Pattern selectorClass = Pattern.compile("\\.(n-[\\w-]+)");
         for (Path css : cssFiles()) {
-            String body = Pattern.compile("/\\*.*?\\*/", Pattern.DOTALL).matcher(read(css)).replaceAll("");
+            String body = CSS_COMMENT.matcher(read(css)).replaceAll("");
             Matcher block = Pattern.compile("([^{}]+)\\{").matcher(body);
             while (block.find()) {
                 Matcher m = selectorClass.matcher(block.group(1));

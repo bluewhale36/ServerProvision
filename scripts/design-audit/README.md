@@ -5,8 +5,8 @@
 | 도구 | 보는 것 | 규약 |
 |---|---|---|
 | `copy-scan.mjs` | 화면 글자와 title, placeholder, aria-label 의 대시, 가운뎃점, '~음/~함/~됨' 꼴, 해요체, '축' | DESIGN.md 7절 표기 |
-| `line-scan.mjs` | 폭마다(기본 1440, 1024) 2.5px 안에 포갠 선, 사이에 글자 없이 나란한 두 선 | DESIGN.md 5절 구분선 |
-| `overflow-scan.mjs` | 폭마다(기본 1440, 1024) 페이지 가로 넘침과 칸 밖으로 나간 표 칸, 배지, 버튼 | DESIGN.md 3절, 4절 |
+| `line-scan.mjs` | 폭마다(기본 1440, 1024, 360) 2.5px 안에 포갠 선, 사이에 글자 없이 나란한 두 선 | DESIGN.md 5절 구분선 |
+| `overflow-scan.mjs` | 폭마다(기본 1440, 1024, 360) 페이지 가로 넘침, 칸 밖으로 나간 표 칸과 배지와 버튼, 표 곁의 블록까지 함께 가로로 미는 스크롤 상자 | DESIGN.md 3절, 4절 |
 | `snippet-check.mjs` | 앱 없이 마크업 조각과 제안 CSS 를 앱 시트 위에 렌더해 폭마다 스크린샷과 위 세 검사를 한 번에 | 위와 같음 |
 
 세 화면 점검 도구와 `snippet-check` 는 검사 함수(`lib.mjs` 의 `copyLinesInPage`, `lineHitsInPage`, `overflowInPage`, `BAD`)를 함께 쓴다. 규칙을 고치면 한 곳만 고친다. 점검 순서는 `.claude/skills/design-review` 스킬이 정한다.
@@ -24,14 +24,14 @@ npm install            # playwright-core 만 받는다. 브라우저는 설치�
 
 ```bash
 SPV_BASE=http://localhost:7797 SPV_USER=<계정> SPV_PASS=<비밀번호> node copy-scan.mjs urls.txt out/copy.json
-SPV_BASE=http://localhost:7797 SPV_USER=<계정> SPV_PASS=<비밀번호> node line-scan.mjs urls.txt out/lines.json 1440,1024
-SPV_BASE=http://localhost:7797 SPV_USER=<계정> SPV_PASS=<비밀번호> node overflow-scan.mjs urls.txt out/overflow.json 1440,1024
+SPV_BASE=http://localhost:7797 SPV_USER=<계정> SPV_PASS=<비밀번호> node line-scan.mjs urls.txt out/lines.json 1440,1024,360
+SPV_BASE=http://localhost:7797 SPV_USER=<계정> SPV_PASS=<비밀번호> node overflow-scan.mjs urls.txt out/overflow.json 1440,1024,360
 ```
 
 스니펫 점검은 샌드박스와 계정이 필요 없다. 조각 파일에는 body 안 마크업만 쓴다.
 
 ```bash
-node snippet-check.mjs 조각.html out/snippet 1440,1024,390 --sheets css/miller.css --css 제안.css
+node snippet-check.mjs 조각.html out/snippet 1440,1024,360 --sheets css/miller.css --css 제안.css
 ```
 
 `--sheets` 는 기본 시트(reset, style, form-validation, table-list) 뒤에 얹을 앱 시트(static 기준 경로), `--css` 는 아직 앱에 없는 제안 CSS 다. 결과는 폭마다 `w<폭>.png` 와 `report.json` 이다. 스크린샷은 눈으로도 본다.
@@ -41,6 +41,7 @@ node snippet-check.mjs 조각.html out/snippet 1440,1024,390 --sheets css/miller
 ## 결과 읽기
 
 - `copy-scan` 은 사용자 입력 데이터(정의서 이름, 메모)도 잡는다. 화면 문구인지 사람이 가른다.
-- `line-scan` 의 결과 줄은 폭으로 시작한다. 1024 이하에서 열이 쌓이는 컴포넌트(Miller)는 그 폭에서만 선이 겹치므로 1440 만 보고 끝내지 않는다. 빈 구분선 판정 간격은 네 번째 인자(기본 44px)다.
+- `line-scan` 의 결과 줄은 폭으로 시작한다. 1024 이하에서 열이 쌓이는 컴포넌트(Miller)는 그 폭에서만 선이 겹치므로 1440 만 보고 끝내지 않는다. 기본 폭 셋은 지원 폭(DESIGN.md 원칙 7, 360 이상)과 경계(4절, 1024 와 640)에서 온다. 360 은 지원 하한이고, 640 이하의 휴대폰 배치(목록 표 카드)를 본다. 빈 구분선 판정 간격은 네 번째 인자(기본 44px)다.
 - `line-scan` 의 `겹침` 은 거의 항상 결함이다. `빈 구분선` 은 판정이 필요하다. 탭 줄 아래에 판이 떨어져 서는 것, 묶음 머리 선 아래에 상자 항목이 줄지어 서는 것은 정상 간격으로 본다(2026-11-16 판정).
+- 닫힌 `details` 의 몸통은 그려지지 않지만 상자 좌표는 가진다(content-visibility: hidden). `line-scan` 은 보이지 않는 요소의 선과 글자를 세지 않는다(`checkVisibility`). 2026-11-20 까지는 이를 세어 접는 목록마다 겹침과 빈 구분선을 거짓으로 냈고, 그 글자가 실제 빈 구분선을 가리기도 했다(D-28).
 - 결과는 `out/` 에 쌓인다(git 제외).

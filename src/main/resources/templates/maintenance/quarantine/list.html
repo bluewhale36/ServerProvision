@@ -41,33 +41,35 @@
     </th:block>
 
     <!--/* 격리 목록 */-->
-    <table th:if="${not #lists.isEmpty(orphans)}" class="n-table">
-        <thead>
-        <tr>
-            <th>파일</th>
-            <th>등록 경로</th>
-            <th>중단 사유</th>
-            <th>격리 시각</th>
-            <th>재시도</th>
-            <th>처리</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="o : ${orphans}">
-            <td class="n-small"><code th:text="${o.originalFilename}"></code></td>
-            <td class="n-small n-break"><code th:text="${o.resolvedPath}"></code></td>
-            <td class="n-text-muted" th:text="${o.failureReason}"></td>
-            <td th:text="${#temporals.format(o.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
-            <td th:text="${o.retryCount} + '회'"></td>
-            <td>
-                <button type="button"
-                        class="n-btn n-btn-sm n-btn-primary"
-                        th:data-recovery-id="${o.recoveryId}">복구
-                </button>
-            </td>
-        </tr>
-        </tbody>
-    </table>
+    <div class="n-table-scroll" th:if="${not #lists.isEmpty(orphans)}">
+        <table class="n-table">
+            <thead>
+            <tr>
+                <th>파일</th>
+                <th>등록 경로</th>
+                <th>중단 사유</th>
+                <th>격리 시각</th>
+                <th>재시도</th>
+                <th>처리</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="o : ${orphans}">
+                <td class="n-small"><code th:text="${o.originalFilename}"></code></td>
+                <td class="n-small n-break"><code th:text="${o.resolvedPath}"></code></td>
+                <td class="n-text-muted" th:text="${o.failureReason}"></td>
+                <td th:text="${#temporals.format(o.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+                <td th:text="${o.retryCount} + '회'"></td>
+                <td>
+                    <button type="button"
+                            class="n-btn n-btn-sm n-btn-primary"
+                            th:data-recovery-id="${o.recoveryId}">복구
+                    </button>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <!-- 복구 modal + 공통 모듈. 행 [복구] 버튼이 OrphanRecovery.open(recoveryId) 호출. -->

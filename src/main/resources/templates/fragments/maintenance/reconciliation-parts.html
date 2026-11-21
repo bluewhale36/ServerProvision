@@ -124,45 +124,47 @@
             <div class="n-empty-desc">상단의 <strong>[지금 점검]</strong> 으로 첫 점검을 시작할 수 있습니다.</div>
         </div>
 
-        <table th:unless="${#lists.isEmpty(reports)}" class="n-table">
-            <thead>
-            <tr>
-                <th>점검 일시</th>
-                <th>유형</th>
-                <th>점검 대상</th>
-                <th>탐지</th>
-                <th>소요</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="report : ${reports}" class="n-row-hover" th:data-nav-key="${report.id}">
-                <td>
-                    <a class="n-row-link"
-                       th:href="@{/maintenance/reconciliation/reports/{id}(id=${report.id})}"
-                       th:text="${#temporals.format(report.scannedAt, 'yyyy-MM-dd HH:mm:ss')}">2026-08-12 10:30:00</a>
-                </td>
-                <td>
-                    <span class="n-badge" th:classappend="${report.deep} ? 'n-badge-blue' : 'n-badge-gray'"
-                          th:text="${report.deep} ? '정밀' : '일반'">일반</span>
-                </td>
-                <!--/* MK4-4-2 — 점검은 활성 자원만 보는 것이 아니다. 총계 옆에 내역을 붙여, 탐지
-                     건수가 이 수를 넘는 것처럼 보이던 모순을 없앤다(진단 1-5). */-->
-                <td>
-                    <span th:text="|${report.population.total()} 건|">16 건</span>
-                    <div th:if="${report.population.hasNonActive()}" class="n-spec-cell"
-                         th:text="|활성 ${report.population.activeCount}, 삭제 ${report.population.deletedCount}, 짝 없는 마커 ${report.population.unmatchedMarkerCount}|">
-                        활성 9, 삭제 6, 짝 없는 마커 1
-                    </div>
-                </td>
-                <td>
-                    <span class="n-badge"
-                          th:classappend="${report.detectedDriftCount > 0} ? 'n-badge-yellow' : 'n-badge-gray'"
-                          th:text="|${report.detectedDriftCount} 건|">0 건</span>
-                </td>
-                <td class="n-spec-cell" th:text="${report.scanDuration}">0.45초</td>
-            </tr>
-            </tbody>
-        </table>
+        <div class="n-table-scroll" th:unless="${#lists.isEmpty(reports)}">
+            <table class="n-table">
+                <thead>
+                <tr>
+                    <th>점검 일시</th>
+                    <th>유형</th>
+                    <th>점검 대상</th>
+                    <th>탐지</th>
+                    <th>소요</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="report : ${reports}" class="n-row-hover" th:data-nav-key="${report.id}">
+                    <td>
+                        <a class="n-row-link"
+                           th:href="@{/maintenance/reconciliation/reports/{id}(id=${report.id})}"
+                           th:text="${#temporals.format(report.scannedAt, 'yyyy-MM-dd HH:mm:ss')}">2026-08-12 10:30:00</a>
+                    </td>
+                    <td>
+                        <span class="n-badge" th:classappend="${report.deep} ? 'n-badge-blue' : 'n-badge-gray'"
+                              th:text="${report.deep} ? '정밀' : '일반'">일반</span>
+                    </td>
+                    <!--/* MK4-4-2 — 점검은 활성 자원만 보는 것이 아니다. 총계 옆에 내역을 붙여, 탐지
+                         건수가 이 수를 넘는 것처럼 보이던 모순을 없앤다(진단 1-5). */-->
+                    <td>
+                        <span th:text="|${report.population.total()} 건|">16 건</span>
+                        <div th:if="${report.population.hasNonActive()}" class="n-spec-cell"
+                             th:text="|활성 ${report.population.activeCount}, 삭제 ${report.population.deletedCount}, 짝 없는 마커 ${report.population.unmatchedMarkerCount}|">
+                            활성 9, 삭제 6, 짝 없는 마커 1
+                        </div>
+                    </td>
+                    <td>
+                        <span class="n-badge"
+                              th:classappend="${report.detectedDriftCount > 0} ? 'n-badge-yellow' : 'n-badge-gray'"
+                              th:text="|${report.detectedDriftCount} 건|">0 건</span>
+                    </td>
+                    <td class="n-spec-cell" th:text="${report.scanDuration}">0.45초</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
 
         <!--/* 표와 쪽 이동은 붙어 다닌다 — 따로 두면 화면마다 한쪽만 옮겨 붙이는 일이 생긴다. */-->
         <div th:if="${totalPages > 1}"
@@ -178,70 +180,72 @@
         <div class="n-empty-desc" th:if="${emptyDesc != null}" th:text="${emptyDesc}"></div>
     </div>
 
-    <table th:unless="${#lists.isEmpty(drifts)}" class="n-table">
-        <thead>
-        <tr>
-            <!--/* 번호를 맨 앞에 둔다. 로그나 다른 화면에서 번호로 찾아온 사람이 목록에서 바로
-                 짚을 수 있어야 하고, 상세 화면과 이력 표가 이미 같은 자리에 번호를 두고 있다. */-->
-            <th class="n-tl-id">번호</th>
-            <th>자원</th>
-            <th>드리프트</th>
-            <th>위험도</th>
-            <th>사용 중</th>
-            <th>처음 감지</th>
-            <th>상태</th>
-            <th class="n-th-center">처리</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="drift : ${drifts}" class="n-row-hover" th:data-nav-key="${drift.id}">
-            <td class="n-tl-id n-spec-cell" th:text="|#${drift.id}|">#378</td>
-            <td>
-                <a class="n-row-link"
-                   th:href="@{/maintenance/reconciliation/drifts/{id}(id=${drift.id})}"
-                   th:text="${drift.displayName != null ? drift.displayName : drift.resourceType.displayName + ' #' + drift.resourceId}">Rocky Linux 9.6</a>
-                <div class="n-spec-cell" th:text="${drift.resourceType.displayName}">OS ISO</div>
-            </td>
-            <!--/* 종류는 글자로만 둔다. 배지 색으로 또 나누면 눈이 색부터 좇는데, 정작 순서를
-                 정하는 것은 옆의 위험도와 사용 중이고 목록은 이미 그 순서로 놓여 있다. 종류마다
-                 다른 색은 그 순서와 무관한 축이라 읽는 사람을 헷갈리게 한다. */-->
-            <td th:text="${drift.kind.label}">경로 이동</td>
-            <td>
-                <span class="n-badge"
-                      th:classappend="${drift.kind.severity.name() == 'IMMEDIATE'} ? 'n-badge-red' : (${drift.kind.severity.name() == 'ATTENTION'} ? 'n-badge-yellow' : 'n-badge-gray')"
-                      th:text="${drift.kind.severity.label}">즉시</span>
-            </td>
-            <td>
-                <span th:if="${drift.hasUsage()}" class="n-badge n-badge-orange"
-                      th:text="${drift.usage.label}">서버 할당</span>
-                <span th:unless="${drift.hasUsage()}" class="n-text-muted">-</span>
-            </td>
-            <!--/* MK4-4-2 — 「최초 발견」 과 「이어짐」 을 가른다. 같은 자원의 문제가 종류를 바꿔
-                 나타나면 새 기록이라 관측 횟수가 1 이고, 종전에는 그것도 최초 발견으로 표시됐다 —
-                 앞선 문제가 형태를 바꾼 것인데 방금 생겼다고 말하는 셈이었다. 어디서 이어졌는지는
-                 tooltip 이 말한다(S11-2 가 남긴 계보를 여기서 처음 꺼내 쓴다). */-->
-            <td class="n-spec-cell">
-                <span th:text="${#temporals.format(drift.firstDetectedAt, 'yyyy-MM-dd HH:mm')}">2026-08-12 10:30</span>
-                <span th:if="${drift.isNew()}" class="n-badge n-badge-red">최초 발견</span>
-                <span th:if="${drift.succeeded()}" class="n-badge n-badge-teal n-tooltip"
-                      th:data-tooltip="|「${drift.predecessor.kindLabel()}」 드리프트에서 이어졌습니다.|">승계</span>
-            </td>
-            <td>
-                <span class="n-badge" th:classappend="'n-badge-' + ${drift.status.badgeColor}"
-                      th:text="${drift.status.label}">조치 필요</span>
-                <div th:if="${drift.snoozeUntil != null}" class="n-spec-cell"
-                     th:text="|${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')} 까지|"></div>
-            </td>
-            <!--/* 목록에서 바로 처리한다. 한 건 처리하려고 상세를 열었다 닫는 왕복이 진단이 지목한
-                 마찰이었다. 상세로 들어가야만 하는 조작(보관 사유 · 다시 점검)은 상세에 남는다. */-->
-            <td class="n-th-center">
-                <div th:replace="~{fragments/maintenance/reconciliation-parts :: resolveForms(${drift}, 'n-btn n-btn-sm n-btn-primary')}"></div>
-                <span th:unless="${drift.kind.manuallyResolvable or drift.kind.name() == 'HASH_MISMATCH' or drift.kind.name() == 'RESOURCE_REPLICA'}"
-                      class="n-tooltip n-text-muted" th:data-tooltip="${drift.kind.mode.description}">-</span>
-            </td>
-        </tr>
-        </tbody>
-    </table>
+    <div class="n-table-scroll" th:unless="${#lists.isEmpty(drifts)}">
+        <table class="n-table">
+            <thead>
+            <tr>
+                <!--/* 번호를 맨 앞에 둔다. 로그나 다른 화면에서 번호로 찾아온 사람이 목록에서 바로
+                     짚을 수 있어야 하고, 상세 화면과 이력 표가 이미 같은 자리에 번호를 두고 있다. */-->
+                <th class="n-tl-id">번호</th>
+                <th>자원</th>
+                <th>드리프트</th>
+                <th>위험도</th>
+                <th>사용 중</th>
+                <th>처음 감지</th>
+                <th>상태</th>
+                <th class="n-th-center">처리</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="drift : ${drifts}" class="n-row-hover" th:data-nav-key="${drift.id}">
+                <td class="n-tl-id n-spec-cell" th:text="|#${drift.id}|">#378</td>
+                <td>
+                    <a class="n-row-link"
+                       th:href="@{/maintenance/reconciliation/drifts/{id}(id=${drift.id})}"
+                       th:text="${drift.displayName != null ? drift.displayName : drift.resourceType.displayName + ' #' + drift.resourceId}">Rocky Linux 9.6</a>
+                    <div class="n-spec-cell" th:text="${drift.resourceType.displayName}">OS ISO</div>
+                </td>
+                <!--/* 종류는 글자로만 둔다. 배지 색으로 또 나누면 눈이 색부터 좇는데, 정작 순서를
+                     정하는 것은 옆의 위험도와 사용 중이고 목록은 이미 그 순서로 놓여 있다. 종류마다
+                     다른 색은 그 순서와 무관한 축이라 읽는 사람을 헷갈리게 한다. */-->
+                <td th:text="${drift.kind.label}">경로 이동</td>
+                <td>
+                    <span class="n-badge"
+                          th:classappend="${drift.kind.severity.name() == 'IMMEDIATE'} ? 'n-badge-red' : (${drift.kind.severity.name() == 'ATTENTION'} ? 'n-badge-yellow' : 'n-badge-gray')"
+                          th:text="${drift.kind.severity.label}">즉시</span>
+                </td>
+                <td>
+                    <span th:if="${drift.hasUsage()}" class="n-badge n-badge-orange"
+                          th:text="${drift.usage.label}">서버 할당</span>
+                    <span th:unless="${drift.hasUsage()}" class="n-text-muted">-</span>
+                </td>
+                <!--/* MK4-4-2 — 「최초 발견」 과 「이어짐」 을 가른다. 같은 자원의 문제가 종류를 바꿔
+                     나타나면 새 기록이라 관측 횟수가 1 이고, 종전에는 그것도 최초 발견으로 표시됐다 —
+                     앞선 문제가 형태를 바꾼 것인데 방금 생겼다고 말하는 셈이었다. 어디서 이어졌는지는
+                     tooltip 이 말한다(S11-2 가 남긴 계보를 여기서 처음 꺼내 쓴다). */-->
+                <td class="n-spec-cell">
+                    <span th:text="${#temporals.format(drift.firstDetectedAt, 'yyyy-MM-dd HH:mm')}">2026-08-12 10:30</span>
+                    <span th:if="${drift.isNew()}" class="n-badge n-badge-red">최초 발견</span>
+                    <span th:if="${drift.succeeded()}" class="n-badge n-badge-teal n-tooltip"
+                          th:data-tooltip="|「${drift.predecessor.kindLabel()}」 드리프트에서 이어졌습니다.|">승계</span>
+                </td>
+                <td>
+                    <span class="n-badge" th:classappend="'n-badge-' + ${drift.status.badgeColor}"
+                          th:text="${drift.status.label}">조치 필요</span>
+                    <div th:if="${drift.snoozeUntil != null}" class="n-spec-cell"
+                         th:text="|${#temporals.format(drift.snoozeUntil, 'yyyy-MM-dd HH:mm')} 까지|"></div>
+                </td>
+                <!--/* 목록에서 바로 처리한다. 한 건 처리하려고 상세를 열었다 닫는 왕복이 진단이 지목한
+                     마찰이었다. 상세로 들어가야만 하는 조작(보관 사유 · 다시 점검)은 상세에 남는다. */-->
+                <td class="n-th-center">
+                    <div th:replace="~{fragments/maintenance/reconciliation-parts :: resolveForms(${drift}, 'n-btn n-btn-sm n-btn-primary')}"></div>
+                    <span th:unless="${drift.kind.manuallyResolvable or drift.kind.name() == 'HASH_MISMATCH' or drift.kind.name() == 'RESOURCE_REPLICA'}"
+                          class="n-tooltip n-text-muted" th:data-tooltip="${drift.kind.mode.description}">-</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <!--/* [해결] 폼 묶음. 종류마다 계약이 다르지만(표준 · 내용 수용 · 중복 택일) 버튼은 같은 이름 ·
@@ -251,10 +255,10 @@
      뜨지 않아, 종전 화면은 왜 못 누르는지 말해 주지 못했다(S5-3-2 가 이 자산을 만들어 두었는데
      이 화면만 쓰지 않고 있었다). */-->
 <th:block th:fragment="resolveForms(drift, btnClass)">
+    <!--/* R21-1 — 사유는 버튼 아래 글자로 늘 보인다. 시스템 해결이 꺼진 것은 화면 위 배너가 한 번 말하므로 행마다
+           되풀이하지 않는다(7절 표기 3). 그때 버튼은 막히되 글자는 드리프트 자신의 사유가 있을 때만 선다. */-->
     <th:block th:with="blocked=${drift.resolveBlockReason != null or !resolutionEnabled},
-                       reason=${drift.resolveBlockReason != null
-                               ? drift.resolveBlockReason
-                               : '시스템 해결이 꺼져 있습니다. 점검 운영 설정에서 켠 뒤 다시 시도해야 합니다.'}">
+                       reason=${drift.resolveBlockReason}">
 
         <form th:if="${drift.kind.manuallyResolvable}"
               th:action="@{/maintenance/reconciliation/drifts/{driftId}/apply(driftId=${drift.id})}"
@@ -266,7 +270,7 @@
               th:data-resolve-title="${drift.kind.resolveTitle}"
               th:data-resource-extra="${drift.kind.resolveAction}">
             <span class="n-btn-tooltip-wrap" th:data-tooltip="${blocked} ? ${reason} : null"
-                  th:attr="data-tooltip-active=${blocked} ? 'true' : 'false'">
+                  th:attr="data-tooltip-active=${reason != null} ? 'true' : 'false'">
                 <button type="submit" th:class="${btnClass}" th:disabled="${blocked}">해결</button>
             </span>
         </form>
@@ -281,7 +285,7 @@
               th:data-resource-id="${drift.resourceId}"
               th:attr="data-accept-hash-url=@{/maintenance/reconciliation/drifts/{driftId}/accept-hash(driftId=${drift.id})}">
             <span class="n-btn-tooltip-wrap" th:data-tooltip="${blocked} ? ${reason} : null"
-                  th:attr="data-tooltip-active=${blocked} ? 'true' : 'false'">
+                  th:attr="data-tooltip-active=${reason != null} ? 'true' : 'false'">
                 <button type="submit" th:class="${btnClass}" th:disabled="${blocked}">해결</button>
             </span>
         </form>
@@ -298,7 +302,7 @@
               th:data-resource-label="${drift.displayName != null ? drift.displayName : drift.resourceType + ' #' + drift.resourceId}">
             <input type="hidden" name="survivor" value="ORIGINAL">
             <span class="n-btn-tooltip-wrap" th:data-tooltip="${blocked} ? ${reason} : null"
-                  th:attr="data-tooltip-active=${blocked} ? 'true' : 'false'">
+                  th:attr="data-tooltip-active=${reason != null} ? 'true' : 'false'">
                 <button type="submit" th:class="${btnClass}" th:disabled="${blocked}">해결</button>
             </span>
         </form>
@@ -308,14 +312,11 @@
 <!--/* [전체 해결]. 무엇을 몇 건 집어가는지 버튼이 미리 말한다 — 누르고 나서 알게 되면 되돌릴 수 없다.
      대상 범위는 화면이 정한다(회차 상세 = 그 회차 · 미해결 목록 = 열린 것 전체). 그 차이 자체가
      두 후보의 비교 대상이라 버튼이 아니라 화면에 귀속시킨다. */-->
+<!--/* R21-1 — 시스템 해결이 꺼진 사유는 화면 위 배너가 말한다. 버튼 아래 글자는 해결할 것이 없을 때만 선다. */-->
 <span th:fragment="bulkApplyButton(url, count, scopeText)" class="n-btn-tooltip-wrap"
       th:with="blocked=${count == 0 or !resolutionEnabled}"
-      th:data-tooltip="${blocked}
-                       ? (${count == 0}
-                          ? '지금 해결할 수 있는 드리프트가 없습니다.'
-                          : '시스템 해결이 꺼져 있습니다. 점검 운영 설정에서 켠 뒤 다시 시도해야 합니다.')
-                       : null"
-      th:attr="data-tooltip-active=${blocked} ? 'true' : 'false'">
+      th:data-tooltip="${count == 0} ? '지금 해결할 수 있는 드리프트가 없습니다.' : null"
+      th:attr="data-tooltip-active=${count == 0} ? 'true' : 'false'">
     <button type="button" class="n-btn n-btn-sm n-btn-primary"
             data-bulk-apply=""
             th:data-bulk-url="${url}"

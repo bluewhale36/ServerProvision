@@ -301,7 +301,7 @@ class GuestServerGroupControllerStandardTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(header().string("Location", "/provisioning/server-group/" + GROUP))
                 .andExpect(flash().attribute("flashMessage", containsString("web-standard")))
-                .andExpect(flash().attribute("flashMessage", containsString("자동으로 할당되지 않습니다")));
+                .andExpect(flash().attribute("flashNote", containsString("자동으로 할당되지 않습니다")));
 
         // 표준은 기억일 뿐이다 — 지정만으로 아무 서버에도 붙지 않는다(DEC-C)
         verify(groupAssignmentService, never()).assignToMembers(any(), any());
@@ -327,7 +327,7 @@ class GuestServerGroupControllerStandardTest {
     void clearStandard_redirectsWithFlash() throws Exception {
         mvc.perform(post("/provisioning/server-group/{id}/standard-definition/clear", GROUP))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attribute("flashMessage", containsString("이미 할당된 서버는 그대로")));
+                .andExpect(flash().attribute("flashNote", containsString("이미 할당된 서버는 그대로")));
 
         verify(commandService).clearStandardDefinition(GROUP);
         verify(groupAssignmentService, never()).assignToMembers(any(), any());
@@ -406,7 +406,7 @@ class GuestServerGroupControllerStandardTest {
                         .param("alsoSetStandard", "true"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("flashMessage", containsString("2 대에 할당했습니다")))
-                .andExpect(flash().attribute("flashMessage", containsString("표준으로 지정했습니다")));
+                .andExpect(flash().attribute("flashNote", containsString("표준으로 지정했습니다")));
 
         verify(commandService).setStandardDefinition(GROUP, DEFINITION);
     }

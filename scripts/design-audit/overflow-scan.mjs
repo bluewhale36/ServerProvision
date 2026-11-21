@@ -1,9 +1,9 @@
 // 글자 크기나 문구를 바꾼 뒤의 넘침을 찾는다. 폭마다 (1) 페이지 가로 넘침 (2) 칸 밖으로 나간 표 칸과 배지를 센다.
-// 사용: node overflow-scan.mjs urls.txt out/overflow.json [폭,폭 = 1440,1024]
+// 사용: node overflow-scan.mjs urls.txt out/overflow.json [폭,폭 = 1440,1024,360]
 import fs from 'node:fs';
 import { openSession, visit, readUrls, overflowInPage } from './lib.mjs';
 
-const [urlFile, outFile = 'out/overflow.json', widthsArg = '1440,1024'] = process.argv.slice(2);
+const [urlFile, outFile = 'out/overflow.json', widthsArg = '1440,1024,360'] = process.argv.slice(2);
 const out = [];
 for (const width of widthsArg.split(',').map(Number)) {
   const { browser, page } = await openSession({ width, height: 900 });

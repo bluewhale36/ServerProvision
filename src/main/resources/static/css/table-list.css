@@ -269,6 +269,52 @@ td.n-tl-cell::before {
     transform: rotate(45deg);
 }
 
+/* 휴대폰(640 이하) — 표가 행마다 카드가 되면(style.css 휴대폰 절) 그래프 칸은 이름표 없는 한 줄로 납작해져
+   노드가 카드 한가운데 글자 위에 떠 있었고 세로선은 보이지 않았다(R21-1 CP6 사용자 검토).
+   카드 왼쪽에 34px 띠를 비워 그래프를 세운다. 선은 카드(tr)가 그린다: 칸의 ::before 는 휴대폰 절이
+   이름표 없는 칸의 ::before 를 지우는 규칙과 겹치기 때문이다. 노드는 카드 첫 줄(번호) 높이에 맞춘다. */
+@media (max-width: 640px) {
+    .n-table > .n-tl-body > tr {
+        position: relative;
+        padding-left: 40px;
+    }
+
+    .n-table > .n-tl-body > tr::before {
+        content: '';
+        position: absolute;
+        left: 16px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--n-border);
+    }
+
+    .n-table > .n-tl-body > tr:first-child::before {
+        top: 23px;
+    }
+
+    .n-table > .n-tl-body:not(.is-continued) > tr:last-child::before {
+        bottom: auto;
+        height: 23px;
+    }
+
+    .n-table > .n-tl-body:not(.is-continued) > tr:only-child::before {
+        content: none;
+    }
+
+    .n-table > .n-tl-body > tr > td.n-tl-cell {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 34px;
+    }
+
+    .n-tl-body .n-tl-node {
+        top: 23px;
+    }
+}
+
 /* 표 아래로 이어지는 안내.
    선을 여기까지 끌어내리지 않는다 — 표 밖에서는 행 높이와 셀 여백이 달라 같은 자리에 그려도
    눈에는 어긋나 보였다. 사슬이 이어진다는 사실은 마지막 행의 선을 끊지 않는 것으로 이미 말한다. */
@@ -361,7 +407,7 @@ td.n-tl-cell::before {
     flex: 1;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 640px) {
     .n-split-2 {
         grid-template-columns: 1fr;
     }

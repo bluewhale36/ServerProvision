@@ -194,16 +194,15 @@ public class GuestServerGroupController {
 
         // 표준 지정을 먼저 한다 (U3-5-d OQ-3) — 거절될 수 있는 쪽을 앞에 두어야 그것이 거절됐을 때
         // 할당만 일어난 채로 남지 않는다. 일괄 할당은 멤버별로 건너뛸 뿐 던지지 않으므로 뒤에 와도 된다.
-        String standardNote = "";
         if (alsoSetStandard) {
             commandService.setStandardDefinition(id, definitionId);
-            standardNote = " 이 정의서를 이 그룹의 표준으로 지정했습니다.";
+            redirectAttributes.addFlashAttribute("flashNote", "이 정의서를 이 그룹의 표준으로 지정했습니다.");
         }
 
         // 미리보기를 통째로 넘긴다 — 고를 때 빠진 멤버와 실행 중 거절된 멤버를 한 결과에 함께 세기 위해서다.
         // 대상 목록만 넘기면 "2 대에 붙는다" 를 보고 승인한 사용자가 "1 대에 할당했습니다" 만 읽게 된다.
         BatchAssignResult result = groupAssignmentService.assignToMembers(preview, definitionId);
-        redirectAttributes.addFlashAttribute("flashMessage", result.message() + standardNote);
+        redirectAttributes.addFlashAttribute("flashMessage", result.message());
         redirectAttributes.addFlashAttribute("flashTone", result.tone().getCssClass());
         return "redirect:/provisioning/server-group/" + id;
     }
@@ -222,9 +221,10 @@ public class GuestServerGroupController {
                               @RequestParam("definitionId") Long definitionId,
                               RedirectAttributes redirectAttributes) {
         String name = commandService.setStandardDefinition(id, definitionId);
+        // 결과와 뒤따르는 사실을 따로 넘겨 알림 띠에서 줄을 나눈다(R21-1 CP6 사용자 검토)
         redirectAttributes.addFlashAttribute("flashMessage",
-                "세팅 정의서 '" + name + "' 를 이 그룹의 표준으로 지정했습니다."
-                        + " 서버에는 자동으로 할당되지 않습니다.");
+                "세팅 정의서 '" + name + "' 를 이 그룹의 표준으로 지정했습니다.");
+        redirectAttributes.addFlashAttribute("flashNote", "서버에는 자동으로 할당되지 않습니다.");
         return "redirect:/provisioning/server-group/" + id;
     }
 
@@ -232,8 +232,8 @@ public class GuestServerGroupController {
     @PostMapping("/{id}/standard-definition/clear")
     public String clearStandard(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         commandService.clearStandardDefinition(id);
-        redirectAttributes.addFlashAttribute("flashMessage",
-                "표준 세팅 정의서를 해제했습니다. 이미 할당된 서버는 그대로입니다.");
+        redirectAttributes.addFlashAttribute("flashMessage", "표준 세팅 정의서를 해제했습니다.");
+        redirectAttributes.addFlashAttribute("flashNote", "이미 할당된 서버는 그대로입니다.");
         return "redirect:/provisioning/server-group/" + id;
     }
 

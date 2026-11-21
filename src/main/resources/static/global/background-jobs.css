@@ -264,7 +264,9 @@
     }
 }
 
-/* ---- 서류가방 아래 토스트 (variant: info / success / error) ---
+/* ---- 서류가방 곁 토스트 (variant: info / success / error) ---
+   패널과 같은 자리에 뜬다. 넓은 폭은 사이드바 맨 아래 서류가방 오른쪽, 1024 이하는 머리 줄 아래 오른쪽(아래 미디어 쿼리).
+   상단 가로 nav 시절의 top: 60px; right: 48px 가 남아 페이지 머리의 버튼 위에 떴다(R21-1 CP6 사용자 검토).
    DESIGN.md 팔레트 :
      info    — Badge Blue  (bg #f2f9ff, text/border #097fe8)
      success — Notion Green (bg #e8f6eb, text #156f28, border #1aae39)
@@ -272,8 +274,8 @@
 -------------------------------------------------------------- */
 .n-bgjob-toast {
     position: fixed;
-    top: 60px;
-    right: 48px;
+    bottom: 16px;
+    left: 240px;
     border-radius: var(--n-radius-lg);
     box-shadow: var(--n-shadow-card);
     padding: 8px 12px;
@@ -281,7 +283,7 @@
     font-weight: 500;
     max-width: 320px;
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(6px);
     transition: opacity 0.2s ease, transform 0.2s ease;
     pointer-events: none;
     z-index: 210;
@@ -374,4 +376,31 @@
 
 .n-bgjob-card-close[hidden] {
     display: none;
+}
+
+/* R21-1 — 사이드바가 머리 줄이 되는 폭에서는 버튼이 머리 줄 오른쪽 끝에 서고, 패널은 머리 줄 아래 화면 폭으로 뜬다.
+   이 시트가 style.css 뒤에 실리므로 자리 규칙은 여기에 둔다(DESIGN.md 4절: 반응형 규칙은 그 컴포넌트를 소유한 파일). */
+@media (max-width: 1024px) {
+    /* 머리 줄에서는 메뉴 버튼과 같은 세로 가운데에 선다. 넓은 폭의 align-self: flex-start 는 세로 사이드바 맨 위에 붙이려던 것이다(R21-1 CP5 D1) */
+    .n-nav-bgjob {
+        align-self: center;
+        margin: 0 0 0 auto;
+    }
+
+    .n-nav-bgjob-panel {
+        top: calc(var(--n-bar-h) + 8px);
+        right: 8px;
+        bottom: auto;
+        left: 8px;
+        width: auto;
+    }
+
+    /* 토스트도 패널처럼 머리 줄 아래 오른쪽, 서류가방 바로 밑에 뜬다 */
+    .n-bgjob-toast {
+        top: calc(var(--n-bar-h) + 8px);
+        right: 8px;
+        bottom: auto;
+        left: auto;
+        transform: translateY(-6px);
+    }
 }
