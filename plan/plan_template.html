@@ -10,7 +10,7 @@
    3. 불필요한 §0(재설계 동기)·부록 위젯·split-card 등은 삭제. 11 필수 섹션(§1~§11)은 유지.
 
   불가침 (CLAUDE.md) :
-   · 골격 = header.page-header(top sticky) → div.layout(grid 240px 1fr) → nav.toc(sticky, top:108px) + main.
+   · 골격 = header.page-header(top sticky) → div.layout(grid 220px 1fr, max-width 1680px) → nav.toc(sticky, top:108px) + main.
    · 말미 <script> 4 로직 = ① ToC 클릭→open+scroll  ② 전부펴기/접기  ③ filter 검색(.hidden+open)  ④ check-list localStorage.
    · 🎬 미리보기는 §2 직후 배치 + "진짜 인터랙티브" — state+render()+action() 라이브 시뮬. 정적 텍스트/도식으로 대체 금지.
    · 🎬 demoBlocks() 의 도메인 판정은 서버 도메인 메서드(LifecycleEntity.blocksChildXxx 등)와 1:1 동일 로직을 JS 재현(드리프트 0).
@@ -32,6 +32,7 @@
     --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
     --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
     --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --code-kw:#cf222e; --code-str:#0a3069; --code-com:#6e7781; --code-ann:#8250df; --code-type:#953800; --code-key:#0550ae;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
   }
   * { box-sizing:border-box; }
@@ -47,7 +48,7 @@
   .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
 
   /* ── 2단 레이아웃 + ToC (sticky — 헤더 높이만큼 top offset) ── */
-  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  .layout { display:grid; grid-template-columns:220px 1fr; gap:24px; max-width:1680px; margin:0 auto; padding:24px; }
   main { min-width:0; }
   nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
   nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
@@ -76,21 +77,24 @@
   h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
   h4:first-child { margin-top:0; }
   table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
-  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:break-word; min-width:10em; }
+  th:first-child, td:first-child { min-width:7em; }
   th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
   tr:last-child td { border-bottom:none; }
   code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
   pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
   pre code { background:none; padding:0; }
+  .tok-kw{color:var(--code-kw);font-weight:600;} .tok-str{color:var(--code-str);} .tok-com{color:var(--code-com);font-style:italic;} .tok-ann{color:var(--code-ann);} .tok-type{color:var(--code-type);} .tok-key{color:var(--code-key);}
   ul,ol { padding-left:22px; } li { padding:2px 0; }
 
   /* ── chip (CP 단계 + 변경 분류 + variant) ── */
-  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip { display:inline-block; white-space:nowrap; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
   .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
   .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
   .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
   .chip.cp7{background:var(--bg);color:var(--text-muted);}
-  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);} .chip.fact{background:var(--green-bg);color:var(--green);} .chip.guess{background:var(--yellow-bg);color:var(--yellow);}
   .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
   .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
   .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
@@ -171,7 +175,31 @@
   .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
   .card li { font-size:12px; line-height:1.55; }
 
-  @media (max-width:1000px){ .layout{grid-template-columns:1fr; padding:16px;} nav.toc{position:static; max-height:none;} .split-grid{grid-template-columns:1fr;} .seq{grid-template-columns:1fr;} }
+  /* ── 반응형 (명세 3장, 데스크톱 무변경) ── */
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
 </style>
 </head>
 <body>
@@ -286,10 +314,10 @@
       <summary>§3. URL / 데이터 흐름</summary>
       <div class="body">
         <!-- TODO: URL 표 + 흐름도(pre code ASCII 또는 부록 .seq) + Miller/응답 구조. 정상/비정상(throw+상태코드) 분기. -->
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
           <tbody><tr><td>POST</td><td><code>/...</code></td><td>TODO</td><td>302 / 200 / 409</td></tr></tbody>
-        </table>
+        </table></div>
         <pre><code>[조회 렌더]  GET /...  → Service.toResponse(...) → capability 적재 → Thymeleaf disable+tooltip
 [액션 정상]  차단 버튼 클릭 불가 → 서버 도달 0
 [액션 비정상] direct POST → Service 가드 → throw {{Exception}} (409, 안전망)</code></pre>
@@ -313,7 +341,7 @@
       <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
       <div class="body">
         <!-- TODO: 이 슬라이스에서 해당 없는 Step 은 "N/A + 사유" 로 남긴다(리팩토링 슬라이스는 6 · 7 · 9 가 N/A 가 될 수 있다). -->
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
           <tbody>
             <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
@@ -324,7 +352,7 @@
             <tr><td>11</td><td>report html</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
             <tr><td>12</td><td>브라우저 E2E — 사용자 단독</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
           </tbody>
-        </table>
+        </table></div>
         <div class="callout">승인 게이트는 <b>CP1 · CP4(테스트까지 끝낸 코드 검수) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘이다. ① CP1 승인에서 CP4 게이트 지점까지(main 구현, 테스트 작성, 규약 검사 포함 전체 테스트 green. 경계 보고만) ② CP4 승인에서 CP6 제출까지(CP5 검증, report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
       </div>
     </details>
@@ -334,10 +362,10 @@
       <summary>§6. Step 8 통합 테스트 시나리오</summary>
       <div class="body">
         <!-- TODO: 사용자 액션 범주별(성공 2xx · 400 · 404 · 409 · 500) + 시나리오 수. 컨트롤러별 플로우 파일. 신규 예외마다 트리거. -->
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>분류</th><th>시나리오</th><th>수</th></tr></thead>
           <tbody><tr><td>성공</td><td>TODO</td><td>0</td></tr></tbody>
-        </table>
+        </table></div>
       </div>
     </details>
 
@@ -346,10 +374,10 @@
       <summary>§7. 예외 계층</summary>
       <div class="body">
         <!-- TODO: 신규·재사용 예외 구분 + HTTP status 매핑(@ResponseStatus/advice). 변경 0 이면 KEEP 근거. -->
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>예외</th><th>HTTP</th><th>구분</th></tr></thead>
           <tbody><tr><td><code>TODO</code></td><td>409</td><td><span class="chip keep">재사용</span></td></tr></tbody>
-        </table>
+        </table></div>
       </div>
     </details>
 
@@ -359,8 +387,8 @@
       <div class="body">
         <!-- TODO: 스코프 경계, 미루는 리팩터, 잔존 책임·임시 비대칭(+해소 시점), CLAUDE.md 수정, 관련 페이지 동반 수정, open questions. -->
         <h4>Open Questions (CP1 결정)</h4>
-        <table><thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
-          <tbody><tr><td>Q1</td><td>TODO</td><td>TODO</td></tr></tbody></table>
+        <div class="table-scroll"><table><thead><tr><th>#</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody><tr><td>Q1</td><td>TODO</td><td>TODO</td></tr></tbody></table></div>
       </div>
     </details>
 
@@ -382,14 +410,14 @@
     <details class="section" id="s10">
       <summary>§10. Critical Files</summary>
       <div class="body">
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
           <tbody>
             <tr><td><span class="chip mod">수정</span></td><td><code>TODO</code></td><td>TODO</td></tr>
             <tr><td><span class="chip new">신규</span></td><td><code>TODO</code></td><td>TODO</td></tr>
             <tr><td><span class="chip keep">유지</span></td><td><code>TODO</code></td><td>변경 0 (KEEP 근거)</td></tr>
           </tbody>
-        </table>
+        </table></div>
       </div>
     </details>
 
