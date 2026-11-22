@@ -212,11 +212,13 @@
     display: block;
 }
 
-/* R21-1 — 사유가 select 아래 글자로 설 때(style.css 의 막힌 사유 규칙)도 select 가 폭을 다 쓰게 한다.
-   그 규칙이 (0,3,0) 이라 같은 깊이로 쓴다(이 시트가 뒤에 실려 이긴다). */
-.n-btn-tooltip-wrap.n-tooltip-block[data-tooltip] {
-    display: flex;
-    align-items: stretch;
+/* R21-1 — 터치 기기에서 사유가 select 아래 글자로 설 때(style.css 의 막힌 사유 터치 절)도 select 가 폭을 다 쓰게 한다.
+   그 규칙이 (0,3,0) 이라 같은 깊이로 쓴다(이 시트가 뒤에 실려 이긴다). 마우스 기기는 말풍선이라 위 block 그대로다. */
+@media (hover: none), (pointer: coarse) {
+    .n-btn-tooltip-wrap.n-tooltip-block[data-tooltip] {
+        display: flex;
+        align-items: stretch;
+    }
 }
 
 /* deprecated 자원 뱃지(U2-3 lifecycle) — 라벨 아래 줄에 렌더되므로 select 와의 상하 간격 확보 */
