@@ -499,9 +499,10 @@ kbd {
 }
 
 /* ============================================================
-   막힌 조작의 사유(S5-3-2, R21-1 개정). 브라우저는 disabled 버튼의 title 을 띄우지 않으므로 감싸개 span 의
-   ::after 가 사유를 그린다. R21-1 부터는 마우스 올림 말풍선이 아니라 버튼 아래 글자로 늘 보인다 — 누르기 전에
-   이유가 보여야 하고(UX 모순은 UI 1차 차단), 터치에는 마우스 올림이 없다(DESIGN.md 7절 위계 표의 차단 사유 행).
+   막힌 조작의 사유(S5-3-2, R21-1 · HF38 개정). 브라우저는 disabled 버튼의 title 을 띄우지 않으므로 감싸개 span 의
+   ::after 가 사유를 그린다. 입력 장치에 따라 보이는 방식이 다르다(2026-11-22 사용자 결정, DESIGN.md 4절 버튼과 7절 위계 표).
+   마우스가 있는 기기는 올렸을 때 말풍선, 마우스 올림이 없는 터치 기기는 버튼 아래 글자로 늘 보인다. 폭이 아니라 입력 장치로
+   가르는 이유는 같은 폭의 노트북 창과 태블릿이 다른 사정이기 때문이다.
    사용법 :
      <span class="n-btn-tooltip-wrap" data-tooltip="안내 메시지">
          <button class="n-btn ..." disabled>...</button>
@@ -517,6 +518,9 @@ kbd {
     display: inline-block;
 }
 
+/* 감싸개의 말풍선 선택자는 상태를 :where() 로 감싸 명시도를 (0,3,1) 로 둔다. 아래 터치 절의 '아래 글자' 규칙과 같은 명시도라
+   뒤에 실린 터치 절이 이긴다(터치 기기에서 눌러 생긴 :hover 가 말풍선으로 되살아나지 않게). */
+.n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]):where(:hover, :focus-within)::after,
 .n-tooltip[data-tooltip]:hover::after,
 .n-tooltip[data-tooltip]:focus-within::after {
     content: attr(data-tooltip);
@@ -545,6 +549,7 @@ kbd {
   S5-3-2 — viewport 우측 끝에 대상이 있어 말풍선이 화면 밖으로 잘리는 경우 대비.
   data-tooltip-align="right" 면 말풍선의 오른쪽 끝을 대상의 오른쪽 끝에 맞춘다.
 */
+.n-btn-tooltip-wrap[data-tooltip-align="right"][data-tooltip]:not([data-tooltip-active="false"]):where(:hover, :focus-within)::after,
 .n-tooltip[data-tooltip-align="right"][data-tooltip]:hover::after,
 .n-tooltip[data-tooltip-align="right"][data-tooltip]:focus-within::after {
     left: auto;
@@ -552,33 +557,37 @@ kbd {
     transform: none;
 }
 
-/* 막힌 사유 — 버튼 아래 글자. 사유가 길어도 감싸개가 옆 버튼을 멀리 밀지 않도록 글자 폭에 상한을 둔다.
-   표의 오른쪽 끝 동작 칸처럼 오른쪽에 붙는 자리(data-tooltip-align="right")는 글자도 오른쪽에 붙인다. */
-.n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]) {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    vertical-align: top;
-}
+/* 터치 기기 — 막힌 사유를 버튼 아래 글자로 늘 보인다. 사유가 길어도 감싸개가 옆 버튼을 멀리 밀지 않도록 글자 폭에 상한을 둔다.
+   all: unset 은 위 말풍선 규칙이 준 위치 · 배경 · 그림자를 지운다(눌러서 생긴 :hover 에서도 같은 명시도라 이 절이 이긴다).
+   표의 오른쪽 끝 동작 칸처럼 오른쪽에 붙는 자리(data-tooltip-align="right")와 오른쪽으로 모인 동작 줄(n-form-actions,
+   n-header-actions)에서는 글자도 오른쪽 끝에 맞춘다. 왼쪽 맞춤이면 사유가 버튼보다 길 때 버튼이 줄 끝에서 왼쪽으로 밀려
+   다른 버튼과 끝이 어긋난다(R21-1 CP6 사용자 검토, OS 목록의 [ISO 추가]). */
+@media (hover: none), (pointer: coarse) {
+    .n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]) {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        vertical-align: top;
+    }
 
-.n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"])::after {
-    content: attr(data-tooltip);
-    max-width: 260px;
-    color: var(--n-text-muted);
-    font-size: 13px;
-    line-height: 1.4;
-    white-space: normal;
-}
+    .n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"])::after {
+        all: unset;
+        content: attr(data-tooltip);
+        max-width: 260px;
+        color: var(--n-text-muted);
+        font-size: 13px;
+        line-height: 1.4;
+        white-space: normal;
+    }
 
-.n-btn-tooltip-wrap[data-tooltip-align="right"][data-tooltip]:not([data-tooltip-active="false"]),
-.n-form-actions .n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]),
-.n-header-actions .n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]) {
-    align-items: flex-end;
-    text-align: right;
+    .n-btn-tooltip-wrap[data-tooltip-align="right"][data-tooltip]:not([data-tooltip-active="false"]),
+    .n-form-actions .n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]),
+    .n-header-actions .n-btn-tooltip-wrap[data-tooltip]:not([data-tooltip-active="false"]) {
+        align-items: flex-end;
+        text-align: right;
+    }
 }
-/* 오른쪽으로 모인 동작 줄(n-form-actions, n-header-actions)에서는 사유 글자도 오른쪽 끝에 맞춘다. 왼쪽 맞춤이면 사유가 버튼보다 길 때
-   버튼이 줄 끝에서 왼쪽으로 밀려 다른 버튼과 끝이 어긋난다(R21-1 CP6 사용자 검토, OS 목록의 [ISO 추가]) */
 
 /*
   S8-3 — 잘라내는 조상 안의 툴팁(.n-tooltip-float). Miller 항목 · 버전 라벨은 말줄임 때문에 overflow: hidden 이라
