@@ -91,6 +91,7 @@ class GuestServerQueryServiceWindowsInstallTest {
                 new SettingLedger(recorder, new ObjectMapper()), new WorkerObservations(), new ObjectMapper(),
                 executor, familyNames,
                 new OsInstallCardAssemblers(List.of(new WindowsInstallCardAssembler(resolver, ledger))),
+                org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.rhel.ossetting.OsSettingLedger.class),
                 java.time.Clock.systemDefaultZone(),
                 new com.example.serverprovision.execution.engine.firmware.FlashProgressBoard());
         given(guestServerRepository.findById(server.getId())).willReturn(Optional.of(server));

@@ -15,6 +15,12 @@ import com.example.serverprovision.management.os.repository.OSMetadataRepository
 import com.example.serverprovision.management.os.repository.OSPackageGroupRepository;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.PartitionRequest;
+import com.example.serverprovision.execution.engine.rhel.ossetting.RhelOsSettingPlan;
+import com.example.serverprovision.execution.engine.rhel.ossetting.SelinuxMode;
+import com.example.serverprovision.execution.engine.rhel.ossetting.ServiceDirective;
+import com.example.serverprovision.execution.engine.rhel.ossetting.ServiceIntent;
+import com.example.serverprovision.execution.engine.rhel.ossetting.UserScript;
+import com.example.serverprovision.provisioning.setting.dto.request.RHELOSSettingRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.RootPasswordRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.UserRequest;
@@ -52,11 +58,20 @@ public class RhelInstallationResolutionProviderImpl implements RhelInstallationR
     public Optional<RhelResolution> resolveFor(UUID guestServerId) {
         return assignmentRepository
                 .findByGuestServer_IdAndSupersededAtIsNull(guestServerId)
-                .flatMap(snapshot -> snapshot.processRequestOf(RHELInstallationRequest.class))
-                .map(this::resolve);
+                .flatMap(snapshot -> snapshot.processRequestOf(RHELInstallationRequest.class)
+                        .map(install -> resolve(install, snapshot.processRequestOf(RHELOSSettingRequest.class))));
     }
 
-    private RhelResolution resolve(RHELInstallationRequest request) {
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<RhelOsSettingPlan> osSettingFor(UUID guestServerId) {
+        return assignmentRepository
+                .findByGuestServer_IdAndSupersededAtIsNull(guestServerId)
+                .flatMap(snapshot -> snapshot.processRequestOf(RHELOSSettingRequest.class))
+                .map(RhelInstallationResolutionProviderImpl::toOsSettingPlan);
+    }
+
+    private RhelResolution resolve(RHELInstallationRequest request, Optional<RHELOSSettingRequest> osSetting) {
         Optional<OSMetadata> os = osMetadataRepository.findById(request.getOsMetadataId());
         if (os.isEmpty()) {
             return new RhelResolution.Blocked(RhelBlockReason.OS_METADATA_MISSING, String.valueOf(request.getOsMetadataId()));
@@ -93,7 +108,8 @@ public class RhelInstallationResolutionProviderImpl implements RhelInstallationR
                 users(request.getUsers()),
                 environmentCode.get(),
                 orderedGroupCodes,
-                request.isKDumpEnabled()),
+                request.isKDumpEnabled(),
+                osSetting.map(RhelInstallationResolutionProviderImpl::toOsSettingPlan)),
                 new RhelInstallMedia(request.getIsoId(), os.get().getOsName(), os.get().getOsVersion(), os.get().displayName()));
     }
 
@@ -115,6 +131,18 @@ public class RhelInstallationResolutionProviderImpl implements RhelInstallationR
 
     private String crypt(LinuxPassword password) {
         return password.toCrypt(hasher);
+    }
+
+    /** 계약의 SELinux 모드는 저장 검증(패턴)을 지났으므로 읽지 못하면 데이터 손상이다. */
+    private static RhelOsSettingPlan toOsSettingPlan(RHELOSSettingRequest request) {
+        return new RhelOsSettingPlan(
+                SelinuxMode.of(request.getSelinuxMode())
+                        .orElseThrow(() -> new IllegalStateException("SELinux 모드를 읽을 수 없습니다: " + request.getSelinuxMode())),
+                request.getServices().stream()
+                        .map(service -> new ServiceDirective(service.name(), ServiceIntent.valueOf(service.action().name())))
+                        .toList(),
+                request.getAdditionalPackages(),
+                request.getScripts().stream().map(script -> new UserScript(script.fileName(), script.content())).toList());
     }
 
     /** MiB = 크기 × 단위 계수. grow 이고 크기 0 이면 1(--size=1 --grow). */

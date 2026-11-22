@@ -18,6 +18,8 @@
 #   GUEST_TOKEN="<hex>" — complete · report 모드의 X-Guest-Token(guest_server.guest_token). 값은 문서에 적지 않는다.
 #   ROOT_DISK · REPORT_UUID · KERNEL — 보고 본문 조정(기본: ROOT_DISK 빈 값 · REPORT_UUID=<SYSTEM_UUID> · KERNEL=5.14.0-503.14.1.el9_5.x86_64).
 #     ROOT_DISK 를 서빙 디스크와 다르게 · REPORT_UUID 를 다른 값으로 · 둘 다 빈 값으로 두면 카드의 불일치 · 미보고를 볼 수 있다.
+#   OS_SETTING_JSON='{"selinux":"enforcing","services":[...],"packages":[...],"scriptExitCodes":[0]}' — (E4-1-b-7) 보고에 OS 후처리
+#     관측값을 싣는다. 비우면 싣지 않는다(정의서에 OS 후처리가 없는 서버의 보고).
 #   EXPECT_ABSENT="<문자열>" — iPXE 스크립트 · ks.cfg 어디에도 이 값이 평문으로 없어야 한다(예: 정의서의 root 비밀번호)
 #   PXE_BOOT_AUTH=pxe:<secret> — /boot 첫 접촉 credential. 필수. ks.cfg · 트리는 경로 토큰이라 무관.
 set -eu
@@ -117,8 +119,10 @@ token() {
 }
 
 report() {   # stdout = 응답 본문, $STATE_DIR/complete.code = HTTP 코드
-  BODY=$(printf '{"osId":"rocky","osVersion":"9.5","osPrettyName":"Rocky Linux 9.5 (Blue Onyx)","kernel":"%s","hostname":"localhost","rootDisk":"%s","systemUuid":"%s"}' \
-    "${KERNEL-5.14.0-503.14.1.el9_5.x86_64}" "${ROOT_DISK:-}" "${REPORT_UUID-$UUID}")
+  OS_SETTING_MEMBER=""
+  [ -n "${OS_SETTING_JSON:-}" ] && OS_SETTING_MEMBER=",\"osSetting\":$OS_SETTING_JSON"
+  BODY=$(printf '{"osId":"rocky","osVersion":"9.5","osPrettyName":"Rocky Linux 9.5 (Blue Onyx)","kernel":"%s","hostname":"localhost","rootDisk":"%s","systemUuid":"%s"%s}' \
+    "${KERNEL-5.14.0-503.14.1.el9_5.x86_64}" "${ROOT_DISK:-}" "${REPORT_UUID-$UUID}" "$OS_SETTING_MEMBER")
   curl -sS -o "$STATE_DIR/complete.body" -w '%{http_code}' -X POST "$BASE/api/pxe/v1/agent/rhel/complete" \
     -H "X-Guest-Token: ${GUEST_TOKEN:?GUEST_TOKEN 이 필요하다}" -H "Content-Type: application/json" --data "$BODY" \
     > "$STATE_DIR/complete.code"

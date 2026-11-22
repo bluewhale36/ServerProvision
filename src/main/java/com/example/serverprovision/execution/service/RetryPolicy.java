@@ -4,11 +4,13 @@ import com.example.serverprovision.execution.engine.firmware.FlashLedger;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
+import com.example.serverprovision.execution.enums.RetryBlock;
 import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 운영자 재시도 가능 판정(E2-1-b CP5 결함 F-1 정정) — 화면의 버튼 노출과 서버 409 가드가 <b>이 한
@@ -29,22 +31,40 @@ public class RetryPolicy {
     private final ProvisioningHistoryRepository provisioningHistoryRepository;
 
     /** 화면 · 가드 공용 진입점. 원장을 이미 들고 있는 호출자는 아래 오버로드로 재조회를 피한다. */
-    public boolean isBlocked(ProvisioningProgress progress) {
-        if (!blockCandidate(progress)) {
-            return false;
+    public Optional<RetryBlock> blockOf(ProvisioningProgress progress) {
+        if (progress == null || !progress.isFailed()) {
+            return Optional.empty();
         }
-        return isBlocked(progress,
-                provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(progress.getGuestServer().getId()));
+        return RetryBlock.ofFailedPhase(progress.currentPhase()).or(() -> blockCandidate(progress)
+                ? firmwareBlock(progress, provisioningHistoryRepository.findAllByServerIdOrderByStartedAt(progress.getGuestServer().getId()))
+                : Optional.empty());
+    }
+
+    public Optional<RetryBlock> blockOf(ProvisioningProgress progress, List<ProvisioningHistory> history) {
+        if (progress == null || !progress.isFailed()) {
+            return Optional.empty();
+        }
+        return RetryBlock.ofFailedPhase(progress.currentPhase()).or(() -> firmwareBlock(progress, history));
+    }
+
+    public boolean isBlocked(ProvisioningProgress progress) {
+        return blockOf(progress).isPresent();
     }
 
     public boolean isBlocked(ProvisioningProgress progress, List<ProvisioningHistory> history) {
-        // 굽지 않은 실패(자원 결손 시한 만료)와 다 구운 뒤의 실패(복귀 시한 만료)는 벽돌 리스크가 없다 —
-        // 후자는 모든 축이 닫힌 뒤라 재시도가 굽기를 다시 열지 않고 전원 · 반영 확인만 잇는다(2026-08-27 실기).
-        return blockCandidate(progress) && !isRetrySafeFailure(progress, history);
+        return blockOf(progress, history).isPresent();
     }
 
     public boolean isRetryable(ProvisioningProgress progress, List<ProvisioningHistory> history) {
         return progress != null && progress.isFailed() && !isBlocked(progress, history);
+    }
+
+    // 굽지 않은 실패(자원 결손 시한 만료)와 다 구운 뒤의 실패(복귀 시한 만료)는 벽돌 리스크가 없다 —
+    // 후자는 모든 축이 닫힌 뒤라 재시도가 굽기를 다시 열지 않고 전원 · 반영 확인만 잇는다(2026-08-27 실기).
+    private Optional<RetryBlock> firmwareBlock(ProvisioningProgress progress, List<ProvisioningHistory> history) {
+        return blockCandidate(progress) && !isRetrySafeFailure(progress, history)
+                ? Optional.of(RetryBlock.FIRMWARE_FLASH)
+                : Optional.empty();
     }
 
     /** 차단 후보 — 실패했고 그 지점이 펌웨어 flash step 이다(커서 = 실패 지점, ES-2 D-5). */

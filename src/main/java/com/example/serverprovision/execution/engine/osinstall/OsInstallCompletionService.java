@@ -53,8 +53,13 @@ public abstract class OsInstallCompletionService<Q> {
     /** 닫은 뒤의 뒷정리(서빙 토큰 회수 등). */
     protected abstract void afterClosed(GuestServer server, ProvisioningHistory row);
 
+    /** 커서를 옮긴 뒤 같은 보고로 끝낼 수 있는 다음 phase 를 닫는다. 기본은 없다(RHEL 의 OS 후처리, E4-1-b-7). */
+    protected void afterAdvanced(GuestServer server, ProvisioningProgress progress, Q report, LocalDateTime now) {
+    }
+
     /**
-     * 순서는 신원 로드, 중복이면 no-op, 진행 상태 · 커서 · 열린 행 확인(아니면 409), 닫기, 뒷정리, 커서 전진 또는 종단, 변경 이벤트다.
+     * 순서는 신원 로드, 중복이면 no-op, 진행 상태 · 커서 · 열린 행 확인(아니면 409), 닫기, 뒷정리, 커서 전진 또는 종단,
+     * 같은 보고로 끝나는 다음 phase, 변경 이벤트다.
      * 신원이 없으면 500 이다. 게스트 체인이 이미 인증했으므로 데이터 손상이다.
      */
     @Transactional
@@ -73,9 +78,11 @@ public abstract class OsInstallCompletionService<Q> {
         String summary = close(server, row, report, now);
         afterClosed(server, row);
         cursorAdvancer.advanceOrComplete(progress, id, now);
+        afterAdvanced(server, progress, report, now);
         publishChanged(id);
         log.info("[{}] {} — 설치 완료 보고 : {}, {}", ledger().origin().logTag(), id, summary,
-                progress.isCompleted() ? "종단" : "다음 phase " + progress.currentPhase());
+                progress.isCompleted() ? "종단" : progress.isFailed() ? "실패 " + progress.currentPhase()
+                        : "다음 phase " + progress.currentPhase());
         return responseOf(true, progress);
     }
 
@@ -95,9 +102,10 @@ public abstract class OsInstallCompletionService<Q> {
         return running.orElseThrow(() -> AgentReportRejectedException.noOpenStep(id, ProvisioningPhaseStep.OS_INSTALLING));
     }
 
+    /** 다음 phase 는 아직 갈 곳이 있을 때만 싣는다. 같은 보고로 실패하면 커서가 실패 지점에 남으므로 null 이다(E4-1-b-7 CP5 O-2). */
     private static OsInstallCompletionResponse responseOf(boolean closed, ProvisioningProgress progress) {
         return new OsInstallCompletionResponse(closed, progress.isCompleted(),
-                progress.isCompleted() ? null : progress.currentPhase());
+                progress.isCompleted() || progress.isFailed() ? null : progress.currentPhase());
     }
 
     private void publishChanged(UUID guestServerId) {

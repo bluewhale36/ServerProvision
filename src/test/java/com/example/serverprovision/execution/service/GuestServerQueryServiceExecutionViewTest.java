@@ -83,6 +83,7 @@ class GuestServerQueryServiceExecutionViewTest {
                 org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.osinstall.OsInstallingExecutor.class),   // 계열 설치기 없음 = 카드 없음
                 org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.osinstall.OsFamilyNameProvider.class),
                 new OsInstallCardAssemblers(List.of()),
+                org.mockito.Mockito.mock(com.example.serverprovision.execution.engine.rhel.ossetting.OsSettingLedger.class),
                 java.time.Clock.systemDefaultZone(),
                 new com.example.serverprovision.execution.engine.firmware.FlashProgressBoard());
         given(guestServerRepository.findById(server.getId())).willReturn(Optional.of(server));

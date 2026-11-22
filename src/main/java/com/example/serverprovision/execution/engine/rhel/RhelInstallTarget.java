@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.engine.rhel;
 
+import com.example.serverprovision.execution.engine.rhel.ossetting.RhelOsSettingPlan;
 import com.example.serverprovision.management.os.enums.RhelRelease;
 
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.Optional;
  * 실행 때만 아는 값(설치 원본 URL · 대상 디스크)은 {@code KickstartRuntime} 이 따로 나른다.
  *
  * @param environmentCode 저장 코드 그대로(comps 추출이 {@code ^} 를 붙여 저장한다 — 렌더는 {@code @} 만 앞에 붙인다)
+ * @param osSetting 정의서에 OS 후처리 단계가 있을 때만 있다(E4-1-b-7)
  */
 public record RhelInstallTarget(
         RhelRelease release,
@@ -22,14 +24,24 @@ public record RhelInstallTarget(
         List<KickstartUser> users,
         String environmentCode,
         List<String> groupCodes,
-        boolean kdump
+        boolean kdump,
+        Optional<RhelOsSettingPlan> osSetting
 ) {
+
+    /** OS 후처리 단계가 없는 정의서의 목표. */
+    public RhelInstallTarget(RhelRelease release, String timezone, boolean utc, List<KickstartPartition> partitions,
+                             Optional<String> rootCrypt, boolean allowSshRoot, List<KickstartUser> users,
+                             String environmentCode, List<String> groupCodes, boolean kdump) {
+        this(release, timezone, utc, partitions, rootCrypt, allowSshRoot, users, environmentCode, groupCodes, kdump,
+                Optional.empty());
+    }
 
     public RhelInstallTarget {
         Objects.requireNonNull(release, "release");
         Objects.requireNonNull(timezone, "timezone");
         Objects.requireNonNull(environmentCode, "environmentCode");
         Objects.requireNonNull(rootCrypt, "rootCrypt");
+        Objects.requireNonNull(osSetting, "osSetting");
         partitions = List.copyOf(partitions);
         users = List.copyOf(users);
         groupCodes = List.copyOf(groupCodes);
@@ -40,6 +52,6 @@ public record RhelInstallTarget(
         return "RhelInstallTarget[release=" + release + ", timezone=" + timezone + ", utc=" + utc
                 + ", partitions=" + partitions + ", rootCrypt=" + (rootCrypt.isPresent() ? "****" : "locked")
                 + ", allowSshRoot=" + allowSshRoot + ", users=" + users + ", environmentCode=" + environmentCode
-                + ", groupCodes=" + groupCodes + ", kdump=" + kdump + "]";
+                + ", groupCodes=" + groupCodes + ", kdump=" + kdump + ", osSetting=" + osSetting + "]";
     }
 }

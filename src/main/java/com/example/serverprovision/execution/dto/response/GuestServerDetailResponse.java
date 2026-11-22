@@ -9,6 +9,7 @@ import com.example.serverprovision.execution.enums.GuestServerStatus;
 import com.example.serverprovision.execution.enums.IpSource;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
+import com.example.serverprovision.execution.enums.RetryBlock;
 import com.example.serverprovision.execution.enums.ProvisioningStatus;
 import com.example.serverprovision.execution.vo.HardwareSpec;
 import com.example.serverprovision.execution.vo.IpAddressVO;
@@ -367,7 +368,8 @@ public record GuestServerDetailResponse(
             boolean startable,
             boolean markFailable,
             boolean retryable,
-            boolean retryBlocked,
+            /** 재시도를 막는 사유. 막지 않으면 null(E4-1-b-7, 서버 가드와 같은 {@code RetryPolicy.blockOf}). */
+            RetryBlock retryBlock,
             /** 펌웨어를 굽는 창 — 중단성 조작(전원 · 회수 등) 버튼 차단 플래그(서버 가드와 SSOT, R13 후속). */
             boolean disruptionBlocked,
             /** U7 — 개시를 막는 네트워크 사유 문구(빈 목록 = 막지 않음). 개시 409 와 같은 판정 {@code StartNetworkBlocks}. */
@@ -377,6 +379,16 @@ public record GuestServerDetailResponse(
             startNetworkBlockReasons = startNetworkBlockReasons == null ? List.of() : List.copyOf(startNetworkBlockReasons);
         }
 
+        /** 차단 여부만 아는 호출부(E4-1-b-7 이전 테스트 고정물). 그때 차단 사유는 펌웨어 하나였다. */
+        public Progress(ProvisioningPhase currentPhase, LocalDateTime lastTransitionAt, LocalDateTime startedAt,
+                        LocalDateTime failedAt, ProvisioningPhaseStep failedStepCode, LocalDateTime completedAt,
+                        boolean startable, boolean markFailable, boolean retryable, boolean retryBlocked,
+                        boolean disruptionBlocked, List<String> startNetworkBlockReasons) {
+            this(currentPhase, lastTransitionAt, startedAt, failedAt, failedStepCode, completedAt,
+                    startable, markFailable, retryable, retryBlocked ? RetryBlock.FIRMWARE_FLASH : null,
+                    disruptionBlocked, startNetworkBlockReasons);
+        }
+
         /** 네트워크 사유가 없는 진행 상태(U7 이전 호출부 · 테스트 고정물). */
         public Progress(ProvisioningPhase currentPhase, LocalDateTime lastTransitionAt, LocalDateTime startedAt,
                         LocalDateTime failedAt, ProvisioningPhaseStep failedStepCode, LocalDateTime completedAt,
@@ -384,6 +396,10 @@ public record GuestServerDetailResponse(
                         boolean disruptionBlocked) {
             this(currentPhase, lastTransitionAt, startedAt, failedAt, failedStepCode, completedAt,
                     startable, markFailable, retryable, retryBlocked, disruptionBlocked, List.of());
+        }
+
+        public boolean retryBlocked() {
+            return retryBlock != null;
         }
     }
 

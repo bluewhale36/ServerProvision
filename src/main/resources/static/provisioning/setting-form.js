@@ -104,10 +104,11 @@
             return btn ? btn.dataset.stepName : type;
         }
 
-        /** 사용자가 고른 단계를 연다. 선행 단계가 닫혀 있으면 먼저 연다. 저장본 pre-fill 은 addStep 을 직접 불러 저장본을 바꾸지 않는다. */
+        /** 사용자가 고른 단계를 연다. 선행 단계의 선행까지 끝까지 따라가 앞 단계부터 연다(E4-1-b-7 D-12: OS 후처리 → OS 설치 → RAID 구성).
+            저장본 pre-fill 은 addStep 을 직접 불러 저장본을 바꾸지 않는다. */
         function addStepWithRequired(type) {
             const required = requiredStepOf(type);
-            if (required) addStep(required);
+            if (required) addStepWithRequired(required);
             addStep(type);
         }
 
@@ -1553,30 +1554,54 @@
         const oiAddUser = document.getElementById('oiAddUser');
         if (oiAddUser) oiAddUser.addEventListener('click', () => addUserRow());
 
-        /* ─────────────── OS 설치 ↔ OS 후처리 대상 OS 동기화 (사용자 확정) ─────────────── */
+        /* ─────────────────────────── OS_SETTING (E4-1-b-7) ─────────────────────────── */
 
-        // 두 단계가 함께 있으면 같은 OS 여야 한다 — 값이 있는 쪽(설치 우선)이 다른 쪽을 같은 값으로 고정한다.
-        // backend 는 SettingSaveRequest @AssertTrue(osSelectionConsistent)가 direct POST 안전망.
-        // E4-1-b-2 — OS 후처리(OS_SETTING) 카드는 R11 이 화면에서 걷었다. 두 카드 동기화는 대상이 없어 비워 둔다
-        // (backend 의 SettingSaveRequest @AssertTrue(osSelectionConsistent) 는 direct POST 안전망으로 남는다).
-        function syncOsSelectionLock() {
-        }
-
-        /* ─────────────────────────── OS_SETTING ─────────────────────────── */
-
-        const osOsSelect = document.getElementById('osOsSelect');
+        // OS 는 OS 설치 카드의 값을 따른다. 쓸 수 있는 계열 · 문구 · 스크립트 상한은 카드의 data-* 가 서버 값으로 내려 준다
+        // (저장 가드 SettingSaveRequest.isOsSettingSupported · OsSettingScriptRequest 와 같은 SSOT). JS 는 계열 이름을 분기하지 않는다.
+        const osCard = cardOf('OS_SETTING');
         const osGuide = document.getElementById('osGuide');
         const osDetailFields = document.getElementById('osDetailFields');
         const osServicesTbody = document.querySelector('#osServicesTable tbody');
+        const osScriptTbody = document.getElementById('osScriptTbody');
+        const osScriptError = document.getElementById('osScriptError');
+        const osScriptFile = document.getElementById('osScriptFile');
+        const osAddScript = document.getElementById('osAddScript');
+        const osAddScriptWrap = document.getElementById('osAddScriptWrap');
+        const stepAddBlockedHint = document.getElementById('stepAddBlockedHint');
+        const osScripts = [];
 
-        function onSettingOsChange() {
-            const osId = osOsSelect ? osOsSelect.value : '';
-            if (osGuide) osGuide.hidden = !!osId;
-            if (osDetailFields) osDetailFields.hidden = !osId;
-            syncOsSelectionLock();
+        function osCardData(key) {
+            return osCard ? (osCard.dataset[key] || '') : '';
         }
 
-        if (osOsSelect) osOsSelect.addEventListener('change', onSettingOsChange);
+        /** OS 설치에서 고른 OS 의 계열이 OS 후처리를 쓸 수 있는가. 고르지 않았으면 null. */
+        function osSettingSupported() {
+            const opt = oiOsSelect && oiOsSelect.value ? selectedOption(oiOsSelect) : null;
+            if (!opt) return null;
+            return osCardData('osSettingFamilies').split(',').includes(opt.dataset.osFamily || '');
+        }
+
+        /** 카드 안내 · 입력 영역 · [+ OS 후처리 설정] 버튼을 OS 설치 선택에 맞춘다. 사유 문구는 서버 문장이다. */
+        function syncOsSelectionLock() {
+            if (!osCard) return;
+            const supported = osSettingSupported();
+            const guide = supported === null ? osCardData('osSettingNeedOs')
+                : supported ? '' : osCardData('osSettingUnsupported');
+            if (osGuide) {
+                osGuide.textContent = guide;
+                osGuide.hidden = !guide;
+            }
+            if (osDetailFields) osDetailFields.hidden = supported !== true;
+            const addBtn = addButtonOf('OS_SETTING');
+            const blocked = supported === false && osCard.hidden;
+            if (addBtn) addBtn.disabled = blocked || !osCard.hidden;
+            if (stepAddBlockedHint) {
+                stepAddBlockedHint.textContent = blocked ? osCardData('osSettingUnsupported') : '';
+                stepAddBlockedHint.hidden = !blocked;
+            }
+        }
+
+        if (oiOsSelect) oiOsSelect.addEventListener('change', syncOsSelectionLock);
 
         function addServiceRow(data) {
             const row = cloneTemplateRow('tplServiceRow');
@@ -1590,6 +1615,82 @@
 
         const osAddService = document.getElementById('osAddService');
         if (osAddService) osAddService.addEventListener('click', () => addServiceRow());
+
+        function scriptSizeLabel(content) {
+            const bytes = new TextEncoder().encode(content).length;
+            return bytes < 1024 ? bytes + ' B' : (Math.round(bytes / 102.4) / 10) + ' KB';
+        }
+
+        /** 스크립트 목록을 다시 그리고 상한이면 [스크립트 추가] 를 잠근다(사유는 tooltip). */
+        function renderScripts() {
+            if (!osScriptTbody) return;
+            osScriptTbody.replaceChildren();
+            osScripts.forEach((script, i) => {
+                const row = cloneTemplateRow('tplScriptRow');
+                row.querySelector('.scNo').textContent = String(i + 1);
+                row.querySelector('.scName').textContent = script.fileName;
+                row.querySelector('.scSize').textContent = scriptSizeLabel(script.content);
+                const up = row.querySelector('[data-script-up]');
+                const down = row.querySelector('[data-script-down]');
+                up.disabled = i === 0;
+                down.disabled = i === osScripts.length - 1;
+                up.addEventListener('click', () => moveScript(i, -1));
+                down.addEventListener('click', () => moveScript(i, 1));
+                row.querySelector('[data-script-remove]').addEventListener('click', () => {
+                    osScripts.splice(i, 1);
+                    renderScripts();
+                });
+                osScriptTbody.appendChild(row);
+            });
+            const full = osScripts.length >= Number(osCardData('scriptMaxCount') || 0);
+            if (osAddScript) osAddScript.disabled = full;
+            if (osAddScriptWrap) {
+                osAddScriptWrap.setAttribute('data-tooltip-active', full ? 'true' : 'false');
+                if (full) osAddScriptWrap.setAttribute('data-tooltip', osCardData('scriptLimit'));
+                else osAddScriptWrap.removeAttribute('data-tooltip');
+            }
+        }
+
+        function moveScript(index, delta) {
+            const target = index + delta;
+            if (target < 0 || target >= osScripts.length) return;
+            const [moved] = osScripts.splice(index, 1);
+            osScripts.splice(target, 0, moved);
+            renderScripts();
+        }
+
+        function showScriptError(message) {
+            if (!osScriptError) return;
+            osScriptError.textContent = message || '';
+            osScriptError.hidden = !message;
+        }
+
+        /** 업로드 즉시 거절하는 규칙은 서버 검증(OsSettingScriptRequest)과 같다: 크기 상한, NUL, 빈 내용. */
+        function scriptRejection(content) {
+            if (new TextEncoder().encode(content).length > Number(osCardData('scriptMaxBytes') || 0)) return osCardData('scriptTooBig');
+            if (content.indexOf('\u0000') >= 0) return osCardData('scriptNotText');
+            if (!content.trim()) return osCardData('scriptEmpty');
+            return null;
+        }
+
+        if (osAddScript && osScriptFile) {
+            osAddScript.addEventListener('click', () => osScriptFile.click());
+            osScriptFile.addEventListener('change', () => {
+                const file = osScriptFile.files && osScriptFile.files[0];
+                osScriptFile.value = '';
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const content = String(reader.result).split('\r\n').join('\n');
+                    const rejection = scriptRejection(content);
+                    showScriptError(rejection);
+                    if (rejection) return;
+                    osScripts.push({fileName: file.name, content: content});
+                    renderScripts();
+                };
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
 
         /* ─────────────────────────── Deprecated 자원 선택 안내 ─────────────────────────── */
 
@@ -1729,10 +1830,12 @@
         });
         watchDeprecatedSelect(buBios, 'BIOS 펌웨어', null);
         watchDeprecatedSelect(buBmc, 'BMC 펌웨어', null);
-        watchDeprecatedSelect(oiOsSelect, 'OS', onInstallOsChange);
+        // 사용 중단 OS 선택을 되돌리면 change 없이 값이 바뀌므로 OS 후처리 잠금도 함께 다시 본다(E4-1-b-7).
+        watchDeprecatedSelect(oiOsSelect, 'OS', () => {
+            onInstallOsChange();
+            syncOsSelectionLock();
+        });
         watchDeprecatedSelect(rcRaidCard, 'RAID 카드', applyDiskGroupConstraints); // U4-1-1
-
-        watchDeprecatedSelect(osOsSelect, 'OS', onSettingOsChange);
 
         // 보드 변경 시 onBoardModelChange 가 BIOS/BMC 를 change 이벤트 없이 LATEST 로 리셋하므로
         // 두 select 의 뱃지·복원 기준값도 함께 정렬한다 (등록 순서상 onBoardModelChange 뒤에 실행됨).
@@ -1959,17 +2062,19 @@
                 return payload;
             },
             OS_SETTING: function () {
-                const opt = selectedOption(osOsSelect);
+                // OS 는 OS 설치 카드의 값을 따른다(선행 단계 · E4-1-b-7). 같은 OS 검사(isOsSelectionConsistent)는 서버 안전망.
+                const opt = oiOsSelect && oiOsSelect.value ? selectedOption(oiOsSelect) : null;
                 return {
                     type: 'OS_SETTING',
-                    osFamily: opt && osOsSelect.value ? (opt.dataset.osFamily || null) : null,
-                    osMetadataId: intOrNull(osOsSelect.value),
+                    osFamily: opt ? (opt.dataset.osFamily || null) : null,
+                    osMetadataId: intOrNull(oiOsSelect ? oiOsSelect.value : ''),
                     selinuxMode: document.getElementById('osSelinuxMode').value,
                     services: Array.from(osServicesTbody.querySelectorAll('tr')).map(row => ({
                         name: row.querySelector('.svcName').value.trim(),
                         action: row.querySelector('.svcAction').value
                     })).filter(svc => svc.name.length > 0),
-                    additionalPackages: splitCsv(document.getElementById('osAdditionalPackages').value)
+                    additionalPackages: splitCsv(document.getElementById('osAdditionalPackages').value),
+                    scripts: osScripts.map(script => ({fileName: script.fileName, content: script.content}))
                 };
             }
         };
@@ -2088,6 +2193,15 @@
                     const card = cardOf(stepTypeByIndex[i]);
                     const select = card ? card.querySelector('[data-error-field="osMetadataId"]') : null;
                     if (select) paintFieldError(select, 'OS 를 선택해야 합니다.');
+                    ok = false;
+                }
+                // E4-1-b-7 — OS 후처리를 쓸 수 없는 계열이면 막는다. 같은 문장이 회색 안내와 오류로 두 번 서지 않도록 안내를 숨기고
+                // 오류 한 줄로 보인다(CP5 F-1). OS 설치 선택을 바꾸면 syncOsSelectionLock 이 안내를 다시 맞춘다.
+                if (proc.type === 'OS_SETTING' && proc.osMetadataId != null && osSettingSupported() === false) {
+                    if (osGuide) {
+                        osGuide.hidden = true;
+                        paintFieldError(osGuide, osCardData('osSettingUnsupported'));
+                    }
                     ok = false;
                 }
                 if (proc.type === 'OS_INSTALLATION' && proc.osMetadataId != null && proc.isoId == null) {
@@ -2462,10 +2576,6 @@
                 }
             },
             OS_SETTING: function (proc) {
-                if (proc.osMetadataId != null && osOsSelect) {
-                    osOsSelect.value = String(proc.osMetadataId);
-                    onSettingOsChange();
-                }
                 if (proc.selinuxMode) document.getElementById('osSelinuxMode').value = proc.selinuxMode;
                 (proc.services || []).forEach(svc => addServiceRow({
                     name: svc && svc.name ? svc.name : '',
@@ -2473,7 +2583,10 @@
                 }));
                 document.getElementById('osAdditionalPackages').value =
                     (proc.additionalPackages || []).join(', ');
-                commitDeprecatedSelection(osOsSelect); // 기존 사용분 deprecated 뱃지 (modal 없음)
+                osScripts.splice(0, osScripts.length, ...(proc.scripts || [])
+                    .map(script => ({fileName: script.fileName || '', content: script.content || ''})));
+                renderScripts();
+                syncOsSelectionLock();
             }
         };
 

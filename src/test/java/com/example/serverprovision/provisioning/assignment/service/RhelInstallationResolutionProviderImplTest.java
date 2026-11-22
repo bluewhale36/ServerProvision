@@ -249,4 +249,32 @@ class RhelInstallationResolutionProviderImplTest {
         assertThat(b.reason()).isEqualTo(RhelBlockReason.PACKAGE_GROUP_MISSING);
         assertThat(b.message()).isEqualTo("추가 패키지 그룹(id 32)을 카탈로그에서 찾을 수 없습니다.");
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("E4-1-b-7 osSettingFor — 스냅숏의 RHEL 후처리를 목표로 푼다(SELinux enum · 서비스 지시 · 패키지 · 스크립트 순서)")
+    void osSettingFor_resolvesPlan() {
+        stubSnapshot(new com.example.serverprovision.provisioning.setting.dto.request.RHELOSSettingRequest(1L, "permissive",
+                java.util.List.of(new com.example.serverprovision.provisioning.setting.dto.request.ServiceDirectiveRequest("firewalld",
+                        com.example.serverprovision.provisioning.setting.enums.ServiceAction.DISABLE)),
+                java.util.List.of("vim"),
+                java.util.List.of(new com.example.serverprovision.provisioning.setting.dto.request.OsSettingScriptRequest("a.sh", "echo a\r\n"),
+                        new com.example.serverprovision.provisioning.setting.dto.request.OsSettingScriptRequest("b.sh", "echo b"))));
+
+        var plan = provider.osSettingFor(GUEST_ID).orElseThrow();
+
+        assertThat(plan.selinux()).isEqualTo(com.example.serverprovision.execution.engine.rhel.ossetting.SelinuxMode.PERMISSIVE);
+        assertThat(plan.services()).containsExactly(new com.example.serverprovision.execution.engine.rhel.ossetting.ServiceDirective(
+                "firewalld", com.example.serverprovision.execution.engine.rhel.ossetting.ServiceIntent.DISABLE));
+        assertThat(plan.packages()).containsExactly("vim");
+        assertThat(plan.scripts()).extracting("fileName", "content")
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("a.sh", "echo a\n"), org.assertj.core.groups.Tuple.tuple("b.sh", "echo b"));
+    }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("E4-1-b-7 osSettingFor — OS 후처리 단계가 없으면 비어 있다")
+    void osSettingFor_emptyWithoutStep() {
+        stubSnapshot();
+
+        assertThat(provider.osSettingFor(GUEST_ID)).isEmpty();
+    }
 }

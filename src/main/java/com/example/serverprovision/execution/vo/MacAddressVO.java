@@ -35,6 +35,11 @@ public record MacAddressVO(String value) {
 		return new MacAddressVO(raw);
 	}
 
+	/** 생성자와 같은 형식 규칙. 요청 검증이 예외 없이 형식만 물을 때 쓴다(E4-1-b-7 CP5 O-5). */
+	public static boolean isValid(String raw) {
+		return raw != null && MAC_PATTERN.matcher(raw.trim()).matches();
+	}
+
 	// 구분자를 제거해 12 hex 로 환원한 뒤 소문자 콜론 형식으로 재조립한다.
 	private static String normalize(String validated) {
 		String hex = SEPARATORS.matcher(validated).replaceAll("").toLowerCase();

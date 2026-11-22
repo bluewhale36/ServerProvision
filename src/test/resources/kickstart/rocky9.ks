@@ -28,7 +28,8 @@ reboot
 
 %post --log=/root/spv-post.log --erroronfail
 mkdir -p /usr/local/sbin /etc/systemd/system
-mkdir -p -m 0700 /etc/spv
+mkdir -p /etc/spv
+chmod 0700 /etc/spv
 umask 077
 cat > /etc/spv/report.env <<'SPV_EOF'
 SPV_REPORT_URL='http://pxe.example/api/pxe/v1/agent/rhel/complete'
@@ -41,7 +42,8 @@ cat > /usr/local/sbin/spv-report <<'SPV_EOF'
 #!/bin/sh
 # ServerProvision first-boot install report (E4-1-b-5).
 #   spv-report banner : run once by the kickstart %post. Writes the login banner naming the provisioning target.
-#   spv-report        : run by spv-report.service on each boot until the report ends. Sends one completion report,
+#   spv-report        : run by spv-report.service on each boot until the report ends. Sends one completion report
+#                       (with OS setting observations when the definition has that step),
 #                       then removes every file the kickstart planted (unit, this script, /etc/spv, banner, post log)
 #                       and masks the guest token in the kickstart copies under /root.
 # Retries: SPV_REPORT_ATTEMPTS tries every SPV_REPORT_INTERVAL seconds per boot. After SPV_REPORT_MAX_BOOTS boots
@@ -122,6 +124,35 @@ json() {
   printf '%s' "$1" | tr -d '\000-\037' | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
 }
 
+# Prints the ',"osSetting":{...}' member, or nothing when the definition had no OS setting step (E4-1-b-7).
+# Only observations are sent. The server compares them with the definition.
+os_setting() {
+  [ "${SPV_CHECK_SELINUX:-}" = 1 ] || return 0
+  se=$(getenforce 2>/dev/null | tr 'A-Z' 'a-z')
+  services=""
+  for s in ${SPV_CHECK_SERVICES:-}; do
+    st=$(systemctl is-enabled "$s" 2>/dev/null | head -n 1)
+    services="$services${services:+,}{\"name\":\"$(json "$s")\",\"state\":\"$(json "${st:-unknown}")\"}"
+  done
+  packages=""
+  for p in ${SPV_CHECK_PACKAGES:-}; do
+    if rpm -q --whatprovides --quiet "$p" > /dev/null 2>&1; then inst=true; else inst=false; fi
+    packages="$packages${packages:+,}{\"name\":\"$(json "$p")\",\"installed\":$inst}"
+  done
+  codes=""
+  n=1
+  while [ "$n" -le "${SPV_SCRIPT_COUNT:-0}" ]; do
+    rc=""
+    if [ -f "$R/etc/spv/scripts/$n.rc" ]; then
+      rc=$(tr -cd '0-9' < "$R/etc/spv/scripts/$n.rc")
+    fi
+    codes="$codes${codes:+,}${rc:-null}"
+    n=$((n + 1))
+  done
+  printf ',"osSetting":{"selinux":"%s","services":[%s],"packages":[%s],"scriptExitCodes":[%s]}' \
+    "$(json "$se")" "$services" "$packages" "$codes"
+}
+
 # Prints the HTTP status, or 000 when the server could not be reached.
 send() {
   curl -sS -o /dev/null -w '%{http_code}' --max-time 20 -X POST -H "@$HEADER_FILE" \
@@ -157,9 +188,9 @@ report() {
   m=$(machine_uuid)
   say "provisioning target system UUID $SPV_EXPECTED_UUID, this machine ${m:--} ($(identity "$m")), serial $SPV_SERIAL"
   say "server detail $SPV_DETAIL_URL"
-  body=$(printf '{"osId":"%s","osVersion":"%s","osPrettyName":"%s","kernel":"%s","hostname":"%s","rootDisk":"%s","systemUuid":"%s"}' \
+  body=$(printf '{"osId":"%s","osVersion":"%s","osPrettyName":"%s","kernel":"%s","hostname":"%s","rootDisk":"%s","systemUuid":"%s"%s}' \
     "$(json "$(os_field ID)")" "$(json "$(os_field VERSION_ID)")" "$(json "$(os_field PRETTY_NAME)")" \
-    "$(json "$(uname -r)")" "$(json "$(uname -n)")" "$(json "$(root_disk)")" "$(json "$m")")
+    "$(json "$(uname -r)")" "$(json "$(uname -n)")" "$(json "$(root_disk)")" "$(json "$m")" "$(os_setting)")
   printf 'X-Guest-Token: %s\n' "$SPV_GUEST_TOKEN" > "$HEADER_FILE"
   n=0
   while [ "$n" -lt "$ATTEMPTS" ]; do

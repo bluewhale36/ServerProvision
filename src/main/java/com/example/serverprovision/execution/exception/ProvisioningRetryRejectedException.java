@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.exception;
 
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
+import com.example.serverprovision.execution.enums.RetryBlock;
 import com.example.serverprovision.global.exception.ConflictException;
 
 import java.util.UUID;
@@ -25,7 +26,11 @@ public class ProvisioningRetryRejectedException extends ConflictException {
      * 못하는 상태가 될 수 있다. 사용자 문구에는 내부 결정 번호 · 영문 용어를 싣지 않는다(E2-1-b CP5 F-2).
      */
     public static ProvisioningRetryRejectedException firmwareBlocked(UUID id, ProvisioningPhaseStep step) {
-        return new ProvisioningRetryRejectedException(
-                "펌웨어를 쓰는 도중 실패한 서버는 원인을 확인하기 전에 다시 시도할 수 없습니다. id=" + id);
+        return blocked(id, RetryBlock.FIRMWARE_FLASH);
+    }
+
+    /** 재시도를 막는 사유가 있는 서버의 재시도(E4-1-b-7 에서 사유를 넓혔다). 문구는 사유 상수가 갖는다. */
+    public static ProvisioningRetryRejectedException blocked(UUID id, RetryBlock block) {
+        return new ProvisioningRetryRejectedException(block.getRejectMessage() + " id=" + id);
     }
 }

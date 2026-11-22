@@ -200,6 +200,7 @@
 //  DATA — 슬라이스 진행 시 여기만 갱신
 // ═══════════════════════════════════════════════════════════════════════════
 const CHANGELOG = [
+  'v8 (2026-11-22) E4-1-b-7 OS 후처리(리눅스 전용) 반영: ⑥ 밴드에 ks.cfg 의 OS 후처리 절 · 사용자 스크립트 %post 실행 · 첫 부팅 보고의 osSetting 관측 · OS_SETTING 대조 판정 · /etc/spv 정리 5행 추가(구현 중). 실제 구현과 어긋나는 옛 하이브리드 A 로드맵 행 2개 제거(inst.ks 설치 커널 스크립트 응답 · Kickstart 렌더본 수신, 옛 ks 경로 /api/pxe/v1/ks/<token> 과 %post curl 로 OS_SETTING 을 따로 보고하는 서술). 지금 사실은 ks 경로 /api/pxe/v1/rhel/{token}/ks.cfg(b-4-2), OS 설치 완료와 OS 후처리 판정은 첫 부팅 보고 한 번(b-5 · b-7).',
   'v7 (2026-07-19) — Provisioning Server 레인을 복합 인프라로 분해: dhcpd · tftpd · Spring WAS(+MariaDB·자산 디렉토리) 3열 신설, 화살선이 담당 구성요소 열에서 출발/도착(dhcp·tftp 는 색점 표식), 사이드바에 서버측 구성요소 칩 추가.',
   'v6 (2026-07-19) — 미니카드 클릭 = 경량 팝오버(해당 방향 전문 1블록 + 전체 상세 링크 — 사이드바 불요) + 라벨·미니카드 겹침 교정(라벨 실측 높이 기준 배치).',
   'v5 (2026-07-19) — 간선 상세 가시화: URI 강조 + 간선 아래 요청·응답 미니카드(전달값 → / 응답 형태 배지 ←)를 전 흐름(26개)에 상시 표시. 툴바 "요청·응답 카드" 토글로 접기 가능(행 높이 가변). 상세 전문은 기존대로 클릭 사이드바.',
@@ -530,33 +531,6 @@ const FLOWS = [
   basis:'E3-1.' },
 
 // ── ⑥ OS 설치 · 후처리 ───────────────────────────────────────────────
-{ band:'e4', from:'server', to:'host', ch:'lan', st:'planned', slice:'E4-1',
-  lbl:'응답 — 설치 커널 스크립트 (inst.ks)', ep:'200 text/plain (dispatch)',
-  mini:{ req:'— (OS_INSTALLING 커서의 /boot 응답)', res:'#!ipxe kernel vmlinuz inst.ks=… (Anaconda)', rt:'script' },
-  kind:'iPXE 스크립트 — Anaconda 무인 설치 기동',
-  desc:'OS_INSTALLING 커서의 폴링에 설치 커널을 지시한다. 핵심은 두 커널 인자다 — inst.repo(설치 소스 저장소 위치)와 inst.ks(이 게스트 전용 Kickstart 대본 URL). ISO 소실·마커 무결성 실패면 스크립트 대신 FAILED 차단이 먼저다(blocking=true 계약의 집행).',
-  blocks:[
-    { cap:'스크립트 전문 (RHEL 계열)', code:
-'#!ipxe\nkernel http://192.168.1.10/os-images/rocky9/images/pxeboot/vmlinuz \\\n  inst.repo=http://192.168.1.10/os-images/rocky9/ \\\n  inst.ks=http://192.168.1.10/api/pxe/v1/ks/a3f9…c1d\ninitrd http://192.168.1.10/os-images/rocky9/images/pxeboot/initrd.img\nboot' } ],
-  fields:[['Ubuntu 계열','nocloud-net 데이터소스 + trailing slash + "---" 규약 — 레거시 검증 지식 이식'],['토큰 in URL','ks 경로가 게스트 식별을 겸한다']],
-  effect:'Anaconda 가 뜨면서 Kickstart 를 받으러 온다 (다음 행).',
-  basis:'E4-1.' },
-
-{ band:'e4', from:'host', to:'server', ch:'lan', st:'planned', slice:'E4-1',
-  lbl:'Kickstart 렌더본 수신 — 무인 설치 대본', ep:'GET /api/pxe/v1/ks/<token>',
-  mini:{ req:'GET /ks/{serverId}.cfg', res:'Kickstart 텍스트 대본 (서버별 렌더)', rt:'text' },
-  kind:'Kickstart 텍스트 (Anaconda 대본) — 할당 스냅샷 payload 를 렌더',
-  desc:'세팅 정의서(정확히는 U3 할당 시점의 스냅샷)에 담긴 OSInstallationRequest — 파티션 4종 프리셋, 타임존, root/사용자, 설치 환경과 패키지 그룹 — 가 Kickstart 문법으로 렌더되어 내려간다. 레거시의 Template Method 렌더러를 이식하되 무이스케이프 StringBuilder 조립은 이스케이프 계층으로 교정한다. %post 말미의 curl 이 "설치가 정말 끝났다" 를 명시 보고한다 — 재부팅을 완료로 착각하던 답습의 금지 1호.',
-  blocks:[
-    { cap:'렌더본 예시 (payload → Kickstart)', code:
-'text\nurl --url=http://192.168.1.10/os-images/rocky9/\nreboot\ntimezone Asia/Seoul --utc\nrootpw --iscrypted $6$…\nuser --name=oper --password=$6$… --iscrypted --groups=wheel\nclearpart --all --initlabel\npart /boot/efi --fstype="efi"  --size=1024\npart /boot     --fstype="ext4" --size=1024\npart swap      --fstype="swap" --size=16384\npart /         --fstype="ext4" --grow --size=1\n%packages\n@^graphical-server-environment\n@container-management\n%end\n%post\ncurl -s -X POST http://192.168.1.10/api/pxe/v1/agent/steps \\\n  -H "X-Guest-Token: a3f9…" -d \'{"stepCode":"OS_SETTING"}\'\n# … OS_SETTING 하이브리드 A: 후처리 실행 + close 보고 …\ncurl -s -X POST …/agent/steps/<id>/close -d \'{"status":"SUCCEEDED"}\'\n%end' } ],
-  fields:[
-    ['원천','U3 할당 스냅샷(setting_process 행 복사) — 원본 정의서를 나중에 고쳐도 실행분은 불변'],
-    ['파티션 프리셋','/boot/efi 1GiB · /boot ext4 1GiB · swap 16GiB · / ext4 grow (U2 확정)'],
-    ['%post 의 curl','OS_SETTING 시작/종료 별도 보고 — 원장에 별도 step 으로 남는다 (DEC-23 하이브리드 A)'] ],
-  effect:'클릭 없는 완전 무인 설치.',
-  basis:'E4-1 + DEC-23. 커스텀 스크립트(U2-5) 적용 시 first-boot 에이전트(B 경로)로 전환.' },
-
 { band:'e4', from:'host', to:'server', ch:'lan', st:'planned', slice:'E4-0',
   lbl:'설치 소스 다운로드 — os-images 트리 (수 GB)', ep:'GET /os-images/rocky9/** (수백 회)',
   mini:{ req:'GET os-images/** (stage2 · rpm)', res:'파일 스트림 (수 GB)', rt:'file' },
@@ -568,6 +542,76 @@ const FLOWS = [
   fields:[],
   effect:'OS 파일들이 디스크에 설치된다.',
   basis:'E4-0.' },
+
+// ── ⑥ OS 후처리 (E4-1-b-7, 리눅스 전용) ─────────────────────────────────
+{ band:'e4', from:'host', to:'server', ch:'lan', st:'wip', slice:'E4-1-b-7',
+  lbl:'Kickstart 수신: OS 후처리 절이 더해진 렌더본', ep:'GET /api/pxe/v1/rhel/{token}/ks.cfg',
+  mini:{ req:'GET ks.cfg (토큰 경로, OS_INSTALLING · RHEL)', res:'selinux · services · %packages 추가 · 사용자 %post N개', rt:'text' },
+  kind:'Kickstart 텍스트 (Anaconda 대본) · 할당 스냅숏의 OS 후처리 단계를 렌더',
+  desc:'OS_INSTALLING(RHEL) 단계에서 서버가 서빙하는 kickstart 에, 정의서에 OS 후처리 단계가 있을 때만 세 가지가 더해진다. 첫째, 명령 절에 selinux --<모드> 와 services --enabled=… --disabled=… 가 붙는다(서비스는 지시가 있는 쪽 옵션만). 둘째, 추가 패키지가 있으면 %packages 가 %packages --ignoremissing 이 되고 추가 패키지 줄이 이어진다. 없는 패키지가 있어도 설치는 멈추지 않고, 첫 부팅 관측에서 실패로 잡힌다. 셋째, 사용자 쉘 스크립트마다 %post --log=/root/spv-script-N.log 블록이 하나씩 생긴다. 스크립트 원문은 base64 로 실려 /etc/spv/scripts/N.sh 로 풀리고 bash 로 실행되며, 종료 코드는 /etc/spv/scripts/N.rc 에 남는다. 이 블록에는 --erroronfail 이 없어 스크립트가 실패해도 설치는 계속된다. 순서는 설치 본체 다음 사용자 스크립트들, 맨 끝이 첫 부팅 보고 장치(%post --erroronfail, b-5)다.',
+  blocks:[
+    { cap:'응답: 렌더본에 더해지는 부분 (예시, 정의서에 OS 후처리 단계가 있을 때)', code:
+'selinux --enforcing\nservices --enabled=chronyd --disabled=firewalld\n…\n%packages --ignoremissing\n@^server-product-environment\nvim-enhanced                       ← 추가 패키지 줄 (있을 때만)\n%end\n\n%post --log=/root/spv-script-1.log  ← 사용자 스크립트마다 한 블록\ninstall -d -m 0700 /etc/spv /etc/spv/scripts\nbase64 -d > /etc/spv/scripts/1.sh <<\'…\'\n<스크립트 원문 base64>\n…\ncd /root\n/bin/bash /etc/spv/scripts/1.sh\necho $? > /etc/spv/scripts/1.rc\n%end\n\n%post --log=/root/spv-post.log --erroronfail   ← 첫 부팅 보고 장치 (b-5, 맨 끝)\n…\n%end' },
+    { cap:'%post 순서', code:
+'1  설치 본체 (명령 절 · %packages)\n2  사용자 스크립트 %post  1 … N   (실패해도 설치 계속)\n3  첫 부팅 보고 장치 %post --erroronfail  (b-5)' } ],
+  fields:[
+    ['OS 후처리 단계 없음','종전 렌더본과 같다 (selinux · services · --ignoremissing · 사용자 %post 모두 없음)'],
+    ['base64','스크립트에 어떤 줄이 있어도 kickstart 문법이 깨지지 않게 싣는 방식'],
+    ['N.rc','첫 부팅 보고가 읽어 scriptExitCodes 로 보낸다'] ],
+  effect:'설치 중에 SELinux 모드 · 서비스 지시 · 추가 패키지 · 사용자 스크립트가 함께 적용된다.',
+  basis:'E4-1-b-7 KickstartRenderer.' },
+
+{ band:'e4', from:'host', to:'host', ch:'lan', st:'wip', slice:'E4-1-b-7', note:true,
+  lbl:'📌 게스트 내부: 사용자 스크립트 %post 실행 → N.rc 기록', ep:'Anaconda %post (설치 중)',
+  mini:{ req:'(게스트 내부, 서버 통신 없음)', res:'/etc/spv/scripts/N.rc 에 종료 코드 · /root/spv-script-N.log', rt:'internal' },
+  kind:'게스트 내부 효과 (설치 중 Anaconda 가 실행)',
+  desc:'Anaconda 가 설치 본체를 마친 뒤 사용자 스크립트 %post 블록을 순서대로 실행한다. 각 블록은 스크립트를 /etc/spv/scripts/N.sh 로 풀어 bash 로 돌리고, 종료 코드를 /etc/spv/scripts/N.rc 에 쓴다. 실행 출력은 /root/spv-script-N.log 에 남는다. 블록이 실패해도 설치는 멈추지 않으므로, 성패는 이 자리에서 정하지 않고 첫 부팅 보고가 종료 코드를 서버에 보내 서버가 판정한다.',
+  blocks:[
+    { cap:'남는 파일', code:
+'/etc/spv/scripts/N.sh     스크립트 원문 (보고 뒤 삭제)\n/etc/spv/scripts/N.rc     종료 코드 (보고 뒤 삭제)\n/root/spv-script-N.log    실행 기록 (남김)' } ],
+  fields:[],
+  effect:'첫 부팅 보고가 읽을 종료 코드가 디스크에 남는다.',
+  basis:'E4-1-b-7 KickstartRenderer.' },
+
+{ band:'e4', from:'host', to:'server', ch:'lan', st:'wip', slice:'E4-1-b-7',
+  lbl:'첫 부팅 보고: osSetting 관측 묶음 더함', ep:'POST /api/pxe/v1/agent/rhel/complete',
+  mini:{ req:'X-Guest-Token + {kernel, …, osSetting:{selinux, services, packages, scriptExitCodes}}', res:'{closed, provisioningCompleted, nextPhase}', rt:'json' },
+  kind:'HTTP POST (JSON) · 설치된 OS 의 첫 부팅 보고 (b-5) 에 관측값이 더해짐',
+  desc:'설치된 OS 가 첫 부팅에서 보내는 완료 보고(b-5)에, 정의서에 OS 후처리 단계가 있을 때 osSetting 관측 묶음이 실린다. 게스트는 판정하지 않고 읽은 값만 보낸다. selinux 는 getenforce 결과, services 는 서비스마다 systemctl is-enabled 결과, packages 는 패키지마다 rpm -q --whatprovides 로 설치 여부, scriptExitCodes 는 스크립트 순서대로 N.rc 에 남은 종료 코드(파일이 없으면 null)다. 응답은 {closed, provisioningCompleted, nextPhase} 이고, OS_SETTING 이 실패로 닫히면 nextPhase 는 null 이다.',
+  blocks:[
+    { cap:'요청 (예시)', code:
+'POST /api/pxe/v1/agent/rhel/complete\nX-Guest-Token: a3f9…c1d\n{\n  "kernel": "…",\n  …                                   ← b-5 의 OS 신원 필드\n  "osSetting": {\n    "selinux": "enforcing",           ← getenforce\n    "services": [ { "name": "chronyd",   "state": "enabled"  },\n                  { "name": "firewalld", "state": "disabled" } ],  ← systemctl is-enabled\n    "packages": [ { "name": "vim-enhanced", "installed": true } ],  ← rpm -q --whatprovides\n    "scriptExitCodes": [ 0, null ]    ← N.rc, 파일이 없으면 null\n  }\n}' },
+    { cap:'응답', code:
+'200\n{ "closed": true, "provisioningCompleted": false, "nextPhase": "…" }\n\n· OS_SETTING 성공 → nextPhase = 다음 phase (종단이면 null, provisioningCompleted = true)\n· OS_SETTING 실패 → nextPhase = null' } ],
+  fields:[
+    ['osSetting','정의서에 OS 후처리 단계가 있을 때만 실린다'],
+    ['판정','게스트는 하지 않는다. 관측값만 보내고 서버가 할당 스냅숏과 비교한다'] ],
+  effect:'보고 한 번으로 OS_INSTALLING 과 OS_SETTING 이 함께 닫힌다 (다음 행).',
+  basis:'E4-1-b-7 OsSettingObservationRequest · b-5 RhelInstallReportRestController.' },
+
+{ band:'e4', from:'server', to:'server', ch:'lan', st:'wip', slice:'E4-1-b-7', note:true,
+  lbl:'📌 서버 내부: OS_SETTING 대조 판정 → 단발 원장 행', ep:'같은 보고 트랜잭션',
+  mini:{ req:'(위 보고의 처리)', res:'OS_INSTALLING 닫힘 → OS_SETTING SUCCEEDED / FAILED 단발 행', rt:'internal' },
+  kind:'서버 내부 판정 (게스트에게 보이지 않음)',
+  desc:'서버는 같은 보고 한 번으로 먼저 OS_INSTALLING 을 닫는다(b-5). 그 뒤 커서가 OS_SETTING 이면 할당 스냅숏의 OS 후처리 단계와 관측값을 비교해 OS_SETTING 을 단발 원장 행으로 닫는다. 모두 맞으면 SUCCEEDED 로 닫고 다음 phase 로 넘어가거나 종단에 이른다. SELinux 모드가 다르거나, 서비스 지시가 지켜지지 않았거나, 패키지가 설치되지 않았거나, 종료 코드가 0 이 아닌 것이 하나라도 있으면 FAILED 로 닫는다. 실패한 OS_SETTING 은 재시도할 수 없다. 설치 중에 적용한 결과라 다시 해도 같은 결과가 나오기 때문이다.',
+  blocks:[
+    { cap:'판정', code:
+'OS_INSTALLING  닫힘 (b-5)\n커서 == OS_SETTING ?\n  관측 vs 할당 스냅숏의 OS 후처리\n  · SELinux 모드 일치\n  · 서비스 지시 이행 (enable / disable)\n  · 추가 패키지 설치됨\n  · 종료 코드 전부 0\n  모두 맞음   → OS_SETTING SUCCEEDED → 다음 phase 또는 종단\n  하나라도 어긋남 → OS_SETTING FAILED  (재시도 불가)' } ],
+  fields:[['재시도 불가','설치 중 적용이라 다시 해도 같은 결과'],['원장','OS_SETTING 은 단발 행으로 닫힌다']],
+  effect:'상세 페이지에서 OS_SETTING 의 성패를 본다.',
+  basis:'E4-1-b-7 RhelInstallCompletionService.' },
+
+{ band:'e4', from:'host', to:'host', ch:'lan', st:'wip', slice:'E4-1-b-7', note:true,
+  lbl:'📌 게스트 내부: 보고 뒤 /etc/spv 삭제 (로그는 남김)', ep:'첫 부팅 보고 직후',
+  mini:{ req:'(게스트 내부, 서버 통신 없음)', res:'/etc/spv 삭제 · /root/spv-script-N.log 유지', rt:'internal' },
+  kind:'게스트 내부 효과',
+  desc:'보고가 끝나면 게스트는 /etc/spv 를 지운다. 스크립트 원문과 종료 코드 파일이 함께 지워진다. 사용자 스크립트의 실행 기록 /root/spv-script-N.log 는 남는다.',
+  blocks:[
+    { cap:'정리 결과', code:
+'/etc/spv/                 삭제 (scripts/N.sh · scripts/N.rc 포함)\n/root/spv-script-N.log    남김' } ],
+  fields:[],
+  effect:'설치된 OS 에 스크립트 원문이 남지 않는다.',
+  basis:'E4-1-b-7.' },
 
 // ── ⑦ 종단 ───────────────────────────────────────────────────────────
 { band:'end', from:'server', to:'host', ch:'lan', st:'done', slice:'E1-0b(스크립트)',

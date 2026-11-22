@@ -241,4 +241,49 @@ class GuestServerControllerOsInstallViewTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("OS 설치")));
     }
+
+    @Test
+    @DisplayName("E4-1-b-7 OS 설정 패널 — 실패면 경보를 다시 그리지 않고 기본 설정 표 · 스크립트 표(종료 코드 · 실행 기록) · 판정 배지")
+    void osSettingPanel_failed() throws Exception {
+        UUID id = detailWith(null);
+        given(assignmentQueryService.plannedPhasesOf(id)).willReturn(new AssignmentPlanResponse(true, "rhel-standard",
+                com.example.serverprovision.provisioning.assignment.enums.AssignmentState.ACTIVE_CONSUMED, null, null,
+                List.of(ProvisioningPhase.OS_INSTALLING, ProvisioningPhase.OS_SETTING)));
+        given(queryService.findOsSettingOutcome(id)).willReturn(java.util.Optional.of(new com.example.serverprovision.execution.dto.response.OsSettingOutcomeResponse(
+                false,
+                List.of(new com.example.serverprovision.execution.dto.response.OsSettingOutcomeResponse.Row("SELinux", "enforcing", "enforcing", true, null),
+                        new com.example.serverprovision.execution.dto.response.OsSettingOutcomeResponse.Row("vim", "installed", "missing", false, null)),
+                List.of(new com.example.serverprovision.execution.dto.response.OsSettingOutcomeResponse.Row("1. init-ntp.sh", null, "3", false, "/root/spv-script-1.log")),
+                "패키지 vim 의 설치를 확인하지 못했습니다. 스크립트 1번(init-ntp.sh)의 종료 코드가 3 입니다.")));
+
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(status().isOk())
+                // 실패 사유는 phase 패널 공통 경보(원장 사유)가 맡는다 — 조각은 같은 문장을 다시 그리지 않는다(CP5 F-2)
+                .andExpect(content().string(not(containsString("n-alert-danger\">패키지 vim 의 설치를 확인하지 못했습니다."))))
+                .andExpect(content().string(containsString("<div class=\"n-section\">기본 설정</div>")))
+                .andExpect(content().string(containsString("<code class=\"n-table-mono\">missing</code>")))
+                .andExpect(content().string(containsString("<td>1. init-ntp.sh</td>")))
+                .andExpect(content().string(containsString("<code class=\"n-table-mono\">/root/spv-script-1.log</code>")))
+                .andExpect(content().string(containsString("<span class=\"n-badge n-badge-red\">실패</span>")));
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 OS 설정 패널 — 성공이면 직접 확인 안내(정보 띠), 판정 전이면 패널 본문 없음")
+    void osSettingPanel_passedAndPending() throws Exception {
+        UUID id = detailWith(null);
+        given(assignmentQueryService.plannedPhasesOf(id)).willReturn(new AssignmentPlanResponse(true, "rhel-standard",
+                com.example.serverprovision.provisioning.assignment.enums.AssignmentState.ACTIVE_CONSUMED, null, null,
+                List.of(ProvisioningPhase.OS_INSTALLING, ProvisioningPhase.OS_SETTING)));
+        given(queryService.findOsSettingOutcome(id)).willReturn(java.util.Optional.of(new com.example.serverprovision.execution.dto.response.OsSettingOutcomeResponse(
+                true, List.of(), List.of(), "스크립트 실행은 끝났지만 적용 여부는 서버에서 직접 확인해야 합니다.")));
+        mvc.perform(get("/provisioning/server/{id}", id))
+                .andExpect(content().string(containsString("class=\"n-alert n-alert-info\">스크립트 실행은 끝났지만 적용 여부는 서버에서 직접 확인해야 합니다.</div>")));
+
+        UUID pending = detailWith(null);
+        given(assignmentQueryService.plannedPhasesOf(pending)).willReturn(new AssignmentPlanResponse(true, "rhel-standard",
+                com.example.serverprovision.provisioning.assignment.enums.AssignmentState.ACTIVE_CONSUMED, null, null,
+                List.of(ProvisioningPhase.OS_INSTALLING, ProvisioningPhase.OS_SETTING)));
+        mvc.perform(get("/provisioning/server/{id}", pending))
+                .andExpect(content().string(not(containsString("<div class=\"n-section\">기본 설정</div>"))));
+    }
 }

@@ -5,6 +5,7 @@ import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
+import com.example.serverprovision.execution.enums.RetryBlock;
 import com.example.serverprovision.execution.event.GuestServerChangedEvent;
 import com.example.serverprovision.execution.exception.GuestServerNotFoundException;
 import com.example.serverprovision.execution.exception.ProvisioningRetryRejectedException;
@@ -337,7 +338,7 @@ class GuestServerCommandServiceTest {
                 .build();
         given(guestServerRepository.existsById(id)).willReturn(true);
         given(provisioningProgressRepository.findByGuestServer_Id(id)).willReturn(Optional.of(progress));
-        given(retryPolicy.isBlocked(progress)).willReturn(true);   // 굽다가 난 실패 — 정책이 차단으로 판정
+        given(retryPolicy.blockOf(progress)).willReturn(Optional.of(RetryBlock.FIRMWARE_FLASH));   // 굽다가 난 실패 — 정책이 차단으로 판정
 
         assertThatThrownBy(() -> service.retry(id))
                 .isInstanceOf(ProvisioningRetryRejectedException.class);

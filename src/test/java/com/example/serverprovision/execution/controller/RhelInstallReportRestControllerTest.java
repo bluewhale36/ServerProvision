@@ -79,6 +79,35 @@ class RhelInstallReportRestControllerTest {
     }
 
     @Test
+    @DisplayName("E4-1-b-7 200 — osSetting 관측 묶음이 서비스에 그대로 간다(서비스 상태는 enum, 종료 코드 null 은 기록 없음)")
+    void complete_withOsSetting() throws Exception {
+        given(completionService.complete(eq(GUEST), any())).willReturn(new OsInstallCompletionResponse(true, true, null));
+        String body = BODY.substring(0, BODY.lastIndexOf('}'))
+                + ",\"osSetting\":{\"selinux\":\"enforcing\",\"services\":[{\"name\":\"chronyd\",\"state\":\"not-found\"}],"
+                + "\"packages\":[{\"name\":\"vim\",\"installed\":true}],\"scriptExitCodes\":[0,null]}}";
+
+        mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+        verify(completionService).complete(eq(GUEST), argThat(r -> {
+            var seen = r.osSetting().toObservation();
+            return seen.selinux().equals("enforcing")
+                    && seen.serviceState("chronyd") == com.example.serverprovision.execution.engine.rhel.ossetting.ServiceEnablement.NOT_FOUND
+                    && seen.isInstalled("vim") && seen.exitCodeOf(1).orElseThrow() == 0 && seen.exitCodeOf(2).isEmpty();
+        }));
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 400 — osSetting 의 종료 코드가 11 개면 거절")
+    void complete_osSettingTooManyCodes_badRequest() throws Exception {
+        String codes = String.join(",", java.util.Collections.nCopies(11, "0"));
+        String body = BODY.substring(0, BODY.lastIndexOf('}'))
+                + ",\"osSetting\":{\"selinux\":\"enforcing\",\"services\":[],\"packages\":[],\"scriptExitCodes\":[" + codes + "]}}";
+
+        mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("200 — 중복 보고는 closed:false, 다음 phase 가 있으면 nextPhase")
     void complete_noopWithNextPhase() throws Exception {
         given(completionService.complete(eq(GUEST), any()))

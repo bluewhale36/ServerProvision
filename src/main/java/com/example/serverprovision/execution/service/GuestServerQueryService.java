@@ -23,6 +23,8 @@ import com.example.serverprovision.execution.engine.raid.RaidPlanRejection;
 import java.util.Optional;
 
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
+import com.example.serverprovision.execution.dto.response.OsSettingOutcomeResponse;
+import com.example.serverprovision.execution.engine.rhel.ossetting.OsSettingLedger;
 import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.engine.firmware.FlashTimeoutPolicy;
@@ -105,6 +107,7 @@ public class GuestServerQueryService {
     private final OsInstallingExecutor osInstallingExecutor;                         // E4-1-b-4-2 — 카드 계열 · 준비도(게이트와 같은 판정)
     private final OsFamilyNameProvider osFamilyNames;                                // E4-1-b-4-2 — 정의서 OS 계열 화면 이름
     private final OsInstallCardAssemblers osInstallCardAssemblers;                   // E4-1-b-4-2 — 카드의 계열 내용(계열마다 조립기 하나)
+    private final OsSettingLedger osSettingLedger;                                   // E4-1-b-7 — OS 설정 패널(첫 부팅 판정)
     private final Clock clock;   // HF13 — 이 클래스의 모든 "지금" 은 이 시계 하나(그룹 눈금 · 잔여 분 · 접촉 판정)
     private final com.example.serverprovision.execution.engine.firmware.FlashProgressBoard flashProgressBoard;   // 굽기 진행률(2026-09-17)
 
@@ -415,7 +418,7 @@ public class GuestServerQueryService {
                 progress.isStartableWith(server.getDecommissionedAt()),
                 progress.isManualFailable(server.getDecommissionedAt()),
                 retryPolicy.isRetryable(progress, steps),
-                retryPolicy.isBlocked(progress, steps),
+                retryPolicy.blockOf(progress, steps).orElse(null),
                 progress.isDisruptionBlocked(),
                 // U7 — 개시 409 가드와 같은 판정. 미개시일 때만 의미가 있어 그때만 계산한다.
                 progress.isStartableWith(server.getDecommissionedAt())
@@ -866,6 +869,12 @@ public class GuestServerQueryService {
      * 설치기다. 준비도는 게이트와 같은 판정(맡을 설치기가 없으면 "지원하지 않습니다")이고, 진행은 상세가 이미 로드한 원장 목록에서
      * 읽는다(추가 쿼리 0). 정의서에 OS 설치 단계가 없고 OS 설치 행도 없으면 null — 화면은 카드를 그리지 않는다.
      */
+    /** 서버 상세의 OS 설정 패널. 첫 부팅 판정을 아직 받지 않았으면 비어 있다(E4-1-b-7). */
+    @Transactional(readOnly = true)
+    public Optional<OsSettingOutcomeResponse> findOsSettingOutcome(UUID guestServerId) {
+        return osSettingLedger.latestOf(guestServerId).map(OsSettingOutcomeResponse::of);
+    }
+
     private GuestServerDetailResponse.OsInstall osInstallOf(GuestServer server, ProvisioningProgress progress,
                                                             List<ProvisioningHistory> steps) {
         UUID id = server.getId();

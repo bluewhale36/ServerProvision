@@ -26,6 +26,11 @@ public record IpAddressVO(String value) {
 		value = trimmed;
 	}
 
+	/** 생성자와 같은 형식 규칙. 요청 검증이 예외 없이 형식만 물을 때 쓴다(E4-1-b-7 CP5 O-5). */
+	public static boolean isValid(String raw) {
+		return raw != null && IPV4_PATTERN.matcher(raw.trim()).matches();
+	}
+
 	public static IpAddressVO of(String raw) {
 		return new IpAddressVO(raw);
 	}

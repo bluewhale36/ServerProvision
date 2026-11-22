@@ -84,7 +84,7 @@
              class="n-alert n-alert-danger" role="alert">
             <strong th:text="${server.progress.currentPhase != null} ? |${server.progress.currentPhase.description} 실패| : '프로비저닝 실패'">OS 설치 실패</strong>
             <div class="n-block-gap-sm" th:text="${server.failedStepNote() != null} ? ${server.failedStepNote()} : '운영자가 실패 처리했습니다.'">재부팅이 상한을 넘겨 반복됐습니다.</div>
-            <div class="n-block-gap-sm" th:if="${server.progress.retryBlocked}" th:text="#{provisioning.retry.blocked.tooltip}">재시도 차단 안내</div>
+            <div class="n-block-gap-sm" th:if="${server.progress.retryBlock != null}" th:text="#{${server.progress.retryBlock.alertKey}}">재시도 차단 안내</div>
             <div class="n-block-gap-sm"><a href="#provisioning">실패한 단계 보기</a></div>
         </div>
         <!-- 자원 결손 대기 — 사람이 자원을 되살려야 풀리고 시한이 지나면 실패한다(S22-3 SD-198 ~ 200 · 356). -->
@@ -279,8 +279,8 @@
                            th:each="reason : ${startBlockReasons}" th:text="${reason}">막는 이유</p>
                         <!-- E2-4 Q3 — 펌웨어 단계 재시도의 전원 사이클은 의도다. 미리 알린다. -->
                         <!-- S22-3 — 막힘과, 재시도가 전원을 움직인다는 사실만 남긴다(동작 설명은 문서 몫). -->
-                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.failedAt != null and server.progress.retryBlocked}">
-                            펌웨어 실패는 원인 확인 전 재시도할 수 없습니다.</p>
+                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.failedAt != null and server.progress.retryBlock != null}"
+                           th:text="#{${server.progress.retryBlock.hintKey}}">펌웨어 실패는 원인 확인 전 재시도할 수 없습니다.</p>
                         <p class="n-next-hint" th:if="${server.progress != null and server.progress.failedAt != null and !server.progress.retryBlocked
                                                       and server.progress.failedStepCode != null and server.progress.failedStepCode.phaseType.name() == 'FIRMWARE_UPDATING'}">
                             재시도하면 서버 전원을 껐다 켭니다.</p>
@@ -795,7 +795,8 @@
                                         or (phaseName == 'FIRMWARE_UPDATING' and (server.firmwarePlan != null or server.firmwareFlash != null))
                                         or (phaseName == 'FIRMWARE_SETTING' and server.firmwareSetting != null)
                                         or (phaseName == 'RAID_CONFIGURATION' and (server.raidPlan != null or !#lists.isEmpty(server.raidVolumes)))
-                                        or (phaseName == 'OS_INSTALLING' and server.osInstall != null)}">
+                                        or (phaseName == 'OS_INSTALLING' and server.osInstall != null)
+                                        or (phaseName == 'OS_SETTING' and osSetting != null)}">
                 <summary class="n-card-head n-phase-head">
                     <div class="n-card-head-group">
                         <span class="n-phase-chevron" aria-hidden="true"></span>
@@ -1077,6 +1078,12 @@
                             </th:block>
                         </th:block>
 
+                        <!-- OS 설정 — 첫 부팅 보고 한 번의 판정(E4-1-b-7). 판정 전이면 그리지 않는다. -->
+                        <th:block th:case="'OS_SETTING'">
+                            <th:block th:if="${osSetting != null}">
+                                <th:block th:replace="~{fragments/provisioning/os-setting :: panel(${osSetting})}"></th:block>
+                            </th:block>
+                        </th:block>
                         <th:block th:case="*"></th:block>
                     </th:block>
 

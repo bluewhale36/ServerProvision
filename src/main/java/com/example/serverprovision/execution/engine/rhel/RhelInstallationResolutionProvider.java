@@ -1,5 +1,7 @@
 package com.example.serverprovision.execution.engine.rhel;
 
+import com.example.serverprovision.execution.engine.rhel.ossetting.RhelOsSettingPlan;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,4 +13,7 @@ import java.util.UUID;
 public interface RhelInstallationResolutionProvider {
 
     Optional<RhelResolution> resolveFor(UUID guestServerId);
+
+    /** 활성 할당의 OS 후처리 목표만 읽는다. 첫 부팅 판정이 설치 재료(카탈로그 · 비밀번호)를 다시 풀지 않게 한다(E4-1-b-7). */
+    Optional<RhelOsSettingPlan> osSettingFor(UUID guestServerId);
 }

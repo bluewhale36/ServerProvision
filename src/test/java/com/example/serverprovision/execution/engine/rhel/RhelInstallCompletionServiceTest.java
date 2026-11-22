@@ -5,6 +5,7 @@ import com.example.serverprovision.execution.dto.response.OsInstallCompletionRes
 import com.example.serverprovision.execution.engine.ProvisioningHistoryRecorder;
 import com.example.serverprovision.execution.engine.osinstall.InstallConfirmation;
 import com.example.serverprovision.execution.engine.phase.PhaseCursorAdvancer;
+import com.example.serverprovision.execution.engine.rhel.ossetting.RhelOsSettingCloser;
 import com.example.serverprovision.execution.entity.GuestServer;
 import com.example.serverprovision.execution.entity.ProvisioningHistory;
 import com.example.serverprovision.execution.entity.ProvisioningProgress;
@@ -27,12 +28,14 @@ import org.springframework.context.ApplicationEventPublisher;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
@@ -59,6 +62,7 @@ class RhelInstallCompletionServiceTest {
     @Mock PhaseCursorAdvancer cursorAdvancer;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock RhelInstaller installer;
+    @Mock RhelOsSettingCloser osSettingCloser;
 
     private final GuestServer guest = GuestServer.builder().id(UUID.randomUUID()).systemUUID(SYSTEM_UUID).build();
     private RhelInstallLedger ledger;
@@ -68,13 +72,13 @@ class RhelInstallCompletionServiceTest {
     void setUp() {
         ledger = new RhelInstallLedger(recorder, historyRepository, new ObjectMapper());
         service = new RhelInstallCompletionService(guestPrincipalLoader, progressRepository, cursorAdvancer, eventPublisher,
-                ledger, installer);
+                ledger, installer, osSettingCloser);
         lenient().when(guestPrincipalLoader.require(GUEST)).thenReturn(guest);
     }
 
     private static RhelInstallCompletionRequest report(String rootDisk, String systemUuid) {
         return new RhelInstallCompletionRequest("rocky", "9.5", "Rocky Linux 9.5 (Blue Onyx)",
-                "5.14.0-503.14.1.el9_5.x86_64", "localhost", rootDisk, systemUuid);
+                "5.14.0-503.14.1.el9_5.x86_64", "localhost", rootDisk, systemUuid, null);
     }
 
     private static RhelInstallCompletionRequest matching() {
@@ -131,6 +135,39 @@ class RhelInstallCompletionServiceTest {
         assertThat(row.displayNote()).isEqualTo("설치 완료 · 디스크 일치 · 대상 서버 일치");
         verify(installer).releaseAfterCompletion(guest, row);
         verify(eventPublisher).publishEvent(new GuestServerChangedEvent(guest.getId()));
+        verify(osSettingCloser).closeIfReached(eq(guest), eq(p), eq(Optional.empty()), any());   // 관측 묶음 없음
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 CP5 O-2 — 같은 보고로 OS 후처리가 실패하면 응답의 nextPhase 는 null(실패 지점을 다음 단계로 싣지 않음)")
+    void complete_osSettingFailed_noNextPhase() {
+        ProvisioningProgress p = installing();
+        openRow();
+        willAnswer(inv -> { p.advanceToEntry(ProvisioningPhaseStep.OS_SETTING, inv.getArgument(2)); return null; })
+                .given(cursorAdvancer).advanceOrComplete(eq(p), eq(guest.getId()), any());
+        willAnswer(inv -> { p.markFailed(inv.getArgument(3)); return null; })
+                .given(osSettingCloser).closeIfReached(eq(guest), eq(p), any(), any());
+
+        OsInstallCompletionResponse res = service.complete(GUEST, matching());
+
+        assertThat(res).isEqualTo(new OsInstallCompletionResponse(true, false, null));
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 커서를 옮긴 뒤 같은 보고의 OS 후처리 관측을 닫기 협력자에 넘긴다")
+    void complete_handsOsSettingObservation() {
+        ProvisioningProgress p = installing();
+        openRow();
+        RhelInstallCompletionRequest report = new RhelInstallCompletionRequest("rocky", "9.5", "Rocky Linux 9.5 (Blue Onyx)",
+                "5.14.0-503.14.1.el9_5.x86_64", "localhost", "WWN-0x600508E000000000", SYSTEM_UUID.toString(),
+                new com.example.serverprovision.execution.dto.request.OsSettingObservationRequest("enforcing", List.of(), List.of(), List.of(0)));
+
+        service.complete(GUEST, report);
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(cursorAdvancer, osSettingCloser);
+        order.verify(cursorAdvancer).advanceOrComplete(eq(p), eq(guest.getId()), any());
+        order.verify(osSettingCloser).closeIfReached(eq(guest), eq(p),
+                argThat(seen -> seen.orElseThrow().exitCodeOf(1).orElseThrow() == 0), any());
     }
 
     @Test

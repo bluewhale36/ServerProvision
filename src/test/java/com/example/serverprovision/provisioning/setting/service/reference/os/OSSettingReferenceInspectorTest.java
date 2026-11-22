@@ -47,7 +47,7 @@ class OSSettingReferenceInspectorTest {
         given(osMetadataRepository.findByIdAndIsDeletedFalse(2L)).willReturn(Optional.of(disabled));
 
         assertThatThrownBy(() -> inspector.validateReferences(
-                new RHELOSSettingRequest(2L, "enforcing", List.of(), List.of()), CTX))
+                new RHELOSSettingRequest(2L, "enforcing", List.of(), List.of(), List.of()), CTX))
                 .isInstanceOf(DisabledResourceReferenceException.class);
 
         OSMetadata deprecated = Mockito.mock(OSMetadata.class);
@@ -56,7 +56,7 @@ class OSSettingReferenceInspectorTest {
         given(deprecated.getOsVersion()).willReturn("8.10");
         given(osMetadataRepository.findByIdAndIsDeletedFalse(3L)).willReturn(Optional.of(deprecated));
         assertThat(inspector.describeDeprecatedReferences(
-                new RHELOSSettingRequest(3L, "enforcing", List.of(), List.of())))
+                new RHELOSSettingRequest(3L, "enforcing", List.of(), List.of(), List.of())))
                 .containsExactly("Rocky Linux 8.10");
     }
 }

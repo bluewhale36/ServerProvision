@@ -8,6 +8,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -135,6 +136,43 @@ class SpvReportScriptTest {
         assertThat(run("report", "200").exit).isZero();
         assertThat(root.resolve("curl.body")).doesNotExist();
         assertThat(root.resolve("usr/local/sbin/spv-report")).exists();
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 OS 후처리가 있으면 관측값(SELinux · 서비스 · 패키지 · 종료 코드)만 osSetting 으로 싣고, 스크립트 원문 · 종료 코드 파일도 지운다")
+    void osSetting_sendsObservations() throws Exception {
+        fake("getenforce", "echo Enforcing\n");
+        fake("systemctl", """
+                if [ "$1" = is-enabled ]; then
+                  case "$2" in chronyd) echo enabled ;; firewalld) echo masked ;; *) exit 4 ;; esac
+                else
+                  echo "$*" >> "$SPV_ROOT/systemctl.log"
+                fi
+                """);
+        fake("rpm", "case \"$4\" in vim) exit 0 ;; *) exit 1 ;; esac\n");
+        Files.writeString(root.resolve("etc/spv/report.env"), String.join("\n",
+                "SPV_CHECK_SELINUX='1'", "SPV_CHECK_SERVICES='chronyd firewalld cockpit.socket'",
+                "SPV_CHECK_PACKAGES='vim tmuxx'", "SPV_SCRIPT_COUNT='3'") + "\n", StandardOpenOption.APPEND);
+        write("etc/spv/scripts/1.rc", "0\n");
+        write("etc/spv/scripts/2.rc", "3\n");
+
+        Result r = run("report", "200");
+
+        assertThat(r.exit).isZero();
+        assertThat(read("curl.body")).contains("\"osSetting\":{\"selinux\":\"enforcing\","
+                + "\"services\":[{\"name\":\"chronyd\",\"state\":\"enabled\"},{\"name\":\"firewalld\",\"state\":\"masked\"},"
+                + "{\"name\":\"cockpit.socket\",\"state\":\"unknown\"}],"
+                + "\"packages\":[{\"name\":\"vim\",\"installed\":true},{\"name\":\"tmuxx\",\"installed\":false}],"
+                + "\"scriptExitCodes\":[0,3,null]}}");
+        assertRemoved();
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 정의서에 OS 후처리가 없으면(관측 키 없음) osSetting 을 싣지 않는다")
+    void noOsSetting_omitsMember() throws Exception {
+        run("report", "200");
+
+        assertThat(read("curl.body")).doesNotContain("osSetting").contains("\"systemUuid\":\"" + EXPECTED_UUID + "\"}");
     }
 
     private void assertRemoved() {
