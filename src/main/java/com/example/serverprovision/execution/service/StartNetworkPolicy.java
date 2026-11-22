@@ -40,9 +40,12 @@ public class StartNetworkPolicy {
         return StartNetworkBlocks.judge(systemSettingService.provisioningAllowedRange(), bmcIp, primaryIpOf(nics));
     }
 
-    /** primary NIC(최초 PXE 등록 NIC)의 IP. primary 가 없으면 데이터 손상으로 보고 '모름'. */
+    /**
+     * primary NIC(최초 PXE 등록 NIC)의 IP. primary 가 없거나 IP 가 비어 있으면 '모름'.
+     * primary 를 먼저 고르고 IP 를 꺼낸다. IP 를 먼저 꺼내면 비어 있는 IP 에서 findFirst 가 NullPointerException 을 낸다(HF37).
+     */
     private static IpAddressVO primaryIpOf(Collection<HostNicBinding> nics) {
-        return nics.stream().filter(HostNicBinding::isPrimary).map(HostNicBinding::getIpAddress)
-                .findFirst().orElse(null);
+        return nics.stream().filter(HostNicBinding::isPrimary).findFirst()
+                .map(HostNicBinding::getIpAddress).orElse(null);
     }
 }
