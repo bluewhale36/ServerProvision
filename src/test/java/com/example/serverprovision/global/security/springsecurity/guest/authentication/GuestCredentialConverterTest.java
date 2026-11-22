@@ -56,4 +56,13 @@ class GuestCredentialConverterTest {
 		assertThat(((GuestAuthenticationToken) a).credential())
 				.isEqualTo(new GuestCredential.ServingToken(null, GuestCredential.ServingKind.WINDOWS));
 	}
+
+    @Test
+    @DisplayName("E4-1-b-4-2 — RHEL 서빙 경로(/rhel/{token}/…)도 경로 토큰이 credential 이고 종류는 RHEL")
+    void rhelServingPath() {
+        UUID token = UUID.randomUUID();
+        Authentication a = converter.convert(request("GET", "/api/pxe/v1/rhel/" + token + "/tree/images/pxeboot/vmlinuz", "ignored"));
+        assertThat(((GuestAuthenticationToken) a).credential())
+                .isEqualTo(new GuestCredential.ServingToken(token, GuestCredential.ServingKind.RHEL));
+    }
 }

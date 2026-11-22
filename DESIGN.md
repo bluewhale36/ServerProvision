@@ -444,6 +444,8 @@ OS 관리 화면의 업로드 진행 표시(`n-upload-*`)는 `management/os/os-p
 | `list-filter :: search(q, ariaLabel, rows)` | 조회 띠의 검색칸 · Search 버튼 · 토큰 자리 · 조회 조건 창(조건 줄은 화면이 넘김) | 목록 아홉 화면 |
 | `resource-filter :: bar(action, query, count, keep, resetUrl)` | 자원 관리 Miller 화면의 조회 띠(창 안 조건: 활성 · 사용 중단 · 삭제된 항목 / 결과 건수 · 초기화) | 자원 관리 여섯 화면 |
 | `provisioning/server-badges :: statusBadge(server)`, `contactBadge(server)` | 게스트 서버의 운영 상태 배지와 접촉 배지 | 게스트 서버 상세의 머리 띠와 개요 판. 같은 사실을 두 자리에 그리므로 조각 하나다 |
+| `provisioning/os-install :: windowsCard(oi)`, `rhelCard(oi)`, `unsupportedCard(oi)` | 게스트 서버 상세 프로비저닝 탭의 OS 설치 카드. 계열마다 한 조각 | OS 설치 단계 패널. 응답의 계열 내용(`OsInstallCardDetail.fragment()`)이 그릴 조각 이름을 밝히고 패널은 계열로 분기하지 않는다. 계열이 늘면 조각 하나와 응답 타입 하나를 더한다 |
+| `provisioning/os-install :: readinessRow(oi)`, `progressStates(oi)`, `expiredHint(oi)`, `cardTitle(oi)` | OS 설치 카드의 준비도 행, 진행 칸의 실패와 설치 중과 예정, 시한이 지난 설치 안내 | 같은 파일의 계열 카드 조각. 행을 그릴 조건까지 카드끼리 같아야 하므로 조각이 행(tr)을 가진다 |
 
 래퍼(`<tr><th>` 또는 `<dt><dd>`)는 호출하는 템플릿이 가진다. 조각은 그 안의 `n-actions` 만 그린다.
 

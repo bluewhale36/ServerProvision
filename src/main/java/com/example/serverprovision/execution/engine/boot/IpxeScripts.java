@@ -90,21 +90,30 @@ public final class IpxeScripts {
     }
 
     /**
-     * Windows 설치 중 재진입(E4-1-a-3 D-2) — Setup 이 스스로 한 재부팅이 네트워크 우선 펌웨어에서 재PXE 로 돌아온 것.
+     * OS 설치 중 재진입(E4-1-a-3 D-2, E4-1-b-4-1 에서 계열 중립 문구) — 설치 프로그램이 스스로 한 재부팅이 네트워크 우선
+     * 펌웨어에서 재PXE 로 돌아온 것.
      * {@code exit} 로 iPXE 를 끝내 부트 순서의 다음(로컬 디스크)으로 넘긴다. principal · 재진입 n/max 를 콘솔에 남긴다.
      */
     public static String localBootFallthrough(int reentry, int maxReentries) {
         return """
                 #!ipxe
-                echo [provision] windows setup in progress (reentry %d/%d). booting local disk...
+                echo [provision] os setup in progress (reentry %d/%d). booting local disk...
                 echo [provision] this server: ip=${ip} mac=${mac} uuid=${uuid}
                 exit
                 """.formatted(reentry, maxReentries);
     }
 
-    /** Windows 설치 실패 전환 직후의 안내(E4-1-a-3) — 다음 폴링부터는 dispatch 3행(failed)이 받는다. */
-    public static String windowsInstallFailed(String reason, String reentryUrl) {
-        return waitAndChain("windows install FAILED (" + reason + "). waiting for operator...", reentryUrl);
+    /**
+     * OS 설치 실패 전환 직후의 안내(E4-1-a-3, E4-1-b-4-2 에서 계열 공통) — 다음 폴링부터는 dispatch 3행(failed)이 받는다.
+     * {@code installLabel} 은 계열의 콘솔 이름("windows install" · "rhel install")이다.
+     */
+    public static String osInstallFailed(String installLabel, String reason, String reentryUrl) {
+        return waitAndChain(installLabel + " FAILED (" + reason + "). waiting for operator...", reentryUrl);
+    }
+
+    /** RHEL 설치 원본(작업 트리)을 푸는 중(E4-1-b-4-2) — 다 풀리면 다음 폴링이 설치 체인을 받는다. */
+    public static String installTreePreparing(String reentryUrl) {
+        return waitAndChain("rhel install tree preparing. waiting...", reentryUrl);
     }
 
     /** 종단 — iPXE 종료 → 부트 순서 폴스루(로컬 디스크). 실효성은 T2 검증 유보 — dispatch 4행. */

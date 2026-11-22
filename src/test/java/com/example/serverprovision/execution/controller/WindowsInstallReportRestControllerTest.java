@@ -1,6 +1,6 @@
 package com.example.serverprovision.execution.controller;
 
-import com.example.serverprovision.execution.dto.response.WindowsInstallCompletionResponse;
+import com.example.serverprovision.execution.dto.response.OsInstallCompletionResponse;
 import com.example.serverprovision.execution.engine.windows.WindowsInstallCompletionService;
 import com.example.serverprovision.execution.enums.ProvisioningPhase;
 import com.example.serverprovision.execution.enums.ProvisioningPhaseStep;
@@ -66,7 +66,7 @@ class WindowsInstallReportRestControllerTest {
     @Test
     @DisplayName("200 — 닫힘 · 종단(provisioningCompleted true · nextPhase null) · 요청 필드가 서비스에 그대로 전달")
     void complete_closed() throws Exception {
-        given(completionService.complete(eq(GUEST), any())).willReturn(new WindowsInstallCompletionResponse(true, true, null));
+        given(completionService.complete(eq(GUEST), any())).willReturn(new OsInstallCompletionResponse(true, true, null));
 
         mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isOk())
@@ -80,7 +80,7 @@ class WindowsInstallReportRestControllerTest {
     @Test
     @DisplayName("200 — 중복 보고는 closed:false(no-op) · 다음 phase 가 있으면 nextPhase 직렬화")
     void complete_noopWithNextPhase() throws Exception {
-        given(completionService.complete(eq(GUEST), any())).willReturn(new WindowsInstallCompletionResponse(false, false, ProvisioningPhase.TESTING));
+        given(completionService.complete(eq(GUEST), any())).willReturn(new OsInstallCompletionResponse(false, false, ProvisioningPhase.TESTING));
 
         mvc.perform(post(URL).header("X-Guest-Token", TOKEN).contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isOk())
@@ -91,7 +91,7 @@ class WindowsInstallReportRestControllerTest {
     @Test
     @DisplayName("200 — installedDiskUniqueId(E4-1-a-6)가 서비스에 그대로 전달된다")
     void complete_carriesInstalledDiskUniqueId() throws Exception {
-        given(completionService.complete(eq(GUEST), any())).willReturn(new WindowsInstallCompletionResponse(true, true, null));
+        given(completionService.complete(eq(GUEST), any())).willReturn(new OsInstallCompletionResponse(true, true, null));
         String body = "{\"computerName\":\"SPV-14174000\",\"driversAdded\":47,\"problemDeviceCount\":0,"
                 + "\"installedDiskUniqueId\":\"600605B00D18AA1E322943670F84791D\"}";
 
@@ -168,7 +168,7 @@ class WindowsInstallReportRestControllerTest {
     @Test
     @DisplayName("200 — installs(folder · mode · exitCode)가 서비스에 그대로 전달된다 · 생략하면 빈 목록")
     void complete_carriesInstalls() throws Exception {
-        given(completionService.complete(eq(GUEST), any())).willReturn(new WindowsInstallCompletionResponse(true, true, null));
+        given(completionService.complete(eq(GUEST), any())).willReturn(new OsInstallCompletionResponse(true, true, null));
         String body = "{\"computerName\":\"SPV-14174000\",\"driversAdded\":47,\"problemDeviceCount\":0,"
                 + "\"installs\":[{\"folder\":\"4_aspeed-driver\",\"mode\":\"MSI\",\"exitCode\":0},{\"folder\":\"-\",\"mode\":\"LEGACY\",\"exitCode\":0}]}";
 
@@ -205,7 +205,7 @@ class WindowsInstallReportRestControllerTest {
     @Test
     @DisplayName("200 — HF23 failedInfs · installs 의 entrypoint 가 서비스에 그대로 전달된다(구 스크립트처럼 없으면 빈 목록)")
     void complete_carriesFailedInfs() throws Exception {
-        given(completionService.complete(eq(GUEST), any())).willReturn(new WindowsInstallCompletionResponse(true, true, null));
+        given(completionService.complete(eq(GUEST), any())).willReturn(new OsInstallCompletionResponse(true, true, null));
         String body = "{\"computerName\":\"SPV-1\",\"driversAdded\":74,\"problemDeviceCount\":0,"
                 + "\"installs\":[{\"folder\":\"7_intel-lan\",\"mode\":\"FOLDER\",\"entrypoint\":\"PRO1000\\\\Winx64\\\\WS2025\\\\\",\"exitCode\":0}],"
                 + "\"failedInfs\":[{\"folder\":\"7_intel-lan\",\"path\":\"PRO1000\\\\Winx64\\\\NDIS65\\\\v1q65x64.inf\",\"exitCode\":-536870325}]}";

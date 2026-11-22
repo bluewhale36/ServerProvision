@@ -4,6 +4,8 @@ import com.example.serverprovision.provisioning.setting.dto.request.BasicSetting
 import com.example.serverprovision.provisioning.setting.dto.request.BasicUpdateRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.RHELInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.RHELOSSettingRequest;
+import com.example.serverprovision.provisioning.setting.dto.request.OsSettingScriptRequest;
+import com.example.serverprovision.provisioning.setting.enums.OSFamily;
 import com.example.serverprovision.provisioning.setting.dto.request.SettingSaveRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.UbuntuInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.response.PartitionPresetResponse;
@@ -370,7 +372,7 @@ class SettingRestControllerSaveFlowTest {
     }
 
     @Test
-    @DisplayName("POST — OS_SETTING/RHEL_BASED → 201 + services 기본 action(ENABLE) 해석")
+    @DisplayName("POST — OS_SETTING/RHEL_BASED(+ RHEL 설치) → 201 + services 기본 action(ENABLE) 해석 · 스크립트 CRLF 를 LF 로")
     void create_rhelOsSetting_returns201() throws Exception {
         given(commandService.create(any())).willReturn(saved(6L));
 
@@ -380,8 +382,9 @@ class SettingRestControllerSaveFlowTest {
                                 {"type": "OS_SETTING", "osFamily": "RHEL_BASED", "osMetadataId": 1,
                                  "selinuxMode": "enforcing",
                                  "services": [{"name": "firewalld", "action": "DISABLE"}, {"name": "sshd"}],
-                                 "additionalPackages": ["vim"]}
-                                """)))
+                                 "additionalPackages": ["vim"],
+                                 "scripts": [{"fileName": "init.sh", "content": "echo a\\r\\necho b\\r\\n"}]},
+                                """ + RHEL_INSTALL_WITH_RAID)))
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<SettingSaveRequest> captor = ArgumentCaptor.forClass(SettingSaveRequest.class);
@@ -391,7 +394,70 @@ class SettingRestControllerSaveFlowTest {
             assertThat(os.getServices().get(0).action()).isEqualTo(ServiceAction.DISABLE);
             // action 미지정 시 ENABLE 기본 해석 (계약 규칙).
             assertThat(os.getServices().get(1).action()).isEqualTo(ServiceAction.ENABLE);
+            assertThat(os.getScripts().get(0).content()).isEqualTo("echo a\necho b\n");
         });
+    }
+
+    /** E4-1-b-7 — OS 후처리는 RHEL 설치(와 그 선행인 RAID 구성)가 있어야 저장된다. */
+    private static final String RHEL_INSTALL_WITH_RAID = withOsVolume("{\"type\": \"OS_INSTALLATION\", \"osFamily\": \"RHEL_BASED\","
+            + LINUX_COMMON + ", \"environmentId\": 1, \"packageGroupIds\": [], \"isKDumpEnabled\": false, \"allowSshRoot\": null}");
+
+    private static String osSetting(String scripts) {
+        return "{\"type\": \"OS_SETTING\", \"osFamily\": \"RHEL_BASED\", \"osMetadataId\": 1, \"selinuxMode\": \"enforcing\","
+                + " \"services\": [], \"additionalPackages\": [], \"scripts\": " + scripts + "}";
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 POST — OS 설치 없이 OS 후처리만 → 400 + fieldErrors[osSettingSupported]")
+    void create_osSettingWithoutInstall_returns400() throws Exception {
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body(osSetting("[]"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osSettingSupported')].message")
+                        .value(OSFamily.OS_SETTING_UNSUPPORTED));
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 POST — Windows 설치 + OS 후처리 → 400 + fieldErrors[osSettingSupported]")
+    void create_osSettingWithWindows_returns400() throws Exception {
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body(osSetting("[]") + "," + withOsVolume(WINDOWS_PROCESS))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'osSettingSupported')]").exists());
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 POST — 64 KB 넘는 스크립트 → 400 + fieldErrors[processList[0].scripts[0].withinSizeLimit]")
+    void create_scriptTooBig_returns400() throws Exception {
+        String big = "a".repeat(OsSettingScriptRequest.MAX_BYTES + 1);
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body(osSetting("[{\"fileName\": \"big.sh\", \"content\": \"" + big + "\"}]")
+                                + "," + RHEL_INSTALL_WITH_RAID)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processList[0].scripts[0].withinSizeLimit')].message")
+                        .value("스크립트 파일은 64 KB 이하여야 합니다."));
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 POST — NUL 이 든 스크립트 · 11 개 → 400 + 필드 메시지")
+    void create_scriptNotTextAndTooMany_returns400() throws Exception {
+        String eleven = String.join(",", java.util.Collections.nCopies(11, "{\"fileName\": \"a.sh\", \"content\": \"echo\"}"));
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body(osSetting("[{\"fileName\": \"bin\", \"content\": \"a\\u0000b\"}]")
+                                + "," + RHEL_INSTALL_WITH_RAID)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processList[0].scripts[0].text')].message")
+                        .value("텍스트 파일만 올릴 수 있습니다."));
+        mvc.perform(post("/provisioning/setting")
+                        .contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .content(body(osSetting("[" + eleven + "]") + "," + RHEL_INSTALL_WITH_RAID)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'processList[0].scripts')].message")
+                        .value("스크립트는 10 개까지 넣을 수 있습니다."));
     }
 
     @Test

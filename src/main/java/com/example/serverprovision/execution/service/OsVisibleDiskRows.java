@@ -37,7 +37,7 @@ final class OsVisibleDiskRows {
         Map<String, VolumeView> volumeByUniqueId = new HashMap<>();
         if (raidInventory != null) {
             for (RaidExistingVolume v : raidInventory.volumes()) {
-                String key = family == null ? RaidChipFamily.normalizeHex(v.wwn()) : family.windowsUniqueIdOf(v.wwn());
+                String key = family == null ? RaidChipFamily.normalizeHex(v.wwn()) : family.volumeWwnOf(v.wwn());
                 if (key != null) {
                     volumeByUniqueId.put(key, VolumeView.of(v, raidInventory.disks()));
                 }

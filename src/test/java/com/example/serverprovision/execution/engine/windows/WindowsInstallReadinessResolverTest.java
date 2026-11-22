@@ -64,8 +64,9 @@ class WindowsInstallReadinessResolverTest {
                 "share-secret-9x", null, new WindowsInstallProperties.ProductKeys("KEY-STD", datacenterKey));
         stubConfidentDisk();
         return new WindowsInstallReadinessResolver(provider, new WindowsImageCatalog(props), props,
-                new WindowsInstallSource(props), raidVolumeRepository, detailRepository, subprogramRepository, oemAssembler,
-                progressRepository, ownedPhasesProvider, raidResolutionProvider, objectMapper);
+                new WindowsInstallSource(props), detailRepository, subprogramRepository, oemAssembler,
+                new com.example.serverprovision.execution.engine.osinstall.OsVolumeLocator(raidVolumeRepository, detailRepository,
+                        progressRepository, ownedPhasesProvider, raidResolutionProvider, objectMapper));
     }
 
     /** OS 볼륨 + 그 볼륨을 담은 RAID 인벤토리를 준비해 디스크 선택이 CONFIDENT 가 되게 한다. */
@@ -209,17 +210,4 @@ class WindowsInstallReadinessResolverTest {
         org.mockito.Mockito.verify(raidResolutionProvider, org.mockito.Mockito.never()).planFor(any(), any(), any());
     }
 
-    @Test
-    @DisplayName("리눅스 목표 → BLOCKED · 이미지 없음(대조할 이름이 없다)")
-    void linuxTarget_blocked() throws IOException {
-        FakeWim.writeSource(root, FakeWim.fixtureXml());
-        FakeWim.writeOemScripts(root);   // E4-1-a-4 — 12행(스크립트 부재)이 판정을 가리지 않게
-        Files.writeString(root.resolve("wimboot"), "FAKE-WIMBOOT");
-        given(provider.resolveFor(GUEST_ID)).willReturn(Optional.of(WindowsInstallTarget.unsupported("RHEL 계열")));
-
-        WindowsInstallReadinessResolver.Resolved r = resolver(null).resolve(GUEST_ID).orElseThrow();
-
-        assertThat(r.readiness().wire()).isEqualTo("linux install not supported");
-        assertThat(r.image()).isEmpty();
-    }
 }

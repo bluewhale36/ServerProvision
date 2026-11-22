@@ -6,11 +6,13 @@ import com.example.serverprovision.execution.engine.boot.IpxeScripts;
 import com.example.serverprovision.execution.engine.boot.PxeBootUrls;
 import com.example.serverprovision.global.exception.ExceptionLogPolicy;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -36,7 +38,7 @@ public class ExecutionRestController {
     private final PxeBootUrls pxeBootUrls;
 
     @GetMapping(value = "/boot", produces = MediaType.TEXT_PLAIN_VALUE)
-    public String initialBoot(@ModelAttribute BootIPXEInfoRequest initialRequest, HttpServletRequest request) {
+    public String initialBoot(@Valid @ModelAttribute BootIPXEInfoRequest initialRequest, HttpServletRequest request) {
         log.info("PXE 부팅 요청 : info={}", initialRequest.toString());
         // 재진입(chain) URL 은 게스트가 보낸 쿼리를 그대로 되돌려 준다 — /boot 를 무상태로 유지하는 방법.
         // S19-2 — 대상은 PXE 부팅 credential 이 든 절대 URL(base-url 없는 인스턴스는 상대 경로).
@@ -46,9 +48,17 @@ public class ExecutionRestController {
     /** PXE 채널 전용 예외 경계 — 전 예외를 200 + 재시도 스크립트로. 원 예외 로그는 그대로(silent 흡수 아님). */
     @ExceptionHandler(Exception.class)
     public String convertToRetryScript(Exception ex, HttpServletRequest request) {
-        ResponseStatus rs = AnnotationUtils.findAnnotation(ex.getClass(), ResponseStatus.class);
-        HttpStatus mapped = rs != null ? rs.value() : HttpStatus.INTERNAL_SERVER_ERROR;
+        HttpStatus mapped = statusOf(ex);
         ExceptionLogPolicy.record("pxe.boot.converted", ex, mapped, "ipxe");
         return IpxeScripts.retryAfterError(pxeBootUrls.reentry(request.getQueryString()));
+    }
+
+    /** 로그 분류용 상태. 요청 검증 실패처럼 Spring 이 상태를 정한 예외(ErrorResponse)는 그 값을 쓴다(E4-1-b-7 CP5 O-5). */
+    private static HttpStatus statusOf(Exception ex) {
+        if (ex instanceof ErrorResponse response) {
+            return HttpStatus.valueOf(response.getStatusCode().value());
+        }
+        ResponseStatus rs = AnnotationUtils.findAnnotation(ex.getClass(), ResponseStatus.class);
+        return rs != null ? rs.value() : HttpStatus.INTERNAL_SERVER_ERROR;
     }
 }

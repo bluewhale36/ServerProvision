@@ -334,6 +334,43 @@ class InstallTreeManagerTest {
                 .hasMessageContaining("RHEL_INSTALL_TREE_ROOT");
     }
 
+    @Test
+    @DisplayName("inspect(b-4-2) — 사전 점검은 부수효과가 없다: 추출을 시작하지 않고 보유자도 더하지 않는다")
+    void inspect_hasNoSideEffect() {
+        assertThat(manager.inspect(ISO_ID)).isEmpty();
+        assertThat(extractions).isEmpty();
+        assertThat(manager.stateOf(ISO_ID)).isEqualTo(TreeState.ABSENT);
+    }
+
+    @Test
+    @DisplayName("inspect — 루트 미설정 NOT_CONFIGURED · 도구 없음 TOOL_MISSING · 웹 주소 HTTP_ISO_UNSUPPORTED · 없는 파일 ISO_UNAVAILABLE")
+    void inspect_reasons() {
+        assertThat(manager("").inspect(ISO_ID)).contains(TreeFailureReason.NOT_CONFIGURED);
+        when(toolProbe.available()).thenReturn(false);
+        assertThat(manager.inspect(ISO_ID)).contains(TreeFailureReason.TOOL_MISSING);
+        registerIso(20L, "https://mirror.example/Rocky-9.5.iso");
+        assertThat(manager.inspect(20L)).contains(TreeFailureReason.HTTP_ISO_UNSUPPORTED);
+        registerIso(21L, temp.resolve("missing.iso").toString());
+        assertThat(manager.inspect(21L)).contains(TreeFailureReason.ISO_UNAVAILABLE);
+        when(isoRepository.findById(22L)).thenReturn(Optional.empty());
+        assertThat(manager.inspect(22L)).contains(TreeFailureReason.ISO_UNAVAILABLE);
+    }
+
+    @Test
+    @DisplayName("inspect — 디렉터리로 등록된 ISO 는 풀지 않으므로 도구가 없어도 사유가 없다 · 이미 준비된 트리도 사유가 없다")
+    void inspect_directoryAndReadyNeedNoTool() throws IOException {
+        when(toolProbe.available()).thenReturn(false);
+        Path dir = Files.createDirectories(temp.resolve("iso-dir"));
+        registerIso(30L, dir.toString());
+        assertThat(manager.inspect(30L)).isEmpty();
+
+        when(toolProbe.available()).thenReturn(true);
+        manager.acquire(ISO_ID, G1);
+        completeReady();
+        when(toolProbe.available()).thenReturn(false);
+        assertThat(manager.inspect(ISO_ID)).isEmpty();
+    }
+
     private void completeReady() {
         extractions.get(extractions.size() - 1).complete(TreeAcquisition.ready(tree));
     }

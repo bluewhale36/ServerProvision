@@ -400,6 +400,18 @@
                                               th:text="${#strings.listJoin(process.additionalPackages, ', ')}">vim, curl</span>
                                     </td>
                                 </tr>
+                                <!-- E4-1-b-7 — 설치 중 차례로 실행할 사용자 스크립트. 행마다 펼쳐 줄 번호와 함께 원문을 본다.
+                                     칸이 원문 폭만큼 늘어 판 밖으로 나가지 않게 n-cell-code 가 칸을 남는 폭에 묶고, 원문은 칸 안에서 가로로 민다(CP5 F-3). -->
+                                <tr>
+                                    <th>추가 스크립트</th>
+                                    <td class="n-cell-code">
+                                        <span th:if="${#lists.isEmpty(process.scripts)}" class="n-muted">-</span>
+                                        <details th:each="script, it : ${process.scripts}">
+                                            <summary th:text="|${it.count}. ${script.fileName}|">1. init-ntp.sh</summary>
+                                            <pre class="n-code-block n-code-lines"><span th:each="line : ${script.contentLines()}" th:text="${line}">#!/bin/bash</span></pre>
+                                        </details>
+                                    </td>
+                                </tr>
                                 </tbody>
                             </table>
                         </th:block>

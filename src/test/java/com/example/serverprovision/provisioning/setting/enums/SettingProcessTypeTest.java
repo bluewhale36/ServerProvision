@@ -16,10 +16,17 @@ class SettingProcessTypeTest {
     }
 
     @Test
-    @DisplayName("OS 설치 말고는 선행 단계가 없다(OS 후처리 설정 포함)")
+    @DisplayName("OS 후처리 설정은 OS 설치를 선행으로 둔다(E4-1-b-7) — 연쇄로 RAID 구성까지 이어진다")
+    void osSettingRequiresOsInstallation() {
+        assertThat(SettingProcessType.OS_SETTING.requiredStep()).contains(SettingProcessType.OS_INSTALLATION);
+        assertThat(SettingProcessType.OS_SETTING.isPaletteExposed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("OS 설치 · OS 후처리 설정 말고는 선행 단계가 없다")
     void othersRequireNothing() {
         assertThat(Arrays.stream(SettingProcessType.values())
-                .filter(type -> type != SettingProcessType.OS_INSTALLATION)
+                .filter(type -> type != SettingProcessType.OS_INSTALLATION && type != SettingProcessType.OS_SETTING)
                 .filter(type -> type.requiredStep().isPresent()))
                 .isEmpty();
     }

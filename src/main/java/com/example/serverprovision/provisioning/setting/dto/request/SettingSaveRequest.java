@@ -1,5 +1,6 @@
 package com.example.serverprovision.provisioning.setting.dto.request;
 
+import com.example.serverprovision.provisioning.setting.enums.OSFamily;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
@@ -51,6 +52,24 @@ public record SettingSaveRequest(
             }
         }
         return installOs == null || settingOs == null || installOs.equals(settingOs);
+    }
+
+    /**
+     * OS 후처리는 RHEL 계열을 설치하는 정의서에서만 실행된다(E4-1-b-7). OS 설치가 없거나 다른 계열이면 저장 뒤 실행에서 반드시 멈추므로
+     * 여기서 막는다. 폼은 같은 판정({@link OSFamily#isOsSettingSupported()})으로 단계 추가와 저장을 먼저 막는다.
+     */
+    @AssertTrue(message = OSFamily.OS_SETTING_UNSUPPORTED)
+    public boolean isOsSettingSupported() {
+        if (processList == null || processList.stream().noneMatch(OSSettingRequest.class::isInstance)) {
+            return true;
+        }
+        return processList.stream()
+                .filter(OSInstallationRequest.class::isInstance)
+                .map(OSInstallationRequest.class::cast)
+                .findFirst()
+                .map(OSInstallationRequest::osFamily)
+                .filter(OSFamily::isOsSettingSupported)
+                .isPresent();
     }
 
     /**

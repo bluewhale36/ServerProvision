@@ -87,6 +87,20 @@ public class InstallTreeManager implements SmartInitializingSingleton {
         }
     }
 
+    /**
+     * 확보하기 전에 실패할 것이 정해진 사유를 미리 본다(E4-1-b-4-2). 부수효과가 없다: 추출을 시작하지 않고 보유자도 더하지
+     * 않는다 — 서버 상세 · 준비도 게이트가 조회마다 부르기 때문이다. 이미 준비된 트리면 도구 없이도 서빙하므로 사유가 없다.
+     */
+    public Optional<TreeFailureReason> inspect(long isoId) {
+        if (!properties.configured()) {
+            return Optional.of(TreeFailureReason.NOT_CONFIGURED);
+        }
+        if (stateOf(isoId) == TreeState.READY) {
+            return Optional.empty();
+        }
+        return resolveSource(isoId).precheck(this);
+    }
+
     /** 그 서버의 설치가 끝났다(완료 · 실패 · 시한 · 교체). 보유자가 0 이 되면 유예 시간을 잰다. */
     public void release(long isoId, UUID guestId) {
         IsoTreeEntry entry = entries.get(isoId);
@@ -252,7 +266,15 @@ public class InstallTreeManager implements SmartInitializingSingleton {
 
         TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId);
 
+        /** 확보 전에 정해진 실패 사유 — 부수효과 없음. */
+        Optional<TreeFailureReason> precheck(InstallTreeManager manager);
+
         record File(Path path) implements IsoSource {
+            @Override
+            public Optional<TreeFailureReason> precheck(InstallTreeManager manager) {
+                return manager.toolProbe.available() ? Optional.empty() : Optional.of(TreeFailureReason.TOOL_MISSING);
+            }
+
             @Override
             public TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId) {
                 return manager.acquireFromFile(entry, isoId, guestId, path);
@@ -261,12 +283,22 @@ public class InstallTreeManager implements SmartInitializingSingleton {
 
         record Directory(Path path) implements IsoSource {
             @Override
+            public Optional<TreeFailureReason> precheck(InstallTreeManager manager) {
+                return Optional.empty();   // 디렉터리는 풀지 않는다(D-8) — 트리 판정은 확보 때 한다
+            }
+
+            @Override
             public TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId) {
                 return manager.acquireFromDirectory(entry, guestId, path);
             }
         }
 
         record Unusable(TreeFailureReason reason) implements IsoSource {
+            @Override
+            public Optional<TreeFailureReason> precheck(InstallTreeManager manager) {
+                return Optional.of(reason);
+            }
+
             @Override
             public TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId) {
                 return TreeAcquisition.failed(reason);

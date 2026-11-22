@@ -33,16 +33,11 @@ public final class WindowsInstallReadiness {
         List<String> notes = new ArrayList<>();
         List<String> wire = new ArrayList<>();
 
-        if (!t.windows()) {
-            add(notes, wire, t.unsupportedFamily() + " 설치는 지원하지 않습니다: Windows 정의서로 교체해야 합니다",
-                    "linux install not supported");
-        } else {
-            if (!t.hasImage()) {
-                add(notes, wire, "설치 이미지 미지정: 정의서를 수정해야 합니다", "image not chosen");
-            }
-            if (!t.hasPassword()) {
-                add(notes, wire, "Administrator 비밀번호 미지정: 정의서를 수정해야 합니다", "administrator password missing");
-            }
+        if (!t.hasImage()) {
+            add(notes, wire, "설치 이미지 미지정: 정의서를 수정해야 합니다", "image not chosen");
+        }
+        if (!t.hasPassword()) {
+            add(notes, wire, "Administrator 비밀번호 미지정: 정의서를 수정해야 합니다", "administrator password missing");
         }
 
         Optional<WindowsImage> image = Optional.empty();

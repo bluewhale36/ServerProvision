@@ -349,6 +349,7 @@ public class GuestServerController {
     /** 상세 화면이 최초 렌더와 재렌더에서 같은 재료를 받도록 한 곳에서 얹는다. */
     private void addDetailModel(Model model, UUID id, GuestServerDetailResponse server) {
         model.addAttribute("server", server);
+        model.addAttribute("osSetting", guestServerQueryService.findOsSettingOutcome(id).orElse(null));
         populateAssignmentModel(id, server, model);
         populateGroupStandardModel(id, model);
     }

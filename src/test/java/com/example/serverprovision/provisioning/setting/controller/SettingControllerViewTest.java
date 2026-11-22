@@ -125,13 +125,49 @@ class SettingControllerViewTest {
                                 new FirmwareSelectionRequest(FirmwareSelectionMode.SPECIFIED, 1L)),
                         new BasicSettingRequest(List.of(9L)),
                         rhel,
-                        new RHELOSSettingRequest(1L, "enforcing", List.of(), List.of("vim"))),
+                        new RHELOSSettingRequest(1L, "enforcing", List.of(), List.of("vim"),
+                                List.of(new com.example.serverprovision.provisioning.setting.dto.request.OsSettingScriptRequest(
+                                        "init-ntp.sh", "#!/bin/bash\necho <ntp>\n")))),
                 List.of(), List.of(),
                 new com.example.serverprovision.provisioning.setting.dto.response.ReferenceNamesResponse(
                         java.util.Map.of(1L, "MS03-CE0"), java.util.Map.of(), java.util.Map.of(),
                         java.util.Map.of(1L, "Rocky Linux"), java.util.Map.of(), java.util.Map.of(),
                         java.util.Map.of(9L, "성능 우선"), java.util.Map.of(), java.util.Map.of(), java.util.Map.of()),
                 LocalDateTime.now(), LocalDateTime.now());
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 GET /new — OS 후처리 카드가 서버 판정(계열 · 문장 · 상한)을 data-* 로 싣고 안내 넷을 보인다")
+    void newForm_osSettingCard() throws Exception {
+        given(queryService.findBoardOptions()).willReturn(List.of());
+        given(queryService.findOSOptions()).willReturn(List.of());
+
+        String html = mvc.perform(get("/provisioning/setting/new"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("data-process-card=\"OS_SETTING\"", "data-os-setting-families=\"RHEL_BASED\"",
+                "data-os-setting-unsupported=\"OS 후처리는 RHEL 계열 OS 를 설치할 때만 쓸 수 있습니다.\"",
+                "data-script-max-count=\"10\"", "data-script-max-bytes=\"65536\"",
+                "data-script-limit=\"스크립트는 10 개까지 넣을 수 있습니다.\"",
+                "스크립트의 종료 코드가 0 이면 성공, 0 이 아니면 실패로 판정합니다.",
+                "systemctl enable 은 동작하고 systemctl start 는 동작하지 않습니다.",
+                "/root/anaconda-ks.cfg 에 남습니다", "<template id=\"tplScriptRow\">");
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 GET /{id} — 상세의 추가 스크립트 칸 안에서 순서 · 파일 이름을 펼치면 줄 단위 원문(이스케이프)")
+    void detail_showsScripts() throws Exception {
+        given(queryService.findDetail(1L)).willReturn(detailWithAllProcessTypes(1L));
+
+        String html = mvc.perform(get("/provisioning/setting/{id}", 1L))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // 원문은 칸 안(n-cell-code 가 칸을 남는 폭에 묶음), 줄마다 span 하나(줄 번호는 CSS 카운터), 원문은 이스케이프
+        assertThat(html).contains("<th>추가 스크립트</th>", "<td class=\"n-cell-code\">", "<summary>1. init-ntp.sh</summary>",
+                "<pre class=\"n-code-block n-code-lines\"><span>#!/bin/bash</span><span>echo &lt;ntp&gt;</span></pre>");
+        assertThat(html.indexOf("<summary>1. init-ntp.sh</summary>")).isLessThan(html.indexOf("</table>", html.indexOf("<th>추가 스크립트</th>")));
     }
 
     // ==== 성공 2xx ====================================================
@@ -295,19 +331,23 @@ class SettingControllerViewTest {
     private static final String REMOVE_BLOCKED =
             "data-step-remove-blocked=\"{0} 단계가 있으면 제거할 수 없습니다.\"";
 
-    /** HF34 — 선행 단계 표지는 [+ OS 설치] 하나에만, [단계 제거] 4 개는 꺼진 tooltip 래퍼 안 · 숨은 곁 글자 옆, 사유 문구는 폼 data 속성 한 곳. */
+    /**
+     * HF34 — 선행 단계 표지는 [+ OS 설치] 와 [+ OS 후처리 설정](E4-1-b-7) 둘, [단계 제거] 5 개는 꺼진 tooltip 래퍼 안 · 숨은 곁 글자 옆,
+     * 사유 문구는 폼 data 속성 한 곳.
+     */
     private static void assertStepDependencyMarkup(String html) {
         assertThat(html).contains("data-step-requires=\"RAID_CONFIGURATION\">+ OS 설치</button>");
-        assertThat(html.split("data-step-requires=", -1)).hasSize(2);
-        assertThat(html.split("data-step-remove-wrap", -1)).hasSize(5);
-        assertThat(html.split("class=\"n-btn-tooltip-wrap\" data-tooltip-align=\"right\" data-tooltip-active=\"false\" data-step-remove-wrap>", -1)).hasSize(5);
-        assertThat(html.split("data-step-remove>단계 제거</button>", -1)).hasSize(5);
-        assertThat(html.split("<span class=\"n-hint\" data-step-remove-reason hidden></span>", -1)).hasSize(5);
+        assertThat(html).contains("data-step-requires=\"OS_INSTALLATION\">+ OS 후처리 설정</button>");
+        assertThat(html.split("data-step-requires=", -1)).hasSize(3);
+        assertThat(html.split("data-step-remove-wrap", -1)).hasSize(6);
+        assertThat(html.split("class=\"n-btn-tooltip-wrap\" data-tooltip-align=\"right\" data-tooltip-active=\"false\" data-step-remove-wrap>", -1)).hasSize(6);
+        assertThat(html.split("data-step-remove>단계 제거</button>", -1)).hasSize(6);
+        assertThat(html.split("<span class=\"n-hint\" data-step-remove-reason hidden></span>", -1)).hasSize(6);
         assertThat(html).contains(REMOVE_BLOCKED);
     }
 
     @Test
-    @DisplayName("HF34 GET /new — [+ OS 설치] 가 선행 단계 RAID 구성을 싣고, [단계 제거] 4 개가 사유 tooltip 래퍼 안에 있다")
+    @DisplayName("HF34 GET /new — [+ OS 설치] · [+ OS 후처리 설정] 이 선행 단계를 싣고, [단계 제거] 5 개가 사유 tooltip 래퍼 안에 있다")
     void newForm_marksRequiredStepAndRemoveLocks() throws Exception {
         given(queryService.findBoardOptions()).willReturn(List.of());
         given(queryService.findOSOptions()).willReturn(List.of());

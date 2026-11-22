@@ -102,6 +102,8 @@
                                     th:data-step-requires="${type.requiredStep().orElse(null)?.name()}"
                                     th:text="'+ ' + ${type.displayName}">+ 단계</button>
                         </div>
+                        <!-- 단계 추가를 막은 사유(E4-1-b-7 OS 후처리 계열 잠금). 비활성 버튼 곁 글자(DESIGN.md 7절). -->
+                        <div class="n-hint" id="stepAddBlockedHint" hidden></div>
                     </div>
 
                     <div id="stepEmptyNotice" class="n-accordion-empty">
@@ -324,37 +326,39 @@
                                     </div>
                                     <!-- 도달 불가 안내(CP6 검수 반영 — 제목 아래로 이동) + 해당 행 색상은 is-unreachable 클래스가 담당 -->
                                     <div class="n-hint is-danger" id="rcUnreachableHint" hidden></div>
-                                    <table class="n-tbl-list" id="rcDiskGroupTable">
-                                        <colgroup>
-                                            <col class="n-col-4"><!-- 순서 핸들(드래그) -->
-                                            <col class="n-col-8"><!-- 순위(E3.5-7-a) — 행 순서 = 적용 순서. 우선순위 표와 같은 배지, JS 가 다시 매긴다 -->
-                                            <col class="n-col-12"><!-- RAID 레벨 -->
-                                            <col class="n-col-10"><!-- 종류 -->
-                                            <col class="n-col-10"><!-- 전송 -->
-                                            <col class="n-col-18"><!-- 용량: 방식 / (지정 시 아래 줄) 값 + 단위 -->
-                                            <col class="n-col-18"><!-- 개수: 값 + 방식(개 · 개씩 · 개 이상) -->
-                                            <col class="n-col-12"><!-- 역할(U4-1-2) -->
-                                            <col class="n-col-8"><!-- 삭제 -->
-                                        </colgroup>
-                                        <thead>
-                                        <tr>
-                                            <th></th>
-                                            <th>순위</th>
-                                            <th>RAID 레벨</th>
-                                            <th>종류</th>
-                                            <th>전송</th>
-                                            <th>용량</th>
-                                            <th>개수</th>
-                                            <th>
-                                                <!-- 표 맨 오른쪽 열이라 tooltip 을 오른쪽 정렬로 연다(전역 data-tooltip-align="right") — 왼쪽 정렬이면 카드의
-                                                     overflow:hidden 경계에서 잘린다(CP5 F-1). -->
-                                                <span class="n-label-with-help">역할</span>
-                                            </th>
-                                            <th></th>
-                                        </tr>
-                                        </thead>
-                                        <tbody></tbody>
-                                    </table>
+                                    <div class="n-table-scroll">
+                                        <table class="n-tbl-list" id="rcDiskGroupTable">
+                                            <colgroup>
+                                                <col class="n-col-4"><!-- 순서 핸들(드래그) -->
+                                                <col class="n-col-8"><!-- 순위(E3.5-7-a) — 행 순서 = 적용 순서. 우선순위 표와 같은 배지, JS 가 다시 매긴다 -->
+                                                <col class="n-col-12"><!-- RAID 레벨 -->
+                                                <col class="n-col-10"><!-- 종류 -->
+                                                <col class="n-col-10"><!-- 전송 -->
+                                                <col class="n-col-18"><!-- 용량: 방식 / (지정 시 아래 줄) 값 + 단위 -->
+                                                <col class="n-col-18"><!-- 개수: 값 + 방식(개 · 개씩 · 개 이상) -->
+                                                <col class="n-col-12"><!-- 역할(U4-1-2) -->
+                                                <col class="n-col-8"><!-- 삭제 -->
+                                            </colgroup>
+                                            <thead>
+                                            <tr>
+                                                <th></th>
+                                                <th>순위</th>
+                                                <th>RAID 레벨</th>
+                                                <th>종류</th>
+                                                <th>전송</th>
+                                                <th>용량</th>
+                                                <th>개수</th>
+                                                <th>
+                                                    <!-- 표 맨 오른쪽 열이라 tooltip 을 오른쪽 정렬로 연다(전역 data-tooltip-align="right") — 왼쪽 정렬이면 카드의
+                                                         overflow:hidden 경계에서 잘린다(CP5 F-1). -->
+                                                    <span class="n-label-with-help">역할</span>
+                                                </th>
+                                                <th></th>
+                                            </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
                                     <button type="button" id="rcAddDiskGroup" class="n-btn n-btn-outline n-btn-sm">+ 묶음 추가</button>
                                     <!-- U4-1-2 — OS 후보 규칙(우선순위에 따름 · OS 영역)이 하나도 없을 때. OS 설치 카드가 있으면 저장이 막힌다(SettingSaveRequest.isOsVolumeDeterminable). -->
                                     <div class="n-hint" id="rcNoOsCandidateHint" hidden></div>
@@ -378,27 +382,29 @@
                                     <!-- 정의서 수준 @AssertTrue(SettingSaveRequest.isOsVolumeDeterminable) 오류는 최상위 경로라 이 컨테이너가 exact-match 로 받는다 -->
                                     <div data-error-field="osVolumeDeterminable">
                                     <div data-error-field="volumePriorityDistinct">
-                                    <table class="n-tbl-list" id="rcPriorityTable">
-                                        <colgroup>
-                                            <col class="n-col-4"><!-- 순서 핸들(드래그) -->
-                                            <col class="n-col-8"><!-- 순위 — 행 순서가 곧 우선순위임을 숫자로 명시(CP6 검수). JS 가 재정렬 · 추가 · 삭제마다 다시 매긴다 -->
-                                            <col class="n-col-24"><!-- 종류 -->
-                                            <col class="n-col-24"><!-- 전송 -->
-                                            <col class="n-col-30"><!-- 용량 순서 -->
-                                            <col class="n-col-10"><!-- 삭제 -->
-                                        </colgroup>
-                                        <thead>
-                                        <tr>
-                                            <th></th>
-                                            <th>순위</th>
-                                            <th>종류</th>
-                                            <th>전송</th>
-                                            <th>용량 순서</th>
-                                            <th></th>
-                                        </tr>
-                                        </thead>
-                                        <tbody></tbody>
-                                    </table>
+                                    <div class="n-table-scroll">
+                                        <table class="n-tbl-list" id="rcPriorityTable">
+                                            <colgroup>
+                                                <col class="n-col-4"><!-- 순서 핸들(드래그) -->
+                                                <col class="n-col-8"><!-- 순위 — 행 순서가 곧 우선순위임을 숫자로 명시(CP6 검수). JS 가 재정렬 · 추가 · 삭제마다 다시 매긴다 -->
+                                                <col class="n-col-24"><!-- 종류 -->
+                                                <col class="n-col-24"><!-- 전송 -->
+                                                <col class="n-col-30"><!-- 용량 순서 -->
+                                                <col class="n-col-10"><!-- 삭제 -->
+                                            </colgroup>
+                                            <thead>
+                                            <tr>
+                                                <th></th>
+                                                <th>순위</th>
+                                                <th>종류</th>
+                                                <th>전송</th>
+                                                <th>용량 순서</th>
+                                                <th></th>
+                                            </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
                                     </div>
                                     </div>
                                     <button type="button" id="rcAddPriority" class="n-btn n-btn-outline n-btn-sm">+ 행 추가</button>
@@ -617,27 +623,29 @@
                                                 <div class="n-hint" id="oiOsVolumeTargetKind"></div>
                                                 <div class="n-hint" id="oiOsVolumeTargetCapacity" hidden></div>
                                             </div>
-                                            <table class="n-tbl-list" id="oiPartitionTable">
-                                                <colgroup>
-                                                    <col class="n-col-30">
-                                                    <col class="n-col-18">
-                                                    <col class="n-col-18">
-                                                    <col class="n-col-12">
-                                                    <col class="n-col-10">
-                                                    <col class="n-col-12">
-                                                </colgroup>
-                                                <thead>
-                                                <tr>
-                                                    <th>마운트포인트</th>
-                                                    <th>파일시스템</th>
-                                                    <th>크기</th>
-                                                    <th>단위</th>
-                                                    <th>Grow</th>
-                                                    <th></th>
-                                                </tr>
-                                                </thead>
-                                                <tbody id="oiPartitionTbody"></tbody>
-                                            </table>
+                                            <div class="n-table-scroll">
+                                                <table class="n-tbl-list" id="oiPartitionTable">
+                                                    <colgroup>
+                                                        <col class="n-col-30">
+                                                        <col class="n-col-18">
+                                                        <col class="n-col-18">
+                                                        <col class="n-col-12">
+                                                        <col class="n-col-10">
+                                                        <col class="n-col-12">
+                                                    </colgroup>
+                                                    <thead>
+                                                    <tr>
+                                                        <th>마운트포인트</th>
+                                                        <th>파일시스템</th>
+                                                        <th>크기</th>
+                                                        <th>단위</th>
+                                                        <th>Grow</th>
+                                                        <th></th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody id="oiPartitionTbody"></tbody>
+                                                </table>
+                                            </div>
                                             <button type="button" id="oiAddPartition" class="n-btn n-btn-outline n-btn-sm">+ 파티션 추가</button>
                                         </div>
 
@@ -661,23 +669,25 @@
                                         <div class="n-form-group" data-error-field="users">
                                             <label class="n-label strong">일반 사용자</label>
                                             <div class="n-hint">Ubuntu 는 한 명 이상 추가해야 합니다. RHEL 계열은 root 비밀번호가 없으면 한 명 이상 추가해야 합니다. 저장된 비밀번호는 표시하지 않습니다.</div>
-                                            <table class="n-tbl-list" id="oiUserTable">
-                                                <colgroup>
-                                                    <col class="n-col-30">
-                                                    <col class="n-col-30">
-                                                    <col class="n-col-12">
-                                                    <col class="n-col-12">
-                                                </colgroup>
-                                                <thead>
-                                                <tr>
-                                                    <th>사용자명</th>
-                                                    <th>비밀번호</th>
-                                                    <th>sudo</th>
-                                                    <th></th>
-                                                </tr>
-                                                </thead>
-                                                <tbody id="oiUserTbody"></tbody>
-                                            </table>
+                                            <div class="n-table-scroll">
+                                                <table class="n-tbl-list" id="oiUserTable">
+                                                    <colgroup>
+                                                        <col class="n-col-30">
+                                                        <col class="n-col-30">
+                                                        <col class="n-col-12">
+                                                        <col class="n-col-12">
+                                                    </colgroup>
+                                                    <thead>
+                                                    <tr>
+                                                        <th>사용자명</th>
+                                                        <th>비밀번호</th>
+                                                        <th>sudo</th>
+                                                        <th></th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody id="oiUserTbody"></tbody>
+                                                </table>
+                                            </div>
                                             <button type="button" id="oiAddUser" class="n-btn n-btn-outline n-btn-sm">+ 사용자 추가</button>
                                         </div>
 
@@ -690,9 +700,98 @@
                             </div>
                         </details>
 
-                        <!-- OS_SETTING 카드 마크업은 R11 CP5 D1 로 제거 — 팔레트 차단으로 열 수 없는 잔존
-                             마크업의 null 미보호(os.osFamily.name())가 Windows 옵션에서 렌더를 중단시켰다.
-                             계약(direct POST)은 보존되며, 화면 부활 시 git 이력에서 복원한다. -->
+                        <!-- OS 후처리(E4-1-b-7) — OS 는 OS 설치 카드의 값을 따른다(선행 단계). 쓸 수 있는 계열과 스크립트 상한은 서버가
+                             data-* 로 내려 준다(저장 가드 SettingSaveRequest.isOsSettingSupported · OsSettingScriptRequest 와 같은 값). -->
+                        <details class="n-accordion-item n-step-card" data-process-card="OS_SETTING" hidden
+                                 th:data-os-setting-families="${#strings.listJoin(osSettingFamilies, ',')}"
+                                 th:data-os-setting-unsupported="${osSettingUnsupported}"
+                                 th:data-os-setting-need-os="#{provisioning.setting.os-setting.need-os}"
+                                 th:data-script-max-count="${scriptMaxCount}"
+                                 th:data-script-max-bytes="${scriptMaxBytes}"
+                                 th:data-script-too-big="#{provisioning.setting.os-setting.script.too-big}"
+                                 th:data-script-not-text="#{provisioning.setting.os-setting.script.not-text}"
+                                 th:data-script-empty="#{provisioning.setting.os-setting.script.empty}"
+                                 th:data-script-limit="#{provisioning.setting.os-setting.script.limit}">
+                            <summary class="n-accordion-head">
+                                <span class="n-accordion-chevron"></span>
+                                <span class="n-accordion-title n-step-title">OS 후처리 설정</span>
+                                <span th:replace="~{fragments/provisioning/setting/step-remove :: stepRemoveButton}"></span>
+                            </summary>
+                            <div class="n-accordion-body">
+                                <div class="n-hint" id="osGuide" data-error-field="osMetadataId"></div>
+                                <div id="osDetailFields" hidden>
+                                    <div class="n-form-group">
+                                        <label class="n-label strong" for="osSelinuxMode">SELinux 모드</label>
+                                        <select id="osSelinuxMode" class="n-select" data-error-field="selinuxMode">
+                                            <option value="enforcing" selected>enforcing</option>
+                                            <option value="permissive">permissive</option>
+                                            <option value="disabled">disabled</option>
+                                        </select>
+                                    </div>
+                                    <div class="n-form-group" data-error-field="services">
+                                        <label class="n-label strong">서비스</label>
+                                        <div class="n-table-scroll">
+                                            <table class="n-tbl-list" id="osServicesTable">
+                                                <colgroup>
+                                                    <col>
+                                                    <col class="n-col-24">
+                                                    <col class="n-col-12">
+                                                </colgroup>
+                                                <thead>
+                                                <tr>
+                                                    <th>서비스 이름</th>
+                                                    <th>설정</th>
+                                                    <th></th>
+                                                </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
+                                        <button type="button" id="osAddService" class="n-btn n-btn-outline n-btn-sm">+ 서비스 추가</button>
+                                    </div>
+                                    <div class="n-form-group">
+                                        <label class="n-label strong" for="osAdditionalPackages">추가 패키지</label>
+                                        <input type="text" id="osAdditionalPackages" class="n-input" data-error-field="additionalPackages"
+                                               placeholder="예: vim, tmux">
+                                        <div class="n-hint" th:text="#{provisioning.setting.os-setting.packages.separator}">여러 패키지는 쉼표로 구분합니다.</div>
+                                    </div>
+                                    <div class="n-form-group" data-error-field="scripts">
+                                        <label class="n-label strong">추가 스크립트</label>
+                                        <!-- 안내 넷은 한 판으로 묶는다(plan 데모의 안내 상자, DESIGN.md 5절 정보 안내 n-alert-info). 줄 나눔은 경보 띠와 같은 방식. -->
+                                        <div class="n-alert n-alert-info">
+                                            <div th:text="#{provisioning.setting.os-setting.script.how-run}">스크립트는 설치 중에 root 권한으로 위에서부터 차례로 실행합니다.</div>
+                                            <div class="n-block-gap-sm" th:text="#{provisioning.setting.os-setting.script.how-judge}">스크립트의 종료 코드가 0 이면 성공, 0 이 아니면 실패로 판정합니다.</div>
+                                            <div class="n-block-gap-sm" th:text="#{provisioning.setting.os-setting.script.chroot}">systemctl start 는 동작하지 않습니다.</div>
+                                            <div class="n-block-gap-sm" th:text="#{provisioning.setting.os-setting.script.secret}">비밀번호 같은 값을 넣지 않아야 합니다.</div>
+                                        </div>
+                                        <div class="n-table-scroll">
+                                            <table class="n-tbl-list" id="osScriptTable">
+                                                <colgroup>
+                                                    <col class="n-col-8">
+                                                    <col>
+                                                    <col class="n-col-12">
+                                                    <col class="n-col-30">
+                                                </colgroup>
+                                                <thead>
+                                                <tr>
+                                                    <th>순서</th>
+                                                    <th>파일 이름</th>
+                                                    <th>크기</th>
+                                                    <th></th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="osScriptTbody"></tbody>
+                                            </table>
+                                        </div>
+                                        <div class="n-hint is-danger" id="osScriptError" hidden></div>
+                                        <input type="file" id="osScriptFile" accept=".sh,text/plain" hidden>
+                                        <span class="n-btn-tooltip-wrap" data-tooltip-active="false" id="osAddScriptWrap">
+                                            <button type="button" id="osAddScript" class="n-btn n-btn-outline n-btn-sm">+ 스크립트 추가</button>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
 
                     </div><!-- /n-accordion -->
                 </div><!-- /data-error-field=processList -->
@@ -890,6 +989,19 @@
                 <td class="n-td-center"><input type="checkbox" class="uSudoer"></td>
                 <td class="n-td-center">
                     <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-row-remove>삭제</button>
+                </td>
+            </tr>
+        </template>
+
+        <template id="tplScriptRow">
+            <tr>
+                <td class="scNo"></td>
+                <td class="scName"></td>
+                <td class="scSize"></td>
+                <td class="n-td-center">
+                    <button type="button" class="n-btn n-btn-outline n-btn-sm" data-script-up>위로</button>
+                    <button type="button" class="n-btn n-btn-outline n-btn-sm" data-script-down>아래로</button>
+                    <button type="button" class="n-btn n-btn-outline-danger n-btn-sm" data-script-remove>삭제</button>
                 </td>
             </tr>
         </template>

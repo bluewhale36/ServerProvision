@@ -183,6 +183,22 @@ class ExecutionRestControllerBootFlowTest {
     }
 
     @Test
+    @DisplayName("E4-1-b-7 CP5 O-5 — 형식이 틀린 MAC · IP 는 등록 전에 요청 검증에서 막는다(200 + 재시도 스크립트, 등록 미호출)")
+    void malformedMacOrIp_rejectedBeforeRegistry() throws Exception {
+        mvc.perform(get("/api/pxe/v1/boot").queryParam("systemUUID", "11111111-1111-1111-1111-111111111111")
+                        .queryParam("macAddress", "00:1f:c6:00::").queryParam("ipAddress", "10.20.3.11")
+                        .queryParam("vendor", "Giga Computing").queryParam("boardModel", "MS03-CE0"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("server error. retrying")));
+        mvc.perform(get("/api/pxe/v1/boot").queryParam("systemUUID", "11111111-1111-1111-1111-111111111111")
+                        .queryParam("macAddress", "aa:bb:cc:dd:ee:ff").queryParam("ipAddress", "10.20.3.999")
+                        .queryParam("vendor", "Giga Computing").queryParam("boardModel", "MS03-CE0"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("server error. retrying")));
+        org.mockito.Mockito.verify(registrationService, org.mockito.Mockito.never()).initialRegistry(any());
+    }
+
+    @Test
     @DisplayName("예외 변환 — 형식 오류(IllegalArgument) → 200 + 재시도 스크립트")
     void error_malformed_becomesRetryScript() throws Exception {
         willThrow(new IllegalArgumentException("systemUUID 형식 오류"))

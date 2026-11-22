@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<!--/*
+    서버 상세 OS 설정 패널(E4-1-b-7). 첫 부팅 보고 한 번의 판정을 기본 설정 표와 스크립트 표로 나눠 보인다.
+    os : OsSettingOutcomeResponse
+*/-->
+<body>
+<th:block th:fragment="panel(os)">
+    <!--/* 실패 사유는 phase 패널 공통 경보가 원장 사유로 보인다. 여기는 성공 때의 직접 확인 안내만 둔다(CP5 F-2). */-->
+    <div th:if="${os.passed and os.message != null}" class="n-alert n-alert-info"
+         th:text="${os.message}">스크립트 실행은 끝났지만 적용 여부는 서버에서 직접 확인해야 합니다.</div>
+
+    <div class="n-section" th:text="#{provisioning.os.setting.result.basics}">기본 설정</div>
+    <div class="n-table-scroll">
+        <table class="n-table">
+            <thead>
+            <tr>
+                <th th:text="#{provisioning.os.setting.col.item}">항목</th>
+                <th th:text="#{provisioning.os.setting.col.expected}">정의서</th>
+                <th th:text="#{provisioning.os.setting.col.observed}">관측</th>
+                <th th:text="#{provisioning.os.setting.col.verdict}">판정</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${os.basics}">
+                <td th:text="${row.label}">chronyd</td>
+                <td><code class="n-table-mono" th:text="${row.expected}">enabled</code></td>
+                <td><code class="n-table-mono" th:text="${row.observed != null and !#strings.isEmpty(row.observed)} ? ${row.observed} : '-'">enabled</code></td>
+                <td th:insert="~{fragments/provisioning/os-setting :: verdictBadge(${row.ok})}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <th:block th:unless="${#lists.isEmpty(os.scripts)}">
+        <div class="n-section" th:text="#{provisioning.os.setting.result.scripts}">추가 스크립트</div>
+        <div class="n-table-scroll">
+            <table class="n-table">
+                <thead>
+                <tr>
+                    <th th:text="#{provisioning.os.setting.col.script}">스크립트</th>
+                    <th th:text="#{provisioning.os.setting.col.exit}">종료 코드</th>
+                    <th th:text="#{provisioning.os.setting.col.log}">실행 기록</th>
+                    <th th:text="#{provisioning.os.setting.col.verdict}">판정</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="row : ${os.scripts}">
+                    <td th:text="${row.label}">1. init-ntp.sh</td>
+                    <td th:text="${row.observed != null} ? ${row.observed} : '-'">0</td>
+                    <td><code class="n-table-mono" th:text="${row.log}">/root/spv-script-1.log</code></td>
+                    <td th:insert="~{fragments/provisioning/os-setting :: verdictBadge(${row.ok})}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </th:block>
+</th:block>
+
+<th:block th:fragment="verdictBadge(ok)">
+    <span th:if="${ok}" class="n-badge n-badge-teal" th:text="#{provisioning.os.setting.verdict.ok}">완료</span>
+    <span th:unless="${ok}" class="n-badge n-badge-red" th:text="#{provisioning.os.setting.verdict.fail}">실패</span>
+</th:block>
+</body>
+</html>

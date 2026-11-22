@@ -21,6 +21,9 @@ import com.example.serverprovision.provisioning.setting.enums.DiskCountMode;
 import com.example.serverprovision.provisioning.setting.enums.DiskTransportRequirement;
 import com.example.serverprovision.provisioning.setting.enums.DiskTypeRequirement;
 import com.example.serverprovision.provisioning.setting.enums.FileSystem;
+import com.example.serverprovision.provisioning.setting.enums.OSFamily;
+import com.example.serverprovision.provisioning.setting.dto.request.RHELOSSettingRequest;
+import com.example.serverprovision.provisioning.setting.dto.request.OsSettingScriptRequest;
 import com.example.serverprovision.provisioning.setting.enums.SettingProcessType;
 import com.example.serverprovision.provisioning.setting.enums.SizeUnit;
 import com.example.serverprovision.provisioning.setting.service.SettingQueryService;
@@ -108,6 +111,14 @@ public class SettingController {
         return "provisioning/setting-edit";
     }
 
+    /** OS 후처리 카드의 잠금 판정과 스크립트 상한. 저장 가드와 같은 값을 내려 폼이 먼저 막는다(E4-1-b-7). */
+    private void addOsSettingOptions(Model model) {
+        model.addAttribute("osSettingFamilies", OSFamily.osSettingSupportedNames());
+        model.addAttribute("osSettingUnsupported", OSFamily.OS_SETTING_UNSUPPORTED);
+        model.addAttribute("scriptMaxCount", RHELOSSettingRequest.MAX_SCRIPTS);
+        model.addAttribute("scriptMaxBytes", OsSettingScriptRequest.MAX_BYTES);
+    }
+
     /** 작성/수정 폼 공용 선택지 — 단계 타입·보드/OS 옵션·파티션 입력 보조 enum. */
     private void addFormOptions(Model model) {
         // R11 D-R4 — 노출 여부의 SSOT 는 enum 속성. 컨트롤러는 필터만 한다.
@@ -115,6 +126,7 @@ public class SettingController {
                 .filter(SettingProcessType::isPaletteExposed).toList());
         model.addAttribute("boardOptions", settingQueryService.findBoardOptions());
         model.addAttribute("osOptions", settingQueryService.findOSOptions());
+        addOsSettingOptions(model);
         // E4-1-a-2 — Windows 설치 이미지 선택지(설치 소스 채집). 소스 미준비면 빈 목록 + Windows 옵션은 installBlockReason 으로 차단.
         model.addAttribute("windowsImageOptions", settingQueryService.findWindowsImageOptions());
         model.addAttribute("biosTemplateOptions", settingQueryService.findBiosTemplateOptions());

@@ -2,7 +2,6 @@ package com.example.serverprovision.provisioning.assignment.service;
 
 import com.example.serverprovision.execution.engine.windows.WindowsInstallTarget;
 import com.example.serverprovision.execution.wininstall.vo.WindowsImageName;
-import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
 import com.example.serverprovision.provisioning.assignment.entity.SettingAssignmentSnapshot;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.AbstractProcessRequest;
@@ -10,7 +9,6 @@ import com.example.serverprovision.provisioning.setting.dto.request.OSInstallati
 import com.example.serverprovision.provisioning.setting.dto.request.WindowsAdministratorPasswordRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest;
 import com.example.serverprovision.provisioning.setting.enums.OSFamily;
-import com.example.serverprovision.provisioning.setting.vo.ProcessPayload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,11 +16,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -38,13 +38,11 @@ class WindowsInstallationResolutionProviderImplTest {
     @InjectMocks WindowsInstallationResolutionProviderImpl provider;
 
     private void stubSnapshot(AbstractProcessRequest... requests) {
-        List<AssignedProcessSnapshot> processes = java.util.Arrays.stream(requests).map(request -> {
-            AssignedProcessSnapshot process = mock(AssignedProcessSnapshot.class);
-            given(process.getPayload()).willReturn(new ProcessPayload(request));
-            return process;
-        }).toList();
         SettingAssignmentSnapshot snapshot = mock(SettingAssignmentSnapshot.class);
-        given(snapshot.getProcesses()).willReturn(processes);
+        given(snapshot.processRequestOf(any())).willAnswer(inv -> {
+            Class<?> type = inv.getArgument(0);
+            return Arrays.stream(requests).filter(type::isInstance).findFirst();
+        });
         given(assignmentRepository.findByGuestServer_IdAndSupersededAtIsNull(GUEST_ID)).willReturn(Optional.of(snapshot));
     }
 
@@ -62,7 +60,6 @@ class WindowsInstallationResolutionProviderImplTest {
         Optional<WindowsInstallTarget> target = provider.resolveFor(GUEST_ID);
 
         assertThat(target).hasValueSatisfying(t -> {
-            assertThat(t.windows()).isTrue();
             assertThat(t.imageName()).isEqualTo(STANDARD);
             assertThat(t.administratorPassword()).isEqualTo("P@ss");
             assertThat(t.toString()).doesNotContain("P@ss").contains("****");
@@ -100,14 +97,11 @@ class WindowsInstallationResolutionProviderImplTest {
     }
 
     @Test
-    @DisplayName("리눅스 정의서 — unsupported(계열 표시명)로 나른다 · 창 밖(empty)이 아니다")
-    void linux_unsupported() {
+    @DisplayName("리눅스 정의서 — empty(다른 계열은 그 계열 설치기 몫, 미지원 사유는 OS 설치 실행기가 낸다 · E4-1-b-4-1)")
+    void linux_empty() {
         stubSnapshot(linux());
 
-        assertThat(provider.resolveFor(GUEST_ID)).hasValueSatisfying(t -> {
-            assertThat(t.windows()).isFalse();
-            assertThat(t.unsupportedFamily()).isEqualTo("RHEL 계열");
-        });
+        assertThat(provider.resolveFor(GUEST_ID)).isEmpty();
     }
 
     @Test

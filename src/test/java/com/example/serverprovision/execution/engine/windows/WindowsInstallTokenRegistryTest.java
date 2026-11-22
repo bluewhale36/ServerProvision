@@ -24,7 +24,7 @@ class WindowsInstallTokenRegistryTest {
         UUID token = registry.issue(GUEST, BUNDLE);
 
         assertThat(registry.resolve(token)).contains(BUNDLE);
-        assertThat(registry.bundleUrl(token)).isEqualTo("http://10.0.0.7:8080/api/pxe/v1/windows/" + token);
+        assertThat(registry.issuedUrlOf(token)).isEqualTo("http://10.0.0.7:8080/api/pxe/v1/windows/" + token);
         assertThat(registry.urlFor(token, WindowsInstallFile.BOOT_WIM)).endsWith("/" + token + "/boot.wim");
     }
 
@@ -45,7 +45,7 @@ class WindowsInstallTokenRegistryTest {
         registry.revoke(GUEST);
 
         assertThat(registry.resolve(token)).isEmpty();
-        assertThatThrownBy(() -> registry.bundleUrl(token)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> registry.issuedUrlOf(token)).isInstanceOf(IllegalStateException.class);
         assertThat(registry.resolve(UUID.randomUUID())).isEmpty();
     }
 

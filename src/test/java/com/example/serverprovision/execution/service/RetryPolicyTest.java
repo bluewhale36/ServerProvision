@@ -113,4 +113,22 @@ class RetryPolicyTest {
         assertThat(retryPolicy.isBlocked(progress, history)).isFalse();
         assertThat(retryPolicy.isRetryable(progress, history)).isTrue();
     }
+
+    @Test
+    @DisplayName("E4-1-b-7 OS 후처리 실패 → 언제나 차단(설치 중 적용이라 다시 해도 결과가 같다), 원장을 읽지 않는다")
+    void osSettingFailure_isBlocked() {
+        ProvisioningProgress progress = failedAt(ProvisioningPhaseStep.OS_SETTING);
+
+        assertThat(retryPolicy.blockOf(progress)).contains(com.example.serverprovision.execution.enums.RetryBlock.OS_SETTING_APPLIED);
+        assertThat(retryPolicy.isRetryable(progress, java.util.List.of())).isFalse();
+        org.mockito.Mockito.verifyNoInteractions(provisioningHistoryRepository);
+    }
+
+    @Test
+    @DisplayName("E4-1-b-7 OS 설치 실패 → 차단하지 않는다(사유 없음)")
+    void osInstallFailure_isRetryable() {
+        ProvisioningProgress progress = failedAt(ProvisioningPhaseStep.OS_INSTALLING);
+
+        assertThat(retryPolicy.blockOf(progress, java.util.List.of())).isEmpty();
+    }
 }

@@ -23,14 +23,14 @@ public enum SettingProcessType {
     RAID_CONFIGURATION("RAID 구성", true, null),
     /** 설치 디스크를 RAID 구성의 OS 영역 볼륨으로 정하므로 RAID 구성이 앞서 있어야 한다(HF34). */
     OS_INSTALLATION("OS 설치", true, RAID_CONFIGURATION),
-    OS_SETTING("OS 후처리 설정", false, null);
+    /** 설치한 OS 위에 설정을 적용하므로 OS 설치가 앞서 있어야 하고, OS 는 OS 설치 단계의 값을 따른다(E4-1-b-7). */
+    OS_SETTING("OS 후처리 설정", true, OS_INSTALLATION);
 
     private final String displayName;
 
     /**
      * 작성 폼 "단계 추가" 팔레트 노출 여부 — 컨트롤러가 이 속성으로 필터한다(R11 D-R4, 하드코딩 목록 금지).
-     * {@code OS_SETTING} 은 실행 소비처 부재(E4 이연) + 식별 정보가 OS 설치 잔존분과 중복이라
-     * 신규 작성을 차단한다(R11 D-R2) — 계약과 기존 데이터 조회는 보존된다.
+     * R11 이 실행 소비처가 없어 닫았던 {@code OS_SETTING} 은 E4-1-b-7 에서 RHEL 설치와 함께 실행되므로 다시 연다.
      */
     private final boolean paletteExposed;
 

@@ -57,7 +57,7 @@ public enum RaidChipFamily {
          * Linux {@code lsblk WWN} 이 같은 값을 보인다. 이미 32자 NAA 로 들어오면 그대로 받는다.
          */
         @Override
-        public String windowsUniqueIdOf(String volumeWwn) {
+        public String volumeWwnOf(String volumeWwn) {
             String hex = normalizeHex(volumeWwn);
             if (hex == null) {
                 return null;
@@ -133,7 +133,7 @@ public enum RaidChipFamily {
 
         /** storcli 의 {@code SCSI NAA Id} 가 곧 Windows UniqueId · lsblk WWN 이다(실기 2호 Run 3 · 3호 2/2). */
         @Override
-        public String windowsUniqueIdOf(String volumeWwn) {
+        public String volumeWwnOf(String volumeWwn) {
             return normalizeHex(volumeWwn);
         }
 
@@ -247,7 +247,7 @@ public enum RaidChipFamily {
      * 옮긴다(HF15-5 · 실기 3호 F-7). 설치 대상 디스크 매칭과 설치 뒤 확증이 이 한 변환을 공유한다. 미노출 · 형식 불명은 null.
      * 반환은 소문자 hex, {@code 0x} 접두 없음.
      */
-    public abstract String windowsUniqueIdOf(String volumeWwn);
+    public abstract String volumeWwnOf(String volumeWwn);
 
     /**
      * 카드 CLI 나열 순서의 볼륨을 OS 가 디스크 번호를 매기는 순서로 재배열한다(HF15-5 · 실기 3호 F-6) — lsblk 재채집이 없을

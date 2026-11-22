@@ -25,7 +25,7 @@ class GuestServerDetailResponseStageTextTest {
 
     private static GuestServerDetailResponse detail(GuestServerDetailResponse.FirmwareFlash flash,
                                                     GuestServerDetailResponse.FirmwareSetting setting,
-                                                    GuestServerDetailResponse.WindowsInstall windows,
+                                                    GuestServerDetailResponse.OsInstall windows,
                                                     List<GuestServerDetailResponse.Step> steps) {
         return new GuestServerDetailResponse(
                 UUID.randomUUID(), "web-01", null, null, UUID.randomUUID(), "aabbcc", null, null,
@@ -36,11 +36,9 @@ class GuestServerDetailResponseStageTextTest {
                 null, flash, setting, windows, null, List.of(), steps);
     }
 
-    private static GuestServerDetailResponse.WindowsInstall windows(LocalDateTime servedAt, Long remaining, LocalDateTime completedAt) {
-        return new GuestServerDetailResponse.WindowsInstall("WS2025", "Windows Server 2025", ReadinessGrade.READY, List.of(),
-                servedAt, 2, 5, remaining, null, false, 0, completedAt, null, null, 0, 0, List.of(), false, null,
-                null, null, null,
-                null, List.of(), List.of(), List.of(), List.of());   // R15-2 — driverSummary · driverEntries · driversSkipped · driverInstalls
+    private static GuestServerDetailResponse.OsInstall windows(LocalDateTime servedAt, Long remaining, LocalDateTime completedAt) {
+        return new GuestServerDetailResponse.OsInstall("Windows 계열", ReadinessGrade.READY, List.of(), servedAt, 2, 5, remaining, null, null, false, 0, completedAt, false, null,
+                new GuestServerDetailResponse.WindowsInstall("WS2025", "Windows Server 2025", null, null, 0, 0, List.of(), null, null, null, null, List.of(), List.of(), List.of(), List.of()));   // R15-2 — driverSummary · driverEntries · driversSkipped · driverInstalls
     }
 
     @Test

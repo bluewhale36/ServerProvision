@@ -74,7 +74,7 @@ class GuestServerControllerWindowsInstallViewTest {
                                 .toList()));
     }
 
-    private UUID detailWith(GuestServerDetailResponse.WindowsInstall card) {
+    private UUID detailWith(GuestServerDetailResponse.OsInstall card) {
         UUID id = UUID.randomUUID();
         given(queryService.findDetail(id)).willReturn(new GuestServerDetailResponse(
                 id, "web-01", "RE2108", "RE2108X", UUID.randomUUID(), "464331aabbcc", null, "memo",
@@ -91,12 +91,11 @@ class GuestServerControllerWindowsInstallViewTest {
         return id;
     }
 
-    private static GuestServerDetailResponse.WindowsInstall card(ReadinessGrade grade, List<String> notes, LocalDateTime servedAt,
+    private static GuestServerDetailResponse.OsInstall card(ReadinessGrade grade, List<String> notes, LocalDateTime servedAt,
                                                                  int reentries, Long remaining, String failedReason,
                                                                  boolean holding, long holdRemaining) {
-        return new GuestServerDetailResponse.WindowsInstall(IMAGE, DISPLAY, grade, notes, servedAt, reentries, 5,
-                remaining, failedReason, holding, holdRemaining, null, null, null, 0, 0, List.of(), false, null, null, null, null,
-                null, java.util.List.of(), java.util.List.of(), java.util.List.of(), List.of());
+        return new GuestServerDetailResponse.OsInstall("Windows 계열", grade, notes, servedAt, reentries, 5, remaining, failedReason, null, holding, holdRemaining, null, false, null,
+                new GuestServerDetailResponse.WindowsInstall(IMAGE, DISPLAY, null, null, 0, 0, List.of(), null, null, null, null, java.util.List.of(), java.util.List.of(), java.util.List.of(), List.of()));
     }
 
     @Test
@@ -179,19 +178,16 @@ class GuestServerControllerWindowsInstallViewTest {
                 .andExpect(content().string(not(containsString("다음 부팅에서 설치를 시작할 수 있습니다"))));
     }
 
-    private static GuestServerDetailResponse.WindowsInstall completedCard(int problems, List<String> devices,
+    private static GuestServerDetailResponse.OsInstall completedCard(int problems, List<String> devices,
                                                                           boolean terminal, ProvisioningPhase next) {
         return completedCard(problems, devices, terminal, next, List.of());
     }
 
-    private static GuestServerDetailResponse.WindowsInstall completedCard(int problems, List<String> devices,
+    private static GuestServerDetailResponse.OsInstall completedCard(int problems, List<String> devices,
                                                                           boolean terminal, ProvisioningPhase next,
                                                                           List<String> failedInfs) {
-        return new GuestServerDetailResponse.WindowsInstall(IMAGE, DISPLAY, ReadinessGrade.READY, List.of(),
-                LocalDateTime.of(2026, 9, 3, 13, 5, 9), 1, 5, null, null, false, 0,
-                LocalDateTime.of(2026, 9, 3, 13, 21, 40), "SPV-14174000", "Windows Server 2025 10.0.26100",
-                47, problems, devices, terminal, next, null, null, null,
-                null, java.util.List.of(), java.util.List.of(), java.util.List.of(), failedInfs);
+        return new GuestServerDetailResponse.OsInstall("Windows 계열", ReadinessGrade.READY, List.of(), LocalDateTime.of(2026, 9, 3, 13, 5, 9), 1, 5, null, null, null, false, 0, LocalDateTime.of(2026, 9, 3, 13, 21, 40), terminal, next,
+                new GuestServerDetailResponse.WindowsInstall(IMAGE, DISPLAY, "SPV-14174000", "Windows Server 2025 10.0.26100", 47, problems, devices, null, null, null, null, java.util.List.of(), java.util.List.of(), java.util.List.of(), failedInfs));
     }
 
     @Test

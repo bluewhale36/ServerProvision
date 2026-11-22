@@ -65,9 +65,9 @@ class GuestServerQueryServiceTest {
     @Mock RetryPolicy retryPolicy;
     // E4-1-a-3 — 상세 조회가 Windows 설치 카드를 한 번 조립한다. 이 파일의 시나리오는 그 단계와 무관하므로
     // 창 밖(empty)을 돌려주는 mock 으로 두고, 카드 조립 자체는 GuestServerQueryServiceWindowsInstallTest 가 검증한다.
-    @Mock com.example.serverprovision.execution.engine.windows.WindowsInstallReadinessResolver windowsInstallReadinessResolver;
-    @Mock com.example.serverprovision.execution.engine.windows.WindowsInstallLedger windowsInstallLedger;
-    @Mock com.example.serverprovision.execution.engine.windows.WindowsInstallTimeoutPolicy windowsInstallTimeoutPolicy;
+    @Mock com.example.serverprovision.execution.engine.osinstall.OsInstallingExecutor osInstallingExecutor;
+    @Mock com.example.serverprovision.execution.engine.osinstall.OsFamilyNameProvider osFamilyNames;
+    @Mock OsInstallCardAssemblers osInstallCardAssemblers;
 
     @org.mockito.Spy tools.jackson.databind.ObjectMapper objectMapper = new tools.jackson.databind.ObjectMapper();
 

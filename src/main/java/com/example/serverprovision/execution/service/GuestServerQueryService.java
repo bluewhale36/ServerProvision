@@ -1,5 +1,11 @@
 package com.example.serverprovision.execution.service;
 
+import com.example.serverprovision.execution.engine.osinstall.OsFamilyInstaller;
+import com.example.serverprovision.execution.engine.osinstall.OsFamilyNameProvider;
+import com.example.serverprovision.execution.engine.osinstall.OsInstallLedger;
+import com.example.serverprovision.execution.engine.osinstall.OsInstallTimeoutPolicy;
+import com.example.serverprovision.execution.engine.osinstall.OsInstallingExecutor;
+import com.example.serverprovision.execution.engine.phase.PhaseReadiness;
 import com.example.serverprovision.execution.dto.request.ServerListQuery;
 import com.example.serverprovision.execution.repository.GuestServerSpecifications;
 import com.example.serverprovision.execution.vo.ServerScope;
@@ -17,6 +23,8 @@ import com.example.serverprovision.execution.engine.raid.RaidPlanRejection;
 import java.util.Optional;
 
 import com.example.serverprovision.execution.dto.response.GuestServerDetailResponse;
+import com.example.serverprovision.execution.dto.response.OsSettingOutcomeResponse;
+import com.example.serverprovision.execution.engine.rhel.ossetting.OsSettingLedger;
 import com.example.serverprovision.execution.dto.response.GuestServerListResponse;
 import com.example.serverprovision.execution.dto.response.GuestServerSummaryResponse;
 import com.example.serverprovision.execution.engine.firmware.FlashTimeoutPolicy;
@@ -51,10 +59,6 @@ import com.example.serverprovision.execution.engine.firmware.step.FlashContext;
 import com.example.serverprovision.execution.engine.setting.SettingAxis;
 import com.example.serverprovision.execution.engine.setting.SettingLedger;
 import com.example.serverprovision.execution.engine.setting.BmcSettingItem;
-import com.example.serverprovision.execution.engine.windows.WindowsInstallLedger;
-import com.example.serverprovision.execution.engine.windows.WindowsInstallReadinessResolver;
-import com.example.serverprovision.execution.engine.windows.WindowsInstallTimeoutPolicy;
-import com.example.serverprovision.execution.wininstall.catalog.WindowsImage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,7 +68,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Optional;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -101,9 +104,10 @@ public class GuestServerQueryService {
     private final SettingLedger settingLedger;             // E2-4 — 설정 원장 meta 판독(작성과 같은 SSOT)
     private final WorkerObservations workerObservations;
     private final ObjectMapper objectMapper;
-    private final WindowsInstallReadinessResolver windowsInstallReadinessResolver;   // E4-1-a-3 — 카드 준비도(실행기와 같은 조립)
-    private final WindowsInstallLedger windowsInstallLedger;                         // E4-1-a-3 — 서빙 · 재진입 · 실패 사유 판독
-    private final WindowsInstallTimeoutPolicy windowsInstallTimeoutPolicy;           // E4-1-a-3 — 잔여 분 · 상한(화면 = 실행기 값)
+    private final OsInstallingExecutor osInstallingExecutor;                         // E4-1-b-4-2 — 카드 계열 · 준비도(게이트와 같은 판정)
+    private final OsFamilyNameProvider osFamilyNames;                                // E4-1-b-4-2 — 정의서 OS 계열 화면 이름
+    private final OsInstallCardAssemblers osInstallCardAssemblers;                   // E4-1-b-4-2 — 카드의 계열 내용(계열마다 조립기 하나)
+    private final OsSettingLedger osSettingLedger;                                   // E4-1-b-7 — OS 설정 패널(첫 부팅 판정)
     private final Clock clock;   // HF13 — 이 클래스의 모든 "지금" 은 이 시계 하나(그룹 눈금 · 잔여 분 · 접촉 판정)
     private final com.example.serverprovision.execution.engine.firmware.FlashProgressBoard flashProgressBoard;   // 굽기 진행률(2026-09-17)
 
@@ -414,7 +418,7 @@ public class GuestServerQueryService {
                 progress.isStartableWith(server.getDecommissionedAt()),
                 progress.isManualFailable(server.getDecommissionedAt()),
                 retryPolicy.isRetryable(progress, steps),
-                retryPolicy.isBlocked(progress, steps),
+                retryPolicy.blockOf(progress, steps).orElse(null),
                 progress.isDisruptionBlocked(),
                 // U7 — 개시 409 가드와 같은 판정. 미개시일 때만 의미가 있어 그때만 계산한다.
                 progress.isStartableWith(server.getDecommissionedAt())
@@ -452,7 +456,7 @@ public class GuestServerQueryService {
                 firmwarePlanOf(server, progress),
                 firmwareFlashOf(server, detail, progress, steps),
                 firmwareSettingOf(server, detail, progress, steps),
-                windowsInstallOf(server, progress, steps),
+                osInstallOf(server, progress, steps),
                 raidPlan,
                 raidVolumes,
                 stepResponses
@@ -861,114 +865,63 @@ public class GuestServerQueryService {
     }
 
     /**
-     * Windows 설치 카드(E4-1-a-3 R5) — 준비도는 실행기와 같은 조립({@link WindowsInstallReadinessResolver})으로 재계산하고,
-     * 진행(서빙 시각 · 재진입 · 잔여 분 · 실패 사유)은 상세가 이미 로드한 원장 목록에서 읽는다(추가 쿼리 0).
-     * 활성 할당에 OS 설치 단계가 없고 OS_INSTALLING 행도 없으면 null — 화면은 카드를 그리지 않는다.
+     * OS 설치 카드(E4-1-a-3 R5, E4-1-b-4-2 에서 계열 공통). 카드의 계열은 마지막 OS 설치 행을 적은 설치기, 없으면 정의서를 맡는
+     * 설치기다. 준비도는 게이트와 같은 판정(맡을 설치기가 없으면 "지원하지 않습니다")이고, 진행은 상세가 이미 로드한 원장 목록에서
+     * 읽는다(추가 쿼리 0). 정의서에 OS 설치 단계가 없고 OS 설치 행도 없으면 null — 화면은 카드를 그리지 않는다.
      */
-    private GuestServerDetailResponse.WindowsInstall windowsInstallOf(GuestServer server, ProvisioningProgress progress,
-                                                                      List<ProvisioningHistory> steps) {
-        Optional<WindowsInstallReadinessResolver.Resolved> resolved = windowsInstallReadinessResolver.resolve(server.getId());
+    /** 서버 상세의 OS 설정 패널. 첫 부팅 판정을 아직 받지 않았으면 비어 있다(E4-1-b-7). */
+    @Transactional(readOnly = true)
+    public Optional<OsSettingOutcomeResponse> findOsSettingOutcome(UUID guestServerId) {
+        return osSettingLedger.latestOf(guestServerId).map(OsSettingOutcomeResponse::of);
+    }
+
+    private GuestServerDetailResponse.OsInstall osInstallOf(GuestServer server, ProvisioningProgress progress,
+                                                            List<ProvisioningHistory> steps) {
+        UUID id = server.getId();
         Optional<ProvisioningHistory> latest = steps.stream()
                 .filter(s -> s.getStepCode() == ProvisioningPhaseStep.OS_INSTALLING)
-                .filter(windowsInstallLedger::isWindowsInstallRow)
+                .filter(s -> osInstallingExecutor.ownerOf(s).isPresent())
                 .reduce((first, second) -> second);
-        if (resolved.isEmpty() && latest.isEmpty()) {
+        Optional<OsFamilyInstaller> installer = osInstallingExecutor.installerOf(id, latest);
+        Optional<String> familyLabel = osFamilyNames.familyLabelOf(id);
+        if (installer.isEmpty() && familyLabel.isEmpty()) {
             return null;
         }
+        // 정의서에 OS 설치 단계가 없으면(할당 교체 등) 준비도를 보이지 않는다 — "다음 부팅에서 시작" 은 사실이 아니다.
+        PhaseReadiness readiness = progress == null || familyLabel.isEmpty() ? null : osInstallingExecutor.readiness(server, progress);
         boolean failed = progress != null && progress.isFailed();
+        Optional<OsInstallLedger> ledger = installer.map(OsFamilyInstaller::ledger);
         Optional<ProvisioningHistory> running = failed ? Optional.empty()   // 실패 전환 뒤 남은 열린 행(구 데이터)은 진행이 아니다
                 : latest.filter(h -> h.getStatus() == ProvisioningStatus.RUNNING);
         Optional<ProvisioningHistory> completed = failed ? Optional.empty()  // E4-1-a-4 — 완료 보고로 닫힌 행
-                : latest.filter(windowsInstallLedger::isCompletedRow);
+                : latest.filter(h -> ledger.map(l -> l.isCompletedRow(h)).orElse(false));
+        Optional<ProvisioningHistory> served = running.or(() -> completed);
+        Optional<ProvisioningHistory> failedRow = failed
+                ? latest.filter(h -> h.getStatus() == ProvisioningStatus.FAILED) : Optional.empty();
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime servedAt = running.or(() -> completed).map(windowsInstallLedger::servedAtOf).orElse(null);
-        boolean failedHere = failed && latest.filter(h -> h.getStatus() == ProvisioningStatus.FAILED).isPresent();
+        LocalDateTime servedAt = served.flatMap(row -> ledger.map(l -> l.servedAtOf(row))).orElse(null);
+        Optional<OsInstallTimeoutPolicy> policy = installer.map(OsFamilyInstaller::timeoutPolicy);
         boolean holding = progress != null && progress.isHolding() && progress.currentPhase() == ProvisioningPhase.OS_INSTALLING;
         boolean provisioningCompleted = progress != null && progress.isCompleted();
         ProvisioningPhase nextPhase = completed.isPresent() && !provisioningCompleted && progress != null
                 && progress.currentPhase() != ProvisioningPhase.OS_INSTALLING ? progress.currentPhase() : null;
-        // R15-2 — 서빙 뒤에는 원장 meta 의 선택(그때 고른 것)만 보인다. 옛 행(키 없음)은 비운다 — 지금 판정을 덧대면 실제 설치와 어긋난다.
-        Optional<com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Selection> driverSelection =
-                running.or(() -> completed).isPresent()
-                        ? running.or(() -> completed).flatMap(windowsInstallLedger::driverSelectionOf)
-                        : resolved.map(WindowsInstallReadinessResolver.Resolved::driverSelection);
-        return new GuestServerDetailResponse.WindowsInstall(
-                resolved.map(r -> r.target().imageName()).map(name -> name == null ? null : name.value())
-                        .orElseGet(() -> latest.map(windowsInstallLedger::imageOf).orElse(null)),
-                resolved.flatMap(WindowsInstallReadinessResolver.Resolved::image).map(WindowsImage::displayName).orElse(null),
-                resolved.map(r -> r.readiness().grade()).orElse(null),
-                resolved.map(r -> r.readiness().notes()).orElse(List.of()),
+        return new GuestServerDetailResponse.OsInstall(
+                familyLabel.orElse(null),
+                readiness == null ? null : readiness.grade(),
+                readiness == null ? List.of() : readiness.notes(),
                 servedAt,
-                running.or(() -> completed).map(windowsInstallLedger::reentriesOf).orElse(0),
-                windowsInstallTimeoutPolicy.maxReentries(),
-                running.isEmpty() ? null : windowsInstallTimeoutPolicy.remainingMinutes(servedAt, now),
-                failedHere ? latest.map(windowsInstallLedger::reasonOf).orElse(null) : null,
+                served.flatMap(row -> ledger.map(l -> l.reentriesOf(row))).orElse(0),
+                policy.map(OsInstallTimeoutPolicy::maxReentries).orElse(0),
+                running.isEmpty() ? null : policy.map(p -> p.remainingMinutes(servedAt, now)).orElse(null),
+                failedRow.flatMap(row -> ledger.map(l -> l.reasonOf(row))).orElse(null),
+                failedRow.flatMap(row -> ledger.flatMap(l -> l.failureMessageOf(row))).orElse(null),
                 holding,
                 holding ? holdRemainingMinutes(progress) : 0L,
-                completed.map(windowsInstallLedger::completedAtOf).orElse(null),
-                completed.map(windowsInstallLedger::computerNameOf).orElse(null),
-                completed.map(windowsInstallLedger::osVersionOf).orElse(null),
-                completed.map(windowsInstallLedger::driversAddedOf).orElse(0),
-                completed.map(windowsInstallLedger::problemDeviceCountOf).orElse(0),
-                completed.map(windowsInstallLedger::problemDevicesOf).orElse(List.of()),
+                completed.flatMap(row -> ledger.map(l -> l.completedAtOf(row))).orElse(null),
                 completed.isPresent() && provisioningCompleted,
                 nextPhase,
-                running.or(() -> completed).map(windowsInstallLedger::targetDiskIdOf).orElse(null),   // E4-1-a-6
-                // HF15-5 — 서빙 전 안내만 둔다. 번호의 근거 규칙 표기는 화면에서 뺐다(S22-3 SD-327, 원장 meta 에는 남는다).
-                running.or(() -> completed).isPresent() ? null
-                        : resolved.map(WindowsInstallReadinessResolver.Resolved::diskSelection)
-                                .map(this::diskSelectionNoteOf).orElse(null),
-                completed.map(windowsInstallLedger::diskConfirmationOf).orElse(null),
-                driverSelection.map(com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Selection::summary).orElse(null),
-                driverSelection.map(sel -> sel.entries().stream()
-                        .map(com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Entry::label).toList()).orElse(List.of()),
-                driverSelection.map(sel -> sel.skipped().stream()
-                        .map(com.example.serverprovision.execution.engine.windows.WindowsDriverSelection.Skipped::label).toList()).orElse(List.of()),
-                completed.map(windowsInstallLedger::installsOf).orElse(List.of()).stream().map(GuestServerQueryService::installLabelOf).toList(),
-                completed.map(windowsInstallLedger::failedInfsOf).orElse(List.of()).stream().map(GuestServerQueryService::failedInfLabelOf).toList());
-    }
-
-    /** R15-2 — 완료 보고의 항목별 설치 결과 한 줄. LEGACY(목록 없이 옛 전체 INF 루프) 는 폴더 없이 모드만. */
-    private static String installLabelOf(java.util.Map<String, Object> m) {
-        Object folder = m.get("folder");
-        Object mode = m.get("mode");
-        Object entry = m.get("entrypoint");
-        Object exit = m.get("exitCode");
-        String head = folder == null || "-".equals(folder) ? String.valueOf(mode) : folder + ", " + mode;
-        if (entry != null && !entry.toString().isBlank() && !"-".equals(entry)) {
-            head = head + " " + entry;   // HF23 — 한 패키지에 행이 여럿이면 진입점으로 가른다
-        }
-        return head + ", 종료 코드 " + exitCodeLabelOf(exit);
-    }
-
-    /** HF23 — 실패한 INF 한 줄 "폴더 · 상대경로 · 종료 코드 0xE000024B". */
-    private static String failedInfLabelOf(java.util.Map<String, Object> m) {
-        return m.get("folder") + ", " + m.get("path") + ", 종료 코드 " + exitCodeLabelOf(m.get("exitCode"));
-    }
-
-    /** 음수(32비트 부호 있는 표기)인 Windows 오류는 16진으로 — 0xE000024B 처럼 문서 표기와 대조할 수 있게. 그 밖은 10진. */
-    static String exitCodeLabelOf(Object exit) {
-        if (exit == null) {
-            return "?";
-        }
-        try {
-            int code = Integer.parseInt(exit.toString());
-            return code < 0 ? String.format("0x%08X", code) : Integer.toString(code);
-        } catch (NumberFormatException e) {
-            return exit.toString();
-        }
-    }
-
-    /** 서빙 전 디스크 선택 안내(HF15-5) — BLOCKED 사유는 준비도 notes 가 이미 보이므로 여기서는 비운다. */
-    private String diskSelectionNoteOf(com.example.serverprovision.execution.engine.windows.WindowsDiskSelection.DiskSelection sel) {
-        if (sel == null) {
-            return null;
-        }
-        return switch (sel.confidence()) {
-            case DEFERRED -> sel.note();
-            case CONFIDENT -> "디스크 " + sel.diskId();
-            case BLOCKED -> null;
-        };
+                osInstallCardAssemblers.detailOf(ledger.map(OsInstallLedger::origin),
+                        new OsInstallCardAssembler.Context(id, latest, served, completed)));
     }
 
     private static GuestServerDetailResponse.FirmwarePlan.Axis axisOf(AxisResolution axis, String label) {

@@ -12,7 +12,8 @@ import jakarta.validation.constraints.NotBlank;
 public record ServiceDirectiveRequest(
 
         @NotBlank(message = "서비스 이름은 필수 값입니다.")
-        @jakarta.validation.constraints.Pattern(regexp = "^[A-Za-z0-9:_.\\\\@-]+$",
+        // 역슬래시(systemd 이스케이프)는 kickstart 줄에 실을 수 없어 받지 않는다(E4-1-b-7).
+        @jakarta.validation.constraints.Pattern(regexp = "^[A-Za-z0-9:_.@-]+$",
                 message = "서비스 이름에 허용되지 않는 문자가 있습니다.")
         String name,
 

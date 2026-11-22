@@ -133,6 +133,16 @@ class GuestServerControllerActionTest {
                 .andExpect(status().isConflict());
     }
 
+    @Test
+    @DisplayName("E4-1-b-7 retry — OS 후처리 실패 차단 → 409")
+    void retry_osSettingBlocked_conflict() throws Exception {
+        UUID id = UUID.randomUUID();
+        willThrow(ProvisioningRetryRejectedException.blocked(id, com.example.serverprovision.execution.enums.RetryBlock.OS_SETTING_APPLIED))
+                .given(commandService).retry(id);
+        mvc.perform(post("/provisioning/server/{id}/retry", id))
+                .andExpect(status().isConflict());
+    }
+
     // ==== 404 ========================================================
 
     @Test

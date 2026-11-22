@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-1-b-7 Plan : OS 후처리 설정(리눅스 전용)</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:var(--card); border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; margin:8px 0; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; white-space:nowrap; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:4px 0 0; }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  .state-flow { font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre; overflow-x:auto;
+    background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:12px 14px; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-wrap h4 { margin-top:14px; }
+  .ux-wrap select, .ux-wrap input[type="text"], .ux-wrap input[type="number"] { max-width:100%; font-size:12px; padding:3px 6px; border:1px solid var(--border); border-radius:4px; background:var(--card); color:var(--text); }
+  .ux-wrap input[type="number"] { width:5em; }
+  .ux-wrap .card { min-width:0; margin-bottom:8px; }
+  .ux-wrap .card .card { background:var(--card); }
+  .ux-wrap .card table { font-size:12px; }
+  .ux-wrap .card pre { white-space:pre; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; min-width:0; }
+  .badge { display:inline-block; font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .badge.on { background:var(--green-bg); color:var(--green); } .badge.off { background:var(--bg); color:var(--text-muted); }
+  .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--border-soft); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--text); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+4) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); } .seq .step.a4 { background:var(--purple-bg); }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  .card.v-blue { border-color:var(--blue); border-width:2px; background:var(--blue-bg); } .card.v-blue h4 { color:var(--blue); }
+  .card.v-orange { border-color:var(--orange); border-width:2px; background:var(--orange-bg); } .card.v-orange h4 { color:var(--orange); }
+  .card.v-purple { border-color:var(--purple); border-width:2px; background:var(--purple-bg); } .card.v-purple h4 { color:var(--purple); }
+  .card.v-red { border-color:var(--red); border-width:2px; background:var(--red-bg); } .card.v-red h4 { color:var(--red); }
+  .card.v-green { border-color:var(--green); border-width:2px; background:var(--green-bg); } .card.v-green h4 { color:var(--green); }
+  .card li { font-size:12px; line-height:1.55; }
+
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    /* §10 표: 긴 패키지 경로 code 가 표 최소폭을 키워 섹션 밖으로 잘리던 것을 이 표에서만 끊는다(3장 '위치 기반으로 좁힌다') */
+    #s10 td code { overflow-wrap:anywhere; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E4-1-b-7 : OS 후처리 설정(리눅스 전용) <span class="v2-badge">E4-1-b-7</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E4-1-b-7 (feature)</span>
+    <span><strong>브랜치</strong> <code>feat/E4-1-b-3_kickstart-generator</code></span>
+    <span><strong>scope</strong> RHEL 계열 정의서의 OS 후처리 단계를 kickstart 로 적용하고 첫 부팅 보고로 판정</span>
+    <span><strong>생성</strong> 2026-11-21 15:56 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/41def0e868f9811f92f2dfcfc5312fe8">단계 페이지</a></span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s0">§0 요약</a></li>
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 데이터 흐름 · kickstart · 관측</a></li>
+      <li><a href="#s4">§4 도메인 모델 (판정 · 계약)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트 계획</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 결정 · 열린 질문 · 위험</a></li>
+      <li><a href="#s9">§9 Verification (CP5)</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §0 요약 ===== -->
+    <details class="section" id="s0" open>
+      <summary>§0. 요약</summary>
+      <div class="body">
+        <ul>
+          <li><b>무엇</b> : 세팅 정의서의 OS 후처리 설정(<code>OS_SETTING</code>) 단계를 RHEL 계열 정의서에서만 다시 열고, 설치 중 kickstart 로 적용하고, 첫 부팅 보고 한 번으로 결과를 받아 <code>OS_SETTING</code> phase 를 열고 닫는다.</li>
+          <li><b>갈래 둘</b>
+            <ol>
+              <li>기본 설정(SELinux 모드, systemd 서비스 지시, 추가 패키지)은 kickstart 고유 명령으로 싣는다. 관측값이 정의서와 다르면 실패.</li>
+              <li>사용자 쉘 스크립트(여러 개, 순서대로, bash)는 스크립트마다 chroot <code>%post</code> 로 싣는다. 종료 코드가 하나라도 0 이 아니면 실패.</li>
+            </ol>
+            모두 맞아도 적용 여부는 사용자가 직접 확인해야 한다는 안내를 보인다.</li>
+          <li><b>출발</b> : 토론 종결(2026-11-21, <code>discussion/26-11-21_15-39-07_E4-1-b-7-os-setting_discussion.md</code>). 선행 HF34(PR #128) · U9(PR #131) 모두 dev 병합. 브랜치 <code>feat/E4-1-b-3_kickstart-generator</code> 가 origin/dev 를 받음(f62bf5d, 전체 테스트 4,081 통과).</li>
+          <li><b>DB 스키마 변경 없음</b> : 정의서 payload · 할당 스냅숏 · 원장 meta 가 모두 json 컬럼.</li>
+          <li><b>사용자에게 묻는 것 3 건</b> : O-1 ~ O-3(<a href="#s8">§8</a>).</li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (2026-11-21 코드 실측)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>자리</th><th>지금</th></tr></thead>
+          <tbody>
+            <tr><td><code>SettingProcessType.OS_SETTING</code></td><td><code>paletteExposed=false</code>(R11), <code>requiredStep=null</code></td></tr>
+            <tr><td>계약 <code>OSSettingRequest</code> / <code>RHELOSSettingRequest</code></td><td><code>osMetadataId</code> + <code>selinuxMode</code>(문자열, 패턴 enforcing · permissive · disabled) + <code>services</code>(이름 + ENABLE/DISABLE) + <code>additionalPackages</code>. 스크립트 필드 없음</td></tr>
+            <tr><td>저장 검증 <code>SettingSaveRequest</code></td><td><code>isOsSelectionConsistent</code>(OS 설치와 OS 후처리가 같은 OS). OS 계열 제한 없음</td></tr>
+            <tr><td>정의서 폼</td><td>카드 마크업 없음. <code>setting-form.js</code> 에 수집기(<code>stepBuilders.OS_SETTING</code>) · 복원기(<code>stepPrefillers.OS_SETTING</code>) · 서비스 행 추가 잔존(DOM id <code>osOsSelect</code> · <code>osSelinuxMode</code> · <code>osServicesTable</code> · <code>osAdditionalPackages</code>). HF34 선행 단계 장치(<code>data-step-requires</code> · <code>addStepWithRequired</code> · <code>syncRemoveLocks</code>) 동작 중</td></tr>
+            <tr><td>정의서 상세</td><td><code>setting-process-cards.html</code> 에 OS_SETTING 읽기 카드(SELinux · 서비스 · 패키지)</td></tr>
+            <tr><td>할당 매핑</td><td><code>SettingProcessPhaseMapper</code>: OS_SETTING → <code>ProvisioningPhase.OS_SETTING</code> (이미 있음)</td></tr>
+            <tr><td>kickstart 생성 <code>KickstartRenderer</code></td><td>절 순서 header · source · locale · storage · auth · reboot · <code>%packages</code>(환경 · 그룹) · kdump · 첫 부팅 보고 <code>%post --erroronfail</code>. <code>selinux</code> · <code>services</code> 없음</td></tr>
+            <tr><td>첫 부팅 보고 <code>spv-report.sh</code></td><td>셸이 JSON 직접 생성 → <code>/api/pxe/v1/agent/rhel/complete</code>(osId · osVersion · kernel · hostname · rootDisk · systemUuid). 끝나면 <code>/etc/spv</code> 등 심은 파일 전부 삭제</td></tr>
+            <tr><td>완료 처리 <code>OsInstallCompletionService</code></td><td>신원 → 중복이면 no-op → 커서 OS_INSTALLING 확인 → 행 닫기 → 뒷정리(토큰 회수) → <code>PhaseCursorAdvancer.advanceOrComplete</code> → 변경 이벤트</td></tr>
+            <tr><td>OS_SETTING 실행기</td><td>없음. 커서가 OS_SETTING 에 서면 <code>/boot</code> 는 HOLD. 설치 뒤 서버는 디스크로 부팅, PXE 재진입 없음</td></tr>
+            <tr><td>재시도</td><td><code>ProvisioningProgress.clearFailed(now, entryStep)</code> 는 <b>같은 phase 안에서만</b> 되감음(역행 금지 불변식). 차단 판정 <code>RetryPolicy</code>(지금은 펌웨어 굽기 실패만)</td></tr>
+            <tr><td>기존 데이터</td><td>로컬 3306 · 샌드박스의 OS_SETTING 정의서 단계 0 · 할당 스냅숏 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 (확정) + 비목표</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>ID</th><th>요구</th><th>출처</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>OS 후처리 단계를 단계 추가 목록에 다시 연다. 선행 단계 = OS 설치(넣으면 OS 설치와 그 선행인 RAID 구성도 함께 열림, 이 단계가 있는 동안 OS 설치 제거 잠금, D-12)</td><td>토론 Q5</td></tr>
+            <tr><td>R2</td><td>OS 는 OS 설치 단계 값을 따른다(OS 를 두 번 고르지 않음)</td><td>Q5</td></tr>
+            <tr><td>R3</td><td>OS 설치의 OS 계열이 RHEL 계열일 때만 사용. Ubuntu · Windows 잠금. 화면 차단과 서버 가드는 같은 판정 하나</td><td>Q4, CLAUDE.md UI 1차 차단</td></tr>
+            <tr><td>R4</td><td>카드 하나에 '기본 설정'(SELinux · 서비스 · 추가 패키지)과 '추가 스크립트'(업로드 · 순서 · 삭제 · 안내)</td><td>Q11</td></tr>
+            <tr><td>R5</td><td>스크립트는 정의서 안에 내용으로 저장(할당 스냅숏으로 고정), 재사용은 정의서 복제</td><td>Q7</td></tr>
+            <tr><td>R6</td><td>스크립트 검증: UTF-8 텍스트, 크기 상한, 권한은 정의서 작성 권한 그대로</td><td>Q10</td></tr>
+            <tr><td>R7</td><td>비밀값을 쓰지 말라는 안내(내용이 <code>/root/anaconda-ks.cfg</code> 에 남음)</td><td>Q10</td></tr>
+            <tr><td>R8</td><td>kickstart 순서: 설치 본체(고유 명령) → 사용자 스크립트들 → 첫 부팅 보고 장치</td><td>Q8</td></tr>
+            <tr><td>R9</td><td>스크립트마다 <code>%post</code> 하나, <code>--erroronfail</code> 없음, 출력 <code>/root/spv-script-&lt;번호&gt;.log</code> 남기고 지우지 않음</td><td>Q9</td></tr>
+            <tr><td>R10</td><td>첫 부팅 보고 한 번으로 OS_INSTALLING 을 닫고 OS_SETTING 도 열고 닫음</td><td>Q2</td></tr>
+            <tr><td>R11</td><td>기본 설정은 관측값(SELinux 현재 모드 · 서비스 활성 여부 · 패키지 설치 여부)이 다르면 실패, 스크립트는 종료 코드 하나라도 0 아니면 실패, 다른 항목만 사유에 기록</td><td>Q3, Q9</td></tr>
+            <tr><td>R12</td><td>모두 맞으면 성공으로 닫고 "스크립트 실행은 끝났지만 적용 여부는 직접 확인해야 합니다" 류 안내(디자인 검수 거절돼도 사용자 허가로 통과)</td><td>Q2</td></tr>
+            <tr><td>R13</td><td>추가 패키지는 <code>--ignoremissing</code>, 없는 패키지는 관측에서 실패로 잡음</td><td>Q3</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>비 목표</b> (브리프의 각 결정에 적힌 제외 사항을 모은 것) :
+          <ul>
+            <li>스크립트별 실행 시한: 두지 않음(토론 범위 밖, 후속 후보, <a href="#s8">§8 위험</a>)</li>
+            <li>Ubuntu · Windows 의 OS 후처리: 잠금(R3)</li>
+            <li>OS 후처리 카드의 OS 선택 select: 만들지 않음(R2, D-7)</li>
+            <li>DB 스키마 변경 · 관리 포인트 변경: 없음(D-11)</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 : 정의서 폼 + 첫 부팅 판정 라이브 데모</summary>
+      <div class="body">
+        <p>시뮬레이터 1 에서 정의서를 꾸미면 오른쪽 kickstart 미리보기(D-2 배치)와 시뮬레이터 2 의 기대값이 함께 바뀐다. 시뮬레이터 2 에서 첫 부팅 관측값을 바꾸면 판정(D-4 표, 서버 <code>OsSettingVerdict</code> 와 같은 규칙)이 바로 다시 계산된다. 차단된 버튼에 마우스를 올리면 사유 tooltip 이 뜬다. 화면 문구 초안이 브리프에 없는 자리는 '(데모)' 표지로 둔다.</p>
+
+        <div class="ux-wrap">
+          <div class="ux-toolbar" id="demo-presets">
+            <span class="group-label">원클릭 프리셋 :</span>
+            <button class="seg" data-preset="p1" onclick="demoPreset('p1')">1 전부 일치</button>
+            <button class="seg" data-preset="p2" onclick="demoPreset('p2')">2 없는 패키지</button>
+            <button class="seg" data-preset="p3" onclick="demoPreset('p3')">3 스크립트 실패</button>
+            <button class="seg" data-preset="p4" onclick="demoPreset('p4')">4 서비스 경계</button>
+            <button class="seg" data-preset="p5" onclick="demoPreset('p5')">5 Windows 고름</button>
+            <button class="seg" data-preset="p6" onclick="demoPreset('p6')">6 %end 줄 스크립트</button>
+          </div>
+
+          <h4>시뮬레이터 1 · 정의서 폼</h4>
+          <div class="split-grid">
+            <div class="card" id="demo-form"><!-- JS 렌더 --></div>
+            <div class="card">
+              <h4>kickstart 미리보기 (D-2 배치)</h4>
+              <pre id="demo-ks"></pre>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-caps"></div>
+          <div class="ux-message" id="demo-message">프리셋을 누르거나 단계 추가 버튼부터 눌러 본다.</div>
+
+          <h4>시뮬레이터 2 · 첫 부팅 판정</h4>
+          <div class="split-grid">
+            <div class="card">
+              <h4>관측값 (보고 JSON osSetting)</h4>
+              <div id="demo-obs"><!-- JS 렌더 --></div>
+            </div>
+            <div class="card">
+              <h4>판정 (OsSettingVerdict)</h4>
+              <div id="demo-verdict"><!-- JS 렌더 --></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout success"><b>드리프트 0</b> : 데모의 판정 함수 <code>demoVerdict()</code> 는 D-4 표를 한 함수로 옮긴 것이다. 버튼 잠금은 <code>demoBlocks()</code> 가 서버 <code>OSFamily.supportsOsSetting()</code> 과 같은 지원 계열 목록(서버가 <code>data-*</code> 로 내려 주는 값)으로 판정한다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. 데이터 흐름 · kickstart 배치 · 관측 · phase 여닫기 · 화면</summary>
+      <div class="body">
+        <h4>3-1. 요청 한 건의 흐름</h4>
+        <div class="seq">
+          <div class="actor a1">운영자 · 화면</div><div class="actor a2">Provisioning 서버</div><div class="actor a3">anaconda (설치 중)</div><div class="actor a4">게스트 (첫 부팅)</div>
+          <div class="step a1">① 정의서 폼: OS 설치(Rocky) + OS 후처리(기본 설정 + 스크립트 2) 저장</div><div class="step a2"><code>setting_process.payload_json</code> 에 스크립트 내용 포함</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1">② 할당</div><div class="step a2">스냅숏 동결(<code>assigned_process_snapshot.payload_json</code>), ownedPhases 에 OS_SETTING</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2">③ OS 설치 서빙: <code>RhelInstallationResolutionProviderImpl</code> → <code>RhelInstallTarget(osSetting)</code> → <code>KickstartRenderer</code> → kickstart</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">④ 명령 절(selinux · services) → <code>%packages --ignoremissing</code> → kdump → 스크립트 <code>%post</code> 1..N(각자 로그 · 종료 코드 파일) → 보고 장치 <code>%post</code></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"></div><div class="step a4">⑤ <code>spv-report</code> 관측(getenforce · systemctl is-enabled · rpm -q --whatprovides · N.rc) → <code>POST /api/pxe/v1/agent/rhel/complete</code></div>
+          <div class="step a1"></div><div class="step a2">⑥ OS_INSTALLING 닫기 → 토큰 회수 → 커서 OS_SETTING → <code>RhelOsSettingCloser</code>: <code>OsSettingVerdict</code> → 원장 단발 행 → 성공이면 다음 phase 또는 종단, 실패면 실패</div><div class="step a3"></div><div class="step a4"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3"></div><div class="step a4">⑦ 200 → 심은 파일 정리(로그는 남김)</div>
+          <div class="step a1">⑧ 서버 상세 OS 설정 패널(항목별 관측 · 판정, 안내)</div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div>
+        </div>
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>이 슬라이스에서 바뀌는 것</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/rhel/complete</code></td><td>요청 JSON 에 <code>osSetting</code> 관측 묶음 추가</td></tr>
+            <tr><td>-</td><td>정의서 저장 · 재시도 · kickstart 서빙</td><td>기존 엔드포인트 그대로(변경 없음)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>3-2. D-1 사용자 스크립트를 kickstart 에 싣는 방법</h4>
+        <table>
+          <thead><tr><th>안</th><th>내용</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">채택</span> (a) base64 로 실어 풀고 bash 로 실행</td><td><code>%post --log=/root/spv-script-N.log</code> 안에서 base64 를 풀어 <code>/etc/spv/scripts/N.sh</code> 로 쓰고 실행, 종료 코드를 <code>N.rc</code> 로</td><td>내용 무관하게 kickstart 안 깨짐(<code>%end</code> 줄 · heredoc 구분자 줄 · 한글 · 따옴표). 종료 코드 파일로 남김</td></tr>
+            <tr><td><span class="chip del">탈락</span> (b) 원문을 <code>%post --interpreter=/bin/bash</code> 본문으로</td><td>원문 그대로</td><td>종료 코드 남길 자리 없음(anaconda 는 로그만). <code>%</code> 시작 줄이 kickstart 를 깸</td></tr>
+            <tr><td><span class="chip del">탈락</span> (c) 원문을 heredoc 으로 파일에 쓴 뒤 실행</td><td>원문 heredoc</td><td>구분자와 같은 줄이면 깨짐, <code>%</code> 줄 거부 + 구분자 줄 거부 둘 필요</td></tr>
+          </tbody>
+        </table>
+        <pre><code>%post --log=/root/spv-script-N.log
+base64 -d &gt; /etc/spv/scripts/N.sh &lt;&lt;'SPV_EOF'
+(스크립트 내용의 base64)
+SPV_EOF
+cd /root &amp;&amp; /bin/bash /etc/spv/scripts/N.sh
+echo $? &gt; /etc/spv/scripts/N.rc
+%end</code></pre>
+        <ul>
+          <li>결과: 토론의 "<code>%</code> 로 시작하는 줄 거부" 규칙은 (a) 에서 필요 없다 → O-3 으로 폐지를 묻는다.</li>
+          <li>CRLF: 저장 때 <code>\r\n</code> → <code>\n</code>. Windows 에서 만든 파일이 bash 에서 <code>$'\r'</code> 오류를 내는 것을 막는다. 내용 의미가 바뀌지 않으므로 화면에 알리지 않는다.</li>
+          <li><code>/etc/spv/scripts/</code> 는 b-5 보고 셸의 <code>remove_all</code> 이 <code>/etc/spv</code> 째 지운다(우리가 심은 파일). 로그 <code>/root/spv-script-N.log</code> 는 남는다.</li>
+          <li>스크립트가 멈추면 설치가 멈추고, OS 설치 서빙 시한(<code>RhelInstallTimeoutPolicy</code>)이 OS_INSTALLING 을 실패로 닫는다. 스크립트별 시한은 두지 않는다(토론 범위 밖, <a href="#s8">위험 표</a>).</li>
+        </ul>
+
+        <h4>3-3. D-2 kickstart 배치 (R8 · R13)</h4>
+        <table>
+          <thead><tr><th>자리</th><th>생성 줄</th><th>조건</th></tr></thead>
+          <tbody>
+            <tr><td>명령 절(auth 다음, reboot 앞)</td><td><code>selinux --enforcing</code> / <code>--permissive</code> / <code>--disabled</code></td><td>OS_SETTING 있을 때</td></tr>
+            <tr><td>명령 절</td><td><code>services --enabled=a,b --disabled=c</code> (한쪽 비면 그 옵션 생략, 둘 다 비면 줄 없음)</td><td>서비스 지시 있을 때</td></tr>
+            <tr><td><code>%packages</code> 머리</td><td><code>%packages --ignoremissing</code></td><td><b>추가 패키지 있을 때만</b>(없으면 지금처럼 <code>%packages</code>. 환경 · 그룹이 사라진 경우를 숨기지 않기 위해)</td></tr>
+            <tr><td><code>%packages</code> 끝</td><td>추가 패키지 이름 한 줄씩</td><td>추가 패키지 있을 때</td></tr>
+            <tr><td>kdump 다음</td><td>스크립트마다 <code>%post</code> 블록 하나(번호 = 정의서 순서 1 부터)</td><td>스크립트 있을 때</td></tr>
+            <tr><td>맨 끝</td><td>첫 부팅 보고 <code>%post --erroronfail</code>(지금 그대로)</td><td>항상</td></tr>
+          </tbody>
+        </table>
+        <p>이름 토큰은 기존 <code>KickstartToken.check</code> 를 지난다. 서비스 이름 패턴 <code>^[A-Za-z0-9:_.\\@-]+$</code>, 패키지 이름 패턴 <code>^[A-Za-z0-9][A-Za-z0-9._+-]*$</code> 은 계약에 이미 있다.</p>
+
+        <h4>3-4. D-3 관측을 어디서 하고 누가 판정하는가</h4>
+        <table>
+          <thead><tr><th>안</th><th>내용</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">채택</span> (a) 첫 부팅에서 셸이 원시 관측값만 보내고 서버가 판정</td><td><code>report.env</code> 에 관측 목록, 보고 셸이 <code>getenforce</code> · <code>systemctl is-enabled &lt;이름&gt;</code> · <code>rpm -q --whatprovides --quiet &lt;이름&gt;</code> · <code>/etc/spv/scripts/N.rc</code> 를 읽어 JSON <code>osSetting</code> 에</td><td>판정 규칙이 서버 한 곳(SSOT, Single Source of Truth). 테스트 · 화면 · 데모가 같은 표. SELinux 실제 모드는 부팅 뒤에만 참</td></tr>
+            <tr><td><span class="chip del">탈락</span> (b) 셸이 판정해 성패만 보냄</td><td>셸에 판정 규칙</td><td>규칙이 셸과 서버 두 곳, 화면에 관측값 못 보임</td></tr>
+            <tr><td><span class="chip del">탈락</span> (c) <code>%post</code> 시점에 관측</td><td>설치 중 관측</td><td>SELinux 모드 · 서비스 상태가 부팅 뒤 값과 다를 수 있음</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><code>report.env</code> 추가 키: <code>SPV_CHECK_SELINUX='1'</code>(OS_SETTING 있을 때만), <code>SPV_CHECK_SERVICES='a b'</code>, <code>SPV_CHECK_PACKAGES='x y'</code>, <code>SPV_SCRIPT_COUNT='N'</code>. OS_SETTING 이 없으면 키가 없고 JSON 에 <code>osSetting</code> 이 없다(지금 동작 그대로).</li>
+          <li>패키지는 <code>--whatprovides</code> 로 본다. 사용자가 <code>vim</code> 처럼 제공 이름을 적어도 실제 패키지 <code>vim-enhanced</code> 를 찾는다.</li>
+          <li>관측 실패는 <code>"state":"unknown"</code>, 종료 코드 파일 없음은 <code>null</code>.</li>
+        </ul>
+        <pre><code>"osSetting":{"selinux":"enforcing","services":[{"name":"chronyd","state":"enabled"}],"packages":[{"name":"vim","installed":true}],"scriptExitCodes":[0,3]}</code></pre>
+
+        <h4>3-5. D-5 OS_SETTING phase 를 여닫는 자리 (R10)</h4>
+        <table>
+          <thead><tr><th>안</th><th>내용</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">채택</span> (a) 완료 처리 공통 흐름에 '전진 뒤' 훅, RHEL 이 OS 설정을 닫음</td><td><code>OsInstallCompletionService.complete</code> 가 <code>advanceOrComplete</code> 다음에 <code>afterAdvanced(server, progress, report, now)</code>(기본 없음) 호출. <code>RhelInstallCompletionService</code> 가 <code>RhelOsSettingCloser</code> 에 넘김</td><td>같은 트랜잭션 · 보고 한 번. 공통 흐름 순서 그대로, 계열이 붙이는 일만 늘어남</td></tr>
+            <tr><td><span class="chip del">탈락</span> (b) OS_SETTING 을 phase 실행기(<code>ProvisioningPhaseExecutor</code>)로</td><td><code>/boot</code> 디스패치</td><td>설치 뒤 서버는 PXE 를 타지 않아 불릴 일 없음</td></tr>
+            <tr><td><span class="chip del">탈락</span> (c) OS 설정 전용 보고 창구</td><td>두 번째 보고</td><td>토론 Q2 (c) 탈락(실패 지점 증가)</td></tr>
+          </tbody>
+        </table>
+        <pre><code>RhelOsSettingCloser
+  커서가 OS_SETTING 진입이면
+    → OsSettingVerdict 판정
+    → 원장 단발 행 ProvisioningHistoryRecorder.recordInstant (step OS_SETTING, SUCCEEDED/FAILED, meta)
+    → 성공: 다시 advanceOrComplete
+    → 실패: progress.markFailed</code></pre>
+        <ul>
+          <li>중복 보고: 공통 흐름이 먼저 no-op 으로 끝나므로 OS 설정도 다시 판정하지 않는다.</li>
+          <li>판정 기준 = 활성 할당 스냅숏의 <code>RHELOSSettingRequest</code>(kickstart 를 만든 것과 같은 동결본).</li>
+          <li>원장 meta(json): <code>origin</code> · <code>selinux{expected, observed, ok}</code> · <code>services[{name, action, observed, ok}]</code> · <code>packages[{name, installed, ok}]</code> · <code>scripts[{no, fileName, exitCode, log, ok}]</code> · <code>detail</code>(실패 사유를 문장 사이 공백으로 이어 붙임) · <code>message</code>(화면 문구). 읽기 · 쓰기는 <code>OsSettingLedger</code> 한 곳.</li>
+        </ul>
+
+        <h4>3-6. D-9 화면 (R4 · R7 · R12)</h4>
+        <table>
+          <thead><tr><th>화면</th><th>구성</th></tr></thead>
+          <tbody>
+            <tr><td>정의서 작성 · 수정 폼</td><td>OS 후처리 카드 하나(작성 폼 <code>setting-new.html :: settingForm</code> 을 수정 폼이 재사용)</td></tr>
+            <tr><td>카드 '기본 설정'</td><td>SELinux 모드 select · 서비스 지시 표(이름 · 활성화/비활성화 · 행 삭제, [서비스 추가]) · 추가 패키지 입력(쉼표 구분, 지금 수집기 그대로)</td></tr>
+            <tr><td>카드 '추가 스크립트'</td><td>목록 표(순서 · 파일 이름 · 크기 · [위로] [아래로] [삭제]), [스크립트 추가](파일 고르기), 안내 셋. 10 개면 추가 버튼 disabled + tooltip</td></tr>
+            <tr><td>정의서 상세</td><td><code>setting-process-cards.html</code> OS_SETTING 카드: 스크립트 표(순서 · 파일 이름 · 크기) + 행마다 내용 펼침(<code>details</code> 안 <code>pre</code>)</td></tr>
+            <tr><td>서버 상세 프로비저닝 탭</td><td>OS_SETTING phase 패널(<code>server-detail.html</code> phase <code>th:switch</code> 에 <code>th:case="'OS_SETTING'"</code>, 새 조각 <code>fragments/provisioning/os-setting.html</code>)</td></tr>
+            <tr><td>OS 설정 패널 내용</td><td>기본 설정 표(항목 · 정의서 · 관측 · 판정 배지), 스크립트 표(번호 · 파일 이름 · 종료 코드 · 실행 기록 경로 · 판정 배지), 성공 안내 또는 실패 항목 사유</td></tr>
+            <tr><td>패널 응답</td><td><code>OsSettingOutcomeResponse</code>(<code>GuestServerQueryService</code> 가 최신 OS_SETTING 원장 행에서 생성)</td></tr>
+            <tr><td>세부 단계 표 사유 칸</td><td>원장 meta <code>detail</code></td></tr>
+          </tbody>
+        </table>
+        <p>컴포넌트는 DESIGN.md 5절 고르기 표에서 고른다(목록 = <code>n-table</code> + <code>thead</code>, 폼 동작 = 기존 버튼 클래스). 새 <code>n-</code> 클래스가 필요하면 CP4 전에 디자인 세션(SPV_Design)에 묻는다.</p>
+        <table>
+          <thead><tr><th>안내 문구 초안</th><th>원문 (DESIGN.md 7절 합니다체)</th></tr></thead>
+          <tbody>
+            <tr><td>비밀값</td><td>"스크립트 내용은 설치된 서버의 /root/anaconda-ks.cfg 에 남습니다. 비밀번호 같은 값을 넣지 않아야 합니다."</td></tr>
+            <tr><td>chroot 제약(O-2)</td><td>"스크립트는 설치 중에 실행되어 서비스를 바로 시작할 수 없습니다. systemctl enable 은 동작하고 systemctl start 는 동작하지 않습니다."</td></tr>
+            <tr><td>실행 방식</td><td>"스크립트는 설치 중에 root 권한으로 위에서부터 차례로 실행합니다. 실행 기록은 /root/spv-script-&lt;번호&gt;.log 에 남습니다."</td></tr>
+            <tr><td>성패 판정</td><td>"스크립트의 종료 코드가 0 이면 성공, 0 이 아니면 실패로 판정합니다. 성공이어도 적용 여부는 서버에서 직접 확인해야 합니다." (CP1 승인 때 사용자 지시)</td></tr>
+            <tr><td>성공 안내(R12)</td><td>"스크립트 실행은 끝났지만 적용 여부는 서버에서 직접 확인해야 합니다." (디자인 검수 거절돼도 통과)</td></tr>
+            <tr><td>크기 초과</td><td>"스크립트 파일은 64 KB 이하여야 합니다."</td></tr>
+            <tr><td>NUL 포함</td><td>"텍스트 파일만 올릴 수 있습니다."</td></tr>
+            <tr><td>공백만</td><td>"내용이 없는 파일은 올릴 수 없습니다."</td></tr>
+            <tr><td>10 개 상한 tooltip</td><td>"스크립트는 10 개까지 넣을 수 있습니다."</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (판정 표 · 계열 잠금 · 계약 · 재시도 · 선행 연쇄)</summary>
+      <div class="body">
+        <div class="callout">Entity · DB 스키마 변경 없음. 정의서 payload · 할당 스냅숏 · 원장 meta 가 모두 json 컬럼이다.</div>
+
+        <h4>4-1. D-4 판정 표 (<code>OsSettingVerdict</code>, 데모 판정 JS 가 그대로 옮김)</h4>
+        <table>
+          <thead><tr><th>항목</th><th>성공 조건</th><th>실패 사유 문구(원장 · 화면)</th></tr></thead>
+          <tbody>
+            <tr><td>SELinux</td><td>관측(소문자) == 정의서 모드</td><td>"SELinux 모드가 다릅니다(정의서 {0}, 관측 {1})."</td></tr>
+            <tr><td>서비스 ENABLE</td><td>관측 == <code>enabled</code></td><td>"서비스 {0} 이(가) 활성화되지 않았습니다(관측 {1})."</td></tr>
+            <tr><td>서비스 DISABLE</td><td>관측 ∈ {<code>disabled</code>, <code>masked</code>}</td><td>"서비스 {0} 이(가) 비활성화되지 않았습니다(관측 {1})."</td></tr>
+            <tr><td>패키지</td><td>설치됨</td><td>"패키지 {0} 이(가) 설치되지 않았습니다."</td></tr>
+            <tr><td>스크립트 N</td><td>종료 코드 == 0</td><td>"스크립트 {0}번({1})의 종료 코드가 {2} 입니다." / 기록 없음 "스크립트 {0}번({1}) 실행 기록이 없습니다."</td></tr>
+            <tr><td>세부 단계 사유 칸(meta <code>detail</code>)</td><td>실패 사유 이어 붙임</td><td>문장 사이 공백</td></tr>
+            <tr><td>관측 묶음 없음(<code>osSetting</code> 누락)</td><td>-</td><td>"OS 후처리 관측값을 받지 못했습니다."</td></tr>
+            <tr><td>전체</td><td>모두 성공 → SUCCEEDED, 하나라도 실패 → FAILED</td><td>성공 안내 "스크립트 실행은 끝났지만 적용 여부는 서버에서 직접 확인해야 합니다." (스크립트가 없으면 안내 없이 성공)</td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>관측 값</th><th>타입</th></tr></thead>
+          <tbody>
+            <tr><td>SELinux 모드</td><td><code>SelinuxMode</code> enum(ENFORCING · PERMISSIVE · DISABLED, 문자열 왕복)</td></tr>
+            <tr><td>서비스 상태</td><td><code>ServiceEnablement</code> enum(systemctl 출력 단어, 모르는 값은 UNKNOWN)</td></tr>
+            <tr><td>종료 코드</td><td><code>Integer</code>(null = 기록 없음)</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>Primitive Obsession 규칙에 따라 SELinux 모드와 서비스 상태를 enum 으로 받는다. 계약의 <code>selinuxMode</code> 문자열은 기존 저장본 호환으로 두고 실행 쪽 목표(<code>RhelOsSettingPlan</code>)에서 enum 으로 바꾼다.</li>
+          <li>문구의 '이(가)' 는 CP4 에서 화면 문구 규약(DESIGN.md 7절, new-user-copy.md)으로 다듬는다(조사 처리 방식 미정).</li>
+        </ul>
+
+        <h4>4-2. D-7 OS 계열 잠금의 단일 판정 (R3)</h4>
+        <table>
+          <thead><tr><th>안</th><th>내용</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">채택</span> (a) <code>OSFamily.supportsOsSetting()</code> 하나를 서버 가드와 화면이 공유</td><td>서버: <code>SettingSaveRequest</code> 에 <code>@AssertTrue isOsSettingSupported</code>(OS_SETTING 있으면 OS_INSTALLATION 이 있고 그 계열이 지원). 화면: 폼이 지원 계열 목록을 <code>data-*</code> 로 받아 JS 가 OS 설치 선택의 <code>data-os-family</code> 와 비교</td><td>SSOT 하나, JS 는 계열 이름을 분기하지 않음</td></tr>
+            <tr><td><span class="chip del">탈락</span> (b) JS 에 'RHEL_BASED' 하드코딩</td><td>-</td><td>드리프트</td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead><tr><th>화면 상황</th><th>동작</th></tr></thead>
+          <tbody>
+            <tr><td>OS 설치 카드 열림 + RHEL 계열 아닌 OS 선택</td><td>[+ OS 후처리 설정] 버튼 disabled + tooltip</td></tr>
+            <tr><td>OS 후처리 카드 연 채 OS 설치를 Ubuntu · Windows 로 변경</td><td>카드 본문 대신 잠금 안내, 저장 시 그 카드 안에 같은 문구로 차단(클라이언트 검증). 서버 400 은 direct POST 안전망</td></tr>
+            <tr><td>OS 설치에서 OS 미선택</td><td>카드에 "OS 설치에서 OS 를 먼저 골라야 합니다." 안내(지금 <code>osGuide</code> 자리)</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>잠금 문구 초안: "OS 후처리는 RHEL 계열 OS 를 설치할 때만 쓸 수 있습니다."</li>
+          <li><code>isOsSelectionConsistent</code> 는 안전망으로 둔다. JS 가 payload 를 만들 때 <code>osMetadataId</code> · <code>osFamily</code> 를 OS 설치 카드 값에서 채운다(OS 후처리 카드의 OS 선택 select 는 만들지 않음).</li>
+        </ul>
+
+        <h4>4-3. D-8 계약 확장 (R5 · R6)</h4>
+        <table>
+          <thead><tr><th>자리</th><th>규칙</th></tr></thead>
+          <tbody>
+            <tr><td><code>RHELOSSettingRequest.scripts</code></td><td><code>List&lt;OsSettingScriptRequest&gt;</code>, 없으면 빈 목록(기존 저장본 호환), <code>@Size(max = 10)</code></td></tr>
+            <tr><td><code>OsSettingScriptRequest.fileName</code></td><td>필수, 128 자 이하, 경로 부분은 버리고 파일 이름만(JS 가 <code>File.name</code> 을 넘김). 화면 표시와 로그 대조용</td></tr>
+            <tr><td><code>OsSettingScriptRequest.content</code></td><td>필수(공백만이면 거절), UTF-8 바이트 65,536 이하(<code>@AssertTrue</code> 로 바이트 계산), NUL 문자 거절. 생성자에서 CRLF → LF</td></tr>
+            <tr><td>크기 근거</td><td>개당 64 KB × 10 개 = base64 로 약 870 KB 가 kickstart 에 더해짐</td></tr>
+            <tr><td>전송</td><td>JSON 한 번 POST(<code>fetch</code>, <code>application/json</code>). Tomcat 폼 크기 상한은 이미 해제(<code>max-http-form-post-size=-1</code>)</td></tr>
+            <tr><td>파일 읽기</td><td>브라우저 <code>FileReader.readAsText(file, 'UTF-8')</code></td></tr>
+            <tr><td>바이너리 · 크기 · 개수 판별</td><td>서버(NUL)와 JS(업로드 즉시 안내)가 같은 규칙 상수. 크기 상한 · 개수 상한은 서버가 <code>data-*</code> 로 내려 줌 → JS 하드코딩 없음</td></tr>
+            <tr><td>U9 복제</td><td><code>SettingDefinition.copyOf</code> 가 payload 를 통째로 넘기므로 스크립트도 따라옴(테스트로 확인)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>4-4. D-6 OS 설정 실패 뒤 재시도 (O-1 로 묻는다)</h4>
+        <table>
+          <thead><tr><th>안</th><th>내용</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip opt">권고</span> (a) 재시도 차단 + 사유</td><td><code>ProvisioningPhase</code> 에 "실패 뒤 재시도 가능" 속성(OS_SETTING 만 false), <code>RetryPolicy</code> 가 함께 봄. 화면 재시도 버튼 disabled + tooltip, direct POST 는 409</td><td>설정은 설치 중에 적용돼 같은 스냅숏으로 다시 해도 결과가 같음. 서버에서 직접 고치거나 회수 뒤 다시 투입</td></tr>
+            <tr><td>(b) OS 설치로 되감기</td><td>phase 역행 예외를 연다</td><td>디스크를 다시 지우고 같은 결과가 날 가능성 큼. 역행 금지 불변식에 예외 발생</td></tr>
+            <tr><td><span class="chip del">탈락</span> (c) 지금 규칙 그대로(같은 phase 되감기)</td><td>커서가 OS_SETTING 에 섬</td><td>실행기가 없어 영구 HOLD = 결함</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li>차단 사유 문구 초안: "OS 후처리는 설치 중에 적용되어 다시 시도해도 결과가 같습니다. 서버에서 직접 고치거나 회수한 뒤 다시 투입해야 합니다."</li>
+          <li>예외: <code>ProvisioningRetryRejectedException</code> 에 새 팩토리(새 클래스 아님) → 통합 테스트에 409 시나리오 추가(<a href="#s7">§7</a>).</li>
+        </ul>
+
+        <h4>4-5. D-12 선행 단계 연쇄 (R1)</h4>
+        <p>코드 실측: <code>addStepWithRequired</code> 는 선행을 한 칸만 연다. OS 후처리를 넣으면 OS 설치만 열리고 RAID 구성은 열리지 않아 저장이 <code>isOsVolumeDeterminable</code> 에서 막힌다.</p>
+        <table>
+          <thead><tr><th>안</th><th>내용</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">채택</span> (a) 연쇄를 끝까지 따라가 연다</td><td><code>addStepWithRequired</code> 가 <code>requiredStep</code> 연쇄를 끝까지 따라가 앞 단계부터 연다(OS 후처리 → OS 설치 → RAID 구성)</td><td>enum 구조 그대로, JS 한 함수만 바뀜</td></tr>
+            <tr><td><span class="chip del">탈락</span> (b) OS_SETTING 의 <code>requiredStep</code> 을 RAID 로도 선언</td><td>enum 에 선행 둘</td><td>다중 선행 구조 신설, 과함</td></tr>
+            <tr><td><span class="chip del">탈락</span> (c) 그대로 두고 저장 오류로 안내</td><td>저장 때 거절</td><td>UX 모순을 예외로 거절 = 불가침 위반</td></tr>
+          </tbody>
+        </table>
+        <p>제거 잠금(<code>syncRemoveLocks</code>)은 바꾸지 않는다. 한 칸 관계만으로 연쇄가 이미 성립한다(OS 후처리가 OS 설치를, OS 설치가 RAID 구성을 잠금).</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>산출물</th><th>CP</th><th>경계</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>plan html (본 문서)</td><td><span class="chip cp1">CP1</span></td><td>승인</td></tr>
+            <tr><td>2~5</td><td>뷰 · Controller · DTO · Service 시그니처</td><td><span class="chip cp2">CP2</span></td><td>보고</td></tr>
+            <tr><td>6~7</td><td>Repository · Entity 변경 없음. enum <code>SelinuxMode</code> · <code>ServiceEnablement</code></td><td><span class="chip cp3">CP3</span></td><td>보고</td></tr>
+            <tr><td>8~9</td><td>Service 본체 + 단위 · 통합 테스트, 전체 테스트 green(코딩 규약 검사 포함). 스키마: DDL 없음</td><td><span class="chip cp4">CP4</span></td><td>승인 (main + 테스트 코드 검수)</td></tr>
+            <tr><td>10</td><td>화면은 샌드박스 브라우저, 실행 쪽은 모의 게스트 하네스(E 단계 예외). 항목별 스크린샷</td><td><span class="chip cp5">CP5</span></td><td>보고 (검수는 CP6)</td></tr>
+            <tr><td>11</td><td>report html + 다이어그램 갱신</td><td><span class="chip cp6">CP6</span></td><td>승인</td></tr>
+            <tr><td>12</td><td>RHEL 전체 실기에 묶음</td><td><span class="chip cp7">CP7</span></td><td>승인</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(테스트까지 끝낸 코드 검수) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘이다. ① CP1 승인에서 CP4 게이트 지점까지(main 구현, 테스트 작성, 규약 검사 포함 전체 테스트 green. 경계 보고만) ② CP4 승인에서 CP6 제출까지(CP5 검증, report 산출).</div>
+
+        <h4>5-1. D-10 슬라이스를 나누지 않는다</h4>
+        <table>
+          <thead><tr><th>안</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">채택</span> (a) 하나로</td><td>정의서만 먼저 열면 OS 후처리가 든 정의서가 저장 · 할당되는데 실행에서 OS_SETTING 이 영구 HOLD(쓸 수 없는 정의서). CP5 는 화면과 하네스 두 갈래지만 한 이야기(만든 정의서가 실제로 적용 · 판정되는가)</td></tr>
+            <tr><td><span class="chip del">탈락</span> (b) b-7-a 정의서 / b-7-b 실행</td><td>사이 기간에 위 결함이 dev 에 남음</td></tr>
+          </tbody>
+        </table>
+
+        <h4>5-2. 구현 순서</h4>
+        <div class="state-flow">계약 · 저장 검증 → 폼 · 상세 → 해석기 · kickstart · 보고 셸 → 판정 · 원장 · 완료 훅 · 재시도 → 서버 상세
+  → 테스트 · 규약 green (CP4)
+  → CP5 (화면 A1 ~ A5 · B1 ~ B7 · C, 하네스 A6 · A7 · B8 ~ B10)
+  → CP6 report + 다이어그램 갱신</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. 테스트 계획 (단위 · 셸 · 통합 · 화면 · 회귀 · 규약)</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>레이어</th><th>대상</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td>단위</td><td><code>OsSettingVerdict</code></td><td>D-4 표 행마다 성공 1 · 실패 1, 관측 묶음 없음, 스크립트 없음 성공 안내 없음</td></tr>
+            <tr><td>단위</td><td><code>KickstartRenderer</code></td><td>selinux 3 모드, services 한쪽만 · 둘 다, <code>--ignoremissing</code> 은 추가 패키지 있을 때만, 스크립트 블록 순서(kdump 뒤 · 보고 앞), base64 왕복 = 원문, OS_SETTING 없으면 지금 출력과 바이트 동일</td></tr>
+            <tr><td>단위</td><td><code>FirstBootReport</code></td><td>관측 키 생성 · 토큰 검사</td></tr>
+            <tr><td>셸</td><td><code>SpvReportScriptTest</code>(SPV_ROOT + PATH 에 가짜 getenforce · systemctl · rpm)</td><td>JSON <code>osSetting</code> 내용, rc 파일 없음 null, OS_SETTING 없으면 키 없음</td></tr>
+            <tr><td>단위</td><td><code>OsSettingScriptRequest</code> · <code>SettingSaveRequest</code></td><td>바이트 상한 경계(65,536 / 65,537), NUL, 공백만, CRLF 변환, 10 / 11 개, 계열 잠금(RHEL 통과 · Ubuntu · Windows · OS 설치 없음 거절)</td></tr>
+            <tr><td>단위</td><td><code>RhelInstallationResolutionProviderImpl</code></td><td>OS_SETTING 있으면 plan 채움, 없으면 empty</td></tr>
+            <tr><td>단위</td><td><code>RhelOsSettingCloser</code> · 완료 서비스</td><td>OS_SETTING 소유 + 성공 → 전진/종단, 실패 → markFailed · 커서 OS_SETTING, 미소유 → 손대지 않음, 중복 보고 no-op</td></tr>
+            <tr><td>단위</td><td><code>RetryPolicy</code></td><td>OS_SETTING 실패 차단(O-1 (a) 일 때)</td></tr>
+            <tr><td>통합(MockMvc)</td><td>정의서 저장</td><td>200, 400 필드 메시지(계열 잠금 · 스크립트 크기 · 개수 · NUL)</td></tr>
+            <tr><td>통합</td><td>게스트 완료 보고 <code>/api/pxe/v1/agent/rhel/complete</code></td><td><code>osSetting</code> 실린 200 → 원장 OS_SETTING 행 · 진행 상태</td></tr>
+            <tr><td>통합</td><td>재시도</td><td>OS_SETTING 실패 재시도 409(새 팩토리 시나리오)</td></tr>
+            <tr><td>화면</td><td>정의서 폼 · 상세 · 서버 상세 뷰 테스트</td><td>카드 마크업 · <code>data-*</code> 상한 · 스크립트 표 · OS 설정 패널</td></tr>
+            <tr><td>회귀</td><td>U9 복제</td><td>사본 payload 에 스크립트 그대로</td></tr>
+            <tr><td>화면 동작</td><td>선행 연쇄(D-12)</td><td>JS 뷰 테스트 없이 CP5 A1 로 확인</td></tr>
+            <tr><td>규약</td><td>CH11 · DesignConventionTest</td><td>새 위반 0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>예외 · 검증</th><th>HTTP</th><th>구분</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td><code>ProvisioningRetryRejectedException</code> 새 팩토리</td><td>409</td><td><span class="chip keep">재사용</span> (새 클래스 아님)</td><td>D-6, O-1 결과에 따름</td></tr>
+            <tr><td><code>SettingSaveRequest</code> <code>@AssertTrue isOsSettingSupported</code></td><td>400 필드 메시지</td><td><span class="chip add">검증 추가</span></td><td>D-7</td></tr>
+            <tr><td><code>OsSettingScriptRequest</code> 검증(필수 · 128 자 · 65,536 바이트 · NUL), <code>@Size(max = 10)</code></td><td>400 필드 메시지</td><td><span class="chip add">검증 추가</span></td><td>D-8</td></tr>
+          </tbody>
+        </table>
+        <p>새 예외 클래스는 없다. 새 팩토리는 통합 테스트에 409 시나리오를 함께 더한다(테스트 규율).</p>
+      </div>
+    </details>
+
+    <!-- ===== §8 결정 · 열린 질문 · 위험 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 결정 요약 · 기존 데이터와 배포 · 열린 질문 · 위험</summary>
+      <div class="body">
+        <h4>8-1. 결정 요약 (채택 · 비채택 · 탈락 사유)</h4>
+        <table>
+          <thead><tr><th>결정</th><th>채택</th><th>비채택</th><th>탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1 스크립트 싣기</td><td>base64 + bash 실행</td><td>원문 <code>%post</code> 본문 / 원문 heredoc</td><td>종료 코드 자리 없음 · <code>%</code> 줄 / 구분자 줄 충돌</td></tr>
+            <tr><td>D-2 kickstart 배치</td><td>3-3 표 배치</td><td><code>--ignoremissing</code> 을 항상 붙임</td><td>환경 · 그룹 누락까지 조용히 넘김</td></tr>
+            <tr><td>D-3 관측 · 판정</td><td>셸은 원시 관측, 서버 판정</td><td>셸 판정 / <code>%post</code> 시점 관측</td><td>규칙 두 곳 / 부팅 뒤 값과 다를 수 있음</td></tr>
+            <tr><td>D-4 판정 표</td><td>4-1 표</td><td>DISABLE 은 disabled 만 성공 / ENABLE 에 static 허용</td><td>masked 는 더 강한 비활성이라 의도 충족 / static 은 enable 할 수 없어 의도 미달</td></tr>
+            <tr><td>D-5 phase 여닫기</td><td>완료 처리 '전진 뒤' 훅</td><td>phase 실행기 / 전용 보고 창구</td><td>불릴 일 없음 / 실패 지점 증가</td></tr>
+            <tr><td>D-6 실패 뒤 재시도</td><td>권고 (a) 차단 + 사유(O-1)</td><td>OS 설치로 되감기 / 지금 규칙</td><td>같은 결과 · 불변식 예외 / 영구 HOLD</td></tr>
+            <tr><td>D-7 계열 잠금</td><td><code>OSFamily.supportsOsSetting()</code> 공유</td><td>JS 하드코딩</td><td>드리프트</td></tr>
+            <tr><td>D-8 계약 확장</td><td>4-3 표</td><td>스크립트를 multipart 로 따로 업로드 / 크기 상한 없음</td><td>폼은 JSON 한 번 POST, 정의서 안 저장(Q7)과 불일치 / kickstart 비대 · 실수로 큰 파일</td></tr>
+            <tr><td>D-9 화면</td><td>3-6 표</td><td>OS 설정 결과를 OS 설치 카드 안에 표시</td><td>phase 패널과 phase 1:1 구조가 깨짐</td></tr>
+            <tr><td>D-10 슬라이스</td><td>하나로</td><td>정의서 / 실행 둘로</td><td>사이 기간 영구 HOLD 결함</td></tr>
+            <tr><td>D-11 기존 데이터 · 배포</td><td>8-2</td><td>-</td><td>-</td></tr>
+            <tr><td>D-12 선행 단계 연쇄</td><td><code>requiredStep</code> 연쇄를 끝까지 열기</td><td>OS_SETTING 선행에 RAID 추가 / 저장 오류로 안내</td><td>다중 선행 구조 신설 / UX 모순을 예외로 거절</td></tr>
+          </tbody>
+        </table>
+
+        <h4>8-2. D-11 기존 데이터와 배포</h4>
+        <ul>
+          <li>DDL 없음. <code>docs/deploy/pending/E4-1-b.md</code> 에 b-7 절을 더해 읽기 전용 점검 SQL 을 둔다: 운영 DB 에 R11 이전에 만든 OS_SETTING 정의서 단계 · 할당 스냅숏이 있는지(있으면 b-7 배포 뒤 실제로 적용되기 시작하므로 배포 전 확인).</li>
+          <li>관리 포인트(<code>docs/dev/maintenance-points.md</code>): 없음.</li>
+          <li>다이어그램 규약: E 단계 완료 시 <code>diagram/guest-provisioning-canvas.html</code> 에 OS 후처리 상호작용(kickstart 의 스크립트 <code>%post</code>, 첫 부팅 보고의 <code>osSetting</code>)을 반영(CP6 때).</li>
+        </ul>
+
+        <h4>8-3. Open Questions (CP1 결정)</h4>
+        <table>
+          <thead><tr><th>ID</th><th>질문</th><th>권고</th></tr></thead>
+          <tbody>
+            <tr><td>O-1</td><td>OS 설정이 실패하면 재시도를 어떻게 할까</td><td>(a) 재시도 차단 + 사유(D-6). 같은 스냅숏으로 다시 설치해도 결과가 같음</td></tr>
+            <tr><td>O-2</td><td>chroot 에서 <code>systemctl start</code> 류가 동작하지 않는다는 안내를 화면에 둘까(토론에서 세션 판단으로 남긴 항목)</td><td>둔다. 사용자가 가장 흔히 넣을 명령이 실패 원인이 되기 쉬움</td></tr>
+            <tr><td>O-3</td><td>'<code>%</code> 로 시작하는 줄 거부' 규칙을 없앨까</td><td>없앤다. base64 로 실어 kickstart 가 깨지지 않으므로 불필요한 제약(D-1)</td></tr>
+          </tbody>
+        </table>
+
+        <h4>8-4. 위험</h4>
+        <table>
+          <thead><tr><th>위험</th><th>대응</th></tr></thead>
+          <tbody>
+            <tr><td>스크립트가 멈추면 설치가 멈춤</td><td>OS 설치 서빙 시한이 실패로 닫음. 스크립트별 시한은 후속 후보</td></tr>
+            <tr><td><code>services</code> 에 없는 서비스 이름 → anaconda 동작 불확실</td><td>T3 실기 확인, 관측에서 not-found 로 실패 처리</td></tr>
+            <tr><td>RHEL 9 <code>selinux --disabled</code> 의 실제 관측값</td><td>T3 확인, 판정은 getenforce 소문자 비교</td></tr>
+            <tr><td>운영 DB 에 R11 이전 OS_SETTING 단계가 있으면 배포 뒤 실제 적용 시작</td><td>배포 대기 점검 SQL(D-11)</td></tr>
+            <tr><td>스크립트의 비밀값이 서버에 남음</td><td>화면 안내(R7)</td></tr>
+            <tr><td>디자인 세션이 안내 문구를 거절</td><td>R12 문구는 사용자 허가로 통과, 나머지는 다듬기</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification (CP5 계획)</summary>
+      <div class="body">
+        <p>샌드박스: u9 재사용(<code>sbx.sh restart u9</code>, 증설 안 함). 실행 쪽은 E 단계 예외로 모의 게스트 하네스(<code>scripts/mock-guest/rhel-install-cycle.sh</code>) + 서버 상세 화면 확인. kickstart 는 서빙 URL 로 받아 <code>ksvalidator</code>(pykickstart venv 재생성)로 검사.</p>
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>새 정의서에서 [+ OS 후처리 설정]</td><td>OS 설치 · RAID 구성 카드도 함께 열림(D-12), OS 미선택 안내</td></tr>
+            <tr><td>A2</td><td>OS 설치 Rocky 선택 → 기본 설정 · 서비스 2 · 패키지 2 · 스크립트 2 업로드 → 저장</td><td>저장, 상세에 스크립트 표 · 내용 펼침</td></tr>
+            <tr><td>A3</td><td>수정에서 스크립트 순서 바꾸기 · 하나 삭제 · 하나 추가 → 저장</td><td>상세 순서 반영</td></tr>
+            <tr><td>A4</td><td>CRLF 스크립트 업로드 → 저장</td><td>저장본 LF(DB 확인)</td></tr>
+            <tr><td>A5</td><td>정의서 복제</td><td>사본에 스크립트 그대로</td></tr>
+            <tr><td>A6</td><td>할당 → 서빙 kickstart 받기 → ksvalidator</td><td>통과, D-2 배치 순서</td></tr>
+            <tr><td>A7</td><td>하네스 보고(전부 일치)</td><td>서버 상세 OS 설정 패널 성공 · 직접 확인 안내 · 종단</td></tr>
+            <tr><td>B1</td><td>OS 설치 Windows 선택</td><td>[+ OS 후처리 설정] disabled · tooltip</td></tr>
+            <tr><td>B2</td><td>OS 후처리 연 채 OS 설치를 Ubuntu 로</td><td>카드 잠금 안내, 저장 시 카드 안 차단 문구</td></tr>
+            <tr><td>B3</td><td>direct POST(Windows + OS_SETTING)</td><td>400 필드 메시지</td></tr>
+            <tr><td>B4</td><td>64 KB 넘는 파일</td><td>업로드 즉시 거절 문구, direct POST 400</td></tr>
+            <tr><td>B5</td><td>스크립트 10 개 뒤</td><td>추가 버튼 disabled · tooltip</td></tr>
+            <tr><td>B6</td><td>NUL 든 파일</td><td>거절 문구</td></tr>
+            <tr><td>B7</td><td>OS 후처리 연 동안 OS 설치 [단계 제거]</td><td>잠김(HF34)</td></tr>
+            <tr><td>B8</td><td>하네스 보고(패키지 없음 + 스크립트 종료 코드 3)</td><td>OS 설정 실패, 항목별 사유</td></tr>
+            <tr><td>B9</td><td>실패 뒤 재시도 버튼 · direct POST</td><td>disabled · tooltip, 409 (O-1 결과)</td></tr>
+            <tr><td>B10</td><td>같은 보고 두 번</td><td>두 번째 no-op, 원장 행 하나</td></tr>
+            <tr><td>C1</td><td>잠금 사유가 버튼 곁 · tooltip 에 보이는가</td><td>이유 즉시 안내</td></tr>
+            <tr><td>C2</td><td>저장 차단 문구가 해당 카드 안에 뜨는가</td><td>위치 정확</td></tr>
+            <tr><td>C3</td><td>실패 사유가 항목 단위로 무엇을 고칠지 알려 주는가</td><td>항목 · 관측값 표시</td></tr>
+            <tr><td>C4</td><td>design-audit copy · line · overflow scan(정의서 폼 · 상세 · 서버 상세, 1440 · 1024 · 360)</td><td>새 걸림 0</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>실기(T3) 유보</b> : 실제 Rocky 설치에서 스크립트 <code>%post</code> 실행 · 로그 · rc 파일, <code>getenforce</code> 값(특히 RHEL 9 의 disabled 동작), <code>services</code> 에 없는 서비스 이름을 넣었을 때 anaconda 동작 → <code>docs/T3-checklist.md</code> 적립, CP7 은 RHEL 전체 실기에 묶음.</div>
+        <ul class="check-list" data-storage="E4-1-b-7-verify">
+          <li><label><input type="checkbox" data-key="test"> <span><code>./gradlew test</code> 전체 통과(CH11 · DesignConventionTest 포함)</span></label></li>
+          <li><label><input type="checkbox" data-key="screen"> <span>CP5 화면 A1 ~ A5 · B1 ~ B7 · C (항목별 스크린샷)</span></label></li>
+          <li><label><input type="checkbox" data-key="harness"> <span>CP5 하네스 A6 · A7 · B8 ~ B10</span></label></li>
+          <li><label><input type="checkbox" data-key="report"> <span>report html + 다이어그램 갱신 (CP6)</span></label></li>
+          <li><label><input type="checkbox" data-key="t3"> <span>T3 유보 항목 <code>docs/T3-checklist.md</code> 적립</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일 · 클래스</th><th>바뀌는 것</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/enums/SettingProcessType</code></td><td>OS_SETTING <code>paletteExposed=true</code>, <code>requiredStep=OS_INSTALLATION</code>, 주석 R11 → b-7</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/enums/OSFamily</code></td><td><code>supportsOsSetting()</code> (RHEL_BASED 만 true)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/dto/request/RHELOSSettingRequest</code></td><td><code>scripts</code> 필드</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>provisioning/setting/dto/request/OsSettingScriptRequest</code></td><td>파일 이름 · 내용 · 바이트 상한 · NUL · CRLF</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/dto/request/SettingSaveRequest</code></td><td><code>@AssertTrue isOsSettingSupported</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/setting/controller/SettingController</code></td><td>지원 계열 · 스크립트 상한을 모델로(폼 <code>data-*</code>)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/provisioning/setting-new.html</code></td><td>OS 후처리 카드 마크업</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>static/provisioning/setting-form.js</code></td><td>OS 계열 잠금, 선행 연쇄(D-12), 스크립트 업로드 · 순서 · 삭제, 수집 · 복원, 클라이언트 검증</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>templates/fragments/provisioning/setting-process-cards.html</code></td><td>상세 스크립트 표</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>messages.properties</code></td><td>안내 · 잠금 · 검증 · 판정 문구 키</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>provisioning/assignment/service/RhelInstallationResolutionProviderImpl</code></td><td>스냅숏의 <code>RHELOSSettingRequest</code> → <code>RhelOsSettingPlan</code></td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/rhel/RhelOsSettingPlan</code> (+ <code>SelinuxMode</code> enum)</td><td>실행 쪽 목표</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/rhel/RhelInstallTarget</code></td><td><code>Optional&lt;RhelOsSettingPlan&gt; osSetting</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/rhel/kickstart/KickstartRenderer</code></td><td>selinux · services · 패키지 · 스크립트 <code>%post</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/rhel/kickstart/FirstBootReport</code></td><td>관측 목록 → <code>report.env</code> 키</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>resources/kickstart/spv-report.sh</code></td><td>관측 수집 · JSON <code>osSetting</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/dto/request/RhelInstallCompletionRequest</code></td><td><code>osSetting</code> 관측 묶음</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/rhel/ossetting/OsSettingObservation</code> · <code>ServiceEnablement</code></td><td>관측값</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/rhel/ossetting/OsSettingVerdict</code> · <code>OsSettingItemOutcome</code></td><td>판정(D-4 표)</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/rhel/ossetting/OsSettingLedger</code></td><td>원장 단발 행 쓰기 · meta 읽기</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>execution/engine/rhel/ossetting/RhelOsSettingCloser</code></td><td>판정 → 원장 → 전진 또는 실패</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/osinstall/OsInstallCompletionService</code></td><td><code>afterAdvanced</code> 훅</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/engine/rhel/RhelInstallCompletionService</code></td><td>훅 구현</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/enums/ProvisioningPhase</code> · <code>execution/service/RetryPolicy</code> · <code>ProvisioningRetryRejectedException</code></td><td>D-6 (O-1 결과에 따름)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>execution/service/GuestServerQueryService</code> + 신규 <code>OsSettingOutcomeResponse</code></td><td>서버 상세 패널</td></tr>
+            <tr><td><span class="chip new">신규</span></td><td><code>templates/fragments/provisioning/os-setting.html</code> · 수정 <code>server-detail.html</code></td><td>OS 설정 패널</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>docs/deploy/pending/E4-1-b.md</code></td><td>점검 SQL</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>scripts/mock-guest/rhel-install-cycle.sh</code></td><td>보고에 <code>osSetting</code> 싣는 선택지</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤 (한 슬라이스, D-10)</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E4-1-b-7-milestone">
+          <li><label><input type="checkbox" data-key="m1"> <span>계약 · 저장 검증</span></label></li>
+          <li><label><input type="checkbox" data-key="m2"> <span>폼 · 상세</span></label></li>
+          <li><label><input type="checkbox" data-key="m3"> <span>해석기 · kickstart · 보고 셸</span></label></li>
+          <li><label><input type="checkbox" data-key="m4"> <span>판정 · 원장 · 완료 훅 · 재시도</span></label></li>
+          <li><label><input type="checkbox" data-key="m5"> <span>서버 상세</span></label></li>
+          <li><label><input type="checkbox" data-key="m6"> <span>테스트 · 규약 green (CP4)</span></label></li>
+          <li><label><input type="checkbox" data-key="m7"> <span>CP5 (화면 A1 ~ A5 · B1 ~ B7 · C, 하네스 A6 · A7 · B8 ~ B10)</span></label></li>
+          <li><label><input type="checkbox" data-key="m8"> <span>CP6 report + 다이어그램 갱신</span></label></li>
+          <li><label><input type="checkbox" data-key="m9"> <span>CP7 은 RHEL 전체 실기에 묶음 (T3 유보 항목 확인)</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter 입력 → 매칭 섹션만 표시 (.hidden 토글 + open)
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage 동기화 (+ .done 토글)
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (e) { /* 저장 불가 환경 */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모
+  //  demoBlocks()  = 버튼 잠금(OSFamily.supportsOsSetting() 지원 계열 목록 · HF34 제거 잠금 · 스크립트 개수 상한)
+  //  demoVerdict() = D-4 판정 표(OsSettingVerdict) 한 함수
+  //  demoKickstart() = D-2 배치
+  //  demoRender() 는 파일 끝에서 1회 호출
+  // ─────────────────────────────────────────────────────────────
+
+  // 서버가 data-* 로 내려 주는 값의 데모판(OSFamily.supportsOsSetting() 이 true 인 계열, OsSettingScriptRequest 상한)
+  const DEMO_SUPPORTED_FAMILIES = ['RHEL_BASED'];
+  const DEMO_LIMITS = { maxBytes: 65536, maxCount: 10 };
+
+  const DEMO_OS = {
+    '':        { label: '(선택 안 함)', family: null },
+    rocky:     { label: 'Rocky Linux 9.6 (RHEL 계열)', family: 'RHEL_BASED' },
+    ubuntu:    { label: 'Ubuntu 24.04', family: 'DEBIAN_BASED' },
+    windows:   { label: 'Windows Server 2025', family: 'WINDOWS' }
+  };
+
+  const DEMO_COPY = {
+    lock: 'OS 후처리는 RHEL 계열 OS 를 설치할 때만 쓸 수 있습니다.',
+    osGuide: 'OS 설치에서 OS 를 먼저 골라야 합니다.',
+    removeBlocked: 'OS 후처리 설정 단계가 있으면 제거할 수 없습니다.',
+    secret: '스크립트 내용은 설치된 서버의 /root/anaconda-ks.cfg 에 남습니다. 비밀번호 같은 값을 넣지 않아야 합니다.',
+    chroot: '스크립트는 설치 중에 실행되어 서비스를 바로 시작할 수 없습니다. systemctl enable 은 동작하고 systemctl start 는 동작하지 않습니다.',
+    howRun: '스크립트는 설치 중에 root 권한으로 위에서부터 차례로 실행합니다. 실행 기록은 /root/spv-script-<번호>.log 에 남습니다.',
+    howJudge: '스크립트의 종료 코드가 0 이면 성공, 0 이 아니면 실패로 판정합니다. 성공이어도 적용 여부는 서버에서 직접 확인해야 합니다.',
+    retryBlocked: 'OS 후처리는 설치 중에 적용되어 다시 시도해도 결과가 같습니다. 서버에서 직접 고치거나 회수한 뒤 다시 투입해야 합니다.',
+    success: '스크립트 실행은 끝났지만 적용 여부는 서버에서 직접 확인해야 합니다.',
+    noObservation: 'OS 후처리 관측값을 받지 못했습니다.',
+    selinux: 'SELinux 모드가 다릅니다(정의서 {0}, 관측 {1}).',
+    serviceEnable: '서비스 {0} 이(가) 활성화되지 않았습니다(관측 {1}).',
+    serviceDisable: '서비스 {0} 이(가) 비활성화되지 않았습니다(관측 {1}).',
+    packageMissing: '패키지 {0} 이(가) 설치되지 않았습니다.',
+    scriptExit: '스크립트 {0}번({1})의 종료 코드가 {2} 입니다.',
+    tooBig: '스크립트 파일은 64 KB 이하여야 합니다.',
+    notText: '텍스트 파일만 올릴 수 있습니다.',
+    blank: '내용이 없는 파일은 올릴 수 없습니다.',
+    maxCount: '스크립트는 10 개까지 넣을 수 있습니다.',
+    raidRemoveBlocked: 'OS 설치 단계가 있으면 제거할 수 없습니다.',
+    scriptNoRecord: '스크립트 {0}번({1}) 실행 기록이 없습니다.'
+  };
+
+  // 샘플 파일(실제 파일 대신 고르기). 내용은 데모용 예시. bytes 가 있으면 표시 크기를 그 값으로 쓴다.
+  const DEMO_SAMPLES = {
+    'init-ntp.sh':          { content: '#!/bin/bash\n# 데모 샘플\nsystemctl enable chronyd\n', bytes: 1229 },
+    'setup-app.sh':         { content: '#!/bin/bash\n# 데모 샘플\nmkdir -p /opt/app\n' },
+    'crlf-from-windows.sh': { content: '#!/bin/bash\r\necho crlf\r\n' },
+    'big.sh':               { content: '#!/bin/bash\n', bytes: 70 * 1024 },
+    'binary.bin':           { content: '\u007fELF\u0000\u0001\u0000' },
+    'has-percent-end.sh':   { content: "#!/bin/bash\ncat > /root/note.txt <<'EOF'\n%end\nEOF\n" }
+  };
+
+  let demoSeq = 0;
+  function demoNewState() {
+    return {
+      raidOpen: false, installOpen: false, settingOpen: false, os: '',
+      selinux: 'enforcing',
+      services: [],
+      packages: '',
+      scripts: [],
+      sample: 'init-ntp.sh',
+      uploadMsg: null, saveMsg: null,
+      obs: { missing: false, selinux: 'Enforcing', services: {}, packages: {}, scripts: {} },
+      preset: null
+    };
+  }
+  let demo = demoNewState();
+
+  function fmt(t, ...a) { return a.reduce((s, v, i) => s.split('{' + i + '}').join(String(v)), t); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function utf8Bytes(s) { return new TextEncoder().encode(s).length; }
+  function b64(s) { const u = new TextEncoder().encode(s); let bin = ''; u.forEach(b => bin += String.fromCharCode(b)); return btoa(bin); }
+  function kb(n) { return n >= 1024 ? (n / 1024).toFixed(1) + ' KB' : n + ' B'; }
+
+  // OsSettingScriptRequest 규칙(생성자 CRLF → LF, 공백만 거절, NUL 거절, UTF-8 바이트 상한)의 데모판
+  function demoMakeScript(name) {
+    const s = DEMO_SAMPLES[name];
+    const content = s.content.split('\r\n').join('\n');
+    const bytes = s.bytes != null ? s.bytes : utf8Bytes(content);
+    let rejected = null;
+    if (!content.trim()) rejected = DEMO_COPY.blank;
+    else if (content.indexOf('\u0000') >= 0) rejected = DEMO_COPY.notText;
+    else if (bytes > DEMO_LIMITS.maxBytes) rejected = DEMO_COPY.tooBig;
+    return { id: ++demoSeq, fileName: name, content, bytes, crlf: s.content.indexOf('\r\n') >= 0, rejected };
+  }
+
+  function demoFamily() { return DEMO_OS[demo.os].family; }
+  function demoSupports(family) { return DEMO_SUPPORTED_FAMILIES.indexOf(family) >= 0; }
+  function demoSettingActive() { return demo.settingOpen && demo.installOpen && demoSupports(demoFamily()); }
+
+  // 버튼 잠금 판정
+  function demoBlocks() {
+    const fam = demoFamily();
+    const lockedByFamily = demo.installOpen && fam !== null && !demoSupports(fam);
+    return {
+      addInstall: demo.installOpen,
+      addSetting: demo.settingOpen || lockedByFamily,
+      addSettingTip: demo.settingOpen ? '(데모) 이미 추가된 단계' : DEMO_COPY.lock,
+      lockedByFamily,
+      removeInstall: demo.settingOpen,
+      removeRaid: demo.installOpen,
+      cardLocked: demo.settingOpen && lockedByFamily,
+      osGuide: demo.settingOpen && fam === null,
+      addScript: demo.scripts.length >= DEMO_LIMITS.maxCount
+    };
+  }
+
+  function demoPlan() {
+    return {
+      selinux: demo.selinux,
+      services: demo.services.filter(s => s.name.trim()).map(s => ({ name: s.name.trim(), action: s.action })),
+      packages: demo.packages.split(',').map(p => p.trim()).filter(p => p),
+      scripts: demo.scripts.map(s => ({ id: s.id, fileName: s.fileName, content: s.content }))
+    };
+  }
+
+  // D-4 판정 표 (OsSettingVerdict)
+  function demoVerdict(plan, observation) {
+    if (!observation) {
+      return { status: 'FAILED', items: [], detail: DEMO_COPY.noObservation, message: null };
+    }
+    const items = [];
+    const sel = String(observation.selinux || '').toLowerCase();
+    items.push({ item: 'SELinux', expected: plan.selinux, observed: sel, ok: sel === plan.selinux,
+      reason: fmt(DEMO_COPY.selinux, plan.selinux, sel) });
+    plan.services.forEach(s => {
+      const found = observation.services.find(o => o.name === s.name);
+      const state = found ? found.state : 'unknown';
+      const ok = s.action === 'ENABLE' ? state === 'enabled' : (state === 'disabled' || state === 'masked');
+      items.push({ item: '서비스 ' + s.name, expected: s.action, observed: state, ok,
+        reason: fmt(s.action === 'ENABLE' ? DEMO_COPY.serviceEnable : DEMO_COPY.serviceDisable, s.name, state) });
+    });
+    plan.packages.forEach(p => {
+      const found = observation.packages.find(o => o.name === p);
+      const installed = !!(found && found.installed);
+      items.push({ item: '패키지 ' + p, expected: '설치', observed: installed ? '설치됨' : '미설치', ok: installed,
+        reason: fmt(DEMO_COPY.packageMissing, p) });
+    });
+    plan.scripts.forEach((s, i) => {
+      const no = i + 1;
+      const code = observation.scriptExitCodes[i];
+      const ok = code === 0;
+      const reason = code == null ? fmt(DEMO_COPY.scriptNoRecord, no, s.fileName) : fmt(DEMO_COPY.scriptExit, no, s.fileName, code);
+      items.push({ item: '스크립트 ' + no + '번 ' + s.fileName, expected: '종료 코드 0', observed: code == null ? '기록 없음' : String(code), ok, reason,
+        log: '/root/spv-script-' + no + '.log' });
+    });
+    const failed = items.filter(x => !x.ok);
+    const status = failed.length ? 'FAILED' : 'SUCCEEDED';
+    return {
+      status, items,
+      detail: failed.map(x => x.reason).join(' '),
+      message: status === 'SUCCEEDED' && plan.scripts.length > 0 ? DEMO_COPY.success : null
+    };
+  }
+
+  // 시뮬레이터 2 의 관측값 → 보고 JSON osSetting 모양
+  function demoObservation(plan) {
+    if (demo.obs.missing) return null;
+    return {
+      selinux: demo.obs.selinux.toLowerCase(),
+      services: plan.services.map(s => ({ name: s.name, state: demo.obs.services[s.name] || (s.action === 'ENABLE' ? 'enabled' : 'disabled') })),
+      packages: plan.packages.map(p => ({ name: p, installed: demo.obs.packages[p] !== false })),
+      scriptExitCodes: plan.scripts.map(s => {
+        const v = demo.obs.scripts[s.id];
+        return v === undefined ? 0 : v;
+      })
+    };
+  }
+
+  // D-2 배치
+  function demoKickstart(raw) {
+    const L = [];
+    const active = demoSettingActive();
+    const plan = demoPlan();
+    L.push('# header · source · locale · storage · auth (b-3, 생략)');
+    if (active) {
+      L.push('selinux --' + plan.selinux);
+      const en = plan.services.filter(s => s.action === 'ENABLE').map(s => s.name);
+      const dis = plan.services.filter(s => s.action === 'DISABLE').map(s => s.name);
+      if (en.length || dis.length) {
+        L.push('services' + (en.length ? ' --enabled=' + en.join(',') : '') + (dis.length ? ' --disabled=' + dis.join(',') : ''));
+      }
+    }
+    L.push('# reboot 절 (생략)');
+    const pk = active ? plan.packages : [];
+    L.push(pk.length ? '%packages --ignoremissing' : '%packages');
+    L.push('# 환경 · 그룹 (생략)');
+    pk.forEach(p => L.push(p));
+    L.push('%end');
+    L.push('# kdump 절 (생략)');
+    if (active) {
+      plan.scripts.forEach((s, i) => {
+        const n = i + 1;
+        L.push('%post --log=/root/spv-script-' + n + '.log');
+        if (raw) {
+          s.content.replace(/\n$/, '').split('\n').forEach(x => L.push(x));
+        } else {
+          L.push("base64 -d > /etc/spv/scripts/" + n + ".sh <<'SPV_EOF'");
+          L.push({ full: b64(s.content) });
+          L.push('SPV_EOF');
+          L.push('cd /root && /bin/bash /etc/spv/scripts/' + n + '.sh');
+          L.push('echo $? > /etc/spv/scripts/' + n + '.rc');
+        }
+        L.push('%end');
+      });
+    }
+    L.push('# 첫 부팅 보고 %post(b-5, 생략)');
+    return L;
+  }
+  function demoKsText(lines) { return lines.map(x => typeof x === 'string' ? x : x.full.slice(0, 24) + '…').join('\n'); }
+  function demoKsFull(lines) { return lines.map(x => typeof x === 'string' ? x : x.full); }
+  // kickstart 절 경계 검사: 여는 절(%packages · %post) 수와 %end 줄 수
+  function demoSections(lines) {
+    const opens = lines.filter(x => /^%(packages|post)\b/.test(x)).length;
+    const ends = lines.filter(x => x === '%end').length;
+    return { opens, ends };
+  }
+
+  function demoBtn(action, label, blocked, tip, arg) {
+    const dis = blocked ? ' disabled' : '';
+    const t = blocked && tip ? (' data-tip="' + esc(tip) + '"') : '';
+    const a = arg !== undefined ? ',' + JSON.stringify(arg).replace(/"/g, '&quot;') : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn" data-act="' + action + '"' + dis +
+      ' onclick="demoClick(\'' + action + '\'' + a + ')">' + label + '</button></span> ';
+  }
+
+  function demoSay(text, kind) {
+    const m = document.getElementById('demo-message');
+    m.className = 'ux-message' + (kind ? ' ' + kind : '');
+    m.textContent = text;
+  }
+
+  function demoClick(action, arg) {
+    demo.preset = null;
+    if (action === 'addInstall') { demo.raidOpen = true; demo.installOpen = true; demoSay('OS 설치 카드를 열었다. 선행 RAID 구성도 함께 열린다(연쇄, D-12).'); }
+    else if (action === 'addSetting') {
+      demo.raidOpen = true; demo.installOpen = true; demo.settingOpen = true;
+      if (!demo.services.length) demo.services.push({ name: '', action: 'ENABLE' });
+      demoSay('OS 후처리 설정 카드를 열었다. 선행 연쇄를 끝까지 따라가 RAID 구성 → OS 설치 순으로 함께 열린다(D-12).');
+    }
+    else if (action === 'removeRaid') { demo.raidOpen = false; demoSay('RAID 구성 카드를 닫았다.'); }
+    else if (action === 'removeInstall') { demo.installOpen = false; demo.os = ''; demoSay('OS 설치 카드를 닫았다.'); }
+    else if (action === 'removeSetting') { demo.settingOpen = false; demo.saveMsg = null; demoSay('OS 후처리 설정 카드를 닫았다. OS 설치 [단계 제거] 잠금이 풀린다.'); }
+    else if (action === 'addService') { demo.services.push({ name: '', action: 'ENABLE' }); }
+    else if (action === 'delService') { demo.services.splice(arg, 1); }
+    else if (action === 'addScript') {
+      const s = demoMakeScript(demo.sample);
+      if (s.rejected) {
+        demo.uploadMsg = { kind: 'error', text: s.rejected };
+      } else {
+        demo.scripts.push(s);
+        demo.uploadMsg = { kind: 'success', text: s.fileName + ' 추가' + (s.crlf ? '. CRLF 를 LF 로 바꿔 저장(화면에 알리지 않음, 데모 표지)' : '') };
+      }
+    }
+    else if (action === 'up') { const i = arg; if (i > 0) { const t = demo.scripts[i - 1]; demo.scripts[i - 1] = demo.scripts[i]; demo.scripts[i] = t; } }
+    else if (action === 'down') { const i = arg; if (i < demo.scripts.length - 1) { const t = demo.scripts[i + 1]; demo.scripts[i + 1] = demo.scripts[i]; demo.scripts[i] = t; } }
+    else if (action === 'delScript') { demo.scripts.splice(arg, 1); }
+    else if (action === 'save') {
+      const b = demoBlocks();
+      if (!demo.settingOpen) demo.saveMsg = null;
+      else if (b.cardLocked) demo.saveMsg = { kind: 'error', text: DEMO_COPY.lock };
+      else if (b.osGuide) demo.saveMsg = { kind: 'error', text: DEMO_COPY.osGuide };
+      else demo.saveMsg = { kind: 'success', text: '(데모) 클라이언트 검증 통과. JSON 한 번 POST' };
+      demoSay(demo.settingOpen ? '저장을 눌렀다. 결과는 OS 후처리 카드 안에 보인다.' : '(데모) OS 후처리 단계 없음. 이 슬라이스 판정 대상 아님');
+    }
+    else if (action === 'retry') { demoSay('(데모) 화면에서 차단. direct POST 는 409(O-1 (a) 일 때).', 'error'); }
+    demoRender();
+  }
+
+  function demoRenderForm() {
+    const b = demoBlocks();
+    let h = '<div class="ux-row"><span class="label">단계 추가</span>' +
+      demoBtn('addInstall', '+ OS 설치', b.addInstall, '(데모) 이미 추가된 단계') +
+      demoBtn('addSetting', '+ OS 후처리 설정', b.addSetting, b.addSettingTip) + '</div>';
+    if (!demo.raidOpen && !demo.installOpen && !demo.settingOpen) h += '<div class="ux-row muted"><span class="label">추가된 단계가 없습니다.</span></div>';
+    if (demo.raidOpen) {
+      h += '<div class="card" id="demo-raid-card"><h4>RAID 구성</h4><div class="ux-row"><span class="label">' + (b.removeRaid ? DEMO_COPY.raidRemoveBlocked : '(데모) 내용 생략') + '</span>' +
+        demoBtn('removeRaid', '단계 제거', b.removeRaid, DEMO_COPY.raidRemoveBlocked) + '</div></div>';
+    }
+    if (demo.installOpen) {
+      h += '<div class="card"><h4>OS 설치</h4><div class="ux-row"><span class="label">OS <select id="demo-os" onchange="demoSetOs(this.value)">' +
+        Object.keys(DEMO_OS).map(k => '<option value="' + k + '"' + (k === demo.os ? ' selected' : '') + '>' + DEMO_OS[k].label + '</option>').join('') +
+        '</select></span></div><div class="ux-row"><span class="label">' + (b.removeInstall ? DEMO_COPY.removeBlocked : '') + '</span>' +
+        demoBtn('removeInstall', '단계 제거', b.removeInstall, DEMO_COPY.removeBlocked) + '</div></div>';
+    }
+    if (demo.settingOpen) {
+      h += '<div class="card" id="demo-setting-card"><h4>OS 후처리 설정</h4><div class="ux-row"><span class="label">OS 는 OS 설치 단계 값을 따른다</span>' +
+        demoBtn('removeSetting', '단계 제거', false, '') + '</div>';
+      if (b.cardLocked) {
+        h += '<div class="ux-message error">' + DEMO_COPY.lock + '</div>';
+      } else {
+        if (b.osGuide) h += '<div class="ux-message">' + DEMO_COPY.osGuide + '</div>';
+        h += '<h4>기본 설정</h4>';
+        h += '<div class="ux-row"><span class="label">SELinux 모드 <select onchange="demo.selinux=this.value;demo.preset=null;demoRender()">' +
+          ['enforcing', 'permissive', 'disabled'].map(m => '<option' + (m === demo.selinux ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></span></div>';
+        h += '<table><thead><tr><th>서비스 이름</th><th>지시</th><th></th></tr></thead><tbody>' +
+          demo.services.map((s, i) => '<tr><td><input type="text" value="' + esc(s.name) + '" oninput="demo.services[' + i + '].name=this.value;demo.preset=null;demoRenderOutputs()"></td>' +
+            '<td><select onchange="demo.services[' + i + '].action=this.value;demo.preset=null;demoRender()"><option value="ENABLE"' + (s.action === 'ENABLE' ? ' selected' : '') + '>활성화</option><option value="DISABLE"' + (s.action === 'DISABLE' ? ' selected' : '') + '>비활성화</option></select></td>' +
+            '<td>' + demoBtn('delService', '삭제', false, '', i) + '</td></tr>').join('') +
+          '</tbody></table>' + demoBtn('addService', '서비스 추가', false, '');
+        h += '<div class="ux-row"><span class="label">추가 패키지(쉼표 구분) <input type="text" value="' + esc(demo.packages) + '" oninput="demo.packages=this.value;demo.preset=null;demoRenderOutputs()"></span></div>';
+        h += '<h4>추가 스크립트</h4>';
+        h += '<table><thead><tr><th>순서</th><th>파일 이름</th><th>크기</th><th></th></tr></thead><tbody>' +
+          (demo.scripts.length ? demo.scripts.map((s, i) => '<tr><td>' + (i + 1) + '</td><td class="mono">' + esc(s.fileName) + '</td><td>' + kb(s.bytes) + '</td><td>' +
+            demoBtn('up', '위로', i === 0, '(데모) 맨 위', i) + demoBtn('down', '아래로', i === demo.scripts.length - 1, '(데모) 맨 아래', i) + demoBtn('delScript', '삭제', false, '', i) + '</td></tr>').join('')
+            : '<tr><td>-</td><td>-</td><td>-</td><td></td></tr>') + '</tbody></table>';
+        h += '<div class="ux-row"><span class="label">샘플 파일 <select onchange="demo.sample=this.value">' +
+          Object.keys(DEMO_SAMPLES).map(k => '<option' + (k === demo.sample ? ' selected' : '') + '>' + k + '</option>').join('') + '</select></span>' +
+          demoBtn('addScript', '스크립트 추가', b.addScript, DEMO_COPY.maxCount) + '</div>';
+        if (demo.uploadMsg) h += '<div class="ux-message ' + demo.uploadMsg.kind + '">' + esc(demo.uploadMsg.text) + '</div>';
+        h += '<div class="callout"><ul><li>' + esc(DEMO_COPY.secret) + '</li><li>' + esc(DEMO_COPY.chroot) + '</li><li>' + esc(DEMO_COPY.howRun) + '</li><li>' + esc(DEMO_COPY.howJudge) + '</li></ul></div>';
+      }
+      if (demo.saveMsg) h += '<div class="ux-message ' + demo.saveMsg.kind + '" id="demo-save-msg">' + esc(demo.saveMsg.text) + '</div>';
+      h += '</div>';
+    }
+    h += '<div class="ux-row"><span class="label">정의서</span>' + demoBtn('save', '저장', false, '') + '</div>';
+    document.getElementById('demo-form').innerHTML = h;
+  }
+
+  function demoSetOs(v) { demo.os = v; demo.preset = null; demo.saveMsg = null; demoRender(); }
+
+  function demoRenderKs() {
+    const lines = demoKickstart(false);
+    document.getElementById('demo-ks').textContent = demoKsText(lines);
+    const b = demoBlocks();
+    const fam = demoFamily();
+    const full = demoKsFull(lines);
+    const sec = demoSections(full);
+    const rawSec = demoSections(demoKickstart(true));
+    const plan = demoPlan();
+    const rawEndLines = demoSettingActive() ? plan.scripts.reduce((n, s) => n + s.content.split('\n').filter(x => x.trim() === '%end').length, 0) : 0;
+    const pctInB64 = full.filter((x, i) => typeof lines[i] !== 'string' && x.indexOf('%') >= 0).length;
+    const tf = v => v ? '<span class="t">true</span>' : '<span class="f">false</span>';
+    const sup = fam ? (demoSupports(fam) ? '<span class="f">true</span>' : '<span class="t">false</span>') : '-';
+    document.getElementById('demo-caps').innerHTML =
+      'OSFamily.supportsOsSetting(' + (fam || '-') + ')       = ' + sup + '\n' +
+      '[+ OS 후처리 설정] 차단           = ' + tf(b.addSetting) + '\n' +
+      'OS 설치 [단계 제거] 차단 (HF34)   = ' + tf(b.removeInstall) + '\n' +
+      'RAID 구성 [단계 제거] 차단 (HF34) = ' + tf(demo.raidOpen && b.removeRaid) + '\n' +
+      '열린 단계 (선행 연쇄, D-12)        = ' + ([demo.raidOpen && 'RAID 구성', demo.installOpen && 'OS 설치', demo.settingOpen && 'OS 후처리 설정'].filter(x => x).join(' → ') || '-') + '\n' +
+      '[스크립트 추가] 차단 (10 개 상한)  = ' + tf(demo.settingOpen && b.addScript) + '\n' +
+      'kickstart 여는 절 ' + sec.opens + ' · %end 줄 ' + sec.ends + ' → ' + (sec.opens === sec.ends ? '<span class="f">절 경계 유지</span>' : '<span class="t">절 경계 깨짐</span>') + '\n' +
+      '원문 %end 줄 ' + rawEndLines + ' · base64 본문 속 % 문자 줄 ' + pctInB64 + '\n' +
+      'D-1 (b) 원문 본문이었다면: 여는 절 ' + rawSec.opens + ' · %end 줄 ' + rawSec.ends + ' → ' + (rawSec.opens === rawSec.ends ? '<span class="f">같음</span>' : '<span class="t">%end 가 절을 일찍 닫음</span>');
+  }
+
+  function demoRenderObs() {
+    const el = document.getElementById('demo-obs');
+    if (!demoSettingActive()) {
+      el.innerHTML = '<div class="ux-message">정의서에 쓸 수 있는 OS 후처리 단계가 없어 관측 대상이 없다(데모).</div>';
+      return;
+    }
+    const plan = demoPlan();
+    const states = ['enabled', 'disabled', 'masked', 'static', 'not-found', 'unknown'];
+    let h = '<div class="ux-row"><label><input type="checkbox" id="demo-obs-missing"' + (demo.obs.missing ? ' checked' : '') +
+      ' onchange="demo.obs.missing=this.checked;demo.preset=null;demoRenderVerdict()"> 관측 묶음 없음(osSetting 누락)</label></div>';
+    h += '<div class="ux-row"><span class="label">getenforce <select onchange="demo.obs.selinux=this.value;demo.preset=null;demoRenderVerdict()">' +
+      ['Enforcing', 'Permissive', 'Disabled'].map(m => '<option' + (m === demo.obs.selinux ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></span></div>';
+    plan.services.forEach(s => {
+      const cur = demo.obs.services[s.name] || (s.action === 'ENABLE' ? 'enabled' : 'disabled');
+      h += '<div class="ux-row"><span class="label">systemctl is-enabled <span class="mono">' + esc(s.name) + '</span> <select data-svc="' + esc(s.name) + '" onchange="demo.obs.services[this.dataset.svc]=this.value;demo.preset=null;demoRenderVerdict()">' +
+        states.map(x => '<option' + (x === cur ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></span></div>';
+    });
+    plan.packages.forEach(p => {
+      const on = demo.obs.packages[p] !== false;
+      h += '<div class="ux-row"><label><input type="checkbox" data-pkg="' + esc(p) + '"' + (on ? ' checked' : '') +
+        ' onchange="demo.obs.packages[this.dataset.pkg]=this.checked;demo.preset=null;demoRenderVerdict()"> rpm -q --whatprovides <span class="mono">' + esc(p) + '</span> 설치됨</label></div>';
+    });
+    plan.scripts.forEach((s, i) => {
+      const v = demo.obs.scripts[s.id];
+      const none = v === null;
+      h += '<div class="ux-row"><span class="label">' + (i + 1) + '.rc <span class="mono">' + esc(s.fileName) + '</span></span>' +
+        '<input type="number" value="' + (none ? '' : (v === undefined ? 0 : v)) + '"' + (none ? ' disabled' : '') +
+        ' oninput="demo.obs.scripts[' + s.id + ']=this.value===\'\'?0:parseInt(this.value,10);demo.preset=null;demoRenderVerdict()">' +
+        '<label><input type="checkbox"' + (none ? ' checked' : '') + ' onchange="demo.obs.scripts[' + s.id + ']=this.checked?null:0;demo.preset=null;demoRenderObs();demoRenderVerdict()"> 기록 없음</label></div>';
+    });
+    el.innerHTML = h;
+  }
+
+  function demoRenderVerdict() {
+    const el = document.getElementById('demo-verdict');
+    if (!demoSettingActive()) {
+      el.innerHTML = '<div class="ux-message" id="demo-status">판정 없음: OS 후처리 단계 없음(데모)</div>';
+      return;
+    }
+    const plan = demoPlan();
+    const v = demoVerdict(plan, demoObservation(plan));
+    let h = '';
+    if (v.items.length) {
+      h += '<table><thead><tr><th>항목</th><th>정의서</th><th>관측</th><th>판정</th></tr></thead><tbody>' +
+        v.items.map(x => '<tr><td>' + esc(x.item) + (x.log ? '<br><span class="mono">' + x.log + '</span>' : '') + '</td><td>' + esc(x.expected) + '</td><td>' + esc(x.observed) + '</td><td>' +
+          (x.ok ? '<span class="badge on">성공</span>' : '<span class="badge del">실패</span>') + '</td></tr>').join('') + '</tbody></table>';
+    }
+    h += '<div class="ux-message ' + (v.status === 'SUCCEEDED' ? 'success' : 'error') + '" id="demo-status">' + v.status + '</div>';
+    h += '<div class="ux-row"><span class="label">세부 단계 사유 칸(meta detail): <span id="demo-detail">' + (v.detail ? esc(v.detail) : '-') + '</span></span></div>';
+    if (v.message) h += '<div class="callout success" id="demo-success-msg">' + esc(v.message) + '</div>';
+    if (v.status === 'FAILED') {
+      h += '<div class="ux-row"><span class="label">재시도 <span class="chip dep">O-1 (a) 채택</span></span>' + demoBtn('retry', '재시도', true, DEMO_COPY.retryBlocked) + '</div>';
+    } else {
+      h += '<div class="ux-row muted"><span class="label">재시도: 해당 없음(성공)</span></div>';
+    }
+    el.innerHTML = h;
+  }
+
+  function demoRenderOutputs() { demoRenderKs(); demoRenderObs(); demoRenderVerdict(); }
+
+  function demoRender() {
+    document.querySelectorAll('#demo-presets .seg').forEach(s => s.classList.toggle('active', s.dataset.preset === demo.preset));
+    demoRenderForm();
+    demoRenderOutputs();
+  }
+
+  // 원클릭 프리셋 6 개(브리프 7 절 기대)
+  function demoBase(over) {
+    const st = demoNewState();
+    st.raidOpen = true; st.installOpen = true; st.settingOpen = true; st.os = 'rocky'; st.selinux = 'enforcing';
+    st.services = [{ name: 'chronyd', action: 'ENABLE' }];
+    st.packages = 'vim';
+    return Object.assign(st, over || {});
+  }
+  function demoPreset(key) {
+    let st, scripts = ['init-ntp.sh', 'setup-app.sh'], codes = [0, 0], msg = '';
+    if (key === 'p1') { st = demoBase(); msg = '전부 일치: SUCCEEDED + 직접 확인 안내'; }
+    else if (key === 'p2') { st = demoBase({ packages: 'vim, tmuxx' }); st.obs.packages = { vim: true, tmuxx: false }; msg = '없는 패키지 tmuxx: FAILED, kickstart 에 --ignoremissing'; }
+    else if (key === 'p3') { st = demoBase(); codes = [0, 3]; msg = '스크립트 2번 종료 코드 3: FAILED, 재시도 잠김'; }
+    else if (key === 'p4') {
+      st = demoBase({ services: [{ name: 'firewalld', action: 'DISABLE' }, { name: 'cockpit.socket', action: 'ENABLE' }] });
+      st.obs.services = { firewalld: 'masked', 'cockpit.socket': 'not-found' };
+      msg = '서비스 경계: firewalld DISABLE + masked 는 성공, cockpit.socket ENABLE + not-found 는 실패';
+    }
+    else if (key === 'p5') {
+      st = demoNewState(); st.raidOpen = true; st.installOpen = true; st.os = 'windows'; scripts = []; codes = [];
+      msg = 'Windows 고름: [+ OS 후처리 설정] 잠김. 버튼에 마우스를 올려 tooltip 확인';
+    }
+    else if (key === 'p6') { st = demoBase(); scripts = ['has-percent-end.sh']; codes = [0]; msg = '%end 줄이 든 스크립트: base64 라 kickstart 절 경계 유지(O-3 폐지안 근거)'; }
+    st.scripts = scripts.map(n => demoMakeScript(n));
+    st.scripts.forEach((s, i) => st.obs.scripts[s.id] = codes[i]);
+    st.preset = key;
+    demo = st;
+    demoSay(msg);
+    demoRender();
+  }
+
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

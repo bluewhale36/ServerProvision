@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-1-b-5 Plan : 완료 보고 · 서버 상세 프로비저닝 탭</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  /* ── 헤더 (top sticky) ── */
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  /* ── 2단 레이아웃 + ToC ── */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:24px; max-width:1300px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  /* ── 검색 ── */
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  /* ── 접이식 섹션 ── */
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  /* ── 타이포 / 표 / 코드 ── */
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+  .mono { font-family:var(--mono); font-size:0.92em; }
+  .muted { color:var(--text-muted); }
+
+  /* ── chip ── */
+  .chip { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.dep{background:var(--yellow-bg);color:var(--yellow);}
+
+  /* ── callout ── */
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+
+  /* ── check-list ── */
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  /* ── split-grid ── */
+  .split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin:12px 0; }
+  .split-card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; min-width:0; overflow:hidden; }
+  .split-card h4 { margin:0 0 8px; font-size:13px; font-family:var(--mono); }
+  .split-card.before { border-color:var(--red); border-width:2px; background:var(--red-bg); }
+  .split-card.before h4 { color:var(--red); }
+  .split-card.after { border-color:var(--green); border-width:2px; background:var(--green-bg); }
+  .split-card.after h4 { color:var(--green); }
+  .diff-add { background:var(--green-bg); color:var(--green); padding:0 3px; border-radius:3px; }
+  .diff-del { background:var(--red-bg); color:var(--red); padding:0 3px; border-radius:3px; text-decoration:line-through; }
+
+  /* ── 🎬 인터랙티브 미리보기 ── */
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-toolbar input[type="text"] { flex:1; min-width:200px; padding:5px 9px; font-size:12px; font-family:var(--mono); border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--text); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; flex-wrap:wrap; }
+  .ux-row.muted { opacity:0.6; } .ux-row.child { margin-left:26px; }
+  .ux-row .label { flex:1; }
+  .ux-row .badge, .ux-wrap table .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; }
+  .ux-row .badge.on, .ux-wrap table .badge.on { background:var(--green-bg); color:var(--green); }
+  .ux-row .badge.off, .ux-wrap table .badge.off { background:var(--border-soft); color:var(--text-muted); }
+  .ux-row .badge.dep, .ux-wrap table .badge.dep { background:var(--yellow-bg); color:var(--yellow); }
+  .ux-row .badge.del, .ux-wrap table .badge.del { background:var(--red-bg); color:var(--red); }
+  .ux-wrap table { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; }
+  .ux-wrap table th { width:150px; }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--border-soft); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:240px; z-index:5; }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--text); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-caps[data-console="1"] { background:var(--text); color:var(--card); border-color:var(--text); }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  /* ── .seq 스윔레인 ── */
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); } .seq .step.a4 { background:var(--purple-bg); }
+
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+
+  /* ── 반응형 (데스크톱 무변경) ── */
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    .split-grid { grid-template-columns:1fr; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+    .ux-wrap table th { width:auto; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E4-1-b-5 : 완료 보고 · 서버 상세 프로비저닝 탭 <span class="v2-badge">E4-1-b</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E4-1-b-5 (feature)</span>
+    <span><strong>상위</strong> E4-1-b (RHEL Linux 자동 설치)</span>
+    <span><strong>브랜치</strong> <code>feat/E4-1-b-3_kickstart-generator</code></span>
+    <span><strong>기준 커밋</strong> <code>caf5fb3</code> (b-3 · b-4-1 · b-4-2 로컬 커밋 위)</span>
+    <span><strong>생성</strong> 2026-11-19 16:02 KST · <strong>개정</strong> 2026-11-20</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/41aef0e868f981029788c1576b91c293">E4-1-b-5 단계 페이지</a></span>
+    <span><strong>상태</strong> 개정 1 · 2026-11-20 · CP1 승인</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구사항 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기 (라이브 데모)</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델 (SSOT)</a></li>
+      <li><a href="#s5">§5 12단계 + CP</a></li>
+      <li><a href="#s6">§6 Step 8 테스트</a></li>
+      <li><a href="#s7">§7 예외 계층</a></li>
+      <li><a href="#s8">§8 부산물 / 주의 / 결정</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색 …" id="filter">
+
+    <!-- ===== §1 현재 상태 ===== -->
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (진단, 실측)</summary>
+      <div class="body">
+        <div class="callout"><span class="chip mod">개정 1</span> CP1 검토에서 남는 흔적 · 부팅 지연 · 로그인 화면 표시를 고쳤다(자기 삭제 · Type=simple · 로그인 배너). 사용자가 권고안을 모두 채택해 승인했다(11-20).</div>
+        <table>
+          <thead><tr><th>항목</th><th>지금</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>RHEL 설치 착수</td><td>b-4-2 에서 구현. 첫 /boot 에 트리 확보 → kickstart 렌더 · 서빙 토큰 발급 → 설치 체인. 원장 RUNNING 행(meta origin rhel-install · iso · release · tree · served · reentries · targetDisk)</td><td><code>RhelInstaller.bootScript</code> · <code>RhelInstallLedger.openServed</code></td></tr>
+            <tr><td>설치 뒤 재PXE</td><td>재진입 = <code>exit</code>(로컬 디스크로 부팅), 재진입 수 +1. 시한 · 상한 초과는 FAILED</td><td><code>OsInstallCycle.reentry</code></td></tr>
+            <tr><td>완료 보고</td><td><b>없음.</b> kickstart 끝이 <code>reboot</code> 뿐이고 %post 가 없다</td><td><code>KickstartRenderer.render</code>(header · source · locale · storage · auth · reboot · packages · kdump)</td></tr>
+            <tr><td>잔존 비대칭</td><td>설치가 성공해도 열린 행이 닫히지 않아 스위퍼가 시한 60분 + 유예 30분 뒤 INSTALL_TIMEOUT(사유 "스윕")으로 닫는다</td><td><code>OsInstallTimeoutSweeper</code> → <code>OsInstallCycle.sweep</code></td></tr>
+            <tr><td>트리 반납</td><td>실패 · 시한 · 스윕 · 운영자 실패 때만(<code>OsInstallCycle.Cleanup</code> → <code>RhelInstaller.releaseServing</code> = 토큰 회수 + 트리 보유 반납). 성공 경로가 없어 성공 때 반납도 없다</td><td><code>RhelInstaller</code> 생성자</td></tr>
+            <tr><td>Windows 선례</td><td>첫 로그온 <code>spv-report.ps1</code> 이 <code>POST /api/pxe/v1/agent/windows/complete</code>(헤더 <code>X-Guest-Token</code> = 영구 게스트 토큰). 멱등 no-op → 게이트(프로비저닝 중 · 커서 OS 설치) → 열린 행 → <code>closeSucceeded</code> → 토큰 회수 → <code>PhaseCursorAdvancer.advanceOrComplete</code> → 이벤트. 디스크 사후 확증(E4-1-a-6)은 사실만 기록</td><td><code>WindowsInstallCompletionService</code> · <code>WindowsInstallReportRestController</code></td></tr>
+            <tr><td>Windows 보고 인자</td><td>base URL = <code>tokenRegistry.baseUrl()</code>(pxe.server.base-url), 토큰 = <code>server.issueTokenIfAbsent().value()</code> 를 autounattend FirstLogonCommands 인자로</td><td><code>WindowsInstaller</code> 154행 부근</td></tr>
+            <tr><td>게스트 인증</td><td><code>/api/pxe/v1/**</code> 전체가 게스트 체인. <code>/agent/…</code> 는 서빙 토큰 경로 패턴(<code>/api/<wbr>pxe/<wbr>v1/<wbr>(windows|firmware|rhel)/<wbr>&lt;token&gt;</code>)에 걸리지 않아 헤더 토큰으로 인증</td><td><code>GuestSecurityConfig</code> · <code>GuestCredentialConverter</code></td></tr>
+            <tr><td>서버 상세 카드</td><td>b-4-2 에서 계열 공통(<code>OsInstallCardAssembler</code> SPI = Service Provider Interface, 계열이 구현해 끼우는 확장점). RHEL 카드 행 = 대상 OS · 준비도 · 설치 대상 디스크 · 진행(실패 · 설치 중 · 설치 전). <b>완료 상태와 '설치 결과' 절이 없다</b>(Windows 카드에만 있음)</td><td><code>fragments/provisioning/os-install.html</code> <code>rhelCard</code> · <code>RhelInstallCardAssembler</code></td></tr>
+            <tr><td>사용자 결정(b-3 CP1, 11-18)</td><td>Q1 kickstart 에 호스트 이름을 넣지 않는다. 대신 b-5 의 첫 부팅 완료 보고 %post 가 어느 서버를 대상으로 프로비저닝했는지 echo 로 표시. Q3 %post 보고 유닛 · 보고 엔드포인트는 b-5</td><td><code>plan/26-11-18_09-59-21_E4-1-b-3_plan.html</code></td></tr>
+            <tr><td>캠페인 plan 스케치</td><td>%post 가 첫 부팅 보고 유닛(systemd oneshot)을 심음 → reboot → PXE 재진입 exit → 디스크 부팅 · 유닛 실행 → <code>POST /api/pxe/v1/agent/rhel/complete</code>(영구 게스트 토큰, 재시도) → 토큰 회수 · 커서 전진 · 원장 SUCCEEDED</td><td><code>plan/26-11-17_00-09-51_E4-1-b_plan.html</code> §3</td></tr>
+            <tr><td>사용자 결정(11-19)</td><td>kickstart %pre · %post 사용자 쉘 스크립트는 만들지 않는다. OS 후처리 설정은 새 하위 단계 E4-1-b-7 (리눅스 전용)</td><td>Notion b-7</td></tr>
+            <tr><td><span class="chip mod">개정 1</span> 남는 흔적</td><td>성공 뒤에도 유닛 파일 · <code>/usr/local/sbin/spv-report</code> · <code>/etc/spv/</code> · <code>/root/spv-post.log</code> 가 남는다. 다시 돌지는 않지만 넘겨준 서버에 사용자 정의 서비스가 남는다</td><td>원 plan spv-report.sh 종결 단계(disable · env 삭제만)</td></tr>
+            <tr><td><span class="chip mod">개정 1</span> oneshot 의 부팅 지연</td><td><code>WantedBy=multi-user.target</code> 인 서비스에는 systemd 가 target 쪽 <code>After=</code> 를 자동으로 붙인다. oneshot 은 끝나야 시작 완료라 망이 없으면 재시도 약 10 분 동안 부팅 미완(<code>systemctl is-system-running</code> = starting). 재시도를 다 쓰면 exit 1 → <code>systemctl --failed</code> 에 보임</td><td>systemd.target 기본 의존 · <code>Type=oneshot</code> 정의</td></tr>
+            <tr><td><span class="chip mod">개정 1</span> 콘솔 echo 는 남지 않는다</td><td><code>/dev/console</code> 출력은 한 번 쓰고 끝. RHEL 기본 커널 인자 <code>rhgb quiet</code> 로 부팅 중에는 plymouth 가 가리고, <code>getty@tty1</code> 는 뜨기 직전 화면을 비운다(<code>TTYVTDisallocate=yes</code>). 로그인 프롬프트만 떠 있는 KVM 화면에서는 대개 볼 수 없다. 남는 곳은 journal(로그인 필요)</td><td>kickstart <code>bootloader</code> 줄에 콘솔 인자 없음 · systemd getty@.service</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §2 요구사항 + 비목표 ===== -->
+    <details class="section" id="s2" open>
+      <summary>§2. 요구사항 + 비목표</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>#</th><th>요구</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>설치가 끝나 설치된 OS 가 대상 디스크로 처음 부팅하면 서버에 완료를 한 번 보고한다</td></tr>
+            <tr><td>R2</td><td>보고를 받으면 열린 행을 SUCCEEDED 로 닫고 다음 소유 phase 로 넘기거나 종단한다</td></tr>
+            <tr><td>R3</td><td>성공 때도 서빙 토큰을 회수하고 설치 트리 보유를 반납한다(b-4-2 에서 넘어옴)</td></tr>
+            <tr><td>R4</td><td>성공한 설치가 스윕 INSTALL_TIMEOUT 으로 닫히지 않는다(b-4-2 잔존 비대칭 해소)</td></tr>
+            <tr><td>R5 <span class="chip mod">개정 1</span></td><td>로그인 배너에 프로비저닝 대상 서버(기대 시스템 UUID · 이 기계 UUID · 일치 여부 · 시리얼 · 서버 상세 URL)를 보이고, 보고가 끝나면 지운다(b-3 Q1)</td></tr>
+            <tr><td>R6</td><td>설치 디스크 · 대상 서버를 사후 확증해 사실로 남긴다(실패 전환 없음)</td></tr>
+            <tr><td>R7</td><td>서버 상세 프로비저닝 탭 OS 설치 카드에 RHEL 완료 상태와 설치 결과를 보인다</td></tr>
+            <tr><td>R8</td><td>중복 보고는 200 no-op(멱등). Windows 동작 · 스크립트 · URL · JSON 불변</td></tr>
+            <tr><td>R9 <span class="chip new">개정 1</span></td><td>보고가 끝나면(성공 · 서버 거절 · 부팅 5 회 포기) 게스트에 심은 파일을 모두 지운다. 남는 것은 journal 과 anaconda 기본 파일(토큰은 가림)뿐</td></tr>
+            <tr><td>R10 <span class="chip new">개정 1</span></td><td>첫 부팅 보고가 부팅 완료를 붙잡지 않고, 실패해도 failed 유닛으로 남지 않는다(<code>Type=simple</code> · 소진해도 exit 0, D-16)</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn"><b>비 목표</b> (어디로) :
+          <ul>
+            <li>OS 후처리 설정 적용(SELinux · 서비스 · 추가 패키지) → E4-1-b-7</li>
+            <li>사용자 %pre · %post 쉘 스크립트 → 만들지 않음(11-19 결정)</li>
+            <li>Ubuntu 설치 · 완료 보고 → E4-1-b 밖 Ubuntu 실행 슬라이스</li>
+            <li>실패 뒤 늦게 온 보고로 실패를 되살리기 → 하지 않음(D-13)</li>
+            <li>실기 검증 → RHEL 전체 CP7 일괄(b-7 뒤)</li>
+            <li>DB 변경 · DDL · 새 env 키 없음</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== 🎬 미리보기 ===== -->
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 : 완료 보고 판정기 · kickstart %post 미리보기</summary>
+      <div class="body">
+        <p>패널 A 는 서버 <code>OsInstallCompletionService.complete</code> 의 판정 순서를 JS 로 옮긴 것이다. 서버 상태와 보고 본문을 바꾸면 응답 · 원장 meta · 뒷정리 · 게스트 스크립트의 다음 동작 · RHEL 카드가 함께 바뀐다. <span class="chip mod">개정 1</span> "몇 번째 부팅" 을 바꾸면 재시도 소진 때 남김과 포기 · 자기 삭제가 갈린다. 패널 B 는 <code>KickstartRenderer</code> 가 kickstart 끝에 붙일 %post 절과 <span class="chip mod">개정 1</span> 로그인 배너 · 로그인 화면을 입력값으로 보인다.</p>
+
+        <h4>원클릭 시나리오</h4>
+        <div class="ux-toolbar" id="demo-scenarios">
+          <button class="n-demo-btn" data-scn="1">① 정상 완료, 종단</button>
+          <button class="n-demo-btn" data-scn="2">② 정상 완료, 다음 OS 후처리</button>
+          <button class="n-demo-btn" data-scn="3">③ 중복 보고</button>
+          <button class="n-demo-btn" data-scn="4">④ 늦은 보고(스윕 실패 뒤)</button>
+          <button class="n-demo-btn" data-scn="5">⑤ 디스크 불일치</button>
+          <button class="n-demo-btn" data-scn="6">⑥ 미보고</button>
+          <button class="n-demo-btn" data-scn="7">⑦ 망이 끝내 없음(부팅 5 회째 소진)</button>
+        </div>
+        <div class="ux-message" id="demo-scn-note">시나리오를 누르거나 아래 입력을 직접 바꿔 보세요.</div>
+
+        <h4>패널 A : 완료 보고 판정기</h4>
+        <div class="ux-wrap">
+          <div class="ux-toolbar"><span class="group-label">진행 상태 :</span>
+            <button class="seg" data-group="status" data-val="PROV">프로비저닝 중</button>
+            <button class="seg" data-group="status" data-val="FAILED">실패(스윕 INSTALL_TIMEOUT)</button>
+            <button class="seg" data-group="status" data-val="DONE">종단</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">커서 phase :</span>
+            <button class="seg" data-group="cursor" data-val="OS">OS_INSTALLING</button>
+            <button class="seg" data-group="cursor" data-val="OTHER">다른 phase</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">열린 행 :</span>
+            <button class="seg" data-group="open" data-val="Y">있음</button>
+            <button class="seg" data-group="open" data-val="N">없음</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">최신 행 :</span>
+            <button class="seg" data-group="latest" data-val="COMPLETED">완료 행</button>
+            <button class="seg" data-group="latest" data-val="OTHER">그 밖</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">OS 설치 뒤 소유 phase :</span>
+            <button class="seg" data-group="next" data-val="NONE">없음</button>
+            <button class="seg" data-group="next" data-val="POST">OS 후처리(b-7 뒤에 생김)</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">본문 rootDisk :</span>
+            <button class="seg" data-group="disk" data-val="SAME">서빙 디스크와 같음</button>
+            <button class="seg" data-group="disk" data-val="DIFF">다름</button>
+            <button class="seg" data-group="disk" data-val="EMPTY">빈 값</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">본문 systemUuid :</span>
+            <button class="seg" data-group="uuid" data-val="SAME">게스트와 같음</button>
+            <button class="seg" data-group="uuid" data-val="DIFF">다름</button>
+            <button class="seg" data-group="uuid" data-val="EMPTY">빈 값</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">본문 kernel :</span>
+            <button class="seg" data-group="kernel" data-val="VAL">값</button>
+            <button class="seg" data-group="kernel" data-val="EMPTY">빈 값</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">전송 :</span>
+            <button class="seg" data-group="net" data-val="OK">앱 응답</button>
+            <button class="seg" data-group="net" data-val="ERR">네트워크 오류 · 5xx</button>
+          </div>
+          <div class="ux-toolbar"><span class="group-label">이번이 몇 번째 부팅 :</span>
+            <button class="seg" data-group="boots" data-val="1">1</button>
+            <button class="seg" data-group="boots" data-val="2">2</button>
+            <button class="seg" data-group="boots" data-val="3">3</button>
+            <button class="seg" data-group="boots" data-val="4">4</button>
+            <button class="seg" data-group="boots" data-val="5">5</button>
+          </div>
+
+          <h4>판정 순서 (서버와 동일)</h4>
+          <div class="ux-caps" id="demo-steps"></div>
+          <p class="muted">참고: 400 은 실제로는 <code>@Valid</code> 가 서비스 앞에서 막는다. 데모는 순서를 보이려 맨 앞에 둔다.</p>
+          <h4>HTTP 응답</h4>
+          <div class="ux-message" id="demo-response"></div>
+          <h4>원장 meta 변화 (전 → 후)</h4>
+          <div class="split-grid">
+            <div class="split-card before"><h4>전</h4><div class="ux-caps" id="demo-meta-before"></div></div>
+            <div class="split-card after"><h4>후</h4><div class="ux-caps" id="demo-meta-after"></div></div>
+          </div>
+          <h4>뒷정리 · 커서</h4>
+          <div class="ux-caps" id="demo-cleanup"></div>
+          <h4>게스트 스크립트의 다음 동작</h4>
+          <div class="ux-message" id="demo-script"></div>
+          <div id="demo-selfdelete"></div>
+          <h4>RHEL 카드 미리보기 (서버 상세 프로비저닝 탭)</h4>
+          <div id="demo-card"></div>
+        </div>
+
+        <h4>패널 B : kickstart %post 미리보기</h4>
+        <div class="ux-wrap">
+          <div class="ux-toolbar"><span class="group-label">base URL :</span><input type="text" id="kb-base" value="http://192.168.0.10:7779"></div>
+          <div class="ux-toolbar"><span class="group-label">시스템 UUID :</span><input type="text" id="kb-uuid" value="4c4c4544-0051-3010-8052-b7c04f4e3533"></div>
+          <div class="ux-toolbar"><span class="group-label">보드 시리얼 :</span><input type="text" id="kb-serial" value="To Be Filled By O.E.M."></div>
+          <div class="ux-toolbar"><span class="group-label">게스트 id :</span><input type="text" id="kb-guest" value="7b1e2c40-93a1-4f0e-9a52-1c3d5e7f9a20"></div>
+          <div class="ux-toolbar"><span class="group-label">이 기계 UUID :</span>
+            <button class="seg" data-group="dmi" data-val="SAME">기대값과 같음</button>
+            <button class="seg" data-group="dmi" data-val="DIFF">다름</button>
+            <button class="seg" data-group="dmi" data-val="NONE">못 읽음</button>
+          </div>
+          <div class="ux-caps" id="kb-serial-rule"></div>
+          <div class="ux-message" id="kb-message"></div>
+          <h4>렌더되는 %post 절 (kdump 다음, kickstart 맨 끝)</h4>
+          <pre><code id="kb-post"></code></pre>
+          <h4>로그인 화면 미리보기 (<code>/etc/issue.d/spv.issue</code>)</h4>
+          <div class="ux-caps" id="kb-login" data-console="1"></div>
+          <p class="muted">배너 문구는 SPV_Design 검수 대상</p>
+          <h4>%post 로그 · 첫 부팅 journal + console</h4>
+          <div class="ux-caps" id="kb-echo"></div>
+        </div>
+        <div class="callout success"><b>드리프트 0</b> : 패널 A 판정 순서 = <code>OsInstallCompletionService.complete</code>(신원 로드 → 멱등 no-op → 게이트 409 3종 → 닫기 → 뒷정리 → 커서 전진/종단 → 이벤트). 시리얼 정리 = <code>FirstBootReport.consoleSerialOf</code>, 값 검사 = <code>KickstartToken.check</code>. 게스트 다음 동작 · 배너 판정 = <code>spv-report.sh</code>(종결 · 소진 · 자기 삭제, banner 의 대소문자 무시 비교).</div>
+      </div>
+    </details>
+
+    <!-- ===== §3 URL / 데이터 흐름 ===== -->
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Method</th><th>URL</th><th>동작</th><th>응답</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/api/pxe/v1/rhel/{token}/ks.cfg</code></td><td><span class="chip mod">내용만 바뀜</span> (b-4-2) kickstart 끝에 첫 부팅 보고 %post 절이 붙는다</td><td>200 text/plain</td></tr>
+            <tr><td>POST</td><td><code>/api/pxe/v1/agent/rhel/complete</code></td><td><span class="chip new">신규</span> 헤더 <code>X-Guest-Token</code>. 첫 부팅 보고</td><td>200 closed · 200 no-op · 400 · 401 · 409</td></tr>
+            <tr><td>GET</td><td><code>/provisioning/server/{id}</code></td><td><span class="chip keep">기존</span> OS 설치 카드에 RHEL 완료 상태 · 설치 결과</td><td>200 html</td></tr>
+          </tbody>
+        </table>
+        <h4>흐름 (게스트 · 앱 · DB/메모리)</h4>
+        <div class="seq">
+          <div class="actor a1">게스트 (anaconda → 설치된 OS)</div><div class="actor a2">앱</div><div class="actor a3">DB / 메모리</div>
+
+          <div class="step a1"><span class="chip mod">개정 1</span> ① anaconda: ks.cfg 받아 설치 → <code>%post</code>(chroot) 가 <code>/etc/spv/report.env</code>(0600) · <code>/usr/local/sbin/spv-report</code>(0700) · <code>/etc/systemd/system/spv-report.service</code> 를 쓰고 <code>spv-report banner</code> 로 <code>/etc/issue.d/spv.issue</code> 를 쓴 뒤 <code>restorecon -F</code> · <code>systemctl enable</code></div>
+          <div class="step a2"><code>GET /rhel/{token}/ks.cfg</code> 서빙(끝에 %post 절)</div>
+          <div class="step a3"></div>
+
+          <div class="step a1">② anaconda: <code>reboot</code></div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1">③ 게스트 PXE: <code>GET /boot</code></div>
+          <div class="step a2"><code>OsInstallCycle.reentry</code> → <code>exit</code>(재진입 1/5) → 로컬 디스크 부팅</div>
+          <div class="step a3">재진입 수 +1</div>
+
+          <div class="step a1"><span class="chip mod">개정 1</span> ④ 설치된 OS: <code>network-online.target</code> 뒤 <code>spv-report.service</code>(Type=simple, 부팅을 붙잡지 않음) 실행 → 부팅 횟수 +1 → 대상 서버 줄 journal · console → 수집 <code>/etc/os-release</code> · <code>uname -r</code> · <code>hostname</code> · 루트 디스크 by-id · DMI product_uuid 수집 → 보고 직전 <code>/etc/spv/report.header</code>(umask 077, 0600) 작성</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1">⑤ <code>POST /api/pxe/v1/agent/rhel/complete</code></div>
+          <div class="step a2"><code>RhelInstallCompletionService.complete</code>(공통 흐름 <code>OsInstallCompletionService</code>) → <code>RhelInstaller</code> 뒷정리 → <code>PhaseCursorAdvancer.advanceOrComplete</code> → <code>GuestServerChangedEvent</code></div>
+          <div class="step a3">원장 행 SUCCEEDED(meta 보존 + 완료 meta) · 서빙 토큰 회수 · 트리 보유 반납</div>
+
+          <div class="step a1"><span class="chip mod">개정 1</span> ⑥ 종결 응답(200 · 400 · 401 · 404 · 409) → 자기 삭제(목록은 §4 spv-report.sh 동작의 '자기 삭제' 행) → journal 에 결과 한 줄</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"><span class="chip new">개정 1</span> ⑥-1 네트워크 오류 · 5xx 로 40 회 소진 → 부팅 횟수 &lt; 5 면 header 만 지우고 exit 0(다음 부팅에 다시), 5 면 포기 · 자기 삭제</div>
+          <div class="step a2"></div>
+          <div class="step a3"></div>
+
+          <div class="step a1"></div>
+          <div class="step a2">⑦ 스위퍼: 열린 행이 없으므로 대상에서 빠짐(R4)</div>
+          <div class="step a3"></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ===== §4 도메인 모델 ===== -->
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (SSOT)</summary>
+      <div class="body">
+        <h4>신규</h4>
+        <table>
+          <thead><tr><th>대상</th><th>역할</th></tr></thead>
+          <tbody>
+            <tr><td><code>execution/<wbr>engine/<wbr>osinstall/<wbr>OsInstallCompletionService&lt;Q&gt;</code> (abstract)</td><td>완료 보고 공통 흐름(템플릿 메서드). <code>complete(GuestPrincipal, Q)</code> 순서 고정: 신원 로드 → 멱등 no-op → 게이트 409 3종 → 닫기(추상 <code>close(server, row, report, now)</code>) → 뒷정리(추상 <code>afterClosed(server, row)</code>) → 커서 전진/종단 → 이벤트 → <code>OsInstallCompletionResponse</code>. 추상 <code>ledger()</code>. 선례: <code>OsInstallLedger</code> · <code>ServingTokenRegistry&lt;T&gt;</code> · <code>OsInstallTimeoutPolicy</code></td></tr>
+            <tr><td><code>execution/<wbr>engine/<wbr>osinstall/<wbr>InstallConfirmation</code> enum</td><td><code>CONFIRMED · MISMATCH · UNREPORTED</code>, <code>static of(Boolean)</code>(null = UNREPORTED). <span class="chip mod">개정 1</span> 화면 이름(일치 · 불일치 · 미보고)을 가진다(배지 · 원장 운영 기록 detail 이 함께 씀). 디스크 · 대상 서버 확증 공용. Windows 문자열 <code>"CONFIRMED"/"MISMATCH"/"UNREPORTED"</code> 대체(Primitive Obsession 해소)</td></tr>
+            <tr><td><code>execution/<wbr>engine/<wbr>rhel/<wbr>RhelInstallCompletionService</code></td><td><code>extends OsInstallCompletionService&lt;<wbr>RhelInstallCompletionRequest&gt;</code>. close = 디스크 확증(보고 rootDisk vs 원장 targetDisk, 대소문자 무시) · 대상 서버 확증(보고 systemUuid vs <code>GuestServer.systemUUID</code>, 대소문자 무시) → <code>RhelInstallLedger.closeSucceeded</code>. afterClosed = <code>RhelInstaller</code> 뒷정리(토큰 회수 · 트리 반납)</td></tr>
+            <tr><td><code>execution/<wbr>controller/<wbr>RhelInstallReportRestController</code></td><td><code>POST /api/pxe/v1/agent/rhel/complete</code>, <code>@CurrentGuest GuestPrincipal</code> + <code>@Valid @RequestBody</code>. 분기 없음</td></tr>
+            <tr><td><code>execution/<wbr>dto/<wbr>request/<wbr>RhelInstallCompletionRequest</code> record</td><td><code>osId</code>(@Size 32, 예 rocky) · <code>osVersion</code>(@Size 32, 예 9.5) · <code>osPrettyName</code>(@Size 128) · <code>kernel</code>(@NotBlank, @Size 128) · <code>hostname</code>(@Size 253) · <code>rootDisk</code>(@Size 128, by-id 이름 예 wwn-0x…) · <code>systemUuid</code>(@Size 36). 메시지는 Windows 요청과 같은 꼴("kernel 은 필수입니다." · "osPrettyName 은 128자 이내여야 합니다.")</td></tr>
+            <tr><td><code>execution/<wbr>engine/<wbr>rhel/<wbr>kickstart/<wbr>FirstBootReport</code> record</td><td>보고 재료: <code>reportBaseUrl</code> · <code>guestToken</code> · <code>systemUuid</code> · <code>consoleSerial</code>(정리된 보드 시리얼, 하드웨어 보고값 <code>GuestServerDetail.boardSerial</code>. 운영자 입력 사내 시리얼 아님) · <code>detailUrl</code>(<code>&lt;base&gt;/provisioning/server/&lt;guestId&gt;</code>). env 값: <code>SPV_REPORT_URL</code> = <code>&lt;base URL&gt;/api/pxe/v1/agent/rhel/complete</code>(<code>FirstBootReport.of</code> 가 base URL 뒤에 붙임) · <code>SPV_DETAIL_URL</code> = <code>&lt;base URL&gt;/provisioning/server/&lt;게스트 id&gt;</code>. 생성 때 <code>KickstartToken.check</code> 로 한 줄 · 공백 없음 검증. 정적 <code>consoleSerialOf(String)</code>. toString 은 토큰을 가린다</td></tr>
+            <tr><td><code>execution/<wbr>engine/<wbr>rhel/<wbr>kickstart/<wbr>FirstBootReportAssets</code></td><td>classpath <code>kickstart/spv-report.sh</code> · <code>kickstart/spv-report.service</code> 를 한 번 읽어 둔다. 자원에 heredoc 구분자 <code>SPV_EOF</code> 줄 · <code>%end</code> 줄이 있으면 기동 시 IllegalStateException(프로그램 오류)</td></tr>
+            <tr><td>자원 <code>src/main/resources/kickstart/spv-report.sh</code> · <code>spv-report.service</code></td><td>POSIX sh, ASCII</td></tr>
+          </tbody>
+        </table>
+
+        <h4>수정</h4>
+        <table>
+          <thead><tr><th>대상</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><code>KickstartRuntime</code></td><td><code>FirstBootReport report</code> 필드 추가(필수)</td></tr>
+            <tr><td><code>KickstartRenderer</code></td><td>kdump 다음에 <code>firstBootReport(lines, runtime.report())</code> 절. 골든 3 개(rocky8 · 9 · 10.ks)에 %post 절이 붙는다</td></tr>
+            <tr><td><code>RhelInstaller</code></td><td><code>serve</code> 가 <code>FirstBootReport</code> 를 만들어 렌더에 넘김(base URL = <code>tokenRegistry.baseUrl()</code>, 토큰 = <code>server.issueTokenIfAbsent().value()</code>, Windows 와 같은 출처). 공개 메서드 <code>releaseAfterCompletion(server, row)</code>(<code>releaseServing</code> 재사용)를 <code>RhelInstallCompletionService</code> 가 부름. 클래스 Javadoc 의 "b-5 전에는 … 스윕이 시한 실패로 닫는다" 문장 삭제</td></tr>
+            <tr><td><code>OsInstallLedger</code></td><td>공통 완료 닫기 <code>closeCompleted(row, Map facts, String detail, now)</code>(completedAt · reason COMPLETED · detail, SUCCEEDED) · <code>diskConfirmationOf(row)</code> → <code>InstallConfirmation</code>(Windows 에서 올림, meta 키 <code>diskConfirmed</code> 그대로)</td></tr>
+            <tr><td><code>WindowsInstallLedger.closeSucceeded</code></td><td><code>closeCompleted</code> 를 쓰도록(meta 키 · 값 불변)</td></tr>
+            <tr><td><code>WindowsInstallCompletionService</code></td><td><code>OsInstallCompletionService&lt;<wbr>WindowsInstallCompletionRequest&gt;</code> 상속. 동작 불변(기존 <code>WindowsInstallCompletionServiceTest</code> 가 회귀 그물)</td></tr>
+            <tr><td><code>WindowsInstallCompletionResponse</code> → <code>OsInstallCompletionResponse</code></td><td><span class="chip move">이름 이동</span> 필드 closed · provisioningCompleted · nextPhase, JSON 불변(spv-report.ps1 무영향)</td></tr>
+            <tr><td><code>RhelInstallLedger</code></td><td><code>closeSucceeded(row, RhelCompletion, now)</code> + 판독 <code>osPrettyNameOf</code> · <code>kernelOf</code> · <code>hostnameOf</code> · <code>identityConfirmationOf</code>. record <code>RhelCompletion(osId, osVersion, osPrettyName, kernel, hostname, rootDisk, diskConfirmed, systemUuid, identityConfirmed)</code></td></tr>
+            <tr><td><code>GuestServerDetailResponse.RhelInstall</code></td><td><span class="chip mod">개정 1</span> 하위 레코드 <code>RhelInstall.Result(osPrettyName, kernel, hostname, installedRootDisk, diskConfirmation, identityConfirmation)</code> 하나 추가(완료 전 null). 두 확증 타입은 <code>InstallConfirmation</code>. <code>WindowsInstall.diskConfirmation</code> 타입 String → <code>InstallConfirmation</code></td></tr>
+            <tr><td><code>RhelInstallCardAssembler</code></td><td>completed 행에서 위 값을 채운다</td></tr>
+            <tr><td><code>fragments/provisioning/os-install.html</code></td><td>공통 행 조각 <code>completedNextRow(oi)</code> · <code>diskConfirmationRow(confirmation)</code> 를 Windows '설치 결과' 절에서 뽑아 두 카드 공용(Windows 화면 결과 불변). rhelCard 진행 칸 완료 분기 + '설치 결과' 절(다음 · 설치 OS · 설치 디스크 · 대상 서버). 대상 서버 행 = 새 조각 <code>identityConfirmationRow</code></td></tr>
+            <tr><td>메시지 키</td><td>공통 <code>provisioning.os.install.disk.mismatch</code> · <code>.disk.unreported</code>(Windows 전용 키에서 옮김, 문구 동일). 신규 <code>provisioning.rhel.install.result.os</code> '설치 OS' · <code>.result.identity</code> '대상 서버' · <code>.identity.mismatch</code> · <code>.identity.unreported</code> · <code>.progress.completed.hostname</code> '호스트 이름'</td></tr>
+            <tr><td>문안 초안 (SPV_Design 검수 대상)</td><td>불일치 "본 게스트 서버의 시스템 UUID와 보고한 서버의 시스템 UUID가 다릅니다." · 미보고 "대상 서버 확증 정보가 없습니다."</td></tr>
+            <tr><td><code>scripts/mock-guest/rhel-install-cycle.sh</code></td><td><code>complete</code> 모드(GUEST_TOKEN 필수, 1회 200 closed:true → 2회 200 closed:false), <code>ROOT_DISK</code> · <code>SYSTEM_UUID</code> 환경변수로 본문 조정</td></tr>
+            <tr><td><code>docs/deploy/pending/E4-1-b.md</code></td><td>"b-4-2 만 따로 배포하지 않는다" 문단에 b-5 로 해소됨을 적고 b-4-2 · b-5 함께 배포로 고침. DB · env 변화 없음</td></tr>
+            <tr><td><code>docs/dev/maintenance-points.md</code></td><td>행 추가: 계기 "새 Rocky 메이저를 지원할 때" · 자리 <code>kickstart/spv-report.sh</code>(os-release · udevadm · curl · systemctl · restorecon 의존) · 고칠 내용 "새 메이저 최소 설치에 명령이 있는지 확인" · 단계 E4-1-b-5</td></tr>
+          </tbody>
+        </table>
+
+        <h4>RhelInstallLedger 완료 meta 키</h4>
+        <table>
+          <thead><tr><th>키</th><th>값</th></tr></thead>
+          <tbody>
+            <tr><td><code>completedAt</code></td><td>완료 시각</td></tr>
+            <tr><td><code>osId</code> · <code>osVersion</code> · <code>osPrettyName</code></td><td>보고 본문</td></tr>
+            <tr><td><code>kernel</code> · <code>hostname</code></td><td>보고 본문</td></tr>
+            <tr><td><code>installedRootDisk</code> · <code>diskConfirmed</code></td><td>보고 rootDisk · 디스크 확증</td></tr>
+            <tr><td><code>reportedSystemUuid</code> · <code>identityConfirmed</code></td><td>보고 systemUuid · 대상 서버 확증</td></tr>
+            <tr><td><code>reason</code></td><td><code>COMPLETED</code></td></tr>
+            <tr><td><code>detail</code></td><td>"설치 완료 · 디스크 &lt;확증&gt; · 대상 서버 &lt;확증&gt;"</td></tr>
+          </tbody>
+        </table>
+
+        <h4>spv-report.sh 동작 <span class="chip mod">개정 1</span></h4>
+        <table>
+          <thead><tr><th>단계</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td>모드</td><td><code>spv-report banner</code>(<code>%post</code> 가 부름) · <code>spv-report</code>(유닛이 부름, 보고)</td></tr>
+            <tr><td>banner</td><td>env 를 읽어 기대 UUID 와 <code>/sys/class/dmi/id/product_uuid</code> 를 비교(대소문자 무시)해 <code>/etc/issue.d/spv.issue</code> 를 쓰고 같은 글을 표준 출력(→ <code>%post</code> 로그)에</td></tr>
+            <tr><td>env</td><td><code>/etc/spv/report.env</code> 없으면 exit 0</td></tr>
+            <tr><td>부팅 횟수</td><td><code>/etc/spv/report.boots</code>(0600) 를 +1</td></tr>
+            <tr><td>echo</td><td>대상 서버 줄(배너와 같은 판정) → journal + console. <code>ServerProvision: provisioning target system UUID &lt;기대&gt;, this machine &lt;DMI 또는 -&gt; (&lt;match|MISMATCH|unknown&gt;), serial &lt;보드 시리얼&gt;</code> · <code>ServerProvision: server detail &lt;detailUrl&gt;</code>. 못 읽으면 this machine 칸 <code>-</code></td></tr>
+            <tr><td>수집</td><td><code>/etc/os-release</code> 의 ID · VERSION_ID · PRETTY_NAME, <code>uname -r</code>, <code>hostname</code>, <code>findmnt -no SOURCE /</code> → <code>lsblk -no PKNAME</code> → <code>udevadm info --query=symlink</code> 에서 <code>disk/by-id/wwn-0x…</code> 이름(없으면 빈 값), <code>/sys/class/dmi/id/product_uuid</code>(못 읽으면 빈 값)</td></tr>
+            <tr><td>JSON</td><td>printf 로 조립, 값의 <code>\</code> 와 <code>"</code> 이스케이프 · 제어 문자 제거(jq · python 비의존)</td></tr>
+            <tr><td>전송</td><td><code>curl -sS --max-time 20 -H @/etc/spv/report.header -H 'Content-Type: application/json'</code> 최대 40회 × 15초. 토큰 헤더(<code>X-Guest-Token</code>)는 curl 인자가 아니라 <code>/etc/spv/report.header</code>(0600) 파일에서 읽는다(프로세스 목록에 토큰이 보이지 않게, curl 7.55 이상 · Rocky 8 은 7.61). header 는 <code>%post</code> 가 아니라 <code>spv-report</code> 가 보고 직전에 쓴다(umask 077, 0600). env 에는 토큰이 그대로 있다(env 0600). 시험용 덮어쓰기 <code>SPV_REPORT_ATTEMPTS</code> · <code>SPV_REPORT_INTERVAL</code></td></tr>
+            <tr><td>종결</td><td>200 · 400 · 401 · 404 · 409 → 자기 삭제 · exit 0</td></tr>
+            <tr><td>소진</td><td>부팅 횟수 &lt; 5 → header 만 지우고 남김 · exit 0 / 5 이상 → 포기 · 자기 삭제(<code>/etc/spv/</code> 째) · exit 0 (<code>SPV_REPORT_MAX_BOOTS</code> 로 덮어쓰기)</td></tr>
+            <tr><td>자기 삭제</td><td>스크립트 맨 마지막 단계. ① <code>systemctl disable spv-report.service</code> ② <code>/etc/systemd/system/spv-report.service</code> 삭제 ③ <code>/usr/local/sbin/spv-report</code> 삭제 ④ <code>/etc/spv/</code> 삭제(env · header · 부팅 횟수) ⑤ <code>/etc/issue.d/spv.issue</code> 삭제 ⑥ <code>/root/spv-post.log</code> 삭제 ⑦ <code>/root/anaconda-ks.cfg</code> · <code>/root/original-ks.cfg</code> 의 토큰 <code>REDACTED</code> ⑧ <code>systemctl daemon-reload</code></td></tr>
+            <tr><td>자기 삭제 중 실행</td><td>실행 중 자기 파일을 지워도 리눅스는 열린 파일을 닫힐 때까지 읽게 하고, systemd 는 실행 중 유닛 파일이 지워져도 끝날 때까지 돌린 뒤 내린다</td></tr>
+            <tr><td>시험 뿌리</td><td>모든 절대 경로 앞에 <code>SPV_ROOT</code>(기본 빈 값)를 붙인다. 단위 테스트가 임시 디렉터리와 가짜 curl · systemctl 로 실제 실행한다</td></tr>
+          </tbody>
+        </table>
+        <h4>spv-report.service <span class="chip mod">개정 1</span></h4>
+        <pre><code>Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/spv/report.env
+Type=simple
+ExecStart=/usr/local/sbin/spv-report
+StandardOutput=journal+console
+WantedBy=multi-user.target</code></pre>
+        <p class="muted"><code>TimeoutStartSec</code> 삭제. simple 은 프로세스가 뜨면 시작 완료라 필요 없다(multi-user.target 을 붙잡지 않음). <code>Type=exec</code> 는 systemd 240 부터라 Rocky 8(systemd 239)이 모른다.</p>
+      </div>
+    </details>
+
+    <!-- ===== §5 12단계 + CP ===== -->
+    <details class="section" id="s5">
+      <summary>§5. 수직 슬라이스 12 단계 + CP 묶음</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>Step</th><th>내용</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>이 plan</td><td><span class="chip cp1">CP1</span> 승인</td></tr>
+            <tr><td>2</td><td>카드 조각 · 메시지 키(문구는 SPV_Design 검수)</td><td><span class="chip cp2">CP2</span> 보고</td></tr>
+            <tr><td>3</td><td><code>RhelInstallReportRestController</code></td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>4</td><td><code>RhelInstallCompletionRequest</code> · <code>OsInstallCompletionResponse</code></td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>5</td><td><code>OsInstallCompletionService</code> 시그니처</td><td><span class="chip cp2">CP2</span></td></tr>
+            <tr><td>6 · 7</td><td>엔티티 · 리포지토리 변경 없음(N/A)</td><td><span class="chip cp3">CP3</span> 보고(N/A)</td></tr>
+            <tr><td>8</td><td>서비스 본체 · 렌더러 · 자원 스크립트 · 단위 + 통합 테스트 · 전체 테스트 + CH11(<code>ArchitectureConventionTest</code> · <code>CodingConventionTest</code>) green</td><td><span class="chip cp4">CP4</span> <b>승인(main + 테스트 코드)</b></td></tr>
+            <tr><td>9</td><td>스키마 변경 없음(N/A)</td><td><span class="chip cp4">CP4</span></td></tr>
+            <tr><td>10</td><td>CP5 하네스 + 서버 상세 화면 + 스크립트 실행 확인</td><td><span class="chip cp5">CP5</span> 보고</td></tr>
+            <tr><td>11</td><td>report html + Notion report 탭 임베드</td><td><span class="chip cp6">CP6</span> <b>승인</b></td></tr>
+            <tr><td>12</td><td>RHEL 전체 실기(b-7 뒤 일괄)</td><td><span class="chip cp7">CP7</span> <b>승인</b></td></tr>
+          </tbody>
+        </table>
+        <div class="callout">승인 게이트는 <b>CP1 · CP4(테스트까지 끝낸 코드 검수) · CP6 · CP7</b> 넷이다. 무중단 구간은 둘이다. ① CP1 승인에서 CP4 게이트 지점까지(main 구현, 테스트 작성, 규약 검사 포함 전체 테스트 green. 경계 보고만) ② CP4 승인에서 CP6 제출까지(CP5 검증, report 산출). CP5 는 수행 결과를 보고만 하며 그 검수는 CP6 에서 report 와 함께 받는다.</div>
+      </div>
+    </details>
+
+    <!-- ===== §6 Step 8 테스트 ===== -->
+    <details class="section" id="s6">
+      <summary>§6. Step 8 테스트</summary>
+      <div class="body">
+        <h4>단위</h4>
+        <table>
+          <thead><tr><th>테스트</th><th>항목</th></tr></thead>
+          <tbody>
+            <tr><td><code>RhelInstallCompletionServiceTest</code></td><td>닫기 + 종단 · 닫기 + 다음 phase · 트리 반납 · 토큰 회수 · 중복 no-op · 409 notProvisioning · 409 phaseMismatch · 409 noOpenStep · 디스크 일치/불일치/미보고 · 대상 서버 일치/불일치/미보고</td></tr>
+            <tr><td><code>WindowsInstallCompletionServiceTest</code>(기존)</td><td>상속으로 바꾼 뒤 그대로 green(회귀)</td></tr>
+            <tr><td><code>KickstartRendererTest</code></td><td>골든 3 개 갱신 · %post 절 존재 · <code>--erroronfail</code> · 평문 비밀번호 없음 · 토큰은 env heredoc 에만 · 미치환 흔적 없음</td></tr>
+            <tr><td><code>FirstBootReportTest</code></td><td>시리얼 정리(공백 · 특수문자 · 64자 · 빈 값) · 토큰 형식 위반 예외 · toString 에 토큰 없음</td></tr>
+            <tr><td><code>FirstBootReportAssetsTest</code></td><td>자원 적재 · <code>SPV_EOF</code> · <code>%end</code> 줄 없음 · ASCII 만 · <code>sh -n</code> 문법 검사(sh 없으면 건너뜀)</td></tr>
+            <tr><td><code>SpvReportScriptTest</code> <span class="chip new">개정 1</span></td><td><code>sh</code> 로 스크립트를 실제 실행(sh 없으면 건너뜀). <code>SPV_ROOT</code> 임시 디렉터리 · PATH 앞에 가짜 <code>curl</code>(정해진 HTTP 코드 출력) · <code>systemctl</code> · <code>udevadm</code> · <code>findmnt</code> · <code>lsblk</code>. 항목: banner 일치 · 불일치 · 못 읽음 / 200 → 자기 삭제 목록 전부 · ks 사본 REDACTED / 409 · 401 종결 / 5xx 소진 + 부팅 1 → 남김 · exit 0 · 부팅 횟수 1 / 5xx 소진 + 부팅 5 → 포기 · 자기 삭제 / env 없음 → exit 0 / 보낸 JSON 의 필드와 이스케이프</td></tr>
+            <tr><td><code>InstallConfirmationTest</code></td><td>of(true/false/null)</td></tr>
+            <tr><td><code>RhelInstallLedgerTest</code></td><td>closeSucceeded meta 키 · 서빙 meta 보존 · 판독기</td></tr>
+            <tr><td><code>RhelInstallCardAssemblerTest</code></td><td>완료 행에서 설치 OS · 호스트 이름 · 두 확증</td></tr>
+            <tr><td><code>OsInstallTimeoutSweeperTest</code>(보강)</td><td>완료로 닫힌 RHEL 게스트는 스윕 대상이 아님</td></tr>
+          </tbody>
+        </table>
+        <h4>통합 (<code>@WebMvcTest</code> + MockMvc, 서비스는 <code>@MockitoBean</code>)</h4>
+        <table>
+          <thead><tr><th>파일</th><th>범주</th></tr></thead>
+          <tbody>
+            <tr><td><code>RhelInstallReportRestControllerTest</code></td><td>200 closed(바디 필드) · 200 no-op · 400 kernel 빈 값(필드 메시지) · 400 길이 초과 · 401 토큰 없음 · 409 <code>AgentReportRejectedException</code> 3 하위 경우(notProvisioning · phaseMismatch · noOpenStep). 404 범주 해당 없음(NotFoundException 을 던지는 경로 없음, Windows 창구와 같음)</td></tr>
+            <tr><td><code>GuestServerControllerOsInstallViewTest</code>(보강)</td><td>RHEL 완료 카드(완료 배지 · 설치 결과 4 행 · 불일치 경보) · Windows 완료 카드 불변</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §7 예외 계층 ===== -->
+    <details class="section" id="s7">
+      <summary>§7. 예외 계층</summary>
+      <div class="body">
+        <div class="callout">새 예외 없음.</div>
+        <table>
+          <thead><tr><th>예외 · 경로</th><th>HTTP</th><th>구분</th></tr></thead>
+          <tbody>
+            <tr><td><code>AgentReportRejectedException</code> (<code>notProvisioning</code> · <code>phaseMismatch</code> · <code>noOpenStep</code>)</td><td>409</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td><code>@Valid</code> 검증 실패 (<code>ApiExceptionHandler</code> JSON)</td><td>400</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td>게스트 체인 인증 실패</td><td>401</td><td><span class="chip keep">재사용</span></td></tr>
+            <tr><td>신원 부재(체인이 인증한 뒤라 데이터 손상)</td><td>500</td><td><span class="chip keep">Windows 와 같음</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §8 부산물 / 주의 / 결정 ===== -->
+    <details class="section" id="s8">
+      <summary>§8. 부산물 / 주의 / 결정</summary>
+      <div class="body">
+        <h4>결정 (채택 · 비채택 · 탈락 사유)</h4>
+        <table>
+          <thead><tr><th>#</th><th>결정</th><th>채택</th><th>비채택 대안 · 탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D-1 <span class="chip mod">개정 1</span></td><td>보고 시점 · 매체</td><td>설치된 OS 첫 부팅의 systemd 유닛(<code>%post</code> 가 심음, Type=simple)</td><td>(b) %post 끝에서 바로 curl: 설치된 OS 가 한 번도 부팅하지 않은 채 성공으로 넘어간다. 부트로더 · 디스크 순서 실패가 성공으로 기록된다 (c) %post --nochroot 보고 + 첫 부팅 보고 이중: 보고가 둘이라 원장 판정이 갈린다 (d) 첫 부팅 뒤 지시를 받아 가는 폴링 에이전트: OS 후처리(b-7)의 실행 매체를 미리 정해 버린다</td></tr>
+            <tr><td>D-2</td><td>보고 credential</td><td>영구 게스트 토큰 헤더 <code>X-Guest-Token</code>(Windows · 진단 에이전트와 같은 체인)</td><td>(b) 서빙 토큰 경로 <code>/rhel/{token}/complete</code>: 서빙 토큰은 메모리에만 있어 설치 중 앱 재기동이면 보고할 길이 없다. 읽기 전용 서빙 경로에 쓰기를 섞는다 (c) 일회용 보고 토큰 신설: 재기동 대비 영속화까지 필요한 새 발급소. 얻는 것보다 크다</td></tr>
+            <tr><td>D-3</td><td>완료 흐름 공통화</td><td>추상 기반 <code>OsInstallCompletionService&lt;Q&gt;</code>(템플릿 메서드) + Windows 를 상속으로 옮김</td><td>(b) RHEL 서비스 복붙: 중복 금지 규칙 위반, 게이트 순서가 두 곳에서 어긋날 수 있다 (c) 단일 서비스 + 계열 전략 Map: 요청 본문 타입이 계열마다 달라 창구가 어차피 둘이다. 간접층만 는다 (d) 단일 창구 <code>/agent/os/complete</code> + 다형 JSON: 실기에 배포된 Windows 스크립트 URL 을 바꿔야 한다</td></tr>
+            <tr><td>D-4</td><td>성공 뒷정리</td><td><code>RhelInstaller.releaseServing</code>(토큰 회수 + 트리 반납)을 완료에도 호출. Windows 는 기존대로 토큰 회수</td><td>(b) 완료 서비스가 트리 관리자를 직접 부름: 반납 ISO 를 찾는 규칙(행 meta → 살아 있는 토큰 → 정의서)이 두 곳이 된다</td></tr>
+            <tr><td>D-5</td><td>사후 확증</td><td>디스크 · 대상 서버 둘 다 사실만 기록, 실패로 바꾸지 않음(E4-1-a-6 선례)</td><td>(b) 불일치면 실패 전환: 설치는 끝났고 되돌릴 길이 없다. 판단은 운영자 몫</td></tr>
+            <tr><td>D-6</td><td>스크립트 자산 자리</td><td>classpath 자원 파일 <code>kickstart/spv-report.sh</code> · <code>.service</code></td><td>(b) Java 텍스트 블록(Windows <code>WindowsOemTemplates</code> 선례): 셸의 <code>$</code> · 역슬래시가 Java 이스케이프와 겹쳐 읽기 어렵고 <code>sh -n</code> 으로 검사할 수 없다. Windows 쪽은 옮기지 않는다(범위 밖 churn)</td></tr>
+            <tr><td>D-7</td><td>%post 옵션</td><td><code>--log=/root/spv-post.log --erroronfail</code> + 쓴 파일에 <code>restorecon -F</code></td><td>(b) erroronfail 없음: 유닛을 못 심으면 보고 없이 재부팅해 90분 뒤 스윕으로만 드러난다. 멈춰 있으면 콘솔에서 바로 보인다 (c) restorecon 없음: chroot 에서 만든 파일의 SELinux 레이블이 맞지 않으면 enforcing 첫 부팅에서 유닛이 실행되지 않을 수 있다</td></tr>
+            <tr><td>D-8 <span class="chip mod">개정 1</span></td><td>재시도 소진</td><td>다음 부팅에 다시, 부팅 5 회면 포기 · 자기 삭제(Q2)</td><td>(b) 한 번으로 끝: 첫 부팅 때 망이 늦으면 보고가 영영 없다 (c) 상한 없이 계속: 망이 끝내 없는 서버에 유닛이 영원히 남는다</td></tr>
+            <tr><td>D-9 <span class="chip mod">개정 1</span></td><td>대상 서버 표시</td><td><code>%post</code> 가 로그인 배너 <code>/etc/issue.d/spv.issue</code> 를 쓰고 보고가 끝나면 지움(Q1 b-1). 첫 부팅 journal · console 에도 같은 줄</td><td>(a) 콘솔 echo 만: getty 가 화면을 비우고 plymouth 가 가려 로그인 화면에서 대개 안 보인다 (b-2) b-7 · 넘겨주기 때 서버가 지움: 지우는 책임이 b-7 로 넘어가고 OS_SETTING 없는 정의서에서 남는다 (b-3) 지우지 않음: 고객 서버에 문구가 남는다 (d) 정의서 · 서버 이름 표시: 자유 문자열이라 한글 · 공백이 들어가고 콘솔이 한글을 못 그린다</td></tr>
+            <tr><td>D-10</td><td>토큰 흔적</td><td>종결 응답 뒤 env 삭제 + <code>/root/anaconda-ks.cfg</code> · <code>/root/original-ks.cfg</code> 의 토큰을 <code>REDACTED</code> 로</td><td>(b) 그대로 둠: anaconda 가 kickstart 사본을 /root 에 남겨 영구 토큰이 넘겨준 서버에 남는다(Windows 의 Panther unattend 와 같은 문제). 사본에 %post 본문이 실리는지는 CP7 실기로 확인</td></tr>
+            <tr><td>D-11</td><td>응답 레코드</td><td><code>OsInstallCompletionResponse</code> 하나(Windows 레코드 이름 이동, JSON 불변)</td><td>(b) RHEL 전용 레코드 신설: 같은 세 필드 레코드가 둘</td></tr>
+            <tr><td>D-12</td><td>확증 값 타입</td><td>enum <code>InstallConfirmation</code></td><td>(b) 문자열 유지: Primitive Obsession, 템플릿 비교 문자열이 계열마다 퍼진다</td></tr>
+            <tr><td>D-13</td><td>실패 뒤 늦은 보고</td><td>409 notProvisioning(Windows 와 같음), 스크립트는 종결</td><td>(b) 늦은 보고로 성공 복원: 운영자 재시도 · 실패 기록의 뜻이 흐려진다</td></tr>
+            <tr><td>D-14</td><td>종결 응답에 401 포함</td><td>401 도 종결(토큰은 env 에 고정이라 다시 보내도 바뀌지 않는다)</td><td>(b) Windows 처럼 400 · 404 · 409 만: 401 이면 15초마다 40회 헛보냄</td></tr>
+            <tr><td>D-15 <span class="chip new">개정 1</span></td><td>남는 흔적</td><td>자기 삭제(종결 · 포기 때 §4 '자기 삭제' 목록 전부)</td><td>(b) disable 만: 유닛 · 스크립트가 넘겨준 서버에 남는다 (c) <code>%post</code> 에서 바로 보고: 흔적은 없지만 D-1 (b) 사유 (d) <code>ConditionFirstBoot=yes</code>: anaconda 가 설치 중 machine-id 를 만들면 성립하지 않을 수 있고 다음 부팅 재시도와 함께 쓸 수 없다 (e) 서버가 BMC 로 관측: AMI BMC 에 "OS 가 디스크로 떴다" 를 믿을 신호가 없다</td></tr>
+            <tr><td>D-16 <span class="chip new">개정 1</span></td><td>유닛 유형</td><td><code>Type=simple</code> + 소진해도 exit 0</td><td>(b) <code>Type=oneshot</code>: multi-user.target 이 끝날 때까지 기다려 망이 없으면 약 10 분 부팅 미완. exit 1 이면 failed 로 보인다 (c) <code>Type=exec</code>: systemd 240 부터라 Rocky 8(systemd 239)이 모른다</td></tr>
+            <tr><td>D-17 <span class="chip new">개정 1</span></td><td>배너를 쓰는 자리</td><td><code>%post</code>(chroot, 대상 하드웨어 위)에서 DMI UUID 를 읽어 씀</td><td>(b) 첫 부팅 서비스가 씀: 이미 그려진 프롬프트에는 다시 그릴 때까지 안 나타난다(Rocky 8 agetty 에 <code>--reload</code> 없음)</td></tr>
+            <tr><td>D-18 <span class="chip new">개정 1</span></td><td>Windows 의 <code>C:\SPV\</code> 잔존</td><td>b-5 범위 밖, 손대지 않음(FirstLogonCommands 는 OS 가 한 번만 돌려 다시 도는 장치는 없음)</td><td>후속 항목으로 적립</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout warn"><b>주의</b> :
+          <ul>
+            <li>b-7(OS 후처리)과의 자리: b-5 는 보고 절의 위치만 정한다(kickstart 맨 끝 %post). b-7 이 %post 로 설정을 적용하면 그 절을 보고 절 앞에 두고, 결과를 보고 본문에 실을지는 b-7 CP1 에서 정한다. 첫 부팅 에이전트로 가면 이 유닛을 넓힌다. b-5 는 미리 만들지 않는다.</li>
+            <li>Rocky 최소 설치에 있는 명령만 쓴다(curl · udevadm · findmnt · lsblk · systemctl · restorecon · sed). jq · python 미사용.</li>
+            <li>ks.cfg 에 영구 게스트 토큰이 실린다. ks.cfg 는 설치 중 열린 행이 있을 때만 서빙 토큰 URL 로 나가고(b-4-2), 이미 비밀번호 해시를 싣는다. Windows autounattend 도 같은 토큰을 싣는다.</li>
+            <li>다이어그램 규약: RHEL 상호작용(b-4-2 서빙 + b-5 보고)은 b-7 뒤 캠페인 마감에서 <code>diagram/</code> 에 한 번 반영한다(§11).</li>
+            <li><span class="chip new">개정 1</span> getty 화면 비우기 · Rocky 8 · 9 · 10 의 <code>/etc/issue.d</code> 지원은 systemd · util-linux 동작에 근거하며 이 세션 실측이 아니다. 컨테이너(S1)로는 getty 화면을 재현할 수 없어 qemu 또는 CP7 실기에서 확인한다(<code>docs/T3-checklist.md</code> 적립).</li>
+          </ul>
+        </div>
+
+        <h4>결정 (CP1 사용자 결정) <span class="chip mod">개정 1</span></h4>
+        <table>
+          <thead><tr><th>Q</th><th>질문</th><th>채택</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>Q1</td><td>대상 서버를 콘솔 어디에 보이나</td><td><b>b-1</b>: <code>%post</code> 가 로그인 배너 <code>/etc/issue.d/spv.issue</code> 를 쓰고, 보고가 끝나면(성공 · 서버 거절 · 포기) 다른 파일과 함께 지운다</td><td>D-9 · D-17. 11-20 사용자 승인</td></tr>
+            <tr><td>Q2</td><td>재시도를 다 써도 못 보냈을 때</td><td>다음 부팅에 다시 보낸다. <b>부팅 5 회에 닿으면 포기하고 자기 삭제</b></td><td>D-8. 11-20 사용자 승인</td></tr>
+            <tr><td>Q3</td><td>CP5 실제 스크립트 실행</td><td>(a) <code>rockylinux:9</code> 컨테이너에서 실행</td><td>§9 S1 ~ S3. 11-20 사용자 승인</td></tr>
+            <tr><td>Q4</td><td>origin/dev(HF33, PR #126) 병합</td><td>(a) 구현 전에 병합</td><td>겹치는 파일 0 · merge-tree 충돌 없음 확인. 11-20 사용자 승인</td></tr>
+            <tr><td>추가</td><td>남는 흔적</td><td><b>자기 삭제</b>: 보고가 끝나면 게스트에 심은 파일을 모두 지운다</td><td>D-15. 11-20 사용자 승인</td></tr>
+            <tr><td>추가</td><td>유닛 유형</td><td><code>Type=simple</code>. 재시도를 다 써도 exit 0(failed 표시 없음)</td><td>D-16. 11-20 사용자 승인</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §9 Verification ===== -->
+    <details class="section" id="s9">
+      <summary>§9. Verification (CP5 계획)</summary>
+      <div class="body">
+        <div class="callout">하네스 · 화면 · 스크립트(E 단계 예외: 브라우저 대신 하네스 + 서버 상세 화면). 샌드박스 e44(포트 7801) 재사용, 새 빌드.</div>
+        <table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>H1</td><td>RHEL 게스트 serve → ks.cfg 받기</td><td>끝에 <code>%post --log=/root/spv-post.log --erroronfail</code> · env heredoc 의 base URL · 시스템 UUID · 정리된 시리얼 · <code>%end</code> 1 개 · 평문 비밀번호 없음. <code>ksvalidator -v RHEL9</code>(b-3 venv) 통과</td></tr>
+            <tr><td>H2</td><td><code>complete</code> 1 회</td><td>200 closed:true · 원장 SUCCEEDED · meta 완료 키 · 앱 로그 토큰 회수 · 트리 반납(보유자 0 → 유예 시작) · 커서 종단</td></tr>
+            <tr><td>H3</td><td><code>complete</code> 2 회째</td><td>200 closed:false</td></tr>
+            <tr><td>H4</td><td>완료 뒤 옛 서빙 토큰으로 ks.cfg · 트리</td><td>401</td></tr>
+            <tr><td>H5</td><td>완료 뒤 스윕 주기 대기(시한 3분 + 유예 1분 + 주기 20초)</td><td>실패 전환 없음(R4)</td></tr>
+            <tr><td>H6</td><td>스윕으로 실패한 게스트가 <code>complete</code></td><td>409 notProvisioning</td></tr>
+            <tr><td>H7</td><td>커서가 다른 phase 인 게스트가 <code>complete</code></td><td>409 phaseMismatch</td></tr>
+            <tr><td>H8</td><td>본문 kernel 빈 값 · 토큰 없이</td><td>400 필드 메시지 · 401</td></tr>
+            <tr><td>H9</td><td>ROOT_DISK 다름 · SYSTEM_UUID 다름 · 둘 다 빈 값</td><td>200 closed · 카드 '불일치' 경보 · '미보고'</td></tr>
+            <tr><td>S1 <span class="chip mod">개정 1</span></td><td>rockylinux:9 컨테이너에서 ks.cfg 의 <code>%post</code> 를 실행(chroot 대신 컨테이너 루트, <code>systemctl</code> · <code>restorecon</code> 은 없으면 건너뜀) → <code>spv-report</code> 직접 실행, base URL 은 host.docker.internal:7801</td><td>env · 스크립트 · 유닛 · 배너 생성 · 권한 0600/0700 · 배너 판정(컨테이너는 DMI 를 못 읽어 <code>unknown</code> 예상) · 보고 200 · <b>자기 삭제 목록 전부 사라짐</b> · ks 사본 REDACTED</td></tr>
+            <tr><td>S2 <span class="chip mod">개정 1</span></td><td>앱을 멈춘 채 실행(<code>SPV_REPORT_ATTEMPTS=3</code> · <code>SPV_REPORT_INTERVAL=1</code>)</td><td>재시도 로그 · <b>exit 0</b> · 파일 남음 · 부팅 횟수 1</td></tr>
+            <tr><td>S3 <span class="chip new">개정 1</span></td><td>S2 상태에서 <code>SPV_REPORT_MAX_BOOTS=2</code> 로 한 번 더</td><td>포기 줄 · 자기 삭제 · exit 0</td></tr>
+            <tr><td>T1 <span class="chip new">개정 1</span></td><td>(CP5 아님, T3 적립) 로그인 화면 배너 표시 · getty 화면 비우기 · 부팅 지연 없음</td><td>qemu 또는 CP7 실기</td></tr>
+            <tr><td>W1</td><td>Windows 게스트 <code>windows-install-cycle.sh complete</code></td><td>200 closed:true · 2 회 no-op · Windows 카드 내용 그대로(공통 조각 회귀)</td></tr>
+            <tr><td>D1</td><td>서버 상세 OS 설치 카드: RHEL 완료(일치) · 불일치 · 미보고 · 완료 + 종단 · Windows 완료</td><td>요소 단위 스크린샷</td></tr>
+            <tr><td>D2</td><td>D1 을 1440 · 1024 · 360 폭 + <code>scripts/design-audit/</code> line-scan · overflow-scan</td><td>넘침 0 · 겹친 구분선 0 · 긴 커널 문자열 · by-id 가 값 칸에서 접힘</td></tr>
+            <tr><td>C1</td><td>콘솔 · 앱 로그</td><td>pageerror 0 · 의도한 거절 외 ERROR 스택 없음</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §10 Critical Files ===== -->
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <table>
+          <thead><tr><th>분류</th><th>파일</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">신규</span></td><td><code>OsInstallCompletionService</code> · <code>InstallConfirmation</code> · <code>RhelInstallCompletionService</code> · <code>RhelInstallReportRestController</code> · <code>RhelInstallCompletionRequest</code> · <code>FirstBootReport</code> · <code>FirstBootReportAssets</code> · <code>resources/kickstart/spv-report.sh</code> · <code>resources/kickstart/spv-report.service</code> · <span class="chip new">개정 1</span> <code>SpvReportScriptTest</code> · 테스트 8 파일(§6)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>KickstartRuntime</code> · <code>KickstartRenderer</code> · 골든 3 · <code>RhelInstaller</code> · <code>RhelInstallLedger</code> · <code>OsInstallLedger</code> · <code>WindowsInstallLedger</code> · <code>WindowsInstallCompletionService</code> · <code>WindowsInstallReportRestController</code>(응답 타입) · <code>WindowsInstallCompletionResponse</code> → <code>OsInstallCompletionResponse</code> · <code>GuestServerDetailResponse</code> · <code>RhelInstallCardAssembler</code> · <code>WindowsInstallCardAssembler</code>(확증 타입) · <code>os-install.html</code> · <code>messages*.properties</code> · <code>rhel-install-cycle.sh</code> · <code>docs/deploy/pending/E4-1-b.md</code> · <code>docs/dev/maintenance-points.md</code> · <span class="chip mod">개정 1</span> <code>docs/T3-checklist.md</code>(T1 적립)</td></tr>
+            <tr><td><span class="chip keep">유지</span></td><td><code>OsInstallCycle</code>(Cleanup 계약 그대로) · <code>OsInstallTimeoutSweeper</code> · 게스트 보안 체인 · Windows spv-report.ps1 · DB 스키마</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- ===== §11 다음 마일스톤 ===== -->
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E4-1-b-5-milestones">
+          <li><label><input type="checkbox" data-key="cp1" checked> <span>CP1 승인(Q1 ~ Q4 답) (11-20, 권고안 전부 · 개정 1)</span></label></li>
+          <li><label><input type="checkbox" data-key="q4-merge"> <span>Q4 origin/dev 병합(구현 전, 진행 중)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp2-cp4"> <span>CP2 ~ CP4: 구현 · 테스트 · CH11 green → CP4 승인</span></label></li>
+          <li><label><input type="checkbox" data-key="design"> <span>화면 문구 SPV_Design 검수(설치 결과 절 · 대상 서버 행)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5-cp6"> <span>CP5 → CP6 report · Notion report 탭 임베드</span></label></li>
+          <li><label><input type="checkbox" data-key="b7"> <span>다음 E4-1-b-7 OS 후처리 설정(리눅스 전용)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span>b-7 뒤 RHEL 상호작용 다이어그램 반영 → RHEL 전체 실기 CP7(V-8 ~ V-10, b-3 F-1 Rocky 9 --allow-ssh, D-10 kickstart 사본 확인) → PR 하나</span></label></li>
+        </ul>
+      </div>
+    </details>
+
+  </main>
+</div>
+
+<script>
+  // ① ToC 클릭 → 해당 섹션 펼치고 부드럽게 스크롤
+  document.querySelectorAll('nav.toc a').forEach(a => {
+    a.addEventListener('click', e => {
+      const href = a.getAttribute('href');
+      if (!href || !href.startsWith('#')) return;
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (!target) return;
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  // ② 전부 펴기 / 접기
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  // ③ filter
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  // ④ check-list localStorage
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = (cb.dataset.key in stored) ? !!stored[cb.dataset.key] : cb.defaultChecked;
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) { /* 저장 불가 환경 */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  🎬 데모 : 패널 A = OsInstallCompletionService.complete 판정 순서, 패널 B = %post 미리보기
+  // ─────────────────────────────────────────────────────────────
+  const D = {
+    targetDisk: 'wwn-0x5000c500a1b2c3d4',
+    otherDisk: 'wwn-0x5000c500e5f60718',
+    guestUuid: '4c4c4544-0051-3010-8052-b7c04f4e3533',
+    otherUuid: '03000200-0400-0500-0006-000700080009',
+    kernel: '5.14.0-503.14.1.el9_5.x86_64',
+    prettyName: 'Rocky Linux 9.5 (Blue Onyx)',
+    hostname: 'localhost',
+    now: '2026-11-19 16:40:12',
+    nextPhase: 'OS_SETTING',
+    nextPhaseDescription: 'OS 설정'
+  };
+  const demoState = { status: 'PROV', cursor: 'OS', open: 'Y', latest: 'OTHER', next: 'NONE',
+                      disk: 'SAME', uuid: 'SAME', kernel: 'VAL', net: 'OK', boots: '1', dmi: 'SAME' };
+  const SCENARIOS = {
+    1: { note: '정상 완료, 종단. 오늘 정의서는 OS 후처리 단계를 고를 수 없어 이것이 기본입니다.',
+         s: { status: 'PROV', cursor: 'OS', open: 'Y', latest: 'OTHER', next: 'NONE', disk: 'SAME', uuid: 'SAME', kernel: 'VAL', net: 'OK', boots: '1' } },
+    2: { note: '정상 완료, 다음 OS 후처리(b-7 뒤의 모습).',
+         s: { status: 'PROV', cursor: 'OS', open: 'Y', latest: 'OTHER', next: 'POST', disk: 'SAME', uuid: 'SAME', kernel: 'VAL', net: 'OK', boots: '1' } },
+    3: { note: '중복 보고(응답 유실 뒤 재시도). 열린 행이 없고 최신 행이 완료 행입니다.',
+         s: { status: 'DONE', cursor: 'OTHER', open: 'N', latest: 'COMPLETED', next: 'NONE', disk: 'SAME', uuid: 'SAME', kernel: 'VAL', net: 'OK', boots: '1' } },
+    4: { note: '늦은 보고. 스윕이 이미 실패(INSTALL_TIMEOUT)로 닫았습니다.',
+         s: { status: 'FAILED', cursor: 'OS', open: 'N', latest: 'OTHER', next: 'NONE', disk: 'SAME', uuid: 'SAME', kernel: 'VAL', net: 'OK', boots: '1' } },
+    5: { note: '디스크 불일치. 닫기는 하고 카드에 불일치 경보를 띄웁니다.',
+         s: { status: 'PROV', cursor: 'OS', open: 'Y', latest: 'OTHER', next: 'NONE', disk: 'DIFF', uuid: 'SAME', kernel: 'VAL', net: 'OK', boots: '1' } },
+    6: { note: '미보고. udevadm · DMI 를 못 읽어 rootDisk · systemUuid 가 빈 값입니다.',
+         s: { status: 'PROV', cursor: 'OS', open: 'Y', latest: 'OTHER', next: 'NONE', disk: 'EMPTY', uuid: 'EMPTY', kernel: 'VAL', net: 'OK', boots: '1' } },
+    7: { note: '망이 끝내 없음(부팅 5 회째 소진). 포기 · 자기 삭제. 서버는 스윕으로 INSTALL_TIMEOUT.',
+         s: { status: 'PROV', cursor: 'OS', open: 'Y', latest: 'OTHER', next: 'NONE', disk: 'SAME', uuid: 'SAME', kernel: 'VAL', net: 'ERR', boots: '5' } }
+  };
+  // spv-report.sh 자기 삭제 목록 (스크립트 맨 마지막 단계)
+  const SELF_DELETE = [
+    'systemctl disable spv-report.service',
+    '/etc/systemd/system/spv-report.service 삭제',
+    '/usr/local/sbin/spv-report 삭제',
+    '/etc/spv/ 삭제 (env, header, 부팅 횟수)',
+    '/etc/issue.d/spv.issue 삭제',
+    '/root/spv-post.log 삭제',
+    '/root/anaconda-ks.cfg, /root/original-ks.cfg 의 토큰 REDACTED',
+    'systemctl daemon-reload'
+  ];
+  const MAX_BOOTS = 5;   // SPV_REPORT_MAX_BOOTS 기본값
+
+  // InstallConfirmation.of(Boolean) : null = UNREPORTED
+  function confirmationOf(b) { return b === null ? 'UNREPORTED' : (b ? 'CONFIRMED' : 'MISMATCH'); }
+  const CONF_LABEL = { CONFIRMED: '일치', MISMATCH: '불일치', UNREPORTED: '미보고' };
+  const CONF_BADGE = { CONFIRMED: 'on', MISMATCH: 'del', UNREPORTED: 'off' };
+
+  function reportedDisk(s) { return s.disk === 'EMPTY' ? '' : (s.disk === 'SAME' ? D.targetDisk : D.otherDisk); }
+  function reportedUuid(s) { return s.uuid === 'EMPTY' ? '' : (s.uuid === 'SAME' ? D.guestUuid : D.otherUuid); }
+  // 보고값 vs 기준값, 대소문자 무시. 빈 값 = null(미보고)
+  function confirm(reported, expected) {
+    if (!reported) return null;
+    return reported.toLowerCase() === expected.toLowerCase();
+  }
+
+  // 서버 OsInstallCompletionService.complete 의 판정 순서 1:1
+  function demoBlocks(s) {
+    if (s.net === 'ERR') return { kind: 'UNREACHED', step: 0 };
+    if (s.kernel === 'EMPTY') return { kind: 'BAD_REQUEST', step: 1 };
+    if (s.open === 'N' && s.latest === 'COMPLETED') {
+      const completed = s.status === 'DONE';
+      const phase = completed ? null : (s.cursor === 'OS' ? 'OS_INSTALLING' : '<다른 phase>');
+      return { kind: 'NOOP', step: 2, http: 200, body: { closed: false, provisioningCompleted: completed, nextPhase: phase } };
+    }
+    if (s.status !== 'PROV') return { kind: 'CONFLICT', step: 3, factory: 'notProvisioning' };
+    if (s.cursor !== 'OS') return { kind: 'CONFLICT', step: 4, factory: 'phaseMismatch' };
+    if (s.open === 'N') return { kind: 'CONFLICT', step: 5, factory: 'noOpenStep' };
+    const disk = confirm(reportedDisk(s), D.targetDisk);
+    const identity = confirm(reportedUuid(s), D.guestUuid);
+    const terminal = s.next === 'NONE';
+    return { kind: 'CLOSED', step: 6, http: 200, disk: disk, identity: identity,
+             body: { closed: true, provisioningCompleted: terminal, nextPhase: terminal ? null : D.nextPhase } };
+  }
+
+  function stepsCaps(j) {
+    const rows = [
+      ['① kernel 빈 값?                 ', '400 kernel 은 필수입니다.'],
+      ['② 열린 행 없음 + 최신 = 완료 행? ', '200 no-op'],
+      ['③ 프로비저닝 중 아님?            ', '409 notProvisioning'],
+      ['④ 커서 ≠ OS_INSTALLING?          ', '409 phaseMismatch'],
+      ['⑤ 열린 행 없음?                  ', '409 noOpenStep'],
+      ['⑥ 닫기 · 뒷정리 · 전진/종단      ', '200 closed']
+    ];
+    if (j.kind === 'UNREACHED') {
+      return '요청이 앱에 닿지 않음 (네트워크 오류 · 5xx)\n' + rows.map(r => r[0] + '-').join('\n');
+    }
+    return rows.map((r, i) => {
+      const n = i + 1;
+      if (n < j.step) return r[0] + '<span class="f">false</span> → 통과';
+      if (n === j.step) return r[0] + (n === 6 ? '<span class="f">도달</span> → ' : '<span class="t">true</span> → ') + r[1];
+      return r[0] + '-';
+    }).join('\n');
+  }
+
+  function metaBefore(s) {
+    if (s.open === 'N') {
+      return '열린 행 없음\n최신 행 : ' + (s.latest === 'COMPLETED' ? 'SUCCEEDED (완료 행)' : (s.status === 'FAILED' ? 'FAILED (INSTALL_TIMEOUT, 스윕)' : '그 밖'));
+    }
+    return 'status     RUNNING\n' +
+      'origin     rhel-install\niso        …\nrelease    …\ntree       …\nserved     …\nreentries  1\n' +
+      'targetDisk ' + D.targetDisk;
+  }
+  function metaAfter(s, j) {
+    if (j.kind !== 'CLOSED') return '변화 없음';
+    const dc = confirmationOf(j.disk), ic = confirmationOf(j.identity);
+    const b = v => v === null ? 'null' : String(v);
+    return 'status     <span class="f">SUCCEEDED</span>\n' +
+      'origin     rhel-install\niso        …\nrelease    …\ntree       …\nserved     …\nreentries  1\n' +
+      'targetDisk ' + D.targetDisk + '\n' +
+      '<span class="f">+</span> completedAt         ' + D.now + '\n' +
+      '<span class="f">+</span> osId                rocky\n' +
+      '<span class="f">+</span> osVersion           9.5\n' +
+      '<span class="f">+</span> osPrettyName        ' + D.prettyName + '\n' +
+      '<span class="f">+</span> kernel              ' + D.kernel + '\n' +
+      '<span class="f">+</span> hostname            ' + D.hostname + '\n' +
+      '<span class="f">+</span> installedRootDisk   ' + (reportedDisk(s) || '(빈 값)') + '\n' +
+      '<span class="f">+</span> diskConfirmed       ' + b(j.disk) + '\n' +
+      '<span class="f">+</span> reportedSystemUuid  ' + (reportedUuid(s) || '(빈 값)') + '\n' +
+      '<span class="f">+</span> identityConfirmed   ' + b(j.identity) + '\n' +
+      '<span class="f">+</span> reason              COMPLETED\n' +
+      '<span class="f">+</span> detail              설치 완료 · 디스크 ' + CONF_LABEL[dc] + ' · 대상 서버 ' + CONF_LABEL[ic];
+  }
+  function cleanupCaps(j) {
+    if (j.kind !== 'CLOSED') return '뒷정리 없음 · 커서 그대로';
+    return '서빙 토큰 회수        RhelInstaller.releaseAfterCompletion\n' +
+      '설치 트리 보유 반납   RhelInstaller.releaseAfterCompletion\n' +
+      '커서                  PhaseCursorAdvancer.advanceOrComplete → ' +
+      (j.body.provisioningCompleted ? '종단' : D.nextPhase + ' 진입 step') + '\n' +
+      '이벤트                GuestServerChangedEvent';
+  }
+  function responseView(j) {
+    if (j.kind === 'UNREACHED') return ['error', '응답 없음 (네트워크 오류 · 5xx)'];
+    if (j.kind === 'BAD_REQUEST') return ['error', '400 · 필드 메시지 "kernel 은 필수입니다."'];
+    if (j.kind === 'CONFLICT') return ['error', '409 · AgentReportRejectedException.' + j.factory];
+    const cls = j.kind === 'CLOSED' ? 'success' : '';
+    return [cls, j.http + ' ' + JSON.stringify(j.body)];
+  }
+  // spv-report.sh 의 종결 · 소진 판정. selfDelete = 자기 삭제를 하는가
+  function scriptJudge(s, j) {
+    const boots = Number(s.boots);
+    if (j.kind === 'UNREACHED') {
+      return boots < MAX_BOOTS ? { kind: 'KEEP', boots: boots, selfDelete: false }
+                               : { kind: 'GIVEUP', boots: boots, selfDelete: true };
+    }
+    const code = j.kind === 'BAD_REQUEST' ? 400 : (j.kind === 'CONFLICT' ? 409 : 200);
+    return { kind: 'TERMINAL', code: code, boots: boots, selfDelete: true };
+  }
+  function scriptView(g) {
+    const head = '부팅 ' + g.boots + ' 회째 (/etc/spv/report.boots +1) : ';
+    if (g.kind === 'KEEP') {
+      return ['error', head + '15초 뒤 재시도(최대 40회) → 40 회 소진, 부팅 횟수 ' + g.boots + ' < ' + MAX_BOOTS
+        + ' → header 만 지우고 유닛을 남김 · exit 0 · 다음 부팅에 다시'];
+    }
+    if (g.kind === 'GIVEUP') {
+      return ['error', head + '15초 뒤 재시도(최대 40회) → 40 회 소진, 부팅 횟수 ' + g.boots + ' = ' + MAX_BOOTS
+        + ' → 포기 : 자기 삭제 · exit 0'];
+    }
+    return ['', head + g.code + ' = 종결 : 자기 삭제 · journal 에 결과 한 줄 · exit 0 (200 · 400 · 401 · 404 · 409 공통)'];
+  }
+  function selfDeleteView(g) {
+    if (!g.selfDelete) {
+      return '<div class="ux-message">자기 삭제 없음 : /etc/spv/report.header 만 지운다. 유닛 · 스크립트 · env · 부팅 횟수 · 배너가 남는다 (failed 표시 없음)</div>';
+    }
+    return '<table><thead><tr><th>순서</th><th>자기 삭제</th></tr></thead><tbody>' +
+      SELF_DELETE.map((t, i) => '<tr><td>' + (i + 1) + '</td><td class="mono">' + esc(t) + '</td></tr>').join('') +
+      '</tbody></table>';
+  }
+  function row(label, value) { return '<tr><th>' + label + '</th><td>' + value + '</td></tr>'; }
+  function confRow(label, c, mismatchText, unreportedText, extra) {
+    let v = '<span class="badge ' + CONF_BADGE[c] + '">' + CONF_LABEL[c] + '</span>';
+    if (extra) v += ' <span class="mono muted">' + extra + '</span>';
+    if (c === 'MISMATCH') v += '<div class="callout warn">' + mismatchText + '</div>';
+    if (c === 'UNREPORTED') v += ' <span class="muted">' + unreportedText + '</span>';
+    return row(label, v);
+  }
+  function cardView(s, j) {
+    const head = row('대상 OS', 'Rocky Linux 9') + row('설치 대상 디스크', '<span class="mono">' + D.targetDisk + '</span>');
+    const done = j.kind === 'CLOSED' || j.kind === 'NOOP';
+    if (!done) {
+      if (s.status === 'FAILED') {
+        return '<table><tbody>' + head + row('진행', '<span class="badge del">실패</span> <span class="muted">INSTALL_TIMEOUT (스윕)</span>') + '</tbody></table>';
+      }
+      if (s.status === 'PROV') {
+        return '<table><tbody>' + head + row('진행', '<span class="badge dep">설치 중</span>') + '</tbody></table>';
+      }
+      return '<div class="ux-message">카드 변화 없음</div>';
+    }
+    const disk = j.kind === 'CLOSED' ? j.disk : confirm(reportedDisk(s), D.targetDisk);
+    const identity = j.kind === 'CLOSED' ? j.identity : confirm(reportedUuid(s), D.guestUuid);
+    const terminal = j.body.provisioningCompleted;
+    const next = terminal ? '마지막 단계였습니다. 프로비저닝이 끝났고 다음 부팅부터 로컬 디스크로 부팅합니다.'
+                          : '다음 단계로 넘어갔습니다: ' + D.nextPhaseDescription;
+    const dc = confirmationOf(disk), ic = confirmationOf(identity);
+    return '<table><tbody>' + head +
+      row('진행', '<span class="badge on">완료</span> <span class="muted">완료 ' + D.now + ', 호스트 이름 ' + D.hostname + '</span>') +
+      '</tbody></table>' +
+      '<h4>설치 결과</h4><table><tbody>' +
+      row('다음', next) +
+      row('설치 OS', D.prettyName + ' <span class="mono muted">' + D.kernel + '</span>') +
+      confRow('설치 디스크', dc, '설치된 디스크가 계획한 OS 볼륨과 다릅니다. 다른 디스크의 데이터를 덮었을 수 있으니 대상 디스크를 확인해야 합니다.',
+              '설치 디스크 확인 정보가 없습니다. 설치 후 스크립트가 오래됐거나 조회하지 못했습니다.', reportedDisk(s)) +
+      confRow('대상 서버', ic, '본 게스트 서버의 시스템 UUID와 보고한 서버의 시스템 UUID가 다릅니다.',
+              '대상 서버 확증 정보가 없습니다.', '') +
+      '</tbody></table>';
+  }
+
+  // ── 패널 B : FirstBootReport.consoleSerialOf + KickstartToken.check ──
+  function consoleSerialOf(raw) {
+    const cleaned = (raw || '').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 64);
+    return cleaned === '' ? '-' : cleaned;
+  }
+  const UNSAFE = /[\s'"#\\]/;
+  function tokenOk(v) { return !!v && !UNSAFE.test(v); }
+  function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function renderKickstart() {
+    const base = document.getElementById('kb-base').value;
+    const uuid = document.getElementById('kb-uuid').value;
+    const rawSerial = document.getElementById('kb-serial').value;
+    const guest = document.getElementById('kb-guest').value;
+    const serial = consoleSerialOf(rawSerial);
+    const detail = base + '/provisioning/server/' + guest;
+    document.getElementById('kb-serial-rule').textContent =
+      '보드 시리얼(GuestServerDetail.boardSerial) 정리 : [A-Za-z0-9._-] 밖은 _ , 64자 자름, 비면 -\n' +
+      '입력  "' + rawSerial + '"\n' +
+      '결과  "' + serial + '"  (' + serial.length + '자)';
+    const bad = [['reportBaseUrl', base], ['systemUuid', uuid], ['detailUrl', detail]].filter(p => !tokenOk(p[1]));
+    const msg = document.getElementById('kb-message');
+    if (bad.length) {
+      msg.className = 'ux-message error';
+      msg.textContent = 'FirstBootReport 생성 실패 : KickstartToken.check 가 ' + bad.map(p => p[0]).join(' · ')
+        + ' 를 거절 (IllegalStateException, kickstart 에 넣을 수 없는 값) → 렌더 중단';
+      document.getElementById('kb-post').textContent = '(렌더되지 않음)';
+      document.getElementById('kb-login').textContent = '-';
+      document.getElementById('kb-echo').textContent = '-';
+      return;
+    }
+    // spv-report banner : 기대 UUID 와 DMI product_uuid 를 대소문자 무시 비교
+    const dmi = demoState.dmi === 'NONE' ? '' : (demoState.dmi === 'SAME' ? uuid : D.otherUuid);
+    const verdict = dmi === '' ? 'unknown' : (dmi.toLowerCase() === uuid.toLowerCase() ? 'match' : 'MISMATCH');
+    const banner =
+      'ServerProvision provisioning target\n' +
+      '  expected UUID : ' + uuid + '\n' +
+      '  this machine  : ' + (dmi === '' ? '-' : dmi) + ' (' + verdict + ')\n' +
+      '  serial        : ' + serial + '\n' +
+      '  detail        : ' + detail;
+    msg.className = 'ux-message success';
+    msg.textContent = 'FirstBootReport 생성 · 렌더 통과. 토큰은 env heredoc 에만 실린다.';
+    document.getElementById('kb-post').innerHTML = esc(
+      '%post --log=/root/spv-post.log --erroronfail\n' +
+      'mkdir -p /etc/spv /usr/local/sbin /etc/systemd/system\n' +
+      'umask 077\n' +
+      "cat > /etc/spv/report.env <<'SPV_EOF'\n" +
+      "SPV_REPORT_URL='" + base + "/api/pxe/v1/agent/rhel/complete'\n" +
+      "SPV_GUEST_TOKEN='<guest-token>'\n" +
+      "SPV_EXPECTED_UUID='" + uuid + "'\n" +
+      "SPV_SERIAL='" + serial + "'\n" +
+      "SPV_DETAIL_URL='" + detail + "'\n" +
+      'SPV_EOF\n' +
+      "cat > /usr/local/sbin/spv-report <<'SPV_EOF'\n" +
+      '[spv-report.sh 본문 접음]\n' +
+      'SPV_EOF\n' +
+      "cat > /etc/systemd/system/spv-report.service <<'SPV_EOF'\n" +
+      '[spv-report.service 본문 접음]\n' +
+      'SPV_EOF\n' +
+      'chmod 0600 /etc/spv/report.env\n' +
+      'chmod 0700 /usr/local/sbin/spv-report\n' +
+      'chmod 0644 /etc/systemd/system/spv-report.service\n' +
+      '/usr/local/sbin/spv-report banner\n' +
+      'if command -v restorecon > /dev/null 2>&1; then restorecon -F -R /etc/spv /usr/local/sbin/spv-report /etc/systemd/system/spv-report.service /etc/issue.d; fi\n' +
+      'systemctl enable spv-report.service\n' +
+      '%end');
+    document.getElementById('kb-login').textContent = banner + '\n\nlocalhost login: _';
+    document.getElementById('kb-echo').textContent =
+      '%post 로그 (spv-report banner 표준 출력) :\n' + banner + '\n\n' +
+      '첫 부팅 journal + console (spv-report, 배너와 같은 판정) :\n' +
+      'ServerProvision: provisioning target system UUID ' + uuid + ', this machine ' + (dmi === '' ? '-' : dmi) +
+      ' (' + verdict + '), serial ' + serial + '\n' +
+      'ServerProvision: server detail ' + detail;
+  }
+
+  function demoRender() {
+    const s = demoState, j = demoBlocks(s);
+    document.querySelectorAll('.ux-toolbar .seg[data-group]').forEach(b =>
+      b.classList.toggle('active', s[b.dataset.group] === b.dataset.val));
+    document.getElementById('demo-steps').innerHTML = stepsCaps(j);
+    const r = responseView(j);
+    const resp = document.getElementById('demo-response');
+    resp.className = 'ux-message' + (r[0] ? ' ' + r[0] : ''); resp.textContent = r[1];
+    document.getElementById('demo-meta-before').textContent = metaBefore(s);
+    document.getElementById('demo-meta-after').innerHTML = metaAfter(s, j);
+    document.getElementById('demo-cleanup').textContent = cleanupCaps(j);
+    const g = scriptJudge(s, j);
+    const sc = scriptView(g);
+    const scr = document.getElementById('demo-script');
+    scr.className = 'ux-message' + (sc[0] ? ' ' + sc[0] : ''); scr.textContent = sc[1];
+    document.getElementById('demo-selfdelete').innerHTML = selfDeleteView(g);
+    document.getElementById('demo-card').innerHTML = cardView(s, j);
+    renderKickstart();
+  }
+
+  document.querySelectorAll('.ux-toolbar .seg[data-group]').forEach(b =>
+    b.addEventListener('click', () => {
+      demoState[b.dataset.group] = b.dataset.val;
+      document.getElementById('demo-scn-note').textContent = '직접 조정 중입니다.';
+      demoRender();
+    }));
+  document.querySelectorAll('#demo-scenarios .n-demo-btn').forEach(b =>
+    b.addEventListener('click', () => {
+      const scn = SCENARIOS[b.dataset.scn];
+      Object.assign(demoState, scn.s);
+      document.getElementById('demo-scn-note').textContent = b.textContent + ' : ' + scn.note;
+      demoRender();
+    }));
+  ['kb-base', 'kb-uuid', 'kb-serial', 'kb-guest'].forEach(id =>
+    document.getElementById(id).addEventListener('input', demoRender));
+
+  demoRender();   // 불가침 : 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

@@ -183,8 +183,8 @@ public class GuestServerCommandService {
 
     /**
      * 운영자 재시도(E1-2, DEC-4) — 실패 신호 해제(전진 가드의 유일한 명시 예외). 커서는 유지되어
-     * 다음 /boot 폴링이 실패 phase 의 스크립트를 재발급한다. 펌웨어 flash 실패는 차단
-     * (판정 SSOT = {@link RetryPolicy} — UI disabled + tooltip 과 공유. 굽다가 난 실패만 막고,
+     * 다음 /boot 폴링이 실패 phase 의 스크립트를 재발급한다. 펌웨어 flash 실패와 OS 후처리 실패는 차단
+     * (판정 SSOT = {@link RetryPolicy} — UI disabled + 사유와 공유. 굽다가 난 실패만 막고,
      * 자원 결손 시한 만료는 자원을 되살린 뒤 다시 시도할 수 있다).
      */
     @Transactional
@@ -193,9 +193,9 @@ public class GuestServerCommandService {
         if (!progress.isFailed()) {
             throw ProvisioningRetryRejectedException.notFailed(id);
         }
-        if (retryPolicy.isBlocked(progress)) {
-            throw ProvisioningRetryRejectedException.firmwareBlocked(id, progress.getCurrentStep());
-        }
+        retryPolicy.blockOf(progress).ifPresent(block -> {
+            throw ProvisioningRetryRejectedException.blocked(id, block);
+        });
         // 되감기 지점은 phase 실행기가 정한다(HF15-2 · F-8) — RAID 는 인벤토리 재채집부터, 그 외는 실패 지점 그대로.
         ProvisioningPhaseStep entry = phaseExecutorRegistry.find(progress.currentPhase())
                 .map(executor -> executor.retryEntryStep(progress))

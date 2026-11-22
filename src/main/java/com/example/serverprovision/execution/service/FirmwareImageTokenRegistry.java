@@ -1,5 +1,7 @@
 package com.example.serverprovision.execution.service;
 
+import com.example.serverprovision.global.security.springsecurity.guest.GuestCredential;
+import com.example.serverprovision.global.security.springsecurity.guest.ServingTokenLookup;
 import com.example.serverprovision.execution.engine.firmware.FirmwareAxis;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Component
-public class FirmwareImageTokenRegistry {
+public class FirmwareImageTokenRegistry implements ServingTokenLookup {
 
     private final Map<UUID, Path> issued = new ConcurrentHashMap<>();
     /** (게스트, 축) → 지금 유효한 토큰. 굽기가 끝나면 이 키로 회수한다 — 토큰만으로는 누구 것인지 모른다. */
@@ -83,7 +85,13 @@ public class FirmwareImageTokenRegistry {
         guestByToken.remove(token);
     }
 
+    @Override
+    public GuestCredential.ServingKind kind() {
+        return GuestCredential.ServingKind.FIRMWARE;
+    }
+
     /** 토큰을 발급받은 게스트 — 없거나 회수됐으면 empty(게스트 체인의 서빙 토큰 인증 재료). */
+    @Override
     public Optional<UUID> guestOf(UUID token) {
         return Optional.ofNullable(guestByToken.get(token));
     }
@@ -100,6 +108,6 @@ public class FirmwareImageTokenRegistry {
         }
         String encoded = java.net.URLEncoder.encode(path.getFileName().toString(),
                 java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
-        return baseUrl + "/api/pxe/v1/firmware/" + token + "/" + encoded;
+        return baseUrl + "/api/pxe/v1/" + kind().segment() + "/" + token + "/" + encoded;
     }
 }

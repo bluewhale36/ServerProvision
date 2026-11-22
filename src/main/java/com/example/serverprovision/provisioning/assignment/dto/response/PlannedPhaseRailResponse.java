@@ -93,7 +93,7 @@ public record PlannedPhaseRailResponse(
         if (server.raidPlan() != null || (server.raidVolumes() != null && !server.raidVolumes().isEmpty())) {
             fromData.add(ProvisioningPhase.RAID_CONFIGURATION);
         }
-        if (server.windowsInstall() != null) {
+        if (server.osInstall() != null) {
             fromData.add(ProvisioningPhase.OS_INSTALLING);
         }
         return build(plan, server.progress(), server.steps() != null ? server.steps() : List.of(), fromData,

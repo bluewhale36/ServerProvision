@@ -127,4 +127,21 @@ class SettingDefinitionTest {
         assertThat(copy.isDeprecated()).isFalse();
         assertThat(copy.isDeleted()).isFalse();
     }
+
+    @Test
+    @DisplayName("E4-1-b-7 copyOf — OS 후처리의 사용자 스크립트도 payload 째 따라온다(재사용 = 복제)")
+    void copyOf_carriesOsSettingScripts() {
+        var scripts = java.util.List.of(new com.example.serverprovision.provisioning.setting.dto.request.OsSettingScriptRequest("init.sh", "echo a\n"));
+        SettingDefinition source = SettingDefinition.builder().name("RHEL 표준")
+                .processes(java.util.List.of(new SettingProcess(new com.example.serverprovision.provisioning.setting.vo.ProcessPayload(
+                        new com.example.serverprovision.provisioning.setting.dto.request.RHELOSSettingRequest(1L, "enforcing",
+                                java.util.List.of(), java.util.List.of(), scripts)))))
+                .build();
+
+        SettingDefinition copy = SettingDefinition.copyOf(source, "RHEL 표준 복사본");
+
+        assertThat(copy.getProcesses().get(0).getPayload().request())
+                .isInstanceOfSatisfying(com.example.serverprovision.provisioning.setting.dto.request.RHELOSSettingRequest.class,
+                        os -> assertThat(os.getScripts()).isEqualTo(scripts));
+    }
 }

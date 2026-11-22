@@ -2,7 +2,6 @@ package com.example.serverprovision.provisioning.assignment.service;
 
 import com.example.serverprovision.execution.engine.windows.WindowsInstallTarget;
 import com.example.serverprovision.execution.engine.windows.WindowsInstallationResolutionProvider;
-import com.example.serverprovision.provisioning.assignment.entity.AssignedProcessSnapshot;
 import com.example.serverprovision.provisioning.assignment.repository.SettingAssignmentSnapshotRepository;
 import com.example.serverprovision.provisioning.setting.dto.request.OSInstallationRequest;
 import com.example.serverprovision.provisioning.setting.dto.request.WindowsInstallationRequest;
@@ -15,8 +14,8 @@ import java.util.UUID;
 
 /**
  * Windows 설치 목표 공급(E4-1-a-3) — 활성 스냅샷의 OS 설치 payload 에서 이미지 이름과 Administrator 비밀번호를 꺼낸다
- * ({@code RaidConfigurationResolutionProviderImpl} 과 같은 역전 자리). 리눅스 계열 정의서는 목표가 아니라 사유로
- * 나른다 — 준비도가 "리눅스 설치는 지원하지 않습니다" 를 지목할 수 있게.
+ * ({@code RaidConfigurationResolutionProviderImpl} 과 같은 역전 자리). Windows 정의서가 아니면 empty — 다른 계열은 그
+ * 계열 설치기가 맡고, 아무도 맡지 않는 계열의 사유는 OS 설치 실행기가 낸다(E4-1-b-4-1).
  */
 @Component
 @RequiredArgsConstructor
@@ -30,21 +29,13 @@ public class WindowsInstallationResolutionProviderImpl implements WindowsInstall
     public Optional<WindowsInstallTarget> resolveFor(UUID guestServerId) {
         return assignmentRepository
                 .findByGuestServer_IdAndSupersededAtIsNull(guestServerId)
-                .flatMap(snapshot -> snapshot.getProcesses().stream()
-                        .map(AssignedProcessSnapshot::getPayload)
-                        .map(payload -> payload.request())
-                        .filter(OSInstallationRequest.class::isInstance)
-                        .map(OSInstallationRequest.class::cast)
-                        .findFirst())
+                .flatMap(snapshot -> snapshot.processRequestOf(WindowsInstallationRequest.class))
                 .map(this::toTarget);
     }
 
-    private WindowsInstallTarget toTarget(OSInstallationRequest request) {
-        if (request instanceof WindowsInstallationRequest windows) {
-            String password = windows.getAdministratorPassword() == null ? null : windows.getAdministratorPassword().getPassword();
-            return WindowsInstallTarget.windows(windows.getImageName(), password, osTargetOf(request));
-        }
-        return WindowsInstallTarget.unsupported(request.osFamily().getDisplayName());
+    private WindowsInstallTarget toTarget(WindowsInstallationRequest windows) {
+        String password = windows.getAdministratorPassword() == null ? null : windows.getAdministratorPassword().getPassword();
+        return WindowsInstallTarget.windows(windows.getImageName(), password, osTargetOf(windows));
     }
 
     /** 정의서가 가리키는 OS 메타(R15-2 D-1) — 드라이버 변형 선택의 열쇠. 메타가 없으면(삭제 · 부재) 미상. */

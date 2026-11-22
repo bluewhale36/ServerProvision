@@ -10,9 +10,9 @@ public enum TreeFailureReason {
 
     NOT_CONFIGURED(true, "설치 트리 디렉터리가 설정되지 않았습니다. 관리자에게 확인해야 합니다."),
     TOOL_MISSING(true, "설치 원본을 풀 도구(bsdtar)가 서버에 없습니다. 관리자에게 확인해야 합니다."),
-    HTTP_ISO_UNSUPPORTED(true, "웹 주소로 등록된 ISO 는 설치 원본으로 쓸 수 없습니다."),
+    HTTP_ISO_UNSUPPORTED(true, "웹 주소로 등록된 ISO 는 설치 원본으로 쓸 수 없습니다. 서버 경로로 등록한 ISO 를 정의서에서 골라야 합니다."),
     ISO_UNAVAILABLE(true, "설치에 쓸 ISO 파일을 찾을 수 없습니다. 운영 관리에서 ISO 상태를 확인해야 합니다."),
-    NOT_ENOUGH_SPACE(false, "설치 원본을 준비하지 못했습니다. 작업 디렉터리의 디스크 공간이 부족합니다."),
+    NOT_ENOUGH_SPACE(false, "설치 원본을 준비하지 못했습니다. 작업 디렉터리의 디스크 공간이 부족합니다. 공간을 확보한 뒤 재시도해야 합니다."),
     NOT_RHEL_TREE(false, "설치 원본을 준비하지 못했습니다. RHEL 계열 설치 ISO 인지 확인해야 합니다."),
     EXTRACTION_FAILED(false, "설치 원본을 준비하지 못했습니다. 원인을 확인한 뒤 재시도해야 합니다.");
 

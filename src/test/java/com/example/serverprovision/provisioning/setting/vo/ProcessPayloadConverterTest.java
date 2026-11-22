@@ -63,7 +63,7 @@ class ProcessPayloadConverterTest {
                 List.of(new PartitionRequest("/", FileSystem.XFS, 0L, SizeUnit.GB, true)),
                 null, List.of(), 1L, List.of(2L), true, null));
         ProcessPayload setting = new ProcessPayload(new RHELOSSettingRequest(
-                1L, "enforcing", List.of(), List.of("vim")));
+                1L, "enforcing", List.of(), List.of("vim"), List.of()));
         ProcessPayload stub = new ProcessPayload(new BasicSettingRequest(List.of()));
 
         RHELInstallationRequest restoredInstall =

@@ -84,15 +84,15 @@
              class="n-alert n-alert-danger" role="alert">
             <strong th:text="${server.progress.currentPhase != null} ? |${server.progress.currentPhase.description} 실패| : '프로비저닝 실패'">OS 설치 실패</strong>
             <div class="n-block-gap-sm" th:text="${server.failedStepNote() != null} ? ${server.failedStepNote()} : '운영자가 실패 처리했습니다.'">재부팅이 상한을 넘겨 반복됐습니다.</div>
-            <div class="n-block-gap-sm" th:if="${server.progress.retryBlocked}" th:text="#{provisioning.retry.blocked.tooltip}">재시도 차단 안내</div>
+            <div class="n-block-gap-sm" th:if="${server.progress.retryBlock != null}" th:text="#{${server.progress.retryBlock.alertKey}}">재시도 차단 안내</div>
             <div class="n-block-gap-sm"><a href="#provisioning">실패한 단계 보기</a></div>
         </div>
         <!-- 자원 결손 대기 — 사람이 자원을 되살려야 풀리고 시한이 지나면 실패한다(S22-3 SD-198 ~ 200 · 356). -->
         <div th:with="fwHold=${server.firmwarePlan != null and server.firmwarePlan.holding},
-                      winHold=${server.windowsInstall != null and server.windowsInstall.holding}">
-            <div th:if="${fwHold or winHold}" th:with="remain=${fwHold ? server.firmwarePlan.holdRemainingMinutes : server.windowsInstall.holdRemainingMinutes}"
+                      osHold=${server.osInstall != null and server.osInstall.holding}">
+            <div th:if="${fwHold or osHold}" th:with="remain=${fwHold ? server.firmwarePlan.holdRemainingMinutes : server.osInstall.holdRemainingMinutes}"
                  class="n-alert n-alert-warning" role="status">
-                <strong th:text="${fwHold} ? '펌웨어 자원 대기' : 'Windows 설치 자원 대기'">자원 대기</strong>
+                <strong th:text="${fwHold} ? #{provisioning.firmware.plan.holding.title} : #{provisioning.os.install.holding.title}">자원 대기</strong>
                 <div class="n-block-gap-sm" th:if="${remain > 0}"
                      th:text="|#{provisioning.firmware.plan.holding} #{provisioning.firmware.plan.remaining} ${remain}분|">자원이 갖춰지기를 기다리는 중입니다.</div>
                 <div class="n-block-gap-sm" th:unless="${remain > 0}" th:text="#{provisioning.firmware.plan.expired}">대기 시한이 지났습니다.</div>
@@ -279,8 +279,8 @@
                            th:each="reason : ${startBlockReasons}" th:text="${reason}">막는 이유</p>
                         <!-- E2-4 Q3 — 펌웨어 단계 재시도의 전원 사이클은 의도다. 미리 알린다. -->
                         <!-- S22-3 — 막힘과, 재시도가 전원을 움직인다는 사실만 남긴다(동작 설명은 문서 몫). -->
-                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.failedAt != null and server.progress.retryBlocked}">
-                            펌웨어 실패는 원인 확인 전 재시도할 수 없습니다.</p>
+                        <p class="n-next-hint" th:if="${server.progress != null and server.progress.failedAt != null and server.progress.retryBlock != null}"
+                           th:text="#{${server.progress.retryBlock.hintKey}}">펌웨어 실패는 원인 확인 전 재시도할 수 없습니다.</p>
                         <p class="n-next-hint" th:if="${server.progress != null and server.progress.failedAt != null and !server.progress.retryBlocked
                                                       and server.progress.failedStepCode != null and server.progress.failedStepCode.phaseType.name() == 'FIRMWARE_UPDATING'}">
                             재시도하면 서버 전원을 껐다 켭니다.</p>
@@ -795,7 +795,8 @@
                                         or (phaseName == 'FIRMWARE_UPDATING' and (server.firmwarePlan != null or server.firmwareFlash != null))
                                         or (phaseName == 'FIRMWARE_SETTING' and server.firmwareSetting != null)
                                         or (phaseName == 'RAID_CONFIGURATION' and (server.raidPlan != null or !#lists.isEmpty(server.raidVolumes)))
-                                        or (phaseName == 'OS_INSTALLING' and server.windowsInstall != null)}">
+                                        or (phaseName == 'OS_INSTALLING' and server.osInstall != null)
+                                        or (phaseName == 'OS_SETTING' and osSetting != null)}">
                 <summary class="n-card-head n-phase-head">
                     <div class="n-card-head-group">
                         <span class="n-phase-chevron" aria-hidden="true"></span>
@@ -825,20 +826,23 @@
                 </summary>
                 <div class="n-card-body">
                     <!-- S22-3 패널 상단 경보 — 실패한 단계 패널의 맨 위에 사유와 다음 행동을 한 판으로. -->
-                    <!-- OS 설치 패널은 Windows 설치 원장이 실패를 적었으면(패널 상태와 별개로) 그 안내를 띄운다. -->
+                    <!-- OS 설치 패널은 OS 설치 원장이 실패를 적었으면(패널 상태와 별개로) 그 안내를 띄운다. -->
                     <!-- th:if 가 th:with 보다 먼저 평가되므로 변수는 바깥 블록에서 정한다. -->
-                    <th:block th:with="winFailed=${phaseName == 'OS_INSTALLING' and server.windowsInstall != null and server.windowsInstall.failedReason != null},
+                    <th:block th:with="osFailed=${phaseName == 'OS_INSTALLING' and server.osInstall != null and server.osInstall.failedReason != null},
                                        panelFailed=${entry.runState.name() == 'FAILED'}">
-                    <div th:if="${panelFailed or winFailed}" class="n-alert n-alert-danger" role="alert">
+                    <div th:if="${panelFailed or osFailed}" class="n-alert n-alert-danger" role="alert">
                         <strong th:text="${server.progress != null and server.progress.failedStepCode != null}
                                          ? |${server.progress.failedStepCode.description} 실패|
                                          : (${panelFailed} ? '운영자가 실패 처리했습니다' : |${entry.description} 실패|)">OS 설치 실패</strong>
-                        <div class="n-block-gap-sm" th:if="${panelFailed and server.failedStepNote() != null}" th:text="${server.failedStepNote()}">사유</div>
-                        <div class="n-block-gap-sm" th:if="${winFailed}"
-                              th:with="wr=${server.windowsInstall.failedReason}"
-                              th:text="${wr == 'INSTALL_TIMEOUT'} ? #{provisioning.windows.install.progress.failed.timeout}
-                                       : (${wr == 'REPXE_LOOP'} ? #{provisioning.windows.install.progress.failed.loop}
-                                       : #{provisioning.windows.install.progress.failed.operator})">원인을 확인한 뒤 재시도해야 합니다.</div>
+                        <!-- 계열이 화면 문구를 남긴 실패는 원장 사유와 같은 문장이라 아래 한 줄만 둔다(b-4-2 CP5 F-1). -->
+                        <div class="n-block-gap-sm" th:if="${panelFailed and server.failedStepNote() != null and !(osFailed and server.osInstall.failedMessage != null)}" th:text="${server.failedStepNote()}">사유</div>
+                        <!-- 계열이 화면 문구를 남긴 실패(설치 트리)면 그 문구, 아니면 사유 코드로 고른다. -->
+                        <div class="n-block-gap-sm" th:if="${osFailed}"
+                              th:with="wr=${server.osInstall.failedReason}"
+                              th:text="${server.osInstall.failedMessage != null} ? ${server.osInstall.failedMessage}
+                                       : (${wr == 'INSTALL_TIMEOUT'} ? #{provisioning.os.install.progress.failed.timeout}
+                                       : (${wr == 'REPXE_LOOP'} ? #{provisioning.os.install.progress.failed.loop}
+                                       : #{provisioning.os.install.progress.failed.operator}))">원인을 확인한 뒤 재시도해야 합니다.</div>
                     </div>
                     </th:block>
                     <th:block th:switch="${phaseName}">
@@ -1068,177 +1072,18 @@
                         <!-- OS 설치 — Windows 설치(E4-1-a-3 · E4-1-a-4 · E4-1-a-6 · R15-2). 준비도는 조회 시점 재판정, 진행은 원장 행의 투영.
                              축 목록(글자 나열) 대신 2 열 표로 — 라벨 · 상태 배지 · 부연이 한 행에 서서 훑어 읽힌다(S21-1 검수). 문구는 종전 키 그대로. -->
                         <th:block th:case="'OS_INSTALLING'">
-                            <th:block th:if="${server.windowsInstall != null}" th:with="wi=${server.windowsInstall}">
-                                <div class="n-section" th:text="#{provisioning.windows.install.title}">Windows 설치</div>
-                                <table class="n-detail-table">
-                                    <tbody>
-                                    <tr>
-                                        <th th:text="#{provisioning.windows.install.image}">대상 이미지</th>
-                                        <td>
-                                            <span th:if="${wi.imageName != null}"
-                                                  th:text="${wi.imageDisplayName != null} ? |${wi.imageDisplayName} (${wi.imageName})| : ${wi.imageName}">Windows Server 2025 SERVERSTANDARD</span>
-                                            <span th:unless="${wi.imageName != null}" class="n-muted"
-                                                  th:text="#{provisioning.windows.install.image.none}">미지정</span>
-                                        </td>
-                                    </tr>
-                                    <tr th:if="${wi.readinessGrade != null and !wi.served() and !wi.completed() and wi.failedReason == null}">
-                                        <th th:text="#{provisioning.windows.install.readiness}">준비도</th>
-                                        <td>
-                                            <!-- 서빙 뒤 · 완료 뒤 · 실패 뒤에는 "다음 부팅에서 시작" 이 시제에 맞지 않는다(E4-1-a-3 CP5 O-2 · E4-1-a-4 CP5 F-2) -->
-                                            <th:block th:if="${wi.readinessGrade.name() == 'READY'}">
-                                                <span class="n-badge n-badge-teal" th:text="${wi.readinessGrade.description}">준비됨</span>
-                                                <span class="n-meta n-muted"
-                                                      th:text="${wi.served() or wi.completed() or wi.failedReason != null} ? #{provisioning.windows.install.readiness.ready.short} : #{provisioning.windows.install.readiness.ready}">정상</span>
-                                            </th:block>
-                                            <th:block th:unless="${wi.readinessGrade.name() == 'READY'}">
-                                                <span class="n-badge n-badge-red" th:text="${wi.readinessGrade.description}">자원 결손</span>
-                                                <!-- S22-3 — 설치를 막는 결손이라 판으로, 사유는 한 줄에 하나씩. -->
-                                                <div class="n-alert n-alert-warning">
-                                                    <div th:each="note : ${wi.readinessNotes}" th:text="${note}">install.wim 미배치</div>
-                                                </div>
-                                            </th:block>
-                                        </td>
-                                    </tr>
-                                    <tr th:if="${wi.targetDiskId != null or wi.diskSelectionNote != null}">
-                                        <th th:text="#{provisioning.windows.install.disk}">설치 대상 디스크</th>
-                                        <td>
-                                            <strong th:if="${wi.targetDiskId != null}"
-                                                    th:text="|#{provisioning.windows.install.disk.number} ${wi.targetDiskId}|">디스크 0</strong>
-                                            <!-- 서빙 뒤에도 번호의 근거를 남긴다(HF15-5 CP5 O-1) — 원장 meta diskBasis. 서빙 전엔 안내(DEFERRED · CONFIDENT)만 -->
-                                            <span th:if="${wi.diskSelectionNote != null}" th:classappend="${wi.targetDiskId != null} ? 'n-meta'"
-                                                  class="n-muted" th:text="${wi.diskSelectionNote}">RAID 구성 뒤 정해집니다</span>
-                                        </td>
-                                    </tr>
-                                    <!-- R15-2 — 서빙 시점 드라이버 선택(보드 · 대상 OS · 버전). 서빙 뒤에는 원장 meta 의 그때 목록 -->
-                                    <tr th:if="${wi.driverSummary != null}">
-                                        <th th:text="#{provisioning.windows.install.drivers}">드라이버</th>
-                                        <td>
-                                            <span th:text="${wi.driverSummary}">드라이버 2개, 제외 1개</span>
-                                            <div class="n-hint" th:if="${#lists.isEmpty(wi.driverEntries) and #lists.isEmpty(wi.driversSkipped)}"
-                                                 th:text="#{provisioning.windows.install.drivers.none}">선택된 드라이버가 없습니다.</div>
-                                            <details th:if="${not #lists.isEmpty(wi.driverEntries)}">
-                                                <summary th:text="|#{provisioning.windows.install.drivers.list} (${#lists.size(wi.driverEntries)})|">선택 목록 (2)</summary>
-                                                <ul>
-                                                    <li th:each="d : ${wi.driverEntries}" th:text="${d}">ASPEED Graphics</li>
-                                                </ul>
-                                            </details>
-                                            <details th:if="${not #lists.isEmpty(wi.driversSkipped)}">
-                                                <summary th:text="|#{provisioning.windows.install.drivers.skipped} (${#lists.size(wi.driversSkipped)})|">제외 (1)</summary>
-                                                <ul>
-                                                    <li th:each="d : ${wi.driversSkipped}" th:text="${d}">Intel LAN</li>
-                                                </ul>
-                                            </details>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th th:text="#{provisioning.windows.install.progress}">진행</th>
-                                        <td>
-                                            <!-- E4-1-a-4 — 완료 보고로 닫힌 행: 완료 시각 · ComputerName · 드라이버 · 문제 장치 -->
-                                            <th:block th:if="${wi.completed()}">
-                                                <span class="n-badge n-badge-teal" th:text="#{provisioning.windows.install.progress.completed}">완료</span>
-                                                <span class="n-meta n-muted"
-                                                      th:text="|#{provisioning.windows.install.progress.completed.at} ${#temporals.format(wi.completedAt, 'yyyy-MM-dd HH:mm:ss')}, #{provisioning.windows.install.progress.completed.computer} ${wi.computerName}, #{provisioning.windows.install.progress.completed.drivers} ${wi.driversAdded}, #{provisioning.windows.install.progress.completed.problems} ${wi.problemDeviceCount}|">완료 2026-09-03, ComputerName SPV-14174000, 드라이버 47, 문제 장치 0</span>
-                                            </th:block>
-                                            <th:block th:if="${wi.failedReason != null}">
-                                                <span class="n-badge n-badge-red" th:text="#{provisioning.windows.install.progress.failed}">실패</span>
-                                            </th:block>
-                                            <th:block th:if="${wi.served()}">
-                                                <span class="n-badge n-badge-blue" th:text="#{provisioning.windows.install.progress.running}">설치 중</span>
-                                                <span class="n-meta n-muted"
-                                                      th:text="|#{provisioning.windows.install.progress.served} ${#temporals.format(wi.servedAt, 'yyyy-MM-dd HH:mm:ss')}, #{provisioning.windows.install.progress.reentries} ${wi.reentries}/${wi.maxReentries}회, #{provisioning.windows.install.progress.remaining} ${wi.remainingMinutes}분|">설치 파일 전달, 재부팅 0/5회, 남은 시간 60분</span>
-                                            </th:block>
-                                            <th:block th:if="${wi.failedReason == null and !wi.served() and !wi.completed()}">
-                                                <span class="n-badge n-badge-gray">예정</span>
-                                                <span class="n-meta n-muted" th:text="#{provisioning.windows.install.progress.before}">서빙 전</span>
-                                            </th:block>
-                                        </td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                                <p th:if="${wi.served() and wi.remainingMinutes != null and wi.remainingMinutes == 0}"
-                                   class="n-hint n-hint-warn" th:text="#{provisioning.windows.install.progress.expired}">설치 시한이 지났습니다.</p>
-                                <!-- 자원 결손 대기 안내는 경보 띠로 옮겼다(S22-3 SD-356). -->
-
-                                <!-- E4-1-a-4 · E4-1-a-6 · R15-2 — 완료 뒤 결과: 다음 단계 · 문제 장치 · 설치 디스크 확증 · 항목별 설치 결과 -->
-                                <th:block th:if="${wi.completed()}">
-                                    <div class="n-section">설치 결과</div>
-                                    <table class="n-detail-table">
-                                        <tbody>
-                                        <tr th:if="${wi.provisioningCompleted or wi.nextPhase != null}">
-                                            <th>다음</th>
-                                            <td>
-                                                <span th:if="${wi.provisioningCompleted}"
-                                                      th:text="#{provisioning.windows.install.progress.completed.terminal}">프로비저닝이 종단됐습니다.</span>
-                                                <span th:if="${!wi.provisioningCompleted and wi.nextPhase != null}"
-                                                      th:text="|#{provisioning.windows.install.progress.completed.next}: ${wi.nextPhase.description}|">다음 단계로 넘어갔습니다</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>문제 장치</th>
-                                            <td>
-                                                <th:block th:if="${wi.problemDeviceCount == 0}">
-                                                    <span class="n-badge n-badge-teal">0</span>
-                                                    <span class="n-meta n-muted" th:text="#{provisioning.windows.install.progress.completed.problems.none}">문제 장치 0개</span>
-                                                </th:block>
-                                                <th:block th:if="${wi.problemDeviceCount > 0}">
-                                                    <span class="n-badge n-badge-orange" th:text="${wi.problemDeviceCount}">2</span>
-                                                    <details>
-                                                        <summary th:text="|#{provisioning.windows.install.progress.completed.problems.list} (${wi.problemDeviceCount})|">문제 장치 목록 (2)</summary>
-                                                        <div class="n-hint" th:text="#{provisioning.windows.install.progress.completed.problems.hint}">드라이버가 잡히지 않은 장치입니다.</div>
-                                                        <ul>
-                                                            <li th:each="d : ${wi.problemDevices}" th:text="${d}">PCI Simple Communications Controller</li>
-                                                        </ul>
-                                                    </details>
-                                                </th:block>
-                                            </td>
-                                        </tr>
-                                        <!-- E4-1-a-6 — 설치 디스크 사후 확증: 의도한 OS 볼륨에 들어갔는지 -->
-                                        <tr th:if="${wi.diskConfirmation != null}">
-                                            <th>설치 디스크</th>
-                                            <td>
-                                                <th:block th:if="${wi.diskConfirmation == 'CONFIRMED'}">
-                                                    <span class="n-badge n-badge-teal">일치</span>
-                                                </th:block>
-                                                <th:block th:if="${wi.diskConfirmation == 'MISMATCH'}">
-                                                    <span class="n-badge n-badge-red">불일치</span>
-                                                    <div class="n-alert n-alert-warning" th:text="#{provisioning.windows.install.disk.mismatch}">계획한 OS 볼륨과 다른 디스크에 설치됐습니다.</div>
-                                                </th:block>
-                                                <th:block th:if="${wi.diskConfirmation == 'UNREPORTED'}">
-                                                    <span class="n-badge n-badge-gray">미보고</span>
-                                                    <span class="n-meta n-muted" th:text="#{provisioning.windows.install.disk.unreported}">설치 디스크 확증 정보가 없습니다.</span>
-                                                </th:block>
-                                            </td>
-                                        </tr>
-                                        <!-- R15-2 — 항목별 설치 결과(SetupComplete [SPV-INSTALL] 줄) -->
-                                        <tr th:if="${not #lists.isEmpty(wi.driverInstalls)}">
-                                            <th th:text="#{provisioning.windows.install.drivers.installs}">설치 결과</th>
-                                            <td>
-                                                <details>
-                                                    <summary th:text="|#{provisioning.windows.install.drivers.installs} (${#lists.size(wi.driverInstalls)})|">설치 결과 (2)</summary>
-                                                    <ul>
-                                                        <li th:each="d : ${wi.driverInstalls}" th:text="${d}">4_aspeed-driver: 종료 코드 0</li>
-                                                    </ul>
-                                                </details>
-                                            </td>
-                                        </tr>
-                                        <!-- HF23 — INF 단위 설치에서 실패한 INF(서명 거절 등). 펼쳐 둔다 — 조용히 넘어가면 안 되는 정보다. -->
-                                        <tr th:if="${not #lists.isEmpty(wi.failedInfs)}" data-failed-infs>
-                                            <th th:text="#{provisioning.windows.install.drivers.failed-infs}">실패한 INF</th>
-                                            <td>
-                                                <details open>
-                                                    <summary th:text="|#{provisioning.windows.install.drivers.failed-infs} (${#lists.size(wi.failedInfs)})|">실패한 INF (3)</summary>
-                                                    <ul>
-                                                        <li th:each="f : ${wi.failedInfs}" th:text="${f}">7_intel-lan: 종료 코드 0xE000024B</li>
-                                                    </ul>
-                                                </details>
-                                            </td>
-                                        </tr>
-                                        </tbody>
-                                    </table>
-                                </th:block>
+                            <!-- OS 설치 — 카드 계열 내용이 밝힌 조각을 그린다(E4-1-b-4-2). th:replace 가 th:if 보다 먼저 평가되므로 조건은 바깥에 둔다. -->
+                            <th:block th:if="${server.osInstall != null}">
+                                <th:block th:replace="~{fragments/provisioning/os-install :: __${server.osInstall.detail.fragment()}__(${server.osInstall})}"></th:block>
                             </th:block>
                         </th:block>
 
+                        <!-- OS 설정 — 첫 부팅 보고 한 번의 판정(E4-1-b-7). 판정 전이면 그리지 않는다. -->
+                        <th:block th:case="'OS_SETTING'">
+                            <th:block th:if="${osSetting != null}">
+                                <th:block th:replace="~{fragments/provisioning/os-setting :: panel(${osSetting})}"></th:block>
+                            </th:block>
+                        </th:block>
                         <th:block th:case="*"></th:block>
                     </th:block>
 
