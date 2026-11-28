@@ -20,6 +20,7 @@ import com.example.serverprovision.execution.installtree.vo.TreeRelease;
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.repository.ProvisioningHistoryRepository;
 import com.example.serverprovision.management.os.enums.OSName;
+import com.example.serverprovision.execution.installtree.enums.InstallMediaLayout;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -101,8 +102,8 @@ class RhelInstallerTest {
 
     private void readyToServe(String treeVersion) {
         resolves(PhaseReadiness.ready(), new RhelDiskSelection.Selection.Confident(DISK));
-        given(treeManager.acquire(ISO, guest.getId())).willReturn(TreeAcquisition.ready(
-                new InstallTree(Path.of("/srv/trees/iso-12"), new TreeRelease("Rocky Linux", treeVersion))));
+        given(treeManager.acquire(ISO, guest.getId(), InstallMediaLayout.RHEL_TREE)).willReturn(TreeAcquisition.ready(
+                new InstallTree(Path.of("/srv/trees/iso-12"), new TreeRelease("Rocky Linux", treeVersion), Path.of("/srv/iso/rocky.iso"))));
     }
 
     /** 서빙 → 착수 기록까지 마친 게스트(열린 행 + STEP_RUNNING). */
@@ -119,7 +120,7 @@ class RhelInstallerTest {
     void blocked_holds() {
         resolves(PhaseReadiness.of(ReadinessGrade.BLOCKED, List.of("n"), "pxe base url missing"), new RhelDiskSelection.Selection.Confident(DISK));
         assertThat(installer.bootScript(guest, awaitingBoot(), REENTRY)).contains("waiting for resources: pxe base url missing");
-        verify(treeManager, never()).acquire(anyLong(), any());
+        verify(treeManager, never()).acquire(anyLong(), any(), any());
     }
 
     @Test
@@ -136,7 +137,7 @@ class RhelInstallerTest {
     @DisplayName("트리를 푸는 중이면 준비 중 대기 · 토큰은 없고 착수도 아니다")
     void preparing_waits() {
         resolves(PhaseReadiness.ready(), new RhelDiskSelection.Selection.Confident(DISK));
-        given(treeManager.acquire(ISO, guest.getId())).willReturn(TreeAcquisition.preparing());
+        given(treeManager.acquire(ISO, guest.getId(), InstallMediaLayout.RHEL_TREE)).willReturn(TreeAcquisition.preparing());
         ProvisioningProgress progress = awaitingBoot();
 
         assertThat(installer.bootScript(guest, progress, REENTRY)).contains("rhel install tree preparing");
@@ -150,7 +151,7 @@ class RhelInstallerTest {
     @DisplayName("확보 실패 — TREE_<사유> 로 단발 실패 행 · 진행 실패 · 실패 안내 스크립트")
     void acquireFailed_failsStep() {
         resolves(PhaseReadiness.ready(), new RhelDiskSelection.Selection.Confident(DISK));
-        given(treeManager.acquire(ISO, guest.getId())).willReturn(TreeAcquisition.failed(TreeFailureReason.EXTRACTION_FAILED));
+        given(treeManager.acquire(ISO, guest.getId(), InstallMediaLayout.RHEL_TREE)).willReturn(TreeAcquisition.failed(TreeFailureReason.EXTRACTION_FAILED));
         ProvisioningProgress progress = awaitingBoot();
 
         String script = installer.bootScript(guest, progress, REENTRY);

@@ -135,7 +135,7 @@ public class InstallTreeStore {
 
     private Path root() {
         return properties.treeRootPath()
-                .orElseThrow(() -> new IllegalStateException("provision.rhel-install.tree-root 미설정 상태에서 작업 트리 저장소를 쓸 수 없다"));
+                .orElseThrow(() -> new IllegalStateException("provision.install-tree.root 미설정 상태에서 작업 트리 저장소를 쓸 수 없다"));
     }
 
     private static void ensureOwnerWritable(Path dir) throws IOException {

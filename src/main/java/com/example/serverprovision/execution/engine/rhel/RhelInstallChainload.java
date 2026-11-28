@@ -1,6 +1,6 @@
 package com.example.serverprovision.execution.engine.rhel;
 
-import com.example.serverprovision.execution.installtree.vo.InstallTree;
+import com.example.serverprovision.execution.installtree.enums.InstallMediaLayout;
 
 /**
  * RHEL 설치 체인 iPXE 스크립트(E4-1-b-4-2). 토큰 트리 URL 아래의 설치 커널과 초기 램디스크를 받아 kickstart 설치를 시작한다.
@@ -29,7 +29,7 @@ public final class RhelInstallChainload {
                 echo [provision] rhel install chain failed. retrying...
                 sleep 30
                 chain %s
-                """.formatted(osLabel, isoId, treeUrl, InstallTree.KERNEL, treeUrl, kickstartUrl,
-                treeUrl, InstallTree.INITRD, reentryUrl);
+                """.formatted(osLabel, isoId, treeUrl, InstallMediaLayout.RHEL_TREE.kernel(), treeUrl, kickstartUrl,
+                treeUrl, InstallMediaLayout.RHEL_TREE.initrd(), reentryUrl);
     }
 }

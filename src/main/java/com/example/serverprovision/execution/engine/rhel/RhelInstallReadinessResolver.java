@@ -4,6 +4,7 @@ import com.example.serverprovision.execution.engine.osinstall.OsVolumeLocator;
 import com.example.serverprovision.execution.engine.phase.PhaseReadiness;
 import com.example.serverprovision.execution.installtree.enums.TreeFailureReason;
 import com.example.serverprovision.execution.installtree.service.InstallTreeManager;
+import com.example.serverprovision.execution.installtree.enums.InstallMediaLayout;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -36,7 +37,7 @@ public class RhelInstallReadinessResolver {
     public Optional<Resolved> resolve(UUID guestServerId) {
         return provider.resolveFor(guestServerId).map(resolution -> {
             Optional<TreeFailureReason> treeProblem = resolution.ready()
-                    .flatMap(ready -> treeManager.inspect(ready.media().isoId()));
+                    .flatMap(ready -> treeManager.inspect(ready.media().isoId(), InstallMediaLayout.RHEL_TREE));
             RhelDiskSelection.Selection disk = RhelDiskSelection.judge(osVolumeLocator.locate(guestServerId));
             PhaseReadiness readiness = RhelInstallReadiness.judge(resolution, !tokenRegistry.baseUrl().isEmpty(), treeProblem, disk);
             return new Resolved(resolution, readiness, disk);

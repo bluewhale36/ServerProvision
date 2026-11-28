@@ -1,6 +1,7 @@
 package com.example.serverprovision.execution.installtree.service;
 
 import com.example.serverprovision.execution.installtree.config.InstallTreeProperties;
+import com.example.serverprovision.execution.installtree.enums.InstallMediaLayout;
 import com.example.serverprovision.execution.installtree.enums.TreeFailureReason;
 import com.example.serverprovision.execution.installtree.enums.TreeState;
 import com.example.serverprovision.execution.installtree.vo.InstallTree;
@@ -27,9 +28,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * RHEL 설치 작업 트리의 수명 관리(plan E4-1-b-1 방향 B). 설치가 그 ISO 를 처음 필요로 할 때 풀고, 같은 ISO 로
- * 설치 중인 서버(보유자)가 0 대가 된 뒤 유예 시간이 지나면 지운다. 상태는 메모리뿐이다(D-4) — 재기동하면
- * 기동 정리가 디스크를 비우고 다시 시작한다.
+ * 설치 작업 트리의 수명 관리. 설치가 그 ISO 를 처음 필요로 할 때 꺼내고, 같은 ISO 로 설치 중인 서버(보유자)가
+ * 0 대가 된 뒤 유예 시간이 지나면 지운다. 얼마나 꺼내고 무엇으로 판별하는지는 호출자가 넘기는 {@link InstallMediaLayout}
+ * 이 정한다. 상태는 메모리뿐이다. 재기동하면 기동 정리가 디스크를 비우고 다시 시작한다.
  *
  * <p>동시성: ISO 마다 {@link IsoTreeEntry} 하나를 두고 그 객체로 잠근다(D-9). 같은 ISO 의 동시 확보는 추출을 한 번만
  * 시작하고, 다른 ISO 는 서로 막지 않는다. 디스크 삭제는 잠금 밖에서 한다 — 잠금 안에서는 트리를 rename 으로
@@ -44,7 +45,6 @@ public class InstallTreeManager implements SmartInitializingSingleton {
     private final ISORepository isoRepository;
     private final InstallTreeExtractor extractor;
     private final InstallTreeStore store;
-    private final InstallTreeInspector inspector;
     private final InstallTreeToolProbe toolProbe;
     private final Clock clock;
 
@@ -55,7 +55,7 @@ public class InstallTreeManager implements SmartInitializingSingleton {
      * 추출 단계에서 실패한 ISO 를 기다리던 서버는 다음 호출에서 {@code Failed} 를 한 번 받고 보유자에서 빠진다.
      * 그 뒤의 새 호출(운영자 [재시도])은 다시 추출한다(D-10).
      */
-    public TreeAcquisition acquire(long isoId, UUID guestId) {
+    public TreeAcquisition acquire(long isoId, UUID guestId, InstallMediaLayout layout) {
         if (!properties.configured()) {
             return TreeAcquisition.failed(TreeFailureReason.NOT_CONFIGURED);
         }
@@ -70,7 +70,7 @@ public class InstallTreeManager implements SmartInitializingSingleton {
                     if (!Files.isDirectory(entry.tree.root())) {
                         log.warn("[install-tree] 준비된 트리가 디스크에서 사라짐 — 다시 확보. isoId={}, tree={}", isoId, entry.tree.root());
                         entry.reset();
-                        return source.acquireInto(this, entry, isoId, guestId);
+                        return source.acquireInto(this, entry, isoId, guestId, layout);
                     }
                     entry.holders.add(guestId);
                     entry.releasedAt = null;
@@ -81,7 +81,7 @@ public class InstallTreeManager implements SmartInitializingSingleton {
                     return TreeAcquisition.preparing();
                 }
                 default -> {
-                    return source.acquireInto(this, entry, isoId, guestId);
+                    return source.acquireInto(this, entry, isoId, guestId, layout);
                 }
             }
         }
@@ -91,14 +91,14 @@ public class InstallTreeManager implements SmartInitializingSingleton {
      * 확보하기 전에 실패할 것이 정해진 사유를 미리 본다(E4-1-b-4-2). 부수효과가 없다: 추출을 시작하지 않고 보유자도 더하지
      * 않는다 — 서버 상세 · 준비도 게이트가 조회마다 부르기 때문이다. 이미 준비된 트리면 도구 없이도 서빙하므로 사유가 없다.
      */
-    public Optional<TreeFailureReason> inspect(long isoId) {
+    public Optional<TreeFailureReason> inspect(long isoId, InstallMediaLayout layout) {
         if (!properties.configured()) {
             return Optional.of(TreeFailureReason.NOT_CONFIGURED);
         }
         if (stateOf(isoId) == TreeState.READY) {
             return Optional.empty();
         }
-        return resolveSource(isoId).precheck(this);
+        return resolveSource(isoId).precheck(this, layout);
     }
 
     /** 그 서버의 설치가 끝났다(완료 · 실패 · 시한 · 교체). 보유자가 0 이 되면 유예 시간을 잰다. */
@@ -181,14 +181,15 @@ public class InstallTreeManager implements SmartInitializingSingleton {
                 log.info("[install-tree] 기동 정리 완료. removed={}", result.removed());
             }
         } catch (IOException e) {
-            throw new IllegalStateException("provision.rhel-install.tree-root 를 준비하지 못했다 (RHEL_INSTALL_TREE_ROOT) : " + e.getMessage(), e);
+            throw new IllegalStateException("provision.install-tree.root 를 준비하지 못했다 (INSTALL_TREE_ROOT) : " + e.getMessage(), e);
         }
         if (!toolProbe.available()) {
-            log.warn("[install-tree] bsdtar · 7z 가 모두 없다 — RHEL 설치는 TOOL_MISSING 으로 실패한다. bsdtar 패키지를 설치해야 한다.");
+            log.warn("[install-tree] bsdtar · 7z 가 모두 없다 — RHEL · Ubuntu 설치는 TOOL_MISSING 으로 실패한다. bsdtar 패키지를 설치해야 한다.");
         }
     }
 
-    private TreeAcquisition acquireFromFile(IsoTreeEntry entry, long isoId, UUID guestId, Path isoFile) {
+    private TreeAcquisition acquireFromFile(IsoTreeEntry entry, long isoId, UUID guestId, Path isoFile,
+                                            InstallMediaLayout layout) {
         if (!toolProbe.available()) {
             return TreeAcquisition.failed(TreeFailureReason.TOOL_MISSING);
         }
@@ -196,7 +197,7 @@ public class InstallTreeManager implements SmartInitializingSingleton {
         entry.failure = null;
         entry.holders.add(guestId);
         try {
-            extractor.extract(isoId, isoFile).whenComplete((result, error) ->
+            extractor.extract(isoId, isoFile, layout).whenComplete((result, error) ->
                     onExtracted(isoId, error == null ? result : TreeAcquisition.failed(TreeFailureReason.EXTRACTION_FAILED)));
         } catch (TaskRejectedException e) {
             log.warn("[install-tree] 추출 실행기가 작업을 받지 않음. isoId={}, msg={}", isoId, e.getMessage());
@@ -204,20 +205,20 @@ public class InstallTreeManager implements SmartInitializingSingleton {
             entry.failedHolders.remove(guestId);
             return TreeAcquisition.failed(TreeFailureReason.EXTRACTION_FAILED);
         }
-        log.info("[install-tree] 추출 요청. isoId={}, guestId={}", isoId, guestId);
+        log.info("[install-tree] 추출 요청. isoId={}, guestId={}, layout={}", isoId, guestId, layout);
         return TreeAcquisition.preparing();
     }
 
-    private TreeAcquisition acquireFromDirectory(IsoTreeEntry entry, UUID guestId, Path directory) {
-        return inspector.inspect(directory)
+    private TreeAcquisition acquireFromDirectory(IsoTreeEntry entry, UUID guestId, Path directory, InstallMediaLayout layout) {
+        return layout.inspect(directory)
                 .map(release -> {
                     entry.state = TreeState.READY;
                     entry.appOwned = false;
-                    entry.tree = new InstallTree(directory, release);
+                    entry.tree = new InstallTree(directory, release, directory);
                     entry.holders.add(guestId);
                     return TreeAcquisition.ready(entry.tree);
                 })
-                .orElseGet(() -> TreeAcquisition.failed(TreeFailureReason.NOT_RHEL_TREE));
+                .orElseGet(() -> TreeAcquisition.failed(layout.notRecognized()));
     }
 
     private void onExtracted(long isoId, TreeAcquisition result) {
@@ -261,46 +262,52 @@ public class InstallTreeManager implements SmartInitializingSingleton {
                 : new IsoSource.Unusable(TreeFailureReason.ISO_UNAVAILABLE);
     }
 
-    /** 등록된 ISO 경로의 모양. 모양마다 트리를 얻는 법이 다르다(D-8: 디렉터리는 풀지 않고 그대로 쓴다). */
+    /** 등록된 ISO 경로의 모양. 모양마다 트리를 얻는 법이 다르다. 디렉터리를 받을지는 계열이 정한다. */
     private sealed interface IsoSource {
 
-        TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId);
+        TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId,
+                                    InstallMediaLayout layout);
 
-        /** 확보 전에 정해진 실패 사유 — 부수효과 없음. */
-        Optional<TreeFailureReason> precheck(InstallTreeManager manager);
+        /** 확보 전에 정해진 실패 사유. 부수효과가 없다. */
+        Optional<TreeFailureReason> precheck(InstallTreeManager manager, InstallMediaLayout layout);
 
         record File(Path path) implements IsoSource {
             @Override
-            public Optional<TreeFailureReason> precheck(InstallTreeManager manager) {
+            public Optional<TreeFailureReason> precheck(InstallTreeManager manager, InstallMediaLayout layout) {
                 return manager.toolProbe.available() ? Optional.empty() : Optional.of(TreeFailureReason.TOOL_MISSING);
             }
 
             @Override
-            public TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId) {
-                return manager.acquireFromFile(entry, isoId, guestId, path);
+            public TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId,
+                                               InstallMediaLayout layout) {
+                return manager.acquireFromFile(entry, isoId, guestId, path, layout);
             }
         }
 
         record Directory(Path path) implements IsoSource {
             @Override
-            public Optional<TreeFailureReason> precheck(InstallTreeManager manager) {
-                return Optional.empty();   // 디렉터리는 풀지 않는다(D-8) — 트리 판정은 확보 때 한다
+            public Optional<TreeFailureReason> precheck(InstallTreeManager manager, InstallMediaLayout layout) {
+                return layout.directorySourceRefusal();   // 받는 계열이면 풀지 않고, 트리 판정은 확보 때 한다
             }
 
             @Override
-            public TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId) {
-                return manager.acquireFromDirectory(entry, guestId, path);
+            public TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId,
+                                               InstallMediaLayout layout) {
+                return layout.directorySourceRefusal()
+                        .map(TreeAcquisition::failed)
+                        .orElseGet(() -> manager.acquireFromDirectory(entry, guestId, path, layout));
             }
         }
 
         record Unusable(TreeFailureReason reason) implements IsoSource {
             @Override
-            public Optional<TreeFailureReason> precheck(InstallTreeManager manager) {
+            public Optional<TreeFailureReason> precheck(InstallTreeManager manager, InstallMediaLayout layout) {
                 return Optional.of(reason);
             }
 
             @Override
-            public TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId) {
+            public TreeAcquisition acquireInto(InstallTreeManager manager, IsoTreeEntry entry, long isoId, UUID guestId,
+                                               InstallMediaLayout layout) {
                 return TreeAcquisition.failed(reason);
             }
         }

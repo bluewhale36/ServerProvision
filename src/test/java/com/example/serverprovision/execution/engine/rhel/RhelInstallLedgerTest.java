@@ -57,7 +57,7 @@ class RhelInstallLedgerTest {
 
     static RhelServing serving() {
         return new RhelServing(new KickstartDocument("rootpw --iscrypted $6$secret-hash"),
-                new InstallTree(Path.of("/srv/trees/iso-12"), new TreeRelease("Rocky Linux", "9.5")),
+                new InstallTree(Path.of("/srv/trees/iso-12"), new TreeRelease("Rocky Linux", "9.5"), Path.of("/srv/iso/rocky-9.5.iso")),
                 new RhelInstallMedia(12L, OSName.ROCKY_LINUX_9, "9.5", "Rocky Linux 9.5"), new InstallDisk("wwn-0x600508e000000000"));
     }
 

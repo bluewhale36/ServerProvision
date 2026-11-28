@@ -66,12 +66,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 출발지 대역 밖은 credential 과 무관하게 403 PXE_LAN_FORBIDDEN.</p>
  */
 @WebMvcTest(controllers = {GuestAgentRestController.class, WindowsInstallAssetRestController.class,
-		com.example.serverprovision.execution.controller.RhelInstallAssetRestController.class, ExecutionRestController.class, LoginController.class})
+		com.example.serverprovision.execution.controller.RhelInstallAssetRestController.class,
+		com.example.serverprovision.execution.controller.UbuntuInstallAssetRestController.class, ExecutionRestController.class, LoginController.class})
 @Import({GuestSecurityConfig.class, SecurityConfig.class, PasswordEncoderConfig.class, SignupAccessPolicy.class,
 		SuperAdminOnlyPolicy.class, ReasonedAccessDeniedHandler.class,   // HF29 — 웹 체인의 거절 사유
 		 MustChangePasswordSuccessHandler.class,
 		GuestPrincipalResolver.class, WindowsInstallTokenRegistry.class, FirmwareImageTokenRegistry.class,
 		com.example.serverprovision.execution.engine.rhel.RhelInstallTokenRegistry.class,
+		com.example.serverprovision.execution.engine.ubuntu.UbuntuInstallTokenRegistry.class,
 		GuestAuthenticationEntryPoint.class, GuestAccessDeniedHandler.class,
 		// S19-2 — 첫 접촉 credential · LAN 정책 · URL 조립
 		com.example.serverprovision.execution.config.PxeBootProperties.class, com.example.serverprovision.execution.engine.boot.PxeBootUrls.class,
@@ -95,6 +97,7 @@ class GuestChainSecurityTest {
 	@MockitoSpyBean FirmwareImageTokenRegistry firmwareImageTokenRegistry;
 	@MockitoSpyBean com.example.serverprovision.execution.engine.rhel.RhelInstallTokenRegistry rhelInstallTokenRegistry;
 	@MockitoBean com.example.serverprovision.execution.engine.rhel.RhelInstaller rhelInstaller;
+	@MockitoSpyBean com.example.serverprovision.execution.engine.ubuntu.UbuntuInstallTokenRegistry ubuntuInstallTokenRegistry;
 	@MockitoBean UsersService usersService;
 	@MockitoBean UserDetailsService userDetailsService;
 	@MockitoBean JpaMetamodelMappingContext jpaMetamodelMappingContext;
@@ -160,6 +163,24 @@ class GuestChainSecurityTest {
 				.willReturn(Optional.of(GuestServer.builder().id(GUEST_ID).systemUUID(UUID.randomUUID()).build()));
 		given(rhelInstaller.kickstartWhileInstalling(issued)).willReturn(Optional.empty());   // 체인 통과 뒤 컨트롤러가 404 — 401 이 아님이 요점
 		mvc.perform(get("/api/pxe/v1/rhel/" + issued + "/ks.cfg")).andExpect(status().isNotFound());
+	}
+
+	@Test
+	@DisplayName("Ubuntu 서빙 경로 — 미발급 · 형식 위반 · 회수 토큰은 401, 발급소가 아는 토큰은 체인을 지나 컨트롤러가 푼다")
+	void ubuntuServingPath_pathToken() throws Exception {
+		mvc.perform(get("/api/pxe/v1/ubuntu/" + UUID.randomUUID() + "/install.iso")).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/pxe/v1/ubuntu/not-a-uuid/tree/casper/vmlinuz")).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/pxe/v1/ubuntu/install.iso")).andExpect(status().isUnauthorized());
+
+		UUID issued = UUID.randomUUID();
+		given(ubuntuInstallTokenRegistry.guestOf(issued)).willReturn(Optional.of(GUEST_ID));
+		given(guestServerRepository.findById(GUEST_ID))
+				.willReturn(Optional.of(GuestServer.builder().id(GUEST_ID).systemUUID(UUID.randomUUID()).build()));
+		given(ubuntuInstallTokenRegistry.resolve(issued)).willReturn(Optional.empty());   // 체인 통과 뒤 컨트롤러가 404 — 401 이 아님이 요점
+		mvc.perform(get("/api/pxe/v1/ubuntu/" + issued + "/install.iso")).andExpect(status().isNotFound());
+
+		given(ubuntuInstallTokenRegistry.guestOf(issued)).willReturn(Optional.empty());   // 회수 뒤
+		mvc.perform(get("/api/pxe/v1/ubuntu/" + issued + "/tree/casper/vmlinuz")).andExpect(status().isUnauthorized());
 	}
 
 	@Test

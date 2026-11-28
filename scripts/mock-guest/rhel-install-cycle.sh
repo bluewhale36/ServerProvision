@@ -3,7 +3,7 @@
 #   첫 진입 /boot = 설치 체인(토큰 트리 URL · ks.cfg) 또는 준비 중 대기 → ks.cfg · 트리 파일 GET → 재PXE ×N = exit(재진입 n/max)
 #   → 상한 초과 = FAILED REPXE_LOOP → 다음 /boot = 실패 안내 → (운영자 재시도 뒤) 새 토큰 · 옛 토큰 401
 #
-# 전제: 앱 기동(RHEL_INSTALL_TREE_ROOT · PXE_SERVER_BASE_URL) · 게스트 등록(boot-register.sh) · RHEL 정의서 할당 · 개시 ·
+# 전제: 앱 기동(INSTALL_TREE_ROOT · PXE_SERVER_BASE_URL) · 게스트 등록(boot-register.sh) · RHEL 정의서 할당 · 개시 ·
 #       진단과 RAID 완주(또는 SQL 로 커서 OS_INSTALLING) · 정의서 ISO 는 서버 경로(파일 또는 디렉터리)로 등록.
 # 사용:
 #   rhel-install-cycle.sh <BASE_URL> <SYSTEM_UUID> <MAC> [mode]

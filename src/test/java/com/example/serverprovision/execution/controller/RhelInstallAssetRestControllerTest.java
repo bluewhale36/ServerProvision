@@ -55,7 +55,7 @@ class RhelInstallAssetRestControllerTest {
         Path root = FakeRockyTree.writeTree(tempDir.resolve("iso-12"), "Rocky Linux", "9.5");
         Files.writeString(tempDir.resolve("outside.txt"), "secret");
         Files.writeString(root.resolve(".provision.json"), "{}");
-        InstallTree tree = new InstallTree(root, new TreeRelease("Rocky Linux", "9.5"));
+        InstallTree tree = new InstallTree(root, new TreeRelease("Rocky Linux", "9.5"), root);
         given(tokenRegistry.resolve(token)).willReturn(Optional.of(new RhelServing(new KickstartDocument(KICKSTART), tree,
                 new RhelInstallMedia(12L, OSName.ROCKY_LINUX_9, "9.5", "Rocky Linux 9.5"), new InstallDisk("wwn-0x600508e000000000"))));
     }

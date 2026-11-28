@@ -4,7 +4,6 @@ import com.example.serverprovision.execution.installtree.config.InstallTreeConfi
 import com.example.serverprovision.execution.installtree.enums.TreeFailureReason;
 import com.example.serverprovision.execution.installtree.enums.TreeState;
 import com.example.serverprovision.execution.installtree.service.InstallTreeExtractor;
-import com.example.serverprovision.execution.installtree.service.InstallTreeInspector;
 import com.example.serverprovision.execution.installtree.service.InstallTreeManager;
 import com.example.serverprovision.execution.installtree.service.InstallTreeStore;
 import com.example.serverprovision.execution.installtree.service.InstallTreeToolProbe;
@@ -13,6 +12,9 @@ import com.example.serverprovision.global.config.AsyncConfig;
 import com.example.serverprovision.management.os.entity.ISO;
 import com.example.serverprovision.management.os.repository.ISORepository;
 import com.example.serverprovision.management.os.service.iso.IsoPreparationService;
+import com.example.serverprovision.execution.installtree.enums.InstallMediaLayout;
+import com.example.serverprovision.management.os.enums.OSName;
+import com.example.serverprovision.execution.installtree.vo.TreeRelease;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -51,8 +53,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * E4-1-b-1 통합 시나리오 — Spring 컨텍스트(실제 @Async 실행기) + 실제 bsdtar + 가짜 Rocky ISO + 실제 디스크.
- * plan 데모 프리셋 6 개와 같은 이야기다. CP5 하네스(scripts/installtree-fixture/verify-install-tree.sh)는
+ * 작업 트리 통합 시나리오 — Spring 컨텍스트(실제 @Async 실행기) + 실제 bsdtar + 가짜 Rocky · Ubuntu ISO + 실제 디스크.
+ * S1 ~ S6 은 E4-1-b-1, U1 ~ U6 은 E4-1-c-1 plan 데모 프리셋과 같은 이야기다. CP5 하네스(scripts/installtree-fixture/verify-install-tree.sh)는
  * 환경변수 {@code INSTALLTREE_EVIDENCE_DIR} 를 주어 이 시험을 돌리고, 단계마다 남는 상태 · 디스크 목록을 채증한다.
  */
 @SpringJUnitConfig(InstallTreeScenarioTest.Wiring.class)
@@ -66,6 +68,11 @@ class InstallTreeScenarioTest {
     private static final UUID G4 = UUID.fromString("00000000-0000-0000-0000-0000000000a4");
     private static Path iso95;
     private static Path iso810;
+    private static Path ubuntu2404;
+    private static Path ubuntu2204;
+    private static Path ubuntuDesktop;
+    private static Path ubuntuSourceDir;
+    private static final InstallMediaLayout UBUNTU = InstallMediaLayout.UBUNTU_LIVE_SERVER;
 
     static {
         try {
@@ -78,7 +85,7 @@ class InstallTreeScenarioTest {
 
     @Configuration
     @Import({AsyncConfig.class, InstallTreeConfig.class, InstallTreeManager.class, InstallTreeExtractor.class,
-            InstallTreeStore.class, InstallTreeInspector.class, InstallTreeToolProbe.class, IsoPreparationService.class})
+            InstallTreeStore.class, InstallTreeToolProbe.class, IsoPreparationService.class})
     static class Wiring {
         @Bean
         MutableClock clock() {
@@ -88,8 +95,8 @@ class InstallTreeScenarioTest {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("provision.rhel-install.tree-root", TREE_ROOT::toString);
-        registry.add("provision.rhel-install.release-grace", () -> "10m");
+        registry.add("provision.install-tree.root", TREE_ROOT::toString);
+        registry.add("provision.install-tree.release-grace", () -> "10m");
     }
 
     @MockitoBean
@@ -109,6 +116,10 @@ class InstallTreeScenarioTest {
     static void buildIsos() throws Exception {
         iso95 = FakeRockyTree.buildIso(WORK, "Rocky Linux", "9.5").orElse(null);
         iso810 = FakeRockyTree.buildIso(WORK, "Rocky Linux", "8.10").orElse(null);
+        ubuntu2404 = FakeUbuntuIso.buildIso(WORK, "2404", FakeUbuntuIso.SERVER_2404).orElse(null);
+        ubuntu2204 = FakeUbuntuIso.buildIso(WORK, "2204", FakeUbuntuIso.SERVER_2204).orElse(null);
+        ubuntuDesktop = FakeUbuntuIso.buildIso(WORK, "desk", FakeUbuntuIso.DESKTOP_2404).orElse(null);
+        ubuntuSourceDir = WORK.resolve("ubuntu-src-2404");
     }
 
     @AfterAll
@@ -127,18 +138,25 @@ class InstallTreeScenarioTest {
     @BeforeEach
     void setUp(TestInfo info) throws IOException {
         assumeTrue(isoPreparationService.extractionToolAvailable(), "bsdtar · 7z 없음");
-        assumeTrue(iso95 != null && iso810 != null, "ISO 생성기 없음");
+        assumeTrue(iso95 != null && iso810 != null && ubuntu2404 != null && ubuntu2204 != null && ubuntuDesktop != null,
+                "ISO 생성기 없음");
         scenario = info.getDisplayName().substring(0, 2);
         registerIso(12L, iso95);
         registerIso(13L, iso810);
+        registerIso(31L, ubuntu2404);
+        registerIso(32L, ubuntu2204);
+        registerIso(33L, ubuntuDesktop);
+        registerIso(34L, iso95);            // RHEL ISO 를 Ubuntu 정의서에 고른 경우
+        registerIso(35L, ubuntuSourceDir);  // 디렉터리로 등록된 Ubuntu ISO
         manager.cleanOnStartup();   // 시나리오마다 재기동한 것처럼 디스크를 비운다(메모리는 각 시나리오가 반납으로 비움)
     }
 
     @AfterEach
     void tearDown() {
         for (UUID g : new UUID[]{G1, G2, G3, G4}) {
-            manager.release(12L, g);
-            manager.release(13L, g);
+            for (long iso : new long[]{12L, 13L, 31L, 32L, 33L, 34L, 35L}) {
+                manager.release(iso, g);
+            }
         }
         clock.advance(Duration.ofDays(1));
         manager.sweepExpired();
@@ -147,9 +165,9 @@ class InstallTreeScenarioTest {
     @Test
     @DisplayName("S1 1 대 설치: 확보하면 준비 중, 풀리면 준비됨, 반납 뒤 유예 10 분이 지나면 삭제")
     void s1_single() throws Exception {
-        record("G1 확보", manager.acquire(12L, G1));
+        record("G1 확보", manager.acquire(12L, G1, InstallMediaLayout.RHEL_TREE));
         awaitReady(12L);
-        TreeAcquisition ready = manager.acquire(12L, G1);
+        TreeAcquisition ready = manager.acquire(12L, G1, InstallMediaLayout.RHEL_TREE);
         record("G1 다시 확보", ready);
         assertThat(ready).isInstanceOf(TreeAcquisition.Ready.class);
         assertThat(TREE_ROOT.resolve("iso-12/images/pxeboot/vmlinuz")).hasContent("kernel");
@@ -171,12 +189,12 @@ class InstallTreeScenarioTest {
     @Test
     @DisplayName("S2 같은 ISO 3 대 동시: 한 번만 풀고 셋이 같은 트리를 쓴다")
     void s2_sharedThree() throws Exception {
-        record("G1 확보", manager.acquire(12L, G1));
-        record("G2 확보", manager.acquire(12L, G2));
-        record("G3 확보", manager.acquire(12L, G3));
+        record("G1 확보", manager.acquire(12L, G1, InstallMediaLayout.RHEL_TREE));
+        record("G2 확보", manager.acquire(12L, G2, InstallMediaLayout.RHEL_TREE));
+        record("G3 확보", manager.acquire(12L, G3, InstallMediaLayout.RHEL_TREE));
         awaitReady(12L);
-        Path root1 = treeRoot(manager.acquire(12L, G1));
-        Path root3 = treeRoot(manager.acquire(12L, G3));
+        Path root1 = treeRoot(manager.acquire(12L, G1, InstallMediaLayout.RHEL_TREE));
+        Path root3 = treeRoot(manager.acquire(12L, G3, InstallMediaLayout.RHEL_TREE));
         assertThat(root1).isEqualTo(root3).isEqualTo(TREE_ROOT.resolve("iso-12"));
         snapshot("준비됨(트리 하나)");
         assertThat(listTreeDirs()).containsExactly("iso-12");
@@ -192,11 +210,11 @@ class InstallTreeScenarioTest {
     @Test
     @DisplayName("S3 서로 다른 ISO 2 개: 트리 둘, 각각의 마지막 반납 뒤 각각 삭제")
     void s3_twoIsos() throws Exception {
-        record("G1 확보(ISO-12)", manager.acquire(12L, G1));
-        record("G4 확보(ISO-13)", manager.acquire(13L, G4));
+        record("G1 확보(ISO-12)", manager.acquire(12L, G1, InstallMediaLayout.RHEL_TREE));
+        record("G4 확보(ISO-13)", manager.acquire(13L, G4, InstallMediaLayout.RHEL_TREE));
         awaitReady(12L);
         awaitReady(13L);
-        record("G4 다시 확보", manager.acquire(13L, G4));
+        record("G4 다시 확보", manager.acquire(13L, G4, InstallMediaLayout.RHEL_TREE));
         snapshot("준비됨(트리 둘)");
         assertThat(listTreeDirs()).containsExactlyInAnyOrder("iso-12", "iso-13");
 
@@ -210,14 +228,14 @@ class InstallTreeScenarioTest {
     @Test
     @DisplayName("S4 유예 중 재시도: 삭제를 취소하고 다시 풀지 않는다")
     void s4_retryDuringGrace() throws Exception {
-        manager.acquire(12L, G1);
+        manager.acquire(12L, G1, InstallMediaLayout.RHEL_TREE);
         awaitReady(12L);
         Instant firstBuilt = Files.getLastModifiedTime(TREE_ROOT.resolve("iso-12")).toInstant();
         manager.release(12L, G1);
         clock.advance(Duration.ofMinutes(5));
         snapshot("반납 + 5 분(유예 중)");
 
-        record("G1 재시도 확보", manager.acquire(12L, G1));
+        record("G1 재시도 확보", manager.acquire(12L, G1, InstallMediaLayout.RHEL_TREE));
         clock.advance(Duration.ofHours(1));
         manager.sweepExpired();
         snapshot("재확보 + 1 시간");
@@ -232,9 +250,9 @@ class InstallTreeScenarioTest {
         doReturn(isoSize).when(store).usableSpace();   // 남은 공간 측정값만 ISO 크기로 고정(필요 = 1.2 배). 그 밖은 실제
         evidence("  (남은 공간 측정값을 " + isoSize + " B 로 고정, 필요 = ISO " + isoSize + " B × 1.2)");
         try {
-            record("G2 확보(ISO-12)", manager.acquire(12L, G2));
+            record("G2 확보(ISO-12)", manager.acquire(12L, G2, InstallMediaLayout.RHEL_TREE));
             awaitState(12L, TreeState.FAILED);
-            TreeAcquisition failed = manager.acquire(12L, G2);
+            TreeAcquisition failed = manager.acquire(12L, G2, InstallMediaLayout.RHEL_TREE);
             record("G2 다음 확보", failed);
             assertThat(failed).isEqualTo(TreeAcquisition.failed(TreeFailureReason.NOT_ENOUGH_SPACE));
             snapshot("실패 뒤(트리 · staging 없음)");
@@ -242,7 +260,7 @@ class InstallTreeScenarioTest {
         } finally {
             org.mockito.Mockito.reset(store);
         }
-        record("공간 회복 뒤 G2 재시도 확보", manager.acquire(12L, G2));
+        record("공간 회복 뒤 G2 재시도 확보", manager.acquire(12L, G2, InstallMediaLayout.RHEL_TREE));
         awaitReady(12L);
         snapshot("재시도로 준비됨");
     }
@@ -250,7 +268,7 @@ class InstallTreeScenarioTest {
     @Test
     @DisplayName("S6 앱 재기동: 남은 트리 · 반쯤 풀린 staging 은 지우고 규칙 밖 파일은 남긴다")
     void s6_restartCleanup() throws Exception {
-        manager.acquire(12L, G1);
+        manager.acquire(12L, G1, InstallMediaLayout.RHEL_TREE);
         awaitReady(12L);
         Files.createDirectories(TREE_ROOT.resolve(".staging/half-extracted/images"));
         Files.writeString(TREE_ROOT.resolve("operator-note.txt"), "keep");
@@ -260,6 +278,110 @@ class InstallTreeScenarioTest {
         snapshot("기동 정리 뒤");
         assertThat(listAll()).containsExactly("operator-note.txt");
         Files.delete(TREE_ROOT.resolve("operator-note.txt"));
+    }
+
+    @Test
+    @DisplayName("U1 Ubuntu 24.04: 커널 · initrd · .disk/info 만 꺼내 준비됨, source 는 등록 ISO, 유예 뒤 트리만 사라지고 ISO 는 남는다")
+    void u1_ubuntuSingle() throws Exception {
+        record("G1 확보(ISO-31, Ubuntu)", manager.acquire(31L, G1, UBUNTU));
+        awaitReady(31L);
+        TreeAcquisition ready = manager.acquire(31L, G1, UBUNTU);
+        record("G1 다시 확보", ready);
+        assertThat(ready).isInstanceOfSatisfying(TreeAcquisition.Ready.class, r -> {
+            assertThat(r.tree().release()).isEqualTo(new TreeRelease("Ubuntu", "24.04.1"));
+            assertThat(r.tree().source()).isEqualTo(ubuntu2404.toAbsolutePath().normalize());
+        });
+        assertThat(TREE_ROOT.resolve("iso-31/casper/vmlinuz")).hasContent("kernel");
+        assertThat(TREE_ROOT.resolve("iso-31/casper/initrd")).hasContent("initrd");
+        assertThat(TREE_ROOT.resolve("iso-31/.disk/info")).isRegularFile();
+        assertThat(TREE_ROOT.resolve("iso-31/casper/ubuntu-server-minimal.squashfs")).doesNotExist();
+        snapshot("준비됨");
+
+        manager.release(31L, G1);
+        clock.advance(Duration.ofMinutes(10));
+        manager.sweepExpired();
+        snapshot("반납 + 10 분");
+        assertThat(TREE_ROOT.resolve("iso-31")).doesNotExist();
+        assertThat(ubuntu2404).isRegularFile();
+        evidence("  등록 원본 ISO 남음: " + ubuntu2404.getFileName());
+    }
+
+    @Test
+    @DisplayName("U2 Ubuntu 두 대가 같은 ISO: 추출은 한 번, 한 대 반납 뒤에도 유지, 둘 다 반납 + 10 분 뒤 회수")
+    void u2_ubuntuShared() throws Exception {
+        org.mockito.Mockito.clearInvocations(store);
+        record("G1 확보", manager.acquire(31L, G1, UBUNTU));
+        record("G2 확보", manager.acquire(31L, G2, UBUNTU));
+        awaitReady(31L);
+        org.mockito.Mockito.verify(store, org.mockito.Mockito.times(1)).newStagingDir();
+        evidence("  추출(staging 생성) 횟수: 1");
+
+        manager.release(31L, G1);
+        clock.advance(Duration.ofMinutes(30));
+        manager.sweepExpired();
+        snapshot("G1 반납 + 30 분(G2 보유 중)");
+        assertThat(TREE_ROOT.resolve("iso-31")).isDirectory();
+
+        manager.release(31L, G2);
+        clock.advance(Duration.ofMinutes(10));
+        manager.sweepExpired();
+        snapshot("G2 반납 + 10 분");
+        assertThat(TREE_ROOT.resolve("iso-31")).doesNotExist();
+        assertThat(ubuntu2404).isRegularFile();
+    }
+
+    @Test
+    @DisplayName("U3 Ubuntu desktop ISO: 꺼낸 뒤 판별 실패 NOT_UBUNTU_SERVER_ISO, 게시 · staging 없음")
+    void u3_ubuntuDesktop() throws Exception {
+        record("G1 확보(ISO-33, desktop)", manager.acquire(33L, G1, UBUNTU));
+        awaitState(33L, TreeState.FAILED);
+        TreeAcquisition failed = manager.acquire(33L, G1, UBUNTU);
+        record("G1 다음 확보", failed);
+        assertThat(failed).isEqualTo(TreeAcquisition.failed(TreeFailureReason.NOT_UBUNTU_SERVER_ISO));
+        snapshot("판별 실패 뒤");
+        assertThat(TREE_ROOT.resolve("iso-33")).doesNotExist();
+        assertThat(hasStagingChildren()).isFalse();
+    }
+
+    @Test
+    @DisplayName("U4 RHEL ISO 를 Ubuntu 로: 지정 파일이 없어 NOT_UBUNTU_SERVER_ISO, ISO 전체를 풀지 않는다")
+    void u4_rhelIsoAsUbuntu() throws Exception {
+        long started = System.nanoTime();
+        record("G1 확보(ISO-34 = Rocky ISO, Ubuntu)", manager.acquire(34L, G1, UBUNTU));
+        awaitState(34L, TreeState.FAILED);
+        TreeAcquisition failed = manager.acquire(34L, G1, UBUNTU);
+        record("G1 다음 확보", failed);
+        evidence("  소요: " + (System.nanoTime() - started) / 1_000_000L + " ms");
+        assertThat(failed).isEqualTo(TreeAcquisition.failed(TreeFailureReason.NOT_UBUNTU_SERVER_ISO));
+        snapshot("판별 실패 뒤");
+        assertThat(TREE_ROOT.resolve("iso-34")).doesNotExist();
+        assertThat(hasStagingChildren()).isFalse();
+    }
+
+    @Test
+    @DisplayName("U5 디렉터리로 등록된 Ubuntu ISO: 추출 없이 즉시 DIRECTORY_ISO_UNSUPPORTED, 상태 그대로")
+    void u5_ubuntuDirectory() throws Exception {
+        org.mockito.Mockito.clearInvocations(store);
+        TreeAcquisition result = manager.acquire(35L, G1, UBUNTU);
+        record("G1 확보(ISO-35, 디렉터리)", result);
+        assertThat(result).isEqualTo(TreeAcquisition.failed(TreeFailureReason.DIRECTORY_ISO_UNSUPPORTED));
+        assertThat(manager.stateOf(35L)).isEqualTo(TreeState.ABSENT);
+        org.mockito.Mockito.verify(store, org.mockito.Mockito.never()).newStagingDir();
+        evidence("  추출(staging 생성) 횟수: 0, 상태: " + manager.stateOf(35L));
+    }
+
+    @Test
+    @DisplayName("U6 Ubuntu 22.04 ISO: 준비됨, release 22.04.4 는 정의서 24.04 와 메이저가 달라 c-4 가 실패로 닫을 재료가 된다")
+    void u6_ubuntu2204() throws Exception {
+        manager.acquire(32L, G1, UBUNTU);
+        awaitReady(32L);
+        TreeAcquisition ready = manager.acquire(32L, G1, UBUNTU);
+        record("G1 다시 확보(ISO-32)", ready);
+        TreeRelease release = ((TreeAcquisition.Ready) ready).tree().release();
+        assertThat(release).isEqualTo(new TreeRelease("Ubuntu", "22.04.4"));
+        assertThat(release.matches(OSName.UBUNTU, "22.04")).isTrue();
+        assertThat(release.matches(OSName.UBUNTU, "24.04")).isFalse();
+        evidence("  대조: 정의서 22.04 = " + release.matches(OSName.UBUNTU, "22.04") + ", 정의서 24.04 = " + release.matches(OSName.UBUNTU, "24.04"));
     }
 
     // ---- 도우미 ----

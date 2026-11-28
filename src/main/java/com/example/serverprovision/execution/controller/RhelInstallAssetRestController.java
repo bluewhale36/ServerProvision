@@ -5,10 +5,8 @@ import com.example.serverprovision.execution.engine.rhel.RhelInstallTokenRegistr
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
-import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,7 +20,7 @@ import java.util.UUID;
  * RHEL 설치 서빙(E4-1-b-4-2) — 설치 프로그램(anaconda)이 kickstart 와 설치 트리를 당겨 가는 자리. 무효 토큰은 게스트 체인이
  * 401 로 끝내므로 여기 오는 토큰은 발급된 것이다. kickstart 는 설치가 진행 중(원장 RUNNING)일 때만 낸다 — 실패로 닫힌 서버의
  * 비밀번호 해시가 계속 열려 있지 않게. 트리 경로는 {@code InstallTree.resolve} 로만 파일에 대응시키므로 {@code ..} · 숨김 파일 ·
- * 트리 밖 링크는 404 다. 큰 파일은 {@link FileSystemResource} 로 내고 Range 는 Spring 이 처리한다.
+ * 트리 밖 링크는 404 다. 파일 응답 조립은 {@link ServedFileResponse} 다.
  */
 @Slf4j
 @RestController
@@ -52,12 +50,9 @@ public class RhelInstallAssetRestController {
         String relative = path.startsWith("/") ? path.substring(1) : path;
         return tokenRegistry.resolve(token)
                 .flatMap(serving -> serving.tree().resolve(relative))
-                .<ResponseEntity<Resource>>map(file -> {
-                    FileSystemResource resource = new FileSystemResource(file);
+                .map(file -> {
                     log.debug("[rhelinstall] 트리 서빙 : token={}, path={}", token, relative);
-                    return ResponseEntity.ok()
-                            .contentType(MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM))
-                            .body(resource);
+                    return ServedFileResponse.of(file);
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

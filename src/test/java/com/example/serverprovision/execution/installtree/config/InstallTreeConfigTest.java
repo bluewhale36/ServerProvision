@@ -38,7 +38,7 @@ class InstallTreeConfigTest {
     void invalidRoots(String root) {
         assertThatThrownBy(() -> new InstallTreeProperties(root, null))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("RHEL_INSTALL_TREE_ROOT");
+                .hasMessageContaining("INSTALL_TREE_ROOT");
     }
 
     @Test
@@ -60,7 +60,7 @@ class InstallTreeConfigTest {
         assertThatThrownBy(config::validate)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("provision.path.allowed-roots")
-                .hasMessageContaining("RHEL_INSTALL_TREE_ROOT");
+                .hasMessageContaining("INSTALL_TREE_ROOT");
     }
 
     @Test

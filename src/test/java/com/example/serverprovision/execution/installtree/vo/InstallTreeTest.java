@@ -27,16 +27,29 @@ class InstallTreeTest {
         Path root = FakeRockyTree.writeTree(Files.createDirectories(temp.resolve("iso-12")), "Rocky Linux", "9.5");
         Files.writeString(root.resolve(".provision.json"), "{\"marker\":1}");
         Files.writeString(temp.resolve("secret.txt"), "outside");
-        tree = new InstallTree(root, new TreeRelease("Rocky Linux", "9.5"));
+        tree = new InstallTree(root, new TreeRelease("Rocky Linux", "9.5"), root);
     }
 
     @Test
     @DisplayName("트리 안 일반 파일과 커널 · initrd 는 실제 경로로 해석된다")
     void resolvesRegularFiles() {
         assertThat(tree.resolve("images/pxeboot/vmlinuz")).isPresent();
+        assertThat(tree.resolve("images/pxeboot/initrd.img")).isPresent();
         assertThat(tree.resolve("BaseOS/repodata/repomd.xml")).isPresent();
-        assertThat(tree.kernelPath()).isRegularFile();
-        assertThat(tree.initrdPath()).isRegularFile();
+    }
+
+    @Test
+    @DisplayName("Ubuntu 트리의 판별 파일 .disk/info 는 숨김 조각이라 내주지 않는다")
+    void hidesUbuntuDiskInfo() throws IOException {
+        Path ubuntu = Files.createDirectories(temp.resolve("iso-31/casper"));
+        Files.writeString(ubuntu.resolve("vmlinuz"), "kernel");
+        Files.createDirectories(temp.resolve("iso-31/.disk"));
+        Files.writeString(temp.resolve("iso-31/.disk/info"), "Ubuntu-Server 24.04.1 LTS - Release amd64");
+        InstallTree ubuntuTree = new InstallTree(temp.resolve("iso-31"), new TreeRelease("Ubuntu", "24.04.1"),
+                temp.resolve("ubuntu.iso"));
+        assertThat(ubuntuTree.resolve("casper/vmlinuz")).isPresent();
+        assertThat(ubuntuTree.resolve(".disk/info")).isEmpty();
+        assertThat(ubuntuTree.source()).isEqualTo(temp.resolve("ubuntu.iso").toAbsolutePath().normalize());
     }
 
     @Test
