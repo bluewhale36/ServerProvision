@@ -1,5 +1,6 @@
 package com.example.serverprovision.execution.installtree.service;
 
+import com.example.serverprovision.execution.installtree.enums.InstallMediaLayout;
 import com.example.serverprovision.execution.installtree.enums.TreeFailureReason;
 import com.example.serverprovision.execution.installtree.vo.InstallTree;
 import com.example.serverprovision.execution.installtree.vo.TreeAcquisition;
@@ -18,49 +19,47 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * ISO 하나를 작업 트리로 푸는 전용 실행기 작업: 공간 확인 → staging 에 풀기 → 트리 확인 → 원자적 게시.
- * 결과는 future 로만 돌려준다 — 매니저를 되부르지 않아 생성자 순환이 없다. 예상한 실패는 값({@code Failed})이고,
- * 그 밖의 예외는 future 를 예외로 끝내 매니저가 {@code EXTRACTION_FAILED} 로 닫는다.
+ * ISO 하나를 작업 트리로 꺼내는 전용 실행기 작업: 공간 확인, staging 에 꺼내기, 매체 판별, 원자적 게시.
+ * 얼마나 꺼내고 무엇으로 판별하는지는 {@link InstallMediaLayout} 이 정한다. 결과는 future 로만 돌려준다.
+ * 매니저를 되부르지 않아 생성자 순환이 없다. 예상한 실패는 값({@code Failed})이고, 그 밖의 예외는 future 를 예외로 끝내
+ * 매니저가 {@code EXTRACTION_FAILED} 로 닫는다.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class InstallTreeExtractor {
 
-    /** 필요 공간 = ISO 크기 × 이 배수(풀린 트리는 ISO 보다 약간 크고, 파일 시스템 여유도 남긴다). */
-    static final double SPACE_HEADROOM = 1.2;
-
     private final IsoPreparationService isoPreparationService;
-    private final InstallTreeInspector inspector;
     private final InstallTreeStore store;
 
     @Async("installTreeExecutor")
-    public CompletableFuture<TreeAcquisition> extract(long isoId, Path isoFile) {
-        return CompletableFuture.completedFuture(extractNow(isoId, isoFile));
+    public CompletableFuture<TreeAcquisition> extract(long isoId, Path isoFile, InstallMediaLayout layout) {
+        return CompletableFuture.completedFuture(extractNow(isoId, isoFile, layout));
     }
 
-    TreeAcquisition extractNow(long isoId, Path isoFile) {
+    TreeAcquisition extractNow(long isoId, Path isoFile, InstallMediaLayout layout) {
         Path staging = null;
         try {
-            long required = (long) (Files.size(isoFile) * SPACE_HEADROOM);
+            long required = layout.requiredSpace(Files.size(isoFile));
             long usable = store.usableSpace();
             if (usable < required) {
-                log.warn("[install-tree] 공간 부족. isoId={}, required={}, usable={}", isoId, required, usable);
+                log.warn("[install-tree] 공간 부족. isoId={}, layout={}, required={}, usable={}", isoId, layout, required, usable);
                 return TreeAcquisition.failed(TreeFailureReason.NOT_ENOUGH_SPACE);
             }
             staging = store.newStagingDir();
             long started = System.nanoTime();
-            log.info("[install-tree] 추출 시작. isoId={}, iso={}, staging={}", isoId, isoFile, staging);
-            isoPreparationService.extractInto(isoFile, staging);
-            Optional<TreeRelease> release = inspector.inspect(staging);
+            log.info("[install-tree] 추출 시작. isoId={}, layout={}, iso={}, staging={}", isoId, layout, isoFile, staging);
+            layout.extract(isoPreparationService, isoFile, staging);
+            Optional<TreeRelease> release = layout.inspect(staging);
             if (release.isEmpty()) {
-                return TreeAcquisition.failed(TreeFailureReason.NOT_RHEL_TREE);
+                log.info("[install-tree] 매체 판별 실패. isoId={}, layout={}, reason={}", isoId, layout, layout.notRecognized());
+                return TreeAcquisition.failed(layout.notRecognized());
             }
             Path published = store.publish(staging, isoId);
             staging = null;
             log.info("[install-tree] 추출 완료. isoId={}, release={}, tree={}, 소요={}s",
                     isoId, release.get().label(), published, (System.nanoTime() - started) / 1_000_000_000L);
-            return TreeAcquisition.ready(new InstallTree(published, release.get()));
+            return TreeAcquisition.ready(new InstallTree(published, release.get(), isoFile));
         } catch (IOException | ExtractionFailedException e) {
             log.warn("[install-tree] 추출 실패. isoId={}, iso={}, msg={}", isoId, isoFile, e.getMessage());
             return TreeAcquisition.failed(TreeFailureReason.EXTRACTION_FAILED);

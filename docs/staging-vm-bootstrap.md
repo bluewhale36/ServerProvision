@@ -85,7 +85,7 @@ sudo mkdir -p /etc/serverprovision
 sudo ln -s /var/lib/serverprovision /opt/serverprovision/data
 ```
 
-served/install-trees 는 RHEL 계열 설치 때 앱이 등록 ISO 를 풀어 두는 작업 트리 자리다(E4-1-b-1). 운영자가 손으로 쓰는 자리가 아니므로 아래 기본값(provisioning:provisioning, 0755)을 그대로 받는다. ISO 하나에 약 10 GB 를 쓰고, 그 ISO 로 설치 중인 서버가 없어지면 유예 시간 뒤 지워진다. 앱은 비특권이라 mount 를 쓸 수 없어 ISO 를 bsdtar 로 푼다. bsdtar 는 AppStream 의 bsdtar 패키지에 있다(EPEL 불필요).
+served/install-trees 는 RHEL 계열, Ubuntu 설치 때 앱이 등록 ISO 에서 설치 파일을 꺼내 두는 작업 트리 자리다(E4-1-b-1, E4-1-c-1). 운영자가 손으로 쓰는 자리가 아니므로 아래 기본값(provisioning:provisioning, 0755)을 그대로 받는다. RHEL 은 ISO 전체를 풀어 ISO 하나에 약 10 GB 를 쓰고, Ubuntu 는 커널과 initrd 만 꺼내 ISO 하나에 약 100 MB 를 쓴다. 그 ISO 로 설치 중인 서버가 없어지면 유예 시간 뒤 지워진다. 앱은 비특권이라 mount 를 쓸 수 없어 ISO 를 bsdtar 로 푼다. bsdtar 는 AppStream 의 bsdtar 패키지에 있다(EPEL 불필요).
 
 ```bash
 sudo dnf -y install bsdtar
@@ -156,7 +156,7 @@ PROVISION_TRASH_ROOT=/var/lib/serverprovision/internal/trash
 PROVISION_ISO_QUARANTINE_ROOT=/var/lib/serverprovision/internal/quarantine
 PROVISION_ASSET_HISTORY_ROOT=/var/lib/serverprovision/internal/history
 PROVISION_ALLOWED_ROOTS=/var/lib/serverprovision/served/resources
-RHEL_INSTALL_TREE_ROOT=/var/lib/serverprovision/served/install-trees
+INSTALL_TREE_ROOT=/var/lib/serverprovision/served/install-trees
 RECONCILIATION_SCAN_EXTRA_ROOTS=
 EOF
 sudo chmod 0600 /etc/serverprovision/env

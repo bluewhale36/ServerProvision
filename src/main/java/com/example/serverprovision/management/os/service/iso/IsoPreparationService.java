@@ -8,7 +8,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 
 /**
  * ISO 경로를 탐색 가능한 상태로 준비해 주는 서비스.
@@ -104,6 +106,28 @@ public class IsoPreparationService {
 		}
 	}
 
+	/**
+	 * ISO 에서 지정한 파일만 꺼낸다. ISO 에 없는 이름은 건너뛴다. 없는 파일은 호출자의 판별이 "그 계열 ISO 가 아님" 으로 닫는다.
+	 * 지정한 파일이 모두 꺼내졌는데 도구가 실패했으면 손상으로 보고 예외를 던진다. bsdtar 는 없는 이름이 섞이면 종료 코드 1 을 낸다.
+	 *
+	 * @throws ExtractionFailedException 도구가 없거나, 파일은 다 나왔는데 도구가 실패한 경우
+	 */
+	public void extractMembers(Path isoFile, Path targetDir, List<String> members) {
+		boolean toolSucceeded;
+		try {
+			toolSucceeded = runMembers(isoFile, targetDir, members);
+		} catch (IOException e) {
+			throw new ExtractionFailedException("ISO 에서 파일을 꺼내지 못했습니다: " + isoFile, e);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new ExtractionFailedException("ISO 에서 파일 꺼내기가 중단되었습니다: " + isoFile, e);
+		}
+		boolean allPresent = members.stream().allMatch(member -> Files.isRegularFile(targetDir.resolve(member)));
+		if (!toolSucceeded && allPresent) {
+			throw new ExtractionFailedException("ISO 에서 파일을 꺼내지 못했습니다: " + isoFile);
+		}
+	}
+
 	/** {@link #extractInto} 가 쓸 도구(bsdtar 또는 7z)가 하나라도 있는가. */
 	public boolean extractionToolAvailable() {
 		return isCommandAvailable("bsdtar") || isCommandAvailable("7z");
@@ -173,6 +197,25 @@ public class IsoPreparationService {
 	private boolean runExtractBsdtar(Path isoFile, Path extractDir) throws IOException, InterruptedException {
 		if (!isCommandAvailable("bsdtar")) return false;
 		Process proc = new ProcessBuilder("bsdtar", "-xf", isoFile.toString(), "-C", extractDir.toString())
+				.redirectErrorStream(true)
+				.redirectOutput(ProcessBuilder.Redirect.DISCARD)
+				.start();
+		return proc.waitFor() == 0;
+	}
+
+	/** bsdtar 를 먼저, 없으면 7z 로 지정 파일만 꺼낸다. 둘 다 없으면 예외. 반환값은 도구의 성공 여부다. */
+	private boolean runMembers(Path isoFile, Path targetDir, List<String> members) throws IOException, InterruptedException {
+		List<String> command = new ArrayList<>();
+		if (isCommandAvailable("bsdtar")) {
+			command.addAll(List.of("bsdtar", "-xf", isoFile.toString(), "-C", targetDir.toString()));
+			command.addAll(members);
+		} else if (isCommandAvailable("7z")) {
+			command.addAll(List.of("7z", "x", isoFile.toString(), "-o" + targetDir, "-y"));
+			command.addAll(members);
+		} else {
+			throw new ExtractionFailedException("ISO 에서 파일을 꺼낼 도구가 없습니다: " + isoFile + ". bsdtar 또는 7z 설치 상태를 확인해야 합니다.");
+		}
+		Process proc = new ProcessBuilder(command)
 				.redirectErrorStream(true)
 				.redirectOutput(ProcessBuilder.Redirect.DISCARD)
 				.start();

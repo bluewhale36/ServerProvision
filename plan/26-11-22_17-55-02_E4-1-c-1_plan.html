@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-1-c-1 Plan · Ubuntu 설치 매체</title>
+<style>
+  :root {
+    --bg:#f6f8fa; --card:#fff; --text:#1f2328; --text-muted:#57606a;
+    --border:#d0d7de; --border-soft:#eaecef;
+    --blue:#0075de; --blue-bg:#e6f0ff; --orange:#dd5b00; --orange-bg:rgba(221,91,0,0.10);
+    --yellow:#C29343; --yellow-bg:#FAF3DD; --green:#1aae39; --green-bg:rgba(26,174,57,0.10);
+    --red:#bf2626; --red-bg:rgba(191,38,38,0.10); --purple:#6f4cdd; --purple-bg:rgba(111,76,221,0.10);
+    --code-kw:#cf222e; --code-str:#0a3069; --code-com:#6e7781; --code-ann:#8250df; --code-type:#953800; --code-key:#0550ae;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans CJK KR",sans-serif;
+    margin:0; background:var(--bg); color:var(--text); line-height:1.65; font-size:14px; }
+
+  header.page-header { background:linear-gradient(180deg,var(--card) 0%,var(--bg) 100%);
+    border-bottom:1px solid var(--border); padding:18px 24px; position:sticky; top:0; z-index:100; }
+  header h1 { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--text-muted); }
+  .meta strong { color:var(--text); font-weight:600; }
+  .meta a { color:var(--blue); }
+  .v2-badge { background:var(--blue-bg); color:var(--blue); font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+
+  .layout { display:grid; grid-template-columns:220px 1fr; gap:24px; max-width:1680px; margin:0 auto; padding:24px; }
+  main { min-width:0; }
+  nav.toc { position:sticky; top:108px; align-self:start; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; max-height:calc(100vh - 130px); overflow-y:auto; }
+  nav.toc strong { display:block; margin-bottom:6px; font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; }
+  nav.toc ol { list-style:none; padding:0; margin:0 0 12px; }
+  nav.toc li { padding:3px 0; }
+  nav.toc a { color:var(--text-muted); text-decoration:none; display:block; padding:3px 6px; border-radius:4px; }
+  nav.toc a:hover { background:var(--bg); color:var(--blue); }
+  nav.toc a.preview { color:var(--orange); font-weight:600; }
+  nav.toc .toc-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  nav.toc button { border:1px solid var(--border); background:var(--card); padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer; flex:1; }
+
+  .filter-box { width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--border); border-radius:6px; margin-bottom:14px; background:var(--card); }
+  .filter-box:focus { outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+
+  details.section { background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:14px; overflow:hidden; }
+  details.section > summary { cursor:pointer; padding:14px 18px; font-size:15px; font-weight:600; list-style:none; user-select:none; display:flex; align-items:center; gap:10px; }
+  details.section > summary::-webkit-details-marker { display:none; }
+  details.section > summary::before { content:'›'; color:var(--text-muted); font-size:18px; transition:transform 0.15s; display:inline-block; width:14px; }
+  details.section[open] > summary::before { transform:rotate(90deg); color:var(--blue); }
+  details.section .body { padding:0 18px 18px; border-top:1px solid var(--border-soft); padding-top:14px; }
+  details.section.preview > summary { background:linear-gradient(90deg,var(--orange-bg) 0%,transparent 60%); }
+
+  h4 { margin:16px 0 6px; font-size:13.5px; color:var(--blue); }
+  h4:first-child { margin-top:0; }
+  p { margin:8px 0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+  .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  th,td { border-bottom:1px solid var(--border-soft); padding:7px 9px; text-align:left; vertical-align:middle; word-break:keep-all; overflow-wrap:break-word; min-width:10em; }
+  th:first-child, td:first-child { min-width:7em; }
+  th { background:var(--bg); font-weight:600; font-size:12px; color:var(--text-muted); }
+  tr:last-child td { border-bottom:none; }
+  code { background:var(--bg); padding:1px 5px; border-radius:3px; font-size:0.92em; font-family:var(--mono); }
+  pre { background:var(--bg); padding:12px 14px; border-radius:6px; overflow-x:auto; font-size:12px; font-family:var(--mono); line-height:1.5; }
+  pre code { background:none; padding:0; }
+  .tok-kw{color:var(--code-kw);font-weight:600;} .tok-str{color:var(--code-str);} .tok-com{color:var(--code-com);font-style:italic;} .tok-ann{color:var(--code-ann);} .tok-type{color:var(--code-type);} .tok-key{color:var(--code-key);}
+  ul,ol { padding-left:22px; } li { padding:2px 0; }
+
+  .chip { display:inline-block; white-space:nowrap; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+  .chip.cp1{background:var(--blue-bg);color:var(--blue);}  .chip.cp2{background:var(--green-bg);color:var(--green);}
+  .chip.cp3{background:var(--yellow-bg);color:var(--yellow);} .chip.cp4{background:var(--orange-bg);color:var(--orange);}
+  .chip.cp5{background:var(--red-bg);color:var(--red);} .chip.cp6{background:var(--purple-bg);color:var(--purple);}
+  .chip.cp7{background:var(--bg);color:var(--text-muted);}
+  .chip.new,.chip.add{background:var(--green-bg);color:var(--green);} .chip.mod{background:var(--yellow-bg);color:var(--yellow);} .chip.fact{background:var(--green-bg);color:var(--green);} .chip.guess{background:var(--yellow-bg);color:var(--yellow);}
+  .chip.move{background:var(--blue-bg);color:var(--blue);} .chip.del{background:var(--red-bg);color:var(--red);}
+  .chip.keep{background:var(--bg);color:var(--text-muted);} .chip.force{background:var(--red-bg);color:var(--red);}
+  .chip.opt{background:var(--blue-bg);color:var(--blue);} .chip.v2{background:var(--orange-bg);color:var(--orange);}
+
+  .callout { border-left:3px solid var(--blue); background:var(--blue-bg); padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13px; }
+  .callout.warn { border-color:var(--yellow); background:var(--yellow-bg); }
+  .callout.success { border-color:var(--green); background:var(--green-bg); }
+  .callout.danger { border-color:var(--red); background:var(--red-bg); }
+  .callout ul { margin:4px 0 0; }
+
+  ul.check-list { list-style:none; padding:0; }
+  ul.check-list li { padding:4px 0; }
+  ul.check-list label { cursor:pointer; display:inline-flex; align-items:flex-start; gap:8px; }
+  ul.check-list input[type="checkbox"] { margin-top:4px; cursor:pointer; }
+  ul.check-list label.done span { color:var(--text-muted); text-decoration:line-through; }
+  .hidden { display:none !important; }
+
+  .ux-wrap { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:16px; margin:12px 0; }
+  .ux-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; align-items:center; }
+  .ux-toolbar .group-label { font-size:11px; color:var(--text-muted); margin-right:4px; min-width:118px; }
+  .ux-toolbar .seg { padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); border-radius:6px; cursor:pointer; font-family:var(--mono); color:var(--text); }
+  .ux-toolbar .seg:hover { background:var(--blue-bg); }
+  .ux-toolbar .seg.active { background:var(--blue); color:var(--card); border-color:var(--blue); }
+  .ux-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; margin-bottom:6px; font-size:13px; }
+  .ux-row .label { flex:1; min-width:0; overflow-wrap:anywhere; }
+  .ux-row .badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:600; white-space:nowrap; }
+  .ux-row .badge.on { background:var(--green-bg); color:var(--green); } .ux-row .badge.off { background:var(--border-soft); color:var(--text-muted); }
+  .ux-row .badge.dep { background:var(--yellow-bg); color:var(--yellow); } .ux-row .badge.del { background:var(--red-bg); color:var(--red); }
+  .n-demo-btn { padding:4px 11px; font-size:12px; border:1px solid var(--blue); color:var(--blue); background:var(--card); border-radius:5px; cursor:pointer; font-weight:600; }
+  .n-demo-btn:hover:not(:disabled) { background:var(--blue-bg); }
+  .n-demo-btn:disabled { opacity:1; cursor:not-allowed; background:var(--border-soft); border-color:transparent; color:var(--text-muted); }
+  .tip { position:relative; display:inline-block; }
+  .tip[data-tip]:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:var(--text); color:var(--card); font-size:11px; line-height:1.4; padding:7px 10px; border-radius:6px; width:200px; z-index:5; }
+  .tip[data-tip]:hover::before { content:''; position:absolute; bottom:calc(100% + 1px); left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--text); z-index:5; }
+  .ux-caps { font-family:var(--mono); font-size:11.5px; background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:10px 12px; margin-top:10px; white-space:pre; overflow-x:auto; }
+  .ux-caps .t { color:var(--red); font-weight:700; } .ux-caps .f { color:var(--green); font-weight:700; }
+  .ux-message { padding:10px 12px; border-radius:6px; font-size:12.5px; min-height:20px; border:1px solid var(--border-soft); background:var(--card); margin-top:10px; }
+  .ux-message.error { background:var(--red-bg); border-color:var(--red); color:var(--red); }
+  .ux-message.success { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+
+  .seq { display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; margin:10px 0; overflow:hidden; }
+  .seq .actor { padding:8px 10px; font-family:var(--mono); font-size:11px; font-weight:700; text-align:center; color:var(--text-muted); background:var(--card); border-bottom:1px solid var(--border-soft); }
+  .seq .actor.a1 { color:var(--blue); } .seq .actor.a2 { color:var(--green); } .seq .actor.a3 { color:var(--orange); } .seq .actor.a4 { color:var(--purple); }
+  .seq .step { padding:6px 12px; font-size:12px; line-height:1.55; border-bottom:1px solid var(--border-soft); }
+  .seq .step:nth-last-child(-n+3) { border-bottom:none; }
+  .seq .step.a1 { background:var(--blue-bg); } .seq .step.a2 { background:var(--green-bg); } .seq .step.a3 { background:var(--orange-bg); } .seq .step.a4 { background:var(--purple-bg); }
+  #flow-seq { grid-template-columns:repeat(5,1fr); }
+  #flow-seq .step { border-bottom:1px solid var(--border-soft); }
+  #flow-seq .step:nth-last-child(-n+5) { border-bottom:none; }
+  .pkg-tree { font-family:var(--mono); font-size:12px; line-height:1.7; background:var(--bg); border:1px solid var(--border-soft); border-radius:6px; padding:14px; white-space:pre; overflow-x:auto; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:12px 0; }
+  .card { background:var(--card); border:1px solid var(--border-soft); border-radius:6px; padding:14px; }
+  .card h4 { margin:0 0 8px; font-size:14px; font-family:var(--mono); }
+  #demo-grid { grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+  #demo-grid > .card { min-width:0; }
+  #demo-grid .ux-caps, #demo-grid .pkg-tree { margin-top:8px; }
+  #demo-caps, #demo-iso-info { white-space:pre-wrap; overflow-wrap:anywhere; }
+
+  html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; }
+  @media (max-width:1024px){
+    .layout { grid-template-columns:1fr; gap:16px; padding:16px; }
+    header.page-header { position:static; }
+    nav.toc { position:static; max-height:none; top:auto; }
+    code { overflow-wrap:break-word; }
+    .seq { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width:600px){
+    body { font-size:13.5px; line-height:1.6; }
+    header.page-header { padding:14px 16px; }
+    header h1 { font-size:17px; line-height:1.35; }
+    .meta { gap:6px 12px; font-size:11px; }
+    .layout { padding:12px; gap:12px; }
+    details.section > summary { padding:12px 14px; font-size:14px; }
+    pre { font-size:11.5px; }
+    .ux-toolbar .group-label { min-width:0; width:100%; margin:0 0 2px; }
+    table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    th, td { padding:9px 13px; }
+    th:first-child, td:first-child { white-space:nowrap; }
+    th:not(:first-child), td:not(:first-child) { min-width:15em; }
+    table code { font-size:11px; padding:1px 4px; }
+    #demo-grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>E4-1-c-1 Ubuntu 설치 매체 <span class="v2-badge">E4-1-c</span></h1>
+  <div class="meta">
+    <span><strong>슬라이스</strong> E4-1-c-1 (feature)</span>
+    <span><strong>Notion</strong> <a href="https://app.notion.com/p/420ef0e868f9817cabe9d76579802d16">단계 페이지</a> · <a href="https://app.notion.com/p/420ef0e868f981478340ed7315583851">상위 E4-1-c</a></span>
+    <span><strong>토론</strong> <code>discussion/26-11-22_13-58-20_E4-1-c-ubuntu-install_discussion.md</code> (Q1)</span>
+    <span><strong>생성</strong> 2026-11-22 KST</span>
+    <span><strong>CP1</strong> 사용자 승인 대기(2 판, 열린 질문 답 반영)</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol id="toc-list">
+      <li><a href="#s1">§1 현재 상태</a></li>
+      <li><a href="#s2">§2 요구 + 비목표</a></li>
+      <li><a href="#s2-preview" class="preview">🎬 미리보기</a></li>
+      <li><a href="#s3">§3 URL / 데이터 흐름</a></li>
+      <li><a href="#s4">§4 도메인 모델</a></li>
+      <li><a href="#s5">§5 12 단계 + CP</a></li>
+      <li><a href="#s6">§6 테스트</a></li>
+      <li><a href="#s7">§7 예외</a></li>
+      <li><a href="#s8">§8 결정 · 주의</a></li>
+      <li><a href="#s9">§9 Verification</a></li>
+      <li><a href="#s10">§10 Critical Files</a></li>
+      <li><a href="#s11">§11 다음 마일스톤</a></li>
+    </ol>
+    <div class="toc-actions">
+      <button id="btn-expand">전부 펴기</button>
+      <button id="btn-collapse">전부 접기</button>
+    </div>
+  </nav>
+
+  <main>
+    <input type="text" class="filter-box" placeholder="섹션 / 단어 검색" id="filter">
+
+    <details class="section" id="s1" open>
+      <summary>§1. 현재 상태 (2026-11-22)</summary>
+      <div class="body">
+        <div class="callout">Ubuntu 설치는 ISO 를 풀지 않는다. ISO 에서 커널 · initrd · 판별 파일 셋만 꺼내고, ISO 파일은 등록 경로 그대로 토큰 주소로 내준다. 꺼낸 파일의 수명은 RHEL 작업 트리 관리자(E4-1-b-1)를 그대로 쓴다.</div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>자리</th><th>지금</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td><code>InstallTreeManager</code>(b-1)</td><td>ISO 마다 메모리 상태(준비 중 · 준비됨 · 실패), 보유자 집합, 보유자 0 + 유예 10 분 뒤 회수, 기동 정리, 같은 ISO 동시 확보는 추출 한 번</td><td><code>execution/installtree/service/InstallTreeManager.java</code></td></tr>
+            <tr><td><code>InstallTreeExtractor</code> + <code>InstallTreeInspector</code></td><td><b>RHEL 전용</b>: 필요 공간 = ISO × 1.2 고정, <code>IsoPreparationService.extractInto</code>(ISO 전체), <code>.treeinfo</code> · <code>images/pxeboot/*</code> · <code>BaseOS/repodata</code> 판별, 실패 <code>NOT_RHEL_TREE</code></td><td><code>execution/installtree/service/</code></td></tr>
+            <tr><td><code>InstallTree</code></td><td><code>root</code> · <code>release</code>, 상수 <code>KERNEL</code> · <code>INITRD</code> 가 RHEL 경로. <code>resolve()</code> 가 서빙 경로 가드(<code>..</code> · 숨김 조각 · 트리 밖 링크 거절)</td><td><code>execution/installtree/vo/InstallTree.java</code></td></tr>
+            <tr><td>등록 경로 모양(<code>IsoSource</code>)</td><td>파일 = 추출, 디렉터리 = 풀지 않고 그대로 트리로, http(s) = <code>HTTP_ISO_UNSUPPORTED</code></td><td><code>InstallTreeManager.IsoSource</code></td></tr>
+            <tr><td><code>ServingTokenRegistry&lt;T&gt;</code> + <code>ServingKind</code></td><td>게스트당 토큰 하나, URL <code>{base}/api/pxe/v1/{종류}/{token}</code>. 종류(windows · firmware · rhel) 상수 + 발급소 빈 하나면 게스트 체인(경로 토큰 = credential)에 자동 등록</td><td><code>execution/engine/osinstall/ServingTokenRegistry.java</code> · <code>GuestCredential.java</code></td></tr>
+            <tr><td>설정 키(배포 전)</td><td><code>provision.rhel-install.tree-root</code>(<code>RHEL_INSTALL_TREE_ROOT</code>) · <code>release-grace</code>. 운영 마지막 배포 d2d0307 = E4-1-b 이전</td><td><code>docs/deploy/pending/E4-1-b.md</code></td></tr>
+            <tr><td>Ubuntu 등록(판별 자리 없음)</td><td><code>OSName.UBUNTU</code>(버전 규칙 FREE). 등록 때 추출 · 버전 확인 없음 → <b>설치 때 판별이 유일한 자리</b></td><td><code>management/os/enums/OSName.java</code></td></tr>
+            <tr><td>bsdtar 지정 추출</td><td><code>bsdtar -xf iso -C dir casper/vmlinuz casper/initrd .disk/info</code>: 셋만 꺼냄, 0.006 초(20 MB ISO), squashfs 는 건드리지 않음</td><td><span class="chip fact">실측</span> 로컬 11-22</td></tr>
+            <tr><td>bsdtar 없는 이름 섞임</td><td>있는 파일은 꺼내고 <code>Not found in archive</code>, 종료 코드 1</td><td><span class="chip fact">실측</span> 로컬 11-22</td></tr>
+            <tr><td>casper <code>.iso</code> 끝</td><td>1.434 부터 <code>url=</code> 이 <code>.iso</code> 로 끝날 때만 네트워크로 ISO 를 받는다</td><td><span class="chip guess">추정</span> casper 1.434 변경 기록(문서), 실기 미확인</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+
+    <details class="section" id="s2" open>
+      <summary>§2. 요구 + 비목표</summary>
+      <div class="body">
+        <ul>
+          <li><b>R1</b> 등록 Ubuntu ISO(파일)에서 <code>casper/vmlinuz</code> · <code>casper/initrd</code> 만 꺼내 서빙한다. ISO 전체를 풀지 않는다(토론 Q1).</li>
+          <li><b>R2</b> ISO 파일 자체를 토큰 주소로 서빙한다. 주소는 <code>.iso</code> 로 끝난다(Q1, casper 1.434).</li>
+          <li><b>R3</b> 꺼낸 파일의 수명(확보 · 보유자 · 유예 회수 · 기동 정리 · 동시 확보 한 번)은 <code>InstallTreeManager</code> 를 그대로 쓴다(Q1, CLAUDE.md 중복 금지).</li>
+          <li><b>R4</b> Ubuntu Server amd64 ISO 인지 판별하고 배포판 · 버전을 읽는다. 아니면 확보 실패 사유로 닫는다(Q1 · Q3).</li>
+          <li><b>R5</b> 디렉터리 · http(s) 로 등록된 ISO 는 Ubuntu 설치에 못 쓴다(ISO 파일이 있어야 <code>url=</code> 로 내줄 수 있다). 추출을 시도하지 않고 즉시 사유(Q1).</li>
+          <li><b>R6</b> RHEL 동작은 바뀌지 않는다(기존 테스트 · 시나리오 하네스 그대로 통과).</li>
+        </ul>
+        <div class="callout warn"><b>비목표 (어디로)</b> :
+          <ul>
+            <li>22.04 · 24.04 카탈로그(YY.MM 엄격 대조 포함) · OpenSSH 항목 · 'OS 설정' 명칭: c-2</li>
+            <li>정의서 Ubuntu 차단 해제: c-4 끝(Q19)</li>
+            <li>user-data · meta-data 생성과 서빙: c-3</li>
+            <li>토큰 발급 · iPXE 커널 인자 · 준비도 · 원장 · <code>RhelInstallMedia</code> 를 계열 공통으로 옮기기: c-4</li>
+            <li>완료 보고 · 설치 중 오류 보고: c-5</li>
+            <li>26.04 매체(dracut initrd): 실기 뒤</li>
+            <li>통신 다이어그램 갱신: c-4(게스트와의 새 상호작용이 그때 생김)</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <details class="section preview" id="s2-preview" open>
+      <summary>🎬 미리보기 (작업 트리 · 서빙 라이브 데모)</summary>
+      <div class="body">
+        <p>왼쪽에서 등록 ISO · 정의서 OS 버전 · 도구 유무를 고르고, 가운데 버튼으로 확보 · 추출 · 반납 · 유예 · 기동 정리를 진행한다. 준비됨이면 오른쪽에서 토큰을 발급하고 서빙 요청을 보낸다. 판정은 §4 의 J1 · J3 · J4 · J5 와 같은 결과를 낸다.</p>
+        <div class="ux-wrap">
+          <div class="ux-toolbar" id="demo-scenarios">
+            <span class="group-label">원클릭 시나리오 :</span>
+            <button class="n-demo-btn" data-scn="1" onclick="demoScenario(1)">1 24.04 정상</button>
+            <button class="n-demo-btn" data-scn="2" onclick="demoScenario(2)">2 두 대가 같은 ISO</button>
+            <button class="n-demo-btn" data-scn="3" onclick="demoScenario(3)">3 desktop ISO</button>
+            <button class="n-demo-btn" data-scn="4" onclick="demoScenario(4)">4 RHEL ISO 를 고름</button>
+            <button class="n-demo-btn" data-scn="5" onclick="demoScenario(5)">5 디렉터리 등록</button>
+            <button class="n-demo-btn" data-scn="6" onclick="demoScenario(6)">6 버전 불일치</button>
+          </div>
+          <div class="callout" id="demo-banner"></div>
+          <div class="card-grid" id="demo-grid">
+            <div class="card">
+              <h4>입력</h4>
+              <div class="ux-toolbar" id="demo-iso-bar"><span class="group-label">등록 ISO :</span></div>
+              <div class="ux-toolbar" id="demo-ver-bar"><span class="group-label">정의서 OS 버전 :</span></div>
+              <div class="ux-toolbar" id="demo-tool-bar"><span class="group-label">bsdtar 있음 :</span></div>
+              <div class="ux-caps" id="demo-iso-info"></div>
+            </div>
+            <div class="card">
+              <h4>작업 트리 · 상태</h4>
+              <div class="ux-toolbar" id="demo-actions"></div>
+              <div class="ux-row"><strong>상태</strong><span class="label" id="demo-iso-label"></span><span class="badge off" id="demo-state">없음</span></div>
+              <div class="ux-row"><strong>보유자</strong><span class="label" id="demo-holders"></span></div>
+              <div class="pkg-tree" id="demo-disk"></div>
+              <div class="ux-message" id="demo-message"></div>
+              <div class="ux-caps" id="demo-caps"></div>
+            </div>
+            <div class="card">
+              <h4>서빙 요청 콘솔</h4>
+              <div class="ux-toolbar" id="demo-requests"></div>
+              <div class="ux-caps" id="demo-console"></div>
+            </div>
+          </div>
+          <div class="ux-caps" id="demo-log"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="section" id="s3">
+      <summary>§3. URL / 데이터 흐름</summary>
+      <div class="body">
+        <h4>서빙 URL (외부 계약, 이 단계에서 확정)</h4>
+        <div class="table-scroll"><table>
+          <thead><tr><th>메서드 · 경로</th><th>응답</th><th>쓰는 쪽</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /api/pxe/v1/ubuntu/{token}/tree/casper/vmlinuz</code></td><td>200 커널</td><td>iPXE <code>kernel</code>(c-4)</td><td><span class="chip guess">추정</span> casper 배치 = 공식 netboot 문서, CP5 A7 실 ISO 에서 확인</td></tr>
+            <tr><td><code>GET /api/pxe/v1/ubuntu/{token}/tree/casper/initrd</code></td><td>200 initrd</td><td>iPXE <code>initrd</code>(c-4)</td><td><span class="chip guess">추정</span> casper 배치 = 공식 netboot 문서, CP5 A7 실 ISO 에서 확인</td></tr>
+            <tr><td><code>GET /api/pxe/v1/ubuntu/{token}/install.iso</code></td><td>200 ISO 전체, <code>Range</code> 면 206</td><td>casper <code>url=</code>(c-4)</td><td><span class="chip fact">실측</span> RHEL 트리 서빙과 같은 Spring Resource 처리(RhelInstallAssetRestControllerTest) <span class="chip guess">추정</span> <code>.iso</code> 끝 필요: casper 1.434</td></tr>
+            <tr><td>위 경로의 숨김 조각(<code>tree/.disk/info</code>) · <code>..</code> · 없는 파일</td><td>404</td><td>-</td><td><span class="chip fact">실측</span> <code>InstallTree.resolve</code> 규칙(InstallTreeTest)</td></tr>
+            <tr><td>무효 · 회수 토큰</td><td>401(게스트 체인, 컨트롤러까지 오지 않음)</td><td>-</td><td><span class="chip fact">실측</span> 게스트 체인 기존 동작</td></tr>
+          </tbody>
+        </table></div>
+        <div class="callout warn"><b>추정과 확인 자리</b> :
+          <ul>
+            <li><code>.disk/info</code> 첫 줄 형식: CP5 A7(실 ISO, Q18 수락)</li>
+            <li>casper <code>.iso</code> 끝 · iPXE <code>;</code> 인자 · RAM 크기: 실기(T3). <code>docs/T3-checklist.md</code> 는 c-4 에서 적는다</li>
+          </ul>
+        </div>
+        <p>인증: 경로의 토큰이 곧 credential 이다(헤더 없음, RHEL · Windows 와 같다). 커널 · initrd 는 <code>InstallTree.resolve</code> 로만, ISO 는 <code>InstallTree.source()</code>(등록 경로, 일반 파일일 때만)로 파일에 대응한다. 응답 조립(<code>FileSystemResource</code> + 형식 추정)은 RHEL 트리 핸들러와 같아 공통 도우미 <code>ServedFileResponse.of(Path)</code> 로 뽑는다.</p>
+        <h4>c-4 가 이 주소로 낼 iPXE 줄 (미리보기, 이 단계 구현 아님)</h4>
+        <pre>kernel {tree}/casper/vmlinuz initrd=initrd root=/dev/ram0 ramdisk_size=1500000 ip=dhcp url={base}/api/pxe/v1/ubuntu/{token}/install.iso cloud-config-url=/dev/null autoinstall "ds=nocloud-net;s=…/"
+initrd {tree}/casper/initrd</pre>
+        <h4>흐름</h4>
+        <div class="seq" id="flow-seq">
+          <div class="actor a1">설치기(c-4)</div><div class="actor a2">InstallTreeManager</div><div class="actor a3">InstallTreeExtractor</div><div class="actor a4">디스크</div><div class="actor">게스트</div>
+          <div class="step a1">1. <code>acquire(isoId, guestId, UBUNTU_LIVE_SERVER)</code></div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div><div class="step"></div>
+          <div class="step a1"></div><div class="step a2">2. 등록 경로 모양 판정. 디렉터리 · http → 즉시 실패. 파일 → 준비 중, 보유자 추가, 비동기 요청</div><div class="step a3"></div><div class="step a4"></div><div class="step"></div>
+          <div class="step a1"></div><div class="step a2"></div><div class="step a3">3. 필요 공간 512 MiB 확인 → 지정 파일 셋 추출 → 판별</div><div class="step a4"><code>.staging/&lt;uuid&gt;</code> → <code>iso-&lt;id&gt;</code> rename</div><div class="step"></div>
+          <div class="step a1"></div><div class="step a2">준비됨 <code>InstallTree(root, release, source)</code></div><div class="step a3"></div><div class="step a4"></div><div class="step"></div>
+          <div class="step a1">4. 토큰 발급(c-4)</div><div class="step a2"></div><div class="step a3"></div><div class="step a4"></div><div class="step">커널 · initrd(트리) · ISO(등록 원본)</div>
+          <div class="step a1">5. 설치 끝 → <code>release</code></div><div class="step a2">보유자 0 → 유예 10 분</div><div class="step a3"></div><div class="step a4">트리만 회수</div><div class="step"></div>
+        </div>
+        <h4>디스크 모양</h4>
+        <div class="pkg-tree">{INSTALL_TREE_ROOT}/
+  iso-12/                 RHEL: ISO 전체 (수 GB)
+  iso-31/                 Ubuntu: 수십 MB
+    casper/vmlinuz
+    casper/initrd
+    .disk/info            판별용, 서빙 안 함(숨김 조각)
+  .staging/&lt;uuid&gt;/        추출 중 · 회수 대기
+/srv/.../ubuntu-24.04.1-live-server-amd64.iso   등록 원본, /install.iso 로 그대로 서빙</div>
+      </div>
+    </details>
+
+    <details class="section" id="s4">
+      <summary>§4. 도메인 모델 (다형 구조)</summary>
+      <div class="body">
+        <div class="pkg-tree">InstallTreeManager   ──┐
+                         ├──▶ InstallMediaLayout (enum, 이것 하나만 안다)
+InstallTreeExtractor ──┘      ├─ RHEL_TREE            기존 동작
+                              └─ UBUNTU_LIVE_SERVER   새
+상수 몸통 = 계열마다 다른 다섯: 꺼낼 범위 · 필요 공간 · 판별 · 판별 실패 사유 · 디렉터리 등록 허용</div>
+        <p>새 계열은 상수 하나를 더한다(관리자 · 추출기 · 저장소 무변경).</p>
+        <h4>J1 <code>installtree/enums/InstallMediaLayout.java</code> <span class="chip new">새</span></h4>
+        <pre data-lang="java"><span class="tok-com">/**
+ * 설치 매체를 작업 트리에 어떤 모양으로 꺼내는가. 계열마다 다른 다섯 가지(꺼낼 범위, 필요 공간, 판별, 판별 실패 사유,
+ * 디렉터리 등록 허용)를 상수가 맡고, 수명 관리(InstallTreeManager)는 계열을 모른다.
+ */</span>
+<span class="tok-kw">public</span> <span class="tok-kw">enum</span> <span class="tok-type">InstallMediaLayout</span> {
+
+    <span class="tok-com">/** RHEL 계열: anaconda 가 패키지 저장소를 파일 단위로 읽으므로 ISO 전체를 푼다(E4-1-b-1). */</span>
+    RHEL_TREE(<span class="tok-str">"images/pxeboot/vmlinuz"</span>, <span class="tok-str">"images/pxeboot/initrd.img"</span>, <span class="tok-type">TreeFailureReason</span>.NOT_RHEL_TREE) {
+        <span class="tok-ann">@Override</span>
+        <span class="tok-kw">public</span> <span class="tok-kw">void</span> extract(<span class="tok-type">IsoPreparationService</span> iso, <span class="tok-type">Path</span> isoFile, <span class="tok-type">Path</span> staging) {
+            iso.extractInto(isoFile, staging);
+        }
+
+        <span class="tok-ann">@Override</span>
+        <span class="tok-kw">public</span> <span class="tok-kw">long</span> requiredSpace(<span class="tok-kw">long</span> isoBytes) {
+            <span class="tok-kw">return</span> (<span class="tok-kw">long</span>) (isoBytes * WHOLE_HEADROOM);
+        }
+
+        <span class="tok-ann">@Override</span>
+        <span class="tok-kw">public</span> <span class="tok-type">Optional</span>&lt;<span class="tok-type">TreeRelease</span>&gt; inspect(<span class="tok-type">Path</span> root) {
+            <span class="tok-kw">return</span> <span class="tok-type">RhelTreeCheck</span>.inspect(root, kernel(), initrd());
+        }
+
+        <span class="tok-ann">@Override</span>
+        <span class="tok-kw">public</span> <span class="tok-type">Optional</span>&lt;<span class="tok-type">TreeFailureReason</span>&gt; directorySourceRefusal() {
+            <span class="tok-kw">return</span> <span class="tok-type">Optional</span>.empty();   <span class="tok-com">// 마운트해 둔 디렉터리는 그대로 트리로 쓴다(b-1 D-8)</span>
+        }
+    },
+
+    <span class="tok-com">/** Ubuntu Server: casper 가 ISO 파일을 통째로 받아 loop 마운트하므로 부팅에 필요한 둘과 판별 파일만 꺼낸다(E4-1-c-1). */</span>
+    UBUNTU_LIVE_SERVER(<span class="tok-str">"casper/vmlinuz"</span>, <span class="tok-str">"casper/initrd"</span>, <span class="tok-type">TreeFailureReason</span>.NOT_UBUNTU_SERVER_ISO) {
+        <span class="tok-ann">@Override</span>
+        <span class="tok-kw">public</span> <span class="tok-kw">void</span> extract(<span class="tok-type">IsoPreparationService</span> iso, <span class="tok-type">Path</span> isoFile, <span class="tok-type">Path</span> staging) {
+            iso.extractMembers(isoFile, staging, <span class="tok-type">List</span>.of(kernel(), initrd(), <span class="tok-type">UbuntuDiskInfo</span>.FILE));
+        }
+
+        <span class="tok-ann">@Override</span>
+        <span class="tok-kw">public</span> <span class="tok-kw">long</span> requiredSpace(<span class="tok-kw">long</span> isoBytes) {
+            <span class="tok-kw">return</span> MEMBER_SPACE;
+        }
+
+        <span class="tok-ann">@Override</span>
+        <span class="tok-kw">public</span> <span class="tok-type">Optional</span>&lt;<span class="tok-type">TreeRelease</span>&gt; inspect(<span class="tok-type">Path</span> root) {
+            <span class="tok-kw">if</span> (!<span class="tok-type">Files</span>.isRegularFile(root.resolve(kernel())) || !<span class="tok-type">Files</span>.isRegularFile(root.resolve(initrd()))) {
+                <span class="tok-kw">return</span> <span class="tok-type">Optional</span>.empty();
+            }
+            <span class="tok-kw">return</span> <span class="tok-type">UbuntuDiskInfo</span>.read(root).filter(<span class="tok-type">UbuntuDiskInfo</span>::installable).map(<span class="tok-type">UbuntuDiskInfo</span>::release);
+        }
+
+        <span class="tok-ann">@Override</span>
+        <span class="tok-kw">public</span> <span class="tok-type">Optional</span>&lt;<span class="tok-type">TreeFailureReason</span>&gt; directorySourceRefusal() {
+            <span class="tok-kw">return</span> <span class="tok-type">Optional</span>.of(<span class="tok-type">TreeFailureReason</span>.DIRECTORY_ISO_UNSUPPORTED);   <span class="tok-com">// url= 로 내줄 ISO 파일이 없다</span>
+        }
+    };
+
+    <span class="tok-kw">static</span> <span class="tok-kw">final</span> <span class="tok-kw">double</span> WHOLE_HEADROOM = 1.2;
+    <span class="tok-com">/** 커널 · initrd 둘(실 ISO 기준 수십 ~ 200 MB)과 여유. */</span>
+    <span class="tok-kw">static</span> <span class="tok-kw">final</span> <span class="tok-kw">long</span> MEMBER_SPACE = 512L * 1024 * 1024;
+
+    <span class="tok-kw">private</span> <span class="tok-kw">final</span> <span class="tok-type">String</span> kernel;
+    <span class="tok-kw">private</span> <span class="tok-kw">final</span> <span class="tok-type">String</span> initrd;
+    <span class="tok-kw">private</span> <span class="tok-kw">final</span> <span class="tok-type">TreeFailureReason</span> notRecognized;
+
+    <span class="tok-kw">public</span> <span class="tok-kw">abstract</span> <span class="tok-kw">void</span> extract(<span class="tok-type">IsoPreparationService</span> iso, <span class="tok-type">Path</span> isoFile, <span class="tok-type">Path</span> staging);
+    <span class="tok-kw">public</span> <span class="tok-kw">abstract</span> <span class="tok-kw">long</span> requiredSpace(<span class="tok-kw">long</span> isoBytes);
+    <span class="tok-kw">public</span> <span class="tok-kw">abstract</span> <span class="tok-type">Optional</span>&lt;<span class="tok-type">TreeRelease</span>&gt; inspect(<span class="tok-type">Path</span> root);
+    <span class="tok-kw">public</span> <span class="tok-kw">abstract</span> <span class="tok-type">Optional</span>&lt;<span class="tok-type">TreeFailureReason</span>&gt; directorySourceRefusal();
+    <span class="tok-com">// 생성자 · kernel() · initrd() · notRecognized() 생략</span>
+}</pre>
+        <h4>J2 <code>InstallTreeExtractor.extractNow</code> <span class="chip mod">수정</span> (바뀐 줄만 보이는 꼴)</h4>
+        <pre data-lang="java"><span class="tok-type">TreeAcquisition</span> extractNow(<span class="tok-kw">long</span> isoId, <span class="tok-type">Path</span> isoFile, <span class="tok-type">InstallMediaLayout</span> layout) {
+    <span class="tok-type">Path</span> staging = <span class="tok-kw">null</span>;
+    <span class="tok-kw">try</span> {
+        <span class="tok-kw">long</span> required = layout.requiredSpace(<span class="tok-type">Files</span>.size(isoFile));
+        <span class="tok-kw">if</span> (store.usableSpace() &lt; required) {
+            <span class="tok-kw">return</span> <span class="tok-type">TreeAcquisition</span>.failed(<span class="tok-type">TreeFailureReason</span>.NOT_ENOUGH_SPACE);
+        }
+        staging = store.newStagingDir();
+        layout.extract(isoPreparationService, isoFile, staging);
+        <span class="tok-type">Optional</span>&lt;<span class="tok-type">TreeRelease</span>&gt; release = layout.inspect(staging);
+        <span class="tok-kw">if</span> (release.isEmpty()) {
+            <span class="tok-kw">return</span> <span class="tok-type">TreeAcquisition</span>.failed(layout.notRecognized());
+        }
+        <span class="tok-type">Path</span> published = store.publish(staging, isoId);
+        staging = <span class="tok-kw">null</span>;
+        <span class="tok-kw">return</span> <span class="tok-type">TreeAcquisition</span>.ready(<span class="tok-kw">new</span> <span class="tok-type">InstallTree</span>(published, release.get(), isoFile));
+    } <span class="tok-kw">catch</span> (IOException | <span class="tok-type">ExtractionFailedException</span> e) {
+        <span class="tok-kw">return</span> <span class="tok-type">TreeAcquisition</span>.failed(<span class="tok-type">TreeFailureReason</span>.EXTRACTION_FAILED);
+    } <span class="tok-kw">finally</span> {
+        <span class="tok-kw">if</span> (staging != <span class="tok-kw">null</span>) {
+            store.delete(staging);
+        }
+    }
+}</pre>
+        <h4>J3 <code>IsoPreparationService.extractMembers</code> <span class="chip new">새</span></h4>
+        <pre data-lang="java"><span class="tok-com">/**
+ * ISO 에서 지정한 파일만 꺼낸다(E4-1-c-1). ISO 에 없는 이름은 건너뛴다: 없는 파일은 호출자의 판별이 "그 계열 ISO 가
+ * 아님" 으로 닫는다. 지정한 파일이 모두 꺼내졌는데 도구가 실패했으면 손상으로 보고 예외를 던진다.
+ */</span>
+<span class="tok-kw">public</span> <span class="tok-kw">void</span> extractMembers(<span class="tok-type">Path</span> isoFile, <span class="tok-type">Path</span> targetDir, <span class="tok-type">List</span>&lt;<span class="tok-type">String</span>&gt; members) {
+    <span class="tok-kw">boolean</span> toolSucceeded = runMembers(isoFile, targetDir, members);   <span class="tok-com">// bsdtar 먼저, 없으면 7z</span>
+    <span class="tok-kw">boolean</span> allPresent = members.stream().allMatch(m -&gt; <span class="tok-type">Files</span>.isRegularFile(targetDir.resolve(m)));
+    <span class="tok-kw">if</span> (!toolSucceeded &amp;&amp; allPresent) {
+        <span class="tok-kw">throw</span> <span class="tok-kw">new</span> <span class="tok-type">ExtractionFailedException</span>(<span class="tok-str">"ISO 에서 파일을 꺼내지 못했습니다: "</span> + isoFile);
+    }
+}</pre>
+        <h4>J4 <code>installtree/vo/UbuntuDiskInfo.java</code> <span class="chip new">새</span></h4>
+        <pre data-lang="java"><span class="tok-com">/**
+ * Ubuntu ISO 의 {@code .disk/info} 첫 줄. live-server ISO 는
+ * "Ubuntu-Server 24.04.1 LTS \"Noble Numbat\" - Release amd64 (20240827)" 꼴이다.
+ * 배포판 이름은 OS 카탈로그와 같은 "Ubuntu" 로 담아, 버전 대조를 RHEL 과 같은 규칙(TreeInfo.matches)에 맡긴다.
+ */</span>
+<span class="tok-kw">public</span> <span class="tok-kw">record</span> <span class="tok-type">UbuntuDiskInfo</span>(<span class="tok-type">String</span> version, <span class="tok-type">String</span> arch) {
+
+    <span class="tok-kw">public</span> <span class="tok-kw">static</span> <span class="tok-kw">final</span> <span class="tok-type">String</span> FILE = <span class="tok-str">".disk/info"</span>;
+    <span class="tok-kw">private</span> <span class="tok-kw">static</span> <span class="tok-kw">final</span> <span class="tok-type">Pattern</span> SERVER = <span class="tok-type">Pattern</span>.compile(<span class="tok-str">"^Ubuntu-Server (\\d+\\.\\d+(?:\\.\\d+)?)\\b.*\\b(amd64|arm64|ppc64el|s390x|riscv64)\\b"</span>);
+    <span class="tok-kw">private</span> <span class="tok-kw">static</span> <span class="tok-kw">final</span> <span class="tok-type">String</span> INSTALLABLE_ARCH = <span class="tok-str">"amd64"</span>;
+
+    <span class="tok-kw">public</span> <span class="tok-kw">static</span> <span class="tok-type">Optional</span>&lt;<span class="tok-type">UbuntuDiskInfo</span>&gt; read(<span class="tok-type">Path</span> root) { … }   <span class="tok-com">// 첫 줄을 SERVER 로 해석, 아니면 empty(desktop "Ubuntu 24.04…" 포함)</span>
+
+    <span class="tok-kw">public</span> <span class="tok-kw">boolean</span> installable() {
+        <span class="tok-kw">return</span> INSTALLABLE_ARCH.equals(arch);
+    }
+
+    <span class="tok-kw">public</span> <span class="tok-type">TreeRelease</span> release() {
+        <span class="tok-kw">return</span> <span class="tok-kw">new</span> <span class="tok-type">TreeRelease</span>(OSName.UBUNTU.getDisplayName(), version);
+    }
+}</pre>
+        <h4>J5 <code>InstallTreeManager</code> 의 바뀐 자리 <span class="chip mod">수정</span></h4>
+        <pre data-lang="java"><span class="tok-kw">public</span> <span class="tok-type">TreeAcquisition</span> acquire(<span class="tok-kw">long</span> isoId, UUID guestId, <span class="tok-type">InstallMediaLayout</span> layout) { … }   <span class="tok-com">// 본문 동일, layout 을 추출 · 디렉터리 판정에 넘긴다</span>
+<span class="tok-kw">public</span> <span class="tok-type">Optional</span>&lt;<span class="tok-type">TreeFailureReason</span>&gt; inspect(<span class="tok-kw">long</span> isoId, <span class="tok-type">InstallMediaLayout</span> layout) { … }     <span class="tok-com">// 부수효과 없음(불변)</span>
+
+<span class="tok-kw">record</span> <span class="tok-type">Directory</span>(<span class="tok-type">Path</span> path) <span class="tok-kw">implements</span> <span class="tok-type">IsoSource</span> {
+    <span class="tok-ann">@Override</span>
+    <span class="tok-kw">public</span> <span class="tok-type">Optional</span>&lt;<span class="tok-type">TreeFailureReason</span>&gt; precheck(<span class="tok-type">InstallTreeManager</span> manager, <span class="tok-type">InstallMediaLayout</span> layout) {
+        <span class="tok-kw">return</span> layout.directorySourceRefusal();
+    }
+
+    <span class="tok-ann">@Override</span>
+    <span class="tok-kw">public</span> <span class="tok-type">TreeAcquisition</span> acquireInto(<span class="tok-type">InstallTreeManager</span> manager, <span class="tok-type">IsoTreeEntry</span> entry, <span class="tok-kw">long</span> isoId, UUID guestId,
+                                       <span class="tok-type">InstallMediaLayout</span> layout) {
+        <span class="tok-kw">return</span> layout.directorySourceRefusal()
+                .map(<span class="tok-type">TreeAcquisition</span>::failed)
+                .orElseGet(() -&gt; manager.acquireFromDirectory(entry, guestId, path, layout));
+    }
+}</pre>
+        <h4>새 실패 사유 문구 (화면에 나감: 서버 상세 대기 사유 · 원장 사유)</h4>
+        <ul>
+          <li><code>NOT_UBUNTU_SERVER_ISO</code>: "설치 원본을 준비하지 못했습니다. Ubuntu Server amd64 설치 ISO 인지 확인해야 합니다."</li>
+          <li><code>DIRECTORY_ISO_UNSUPPORTED</code>: "디렉터리로 등록된 ISO 는 Ubuntu 설치에 쓸 수 없습니다. ISO 파일로 등록한 ISO 를 정의서에서 골라야 합니다."</li>
+        </ul>
+        <p>DB 변경 없음(상태는 메모리, b-1 D-4 그대로).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s5">
+      <summary>§5. 12 단계 + CP</summary>
+      <div class="body">
+        <div class="table-scroll"><table>
+          <thead><tr><th>Step</th><th>이 단계</th><th>CP</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>이 plan</td><td><span class="chip cp1">CP1</span> 승인</td></tr>
+            <tr><td>2 ~ 5</td><td>뷰 없음. 컨트롤러 <code>UbuntuInstallAssetRestController</code> · <code>ServedFileResponse</code>, 발급소 · <code>UbuntuServing</code></td><td><span class="chip cp2">CP2</span> 보고</td></tr>
+            <tr><td>6 ~ 7</td><td>Repository · Entity 없음. enum <code>InstallMediaLayout</code> · VO <code>UbuntuDiskInfo</code> · 사유 2</td><td><span class="chip cp3">CP3</span> 보고</td></tr>
+            <tr><td>8 ~ 9</td><td>관리자 · 추출기 · <code>extractMembers</code> · RHEL 호출부 · 설정 키, 단위 · 통합 테스트, 전체 테스트 + CH11 green. DDL 없음</td><td><span class="chip cp4">CP4</span> 승인</td></tr>
+            <tr><td>10</td><td>하네스 검증(E 단계 예외, §9)</td><td><span class="chip cp5">CP5</span> 보고</td></tr>
+            <tr><td>11</td><td>report</td><td><span class="chip cp6">CP6</span> 승인</td></tr>
+            <tr><td>12</td><td>실기 일괄(E4-1-c 전체)</td><td><span class="chip cp7">CP7</span></td></tr>
+          </tbody>
+        </table></div>
+        <div class="callout">승인 게이트는 CP1 · CP4 · CP6 · CP7 넷이다. 무중단 구간은 둘이다: CP1 승인 → CP4 게이트, CP4 승인 → CP6 제출.</div>
+      </div>
+    </details>
+
+    <details class="section" id="s6">
+      <summary>§6. 테스트</summary>
+      <div class="body">
+        <div class="table-scroll"><table>
+          <thead><tr><th>테스트</th><th>범주</th><th>확인</th></tr></thead>
+          <tbody>
+            <tr><td><code>InstallMediaLayoutTest</code></td><td>단위</td><td>상수별 필요 공간 · 꺼낼 파일 · 디렉터리 거절 · 판별(커널 없음 · initrd 없음 · info 없음 → empty)</td></tr>
+            <tr><td><code>UbuntuDiskInfoTest</code></td><td>단위</td><td>24.04.1 · 22.04.4 · 22.04(점 버전 없음) 통과, desktop · arm64 · 빈 파일 · 깨진 줄 거절, release 이름 "Ubuntu"</td></tr>
+            <tr><td><code>RhelTreeCheckTest</code></td><td>단위</td><td>기존 <code>InstallTreeInspectorTest</code> 를 옮김</td></tr>
+            <tr><td><code>IsoPreparationServiceExtractMembersTest</code></td><td>단위</td><td>실제 bsdtar + 가짜 ISO: 셋 다 있음 성공, 하나 없음 = 예외 없이 그 파일만 없음, 도구 없음</td></tr>
+            <tr><td><code>InstallTreeExtractorTest</code></td><td>단위</td><td>Ubuntu: 공간 512 MiB 기준, 판별 실패 → <code>NOT_UBUNTU_SERVER_ISO</code> + staging 삭제, <code>source</code> = ISO 경로</td></tr>
+            <tr><td><code>InstallTreeManagerTest</code></td><td>단위</td><td>디렉터리 + Ubuntu → 즉시 <code>DIRECTORY_ISO_UNSUPPORTED</code>(추출 호출 0) · <code>inspect</code> 도 같은 사유, RHEL 디렉터리 경로 불변</td></tr>
+            <tr><td>HTTP 통합</td><td>200</td><td>커널 · initrd 바이트, ISO 바이트</td></tr>
+            <tr><td>HTTP 통합</td><td>206</td><td>ISO <code>Range: bytes=0-3</code> → 4 바이트 · <code>Content-Range</code></td></tr>
+            <tr><td>HTTP 통합</td><td>404</td><td><code>tree/.disk/info</code>, <code>tree/../x</code>, 없는 파일, 등록 ISO 가 사라짐</td></tr>
+            <tr><td>HTTP 통합</td><td>401</td><td>회수 · 위조 토큰</td></tr>
+            <tr><td><code>UbuntuMediaScenarioTest</code></td><td>시나리오</td><td>U1 ~ U5 = 🎬 시나리오 1 ~ 5(실제 @Async · bsdtar · 가짜 Ubuntu ISO · 디스크). 기존 <code>InstallTreeScenarioTest</code> 6 회귀</td></tr>
+          </tbody>
+        </table></div>
+        <p>HTTP 통합은 <code>@WebMvcTest</code> + MockMvc, 게스트 체인 포함(<code>RhelInstallAssetRestControllerTest</code> 선례).</p>
+      </div>
+    </details>
+
+    <details class="section" id="s7">
+      <summary>§7. 예외</summary>
+      <div class="body">
+        <p>새 예외 클래스 없음(실패는 <code>TreeAcquisition.Failed</code> 값, b-1 D-10). <code>ExtractionFailedException</code> 재사용. 404 · 401 은 기존 경로.</p>
+      </div>
+    </details>
+
+    <details class="section" id="s8">
+      <summary>§8. 결정 · 잔존 · 열린 질문</summary>
+      <div class="body">
+        <h4>설계 결정</h4>
+        <div class="table-scroll"><table>
+          <thead><tr><th>#</th><th>채택</th><th>비채택 · 탈락 사유</th></tr></thead>
+          <tbody>
+            <tr><td>D1 매체 관리 자리</td><td>작업 트리 관리자를 그대로 쓰고 꺼내는 모양만 계열별로 둔다(수명 · 동시성 · 기동 정리 · 회수가 한 곳)</td><td>Ubuntu 전용 관리자: 보유자 · 유예 · 잠금 복제<br>요청마다 <code>bsdtar -xOf</code>: 요청마다 프로세스, Content-Length · Range 없음, 실패가 내려받는 도중에 드러남<br>등록 때 미리 꺼냄: 관리 영역에 새 파일 종류, b-1 수명과 어긋남</td></tr>
+            <tr><td>D2 계열 차이 표현</td><td>enum 상수별 메서드 <code>InstallMediaLayout</code>(판별이 파일만 읽어 빈일 필요 없음)</td><td>계열별 Spring 빈: 주입 자리 · 목 객체만 늘어남<br>관리자 안 if 분기: 계열마다 분기 줄이 자람</td></tr>
+            <tr><td>D3 Ubuntu ISO 판별</td><td><code>.disk/info</code> 첫 줄 "Ubuntu-Server &lt;버전&gt; … amd64" + <code>casper/vmlinuz</code> · <code>casper/initrd</code> 존재(desktop · arm64 를 가름)</td><td>볼륨 라벨: bsdtar 로 못 읽어 isoinfo 가 늘어남<br>squashfs 파일 이름: 버전 없음</td></tr>
+            <tr><td>D4 "그 계열 아님" 과 "추출 실패" 가르기</td><td>꺼낸 뒤 상태로 가른다. 종료 코드만으로 정하지 않는다(J3)</td><td>먼저 목록(<code>bsdtar -tf</code>): 7z 목록 형식이 달라 해석이 둘</td></tr>
+            <tr><td>D5 설정 키 이름</td><td><code>provision.install-tree.root</code> · <code>release-grace</code>(env <code>INSTALL_TREE_ROOT</code> · <code>INSTALL_TREE_RELEASE_GRACE</code>)로 바꾼다(채택). 배포 전이라 지금이 가장 싸다</td><td><code>provision.rhel-install.tree-root</code> 유지: Ubuntu 도 쓰는 키에 rhel 이 남아 오해</td></tr>
+            <tr><td>D6 서빙을 이 단계에</td><td>토큰 발급소 · 서빙 경로 · 종류 상수까지 c-1 에(<code>.iso</code> 주소 계약은 매체 쪽 사실, Range 206 까지 하네스로 검증)</td><td>서빙은 c-4(b-1 → b-4-2 선례): c-4 가 설치기 · 원장 · 준비도 · 체인에 서빙까지 떠안음</td></tr>
+            <tr><td>D7 ISO 원본 서빙</td><td>등록 경로의 파일을 그대로(복사 0)</td><td>하드링크: 다른 파일 시스템이면 실패<br>트리로 복사: ISO 마다 3 GB 와 복사 시간</td></tr>
+          </tbody>
+        </table></div>
+        <ul>
+          <li><b>D4</b> 근거: bsdtar 는 없는 이름이 섞이면 있는 파일은 꺼내고 종료 코드 1 을 낸다 <span class="chip fact">실측</span> 로컬 11-22. 꺼낸 뒤 상태별 결과는 다음과 같다.
+            <ul>
+              <li>지정 파일이 하나라도 없다 → 판별 실패 <code>NOT_UBUNTU_SERVER_ISO</code>(RHEL ISO 를 Ubuntu 정의서에 고른 경우 등)</li>
+              <li>다 있는데 도구 실패 → <code>EXTRACTION_FAILED</code>(손상)</li>
+              <li>다 있고 도구 성공 → 판별로 넘어감</li>
+            </ul>
+          </li>
+          <li><b>D2</b> 상수는 호출자가 넘긴다. 계열 설치기가 이미 알고, 관리자가 ISO 행에서 OS 를 다시 읽으면 같은 사실을 두 곳에서 판정한다.</li>
+          <li><b>D3</b> 배포판 이름은 "Ubuntu" 로 담아 기존 <code>TreeInfo.matches</code>(같은 배포판 · 같은 메이저 = YY)에 맡긴다. YY.MM 엄격 대조는 c-2 카탈로그가 정한다.</li>
+          <li><b>D5</b> RHEL 고유 키(<code>provision.rhel-install.install-timeout</code> 등)는 그대로 둔다. 고칠 파일은 §10 과 <code>InstallTreeConfigTest</code> · <code>InstallTreeManagerTest</code> · <code>InstallTreeScenarioTest</code>, 샌드박스 <code>sbx-u9/extra.env</code>.</li>
+        </ul>
+        <h4>잔존 · 주의</h4>
+        <ul>
+          <li>매체가 나가도 부르는 곳이 없다(c-4 에서 연결).</li>
+          <li>D7 잔존: 설치 중 운영자가 그 ISO 를 휴지통으로 옮기면 내려받기가 404 로 끊긴다(RHEL 은 복사본이라 영향 없음). 게스트가 ISO 를 받는 창은 부팅 직후 한 번이고 c-4 는 서빙 직전에 파일을 다시 본다. 사용 중 ISO 삭제 막기는 관리 영역 수명 가드라 후속 후보로 적립.</li>
+          <li>관리 포인트: <code>docs/dev/maintenance-points.md</code> 에 절 '새 Ubuntu LTS 출시' 를 만들고 행 둘(<code>InstallMediaLayout.UBUNTU_LIVE_SERVER</code> 의 casper 배치, <code>UbuntuDiskInfo</code> 의 <code>.disk/info</code> 첫 줄 형식)을 넣는다. 'Rocky 메이저 출시' 절의 <code>InstallTree.KERNEL</code> · <code>InstallTreeInspector</code> 행은 <code>InstallMediaLayout.RHEL_TREE</code> · <code>RhelTreeCheck</code> 로 고친다.</li>
+          <li>배포 대기: env 키 이름 변경(D5)만. DDL · 새 패키지 없음.</li>
+        </ul>
+        <h4>열린 질문 (CP1 답 반영)</h4>
+        <div class="callout">질문 번호는 상위 E4-1-c 토론(Q1 ~ Q16)에 이어 붙인다.
+          <ul>
+            <li><b>Q17</b> 작업 트리 설정 키 이름을 <code>provision.install-tree.*</code> 로 바꾸는가(D5). 권고: 바꾼다(배포 전). (수락)</li>
+            <li><b>Q18</b> CP5 에 실제 Ubuntu Server ISO 를 내려받아 쓰는가. <code>.disk/info</code> 실제 문자열과 casper 배치를 지금 확인할 수 있는 유일한 길이다(24.04.x 약 3 GB, 22.04.x 약 2 GB, releases.ubuntu.com). 권고: 24.04 · 22.04 둘을 내려받는다. (수락)</li>
+            <li><b>Q19</b> c-2 의 '정의서 Ubuntu 차단 해제' 를 c-4 끝으로 미루는가. 먼저 풀면 c-4 까지 저장 · 할당은 되는데 실행이 안 되는 기간이 생긴다. 권고: 미룬다(c-2 는 카탈로그 · OpenSSH · 명칭만). 결정은 c-2 CP1. (수락)</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <details class="section" id="s9">
+      <summary>§9. Verification (CP5 계획)</summary>
+      <div class="body">
+        <p>방법(E 단계 예외): 하네스 <code>scripts/installtree-fixture/make-fake-ubuntu-iso.sh &lt;출력&gt; &lt;버전&gt; [flavor] [arch]</code> + <code>verify-install-tree.sh</code> 확장 + 샌드박스 u9 재기동(새 env 키) + curl 로 서빙 경로. 수행 = cp5-verifier(결함 수정 금지), 판정 = 세션.</p>
+        <div class="table-scroll"><table>
+          <thead><tr><th>ID</th><th>조작</th><th>기대</th></tr></thead>
+          <tbody>
+            <tr><td>A1</td><td>하네스 U1(24.04 가짜 ISO)</td><td>준비 중 → 준비됨, <code>iso-&lt;id&gt;</code> 에 파일 셋만, 크기 = 꺼낸 파일 합</td></tr>
+            <tr><td>A2</td><td>U2(두 대 · 반납 · 유예)</td><td>추출 한 번, 회수 뒤 트리만 사라지고 원본 ISO 남음</td></tr>
+            <tr><td>A3</td><td>22.04 가짜 ISO</td><td>준비됨, release "Ubuntu 22.04.4"</td></tr>
+            <tr><td>A4</td><td>샌드박스 u9 를 <code>INSTALL_TREE_ROOT</code> 로 재기동</td><td>기동 정리 로그, 옛 키 없이 동작</td></tr>
+            <tr><td>A5</td><td>서빙 통합 테스트 + 샌드박스에서 테스트 발급 경로 없이 401 확인</td><td>200 · 206 · 404 · 401 표</td></tr>
+            <tr><td>A6</td><td>RHEL 회귀: <code>InstallTreeScenarioTest</code> 6 · <code>scripts/mock-guest/rhel-install-cycle.sh</code></td><td>전부 통과</td></tr>
+            <tr><td>A7</td><td>수행 확정(Q18): 실제 24.04.x · 22.04.x live-server amd64(releases.ubuntu.com)를 <code>sbx-u9/cp5-c1/iso</code> 에 내려받아(커밋 안 함) <code>extractMembers</code> + 판별</td><td>준비됨, <code>.disk/info</code> 원문 기록</td></tr>
+            <tr><td>B1</td><td>desktop 가짜 ISO</td><td><code>NOT_UBUNTU_SERVER_ISO</code>, staging 없음</td></tr>
+            <tr><td>B2</td><td>arm64 가짜 ISO</td><td>같은 사유</td></tr>
+            <tr><td>B3</td><td>로컬 실제 RHEL 9.7 DVD ISO(13 GB)를 Ubuntu 모양으로</td><td>즉시(초 단위) <code>NOT_UBUNTU_SERVER_ISO</code>, 전체 추출 없음</td></tr>
+            <tr><td>B4</td><td>디렉터리로 등록한 ISO</td><td>즉시 <code>DIRECTORY_ISO_UNSUPPORTED</code>, 추출 0</td></tr>
+            <tr><td>B5</td><td>공간 측정값을 512 MiB 미만으로 고정</td><td><code>NOT_ENOUGH_SPACE</code></td></tr>
+            <tr><td>B6</td><td>옛 키 <code>RHEL_INSTALL_TREE_ROOT</code> 만 준 기동</td><td>꺼짐 로그(관찰: 운영자가 알아챌 수 있는가)</td></tr>
+            <tr><td>C1</td><td>새 사유 문구 둘을 운영자 시선으로</td><td>무엇이 잘못이고 무엇을 고를지 한 문장에 보이는가</td></tr>
+            <tr><td>C2</td><td>하네스 기록을 §3 흐름 · 디스크 모양과 대조</td><td>일치</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+
+    <details class="section" id="s10">
+      <summary>§10. Critical Files</summary>
+      <div class="body">
+        <div class="table-scroll"><table>
+          <thead><tr><th>분류</th><th>파일</th><th>변경</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip new">새</span></td><td><code>execution/installtree/enums/InstallMediaLayout.java</code></td><td>J1</td></tr>
+            <tr><td><span class="chip new">새</span></td><td><code>execution/installtree/vo/UbuntuDiskInfo.java</code></td><td>J4</td></tr>
+            <tr><td><span class="chip new">새</span></td><td><code>execution/installtree/service/RhelTreeCheck.java</code></td><td>옛 <code>InstallTreeInspector</code> 판정(정적). 테스트도 옮김</td></tr>
+            <tr><td><span class="chip new">새</span></td><td><code>execution/engine/ubuntu/UbuntuInstallTokenRegistry.java</code></td><td><code>ServingTokenRegistry&lt;UbuntuServing&gt;</code> 상속, <code>treeUrlOf</code> · <code>isoUrlOf</code>(<code>install.iso</code>)</td></tr>
+            <tr><td><span class="chip new">새</span></td><td><code>execution/engine/ubuntu/UbuntuServing.java</code></td><td><code>record(InstallTree tree)</code>. c-3 가 autoinstall 문서를 더한다</td></tr>
+            <tr><td><span class="chip new">새</span></td><td><code>execution/controller/UbuntuInstallAssetRestController.java</code></td><td>§3 의 두 핸들러</td></tr>
+            <tr><td><span class="chip new">새</span></td><td><code>execution/controller/ServedFileResponse.java</code></td><td>파일 → <code>ResponseEntity&lt;Resource&gt;</code> 조립(RHEL 트리 핸들러도 씀)</td></tr>
+            <tr><td><span class="chip new">새</span></td><td><code>scripts/installtree-fixture/make-fake-ubuntu-iso.sh</code></td><td>하네스</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>InstallTreeManager</code></td><td>J5</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>InstallTreeExtractor</code></td><td>J2</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>InstallTree</code></td><td>필드 <code>source</code>(등록 경로) 추가. <code>KERNEL</code> · <code>INITRD</code> · <code>kernelPath()</code> · <code>initrdPath()</code> 제거(배치는 <code>InstallMediaLayout</code>)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>TreeFailureReason</code></td><td><code>NOT_UBUNTU_SERVER_ISO</code>(추출 단계) · <code>DIRECTORY_ISO_UNSUPPORTED</code>(즉시) 추가</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>InstallTreeProperties</code> · <code>InstallTreeConfig</code></td><td>접두사 <code>provision.install-tree</code>(D5)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>management/os/service/iso/IsoPreparationService.java</code></td><td>J3</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RhelInstaller</code> · <code>RhelInstallReadinessResolver</code></td><td><code>acquire</code> · <code>inspect</code> 에 <code>RHEL_TREE</code> 를 넘김(동작 불변)</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RhelInstallChainload</code></td><td><code>RHEL_TREE.kernel()</code> 을 씀</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>RhelInstallAssetRestController</code></td><td>트리 핸들러가 <code>ServedFileResponse</code> 를 씀</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>GuestCredential.java</code></td><td><code>ServingKind.UBUNTU("ubuntu")</code></td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>application.properties</code> · <code>docs/deploy/pending/E4-1-b.md</code> · <code>docs/staging-vm-bootstrap.md</code> · <code>scripts/mock-guest/rhel-install-cycle.sh</code> · <code>verify-install-tree.sh</code></td><td>D5 키 이름</td></tr>
+            <tr><td><span class="chip mod">수정</span></td><td><code>docs/dev/maintenance-points.md</code></td><td>§8 관리 포인트</td></tr>
+            <tr><td><span class="chip del">삭제</span></td><td><code>InstallTreeInspector.java</code></td><td><code>RhelTreeCheck</code> 로</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </details>
+
+    <details class="section" id="s11">
+      <summary>§11. 다음 마일스톤</summary>
+      <div class="body">
+        <ul class="check-list" data-storage="E4-1-c-1-plan-milestones">
+          <li><label><input type="checkbox" data-key="cp1"> <span>CP1 승인(Q17 ~ Q19 수락, 2 판)</span></label></li>
+          <li><label><input type="checkbox" data-key="cp4"> <span>CP4: 전체 테스트 + CH11 green</span></label></li>
+          <li><label><input type="checkbox" data-key="cp5"> <span>CP5 하네스 A1 ~ A7 · B1 ~ B6 · C1 ~ C2</span></label></li>
+          <li><label><input type="checkbox" data-key="cp6"> <span>CP6 report + Notion report 탭</span></label></li>
+          <li><label><input type="checkbox" data-key="c2"> <span>c-2 CP1(카탈로그 · OpenSSH · 명칭, Q19 반영)</span></label></li>
+          <li><label><input type="checkbox" data-key="c3c6"> <span>c-3 → c-4(매체 연결 · 다이어그램) → c-5 → c-6</span></label></li>
+          <li><label><input type="checkbox" data-key="cp7"> <span>CP7 = E4-1-b 와 함께 실기 일괄</span></label></li>
+        </ul>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script>
+  // 4 동작: ToC 클릭 → open + scroll / 전부 펴기 · 접기 / filter / check-list localStorage
+  document.querySelectorAll('nav.toc a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      target.open = true;
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 108, behavior: 'smooth' });
+    });
+  });
+  document.getElementById('btn-expand').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = true));
+  document.getElementById('btn-collapse').addEventListener('click', () =>
+    document.querySelectorAll('details.section').forEach(d => d.open = false));
+  document.getElementById('filter').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('details.section').forEach(d => {
+      if (!q) { d.classList.remove('hidden'); return; }
+      if (d.textContent.toLowerCase().includes(q)) { d.classList.remove('hidden'); d.open = true; }
+      else d.classList.add('hidden');
+    });
+  });
+  document.querySelectorAll('ul.check-list').forEach(ul => {
+    const key = ul.dataset.storage;
+    let stored = {};
+    try { stored = JSON.parse(localStorage.getItem(key) || '{}'); } catch (err) { stored = {}; }
+    ul.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = !!stored[cb.dataset.key];
+      cb.closest('label').classList.toggle('done', cb.checked);
+      cb.addEventListener('change', () => {
+        stored[cb.dataset.key] = cb.checked;
+        try { localStorage.setItem(key, JSON.stringify(stored)); } catch (err) { /* 저장 불가 환경은 무시 */ }
+        cb.closest('label').classList.toggle('done', cb.checked);
+      });
+    });
+  });
+
+  // 🎬 데모: 서버 판정(J1 UBUNTU_LIVE_SERVER · J3 extractMembers · J4 UbuntuDiskInfo · J5 디렉터리 거절 · InstallTreeManager 수명)을 그대로 옮긴 사본.
+  const KERNEL = 'casper/vmlinuz', INITRD = 'casper/initrd', INFO = '.disk/info';
+  const MEMBER_SPACE_MIB = 512;
+  const REASON = {
+    TOOL_MISSING: '설치 원본을 풀 도구(bsdtar)가 서버에 없습니다. 관리자에게 확인해야 합니다.',
+    NOT_UBUNTU_SERVER_ISO: '설치 원본을 준비하지 못했습니다. Ubuntu Server amd64 설치 ISO 인지 확인해야 합니다.',
+    DIRECTORY_ISO_UNSUPPORTED: '디렉터리로 등록된 ISO 는 Ubuntu 설치에 쓸 수 없습니다. ISO 파일로 등록한 ISO 를 정의서에서 골라야 합니다.',
+    EXTRACTION_FAILED: '설치 원본을 준비하지 못했습니다. 원인을 확인한 뒤 재시도해야 합니다.'
+  };
+  const ALL3 = [KERNEL, INITRD, INFO];
+  const ISOS = {
+    u2404: { no: '①', label: 'Server 24.04.1 amd64', id: 31, kind: 'file', size: '약 3 GB', members: ALL3,
+             path: '/srv/.../ubuntu-24.04.1-live-server-amd64.iso',
+             info: 'Ubuntu-Server 24.04.1 LTS "Noble Numbat" - Release amd64 (20240827)' },
+    u2204: { no: '②', label: 'Server 22.04.4 amd64', id: 32, kind: 'file', size: '약 2 GB', members: ALL3,
+             path: '/srv/.../ubuntu-22.04.4-live-server-amd64.iso', info: 'Ubuntu-Server 22.04.4 LTS … amd64' },
+    desk:  { no: '③', label: 'Desktop 24.04.1', id: 33, kind: 'file', members: ALL3,
+             path: '/srv/.../ubuntu-24.04.1-desktop-amd64.iso', info: 'Ubuntu 24.04.1 LTS …' },
+    arm:   { no: '④', label: 'Server 24.04.1 arm64', id: 34, kind: 'file', members: ALL3,
+             path: '/srv/.../ubuntu-24.04.1-live-server-arm64.iso', info: 'Ubuntu-Server 24.04.1 LTS … arm64' },
+    rocky: { no: '⑤', label: 'Rocky Linux 9.5', id: 12, kind: 'file', members: [],
+             path: '/srv/.../Rocky-9.5-x86_64-dvd.iso', info: null },
+    dir:   { no: '⑥', label: 'Server 24.04.1 (디렉터리)', id: 35, kind: 'dir', members: ALL3,
+             path: '/srv/.../ubuntu-24.04.1/', info: null }
+  };
+  const SERVER = /^Ubuntu-Server (\d+\.\d+(?:\.\d+)?)\b.*\b(amd64|arm64|ppc64el|s390x|riscv64)\b/;
+
+  let S;
+  function freshState() {
+    return { iso: 'u2404', ver: '24.04', tool: true, entries: {}, trees: {}, staging: {}, token: null,
+             console: [], log: [], message: null, banner: null, scn: 0, lastRetired: null };
+  }
+  function entryOf(id) {
+    if (!S.entries[id]) S.entries[id] = { state: 'ABSENT', holders: [], failedHolders: [], tree: null, failure: null, grace: false, requests: 0 };
+    return S.entries[id];
+  }
+  function log(line) { S.log.push((S.log.length + 1) + '. ' + line); }
+  function fail(code, note) { S.message = { kind: 'error', text: code + ': ' + REASON[code] + (note ? ' (' + note + ')' : '') }; }
+  function ok(text) { S.message = { kind: 'success', text: text }; }
+
+  // J4 UbuntuDiskInfo.read · installable · release
+  function readDiskInfo(firstLine) {
+    if (firstLine == null) return null;
+    const m = SERVER.exec(firstLine);
+    return m ? { version: m[1], arch: m[2] } : null;
+  }
+  // J1 UBUNTU_LIVE_SERVER.inspect
+  function inspectUbuntu(files, iso) {
+    if (!files.includes(KERNEL) || !files.includes(INITRD)) return null;
+    const info = files.includes(INFO) ? readDiskInfo(iso.info) : null;
+    if (!info || info.arch !== 'amd64') return null;
+    return { name: 'Ubuntu', version: info.version };
+  }
+  // J3 IsoPreparationService.extractMembers: 있는 것만 꺼내고, 하나라도 없으면 bsdtar 종료 코드 1
+  function extractMembers(iso, requested) {
+    const out = requested.filter(m => iso.members.includes(m));
+    const toolSucceeded = out.length === requested.length;
+    const allPresent = out.length === requested.length;
+    if (!toolSucceeded && allPresent) throw new Error('EXTRACTION_FAILED');
+    return { files: out, exitCode: toolSucceeded ? 0 : 1 };
+  }
+  // TreeInfo.matches: 같은 배포판 · 같은 메이저(첫 마디)
+  function matches(release, ver) {
+    return release.name === 'Ubuntu' && release.version.split('.')[0] === ver.split('.')[0];
+  }
+
+  function acquire(g) {
+    const iso = ISOS[S.iso], e = entryOf(iso.id);
+    const fi = e.failedHolders.indexOf(g);
+    if (fi >= 0) { e.failedHolders.splice(fi, 1); fail(e.failure, '실패 통보 한 번, 보유자에서 빠짐'); log('게스트 ' + g + ' 확보 → 실패 통보 ' + e.failure); return; }
+    if (e.state === 'READY') {
+      if (!e.holders.includes(g)) e.holders.push(g);
+      e.grace = false;
+      ok('준비된 트리를 그대로 받는다.'); log('게스트 ' + g + ' 확보 → 준비됨 그대로(보유자 ' + e.holders.length + ')'); return;
+    }
+    if (e.state === 'PREPARING') {
+      if (!e.holders.includes(g)) e.holders.push(g);
+      ok('이미 준비 중이라 보유자만 더한다.'); log('게스트 ' + g + ' 확보 → 이미 준비 중이라 보유자만 더함(보유자 ' + e.holders.length + ')'); return;
+    }
+    if (iso.kind === 'dir') {           // J5 Directory.acquireInto → directorySourceRefusal
+      fail('DIRECTORY_ISO_UNSUPPORTED', '즉시, 추출 시도 0, 상태 그대로');
+      log('게스트 ' + g + ' 확보 → 즉시 실패 DIRECTORY_ISO_UNSUPPORTED(추출 시도 0)'); return;
+    }
+    if (!S.tool) {                       // File.precheck → TOOL_MISSING
+      fail('TOOL_MISSING', '즉시, 상태 그대로');
+      log('게스트 ' + g + ' 확보 → 즉시 실패 TOOL_MISSING'); return;
+    }
+    e.state = 'PREPARING'; e.failure = null; e.holders = [g]; e.requests += 1;
+    S.staging[iso.id] = [];
+    ok('준비 중. 추출을 비동기로 요청했다.');
+    log('게스트 ' + g + ' 확보 → 준비 중, 추출 요청(isoId=' + iso.id + ')');
+  }
+  function finishExtraction() {         // J2 extractNow
+    const iso = ISOS[S.iso], e = entryOf(iso.id);
+    if (e.state !== 'PREPARING') return;
+    const r = extractMembers(iso, ALL3);
+    S.staging[iso.id] = r.files;
+    const release = inspectUbuntu(r.files, iso);
+    if (!release) {
+      delete S.staging[iso.id];
+      e.state = 'FAILED'; e.failure = 'NOT_UBUNTU_SERVER_ISO';
+      e.failedHolders = e.holders.slice(); e.holders = [];
+      const whole = r.files.length === 0 ? ', ISO 전체를 풀지 않았다' : '';
+      fail('NOT_UBUNTU_SERVER_ISO', '꺼낸 파일 ' + r.files.length + ' 개, bsdtar 종료 코드 ' + r.exitCode + whole + ', .staging 지움');
+      log('추출 끝 → 꺼낸 파일 ' + r.files.length + ' 개(종료 코드 ' + r.exitCode + ') → 판별 실패 NOT_UBUNTU_SERVER_ISO, .staging 지움' + whole);
+      return;
+    }
+    S.trees[iso.id] = r.files; delete S.staging[iso.id];
+    e.state = 'READY'; e.tree = { root: 'iso-' + iso.id, release: release, source: iso.path };
+    e.grace = e.holders.length === 0;
+    ok('준비됨. .staging/<uuid> 를 iso-' + iso.id + ' 로 게시했다.');
+    log('추출 끝 → 필요 공간 ' + MEMBER_SPACE_MIB + ' MiB 확인, 파일 셋 꺼냄, 판별 ' + release.name + ' ' + release.version + ', iso-' + iso.id + ' 게시');
+  }
+  function release(g) {
+    const iso = ISOS[S.iso], e = entryOf(iso.id);
+    const fi = e.failedHolders.indexOf(g);
+    if (fi >= 0) e.failedHolders.splice(fi, 1);
+    const hi = e.holders.indexOf(g);
+    if (hi < 0) { log('게스트 ' + g + ' 반납 → 보유자 아님'); return; }
+    e.holders.splice(hi, 1);
+    if (e.holders.length > 0 || e.state !== 'READY') { ok('보유자가 남아 트리를 유지한다.'); log('게스트 ' + g + ' 반납 → 보유자 ' + e.holders.length + ', 트리 유지'); return; }
+    e.grace = true;
+    ok('보유자 0. 유예 10 분을 잰다.'); log('게스트 ' + g + ' 반납 → 보유자 0, 유예 10 분 시작');
+  }
+  function elapse() {
+    let n = 0;
+    Object.keys(S.entries).forEach(id => {
+      const e = S.entries[id];
+      if (e.state === 'READY' && e.holders.length === 0 && e.grace) {
+        delete S.trees[id]; e.state = 'ABSENT'; e.tree = null; e.grace = false; n++;
+        S.lastRetired = 'iso-' + id;
+        log('10 분 지남 → iso-' + id + ' 를 .staging 으로 빼고 삭제(트리 회수). 등록 원본 ISO 는 그대로');
+      }
+    });
+    if (n) ok('트리를 회수했다. 등록 원본 ISO 는 건드리지 않는다.');
+  }
+  function startupClean() {
+    const removed = Object.keys(S.trees).length + Object.keys(S.staging).length;
+    S.entries = {}; S.trees = {}; S.staging = {}; S.token = null;
+    ok('기동 정리: 작업 트리 루트를 비우고 메모리 상태 · 토큰을 버렸다.');
+    log('기동 정리 → iso-<숫자> · .staging 삭제 ' + removed + ' 개, 메모리 상태 · 토큰 비움');
+  }
+  function issueToken() {
+    const iso = ISOS[S.iso], e = entryOf(iso.id);
+    if (e.state !== 'READY') return;
+    S.token = { guest: e.holders[0] || 'A', isoId: iso.id, iso: iso, root: e.tree.root, revoked: false };
+    S.console = [];
+    log('토큰 발급(c-4 역할) → 게스트 ' + S.token.guest + ', /api/pxe/v1/ubuntu/{token}/');
+  }
+  // InstallTree.resolve 가드 + source() 서빙
+  function get(kind, path) {
+    const t = S.token;
+    let line;
+    if (!t || t.revoked) {
+      line = '401  무효 · 회수 토큰, 게스트 체인이 거절(컨트롤러까지 오지 않음)';
+    } else if (kind === 'iso') {
+      line = '200  ' + t.iso.size + '  출처 등록 원본 ' + t.iso.path;
+    } else if (kind === 'range') {
+      line = '206  1,048,576 바이트, Content-Range bytes 0-1048575/전체  출처 등록 원본';
+    } else {
+      const segs = path.split('/');
+      const files = S.trees[t.isoId] || [];
+      if (segs.includes('..')) line = '404  트리 밖 경로 거절';
+      else if (segs.some(s => s.startsWith('.'))) line = '404  숨김 조각 거절(서빙 안 함)';
+      else if (files.includes(path)) line = '200  꺼낸 파일 그대로  출처 트리 ' + t.root + '/' + path;
+      else line = '404  없는 파일';
+    }
+    S.console.push(line + '   ← GET ' + (kind === 'tree' ? 'tree/' + path : kind === 'range' ? 'install.iso Range: bytes=0-1048575' : 'install.iso'));
+  }
+  function revokeAndGet() {
+    if (!S.token) return;
+    S.token.revoked = true;
+    log('토큰 회수');
+    get('tree', KERNEL);
+  }
+
+  function demoBlocks(s) {
+    const iso = ISOS[s.iso], e = s.entries[iso.id] || { state: 'ABSENT', holders: [], failedHolders: [], grace: false };
+    const holds = g => e.holders.includes(g) || e.failedHolders.includes(g);
+    const graceRunning = Object.values(s.entries).some(x => x.state === 'READY' && x.holders.length === 0 && x.grace);
+    return {
+      finish: e.state === 'PREPARING' ? null : '준비 중인 추출이 없다.',
+      releaseA: holds('A') ? null : '게스트 A 는 이 ISO 의 보유자가 아니다.',
+      releaseB: holds('B') ? null : '게스트 B 는 이 ISO 의 보유자가 아니다.',
+      elapse: graceRunning ? null : '유예 중인 트리가 없다(보유자가 남았거나 준비됨이 아님).',
+      token: e.state === 'READY' ? null : '준비됨일 때만 발급한다.',
+      request: s.token ? null : '토큰을 먼저 발급해야 한다.'
+    };
+  }
+  function demoBtn(action, label, reason) {
+    const dis = reason ? ' disabled' : '';
+    const t = reason ? ' data-tip="' + reason + '"' : '';
+    return '<span class="tip"' + t + '><button class="n-demo-btn" data-act="' + action + '"' + dis +
+      ' onclick="demoAct(\'' + action + '\')">' + label + '</button></span>';
+  }
+  function demoAct(a) {
+    const M = {
+      acqA: () => acquire('A'), acqB: () => acquire('B'), finish: finishExtraction,
+      relA: () => release('A'), relB: () => release('B'), elapse: elapse, boot: startupClean,
+      token: issueToken, gKernel: () => get('tree', KERNEL), gInitrd: () => get('tree', INITRD),
+      gIso: () => get('iso'), gRange: () => get('range'), gInfo: () => get('tree', INFO),
+      gDotdot: () => get('tree', '../app.jar'), revoke: revokeAndGet
+    };
+    M[a]();
+    demoRender();
+  }
+  function demoPick(field, value) { S[field] = value; demoRender(); }
+
+  const SCN = {
+    1: { title: '24.04 정상', iso: 'u2404', ver: '24.04', steps: ['acqA', 'finish', 'token', 'gKernel', 'gInitrd', 'gIso', 'gRange'],
+         now: '① Server 24.04.1 amd64 ISO 파일, 정의서 24.04', press: '게스트 A 확보 → 추출 끝 → 토큰 발급 → GET 넷',
+         see: '준비 중 → 준비됨, iso-31 에 파일 셋, 대조 일치, 콘솔 200 · 200 · 200 · 206' },
+    2: { title: '두 대가 같은 ISO', iso: 'u2404', ver: '24.04', steps: ['acqA', 'acqB', 'finish', 'relA', 'relB', 'elapse'],
+         now: '① 을 두 대가 동시에 쓴다', press: 'A 확보 → B 확보 → 추출 끝 → A 반납 → B 반납 → 10 분 지남',
+         see: '추출 요청 한 번(로그 한 줄), 보유자 2, A 반납 뒤 유지, 10 분 뒤 트리 회수, 등록 원본 ISO 그대로' },
+    3: { title: 'desktop ISO', iso: 'desk', ver: '24.04', steps: ['acqA', 'finish'],
+         now: '③ Desktop 24.04.1 ISO 파일(.disk/info = "Ubuntu 24.04.1 LTS …")', press: 'A 확보 → 추출 끝',
+         see: '실패 NOT_UBUNTU_SERVER_ISO 문구, .staging 지워짐' },
+    4: { title: 'RHEL ISO 를 고름', iso: 'rocky', ver: '24.04', steps: ['acqA', 'finish'],
+         now: '⑤ Rocky Linux 9.5 ISO 파일을 Ubuntu 정의서에 골랐다', press: 'A 확보 → 추출 끝',
+         see: '지정 파일 없음(bsdtar 종료 코드 1, 꺼낸 것 0) → 실패 NOT_UBUNTU_SERVER_ISO, ISO 전체를 풀지 않았다' },
+    5: { title: '디렉터리 등록', iso: 'dir', ver: '24.04', steps: ['acqA'],
+         now: '⑥ Server 24.04.1 을 디렉터리로 등록했다', press: 'A 확보',
+         see: '즉시 실패 DIRECTORY_ISO_UNSUPPORTED, 상태 없음 그대로(추출 시도 0)' },
+    6: { title: '버전 불일치', iso: 'u2204', ver: '24.04', steps: ['acqA', 'finish'],
+         now: '② Server 22.04.4 amd64 ISO 파일, 정의서 24.04', press: 'A 확보 → 추출 끝',
+         see: '준비됨, release "Ubuntu 22.04.4", 대조 불일치(c-4 가 설치를 실패로 닫음)' }
+  };
+  function demoScenario(n) {
+    const sc = SCN[n];
+    S = freshState();
+    S.iso = sc.iso; S.ver = sc.ver; S.scn = n;
+    log('시나리오 ' + n + ' "' + sc.title + '" 시작(메모리 · 디스크 비움)');
+    const M = {
+      acqA: () => acquire('A'), acqB: () => acquire('B'), finish: finishExtraction, relA: () => release('A'),
+      relB: () => release('B'), elapse: elapse, token: issueToken, gKernel: () => get('tree', KERNEL),
+      gInitrd: () => get('tree', INITRD), gIso: () => get('iso'), gRange: () => get('range')
+    };
+    sc.steps.forEach(st => M[st]());
+    S.banner = sc;
+    demoRender();
+  }
+
+  function renderDisk() {
+    const lines = ['{INSTALL_TREE_ROOT}/'];
+    Object.keys(S.trees).forEach(id => {
+      lines.push('  iso-' + id + '/');
+      S.trees[id].forEach(f => lines.push('    ' + f + (f === INFO ? '      판별용, 서빙 안 함' : '')));
+    });
+    const st = Object.keys(S.staging);
+    if (st.length) st.forEach(id => lines.push('  .staging/<uuid>/      추출 중(isoId=' + id + ')'));
+    else lines.push('  .staging/              비어 있음');
+    if (Object.keys(S.trees).length === 0 && st.length === 0) lines.splice(1, 0, '  (게시된 트리 없음)');
+    const iso = ISOS[S.iso];
+    lines.push('');
+    lines.push(iso.path + (iso.kind === 'dir' ? '   등록 원본(디렉터리)' : '   등록 원본, 그대로'));
+    return lines.join('\n');
+  }
+  function demoRender() {
+    const iso = ISOS[S.iso], e = S.entries[iso.id] || { state: 'ABSENT', holders: [], failedHolders: [], requests: 0, grace: false };
+    const b = demoBlocks(S);
+    const isoBar = document.getElementById('demo-iso-bar');
+    isoBar.innerHTML = '<span class="group-label">등록 ISO :</span>' + Object.keys(ISOS).map(k =>
+      '<button class="seg' + (k === S.iso ? ' active' : '') + '" data-iso="' + k + '" onclick="demoPick(\'iso\',\'' + k + '\')">' + ISOS[k].no + ' ' + ISOS[k].label + '</button>').join('');
+    document.getElementById('demo-ver-bar').innerHTML = '<span class="group-label">정의서 OS 버전 :</span>' + ['24.04', '22.04'].map(v =>
+      '<button class="seg' + (v === S.ver ? ' active' : '') + '" data-ver="' + v + '" onclick="demoPick(\'ver\',\'' + v + '\')">' + v + '</button>').join('');
+    document.getElementById('demo-tool-bar').innerHTML = '<span class="group-label">bsdtar 있음 :</span>' + [[true, '있음'], [false, '없음']].map(p =>
+      '<button class="seg' + (p[0] === S.tool ? ' active' : '') + '" data-tool="' + p[0] + '" onclick="demoPick(\'tool\',' + p[0] + ')">' + p[1] + '</button>').join('');
+    document.getElementById('demo-iso-info').textContent =
+      '경로      ' + iso.path + '\n' + '모양      ' + (iso.kind === 'dir' ? '디렉터리' : 'ISO 파일') + '\n' +
+      '.disk/info ' + (iso.info ? iso.info : (iso.kind === 'dir' ? '(디렉터리)' : '(없음)'));
+
+    document.getElementById('demo-actions').innerHTML =
+      demoBtn('acqA', '게스트 A 확보', null) + demoBtn('acqB', '게스트 B 확보', null) +
+      demoBtn('finish', '추출 끝(시간 진행)', b.finish) + demoBtn('relA', 'A 반납', b.releaseA) +
+      demoBtn('relB', 'B 반납', b.releaseB) + demoBtn('elapse', '10 분 지남', b.elapse) + demoBtn('boot', '기동 정리', null);
+
+    const SM = { ABSENT: ['없음', 'off'], PREPARING: ['준비 중', 'dep'], READY: ['준비됨', 'on'], FAILED: ['실패', 'del'] };
+    const sb = document.getElementById('demo-state');
+    sb.textContent = SM[e.state][0]; sb.className = 'badge ' + SM[e.state][1];
+    document.getElementById('demo-iso-label').textContent = iso.no + ' ' + iso.label + ' (isoId=' + iso.id + ')';
+    let h = e.holders.length ? e.holders.map(g => '게스트 ' + g).join(', ') : '없음';
+    if (e.failedHolders.length) h += ' / 실패 통보 대기: ' + e.failedHolders.map(g => '게스트 ' + g).join(', ');
+    if (e.state === 'READY' && e.grace) h += ' / 유예 10 분 진행 중';
+    document.getElementById('demo-holders').textContent = h;
+    document.getElementById('demo-disk').textContent = renderDisk();
+
+    const msg = document.getElementById('demo-message');
+    if (S.message) { msg.className = 'ux-message ' + S.message.kind; msg.textContent = S.message.text; }
+    else { msg.className = 'ux-message'; msg.textContent = '게스트 확보 버튼을 누른다. 차단된 버튼에 마우스를 올리면 사유가 보인다.'; }
+
+    let cmp;
+    if (e.state === 'READY' && e.tree) {
+      const rel = e.tree.release;
+      cmp = matches(rel, S.ver) ? '<span class="f">일치</span>' : '<span class="t">불일치: c-4 가 설치를 실패로 닫음</span>';
+      cmp = 'release          = ' + rel.name + ' ' + rel.version + '\n정의서 버전      = ' + S.ver + '\nTreeInfo.matches = ' + cmp;
+    } else {
+      cmp = 'release          = -\n정의서 버전      = ' + S.ver + '\nTreeInfo.matches = -';
+    }
+    document.getElementById('demo-caps').innerHTML =
+      'layout           = UBUNTU_LIVE_SERVER\n꺼낼 파일        = ' + ALL3.join(', ') + '\n필요 공간        = ' + MEMBER_SPACE_MIB +
+      ' MiB (ISO 크기와 무관)\n추출 요청        = ' + (e.requests || 0) + ' 회\n' + cmp;
+
+    document.getElementById('demo-requests').innerHTML =
+      demoBtn('token', '토큰 발급(c-4 역할)', b.token) + demoBtn('gKernel', 'GET tree/casper/vmlinuz', b.request) +
+      demoBtn('gInitrd', 'GET tree/casper/initrd', b.request) + demoBtn('gIso', 'GET install.iso', b.request) +
+      demoBtn('gRange', 'GET install.iso Range: bytes=0-1048575', b.request) + demoBtn('gInfo', 'GET tree/.disk/info', b.request) +
+      demoBtn('gDotdot', 'GET tree/../app.jar', b.request) + demoBtn('revoke', '토큰 회수 후 GET', b.request);
+    const head = S.token ? ('토큰: 게스트 ' + S.token.guest + ', ' + S.token.root + (S.token.revoked ? ' (회수됨)' : '')) : '토큰 없음';
+    document.getElementById('demo-console').textContent = head + (S.console.length ? '\n' + S.console.join('\n') : '');
+
+    const bn = document.getElementById('demo-banner');
+    if (S.banner) bn.innerHTML = '<b>시나리오 ' + S.scn + ' ' + S.banner.title + '</b> : 지금 상태 ' + S.banner.now +
+      ' → 누른 순서 ' + S.banner.press + ' → 보이는 것 ' + S.banner.see + '.';
+    else bn.innerHTML = '<b>직접 조작</b> : 지금 상태 ① 과 정의서 24.04 를 골랐다 → 게스트 A 확보와 추출 끝을 누르면 → 준비됨과 파일 셋이 보인다. 시나리오 버튼은 처음부터 다시 시작해 순서대로 누른다.';
+    document.getElementById('demo-log').textContent = '조작 기록\n' + (S.log.length ? S.log.join('\n') : '(아직 없음)');
+  }
+
+  S = freshState();
+  demoRender();   // 파일 끝에서 1회 호출
+</script>
+</body>
+</html>

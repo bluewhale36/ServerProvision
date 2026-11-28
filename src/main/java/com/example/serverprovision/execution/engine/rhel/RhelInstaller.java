@@ -20,6 +20,7 @@ import com.example.serverprovision.execution.installtree.service.InstallTreeMana
 import com.example.serverprovision.execution.repository.GuestServerDetailRepository;
 import com.example.serverprovision.execution.installtree.vo.InstallTree;
 import com.example.serverprovision.execution.installtree.vo.TreeAcquisition;
+import com.example.serverprovision.execution.installtree.enums.InstallMediaLayout;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -110,7 +111,7 @@ public class RhelInstaller implements OsFamilyInstaller {
             return IpxeScripts.shortageHold(DISK_NOT_CONFIDENT_WIRE, reentryUrl);
         }
         RhelResolution.Ready ready = r.resolution().ready().orElseThrow();   // 준비도가 막히지 않았으면 해석이 성립했다
-        return switch (treeManager.acquire(ready.media().isoId(), id)) {
+        return switch (treeManager.acquire(ready.media().isoId(), id, InstallMediaLayout.RHEL_TREE)) {
             case TreeAcquisition.Preparing preparing -> IpxeScripts.installTreePreparing(reentryUrl);
             case TreeAcquisition.Failed failed ->
                     failBeforeServing(server, progress, new RhelInstallFailure.TreeUnavailable(failed.reason()), reentryUrl, now);

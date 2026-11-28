@@ -48,15 +48,15 @@ public class InstallTreeConfig {
     @PostConstruct
     void validate() {
         if (properties.treeRootPath().isEmpty()) {
-            log.info("[install-tree] provision.rhel-install.tree-root 미설정 — RHEL 설치 작업 트리 꺼짐");
+            log.info("[install-tree] provision.install-tree.root 미설정 — 설치 작업 트리 꺼짐(RHEL · Ubuntu 설치 불가)");
             return;
         }
         Path treeRoot = properties.treeRootPath().get();
         for (Map.Entry<String, String> entry : otherRoots.entrySet()) {
             for (Path other : split(entry.getValue())) {
                 if (treeRoot.startsWith(other) || other.startsWith(treeRoot)) {
-                    throw new IllegalStateException("provision.rhel-install.tree-root(" + treeRoot + ") 가 "
-                            + entry.getKey() + "(" + other + ") 와 같거나 서로 포함한다. 전용 디렉터리를 지정해야 한다 (RHEL_INSTALL_TREE_ROOT).");
+                    throw new IllegalStateException("provision.install-tree.root(" + treeRoot + ") 가 "
+                            + entry.getKey() + "(" + other + ") 와 같거나 서로 포함한다. 전용 디렉터리를 지정해야 한다 (INSTALL_TREE_ROOT).");
                 }
             }
         }

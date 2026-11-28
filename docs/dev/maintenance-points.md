@@ -17,8 +17,8 @@
 | `RhelRelease.supportsRootSshFlag` (`ROOT_SSH_FLAG_SINCE`) | 새 메이저의 `rootpw --allow-ssh` 사용 여부를 실제 ISO 로 확인 | RhelReleaseTest | E4-1-b-2 |
 | DB `os_metadata.os_name`, `subprogram.os_name` ENUM | 새 상수 이름을 ENUM 에 더하는 DDL(Java 선언 순서와 같게). 배포 대기 원장에 등록한다 | 샌드박스 SHOW CREATE TABLE | S23-1 |
 | `TreeInfo` | `.treeinfo` 의 `[release]` name 이 "Rocky Linux" 그대로인지, version 형식이 같은지 확인. 다르면 대조 규칙 수정 | TreeInfoTest, CompsExtractionServiceTest | E4-1-b-2 |
-| `InstallTree.KERNEL`, `InstallTree.INITRD` | `images/pxeboot/vmlinuz`, `images/pxeboot/initrd.img` 배치 확인 | InstallTreeTest, InstallTreeInspectorTest | E4-1-b-1 |
-| `InstallTreeInspector.BASEOS_REPOMD`, `TreeInfo.DEFAULT_STAGE2` | 필수 파일 `BaseOS/repodata/repomd.xml`, 기본 stage2 `images/install.img` 배치 확인 | InstallTreeInspectorTest(견본 FakeRockyTree) | E4-1-b-1 |
+| `InstallMediaLayout.RHEL_TREE` 의 커널, initrd 경로 | `images/pxeboot/vmlinuz`, `images/pxeboot/initrd.img` 배치 확인 | InstallMediaLayoutTest, RhelTreeCheckTest | E4-1-b-1 |
+| `RhelTreeCheck.BASEOS_REPOMD`, `TreeInfo.DEFAULT_STAGE2` | 필수 파일 `BaseOS/repodata/repomd.xml`, 기본 stage2 `images/install.img` 배치 확인 | RhelTreeCheckTest(견본 FakeRockyTree) | E4-1-b-1 |
 | `RHELCompsExtractor` 의 `LOCAL_SKIP_DIRS`, 탐색 깊이 3 | comps 를 담은 repodata 가 깊이 3 안, 제외 폴더 밖에 있는지 확인 | 없음 | A1 |
 | `JpaSettingQueryService.findDefaultPartitions` | 고정 프리셋 유지. 설치 프로그램이 `/boot`, `/boot/efi` 최소 크기를 올렸는지만 확인 | 없음 | U2 |
 | `src/main/resources/kickstart/spv-report.sh` | 첫 부팅 보고 스크립트가 쓰는 명령(`curl` 7.55 이상의 `-H @파일`, `findmnt`, `lsblk`, `udevadm`, `systemctl`, `restorecon`, `sed`, `tr`)이 새 메이저의 최소 설치에 있는지, 유닛 `Type=simple` 과 `/etc/issue.d` 배너를 그대로 지원하는지 확인 | SpvReportScriptTest(가짜 명령), CP5 rockylinux 컨테이너, 실기 | E4-1-b-5 |
@@ -33,6 +33,15 @@
 | `RhelRelease` | 같은 메이저 상수의 `osNames` 에 새 상수를 더한다 | RhelReleaseTest | S23-1 |
 | DB `os_metadata.os_name`, `subprogram.os_name` ENUM | 새 상수 이름을 ENUM 에 더하는 DDL | 샌드박스 SHOW CREATE TABLE | S23-1 |
 | 실제 ISO 확인 | 트리 배치(`images/pxeboot`, `BaseOS/repodata`), comps 위치가 Rocky 와 같은지 | CP5 실 ISO | S23-1 |
+
+## 새 Ubuntu LTS 출시
+
+운영자는 ISO 를 화면에서 등록하지만, Ubuntu 설치는 ISO 안의 커널과 initrd 위치, `.disk/info` 첫 줄로 매체를 판별하므로 새 LTS 의 ISO 배치가 같은지 확인해야 한다. OS 상수(22.04, 24.04)는 E4-1-c-2 가 더한다.
+
+| 클래스와 설정 | 고칠 내용 | 확인할 테스트 | 생긴 단계 |
+|---|---|---|---|
+| `InstallMediaLayout.UBUNTU_LIVE_SERVER` 의 커널, initrd 경로 | 새 ISO 의 `casper/vmlinuz`, `casper/initrd` 배치 확인. 다르면 상수의 경로를 고친다 | InstallMediaLayoutTest, CP5 실제 ISO | E4-1-c-1 |
+| `UbuntuDiskInfo` | `.disk/info` 첫 줄이 `Ubuntu-Server <버전> ... amd64` 꼴인지 확인. 다르면 패턴을 고친다(맞지 않으면 설치가 "Ubuntu Server amd64 설치 ISO 인지 확인해야 합니다" 로 멈춘다) | UbuntuDiskInfoTest | E4-1-c-1 |
 
 ## 새 Windows Server 버전 또는 에디션
 

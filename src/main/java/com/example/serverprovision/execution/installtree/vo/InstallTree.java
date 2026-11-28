@@ -8,15 +8,14 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * 게시된 설치 작업 트리 하나. b-4 의 서빙은 요청 경로를 {@link #resolve(String)} 로만 파일에 대응시킨다.
+ * 게시된 설치 작업 트리 하나. 서빙은 요청 경로를 {@link #resolve(String)} 로만 파일에 대응시킨다.
+ * 커널 · initrd 의 위치는 계열마다 달라 {@code InstallMediaLayout} 이 가진다.
  *
  * @param root    트리 최상위(정규화 · 절대경로)
- * @param release {@code .treeinfo} 의 배포판 · 버전
+ * @param release 꺼낸 매체가 밝히는 배포판 · 버전
+ * @param source  등록된 ISO 경로. 파일이면 Ubuntu 설치가 이 파일을 그대로 서빙하고, 디렉터리 등록이면 root 와 같다
  */
-public record InstallTree(Path root, TreeRelease release) {
-
-    public static final String KERNEL = "images/pxeboot/vmlinuz";
-    public static final String INITRD = "images/pxeboot/initrd.img";
+public record InstallTree(Path root, TreeRelease release, Path source) {
 
     /** 숨김 파일 중 설치기가 읽는 트리 설명서만 내준다. 디렉터리로 등록된 ISO 의 in-tree 마커 등은 거절된다. */
     private static final Set<String> SERVED_DOT_FILES = Set.of(".treeinfo", ".discinfo");
@@ -24,15 +23,9 @@ public record InstallTree(Path root, TreeRelease release) {
     public InstallTree {
         Objects.requireNonNull(root, "root");
         Objects.requireNonNull(release, "release");
+        Objects.requireNonNull(source, "source");
         root = root.toAbsolutePath().normalize();
-    }
-
-    public Path kernelPath() {
-        return root.resolve(KERNEL);
-    }
-
-    public Path initrdPath() {
-        return root.resolve(INITRD);
+        source = source.toAbsolutePath().normalize();
     }
 
     /**
